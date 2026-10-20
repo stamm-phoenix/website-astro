@@ -5,7 +5,7 @@ export type ChangelogChange = string | { text: string; href: string };
 
 /** One entry of the changelog of the Leitendenbereich, written in `changelogEntries.ts`. */
 export interface ChangelogEntry {
-  /** Date plus short name, see `api/lib/changelog-id.ts`. */
+  /** Date, number of the day and short name, see `api/lib/changelog-id.ts`. */
   id: string;
   /** Day of the change, `YYYY-MM-DD`; the same as the start of the `id`. */
   date: string;
@@ -35,12 +35,19 @@ export function changeText(change: ChangelogChange): string {
   return typeof change === 'string' ? change : change.text;
 }
 
-/** Problems of an entry list, for the test: bad IDs, wrong order, empty texts. */
-export function changelogProblems(entries: readonly ChangelogEntry[]): string[] {
+/**
+ * Problems of an entry list, for the test: bad IDs, wrong order, empty texts, and dates after
+ * `today` (`YYYY-MM-DD`, Berlin), which an entry written from memory easily gets wrong.
+ */
+export function changelogProblems(
+  entries: readonly ChangelogEntry[],
+  today: string = '9999-12-31'
+): string[] {
   const problems: string[] = [];
   entries.forEach((entry, index) => {
     if (!isChangelogId(entry.id)) problems.push(`${entry.id}: ungültige ID`);
     if (!entry.id.startsWith(entry.date)) problems.push(`${entry.id}: Datum passt nicht zur ID`);
+    if (entry.date > today) problems.push(`${entry.id}: Datum liegt nach heute`);
     if (!entry.title.trim()) problems.push(`${entry.id}: Titel fehlt`);
     if (entry.changes.length === 0 || entry.changes.some((change) => !changeText(change).trim())) {
       problems.push(`${entry.id}: leere Änderung`);

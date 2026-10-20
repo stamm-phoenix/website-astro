@@ -12,7 +12,7 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-10-20-neuigkeiten',
+    id: '2026-10-20-04-neuigkeiten',
     date: '2026-10-20',
     title: 'Neuigkeiten im Leitendenbereich',
     changes: [
@@ -23,7 +23,45 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-19-wischen-und-beitraege',
+    id: '2026-10-20-03-eingaben-nach-neuer-anmeldung',
+    date: '2026-10-20',
+    title: 'Eingaben bleiben nach einer neuen Anmeldung erhalten',
+    changes: [
+      'In der iPhone-App öffnet „Neu anmelden“ keinen neuen Tab mehr, sondern meldet dich im selben Fenster neu an.',
+      'Läuft deine Anmeldung ab, während ein Bearbeiten-Fenster offen ist, kommen deine Eingaben nach der neuen Anmeldung zurück. Das Fenster öffnet sich wieder, und die Felder sind ausgefüllt, auch Auswahlfelder, Zuständige bei Aufgaben und Wünsche von Helfenden.',
+      {
+        text: 'Bei einem Beleg sagt die Seite vor der neuen Anmeldung, dass das gewählte Foto dabei verloren gehen kann.',
+        href: '/leitendenbereich/belege',
+      },
+    ],
+  },
+  {
+    id: '2026-10-20-02-anwesenheit-entschuldigt-und-ausgefallen',
+    date: '2026-10-20',
+    title: 'Anwesenheit mit entschuldigten Kindern und ausgefallenen Gruppenstunden',
+    changes: [
+      {
+        text: 'In der Anwesenheit wählst du für jedes Kind „Anwesend“, „Entschuldigt“ oder „Abwesend“. Die Auswahl wird sofort gespeichert.',
+        href: '/leitendenbereich/anwesenheit',
+      },
+      'Fällt eine Gruppenstunde aus, markierst du sie als „Ausgefallen“. Dabei werden die Einträge der Kinder und Gäste gelöscht, und die Seite fragt vorher nach, wenn schon etwas eingetragen ist.',
+      'Der Verlauf zeigt die Kinder im Schnitt pro Monat als Säulendiagramm und als Tabelle, dazu Entschuldigte, Gäste und ausgefallene Gruppenstunden. Ausgefallene Gruppenstunden zählen nicht in den Schnitt.',
+      'Hat sich die Anwesenheit geändert, seit du die Seite geladen hast, lässt sich die Gruppenstunde nicht ausfallen lassen oder löschen. Die Seite sagt das, und du lädst die aktuelle Fassung.',
+    ],
+  },
+  {
+    id: '2026-10-20-01-leitendenbereich-als-app',
+    date: '2026-10-20',
+    title: 'Der Leitendenbereich als App auf dem Handy',
+    changes: [
+      'Du kannst den Leitendenbereich auf den Startbildschirm legen. Er öffnet sich dann in einem eigenen Fenster ohne Adressleiste, mit dem Phoenix-Symbol und dem Namen „Leitende“.',
+      'Auf Android wählst du im Chrome-Menü „App installieren“, auf dem iPhone in Safari „Teilen“ und „Zum Home-Bildschirm“.',
+      'Die App meldet dich an und führt dich danach zur Übersicht. Die Leisten sind in DPSG-Blau, und die Statusleiste folgt dem hellen oder dunklen Design.',
+      'Ohne Verbindung sagt eine offene Seite, dass sie geöffnet bleiben soll. Deine Eingaben bleiben stehen, und Speichern geht erst wieder mit Verbindung.',
+    ],
+  },
+  {
+    id: '2026-10-19-01-wischen-und-beitraege',
     date: '2026-10-19',
     title: 'Wischen, Beiträge und eine neue Seitenleiste',
     changes: [
@@ -40,7 +78,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-18-navigation-und-entwuerfe',
+    id: '2026-10-18-01-navigation-und-entwuerfe',
     date: '2026-10-18',
     title: 'Neue Leiste, Berliner Zeit und sicherere Entwürfe',
     changes: [
@@ -59,7 +97,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-17-textfelder',
+    id: '2026-10-17-01-textfelder',
     date: '2026-10-17',
     title: 'Ein Editor für alle Textfelder',
     changes: [
@@ -76,7 +114,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-16-fotos-und-nikolaus',
+    id: '2026-10-16-01-fotos-und-nikolaus',
     date: '2026-10-16',
     title: 'Fotos, Protokoll-Versand und ein klarerer Nikolausdienst',
     changes: [
@@ -108,7 +146,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-15-hilfe-und-ablauf',
+    id: '2026-10-15-01-hilfe-und-ablauf',
     date: '2026-10-15',
     title: 'Mehr Hilfe bei Fehlern und weniger verlorene Eingaben',
     changes: [
@@ -132,7 +170,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-14-startseite-und-protokolle',
+    id: '2026-10-14-01-startseite-und-protokolle',
     date: '2026-10-14',
     title: 'Neue Startseite, Protokoll-Editor und Aufgaben im Menü',
     changes: [
@@ -149,7 +187,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-12-aufgaben',
+    id: '2026-10-12-01-aufgaben',
     date: '2026-10-12',
     title: 'Aufgaben für die Leitendenrunde',
     changes: [
@@ -168,7 +206,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-11-werkzeuge',
+    id: '2026-10-11-01-werkzeuge',
     date: '2026-10-11',
     title: 'Eigenbeleg, QR-Code und KJR-Fristen',
     changes: [
@@ -192,7 +230,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-08-anwesenheit-und-fahrten',
+    id: '2026-10-08-01-anwesenheit-und-fahrten',
     date: '2026-10-08',
     title: 'Anwesenheit und Fahrten planen',
     changes: [
@@ -209,7 +247,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-07-protokolle-und-steuerung',
+    id: '2026-10-07-01-protokolle-und-steuerung',
     date: '2026-10-07',
     title: 'Protokolle und Steuerung des Nikolausdienstes',
     changes: [
@@ -226,7 +264,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-06-design-und-kontakt',
+    id: '2026-10-06-01-design-und-kontakt',
     date: '2026-10-06',
     title: 'Helles und dunkles Design, Kontaktformular',
     changes: [
@@ -238,7 +276,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-05-abrechnung-und-kalender',
+    id: '2026-10-05-01-abrechnung-und-kalender',
     date: '2026-10-05',
     title: 'Abrechnung und Kalender mit Monatsansicht',
     changes: [
@@ -253,7 +291,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-02-belege',
+    id: '2026-10-02-01-belege',
     date: '2026-10-02',
     title: 'Kassenbelege einreichen',
     changes: [
@@ -265,7 +303,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-10-01-sammelbestellungen',
+    id: '2026-10-01-01-sammelbestellungen',
     date: '2026-10-01',
     title: 'Sammelbestellungen',
     changes: [
@@ -278,7 +316,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-09-30-fragen-und-antworten',
+    id: '2026-09-30-01-fragen-und-antworten',
     date: '2026-09-30',
     title: 'Fragen und Antworten bearbeiten',
     changes: [
@@ -291,7 +329,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-09-29-blog-und-instagram',
+    id: '2026-09-29-01-blog-und-instagram',
     date: '2026-09-29',
     title: 'Blog und Instagram auf der Startseite',
     changes: [
@@ -305,7 +343,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-09-28-nikolaus-planen',
+    id: '2026-09-28-01-nikolaus-planen',
     date: '2026-09-28',
     title: 'Nikolausdienst planen und abfahren',
     changes: [
@@ -326,7 +364,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-09-25-leitendenbereich',
+    id: '2026-09-25-01-leitendenbereich',
     date: '2026-09-25',
     title: 'Der Leitendenbereich startet',
     changes: [

@@ -50,7 +50,7 @@ test('the seen changelog rejects anonymous and non-staff identities before the d
   for (const principal of [null, { ...PRINCIPAL, identityProvider: 'github' }]) {
     for (const method of ['GET', 'PUT']) {
       const response = await StaffChangelog(
-        request(method, { lastSeenId: '2026-10-20-neuigkeiten' }, principal),
+        request(method, { lastSeenId: '2026-10-20-04-neuigkeiten' }, principal),
         context
       );
       assert.equal(response.status, 401);
@@ -64,7 +64,8 @@ test('only IDs of changelog entries are accepted', async (t) => {
     '',
     'neuigkeiten',
     '2026-10-20',
-    '2026-10-20-Neu',
+    '2026-10-20-neuigkeiten',
+    '2026-10-20-04-Neu',
     42,
     null,
     'x'.repeat(90),
@@ -79,10 +80,10 @@ dbTest('the newest seen entry is kept per account and never goes back', async (t
   const other = { ...PRINCIPAL, userId: 'other-staff', userDetails: 'other@example.test' };
   assert.equal(await load(context), null);
 
-  assert.equal(await save(context, '2026-10-14-protokolle'), '2026-10-14-protokolle');
-  assert.equal(await save(context, '2026-10-20-neuigkeiten'), '2026-10-20-neuigkeiten');
+  assert.equal(await save(context, '2026-10-14-01-protokolle'), '2026-10-14-01-protokolle');
+  assert.equal(await save(context, '2026-10-20-04-neuigkeiten'), '2026-10-20-04-neuigkeiten');
   // A device with an old page reports an older entry: the newer one stays
-  assert.equal(await save(context, '2026-10-05-abrechnung'), '2026-10-20-neuigkeiten');
-  assert.equal(await load(context), '2026-10-20-neuigkeiten');
+  assert.equal(await save(context, '2026-10-05-01-abrechnung'), '2026-10-20-04-neuigkeiten');
+  assert.equal(await load(context), '2026-10-20-04-neuigkeiten');
   assert.equal(await load(context, other), null);
 });

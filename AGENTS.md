@@ -253,12 +253,16 @@ Public content (Gruppenstunden, Vorstand, Aktionen, Blog incl. `/blog/<id>/` pag
 
 ## Changelog
 
-The Leitendenbereich shows its changes under „Neuigkeiten“ (`web/src/pages/leitendenbereich/neuigkeiten.astro`). The entries are written in `web/src/lib/changelogEntries.ts`, newest first. Keep this changelog up to date: every PR that changes what leaders see or can do in the Leitendenbereich adds or extends an entry in the same PR, and a PR without one is not finished. That covers new modules, changed flows, fixed behavior leaders noticed and removed features. Pure refactorings, tests, CI and documentation need none.
+The Leitendenbereich shows its changes under „Neuigkeiten“ (`web/src/pages/leitendenbereich/neuigkeiten.astro`). The entries are written in `web/src/lib/changelogEntries.ts`, newest first. Keep this changelog up to date: every PR that changes what leaders see or can do in the Leitendenbereich adds or extends an entry in the same PR, and a PR without one is not finished. Before you commit, ask yourself: would a leader notice this change or have to do something differently? If yes, it needs a sentence. That covers new modules and pages, changed flows, wording or layout that leaders see, behavior fixes they noticed, and removed features. Pure refactorings, tests, CI, dependency updates and documentation need none; say in the PR description that none is needed.
 
-- An entry has an `id` (day plus short name, `2026-10-20-neuigkeiten`), the `date`, a short `title` and `changes`, a list of whole German sentences. Add to the entry of today if there is one, otherwise put a new one on top. The IDs must stay sorted from newest to oldest; `test/changelog.test.ts` checks that.
-- Link the page when a sentence is about something specific, such as a new module or page: write the change as `{ text, href }` with the path of a page registered in `staffModules.ts`. The page shows „<Name> öffnen“ after the sentence; `test/changelog.test.ts` fails for an unregistered path. General sentences stay plain strings.
-- Write for leaders, not for developers: plain German in the „du“ form, no commit messages, no IT terms, no file or function names. Say what a leader can do now or what works differently.
-- The new entry shows a bubble with the number of unread entries in the menu and on the start page. Each person's newest seen ID is stored in `organisation.staff_changelog_seen` (`api/lib/staff-changelog.ts`, `/api/intern/neuigkeiten`). Never rename the ID of an existing entry and never add an entry with an ID older than the newest one: people who already read the newest ID would not get it as unread.
+- **Entry:** an `id`, the `date`, a short `title` and `changes`, a list of whole German sentences. Add to an entry of the same topic from today if there is one, otherwise put a new entry on top.
+- **ID:** `YYYY-MM-DD-NN-slug`: the day, a two-digit number that counts the entries of that day (`01` is the first), and a short slug, e.g. `2026-10-20-04-neuigkeiten`. Take today's date in Berlin (`TZ=Europe/Berlin date +%F`), never a guessed one. The next number of a day is the highest one in the file plus one. IDs compare as text, so the newest entry has the largest ID and the list stays sorted from newest to oldest. Never rename the ID of an existing entry and never add an entry whose ID is smaller than the newest one: people who already read the newest entry would not get yours as unread.
+- **After a rebase or conflict:** when another PR added entries meanwhile, keep both. Put yours on top and give it the next free number of its day. A conflict at the top of `changelogEntries.ts` is the normal case, not a reason to drop your entry.
+- **Checked by `test/changelog.test.ts`:** valid IDs, strictly descending order, no empty text, no date after today, and every link on a registered page. Run `bun test test/changelog.test.ts` in `web/` before you push.
+- **Links:** link the page when a sentence is about something specific, such as a new module or page: write the change as `{ text, href }` with the path of a page registered in `staffModules.ts`. The page shows „<Name> öffnen“ after the sentence. General sentences stay plain strings.
+- **Wording:** write for leaders, not for developers: plain German in the „du“ form, no commit messages, no IT terms, no file or function names. Say what a leader can do now or what works differently. Group related changes of one PR into one entry; do not write one entry per commit.
+- **Missing earlier changes:** if you notice merged changes that leaders would notice and that have no entry, add them in your PR under the date they were merged.
+- **Unread bubble:** the newest entry shows a bubble with the number of unread entries in the menu and on the start page. Each person's newest seen ID is stored in `organisation.staff_changelog_seen` (`api/lib/staff-changelog.ts`, `/api/intern/neuigkeiten`).
 
 ## Privacy
 
@@ -295,12 +299,12 @@ The site needs no cookie banner and must stay that way. Do not add analytics, tr
 4. For responsive changes, check the relevant viewport(s); otherwise use a representative one
 5. For UI changes, check accessibility (semantic HTML, ARIA attributes)
 6. For changes in the Leitendenbereich, check them against "Usability for Leitende", including the walk-through on a phone viewport
-7. For changes leaders notice in the Leitendenbereich, add or extend the entry in `web/src/lib/changelogEntries.ts` (see "Changelog")
+7. For changes leaders notice in the Leitendenbereich, add or extend the entry in `web/src/lib/changelogEntries.ts` and run `bun test test/changelog.test.ts` (see "Changelog"). Check this again after every rebase onto `main`
 
 ## Git History
 
 Keep the history as linear as possible. Merge commits are allowed, but rebasing is the default whenever it works.
 
-- To bring `main` into a PR branch (e.g. after a conflict or to pick up a fix), rebase the branch onto `origin/main` and push with `git push --force-with-lease`, instead of merging `main` into it.
+- To bring `main` into a PR branch (e.g. after a conflict or to pick up a fix), rebase the branch onto `origin/main` and push with `git push --force-with-lease`, instead of merging `main` into it. After the rebase, check that your changelog entry is still on top with the next free number, and that your migration still has the next free number.
 - Merge PRs with "Rebase and merge" where possible.
 - Fall back to a merge commit only when a rebase is not reasonable, e.g. when others have based work on the branch or resolving the same conflict across many commits would be error-prone.

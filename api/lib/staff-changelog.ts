@@ -3,7 +3,7 @@ import { getDb, inTransaction, lockResource } from './db';
 
 /**
  * The changelog entries a person has seen (`organisation.staff_changelog_seen`, migration
- * `0034_staff_changelog_seen.sql`): the ID of the newest one, the same on every device. Stored per
+ * `0035_staff_changelog_seen.sql`): the ID of the newest one, the same on every device. Stored per
  * `userId` of the Static Web Apps principal, with the login for reference.
  */
 
