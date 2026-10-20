@@ -23,6 +23,7 @@
   import AufgabenTaskDialog from './AufgabenTaskDialog.svelte';
   import AufgabenAktionen from './AufgabenAktionen.svelte';
   import ConfirmDialog from './ui/ConfirmDialog.svelte';
+  import InfoHint from './ui/InfoHint.svelte';
   let sourceId = $state('');
   let rejectTarget = $state<Task | null>(null);
   let rejectFocus = () => {};
@@ -93,11 +94,10 @@
       await loadTaskProtocols();
       if (sequence !== recognitionRequest) return;
       recognitionMessage = result.count
-        ? `${result.count} ${result.count === 1 ? 'neuer Vorschlag' : 'neue Vorschläge'} erkannt. Bitte Fundstellen, Zuständigkeit und Fristen prüfen.`
+        ? `${result.count} ${result.count === 1 ? 'neuer Vorschlag' : 'neue Vorschläge'} erkannt.`
         : 'Keine neuen Aufgabenvorschläge gefunden.';
       if (result.assignmentUnavailable)
-        recognitionMessage +=
-          ' Die Personenzuordnung ist nicht verfügbar; bitte Zuständigkeiten prüfen.';
+        recognitionMessage += ' Personen konnten nicht automatisch zugeordnet werden.';
     } catch (e) {
       if (sequence === recognitionRequest) recognitionError = taskProblem(e);
       await loadTaskProtocols();
@@ -150,41 +150,40 @@
       data-focus-fallback
       bind:this={focusHeading}
       tabindex="-1"
-      class="text-lg font-semibold"
+      class="inline text-lg font-semibold"
     >
       Aufgaben aus Protokollen
     </h2>
-    <p class="my-2 text-sm text-neutral-700">
-      Reviewende können freigegebene oder archivierte Protokolle auswerten. Die KI schlägt nur vor;
-      ihr prüft und übernehmt die Aufgaben einzeln.
-    </p>
+    <InfoHint
+      label="Aufgaben aus Protokollen"
+      text="Nur freigegebene oder archivierte Protokolle. Die KI schlägt vor, ihr entscheidet."
+      class="ml-1"
+    />
     <StatusNotice kind="error" message={aufgabenStore.protocolError} />
     {#if aufgabenStore.protocolError}<ActionButton onclick={loadTaskProtocols}
         >Protokolle neu laden</ActionButton
       >{/if}
-    <FormField id="task-protocol" label="Protokoll"
-      >{#snippet children(attrs)}
-        <select {...attrs} class="form-input" bind:value={sourceId} onchange={clearRecognition}
-          ><option value="">Bitte auswählen</option
-          >{#each eligible as protocol (protocol.id)}<option value={protocol.id}
-              >{protocolLabel(protocol.date)} · {protocol.title}</option
-            >{/each}</select
-        >
-      {/snippet}</FormField
-    >
-    {#if !data.extractionConfigured}<p class="my-2 text-sm">
-        Die KI-Erkennung ist nicht eingerichtet. Aufgaben können manuell angelegt werden.
+    {#if data.extractionConfigured}
+      <FormField id="task-protocol" label="Protokoll" class="mt-3"
+        >{#snippet children(attrs)}
+          <select {...attrs} class="form-input" bind:value={sourceId} onchange={clearRecognition}
+            ><option value="">Protokoll wählen …</option
+            >{#each eligible as protocol (protocol.id)}<option value={protocol.id}
+                >{protocolLabel(protocol.date)} · {protocol.title}</option
+              >{/each}</select
+          >
+        {/snippet}</FormField
+      >
+      <ActionButton
+        type="button"
+        class="mt-3"
+        onclick={recognize}
+        disabled={busy || !source}
+        aria-busy={busy}>{busy ? 'Wird verarbeitet …' : 'Aufgaben erkennen'}</ActionButton
+      >
+    {:else}<p class="mt-2 text-sm text-neutral-700">
+        Die automatische Erkennung ist nicht eingerichtet.
       </p>{/if}
-    {#if !source && data.extractionConfigured}<p class="mt-2 text-sm text-neutral-700">
-        Wähle zuerst ein Protokoll.
-      </p>{/if}
-    <ActionButton
-      type="button"
-      class="mt-3"
-      onclick={recognize}
-      disabled={busy || !source || !data?.extractionConfigured}
-      aria-busy={busy}>{busy ? 'Wird verarbeitet …' : 'Aufgaben erkennen'}</ActionButton
-    >
     <div role="status" aria-live="polite" aria-label="Erkennungsergebnis">
       {#if recognitionMessage || recognitionError}
         <div
@@ -204,10 +203,6 @@
     </div>
   </section>
   <AufgabenFilter bind:projectFilter bind:ownOnly onchange={clearRecognition} />
-  <p class="mt-4 text-sm text-neutral-700">
-    {visible.length}
-    {visible.length === 1 ? 'Vorschlag für diese Auswahl' : 'Vorschläge für diese Auswahl'}
-  </p>
   {#if recognizing && !visible.length}<p role="status" class="my-3">
       Das Protokoll wird ausgewertet …
     </p>{:else}
@@ -253,5 +248,5 @@
     if (!actions.state.error) await closeReject();
   }}
 >
-  <p>„{rejectTarget?.title}“ ablehnen? Dieser Vorschlag wird nicht als Aufgabe übernommen.</p>
+  <p>Der Vorschlag wird nicht als Aufgabe übernommen.</p>
 </ConfirmDialog>

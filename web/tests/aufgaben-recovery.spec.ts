@@ -100,7 +100,7 @@ test('permission-limited directory is visible as configuration error', async ({ 
   await page.goto('/leitendenbereich/aufgaben');
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   await expect(
-    page.getByText('Die Personenliste ist nicht vollständig eingerichtet.', { exact: false })
+    page.getByText('Personensuche gerade nicht verfügbar', { exact: false })
   ).toBeVisible();
 });
 

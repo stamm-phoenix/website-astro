@@ -164,7 +164,7 @@ test('task views, status filters and administration pages are separate and proto
     .click();
   await expect(page).toHaveURL(/\/aufgaben\/vorschlaege$/);
   const protocol = page.getByLabel('Protokoll', { exact: true });
-  await expect(page.getByText('Wähle zuerst ein Protokoll.', { exact: true })).toBeVisible();
+  await expect(protocol.locator('option').nth(0)).toHaveText('Protokoll wählen …');
   await expect(page.getByRole('button', { name: 'Aufgaben erkennen', exact: true })).toBeDisabled();
   await expect(protocol.locator('option').nth(1)).toHaveText('12. Okt. 2026 · Leitendenrunde neu');
   await expect(protocol.locator('option').nth(2)).toHaveText('1. Sept. 2026 · Leitendenrunde alt');
@@ -180,7 +180,7 @@ test('task views, status filters and administration pages are separate and proto
     await page.locator('body').evaluate((element) => getComputedStyle(element, '::before').display)
   ).toBe('block');
   await expect(
-    page.getByText('Wähle ein Protokoll und tippe auf Aufgaben erkennen.', { exact: true })
+    page.getByText('Keine Vorschläge für diese Auswahl.', { exact: true })
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
@@ -263,9 +263,7 @@ test('new project ideas are reviewed with the task and created only with explici
   await expect(row).toContainText('Projektvorschlag: Winteraktion');
   await row.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   const editor = page.getByRole('dialog', { name: 'Aufgabenvorschlag prüfen', exact: true });
-  const consent = editor.getByRole('checkbox', {
-    name: 'Neues Projekt anlegen und Aufgabe zuordnen',
-  });
+  const consent = editor.getByRole('checkbox', { name: 'Neues Projekt „Winteraktion“ anlegen' });
   await expect(consent).not.toBeChecked();
   await consent.check();
   await editor.getByLabel('Name des neuen Projekts', { exact: true }).fill(title);
@@ -301,8 +299,6 @@ test('new project ideas are reviewed with the task and created only with explici
   await expect(row).toContainText(title);
   await row.getByRole('heading').getByRole('button').click();
   await expect(
-    page
-      .getByRole('dialog')
-      .getByRole('checkbox', { name: 'Neues Projekt anlegen und Aufgabe zuordnen' })
+    page.getByRole('dialog').getByRole('checkbox', { name: /^Neues Projekt/ })
   ).toHaveCount(0);
 });

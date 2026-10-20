@@ -48,8 +48,7 @@
   });
   async function assign(task: Task): Promise<void> {
     if (task.assignmentResolution === 'declined') {
-      assignmentMessage =
-        'Die automatische Zuordnung hat keine eindeutige Person gefunden. Bitte wähle bei Bedarf selbst eine Person.';
+      assignmentMessage = 'Keine passende Person erkannt.';
       return;
     }
     if (!task.assignee || task.assignees?.some((person) => person.login)) return;
@@ -73,15 +72,14 @@
           ];
           assignmentMessage = null;
         } else
-          assignmentMessage = `Die Zuständigkeit passt zu ${taskAssigneeNames({ assignee: result.assignee }, users)}. Deine Eingabe bleibt erhalten.`;
+          assignmentMessage = `Die Zuständigkeit passt zu ${taskAssigneeNames({ assignee: result.assignee }, users)}.`;
       } else
         assignmentMessage = result.unavailable
-          ? 'Die Personenzuordnung ist nicht verfügbar. Bitte die Zuständigkeit manuell prüfen.'
-          : 'Der Name lässt sich keiner Person eindeutig zuordnen. Bitte die Zuständigkeit prüfen.';
+          ? 'Die Person konnte nicht automatisch erkannt werden.'
+          : 'Keine passende Person erkannt.';
     } catch {
       if (sequence === assignmentRequest)
-        assignmentMessage =
-          'Die Personenzuordnung ist nicht verfügbar. Bitte die Zuständigkeit manuell prüfen.';
+        assignmentMessage = 'Die Person konnte nicht automatisch erkannt werden.';
     } finally {
       if (sequence === assignmentRequest) assignmentLoading = false;
     }
@@ -161,10 +159,6 @@
   submitLabel={target?.state === 'vorschlag' ? 'Annehmen' : 'Speichern'}
 >
   <div class="space-y-4">
-    {#if target?.state === 'vorschlag'}<p class="text-sm text-neutral-700">
-        Mit „Annehmen“ wird der Vorschlag zu einer offenen Aufgabe. Nur Zuständige mit hinterlegter
-        Stammes-E-Mail-Adresse (@stamm-phoenix.de) erhalten bei einer Frist Erinnerungen.
-      </p>{/if}
     <FormField name="title" id="task-title" label="Titel" error={fields.title}
       >{#snippet children(attrs)}<input
           {...attrs}
@@ -179,7 +173,7 @@
         Zuordnungsvorschlag: {target.suggestedAssigneeName || target.assignee} → {taskAssigneeNames(
           { assignee: '', assignees: draft.assignees },
           users
-        )}. Bitte prüfen.
+        )}.
       </p>
     {/if}
     {#if target?.quote}<blockquote class="border-l-2 border-neutral-300 pl-3">
@@ -211,17 +205,19 @@
       </p>{:else if assignmentMessage}<p role="status" class="text-sm text-neutral-700">
         {assignmentMessage}
       </p>{/if}
-    <FormField name="dueDate" id="task-due" label="Fälligkeit" optional error={fields.dueDate}
+    <FormField
+      name="dueDate"
+      id="task-due"
+      label="Fälligkeit"
+      optional
+      info="Erinnerung per Mail am Vortag und am Fälligkeitstag, nur an Stammes-Adressen (@stamm-phoenix.de)."
+      error={fields.dueDate}
       >{#snippet children(attrs)}<GermanDateInput
           {...attrs}
           value={draft.dueDate ?? ''}
           onchange={(value) => (draft.dueDate = value || null)}
         />{/snippet}</FormField
     >
-    <p class="text-sm text-neutral-700">
-      Nur Zuständige mit einer hinterlegten Stammes-E-Mail-Adresse (@stamm-phoenix.de) bekommen am
-      Vortag und am Fälligkeitstag ab 9 Uhr eine Erinnerungsmail.
-    </p>
     <FormField name="projectId" id="task-project" label="Projekt" optional error={fields.projectId}
       >{#snippet children(attrs)}
         <select
@@ -239,11 +235,6 @@
     {#if target?.state === 'vorschlag'}{#if target?.suggestedProjectTitle}
         <fieldset class="surface-muted rounded-sm p-3 space-y-3">
           <legend class="font-semibold">Projektvorschlag</legend>
-          <p class="text-sm text-neutral-700">
-            Vorgeschlagen: {target?.suggestedProjectTitle}. Das Projekt wird erst beim Annehmen
-            dieser Aufgabe angelegt. Ein inzwischen vorhandenes Projekt mit gleichem Namen wird
-            verwendet.
-          </p>
           <label class="flex min-h-11 cursor-pointer items-center gap-2">
             <input
               name="newProjectTitle"
@@ -251,7 +242,7 @@
               class="size-5"
               bind:checked={createSuggestedProject}
             />
-            Neues Projekt anlegen und Aufgabe zuordnen
+            Neues Projekt „{target.suggestedProjectTitle}“ anlegen
           </label>
           {#if createSuggestedProject}
             <FormField

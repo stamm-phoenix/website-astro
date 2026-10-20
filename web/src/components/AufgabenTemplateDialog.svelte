@@ -88,9 +88,6 @@
           required
         />{/snippet}</FormField
     >
-    <p class="text-sm text-neutral-700">
-      Positive Tageszahlen liegen vor der Aktion; negative danach.
-    </p>
     {#each items as item, index (item)}
       <fieldset class="border-t border-neutral-200 pt-3 space-y-3">
         <legend class="font-semibold">Aufgabe {index + 1}</legend>
@@ -115,7 +112,11 @@
           bind:people={item.assignees}
           onedit={() => form.clearField('items')}
         />
-        <FormField name="items" id="template-days-{index}" label="Tage vor der Aktion"
+        <FormField
+          name="items"
+          id="template-days-{index}"
+          label="Tage vor der Aktion"
+          info="Gezählt ab dem Datum der Aktion. Negative Zahlen liegen nach der Aktion."
           >{#snippet children(attrs)}<input
               {...attrs}
               class="form-input"

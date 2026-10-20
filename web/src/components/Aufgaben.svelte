@@ -159,9 +159,7 @@
     {visible}
     {presentation}
     view={statusFilter}
-    emptyText={projectFilter !== 'alle' || ownOnly
-      ? 'Keine passenden Aufgaben. Passe die Filter an.'
-      : ''}
+    emptyText={projectFilter !== 'alle' || ownOnly ? 'Keine passenden Aufgaben.' : ''}
     {busy}
     onopen={edit}
     ontoggle={(task) => actions.taskAction(task, 'toggle')}

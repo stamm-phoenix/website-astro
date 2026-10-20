@@ -16,7 +16,6 @@
   const users = $derived(aufgabenStore.users);
   const loading = $derived(aufgabenStore.usersLoading);
   const unavailable = $derived(aufgabenStore.usersUnavailable);
-  const configurationError = $derived(aufgabenStore.usersConfigurationError);
   const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   let input = $state<HTMLInputElement | null>(null);
   let search = $state<PersonSuche | null>(null);
@@ -90,13 +89,7 @@
   });
 </script>
 
-<FormField
-  {id}
-  label="Zuständigkeit"
-  optional
-  error={error ?? rejected}
-  hint="Personen suchen und auswählen. Mehrere Personen sind möglich."
->
+<FormField {id} label="Zuständigkeit" optional error={error ?? rejected}>
   {#snippet children(attrs)}
     <div class="space-y-2">
       <input type="hidden" name="{id}-people" value={JSON.stringify(selected)} />
@@ -141,7 +134,5 @@
     Personenvorschläge werden geladen …
   </p>
 {:else if unavailable}<p role="status" class="text-sm text-neutral-700">
-    {configurationError
-      ? 'Die Personenliste ist nicht vollständig eingerichtet. Bitte die Administration informieren.'
-      : 'Personenvorschläge sind gerade nicht verfügbar.'} Du kannst vollständige Namen eingeben.
+    Personensuche gerade nicht verfügbar – vollständigen Namen eintippen.
   </p>{/if}

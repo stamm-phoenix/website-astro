@@ -33,9 +33,6 @@
   data-astro-reload>Zur Aufgabenliste</a
 >
 {#if data}
-  <p class="my-3 text-neutral-700">
-    Vorlagen sind wiederverwendbar. Fristen beziehen sich auf das Datum der Aktion.
-  </p>
   <ActionButton type="button" onclick={() => edit()}>Vorlage anlegen</ActionButton>
   <ul class="mt-4 divide-y divide-neutral-200">
     {#each data.templates as template (template.id)}
@@ -48,9 +45,7 @@
           >Vorlage bearbeiten</ActionButton
         >
       </li>
-    {:else}<li class="py-4">
-        Noch keine Vorlagen. Lege eine Checkliste für wiederkehrende Aktionen an.
-      </li>{/each}
+    {:else}<li class="py-4">Noch keine Vorlagen.</li>{/each}
   </ul>
   <AufgabenNavigation area="vorlagen" />{/if}
 {#if editing}<AufgabenTemplateDialog

@@ -69,9 +69,7 @@
           {:else}
             <li class="py-3 text-sm text-neutral-700">
               {emptyText ||
-                (column.value === 'offen'
-                  ? 'Noch keine offenen Aufgaben. Lege eine Aufgabe an.'
-                  : 'Noch nichts erledigt. Markiere fertige Aufgaben als erledigt.')}
+                (column.value === 'offen' ? 'Keine offenen Aufgaben.' : 'Noch nichts erledigt.')}
             </li>
           {/each}
         </ul>
@@ -90,13 +88,6 @@
             : view === 'alle'
               ? 'Aufgaben'
               : 'offenen Aufgaben'} für diese Auswahl.
-        {#if view === 'vorschlag'}<p class="mt-1 text-sm">
-            {data?.extractionConfigured
-              ? 'Wähle ein Protokoll und tippe auf Aufgaben erkennen.'
-              : 'Lege eine Aufgabe an oder prüfe die gewählten Filter.'}
-          </p>{:else if view === 'offen'}<p class="mt-1 text-sm">
-            Lege eine Aufgabe an oder ändere die Filter.
-          </p>{/if}
       </li>{/each}
   </ul>
 {/if}
