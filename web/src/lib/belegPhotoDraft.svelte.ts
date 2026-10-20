@@ -106,15 +106,11 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       let quad = found ?? fullFrame(original.width, original.height);
       let mode: Mode = 'farbe';
       if (!found) {
-        scanHint =
-          'Die Ränder des Belegs wurden nicht erkannt. Zieh die Ecken bitte selbst auf den Beleg.';
+        scanHint = 'Ränder nicht erkannt – zieh die Ecken selbst auf den Beleg.';
       } else if (isFullFrame(found, original.width, original.height)) {
         // The photo shows only the receipt, e.g. a scan of the phone camera
         quad = fullFrame(original.width, original.height);
         mode = 'aus';
-        scanHint = 'Das Foto sieht schon wie ein Scan aus und wird unverändert verwendet.';
-      } else {
-        scanHint = 'Ränder erkannt. Passt der Rahmen nicht, zieh die Ecken mit dem Finger zurecht.';
       }
       draft = {
         original,

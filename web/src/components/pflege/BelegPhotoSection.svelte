@@ -3,6 +3,7 @@
   import MessageText from '../ui/MessageText.svelte';
   import BelegScanEditor from './BelegScanEditor.svelte';
   import BelegAiCheck from './BelegAiCheck.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import { photoUrl, formatTimestamp, type BelegForm } from '../../lib/belegForm';
   import type { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import type { ScanMode } from '../../lib/belegScan';
@@ -21,7 +22,17 @@
 </script>
 
 <section aria-labelledby="bl-photo-label" class="space-y-2">
-  <p id="bl-photo-label" class="form-label">Foto des Belegs</p>
+  <p id="bl-photo-label" class="form-label inline">Foto des Belegs</p>
+  <InfoHint label="Foto des Belegs" class="ml-1">
+    <p>
+      Am besten mit der Scan-Funktion des Handys: auf dem iPhone in der Notizen- oder Dateien-App
+      „Dokumente scannen“, auf Android in Google Drive „Scannen“.
+    </p>
+    <p>
+      Ein normales Foto geht auch: Beleg flach hinlegen, gut beleuchten, alle Ränder im Bild, am
+      besten auf dunklem Untergrund.
+    </p>
+  </InfoHint>
   {#if form.id && form.hasImage && !photo.draft}
     <a href={photoUrl(form)} target="_blank" rel="noopener" class="block">
       <img
@@ -77,12 +88,8 @@
     {/if}
     <details class="mt-2">
       <summary class="min-h-11 cursor-pointer font-semibold text-link">Foto anpassen …</summary>
-      <p class="mt-2 text-sm text-neutral-700">
-        Farbe erhält die Farben des Belegs. Graustufen macht ihn schwarz-weiß. Unverändert übernimmt
-        das Foto, wie du es aufgenommen hast.
-      </p>
       <fieldset>
-        <legend class="text-xs font-semibold text-neutral-700">Bearbeitung</legend>
+        <legend class="sr-only">Bearbeitung</legend>
         <div class="mt-1 space-y-1">
           {#each MODES as option (option.id)}
             <label class="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
@@ -98,11 +105,6 @@
             </label>
           {/each}
         </div>
-        {#if photo.draft.mode !== 'aus'}
-          <p class="mt-1 text-xs text-neutral-700">
-            Gespeichert werden der Scan und das Originalfoto.
-          </p>
-        {/if}
       </fieldset>
     </details>
     {#if form.id}

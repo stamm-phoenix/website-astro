@@ -166,12 +166,7 @@
   <Panel aria-labelledby="eb-zahlung-titel">
     <h2 id="eb-zahlung-titel" class={HEADING_CLASS}>Zahlung</h2>
     <div class="mt-4 grid gap-4 sm:grid-cols-2">
-      <FormField
-        id="eb-aussteller"
-        label="Ausgelegt von"
-        hint="Wer bezahlt hat und unterschreibt"
-        error={fehler.aussteller}
-      >
+      <FormField id="eb-aussteller" label="Ausgelegt von" error={fehler.aussteller}>
         {#snippet children(attrs)}
           <input
             {...attrs}
@@ -182,14 +177,15 @@
           />
         {/snippet}
       </FormField>
-      <FormField
-        id="eb-empfaenger"
-        label="Bezahlt an"
-        hint="Geschäft, Firma oder Person"
-        error={fehler.empfaenger}
-      >
+      <FormField id="eb-empfaenger" label="Bezahlt an" error={fehler.empfaenger}>
         {#snippet children(attrs)}
-          <input {...attrs} class="form-input" maxlength="120" bind:value={beleg.empfaenger} />
+          <input
+            {...attrs}
+            class="form-input"
+            maxlength="120"
+            placeholder="z. B. Parkautomat Zeltplatz"
+            bind:value={beleg.empfaenger}
+          />
         {/snippet}
       </FormField>
       <FormField id="eb-zahlungsdatum" label="Datum der Zahlung" error={fehler.zahlungsdatum}>
@@ -212,13 +208,7 @@
           </select>
         {/snippet}
       </FormField>
-      <FormField
-        id="eb-anlass"
-        label="Aktion oder Zweck"
-        hint="Aktion aus CampFlow oder z. B. „Gruppenstunde Wölflinge“"
-        error={fehler.anlass}
-        class="sm:col-span-2"
-      >
+      <FormField id="eb-anlass" label="Aktion oder Zweck" error={fehler.anlass} class="sm:col-span-2">
         {#snippet children(attrs)}
           <input
             {...attrs}
@@ -226,6 +216,7 @@
             maxlength="120"
             list="eb-anlass-suggestions"
             autocomplete="off"
+            placeholder="z. B. Sommerlager oder Gruppenstunde Wölflinge"
             bind:value={beleg.anlass}
           />
           <datalist id="eb-anlass-suggestions">
@@ -240,9 +231,6 @@
 
   <Panel aria-labelledby="eb-positionen-titel">
     <h2 id="eb-positionen-titel" class={HEADING_CLASS}>Was wurde bezahlt?</h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      Eine Zeile je Posten, z. B. „Parkgebühr Zeltplatz“ oder „Brennholz, 2 Säcke“.
-    </p>
     <ol class="mt-4 space-y-3">
       {#each beleg.positionen as position, index (index)}
         {@const positionFehler = fehler[`position-${index}`]}
@@ -253,7 +241,7 @@
               id="eb-position-{index}"
               class="form-input"
               maxlength="200"
-              placeholder="Posten {index + 1}"
+              placeholder={index === 0 ? 'z. B. Parkgebühr Zeltplatz' : `Posten ${index + 1}`}
               aria-invalid={positionFehler ? 'true' : undefined}
               aria-describedby={positionFehler ? `eb-position-${index}-error` : undefined}
               bind:value={position.beschreibung}
@@ -343,7 +331,7 @@
   </Panel>
 
   <Panel aria-labelledby="eb-ausstellung-titel">
-    <h2 id="eb-ausstellung-titel" class={HEADING_CLASS}>Ausstellung</h2>
+    <h2 id="eb-ausstellung-titel" class={HEADING_CLASS}>Ort und Datum</h2>
     <div class="mt-4 grid gap-4 sm:grid-cols-2">
       <FormField id="eb-ort" label="Ort" error={fehler.ort}>
         {#snippet children(attrs)}
@@ -356,12 +344,6 @@
         {/snippet}
       </FormField>
     </div>
-    <p class="mt-4 text-sm text-neutral-700">
-      Das PDF kommt auf das Briefpapier des Stammes, mit einer Erklärung über die Zahlung und Zeilen
-      für deine Unterschrift und die Bestätigung durch Kasse oder Vorstand. Gespeichert wird nichts:
-      Die Eingaben gelten nur, solange diese Seite geöffnet ist.
-    </p>
-
     <StatusNotice class="mt-4" message={notice} />
     <StatusNotice class="mt-4" kind="error" message={error} />
     {#if showErrors && Object.keys(fehler).length > 0}

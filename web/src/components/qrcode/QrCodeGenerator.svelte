@@ -109,13 +109,7 @@
   <div class="space-y-6">
     <Panel aria-labelledby="qr-inhalt-titel">
       <h2 id="qr-inhalt-titel" class={HEADING_CLASS}>Inhalt</h2>
-      <FormField
-        id="qr-text"
-        label="Link oder Text"
-        hint="Der Link steht direkt im Code, ohne Weiterleitung über einen fremden Dienst."
-        error={result.error ?? undefined}
-        class="mt-4"
-      >
+      <FormField id="qr-text" label="Link oder Text" error={result.error ?? undefined} class="mt-4">
         {#snippet children(attrs)}
           <textarea
             {...attrs}
@@ -130,7 +124,7 @@
       </FormField>
       {#if ohneProtokoll}
         <p class="mt-2 text-sm text-neutral-700">
-          Ohne „https://“ öffnen manche Handys den Link nicht, sondern zeigen nur den Text.
+          Ohne „https://“ öffnen manche Handys den Link nicht.
           <button
             type="button"
             class="font-semibold text-brand-900 underline"
@@ -175,7 +169,7 @@
         </div>
       </div>
       <div class="mt-4">
-        <p id="qr-vorlagen" class="form-label">Vorlagen</p>
+        <p id="qr-vorlagen" class="form-label">Stammesfarben</p>
         <div role="group" aria-labelledby="qr-vorlagen" class="mt-1 flex flex-wrap gap-2">
           {#each QR_FARBEN as farbe (farbe.value)}
             <button
@@ -218,7 +212,7 @@
             onselect={(value) => (optionen.ecken = value)}
           />
         </div>
-        <fieldset aria-describedby="qr-logo-hinweis">
+        <fieldset>
           <legend class="form-label">Logo in der Mitte</legend>
           <div class="mt-1 flex flex-wrap gap-x-6 gap-y-2">
             <label class="flex min-h-11 items-center gap-2 text-sm">
@@ -250,10 +244,6 @@
               </label>
             {/each}
           </div>
-          <p id="qr-logo-hinweis" class="mt-1 text-xs text-neutral-700">
-            Mit Logo wird der Code mit der höchsten Fehlerkorrektur erstellt und dadurch etwas
-            dichter.
-          </p>
         </fieldset>
       </div>
     </Panel>
@@ -299,9 +289,7 @@
     >
       {busy ? 'PNG wird erstellt …' : 'Als PNG herunterladen'}
     </ActionButton>
-    <p class="mt-3 text-xs text-neutral-700">
-      Teste den Code vor dem Drucken mit dem Handy. Gespeichert wird nichts.
-    </p>
+    <p class="mt-3 text-xs text-neutral-700">Vor dem Drucken mit dem Handy testen.</p>
   </Panel>
 </div>
 

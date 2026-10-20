@@ -99,11 +99,13 @@ test('the start page lists every area and the recently used ones without opening
       response.url().endsWith('/api/intern/zuletzt') && response.request().method() === 'POST'
   );
   await page.goto('/leitendenbereich/eigenbeleg');
-  // The intro waits behind „Was ist das?“, so the form starts high up
+  // The intro waits behind the „(i)“ next to the heading, so the form starts high up
   const intro = page.getByText('Für Ausgaben ohne Originalbeleg, z. B. am Parkautomaten');
   await expect(intro).toBeHidden();
-  await page.getByText('Was ist das?').click();
+  await page.getByRole('button', { name: 'Erklärung zu Eigenbeleg' }).click();
   await expect(intro).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(intro).toBeHidden();
 
   await visited;
   await page.goto('/leitendenbereich');

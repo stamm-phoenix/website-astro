@@ -36,12 +36,7 @@
       <input {...attrs} type="date" class="form-input" max={todayIso()} bind:value={form!.date} />
     {/snippet}
   </FormField>
-  <FormField
-    id="bl-amount"
-    label="Betrag in €"
-    hint="Gesamtbetrag laut Beleg"
-    error={errors.amountCent}
-  >
+  <FormField id="bl-amount" label="Betrag in €" error={errors.amountCent}>
     {#snippet children(attrs)}
       <input
         {...attrs}
@@ -59,13 +54,7 @@
       <input {...attrs} class="form-input" maxlength="100" bind:value={form!.paidBy} />
     {/snippet}
   </FormField>
-  <FormField
-    id="bl-aktion"
-    label="Aktion"
-    hint="Wähle eine Aktion aus den Vorschlägen. Für etwas anderes beschreibe den Zweck genau, z. B. „Gruppenstunde Wölflinge“."
-    error={errors.aktion}
-    class="sm:col-span-2"
-  >
+  <FormField id="bl-aktion" label="Aktion" error={errors.aktion} class="sm:col-span-2">
     {#snippet children(attrs)}
       <input
         {...attrs}
@@ -73,6 +62,7 @@
         maxlength="120"
         list="bl-aktion-suggestions"
         autocomplete="off"
+        placeholder="z. B. Sommerlager oder Gruppenstunde Wölflinge"
         bind:value={form!.aktion}
       />
       <datalist id="bl-aktion-suggestions">
@@ -97,10 +87,7 @@
               {/each}
             </div>
           {:else}
-            <p>
-              Die Aktion steht nicht in der Liste. Beschreibe sie möglichst genau, damit die Kasse
-              sie zuordnen kann.
-            </p>
+            <p>Nicht in der Aktionsliste – beschreibe den Zweck so genau, dass die Kasse ihn zuordnen kann.</p>
           {/if}
         </div>
       {/if}

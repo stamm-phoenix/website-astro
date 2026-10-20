@@ -1,37 +1,22 @@
 <script lang="ts">
+  /**
+   * The intro of a page of the Leitendenbereich. Normally it waits behind the „(i)“ next to the
+   * heading, so the content and the main action start high up on a phone; `open` shows it as a
+   * paragraph, for intros the page cannot be used without.
+   */
+  import InfoHint from './ui/InfoHint.svelte';
+
   interface Props {
+    heading: string;
     intro: string;
-    /** Open from the start, for intros the page cannot be used without. */
     open?: boolean;
+    class?: string;
   }
-  let { intro, open = false }: Props = $props();
+  let { heading, intro, open = false, class: className = '' }: Props = $props();
 </script>
 
-<!-- The intro waits behind „Was ist das?“, so the content and the main action start high up on a
-     phone. A <details> works without JavaScript, also where Astro renders this without hydration. -->
-<details class="staff-intro group" {open}>
-  <summary
-    class="inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-sm text-link underline underline-offset-4"
-  >
-    <svg
-      aria-hidden="true"
-      class="size-4 shrink-0"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      ><path d="M12 17h.01M12 8v5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /></svg
-    >
-    <span class="group-open:hidden">Was ist das?</span>
-    <span class="hidden group-open:inline">Erklärung ausblenden</span>
-  </summary>
-  <p class="mt-1 max-w-prose text-neutral-800">{intro}</p>
-</details>
-
-<style>
-  summary::-webkit-details-marker {
-    display: none;
-  }
-</style>
+{#if open}
+  <p class="staff-intro max-w-prose text-neutral-800 {className}">{intro}</p>
+{:else}
+  <InfoHint label={heading} text={intro} class="staff-intro mt-[0.4375rem] md:mt-[0.5625rem] {className}" />
+{/if}

@@ -16,7 +16,7 @@
 
 {#if form.id}
   <fieldset class="space-y-4 rounded-md border border-neutral-200 p-4">
-    <legend class="form-label px-1">Vorprüfung durch die Kasse</legend>
+    <legend class="form-label px-1">Prüfung durch die Kasse</legend>
     <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
       Status: <BelegStatusLabel status={form.status} />
     </p>
@@ -39,8 +39,7 @@
       <FormField
         id="bl-review-note"
         label="Bemerkung der Kasse"
-        optional
-        hint={`Pflicht beim Ablehnen. Die Begründung geht per Mail an ${form.submittedBy || 'die Person, die den Beleg eingereicht hat'}.`}
+        hint={`Geht per Mail an ${form.submittedBy || 'die Person, die den Beleg eingereicht hat'}.`}
         error={errors.reviewNote}
       >
         {#snippet children(attrs)}
@@ -78,12 +77,10 @@
         {/if}
       </div>
     {/if}
-    <p class="text-xs text-neutral-700">
-      {form.status === 'Abgelehnt'
-        ? 'Nach dem Korrigieren der Angaben oder einem neuen Foto den Beleg erneut einreichen.'
-        : reviewer
-          ? 'Angenommene Belege: Foto herunterladen, in CampFlow als Beleg hochladen und den Beleg hier löschen.'
-          : 'Die Kasse prüft den Beleg und überträgt ihn nach der Annahme nach CampFlow.'}
-    </p>
+    {#if reviewer && form.status === 'Angenommen'}
+      <p class="text-xs text-neutral-700">
+        Foto herunterladen, in CampFlow als Beleg hochladen und den Beleg hier löschen.
+      </p>
+    {/if}
   </fieldset>
 {/if}

@@ -13,7 +13,7 @@ export interface StaffPage {
   parent?: string;
   /** Links to the page load it in full instead of a view transition. */
   reload?: boolean;
-  /** Show the intro open; otherwise it waits behind „Was ist das?“, so the content starts high up. */
+  /** Show the intro as a paragraph; otherwise it waits behind the „(i)“ next to the heading, so the content starts high up. */
   introOpen?: boolean;
 }
 
@@ -32,9 +32,7 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/aufgaben',
     reload: true,
     title: 'Aufgaben',
-    intro: 'Verteile Aufgaben, behalte Fristen im Blick und hake Erledigtes ab.',
-    description:
-      'Offene und erledigte Aufgaben als Liste oder Kanban ansehen und Zuständigkeiten verwalten.',
+    description: 'Aufgaben verteilen, Fristen im Blick behalten und Erledigtes abhaken.',
     keywords: ['todo', 'erledigen', 'frist', 'kanban', 'projekt', 'vorlage', 'zuständig'],
     icon: 'M9 11l3 3 8-8M4 4h11M4 9h4M4 14h4M4 19h16',
   },
@@ -42,8 +40,7 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/sammelbestellungen',
     title: 'Sammelbestellungen',
     description:
-      'Rüsthaus-Bestellungen sammeln, Bestelllisten exportieren und Zahlung sowie Auslieferung pflegen.',
-    intro: 'Bestellzeiträume anlegen, Mitglieder einladen und die Rüsthaus-Bestellungen verwalten.',
+      'Rüsthaus-Bestellungen der Mitglieder sammeln, bestellen und Zahlung sowie Auslieferung festhalten.',
     wrap: 'Sammel|bestellungen',
     keywords: ['rüsthaus', 'kluft', 'bestellen', 'bestellung', 'halstuch', 'material'],
     icon: 'M3 3h2l3 12h10l3-8H6M9 21h.01M18 21h.01',
@@ -51,18 +48,16 @@ export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/belege',
     title: 'Belege',
-    description:
-      'Kassenbelege fotografieren und einreichen; das Kassenteam prüft sie und überträgt sie nach CampFlow.',
+    description: 'Kassenbelege fotografieren und bei der Kasse einreichen.',
     intro:
-      'Belege fotografieren und bei der Kasse einreichen. Die Kasse prüft sie vor und überträgt angenommene Belege nach CampFlow.',
+      'Belege fotografieren und bei der Kasse einreichen. Lehnt die Kasse einen Beleg ab, bekommst du die Begründung per Mail und kannst ihn korrigiert erneut einreichen.',
     keywords: ['kasse', 'kassenzettel', 'quittung', 'rechnung', 'geld', 'auslage', 'erstattung'],
     icon: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
   },
   {
     href: '/leitendenbereich/eigenbeleg',
     title: 'Eigenbeleg',
-    description:
-      'Für Ausgaben ohne Originalbeleg einen Eigenbeleg auf dem Briefpapier des Stammes als PDF erstellen.',
+    description: 'Für Ausgaben ohne Kassenzettel einen Eigenbeleg als PDF erstellen.',
     intro:
       'Für Ausgaben ohne Originalbeleg, z. B. am Parkautomaten oder bei einem verlorenen Kassenzettel: ausfüllen, als PDF herunterladen, unterschreiben und wie einen Kassenbeleg unter „Belege“ einreichen.',
     keywords: ['kasse', 'quittung', 'parkautomat', 'ohne beleg', 'pdf', 'geld'],
@@ -71,10 +66,9 @@ export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/protokolle',
     title: 'Protokolle',
-    description:
-      'Protokolle aus der Word-Vorlage anlegen, gemeinsam bearbeiten, freigeben und an alle Leitenden schicken.',
+    description: 'Protokolle der Leitendenrunde schreiben, freigeben und an alle Leitenden schicken.',
     intro:
-      'Protokolle direkt im Editor schreiben oder als Word, PDF und Text lesen, prüfen und gemeinsam weiterbearbeiten.',
+      'Eine Person schreibt, alle anderen lesen live mit. Nach der Freigabe, auf Wunsch mit Review, liegt das Protokoll als PDF im Protokoll-Ordner und geht an alle Leitenden.',
     keywords: ['leiterrunde', 'leitendenrunde', 'sitzung', 'treffen', 'word', 'mitschrift'],
     icon: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5',
   },
@@ -82,10 +76,9 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/qr-code',
     title: 'QR-Code-Generator',
     wrap: 'QR-Code-|Generator',
-    description:
-      'QR-Codes für Links erstellen, Farbe und Form anpassen und als PNG herunterladen – ohne fremden Dienst.',
+    description: 'QR-Codes für Links erstellen, Farbe und Form anpassen und als PNG herunterladen.',
     intro:
-      'QR-Code für einen Link oder Text erstellen, Farbe und Form anpassen und als PNG herunterladen. Alles passiert im Browser: ohne fremden Dienst, ohne Weiterleitung und ohne Ablaufdatum.',
+      'QR-Code für einen Link oder Text erstellen, Farbe und Form anpassen und als PNG herunterladen. Die Codes laufen nicht ab.',
     keywords: ['qr', 'link', 'code', 'plakat'],
     icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM6 6h1M17 6h1M6 17h1M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3',
   },
@@ -93,8 +86,6 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/fragen-und-antworten',
     title: 'Fragen & Antworten',
     description: 'Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten.',
-    intro:
-      'Fragen, Antworten und Themen bearbeiten. Entwürfe vorbereiten und Antworten veröffentlichen oder vorübergehend ausblenden.',
     keywords: ['faq', 'fragen', 'antworten', 'website'],
     icon: 'M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4M12 17h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
   },
@@ -103,8 +94,7 @@ export const STAFF_MODULES: StaffModule[] = [
     title: 'Anwesenheit',
     description:
       'Abhaken, wer in der Gruppenstunde war, was ihr gemacht habt, und Verlauf je Stufe ansehen.',
-    intro:
-      'Pro Gruppenstunde abhaken, wer da war, und festhalten, was ihr gemacht habt. Namen von Kindern werden nach zwölf Monaten gelöscht.',
+    intro: 'Namen von Kindern werden nach zwölf Monaten gelöscht; die Zahlen bleiben.',
     wrap: 'Anwesen|heit',
     keywords: ['kinder', 'gruppenstunde', 'teilnehmende', 'liste', 'da gewesen', 'abhaken'],
     icon: 'M9 4h6v3H9zM9 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3M9 14l2 2 4-4',
@@ -115,7 +105,7 @@ export const STAFF_MODULES: StaffModule[] = [
     description:
       'Aktionen aus CampFlow mit Teilnehmendenlisten ansehen und im öffentlichen Kalender veröffentlichen.',
     intro:
-      'Alle Aktionen aus CampFlow, als Liste oder Monatskalender. Öffne eine Aktion für die Teilnehmendenliste mit Beitrag und Zahlungsstand jeder Person, oder veröffentliche sie im Kalender der Website. Aktionen ohne CampFlow legst du hier ebenfalls an.',
+      'Titel, Datum und Anmeldelink kommen aus CampFlow; hier wählst du Stufen und Beschreibung für den Kalender der Website. Aktionen ohne CampFlow legst du hier an.',
     keywords: [
       'termine',
       'kalender',
@@ -132,8 +122,7 @@ export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/aktionen/fahrten',
     title: 'Fahrten',
-    description:
-      'Fahrgemeinschaften für Hin- und Rückfahrt einer Aktion aus den Platzangaben in CampFlow planen.',
+    description: 'Fahrgemeinschaften für Hin- und Rückfahrt einer Aktion planen.',
     parent: '/leitendenbereich/aktionen',
     keywords: ['auto', 'mitfahren', 'fahrgemeinschaft', 'plätze', 'anreise'],
     icon: 'M5 17h14M6 17v2M18 17v2M3 13l2-6h14l2 6v4H3zM7 13h.01M17 13h.01',
@@ -144,7 +133,7 @@ export const STAFF_MODULES: StaffModule[] = [
     description:
       'Einnahmen und Ausgaben einer Aktion nach Kategorien, Teilnehmende und möglicher KJR-Zuschuss.',
     intro:
-      'Wähle eine Aktion, um Teilnehmende, Einnahmen und Ausgaben sowie den möglichen Zuschuss vom Kreisjugendring Rosenheim zu sehen.',
+      'KJR ist der Kreisjugendring Rosenheim. Er bezuschusst ein Defizit für Teilnehmende aus dem Landkreis; die Abrechnung zeigt, was möglich ist.',
     keywords: ['kasse', 'kjr', 'zuschuss', 'kreisjugendring', 'einnahmen', 'ausgaben', 'geld'],
     icon: 'M4 3h16v18H4zM8 7h8M8 11h2M14 11h2M8 15h2M14 15h2M8 19h8',
   },
@@ -153,8 +142,6 @@ export const STAFF_MODULES: StaffModule[] = [
     title: 'Beiträge',
     description:
       'Nachschauen, wer für welche Aktion schon bezahlt hat – die Beiträge aus CampFlow, nur zum Lesen.',
-    intro:
-      'Wer hat für welche Aktion schon bezahlt? Wähle eine Sammlung oder sieh dir alle Beiträge an, gefiltert nach Kostenstelle und Zahlungsstand.',
     icon: 'M17 6.5A7 7 0 1 0 17 17.5M4 10h9M4 14h9',
     keywords: [
       'bezahlt',
@@ -169,8 +156,7 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/gruppenstunden',
     title: 'Gruppenstunden',
     description: 'Zeiten, Orte und Beschreibungen der Gruppenstunden bearbeiten.',
-    intro:
-      'Wochentage, Uhrzeiten, Orte und Beschreibungen der Gruppenstunden bearbeiten. Änderungen erscheinen sofort auf der Website.',
+    intro: 'Änderungen erscheinen sofort auf der Website.',
     wrap: 'Gruppen|stunden',
     keywords: ['uhrzeit', 'wochentag', 'ort', 'website'],
     icon: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
@@ -179,8 +165,7 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/leitende',
     title: 'Leitende & Teams',
     description: 'Leitende, Fotos und Teams (Stufen, Vorstand) verwalten.',
-    intro:
-      'Leitende mit Foto, Kontaktdaten und Teams (Stufen, Vorstand) verwalten. Änderungen erscheinen sofort auf der Website.',
+    intro: 'Änderungen erscheinen sofort auf der Website.',
     keywords: ['vorstand', 'stufe', 'team', 'foto', 'kontakt', 'website'],
     icon: 'M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 20v-1a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
   },
@@ -189,8 +174,7 @@ export const STAFF_MODULES: StaffModule[] = [
     title: 'Weitere Personen',
     description:
       'Altleitende und andere regelmäßig Beteiligte, die im Protokoll zur Auswahl stehen.',
-    intro:
-      'Altleitende und andere, die oft dabei sind, aber nicht in der Gruppe der Leitenden sind. Der Protokoll-Editor bietet sie neben den Leitenden zur Auswahl an.',
+    intro: 'Wer hier steht, lässt sich im Protokoll neben den Leitenden auswählen.',
     keywords: ['altleitende', 'protokoll', 'gäste'],
     icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8v6M22 11h-6',
   },
@@ -199,7 +183,7 @@ export const STAFF_MODULES: StaffModule[] = [
     title: 'Fotos',
     description:
       'Fotos und Videos von Aktionen ansehen, herunterladen und vom Handy in die Foto-Ablage hochladen.',
-    intro: 'Fotos ansehen, herunterladen und hochladen. Löschen geht in SharePoint.',
+    intro: 'Löschen geht nur in SharePoint.',
     keywords: ['bilder', 'videos', 'hochladen', 'sharepoint'],
     icon: 'M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   },
@@ -214,8 +198,7 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/blog',
     title: 'Blog',
     description: 'Blogbeiträge mit Bildern schreiben und veröffentlichen.',
-    intro:
-      'Blogbeiträge schreiben, bebildern und veröffentlichen. Entwürfe sind nur hier sichtbar.',
+    intro: 'Entwürfe sind nur hier sichtbar, nicht auf der Website.',
     keywords: ['beitrag', 'bericht', 'news', 'neuigkeiten', 'website'],
     icon: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
   },
@@ -226,10 +209,8 @@ export const NIKOLAUS_CONTROL_MODULE: StaffModule = {
   href: '/leitendenbereich/nikolaus-steuerung',
   title: 'Steuerung',
   description:
-    'Besuchstage und Zeiten, Anmeldung und Verwaltung an- und ausschalten, Wartungsmodus und Daten nach der Aktion löschen.',
+    'Nikolausdienst einrichten, Anmeldung und Verwaltung ein- und ausschalten, Daten nach der Aktion löschen.',
   heading: 'Nikolaus-Steuerung',
-  intro:
-    'Hier wird der Nikolausdienst eingerichtet: an welchen Tagen und zu welchen Zeiten er unterwegs ist, ob Familien sich anmelden können und ob die Module im Leitendenbereich zu sehen sind. Nach der Aktion werden hier die Daten gelöscht.',
   keywords: ['nikolaus', 'einschalten', 'ausschalten', 'wartung', 'löschen'],
   icon: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
 };
@@ -243,9 +224,8 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
     href: '/leitendenbereich/nikolaus',
     title: 'Anmeldungen',
     wrap: 'Anmel|dungen',
-    description: 'Anmeldungen als Liste oder Terminmatrix ansehen, verlegen und absagen.',
+    description: 'Anmeldungen als Liste oder Terminübersicht ansehen, verlegen und absagen.',
     heading: 'Nikolaus-Anmeldungen',
-    intro: 'Finde Familien und Termine für den Nikolausdienst und bearbeite ihre Angaben.',
     keywords: ['nikolaus', 'familien', 'termine', 'buchungen'],
     icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z',
   },
@@ -255,7 +235,7 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
     description: 'Termine eines Tages auf die Teams verteilen und die Routen planen.',
     heading: 'Nikolaus-Dispo',
     intro:
-      'Verteilt die bestätigten Termine eines Tages auf die Teams, mit möglichst wenig Fahrzeit und ohne Verspätungen. Du kannst Termine von Hand einem anderen Team zuweisen. Mit „Team festhalten“ bleibt die Zuordnung beim Neuberechnen erhalten.',
+      'Die Berechnung verteilt die bestätigten Termine mit möglichst wenig Fahrzeit. Termine lassen sich von Hand einem anderen Team zuweisen; festgehaltene bleiben beim Neuberechnen.',
     parent: '/leitendenbereich/nikolaus',
     keywords: ['nikolaus', 'teams', 'route', 'planen', 'verteilen'],
     icon: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
@@ -265,8 +245,7 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
     title: 'Route',
     description: 'Unterwegs: die Route des eigenen Teams abfahren und Besuche abhaken.',
     heading: 'Nikolaus-Route',
-    intro:
-      'Eure Route aus der Dispo: Team wählen, von Familie zu Familie fahren und jeden Besuch abhaken. Die Disposition sieht den Stand sofort.',
+    intro: 'Jeder abgehakte Besuch ist sofort in der Dispo zu sehen.',
     parent: '/leitendenbereich/nikolaus',
     keywords: ['nikolaus', 'unterwegs', 'besuche', 'navigation'],
     icon: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9',
@@ -277,8 +256,6 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
     description:
       'Helfende eintragen und auf Nikolaus, Krampus, Fahrer*in, Engerl und Küche verteilen.',
     heading: 'Nikolaus-Helfende',
-    intro:
-      'Trage Helfende mit ihren verfügbaren Posten ein und teile sie auf Teams auf. Wünsche und Ausschlüsse helfen, passende Teams zu bilden.',
     parent: '/leitendenbereich/nikolaus',
     keywords: ['nikolaus', 'krampus', 'engerl', 'fahrer', 'küche', 'helfer'],
     icon: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21v-1a6 6 0 0 1 12 0v1M16 11l2 2 4-4',
@@ -351,7 +328,6 @@ export const STAFF_SUBPAGES: StaffPage[] = [
     href: '/leitendenbereich/aufgaben/vorschlaege',
     title: 'Aufgabenvorschläge',
     description: 'Aufgabenvorschläge aus Protokollen prüfen und übernehmen.',
-    intro: 'Prüfe vorgeschlagene Aufgaben aus euren Protokollen und übernimm, was passt.',
     parent: '/leitendenbereich/aufgaben',
     reload: true,
   },
