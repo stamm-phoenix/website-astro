@@ -20,7 +20,7 @@ test('leaders are linked to CampFlow and find themselves in an Aktion', async ({
   await expect(dialog).toBeHidden();
   await expect(leitende).toContainText('5 von 6 Leitenden');
 
-  // The demo account is registered for the hike as a person of its own, with its address
-  await page.goto('/leitendenbereich/aktionen/aktion?id=evt_HikeMangfall');
+  // The demo account is registered for the Georgsfest as a person of its own, with its address
+  await page.goto('/leitendenbereich/aktionen/aktion?id=evt_Georgsfest');
   await expect(page.getByText('(ich)').filter({ visible: true })).toHaveCount(1);
 });
