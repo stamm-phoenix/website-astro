@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { AnwesenheitOverview } from '../src/lib/types';
 
 /** The date of a mock Termin `days` ago, as `dev/mock-data/anwesenheit.ts` creates it. */
@@ -251,3 +251,44 @@ for (const change of ['child', 'guest', 'status'] as const) {
     expect(await (await page.request.get(read)).json()).toEqual(current);
   });
 }
+
+test('after a delete conflict the summary shows the new cancelled status and stays current when collapsed', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const date = daysAgo(220);
+  const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
+  const read = `/api/intern/anwesenheit/woelflinge/${date}`;
+  expect(
+    (await page.request.put(`${write}/kinder/per_W1`, { data: { status: 'anwesend' } })).ok()
+  ).toBe(true);
+  await page.goto('/leitendenbereich/anwesenheit');
+  await page.getByRole('button', { name: 'Verlauf & Statistik', exact: true }).click();
+  const row = page.locator(`[data-meeting-date="${date}"]`);
+  await row.getByRole('button', { name: /Details ansehen/ }).click();
+  await expect(row.getByRole('list', { name: 'Anwesend' })).toContainText('Anna Test');
+  const loaded = await (await page.request.get(read)).json();
+  expect(
+    (
+      await page.request.put(`${write}/ausgefallen`, {
+        data: { cancelled: true, etag: loaded.etag, entries: 1 },
+      })
+    ).ok()
+  ).toBe(true);
+  await row.getByRole('button', { name: 'Gruppenstunde löschen', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Gruppenstunde löschen', exact: true })
+    .click();
+  await expect(
+    page.getByText(/inzwischen geändert. Sie wurde nicht gelöscht/).first()
+  ).toBeVisible();
+  await expect(row.getByRole('button', { name: /Details ausblenden/ })).toContainText(
+    'Ausgefallen'
+  );
+  await expect(row).not.toContainText('1 Kind ·');
+  await expect(row.getByRole('list', { name: 'Anwesend' })).toHaveCount(0);
+  await row.getByRole('button', { name: /Details ausblenden/ }).click();
+  await expect(row.getByRole('button', { name: /Details ansehen/ })).toContainText('Ausgefallen');
+  await expectNoHorizontalOverflow(page);
+});

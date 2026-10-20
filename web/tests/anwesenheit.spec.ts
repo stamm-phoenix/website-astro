@@ -435,3 +435,82 @@ test('cancelling clears anonymized attendance before the Gruppenstunde is held a
   expect(entries).toEqual([6, 0, 0]);
   await expectNoHorizontalOverflow(page);
 });
+
+test('notes and cancellation wait for each other without losing text or the current version', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const date = '2026-08-17';
+  const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
+  const read = `/api/intern/anwesenheit/woelflinge/${date}`;
+  expect((await (await page.request.get(read)).json()).etag).toBeNull();
+  let releaseCancel = (): void => undefined;
+  const cancelGate = new Promise<void>((resolve) => {
+    releaseCancel = resolve;
+  });
+  let cancelStored = false;
+  let cancelRequests = 0;
+  await page.route(`**${write}/ausgefallen`, async (route) => {
+    cancelRequests++;
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    cancelStored = true;
+    await cancelGate;
+    await route.fulfill({ response });
+  });
+  await page.goto('/leitendenbereich/anwesenheit');
+  await page.getByLabel('Datum', { exact: true }).fill(date);
+  const notes = page.locator('#anwesenheit-inhalt');
+  await expect(notes).toHaveValue('');
+  await notes.fill('Mein Entwurf.');
+  const save = page.getByRole('button', { name: 'Notiz speichern', exact: true });
+  const status = page.getByRole('group', { name: 'Gruppenstunde', exact: true });
+  await status.getByRole('button', { name: 'Ausgefallen', exact: true }).click();
+  await expect.poll(() => cancelStored).toBe(true);
+  await expect(save).toBeDisabled();
+  // Even submitting the form directly must respect the pending cancellation.
+  await notes.evaluate((element) =>
+    element
+      .closest('form')!
+      .dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+  );
+  releaseCancel();
+  await expect(page.getByText('Gruppenstunde als ausgefallen markiert.').first()).toBeVisible();
+  await expect(notes).toHaveValue('Mein Entwurf.');
+
+  let releaseNotes = (): void => undefined;
+  const notesGate = new Promise<void>((resolve) => {
+    releaseNotes = resolve;
+  });
+  let notesStored = false;
+  await page.route(`**${write}`, async (route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    notesStored = true;
+    await notesGate;
+    await route.fulfill({ response });
+  });
+  await save.click();
+  await expect.poll(() => notesStored).toBe(true);
+  const held = status.getByRole('button', { name: 'Fand statt', exact: true });
+  await expect(held).toBeDisabled();
+  await held.evaluate((button) => button.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  releaseNotes();
+  await expect(page.getByText('Notiz gespeichert.').first()).toBeVisible();
+  await expect(held).toBeEnabled();
+  expect(cancelRequests).toBe(1);
+
+  await notes.fill('Mein neuer Entwurf.');
+  const nextSave = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === write && response.request().method() === 'PUT'
+  );
+  await save.click();
+  expect((await nextSave).ok()).toBe(true);
+  await expect(page.getByText('Notiz gespeichert.').first()).toBeVisible();
+  await expect(save).toBeDisabled();
+  const stored = await (await page.request.get(read)).json();
+  expect(stored.notes).toBe('Mein neuer Entwurf.');
+  expect(stored.cancelled).toBe(true);
+  await expectNoHorizontalOverflow(page);
+});
