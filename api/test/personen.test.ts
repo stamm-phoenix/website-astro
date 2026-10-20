@@ -6,7 +6,7 @@ import { Ich } from '../endpoints/intern-ich';
 import { PersonItem, PersonenCollection } from '../endpoints/intern-pflege-personen';
 import * as campflow from '../lib/campflow';
 import { CampflowError } from '../lib/campflow';
-import { toCampflowMitglied } from '../lib/personen';
+import { ICH_CACHE_MS, cachedIch, rememberIch, toCampflowMitglied } from '../lib/personen';
 import type { CampflowMitglied, Ich as IchBody, PersonenUebersicht } from '../lib/personen-model';
 import { campflowVorschlaege, istVerknuepftePerson } from '../lib/personen-model';
 import { ValidationError, validatePerson } from '../lib/pflege-validation';
@@ -154,6 +154,19 @@ test('the linked person is recognized in the member list and in registrations', 
     istVerknuepftePerson(nurId, { id: 'per_X', email: '', name: 'Max Muster' }),
     undefined
   );
+});
+
+test('name and address of a CampFlow person leave the memory after ten minutes', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const anna = { id: 'per_Timer', firstName: 'Anna', lastName: 'Autorin', email: 'a@example.org' };
+  rememberIch('per_Timer', anna, 0);
+  t.mock.timers.tick(ICH_CACHE_MS / 2);
+  // Loaded again: the newer entry keeps its own ten minutes
+  rememberIch('per_Timer', anna, ICH_CACHE_MS / 2);
+  t.mock.timers.tick(ICH_CACHE_MS / 2);
+  assert.equal(cachedIch('per_Timer')?.at, ICH_CACHE_MS / 2);
+  t.mock.timers.tick(ICH_CACHE_MS / 2);
+  assert.equal(cachedIch('per_Timer'), undefined);
 });
 
 test('members of CampFlow are reduced to name and groups', () => {
@@ -312,6 +325,17 @@ dbTest('the logged-in person learns their CampFlow person', async (t) => {
   // Cached: CampFlow is asked once
   assert.deepEqual(await ich(ANNA), expected);
   assert.equal(get.mock.callCount(), 1);
+  // Any change of the list forgets what is in memory, so CampFlow is asked again
+  const anna = (
+    (await PersonenCollection(request(ANNA, 'GET'), context)).jsonBody as PersonenUebersicht
+  ).personen.find((person) => person.login === ANNA)!;
+  const changed = await PersonItem(
+    request(ANNA, 'PATCH', { id: String(anna.id) }, { ...anna, name: 'Anna A.', etag: anna.etag }),
+    context
+  );
+  assert.equal(changed.status, 204);
+  assert.deepEqual(await ich(ANNA), expected);
+  assert.equal(get.mock.callCount(), 2);
   // Without CampFlow the ID alone still identifies the person
   assert.deepEqual(await ich(BEN), {
     login: BEN,
