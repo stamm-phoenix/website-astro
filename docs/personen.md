@@ -48,28 +48,41 @@ Dialog nach dem Namen. Ein Login und eine CampFlow-Person gehören zu höchstens
 
 ## Wer bin ich in CampFlow?
 
-`GET /api/intern/ich` liefert für die angemeldete Person `{ login, campflow }`: die verknüpfte
-CampFlow-ID mit Vor- und Nachname und der primären Adresse aus CampFlow, oder `null` ohne
-Verknüpfung. Die Angaben aus CampFlow bleiben zehn Minuten im Speicher der Function. Ist
-CampFlow nicht erreichbar, kommt nur die ID.
+Die Kette ist **Microsoft-Konto → Person der Mitgliederliste → Anmeldungen zu Aktionen**. Das
+erste Glied steht in `organisation.person`. Das zweite bildet der Server: CampFlow führt jede
+Anmeldung zu einem Event als eigene Person mit eigener, global eindeutiger ID, ohne Bezug zur
+Mitgliederliste. Deshalb vergleicht der Server die primäre Adresse jeder Anmeldung mit der
+primären Adresse der verknüpften Person (`eigeneAnmeldungen` in `api/lib/personen.ts`). Diese
+Adresse verlässt den Server nie. Die Seiten bekommen nur die IDs der eigenen Anmeldungen:
 
-Im Frontend fragt man `isIch(...)` oder `isIchCampflow(person)` aus
+- `GET /api/intern/aktionen/{id}`: `ich`, die IDs der eigenen Anmeldungen (Aktion, Fahrten)
+- `GET /api/intern/abrechnung/{id}`: `ich`, ebenso (die Abrechnung liefert sonst keine
+  Kontaktdaten)
+- Versand-Vorschau der Protokolle: `ich` an der eigenen Adresse der Empfängerliste
+  (`mitEigenerAdresse`; die Adressen stehen dort ohnehin)
+
+`GET /api/intern/ich` liefert `{ login, campflow }`: die verknüpfte CampFlow-ID mit Vor- und
+Nachname, oder `null` ohne Verknüpfung, ohne Adresse. Name und Adresse aus CampFlow bleiben
+höchstens zehn Minuten im Speicher der Function (`rememberIch`, ein Timer entfernt jeden
+Eintrag); jedes Speichern in der Personenliste leert ihn. Ist CampFlow nicht erreichbar, kommt
+nur die ID, und es werden keine Anmeldungen markiert.
+
+Im Frontend fragt man `isIch(...)` oder `isIchCampflow(person, ich)` aus
 `web/src/lib/ichStore.svelte.ts` (Vergleich in `istVerknuepftePerson`,
 `api/lib/personen-model.ts`). Der Store lädt `/api/intern/ich` beim ersten Aufruf einmal je
 Seite, auch nach Seitenwechseln ohne volles Neuladen, und sofort neu, wenn im Modul „Personen“
 gespeichert wurde. Eine Person gilt als „ich“, wenn
 
-1. ihre CampFlow-ID die verknüpfte ist (Personen der Mitgliederliste, z. B. bei der
+1. der Server sie als eigene Anmeldung gemeldet hat (`ich`),
+2. ihre CampFlow-ID die verknüpfte ist (Personen der Mitgliederliste, z. B. bei der
    Sammelbestellung; dort entscheidet mit Verknüpfung allein die ID, ein gleichnamiges Mitglied
-   ist nie „ich“, `mitglied: true`),
-2. ihre E-Mail-Adresse die primäre Adresse der verknüpften Person ist, oder
+   ist nie „ich“, `mitglied: true`), oder
 3. ihr Name dem Namen der verknüpften Person in CampFlow oder dem Namen des Microsoft-Kontos
-   entspricht (ohne Groß-/Kleinschreibung und Leerzeichen).
+   entspricht (ohne Groß-/Kleinschreibung und Leerzeichen), etwa bei Beiträgen und Auslagen,
+   die nur einen Namen kennen.
 
-Punkt 2 und 3 sind nötig, weil CampFlow jede Anmeldung zu einem Event als eigene Person mit
-eigener ID führt (die IDs sind global eindeutig, ein Bezug zur Mitgliederliste fehlt in der
-API). Wer sich mit der privaten Adresse aus der Mitgliederliste anmeldet, wird sicher erkannt.
-Ohne Verknüpfung bleibt nur der Name des Microsoft-Kontos, wie bisher.
+Wer sich mit der privaten Adresse aus der Mitgliederliste anmeldet, wird sicher erkannt, auch
+unter anderem Namen. Ohne Verknüpfung bleibt nur der Name des Microsoft-Kontos, wie bisher.
 
 ## Wo „(ich)“ steht
 

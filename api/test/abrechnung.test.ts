@@ -5,6 +5,7 @@ import { HttpRequest } from '@azure/functions';
 import * as aktionArt from '../lib/aktion-art';
 import * as campflow from '../lib/campflow';
 import * as env from '../lib/environment';
+import * as personen from '../lib/personen';
 import { CONFIG } from '../lib/config';
 import { costUnitForEvent, countPersons, summarizeEntries } from '../lib/abrechnung';
 import { betreuungsschluessel, countNights, kjrZuschuss } from '../lib/kjr-zuschuss';
@@ -198,6 +199,8 @@ test('prefers a Kostenstelle linked to the event over its title', () => {
 
 test('returns the overview of an Aktion without personal data', async (t) => {
   mockCampflow(t, [confirmed('2015-01-01'), confirmed('1990-01-01')]);
+  // The server matches own registrations by address and returns only their IDs
+  const eigene = t.mock.method(personen, 'eigeneAnmeldungen', async () => ['per_eigene']);
   const fetch = mockPlaywright(t, 200, {
     costUnit: { id: 'cun_1', name: 'Stammeslager 2026' },
     entries: MAPPE,
@@ -222,10 +225,13 @@ test('returns the overview of an Aktion without personal data', async (t) => {
     'costUnit',
     'event',
     'exportedAt',
+    'ich',
     'leihgebuehren',
     'nachweise',
     'persons',
   ]);
+  assert.deepEqual(body.ich, ['per_eigene']);
+  assert.equal(eigene.mock.calls[0]?.arguments[1]?.length, 2);
   const persons = body.persons as Record<string, unknown>[];
   assert.equal(persons.length, 2);
   // Only the fields relevant for the Abrechnung, no further CampFlow data

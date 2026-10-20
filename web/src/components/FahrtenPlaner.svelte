@@ -60,7 +60,13 @@
   });
   const personen = $derived(detail ? fahrtPersonen(detail.persons, columns, seatColumns) : []);
   /** IDs of the own registrations, marked with „(ich)“. */
-  const ichIds = $derived(new Set((detail?.persons ?? []).filter(isIchCampflow).map((p) => p.id)));
+  const ichIds = $derived(
+    new Set(
+      (detail?.persons ?? [])
+        .filter((person) => isIchCampflow(person, detail?.ich))
+        .map((p) => p.id)
+    )
+  );
   const anpassungen = $derived<Record<Fahrt, FahrtAnpassungen>>({
     hin: readAnpassungen(params, 'hin'),
     rueck: readAnpassungen(params, 'rueck'),

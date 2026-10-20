@@ -72,6 +72,7 @@ import {
   readJsonBody,
   requireVersion,
 } from '../lib/pflege-api';
+import { mitEigenerAdresse } from '../lib/personen';
 import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
 
@@ -558,7 +559,11 @@ export const ProtokollVersandEndpoint = pflegeHandler(
     }
     const version = audienceVersion(recipients);
     if (action === 'preview') {
-      return ok({ recipients: recipients.length, version, list: recipients });
+      return ok({
+        recipients: recipients.length,
+        version,
+        list: await mitEigenerAdresse(principal.userDetails, recipients),
+      });
     }
 
     const etag = requireVersion(readEtag(body));

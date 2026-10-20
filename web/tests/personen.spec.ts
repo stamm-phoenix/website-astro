@@ -36,7 +36,10 @@ test('leaders are linked to CampFlow and find themselves in an Aktion', async ({
     .click();
   await expect(leitende).toContainText('CampFlow: Demo Leitung');
 
-  // The demo account is registered for the Georgsfest as a person of its own, with its address
+  // The demo account is registered for the Georgsfest as a person of its own, under another
+  // name: the server finds it by the address of the linked person, which the page never gets
   await page.goto('/leitendenbereich/aktionen/aktion?id=evt_Georgsfest');
   await expect(page.getByText('(ich)').filter({ visible: true })).toHaveCount(1);
+  const ich = await page.request.get('/api/intern/ich');
+  expect(JSON.stringify(await ich.json())).not.toContain('demo.leitung@example.org');
 });

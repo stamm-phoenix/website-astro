@@ -103,7 +103,8 @@
               />
               <span class="min-w-0">
                 <span class="block text-sm font-semibold break-words text-neutral-900">
-                  {recipient.name || recipient.email}{#if isIch(recipient)}
+                  {recipient.name ||
+                    recipient.email}{#if isIch({ name: recipient.name, ich: recipient.ich })}
                     <span class="font-normal text-neutral-700">(ich)</span>{/if}
                 </span>
                 {#if recipient.name}
