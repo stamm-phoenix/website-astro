@@ -32,6 +32,8 @@
   let root = $state<HTMLSpanElement | null>(null);
   let button = $state<HTMLButtonElement | null>(null);
   let panel = $state<HTMLSpanElement | null>(null);
+  /** A text longer than the room scrolls; then the panel takes the focus for the arrow keys. */
+  let scrolls = $state(false);
 
   function place(): void {
     const rect = button?.getBoundingClientRect();
@@ -53,6 +55,7 @@
       panelBottom = window.innerHeight - rect.top + gap;
       panelMaxHeight = above;
     }
+    scrolls = height > (panelMaxHeight ?? Infinity) + 1;
   }
   async function toggle(): Promise<void> {
     if (open) {
@@ -110,10 +113,13 @@
     </svg>
   </button>
   {#if open}
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex (keyboard scrolling of a long explanation) -->
     <span
       {id}
       class="info-hint-panel"
       role="note"
+      tabindex={scrolls ? 0 : undefined}
+      aria-label={scrolls ? `Erklärung zu ${label}` : undefined}
       style:left="{panelLeft}px"
       style:top={panelTop === undefined ? undefined : `${panelTop}px`}
       style:bottom={panelBottom === undefined ? undefined : `${panelBottom}px`}

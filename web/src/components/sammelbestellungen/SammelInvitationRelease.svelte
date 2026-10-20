@@ -51,7 +51,7 @@
     } catch (caught) {
       error = errorMessage(
         caught,
-        'Der Versand wurde unterbrochen. Prüfe deine Internetverbindung und tippe dann auf „Versand fortsetzen“.'
+        `Der Versand wurde unterbrochen. Prüfe deine Internetverbindung und tippe dann auf „${audience?.started ? 'Versand fortsetzen' : 'Sammelbestellung freigeben'}“.`
       );
     } finally {
       busy = null;
