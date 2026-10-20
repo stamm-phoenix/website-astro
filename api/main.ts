@@ -44,7 +44,8 @@ import GetDownloadFileImageEndpoint from './endpoints/download-file-image';
 import GetDownloadFileEndpoint from './endpoints/download-file';
 import GetQuestionsAndAnswersEndpoint from './endpoints/qa';
 import { QuestionsCollection, QuestionItem } from './endpoints/intern-pflege-qa';
-import { WeiterePersonItem, WeiterePersonenCollection } from './endpoints/intern-pflege-personen';
+import { PersonItem, PersonenCollection } from './endpoints/intern-pflege-personen';
+import { Ich } from './endpoints/intern-ich';
 import { StaffFavorites } from './endpoints/intern-favoriten';
 import { StaffChangelog } from './endpoints/intern-neuigkeiten';
 import { StaffRecent } from './endpoints/intern-zuletzt';
@@ -608,14 +609,21 @@ app.http('internPflegePersonen', {
   methods: ['GET', 'POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/personen',
-  handler: WeiterePersonenCollection,
+  handler: PersonenCollection,
 });
 
 app.http('internPflegePerson', {
   methods: ['PATCH', 'DELETE'],
   authLevel: 'anonymous',
   route: 'intern/pflege/personen/{id}',
-  handler: WeiterePersonItem,
+  handler: PersonItem,
+});
+
+app.http('internIch', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/ich',
+  handler: Ich,
 });
 
 app.http('internFavoriten', {

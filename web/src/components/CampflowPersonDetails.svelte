@@ -7,6 +7,7 @@
     personStatus,
   } from '../lib/campflowFields';
   import type { PersonStatus } from '../lib/campflowFields';
+  import { isIchCampflow } from '../lib/ichStore.svelte';
   import ModalDialog from './ui/ModalDialog.svelte';
   import StatusLabel from './ui/StatusLabel.svelte';
   import CopyCode from './ui/CopyCode.svelte';
@@ -46,7 +47,7 @@
 
 <ModalDialog
   open={person !== null}
-  title={person ? formatName(person) : ''}
+  title={person ? `${formatName(person)}${isIchCampflow(person) ? ' (ich)' : ''}` : ''}
   closeLabel="Details schließen"
   size="wide"
   dismissOnBackdrop

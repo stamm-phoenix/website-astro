@@ -35,6 +35,7 @@
   import { sammelCsv } from '../lib/sammelExport';
   import { GROUP_CONFIG, STUFE_TO_KEY } from '../lib/types';
   import { confirmAction } from '../lib/confirm';
+  import { isIchCampflow } from '../lib/ichStore.svelte';
 
   /** A person picked in the plan, with the car they sit in (`null` without a seat). */
   interface Auswahl {
@@ -58,6 +59,8 @@
     rueck: params.get('spalte-rueck') ?? guessSeatColumn(columns, 'rueck'),
   });
   const personen = $derived(detail ? fahrtPersonen(detail.persons, columns, seatColumns) : []);
+  /** IDs of the own registrations, marked with „(ich)“. */
+  const ichIds = $derived(new Set((detail?.persons ?? []).filter(isIchCampflow).map((p) => p.id)));
   const anpassungen = $derived<Record<Fahrt, FahrtAnpassungen>>({
     hin: readAnpassungen(params, 'hin'),
     rueck: readAnpassungen(params, 'rueck'),
@@ -171,6 +174,7 @@
       style:background-color={groupColor(p.gruppe)}
     ></span>
     <span class={isDriver ? 'font-semibold text-brand-900' : ''}>{p.name}</span>
+    {#if ichIds.has(p.id)}<span class="text-neutral-700">(ich)</span>{/if}
     {#if p.gruppe}<span class="text-sm text-neutral-700">{groupName(p.gruppe)}</span>{/if}
     <span class="sr-only">, ändern</span>
   </button>
@@ -397,7 +401,10 @@
               <ul class="mt-1 divide-y divide-neutral-200">
                 {#each plan.entfernt as p (p.id)}
                   <li class="flex flex-wrap items-center justify-between gap-2 py-2">
-                    <span>{p.name}</span>
+                    <span
+                      >{p.name}{#if ichIds.has(p.id)}
+                        <span class="text-neutral-700">(ich)</span>{/if}</span
+                    >
                     <ActionButton
                       onclick={() => setAnpassungen(withRemoved(anpassungen[fahrt], p.id, false))}
                       >Wieder einplanen<span class="sr-only">: {p.name}</span></ActionButton

@@ -288,20 +288,6 @@ export interface ProtokollEditorPersonen {
   unavailable: boolean;
 }
 
-/** A person of the list kept in the Leitendenbereich (Altleitende and others, #301). */
-export interface WeiterePerson {
-  id: number;
-  name: string;
-  /** Login in our tenant, if the person has one; empty otherwise. */
-  login: string;
-  gruppe: Exclude<PersonGruppe, 'leitende'>;
-  /** Inactive people stay in old minutes but are no longer offered. */
-  aktiv: boolean;
-  etag: string;
-  updatedAt: string;
-  updatedBy: string;
-}
-
 /** Seconds a lock lasts without being renewed. */
 export const SPERRE_SECONDS = 60;
 /** Seconds between renewals of the writing browser. */

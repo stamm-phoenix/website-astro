@@ -2,7 +2,7 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import { authStore, isOwnName } from '../../lib/authStore.svelte';
+  import { isIch } from '../../lib/ichStore.svelte';
   import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
   import { loadPlzOrte, plzOrteStore } from '../../lib/plzOrte.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
@@ -373,7 +373,7 @@
                         ? ', '
                         : ''}{person.firstName}
                     </span>
-                    {#if isOwnName(authStore.principal, fullName(person))}
+                    {#if isIch({ id: person.id, name: fullName(person) })}
                       <span class="text-neutral-700">(ich)</span>
                     {/if}
                     {#if isExtra(person)}

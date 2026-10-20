@@ -10,6 +10,7 @@ import type {
 } from '../../src/lib/types';
 import { hashString } from './svg';
 import { AKTION_DATES, dayFromToday, isoFromNow, plusDays } from './util';
+import { MOCK_ICH_EMAIL } from './personen';
 
 const COLLECTIONS = {
   stamm: { id: 'col_stamm', name: 'Stammesaktionen' },
@@ -294,6 +295,17 @@ function personFor(eventId: string, index: number, start: string | null): Campfl
   const seats = rnd() < 0.35 ? 3 + Math.floor(rnd() * 5) : 0;
   person.col_plaetze_hin = seats;
   person.col_plaetze_rueck = seats > 0 && rnd() < 0.2 ? 0 : seats;
+  // The demo account comes along on the hike, registered as a person of its own like in CampFlow
+  if (eventId === 'evt_HikeMangfall' && index === 0) {
+    Object.assign(person, {
+      name: { first_name: 'Demo', last_name: 'Leitung' },
+      primary_email: MOCK_ICH_EMAIL,
+      birthdate: '1998-04-12',
+      group_names: ['🐦‍🔥 Leiter*in'],
+      confirmation_date: isoFromNow(-15),
+      cancellation_date: null,
+    });
+  }
   return person;
 }
 
