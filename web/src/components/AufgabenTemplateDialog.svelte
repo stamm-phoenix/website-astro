@@ -72,6 +72,7 @@
   open
   title="Vorlage"
   rescueKey={`vorlage:${target?.id ?? 'neu'}`}
+  rescueVersion={target?.etag}
   {busy}
   error={form.state.error}
   onedit={form.changed}

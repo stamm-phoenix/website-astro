@@ -8,8 +8,9 @@
    */
   interface Props {
     values: GeretteterWert[];
+    conflict?: boolean;
   }
-  let { values }: Props = $props();
+  let { values, conflict = false }: Props = $props();
 
   let copied = $state<number | null>(null);
   let failed = $state<number | null>(null);
@@ -29,8 +30,14 @@
 <section aria-labelledby="nicht-eingesetzt" class="surface-muted mb-3 space-y-2 p-3 text-sm">
   <h3 id="nicht-eingesetzt" class="font-semibold text-neutral-800">Noch nicht eingesetzt</h3>
   <p class="text-neutral-700">
-    Für diese Eingaben fehlt im Formular noch das Feld, zum Beispiel eine weitere Zeile. Leg es an,
-    dann setzt das Formular den Wert selbst ein. Sie bleiben gesichert, bis alles eingesetzt ist.
+    {#if conflict}
+      Diese Eingaben wurden nicht eingesetzt, damit die inzwischen gespeicherten Änderungen erhalten
+      bleiben. Du kannst sie kopieren und mit der aktuellen Fassung vergleichen.
+    {:else}
+      Für diese Eingaben fehlt im Formular noch das Feld, zum Beispiel eine weitere Zeile. Leg es
+      an, dann setzt das Formular den Wert selbst ein. Sie bleiben gesichert, bis alles eingesetzt
+      ist.
+    {/if}
   </p>
   <ul class="space-y-2">
     {#each values as kept, index (kept.key)}

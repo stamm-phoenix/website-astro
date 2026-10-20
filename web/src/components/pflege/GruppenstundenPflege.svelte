@@ -267,6 +267,7 @@
   open={form !== null}
   title={form?.id ? `Gruppenstunde ${form.stufe} bearbeiten` : 'Neue Gruppenstunde'}
   rescueKey={form ? `gruppenstunde:${form.id ?? 'neu'}` : undefined}
+  rescueVersion={form?.etag}
   {busy}
   error={dialog.state.error}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}

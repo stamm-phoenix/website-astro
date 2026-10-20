@@ -94,6 +94,7 @@
   open={editing !== null}
   title="Bestellstatus bearbeiten"
   rescueKey={editing ? `bestellstatus:${editing.id}` : undefined}
+  rescueVersion={editing?.etag}
   {busy}
   error={dialogError}
   submitDisabled={conflict}

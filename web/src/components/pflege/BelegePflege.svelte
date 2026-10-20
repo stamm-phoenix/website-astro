@@ -364,6 +364,7 @@
   open={form !== null}
   title={form?.id ? `Beleg von ${form.shop || 'unbekannt'}` : 'Beleg einreichen'}
   rescueKey={form ? `beleg:${form.id ?? 'neu'}` : undefined}
+  rescueVersion={form?.etag}
   busy={busy || photo.photoBusy}
   error={dialog.state.error}
   notice={dialogNotice}

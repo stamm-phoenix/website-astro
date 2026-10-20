@@ -76,6 +76,7 @@
   open={booking !== null}
   title="Nachricht an Familie {booking?.familyName ?? ''}"
   rescueKey={booking ? `nikolaus-nachricht:${booking.id}` : undefined}
+  rescueVersion={booking?.etag}
   {busy}
   {error}
   submitLabel={busy ? 'Wird gesendet …' : 'Senden'}

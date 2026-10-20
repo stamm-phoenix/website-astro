@@ -2,7 +2,7 @@
   import ModalDialog from '../ui/ModalDialog.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import { onDestroy, tick, setContext, type Snippet } from 'svelte';
+  import { onDestroy, tick, setContext, untrack, type Snippet } from 'svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { confirmAction } from '../../lib/confirm';
   import StatusNotice from './StatusNotice.svelte';
@@ -15,6 +15,7 @@
     findRescue,
     forgetRescue,
     shownValues,
+    withoutEditedField,
     type GeretteterWert,
     type RescueEditor,
   } from '../../lib/geretteteEingaben';
@@ -46,6 +47,8 @@
      * iPhone app keeps the input and fills it in again when this record's dialog opens.
      */
     rescueKey?: string;
+    /** Original record version, including text held outside native form fields. */
+    rescueVersion?: string;
     onedit?: (event: Event) => void;
     onreload?: () => Promise<boolean>;
     onsubmit: () => void;
@@ -72,6 +75,7 @@
     deleteTitle,
     deleteQuestion = 'Diesen Eintrag endgültig löschen?',
     rescueKey,
+    rescueVersion,
     onedit,
     onreload,
     onsubmit,
@@ -85,6 +89,7 @@
   let edited = $state(false);
   /** Input from before a new login was filled in again; it is unsaved until saved. */
   let restored = $state(false);
+  let rescueConflict = $state(false);
   const unsaved = $derived(edited || dirty || restored);
   let confirmingDiscard = $state(false);
   let deleteActionsOpen = $state(false);
@@ -95,11 +100,13 @@
   const leftOver = $derived(shownValues(pending));
   const shownNotice = $derived(
     notice ??
-      (!restored
-        ? null
-        : leftOver.length > 0
-          ? 'Ein Teil deiner Eingaben von vor der neuen Anmeldung ist wieder eingesetzt. Den Rest findest du darunter.'
-          : 'Deine Eingaben von vor der neuen Anmeldung sind wieder eingesetzt. Prüf sie und speichere.')
+      (rescueConflict
+        ? 'Dieser Eintrag wurde inzwischen geändert. Deine früheren Eingaben stehen darunter zum Kopieren. Prüfe die aktuelle Fassung, bevor du etwas übernimmst und speicherst.'
+        : !restored
+          ? null
+          : leftOver.length > 0
+            ? 'Ein Teil deiner Eingaben von vor der neuen Anmeldung ist wieder eingesetzt. Den Rest findest du darunter.'
+            : 'Deine Eingaben von vor der neuen Anmeldung sind wieder eingesetzt. Prüf sie und speichere.')
   );
 
   async function keepEditing(): Promise<void> {
@@ -148,12 +155,12 @@
   setRescueContext({
     enabled: () => record !== undefined,
     rescue: () =>
-      form && record !== undefined
+      !rescueConflict && form && record !== undefined
         ? rescueDialog(form, record, openingTitle, opening, editors, pending)
         : false,
     register(editor) {
       editors.push(editor);
-      if (form && pending.length > 0) {
+      if (form && !rescueConflict && pending.length > 0) {
         pending = fillDialog(form, [editor], pending);
         if (shownValues(pending).length === 0) forgetRescue(record);
       }
@@ -186,14 +193,38 @@
     initial = [];
     for (const el of form?.elements ?? []) remember(el);
     restored = false;
+    rescueConflict = false;
     pending = [];
     discarded = false;
     openingTitle = title;
     record = rescueKey;
-    opening = JSON.stringify(initial.map((entry) => entry.value));
+    opening = JSON.stringify([rescueVersion ?? '', initial.map((entry) => entry.value)]);
     const kept = record === undefined ? null : findRescue(record, opening, Date.now());
     if (kept) void restore(kept);
+    else if (record !== undefined) {
+      const conflicting = findRescue(record, null, Date.now());
+      if (conflicting) {
+        pending = conflicting;
+        rescueConflict = true;
+        restored = true;
+      }
+    }
   }
+
+  // Creating a person keeps the dialog open for their photo. Its new ID and saved
+  // values become the baseline before any further edits or a new login.
+  $effect(() => {
+    if (
+      open &&
+      rescueKey !== undefined &&
+      untrack(() => record !== undefined && record !== rescueKey)
+    ) {
+      untrack(() => {
+        forgetRescue(record);
+        opened();
+      });
+    }
+  });
 
   $effect(() => {
     if (open && unsaved) return guardUnsavedChanges(() => true);
@@ -201,7 +232,7 @@
 
   // A field added later, e.g. a row for kept input, takes its value as soon as it appears
   $effect(() => {
-    if (!form || !restored || pending.length === 0) return;
+    if (!form || !restored || rescueConflict || pending.length === 0) return;
     const target = form;
     const observer = new MutationObserver(() => {
       pending = fillDialog(target, editors, pending);
@@ -250,10 +281,14 @@
     onfocusincapture={(event) => remember(event.target)}
     onpointerdowncapture={(event) => remember(event.target)}
     oninput={(event) => {
+      if (event.isTrusted && form && !rescueConflict)
+        pending = withoutEditedField(form, pending, event.target);
       updateEdited();
       onedit?.(event);
     }}
     onchange={(event) => {
+      if (event.isTrusted && form && !rescueConflict)
+        pending = withoutEditedField(form, pending, event.target);
       updateEdited();
       onedit?.(event);
     }}
@@ -273,7 +308,10 @@
         message={error ? null : shownNotice}
         class={shownNotice && !error ? 'mb-3' : ''}
       />
-      {#if restored && leftOver.length > 0}<NichtEingesetzt values={leftOver} />{/if}
+      {#if restored && leftOver.length > 0}<NichtEingesetzt
+          values={leftOver}
+          conflict={rescueConflict}
+        />{/if}
       {#if error}
         <p role="alert" class="mb-3 text-sm text-danger"><MessageText text={error} /></p>
       {/if}
@@ -340,11 +378,13 @@
     if (reloadRequested) {
       reloadRequested = false;
       if (await onreload?.()) {
+        if (record !== undefined) forgetRescue(record);
         await tick();
         opened();
       }
     } else {
       discarded = true;
+      if (record !== undefined) forgetRescue(record);
       onclose();
     }
   }}

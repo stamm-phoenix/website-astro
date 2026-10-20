@@ -320,6 +320,7 @@
   open={form !== null}
   title={form?.id ? 'Person bearbeiten' : 'Person hinzufügen'}
   rescueKey={form ? `helfende:${form.id ?? 'neu'}` : undefined}
+  rescueVersion={form?.etag}
   {busy}
   dirty={tagsDirty}
   {error}

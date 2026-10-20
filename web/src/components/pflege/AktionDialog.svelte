@@ -268,6 +268,7 @@
   open={target !== null}
   {title}
   rescueKey={`aktion:${targetEntry?.id ?? 'neu'}:${targetEvent?.id ?? ''}`}
+  rescueVersion={targetEntry?.etag}
   {busy}
   error={dialog.state.error}
   submitDisabled={dialog.state.conflict}

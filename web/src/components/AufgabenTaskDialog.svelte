@@ -152,6 +152,7 @@
       ? 'Aufgabe bearbeiten'
       : 'Aufgabe anlegen'}
   rescueKey={`aufgabe:${target?.id ?? 'neu'}`}
+  rescueVersion={target?.etag}
   {busy}
   submitDisabled={assignmentLoading}
   error={form.state.error}

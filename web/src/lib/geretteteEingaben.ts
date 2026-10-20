@@ -147,9 +147,17 @@ export function rescueDialog(
       value: editor.get(),
     })),
   ];
-  // Kept values without a field yet stay kept; a field that exists now has the newer value
-  const keys = new Set(fields.map((field) => field.key));
-  fields.push(...notPlaced.filter((kept) => !keys.has(kept.key)));
+  // A field may exist while its selected option is still loading. Until it was placed
+  // (or the person explicitly changed the field), its kept value remains authoritative.
+  const waiting = new Map(notPlaced.map((kept) => [kept.key, kept]));
+  for (let index = 0; index < fields.length; index++) {
+    const kept = waiting.get(fields[index].key);
+    if (kept) {
+      fields[index] = kept;
+      waiting.delete(kept.key);
+    }
+  }
+  fields.push(...waiting.values());
   const rettung: Rettung = {
     savedAt: Date.now(),
     path: `${location.pathname}${location.search}`,
@@ -213,12 +221,28 @@ export function rescuedDialog(now: number): string | null {
  * The kept input of `record` on this page. The values when the dialog opened must match too,
  * so input never lands on a record someone changed in between. It stays kept until
  * `forgetRescue()`, so input without a field to go into is not lost.
+ * With a null opening, read it only for showing a conflicting draft, never to fill fields.
  */
-export function findRescue(record: string, opening: string, now: number): GeretteterWert[] | null {
+export function findRescue(
+  record: string,
+  opening: string | null,
+  now: number
+): GeretteterWert[] | null {
   const rettung = read(now);
-  if (!rettung || rettung.record !== record || rettung.opening !== opening) return null;
+  if (!rettung || rettung.record !== record) return null;
+  if (opening !== null && rettung.opening !== opening) return null;
   if (rettung.path !== `${location.pathname}${location.search}`) return null;
   return rettung.fields;
+}
+
+/** A deliberate edit replaces a waiting value even if its original option never arrived. */
+export function withoutEditedField(
+  form: HTMLFormElement,
+  values: readonly GeretteterWert[],
+  target: EventTarget | null
+): GeretteterWert[] {
+  const key = keyedFields(form).find((entry) => entry.field === target)?.key;
+  return values.filter((kept) => kept.key !== key);
 }
 
 /** Kept values worth showing: not empty and not an unticked box. */

@@ -67,6 +67,7 @@
   open
   title="Projekt"
   rescueKey={`projekt:${target?.id ?? 'neu'}`}
+  rescueVersion={target?.etag}
   {busy}
   error={form.state.error}
   onedit={form.changed}
