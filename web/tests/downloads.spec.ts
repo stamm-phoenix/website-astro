@@ -83,3 +83,32 @@ test('uploaded files get a preview, can be replaced and appear on the public pag
     await page.request.delete(`/api/intern/pflege/downloads/${file.id}`);
   }
 });
+
+test('renaming a PDF with punctuation keeps its extension unless a supported one is explicit', async ({
+  page,
+}) => {
+  let name = `${marker()} Umbenennen.pdf`;
+  await page.goto('/leitendenbereich/downloads');
+  await choose(page, name, 'application/pdf', pdf('Umbenennen'));
+  await expect(page.getByText(`${name} hochgeladen.`).first()).toBeVisible();
+  for (const entered of [
+    `${marker()} Anmeldung 1. Advent`,
+    `${marker()} Anmeldung 20.10.2026`,
+    `${marker()} Explizit.PDF`,
+  ]) {
+    await page.getByRole('button', { name: `Umbenennen (${name})`, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Datei umbenennen' });
+    await dialog.getByLabel('Dateiname', { exact: true }).fill(entered);
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    name = entered.endsWith('.PDF') ? entered : `${entered}.pdf`;
+    await expect(page.getByText(`Umbenannt in ${name}.`)).toBeVisible();
+  }
+  const files = (await (await page.request.get('/api/intern/pflege/downloads')).json()) as {
+    id: string;
+    fileName: string;
+  }[];
+  await page.request.delete(
+    `/api/intern/pflege/downloads/${files.find((file) => file.fileName === name)!.id}`
+  );
+});

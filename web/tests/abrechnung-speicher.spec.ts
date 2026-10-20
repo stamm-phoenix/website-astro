@@ -245,3 +245,93 @@ test('an undated Aktion keeps its accounting and receipts accessible while expla
   await page.getByRole('tab', { name: /Einzelnachweise/ }).click();
   await expect(page.getByRole('row', { name: /2026-103/ })).toBeVisible();
 });
+
+test('same-window iPhone login restores the complete unsaved accounting draft', async ({
+  page,
+}) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.goto(URL);
+  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
+  await page.getByRole('tab', { name: /Teilnehmende/ }).click();
+  await page.getByLabel('PLZ Gast München').fill('83620');
+  await page.getByRole('tab', { name: /Leihgebühren/ }).click();
+  await page.getByLabel('Anzahl Jurte').fill('2');
+  await page.getByLabel('Tage Jurte').fill('4');
+  await page.route('**/eingaben', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  const storage = page.getByTestId('eingaben-ablage');
+  await expect(storage).toContainText('Deine Anmeldung ist abgelaufen');
+  await page.unroute('**/eingaben');
+  const returned = page.waitForEvent('domcontentloaded');
+  await storage.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await returned;
+  await expect(storage).toContainText('Deine Eingaben wurden nach der Anmeldung wiederhergestellt');
+  await expect(page.getByLabel('Anzahl Jurte')).toHaveValue('2');
+  await expect(page.getByLabel('Tage Jurte')).toHaveValue('4');
+  await expect(storage).toContainText('Ungespeicherte Änderungen');
+  await page.getByRole('tab', { name: /Teilnehmende/ }).click();
+  await expect(page.getByLabel('PLZ Gast München')).toHaveValue('83620');
+  await page.getByRole('tab', { name: 'Übersicht' }).click();
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+  expect(
+    await page.evaluate(() => sessionStorage.getItem('phoenix:gerettete-eingaben:v1'))
+  ).toBeNull();
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  await expect(storage).toContainText('Auf allen deinen Geräten verfügbar');
+  await page.reload();
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+});
+
+test('recovered accounting inputs do not overwrite a newer saved version during login', async ({
+  page,
+}) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.goto(URL);
+  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
+  await page.route('**/eingaben', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  const storage = page.getByTestId('eingaben-ablage');
+  await expect(storage).toContainText('Deine Anmeldung ist abgelaufen');
+  const current = await (await page.request.get(API)).json();
+  current.session.kjr.ort = 'Inzwischen auf einem anderen Gerät';
+  expect(
+    (await page.request.put(API, { data: { session: current.session, etag: current.etag } })).ok()
+  ).toBe(true);
+  await page.unroute('**/eingaben');
+  const returned = page.waitForEvent('domcontentloaded');
+  await storage.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await returned;
+  await expect(storage).toContainText('während der Anmeldung geändert');
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Eingaben speichern' })).toBeDisabled();
+  const saved = await (await page.request.get(API)).json();
+  expect(saved.session.zusatztag).toBe(false);
+  expect(saved.session.kjr.ort).toBe('Inzwischen auf einem anderen Gerät');
+});
+
+test('accounting recovery is not applied to a different account after login', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.goto(URL);
+  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
+  await page.route('**/eingaben', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  const storage = page.getByTestId('eingaben-ablage');
+  await expect(storage).toContainText('Deine Anmeldung ist abgelaufen');
+  const principal = await (await page.request.get('/.auth/me')).json();
+  principal.clientPrincipal.userId = 'another-account';
+  await page.route('**/.auth/me', (route) => route.fulfill({ json: principal }));
+  await page.unroute('**/eingaben');
+  const returned = page.waitForEvent('domcontentloaded');
+  await storage.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await returned;
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).not.toBeChecked();
+  await expect(storage).not.toContainText(
+    'Deine Eingaben wurden nach der Anmeldung wiederhergestellt'
+  );
+});

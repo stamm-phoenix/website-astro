@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         href: '/leitendenbereich/abrechnung',
       },
       'Die Speicherfrist deiner Abrechnung folgt auch nachträglich geänderten Aktionsdaten in CampFlow. Verspätete Ladeantworten überschreiben keine neu geöffneten Eingaben.',
+      'Bei erneuter Anmeldung in der iPhone-App kommen auch deine ungespeicherten Abrechnungseingaben zurück. Punkte und Datumsangaben im Downloadnamen behalten beim Umbenennen die Dateiendung.',
       'Nach fehlgeschlagenem Speichern oder Zurücksetzen bleiben deine Abrechnungseingaben beim erneuten Versuch erhalten. Eine abgelaufene Speicherfrist wird erklärt.',
       'Sterne zum Auswählen deiner Favoriten sind am Handy sichtbar und antippbar.',
       'Bei Belegen verschwinden korrigierte Feldfehler sofort. Die Bestellliste weist auf seitlich erreichbare Spalten und fehlgeschlagene Preisabfragen hin.',
