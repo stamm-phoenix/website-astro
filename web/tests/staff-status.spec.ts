@@ -69,7 +69,7 @@ test('an uncertain CampFlow result is the same visible warning in the order and 
   await card.getByRole('button', { name: 'Bezahlung verwalten' }).click();
   const dialog = page.getByRole('dialog', { name: 'Bezahlung über CampFlow' });
   await expect(dialog.getByText(label, { exact: true })).toHaveAttribute('data-tone', 'warning');
-  await expect(dialog).toContainText(/Die Website sperrt die\s+erneute Erstellung/);
+  await expect(dialog).toContainText(/Erst in CampFlow prüfen, ob ein Beitrag entstanden ist/);
   await dialog.getByText(label, { exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: test.info().outputPath('payment-warning.png') });
   await expectNoHorizontalOverflow(page);

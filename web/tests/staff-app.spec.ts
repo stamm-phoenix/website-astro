@@ -182,7 +182,7 @@ test('in the iPhone app a new question keeps its check mark and the link in its 
   await page.getByRole('button', { name: 'Neue Frage', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Neue Frage' });
   await dialog.getByLabel('Frage', { exact: true }).fill('Wo treffen wir uns?');
-  await dialog.getByRole('checkbox', { name: /Veröffentlicht/ }).check();
+  await dialog.getByRole('checkbox', { name: 'Auf der Website veröffentlichen' }).check();
   const antwort = dialog.getByRole('textbox', { name: 'Antwort' });
   await antwort.click();
   await antwort.evaluate((element) => {
@@ -197,7 +197,9 @@ test('in the iPhone app a new question keeps its check mark and the link in its 
   await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toBeVisible();
   await page.getByRole('button', { name: 'Neue Frage', exact: true }).click();
   await expect(dialog.getByLabel('Frage', { exact: true })).toHaveValue('Wo treffen wir uns?');
-  await expect(dialog.getByRole('checkbox', { name: /Veröffentlicht/ })).toBeChecked();
+  await expect(
+    dialog.getByRole('checkbox', { name: 'Auf der Website veröffentlichen' })
+  ).toBeChecked();
   await expect(antwort.getByRole('link', { name: 'Karte' })).toHaveAttribute(
     'href',
     'https://example.org/treffpunkt'
@@ -378,7 +380,7 @@ test('in the iPhone app a CampFlow link waits for the list of Aktionen', async (
   const dialog = page.getByRole('dialog', { name: 'Projekt' });
   await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   await dialog.getByLabel('Titel', { exact: true }).fill('Sola vorbereiten');
-  const link = dialog.getByLabel('CampFlow-Aktion');
+  const link = dialog.getByRole('combobox', { name: /^Aktion\b/ });
   await link.selectOption({ index: 1 });
   const chosen = await link.inputValue();
   expect(chosen).not.toBe('');
@@ -695,7 +697,7 @@ test('in the iPhone app a conflicting draft shows cleared fields and removed che
   const title = 'Recovery cleared fields';
   const id = await conflictingQuestion(page, title, '<p>Original answer</p>');
   const dialog = page.getByRole('dialog', { name: 'Frage bearbeiten', exact: true });
-  await dialog.getByRole('checkbox', { name: /Veröffentlicht/ }).uncheck();
+  await dialog.getByRole('checkbox', { name: 'Auf der Website veröffentlichen' }).uncheck();
   await dialog.getByLabel('Frage', { exact: true }).fill('');
   const answer = dialog.getByRole('textbox', { name: 'Antwort', exact: true });
   await answer.fill('');
@@ -711,10 +713,14 @@ test('in the iPhone app a conflicting draft shows cleared fields and removed che
   await page.reload();
   await page.getByRole('button', { name: `Bearbeiten: ${title}`, exact: true }).click();
   await expect(answer).toContainText('Newer answer');
-  await expect(dialog.getByRole('checkbox', { name: /Veröffentlicht/ })).toBeChecked();
+  await expect(
+    dialog.getByRole('checkbox', { name: 'Auf der Website veröffentlichen' })
+  ).toBeChecked();
   const draft = dialog.getByRole('region', { name: 'Noch nicht eingesetzt' });
   await expect(
-    draft.getByRole('listitem').filter({ has: page.getByText('Status', { exact: true }) })
+    draft
+      .getByRole('listitem')
+      .filter({ has: page.getByText('Auf der Website veröffentlichen', { exact: true }) })
   ).toContainText('nicht angehakt');
   for (const label of ['Frage', 'Antwort']) {
     await expect(
