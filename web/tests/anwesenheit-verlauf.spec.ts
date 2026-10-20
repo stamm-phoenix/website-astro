@@ -203,3 +203,51 @@ test('history retries a name lookup and explains anonymized attendance', async (
   await expect(row.getByRole('button', { name: 'Gruppenstunde löschen' })).toHaveCount(0);
   expect(tries).toBe(2);
 });
+
+for (const change of ['child', 'guest', 'status'] as const) {
+  test(`attendance changed after opening is not deleted: ${change}`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const date = daysAgo(210 + ['child', 'guest', 'status'].indexOf(change));
+    const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
+    const read = `/api/intern/anwesenheit/woelflinge/${date}`;
+    expect(
+      (await page.request.put(`${write}/kinder/per_W1`, { data: { status: 'anwesend' } })).ok()
+    ).toBe(true);
+    await page.goto('/leitendenbereich/anwesenheit');
+    await page.getByRole('button', { name: 'Verlauf & Statistik', exact: true }).click();
+    const row = page.locator(`[data-meeting-date="${date}"]`);
+    await row.getByRole('button', { name: /Details ansehen/ }).click();
+    await expect(row.getByRole('list', { name: 'Anwesend' })).toContainText('Anna Test');
+    const loaded = await (await page.request.get(read)).json();
+    const changed =
+      change === 'guest'
+        ? await page.request.post(`${write}/gaeste`, { data: { name: 'Neuer Gast' } })
+        : await page.request.put(`${write}/kinder/${change === 'child' ? 'per_W2' : 'per_W1'}`, {
+            data: { status: change === 'status' ? 'entschuldigt' : 'anwesend' },
+          });
+    expect(changed.ok()).toBe(true);
+    const current = await (await page.request.get(read)).json();
+    expect(current.etag).toBe(loaded.etag);
+    await row.getByRole('button', { name: 'Gruppenstunde löschen', exact: true }).click();
+    const removed = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === write && response.request().method() === 'DELETE'
+    );
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Gruppenstunde löschen', exact: true })
+      .click();
+    expect((await removed).status()).toBe(409);
+    await expect(
+      page.getByText(/inzwischen geändert. Sie wurde nicht gelöscht/).first()
+    ).toBeVisible();
+    await expect(
+      row.getByRole('list', {
+        name: change === 'guest' ? 'Gäste' : change === 'status' ? 'Entschuldigt' : 'Anwesend',
+      })
+    ).toContainText(
+      change === 'guest' ? 'Neuer Gast' : change === 'child' ? 'Ben Beispiel' : 'Anna Test'
+    );
+    expect(await (await page.request.get(read)).json()).toEqual(current);
+  });
+}

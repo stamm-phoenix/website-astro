@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
+  import { attendanceSnapshot } from '../../../../api/lib/anwesenheit-model';
   import { averageMembers, monthlyStats } from '../../lib/anwesenheit';
   import { ApiError, fetchApi, errorMessage, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -95,7 +96,7 @@
   }
 
   /** Deletes the Termin of `date` if nobody changed it since it was opened (`etag`). */
-  async function remove(date: string, etag: string | null): Promise<void> {
+  async function remove(date: string, termin: AnwesenheitTermin): Promise<void> {
     const label = formatDate(date);
     const confirmed = await confirmAction({
       title: `Gruppenstunde ${stufe} am ${label} löschen?`,
@@ -106,9 +107,14 @@
     if (!confirmed) return;
     deleting = true;
     try {
-      await sendApi('DELETE', `/intern/pflege/anwesenheit/${slug}/${date}`, undefined, {
-        etag: etag ?? undefined,
-      });
+      await sendApi(
+        'DELETE',
+        `/intern/pflege/anwesenheit/${slug}/${date}`,
+        { attendance: attendanceSnapshot(termin) },
+        {
+          etag: termin.etag ?? undefined,
+        }
+      );
       collapse();
       message = `Gruppenstunde am ${label} gelöscht.`;
       messageKind = 'success';
@@ -293,7 +299,7 @@
                           type="button"
                           disabled={deleting}
                           aria-busy={deleting}
-                          onclick={() => remove(meeting.date, termin.etag)}
+                          onclick={() => remove(meeting.date, termin)}
                           >Gruppenstunde löschen</ActionButton
                         >
                       {/if}

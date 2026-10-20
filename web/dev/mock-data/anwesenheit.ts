@@ -1,5 +1,5 @@
 import type { StufeSlug } from '../../../api/lib/anwesenheit-model';
-import { STUFE_SLUGS, isStufeSlug } from '../../../api/lib/anwesenheit-model';
+import { STUFE_SLUGS, attendanceSnapshot, isStufeSlug } from '../../../api/lib/anwesenheit-model';
 import type {
   AnwesenheitChild,
   AnwesenheitGuest,
@@ -216,10 +216,16 @@ export function setAnwesenheitCancelled(
 }
 
 /** `false` if the Termin changed since `etag` was loaded; a missing Termin is fine. */
-export function deleteAnwesenheitTermin(slug: string, date: string, etag: string): boolean {
+export function deleteAnwesenheitTermin(
+  slug: StufeSlug,
+  date: string,
+  etag: string,
+  attendance: string
+): boolean {
   const meeting = meetings.get(key(slug, date));
   if (!meeting) return true;
-  if (meeting.etag !== etag) return false;
+  if (meeting.etag !== etag || attendanceSnapshot(anwesenheitTermin(slug, date)) !== attendance)
+    return false;
   meetings.delete(key(slug, date));
   return true;
 }

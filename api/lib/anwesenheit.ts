@@ -11,7 +11,7 @@ import type {
   AnwesenheitMeeting,
   AnwesenheitStufeName,
 } from './anwesenheit-model';
-import { STUFE_SLUGS, isStufeSlug } from './anwesenheit-model';
+import { STUFE_SLUGS, attendanceSnapshot, isStufeSlug } from './anwesenheit-model';
 import type { CampflowPerson } from './campflow';
 import { CampflowError, campflowGet, campflowGetAll } from './campflow';
 import { CONFIG } from './config';
@@ -115,8 +115,8 @@ export interface MeetingRecord {
   anonymizedGuests: number;
 }
 
-export async function getMeetingRecord(termin: Termin): Promise<MeetingRecord> {
-  const meeting = await getDb()
+export async function getMeetingRecord(termin: Termin, db: Db = getDb()): Promise<MeetingRecord> {
+  const meeting = await db
     .selectFrom('gruppenstunde.meeting')
     .select(['id', 'version', 'notes', 'cancelled'])
     .where('stufe', '=', termin.stufe)
@@ -135,7 +135,7 @@ export async function getMeetingRecord(termin: Termin): Promise<MeetingRecord> {
       anonymizedGuests: 0,
     };
   }
-  const rows = await getDb()
+  const rows = await db
     .selectFrom('gruppenstunde.attendance')
     .select(['id', 'guest', 'person_id', 'guest_name', 'excused'])
     .where('meeting_id', '=', meeting.id)
@@ -260,11 +260,14 @@ export async function markChild(
 
 /** Marks a child as neither present nor excused; a child that was not marked is fine. */
 export async function markAbsent(termin: Termin, personId: string): Promise<void> {
-  await getDb()
-    .deleteFrom('gruppenstunde.attendance')
-    .where('person_id', '=', personId)
-    .where('meeting_id', 'in', meetingIdOf(getDb(), termin))
-    .execute();
+  await inTransaction(async (trx) => {
+    await lockResource(trx, `gruppenstunde:${termin.stufe}:${termin.date}`);
+    await trx
+      .deleteFrom('gruppenstunde.attendance')
+      .where('person_id', '=', personId)
+      .where('meeting_id', 'in', meetingIdOf(trx, termin))
+      .execute();
+  });
 }
 
 export async function addGuest(
@@ -285,12 +288,15 @@ export async function addGuest(
 
 /** Removes a guest of the Termin; a guest that is already gone is fine. */
 export async function removeGuest(termin: Termin, id: number): Promise<void> {
-  await getDb()
-    .deleteFrom('gruppenstunde.attendance')
-    .where('id', '=', id)
-    .where('guest', '=', true)
-    .where('meeting_id', 'in', meetingIdOf(getDb(), termin))
-    .execute();
+  await inTransaction(async (trx) => {
+    await lockResource(trx, `gruppenstunde:${termin.stufe}:${termin.date}`);
+    await trx
+      .deleteFrom('gruppenstunde.attendance')
+      .where('id', '=', id)
+      .where('guest', '=', true)
+      .where('meeting_id', 'in', meetingIdOf(trx, termin))
+      .execute();
+  });
 }
 
 function updateNotes(db: Db, notes: string, actor: string) {
@@ -371,18 +377,35 @@ export async function setCancelled(
 }
 
 /**
- * Deletes the Termin with its attendance and notes if it still has the version `etag`; a
- * Termin that is already gone is fine.
+ * Deletes only the loaded notes version and attendance state, under the per-Termin lock.
+ * A Termin that is already gone is fine.
  */
-export async function deleteMeeting(termin: Termin, etag: string | undefined): Promise<void> {
-  const result = await getDb()
-    .deleteFrom('gruppenstunde.meeting')
-    .where('stufe', '=', termin.stufe)
-    .where('date', '=', termin.date)
-    .where('version', '=', requireVersion(etag))
-    .executeTakeFirst();
-  if (Number(result.numDeletedRows) > 0) return;
-  if (await meetingIdOf(getDb(), termin).executeTakeFirst()) throw new VersionConflictError();
+export async function deleteMeeting(
+  termin: Termin,
+  etag: string | undefined,
+  attendance: string
+): Promise<void> {
+  const version = requireVersion(etag);
+  await inTransaction(async (trx) => {
+    await lockResource(trx, `gruppenstunde:${termin.stufe}:${termin.date}`);
+    const record = await getMeetingRecord(termin, trx);
+    if (record.etag === null) return;
+    const snapshot = attendanceSnapshot({
+      ...record,
+      children: [
+        ...record.presentIds.map((id) => ({ id, status: 'anwesend' as const })),
+        ...record.excusedIds.map((id) => ({ id, status: 'entschuldigt' as const })),
+      ],
+    });
+    if (snapshot !== attendance) throw new VersionConflictError();
+    const result = await trx
+      .deleteFrom('gruppenstunde.meeting')
+      .where('stufe', '=', termin.stufe)
+      .where('date', '=', termin.date)
+      .where('version', '=', version)
+      .executeTakeFirst();
+    if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
+  });
 }
 
 // --- CampFlow ---
