@@ -18,5 +18,9 @@
 {#if open}
   <p class="staff-intro max-w-prose text-neutral-800 {className}">{intro}</p>
 {:else}
-  <InfoHint label={heading} text={intro} class="staff-intro mt-[0.4375rem] md:mt-[0.5625rem] {className}" />
+  <InfoHint
+    label={heading}
+    text={intro}
+    class="staff-intro mt-[0.4375rem] md:mt-[0.5625rem] {className}"
+  />
 {/if}

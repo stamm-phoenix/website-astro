@@ -66,7 +66,8 @@ export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/protokolle',
     title: 'Protokolle',
-    description: 'Protokolle der Leitendenrunde schreiben, freigeben und an alle Leitenden schicken.',
+    description:
+      'Protokolle der Leitendenrunde schreiben, freigeben und an alle Leitenden schicken.',
     intro:
       'Eine Person schreibt, alle anderen lesen live mit. Nach der Freigabe, auf Wunsch mit Review, liegt das Protokoll als PDF im Protokoll-Ordner und geht an alle Leitenden.',
     keywords: ['leiterrunde', 'leitendenrunde', 'sitzung', 'treffen', 'word', 'mitschrift'],

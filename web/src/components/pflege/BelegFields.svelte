@@ -87,7 +87,10 @@
               {/each}
             </div>
           {:else}
-            <p>Nicht in der Aktionsliste – beschreibe den Zweck so genau, dass die Kasse ihn zuordnen kann.</p>
+            <p>
+              Nicht in der Aktionsliste – beschreibe den Zweck so genau, dass die Kasse ihn zuordnen
+              kann.
+            </p>
           {/if}
         </div>
       {/if}

@@ -208,7 +208,12 @@
           </select>
         {/snippet}
       </FormField>
-      <FormField id="eb-anlass" label="Aktion oder Zweck" error={fehler.anlass} class="sm:col-span-2">
+      <FormField
+        id="eb-anlass"
+        label="Aktion oder Zweck"
+        error={fehler.anlass}
+        class="sm:col-span-2"
+      >
         {#snippet children(attrs)}
           <input
             {...attrs}
