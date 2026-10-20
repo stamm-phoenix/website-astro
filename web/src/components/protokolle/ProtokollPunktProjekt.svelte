@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import { ApiError, errorMessage } from '../../lib/api';
   import {
     aenderungenAbwarten,
@@ -190,9 +191,15 @@
   {:else if choosing && data}
     <div class="flex flex-wrap items-end gap-2">
       <div class="min-w-0 flex-1">
-        <label for="{uid}-projekt" class="text-sm text-neutral-700"
-          >Projekt für Punkt {nummer}</label
-        >
+        <span class="flex items-center gap-1">
+          <label for="{uid}-projekt" class="text-sm text-neutral-700"
+            >Projekt für Punkt {nummer}</label
+          >
+          <InfoHint
+            label="Projekt"
+            text="Aufgaben dieses Punkts landen bei der Freigabe in diesem Projekt."
+          />
+        </span>
         <select id="{uid}-projekt" class="form-input" value={projekt?.id ?? ''} onchange={onselect}>
           <option value="">{isSub ? 'Projekt des Hauptpunkts' : 'Kein Projekt'}</option>
           {#each data.projekte as option (option.id)}
@@ -202,12 +209,6 @@
       </div>
       <ActionButton onclick={() => (choosing = false)}>Abbrechen</ActionButton>
     </div>
-    <p class="text-sm text-neutral-700">
-      Aufgaben dieses Punkts landen bei der Freigabe im gewählten Projekt, und der Punkt zeigt die
-      offenen Aufgaben des Projekts.{isSub
-        ? ' Ohne eigenes Projekt gilt das Projekt des Hauptpunkts.'
-        : ''}
-    </p>
   {:else if aktion && data}
     <div class="flex flex-wrap items-center gap-2">
       {#if vorschlag}
@@ -230,11 +231,6 @@
         </button>
       {/if}
     </div>
-  {/if}
-  {#if projekt && !choosing}
-    <p class="text-sm text-neutral-700">
-      Aufgaben dieses Punkts landen bei der Freigabe im Projekt „{projekt.titel}“.
-    </p>
   {/if}
   {#if projektFehler}
     <p class="text-sm text-danger" role="alert">{projektFehler}</p>
@@ -283,7 +279,7 @@
           </li>
         {/each}
       </ul>
-      <p class="text-sm text-neutral-700">Häkchen werden sofort im Modul Aufgaben gespeichert.</p>
+      <p class="text-sm text-neutral-700">Wird sofort gespeichert.</p>
     </div>
   {/if}
   {#if projekt || offeneAufgaben.length > 0}

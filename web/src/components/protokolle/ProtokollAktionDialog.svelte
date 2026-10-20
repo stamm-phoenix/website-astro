@@ -46,9 +46,6 @@
 
 <ModalDialog {open} title="Tagesordnungspunkt aus einer Aktion" {onclose}>
   <div class="space-y-4 px-5 py-4">
-    <p class="text-sm text-neutral-700">
-      Der Name der Aktion wird zur Überschrift, ihr Datum steht darunter.
-    </p>
     <div class="flex flex-wrap items-end gap-3">
       <div class="min-w-48 flex-1">
         <label for="aktion-suche" class="form-label">Aktion suchen</label>

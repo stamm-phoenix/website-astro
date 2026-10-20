@@ -191,7 +191,7 @@ test('a selection across items cannot delete them, the buttons can', async ({ pa
   // The button asks for an item with content and deletes it
   await reflexion.getByRole('button', { name: 'Punkt 2. löschen' }).click();
   const dialog = page.getByRole('dialog', { name: 'Punkt 2. „Reflexion“ löschen?' });
-  await expect(dialog).toContainText('hat Inhalt');
+  await expect(dialog).toContainText('mitgelöscht');
   await dialog.getByRole('button', { name: 'Löschen' }).click();
   await expect
     .poll(reihenfolge(page))

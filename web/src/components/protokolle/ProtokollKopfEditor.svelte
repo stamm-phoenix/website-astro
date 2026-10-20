@@ -171,15 +171,15 @@
         {/each}
       </ul>
     {/if}
-    <div class="flex max-w-md items-start gap-2">
-      <label for="kopf-weitere" class="sr-only">Weitere Person als anwesend eintragen</label>
+    <div class="flex max-w-md items-end gap-2">
       <div class="min-w-0 flex-1">
+        <label for="kopf-weitere" class="form-label">Weitere Person</label>
         <PersonSuche
           id="kopf-weitere"
           bind:query={extraName}
           options={weitere}
           maxlength={200}
-          placeholder="Weitere Person suchen oder eintragen"
+          placeholder="Name suchen oder eingeben …"
           onpick={(person) => addPresent({ login: person.login, name: person.name })}
           oncommit={addExtra}
         />

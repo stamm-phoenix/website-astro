@@ -77,7 +77,7 @@
       <p class="text-sm text-neutral-700">
         {REVISION_REASON_LABELS[selected.reason]}, {formatDateTime(selected.savedAt)}
         {#if canRestore}
-          · Beim Wiederherstellen wird die jetzige Fassung zuerst gesichert.
+          · Die jetzige Fassung bleibt erhalten.
         {/if}
       </p>
       <div class="border-t border-neutral-200 pt-4">
@@ -91,14 +91,8 @@
     {:else if !list}
       <p role="status" aria-live="polite" class="text-sm text-neutral-700">Wird geladen …</p>
     {:else if list.length === 0}
-      <p class="text-sm text-neutral-700">
-        Noch keine gesicherte Fassung. Beim Schreiben wird alle paar Minuten eine angelegt.
-      </p>
+      <p class="text-sm text-neutral-700">Noch keine gesicherte Fassung.</p>
     {:else}
-      <p class="text-sm text-neutral-700">
-        Beim Schreiben wird alle paar Minuten eine Fassung gesichert, außerdem vor jedem Übernehmen
-        der Bearbeitung.
-      </p>
       <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
         {#each list as revision (revision.id)}
           <li>

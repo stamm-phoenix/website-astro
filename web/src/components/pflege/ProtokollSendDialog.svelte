@@ -90,8 +90,7 @@
 >
   {#if sending}
     <p class="text-sm text-neutral-800">
-      „{sending.protokoll.title}“ geht als Datei mit Link in Blindkopie an alle mit Häkchen. Dabei
-      sind alle Leitenden und alle mit dem Label „Protokollempfang“ aus CampFlow.
+      „{sending.protokoll.title}“ geht als Datei an alle mit Häkchen.
     </p>
     {#if sending.retry}
       <p class="text-sm text-danger">

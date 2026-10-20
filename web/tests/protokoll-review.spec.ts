@@ -233,7 +233,11 @@ test('after a refused mail the selection stays and the next try uses the new ver
   await send.getByRole('checkbox').first().uncheck();
   await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
   await expect(send.getByText(/Mail abgelehnt|unklar/)).toBeVisible();
-  await expect(send.getByText('Von Hand eingetragen')).toBeVisible();
+  await expect(
+    send
+      .getByRole('list', { name: 'Von Hand eingetragene Adressen' })
+      .getByText('gast@example.test')
+  ).toBeVisible();
   await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
   await expect(send).toBeHidden();
   expect(bodies[0].etag).not.toBe('neue-version');
@@ -299,7 +303,7 @@ test('a changed CampFlow list is reloaded after the refusal and the selection st
   await expect(list.getByText('Karl Kurat')).toHaveCount(0);
   await expect(list.getByRole('checkbox', { name: /Erika Elternbeirat/ })).not.toBeChecked();
   // The added address is on the list now, so its tick decides
-  await expect(send.getByText('Von Hand eingetragen')).toHaveCount(0);
+  await expect(send.getByRole('list', { name: 'Von Hand eingetragene Adressen' })).toHaveCount(0);
   await list.getByRole('checkbox', { name: /Gerd Gast/ }).uncheck();
   await send.getByRole('button', { name: 'An 21 Personen schicken' }).click();
   await expect(send).toBeHidden();

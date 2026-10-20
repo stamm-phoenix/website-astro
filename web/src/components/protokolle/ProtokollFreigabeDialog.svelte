@@ -91,18 +91,10 @@
   {/if}
   {#if draft && !own}
     <p class="text-sm text-neutral-700">
-      Es war noch nicht im Review. Gib es nur frei, wenn du es selbst durchgesehen hast.
+      Noch nicht im Review: Gib es nur frei, wenn du es selbst durchgesehen hast.
     </p>
   {/if}
   {#if own}
-    <p class="text-sm text-neutral-700">
-      {#if draft}
-        Das ist dein eigenes Protokoll. Möchtest du, dass noch jemand drüberschaut, gib es
-        stattdessen zum Review.
-      {:else}
-        Das ist dein eigenes Protokoll. Gibst du es selbst frei, schaut niemand mehr drüber.
-      {/if}
-    </p>
     <label class="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
       <input
         type="checkbox"

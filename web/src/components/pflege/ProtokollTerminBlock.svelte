@@ -66,6 +66,18 @@
   const mayDecide = $derived(!stale && !protokoll.changedSinceApproval);
   const anyBusy = $derived(busy !== null);
   const headingId = $derived(`protokoll-termin-${protokoll.id}`);
+  /**
+   * Why the date cannot be decided right now. An approved file changed after its approval is
+   * flagged by the list itself, so nothing is repeated here.
+   */
+  const hinweis = $derived.by(() => {
+    if (!stale && !protokoll.changedSinceApproval) return '';
+    if (protokoll.status === 'Archiv' || !protokoll.changedSinceApproval) {
+      return 'Der Termin gehört zu einer älteren Fassung.';
+    }
+    if (protokoll.status === 'Freigegeben') return '';
+    return 'Nach dem Versand geändert – der Termin gilt für die verschickte Fassung.';
+  });
 
   function formatDate(date: string | null): string {
     return date
@@ -232,21 +244,8 @@
     Nächste Leitendenrunde<span class="sr-only"> laut {protokoll.title}</span>
   </h3>
 
-  {#if stale || protokoll.changedSinceApproval}
-    <p class="border-l-2 border-warning py-1 pl-3 text-sm text-warning">
-      {#if protokoll.status === 'Archiv' || !protokoll.changedSinceApproval}
-        Der Termin gehört zu einer älteren Fassung.
-        {recognitionConfigured
-          ? 'Bitte erneut erkennen lassen.'
-          : 'Bitte zurücksetzen und den Termin selbst eintragen.'}
-      {:else if protokoll.status === 'Freigegeben'}
-        Die Datei wurde nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zum Review
-        geben.
-      {:else}
-        Die Datei wurde nach dem Versand geändert. Der Termin gilt für die freigegebene Fassung und
-        lässt sich für diese Datei nicht mehr bestätigen.
-      {/if}
-    </p>
+  {#if hinweis}
+    <p class="border-l-2 border-warning py-1 pl-3 text-sm text-warning">{hinweis}</p>
   {/if}
 
   {#if termin && decision === 'bestaetigt' && termin.confirmed}
@@ -316,28 +315,12 @@
           </blockquote>
         </figure>
       {/if}
-      <p class="text-xs text-neutral-700">
-        Der Vorschlag stammt aus einer automatischen Auswertung des Protokolls und muss geprüft
-        werden.
-      </p>
     {:else if extraction === 'nicht gefunden' || (extraction === 'unklar' && !hasSuggestion)}
-      <p class="text-sm text-neutral-800">
-        Im Protokoll wurde kein nächster Termin gefunden. Du kannst ihn selbst eintragen.
-      </p>
+      <p class="text-sm text-neutral-800">Kein nächster Termin gefunden.</p>
     {:else if extraction === 'fehler'}
-      <p class="text-sm text-neutral-800">
-        Die automatische Auswertung hat nicht geklappt. Du kannst den Termin selbst eintragen oder
-        es erneut versuchen.
-      </p>
-    {:else if extraction === 'nicht eingerichtet'}
-      <p class="text-sm text-neutral-800">
-        {#if recognitionConfigured}
-          Bei der letzten Auswertung war die Erkennung noch nicht eingerichtet. Du kannst sie jetzt
-          erneut starten oder den Termin selbst eintragen.
-        {:else}
-          Die automatische Auswertung ist nicht eingerichtet. Trag den Termin bitte selbst ein.
-        {/if}
-      </p>
+      <p class="text-sm text-neutral-800">Die automatische Erkennung hat nicht geklappt.</p>
+    {:else if extraction === 'nicht eingerichtet' && !recognitionConfigured}
+      <p class="text-sm text-neutral-800">Noch kein Termin eingetragen.</p>
     {:else}
       <p class="text-sm text-neutral-800">Noch kein Termin erkannt oder eingetragen.</p>
     {/if}
@@ -418,10 +401,7 @@
       </p>
       {#if terminForm.quote}
         <figure class="text-sm">
-          <figcaption class="text-xs text-neutral-700">
-            Fundstelle aus der automatischen Auswertung. Bitte vergleichen und bei Bedarf
-            korrigieren.
-          </figcaption>
+          <figcaption class="text-xs text-neutral-700">Fundstelle im Protokoll</figcaption>
           <blockquote
             class="mt-1 border-l-2 border-neutral-300 pl-3 whitespace-pre-line text-neutral-800 italic"
           >

@@ -53,7 +53,6 @@ test('tasks of approved minutes become tasks and come back as open tasks', async
   await planung.getByRole('button', { name: '+ Aufgabe' }).click();
   await planung.getByLabel('Aufgabe', { exact: true }).fill('Zelte zählen');
   await planung.getByLabel('Fällig', { exact: true }).fill('2026-11-03');
-  await expect(planung.getByText(/werden daraus Aufgaben im Modul Aufgaben/)).toBeVisible();
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
 
   await approveOwn(page, 'Leitendenrunde Aufgaben');
@@ -83,9 +82,7 @@ test('tasks of approved minutes become tasks and come back as open tasks', async
   const box = list.getByRole('checkbox', { name: /Zelte zählen/ });
   await box.click();
   await expect(list.getByText(/^Erledigt/)).toBeVisible();
-  await expect(
-    offene.getByText('Häkchen werden sofort im Modul Aufgaben gespeichert.')
-  ).toBeVisible();
+  await expect(offene.getByText('Wird sofort gespeichert.')).toBeVisible();
   await expect
     .poll(async () => {
       const data = await (await page.request.get('/api/intern/pflege/aufgaben')).json();
@@ -112,11 +109,6 @@ test('an item from an Aktion suggests creating its project', async ({ page }) =>
   const punkt = page.getByRole('region', { name: /^5\. Pfadi-Winterlager/ });
   await punkt.getByRole('button', { name: 'Projekt für die Aktion anlegen' }).click();
   await expect(punkt.getByText('Projekt: Pfadi-Winterlager auf der Hütte')).toBeVisible();
-  await expect(
-    punkt.getByText(
-      'Aufgaben dieses Punkts landen bei der Freigabe im Projekt „Pfadi-Winterlager auf der Hütte“.'
-    )
-  ).toBeVisible();
 
   // The next item from the same Aktion is offered the existing project
   await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();

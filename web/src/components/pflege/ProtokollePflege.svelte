@@ -18,6 +18,7 @@
   import StatusNotice from './StatusNotice.svelte';
   import { ApiError, errorMessage, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
   import { todayIso, formatDay, formatDateTime } from '../../lib/format';
+  import { HELP_CONTACTS } from '../../lib/helpContacts';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import type { ProtokollStatus, StaffProtokoll } from '../../lib/types';
 
@@ -242,7 +243,7 @@
   async function copyLink(protokoll: StaffProtokoll): Promise<void> {
     try {
       await navigator.clipboard.writeText(protokoll.webUrl);
-      notify('Link kopiert. Alle Leitenden mit Zugriff auf SharePoint können damit mitschreiben.');
+      notify('Link kopiert.');
     } catch {
       notify(`Kopieren nicht möglich. Link: ${protokoll.webUrl}`, 'warning');
     }
@@ -353,8 +354,7 @@
     {#snippet children(data)}
       {#if !data.configured}
         <p class="border-l-2 border-warning py-1 pl-4 text-sm text-neutral-700">
-          Die SharePoint-Bibliothek für Protokolle wurde nicht gefunden. Die Einrichtung steht in
-          <code>docs/protokolle.md</code>.
+          Die Protokoll-Ablage ist nicht erreichbar. Schreib an {HELP_CONTACTS.technik}.
         </p>
       {:else}
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -364,14 +364,11 @@
           <ReloadButton resource={protokollePflege} />
         </div>
 
-        <p class="max-w-prose text-sm text-neutral-700">
-          Neue Protokolle entstehen aus der Word-Vorlage. Vorhandene PDF- und TXT-Dateien erscheinen
-          ebenfalls hier. Word-Dateien können im Browser geschrieben werden, auch gemeinsam während
-          der Sitzung. Danach gibst du es zum Review, wenn noch jemand drüberschauen soll, oder
-          direkt frei. Nach der Freigabe schickst du es an die Leitenden und alle mit dem Label
-          „Protokollempfang“ aus CampFlow. Vor dem Versand siehst du die Liste und kannst sie
-          anpassen.
-        </p>
+        {#if !data.sendingConfigured && items.some((item) => item.status === 'Freigegeben')}
+          <p class="text-sm text-neutral-700">
+            Verschicken ist hier noch nicht eingerichtet. Schreib an {HELP_CONTACTS.technik}.
+          </p>
+        {/if}
 
         <StatusNotice {message} kind={messageKind} popup />
 
@@ -608,11 +605,6 @@
                       </div>
                     {/if}
                   </div>
-                {/if}
-                {#if protokoll.status === 'Freigegeben' && !data.sendingConfigured}
-                  <p class="text-sm text-neutral-700">
-                    Für den Versand ist noch kein Absender eingerichtet.
-                  </p>
                 {/if}
               </li>
             {/each}

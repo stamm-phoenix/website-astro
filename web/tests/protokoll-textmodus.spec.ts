@@ -22,10 +22,6 @@ test('the formatting editor is the default and the choice of Markdown is kept on
   await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
   await expect(region.locator('textarea')).toHaveCount(0);
 
-  await expect(
-    page.getByText('Deine Wahl wird sofort gespeichert und gilt auf allen deinen Geräten.')
-  ).toBeVisible();
-
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
   await modus.getByRole('button', { name: 'Markdown' }).click();
   await expect(region.locator('textarea')).toHaveCount(1);
@@ -275,9 +271,6 @@ test('a failed first switch leaves no hint once the next switch is saved', async
     .toEqual({ settings: { protokollText: 'formatiert' } });
   await page.waitForTimeout(300);
   await expect(page.getByText('nicht gespeichert')).toHaveCount(0);
-  await expect(
-    page.getByText('Deine Wahl wird sofort gespeichert und gilt auf allen deinen Geräten.')
-  ).toBeVisible();
 });
 
 test('after an expired login the hint offers to log in again and the choice stays', async ({

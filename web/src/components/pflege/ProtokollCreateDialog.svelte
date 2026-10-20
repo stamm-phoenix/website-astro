@@ -26,7 +26,7 @@
       });
       creating = null;
       oncreated();
-      notify(`Protokoll „${title}“ angelegt. Öffne es mit „In Word bearbeiten“.`);
+      notify(`Protokoll „${title}“ angelegt.`);
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) createErrors = error.fields;
@@ -53,12 +53,7 @@
   }}
 >
   {#if creating}
-    <FormField
-      id="protokoll-title"
-      label="Titel"
-      hint="Zum Beispiel „Leitendenrunde“ oder „Stavo-Sitzung“"
-      error={createErrors.title}
-    >
+    <FormField id="protokoll-title" label="Titel" error={createErrors.title}>
       {#snippet children(attrs)}
         <input {...attrs} class="form-input" maxlength="80" required bind:value={creating!.title} />
       {/snippet}
@@ -68,9 +63,5 @@
         <input {...attrs} type="date" class="form-input" required bind:value={creating!.date} />
       {/snippet}
     </FormField>
-    <p class="text-sm text-neutral-700">
-      Die Datei heißt dann „{creating.date}
-      {creating.title.trim()}.docx“.
-    </p>
   {/if}
 </EditDialog>
