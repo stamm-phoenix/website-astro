@@ -4,6 +4,7 @@ interface PriceState {
   prices: Record<string, number | null>;
   availability: Record<string, string | undefined>;
   loading: boolean;
+  errors: Record<string, boolean>;
 }
 interface PricePool {
   state: PriceState;
@@ -17,7 +18,7 @@ interface PricePool {
 }
 /** Four lookups at a time. A newer load/reset invalidates all results of the previous run. */
 export function createSammelPrices(): PricePool {
-  const state = $state<PriceState>({ prices: {}, availability: {}, loading: false });
+  const state = $state<PriceState>({ prices: {}, availability: {}, loading: false, errors: {} });
   let revision = 0;
   function cancel(): void {
     revision++;
@@ -26,6 +27,7 @@ export function createSammelPrices(): PricePool {
     cancel();
     state.prices = {};
     state.availability = {};
+    state.errors = {};
     state.loading = false;
   }
   async function load(
@@ -48,6 +50,7 @@ export function createSammelPrices(): PricePool {
         while (index < pending.length && current === revision) {
           const reference = pending[index++];
           let price: number | null = getSammelStammProdukt(reference)?.unitPriceCents ?? null;
+          if (current === revision) delete state.errors[reference];
           try {
             const product = await lookup(reference);
             if (product) {
@@ -55,7 +58,7 @@ export function createSammelPrices(): PricePool {
               if (current === revision) state.availability[reference] = product.availability;
             }
           } catch {
-            // Failed lookups leave this position visibly unpriced, without blocking other items.
+            if (current === revision) state.errors[reference] = true;
           }
           if (current === revision) state.prices = { ...state.prices, [reference]: price };
         }

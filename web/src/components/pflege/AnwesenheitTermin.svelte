@@ -18,13 +18,14 @@
     stufe: string;
     slug: string;
     date: string;
+    ondirty?: (dirty: boolean) => void;
   }
   interface NotesBaseline {
     path: string;
     notes: string;
     etag: string | null;
   }
-  let { stufe, slug, date }: Props = $props();
+  let { stufe, slug, date, ondirty }: Props = $props();
 
   const STATUS_OPTIONS: {
     value: AnwesenheitStatus;
@@ -105,6 +106,10 @@
   const visitors = $derived(termin?.children.filter((child) => child.kind !== 'stufe') ?? []);
   const notesChanged = $derived(notesBase !== null && notes.trim() !== notesBase.notes);
 
+  $effect(() => {
+    ondirty?.(notesChanged || !!guestName.trim());
+  });
+
   function show(text: string, kind: 'success' | 'error' = 'success'): void {
     message = text;
     messageKind = kind;
@@ -121,7 +126,10 @@
     // Controls of another Termin would already write to the new path
     if (termin && (termin.date !== date || termin.stufe !== stufe)) termin = null;
     // Unsaved notes of the same Termin survive the reload, e.g. after a failed choice
-    if (notesBase?.path !== path) notesBase = null;
+    if (notesBase?.path !== path) {
+      notesBase = null;
+      guestName = '';
+    }
     loading = true;
     loadError = null;
     message = null;

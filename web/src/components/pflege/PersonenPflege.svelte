@@ -197,7 +197,7 @@
   onsubmit={save}
   onclose={close}
   ondelete={form?.id ? remove : undefined}
-  deleteTitle={`${form?.name.trim() ?? ''} löschen?`}
+  deleteTitle={`„${form?.name.trim() ?? ''}“ löschen?`}
   deleteQuestion="Die Person aus der Liste löschen? In alten Protokollen bleibt der Name stehen."
 >
   {#if form}
@@ -224,7 +224,7 @@
       </FormField>
       <FormField
         id="person-login"
-        label="Login"
+        label="E-Mail-Adresse des Microsoft-Kontos"
         optional
         hint="Nur wenn die Person ein Konto bei uns hat, z. B. vorname.nachname@stamm-phoenix.de."
         error={errors.login}

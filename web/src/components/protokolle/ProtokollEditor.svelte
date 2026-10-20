@@ -790,7 +790,7 @@
    */
   async function finishDraft(action: 'review' | 'approve', ownConfirmed = false): Promise<void> {
     if (id === null || !detail) return;
-    const label = action === 'review' ? 'Zum Review geben' : 'Freigeben';
+    const label = action === 'review' ? 'Zur Prüfung geben' : 'Freigeben';
     submitBusy = true;
     submitError = null;
     try {
@@ -822,7 +822,7 @@
       startPolling();
       notify(
         action === 'review'
-          ? 'Zum Review gegeben. Alle Leitenden können es jetzt freigeben oder zurückgeben.'
+          ? 'Zur Prüfung gegeben. Alle Leitenden können es jetzt freigeben oder zurückgeben.'
           : `Freigegeben. „${result.fileName ?? detail.title}“ liegt jetzt im Protokoll-Ordner.${result.aufgaben ? ` ${aufgabenAnzahl(result.aufgaben).replace(/^e/, 'E')} im Modul Aufgaben angelegt.` : ''}`
       );
     } catch (error: unknown) {
@@ -834,7 +834,7 @@
         submitError = errorMessage(
           error,
           action === 'review'
-            ? 'Das Protokoll wurde nicht zum Review gegeben. Tippe noch einmal auf „Zum Review geben“.'
+            ? 'Das Protokoll wurde nicht zur Prüfung gegeben. Tippe noch einmal auf „Zur Prüfung geben“.'
             : 'Das Protokoll wurde nicht freigegeben. Tippe noch einmal auf „Freigeben“.'
         );
       }
@@ -978,7 +978,7 @@
     <div
       data-sticky-top
       class="leiste flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2"
-      style:top="{headerHeight}px"
+      style:--header-height="{headerHeight}px"
     >
       {#if mode === 'schreiben'}
         <p
@@ -994,7 +994,7 @@
       {:else}
         <p class="text-sm" role="status" aria-live="polite">
           {#if detail.status === 'review'}
-            Im Review · Geändert wird es erst wieder, wenn es zurückgegeben wird.
+            In Prüfung · Geändert wird es erst wieder, wenn es zurückgegeben wird.
           {:else if !editable}
             Freigegeben · Das Protokoll lässt sich nicht mehr ändern.
           {:else if writerActive && sperre}
@@ -1005,7 +1005,19 @@
           {/if}
         </p>
       {/if}
-      <div class="flex flex-wrap gap-2">
+      {#if mode === 'schreiben'}
+        <ActionButton onclick={requestStop}>Bearbeitung beenden</ActionButton>
+      {:else if editable}
+        <ActionButton
+          variant="primary"
+          disabled={starting}
+          aria-busy={starting}
+          onclick={() => (writerActive && sperre ? (takeover = sperre) : startWriting())}
+        >
+          {writerActive ? 'Bearbeitung übernehmen' : 'Bearbeiten'}
+        </ActionButton>
+      {/if}
+      <div class="flex flex-wrap gap-2 py-2">
         {#if mode === 'lesen'}
           <label class="flex items-center gap-2 text-sm">
             <input type="checkbox" bind:checked={follow} />
@@ -1024,7 +1036,7 @@
               submitError = null;
             }}
           >
-            Zum Review geben
+            Zur Prüfung geben
           </ActionButton>
           <ActionButton
             onclick={() => {
@@ -1033,18 +1045,6 @@
             }}
           >
             Freigeben
-          </ActionButton>
-        {/if}
-        {#if mode === 'schreiben'}
-          <ActionButton onclick={requestStop}>Bearbeitung beenden</ActionButton>
-        {:else if editable}
-          <ActionButton
-            variant="primary"
-            disabled={starting}
-            aria-busy={starting}
-            onclick={() => (writerActive && sperre ? (takeover = sperre) : startWriting())}
-          >
-            {writerActive ? 'Bearbeitung übernehmen' : 'Bearbeiten'}
           </ActionButton>
         {/if}
       </div>
@@ -1121,7 +1121,14 @@
           </FormField>
         </div>
 
-        <ProtokollKopfEditor bind:kopf={stand.inhalt.kopf} {personen} {personenUnavailable} />
+        <details class="border-y border-neutral-200 py-2">
+          <summary class="min-h-11 cursor-pointer content-center font-semibold text-brand-900"
+            >Sitzungsdaten und Teilnehmende bearbeiten ({stand.inhalt.kopf.teilnehmende.length} eingetragen)</summary
+          >
+          <div class="py-4">
+            <ProtokollKopfEditor bind:kopf={stand.inhalt.kopf} {personen} {personenUnavailable} />
+          </div>
+        </details>
 
         <section class="space-y-4" aria-labelledby="tagesordnung-titel">
           <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -1133,7 +1140,7 @@
               showLabel
               options={[
                 { value: 'formatiert', label: 'Formatiert' },
-                { value: 'markdown', label: 'Markdown' },
+                { value: 'markdown', label: 'Einfacher Text (Markdown)' },
               ]}
               value={textModus}
               onselect={(value) => void chooseTextModus(value)}
@@ -1339,9 +1346,9 @@
 
 <ConfirmDialog
   open={submitting === 'review'}
-  title="Zum Review geben?"
+  title="Zur Prüfung geben?"
   tone="neutral"
-  submitLabel="Zum Review geben"
+  submitLabel="Zur Prüfung geben"
   busyLabel="Wird gespeichert …"
   busy={submitBusy}
   error={submitError}
@@ -1425,9 +1432,15 @@
     }
   }
   .leiste {
-    position: sticky;
+    position: relative;
     z-index: 20;
     background: var(--color-neutral-50);
     border-bottom: 1px solid var(--color-neutral-200);
+  }
+  @media (min-width: 48rem) {
+    .leiste {
+      top: var(--header-height);
+      position: sticky;
+    }
   }
 </style>

@@ -43,7 +43,11 @@ test('an ambiguous assignee error stays visible without a list covering it', asy
   const input = dialog.getByRole('combobox', { name: /Zuständigkeit/ });
   await dialog.getByRole('textbox', { name: 'Titel', exact: true }).fill('TEST – bitte löschen');
   await input.fill('Hugo');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(
     dialog.getByText('Bitte tippe auf einen Namen aus der Liste – oder lass das Feld leer.', {
       exact: true,
@@ -79,7 +83,11 @@ for (const commitKey of ['Tab', 'Enter']) {
     const saved = page.waitForRequest(
       (request) => request.method() === 'POST' && request.url().endsWith('/intern/pflege/aufgaben')
     );
-    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await dialog
+      .getByRole('button', {
+        name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+      })
+      .click();
     const request = await saved;
     await expect(dialog).toBeHidden();
     const data = (await (

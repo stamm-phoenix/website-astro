@@ -16,7 +16,11 @@ test('conflict reload confirms replacement and saves the fresh version', async (
     const task = (await overview.json()).tasks.find((item: { id: number }) => item.id === 1);
     return route.fulfill({ json: { ...task, title: 'Aktuelle Fassung', etag: freshEtag } });
   });
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: 'Aktuelle Fassung laden?' });
   await confirmation.getByRole('button', { name: 'Weiter bearbeiten' }).click();
@@ -37,7 +41,11 @@ test('conflict reload confirms replacement and saves the fresh version', async (
   await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).not.toBeVisible();
   await page.getByRole('button', { name: 'Aktuelle Fassung', exact: true }).click();
   conflict = false;
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).not.toBeVisible();
 });
 
@@ -48,7 +56,11 @@ test('field errors clear on editing and dialog focus returns to the card', async
   const dialog = page.getByRole('dialog', { name: 'Aufgabe bearbeiten' });
   const title = dialog.getByLabel('Titel', { exact: true });
   await title.fill('');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(title).toHaveAttribute('aria-invalid', 'true');
   await title.fill('Korrigiert');
   await expect(title).not.toHaveAttribute('aria-invalid', 'true');
@@ -165,7 +177,11 @@ test('field errors follow the field name when its DOM id changes', async ({ page
   const dialog = page.getByRole('dialog', { name: 'Aufgabe bearbeiten' });
   const title = dialog.getByLabel('Titel', { exact: true });
   await title.fill('');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(title).toHaveAttribute('aria-invalid', 'true');
   await title.evaluate((input) => {
     const label = document.querySelector(`label[for="${input.id}"]`);

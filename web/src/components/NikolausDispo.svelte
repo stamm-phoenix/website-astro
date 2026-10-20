@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import StaffPageHead from './StaffPageHead.svelte';
   import { createRoutePaths } from '../lib/routePaths.svelte';
   import DispoTeamColumn from './nikolaus/DispoTeamColumn.svelte';
@@ -34,6 +35,9 @@
   }
   let { config }: Props = $props();
 
+  $effect(() => {
+    untrack(() => void fetchNikolausStatus());
+  });
   const settings = $derived(withBaked(nikolausSettingsStore, config).data ?? config);
   const base = $derived(settings.area.base);
   const dates = $derived(settings.days.map((d) => d.date).sort());
@@ -271,18 +275,21 @@
     />
   </div>
 
-  <StatusNotice
-    message={editor.state.notice?.text ?? null}
-    kind={editor.state.notice?.kind}
-    class="print:hidden"
-  />
+  <div class="min-h-20 print:hidden">
+    <StatusNotice
+      message={editor.state.notice?.text ?? null}
+      kind={editor.state.notice?.kind}
+      class="print:hidden"
+      popup
+    />
+  </div>
 
   <LoadState
     {data}
     loading={nikolausDispoStore.loading}
     error={nikolausDispoStore.error}
     loadingText="Dispo wird geladen …"
-    onretry={() => void reload()}
+    onretry={nikolausStatusStore.data?.staffActive === false ? undefined : () => void reload()}
   >
     {#snippet skeleton()}
       <div class="surface p-6">
@@ -308,7 +315,13 @@
             {data.teams.length === 1 ? 'Team' : 'Teams'} · Fahrzeit gesamt ca.
             <strong>{totals.drive} Min</strong>
             {#if totals.lateAfterSlot > 0}
-              · <strong class="text-danger">{totals.lateAfterSlot} nach Slot-Ende</strong>
+              · <a
+                class="text-danger inline-flex min-h-11 items-center font-semibold underline"
+                href="#dispo-stop-{plan?.routes
+                  .flatMap((route) => route.stops)
+                  .find((stop) => stop.lateAfterSlot > 0)?.id}"
+                >{totals.lateAfterSlot} nach Ende des gebuchten Termins – Besuche ansehen</a
+              >
             {/if}
             {#if dirty}· <span class="font-semibold text-warning">nicht gespeichert</span>{/if}
           </p>
@@ -316,7 +329,7 @@
             Dauer pro Besuch: {data.minutesPerChild} Min pro Kind, mindestens {data.minVisitMinutes},
             höchstens {data.maxVisitMinutes} Min.
             {data.travelSource === 'route'
-              ? 'Fahrzeiten von OpenRouteService.'
+              ? 'Fahrzeiten anhand der Straßenverbindungen berechnet.'
               : 'Fahrzeiten nur aus der Luftlinie geschätzt – der Routendienst war nicht erreichbar.'}
           </p>
           {#if data.pendingCount > 0}

@@ -27,7 +27,7 @@ test('the formatting editor is the default and the choice of Markdown is kept on
   ).toBeVisible();
 
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
-  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
   await expect(region.locator('textarea')).toHaveCount(1);
   await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toHaveCount(0);
   // Saved on the server: another load, as on another device, starts with Markdown
@@ -36,7 +36,7 @@ test('the formatting editor is the default and the choice of Markdown is kept on
     .toEqual({ settings: { protokollText: 'markdown' } });
   await page.reload();
   await expect(region.locator('textarea')).toHaveCount(1);
-  await expect(modus.getByRole('button', { name: 'Markdown' })).toHaveAttribute(
+  await expect(modus.getByRole('button', { name: 'Einfacher Text (Markdown)' })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
@@ -57,7 +57,7 @@ test('a choice that cannot be saved still applies to the open page and says so',
   );
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Markdown' })
+    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
     .click();
   await expect(region.locator('textarea')).toHaveCount(1);
   await expect(page.getByRole('status').filter({ hasText: 'nicht gespeichert' })).toBeVisible();
@@ -84,7 +84,7 @@ test('two quick switches keep the last choice, also when the first save answers 
     await route.fallback();
   });
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
-  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
   await modus.getByRole('button', { name: 'Formatiert' }).click();
   await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
   await expect
@@ -122,7 +122,7 @@ test('a choice made while the settings still load is not taken back by their lat
   const region = page.getByRole('region', { name: /^2\. / });
   await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
-  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
   await expect(region.locator('textarea')).toHaveCount(1);
   // Writing goes on meanwhile: one saved change and newer text that is not saved yet
   await page.getByLabel('Text zu Punkt 2.').fill('Gespeichert vor der Antwort');
@@ -133,7 +133,7 @@ test('a choice made while the settings still load is not taken back by their lat
   await page.waitForTimeout(300);
   // The late answer neither takes the choice back nor the text, and parks nothing as a conflict
   await expect(region.locator('textarea')).toHaveCount(1);
-  await expect(modus.getByRole('button', { name: 'Markdown' })).toHaveAttribute(
+  await expect(modus.getByRole('button', { name: 'Einfacher Text (Markdown)' })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
@@ -221,6 +221,7 @@ test('a choice made on another device applies when the editor opens again over i
   await expect(page.getByRole('heading', { name: 'Im Editor' })).toBeVisible();
   holding = false;
   await page.getByRole('link', { name: title }).click();
+  await page.getByText(/^Sitzungsdaten und Teilnehmende bearbeiten/).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
   // The links kept the page script alive, as the site's router does
   expect(await page.evaluate(() => (window as unknown as { samePage?: boolean }).samePage)).toBe(
@@ -230,7 +231,7 @@ test('a choice made on another device applies when the editor opens again over i
   await expect(
     page
       .getByRole('group', { name: 'Texte schreiben als' })
-      .getByRole('button', { name: 'Markdown' })
+      .getByRole('button', { name: 'Einfacher Text (Markdown)' })
   ).toHaveAttribute('aria-pressed', 'true');
   // The late answers of the first editor, still with the old choice, do not take the new one back
   expect(heldRequests.length).toBeGreaterThan(0);
@@ -266,7 +267,7 @@ test('a failed first switch leaves no hint once the next switch is saved', async
     await route.fallback();
   });
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
-  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
   await modus.getByRole('button', { name: 'Formatiert' }).click();
   await expect
     .poll(async () => await (await page.request.get('/api/intern/einstellungen')).json(), {
@@ -295,7 +296,7 @@ test('after an expired login the hint offers to log in again and the choice stay
   );
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Markdown' })
+    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
     .click();
   await expect(region.locator('textarea')).toHaveCount(1);
   const hint = page.getByRole('status').filter({ hasText: 'Anmeldung ist abgelaufen' });

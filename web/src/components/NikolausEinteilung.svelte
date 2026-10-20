@@ -428,7 +428,7 @@
           <FilterTabs
             variant="segmented"
             showLabel
-            label="Teams zum Ausprobieren"
+            label="Teams zum Ausprobieren (ändert die Steuerung nicht)"
             options={TEAM_COUNT_OPTIONS}
             value={String(day.teams.length)}
             onselect={(value) => tryTeams(day.date, Number(value))}

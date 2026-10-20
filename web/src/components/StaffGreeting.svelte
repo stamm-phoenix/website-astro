@@ -12,7 +12,7 @@
   });
 </script>
 
-<div>
+<div class="min-h-[4.75rem]">
   {#if authStore.loading}
     <span role="status" class="sr-only">Anmeldung wird geprüft …</span>
     <div class="skeleton-element h-9 w-72 max-w-full rounded"></div>

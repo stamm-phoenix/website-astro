@@ -112,6 +112,18 @@
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     if (!form || saving || stale) return;
+    if (
+      data.settings.staffActive &&
+      !form.staffActive &&
+      !(await confirmAction({
+        title: 'Nikolausverwaltung für alle ausschalten?',
+        message:
+          'Anmeldungen, Dispo, Route und Helfende sind danach für alle Leitenden gesperrt. Nur die Steuerung bleibt erreichbar. Bereits gespeicherte Daten bleiben erhalten.',
+        confirmLabel: 'Ausschalten und speichern',
+        cancelLabel: 'Weiter bearbeiten',
+      }))
+    )
+      return;
     saving = true;
     errors = {};
     conflicts = [];
@@ -197,6 +209,21 @@
 
 {#if form}
   <form novalidate onsubmit={save}>
+    <div
+      class="sticky top-20 z-20 mb-4 flex flex-wrap items-center gap-3 border-y border-neutral-300 bg-surface p-3"
+    >
+      <ActionButton
+        variant="primary"
+        type="submit"
+        disabled={saving || !dirty || stale}
+        aria-busy={saving}
+      >
+        {saving ? 'Wird gespeichert …' : 'Einstellungen speichern'}
+      </ActionButton>
+      <p role="status" class="text-sm font-semibold">
+        {dirty ? 'Änderungen noch nicht gespeichert.' : 'Alle Änderungen gespeichert.'}
+      </p>
+    </div>
     <fieldset disabled={saving} inert={saving} class="min-w-0 space-y-8">
       <section class="surface p-5 md:p-6" aria-labelledby="switches-heading">
         <h2 id="switches-heading" class="font-serif text-xl font-bold text-brand-900">Schalter</h2>
@@ -232,6 +259,15 @@
             </span>
           </label>
         </div>
+        {#if !form.staffActive && data.settings.staffActive}
+          <p class="mt-4 text-sm text-warning">
+            Noch nicht gespeichert: Nach dem Speichern verschwinden Anmeldungen, Dispo, Route und
+            Helfende für alle.
+          </p>
+        {/if}
+        {#if dirty}<p class="mt-3 text-sm font-semibold text-warning" role="status">
+            Noch nicht gespeichert. Tippe unten auf „Einstellungen speichern“.
+          </p>{/if}
         {#if form.maintenance && !data.settings.maintenance}
           <p class="mt-4 border-l-2 border-warning py-1 pl-3 text-sm text-warning">
             Nach dem Speichern werden alle Änderungen abgelehnt, bis der Wartungsmodus wieder aus
@@ -370,7 +406,12 @@
               />
             {/snippet}
           </FormField>
-          <FormField id="baseLat" label="Breitengrad" error={errors['area.base.lat']}>
+          <FormField
+            id="baseLat"
+            label="Startpunkt: nördliche Koordinate"
+            hint="Breitengrad aus der Karte, z. B. 47.907. Nur ändern, wenn der Startpunkt umzieht."
+            error={errors['area.base.lat']}
+          >
             {#snippet children(attrs)}
               <input
                 {...attrs}
@@ -381,7 +422,12 @@
               />
             {/snippet}
           </FormField>
-          <FormField id="baseLon" label="Längengrad" error={errors['area.base.lon']}>
+          <FormField
+            id="baseLon"
+            label="Startpunkt: östliche Koordinate"
+            hint="Längengrad aus der Karte, z. B. 11.843."
+            error={errors['area.base.lon']}
+          >
             {#snippet children(attrs)}
               <input
                 {...attrs}
@@ -480,14 +526,6 @@
           aktuelle Fassung, bevor du weiterarbeitest.
         </p>{/if}
       <div class="flex flex-wrap items-center gap-4">
-        <ActionButton
-          variant="primary"
-          type="submit"
-          disabled={saving || !dirty || stale}
-          aria-busy={saving}
-        >
-          {saving ? 'Wird gespeichert …' : 'Einstellungen speichern'}
-        </ActionButton>
         {#if stale}<ActionButton
             type="button"
             variant="secondary"

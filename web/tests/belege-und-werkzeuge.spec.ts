@@ -218,7 +218,7 @@ test('a QR code is styled and downloaded as PNG', async ({ page }) => {
   await page.goto('/leitendenbereich');
   await page.getByRole('link', { name: /QR-Code/ }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/qr-code$/);
-  const download = page.getByRole('button', { name: 'Als PNG herunterladen' });
+  const download = page.getByRole('button', { name: 'Als Bild herunterladen' });
   await expect(download).toBeDisabled();
 
   // A web address without https:// is offered to be completed

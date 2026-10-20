@@ -229,7 +229,11 @@ test('in the iPhone app the kept input of one task never lands in another task',
   const dialog = page.getByRole('dialog', { name: 'Aufgabe bearbeiten' });
   await page.getByRole('button', { name: 'Küche vorbereiten', exact: true }).click();
   await dialog.getByLabel('Titel', { exact: true }).fill('Küche aufräumen');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
 
   const hint = page.getByRole('region', { name: 'Deine Eingaben sind gesichert' });
@@ -291,7 +295,11 @@ test('in the iPhone app the rows of a template come back as soon as they are add
       .nth(index)
       .fill(String(10 - index));
   }
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
 
   await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
@@ -305,7 +313,11 @@ test('in the iPhone app the rows of a template come back as soon as they are add
   ).toBeVisible();
 
   // A second new login before the rows are added keeps them too
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
   await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
   await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Zeltlager');
@@ -322,7 +334,11 @@ test('in the iPhone app the rows of a template come back as soon as they are add
 
   // Saved once the login works: the kept input is gone
   await page.unroute('**/api/intern/pflege/aufgaben/vorlagen');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toHaveCount(0);
   expect(
@@ -382,7 +398,11 @@ test('in the iPhone app a CampFlow link waits for the list of Aktionen', async (
   await link.selectOption({ index: 1 });
   const chosen = await link.inputValue();
   expect(chosen).not.toBe('');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
 
   // After the new login the list of Aktionen arrives only after the dialog opened
@@ -397,7 +417,11 @@ test('in the iPhone app a CampFlow link waits for the list of Aktionen', async (
   await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Sola vorbereiten');
   await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toBeVisible();
   // Another login while the option is still missing must retain the waiting selection.
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
   await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toBeVisible();
@@ -431,7 +455,11 @@ test('in the iPhone app two tasks with the same values keep their own input', as
   const tasks = page.getByRole('button', { name: 'Zelte zählen', exact: true });
   await tasks.first().click();
   await dialog.getByLabel('Titel', { exact: true }).fill('Zelte zählen und flicken');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
 
   // Same title, same values when opened: only the record tells them apart
@@ -461,14 +489,22 @@ test('in the iPhone app saving a template with rows still missing ends the kept 
   await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
   await dialog.getByLabel('Aufgabentitel').nth(1).fill('Schlüssel holen');
   await dialog.getByLabel('Tage vor der Aktion').nth(1).fill('1');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
 
   await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
   await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toBeVisible();
   // Saved with only the first row: the template dialog is removed, not closed
   await page.unroute('**/api/intern/pflege/aufgaben/vorlagen');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).toBeHidden();
   await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
   await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('');
@@ -494,7 +530,11 @@ test('in the iPhone app discarding a template with rows still missing ends the k
   await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
   await dialog.getByLabel('Aufgabentitel').nth(1).fill('Schlüssel holen');
   await dialog.getByLabel('Tage vor der Aktion').nth(1).fill('1');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
 
   await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
@@ -915,7 +955,11 @@ test('in the iPhone app removed template rows and their remaining assignees are 
   await dialog.getByRole('button', { name: 'Vorlagenaufgabe entfernen' }).first().click();
   await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).first().fill('Bea');
   await dialog.getByRole('option', { name: 'Bea Beispiel', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
   await open.click();
   await expect(dialog.getByLabel('Aufgabentitel')).toHaveCount(2);
@@ -928,7 +972,11 @@ test('in the iPhone app removed template rows and their remaining assignees are 
   const write = page.waitForRequest(
     (request) => request.method() === 'PUT' && request.url().includes('/aufgaben/vorlagen/')
   );
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   const saved = (await write).postDataJSON();
   expect(saved.items.map((item: { title: string }) => item.title)).toEqual(['B', 'C']);
   expect(saved.items[0].assignees).toEqual([{ name: 'Bea Beispiel', login: 'bea@example.test' }]);
@@ -953,7 +1001,11 @@ test('in the iPhone app selected task assignees survive a new login with their i
     await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill(name);
     await dialog.getByRole('option', { name, exact: true }).click();
   }
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
   await open.click();
   for (const name of ['Alex Beispiel', 'Bea Beispiel']) {
@@ -965,7 +1017,11 @@ test('in the iPhone app selected task assignees survive a new login with their i
   const write = page.waitForRequest(
     (request) => request.method() === 'POST' && request.url().endsWith('/pflege/aufgaben')
   );
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   expect((await write).postDataJSON().assignees).toEqual([
     { name: 'Alex Beispiel', login: 'alex@example.test' },
     { name: 'Bea Beispiel', login: 'bea@example.test' },
@@ -1059,7 +1115,11 @@ test('in the iPhone app a saved receipt photo no longer needs a warning and keep
   });
   await dialog.getByRole('button', { name: 'Neues Foto speichern', exact: true }).click();
   await expect(dialog.getByText('Foto ersetzt.', { exact: true })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   const error = dialog.getByRole('alert');
   await expect(error).not.toContainText('sein Zuschnitt werden nicht gesichert');
   await error.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
@@ -1098,7 +1158,11 @@ for (const keep of ['positiveTags', 'negativeTags'] as const) {
     const label = keep === 'positiveTags' ? 'Bevorzugt zu Familien mit' : 'Nicht zu Familien mit';
     await dialog.getByLabel(label, { exact: false }).fill('Recovery wish');
     await dialog.getByLabel(label, { exact: false }).press('Enter');
-    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await dialog
+      .getByRole('button', {
+        name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+      })
+      .click();
     await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
     await open.click();
     await expect(
@@ -1114,7 +1178,11 @@ for (const keep of ['positiveTags', 'negativeTags'] as const) {
       (request) =>
         request.method() === 'PATCH' && request.url().endsWith(`/nikolaus-helfende/${person.id}`)
     );
-    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await dialog
+      .getByRole('button', {
+        name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+      })
+      .click();
     const saved = (await write).postDataJSON();
     expect(saved.positiveTags).toEqual(keep === 'positiveTags' ? ['Recovery wish'] : []);
     expect(saved.negativeTags).toEqual(keep === 'negativeTags' ? ['Recovery wish'] : []);
@@ -1180,7 +1248,9 @@ test('in the iPhone app many missing template rows leave copying and adding rows
     await dialog.getByLabel('Aufgabentitel').nth(index).fill(`Gerettete Aufgabe ${index}`);
     await dialog.getByLabel('Tage vor der Aktion').nth(index).fill('14');
   }
-  const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+  const save = dialog.getByRole('button', {
+    name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+  });
   await save.click();
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
   await open.click();
@@ -1235,7 +1305,11 @@ test('in the iPhone app a delayed directory does not turn an unchanged task into
     dialog.getByRole('button', { name: 'Lena Brandstätter entfernen', exact: true })
   ).toBeVisible();
   await dialog.getByLabel('Titel', { exact: true }).fill('Recovered with directory still loading');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   hold = true;
   await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
   await open.click();
@@ -1317,7 +1391,11 @@ for (const module of ['task', 'template'] as const) {
         await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill(name);
         await dialog.getByRole('option', { name, exact: true }).click();
       }
-      await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await dialog
+        .getByRole('button', {
+          name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+        })
+        .click();
       await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
       const newer =
         module === 'task'
@@ -1349,7 +1427,11 @@ for (const module of ['task', 'template'] as const) {
           request.method() === 'PUT' &&
           request.url().endsWith(`${endpoint.slice(4)}/${original.id}`)
       );
-      await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await dialog
+        .getByRole('button', {
+          name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+        })
+        .click();
       const body = (await write).postDataJSON();
       const saved = module === 'task' ? body : body.items[0];
       expect(saved.assignees).toEqual(
@@ -1425,7 +1507,11 @@ for (const changed of [false, true]) {
     const total = dialog.getByLabel('Endgültiger Gesamtbetrag in Euro');
     await expect(total).toHaveValue('45');
     await total.fill('42');
-    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await dialog
+      .getByRole('button', {
+        name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+      })
+      .click();
     hold = true;
     if (changed) {
       expect(
@@ -1468,7 +1554,11 @@ for (const changed of [false, true]) {
           request.method() === 'PATCH' &&
           request.url().endsWith(`/sammelbestellungen/orders/${original.id}`)
       );
-      await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await dialog
+        .getByRole('button', {
+          name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+        })
+        .click();
       expect((await write).postDataJSON().totalCents).toBe(4200);
       await expect(dialog).toBeHidden();
     }

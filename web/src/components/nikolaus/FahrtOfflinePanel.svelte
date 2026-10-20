@@ -48,7 +48,7 @@
         (maximal zwölf Stunden).
       </p>
       <p class="mt-1 text-neutral-700">
-        Bitte die Seite während der Fahrt geöffnet lassen. Navigation in Karten-Apps benötigt
+        Neuladen funktioniert im selben Tab auch ohne Verbindung. Navigation in Karten-Apps benötigt
         gegebenenfalls eine eigene Offline-Karte.
       </p>
       <ActionButton variant="secondary" type="button" class="mt-2" onclick={remove}
@@ -79,11 +79,11 @@
     <p class="font-semibold">
       {nikolausFahrtStore.syncing
         ? 'Markierungen werden abgeglichen …'
-        : `${snapshot.queue.length} Markierung(en) noch nicht bestätigt`}
+        : `${snapshot.queue.length} ${snapshot.queue.length === 1 ? 'Besuch noch nicht bestätigt' : 'Besuche noch nicht bestätigt'}`}
     </p>
     <p>
-      Solange eine Markierung aussteht, sehen Familien und Disposition sie noch nicht zuverlässig.
-      Besuchszeiten werden beim Serverabgleich gesetzt.
+      Solange eine Markierung aussteht, sehen Familien und Dispo sie noch nicht zuverlässig. Die
+      Besuchszeit wird übernommen, sobald die Verbindung wieder steht und der Besuch bestätigt ist.
     </p>
     <ul class="mt-2 space-y-2">
       {#each snapshot.queue as entry (entry.operationId)}

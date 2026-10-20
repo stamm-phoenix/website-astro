@@ -98,7 +98,7 @@
         savedSnapshot = draftSnapshot;
       } else
         throw new Error(
-          'Öffne den Link aus der CampFlow-Mail oder deinen persönlichen Bestelllink.'
+          'Öffne den Link aus unserer E-Mail zur Sammelbestellung oder deinen persönlichen Bestelllink. Keine E-Mail erhalten? Schau auch im Spam-Ordner nach oder schreib an kontakt@stamm-phoenix.de.'
         );
     } catch (caught) {
       if (version === loadVersion) fail(caught);
@@ -234,6 +234,18 @@
 
 {#if loading}
   <p role="status" aria-live="polite" class="text-neutral-700">Sammelbestellung wird geladen …</p>
+{:else if !kind}
+  <section class="surface p-5" aria-labelledby="invitation-needed">
+    <h2 id="invitation-needed" class="font-serif text-xl text-brand-900">Einladungslink öffnen</h2>
+    <p class="mt-2 text-neutral-700">
+      Öffne den Link aus unserer E-Mail zur Sammelbestellung. Keine E-Mail erhalten? Schau auch im
+      Spam-Ordner nach. Du kannst auch unter <a
+        class="text-link underline"
+        href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a
+      > nach dem Link fragen.
+    </p>
+    <a href="/kontakt" class="btn-secondary mt-3">Kontakt zum Stamm</a>
+  </section>
 {:else if campaign}
   <section aria-labelledby="campaign-heading" class="mb-8 border-b border-neutral-200 pb-6">
     <h2 id="campaign-heading" class="font-serif text-2xl font-semibold text-brand-900 sm:text-3xl">
@@ -416,7 +428,7 @@
   {/if}
 {/if}
 <div bind:this={resultArea}>
-  {#if error}<div role="alert" class="mt-5 border-l-2 border-danger py-1 pl-4 text-danger">
+  {#if error && kind}<div role="alert" class="mt-5 border-l-2 border-danger py-1 pl-4 text-danger">
       <p>{error}</p>
       {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p class="mt-1 text-sm">
           {field}

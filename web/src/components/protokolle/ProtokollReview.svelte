@@ -59,7 +59,7 @@
     const result: string[] = [];
     if (detail.submittedBy && detail.status !== 'entwurf') {
       result.push(
-        `Zum Review gegeben von ${detail.submittedBy} am ${formatDateTime(detail.submittedAt)}`
+        `Zur Prüfung gegeben von ${detail.submittedBy} am ${formatDateTime(detail.submittedAt)}`
       );
     }
     if (detail.approvedBy) {
@@ -215,7 +215,7 @@
 
 <section class="space-y-3 border-b border-neutral-200 pb-4" aria-labelledby="review-titel">
   <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-    <h2 id="review-titel" class="font-serif text-xl text-brand-900">Review und Versand</h2>
+    <h2 id="review-titel" class="font-serif text-xl text-brand-900">Prüfung und Versand</h2>
     <StatusLabel label={status.label} tone={status.tone} />
   </div>
 
@@ -244,13 +244,13 @@
 
   {#if detail.status === 'entwurf'}
     <p class="text-sm text-neutral-700">
-      Ist das Protokoll fertig, gib es zum Review, wenn noch jemand drüberschauen soll, oder gib es
+      Ist das Protokoll fertig, gib es zur Prüfung, wenn noch jemand drüberschauen soll, oder gib es
       direkt frei. Nach der Freigabe liegt es als PDF im Protokoll-Ordner und lässt sich nicht mehr
       ändern.
     </p>
   {:else if detail.status === 'review'}
     <p class="text-sm text-neutral-700">
-      Wartet auf ein Review. Alle Leitenden können es freigeben oder mit einem Hinweis zurückgeben.
+      Wartet auf Prüfung. Alle Leitenden können es freigeben oder mit einem Hinweis zurückgeben.
     </p>
   {/if}
 
@@ -383,7 +383,7 @@
   {#if sending}
     <p class="text-sm text-neutral-800">
       „{detail.title}“ geht als PDF mit Link in Blindkopie an alle mit Häkchen. Dabei sind alle
-      Leitenden und alle mit dem Label „Protokollempfang“ aus CampFlow.
+      Leitenden und alle mit dem Merkmal „Protokollempfang“ aus CampFlow.
     </p>
     {#if sending.retry}
       <p class="text-sm text-danger">

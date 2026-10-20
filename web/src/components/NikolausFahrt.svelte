@@ -151,6 +151,10 @@
         void refresh();
       }
     };
+    const onOnline = (): void => {
+      now = new Date();
+      void refresh();
+    };
     const onOffline = (): void => {
       nikolausFahrtStore.offline = true;
     };
@@ -161,13 +165,13 @@
     window.addEventListener('offline', onOffline);
     window.addEventListener('storage', onStorage);
     document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('online', onVisible);
+    window.addEventListener('online', onOnline);
     return () => {
       clearInterval(timer);
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('storage', onStorage);
       document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('online', onVisible);
+      window.removeEventListener('online', onOnline);
     };
   });
 
@@ -299,6 +303,20 @@
         </div>
       </section>
 
+      {#if next && teamInfo}
+        <ol class="list-none" aria-label="Nächster Besuch">
+          <FahrtStop
+            stop={next}
+            index={stops.findIndex((stop) => stop.bookingId === next.bookingId)}
+            color={teamInfo.color}
+            isNext={true}
+            busy={next.bookingId in pending || queuedBookings.has(next.bookingId)}
+            queued={pendingQueuedBookings.has(next.bookingId)}
+            onvisited={(visited) => void setVisited(next!, visited)}
+          />
+        </ol>
+      {/if}
+
       <StatusNotice message={nikolausFahrtStore.storageError} kind="error" />
 
       <FahrtOfflinePanel {teamInfo} {savedHere} {offline} {refresh} onforget={showForgotten} />
@@ -350,7 +368,7 @@
             {#if data.droppedCount > 0 || data.unplannedCount > 0}
               <p class="border-l-4 border-warning py-1 pl-3 text-warning">
                 Die Dispo ist nicht mehr ganz aktuell (Termine wurden verlegt, abgesagt oder sind
-                neu dazugekommen). Bitte gebt der Disposition Bescheid.
+                neu dazugekommen). Bitte gebt der Dispo Bescheid.
               </p>
             {/if}
             {#if offline}
@@ -377,15 +395,17 @@
 
               <ol class="divide-y divide-neutral-200 border-y border-neutral-200">
                 {#each stops as stop, index (stop.bookingId)}
-                  <FahrtStop
-                    {stop}
-                    {index}
-                    color={teamInfo.color}
-                    isNext={stop.bookingId === next?.bookingId}
-                    busy={stop.bookingId in pending || queuedBookings.has(stop.bookingId)}
-                    queued={pendingQueuedBookings.has(stop.bookingId)}
-                    onvisited={(visited) => void setVisited(stop, visited)}
-                  />
+                  {#if stop.bookingId !== next?.bookingId}
+                    <FahrtStop
+                      {stop}
+                      {index}
+                      color={teamInfo.color}
+                      isNext={stop.bookingId === next?.bookingId}
+                      busy={stop.bookingId in pending || queuedBookings.has(stop.bookingId)}
+                      queued={pendingQueuedBookings.has(stop.bookingId)}
+                      onvisited={(visited) => void setVisited(stop, visited)}
+                    />
+                  {/if}
                 {/each}
               </ol>
 

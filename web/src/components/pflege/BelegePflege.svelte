@@ -345,7 +345,7 @@
     isEmpty={() => visible.length === 0}
   >
     {#snippet skeleton()}
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="grid min-h-[60dvh] gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {#each [1, 2, 3] as n (n)}
           <div class="skeleton-element h-28 rounded-[var(--radius-lg)]"></div>
         {/each}
@@ -391,6 +391,7 @@
       bind:form
       {errors}
       {aktionSuggestions}
+      onfield={(field) => dialog.clearField(field)}
       onpayment={() => dialog.clearField('payout')}
     />
 

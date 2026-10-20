@@ -314,8 +314,8 @@
 
       {#if view === 'matrix'}
         <p class="text-sm text-neutral-700">
-          Tipp: Buchungen per Drag-and-drop auf einen freien Platz ziehen, um sie zu verlegen. Ohne
-          Maus geht es über „Termin verlegen“ in den Details.
+          Tipp: Ziehe eine Buchung auf einen freien Platz, um sie zu verlegen. Du kannst die Buchung
+          auch öffnen und „Termin verlegen“ wählen.
         </p>
         <NikolausAdminMatrix
           slots={data.slots}

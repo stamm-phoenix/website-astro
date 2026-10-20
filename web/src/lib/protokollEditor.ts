@@ -61,7 +61,7 @@ export const PROTOKOLL_STATUS: Record<
   { label: string; tone: 'neutral' | 'warning' | 'success' }
 > = {
   entwurf: { label: 'Entwurf', tone: 'neutral' },
-  review: { label: 'Im Review', tone: 'warning' },
+  review: { label: 'In Prüfung', tone: 'warning' },
   freigegeben: { label: 'Freigegeben', tone: 'success' },
   verschickt: { label: 'Verschickt', tone: 'success' },
 };

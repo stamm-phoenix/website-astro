@@ -2,6 +2,7 @@ import { errorMessage, sendApi } from './api';
 import {
   blobToBase64,
   BELEG_PHOTO_EDGE,
+  MIN_BELEG_PHOTO_EDGE,
   canvasToJpeg,
   loadPhoto,
   centToInput,
@@ -98,6 +99,12 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     try {
       await nextFrame();
       const canvas = await loadPhoto(file);
+      if (Math.max(canvas.width, canvas.height) < MIN_BELEG_PHOTO_EDGE) {
+        dialog.state.fields.photo =
+          'Das Foto ist zu klein und kann nicht eingereicht werden. Bitte wähle ein Foto mit mindestens 800 Pixeln an der längeren Seite.';
+        return;
+      }
+      dialog.clearField('photo');
       photoWarnings = measurePhotoWarnings(canvas);
       const original = readPixels(canvas, canvas.width, canvas.height);
       const originalBlob = await canvasToJpeg(canvas);
@@ -112,7 +119,8 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
         // The photo shows only the receipt, e.g. a scan of the phone camera
         quad = fullFrame(original.width, original.height);
         mode = 'aus';
-        scanHint = 'Das Foto sieht schon wie ein Scan aus und wird unverändert verwendet.';
+        scanHint =
+          'Der Bildausschnitt wird unverändert verwendet. Prüfe darunter, ob alle Angaben lesbar sind.';
       } else {
         scanHint = 'Ränder erkannt. Passt der Rahmen nicht, zieh die Ecken mit dem Finger zurecht.';
       }

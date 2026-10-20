@@ -188,7 +188,7 @@
       await sendApi('DELETE', `/intern/pflege/blog/${postId}`, undefined, { etag });
       saved = JSON.stringify(form);
       busy = false;
-      window.location.href = LIST_URL;
+      window.location.href = `${LIST_URL}?geloescht=1`;
     } catch (error: unknown) {
       handleError(
         error,

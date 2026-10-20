@@ -7,21 +7,22 @@ test('the writer gives minutes to the review; saving stops and the PDF is a draf
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
   await page.getByLabel('Titel').fill('Leitendenrunde Review');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  await page.getByText(/^Sitzungsdaten und Teilnehmende bearbeiten/).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Markdown' })
+    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
     .click();
 
   // Typed right before: saved first, then given to the review
   await page.getByLabel('Text zu Punkt 2.').fill('Alles fertig besprochen.');
-  await page.getByRole('button', { name: 'Zum Review geben' }).click();
-  const confirm = page.getByRole('dialog', { name: 'Zum Review geben?' });
-  await confirm.getByRole('button', { name: 'Zum Review geben' }).click();
+  await page.getByRole('button', { name: 'Zur Prüfung geben' }).click();
+  const confirm = page.getByRole('dialog', { name: 'Zur Prüfung geben?' });
+  await confirm.getByRole('button', { name: 'Zur Prüfung geben' }).click();
   await expect(confirm).toBeHidden();
 
-  const review = page.getByRole('region', { name: 'Review und Versand' });
-  await expect(review.getByText('Im Review', { exact: true })).toBeVisible();
+  const review = page.getByRole('region', { name: 'Prüfung und Versand' });
+  await expect(review.getByText('In Prüfung', { exact: true })).toBeVisible();
   await expect(page.getByText('Alles fertig besprochen.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Bearbeiten' })).toHaveCount(0);
   // Every leader may approve, the author too after an explicit confirmation
@@ -38,10 +39,11 @@ test('the author approves their own draft directly after confirming it', async (
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
   await page.getByLabel('Titel').fill('Leitendenrunde Direkt');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  await page.getByText(/^Sitzungsdaten und Teilnehmende bearbeiten/).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Markdown' })
+    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
     .click();
 
   await page.getByLabel('Text zu Punkt 2.').fill('Ohne Review fertig.');
@@ -54,9 +56,9 @@ test('the author approves their own draft directly after confirming it', async (
   await approve.getByRole('button', { name: 'Freigeben' }).click();
   await expect(approve).toBeHidden();
 
-  const review = page.getByRole('region', { name: 'Review und Versand' });
+  const review = page.getByRole('region', { name: 'Prüfung und Versand' });
   await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
-  await expect(review.getByText(/Zum Review gegeben/)).toHaveCount(0);
+  await expect(review.getByText(/Zur Prüfung gegeben/)).toHaveCount(0);
   await expect(page.getByText('Ohne Review fertig.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Bearbeiten' })).toHaveCount(0);
 });
@@ -67,8 +69,8 @@ test('any leader approves minutes in review and sends them to all leaders', asyn
     .getByRole('region', { name: 'Im Editor' })
     .getByRole('link', { name: 'Stavo-Sitzung', exact: true })
     .click();
-  const review = page.getByRole('region', { name: 'Review und Versand' });
-  await expect(review.getByText('Im Review', { exact: true })).toBeVisible();
+  const review = page.getByRole('region', { name: 'Prüfung und Versand' });
+  await expect(review.getByText('In Prüfung', { exact: true })).toBeVisible();
 
   await review.getByRole('button', { name: 'Freigeben' }).click();
   const approve = page.getByRole('dialog', { name: '„Stavo-Sitzung“ freigeben?' });
@@ -141,14 +143,15 @@ test('a newer version after a conflict needs the own approval confirmed again', 
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
   await page.getByLabel('Titel').fill('Leitendenrunde Konflikt');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  await page.getByText(/^Sitzungsdaten und Teilnehmende bearbeiten/).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Markdown' })
+    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
     .click();
-  await page.getByRole('button', { name: 'Zum Review geben' }).click();
-  const confirm = page.getByRole('dialog', { name: 'Zum Review geben?' });
-  await confirm.getByRole('button', { name: 'Zum Review geben' }).click();
+  await page.getByRole('button', { name: 'Zur Prüfung geben' }).click();
+  const confirm = page.getByRole('dialog', { name: 'Zur Prüfung geben?' });
+  await confirm.getByRole('button', { name: 'Zur Prüfung geben' }).click();
   await expect(confirm).toBeHidden();
 
   // Someone changed the minutes meanwhile: the approval fails and a newer version loads
@@ -176,7 +179,7 @@ test('a newer version after a conflict needs the own approval confirmed again', 
     });
   });
 
-  const review = page.getByRole('region', { name: 'Review und Versand' });
+  const review = page.getByRole('region', { name: 'Prüfung und Versand' });
   await review.getByRole('button', { name: 'Freigeben' }).click();
   const approve = page.getByRole('dialog', { name: '„Leitendenrunde Konflikt“ freigeben?' });
   const tick = approve.getByRole('checkbox', { name: /ohne zweite Person/ });

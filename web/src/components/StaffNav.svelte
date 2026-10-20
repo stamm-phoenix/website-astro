@@ -492,6 +492,11 @@
         <h2 id="staff-nav-title" class="font-serif text-xl font-semibold text-brand-900">
           Alle Bereiche
         </h2>
+        <a
+          href="/logout"
+          data-astro-reload
+          class="ml-auto inline-flex min-h-11 items-center font-semibold text-link">Abmelden</a
+        >
         <button
           bind:this={closeButton}
           type="button"
@@ -554,11 +559,6 @@
         <ul class="flex flex-wrap gap-x-6">
           <li>
             <a href="/" class="inline-flex min-h-11 items-center text-link">Zur Website</a>
-          </li>
-          <li>
-            <a href="/logout" class="inline-flex min-h-11 items-center font-semibold text-link">
-              Abmelden
-            </a>
           </li>
         </ul>
       </div>

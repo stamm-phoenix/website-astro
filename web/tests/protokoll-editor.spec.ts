@@ -7,11 +7,12 @@ async function createProtokoll(page: Page, title: string): Promise<string> {
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
   await page.getByLabel('Titel').fill(title);
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  await page.getByText(/^Sitzungsdaten und Teilnehmende bearbeiten/).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
   // These tests type Markdown into the plain fields; the formatting editor has its own tests
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Markdown' })
+    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
     .click();
   await expect(page.getByLabel('Text zu Punkt 1.')).toHaveAttribute('rows', '2');
   return page.url();
@@ -106,6 +107,7 @@ test('others read along live and can take over after asking', async ({
   const confirm = reader.getByRole('dialog', { name: 'Bearbeitung übernehmen?' });
   await expect(confirm).toContainText('Demo Leitung schreibt gerade');
   await confirm.getByRole('button', { name: 'Übernehmen' }).click();
+  await reader.getByText(/^Sitzungsdaten und Teilnehmende bearbeiten/).click();
   await expect(reader.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
 
   // The former writer cannot save any more and is told so
@@ -409,7 +411,7 @@ test('the formatting editor writes Markdown that the minutes render the same', a
 
   // The Markdown field shows what is stored, and the editor reads it back; HTML typed as
   // text stays text, as the minutes show it
-  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
   await expect(page.getByLabel('Text zu Punkt 2.')).toHaveValue(
     'Stammestag war **super** und <3, Tag <b>x</b>\n\n- [ ] Fotos sortieren'
   );

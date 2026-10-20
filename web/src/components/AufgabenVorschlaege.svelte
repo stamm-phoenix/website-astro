@@ -24,6 +24,7 @@
   import AufgabenAktionen from './AufgabenAktionen.svelte';
   import ConfirmDialog from './ui/ConfirmDialog.svelte';
   let sourceId = $state('');
+  let protocolSearch = $state('');
   let rejectTarget = $state<Task | null>(null);
   let rejectFocus = () => {};
   let rejectReloading = $state(false);
@@ -48,6 +49,15 @@
           !protocol.changedSinceApproval
       )
       .sort((a, b) => b.date.localeCompare(a.date))
+  );
+  const protocolOptions = $derived(
+    eligible.filter(
+      (protocol) =>
+        protocol.id === sourceId ||
+        `${protocolLabel(protocol.date)} ${protocol.date} ${protocol.title} ${protocol.fileName}`
+          .toLocaleLowerCase('de')
+          .includes(protocolSearch.trim().toLocaleLowerCase('de'))
+    )
   );
   const source = $derived(eligible.find((protocol) => protocol.id === sourceId));
   const visible = $derived(
@@ -155,25 +165,36 @@
       Aufgaben aus Protokollen
     </h2>
     <p class="my-2 text-sm text-neutral-700">
-      Reviewende können freigegebene oder archivierte Protokolle auswerten. Die KI schlägt nur vor;
-      ihr prüft und übernehmt die Aufgaben einzeln.
+      Du kannst freigegebene oder archivierte Protokolle auswerten. Die automatische Erkennung
+      schlägt Aufgaben vor; ihr prüft und übernehmt die Aufgaben einzeln.
     </p>
     <StatusNotice kind="error" message={aufgabenStore.protocolError} />
     {#if aufgabenStore.protocolError}<ActionButton onclick={loadTaskProtocols}
         >Protokolle neu laden</ActionButton
       >{/if}
+    <FormField id="task-protocol-search" label="Protokoll suchen" optional>
+      {#snippet children(attrs)}<input
+          {...attrs}
+          type="search"
+          class="form-input"
+          placeholder="Datum, Titel oder Dateiname"
+          bind:value={protocolSearch}
+        />{/snippet}
+    </FormField>
     <FormField id="task-protocol" label="Protokoll"
       >{#snippet children(attrs)}
         <select {...attrs} class="form-input" bind:value={sourceId} onchange={clearRecognition}
           ><option value="">Bitte auswählen</option
-          >{#each eligible as protocol (protocol.id)}<option value={protocol.id}
-              >{protocolLabel(protocol.date)} · {protocol.title}</option
+          >{#each protocolOptions as protocol (protocol.id)}<option value={protocol.id}
+              >{protocolLabel(protocol.date)} · {protocol.title
+                .replace(/^(?:\d{4}-\d{2}-\d{2}|YYYY-MM-DD)[_ -]+/, '')
+                .replace(/_/g, ' ')} · {protocol.status} · {protocol.fileName}</option
             >{/each}</select
         >
       {/snippet}</FormField
     >
     {#if !data.extractionConfigured}<p class="my-2 text-sm">
-        Die KI-Erkennung ist nicht eingerichtet. Aufgaben können manuell angelegt werden.
+        Die automatische Erkennung ist nicht eingerichtet. Aufgaben können manuell angelegt werden.
       </p>{/if}
     {#if !source && data.extractionConfigured}<p class="mt-2 text-sm text-neutral-700">
         Wähle zuerst ein Protokoll.
@@ -206,7 +227,8 @@
   <AufgabenFilter bind:projectFilter bind:ownOnly onchange={clearRecognition} />
   <p class="mt-4 text-sm text-neutral-700">
     {visible.length}
-    {visible.length === 1 ? 'Vorschlag für diese Auswahl' : 'Vorschläge für diese Auswahl'}
+    {visible.length === 1 ? 'Vorschlag' : 'Vorschläge'}
+    {sourceId ? 'für dieses Protokoll' : 'aus allen Protokollen'}
   </p>
   {#if recognizing && !visible.length}<p role="status" class="my-3">
       Das Protokoll wird ausgewertet …

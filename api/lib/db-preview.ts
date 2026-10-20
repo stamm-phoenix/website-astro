@@ -177,7 +177,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:26';
+const SEEDED_KEY = 'preview:seeded:27';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -850,6 +850,36 @@ export async function seedPreviewStaffChangelogSeen(): Promise<void> {
       user_id: 'preview-neuigkeiten',
       login: 'vorschau@example.test',
       last_seen_id: '2026-09-25-01-leitendenbereich',
+    })
+    .execute();
+}
+
+/** Invented personal Abrechnung draft; no real participant data. */
+export async function seedPreviewAbrechnungEingabe(): Promise<void> {
+  const db = getDb();
+  const exists = await db
+    .selectFrom('organisation.abrechnung_eingabe')
+    .select('user_id')
+    .executeTakeFirst();
+  if (exists) return;
+  await db
+    .insertInto('organisation.abrechnung_eingabe')
+    .values({
+      user_id: 'preview-abrechnung',
+      event_id: 'evt_Preview26',
+      login: 'vorschau@example.test',
+      session: JSON.stringify({
+        zusatztag: false,
+        excluded: {},
+        extra: [],
+        betreuer: {},
+        plz: {},
+        kjr: { ort: 'Musterort', plz: '83620', beginn: '', ende: '' },
+        leihgebuehren: {},
+        deckblatt: { vorkalkulation: '', kalkulation: '' },
+        betraege: {},
+      }),
+      delete_after: sql<Date>`DATEADD(month, 4, CONVERT(date, SYSUTCDATETIME()))`,
     })
     .execute();
 }

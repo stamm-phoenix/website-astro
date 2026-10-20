@@ -55,7 +55,7 @@
       Navigation<span class="sr-only"> zu Familie {stop.familyName}</span>
     </a>
     {#if stop.phone}
-      <a class="btn-secondary min-h-12" href="tel:{stop.phone}">
+      <a class="btn-secondary min-h-12 inline-flex min-h-11 items-center" href="tel:{stop.phone}">
         Anrufen<span class="sr-only"> bei Familie {stop.familyName}</span>
       </a>
     {/if}
@@ -109,7 +109,7 @@
         <span class="text-xl font-semibold tabular-nums text-brand-900"
           >ca. {stop.plannedArrival} Uhr</span
         >
-        <span class="text-neutral-700">Slot {slotLabel(stop.slotKey)}</span>
+        <span class="text-neutral-700">Gebucht: {slotLabel(stop.slotKey)}</span>
       </p>
       <p class="text-lg font-semibold text-neutral-900">
         Familie {stop.familyName}
@@ -118,8 +118,8 @@
         {stop.street}, {stop.postalCode}
         {stop.city}
       </p>
-      <div class="mt-2 text-base">{@render details(stop)}</div>
       {@render actions(stop, true)}
+      <div class="mt-2 text-base">{@render details(stop)}</div>
     </article>
   {:else}
     <details class="group">
@@ -140,7 +140,7 @@
         >
       </summary>
       <div class="pb-4 pl-10">
-        <p class="text-neutral-700">Slot {slotLabel(stop.slotKey)}</p>
+        <p class="text-neutral-700">Gebucht: {slotLabel(stop.slotKey)}</p>
         {@render details(stop)}
         {@render actions(stop, false)}
       </div>

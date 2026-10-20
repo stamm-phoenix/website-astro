@@ -329,7 +329,7 @@ export function getPlainText(content: string): string {
   let last = 0;
   for (const match of content.matchAll(/<[^<>]*>?/g)) {
     text += content.slice(last, match.index).replace(/[<>]/g, '');
-    if (/^<\/?(?:p|div|h2|h3|ul|ol|li|br|img)\b/i.test(match[0])) text += ' ';
+    if (/^<\/?(?:p|div|h[1-6]|ul|ol|li|br|img)\b/i.test(match[0])) text += ' ';
     last = match.index + match[0].length;
   }
   text += content.slice(last).replace(/[<>]/g, '');

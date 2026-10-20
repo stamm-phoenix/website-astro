@@ -137,7 +137,11 @@ test('a helper conflict can load the current version and save with its new etag'
   await page.getByRole('button', { name: /^Bearbeiten.*Katharina Huber/ }).click();
   const editor = page.getByRole('dialog', { name: 'Person bearbeiten', exact: true });
   await editor.getByLabel('Name', { exact: true }).fill('Mein Entwurf');
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await editor
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Mein Entwurf');
   await editor.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: 'Aktuelle Fassung laden?', exact: true });
@@ -148,7 +152,11 @@ test('a helper conflict can load the current version and save with its new etag'
     '_blank'
   );
   await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Mein Entwurf');
-  await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+  await expect(
+    editor.getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+  ).toBeDisabled();
   reloadUnauthorized = false;
   blockReload = true;
   await editor.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
@@ -164,7 +172,11 @@ test('a helper conflict can load the current version and save with its new etag'
   }
   await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Katharina Neu');
   await editor.getByLabel('Name', { exact: true }).fill('Katharina Geprüft');
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await editor
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(editor).toBeHidden();
   await expectNoHorizontalOverflow(page);
 });

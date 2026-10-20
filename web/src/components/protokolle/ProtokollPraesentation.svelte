@@ -19,7 +19,7 @@
   /** After a change from the writing tab, the server is behind for a moment; ignore it then. */
   const DIRECT_MS = 15_000;
 
-  let id: number | null = null;
+  let id = $state<number | null>(null);
   let etag = '';
   let stand = $state.raw<ProtokollStand | null>(null);
   let active = $state<string | null>(null);
@@ -155,8 +155,12 @@
 <div class="praesentation">
   {#if !stand && loadError}
     <p class="text-danger" role="alert">
-      <MessageText text={loadError} /> Es wird gleich erneut versucht.
+      <MessageText text={loadError} />
+      {#if id !== null}Es wird gleich erneut versucht.{/if}
     </p>
+    <a href="/leitendenbereich/protokolle" class="text-link inline-flex min-h-11 items-center"
+      >Zur Protokollübersicht</a
+    >
   {:else if !stand}
     <p role="status" aria-live="polite" class="text-neutral-700">Protokoll wird geladen …</p>
   {:else}

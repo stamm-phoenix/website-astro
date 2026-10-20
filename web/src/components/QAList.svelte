@@ -13,7 +13,17 @@
   }
   let { initial = null }: Props = $props();
 
-  const view = $derived(withBaked(QA_STORE, initial));
+  let refreshed = $state(false);
+  const updates = $derived(
+    QA_STORE.data !== null &&
+      initial !== null &&
+      JSON.stringify(QA_STORE.data) !== JSON.stringify(initial)
+  );
+  const view = $derived(
+    !refreshed && initial?.length
+      ? { data: initial, loading: false, error: false }
+      : withBaked(QA_STORE, initial)
+  );
 
   let expandedId = $state<string | null>(null);
 
@@ -52,10 +62,18 @@
   }
 </script>
 
-<div class="mb-6 flex flex-wrap gap-3">
+<div class="mb-6 flex min-h-11 flex-wrap gap-3">
   <StaffLink href="/leitendenbereich/fragen-und-antworten?neu" variant="primary"
     >Neue Frage anlegen</StaffLink
   >
+</div>
+
+<div class="min-h-11" aria-live="polite">
+  {#if updates && !refreshed}<button
+      type="button"
+      class="min-h-11 font-semibold text-link underline"
+      onclick={() => (refreshed = true)}>Aktualisierte Fragen anzeigen</button
+    >{/if}
 </div>
 
 {#if view.loading}
@@ -102,7 +120,7 @@
         {#each groupedQuestions as group (group.category)}
           <li>
             <a
-              class="inline-flex items-baseline gap-1.5 py-1 text-sm font-semibold text-link underline decoration-transparent underline-offset-4 hover:decoration-current"
+              class="inline-flex min-h-11 items-center gap-1.5 py-1 text-sm font-semibold text-link underline decoration-transparent underline-offset-4 hover:decoration-current"
               href={`#${categoryId(group.category)}`}
             >
               <span class="min-w-0 [overflow-wrap:anywhere]">{group.category}</span>

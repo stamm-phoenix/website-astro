@@ -231,7 +231,10 @@
               <ActionButton variant="secondary" type="button" onclick={() => edit(item)}>
                 Bearbeiten<span class="sr-only"> ({item.stufe})</span>
               </ActionButton>
-              <a href="/leitendenbereich/leitende" class="btn-secondary">Team bearbeiten</a>
+              <a
+                href="/leitendenbereich/leitende?team={encodeURIComponent(item.stufe)}"
+                class="btn-secondary">Team bearbeiten</a
+              >
             </div>
           </div>
           <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">

@@ -67,7 +67,11 @@ test('a description is stored as plain HTML like before and comes back formatted
   await page.keyboard.press('Enter');
   await tools.getByRole('button', { name: 'Aufzählung' }).click();
   await page.keyboard.type('Becher mitbringen');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).toBeHidden();
 
   const { items } = (await (

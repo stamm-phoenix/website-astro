@@ -56,7 +56,11 @@ test('autocomplete saves a selected login and legacy full names remain in the pe
   const request = page.waitForRequest(
     (req) => req.method() === 'POST' && req.url().endsWith('/intern/pflege/aufgaben')
   );
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   expect((await request).postDataJSON().assignee).toBe(login);
   await expect(dialog).not.toBeVisible();
   await taskFilters(page);
@@ -118,18 +122,30 @@ test('template assignees support pointer selection and unavailable autocomplete 
   await expect(
     dialog.getByText('Bitte tippe auf einen Namen aus der Liste – oder lass das Feld leer.')
   ).toBeVisible();
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).toBeVisible();
   await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill('Hugo Beispiel');
   await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).press('Tab');
   await expect(
     dialog.getByRole('button', { name: 'Hugo Beispiel entfernen', exact: true })
   ).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+  await expect(
+    dialog.getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+  ).toBeEnabled();
   const saved = page.waitForRequest(
     (req) => req.method() === 'POST' && req.url().endsWith('/intern/pflege/aufgaben')
   );
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   expect((await saved).postDataJSON().assignees).toEqual([{ name: 'Hugo Beispiel', login: '' }]);
   await expect(dialog).not.toBeVisible();
 });
@@ -175,7 +191,11 @@ test('multiple people appear as removable name tags and any assignee sees the ta
   const request = page.waitForRequest(
     (req) => req.method() === 'POST' && req.url().endsWith('/intern/pflege/aufgaben')
   );
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   expect((await request).postDataJSON().assignees).toEqual([alex, bea]);
   await expect(dialog).not.toBeVisible();
   await taskFilters(page);
@@ -187,7 +207,11 @@ test('multiple people appear as removable name tags and any assignee sees the ta
   await expect(row.getByText('@example.test', { exact: false })).toHaveCount(0);
   await row.getByRole('heading').getByRole('button').click();
   await dialog.getByRole('button', { name: 'Bea Beispiel entfernen', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).not.toBeVisible();
   await expect(row).toHaveCount(0);
   await taskFilters(page);
@@ -197,7 +221,11 @@ test('multiple people appear as removable name tags and any assignee sees the ta
   await dialog.getByRole('button', { name: 'Alex Beispiel entfernen', exact: true }).click();
   await search.fill('Bea');
   await dialog.getByRole('option', { name: bea.name, exact: true }).click();
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).not.toBeVisible();
   await page.goto('/leitendenbereich');
   const tasks = page.getByRole('region', { name: 'Offene Aufgaben' });

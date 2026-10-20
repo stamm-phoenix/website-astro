@@ -131,10 +131,12 @@
           zahlungsdatum: formatDate(beleg.zahlungsdatum),
           zahlungsart: art,
           anlass: beleg.anlass.trim(),
-          positionen: beleg.positionen.map((p) => ({
-            beschreibung: p.beschreibung.trim(),
-            cent: parseEuroToCent(p.betrag) ?? 0,
-          })),
+          positionen: beleg.positionen
+            .filter((p) => p.beschreibung.trim() || p.betrag.trim())
+            .map((p) => ({
+              beschreibung: p.beschreibung.trim(),
+              cent: parseEuroToCent(p.betrag) ?? 0,
+            })),
           totalCent: summeCent,
           grund: grundText(beleg),
           ort: beleg.ort.trim(),

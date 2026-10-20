@@ -129,5 +129,5 @@
 </div>
 
 <p id={`${id}-entry-hint`} class="mt-1 text-xs text-neutral-700">
-  Mit Enter hinzufügen. Auf dem Handy kannst du auch außerhalb des Felds tippen.
+  Tippe nach einem Eintrag außerhalb des Felds oder drücke die Eingabetaste, um ihn hinzuzufügen.
 </p>
