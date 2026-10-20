@@ -3,6 +3,7 @@ import StaffLayout from '../../layouts/StaffLayout.astro';
 import StaffDashboard from '../../components/StaffDashboard.svelte';
 import StaffGreeting from '../../components/StaffGreeting.svelte';
 import StaffModuleSearch from '../../components/StaffModuleSearch.svelte';
+import ChangelogNotice from '../../components/changelog/ChangelogNotice.svelte';
 import NikolausStaffNotice from '../../components/NikolausStaffNotice.svelte';
 import StaffModuleSection from '../../components/StaffModuleSection.svelte';
 import NikolausStaffSection from '../../components/NikolausStaffSection.svelte';
@@ -35,6 +36,10 @@ const searchGroups = [
 
   <div class="mt-4">
     <NikolausStaffNotice client:only="svelte" />
+  </div>
+
+  <div class="mt-4">
+    <ChangelogNotice client:only="svelte" />
   </div>
 
   <StaffDashboard client:only="svelte" />

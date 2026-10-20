@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
   import StaffModuleSearch from './StaffModuleSearch.svelte';
+  import ChangelogBadge from './changelog/ChangelogBadge.svelte';
+  import { loadChangelogSeen } from '../lib/staffChangelogStore.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import {
@@ -148,6 +150,7 @@
     if (module) void recordVisit(module);
     else void loadRecent();
     void fetchPrincipal();
+    void loadChangelogSeen();
     // Whether Nikolaus modules may appear in the bar; the Steuerung refreshes it on a change
     void fetchNikolausStatus();
   });
@@ -452,15 +455,17 @@
     {/if}
     <button
       type="button"
-      class="staff-bar-item"
+      class="staff-bar-item relative"
       bind:this={menuButton}
       aria-expanded={open}
       aria-controls="staff-nav-panel"
+      aria-describedby="staff-menu-news"
       aria-current={inBar || open ? undefined : 'true'}
       onclick={toggleSheet}
     >
       {@render icon('M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z')}
       <span>Menü</span>
+      <ChangelogBadge floating textId="staff-menu-news" />
     </button>
   </div>
 </nav>

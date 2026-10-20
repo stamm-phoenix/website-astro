@@ -3,10 +3,12 @@
   import { navigate } from 'astro:transitions/client';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { searchStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
-  import type { StaffModule } from '../lib/staffModules';
+  import { CHANGELOG_PATH, type StaffModule } from '../lib/staffModules';
   import { favoriteToggle } from '../lib/staffFavoritesStore.svelte';
   import { longPress } from '../lib/longPress';
   import FavoriteStar from './FavoriteStar.svelte';
+  import ChangelogBadge from './changelog/ChangelogBadge.svelte';
+  import { loadChangelogSeen } from '../lib/staffChangelogStore.svelte';
 
   interface Props {
     groups: StaffModuleGroup[];
@@ -53,6 +55,7 @@
   );
   onMount(() => {
     if (nikolausModules.length > 0) void fetchNikolausStatus();
+    void loadChangelogSeen();
   });
 
   const id = $props.id();
@@ -240,6 +243,8 @@
                     </span>
                   {/if}
                 </a>
+                {#if module.href === CHANGELOG_PATH}<span class="mr-1"><ChangelogBadge /></span
+                  >{/if}
                 {#if !collapsed}<FavoriteStar {module} compact={variant === 'sidebar'} />{/if}
               </li>
             {/each}

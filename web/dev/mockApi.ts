@@ -2,6 +2,7 @@ import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validatio
 import {
   ValidationError,
   validateStaffFavorites,
+  validateChangelogSeen,
   validateStaffRecentVisit,
   validateWeiterePerson,
   validateStaffSettings,
@@ -1929,6 +1930,20 @@ route(['GET', 'POST'], '/api/intern/zuletzt', (req) => {
 });
 route('POST', '/api/__mock/zuletzt/reset', () => {
   staffRecent = [];
+  return noContent();
+});
+
+/** Newest changelog entry the demo account has seen; `null` until the changelog is opened. */
+let changelogSeen: string | null = null;
+route(['GET', 'PUT'], '/api/intern/neuigkeiten', (req) => {
+  if (req.method === 'GET') return json({ lastSeenId: changelogSeen });
+  const id = validateChangelogSeen(req.json);
+  if (changelogSeen === null || id > changelogSeen) changelogSeen = id;
+  return json({ lastSeenId: changelogSeen });
+});
+route('POST', '/api/__mock/neuigkeiten/reset', (req) => {
+  const id = req.json?.lastSeenId;
+  changelogSeen = typeof id === 'string' ? id : null;
   return noContent();
 });
 

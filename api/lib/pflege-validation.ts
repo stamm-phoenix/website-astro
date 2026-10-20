@@ -3,6 +3,7 @@
  * Invalid input is reported per field so the forms can show the messages next to the inputs.
  */
 import type { HelperRole, TeamRole } from './nikolaus-einteilung';
+import { isChangelogId } from './changelog-id';
 import { pickStaffSettings } from './staff-settings-model';
 import type { StaffSettings } from './staff-settings-model';
 import { HELPER_ROLES, KITCHEN, TEAM_ROLES, normalizeTag, parseTags } from './nikolaus-einteilung';
@@ -1496,6 +1497,15 @@ export function validateStaffRecentVisit(body: unknown): string {
     throw new ValidationError({ module: 'Der Bereich ist ungültig.' });
   }
   return module.replace(/\/+$/, '');
+}
+
+/** The ID of the newest changelog entry a person has seen (`{ lastSeenId }`). */
+export function validateChangelogSeen(body: unknown): string {
+  const { lastSeenId } = asRecord(body);
+  if (!isChangelogId(lastSeenId)) {
+    throw new ValidationError({ lastSeenId: 'Die Neuigkeit ist ungültig.' });
+  }
+  return lastSeenId;
 }
 
 export function validateStaffFavorites(body: unknown): string[] {

@@ -251,6 +251,14 @@ Public content (Gruppenstunden, Vorstand, Aktionen, Blog incl. `/blog/<id>/` pag
 - Aktionen: CampFlow is the main source. Calendar entries linked via `CampFlowId` get title, dates and link live from CampFlow in `getAktionen()` (`api/lib/aktionen-list.ts`); only Stufen and description are edited on the website.
 - New public endpoints go into `CONTENT_SOURCES` (`web/src/lib/content/version.ts`); new Pflege areas with public content into `PUBLIC_CONTENT_AREAS` (`api/lib/site-rebuild.ts`), which triggers the content refresh (jobs `content-*` in the main workflow `.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml`; it must stay in that file, because the Static Web App accepts OIDC deploys only from the workflow file named after it).
 
+## Changelog
+
+The Leitendenbereich shows its changes under „Neuigkeiten“ (`web/src/pages/leitendenbereich/neuigkeiten.astro`). The entries are written in `web/src/lib/changelogEntries.ts`, newest first. Keep this changelog up to date: every PR that changes what leaders see or can do in the Leitendenbereich adds or extends an entry in the same PR, and a PR without one is not finished. That covers new modules, changed flows, fixed behavior leaders noticed and removed features. Pure refactorings, tests, CI and documentation need none.
+
+- An entry has an `id` (day plus short name, `2026-10-20-neuigkeiten`), the `date`, a short `title` and `changes`, a list of whole German sentences. Add to the entry of today if there is one, otherwise put a new one on top. The IDs must stay sorted from newest to oldest; `test/changelog.test.ts` checks that.
+- Write for leaders, not for developers: plain German in the „du“ form, no commit messages, no IT terms, no file or function names. Say what a leader can do now or what works differently.
+- The new entry shows a bubble with the number of unread entries in the menu and on the start page. Each person's newest seen ID is stored in `organisation.staff_changelog_seen` (`api/lib/staff-changelog.ts`, `/api/intern/neuigkeiten`). Never rename the ID of an existing entry and never add an entry with an ID older than the newest one: people who already read the newest ID would not get it as unread.
+
 ## Privacy
 
 The site needs no cookie banner and must stay that way. Do not add analytics, tracking, ad or social widgets, or captchas from third parties (use self-hosted alternatives). The one deliberate exception is Cloudflare in front of the Static Web App: it injects its bot detection (`/cdn-cgi/…/jsd/main.js`, may set the strictly necessary `__cf_bm` cookie) and cookieless Web Analytics (`static.cloudflareinsights.com`). Both are configured in the Cloudflare dashboard, not in this repo, are described on `/datenschutz` and allowed in the CSP (`web/public/staticwebapp.config.json`); their Lighthouse warnings (deprecated APIs, legacy JS) are accepted. Fonts and images are served from our own origin. A third-party embed or script loads only after an explicit click, like the Campflow form (`MembershipApplication.astro`) and Instagram videos (`InstagramConsentDialog.svelte`). Browser storage is only for functions the visitor uses. Every new third-party connection, storage key or form must be described on `/datenschutz` (`web/src/pages/datenschutz.astro`).
@@ -286,6 +294,7 @@ The site needs no cookie banner and must stay that way. Do not add analytics, tr
 4. For responsive changes, check the relevant viewport(s); otherwise use a representative one
 5. For UI changes, check accessibility (semantic HTML, ARIA attributes)
 6. For changes in the Leitendenbereich, check them against "Usability for Leitende", including the walk-through on a phone viewport
+7. For changes leaders notice in the Leitendenbereich, add or extend the entry in `web/src/lib/changelogEntries.ts` (see "Changelog")
 
 ## Git History
 

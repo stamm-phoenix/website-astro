@@ -833,6 +833,27 @@ export async function seedPreviewStaffRecent(): Promise<void> {
     .execute();
 }
 
+/**
+ * One invented account that has seen an early changelog entry, so the table has a row; real
+ * logins of the preview start without one and see every entry as new. Skipped if the preview
+ * has some already.
+ */
+export async function seedPreviewStaffChangelogSeen(): Promise<void> {
+  const exists = await getDb()
+    .selectFrom('organisation.staff_changelog_seen')
+    .select('user_id')
+    .executeTakeFirst();
+  if (exists) return;
+  await getDb()
+    .insertInto('organisation.staff_changelog_seen')
+    .values({
+      user_id: 'preview-neuigkeiten',
+      login: 'vorschau@example.test',
+      last_seen_id: '2026-09-25-leitendenbereich',
+    })
+    .execute();
+}
+
 /** One invented person who writes the minutes in Markdown; everyone else has the default. */
 export async function seedPreviewStaffSettings(): Promise<void> {
   const exists = await getDb()
