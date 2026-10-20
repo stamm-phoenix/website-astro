@@ -67,6 +67,11 @@
   let target = $state<number | null>(null);
 
   const isCarousel = $derived(post.imageCount > 1);
+  /**
+   * Whether the images sit side by side in a strip: always in the dialog, on a tile from the
+   * first swipe on. Before that, a tile cross-fades as it advances by itself.
+   */
+  const stripMode = $derived(isCarousel && (isModal || browsed));
   const canPlay = $derived(isModal && post.mediaType === 'VIDEO' && post.hasVideo);
   /** The video is only requested (from Instagram) once someone clicks play */
   let playing = $state(false);
@@ -130,17 +135,11 @@
     }
   }
 
-  /** Steps from the requested image, so quick repeated clicks each count (tiles). */
-  function browseTile(step: number): void {
-    browsed = true;
-    void show((target ?? index) + step);
-  }
-
   /*
-   * In the dialog the images sit side by side in a strip. Every image has a fixed place in it
-   * (`position`, counted without wrapping), and the strip is moved so the current place is in
-   * view. Changing the place therefore slides the strip from wherever it is, and the image index
-   * wraps around (`position` modulo the number of images).
+   * In the strip (dialog, and a tile once swiped) the images sit side by side. Every image has a
+   * fixed place in it (`position`, counted without wrapping), and the strip is moved so the
+   * current place is in view. Changing the place therefore slides the strip from wherever it is,
+   * and the image index wraps around (`position` modulo the number of images).
    */
   let strip = $state<HTMLDivElement>();
   /** Place of the current image in the strip; may run past the ends, the index wraps. */
@@ -174,13 +173,23 @@
         : { low: position - 1, high: position + 1 };
   }
 
-  /** Arrows and keys: the same movement as a release without speed. */
+  /** Arrows and keys (dialog only): the same movement as a release without speed. */
   function browse(step: number): void {
-    if (!isModal) {
-      browseTile(step);
-      return;
-    }
     slide(step, panelDuration(), 'var(--motion-enter)');
+  }
+
+  /**
+   * A tile switches to the strip when a swipe starts: the strip begins at the image shown, and
+   * an image the tile was still loading to advance to no longer replaces it.
+   */
+  function enterStrip(): void {
+    if (stripMode) return;
+    position = index;
+    span = { low: index - 1, high: index + 1 };
+    offset = 0;
+    settleMs = 0;
+    target = null;
+    browsed = true;
   }
 
   /** Once the strip has arrived, only the current image and its neighbours stay rendered. */
@@ -191,13 +200,37 @@
 
   /** The touch being followed, and whether it moves sideways (`x`) or is left to the browser. */
   let swipe: { track: SwipeTrack; axis: 'x' | null; width: number; base: number } | null = null;
+  /** A finger rests on the images; a tile does not advance meanwhile. Not reactive on purpose. */
+  let fingerDown = false;
+  /** Within a link (the card), a click this late after a swipe belongs to the swipe. */
+  const SWIPE_CLICK_MS = 400;
 
   /**
-   * In the dialog, a sideways swipe browses like the arrows. The strip follows the finger, so
-   * the neighbouring image slides in from the edge; on release it continues to that image or
-   * returns. Vertical movement and pinching stay with the browser.
+   * A sideways swipe browses like the arrows of the dialog, in the dialog and on a tile. The
+   * strip follows the finger, so the neighbouring image slides in from the edge; on release it
+   * continues to that image or returns. Vertical movement and pinching stay with the browser.
    */
   function swipeArea(area: HTMLElement): () => void {
+    /**
+     * Set when a swipe ends: the click some browsers (Safari) still send for the touch would
+     * otherwise open the post from a card. Cleared after a moment or by the next touch.
+     */
+    let swallowClick = false;
+    let clickTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function guardClick(event: MouseEvent): void {
+      if (!swallowClick) return;
+      swallowClick = false;
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    function holdClick(): void {
+      swallowClick = true;
+      clearTimeout(clickTimer);
+      clickTimer = setTimeout(() => (swallowClick = false), SWIPE_CLICK_MS);
+    }
+
     /** Where the strip is drawn right now, relative to the current place (also mid-movement). */
     function shownOffset(width: number): number {
       if (!strip) return offset;
@@ -212,6 +245,8 @@
     }
 
     function start(event: TouchEvent): void {
+      swallowClick = false;
+      fingerDown = true;
       if (event.touches.length !== 1) {
         cancel();
         return;
@@ -223,6 +258,8 @@
         width: area.clientWidth,
         base: 0,
       };
+      // A tile loads its images one after another; the neighbours a swipe reveals come first
+      if (!isModal) for (const step of [1, -1]) void preload(wrap(index + step));
     }
 
     function move(event: TouchEvent): void {
@@ -241,6 +278,7 @@
           return;
         }
         swipe.axis = 'x';
+        enterStrip();
         // Continues from where a running movement has got to, without a jump
         swipe.base = shownOffset(swipe.width) - dx;
       }
@@ -254,7 +292,9 @@
     function end(event: TouchEvent): void {
       const ended = swipe;
       swipe = null;
+      fingerDown = event.touches.length > 0;
       if (!ended || ended.axis !== 'x') return;
+      holdClick();
       const velocity = releaseVelocity(ended.track, 'x', event.timeStamp);
       const dragged = offset;
       const step = dragged < 0 || (dragged === 0 && velocity < 0) ? 1 : -1;
@@ -273,15 +313,23 @@
       swipe = null;
     }
 
+    function touchCancel(): void {
+      fingerDown = false;
+      cancel();
+    }
+
     area.addEventListener('touchstart', start, { passive: true });
     area.addEventListener('touchmove', move, { passive: false });
     area.addEventListener('touchend', end);
-    area.addEventListener('touchcancel', cancel);
+    area.addEventListener('touchcancel', touchCancel);
+    area.addEventListener('click', guardClick, true);
     return () => {
+      clearTimeout(clickTimer);
       area.removeEventListener('touchstart', start);
       area.removeEventListener('touchmove', move);
       area.removeEventListener('touchend', end);
-      area.removeEventListener('touchcancel', cancel);
+      area.removeEventListener('touchcancel', touchCancel);
+      area.removeEventListener('click', guardClick, true);
     };
   }
 
@@ -332,23 +380,24 @@
     })();
   });
 
-  // In the dialog, the current image and both neighbours are loaded, so the image a swipe
+  // In the strip, the current image and both neighbours are loaded, so the image a swipe
   // reveals is usually there while the finger moves; nothing further ahead
   $effect(() => {
-    if (!isModal || !isCarousel) return;
+    if (!stripMode) return;
     for (const i of [index, wrap(index + 1), wrap(index - 1)]) {
       if (i !== 0) void untrack(() => preload(i));
     }
   });
 
-  // Tiles advance slowly, but not while hovered or focused; the dialog only on request
+  // Tiles advance slowly, but not while hovered, focused or touched, and no longer once
+  // swiped; the dialog only on request
   $effect(() => {
     if (isModal || !isCarousel || !visible || browsed || reducedMotion) return;
     const current = index;
     void pauseTick;
     const timer = setTimeout(() => {
       const tile = container?.closest('li') ?? container;
-      if (tile?.matches(':hover, :focus-within')) pauseTick++;
+      if (fingerDown || tile?.matches(':hover, :focus-within')) pauseTick++;
       else void show(current + 1);
     }, AUTO_ADVANCE_MS + autoAdvanceOffset);
     return () => clearTimeout(timer);
@@ -360,16 +409,17 @@
   class="relative overflow-hidden {isModal
     ? 'modal-media bg-neutral-900'
     : `${aspectClass} bg-neutral-100`}"
-  class:skeleton-element={!loaded.has(0) && !(isModal && isCarousel)}
-  class:swipe-area={isModal && isCarousel}
+  class:skeleton-element={!loaded.has(0) && !stripMode}
+  class:swipe-area={isCarousel}
   style:--ratio={isModal ? ratio : undefined}
-  {@attach isModal && isCarousel ? swipeArea : undefined}
+  {@attach isCarousel ? swipeArea : undefined}
 >
-  {#if isModal && isCarousel}
+  {#if stripMode}
     <!-- The images side by side; the strip moves, the controls stay in place -->
     <div
       bind:this={strip}
       class="carousel-strip absolute inset-0"
+      class:tile-media={!isModal}
       style:translate="calc({-position * 100}% + {offset}px) 0"
       style:transition={settleTransition('translate', settleMs, settleCurve)}
       ontransitionend={handleSettled}
@@ -390,7 +440,9 @@
               width="640"
               height="640"
               decoding="async"
-              class="post-image absolute inset-0 h-full w-full object-contain"
+              class="post-image absolute inset-0 h-full w-full {isModal
+                ? 'object-contain'
+                : 'object-cover'}"
               class:post-image-loaded={loaded.has(i)}
               onload={(event) => handleImageLoad(i, event)}
               onerror={() => markLoaded(i)}
@@ -400,7 +452,7 @@
       {/each}
     </div>
   {:else}
-    <div class="absolute inset-0">
+    <div class="absolute inset-0" class:tile-media={!isModal}>
       {#each Array.from({ length: post.imageCount }, (_, i) => i) as i (i)}
         {#if i === 0 || loaded.has(i)}
           <img
@@ -544,6 +596,15 @@
   /* Sideways movement is the swipe's; scrolling up and down and zooming stay with the browser */
   .swipe-area {
     touch-action: pan-y pinch-zoom;
+  }
+
+  /*
+   * On a tile, touches and clicks land on the area itself: the images are swapped for the strip
+   * when a swipe starts, and a touch whose element left the page would no longer reach the
+   * swipe. The click then goes on to the card's link as before.
+   */
+  .tile-media {
+    pointer-events: none;
   }
 
   /* Fades in once loaded */

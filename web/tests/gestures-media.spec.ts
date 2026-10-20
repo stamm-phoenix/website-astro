@@ -393,3 +393,90 @@ test('the zoom button works with the keyboard and names what it does', async ({ 
   await expect(dialog.getByRole('button', { name: 'Vergrößern' })).toBeFocused();
   await expect.poll(async () => (await photoZoom(area)).scale).toBe(1);
 });
+
+/** The five-image Instagram card of the mock data on the start page, once it can open the dialog. */
+async function instagramTile(page: Page): Promise<{ card: Locator; tile: Locator }> {
+  await page.goto('/');
+  const card = page.getByRole('link', { name: /Sommerlager 2026/ }).first();
+  await card.scrollIntoViewIfNeeded();
+  // The news island hydrates when it scrolls into view; until then nothing follows the finger
+  await expect(card.locator('xpath=ancestor::astro-island[1]')).not.toHaveAttribute('ssr');
+  const tile = card.locator('.swipe-area');
+  await expect(tile.locator('img').first()).toBeVisible();
+  return { card, tile };
+}
+
+/** 1-based number of the image the dots of a tile mark as current. */
+async function activeDot(tile: Locator): Promise<number> {
+  return (
+    (await tile
+      .locator('.dot')
+      .evaluateAll((dots) => dots.findIndex((dot) => dot.classList.contains('dot-active')))) + 1
+  );
+}
+
+/** A tap without movement in the middle of `area`. */
+async function tap(page: Page, area: Locator): Promise<void> {
+  const box = await area.boundingBox();
+  if (!box) throw new Error('Touch area is not visible');
+  const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const client: CDPSession = await page.context().newCDPSession(page);
+  await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+  await sleep(30);
+  await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await client.detach();
+}
+
+test('a swipe on an Instagram card shows its next image without opening the post', async ({
+  page,
+}) => {
+  const { tile } = await instagramTile(page);
+  const dialog = page.getByRole('dialog');
+  expect(await activeDot(tile)).toBe(1);
+  // The neighbour slides in beside the current image while the finger moves
+  await swipe(page, tile, slowLongDrag, async () => {
+    expect(await visibleWidth(tile, 2)).toBeGreaterThan(60);
+    expect(await activeDot(tile)).toBe(1);
+  });
+  await expect.poll(() => activeDot(tile)).toBe(2);
+  await expect.poll(async () => Math.abs(await imageShift(tile, 2))).toBeLessThanOrEqual(1);
+  await expect(tile.locator('[data-image="1"] img')).toHaveAttribute('alt', '');
+
+  // A flick goes on; right after it, the click Safari sends for the touch does not open the post
+  await swipe(page, tile, fastFlick);
+  await tile.locator('[data-image="2"]').first().dispatchEvent('click');
+  await expect.poll(() => activeDot(tile)).toBe(3);
+  await sleep(300);
+  await expect(dialog).toBeHidden();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('a tap on an Instagram card still opens the post', async ({ page }) => {
+  const { tile } = await instagramTile(page);
+  await tap(page, tile);
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('1 / 5', { exact: true })).toBeVisible();
+});
+
+test('a vertical drag on an Instagram card scrolls the page and keeps its image', async ({
+  page,
+}) => {
+  const { tile } = await instagramTile(page);
+  const before = await page.evaluate(() => window.scrollY);
+  await touchPath(page, tile, [{ x: 10, y: 60 }], [{ x: 0, y: -120 }], { rest: 0 });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before + 60);
+  expect(await activeDot(tile)).toBe(1);
+  await expect(tile.locator('.carousel-strip')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toBeHidden();
+});
+
+test('once swiped, an Instagram card no longer advances by itself', async ({ page }) => {
+  await page.clock.install();
+  const { tile } = await instagramTile(page);
+  await swipe(page, tile, fastFlick);
+  await expect.poll(() => activeDot(tile)).toBe(2);
+  // Well past the interval of every card (6 s plus up to 900 ms per card before it)
+  await page.clock.runFor(20_000);
+  await sleep(500);
+  expect(await activeDot(tile)).toBe(2);
+});
