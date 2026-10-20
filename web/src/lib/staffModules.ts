@@ -27,6 +27,9 @@ export interface StaffModule extends StaffPage {
   wrap?: string;
 }
 
+/** The page that lists the changes of the Leitendenbereich; its bubble counts the unread ones. */
+export const CHANGELOG_PATH = '/leitendenbereich/neuigkeiten';
+
 export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/aufgaben',
@@ -228,6 +231,16 @@ export const STAFF_MODULES: StaffModule[] = [
     keywords: ['beitrag', 'bericht', 'news', 'neuigkeiten', 'website'],
     icon: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
   },
+  {
+    href: CHANGELOG_PATH,
+    title: 'Neuigkeiten',
+    description:
+      'Nachlesen, was sich im Leitendenbereich geändert hat und was du jetzt Neues nutzen kannst.',
+    intro:
+      'Hier steht, was sich im Leitendenbereich geändert hat, die neueste Änderung zuerst. Die Zahl am Menü zeigt, wie viele Neuigkeiten du noch nicht gelesen hast.',
+    keywords: ['changelog', 'änderungen', 'neu', 'update', 'version', 'was ist neu'],
+    icon: 'M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
+  },
 ];
 
 /** The Steuerung of the Nikolausdienst: always shown, it switches the other modules on and off. */
@@ -330,6 +343,11 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
       'fragen-und-antworten',
       'qr-code'
     ),
+  },
+  {
+    id: 'neues',
+    title: 'Neu im Leitendenbereich',
+    modules: byPath('neuigkeiten'),
   },
 ];
 

@@ -44,6 +44,7 @@ import {
   seedPreviewWeiterePersonen,
   seedPreviewAktionenOhneZuschuss,
   seedPreviewKeineAktionen,
+  seedPreviewStaffChangelogSeen,
   seedPreviewStaffFavorites,
   seedPreviewStaffRecent,
   seedPreviewStaffSettings,
@@ -141,6 +142,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewAktionenOhneZuschuss();
       await seedPreviewKeineAktionen();
       await seedPreviewStaffFavorites();
+      await seedPreviewStaffChangelogSeen();
       await seedPreviewStaffRecent();
       await seedPreviewStaffSettings();
       await seedPreviewSammel();

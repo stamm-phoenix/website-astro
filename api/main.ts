@@ -46,6 +46,7 @@ import GetQuestionsAndAnswersEndpoint from './endpoints/qa';
 import { QuestionsCollection, QuestionItem } from './endpoints/intern-pflege-qa';
 import { WeiterePersonItem, WeiterePersonenCollection } from './endpoints/intern-pflege-personen';
 import { StaffFavorites } from './endpoints/intern-favoriten';
+import { StaffChangelog } from './endpoints/intern-neuigkeiten';
 import { StaffRecent } from './endpoints/intern-zuletzt';
 import { StaffSettings } from './endpoints/intern-einstellungen';
 import {
@@ -621,6 +622,13 @@ app.http('internZuletzt', {
   authLevel: 'anonymous',
   route: 'intern/zuletzt',
   handler: StaffRecent,
+});
+
+app.http('internNeuigkeiten', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/neuigkeiten',
+  handler: StaffChangelog,
 });
 
 app.http('internEinstellungen', {

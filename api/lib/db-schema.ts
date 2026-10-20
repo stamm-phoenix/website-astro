@@ -61,6 +61,7 @@ export interface Database {
   'organisation.person': WeiterePersonTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
   'organisation.aktion_keine_aktion': AktionKeineAktionTable;
+  'organisation.staff_changelog_seen': StaffChangelogSeenTable;
   'organisation.staff_favorites': StaffFavoritesTable;
   'organisation.staff_recent': StaffRecentTable;
   'organisation.staff_settings': StaffSettingsTable;
@@ -555,6 +556,15 @@ export interface StaffFavoritesTable {
   login: string;
   /** JSON array of module paths. */
   modules: string;
+  updated_at: Generated<Date>;
+}
+
+export interface StaffChangelogSeenTable {
+  /** `userId` of the Static Web Apps principal. */
+  user_id: string;
+  login: string;
+  /** ID of the newest changelog entry the person has seen, see `changelog-id.ts`. */
+  last_seen_id: string;
   updated_at: Generated<Date>;
 }
 
