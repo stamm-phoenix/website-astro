@@ -126,9 +126,11 @@
 
   // A new login in the iPhone app reloads the page; the input is kept and filled in again
   let editors: RescueEditor[] = [];
+  /** The field values when the dialog opened, which identify the record being edited. */
+  let opening = '';
   let pending: GeretteterWert[] = [];
   setRescueContext({
-    rescue: () => (form ? rescueDialog(form, title, editors) : false),
+    rescue: () => (form ? rescueDialog(form, title, opening, editors) : false),
     register(editor) {
       editors.push(editor);
       if (form && pending.length > 0) pending = fillDialog(form, [editor], pending);
@@ -157,7 +159,8 @@
     for (const el of form?.elements ?? []) remember(el);
     restored = false;
     pending = [];
-    const kept = takeRescue(title, Date.now());
+    opening = JSON.stringify(initial.map((entry) => entry.value));
+    const kept = takeRescue(title, opening, Date.now());
     if (kept) void restore(kept);
   }
 

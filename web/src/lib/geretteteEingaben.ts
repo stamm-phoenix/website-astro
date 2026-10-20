@@ -21,6 +21,8 @@ interface Rettung {
   savedAt: number;
   path: string;
   dialog: string;
+  /** The field values when the dialog opened: tells records with the same dialog title apart. */
+  opening: string;
   fields: GeretteterWert[];
 }
 
@@ -120,6 +122,7 @@ function readValue(field: FormField): GeretteterWert['value'] {
 export function rescueDialog(
   form: HTMLFormElement,
   dialog: string,
+  opening: string,
   editors: readonly RescueEditor[]
 ): boolean {
   const fields: GeretteterWert[] = [
@@ -141,6 +144,7 @@ export function rescueDialog(
     savedAt: Date.now(),
     path: `${location.pathname}${location.search}`,
     dialog,
+    opening,
     fields,
   };
   try {
@@ -153,11 +157,12 @@ export function rescueDialog(
 
 function isRettung(value: unknown): value is Rettung {
   if (typeof value !== 'object' || value === null) return false;
-  const { savedAt, path, dialog, fields } = value as Record<string, unknown>;
+  const { savedAt, path, dialog, opening, fields } = value as Record<string, unknown>;
   return (
     typeof savedAt === 'number' &&
     typeof path === 'string' &&
     typeof dialog === 'string' &&
+    typeof opening === 'string' &&
     Array.isArray(fields) &&
     fields.every((field: unknown) => {
       if (typeof field !== 'object' || field === null) return false;
@@ -192,10 +197,13 @@ export function rescuedDialog(now: number): string | null {
     : null;
 }
 
-/** The kept input of `dialog` on this page, removed from the tab once taken. */
-export function takeRescue(dialog: string, now: number): GeretteterWert[] | null {
+/**
+ * The kept input of `dialog` on this page, removed from the tab once taken. `opening` must match
+ * too, so the input of one task never lands in another task whose dialog has the same title.
+ */
+export function takeRescue(dialog: string, opening: string, now: number): GeretteterWert[] | null {
   const rettung = read(now);
-  if (!rettung || rettung.dialog !== dialog) return null;
+  if (!rettung || rettung.dialog !== dialog || rettung.opening !== opening) return null;
   if (rettung.path !== `${location.pathname}${location.search}`) return null;
   forgetRescue();
   return rettung.fields;

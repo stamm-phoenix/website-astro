@@ -198,6 +198,47 @@ test('in the iPhone app a new question keeps its check mark and the link in its 
   );
 });
 
+test('in the iPhone app the kept input of one task never lands in another task', async ({
+  page,
+}) => {
+  await page.request.post('/api/__mock/aufgaben/reset');
+  const created = await page.request.post('/api/intern/pflege/aufgaben', {
+    data: {
+      title: 'Zelte aufbauen',
+      description: '',
+      assignee: '',
+      dueDate: null,
+      projectId: null,
+    },
+  });
+  expect(created.ok()).toBe(true);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.route('**/api/intern/pflege/aufgaben/*', (route) =>
+    route.request().method() === 'GET' ? route.fallback() : route.fulfill({ status: 401 })
+  );
+  await page.goto('/leitendenbereich/aufgaben');
+  // Both tasks open a dialog with the same title
+  const dialog = page.getByRole('dialog', { name: 'Aufgabe bearbeiten' });
+  await page.getByRole('button', { name: 'Küche vorbereiten', exact: true }).click();
+  await dialog.getByLabel('Titel', { exact: true }).fill('Küche aufräumen');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  const hint = page.getByRole('region', { name: 'Deine Eingaben sind gesichert' });
+  await expect(hint).toBeVisible();
+  await page.getByRole('button', { name: 'Zelte aufbauen', exact: true }).click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Zelte aufbauen');
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(hint).toBeVisible();
+
+  await page.getByRole('button', { name: 'Küche vorbereiten', exact: true }).click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Küche aufräumen');
+  await expect(hint).toHaveCount(0);
+});
+
 test('in the iPhone app the login waits when the input cannot be kept', async ({ page }) => {
   await expireLoginInIphoneApp(page);
   await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
