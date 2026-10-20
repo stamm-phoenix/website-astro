@@ -311,6 +311,20 @@ test('recovered accounting inputs do not overwrite a newer saved version during 
   const saved = await (await page.request.get(API)).json();
   expect(saved.session.zusatztag).toBe(false);
   expect(saved.session.kjr.ort).toBe('Inzwischen auf einem anderen Gerät');
+  // A second login must retain the same conflict, rather than adopting the new server version.
+  await page.route('**/api/intern/abrechnung/evt_Sola26?*', (route) =>
+    route.fulfill({ status: 401 })
+  );
+  await page.getByRole('button', { name: 'Neu laden', exact: true }).click();
+  const login = page.getByRole('link', { name: 'Neu anmelden', exact: true });
+  await expect(login).toBeVisible();
+  await page.unroute('**/api/intern/abrechnung/evt_Sola26?*');
+  const returnedAgain = page.waitForEvent('domcontentloaded');
+  await login.click();
+  await returnedAgain;
+  await expect(storage).toContainText('während der Anmeldung geändert');
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Eingaben speichern' })).toBeDisabled();
 });
 
 test('accounting recovery is not applied to a different account after login', async ({ page }) => {
