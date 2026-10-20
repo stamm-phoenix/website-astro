@@ -382,3 +382,56 @@ for (const failedReload of [false, true]) {
     await expectNoHorizontalOverflow(page);
   });
 }
+
+test('cancelling clears anonymized attendance before the Gruppenstunde is held and cancelled again', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const date = '2026-09-18';
+  await page.route(`**/api/intern/anwesenheit/woelflinge/${date}`, (route) =>
+    route.fulfill({
+      json: {
+        stufe: 'Wölflinge',
+        date,
+        editable: true,
+        etag: 'initial',
+        notes: '',
+        cancelled: false,
+        children: [],
+        guests: [],
+        anonymized: 2,
+        anonymizedExcused: 3,
+        anonymizedGuests: 1,
+      },
+    })
+  );
+  const entries: number[] = [];
+  await page.route(`**/api/intern/pflege/anwesenheit/woelflinge/${date}/ausgefallen`, (route) => {
+    const body = route.request().postDataJSON() as { entries: number; cancelled: boolean };
+    entries.push(body.entries);
+    return route.fulfill(
+      !body.cancelled || body.entries === (entries.length === 1 ? 6 : 0)
+        ? { json: { etag: `version-${entries.length}` } }
+        : { status: 409, json: { message: 'Die Anwesenheit wurde inzwischen geändert.' } }
+    );
+  });
+  await page.goto('/leitendenbereich/anwesenheit');
+  await page.getByLabel('Datum', { exact: true }).fill(date);
+  const counts = page.getByTestId('anwesenheit-counts');
+  await expect(counts).toContainText('2 anwesend, 3 entschuldigt, 0 abwesend, 1 Gast');
+  const status = page.getByRole('group', { name: 'Gruppenstunde', exact: true });
+  await status.getByRole('button', { name: 'Ausgefallen', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Als ausgefallen markieren' }).click();
+  await expect(page.getByText('Gruppenstunde als ausgefallen markiert.').first()).toBeVisible();
+  await status.getByRole('button', { name: 'Fand statt', exact: true }).click();
+  await expect(counts).toContainText('0 anwesend, 0 entschuldigt, 0 abwesend');
+  await expect(counts).not.toContainText('Gast');
+  await status.getByRole('button', { name: 'Ausgefallen', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(status.getByRole('button', { name: 'Ausgefallen', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  expect(entries).toEqual([6, 0, 0]);
+  await expectNoHorizontalOverflow(page);
+});

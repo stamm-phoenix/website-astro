@@ -206,6 +206,9 @@
           .filter((child) => child.kind === 'stufe')
           .map((child) => ({ ...child, status: 'abwesend' }));
         target.guests = [];
+        target.anonymized = 0;
+        target.anonymizedExcused = 0;
+        target.anonymizedGuests = 0;
       }
       show(
         cancelled
