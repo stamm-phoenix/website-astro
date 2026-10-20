@@ -48,6 +48,8 @@
   }
   function onKeyDown(event: KeyboardEvent): void {
     if (event.key !== 'Escape') return;
+    // Only the popover closes, not a dialog around it
+    event.preventDefault();
     event.stopPropagation();
     open = false;
     if (root?.contains(document.activeElement)) button?.focus();

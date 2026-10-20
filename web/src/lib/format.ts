@@ -26,6 +26,14 @@ export function formatDateTime(value: string | Date): string {
 
 const ISO_DAY = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' });
 
+/** Whether the point in time falls on today's date in Berlin. */
+export function isToday(value: string | Date | number): boolean {
+  return (
+    ISO_DAY.format(typeof value === 'string' ? new Date(value) : value) ===
+    ISO_DAY.format(new Date())
+  );
+}
+
 /** Today in Berlin as `YYYY-MM-DD`, the format of date inputs. */
 export function todayIso(): string {
   return ISO_DAY.format(new Date());
