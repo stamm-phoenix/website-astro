@@ -5,6 +5,7 @@
   import { sanitizeDescription } from '../../lib/api';
   import { editorExtensions, normalizeBullets, unwrapListParagraphs } from '../../lib/textEditor';
   import type { TextEditorFeatures, TextEditorFormat } from '../../lib/textEditor';
+  import { fieldLabel, getRescueContext } from '../../lib/geretteteEingaben';
 
   /**
    * Formatting editor for Leitende (#320): writes Markdown or HTML without showing the syntax.
@@ -48,6 +49,8 @@
   let toolbar = $state<TextEditorToolbar | null>(null);
   /** The Markdown the editor last produced, so outside changes to `value` are told apart. */
   let emitted = value;
+
+  const rescue = getRescueContext();
 
   const tooLong = $derived(maxLength !== undefined && value.length > maxLength);
 
@@ -98,7 +101,16 @@
       },
     });
     editor = instance;
-    return () => instance.destroy();
+    // In an edit dialog the text is kept across a new login in the iPhone app
+    const unregister = rescue?.register({
+      label: () => fieldLabel(instance.view.dom),
+      get: () => value,
+      set: (text) => (value = text),
+    });
+    return () => {
+      unregister?.();
+      instance.destroy();
+    };
   });
 
   // Text changed outside the editor, e.g. restored from the device: show it
