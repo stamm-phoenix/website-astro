@@ -363,6 +363,7 @@
   open={form !== null}
   title={form?.id ? `${form.name || 'Person'} bearbeiten` : 'Neue Person'}
   rescueKey={form ? `leitende:${form.id ?? 'neu'}` : undefined}
+  rescueVersion={form?.etag}
   busy={busy || photoBusy}
   error={dialog.state.error}
   notice={dialogNotice}

@@ -391,6 +391,11 @@ test('in the iPhone app a CampFlow link waits for the list of Aktionen', async (
   await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Sola vorbereiten');
   await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toBeVisible();
+  // Another login while the option is still missing must retain the waiting selection.
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
+  await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toBeVisible();
   release();
   await expect(link).toHaveValue(chosen);
   await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toHaveCount(0);
@@ -465,6 +470,38 @@ test('in the iPhone app saving a template with rows still missing ends the kept 
   await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toHaveCount(0);
 });
 
+test('in the iPhone app discarding a template with rows still missing ends the kept input', async ({
+  page,
+}) => {
+  await page.request.post('/api/__mock/aufgaben/reset');
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.route('**/api/intern/pflege/aufgaben/vorlagen', (route) =>
+    route.request().method() === 'POST' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aufgaben/vorlagen');
+  const dialog = page.getByRole('dialog', { name: 'Vorlage' });
+  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
+  await dialog.getByLabel('Titel', { exact: true }).fill('Hüttenwochenende');
+  await dialog.getByLabel('Aufgabentitel').fill('Hütte buchen');
+  await dialog.getByLabel('Tage vor der Aktion').fill('30');
+  await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
+  await dialog.getByLabel('Aufgabentitel').nth(1).fill('Schlüssel holen');
+  await dialog.getByLabel('Tage vor der Aktion').nth(1).fill('1');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
+  await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await page.getByRole('button', { name: 'Änderungen verwerfen', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('');
+  await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toHaveCount(0);
+});
+
 test('in the iPhone app the login waits when the input cannot be kept', async ({ page }) => {
   await expireLoginInIphoneApp(page);
   await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
@@ -527,5 +564,91 @@ test('in the iPhone app the photo of a receipt opens through the login of the ne
   ]);
   expect(new URL(login.url()).searchParams.get('post_login_redirect_uri')).toMatch(
     /^\/api\/intern\/pflege\/belege\/[^/]+\/foto\?v=/
+  );
+});
+
+test('in the iPhone app a newer FAQ answer is preserved and the earlier draft stays accessible', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const created = await page.request.post('/api/intern/pflege/qa', {
+    data: {
+      question: 'Recovery conflict question',
+      answer: '<p>Original answer</p>',
+      category: 'Allgemein',
+      published: false,
+    },
+  });
+  const { id } = await created.json();
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route(`**/api/intern/pflege/qa/${id}`, (route) =>
+    route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/fragen-und-antworten');
+  await page
+    .getByRole('button', { name: 'Bearbeiten: Recovery conflict question', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Frage bearbeiten', exact: true });
+  await dialog.getByLabel('Frage', { exact: true }).fill('My unsaved question');
+  await expect(dialog.getByRole('textbox', { name: 'Antwort' })).toContainText('Original answer');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  // Another person changes only the editor content while this tab is signing in.
+  expect(
+    (
+      await page.request.patch(`/api/intern/pflege/qa/${id}`, {
+        data: { answer: '<p>Newer answer from someone else</p>' },
+      })
+    ).ok()
+  ).toBe(true);
+  await page.reload();
+  await page
+    .getByRole('button', { name: 'Bearbeiten: Recovery conflict question', exact: true })
+    .click();
+  await expect(dialog.getByRole('textbox', { name: 'Antwort' })).toContainText(
+    'Newer answer from someone else'
+  );
+  await expect(dialog.getByLabel('Frage', { exact: true })).toHaveValue(
+    'Recovery conflict question'
+  );
+  const draft = dialog.getByRole('region', { name: 'Noch nicht eingesetzt' });
+  await expect(draft).toContainText('My unsaved question');
+  await expect(draft).toContainText('Original answer');
+  await expect(
+    dialog.getByText('Dieser Eintrag wurde inzwischen geändert.', { exact: false })
+  ).toBeVisible();
+  await page.unroute(`**/api/intern/pflege/qa/${id}`);
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  const current = await (await page.request.get('/api/intern/pflege/qa')).json();
+  expect(current.items.find((item: { id: string }) => item.id === id).answer).toContain(
+    'Newer answer from someone else'
+  );
+  await page.request.delete(`/api/intern/pflege/qa/${id}`);
+});
+
+test('in the iPhone app a newly created person keeps later edits under their saved ID', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.goto('/leitendenbereich/leitende');
+  await page.getByRole('button', { name: 'Neue Person', exact: true }).click();
+  await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill('Recovery new person');
+  await page.getByRole('dialog').getByRole('button', { name: 'Anlegen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Recovery new person bearbeiten', exact: true });
+  await expect(
+    dialog.getByText('Du kannst jetzt ein Foto hinzufügen.', { exact: false })
+  ).toBeVisible();
+  // Creation keeps the same dialog mounted; only subsequent writes expire.
+  await page.route('**/api/intern/pflege/leitende/*', (route) =>
+    route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await dialog.getByLabel('Name', { exact: true }).fill('Recovery edited person');
+  await page.getByRole('dialog').getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByRole('dialog').getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await page.getByRole('button', { name: /Recovery new person/ }).click();
+  await expect(page.getByRole('dialog').getByLabel('Name', { exact: true })).toHaveValue(
+    'Recovery edited person'
   );
 });

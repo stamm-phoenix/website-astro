@@ -55,6 +55,7 @@
   open={order !== null}
   title="Nachricht an {order?.name ?? ''}"
   rescueKey={order ? `sammel-nachricht:${order.id}` : undefined}
+  rescueVersion={order?.etag}
   {busy}
   {error}
   submitLabel="Senden"
