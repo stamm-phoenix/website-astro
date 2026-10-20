@@ -402,6 +402,9 @@ export function restoreAbrechnungRescue(eventId: string, userId: string): boolea
     Object.assign(session, parseSession(draft.session));
     state.dirty = JSON.stringify(session) !== storedJson[eventId];
     if (draft.etag !== state.etag) {
+      // Keep the draft's base version even across a second login, so repeated recovery
+      // can never turn a known conflict into permission to overwrite the server.
+      state.etag = draft.etag;
       state.conflict = true;
       state.error =
         'Die gespeicherten Eingaben wurden während der Anmeldung geändert. Deine geretteten Angaben stehen hier noch ungespeichert. Hier wurde nichts überschrieben. Kopiere sie und lade dann die gespeicherte Fassung.';
