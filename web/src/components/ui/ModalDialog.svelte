@@ -134,7 +134,19 @@
     settle = 0;
   }
 
+  /** Back to the open place without closing, e.g. when a second finger joins the pull. */
+  function settleBack(velocity = 0): void {
+    track = null;
+    pulling = false;
+    settle = settleDuration(pull, velocity, panelDuration());
+    settleCurve = settleEasing(pull, velocity, settle);
+    pull = 0;
+    clearTimeout(settleTimer);
+    if (settle > 0) settleTimer = setTimeout(() => (settle = 0), settle);
+  }
+
   function onTouchStart(event: TouchEvent): void {
+    if (pulling) settleBack();
     track = null;
     if (event.touches.length !== 1 || !pullable()) return;
     const target = event.target;
@@ -151,8 +163,9 @@
       const dx = touch.clientX - track.startX;
       const dy = touch.clientY - track.startY;
       if (dy > SWIPE_START && dy > Math.abs(dx)) {
-        // Start from here, so the sheet does not jump by the distance needed to start
-        track = startTrack(touch.clientX, touch.clientY, event.timeStamp);
+        // Start from here, so the sheet does not jump by the distance needed to start; the
+        // speed keeps counting from the first touch, so a one-move flick still closes
+        track.startY = touch.clientY;
         clearTimeout(settleTimer);
         settle = 0;
         pulling = true;
@@ -183,11 +196,7 @@
       onclose();
       return;
     }
-    settle = settleDuration(pull, -velocity, panelDuration());
-    settleCurve = settleEasing(pull, -velocity, settle);
-    pull = 0;
-    clearTimeout(settleTimer);
-    if (settle > 0) settleTimer = setTimeout(() => (settle = 0), settle);
+    settleBack(-velocity);
   }
 
   // Stopping the page from scrolling while pulling needs a non-passive touchmove listener

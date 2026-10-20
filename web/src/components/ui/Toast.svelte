@@ -68,8 +68,20 @@
   let width = 1;
   const fade = $derived(Math.max(0, 1 - Math.abs(offset) / width));
 
+  /** Back to rest without dismissing, e.g. when a second finger joins the swipe. */
+  function settleBack(velocity = 0): void {
+    track = null;
+    swiping = false;
+    settle = settleDuration(offset, velocity, panelDuration());
+    settleCurve = settleEasing(offset, velocity, settle);
+    offset = 0;
+    clearTimeout(settleTimer);
+    if (settle > 0) settleTimer = setTimeout(() => (settle = 0), settle);
+  }
+
   function onTouchStart(event: TouchEvent): void {
     touching = true;
+    if (swiping) settleBack();
     track = null;
     if (event.touches.length !== 1) return;
     const touch = event.touches[0];
@@ -84,8 +96,9 @@
       const dx = touch.clientX - track.startX;
       const dy = touch.clientY - track.startY;
       if (Math.abs(dx) > SWIPE_START && Math.abs(dx) > Math.abs(dy)) {
-        // Start from here, so the popup does not jump by the distance needed to start
-        track = startTrack(touch.clientX, touch.clientY, event.timeStamp);
+        // Start from here, so the popup does not jump by the distance needed to start; the
+        // speed keeps counting from the first touch, so a one-move flick still dismisses
+        track.startX = touch.clientX;
         clearTimeout(settleTimer);
         settle = 0;
         swiping = true;
@@ -107,8 +120,10 @@
     // The finger moved: no click on the button or link it started on
     if (event.cancelable) event.preventDefault();
     swiping = false;
-    const direction = Math.sign(offset) || 1;
-    const velocity = releaseVelocity(ended, 'x', event.timeStamp) * direction;
+    const speed = releaseVelocity(ended, 'x', event.timeStamp);
+    // A one-move flick has no offset yet: its direction is the finger's
+    const direction = Math.sign(offset) || Math.sign(speed) || 1;
+    const velocity = speed * direction;
     if (event.type === 'touchend' && commits(Math.abs(offset), velocity, width * 0.4)) {
       // No exit delay, like the close button: the popup and its actions disappear at once
       clearTimeout(settleTimer);
@@ -117,11 +132,7 @@
       onclose();
       return;
     }
-    settle = settleDuration(offset, -velocity, panelDuration());
-    settleCurve = settleEasing(offset, -velocity, settle);
-    offset = 0;
-    clearTimeout(settleTimer);
-    if (settle > 0) settleTimer = setTimeout(() => (settle = 0), settle);
+    settleBack(-velocity);
   }
 
   // Stopping the page from scrolling sideways needs a non-passive touchmove listener

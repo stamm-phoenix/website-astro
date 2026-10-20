@@ -90,3 +90,97 @@ test('a popup disappears when swiped sideways and stays after a short swipe', as
   // The live region stays for the next message
   await expect(page.locator('[data-toast][role="status"]').first()).toBeAttached();
 });
+
+/** One quick move between touching and letting go: the only measured speed is that move. */
+async function oneMoveFlick(page: Page, cdp: CDPSession, from: Point, to: Point): Promise<void> {
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ ...from, id: 1 }],
+  });
+  await page.waitForTimeout(40);
+  await Promise.all([
+    cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...to, id: 1 }] }),
+    cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }),
+  ]);
+}
+
+/** Pulls with one finger, then a second finger touches down before both let go. */
+async function pullThenSecondFinger(
+  page: Page,
+  cdp: CDPSession,
+  from: Point,
+  to: Point
+): Promise<void> {
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ ...from, id: 1 }],
+  });
+  for (let step = 1; step <= 8; step++) {
+    const point = {
+      x: from.x + ((to.x - from.x) * step) / 8,
+      y: from.y + ((to.y - from.y) * step) / 8,
+      id: 1,
+    };
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [
+      { ...to, id: 1 },
+      { x: to.x + 60, y: to.y, id: 2 },
+    ],
+  });
+  await page.waitForTimeout(50);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
+
+test('a one-move flick closes the sheet; a second finger sends it back open', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/leitendenbereich/aufgaben');
+  const cdp = await page.context().newCDPSession(page);
+  const opener = page
+    .locator('main li[data-focus-item]')
+    .first()
+    .getByRole('button', { name: /^Weitere Aktionen:/ });
+  const sheet = page.getByRole('dialog', { name: 'Aufgabenaktionen', exact: true });
+  const heading = sheet.getByRole('heading', { name: 'Aufgabenaktionen' });
+
+  await opener.click();
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toHaveCSS('transform', 'none');
+  const start = (await heading.boundingBox())!;
+  const from = { x: start.x + 20, y: start.y + start.height / 2 };
+
+  // Pulled 120 px, then a second finger: back at its place, still open
+  await pullThenSecondFinger(page, cdp, from, { x: from.x, y: from.y + 120 });
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toHaveCSS('transform', 'none');
+  await expect.poll(async () => (await heading.boundingBox())!.y).toBeCloseTo(start.y, 0);
+
+  // 60 px in one quick move is far below a third of the height, but fast enough to close
+  await oneMoveFlick(page, cdp, from, { x: from.x, y: from.y + 60 });
+  await expect(sheet).toBeHidden();
+  await expect(opener).toBeFocused();
+});
+
+test('a one-move flick dismisses a popup; a second finger sends it back', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/leitendenbereich/gruppenstunden');
+  const cdp = await page.context().newCDPSession(page);
+  const reload = page.getByRole('button', { name: 'Neu laden', exact: true });
+  await expect(reload).toBeEnabled();
+  await reload.click();
+  const message = page.locator('[data-toast] .toast-message', { hasText: 'Liste aktualisiert.' });
+  await expect(message).toBeVisible();
+  const box = (await message.boundingBox())!;
+  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+  await pullThenSecondFinger(page, cdp, from, { x: from.x - 100, y: from.y });
+  await expect(message).toBeVisible();
+  await expect(message).toHaveCSS('transform', 'none');
+  await expect(message).toHaveCSS('opacity', '1');
+
+  await oneMoveFlick(page, cdp, from, { x: from.x - 60, y: from.y });
+  await expect(message).toHaveCount(0);
+});

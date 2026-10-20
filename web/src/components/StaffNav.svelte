@@ -282,6 +282,8 @@
   }
 
   function onPanelTouchStart(event: TouchEvent): void {
+    // A second finger ends the pull: the panel goes back open instead of staying where it was
+    if (swipe?.active) settle(0);
     const target = event.target;
     swipe = begin(event, target instanceof Node && !!panelHeader?.contains(target));
   }
@@ -321,6 +323,12 @@
   }
 
   function onBarTouchStart(event: TouchEvent): void {
+    // A second finger ends the pull: the panel goes back down instead of staying half open
+    if (barSwipe?.active) {
+      barSwipe = null;
+      hide(false);
+      return;
+    }
     barSwipe = open ? null : begin(event);
   }
 
