@@ -373,6 +373,8 @@ export interface MeetingTable {
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
   updated_by: Generated<string>;
+  /** The Gruppenstunde did not take place; it then has no attendance. */
+  cancelled: Generated<boolean>;
 }
 
 export interface AttendanceTable {
@@ -383,6 +385,8 @@ export interface AttendanceTable {
   person_id: string | null;
   /** `null` for members and after the retention period. */
   guest_name: string | null;
+  /** The member was excused instead of there; never set for guests. */
+  excused: Generated<boolean>;
 }
 
 export interface SchemaMigrationTable {

@@ -1063,6 +1063,23 @@ export function validateMeetingNotes(body: unknown): MeetingNotesInput {
   return { notes, etag };
 }
 
+/** Whether a child was there (`anwesend`) or excused (`entschuldigt`). */
+export function validateChildStatus(body: unknown): 'anwesend' | 'entschuldigt' {
+  const reader = new Reader(asRecord(body));
+  const status = reader.choice('status', 'die Anwesenheit', ['anwesend', 'entschuldigt']);
+  reader.done();
+  return status === 'entschuldigt' ? 'entschuldigt' : 'anwesend';
+}
+
+/** Whether the Gruppenstunde was cancelled. */
+export function validateCancelled(body: unknown): boolean {
+  const { cancelled } = asRecord(body);
+  if (typeof cancelled !== 'boolean') {
+    throw new ValidationError({ cancelled: 'Die Angabe „Ausgefallen“ ist ungültig.' });
+  }
+  return cancelled;
+}
+
 /** The name of a guest who is not in CampFlow. */
 export function validateGuestName(body: unknown): string {
   const reader = new Reader(asRecord(body));

@@ -4,21 +4,24 @@ import {
   PERSON_ID_PATTERN,
   addGuest,
   anonymizeExpired,
+  deleteMeeting,
   getChildren,
   getMeetingRecord,
   getMeetingSummaries,
   isCurrentChild,
   isEditable,
   markAbsent,
-  markPresent,
+  markChild,
   ownStufen,
   removeGuest,
   saveNotes,
+  setCancelled,
   stufeFromSlug,
 } from '../lib/anwesenheit';
 import type {
   AnwesenheitChild as ChildView,
   AnwesenheitOverview,
+  AnwesenheitStatus,
   AnwesenheitTermin,
 } from '../lib/anwesenheit-model';
 import { STUFE_SLUGS, isStufeSlug } from '../lib/anwesenheit-model';
@@ -38,6 +41,8 @@ import {
 import {
   ValidationError,
   isValidDate,
+  validateCancelled,
+  validateChildStatus,
   validateGuestName,
   validateMeetingNotes,
 } from '../lib/pflege-validation';
@@ -125,7 +130,12 @@ export function buildTerminView(
   children: Child[],
   editable: boolean
 ): AnwesenheitTermin {
-  const present = new Set(record.presentIds);
+  const statusOf = (id: string): AnwesenheitStatus =>
+    record.presentIds.includes(id)
+      ? 'anwesend'
+      : record.excusedIds.includes(id)
+        ? 'entschuldigt'
+        : 'abwesend';
   const byId = new Map(children.map((child) => [child.id, child]));
   const views: ChildView[] = children
     .filter((child) => child.stufen.includes(termin.stufe))
@@ -134,11 +144,12 @@ export function buildTerminView(
       id: child.id,
       firstName: child.firstName,
       lastName: child.lastName,
-      present: present.has(child.id),
+      status: statusOf(child.id),
     }));
-  for (const id of record.presentIds) {
+  for (const id of [...record.presentIds, ...record.excusedIds]) {
     if (views.some((view) => view.id === id)) continue;
     const child = byId.get(id);
+    const status = statusOf(id);
     views.push(
       child
         ? {
@@ -146,9 +157,9 @@ export function buildTerminView(
             id,
             firstName: child.firstName,
             lastName: child.lastName,
-            present: true,
+            status,
           }
-        : { kind: 'unbekannt', id, present: true }
+        : { kind: 'unbekannt', id, status }
     );
   }
   return {
@@ -156,8 +167,10 @@ export function buildTerminView(
     editable,
     etag: record.etag,
     notes: record.notes,
+    cancelled: record.cancelled,
     children: views.sort(byName),
     anonymized: record.anonymized,
+    anonymizedExcused: record.anonymizedExcused,
     guests: record.guests,
     anonymizedGuests: record.anonymizedGuests,
   };
@@ -191,15 +204,28 @@ export async function GetAnwesenheitTerminEndpoint(
   }
 }
 
-/** PUT: what the group did, saved against the loaded version. Returns the new version. */
+/**
+ * PUT: what the group did, saved against the loaded version. Returns the new version.
+ * DELETE: removes the Termin with its attendance and notes.
+ */
 export const AnwesenheitNotesEndpoint = terminHandler(async (termin, request, actor) => {
+  if (request.method === 'DELETE') {
+    await deleteMeeting(termin);
+    return NO_CONTENT;
+  }
   const input = validateMeetingNotes(await readJsonBody(request));
   return ok({ etag: await saveNotes(termin, input.notes, input.etag, actor) });
 });
 
+/** PUT: whether the Gruppenstunde was cancelled. Returns the new version of the Termin. */
+export const AnwesenheitCancelledEndpoint = terminHandler(async (termin, request, actor) => {
+  const cancelled = validateCancelled(await readJsonBody(request));
+  return ok({ etag: await setCancelled(termin, cancelled, actor) });
+});
+
 /**
- * PUT: a current CampFlow member was there. DELETE: they were not. Repeating a request changes
- * nothing.
+ * PUT: a current CampFlow member was there or was excused (`{ status }`). DELETE: neither.
+ * Repeating a request changes nothing.
  */
 export const AnwesenheitChildEndpoint = terminHandler(async (termin, request, actor) => {
   const personId = request.params.id ?? '';
@@ -208,12 +234,13 @@ export const AnwesenheitChildEndpoint = terminHandler(async (termin, request, ac
     await markAbsent(termin, personId);
     return NO_CONTENT;
   }
+  const status = validateChildStatus(await readJsonBody(request));
   try {
     if (!(await isCurrentChild(personId))) return NOT_FOUND;
   } catch (error: unknown) {
     return campflowErrorResponse(error);
   }
-  await markPresent(termin, personId, actor);
+  await markChild(termin, personId, status === 'entschuldigt', actor);
   return NO_CONTENT;
 });
 
@@ -234,6 +261,7 @@ export const AnwesenheitGuestEndpoint = terminHandler(async (termin, request) =>
 export const GetAnwesenheit = withErrorHandling(GetAnwesenheitEndpoint);
 export const GetAnwesenheitTermin = withErrorHandling(GetAnwesenheitTerminEndpoint);
 export const AnwesenheitNotes = withErrorHandling(AnwesenheitNotesEndpoint);
+export const AnwesenheitCancelled = withErrorHandling(AnwesenheitCancelledEndpoint);
 export const AnwesenheitChild = withErrorHandling(AnwesenheitChildEndpoint);
 export const AnwesenheitGuests = withErrorHandling(AnwesenheitGuestsEndpoint);
 export const AnwesenheitGuest = withErrorHandling(AnwesenheitGuestEndpoint);

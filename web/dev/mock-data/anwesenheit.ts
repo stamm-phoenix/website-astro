@@ -31,7 +31,9 @@ interface MockMeeting {
   date: string;
   etag: string;
   notes: string;
+  cancelled: boolean;
   present: string[];
+  excused: string[];
   guests: AnwesenheitGuest[];
 }
 
@@ -52,17 +54,30 @@ function key(slug: string, date: string): string {
   return `${slug}/${date}`;
 }
 
-/** A Termin of each Stufe from last week, so the Verlauf shows something. */
+/** Days ago and notes of the invented Termine; the Verlauf and its chart show them. */
+const PAST: { days: number; notes: string; cancelled?: boolean }[] = [
+  { days: 7, notes: 'Knoten geübt und eine Seilbrücke gebaut.' },
+  { days: 14, notes: '' },
+  { days: 21, notes: 'Fällt aus wegen der Ferien.', cancelled: true },
+  { days: 49, notes: 'Geländespiel im Wald.' },
+  { days: 84, notes: 'Lagerfeuer mit Stockbrot.' },
+];
+
 for (const slug of Object.keys(STUFE_SLUGS).filter(isStufeSlug)) {
-  const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  meetings.set(key(slug, date), {
-    slug,
-    date,
-    etag: newEtag(`anwesenheit-${slug}`),
-    notes: 'Knoten geübt und eine Seilbrücke gebaut.',
-    present: CHILDREN[slug].slice(0, 2).map((child) => child.id),
-    guests: [],
-  });
+  for (const [index, { days, notes, cancelled = false }] of PAST.entries()) {
+    const date = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const ids = CHILDREN[slug].map((child) => child.id);
+    meetings.set(key(slug, date), {
+      slug,
+      date,
+      etag: newEtag(`anwesenheit-${slug}`),
+      notes,
+      cancelled,
+      present: cancelled ? [] : ids.slice(0, 2 + (index % 2)),
+      excused: cancelled ? [] : ids.slice(3, 4),
+      guests: [],
+    });
+  }
 }
 
 /** The Stufe of a route with a date that is not in the future, as the API accepts it. */
@@ -78,8 +93,10 @@ export function anwesenheitOverview(ownStufen: string[]): AnwesenheitOverview {
       stufe: STUFE_SLUGS[meeting.slug],
       date: meeting.date,
       members: meeting.present.length,
+      excused: meeting.excused.length,
       guests: meeting.guests.length,
       notes: meeting.notes,
+      cancelled: meeting.cancelled,
     };
   });
   return {
@@ -103,11 +120,14 @@ export function anwesenheitOverview(ownStufen: string[]): AnwesenheitOverview {
 
 export function anwesenheitTermin(slug: StufeSlug, date: string): AnwesenheitTermin {
   const meeting = meetings.get(key(slug, date));
-  const present = new Set(meeting?.present ?? []);
   const children: AnwesenheitChild[] = CHILDREN[slug].map((child) => ({
     kind: 'stufe',
     ...child,
-    present: present.has(child.id),
+    status: meeting?.present.includes(child.id)
+      ? 'anwesend'
+      : meeting?.excused.includes(child.id)
+        ? 'entschuldigt'
+        : 'abwesend',
   }));
   return {
     stufe: STUFE_SLUGS[slug],
@@ -115,8 +135,10 @@ export function anwesenheitTermin(slug: StufeSlug, date: string): AnwesenheitTer
     editable: date >= editableFrom(),
     etag: meeting?.etag ?? null,
     notes: meeting?.notes ?? '',
+    cancelled: meeting?.cancelled ?? false,
     children,
     anonymized: 0,
+    anonymizedExcused: 0,
     guests: meeting?.guests ?? [],
     anonymizedGuests: 0,
   };
@@ -131,24 +153,57 @@ function meetingOf(slug: StufeSlug, date: string): MockMeeting {
     date,
     etag: newEtag(`anwesenheit-${id}`),
     notes: '',
+    cancelled: false,
     present: [],
+    excused: [],
     guests: [],
   };
   meetings.set(id, created);
   return created;
 }
 
-/** `false` if the child is not a current member, as the API answers with 404. */
-export function markAnwesenheitPresent(slug: StufeSlug, date: string, id: string): boolean {
-  if (!Object.values(CHILDREN).some((list) => list.some((child) => child.id === id))) return false;
+/**
+ * `not-found` if the child is not a current member and `cancelled` while the Gruppenstunde is
+ * marked as cancelled, as the API answers.
+ */
+export function markAnwesenheitChild(
+  slug: StufeSlug,
+  date: string,
+  id: string,
+  excused: boolean
+): 'ok' | 'not-found' | 'cancelled' {
+  if (!Object.values(CHILDREN).some((list) => list.some((child) => child.id === id))) {
+    return 'not-found';
+  }
   const meeting = meetingOf(slug, date);
-  if (!meeting.present.includes(id)) meeting.present.push(id);
-  return true;
+  if (meeting.cancelled) return 'cancelled';
+  markAnwesenheitAbsent(slug, date, id);
+  (excused ? meeting.excused : meeting.present).push(id);
+  return 'ok';
 }
 
 export function markAnwesenheitAbsent(slug: string, date: string, id: string): void {
   const meeting = meetings.get(key(slug, date));
-  if (meeting) meeting.present = meeting.present.filter((p) => p !== id);
+  if (!meeting) return;
+  meeting.present = meeting.present.filter((p) => p !== id);
+  meeting.excused = meeting.excused.filter((p) => p !== id);
+}
+
+/** Marks the Gruppenstunde as cancelled, which removes its attendance; returns the new etag. */
+export function setAnwesenheitCancelled(slug: StufeSlug, date: string, cancelled: boolean): string {
+  const meeting = meetingOf(slug, date);
+  meeting.cancelled = cancelled;
+  if (cancelled) {
+    meeting.present = [];
+    meeting.excused = [];
+    meeting.guests = [];
+  }
+  meeting.etag = newEtag(`anwesenheit-${slug}`);
+  return meeting.etag;
+}
+
+export function deleteAnwesenheitTermin(slug: string, date: string): void {
+  meetings.delete(key(slug, date));
 }
 
 /** The new etag, or `null` if the notes changed since `etag` was loaded. */
@@ -166,9 +221,16 @@ export function saveAnwesenheitNotes(
   return meeting.etag;
 }
 
-export function addAnwesenheitGuest(slug: StufeSlug, date: string, name: string): AnwesenheitGuest {
+/** `null` while the Gruppenstunde is marked as cancelled, as the API refuses it then. */
+export function addAnwesenheitGuest(
+  slug: StufeSlug,
+  date: string,
+  name: string
+): AnwesenheitGuest | null {
+  const meeting = meetingOf(slug, date);
+  if (meeting.cancelled) return null;
   const guest = { id: newId(), name };
-  meetingOf(slug, date).guests.push(guest);
+  meeting.guests.push(guest);
   return guest;
 }
 

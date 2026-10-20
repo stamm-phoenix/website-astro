@@ -960,6 +960,7 @@ export type {
   AnwesenheitGuest,
   AnwesenheitMeeting,
   AnwesenheitOverview,
+  AnwesenheitStatus,
   AnwesenheitStufe,
   AnwesenheitTermin,
 } from '../../../api/lib/anwesenheit-model';

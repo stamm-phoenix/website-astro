@@ -27,22 +27,45 @@ export function suggestedDate(weekday: string, today: string): string {
 export interface MonthStats {
   /** `YYYY-MM` */
   month: string;
+  /** Gruppenstunden that took place. */
   termine: number;
+  cancelled: number;
   members: number;
+  excused: number;
   guests: number;
 }
 
-/** Termine of one Stufe summed up per month, newest month first. */
+/**
+ * Termine of one Stufe summed up per month, newest month first. Cancelled Gruppenstunden are
+ * counted apart, so they do not lower the average.
+ */
 export function monthlyStats(meetings: AnwesenheitMeeting[], stufe: string): MonthStats[] {
   const months = new Map<string, MonthStats>();
   for (const meeting of meetings) {
     if (meeting.stufe !== stufe) continue;
     const month = meeting.date.slice(0, 7);
-    const entry = months.get(month) ?? { month, termine: 0, members: 0, guests: 0 };
-    entry.termine += 1;
-    entry.members += meeting.members;
-    entry.guests += meeting.guests;
+    const entry = months.get(month) ?? {
+      month,
+      termine: 0,
+      cancelled: 0,
+      members: 0,
+      excused: 0,
+      guests: 0,
+    };
+    if (meeting.cancelled) {
+      entry.cancelled += 1;
+    } else {
+      entry.termine += 1;
+      entry.members += meeting.members;
+      entry.excused += meeting.excused;
+      entry.guests += meeting.guests;
+    }
     months.set(month, entry);
   }
   return [...months.values()].sort((a, b) => b.month.localeCompare(a.month));
+}
+
+/** Average children per Gruppenstunde that took place; `0` for a month without one. */
+export function averageMembers(stats: MonthStats): number {
+  return stats.termine === 0 ? 0 : stats.members / stats.termine;
 }

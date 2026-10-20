@@ -1,18 +1,23 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
-  import { monthlyStats } from '../../lib/anwesenheit';
-  import { fetchApi, errorMessage } from '../../lib/api';
+  import { onDestroy, tick } from 'svelte';
+  import { averageMembers, monthlyStats } from '../../lib/anwesenheit';
+  import { fetchApi, errorMessage, sendApi } from '../../lib/api';
+  import { confirmAction } from '../../lib/confirm';
   import type { AnwesenheitMeeting, AnwesenheitTermin } from '../../lib/types';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
+  import AnwesenheitDiagramm from './AnwesenheitDiagramm.svelte';
+  import StatusNotice from './StatusNotice.svelte';
 
   interface Props {
     stufe: string;
     slug: string;
     meetings: AnwesenheitMeeting[];
     onselect: (date: string) => void;
+    /** Called after a Termin was deleted, to load the Termine again. */
+    ondelete: () => Promise<void>;
   }
-  let { stufe, slug, meetings, onselect }: Props = $props();
+  let { stufe, slug, meetings, onselect, ondelete }: Props = $props();
   const MONTH_LABEL = new Intl.DateTimeFormat('de-DE', {
     month: 'long',
     year: 'numeric',
@@ -33,12 +38,24 @@
   let detail = $state<AnwesenheitTermin | null>(null);
   let loading = $state(false);
   let error = $state<string | null>(null);
+  let deleting = $state(false);
+  let message = $state<string | null>(null);
+  let messageKind = $state<'success' | 'error'>('success');
+  let heading = $state<HTMLElement | null>(null);
   let revision = 0;
   let controller: AbortController | null = null;
   onDestroy(() => {
     revision++;
     controller?.abort();
   });
+
+  function formatDate(date: string): string {
+    return DATE_LABEL.format(new Date(`${date}T00:00:00Z`));
+  }
+
+  function plural(count: number, one: string, many: string): string {
+    return `${count} ${count === 1 ? one : many}`;
+  }
 
   async function load(date: string): Promise<void> {
     const current = ++revision;
@@ -64,11 +81,7 @@
       if (current === revision) loading = false;
     }
   }
-  function toggle(date: string): void {
-    if (expanded !== date) {
-      void load(date);
-      return;
-    }
+  function collapse(): void {
     revision++;
     controller?.abort();
     expanded = '';
@@ -76,123 +89,209 @@
     error = null;
     loading = false;
   }
+  function toggle(date: string): void {
+    if (expanded !== date) void load(date);
+    else collapse();
+  }
+
+  async function remove(date: string): Promise<void> {
+    const label = formatDate(date);
+    const confirmed = await confirmAction({
+      title: `Gruppenstunde ${stufe} am ${label} löschen?`,
+      message:
+        'Gelöscht werden die Anwesenheit, die Gäste und der Text zu dieser Gruppenstunde. Das lässt sich nicht rückgängig machen.',
+      confirmLabel: 'Gruppenstunde löschen',
+    });
+    if (!confirmed) return;
+    deleting = true;
+    try {
+      await sendApi('DELETE', `/intern/pflege/anwesenheit/${slug}/${date}`);
+      collapse();
+      message = `Gruppenstunde am ${label} gelöscht.`;
+      messageKind = 'success';
+      await ondelete();
+      await tick();
+      heading?.focus();
+    } catch (caught) {
+      message = errorMessage(
+        caught,
+        `Die Gruppenstunde am ${label} wurde nicht gelöscht. Tippe noch einmal auf „Gruppenstunde löschen“.`
+      );
+      messageKind = 'error';
+    } finally {
+      deleting = false;
+    }
+  }
 </script>
 
-<section aria-labelledby="anwesenheit-verlauf" class="space-y-3">
-  <h2 id="anwesenheit-verlauf" class="font-serif text-2xl text-brand-900">
+{#snippet names(title: string, list: string[])}
+  {#if list.length > 0}
+    <div>
+      <h4 class="font-semibold">{title}</h4>
+      <ul aria-label={title} class="mt-1 space-y-1">
+        {#each list as name, index (`${index}-${name}`)}
+          <li>{name}</li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+{/snippet}
+
+<StatusNotice {message} kind={messageKind} popup />
+
+<section aria-labelledby="anwesenheit-verlauf" class="space-y-6">
+  <h2
+    id="anwesenheit-verlauf"
+    class="font-serif text-2xl text-brand-900"
+    tabindex="-1"
+    bind:this={heading}
+  >
     {stufe}: Verlauf & Statistik
   </h2>
   {#if rows.length === 0}
     <p class="text-sm text-neutral-700">Für diese Stufe ist noch nichts erfasst.</p>
   {:else}
-    <p class="text-sm text-neutral-700">Tippe auf einen Termin, um zu sehen, wer da war.</p>
-    <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
-      {#each rows as meeting (meeting.date)}
-        <li data-meeting-date={meeting.date}>
-          <ActionButton
-            variant="secondary"
-            type="button"
-            class="w-full justify-start border-0! bg-transparent! px-0! text-left!"
-            aria-expanded={expanded === meeting.date}
-            aria-controls={`anwesenheit-namen-${slug}-${meeting.date}`}
-            onclick={() => toggle(meeting.date)}
-          >
-            <span class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span>{DATE_LABEL.format(new Date(`${meeting.date}T00:00:00Z`))}</span>
-              <span class="font-normal text-neutral-700"
-                >{meeting.members}
-                {meeting.members === 1 ? 'Kind' : 'Kinder'} · {meeting.guests}
-                {meeting.guests === 1 ? 'Gast' : 'Gäste'}</span
-              >
-              <span class="text-link"
-                >{expanded === meeting.date ? 'Namen ausblenden' : 'Namen ansehen'}</span
-              >
-            </span>
-          </ActionButton>
-          {#if expanded === meeting.date}
-            <div id={`anwesenheit-namen-${slug}-${meeting.date}`} class="space-y-3 pb-4 text-sm">
-              <LoadState
-                data={detail}
-                {loading}
-                {error}
-                loadingText="Namen werden geladen …"
-                onretry={() => void load(meeting.date)}
-              >
-                {#snippet children(termin)}
-                  {#if termin.children.some((child) => child.present) || termin.guests.length}
-                    <ul aria-label="Anwesende Kinder und Gäste" class="space-y-1">
-                      {#each termin.children.filter((child) => child.present) as child (child.id)}
-                        <li>
-                          {child.kind === 'unbekannt'
-                            ? 'Ein Kind (Name nicht mehr verfügbar)'
-                            : `${child.firstName} ${child.lastName}`}
-                        </li>
-                      {/each}
-                      {#each termin.guests as guest (guest.id)}
-                        <li>{guest.name} <span class="text-neutral-700">(Gast)</span></li>
-                      {/each}
-                    </ul>
-                  {:else if !termin.anonymized && !termin.anonymizedGuests}
-                    <p>Keine Kinder oder Gäste eingetragen.</p>
-                  {/if}
-                  {#if termin.anonymized || termin.anonymizedGuests}
-                    <p class="text-neutral-700">
-                      Namen wurden nach Ablauf der Aufbewahrungsfrist entfernt. Erhalten sind die
-                      Zahlen: {termin.anonymized}
-                      {termin.anonymized === 1 ? 'Kind' : 'Kinder'} und {termin.anonymizedGuests}
-                      {termin.anonymizedGuests === 1 ? 'Gast' : 'Gäste'}.
-                    </p>
-                  {/if}
-                  {#if termin.notes}<p>
-                      <span class="font-semibold">Notiz:</span>
-                      {termin.notes}
-                    </p>{/if}
-                  <ActionButton
-                    variant="secondary"
-                    type="button"
-                    onclick={() => onselect(meeting.date)}>Termin öffnen</ActionButton
+    <div class="space-y-3">
+      <AnwesenheitDiagramm {stats} />
+      <details>
+        <summary class="cursor-pointer py-2 text-sm font-semibold text-link"
+          >Zahlen pro Monat als Tabelle</summary
+        >
+        <p class="text-xs text-neutral-700 sm:hidden">
+          Die Tabelle ist breiter als der Bildschirm. Wische seitlich, um alle Zahlen zu sehen.
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm whitespace-nowrap">
+            <thead class="border-b border-neutral-300 text-neutral-700">
+              <tr>
+                <th scope="col" class="py-2 pr-4 font-semibold">Monat</th>
+                <th scope="col" class="py-2 pr-4 text-right font-semibold">Gruppenstunden</th>
+                <th scope="col" class="py-2 pr-4 text-right font-semibold">Kinder im Schnitt</th>
+                <th scope="col" class="py-2 pr-4 text-right font-semibold">Entschuldigt</th>
+                <th scope="col" class="py-2 pr-4 text-right font-semibold">Gäste</th>
+                <th scope="col" class="py-2 text-right font-semibold">Ausgefallen</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-neutral-200">
+              {#each stats as row (row.month)}
+                <tr>
+                  <th scope="row" class="py-2 pr-4 font-normal"
+                    >{MONTH_LABEL.format(new Date(`${row.month}-01T00:00:00Z`))}</th
                   >
-                {/snippet}
-              </LoadState>
-            </div>
-          {/if}
-        </li>
-      {/each}
-    </ul>
-    <h3 class="pt-4 font-semibold text-brand-900">Monatsübersicht</h3>
-    <p class="text-xs text-neutral-700 sm:hidden">
-      Die Übersicht ist breiter als der Bildschirm. Wische seitlich, um alle Zahlen zu sehen.
-    </p>
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-sm">
-        <thead class="border-b border-neutral-300 text-neutral-700">
-          <tr
-            ><th scope="col" class="py-2 pr-4 font-semibold">Monat</th><th
-              scope="col"
-              class="py-2 pr-4 text-right font-semibold">Termine</th
-            ><th scope="col" class="py-2 pr-4 text-right font-semibold">Kinder im Schnitt</th><th
-              scope="col"
-              class="py-2 text-right font-semibold">Gäste</th
-            ></tr
-          >
-        </thead>
-        <tbody class="divide-y divide-neutral-200">
-          {#each stats as row (row.month)}
-            <tr>
-              <th scope="row" class="py-2 pr-4 font-normal"
-                >{MONTH_LABEL.format(new Date(`${row.month}-01T00:00:00Z`))}</th
-              >
-              <td class="py-2 pr-4 text-right tabular-nums">{row.termine}</td>
-              <td class="py-2 pr-4 text-right tabular-nums"
-                >{(row.members / row.termine).toLocaleString('de-DE', {
-                  maximumFractionDigits: 1,
-                })}</td
-              >
-              <td class="py-2 text-right tabular-nums">{row.guests}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+                  <td class="py-2 pr-4 text-right tabular-nums">{row.termine}</td>
+                  <td class="py-2 pr-4 text-right tabular-nums"
+                    >{row.termine === 0
+                      ? '–'
+                      : averageMembers(row).toLocaleString('de-DE', {
+                          maximumFractionDigits: 1,
+                        })}</td
+                  >
+                  <td class="py-2 pr-4 text-right tabular-nums">{row.excused}</td>
+                  <td class="py-2 pr-4 text-right tabular-nums">{row.guests}</td>
+                  <td class="py-2 text-right tabular-nums">{row.cancelled}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+
+    <div class="space-y-3">
+      <h3 class="font-semibold text-brand-900">Gruppenstunden</h3>
+      <p class="text-sm text-neutral-700">
+        Tippe auf eine Gruppenstunde, um zu sehen, wer da war, oder um sie zu bearbeiten oder zu
+        löschen.
+      </p>
+      <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
+        {#each rows as meeting (meeting.date)}
+          <li data-meeting-date={meeting.date} class="pb-3">
+            <ActionButton
+              variant="secondary"
+              type="button"
+              class="w-full justify-start border-0! bg-transparent! px-0! text-left!"
+              aria-expanded={expanded === meeting.date}
+              aria-controls={`anwesenheit-namen-${slug}-${meeting.date}`}
+              onclick={() => toggle(meeting.date)}
+            >
+              <span class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span>{formatDate(meeting.date)}</span>
+                <span class="font-normal text-neutral-700"
+                  >{meeting.cancelled
+                    ? 'Ausgefallen'
+                    : `${plural(meeting.members, 'Kind', 'Kinder')} · ${meeting.excused} entschuldigt · ${plural(meeting.guests, 'Gast', 'Gäste')}`}</span
+                >
+                <span class="text-link"
+                  >{expanded === meeting.date ? 'Details ausblenden' : 'Details ansehen'}</span
+                >
+              </span>
+            </ActionButton>
+            <p class={['text-sm whitespace-pre-line', { 'text-neutral-700': !meeting.notes }]}>
+              {meeting.notes || 'Kein Inhalt erfasst'}
+            </p>
+            {#if expanded === meeting.date}
+              <div id={`anwesenheit-namen-${slug}-${meeting.date}`} class="mt-3 space-y-3 text-sm">
+                <LoadState
+                  data={detail}
+                  {loading}
+                  {error}
+                  loadingText="Namen werden geladen …"
+                  onretry={() => void load(meeting.date)}
+                >
+                  {#snippet children(termin)}
+                    {@const nameOf = (child: AnwesenheitTermin['children'][number]) =>
+                      child.kind === 'unbekannt'
+                        ? 'Ein Kind (Name nicht mehr verfügbar)'
+                        : `${child.firstName} ${child.lastName}`}
+                    {@const present = termin.children.filter((c) => c.status === 'anwesend')}
+                    {@const excused = termin.children.filter((c) => c.status === 'entschuldigt')}
+                    {#if !termin.cancelled}
+                      {#if present.length || excused.length || termin.guests.length}
+                        {@render names('Anwesend', present.map(nameOf))}
+                        {@render names('Entschuldigt', excused.map(nameOf))}
+                        {@render names(
+                          'Gäste',
+                          termin.guests.map((guest) => guest.name)
+                        )}
+                      {:else if !termin.anonymized && !termin.anonymizedExcused && !termin.anonymizedGuests}
+                        <p>Keine Kinder oder Gäste eingetragen.</p>
+                      {/if}
+                      {#if termin.anonymized || termin.anonymizedExcused || termin.anonymizedGuests}
+                        <p class="text-neutral-700">
+                          Namen wurden nach Ablauf der Aufbewahrungsfrist entfernt. Erhalten sind
+                          die Zahlen: {plural(termin.anonymized, 'Kind', 'Kinder')} da,
+                          {termin.anonymizedExcused} entschuldigt und {plural(
+                            termin.anonymizedGuests,
+                            'Gast',
+                            'Gäste'
+                          )}.
+                        </p>
+                      {/if}
+                    {/if}
+                    <div class="flex flex-wrap gap-3">
+                      <ActionButton
+                        variant="secondary"
+                        type="button"
+                        onclick={() => onselect(meeting.date)}
+                        >{termin.editable ? 'Bearbeiten' : 'Ansehen'}</ActionButton
+                      >
+                      {#if termin.editable}
+                        <ActionButton
+                          variant="danger"
+                          type="button"
+                          disabled={deleting}
+                          aria-busy={deleting}
+                          onclick={() => remove(meeting.date)}>Gruppenstunde löschen</ActionButton
+                        >
+                      {/if}
+                    </div>
+                  {/snippet}
+                </LoadState>
+              </div>
+            {/if}
+          </li>
+        {/each}
+      </ul>
     </div>
   {/if}
 </section>

@@ -102,11 +102,20 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/anwesenheit',
     title: 'Anwesenheit',
     description:
-      'Abhaken, wer in der Gruppenstunde war, was ihr gemacht habt, und Verlauf je Stufe ansehen.',
+      'Eintragen, wer in der Gruppenstunde war oder entschuldigt fehlte, was ihr gemacht habt, und Verlauf je Stufe ansehen.',
     intro:
-      'Pro Gruppenstunde abhaken, wer da war, und festhalten, was ihr gemacht habt. Namen von Kindern werden nach zwölf Monaten gelöscht.',
+      'Pro Gruppenstunde eintragen, wer da war und wer entschuldigt fehlte, und festhalten, was ihr gemacht habt. Fällt eine Gruppenstunde aus, markierst du sie als ausgefallen. Namen von Kindern werden nach zwölf Monaten gelöscht.',
     wrap: 'Anwesen|heit',
-    keywords: ['kinder', 'gruppenstunde', 'teilnehmende', 'liste', 'da gewesen', 'abhaken'],
+    keywords: [
+      'kinder',
+      'gruppenstunde',
+      'teilnehmende',
+      'liste',
+      'da gewesen',
+      'abhaken',
+      'entschuldigt',
+      'ausgefallen',
+    ],
     icon: 'M9 4h6v3H9zM9 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3M9 14l2 2 4-4',
   },
   {
