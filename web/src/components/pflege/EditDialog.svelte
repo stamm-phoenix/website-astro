@@ -7,6 +7,17 @@
   import { confirmAction } from '../../lib/confirm';
   import StatusNotice from './StatusNotice.svelte';
   import MessageText from '../ui/MessageText.svelte';
+  import NichtEingesetzt from './NichtEingesetzt.svelte';
+  import {
+    fillDialog,
+    rescueDialog,
+    setRescueContext,
+    findRescue,
+    forgetRescue,
+    shownValues,
+    type GeretteterWert,
+    type RescueEditor,
+  } from '../../lib/geretteteEingaben';
 
   interface Props {
     open: boolean;
@@ -66,11 +77,24 @@
   let form = $state<HTMLFormElement | null>(null);
   /** Whether a field differs from its value when the dialog opened; saving closes the dialog. */
   let edited = $state(false);
-  const unsaved = $derived(edited || dirty);
+  /** Input from before a new login was filled in again; it is unsaved until saved. */
+  let restored = $state(false);
+  const unsaved = $derived(edited || dirty || restored);
   let confirmingDiscard = $state(false);
   let deleteActionsOpen = $state(false);
   let reloadRequested = $state(false);
   let previousFocus: HTMLElement | null = null;
+  /** Kept input without a field to go into, e.g. a row the form does not have yet. */
+  let pending = $state<GeretteterWert[]>([]);
+  const leftOver = $derived(shownValues(pending));
+  const shownNotice = $derived(
+    notice ??
+      (!restored
+        ? null
+        : leftOver.length > 0
+          ? 'Ein Teil deiner Eingaben von vor der neuen Anmeldung ist wieder eingesetzt. Den Rest findest du darunter.'
+          : 'Deine Eingaben von vor der neuen Anmeldung sind wieder eingesetzt. Prüf sie und speichere.')
+  );
 
   async function keepEditing(): Promise<void> {
     confirmingDiscard = false;
@@ -108,16 +132,73 @@
     void tick().then(updateEdited);
   });
 
+  // A new login in the iPhone app reloads the page; the input is kept and filled in again
+  let editors: RescueEditor[] = [];
+  /** Title and field values when the dialog opened; they identify the record being edited. */
+  let openingTitle = '';
+  let opening = '';
+  setRescueContext({
+    rescue: () => (form ? rescueDialog(form, openingTitle, opening, editors) : false),
+    register(editor) {
+      editors.push(editor);
+      if (form && pending.length > 0) {
+        pending = fillDialog(form, [editor], pending);
+        if (shownValues(pending).length === 0) forgetRescue();
+      }
+      return () => {
+        editors = editors.filter((entry) => entry !== editor);
+      };
+    },
+  });
+
+  async function restore(kept: GeretteterWert[]): Promise<void> {
+    if (!form) return;
+    pending = fillDialog(form, editors, kept);
+    // Fields that appear only after a choice above them
+    await tick();
+    if (pending.length > 0) pending = fillDialog(form, editors, pending);
+    // Kept until everything found its field; editors still loading take theirs on arrival
+    if (shownValues(pending).length === 0) forgetRescue();
+    restored = true;
+    await tick();
+    updateEdited();
+  }
+
   function opened(): void {
     edited = false;
     confirmingDiscard = false;
     deleteActionsOpen = false;
     initial = [];
     for (const el of form?.elements ?? []) remember(el);
+    restored = false;
+    pending = [];
+    discarded = false;
+    openingTitle = title;
+    opening = JSON.stringify(initial.map((entry) => entry.value));
+    const kept = findRescue(openingTitle, opening, Date.now());
+    if (kept) void restore(kept);
   }
 
   $effect(() => {
     if (open && unsaved) return guardUnsavedChanges(() => true);
+  });
+
+  // A field added later, e.g. a row for kept input, takes its value as soon as it appears
+  $effect(() => {
+    if (!form || !restored || pending.length === 0) return;
+    const target = form;
+    const observer = new MutationObserver(() => {
+      pending = fillDialog(target, editors, pending);
+      if (shownValues(pending).length === 0) forgetRescue();
+    });
+    observer.observe(target, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  });
+
+  /** Set when the person confirmed discarding; any other closing of a filled-in dialog saved. */
+  let discarded = false;
+  $effect(() => {
+    if (!open && restored && !discarded) forgetRescue();
   });
 
   async function requestDelete(): Promise<void> {
@@ -168,7 +249,11 @@
     </div>
 
     <div class="border-t border-neutral-200 px-5 py-3">
-      <StatusNotice message={error ? null : notice} class={notice && !error ? 'mb-3' : ''} />
+      <StatusNotice
+        message={error ? null : shownNotice}
+        class={shownNotice && !error ? 'mb-3' : ''}
+      />
+      {#if restored && leftOver.length > 0}<NichtEingesetzt values={leftOver} />{/if}
       {#if error}
         <p role="alert" class="mb-3 text-sm text-danger"><MessageText text={error} /></p>
       {/if}
@@ -238,7 +323,10 @@
         await tick();
         opened();
       }
-    } else onclose();
+    } else {
+      discarded = true;
+      onclose();
+    }
   }}
 >
   <p>
