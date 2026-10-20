@@ -33,25 +33,31 @@ export const changelogStore = $state<ChangelogState>({
 });
 
 let loading: Promise<boolean> | null = null;
-/** Counts saves, so a load that started before a save cannot bring back the older state. */
-let saves = 0;
+/** Saves that are running right now. */
+let saving = 0;
+/** Counts the start and the end of every save, so a load can tell whether one overlapped it. */
+let writes = 0;
 
 /**
  * Loads the seen state from the server. Astro keeps the store across pages, so every page asks
  * again: reading on another device shows here at the next page. Calls that overlap share one
  * request. Resolves to whether the state is fresh.
+ *
+ * An answer that overlapped a save is dropped: the server may have read the state before the
+ * save and answered after it, and that older state must not replace the saved one.
  */
 export function loadChangelogSeen(): Promise<boolean> {
   loading ??= (async () => {
-    const before = saves;
+    const before = writes;
+    const overlapsSave = saving > 0;
     try {
       const { lastSeenId } = await fetchApi<{ lastSeenId: string | null }>(ENDPOINT);
-      if (saves === before) {
+      if (!overlapsSave && writes === before) {
         changelogStore.lastSeenId = lastSeenId;
         changelogStore.loaded = true;
       }
       changelogStore.loadError = null;
-      return true;
+      return changelogStore.loaded;
     } catch (error) {
       changelogStore.loadError = errorMessage(error, LOAD_FAILED);
       return false;
@@ -71,7 +77,8 @@ export function unseenCount(): number {
 export async function markChangelogSeen(): Promise<boolean> {
   const newest = newestEntryId(CHANGELOG);
   if (newest === null) return true;
-  saves++;
+  saving++;
+  writes++;
   try {
     const { lastSeenId } = await sendApi<{ lastSeenId: string }>('PUT', ENDPOINT, {
       lastSeenId: newest,
@@ -83,5 +90,8 @@ export async function markChangelogSeen(): Promise<boolean> {
   } catch (error) {
     changelogStore.saveError = errorMessage(error, SAVE_FAILED);
     return false;
+  } finally {
+    saving--;
+    writes++;
   }
 }
