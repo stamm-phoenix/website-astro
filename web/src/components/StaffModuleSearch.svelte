@@ -203,6 +203,7 @@
                   href={module.href}
                   data-astro-reload={module.reload || undefined}
                   aria-current={currentState(module.href)}
+                  aria-describedby={module.href === CHANGELOG_PATH ? `${id}-news` : undefined}
                   data-flyout={variant === 'sidebar' ? module.title : undefined}
                   data-flyout-icon={variant === 'sidebar' ? module.icon : undefined}
                   onclick={() => {
@@ -243,7 +244,8 @@
                     </span>
                   {/if}
                 </a>
-                {#if module.href === CHANGELOG_PATH}<span class="mr-1"><ChangelogBadge /></span
+                {#if module.href === CHANGELOG_PATH}<span class="mr-1"
+                    ><ChangelogBadge textId="{id}-news" /></span
                   >{/if}
                 {#if !collapsed}<FavoriteStar {module} compact={variant === 'sidebar'} />{/if}
               </li>
