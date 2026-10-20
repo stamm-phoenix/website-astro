@@ -36,8 +36,9 @@ einer anderen Gruppe, gilt es trotzdem als Leitende\*r, wie im Protokoll-Editor.
 
 `GET /api/intern/pflege/personen` liefert `{ personen, leitende, campflow }`: die Zeilen, die
 Konten der Entra-Gruppe und die Mitgliederliste aus CampFlow, reduziert auf Name, Gruppen und
-„ausgetreten“ (keine Kontaktdaten). Fällt Entra oder CampFlow aus, ist der Teil `null` und die
-Liste bleibt bearbeitbar.
+„ausgetreten“ (keine Kontaktdaten). Fällt Entra oder CampFlow aus oder antwortet nicht binnen
+25 Sekunden (alle Seiten zusammen, `UEBERSICHT_TIMEOUT_MS`), ist der Teil `null` und die Liste
+bleibt bearbeitbar.
 
 Für Leitende ohne Verknüpfung schlägt das Modul eine CampFlow-Person vor, wenn genau ein
 aktuelles Mitglied denselben Vor- und Nachnamen hat, es noch niemandem zugeordnet ist und kein
