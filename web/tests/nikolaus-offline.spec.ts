@@ -334,3 +334,28 @@ test('expiry during preparation preserves the new deployment HTML and its depend
     expect(cached.paths).toContain(`/_astro/new-release-${asset}`);
   expect(cached.paths).toContain('/_astro/new-release.css');
 });
+
+test('a saved day added after the baked settings still restores offline', async ({
+  page,
+  context,
+}) => {
+  await prepare(page);
+  await page.evaluate((key) => {
+    const snapshot = JSON.parse(localStorage.getItem(key)!);
+    snapshot.data.date = '2026-12-07';
+    localStorage.setItem(key, JSON.stringify(snapshot));
+    history.replaceState(
+      history.state,
+      '',
+      '/leitendenbereich/nikolaus-fahrt?tag=2026-12-07&team=A'
+    );
+  }, KEY);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
+  await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'Tag wählen' }).getByRole('button', { name: /7\.12\./ })
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page).toHaveURL(/tag=2026-12-07/);
+});

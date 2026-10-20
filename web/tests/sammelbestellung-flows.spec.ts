@@ -129,3 +129,38 @@ test('staff order filters and the export shop survive reloading the campaign', a
   await expect(finished).toBeChecked();
   await expect(shop).toHaveValue(selected!);
 });
+
+test('a replacement article clears obsolete lookup warnings and re-added articles are queried again', async ({
+  page,
+}) => {
+  await page.goto('/impressum');
+  const result = await page.evaluate(async () => {
+    const path = '/src/lib/sammelPrices.svelte.ts';
+    const { createSammelPrices } = await import(path);
+    const pool = createSammelPrices();
+    await pool.load(['removed-article'], async () => {
+      throw new Error('lookup failed');
+    });
+    const first = Object.keys(pool.state.errors);
+    await pool.load(['replacement-article'], async () => ({
+      unitPriceCents: 123,
+      availability: 'lieferbar',
+    }));
+    await pool.load(['replacement-article'], async () => ({
+      unitPriceCents: 123,
+      availability: 'lieferbar',
+    }));
+    const obsolete = Object.keys(pool.state.errors);
+    let queried = false;
+    await pool.load(
+      ['removed-article'],
+      async () => {
+        queried = true;
+        return null;
+      },
+      true
+    );
+    return { first, obsolete, queried, errors: Object.keys(pool.state.errors) };
+  });
+  expect(result).toEqual({ first: ['removed-article'], obsolete: [], queried: true, errors: [] });
+});

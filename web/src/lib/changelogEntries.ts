@@ -21,7 +21,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: 'Die Anwesenheit fragt nach, bevor eine ungespeicherte Notiz beim Wechsel der Stufe, des Datums oder der Ansicht verloren geht.',
         href: '/leitendenbereich/anwesenheit',
       },
-      'Eine ausdrücklich für Funklöcher gespeicherte Route lässt sich im selben Tab auch ohne Verbindung neu laden, bis die zwölf Stunden abgelaufen sind.',
+      'Eine ausdrücklich für Funklöcher gespeicherte Route lässt sich im selben Tab auch ohne Verbindung neu laden, bis die zwölf Stunden abgelaufen sind. Das gilt auch für nachträglich hinzugefügte Nikolaustage.',
       'In der Route steht der nächste Besuch mit Navigation, Anrufen und Abhaken vor den weiteren Informationen.',
       'Im Protokoll kannst du Sitzungsdaten und Teilnehmende aufklappen. Die Aktionsleiste lässt am Handy mehr Platz zum Schreiben.',
       {
@@ -32,7 +32,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Bei erneuter Anmeldung in der iPhone-App kommen auch deine ungespeicherten Abrechnungseingaben zurück. Punkte und Datumsangaben im Downloadnamen behalten beim Umbenennen die Dateiendung.',
       'Nach fehlgeschlagenem Speichern oder Zurücksetzen bleiben deine Abrechnungseingaben beim erneuten Versuch erhalten. Eine abgelaufene Speicherfrist wird erklärt.',
       'Sterne zum Auswählen deiner Favoriten sind am Handy sichtbar und antippbar.',
-      'Bei Belegen verschwinden korrigierte Feldfehler sofort. Die Bestellliste weist auf seitlich erreichbare Spalten und fehlgeschlagene Preisabfragen hin.',
+      'Bei Belegen verschwinden korrigierte Feldfehler sofort. Die Bestellliste weist auf seitlich erreichbare Spalten und fehlgeschlagene Preisabfragen hin. Warnungen zu entfernten Artikeln verschwinden beim erneuten Laden.',
       'In der Nikolaus-Steuerung bleibt Speichern beim Scrollen erreichbar. Vor dem Ausschalten der Verwaltung für alle fragt die Seite nach.',
     ],
   },
