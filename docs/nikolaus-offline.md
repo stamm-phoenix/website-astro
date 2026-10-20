@@ -23,6 +23,8 @@ API- und Anmeldeantworten werden niemals darin gespeichert. Der Aufruf versucht 
 das Netz und fällt nur bei einem Verbindungsfehler auf diese Kopie zurück. Andere
 Seiten werden nicht offline bereitgestellt. Die Seitendateien laufen zur selben Zeit
 wie die Teamroute ab und werden bei Löschen, Abmelden oder abgelehnter Anmeldung entfernt.
+Ein gültiger Snapshot ergänzt seinen Tag in der Ansicht, falls dieser nach dem letzten
+Build hinzugefügt wurde; die Eigentümer- und Ablaufprüfung bleibt dafür zwingend.
 Ohne vorhandene Anmeldung im selben Tab werden keine Familien aus dem lokalen Speicher
 angezeigt. Offline-Karten/Navigation werden nicht bereitgestellt.
 

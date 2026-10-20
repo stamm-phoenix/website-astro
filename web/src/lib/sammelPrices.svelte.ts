@@ -36,6 +36,13 @@ export function createSammelPrices(): PricePool {
     missingOnly = false
   ): Promise<void> {
     const current = ++revision;
+    // A conflict reload can replace the references without resetting the price pool.
+    // Drop removed entries as well as their errors, so re-added articles are looked up again.
+    for (const cache of [state.prices, state.availability, state.errors]) {
+      for (const reference of Object.keys(cache)) {
+        if (!references.includes(reference)) delete cache[reference];
+      }
+    }
     // Temporary deduplication, never read by a reactive consumer.
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const pending = [...new Set(references)].filter(

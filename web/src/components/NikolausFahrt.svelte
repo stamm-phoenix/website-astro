@@ -41,7 +41,13 @@
   let { config }: Props = $props();
 
   const settings = $derived(withBaked(nikolausSettingsStore, config).data ?? config);
-  const dates = $derived(settings.days.map((d) => d.date).sort());
+  const snapshot = $derived(nikolausFahrtStore.snapshot);
+  // A valid owner-bound snapshot can outlive the HTML's baked list of service days.
+  const dates = $derived(
+    [
+      ...new Set([...settings.days.map((d) => d.date), ...(snapshot ? [snapshot.data.date] : [])]),
+    ].sort()
+  );
 
   let date = $state('');
   let team = $state<string | null>(null);
@@ -53,7 +59,6 @@
   const lastSync = $derived(
     nikolausFahrtStore.lastSync ? new Date(nikolausFahrtStore.lastSync) : null
   );
-  const snapshot = $derived(nikolausFahrtStore.snapshot);
   const queue = $derived(
     snapshot?.data.date === date && snapshot.team === team ? snapshot.queue : []
   );
@@ -112,6 +117,13 @@
     date = next;
     if (date) void fetchNikolausFahrt(date);
   }
+
+  $effect(() => {
+    if (!snapshot || date === snapshot.data.date) return;
+    const requested = new URLSearchParams(location.search).get('tag');
+    if (requested ? requested !== snapshot.data.date : !offline) return;
+    untrack(() => chooseDate(snapshot!.data.date));
+  });
 
   /** Refresh the current route and synchronize any saved visit marks. */
   async function refresh(): Promise<void> {
