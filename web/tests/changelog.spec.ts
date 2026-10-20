@@ -82,3 +82,30 @@ test('the page confirms the read state only after it was saved', async ({ page }
   release();
   await expect(page.getByText('gelten jetzt als gelesen')).toBeVisible();
 });
+
+test('reading on another device shows at the next page without a full reload', async ({ page }) => {
+  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/leitendenbereich');
+  await expect(page.getByTestId('changelog-badge').first()).toHaveText('2');
+
+  // Another device reads everything
+  await page.request.put('/api/intern/neuigkeiten', { data: { lastSeenId: SEEN_ALL } });
+  await page.getByRole('link', { name: 'Neuigkeiten lesen' }).click();
+  await expect(page.getByText('Du bist auf dem neuesten Stand.')).toBeVisible();
+  await expect(page.getByText('Neu', { exact: true })).toHaveCount(0);
+});
+
+test('an expired login is named and offers a new login instead of a connection check', async ({
+  page,
+}) => {
+  await page.route('**/api/intern/neuigkeiten', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ status: 401, json: { error: 'Unauthorized' } })
+      : route.continue()
+  );
+  await page.goto('/leitendenbereich/neuigkeiten');
+  await expect(page.getByText('Deine Anmeldung ist abgelaufen.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
+  await expect(page.getByText('Prüfe deine Internetverbindung')).toHaveCount(0);
+});

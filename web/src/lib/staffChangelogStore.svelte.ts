@@ -1,46 +1,61 @@
 import { CHANGELOG } from './changelogEntries';
 import { newestEntryId, unseenEntries } from './changelog';
-import { fetchApi, sendApi } from './api';
+import { errorMessage, fetchApi, sendApi } from './api';
 
 /**
  * Which entries of the changelog the logged-in person has seen, saved on the server
- * (`/api/intern/neuigkeiten`), so it is the same on every device. Only a convenience: a failed
- * load shows no bubble, and a failed save leaves the entries new until the next visit.
+ * (`/api/intern/neuigkeiten`), so it is the same on every device. The bubble is only a
+ * convenience: a failed load shows no bubble. The page „Neuigkeiten“ reports failures itself.
  */
 
 const ENDPOINT = '/intern/neuigkeiten';
+const LOAD_FAILED =
+  'Dein Lesestand konnte nicht geladen werden. Prüfe deine Internetverbindung und versuche es noch einmal.';
+const SAVE_FAILED =
+  'Die Neuigkeiten wurden nicht als gelesen gespeichert. Prüfe deine Internetverbindung und lade die Seite neu.';
 
 interface ChangelogState {
   /** ID of the newest entry the server knows as seen; `null` before the first visit. */
   lastSeenId: string | null;
   /** Whether `lastSeenId` came from the server; until then no bubble is shown. */
   loaded: boolean;
-  /** The last save failed, so the entries still count as new. */
-  saveFailed: boolean;
+  /** Why the last load or save failed; `null` after a success. */
+  error: string | null;
 }
 
 export const changelogStore = $state<ChangelogState>({
   lastSeenId: null,
   loaded: false,
-  saveFailed: false,
+  error: null,
 });
 
-let loading: Promise<void> | null = null;
+let loading: Promise<boolean> | null = null;
+/** Counts saves, so a load that started before a save cannot bring back the older state. */
+let saves = 0;
 
-/** Loads the seen state once; Astro navigation keeps it. */
-export function loadChangelogSeen(): Promise<void> {
-  if (changelogStore.loaded) return Promise.resolve();
-  loading ??= fetchApi<{ lastSeenId: string | null }>(ENDPOINT)
-    .then(({ lastSeenId }) => {
-      changelogStore.lastSeenId = lastSeenId;
-      changelogStore.loaded = true;
-    })
-    .catch(() => {
-      // No bubble this time; the next page tries again
-    })
-    .finally(() => {
+/**
+ * Loads the seen state from the server. Astro keeps the store across pages, so every page asks
+ * again: reading on another device shows here at the next page. Calls that overlap share one
+ * request. Resolves to whether the state is fresh.
+ */
+export function loadChangelogSeen(): Promise<boolean> {
+  loading ??= (async () => {
+    const before = saves;
+    try {
+      const { lastSeenId } = await fetchApi<{ lastSeenId: string | null }>(ENDPOINT);
+      if (saves === before) {
+        changelogStore.lastSeenId = lastSeenId;
+        changelogStore.loaded = true;
+      }
+      changelogStore.error = null;
+      return true;
+    } catch (error) {
+      changelogStore.error = errorMessage(error, LOAD_FAILED);
+      return false;
+    } finally {
       loading = null;
-    });
+    }
+  })();
   return loading;
 }
 
@@ -53,16 +68,17 @@ export function unseenCount(): number {
 export async function markChangelogSeen(): Promise<boolean> {
   const newest = newestEntryId(CHANGELOG);
   if (newest === null) return true;
+  saves++;
   try {
     const { lastSeenId } = await sendApi<{ lastSeenId: string }>('PUT', ENDPOINT, {
       lastSeenId: newest,
     });
     changelogStore.lastSeenId = lastSeenId;
     changelogStore.loaded = true;
-    changelogStore.saveFailed = false;
+    changelogStore.error = null;
     return true;
-  } catch {
-    changelogStore.saveFailed = true;
+  } catch (error) {
+    changelogStore.error = errorMessage(error, SAVE_FAILED);
     return false;
   }
 }
