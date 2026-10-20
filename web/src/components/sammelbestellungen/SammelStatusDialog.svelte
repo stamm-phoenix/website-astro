@@ -144,8 +144,16 @@
       />Bezahlt</label
     >
     {#if editing.payment?.locked}<p class="text-sm text-neutral-700">
-        Der Beitrag ist in CampFlow angelegt; Betrag und Artikel sind gesperrt. Änderungen zuerst
-        dort klären.
+        {#if editing.payment.state === 'created'}
+          Der Beitrag ist in CampFlow angelegt; Betrag und Artikel sind gesperrt. Änderungen zuerst
+          dort klären.
+        {:else if editing.payment.state === 'prepared'}
+          Der Beitrag ist vorbereitet, aber noch nicht in CampFlow angelegt; Betrag und Artikel sind
+          gesperrt. Weiter geht es unter „Bezahlung verwalten“.
+        {:else}
+          Ob der Beitrag in CampFlow angelegt wurde, ist unklar; Betrag und Artikel sind gesperrt.
+          Erst in CampFlow prüfen, dann unter „Bezahlung verwalten“ zuordnen.
+        {/if}
       </p>{/if}
     <label class="flex items-center gap-2"
       ><input type="checkbox" bind:checked={editing.delivered} />Ausgeliefert</label

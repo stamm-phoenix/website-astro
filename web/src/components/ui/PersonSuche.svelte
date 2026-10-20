@@ -37,6 +37,12 @@
     onremovelast?: () => void;
     /** Any typing, before the list updates. */
     onedit?: () => void;
+    /**
+     * Take typed text over only after a tap that left the field, so a button that moves when a
+     * name is added still gets the tap. Only for callers whose own actions take the text over
+     * first (a submit), since a button's handler runs before the deferred `oncommit`.
+     */
+    commitAfterTap?: boolean;
   }
   let {
     id,
@@ -49,6 +55,7 @@
     oncommit,
     onremovelast,
     onedit,
+    commitAfterTap = false,
     class: className = 'form-input',
     disabled,
     ...rest
@@ -89,17 +96,13 @@
     open = false;
   }
 
-  /** Whether a finger or mouse button is down; leaving the field by tapping waits for its release. */
+  /** Whether a finger or mouse button is down, for `commitAfterTap`. */
   let pressing = false;
 
-  /**
-   * Typed text is taken over when the field is left. When that happens by tapping a button, the
-   * taken-over text may add a line and move the button away before the finger is lifted, so the
-   * tap would miss it. Wait until the tap is over instead.
-   */
+  /** Typed text is taken over when the field is left; with `commitAfterTap` after the tap. */
   function leave(): void {
     open = false;
-    if (!pressing) {
+    if (!commitAfterTap || !pressing) {
       if (query.trim()) oncommit?.(query);
       return;
     }

@@ -126,6 +126,7 @@
         }}
         onpick={(person) => choose(person)}
         oncommit={commit}
+        commitAfterTap
         onremovelast={selected.length ? () => update(selected.slice(0, -1)) : undefined}
       />
     </div>
