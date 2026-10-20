@@ -6,6 +6,7 @@ import StaffSidebar from '../components/StaffSidebar.svelte';
 import { SIDEBAR_KEY } from '../lib/staffSidebar';
 import StaffIntro from '../components/StaffIntro.svelte';
 import StaffFooter from '../components/StaffFooter.astro';
+import StaffOfflineNotice from '../components/StaffOfflineNotice.svelte';
 import PageHeader from '../components/PageHeader.astro';
 import {
   NIKOLAUS_CONTROL_MODULE,
@@ -59,6 +60,12 @@ const title =
   wide
   skipTarget="staff-content"
 >
+  <Fragment slot="head">
+    <!-- Installable from the home screen; no service worker, see docs/leitendenbereich-app.md -->
+    <link rel="manifest" href="/leitendenbereich.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Leitende" />
+  </Fragment>
   <StaffHeader slot="header" />
 
   <div class:list={{ 'xl:flex xl:items-start xl:gap-8': !bare }}>
@@ -75,6 +82,7 @@ const title =
 
     <!-- „Zum Inhalt springen“ leads here, past the sidebar -->
     <div id="staff-content" tabindex="-1" class="min-w-0 flex-1">
+      {!bare && <StaffOfflineNotice client:load />}
       {!bare && back && (
         <nav
           aria-label="Zurück"

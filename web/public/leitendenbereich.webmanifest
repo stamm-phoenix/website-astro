@@ -1,0 +1,23 @@
+{
+  "id": "/leitendenbereich/",
+  "name": "Leitendenbereich Stamm Phoenix",
+  "short_name": "Leitende",
+  "description": "Der Leitendenbereich von DPSG Stamm Phoenix Feldkirchen-Westerham.",
+  "lang": "de",
+  "dir": "ltr",
+  "start_url": "/leitendenbereich/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8f5ef",
+  "theme_color": "#f8f5ef",
+  "icons": [
+    { "src": "/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/app-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
