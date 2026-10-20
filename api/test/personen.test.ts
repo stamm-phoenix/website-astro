@@ -420,6 +420,31 @@ dbTest('a family address marks only the registration with the own first name', a
   );
 });
 
+dbTest('a slow CampFlow never holds up a page, it only leaves out the marks', async (t) => {
+  const context = quietContext(t);
+  await PersonenCollection(
+    request(
+      ANNA,
+      'POST',
+      {},
+      {
+        name: 'Sina Langsam',
+        login: ANNA,
+        gruppe: 'leitende',
+        campflowPersonId: 'per_IchSina',
+        aktiv: true,
+      }
+    ),
+    context
+  );
+  // CampFlow does not answer at all
+  t.mock.method(campflow, 'campflowGet', () => new Promise(() => undefined));
+  const started = Date.now();
+  const anmeldungen = [{ id: 'per_S', primary_email: 'sina@example.org' }];
+  assert.deepEqual(await eigeneAnmeldungen(ANNA, anmeldungen, Date.now(), 50), []);
+  assert.ok(Date.now() - started < 2000);
+});
+
 dbTest('without the member list an address counts as shared', async (t) => {
   const context = quietContext(t);
   await PersonenCollection(

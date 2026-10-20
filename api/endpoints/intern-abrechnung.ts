@@ -99,6 +99,8 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
   const { event, persons } = loaded;
 
   const costUnit = requested || costUnitForEvent(event);
+  // Started now, so it runs while the Einzelnachweise load; it has a time limit of its own
+  const ich = eigeneAnmeldungen(principal.userDetails, persons);
   let report: EinzelnachweiseResponse;
   try {
     report = await getEinzelnachweise(costUnit, {
@@ -118,7 +120,7 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
     },
     costUnit: report.costUnit,
     persons: kjrPersons(persons, event.start_date),
-    ich: await eigeneAnmeldungen(principal.userDetails, persons),
+    ich: await ich,
     bilanz: summarizeEntries(report.entries),
     nachweise: toNachweise(report.entries),
     exportedAt: validTimestamp(report.exportedAt),
