@@ -146,3 +146,42 @@ test('the news link in the menu is described by the number of unread entries', a
     '2 neue Neuigkeiten'
   );
 });
+
+test('a load that overlaps the save cannot bring back the unread count', async ({ page }) => {
+  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
+  await page.setViewportSize({ width: 390, height: 844 });
+  let putStarted = false;
+  let finishPut: () => void = () => undefined;
+  const putDone = new Promise<void>((resolve) => (finishPut = resolve));
+  let releasePut: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => (releasePut = resolve));
+  await page.route('**/api/intern/neuigkeiten', async (route) => {
+    if (route.request().method() === 'PUT') {
+      putStarted = true;
+      await gate;
+      await route.fulfill({ response: await route.fetch() });
+      finishPut();
+    } else if (putStarted) {
+      // The server answers with the state from before the save, and the answer arrives after it
+      const stale = await route.fetch();
+      await putDone;
+      await route.fulfill({ response: stale });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto('/leitendenbereich/neuigkeiten');
+  await expect(page.getByText('Gelesen wird gespeichert …')).toBeVisible();
+  // The menu asks for the read state while the save is still running
+  const menu = page
+    .getByRole('navigation', { name: 'Schnellzugriff' })
+    .getByRole('button', { name: 'Menü', exact: true });
+  await menu.click();
+  await expect(page.getByRole('dialog', { name: 'Alle Bereiche' })).toBeVisible();
+  releasePut();
+  await expect(page.getByText('gelten jetzt als gelesen')).toBeVisible();
+  // Give the late stale answer time to arrive
+  await page.waitForTimeout(500);
+  await menu.click();
+  await expect(page.getByTestId('changelog-badge')).toHaveCount(0);
+});
