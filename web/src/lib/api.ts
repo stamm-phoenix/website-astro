@@ -48,10 +48,14 @@ export function reloginOnlyHere(): boolean {
   );
 }
 
+/** Login that comes back to `path`. */
+export function loginUrl(path: string): string {
+  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(path)}`;
+}
+
 /** Login in this window that comes back to the current page; its inputs are lost. */
 export function reloginHereUrl(): string {
-  const back = `${location.pathname}${location.search}`;
-  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(back)}`;
+  return loginUrl(`${location.pathname}${location.search}`);
 }
 
 /**
