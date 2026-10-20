@@ -7,8 +7,10 @@
   interface Props {
     /** Chosen folder; empty for the top folder. */
     path: string;
+    /** New folder below the chosen one, shown after the path. */
+    pending?: string[];
   }
-  let { path = $bindable() }: Props = $props();
+  let { path = $bindable(), pending = [] }: Props = $props();
 
   const entry = $derived(folderEntry(path));
 
@@ -19,12 +21,9 @@
 </script>
 
 <div class="space-y-2">
-  <p class="text-sm text-neutral-700">
-    Wähle einen Ordner aus, um hineinzugehen. Hochgeladen wird in den Ordner, in dem du gerade bist.
-  </p>
   <div class="surface-muted px-3 py-2">
-    <p class="text-xs font-semibold text-neutral-700">Gewählter Ordner</p>
-    <FotoPfad {path} onselect={(next) => (path = next)} />
+    <p class="text-xs font-semibold text-neutral-700">Deine Fotos landen in</p>
+    <FotoPfad {path} {pending} onselect={(next) => (path = next)} />
   </div>
 
   <LoadState

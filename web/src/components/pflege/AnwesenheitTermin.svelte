@@ -247,8 +247,7 @@
         </p>
         {#if !termin.editable}
           <p class="mt-2 text-sm text-neutral-700">
-            Dieser Termin liegt vor der Aufbewahrungsfrist. Die Namen sind gelöscht, er lässt sich
-            nur noch ansehen.
+            Älter als zwölf Monate: Die Namen sind gelöscht, der Termin lässt sich nur noch ansehen.
           </p>
         {/if}
       </div>
@@ -277,8 +276,7 @@
       {#if termin.anonymized > 0}
         <p class="text-sm text-neutral-700">
           {termin.anonymized}
-          {termin.anonymized === 1 ? 'Kind war' : 'Kinder waren'} da, deren Namen nach der Aufbewahrungsfrist
-          gelöscht sind.
+          {termin.anonymized === 1 ? 'Kind' : 'Kinder'} ohne Namen (nach zwölf Monaten gelöscht).
         </p>
       {/if}
 
@@ -310,18 +308,14 @@
         {/if}
         {#if termin.editable}
           <form class="mt-3 flex flex-wrap items-end gap-3" onsubmit={addGuest}>
-            <FormField
-              id="anwesenheit-gast"
-              label="Gast hinzufügen"
-              hint="Kinder, die nicht in CampFlow stehen, z. B. zum Schnuppern."
-              class="min-w-0 flex-1"
-            >
+            <FormField id="anwesenheit-gast" label="Gast hinzufügen" class="min-w-0 flex-1">
               {#snippet children(attrs)}
                 <input
                   {...attrs}
                   class="form-input"
                   maxlength="100"
                   autocomplete="off"
+                  placeholder="Name, z. B. Schnupperkind"
                   bind:value={guestName}
                 />
               {/snippet}

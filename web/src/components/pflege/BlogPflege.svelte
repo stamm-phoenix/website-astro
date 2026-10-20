@@ -29,8 +29,8 @@
     onsubmit={(event) => event.preventDefault()}
   >
     <label class="block text-sm">
-      <span class="form-label">Suche</span>
-      <input type="search" class="form-input" placeholder="Titel …" bind:value={search} />
+      <span class="form-label">Nach Titel suchen</span>
+      <input type="search" class="form-input" bind:value={search} />
     </label>
     <div class="flex gap-2">
       <ReloadButton resource={blogPflege} />

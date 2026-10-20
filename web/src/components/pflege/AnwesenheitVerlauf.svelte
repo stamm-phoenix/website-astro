@@ -85,7 +85,6 @@
   {#if rows.length === 0}
     <p class="text-sm text-neutral-700">Für diese Stufe ist noch nichts erfasst.</p>
   {:else}
-    <p class="text-sm text-neutral-700">Tippe auf einen Termin, um zu sehen, wer da war.</p>
     <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
       {#each rows as meeting (meeting.date)}
         <li data-meeting-date={meeting.date}>
@@ -137,9 +136,8 @@
                   {/if}
                   {#if termin.anonymized || termin.anonymizedGuests}
                     <p class="text-neutral-700">
-                      Namen wurden nach Ablauf der Aufbewahrungsfrist entfernt. Erhalten sind die
-                      Zahlen: {termin.anonymized}
-                      {termin.anonymized === 1 ? 'Kind' : 'Kinder'} und {termin.anonymizedGuests}
+                      Ohne Namen (nach zwölf Monaten gelöscht): {termin.anonymized}
+                      {termin.anonymized === 1 ? 'Kind' : 'Kinder'}, {termin.anonymizedGuests}
                       {termin.anonymizedGuests === 1 ? 'Gast' : 'Gäste'}.
                     </p>
                   {/if}
@@ -160,9 +158,6 @@
       {/each}
     </ul>
     <h3 class="pt-4 font-semibold text-brand-900">Monatsübersicht</h3>
-    <p class="text-xs text-neutral-700 sm:hidden">
-      Die Übersicht ist breiter als der Bildschirm. Wische seitlich, um alle Zahlen zu sehen.
-    </p>
     <div class="overflow-x-auto">
       <table class="w-full text-left text-sm">
         <thead class="border-b border-neutral-300 text-neutral-700">
@@ -170,7 +165,7 @@
             ><th scope="col" class="py-2 pr-4 font-semibold">Monat</th><th
               scope="col"
               class="py-2 pr-4 text-right font-semibold">Termine</th
-            ><th scope="col" class="py-2 pr-4 text-right font-semibold">Kinder im Schnitt</th><th
+            ><th scope="col" class="py-2 pr-4 text-right font-semibold">Ø Kinder</th><th
               scope="col"
               class="py-2 text-right font-semibold">Gäste</th
             ></tr

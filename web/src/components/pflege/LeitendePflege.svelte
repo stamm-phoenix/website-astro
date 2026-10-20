@@ -13,6 +13,7 @@
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import { confirmAction } from '../../lib/confirm';
 
   interface Form {
@@ -287,8 +288,8 @@
     onsubmit={(event) => event.preventDefault()}
   >
     <label class="block text-sm">
-      <span class="form-label">Suche</span>
-      <input type="search" class="form-input" placeholder="Name …" bind:value={search} />
+      <span class="form-label">Nach Name suchen</span>
+      <input type="search" class="form-input" bind:value={search} />
     </label>
     <div class="flex gap-2">
       <ReloadButton resource={leitendePflege} />
@@ -411,9 +412,7 @@
               >
             {/if}
           </div>
-          <p class="text-xs text-neutral-700">
-            Wird quadratisch zugeschnitten und direkt gespeichert.
-          </p>
+          <p class="text-xs text-neutral-700">Wird sofort gespeichert.</p>
         </div>
       </section>
     {/if}
@@ -431,8 +430,13 @@
     </FormField>
 
     <fieldset>
-      <legend class="form-label">Teams</legend>
-      <div class="mt-1 flex flex-wrap gap-x-4 gap-y-2">
+      <legend class="form-label float-left">Teams</legend>
+      <InfoHint
+        label="Teams"
+        text="Stufen-Teams erscheinen bei den Gruppenstunden auf der Website, „Vorstand“ auf der Vorstandsseite."
+        class="ml-1"
+      />
+      <div class="mt-1 flex flex-wrap gap-x-4 gap-y-2 clear-left">
         {#each teams as team (team)}
           <label class="inline-flex items-center gap-2 text-sm">
             <input
@@ -444,24 +448,19 @@
           </label>
         {/each}
       </div>
-      <p class="mt-1 text-xs text-neutral-700">
-        Stufen-Teams erscheinen bei den Gruppenstunden, „Vorstand“ auf der Vorstandsseite.
-      </p>
     </fieldset>
 
     {#if !isVorstand && hadContactDetails}
       <p role="note" class="border-l-2 border-warning py-1 pl-3 text-sm text-warning">
-        Telefon und Adresse werden beim Speichern entfernt, weil sie nur für den Vorstand genutzt
-        werden.
+        Telefon und Adresse werden beim Speichern entfernt (nur für den Vorstand).
       </p>
     {/if}
 
     {#if isVorstand}
       <fieldset class="space-y-4 border-t border-neutral-200 pt-4 *:clear-left">
-        <legend class="form-label float-left mb-1 w-full">Kontakt (Vorstand)</legend>
-        <p class="text-xs text-neutral-700">
-          Wird auf der Vorstandsseite und im Impressum öffentlich angezeigt.
-        </p>
+        <legend class="form-label float-left mb-1 w-full"
+          >Kontakt (Vorstand, öffentlich auf der Website)</legend
+        >
 
         <FormField id="ld-phone" label="Telefon" optional error={errors.phone}>
           {#snippet children(attrs)}

@@ -336,15 +336,15 @@
         {/if}
       </fieldset>
 
-      <FormField
-        id="gs-age"
-        label="Alter"
-        hint="z. B. „7 - 9 Jahre“"
-        optional
-        error={errors.ageRange}
-      >
+      <FormField id="gs-age" label="Alter" optional error={errors.ageRange}>
         {#snippet children(attrs)}
-          <input {...attrs} class="form-input" maxlength="60" bind:value={form!.ageRange} />
+          <input
+            {...attrs}
+            class="form-input"
+            maxlength="60"
+            placeholder="7 – 9 Jahre"
+            bind:value={form!.ageRange}
+          />
         {/snippet}
       </FormField>
 

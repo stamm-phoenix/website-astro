@@ -27,6 +27,7 @@
   import { localDate } from '../lib/dateUtils';
   import { KJR_ABGABE_MONATE, kjrRestzeit, offeneKjrFristen } from '../lib/kjrFristen';
   import LoadState from './ui/LoadState.svelte';
+  import InfoHint from './ui/InfoHint.svelte';
 
   /** Entries per area; the link next to the heading leads to the full list. */
   const CARD_LIMIT = 3;
@@ -186,15 +187,6 @@
   </li>
 {/snippet}
 
-{#snippet favoritesHint()}
-  <span class="pointer-coarse:hidden"
-    >Zeig mit der Maus auf einen Bereich und klick auf den Stern, um ihn zum Favoriten zu machen;
-    das Minus an einer Kachel entfernt ihn wieder.</span
-  ><span class="hidden pointer-coarse:inline"
-    >Tippe lange auf einen Bereich, um ihn zum Favoriten zu machen oder wieder zu entfernen.</span
-  >
-{/snippet}
-
 {#snippet check()}
   <svg
     class="size-4 shrink-0 text-success"
@@ -310,9 +302,20 @@
 
 <div class="mt-6 space-y-6">
   <section aria-labelledby="favorites-heading">
-    <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
-      Deine Bereiche
-    </h2>
+    <div class="flex items-center gap-1">
+      <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
+        Deine Bereiche
+      </h2>
+      <InfoHint label="Deine Bereiche">
+        <p class="pointer-coarse:hidden">
+          Zeig mit der Maus auf einen Bereich und klick auf den Stern, um ihn zum Favoriten zu
+          machen; das Minus an einer Kachel entfernt ihn wieder.
+        </p>
+        <p class="hidden pointer-coarse:block">
+          Tippe lange auf einen Bereich, um ihn zum Favoriten zu machen oder wieder zu entfernen.
+        </p>
+      </InfoHint>
+    </div>
     <LoadState
       data={favoritesStore.loaded ? favoritesStore.modules : null}
       loading={favoritesLoading}
@@ -325,12 +328,7 @@
         <p aria-hidden="true" class="text-sm text-neutral-700">Favoriten werden geladen …</p>
       {/snippet}
       {#snippet empty()}
-        <p class="text-sm text-neutral-700">
-          Noch keine Favoriten.{recentModules.length > 0
-            ? ' Bis dahin stehen hier die zuletzt genutzten Bereiche.'
-            : ''}
-          {@render favoritesHint()}
-        </p>
+        <p class="text-sm text-neutral-700">Noch keine Favoriten.</p>
         {#if recentModules.length > 0}
           <ul class={tileGrid}>
             {#each recentModules as module (module.href)}{@render tile(module, false)}{/each}
@@ -341,10 +339,6 @@
         {#each favoriteModules as module (module.href)}{@render tile(module, true)}{/each}
         {#each recentModules as module (module.href)}{@render tile(module, false)}{/each}
       </ul>
-      <p class="mt-1.5 text-sm text-neutral-700">
-        {recentModules.length > 0 ? 'Deine Favoriten, danach die zuletzt genutzten Bereiche.' : ''}
-        {@render favoritesHint()}
-      </p>
     </LoadState>
   </section>
 

@@ -194,8 +194,7 @@
   >
     {#snippet empty()}
       <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
-        Dieser Ordner ist leer. Über „Hierher hochladen“ oder den Reiter „Hochladen“ kannst du
-        welche hinzufügen.
+        Dieser Ordner ist leer.
       </p>
     {/snippet}
     {#snippet children(content)}
@@ -253,9 +252,7 @@
               >
                 Fotos und Videos
               </h2>
-              <p class="text-sm text-neutral-700">
-                {selecting ? 'Wähle Fotos zum Herunterladen aus.' : summary}
-              </p>
+              <p class="text-sm text-neutral-700">{summary}</p>
             </div>
             {#if selecting}
               <ActionButton onclick={stopSelecting}>Fertig</ActionButton>

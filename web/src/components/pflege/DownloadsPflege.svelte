@@ -237,7 +237,7 @@
       </svg>
       <span class="font-semibold text-brand-900">Dateien hierher ziehen oder auswählen</span>
       <span class="text-xs text-neutral-700"
-        >Bis 250 MB pro Datei. Erscheint sofort auf der Downloads-Seite.</span
+        >Bis 250 MB pro Datei. Erscheint sofort auf der Website.</span
       >
       <input type="file" multiple class="sr-only" onchange={onfilechange} />
     </label>
@@ -379,13 +379,15 @@
   }}
 >
   {#if renaming}
-    <FormField
-      id="dl-name"
-      label="Dateiname"
-      hint="Mit Dateiendung, z. B. „Anmeldung-Sommerlager.pdf“"
-    >
+    <FormField id="dl-name" label="Dateiname">
       {#snippet children(attrs)}
-        <input {...attrs} class="form-input" maxlength="200" bind:value={renaming!.name} />
+        <input
+          {...attrs}
+          class="form-input"
+          maxlength="200"
+          placeholder="Anmeldung-Sommerlager.pdf"
+          bind:value={renaming!.name}
+        />
       {/snippet}
     </FormField>
   {/if}

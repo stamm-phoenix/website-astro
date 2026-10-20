@@ -57,6 +57,6 @@ test('history retries a name lookup and explains anonymized attendance', async (
     row.getByText('Die Namen konnten nicht geladen werden.', { exact: false })
   ).toBeVisible();
   await row.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
-  await expect(row.getByText(/Namen.*Aufbewahrungsfrist/)).toBeVisible();
+  await expect(row.getByText(/Ohne Namen/)).toBeVisible();
   expect(tries).toBe(2);
 });

@@ -8,7 +8,7 @@ test('a new blog post has an accurate heading and explains when images become av
   await expect(
     page.getByText('Bilder fügst du im Bereich „Bilder“', { exact: false })
   ).toBeHidden();
-  await expect(page.getByText(/Lege den Beitrag zuerst als Entwurf an/)).toBeVisible();
+  await expect(page.getByText('Bilder kannst du nach dem Anlegen hinzufügen.')).toBeVisible();
   await expect(page.getByRole('checkbox', { name: /Veröffentlicht/ })).toHaveCount(0);
 });
 
@@ -25,7 +25,7 @@ test('publishing and withdrawing are explicit actions and failed publishing pres
   const id = new URL(page.url()).searchParams.get('id')!;
   try {
     await expect(
-      page.getByText('Status: Entwurf – nur hier sichtbar.', { exact: true })
+      page.getByTestId('blog-status').getByText('Entwurf', { exact: true })
     ).toBeVisible();
     let releaseFailure: () => void = () => {};
     const failedResponse = new Promise<void>((resolve) => (releaseFailure = resolve));
@@ -60,7 +60,7 @@ test('publishing and withdrawing are explicit actions and failed publishing pres
       page.getByText('Der Beitrag wurde nicht gespeichert.', { exact: false }).first()
     ).toBeVisible();
     await expect(
-      page.getByText('Status: Entwurf – nur hier sichtbar.', { exact: true })
+      page.getByTestId('blog-status').getByText('Entwurf', { exact: true })
     ).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Text', exact: true })).toContainText(
       'Bericht der Gruppenstunde.'
@@ -73,7 +73,7 @@ test('publishing and withdrawing are explicit actions and failed publishing pres
       'Veröffentlichen'
     );
     await expect(
-      page.getByText('Status: Veröffentlicht – auf der Website sichtbar.', { exact: true })
+      page.getByTestId('blog-status').getByText('Veröffentlicht', { exact: true })
     ).toBeVisible();
     await expect(
       page.getByRole('link', { name: 'Auf der Website ansehen', exact: true })
@@ -85,11 +85,11 @@ test('publishing and withdrawing are explicit actions and failed publishing pres
       'Veröffentlichung zurücknehmen'
     );
     await expect(
-      page.getByText('Status: Entwurf – nur hier sichtbar.', { exact: true })
+      page.getByTestId('blog-status').getByText('Entwurf', { exact: true })
     ).toBeVisible();
     await page.reload();
     await expect(
-      page.getByText('Status: Entwurf – nur hier sichtbar.', { exact: true })
+      page.getByTestId('blog-status').getByText('Entwurf', { exact: true })
     ).toBeVisible();
   } finally {
     await page.request.delete(`/api/intern/pflege/blog/${id}`);

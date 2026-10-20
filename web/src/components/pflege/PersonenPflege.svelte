@@ -12,6 +12,7 @@
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
 
   /**
    * Weitere Personen (#301): Altleitende and others who take part regularly but are not in the
@@ -135,10 +136,6 @@
     {#snippet empty()}
       <div class="border-t border-neutral-200 pt-5">
         <h2 class="font-serif text-xl text-brand-900">Noch niemand eingetragen</h2>
-        <p class="mt-2 text-sm text-neutral-700">
-          Trage Altleitende und andere ein, die oft dabei sind, damit sie im Protokoll zur Auswahl
-          stehen.
-        </p>
       </div>
     {/snippet}
     {#each gruppen as { gruppe, personen } (gruppe)}
@@ -220,13 +217,7 @@
           </select>
         {/snippet}
       </FormField>
-      <FormField
-        id="person-login"
-        label="Login"
-        optional
-        hint="Nur wenn die Person ein Konto bei uns hat, z. B. vorname.nachname@stamm-phoenix.de."
-        error={errors.login}
-      >
+      <FormField id="person-login" label="Konto-Adresse" optional error={errors.login}>
         {#snippet children(attrs)}
           <input
             {...attrs}
@@ -234,23 +225,32 @@
             class="form-input"
             maxlength="254"
             autocomplete="off"
+            placeholder="vorname.nachname@stamm-phoenix.de"
             bind:value={form!.login}
           />
         {/snippet}
       </FormField>
-      <FormField
-        id="person-aktiv"
-        label="Auswahl"
-        hint="Inaktive Personen bleiben in alten Protokollen stehen, werden aber nicht mehr angeboten."
-        error={errors.aktiv}
-      >
-        {#snippet children(attrs)}
+      <div class="form-field">
+        <div class="flex items-center gap-2">
           <label class="flex items-center gap-2 text-sm font-semibold text-neutral-800">
-            <input {...attrs} type="checkbox" bind:checked={form!.aktiv} />
+            <input
+              id="person-aktiv"
+              type="checkbox"
+              aria-invalid={errors.aktiv ? 'true' : undefined}
+              aria-describedby={errors.aktiv ? 'person-aktiv-error' : undefined}
+              bind:checked={form!.aktiv}
+            />
             Im Protokoll zur Auswahl anbieten
           </label>
-        {/snippet}
-      </FormField>
+          <InfoHint
+            label="Im Protokoll zur Auswahl anbieten"
+            text="Inaktive Personen bleiben in alten Protokollen stehen, werden aber nicht mehr angeboten."
+          />
+        </div>
+        {#if errors.aktiv}
+          <p id="person-aktiv-error" class="mt-1 text-sm text-danger">{errors.aktiv}</p>
+        {/if}
+      </div>
     </fieldset>
   {/if}
 </EditDialog>
