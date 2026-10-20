@@ -89,6 +89,32 @@
     open = false;
   }
 
+  /** Whether a finger or mouse button is down; leaving the field by tapping waits for its release. */
+  let pressing = false;
+
+  /**
+   * Typed text is taken over when the field is left. When that happens by tapping a button, the
+   * taken-over text may add a line and move the button away before the finger is lifted, so the
+   * tap would miss it. Wait until the tap is over instead.
+   */
+  function leave(): void {
+    open = false;
+    if (!pressing) {
+      if (query.trim()) oncommit?.(query);
+      return;
+    }
+    const done = (): void => {
+      window.removeEventListener('pointerup', done, true);
+      window.removeEventListener('pointercancel', done, true);
+      // After the click of the same tap; a submit may have taken the text over already
+      setTimeout(() => {
+        if (query.trim() && document.activeElement !== input) oncommit?.(query);
+      });
+    };
+    window.addEventListener('pointerup', done, true);
+    window.addEventListener('pointercancel', done, true);
+  }
+
   function keydown(event: KeyboardEvent): void {
     if (event.key === 'Escape' && expanded) {
       event.preventDefault();
@@ -120,6 +146,12 @@
   }
 </script>
 
+<svelte:window
+  onpointerdowncapture={() => (pressing = true)}
+  onpointerupcapture={() => setTimeout(() => (pressing = false))}
+  onpointercancelcapture={() => setTimeout(() => (pressing = false))}
+/>
+
 <div class="relative">
   <input
     bind:this={input}
@@ -143,10 +175,7 @@
       open = true;
       active = -1;
     }}
-    onblur={() => {
-      if (query.trim()) oncommit?.(query);
-      open = false;
-    }}
+    onblur={leave}
     onkeydown={keydown}
   />
   <ul
