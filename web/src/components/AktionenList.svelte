@@ -432,7 +432,7 @@
 
         {#if hasDetails}
           <div
-            class="flex-shrink-0 w-6 h-6 rounded-sm bg-[var(--color-brand-50)] flex items-center justify-center transition-transform duration-200"
+            class="flex-shrink-0 w-6 h-6 rounded-sm bg-[var(--color-brand-50)] flex items-center justify-center disclosure-icon"
             class:rotate-180={isExpanded}
           >
             <svg

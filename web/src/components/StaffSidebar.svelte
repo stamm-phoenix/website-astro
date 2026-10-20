@@ -245,16 +245,21 @@
     data-flyout-icon="M4 4h16v16H4zM9 4v16M13 10l2 2-2 2"
     onclick={() => setCollapsed(!collapsed)}
   >
+    <!-- The panel stays put; only its arrow turns to point where the sidebar will go -->
     <svg
       aria-hidden="true"
-      class="size-4 shrink-0 transition-transform motion-reduce:transition-none"
-      class:rotate-180={collapsed}
+      class="size-4 shrink-0"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       stroke-width="1.8"
       stroke-linecap="round"
-      stroke-linejoin="round"><path d="M4 4h16v16H4zM9 4v16M16 10l-2 2 2 2" /></svg
+      stroke-linejoin="round"
+      ><path d="M4 4h16v16H4zM9 4v16" /><path
+        class="sidebar-arrow disclosure-icon"
+        class:rotate-180={collapsed}
+        d="M15.5 10l-2 2 2 2"
+      /></svg
     >
     <span
       class="staff-fold transition-opacity motion-reduce:transition-none {collapsed
@@ -324,6 +329,11 @@
 </nav>
 
 <style>
+  /* Turns around its own middle, between the divider and the right edge */
+  .sidebar-arrow {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
   .staff-home-link[aria-current] {
     background: var(--color-brand-50);
     box-shadow: inset 3px 0 0 var(--color-accent-500);

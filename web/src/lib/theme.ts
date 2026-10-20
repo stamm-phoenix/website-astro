@@ -23,10 +23,6 @@ export function initTheme(): void {
       button.hidden = false;
       button.setAttribute('aria-pressed', String(dark));
       button.title = 'Dunkles Theme';
-      button.querySelectorAll<SVGElement>('[data-theme-icon]').forEach((icon) => {
-        icon.style.display = icon.dataset.themeIcon === (dark ? 'light' : 'dark') ? '' : 'none';
-        icon.removeAttribute('hidden');
-      });
     });
     document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
       meta.removeAttribute('media');

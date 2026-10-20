@@ -153,7 +153,7 @@
                   >
                     <span class="min-w-0 [overflow-wrap:anywhere]">{item.question}</span>
                     <svg
-                      class="answer-toggle size-5 shrink-0 text-brand-800 transition-transform duration-200 motion-reduce:transition-none"
+                      class="answer-toggle disclosure-icon size-5 shrink-0 text-brand-800"
                       class:rotate-180={isExpanded}
                       fill="none"
                       stroke="currentColor"

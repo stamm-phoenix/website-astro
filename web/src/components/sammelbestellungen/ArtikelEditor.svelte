@@ -159,7 +159,7 @@
       >
         <span>Häufig bestellt</span>
         <svg
-          class="size-5 shrink-0 text-brand-800 transition-transform duration-200 motion-reduce:transition-none"
+          class="disclosure-icon size-5 shrink-0 text-brand-800"
           class:rotate-180={popularOpen}
           fill="none"
           stroke="currentColor"
