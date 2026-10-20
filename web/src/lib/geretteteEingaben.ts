@@ -198,15 +198,25 @@ export function rescuedDialog(now: number): string | null {
 }
 
 /**
- * The kept input of `dialog` on this page, removed from the tab once taken. `opening` must match
- * too, so the input of one task never lands in another task whose dialog has the same title.
+ * The kept input of `dialog` on this page. `opening` must match too, so the input of one task
+ * never lands in another task whose dialog has the same title. It stays kept until
+ * `forgetRescue()`, so input without a field to go into is not lost.
  */
-export function takeRescue(dialog: string, opening: string, now: number): GeretteterWert[] | null {
+export function findRescue(dialog: string, opening: string, now: number): GeretteterWert[] | null {
   const rettung = read(now);
   if (!rettung || rettung.dialog !== dialog || rettung.opening !== opening) return null;
   if (rettung.path !== `${location.pathname}${location.search}`) return null;
-  forgetRescue();
   return rettung.fields;
+}
+
+/** Kept values worth showing: not empty and not an unticked box. */
+export function shownValues(values: readonly GeretteterWert[]): GeretteterWert[] {
+  return values.filter((kept) => kept.value !== '' && kept.value !== 'false');
+}
+
+/** The field name of a kept value, without the counter of its key. */
+export function rescuedLabel(kept: GeretteterWert): string {
+  return kept.key.replace(/#(\d+|editor)$/, '');
 }
 
 export function forgetRescue(): void {
