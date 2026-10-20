@@ -13,12 +13,20 @@ wird die Warteschlange abgeglichen. **Jetzt abgleichen** startet das auch manuel
 Besuchszeiten kommen weiterhin vom Server und bezeichnen bei Offline-Markierungen
 den Zeitpunkt des Abgleichs, nicht einen vom Handy gemeldeten Besuchszeitpunkt.
 
-Die lokale Kopie kann einen erneuten Seitenaufruf überstehen, wenn das Seiten-HTML
-und JavaScript erreichbar sind und die Anmeldung bestätigt werden kann; bei einem
-Auth-Netzwerkfehler ist die Wiederherstellung nur im bereits angemeldeten Tab
-möglich. Die Anwendung installiert keinen Service Worker. Ein vollständiger
-Seitenneustart ohne Netz und Offline-Karten/Navigation werden nicht bereitgestellt:
-**Die Seite während der Fahrt geöffnet lassen.**
+Nach dem Speichern funktioniert auch ein vollständiges Neuladen ohne Netz im selben
+angemeldeten Tab. Ein eng begrenzter Service Worker hält nur die statische Fahrtseite
+und die von ihr geladenen Skripte, Stile und Schriften in `nikolaus-route-shell-v1`.
+Die Abhängigkeiten werden aus genau derselben frisch abgerufenen HTML-Antwort
+gesammelt, die gespeichert wird. Das funktioniert auch nach einem Deployment bei
+noch geöffneter alter Seite. Eine Ablaufprüfung wartet eine laufende Vorbereitung ab.
+API- und Anmeldeantworten werden niemals darin gespeichert. Der Aufruf versucht zuerst
+das Netz und fällt nur bei einem Verbindungsfehler auf diese Kopie zurück. Andere
+Seiten werden nicht offline bereitgestellt. Die Seitendateien laufen zur selben Zeit
+wie die Teamroute ab und werden bei Löschen, Abmelden oder abgelehnter Anmeldung entfernt.
+Ein gültiger Snapshot ergänzt seinen Tag in der Ansicht, falls dieser nach dem letzten
+Build hinzugefügt wurde; die Eigentümer- und Ablaufprüfung bleibt dafür zwingend.
+Ohne vorhandene Anmeldung im selben Tab werden keine Familien aus dem lokalen Speicher
+angezeigt. Offline-Karten/Navigation werden nicht bereitgestellt.
 
 ## Konflikte und Wiederholungen
 

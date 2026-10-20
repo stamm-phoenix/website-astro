@@ -60,7 +60,7 @@
     const result: string[] = [];
     if (detail.submittedBy && detail.status !== 'entwurf') {
       result.push(
-        `Zum Review gegeben von ${detail.submittedBy} am ${formatDateTime(detail.submittedAt)}`
+        `Zur Prüfung gegeben von ${detail.submittedBy} am ${formatDateTime(detail.submittedAt)}`
       );
     }
     if (detail.approvedBy) {
@@ -216,7 +216,7 @@
 
 <section class="space-y-3 border-b border-neutral-200 pb-4" aria-labelledby="review-titel">
   <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-    <h2 id="review-titel" class="font-serif text-xl text-brand-900">Review und Versand</h2>
+    <h2 id="review-titel" class="font-serif text-xl text-brand-900">Prüfung und Versand</h2>
     <StatusLabel label={status.label} tone={status.tone} />
   </div>
 
@@ -367,7 +367,9 @@
   }}
 >
   {#if sending}
-    <p class="text-sm text-neutral-800">„{detail.title}“ geht als PDF an alle mit Häkchen.</p>
+    <p class="text-sm text-neutral-800">
+      „{detail.title}“ geht als PDF mit Link an alle mit Häkchen.
+    </p>
     {#if sending.retry}
       <p class="text-sm text-danger">
         Ein früherer Versand wurde nicht bestätigt. Schick es nur erneut, wenn die Mail nicht in den

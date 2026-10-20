@@ -169,7 +169,11 @@
   onreload={form.state.conflict ? reload : undefined}
   onsubmit={save}
   {onclose}
-  submitLabel={target?.state === 'vorschlag' ? 'Annehmen' : 'Speichern'}
+  submitLabel={target?.state === 'vorschlag'
+    ? 'Annehmen'
+    : target
+      ? 'Aufgabe speichern'
+      : 'Aufgabe anlegen'}
 >
   <div class="space-y-4">
     <FormField name="title" id="task-title" label="Titel" error={fields.title}

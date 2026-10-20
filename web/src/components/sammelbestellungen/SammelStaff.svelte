@@ -47,6 +47,7 @@
   const pricePool = createSammelPrices();
   const prices = $derived(pricePool.state.prices);
   const availability = $derived(pricePool.state.availability);
+  const priceErrors = $derived(Object.keys(pricePool.state.errors).length);
   const pricesLoading = $derived(pricePool.state.loading);
   let itemEditing = $state<{ order: SammelBestellung; index: number } | null>(null);
   const orders = $derived(view?.orders.filter((order) => order.submitted) ?? []);
@@ -259,6 +260,18 @@
             itemEditing = { order, index };
           }}
         />
+        {#if priceErrors}
+          <div class="mt-4 border-l-2 border-warning pl-3 text-sm" role="status">
+            <p>
+              Die Preisabfrage im Shop ist für {priceErrors}
+              {priceErrors === 1 ? 'Artikel' : 'Artikel'} fehlgeschlagen. Die Bestellungen sind gespeichert.
+              Prüfe die Preise im Shop oder lade sie noch einmal.
+            </p>
+            <ActionButton disabled={pricesLoading} onclick={() => view && loadPrices(view)}
+              >Preise erneut laden</ActionButton
+            >
+          </div>
+        {/if}
         <SammelCombinedList bind:exportShop {orders} {prices} {pricesLoading} {linePrice} />
       {/snippet}
     </LoadState>

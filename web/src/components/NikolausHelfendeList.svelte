@@ -118,6 +118,11 @@
 
   async function save(): Promise<void> {
     if (!form || busy || conflict) return;
+    if (!form.name.trim()) {
+      fieldErrors = { name: 'Bitte gib den Namen der Person an.' };
+      error = null;
+      return;
+    }
     busy = true;
     error = null;
     conflict = false;
@@ -349,6 +354,7 @@
   {busy}
   dirty={tagsDirty}
   {error}
+  submitLabel={form?.id ? 'Person speichern' : 'Person hinzufügen'}
   submitDisabled={conflict}
   onreload={conflict ? reloadCurrent : undefined}
   onsubmit={save}

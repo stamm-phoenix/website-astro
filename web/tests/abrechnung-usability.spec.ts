@@ -1,4 +1,9 @@
+import { resetAccountingInputs } from './abrechnung-helpers';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await resetAccountingInputs(page);
+});
 
 test('ended Aktionen with an open deadline come first under Jetzt abrechnen', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung');
@@ -78,31 +83,28 @@ test('a changed postal code can be cleared and retyped without restoring the ori
   await expect(plz).toHaveValue('80331');
 });
 
-test('fields and calculations follow another tab even while their previous value is focused', async ({
+test('material and postal code edits stay local until saved and reload on another tab', async ({
   page,
   context,
 }) => {
-  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
+  const url = '/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren';
+  await page.goto(url);
   const other = await context.newPage();
-  await other.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
-  await expect(other.getByLabel('Tage Jurte')).toHaveValue('10');
-  await page.getByLabel('Anzahl Jurte').fill('2');
-  await expect(other.getByLabel('Anzahl Jurte')).toHaveValue('2');
+  await other.goto(url);
+  const original = await other.getByLabel('Anzahl Jurte').inputValue();
+  await page.getByLabel('Anzahl Jurte').fill(original === '2' ? '3' : '2');
   await page.getByLabel('Tage Jurte').fill('4');
-  await expect(other.getByLabel('Tage Jurte')).toHaveValue('4');
-  await other.getByLabel('Tage Jurte').fill('5');
-  await expect(page.getByLabel('Tage Jurte')).toHaveValue('5');
-  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/250,00\s€/);
-  await page.getByLabel('Anzahl Jurte').fill('3');
-  await expect(other.getByLabel('Anzahl Jurte')).toHaveValue('3');
-  await other.getByLabel('Anzahl Jurte').fill('4');
-  await expect(page.getByLabel('Anzahl Jurte')).toHaveValue('4');
-  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/500,00\s€/);
+  await expect(other.getByLabel('Anzahl Jurte')).toHaveValue(original);
   await page.getByRole('tab', { name: /Teilnehmende/ }).click();
-  await other.getByRole('tab', { name: /Teilnehmende/ }).click();
   await page.getByLabel('PLZ Gast München').fill('83620');
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Auf allen deinen Geräten verfügbar'
+  );
+  await other.reload();
+  await expect(other.getByLabel('Anzahl Jurte')).toHaveValue(original === '2' ? '3' : '2');
+  await expect(other.getByLabel('Tage Jurte')).toHaveValue('4');
+  await other.getByRole('tab', { name: /Teilnehmende/ }).click();
   await expect(other.getByLabel('PLZ Gast München')).toHaveValue('83620');
-  await other.getByLabel('PLZ Gast München').fill('83043');
-  await expect(page.getByLabel('PLZ Gast München')).toHaveValue('83043');
   await other.close();
 });

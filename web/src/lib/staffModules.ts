@@ -267,7 +267,7 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
     href: '/leitendenbereich/nikolaus-fahrt',
     title: 'Route',
     description: 'Unterwegs: die Route des eigenen Teams abfahren und Besuche abhaken.',
-    heading: 'Nikolaus-Route',
+    heading: 'Route',
     intro: 'Jeder abgehakte Besuch ist sofort in der Dispo zu sehen.',
     parent: '/leitendenbereich/nikolaus',
     keywords: ['nikolaus', 'unterwegs', 'besuche', 'navigation'],

@@ -159,8 +159,9 @@
 <div class="space-y-6">
   <div class="max-w-3xl space-y-3">
     <p class="text-sm text-neutral-700">
-      Schlägt aus der Mitgliederliste in CampFlow die Stufe der Kinder (Familien) und der Leitenden
-      (Helfende) als Merkmal vor, damit niemand zur eigenen Stufe fährt.
+      Vergleicht die Anmeldungen mit der Mitgliederliste in CampFlow und die Helfenden mit den
+      Leitenden und schlägt die Stufe als Merkmal vor, damit niemand zu Kindern der eigenen Stufe
+      fährt.
       <InfoHint
         label="Stufen-Abgleich"
         text="Familien bekommen die Stufe ihrer Kinder als Merkmal, Leitende ihre Stufe als „Nicht zu Familien mit“. Abgelehnte Vorschläge werden nicht erneut angezeigt."

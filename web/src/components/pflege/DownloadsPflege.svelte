@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { renamedDownloadFileName } from '../../../../api/lib/download-file-name';
   import { formatDay } from '../../lib/format';
   import MessageText from '../ui/MessageText.svelte';
   import ReloadButton from './ReloadButton.svelte';
@@ -139,7 +140,7 @@
 
   async function saveRename(): Promise<void> {
     if (!renaming) return;
-    const name = renaming.name.trim();
+    const name = renamedDownloadFileName(renaming.name, renaming.file.fileName);
     if (name === renaming.file.fileName) {
       renaming = null;
       return;
@@ -379,7 +380,11 @@
   }}
 >
   {#if renaming}
-    <FormField id="dl-name" label="Dateiname">
+    <FormField
+      id="dl-name"
+      label="Dateiname"
+      info="Ohne Endung wird die bisherige Dateiendung ergänzt."
+    >
       {#snippet children(attrs)}
         <input
           {...attrs}

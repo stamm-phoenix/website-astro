@@ -2,7 +2,8 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import StatusNotice from './StatusNotice.svelte';
   import { blogPflege } from '../../lib/pflegeStore.svelte';
   import { formatBlogDate, getBlogPostUrl, getStaffBlogImageUrl } from '../../lib/blog';
 
@@ -10,6 +11,15 @@
   const store = blogPflege.state;
 
   let search = $state('');
+  let deleted = $state(false);
+  onMount(() => {
+    const url = new URL(location.href);
+    deleted = url.searchParams.get('geloescht') === '1';
+    if (deleted) {
+      url.searchParams.delete('geloescht');
+      history.replaceState(history.state, '', url);
+    }
+  });
 
   const visible = $derived.by(() => {
     const query = search.trim().toLowerCase();
@@ -22,6 +32,7 @@
 </script>
 
 <div class="space-y-6">
+  <StatusNotice message={deleted ? 'Beitrag gelöscht.' : null} popup />
   <form
     class="grid gap-4 border-b border-neutral-200 pb-5 sm:grid-cols-[1fr_auto] sm:items-end"
     role="search"
@@ -60,7 +71,9 @@
     {/snippet}
     <ul class="divide-y divide-neutral-200 border-b border-neutral-200">
       {#each visible as post (post.id)}
-        <li class="flex flex-wrap items-center gap-4 py-4 sm:flex-nowrap">
+        <li
+          class="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 py-4 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
+        >
           {#if post.cover}
             <img
               src={getStaffBlogImageUrl(post.id, post.cover)}
@@ -80,7 +93,7 @@
           <div class="min-w-0 flex-1">
             <a
               href="{EDITOR_URL}?id={post.id}"
-              class="block truncate font-semibold text-brand-900 hover:underline"
+              class="block min-h-11 content-center break-words font-semibold text-brand-900 hover:underline"
             >
               {post.title || 'Ohne Titel'}
             </a>
@@ -91,12 +104,12 @@
                 dot
               />
               <span aria-hidden="true">·</span>
-              <span>{formatBlogDate(post.date)}</span>
+              <span class="whitespace-nowrap">{formatBlogDate(post.date)}</span>
               <span aria-hidden="true">·</span>
               <span>{post.imageCount} {post.imageCount === 1 ? 'Bild' : 'Bilder'}</span>
             </p>
           </div>
-          <div class="flex gap-2">
+          <div class="col-span-2 flex flex-wrap gap-2 sm:col-span-1">
             {#if post.published}
               <a href={getBlogPostUrl(post.id)} class="btn-secondary">
                 Ansehen<span class="sr-only">: {post.title}</span>

@@ -232,9 +232,9 @@
     maxScroll = document.documentElement.scrollHeight - window.innerHeight;
     topInset = Math.max(
       0,
-      ...[...document.querySelectorAll<HTMLElement>('body > header, [data-sticky-top]')].map(
-        (element) => element.getBoundingClientRect().bottom
-      )
+      ...[...document.querySelectorAll<HTMLElement>('body > header, [data-sticky-top]')]
+        .filter((bar) => ['sticky', 'fixed'].includes(getComputedStyle(bar).position))
+        .map((element) => element.getBoundingClientRect().bottom)
     );
     // Bars fixed to the bottom (the bar of the Leitendenbereich on phones) cover the lower edge
     bottomInset = Math.max(

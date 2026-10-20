@@ -65,6 +65,7 @@ export interface Database {
   'organisation.staff_favorites': StaffFavoritesTable;
   'organisation.staff_recent': StaffRecentTable;
   'organisation.staff_settings': StaffSettingsTable;
+  'organisation.abrechnung_eingabe': AbrechnungEingabeTable;
   'sammel.campaign': SammelCampaignTable;
   'sammel.catalog_item': SammelCatalogItemTable;
   'sammel.catalog_variant': SammelCatalogVariantTable;
@@ -710,4 +711,14 @@ export interface SammelPaymentEventTable {
   action: SammelPaymentEvent['action'];
   operation_key: string | null;
   evidence: string;
+}
+
+export interface AbrechnungEingabeTable {
+  user_id: string;
+  event_id: string;
+  login: string;
+  session: string;
+  delete_after: Date;
+  updated_at: Generated<Date>;
+  version: ReadOnly<Buffer>;
 }

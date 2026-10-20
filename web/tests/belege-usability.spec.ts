@@ -99,10 +99,30 @@ test('photo warnings and automatic reading share one verdict and adjustments are
     mimeType: 'image/png',
     buffer: Buffer.from(photo, 'base64'),
   });
+  await expect(
+    dialog.getByText(/Das Foto ist zu klein und kann nicht eingereicht werden/)
+  ).toBeVisible();
+  await expect(dialog.getByLabel('Geschäft', { exact: true })).toHaveValue('');
+  // The real API rejects the small image. Only a sufficiently large replacement is read.
+  const largePhoto = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 900;
+    canvas.height = 1200;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, 900, 1200);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await dialog.locator('input[type=file]').setInputFiles({
+    name: 'beleg.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(largePhoto, 'base64'),
+  });
   await expect(dialog.getByLabel('Geschäft', { exact: true })).toHaveValue('Testmarkt');
   const verdict = dialog.getByRole('note').filter({ hasText: 'Foto prüfen' });
   await expect(verdict).toHaveCount(1);
-  await expect(verdict).toContainText('sehr klein');
+  await expect(verdict).toContainText('unscharf');
+  await expect(verdict).toContainText('Angaben lesen');
   await expect(dialog.getByText(/vollständig und gut lesbar/)).toHaveCount(0);
   const options = dialog.getByRole('radio', {
     name: 'Graustufen',

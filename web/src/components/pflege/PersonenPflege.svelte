@@ -194,7 +194,7 @@
   onsubmit={save}
   onclose={close}
   ondelete={form?.id ? remove : undefined}
-  deleteTitle={`${form?.name.trim() ?? ''} löschen?`}
+  deleteTitle={`„${form?.name.trim() ?? ''}“ löschen?`}
   deleteQuestion="Die Person aus der Liste löschen? In alten Protokollen bleibt der Name stehen."
 >
   {#if form}
@@ -219,7 +219,13 @@
           </select>
         {/snippet}
       </FormField>
-      <FormField id="person-login" label="Konto-Adresse" optional error={errors.login}>
+      <FormField
+        id="person-login"
+        label="Konto-Adresse"
+        optional
+        info="Nur wenn die Person ein Konto bei uns hat."
+        error={errors.login}
+      >
         {#snippet children(attrs)}
           <input
             {...attrs}

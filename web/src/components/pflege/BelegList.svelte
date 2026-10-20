@@ -13,7 +13,7 @@
 
 <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
   {#each items as beleg (beleg.id)}
-    <li>
+    <li class="min-w-0">
       <button
         type="button"
         class="card flex w-full items-start gap-3 text-left hover:border-[var(--color-brand-300)]"
@@ -31,8 +31,8 @@
           />
         {/if}
         <span class="min-w-0 flex-1">
-          <span class="flex items-start justify-between gap-2">
-            <span class="truncate font-semibold text-brand-900">{beleg.shop}</span>
+          <span class="flex flex-wrap items-start justify-between gap-x-2">
+            <span class="min-w-0 break-words font-semibold text-brand-900">{beleg.shop}</span>
             <span class="shrink-0 font-semibold text-brand-900">{formatEuro(beleg.amountCent)}</span
             >
           </span>

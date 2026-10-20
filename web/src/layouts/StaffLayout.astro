@@ -69,7 +69,7 @@ const title =
   skipTarget="staff-content"
 >
   <Fragment slot="head">
-    <!-- Installable from the home screen; no service worker, see docs/leitendenbereich-app.md -->
+    <!-- Installable from the home screen; route-only offline opt-in, see docs/leitendenbereich-app.md -->
     <link rel="manifest" href="/leitendenbereich.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="Leitende" />
@@ -202,5 +202,11 @@ const title =
     body:has(.staff-printable) > footer {
       display: none;
     }
+  }
+</style>
+
+<style>
+  :global(html:has(#staff-content)) {
+    scroll-padding-top: 6rem;
   }
 </style>

@@ -81,12 +81,20 @@
   // A card is collapsed into the line „Nichts offen“ only once its data has loaded and is empty,
   // so an empty area is never mistaken for one that failed to load.
   const eventsEmpty = $derived(
-    !eventsLoading && !campflowEventsStore.error && upcoming.length === 0
+    campflowEventsStore.data !== null &&
+      !eventsLoading &&
+      !campflowEventsStore.error &&
+      upcoming.length === 0
   );
   const fristenEmpty = $derived(
-    !eventsLoading && !campflowEventsStore.error && fristen.length === 0
+    campflowEventsStore.data !== null &&
+      !eventsLoading &&
+      !campflowEventsStore.error &&
+      fristen.length === 0
   );
-  const tasksEmpty = $derived(!tasksLoading && !tasksError && openTasks.length === 0);
+  const tasksEmpty = $derived(
+    tasks !== null && !tasksLoading && !tasksError && openTasks.length === 0
+  );
   const cardCount = $derived(
     [eventsEmpty, tasksEmpty, fristenEmpty].filter((empty) => !empty).length
   );
@@ -168,7 +176,7 @@
       <!-- With a mouse on hover; on a touch screen a long press on the tile removes it -->
       <button
         type="button"
-        class="absolute -top-2 -right-2 flex size-7 items-center justify-center rounded-full border border-neutral-300 bg-surface text-brand-900 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:border-brand-900 focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:not-focus-visible:sr-only pointer-coarse:focus-visible:size-11"
+        class="absolute -top-2 -right-2 flex size-11 items-center justify-center rounded-full border border-neutral-300 bg-surface text-brand-900 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:border-brand-900 focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
         aria-label="{module.title} aus deinen Favoriten entfernen"
         title="Aus deinen Favoriten entfernen"
         onclick={() => toggleFavorite(module.href, module.title)}
@@ -301,7 +309,10 @@
 {/snippet}
 
 <div class="mt-6 space-y-6">
-  <section aria-labelledby="favorites-heading">
+  <section
+    aria-labelledby="favorites-heading"
+    class="min-h-[18rem] sm:min-h-[16rem] xl:min-h-[11rem]"
+  >
     <div class="flex items-center gap-1">
       <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
         Deine Bereiche
@@ -312,7 +323,8 @@
           machen; das Minus an einer Kachel entfernt ihn wieder.
         </p>
         <p class="hidden pointer-coarse:block">
-          Tippe lange auf einen Bereich, um ihn zum Favoriten zu machen oder wieder zu entfernen.
+          Tippe auf den Stern neben einem Bereich, um ihn zum Favoriten zu machen. Das Minus an
+          einer Kachel entfernt ihn wieder. Langes Tippen geht auch.
         </p>
       </InfoHint>
     </div>
@@ -325,7 +337,11 @@
       isEmpty={(selection) => selection.length === 0}
     >
       {#snippet skeleton()}
-        <p aria-hidden="true" class="text-sm text-neutral-700">Favoriten werden geladen …</p>
+        <ul class={tileGrid} aria-hidden="true">
+          {#each Array.from({ length: TILE_LIMIT }, (_, index) => index) as i (i)}<li
+              class="skeleton-element min-h-20"
+            ></li>{/each}
+        </ul>
       {/snippet}
       {#snippet empty()}
         <p class="text-sm text-neutral-700">Noch keine Favoriten.</p>

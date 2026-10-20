@@ -34,7 +34,7 @@
   };
   const STATUS_LABEL: Record<ProtokollStatus, string> = {
     Entwurf: 'Entwurf',
-    Review: 'Im Review',
+    Review: 'In Prüfung',
     Freigegeben: 'Freigegeben',
     Verschickt: 'Verschickt',
     Archiv: 'Archiv',
@@ -140,14 +140,14 @@
   }
 
   const ACTION_DONE: Record<Action, string> = {
-    review: 'zum Review gegeben',
+    review: 'zur Prüfung gegeben',
     approve: 'freigegeben',
     reject: 'zurückgegeben',
     reopen: 'wieder zur Bearbeitung geöffnet',
   };
 
   const ACTION_BUTTON: Record<Action, string> = {
-    review: 'Zum Review geben',
+    review: 'Zur Prüfung geben',
     approve: 'Freigeben',
     reject: 'Zurückgeben',
     reopen: 'Wieder bearbeiten',
@@ -359,7 +359,7 @@
       {:else}
         <div class="flex flex-wrap items-center justify-between gap-3">
           <ActionButton variant="primary" type="button" onclick={startCreate}>
-            Neues Protokoll
+            Word-Datei anlegen
           </ActionButton>
           <ReloadButton resource={protokollePflege} />
         </div>
@@ -428,7 +428,8 @@
                 {/if}
                 {#if protokoll.changedSinceApproval && protokoll.status === 'Freigegeben'}
                   <p class="border-l-2 border-warning py-1 pl-4 text-sm text-warning">
-                    Nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zum Review geben.
+                    Nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zur Prüfung
+                    geben.
                   </p>
                 {/if}
                 {#if showsTermin(protokoll)}
@@ -509,7 +510,7 @@
                       aria-busy={busy}
                       onclick={() => changeState(protokoll, 'review')}
                     >
-                      Zum Review geben
+                      Zur Prüfung geben
                     </ActionButton>
                     <ActionButton
                       variant="secondary"

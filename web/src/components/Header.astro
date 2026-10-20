@@ -51,7 +51,7 @@ const isCurrent = (href: string) =>
     </a>
 
     <!-- Desktop nav -->
-    <nav class="hidden 2xl:block relative z-10" aria-label="Hauptnavigation">
+    <nav class="hidden xl:block relative z-10" aria-label="Hauptnavigation">
       <ul class="flex items-center gap-1 md:gap-2">
         {primaryNav.map((item) => (
           <li>
@@ -90,7 +90,7 @@ const isCurrent = (href: string) =>
     <div class="ml-auto flex items-center gap-2 md:gap-4">
       <a
         href={staffLink.href}
-        class="nav-link hidden 2xl:inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-link aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-accent-500)]"
+        class="nav-link hidden xl:inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-link aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-accent-500)]"
         aria-current={isCurrent(staffLink.href) ? 'page' : undefined}
       >
         <svg
@@ -108,13 +108,13 @@ const isCurrent = (href: string) =>
         </svg>
         {staffLink.label}
       </a>
-      <div class="hidden 2xl:block">
+      <div class="hidden xl:block">
         <Button href="/mitmachen" variant="cta">
           {' '}
           Mitmachen{' '}
         </Button>
       </div>
-      <BrandMark kind="dpsg" class="hidden h-9 sm:inline-flex md:h-10" />
+      <BrandMark kind="dpsg" class="hidden h-9 sm:inline-flex md:h-10 xl:hidden 2xl:inline-flex" />
       <ThemeToggle />
       <!-- Mobile and tablet: menu button (Svelte island), its panel opens on the right -->
       <MobileMenu

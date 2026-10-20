@@ -202,6 +202,17 @@ export function rescueDialog(
     }
   }
   fields.push(...waiting.values());
+  return rescueValues(record, dialog, opening, fields, dependencies);
+}
+
+/** Keeps a complete page draft using the same tab, expiry and deletion rules as dialogs. */
+export function rescueValues(
+  record: string,
+  dialog: string,
+  opening: string,
+  fields: GeretteterWert[],
+  dependencies: readonly RescueDependency[] = []
+): boolean {
   const rettung: Rettung = {
     savedAt: Date.now(),
     path: `${location.pathname}${location.search}`,

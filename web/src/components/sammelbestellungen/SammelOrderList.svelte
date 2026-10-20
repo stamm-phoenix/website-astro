@@ -120,7 +120,7 @@
             ])
           ),
         ])}
-      disabled={!orders.length}>Einzelbestellungen als CSV</ActionButton
+      disabled={!orders.length}>Einzelbestellungen herunterladen (CSV)</ActionButton
     >
   </div>
   <label for="order-search" class="form-label mt-4">Nach Name oder E-Mail suchen</label><input
@@ -198,7 +198,7 @@
                 </p>{/if}
               <button
                 type="button"
-                class="mt-1 text-sm font-semibold text-brand-800 underline"
+                class="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-brand-800 underline"
                 disabled={busy || order.status === 'Storniert' || order.payment?.locked}
                 onclick={() => {
                   onitem(order, index);

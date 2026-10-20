@@ -8,8 +8,9 @@
     errors: Record<string, string>;
     aktionSuggestions: string[];
     onpayment: () => void;
+    onfield: (field: string) => void;
   }
-  let { form = $bindable(), errors, aktionSuggestions, onpayment }: Props = $props();
+  let { form = $bindable(), errors, aktionSuggestions, onpayment, onfield }: Props = $props();
   const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   const unknownAktion = $derived(
     !!form.aktion.trim() && !knownBelegAktion(form.aktion, aktionSuggestions)
@@ -28,12 +29,25 @@
 <div class="grid gap-4 sm:grid-cols-2">
   <FormField id="bl-shop" label="Geschäft" error={errors.shop}>
     {#snippet children(attrs)}
-      <input {...attrs} class="form-input" maxlength="100" bind:value={form!.shop} />
+      <input
+        {...attrs}
+        class="form-input"
+        maxlength="100"
+        bind:value={form!.shop}
+        oninput={() => onfield('shop')}
+      />
     {/snippet}
   </FormField>
   <FormField id="bl-date" label="Datum des Belegs" error={errors.date}>
     {#snippet children(attrs)}
-      <input {...attrs} type="date" class="form-input" max={todayIso()} bind:value={form!.date} />
+      <input
+        {...attrs}
+        type="date"
+        class="form-input"
+        max={todayIso()}
+        bind:value={form!.date}
+        oninput={() => onfield('date')}
+      />
     {/snippet}
   </FormField>
   <FormField id="bl-amount" label="Betrag in €" error={errors.amountCent}>
@@ -46,12 +60,19 @@
         maxlength="12"
         autocomplete="off"
         bind:value={form!.amount}
+        oninput={() => onfield('amountCent')}
       />
     {/snippet}
   </FormField>
   <FormField id="bl-paid-by" label="Bezahlt von" error={errors.paidBy}>
     {#snippet children(attrs)}
-      <input {...attrs} class="form-input" maxlength="100" bind:value={form!.paidBy} />
+      <input
+        {...attrs}
+        class="form-input"
+        maxlength="100"
+        bind:value={form!.paidBy}
+        oninput={() => onfield('paidBy')}
+      />
     {/snippet}
   </FormField>
   <FormField id="bl-aktion" label="Aktion" error={errors.aktion} class="sm:col-span-2">
@@ -64,6 +85,7 @@
         autocomplete="off"
         placeholder="z. B. Sommerlager oder Gruppenstunde Wölflinge"
         bind:value={form!.aktion}
+        oninput={() => onfield('aktion')}
       />
       <datalist id="bl-aktion-suggestions">
         {#each aktionSuggestions as title (title)}
@@ -120,7 +142,12 @@
 
 <FormField id="bl-note" label="Bemerkung" optional error={errors.note}>
   {#snippet children(attrs)}
-    <textarea {...attrs} class="form-input" rows="2" maxlength="1000" bind:value={form!.note}
-    ></textarea>
+    <textarea
+      {...attrs}
+      class="form-input"
+      rows="2"
+      maxlength="1000"
+      bind:value={form!.note}
+      oninput={() => onfield('note')}></textarea>
   {/snippet}
 </FormField>

@@ -73,7 +73,7 @@
     </div>
     <div class="flex flex-wrap items-end gap-3">
       <div>
-        <label for="export-shop" class="form-label">CSV für</label>
+        <label for="export-shop" class="form-label">Tabelle für</label>
         <select id="export-shop" class="form-input" bind:value={exportShop}>
           <option value="all">Alle Anbieter</option>
           {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}
@@ -85,12 +85,22 @@
         variant="secondary"
         type="button"
         disabled={!exportItems.length || pricesLoading}
-        onclick={downloadReceipt}>Bestellliste als CSV</ActionButton
+        onclick={downloadReceipt}>Bestellliste herunterladen (CSV)</ActionButton
       >
     </div>
   </div>
   <div class="mt-4">
-    <div class="overflow-x-auto">
+    <p id="combined-scroll-hint" class="mb-2 text-sm text-neutral-700 lg:hidden">
+      Wische in der Tabelle seitlich, um Variante, Anzahl und Preise zu sehen.
+    </p>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex (keyboard scrolling of the wide table) -->
+    <div
+      class="overflow-x-auto"
+      role="region"
+      aria-label="Bestellliste nach Anbieter"
+      aria-describedby="combined-scroll-hint"
+      tabindex="0"
+    >
       <table class="min-w-[760px] w-full text-left text-sm">
         <caption class="sr-only">Zusammengefasste Artikel nach Anbieter</caption><thead
           class="border-b-2 border-neutral-300 text-neutral-700"
@@ -134,7 +144,7 @@
   </div>
   <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">
     {#if pricesLoading}Shop-Preise werden geladen …
-    {:else if receipt.missingPositions}{receipt.missingPositions} Position(en) ohne Preis.
+    {:else if receipt.missingPositions}{receipt.missingPositions} Artikel ohne Preis, Summe noch unvollständig.
     {/if}
   </p>
 </section>

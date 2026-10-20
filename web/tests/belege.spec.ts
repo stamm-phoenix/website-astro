@@ -9,13 +9,13 @@ test('closing the Beleg dialog asks before a chosen photo is discarded', async (
   // A light receipt on a dark background, so the scan finds its edges.
   const photo = await page.evaluate(async () => {
     const canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 600;
+    canvas.width = 800;
+    canvas.height = 1200;
     const context = canvas.getContext('2d')!;
     context.fillStyle = '#333';
-    context.fillRect(0, 0, 400, 600);
+    context.fillRect(0, 0, 800, 1200);
     context.fillStyle = '#fff';
-    context.fillRect(60, 60, 280, 480);
+    context.fillRect(120, 120, 560, 960);
     const blob = await new Promise<Blob>((resolve) =>
       canvas.toBlob((b) => resolve(b!), 'image/png')
     );

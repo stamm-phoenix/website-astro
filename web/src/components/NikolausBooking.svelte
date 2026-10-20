@@ -45,6 +45,9 @@
   let duplicateEmail = $state<string | null>(null);
 
   const slots = $derived(nikolausStore.data ?? []);
+  const fullyBooked = $derived(
+    nikolausStore.data !== null && !slots.some((slot) => slot.available > 0)
+  );
   const chosenSlot = $derived(slots.find((s) => s.key === selectedSlot) ?? null);
 
   const holdText = $derived(
@@ -108,7 +111,7 @@
 
   async function handleSubmit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (submitting) return;
+    if (submitting || fullyBooked) return;
 
     submitError = null;
     const validation = validateDetailsForm(details);
@@ -237,6 +240,18 @@
     </p>
   </article>
 {:else}
+  {#if fullyBooked}
+    <div role="status" class="surface border-l-4! border-l-warning! p-5">
+      <h3 class="text-lg font-semibold text-brand-900">Alle Termine sind derzeit ausgebucht</h3>
+      <p class="mt-2 text-sm text-neutral-700">
+        Bitte schauen Sie später noch einmal vorbei. Wird ein Termin frei, können Sie ihn hier
+        buchen. Bei Fragen schreiben Sie an <a
+          class="text-link underline"
+          href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a
+        >.
+      </p>
+    </div>
+  {/if}
   <form class="space-y-8" novalidate onsubmit={handleSubmit}>
     <!-- Step 1: slot selection -->
     <fieldset class="surface p-5 md:p-6" aria-describedby="nikolaus-slot-hint">
@@ -262,7 +277,7 @@
     </fieldset>
 
     <!-- Step 2: contact data -->
-    <fieldset class="surface p-5 md:p-6">
+    <fieldset class="surface p-5 md:p-6" disabled={fullyBooked}>
       <legend class="sr-only">Ihre Angaben</legend>
       <h3 class="font-serif text-xl font-semibold text-brand-900">2. Ihre Angaben</h3>
       <p class="mt-1 text-sm text-neutral-700">
@@ -303,7 +318,7 @@
         variant="primary"
         type="submit"
         class="px-6 disabled:cursor-wait"
-        disabled={submitting}
+        disabled={submitting || fullyBooked || !chosenSlot || chosenSlot.available === 0}
         aria-busy={submitting}
       >
         {submitting ? 'Wird gesendet …' : 'Termin verbindlich anfragen'}

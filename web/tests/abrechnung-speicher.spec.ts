@@ -1,218 +1,120 @@
-import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
+import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
+import { emptySession } from '../../api/lib/abrechnung-session';
 
-test('the entries of an Aktion are kept on the device until they are reset', async ({ page }) => {
-  const dialogs: string[] = [];
-  page.on('dialog', (dialog) => {
-    dialogs.push(dialog.message());
-    void dialog.dismiss();
-  });
-  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
-  const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
-  const ablage = page.getByTestId('eingaben-ablage');
-  const reset = page.getByRole('button', { name: 'Eingaben zurücksetzen' });
-  await expect(zusatztag).toBeVisible();
-  await expect(ablage).toContainText('Deine Eingaben werden auf diesem Gerät gespeichert.');
-  await expect(reset).toHaveCount(0);
-
-  await zusatztag.check();
-  // The fixtures fix the clock at 2026-10-01 12:00 UTC
-  await expect(ablage).toContainText(
-    'Deine Eingaben sind auf diesem Gerät gespeichert, zuletzt am 01.10.2026, 14:00 Uhr.'
-  );
-  // The KJR deadline of the Sommerlager is 11.11.2026; the entries are kept one month longer
-  await page.getByRole('button', { name: 'Erklärung zu Deine Eingaben' }).click();
-  await expect(ablage).toContainText('Nach dem 11.12.2026 werden sie gelöscht');
-  await page.keyboard.press('Escape');
-
-  // Leaving does not ask, and the entry is back on the next visit
-  await page
-    .getByRole('navigation', { name: 'Zurück' })
-    .getByRole('link', { name: 'Abrechnung', exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
-  await page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ }).click();
-  await expect(zusatztag).toBeChecked();
-  await expect(ablage).toContainText('zuletzt am');
-
-  // … also after a reload
-  await page.reload();
-  await expect(zusatztag).toBeChecked();
-  expect(dialogs).toEqual([]);
-
-  // Resetting asks first, naming the Aktion
-  await reset.click();
-  await expect(page.getByRole('dialog', { name: 'Eingaben zurücksetzen?' })).toContainText(
-    'Alle Eingaben zur Abrechnung „Sommerlager 2026 Oberjoch“ auf diesem Gerät löschen?'
-  );
-  await answerConfirm(page, 'Eingaben zurücksetzen?', 'Abbrechen');
-  await expect(zusatztag).toBeChecked();
-  await reset.click();
-  await answerConfirm(page, 'Eingaben zurücksetzen?', 'Eingaben zurücksetzen');
-  await expect(zusatztag).not.toBeChecked();
-  await expect(page.getByText('Eingaben zurückgesetzt.')).toBeVisible();
-  await expect(reset).toHaveCount(0);
-  await expect(ablage).not.toContainText('zuletzt am');
-  await expectNoHorizontalOverflow(page);
-
-  await page.reload();
-  await expect(zusatztag).not.toBeChecked();
-  expect(dialogs).toEqual([]);
+const URL = '/leitendenbereich/abrechnung/evt_Sola26';
+const API = '/api/intern/abrechnung/evt_Sola26/eingaben';
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.title.startsWith('old local entries')) return;
+  const current = await (await page.request.get(API)).json();
+  expect(
+    (await page.request.put(API, { data: { session: emptySession(), etag: current.etag } })).ok()
+  ).toBe(true);
 });
 
-test('without storage the entries last while the page is open and leaving asks', async ({
+test('explicit saving persists the account draft and resetting persists an empty version', async ({
   page,
 }) => {
-  await page.addInitScript(() => {
-    const blocked = (): never => {
-      throw new DOMException('Blocked', 'SecurityError');
-    };
-    Storage.prototype.getItem = blocked;
-    Storage.prototype.setItem = blocked;
-    Storage.prototype.removeItem = blocked;
-  });
-  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
-  const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
-  await zusatztag.check();
-  await expect(page.getByTestId('zuschuss-formel')).toContainText('× 11 Tage');
+  await page.goto(URL);
+  const toggle = page.getByRole('checkbox', { name: /Zusatztag/ });
+  const save = page.getByRole('button', { name: 'Eingaben speichern' });
+  await expect(toggle).not.toBeChecked();
+  await toggle.check();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText('Ungespeicherte Änderungen');
+  await save.click();
   await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'gehen beim Schließen der Seite verloren'
+    'Auf allen deinen Geräten verfügbar'
   );
-  await expect(page.getByRole('button', { name: 'Eingaben zurücksetzen' })).toHaveCount(0);
-
-  // Leaving warns first; staying keeps the entry
-  await page
-    .getByRole('navigation', { name: 'Zurück' })
-    .getByRole('link', { name: 'Abrechnung', exact: true })
-    .click();
-  await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
-  await expect(page).toHaveURL(/evt_Sola26/);
-  await expect(zusatztag).toBeChecked();
-});
-
-test('when the device is full, the older stored entries can still be reset', async ({ page }) => {
-  await page.addInitScript(() => {
-    const setItem = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (key: string, value: string): void {
-      if ((window as { storageFull?: boolean }).storageFull) {
-        throw new DOMException('Full', 'QuotaExceededError');
-      }
-      setItem.call(this, key, value);
-    };
-  });
-  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
-  const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
-  await zusatztag.check();
-  await expect(page.getByTestId('eingaben-ablage')).toContainText('zuletzt am');
-
-  // A later change does not fit any more; the older entry is still on the device
-  await page.evaluate(() => ((window as { storageFull?: boolean }).storageFull = true));
-  await page.getByLabel('Vorkalkulation von').fill('Kim Muster');
+  await expect(save).toBeDisabled();
   await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'gehen beim Schließen der Seite verloren'
+    'Auf allen deinen Geräten verfügbar'
   );
+  await page.reload();
+  await expect(toggle).toBeChecked();
   await page.getByRole('button', { name: 'Eingaben zurücksetzen' }).click();
   await answerConfirm(page, 'Eingaben zurücksetzen?', 'Eingaben zurücksetzen');
-  await expect(page.getByText('Eingaben zurückgesetzt.').first()).toBeVisible();
-
+  await expect(page.getByText('Eingaben zurückgesetzt.')).toBeVisible();
   await page.reload();
-  await expect(zusatztag).not.toBeChecked();
+  await expect(toggle).not.toBeChecked();
+  await expectNoHorizontalOverflow(page);
 });
 
-test('entries made in two tabs of the same Aktion are both kept', async ({ page, context }) => {
-  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
-  const other = await context.newPage();
-  await other.goto('/leitendenbereich/abrechnung/evt_Sola26');
-  await expect(other.getByLabel('Vorkalkulation von')).toBeVisible();
-
-  // The first tab enters something, then the second tab, opened before, enters something else
-  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
-  await expect(other.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
-  await other.getByLabel('Vorkalkulation von').fill('Kim Muster');
-  await expect(page.getByLabel('Vorkalkulation von')).toHaveValue('Kim Muster');
-
-  await other.close();
-  await page.reload();
-  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
-  await expect(page.getByLabel('Vorkalkulation von')).toHaveValue('Kim Muster');
-});
-
-test('entries are deleted from the device one month after the KJR deadline', async ({ page }) => {
-  const stored = (deleteAfter: string): string =>
-    JSON.stringify({
-      savedAt: '2026-08-20T10:00:00.000Z',
-      deleteAfter,
-      session: { zusatztag: true },
-    });
-  await page.goto('/impressum');
-  // The fixtures fix the clock at 2026-10-01
-  await page.evaluate(
-    ([expired, current]) => {
-      localStorage.setItem('phoenix:abrechnung:v1:evt_Sola26', expired);
-      localStorage.setItem('phoenix:abrechnung:v1:evt_Andere', current);
-    },
-    [stored('2026-09-30'), stored('2026-10-01')]
-  );
-
-  // Any page of the website removes what is past its last day and keeps the rest
-  await page.goto('/');
-  const keys = await page.evaluate(() =>
-    Object.keys(localStorage).filter((key) => key.startsWith('phoenix:abrechnung:'))
-  );
-  expect(keys).toEqual(['phoenix:abrechnung:v1:evt_Andere']);
-
-  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
-  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).not.toBeChecked();
-});
-
-test('after its last day an Aktion keeps new entries only while the page is open', async ({
+test('a failed save keeps inputs and clearing the last saved value is still guarded', async ({
   page,
 }) => {
-  // The KJR deadline of the Sommerlager is 11.11.2026, its entries are kept until 11.12.2026
-  await page.clock.setFixedTime(new Date('2026-12-20T12:00:00Z'));
-  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
-  const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
-  await zusatztag.check();
+  await page.goto(URL);
+  const toggle = page.getByRole('checkbox', { name: /Zusatztag/ });
+  const save = page.getByRole('button', { name: 'Eingaben speichern' });
+  await toggle.check();
+  await save.click();
   await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'Deine Eingaben werden nicht mehr auf diesem Gerät gespeichert'
+    'Auf allen deinen Geräten verfügbar'
   );
-  expect(
-    await page.evaluate(() => localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26'))
-  ).toBeNull();
-
-  // Leaving warns first, as the entry would be lost
-  await page
-    .getByRole('navigation', { name: 'Zurück' })
-    .getByRole('link', { name: 'Abrechnung', exact: true })
-    .click();
+  await expect(save).toBeDisabled();
+  await page.route('**/eingaben', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 500, json: {} }) : route.fallback()
+  );
+  await toggle.uncheck();
+  await save.click();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Die Eingaben wurden nicht gespeichert'
+  );
+  await expect(toggle).not.toBeChecked();
+  await page.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText('Ungespeicherte Änderungen');
+  await page.getByRole('navigation', { name: 'Zurück' }).getByRole('link').click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
-  await expect(zusatztag).toBeChecked();
+  await expect(toggle).not.toBeChecked();
+  await page.unroute('**/eingaben');
+  await save.click();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Auf allen deinen Geräten verfügbar'
+  );
+  await expect(save).toBeDisabled();
 });
 
-test('a moved Aktion gets the new deletion day for its stored entries', async ({ page }) => {
+test('old local entries are removed only after their explicit migration succeeds', async ({
+  page,
+}) => {
+  await page.route('**/eingaben', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({
+          json: { session: emptySession(), etag: null, savedAt: null, deleteAfter: null },
+        })
+      : route.fallback()
+  );
   await page.goto('/impressum');
   await page.evaluate(() =>
     localStorage.setItem(
       'phoenix:abrechnung:v1:evt_Sola26',
       JSON.stringify({
-        savedAt: '2026-09-20T10:00:00.000Z',
-        deleteAfter: '2026-12-31',
         session: { zusatztag: true },
+        savedAt: '2026-09-30T10:00:00Z',
+        deleteAfter: '2026-12-11',
       })
     )
   );
-  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
-  await page.getByRole('button', { name: 'Erklärung zu Deine Eingaben' }).click();
-  await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'Nach dem 11.12.2026 werden sie gelöscht'
+  await page.goto(URL);
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+  expect(
+    await page.evaluate(() => localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26'))
+  ).not.toBeNull();
+  await page.route('**/eingaben', (route) =>
+    route.request().method() === 'PUT'
+      ? route.fulfill({
+          json: {
+            session: route.request().postDataJSON().session,
+            etag: 'migrated',
+            savedAt: '2026-10-01T12:00:00Z',
+            deleteAfter: '2026-12-11',
+          },
+        })
+      : route.fallback()
   );
-  const stored = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26') ?? 'null')
-  );
-  // The last day follows the Aktion's current dates; the time of the last change stays
-  expect(stored).toMatchObject({
-    savedAt: '2026-09-20T10:00:00.000Z',
-    deleteAfter: '2026-12-11',
-  });
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26')))
+    .toBeNull();
 });
 
 test('an expired login while loading a receipt offers the new login', async ({ page }) => {
@@ -229,61 +131,221 @@ test('an expired login while loading a receipt offers the new login', async ({ p
   await expect(dialog.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
 });
 
-test('an Aktion moved past its last day removes the stored entries', async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-12-20T12:00:00Z'));
-  await page.goto('/impressum');
-  // Stored when the Aktion still ended later
-  await page.evaluate(() =>
-    localStorage.setItem(
-      'phoenix:abrechnung:v1:evt_Sola26',
-      JSON.stringify({
-        savedAt: '2026-11-20T10:00:00.000Z',
-        deleteAfter: '2026-12-31',
-        session: { zusatztag: true },
-      })
-    )
-  );
-  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+test('a failed reset preserves edits made while its request was pending', async ({ page }) => {
+  await page.goto(URL);
+  const toggle = page.getByRole('checkbox', { name: /Zusatztag/ });
+  await toggle.check();
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
   await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'Deine Eingaben werden nicht mehr auf diesem Gerät gespeichert'
+    'Auf allen deinen Geräten verfügbar'
   );
-  await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26')))
-    .toBeNull();
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let received!: () => void;
+  const started = new Promise<void>((resolve) => {
+    received = resolve;
+  });
+  await page.route('**/eingaben', async (route) => {
+    if (route.request().method() !== 'PUT') return route.fallback();
+    received();
+    await pending;
+    await route.fulfill({ status: 500, json: {} });
+  });
+  await page.getByRole('button', { name: 'Eingaben zurücksetzen' }).click();
+  await answerConfirm(page, 'Eingaben zurücksetzen?', 'Eingaben zurücksetzen');
+  await started;
+  await toggle.uncheck();
+  release();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Die Eingaben wurden nicht gespeichert'
+  );
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText('Ungespeicherte Änderungen');
+  await page.getByRole('navigation', { name: 'Zurück' }).getByRole('link').click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
+  await expect(toggle).not.toBeChecked();
 });
 
-test('leaving a page with unsaved entries asks in the app dialog, for links and back', async ({
+test('expired retention explains why new inputs cannot be saved', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2027-01-01T12:00:00Z'));
+  await page.goto(URL);
+  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
+  const storage = page.getByTestId('eingaben-ablage');
+  await expect(storage).toContainText('Die Aufbewahrungsfrist ist abgelaufen');
+  await expect(storage).toContainText('nur auf dieser geöffneten Seite');
+  await expect(storage).not.toContainText('Tippe auf');
+  await expect(page.getByRole('button', { name: 'Eingaben speichern' })).toBeDisabled();
+});
+
+test('a discarded load cannot overwrite a reopened draft or its unsaved warning', async ({
   page,
 }) => {
-  page.on('dialog', (dialog) => {
-    throw new Error(`Unexpected browser prompt: ${dialog.message()}`);
+  await page.goto('/impressum');
+  const result = await page.evaluate(async () => {
+    const path = '/src/lib/abrechnungStore.svelte.ts';
+    const store = await import(path);
+    const id = 'evt_Sola26';
+    const originalFetch = window.fetch;
+    const baseline = await (await originalFetch(`/api/intern/abrechnung/${id}/eingaben`)).json();
+    let calls = 0;
+    let release!: (response: Response) => void;
+    const delayed = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    window.fetch = (input, init) => {
+      if (String(input).includes(`/abrechnung/${id}/eingaben`)) {
+        calls++;
+        return calls === 2 ? delayed : Promise.resolve(Response.json(baseline));
+      }
+      return originalFetch(input, init);
+    };
+    const loaded = async () => {
+      while (!store.abrechnungAblage[id]?.loaded)
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    };
+    try {
+      store.abrechnungSession(id);
+      await loaded();
+      const stale = store.loadAbrechnungSession(id);
+      store.resetAbrechnungSession(id);
+      const reopened = store.abrechnungSession(id);
+      await loaded();
+      reopened.kjr.ort = 'Neue Eingabe nach dem Wiederöffnen';
+      store.storeAbrechnungSession(id);
+      release(Response.json(baseline));
+      await stale;
+      store.storeAbrechnungSession(id);
+      return { ort: reopened.kjr.ort, dirty: store.abrechnungAblage[id].dirty };
+    } finally {
+      window.fetch = originalFetch;
+      store.resetAbrechnungSession(id);
+    }
   });
-  await page.goto('/leitendenbereich');
-  await page.getByRole('link', { name: /Eigenbeleg/ }).click();
-  await expect(page).toHaveURL(/\/eigenbeleg$/);
-  const paidTo = page.getByLabel('Bezahlt an');
-  await paidTo.fill('Parkhaus Oberjoch');
+  expect(result).toEqual({ ort: 'Neue Eingabe nach dem Wiederöffnen', dirty: true });
+});
 
-  // Back asks too and keeps the page and the entry when the user stays
-  await page.goBack();
-  const ask = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
-  await expect(ask).toContainText('noch nicht gespeichert');
-  await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
-  await expect(page).toHaveURL(/\/eigenbeleg$/);
-  await expect(paidTo).toHaveValue('Parkhaus Oberjoch');
+test('an undated Aktion keeps its accounting and receipts accessible while explaining the save restriction', async ({
+  page,
+}) => {
+  await page.route('**/api/intern/abrechnung/evt_Sola26', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    data.event.start_date = null;
+    data.event.end_date = null;
+    await route.fulfill({ json: data });
+  });
+  await page.goto(URL);
+  await expect(page.getByRole('heading', { name: 'Einnahmen und Ausgaben' })).toBeVisible();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText('noch kein Datum in CampFlow');
+  await page.getByRole('tab', { name: /Leihgebühren/ }).click();
+  await page.getByLabel('Anzahl Jurte').fill('2');
+  await expect(page.getByRole('button', { name: 'Eingaben speichern' })).toBeDisabled();
+  await page.getByRole('tab', { name: /Einzelnachweise/ }).click();
+  await expect(page.getByRole('row', { name: /2026-103/ })).toBeVisible();
+});
 
-  // Discarding goes back after all
-  await page.goBack();
-  await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
-  await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
+test('same-window iPhone login restores the complete unsaved accounting draft', async ({
+  page,
+}) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.goto(URL);
+  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
+  await page.getByRole('tab', { name: /Teilnehmende/ }).click();
+  await page.getByLabel('PLZ Gast München').fill('83620');
+  await page.getByRole('tab', { name: /Leihgebühren/ }).click();
+  await page.getByLabel('Anzahl Jurte').fill('2');
+  await page.getByLabel('Tage Jurte').fill('4');
+  await page.route('**/eingaben', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  const storage = page.getByTestId('eingaben-ablage');
+  await expect(storage).toContainText('Deine Anmeldung ist abgelaufen');
+  await page.unroute('**/eingaben');
+  const returned = page.waitForEvent('domcontentloaded');
+  await storage.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await returned;
+  await expect(storage).toContainText('Deine Eingaben wurden nach der Anmeldung wiederhergestellt');
+  await expect(page.getByLabel('Anzahl Jurte')).toHaveValue('2');
+  await expect(page.getByLabel('Tage Jurte')).toHaveValue('4');
+  await expect(storage).toContainText('Ungespeicherte Änderungen');
+  await page.getByRole('tab', { name: /Teilnehmende/ }).click();
+  await expect(page.getByLabel('PLZ Gast München')).toHaveValue('83620');
+  await page.getByRole('tab', { name: 'Übersicht' }).click();
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+  expect(
+    await page.evaluate(() => sessionStorage.getItem('phoenix:gerettete-eingaben:v1'))
+  ).toBeNull();
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  await expect(storage).toContainText('Auf allen deinen Geräten verfügbar');
+  await page.reload();
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+});
 
-  // A link continues to its target after discarding
-  await page.goto('/leitendenbereich/eigenbeleg');
-  await paidTo.fill('Bäckerei');
-  await page
-    .getByRole('navigation', { name: 'Zurück' })
-    .getByRole('link', { name: 'Übersicht' })
-    .click();
-  await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
-  await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
+test('recovered accounting inputs do not overwrite a newer saved version during login', async ({
+  page,
+}) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.goto(URL);
+  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
+  await page.route('**/eingaben', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  const storage = page.getByTestId('eingaben-ablage');
+  await expect(storage).toContainText('Deine Anmeldung ist abgelaufen');
+  const current = await (await page.request.get(API)).json();
+  current.session.kjr.ort = 'Inzwischen auf einem anderen Gerät';
+  expect(
+    (await page.request.put(API, { data: { session: current.session, etag: current.etag } })).ok()
+  ).toBe(true);
+  await page.unroute('**/eingaben');
+  const returned = page.waitForEvent('domcontentloaded');
+  await storage.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await returned;
+  await expect(storage).toContainText('während der Anmeldung geändert');
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Eingaben speichern' })).toBeDisabled();
+  const saved = await (await page.request.get(API)).json();
+  expect(saved.session.zusatztag).toBe(false);
+  expect(saved.session.kjr.ort).toBe('Inzwischen auf einem anderen Gerät');
+  // A second login must retain the same conflict, rather than adopting the new server version.
+  await page.route('**/api/intern/abrechnung/evt_Sola26?*', (route) =>
+    route.fulfill({ status: 401 })
+  );
+  await page.getByRole('button', { name: 'Neu laden', exact: true }).click();
+  const login = page.getByRole('link', { name: 'Neu anmelden', exact: true });
+  await expect(login).toBeVisible();
+  await page.unroute('**/api/intern/abrechnung/evt_Sola26?*');
+  const returnedAgain = page.waitForEvent('domcontentloaded');
+  await login.click();
+  await returnedAgain;
+  await expect(storage).toContainText('während der Anmeldung geändert');
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Eingaben speichern' })).toBeDisabled();
+});
+
+test('accounting recovery is not applied to a different account after login', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.goto(URL);
+  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
+  await page.route('**/eingaben', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  const storage = page.getByTestId('eingaben-ablage');
+  await expect(storage).toContainText('Deine Anmeldung ist abgelaufen');
+  const principal = await (await page.request.get('/.auth/me')).json();
+  principal.clientPrincipal.userId = 'another-account';
+  await page.route('**/.auth/me', (route) => route.fulfill({ json: principal }));
+  await page.unroute('**/eingaben');
+  const returned = page.waitForEvent('domcontentloaded');
+  await storage.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await returned;
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).not.toBeChecked();
+  await expect(storage).not.toContainText(
+    'Deine Eingaben wurden nach der Anmeldung wiederhergestellt'
+  );
 });

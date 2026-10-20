@@ -11,7 +11,7 @@ const { area = 'aufgaben' } = Astro.props;
 ---
 
 <StaffLayout header={area === 'aufgaben' ? 'none' : 'page'} compact>
-  <div class="task-page mt-1">
+  <div class="task-page mt-1 min-h-[70dvh]">
     {area === 'projekte' ? (
       <AufgabenProjekte client:only="svelte" />
     ) : area === 'vorlagen' ? (

@@ -25,6 +25,7 @@
   import ConfirmDialog from './ui/ConfirmDialog.svelte';
   import InfoHint from './ui/InfoHint.svelte';
   let sourceId = $state('');
+  let protocolSearch = $state('');
   let rejectTarget = $state<Task | null>(null);
   let rejectFocus = () => {};
   let rejectReloading = $state(false);
@@ -49,6 +50,15 @@
           !protocol.changedSinceApproval
       )
       .sort((a, b) => b.date.localeCompare(a.date))
+  );
+  const protocolOptions = $derived(
+    eligible.filter(
+      (protocol) =>
+        protocol.id === sourceId ||
+        `${protocolLabel(protocol.date)} ${protocol.date} ${protocol.title} ${protocol.fileName}`
+          .toLocaleLowerCase('de')
+          .includes(protocolSearch.trim().toLocaleLowerCase('de'))
+    )
   );
   const source = $derived(eligible.find((protocol) => protocol.id === sourceId));
   const visible = $derived(
@@ -156,24 +166,35 @@
     </h2>
     <InfoHint
       label="Aufgaben aus Protokollen"
-      text="Nur freigegebene oder archivierte Protokolle. Die KI schlägt vor, ihr entscheidet."
+      text="Nur freigegebene oder archivierte Protokolle. Die automatische Erkennung schlägt Aufgaben vor; ihr prüft und übernehmt sie einzeln."
       class="ml-1"
     />
     <StatusNotice kind="error" message={aufgabenStore.protocolError} />
     {#if aufgabenStore.protocolError}<ActionButton onclick={loadTaskProtocols}
         >Protokolle neu laden</ActionButton
       >{/if}
+    <FormField id="task-protocol-search" label="Protokoll suchen" optional class="mt-3">
+      {#snippet children(attrs)}<input
+          {...attrs}
+          type="search"
+          class="form-input"
+          placeholder="Datum, Titel oder Dateiname"
+          bind:value={protocolSearch}
+        />{/snippet}
+    </FormField>
+    <FormField id="task-protocol" label="Protokoll"
+      >{#snippet children(attrs)}
+        <select {...attrs} class="form-input" bind:value={sourceId} onchange={clearRecognition}
+          ><option value="">Protokoll wählen …</option
+          >{#each protocolOptions as protocol (protocol.id)}<option value={protocol.id}
+              >{protocolLabel(protocol.date)} · {protocol.title
+                .replace(/^(?:\d{4}-\d{2}-\d{2}|YYYY-MM-DD)[_ -]+/, '')
+                .replace(/_/g, ' ')} · {protocol.status} · {protocol.fileName}</option
+            >{/each}</select
+        >
+      {/snippet}</FormField
+    >
     {#if data.extractionConfigured}
-      <FormField id="task-protocol" label="Protokoll" class="mt-3"
-        >{#snippet children(attrs)}
-          <select {...attrs} class="form-input" bind:value={sourceId} onchange={clearRecognition}
-            ><option value="">Protokoll wählen …</option
-            >{#each eligible as protocol (protocol.id)}<option value={protocol.id}
-                >{protocolLabel(protocol.date)} · {protocol.title}</option
-              >{/each}</select
-          >
-        {/snippet}</FormField
-      >
       <ActionButton
         type="button"
         class="mt-3"
@@ -182,7 +203,7 @@
         aria-busy={busy}>{busy ? 'Wird verarbeitet …' : 'Aufgaben erkennen'}</ActionButton
       >
     {:else}<p class="mt-2 text-sm text-neutral-700">
-        Die automatische Erkennung ist nicht eingerichtet.
+        Die automatische Erkennung ist nicht eingerichtet. Aufgaben kannst du selbst anlegen.
       </p>{/if}
     <div role="status" aria-live="polite" aria-label="Erkennungsergebnis">
       {#if recognitionMessage || recognitionError}
@@ -203,6 +224,11 @@
     </div>
   </section>
   <AufgabenFilter bind:projectFilter bind:ownOnly onchange={clearRecognition} />
+  <p class="mt-4 text-sm text-neutral-700">
+    {visible.length}
+    {visible.length === 1 ? 'Vorschlag' : 'Vorschläge'}
+    {sourceId ? 'für dieses Protokoll' : 'aus allen Protokollen'}
+  </p>
   {#if recognizing && !visible.length}<p role="status" class="my-3">
       Das Protokoll wird ausgewertet …
     </p>{:else}

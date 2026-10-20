@@ -116,7 +116,9 @@ test('Enter and Backspace move through the items like in a document', async ({ p
   await expect(reflexion.locator('.punkt-text')).toHaveText('Stammestag war gut');
 });
 
-test('the toolbar sticks right below the status bar after scrolling', async ({ page }) => {
+test('the toolbar sticks on desktop and leaves writing space on phones', async ({
+  page,
+}, testInfo) => {
   await createProtokoll(page, 'Leitendenrunde Leiste');
   await page.evaluate(() => window.scrollTo(0, 0));
   // Scroll into the agenda so that the header and the status bar stick
@@ -133,7 +135,13 @@ test('the toolbar sticks right below the status bar after scrolling', async ({ p
         toolbar: leiste && toolbar ? Math.round(toolbar.top - leiste.bottom) : null,
       };
     });
-  await expect.poll(kanten).toEqual({ header: 0, leiste: 0, toolbar: 0 });
+  if (testInfo.project.name === 'mobile') {
+    await expect(page.locator('[data-sticky-top]')).not.toHaveCSS('position', 'sticky');
+    await expect(page.getByRole('toolbar', { name: 'Formatierung', exact: true })).not.toHaveCSS(
+      'position',
+      'sticky'
+    );
+  } else await expect.poll(kanten).toEqual({ header: 0, leiste: 0, toolbar: 0 });
 });
 
 test('Backspace at the start of a list first removes the bullet, then goes to the title', async ({
@@ -141,7 +149,7 @@ test('Backspace at the start of a list first removes the bullet, then goes to th
 }) => {
   await createProtokoll(page, 'Leitendenrunde Liste');
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
-  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
   await page.getByLabel('Text zu Punkt 2.').fill('- Eintrag\n- Zwei');
   await page.getByLabel('Text zu Punkt 3.').fill('> Zitat');
   await modus.getByRole('button', { name: 'Formatiert' }).click();
@@ -506,7 +514,7 @@ test('switching to Markdown and back keeps the texts and the blocks', async ({ p
   await reflexion.getByRole('button', { name: '+ Aufgabe' }).click();
   await reflexion.getByLabel('Aufgabe', { exact: true }).fill('Nachfragen');
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
-  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
   await expect(page.getByLabel('Text zu Punkt 2.')).toHaveValue('Erstens **wichtig**');
   await expect(page.getByLabel('Aufgabe', { exact: true })).toHaveValue('Nachfragen');
   await page.getByLabel('Text zu Punkt 2.').fill('Erstens **wichtig**\n\n- [ ] Zweitens');

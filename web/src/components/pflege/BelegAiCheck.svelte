@@ -36,7 +36,12 @@
         {/each}
       </ul>
     {/if}
-    {#if isNew && needsCheck}
+    {#if check?.ok && warnings.length}
+      <p>
+        Die automatische Prüfung konnte die Angaben lesen. Kannst du sie auch lesen, reich ihn so
+        ein.
+      </p>
+    {:else if isNew && needsCheck}
       <p>Einreichen geht trotzdem.</p>
     {/if}
     {#if check?.restrictedItems.length}

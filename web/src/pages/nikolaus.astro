@@ -52,8 +52,8 @@ const dayList = formatNikolausDays(config, { withYear: true });
           {active ? (
             <>
               Am <strong>{dayList}</strong> besuchen Nikolaus, Krampus und Engerl des DPSG Stamm
-              Phoenix Familien in Feldkirchen-Westerham, Bruckmühl und Umgebung. Buchen Sie unten
-              online einen Termin für einen Besuch von bis zu 30 Minuten.
+              Phoenix Familien in Feldkirchen-Westerham, Bruckmühl und Umgebung. Unten sehen Sie, ob
+              noch Termine für einen Besuch von bis zu 30 Minuten frei sind.
             </>
           ) : (
             <>
@@ -92,10 +92,6 @@ const dayList = formatNikolausDays(config, { withYear: true });
       </p>
     </section>
   )}
-
-  <div class="mt-12">
-    <NikolausFAQ config={config} />
-  </div>
 
   {active && (
     <section
@@ -136,6 +132,10 @@ const dayList = formatNikolausDays(config, { withYear: true });
       </div>
     </section>
   )}
+
+  <div class="mt-12">
+    <NikolausFAQ config={config} />
+  </div>
 
   <Footer slot="footer" />
 </BaseLayout>

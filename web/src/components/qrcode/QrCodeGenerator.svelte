@@ -98,7 +98,7 @@
       if (!blob) throw new Error('PNG not created');
       saveFile(blob, fileName);
     } catch {
-      error = 'Das PNG konnte nicht erstellt werden. Bitte versuche es noch einmal.';
+      error = 'Das Bild konnte nicht erstellt werden. Bitte versuche es noch einmal.';
     } finally {
       busy = false;
     }
@@ -106,7 +106,7 @@
 </script>
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-  <div class="space-y-6">
+  <div class="order-2 space-y-6 lg:order-1">
     <Panel aria-labelledby="qr-inhalt-titel">
       <h2 id="qr-inhalt-titel" class={HEADING_CLASS}>Inhalt</h2>
       <FormField id="qr-text" label="Link oder Text" error={result.error ?? undefined} class="mt-4">
@@ -148,7 +148,7 @@
               class="h-11 w-16 cursor-pointer rounded-md border border-neutral-300 bg-surface p-1"
               bind:value={optionen.vordergrund}
             />
-            <span class="font-mono text-sm text-neutral-700">{optionen.vordergrund}</span>
+            <span class="text-sm text-neutral-700">Farbe auswählen</span>
           </div>
         </div>
         <div>
@@ -174,7 +174,7 @@
           {#each QR_FARBEN as farbe (farbe.value)}
             <button
               type="button"
-              class="size-9 rounded-full border-2 {optionen.vordergrund === farbe.value
+              class="size-11 rounded-full border-2 {optionen.vordergrund === farbe.value
                 ? 'border-brand-900 ring-2 ring-brand-900 ring-offset-2 ring-offset-[var(--color-surface)]'
                 : 'border-neutral-300'}"
               style:background-color={farbe.value}
@@ -249,10 +249,10 @@
     </Panel>
   </div>
 
-  <Panel aria-labelledby="qr-vorschau-titel" class="lg:sticky lg:top-24">
+  <Panel aria-labelledby="qr-vorschau-titel" class="order-1 lg:order-2 lg:sticky lg:top-24">
     <h2 id="qr-vorschau-titel" class={HEADING_CLASS}>Vorschau</h2>
     <div
-      class="mt-4 aspect-square w-full overflow-hidden rounded-md border border-neutral-200 {optionen.transparent
+      class="mx-auto mt-4 aspect-square w-40 sm:w-56 lg:w-full overflow-hidden rounded-md border border-neutral-200 {optionen.transparent
         ? 'checkerboard'
         : ''}"
     >
@@ -287,7 +287,7 @@
       aria-busy={busy}
       onclick={download}
     >
-      {busy ? 'PNG wird erstellt …' : 'Als PNG herunterladen'}
+      {busy ? 'Bild wird erstellt …' : 'Als Bild herunterladen'}
     </ActionButton>
     <p class="mt-3 text-xs text-neutral-700">Vor dem Drucken mit dem Handy testen.</p>
   </Panel>

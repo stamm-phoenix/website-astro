@@ -22,7 +22,7 @@ const searchGroups = [
 
 <StaffLayout header="none">
   <section class="space-y-3" aria-label="Begrüßung und Suche">
-    <StaffGreeting client:only="svelte" />
+    <StaffGreeting client:load />
     <!-- On wide screens the sidebar has the search -->
     <div class="max-w-xl xl:hidden">
       <StaffModuleSearch
@@ -42,7 +42,7 @@ const searchGroups = [
     <ChangelogNotice client:only="svelte" />
   </div>
 
-  <StaffDashboard client:only="svelte" />
+  <StaffDashboard client:load />
 
   <!-- On wide screens the sidebar lists every area -->
   <section aria-labelledby="all-areas-heading" class="mt-8 xl:hidden">

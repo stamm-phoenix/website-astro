@@ -18,7 +18,11 @@ test('a conflicting task save preserves form input for review', async ({ page })
       json: { message: 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.' },
     })
   );
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(
     dialog.getByText('Der Eintrag wurde inzwischen geändert. Bitte neu laden.')
   ).toBeVisible();
@@ -36,7 +40,11 @@ test('Kanban groups tasks by status and preserves project and personal filters',
   await dialog.getByLabel('Titel', { exact: true }).fill(title);
   await dialog.getByLabel('Zuständigkeit', { exact: false }).fill('leitung@example.test');
   await dialog.getByLabel('Projekt', { exact: false }).selectOption({ label: 'Herbstlager' });
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).not.toBeVisible();
   await taskStatus(page, 'Alle');
   await page
@@ -100,7 +108,9 @@ test('task deletion and discarding edits use app dialogs without browser prompts
     .fill(title);
   await page
     .getByRole('dialog', { name: /^Aufgabe (anlegen|bearbeiten)$/ })
-    .getByRole('button', { name: 'Speichern', exact: true })
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
     .click();
   await expect(
     page.getByRole('dialog', { name: /^Aufgabe (anlegen|bearbeiten)$/ })
@@ -211,7 +221,12 @@ test('open is the default status, view choice persists and completion can be und
     .getByRole('dialog')
     .getByLabel('Titel', { exact: true })
     .fill('Andere Aufgabe für Rückgängig');
-  await page.getByRole('dialog').getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(
     page.getByRole('heading', { name: 'Andere Aufgabe für Rückgängig', exact: true })
@@ -347,7 +362,11 @@ test('German dates validate calendar days and empty proposal descriptions use th
   const due = editor.getByLabel('Fälligkeit', { exact: false });
   await expect(due).toHaveAttribute('placeholder', 'TT.MM.JJJJ');
   await due.fill('31.02.2027');
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await editor
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(editor.getByRole('alert')).toContainText('gültiges Datum');
   await due.fill('28.02.2027');
   await page.evaluate(() => {
@@ -363,7 +382,11 @@ test('German dates validate calendar days and empty proposal descriptions use th
   const saved = page.waitForRequest(
     (request) => request.method() === 'POST' && request.url().endsWith('/intern/pflege/aufgaben')
   );
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await editor
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   expect((await saved).postDataJSON().dueDate).toBe('2027-02-27');
   await expect(editor).not.toBeVisible();
   let hasDescription = false;
@@ -508,7 +531,11 @@ test('a saved new task with failed overview refresh reports the saved state with
     }
     return route.fulfill({ status: 503, json: { message: 'Neuladen fehlgeschlagen.' } });
   });
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).not.toBeVisible();
   await expect(
     page.getByText('Gespeichert. Die Liste zeigt noch den alten Stand. Lade die Seite neu.', {

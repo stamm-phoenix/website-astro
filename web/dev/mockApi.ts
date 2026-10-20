@@ -1,3 +1,5 @@
+import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
+import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
 import {
   ValidationError,
@@ -979,6 +981,34 @@ route('GET', '/api/intern/beitraege', (req) =>
 );
 
 // Abrechnung: Einzelnachweise come from the Playwright API in production
+const abrechnungDrafts = new Map<string, AbrechnungEingabe>();
+route('GET', '/api/intern/abrechnung/:id/eingaben', (req) =>
+  json(
+    abrechnungDrafts.get(req.params.id) ?? {
+      session: emptySession(),
+      etag: null,
+      savedAt: null,
+      deleteAfter: null,
+    }
+  )
+);
+route('PUT', '/api/intern/abrechnung/:id/eingaben', (req) => {
+  const body = req.json as { session: unknown; etag: string | null };
+  const previous = abrechnungDrafts.get(req.params.id);
+  if ((previous?.etag ?? null) !== body.etag)
+    return json(
+      { code: 'CONFLICT', message: 'Die Eingaben wurden auf einem anderen Gerät geändert.' },
+      409
+    );
+  const saved: AbrechnungEingabe = {
+    session: parseSession(body.session),
+    etag: String(Number(previous?.etag ?? 0) + 1),
+    savedAt: new Date().toISOString(),
+    deleteAfter: '2026-12-11',
+  };
+  abrechnungDrafts.set(req.params.id, saved);
+  return json(saved);
+});
 route('GET', '/api/intern/abrechnung/kostenstellen', () => json(kostenstellen));
 route(
   'GET',

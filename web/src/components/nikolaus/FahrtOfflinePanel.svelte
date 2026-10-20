@@ -43,8 +43,14 @@
     aria-label="Route auf diesem Gerät"
   >
     {#if savedHere && snapshot}
-      <p>Auf diesem Gerät gespeichert bis {formatTime(new Date(snapshot.expiresAt))} Uhr.</p>
-      <p class="mt-1 text-neutral-700">Lasst die Seite während der Fahrt geöffnet.</p>
+      <p>
+        Auf diesem Gerät gespeichert bis {formatTime(new Date(snapshot.expiresAt))} Uhr (höchstens zwölf
+        Stunden).
+      </p>
+      <p class="mt-1 text-neutral-700">
+        Lasst die Seite während der Fahrt geöffnet; neu laden klappt im selben Tab auch ohne
+        Verbindung.
+      </p>
       <ActionButton variant="secondary" type="button" class="mt-2" onclick={remove}
         >Route von diesem Gerät löschen</ActionButton
       >
@@ -73,9 +79,9 @@
     <p class="font-semibold">
       {nikolausFahrtStore.syncing
         ? 'Markierungen werden abgeglichen …'
-        : `${snapshot.queue.length} Markierung(en) noch nicht bestätigt`}
+        : `${snapshot.queue.length} ${snapshot.queue.length === 1 ? 'Besuch noch nicht bestätigt' : 'Besuche noch nicht bestätigt'}`}
     </p>
-    <p>Familien und Disposition sehen sie erst nach dem Abgleich.</p>
+    <p>Familien und Dispo sehen ausstehende Markierungen erst, wenn die Verbindung wieder steht.</p>
     <ul class="mt-2 space-y-2">
       {#each snapshot.queue as entry (entry.operationId)}
         <li>

@@ -4,6 +4,7 @@ interface PriceState {
   prices: Record<string, number | null>;
   availability: Record<string, string | undefined>;
   loading: boolean;
+  errors: Record<string, boolean>;
 }
 interface PricePool {
   state: PriceState;
@@ -17,7 +18,7 @@ interface PricePool {
 }
 /** Four lookups at a time. A newer load/reset invalidates all results of the previous run. */
 export function createSammelPrices(): PricePool {
-  const state = $state<PriceState>({ prices: {}, availability: {}, loading: false });
+  const state = $state<PriceState>({ prices: {}, availability: {}, loading: false, errors: {} });
   let revision = 0;
   function cancel(): void {
     revision++;
@@ -26,6 +27,7 @@ export function createSammelPrices(): PricePool {
     cancel();
     state.prices = {};
     state.availability = {};
+    state.errors = {};
     state.loading = false;
   }
   async function load(
@@ -34,6 +36,13 @@ export function createSammelPrices(): PricePool {
     missingOnly = false
   ): Promise<void> {
     const current = ++revision;
+    // A conflict reload can replace the references without resetting the price pool.
+    // Drop removed entries as well as their errors, so re-added articles are looked up again.
+    for (const cache of [state.prices, state.availability, state.errors]) {
+      for (const reference of Object.keys(cache)) {
+        if (!references.includes(reference)) delete cache[reference];
+      }
+    }
     // Temporary deduplication, never read by a reactive consumer.
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const pending = [...new Set(references)].filter(
@@ -48,6 +57,7 @@ export function createSammelPrices(): PricePool {
         while (index < pending.length && current === revision) {
           const reference = pending[index++];
           let price: number | null = getSammelStammProdukt(reference)?.unitPriceCents ?? null;
+          if (current === revision) delete state.errors[reference];
           try {
             const product = await lookup(reference);
             if (product) {
@@ -55,7 +65,7 @@ export function createSammelPrices(): PricePool {
               if (current === revision) state.availability[reference] = product.availability;
             }
           } catch {
-            // Failed lookups leave this position visibly unpriced, without blocking other items.
+            if (current === revision) state.errors[reference] = true;
           }
           if (current === revision) state.prices = { ...state.prices, [reference]: price };
         }

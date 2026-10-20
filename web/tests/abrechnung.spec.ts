@@ -1,3 +1,4 @@
+import { resetAccountingInputs } from './abrechnung-helpers';
 import { readFile } from 'node:fs/promises';
 import {
   test,
@@ -6,6 +7,10 @@ import {
   expectWithinWindowWidth,
   answerConfirm,
 } from './fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await resetAccountingInputs(page);
+});
 
 test('the Abrechnung of an Aktion shows the balance and recalculates the KJR grant', async ({
   page,

@@ -38,7 +38,7 @@
   const NOTABLE_LATE_IN_SLOT = 10;
 </script>
 
-<li class="stop-card py-3 text-sm">
+<li id="dispo-stop-{booking.id}" class="stop-card scroll-mt-28 py-3 text-sm">
   <div class="flex items-start gap-3">
     <span
       class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
@@ -50,7 +50,7 @@
         <span class="text-base font-semibold tabular-nums text-brand-900"
           >{minutesToTime(planned.start)}</span
         >
-        <span class="text-neutral-700">Termin {slotLabel(booking.slotKey)}</span>
+        <span class="text-neutral-700">Gebucht: {slotLabel(booking.slotKey)}</span>
       </p>
       <p class="font-semibold text-neutral-900">Familie {booking.familyName}</p>
       <p class="text-neutral-800">
@@ -65,7 +65,10 @@
       </p>
       {#if booking.phone}
         <p class="text-neutral-700">
-          Tel.: <a class="text-link underline" href="tel:{booking.phone}">{booking.phone}</a>
+          Tel.: <a
+            class="text-link inline-flex min-h-11 items-center underline"
+            href="tel:{booking.phone}">{booking.phone}</a
+          >
         </p>
       {/if}
       {#if booking.internalTags.length > 0}
@@ -95,11 +98,11 @@
 
       {#if planned.lateAfterSlot > 0}
         <p class="mt-1 font-semibold text-danger">
-          ⚠ {Math.round(planned.lateAfterSlot)} Min nach Ende des Termins
+          ⚠ {Math.round(planned.lateAfterSlot)} Min nach Ende des gebuchten Termins
         </p>
       {:else if planned.lateInSlot >= NOTABLE_LATE_IN_SLOT}
         <p class="mt-1 text-warning">
-          {Math.round(planned.lateInSlot)} Min nach Beginn des Termins
+          {Math.round(planned.lateInSlot)} Min nach Beginn des gebuchten Termins
         </p>
       {/if}
       {#if !booking.location}

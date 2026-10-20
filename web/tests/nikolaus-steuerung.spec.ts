@@ -1,4 +1,4 @@
-import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 
 test('the Steuerung switches the staff modules and saves days', async ({ page }) => {
   // Other files of the worker may have put Dispo into the recently used areas
@@ -16,6 +16,11 @@ test('the Steuerung switches the staff modules and saves days', async ({ page })
   await expect(page.getByLabel('Datum').last()).toHaveValue('2026-12-07');
   await page.getByLabel(/Nikolausverwaltung aktiv/).uncheck();
   await save.click();
+  await answerConfirm(
+    page,
+    'Nikolausverwaltung für alle ausschalten?',
+    'Ausschalten und speichern'
+  );
   await expect(page.getByText(/^Gespeichert\./).first()).toBeVisible();
   await expect(save).toBeDisabled();
 
@@ -90,6 +95,11 @@ test('the menu follows the Steuerung without a reload', async ({ page }) => {
   const save = page.getByRole('button', { name: 'Einstellungen speichern' });
   await page.getByLabel(/Nikolausverwaltung aktiv/).uncheck();
   await save.click();
+  await answerConfirm(
+    page,
+    'Nikolausverwaltung für alle ausschalten?',
+    'Ausschalten und speichern'
+  );
   await expect(page.getByText(/^Gespeichert\./).first()).toBeVisible();
   await expectDispo(0);
 

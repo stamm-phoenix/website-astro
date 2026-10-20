@@ -10,14 +10,15 @@ const PUBLIC_ICS_URL = '/api/aktionen.ics';
 
 <StaffLayout>
   <p slot="header" class="text-sm">
-    Kalender abonnieren: <TextLink href={LEITENDE_ICS_URL}>Leitenden-Kalender</TextLink>
+    Termine in deinen Kalender übernehmen:{' '}
+    <TextLink href={LEITENDE_ICS_URL}>Leitenden-Kalender</TextLink>
     <InfoHint
       client:load
       label="Leitenden-Kalender"
       text="Enthält nur Aktionen mit der Stufe „Leitende“."
       class="ml-1"
     />{' '}
-    · <TextLink href={PUBLIC_ICS_URL}>Öffentlicher Kalender</TextLink>
+    · <TextLink href={PUBLIC_ICS_URL}>öffentlicher Kalender</TextLink>
   </p>
 
   <CampflowEvents client:only="svelte" />

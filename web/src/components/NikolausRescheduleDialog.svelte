@@ -97,6 +97,7 @@
   title="Termin verlegen – Familie {booking?.familyName ?? ''}"
   {busy}
   {error}
+  submitDisabled={!target || !options.some((option) => option.slot.key === target)}
   submitLabel={busy ? 'Wird verlegt …' : 'Verlegen und benachrichtigen'}
   onsubmit={submit}
   onclose={close}

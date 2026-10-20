@@ -153,7 +153,9 @@
     </label>
     <details class="border-y border-neutral-200 py-2">
       <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-brand-900"
-        >Filter ({activeFilters} aktiv)</summary
+        >Filter ({activeFilters} aktiv){activeFilters
+          ? `: ${[search.trim() ? 'Suche' : '', day !== 'alle' ? formatShortDate(day) : '', krampus !== 'alle' ? (krampus === 'ja' ? 'Mit Krampus' : 'Ohne Krampus') : '', onlyProblems ? 'Nur mit Hinweisen' : '', statuses.length !== STATUS_ORDER.length ? statuses.map((status) => STATUS_LABEL[status]).join(', ') : ''].filter(Boolean).join(' · ')}`
+          : ''}</summary
       >
       <div class="grid gap-4 py-3 md:grid-cols-2 lg:grid-cols-[auto_auto_1fr] lg:items-end">
         <label class="block text-sm">

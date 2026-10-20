@@ -161,6 +161,16 @@
       deleting = false;
     }
   }
+  let wideTable = $state(false);
+  function watchTable(node: HTMLElement): { destroy: () => void } {
+    const measure = (): void => {
+      wideTable = node.scrollWidth > node.clientWidth + 1;
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    if (node.firstElementChild) observer.observe(node.firstElementChild);
+    return { destroy: () => observer.disconnect() };
+  }
 </script>
 
 {#snippet names(title: string, list: string[])}
@@ -196,8 +206,8 @@
         <summary class="min-h-11 cursor-pointer py-3 text-sm font-semibold text-link"
           >Zahlen pro Monat als Tabelle</summary
         >
-        <p class="text-xs text-neutral-700 sm:hidden">Seitlich wischen ›</p>
-        <div class="overflow-x-auto">
+        {#if wideTable}<p class="text-xs text-neutral-700">Seitlich wischen ›</p>{/if}
+        <div class="overflow-x-auto" use:watchTable>
           <table class="w-full text-left text-sm whitespace-nowrap">
             <thead class="border-b border-neutral-300 text-neutral-700">
               <tr>

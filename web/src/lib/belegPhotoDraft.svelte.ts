@@ -2,6 +2,7 @@ import { errorMessage, sendApi } from './api';
 import {
   blobToBase64,
   BELEG_PHOTO_EDGE,
+  MIN_BELEG_PHOTO_EDGE,
   canvasToJpeg,
   loadPhoto,
   centToInput,
@@ -98,6 +99,12 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     try {
       await nextFrame();
       const canvas = await loadPhoto(file);
+      if (Math.max(canvas.width, canvas.height) < MIN_BELEG_PHOTO_EDGE) {
+        dialog.state.fields.photo =
+          'Das Foto ist zu klein und kann nicht eingereicht werden. Bitte wähle ein Foto mit mindestens 800 Pixeln an der längeren Seite.';
+        return;
+      }
+      dialog.clearField('photo');
       photoWarnings = measurePhotoWarnings(canvas);
       const original = readPixels(canvas, canvas.width, canvas.height);
       const originalBlob = await canvasToJpeg(canvas);

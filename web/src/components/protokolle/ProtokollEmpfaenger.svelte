@@ -79,7 +79,7 @@
     <p class="text-xs text-neutral-700">Gilt nur für diesen Versand.</p>
     {#if list.length === 0}
       <p class="text-sm text-danger">
-        In CampFlow wurden keine Leitenden und niemand mit dem Label „Protokollempfang“ mit E-Mail
+        In CampFlow wurden keine Leitenden und niemand mit dem Merkmal „Protokollempfang“ mit E-Mail
         gefunden.
       </p>
     {:else}
