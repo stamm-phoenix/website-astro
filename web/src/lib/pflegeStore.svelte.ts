@@ -10,7 +10,7 @@ import type {
   StaffNikolausSteuerung,
   StaffProtokolleData,
   StaffQuestionsData,
-  WeiterePerson,
+  PersonenUebersicht,
 } from './types';
 
 interface ResourceState<T> {
@@ -104,7 +104,7 @@ export const faqPflege = createResource<StaffQuestionsData>('/intern/pflege/qa')
 export const aktionenPflege = createResource<StaffAktionenData>('/intern/pflege/aktionen');
 export const belegePflege = createResource<StaffBeleg[]>('/intern/pflege/belege');
 export const protokollePflege = createResource<StaffProtokolleData>('/intern/pflege/protokolle');
-export const personenPflege = createResource<WeiterePerson[]>('/intern/pflege/personen');
+export const personenPflege = createResource<PersonenUebersicht>('/intern/pflege/personen');
 export const nikolausSteuerung = createResource<StaffNikolausSteuerung>(
   '/intern/nikolaus/steuerung'
 );

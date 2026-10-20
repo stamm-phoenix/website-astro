@@ -3,7 +3,7 @@
   import { onDestroy } from 'svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import { authStore, isOwnName } from '../../lib/authStore.svelte';
+  import { isIch } from '../../lib/ichStore.svelte';
   import { fetchFile, errorMessage } from '../../lib/api';
   import { downloadNachweisePdf, pdfFileName } from '../../lib/abrechnungPdf';
   import type { PdfBeleg, PdfTable } from '../../lib/abrechnungPdf';
@@ -472,7 +472,7 @@
             <td class="py-2 pr-2">{nachweis.category}</td>
             <td class="py-2 pr-2">
               {nachweis.paidBy ?? ''}
-              {#if nachweis.paidBy && isOwnName(authStore.principal, nachweis.paidBy)}
+              {#if isIch({ name: nachweis.paidBy })}
                 <span class="text-neutral-700">(ich)</span>
               {/if}
             </td>

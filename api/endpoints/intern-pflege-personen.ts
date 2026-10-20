@@ -11,46 +11,47 @@ import {
   readJsonBody,
   requireVersion,
 } from '../lib/pflege-api';
-import { validateWeiterePerson } from '../lib/pflege-validation';
+import { validatePerson } from '../lib/pflege-validation';
 import { withErrorHandling } from '../lib/response-utils';
 import {
-  createWeiterePerson,
-  deleteWeiterePerson,
-  getWeiterePersonen,
-  updateWeiterePerson,
-} from '../lib/weitere-personen';
+  createPerson,
+  deletePerson,
+  getPersonenUebersicht,
+  updatePerson,
+} from '../lib/personen';
 
 /**
- * Weitere Personen (#301): Altleitende and others to pick in the Protokoll-Editor, kept by all
- * logged-in leaders. GET: the whole list; POST: a new person.
+ * Personen (`docs/personen.md`): the leaders' links to CampFlow, Altleitende and others, kept by
+ * all logged-in leaders. GET: the list with the Entra group and the CampFlow member list;
+ * POST: a new person.
  */
-export const WeiterePersonenCollectionEndpoint = pflegeHandler(
+export const PersonenCollectionEndpoint = pflegeHandler(
   'personen',
   async (request: HttpRequest, _context, principal) => {
-    if (request.method === 'GET') return ok(await getWeiterePersonen());
+    if (request.method === 'GET') return ok(await getPersonenUebersicht());
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-    const input = validateWeiterePerson(await readJsonBody(request));
-    return ok({ id: await createWeiterePerson(input, principal.userDetails) }, 201);
+    const input = validatePerson(await readJsonBody(request));
+    return ok({ id: await createPerson(input, principal.userDetails) }, 201);
   }
 );
 
 /** PATCH/DELETE: change the loaded version of a person; concurrent changes return 409. */
-export const WeiterePersonItemEndpoint = pflegeHandler(
+export const PersonItemEndpoint = pflegeHandler(
   'personen',
   async (request: HttpRequest, _context, principal) => {
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
     if (request.method === 'DELETE') {
-      await deleteWeiterePerson(id, requireVersion(readIfMatch(request)));
+      await deletePerson(id, requireVersion(readIfMatch(request)));
       return NO_CONTENT;
     }
     if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
-    const input = validateWeiterePerson(body);
-    await updateWeiterePerson(id, input, requireVersion(readEtag(body)), principal.userDetails);
+    const input = validatePerson(body);
+    await updatePerson(id, input, requireVersion(readEtag(body)), principal.userDetails);
     return NO_CONTENT;
   }
 );
 
-export const WeiterePersonenCollection = withErrorHandling(WeiterePersonenCollectionEndpoint);
-export const WeiterePersonItem = withErrorHandling(WeiterePersonItemEndpoint);
+export const PersonenCollection = withErrorHandling(PersonenCollectionEndpoint);
+export const PersonItem = withErrorHandling(PersonItemEndpoint);

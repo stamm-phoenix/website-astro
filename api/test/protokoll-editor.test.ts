@@ -28,14 +28,15 @@ import type {
   ProtokollRevisionListItem,
   ProtokollSaveResponse,
 } from '../lib/protokoll-editor-model';
-import type { ProtokollEditorPersonen, WeiterePerson } from '../lib/protokoll-editor-model';
+import type { ProtokollEditorPersonen } from '../lib/protokoll-editor-model';
+import type { Person, PersonenUebersicht } from '../lib/personen-model';
 import {
   SPERRE_SECONDS,
   aktionZeitraum,
   neuerInhalt,
   upgradeInhalt,
 } from '../lib/protokoll-editor-model';
-import { WeiterePersonItem, WeiterePersonenCollection } from '../endpoints/intern-pflege-personen';
+import { PersonItem, PersonenCollection } from '../endpoints/intern-pflege-personen';
 import * as taskDirectory from '../lib/task-directory';
 import { dbTest } from './fixtures/database';
 
@@ -543,7 +544,7 @@ dbTest('Altleitende of the list are offered next to the leaders', async (t) => {
   mockDirectory(t);
   const context = quietContext(t);
   const add = async (body: Record<string, unknown>): Promise<number> => {
-    const created = await WeiterePersonenCollection(request(ANNA, 'POST', {}, body), context);
+    const created = await PersonenCollection(request(ANNA, 'POST', {}, body), context);
     assert.equal(created.status, 201, JSON.stringify(created.jsonBody));
     return (created.jsonBody as { id: number }).id;
   };
@@ -551,9 +552,16 @@ dbTest('Altleitende of the list are offered next to the leaders', async (t) => {
   await add({ name: 'Ingo Inaktiv', login: '', gruppe: 'weitere', aktiv: false });
   // Also in the Entra group: stays a leader
   await add({ name: 'Ben B.', login: BEN.toUpperCase(), gruppe: 'weitere', aktiv: true });
+  // A leader who left the Entra group: the row only links CampFlow, it is not offered
+  await add({
+    name: 'Clara Ehemals',
+    login: 'clara.ehemals@stamm-phoenix.de',
+    gruppe: 'leitende',
+    aktiv: true,
+  });
 
-  const invalid = await WeiterePersonenCollection(
-    request(ANNA, 'POST', {}, { name: '', login: 'kein-login', gruppe: 'leitende', aktiv: 1 }),
+  const invalid = await PersonenCollection(
+    request(ANNA, 'POST', {}, { name: '', login: 'kein-login', gruppe: 'vorstand', aktiv: 1 }),
     context
   );
   assert.equal(invalid.status, 400);
@@ -575,8 +583,9 @@ dbTest('Altleitende of the list are offered next to the leaders', async (t) => {
 });
 
 dbTest('the list of further people is edited with versions', async (t) => {
+  mockDirectory(t);
   const context = quietContext(t);
-  const created = await WeiterePersonenCollection(
+  const created = await PersonenCollection(
     request(
       ANNA,
       'POST',
@@ -587,19 +596,19 @@ dbTest('the list of further people is edited with versions', async (t) => {
   );
   const id = String((created.jsonBody as { id: number }).id);
   // Other tests of this file add people too
-  const find = async (): Promise<WeiterePerson | undefined> =>
+  const find = async (): Promise<Person | undefined> =>
     (
-      (await WeiterePersonenCollection(request(ANNA, 'GET'), context)).jsonBody as WeiterePerson[]
-    ).find((person) => String(person.id) === id);
+      (await PersonenCollection(request(ANNA, 'GET'), context)).jsonBody as PersonenUebersicht
+    ).personen.find((person) => String(person.id) === id);
   const otto = (await find())!;
   assert.equal(otto.updatedBy, ANNA);
 
-  const changed = await WeiterePersonItem(
+  const changed = await PersonItem(
     request(ANNA, 'PATCH', { id }, { ...otto, aktiv: false, etag: otto.etag }),
     context
   );
   assert.equal(changed.status, 204);
-  const stale = await WeiterePersonItem(
+  const stale = await PersonItem(
     request(BEN, 'PATCH', { id }, { ...otto, name: 'Otto', etag: otto.etag }),
     context
   );
@@ -607,7 +616,7 @@ dbTest('the list of further people is edited with versions', async (t) => {
   const updated = (await find())!;
   assert.equal(updated.aktiv, false);
 
-  const deleted = await WeiterePersonItem(
+  const deleted = await PersonItem(
     new HttpRequest({
       url: 'https://example.test/api/intern/pflege/personen',
       method: 'DELETE',

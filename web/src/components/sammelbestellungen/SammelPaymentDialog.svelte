@@ -9,6 +9,7 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { ApiError, fetchApi, sendApi, errorMessage } from '../../lib/api';
   import { formatOptionalEuro, formatDateTime } from '../../lib/format';
+  import { isIch } from '../../lib/ichStore.svelte';
   import type {
     SammelBestellung,
     SammelBillingPerson,
@@ -363,10 +364,12 @@
             {#snippet children(attrs)}<select {...attrs} class="form-input" bind:value={personId}>
                 <option value="">Bitte auswählen</option>
                 {#if selectedPerson && !candidates.some((person) => person.id === selectedPerson.id)}<option
-                    value={selectedPerson.id}>{selectedPerson.name}</option
+                    value={selectedPerson.id}
+                    >{selectedPerson.name}{isIch(selectedPerson) ? ' (ich)' : ''}</option
                   >{/if}
                 {#each candidates as person (person.id)}<option value={person.id}
-                    >{person.name} · {person.emails.join(', ') || 'Keine E-Mail-Adresse'}</option
+                    >{person.name}{isIch(person) ? ' (ich)' : ''} · {person.emails.join(', ') ||
+                      'Keine E-Mail-Adresse'}</option
                   >{/each}
               </select>{/snippet}
           </FormField>
@@ -519,7 +522,11 @@
           class="grid min-w-0 gap-x-4 gap-y-3 text-sm sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] [&_dt]:[overflow-wrap:anywhere]"
         >
           <dt class="text-neutral-700">CampFlow-Person</dt>
-          <dd class="font-semibold text-brand-900">{view.record?.assignment.person.name}</dd>
+          <dd class="font-semibold text-brand-900">
+            {view.record?.assignment.person
+              .name}{#if view.record && isIch(view.record.assignment.person)}
+              <span class="font-normal text-neutral-700">(ich)</span>{/if}
+          </dd>
           {#if operation?.contribution}<dt class="text-neutral-700">Zahlungsreferenz</dt>
             <dd class="font-semibold break-all text-brand-900">
               {operation.contribution.reference}

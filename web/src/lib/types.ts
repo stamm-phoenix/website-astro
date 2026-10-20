@@ -1008,8 +1008,14 @@ export type {
   PunktTermin,
   PersonGruppe,
   PersonOption,
-  WeiterePerson,
 } from '../../../api/lib/protokoll-editor-model';
+export type {
+  CampflowMitglied,
+  Ich,
+  LeitendenKonto,
+  Person,
+  PersonenUebersicht,
+} from '../../../api/lib/personen-model';
 
 /** A folder of the photo library (module „Fotos“). */
 export interface FotoFolder {

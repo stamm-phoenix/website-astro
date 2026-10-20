@@ -747,7 +747,7 @@ export async function seedPreviewProtokolle(): Promise<void> {
 }
 
 /** Invented Altleitende and others to pick in the minutes (#301); skipped if there are some. */
-export async function seedPreviewWeiterePersonen(): Promise<void> {
+export async function seedPreviewPersonen(): Promise<void> {
   const exists = await getDb().selectFrom('organisation.person').select('id').executeTakeFirst();
   if (exists) return;
   await getDb()

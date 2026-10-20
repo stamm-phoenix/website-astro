@@ -18,8 +18,9 @@ import type {
   ProtokollPunkt,
   ProtokollTeilnahme,
   PunktTermin,
-  WeiterePerson,
 } from './protokoll-editor-model';
+import { CAMPFLOW_PERSON_ID } from './personen-model';
+import type { PersonInput } from './personen-model';
 import {
   ELEMENT_ID,
   MAX_AUFGABEN,
@@ -1392,14 +1393,15 @@ export function validateProtokollEditorSave(body: unknown): ProtokollEditorSaveI
   };
 }
 
-// --- Weitere Personen (#301) ---
-
-export type WeiterePersonInput = Pick<WeiterePerson, 'name' | 'login' | 'gruppe' | 'aktiv'>;
+// --- Personen (#301, docs/personen.md) ---
 
 const LOGIN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** A person of the list of Altleitende and others to pick in the minutes. */
-export function validateWeiterePerson(body: unknown): WeiterePersonInput {
+/**
+ * A person of the module „Personen“: a leader's link to CampFlow, or Altleitende and others to
+ * pick in the minutes.
+ */
+export function validatePerson(body: unknown): PersonInput {
   const record = asRecord(body);
   const reader = new Reader(record);
   const name = reader.text('name', 'einen Namen', MAX_TITEL, true);
@@ -1407,14 +1409,22 @@ export function validateWeiterePerson(body: unknown): WeiterePersonInput {
   if (login && !LOGIN.test(login)) {
     reader.errors.login = 'Bitte den Login als E-Mail-Adresse angeben oder leer lassen.';
   }
-  const gruppe = reader.choice('gruppe', 'die Gruppe', ['altleitende', 'weitere']);
+  const gruppe = reader.choice('gruppe', 'die Gruppe', ['leitende', 'altleitende', 'weitere']);
+  if (gruppe === 'leitende' && !login && !reader.errors.login) {
+    reader.errors.login = 'Leitende brauchen die E-Mail-Adresse ihres Microsoft-Kontos.';
+  }
+  const campflowPersonId = reader.text('campflowPersonId', 'Die CampFlow-Person', 64);
+  if (campflowPersonId && !CAMPFLOW_PERSON_ID.test(campflowPersonId)) {
+    reader.errors.campflowPersonId = 'Bitte eine Person aus der CampFlow-Mitgliederliste wählen.';
+  }
   if (typeof record.aktiv !== 'boolean')
     reader.errors.aktiv = 'Bitte angeben, ob die Person aktiv ist.';
   reader.done();
   return {
     name,
     login,
-    gruppe: gruppe as WeiterePersonInput['gruppe'],
+    gruppe: gruppe as PersonInput['gruppe'],
+    campflowPersonId,
     aktiv: record.aktiv === true,
   };
 }

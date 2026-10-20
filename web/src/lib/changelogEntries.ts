@@ -12,6 +12,19 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-21-04-personen',
+    date: '2026-10-21',
+    title: 'Dein Konto ist mit deiner Person in CampFlow verknüpft',
+    changes: [
+      {
+        text: 'Aus „Weitere Personen“ wird „Personen“. Dort wird jedes Konto der Leitenden einmal mit der passenden Person in CampFlow verknüpft. Gibt es in CampFlow genau eine Person mit demselben Namen, schlägt die Seite sie vor, und du übernimmst den Vorschlag mit einem Klick.',
+        href: '/leitendenbereich/personen',
+      },
+      'In Teilnehmendenlisten, bei Fahrten, in der Abrechnung, bei Beiträgen, Sammelbestellungen und Protokoll-Empfängern steht jetzt „(ich)“ hinter deinem eigenen Eintrag.',
+      'Altleitende und weitere Personen pflegst du wie bisher auf derselben Seite.',
+    ],
+  },
+  {
     id: '2026-10-21-03-aufgaben-seitenwechsel',
     date: '2026-10-21',
     title: 'Aufgaben öffnen ohne Neuladen',
