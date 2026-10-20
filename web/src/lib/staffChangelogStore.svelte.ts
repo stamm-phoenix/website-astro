@@ -19,14 +19,17 @@ interface ChangelogState {
   lastSeenId: string | null;
   /** Whether `lastSeenId` came from the server; until then no bubble is shown. */
   loaded: boolean;
-  /** Why the last load or save failed; `null` after a success. */
-  error: string | null;
+  /** Why the last load failed; `null` after a success. */
+  loadError: string | null;
+  /** Why the last save failed; `null` after a save succeeded. A later load does not clear it. */
+  saveError: string | null;
 }
 
 export const changelogStore = $state<ChangelogState>({
   lastSeenId: null,
   loaded: false,
-  error: null,
+  loadError: null,
+  saveError: null,
 });
 
 let loading: Promise<boolean> | null = null;
@@ -47,10 +50,10 @@ export function loadChangelogSeen(): Promise<boolean> {
         changelogStore.lastSeenId = lastSeenId;
         changelogStore.loaded = true;
       }
-      changelogStore.error = null;
+      changelogStore.loadError = null;
       return true;
     } catch (error) {
-      changelogStore.error = errorMessage(error, LOAD_FAILED);
+      changelogStore.loadError = errorMessage(error, LOAD_FAILED);
       return false;
     } finally {
       loading = null;
@@ -75,10 +78,10 @@ export async function markChangelogSeen(): Promise<boolean> {
     });
     changelogStore.lastSeenId = lastSeenId;
     changelogStore.loaded = true;
-    changelogStore.error = null;
+    changelogStore.saveError = null;
     return true;
   } catch (error) {
-    changelogStore.error = errorMessage(error, SAVE_FAILED);
+    changelogStore.saveError = errorMessage(error, SAVE_FAILED);
     return false;
   }
 }

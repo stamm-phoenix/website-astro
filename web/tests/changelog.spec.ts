@@ -109,3 +109,25 @@ test('an expired login is named and offers a new login instead of a connection c
   await expect(page.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
   await expect(page.getByText('Prüfe deine Internetverbindung')).toHaveCount(0);
 });
+
+test('opening the menu keeps the message about a failed save', async ({ page }) => {
+  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/intern/neuigkeiten', (route) =>
+    route.request().method() === 'PUT'
+      ? route.fulfill({ status: 503, json: { error: 'unavailable' } })
+      : route.continue()
+  );
+  await page.goto('/leitendenbereich/neuigkeiten');
+  await expect(page.getByText('Nicht als gelesen gespeichert.')).toBeVisible();
+
+  // The menu asks the server for the read state again, which succeeds
+  const menu = page
+    .getByRole('navigation', { name: 'Schnellzugriff' })
+    .getByRole('button', { name: 'Menü', exact: true });
+  await menu.click();
+  await expect(page.getByRole('dialog', { name: 'Alle Bereiche' })).toBeVisible();
+  await menu.click();
+  await expect(page.getByText('Nicht als gelesen gespeichert.')).toBeVisible();
+  await expect(page.getByText('Die Zahl am Menü bleibt deshalb stehen.')).toBeVisible();
+});
