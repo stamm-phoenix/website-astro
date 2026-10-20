@@ -1,4 +1,5 @@
-import { test, expect, answerConfirm } from './fixtures';
+import type { Page } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test('the Leitendenbereich can be installed and the app starts on its start page', async ({
   page,
@@ -114,9 +115,7 @@ test('the Abrechnung says that it keeps saving on the device without a connectio
   await context.setOffline(false);
 });
 
-test('in the iPhone app an expired login is renewed in the same window and the input comes back', async ({
-  page,
-}) => {
+async function expireLoginInIphoneApp(page: Page): Promise<void> {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'standalone', { value: true });
   });
@@ -124,15 +123,22 @@ test('in the iPhone app an expired login is renewed in the same window and the i
     route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
   );
   await page.goto('/leitendenbereich/gruppenstunden');
-  await page
-    .getByRole('button', { name: /^Bearbeiten/ })
-    .first()
-    .click();
-  const dialog = page.getByRole('dialog');
+}
+
+test('in the iPhone app the edit dialog fills in its input again after the new login', async ({
+  page,
+}) => {
+  await expireLoginInIphoneApp(page);
+  await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Gruppenstunde Wölflinge bearbeiten' });
   await dialog.getByLabel('Alter').fill('16 bis 20 Jahre');
+  const beschreibung = dialog.getByRole('textbox', { name: 'Beschreibung' });
+  await beschreibung.click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.type(' Neu: Hüttenwochenende.');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
 
-  await expect(dialog.getByRole('alert')).toContainText('zum Kopieren bereit');
+  await expect(dialog.getByRole('alert')).toContainText('setzt es deine Eingaben selbst ein');
   const login = dialog.getByRole('link', { name: 'Neu anmelden', exact: true });
   await expect(login).toHaveAttribute(
     'href',
@@ -141,19 +147,76 @@ test('in the iPhone app an expired login is renewed in the same window and the i
   await expect(login).not.toHaveAttribute('target', '_blank');
   await login.click();
 
-  // The login reloaded the page; the input waits at the top
-  const rescued = page.getByRole('region', { name: 'Deine Eingaben vor der neuen Anmeldung' });
-  await expect(rescued).toContainText('Alter');
-  await expect(rescued).toContainText('16 bis 20 Jahre');
-  await expect(rescued.getByRole('button', { name: 'Alter (optional) kopieren' })).toBeVisible();
-  await page.reload();
-  await expect(rescued).toContainText('16 bis 20 Jahre');
-  await rescued.getByRole('button', { name: 'Gerettete Eingaben löschen' }).click();
-  await answerConfirm(page, 'Gerettete Eingaben löschen?', 'Eingaben löschen');
-  await expect(rescued).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByRole('heading', { name: /Gruppenstunden/ }).first()).toBeVisible();
-  await expect(rescued).toHaveCount(0);
+  // The login reloaded the page: the hint says which form to open again
+  const hint = page.getByRole('region', { name: 'Deine Eingaben sind gesichert' });
+  await expect(hint).toContainText('„Gruppenstunde Wölflinge bearbeiten“');
+  await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
+  await expect(dialog.getByLabel('Alter')).toHaveValue('16 bis 20 Jahre');
+  await expect(beschreibung).toContainText('Neu: Hüttenwochenende.');
+  await expect(dialog.getByText('wieder eingesetzt. Prüf sie und speichere.')).toBeVisible();
+  await expect(hint).toHaveCount(0);
+
+  // Filled in once: closing asks first, and the next opening shows the saved values
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await page.getByRole('button', { name: 'Änderungen verwerfen' }).click();
+  await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
+  await expect(dialog.getByLabel('Alter')).not.toHaveValue('16 bis 20 Jahre');
+});
+
+test('in the iPhone app a new question keeps its check mark and the link in its answer', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.route('**/api/intern/pflege/qa', (route) =>
+    route.request().method() === 'POST' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/fragen-und-antworten');
+  await page.getByRole('button', { name: 'Neue Frage', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Neue Frage' });
+  await dialog.getByLabel('Frage', { exact: true }).fill('Wo treffen wir uns?');
+  await dialog.getByRole('checkbox', { name: /Veröffentlicht/ }).check();
+  const antwort = dialog.getByRole('textbox', { name: 'Antwort' });
+  await antwort.click();
+  await antwort.evaluate((element) => {
+    const data = new DataTransfer();
+    data.setData('text/html', '<p>Siehe <a href="https://example.org/treffpunkt">Karte</a></p>');
+    element.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }));
+  });
+  await expect(antwort.getByRole('link', { name: 'Karte' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toBeVisible();
+  await page.getByRole('button', { name: 'Neue Frage', exact: true }).click();
+  await expect(dialog.getByLabel('Frage', { exact: true })).toHaveValue('Wo treffen wir uns?');
+  await expect(dialog.getByRole('checkbox', { name: /Veröffentlicht/ })).toBeChecked();
+  await expect(antwort.getByRole('link', { name: 'Karte' })).toHaveAttribute(
+    'href',
+    'https://example.org/treffpunkt'
+  );
+});
+
+test('in the iPhone app the login waits when the input cannot be kept', async ({ page }) => {
+  await expireLoginInIphoneApp(page);
+  await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Gruppenstunde Wölflinge bearbeiten' });
+  await dialog.getByLabel('Alter').fill('16 bis 20 Jahre');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException('full', 'QuotaExceededError');
+    };
+  });
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  await expect(dialog.getByRole('alert')).toContainText(
+    'ließen sich auf diesem Gerät nicht sichern'
+  );
+  await expect(page).toHaveURL(/\/leitendenbereich\/gruppenstunden$/);
+  await expect(dialog.getByLabel('Alter')).toHaveValue('16 bis 20 Jahre');
+  await expect(dialog.getByRole('link', { name: 'Trotzdem neu anmelden' })).toBeVisible();
 });
 
 test('in the iPhone app the photo of a receipt opens through the login of the new window', async ({

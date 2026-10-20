@@ -7,6 +7,14 @@
   import { confirmAction } from '../../lib/confirm';
   import StatusNotice from './StatusNotice.svelte';
   import MessageText from '../ui/MessageText.svelte';
+  import {
+    fillDialog,
+    rescueDialog,
+    setRescueContext,
+    takeRescue,
+    type GeretteterWert,
+    type RescueEditor,
+  } from '../../lib/geretteteEingaben';
 
   interface Props {
     open: boolean;
@@ -66,11 +74,19 @@
   let form = $state<HTMLFormElement | null>(null);
   /** Whether a field differs from its value when the dialog opened; saving closes the dialog. */
   let edited = $state(false);
-  const unsaved = $derived(edited || dirty);
+  /** Input from before a new login was filled in again; it is unsaved until saved. */
+  let restored = $state(false);
+  const unsaved = $derived(edited || dirty || restored);
   let confirmingDiscard = $state(false);
   let deleteActionsOpen = $state(false);
   let reloadRequested = $state(false);
   let previousFocus: HTMLElement | null = null;
+  const shownNotice = $derived(
+    notice ??
+      (restored
+        ? 'Deine Eingaben von vor der neuen Anmeldung sind wieder eingesetzt. Prüf sie und speichere.'
+        : null)
+  );
 
   async function keepEditing(): Promise<void> {
     confirmingDiscard = false;
@@ -108,12 +124,41 @@
     void tick().then(updateEdited);
   });
 
+  // A new login in the iPhone app reloads the page; the input is kept and filled in again
+  let editors: RescueEditor[] = [];
+  let pending: GeretteterWert[] = [];
+  setRescueContext({
+    rescue: () => (form ? rescueDialog(form, title, editors) : false),
+    register(editor) {
+      editors.push(editor);
+      if (form && pending.length > 0) pending = fillDialog(form, [editor], pending);
+      return () => {
+        editors = editors.filter((entry) => entry !== editor);
+      };
+    },
+  });
+
+  async function restore(kept: GeretteterWert[]): Promise<void> {
+    if (!form) return;
+    pending = fillDialog(form, editors, kept);
+    // Fields that appear only after a choice above them
+    await tick();
+    if (pending.length > 0) pending = fillDialog(form, editors, pending);
+    restored = true;
+    await tick();
+    updateEdited();
+  }
+
   function opened(): void {
     edited = false;
     confirmingDiscard = false;
     deleteActionsOpen = false;
     initial = [];
     for (const el of form?.elements ?? []) remember(el);
+    restored = false;
+    pending = [];
+    const kept = takeRescue(title, Date.now());
+    if (kept) void restore(kept);
   }
 
   $effect(() => {
@@ -168,7 +213,10 @@
     </div>
 
     <div class="border-t border-neutral-200 px-5 py-3">
-      <StatusNotice message={error ? null : notice} class={notice && !error ? 'mb-3' : ''} />
+      <StatusNotice
+        message={error ? null : shownNotice}
+        class={shownNotice && !error ? 'mb-3' : ''}
+      />
       {#if error}
         <p role="alert" class="mb-3 text-sm text-danger"><MessageText text={error} /></p>
       {/if}
