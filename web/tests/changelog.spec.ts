@@ -39,3 +39,41 @@ test('a person who has read everything is told so', async ({ page }) => {
   await expect(page.getByText('Du bist auf dem neuesten Stand.')).toBeVisible();
   await expect(page.getByText('Neu', { exact: true })).toHaveCount(0);
 });
+
+test('a failed load of the read state marks nothing as new or read and offers a retry', async ({
+  page,
+}) => {
+  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_ALL } });
+  let writes = 0;
+  let failing = true;
+  await page.route('**/api/intern/neuigkeiten', (route) => {
+    if (route.request().method() === 'PUT') writes++;
+    if (failing && route.request().method() === 'GET') {
+      return route.fulfill({ status: 503, json: { error: 'unavailable' } });
+    }
+    return route.continue();
+  });
+  await page.goto('/leitendenbereich/neuigkeiten');
+  await expect(page.getByText('Dein Lesestand konnte nicht geladen werden.')).toBeVisible();
+  await expect(page.getByText('Neu', { exact: true })).toHaveCount(0);
+  expect(writes).toBe(0);
+
+  failing = false;
+  await page.getByRole('button', { name: 'Erneut versuchen' }).click();
+  await expect(page.getByText('Du bist auf dem neuesten Stand.')).toBeVisible();
+});
+
+test('the page confirms the read state only after it was saved', async ({ page }) => {
+  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/neuigkeiten', async (route) => {
+    if (route.request().method() === 'PUT') await gate;
+    await route.continue();
+  });
+  await page.goto('/leitendenbereich/neuigkeiten');
+  await expect(page.getByText('Gelesen wird gespeichert …')).toBeVisible();
+  await expect(page.getByText('gelten jetzt als gelesen')).toHaveCount(0);
+  release();
+  await expect(page.getByText('gelten jetzt als gelesen')).toBeVisible();
+});

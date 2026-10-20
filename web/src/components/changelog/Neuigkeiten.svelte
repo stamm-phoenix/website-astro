@@ -9,23 +9,52 @@
     markChangelogSeen,
   } from '../../lib/staffChangelogStore.svelte';
   import { HELP_CONTACTS } from '../../lib/helpContacts';
+  import ActionButton from '../ui/ActionButton.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
 
-  /** What was new when the page opened; the labels stay while the entries count as read. */
-  let newIds = $state<string[] | null>(null);
-  let saveFailed = $state(false);
+  type Phase = 'loading' | 'loadFailed' | 'saving' | 'saved' | 'saveFailed';
 
-  onMount(async () => {
+  /** What was new when the page opened; the labels stay while the entries count as read. */
+  let newIds = $state<string[]>([]);
+  let phase = $state<Phase>('loading');
+
+  async function open(): Promise<void> {
+    phase = 'loading';
     await loadChangelogSeen();
+    // Without the saved state nothing can be called new, and nothing is marked as read
+    if (!changelogStore.loaded) {
+      phase = 'loadFailed';
+      return;
+    }
     newIds = unseenEntries(CHANGELOG, changelogStore.lastSeenId).map((entry) => entry.id);
-    saveFailed = !(await markChangelogSeen());
-  });
+    phase = 'saving';
+    phase = (await markChangelogSeen()) ? 'saved' : 'saveFailed';
+  }
+
+  onMount(open);
 </script>
 
 <div role="status" aria-live="polite">
-  {#if newIds === null}
-    <p class="text-neutral-700">Neuigkeiten werden geladen …</p>
-  {:else if saveFailed}
+  {#if phase === 'loading' || phase === 'saving'}
+    <p class="mb-4 text-sm text-neutral-700">
+      {phase === 'loading' ? 'Neuigkeiten werden geladen …' : 'Gelesen wird gespeichert …'}
+    </p>
+  {:else if phase === 'loadFailed'}
+    <div class="mb-4 border-l-4 border-danger py-2 pl-4 text-sm text-neutral-800">
+      <strong class="text-danger">Dein Lesestand konnte nicht geladen werden.</strong>
+      Die Neuigkeiten stehen unten, aber wir wissen nicht, welche du schon kennst. Es wurde nichts als
+      gelesen gespeichert. Prüfe deine Internetverbindung und versuche es noch einmal. Hilft das nicht,
+      schreib an
+      <a href="mailto:{HELP_CONTACTS.technik}" class="font-semibold text-link"
+        >{HELP_CONTACTS.technik}</a
+      >.
+      <div>
+        <ActionButton variant="secondary" type="button" class="mt-3" onclick={open}
+          >Erneut versuchen</ActionButton
+        >
+      </div>
+    </div>
+  {:else if phase === 'saveFailed'}
     <p class="mb-4 border-l-4 border-warning py-2 pl-4 text-sm text-neutral-800">
       <strong class="text-warning">Nicht als gelesen gespeichert.</strong>
       Die Zahl am Menü bleibt deshalb stehen. Prüfe deine Internetverbindung und lade die Seite neu. Hilft
@@ -52,7 +81,7 @@
           <h2 id="neuigkeit-{entry.id}" class="font-serif text-lg font-semibold text-brand-900">
             {entry.title}
           </h2>
-          {#if newIds?.includes(entry.id)}<StatusLabel label="Neu" tone="danger" dot />{/if}
+          {#if newIds.includes(entry.id)}<StatusLabel label="Neu" tone="danger" dot />{/if}
         </div>
         <p class="mt-0.5 text-sm text-neutral-700">
           <time datetime={entry.date}>{formatDay(entry.date)}</time>
