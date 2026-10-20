@@ -48,8 +48,7 @@ Die Folge: Öffentliche Seiten wie „Zur Website“ erscheinen ebenfalls im App
 - **iOS öffnet neue Tabs außerhalb der App.** Nach einer abgelaufenen Anmeldung öffnet „Neu anmelden (öffnet neuen Tab)“ (`RELOGIN_URL` in `web/src/lib/api.ts`) ein Safari-Fenster mit eigenen Cookies, die neue Anmeldung erreicht die App also nicht. In der iPhone-App (`navigator.standalone`, `reloginOnlyHere()`) meldet **Neu anmelden** deshalb im selben Fenster neu an und kehrt zur Seite zurück. Ungespeicherte Eingaben gehen dabei verloren, der Hinweis davor sagt, dass man sie kopieren soll. Android teilt die Cookies zwischen App und Chrome, dort bleibt der neue Tab.
 - **iOS nutzt das Apple-Icon.** Safari liest für den Startbildschirm `apple-touch-icon.png` und den Titel aus `apple-mobile-web-app-title`.
 - **Android schneidet das Icon zu.** Der Launcher nutzt `app-icon-maskable-512.png` und schneidet es rund oder eckig zu. Die Lilie liegt deshalb mit mehr Rand in der sicheren Zone.
-- **Die Titelleiste folgt dem Farbschema.** Das Manifest setzt `#f8f5ef`. Sobald eine Seite geladen ist, setzt `BaseLayout.astro` über `theme-color` die Farbe des hellen oder dunklen Themas.
-- **Der Startbildschirm ist immer hell.** Ein Manifest kennt nur eine `background_color`. Im dunklen Modus erscheint beim Start kurz ein heller Startbildschirm.
+- **Android färbt die Leisten mit dem Manifest.** Die installierte App nimmt für Statusleiste und Startbildschirm `theme_color` und `background_color` aus dem Manifest, nicht die `theme-color` der Seite. Ein Manifest kennt nur eine Farbe, dunkle Varianten gibt es erst als Vorschlag ([w3c/manifest#1207](https://github.com/w3c/manifest/pull/1207)). Beide Farben sind deshalb DPSG-Blau `#003056`, das im hellen und im dunklen Modus passt.
 
 ## Auf Geräten prüfen
 

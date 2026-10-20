@@ -13,7 +13,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       Der Leitendenbereich wird geöffnet …
     </p>
     <p id="app-start-retry" class="mt-4" hidden>
-      <a href="/leitendenbereich-app/" class="btn-primary no-underline">
+      <!-- A full load, so the script below checks the login again -->
+      <a href="/leitendenbereich-app/" data-astro-reload class="btn-primary no-underline">
         Noch einmal versuchen
       </a>
     </p>
