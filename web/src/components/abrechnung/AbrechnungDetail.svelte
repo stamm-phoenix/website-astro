@@ -320,7 +320,7 @@
     loadingText="Die Einzelnachweise werden aus CampFlow exportiert. Das dauert einige Sekunden …"
     onretry={() => {
       void fetchAbrechnung(eventId, kostenstelle, { force: true });
-      void loadAbrechnungSession(eventId);
+      if (!ablage.loaded) void loadAbrechnungSession(eventId);
     }}
   >
     {#snippet skeleton()}
@@ -392,13 +392,15 @@
           />
           <div class="mt-4 space-y-2 text-sm text-neutral-700" data-testid="eingaben-ablage">
             <p bind:this={ablageText} tabindex="-1" role="status">
-              {ablage.saving
-                ? 'Eingaben werden gespeichert …'
-                : ablage.dirty
-                  ? 'Ungespeicherte Änderungen. Tippe auf „Eingaben speichern“.'
-                  : ablage.savedAt
-                    ? `Gespeichert am ${formatDateTime(ablage.savedAt)} Uhr. Auf allen deinen Geräten verfügbar.`
-                    : 'Deine Eingaben werden mit „Eingaben speichern“ für deinen Account auf allen Geräten gespeichert.'}
+              {aufbewahrungVorbei
+                ? 'Die Aufbewahrungsfrist ist abgelaufen. Speichern ist deshalb gesperrt. Neue Eingaben bleiben nur auf dieser geöffneten Seite erhalten; lade benötigte Unterlagen vor dem Verlassen herunter.'
+                : ablage.saving
+                  ? 'Eingaben werden gespeichert …'
+                  : ablage.dirty
+                    ? 'Ungespeicherte Änderungen. Tippe auf „Eingaben speichern“.'
+                    : ablage.savedAt
+                      ? `Gespeichert am ${formatDateTime(ablage.savedAt)} Uhr. Auf allen deinen Geräten verfügbar.`
+                      : 'Deine Eingaben werden mit „Eingaben speichern“ für deinen Account auf allen Geräten gespeichert.'}
             </p>
             <StatusNotice message={ablage.error} kind="error" />
             <div class="flex flex-wrap gap-2">

@@ -8,14 +8,9 @@ import {
   VersionConflictError,
 } from './db';
 import { parseSession, emptySession } from './abrechnung-session';
-import type { AbrechnungSession } from './abrechnung-session';
+import type { AbrechnungEingabe, AbrechnungSession } from './abrechnung-session';
 
-export interface AbrechnungEingabe {
-  session: AbrechnungSession;
-  etag: string | null;
-  savedAt: string | null;
-  deleteAfter: string | null;
-}
+export type { AbrechnungEingabe } from './abrechnung-session';
 
 /** Same retention as existing drafts: one month after the three-month KJR deadline. */
 export function abrechnungDeleteAfter(end: string): string {

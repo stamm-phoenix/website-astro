@@ -190,6 +190,7 @@ test.describe('Fragen und Antworten', () => {
     );
 
     await page.goto('/fragen-und-antworten');
+    await page.getByRole('button', { name: /Aktualisierte Fragen/ }).click();
     await page.getByRole('button', { name: question }).click();
     const link = page.getByRole('link', { name: 'Zur Packliste' });
     await expect(link).toHaveAttribute('href', 'https://example.org/packliste');

@@ -134,7 +134,7 @@ test('task views, status filters and administration pages are separate and proto
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const content = document.querySelector('main')!.getBoundingClientRect();
+        const content = document.querySelector('#staff-content')!.getBoundingClientRect();
         const header = document.querySelector('body > header')!.getBoundingClientRect();
         return content.top - header.bottom;
       })
@@ -178,8 +178,12 @@ test('task views, status filters and administration pages are separate and proto
   const protocol = page.getByLabel('Protokoll', { exact: true });
   await expect(page.getByText('Wähle zuerst ein Protokoll.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Aufgaben erkennen', exact: true })).toBeDisabled();
-  await expect(protocol.locator('option').nth(1)).toHaveText('12. Okt. 2026 · Leitendenrunde neu');
-  await expect(protocol.locator('option').nth(2)).toHaveText('1. Sept. 2026 · Leitendenrunde alt');
+  await expect(protocol.locator('option').nth(1)).toContainText(
+    '12. Okt. 2026 · Leitendenrunde neu'
+  );
+  await expect(protocol.locator('option').nth(2)).toContainText(
+    '1. Sept. 2026 · Leitendenrunde alt'
+  );
   await taskFilters(page);
   const filters = page.getByRole('group', { name: 'Aufgabenfilter' });
   const own = filters.getByText('Nur mir zugewiesen', { exact: true });

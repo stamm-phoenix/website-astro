@@ -1,5 +1,5 @@
 import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
-import type { AbrechnungEingabe } from '../../api/lib/abrechnung-eingabe';
+import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
 import {
   ValidationError,

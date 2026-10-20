@@ -120,7 +120,11 @@ test('an Einzelnachweis opens with its receipt and its amount can be changed', a
     /1\.309,90\s€/
   );
 
-  // The changed amount is kept on the device: leaving does not ask and reopening shows it
+  // Saving keeps the changed amount on the account across navigation.
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Auf allen deinen Geräten verfügbar'
+  );
   const dialogs: string[] = [];
   page.on('dialog', (confirm) => {
     dialogs.push(confirm.message());
@@ -145,7 +149,11 @@ test('an Einzelnachweis opens with its receipt and its amount can be changed', a
   await expect(zeile).toContainText(/-400,00\s€/);
   await expect(zeile.getByTestId('betrag-campflow')).toHaveCount(0);
 
-  // Without changes nothing is lost when leaving
+  // Save restoring CampFlow's amount before leaving.
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Auf allen deinen Geräten verfügbar'
+  );
   await page
     .getByRole('navigation', { name: 'Zurück' })
     .getByRole('link', { name: 'Abrechnung', exact: true })
@@ -350,7 +358,9 @@ test('the Leihgebühren can be reset to no material', async ({ page }) => {
 });
 
 test('Neu laden exports the Einzelnachweise again and keeps the entries', async ({ page }) => {
-  const first = page.waitForResponse((r) => /\/api\/intern\/abrechnung\/evt_Sola26/.test(r.url()));
+  const first = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === '/api/intern/abrechnung/evt_Sola26'
+  );
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
   const before = ((await (await first).json()) as { exportedAt: string }).exportedAt;
   // Opening the page uses the last export of the Playwright API

@@ -3,7 +3,7 @@ import { ABRECHNUNG_STORAGE_PREFIX, storedLoeschdatum } from './abrechnungAblage
 import { localDate } from './dateUtils';
 import { ApiError, errorMessage, fetchApi, sendApi } from './api';
 import { emptySession, parseSession } from '../../../api/lib/abrechnung-session';
-import type { AbrechnungEingabe } from '../../../api/lib/abrechnung-eingabe';
+import type { AbrechnungEingabe } from '../../../api/lib/abrechnung-session';
 import type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
 export type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
 import { isKjrBetreuer, kjrHerkunft } from './kjrZuschuss';
@@ -251,10 +251,13 @@ export function storeAbrechnungSession(eventId: string, deleteAfter: string | nu
   });
 }
 
-export async function saveAbrechnungSession(eventId: string): Promise<boolean> {
+export async function saveAbrechnungSession(
+  eventId: string,
+  submitted: AbrechnungSession = abrechnungSessions[eventId]
+): Promise<boolean> {
   const state = abrechnungAblage[eventId];
   if (!state?.loaded || state.saving || state.conflict) return false;
-  const json = JSON.stringify(abrechnungSessions[eventId]);
+  const json = JSON.stringify(submitted);
   state.saving = true;
   state.error = null;
   try {
@@ -350,9 +353,10 @@ export async function clearAbrechnungSession(eventId: string): Promise<boolean> 
   if (abrechnungAblage[eventId]?.saving || abrechnungAblage[eventId]?.conflict) return false;
   const session = abrechnungSession(eventId);
   const before = JSON.stringify(session);
-  Object.assign(session, emptySession());
-  const saved = await saveAbrechnungSession(eventId);
-  if (!saved) Object.assign(session, JSON.parse(before));
+  // Keep the editable draft intact until the reset has been confirmed. New edits made
+  // during the request also survive a successful reset and remain marked unsaved.
+  const saved = await saveAbrechnungSession(eventId, emptySession());
+  if (saved && JSON.stringify(session) === before) Object.assign(session, emptySession());
   storeAbrechnungSession(eventId, null);
   return saved;
 }
