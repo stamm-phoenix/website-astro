@@ -29,7 +29,7 @@ interface Rettung {
   record: string;
   /** The dialog title when it opened, to name the form in the hint. */
   dialog: string;
-  /** The field values when the dialog opened: tells records with the same dialog title apart. */
+  /** Original version, or visible starting values for a new/unversioned record. */
   opening: string;
   fields: GeretteterWert[];
   dependencies?: RescueDependency[];
@@ -275,7 +275,7 @@ export function rescuedDialog(now: number): string | null {
 }
 
 /**
- * The kept input of `record` on this page. The values when the dialog opened must match too,
+ * The kept input of `record` on this page. Its original version or starting signature must match,
  * so input never lands on a record someone changed in between. It stays kept until
  * `forgetRescue()`, so input without a field to go into is not lost.
  * With a null opening, read it only for showing a conflicting draft, never to fill fields.

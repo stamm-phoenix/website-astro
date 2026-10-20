@@ -173,7 +173,7 @@
   export function acceptRescueVersion(previous: string, saved: string): void {
     if (rescueConflict || openingVersion !== previous) return;
     openingVersion = saved;
-    opening = JSON.stringify([openingVersion, openingValues]);
+    opening = JSON.stringify([openingVersion, openingVersion ? [] : openingValues]);
   }
   setRescueContext({
     warning: () => rescueWarning,
@@ -236,13 +236,13 @@
     openingTitle = title;
     record = rescueKey;
     openingVersion = rescueVersion ?? '';
-    // Hidden controls can contain derived display names from a separately loaded directory.
-    // They still track edits above, but record versions and native visible fields identify
-    // the original data; compound selections are saved explicitly through rescueFields.
+    // A persisted record's version identifies its original data. Displayed defaults can
+    // depend on separately loaded prices or names and must not create false conflicts.
+    // New records have no version, so compare their visible starting fields instead.
     openingValues = initial
       .filter(({ el }) => !(el instanceof HTMLInputElement && el.type === 'hidden'))
       .map((entry) => entry.value);
-    opening = JSON.stringify([openingVersion, openingValues]);
+    opening = JSON.stringify([openingVersion, openingVersion ? [] : openingValues]);
     const kept =
       record === undefined
         ? null
