@@ -49,6 +49,8 @@ test('minutes without a modification timestamp still render their list', async (
   });
   await page.goto('/leitendenbereich/protokolle');
   await expect(page.getByText(/Zuletzt geändert/).first()).toBeVisible();
+  // The tasks load the same list; their request may still be in the handler when the test ends
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
 test('internal action year and calendar month agree after Berlin New Year', async ({ page }) => {
