@@ -210,9 +210,30 @@
     if (next >= 0 && next < files.length) onindex(next);
   }
 
+  /** Share of the view that one arrow key moves a zoomed photo. */
+  const KEY_PAN = 0.15;
+  const KEY_DIRECTION: Record<string, Point> = {
+    ArrowLeft: { x: 1, y: 0 },
+    ArrowRight: { x: -1, y: 0 },
+    ArrowUp: { x: 0, y: 1 },
+    ArrowDown: { x: 0, y: -1 },
+  };
+
   function onkeydown(event: KeyboardEvent): void {
     // The arrow keys of a focused video player seek within the video
     if (event.target instanceof HTMLVideoElement || event.defaultPrevented) return;
+    const direction = KEY_DIRECTION[event.key];
+    // While zoomed the arrow keys move the photo, so every edge can be reached without a finger
+    if (zoomed && photoArea && direction) {
+      event.preventDefault();
+      const next = {
+        ...zoom,
+        x: zoom.x + direction.x * photoArea.clientWidth * KEY_PAN,
+        y: zoom.y + direction.y * photoArea.clientHeight * KEY_PAN,
+      };
+      animateZoom(keepInside(next, photoArea));
+      return;
+    }
     if (event.key === 'ArrowRight') go(1);
     else if (event.key === 'ArrowLeft') go(-1);
   }
@@ -247,6 +268,14 @@
   }
 
   /** Between the whole photo and 2.5×, around `focus` (relative to the centre of the area). */
+  /**
+   * The end of every zoom gesture, also of a pinch that went on as a one-finger pan: a scale just
+   * above 1 returns to the whole photo, any other is kept inside the edges.
+   */
+  function finishZoom(area: HTMLElement): void {
+    animateZoom(zoom.scale < ZOOM_SNAP ? NO_ZOOM : keepInside(zoom, area));
+  }
+
   function toggleZoom(area: HTMLElement, focus: Point): void {
     if (zoomed) animateZoom(NO_ZOOM);
     else animateZoom(keepInside(zoomAround(NO_ZOOM, ZOOM_STEP, focus), area));
@@ -396,13 +425,17 @@
           startPan(event.touches[0], event.timeStamp, false);
           return;
         }
-        animateZoom(zoom.scale < ZOOM_SNAP ? NO_ZOOM : keepInside(zoom, area));
+        finishZoom(area);
         return;
       }
       if (event.touches.length > 0) return;
       const tapped = ended.kind === 'pan' ? !ended.moved : ended.axis === null;
       if (tapped) {
-        if (!ended.tap) return;
+        // The finger left over from a pinch: its release ends the zoom gesture
+        if (!ended.tap) {
+          finishZoom(area);
+          return;
+        }
         const tap = { x: ended.track.lastX, y: ended.track.lastY, time: event.timeStamp };
         if (isDoubleTap(lastTap, tap)) {
           lastTap = null;
@@ -415,7 +448,7 @@
       }
       lastTap = null;
       if (ended.kind === 'pan') {
-        animateZoom(keepInside(zoom, area));
+        finishZoom(area);
         return;
       }
       if (ended.axis === 'y') {
@@ -539,9 +572,10 @@
               stroke="currentColor"
               stroke-width="2"
               stroke-linecap="round"
-              ><circle cx="10.5" cy="10.5" r="6.5" /><path
-                d="M15.5 15.5L20 20M8 10.5h5"
-              />{#if !zoomed}<path d="M10.5 8v5" />{/if}</svg
+              ><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5L20 20M8 10.5h5" /><path
+                class={['zoom-bar', zoomed && 'zoomed']}
+                d="M10.5 8v5"
+              /></svg
             >
           </button>
         {/if}
@@ -573,7 +607,7 @@
         ]}
         role="group"
         aria-label={zoomed
-          ? 'Vergrößertes Foto: Ziehe es mit einem Finger, um es zu verschieben. Doppelt tippen verkleinert es.'
+          ? 'Vergrößertes Foto: Ziehe es mit einem Finger oder verschiebe es mit den Pfeiltasten. Doppelt tippen verkleinert es.'
           : `Wische zur Seite für das nächste oder vorherige Foto, nach unten zum Schließen.${zoomable ? ' Doppelt tippen vergrößert das Foto.' : ''}`}
         {@attach swipeArea}
       >
@@ -784,6 +818,15 @@
   }
   .swipe-area.zoomable {
     touch-action: none;
+  }
+  /* The upright bar of the plus folds into the minus while zoomed, and unfolds again */
+  .zoom-bar {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform var(--motion-quick) var(--motion-move);
+  }
+  .zoom-bar.zoomed {
+    transform: scaleY(0);
   }
   .swipe-area.zoomed {
     cursor: grab;
