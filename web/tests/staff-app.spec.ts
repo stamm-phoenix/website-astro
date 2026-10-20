@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 
 test('the Leitendenbereich can be installed and the app starts on its start page', async ({
@@ -115,7 +114,7 @@ test('the Abrechnung says that it keeps saving on the device without a connectio
   await context.setOffline(false);
 });
 
-async function expireLoginInIphoneApp(page: Page): Promise<void> {
+test('in the iPhone app an expired login is renewed in the same window', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'standalone', { value: true });
   });
@@ -123,216 +122,19 @@ async function expireLoginInIphoneApp(page: Page): Promise<void> {
     route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
   );
   await page.goto('/leitendenbereich/gruppenstunden');
-}
-
-test('in the iPhone app the edit dialog fills in its input again after the new login', async ({
-  page,
-}) => {
-  await expireLoginInIphoneApp(page);
   await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Gruppenstunde Wölflinge bearbeiten' });
   await dialog.getByLabel('Alter').fill('16 bis 20 Jahre');
-  const beschreibung = dialog.getByRole('textbox', { name: 'Beschreibung' });
-  await beschreibung.click();
-  await page.keyboard.press('ControlOrMeta+End');
-  await page.keyboard.type(' Neu: Hüttenwochenende.');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
 
-  await expect(dialog.getByRole('alert')).toContainText('setzt es deine Eingaben selbst ein');
+  await expect(dialog.getByRole('alert')).toContainText('Kopiere vorher, was du behalten willst.');
   const login = dialog.getByRole('link', { name: 'Neu anmelden', exact: true });
   await expect(login).toHaveAttribute(
     'href',
     `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent('/leitendenbereich/gruppenstunden')}`
   );
   await expect(login).not.toHaveAttribute('target', '_blank');
-  await login.click();
-
-  // The login reloaded the page: the hint says which form to open again
-  const hint = page.getByRole('region', { name: 'Deine Eingaben sind gesichert' });
-  await expect(hint).toContainText('„Gruppenstunde Wölflinge bearbeiten“');
-  await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
   await expect(dialog.getByLabel('Alter')).toHaveValue('16 bis 20 Jahre');
-  await expect(beschreibung).toContainText('Neu: Hüttenwochenende.');
-  await expect(dialog.getByText('wieder eingesetzt. Prüf sie und speichere.')).toBeVisible();
-  await expect(hint).toHaveCount(0);
-
-  // Filled in once: closing asks first, and the next opening shows the saved values
-  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
-  await page.getByRole('button', { name: 'Änderungen verwerfen' }).click();
-  await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
-  await expect(dialog.getByLabel('Alter')).not.toHaveValue('16 bis 20 Jahre');
-});
-
-test('in the iPhone app a new question keeps its check mark and the link in its answer', async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'standalone', { value: true });
-  });
-  await page.route('**/api/intern/pflege/qa', (route) =>
-    route.request().method() === 'POST' ? route.fulfill({ status: 401 }) : route.fallback()
-  );
-  await page.goto('/leitendenbereich/fragen-und-antworten');
-  await page.getByRole('button', { name: 'Neue Frage', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Neue Frage' });
-  await dialog.getByLabel('Frage', { exact: true }).fill('Wo treffen wir uns?');
-  await dialog.getByRole('checkbox', { name: /Veröffentlicht/ }).check();
-  const antwort = dialog.getByRole('textbox', { name: 'Antwort' });
-  await antwort.click();
-  await antwort.evaluate((element) => {
-    const data = new DataTransfer();
-    data.setData('text/html', '<p>Siehe <a href="https://example.org/treffpunkt">Karte</a></p>');
-    element.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }));
-  });
-  await expect(antwort.getByRole('link', { name: 'Karte' })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
-
-  await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toBeVisible();
-  await page.getByRole('button', { name: 'Neue Frage', exact: true }).click();
-  await expect(dialog.getByLabel('Frage', { exact: true })).toHaveValue('Wo treffen wir uns?');
-  await expect(dialog.getByRole('checkbox', { name: /Veröffentlicht/ })).toBeChecked();
-  await expect(antwort.getByRole('link', { name: 'Karte' })).toHaveAttribute(
-    'href',
-    'https://example.org/treffpunkt'
-  );
-});
-
-test('in the iPhone app the kept input of one task never lands in another task', async ({
-  page,
-}) => {
-  await page.request.post('/api/__mock/aufgaben/reset');
-  const created = await page.request.post('/api/intern/pflege/aufgaben', {
-    data: {
-      title: 'Zelte aufbauen',
-      description: '',
-      assignee: '',
-      dueDate: null,
-      projectId: null,
-    },
-  });
-  expect(created.ok()).toBe(true);
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'standalone', { value: true });
-  });
-  await page.route('**/api/intern/pflege/aufgaben/*', (route) =>
-    route.request().method() === 'GET' ? route.fallback() : route.fulfill({ status: 401 })
-  );
-  await page.goto('/leitendenbereich/aufgaben');
-  // Both tasks open a dialog with the same title
-  const dialog = page.getByRole('dialog', { name: 'Aufgabe bearbeiten' });
-  await page.getByRole('button', { name: 'Küche vorbereiten', exact: true }).click();
-  await dialog.getByLabel('Titel', { exact: true }).fill('Küche aufräumen');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
-
-  const hint = page.getByRole('region', { name: 'Deine Eingaben sind gesichert' });
-  await expect(hint).toBeVisible();
-  await page.getByRole('button', { name: 'Zelte aufbauen', exact: true }).click();
-  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Zelte aufbauen');
-  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
-  await expect(dialog).toBeHidden();
-  await expect(hint).toBeVisible();
-
-  await page.getByRole('button', { name: 'Küche vorbereiten', exact: true }).click();
-  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Küche aufräumen');
-  await expect(hint).toHaveCount(0);
-});
-
-test('in the iPhone app a renamed person gets the input back under the old title', async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'standalone', { value: true });
-  });
-  await page.route('**/api/intern/pflege/leitende/*', (route) =>
-    route.request().method() === 'GET' ? route.fallback() : route.fulfill({ status: 401 })
-  );
-  await page.goto('/leitendenbereich/leitende');
-  await page.getByRole('button', { name: /Lena Brandstetter/ }).click();
-  // The title follows the name field
-  await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill('Lena Brandstätter');
-  const renamed = page.getByRole('dialog', { name: 'Lena Brandstätter bearbeiten' });
-  await renamed.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await renamed.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
-
-  await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toContainText(
-    '„Lena Brandstetter bearbeiten“'
-  );
-  await page.getByRole('button', { name: /Lena Brandstetter/ }).click();
-  await expect(renamed.getByLabel('Name', { exact: true })).toHaveValue('Lena Brandstätter');
-});
-
-test('in the iPhone app the rows of a template come back as soon as they are added', async ({
-  page,
-}) => {
-  await page.request.post('/api/__mock/aufgaben/reset');
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'standalone', { value: true });
-  });
-  await page.route('**/api/intern/pflege/aufgaben/vorlagen', (route) =>
-    route.request().method() === 'POST' ? route.fulfill({ status: 401 }) : route.fallback()
-  );
-  await page.goto('/leitendenbereich/aufgaben/vorlagen');
-  const dialog = page.getByRole('dialog', { name: 'Vorlage' });
-  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
-  await dialog.getByLabel('Titel', { exact: true }).fill('Zeltlager');
-  for (const [index, title] of ['Zelte prüfen', 'Einkauf planen', 'Bus buchen'].entries()) {
-    if (index > 0) await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
-    await dialog.getByLabel('Aufgabentitel').nth(index).fill(title);
-    await dialog
-      .getByLabel('Tage vor der Aktion')
-      .nth(index)
-      .fill(String(10 - index));
-  }
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
-
-  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
-  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Zeltlager');
-  await expect(dialog.getByLabel('Aufgabentitel').first()).toHaveValue('Zelte prüfen');
-  const leftOver = dialog.getByRole('region', { name: 'Noch nicht eingesetzt' });
-  await expect(leftOver).toContainText('Einkauf planen');
-  await expect(leftOver).toContainText('Bus buchen');
-  await expect(dialog.getByText('Den Rest findest du darunter.')).toBeVisible();
-
-  await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
-  await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
-  await expect(dialog.getByLabel('Aufgabentitel')).toHaveCount(3);
-  await expect(dialog.getByLabel('Aufgabentitel').nth(1)).toHaveValue('Einkauf planen');
-  await expect(dialog.getByLabel('Aufgabentitel').nth(2)).toHaveValue('Bus buchen');
-  await expect(dialog.getByLabel('Tage vor der Aktion').nth(2)).toHaveValue('8');
-  await expect(leftOver).toHaveCount(0);
-
-  // Saved once the login works: the kept input is gone
-  await page.unroute('**/api/intern/pflege/aufgaben/vorlagen');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(dialog).toBeHidden();
-  await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toHaveCount(0);
-  expect(
-    await page.evaluate(() => sessionStorage.getItem('phoenix:gerettete-eingaben:v1'))
-  ).toBeNull();
-});
-
-test('in the iPhone app the login waits when the input cannot be kept', async ({ page }) => {
-  await expireLoginInIphoneApp(page);
-  await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Gruppenstunde Wölflinge bearbeiten' });
-  await dialog.getByLabel('Alter').fill('16 bis 20 Jahre');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await page.evaluate(() => {
-    Storage.prototype.setItem = () => {
-      throw new DOMException('full', 'QuotaExceededError');
-    };
-  });
-  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
-
-  await expect(dialog.getByRole('alert')).toContainText(
-    'ließen sich auf diesem Gerät nicht sichern'
-  );
-  await expect(page).toHaveURL(/\/leitendenbereich\/gruppenstunden$/);
-  await expect(dialog.getByLabel('Alter')).toHaveValue('16 bis 20 Jahre');
-  await expect(dialog.getByRole('link', { name: 'Trotzdem neu anmelden' })).toBeVisible();
 });
 
 test('in the iPhone app the photo of a receipt opens through the login of the new window', async ({
