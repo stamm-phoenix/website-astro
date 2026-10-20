@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import { SAMMEL_SHOPS, getSammelShop, type SammelShop } from '../../lib/sammelShops';
   import { aggregateSammelItems, sammelReceipt } from '../../lib/sammelExport';
   import { money, download } from '../../lib/sammelStaffView';
@@ -54,9 +55,22 @@
 
 <section aria-labelledby="combined-heading" class="mt-8">
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <h2 id="combined-heading" class="font-serif text-2xl font-semibold text-brand-900">
-      Bestellliste nach Anbieter
-    </h2>
+    <div class="flex items-center gap-1">
+      <h2 id="combined-heading" class="font-serif text-2xl font-semibold text-brand-900">
+        Bestellliste nach Anbieter
+      </h2>
+      <InfoHint label="Bestellliste nach Anbieter">
+        <p>
+          Gleiche Produktlinks oder Artikelnummern beim selben Anbieter mit gleicher Variante werden
+          zusammengefasst, auch bei unterschiedlichen Artikelnamen. Stornierte Bestellungen sind
+          nicht enthalten.
+        </p>
+        <p>
+          Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis, ohne Versand.
+          Variantenpreise bitte prüfen.
+        </p>
+      </InfoHint>
+    </div>
     <div class="flex flex-wrap items-end gap-3">
       <div>
         <label for="export-shop" class="form-label">CSV für</label>
@@ -75,11 +89,6 @@
       >
     </div>
   </div>
-  <p class="mt-2 text-sm text-neutral-700">
-    Gleiche Produktlinks oder Artikelnummern beim selben Anbieter mit gleicher Variante werden
-    zusammengefasst, auch bei unterschiedlichen Artikelnamen. Stornierte Bestellungen sind
-    ausgeschlossen.
-  </p>
   <div class="mt-4">
     <div class="overflow-x-auto">
       <table class="min-w-[760px] w-full text-left text-sm">
@@ -125,13 +134,7 @@
   </div>
   <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">
     {#if pricesLoading}Shop-Preise werden geladen …
-    {:else if receipt.missingPositions}{receipt.missingPositions} Position(en) ohne Preis. Die Gesamtsumme
-      ist noch unvollständig.
+    {:else if receipt.missingPositions}{receipt.missingPositions} Position(en) ohne Preis.
     {/if}
-  </p>
-  <p class="mt-1 text-xs text-neutral-700">
-    Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis. Ohne Versand. Die
-    vollständige Artikelsumme wird in der Statusbearbeitung vorbelegt. Variantenpreise und
-    Versandkosten dort bei Bedarf anpassen.
   </p>
 </section>

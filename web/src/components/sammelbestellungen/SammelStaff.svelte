@@ -1,5 +1,6 @@
 <script lang="ts">
   import { archiveSammelCampaign } from '../../lib/sammelStaffApi';
+  import { confirmAction } from '../../lib/confirm';
   import { createSammelPrices } from '../../lib/sammelPrices.svelte';
   import SammelStaffInvitation from './SammelStaffInvitation.svelte';
   import SammelStatusDialog from './SammelStatusDialog.svelte';
@@ -124,6 +125,16 @@
   async function archiveSelected(): Promise<void> {
     if (!view || busy) return;
     const campaign = view.campaign;
+    if (
+      !campaign.archived &&
+      !(await confirmAction({
+        title: `„${campaign.title}“ archivieren?`,
+        message: 'Mitglieder können dann nicht mehr bestellen.',
+        confirmLabel: 'Archivieren',
+        tone: 'neutral',
+      }))
+    )
+      return;
     busy = true;
     error = null;
     message = null;
@@ -192,11 +203,9 @@
                 ? 'Archivierte Sammelbestellung'
                 : 'Aktuelle Sammelbestellung'}
             </h2>
-            <p class="mt-1 text-sm text-neutral-700">
-              {view.campaign.archived
-                ? 'Alle Bestellungen bleiben einsehbar. Neue Bestellungen und Änderungen durch Mitglieder sind gesperrt.'
-                : 'Archivieren blendet diese Sammelbestellung aus der aktuellen Auswahl aus. Die Daten bleiben erhalten.'}
-            </p>
+            {#if view.campaign.archived}<p class="mt-1 text-sm text-neutral-700">
+                Mitglieder können nicht mehr bestellen oder ändern.
+              </p>{/if}
           </div>
           <ActionButton
             variant="secondary"

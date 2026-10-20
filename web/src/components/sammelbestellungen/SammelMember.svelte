@@ -255,9 +255,7 @@
     >
       <h2 class="font-serif text-xl font-semibold text-brand-900">Dein Zugang zur Bestellung</h2>
       <p class="text-sm text-neutral-700">
-        Du brauchst kein Konto. Wir schicken dir einen persönlichen Link an deine E-Mail-Adresse.
-        Pro E-Mail-Adresse ist eine Bestellung möglich; Artikel für Geschwister kannst du gemeinsam
-        eintragen.
+        Eine Bestellung pro E-Mail-Adresse, auch für Geschwister.
       </p>
       <FormField id="order-email" label="E-Mail-Adresse" error={fields.email}>
         {#snippet children(attrs)}<input
@@ -281,11 +279,7 @@
       </div>
       <AltchaWidget bind:this={altchaWidget} />
       <p class="text-xs text-neutral-700">
-        Deine Angaben werden zur Abwicklung der Sammelbestellung verwendet. Die Prüfung, ob du ein
-        Mensch bist, rechnet kurz in deinem Browser – ohne Cookies und ohne Drittanbieter. <a
-          class="underline"
-          href="/datenschutz#sammelbestellungen">Datenschutz</a
-        >
+        <a class="underline" href="/datenschutz#sammelbestellungen">Datenschutz</a>
       </p>
       <ActionButton type="submit" variant="primary" disabled={busy} aria-busy={busy}
         >{busy ? 'Wird gesendet …' : 'Bestelllink per E-Mail erhalten'}</ActionButton
@@ -318,16 +312,16 @@
     </dl>
     {#if view.order.payment?.reference}
       <p class="mb-5 text-sm text-neutral-700">
-        CampFlow-Zahlungsreferenz: <span class="font-semibold break-all text-brand-900"
+        Zahlungsreferenz <span class="font-semibold break-all text-brand-900"
           >{view.order.payment.reference}</span
-        >. Die Zahlungsaufforderung erhältst du über CampFlow.
+        >. Die Zahlungsaufforderung kommt per E-Mail von CampFlow.
       </p>
     {/if}
     {#if !canEdit}<p class="mb-6 border-l-2 border-neutral-400 py-1 pl-4 text-neutral-700">
-        {campaign.archived
-          ? 'Diese Sammelbestellung ist archiviert. Deine Bestellung bleibt einsehbar, kann aber nicht mehr geändert werden.'
-          : 'Diese Bestellung kann nicht mehr geändert werden.'}
-        Bei Fragen wende dich an das Leitungsteam.
+        Diese Bestellung kann nicht mehr geändert werden. Bei Fragen: <a
+          class="font-semibold text-link"
+          href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a
+        >
       </p>{/if}
     {#if !canEdit}
       <SammelOrderSummary {name} email={view.order.email} {notes} {items} />
@@ -389,11 +383,6 @@
                   : view.order.submitted
                     ? 'Alle Änderungen sind gespeichert.'
                     : 'Noch keine Bestellung abgegeben.'}
-            </p>
-            <p class="mt-1 text-sm text-neutral-700">
-              Artikel und Angaben werden erst beim Drücken auf „{view.order.submitted
-                ? 'Änderungen speichern'
-                : 'Bestellung abgeben'}“ gespeichert.
             </p>
           </div>
           <ActionButton

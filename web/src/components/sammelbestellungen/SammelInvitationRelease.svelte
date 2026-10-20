@@ -1,5 +1,6 @@
 <script lang="ts">
   import MessageText from '../ui/MessageText.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import { errorMessage, sendApi } from '../../lib/api';
@@ -50,7 +51,7 @@
     } catch (caught) {
       error = errorMessage(
         caught,
-        'Der Versand wurde unterbrochen. Prüfe deine Internetverbindung und tippe dann auf den Button oben: Er zeigt, wie viele Einladungen schon verschickt sind, und setzt den Versand fort.'
+        'Der Versand wurde unterbrochen. Prüfe deine Internetverbindung und tippe dann auf „Versand fortsetzen“.'
       );
     } finally {
       busy = null;
@@ -69,44 +70,39 @@
       : busy === 'preview'
         ? 'Verteiler wird geladen …'
         : audience?.started
-          ? 'Versandstand laden / fortsetzen'
+          ? 'Versand fortsetzen'
           : 'Sammelbestellung freigeben'}</ActionButton
   >
-  <p class="mt-2 text-sm text-neutral-700">
-    Sendet die Einladung an Haupt- und CC-Adressen aktueller CampFlow-Mitglieder. Jede
-    E-Mail-Adresse erhält sie einmal, auch bei Geschwistern.
+  <p class="mt-2 flex flex-wrap items-center gap-1 text-sm text-neutral-700">
+    <span>Schickt die Einladung per E-Mail an alle Mitglieder.</span>
+    <InfoHint
+      label="Einladung"
+      text="Die Einladung geht an die Haupt- und CC-Adressen aller aktuellen CampFlow-Mitglieder. Jede E-Mail-Adresse erhält sie einmal, auch bei Geschwistern."
+    />
   </p>
   <div role="status" aria-live="polite">
     {#if audience?.started}<p class="mt-2 text-sm text-brand-900">
-        {audience.sent} von {audience.total} Einladungen an den Maildienst übergeben. {audience.pending}
-        noch offen.
+        {audience.sent} von {audience.total} Einladungen verschickt, {audience.pending} offen.
       </p>{:else if audience && audience.pending === 0}<p
         class="mt-2 text-sm font-semibold text-warning"
       >
-        Es wurde keine E-Mail versendet: Im CampFlow-Verteiler gibt es keine E-Mail-Adressen für
-        diese Einladung.
+        Keine E-Mail-Adressen im Verteiler. Nichts verschickt.
       </p>{/if}
   </div>
   {#if audience?.uncertain}<p class="mt-2 text-sm text-danger">
-      Bei {audience.uncertain} Adresse(n) ist der Versand noch nicht bestätigt oder der Ausgang unklar.
-      Sie werden nicht automatisch erneut angeschrieben. Bitte die gesendeten Mails im Postfach prüfen.
+      {audience.uncertain} Adresse(n) mit unklarem Versand. Sie werden nicht erneut angeschrieben – bitte
+      im Postfach prüfen.
     </p>{/if}
   {#if error}<p class="mt-2 text-sm text-danger" role="alert"><MessageText text={error} /></p>{/if}
 </div>
 <EditDialog
   open={confirm}
   busy={busy !== null}
-  title="Sammelbestellung freigeben?"
+  title={audience?.started ? 'Versand fortsetzen?' : 'Sammelbestellung freigeben?'}
   submitLabel="Ja, E-Mails senden"
   cancelLabel="Nein"
   onsubmit={() => void release()}
   onclose={() => (confirm = false)}
 >
-  <p>
-    Sicher, dass du die Sammelbestellung freigeben willst? Es wird eine E-Mail an {audience?.pending ??
-      0} eindeutige E-Mail-Adresse(n) geschickt.
-  </p>
-  {#if audience?.started}<p class="mt-2 text-sm text-neutral-700">
-      Bereits versuchte Adressen werden ausgelassen. Der Versand wird fortgesetzt.
-    </p>{/if}
+  <p>Die Einladung geht an {audience?.pending ?? 0} E-Mail-Adresse(n).</p>
 </EditDialog>
