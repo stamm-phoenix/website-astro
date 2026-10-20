@@ -61,6 +61,7 @@ export interface Database {
   'organisation.person': WeiterePersonTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
   'organisation.aktion_keine_aktion': AktionKeineAktionTable;
+  'organisation.staff_changelog_seen': StaffChangelogSeenTable;
   'organisation.staff_favorites': StaffFavoritesTable;
   'organisation.staff_recent': StaffRecentTable;
   'organisation.staff_settings': StaffSettingsTable;
@@ -373,6 +374,8 @@ export interface MeetingTable {
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
   updated_by: Generated<string>;
+  /** The Gruppenstunde did not take place; it then has no attendance. */
+  cancelled: Generated<boolean>;
 }
 
 export interface AttendanceTable {
@@ -383,6 +386,8 @@ export interface AttendanceTable {
   person_id: string | null;
   /** `null` for members and after the retention period. */
   guest_name: string | null;
+  /** The member was excused instead of there; never set for guests. */
+  excused: Generated<boolean>;
 }
 
 export interface SchemaMigrationTable {
@@ -551,6 +556,15 @@ export interface StaffFavoritesTable {
   login: string;
   /** JSON array of module paths. */
   modules: string;
+  updated_at: Generated<Date>;
+}
+
+export interface StaffChangelogSeenTable {
+  /** `userId` of the Static Web Apps principal. */
+  user_id: string;
+  login: string;
+  /** ID of the newest changelog entry the person has seen, see `changelog-id.ts`. */
+  last_seen_id: string;
   updated_at: Generated<Date>;
 }
 

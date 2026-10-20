@@ -10,6 +10,8 @@
   import TaskAssigneeField from './TaskAssigneeField.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
+  import { rescuePeople } from '../lib/taskRescue';
+  import type { RescueField } from '../lib/geretteteEingaben';
   let {
     target: initialTarget = null,
     onclose,
@@ -34,6 +36,28 @@
   const form = createTaskForm();
   const fields = $derived(form.state.fields);
   const busy = $derived(form.state.busy);
+  const rowCount: RescueField = {
+    key: 'Vorlagenaufgaben#custom',
+    structure: true,
+    get: () => String(items.length),
+    describe: (value) => `${value} Aufgaben`,
+    set(value) {
+      const count = Number(value);
+      if (!Number.isInteger(count) || count < 1 || count > 50) return false;
+      items = Array.from(
+        { length: count },
+        (_, index) =>
+          items[index] ?? {
+            title: '',
+            description: '',
+            assignee: '',
+            assignees: [],
+            daysBefore: 0,
+          }
+      );
+      return true;
+    },
+  };
   async function save(): Promise<void> {
     await form.submit(async () => {
       await sendApi(
@@ -71,6 +95,20 @@
 <EditDialog
   open
   title="Vorlage"
+  rescueKey={`vorlage:${target?.id ?? 'neu'}`}
+  rescueVersion={target?.etag}
+  rescueFields={[
+    ...(target ? [rowCount] : []),
+    ...items.map((item, index) =>
+      rescuePeople(
+        `Aufgabe ${index + 1}: Zuständige`,
+        () => item.assignees,
+        (people) => {
+          item.assignees = people;
+        }
+      )
+    ),
+  ]}
   {busy}
   error={form.state.error}
   onedit={form.changed}

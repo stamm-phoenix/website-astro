@@ -3,7 +3,7 @@
  * and the Apple touch icon.
  * Run with: PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=… bun scripts/app-icons.ts
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
@@ -14,10 +14,17 @@ const lily = readFileSync(new URL('src/assets/stammeslilie.svg', root), 'utf8');
 // icon are cropped by the platform (circle, rounded square), so they need more space.
 const ICONS = [
   { file: 'app-icon-192.png', size: 192, padding: 0.12 },
+  { file: 'app-icon-1024.png', size: 1024, padding: 0.12 },
   { file: 'app-icon-512.png', size: 512, padding: 0.12 },
   { file: 'app-icon-maskable-512.png', size: 512, padding: 0.24 },
   { file: 'apple-touch-icon.png', size: 180, padding: 0.16 },
 ];
+
+// A vector icon avoids upscaling a small bitmap on high-density splash screens.
+writeFileSync(
+  new URL('public/app-icon.svg', root),
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="#f8f5ef"/><g style="--lily-color:#000000;--contour-color:#000000">${lily.replace('<svg ', '<svg x="210" y="123" width="604" height="778" ')}</g></svg>`
+);
 
 const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,

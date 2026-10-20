@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { StaffModule } from '../lib/staffModules';
+  import { CHANGELOG_PATH, type StaffModule } from '../lib/staffModules';
+  import ChangelogBadge from './changelog/ChangelogBadge.svelte';
   import { favoriteToggle } from '../lib/staffFavoritesStore.svelte';
   import { longPress } from '../lib/longPress';
   import FavoriteStar from './FavoriteStar.svelte';
@@ -47,6 +48,7 @@
               class="block font-semibold break-words text-brand-900 hyphens-auto group-hover/link:underline"
             >
               {@render moduleTitle(module)}
+              {#if module.href === CHANGELOG_PATH}<ChangelogBadge />{/if}
             </span>
             <!-- On a phone the search above names what each area is for -->
             <span class="mt-0.5 hidden text-sm text-neutral-700 sm:block">{module.description}</span

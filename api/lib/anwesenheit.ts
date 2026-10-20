@@ -11,7 +11,7 @@ import type {
   AnwesenheitMeeting,
   AnwesenheitStufeName,
 } from './anwesenheit-model';
-import { STUFE_SLUGS, isStufeSlug } from './anwesenheit-model';
+import { STUFE_SLUGS, attendanceSnapshot, isStufeSlug } from './anwesenheit-model';
 import type { CampflowPerson } from './campflow';
 import { CampflowError, campflowGet, campflowGetAll } from './campflow';
 import { CONFIG } from './config';
@@ -29,7 +29,8 @@ import type { Database } from './db-schema';
 import type { Leitende } from './leitende-list';
 import { dateToLocalParts } from './nikolaus-config';
 import { toStufenMember } from './nikolaus-stufen';
-import { STUFEN } from './pflege-validation';
+import type { CancelledInput } from './pflege-validation';
+import { STUFEN, ValidationError } from './pflege-validation';
 
 export function stufeFromSlug(slug: string | undefined): AnwesenheitStufeName | undefined {
   return slug !== undefined && isStufeSlug(slug) ? STUFE_SLUGS[slug] : undefined;
@@ -68,7 +69,7 @@ export async function anonymizeExpired(now: Date = new Date()): Promise<number> 
 
 // --- Reading ---
 
-/** All Termine with the number of children who were there, newest first. */
+/** All Termine with the number of children who were there or excused, newest first. */
 export async function getMeetingSummaries(): Promise<AnwesenheitMeeting[]> {
   const rows = await getDb()
     .selectFrom('gruppenstunde.meeting as m')
@@ -77,10 +78,12 @@ export async function getMeetingSummaries(): Promise<AnwesenheitMeeting[]> {
       'm.stufe',
       'm.date',
       'm.notes',
-      sql<number>`SUM(CASE WHEN a.guest = 0 THEN 1 ELSE 0 END)`.as('members'),
+      'm.cancelled',
+      sql<number>`SUM(CASE WHEN a.guest = 0 AND a.excused = 0 THEN 1 ELSE 0 END)`.as('members'),
+      sql<number>`SUM(CASE WHEN a.excused = 1 THEN 1 ELSE 0 END)`.as('excused'),
       sql<number>`SUM(CASE WHEN a.guest = 1 THEN 1 ELSE 0 END)`.as('guests'),
     ])
-    .groupBy(['m.id', 'm.stufe', 'm.date', 'm.notes'])
+    .groupBy(['m.id', 'm.stufe', 'm.date', 'm.notes', 'm.cancelled'])
     .orderBy('m.date', 'desc')
     .orderBy('m.stufe')
     .execute();
@@ -88,8 +91,10 @@ export async function getMeetingSummaries(): Promise<AnwesenheitMeeting[]> {
     stufe: row.stufe,
     date: toDateString(row.date),
     members: Number(row.members),
+    excused: Number(row.excused),
     guests: Number(row.guests),
     notes: row.notes,
+    cancelled: row.cancelled,
   }));
 }
 
@@ -98,18 +103,22 @@ export interface MeetingRecord {
   /** Version of the notes, `null` while the Termin does not exist yet. */
   etag: string | null;
   notes: string;
+  cancelled: boolean;
   presentIds: string[];
+  excusedIds: string[];
   /** Children who were there, whose IDs were removed after the retention period. */
   anonymized: number;
+  /** Children who were excused, whose IDs were removed after the retention period. */
+  anonymizedExcused: number;
   guests: AnwesenheitGuest[];
   /** Guests whose names were removed after the retention period. */
   anonymizedGuests: number;
 }
 
-export async function getMeetingRecord(termin: Termin): Promise<MeetingRecord> {
-  const meeting = await getDb()
+export async function getMeetingRecord(termin: Termin, db: Db = getDb()): Promise<MeetingRecord> {
+  const meeting = await db
     .selectFrom('gruppenstunde.meeting')
-    .select(['id', 'version', 'notes'])
+    .select(['id', 'version', 'notes', 'cancelled'])
     .where('stufe', '=', termin.stufe)
     .where('date', '=', termin.date)
     .executeTakeFirst();
@@ -117,24 +126,35 @@ export async function getMeetingRecord(termin: Termin): Promise<MeetingRecord> {
     return {
       etag: null,
       notes: '',
+      cancelled: false,
       presentIds: [],
+      excusedIds: [],
       anonymized: 0,
+      anonymizedExcused: 0,
       guests: [],
       anonymizedGuests: 0,
     };
   }
-  const rows = await getDb()
+  const rows = await db
     .selectFrom('gruppenstunde.attendance')
-    .select(['id', 'guest', 'person_id', 'guest_name'])
+    .select(['id', 'guest', 'person_id', 'guest_name', 'excused'])
     .where('meeting_id', '=', meeting.id)
     .orderBy('id')
     .execute();
   const named = rows.filter((row) => row.guest && row.guest_name !== null);
+  const members = (excused: boolean) => rows.filter((row) => !row.guest && row.excused === excused);
+  const ids = (excused: boolean) =>
+    members(excused).flatMap((row) => (row.person_id === null ? [] : [row.person_id]));
+  const anonymized = (excused: boolean) =>
+    members(excused).filter((row) => row.person_id === null).length;
   return {
     etag: toVersion(meeting.version),
     notes: meeting.notes,
-    presentIds: rows.flatMap((row) => (row.person_id === null ? [] : [row.person_id])),
-    anonymized: rows.filter((row) => !row.guest && row.person_id === null).length,
+    cancelled: meeting.cancelled,
+    presentIds: ids(false),
+    excusedIds: ids(true),
+    anonymized: anonymized(false),
+    anonymizedExcused: anonymized(true),
     guests: named.map((row) => ({ id: String(row.id), name: row.guest_name ?? '' })),
     anonymizedGuests: rows.filter((row) => row.guest && row.guest_name === null).length,
   };
@@ -156,55 +176,98 @@ function meetingIdOf(db: Db, termin: Termin) {
     .where('date', '=', termin.date);
 }
 
+interface MeetingRow {
+  id: number;
+  cancelled: boolean;
+}
+
 /**
- * Runs `work` in a transaction that holds the lock of the Termin, with the ID of the Termin;
+ * Runs `work` in a transaction that holds the lock of the Termin, with the row of the Termin;
  * creates the Termin first if needed.
  */
 function withMeeting<T>(
   termin: Termin,
   actor: string,
-  work: (trx: Transaction<Database>, meetingId: number) => Promise<T>
+  work: (trx: Transaction<Database>, meeting: MeetingRow) => Promise<T>
 ): Promise<T> {
   return inTransaction(async (trx) => {
     await lockResource(trx, `gruppenstunde:${termin.stufe}:${termin.date}`);
-    const existing = await meetingIdOf(trx, termin).executeTakeFirst();
-    const meetingId =
-      existing?.id ??
-      (
-        await trx
-          .insertInto('gruppenstunde.meeting')
-          .values({ stufe: termin.stufe, date: termin.date, updated_by: actor })
-          .output('inserted.id')
-          .executeTakeFirstOrThrow()
-      ).id;
-    return work(trx, meetingId);
+    const existing = await trx
+      .selectFrom('gruppenstunde.meeting')
+      .select(['id', 'cancelled'])
+      .where('stufe', '=', termin.stufe)
+      .where('date', '=', termin.date)
+      .executeTakeFirst();
+    const meeting =
+      existing ??
+      (await trx
+        .insertInto('gruppenstunde.meeting')
+        .values({ stufe: termin.stufe, date: termin.date, updated_by: actor })
+        .output(['inserted.id', 'inserted.cancelled'])
+        .executeTakeFirstOrThrow());
+    return work(trx, meeting);
   });
 }
 
-/** Marks a child as present; repeating it changes nothing. */
-export async function markPresent(termin: Termin, personId: string, actor: string): Promise<void> {
-  await withMeeting(termin, actor, async (trx, meetingId) => {
+/** Attendance can only be recorded while the Gruppenstunde is not marked as cancelled. */
+function requireHeld(meeting: MeetingRow): void {
+  if (meeting.cancelled) {
+    throw new ValidationError({
+      cancelled:
+        'Diese Gruppenstunde ist als ausgefallen markiert. Nimm „Ausgefallen“ zurück, um Kinder einzutragen.',
+    });
+  }
+}
+
+/**
+ * Marks a child as present or excused, which replace each other; repeating it changes
+ * nothing.
+ */
+export async function markChild(
+  termin: Termin,
+  personId: string,
+  excused: boolean,
+  actor: string
+): Promise<void> {
+  await withMeeting(termin, actor, async (trx, meeting) => {
+    requireHeld(meeting);
     const existing = await trx
       .selectFrom('gruppenstunde.attendance')
       .select('id')
-      .where('meeting_id', '=', meetingId)
+      .where('meeting_id', '=', meeting.id)
       .where('person_id', '=', personId)
       .executeTakeFirst();
-    if (existing) return;
+    if (existing) {
+      await trx
+        .updateTable('gruppenstunde.attendance')
+        .set({ excused })
+        .where('id', '=', existing.id)
+        .execute();
+      return;
+    }
     await trx
       .insertInto('gruppenstunde.attendance')
-      .values({ meeting_id: meetingId, guest: false, person_id: personId, guest_name: null })
+      .values({
+        meeting_id: meeting.id,
+        guest: false,
+        person_id: personId,
+        guest_name: null,
+        excused,
+      })
       .execute();
   });
 }
 
-/** Marks a child as not present; a child that was not marked is fine. */
+/** Marks a child as neither present nor excused; a child that was not marked is fine. */
 export async function markAbsent(termin: Termin, personId: string): Promise<void> {
-  await getDb()
-    .deleteFrom('gruppenstunde.attendance')
-    .where('person_id', '=', personId)
-    .where('meeting_id', 'in', meetingIdOf(getDb(), termin))
-    .execute();
+  await inTransaction(async (trx) => {
+    await lockResource(trx, `gruppenstunde:${termin.stufe}:${termin.date}`);
+    await trx
+      .deleteFrom('gruppenstunde.attendance')
+      .where('person_id', '=', personId)
+      .where('meeting_id', 'in', meetingIdOf(trx, termin))
+      .execute();
+  });
 }
 
 export async function addGuest(
@@ -212,10 +275,11 @@ export async function addGuest(
   name: string,
   actor: string
 ): Promise<AnwesenheitGuest> {
-  return withMeeting(termin, actor, async (trx, meetingId) => {
+  return withMeeting(termin, actor, async (trx, meeting) => {
+    requireHeld(meeting);
     const { id } = await trx
       .insertInto('gruppenstunde.attendance')
-      .values({ meeting_id: meetingId, guest: true, person_id: null, guest_name: name })
+      .values({ meeting_id: meeting.id, guest: true, person_id: null, guest_name: name })
       .output('inserted.id')
       .executeTakeFirstOrThrow();
     return { id: String(id), name };
@@ -224,12 +288,15 @@ export async function addGuest(
 
 /** Removes a guest of the Termin; a guest that is already gone is fine. */
 export async function removeGuest(termin: Termin, id: number): Promise<void> {
-  await getDb()
-    .deleteFrom('gruppenstunde.attendance')
-    .where('id', '=', id)
-    .where('guest', '=', true)
-    .where('meeting_id', 'in', meetingIdOf(getDb(), termin))
-    .execute();
+  await inTransaction(async (trx) => {
+    await lockResource(trx, `gruppenstunde:${termin.stufe}:${termin.date}`);
+    await trx
+      .deleteFrom('gruppenstunde.attendance')
+      .where('id', '=', id)
+      .where('guest', '=', true)
+      .where('meeting_id', 'in', meetingIdOf(trx, termin))
+      .execute();
+  });
 }
 
 function updateNotes(db: Db, notes: string, actor: string) {
@@ -252,9 +319,9 @@ export async function saveNotes(
 ): Promise<string> {
   const updated =
     etag === null
-      ? await withMeeting(termin, actor, (trx, meetingId) =>
+      ? await withMeeting(termin, actor, (trx, meeting) =>
           updateNotes(trx, notes, actor)
-            .where('id', '=', meetingId)
+            .where('id', '=', meeting.id)
             .where('notes', '=', '')
             .executeTakeFirst()
         )
@@ -265,6 +332,80 @@ export async function saveNotes(
           .executeTakeFirst();
   if (!updated) throw new VersionConflictError();
   return toVersion(updated.version);
+}
+
+/**
+ * Marks the Gruppenstunde as cancelled, which removes its attendance, or as held again.
+ * `etag` is the version the page loaded, as for `saveNotes`, so the page cannot keep editing
+ * notes that someone else changed meanwhile. Cancelling also refuses when the attendance
+ * differs from the `entries` the leader agreed to delete, as entries do not change the
+ * version. Returns the new version of the Termin.
+ */
+export async function setCancelled(
+  termin: Termin,
+  { cancelled, etag, entries }: CancelledInput,
+  actor: string
+): Promise<string> {
+  return withMeeting(termin, actor, async (trx, meeting) => {
+    if (cancelled) {
+      const { count } = await trx
+        .selectFrom('gruppenstunde.attendance')
+        .select((eb) => eb.fn.countAll<number>().as('count'))
+        .where('meeting_id', '=', meeting.id)
+        .executeTakeFirstOrThrow();
+      if (Number(count) !== entries) throw new VersionConflictError();
+    }
+    const query = trx
+      .updateTable('gruppenstunde.meeting')
+      .set({ cancelled, updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
+      .output('inserted.version')
+      .where('id', '=', meeting.id);
+    const updated = await (
+      etag === null
+        ? query.where('notes', '=', '')
+        : query.where('version', '=', requireVersion(etag))
+    ).executeTakeFirst();
+    if (!updated) throw new VersionConflictError();
+    if (cancelled) {
+      await trx
+        .deleteFrom('gruppenstunde.attendance')
+        .where('meeting_id', '=', meeting.id)
+        .execute();
+    }
+    return toVersion(updated.version);
+  });
+}
+
+/**
+ * Deletes only the loaded notes version and attendance state, under the per-Termin lock.
+ * A Termin that is already gone is fine.
+ */
+export async function deleteMeeting(
+  termin: Termin,
+  etag: string | undefined,
+  attendance: string
+): Promise<void> {
+  const version = requireVersion(etag);
+  await inTransaction(async (trx) => {
+    await lockResource(trx, `gruppenstunde:${termin.stufe}:${termin.date}`);
+    const record = await getMeetingRecord(termin, trx);
+    if (record.etag === null) return;
+    const snapshot = attendanceSnapshot({
+      ...record,
+      children: [
+        ...record.presentIds.map((id) => ({ id, status: 'anwesend' as const })),
+        ...record.excusedIds.map((id) => ({ id, status: 'entschuldigt' as const })),
+      ],
+    });
+    if (snapshot !== attendance) throw new VersionConflictError();
+    const result = await trx
+      .deleteFrom('gruppenstunde.meeting')
+      .where('stufe', '=', termin.stufe)
+      .where('date', '=', termin.date)
+      .where('version', '=', version)
+      .executeTakeFirst();
+    if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
+  });
 }
 
 // --- CampFlow ---

@@ -3,10 +3,12 @@
   import { navigate } from 'astro:transitions/client';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { searchStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
-  import type { StaffModule } from '../lib/staffModules';
+  import { CHANGELOG_PATH, type StaffModule } from '../lib/staffModules';
   import { favoriteToggle } from '../lib/staffFavoritesStore.svelte';
   import { longPress } from '../lib/longPress';
   import FavoriteStar from './FavoriteStar.svelte';
+  import ChangelogBadge from './changelog/ChangelogBadge.svelte';
+  import { loadChangelogSeen } from '../lib/staffChangelogStore.svelte';
 
   interface Props {
     groups: StaffModuleGroup[];
@@ -53,6 +55,7 @@
   );
   onMount(() => {
     if (nikolausModules.length > 0) void fetchNikolausStatus();
+    void loadChangelogSeen();
   });
 
   const id = $props.id();
@@ -185,7 +188,7 @@
           <ul class={variant === 'start' ? 'surface mt-1 divide-y divide-neutral-200' : 'mt-1'}>
             {#each group.modules as module (module.href)}
               <li
-                class="group flex items-center {variant === 'sheet'
+                class="group relative flex items-center {variant === 'sheet'
                   ? 'border-b border-neutral-200'
                   : ''}"
               >
@@ -194,6 +197,7 @@
                   href={module.href}
                   data-astro-reload={module.reload || undefined}
                   aria-current={currentState(module.href)}
+                  aria-describedby={module.href === CHANGELOG_PATH ? `${id}-news` : undefined}
                   data-flyout={variant === 'sidebar' ? module.title : undefined}
                   data-flyout-icon={variant === 'sidebar' ? module.icon : undefined}
                   onclick={() => {
@@ -234,6 +238,12 @@
                     </span>
                   {/if}
                 </a>
+                {#if module.href === CHANGELOG_PATH}
+                  <!-- Folded to its icons, the count sits on the corner of the icon and takes no room -->
+                  <span class={collapsed ? 'pointer-events-none absolute top-0.5 left-5' : 'mr-1'}
+                    ><ChangelogBadge textId="{id}-news" /></span
+                  >
+                {/if}
                 {#if !collapsed}<FavoriteStar {module} compact={variant === 'sidebar'} />{/if}
               </li>
             {/each}

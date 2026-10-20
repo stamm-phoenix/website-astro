@@ -4,6 +4,9 @@ import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as campflow from '../lib/campflow';
 import {
+  addGuest,
+  markChild,
+  markAbsent,
   getChildren,
   getMeetingRecord,
   getMeetingSummaries,
@@ -13,10 +16,14 @@ import { getDb } from '../lib/db';
 import { seedPreviewAttendance } from '../lib/db-preview';
 import { dateToLocalParts } from '../lib/nikolaus-config';
 import {
+  AnwesenheitCancelled,
   AnwesenheitChild,
+  AnwesenheitGuests,
   AnwesenheitNotes,
   GetAnwesenheitTermin,
+  buildTerminView,
 } from '../endpoints/intern-anwesenheit';
+import { attendanceSnapshot } from '../lib/anwesenheit-model';
 import { dbTest } from './fixtures/database';
 
 function berlinToday(now: Date = new Date()): string {
@@ -24,13 +31,19 @@ function berlinToday(now: Date = new Date()): string {
 }
 
 /** A request of the logged-in staff member to the Termin of the Wölflinge today. */
-function terminRequest(method: string, params: Record<string, string> = {}, body?: unknown) {
+function terminRequest(
+  method: string,
+  params: Record<string, string> = {},
+  body?: unknown,
+  headers: Record<string, string> = {}
+) {
   return new HttpRequest({
     url: 'https://example.test/api/intern/pflege/anwesenheit',
     method,
     headers: {
       'content-type': 'application/json',
       'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+      ...headers,
     },
     params: { stufe: 'woelflinge', datum: berlinToday(), ...params },
     ...(body === undefined ? {} : { body: { string: JSON.stringify(body) } }),
@@ -95,7 +108,10 @@ test('checking in a child that is not a current CampFlow member returns 404', as
   const context = quietContext(t);
 
   for (const id of ['per_Invented', 'per_Future', 'per_Old']) {
-    const response = await AnwesenheitChild(terminRequest('PUT', { id }), context);
+    const response = await AnwesenheitChild(
+      terminRequest('PUT', { id }, { status: 'anwesend' }),
+      context
+    );
     assert.equal(response.status, 404, id);
   }
 });
@@ -106,11 +122,21 @@ dbTest('PUT checks a child in and DELETE checks them out again', async (t) => {
   const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
 
   assert.equal(
-    (await AnwesenheitChild(terminRequest('PUT', { id: 'per_Current' }), context)).status,
+    (
+      await AnwesenheitChild(
+        terminRequest('PUT', { id: 'per_Current' }, { status: 'anwesend' }),
+        context
+      )
+    ).status,
     204
   );
   assert.equal(
-    (await AnwesenheitChild(terminRequest('PUT', { id: 'per_Current' }), context)).status,
+    (
+      await AnwesenheitChild(
+        terminRequest('PUT', { id: 'per_Current' }, { status: 'anwesend' }),
+        context
+      )
+    ).status,
     204
   );
   assert.deepEqual((await getMeetingRecord(termin)).presentIds, ['per_Current']);
@@ -120,6 +146,157 @@ dbTest('PUT checks a child in and DELETE checks them out again', async (t) => {
     204
   );
   assert.deepEqual((await getMeetingRecord(termin)).presentIds, []);
+});
+
+dbTest('an excused child replaces the check-in and is not counted as present', async (t) => {
+  mockCampflowPerson(t);
+  const context = quietContext(t);
+  const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+  const mark = (status: string) =>
+    AnwesenheitChild(terminRequest('PUT', { id: 'per_Current' }, { status }), context);
+
+  assert.equal((await mark('anwesend')).status, 204);
+  assert.equal((await mark('entschuldigt')).status, 204);
+
+  const record = await getMeetingRecord(termin);
+  assert.deepEqual(record.presentIds, []);
+  assert.deepEqual(record.excusedIds, ['per_Current']);
+  const [summary] = await getMeetingSummaries();
+  assert.equal(summary.members, 0);
+  assert.equal(summary.excused, 1);
+
+  assert.equal((await mark('anwesend')).status, 204);
+  assert.deepEqual((await getMeetingRecord(termin)).presentIds, ['per_Current']);
+  assert.deepEqual((await getMeetingRecord(termin)).excusedIds, []);
+  assert.equal((await mark('vielleicht')).status, 400);
+});
+
+dbTest('a cancelled Gruppenstunde loses its attendance and takes no new one', async (t) => {
+  mockCampflowPerson(t);
+  const context = quietContext(t);
+  const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+  let etag: string | null = null;
+  const cancel = async (cancelled: boolean, entries = 0) => {
+    const response = await AnwesenheitCancelled(
+      terminRequest('PUT', {}, { cancelled, etag, entries }),
+      context
+    );
+    if (response.status === 200) etag = (response.jsonBody as { etag: string }).etag;
+    return response;
+  };
+  const check = () =>
+    AnwesenheitChild(terminRequest('PUT', { id: 'per_Current' }, { status: 'anwesend' }), context);
+
+  assert.equal((await check()).status, 204);
+  assert.equal(
+    (await AnwesenheitGuests(terminRequest('POST', {}, { name: 'Testgast' }), context)).status,
+    201
+  );
+  // Ticking created the Termin, but its notes are empty, so no version is needed yet
+  assert.equal((await cancel(true, 2)).status, 200);
+
+  const record = await getMeetingRecord(termin);
+  assert.equal(record.cancelled, true);
+  assert.deepEqual(record.presentIds, []);
+  assert.deepEqual(record.guests, []);
+  assert.equal((await check()).status, 400);
+  assert.equal(
+    (await AnwesenheitGuests(terminRequest('POST', {}, { name: 'Testgast' }), context)).status,
+    400
+  );
+
+  assert.equal((await cancel(false)).status, 200);
+  assert.equal((await check()).status, 204);
+  assert.equal((await getMeetingRecord(termin)).cancelled, false);
+});
+
+dbTest('cancelling refuses when someone added an entry after the page loaded', async (t) => {
+  mockCampflowPerson(t);
+  const context = quietContext(t);
+  const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+  // Leader A loads an existing Termin without entries, leader B checks a child in afterwards
+  const loaded = (
+    (await AnwesenheitNotes(terminRequest('PUT', {}, { notes: 'Plan.', etag: null }), context))
+      .jsonBody as { etag: string }
+  ).etag;
+  await AnwesenheitChild(
+    terminRequest('PUT', { id: 'per_Current' }, { status: 'anwesend' }),
+    context
+  );
+
+  const cancel = await AnwesenheitCancelled(
+    terminRequest('PUT', {}, { cancelled: true, etag: loaded, entries: 0 }),
+    context
+  );
+  assert.equal(cancel.status, 409);
+  const record = await getMeetingRecord(termin);
+  assert.equal(record.cancelled, false);
+  assert.deepEqual(record.presentIds, ['per_Current']);
+});
+
+dbTest('cancelling against an old version refuses, so stale notes cannot win', async (t) => {
+  const context = quietContext(t);
+  const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+  const saveNotes = (notes: string, etag: string | null) =>
+    AnwesenheitNotes(terminRequest('PUT', {}, { notes, etag }), context);
+  // Leader A loads the Termin, leader B changes the notes afterwards
+  const loaded = (
+    (await saveNotes('Knoten geübt.', null)).jsonBody as {
+      etag: string;
+    }
+  ).etag;
+  assert.equal((await saveNotes('Von B geändert.', loaded)).status, 200);
+
+  const cancel = await AnwesenheitCancelled(
+    terminRequest('PUT', {}, { cancelled: true, etag: loaded }),
+    context
+  );
+  assert.equal(cancel.status, 409);
+  const missing = await AnwesenheitCancelled(
+    terminRequest('PUT', {}, { cancelled: true, etag: null }),
+    context
+  );
+  assert.equal(missing.status, 409);
+  const record = await getMeetingRecord(termin);
+  assert.equal(record.cancelled, false);
+  assert.equal(record.notes, 'Von B geändert.');
+});
+
+dbTest('DELETE removes the Termin of the loaded version with its attendance', async (t) => {
+  mockCampflowPerson(t);
+  const context = quietContext(t);
+  const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+  let attendance = '';
+  const remove = (etag?: string) =>
+    AnwesenheitNotes(
+      terminRequest('DELETE', {}, { attendance }, etag ? { 'if-match': etag } : {}),
+      context
+    );
+  await AnwesenheitChild(
+    terminRequest('PUT', { id: 'per_Current' }, { status: 'anwesend' }),
+    context
+  );
+  const record = await getMeetingRecord(termin);
+  const loaded = record.etag ?? '';
+  attendance = attendanceSnapshot(buildTerminView(termin, record, [], true));
+  // Someone changes the notes after the Termin was opened for deleting
+  const changed = await AnwesenheitNotes(
+    terminRequest('PUT', {}, { notes: 'Neu.', etag: loaded }),
+    context
+  );
+  const current = (changed.jsonBody as { etag: string }).etag;
+
+  assert.equal((await remove()).status, 409);
+  assert.equal((await remove(loaded)).status, 409);
+  assert.equal((await getMeetingRecord(termin)).notes, 'Neu.');
+
+  assert.equal((await remove(current)).status, 204);
+  assert.deepEqual(await getMeetingSummaries(), []);
+  assert.equal(
+    (await getDb().selectFrom('gruppenstunde.attendance').selectAll().execute()).length,
+    0
+  );
+  assert.equal((await remove(current)).status, 204);
 });
 
 dbTest('notes are only saved against the version that was loaded', async (t) => {
@@ -149,7 +326,13 @@ dbTest('the preview seed adds invented Termine once and stores no CampFlow ID', 
 
   assert.deepEqual(await getMeetingSummaries(), first);
   assert.equal(first.length, 40);
-  assert.ok(first.every((meeting) => meeting.date <= berlinToday(now) && meeting.members > 0));
+  assert.ok(first.every((meeting) => meeting.date <= berlinToday(now)));
+  const cancelled = first.filter((meeting) => meeting.cancelled);
+  const held = first.filter((meeting) => !meeting.cancelled);
+  assert.equal(cancelled.length, 4);
+  assert.ok(cancelled.every((meeting) => meeting.members + meeting.excused + meeting.guests === 0));
+  assert.ok(held.every((meeting) => meeting.members > 0 && meeting.excused > 0));
+  assert.ok(first.some((meeting) => meeting.notes === ''));
   assert.ok(first.some((meeting) => meeting.date < retentionStart(now)));
   const rows = await getDb()
     .selectFrom('gruppenstunde.attendance as a')
@@ -255,5 +438,34 @@ for (const [name, setup, code] of [
 
     assert.equal(response.status, 502);
     assert.equal((response.jsonBody as { code: string }).code, code);
+  });
+}
+
+for (const change of ['child', 'guest', 'status', 'replacement'] as const) {
+  dbTest(`deleting refuses changed attendance: ${change}`, async (t) => {
+    const context = quietContext(t);
+    const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+    await markChild(termin, 'per_Current', false, 'leader-a');
+    const loaded = await getMeetingRecord(termin);
+    const attendance = attendanceSnapshot(buildTerminView(termin, loaded, [], true));
+    if (change === 'guest') await addGuest(termin, 'Neuer Gast', 'leader-b');
+    else if (change === 'status') await markChild(termin, 'per_Current', true, 'leader-b');
+    else {
+      if (change === 'replacement') await markAbsent(termin, 'per_Current');
+      await markChild(termin, 'per_Another', false, 'leader-b');
+    }
+    const changed = await getMeetingRecord(termin);
+    assert.equal(changed.etag, loaded.etag);
+    const remove = (snapshot: string) =>
+      AnwesenheitNotes(
+        terminRequest('DELETE', {}, { attendance: snapshot }, { 'if-match': loaded.etag ?? '' }),
+        context
+      );
+    assert.equal((await remove(attendance)).status, 409);
+    assert.deepEqual(await getMeetingRecord(termin), changed);
+    assert.equal(
+      (await remove(attendanceSnapshot(buildTerminView(termin, changed, [], true)))).status,
+      204
+    );
   });
 }

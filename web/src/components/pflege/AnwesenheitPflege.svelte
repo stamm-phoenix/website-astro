@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { errorMessage, fetchApi } from '../../lib/api';
   import { suggestedDate } from '../../lib/anwesenheit';
-  import type { AnwesenheitOverview } from '../../lib/types';
+  import type { AnwesenheitMeeting, AnwesenheitOverview } from '../../lib/types';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import AnwesenheitTermin from './AnwesenheitTermin.svelte';
@@ -41,15 +41,40 @@
     date = suggestedDate(stufe?.weekday ?? '', overview?.today ?? date);
   }
 
-  /** Shows a view; the statistics are loaded again, as the Termin may have changed. */
-  async function showView(next: View): Promise<void> {
-    view = next;
-    if (next !== 'verlauf') return;
+  /** Loads the recorded Termine again; the ones loaded before stay visible on failure. */
+  async function refreshOverview(): Promise<void> {
     try {
       overview = await fetchApi<AnwesenheitOverview>('/intern/anwesenheit');
     } catch {
       // The statistics loaded before stay visible
     }
+  }
+
+  function updateMeeting(meeting: AnwesenheitMeeting): void {
+    if (!overview) return;
+    overview = {
+      ...overview,
+      meetings: overview.meetings.map((previous) =>
+        previous.stufe === meeting.stufe && previous.date === meeting.date ? meeting : previous
+      ),
+    };
+  }
+
+  /** Removes a deleted Termin at once, also if loading the Termine again fails. */
+  function removeMeeting(stufe: string, date: string): void {
+    if (overview) {
+      overview = {
+        ...overview,
+        meetings: overview.meetings.filter((m) => m.stufe !== stufe || m.date !== date),
+      };
+    }
+    void refreshOverview();
+  }
+
+  /** Shows a view; the statistics are loaded again, as the Termin may have changed. */
+  async function showView(next: View): Promise<void> {
+    view = next;
+    if (next === 'verlauf') await refreshOverview();
   }
 
   function changeDate(value: string): void {
@@ -124,10 +149,12 @@
             stufe={selected.stufe}
             slug={selected.slug}
             meetings={overview.meetings}
+            onload={updateMeeting}
             onselect={(selectedDate) => {
               changeDate(selectedDate);
               view = 'erfassen';
             }}
+            ondelete={(deleted) => removeMeeting(selected.stufe, deleted)}
           />
         {/key}
       {/if}

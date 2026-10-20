@@ -247,6 +247,8 @@
 <EditDialog
   open={form !== null}
   title={form?.id ? 'Frage bearbeiten' : 'Neue Frage'}
+  rescueKey={form ? `frage:${form.id ?? 'neu'}` : undefined}
+  rescueVersion={form?.etag}
   {busy}
   error={dialog.state.error}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}

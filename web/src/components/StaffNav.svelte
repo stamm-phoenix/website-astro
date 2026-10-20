@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
   import StaffModuleSearch from './StaffModuleSearch.svelte';
+  import ChangelogBadge from './changelog/ChangelogBadge.svelte';
+  import { loadChangelogSeen } from '../lib/staffChangelogStore.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import {
@@ -11,7 +13,7 @@
   } from '../lib/staffFavoritesStore.svelte';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
   import Toast from './ui/Toast.svelte';
-  import { loadRecent, recentStore, recordVisit } from '../lib/staffRecentStore.svelte';
+  import { loadRecent, recordVisit } from '../lib/staffRecentStore.svelte';
   import {
     STAFF_DEFAULT_QUICK,
     STAFF_FAVORITE_PATHS,
@@ -67,24 +69,17 @@
     },
   ]);
 
-  // Favorites first, then the recently used areas, filled up with the usual ones
+  // Stable shortcuts: favorites first, filled up with the usual areas.
   // Without favorites (load failed, login not checked) the bar still fills up
   const ready = $derived(
-    recentStore.loaded &&
-      (nikolausStatusStore.data !== null || nikolausStatusStore.error !== null) &&
+    (nikolausStatusStore.data !== null || nikolausStatusStore.error !== null) &&
       (favoritesStore.loaded ||
         favoritesStore.loadError !== null ||
         (!authStore.loading && !authStore.principal))
   );
   const quick = $derived.by(() => {
-    const picked = yourStaffModules(
-      favoritesStore.loaded ? favoritesStore.modules : [],
-      recentStore.modules,
-      allModules,
-      QUICK_COUNT
-    );
     return yourStaffModules(
-      picked.map((entry) => entry.href),
+      favoritesStore.loaded ? favoritesStore.modules : [],
       STAFF_DEFAULT_QUICK,
       allModules,
       QUICK_COUNT
@@ -148,6 +143,7 @@
     if (module) void recordVisit(module);
     else void loadRecent();
     void fetchPrincipal();
+    void loadChangelogSeen();
     // Whether Nikolaus modules may appear in the bar; the Steuerung refreshes it on a change
     void fetchNikolausStatus();
   });
@@ -452,15 +448,17 @@
     {/if}
     <button
       type="button"
-      class="staff-bar-item"
+      class="staff-bar-item relative"
       bind:this={menuButton}
       aria-expanded={open}
       aria-controls="staff-nav-panel"
+      aria-describedby="staff-menu-news"
       aria-current={inBar || open ? undefined : 'true'}
       onclick={toggleSheet}
     >
       {@render icon('M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z')}
       <span>Menü</span>
+      <ChangelogBadge floating textId="staff-menu-news" />
     </button>
   </div>
 </nav>

@@ -190,6 +190,7 @@ const websiteLd = {
   } from '../lib/nikolausFahrtOffline';
   import { removeExpiredAbrechnungen } from '../lib/abrechnungAblage';
   import { localDate } from '../lib/dateUtils';
+  import { RESCUE_KEY } from '../lib/geretteteEingaben';
 
   // Expiry is checked on every site visit, even outside the Fahrt view.
   function expireStoredRoute(): void {
@@ -219,6 +220,7 @@ const websiteLd = {
       try {
         localStorage.removeItem(FAHRT_STORAGE_KEY);
         sessionStorage.removeItem(FAHRT_OWNER_KEY);
+        sessionStorage.removeItem(RESCUE_KEY);
       } catch {
         /* Storage unavailable. */
       }

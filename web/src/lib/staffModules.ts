@@ -27,6 +27,9 @@ export interface StaffModule extends StaffPage {
   wrap?: string;
 }
 
+/** The page that lists the changes of the Leitendenbereich; its bubble counts the unread ones. */
+export const CHANGELOG_PATH = '/leitendenbereich/neuigkeiten';
+
 export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/aufgaben',
@@ -94,10 +97,19 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/anwesenheit',
     title: 'Anwesenheit',
     description:
-      'Abhaken, wer in der Gruppenstunde war, was ihr gemacht habt, und Verlauf je Stufe ansehen.',
+      'Eintragen, wer in der Gruppenstunde war oder entschuldigt fehlte, was ihr gemacht habt, und Verlauf je Stufe ansehen.',
     intro: 'Namen von Kindern werden nach zwölf Monaten gelöscht; die Zahlen bleiben.',
     wrap: 'Anwesen|heit',
-    keywords: ['kinder', 'gruppenstunde', 'teilnehmende', 'liste', 'da gewesen', 'abhaken'],
+    keywords: [
+      'kinder',
+      'gruppenstunde',
+      'teilnehmende',
+      'liste',
+      'da gewesen',
+      'abhaken',
+      'entschuldigt',
+      'ausgefallen',
+    ],
     icon: 'M9 4h6v3H9zM9 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3M9 14l2 2 4-4',
   },
   {
@@ -203,6 +215,16 @@ export const STAFF_MODULES: StaffModule[] = [
     keywords: ['beitrag', 'bericht', 'news', 'neuigkeiten', 'website'],
     icon: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
   },
+  {
+    href: CHANGELOG_PATH,
+    title: 'Neuigkeiten',
+    description:
+      'Nachlesen, was sich im Leitendenbereich geändert hat und was du jetzt Neues nutzen kannst.',
+    intro:
+      'Hier steht, was sich im Leitendenbereich geändert hat, die neueste Änderung zuerst. Die Zahl am Menü zeigt, wie viele Neuigkeiten du noch nicht gelesen hast.',
+    keywords: ['changelog', 'änderungen', 'neu', 'update', 'version', 'was ist neu'],
+    icon: 'M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
+  },
 ];
 
 /** The Steuerung of the Nikolausdienst: always shown, it switches the other modules on and off. */
@@ -299,6 +321,11 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
       'fragen-und-antworten',
       'qr-code'
     ),
+  },
+  {
+    id: 'neues',
+    title: 'Neu im Leitendenbereich',
+    modules: byPath('neuigkeiten'),
   },
 ];
 
@@ -405,7 +432,7 @@ export function staffBreadcrumbs(page: StaffPage): StaffPage[] {
   return [...staffBreadcrumbs(parent), parent];
 }
 
-/** The bar on the phone offers these until the person has favorites or recently used areas. */
+/** The bar on the phone offers these to fill places not occupied by favorites. */
 export const STAFF_DEFAULT_QUICK: string[] = [
   '/leitendenbereich/aufgaben',
   '/leitendenbereich/belege',

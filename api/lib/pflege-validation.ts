@@ -3,6 +3,7 @@
  * Invalid input is reported per field so the forms can show the messages next to the inputs.
  */
 import type { HelperRole, TeamRole } from './nikolaus-einteilung';
+import { isChangelogId } from './changelog-id';
 import { pickStaffSettings } from './staff-settings-model';
 import type { StaffSettings } from './staff-settings-model';
 import { HELPER_ROLES, KITCHEN, TEAM_ROLES, normalizeTag, parseTags } from './nikolaus-einteilung';
@@ -1063,6 +1064,41 @@ export function validateMeetingNotes(body: unknown): MeetingNotesInput {
   return { notes, etag };
 }
 
+/** Whether a child was there (`anwesend`) or excused (`entschuldigt`). */
+export function validateChildStatus(body: unknown): 'anwesend' | 'entschuldigt' {
+  const reader = new Reader(asRecord(body));
+  const status = reader.choice('status', 'die Anwesenheit', ['anwesend', 'entschuldigt']);
+  reader.done();
+  return status === 'entschuldigt' ? 'entschuldigt' : 'anwesend';
+}
+
+export interface CancelledInput {
+  cancelled: boolean;
+  /** The version the page loaded; `null` if the Termin did not exist yet. */
+  etag: string | null;
+  /**
+   * When cancelling: the number of entries (children and guests) the page showed and the
+   * leader agreed to delete. Entries do not change the version of the Termin.
+   */
+  entries: number;
+}
+
+/** Whether the Gruppenstunde was cancelled, with the state the page loaded. */
+export function validateCancelled(body: unknown): CancelledInput {
+  const record = asRecord(body);
+  const errors: FieldErrors = {};
+  if (typeof record.cancelled !== 'boolean')
+    errors.cancelled = 'Die Angabe „Ausgefallen“ ist ungültig.';
+  const etag = typeof record.etag === 'string' ? record.etag : null;
+  if (etag === null && record.etag !== null)
+    errors.etag = 'Die Version des Termins fehlt. Bitte neu laden.';
+  const entries = record.entries ?? 0;
+  if (typeof entries !== 'number' || !Number.isInteger(entries) || entries < 0)
+    errors.entries = 'Die Zahl der Einträge ist ungültig.';
+  if (Object.keys(errors).length > 0) throw new ValidationError(errors);
+  return { cancelled: record.cancelled === true, etag, entries: Number(entries) };
+}
+
 /** The name of a guest who is not in CampFlow. */
 export function validateGuestName(body: unknown): string {
   const reader = new Reader(asRecord(body));
@@ -1463,6 +1499,15 @@ export function validateStaffRecentVisit(body: unknown): string {
   return module.replace(/\/+$/, '');
 }
 
+/** The ID of the newest changelog entry a person has seen (`{ lastSeenId }`). */
+export function validateChangelogSeen(body: unknown): string {
+  const { lastSeenId } = asRecord(body);
+  if (!isChangelogId(lastSeenId)) {
+    throw new ValidationError({ lastSeenId: 'Die Neuigkeit ist ungültig.' });
+  }
+  return lastSeenId;
+}
+
 export function validateStaffFavorites(body: unknown): string[] {
   const { modules } = asRecord(body);
   if (
@@ -1475,4 +1520,13 @@ export function validateStaffFavorites(body: unknown): string[] {
     });
   }
   return [...new Set(modules as string[])];
+}
+
+/** The attendance shown when a leader confirms deleting a Gruppenstunde. */
+export function validateMeetingDeletion(body: unknown): string {
+  const record = asRecord(body);
+  if (typeof record.attendance !== 'string' || record.attendance.length > 100_000) {
+    throw new ValidationError({ attendance: 'Lade die Gruppenstunde neu, bevor du sie löschst.' });
+  }
+  return record.attendance;
 }
