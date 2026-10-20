@@ -5,6 +5,7 @@
     reloginHereUrl,
     reloginOnlyHere,
   } from '../../lib/api';
+  import { rescueInputs } from '../../lib/geretteteEingaben';
   import { HELP_CONTACTS } from '../../lib/helpContacts';
 
   interface Props {
@@ -27,10 +28,16 @@
       class="text-link underline">{part}</a
     >{:else}{part}{/if}{/each}{#if text.includes(SESSION_EXPIRED_MESSAGE) && reloginOnlyHere()}
   <span class="mt-2 block">
-    In der App auf dem Home-Bildschirm lädt das Anmelden diese Seite neu. Kopiere vorher, was du
-    behalten willst.
+    In der App auf dem Home-Bildschirm lädt das Anmelden diese Seite neu. Deine Eingaben stehen
+    danach oben auf der Seite zum Kopieren bereit.
   </span>
-  <a href={reloginHereUrl()} class="btn-secondary mt-2 flex w-fit no-underline">Neu anmelden</a>
+  <a
+    href={reloginHereUrl()}
+    data-astro-reload
+    onclick={(event) =>
+      rescueInputs(event.currentTarget.closest('dialog, [role="dialog"]') ?? document)}
+    class="btn-secondary mt-2 flex w-fit no-underline">Neu anmelden</a
+  >
 {:else if text.includes(SESSION_EXPIRED_MESSAGE)}
   <a
     href={RELOGIN_URL}
