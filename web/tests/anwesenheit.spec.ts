@@ -581,3 +581,81 @@ test('a reload after a failed child choice settles before notes save and cancell
   expect(stored.cancelled).toBe(true);
   await expect(notes).toHaveValue('Mein Entwurf bleibt.');
 });
+
+for (const guests of [1, 2]) {
+  test(`cancelling waits for a guest deletion and blocks further deletions (${guests} guests)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const date = guests === 1 ? '2026-08-14' : '2026-08-13';
+    const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
+    const read = `/api/intern/anwesenheit/woelflinge/${date}`;
+    for (let index = 0; index < guests; index++) {
+      expect(
+        (await page.request.post(`${write}/gaeste`, { data: { name: `Gast ${index + 1}` } })).ok()
+      ).toBe(true);
+    }
+    let releaseDelete = (): void => undefined;
+    const deleteGate = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    let deletes = 0;
+    await page.route(`**${write}/gaeste/*`, async (route) => {
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      deletes++;
+      await deleteGate;
+      await route.fulfill({ response });
+    });
+    let releaseCancel = (): void => undefined;
+    const cancelGate = new Promise<void>((resolve) => {
+      releaseCancel = resolve;
+    });
+    const entries: number[] = [];
+    await page.route(`**${write}/ausgefallen`, async (route) => {
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      entries.push((route.request().postDataJSON() as { entries: number }).entries);
+      await cancelGate;
+      await route.fulfill({ response });
+    });
+    await page.goto('/leitendenbereich/anwesenheit');
+    await page.getByLabel('Datum', { exact: true }).fill(date);
+    const remove = page.getByRole('button', { name: 'Gast 1 entfernen', exact: true });
+    await remove.click();
+    await expect.poll(() => deletes).toBe(1);
+    const cancel = page
+      .getByRole('group', { name: 'Gruppenstunde', exact: true })
+      .getByRole('button', { name: 'Ausgefallen', exact: true });
+    await expect(cancel).toBeDisabled();
+    await expect(remove).toBeDisabled();
+    await cancel.evaluate((button) =>
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    );
+    releaseDelete();
+    await expect(remove).toHaveCount(0);
+    expect(entries).toEqual([]);
+    await cancel.click();
+    if (guests > 1) {
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Als ausgefallen markieren', exact: true })
+        .click();
+    }
+    await expect.poll(() => entries.length).toBe(1);
+    if (guests > 1) {
+      const remaining = page.getByRole('button', { name: 'Gast 2 entfernen', exact: true });
+      await expect(remaining).toBeDisabled();
+      await remaining.evaluate((button) =>
+        button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      );
+    }
+    releaseCancel();
+    await expect(page.getByText('Gruppenstunde als ausgefallen markiert.').first()).toBeVisible();
+    expect(entries).toEqual([guests - 1]);
+    expect(deletes).toBe(1);
+    const stored = await (await page.request.get(read)).json();
+    expect(stored.cancelled).toBe(true);
+    expect(stored.guests).toEqual([]);
+  });
+}

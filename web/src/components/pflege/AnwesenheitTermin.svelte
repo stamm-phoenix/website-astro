@@ -54,6 +54,7 @@
   let savingCancelled = $state(false);
   let guestName = $state('');
   let addingGuest = $state(false);
+  let removingGuest = $state<string | null>(null);
   let busy = $state<string[]>([]);
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'error'>('success');
@@ -65,7 +66,12 @@
   const path = $derived(`/anwesenheit/${slug}/${date}`);
   // Notes and cancellation must use a settled snapshot, with no attendance reload pending.
   const meetingBusy = $derived(
-    loading || savingNotes || savingCancelled || addingGuest || busy.length > 0
+    loading ||
+      savingNotes ||
+      savingCancelled ||
+      addingGuest ||
+      removingGuest !== null ||
+      busy.length > 0
   );
   const memberCount = $derived(
     termin
@@ -148,6 +154,7 @@
       savingNotes ||
       savingCancelled ||
       addingGuest ||
+      removingGuest !== null ||
       busy.includes(child.id) ||
       child.status === status
     )
@@ -281,7 +288,8 @@
 
   async function removeGuest(guest: AnwesenheitGuest): Promise<void> {
     const target = termin;
-    if (!target) return;
+    if (!target || meetingBusy) return;
+    removingGuest = guest.id;
     try {
       await sendApi('DELETE', `/intern/pflege${path}/gaeste/${guest.id}`);
       target.guests = target.guests.filter((g) => g.id !== guest.id);
@@ -294,6 +302,8 @@
         ),
         'error'
       );
+    } finally {
+      removingGuest = null;
     }
   }
 
@@ -354,6 +364,7 @@
         savingNotes ||
         savingCancelled ||
         addingGuest ||
+        removingGuest !== null ||
         busy.includes(child.id)}
       onselect={(status) => setStatus(child, status)}
     />
@@ -470,8 +481,11 @@
                   {#if termin.editable}
                     <ActionButton
                       variant="danger"
+                      disabled={meetingBusy}
+                      aria-busy={removingGuest === guest.id}
                       aria-label="{guest.name} entfernen"
-                      onclick={() => removeGuest(guest)}>Entfernen</ActionButton
+                      onclick={() => removeGuest(guest)}
+                      >{removingGuest === guest.id ? 'Wird entfernt …' : 'Entfernen'}</ActionButton
                     >
                   {/if}
                 </li>
