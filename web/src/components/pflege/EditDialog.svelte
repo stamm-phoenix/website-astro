@@ -97,7 +97,7 @@
   let previousFocus: HTMLElement | null = null;
   /** Kept input without a field to go into, e.g. a row the form does not have yet. */
   let pending = $state<GeretteterWert[]>([]);
-  const leftOver = $derived(shownValues(pending));
+  const leftOver = $derived(rescueConflict ? pending : shownValues(pending));
   const shownNotice = $derived(
     notice ??
       (rescueConflict
@@ -152,6 +152,15 @@
   /** The record of the open dialog: `rescueKey` when it opened. */
   let record: string | undefined;
   let opening = '';
+  let openingVersion = '';
+  let openingValues: string[] = [];
+
+  /** A confirmed partial write (a photo) advances only our version, never unsaved fields. */
+  export function acceptRescueVersion(previous: string, saved: string): void {
+    if (rescueConflict || openingVersion !== previous) return;
+    openingVersion = saved;
+    opening = JSON.stringify([openingVersion, openingValues]);
+  }
   setRescueContext({
     enabled: () => record !== undefined,
     rescue: () =>
@@ -198,7 +207,9 @@
     discarded = false;
     openingTitle = title;
     record = rescueKey;
-    opening = JSON.stringify([rescueVersion ?? '', initial.map((entry) => entry.value)]);
+    openingVersion = rescueVersion ?? '';
+    openingValues = initial.map((entry) => entry.value);
+    opening = JSON.stringify([openingVersion, openingValues]);
     const kept = record === undefined ? null : findRescue(record, opening, Date.now());
     if (kept) void restore(kept);
     else if (record !== undefined) {

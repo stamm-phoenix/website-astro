@@ -103,6 +103,7 @@
     editor = instance;
     // In an edit dialog the text is kept across a new login in the iPhone app
     const unregister = rescue?.register({
+      format: () => format,
       label: () => fieldLabel(instance.view.dom),
       get: () => value,
       set: (text) => (value = text),

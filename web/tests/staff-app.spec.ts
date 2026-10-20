@@ -652,3 +652,173 @@ test('in the iPhone app a newly created person keeps later edits under their sav
     'Recovery edited person'
   );
 });
+
+async function conflictingQuestion(page: Page, title: string, answer: string): Promise<string> {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const created = await page.request.post('/api/intern/pflege/qa', {
+    data: { question: title, answer, category: 'Allgemein', published: true },
+  });
+  const { id } = await created.json();
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route(`**/api/intern/pflege/qa/${id}`, (route) =>
+    route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/fragen-und-antworten');
+  await page.getByRole('button', { name: `Bearbeiten: ${title}`, exact: true }).click();
+  return id;
+}
+
+async function returnToConflictingQuestion(page: Page, id: string, title: string): Promise<void> {
+  const dialog = page.getByRole('dialog', { name: 'Frage bearbeiten', exact: true });
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  // APIRequestContext bypasses page routes, like a write by another person.
+  expect(
+    (
+      await page.request.patch(`/api/intern/pflege/qa/${id}`, {
+        data: { answer: '<p>Newer answer</p>' },
+      })
+    ).ok()
+  ).toBe(true);
+  await page.reload();
+  await page.getByRole('button', { name: `Bearbeiten: ${title}`, exact: true }).click();
+}
+
+test('in the iPhone app a conflicting draft shows cleared fields and removed check marks', async ({
+  page,
+}) => {
+  const title = 'Recovery cleared fields';
+  const id = await conflictingQuestion(page, title, '<p>Original answer</p>');
+  const dialog = page.getByRole('dialog', { name: 'Frage bearbeiten', exact: true });
+  await dialog.getByRole('checkbox', { name: /Veröffentlicht/ }).uncheck();
+  await dialog.getByLabel('Frage', { exact: true }).fill('');
+  const answer = dialog.getByRole('textbox', { name: 'Antwort', exact: true });
+  await answer.fill('');
+  // Required fields can be cleared without submitting: trigger the expired session via
+  // a valid question first, then clear it while the login link is already shown.
+  await dialog.getByLabel('Frage', { exact: true }).fill(title);
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByLabel('Frage', { exact: true }).fill('');
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await page.request.patch(`/api/intern/pflege/qa/${id}`, {
+    data: { answer: '<p>Newer answer</p>' },
+  });
+  await page.reload();
+  await page.getByRole('button', { name: `Bearbeiten: ${title}`, exact: true }).click();
+  await expect(answer).toContainText('Newer answer');
+  await expect(dialog.getByRole('checkbox', { name: /Veröffentlicht/ })).toBeChecked();
+  const draft = dialog.getByRole('region', { name: 'Noch nicht eingesetzt' });
+  await expect(
+    draft.getByRole('listitem').filter({ has: page.getByText('Status', { exact: true }) })
+  ).toContainText('nicht angehakt');
+  for (const label of ['Frage', 'Antwort']) {
+    await expect(
+      draft.getByRole('listitem').filter({ has: page.getByText(label, { exact: true }) })
+    ).toContainText('Leer');
+  }
+  await page.request.delete(`/api/intern/pflege/qa/${id}`);
+});
+
+test('in the iPhone app copying a conflicting answer keeps its formatting and labelled link', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const title = 'Recovery formatted clipboard';
+  const id = await conflictingQuestion(
+    page,
+    title,
+    '<p>Siehe <strong>unbedingt</strong> die <a href="https://example.org/treffpunkt">Karte</a>.</p>'
+  );
+  const dialog = page.getByRole('dialog', { name: 'Frage bearbeiten', exact: true });
+  await dialog.getByLabel('Frage', { exact: true }).fill('My unsaved question');
+  await returnToConflictingQuestion(page, id, title);
+  const draft = dialog.getByRole('region', { name: 'Noch nicht eingesetzt' });
+  await expect(draft.getByRole('link', { name: 'Karte' })).toHaveAttribute(
+    'href',
+    'https://example.org/treffpunkt'
+  );
+  await expect(draft).not.toContainText('<p>');
+  await draft.getByRole('button', { name: 'Antwort kopieren', exact: true }).click();
+  await expect(draft.getByText('Kopiert.', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    'Siehe unbedingt die Karte.'
+  );
+  const answer = dialog.getByRole('textbox', { name: 'Antwort', exact: true });
+  await answer.click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.press('ControlOrMeta+V');
+  await expect(answer.locator('strong')).toHaveText('unbedingt');
+  await expect(answer.getByRole('link', { name: 'Karte' })).toHaveAttribute(
+    'href',
+    'https://example.org/treffpunkt'
+  );
+  await expect(answer).not.toContainText('<p>');
+  await page.request.delete(`/api/intern/pflege/qa/${id}`);
+});
+
+for (const action of ['upload', 'remove'] as const) {
+  test(`in the iPhone app a confirmed photo ${action} preserves recovery of unsaved fields`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const name = `Photo recovery ${action}`;
+    const created = await page.request.post('/api/intern/pflege/leitende', {
+      data: { name, teams: [] },
+    });
+    const { id } = await created.json();
+    if (action === 'remove') {
+      await page.request.put(`/api/intern/pflege/leitende/${id}/foto`, {
+        headers: { 'Content-Type': 'image/jpeg' },
+        data: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+      });
+    }
+    await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+    await page.route(`**/api/intern/pflege/leitende/${id}`, (route) =>
+      route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
+    );
+    await page.goto('/leitendenbereich/leitende');
+    await page.getByRole('button', { name: new RegExp(name) }).click();
+    const dialog = page.getByRole('dialog', { name: /Photo/ });
+    // The version advances, but these unsaved values must not become the new baseline.
+    await dialog.getByLabel('Name', { exact: true }).fill(`Photo unsaved before ${action}`);
+    if (action === 'remove') {
+      await dialog.getByRole('button', { name: 'Foto entfernen', exact: true }).click();
+      await page
+        .getByRole('dialog', { name: 'Foto entfernen?', exact: true })
+        .getByRole('button', { name: 'Entfernen', exact: true })
+        .click();
+    } else {
+      const png = await page.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 10;
+        canvas.height = 10;
+        return canvas.toDataURL('image/png').split(',')[1];
+      });
+      await dialog.locator('input[type="file"]').setInputFiles({
+        name: 'photo.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from(png, 'base64'),
+      });
+    }
+    await expect(
+      dialog.getByText(action === 'remove' ? 'Foto entfernt.' : 'Foto gespeichert.', {
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue(
+      `Photo unsaved before ${action}`
+    );
+    await dialog.getByLabel('Name', { exact: true }).fill(`Photo recovered ${action}`);
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+    await page.getByRole('button', { name: new RegExp(name) }).click();
+    await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue(
+      `Photo recovered ${action}`
+    );
+    await expect(
+      dialog.getByText('wieder eingesetzt. Prüf sie und speichere.', { exact: false })
+    ).toBeVisible();
+    await page.request.delete(`/api/intern/pflege/leitende/${id}`);
+  });
+}

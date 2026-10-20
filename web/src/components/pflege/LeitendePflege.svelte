@@ -42,6 +42,7 @@
   let photoBusy = $state(false);
   let dialogNotice = $state<string | null>(null);
   let photoInput = $state<HTMLInputElement | null>(null);
+  let editDialog = $state<EditDialog | null>(null);
   let message = $state<string | null>(null);
   /** Changes after a photo upload so the browser loads the new image. */
   let photoVersion = $state(Date.now());
@@ -269,6 +270,7 @@
   /** Only the exact photo-write version belongs to this draft, never a later list version. */
   function applyPhoto(id: string, saved: { etag: string; hasImage: boolean }): void {
     if (form?.id === id) {
+      editDialog?.acceptRescueVersion(form.etag, saved.etag);
       form.etag = saved.etag;
       form.hasImage = saved.hasImage;
     }
@@ -360,6 +362,7 @@
 </div>
 
 <EditDialog
+  bind:this={editDialog}
   open={form !== null}
   title={form?.id ? `${form.name || 'Person'} bearbeiten` : 'Neue Person'}
   rescueKey={form ? `leitende:${form.id ?? 'neu'}` : undefined}
