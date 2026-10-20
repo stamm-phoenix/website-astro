@@ -97,8 +97,12 @@ const title =
             hidden
             class="mb-4 border-l-4 border-warning py-1 pl-3 text-warning"
           >
-            <strong>Keine Verbindung zum Internet.</strong> Lass diese Seite offen, deine Eingaben
-            bleiben stehen. Speichern und andere Seiten gehen erst wieder, wenn du online bist.
+            <strong>Keine Verbindung zum Internet.</strong>{' '}
+            {/* A module that keeps working offline says so in its own words */}
+            <slot name="offline">
+              Lass diese Seite offen, deine Eingaben bleiben stehen. Speichern und andere Seiten
+              gehen erst wieder, wenn du online bist.
+            </slot>
           </p>
         </div>
       )}

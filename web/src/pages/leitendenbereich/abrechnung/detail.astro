@@ -5,5 +5,9 @@ import AbrechnungDetail from '../../../components/abrechnung/AbrechnungDetail.sv
 
 <!-- Served for /leitendenbereich/abrechnung/<evt_id> (rewrite in staticwebapp.config.json) -->
 <StaffLayout header="none">
+  <Fragment slot="offline">
+    Deine Eingaben werden weiter auf diesem Gerät gespeichert. Daten aus CampFlow und andere Seiten
+    laden erst wieder, wenn du online bist.
+  </Fragment>
   <AbrechnungDetail client:only="svelte" />
 </StaffLayout>

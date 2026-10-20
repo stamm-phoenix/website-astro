@@ -98,6 +98,22 @@ test('the Fahrt view keeps its own offline notice without the general one', asyn
   await context.setOffline(false);
 });
 
+test('the Abrechnung says that it keeps saving on the device without a connection', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  await expect(page.getByRole('tab', { name: 'Leihgebühren' })).toBeVisible();
+  await context.setOffline(true);
+  const notice = page.getByText('Keine Verbindung zum Internet.');
+  await expect(notice).toBeVisible();
+  await expect(page.locator('[data-offline-notice]')).toContainText(
+    'Deine Eingaben werden weiter auf diesem Gerät gespeichert.'
+  );
+  await expect(page.locator('[data-offline-notice]')).not.toContainText('Speichern');
+  await context.setOffline(false);
+});
+
 test('in the iPhone app an expired login is renewed in the same window', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'standalone', { value: true });

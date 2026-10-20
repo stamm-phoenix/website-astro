@@ -7,6 +7,7 @@ import type {
 } from './types';
 
 import type { TextEditorFeatures } from './textEditor';
+import { loginUrl, reloginOnlyHere } from './api';
 
 export { formatDateTime } from './format';
 
@@ -86,8 +87,10 @@ export function praesentationUrl(id: number): string {
 export function openPraesentation(id: number): boolean {
   const width = Math.min(1600, Math.max(960, Math.round(window.screen.availWidth * 0.8)));
   const height = Math.min(1000, Math.max(640, Math.round(window.screen.availHeight * 0.8)));
+  // In the iPhone app the window opens in Safari, which has its own login: log in there first.
+  // Without the writing tab's channel there, the presentation follows the saved minutes.
   const opened = window.open(
-    praesentationUrl(id),
+    reloginOnlyHere() ? loginUrl(praesentationUrl(id)) : praesentationUrl(id),
     `protokoll-praesentation-${id}`,
     `popup=yes,width=${width},height=${height}`
   );

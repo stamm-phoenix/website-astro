@@ -133,6 +133,31 @@ test('without a connection the changes stay on the device and are saved later', 
   await expect(page.getByLabel('Text zu Punkt 4.')).toHaveValue('Getippt ohne Verbindung.');
 });
 
+test('in the iPhone app the presentation window logs in first and shows the saved minutes', async ({
+  page,
+  context,
+}) => {
+  // The window opens in Safari there, which does not share the login of the app
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await createProtokoll(page, 'Leitendenrunde iPhone');
+  const [praesentation, login] = await Promise.all([
+    context.waitForEvent('page'),
+    context.waitForEvent('request', (request) => request.url().includes('/.auth/login/aad')),
+    page.getByRole('button', { name: 'Präsentation öffnen' }).click(),
+  ]);
+  expect(new URL(login.url()).searchParams.get('post_login_redirect_uri')).toMatch(
+    /^\/leitendenbereich\/protokolle\/praesentation\?id=\d+$/
+  );
+  await expect(praesentation).toHaveURL(/\/leitendenbereich\/protokolle\/praesentation\?id=\d+$/);
+  await expect(
+    praesentation
+      .getByRole('article', { name: 'Protokoll' })
+      .getByRole('heading', { name: /Leitendenrunde iPhone am/ })
+  ).toBeVisible();
+});
+
 test('the presentation opens in a window of its own and follows every change', async ({
   page,
   context,
