@@ -5,6 +5,7 @@
     reloginHereUrl,
     reloginOnlyHere,
   } from '../../lib/api';
+  import { getRescueContext } from '../../lib/geretteteEingaben';
   import { HELP_CONTACTS } from '../../lib/helpContacts';
 
   interface Props {
@@ -20,6 +21,16 @@
   );
 
   const parts = $derived(text.split(SPLIT));
+
+  // Inside an edit dialog the input is kept across the new login in the iPhone app
+  const rescue = getRescueContext();
+  let rescueFailed = $state(false);
+
+  function keepInput(event: MouseEvent): void {
+    if (!rescue || rescueFailed || rescue.rescue()) return;
+    event.preventDefault();
+    rescueFailed = true;
+  }
 </script>
 
 {#each parts as part, index (index)}{#if ADDRESSES.includes(part)}<a
@@ -27,11 +38,23 @@
       class="text-link underline">{part}</a
     >{:else}{part}{/if}{/each}{#if text.includes(SESSION_EXPIRED_MESSAGE) && reloginOnlyHere()}
   <span class="mt-2 block">
-    In der App auf dem Home-Bildschirm lädt das Anmelden diese Seite neu. Kopiere vorher, was du
-    behalten willst.
+    {#if rescueFailed}
+      Deine Eingaben ließen sich auf diesem Gerät nicht sichern. Kopiere sie selbst, bevor du dich
+      neu anmeldest.
+    {:else if rescue}
+      In der App auf dem Home-Bildschirm lädt das Anmelden diese Seite neu. Öffne danach dieses
+      Formular wieder, dann setzt es deine Eingaben selbst ein.
+    {:else}
+      In der App auf dem Home-Bildschirm lädt das Anmelden diese Seite neu. Kopiere vorher, was du
+      behalten willst.
+    {/if}
   </span>
-  <a href={reloginHereUrl()} data-astro-reload class="btn-secondary mt-2 flex w-fit no-underline"
-    >Neu anmelden</a
+  <a
+    href={reloginHereUrl()}
+    data-astro-reload
+    onclick={keepInput}
+    class="btn-secondary mt-2 flex w-fit no-underline"
+    >{rescueFailed ? 'Trotzdem neu anmelden' : 'Neu anmelden'}</a
   >
 {:else if text.includes(SESSION_EXPIRED_MESSAGE)}
   <a
