@@ -21,10 +21,14 @@
   }
   let { stufe, slug, date }: Props = $props();
 
-  const STATUS_OPTIONS: { value: AnwesenheitStatus; label: string }[] = [
-    { value: 'anwesend', label: 'Anwesend' },
-    { value: 'entschuldigt', label: 'Entschuldigt' },
-    { value: 'abwesend', label: 'Abwesend' },
+  const STATUS_OPTIONS: {
+    value: AnwesenheitStatus;
+    label: string;
+    tone: 'success' | 'warning' | 'neutral';
+  }[] = [
+    { value: 'anwesend', label: 'Anwesend', tone: 'success' },
+    { value: 'entschuldigt', label: 'Entschuldigt', tone: 'warning' },
+    { value: 'abwesend', label: 'Abwesend', tone: 'neutral' },
   ];
 
   const DATE_LABEL = new Intl.DateTimeFormat('de-DE', {
@@ -64,13 +68,23 @@
       : 0
   );
   const guestCount = $derived(termin ? termin.guests.length + termin.anonymizedGuests : 0);
-  const countLabel = $derived(
-    `${memberCount} ${memberCount === 1 ? 'Kind' : 'Kinder'} da` +
-      (excusedCount > 0 ? `, ${excusedCount} entschuldigt` : '') +
-      (guestCount > 0 ? `, dazu ${guestCount} ${guestCount === 1 ? 'Gast' : 'Gäste'}` : '') +
-      '.'
-  );
   const ownStufe = $derived(termin?.children.filter((child) => child.kind === 'stufe') ?? []);
+  const absentCount = $derived(ownStufe.filter((child) => child.status === 'abwesend').length);
+  /** What is recorded, which a cancellation would delete. */
+  const recordedLabel = $derived(
+    [
+      `${memberCount} anwesend`,
+      `${excusedCount} entschuldigt`,
+      ...(guestCount > 0 ? [`${guestCount} ${guestCount === 1 ? 'Gast' : 'Gäste'}`] : []),
+    ].join(', ')
+  );
+  /** Everybody of the Stufe, so it shows at once who is still missing. */
+  const countParts = $derived([
+    `${memberCount} anwesend`,
+    `${excusedCount} entschuldigt`,
+    ...(termin?.editable ? [`${absentCount} abwesend`] : []),
+    ...(guestCount > 0 ? [`${guestCount} ${guestCount === 1 ? 'Gast' : 'Gäste'}`] : []),
+  ]);
   const visitors = $derived(termin?.children.filter((child) => child.kind !== 'stufe') ?? []);
   const notesChanged = $derived(termin !== null && notes.trim() !== termin.notes);
 
@@ -160,7 +174,7 @@
       recorded > 0 &&
       !(await confirmAction({
         title: `Gruppenstunde ${stufe} als ausgefallen markieren?`,
-        message: `Die Einträge werden dabei gelöscht (${countLabel.slice(0, -1)}). Der Text bleibt.`,
+        message: `Die Einträge werden dabei gelöscht (${recordedLabel}). Der Text bleibt.`,
         confirmLabel: 'Als ausgefallen markieren',
       }))
     ) {
@@ -217,13 +231,22 @@
       if (target === termin) guestName = '';
       show(`${guest.name} ist als Gast eingetragen.`);
     } catch (error: unknown) {
-      show(
-        errorMessage(
-          error,
-          `${name} wurde nicht als Gast eingetragen. Der Name steht noch im Feld. Tippe noch einmal auf „Eintragen“.`
-        ),
-        'error'
-      );
+      if (error instanceof ApiError && error.fields?.cancelled) {
+        // Retrying cannot help; show the Termin as it is now (loading clears the message first)
+        await load();
+        show(
+          `${name} wurde nicht als Gast eingetragen, weil jemand anderes die Gruppenstunde inzwischen als ausgefallen markiert hat. Nimm „Ausgefallen“ zurück, wenn sie doch stattgefunden hat, und trage ${name} dann noch einmal ein.`,
+          'error'
+        );
+      } else {
+        show(
+          errorMessage(
+            error,
+            `${name} wurde nicht als Gast eingetragen. Der Name steht noch im Feld. Tippe noch einmal auf „Eintragen“.`
+          ),
+          'error'
+        );
+      }
     } finally {
       addingGuest = false;
     }
@@ -322,8 +345,17 @@
         {#if termin.editable}
           <p class="mt-1 text-sm text-neutral-700">Jede Auswahl wird sofort gespeichert.</p>
         {/if}
-        <p class="mt-1 text-sm text-neutral-700" aria-live="polite">
-          {termin.cancelled ? 'Die Gruppenstunde ist ausgefallen.' : countLabel}
+        <p
+          class="mt-2 text-base font-semibold text-brand-900"
+          aria-live="polite"
+          data-testid="anwesenheit-counts"
+        >
+          {#if termin.cancelled}
+            Die Gruppenstunde ist ausgefallen.
+          {:else}
+            {#each countParts as part, index (part)}<span class="whitespace-nowrap">{part}</span
+              >{index < countParts.length - 1 ? ', ' : ''}{/each}
+          {/if}
           {#if busy.length > 0}
             <span class="ml-2">Wird gespeichert …</span>
           {:else if tickSaved}
@@ -339,18 +371,27 @@
       </div>
 
       {#if termin.editable || termin.cancelled}
-        <FilterTabs
-          label="Gruppenstunde"
-          showLabel
-          variant="segmented"
-          options={[
-            { value: 'statt', label: 'Fand statt' },
-            { value: 'ausgefallen', label: 'Ausgefallen' },
-          ]}
-          value={termin.cancelled ? 'ausgefallen' : 'statt'}
-          disabled={!termin.editable || savingCancelled}
-          onselect={(value) => setCancelled(value === 'ausgefallen')}
-        />
+        <div class="surface-muted space-y-2 p-3">
+          <FilterTabs
+            label="Gruppenstunde"
+            showLabel
+            variant="segmented"
+            options={[
+              { value: 'statt', label: 'Fand statt', tone: 'success' },
+              { value: 'ausgefallen', label: 'Ausgefallen', tone: 'warning' },
+            ]}
+            value={termin.cancelled ? 'ausgefallen' : 'statt'}
+            disabled={!termin.editable || savingCancelled}
+            onselect={(value) => setCancelled(value === 'ausgefallen')}
+          />
+          {#if termin.editable}
+            <p class="text-sm text-neutral-700">
+              {termin.cancelled
+                ? 'Mit „Fand statt“ kannst du wieder eintragen, wer da war.'
+                : 'Fällt die Gruppenstunde aus, wähle „Ausgefallen“. Die Einträge darunter werden dann gelöscht.'}
+            </p>
+          {/if}
+        </div>
       {/if}
 
       {#if !termin.cancelled}

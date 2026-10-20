@@ -3,6 +3,11 @@
     value: T;
     label: string;
     count?: number;
+    /**
+     * Fills the selected segment in a status colour (only with `variant="segmented"`):
+     * `success` and `warning` add a check mark, `neutral` stays quiet.
+     */
+    tone?: 'success' | 'warning' | 'neutral';
   }
   interface Props {
     label: string;
@@ -43,10 +48,14 @@
         class="filter-tab"
         aria-pressed={value === option.value}
         aria-describedby={option.count === undefined ? undefined : `${id}-${option.value}`}
+        data-tone={variant === 'segmented' ? option.tone : undefined}
         {disabled}
         onclick={() => onselect(option.value)}
       >
-        {option.label}{#if option.count !== undefined}<span
+        {#if variant === 'segmented' && value === option.value && (option.tone === 'success' || option.tone === 'warning')}<span
+            aria-hidden="true"
+            class="mr-1">✓</span
+          >{/if}{option.label}{#if option.count !== undefined}<span
             aria-hidden="true"
             class="ml-1 tabular-nums">({option.count})</span
           >{/if}
@@ -94,7 +103,21 @@
     background: var(--color-neutral-100);
     box-shadow: inset 0 0 0 1px var(--color-brand-900);
   }
-
+  .segments .filter-tab[aria-pressed='true'][data-tone='success'] {
+    background: var(--color-success-soft);
+    box-shadow: inset 0 0 0 2px var(--color-success);
+    color: var(--color-success);
+  }
+  .segments .filter-tab[aria-pressed='true'][data-tone='warning'] {
+    background: var(--color-warning-soft);
+    box-shadow: inset 0 0 0 2px var(--color-warning);
+    color: var(--color-warning);
+  }
+  .segments .filter-tab[aria-pressed='true'][data-tone='neutral'] {
+    background: var(--color-neutral-100);
+    box-shadow: inset 0 0 0 1px var(--color-neutral-300);
+    color: var(--color-neutral-700);
+  }
   /* The underline is drawn under the whole button, so the count is included. */
   .filter-tab {
     min-width: 2.75rem;
