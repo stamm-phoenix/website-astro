@@ -10,13 +10,26 @@ import { ValidationError } from '../lib/pflege-validation';
 import { EVENT_ID_PATTERN } from './intern-abrechnung';
 import { withErrorHandling } from '../lib/response-utils';
 
+/** Never accept a retention date from the browser, including when reading older drafts. */
+async function currentRetention(id: string): Promise<string | null> {
+  const event = (await getCampflowEvents()).find((entry) => entry.id === id);
+  if (!event) return null;
+  const end = (event.end_date ?? event.start_date ?? '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(end))
+    throw new ValidationError({
+      session: 'Bitte trage zuerst ein Datum für die Aktion in CampFlow ein.',
+    });
+  return abrechnungDeleteAfter(end);
+}
+
 export const AbrechnungEingabeEndpoint = pflegeHandler(
   'abrechnung-eingabe',
   async (request, _context, principal) => {
     const id = request.params.id ?? '';
     if (!EVENT_ID_PATTERN.test(id) || id.length > 128)
       throw new ValidationError({ id: 'Ungültige Aktion.' });
-    if (request.method === 'GET') return ok(await getAbrechnungEingabe(principal.userId, id));
+    if (request.method === 'GET')
+      return ok(await getAbrechnungEingabe(principal.userId, id, await currentRetention(id)));
     const body = (await readJsonBody(request)) as { session?: unknown; etag?: unknown };
     if (
       !body ||
@@ -30,8 +43,8 @@ export const AbrechnungEingabeEndpoint = pflegeHandler(
         session: 'Die Eingaben konnten nicht gespeichert werden. Bitte prüfe die Felder.',
       });
     }
-    const event = (await getCampflowEvents()).find((entry) => entry.id === id);
-    if (!event)
+    const deleteAfter = await currentRetention(id);
+    if (deleteAfter === null)
       return ok(
         {
           message:
@@ -39,12 +52,6 @@ export const AbrechnungEingabeEndpoint = pflegeHandler(
         },
         404
       );
-    const end = (event.end_date ?? event.start_date ?? '').slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(end))
-      throw new ValidationError({
-        session: 'Bitte trage zuerst ein Datum für die Aktion in CampFlow ein.',
-      });
-    const deleteAfter = abrechnungDeleteAfter(end);
     if (deleteAfter < new Date().toISOString().slice(0, 10)) {
       return ok(
         {

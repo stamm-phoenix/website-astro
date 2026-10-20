@@ -26,8 +26,9 @@ damit ein älteres Gerät die gelöschten Angaben nicht versehentlich zurücksch
 - Pro Account und Aktion eine Zeile; bedingte Writes vergleichen `rowversion`.
   Eine Transaktionssperre verhindert zwei gleichzeitige erste Schreibvorgänge.
 - Die Aufbewahrungsfrist bleibt unverändert: drei Kalendermonate ab Aktionsende,
-  danach ein weiterer Monat. Abgelaufene Zeilen werden beim nächsten Zugriff
-  entfernt; neue Speicherungen abgelaufener Aktionen werden abgelehnt.
+  danach ein weiterer Monat. Vor dem Lesen und Löschen einer Aktion wird ihr
+  aktuelles Ende aus CampFlow geprüft und die gespeicherte Frist angepasst. Erst
+  dann werden abgelaufene Zeilen dieser Aktion entfernt; neue Speicherungen abgelaufener Aktionen werden abgelehnt.
 - Der Server ermittelt das Aktionsende aus CampFlow. Der Browser kann die Frist
   nicht verlängern. Die Azure-Sicherungen laufen nach sieben Tagen aus.
 - Preview-Seeding enthält ausschließlich erfundene Angaben.

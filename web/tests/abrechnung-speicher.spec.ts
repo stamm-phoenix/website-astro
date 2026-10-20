@@ -178,3 +178,50 @@ test('expired retention explains why new inputs cannot be saved', async ({ page 
   await expect(storage).not.toContainText('Tippe auf');
   await expect(page.getByRole('button', { name: 'Eingaben speichern' })).toBeDisabled();
 });
+
+test('a discarded load cannot overwrite a reopened draft or its unsaved warning', async ({
+  page,
+}) => {
+  await page.goto('/impressum');
+  const result = await page.evaluate(async () => {
+    const path = '/src/lib/abrechnungStore.svelte.ts';
+    const store = await import(path);
+    const id = 'evt_Sola26';
+    const originalFetch = window.fetch;
+    const baseline = await (await originalFetch(`/api/intern/abrechnung/${id}/eingaben`)).json();
+    let calls = 0;
+    let release!: (response: Response) => void;
+    const delayed = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    window.fetch = (input, init) => {
+      if (String(input).includes(`/abrechnung/${id}/eingaben`)) {
+        calls++;
+        return calls === 2 ? delayed : Promise.resolve(Response.json(baseline));
+      }
+      return originalFetch(input, init);
+    };
+    const loaded = async () => {
+      while (!store.abrechnungAblage[id]?.loaded)
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    };
+    try {
+      store.abrechnungSession(id);
+      await loaded();
+      const stale = store.loadAbrechnungSession(id);
+      store.resetAbrechnungSession(id);
+      const reopened = store.abrechnungSession(id);
+      await loaded();
+      reopened.kjr.ort = 'Neue Eingabe nach dem Wiederöffnen';
+      store.storeAbrechnungSession(id);
+      release(Response.json(baseline));
+      await stale;
+      store.storeAbrechnungSession(id);
+      return { ort: reopened.kjr.ort, dirty: store.abrechnungAblage[id].dirty };
+    } finally {
+      window.fetch = originalFetch;
+      store.resetAbrechnungSession(id);
+    }
+  });
+  expect(result).toEqual({ ort: 'Neue Eingabe nach dem Wiederöffnen', dirty: true });
+});
