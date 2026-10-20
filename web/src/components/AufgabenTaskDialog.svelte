@@ -151,6 +151,7 @@
     : target
       ? 'Aufgabe bearbeiten'
       : 'Aufgabe anlegen'}
+  rescueKey={`aufgabe:${target?.id ?? 'neu'}`}
   {busy}
   submitDisabled={assignmentLoading}
   error={form.state.error}

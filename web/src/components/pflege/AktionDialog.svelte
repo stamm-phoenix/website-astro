@@ -267,6 +267,7 @@
 <EditDialog
   open={target !== null}
   {title}
+  rescueKey={`aktion:${targetEntry?.id ?? 'neu'}:${targetEvent?.id ?? ''}`}
   {busy}
   error={dialog.state.error}
   submitDisabled={dialog.state.conflict}

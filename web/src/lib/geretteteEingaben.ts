@@ -20,6 +20,9 @@ export interface GeretteterWert {
 interface Rettung {
   savedAt: number;
   path: string;
+  /** The record being edited, from `EditDialog`'s `rescueKey`, e.g. `frage:12`. */
+  record: string;
+  /** The dialog title when it opened, to name the form in the hint. */
   dialog: string;
   /** The field values when the dialog opened: tells records with the same dialog title apart. */
   opening: string;
@@ -35,6 +38,8 @@ export interface RescueEditor {
 
 /** What `EditDialog` offers its content: the login link keeps the input, editors join in. */
 export interface RescueContext {
+  /** Whether this dialog keeps its input: only with a `rescueKey` that names the record. */
+  enabled: () => boolean;
   /** Keeps the dialog's input; false if the browser could not store it. */
   rescue: () => boolean;
   /** Adds an editor; returns the function that removes it again. */
@@ -121,9 +126,11 @@ function readValue(field: FormField): GeretteterWert['value'] {
  */
 export function rescueDialog(
   form: HTMLFormElement,
+  record: string,
   dialog: string,
   opening: string,
-  editors: readonly RescueEditor[]
+  editors: readonly RescueEditor[],
+  notPlaced: readonly GeretteterWert[] = []
 ): boolean {
   const fields: GeretteterWert[] = [
     ...keyedFields(form).map(({ key, field }) => ({
@@ -140,9 +147,13 @@ export function rescueDialog(
       value: editor.get(),
     })),
   ];
+  // Kept values without a field yet stay kept; a field that exists now has the newer value
+  const keys = new Set(fields.map((field) => field.key));
+  fields.push(...notPlaced.filter((kept) => !keys.has(kept.key)));
   const rettung: Rettung = {
     savedAt: Date.now(),
     path: `${location.pathname}${location.search}`,
+    record,
     dialog,
     opening,
     fields,
@@ -157,10 +168,11 @@ export function rescueDialog(
 
 function isRettung(value: unknown): value is Rettung {
   if (typeof value !== 'object' || value === null) return false;
-  const { savedAt, path, dialog, opening, fields } = value as Record<string, unknown>;
+  const { savedAt, path, record, dialog, opening, fields } = value as Record<string, unknown>;
   return (
     typeof savedAt === 'number' &&
     typeof path === 'string' &&
+    typeof record === 'string' &&
     typeof dialog === 'string' &&
     typeof opening === 'string' &&
     Array.isArray(fields) &&
@@ -198,13 +210,13 @@ export function rescuedDialog(now: number): string | null {
 }
 
 /**
- * The kept input of `dialog` on this page. `opening` must match too, so the input of one task
- * never lands in another task whose dialog has the same title. It stays kept until
+ * The kept input of `record` on this page. The values when the dialog opened must match too,
+ * so input never lands on a record someone changed in between. It stays kept until
  * `forgetRescue()`, so input without a field to go into is not lost.
  */
-export function findRescue(dialog: string, opening: string, now: number): GeretteterWert[] | null {
+export function findRescue(record: string, opening: string, now: number): GeretteterWert[] | null {
   const rettung = read(now);
-  if (!rettung || rettung.dialog !== dialog || rettung.opening !== opening) return null;
+  if (!rettung || rettung.record !== record || rettung.opening !== opening) return null;
   if (rettung.path !== `${location.pathname}${location.search}`) return null;
   return rettung.fields;
 }
@@ -219,7 +231,9 @@ export function rescuedLabel(kept: GeretteterWert): string {
   return kept.key.replace(/#(\d+|editor)$/, '');
 }
 
-export function forgetRescue(): void {
+/** Removes the kept input; with `record`, only if it belongs to that record. */
+export function forgetRescue(record?: string): void {
+  if (record !== undefined && read(Date.now())?.record !== record) return;
   try {
     sessionStorage.removeItem(RESCUE_KEY);
   } catch {

@@ -363,6 +363,7 @@
 <EditDialog
   open={form !== null}
   title={form?.id ? `Beleg von ${form.shop || 'unbekannt'}` : 'Beleg einreichen'}
+  rescueKey={form ? `beleg:${form.id ?? 'neu'}` : undefined}
   busy={busy || photo.photoBusy}
   error={dialog.state.error}
   notice={dialogNotice}

@@ -71,6 +71,7 @@
 <EditDialog
   open
   title="Vorlage"
+  rescueKey={`vorlage:${target?.id ?? 'neu'}`}
   {busy}
   error={form.state.error}
   onedit={form.changed}
