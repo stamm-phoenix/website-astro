@@ -66,11 +66,11 @@ test('on a phone the bar at the bottom and the sheet „Menü“ lead to every m
   await expect(
     page.getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' })
   ).toBeHidden();
-  // Without favorites, the module just opened comes first, then the usual ones
-  await expect(bar.getByRole('link')).toHaveText(['Übersicht', 'Protokolle', 'Aufgaben', 'Belege']);
-  await expect(bar.getByRole('link', { name: 'Protokolle' })).toHaveAttribute(
+  // Fixed defaults do not move when another module is opened
+  await expect(bar.getByRole('link')).toHaveText(['Übersicht', 'Aufgaben', 'Belege', 'Aktionen']);
+  await expect(bar.getByRole('button', { name: 'Menü', exact: true })).toHaveAttribute(
     'aria-current',
-    'page'
+    'true'
   );
 
   await bar.getByRole('button', { name: 'Menü', exact: true }).click();
@@ -84,8 +84,8 @@ test('on a phone the bar at the bottom and the sheet „Menü“ lead to every m
   await expect(page).toHaveURL(/\/leitendenbereich\/belege$/);
   await expect(sheet).toBeHidden();
 
-  // The bar now offers the recently used modules
-  await expect(bar.getByRole('link')).toHaveText(['Übersicht', 'Belege', 'Protokolle', 'Aufgaben']);
+  // The shortcuts keep their positions after navigation
+  await expect(bar.getByRole('link')).toHaveText(['Übersicht', 'Aufgaben', 'Belege', 'Aktionen']);
   await expect(bar.getByRole('link', { name: 'Belege' })).toHaveAttribute('aria-current', 'page');
 });
 
