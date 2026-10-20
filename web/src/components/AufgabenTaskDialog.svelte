@@ -10,6 +10,7 @@
   import { taskPeople, taskAssigneeNames } from '../../../api/lib/aufgaben-zuordnung';
   import TaskAssigneeField from './TaskAssigneeField.svelte';
   import GermanDateInput from './ui/GermanDateInput.svelte';
+  import { rescuePeople } from '../lib/taskRescue';
   let {
     target: initialTarget = null,
     onclose,
@@ -153,6 +154,16 @@
       : 'Aufgabe anlegen'}
   rescueKey={`aufgabe:${target?.id ?? 'neu'}`}
   rescueVersion={target?.etag}
+  rescueFields={[
+    rescuePeople(
+      'Zuständige',
+      () => draft.assignees,
+      (people) => {
+        draft.assignees = people;
+        assignmentEdited = true;
+      }
+    ),
+  ]}
   {busy}
   submitDisabled={assignmentLoading}
   error={form.state.error}

@@ -35,7 +35,7 @@
             'text/plain': new Blob([doc.body.textContent?.trim() ?? ''], { type: 'text/plain' }),
           }),
         ]);
-      } else await navigator.clipboard.writeText(kept.value);
+      } else await navigator.clipboard.writeText(kept.display ?? kept.value);
       copied = index;
       failed = null;
     } catch {
@@ -72,7 +72,9 @@
             </div>
           {:else}
             <p class="whitespace-pre-wrap break-words text-neutral-800">
-              {html === '' || kept.value === '' ? 'Leer' : kept.value}
+              {html === '' || (kept.display ?? kept.value) === ''
+                ? 'Leer'
+                : (kept.display ?? kept.value)}
             </p>
           {/if}
           <div class="mt-1 flex flex-wrap items-center gap-2">

@@ -822,3 +822,147 @@ for (const action of ['upload', 'remove'] as const) {
     await page.request.delete(`/api/intern/pflege/leitende/${id}`);
   });
 }
+
+test('in the iPhone app adopting a changed calendar entry keeps its newer description', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const data = {
+    title: 'Recovery adoption',
+    start: '2026-10-22',
+    end: '',
+    link: '',
+    stufen: ['Rover'],
+    description: '<p>Original adoption text</p>',
+    campflowId: null,
+  };
+  const created = await page.request.post('/api/intern/pflege/aktionen', { data });
+  const { id } = await created.json();
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route(`**/api/intern/pflege/aktionen/${id}`, (route) =>
+    route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aktionen');
+  const publish = page.getByRole('button', {
+    name: 'Im öffentlichen Kalender veröffentlichen: Sommerlager 2026 Oberjoch',
+  });
+  await publish.click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel(/Vorhandenen Kalendereintrag/).selectOption(id);
+  await expect(dialog.getByRole('textbox', { name: 'Beschreibung' })).toContainText(
+    'Original adoption text'
+  );
+  await dialog.getByRole('button', { name: 'Veröffentlichen', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await page.request.patch(`/api/intern/pflege/aktionen/${id}`, {
+    data: { ...data, description: '<p>Newer adoption text</p>' },
+  });
+  await page.reload();
+  await publish.click();
+  await expect(
+    dialog.getByText('Dieser Eintrag wurde inzwischen geändert.', { exact: false })
+  ).toBeVisible();
+  await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toContainText(
+    'Original adoption text'
+  );
+  await dialog.getByLabel(/Vorhandenen Kalendereintrag/).selectOption(id);
+  await expect(dialog.getByRole('textbox', { name: 'Beschreibung' })).toContainText(
+    'Newer adoption text'
+  );
+  await page.unroute(`**/api/intern/pflege/aktionen/${id}`);
+  const write = page.waitForRequest(
+    (request) => request.method() === 'PATCH' && request.url().endsWith(`/aktionen/${id}`)
+  );
+  await dialog.getByRole('button', { name: 'Veröffentlichen', exact: true }).click();
+  expect((await write).postDataJSON().description).toContain('Newer adoption text');
+  await expect(dialog).toBeHidden();
+  await page.request.delete(`/api/intern/pflege/aktionen/${id}`);
+});
+
+test('in the iPhone app removed template rows and their remaining assignees are recovered exactly', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.request.post('/api/__mock/aufgaben/reset');
+  await page.request.post('/api/intern/pflege/aufgaben/vorlagen', {
+    data: {
+      title: 'Recovery row removal',
+      items: ['A', 'B', 'C'].map((title) => ({
+        title,
+        description: title + ' description',
+        assignee: '',
+        assignees: [],
+        daysBefore: 14,
+      })),
+    },
+  });
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route('**/api/intern/pflege/aufgaben/vorlagen/*', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aufgaben/vorlagen');
+  const open = page
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('heading', { name: 'Recovery row removal', exact: true }) })
+    .getByRole('button', { name: 'Vorlage bearbeiten' });
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: 'Vorlage' });
+  await dialog.getByRole('button', { name: 'Vorlagenaufgabe entfernen' }).first().click();
+  await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).first().fill('Bea');
+  await dialog.getByRole('option', { name: 'Bea Beispiel', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await open.click();
+  await expect(dialog.getByLabel('Aufgabentitel')).toHaveCount(2);
+  await expect(dialog.getByLabel('Aufgabentitel').nth(0)).toHaveValue('B');
+  await expect(dialog.getByLabel('Aufgabentitel').nth(1)).toHaveValue('C');
+  await expect(
+    dialog.getByRole('button', { name: 'Bea Beispiel entfernen', exact: true })
+  ).toHaveCount(1);
+  await page.unroute('**/api/intern/pflege/aufgaben/vorlagen/*');
+  const write = page.waitForRequest(
+    (request) => request.method() === 'PUT' && request.url().includes('/aufgaben/vorlagen/')
+  );
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  const saved = (await write).postDataJSON();
+  expect(saved.items.map((item: { title: string }) => item.title)).toEqual(['B', 'C']);
+  expect(saved.items[0].assignees).toEqual([{ name: 'Bea Beispiel', login: 'bea@example.test' }]);
+  expect(saved.items[1].assignees).toEqual([]);
+});
+
+test('in the iPhone app selected task assignees survive a new login with their identities', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.request.post('/api/__mock/aufgaben/reset');
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route('**/api/intern/pflege/aufgaben', (route) =>
+    route.request().method() === 'POST' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aufgaben');
+  const open = page.getByRole('button', { name: 'Aufgabe anlegen', exact: true });
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: 'Aufgabe anlegen', exact: true });
+  await dialog.getByLabel('Titel', { exact: true }).fill('Recovery assignees');
+  for (const name of ['Alex Beispiel', 'Bea Beispiel']) {
+    await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill(name);
+    await dialog.getByRole('option', { name, exact: true }).click();
+  }
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await open.click();
+  for (const name of ['Alex Beispiel', 'Bea Beispiel']) {
+    await expect(
+      dialog.getByRole('button', { name: `${name} entfernen`, exact: true })
+    ).toBeVisible();
+  }
+  await page.unroute('**/api/intern/pflege/aufgaben');
+  const write = page.waitForRequest(
+    (request) => request.method() === 'POST' && request.url().endsWith('/pflege/aufgaben')
+  );
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  expect((await write).postDataJSON().assignees).toEqual([
+    { name: 'Alex Beispiel', login: 'alex@example.test' },
+    { name: 'Bea Beispiel', login: 'bea@example.test' },
+  ]);
+});
