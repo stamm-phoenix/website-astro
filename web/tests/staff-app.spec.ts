@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, answerConfirm } from './fixtures';
 
 test('the Leitendenbereich can be installed and the app starts on its start page', async ({
   page,
@@ -114,7 +114,9 @@ test('the Abrechnung says that it keeps saving on the device without a connectio
   await context.setOffline(false);
 });
 
-test('in the iPhone app an expired login is renewed in the same window', async ({ page }) => {
+test('in the iPhone app an expired login is renewed in the same window and the input comes back', async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'standalone', { value: true });
   });
@@ -130,12 +132,45 @@ test('in the iPhone app an expired login is renewed in the same window', async (
   await dialog.getByLabel('Alter').fill('16 bis 20 Jahre');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
 
-  await expect(dialog.getByRole('alert')).toContainText('Kopiere vorher, was du behalten willst.');
+  await expect(dialog.getByRole('alert')).toContainText('zum Kopieren bereit');
   const login = dialog.getByRole('link', { name: 'Neu anmelden', exact: true });
   await expect(login).toHaveAttribute(
     'href',
     `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent('/leitendenbereich/gruppenstunden')}`
   );
   await expect(login).not.toHaveAttribute('target', '_blank');
-  await expect(dialog.getByLabel('Alter')).toHaveValue('16 bis 20 Jahre');
+  await login.click();
+
+  // The login reloaded the page; the input waits at the top
+  const rescued = page.getByRole('region', { name: 'Deine Eingaben vor der neuen Anmeldung' });
+  await expect(rescued).toContainText('Alter');
+  await expect(rescued).toContainText('16 bis 20 Jahre');
+  await expect(rescued.getByRole('button', { name: 'Alter (optional) kopieren' })).toBeVisible();
+  await page.reload();
+  await expect(rescued).toContainText('16 bis 20 Jahre');
+  await rescued.getByRole('button', { name: 'Gerettete Eingaben löschen' }).click();
+  await answerConfirm(page, 'Gerettete Eingaben löschen?', 'Eingaben löschen');
+  await expect(rescued).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: /Gruppenstunden/ }).first()).toBeVisible();
+  await expect(rescued).toHaveCount(0);
+});
+
+test('in the iPhone app the photo of a receipt opens through the login of the new window', async ({
+  page,
+  context,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button', { name: /REWE/ }).first().click();
+  const [, login] = await Promise.all([
+    context.waitForEvent('page'),
+    context.waitForEvent('request', (request) => request.url().includes('/.auth/login/aad')),
+    page.getByRole('link', { name: 'Foto des Belegs von REWE' }).click(),
+  ]);
+  expect(new URL(login.url()).searchParams.get('post_login_redirect_uri')).toMatch(
+    /^\/api\/intern\/pflege\/belege\/[^/]+\/foto\?v=/
+  );
 });

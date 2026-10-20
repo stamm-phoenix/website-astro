@@ -154,7 +154,7 @@
               Fotos bleiben gespeichert. Merk dir, welche fehlen, melde dich neu an und lade sie
               danach noch einmal hoch.
             </p>
-            <a class="btn-secondary mt-2" href={reloginHereUrl()}>Neu anmelden</a>
+            <a class="btn-secondary mt-2" href={reloginHereUrl()} data-astro-reload>Neu anmelden</a>
           {:else}
             <p class="mt-1">
               Melde dich im neuen Tab wieder an, komm hierher zurück und tippe auf „Weiter

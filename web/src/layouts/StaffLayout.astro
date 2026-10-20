@@ -6,6 +6,7 @@ import StaffSidebar from '../components/StaffSidebar.svelte';
 import { SIDEBAR_KEY } from '../lib/staffSidebar';
 import StaffIntro from '../components/StaffIntro.svelte';
 import StaffFooter from '../components/StaffFooter.astro';
+import GeretteteEingaben from '../components/GeretteteEingaben.svelte';
 import PageHeader from '../components/PageHeader.astro';
 import {
   NIKOLAUS_CONTROL_MODULE,
@@ -89,6 +90,8 @@ const title =
 
     <!-- „Zum Inhalt springen“ leads here, past the sidebar -->
     <div id="staff-content" tabindex="-1" class="min-w-0 flex-1">
+      {/* Only shows something after a new login in the iPhone app, read from this tab */}
+      {!bare && <GeretteteEingaben client:only="svelte" />}
       {!bare && offlineNotice && (
         // Without a service worker pages and data need the connection; shown by the script below
         <div role="status" aria-live="polite">
@@ -168,6 +171,20 @@ const title =
 </BaseLayout>
 
 <script>
+  import { loginUrl, reloginOnlyHere } from '../lib/api';
+
+  // In the iPhone app a link opening a new window goes to Safari, which has its own login. A
+  // protected page is opened through the login there, which comes back to it.
+  const PROTECTED = /^\/(leitendenbereich|api\/intern)(\/|$)/;
+  document.addEventListener('click', (event) => {
+    if (event.defaultPrevented || !reloginOnlyHere() || !(event.target instanceof Element)) return;
+    const link = event.target.closest('a[target="_blank"]');
+    if (!(link instanceof HTMLAnchorElement) || link.origin !== location.origin) return;
+    if (!PROTECTED.test(link.pathname)) return;
+    event.preventDefault();
+    window.open(loginUrl(`${link.pathname}${link.search}`), '_blank', 'noopener');
+  });
+
   function showOfflineNotice(): void {
     document.querySelector('[data-offline-notice]')?.toggleAttribute('hidden', navigator.onLine);
   }
