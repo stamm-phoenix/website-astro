@@ -163,6 +163,7 @@
       const saved = await sendApi<{ etag: string }>('PUT', `/intern/pflege${path}/ausgefallen`, {
         cancelled,
         etag: target.etag,
+        entries: recorded,
       });
       target.etag = saved.etag;
       target.cancelled = cancelled;

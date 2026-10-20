@@ -225,7 +225,7 @@ export const AnwesenheitNotesEndpoint = terminHandler(async (termin, request, ac
  */
 export const AnwesenheitCancelledEndpoint = terminHandler(async (termin, request, actor) => {
   const input = validateCancelled(await readJsonBody(request));
-  return ok({ etag: await setCancelled(termin, input.cancelled, input.etag, actor) });
+  return ok({ etag: await setCancelled(termin, input, actor) });
 });
 
 /**

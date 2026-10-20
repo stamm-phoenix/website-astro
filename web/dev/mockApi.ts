@@ -1838,7 +1838,8 @@ route('PUT', '/api/intern/pflege/anwesenheit/:stufe/:datum/ausgefallen', (req) =
   const cancelled = req.json?.cancelled;
   if (typeof cancelled !== 'boolean') return error(400, 'VALIDATION', 'Ungültige Angabe.');
   const etag = typeof req.json?.etag === 'string' ? req.json.etag : null;
-  const saved = setAnwesenheitCancelled(slug, req.params.datum, cancelled, etag);
+  const entries = typeof req.json?.entries === 'number' ? req.json.entries : 0;
+  const saved = setAnwesenheitCancelled(slug, req.params.datum, cancelled, etag, entries);
   return saved === null
     ? error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert.')
     : json({ etag: saved });
