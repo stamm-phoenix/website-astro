@@ -78,6 +78,19 @@
     return person.id.startsWith('extra-');
   }
 
+  /**
+   * „(ich)“ for registrations from CampFlow by the server's answer (`ich`), for persons added on
+   * the page, which the server never saw, by the name.
+   */
+  function istIch(person: AbrechnungPerson): boolean {
+    const eigene = isExtra(person) ? null : abrechnung.ich;
+    return isIch({
+      id: person.id,
+      name: fullName(person),
+      ich: eigene ? eigene.includes(person.id) : undefined,
+    });
+  }
+
   /** The Postleitzahl from CampFlow or entered when adding the person. */
   const originalPlz = $derived(
     new Map([...abrechnung.persons, ...session.extra].map((p) => [p.id, p.plz]))
@@ -373,7 +386,7 @@
                         ? ', '
                         : ''}{person.firstName}
                     </span>
-                    {#if isIch( { id: person.id, name: fullName(person), ich: abrechnung.ich ? abrechnung.ich.includes(person.id) : undefined } )}
+                    {#if istIch(person)}
                       <span class="text-neutral-700">(ich)</span>
                     {/if}
                     {#if isExtra(person)}
