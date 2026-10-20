@@ -9,7 +9,7 @@ CREATE TABLE organisation.staff_changelog_seen (
     CONSTRAINT pk_staff_changelog_seen PRIMARY KEY,
   -- Login (Adresse des Microsoft-Kontos), nur zum Nachsehen, z. B. wenn jemand den Stamm verlässt.
   login        nvarchar(254) NOT NULL,
-  -- ID des neuesten gesehenen Eintrags, z. B. 2026-10-20-neuigkeiten. IDs beginnen mit dem Datum
+  -- ID des neuesten gesehenen Eintrags, z. B. 2026-10-20-04-neuigkeiten. IDs beginnen mit dem Datum
   -- und lassen sich deshalb als Text der Reihe nach vergleichen.
   last_seen_id varchar(80)   COLLATE Latin1_General_100_BIN2 NOT NULL,
   updated_at   datetime2(0)  NOT NULL CONSTRAINT df_staff_changelog_seen_updated_at DEFAULT SYSUTCDATETIME()

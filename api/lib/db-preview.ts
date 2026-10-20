@@ -177,7 +177,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:25';
+const SEEDED_KEY = 'preview:seeded:26';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -849,7 +849,7 @@ export async function seedPreviewStaffChangelogSeen(): Promise<void> {
     .values({
       user_id: 'preview-neuigkeiten',
       login: 'vorschau@example.test',
-      last_seen_id: '2026-09-25-leitendenbereich',
+      last_seen_id: '2026-09-25-01-leitendenbereich',
     })
     .execute();
 }

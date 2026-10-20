@@ -9,15 +9,34 @@ function entry(id: string): ChangelogEntry {
   return { id, date: id.slice(0, 10), title: id, changes: ['Etwas ist neu.'] };
 }
 
-const ENTRIES = [entry('2026-10-20-c'), entry('2026-10-19-b'), entry('2026-10-18-a')];
+const ENTRIES = [entry('2026-10-20-01-c'), entry('2026-10-19-01-b'), entry('2026-10-18-01-a')];
 
-test('the written changelog has valid, unique IDs, newest first, and no empty text', () => {
-  assert.deepEqual(changelogProblems(CHANGELOG), []);
+/** Today in Berlin as `YYYY-MM-DD`. */
+function berlinToday(): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+}
+
+test('the written changelog has valid, unique IDs, newest first, no empty text and no future date', () => {
+  assert.deepEqual(changelogProblems(CHANGELOG, berlinToday()), []);
+});
+
+test('several entries of one day are ordered by their number', () => {
+  const sameDay = [entry('2026-10-20-02-b'), entry('2026-10-20-01-a')];
+  assert.deepEqual(changelogProblems(sameDay), []);
+  assert.deepEqual(changelogProblems([...sameDay].reverse()), [
+    '2026-10-20-02-b: nicht absteigend sortiert',
+  ]);
+});
+
+test('an entry dated after today is reported', () => {
+  assert.deepEqual(changelogProblems([entry('2026-10-21-01-a')], '2026-10-20'), [
+    '2026-10-21-01-a: Datum liegt nach heute',
+  ]);
 });
 
 test('an entry that is not newer than the one before it is reported', () => {
-  const problems = changelogProblems([entry('2026-10-18-a'), entry('2026-10-19-b')]);
-  assert.deepEqual(problems, ['2026-10-19-b: nicht absteigend sortiert']);
+  const problems = changelogProblems([entry('2026-10-18-01-a'), entry('2026-10-19-01-b')]);
+  assert.deepEqual(problems, ['2026-10-19-01-b: nicht absteigend sortiert']);
 });
 
 test('a new person sees every entry as unseen', () => {
@@ -26,19 +45,19 @@ test('a new person sees every entry as unseen', () => {
 
 test('only entries newer than the last seen one are unseen', () => {
   assert.deepEqual(
-    unseenEntries(ENTRIES, '2026-10-19-b').map((e) => e.id),
-    ['2026-10-20-c']
+    unseenEntries(ENTRIES, '2026-10-19-01-b').map((e) => e.id),
+    ['2026-10-20-01-c']
   );
-  assert.deepEqual(unseenEntries(ENTRIES, '2026-10-20-c'), []);
+  assert.deepEqual(unseenEntries(ENTRIES, '2026-10-20-01-c'), []);
 });
 
 test('an entry added later with an older ID than the last seen one is not counted', () => {
   // Merged out of order: it is dated before what the person has read
-  assert.deepEqual(unseenEntries(ENTRIES, '2026-10-21-z'), []);
+  assert.deepEqual(unseenEntries(ENTRIES, '2026-10-21-01-z'), []);
 });
 
 test('the newest ID is found without relying on the order', () => {
-  assert.equal(newestEntryId([...ENTRIES].reverse()), '2026-10-20-c');
+  assert.equal(newestEntryId([...ENTRIES].reverse()), '2026-10-20-01-c');
   assert.equal(newestEntryId([]), null);
 });
 
