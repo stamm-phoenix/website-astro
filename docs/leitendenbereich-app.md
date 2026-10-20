@@ -28,7 +28,7 @@ Das Manifest liegt außerhalb von `/leitendenbereich/`, weil die Static Web App 
 
 Die App installiert keinen Service Worker. Chrome, Edge und Safari bieten die Installation auch ohne Service Worker an. Chrome meldet für `/leitendenbereich/` keine Installationsfehler (`Page.getInstallabilityErrors` liefert eine leere Liste).
 
-Ohne Service Worker speichert der Browser keine Seiten, API-Antworten oder Anmeldedaten für die App. Nach der Abmeldung bleibt nichts zurück, und nach einem Deploy lädt die App sofort den neuen Stand. Offline-Speicher gibt es nur dort, wo ein Modul ihn selbst anbietet, zum Beispiel die Fahrtansicht (`docs/nikolaus-offline.md`).
+Ohne Service Worker legt die App keinen eigenen Zwischenspeicher an. Es gilt nur der normale HTTP-Cache des Browsers nach den Headern der Antworten: Seiten des Leitendenbereichs kommen mit `Cache-Control: no-store`, die Vorschaubilder der Belege mit `private, max-age=300` und können also bis zu fünf Minuten im Browser liegen. Nach einem Deploy lädt die App sofort den neuen Stand. Offline-Speicher gibt es nur dort, wo ein Modul ihn selbst anbietet, zum Beispiel die Fahrtansicht (`docs/nikolaus-offline.md`).
 
 Ohne Verbindung gilt:
 
