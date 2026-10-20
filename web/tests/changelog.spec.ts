@@ -199,3 +199,34 @@ test('nothing is saved when everything was read already', async ({ page }) => {
   await expect(page.getByText('Nicht als gelesen gespeichert.')).toHaveCount(0);
   expect(writes).toBe(0);
 });
+
+test('the count in the folded sidebar sits on the icon and keeps the link wide', async ({
+  page,
+}) => {
+  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/leitendenbereich/belege');
+  await expect(page.locator('astro-island[component-url*="StaffSidebar"]')).not.toHaveAttribute(
+    'ssr'
+  );
+  const sidebar = page.getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' });
+  const news = sidebar.getByRole('link', { name: /^Neuigkeiten/ });
+  const belege = sidebar.getByRole('link', { name: 'Belege', exact: true });
+  await expect(sidebar.getByTestId('changelog-badge')).toHaveText('2');
+  const expandedWidth = (await news.boundingBox())?.width ?? 0;
+  await sidebar.getByRole('button', { name: 'Seitenleiste einklappen' }).click();
+  await expect(sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' })).toBeVisible();
+  await expect.poll(async () => (await sidebar.boundingBox())?.width).toBeLessThan(80);
+  // The link keeps the width of its neighbours, so the badge takes none of it
+  await expect
+    .poll(
+      async () =>
+        ((await news.boundingBox())?.width ?? 0) - ((await belege.boundingBox())?.width ?? 0)
+    )
+    .toBe(0);
+  expect(expandedWidth).toBeGreaterThan(0);
+  // The count lies over the corner of the icon, inside the folded sidebar
+  const badge = await sidebar.getByTestId('changelog-badge').boundingBox();
+  const bar = await sidebar.boundingBox();
+  expect(badge && bar && badge.x + badge.width <= bar.x + bar.width).toBe(true);
+});
