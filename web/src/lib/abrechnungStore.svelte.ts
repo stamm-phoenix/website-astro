@@ -415,3 +415,11 @@ export function restoreAbrechnungRescue(eventId: string, userId: string): boolea
     return false;
   }
 }
+
+/**
+ * Forgets the loaded Abrechnungen, so the next visit loads them again with the own registrations
+ * (`ich`). Entries made on the page are kept apart and stay.
+ */
+export function forgetAbrechnungen(): void {
+  for (const key of Object.keys(abrechnungStore.data)) delete abrechnungStore.data[key];
+}

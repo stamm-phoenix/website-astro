@@ -52,8 +52,11 @@ Die Kette ist **Microsoft-Konto → Person der Mitgliederliste → Anmeldungen z
 erste Glied steht in `organisation.person`. Das zweite bildet der Server: CampFlow führt jede
 Anmeldung zu einem Event als eigene Person mit eigener, global eindeutiger ID, ohne Bezug zur
 Mitgliederliste. Deshalb vergleicht der Server die primäre Adresse jeder Anmeldung mit der
-primären Adresse der verknüpften Person (`eigeneAnmeldungen` in `api/lib/personen.ts`). Diese
-Adresse verlässt den Server nie. Die Seiten bekommen nur die IDs der eigenen Anmeldungen:
+primären Adresse der verknüpften Person (`eigeneAnmeldungen` in `api/lib/personen.ts`). Teilt
+sich die Person die Adresse mit einem anderen Mitglied, etwa einem Kind der Familie, reicht sie
+allein nicht: Dann muss auch der Vorname der Anmeldung passen. Ob die Adresse geteilt ist, prüft
+der Server einmal in der Mitgliederliste; ist sie nicht erreichbar, gilt die Adresse als geteilt.
+Die Adresse verlässt den Server nie. Die Seiten bekommen nur die IDs der eigenen Anmeldungen:
 
 - `GET /api/intern/aktionen/{id}`: `ich`, die IDs der eigenen Anmeldungen (Aktion, Fahrten)
 - `GET /api/intern/abrechnung/{id}`: `ich`, ebenso (die Abrechnung liefert sonst keine
@@ -71,7 +74,8 @@ Im Frontend fragt man `isIch(...)` oder `isIchCampflow(person, ich)` aus
 `web/src/lib/ichStore.svelte.ts` (Vergleich in `istVerknuepftePerson`,
 `api/lib/personen-model.ts`). Der Store lädt `/api/intern/ich` beim ersten Aufruf einmal je
 Seite, auch nach Seitenwechseln ohne volles Neuladen, und sofort neu, wenn im Modul „Personen“
-gespeichert wurde. Eine Person gilt als „ich“, wenn
+gespeichert wurde; dann vergisst das Modul auch die geladenen Aktionen und Abrechnungen, damit
+ihre `ich`-Listen neu kommen (eigene Eingaben in der Abrechnung bleiben). Eine Person gilt als „ich“, wenn
 
 1. der Server sie als eigene Anmeldung gemeldet hat (`ich`),
 2. ihre CampFlow-ID die verknüpfte ist (Personen der Mitgliederliste, z. B. bei der

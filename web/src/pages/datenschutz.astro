@@ -158,7 +158,10 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
           Vor- und Nachname und die primäre E-Mail-Adresse der verknüpften Person aus CampFlow und
           hält sie bis zu zehn Minuten im Arbeitsspeicher; gespeichert werden sie dabei nicht. Die
           E-Mail-Adresse bleibt auf dem Server: Er vergleicht sie mit den Anmeldungen einer Aktion
-          und teilt der Seite nur mit, welche davon die eigenen sind.
+          und teilt der Seite nur mit, welche davon die eigenen sind. Damit eine gemeinsame
+          Familienadresse nicht die Anmeldung eines Kindes als eigene ausgibt, prüft er dabei in der
+          Mitgliederliste, ob noch jemand diese Adresse nutzt, und vergleicht dann zusätzlich den
+          Vornamen.
         </Text>
         <Text>
           Außerdem enthält die Liste Altleitende und weitere regelmäßig beteiligte Personen, die der
