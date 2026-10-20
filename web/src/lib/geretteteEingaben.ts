@@ -14,8 +14,10 @@ const MAX_AGE_MS = 60 * 60 * 1000;
 /** One field: its label (with a counter for equal labels) and what it held. */
 export interface GeretteterWert {
   key: string;
-  kind: 'value' | 'checked' | 'editor';
+  kind: 'value' | 'checked' | 'editor' | 'custom';
   value: string;
+  /** Readable representation of a compound value, without its serialized storage syntax. */
+  display?: string;
   /** Editor storage format; native form values always remain plain text. */
   format?: TextEditorFormat;
 }
@@ -30,6 +32,35 @@ interface Rettung {
   /** The field values when the dialog opened: tells records with the same dialog title apart. */
   opening: string;
   fields: GeretteterWert[];
+  dependencies?: RescueDependency[];
+}
+
+/** An additional record chosen after opening, such as an adopted calendar entry. */
+export interface RescueDependency {
+  key: string;
+  version: string;
+}
+
+/** A compound field that native form elements cannot represent, or a list's row count. */
+export interface RescueField {
+  key: string;
+  get: () => string;
+  describe: (value: string) => string;
+  set: (value: string) => boolean;
+  structure?: boolean;
+}
+
+/** Applies list structure before field values; unknown/invalid compound values remain visible. */
+export function fillRescueFields(
+  values: readonly GeretteterWert[],
+  fields: readonly RescueField[],
+  structure = false
+): GeretteterWert[] {
+  return values.filter((kept) => {
+    if (kept.kind !== 'custom') return true;
+    const field = fields.find((entry) => entry.key === kept.key && !!entry.structure === structure);
+    return !field || !field.set(kept.value);
+  });
 }
 
 /** A formatting editor inside the dialog, which keeps its text outside the form elements. */
@@ -134,7 +165,9 @@ export function rescueDialog(
   dialog: string,
   opening: string,
   editors: readonly RescueEditor[],
-  notPlaced: readonly GeretteterWert[] = []
+  notPlaced: readonly GeretteterWert[] = [],
+  custom: readonly RescueField[] = [],
+  dependencies: readonly RescueDependency[] = []
 ): boolean {
   const fields: GeretteterWert[] = [
     ...keyedFields(form).map(({ key, field }) => ({
@@ -151,6 +184,10 @@ export function rescueDialog(
       value: editor.get(),
       format: editor.format(),
     })),
+    ...custom.map((field) => {
+      const value = field.get();
+      return { key: field.key, kind: 'custom' as const, value, display: field.describe(value) };
+    }),
   ];
   // A field may exist while its selected option is still loading. Until it was placed
   // (or the person explicitly changed the field), its kept value remains authoritative.
@@ -170,6 +207,7 @@ export function rescueDialog(
     dialog,
     opening,
     fields,
+    dependencies: [...dependencies],
   };
   try {
     sessionStorage.setItem(RESCUE_KEY, JSON.stringify(rettung));
@@ -181,21 +219,32 @@ export function rescueDialog(
 
 function isRettung(value: unknown): value is Rettung {
   if (typeof value !== 'object' || value === null) return false;
-  const { savedAt, path, record, dialog, opening, fields } = value as Record<string, unknown>;
+  const { savedAt, path, record, dialog, opening, fields, dependencies } = value as Record<
+    string,
+    unknown
+  >;
   return (
     typeof savedAt === 'number' &&
     typeof path === 'string' &&
     typeof record === 'string' &&
     typeof dialog === 'string' &&
     typeof opening === 'string' &&
+    (dependencies === undefined ||
+      (Array.isArray(dependencies) &&
+        dependencies.every((entry: unknown) => {
+          if (typeof entry !== 'object' || entry === null) return false;
+          const { key, version } = entry as Record<string, unknown>;
+          return typeof key === 'string' && typeof version === 'string';
+        }))) &&
     Array.isArray(fields) &&
     fields.every((field: unknown) => {
       if (typeof field !== 'object' || field === null) return false;
-      const { key, kind, value: kept, format } = field as Record<string, unknown>;
+      const { key, kind, value: kept, format, display } = field as Record<string, unknown>;
       return (
         typeof key === 'string' &&
-        (kind === 'value' || kind === 'checked' || kind === 'editor') &&
+        (kind === 'value' || kind === 'checked' || kind === 'editor' || kind === 'custom') &&
         typeof kept === 'string' &&
+        (display === undefined || typeof display === 'string') &&
         (format === undefined || format === 'html' || format === 'markdown')
       );
     })
@@ -232,11 +281,17 @@ export function rescuedDialog(now: number): string | null {
 export function findRescue(
   record: string,
   opening: string | null,
-  now: number
+  now: number,
+  dependencyVersion: (key: string) => string | undefined = () => undefined
 ): GeretteterWert[] | null {
   const rettung = read(now);
   if (!rettung || rettung.record !== record) return null;
   if (opening !== null && rettung.opening !== opening) return null;
+  if (
+    opening !== null &&
+    rettung.dependencies?.some((entry) => dependencyVersion(entry.key) !== entry.version)
+  )
+    return null;
   if (rettung.path !== `${location.pathname}${location.search}`) return null;
   return rettung.fields;
 }
@@ -253,12 +308,12 @@ export function withoutEditedField(
 
 /** Kept values worth showing: not empty and not an unticked box. */
 export function shownValues(values: readonly GeretteterWert[]): GeretteterWert[] {
-  return values.filter((kept) => kept.value !== '' && kept.value !== 'false');
+  return values.filter((kept) => (kept.display ?? kept.value) !== '' && kept.value !== 'false');
 }
 
 /** The field name of a kept value, without the counter of its key. */
 export function rescuedLabel(kept: GeretteterWert): string {
-  return kept.key.replace(/#(\d+|editor)$/, '');
+  return kept.key.replace(/#(\d+|editor|custom)$/, '');
 }
 
 /** Removes the kept input; with `record`, only if it belongs to that record. */
@@ -286,6 +341,10 @@ export function fillDialog(
   const editorsByKey = new Map(editors.map((editor) => [editorKey(editor), editor]));
   const rest: GeretteterWert[] = [];
   for (const kept of values) {
+    if (kept.kind === 'custom') {
+      rest.push(kept);
+      continue;
+    }
     if (kept.kind === 'editor') {
       const editor = only === 'all' ? editorsByKey.get(kept.key) : undefined;
       if (editor) editor.set(kept.value);

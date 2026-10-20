@@ -11,6 +11,7 @@
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
+  import type { RescueDependency } from '../../lib/geretteteEingaben';
 
   interface Props {
     target: AktionTarget | null;
@@ -47,6 +48,7 @@
   let linkId = $state('');
   /** Existing entry without CampFlow that publishing a CampFlow event takes over. */
   let adoptId = $state('');
+  let adoptionVersion = $state<RescueDependency | null>(null);
 
   /** Replaced by the current version when the entry is reloaded after a conflict. */
   let targetEntry = $state(untrack(() => target?.entry ?? null));
@@ -149,6 +151,7 @@
     dialog.reset();
     linkId = '';
     adoptId = '';
+    adoptionVersion = null;
     stufenTouched = false;
   }
 
@@ -191,6 +194,7 @@
     adoptId = id;
     stufenTouched = id !== '';
     const chosen = adoptable.find((e) => e.id === id);
+    adoptionVersion = chosen ? { key: chosen.id, version: chosen.etag } : null;
     if (!form) return;
     form.stufen = [...(chosen?.stufen ?? [])];
     form.description = chosen?.description ?? '';
@@ -269,6 +273,8 @@
   {title}
   rescueKey={`aktion:${targetEntry?.id ?? 'neu'}:${targetEvent?.id ?? ''}`}
   rescueVersion={targetEntry?.etag}
+  rescueDependencies={adoptionVersion ? [adoptionVersion] : []}
+  rescueDependencyVersion={(key) => adoptable.find((candidate) => candidate.id === key)?.etag}
   {busy}
   error={dialog.state.error}
   submitDisabled={dialog.state.conflict}

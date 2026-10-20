@@ -10,6 +10,7 @@
   import NichtEingesetzt from './NichtEingesetzt.svelte';
   import {
     fillDialog,
+    fillRescueFields,
     rescueDialog,
     setRescueContext,
     findRescue,
@@ -18,6 +19,8 @@
     withoutEditedField,
     type GeretteterWert,
     type RescueEditor,
+    type RescueField,
+    type RescueDependency,
   } from '../../lib/geretteteEingaben';
 
   interface Props {
@@ -49,6 +52,9 @@
     rescueKey?: string;
     /** Original record version, including text held outside native form fields. */
     rescueVersion?: string;
+    rescueFields?: RescueField[];
+    rescueDependencies?: RescueDependency[];
+    rescueDependencyVersion?: (key: string) => string | undefined;
     onedit?: (event: Event) => void;
     onreload?: () => Promise<boolean>;
     onsubmit: () => void;
@@ -76,6 +82,9 @@
     deleteQuestion = 'Diesen Eintrag endgültig löschen?',
     rescueKey,
     rescueVersion,
+    rescueFields = [],
+    rescueDependencies = [],
+    rescueDependencyVersion,
     onedit,
     onreload,
     onsubmit,
@@ -165,7 +174,16 @@
     enabled: () => record !== undefined,
     rescue: () =>
       !rescueConflict && form && record !== undefined
-        ? rescueDialog(form, record, openingTitle, opening, editors, pending)
+        ? rescueDialog(
+            form,
+            record,
+            openingTitle,
+            opening,
+            editors,
+            pending,
+            rescueFields,
+            rescueDependencies
+          )
         : false,
     register(editor) {
       editors.push(editor);
@@ -181,8 +199,11 @@
 
   async function restore(kept: GeretteterWert[]): Promise<void> {
     if (!form) return;
+    pending = fillRescueFields(kept, rescueFields, true);
+    if (pending.length !== kept.length) await tick();
+    pending = fillRescueFields(pending, rescueFields);
     // Choices first: their handlers may change other fields, which take their values after
-    pending = fillDialog(form, editors, kept, 'choices');
+    pending = fillDialog(form, editors, pending, 'choices');
     await tick();
     pending = fillDialog(form, editors, pending);
     // Fields that appear only after a choice above them
@@ -210,7 +231,10 @@
     openingVersion = rescueVersion ?? '';
     openingValues = initial.map((entry) => entry.value);
     opening = JSON.stringify([openingVersion, openingValues]);
-    const kept = record === undefined ? null : findRescue(record, opening, Date.now());
+    const kept =
+      record === undefined
+        ? null
+        : findRescue(record, opening, Date.now(), rescueDependencyVersion);
     if (kept) void restore(kept);
     else if (record !== undefined) {
       const conflicting = findRescue(record, null, Date.now());
@@ -246,6 +270,7 @@
     if (!form || !restored || rescueConflict || pending.length === 0) return;
     const target = form;
     const observer = new MutationObserver(() => {
+      pending = fillRescueFields(pending, rescueFields);
       pending = fillDialog(target, editors, pending);
       if (shownValues(pending).length === 0) forgetRescue(record);
     });
