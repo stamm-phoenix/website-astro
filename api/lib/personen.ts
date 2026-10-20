@@ -82,7 +82,7 @@ async function unique<T>(input: PersonInput, write: () => Promise<T>): Promise<T
     if (error.message.includes('uq_person_login')) {
       const other = others.find((p) => p.login === input.login);
       throw new ValidationError({
-        login: `Dieser Login steht schon bei ${other?.name ?? 'jemand anderem'}.`,
+        login: `Dieses Microsoft-Konto steht schon bei ${other?.name ?? 'jemand anderem'}.`,
       });
     }
     throw error;

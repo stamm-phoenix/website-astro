@@ -110,7 +110,7 @@ function taken(input: PersonInput, id?: number): Record<string, string> | undefi
   if (!other) return undefined;
   return other.campflowPersonId && other.campflowPersonId === input.campflowPersonId
     ? { campflowPersonId: `Diese CampFlow-Person ist schon mit ${other.name} verknüpft.` }
-    : { login: `Dieser Login steht schon bei ${other.name}.` };
+    : { login: `Dieses Microsoft-Konto steht schon bei ${other.name}.` };
 }
 
 export function addPerson(input: PersonInput): number | Record<string, string> {
