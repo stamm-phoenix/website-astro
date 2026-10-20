@@ -24,6 +24,7 @@
 
   // Inside an edit dialog the input is kept across the new login in the iPhone app
   const rescue = getRescueContext();
+  const rescueWarning = $derived(rescue?.warning() ?? null);
   let rescueFailed = $state(false);
 
   function keepInput(event: MouseEvent): void {
@@ -43,12 +44,13 @@
       neu anmeldest.
     {:else if rescue?.enabled()}
       In der App auf dem Home-Bildschirm lädt das Anmelden diese Seite neu. Öffne danach dieses
-      Formular wieder, dann setzt es deine Eingaben selbst ein.
+      Formular wieder, dann setzt es die gesicherten Eingaben selbst ein.
     {:else}
       In der App auf dem Home-Bildschirm lädt das Anmelden diese Seite neu. Kopiere vorher, was du
       behalten willst.
     {/if}
   </span>
+  {#if rescueWarning}<span class="mt-2 block">{rescueWarning}</span>{/if}
   <a
     href={reloginHereUrl()}
     data-astro-reload

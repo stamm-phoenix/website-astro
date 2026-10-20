@@ -141,7 +141,9 @@ test('in the iPhone app the edit dialog fills in its input again after the new l
   await page.keyboard.type(' Neu: Hüttenwochenende.');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
 
-  await expect(dialog.getByRole('alert')).toContainText('setzt es deine Eingaben selbst ein');
+  await expect(dialog.getByRole('alert')).toContainText(
+    'setzt es die gesicherten Eingaben selbst ein'
+  );
   const login = dialog.getByRole('link', { name: 'Neu anmelden', exact: true });
   await expect(login).toHaveAttribute(
     'href',
@@ -965,4 +967,104 @@ test('in the iPhone app selected task assignees survive a new login with their i
     { name: 'Alex Beispiel', login: 'alex@example.test' },
     { name: 'Bea Beispiel', login: 'bea@example.test' },
   ]);
+});
+
+test('in the iPhone app receipt login links warn that the chosen photo and crop must be redone', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route('**/api/intern/pflege/belege/pruefung', (route) =>
+    route.fulfill({ status: 401 })
+  );
+  await page.route('**/api/intern/pflege/belege', (route) =>
+    route.request().method() === 'POST' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/belege');
+  const open = page.getByRole('button', { name: 'Beleg einreichen', exact: true });
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen', exact: true });
+  const warning = 'Das ausgewählte Foto und sein Zuschnitt werden nicht gesichert.';
+  await expect(dialog.getByText(warning, { exact: false })).toHaveCount(0);
+  const photo = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 600;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#333';
+    context.fillRect(0, 0, 400, 600);
+    context.fillStyle = '#fff';
+    context.fillRect(60, 60, 280, 480);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await dialog.locator('input[type=file]').setInputFiles({
+    name: 'receipt.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(photo, 'base64'),
+  });
+  await expect(dialog.getByAltText('Vorschau des Scans')).toBeVisible();
+  await dialog.getByRole('button', { name: /Ecke oben links verschieben/ }).press('ArrowLeft');
+  const checkNotice = dialog.getByRole('note').filter({ hasText: warning });
+  await expect(checkNotice.getByRole('link', { name: 'Neu anmelden', exact: true })).toBeVisible();
+  await expect(checkNotice).toContainText('Wähle das Foto nach der neuen Anmeldung erneut aus');
+  await dialog.getByLabel('Geschäft').fill('Recovery receipt photo');
+  await dialog.getByLabel('Betrag in €').fill('12,34');
+  await dialog.getByLabel('Aktion', { exact: true }).fill('Wölflings-Herbstwochenende');
+  await dialog
+    .getByRole('radio', { name: 'Mit meinem Geld – bitte an mich auszahlen', exact: true })
+    .check();
+  await dialog.getByRole('button', { name: 'Einreichen', exact: true }).click();
+  const error = dialog.getByRole('alert');
+  await expect(error).toContainText(warning);
+  await expect(error).toContainText('schneide es wieder zu');
+  await error.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await open.click();
+  await expect(dialog.getByLabel('Geschäft')).toHaveValue('Recovery receipt photo');
+  await expect(dialog.getByLabel('Betrag in €')).toHaveValue('12,34');
+  await expect(dialog.getByAltText('Vorschau des Scans')).toHaveCount(0);
+  await expect(dialog.getByText(warning, { exact: false })).toHaveCount(0);
+});
+
+test('in the iPhone app a saved receipt photo no longer needs a warning and keeps later recovery', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route('**/api/intern/pflege/belege/*', (route) =>
+    route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/belege');
+  const open = page.getByRole('button', { name: /REWE/ }).first();
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: /Beleg von/ });
+  await dialog.getByLabel('Geschäft').fill('REWE recovery after photo');
+  const photo = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 600;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#333';
+    context.fillRect(0, 0, 400, 600);
+    context.fillStyle = '#fff';
+    context.fillRect(60, 60, 280, 480);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await dialog
+    .locator('input[type=file]')
+    .setInputFiles({
+      name: 'receipt.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(photo, 'base64'),
+    });
+  await dialog.getByRole('button', { name: 'Neues Foto speichern', exact: true }).click();
+  await expect(dialog.getByText('Foto ersetzt.', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  const error = dialog.getByRole('alert');
+  await expect(error).not.toContainText('sein Zuschnitt werden nicht gesichert');
+  await error.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await open.click();
+  await expect(dialog.getByLabel('Geschäft')).toHaveValue('REWE recovery after photo');
+  await expect(
+    dialog.getByText('wieder eingesetzt. Prüf sie und speichere.', { exact: false })
+  ).toBeVisible();
 });

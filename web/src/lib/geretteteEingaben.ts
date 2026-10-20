@@ -73,6 +73,8 @@ export interface RescueEditor {
 
 /** What `EditDialog` offers its content: the login link keeps the input, editors join in. */
 export interface RescueContext {
+  /** Input outside the saved fields that must be chosen again after the page reload. */
+  warning: () => string | null;
   /** Whether this dialog keeps its input: only with a `rescueKey` that names the record. */
   enabled: () => boolean;
   /** Keeps the dialog's input; false if the browser could not store it. */
