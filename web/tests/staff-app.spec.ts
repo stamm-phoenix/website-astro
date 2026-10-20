@@ -317,6 +317,77 @@ test('in the iPhone app the rows of a template come back as soon as they are add
   ).toBeNull();
 });
 
+test('in the iPhone app an adopted calendar entry comes back with its own Stufen', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.route('**/api/intern/pflege/**', (route) =>
+    route.request().method() === 'GET' ? route.fallback() : route.fulfill({ status: 401 })
+  );
+  await page.goto('/leitendenbereich/aktionen');
+  const publish = page.getByRole('button', {
+    name: 'Im öffentlichen Kalender veröffentlichen: Sommerlager 2026 Oberjoch',
+  });
+  const dialog = page.getByRole('dialog');
+  const stufen = (): Promise<boolean[]> =>
+    dialog
+      .getByRole('checkbox')
+      .evaluateAll((boxes) => boxes.map((box) => (box as HTMLInputElement).checked));
+  await publish.click();
+  // Adopting the entry replaces the Stufen chosen before with its own
+  await dialog
+    .getByLabel(/Vorhandenen Kalendereintrag/)
+    .selectOption({ label: 'Roverrunde: Kochabend (20.10.2026)' });
+  const before = await stufen();
+  await dialog
+    .getByRole('button', { name: /Veröffentlichen|Speichern/ })
+    .last()
+    .click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  await publish.click();
+  await expect(dialog.getByLabel(/Vorhandenen Kalendereintrag/)).toHaveValue(/.+/);
+  await expect(dialog.getByText('wieder eingesetzt. Prüf sie und speichere.')).toBeVisible();
+  expect(await stufen()).toEqual(before);
+});
+
+test('in the iPhone app a CampFlow link waits for the list of Aktionen', async ({ page }) => {
+  await page.request.post('/api/__mock/aufgaben/reset');
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.route('**/api/intern/pflege/aufgaben/projekte', (route) =>
+    route.request().method() === 'POST' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aufgaben/projekte');
+  const dialog = page.getByRole('dialog', { name: 'Projekt' });
+  await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
+  await dialog.getByLabel('Titel', { exact: true }).fill('Sola vorbereiten');
+  const link = dialog.getByLabel('CampFlow-Aktion');
+  await link.selectOption({ index: 1 });
+  const chosen = await link.inputValue();
+  expect(chosen).not.toBe('');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  // After the new login the list of Aktionen arrives only after the dialog opened
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/aktionen', async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Sola vorbereiten');
+  await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toBeVisible();
+  release();
+  await expect(link).toHaveValue(chosen);
+  await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toHaveCount(0);
+});
+
 test('in the iPhone app the login waits when the input cannot be kept', async ({ page }) => {
   await expireLoginInIphoneApp(page);
   await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
@@ -333,7 +404,7 @@ test('in the iPhone app the login waits when the input cannot be kept', async ({
   await expect(dialog.getByRole('alert')).toContainText(
     'ließen sich auf diesem Gerät nicht sichern'
   );
-  await expect(page).toHaveURL(/\/leitendenbereich\/gruppenstunden$/);
+  await expect(page).toHaveURL(/\/leitendenbereich\/gruppenstunden#ansicht=liste$/);
   await expect(dialog.getByLabel('Alter')).toHaveValue('16 bis 20 Jahre');
   await expect(dialog.getByRole('link', { name: 'Trotzdem neu anmelden' })).toBeVisible();
 });

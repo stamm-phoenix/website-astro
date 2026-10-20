@@ -153,7 +153,10 @@
 
   async function restore(kept: GeretteterWert[]): Promise<void> {
     if (!form) return;
-    pending = fillDialog(form, editors, kept);
+    // Choices first: their handlers may change other fields, which take their values after
+    pending = fillDialog(form, editors, kept, 'choices');
+    await tick();
+    pending = fillDialog(form, editors, pending);
     // Fields that appear only after a choice above them
     await tick();
     if (pending.length > 0) pending = fillDialog(form, editors, pending);

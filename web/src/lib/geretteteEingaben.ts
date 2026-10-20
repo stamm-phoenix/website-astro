@@ -235,14 +235,15 @@ export function forgetRescue(): void {
 export function fillDialog(
   form: HTMLFormElement,
   editors: readonly RescueEditor[],
-  values: readonly GeretteterWert[]
+  values: readonly GeretteterWert[],
+  only: 'choices' | 'all' = 'all'
 ): GeretteterWert[] {
   const fields = new Map(keyedFields(form).map(({ key, field }) => [key, field]));
   const editorsByKey = new Map(editors.map((editor) => [editorKey(editor), editor]));
   const rest: GeretteterWert[] = [];
   for (const kept of values) {
     if (kept.kind === 'editor') {
-      const editor = editorsByKey.get(kept.key);
+      const editor = only === 'all' ? editorsByKey.get(kept.key) : undefined;
       if (editor) editor.set(kept.value);
       else rest.push(kept);
       continue;
@@ -252,14 +253,29 @@ export function fillDialog(
       rest.push(kept);
       continue;
     }
+    // A choice may change other fields in its handler, e.g. the Stufen of an adopted entry
+    const choice =
+      field instanceof HTMLSelectElement ||
+      (field instanceof HTMLInputElement && field.type === 'radio');
+    if (only === 'choices' && !choice) {
+      rest.push(kept);
+      continue;
+    }
     if (kept.kind === 'checked' && field instanceof HTMLInputElement) {
       const checked = kept.value === 'true';
       if (field.checked === checked || (field.type === 'radio' && !checked)) continue;
       field.checked = checked;
       field.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (field instanceof HTMLSelectElement) {
-      const chosen = new Set(kept.value.split('\n'));
-      for (const option of field.options) option.selected = chosen.has(option.value);
+      const chosen = kept.value === '' ? [] : kept.value.split('\n');
+      const options = Array.from(field.options, (option) => option.value);
+      // Options still loading: wait for them instead of clearing the choice
+      if (!chosen.every((value) => options.includes(value))) {
+        rest.push(kept);
+        continue;
+      }
+      if (readValue(field) === kept.value) continue;
+      for (const option of field.options) option.selected = chosen.includes(option.value);
       field.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (field.value !== kept.value) {
       field.value = kept.value;
