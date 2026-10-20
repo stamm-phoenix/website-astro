@@ -26,13 +26,19 @@ function berlinToday(now: Date = new Date()): string {
 }
 
 /** A request of the logged-in staff member to the Termin of the Wölflinge today. */
-function terminRequest(method: string, params: Record<string, string> = {}, body?: unknown) {
+function terminRequest(
+  method: string,
+  params: Record<string, string> = {},
+  body?: unknown,
+  headers: Record<string, string> = {}
+) {
   return new HttpRequest({
     url: 'https://example.test/api/intern/pflege/anwesenheit',
     method,
     headers: {
       'content-type': 'application/json',
       'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+      ...headers,
     },
     params: { stufe: 'woelflinge', datum: berlinToday(), ...params },
     ...(body === undefined ? {} : { body: { string: JSON.stringify(body) } }),
@@ -164,8 +170,15 @@ dbTest('a cancelled Gruppenstunde loses its attendance and takes no new one', as
   mockCampflowPerson(t);
   const context = quietContext(t);
   const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
-  const cancel = (cancelled: boolean) =>
-    AnwesenheitCancelled(terminRequest('PUT', {}, { cancelled }), context);
+  let etag: string | null = null;
+  const cancel = async (cancelled: boolean) => {
+    const response = await AnwesenheitCancelled(
+      terminRequest('PUT', {}, { cancelled, etag }),
+      context
+    );
+    if (response.status === 200) etag = (response.jsonBody as { etag: string }).etag;
+    return response;
+  };
   const check = () =>
     AnwesenheitChild(terminRequest('PUT', { id: 'per_Current' }, { status: 'anwesend' }), context);
 
@@ -174,6 +187,7 @@ dbTest('a cancelled Gruppenstunde loses its attendance and takes no new one', as
     (await AnwesenheitGuests(terminRequest('POST', {}, { name: 'Testgast' }), context)).status,
     201
   );
+  // Ticking created the Termin, but its notes are empty, so no version is needed yet
   assert.equal((await cancel(true)).status, 200);
 
   const record = await getMeetingRecord(termin);
@@ -191,21 +205,66 @@ dbTest('a cancelled Gruppenstunde loses its attendance and takes no new one', as
   assert.equal((await getMeetingRecord(termin)).cancelled, false);
 });
 
-dbTest('DELETE removes the Termin with its attendance', async (t) => {
+dbTest('cancelling against an old version refuses, so stale notes cannot win', async (t) => {
+  const context = quietContext(t);
+  const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+  const saveNotes = (notes: string, etag: string | null) =>
+    AnwesenheitNotes(terminRequest('PUT', {}, { notes, etag }), context);
+  // Leader A loads the Termin, leader B changes the notes afterwards
+  const loaded = (
+    (await saveNotes('Knoten geübt.', null)).jsonBody as {
+      etag: string;
+    }
+  ).etag;
+  assert.equal((await saveNotes('Von B geändert.', loaded)).status, 200);
+
+  const cancel = await AnwesenheitCancelled(
+    terminRequest('PUT', {}, { cancelled: true, etag: loaded }),
+    context
+  );
+  assert.equal(cancel.status, 409);
+  const missing = await AnwesenheitCancelled(
+    terminRequest('PUT', {}, { cancelled: true, etag: null }),
+    context
+  );
+  assert.equal(missing.status, 409);
+  const record = await getMeetingRecord(termin);
+  assert.equal(record.cancelled, false);
+  assert.equal(record.notes, 'Von B geändert.');
+});
+
+dbTest('DELETE removes the Termin of the loaded version with its attendance', async (t) => {
   mockCampflowPerson(t);
   const context = quietContext(t);
+  const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+  const remove = (etag?: string) =>
+    AnwesenheitNotes(
+      terminRequest('DELETE', {}, undefined, etag ? { 'if-match': etag } : {}),
+      context
+    );
   await AnwesenheitChild(
     terminRequest('PUT', { id: 'per_Current' }, { status: 'anwesend' }),
     context
   );
+  const loaded = (await getMeetingRecord(termin)).etag ?? '';
+  // Someone changes the notes after the Termin was opened for deleting
+  const changed = await AnwesenheitNotes(
+    terminRequest('PUT', {}, { notes: 'Neu.', etag: loaded }),
+    context
+  );
+  const current = (changed.jsonBody as { etag: string }).etag;
 
-  assert.equal((await AnwesenheitNotes(terminRequest('DELETE'), context)).status, 204);
+  assert.equal((await remove()).status, 409);
+  assert.equal((await remove(loaded)).status, 409);
+  assert.equal((await getMeetingRecord(termin)).notes, 'Neu.');
+
+  assert.equal((await remove(current)).status, 204);
   assert.deepEqual(await getMeetingSummaries(), []);
   assert.equal(
     (await getDb().selectFrom('gruppenstunde.attendance').selectAll().execute()).length,
     0
   );
-  assert.equal((await AnwesenheitNotes(terminRequest('DELETE'), context)).status, 204);
+  assert.equal((await remove(current)).status, 204);
 });
 
 dbTest('notes are only saved against the version that was loaded', async (t) => {

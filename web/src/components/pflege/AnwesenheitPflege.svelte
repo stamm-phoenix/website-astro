@@ -50,6 +50,17 @@
     }
   }
 
+  /** Removes a deleted Termin at once, also if loading the Termine again fails. */
+  function removeMeeting(stufe: string, date: string): void {
+    if (overview) {
+      overview = {
+        ...overview,
+        meetings: overview.meetings.filter((m) => m.stufe !== stufe || m.date !== date),
+      };
+    }
+    void refreshOverview();
+  }
+
   /** Shows a view; the statistics are loaded again, as the Termin may have changed. */
   async function showView(next: View): Promise<void> {
     view = next;
@@ -132,7 +143,7 @@
               changeDate(selectedDate);
               view = 'erfassen';
             }}
-            ondelete={refreshOverview}
+            ondelete={(deleted) => removeMeeting(selected.stufe, deleted)}
           />
         {/key}
       {/if}

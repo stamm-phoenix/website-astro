@@ -162,6 +162,7 @@
     try {
       const saved = await sendApi<{ etag: string }>('PUT', `/intern/pflege${path}/ausgefallen`, {
         cancelled,
+        etag: target.etag,
       });
       target.etag = saved.etag;
       target.cancelled = cancelled;
@@ -177,11 +178,14 @@
           : 'Gruppenstunde als stattgefunden markiert. Du kannst jetzt eintragen, wer da war.'
       );
     } catch (error: unknown) {
+      const conflict = error instanceof ApiError && [409, 412].includes(error.status);
       show(
-        errorMessage(
-          error,
-          'Die Angabe „Ausgefallen“ wurde nicht gespeichert. Tippe noch einmal auf deine Auswahl.'
-        ),
+        conflict
+          ? 'Jemand anderes hat diese Gruppenstunde inzwischen geändert. „Ausgefallen“ wurde nicht gespeichert. Dein Text steht noch im Feld. Kopiere ihn, lade die Seite neu und wähle dann noch einmal.'
+          : errorMessage(
+              error,
+              'Die Angabe „Ausgefallen“ wurde nicht gespeichert. Tippe noch einmal auf deine Auswahl.'
+            ),
         'error'
       );
     } finally {

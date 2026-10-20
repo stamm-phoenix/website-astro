@@ -36,6 +36,7 @@ import {
   NO_STORE_HEADERS,
   ok,
   pflegeHandler,
+  readIfMatch,
   readJsonBody,
 } from '../lib/pflege-api';
 import {
@@ -206,21 +207,25 @@ export async function GetAnwesenheitTerminEndpoint(
 
 /**
  * PUT: what the group did, saved against the loaded version. Returns the new version.
- * DELETE: removes the Termin with its attendance and notes.
+ * DELETE: removes the Termin with its attendance and notes, if it still has the version sent
+ * in `If-Match`.
  */
 export const AnwesenheitNotesEndpoint = terminHandler(async (termin, request, actor) => {
   if (request.method === 'DELETE') {
-    await deleteMeeting(termin);
+    await deleteMeeting(termin, readIfMatch(request));
     return NO_CONTENT;
   }
   const input = validateMeetingNotes(await readJsonBody(request));
   return ok({ etag: await saveNotes(termin, input.notes, input.etag, actor) });
 });
 
-/** PUT: whether the Gruppenstunde was cancelled. Returns the new version of the Termin. */
+/**
+ * PUT: whether the Gruppenstunde was cancelled, saved against the loaded version. Returns the
+ * new version of the Termin.
+ */
 export const AnwesenheitCancelledEndpoint = terminHandler(async (termin, request, actor) => {
-  const cancelled = validateCancelled(await readJsonBody(request));
-  return ok({ etag: await setCancelled(termin, cancelled, actor) });
+  const input = validateCancelled(await readJsonBody(request));
+  return ok({ etag: await setCancelled(termin, input.cancelled, input.etag, actor) });
 });
 
 /**
