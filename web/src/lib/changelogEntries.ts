@@ -28,6 +28,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: 'Deine Ergänzungen zur Abrechnung kannst du für deinen Account speichern und auf deinen anderen Geräten weiterbearbeiten. Die Seite warnt vor ungespeicherten Änderungen und schützt vor dem Überschreiben einer neueren Fassung.',
         href: '/leitendenbereich/abrechnung',
       },
+      'Nach fehlgeschlagenem Speichern oder Zurücksetzen bleiben deine Abrechnungseingaben beim erneuten Versuch erhalten. Eine abgelaufene Speicherfrist wird erklärt.',
       'Sterne zum Auswählen deiner Favoriten sind am Handy sichtbar und antippbar.',
       'Bei Belegen verschwinden korrigierte Feldfehler sofort. Die Bestellliste weist auf seitlich erreichbare Spalten und fehlgeschlagene Preisabfragen hin.',
       'In der Nikolaus-Steuerung bleibt Speichern beim Scrollen erreichbar. Vor dem Ausschalten der Verwaltung für alle fragt die Seite nach.',

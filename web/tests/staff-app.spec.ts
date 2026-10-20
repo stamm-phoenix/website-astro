@@ -1047,13 +1047,13 @@ test('in the iPhone app receipt login links warn that the chosen photo and crop 
   await expect(dialog.getByText(warning, { exact: false })).toHaveCount(0);
   const photo = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 600;
+    canvas.width = 800;
+    canvas.height = 1200;
     const context = canvas.getContext('2d')!;
     context.fillStyle = '#333';
-    context.fillRect(0, 0, 400, 600);
+    context.fillRect(0, 0, 800, 1200);
     context.fillStyle = '#fff';
-    context.fillRect(60, 60, 280, 480);
+    context.fillRect(120, 120, 560, 960);
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await dialog.locator('input[type=file]').setInputFiles({
@@ -1099,13 +1099,13 @@ test('in the iPhone app a saved receipt photo no longer needs a warning and keep
   await dialog.getByLabel('Geschäft').fill('REWE recovery after photo');
   const photo = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 600;
+    canvas.width = 800;
+    canvas.height = 1200;
     const context = canvas.getContext('2d')!;
     context.fillStyle = '#333';
-    context.fillRect(0, 0, 400, 600);
+    context.fillRect(0, 0, 800, 1200);
     context.fillStyle = '#fff';
-    context.fillRect(60, 60, 280, 480);
+    context.fillRect(120, 120, 560, 960);
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await dialog.locator('input[type=file]').setInputFiles({

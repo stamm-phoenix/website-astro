@@ -1,4 +1,11 @@
 import type { AbrechnungPerson } from './abrechnung';
+export interface AbrechnungEingabe {
+  session: AbrechnungSession;
+  etag: string | null;
+  savedAt: string | null;
+  deleteAfter: string | null;
+}
+
 interface LeihgebuehrEingabe {
   count: number;
   days: number | null;

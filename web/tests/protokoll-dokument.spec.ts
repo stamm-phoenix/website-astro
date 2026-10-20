@@ -116,7 +116,9 @@ test('Enter and Backspace move through the items like in a document', async ({ p
   await expect(reflexion.locator('.punkt-text')).toHaveText('Stammestag war gut');
 });
 
-test('the toolbar sticks right below the status bar after scrolling', async ({ page }) => {
+test('the toolbar sticks on desktop and leaves writing space on phones', async ({
+  page,
+}, testInfo) => {
   await createProtokoll(page, 'Leitendenrunde Leiste');
   await page.evaluate(() => window.scrollTo(0, 0));
   // Scroll into the agenda so that the header and the status bar stick
@@ -133,7 +135,13 @@ test('the toolbar sticks right below the status bar after scrolling', async ({ p
         toolbar: leiste && toolbar ? Math.round(toolbar.top - leiste.bottom) : null,
       };
     });
-  await expect.poll(kanten).toEqual({ header: 0, leiste: 0, toolbar: 0 });
+  if (testInfo.project.name === 'mobile') {
+    await expect(page.locator('[data-sticky-top]')).not.toHaveCSS('position', 'sticky');
+    await expect(page.getByRole('toolbar', { name: 'Formatierung', exact: true })).not.toHaveCSS(
+      'position',
+      'sticky'
+    );
+  } else await expect.poll(kanten).toEqual({ header: 0, leiste: 0, toolbar: 0 });
 });
 
 test('Backspace at the start of a list first removes the bullet, then goes to the title', async ({

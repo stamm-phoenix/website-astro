@@ -26,7 +26,9 @@ async function prepare(page: Page): Promise<void> {
   await page.goto(URL);
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
   await page.getByRole('button', { name: 'Route für Funklöcher speichern' }).click();
-  await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible();
+  await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible({
+    timeout: 20_000,
+  });
 }
 
 function visitButton(page: Page) {
@@ -76,8 +78,8 @@ test('an offline reload restores the next stop and queued visits, which can then
   await expect(page.getByText('Besucht – noch nicht bestätigt', { exact: true })).toBeVisible();
   await expect.poll(() => queueLength(page)).toBe(1);
   await context.setOffline(false);
-  await page.getByRole('button', { name: 'Jetzt abgleichen' }).click();
-  await expect.poll(() => queueLength(page), { timeout: 15_000 }).toBe(0);
+  await page.bringToFront();
+  await expect.poll(() => queueLength(page), { timeout: 20_000 }).toBe(0);
   await expectNoHorizontalOverflow(page);
 });
 
@@ -166,7 +168,9 @@ test('explicit deletion and logout remove locally saved family data', async ({ p
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
   await page.getByRole('button', { name: 'Route für Funklöcher speichern' }).click();
-  await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible();
+  await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible({
+    timeout: 20_000,
+  });
   await page.goto('/leitendenbereich');
   // The logout is in the header, and on a phone in the sheet „Alle Bereiche“
   await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');

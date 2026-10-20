@@ -3,7 +3,8 @@ import { emptySession } from '../../api/lib/abrechnung-session';
 
 const URL = '/leitendenbereich/abrechnung/evt_Sola26';
 const API = '/api/intern/abrechnung/evt_Sola26/eingaben';
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.title.startsWith('old local entries')) return;
   const current = await (await page.request.get(API)).json();
   expect(
     (await page.request.put(API, { data: { session: emptySession(), etag: current.etag } })).ok()
@@ -20,6 +21,9 @@ test('explicit saving persists the account draft and resetting persists an empty
   await toggle.check();
   await expect(page.getByTestId('eingaben-ablage')).toContainText('Ungespeicherte Änderungen');
   await save.click();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Auf allen deinen Geräten verfügbar'
+  );
   await expect(save).toBeDisabled();
   await expect(page.getByTestId('eingaben-ablage')).toContainText(
     'Auf allen deinen Geräten verfügbar'
@@ -42,6 +46,9 @@ test('a failed save keeps inputs and clearing the last saved value is still guar
   const save = page.getByRole('button', { name: 'Eingaben speichern' });
   await toggle.check();
   await save.click();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Auf allen deinen Geräten verfügbar'
+  );
   await expect(save).toBeDisabled();
   await page.route('**/eingaben', (route) =>
     route.request().method() === 'PUT' ? route.fulfill({ status: 500, json: {} }) : route.fallback()
@@ -52,11 +59,17 @@ test('a failed save keeps inputs and clearing the last saved value is still guar
     'Die Eingaben wurden nicht gespeichert'
   );
   await expect(toggle).not.toBeChecked();
+  await page.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText('Ungespeicherte Änderungen');
   await page.getByRole('navigation', { name: 'Zurück' }).getByRole('link').click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
   await expect(toggle).not.toBeChecked();
   await page.unroute('**/eingaben');
   await save.click();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Auf allen deinen Geräten verfügbar'
+  );
   await expect(save).toBeDisabled();
 });
 
@@ -116,4 +129,52 @@ test('an expired login while loading a receipt offers the new login', async ({ p
   const dialog = page.getByRole('dialog', { name: 'Beleg 2026-103' });
   await expect(dialog).toContainText('Deine Anmeldung ist abgelaufen.');
   await expect(dialog.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
+});
+
+test('a failed reset preserves edits made while its request was pending', async ({ page }) => {
+  await page.goto(URL);
+  const toggle = page.getByRole('checkbox', { name: /Zusatztag/ });
+  await toggle.check();
+  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Auf allen deinen Geräten verfügbar'
+  );
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let received!: () => void;
+  const started = new Promise<void>((resolve) => {
+    received = resolve;
+  });
+  await page.route('**/eingaben', async (route) => {
+    if (route.request().method() !== 'PUT') return route.fallback();
+    received();
+    await pending;
+    await route.fulfill({ status: 500, json: {} });
+  });
+  await page.getByRole('button', { name: 'Eingaben zurücksetzen' }).click();
+  await answerConfirm(page, 'Eingaben zurücksetzen?', 'Eingaben zurücksetzen');
+  await started;
+  await toggle.uncheck();
+  release();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Die Eingaben wurden nicht gespeichert'
+  );
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText('Ungespeicherte Änderungen');
+  await page.getByRole('navigation', { name: 'Zurück' }).getByRole('link').click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
+  await expect(toggle).not.toBeChecked();
+});
+
+test('expired retention explains why new inputs cannot be saved', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2027-01-01T12:00:00Z'));
+  await page.goto(URL);
+  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
+  const storage = page.getByTestId('eingaben-ablage');
+  await expect(storage).toContainText('Die Aufbewahrungsfrist ist abgelaufen');
+  await expect(storage).toContainText('nur auf dieser geöffneten Seite');
+  await expect(storage).not.toContainText('Tippe auf');
+  await expect(page.getByRole('button', { name: 'Eingaben speichern' })).toBeDisabled();
 });

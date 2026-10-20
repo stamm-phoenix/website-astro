@@ -117,7 +117,7 @@ test('staff order filters and the export shop survive reloading the campaign', a
   await orders.getByRole('button', { name: 'Unbezahlt', exact: true }).click();
   const finished = page.getByLabel('Erledigte und stornierte Bestellungen anzeigen');
   await finished.check();
-  const shop = page.getByLabel('CSV für', { exact: true });
+  const shop = page.getByLabel('Tabelle für', { exact: true });
   const selected = await shop.locator('option').nth(1).getAttribute('value');
   await shop.selectOption(selected!);
   await orders.getByRole('button', { name: 'Neu laden', exact: true }).click();

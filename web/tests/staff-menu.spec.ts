@@ -59,6 +59,8 @@ test('keyboard focus leaving the sheet „Alle Bereiche“ closes it', async ({
   const signOut = sheet.getByRole('link', { name: 'Abmelden' });
   await signOut.focus();
   await expect(signOut).toBeFocused();
+  // Logout sits in the fixed header; the final navigation link ends the tab sequence.
+  await sheet.getByRole('link').last().focus();
   await page.keyboard.press('Tab');
   await expect(sheet).toBeHidden();
 });

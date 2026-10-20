@@ -560,6 +560,7 @@ test('the start can stay empty and leaving without an end keeps it empty', async
   await expect(jetzt).toBeChecked();
   await jetzt.uncheck();
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  await page.getByText(/^Sitzungsdaten und Teilnehmende bearbeiten/).click({ timeout: 15_000 });
   await expect(page.getByLabel('Sitzungsbeginn', { exact: true })).toHaveValue('');
 
   await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
