@@ -131,7 +131,8 @@ test('at the last photo a swipe does not change it', async ({ page }) => {
   await expect(media).toHaveCSS('translate', 'none');
 });
 
-test('an Instagram carousel in the post dialog moves to its next image', async ({ page }) => {
+/** Opens the five-image Instagram post of the mock data in its dialog. */
+async function openInstagramPost(page: Page): Promise<{ dialog: Locator; media: Locator }> {
   await page.goto('/');
   const card = page.getByRole('link', { name: /Sommerlager 2026/ }).first();
   const dialog = page.getByRole('dialog');
@@ -141,13 +142,82 @@ test('an Instagram carousel in the post dialog moves to its next image', async (
   await card.click();
   await expect(dialog.getByRole('button', { name: 'Nächstes Bild' })).toBeVisible();
   await expect(dialog.getByText('1 / 5', { exact: true })).toBeVisible();
-  const media = dialog.locator('.swipe-area');
-  await swipe(page, media, fastFlick);
-  await expect(dialog.getByText('2 / 5', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Bild 2 von 5', { exact: true })).toBeAttached();
-  await swipe(page, media, slowShortDrag);
+  return { dialog, media: dialog.locator('.swipe-area') };
+}
+
+/** Horizontal distance of image `n` (1-based, the first place showing it) from the carousel area. */
+async function imageShift(media: Locator, n: number): Promise<number> {
+  const area = await media.boundingBox();
+  const image = await media
+    .locator(`[data-image="${n - 1}"]`)
+    .first()
+    .boundingBox();
+  if (!area || !image) throw new Error(`Image ${n} is not in the carousel`);
+  return image.x - area.x;
+}
+
+/** Width of image `n` that lies inside the carousel area. */
+async function visibleWidth(media: Locator, n: number): Promise<number> {
+  const area = await media.boundingBox();
+  const image = await media
+    .locator(`[data-image="${n - 1}"]`)
+    .first()
+    .boundingBox();
+  if (!area || !image) return 0;
+  const left = Math.max(area.x, image.x);
+  const right = Math.min(area.x + area.width, image.x + image.width);
+  return Math.max(0, right - left);
+}
+
+test('an Instagram carousel shows the next image beside the current one while dragging', async ({
+  page,
+}) => {
+  const { dialog, media } = await openInstagramPost(page);
+  // The neighbours are loaded ahead, so the revealed image is there, not a placeholder
+  await expect(media.locator('[data-image="1"] img')).toHaveCount(1);
+  await swipe(page, media, slowLongDrag, async () => {
+    const width = (await media.boundingBox())?.width ?? 0;
+    // Both images share the area, edge to edge
+    expect(await visibleWidth(media, 1)).toBeGreaterThan(20);
+    expect(await visibleWidth(media, 2)).toBeGreaterThan(100);
+    const gap = (await imageShift(media, 2)) - ((await imageShift(media, 1)) + width);
+    expect(Math.abs(gap)).toBeLessThanOrEqual(1);
+    await expect(dialog.getByText('1 / 5', { exact: true })).toBeVisible();
+  });
   await expect(dialog.getByText('2 / 5', { exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+test('a flick moves the Instagram carousel on to its next image', async ({ page }) => {
+  const { dialog, media } = await openInstagramPost(page);
+  await swipe(page, media, fastFlick);
+  // State changes on release, the strip then comes to rest with image 2 exactly in view
+  await expect(dialog.getByText('2 / 5', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Bild 2 von 5', { exact: true })).toBeAttached();
+  await expect.poll(async () => Math.abs(await imageShift(media, 2))).toBeLessThanOrEqual(1);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('a short slow drag returns the Instagram carousel to its image', async ({ page }) => {
+  const { dialog, media } = await openInstagramPost(page);
+  await swipe(page, media, slowShortDrag);
+  await expect(dialog.getByText('1 / 5', { exact: true })).toBeVisible();
+  await expect.poll(async () => Math.abs(await imageShift(media, 1))).toBeLessThanOrEqual(1);
+});
+
+test('swiping right on the first Instagram image wraps to the last one', async ({ page }) => {
+  const { dialog, media } = await openInstagramPost(page);
+  await swipe(page, media, { ...fastFlick, distance: 80 });
+  await expect(dialog.getByText('5 / 5', { exact: true })).toBeVisible();
+  await expect.poll(async () => Math.abs(await imageShift(media, 5))).toBeLessThanOrEqual(1);
+});
+
+test('the arrow slides the Instagram carousel to its next image', async ({ page }) => {
+  const { dialog, media } = await openInstagramPost(page);
+  await dialog.getByRole('button', { name: 'Nächstes Bild' }).click();
+  await expect(dialog.getByText('2 / 5', { exact: true })).toBeVisible();
+  await expect.poll(async () => Math.abs(await imageShift(media, 2))).toBeLessThanOrEqual(1);
+  await expect(dialog.getByRole('button', { name: 'Nächstes Bild' })).toBeFocused();
 });
 
 interface Point {

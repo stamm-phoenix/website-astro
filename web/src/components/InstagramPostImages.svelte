@@ -130,30 +130,84 @@
     }
   }
 
-  /** Steps from the requested image, so quick repeated clicks each count. */
-  function browse(step: number): void {
+  /** Steps from the requested image, so quick repeated clicks each count (tiles). */
+  function browseTile(step: number): void {
     browsed = true;
     void show((target ?? index) + step);
   }
 
-  /** Horizontal distance the images follow the finger in the dialog; 0 at rest. */
+  /*
+   * In the dialog the images sit side by side in a strip. Every image has a fixed place in it
+   * (`position`, counted without wrapping), and the strip is moved so the current place is in
+   * view. Changing the place therefore slides the strip from wherever it is, and the image index
+   * wraps around (`position` modulo the number of images).
+   */
+  let strip = $state<HTMLDivElement>();
+  /** Place of the current image in the strip; may run past the ends, the index wraps. */
+  let position = $state(0);
+  /** Horizontal distance the strip follows the finger in pixels; 0 at rest. */
   let offset = $state(0);
-  /** Duration of the movement back to rest; 0 while the finger moves. */
+  /** Duration of the movement to the current place; 0 while the finger moves. */
   let settleMs = $state(0);
-  /** Curve of the settle back, starting at the speed of the released finger. */
+  /** Curve of that movement, starting at the speed of the released finger. */
   let settleCurve = $state('var(--motion-enter)');
+  /**
+   * Places that are rendered: the current one and its neighbours, plus the ones a running
+   * movement still passes. Only the rendering uses it; index and counter change right away.
+   */
+  let span = $state({ low: -1, high: 1 });
+  const places = $derived(Array.from({ length: span.high - span.low + 1 }, (_, i) => span.low + i));
+
+  const wrap = (i: number): number => ((i % post.imageCount) + post.imageCount) % post.imageCount;
+
+  /** Moves to the place `step` away and slides the strip there over `duration` ms. */
+  function slide(step: number, duration: number, curve: string): void {
+    browsed = true;
+    position += step;
+    index = wrap(position);
+    offset = 0;
+    settleMs = duration;
+    settleCurve = curve;
+    span =
+      duration > 0
+        ? { low: Math.min(span.low, position - 1), high: Math.max(span.high, position + 1) }
+        : { low: position - 1, high: position + 1 };
+  }
+
+  /** Arrows and keys: the same movement as a release without speed. */
+  function browse(step: number): void {
+    if (!isModal) {
+      browseTile(step);
+      return;
+    }
+    slide(step, panelDuration(), 'var(--motion-enter)');
+  }
+
+  /** Once the strip has arrived, only the current image and its neighbours stay rendered. */
+  function handleSettled(event: TransitionEvent): void {
+    if (event.target !== strip || event.propertyName !== 'translate') return;
+    span = { low: position - 1, high: position + 1 };
+  }
+
   /** The touch being followed, and whether it moves sideways (`x`) or is left to the browser. */
-  let swipe: { track: SwipeTrack; axis: 'x' | null; width: number } | null = null;
+  let swipe: { track: SwipeTrack; axis: 'x' | null; width: number; base: number } | null = null;
 
   /**
-   * In the dialog, a sideways swipe browses like the arrows. The images follow the finger and
-   * return at once on release; the next one appears once it has loaded, as with the arrows.
-   * Vertical movement and pinching stay with the browser.
+   * In the dialog, a sideways swipe browses like the arrows. The strip follows the finger, so
+   * the neighbouring image slides in from the edge; on release it continues to that image or
+   * returns. Vertical movement and pinching stay with the browser.
    */
   function swipeArea(area: HTMLElement): () => void {
-    function settle(velocity: number): void {
-      settleMs = settleDuration(offset, velocity, panelDuration());
-      settleCurve = settleEasing(offset, velocity, settleMs);
+    /** Where the strip is drawn right now, relative to the current place (also mid-movement). */
+    function shownOffset(width: number): number {
+      if (!strip) return offset;
+      const shift = strip.getBoundingClientRect().left - area.getBoundingClientRect().left;
+      return shift + position * width;
+    }
+
+    function settle(distance: number, velocity: number): void {
+      settleMs = settleDuration(distance, velocity, panelDuration());
+      settleCurve = settleEasing(distance, velocity, settleMs);
       offset = 0;
     }
 
@@ -167,6 +221,7 @@
         track: startTrack(touch.clientX, touch.clientY, event.timeStamp),
         axis: null,
         width: area.clientWidth,
+        base: 0,
       };
     }
 
@@ -186,27 +241,35 @@
           return;
         }
         swipe.axis = 'x';
+        // Continues from where a running movement has got to, without a jump
+        swipe.base = shownOffset(swipe.width) - dx;
       }
       if (event.cancelable) event.preventDefault();
       moveTrack(swipe.track, touch.clientX, touch.clientY, event.timeStamp);
       settleMs = 0;
-      offset = dx;
+      // At most one image to each side, so no empty place comes into view
+      offset = Math.max(-swipe.width, Math.min(swipe.width, swipe.base + dx));
     }
 
     function end(event: TouchEvent): void {
       const ended = swipe;
       swipe = null;
       if (!ended || ended.axis !== 'x') return;
-      const dx = ended.track.lastX - ended.track.startX;
       const velocity = releaseVelocity(ended.track, 'x', event.timeStamp);
-      const step = dx < 0 ? 1 : -1;
-      // Back to rest right away; `show` switches once the requested image has loaded
-      settle(step * velocity);
-      if (commits(-step * dx, -step * velocity, ended.width / 4)) browse(step);
+      const dragged = offset;
+      const step = dragged < 0 || (dragged === 0 && velocity < 0) ? 1 : -1;
+      if (commits(-step * dragged, -step * velocity, ended.width / 4)) {
+        // Index and counter change now; the strip continues from where the finger left it
+        const remaining = ended.width - Math.abs(dragged);
+        const duration = settleDuration(remaining, -step * velocity, panelDuration());
+        slide(step, duration, settleEasing(remaining, -step * velocity, duration));
+      } else {
+        settle(dragged, step * velocity);
+      }
     }
 
     function cancel(): void {
-      if (swipe?.axis === 'x') settle(0);
+      if (swipe?.axis === 'x') settle(offset, 0);
       swipe = null;
     }
 
@@ -255,11 +318,11 @@
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  // Once visible and the first image is there, the other images are loaded one after another
-  // in the background, starting with the next one
+  // On a tile, once visible and the first image is there, the other images are loaded one after
+  // another in the background, starting with the next one
   let preloadStarted = false;
   $effect(() => {
-    if (!isCarousel || !visible || !loaded.has(0) || preloadStarted) return;
+    if (isModal || !isCarousel || !visible || !loaded.has(0) || preloadStarted) return;
     preloadStarted = true;
     const start = untrack(() => index);
     void (async () => {
@@ -267,6 +330,15 @@
         await preload((start + step) % post.imageCount);
       }
     })();
+  });
+
+  // In the dialog, the current image and both neighbours are loaded, so the image a swipe
+  // reveals is usually there while the finger moves; nothing further ahead
+  $effect(() => {
+    if (!isModal || !isCarousel) return;
+    for (const i of [index, wrap(index + 1), wrap(index - 1)]) {
+      if (i !== 0) void untrack(() => preload(i));
+    }
   });
 
   // Tiles advance slowly, but not while hovered or focused; the dialog only on request
@@ -288,37 +360,69 @@
   class="relative overflow-hidden {isModal
     ? 'modal-media bg-neutral-900'
     : `${aspectClass} bg-neutral-100`}"
-  class:skeleton-element={!loaded.has(0)}
+  class:skeleton-element={!loaded.has(0) && !(isModal && isCarousel)}
   class:swipe-area={isModal && isCarousel}
   style:--ratio={isModal ? ratio : undefined}
   {@attach isModal && isCarousel ? swipeArea : undefined}
 >
-  <div
-    class="absolute inset-0"
-    style:translate={offset ? `${offset}px 0` : undefined}
-    style:transition={settleTransition('translate', settleMs, settleCurve)}
-  >
-    {#each Array.from({ length: post.imageCount }, (_, i) => i) as i (i)}
-      {#if i === 0 || loaded.has(i)}
-        <img
-          src={getInstagramImageUrl(post.id, i, size)}
-          alt={i === index ? alt : ''}
-          aria-hidden={i === index ? undefined : 'true'}
-          width="640"
-          height="640"
-          loading={i === 0 && !isModal ? 'lazy' : undefined}
-          decoding="async"
-          class="post-image absolute inset-0 h-full w-full {isModal
-            ? 'object-contain'
-            : 'object-cover'}"
-          class:post-image-loaded={loaded.has(i)}
-          class:post-image-hidden={i !== index}
-          onload={(event) => handleImageLoad(i, event)}
-          onerror={() => markLoaded(i)}
-        />
-      {/if}
-    {/each}
-  </div>
+  {#if isModal && isCarousel}
+    <!-- The images side by side; the strip moves, the controls stay in place -->
+    <div
+      bind:this={strip}
+      class="carousel-strip absolute inset-0"
+      style:translate="calc({-position * 100}% + {offset}px) 0"
+      style:transition={settleTransition('translate', settleMs, settleCurve)}
+      ontransitionend={handleSettled}
+    >
+      {#each places as place (place)}
+        {@const i = wrap(place)}
+        <div
+          class="carousel-slot absolute inset-y-0 w-full"
+          class:skeleton-element={!loaded.has(i)}
+          style:left="{place * 100}%"
+          data-image={i}
+          aria-hidden={place === position ? undefined : 'true'}
+        >
+          {#if i === 0 || loaded.has(i)}
+            <img
+              src={getInstagramImageUrl(post.id, i, size)}
+              alt={place === position ? alt : ''}
+              width="640"
+              height="640"
+              decoding="async"
+              class="post-image absolute inset-0 h-full w-full object-contain"
+              class:post-image-loaded={loaded.has(i)}
+              onload={(event) => handleImageLoad(i, event)}
+              onerror={() => markLoaded(i)}
+            />
+          {/if}
+        </div>
+      {/each}
+    </div>
+  {:else}
+    <div class="absolute inset-0">
+      {#each Array.from({ length: post.imageCount }, (_, i) => i) as i (i)}
+        {#if i === 0 || loaded.has(i)}
+          <img
+            src={getInstagramImageUrl(post.id, i, size)}
+            alt={i === index ? alt : ''}
+            aria-hidden={i === index ? undefined : 'true'}
+            width="640"
+            height="640"
+            loading={i === 0 && !isModal ? 'lazy' : undefined}
+            decoding="async"
+            class="post-image absolute inset-0 h-full w-full {isModal
+              ? 'object-contain'
+              : 'object-cover'}"
+            class:post-image-loaded={loaded.has(i)}
+            class:post-image-hidden={i !== index}
+            onload={(event) => handleImageLoad(i, event)}
+            onerror={() => markLoaded(i)}
+          />
+        {/if}
+      {/each}
+    </div>
+  {/if}
 
   {#if canPlay && playing}
     <!-- Instagram provides no captions -->
@@ -374,7 +478,7 @@
         class="absolute top-3 right-3 flex items-center gap-1.5 rounded-sm bg-[var(--color-dpsg-blue)]/75 px-1.5 py-0.5 text-xs text-white tabular-nums"
         aria-hidden="true"
       >
-        {#if target !== null}
+        {#if target !== null || !loaded.has(index)}
           <!-- The requested image is still loading -->
           <span class="spinner"></span>
         {/if}
