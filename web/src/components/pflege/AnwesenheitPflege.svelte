@@ -41,15 +41,19 @@
     date = suggestedDate(stufe?.weekday ?? '', overview?.today ?? date);
   }
 
-  /** Shows a view; the statistics are loaded again, as the Termin may have changed. */
-  async function showView(next: View): Promise<void> {
-    view = next;
-    if (next !== 'verlauf') return;
+  /** Loads the recorded Termine again; the ones loaded before stay visible on failure. */
+  async function refreshOverview(): Promise<void> {
     try {
       overview = await fetchApi<AnwesenheitOverview>('/intern/anwesenheit');
     } catch {
       // The statistics loaded before stay visible
     }
+  }
+
+  /** Shows a view; the statistics are loaded again, as the Termin may have changed. */
+  async function showView(next: View): Promise<void> {
+    view = next;
+    if (next === 'verlauf') await refreshOverview();
   }
 
   function changeDate(value: string): void {
@@ -128,6 +132,7 @@
               changeDate(selectedDate);
               view = 'erfassen';
             }}
+            ondelete={refreshOverview}
           />
         {/key}
       {/if}

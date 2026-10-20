@@ -67,10 +67,12 @@ import {
   anwesenheitOverview,
   anwesenheitSlug,
   anwesenheitTermin,
+  deleteAnwesenheitTermin,
   markAnwesenheitAbsent,
-  markAnwesenheitPresent,
+  markAnwesenheitChild,
   removeAnwesenheitGuest,
   saveAnwesenheitNotes,
+  setAnwesenheitCancelled,
 } from './mock-data/anwesenheit';
 import {
   createEditorProtokoll,
@@ -1785,9 +1787,21 @@ route('GET', '/api/intern/anwesenheit/:stufe/:datum', (req) => {
   return slug ? json(anwesenheitTermin(slug, req.params.datum)) : notFound();
 });
 
-route('PUT', '/api/intern/pflege/anwesenheit/:stufe/:datum', (req) => {
+const ANWESENHEIT_CANCELLED = (): MockResult =>
+  error(
+    400,
+    'VALIDATION',
+    'Diese Gruppenstunde ist als ausgefallen markiert. Nimm „Ausgefallen“ zurück, um Kinder einzutragen.',
+    { cancelled: 'Ausgefallen' }
+  );
+
+route(['PUT', 'DELETE'], '/api/intern/pflege/anwesenheit/:stufe/:datum', (req) => {
   const slug = anwesenheitSlugOf(req);
   if (!slug) return notFound();
+  if (req.method === 'DELETE') {
+    deleteAnwesenheitTermin(slug, req.params.datum);
+    return noContent();
+  }
   const body = req.json ?? {};
   const etag = typeof body.etag === 'string' ? body.etag : null;
   const saved = saveAnwesenheitNotes(slug, req.params.datum, str(body.notes), etag);
@@ -1803,7 +1817,26 @@ route(['PUT', 'DELETE'], '/api/intern/pflege/anwesenheit/:stufe/:datum/kinder/:i
     markAnwesenheitAbsent(slug, req.params.datum, req.params.id);
     return noContent();
   }
-  return markAnwesenheitPresent(slug, req.params.datum, req.params.id) ? noContent() : notFound();
+  const status = req.json?.status;
+  if (status !== 'anwesend' && status !== 'entschuldigt') {
+    return error(400, 'VALIDATION', 'Bitte eine gültige Auswahl treffen.', { status: 'Auswahl' });
+  }
+  const result = markAnwesenheitChild(
+    slug,
+    req.params.datum,
+    req.params.id,
+    status === 'entschuldigt'
+  );
+  if (result === 'cancelled') return ANWESENHEIT_CANCELLED();
+  return result === 'ok' ? noContent() : notFound();
+});
+
+route('PUT', '/api/intern/pflege/anwesenheit/:stufe/:datum/ausgefallen', (req) => {
+  const slug = anwesenheitSlugOf(req);
+  if (!slug) return notFound();
+  const cancelled = req.json?.cancelled;
+  if (typeof cancelled !== 'boolean') return error(400, 'VALIDATION', 'Ungültige Angabe.');
+  return json({ etag: setAnwesenheitCancelled(slug, req.params.datum, cancelled) });
 });
 
 route('POST', '/api/intern/pflege/anwesenheit/:stufe/:datum/gaeste', (req) => {
@@ -1811,7 +1844,8 @@ route('POST', '/api/intern/pflege/anwesenheit/:stufe/:datum/gaeste', (req) => {
   if (!slug) return notFound();
   const name = str(req.json?.name).trim();
   if (!name) return error(400, 'VALIDATION', 'Bitte einen Namen angeben.', { name: 'Pflichtfeld' });
-  return json(addAnwesenheitGuest(slug, req.params.datum, name), 201);
+  const guest = addAnwesenheitGuest(slug, req.params.datum, name);
+  return guest ? json(guest, 201) : ANWESENHEIT_CANCELLED();
 });
 
 route('DELETE', '/api/intern/pflege/anwesenheit/:stufe/:datum/gaeste/:id', (req) => {

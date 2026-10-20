@@ -49,6 +49,7 @@ import { StaffFavorites } from './endpoints/intern-favoriten';
 import { StaffRecent } from './endpoints/intern-zuletzt';
 import { StaffSettings } from './endpoints/intern-einstellungen';
 import {
+  AnwesenheitCancelled,
   AnwesenheitChild,
   AnwesenheitGuest,
   AnwesenheitGuests,
@@ -462,10 +463,17 @@ app.http('internAnwesenheitTermin', {
 });
 
 app.http('internPflegeAnwesenheitNotes', {
-  methods: ['PUT'],
+  methods: ['PUT', 'DELETE'],
   authLevel: 'anonymous',
   route: 'intern/pflege/anwesenheit/{stufe}/{datum}',
   handler: AnwesenheitNotes,
+});
+
+app.http('internPflegeAnwesenheitCancelled', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/anwesenheit/{stufe}/{datum}/ausgefallen',
+  handler: AnwesenheitCancelled,
 });
 
 app.http('internPflegeAnwesenheitChild', {

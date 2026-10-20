@@ -177,7 +177,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:24';
+const SEEDED_KEY = 'preview:seeded:25';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -432,9 +432,14 @@ const PREVIEW_NOTES = [
   'Erste Hilfe: Verbände anlegen.',
 ];
 
+/** Index of the recent Termin that is seeded as cancelled, and of the one without notes. */
+const PREVIEW_CANCELLED = 5;
+const PREVIEW_WITHOUT_NOTES = 6;
+
 /**
  * Weekly Termine of the last eight weeks per Stufe and two from before the retention period,
- * with invented contents and guests. Members are stored as anonymized rows, so no CampFlow ID
+ * with invented contents, excused children and guests; one Termin is cancelled and one has no
+ * notes. Members are stored as anonymized rows, so no CampFlow ID
  * gets into a preview. The dates count from the Monday of the current week, so a retry in the
  * same week adds only the Termine that are missing.
  */
@@ -456,22 +461,29 @@ export async function seedPreviewAttendance(now: Date = new Date()): Promise<voi
           .where('date', '=', date)
           .executeTakeFirst();
         if (exists) return;
+        const cancelled = index === PREVIEW_CANCELLED;
+        const notes = cancelled
+          ? 'Fällt aus wegen der Ferien.'
+          : index === PREVIEW_WITHOUT_NOTES
+            ? ''
+            : PREVIEW_NOTES[(index + offset) % PREVIEW_NOTES.length];
         const { id } = await trx
           .insertInto('gruppenstunde.meeting')
-          .values({
-            stufe,
-            date,
-            notes: PREVIEW_NOTES[(index + offset) % PREVIEW_NOTES.length],
-            updated_by: PREVIEW_ACTOR,
-          })
+          .values({ stufe, date, notes, cancelled, updated_by: PREVIEW_ACTOR })
           .output('inserted.id')
           .executeTakeFirstOrThrow();
-        const members = Array.from({ length: 5 + ((index + offset) % 4) }, () => ({
+        if (cancelled) return;
+        const member = (excused: boolean) => ({
           meeting_id: id,
           guest: false,
           person_id: null,
           guest_name: null,
-        }));
+          excused,
+        });
+        const members = [
+          ...Array.from({ length: 5 + ((index + offset) % 4) }, () => member(false)),
+          ...Array.from({ length: 1 + (index % 2) }, () => member(true)),
+        ];
         const guests =
           index % 3 === 0
             ? [
