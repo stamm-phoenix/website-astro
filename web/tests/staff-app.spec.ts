@@ -299,7 +299,9 @@ test('in the iPhone app the rows of a template come back as soon as they are add
   const leftOver = dialog.getByRole('region', { name: 'Noch nicht eingesetzt' });
   await expect(leftOver).toContainText('Einkauf planen');
   await expect(leftOver).toContainText('Bus buchen');
-  await expect(dialog.getByText('Den Rest findest du darunter.')).toBeVisible();
+  await expect(
+    dialog.getByText('Den Rest findest du im Abschnitt „Noch nicht eingesetzt“.')
+  ).toBeVisible();
 
   // A second new login before the rows are added keeps them too
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
@@ -1049,13 +1051,11 @@ test('in the iPhone app a saved receipt photo no longer needs a warning and keep
     context.fillRect(60, 60, 280, 480);
     return canvas.toDataURL('image/png').split(',')[1];
   });
-  await dialog
-    .locator('input[type=file]')
-    .setInputFiles({
-      name: 'receipt.png',
-      mimeType: 'image/png',
-      buffer: Buffer.from(photo, 'base64'),
-    });
+  await dialog.locator('input[type=file]').setInputFiles({
+    name: 'receipt.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(photo, 'base64'),
+  });
   await dialog.getByRole('button', { name: 'Neues Foto speichern', exact: true }).click();
   await expect(dialog.getByText('Foto ersetzt.', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
@@ -1067,4 +1067,133 @@ test('in the iPhone app a saved receipt photo no longer needs a warning and keep
   await expect(
     dialog.getByText('wieder eingesetzt. Prüf sie und speichere.', { exact: false })
   ).toBeVisible();
+});
+
+for (const keep of ['positiveTags', 'negativeTags'] as const) {
+  test(`in the iPhone app helper wishes recover ${keep} and cleared opposite wishes`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const data = await (await page.request.get('/api/intern/nikolaus/helfende')).json();
+    const person = data.persons.find((entry: { name: string }) => entry.name === 'Katharina Huber');
+    await page.request.patch(`/api/intern/pflege/nikolaus-helfende/${person.id}`, {
+      data: {
+        ...person,
+        positiveTags: ['Old preferred'],
+        negativeTags: ['Old restriction'],
+      },
+    });
+    await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+    await page.route(`**/api/intern/pflege/nikolaus-helfende/${person.id}`, (route) =>
+      route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
+    );
+    await page.goto('/leitendenbereich/nikolaus-helfende?ansicht=helfende');
+    const open = page.getByRole('button', { name: /^Bearbeiten.*Katharina Huber/ });
+    await open.click();
+    const dialog = page.getByRole('dialog', { name: 'Person bearbeiten', exact: true });
+    for (const tag of ['Old preferred', 'Old restriction']) {
+      await dialog.getByRole('button', { name: `${tag} entfernen`, exact: true }).click();
+    }
+    const label = keep === 'positiveTags' ? 'Bevorzugt zu Familien mit' : 'Nicht zu Familien mit';
+    await dialog.getByLabel(label, { exact: false }).fill('Recovery wish');
+    await dialog.getByLabel(label, { exact: false }).press('Enter');
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+    await open.click();
+    await expect(
+      dialog.getByRole('button', { name: 'Recovery wish entfernen', exact: true })
+    ).toBeVisible();
+    for (const tag of ['Old preferred', 'Old restriction']) {
+      await expect(
+        dialog.getByRole('button', { name: `${tag} entfernen`, exact: true })
+      ).toHaveCount(0);
+    }
+    await page.unroute(`**/api/intern/pflege/nikolaus-helfende/${person.id}`);
+    const write = page.waitForRequest(
+      (request) =>
+        request.method() === 'PATCH' && request.url().endsWith(`/nikolaus-helfende/${person.id}`)
+    );
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    const saved = (await write).postDataJSON();
+    expect(saved.positiveTags).toEqual(keep === 'positiveTags' ? ['Recovery wish'] : []);
+    expect(saved.negativeTags).toEqual(keep === 'negativeTags' ? ['Recovery wish'] : []);
+    await expect(dialog).toBeHidden();
+    await page.request.patch(`/api/intern/pflege/nikolaus-helfende/${person.id}`, { data: person });
+  });
+}
+
+test('in the iPhone app a long conflicting answer leaves fields and save accessible on a phone', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const title = 'Recovery long answer';
+  const html = Array.from(
+    { length: 30 },
+    (_, index) =>
+      `<p>Geretteter Absatz ${index}: Dieser längere Text soll sich lesen und kopieren lassen.</p>`
+  ).join('');
+  const id = await conflictingQuestion(page, title, html);
+  const dialog = page.getByRole('dialog', { name: 'Frage bearbeiten', exact: true });
+  await dialog.getByLabel('Frage', { exact: true }).fill('My earlier question');
+  await returnToConflictingQuestion(page, id, title);
+  await expect(dialog.getByLabel('Frage', { exact: true })).toBeInViewport();
+  const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+  await expect(save).toBeInViewport();
+  const copy = dialog
+    .getByRole('region', { name: 'Noch nicht eingesetzt' })
+    .getByRole('button', { name: 'Antwort kopieren', exact: true });
+  await copy.scrollIntoViewIfNeeded();
+  await expect(save).toBeInViewport();
+  await copy.click();
+  const answer = dialog.getByRole('textbox', { name: 'Antwort', exact: true });
+  await answer.click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.press('ControlOrMeta+V');
+  await expect(answer).toContainText('Geretteter Absatz 29');
+  await dialog.getByLabel('Frage', { exact: true }).fill('Manually reviewed question');
+  await expect(dialog.getByLabel('Frage', { exact: true })).toBeInViewport();
+  await expect(save).toBeInViewport();
+  await page.request.delete(`/api/intern/pflege/qa/${id}`);
+});
+
+test('in the iPhone app many missing template rows leave copying and adding rows accessible', async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.request.post('/api/__mock/aufgaben/reset');
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route('**/api/intern/pflege/aufgaben/vorlagen', (route) =>
+    route.request().method() === 'POST' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aufgaben/vorlagen');
+  const open = page.getByRole('button', { name: 'Vorlage anlegen' });
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: 'Vorlage' });
+  await dialog.getByLabel('Titel', { exact: true }).fill('Recovery long template');
+  const add = dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen', exact: true });
+  for (let index = 0; index < 8; index++) {
+    if (index) await add.click();
+    await dialog.getByLabel('Aufgabentitel').nth(index).fill(`Gerettete Aufgabe ${index}`);
+    await dialog.getByLabel('Tage vor der Aktion').nth(index).fill('14');
+  }
+  const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+  await save.click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await open.click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toBeInViewport();
+  await expect(save).toBeInViewport();
+  const copy = dialog
+    .getByRole('region', { name: 'Noch nicht eingesetzt' })
+    .getByRole('button', { name: 'Aufgabentitel kopieren', exact: true })
+    .first();
+  await copy.click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('Gerettete Aufgabe 1');
+  await expect(save).toBeInViewport();
+  await add.click();
+  await expect(dialog.getByLabel('Aufgabentitel').nth(1)).toHaveValue('Gerettete Aufgabe 1');
+  await dialog.getByLabel('Aufgabentitel').nth(1).fill('Aufgabe überarbeitet');
+  await expect(save).toBeInViewport();
 });

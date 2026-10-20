@@ -12,6 +12,7 @@
   import FormField from './pflege/FormField.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import TagInput from './pflege/TagInput.svelte';
+  import type { RescueField } from '../lib/geretteteEingaben';
 
   interface Props {
     data: StaffNikolausHelfendeData;
@@ -32,6 +33,24 @@
   }
 
   let form = $state<Form | null>(null);
+  function tagRecovery(field: 'positiveTags' | 'negativeTags', label: string): RescueField {
+    return {
+      key: `${label}#custom`,
+      get: () => JSON.stringify(form?.[field] ?? []),
+      describe: (value) => (JSON.parse(value) as string[]).join(', '),
+      set(value) {
+        try {
+          const tags: unknown = JSON.parse(value);
+          if (!form || !Array.isArray(tags) || !tags.every((tag) => typeof tag === 'string'))
+            return false;
+          form[field] = tags;
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    };
+  }
   let busy = $state(false);
   let initialTags = $state('');
   const tagsDirty = $derived(
@@ -321,6 +340,10 @@
   title={form?.id ? 'Person bearbeiten' : 'Person hinzufügen'}
   rescueKey={form ? `helfende:${form.id ?? 'neu'}` : undefined}
   rescueVersion={form?.etag}
+  rescueFields={[
+    tagRecovery('positiveTags', 'Bevorzugt zu Familien mit'),
+    tagRecovery('negativeTags', 'Nicht zu Familien mit'),
+  ]}
   {busy}
   dirty={tagsDirty}
   {error}
