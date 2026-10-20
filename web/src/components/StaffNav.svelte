@@ -13,7 +13,7 @@
   } from '../lib/staffFavoritesStore.svelte';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
   import Toast from './ui/Toast.svelte';
-  import { loadRecent, recentStore, recordVisit } from '../lib/staffRecentStore.svelte';
+  import { loadRecent, recordVisit } from '../lib/staffRecentStore.svelte';
   import {
     STAFF_DEFAULT_QUICK,
     STAFF_FAVORITE_PATHS,
@@ -69,24 +69,17 @@
     },
   ]);
 
-  // Favorites first, then the recently used areas, filled up with the usual ones
+  // Stable shortcuts: favorites first, filled up with the usual areas.
   // Without favorites (load failed, login not checked) the bar still fills up
   const ready = $derived(
-    recentStore.loaded &&
-      (nikolausStatusStore.data !== null || nikolausStatusStore.error !== null) &&
+    (nikolausStatusStore.data !== null || nikolausStatusStore.error !== null) &&
       (favoritesStore.loaded ||
         favoritesStore.loadError !== null ||
         (!authStore.loading && !authStore.principal))
   );
   const quick = $derived.by(() => {
-    const picked = yourStaffModules(
-      favoritesStore.loaded ? favoritesStore.modules : [],
-      recentStore.modules,
-      allModules,
-      QUICK_COUNT
-    );
     return yourStaffModules(
-      picked.map((entry) => entry.href),
+      favoritesStore.loaded ? favoritesStore.modules : [],
       STAFF_DEFAULT_QUICK,
       allModules,
       QUICK_COUNT

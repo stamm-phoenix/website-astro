@@ -455,7 +455,7 @@ export function staffBreadcrumbs(page: StaffPage): StaffPage[] {
   return [...staffBreadcrumbs(parent), parent];
 }
 
-/** The bar on the phone offers these until the person has favorites or recently used areas. */
+/** The bar on the phone offers these to fill places not occupied by favorites. */
 export const STAFF_DEFAULT_QUICK: string[] = [
   '/leitendenbereich/aufgaben',
   '/leitendenbereich/belege',

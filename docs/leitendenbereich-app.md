@@ -10,13 +10,13 @@ Leitende können den Leitendenbereich auf den Startbildschirm legen. Er öffnet 
 
 ## Bausteine
 
-| Datei                                                          | Aufgabe                                                                                                                           |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `web/public/leitendenbereich.webmanifest`                      | Name, Start-URL, Scope, Farben und Icons der App                                                                                  |
-| `web/src/pages/leitendenbereich-app.astro`                     | Startseite der App, leitet zur Übersicht oder zur Anmeldung weiter                                                                |
-| `web/src/layouts/StaffLayout.astro`                            | Verlinkt das Manifest und das Apple-Icon nur auf Seiten des Leitendenbereichs. Zeigt ohne Verbindung einen Hinweis oben im Inhalt |
-| `web/public/app-icon-*.png`, `web/public/apple-touch-icon.png` | Icons, erzeugt mit `bun scripts/app-icons.ts` (in `web/`) aus `src/assets/stammeslilie.svg`                                       |
-| `web/public/staticwebapp.config.json`                          | `mimeTypes` liefert das Manifest als `application/manifest+json` aus                                                              |
+| Datei                                                                                     | Aufgabe                                                                                                                           |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `web/public/leitendenbereich.webmanifest`                                                 | Name, Start-URL, Scope, Farben und Icons der App                                                                                  |
+| `web/src/pages/leitendenbereich-app.astro`                                                | Startseite der App, leitet zur Übersicht oder zur Anmeldung weiter                                                                |
+| `web/src/layouts/StaffLayout.astro`                                                       | Verlinkt das Manifest und das Apple-Icon nur auf Seiten des Leitendenbereichs. Zeigt ohne Verbindung einen Hinweis oben im Inhalt |
+| `web/public/app-icon.svg`, `web/public/app-icon-*.png`, `web/public/apple-touch-icon.png` | Icons, erzeugt mit `bun scripts/app-icons.ts` (in `web/`) aus `src/assets/stammeslilie.svg`                                       |
+| `web/public/staticwebapp.config.json`                                                     | `mimeTypes` liefert das Manifest als `application/manifest+json` aus                                                              |
 
 ## Start über `/leitendenbereich-app/`
 
@@ -50,7 +50,7 @@ Die Folge: Öffentliche Seiten wie „Zur Website“ erscheinen ebenfalls im App
 - **Android schneidet das Icon zu.** Der Launcher nutzt `app-icon-maskable-512.png` und schneidet es rund oder eckig zu. Die Lilie liegt deshalb mit mehr Rand in der sicheren Zone.
 - **Chrome färbt die Statusleiste nach der Seite.** Chrome nimmt für die Statusleiste die `theme-color`, die `BaseLayout.astro` und `web/src/lib/theme.ts` für das helle oder dunkle Thema setzen, auch nach dem Umschalten in der App. Die Navigationsleiste unten nimmt ab Chrome 156 die `theme_color` aus dem Manifest.
 - **Firefox färbt nur nach dem Manifest.** Die installierte Firefox-App nimmt für die Statusleiste die `theme_color` und macht die Navigationsleiste schwarz oder weiß, je nachdem wie dunkel `background_color` ist (`toCustomTabConfig()` in android-components). Die Seite und ihr Thema ändern daran nichts.
-- **Ein Manifest kennt nur eine Farbe.** Dunkle Varianten gibt es erst als Vorschlag ([w3c/manifest#1207](https://github.com/w3c/manifest/pull/1207)). `theme_color` ist deshalb das dunkle `#101b26`, `background_color` (Startbildschirm) DPSG-Blau `#003056`. Im hellen Modus bleiben damit in Firefox beide Leisten und in Chrome die untere dunkel.
+- **Ein Manifest kennt nur eine Farbe.** Dunkle Varianten gibt es erst als Vorschlag ([w3c/manifest#1207](https://github.com/w3c/manifest/pull/1207)). `theme_color` ist deshalb das dunkle `#101b26`, `background_color` (Startbildschirm und Android-Fallback für die Systemleiste) ebenfalls `#101b26`. Im hellen Modus bleiben damit in Firefox beide Leisten und in Chrome die untere dunkel.
 
 ## Auf Geräten prüfen
 
@@ -63,3 +63,7 @@ Diese Schritte sind auf einem Android-Gerät und einem iPhone durchzugehen:
 5. **Abmelden** antippen. Die App zeigt „Du bist abgemeldet“. Danach die App neu starten: Sie fragt wieder nach der Anmeldung.
 6. Den Flugmodus einschalten. Auf einer offenen Seite erscheint „Keine Verbindung zum Internet.“.
 7. Nur iPhone: Die App nach einer längeren Pause wieder öffnen, bis die Anmeldung abgelaufen ist. Dann etwas speichern, **Neu anmelden** antippen und prüfen, dass Speichern danach wieder klappt.
+
+## Aktualisierung von Icons und Systemfarben
+
+Das Manifest enthält ein skalierbares SVG-Icon sowie PNG-Versionen bis 1024 Pixel, direkt aus der Vektorlilie erzeugt. Android verwaltet Startlogo und Systemleisten außerhalb der Webseite. Bereits installierte WebAPKs übernehmen Manifeständerungen erst nach einer Aktualisierung durch Chrome. Wenn noch das alte, farbige Logo oder eine helle Systemleiste erscheint, die App entfernen und über Chrome neu installieren. Auf einem echten Gerät prüfen; die Browser-Vorschau bildet diese Leiste und den Startbildschirm nicht ab.
