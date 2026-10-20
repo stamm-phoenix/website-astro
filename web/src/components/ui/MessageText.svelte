@@ -27,7 +27,7 @@
   let rescueFailed = $state(false);
 
   function keepInput(event: MouseEvent): void {
-    if (!rescue || rescueFailed || rescue.rescue()) return;
+    if (!rescue?.enabled() || rescueFailed || rescue.rescue()) return;
     event.preventDefault();
     rescueFailed = true;
   }
@@ -41,7 +41,7 @@
     {#if rescueFailed}
       Deine Eingaben ließen sich auf diesem Gerät nicht sichern. Kopiere sie selbst, bevor du dich
       neu anmeldest.
-    {:else if rescue}
+    {:else if rescue?.enabled()}
       In der App auf dem Home-Bildschirm lädt das Anmelden diese Seite neu. Öffne danach dieses
       Formular wieder, dann setzt es deine Eingaben selbst ein.
     {:else}
