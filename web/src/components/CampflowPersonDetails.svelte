@@ -32,10 +32,12 @@
     columns: CampflowColumn[];
     /** The person's Beiträge from CampFlow; `undefined` while they load or could not be read. */
     beitraege?: AktionBeitrag[];
+    /** IDs of the own registrations, matched by the server (`ich` of the Aktion). */
+    eigene?: readonly string[];
     onclose: () => void;
   }
 
-  let { person, event, columns, beitraege, onclose }: Props = $props();
+  let { person, event, columns, beitraege, eigene = [], onclose }: Props = $props();
 
   const fields = $derived(
     person
@@ -47,7 +49,7 @@
 
 <ModalDialog
   open={person !== null}
-  title={person ? `${formatName(person)}${isIchCampflow(person) ? ' (ich)' : ''}` : ''}
+  title={person ? `${formatName(person)}${isIchCampflow(person, eigene) ? ' (ich)' : ''}` : ''}
   closeLabel="Details schließen"
   size="wide"
   dismissOnBackdrop

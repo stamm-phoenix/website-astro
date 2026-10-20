@@ -21,6 +21,7 @@ import type {
   ProtokollSperre,
 } from '../../src/lib/types';
 import { dayFromToday, isoFromNow } from './util';
+import { mockMitEigenerAdresse } from './personen';
 
 /**
  * Minutes of the Protokoll-Editor in the mock API: lock, versions and revisions work as on the
@@ -545,7 +546,11 @@ export function versandEditorProtokoll(
   }
   if (body.action === 'preview') {
     return {
-      ok: { recipients: MOCK_VERSAND_LIST.length, version: 'mock-v1', list: MOCK_VERSAND_LIST },
+      ok: {
+        recipients: MOCK_VERSAND_LIST.length,
+        version: 'mock-v1',
+        list: mockMitEigenerAdresse(MOCK_VERSAND_LIST),
+      },
     };
   }
   if (body.etag !== etagOf(p)) return { conflict: true };

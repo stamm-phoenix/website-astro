@@ -419,7 +419,12 @@ test('approved minutes are reserved, mailed in blind copy and then marked as sen
     request('POST', { action: 'preview' }, { id: 'P1', principal: REVIEWER }),
     context
   );
-  assert.deepEqual(preview.jsonBody, { recipients: 1, version: VERSION, list: [RECIPIENT] });
+  // The own address is marked on the server; the logged-in test account is not linked
+  assert.deepEqual(preview.jsonBody, {
+    recipients: 1,
+    version: VERSION,
+    list: [{ ...RECIPIENT, ich: false }],
+  });
 
   const response = await ProtokollVersand(
     request(

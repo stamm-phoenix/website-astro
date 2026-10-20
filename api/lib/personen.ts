@@ -207,9 +207,11 @@ export async function getCampflowPersonId(login: string): Promise<string | undef
 
 /** How long name and address of a CampFlow person stay in memory at most (`/datenschutz`). */
 export const ICH_CACHE_MS = 10 * 60_000;
+/** The linked person with its primary address, which stays on the server. */
+type Verknuepfte = NonNullable<Ich['campflow']> & { email: string };
 interface IchEintrag {
   at: number;
-  campflow: NonNullable<Ich['campflow']>;
+  campflow: Verknuepfte;
 }
 const ichCache = new Map<string, IchEintrag>();
 
@@ -235,22 +237,69 @@ function forgetIch(): void {
 }
 
 /**
- * The logged-in person with name and primary address of their CampFlow person, so pages can
- * recognize their registrations to events, which CampFlow keeps as persons of their own. If
- * CampFlow fails, the ID alone is returned.
+ * The CampFlow person linked to a login, with name and primary address, from memory or CampFlow;
+ * `null` without a link. If CampFlow fails, the ID alone is returned.
  */
-export async function getIch(login: string, now: number = Date.now()): Promise<Ich> {
+async function getVerknuepfte(login: string, now: number): Promise<Verknuepfte | null> {
   const id = await getCampflowPersonId(login);
-  if (!id) return { login, campflow: null };
+  if (!id) return null;
   const cached = ichCache.get(id);
-  if (cached && now - cached.at < ICH_CACHE_MS) return { login, campflow: cached.campflow };
+  if (cached && now - cached.at < ICH_CACHE_MS) return cached.campflow;
   try {
     const person = await campflowGet<CampflowPerson>(`${MEMBER_PERSONS}/${encodeURIComponent(id)}`);
     const campflow = { id, ...names(person), email: text(person.primary_email).toLowerCase() };
     rememberIch(id, campflow, now);
-    return { login, campflow };
+    return campflow;
   } catch (error: unknown) {
     if (!(error instanceof CampflowError)) throw error;
-    return { login, campflow: { id, firstName: '', lastName: '', email: '' } };
+    return { id, firstName: '', lastName: '', email: '' };
   }
+}
+
+/**
+ * The logged-in person with the name of their CampFlow person (`GET /api/intern/ich`), without
+ * the address: own registrations to events are matched on the server (`eigeneAnmeldungen`).
+ */
+export async function getIch(login: string, now: number = Date.now()): Promise<Ich> {
+  const linked = await getVerknuepfte(login, now);
+  if (!linked) return { login, campflow: null };
+  const { id, firstName, lastName } = linked;
+  return { login, campflow: { id, firstName, lastName } };
+}
+
+/**
+ * IDs of the persons with the primary address of the CampFlow person linked to the login, e.g.
+ * own registrations to an Aktion, which CampFlow keeps as persons of their own. Only the IDs
+ * leave the server. Empty without a link or address, and when the link cannot be read: it only
+ * marks entries with „(ich)“, so it never makes a page fail.
+ */
+export async function eigeneAnmeldungen(
+  login: string,
+  persons: readonly { id: string; primary_email?: unknown }[],
+  now: number = Date.now()
+): Promise<string[]> {
+  let email: string;
+  try {
+    email = (await getVerknuepfte(login.trim().toLowerCase(), now))?.email ?? '';
+  } catch {
+    return [];
+  }
+  if (!email) return [];
+  return persons
+    .filter((person) => text(person.primary_email).toLowerCase() === email)
+    .map((p) => p.id);
+}
+
+/** The recipients of minutes with `ich` for the own address; the addresses are on the list anyway. */
+export async function mitEigenerAdresse<T extends { email: string }>(
+  login: string,
+  recipients: readonly T[]
+): Promise<(T & { ich: boolean })[]> {
+  const eigene = new Set(
+    await eigeneAnmeldungen(
+      login,
+      recipients.map((recipient) => ({ id: recipient.email, primary_email: recipient.email }))
+    )
+  );
+  return recipients.map((recipient) => ({ ...recipient, ich: eigene.has(recipient.email) }));
 }

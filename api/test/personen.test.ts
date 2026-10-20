@@ -6,7 +6,14 @@ import { Ich } from '../endpoints/intern-ich';
 import { PersonItem, PersonenCollection } from '../endpoints/intern-pflege-personen';
 import * as campflow from '../lib/campflow';
 import { CampflowError } from '../lib/campflow';
-import { ICH_CACHE_MS, cachedIch, rememberIch, toCampflowMitglied } from '../lib/personen';
+import {
+  ICH_CACHE_MS,
+  cachedIch,
+  eigeneAnmeldungen,
+  mitEigenerAdresse,
+  rememberIch,
+  toCampflowMitglied,
+} from '../lib/personen';
 import type { CampflowMitglied, Ich as IchBody, PersonenUebersicht } from '../lib/personen-model';
 import { campflowVorschlaege, istVerknuepftePerson } from '../lib/personen-model';
 import { ValidationError, validatePerson } from '../lib/pflege-validation';
@@ -129,7 +136,7 @@ test('a CampFlow person is suggested only for an unambiguous name', () => {
 });
 
 test('the linked person is recognized in the member list and in registrations', () => {
-  const max = { id: 'per_Max1', firstName: 'Max', lastName: 'Muster', email: 'max@example.org' };
+  const max = { id: 'per_Max1', firstName: 'Max', lastName: 'Muster' };
   // The member list: only the ID decides, a namesake is someone else
   assert.equal(
     istVerknuepftePerson(max, { id: 'per_Max1', name: 'Max Muster', mitglied: true }),
@@ -139,21 +146,17 @@ test('the linked person is recognized in the member list and in registrations', 
     istVerknuepftePerson(max, { id: 'per_Max2', name: 'Max Muster', mitglied: true }),
     false
   );
-  // A registration to an event is a person of its own: its address or name tells
-  assert.equal(
-    istVerknuepftePerson(max, { id: 'per_Anmeldung', email: ' MAX@example.org ' }),
-    true
-  );
+  // A registration to an event is a person of its own: the server matched its address, or the
+  // name tells; the server's match also counts while the link is not loaded yet
+  assert.equal(istVerknuepftePerson(max, { id: 'per_Anmeldung', ich: true }), true);
+  assert.equal(istVerknuepftePerson(null, { id: 'per_Anmeldung', ich: true }), true);
   assert.equal(istVerknuepftePerson(max, { id: 'per_Anmeldung', name: 'max  muster' }), true);
   // Nothing the link can tell, or no link: the name of the Microsoft account decides
   assert.equal(istVerknuepftePerson(max, { id: 'per_Anmeldung', name: 'Lea Leiterin' }), undefined);
   assert.equal(istVerknuepftePerson(null, { id: 'per_Max1', mitglied: true }), undefined);
-  // CampFlow was not reachable: the ID still decides, an empty address matches nobody
-  const nurId = { id: 'per_Max1', firstName: '', lastName: '', email: '' };
-  assert.equal(
-    istVerknuepftePerson(nurId, { id: 'per_X', email: '', name: 'Max Muster' }),
-    undefined
-  );
+  // CampFlow was not reachable: the ID still decides, an empty name matches nobody
+  const nurId = { id: 'per_Max1', firstName: '', lastName: '' };
+  assert.equal(istVerknuepftePerson(nurId, { id: 'per_X', name: 'Max Muster' }), undefined);
 });
 
 test('name and address of a CampFlow person leave the memory after ten minutes', (t) => {
@@ -317,7 +320,6 @@ dbTest('the logged-in person learns their CampFlow person', async (t) => {
       id: 'per_IchAnna',
       firstName: 'Anna',
       lastName: 'Autorin',
-      email: 'anna@example.org',
     },
   };
   assert.deepEqual(await ich(ANNA.toUpperCase()), expected);
@@ -339,6 +341,22 @@ dbTest('the logged-in person learns their CampFlow person', async (t) => {
   // Without CampFlow the ID alone still identifies the person
   assert.deepEqual(await ich(BEN), {
     login: BEN,
-    campflow: { id: 'per_IchBen', firstName: '', lastName: '', email: '' },
+    campflow: { id: 'per_IchBen', firstName: '', lastName: '' },
   });
+  // The address stays on the server: it finds own registrations by it and returns their IDs
+  const anmeldungen = [
+    { id: 'per_Anmeldung1', primary_email: ' anna@EXAMPLE.org' },
+    { id: 'per_Anmeldung2', primary_email: 'jemand@example.org' },
+    { id: 'per_Anmeldung3' },
+  ];
+  assert.deepEqual(await eigeneAnmeldungen(ANNA, anmeldungen), ['per_Anmeldung1']);
+  assert.deepEqual(
+    (
+      await mitEigenerAdresse(ANNA, [{ email: 'anna@example.org' }, { email: 'b@example.org' }])
+    ).map((recipient) => recipient.ich),
+    [true, false]
+  );
+  // Without a link, or without an address in CampFlow, nothing is marked
+  assert.deepEqual(await eigeneAnmeldungen('niemand@stamm-phoenix.de', anmeldungen), []);
+  assert.deepEqual(await eigeneAnmeldungen(BEN, [{ id: 'per_X', primary_email: '' }]), []);
 });

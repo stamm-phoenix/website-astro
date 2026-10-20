@@ -373,7 +373,7 @@
                         ? ', '
                         : ''}{person.firstName}
                     </span>
-                    {#if isIch({ id: person.id, name: fullName(person) })}
+                    {#if isIch( { id: person.id, name: fullName(person), ich: abrechnung.ich?.includes(person.id) } )}
                       <span class="text-neutral-700">(ich)</span>
                     {/if}
                     {#if isExtra(person)}

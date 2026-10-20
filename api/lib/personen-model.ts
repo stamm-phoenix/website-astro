@@ -62,8 +62,6 @@ export interface Ich {
     /** Empty if CampFlow could not be read; the ID still identifies the person. */
     firstName: string;
     lastName: string;
-    /** Primary address in CampFlow, lowercase, or empty. */
-    email: string;
   } | null;
 }
 
@@ -117,7 +115,11 @@ export interface PersonMerkmale {
   /** CampFlow ID; only persons of the member list have the linked one. */
   id?: string | null;
   name?: string | null;
-  email?: string | null;
+  /**
+   * The server found the person to be an own registration, by the primary address of the linked
+   * person; the address itself never reaches the browser.
+   */
+  ich?: boolean;
   /**
    * A person of the CampFlow member list, not a registration: with a link only the ID decides,
    * so a namesake is never „ich“.
@@ -127,19 +129,18 @@ export interface PersonMerkmale {
 
 /**
  * Whether the linked CampFlow person says a person is the logged-in one: `true` for the person
- * itself, a registration with its primary address (CampFlow keeps registrations to events as
- * persons of their own) or its name; `false` for another member; `undefined` when the link
- * cannot tell, so the name of the Microsoft account decides.
+ * itself, a registration the server matched by its primary address (CampFlow keeps registrations
+ * to events as persons of their own) or the same name; `false` for another member; `undefined`
+ * when the link cannot tell, so the name of the Microsoft account decides.
  */
 export function istVerknuepftePerson(
   campflow: Ich['campflow'],
   person: PersonMerkmale
 ): boolean | undefined {
+  if (person.ich) return true;
   if (!campflow) return undefined;
   if (person.id && person.id === campflow.id) return true;
   if (person.mitglied && person.id) return false;
-  const email = person.email?.trim().toLowerCase();
-  if (campflow.email && email === campflow.email) return true;
   if (person.name && sameName(`${campflow.firstName} ${campflow.lastName}`, person.name))
     return true;
   return undefined;

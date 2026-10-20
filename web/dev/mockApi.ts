@@ -44,6 +44,8 @@ import {
   deletePerson,
   mockIch,
   mockPersonen,
+  mockEigeneAnmeldungen,
+  mockMitEigenerAdresse,
   personenUebersicht,
   resetPersonen,
   updatePerson,
@@ -944,7 +946,9 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
   if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
     return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
   const detail = campflowDetail(req.params.id);
-  return detail ? json(detail) : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  return detail
+    ? json({ ...detail, ich: mockEigeneAnmeldungen(detail.persons) })
+    : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
 });
 
 route('GET', '/api/intern/aktionen/:id/beitraege', (req) => {
@@ -1085,7 +1089,10 @@ route('GET', '/api/intern/abrechnung/:id', (req) => {
       `Die Kostenstelle „${name}“ gibt es in CampFlow nicht.`
     );
   }
-  return json(result);
+  return json({
+    ...result,
+    ich: mockEigeneAnmeldungen(campflowDetail(req.params.id)?.persons ?? []),
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -1661,7 +1668,11 @@ route('POST', '/api/intern/pflege/protokolle/:id/versand', (req) => {
     return error(400, 'INVALID', 'Nur freigegebene Protokolle können verschickt werden.');
   }
   if (str(req.json?.action) === 'preview') {
-    return json({ recipients: MOCK_VERSAND_LIST.length, version: 'mock', list: MOCK_VERSAND_LIST });
+    return json({
+      recipients: MOCK_VERSAND_LIST.length,
+      version: 'mock',
+      list: mockMitEigenerAdresse(MOCK_VERSAND_LIST),
+    });
   }
   const recipients = mockVersandCount(strings(req.json?.excluded), strings(req.json?.extra));
   if (recipients === 0) return error(400, 'INVALID', 'Es ist niemand ausgewählt.');

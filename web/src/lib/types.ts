@@ -346,6 +346,8 @@ export interface CampflowEventDetail {
   event: CampflowEvent;
   columns: CampflowColumn[];
   persons: CampflowPerson[];
+  /** IDs of the own registrations, matched on the server by address (`docs/personen.md`). */
+  ich?: string[];
 }
 
 /** An entry of the public calendar as edited in the Leitendenbereich. */
@@ -445,6 +447,8 @@ export interface Abrechnung {
   costUnit: { id: string; name: string };
   /** Confirmed registrations, only the fields relevant for the Abrechnung. */
   persons: AbrechnungPerson[];
+  /** IDs of the own registrations, matched on the server by address (`docs/personen.md`). */
+  ich?: string[];
   bilanz: {
     incomeCent: number;
     /** Positive sum of all expenses. */

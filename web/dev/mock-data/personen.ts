@@ -159,8 +159,29 @@ export function mockIch(login: string): Ich {
           id: linked.id,
           firstName: linked.firstName,
           lastName: linked.lastName,
-          email: linked.id === 'per_MockDemo' ? MOCK_ICH_EMAIL : '',
         }
       : null,
   };
+}
+
+/** Address of the demo account's linked person; like the server, it never goes to the page. */
+function eigeneAdresse(): string {
+  const id = personen.find((p) => p.login === LOGIN)?.campflowPersonId;
+  return id === 'per_MockDemo' ? MOCK_ICH_EMAIL : '';
+}
+
+/** Like `eigeneAnmeldungen` of the API: IDs of the persons with the linked address. */
+export function mockEigeneAnmeldungen(
+  persons: { id: string; primary_email?: unknown }[]
+): string[] {
+  const email = eigeneAdresse();
+  return email ? persons.filter((p) => p.primary_email === email).map((p) => p.id) : [];
+}
+
+/** Like `mitEigenerAdresse` of the API: marks the recipient with the linked address. */
+export function mockMitEigenerAdresse<T extends { email: string }>(
+  list: T[]
+): (T & { ich: boolean })[] {
+  const email = eigeneAdresse();
+  return list.map((recipient) => ({ ...recipient, ich: !!email && recipient.email === email }));
 }

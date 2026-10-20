@@ -74,7 +74,7 @@ import { encodeContentDisposition, errorResponse, withErrorHandling } from '../l
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { getClaim, isStaffError, requireStaff } from '../lib/staff-auth';
 import { getTaskDirectoryUsers } from '../lib/task-directory';
-import { getPersonen } from '../lib/personen';
+import { getPersonen, mitEigenerAdresse } from '../lib/personen';
 
 /**
  * Protokoll-Editor (#277, `docs/protokoll-editor.md`): every logged-in leader may read all
@@ -232,10 +232,7 @@ export async function GetEditorRevisionEndpoint(request: HttpRequest): Promise<H
 export async function GetEditorPersonenEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const principal = requireStaff(request);
   if (isStaffError(principal)) return principal;
-  const [leitende, weitere] = await Promise.allSettled([
-    getTaskDirectoryUsers(),
-    getPersonen(),
-  ]);
+  const [leitende, weitere] = await Promise.allSettled([getTaskDirectoryUsers(), getPersonen()]);
   const personen = new Map<string, PersonOption>();
   const key = (person: ProtokollPerson): string =>
     person.login ? person.login.toLowerCase() : `name:${person.name.toLowerCase()}`;
@@ -501,7 +498,11 @@ export const EditorVersandEndpoint = pflegeHandler(
       }
       const version = audienceVersion(recipients);
       if (action === 'preview') {
-        return ok({ recipients: recipients.length, version, list: recipients });
+        return ok({
+          recipients: recipients.length,
+          version,
+          list: await mitEigenerAdresse(principal.userDetails, recipients),
+        });
       }
 
       if (body?.version !== version) {

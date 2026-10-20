@@ -469,7 +469,7 @@
                             />
                           {:else if column.key === 'name'}
                             <span class="font-semibold text-brand-900">{column.text(person)}</span>
-                            {#if isIchCampflow(person)}
+                            {#if isIchCampflow(person, detail.ich)}
                               <span class="text-neutral-700">(ich)</span>
                             {/if}
                           {:else if column.key === 'beitrag'}
@@ -527,7 +527,7 @@
                       <span
                         ><span class="font-semibold text-brand-900 group-hover:underline"
                           >{formatName(person)}</span
-                        >{#if isIchCampflow(person)}
+                        >{#if isIchCampflow(person, detail.ich)}
                           <span class="text-neutral-700">(ich)</span>{/if}</span
                       >
                       <span class="text-sm"
@@ -572,6 +572,7 @@
         {event}
         columns={detail.columns}
         beitraege={selected ? beitraegeOf(beitraegeDaten, selected) : undefined}
+        eigene={detail.ich}
         onclose={() => (selected = null)}
       />
     {/snippet}
