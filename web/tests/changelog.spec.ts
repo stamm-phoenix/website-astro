@@ -131,3 +131,18 @@ test('opening the menu keeps the message about a failed save', async ({ page }) 
   await expect(page.getByText('Nicht als gelesen gespeichert.')).toBeVisible();
   await expect(page.getByText('Die Zahl am Menü bleibt deshalb stehen.')).toBeVisible();
 });
+
+test('the news link in the menu is described by the number of unread entries', async ({ page }) => {
+  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/leitendenbereich');
+  await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
+  await page
+    .getByRole('navigation', { name: 'Schnellzugriff' })
+    .getByRole('button', { name: 'Menü', exact: true })
+    .click();
+  const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
+  await expect(sheet.getByRole('link', { name: /^Neuigkeiten/ })).toHaveAccessibleDescription(
+    '2 neue Neuigkeiten'
+  );
+});
