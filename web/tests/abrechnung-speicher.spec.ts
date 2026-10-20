@@ -225,3 +225,23 @@ test('a discarded load cannot overwrite a reopened draft or its unsaved warning'
   });
   expect(result).toEqual({ ort: 'Neue Eingabe nach dem Wiederöffnen', dirty: true });
 });
+
+test('an undated Aktion keeps its accounting and receipts accessible while explaining the save restriction', async ({
+  page,
+}) => {
+  await page.route('**/api/intern/abrechnung/evt_Sola26', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    data.event.start_date = null;
+    data.event.end_date = null;
+    await route.fulfill({ json: data });
+  });
+  await page.goto(URL);
+  await expect(page.getByRole('heading', { name: 'Einnahmen und Ausgaben' })).toBeVisible();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText('noch kein Datum in CampFlow');
+  await page.getByRole('tab', { name: /Leihgebühren/ }).click();
+  await page.getByLabel('Anzahl Jurte').fill('2');
+  await expect(page.getByRole('button', { name: 'Eingaben speichern' })).toBeDisabled();
+  await page.getByRole('tab', { name: /Einzelnachweise/ }).click();
+  await expect(page.getByRole('row', { name: /2026-103/ })).toBeVisible();
+});

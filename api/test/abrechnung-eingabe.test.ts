@@ -161,3 +161,34 @@ test('reading a draft obtains its current retention from CampFlow before touchin
     abrechnungDeleteAfter('2099-05-31'),
   ]);
 });
+
+test('an undated Aktion can still read its draft without accepting an invented deadline', async (t) => {
+  t.mock.method(campflow, 'getCampflowEvents', async () => [
+    { id: 'evt_Undated', start_date: null, end_date: null },
+  ]);
+  const read = t.mock.method(eingaben, 'getAbrechnungEingabe', async () => ({
+    session: emptySession(),
+    etag: null,
+    savedAt: null,
+    deleteAfter: null,
+  }));
+  const principal = {
+    identityProvider: 'aad',
+    userId: 'undated',
+    userDetails: 'undated@example.test',
+    userRoles: ['authenticated'],
+  };
+  const response = await AbrechnungEingabeEndpoint(
+    new HttpRequest({
+      url: 'https://example.test/api/intern/abrechnung/evt_Undated/eingaben',
+      method: 'GET',
+      params: { id: 'evt_Undated' },
+      headers: {
+        'x-ms-client-principal': Buffer.from(JSON.stringify(principal)).toString('base64'),
+      },
+    }),
+    new InvocationContext()
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(read.mock.calls[0].arguments, ['undated', 'evt_Undated', null]);
+});

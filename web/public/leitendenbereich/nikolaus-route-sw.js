@@ -9,7 +9,10 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 async function savedResponse(request, navigation) {
   const cache = await caches.open(CACHE);
   const meta = await cache.match(META);
-  const expiry = Number(meta ? await meta.text() : 0);
+  // Missing metadata also means a new shell is still being prepared. Never detach
+  // that cache while the saving page is filling it. Incomplete shells are not served.
+  if (!meta) return undefined;
+  const expiry = Number(await meta.text());
   if (!Number.isFinite(expiry) || expiry <= Date.now()) {
     await caches.delete(CACHE);
     return undefined;

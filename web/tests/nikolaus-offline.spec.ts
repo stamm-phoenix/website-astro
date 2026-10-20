@@ -255,3 +255,82 @@ test('deleting a restored snapshot clears the displayed family data', async ({ p
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toHaveCount(0);
 });
+
+test('expiry during preparation preserves the new deployment HTML and its dependencies', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date());
+  await page.goto(URL);
+  const save = page.getByRole('button', { name: 'Route für Funklöcher speichern' });
+  await expect(save).toBeVisible();
+  const html = `<!doctype html><html><head>
+    <link rel="stylesheet" href="/_astro/new-release.css">
+    <script type="module" src="/_astro/new-release-entry.js"></script>
+    </head><body>
+    <astro-island component-url="/_astro/new-release-component.js" renderer-url="/_astro/new-release-renderer.js"></astro-island>
+    <script type="module">import('/_astro/new-release-inline.js')</script>
+    </body></html>`;
+  await page.route('**/leitendenbereich/nikolaus-fahrt', (route) =>
+    route.fulfill({ contentType: 'text/html', body: html })
+  );
+  await page.evaluate(() => {
+    const state = window as unknown as { releaseAsset: () => void; assetRequested: boolean };
+    const pending = new Promise<void>((resolve) => {
+      state.releaseAsset = resolve;
+    });
+    const original = window.fetch;
+    window.fetch = async (input, init) => {
+      const path = new window.URL(String(input), location.href).pathname;
+      if (!path.startsWith('/_astro/new-release')) return original(input, init);
+      if (path.endsWith('entry.js')) {
+        state.assetRequested = true;
+        await pending;
+      }
+      return new Response(
+        path.endsWith('entry.js')
+          ? "import './new-release-dependency.js';"
+          : path.endsWith('.css')
+            ? "@font-face { font-family: demo; src: url('./new-release-font.woff2'); }"
+            : '',
+        { headers: { 'content-type': path.endsWith('.css') ? 'text/css' : 'text/javascript' } }
+      );
+    };
+  });
+  await save.click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { assetRequested: boolean }).assetRequested)
+    )
+    .toBe(true);
+  await page.evaluate(async () => {
+    const path = '/src/lib/nikolausFahrtStore.svelte.ts';
+    const store = await import(path);
+    void store.expireNikolausRoute();
+  });
+  await page.evaluate(() => (window as unknown as { releaseAsset: () => void }).releaseAsset());
+  await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible({
+    timeout: 20_000,
+  });
+  const cached = await page.evaluate(async () => {
+    const path = '/src/lib/nikolausFahrtStore.svelte.ts';
+    await (await import(path)).expireNikolausRoute();
+    const cache = await caches.open('nikolaus-route-shell-v1');
+    return {
+      html: await (await cache.match('/leitendenbereich/nikolaus-fahrt'))?.text(),
+      paths: (await cache.keys()).map((request) => new window.URL(request.url).pathname),
+      snapshot: !!localStorage.getItem('nikolaus-fahrt-offline-v1'),
+    };
+  });
+  expect(cached.snapshot).toBe(true);
+  expect(cached.html).toBe(html);
+  for (const asset of [
+    'entry.js',
+    'dependency.js',
+    'component.js',
+    'renderer.js',
+    'inline.js',
+    'font.woff2',
+  ])
+    expect(cached.paths).toContain(`/_astro/new-release-${asset}`);
+  expect(cached.paths).toContain('/_astro/new-release.css');
+});
