@@ -138,6 +138,31 @@ test('in the iPhone app an expired login is renewed in the same window', async (
   await expect(dialog.getByLabel('Alter')).toHaveValue('16 bis 20 Jahre');
 });
 
+test('in the iPhone app a protected link keeps its fragment through the login', async ({
+  page,
+  context,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.goto('/leitendenbereich/');
+  // Like a link to a photo folder in the minutes, which opens in a new window
+  await page.evaluate(() => {
+    const link = document.createElement('a');
+    link.href = '/leitendenbereich/fotos#pfad=2026%2FSola';
+    link.target = '_blank';
+    link.textContent = 'Fotos vom Sola';
+    document.getElementById('staff-content')?.prepend(link);
+  });
+  const [login] = await Promise.all([
+    context.waitForEvent('request', (request) => request.url().includes('/.auth/login/aad')),
+    page.getByRole('link', { name: 'Fotos vom Sola' }).click(),
+  ]);
+  expect(new URL(login.url()).searchParams.get('post_login_redirect_uri')).toBe(
+    '/leitendenbereich/fotos#pfad=2026%2FSola'
+  );
+});
+
 test('in the iPhone app the photo of a receipt opens through the login of the new window', async ({
   page,
   context,

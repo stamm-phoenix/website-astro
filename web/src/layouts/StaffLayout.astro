@@ -179,7 +179,7 @@ const title =
     if (!(link instanceof HTMLAnchorElement) || link.origin !== location.origin) return;
     if (!PROTECTED.test(link.pathname)) return;
     event.preventDefault();
-    window.open(loginUrl(`${link.pathname}${link.search}`), '_blank', 'noopener');
+    window.open(loginUrl(`${link.pathname}${link.search}${link.hash}`), '_blank', 'noopener');
   });
 
   function showOfflineNotice(): void {
