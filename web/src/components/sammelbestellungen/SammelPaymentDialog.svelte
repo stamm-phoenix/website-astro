@@ -365,11 +365,14 @@
                 <option value="">Bitte auswählen</option>
                 {#if selectedPerson && !candidates.some((person) => person.id === selectedPerson.id)}<option
                     value={selectedPerson.id}
-                    >{selectedPerson.name}{isIch(selectedPerson) ? ' (ich)' : ''}</option
+                    >{selectedPerson.name}{isIch({ ...selectedPerson, mitglied: true })
+                      ? ' (ich)'
+                      : ''}</option
                   >{/if}
                 {#each candidates as person (person.id)}<option value={person.id}
-                    >{person.name}{isIch(person) ? ' (ich)' : ''} · {person.emails.join(', ') ||
-                      'Keine E-Mail-Adresse'}</option
+                    >{person.name}{isIch({ ...person, mitglied: true }) ? ' (ich)' : ''} · {person.emails.join(
+                      ', '
+                    ) || 'Keine E-Mail-Adresse'}</option
                   >{/each}
               </select>{/snippet}
           </FormField>
@@ -524,7 +527,7 @@
           <dt class="text-neutral-700">CampFlow-Person</dt>
           <dd class="font-semibold text-brand-900">
             {view.record?.assignment.person
-              .name}{#if view.record && isIch(view.record.assignment.person)}
+              .name}{#if view.record && isIch({ ...view.record.assignment.person, mitglied: true })}
               <span class="font-normal text-neutral-700">(ich)</span>{/if}
           </dd>
           {#if operation?.contribution}<dt class="text-neutral-700">Zahlungsreferenz</dt>
