@@ -1,0 +1,47 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<!--
+  Start page of the installed app (`start_url` in leitendenbereich.webmanifest). Opening
+  /leitendenbereich/ logged out sends the login back to the Referer, which a start from the
+  home screen does not have; /login always leads back to the Leitendenbereich.
+-->
+<BaseLayout title="Leitendenbereich | Stamm Phoenix" privatePage bare>
+  <div class="container py-12">
+    <p id="app-start" role="status" aria-live="polite" class="text-neutral-800">
+      Der Leitendenbereich wird geöffnet …
+    </p>
+    <p id="app-start-retry" class="mt-4" hidden>
+      <a href="/leitendenbereich-app/" class="btn-primary no-underline">
+        Noch einmal versuchen
+      </a>
+    </p>
+    <noscript>
+      <p class="mt-4">
+        <a href="/leitendenbereich/" class="btn-primary no-underline">
+          Zum Leitendenbereich
+        </a>
+      </p>
+    </noscript>
+  </div>
+</BaseLayout>
+
+<script>
+  async function openLeitendenbereich(): Promise<void> {
+    try {
+      const response = await fetch('/.auth/me', { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Auth error: ${response.status}`);
+      const { clientPrincipal } = (await response.json()) as { clientPrincipal: unknown };
+      location.replace(clientPrincipal ? '/leitendenbereich/' : '/login');
+    } catch {
+      const status = document.getElementById('app-start');
+      if (status) {
+        status.textContent =
+          'Der Leitendenbereich lässt sich gerade nicht öffnen. Prüf deine Internetverbindung und versuch es noch einmal.';
+      }
+      document.getElementById('app-start-retry')?.removeAttribute('hidden');
+    }
+  }
+  openLeitendenbereich();
+</script>

@@ -10,13 +10,17 @@ Leitende können den Leitendenbereich auf den Startbildschirm legen. Er öffnet 
 
 ## Bausteine
 
-| Datei                                                          | Aufgabe                                                                                     |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `web/public/leitendenbereich.webmanifest`                      | Name, Start-URL, Scope, Farben und Icons der App                                            |
-| `web/src/layouts/StaffLayout.astro`                            | Verlinkt das Manifest und das Apple-Icon nur auf Seiten des Leitendenbereichs               |
-| `web/public/app-icon-*.png`, `web/public/apple-touch-icon.png` | Icons, erzeugt mit `bun scripts/app-icons.ts` (in `web/`) aus `src/assets/stammeslilie.svg` |
-| `web/src/components/StaffOfflineNotice.svelte`                 | Hinweis oben im Inhalt, solange das Gerät keine Verbindung hat                              |
-| `web/public/staticwebapp.config.json`                          | `mimeTypes` liefert das Manifest als `application/manifest+json` aus                        |
+| Datei                                                          | Aufgabe                                                                                                                           |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `web/public/leitendenbereich.webmanifest`                      | Name, Start-URL, Scope, Farben und Icons der App                                                                                  |
+| `web/src/pages/leitendenbereich-app.astro`                     | Startseite der App, leitet zur Übersicht oder zur Anmeldung weiter                                                                |
+| `web/src/layouts/StaffLayout.astro`                            | Verlinkt das Manifest und das Apple-Icon nur auf Seiten des Leitendenbereichs. Zeigt ohne Verbindung einen Hinweis oben im Inhalt |
+| `web/public/app-icon-*.png`, `web/public/apple-touch-icon.png` | Icons, erzeugt mit `bun scripts/app-icons.ts` (in `web/`) aus `src/assets/stammeslilie.svg`                                       |
+| `web/public/staticwebapp.config.json`                          | `mimeTypes` liefert das Manifest als `application/manifest+json` aus                                                              |
+
+## Start über `/leitendenbereich-app/`
+
+Die App startet auf `/leitendenbereich-app/`, nicht direkt auf `/leitendenbereich/`. Ohne Anmeldung leitet die Static Web App `/leitendenbereich/` zur Anmeldung weiter und schickt danach zurück zum Referrer (`.referrer` in `staticwebapp.config.json`). Ein Start vom Startbildschirm hat keinen Referrer. Die Startseite fragt deshalb `/.auth/me` und öffnet `/leitendenbereich/`, wenn jemand angemeldet ist, sonst `/login`. `/login` führt nach der Anmeldung immer in den Leitendenbereich. Fehlt die Verbindung, sagt die Startseite das und bietet **Noch einmal versuchen** an.
 
 Das Manifest liegt außerhalb von `/leitendenbereich/`, weil die Static Web App dort eine Anmeldung verlangt. Der Browser lädt das Manifest ohne Anmelde-Cookie.
 
@@ -28,22 +32,24 @@ Ohne Service Worker speichert der Browser keine Seiten, API-Antworten oder Anmel
 
 Ohne Verbindung gilt:
 
-- Eine offene Seite bleibt sichtbar. `StaffOfflineNotice.svelte` sagt, dass andere Seiten und neue Daten erst mit Verbindung laden.
+- Eine offene Seite bleibt sichtbar. `StaffLayout.astro` sagt, dass die Seite offen bleiben soll, die Eingaben stehen bleiben und Speichern erst mit Verbindung geht.
+- Die Fahrtansicht und der Protokoll-Editor sagen selbst, was ohne Verbindung geht. Sie schalten den allgemeinen Hinweis mit `offlineNotice={false}` ab.
 - Wer die App ohne Verbindung neu startet, sieht die Fehlerseite des Browsers. Eine eigene Seite dafür bräuchte einen Service Worker.
 
 ## Scope `/` statt `/leitendenbereich/`
 
-Die App startet auf `/leitendenbereich/`, ihr Scope ist aber die ganze Website. Anmeldung und Abmeldung laufen über Adressen außerhalb von `/leitendenbereich/`: `/login`, `/logout`, `/.auth/…` und `/abgemeldet`. Läge der Scope auf `/leitendenbereich/`, öffnete iOS einen Klick auf **Abmelden** in einem Safari-Fenster über der App. Dieses Fenster hat eigene Cookies, die Abmeldung erreichte die App also nicht. Mit Scope `/` bleiben alle diese Seiten im App-Fenster.
+Der Scope der App ist die ganze Website. Anmeldung und Abmeldung laufen über Adressen außerhalb von `/leitendenbereich/`: `/login`, `/logout`, `/.auth/…` und `/abgemeldet`. Läge der Scope auf `/leitendenbereich/`, öffnete iOS einen Klick auf **Abmelden** in einem Safari-Fenster über der App. Dieses Fenster hat eigene Cookies, die Abmeldung erreichte die App also nicht. Mit Scope `/` bleiben alle diese Seiten im App-Fenster.
 
 Die Folge: Öffentliche Seiten wie „Zur Website“ erscheinen ebenfalls im App-Fenster. Unter Android kann ein Link auf `www.stamm-phoenix.de` aus einer anderen App direkt in der installierten App landen.
 
 ## Grenzen der Plattformen
 
 - **iOS hat eigene Cookies pro installierter App.** Eine Anmeldung in Safari gilt nicht in der App. Beim ersten Start meldet man sich in der App an.
-- **iOS öffnet neue Tabs außerhalb der App.** Der Knopf „Neu anmelden (öffnet neuen Tab)“ nach einer abgelaufenen Anmeldung (`RELOGIN_URL` in `web/src/lib/api.ts`) öffnet ein Safari-Fenster. Ob die neue Anmeldung danach in der App gilt, ist auf echten Geräten noch zu prüfen.
+- **iOS öffnet neue Tabs außerhalb der App.** Nach einer abgelaufenen Anmeldung öffnet „Neu anmelden (öffnet neuen Tab)“ (`RELOGIN_URL` in `web/src/lib/api.ts`) ein Safari-Fenster mit eigenen Cookies, die neue Anmeldung erreicht die App also nicht. In der iPhone-App (`navigator.standalone`, `reloginOnlyHere()`) meldet **Neu anmelden** deshalb im selben Fenster neu an und kehrt zur Seite zurück. Ungespeicherte Eingaben gehen dabei verloren, der Hinweis davor sagt, dass man sie kopieren soll. Android teilt die Cookies zwischen App und Chrome, dort bleibt der neue Tab.
 - **iOS nutzt das Apple-Icon.** Safari liest für den Startbildschirm `apple-touch-icon.png` und den Titel aus `apple-mobile-web-app-title`.
 - **Android schneidet das Icon zu.** Der Launcher nutzt `app-icon-maskable-512.png` und schneidet es rund oder eckig zu. Die Lilie liegt deshalb mit mehr Rand in der sicheren Zone.
 - **Die Titelleiste folgt dem Farbschema.** Das Manifest setzt `#f8f5ef`. Sobald eine Seite geladen ist, setzt `BaseLayout.astro` über `theme-color` die Farbe des hellen oder dunklen Themas.
+- **Der Startbildschirm ist immer hell.** Ein Manifest kennt nur eine `background_color`. Im dunklen Modus erscheint beim Start kurz ein heller Startbildschirm.
 
 ## Auf Geräten prüfen
 
@@ -53,5 +59,6 @@ Diese Schritte sind auf einem Android-Gerät und einem iPhone durchzugehen:
 2. Die App starten. Sie öffnet sich ohne Adressleiste und fragt nach der Anmeldung.
 3. Anmelden. Die App zeigt danach die Übersicht des Leitendenbereichs.
 4. Ein Modul öffnen, die App schließen und wieder starten. Die Anmeldung besteht noch.
-5. **Abmelden** antippen. Die App zeigt „Du bist abgemeldet“. Danach `/leitendenbereich/` neu starten: Die App fragt wieder nach der Anmeldung.
+5. **Abmelden** antippen. Die App zeigt „Du bist abgemeldet“. Danach die App neu starten: Sie fragt wieder nach der Anmeldung.
 6. Den Flugmodus einschalten. Auf einer offenen Seite erscheint „Keine Verbindung zum Internet.“.
+7. Nur iPhone: Die App nach einer längeren Pause wieder öffnen, bis die Anmeldung abgelaufen ist. Dann etwas speichern, **Neu anmelden** antippen und prüfen, dass Speichern danach wieder klappt.

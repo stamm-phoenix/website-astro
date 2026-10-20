@@ -39,6 +39,22 @@ export const RELOGIN_URL =
   '/.auth/login/aad?post_login_redirect_uri=/leitendenbereich/wieder-angemeldet';
 
 /**
+ * True in the app added to the home screen of an iPhone or iPad. A new tab opens in Safari
+ * there, which has its own login, so `RELOGIN_URL` would not log the app in again.
+ */
+export function reloginOnlyHere(): boolean {
+  return (
+    typeof navigator !== 'undefined' && 'standalone' in navigator && navigator.standalone === true
+  );
+}
+
+/** Login in this window that comes back to the current page; its inputs are lost. */
+export function reloginHereUrl(): string {
+  const back = `${location.pathname}${location.search}`;
+  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(back)}`;
+}
+
+/**
  * The text to show for a failed request. The server's own message wins; without one (a crash,
  * an unknown status, no connection) the caller's `fallback` says what failed and what to do,
  * and a server error adds whom to ask.

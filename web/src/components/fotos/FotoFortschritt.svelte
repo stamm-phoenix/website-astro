@@ -2,7 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import FotoPfad from './FotoPfad.svelte';
-  import { RELOGIN_URL } from '../../lib/api';
+  import { RELOGIN_URL, reloginHereUrl, reloginOnlyHere } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { formatFileSize } from '../../lib/downloadsStore.svelte';
   import {
@@ -148,17 +148,27 @@
           <p class="font-semibold text-warning">
             Deine Anmeldung ist abgelaufen. Das Hochladen ist angehalten, nichts geht verloren.
           </p>
-          <p class="mt-1">
-            Melde dich im neuen Tab wieder an, komm hierher zurück und tippe auf „Weiter hochladen“.
-          </p>
-          <div class="mt-2 flex flex-wrap gap-2">
-            <a class="btn-secondary" href={RELOGIN_URL} target="_blank" rel="noopener"
-              >Neu anmelden<span class="sr-only"> (öffnet neuen Tab)</span></a
-            >
-            <ActionButton variant="primary" onclick={continueFotoUpload}
-              >Weiter hochladen</ActionButton
-            >
-          </div>
+          {#if reloginOnlyHere()}
+            <p class="mt-1">
+              In der App auf dem Home-Bildschirm geht das Anmelden nur in diesem Fenster. Fertige
+              Fotos bleiben gespeichert. Merk dir, welche fehlen, melde dich neu an und lade sie
+              danach noch einmal hoch.
+            </p>
+            <a class="btn-secondary mt-2" href={reloginHereUrl()}>Neu anmelden</a>
+          {:else}
+            <p class="mt-1">
+              Melde dich im neuen Tab wieder an, komm hierher zurück und tippe auf „Weiter
+              hochladen“.
+            </p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <a class="btn-secondary" href={RELOGIN_URL} target="_blank" rel="noopener"
+                >Neu anmelden<span class="sr-only"> (öffnet neuen Tab)</span></a
+              >
+              <ActionButton variant="primary" onclick={continueFotoUpload}
+                >Weiter hochladen</ActionButton
+              >
+            </div>
+          {/if}
         </div>
       {:else if running && fotoUpload.waits.offline > 0}
         <p class="border-l-2 border-warning py-1 pl-3 text-sm font-semibold text-warning">

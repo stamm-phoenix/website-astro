@@ -5,7 +5,7 @@
   "description": "Der Leitendenbereich von DPSG Stamm Phoenix Feldkirchen-Westerham.",
   "lang": "de",
   "dir": "ltr",
-  "start_url": "/leitendenbereich/",
+  "start_url": "/leitendenbereich-app/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f8f5ef",

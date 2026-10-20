@@ -4,6 +4,6 @@ import ProtokollEditor from '../../../components/protokolle/ProtokollEditor.svel
 ---
 
 <!-- Printing the read view gives the minutes without the site around them (#298) -->
-<StaffLayout header="sr-only" printable>
+<StaffLayout header="sr-only" printable offlineNotice={false}>
   <ProtokollEditor client:only="svelte" />
 </StaffLayout>
