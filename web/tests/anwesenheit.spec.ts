@@ -31,14 +31,16 @@ test('leaders check in children, add a guest and save what they did', async ({ p
   await expect(anna.abwesend).toHaveAttribute('aria-pressed', 'true');
   await anna.anwesend.click();
   await expect(anna.anwesend).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText(/^1 Kind da\./)).toContainText('Gespeichert');
+  const counts = page.getByTestId('anwesenheit-counts');
+  await expect(counts).toContainText('1 anwesend, 0 entschuldigt, 3 abwesend');
+  await expect(counts).toContainText('Gespeichert');
 
   await page.getByLabel('Gast hinzufügen').fill('Testgast Schnuppern');
   await page.getByRole('button', { name: 'Eintragen' }).click();
   await expect(
     page.getByText('Testgast Schnuppern ist als Gast eingetragen.').first()
   ).toBeVisible();
-  await expect(page.getByText(/^1 Kind da, dazu 1 Gast\./)).toBeVisible();
+  await expect(counts).toContainText('1 anwesend, 0 entschuldigt, 3 abwesend, 1 Gast');
 
   await page.getByLabel(/Was habt ihr gemacht/).fill('Schnitzeljagd im Wald.');
   await page.getByRole('button', { name: 'Notiz speichern' }).click();
@@ -139,22 +141,23 @@ test('a child is either present or excused, never both, and the choice survives 
   await expect(anna.entschuldigt).toHaveAttribute('aria-pressed', 'true');
   await expect(anna.anwesend).toHaveAttribute('aria-pressed', 'false');
   await expect(anna.abwesend).toHaveAttribute('aria-pressed', 'false');
-  const counts = page.getByText(/Kind(er)? da/).first();
-  await expect(counts).toContainText('0 Kinder da, 1 entschuldigt.');
+  const counts = page.getByTestId('anwesenheit-counts');
+  await expect(counts).toContainText('0 anwesend, 1 entschuldigt, 3 abwesend');
   await expect(counts).toContainText('Gespeichert');
 
   await page.reload();
   await expect(choice(page, 'Anna Test').entschuldigt).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText(/Kind(er)? da/).first()).toContainText(
-    '0 Kinder da, 1 entschuldigt.'
+  await expect(page.getByTestId('anwesenheit-counts')).toContainText(
+    '0 anwesend, 1 entschuldigt, 3 abwesend'
   );
 
   // Switching from excused to present replaces the excuse instead of adding to it
   await choice(page, 'Anna Test').anwesend.click();
   await expect(choice(page, 'Anna Test').anwesend).toHaveAttribute('aria-pressed', 'true');
   await expect(choice(page, 'Anna Test').entschuldigt).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByText(/Kind(er)? da/).first()).toContainText('1 Kind da.');
-  await expect(page.getByText(/Kind(er)? da/).first()).not.toContainText('entschuldigt');
+  await expect(page.getByTestId('anwesenheit-counts')).toContainText(
+    '1 anwesend, 0 entschuldigt, 3 abwesend'
+  );
   await page.reload();
   await expect(choice(page, 'Anna Test').anwesend).toHaveAttribute('aria-pressed', 'true');
   await expect(choice(page, 'Anna Test').entschuldigt).toHaveAttribute('aria-pressed', 'false');
@@ -162,7 +165,7 @@ test('a child is either present or excused, never both, and the choice survives 
   // Restore the demo state for the following tests of this worker
   await choice(page, 'Anna Test').abwesend.click();
   await expect(choice(page, 'Anna Test').abwesend).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText(/Kind(er)? da/).first()).toContainText('Gespeichert');
+  await expect(page.getByTestId('anwesenheit-counts')).toContainText('Gespeichert');
 });
 
 test('marking a Gruppenstunde as cancelled asks first, hides the attendance and survives a reload', async ({
@@ -171,7 +174,7 @@ test('marking a Gruppenstunde as cancelled asks first, hides the attendance and 
   // Would break if the attendance was deleted without asking, kept visible, or not saved
   await page.goto('/leitendenbereich/anwesenheit');
   await choice(page, 'Anna Test').anwesend.click();
-  await expect(page.getByText(/Kind(er)? da/).first()).toContainText('Gespeichert');
+  await expect(page.getByTestId('anwesenheit-counts')).toContainText('Gespeichert');
   const gruppenstunde = page.getByRole('group', { name: 'Gruppenstunde', exact: true });
   const ausgefallen = gruppenstunde.getByRole('button', { name: 'Ausgefallen', exact: true });
   const stattgefunden = gruppenstunde.getByRole('button', { name: 'Fand statt', exact: true });
@@ -213,7 +216,9 @@ test('marking a Gruppenstunde as cancelled asks first, hides the attendance and 
   await expect(page.getByText(/^Gruppenstunde als stattgefunden markiert\./).first()).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(choice(page, 'Anna Test').abwesend).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText(/Kind(er)? da/).first()).toContainText('0 Kinder da.');
+  await expect(page.getByTestId('anwesenheit-counts')).toContainText(
+    '0 anwesend, 0 entschuldigt, 4 abwesend'
+  );
   await expect(page.getByLabel(/Was habt ihr gemacht/)).toBeVisible();
   await page.reload();
   await expect(choice(page, 'Anna Test').abwesend).toHaveAttribute('aria-pressed', 'true');
@@ -256,4 +261,66 @@ test('unsaved notes survive a failed choice, and choices wait while „Ausgefall
   await page.unroute('**/api/intern/pflege/anwesenheit/**/ausgefallen');
   await page.getByRole('button', { name: 'Fand statt', exact: true }).click();
   await expect(anna.abwesend).toBeEnabled();
+});
+
+test('the chosen status is filled in its colour with a check mark, "Abwesend" stays quiet', async ({
+  page,
+}) => {
+  // Would break if the selection looked the same for all three states, as only a thin border
+  // told them apart before
+  await page.goto('/leitendenbereich/anwesenheit');
+  const anna = choice(page, 'Anna Test');
+  const ben = choice(page, 'Ben Beispiel');
+  await anna.anwesend.click();
+  await ben.entschuldigt.click();
+  await expect(page.getByTestId('anwesenheit-counts')).toContainText('Gespeichert');
+
+  await expect(anna.anwesend).toContainText('✓');
+  await expect(ben.entschuldigt).toContainText('✓');
+  await expect(choice(page, 'Clara Muster').abwesend).not.toContainText('✓');
+  const fill = (button: ReturnType<typeof choice>['anwesend']) =>
+    button.evaluate((element) => getComputedStyle(element).backgroundColor);
+  const [present, excused, absent] = [
+    await fill(anna.anwesend),
+    await fill(ben.entschuldigt),
+    await fill(choice(page, 'Clara Muster').abwesend),
+  ];
+  expect(new Set([present, excused, absent]).size).toBe(3);
+
+  // Restore the demo state for the following tests of this worker
+  await anna.abwesend.click();
+  await ben.abwesend.click();
+  await expect(page.getByTestId('anwesenheit-counts')).toContainText('0 anwesend');
+});
+
+test('a guest entered after someone cancelled the Gruppenstunde explains what happened', async ({
+  page,
+}) => {
+  // Would break if the person only saw "Die Eingaben sind unvollständig oder ungültig."
+  await page.goto('/leitendenbereich/anwesenheit');
+  const iso = await page.getByLabel('Datum', { exact: true }).inputValue();
+  await expect(choice(page, 'Anna Test').group).toBeVisible();
+  // Another leader cancels it while this page is open
+  const cancelled = await page.request.put(
+    `/api/intern/pflege/anwesenheit/woelflinge/${iso}/ausgefallen`,
+    { data: { cancelled: true, etag: null, entries: 0 } }
+  );
+  expect(cancelled.ok()).toBe(true);
+
+  await page.getByLabel('Gast hinzufügen').fill('Spätgast');
+  await page.getByRole('button', { name: 'Eintragen' }).click();
+  await expect(
+    page
+      .getByText(/Spätgast wurde nicht als Gast eingetragen, weil jemand anderes .* ausgefallen/)
+      .first()
+  ).toBeVisible();
+  // The page shows the Termin as it is now
+  await expect(page.getByText('Die Gruppenstunde ist ausgefallen.')).toBeVisible();
+
+  // Restore the demo state for the following tests of this worker
+  await page
+    .getByRole('group', { name: 'Gruppenstunde', exact: true })
+    .getByRole('button', { name: 'Fand statt', exact: true })
+    .click();
+  await expect(choice(page, 'Anna Test').abwesend).toBeEnabled();
 });
