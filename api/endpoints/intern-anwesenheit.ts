@@ -46,6 +46,7 @@ import {
   validateChildStatus,
   validateGuestName,
   validateMeetingNotes,
+  validateMeetingDeletion,
 } from '../lib/pflege-validation';
 import { withErrorHandling } from '../lib/response-utils';
 import { getClaim, isStaffError, requireStaff } from '../lib/staff-auth';
@@ -208,11 +209,13 @@ export async function GetAnwesenheitTerminEndpoint(
 /**
  * PUT: what the group did, saved against the loaded version. Returns the new version.
  * DELETE: removes the Termin with its attendance and notes, if it still has the version sent
- * in `If-Match`.
+ * in `If-Match` and the attendance snapshot sent in the body.
  */
 export const AnwesenheitNotesEndpoint = terminHandler(async (termin, request, actor) => {
   if (request.method === 'DELETE') {
-    await deleteMeeting(termin, readIfMatch(request));
+    const etag = readIfMatch(request);
+    const attendance = validateMeetingDeletion(await readJsonBody(request));
+    await deleteMeeting(termin, etag, attendance);
     return NO_CONTENT;
   }
   const input = validateMeetingNotes(await readJsonBody(request));

@@ -4,6 +4,9 @@ import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as campflow from '../lib/campflow';
 import {
+  addGuest,
+  markChild,
+  markAbsent,
   getChildren,
   getMeetingRecord,
   getMeetingSummaries,
@@ -18,7 +21,9 @@ import {
   AnwesenheitGuests,
   AnwesenheitNotes,
   GetAnwesenheitTermin,
+  buildTerminView,
 } from '../endpoints/intern-anwesenheit';
+import { attendanceSnapshot } from '../lib/anwesenheit-model';
 import { dbTest } from './fixtures/database';
 
 function berlinToday(now: Date = new Date()): string {
@@ -261,16 +266,19 @@ dbTest('DELETE removes the Termin of the loaded version with its attendance', as
   mockCampflowPerson(t);
   const context = quietContext(t);
   const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+  let attendance = '';
   const remove = (etag?: string) =>
     AnwesenheitNotes(
-      terminRequest('DELETE', {}, undefined, etag ? { 'if-match': etag } : {}),
+      terminRequest('DELETE', {}, { attendance }, etag ? { 'if-match': etag } : {}),
       context
     );
   await AnwesenheitChild(
     terminRequest('PUT', { id: 'per_Current' }, { status: 'anwesend' }),
     context
   );
-  const loaded = (await getMeetingRecord(termin)).etag ?? '';
+  const record = await getMeetingRecord(termin);
+  const loaded = record.etag ?? '';
+  attendance = attendanceSnapshot(buildTerminView(termin, record, [], true));
   // Someone changes the notes after the Termin was opened for deleting
   const changed = await AnwesenheitNotes(
     terminRequest('PUT', {}, { notes: 'Neu.', etag: loaded }),
@@ -430,5 +438,34 @@ for (const [name, setup, code] of [
 
     assert.equal(response.status, 502);
     assert.equal((response.jsonBody as { code: string }).code, code);
+  });
+}
+
+for (const change of ['child', 'guest', 'status', 'replacement'] as const) {
+  dbTest(`deleting refuses changed attendance: ${change}`, async (t) => {
+    const context = quietContext(t);
+    const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+    await markChild(termin, 'per_Current', false, 'leader-a');
+    const loaded = await getMeetingRecord(termin);
+    const attendance = attendanceSnapshot(buildTerminView(termin, loaded, [], true));
+    if (change === 'guest') await addGuest(termin, 'Neuer Gast', 'leader-b');
+    else if (change === 'status') await markChild(termin, 'per_Current', true, 'leader-b');
+    else {
+      if (change === 'replacement') await markAbsent(termin, 'per_Current');
+      await markChild(termin, 'per_Another', false, 'leader-b');
+    }
+    const changed = await getMeetingRecord(termin);
+    assert.equal(changed.etag, loaded.etag);
+    const remove = (snapshot: string) =>
+      AnwesenheitNotes(
+        terminRequest('DELETE', {}, { attendance: snapshot }, { 'if-match': loaded.etag ?? '' }),
+        context
+      );
+    assert.equal((await remove(attendance)).status, 409);
+    assert.deepEqual(await getMeetingRecord(termin), changed);
+    assert.equal(
+      (await remove(attendanceSnapshot(buildTerminView(termin, changed, [], true)))).status,
+      204
+    );
   });
 }

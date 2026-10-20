@@ -1511,3 +1511,12 @@ export function validateStaffFavorites(body: unknown): string[] {
   }
   return [...new Set(modules as string[])];
 }
+
+/** The attendance shown when a leader confirms deleting a Gruppenstunde. */
+export function validateMeetingDeletion(body: unknown): string {
+  const record = asRecord(body);
+  if (typeof record.attendance !== 'string' || record.attendance.length > 100_000) {
+    throw new ValidationError({ attendance: 'Lade die Gruppenstunde neu, bevor du sie löschst.' });
+  }
+  return record.attendance;
+}

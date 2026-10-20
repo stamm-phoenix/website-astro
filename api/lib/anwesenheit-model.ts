@@ -93,3 +93,26 @@ export interface AnwesenheitTermin {
   /** Guests whose names were removed after the retention period. */
   anonymizedGuests: number;
 }
+
+/** The recorded attendance, independent of CampFlow names and unrecorded children. */
+interface AttendanceSnapshotInput {
+  children: Pick<AnwesenheitChild, 'id' | 'status'>[];
+  guests: AnwesenheitGuest[];
+  anonymized: number;
+  anonymizedExcused: number;
+  anonymizedGuests: number;
+}
+
+/** Canonical loaded state for destructive writes, including changes that keep the same count. */
+export function attendanceSnapshot(input: AttendanceSnapshotInput): string {
+  return JSON.stringify([
+    input.children
+      .filter((child) => child.status !== 'abwesend')
+      .map((child) => [child.id, child.status])
+      .sort((a, b) => a[0].localeCompare(b[0])),
+    input.guests.map((guest) => [guest.id, guest.name]).sort((a, b) => a[0].localeCompare(b[0])),
+    input.anonymized,
+    input.anonymizedExcused,
+    input.anonymizedGuests,
+  ]);
+}

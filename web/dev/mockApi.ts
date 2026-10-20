@@ -1799,7 +1799,12 @@ route(['PUT', 'DELETE'], '/api/intern/pflege/anwesenheit/:stufe/:datum', (req) =
   const slug = anwesenheitSlugOf(req);
   if (!slug) return notFound();
   if (req.method === 'DELETE') {
-    return deleteAnwesenheitTermin(slug, req.params.datum, str(req.headers['if-match']))
+    return deleteAnwesenheitTermin(
+      slug,
+      req.params.datum,
+      str(req.headers['if-match']),
+      str(req.json?.attendance)
+    )
       ? noContent()
       : error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert.');
   }
