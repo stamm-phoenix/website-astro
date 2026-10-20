@@ -97,6 +97,7 @@ export async function createPerson(input: PersonInput, actor: string): Promise<n
       .output('inserted.id')
       .executeTakeFirstOrThrow()
   );
+  forgetIch();
   return id;
 }
 
@@ -125,6 +126,8 @@ export async function updatePerson(
       .executeTakeFirst()
   );
   if (Number(result.numUpdatedRows) === 0) await notChanged(id);
+  // A changed or removed link must not show the former person any longer
+  forgetIch();
 }
 
 /** Deletes a person if it still has the version `etag`; old minutes keep the name. */
@@ -135,6 +138,7 @@ export async function deletePerson(id: number, etag: string): Promise<void> {
     .where('version', '=', requireVersion(etag))
     .executeTakeFirst();
   if (Number(result.numDeletedRows) === 0) await notChanged(id);
+  forgetIch();
 }
 
 function text(value: unknown): string {
@@ -201,8 +205,34 @@ export async function getCampflowPersonId(login: string): Promise<string | undef
   return row?.campflow_person_id || undefined;
 }
 
-const ICH_CACHE_MS = 10 * 60_000;
-const ichCache = new Map<string, { at: number; campflow: NonNullable<Ich['campflow']> }>();
+/** How long name and address of a CampFlow person stay in memory at most (`/datenschutz`). */
+export const ICH_CACHE_MS = 10 * 60_000;
+interface IchEintrag {
+  at: number;
+  campflow: NonNullable<Ich['campflow']>;
+}
+const ichCache = new Map<string, IchEintrag>();
+
+/** Keeps a CampFlow person in memory and removes it after `ICH_CACHE_MS`, even if unused. */
+export function rememberIch(id: string, campflow: IchEintrag['campflow'], now: number): void {
+  const entry = { at: now, campflow };
+  ichCache.set(id, entry);
+  const timer = setTimeout(() => {
+    // A newer load of the same person keeps its own time
+    if (ichCache.get(id) === entry) ichCache.delete(id);
+  }, ICH_CACHE_MS);
+  timer.unref?.();
+}
+
+/** The CampFlow person in memory, if any. */
+export function cachedIch(id: string): IchEintrag | undefined {
+  return ichCache.get(id);
+}
+
+/** Forgets every CampFlow person in memory, e.g. after a link changed. */
+function forgetIch(): void {
+  ichCache.clear();
+}
 
 /**
  * The logged-in person with name and primary address of their CampFlow person, so pages can
@@ -217,7 +247,7 @@ export async function getIch(login: string, now: number = Date.now()): Promise<I
   try {
     const person = await campflowGet<CampflowPerson>(`${MEMBER_PERSONS}/${encodeURIComponent(id)}`);
     const campflow = { id, ...names(person), email: text(person.primary_email).toLowerCase() };
-    ichCache.set(id, { at: now, campflow });
+    rememberIch(id, campflow, now);
     return { login, campflow };
   } catch (error: unknown) {
     if (!(error instanceof CampflowError)) throw error;
