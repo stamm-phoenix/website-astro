@@ -7,11 +7,14 @@
   import { confirmAction } from '../../lib/confirm';
   import StatusNotice from './StatusNotice.svelte';
   import MessageText from '../ui/MessageText.svelte';
+  import NichtEingesetzt from './NichtEingesetzt.svelte';
   import {
     fillDialog,
     rescueDialog,
     setRescueContext,
-    takeRescue,
+    findRescue,
+    forgetRescue,
+    shownValues,
     type GeretteterWert,
     type RescueEditor,
   } from '../../lib/geretteteEingaben';
@@ -81,11 +84,16 @@
   let deleteActionsOpen = $state(false);
   let reloadRequested = $state(false);
   let previousFocus: HTMLElement | null = null;
+  /** Kept input without a field to go into, e.g. a row the form does not have yet. */
+  let pending = $state<GeretteterWert[]>([]);
+  const leftOver = $derived(shownValues(pending));
   const shownNotice = $derived(
     notice ??
-      (restored
-        ? 'Deine Eingaben von vor der neuen Anmeldung sind wieder eingesetzt. Prüf sie und speichere.'
-        : null)
+      (!restored
+        ? null
+        : leftOver.length > 0
+          ? 'Ein Teil deiner Eingaben von vor der neuen Anmeldung ist wieder eingesetzt. Den Rest findest du darunter.'
+          : 'Deine Eingaben von vor der neuen Anmeldung sind wieder eingesetzt. Prüf sie und speichere.')
   );
 
   async function keepEditing(): Promise<void> {
@@ -126,14 +134,17 @@
 
   // A new login in the iPhone app reloads the page; the input is kept and filled in again
   let editors: RescueEditor[] = [];
-  /** The field values when the dialog opened, which identify the record being edited. */
+  /** Title and field values when the dialog opened; they identify the record being edited. */
+  let openingTitle = '';
   let opening = '';
-  let pending: GeretteterWert[] = [];
   setRescueContext({
-    rescue: () => (form ? rescueDialog(form, title, opening, editors) : false),
+    rescue: () => (form ? rescueDialog(form, openingTitle, opening, editors) : false),
     register(editor) {
       editors.push(editor);
-      if (form && pending.length > 0) pending = fillDialog(form, [editor], pending);
+      if (form && pending.length > 0) {
+        pending = fillDialog(form, [editor], pending);
+        if (shownValues(pending).length === 0) forgetRescue();
+      }
       return () => {
         editors = editors.filter((entry) => entry !== editor);
       };
@@ -146,6 +157,8 @@
     // Fields that appear only after a choice above them
     await tick();
     if (pending.length > 0) pending = fillDialog(form, editors, pending);
+    // Kept until everything found its field; editors still loading take theirs on arrival
+    if (shownValues(pending).length === 0) forgetRescue();
     restored = true;
     await tick();
     updateEdited();
@@ -159,13 +172,33 @@
     for (const el of form?.elements ?? []) remember(el);
     restored = false;
     pending = [];
+    discarded = false;
+    openingTitle = title;
     opening = JSON.stringify(initial.map((entry) => entry.value));
-    const kept = takeRescue(title, opening, Date.now());
+    const kept = findRescue(openingTitle, opening, Date.now());
     if (kept) void restore(kept);
   }
 
   $effect(() => {
     if (open && unsaved) return guardUnsavedChanges(() => true);
+  });
+
+  // A field added later, e.g. a row for kept input, takes its value as soon as it appears
+  $effect(() => {
+    if (!form || !restored || pending.length === 0) return;
+    const target = form;
+    const observer = new MutationObserver(() => {
+      pending = fillDialog(target, editors, pending);
+      if (shownValues(pending).length === 0) forgetRescue();
+    });
+    observer.observe(target, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  });
+
+  /** Set when the person confirmed discarding; any other closing of a filled-in dialog saved. */
+  let discarded = false;
+  $effect(() => {
+    if (!open && restored && !discarded) forgetRescue();
   });
 
   async function requestDelete(): Promise<void> {
@@ -220,6 +253,7 @@
         message={error ? null : shownNotice}
         class={shownNotice && !error ? 'mb-3' : ''}
       />
+      {#if restored && leftOver.length > 0}<NichtEingesetzt values={leftOver} />{/if}
       {#if error}
         <p role="alert" class="mb-3 text-sm text-danger"><MessageText text={error} /></p>
       {/if}
@@ -289,7 +323,10 @@
         await tick();
         opened();
       }
-    } else onclose();
+    } else {
+      discarded = true;
+      onclose();
+    }
   }}
 >
   <p>

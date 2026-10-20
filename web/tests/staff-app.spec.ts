@@ -239,6 +239,81 @@ test('in the iPhone app the kept input of one task never lands in another task',
   await expect(hint).toHaveCount(0);
 });
 
+test('in the iPhone app a renamed person gets the input back under the old title', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.route('**/api/intern/pflege/leitende/*', (route) =>
+    route.request().method() === 'GET' ? route.fallback() : route.fulfill({ status: 401 })
+  );
+  await page.goto('/leitendenbereich/leitende');
+  await page.getByRole('button', { name: /Lena Brandstetter/ }).click();
+  // The title follows the name field
+  await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill('Lena Brandstätter');
+  const renamed = page.getByRole('dialog', { name: 'Lena Brandstätter bearbeiten' });
+  await renamed.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await renamed.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toContainText(
+    '„Lena Brandstetter bearbeiten“'
+  );
+  await page.getByRole('button', { name: /Lena Brandstetter/ }).click();
+  await expect(renamed.getByLabel('Name', { exact: true })).toHaveValue('Lena Brandstätter');
+});
+
+test('in the iPhone app the rows of a template come back as soon as they are added', async ({
+  page,
+}) => {
+  await page.request.post('/api/__mock/aufgaben/reset');
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.route('**/api/intern/pflege/aufgaben/vorlagen', (route) =>
+    route.request().method() === 'POST' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aufgaben/vorlagen');
+  const dialog = page.getByRole('dialog', { name: 'Vorlage' });
+  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
+  await dialog.getByLabel('Titel', { exact: true }).fill('Zeltlager');
+  for (const [index, title] of ['Zelte prüfen', 'Einkauf planen', 'Bus buchen'].entries()) {
+    if (index > 0) await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
+    await dialog.getByLabel('Aufgabentitel').nth(index).fill(title);
+    await dialog
+      .getByLabel('Tage vor der Aktion')
+      .nth(index)
+      .fill(String(10 - index));
+  }
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Zeltlager');
+  await expect(dialog.getByLabel('Aufgabentitel').first()).toHaveValue('Zelte prüfen');
+  const leftOver = dialog.getByRole('region', { name: 'Noch nicht eingesetzt' });
+  await expect(leftOver).toContainText('Einkauf planen');
+  await expect(leftOver).toContainText('Bus buchen');
+  await expect(dialog.getByText('Den Rest findest du darunter.')).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
+  await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
+  await expect(dialog.getByLabel('Aufgabentitel')).toHaveCount(3);
+  await expect(dialog.getByLabel('Aufgabentitel').nth(1)).toHaveValue('Einkauf planen');
+  await expect(dialog.getByLabel('Aufgabentitel').nth(2)).toHaveValue('Bus buchen');
+  await expect(dialog.getByLabel('Tage vor der Aktion').nth(2)).toHaveValue('8');
+  await expect(leftOver).toHaveCount(0);
+
+  // Saved once the login works: the kept input is gone
+  await page.unroute('**/api/intern/pflege/aufgaben/vorlagen');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toHaveCount(0);
+  expect(
+    await page.evaluate(() => sessionStorage.getItem('phoenix:gerettete-eingaben:v1'))
+  ).toBeNull();
+});
+
 test('in the iPhone app the login waits when the input cannot be kept', async ({ page }) => {
   await expireLoginInIphoneApp(page);
   await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
