@@ -217,7 +217,7 @@ export async function loadAbrechnungSession(eventId: string): Promise<void> {
       `/intern/abrechnung/${encodeURIComponent(eventId)}/eingaben`
     );
     const target = abrechnungSessions[eventId];
-    if (!target) return;
+    if (!target || abrechnungAblage[eventId] !== state) return;
     const legacy = saved.etag === null ? readStored(eventId).stored : null;
     Object.assign(target, legacy?.session ?? saved.session);
     storedJson[eventId] = JSON.stringify(saved.session);
@@ -239,7 +239,7 @@ export async function loadAbrechnungSession(eventId: string): Promise<void> {
 }
 
 /** Tracks edits; saving is explicit so a failed request never masquerades as a saved change. */
-export function storeAbrechnungSession(eventId: string, deleteAfter: string | null): void {
+export function storeAbrechnungSession(eventId: string): void {
   const session = abrechnungSessions[eventId];
   if (!session) return;
   const json = JSON.stringify(session);
@@ -247,7 +247,6 @@ export function storeAbrechnungSession(eventId: string, deleteAfter: string | nu
     const state = abrechnungAblage[eventId];
     if (!state?.loaded) return;
     state.dirty = json !== storedJson[eventId];
-    if (deleteAfter) state.deleteAfter = deleteAfter;
   });
 }
 
@@ -266,6 +265,8 @@ export async function saveAbrechnungSession(
       `/intern/abrechnung/${encodeURIComponent(eventId)}/eingaben`,
       { session: JSON.parse(json), etag: state.etag }
     );
+    // A request from a discarded page must not update a newly opened session.
+    if (abrechnungAblage[eventId] !== state) return false;
     storedJson[eventId] = json;
     state.etag = saved.etag;
     state.savedAt = saved.savedAt;
@@ -357,6 +358,6 @@ export async function clearAbrechnungSession(eventId: string): Promise<boolean> 
   // during the request also survive a successful reset and remain marked unsaved.
   const saved = await saveAbrechnungSession(eventId, emptySession());
   if (saved && JSON.stringify(session) === before) Object.assign(session, emptySession());
-  storeAbrechnungSession(eventId, null);
+  storeAbrechnungSession(eventId);
   return saved;
 }

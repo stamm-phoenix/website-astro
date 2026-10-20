@@ -1,12 +1,5 @@
 import { sql } from 'kysely';
-import {
-  getDb,
-  inTransaction,
-  lockResource,
-  toDateString,
-  toVersion,
-  VersionConflictError,
-} from './db';
+import { inTransaction, lockResource, toDateString, toVersion, VersionConflictError } from './db';
 import { parseSession, emptySession } from './abrechnung-session';
 import type { AbrechnungEingabe, AbrechnungSession } from './abrechnung-session';
 
@@ -24,29 +17,42 @@ export function abrechnungDeleteAfter(end: string): string {
   return addMonths(addMonths(end, 3), 1);
 }
 
-/** Expired personal entries are deleted before any read or write. Backups expire after 7 days. */
+/** Refresh the trusted CampFlow deadline before expiring entries of this Aktion. */
 export async function getAbrechnungEingabe(
   userId: string,
-  eventId: string
+  eventId: string,
+  deleteAfter: string | null
 ): Promise<AbrechnungEingabe> {
-  await getDb()
-    .deleteFrom('organisation.abrechnung_eingabe')
-    .where('delete_after', '<', sql<Date>`CONVERT(date, SYSUTCDATETIME())`)
-    .execute();
-  const row = await getDb()
-    .selectFrom('organisation.abrechnung_eingabe')
-    .selectAll()
-    .where('user_id', '=', userId)
-    .where('event_id', '=', eventId)
-    .executeTakeFirst();
-  return row
-    ? {
-        session: parseSession(JSON.parse(row.session)),
-        etag: toVersion(row.version),
-        savedAt: row.updated_at.toISOString(),
-        deleteAfter: toDateString(row.delete_after),
-      }
-    : { session: emptySession(), etag: null, savedAt: null, deleteAfter: null };
+  return inTransaction(async (trx) => {
+    await lockResource(trx, `abrechnung-expiry:${eventId}`);
+    if (deleteAfter !== null) {
+      await trx
+        .updateTable('organisation.abrechnung_eingabe')
+        .set({ delete_after: sql<Date>`${deleteAfter}` })
+        .where('event_id', '=', eventId)
+        .where('delete_after', '!=', sql<Date>`${deleteAfter}`)
+        .execute();
+    }
+    await trx
+      .deleteFrom('organisation.abrechnung_eingabe')
+      .where('event_id', '=', eventId)
+      .where('delete_after', '<', sql<Date>`CONVERT(date, SYSUTCDATETIME())`)
+      .execute();
+    const row = await trx
+      .selectFrom('organisation.abrechnung_eingabe')
+      .selectAll()
+      .where('user_id', '=', userId)
+      .where('event_id', '=', eventId)
+      .executeTakeFirst();
+    return row
+      ? {
+          session: parseSession(JSON.parse(row.session)),
+          etag: toVersion(row.version),
+          savedAt: row.updated_at.toISOString(),
+          deleteAfter: toDateString(row.delete_after),
+        }
+      : { session: emptySession(), etag: null, savedAt: null, deleteAfter };
+  });
 }
 
 /** A row remains after resetting so a stale device cannot resurrect the old entries. */

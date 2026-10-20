@@ -181,11 +181,14 @@
   /** Months from the end of the Aktion until the entries are deleted from this device. */
 
   /** The Aktion is past its last day: new entries are no longer kept on this device. */
-  const aufbewahrungVorbei = $derived(loeschdatum !== null && loeschdatum < localDate());
+  const aufbewahrungVorbei = $derived(
+    (ablage.deleteAfter ?? loeschdatum) !== null &&
+      (ablage.deleteAfter ?? loeschdatum)! < localDate()
+  );
 
   // Keeps every change on this device
   $effect(() => {
-    if (session) storeAbrechnungSession(eventId, loeschdatum);
+    if (session) storeAbrechnungSession(eventId);
   });
 
   async function resetEntries(title: string): Promise<void> {
