@@ -175,21 +175,22 @@
    */
   async function setCancelled(cancelled: boolean): Promise<void> {
     const target = termin;
-    if (!target?.editable || target.cancelled === cancelled || savingCancelled) return;
-    const recorded = memberCount + excusedCount + guestCount;
-    if (
-      cancelled &&
-      recorded > 0 &&
-      !(await confirmAction({
-        title: `Gruppenstunde ${stufe} als ausgefallen markieren?`,
-        message: `Die Einträge werden dabei gelöscht (${recordedLabel}). Der Text bleibt.`,
-        confirmLabel: 'Als ausgefallen markieren',
-      }))
-    ) {
+    if (!target?.editable || target.cancelled === cancelled || savingCancelled || savingNotes)
       return;
-    }
     savingCancelled = true;
     try {
+      const recorded = memberCount + excusedCount + guestCount;
+      if (
+        cancelled &&
+        recorded > 0 &&
+        !(await confirmAction({
+          title: `Gruppenstunde ${stufe} als ausgefallen markieren?`,
+          message: `Die Einträge werden dabei gelöscht (${recordedLabel}). Der Text bleibt.`,
+          confirmLabel: 'Als ausgefallen markieren',
+        }))
+      ) {
+        return;
+      }
       const saved = await sendApi<{ etag: string }>('PUT', `/intern/pflege${path}/ausgefallen`, {
         cancelled,
         etag: target.etag,
@@ -289,7 +290,7 @@
     event.preventDefault();
     const target = termin;
     const baseline = notesBase;
-    if (!target || !baseline) return;
+    if (!target || !baseline || savingNotes || savingCancelled) return;
     const text = notes.trim();
     savingNotes = true;
     try {
@@ -400,7 +401,7 @@
               { value: 'ausgefallen', label: 'Ausgefallen', tone: 'warning' },
             ]}
             value={termin.cancelled ? 'ausgefallen' : 'statt'}
-            disabled={!termin.editable || savingCancelled}
+            disabled={!termin.editable || savingCancelled || savingNotes}
             onselect={(value) => setCancelled(value === 'ausgefallen')}
           />
           {#if termin.editable}
@@ -513,7 +514,11 @@
           {/snippet}
         </FormField>
         {#if termin.editable}
-          <ActionButton type="submit" variant="primary" disabled={savingNotes || !notesChanged}>
+          <ActionButton
+            type="submit"
+            variant="primary"
+            disabled={savingNotes || savingCancelled || !notesChanged}
+          >
             Notiz speichern
           </ActionButton>
         {/if}

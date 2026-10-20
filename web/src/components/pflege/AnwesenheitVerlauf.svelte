@@ -17,8 +17,10 @@
     onselect: (date: string) => void;
     /** Called after the Termin of `date` was deleted, to remove it from the Termine. */
     ondelete: (date: string) => void;
+    /** Keeps the summary and statistics in sync with freshly loaded details. */
+    onload: (meeting: AnwesenheitMeeting) => void;
   }
-  let { stufe, slug, meetings, onselect, ondelete }: Props = $props();
+  let { stufe, slug, meetings, onselect, ondelete, onload }: Props = $props();
   const MONTH_LABEL = new Intl.DateTimeFormat('de-DE', {
     month: 'long',
     year: 'numeric',
@@ -71,7 +73,22 @@
         `/intern/anwesenheit/${slug}/${date}`,
         controller.signal
       );
-      if (current === revision) detail = result;
+      if (current === revision) {
+        detail = result;
+        onload({
+          stufe: result.stufe,
+          date: result.date,
+          notes: result.notes,
+          cancelled: result.cancelled,
+          members:
+            result.children.filter((child) => child.status === 'anwesend').length +
+            result.anonymized,
+          excused:
+            result.children.filter((child) => child.status === 'entschuldigt').length +
+            result.anonymizedExcused,
+          guests: result.guests.length + result.anonymizedGuests,
+        });
+      }
     } catch (caught) {
       if (current === revision)
         error = errorMessage(
