@@ -10,6 +10,7 @@ import {
   ICH_CACHE_MS,
   cachedIch,
   eigeneAnmeldungen,
+  getPersonenUebersicht,
   mitEigenerAdresse,
   rememberIch,
   toCampflowMitglied,
@@ -294,6 +295,20 @@ dbTest('the overview still loads when Entra and CampFlow fail', async (t) => {
   const overview = (await PersonenCollection(request(ANNA, 'GET'), quietContext(t)))
     .jsonBody as PersonenUebersicht;
   assert.deepEqual(overview, { personen: [], leitende: null, campflow: null });
+});
+
+dbTest('a slow CampFlow member list leaves only its part out of the overview', async (t) => {
+  t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => [
+    { login: ANNA, name: 'Anna Leiterin', givenName: 'Anna' },
+  ]);
+  // Every page in time, all of them together too slow
+  t.mock.method(campflow, 'campflowGetAll', () => new Promise(() => undefined));
+  const overview = await getPersonenUebersicht(20);
+  assert.deepEqual(overview, {
+    personen: [],
+    leitende: [{ login: ANNA, name: 'Anna Leiterin' }],
+    campflow: null,
+  });
 });
 
 dbTest('the logged-in person learns their CampFlow person', async (t) => {

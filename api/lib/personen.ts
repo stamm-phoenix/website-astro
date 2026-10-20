@@ -180,18 +180,46 @@ export async function getCampflowMitglieder(now: Date = new Date()): Promise<Cam
     );
 }
 
+/**
+ * How long the overview waits for Entra and CampFlow at most, all pages together; then the source
+ * is `null` and the list still loads within the time limit of Static Web Apps (45 seconds).
+ */
+export const UEBERSICHT_TIMEOUT_MS = 25_000;
+
+/** `promise`, or `null` if it takes longer than `timeoutMs`; a later answer is dropped. */
+async function innerhalb<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), timeoutMs);
+    timer.unref?.();
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** The list with the Entra group and the CampFlow member list; a failing source is `null`. */
-export async function getPersonenUebersicht(): Promise<PersonenUebersicht> {
+export async function getPersonenUebersicht(
+  timeoutMs: number = UEBERSICHT_TIMEOUT_MS
+): Promise<PersonenUebersicht> {
   const [personen, leitende, campflow] = await Promise.all([
     getPersonen(),
-    getTaskDirectoryUsers().then(
-      (users) => users.map(({ login, name }) => ({ login, name })),
-      () => null
+    innerhalb(
+      getTaskDirectoryUsers().then(
+        (users) => users.map(({ login, name }) => ({ login, name })),
+        () => null
+      ),
+      timeoutMs
     ),
-    getCampflowMitglieder().catch((error: unknown) => {
-      if (error instanceof CampflowError) return null;
-      throw error;
-    }),
+    innerhalb(
+      getCampflowMitglieder().catch((error: unknown) => {
+        if (error instanceof CampflowError) return null;
+        throw error;
+      }),
+      timeoutMs
+    ),
   ]);
   return { personen, leitende, campflow };
 }
@@ -338,17 +366,10 @@ async function findVerknuepfte(
   now: number,
   timeoutMs: number = ICH_TIMEOUT_MS
 ): Promise<Verknuepfte | null> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), timeoutMs);
-    timer.unref?.();
-  });
   try {
-    return await Promise.race([getVerknuepfte(login.trim().toLowerCase(), now), timeout]);
+    return await innerhalb(getVerknuepfte(login.trim().toLowerCase(), now), timeoutMs);
   } catch {
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
