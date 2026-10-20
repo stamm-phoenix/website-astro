@@ -30,39 +30,42 @@
 </script>
 
 <article class="post surface group relative flex h-full flex-col overflow-hidden">
-  <InstagramPostImages
-    {post}
-    alt={post.caption ? '' : `Instagram-Beitrag vom ${date}`}
-    aspectClass="aspect-[4/3]"
-    {autoAdvanceOffset}
-  />
-  <!-- Covers the whole card; opens the post in the dialog (the href is the fallback) -->
+  <!--
+    The whole card is the link; it opens the post in the dialog (the href is the fallback). The
+    images sit inside it, so a touch on them reaches their swipe and a tap still opens the post.
+  -->
   <a
     href={post.permalink}
     target="_blank"
     rel="noopener noreferrer"
-    class="post-link flex flex-1 flex-col gap-3 p-5 no-underline after:absolute after:inset-0"
+    class="post-link flex flex-1 flex-col no-underline"
     aria-haspopup="dialog"
     onclick={open}
   >
-    <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
-      <NewsTypeBadge type="instagram" />
-      {#if date}
-        <span aria-hidden="true">·</span>
-        <time datetime={post.timestamp} class="news-meta font-semibold text-brand-900">{date}</time>
+    <!-- The text of the link names the post, so the image needs no description of its own -->
+    <InstagramPostImages {post} alt="" aspectClass="aspect-[4/3]" {autoAdvanceOffset} />
+    <div class="flex flex-1 flex-col gap-3 p-5">
+      <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
+        <NewsTypeBadge type="instagram" />
+        {#if date}
+          <span aria-hidden="true">·</span>
+          <time datetime={post.timestamp} class="news-meta font-semibold text-brand-900"
+            >{date}</time
+          >
+        {/if}
+      </p>
+      {#if post.caption}
+        <p class="caption text-sm text-neutral-900">{post.caption}</p>
+      {:else}
+        <span class="sr-only">Instagram-Beitrag</span>
       {/if}
-    </p>
-    {#if post.caption}
-      <p class="caption text-sm text-neutral-900">{post.caption}</p>
-    {:else}
-      <span class="sr-only">Instagram-Beitrag</span>
-    {/if}
-    <span
-      aria-hidden="true"
-      class="mt-auto text-sm font-semibold text-link underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"
-    >
-      Ansehen
-    </span>
+      <span
+        aria-hidden="true"
+        class="mt-auto text-sm font-semibold text-link underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"
+      >
+        Ansehen
+      </span>
+    </div>
   </a>
 </article>
 
