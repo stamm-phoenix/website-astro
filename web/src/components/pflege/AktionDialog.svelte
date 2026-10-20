@@ -87,6 +87,8 @@
       suggestedStufen.length === selectedStufen.length &&
       suggestedStufen.every((s) => selectedStufen.includes(s))
   );
+  /** Only then does the entry stay off the website, which the Stufen alone do not show. */
+  const leitendeOnly = $derived(selectedStufen.length === 1 && selectedStufen[0] === 'Leitende');
 
   $effect(() => {
     // The participants of the event tell its groups; loaded once per event and then cached
@@ -289,7 +291,7 @@
         id="aktion-campflow"
         label="Mit CampFlow-Aktion verknüpfen"
         optional
-        hint="Sobald die Aktion in CampFlow angelegt ist: verknüpfen, dann kommen Titel, Datum und Anmeldelink aus CampFlow. Vermutlich passende Aktionen stehen oben, danach die mit dem nächstgelegenen Datum."
+        info="Titel, Datum und Anmeldelink kommen dann aus CampFlow."
         error={errors.campflowId}
       >
         {#snippet children(attrs)}
@@ -317,14 +319,11 @@
         {:else}
           <p class="mt-0.5">Kein Anmeldelink in CampFlow.</p>
         {/if}
-        <p class="mt-2 text-xs text-neutral-700">
-          Titel, Datum und Anmeldelink kommen aus CampFlow und werden dort geändert.
-        </p>
+        <p class="mt-2 text-xs text-neutral-700">Änderbar nur in CampFlow.</p>
       </div>
     {:else if orphaned}
       <p role="note" class="rounded-md bg-warning-soft px-3 py-2 text-sm text-warning">
-        Die verknüpfte CampFlow-Aktion gibt es nicht mehr. Beim Speichern wird der Eintrag zu einer
-        Aktion ohne CampFlow, außer du verknüpfst ihn mit einer anderen CampFlow-Aktion.
+        Die CampFlow-Aktion gibt es nicht mehr; Speichern löst die Verknüpfung.
       </p>
     {/if}
 
@@ -333,7 +332,7 @@
         id="aktion-adopt"
         label="Vorhandenen Kalendereintrag übernehmen"
         optional
-        hint="Wurde die Aktion schon vorab ohne CampFlow angelegt, wähle sie hier aus. Sie wird dann verknüpft statt doppelt angelegt; Stufen und Beschreibung bleiben erhalten."
+        info="Verknüpft den Eintrag, statt ihn doppelt anzulegen; Stufen und Beschreibung bleiben erhalten."
       >
         {#snippet children(attrs)}
           <select
@@ -377,13 +376,7 @@
                 bind:value={form!.start}
               />{/snippet}
           </FormField>
-          <FormField
-            id="aktion-end"
-            label="Ende"
-            optional
-            hint="Leer lassen für eintägige Aktionen."
-            error={errors.end}
-          >
+          <FormField id="aktion-end" label="Ende" optional error={errors.end}>
             {#snippet children(attrs)}<input
                 {...attrs}
                 type="date"
@@ -393,13 +386,7 @@
               />{/snippet}
           </FormField>
         </div>
-        <FormField
-          id="aktion-link"
-          label="Anmeldelink"
-          optional
-          hint="Muss mit https:// beginnen."
-          error={errors.link}
-        >
+        <FormField id="aktion-link" label="Anmeldelink" optional error={errors.link}>
           {#snippet children(attrs)}<input
               {...attrs}
               type="url"
@@ -411,7 +398,14 @@
         </FormField>
       {/if}
 
-      <fieldset aria-describedby="aktion-stufen-hint{errors.stufen ? ' aktion-stufen-error' : ''}">
+      <fieldset
+        aria-describedby={[
+          leitendeOnly ? 'aktion-stufen-hint' : '',
+          errors.stufen ? 'aktion-stufen-error' : '',
+        ]
+          .filter(Boolean)
+          .join(' ') || undefined}
+      >
         <legend class="form-label">Stufen</legend>
         <div class="mt-1 flex flex-wrap gap-x-4 gap-y-2">
           {#each stufen as stufe, index (stufe)}
@@ -427,24 +421,22 @@
             </label>
           {/each}
         </div>
-        <p id="aktion-stufen-hint" class="mt-1 text-xs text-neutral-700">
-          Aktionen nur für „Leitende“ erscheinen nur im Leitenden-Kalender, nicht auf der Website.
-        </p>
-        {#if suggestedStufen.length > 0}
+        {#if leitendeOnly}
+          <p id="aktion-stufen-hint" class="mt-1 text-xs text-neutral-700">
+            Erscheint nur im Leitenden-Kalender, nicht auf der Website.
+          </p>
+        {/if}
+        {#if suggestedStufen.length > 0 && !suggestionApplied}
           <p class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-neutral-700">
-            {#if suggestionApplied}
-              Passt zu den Gruppen der Aktion in CampFlow.
-            {:else}
-              <span>In CampFlow: {suggestedStufen.join(', ')}</span>
-              <button
-                type="button"
-                class="font-semibold text-brand-800 underline underline-offset-2"
-                onclick={() => {
-                  form!.stufen = [...suggestedStufen];
-                  stufenTouched = true;
-                }}>Übernehmen</button
-              >
-            {/if}
+            <span>In CampFlow: {suggestedStufen.join(', ')}</span>
+            <button
+              type="button"
+              class="font-semibold text-brand-800 underline underline-offset-2"
+              onclick={() => {
+                form!.stufen = [...suggestedStufen];
+                stufenTouched = true;
+              }}>Übernehmen</button
+            >
           </p>
         {/if}
         {#if errors.stufen}<p id="aktion-stufen-error" class="mt-1 text-sm text-danger">
@@ -458,7 +450,6 @@
           label="Beschreibung"
           labelAs="span"
           error={errors.description}
-          hint="Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich."
           optional
         >
           {#snippet children(attrs)}

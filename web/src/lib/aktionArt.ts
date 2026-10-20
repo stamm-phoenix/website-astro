@@ -31,7 +31,7 @@ export function keineAktionHinweis(
   const start = Date.parse(event.start_date?.slice(0, 10) ?? '');
   const end = Date.parse(event.end_date?.slice(0, 10) ?? '');
   if (!Number.isNaN(start) && !Number.isNaN(end) && end - start > LANG_TAGE * 86_400_000) {
-    return 'Es dauert laut CampFlow mehrere Monate.';
+    return 'Es dauert mehrere Monate.';
   }
   return null;
 }

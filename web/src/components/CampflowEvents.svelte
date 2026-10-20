@@ -15,6 +15,7 @@
   import type { AktionRow as Row, AktionTarget, StaffAktion } from '../lib/types';
   import AktionDialog from './pflege/AktionDialog.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
+  import InfoHint from './ui/InfoHint.svelte';
   import MonthGrid from './MonthGrid.svelte';
 
   type View = 'liste' | 'monat';
@@ -310,7 +311,7 @@
     {/each}
 
     {#if sonstigeCount > 0 || art === 'sonstiges'}
-      <div>
+      <div class="flex flex-wrap items-center gap-x-2">
         <FilterTabs
           label="Art"
           options={[
@@ -320,13 +321,10 @@
           value={art}
           onselect={selectArt}
         />
-        {#if art === 'sonstiges'}
-          <p class="mt-2 text-sm text-neutral-700">
-            CampFlow-Einträge, die nur für Anmeldung und Bezahlung angelegt sind, z. B. Bestellungen
-            von Pullis. Sie stehen nicht im öffentlichen Kalender und werden nirgends als Aktion
-            angeboten. Ändern kannst du das bei der Aktion selbst.
-          </p>
-        {/if}
+        <InfoHint
+          label="Bestellungen und Sonstiges"
+          text="CampFlow-Einträge nur für Anmeldung und Bezahlung, z. B. Bestellungen von Pullis. Sie stehen nicht im öffentlichen Kalender. Ob ein Eintrag eine Aktion ist, stellst du bei der Aktion selbst ein."
+        />
       </div>
     {/if}
 
@@ -364,12 +362,7 @@
 
       <label class="block text-sm sm:flex-1">
         <span class="font-semibold text-neutral-700">Suche</span>
-        <input
-          type="search"
-          bind:value={search}
-          placeholder="Titel der Aktion …"
-          class="form-input mt-1"
-        />
+        <input type="search" bind:value={search} placeholder="Suchen …" class="form-input mt-1" />
       </label>
     </form>
 
@@ -523,9 +516,7 @@
               <StatusLabel label="Archiviert" />
             {/if}
             {#if row.event.keineAktion}
-              <span data-testid="keine-aktion"
-                ><StatusLabel label="Keine Aktion · Bestellung oder Anmeldung" /></span
-              >
+              <span data-testid="keine-aktion"><StatusLabel label="Keine Aktion" /></span>
             {:else if !row.event.zuschussfaehig}
               <span data-testid="ohne-kjr-zuschuss"><StatusLabel label="Ohne KJR-Zuschuss" /></span>
             {/if}
@@ -540,9 +531,7 @@
             <span
               class="inline-flex items-center rounded bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning"
             >
-              {row.event
-                ? 'Vorab angelegter Eintrag gefunden – beim Veröffentlichen übernehmen'
-                : 'Passende CampFlow-Aktion gefunden – jetzt verknüpfen'}
+              {row.event ? 'Vermutlich schon im Kalender' : 'Passende CampFlow-Aktion gefunden'}
             </span>
           {/if}
         </span>

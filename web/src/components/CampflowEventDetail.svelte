@@ -245,7 +245,10 @@
               title={event.title}
               zuschussfaehig={event.zuschussfaehig}
               keineAktion={event.keineAktion}
+              aktionLink={false}
+              savesNote={false}
             />
+            <p class="mt-2 text-sm text-neutral-700">Häkchen werden sofort gespeichert.</p>
           </div>
           <div class="flex flex-wrap gap-2">
             {#if event.url}
@@ -265,13 +268,16 @@
               href={`/leitendenbereich/aufgaben?aktion=${encodeURIComponent(id)}`}
               class="btn-secondary">Aufgaben und Checklisten</a
             >
-            <ReloadAction
-              type="button"
-              disabled={campflowDetailStore.loading || beitraege.loading}
-              onclick={reload}
-            >
-              {campflowDetailStore.loading || beitraege.loading ? 'Lädt …' : 'Neu laden'}
-            </ReloadAction>
+            <span data-testid={beitraegeDaten ? 'aktion-beitraege-stand' : undefined}>
+              <ReloadAction
+                type="button"
+                loadedAt={beitraegeDaten ? Date.parse(beitraegeDaten.loadedAt) : null}
+                disabled={campflowDetailStore.loading || beitraege.loading}
+                onclick={reload}
+              >
+                {campflowDetailStore.loading || beitraege.loading ? 'Lädt …' : 'Neu laden'}
+              </ReloadAction>
+            </span>
           </div>
         </section>
 
@@ -328,12 +334,7 @@
           >
             <label class="block text-sm">
               <span class="form-label">Suche</span>
-              <input
-                type="search"
-                bind:value={search}
-                placeholder="In allen sichtbaren Feldern suchen …"
-                class="form-input"
-              />
+              <input type="search" bind:value={search} placeholder="Suchen …" class="form-input" />
             </label>
 
             <fieldset class="text-sm">
@@ -411,14 +412,7 @@
               >
             </div>
           {:else if beitraege.loading}
-            <p class="text-sm text-neutral-700" role="status">
-              Beiträge werden aus CampFlow geladen …
-            </p>
-          {:else if beitraegeDaten}
-            <p class="text-sm text-neutral-700" data-testid="aktion-beitraege-stand">
-              Beiträge: Stand {formatDateTime(beitraegeDaten.loadedAt)}. Zahlungen zuordnen geht in
-              CampFlow.
-            </p>
+            <p class="text-sm text-neutral-700" role="status">Beiträge werden geladen …</p>
           {/if}
 
           {#if visible.length === 0}
