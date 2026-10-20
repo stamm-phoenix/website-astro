@@ -52,6 +52,7 @@
     rescueKey?: string;
     /** Original record version, including text held outside native form fields. */
     rescueVersion?: string;
+    rescueWarning?: string | null;
     rescueFields?: RescueField[];
     rescueDependencies?: RescueDependency[];
     rescueDependencyVersion?: (key: string) => string | undefined;
@@ -82,6 +83,7 @@
     deleteQuestion = 'Diesen Eintrag endgültig löschen?',
     rescueKey,
     rescueVersion,
+    rescueWarning = null,
     rescueFields = [],
     rescueDependencies = [],
     rescueDependencyVersion,
@@ -171,6 +173,7 @@
     opening = JSON.stringify([openingVersion, openingValues]);
   }
   setRescueContext({
+    warning: () => rescueWarning,
     enabled: () => record !== undefined,
     rescue: () =>
       !rescueConflict && form && record !== undefined

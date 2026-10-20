@@ -54,6 +54,7 @@
   let onlyMine = $state(false);
   let search = $state('');
   let form = $state<BelegForm | null>(null);
+  let editDialog = $state<EditDialog | null>(null);
   let confirmedAktion = $state<string | null>(null);
   const dialog = createDialogForm();
   const photo = createBelegPhotoDraft({
@@ -160,6 +161,7 @@
   /** Keep the exact write version and derived photo metadata without replacing draft fields. */
   function applyPhoto(saved: StaffBeleg): void {
     if (form?.id === saved.id) {
+      editDialog?.acceptRescueVersion(form.etag, saved.etag);
       form.etag = saved.etag;
       form.aiCheck = saved.aiCheck;
       form.hasImage = saved.hasImage;
@@ -361,10 +363,14 @@
 </div>
 
 <EditDialog
+  bind:this={editDialog}
   open={form !== null}
   title={form?.id ? `Beleg von ${form.shop || 'unbekannt'}` : 'Beleg einreichen'}
   rescueKey={form ? `beleg:${form.id ?? 'neu'}` : undefined}
   rescueVersion={form?.etag}
+  rescueWarning={photo.draft
+    ? 'Das ausgewählte Foto und sein Zuschnitt werden nicht gesichert. Wähle das Foto nach der neuen Anmeldung erneut aus und schneide es wieder zu.'
+    : null}
   busy={busy || photo.photoBusy}
   error={dialog.state.error}
   notice={dialogNotice}
