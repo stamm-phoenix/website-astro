@@ -137,6 +137,8 @@ test('a Gruppenstunde changed after opening is not deleted, and a deleted one le
     page.getByText(/inzwischen geändert\. Sie wurde nicht gelöscht\./).first()
   ).toBeVisible();
   await expect(row).toBeVisible();
+  // The changed text is shown before anyone can delete it with its new version
+  await expect(row.getByText('Von jemand anderem.', { exact: true })).toBeVisible();
 
   // The details show the new version again; loading the Termine after deleting fails
   await expect(row.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();

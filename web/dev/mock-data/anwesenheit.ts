@@ -191,17 +191,20 @@ export function markAnwesenheitAbsent(slug: string, date: string, id: string): v
 
 /**
  * Marks the Gruppenstunde as cancelled, which removes its attendance; returns the new etag, or
- * `null` if the Termin changed since `etag` was loaded.
+ * `null` if the Termin changed since `etag` was loaded or, when cancelling, has other than the
+ * `entries` the page showed.
  */
 export function setAnwesenheitCancelled(
   slug: StufeSlug,
   date: string,
   cancelled: boolean,
-  etag: string | null
+  etag: string | null,
+  entries: number
 ): string | null {
   const meeting = meetingOf(slug, date);
   const unchanged = etag === null ? meeting.notes === '' : etag === meeting.etag;
-  if (!unchanged) return null;
+  const recorded = meeting.present.length + meeting.excused.length + meeting.guests.length;
+  if (!unchanged || (cancelled && recorded !== entries)) return null;
   meeting.cancelled = cancelled;
   if (cancelled) {
     meeting.present = [];

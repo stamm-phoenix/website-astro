@@ -212,6 +212,11 @@
       </p>
       <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
         {#each rows as meeting (meeting.date)}
+          <!-- The opened details may be newer than the list, e.g. after a conflict -->
+          {@const notes =
+            expanded === meeting.date && detail?.date === meeting.date
+              ? detail.notes
+              : meeting.notes}
           <li data-meeting-date={meeting.date} class="pb-3">
             <ActionButton
               variant="secondary"
@@ -233,8 +238,8 @@
                 >
               </span>
             </ActionButton>
-            <p class={['text-sm whitespace-pre-line', { 'text-neutral-700': !meeting.notes }]}>
-              {meeting.notes || 'Kein Inhalt erfasst'}
+            <p class={['text-sm whitespace-pre-line', { 'text-neutral-700': !notes }]}>
+              {notes || 'Kein Inhalt erfasst'}
             </p>
             {#if expanded === meeting.date}
               <div id={`anwesenheit-namen-${slug}-${meeting.date}`} class="mt-3 space-y-3 text-sm">

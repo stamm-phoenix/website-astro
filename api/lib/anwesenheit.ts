@@ -29,6 +29,7 @@ import type { Database } from './db-schema';
 import type { Leitende } from './leitende-list';
 import { dateToLocalParts } from './nikolaus-config';
 import { toStufenMember } from './nikolaus-stufen';
+import type { CancelledInput } from './pflege-validation';
 import { STUFEN, ValidationError } from './pflege-validation';
 
 export function stufeFromSlug(slug: string | undefined): AnwesenheitStufeName | undefined {
@@ -330,15 +331,24 @@ export async function saveNotes(
 /**
  * Marks the Gruppenstunde as cancelled, which removes its attendance, or as held again.
  * `etag` is the version the page loaded, as for `saveNotes`, so the page cannot keep editing
- * notes that someone else changed meanwhile. Returns the new version of the Termin.
+ * notes that someone else changed meanwhile. Cancelling also refuses when the attendance
+ * differs from the `entries` the leader agreed to delete, as entries do not change the
+ * version. Returns the new version of the Termin.
  */
 export async function setCancelled(
   termin: Termin,
-  cancelled: boolean,
-  etag: string | null,
+  { cancelled, etag, entries }: CancelledInput,
   actor: string
 ): Promise<string> {
   return withMeeting(termin, actor, async (trx, meeting) => {
+    if (cancelled) {
+      const { count } = await trx
+        .selectFrom('gruppenstunde.attendance')
+        .select((eb) => eb.fn.countAll<number>().as('count'))
+        .where('meeting_id', '=', meeting.id)
+        .executeTakeFirstOrThrow();
+      if (Number(count) !== entries) throw new VersionConflictError();
+    }
     const query = trx
       .updateTable('gruppenstunde.meeting')
       .set({ cancelled, updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })

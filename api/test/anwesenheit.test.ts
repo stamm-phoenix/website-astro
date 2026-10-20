@@ -171,9 +171,9 @@ dbTest('a cancelled Gruppenstunde loses its attendance and takes no new one', as
   const context = quietContext(t);
   const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
   let etag: string | null = null;
-  const cancel = async (cancelled: boolean) => {
+  const cancel = async (cancelled: boolean, entries = 0) => {
     const response = await AnwesenheitCancelled(
-      terminRequest('PUT', {}, { cancelled, etag }),
+      terminRequest('PUT', {}, { cancelled, etag, entries }),
       context
     );
     if (response.status === 200) etag = (response.jsonBody as { etag: string }).etag;
@@ -188,7 +188,7 @@ dbTest('a cancelled Gruppenstunde loses its attendance and takes no new one', as
     201
   );
   // Ticking created the Termin, but its notes are empty, so no version is needed yet
-  assert.equal((await cancel(true)).status, 200);
+  assert.equal((await cancel(true, 2)).status, 200);
 
   const record = await getMeetingRecord(termin);
   assert.equal(record.cancelled, true);
@@ -203,6 +203,30 @@ dbTest('a cancelled Gruppenstunde loses its attendance and takes no new one', as
   assert.equal((await cancel(false)).status, 200);
   assert.equal((await check()).status, 204);
   assert.equal((await getMeetingRecord(termin)).cancelled, false);
+});
+
+dbTest('cancelling refuses when someone added an entry after the page loaded', async (t) => {
+  mockCampflowPerson(t);
+  const context = quietContext(t);
+  const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+  // Leader A loads an existing Termin without entries, leader B checks a child in afterwards
+  const loaded = (
+    (await AnwesenheitNotes(terminRequest('PUT', {}, { notes: 'Plan.', etag: null }), context))
+      .jsonBody as { etag: string }
+  ).etag;
+  await AnwesenheitChild(
+    terminRequest('PUT', { id: 'per_Current' }, { status: 'anwesend' }),
+    context
+  );
+
+  const cancel = await AnwesenheitCancelled(
+    terminRequest('PUT', {}, { cancelled: true, etag: loaded, entries: 0 }),
+    context
+  );
+  assert.equal(cancel.status, 409);
+  const record = await getMeetingRecord(termin);
+  assert.equal(record.cancelled, false);
+  assert.deepEqual(record.presentIds, ['per_Current']);
 });
 
 dbTest('cancelling against an old version refuses, so stale notes cannot win', async (t) => {
