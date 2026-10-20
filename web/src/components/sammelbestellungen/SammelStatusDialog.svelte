@@ -93,6 +93,7 @@
 <EditDialog
   open={editing !== null}
   title="Bestellstatus bearbeiten"
+  rescueKey={editing ? `bestellstatus:${editing.id}` : undefined}
   {busy}
   error={dialogError}
   submitDisabled={conflict}

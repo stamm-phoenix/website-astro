@@ -299,6 +299,14 @@ test('in the iPhone app the rows of a template come back as soon as they are add
   await expect(leftOver).toContainText('Bus buchen');
   await expect(dialog.getByText('Den Rest findest du darunter.')).toBeVisible();
 
+  // A second new login before the rows are added keeps them too
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Zeltlager');
+  await expect(leftOver).toContainText('Einkauf planen');
+  await expect(leftOver).toContainText('Bus buchen');
+
   await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
   await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
   await expect(dialog.getByLabel('Aufgabentitel')).toHaveCount(3);
@@ -386,6 +394,75 @@ test('in the iPhone app a CampFlow link waits for the list of Aktionen', async (
   release();
   await expect(link).toHaveValue(chosen);
   await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toHaveCount(0);
+});
+
+test('in the iPhone app two tasks with the same values keep their own input', async ({ page }) => {
+  await page.request.post('/api/__mock/aufgaben/reset');
+  for (let i = 0; i < 2; i++) {
+    const created = await page.request.post('/api/intern/pflege/aufgaben', {
+      data: {
+        title: 'Zelte zählen',
+        description: '',
+        assignee: '',
+        dueDate: null,
+        projectId: null,
+      },
+    });
+    expect(created.ok()).toBe(true);
+  }
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.route('**/api/intern/pflege/aufgaben/*', (route) =>
+    route.request().method() === 'GET' ? route.fallback() : route.fulfill({ status: 401 })
+  );
+  await page.goto('/leitendenbereich/aufgaben');
+  const dialog = page.getByRole('dialog', { name: 'Aufgabe bearbeiten' });
+  const tasks = page.getByRole('button', { name: 'Zelte zählen', exact: true });
+  await tasks.first().click();
+  await dialog.getByLabel('Titel', { exact: true }).fill('Zelte zählen und flicken');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  // Same title, same values when opened: only the record tells them apart
+  await tasks.last().click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Zelte zählen');
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await tasks.first().click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Zelte zählen und flicken');
+});
+
+test('in the iPhone app saving a template with rows still missing ends the kept input', async ({
+  page,
+}) => {
+  await page.request.post('/api/__mock/aufgaben/reset');
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  await page.route('**/api/intern/pflege/aufgaben/vorlagen', (route) =>
+    route.request().method() === 'POST' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aufgaben/vorlagen');
+  const dialog = page.getByRole('dialog', { name: 'Vorlage' });
+  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
+  await dialog.getByLabel('Titel', { exact: true }).fill('Hüttenwochenende');
+  await dialog.getByLabel('Aufgabentitel').fill('Hütte buchen');
+  await dialog.getByLabel('Tage vor der Aktion').fill('30');
+  await dialog.getByRole('button', { name: 'Vorlagenaufgabe hinzufügen' }).click();
+  await dialog.getByLabel('Aufgabentitel').nth(1).fill('Schlüssel holen');
+  await dialog.getByLabel('Tage vor der Aktion').nth(1).fill('1');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
+  await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toBeVisible();
+  // Saved with only the first row: the template dialog is removed, not closed
+  await page.unroute('**/api/intern/pflege/aufgaben/vorlagen');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('');
+  await expect(page.getByRole('region', { name: 'Deine Eingaben sind gesichert' })).toHaveCount(0);
 });
 
 test('in the iPhone app the login waits when the input cannot be kept', async ({ page }) => {

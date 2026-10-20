@@ -75,6 +75,7 @@
 <EditDialog
   open={booking !== null}
   title="Nachricht an Familie {booking?.familyName ?? ''}"
+  rescueKey={booking ? `nikolaus-nachricht:${booking.id}` : undefined}
   {busy}
   {error}
   submitLabel={busy ? 'Wird gesendet …' : 'Senden'}

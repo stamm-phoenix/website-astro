@@ -2,7 +2,7 @@
   import ModalDialog from '../ui/ModalDialog.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import { tick, setContext, type Snippet } from 'svelte';
+  import { onDestroy, tick, setContext, type Snippet } from 'svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { confirmAction } from '../../lib/confirm';
   import StatusNotice from './StatusNotice.svelte';
@@ -41,6 +41,11 @@
     /** Title of the confirmation; names the object, e.g. „Gruppenstunde Wölflinge löschen?“. */
     deleteTitle?: string;
     deleteQuestion?: string;
+    /**
+     * Names the record being edited, e.g. `frage:12` or `frage:neu`. With it, a new login in the
+     * iPhone app keeps the input and fills it in again when this record's dialog opens.
+     */
+    rescueKey?: string;
     onedit?: (event: Event) => void;
     onreload?: () => Promise<boolean>;
     onsubmit: () => void;
@@ -66,6 +71,7 @@
     deleteDisclosure = false,
     deleteTitle,
     deleteQuestion = 'Diesen Eintrag endgültig löschen?',
+    rescueKey,
     onedit,
     onreload,
     onsubmit,
@@ -136,14 +142,20 @@
   let editors: RescueEditor[] = [];
   /** Title and field values when the dialog opened; they identify the record being edited. */
   let openingTitle = '';
+  /** The record of the open dialog: `rescueKey` when it opened. */
+  let record: string | undefined;
   let opening = '';
   setRescueContext({
-    rescue: () => (form ? rescueDialog(form, openingTitle, opening, editors) : false),
+    enabled: () => record !== undefined,
+    rescue: () =>
+      form && record !== undefined
+        ? rescueDialog(form, record, openingTitle, opening, editors, pending)
+        : false,
     register(editor) {
       editors.push(editor);
       if (form && pending.length > 0) {
         pending = fillDialog(form, [editor], pending);
-        if (shownValues(pending).length === 0) forgetRescue();
+        if (shownValues(pending).length === 0) forgetRescue(record);
       }
       return () => {
         editors = editors.filter((entry) => entry !== editor);
@@ -161,7 +173,7 @@
     await tick();
     if (pending.length > 0) pending = fillDialog(form, editors, pending);
     // Kept until everything found its field; editors still loading take theirs on arrival
-    if (shownValues(pending).length === 0) forgetRescue();
+    if (shownValues(pending).length === 0) forgetRescue(record);
     restored = true;
     await tick();
     updateEdited();
@@ -177,8 +189,9 @@
     pending = [];
     discarded = false;
     openingTitle = title;
+    record = rescueKey;
     opening = JSON.stringify(initial.map((entry) => entry.value));
-    const kept = findRescue(openingTitle, opening, Date.now());
+    const kept = record === undefined ? null : findRescue(record, opening, Date.now());
     if (kept) void restore(kept);
   }
 
@@ -192,7 +205,7 @@
     const target = form;
     const observer = new MutationObserver(() => {
       pending = fillDialog(target, editors, pending);
-      if (shownValues(pending).length === 0) forgetRescue();
+      if (shownValues(pending).length === 0) forgetRescue(record);
     });
     observer.observe(target, { childList: true, subtree: true });
     return () => observer.disconnect();
@@ -201,7 +214,11 @@
   /** Set when the person confirmed discarding; any other closing of a filled-in dialog saved. */
   let discarded = false;
   $effect(() => {
-    if (!open && restored && !discarded) forgetRescue();
+    if (!open && restored && !discarded) forgetRescue(record);
+  });
+  // Some dialogs are removed right after saving instead of closing; that also ends the rescue
+  onDestroy(() => {
+    if (restored && !discarded) forgetRescue(record);
   });
 
   async function requestDelete(): Promise<void> {

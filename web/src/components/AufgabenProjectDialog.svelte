@@ -66,6 +66,7 @@
 <EditDialog
   open
   title="Projekt"
+  rescueKey={`projekt:${target?.id ?? 'neu'}`}
   {busy}
   error={form.state.error}
   onedit={form.changed}

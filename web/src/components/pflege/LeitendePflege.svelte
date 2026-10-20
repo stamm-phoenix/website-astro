@@ -362,6 +362,7 @@
 <EditDialog
   open={form !== null}
   title={form?.id ? `${form.name || 'Person'} bearbeiten` : 'Neue Person'}
+  rescueKey={form ? `leitende:${form.id ?? 'neu'}` : undefined}
   busy={busy || photoBusy}
   error={dialog.state.error}
   notice={dialogNotice}
