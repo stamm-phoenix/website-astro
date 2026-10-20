@@ -329,37 +329,50 @@ export async function saveNotes(
 
 /**
  * Marks the Gruppenstunde as cancelled, which removes its attendance, or as held again.
- * Returns the new version of the Termin.
+ * `etag` is the version the page loaded, as for `saveNotes`, so the page cannot keep editing
+ * notes that someone else changed meanwhile. Returns the new version of the Termin.
  */
 export async function setCancelled(
   termin: Termin,
   cancelled: boolean,
+  etag: string | null,
   actor: string
 ): Promise<string> {
   return withMeeting(termin, actor, async (trx, meeting) => {
+    const query = trx
+      .updateTable('gruppenstunde.meeting')
+      .set({ cancelled, updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
+      .output('inserted.version')
+      .where('id', '=', meeting.id);
+    const updated = await (
+      etag === null
+        ? query.where('notes', '=', '')
+        : query.where('version', '=', requireVersion(etag))
+    ).executeTakeFirst();
+    if (!updated) throw new VersionConflictError();
     if (cancelled) {
       await trx
         .deleteFrom('gruppenstunde.attendance')
         .where('meeting_id', '=', meeting.id)
         .execute();
     }
-    const updated = await trx
-      .updateTable('gruppenstunde.meeting')
-      .set({ cancelled, updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
-      .output('inserted.version')
-      .where('id', '=', meeting.id)
-      .executeTakeFirstOrThrow();
     return toVersion(updated.version);
   });
 }
 
-/** Deletes the Termin with its attendance and notes; a Termin that is already gone is fine. */
-export async function deleteMeeting(termin: Termin): Promise<void> {
-  await getDb()
+/**
+ * Deletes the Termin with its attendance and notes if it still has the version `etag`; a
+ * Termin that is already gone is fine.
+ */
+export async function deleteMeeting(termin: Termin, etag: string | undefined): Promise<void> {
+  const result = await getDb()
     .deleteFrom('gruppenstunde.meeting')
     .where('stufe', '=', termin.stufe)
     .where('date', '=', termin.date)
-    .execute();
+    .where('version', '=', requireVersion(etag))
+    .executeTakeFirst();
+  if (Number(result.numDeletedRows) > 0) return;
+  if (await meetingIdOf(getDb(), termin).executeTakeFirst()) throw new VersionConflictError();
 }
 
 // --- CampFlow ---

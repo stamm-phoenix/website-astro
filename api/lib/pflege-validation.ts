@@ -1071,13 +1071,23 @@ export function validateChildStatus(body: unknown): 'anwesend' | 'entschuldigt' 
   return status === 'entschuldigt' ? 'entschuldigt' : 'anwesend';
 }
 
-/** Whether the Gruppenstunde was cancelled. */
-export function validateCancelled(body: unknown): boolean {
-  const { cancelled } = asRecord(body);
-  if (typeof cancelled !== 'boolean') {
-    throw new ValidationError({ cancelled: 'Die Angabe „Ausgefallen“ ist ungültig.' });
-  }
-  return cancelled;
+export interface CancelledInput {
+  cancelled: boolean;
+  /** The version the page loaded; `null` if the Termin did not exist yet. */
+  etag: string | null;
+}
+
+/** Whether the Gruppenstunde was cancelled, with the version the page loaded. */
+export function validateCancelled(body: unknown): CancelledInput {
+  const record = asRecord(body);
+  const errors: FieldErrors = {};
+  if (typeof record.cancelled !== 'boolean')
+    errors.cancelled = 'Die Angabe „Ausgefallen“ ist ungültig.';
+  const etag = typeof record.etag === 'string' ? record.etag : null;
+  if (etag === null && record.etag !== null)
+    errors.etag = 'Die Version des Termins fehlt. Bitte neu laden.';
+  if (Object.keys(errors).length > 0) throw new ValidationError(errors);
+  return { cancelled: record.cancelled === true, etag };
 }
 
 /** The name of a guest who is not in CampFlow. */

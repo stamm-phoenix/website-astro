@@ -22,7 +22,9 @@ test('the attendance history shows names and opens the chosen date', async ({ pa
   // Would break if the lists mixed up present and excused children
   await expect(row.getByRole('list', { name: 'Anwesend' }).getByText('Anna Test')).toBeVisible();
   await expect(row.getByRole('list', { name: 'Anwesend' }).getByText('Ben Beispiel')).toBeVisible();
-  await expect(row.getByRole('list', { name: 'Entschuldigt' }).getByText('David Probe')).toBeVisible();
+  await expect(
+    row.getByRole('list', { name: 'Entschuldigt' }).getByText('David Probe')
+  ).toBeVisible();
   await expect(row.getByText('Clara Muster', { exact: true })).toHaveCount(0);
   await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await expect(page.getByLabel('Datum', { exact: true })).toHaveValue(meeting.date);
@@ -102,6 +104,48 @@ test('deleting a Gruppenstunde from the history asks first and removes the row',
     await page.request.get('/api/intern/anwesenheit')
   ).json()) as AnwesenheitOverview;
   expect(overview.meetings.some((m) => m.date === date)).toBe(false);
+});
+
+test('a Gruppenstunde changed after opening is not deleted, and a deleted one leaves at once', async ({
+  page,
+}) => {
+  // Would break if the delete ignored the loaded version, or if the row came back because
+  // loading the Termine again failed after a successful delete
+  const date = daysAgo(201);
+  const termin = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
+  await page.request.put(`${termin}/kinder/per_W1`, { data: { status: 'anwesend' } });
+  const first = await page.request.put(termin, { data: { notes: 'Alt.', etag: null } });
+  const { etag } = (await first.json()) as { etag: string };
+
+  await page.goto('/leitendenbereich/anwesenheit');
+  await page.getByRole('button', { name: 'Verlauf & Statistik', exact: true }).click();
+  const row = page.locator(`[data-meeting-date="${date}"]`);
+  await row.getByRole('button', { name: /Details ansehen/ }).click();
+  await expect(row.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
+  // Someone else changes the notes while the details are open
+  await page.request.put(termin, { data: { notes: 'Von jemand anderem.', etag } });
+
+  const confirmDelete = async () => {
+    await row.getByRole('button', { name: 'Gruppenstunde löschen', exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Gruppenstunde löschen', exact: true })
+      .click();
+  };
+  await confirmDelete();
+  await expect(
+    page.getByText(/inzwischen geändert\. Sie wurde nicht gelöscht\./).first()
+  ).toBeVisible();
+  await expect(row).toBeVisible();
+
+  // The details show the new version again; loading the Termine after deleting fails
+  await expect(row.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
+  await page.route('**/api/intern/anwesenheit', (route) =>
+    route.fulfill({ status: 500, json: {} })
+  );
+  await confirmDelete();
+  await expect(page.getByText(/^Gruppenstunde am .* gelöscht\.$/).first()).toBeVisible();
+  await expect(page.locator(`[data-meeting-date="${date}"]`)).toHaveCount(0);
 });
 
 test('history retries a name lookup and explains anonymized attendance', async ({ page }) => {

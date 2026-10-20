@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
   import { averageMembers, monthlyStats } from '../../lib/anwesenheit';
-  import { fetchApi, errorMessage, sendApi } from '../../lib/api';
+  import { ApiError, fetchApi, errorMessage, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import type { AnwesenheitMeeting, AnwesenheitTermin } from '../../lib/types';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -14,8 +14,8 @@
     slug: string;
     meetings: AnwesenheitMeeting[];
     onselect: (date: string) => void;
-    /** Called after a Termin was deleted, to load the Termine again. */
-    ondelete: () => Promise<void>;
+    /** Called after the Termin of `date` was deleted, to remove it from the Termine. */
+    ondelete: (date: string) => void;
   }
   let { stufe, slug, meetings, onselect, ondelete }: Props = $props();
   const MONTH_LABEL = new Intl.DateTimeFormat('de-DE', {
@@ -94,7 +94,8 @@
     else collapse();
   }
 
-  async function remove(date: string): Promise<void> {
+  /** Deletes the Termin of `date` if nobody changed it since it was opened (`etag`). */
+  async function remove(date: string, etag: string | null): Promise<void> {
     const label = formatDate(date);
     const confirmed = await confirmAction({
       title: `Gruppenstunde ${stufe} am ${label} löschen?`,
@@ -105,19 +106,25 @@
     if (!confirmed) return;
     deleting = true;
     try {
-      await sendApi('DELETE', `/intern/pflege/anwesenheit/${slug}/${date}`);
+      await sendApi('DELETE', `/intern/pflege/anwesenheit/${slug}/${date}`, undefined, {
+        etag: etag ?? undefined,
+      });
       collapse();
       message = `Gruppenstunde am ${label} gelöscht.`;
       messageKind = 'success';
-      await ondelete();
+      ondelete(date);
       await tick();
       heading?.focus();
     } catch (caught) {
-      message = errorMessage(
-        caught,
-        `Die Gruppenstunde am ${label} wurde nicht gelöscht. Tippe noch einmal auf „Gruppenstunde löschen“.`
-      );
+      const conflict = caught instanceof ApiError && [409, 412].includes(caught.status);
+      message = conflict
+        ? `Jemand anderes hat die Gruppenstunde am ${label} inzwischen geändert. Sie wurde nicht gelöscht. Prüfe den neuen Stand, bevor du sie löschst.`
+        : errorMessage(
+            caught,
+            `Die Gruppenstunde am ${label} wurde nicht gelöscht. Tippe noch einmal auf „Gruppenstunde löschen“.`
+          );
       messageKind = 'error';
+      if (conflict) void load(date);
     } finally {
       deleting = false;
     }
@@ -154,7 +161,7 @@
     <div class="space-y-3">
       <AnwesenheitDiagramm {stats} />
       <details>
-        <summary class="cursor-pointer py-2 text-sm font-semibold text-link"
+        <summary class="min-h-11 cursor-pointer py-3 text-sm font-semibold text-link"
           >Zahlen pro Monat als Tabelle</summary
         >
         <p class="text-xs text-neutral-700 sm:hidden">
@@ -281,7 +288,8 @@
                           type="button"
                           disabled={deleting}
                           aria-busy={deleting}
-                          onclick={() => remove(meeting.date)}>Gruppenstunde löschen</ActionButton
+                          onclick={() => remove(meeting.date, termin.etag)}
+                          >Gruppenstunde löschen</ActionButton
                         >
                       {/if}
                     </div>

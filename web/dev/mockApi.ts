@@ -1799,8 +1799,9 @@ route(['PUT', 'DELETE'], '/api/intern/pflege/anwesenheit/:stufe/:datum', (req) =
   const slug = anwesenheitSlugOf(req);
   if (!slug) return notFound();
   if (req.method === 'DELETE') {
-    deleteAnwesenheitTermin(slug, req.params.datum);
-    return noContent();
+    return deleteAnwesenheitTermin(slug, req.params.datum, str(req.headers['if-match']))
+      ? noContent()
+      : error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert.');
   }
   const body = req.json ?? {};
   const etag = typeof body.etag === 'string' ? body.etag : null;
@@ -1836,7 +1837,11 @@ route('PUT', '/api/intern/pflege/anwesenheit/:stufe/:datum/ausgefallen', (req) =
   if (!slug) return notFound();
   const cancelled = req.json?.cancelled;
   if (typeof cancelled !== 'boolean') return error(400, 'VALIDATION', 'Ungültige Angabe.');
-  return json({ etag: setAnwesenheitCancelled(slug, req.params.datum, cancelled) });
+  const etag = typeof req.json?.etag === 'string' ? req.json.etag : null;
+  const saved = setAnwesenheitCancelled(slug, req.params.datum, cancelled, etag);
+  return saved === null
+    ? error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert.')
+    : json({ etag: saved });
 });
 
 route('POST', '/api/intern/pflege/anwesenheit/:stufe/:datum/gaeste', (req) => {

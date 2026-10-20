@@ -189,9 +189,19 @@ export function markAnwesenheitAbsent(slug: string, date: string, id: string): v
   meeting.excused = meeting.excused.filter((p) => p !== id);
 }
 
-/** Marks the Gruppenstunde as cancelled, which removes its attendance; returns the new etag. */
-export function setAnwesenheitCancelled(slug: StufeSlug, date: string, cancelled: boolean): string {
+/**
+ * Marks the Gruppenstunde as cancelled, which removes its attendance; returns the new etag, or
+ * `null` if the Termin changed since `etag` was loaded.
+ */
+export function setAnwesenheitCancelled(
+  slug: StufeSlug,
+  date: string,
+  cancelled: boolean,
+  etag: string | null
+): string | null {
   const meeting = meetingOf(slug, date);
+  const unchanged = etag === null ? meeting.notes === '' : etag === meeting.etag;
+  if (!unchanged) return null;
   meeting.cancelled = cancelled;
   if (cancelled) {
     meeting.present = [];
@@ -202,8 +212,13 @@ export function setAnwesenheitCancelled(slug: StufeSlug, date: string, cancelled
   return meeting.etag;
 }
 
-export function deleteAnwesenheitTermin(slug: string, date: string): void {
+/** `false` if the Termin changed since `etag` was loaded; a missing Termin is fine. */
+export function deleteAnwesenheitTermin(slug: string, date: string, etag: string): boolean {
+  const meeting = meetings.get(key(slug, date));
+  if (!meeting) return true;
+  if (meeting.etag !== etag) return false;
   meetings.delete(key(slug, date));
+  return true;
 }
 
 /** The new etag, or `null` if the notes changed since `etag` was loaded. */
