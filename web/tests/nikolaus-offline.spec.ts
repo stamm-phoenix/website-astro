@@ -77,9 +77,17 @@ test('an offline reload restores the next stop and queued visits, which can then
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
   await expect(page.getByText('Besucht – noch nicht bestätigt', { exact: true })).toBeVisible();
   await expect.poll(() => queueLength(page)).toBe(1);
+  // Keep automatic reconnect attempts pending locally until the manual retry.
+  let allowConfirmation = false;
+  await page.route('**/api/intern/pflege/nikolaus-fahrt?*', (route) =>
+    allowConfirmation ? route.continue() : route.abort('failed')
+  );
   await context.setOffline(false);
-  await page.bringToFront();
-  await expect.poll(() => queueLength(page), { timeout: 20_000 }).toBe(0);
+  const retry = page.getByRole('button', { name: 'Jetzt abgleichen' });
+  await expect(retry).toBeEnabled({ timeout: 20_000 });
+  allowConfirmation = true;
+  await retry.click();
+  await expect.poll(() => queueLength(page), { timeout: 15_000 }).toBe(0);
   await expectNoHorizontalOverflow(page);
 });
 
