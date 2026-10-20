@@ -116,13 +116,13 @@
       <li class="border-t-neutral-300!">
         <a
           href={staffLink.href}
-          class="flex items-center gap-2 py-3 text-sm font-semibold text-link underline decoration-transparent decoration-2 underline-offset-[0.35em] hover:decoration-neutral-300 active:text-brand-700 aria-[current=page]:decoration-[var(--color-accent-500)]"
+          class="group flex items-center gap-2 py-3 text-sm font-semibold text-link no-underline active:text-brand-700"
           aria-current={isCurrent(staffLink.href) ? 'page' : undefined}
           onclick={closeMenu}
         >
           <svg
             aria-hidden="true"
-            class="size-4"
+            class="size-4 shrink-0"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -133,7 +133,10 @@
             <rect x="4" y="11" width="16" height="10" rx="2"></rect>
             <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
           </svg>
-          {staffLink.label}
+          <span
+            class="underline decoration-transparent decoration-2 underline-offset-[0.35em] group-hover:decoration-neutral-300 group-aria-[current=page]:decoration-[var(--color-accent-500)]"
+            >{staffLink.label}</span
+          >
         </a>
       </li>
     {/if}
