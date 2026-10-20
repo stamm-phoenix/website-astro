@@ -100,7 +100,10 @@ test('permission-limited directory is visible as configuration error', async ({ 
   await page.goto('/leitendenbereich/aufgaben');
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   await expect(
-    page.getByText('Personensuche gerade nicht verfügbar', { exact: false })
+    page.getByText(
+      'Die Personensuche ist nicht vollständig eingerichtet. Schreib bitte an admin@stamm-phoenix.de.',
+      { exact: false }
+    )
   ).toBeVisible();
 });
 

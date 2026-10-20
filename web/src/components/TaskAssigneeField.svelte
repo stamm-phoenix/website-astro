@@ -16,6 +16,7 @@
   const users = $derived(aufgabenStore.users);
   const loading = $derived(aufgabenStore.usersLoading);
   const unavailable = $derived(aufgabenStore.usersUnavailable);
+  const configurationError = $derived(aufgabenStore.usersConfigurationError);
   const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   let input = $state<HTMLInputElement | null>(null);
   let search = $state<PersonSuche | null>(null);
@@ -134,5 +135,7 @@
     Personenvorschläge werden geladen …
   </p>
 {:else if unavailable}<p role="status" class="text-sm text-neutral-700">
-    Personensuche gerade nicht verfügbar – vollständigen Namen eintippen.
+    {configurationError
+      ? 'Die Personensuche ist nicht vollständig eingerichtet. Schreib bitte an admin@stamm-phoenix.de. Bis dahin kannst du vollständige Namen eintippen.'
+      : 'Personensuche gerade nicht verfügbar – vollständigen Namen eintippen.'}
   </p>{/if}

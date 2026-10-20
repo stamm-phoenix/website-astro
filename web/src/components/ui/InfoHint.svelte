@@ -5,7 +5,7 @@
    * the result shows stays out of the UI. Closes with Escape, a tap outside or when the focus
    * leaves it; the focus stays on the button, so keyboard users continue where they were.
    */
-  import type { Snippet } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
 
   interface Props {
     /** What the explanation is about; the button is named „Erklärung zu <label>“. */
@@ -19,28 +19,51 @@
 
   const id = $props.id();
   let open = $state(false);
-  /** Viewport position of the panel: under the button, kept inside the screen with a margin. */
+  /**
+   * Viewport position of the panel: under the button, or above it when there is more room there,
+   * kept inside the screen with a margin. A longer text than fits scrolls inside the panel.
+   */
   let panelLeft = $state(0);
-  let panelTop = $state(0);
+  /** Distance from the top of the screen when below the button, from the bottom when above. */
+  let panelTop = $state<number | undefined>(0);
+  let panelBottom = $state<number | undefined>(undefined);
   let panelWidth = $state(0);
+  let panelMaxHeight = $state<number | undefined>(undefined);
   let root = $state<HTMLSpanElement | null>(null);
   let button = $state<HTMLButtonElement | null>(null);
+  let panel = $state<HTMLSpanElement | null>(null);
 
   function place(): void {
     const rect = button?.getBoundingClientRect();
     if (!rect) return;
     const margin = 16;
+    const gap = 4;
     panelWidth = Math.min(352, window.innerWidth - 2 * margin);
     panelLeft = Math.min(Math.max(rect.left - 4, margin), window.innerWidth - margin - panelWidth);
-    panelTop = rect.bottom + 4;
+    const below = Math.max(0, window.innerHeight - margin - rect.bottom - gap);
+    const above = Math.max(0, rect.top - gap - margin);
+    // The height of the whole text, whatever the current limit is
+    const height = panel ? panel.scrollHeight + (panel.offsetHeight - panel.clientHeight) : 0;
+    if (height <= below || below >= above) {
+      panelTop = rect.bottom + gap;
+      panelBottom = undefined;
+      panelMaxHeight = below;
+    } else {
+      panelTop = undefined;
+      panelBottom = window.innerHeight - rect.top + gap;
+      panelMaxHeight = above;
+    }
   }
-  function toggle(): void {
+  async function toggle(): Promise<void> {
     if (open) {
       open = false;
       return;
     }
     place();
     open = true;
+    // Measure the rendered text to decide between below and above
+    await tick();
+    place();
   }
 
   function onPointerDown(event: PointerEvent): void {
@@ -92,8 +115,11 @@
       class="info-hint-panel"
       role="note"
       style:left="{panelLeft}px"
-      style:top="{panelTop}px"
+      style:top={panelTop === undefined ? undefined : `${panelTop}px`}
+      style:bottom={panelBottom === undefined ? undefined : `${panelBottom}px`}
       style:width="{panelWidth}px"
+      style:max-height={panelMaxHeight === undefined ? undefined : `${panelMaxHeight}px`}
+      bind:this={panel}
     >
       {#if children}{@render children()}{:else}{text}{/if}
     </span>
@@ -138,6 +164,8 @@
     color: var(--color-neutral-800);
     text-align: left;
     white-space: normal;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .info-hint-panel :global(p + p) {
     margin-top: 0.5rem;

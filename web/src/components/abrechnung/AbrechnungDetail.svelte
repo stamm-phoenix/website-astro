@@ -416,8 +416,10 @@
               {/if}
               <InfoHint label="Deine Eingaben" class="ml-1">
                 <p>
-                  Teilnehmende, Rollen, Zusatztag, geänderte Beträge, Leihgebühren und Deckblatt
-                  bleiben nur auf diesem Gerät, auch wenn du die Seite schließt. Beim Neu laden
+                  Gemeint sind Teilnehmende, Rollen, Zusatztag, geänderte Beträge, Leihgebühren und
+                  Deckblatt. {aufbewahrungVorbei || !ablage.available
+                    ? 'Sie bleiben nur, solange diese Seite geöffnet ist.'
+                    : 'Sie bleiben nur auf diesem Gerät, auch wenn du die Seite schließt.'} Beim Neu laden
                   bleiben sie erhalten.
                 </p>
                 <p>
