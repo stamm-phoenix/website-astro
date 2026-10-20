@@ -59,9 +59,13 @@ export function isIch(person: PersonMerkmale): boolean {
 
 /**
  * `isIch` for a person as CampFlow sends it, e.g. a registration to an event. `eigene` are the IDs
- * the server matched by the primary address of the linked person (`ich` of the Aktion).
+ * the server matched by the primary address of the linked person (`ich` of the Aktion); `null`
+ * or missing when it could not compare, then the names decide.
  */
-export function isIchCampflow(person: CampflowPerson, eigene: readonly string[] = []): boolean {
+export function isIchCampflow(
+  person: CampflowPerson,
+  eigene: readonly string[] | null = null
+): boolean {
   const name = person.name as { first_name?: unknown; last_name?: unknown } | null | undefined;
   const parts = [name?.first_name, name?.last_name].filter(
     (part): part is string => typeof part === 'string' && part.trim() !== ''
@@ -69,6 +73,6 @@ export function isIchCampflow(person: CampflowPerson, eigene: readonly string[] 
   return isIch({
     id: person.id,
     name: parts.join(' '),
-    ich: eigene.includes(person.id),
+    ich: eigene ? eigene.includes(person.id) : undefined,
   });
 }

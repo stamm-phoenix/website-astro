@@ -173,15 +173,16 @@ function eigeneAdresse(): string {
 /** Like `eigeneAnmeldungen` of the API: IDs of the persons with the linked address. */
 export function mockEigeneAnmeldungen(
   persons: { id: string; primary_email?: unknown }[]
-): string[] {
+): string[] | null {
   const email = eigeneAdresse();
-  return email ? persons.filter((p) => p.primary_email === email).map((p) => p.id) : [];
+  return email ? persons.filter((p) => p.primary_email === email).map((p) => p.id) : null;
 }
 
 /** Like `mitEigenerAdresse` of the API: marks the recipient with the linked address. */
 export function mockMitEigenerAdresse<T extends { email: string }>(
   list: T[]
-): (T & { ich: boolean })[] {
+): (T & { ich?: boolean })[] {
   const email = eigeneAdresse();
-  return list.map((recipient) => ({ ...recipient, ich: !!email && recipient.email === email }));
+  if (!email) return [...list];
+  return list.map((recipient) => ({ ...recipient, ich: recipient.email === email }));
 }

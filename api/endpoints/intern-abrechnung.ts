@@ -33,9 +33,10 @@ export interface Abrechnung {
   persons: AbrechnungPerson[];
   /**
    * IDs of the own registrations, matched on the server by the primary address of the linked
-   * CampFlow person, so the page marks them with „(ich)“ without getting any address.
+   * CampFlow person, so the page marks them with „(ich)“ without getting any address; `null`
+   * when nothing could be compared, then the page goes by the names.
    */
-  ich: string[];
+  ich: string[] | null;
   bilanz: Bilanz;
   nachweise: Nachweis[];
   /** When the Einzelnachweise were exported from CampFlow (ISO 8601), if the API reports it. */

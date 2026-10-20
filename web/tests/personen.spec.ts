@@ -39,7 +39,9 @@ test('leaders are linked to CampFlow and find themselves in an Aktion', async ({
   // The demo account is registered for the Georgsfest as a person of its own, under another
   // name: the server finds it by the address of the linked person, which the page never gets
   await page.goto('/leitendenbereich/aktionen/aktion?id=evt_Georgsfest');
+  // Only the own registration: the namesake „Demo Leitung“ has another address
   await expect(page.getByText('(ich)').filter({ visible: true })).toHaveCount(1);
+  await expect(page.getByText(/Demo L\.\s*\(ich\)/).filter({ visible: true })).toHaveCount(1);
   const ich = await page.request.get('/api/intern/ich');
   expect(JSON.stringify(await ich.json())).not.toContain('demo.leitung@example.org');
 
@@ -64,5 +66,7 @@ test('leaders are linked to CampFlow and find themselves in an Aktion', async ({
   });
   await expect(page.getByRole('heading', { name: 'Georgsfest des Bezirks' })).toBeVisible();
   await expect(page.getByText('Demo L.').filter({ visible: true }).first()).toBeVisible();
-  await expect(page.getByText('(ich)').filter({ visible: true })).toHaveCount(0);
+  // Without a link only the name of the Microsoft account is left, as before
+  await expect(page.getByText(/Demo L\.\s*\(ich\)/).filter({ visible: true })).toHaveCount(0);
+  await expect(page.getByText(/Demo Leitung\s*\(ich\)/).filter({ visible: true })).toHaveCount(1);
 });

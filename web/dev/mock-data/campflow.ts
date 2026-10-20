@@ -308,6 +308,13 @@ function personFor(eventId: string, index: number, start: string | null): Campfl
       cancellation_date: null,
     });
   }
+  // A namesake of the demo account with an address of its own: never the own registration
+  if (eventId === 'evt_Georgsfest' && index === 1) {
+    Object.assign(person, {
+      name: { first_name: 'Demo', last_name: 'Leitung' },
+      primary_email: 'namensvetter@example.org',
+    });
+  }
   return person;
 }
 
