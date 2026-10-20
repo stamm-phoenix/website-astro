@@ -42,7 +42,7 @@
   {:else if phase === 'loadFailed'}
     <div class="mb-4 border-l-4 border-danger py-2 pl-4 text-sm text-neutral-800">
       <strong class="text-danger">Neuigkeiten nicht als neu oder gelesen markiert.</strong>
-      <MessageText text={changelogStore.error ?? ''} />
+      <MessageText text={changelogStore.loadError ?? ''} />
       Die Neuigkeiten stehen unten, es wurde nichts als gelesen gespeichert.
       <div>
         <ActionButton variant="secondary" type="button" class="mt-3" onclick={open}
@@ -53,7 +53,7 @@
   {:else if phase === 'saveFailed'}
     <p class="mb-4 border-l-4 border-warning py-2 pl-4 text-sm text-neutral-800">
       <strong class="text-warning">Nicht als gelesen gespeichert.</strong>
-      <MessageText text={changelogStore.error ?? ''} />
+      <MessageText text={changelogStore.saveError ?? ''} />
       Die Zahl am Menü bleibt deshalb stehen.
     </p>
   {:else if newIds.length > 0}

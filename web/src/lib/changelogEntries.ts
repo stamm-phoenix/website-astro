@@ -48,8 +48,14 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Alle Datums- und Uhrzeitangaben richten sich nach der Berliner Zeit, auch rund um den Jahreswechsel.',
       'Wenn deine Anmeldung abläuft oder jemand anderes dasselbe bearbeitet hat, bleiben deine Eingaben erhalten. Du lädst bewusst die aktuelle Fassung nach und musst nichts neu tippen.',
       'Bei technischen Problemen nennen alle Fehlermeldungen jetzt admin@stamm-phoenix.de.',
-      'Im Protokoll-Editor erscheinen offene Aufgaben und Projekte an den Tagesordnungspunkten. Beim Freigeben werden die Aufgaben übernommen, und das Abhaken in einem Protokoll wird mit dem Aufgabenmodul abgeglichen.',
-      'Antworten in Fragen & Antworten dürfen anklickbare Links enthalten.',
+      {
+        text: 'Im Protokoll-Editor erscheinen offene Aufgaben und Projekte an den Tagesordnungspunkten. Beim Freigeben werden die Aufgaben übernommen, und das Abhaken in einem Protokoll wird mit dem Aufgabenmodul abgeglichen.',
+        href: '/leitendenbereich/protokolle',
+      },
+      {
+        text: 'Antworten in Fragen & Antworten dürfen anklickbare Links enthalten.',
+        href: '/leitendenbereich/fragen-und-antworten',
+      },
     ],
   },
   {
@@ -58,8 +64,14 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Ein Editor für alle Textfelder',
     changes: [
       'Alle längeren Textfelder (Blog, Protokolle, Beschreibungen) nutzen denselben Editor mit Überschriften, Listen, Tabellen und Checklisten.',
-      'Im Protokoll wählst du, ob du formatiert oder in Markdown schreibst. Deine Wahl gilt auf allen Geräten.',
-      'Die Tagesordnung eines Protokolls ist ein einziges Dokument. Du kannst Punkte darin verschieben, kopieren und mit Rückgängig zurücknehmen.',
+      {
+        text: 'Im Protokoll wählst du, ob du formatiert oder in Markdown schreibst. Deine Wahl gilt auf allen Geräten.',
+        href: '/leitendenbereich/protokolle',
+      },
+      {
+        text: 'Die Tagesordnung eines Protokolls ist ein einziges Dokument. Du kannst Punkte darin verschieben, kopieren und mit Rückgängig zurücknehmen.',
+        href: '/leitendenbereich/protokolle',
+      },
       'Breite Tabellen sagen dir, dass sie seitlich scrollen. Checklisten-Kästchen lassen sich auf dem Handy gut treffen.',
     ],
   },
@@ -72,12 +84,25 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: 'Neues Modul „Fotos“: Du stöberst in der Fotobibliothek, lädst Bilder oder ganze Ordner als ZIP herunter und lädst eigene Fotos hoch. Auf dem Handy zoomst du Bilder und wischst durch sie.',
         href: '/leitendenbereich/fotos',
       },
-      'Der Versand von Protokollen zeigt dir die Empfängerliste mit dem Grund jeder Adresse. Du kannst Adressen herausnehmen oder ergänzen. Mitglieder mit dem CampFlow-Label „Protokollempfang“ bekommen das Protokoll automatisch.',
-      'Alle Leitenden dürfen Protokolle prüfen. Die Prüfung ist freiwillig.',
+      {
+        text: 'Der Versand von Protokollen zeigt dir die Empfängerliste mit dem Grund jeder Adresse. Du kannst Adressen herausnehmen oder ergänzen. Mitglieder mit dem CampFlow-Label „Protokollempfang“ bekommen das Protokoll automatisch.',
+        href: '/leitendenbereich/protokolle',
+      },
+      {
+        text: 'Alle Leitenden dürfen Protokolle prüfen. Die Prüfung ist freiwillig.',
+        href: '/leitendenbereich/protokolle',
+      },
       'Beim Nikolausdienst sind viele Texte verständlicher geworden: Planungsmerkmale heißen jetzt „Merkmale“, Teams und Besuche werden in Worten gezählt, und ein Besuch dauert höchstens 45 Minuten.',
       'Familien sehen ab zwei Stunden vor dem Besuch gut sichtbar den Notfallkontakt.',
       'In der Einteilung werden fertige Teams zuerst besetzt. Du kannst andere Teamzahlen ausprobieren und siehst, warum eine Zahl nicht geht.',
-      'Ein Blogbeitrag trennt Entwurf und Veröffentlichung deutlich. Bei Gruppenstunden liegt „Löschen“ unter „Weitere Aktionen“.',
+      {
+        text: 'Ein Blogbeitrag trennt Entwurf und Veröffentlichung deutlich.',
+        href: '/leitendenbereich/blog',
+      },
+      {
+        text: 'Bei Gruppenstunden liegt „Löschen“ unter „Weitere Aktionen“.',
+        href: '/leitendenbereich/gruppenstunden',
+      },
       'Auf dem Handy lassen sich Filter und Tagesüberblick der Nikolausmodule einklappen.',
       'Die Sammelbestellungen, Gruppenstunden, Leitenden, Aktionen, Belege, Downloads und Favoriten liegen jetzt in einer eigenen Datenbank statt in SharePoint-Listen. Für dich ändert sich dadurch nichts.',
     ],
@@ -90,9 +115,19 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fehlermeldungen sagen dir, was nicht geklappt hat, ob etwas gespeichert wurde und wen du ansprechen kannst. Die Hilfe-Adressen sind direkt anklickbar.',
       'Läuft deine Anmeldung ab, öffnet sich die neue Anmeldung in einem neuen Tab, und dein Entwurf bleibt in der alten Seite stehen.',
       'Wenn du eine Seite mit ungespeicherten Änderungen verlässt, fragt der Leitendenbereich mit einem eigenen Fenster nach.',
-      'Die Abrechnung merkt sich deine Eingaben pro Aktion auf dem Gerät und löscht sie einen Monat nach der KJR-Frist.',
+      {
+        text: 'Die Abrechnung merkt sich deine Eingaben pro Aktion auf dem Gerät und löscht sie einen Monat nach der KJR-Frist.',
+        href: '/leitendenbereich/abrechnung',
+      },
       'Ansichten und Filter heißen überall gleich und zeigen ihren Namen. Auswahlleisten sind auf dem Handy groß genug zum Antippen.',
-      'Aktionen ohne KJR-Zuschuss lassen sich markieren. Im Protokoll-Editor sortierst du Tagesordnungspunkte per Ziehen und trägst Beginn und Ende ein.',
+      {
+        text: 'Aktionen ohne KJR-Zuschuss lassen sich markieren.',
+        href: '/leitendenbereich/aktionen',
+      },
+      {
+        text: 'Im Protokoll-Editor sortierst du Tagesordnungspunkte per Ziehen und trägst Beginn und Ende ein.',
+        href: '/leitendenbereich/protokolle',
+      },
       'In der Anwesenheit steht jetzt, dass Häkchen sofort gespeichert werden.',
     ],
   },
@@ -126,7 +161,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Aus Protokollen schlägt der Leitendenbereich Aufgaben vor, die du prüfst und übernimmst. Vergangene Fristen werden dabei nicht vorgeschlagen.',
       'Du bekommst auf Wunsch Erinnerungen per E-Mail an deine Aufgaben. Auf der Startseite siehst du deine eigenen offenen Aufgaben.',
       'Wer sich für den Nikolausdienst anmeldet oder einen Link für eine Sammelbestellung anfordert, bestätigt dafür eine kurze Sicherheitsabfrage ohne Cookies.',
-      'Die Seite „Abrechnung“ warnt, wenn du zu viele Betreuende einträgst.',
+      {
+        text: 'Die Seite „Abrechnung“ warnt, wenn du zu viele Betreuende einträgst.',
+        href: '/leitendenbereich/abrechnung',
+      },
     ],
   },
   {

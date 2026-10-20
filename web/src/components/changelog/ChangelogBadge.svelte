@@ -33,8 +33,8 @@
     justify-content: center;
     padding: 0 0.3rem;
     border-radius: 9999px;
-    background: var(--color-dpsg-red);
-    color: #fff;
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
     font-size: 0.75rem;
     font-weight: 700;
     line-height: 1;
