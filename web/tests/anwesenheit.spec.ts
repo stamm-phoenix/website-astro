@@ -324,3 +324,61 @@ test('a guest entered after someone cancelled the Gruppenstunde explains what ha
     .click();
   await expect(choice(page, 'Anna Test').abwesend).toBeEnabled();
 });
+
+for (const failedReload of [false, true]) {
+  test(`a note draft keeps its version through repeated reloads${failedReload ? ' including a load failure' : ''}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const date = failedReload ? '2026-08-19' : '2026-08-20';
+    const read = `/api/intern/anwesenheit/woelflinge/${date}`;
+    const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
+    const initial = await page.request.put(write, {
+      data: { notes: 'Ursprüngliche Notiz.', etag: null },
+    });
+    expect(initial.ok()).toBe(true);
+    const { etag } = (await initial.json()) as { etag: string };
+
+    await page.goto('/leitendenbereich/anwesenheit');
+    await page.getByLabel('Datum', { exact: true }).fill(date);
+    const notes = page.getByLabel(/Was habt ihr gemacht/);
+    await expect(notes).toHaveValue('Ursprüngliche Notiz.');
+    await notes.fill('Mein ungespeicherter Entwurf.');
+    const other = await page.request.put(write, {
+      data: { notes: 'Notiz der anderen Leitung.', etag },
+    });
+    expect(other.ok()).toBe(true);
+
+    await page.route(`**${write}/kinder/**`, (route) => route.fulfill({ status: 500, json: {} }));
+    if (failedReload) {
+      await page.route(`**${read}`, (route) => route.fulfill({ status: 500, json: {} }));
+      await choice(page, 'Anna Test').anwesend.click();
+      await expect(page.getByText(/Der Termin konnte nicht geladen werden/)).toBeVisible();
+      await page.unroute(`**${read}`);
+      await page.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
+      await expect(notes).toHaveValue('Mein ungespeicherter Entwurf.');
+    }
+    // Two successful reloads used to replace the draft's version with the other leader's.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const reload = page.waitForResponse((response) => new URL(response.url()).pathname === read);
+      await choice(page, 'Anna Test').anwesend.click();
+      expect((await reload).ok()).toBe(true);
+      await expect(choice(page, 'Anna Test').abwesend).toHaveAttribute('aria-pressed', 'true');
+      await expect(notes).toHaveValue('Mein ungespeicherter Entwurf.');
+    }
+
+    const save = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === write && response.request().method() === 'PUT'
+    );
+    await page.getByRole('button', { name: 'Notiz speichern' }).click();
+    expect([409, 412]).toContain((await save).status());
+    await expect(
+      page.getByText(/Jemand anderes hat die Notiz inzwischen geändert/).first()
+    ).toBeVisible();
+    await expect(notes).toHaveValue('Mein ungespeicherter Entwurf.');
+    const stored = await (await page.request.get(read)).json();
+    expect(stored.notes).toBe('Notiz der anderen Leitung.');
+    await expectNoHorizontalOverflow(page);
+  });
+}
