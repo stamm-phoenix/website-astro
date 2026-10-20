@@ -32,10 +32,10 @@ test('„Menü“ closes the sheet „Alle Bereiche“ again', async ({ page, br
   await expect(sheet).toBeHidden();
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
 
-  // The dimmed page closes it too
+  // The dimmed page beside the sheet (at most 576px wide, centered) closes it too
   await menu.click();
   await expect(sheet).toBeVisible();
-  await page.mouse.click(400, 300);
+  await page.mouse.click(20, 300);
   await expect(sheet).toBeHidden();
 });
 
