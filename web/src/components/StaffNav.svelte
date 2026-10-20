@@ -233,11 +233,15 @@
     if (returnFocus) menuButton?.focus();
   }
 
-  /** Keyboard focus leaving the panel and the bar for the covered page closes the panel. */
+  /**
+   * Keyboard focus leaving the panel and the bar for the covered page closes the panel. Safari
+   * focuses the surrounding `<main tabindex="-1">` on a tap on „Menü“; that is no move away,
+   * else the panel closes and the click opens it again.
+   */
   function onfocusin(event: FocusEvent): void {
     const target = event.target;
     if (!open || !(target instanceof Node)) return;
-    if (panel?.contains(target) || bar?.contains(target)) return;
+    if (panel?.contains(target) || (bar && (bar.contains(target) || target.contains(bar)))) return;
     hide(false);
   }
 
