@@ -9,6 +9,8 @@
   }
   let { module, compact = false }: Props = $props();
 
+  const STAR = 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z';
+
   const toggle = $derived(favoriteToggle(module));
   const active = $derived(favoritesStore.modules.includes(module.href));
 </script>
@@ -29,15 +31,36 @@
     title={active ? 'Aus deinen Favoriten entfernen' : 'Zu deinen Favoriten hinzufügen'}
     onclick={toggle}
   >
+    <!-- The outline stays; the filling grows out of the middle of the star when it is added -->
     <svg
       aria-hidden="true"
       class={compact ? 'size-4' : 'size-5'}
       viewBox="0 0 24 24"
-      fill={active ? 'currentColor' : 'none'}
+      fill="none"
       stroke="currentColor"
       stroke-width="1.8"
       stroke-linejoin="round"
-      ><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z" /></svg
+      ><path d={STAR} /><path
+        class={['star-fill', active && 'active']}
+        d={STAR}
+        fill="currentColor"
+      /></svg
     >
   </button>
 {/if}
+
+<style>
+  /* No bounce: the scale stays below 1, so a quick second tap shrinks it back without overshoot */
+  .star-fill {
+    opacity: 0;
+    transform: scale(0.4);
+    transform-origin: 12px 12.5px;
+    transition:
+      transform var(--motion-quick) var(--motion-enter),
+      opacity var(--motion-quick) ease-out;
+  }
+  .star-fill.active {
+    opacity: 1;
+    transform: none;
+  }
+</style>

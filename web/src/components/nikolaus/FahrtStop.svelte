@@ -135,9 +135,8 @@
           <span class="font-semibold text-neutral-900">Familie {stop.familyName}</span>
           <span class="block text-neutral-700">{stop.street}, {stop.city}</span>
         </span>
-        <span
-          class="mt-1 text-neutral-700 transition-transform group-open:rotate-180"
-          aria-hidden="true">▾</span
+        <span class="disclosure-icon mt-1 text-neutral-700 group-open:rotate-180" aria-hidden="true"
+          >▾</span
         >
       </summary>
       <div class="pb-4 pl-10">

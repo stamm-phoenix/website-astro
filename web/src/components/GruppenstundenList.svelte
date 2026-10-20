@@ -112,7 +112,7 @@
               >
                 {isExpanded ? 'Weniger' : 'Details'}
                 <svg
-                  class="h-4 w-4 transition-transform duration-200"
+                  class="disclosure-icon h-4 w-4"
                   class:rotate-180={isExpanded}
                   aria-hidden="true"
                   fill="none"

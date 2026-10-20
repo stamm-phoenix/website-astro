@@ -471,6 +471,13 @@ p {
   transition-delay: 0s;
 }
 
+/* Disclosure markers (chevrons, the plus of the FAQ, the sidebar arrow) turn with their state.
+   The turn itself stays with each control (`rotate-180`, `group-open:rotate-45`); this is the
+   one timing for all of them, so a quick second click turns back from the current angle. */
+.disclosure-icon {
+  transition: rotate var(--motion-quick) var(--motion-move);
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-quick: 0ms;

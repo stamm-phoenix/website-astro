@@ -6,10 +6,12 @@
   aria-pressed="false"
   class="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-sm p-2 text-brand-900 hover:bg-neutral-100"
 >
+  <!-- Off: the moon (switch to dark). On: the moon shrinks into the core of the sun and the rays
+       turn out of it, and back. The button stays hidden until the script has set aria-pressed,
+       so the icon never turns while a page loads. -->
   <svg
-    data-theme-icon="dark"
     aria-hidden="true"
-    class="size-5"
+    class="theme-icon size-5"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -17,20 +19,37 @@
     stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z" />
-  </svg>
-  <svg
-    data-theme-icon="light"
-    style="display:none"
-    aria-hidden="true"
-    class="size-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.8"
-    stroke-linecap="round"
-  >
-    <circle cx="12" cy="12" r="4" />
-    <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" />
+    <path data-theme-icon="moon" d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z" />
+    <circle data-theme-icon="sun-core" cx="12" cy="12" r="4" />
+    <path
+      data-theme-icon="sun-rays"
+      d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"
+    />
   </svg>
 </button>
+
+<style>
+  .theme-icon > * {
+    transform-origin: 12px 12px;
+    transition:
+      transform var(--motion-quick) var(--motion-move),
+      opacity var(--motion-quick) ease-out;
+  }
+  /* The core grows to the size of the moon and the moon shrinks to the size of the core */
+  [data-theme-icon='sun-core'] {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+  [data-theme-icon='sun-rays'] {
+    opacity: 0;
+    transform: rotate(-45deg) scale(0.5);
+  }
+  [aria-pressed='true'] [data-theme-icon='moon'] {
+    opacity: 0;
+    transform: rotate(45deg) scale(0.47);
+  }
+  [aria-pressed='true'] :is([data-theme-icon='sun-core'], [data-theme-icon='sun-rays']) {
+    opacity: 1;
+    transform: none;
+  }
+</style>
