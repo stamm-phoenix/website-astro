@@ -7,7 +7,7 @@ import { getNikolausContent } from '../../lib/content/content';
 const config = await getNikolausContent();
 ---
 
-<StaffLayout>
+<StaffLayout offlineNotice={false}>
   <NikolausStaffNotice module client:only="svelte" />
   <NikolausFahrt {config} client:only="svelte" />
 </StaffLayout>

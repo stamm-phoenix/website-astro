@@ -6,7 +6,6 @@ import StaffSidebar from '../components/StaffSidebar.svelte';
 import { SIDEBAR_KEY } from '../lib/staffSidebar';
 import StaffIntro from '../components/StaffIntro.svelte';
 import StaffFooter from '../components/StaffFooter.astro';
-import StaffOfflineNotice from '../components/StaffOfflineNotice.svelte';
 import PageHeader from '../components/PageHeader.astro';
 import {
   NIKOLAUS_CONTROL_MODULE,
@@ -29,9 +28,17 @@ interface Props {
   bare?: boolean;
   /** Less space below the intro, for modules whose content must start high up on a phone. */
   compact?: boolean;
+  /** Off for modules that say themselves what works without a connection. */
+  offlineNotice?: boolean;
 }
 
-const { header = 'page', printable = false, bare = false, compact = false } = Astro.props;
+const {
+  header = 'page',
+  printable = false,
+  bare = false,
+  compact = false,
+  offlineNotice = true,
+} = Astro.props;
 const page = staffPage(Astro.url.pathname);
 const heading = page.heading ?? page.title;
 const breadcrumbs = staffBreadcrumbs(page);
@@ -82,7 +89,19 @@ const title =
 
     <!-- „Zum Inhalt springen“ leads here, past the sidebar -->
     <div id="staff-content" tabindex="-1" class="min-w-0 flex-1">
-      {!bare && <StaffOfflineNotice client:load />}
+      {!bare && offlineNotice && (
+        // Without a service worker pages and data need the connection; shown by the script below
+        <div role="status" aria-live="polite">
+          <p
+            data-offline-notice
+            hidden
+            class="mb-4 border-l-4 border-warning py-1 pl-3 text-warning"
+          >
+            <strong>Keine Verbindung zum Internet.</strong> Lass diese Seite offen, deine Eingaben
+            bleiben stehen. Speichern und andere Seiten gehen erst wieder, wenn du online bist.
+          </p>
+        </div>
+      )}
       {!bare && back && (
         <nav
           aria-label="Zurück"
@@ -143,6 +162,15 @@ const title =
 
   <StaffFooter slot="footer" />
 </BaseLayout>
+
+<script>
+  function showOfflineNotice(): void {
+    document.querySelector('[data-offline-notice]')?.toggleAttribute('hidden', navigator.onLine);
+  }
+  window.addEventListener('online', showOfflineNotice);
+  window.addEventListener('offline', showOfflineNotice);
+  document.addEventListener('astro:page-load', showOfflineNotice);
+</script>
 
 <style is:global>
   @media print {
