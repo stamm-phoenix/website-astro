@@ -358,8 +358,9 @@
         <dt class="font-semibold text-neutral-700">Telefon</dt>
         <dd>
           {#if booking.phone}
-            <a class="text-link underline" href="tel:{booking.phone.replace(/\s+/g, '')}"
-              >{booking.phone}</a
+            <a
+              class="text-link underline inline-flex min-h-11 items-center"
+              href="tel:{booking.phone.replace(/\s+/g, '')}">{booking.phone}</a
             >
           {:else}
             –

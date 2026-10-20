@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import { confirmAction } from '../../lib/confirm';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { errorMessage, fetchApi } from '../../lib/api';
   import { suggestedDate } from '../../lib/anwesenheit';
   import type { AnwesenheitMeeting, AnwesenheitOverview } from '../../lib/types';
@@ -16,6 +18,20 @@
   let view = $state<View>('erfassen');
   let slug = $state('');
   let date = $state('');
+  let dirty = $state(false);
+  onMount(() => guardUnsavedChanges(() => dirty));
+  async function mayChange(): Promise<boolean> {
+    if (!dirty) return true;
+    const discard = await confirmAction({
+      title: 'Ungespeicherte Eingaben verwerfen?',
+      message:
+        'Die Notiz oder der Gastname ist noch nicht gespeichert. Möchtest du den Termin trotzdem wechseln?',
+      confirmLabel: 'Eingaben verwerfen',
+      cancelLabel: 'Weiter bearbeiten',
+    });
+    if (discard) dirty = false;
+    return discard;
+  }
 
   const selected = $derived(overview?.stufen.find((s) => s.slug === slug));
   const loaded = $derived(overview && selected ? { overview, selected } : null);
@@ -35,7 +51,8 @@
     }
   }
 
-  function selectStufe(next: string): void {
+  async function selectStufe(next: string): Promise<void> {
+    if (next === slug || !(await mayChange())) return;
     slug = next;
     const stufe = overview?.stufen.find((s) => s.slug === next);
     date = suggestedDate(stufe?.weekday ?? '', overview?.today ?? date);
@@ -73,12 +90,14 @@
 
   /** Shows a view; the statistics are loaded again, as the Termin may have changed. */
   async function showView(next: View): Promise<void> {
+    if (next === view || !(await mayChange())) return;
     view = next;
     if (next === 'verlauf') await refreshOverview();
   }
 
-  function changeDate(value: string): void {
-    if (!overview || !value || value > overview.today) return;
+  async function changeDate(value: string): Promise<void> {
+    if (!overview || !value || value === date || value > overview.today || !(await mayChange()))
+      return;
     date = value;
   }
 
@@ -136,13 +155,22 @@
                 class="form-input"
                 max={overview!.today}
                 value={date}
-                onchange={(event) => changeDate(event.currentTarget.value)}
+                onchange={async (event) => {
+                  const input = event.currentTarget;
+                  await changeDate(input.value);
+                  input.value = date;
+                }}
               />
             {/snippet}
           </FormField>
         </div>
 
-        <AnwesenheitTermin stufe={selected.stufe} slug={selected.slug} {date} />
+        <AnwesenheitTermin
+          stufe={selected.stufe}
+          slug={selected.slug}
+          {date}
+          ondirty={(value) => (dirty = value)}
+        />
       {:else}
         {#key selected.slug}
           <AnwesenheitVerlauf

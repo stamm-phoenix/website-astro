@@ -81,7 +81,7 @@
                 <span class="sr-only">Telefon:</span>
                 <a
                   href="tel:{formatPhone(person.telephone)}"
-                  class="font-semibold text-link tabular-nums underline decoration-neutral-300 underline-offset-4 hover:decoration-current"
+                  class="font-semibold text-link tabular-nums underline decoration-neutral-300 underline-offset-4 hover:decoration-current inline-flex min-h-11 items-center"
                 >
                   {person.telephone}
                 </a>

@@ -151,12 +151,23 @@
     };
     const changed = (): void => {
       moves++;
+      requestAnimationFrame(() => {
+        const item = nav?.querySelector<HTMLElement>(
+          '[aria-current="page"], [aria-current="true"]'
+        );
+        if (!nav || !item) return;
+        const parent = nav.getBoundingClientRect();
+        const child = item.getBoundingClientRect();
+        if (child.top < parent.top) nav.scrollTop -= parent.top - child.top;
+        else if (child.bottom > parent.bottom) nav.scrollTop += child.bottom - parent.bottom;
+      });
     };
     // Only once the new page is loaded: a change stopped before (unsaved input) never swaps
     document.addEventListener('astro:after-preparation', leaving);
     document.addEventListener('astro:before-swap', swapping);
     document.addEventListener('astro:after-swap', swapped);
     document.addEventListener('astro:page-load', changed);
+    changed();
     return () => {
       document.removeEventListener('astro:after-preparation', leaving);
       document.removeEventListener('astro:before-swap', swapping);

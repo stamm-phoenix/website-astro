@@ -141,7 +141,7 @@ test('Backspace at the start of a list first removes the bullet, then goes to th
 }) => {
   await createProtokoll(page, 'Leitendenrunde Liste');
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
-  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
   await page.getByLabel('Text zu Punkt 2.').fill('- Eintrag\n- Zwei');
   await page.getByLabel('Text zu Punkt 3.').fill('> Zitat');
   await modus.getByRole('button', { name: 'Formatiert' }).click();
@@ -506,7 +506,7 @@ test('switching to Markdown and back keeps the texts and the blocks', async ({ p
   await reflexion.getByRole('button', { name: '+ Aufgabe' }).click();
   await reflexion.getByLabel('Aufgabe', { exact: true }).fill('Nachfragen');
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
-  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
   await expect(page.getByLabel('Text zu Punkt 2.')).toHaveValue('Erstens **wichtig**');
   await expect(page.getByLabel('Aufgabe', { exact: true })).toHaveValue('Nachfragen');
   await page.getByLabel('Text zu Punkt 2.').fill('Erstens **wichtig**\n\n- [ ] Zweitens');

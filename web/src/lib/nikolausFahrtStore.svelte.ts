@@ -1,3 +1,4 @@
+import { saveRouteShell, forgetRouteShell } from './nikolausRouteShell';
 import { ApiError, fetchApi, sendApi } from './api';
 import { authStore, fetchPrincipal } from './authStore.svelte';
 import {
@@ -72,6 +73,7 @@ async function initialize(): Promise<void> {
 
 /** Remove private route data when authentication is denied. */
 function clearIdentity(): void {
+  void forgetRouteShell();
   owner = null;
   try {
     sessionStorage.removeItem(FAHRT_OWNER_KEY);
@@ -132,15 +134,24 @@ export async function saveNikolausRoute(team: string): Promise<void> {
         'Bitte zuerst ausstehende Markierungen abgleichen oder verwerfen.';
       return;
     }
-    persist({
+    const expiresAt = Date.now() + FAHRT_TTL_MS;
+    try {
+      await saveRouteShell(expiresAt);
+    } catch {
+      nikolausFahrtStore.storageError =
+        'Die Route wurde nicht für Funklöcher gespeichert, weil Seitendateien fehlen oder der Browser den Speicher sperrt. Prüfe die Verbindung und tippe noch einmal auf „Route für Funklöcher speichern“.';
+      return;
+    }
+    const saved = persist({
       schema: 1,
       owner,
       team,
-      expiresAt: Date.now() + FAHRT_TTL_MS,
+      expiresAt,
       savedAt: Date.now(),
       data: ownRoute(data, team),
       queue: [],
     });
+    if (!saved) await forgetRouteShell();
   });
 }
 
@@ -154,6 +165,7 @@ export async function forgetNikolausRoute(): Promise<boolean> {
     requestId++;
     try {
       localStorage.removeItem(FAHRT_STORAGE_KEY);
+      await forgetRouteShell();
     } catch {
       removed = false;
     }
@@ -248,7 +260,9 @@ export async function fetchNikolausFahrt(
         nikolausFahrtStore.offline = true;
         nikolausFahrtStore.lastSync = snapshot.savedAt;
       }
-      if (snapshot && navigator.onLine) await flush(snapshot);
+      // After an offline reload the browser connection flag may lag behind a reconnect.
+      // The versioned request itself establishes whether pending visits can be confirmed.
+      if (snapshot) await flush(snapshot);
       if (current !== requestId) return false;
       try {
         const data = await fetchApi<StaffNikolausFahrtData>(
@@ -324,5 +338,5 @@ export async function discardNikolausVisit(operationId: string): Promise<void> {
 
 /** Revalidate the saved route and remove expired snapshot-backed display data. */
 export function expireNikolausRoute(): void {
-  currentSnapshot();
+  if (!currentSnapshot()) void forgetRouteShell();
 }

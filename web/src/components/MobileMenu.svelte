@@ -69,14 +69,14 @@
 </script>
 
 <!-- Mobile: hamburger -->
-<div class="2xl:hidden">
+<div class="xl:hidden">
   <MenuToggle id="menu-btn" open={isOpen} controls="mobile-menu" onclick={toggleMenu} />
 </div>
 
 <!-- Mobile menu panel -->
 <div
   id="mobile-menu"
-  class="menu-panel absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 max-h-[calc(100dvh-9rem)] w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain rounded-sm border border-neutral-300 bg-surface px-4 py-1 shadow-soft 2xl:hidden"
+  class="menu-panel absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 max-h-[calc(100dvh-9rem)] w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain rounded-sm border border-neutral-300 bg-surface px-4 py-1 shadow-soft xl:hidden"
   data-open={isOpen}
   inert={!isOpen}
 >

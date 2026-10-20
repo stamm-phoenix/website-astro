@@ -18,7 +18,11 @@ test('create a project and template, apply once, assign and complete a task', as
   await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Titel', { exact: true }).fill(projectTitle);
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).not.toBeVisible();
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
@@ -28,7 +32,11 @@ test('create a project and template, apply once, assign and complete a task', as
   await dialog.getByLabel('Titel', { exact: true }).fill(templateTitle);
   await dialog.getByLabel('Aufgabentitel').fill(taskTitle);
   await dialog.getByLabel('Tage vor der Aktion').fill('7');
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(dialog).not.toBeVisible();
   await taskPage(page);
   await page.getByRole('button', { name: 'Checkliste aus Vorlage', exact: true }).click();
@@ -57,7 +65,11 @@ test('create a project and template, apply once, assign and complete a task', as
     (request) =>
       request.method() === 'PUT' && /\/intern\/pflege\/aufgaben\/\d+$/.test(request.url())
   );
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   expect(typeof (await taskRequest).postDataJSON().projectId).toBe('number');
   await expect(dialog).not.toBeVisible();
   await expect(row.getByText('Bea Beispiel', { exact: false })).toBeVisible();
@@ -198,13 +210,21 @@ test('projects can be deleted with app confirmation while their tasks survive wi
   await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   const editor = page.getByRole('dialog');
   await editor.getByLabel('Titel', { exact: true }).fill(title);
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await editor
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(editor).not.toBeVisible();
   await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   await editor.getByLabel('Titel', { exact: true }).fill(taskTitle);
   await editor.getByLabel('Projekt', { exact: false }).selectOption({ label: title });
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await editor
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
   await expect(editor).not.toBeVisible();
   const row = page
     .locator('li')

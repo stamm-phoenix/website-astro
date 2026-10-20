@@ -63,7 +63,7 @@
     },
     {
       key: 'code',
-      label: 'Code',
+      label: 'Schreibmaschinenschrift',
       shortcut: 'Strg+E',
       icon: 'M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16',
       run: (e) => e.chain().focus().toggleCode().run(),
@@ -115,7 +115,7 @@
     },
     {
       key: 'codeBlock',
-      label: 'Codeblock',
+      label: 'Textblock in Schreibmaschinenschrift',
       shortcut: 'Strg+Alt+C',
       icon: 'M4 5h16v14H4zM9 10l-2 2 2 2M15 10l2 2-2 2',
       run: (e) => e.chain().focus().toggleCodeBlock().run(),

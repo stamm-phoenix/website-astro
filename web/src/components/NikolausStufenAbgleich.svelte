@@ -160,8 +160,8 @@
     <p class="text-sm text-neutral-700">
       Vergleicht die Anmeldungen mit der Mitgliederliste in CampFlow und die Helfenden mit den
       Leitenden. Familien bekommen die Stufe ihrer Kinder als Merkmal, Leitende die Stufe als
-      negatives Merkmal – so fährt niemand zu Kindern aus der eigenen Stufe. Abgelehnte Vorschläge
-      werden nicht erneut angezeigt.
+      Ausschluss für diese Stufe – so fährt niemand zu Kindern aus der eigenen Stufe. Abgelehnte
+      Vorschläge werden nicht erneut angezeigt.
     </p>
     <ActionButton
       variant="primary"

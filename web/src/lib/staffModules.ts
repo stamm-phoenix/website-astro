@@ -86,9 +86,9 @@ export const STAFF_MODULES: StaffModule[] = [
     title: 'QR-Code-Generator',
     wrap: 'QR-Code-|Generator',
     description:
-      'QR-Codes für Links erstellen, Farbe und Form anpassen und als PNG herunterladen – ohne fremden Dienst.',
+      'QR-Codes für Links erstellen, Farbe und Form anpassen und als Bild herunterladen – ohne fremden Dienst.',
     intro:
-      'QR-Code für einen Link oder Text erstellen, Farbe und Form anpassen und als PNG herunterladen. Alles passiert im Browser: ohne fremden Dienst, ohne Weiterleitung und ohne Ablaufdatum.',
+      'QR-Code für einen Link oder Text erstellen, Farbe und Form anpassen und als Bild herunterladen. Alles passiert im Browser: ohne fremden Dienst, ohne Weiterleitung und ohne Ablaufdatum.',
     keywords: ['qr', 'link', 'code', 'plakat'],
     icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM6 6h1M17 6h1M6 17h1M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3',
   },
@@ -286,9 +286,9 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
     href: '/leitendenbereich/nikolaus-fahrt',
     title: 'Route',
     description: 'Unterwegs: die Route des eigenen Teams abfahren und Besuche abhaken.',
-    heading: 'Nikolaus-Route',
+    heading: 'Route',
     intro:
-      'Eure Route aus der Dispo: Team wählen, von Familie zu Familie fahren und jeden Besuch abhaken. Die Disposition sieht den Stand sofort.',
+      'Eure Route aus der Dispo: Team wählen, von Familie zu Familie fahren und jeden Besuch abhaken. Die Dispo sieht den Stand sofort.',
     parent: '/leitendenbereich/nikolaus',
     keywords: ['nikolaus', 'unterwegs', 'besuche', 'navigation'],
     icon: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9',

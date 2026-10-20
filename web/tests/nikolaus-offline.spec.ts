@@ -9,6 +9,8 @@ const GET = '/api/intern/nikolaus/fahrt?date=2026-12-05';
 const POST = '/api/intern/pflege/nikolaus-fahrt?date=2026-12-05';
 
 async function prepare(page: Page): Promise<void> {
+  // The service worker has its own real clock. Keep expiry comparable across both contexts.
+  await page.clock.setFixedTime(new Date());
   const data = (await (await page.request.get(GET)).json()) as StaffNikolausFahrtData;
   for (const stop of data.routes.A) {
     const response = await page.request.post(POST, {
@@ -55,8 +57,27 @@ test('selected route stays readable offline; pending visit replays on reconnecti
   await expect.poll(() => queueLength(page)).toBe(1);
   await expectNoHorizontalOverflow(page);
   await context.setOffline(false);
-  await expect.poll(() => queueLength(page)).toBe(0);
+  await page.bringToFront();
+  await expect.poll(() => queueLength(page), { timeout: 15_000 }).toBe(0);
   await expect(page.getByText('Besucht – noch nicht bestätigt', { exact: true })).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('an offline reload restores the next stop and queued visits, which can then be confirmed', async ({
+  page,
+  context,
+}) => {
+  await prepare(page);
+  await context.setOffline(true);
+  await visitButton(page).click();
+  await expect.poll(() => queueLength(page)).toBe(1);
+  await page.reload();
+  await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
+  await expect(page.getByText('Besucht – noch nicht bestätigt', { exact: true })).toBeVisible();
+  await expect.poll(() => queueLength(page)).toBe(1);
+  await context.setOffline(false);
+  await page.getByRole('button', { name: 'Jetzt abgleichen' }).click();
+  await expect.poll(() => queueLength(page), { timeout: 15_000 }).toBe(0);
   await expectNoHorizontalOverflow(page);
 });
 
@@ -155,7 +176,7 @@ test('explicit deletion and logout remove locally saved family data', async ({ p
     .filter({ visible: true })
     .first()
     .click();
-  const sheet = page.locator('#staff-nav');
+  const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
   if (await sheet.isVisible()) {
     await sheet.getByRole('link', { name: 'Abmelden', exact: true }).click();
   }

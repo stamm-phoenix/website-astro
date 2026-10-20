@@ -67,7 +67,7 @@ export function leererEigenbeleg(aussteller: string, heute: string): Eigenbeleg 
   return {
     aussteller,
     empfaenger: '',
-    zahlungsdatum: '',
+    zahlungsdatum: heute,
     zahlungsart: 'bar',
     anlass: '',
     positionen: [{ beschreibung: '', betrag: '' }],
@@ -102,7 +102,10 @@ export function pruefeEigenbeleg(beleg: Eigenbeleg, heute: string): EigenbelegFe
     fehler.zahlungsdatum = 'Das Datum der Zahlung darf nicht in der Zukunft liegen.';
   }
   if (!beleg.anlass.trim()) fehler.anlass = 'Bitte gib die Aktion oder den Zweck an.';
+  if (!beleg.positionen.some((p) => p.beschreibung.trim() || p.betrag.trim()))
+    fehler['position-0'] = 'Bitte gib mindestens eine Position an.';
   beleg.positionen.forEach((position, index) => {
+    if (!position.beschreibung.trim() && !position.betrag.trim()) return;
     if (!position.beschreibung.trim()) {
       fehler[`position-${index}`] = 'Bitte beschreibe, was bezahlt wurde.';
     } else if (parseEuroToCent(position.betrag) === null) {

@@ -175,7 +175,7 @@
         </label>
         <textarea
           id="{idPrefix}-addressNotes"
-          rows="2"
+          rows="3"
           maxlength={max.addressNotes}
           placeholder="z. B. Wegbeschreibung, Hinterhaus, Beschreibung der Wohnungstür oder Klingel"
           bind:value={details.addressNotes}

@@ -181,6 +181,7 @@ const websiteLd = {
 </html>
 
 <script>
+  import { forgetRouteShell } from '../lib/nikolausRouteShell';
   import { initTheme } from '../lib/theme';
   initTheme();
   import {
@@ -198,7 +199,7 @@ const websiteLd = {
       const raw = localStorage.getItem(FAHRT_STORAGE_KEY);
       if (raw) {
         const owner = (JSON.parse(raw) as { owner?: unknown }).owner;
-        readFahrtSnapshot(typeof owner === 'string' ? owner : '');
+        if (!readFahrtSnapshot(typeof owner === 'string' ? owner : '')) void forgetRouteShell();
       }
     } catch {
       try {
@@ -221,6 +222,7 @@ const websiteLd = {
         localStorage.removeItem(FAHRT_STORAGE_KEY);
         sessionStorage.removeItem(FAHRT_OWNER_KEY);
         sessionStorage.removeItem(RESCUE_KEY);
+        void forgetRouteShell();
       } catch {
         /* Storage unavailable. */
       }

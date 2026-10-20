@@ -1,8 +1,11 @@
 import { untrack } from 'svelte';
 import { ABRECHNUNG_STORAGE_PREFIX, storedLoeschdatum } from './abrechnungAblage';
 import { localDate } from './dateUtils';
-import { ApiError, errorMessage, fetchApi } from './api';
-import type { LeihgebuehrEingabe } from './abrechnungRechnung';
+import { ApiError, errorMessage, fetchApi, sendApi } from './api';
+import { emptySession, parseSession } from '../../../api/lib/abrechnung-session';
+import type { AbrechnungEingabe } from '../../../api/lib/abrechnung-eingabe';
+import type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
+export type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
 import { isKjrBetreuer, kjrHerkunft } from './kjrZuschuss';
 import { ortFuerPlz } from './plzOrte.svelte';
 import type { Abrechnung, AbrechnungPerson, Kostenstelle } from './types';
@@ -115,37 +118,19 @@ export function fetchKostenstellen({ force = false }: { force?: boolean } = {}):
 }
 
 /**
- * What is changed on the page of an Aktion. Kept on this device per Aktion (see
- * `storeAbrechnungSession`), so it survives leaving the page, a reload and closing the tab; only
- * when the browser refuses to store it, it lasts as long as the page is open.
+ * Personal changes to an Aktion. Explicitly saved in Azure SQL per account and restored
+ * on every device. Browser storage is only read to recover drafts from older versions.
  */
-export interface AbrechnungSession {
-  zusatztag: boolean;
-  /** CampFlow person IDs left out of the Abrechnung. */
-  excluded: Record<string, true>;
-  /** Persons added on the page. */
-  extra: AbrechnungPerson[];
-  /** Persons under 27 entered as Betreuer*in, by ID; from 27 on everyone is one anyway. */
-  betreuer: Record<string, true>;
-  /** Postleitzahlen entered on the page instead of CampFlow's, by person ID (raw input). */
-  plz: Record<string, string>;
-  /** Header of the KJR's Teilnahmeliste that CampFlow does not know. */
-  kjr: { ort: string; plz: string; beginn: string; ende: string };
-  /** Material borrowed from the Stamm, by `id` of the material in `Abrechnung.leihgebuehren`. */
-  leihgebuehren: Record<string, LeihgebuehrEingabe>;
-  /** Names on the Deckblatt. */
-  deckblatt: { vorkalkulation: string; kalkulation: string };
-  /** Amounts of Einzelnachweise changed on the page, in cent, by `NachweisZeile.key`. */
-  betraege: Record<string, number>;
-}
-
-/** Whether the session of an Aktion is kept on this device, and since when. */
+/** Whether the account draft is loaded, changed, saving or confirmed. */
 export interface AbrechnungAblage {
-  /** False once the browser refused to read or store it (private mode, blocked, full). */
   available: boolean;
-  /** ISO time of the change this device still keeps; `null` while nothing is stored. */
+  loaded: boolean;
+  saving: boolean;
+  dirty: boolean;
+  error: string | null;
+  conflict: boolean;
+  etag: string | null;
   savedAt: string | null;
-  /** Last day (`YYYY-MM-DD`) the stored entries are kept; `null` while nothing is stored. */
   deleteAfter: string | null;
 }
 
@@ -156,120 +141,8 @@ const STORAGE_KEY = ABRECHNUNG_STORAGE_PREFIX;
 /** Last JSON of each session read from or written to storage, to skip unchanged writes. */
 const storedJson: Record<string, string> = {};
 
-function emptySession(): AbrechnungSession {
-  return {
-    zusatztag: false,
-    excluded: {},
-    extra: [],
-    betreuer: {},
-    plz: {},
-    kjr: { ort: '', plz: '', beginn: '', ende: '' },
-    leihgebuehren: {},
-    deckblatt: { vorkalkulation: '', kalkulation: '' },
-    betraege: {},
-  };
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** The entries of a stored object that fit, converted by `pick` (`undefined` drops one). */
-function pickEntries<T>(
-  value: unknown,
-  pick: (entry: unknown) => T | undefined
-): Record<string, T> {
-  if (!isRecord(value)) return {};
-  return Object.fromEntries(
-    Object.entries(value).flatMap(([key, entry]) => {
-      const picked = pick(entry);
-      return picked === undefined ? [] : [[key, picked] as const];
-    })
-  );
-}
-
-function pickString(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
-function trueOnly(value: unknown): true | undefined {
-  return value === true ? true : undefined;
-}
-
-function isCount(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
-}
-
-const GENDERS = ['m', 'w', 'd', ''] as const;
-const HERKUNFT = ['landkreis', 'stadt', 'andere', 'unbekannt'] as const;
-
-/** A person added on the page, as stored; `null` if it does not fit. */
-function parsePerson(value: unknown): AbrechnungPerson | null {
-  if (!isRecord(value)) return null;
-  const { id, lastName, firstName, gender, age, plz, ort, herkunft, betreuer } = value;
-  const validGender = GENDERS.find((g) => g === gender);
-  const validHerkunft = HERKUNFT.find((h) => h === herkunft);
-  if (
-    typeof id !== 'string' ||
-    !id.startsWith('extra-') ||
-    typeof lastName !== 'string' ||
-    typeof firstName !== 'string' ||
-    validGender === undefined ||
-    !(age === null || isCount(age)) ||
-    typeof plz !== 'string' ||
-    !(ort === undefined || typeof ort === 'string') ||
-    validHerkunft === undefined ||
-    typeof betreuer !== 'boolean'
-  ) {
-    return null;
-  }
-  return {
-    id,
-    lastName,
-    firstName,
-    gender: validGender,
-    age,
-    plz,
-    ...(ort === undefined ? {} : { ort }),
-    herkunft: validHerkunft,
-    betreuer,
-  };
-}
-
-function parseLeihgebuehr(value: unknown): LeihgebuehrEingabe | undefined {
-  if (!isRecord(value)) return undefined;
-  const { count, days } = value;
-  return isCount(count) && (days === null || isCount(days)) ? { count, days } : undefined;
-}
-
-/** Rebuilds a stored session; fields that do not fit are left empty instead. */
-function parseSession(value: unknown): AbrechnungSession {
-  if (!isRecord(value)) return emptySession();
-  const kjr = isRecord(value.kjr) ? value.kjr : {};
-  const deckblatt = isRecord(value.deckblatt) ? value.deckblatt : {};
-  return {
-    zusatztag: value.zusatztag === true,
-    excluded: pickEntries(value.excluded, trueOnly),
-    extra: Array.isArray(value.extra)
-      ? value.extra.map(parsePerson).filter((p): p is AbrechnungPerson => p !== null)
-      : [],
-    betreuer: pickEntries(value.betreuer, trueOnly),
-    plz: pickEntries(value.plz, (entry) => (typeof entry === 'string' ? entry : undefined)),
-    kjr: {
-      ort: pickString(kjr.ort),
-      plz: pickString(kjr.plz),
-      beginn: pickString(kjr.beginn),
-      ende: pickString(kjr.ende),
-    },
-    leihgebuehren: pickEntries(value.leihgebuehren, parseLeihgebuehr),
-    deckblatt: {
-      vorkalkulation: pickString(deckblatt.vorkalkulation),
-      kalkulation: pickString(deckblatt.kalkulation),
-    },
-    betraege: pickEntries(value.betraege, (entry) =>
-      typeof entry === 'number' && Number.isInteger(entry) ? entry : undefined
-    ),
-  };
 }
 
 interface StoredSession {
@@ -315,71 +188,106 @@ function readStored(eventId: string): { available: boolean; stored: StoredSessio
   }
 }
 
-/** The session of an Aktion, restored from this device or created empty on first use. */
+/** Same-account entries are loaded before controls are shown; old local data is offered as an unsaved draft. */
 export function abrechnungSession(eventId: string): AbrechnungSession {
   if (!abrechnungSessions[eventId]) {
-    const { available, stored } = readStored(eventId);
-    abrechnungSessions[eventId] = stored?.session ?? emptySession();
+    abrechnungSessions[eventId] = emptySession();
     abrechnungAblage[eventId] = {
-      available,
-      savedAt: stored?.savedAt ?? null,
-      deleteAfter: stored?.deleteAfter ?? null,
+      available: false,
+      loaded: false,
+      saving: false,
+      dirty: false,
+      error: null,
+      conflict: false,
+      etag: null,
+      savedAt: null,
+      deleteAfter: null,
     };
-    storedJson[eventId] = JSON.stringify(abrechnungSessions[eventId]);
+    void loadAbrechnungSession(eventId);
   }
   return abrechnungSessions[eventId];
 }
 
-/**
- * Keeps the session of an Aktion on this device with the time of the change until `deleteAfter`,
- * or removes it when nothing is entered. Waits while the deletion day is not known yet (`null`,
- * before the Aktion is loaded). Reads the whole session, so calling it in an `$effect` stores
- * every change.
- */
+export async function loadAbrechnungSession(eventId: string): Promise<void> {
+  const state = abrechnungAblage[eventId];
+  if (!state || state.saving) return;
+  state.error = null;
+  try {
+    const saved = await fetchApi<AbrechnungEingabe>(
+      `/intern/abrechnung/${encodeURIComponent(eventId)}/eingaben`
+    );
+    const target = abrechnungSessions[eventId];
+    if (!target) return;
+    const legacy = saved.etag === null ? readStored(eventId).stored : null;
+    Object.assign(target, legacy?.session ?? saved.session);
+    storedJson[eventId] = JSON.stringify(saved.session);
+    Object.assign(state, {
+      loaded: true,
+      available: true,
+      etag: saved.etag,
+      savedAt: saved.savedAt,
+      deleteAfter: saved.deleteAfter,
+      dirty: !!legacy,
+      conflict: false,
+    });
+  } catch (error) {
+    state.error = errorMessage(
+      error,
+      'Deine gespeicherten Eingaben konnten nicht geladen werden. Prüfe die Verbindung und lade sie erneut.'
+    );
+  }
+}
+
+/** Tracks edits; saving is explicit so a failed request never masquerades as a saved change. */
 export function storeAbrechnungSession(eventId: string, deleteAfter: string | null): void {
   const session = abrechnungSessions[eventId];
   if (!session) return;
   const json = JSON.stringify(session);
   untrack(() => {
-    const ablage = (abrechnungAblage[eventId] ??= {
-      available: true,
-      savedAt: null,
-      deleteAfter: null,
-    });
-    // Unchanged entries are written again only when the Aktion's dates moved their last day
-    const sameEntries = storedJson[eventId] === json;
-    if (sameEntries && (ablage.savedAt === null || ablage.deleteAfter === deleteAfter)) return;
-    const changed = abrechnungSessionChanged(session);
-    if (changed && deleteAfter === null) return;
-    if (changed && deleteAfter !== null && deleteAfter < localDate()) {
-      // Past its last day: the entries stay in memory only, and what this device kept goes
-      if (ablage.savedAt === null) return;
-      try {
-        localStorage.removeItem(`${STORAGE_KEY}${eventId}`);
-        ablage.savedAt = null;
-        ablage.deleteAfter = null;
-      } catch {
-        ablage.available = false;
-      }
-      return;
-    }
-    // A plain timestamp, not reactive state
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity
-    const savedAt = changed ? (sameEntries ? ablage.savedAt : new Date().toISOString()) : null;
-    try {
-      const key = `${STORAGE_KEY}${eventId}`;
-      if (changed) localStorage.setItem(key, JSON.stringify({ savedAt, deleteAfter, session }));
-      else localStorage.removeItem(key);
-      storedJson[eventId] = json;
-      ablage.available = true;
-      ablage.savedAt = savedAt;
-      ablage.deleteAfter = changed ? deleteAfter : null;
-    } catch {
-      // Blocked or full: the entries stay in memory while the page is open. An older stored
-      // entry stays too, so `savedAt` is kept and resetting can try to remove it again.
-      ablage.available = false;
-    }
+    const state = abrechnungAblage[eventId];
+    if (!state?.loaded) return;
+    state.dirty = json !== storedJson[eventId];
+    if (deleteAfter) state.deleteAfter = deleteAfter;
   });
+}
+
+export async function saveAbrechnungSession(eventId: string): Promise<boolean> {
+  const state = abrechnungAblage[eventId];
+  if (!state?.loaded || state.saving || state.conflict) return false;
+  const json = JSON.stringify(abrechnungSessions[eventId]);
+  state.saving = true;
+  state.error = null;
+  try {
+    const saved = await sendApi<AbrechnungEingabe>(
+      'PUT',
+      `/intern/abrechnung/${encodeURIComponent(eventId)}/eingaben`,
+      { session: JSON.parse(json), etag: state.etag }
+    );
+    storedJson[eventId] = json;
+    state.etag = saved.etag;
+    state.savedAt = saved.savedAt;
+    state.deleteAfter = saved.deleteAfter;
+    state.available = true;
+    state.dirty = JSON.stringify(abrechnungSessions[eventId]) !== json;
+    // The old device-only copy is removed only after a confirmed save.
+    try {
+      localStorage.removeItem(`${STORAGE_KEY}${eventId}`);
+    } catch {
+      /* Server copy is saved. */
+    }
+    return true;
+  } catch (error) {
+    state.conflict = error instanceof ApiError && [409, 412].includes(error.status);
+    state.error = state.conflict
+      ? 'Du hast die Eingaben inzwischen auf einem anderen Gerät geändert. Hier wurde nichts überschrieben. Kopiere deine neuen Angaben und lade dann die gespeicherte Fassung.'
+      : errorMessage(
+          error,
+          'Die Eingaben wurden nicht gespeichert. Sie bleiben auf dieser Seite erhalten. Prüfe die Verbindung und tippe noch einmal auf „Eingaben speichern“.'
+        );
+    return false;
+  } finally {
+    state.saving = false;
+  }
 }
 
 /** A Postleitzahl entered on the page, if it is a valid one. */
@@ -427,30 +335,6 @@ export function abrechnungSessionChanged(session: AbrechnungSession): boolean {
   );
 }
 
-/** Whether a `storage` event is about the stored entries of this Aktion. */
-export function isAbrechnungStorageKey(eventId: string, key: string | null): boolean {
-  return key === `${STORAGE_KEY}${eventId}`;
-}
-
-/**
- * Takes over what another tab stored for the Aktion. Without it, the next change in this tab
- * would write its older copy and drop the other tab's entries.
- */
-export function adoptStoredAbrechnungSession(eventId: string): void {
-  const session = abrechnungSessions[eventId];
-  if (!session) return;
-  // Entries this tab could not store are only in memory; taking over would drop them
-  if (!abrechnungAblage[eventId]?.available && abrechnungSessionChanged(session)) return;
-  const { available, stored } = readStored(eventId);
-  Object.assign(session, stored?.session ?? emptySession());
-  storedJson[eventId] = JSON.stringify(session);
-  abrechnungAblage[eventId] = {
-    available,
-    savedAt: stored?.savedAt ?? null,
-    deleteAfter: stored?.deleteAfter ?? null,
-  };
-}
-
 /**
  * Forgets the session of an Aktion in memory, e.g. after leaving its page. What this device
  * kept stays and is restored on the next visit.
@@ -462,7 +346,13 @@ export function resetAbrechnungSession(eventId: string): void {
 }
 
 /** Clears everything entered for an Aktion, in memory and on this device. */
-export function clearAbrechnungSession(eventId: string): void {
-  Object.assign(abrechnungSession(eventId), emptySession());
+export async function clearAbrechnungSession(eventId: string): Promise<boolean> {
+  if (abrechnungAblage[eventId]?.saving || abrechnungAblage[eventId]?.conflict) return false;
+  const session = abrechnungSession(eventId);
+  const before = JSON.stringify(session);
+  Object.assign(session, emptySession());
+  const saved = await saveAbrechnungSession(eventId);
+  if (!saved) Object.assign(session, JSON.parse(before));
   storeAbrechnungSession(eventId, null);
+  return saved;
 }

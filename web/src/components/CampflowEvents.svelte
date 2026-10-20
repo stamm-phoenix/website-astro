@@ -257,7 +257,7 @@
   onretry={reload}
 >
   {#snippet skeleton()}
-    <div class="surface p-6">
+    <div class="surface min-h-[65dvh] p-6">
       <div class="skeleton-element h-6 w-56 rounded"></div>
       <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
       <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>

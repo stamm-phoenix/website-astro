@@ -58,7 +58,7 @@ test('tasks of approved minutes become tasks and come back as open tasks', async
 
   await approveOwn(page, 'Leitendenrunde Aufgaben');
   await expect(page.getByText(/Eine Aufgabe im Modul Aufgaben angelegt\./).first()).toBeVisible();
-  const review = page.getByRole('region', { name: 'Review und Versand' });
+  const review = page.getByRole('region', { name: 'Prüfung und Versand' });
   await expect(review).toContainText('Aus diesem Protokoll stammt eine Aufgabe im Modul Aufgaben.');
   // The read view and the PDF show the project of the item
   await expect(page.getByText('Projekt: Herbstlager')).toBeVisible();

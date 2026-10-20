@@ -33,7 +33,7 @@
   };
   const STATUS_LABEL: Record<ProtokollStatus, string> = {
     Entwurf: 'Entwurf',
-    Review: 'Im Review',
+    Review: 'In Prüfung',
     Freigegeben: 'Freigegeben',
     Verschickt: 'Verschickt',
     Archiv: 'Archiv',
@@ -139,14 +139,14 @@
   }
 
   const ACTION_DONE: Record<Action, string> = {
-    review: 'zum Review gegeben',
+    review: 'zur Prüfung gegeben',
     approve: 'freigegeben',
     reject: 'zurückgegeben',
     reopen: 'wieder zur Bearbeitung geöffnet',
   };
 
   const ACTION_BUTTON: Record<Action, string> = {
-    review: 'Zum Review geben',
+    review: 'Zur Prüfung geben',
     approve: 'Freigeben',
     reject: 'Zurückgeben',
     reopen: 'Wieder bearbeiten',
@@ -359,7 +359,7 @@
       {:else}
         <div class="flex flex-wrap items-center justify-between gap-3">
           <ActionButton variant="primary" type="button" onclick={startCreate}>
-            Neues Protokoll
+            Word-Datei anlegen
           </ActionButton>
           <ReloadButton resource={protokollePflege} />
         </div>
@@ -367,8 +367,8 @@
         <p class="max-w-prose text-sm text-neutral-700">
           Neue Protokolle entstehen aus der Word-Vorlage. Vorhandene PDF- und TXT-Dateien erscheinen
           ebenfalls hier. Word-Dateien können im Browser geschrieben werden, auch gemeinsam während
-          der Sitzung. Danach gibst du es zum Review, wenn noch jemand drüberschauen soll, oder
-          direkt frei. Nach der Freigabe schickst du es an die Leitenden und alle mit dem Label
+          der Sitzung. Danach gibst du es zur Prüfung, wenn noch jemand drüberschauen soll, oder
+          direkt frei. Nach der Freigabe schickst du es an die Leitenden und alle mit dem Merkmal
           „Protokollempfang“ aus CampFlow. Vor dem Versand siehst du die Liste und kannst sie
           anpassen.
         </p>
@@ -431,7 +431,8 @@
                 {/if}
                 {#if protokoll.changedSinceApproval && protokoll.status === 'Freigegeben'}
                   <p class="border-l-2 border-warning py-1 pl-4 text-sm text-warning">
-                    Nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zum Review geben.
+                    Nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zur Prüfung
+                    geben.
                   </p>
                 {/if}
                 {#if showsTermin(protokoll)}
@@ -512,7 +513,7 @@
                       aria-busy={busy}
                       onclick={() => changeState(protokoll, 'review')}
                     >
-                      Zum Review geben
+                      Zur Prüfung geben
                     </ActionButton>
                     <ActionButton
                       variant="secondary"

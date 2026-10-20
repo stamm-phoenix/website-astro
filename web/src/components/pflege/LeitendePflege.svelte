@@ -5,7 +5,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { leitendePflege } from '../../lib/pflegeStore.svelte';
@@ -34,6 +34,9 @@
   const store = leitendePflege.state;
 
   let filter = $state(ALL);
+  onMount(() => {
+    filter = new URLSearchParams(location.search).get('team') || ALL;
+  });
   let search = $state('');
   let form = $state<Form | null>(null);
   const dialog = createDialogForm();

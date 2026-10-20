@@ -23,7 +23,7 @@
 {#if toggle}
   <button
     type="button"
-    class="favorite-star flex shrink-0 items-center justify-center text-brand-900 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:pointer-events-none pointer-coarse:w-6 {compact
+    class="favorite-star flex shrink-0 items-center justify-center text-brand-900 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100 {compact
       ? 'size-11 pointer-fine:size-9'
       : 'size-11'} {active ? 'pointer-coarse:opacity-100' : ''}"
     aria-pressed={active}

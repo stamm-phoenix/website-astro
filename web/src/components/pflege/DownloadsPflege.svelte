@@ -139,7 +139,10 @@
 
   async function saveRename(): Promise<void> {
     if (!renaming) return;
-    const name = renaming.name.trim();
+    const enteredName = renaming.name.trim();
+    const extension = renaming.file.fileName.match(/\.[^.]+$/)?.[0] ?? '';
+    const name =
+      enteredName && !/\.[^.]+$/.test(enteredName) ? enteredName + extension : enteredName;
     if (name === renaming.file.fileName) {
       renaming = null;
       return;
@@ -382,7 +385,7 @@
     <FormField
       id="dl-name"
       label="Dateiname"
-      hint="Mit Dateiendung, z. B. „Anmeldung-Sommerlager.pdf“"
+      hint="Die bisherige Dateiendung wird automatisch ergänzt, wenn du keine angibst."
     >
       {#snippet children(attrs)}
         <input {...attrs} class="form-input" maxlength="200" bind:value={renaming!.name} />

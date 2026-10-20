@@ -16,3 +16,9 @@
 </script>
 
 <StaffModuleSection title="Nikolausdienst" {modules} />
+{#if nikolausStatusStore.data && !nikolausStatusStore.data.staffActive}<p
+    class="mt-2 text-sm text-neutral-700"
+  >
+    Die Nikolausverwaltung ist ausgeschaltet. Anmeldungen, Dispo, Route und Helfende lassen sich in
+    der <a class="text-link underline" href="/leitendenbereich/nikolaus-steuerung">Steuerung</a> einschalten.
+  </p>{/if}

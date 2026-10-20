@@ -281,15 +281,26 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
             schließt, sie löschst oder dich abmeldest, höchstens eine Stunde).
           </li>
           <li>
-            im Leitendenbereich deine Eingaben zur Abrechnung einer Aktion, etwa nachgetragene
-            Teilnehmende, Rollen, Postleitzahlen, geänderte Beträge und Leihgebühren. Sie können
-            Namen, Alter und Postleitzahlen von Teilnehmenden enthalten (Schlüssel{' '}
-            <code>phoenix:abrechnung:v1:&lt;Aktion&gt;</code>, auf diesem Gerät, bis du „Eingaben
-            zurücksetzen“ wählst oder den Browserspeicher löschst, spätestens bis einen Monat nach
-            der Abgabefrist der Abrechnung beim Kreisjugendring; danach löscht die Website sie beim
-            nächsten Besuch).
+            ältere Eingaben zur Abrechnung einer Aktion, die du bisher nur auf diesem Gerät
+            gespeichert hast (<code>phoenix:abrechnung:v1:&lt;Aktion&gt;</code>). Beim Öffnen werden
+            sie angeboten, falls für deinen Account noch nichts gespeichert ist. Erst nach dem
+            ausdrücklichen Speichern in der Datenbank wird die alte Kopie entfernt. Nicht
+            übernommene Kopien löscht die Website spätestens einen Monat nach der Abgabefrist beim
+            Kreisjugendring beim nächsten Besuch.
           </li>
         </ul>
+        <Text class="mt-3">
+          Wenn du in der Nikolaus-Route „Route für Funklöcher speichern“ wählst, speichert der
+          Browser genau die Route deines Teams und noch nicht bestätigte Besuche für höchstens zwölf
+          Stunden (<code>nikolaus-fahrt-offline-v1</code>). Die Nutzerkennung liegt für die
+          Wiederherstellung im selben Tab unter <code>nikolaus-fahrt-owner</code>, die zuletzt
+          gewählte Teambezeichnung unter <code>nikolaus-fahrt-team</code>. Zusätzlich hält ein
+          Service Worker die statischen Dateien dieser Fahrtansicht im Speicher{' '}
+          <code>nikolaus-route-shell-v1</code>, damit Neuladen ohne Verbindung funktioniert.
+          Antworten mit Familien- oder Anmeldedaten werden darin nicht gespeichert. Löschen der
+          Route, Abmelden und der nächste Aufruf nach Ablauf der Frist entfernen die Kopie. Bei
+          geschlossener Seite kann der Browser erst beim nächsten Aufruf löschen.
+        </Text>
         <Text class="mt-3">
           Den Leitendenbereich können nur Mitglieder unseres Stammes nach einer Anmeldung über
           Microsoft nutzen. Erst bei dieser Anmeldung setzt Microsoft Azure Cookies, die für die
@@ -361,6 +372,17 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
         </Text>
       </InfoCard>
 
+      <InfoCard title="Persönliche Eingaben zur Abrechnung">
+        <Text>
+          Deine Ergänzungen zur Abrechnung (etwa Namen, Alter, Postleitzahlen, Rollen, Beträge und
+          Leihgebühren) speichern wir nach „Eingaben speichern“ für deinen Account in unserer
+          Datenbank bei Microsoft Azure in Deutschland. Sie sind auf deinen Geräten verfügbar und
+          werden einen Monat nach der dreimonatigen Abgabefrist der Aktion beim Kreisjugendring beim
+          nächsten Zugriff gelöscht; aus den Sicherungen verschwinden sie sieben Tage später. Andere
+          Leitende sehen deine persönlichen Ergänzungen nicht. Zur Nachvollziehbarkeit speichern wir
+          deine Anmeldekennung und den Änderungszeitpunkt.
+        </Text>
+      </InfoCard>
       <InfoCard title="Sammelbestellungen" id="sammelbestellungen">
         <Text>
           Für Sammelbestellungen erfassen wir Name, E-Mail-Adresse und die bestellten Artikel und

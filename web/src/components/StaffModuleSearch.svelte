@@ -238,7 +238,7 @@
                   {:else}
                     <span class="min-w-0 flex-1">
                       <span class="block font-semibold">{module.title}</span>
-                      <span class="block truncate text-sm text-neutral-700">
+                      <span class="block whitespace-normal text-sm text-neutral-700">
                         {module.description}
                       </span>
                     </span>

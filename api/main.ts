@@ -122,6 +122,7 @@ import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
 import GetInternAktionBeitraegeEndpoint from './endpoints/intern-aktion-beitraege';
 import GetInternAbrechnungKostenstellenEndpoint from './endpoints/intern-abrechnung-kostenstellen';
+import { AbrechnungEingabeHandler } from './endpoints/intern-abrechnung-eingabe';
 import GetInternAbrechnungEndpoint from './endpoints/intern-abrechnung';
 import PostInternAbrechnungKjrListeEndpoint from './endpoints/intern-abrechnung-kjr-liste';
 import GetInternAbrechnungBelegBildEndpoint from './endpoints/intern-abrechnung-beleg-bild';
@@ -404,6 +405,13 @@ app.http('internAbrechnungKostenstellen', {
   authLevel: 'anonymous',
   route: 'intern/abrechnung/kostenstellen',
   handler: GetInternAbrechnungKostenstellenEndpoint,
+});
+
+app.http('internAbrechnungEingabe', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/{id}/eingaben',
+  handler: AbrechnungEingabeHandler,
 });
 
 app.http('internAbrechnung', {

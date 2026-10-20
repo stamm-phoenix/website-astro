@@ -51,7 +51,7 @@
           <p class="mt-1 text-sm text-neutral-700">
             Tel: <a
               href="tel:{formatPhone(person.telephone)}"
-              class="text-link tabular-nums underline decoration-neutral-300 underline-offset-4 hover:decoration-current"
+              class="text-link tabular-nums underline decoration-neutral-300 underline-offset-4 hover:decoration-current inline-flex min-h-11 items-center"
               >{person.telephone}</a
             >
           </p>

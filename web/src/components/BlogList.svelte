@@ -19,7 +19,17 @@
   let { initialBlog = null, initialInstagram = null, images = {} }: Props = $props();
 
   untrack(() => registerBakedImages(images));
-  const blog = $derived(withBaked(blogStore, initialBlog));
+  let refreshed = $state(false);
+  const updates = $derived(
+    blogStore.data !== null &&
+      initialBlog !== null &&
+      JSON.stringify(blogStore.data) !== JSON.stringify(initialBlog)
+  );
+  const blog = $derived(
+    !refreshed && initialBlog?.length
+      ? { data: initialBlog, loading: false, error: false }
+      : withBaked(blogStore, initialBlog)
+  );
   const instagram = $derived(withBaked(instagramStore, initialInstagram));
 
   // The newest blog post is shown large; the other posts and Instagram follow mixed by date
@@ -35,8 +45,16 @@
   });
 </script>
 
-<div class="mt-8 flex flex-wrap gap-3">
+<div class="mt-8 flex min-h-11 flex-wrap gap-3">
   <StaffLink href="/leitendenbereich/blog/beitrag" variant="primary">Neuer Beitrag</StaffLink>
+</div>
+
+<div class="min-h-11" aria-live="polite">
+  {#if updates && !refreshed}<button
+      type="button"
+      class="min-h-11 font-semibold text-link underline"
+      onclick={() => (refreshed = true)}>Aktualisierte Beiträge anzeigen</button
+    >{/if}
 </div>
 
 {#if loading}

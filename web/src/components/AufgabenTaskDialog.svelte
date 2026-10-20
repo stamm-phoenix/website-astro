@@ -171,7 +171,11 @@
   onreload={form.state.conflict ? reload : undefined}
   onsubmit={save}
   {onclose}
-  submitLabel={target?.state === 'vorschlag' ? 'Annehmen' : 'Speichern'}
+  submitLabel={target?.state === 'vorschlag'
+    ? 'Annehmen'
+    : target
+      ? 'Aufgabe speichern'
+      : 'Aufgabe anlegen'}
 >
   <div class="space-y-4">
     {#if target?.state === 'vorschlag'}<p class="text-sm text-neutral-700">

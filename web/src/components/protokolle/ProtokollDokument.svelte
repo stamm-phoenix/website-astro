@@ -178,7 +178,9 @@
 
   /** The bars that stick to the top of the window: the site header and the status bar. */
   function stickyBars(): HTMLElement[] {
-    return [...document.querySelectorAll<HTMLElement>('body > header, [data-sticky-top]')];
+    return [...document.querySelectorAll<HTMLElement>('body > header, [data-sticky-top]')].filter(
+      (bar) => ['sticky', 'fixed'].includes(getComputedStyle(bar).position)
+    );
   }
 
   /**
@@ -293,7 +295,7 @@
     {editor}
     features={PROTOKOLL_TEXT_FEATURES}
     id="protokoll-dokument"
-    class="dokument-toolbar sticky z-10 rounded-t-md bg-surface"
+    class="dokument-toolbar md:sticky z-10 rounded-t-md bg-surface"
     --toolbar-top="{toolbarTop}px"
   />
   <div bind:this={element} class="inhalt"></div>

@@ -24,17 +24,23 @@ Die App startet auf `/leitendenbereich-app/`, nicht direkt auf `/leitendenbereic
 
 Das Manifest liegt außerhalb von `/leitendenbereich/`, weil die Static Web App dort eine Anmeldung verlangt. Der Browser lädt das Manifest ohne Anmelde-Cookie.
 
-## Kein Service Worker
+## Offline-Dateien nur für ausdrücklich gespeicherte Routen
 
-Die App installiert keinen Service Worker. Chrome, Edge und Safari bieten die Installation auch ohne Service Worker an. Chrome meldet für `/leitendenbereich/` keine Installationsfehler (`Page.getInstallabilityErrors` liefert eine leere Liste).
+Die Installation der App braucht keinen Service Worker. Erst „Route für Funklöcher speichern“
+registriert einen eng begrenzten Service Worker im Leitendenbereich. Er stellt ausschließlich
+die gespeicherte Fahrtansicht im selben Tab für höchstens zwölf Stunden offline bereit
+(`docs/nikolaus-offline.md`). Es gibt keinen Offline-Ersatz für andere Seiten und keinen
+Zwischenspeicher für API- oder Anmeldeantworten.
 
-Ohne Service Worker legt die App keinen eigenen Zwischenspeicher an. Es gilt nur der normale HTTP-Cache des Browsers nach den Headern der Antworten: Seiten des Leitendenbereichs kommen mit `Cache-Control: no-store`, die Vorschaubilder der Belege mit `private, max-age=300` und können also bis zu fünf Minuten im Browser liegen. Nach einem Deploy lädt die App sofort den neuen Stand. Offline-Speicher gibt es nur dort, wo ein Modul ihn selbst anbietet, zum Beispiel die Fahrtansicht (`docs/nikolaus-offline.md`).
+Für alle übrigen Inhalte gilt der normale HTTP-Cache nach den Antwortheadern: Seiten
+des Leitendenbereichs kommen mit `Cache-Control: no-store`, Belegvorschaubilder mit
+`private, max-age=300`. Neue Seiten werden immer zuerst über das Netz geladen.
 
 Ohne Verbindung gilt:
 
 - Eine offene Seite bleibt sichtbar. `StaffLayout.astro` sagt, dass die Seite offen bleiben soll, die Eingaben stehen bleiben und Speichern erst mit Verbindung geht.
-- Die Fahrtansicht und der Protokoll-Editor sagen selbst, was ohne Verbindung geht. Sie schalten den allgemeinen Hinweis mit `offlineNotice={false}` ab. Die Abrechnung ersetzt den Text des Hinweises über den Slot `offline` von `StaffLayout.astro`. Er sagt nur, dass die Eingaben auf der offenen Seite stehen bleiben, denn ob sie auch auf dem Gerät gespeichert werden, zeigt die Abrechnung selbst an. Bei vollem Speicher oder nach Ablauf der Frist speichert sie dort nicht.
-- Wer die App ohne Verbindung neu startet, sieht die Fehlerseite des Browsers. Eine eigene Seite dafür bräuchte einen Service Worker.
+- Die Fahrtansicht und der Protokoll-Editor sagen selbst, was ohne Verbindung geht. Sie schalten den allgemeinen Hinweis mit `offlineNotice={false}` ab. Die Abrechnung ersetzt den Text des Hinweises über den Slot `offline` von `StaffLayout.astro`. Er sagt nur, dass die Eingaben auf der offenen Seite stehen bleiben, dauerhaft gespeichert werden sie nach „Eingaben speichern“ für den Account in Azure SQL.
+- Andere Seiten als die ausdrücklich gespeicherte Fahrtansicht zeigen beim Neustart ohne Netz die Fehlerseite des Browsers.
 
 ## Scope `/` statt `/leitendenbereich/`
 
