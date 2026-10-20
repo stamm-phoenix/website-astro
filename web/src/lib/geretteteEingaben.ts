@@ -4,6 +4,7 @@
  * fields in this tab and fills them in again when the same dialog opens on the same page.
  */
 import { getContext, setContext } from 'svelte';
+import type { TextEditorFormat } from './textEditor';
 
 export const RESCUE_KEY = 'phoenix:gerettete-eingaben:v1';
 /** Fired on `window` when the kept input was taken or deleted. */
@@ -15,6 +16,8 @@ export interface GeretteterWert {
   key: string;
   kind: 'value' | 'checked' | 'editor';
   value: string;
+  /** Editor storage format; native form values always remain plain text. */
+  format?: TextEditorFormat;
 }
 
 interface Rettung {
@@ -31,6 +34,7 @@ interface Rettung {
 
 /** A formatting editor inside the dialog, which keeps its text outside the form elements. */
 export interface RescueEditor {
+  format: () => TextEditorFormat;
   label: () => string;
   get: () => string;
   set: (value: string) => void;
@@ -145,6 +149,7 @@ export function rescueDialog(
       key: editorKey(editor),
       kind: 'editor' as const,
       value: editor.get(),
+      format: editor.format(),
     })),
   ];
   // A field may exist while its selected option is still loading. Until it was placed
@@ -186,11 +191,12 @@ function isRettung(value: unknown): value is Rettung {
     Array.isArray(fields) &&
     fields.every((field: unknown) => {
       if (typeof field !== 'object' || field === null) return false;
-      const { key, kind, value: kept } = field as Record<string, unknown>;
+      const { key, kind, value: kept, format } = field as Record<string, unknown>;
       return (
         typeof key === 'string' &&
         (kind === 'value' || kind === 'checked' || kind === 'editor') &&
-        typeof kept === 'string'
+        typeof kept === 'string' &&
+        (format === undefined || format === 'html' || format === 'markdown')
       );
     })
   );

@@ -1,6 +1,8 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import { rescuedLabel, type GeretteterWert } from '../../lib/geretteteEingaben';
+  import { sanitizeFaqAnswer } from '../../lib/api';
+  import { parseHtml } from '../../lib/html';
 
   /**
    * Input from before a new login in the iPhone app that the dialog could not fill in itself,
@@ -15,9 +17,25 @@
   let copied = $state<number | null>(null);
   let failed = $state<number | null>(null);
 
-  async function copy(index: number, value: string): Promise<void> {
+  /** Only explicitly marked editor HTML is interpreted; ordinary fields stay plain text. */
+  function editorHtml(kept: GeretteterWert): string | null {
+    return kept.kind === 'editor' && kept.format === 'html' ? sanitizeFaqAnswer(kept.value) : null;
+  }
+
+  async function copy(index: number, kept: GeretteterWert): Promise<void> {
     try {
-      await navigator.clipboard.writeText(value);
+      const html = editorHtml(kept);
+      if (html !== null) {
+        const doc = parseHtml(html);
+        for (const br of doc.querySelectorAll('br')) br.replaceWith(doc.createTextNode('\n'));
+        for (const block of doc.querySelectorAll('p, div, li')) block.append('\n');
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([doc.body.textContent?.trim() ?? ''], { type: 'text/plain' }),
+          }),
+        ]);
+      } else await navigator.clipboard.writeText(kept.value);
       copied = index;
       failed = null;
     } catch {
@@ -44,11 +62,21 @@
       <li class="border-t border-neutral-200 pt-2">
         <p class="font-semibold text-neutral-800">{rescuedLabel(kept)}</p>
         {#if kept.kind === 'checked'}
-          <p class="text-neutral-800">angehakt</p>
+          <p class="text-neutral-800">{kept.value === 'true' ? 'angehakt' : 'nicht angehakt'}</p>
         {:else}
-          <p class="whitespace-pre-wrap text-neutral-800">{kept.value}</p>
+          {@const html = editorHtml(kept)}
+          {#if html}
+            <div class="prose prose-sm max-w-none break-words text-neutral-800">
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -- editorHtml sanitizes via sanitizeFaqAnswer -->
+              {@html html}
+            </div>
+          {:else}
+            <p class="whitespace-pre-wrap break-words text-neutral-800">
+              {html === '' || kept.value === '' ? 'Leer' : kept.value}
+            </p>
+          {/if}
           <div class="mt-1 flex flex-wrap items-center gap-2">
-            <ActionButton onclick={() => copy(index, kept.value)}>
+            <ActionButton onclick={() => copy(index, kept)}>
               {rescuedLabel(kept)} kopieren
             </ActionButton>
             <span role="status">
