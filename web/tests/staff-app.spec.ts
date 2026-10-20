@@ -43,7 +43,9 @@ test('the start page of the app says what to do without a connection', async ({ 
   await page.route('**/.auth/me', (route) => route.abort('internetdisconnected'));
   await page.goto('/leitendenbereich-app/');
   await expect(page.getByRole('status')).toContainText('Prüf deine Internetverbindung');
-  await expect(page.getByRole('link', { name: 'Noch einmal versuchen' })).toBeVisible();
+  await page.unroute('**/.auth/me');
+  await page.getByRole('link', { name: 'Noch einmal versuchen' }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/$/);
 });
 
 test('no page of the Leitendenbereich registers a service worker', async ({ page }) => {
