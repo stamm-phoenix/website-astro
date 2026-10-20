@@ -38,6 +38,11 @@ test('a person who has read everything is told so', async ({ page }) => {
   await page.goto('/leitendenbereich/neuigkeiten');
   await expect(page.getByText('Du bist auf dem neuesten Stand.')).toBeVisible();
   await expect(page.getByText('Neu', { exact: true })).toHaveCount(0);
+  // A change about a specific page links to it
+  await expect(page.getByRole('link', { name: '„Fotos“ öffnen' })).toHaveAttribute(
+    'href',
+    '/leitendenbereich/fotos'
+  );
 });
 
 test('a failed load of the read state marks nothing as new or read and offers a retry', async ({

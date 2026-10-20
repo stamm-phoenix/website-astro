@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { CHANGELOG } from '../../lib/changelogEntries';
-  import { unseenEntries } from '../../lib/changelog';
+  import { changeText, unseenEntries } from '../../lib/changelog';
+  import { staffPage } from '../../lib/staffModules';
   import { formatDay } from '../../lib/format';
   import {
     changelogStore,
@@ -87,8 +88,15 @@
           <time datetime={entry.date}>{formatDay(entry.date)}</time>
         </p>
         <ul class="mt-2 list-disc space-y-1.5 pl-5 text-neutral-800">
-          {#each entry.changes as change (change)}
-            <li>{change}</li>
+          {#each entry.changes as change (changeText(change))}
+            <li>
+              {changeText(change)}
+              {#if typeof change !== 'string'}
+                <a href={change.href} class="ml-1 inline-block py-2.5 font-semibold text-link"
+                  >„{staffPage(change.href).title}“ öffnen</a
+                >
+              {/if}
+            </li>
           {/each}
         </ul>
       </article>

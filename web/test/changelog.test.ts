@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { staffPage } from '../src/lib/staffModules';
 import { changelogProblems, newestEntryId, unseenEntries } from '../src/lib/changelog';
 import type { ChangelogEntry } from '../src/lib/changelog';
 import { CHANGELOG } from '../src/lib/changelogEntries';
@@ -39,4 +40,12 @@ test('an entry added later with an older ID than the last seen one is not counte
 test('the newest ID is found without relying on the order', () => {
   assert.equal(newestEntryId([...ENTRIES].reverse()), '2026-10-20-c');
   assert.equal(newestEntryId([]), null);
+});
+
+test('every link of the changelog leads to a registered page of the Leitendenbereich', () => {
+  const hrefs = CHANGELOG.flatMap((e) =>
+    e.changes.flatMap((change) => (typeof change === 'string' ? [] : [change.href]))
+  );
+  assert.ok(hrefs.length > 0);
+  for (const href of hrefs) assert.doesNotThrow(() => staffPage(href), href);
 });

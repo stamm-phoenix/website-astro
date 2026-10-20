@@ -1,5 +1,8 @@
 import { isChangelogId } from '../../../api/lib/changelog-id';
 
+/** A sentence of an entry; with `href` the page it is about gets a link after the sentence. */
+export type ChangelogChange = string | { text: string; href: string };
+
 /** One entry of the changelog of the Leitendenbereich, written in `changelogEntries.ts`. */
 export interface ChangelogEntry {
   /** Date plus short name, see `api/lib/changelog-id.ts`. */
@@ -8,7 +11,7 @@ export interface ChangelogEntry {
   date: string;
   title: string;
   /** Whole sentences in plain German: what leaders can do now or what works differently. */
-  changes: string[];
+  changes: ChangelogChange[];
 }
 
 /** The entries newer than `lastSeenId`; all of them while nothing has been seen. */
@@ -28,6 +31,10 @@ export function newestEntryId(entries: readonly ChangelogEntry[]): string | null
   );
 }
 
+export function changeText(change: ChangelogChange): string {
+  return typeof change === 'string' ? change : change.text;
+}
+
 /** Problems of an entry list, for the test: bad IDs, wrong order, empty texts. */
 export function changelogProblems(entries: readonly ChangelogEntry[]): string[] {
   const problems: string[] = [];
@@ -35,7 +42,7 @@ export function changelogProblems(entries: readonly ChangelogEntry[]): string[] 
     if (!isChangelogId(entry.id)) problems.push(`${entry.id}: ungültige ID`);
     if (!entry.id.startsWith(entry.date)) problems.push(`${entry.id}: Datum passt nicht zur ID`);
     if (!entry.title.trim()) problems.push(`${entry.id}: Titel fehlt`);
-    if (entry.changes.length === 0 || entry.changes.some((change) => !change.trim())) {
+    if (entry.changes.length === 0 || entry.changes.some((change) => !changeText(change).trim())) {
       problems.push(`${entry.id}: leere Änderung`);
     }
     const next = entries[index + 1];
