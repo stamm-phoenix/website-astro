@@ -1362,3 +1362,117 @@ for (const module of ['task', 'template'] as const) {
     });
   }
 }
+
+for (const changed of [false, true]) {
+  test(`in the iPhone app late article prices ${changed ? 'still detect a changed order' : 'do not block recovery of an unchanged order'}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const base = '/api/intern/pflege/sammelbestellungen';
+    const source = await (await page.request.get(`${base}/101`)).json();
+    const original = source.orders.find((entry: { name: string }) => entry.name === 'Mia Bauer');
+    const reference = 'https://www.ruesthaus.de/987654/recovery-delayed-price';
+    let expired = true;
+    let saved = false;
+    let hold = false;
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let priceStarted: () => void = () => {};
+    const waitingForPrice = new Promise<void>((resolve) => (priceStarted = resolve));
+    await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+    await page.route(`**${base}/101`, async (route) => {
+      const response = await route.fetch();
+      const data = await response.json();
+      const order = data.orders.find((entry: { id: string }) => entry.id === original.id);
+      if (!saved) order.totalCents = null;
+      order.items = [
+        { ...order.items[0], reference, name: 'Recovery article', quantity: 1, excluded: null },
+      ];
+      await route.fulfill({ response, json: data });
+    });
+    await page.route(`**${base}/product`, async (route) => {
+      if (route.request().postDataJSON().reference !== reference) return route.fallback();
+      if (hold) {
+        priceStarted();
+        await held;
+      }
+      await route.fulfill({
+        json: {
+          sourceUrl: reference,
+          name: 'Recovery article',
+          unitPriceCents: 4500,
+          availability: 'available',
+          imageUrl: null,
+        },
+      });
+    });
+    await page.route(`**${base}/orders/${original.id}`, async (route) => {
+      if (route.request().method() !== 'PATCH') return route.fallback();
+      if (expired) return route.fulfill({ status: 401 });
+      const response = await route.fetch();
+      saved = response.ok();
+      await route.fulfill({ response });
+    });
+    await page.goto('/leitendenbereich/sammelbestellungen/101');
+    const row = page
+      .locator('article')
+      .filter({ has: page.getByRole('heading', { name: 'Mia Bauer', exact: true }) });
+    await expect(row.getByText('45,00 €', { exact: true }).first()).toBeVisible();
+    const open = row.getByRole('button', { name: 'Status bearbeiten', exact: true });
+    await open.click();
+    const dialog = page.getByRole('dialog', { name: 'Bestellstatus bearbeiten', exact: true });
+    const total = dialog.getByLabel('Endgültiger Gesamtbetrag in Euro');
+    await expect(total).toHaveValue('45');
+    await total.fill('42');
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    hold = true;
+    if (changed) {
+      expect(
+        (
+          await page.request.patch(`${base}/orders/${original.id}`, {
+            data: {
+              etag: original.etag,
+              status: original.status,
+              paid: original.paid,
+              delivered: !original.delivered,
+              totalCents: null,
+            },
+          })
+        ).ok()
+      ).toBe(true);
+    }
+    await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+    await waitingForPrice;
+    await open.click();
+    if (changed) {
+      await expect(total).toHaveValue('');
+      await expect(
+        dialog.getByText('Dieser Eintrag wurde inzwischen geändert.', { exact: false })
+      ).toBeVisible();
+      await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toContainText(
+        '42'
+      );
+      release();
+    } else {
+      await expect(total).toHaveValue('42');
+      await expect(
+        dialog.getByText('wieder eingesetzt. Prüf sie und speichere.', { exact: false })
+      ).toBeVisible();
+      release();
+      await expect(row.getByText('45,00 €', { exact: true }).first()).toBeVisible();
+      await expect(total).toHaveValue('42');
+      expired = false;
+      const write = page.waitForRequest(
+        (request) =>
+          request.method() === 'PATCH' &&
+          request.url().endsWith(`/sammelbestellungen/orders/${original.id}`)
+      );
+      await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+      expect((await write).postDataJSON().totalCents).toBe(4200);
+      await expect(dialog).toBeHidden();
+    }
+    const current = await (await page.request.get(`${base}/101`)).json();
+    const etag = current.orders.find((entry: { id: string }) => entry.id === original.id).etag;
+    await page.request.patch(`${base}/orders/${original.id}`, { data: { ...original, etag } });
+  });
+}
