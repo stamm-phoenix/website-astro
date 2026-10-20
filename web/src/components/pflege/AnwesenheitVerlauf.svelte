@@ -74,6 +74,15 @@
         controller.signal
       );
       if (current === revision) {
+        if (result.etag === null) {
+          collapse();
+          ondelete(date);
+          message = `Die Gruppenstunde am ${formatDate(date)} wurde inzwischen gelöscht. Die Übersicht wurde aktualisiert.`;
+          messageKind = 'success';
+          await tick();
+          heading?.focus();
+          return;
+        }
         detail = result;
         onload({
           stufe: result.stufe,

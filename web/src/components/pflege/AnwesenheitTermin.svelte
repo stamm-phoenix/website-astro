@@ -63,6 +63,10 @@
   let terminRequest: AbortController | null = null;
 
   const path = $derived(`/anwesenheit/${slug}/${date}`);
+  // Notes and cancellation must use a settled snapshot, with no attendance reload pending.
+  const meetingBusy = $derived(
+    loading || savingNotes || savingCancelled || addingGuest || busy.length > 0
+  );
   const memberCount = $derived(
     termin
       ? termin.children.filter((child) => child.status === 'anwesend').length + termin.anonymized
@@ -138,7 +142,15 @@
   }
 
   async function setStatus(child: AnwesenheitChild, status: AnwesenheitStatus): Promise<void> {
-    if (!termin?.editable || savingCancelled || busy.includes(child.id) || child.status === status)
+    if (
+      !termin?.editable ||
+      loading ||
+      savingNotes ||
+      savingCancelled ||
+      addingGuest ||
+      busy.includes(child.id) ||
+      child.status === status
+    )
       return;
     child.status = status;
     busy = [...busy, child.id];
@@ -175,8 +187,7 @@
    */
   async function setCancelled(cancelled: boolean): Promise<void> {
     const target = termin;
-    if (!target?.editable || target.cancelled === cancelled || savingCancelled || savingNotes)
-      return;
+    if (!target?.editable || target.cancelled === cancelled || meetingBusy) return;
     savingCancelled = true;
     try {
       const recorded = memberCount + excusedCount + guestCount;
@@ -236,7 +247,7 @@
     event.preventDefault();
     const name = guestName.trim();
     const target = termin;
-    if (!target || !name) return;
+    if (!target || !name || meetingBusy) return;
     addingGuest = true;
     try {
       const guest = await sendApi<AnwesenheitGuest>('POST', `/intern/pflege${path}/gaeste`, {
@@ -290,7 +301,7 @@
     event.preventDefault();
     const target = termin;
     const baseline = notesBase;
-    if (!target || !baseline || savingNotes || savingCancelled) return;
+    if (!target || !baseline || meetingBusy) return;
     const text = notes.trim();
     savingNotes = true;
     try {
@@ -338,7 +349,12 @@
       variant="segmented"
       options={STATUS_OPTIONS}
       value={child.status}
-      disabled={!termin?.editable || savingCancelled || busy.includes(child.id)}
+      disabled={!termin?.editable ||
+        loading ||
+        savingNotes ||
+        savingCancelled ||
+        addingGuest ||
+        busy.includes(child.id)}
       onselect={(status) => setStatus(child, status)}
     />
   </li>
@@ -401,7 +417,7 @@
               { value: 'ausgefallen', label: 'Ausgefallen', tone: 'warning' },
             ]}
             value={termin.cancelled ? 'ausgefallen' : 'statt'}
-            disabled={!termin.editable || savingCancelled || savingNotes}
+            disabled={!termin.editable || meetingBusy}
             onselect={(value) => setCancelled(value === 'ausgefallen')}
           />
           {#if termin.editable}
@@ -488,7 +504,7 @@
                   />
                 {/snippet}
               </FormField>
-              <ActionButton type="submit" disabled={addingGuest || !guestName.trim()}>
+              <ActionButton type="submit" disabled={meetingBusy || !guestName.trim()}>
                 Eintragen
               </ActionButton>
             </form>
@@ -514,11 +530,7 @@
           {/snippet}
         </FormField>
         {#if termin.editable}
-          <ActionButton
-            type="submit"
-            variant="primary"
-            disabled={savingNotes || savingCancelled || !notesChanged}
-          >
+          <ActionButton type="submit" variant="primary" disabled={meetingBusy || !notesChanged}>
             Notiz speichern
           </ActionButton>
         {/if}

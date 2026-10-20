@@ -1,5 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-import type { AnwesenheitOverview } from '../src/lib/types';
+import { attendanceSnapshot } from '../../api/lib/anwesenheit-model';
+import type { AnwesenheitTermin, AnwesenheitOverview } from '../src/lib/types';
 
 /** The date of a mock Termin `days` ago, as `dev/mock-data/anwesenheit.ts` creates it. */
 function daysAgo(days: number): string {
@@ -178,7 +179,7 @@ test('history retries a name lookup and explains anonymized attendance', async (
               stufe: 'Wölflinge',
               date,
               editable: false,
-              etag: null,
+              etag: 'historical',
               notes: '',
               cancelled: false,
               children: [],
@@ -291,4 +292,42 @@ test('after a delete conflict the summary shows the new cancelled status and sta
   await row.getByRole('button', { name: /Details ausblenden/ }).click();
   await expect(row.getByRole('button', { name: /Details ansehen/ })).toContainText('Ausgefallen');
   await expectNoHorizontalOverflow(page);
+});
+
+test('a meeting deleted before opening its details leaves the history immediately', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const date = daysAgo(240);
+  const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
+  expect(
+    (await page.request.put(write, { data: { notes: 'Inzwischen gelöscht.', etag: null } })).ok()
+  ).toBe(true);
+  await page.goto('/leitendenbereich/anwesenheit');
+  await page.getByRole('button', { name: 'Verlauf & Statistik', exact: true }).click();
+  const row = page.locator(`[data-meeting-date="${date}"]`);
+  await expect(row).toBeVisible();
+  const loaded = (await (
+    await page.request.get(`/api/intern/anwesenheit/woelflinge/${date}`)
+  ).json()) as AnwesenheitTermin;
+  expect(
+    (
+      await page.request.delete(write, {
+        headers: { 'If-Match': loaded.etag! },
+        data: { attendance: attendanceSnapshot(loaded) },
+      })
+    ).ok()
+  ).toBe(true);
+  // Even a failed overview refresh must not bring the confirmed missing meeting back.
+  await page.route('**/api/intern/anwesenheit', (route) =>
+    route.fulfill({ status: 500, json: {} })
+  );
+  await row.getByRole('button', { name: /Details ansehen/ }).click();
+  await expect(
+    page.getByText(/wurde inzwischen gelöscht. Die Übersicht wurde aktualisiert/).first()
+  ).toBeVisible();
+  await expect(row).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Gruppenstunde löschen', exact: true })
+  ).toHaveCount(0);
 });

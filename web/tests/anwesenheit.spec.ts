@@ -514,3 +514,70 @@ test('notes and cancellation wait for each other without losing text or the curr
   expect(stored.cancelled).toBe(true);
   await expectNoHorizontalOverflow(page);
 });
+
+test('a reload after a failed child choice settles before notes save and cancellation', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const date = '2026-08-16';
+  const read = `/api/intern/anwesenheit/woelflinge/${date}`;
+  const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
+  await page.goto('/leitendenbereich/anwesenheit');
+  await page.getByLabel('Datum', { exact: true }).fill(date);
+  const notes = page.locator('#anwesenheit-inhalt');
+  await expect(notes).toHaveValue('');
+  await notes.fill('Mein Entwurf bleibt.');
+  await page.route(`**${write}/kinder/**`, (route) => route.fulfill({ status: 500, json: {} }));
+  let releaseLoad = (): void => undefined;
+  const loadGate = new Promise<void>((resolve) => {
+    releaseLoad = resolve;
+  });
+  let loadCaptured = false;
+  await page.route(`**${read}`, async (route) => {
+    const response = await route.fetch();
+    loadCaptured = true;
+    await loadGate;
+    await route.fulfill({ response });
+  });
+  let writes = 0;
+  let releaseSave = (): void => undefined;
+  const saveGate = new Promise<void>((resolve) => {
+    releaseSave = resolve;
+  });
+  await page.route(`**${write}`, async (route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    writes++;
+    await saveGate;
+    await route.fulfill({ response });
+  });
+  await choice(page, 'Anna Test').anwesend.click();
+  await expect.poll(() => loadCaptured).toBe(true);
+  const save = page.getByRole('button', { name: 'Notiz speichern', exact: true });
+  const cancel = page
+    .getByRole('group', { name: 'Gruppenstunde', exact: true })
+    .getByRole('button', { name: 'Ausgefallen', exact: true });
+  await expect(save).toBeDisabled();
+  await expect(cancel).toBeDisabled();
+  await notes.evaluate((element) =>
+    element
+      .closest('form')!
+      .dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+  );
+  releaseLoad();
+  await expect(save).toBeEnabled();
+  expect(writes).toBe(0);
+  await expect(notes).toHaveValue('Mein Entwurf bleibt.');
+  await save.click();
+  await expect.poll(() => writes).toBe(1);
+  // Another failed choice cannot start a stale reload during the notes write either.
+  await expect(choice(page, 'Anna Test').anwesend).toBeDisabled();
+  releaseSave();
+  await expect(page.getByText('Notiz gespeichert.').first()).toBeVisible();
+  await cancel.click();
+  await expect(page.getByText('Gruppenstunde als ausgefallen markiert.').first()).toBeVisible();
+  const stored = await (await page.request.get(read)).json();
+  expect(stored.notes).toBe('Mein Entwurf bleibt.');
+  expect(stored.cancelled).toBe(true);
+  await expect(notes).toHaveValue('Mein Entwurf bleibt.');
+});
