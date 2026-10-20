@@ -304,9 +304,10 @@ export async function getIch(login: string, now: number = Date.now()): Promise<I
 export async function eigeneAnmeldungen(
   login: string,
   persons: readonly { id: string; primary_email?: unknown; name?: unknown }[],
-  now: number = Date.now()
+  now: number = Date.now(),
+  timeoutMs: number = ICH_TIMEOUT_MS
 ): Promise<string[]> {
-  const linked = await findVerknuepfte(login, now);
+  const linked = await findVerknuepfte(login, now, timeoutMs);
   if (!linked?.email) return [];
   return persons
     .filter(
@@ -319,12 +320,32 @@ export async function eigeneAnmeldungen(
     .map((p) => p.id);
 }
 
-/** `getVerknuepfte` for pages that only mark entries: a failure means no link, not an error. */
-async function findVerknuepfte(login: string, now: number): Promise<Verknuepfte | null> {
+/**
+ * How long pages wait for the linked person at most. Marking own entries is an extra, so it never
+ * holds up an Aktion or an Abrechnung near the time limit of Static Web Apps (45 seconds).
+ */
+export const ICH_TIMEOUT_MS = 5000;
+
+/**
+ * `getVerknuepfte` for pages that only mark entries: a failure, or no answer within `timeoutMs`,
+ * means no link, not an error. A load that takes longer still fills the memory for the next page.
+ */
+async function findVerknuepfte(
+  login: string,
+  now: number,
+  timeoutMs: number = ICH_TIMEOUT_MS
+): Promise<Verknuepfte | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), timeoutMs);
+    timer.unref?.();
+  });
   try {
-    return await getVerknuepfte(login.trim().toLowerCase(), now);
+    return await Promise.race([getVerknuepfte(login.trim().toLowerCase(), now), timeout]);
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
