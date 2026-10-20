@@ -1,40 +1,67 @@
 /**
- * Unsaved input kept across a new login in the same window, for the iPhone app
- * (`reloginOnlyHere()` in api.ts): the login reloads the page, so the values of the filled-in
- * fields are kept in this tab and shown again afterwards (`GeretteteEingaben.svelte`).
+ * Unsaved input of an edit dialog kept across a new login in the same window, for the iPhone
+ * app (`reloginOnlyHere()` in api.ts): the login reloads the page, so `EditDialog` keeps its
+ * fields in this tab and fills them in again when the same dialog opens on the same page.
  */
+import { getContext, setContext } from 'svelte';
 
 export const RESCUE_KEY = 'phoenix:gerettete-eingaben:v1';
+/** Fired on `window` when the kept input was taken or deleted. */
+export const RESCUE_EVENT = 'phoenix:gerettete-eingaben';
 const MAX_AGE_MS = 60 * 60 * 1000;
 
-export interface GeretteteEingabe {
-  label: string;
+/** One field: its label (with a counter for equal labels) and what it held. */
+export interface GeretteterWert {
+  key: string;
+  kind: 'value' | 'checked' | 'editor';
   value: string;
 }
 
 interface Rettung {
   savedAt: number;
-  fields: GeretteteEingabe[];
+  path: string;
+  dialog: string;
+  fields: GeretteterWert[];
 }
 
-const FIELDS = [
-  'input:not([type="hidden"], [type="password"], [type="file"], [type="checkbox"], [type="radio"], [type="search"], [type="submit"], [type="button"])',
-  'textarea',
-  'select',
-  '[contenteditable="true"]',
-].join(', ');
+/** A formatting editor inside the dialog, which keeps its text outside the form elements. */
+export interface RescueEditor {
+  label: () => string;
+  get: () => string;
+  set: (value: string) => void;
+}
+
+/** What `EditDialog` offers its content: the login link keeps the input, editors join in. */
+export interface RescueContext {
+  /** Keeps the dialog's input; false if the browser could not store it. */
+  rescue: () => boolean;
+  /** Adds an editor; returns the function that removes it again. */
+  register: (editor: RescueEditor) => () => void;
+}
+
+const CONTEXT = Symbol('gerettete-eingaben');
+
+export function setRescueContext(context: RescueContext): void {
+  setContext(CONTEXT, context);
+}
+
+/** The surrounding edit dialog, or undefined outside one. */
+export function getRescueContext(): RescueContext | undefined {
+  return getContext<RescueContext | undefined>(CONTEXT);
+}
 
 function clean(text: string | null | undefined): string {
   return (text ?? '').replace(/\s+/g, ' ').trim();
 }
 
-function labelOf(field: HTMLElement): string {
+/** The visible name of a field, as a person reads it next to the field. */
+export function fieldLabel(field: Element): string {
   const labelledBy = field
     .getAttribute('aria-labelledby')
     ?.split(/\s+/)
     .map((id) => document.getElementById(id)?.textContent)
     .join(' ');
-  const labels =
+  const label =
     field instanceof HTMLInputElement ||
     field instanceof HTMLTextAreaElement ||
     field instanceof HTMLSelectElement
@@ -43,62 +70,135 @@ function labelOf(field: HTMLElement): string {
   return (
     clean(field.getAttribute('aria-label')) ||
     clean(labelledBy) ||
-    clean(labels) ||
-    clean(field.getAttribute('placeholder')) ||
-    'Eingabe'
+    clean(label) ||
+    clean(field.getAttribute('name'))
   );
 }
 
-function valueOf(field: HTMLElement): string {
-  if (field instanceof HTMLSelectElement) return clean(field.selectedOptions[0]?.textContent);
-  if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
-    return field.value.trim();
+type FormField = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+function isFormField(element: Element): element is FormField {
+  if (element instanceof HTMLInputElement) {
+    return !['hidden', 'password', 'file', 'submit', 'button', 'reset'].includes(element.type);
   }
-  return field.innerText.trim();
+  return element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement;
 }
 
-/** Keeps the filled-in fields of `root`, e.g. the open dialog, for one hour in this tab. */
-export function rescueInputs(root: ParentNode): void {
-  const fields = [...root.querySelectorAll<HTMLElement>(FIELDS)]
-    .map((field) => ({ label: labelOf(field), value: valueOf(field) }))
-    .filter((field) => field.value !== '');
-  if (fields.length === 0) return;
-  const rettung: Rettung = { savedAt: Date.now(), fields };
+/** Each field of `form` with a key that stays the same when the dialog is rendered again. */
+function keyedFields(form: HTMLFormElement): { key: string; field: FormField }[] {
+  const seen = new Map<string, number>();
+  const result: { key: string; field: FormField }[] = [];
+  for (const element of form.elements) {
+    if (!isFormField(element)) continue;
+    const label = fieldLabel(element);
+    if (!label) continue;
+    const count = seen.get(label) ?? 0;
+    seen.set(label, count + 1);
+    result.push({ key: `${label}#${count}`, field: element });
+  }
+  return result;
+}
+
+function editorKey(editor: RescueEditor): string {
+  return `${editor.label()}#editor`;
+}
+
+function readValue(field: FormField): GeretteterWert['value'] {
+  if (field instanceof HTMLInputElement && (field.type === 'checkbox' || field.type === 'radio')) {
+    return String(field.checked);
+  }
+  if (field instanceof HTMLSelectElement) {
+    return Array.from(field.selectedOptions, (option) => option.value).join('\n');
+  }
+  return field.value;
+}
+
+/**
+ * Keeps the fields of `form` and the text of `editors` for one hour in this tab. Returns false
+ * if the browser could not store them, so the caller can keep the page instead of losing them.
+ */
+export function rescueDialog(
+  form: HTMLFormElement,
+  dialog: string,
+  editors: readonly RescueEditor[]
+): boolean {
+  const fields: GeretteterWert[] = [
+    ...keyedFields(form).map(({ key, field }) => ({
+      key,
+      kind:
+        field instanceof HTMLInputElement && (field.type === 'checkbox' || field.type === 'radio')
+          ? ('checked' as const)
+          : ('value' as const),
+      value: readValue(field),
+    })),
+    ...editors.map((editor) => ({
+      key: editorKey(editor),
+      kind: 'editor' as const,
+      value: editor.get(),
+    })),
+  ];
+  const rettung: Rettung = {
+    savedAt: Date.now(),
+    path: `${location.pathname}${location.search}`,
+    dialog,
+    fields,
+  };
   try {
     sessionStorage.setItem(RESCUE_KEY, JSON.stringify(rettung));
+    return true;
   } catch {
-    /* Storage unavailable: the hint before the login says to copy the input. */
+    return false;
   }
 }
 
 function isRettung(value: unknown): value is Rettung {
   if (typeof value !== 'object' || value === null) return false;
-  const { savedAt, fields } = value as Record<string, unknown>;
+  const { savedAt, path, dialog, fields } = value as Record<string, unknown>;
   return (
     typeof savedAt === 'number' &&
+    typeof path === 'string' &&
+    typeof dialog === 'string' &&
     Array.isArray(fields) &&
-    fields.every(
-      (field: unknown) =>
-        typeof field === 'object' &&
-        field !== null &&
-        typeof (field as Record<string, unknown>).label === 'string' &&
-        typeof (field as Record<string, unknown>).value === 'string'
-    )
+    fields.every((field: unknown) => {
+      if (typeof field !== 'object' || field === null) return false;
+      const { key, kind, value: kept } = field as Record<string, unknown>;
+      return (
+        typeof key === 'string' &&
+        (kind === 'value' || kind === 'checked' || kind === 'editor') &&
+        typeof kept === 'string'
+      );
+    })
   );
 }
 
-/** The kept input, or `null` when there is none or it is older than one hour (then removed). */
-export function readRescue(now: number): GeretteteEingabe[] | null {
+function read(now: number): Rettung | null {
   try {
     const raw = sessionStorage.getItem(RESCUE_KEY);
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
-    if (isRettung(parsed) && now - parsed.savedAt <= MAX_AGE_MS) return parsed.fields;
+    if (isRettung(parsed) && now - parsed.savedAt <= MAX_AGE_MS) return parsed;
     sessionStorage.removeItem(RESCUE_KEY);
   } catch {
-    /* Storage unavailable or damaged: nothing to show. */
+    /* Storage unavailable or damaged: nothing kept. */
   }
   return null;
+}
+
+/** Title of the dialog whose input is kept for this page, for the hint above the content. */
+export function rescuedDialog(now: number): string | null {
+  const rettung = read(now);
+  return rettung && rettung.path === `${location.pathname}${location.search}`
+    ? rettung.dialog
+    : null;
+}
+
+/** The kept input of `dialog` on this page, removed from the tab once taken. */
+export function takeRescue(dialog: string, now: number): GeretteterWert[] | null {
+  const rettung = read(now);
+  if (!rettung || rettung.dialog !== dialog) return null;
+  if (rettung.path !== `${location.pathname}${location.search}`) return null;
+  forgetRescue();
+  return rettung.fields;
 }
 
 export function forgetRescue(): void {
@@ -107,4 +207,46 @@ export function forgetRescue(): void {
   } catch {
     /* Storage unavailable. */
   }
+  window.dispatchEvent(new Event(RESCUE_EVENT));
+}
+
+/**
+ * Fills the kept values into the fields of `form`; returns those it could not place yet, e.g.
+ * a field shown only after a choice above it, or an editor that is still loading.
+ */
+export function fillDialog(
+  form: HTMLFormElement,
+  editors: readonly RescueEditor[],
+  values: readonly GeretteterWert[]
+): GeretteterWert[] {
+  const fields = new Map(keyedFields(form).map(({ key, field }) => [key, field]));
+  const editorsByKey = new Map(editors.map((editor) => [editorKey(editor), editor]));
+  const rest: GeretteterWert[] = [];
+  for (const kept of values) {
+    if (kept.kind === 'editor') {
+      const editor = editorsByKey.get(kept.key);
+      if (editor) editor.set(kept.value);
+      else rest.push(kept);
+      continue;
+    }
+    const field = fields.get(kept.key);
+    if (!field) {
+      rest.push(kept);
+      continue;
+    }
+    if (kept.kind === 'checked' && field instanceof HTMLInputElement) {
+      const checked = kept.value === 'true';
+      if (field.checked === checked || (field.type === 'radio' && !checked)) continue;
+      field.checked = checked;
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (field instanceof HTMLSelectElement) {
+      const chosen = new Set(kept.value.split('\n'));
+      for (const option of field.options) option.selected = chosen.has(option.value);
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (field.value !== kept.value) {
+      field.value = kept.value;
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+  return rest;
 }
