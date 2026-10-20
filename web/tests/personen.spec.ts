@@ -42,4 +42,27 @@ test('leaders are linked to CampFlow and find themselves in an Aktion', async ({
   await expect(page.getByText('(ich)').filter({ visible: true })).toHaveCount(1);
   const ich = await page.request.get('/api/intern/ich');
   expect(JSON.stringify(await ich.json())).not.toContain('demo.leitung@example.org');
+
+  // Without the link the Aktion, opened again within the app, no longer shows it as the own one
+  await page.getByRole('link', { name: 'Leitendenbereich – Übersicht' }).click();
+  await page
+    .getByRole('link', { name: /^Personen/ })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Bearbeiten: Demo Leitung' }).click();
+  const loesen = page.getByRole('dialog', { name: 'CampFlow-Person von Demo Leitung' });
+  await loesen.getByRole('button', { name: 'Andere Person wählen' }).click();
+  await loesen.getByRole('button', { name: 'Speichern' }).click();
+  await expect(page.getByText('Demo Leitung gespeichert.').first()).toBeVisible();
+  // A link within the app, so the page changes without a full load and keeps what it loaded
+  await page.evaluate(() => {
+    const link = document.createElement('a');
+    link.href = '/leitendenbereich/aktionen/aktion?id=evt_Georgsfest';
+    link.textContent = 'Georgsfest';
+    document.querySelector('main')?.append(link);
+    link.click();
+  });
+  await expect(page.getByRole('heading', { name: 'Georgsfest des Bezirks' })).toBeVisible();
+  await expect(page.getByText('Demo L.').filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByText('(ich)').filter({ visible: true })).toHaveCount(0);
 });

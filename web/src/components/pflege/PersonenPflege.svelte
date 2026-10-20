@@ -7,6 +7,8 @@
   import { ApiError, sendApi } from '../../lib/api';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
   import { personenPflege } from '../../lib/pflegeStore.svelte';
+  import { forgetAbrechnungen } from '../../lib/abrechnungStore.svelte';
+  import { forgetCampflowEvents } from '../../lib/campflowStore.svelte';
   import { reloadIch } from '../../lib/ichStore.svelte';
   import { PERSON_GRUPPE_LABELS } from '../../lib/protokollEditor';
   import { campflowVorschlaege, mitgliedName } from '../../lib/personen';
@@ -152,6 +154,16 @@
     if (!busy) form = null;
   }
 
+  /**
+   * A saved link changes who the logged-in person is in CampFlow: load it again and forget the
+   * loaded Aktionen and Abrechnungen, whose own registrations (`ich`) came with the former link.
+   */
+  function linkChanged(): void {
+    reloadIch();
+    forgetCampflowEvents();
+    forgetAbrechnungen();
+  }
+
   /** After a conflict: replaces the input with the current version of the person. */
   async function reloadCurrent(): Promise<boolean> {
     const id = form?.id;
@@ -190,7 +202,7 @@
       message = `${current.name.trim()} gespeichert.`;
       form = null;
       await personenPflege.load({ force: true });
-      reloadIch();
+      linkChanged();
     }, 'Die Person wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.');
   }
 
@@ -206,7 +218,7 @@
         : `${current.name.trim()} gelöscht. In alten Protokollen bleibt der Name stehen.`;
       form = null;
       await personenPflege.load({ force: true });
-      reloadIch();
+      linkChanged();
     }, 'Die Person wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 
@@ -247,7 +259,7 @@
     } finally {
       applying = false;
       await personenPflege.load({ force: true });
-      reloadIch();
+      linkChanged();
     }
   }
 

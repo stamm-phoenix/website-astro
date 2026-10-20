@@ -161,7 +161,13 @@ test('the linked person is recognized in the member list and in registrations', 
 
 test('name and address of a CampFlow person leave the memory after ten minutes', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const anna = { id: 'per_Timer', firstName: 'Anna', lastName: 'Autorin', email: 'a@example.org' };
+  const anna = {
+    id: 'per_Timer',
+    firstName: 'Anna',
+    lastName: 'Autorin',
+    email: 'a@example.org',
+    adresseGeteilt: false,
+  };
   rememberIch('per_Timer', anna, 0);
   t.mock.timers.tick(ICH_CACHE_MS / 2);
   // Loaded again: the newer entry keeps its own ten minutes
@@ -314,6 +320,11 @@ dbTest('the logged-in person learns their CampFlow person', async (t) => {
       primary_email: 'Anna@Example.org',
     };
   });
+  // Nobody else in the member list has Anna's address
+  t.mock.method(campflow, 'campflowGetAll', async () => [
+    { id: 'per_IchAnna', primary_email: 'anna@example.org' },
+    { id: 'per_Andere', primary_email: 'andere@example.org' },
+  ]);
   const expected = {
     login: ANNA,
     campflow: {
@@ -359,4 +370,92 @@ dbTest('the logged-in person learns their CampFlow person', async (t) => {
   // Without a link, or without an address in CampFlow, nothing is marked
   assert.deepEqual(await eigeneAnmeldungen('niemand@stamm-phoenix.de', anmeldungen), []);
   assert.deepEqual(await eigeneAnmeldungen(BEN, [{ id: 'per_X', primary_email: '' }]), []);
+});
+
+dbTest('a family address marks only the registration with the own first name', async (t) => {
+  const context = quietContext(t);
+  const created = await PersonenCollection(
+    request(
+      ANNA,
+      'POST',
+      {},
+      {
+        name: 'Lea Leiterin',
+        login: ANNA,
+        gruppe: 'leitende',
+        campflowPersonId: 'per_IchLea',
+        aktiv: true,
+      }
+    ),
+    context
+  );
+  assert.equal(created.status, 201);
+  t.mock.method(campflow, 'campflowGet', async () => ({
+    id: 'per_IchLea',
+    name: { first_name: 'Lea', last_name: 'Leiterin' },
+    primary_email: 'familie@example.org',
+  }));
+  // Her child is in the member list with the same address
+  t.mock.method(campflow, 'campflowGetAll', async () => [
+    { id: 'per_IchLea', primary_email: 'familie@example.org' },
+    { id: 'per_Kind', primary_email: 'Familie@example.org' },
+  ]);
+  const anmeldungen = [
+    {
+      id: 'per_AnmeldungKind',
+      primary_email: 'familie@example.org',
+      name: { first_name: 'Kim', last_name: 'Leiterin' },
+    },
+    {
+      id: 'per_AnmeldungLea',
+      primary_email: 'familie@example.org',
+      name: { first_name: ' lea', last_name: 'L.' },
+    },
+  ];
+  assert.deepEqual(await eigeneAnmeldungen(ANNA, anmeldungen), ['per_AnmeldungLea']);
+  // The minutes go to the address itself, so it is marked as the own one
+  assert.deepEqual(
+    (await mitEigenerAdresse(ANNA, [{ email: 'familie@example.org' }])).map((r) => r.ich),
+    [true]
+  );
+});
+
+dbTest('without the member list an address counts as shared', async (t) => {
+  const context = quietContext(t);
+  await PersonenCollection(
+    request(
+      ANNA,
+      'POST',
+      {},
+      {
+        name: 'Otto Offen',
+        login: ANNA,
+        gruppe: 'leitende',
+        campflowPersonId: 'per_IchOtto',
+        aktiv: true,
+      }
+    ),
+    context
+  );
+  t.mock.method(campflow, 'campflowGet', async () => ({
+    id: 'per_IchOtto',
+    name: { first_name: 'Otto', last_name: 'Offen' },
+    primary_email: 'otto@example.org',
+  }));
+  t.mock.method(campflow, 'campflowGetAll', async () => {
+    throw new CampflowError(502, 'down');
+  });
+  const anmeldungen = [
+    {
+      id: 'per_A',
+      primary_email: 'otto@example.org',
+      name: { first_name: 'Otto', last_name: 'O.' },
+    },
+    {
+      id: 'per_B',
+      primary_email: 'otto@example.org',
+      name: { first_name: 'Ole', last_name: 'Offen' },
+    },
+  ];
+  assert.deepEqual(await eigeneAnmeldungen(ANNA, anmeldungen), ['per_A']);
 });

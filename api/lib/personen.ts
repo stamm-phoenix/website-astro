@@ -18,6 +18,7 @@ import type {
   PersonInput,
   PersonenUebersicht,
 } from './personen-model';
+import { sameName } from './personen-model';
 import { ValidationError } from './pflege-validation';
 import { getTaskDirectoryUsers } from './task-directory';
 
@@ -208,7 +209,14 @@ export async function getCampflowPersonId(login: string): Promise<string | undef
 /** How long name and address of a CampFlow person stay in memory at most (`/datenschutz`). */
 export const ICH_CACHE_MS = 10 * 60_000;
 /** The linked person with its primary address, which stays on the server. */
-type Verknuepfte = NonNullable<Ich['campflow']> & { email: string };
+type Verknuepfte = NonNullable<Ich['campflow']> & {
+  email: string;
+  /**
+   * Another person of the member list has the same primary address, e.g. a child of the family.
+   * Then the address alone does not tell who a registration is.
+   */
+  adresseGeteilt: boolean;
+};
 interface IchEintrag {
   at: number;
   campflow: Verknuepfte;
@@ -247,12 +255,32 @@ async function getVerknuepfte(login: string, now: number): Promise<Verknuepfte |
   if (cached && now - cached.at < ICH_CACHE_MS) return cached.campflow;
   try {
     const person = await campflowGet<CampflowPerson>(`${MEMBER_PERSONS}/${encodeURIComponent(id)}`);
-    const campflow = { id, ...names(person), email: text(person.primary_email).toLowerCase() };
+    const email = text(person.primary_email).toLowerCase();
+    const campflow = {
+      id,
+      ...names(person),
+      email,
+      adresseGeteilt: await adresseGeteilt(id, email),
+    };
     rememberIch(id, campflow, now);
     return campflow;
   } catch (error: unknown) {
     if (!(error instanceof CampflowError)) throw error;
-    return { id, firstName: '', lastName: '', email: '' };
+    return { id, firstName: '', lastName: '', email: '', adresseGeteilt: true };
+  }
+}
+
+/** Whether another person of the member list uses the address; when unsure, it counts as shared. */
+async function adresseGeteilt(id: string, email: string): Promise<boolean> {
+  if (!email) return false;
+  try {
+    const persons = await campflowGetAll<CampflowPerson>(MEMBER_PERSONS);
+    return persons.some(
+      (person) => person.id !== id && text(person.primary_email).toLowerCase() === email
+    );
+  } catch (error: unknown) {
+    if (!(error instanceof CampflowError)) throw error;
+    return true;
   }
 }
 
@@ -275,19 +303,29 @@ export async function getIch(login: string, now: number = Date.now()): Promise<I
  */
 export async function eigeneAnmeldungen(
   login: string,
-  persons: readonly { id: string; primary_email?: unknown }[],
+  persons: readonly { id: string; primary_email?: unknown; name?: unknown }[],
   now: number = Date.now()
 ): Promise<string[]> {
-  let email: string;
-  try {
-    email = (await getVerknuepfte(login.trim().toLowerCase(), now))?.email ?? '';
-  } catch {
-    return [];
-  }
-  if (!email) return [];
+  const linked = await findVerknuepfte(login, now);
+  if (!linked?.email) return [];
   return persons
-    .filter((person) => text(person.primary_email).toLowerCase() === email)
+    .filter(
+      (person) =>
+        text(person.primary_email).toLowerCase() === linked.email &&
+        // A family address is no proof: then the first name has to match as well
+        (!linked.adresseGeteilt ||
+          sameName(names(person as CampflowPerson).firstName, linked.firstName))
+    )
     .map((p) => p.id);
+}
+
+/** `getVerknuepfte` for pages that only mark entries: a failure means no link, not an error. */
+async function findVerknuepfte(login: string, now: number): Promise<Verknuepfte | null> {
+  try {
+    return await getVerknuepfte(login.trim().toLowerCase(), now);
+  } catch {
+    return null;
+  }
 }
 
 /** The recipients of minutes with `ich` for the own address; the addresses are on the list anyway. */
@@ -295,11 +333,10 @@ export async function mitEigenerAdresse<T extends { email: string }>(
   login: string,
   recipients: readonly T[]
 ): Promise<(T & { ich: boolean })[]> {
-  const eigene = new Set(
-    await eigeneAnmeldungen(
-      login,
-      recipients.map((recipient) => ({ id: recipient.email, primary_email: recipient.email }))
-    )
-  );
-  return recipients.map((recipient) => ({ ...recipient, ich: eigene.has(recipient.email) }));
+  // The address itself is the own one here, shared with the family or not
+  const email = (await findVerknuepfte(login, Date.now()))?.email ?? '';
+  return recipients.map((recipient) => ({
+    ...recipient,
+    ich: email !== '' && recipient.email.trim().toLowerCase() === email,
+  }));
 }

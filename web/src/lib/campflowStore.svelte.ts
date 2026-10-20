@@ -98,3 +98,11 @@ export const aktionBeitraegeStore = createResource<
     `/intern/aktionen/${encodeURIComponent(id)}/beitraege${refresh ? '?refresh=true' : ''}`,
   { idle: true }
 );
+
+/**
+ * Forgets the loaded events, so the next visit loads them again, e.g. with the own registrations
+ * (`ich`) after the link in the module „Personen“ changed.
+ */
+export function forgetCampflowEvents(): void {
+  for (const id of Object.keys(campflowDetailStore.data)) delete campflowDetailStore.data[id];
+}
