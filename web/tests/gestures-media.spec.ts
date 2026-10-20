@@ -374,24 +374,86 @@ test('two fingers zoom the photo in and out', async ({ page }) => {
   await expect.poll(async () => (await photoZoom(area)).scale).toBe(1);
 });
 
-test('the zoom button works with the keyboard and names what it does', async ({ page }) => {
+test('the zoom button works with the keyboard and the arrow keys move a zoomed photo', async ({
+  page,
+}) => {
   const dialog = await openFoto(page, SOLA, 'IMG_4301.jpg');
   const area = dialog.locator('.swipe-area');
-  const button = dialog.getByRole('button', { name: 'Vergrößern' });
-  await button.focus();
+  const counter = dialog.getByText('1 von 15', { exact: true });
+  await dialog.getByRole('button', { name: 'Vergrößern' }).focus();
   await page.keyboard.press('Enter');
   await expect(dialog.getByRole('button', { name: 'Verkleinern' })).toBeFocused();
   await expect.poll(async () => (await photoZoom(area)).scale).toBe(2.5);
-  // Changing the photo shows the next one whole
+
+  // While zoomed, the arrow keys move the photo instead of changing it, up to its edge
+  const centre = (await photoZoom(area)).x;
   await page.keyboard.press('ArrowRight');
+  await expect.poll(async () => (await photoZoom(area)).x).toBeLessThan(centre);
+  await expect(counter).toBeVisible();
+  for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowRight');
+  // Each press moves for a moment; read the edge once the photo rests
+  await page.waitForTimeout(400);
+  const edge = (await photoZoom(area)).x;
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(400);
+  expect((await photoZoom(area)).x).toBe(edge);
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(async () => (await photoZoom(area)).x).toBeGreaterThan(edge);
+  await expect(counter).toBeVisible();
+
+  // Changing the photo shows the next one whole
+  await dialog.getByRole('button', { name: 'Nächstes Foto' }).click();
   await expect(dialog.getByText('2 von 15', { exact: true })).toBeVisible();
   await expect.poll(async () => (await photoZoom(area)).scale).toBe(1);
-  await expect(dialog.getByRole('button', { name: 'Vergrößern' })).toBeFocused();
+  // Not zoomed, the arrow keys change the photo again
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.getByText('3 von 15', { exact: true })).toBeVisible();
+  const button = dialog.getByRole('button', { name: 'Vergrößern' });
+  await button.focus();
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await photoZoom(area)).scale).toBe(2.5);
   await page.keyboard.press('Enter');
   await expect(dialog.getByRole('button', { name: 'Vergrößern' })).toBeFocused();
   await expect.poll(async () => (await photoZoom(area)).scale).toBe(1);
+});
+
+test('a pinch to nearly whole whose fingers leave one by one returns to the whole photo', async ({
+  page,
+}) => {
+  const dialog = await openFoto(page, SOLA, 'IMG_4301.jpg');
+  const area = dialog.locator('.swipe-area');
+  await expect(area.locator('img').first()).toBeVisible();
+  await dialog.getByRole('button', { name: 'Vergrößern' }).click();
+  await expect.poll(async () => (await photoZoom(area)).scale).toBe(2.5);
+
+  const box = (await area.boundingBox())!;
+  const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const fingers = (half: number): { x: number; y: number; id: number }[] => [
+    { x: centre.x - half, y: centre.y, id: 0 },
+    { x: centre.x + half, y: centre.y, id: 1 },
+  ];
+  const client: CDPSession = await page.context().newCDPSession(page);
+  const send = (
+    type: 'touchStart' | 'touchMove' | 'touchEnd',
+    touchPoints: { x: number; y: number; id: number }[]
+  ) => client.send('Input.dispatchTouchEvent', { type, touchPoints });
+  await send('touchStart', fingers(100));
+  // 2.5 × 82 / 200 = 1.025: just above the whole photo
+  for (const half of [90, 75, 60, 50, 41]) {
+    await sleep(25);
+    await send('touchMove', fingers(half));
+  }
+  await sleep(100);
+  // The second finger lifts first, then the first one without moving
+  await send('touchMove', [fingers(41)[0]]);
+  await sleep(100);
+  await send('touchEnd', []);
+  await client.detach();
+  await expect.poll(async () => (await photoZoom(area)).scale).toBe(1);
+
+  // Whole again, a swipe changes the photo
+  await swipe(page, area, slowLongDrag);
+  await expect(dialog.getByText('2 von 15', { exact: true })).toBeVisible();
 });
 
 /** The five-image Instagram card of the mock data on the start page, once it can open the dialog. */
