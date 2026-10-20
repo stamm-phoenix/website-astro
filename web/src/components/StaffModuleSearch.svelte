@@ -210,7 +210,7 @@
                   'sidebar'
                     ? 'min-h-11 px-2 text-[0.95rem] pointer-fine:min-h-9'
                     : variant === 'sheet'
-                      ? 'min-h-13 py-1.5'
+                      ? 'min-h-13 px-3 py-1.5'
                       : 'min-h-13 px-3 py-2'}"
                 >
                   <svg
