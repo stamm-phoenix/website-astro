@@ -13,7 +13,9 @@ ALTER TABLE organisation.person ADD CONSTRAINT ck_person_leitende_login
 
 -- ID der Person in der CampFlow-Mitgliederliste (`per_…`), sonst leer. Anmeldungen zu Events
 -- sind in CampFlow eigene Personen mit eigener ID; siehe docs/personen.md.
-ALTER TABLE organisation.person ADD campflow_person_id varchar(64) NOT NULL
+-- Binäre Kollation wie bei `content.aktion.campflow_id`: CampFlow unterscheidet Groß- und
+-- Kleinschreibung, `per_AbC` und `per_abc` sind verschiedene Personen.
+ALTER TABLE organisation.person ADD campflow_person_id varchar(64) COLLATE Latin1_General_100_BIN2 NOT NULL
   CONSTRAINT df_person_campflow_person_id DEFAULT ''
   CONSTRAINT ck_person_campflow_person_id
     CHECK (campflow_person_id = '' OR campflow_person_id LIKE 'per[_]_%');

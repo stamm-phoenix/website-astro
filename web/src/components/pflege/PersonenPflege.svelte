@@ -36,6 +36,8 @@
 
   const store = personenPflege.state;
   let form = $state<Form | null>(null);
+  /** The CampFlow person when the dialog opened, to notice a changed or removed link. */
+  let campflowBeimOeffnen = $state('');
   let message = $state<string | null>(null);
   let suche = $state('');
   let applying = $state(false);
@@ -142,6 +144,7 @@
         konto: false,
       };
     }
+    campflowBeimOeffnen = form.campflowPersonId;
     dialog.reset();
   }
 
@@ -453,6 +456,7 @@
       : 'Person hinzufügen'}
   rescueKey={form ? `person:${form.id ?? (form.konto ? `konto:${form.login}` : 'neu')}` : undefined}
   rescueVersion={form?.etag}
+  dirty={form !== null && form.campflowPersonId !== campflowBeimOeffnen}
   rescueFields={[
     {
       key: 'campflowPersonId',

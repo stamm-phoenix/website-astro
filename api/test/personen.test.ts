@@ -238,6 +238,25 @@ dbTest('a login and a CampFlow person belong to one row', async (t) => {
   assert.equal(ben.status, 201);
 });
 
+dbTest('CampFlow IDs that differ only in case belong to different persons', async (t) => {
+  const context = quietContext(t);
+  for (const [name, campflowPersonId] of [
+    ['Anna', 'per_AbC'],
+    ['Ben', 'per_abc'],
+  ]) {
+    const created = await PersonenCollection(
+      request(
+        ANNA,
+        'POST',
+        {},
+        { name, login: '', gruppe: 'weitere', campflowPersonId, aktiv: true }
+      ),
+      context
+    );
+    assert.equal(created.status, 201, JSON.stringify(created.jsonBody));
+  }
+});
+
 dbTest('the overview still loads when Entra and CampFlow fail', async (t) => {
   t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => {
     throw new Error('Graph down');
