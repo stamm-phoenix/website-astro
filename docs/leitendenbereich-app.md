@@ -33,7 +33,7 @@ Ohne Service Worker speichert der Browser keine Seiten, API-Antworten oder Anmel
 Ohne Verbindung gilt:
 
 - Eine offene Seite bleibt sichtbar. `StaffLayout.astro` sagt, dass die Seite offen bleiben soll, die Eingaben stehen bleiben und Speichern erst mit Verbindung geht.
-- Die Fahrtansicht und der Protokoll-Editor sagen selbst, was ohne Verbindung geht. Sie schalten den allgemeinen Hinweis mit `offlineNotice={false}` ab. Die Abrechnung speichert auch ohne Verbindung auf dem Gerät und ersetzt den Text des Hinweises über den Slot `offline` von `StaffLayout.astro`.
+- Die Fahrtansicht und der Protokoll-Editor sagen selbst, was ohne Verbindung geht. Sie schalten den allgemeinen Hinweis mit `offlineNotice={false}` ab. Die Abrechnung ersetzt den Text des Hinweises über den Slot `offline` von `StaffLayout.astro`. Er sagt nur, dass die Eingaben auf der offenen Seite stehen bleiben, denn ob sie auch auf dem Gerät gespeichert werden, zeigt die Abrechnung selbst an. Bei vollem Speicher oder nach Ablauf der Frist speichert sie dort nicht.
 - Wer die App ohne Verbindung neu startet, sieht die Fehlerseite des Browsers. Eine eigene Seite dafür bräuchte einen Service Worker.
 
 ## Scope `/` statt `/leitendenbereich/`

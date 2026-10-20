@@ -108,7 +108,7 @@ test('the Abrechnung says that it keeps saving on the device without a connectio
   const notice = page.getByText('Keine Verbindung zum Internet.');
   await expect(notice).toBeVisible();
   await expect(page.locator('[data-offline-notice]')).toContainText(
-    'Deine Eingaben werden weiter auf diesem Gerät gespeichert.'
+    'Deine Eingaben bleiben auf dieser offenen Seite stehen.'
   );
   await expect(page.locator('[data-offline-notice]')).not.toContainText('Speichern');
   await context.setOffline(false);
@@ -121,7 +121,8 @@ test('in the iPhone app an expired login is renewed in the same window', async (
   await page.route('**/api/intern/pflege/gruppenstunden/*', (route) =>
     route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
   );
-  await page.goto('/leitendenbereich/gruppenstunden');
+  // The fragment holds a view, e.g. of the photos, and must come back too
+  await page.goto('/leitendenbereich/gruppenstunden#ansicht=liste');
   await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Gruppenstunde Wölflinge bearbeiten' });
   await dialog.getByLabel('Alter').fill('16 bis 20 Jahre');
@@ -131,7 +132,7 @@ test('in the iPhone app an expired login is renewed in the same window', async (
   const login = dialog.getByRole('link', { name: 'Neu anmelden', exact: true });
   await expect(login).toHaveAttribute(
     'href',
-    `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent('/leitendenbereich/gruppenstunden')}`
+    `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent('/leitendenbereich/gruppenstunden#ansicht=liste')}`
   );
   await expect(login).not.toHaveAttribute('target', '_blank');
   await expect(dialog.getByLabel('Alter')).toHaveValue('16 bis 20 Jahre');
