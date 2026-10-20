@@ -55,7 +55,8 @@ export function loginUrl(path: string): string {
 
 /** Login in this window that comes back to the current page; its inputs are lost. */
 export function reloginHereUrl(): string {
-  return loginUrl(`${location.pathname}${location.search}`);
+  // The fragment too: the photos keep their view and target folder in it
+  return loginUrl(`${location.pathname}${location.search}${location.hash}`);
 }
 
 /**
