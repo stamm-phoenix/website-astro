@@ -11,11 +11,14 @@
   interface Props {
     values: GeretteterWert[];
     conflict?: boolean;
+    canApply?: (kept: GeretteterWert) => boolean;
+    onapply?: (kept: GeretteterWert) => boolean;
   }
-  let { values, conflict = false }: Props = $props();
+  let { values, conflict = false, canApply = () => false, onapply }: Props = $props();
 
   let copied = $state<number | null>(null);
   let failed = $state<number | null>(null);
+  let applyFailed = $state<string | null>(null);
 
   /** Only explicitly marked editor HTML is interpreted; ordinary fields stay plain text. */
   function editorHtml(kept: GeretteterWert): string | null {
@@ -50,7 +53,8 @@
   <p class="text-neutral-700">
     {#if conflict}
       Diese Eingaben wurden nicht eingesetzt, damit die inzwischen gespeicherten Änderungen erhalten
-      bleiben. Du kannst sie kopieren und mit der aktuellen Fassung vergleichen.
+      bleiben. Vergleiche sie mit der aktuellen Fassung. Texte kannst du kopieren, Auswahlen gezielt
+      mit „Übernehmen“ einsetzen. Die Übernahme ändert zunächst nur dieses Formular.
     {:else}
       Für diese Eingaben fehlt im Formular noch das Feld, zum Beispiel eine weitere Zeile. Leg es
       an, dann setzt das Formular den Wert selbst ein. Sie bleiben gesichert, bis alles eingesetzt
@@ -78,9 +82,26 @@
             </p>
           {/if}
           <div class="mt-1 flex flex-wrap items-center gap-2">
-            <ActionButton onclick={() => copy(index, kept)}>
-              {rescuedLabel(kept)} kopieren
-            </ActionButton>
+            {#if kept.kind === 'custom'}
+              {#if canApply(kept)}
+                <ActionButton
+                  onclick={() => {
+                    applyFailed = onapply?.(kept) ? null : kept.key;
+                  }}>{rescuedLabel(kept)} übernehmen</ActionButton
+                >
+              {:else}
+                <p class="text-neutral-700">
+                  Vergleiche diese Angabe mit dem Formular und passe sie dort an.
+                </p>
+              {/if}
+              {#if applyFailed === kept.key}<span role="status" class="text-danger"
+                  >Die Auswahl konnte nicht übernommen werden. Wähle sie im Formular selbst aus.</span
+                >{/if}
+            {:else}
+              <ActionButton onclick={() => copy(index, kept)}>
+                {rescuedLabel(kept)} kopieren
+              </ActionButton>
+            {/if}
             <span role="status">
               {#if copied === index}<span class="text-success">Kopiert.</span>
               {:else if failed === index}<span class="text-danger"
