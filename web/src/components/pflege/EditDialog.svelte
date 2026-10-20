@@ -17,6 +17,7 @@
     forgetRescue,
     shownValues,
     withoutEditedField,
+    rescuedLabel,
     type GeretteterWert,
     type RescueEditor,
     type RescueField,
@@ -101,6 +102,7 @@
   /** Input from before a new login was filled in again; it is unsaved until saved. */
   let restored = $state(false);
   let rescueConflict = $state(false);
+  let rescueAppliedNotice = $state<string | null>(null);
   const unsaved = $derived(edited || dirty || restored);
   let confirmingDiscard = $state(false);
   let deleteActionsOpen = $state(false);
@@ -111,8 +113,9 @@
   const leftOver = $derived(rescueConflict ? pending : shownValues(pending));
   const shownNotice = $derived(
     notice ??
+      rescueAppliedNotice ??
       (rescueConflict
-        ? 'Dieser Eintrag wurde inzwischen geändert. Deine früheren Eingaben stehen im Abschnitt „Noch nicht eingesetzt“ zum Kopieren. Prüfe die aktuelle Fassung, bevor du etwas übernimmst und speicherst.'
+        ? 'Dieser Eintrag wurde inzwischen geändert. Deine früheren Eingaben stehen im Abschnitt „Noch nicht eingesetzt“. Prüfe die aktuelle Fassung, bevor du etwas übernimmst und speicherst.'
         : !restored
           ? null
           : leftOver.length > 0
@@ -227,6 +230,7 @@
     for (const el of form?.elements ?? []) remember(el);
     restored = false;
     rescueConflict = false;
+    rescueAppliedNotice = null;
     pending = [];
     discarded = false;
     openingTitle = title;
@@ -252,6 +256,17 @@
         restored = true;
       }
     }
+  }
+
+  /** Explicitly adopts one compound selection; other saved values are never filled in. */
+  function applyRescueField(kept: GeretteterWert): boolean {
+    if (!open || busy || kept.kind !== 'custom') return false;
+    const field = rescueFields.find((entry) => entry.key === kept.key && !entry.structure);
+    if (!field?.set(kept.value)) return false;
+    pending = pending.filter((entry) => entry.key !== kept.key);
+    rescueAppliedNotice = `${rescuedLabel(kept)} übernommen. Prüfe die Auswahl im Formular und speichere.`;
+    void tick().then(updateEdited);
+    return true;
   }
 
   // Creating a person keeps the dialog open for their photo. Its new ID and saved
@@ -348,6 +363,9 @@
       {#if restored && leftOver.length > 0}<NichtEingesetzt
           values={leftOver}
           conflict={rescueConflict}
+          canApply={(kept) =>
+            rescueFields.some((field) => field.key === kept.key && !field.structure)}
+          onapply={applyRescueField}
         />{/if}
     </div>
 

@@ -1256,3 +1256,109 @@ test('in the iPhone app a delayed directory does not turn an unchanged task into
     'Recovered with directory still loading'
   );
 });
+
+for (const module of ['task', 'template'] as const) {
+  for (const names of [['Alex Beispiel'], ['Alex Beispiel', 'Bea Beispiel']]) {
+    test(`in the iPhone app conflicting ${module} assignees can adopt ${names.length} saved identities`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.request.post('/api/__mock/aufgaben/reset');
+      const title = `Manual recovery ${module} ${names.length}`;
+      const base = '/api/intern/pflege/aufgaben';
+      const endpoint = module === 'task' ? base : `${base}/vorlagen`;
+      const initialItem = {
+        title: 'Template item',
+        description: 'Original description',
+        assignee: '',
+        assignees: [],
+        daysBefore: 14,
+      };
+      await page.request.post(endpoint, {
+        data:
+          module === 'task'
+            ? {
+                title,
+                description: 'Original description',
+                assignee: '',
+                assignees: [],
+                dueDate: null,
+                projectId: null,
+              }
+            : { title, items: [initialItem] },
+      });
+      const overview = await (await page.request.get(base)).json();
+      const original = (module === 'task' ? overview.tasks : overview.templates).find(
+        (entry: { title: string }) => entry.title === title
+      );
+      await page.addInitScript(() =>
+        Object.defineProperty(navigator, 'standalone', { value: true })
+      );
+      await page.route(`**${endpoint}/${original.id}`, (route) =>
+        route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+      );
+      await page.goto(
+        module === 'task' ? '/leitendenbereich/aufgaben' : '/leitendenbereich/aufgaben/vorlagen'
+      );
+      const open =
+        module === 'task'
+          ? page.getByRole('button', { name: title, exact: true })
+          : page
+              .getByRole('listitem')
+              .filter({ has: page.getByRole('heading', { name: title, exact: true }) })
+              .getByRole('button', { name: 'Vorlage bearbeiten', exact: true });
+      await open.click();
+      const dialog = page.getByRole('dialog', {
+        name: module === 'task' ? 'Aufgabe bearbeiten' : 'Vorlage',
+        exact: true,
+      });
+      for (const name of names) {
+        await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill(name);
+        await dialog.getByRole('option', { name, exact: true }).click();
+      }
+      await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+      const newer =
+        module === 'task'
+          ? { ...original, description: 'Newer server description', done: false }
+          : { ...original, items: [{ ...initialItem, description: 'Newer server description' }] };
+      expect((await page.request.put(`${endpoint}/${original.id}`, { data: newer })).ok()).toBe(
+        true
+      );
+      await page.reload();
+      await open.click();
+      const kept = dialog.getByRole('region', { name: 'Noch nicht eingesetzt' });
+      const label = module === 'task' ? 'Zuständige' : 'Aufgabe 1: Zuständige';
+      await expect(
+        kept.getByRole('button', { name: `${label} kopieren`, exact: true })
+      ).toHaveCount(0);
+      await kept.getByRole('button', { name: `${label} übernehmen`, exact: true }).click();
+      for (const name of names) {
+        await expect(
+          dialog.getByRole('button', { name: `${name} entfernen`, exact: true })
+        ).toBeVisible();
+      }
+      await expect(dialog.getByText(`${label} übernommen.`, { exact: false })).toBeVisible();
+      await expect(dialog.getByLabel('Beschreibung', { exact: false })).toHaveValue(
+        'Newer server description'
+      );
+      await page.unroute(`**${endpoint}/${original.id}`);
+      const write = page.waitForRequest(
+        (request) =>
+          request.method() === 'PUT' &&
+          request.url().endsWith(`${endpoint.slice(4)}/${original.id}`)
+      );
+      await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+      const body = (await write).postDataJSON();
+      const saved = module === 'task' ? body : body.items[0];
+      expect(saved.assignees).toEqual(
+        names.map((name) => ({
+          name,
+          login: name.startsWith('Alex') ? 'alex@example.test' : 'bea@example.test',
+        }))
+      );
+      expect(saved.description).toBe('Newer server description');
+      await expect(dialog).toBeHidden();
+    });
+  }
+}
