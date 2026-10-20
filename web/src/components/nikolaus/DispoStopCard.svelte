@@ -50,7 +50,7 @@
         <span class="text-base font-semibold tabular-nums text-brand-900"
           >{minutesToTime(planned.start)}</span
         >
-        <span class="text-neutral-700">Slot {slotLabel(booking.slotKey)}</span>
+        <span class="text-neutral-700">Termin {slotLabel(booking.slotKey)}</span>
       </p>
       <p class="font-semibold text-neutral-900">Familie {booking.familyName}</p>
       <p class="text-neutral-800">
@@ -80,8 +80,7 @@
       {/if}
       {#each conflicts as conflict (conflict.name)}
         <p class="mt-1 font-semibold text-danger">
-          ⚠ {conflict.name} soll nicht zu Familien mit „{conflict.tags.join('“, „')}“ eingeteilt
-          werden.
+          ⚠ {conflict.name} – nicht zu Familien mit „{conflict.tags.join('“, „')}“
         </p>
       {/each}
       {#if booking.hidingPlace}
@@ -96,11 +95,11 @@
 
       {#if planned.lateAfterSlot > 0}
         <p class="mt-1 font-semibold text-danger">
-          ⚠ {Math.round(planned.lateAfterSlot)} Min nach Ende des Slots
+          ⚠ {Math.round(planned.lateAfterSlot)} Min nach Ende des Termins
         </p>
       {:else if planned.lateInSlot >= NOTABLE_LATE_IN_SLOT}
         <p class="mt-1 text-warning">
-          {Math.round(planned.lateInSlot)} Min nach Beginn des Slots
+          {Math.round(planned.lateInSlot)} Min nach Beginn des Termins
         </p>
       {/if}
       {#if !booking.location}
@@ -130,7 +129,6 @@
         </select>
         <PinToggle
           fixed={isFixed}
-          title="Festgehaltene Teams bleiben beim Neuberechnen erhalten"
           label={`für Familie ${booking.familyName}`}
           onclick={() => onpin()}
         />

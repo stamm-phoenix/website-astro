@@ -305,10 +305,10 @@
 
       {#if !data.dispoSaved}
         <p class="surface p-6 text-sm text-neutral-800">
-          Für diesen Tag ist noch keine Dispo gespeichert. Sobald die Routen in der
+          Für diesen Tag ist noch keine
           <a class="font-semibold text-link underline" href="/leitendenbereich/nikolaus-dispo"
             >Dispo</a
-          > gespeichert sind, erscheinen sie hier.
+          > gespeichert.
         </p>
       {:else if teamInfo}
         <section
@@ -349,8 +349,8 @@
           <div class="space-y-3 text-sm">
             {#if data.droppedCount > 0 || data.unplannedCount > 0}
               <p class="border-l-4 border-warning py-1 pl-3 text-warning">
-                Die Dispo ist nicht mehr ganz aktuell (Termine wurden verlegt, abgesagt oder sind
-                neu dazugekommen). Bitte gebt der Disposition Bescheid.
+                Die Dispo hat sich geändert (Termine verlegt, abgesagt oder neu) – gebt der
+                Disposition Bescheid.
               </p>
             {/if}
             {#if offline}
@@ -371,8 +371,8 @@
               {/if}
 
               <p class="text-neutral-700">
-                Hakt einen Besuch ab, wenn ihr wieder losfahrt – daraus berechnen wir den Familien
-                nach euch, wann ihr voraussichtlich bei ihnen seid.
+                Hakt einen Besuch erst ab, wenn ihr wieder losfahrt – die nächsten Familien sehen
+                dann, wann ihr kommt.
               </p>
 
               <ol class="divide-y divide-neutral-200 border-y border-neutral-200">

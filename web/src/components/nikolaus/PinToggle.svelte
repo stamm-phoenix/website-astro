@@ -1,12 +1,11 @@
 <script lang="ts">
   interface Props {
     fixed: boolean;
-    title: string;
     label: string;
     onclick: () => void;
     compact?: boolean;
   }
-  let { fixed, title, label, onclick, compact = false }: Props = $props();
+  let { fixed, label, onclick, compact = false }: Props = $props();
   const stateLabel = $derived(
     `${compact ? 'Posten' : 'Team'} ${fixed ? 'festgehalten' : 'festhalten'}`
   );
@@ -19,7 +18,6 @@
     : 'inline-flex min-h-11 items-center gap-2 rounded-sm border border-neutral-300 px-3 text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:bg-accent-500/10 aria-[pressed=true]:text-brand-900'}
   aria-pressed={fixed}
   aria-label={`${stateLabel} ${label}`}
-  title={`${stateLabel}. ${title}`}
   {onclick}
 >
   <svg

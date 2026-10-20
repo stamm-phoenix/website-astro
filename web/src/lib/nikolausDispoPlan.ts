@@ -78,14 +78,14 @@ export function restoreDispoDraft(source: StaffNikolausDispoData): DispoDraft {
     if (!booking) {
       hints.push(
         row.familyName
-          ? `Familie ${row.familyName} ist nicht mehr bestätigt oder wurde auf einen anderen Tag verlegt. Ihr Besuch wird beim Speichern aus der Dispo entfernt.`
-          : 'Ein gespeicherter Termin wurde gelöscht. Er wird beim Speichern aus der Dispo entfernt.'
+          ? `Familie ${row.familyName}: nicht mehr bestätigt oder an einem anderen Tag – wird beim Speichern entfernt.`
+          : 'Ein gespeicherter Termin wurde gelöscht – wird beim Speichern entfernt.'
       );
       continue;
     }
     if (!next[row.team]) {
       hints.push(
-        `Familie ${booking.familyName} war Team ${row.team} zugeordnet, das es an diesem Tag nicht mehr gibt.`
+        `Familie ${booking.familyName}: Team ${row.team} gibt es an diesem Tag nicht mehr.`
       );
       continue;
     }
@@ -93,7 +93,7 @@ export function restoreDispoDraft(source: StaffNikolausDispoData): DispoDraft {
     if (row.fixed) nextFixed[row.bookingId] = row.team;
     if (row.slotKey !== booking.slotKey) {
       hints.push(
-        `Familie ${booking.familyName} wurde seit dem Speichern auf ${booking.slotKey.split('T')[1]} Uhr verlegt – am besten neu berechnen.`
+        `Familie ${booking.familyName}: auf ${booking.slotKey.split('T')[1]} Uhr verlegt – am besten neu berechnen.`
       );
     }
   }
@@ -103,7 +103,7 @@ export function restoreDispoDraft(source: StaffNikolausDispoData): DispoDraft {
     if (!Object.values(merged).some((ids) => ids.includes(stop.id))) {
       merged = insertCheapest(target, merged, stop.id);
       const team = Object.keys(merged).find((name) => merged[name].includes(stop.id));
-      hints.push(`Neuer Termin: Familie ${stop.familyName} wurde Team ${team} zugeordnet.`);
+      hints.push(`Neu: Familie ${stop.familyName} → Team ${team}.`);
     }
   }
 

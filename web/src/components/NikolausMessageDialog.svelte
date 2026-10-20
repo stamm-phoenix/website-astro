@@ -121,8 +121,7 @@
         </p>
       {:else}
         <p id="msg-body-hint" class="mt-1 text-xs text-neutral-700">
-          Die Familie bekommt die Nachricht im Design der Nikolaus-Mails, unterschrieben mit deinem
-          Vornamen. Antworten landen im Nikolaus-Postfach.
+          Unterschrieben mit deinem Vornamen; Antworten gehen ans Nikolaus-Postfach.
         </p>
       {/if}
     </div>

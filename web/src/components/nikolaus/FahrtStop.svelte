@@ -109,7 +109,7 @@
         <span class="text-xl font-semibold tabular-nums text-brand-900"
           >ca. {stop.plannedArrival} Uhr</span
         >
-        <span class="text-neutral-700">Slot {slotLabel(stop.slotKey)}</span>
+        <span class="text-neutral-700">Termin {slotLabel(stop.slotKey)}</span>
       </p>
       <p class="text-lg font-semibold text-neutral-900">
         Familie {stop.familyName}
@@ -140,7 +140,7 @@
         >
       </summary>
       <div class="pb-4 pl-10">
-        <p class="text-neutral-700">Slot {slotLabel(stop.slotKey)}</p>
+        <p class="text-neutral-700">Termin {slotLabel(stop.slotKey)}</p>
         {@render details(stop)}
         {@render actions(stop, false)}
       </div>

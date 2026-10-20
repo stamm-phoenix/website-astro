@@ -27,6 +27,7 @@
   import NikolausDispoMap from './NikolausDispoMap.svelte';
   import type { DispoMapRoute } from './NikolausDispoMap.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
+  import InfoHint from './ui/InfoHint.svelte';
 
   interface Props {
     /** Settings baked into the page; refreshed from the API. */
@@ -249,7 +250,10 @@
       loading={nikolausDispoStore.loading}
       saveDisabled={!data || !dirty || editor.state.saving || editor.state.conflict || calculating}
       saving={editor.state.saving}
-      title="Fixierte Termine behalten ihr Team"
+      info={[
+        'Verteilt die Termine neu auf die Teams, mit möglichst wenig Fahrzeit und ohne Verspätungen.',
+        'Festgehaltene Termine bleiben bei ihrem Team.',
+      ]}
       onrecalculate={recalculate}
       onreload={reload}
       onsave={save}
@@ -308,23 +312,23 @@
             {data.teams.length === 1 ? 'Team' : 'Teams'} · Fahrzeit gesamt ca.
             <strong>{totals.drive} Min</strong>
             {#if totals.lateAfterSlot > 0}
-              · <strong class="text-danger">{totals.lateAfterSlot} nach Slot-Ende</strong>
+              · <strong class="text-danger">{totals.lateAfterSlot} nach Terminende</strong>
             {/if}
-            {#if dirty}· <span class="font-semibold text-warning">nicht gespeichert</span>{/if}
+            <InfoHint
+              label="Fahrzeit und Besuchsdauer"
+              text="Pro Besuch {data.minutesPerChild} Min pro Kind, mindestens {data.minVisitMinutes}, höchstens {data.maxVisitMinutes} Min."
+              class="ml-1"
+            />
           </p>
-          <p class="mt-1 text-neutral-700">
-            Dauer pro Besuch: {data.minutesPerChild} Min pro Kind, mindestens {data.minVisitMinutes},
-            höchstens {data.maxVisitMinutes} Min.
-            {data.travelSource === 'route'
-              ? 'Fahrzeiten von OpenRouteService.'
-              : 'Fahrzeiten nur aus der Luftlinie geschätzt – der Routendienst war nicht erreichbar.'}
-          </p>
+          {#if data.travelSource !== 'route'}
+            <p class="mt-1 text-warning">Fahrzeiten nur grob geschätzt (Luftlinie).</p>
+          {/if}
           {#if data.pendingCount > 0}
             <p class="mt-1 text-warning">
               {data.pendingCount}
               {data.pendingCount === 1
-                ? 'Anmeldung ist noch nicht bestätigt und deshalb nicht eingeplant.'
-                : 'Anmeldungen sind noch nicht bestätigt und deshalb nicht eingeplant.'}
+                ? 'unbestätigte Anmeldung ist nicht eingeplant.'
+                : 'unbestätigte Anmeldungen sind nicht eingeplant.'}
             </p>
           {/if}
         </section>

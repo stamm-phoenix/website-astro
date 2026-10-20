@@ -363,17 +363,15 @@
 </script>
 
 <div class="space-y-6">
-  <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
-    <p class="text-sm text-neutral-700">
-      Zuerst werden möglichst viele Teams einsatzfähig besetzt: Ein Team kann losfahren, wenn es
-      {REQUIRED_ROLES.join(' und ')} hat. Danach kommen Krampus und Engerl, dann wird die Arbeit auf möglichst
-      viele Personen verteilt, zuletzt zählen die Wünsche zur Einteilung.
-    </p>
+  <div class="flex flex-wrap items-center justify-end gap-3 print:hidden">
     <PlanToolbar
       loading={einteilungStore.loading}
       saveDisabled={!dirty || editor.state.saving || editor.state.conflict || tryingMore}
       saving={editor.state.saving}
-      title="Fixierte Posten bleiben"
+      info={[
+        `Zuerst werden möglichst viele Teams einsatzfähig besetzt: Ein Team kann losfahren, wenn es ${REQUIRED_ROLES.join(' und ')} hat. Danach kommen Krampus und Engerl, dann wird die Arbeit auf möglichst viele Personen verteilt, zuletzt zählen die Wünsche zur Einteilung.`,
+        'Festgehaltene Posten bleiben.',
+      ]}
       onrecalculate={recalculate}
       onreload={reload}
       onsave={save}
@@ -387,9 +385,7 @@
   />
 
   {#if data.persons.length === 0}
-    <p class="surface p-6 text-sm text-neutral-800">
-      Noch keine Helfenden eingetragen. Bitte zuerst in der Ansicht „Helfende“ Personen anlegen.
-    </p>
+    <p class="surface p-6 text-sm text-neutral-800">Noch keine Helfenden eingetragen.</p>
   {:else}
     {#each plannedDays as day (day.date)}
       {@const official = data.days.find((d) => d.date === day.date)?.teams.length ?? 0}
@@ -405,17 +401,13 @@
         <div class="surface-muted space-y-3 p-4 text-sm print:hidden">
           <p class="text-neutral-800">
             {#if cap.ready === 0}
-              Mit den Gemeldeten kann an diesem Tag kein Team losfahren – dafür braucht es
-              {REQUIRED_ROLES.join(' und ')}.
+              Kein Team kann losfahren – dafür braucht es {REQUIRED_ROLES.join(' und ')}.
             {:else}
-              Ohne Merkmale gerechnet reichen die Gemeldeten für
+              Leute für
               <strong
                 >{cap.ready >= MAX_TEAMS_PER_DAY ? 'mindestens' : 'höchstens'}
-                {cap.ready}
-                {cap.ready === 1 ? 'Team' : 'Teams'}</strong
-              >, die losfahren können{cap.complete > 0
-                ? `, ${cap.complete} davon mit allen vier Posten`
-                : ''}.
+                {teamsText(cap.ready)}</strong
+              >{cap.complete > 0 ? `, ${cap.complete} davon komplett` : ''}.
             {/if}
             {#if official > cap.ready}
               <span class="text-warning">
@@ -436,10 +428,9 @@
           />
           {#if day.teams.length !== official}
             <p class="text-warning">
-              Ausprobiert: {teamsText(day.teams.length)} statt {official}. Familien buchen weiter
-              {visitsText(official)} pro Termin, bis du die Zahl übernimmst.
+              Ausprobiert: {teamsText(day.teams.length)} statt {official} – gilt erst nach dem Übernehmen.
               {#if day.teams.length > official}
-                Speichern geht erst nach dem Übernehmen.
+                Speichern geht erst danach.
               {/if}
             </p>
             <div class="flex flex-wrap gap-3">
@@ -466,12 +457,10 @@
 
         {#if day.familyTags === null}
           <p class="border-l-4 border-warning py-1 pl-3 text-sm text-warning">
-            Für diesen Tag ist in der Dispo noch keine Verteilung der Familien auf die Teams
-            gespeichert. Die Merkmale der Familien werden erst berücksichtigt, wenn die Dispo
-            gespeichert ist.
+            Dispo für diesen Tag noch nicht gespeichert – Merkmale der Familien zählen noch nicht.
             <a
               class="font-semibold underline print:hidden"
-              href="/leitendenbereich/nikolaus-dispo?tag={day.date}">Zur Dispo dieses Tages</a
+              href="/leitendenbereich/nikolaus-dispo?tag={day.date}">Zur Dispo</a
             >
           </p>
         {/if}
@@ -545,7 +534,6 @@
                           <PinToggle
                             compact
                             fixed={current.fixed}
-                            title="Festgehaltene Posten bleiben beim Neuberechnen erhalten"
                             label={`${role} in Team ${team} am ${formatShortDate(day.date)}`}
                             onclick={() => toggleFixed(current)}
                           />
@@ -581,12 +569,10 @@
           </section>
           <section class="text-sm print:hidden" aria-labelledby="idle-{day.date}">
             <h3 id="idle-{day.date}" class="font-semibold text-brand-900">
-              Ohne Aufgabe <span class="font-normal text-neutral-700">({idle.length})</span>
+              Reserve (ohne Aufgabe) <span class="font-normal text-neutral-700"
+                >({idle.length})</span
+              >
             </h3>
-            <p class="text-xs text-neutral-700">
-              Gemeldet, aber in keinem Team gebraucht und nicht für Küche gemeldet – Reserve für
-              Ausfälle.
-            </p>
             {#if idle.length > 0}
               <ul class="mt-1 space-y-0.5">
                 {#each idle as personId (personId)}
@@ -610,9 +596,8 @@
         class="border-t border-neutral-200 pt-6 text-sm print:hidden"
       >
         <h2 id="workload-heading" class="font-serif text-xl font-semibold text-brand-900">
-          Einsätze pro Person
+          Einsätze pro Person (Tage in einem Team)
         </h2>
-        <p class="text-xs text-neutral-700">Tage in einem Team, ohne Küche.</p>
         <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
           {#each workload as entry (entry.name)}
             <li>

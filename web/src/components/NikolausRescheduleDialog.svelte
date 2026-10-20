@@ -108,8 +108,7 @@
 
     {#if booking.status === 'pending'}
       <p role="note" class="border-l-4 border-warning py-1 pl-3 text-sm text-warning">
-        Diese Buchung ist noch nicht bestätigt. Die Reservierung läuft nach dem Verlegen unverändert
-        weiter.
+        Noch nicht bestätigt – die Reservierungsfrist läuft weiter.
       </p>
     {/if}
 
@@ -146,18 +145,13 @@
         format="html"
         id="move-message"
         labelledBy="move-message-label"
-        describedBy={errors.message ? 'move-message-error' : 'move-message-hint'}
+        describedBy={errors.message ? 'move-message-error' : undefined}
         invalid={!!errors.message}
         bind:value={message}
       />
       {#if errors.message}
         <p id="move-message-error" class="mt-1 text-sm text-danger">
           {errors.message}
-        </p>
-      {:else}
-        <p id="move-message-hint" class="mt-1 text-xs text-neutral-700">
-          Die Familie wird in jedem Fall per E-Mail über den neuen Termin informiert – mit dieser
-          Erklärung, falls du eine schreibst.
         </p>
       {/if}
     </div>

@@ -47,8 +47,8 @@
           <h2 id="due-heading" class="text-lg font-semibold text-danger">Löschfrist erreicht</h2>
           <p class="mt-1 text-sm text-neutral-800">
             Der letzte Besuch war am {formatDay(data.cleanup.lastVisit)}. Laut Datenschutzerklärung
-            müssen die Daten seit dem {formatDay(data.cleanup.deleteBy)} gelöscht sein. Bitte unten unter
-            „Daten löschen“ löschen.
+            müssen die Daten seit dem {formatDay(data.cleanup.deleteBy)} gelöscht sein.
+            <a class="font-semibold text-link underline" href="#cleanup-heading">Zum Löschen</a>
           </p>
         </section>
       {/if}

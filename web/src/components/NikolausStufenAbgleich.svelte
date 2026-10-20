@@ -2,6 +2,7 @@
   import type { Notice } from '../lib/status';
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
+  import InfoHint from './ui/InfoHint.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { errorMessage, sendApi } from '../lib/api';
   import { fetchStufen, stufenStore } from '../lib/nikolausHelfendeStore.svelte';
@@ -158,10 +159,13 @@
 <div class="space-y-6">
   <div class="max-w-3xl space-y-3">
     <p class="text-sm text-neutral-700">
-      Vergleicht die Anmeldungen mit der Mitgliederliste in CampFlow und die Helfenden mit den
-      Leitenden. Familien bekommen die Stufe ihrer Kinder als Merkmal, Leitende die Stufe als
-      negatives Merkmal – so fährt niemand zu Kindern aus der eigenen Stufe. Abgelehnte Vorschläge
-      werden nicht erneut angezeigt.
+      Schlägt aus der Mitgliederliste in CampFlow die Stufe der Kinder (Familien) und der Leitenden
+      (Helfende) als Merkmal vor, damit niemand zur eigenen Stufe fährt.
+      <InfoHint
+        label="Stufen-Abgleich"
+        text="Familien bekommen die Stufe ihrer Kinder als Merkmal, Leitende ihre Stufe als „Nicht zu Familien mit“. Abgelehnte Vorschläge werden nicht erneut angezeigt."
+        class="ml-1"
+      />
     </p>
     <ActionButton
       variant="primary"
