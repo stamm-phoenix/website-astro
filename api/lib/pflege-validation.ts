@@ -649,38 +649,7 @@ export const UPLOAD_PART_BYTES = 4 * 1024 * 1024;
  * Media types by file extension. The type is never taken from the browser: the website serves
  * the files from its own origin, so an uploaded file must not become a web page or a script.
  */
-const DOWNLOAD_MIME_TYPES: Record<string, string> = {
-  pdf: 'application/pdf',
-  doc: 'application/msword',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  xls: 'application/vnd.ms-excel',
-  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  ppt: 'application/vnd.ms-powerpoint',
-  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  odt: 'application/vnd.oasis.opendocument.text',
-  ods: 'application/vnd.oasis.opendocument.spreadsheet',
-  odp: 'application/vnd.oasis.opendocument.presentation',
-  txt: 'text/plain; charset=utf-8',
-  csv: 'text/csv; charset=utf-8',
-  rtf: 'application/rtf',
-  zip: 'application/zip',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  gif: 'image/gif',
-  webp: 'image/webp',
-  heic: 'image/heic',
-  mp3: 'audio/mpeg',
-  m4a: 'audio/mp4',
-  mp4: 'video/mp4',
-  mov: 'video/quicktime',
-};
-
-/** The media type a download is served with, from the extension of its name. */
-export function downloadMimeType(fileName: string): string {
-  const extension = /\.([a-z0-9]{1,8})$/i.exec(fileName)?.[1]?.toLowerCase() ?? '';
-  return DOWNLOAD_MIME_TYPES[extension] ?? 'application/octet-stream';
-}
+export { downloadMimeType } from './download-file-name';
 
 // --- Nikolaus-Dispo ---
 

@@ -19,11 +19,14 @@
     storeAbrechnungSession,
     loadAbrechnungSession,
     saveAbrechnungSession,
+    rescueAbrechnungSession,
+    restoreAbrechnungRescue,
   } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { confirmAction } from '../../lib/confirm';
-  import { fetchPrincipal } from '../../lib/authStore.svelte';
+  import { authStore, fetchPrincipal } from '../../lib/authStore.svelte';
+  import { setRescueContext } from '../../lib/geretteteEingaben';
   import { formatDateTime, formatEuro, todayIso } from '../../lib/format';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
@@ -64,6 +67,28 @@
     )?.[1] ?? '';
   const initialParams = new URLSearchParams(window.location.search);
   const session: AbrechnungSession | null = eventId ? abrechnungSession(eventId) : null;
+
+  let rescuedJson = $state<string | null>(null);
+  let rescueChecked = $state(false);
+  let restored = $state(false);
+  setRescueContext({
+    warning: () => null,
+    enabled: () => !!session && !!authStore.principal && !!abrechnungAblage[eventId]?.dirty,
+    rescue: () => {
+      const owner = authStore.principal?.userId;
+      if (!owner || !session || !rescueAbrechnungSession(eventId, owner, 'Abrechnung'))
+        return false;
+      rescuedJson = JSON.stringify(session);
+      return true;
+    },
+    register: () => () => undefined,
+  });
+  $effect(() => {
+    const owner = authStore.principal?.userId;
+    if (rescueChecked || !owner || !abrechnungAblage[eventId]?.loaded) return;
+    rescueChecked = true;
+    restored = restoreAbrechnungRescue(eventId, owner);
+  });
 
   let kostenstelle = $state(initialParams.get('kostenstelle')?.trim() ?? '');
   let tab = $state<TabId>(
@@ -160,7 +185,9 @@
     if (!session) return;
     // Only entries the browser could not keep on this device get lost when leaving
     const stopGuard = guardUnsavedChanges(
-      () => !!abrechnungAblage[eventId]?.dirty || !!abrechnungAblage[eventId]?.saving
+      () =>
+        (!!abrechnungAblage[eventId]?.dirty && JSON.stringify(session) !== rescuedJson) ||
+        !!abrechnungAblage[eventId]?.saving
     );
     return () => {
       stopGuard();
@@ -410,6 +437,9 @@
                         ? `Gespeichert am ${formatDateTime(ablage.savedAt)} Uhr. Auf allen deinen Geräten verfügbar.`
                         : 'Deine Eingaben werden mit „Eingaben speichern“ für deinen Account auf allen Geräten gespeichert.'}
             </p>
+            {#if restored}<StatusNotice
+                message="Deine Eingaben wurden nach der Anmeldung wiederhergestellt. Prüfe sie und speichere sie anschließend."
+              />{/if}
             <StatusNotice message={ablage.error} kind="error" />
             <div class="flex flex-wrap gap-2">
               <ActionButton

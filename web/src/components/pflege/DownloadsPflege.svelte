@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { renamedDownloadFileName } from '../../../../api/lib/download-file-name';
   import { formatDay } from '../../lib/format';
   import MessageText from '../ui/MessageText.svelte';
   import ReloadButton from './ReloadButton.svelte';
@@ -139,10 +140,7 @@
 
   async function saveRename(): Promise<void> {
     if (!renaming) return;
-    const enteredName = renaming.name.trim();
-    const extension = renaming.file.fileName.match(/\.[^.]+$/)?.[0] ?? '';
-    const name =
-      enteredName && !/\.[^.]+$/.test(enteredName) ? enteredName + extension : enteredName;
+    const name = renamedDownloadFileName(renaming.name, renaming.file.fileName);
     if (name === renaming.file.fileName) {
       renaming = null;
       return;

@@ -1,8 +1,13 @@
+import { rescueValues, findRescue, forgetRescue } from './geretteteEingaben';
 import { untrack } from 'svelte';
 import { ABRECHNUNG_STORAGE_PREFIX, storedLoeschdatum } from './abrechnungAblage';
 import { localDate } from './dateUtils';
 import { ApiError, errorMessage, fetchApi, sendApi } from './api';
-import { emptySession, parseSession } from '../../../api/lib/abrechnung-session';
+import {
+  emptySession,
+  parseSession,
+  validAbrechnungSession,
+} from '../../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../../api/lib/abrechnung-session';
 import type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
 export type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
@@ -360,4 +365,50 @@ export async function clearAbrechnungSession(eventId: string): Promise<boolean> 
   if (saved && JSON.stringify(session) === before) Object.assign(session, emptySession());
   storeAbrechnungSession(eventId);
   return saved;
+}
+
+/** Rescue the entire personal draft before same-window login, scoped to its account and Aktion. */
+export function rescueAbrechnungSession(eventId: string, userId: string, title: string): boolean {
+  const state = abrechnungAblage[eventId];
+  const session = abrechnungSessions[eventId];
+  if (!state?.loaded || state.saving || !session) return false;
+  return rescueValues(`abrechnung:${userId}:${eventId}`, title, state.etag ?? '', [
+    {
+      key: 'Abrechnung#custom',
+      kind: 'custom',
+      value: JSON.stringify({ session, etag: state.etag }),
+      display: 'Deine persönlichen Ergänzungen zur Abrechnung',
+    },
+  ]);
+}
+
+/** Restore locally; a changed server version requires an explicit conflict decision before saving. */
+export function restoreAbrechnungRescue(eventId: string, userId: string): boolean {
+  const state = abrechnungAblage[eventId];
+  const session = abrechnungSessions[eventId];
+  if (!state?.loaded || state.saving || !session) return false;
+  const record = `abrechnung:${userId}:${eventId}`;
+  const kept = findRescue(record, null, Date.now())?.find(
+    (field) => field.key === 'Abrechnung#custom'
+  );
+  if (!kept) return false;
+  try {
+    const draft = JSON.parse(kept.value) as { session: unknown; etag: unknown };
+    if (
+      !validAbrechnungSession(draft.session) ||
+      !(draft.etag === null || typeof draft.etag === 'string')
+    )
+      return false;
+    Object.assign(session, parseSession(draft.session));
+    state.dirty = JSON.stringify(session) !== storedJson[eventId];
+    if (draft.etag !== state.etag) {
+      state.conflict = true;
+      state.error =
+        'Die gespeicherten Eingaben wurden während der Anmeldung geändert. Deine geretteten Angaben stehen hier noch ungespeichert. Hier wurde nichts überschrieben. Kopiere sie und lade dann die gespeicherte Fassung.';
+    }
+    forgetRescue(record);
+    return true;
+  } catch {
+    return false;
+  }
 }
