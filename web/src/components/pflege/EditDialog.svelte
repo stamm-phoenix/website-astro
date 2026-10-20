@@ -112,11 +112,11 @@
   const shownNotice = $derived(
     notice ??
       (rescueConflict
-        ? 'Dieser Eintrag wurde inzwischen geändert. Deine früheren Eingaben stehen darunter zum Kopieren. Prüfe die aktuelle Fassung, bevor du etwas übernimmst und speicherst.'
+        ? 'Dieser Eintrag wurde inzwischen geändert. Deine früheren Eingaben stehen im Abschnitt „Noch nicht eingesetzt“ zum Kopieren. Prüfe die aktuelle Fassung, bevor du etwas übernimmst und speicherst.'
         : !restored
           ? null
           : leftOver.length > 0
-            ? 'Ein Teil deiner Eingaben von vor der neuen Anmeldung ist wieder eingesetzt. Den Rest findest du darunter.'
+            ? 'Ein Teil deiner Eingaben von vor der neuen Anmeldung ist wieder eingesetzt. Den Rest findest du im Abschnitt „Noch nicht eingesetzt“.'
             : 'Deine Eingaben von vor der neuen Anmeldung sind wieder eingesetzt. Prüf sie und speichere.')
   );
 
@@ -336,21 +336,21 @@
       if (!busy && !submitDisabled && !confirmingDiscard) onsubmit();
     }}
   >
-    <div class="space-y-4 overflow-y-auto px-5 py-4">
+    <div class="min-h-0 space-y-4 overflow-y-auto px-5 py-4">
       <fieldset disabled={busy} inert={busy} class="min-w-0 space-y-4">
         {@render children()}
       </fieldset>
-    </div>
-
-    <div class="border-t border-neutral-200 px-5 py-3">
-      <StatusNotice
-        message={error ? null : shownNotice}
-        class={shownNotice && !error ? 'mb-3' : ''}
-      />
       {#if restored && leftOver.length > 0}<NichtEingesetzt
           values={leftOver}
           conflict={rescueConflict}
         />{/if}
+    </div>
+
+    <div class="shrink-0 border-t border-neutral-200 px-5 py-3">
+      <StatusNotice
+        message={error ? null : shownNotice}
+        class={shownNotice && !error ? 'mb-3' : ''}
+      />
       {#if error}
         <p role="alert" class="mb-3 text-sm text-danger"><MessageText text={error} /></p>
       {/if}
