@@ -145,7 +145,9 @@ test('a child is either present or excused, never both, and the choice survives 
 
   await page.reload();
   await expect(choice(page, 'Anna Test').entschuldigt).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText(/Kind(er)? da/).first()).toContainText('0 Kinder da, 1 entschuldigt.');
+  await expect(page.getByText(/Kind(er)? da/).first()).toContainText(
+    '0 Kinder da, 1 entschuldigt.'
+  );
 
   // Switching from excused to present replaces the excuse instead of adding to it
   await choice(page, 'Anna Test').anwesend.click();
@@ -185,10 +187,7 @@ test('marking a Gruppenstunde as cancelled asks first, hides the attendance and 
   await expect(choice(page, 'Anna Test').anwesend).toHaveAttribute('aria-pressed', 'true');
 
   await ausgefallen.click();
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Als ausgefallen markieren' })
-    .click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Als ausgefallen markieren' }).click();
   await expect(page.getByText('Gruppenstunde als ausgefallen markiert.').first()).toBeVisible();
   await expect(ausgefallen).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('Die Gruppenstunde ist ausgefallen.')).toBeVisible();
@@ -218,4 +217,43 @@ test('marking a Gruppenstunde as cancelled asks first, hides the attendance and 
   await expect(page.getByLabel(/Was habt ihr gemacht/)).toBeVisible();
   await page.reload();
   await expect(choice(page, 'Anna Test').abwesend).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('unsaved notes survive a failed choice, and choices wait while „Ausgefallen“ saves', async ({
+  page,
+}) => {
+  // Would break if a reload after a failed choice replaced the typed text, or if children
+  // could be chosen while the Gruppenstunde is being marked as cancelled
+  await page.goto('/leitendenbereich/anwesenheit');
+  const anna = choice(page, 'Anna Test');
+  await expect(anna.abwesend).toHaveAttribute('aria-pressed', 'true');
+  const notes = page.getByLabel(/Was habt ihr gemacht/);
+  await notes.fill('Noch nicht gespeichert.');
+
+  await page.route('**/api/intern/pflege/anwesenheit/**/kinder/**', (route) =>
+    route.fulfill({ status: 500, json: { error: 'Error', message: 'Internal Server Error' } })
+  );
+  await anna.anwesend.click();
+  await expect(
+    page.getByText(/Die Anwesenheit von Anna wurde nicht gespeichert/).first()
+  ).toBeVisible();
+  await expect(anna.abwesend).toHaveAttribute('aria-pressed', 'true');
+  await expect(notes).toHaveValue('Noch nicht gespeichert.');
+  await page.unroute('**/api/intern/pflege/anwesenheit/**/kinder/**');
+
+  let release = (): void => undefined;
+  await page.route('**/api/intern/pflege/anwesenheit/**/ausgefallen', async (route) => {
+    await new Promise<void>((resolve) => (release = resolve));
+    await route.fallback();
+  });
+  await page.getByRole('button', { name: 'Ausgefallen', exact: true }).click();
+  await expect(anna.anwesend).toBeDisabled();
+  release();
+  await expect(page.getByText('Gruppenstunde als ausgefallen markiert.').first()).toBeVisible();
+  await expect(page.getByLabel(/Warum ist sie ausgefallen/)).toHaveValue('Noch nicht gespeichert.');
+
+  // Restore the demo state for the following tests of this worker
+  await page.unroute('**/api/intern/pflege/anwesenheit/**/ausgefallen');
+  await page.getByRole('button', { name: 'Fand statt', exact: true }).click();
+  await expect(anna.abwesend).toBeEnabled();
 });

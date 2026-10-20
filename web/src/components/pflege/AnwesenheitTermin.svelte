@@ -89,13 +89,20 @@
     terminRequest = request;
     // Controls of another Termin would already write to the new path
     if (termin && (termin.date !== date || termin.stufe !== stufe)) termin = null;
+    // Unsaved notes of the same Termin survive the reload, e.g. after a failed choice
+    const previous = termin;
+    const draft = previous && notes.trim() !== previous.notes ? notes : null;
     loading = true;
     loadError = null;
     message = null;
     try {
       const loaded = await fetchApi<AnwesenheitTermin>(`/intern${path}`, request.signal);
+      // Notes changed by someone else keep the old version, so saving the draft conflicts
+      if (previous && draft !== null && loaded.notes !== previous.notes) {
+        loaded.etag = previous.etag;
+      }
       termin = loaded;
-      notes = loaded.notes;
+      notes = draft ?? loaded.notes;
     } catch (error: unknown) {
       if (request.signal.aborted) return;
       termin = null;
@@ -109,7 +116,8 @@
   }
 
   async function setStatus(child: AnwesenheitChild, status: AnwesenheitStatus): Promise<void> {
-    if (!termin?.editable || busy.includes(child.id) || child.status === status) return;
+    if (!termin?.editable || savingCancelled || busy.includes(child.id) || child.status === status)
+      return;
     child.status = status;
     busy = [...busy, child.id];
     tickSaved = false;
@@ -287,7 +295,7 @@
       variant="segmented"
       options={STATUS_OPTIONS}
       value={child.status}
-      disabled={!termin?.editable || busy.includes(child.id)}
+      disabled={!termin?.editable || savingCancelled || busy.includes(child.id)}
       onselect={(status) => setStatus(child, status)}
     />
   </li>
