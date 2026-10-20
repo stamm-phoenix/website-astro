@@ -79,7 +79,8 @@ test('on a phone the bar at the bottom and the sheet „Menü“ lead to every m
   await expect(sheet.getByRole('link', { name: /^Steuerung/ })).toBeAttached();
   await expect(sheet.getByRole('link', { name: 'Abmelden' })).toHaveAttribute('href', '/logout');
   await sheet.getByRole('searchbox', { name: 'Bereich finden' }).fill('kassenzettel');
-  await expect(sheet.getByRole('status')).toHaveText(/1 Bereich gefunden/);
+  // Belege by keyword, Eigenbeleg by its description
+  await expect(sheet.getByRole('status')).toHaveText(/2 Bereiche gefunden/);
   await sheet.getByRole('link', { name: /^Belege/ }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/belege$/);
   await expect(sheet).toBeHidden();

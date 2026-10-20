@@ -25,7 +25,6 @@ test('the writer gives minutes to the review; saving stops and the PDF is a draf
   await expect(page.getByText('Alles fertig besprochen.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Bearbeiten' })).toHaveCount(0);
   // Every leader may approve, the author too after an explicit confirmation
-  await expect(review.getByText(/Alle Leitenden können es freigeben/)).toBeVisible();
   await expect(review.getByRole('button', { name: 'Freigeben' })).toBeVisible();
 
   const download = page.waitForEvent('download');

@@ -73,11 +73,12 @@
     bind:this={button}
     type="button"
     class="info-hint-button"
-    aria-label="Erklärung zu {label}"
     aria-expanded={open}
     aria-controls={id}
     onclick={toggle}
   >
+    <!-- Named by text, not aria-label, so a label lookup for the field finds only the field -->
+    <span class="sr-only">Erklärung zu {label}</span>
     <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
       <circle cx="10" cy="10" r="8.25" fill="none" stroke="currentColor" stroke-width="1.5" />
       <circle cx="10" cy="6.4" r="1" fill="currentColor" />

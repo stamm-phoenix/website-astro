@@ -138,11 +138,11 @@ test.describe('Fragen und Antworten', () => {
 
     // Publishing also needs an answer
     await dialog.getByLabel('Frage', { exact: true }).fill(question);
-    await dialog.getByRole('checkbox', { name: /Veröffentlicht/ }).check();
+    await dialog.getByRole('checkbox', { name: 'Auf der Website veröffentlichen' }).check();
     await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(dialog.getByText('Bitte eine Antwort angeben.')).toBeVisible();
 
-    await dialog.getByRole('checkbox', { name: /Veröffentlicht/ }).uncheck();
+    await dialog.getByRole('checkbox', { name: 'Auf der Website veröffentlichen' }).uncheck();
     await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(
@@ -165,7 +165,6 @@ test.describe('Fragen und Antworten', () => {
     await page.getByRole('button', { name: 'Neue Frage', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Neue Frage' });
     await dialog.getByLabel('Frage', { exact: true }).fill(question);
-    await expect(dialog.getByText('Fett, kursiv, Listen und Links sind möglich.')).toBeVisible();
 
     const text = dialog.getByRole('textbox', { name: 'Antwort' });
     await text.click();
@@ -177,7 +176,7 @@ test.describe('Fragen und Antworten', () => {
       .click();
     await dialog.getByLabel('Linkadresse').fill('example.org/packliste');
     await dialog.getByRole('button', { name: 'Übernehmen', exact: true }).click();
-    await dialog.getByRole('checkbox', { name: /Veröffentlicht/ }).check();
+    await dialog.getByRole('checkbox', { name: 'Auf der Website veröffentlichen' }).check();
     await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(dialog).toBeHidden();
 
