@@ -127,3 +127,37 @@ test('with Reduced Motion a swipe closes the sheet at once', async ({ page }) =>
     'false'
   );
 });
+
+test('a second finger during a pull sends the sheet back open', async ({ page }) => {
+  await openSheet(page);
+  const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
+  await page.evaluate(() => {
+    const target = document.querySelector('#staff-nav-title');
+    if (!target) throw new Error('Sheet missing');
+    const box = target.getBoundingClientRect();
+    const x = box.left + 20;
+    const y0 = box.top + box.height / 2;
+    const finger = (id: number, dx: number, y: number): Touch =>
+      new Touch({ identifier: id, target, clientX: x + dx, clientY: y });
+    const fire = (type: string, touches: Touch[], changed: Touch[]): void => {
+      target.dispatchEvent(
+        new TouchEvent(type, { bubbles: true, cancelable: true, touches, changedTouches: changed })
+      );
+    };
+    fire('touchstart', [finger(1, 0, y0)], [finger(1, 0, y0)]);
+    for (let i = 1; i <= 10; i++) {
+      const one = finger(1, 0, y0 + i * 15);
+      fire('touchmove', [one], [one]);
+    }
+    const one = finger(1, 0, y0 + 150);
+    const two = finger(2, 60, y0 + 150);
+    fire('touchstart', [one, two], [two]);
+    fire('touchend', [], [one, two]);
+  });
+  await expect(sheet).toBeInViewport({ ratio: 1 });
+  await expect(sheet).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
+  await expect(page.getByRole('button', { name: 'Menü', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true'
+  );
+});
