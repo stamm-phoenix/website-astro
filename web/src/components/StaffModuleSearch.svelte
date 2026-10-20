@@ -194,7 +194,7 @@
           <ul class={variant === 'start' ? 'surface mt-1 divide-y divide-neutral-200' : 'mt-1'}>
             {#each group.modules as module (module.href)}
               <li
-                class="group flex items-center {variant === 'sheet'
+                class="group relative flex items-center {variant === 'sheet'
                   ? 'border-b border-neutral-200'
                   : ''}"
               >
@@ -244,9 +244,12 @@
                     </span>
                   {/if}
                 </a>
-                {#if module.href === CHANGELOG_PATH}<span class="mr-1"
+                {#if module.href === CHANGELOG_PATH}
+                  <!-- Folded to its icons, the count sits on the corner of the icon and takes no room -->
+                  <span class={collapsed ? 'pointer-events-none absolute top-0.5 left-5' : 'mr-1'}
                     ><ChangelogBadge textId="{id}-news" /></span
-                  >{/if}
+                  >
+                {/if}
                 {#if !collapsed}<FavoriteStar {module} compact={variant === 'sidebar'} />{/if}
               </li>
             {/each}
