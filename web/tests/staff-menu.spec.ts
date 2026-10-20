@@ -53,7 +53,12 @@ test('keyboard focus leaving the sheet „Alle Bereiche“ closes it', async ({
     .getByRole('button', { name: 'Menü', exact: true })
     .click();
   const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
-  await sheet.getByRole('link', { name: 'Abmelden' }).focus();
+  // Opening moves focus after two animation frames. Wait for it before setting up Tab,
+  // otherwise that late focus can replace Abmelden while the sheet is still off-screen.
+  await expect(sheet.getByRole('button', { name: 'Schließen', exact: true })).toBeFocused();
+  const signOut = sheet.getByRole('link', { name: 'Abmelden' });
+  await signOut.focus();
+  await expect(signOut).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(sheet).toBeHidden();
 });
