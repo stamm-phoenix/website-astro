@@ -1,5 +1,10 @@
+import { resetAccountingInputs } from './abrechnung-helpers';
 import { readFile } from 'node:fs/promises';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await resetAccountingInputs(page);
+});
 
 test('a receipt is submitted with a photo and checked by the Kassenteam', async ({
   page,
