@@ -232,7 +232,12 @@
     openingTitle = title;
     record = rescueKey;
     openingVersion = rescueVersion ?? '';
-    openingValues = initial.map((entry) => entry.value);
+    // Hidden controls can contain derived display names from a separately loaded directory.
+    // They still track edits above, but record versions and native visible fields identify
+    // the original data; compound selections are saved explicitly through rescueFields.
+    openingValues = initial
+      .filter(({ el }) => !(el instanceof HTMLInputElement && el.type === 'hidden'))
+      .map((entry) => entry.value);
     opening = JSON.stringify([openingVersion, openingValues]);
     const kept =
       record === undefined

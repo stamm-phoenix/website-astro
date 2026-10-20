@@ -1197,3 +1197,62 @@ test('in the iPhone app many missing template rows leave copying and adding rows
   await dialog.getByLabel('Aufgabentitel').nth(1).fill('Aufgabe überarbeitet');
   await expect(save).toBeInViewport();
 });
+
+test('in the iPhone app a delayed directory does not turn an unchanged task into a recovery conflict', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.request.post('/api/__mock/aufgaben/reset');
+  const login = 'lena.brandstaetter@stamm-phoenix.de';
+  await page.request.post('/api/intern/pflege/aufgaben', {
+    data: {
+      title: 'Recovery delayed directory',
+      description: '',
+      assignee: login,
+      dueDate: null,
+      projectId: null,
+    },
+  });
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  let hold = false;
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/pflege/aufgaben/benutzer', async (route) => {
+    if (hold) await held;
+    await route.fulfill({
+      json: { users: [{ name: 'Lena Brandstätter', login }], unavailable: false },
+    });
+  });
+  await page.route('**/api/intern/pflege/aufgaben/*', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aufgaben');
+  const open = page.getByRole('button', { name: 'Recovery delayed directory', exact: true });
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: 'Aufgabe bearbeiten', exact: true });
+  await expect(
+    dialog.getByRole('button', { name: 'Lena Brandstätter entfernen', exact: true })
+  ).toBeVisible();
+  await dialog.getByLabel('Titel', { exact: true }).fill('Recovered with directory still loading');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  hold = true;
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await open.click();
+  // The unchanged task initially derives "Lena Brandstaetter" without the directory.
+  // That presentation difference must not block recovery or change the selected identity.
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue(
+    'Recovered with directory still loading'
+  );
+  await expect(
+    dialog.getByText('wieder eingesetzt. Prüf sie und speichere.', { exact: false })
+  ).toBeVisible();
+  await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toHaveCount(0);
+  await expect(
+    dialog.getByRole('button', { name: 'Lena Brandstätter entfernen', exact: true })
+  ).toBeVisible();
+  release();
+  await expect(dialog.getByText('Personenvorschläge werden geladen …')).toHaveCount(0);
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue(
+    'Recovered with directory still loading'
+  );
+});
