@@ -19,6 +19,11 @@
     slug: string;
     date: string;
   }
+  interface NotesBaseline {
+    path: string;
+    notes: string;
+    etag: string | null;
+  }
   let { stufe, slug, date }: Props = $props();
 
   const STATUS_OPTIONS: {
@@ -43,6 +48,8 @@
   let loading = $state(false);
   let loadError = $state<string | null>(null);
   let notes = $state('');
+  // The saved text and version belong to the draft, independently of attendance reloads.
+  let notesBase = $state<NotesBaseline | null>(null);
   let savingNotes = $state(false);
   let savingCancelled = $state(false);
   let guestName = $state('');
@@ -86,7 +93,7 @@
     ...(guestCount > 0 ? [`${guestCount} ${guestCount === 1 ? 'Gast' : 'Gäste'}`] : []),
   ]);
   const visitors = $derived(termin?.children.filter((child) => child.kind !== 'stufe') ?? []);
-  const notesChanged = $derived(termin !== null && notes.trim() !== termin.notes);
+  const notesChanged = $derived(notesBase !== null && notes.trim() !== notesBase.notes);
 
   function show(text: string, kind: 'success' | 'error' = 'success'): void {
     message = text;
@@ -104,19 +111,20 @@
     // Controls of another Termin would already write to the new path
     if (termin && (termin.date !== date || termin.stufe !== stufe)) termin = null;
     // Unsaved notes of the same Termin survive the reload, e.g. after a failed choice
-    const previous = termin;
-    const draft = previous && notes.trim() !== previous.notes ? notes : null;
+    if (notesBase?.path !== path) notesBase = null;
     loading = true;
     loadError = null;
     message = null;
     try {
       const loaded = await fetchApi<AnwesenheitTermin>(`/intern${path}`, request.signal);
-      // Notes changed by someone else keep the old version, so saving the draft conflicts
-      if (previous && draft !== null && loaded.notes !== previous.notes) {
-        loaded.etag = previous.etag;
+      if (request.signal.aborted) return;
+      // Keep both the comparison text and version until the draft is saved or discarded.
+      // A failed reload must not discard them either.
+      if (!notesBase || notes.trim() === notesBase.notes) {
+        notesBase = { path, notes: loaded.notes, etag: loaded.etag };
+        notes = loaded.notes;
       }
       termin = loaded;
-      notes = draft ?? loaded.notes;
     } catch (error: unknown) {
       if (request.signal.aborted) return;
       termin = null;
@@ -187,6 +195,10 @@
         etag: target.etag,
         entries: recorded,
       });
+      // Our own status change preserves the notes, but must not bless an older draft.
+      if (notesBase?.path === path && notesBase.etag === target.etag) {
+        notesBase.etag = saved.etag;
+      }
       target.etag = saved.etag;
       target.cancelled = cancelled;
       if (cancelled) {
@@ -273,17 +285,21 @@
   async function saveNotes(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const target = termin;
-    if (!target) return;
+    const baseline = notesBase;
+    if (!target || !baseline) return;
     const text = notes.trim();
     savingNotes = true;
     try {
       const saved = await sendApi<{ etag: string }>('PUT', `/intern/pflege${path}`, {
         notes: text,
-        etag: target.etag,
+        etag: baseline.etag,
       });
       target.etag = saved.etag;
       target.notes = text;
-      if (target === termin) notes = text;
+      if (notesBase === baseline) {
+        notesBase = { path: baseline.path, notes: text, etag: saved.etag };
+        if (notes.trim() === text) notes = text;
+      }
       show('Notiz gespeichert.');
     } catch (error: unknown) {
       const conflict = error instanceof ApiError && [409, 412].includes(error.status);
