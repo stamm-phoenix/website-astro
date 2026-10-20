@@ -11,16 +11,18 @@ test('the entries of an Aktion are kept on the device until they are reset', asy
   const ablage = page.getByTestId('eingaben-ablage');
   const reset = page.getByRole('button', { name: 'Eingaben zurücksetzen' });
   await expect(zusatztag).toBeVisible();
-  await expect(ablage).toContainText('werden auf diesem Gerät gespeichert, auch wenn du');
+  await expect(ablage).toContainText('Deine Eingaben werden auf diesem Gerät gespeichert.');
   await expect(reset).toHaveCount(0);
 
   await zusatztag.check();
   // The fixtures fix the clock at 2026-10-01 12:00 UTC
   await expect(ablage).toContainText(
-    'Deine Eingaben werden auf diesem Gerät gespeichert. Zuletzt bearbeitet am 01.10.2026, 14:00 Uhr.'
+    'Deine Eingaben sind auf diesem Gerät gespeichert, zuletzt am 01.10.2026, 14:00 Uhr.'
   );
   // The KJR deadline of the Sommerlager is 11.11.2026; the entries are kept one month longer
+  await page.getByRole('button', { name: 'Erklärung zu Deine Eingaben' }).click();
   await expect(ablage).toContainText('Nach dem 11.12.2026 werden sie gelöscht');
+  await page.keyboard.press('Escape');
 
   // Leaving does not ask, and the entry is back on the next visit
   await page
@@ -30,7 +32,7 @@ test('the entries of an Aktion are kept on the device until they are reset', asy
   await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
   await page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ }).click();
   await expect(zusatztag).toBeChecked();
-  await expect(ablage).toContainText('Zuletzt bearbeitet am');
+  await expect(ablage).toContainText('zuletzt am');
 
   // … also after a reload
   await page.reload();
@@ -49,7 +51,7 @@ test('the entries of an Aktion are kept on the device until they are reset', asy
   await expect(zusatztag).not.toBeChecked();
   await expect(page.getByText('Eingaben zurückgesetzt.')).toBeVisible();
   await expect(reset).toHaveCount(0);
-  await expect(ablage).not.toContainText('Zuletzt bearbeitet');
+  await expect(ablage).not.toContainText('zuletzt am');
   await expectNoHorizontalOverflow(page);
 
   await page.reload();
@@ -73,7 +75,7 @@ test('without storage the entries last while the page is open and leaving asks',
   await zusatztag.check();
   await expect(page.getByTestId('zuschuss-formel')).toContainText('× 11 Tage');
   await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'Sie bleiben nur erhalten, solange diese Seite geöffnet ist.'
+    'gehen beim Schließen der Seite verloren'
   );
   await expect(page.getByRole('button', { name: 'Eingaben zurücksetzen' })).toHaveCount(0);
 
@@ -100,13 +102,13 @@ test('when the device is full, the older stored entries can still be reset', asy
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
   const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
   await zusatztag.check();
-  await expect(page.getByTestId('eingaben-ablage')).toContainText('Zuletzt bearbeitet am');
+  await expect(page.getByTestId('eingaben-ablage')).toContainText('zuletzt am');
 
   // A later change does not fit any more; the older entry is still on the device
   await page.evaluate(() => ((window as { storageFull?: boolean }).storageFull = true));
   await page.getByLabel('Vorkalkulation von').fill('Kim Muster');
   await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'Sie bleiben nur erhalten, solange diese Seite geöffnet ist.'
+    'gehen beim Schließen der Seite verloren'
   );
   await page.getByRole('button', { name: 'Eingaben zurücksetzen' }).click();
   await answerConfirm(page, 'Eingaben zurücksetzen?', 'Eingaben zurücksetzen');
@@ -171,7 +173,7 @@ test('after its last day an Aktion keeps new entries only while the page is open
   const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
   await zusatztag.check();
   await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'Deine Eingaben werden deshalb nicht mehr auf diesem Gerät gespeichert.'
+    'Deine Eingaben werden nicht mehr auf diesem Gerät gespeichert'
   );
   expect(
     await page.evaluate(() => localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26'))
@@ -199,6 +201,7 @@ test('a moved Aktion gets the new deletion day for its stored entries', async ({
     )
   );
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  await page.getByRole('button', { name: 'Erklärung zu Deine Eingaben' }).click();
   await expect(page.getByTestId('eingaben-ablage')).toContainText(
     'Nach dem 11.12.2026 werden sie gelöscht'
   );
@@ -242,7 +245,7 @@ test('an Aktion moved past its last day removes the stored entries', async ({ pa
   );
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
   await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'Deine Eingaben werden deshalb nicht mehr auf diesem Gerät gespeichert.'
+    'Deine Eingaben werden nicht mehr auf diesem Gerät gespeichert'
   );
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26')))

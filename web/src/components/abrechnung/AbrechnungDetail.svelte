@@ -2,6 +2,7 @@
   import { scrollBehavior } from '../../lib/motion';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { onMount, tick } from 'svelte';
   import {
@@ -323,13 +324,13 @@
     data={abrechnung ?? null}
     {loading}
     error={loadError?.message ?? null}
-    loadingText="Die Einzelnachweise werden aus CampFlow exportiert. Das dauert einige Sekunden …"
+    loadingText="Die Abrechnung wird geladen. Das dauert einige Sekunden …"
     onretry={() => fetchAbrechnung(eventId, kostenstelle, { force: true })}
   >
     {#snippet skeleton()}
       <div class="surface p-6">
         <p aria-hidden="true" class="text-sm text-neutral-700">
-          Die Einzelnachweise werden aus CampFlow exportiert. Das dauert einige Sekunden …
+          Die Abrechnung wird geladen. Das dauert einige Sekunden …
         </p>
         <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
         <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
@@ -354,7 +355,7 @@
                   data-testid="kjr-frist"
                 >
                   {#if !frist.vorbei}
-                    Abgabe beim KJR bis {formatDate(frist.frist)} ({KJR_ABGABE_MONATE} Monate nach Ende)
+                    Abgabe beim KJR bis {formatDate(frist.frist)}
                   {:else if frist.tage >= 0}
                     Abgabe beim KJR bis {formatDate(frist.frist)}, {kjrRestzeit(frist.tage)}
                   {:else}
@@ -373,14 +374,16 @@
               >
                 Andere Kostenstelle
               </ActionButton>
-              <ReloadAction
-                type="button"
-                disabled={loading}
-                title="Teilnehmende und Einzelnachweise neu aus CampFlow laden"
-                onclick={() => fetchAbrechnung(eventId, kostenstelle, { refresh: true })}
-              >
-                {loading ? 'Wird neu geladen …' : 'Neu laden'}
-              </ReloadAction>
+              <span data-testid="export-stand">
+                <ReloadAction
+                  type="button"
+                  disabled={loading}
+                  loadedAt={abrechnung.exportedAt ? Date.parse(abrechnung.exportedAt) : null}
+                  onclick={() => fetchAbrechnung(eventId, kostenstelle, { refresh: true })}
+                >
+                  {loading ? 'Wird neu geladen …' : 'Neu laden'}
+                </ReloadAction>
+              </span>
             </div>
           </div>
           {#if pickKostenstelle}
@@ -393,40 +396,50 @@
             zuschussfaehig={abrechnung.event.zuschussfaehig}
             keineAktion={abrechnung.event.keineAktion}
           />
-          <div class="mt-4 space-y-3 text-base text-neutral-800" data-testid="eingaben-ablage">
-            <p bind:this={ablageText} tabindex="-1" class="focus:outline-none">
+          <div class="mt-4 space-y-3 text-sm text-neutral-800" data-testid="eingaben-ablage">
+            <div bind:this={ablageText} tabindex="-1" class="focus:outline-none">
               {#if aufbewahrungVorbei}
                 <span class="font-semibold text-warning">
-                  {abrechnung.event.zuschussfaehig
-                    ? 'Die Abgabefrist beim KJR ist seit über einem Monat vorbei.'
-                    : `Die Aktion ist seit über ${aufbewahrungMonate} Monaten vorbei.`}
-                  Deine Eingaben werden deshalb nicht mehr auf diesem Gerät gespeichert.
+                  Deine Eingaben werden nicht mehr auf diesem Gerät gespeichert und gehen beim
+                  Schließen der Seite verloren.
                 </span>
-                Sie bleiben nur erhalten, solange diese Seite geöffnet ist.
               {:else if !ablage.available}
                 <span class="font-semibold text-warning">
-                  Deine Eingaben können auf diesem Gerät nicht gespeichert werden, zum Beispiel im
-                  privaten Modus.
+                  Deine Eingaben können auf diesem Gerät nicht gespeichert werden und gehen beim
+                  Schließen der Seite verloren.
                 </span>
-                Sie bleiben nur erhalten, solange diese Seite geöffnet ist.
               {:else if ablage.savedAt}
-                Deine Eingaben werden auf diesem Gerät gespeichert. Zuletzt bearbeitet am
+                Deine Eingaben sind auf diesem Gerät gespeichert, zuletzt am
                 {formatDateTime(ablage.savedAt)} Uhr.
-                {#if ablage.deleteAfter}
-                  Nach dem {formatDate(ablage.deleteAfter)} werden sie gelöscht, {abrechnung.event
-                    .zuschussfaehig
-                    ? 'einen Monat nach der Abgabefrist beim KJR'
-                    : `${aufbewahrungMonate} Monate nach dem Ende der Aktion`}.
-                {/if}
               {:else}
-                Deine Eingaben (Teilnehmende, Rollen, Zusatztag, Beträge der Einzelnachweise,
-                Leihgebühren, Deckblatt) werden auf diesem Gerät gespeichert, auch wenn du die Seite
-                schließt. {abrechnung.event.zuschussfaehig
-                  ? 'Einen Monat nach der Abgabefrist beim KJR'
-                  : `${aufbewahrungMonate} Monate nach dem Ende der Aktion`} werden sie gelöscht.
+                Deine Eingaben werden auf diesem Gerät gespeichert.
               {/if}
-              „Neu laden“ holt die Daten neu aus CampFlow und behält deine Eingaben.
-            </p>
+              <InfoHint label="Deine Eingaben" class="ml-1">
+                <p>
+                  Teilnehmende, Rollen, Zusatztag, geänderte Beträge, Leihgebühren und Deckblatt
+                  bleiben nur auf diesem Gerät, auch wenn du die Seite schließt. Beim Neu laden
+                  bleiben sie erhalten.
+                </p>
+                <p>
+                  {#if aufbewahrungVorbei}
+                    {abrechnung.event.zuschussfaehig
+                      ? 'Die Abgabefrist beim KJR ist seit über einem Monat vorbei.'
+                      : `Die Aktion ist seit über ${aufbewahrungMonate} Monaten vorbei.`}
+                  {:else if !ablage.available}
+                    Zum Beispiel im privaten Modus.
+                  {:else if ablage.deleteAfter}
+                    Nach dem {formatDate(ablage.deleteAfter)} werden sie gelöscht, {abrechnung.event
+                      .zuschussfaehig
+                      ? 'einen Monat nach der Abgabefrist beim KJR'
+                      : `${aufbewahrungMonate} Monate nach dem Ende der Aktion`}.
+                  {:else}
+                    {abrechnung.event.zuschussfaehig
+                      ? 'Einen Monat nach der Abgabefrist beim KJR'
+                      : `${aufbewahrungMonate} Monate nach dem Ende der Aktion`} werden sie gelöscht.
+                  {/if}
+                </p>
+              </InfoHint>
+            </div>
             {#if ablage.savedAt}
               <ActionButton
                 variant="secondary"

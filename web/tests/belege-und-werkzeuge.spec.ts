@@ -37,7 +37,9 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   // Corners can be moved with the keyboard as well
   await page.getByRole('button', { name: /Ecke oben links verschieben/ }).press('ArrowLeft');
   await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
-  await expect(page.getByRole('note').filter({ hasText: /Foto geprüft|Foto prüfen/ })).toBeVisible();
+  await expect(
+    page.getByRole('note').filter({ hasText: /Foto geprüft|Foto prüfen/ })
+  ).toBeVisible();
   await expect(page.getByLabel('Geschäft')).toHaveValue('Demo-Markt');
   await expect(page.getByLabel('Betrag in €')).toHaveValue('9,99');
 
@@ -352,7 +354,7 @@ test('Neu laden exports the Einzelnachweise again and keeps the entries', async 
   const before = ((await (await first).json()) as { exportedAt: string }).exportedAt;
   // Opening the page uses the last export of the Playwright API
   expect((await first).url()).not.toContain('refresh');
-  await expect(page.getByTestId('export-stand')).toContainText(/exportiert am .+ Uhr/);
+  await expect(page.getByTestId('export-stand')).toContainText(/Stand: \d{2}:\d{2} Uhr/);
 
   const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
   await zusatztag.check();

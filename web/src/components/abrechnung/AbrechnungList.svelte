@@ -147,7 +147,7 @@
                         data-testid="ohne-kjr-zuschuss"
                       >
                         {event.keineAktion
-                          ? 'Keine Aktion (Bestellung oder Anmeldung), ohne KJR-Zuschuss'
+                          ? 'Keine Aktion, ohne KJR-Zuschuss'
                           : 'Ohne KJR-Zuschuss'}
                       </span>
                     {:else if fristStand?.vorbei}
