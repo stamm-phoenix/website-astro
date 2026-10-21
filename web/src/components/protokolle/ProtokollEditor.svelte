@@ -886,14 +886,15 @@
     }
 
     void (async () => {
-      await fetchPrincipal();
+      // Only the copy kept on this device needs the login, so the minutes do not wait for it
+      const principalLoaded = fetchPrincipal();
       void loadPersonen();
       // Projects may have been added in the module Aufgaben since the last editor on this page
       void protokollAufgaben.load({ force: true });
       // The settings arrive on their own; the start of the writing takes them up but must not
       // wait for them here, or a late answer would act on an outdated version
       settingsLoaded = loadStaffSettings();
-      const loaded = await loadDetail();
+      const [loaded] = await Promise.all([loadDetail(), principalLoaded]);
       if (!loaded) return;
       checkLocal(loaded);
       const resume = loaded.sperre?.mine || wantsToWrite || pendingLocal !== null;
