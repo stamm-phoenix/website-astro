@@ -3,7 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import { formatEuro } from '../../lib/format';
-  import { authStore, isOwnName } from '../../lib/authStore.svelte';
+  import { isIch } from '../../lib/ichStore.svelte';
   import { errorMessage, postForFile, saveFile } from '../../lib/api';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import {
@@ -346,7 +346,7 @@
             <tr class="border-b border-neutral-200">
               <th scope="row" class="py-2 pr-2 font-normal text-neutral-800">
                 {auslage.name}
-                {#if isOwnName(authStore.principal, auslage.name)}
+                {#if isIch({ name: auslage.name })}
                   <span class="text-neutral-700">(ich)</span>
                 {/if}
               </th>

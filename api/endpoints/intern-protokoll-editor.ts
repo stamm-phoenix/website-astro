@@ -74,7 +74,7 @@ import { encodeContentDisposition, errorResponse, withErrorHandling } from '../l
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { getClaim, isStaffError, requireStaff } from '../lib/staff-auth';
 import { getTaskDirectoryUsers } from '../lib/task-directory';
-import { getWeiterePersonen } from '../lib/weitere-personen';
+import { getPersonen, mitEigenerAdresse } from '../lib/personen';
 
 /**
  * Protokoll-Editor (#277, `docs/protokoll-editor.md`): every logged-in leader may read all
@@ -232,10 +232,7 @@ export async function GetEditorRevisionEndpoint(request: HttpRequest): Promise<H
 export async function GetEditorPersonenEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const principal = requireStaff(request);
   if (isStaffError(principal)) return principal;
-  const [leitende, weitere] = await Promise.allSettled([
-    getTaskDirectoryUsers(),
-    getWeiterePersonen(),
-  ]);
+  const [leitende, weitere] = await Promise.allSettled([getTaskDirectoryUsers(), getPersonen()]);
   const personen = new Map<string, PersonOption>();
   const key = (person: ProtokollPerson): string =>
     person.login ? person.login.toLowerCase() : `name:${person.name.toLowerCase()}`;
@@ -246,7 +243,8 @@ export async function GetEditorPersonenEndpoint(request: HttpRequest): Promise<H
     }
   }
   if (weitere.status === 'fulfilled') {
-    for (const entry of weitere.value.filter((p) => p.aktiv)) {
+    // Rows of leaders only link them to CampFlow; the Entra group says who leads
+    for (const entry of weitere.value.filter((p) => p.aktiv && p.gruppe !== 'leitende')) {
       const person: PersonOption = { login: entry.login, name: entry.name, gruppe: entry.gruppe };
       // Someone in the Entra group counts as a leader, even if also on the list
       if (!personen.has(key(person))) personen.set(key(person), person);
@@ -500,7 +498,11 @@ export const EditorVersandEndpoint = pflegeHandler(
       }
       const version = audienceVersion(recipients);
       if (action === 'preview') {
-        return ok({ recipients: recipients.length, version, list: recipients });
+        return ok({
+          recipients: recipients.length,
+          version,
+          list: await mitEigenerAdresse(principal.userDetails, recipients),
+        });
       }
 
       if (body?.version !== version) {

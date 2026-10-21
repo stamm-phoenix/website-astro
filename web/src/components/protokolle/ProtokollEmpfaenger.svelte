@@ -3,6 +3,7 @@
   import FormField from '../pflege/FormField.svelte';
   import type { ProtokollRecipient } from '../../lib/protokolleView';
   import { MAX_EXTRA_RECIPIENTS, isEmailAddress } from '../../lib/protokolleView';
+  import { isIch } from '../../lib/ichStore.svelte';
 
   interface Props {
     /** Recipients from CampFlow, with the reasons why. */
@@ -98,7 +99,9 @@
               />
               <span class="min-w-0">
                 <span class="block text-sm font-semibold break-words text-neutral-900">
-                  {recipient.name || recipient.email}
+                  {recipient.name ||
+                    recipient.email}{#if isIch({ name: recipient.name, ich: recipient.ich })}
+                    <span class="font-normal text-neutral-700">(ich)</span>{/if}
                 </span>
                 {#if recipient.name}
                   <span class="block text-xs break-all text-neutral-700">{recipient.email}</span>

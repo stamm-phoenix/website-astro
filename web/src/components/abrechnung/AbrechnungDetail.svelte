@@ -176,7 +176,7 @@
 
   onMount(() => {
     if (eventId) void fetchAbrechnung(eventId, kostenstelle);
-    // The name of the logged-in user marks own entries with „(ich)“
+    // The account the drafts of the Abrechnung are saved for
     void fetchPrincipal();
     if (!session) return;
     // Only entries the browser could not keep on this device get lost when leaving

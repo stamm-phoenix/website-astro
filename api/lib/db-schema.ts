@@ -58,7 +58,7 @@ export interface Database {
   'protokoll.protokoll': EditorProtokollTable;
   'protokoll.sperre': EditorSperreTable;
   'protokoll.revision': EditorRevisionTable;
-  'organisation.person': WeiterePersonTable;
+  'organisation.person': PersonTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
   'organisation.aktion_keine_aktion': AktionKeineAktionTable;
   'organisation.staff_changelog_seen': StaffChangelogSeenTable;
@@ -524,13 +524,15 @@ export interface EditorRevisionTable {
   saved_by: string;
 }
 
-export interface WeiterePersonTable {
+export interface PersonTable {
   id: Generated<number>;
   version: ReadOnly<Buffer>;
   name: string;
-  /** Lowercase login in the tenant, or empty. */
+  /** Lowercase login in the tenant, or empty; unique if set. Required for `leitende`. */
   login: Generated<string>;
-  gruppe: 'altleitende' | 'weitere';
+  gruppe: 'leitende' | 'altleitende' | 'weitere';
+  /** ID in the CampFlow member list (`per_…`), or empty; unique if set. */
+  campflow_person_id: Generated<string>;
   aktiv: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;

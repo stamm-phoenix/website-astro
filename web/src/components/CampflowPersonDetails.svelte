@@ -7,6 +7,7 @@
     personStatus,
   } from '../lib/campflowFields';
   import type { PersonStatus } from '../lib/campflowFields';
+  import { isIchCampflow } from '../lib/ichStore.svelte';
   import ModalDialog from './ui/ModalDialog.svelte';
   import StatusLabel from './ui/StatusLabel.svelte';
   import CopyCode from './ui/CopyCode.svelte';
@@ -31,10 +32,12 @@
     columns: CampflowColumn[];
     /** The person's Beiträge from CampFlow; `undefined` while they load or could not be read. */
     beitraege?: AktionBeitrag[];
+    /** IDs of the own registrations, matched by the server (`ich` of the Aktion). */
+    eigene?: readonly string[] | null;
     onclose: () => void;
   }
 
-  let { person, event, columns, beitraege, onclose }: Props = $props();
+  let { person, event, columns, beitraege, eigene = null, onclose }: Props = $props();
 
   const fields = $derived(
     person
@@ -46,7 +49,7 @@
 
 <ModalDialog
   open={person !== null}
-  title={person ? formatName(person) : ''}
+  title={person ? `${formatName(person)}${isIchCampflow(person, eigene) ? ' (ich)' : ''}` : ''}
   closeLabel="Details schließen"
   size="wide"
   dismissOnBackdrop

@@ -3,7 +3,7 @@
   import { fetchHelfende, helfendeStore } from '../lib/nikolausHelfendeStore.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import { ApiError, errorMessage, sendApi } from '../lib/api';
-  import { authStore, isOwnName } from '../lib/authStore.svelte';
+  import { isIch } from '../lib/ichStore.svelte';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import { HELPER_ROLES, KITCHEN } from '../lib/nikolausEinteilung';
   import type { HelperRole } from '../lib/nikolausEinteilung';
@@ -237,7 +237,7 @@
             <tr class="border-b border-neutral-200 align-top last:border-0">
               <th scope="row" class="px-3 py-3 font-semibold text-brand-900">
                 {person.name}
-                {#if isOwnName(authStore.principal, person.name)}
+                {#if isIch({ name: person.name })}
                   <span class="font-normal text-neutral-700">(ich)</span>
                 {/if}
                 {#if person.notes}

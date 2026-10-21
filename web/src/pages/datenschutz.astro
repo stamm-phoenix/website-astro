@@ -148,18 +148,32 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
         </Text>
       </InfoCard>
 
-      <InfoCard title="Namen im Protokoll-Editor" id="protokoll-personen">
+      <InfoCard title="Personen im Leitendenbereich" id="protokoll-personen">
         <Text>
-          Im Leitendenbereich schreiben wir Protokolle der Leitendenrunde. Für Sitzungsleitung,
-          Protokoll, Anwesende und Zuständige bietet der Editor die Leitenden aus unserer
-          Entra-Gruppe und eine eigene Liste mit Altleitenden und weiteren regelmäßig beteiligten
-          Personen zur Auswahl an. Diese Liste speichern wir in Azure SQL mit Name, Gruppe
-          (Altleitende oder Weitere), gegebenenfalls dem Stammes-Login, ob die Person angeboten
-          wird, sowie wann und von wem der Eintrag zuletzt geändert wurde. Sie ist nur im
-          angemeldeten Leitendenbereich sichtbar und wird dort gepflegt; ein gelöschter Eintrag
-          verschwindet aus der Auswahl, bereits geschriebene Protokolle behalten den Namen. Wir
-          nutzen die Liste zur Organisation unserer Leitendenrunde (§ 6 KDG, berechtigtes
-          Interesse).
+          Im Leitendenbereich führen wir eine Liste der Personen, die bei uns mitarbeiten. Für jedes
+          Microsoft-Konto unserer Leitenden kann sie die passende Person in unserer
+          CampFlow-Mitgliederliste festhalten. Damit erkennt der Leitendenbereich, welcher Eintrag
+          in einer Teilnehmendenliste, einer Abrechnung oder einer Sammelbestellung die angemeldete
+          Person selbst ist, und markiert ihn mit „(ich)“. Dafür liest er beim Öffnen solcher Seiten
+          Vor- und Nachname und die primäre E-Mail-Adresse der verknüpften Person aus CampFlow und
+          hält sie bis zu zehn Minuten im Arbeitsspeicher; gespeichert werden sie dabei nicht. Die
+          E-Mail-Adresse bleibt auf dem Server: Er vergleicht sie mit den Anmeldungen einer Aktion
+          und teilt der Seite nur mit, welche davon die eigenen sind. Damit eine gemeinsame
+          Familienadresse nicht die Anmeldung eines Kindes als eigene ausgibt, prüft er dabei in der
+          Mitgliederliste, ob noch jemand diese Adresse nutzt, und vergleicht dann zusätzlich den
+          Vornamen.
+        </Text>
+        <Text>
+          Außerdem enthält die Liste Altleitende und weitere regelmäßig beteiligte Personen, die der
+          Protokoll-Editor neben den Leitenden aus unserer Entra-Gruppe für Sitzungsleitung,
+          Protokoll, Anwesende und Zuständige anbietet. Wir speichern die Liste in Azure SQL mit
+          Name, Gruppe (Leitende, Altleitende oder Weitere), gegebenenfalls dem Microsoft-Konto,
+          gegebenenfalls der Kennung der Person in CampFlow, ob die Person angeboten wird, sowie
+          wann und von wem der Eintrag zuletzt geändert wurde. Sie ist nur im angemeldeten
+          Leitendenbereich sichtbar und wird dort gepflegt; ein gelöschter Eintrag verschwindet aus
+          der Auswahl und der Zuordnung, bereits geschriebene Protokolle behalten den Namen. Wir
+          nutzen die Liste zur Organisation unserer Leitendenrunde und unserer Aktionen (§ 6 KDG,
+          berechtigtes Interesse).
         </Text>
       </InfoCard>
 

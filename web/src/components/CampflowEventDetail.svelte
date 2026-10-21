@@ -29,6 +29,7 @@
     kenntAlle,
   } from '../lib/aktionBeitraege';
   import { statusLabel } from '../lib/beitraege';
+  import { isIchCampflow } from '../lib/ichStore.svelte';
   import { formatDateTime, formatEuro } from '../lib/format';
   import type { CampflowPerson } from '../lib/types';
   import CampflowPersonDetails from './CampflowPersonDetails.svelte';
@@ -462,6 +463,9 @@
                             />
                           {:else if column.key === 'name'}
                             <span class="font-semibold text-brand-900">{column.text(person)}</span>
+                            {#if isIchCampflow(person, detail.ich)}
+                              <span class="text-neutral-700">(ich)</span>
+                            {/if}
                           {:else if column.key === 'beitrag'}
                             {@const fees = beitraegeOf(beitraegeDaten, person)}
                             {#if fees && fees.length > 0}
@@ -514,8 +518,11 @@
                     onclick={() => (selected = person)}
                   >
                     <span class="flex items-start justify-between gap-3">
-                      <span class="font-semibold text-brand-900 group-hover:underline"
-                        >{formatName(person)}</span
+                      <span
+                        ><span class="font-semibold text-brand-900 group-hover:underline"
+                          >{formatName(person)}</span
+                        >{#if isIchCampflow(person, detail.ich)}
+                          <span class="text-neutral-700">(ich)</span>{/if}</span
                       >
                       <span class="text-sm"
                         ><StatusLabel
@@ -559,6 +566,7 @@
         {event}
         columns={detail.columns}
         beitraege={selected ? beitraegeOf(beitraegeDaten, selected) : undefined}
+        eigene={detail.ich}
         onclose={() => (selected = null)}
       />
     {/snippet}

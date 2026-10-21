@@ -183,11 +183,21 @@ export const STAFF_MODULES: StaffModule[] = [
   },
   {
     href: '/leitendenbereich/personen',
-    title: 'Weitere Personen',
+    title: 'Personen',
     description:
-      'Altleitende und andere regelmäßig Beteiligte, die im Protokoll zur Auswahl stehen.',
-    intro: 'Wer hier steht, lässt sich im Protokoll neben den Leitenden auswählen.',
-    keywords: ['altleitende', 'protokoll', 'gäste'],
+      'Leitende mit ihrer Person in CampFlow verknüpfen, Altleitende und weitere Beteiligte pflegen.',
+    intro:
+      'Über die Verknüpfung erkennen die Module dich in CampFlow, z. B. mit „(ich)“ in Teilnehmendenlisten. Altleitende und andere, die oft dabei sind, bietet der Protokoll-Editor neben den Leitenden zur Auswahl an.',
+    keywords: [
+      'altleitende',
+      'protokoll',
+      'gäste',
+      'campflow',
+      'microsoft',
+      'konto',
+      'verknüpfen',
+      'weitere personen',
+    ],
     icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8v6M22 11h-6',
   },
   {

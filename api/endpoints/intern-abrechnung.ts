@@ -11,6 +11,7 @@ import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import type { EinzelnachweiseResponse } from '../lib/playwright-api';
 import { getEinzelnachweise, playwrightErrorResponse } from '../lib/playwright-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { eigeneAnmeldungen } from '../lib/personen';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 
 const MAX_COST_UNIT_LENGTH = 200;
@@ -30,6 +31,12 @@ export interface Abrechnung {
   costUnit: { id: string; name: string };
   /** Only the fields relevant for the Abrechnung and the KJR's Teilnahmeliste. */
   persons: AbrechnungPerson[];
+  /**
+   * IDs of the own registrations, matched on the server by the primary address of the linked
+   * CampFlow person, so the page marks them with „(ich)“ without getting any address; `null`
+   * when nothing could be compared, then the page goes by the names.
+   */
+  ich: string[] | null;
   bilanz: Bilanz;
   nachweise: Nachweis[];
   /** When the Einzelnachweise were exported from CampFlow (ISO 8601), if the API reports it. */
@@ -93,6 +100,8 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
   const { event, persons } = loaded;
 
   const costUnit = requested || costUnitForEvent(event);
+  // Started now, so it runs while the Einzelnachweise load; it has a time limit of its own
+  const ich = eigeneAnmeldungen(principal.userDetails, persons);
   let report: EinzelnachweiseResponse;
   try {
     report = await getEinzelnachweise(costUnit, {
@@ -112,6 +121,7 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
     },
     costUnit: report.costUnit,
     persons: kjrPersons(persons, event.start_date),
+    ich: await ich,
     bilanz: summarizeEntries(report.entries),
     nachweise: toNachweise(report.entries),
     exportedAt: validTimestamp(report.exportedAt),

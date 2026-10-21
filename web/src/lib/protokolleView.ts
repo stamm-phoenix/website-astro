@@ -9,6 +9,8 @@ export interface ProtokollRecipient {
   email: string;
   name: string;
   reasons: string[];
+  /** The own address, matched on the server by the linked CampFlow person. */
+  ich?: boolean;
 }
 
 /** Answer of the `preview` action of both delivery endpoints. */

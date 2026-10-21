@@ -13,6 +13,7 @@
     type BeitragFilter,
   } from '../../lib/beitraege';
   import type { Beitrag } from '../../lib/types';
+  import { isIch } from '../../lib/ichStore.svelte';
 
   interface Props {
     fees: Beitrag[];
@@ -120,7 +121,10 @@
         {@const state = statusLabel(fee)}
         <li class="flex flex-col gap-1 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
           <div class="min-w-0">
-            <p class="font-semibold text-brand-900">{fee.payer || 'Ohne Namen'}</p>
+            <p class="font-semibold text-brand-900">
+              {fee.payer || 'Ohne Namen'}{#if isIch({ name: fee.payer })}
+                <span class="font-normal text-neutral-700">(ich)</span>{/if}
+            </p>
             <p class="text-sm text-neutral-700">
               {[fee.costUnit?.name, fee.description].filter(Boolean).join(' · ')}
             </p>

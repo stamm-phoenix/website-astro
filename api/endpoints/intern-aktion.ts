@@ -9,10 +9,11 @@ import {
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { getAktionArt } from '../lib/aktion-art';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
+import { eigeneAnmeldungen } from '../lib/personen';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
-/** A single CampFlow event with its custom fields and participants. */
+/** A single CampFlow event with its custom fields, participants and the own registrations. */
 export async function GetInternAktionEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const principal = requireStaff(request);
   if (isStaffError(principal)) return principal;
@@ -42,6 +43,8 @@ export async function GetInternAktionEndpoint(request: HttpRequest): Promise<Htt
         event: { ...event, ...(await getAktionArt(id)) },
         columns,
         persons: persons.map(sanitizePerson),
+        // Own registrations, matched by address on the server for „(ich)“ (docs/personen.md)
+        ich: await eigeneAnmeldungen(principal.userDetails, persons),
       },
     };
   } catch (error: unknown) {
