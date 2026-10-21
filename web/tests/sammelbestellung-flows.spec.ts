@@ -164,3 +164,25 @@ test('a replacement article clears obsolete lookup warnings and re-added article
   });
   expect(result).toEqual({ first: ['removed-article'], obsolete: [], queried: true, errors: [] });
 });
+
+test('a new Sammelbestellung opens without a page reload or a discard prompt', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/leitendenbereich/sammelbestellungen');
+  await page.evaluate(() => {
+    (window as unknown as { sameDocument: boolean }).sameDocument = true;
+  });
+  await page.getByRole('button', { name: 'Neue Sammelbestellung', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Neue Sammelbestellung', exact: true });
+  await dialog
+    .getByLabel('Titel', { exact: true })
+    .fill(`TEST Weitergehen ${testInfo.project.name}`);
+  await dialog.getByLabel('Beginn').fill('2026-11-01T10:00');
+  await dialog.getByLabel('Ende').fill('2026-11-30T20:00');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/sammelbestellungen\/\d+\/?$/);
+  await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).toHaveCount(0);
+  expect(
+    await page.evaluate(() => (window as unknown as { sameDocument?: boolean }).sameDocument)
+  ).toBe(true);
+});

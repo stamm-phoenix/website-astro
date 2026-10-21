@@ -12,6 +12,22 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-21-01-ohne-neuladen',
+    date: '2026-10-21',
+    title: 'Weniger Neuladen beim Weitergehen',
+    changes: [
+      {
+        text: 'Ein neues Protokoll öffnet sich zum Schreiben, ohne dass die Seite neu lädt. Das gilt auch für den Weg zurück zur Liste nach dem Löschen.',
+        href: '/leitendenbereich/protokolle',
+      },
+      {
+        text: 'Nach dem Anlegen einer Sammelbestellung geht die Seite der neuen Bestellung ohne Neuladen auf.',
+        href: '/leitendenbereich/sammelbestellungen',
+      },
+      'Nach dem Löschen eines Blogbeitrags kommst du ohne Neuladen zurück zur Liste.',
+    ],
+  },
+  {
     id: '2026-10-20-06-bedienung',
     date: '2026-10-20',
     title: 'Am Handy schneller ans Ziel',
