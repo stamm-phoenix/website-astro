@@ -19,6 +19,8 @@
     resetAbrechnungSession,
     storeAbrechnungSession,
     loadAbrechnungSession,
+    refreshAbrechnungSession,
+    abrechnungSessionReusable,
     saveAbrechnungSession,
     rescueAbrechnungSession,
     restoreAbrechnungRescue,
@@ -179,6 +181,8 @@
     // The account the drafts of the Abrechnung are saved for
     void fetchPrincipal();
     if (!session) return;
+    // Kept from the last visit: shown at once, and checked against the saved version
+    if (abrechnungAblage[eventId]?.loaded) void refreshAbrechnungSession(eventId);
     // Only entries the browser could not keep on this device get lost when leaving
     const stopGuard = guardUnsavedChanges(
       () =>
@@ -187,8 +191,10 @@
     );
     return () => {
       stopGuard();
-      // The next visit restores what this device kept (nothing if it could not keep anything)
-      resetAbrechnungSession(eventId);
+      // Entries without unsaved changes stay for the next visit, which shows them at once and
+      // checks them against the server. Anything else is forgotten, so the next visit loads the
+      // saved entries again (leaving with unsaved changes was confirmed).
+      if (!abrechnungSessionReusable(eventId)) resetAbrechnungSession(eventId);
     };
   });
 

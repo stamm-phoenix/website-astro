@@ -243,6 +243,69 @@ export async function loadAbrechnungSession(eventId: string): Promise<void> {
   }
 }
 
+const CONFLICT_MESSAGE =
+  'Du hast die Eingaben inzwischen auf einem anderen Gerät geändert. Hier wurde nichts überschrieben. Kopiere deine neuen Angaben und lade dann die gespeicherte Fassung.';
+
+/**
+ * Asks the server again for the entries of a session kept from an earlier visit, while they stay
+ * shown and editable. A newer saved version replaces them only while nothing was changed here;
+ * a change made meanwhile is kept and the page reports the conflict, as a failed save would.
+ * A failed request changes nothing: saving still checks the version.
+ */
+export async function refreshAbrechnungSession(eventId: string): Promise<void> {
+  const state = abrechnungAblage[eventId];
+  if (!state?.loaded || state.saving || state.conflict) return;
+  const etag = state.etag;
+  let saved: AbrechnungEingabe;
+  try {
+    saved = await fetchApi<AbrechnungEingabe>(
+      `/intern/abrechnung/${encodeURIComponent(eventId)}/eingaben`
+    );
+  } catch {
+    return;
+  }
+  const target = abrechnungSessions[eventId];
+  // A save, a reset or a newer load meanwhile has a newer answer than this one
+  if (!target || abrechnungAblage[eventId] !== state || state.saving || state.etag !== etag) return;
+  if (state.conflict) return;
+  if (saved.etag === etag) {
+    state.savedAt = saved.savedAt;
+    state.deleteAfter = saved.deleteAfter;
+    return;
+  }
+  if (JSON.stringify(target) === storedJson[eventId]) {
+    Object.assign(target, saved.session);
+    storedJson[eventId] = JSON.stringify(saved.session);
+    Object.assign(state, {
+      etag: saved.etag,
+      savedAt: saved.savedAt,
+      deleteAfter: saved.deleteAfter,
+      dirty: false,
+      error: null,
+    });
+  } else {
+    state.conflict = true;
+    state.error = CONFLICT_MESSAGE;
+  }
+}
+
+/**
+ * Whether the session of an Aktion can stay in memory after leaving its page, to be shown at once
+ * on the next visit: only one that is loaded and has nothing unsaved, failed or running.
+ */
+export function abrechnungSessionReusable(eventId: string): boolean {
+  const state = abrechnungAblage[eventId];
+  return (
+    !!state &&
+    state.loaded &&
+    !state.dirty &&
+    !state.saving &&
+    !state.conflict &&
+    state.error === null &&
+    JSON.stringify(abrechnungSessions[eventId]) === storedJson[eventId]
+  );
+}
+
 /** Tracks edits; saving is explicit so a failed request never masquerades as a saved change. */
 export function storeAbrechnungSession(eventId: string): void {
   const session = abrechnungSessions[eventId];
@@ -288,7 +351,7 @@ export async function saveAbrechnungSession(
   } catch (error) {
     state.conflict = error instanceof ApiError && [409, 412].includes(error.status);
     state.error = state.conflict
-      ? 'Du hast die Eingaben inzwischen auf einem anderen Gerät geändert. Hier wurde nichts überschrieben. Kopiere deine neuen Angaben und lade dann die gespeicherte Fassung.'
+      ? CONFLICT_MESSAGE
       : errorMessage(
           error,
           'Die Eingaben wurden nicht gespeichert. Sie bleiben auf dieser Seite erhalten. Prüfe die Verbindung und tippe noch einmal auf „Eingaben speichern“.'
