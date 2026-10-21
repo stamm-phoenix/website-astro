@@ -22,7 +22,11 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: 'Die Liste der Protokolle lädt schneller.',
         href: '/leitendenbereich/protokolle',
       },
-      'Ein Protokoll im Protokoll-Editor geht schneller auf.',
+      'Ein Protokoll im Protokoll-Editor und ein Blogbeitrag im Editor gehen schneller auf.',
+      'Die Startseite zeigt deine Favoriten schneller und baut sie beim erneuten Öffnen nicht neu auf.',
+      'Anwesenheit, Protokolle, Sammelbestellungen, Blog und Abrechnung zeigen beim erneuten Öffnen sofort den zuletzt geladenen Stand und holen den neuesten dahinter.',
+      'Die Seiten des Nikolausdienstes und die Listen von Belegen, Aufgaben, Fragen und Blog laden schneller.',
+      'Belege, Eigenbeleg, Fotos und Aufgaben laden die Aktionen aus CampFlow erst nach ihren eigenen Daten, damit die Seite schneller da ist.',
     ],
   },
   {
