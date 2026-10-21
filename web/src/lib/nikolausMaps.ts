@@ -49,7 +49,28 @@ export function slotLabel(slotKey: string): string {
   return time ? `${time}–${minutesToTime(timeToMinutes(time) + NIKOLAUS_SLOT_MINUTES)}` : '';
 }
 
-/** Google Maps navigation from the current position to the given destination. */
-export function navigationLink(destination: string): string {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+/**
+ * Whether links open Apple Maps: on an iPhone, an iPad (which reports itself as a Mac) and a Mac
+ * the Maps app is always there; everything else gets Google Maps.
+ */
+export function prefersAppleMaps(
+  userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent
+): boolean {
+  return /iPhone|iPad|iPod|Macintosh/.test(userAgent);
+}
+
+/** Navigation from the current position to the given destination, in Apple or Google Maps. */
+export function navigationLink(destination: string, apple = prefersAppleMaps()): string {
+  const target = encodeURIComponent(destination);
+  return apple
+    ? `https://maps.apple.com/?daddr=${target}&dirflg=d`
+    : `https://www.google.com/maps/dir/?api=1&destination=${target}&travelmode=driving`;
+}
+
+/** A point on the map, in Apple or Google Maps. */
+export function placeLink(lat: number, lon: number, apple = prefersAppleMaps()): string {
+  const point = `${lat},${lon}`;
+  return apple
+    ? `https://maps.apple.com/?ll=${point}&q=${encodeURIComponent(point)}&z=17`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(point)}`;
 }

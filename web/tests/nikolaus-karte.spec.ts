@@ -41,3 +41,34 @@ test('a failed copyright notice is asked again without zooming', async ({ page }
   await expect(attribution).toContainText('TomTom', { timeout: 15_000 });
   expect(calls).toBe(2);
 });
+
+test('a late notice of another zoom level does not replace the shown one', async ({ page }) => {
+  let releaseLate: (() => void) | undefined;
+  // No level is held back until the test zooms out
+  let lateZoom = -1;
+  const asked: number[] = [];
+  await page.route('**/api/karte-quelle/**', async (route) => {
+    const zoom = Number(new URL(route.request().url()).pathname.split('/').pop());
+    asked.push(zoom);
+    const copyrights = [`Stufe ${zoom}`];
+    if (zoom === lateZoom) await new Promise<void>((resolve) => (releaseLate = resolve));
+    return route.fulfill({ status: 200, json: { copyrights } });
+  });
+  await page.goto('/leitendenbereich/nikolaus-dispo');
+  const map = page.locator('.dispo-map');
+  const attribution = map.locator('.leaflet-control-attribution');
+  await expect(attribution).toContainText('Stufe');
+  const shownZoom = asked[asked.length - 1];
+  await expect(attribution).toContainText(`Stufe ${shownZoom}`);
+
+  // Zoom out, and back in before the answer for the other level arrives
+  lateZoom = shownZoom - 1;
+  await map.getByRole('button', { name: 'Zoom out' }).click();
+  await expect.poll(() => releaseLate !== undefined).toBe(true);
+  await map.getByRole('button', { name: 'Zoom in' }).click();
+  await page.waitForTimeout(500);
+  releaseLate?.();
+  await page.waitForTimeout(500);
+  await expect(attribution).toContainText(`Stufe ${shownZoom}`);
+  await expect(attribution).not.toContainText(`Stufe ${lateZoom}`);
+});

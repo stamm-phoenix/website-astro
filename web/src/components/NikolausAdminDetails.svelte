@@ -19,6 +19,7 @@
   import { ApiError, errorMessage, sendApi } from '../lib/api';
   import TagInput from './pflege/TagInput.svelte';
   import { confirmAction } from '../lib/confirm';
+  import { placeLink } from '../lib/nikolausMaps';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
   import { fetchNikolausOverview, nikolausAdminStore } from '../lib/nikolausAdminStore.svelte';
 
@@ -176,9 +177,7 @@
   }
 
   const mapUrl = $derived(
-    booking?.location
-      ? `https://www.openstreetmap.org/?mlat=${booking.location.lat}&mlon=${booking.location.lon}#map=17/${booking.location.lat}/${booking.location.lon}`
-      : null
+    booking?.location ? placeLink(booking.location.lat, booking.location.lon) : null
   );
 </script>
 
