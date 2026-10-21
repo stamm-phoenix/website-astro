@@ -69,6 +69,24 @@ describe('Dispo map', () => {
     assert.deepEqual(pieces[2], path.slice(3));
   });
 
+  test('an earlier visit is not cut on the way back when that point lies closer', () => {
+    // Start → A → B → A → Start: the point on the way back lies right on A
+    const path: LatLon[] = [
+      [48, 11],
+      [48.05, 11.001],
+      [48.1, 11],
+      [48.05, 11],
+      [48, 11],
+    ];
+    const pieces = splitRoutePath(path, [
+      [48, 11],
+      [48.05, 11],
+      [48.1, 11],
+      [48, 11],
+    ]);
+    assert.deepEqual(pieces, [path.slice(0, 2), path.slice(1, 3), path.slice(2)]);
+  });
+
   test('a team gets one drive per visit plus the way back, with its times', () => {
     const stopsById = new Map([
       ['a', booking('a', [48.1, 11])],

@@ -32,6 +32,8 @@ export interface DispoMapStop {
   lateAfterSlot: number;
   fixed: boolean;
   visited: boolean;
+  /** Helpers of the team with a negative tag that matches the family. */
+  conflicts: { name: string; tags: string[] }[];
 }
 
 export interface DispoMapTeam {
@@ -53,30 +55,47 @@ function distance(a: LatLon, b: LatLon): number {
 }
 
 /**
- * Cuts the course of a whole route (base → visits → base) into one piece per drive. Each visit
- * is matched to the nearest point of the course after the previous visit, so a road passed
- * twice is cut in the right place. Without a course the drives are straight lines.
+ * Cuts the course of a whole route (base → visits → base) into one piece per drive. The cut
+ * points follow the course in route order and lie as close to the visits as possible taken
+ * together, so a road driven out and back is not cut on the way back for an earlier visit.
+ * Without a course the drives are straight lines.
  */
 export function splitRoutePath(path: LatLon[] | null, points: LatLon[]): LatLon[][] {
   if (points.length < 2) return [];
   if (!path || path.length < 2) {
     return points.slice(1).map((point, i) => [points[i], point]);
   }
-  const cuts = [0];
-  for (const point of points.slice(1, -1)) {
-    const from = cuts[cuts.length - 1];
-    let best = from;
-    let bestDistance = Infinity;
-    for (let i = from; i < path.length; i++) {
-      const d = distance(path[i], point);
-      if (d < bestDistance) {
-        best = i;
-        bestDistance = d;
+  const visits = points.slice(1, -1);
+  // cost[i]: smallest total distance of the visits so far with the last one cut at path[i];
+  // from[v][i]: where the visit before was cut for that
+  let cost: number[] = path.map((_, i) => (i === 0 ? 0 : Infinity));
+  const from: number[][] = [];
+  for (const visit of visits) {
+    const next: number[] = [];
+    const back: number[] = [];
+    let best = Infinity;
+    let bestAt = 0;
+    for (let i = 0; i < path.length; i++) {
+      if (cost[i] < best) {
+        best = cost[i];
+        bestAt = i;
       }
+      next.push(best + distance(path[i], visit));
+      back.push(bestAt);
     }
-    cuts.push(best);
+    cost = next;
+    from.push(back);
   }
-  cuts.push(path.length - 1);
+  const cuts = [path.length - 1];
+  if (visits.length > 0) {
+    let at = 0;
+    for (let i = 1; i < cost.length; i++) if (cost[i] < cost[at]) at = i;
+    for (let v = visits.length - 1; v >= 0; v--) {
+      cuts.unshift(at);
+      at = from[v][at];
+    }
+  }
+  cuts.unshift(0);
   return cuts.slice(1).map((cut, i) => {
     const piece = path.slice(cuts[i], cut + 1);
     // A visit right on the previous point still gets a line between the two places
@@ -95,6 +114,7 @@ interface TeamSource {
   path: LatLon[] | null;
   fixed: Record<string, string>;
   visited: ReadonlySet<string>;
+  conflicts?: (booking: StaffNikolausBooking, team: string) => DispoMapStop['conflicts'];
 }
 
 /** Everything the map shows of one team: its visits and its drives with their times. */
@@ -123,6 +143,7 @@ export function dispoMapTeam(source: TeamSource): DispoMapTeam {
       lateAfterSlot: planned.lateAfterSlot,
       fixed: source.fixed[planned.id] === route.team,
       visited: source.visited.has(planned.id),
+      conflicts: source.conflicts?.(booking, route.team) ?? [],
     });
   });
 

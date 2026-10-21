@@ -23,7 +23,7 @@
   import { fetchNikolausDispo, nikolausDispoStore } from '../lib/nikolausDispoStore.svelte';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import type { StaffNikolausDispoData, StaffNikolausDispoSaved } from '../lib/types';
-  import { toProblem, restoreDispoDraft } from '../lib/nikolausDispoPlan';
+  import { toProblem, restoreDispoDraft, tagConflicts } from '../lib/nikolausDispoPlan';
 
   import NikolausDispoMap from './NikolausDispoMap.svelte';
   import type { DispoMapRoute } from './NikolausDispoMap.svelte';
@@ -123,6 +123,7 @@
         path: routePaths.path(date, route.team, assignment[route.team]),
         fixed,
         visited,
+        conflicts: (booking, team) => tagConflicts(data, booking, team),
       })
     );
   });
