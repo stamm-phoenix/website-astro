@@ -173,12 +173,19 @@ export function toggleFavorite(path: string, title?: string): void {
 }
 
 /**
- * The action of a long press on an area: toggling it as a favorite, once the favorites are
- * loaded and if it can be one (the Nikolaus modules cannot, they are only there in winter).
- * No choosing while they load, so a late answer cannot replace a newer choice.
+ * Whether the favorites can be changed: only while the shown ones are the last answer of the
+ * server. Not while they load or after a failed reload, so a choice never starts from an older
+ * selection than one saved meanwhile on another device; they stay shown meanwhile.
+ */
+export function canChooseFavorites(): boolean {
+  return favoritesStore.loaded && !favoritesStore.loading && favoritesStore.loadError === null;
+}
+
+/**
+ * The action of a long press on an area: toggling it as a favorite, while they can be changed
+ * and if it can be one (the Nikolaus modules cannot, they are only there in winter).
  */
 export function favoriteToggle(module: { href: string; title: string }): (() => void) | undefined {
-  if (!favoritesStore.loaded || favoritesStore.loading) return undefined;
-  if (!STAFF_FAVORITE_PATHS.includes(module.href)) return undefined;
+  if (!canChooseFavorites() || !STAFF_FAVORITE_PATHS.includes(module.href)) return undefined;
   return () => toggleFavorite(module.href, module.title);
 }

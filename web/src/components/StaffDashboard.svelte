@@ -5,6 +5,7 @@
   import { fetchPrincipal } from '../lib/authStore.svelte';
   import {
     favoritesStore,
+    canChooseFavorites,
     favoriteToggle,
     loadFavorites,
     toggleFavorite,
@@ -157,7 +158,7 @@
       >
       <span class="max-w-full break-words hyphens-auto">{@render moduleTitle(module)}</span>
     </a>
-    {#if favorite && !favoritesStore.loading}
+    {#if favorite && canChooseFavorites()}
       <!-- With a mouse on hover; on a touch screen a long press on the tile removes it -->
       <button
         type="button"

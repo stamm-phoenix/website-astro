@@ -206,3 +206,33 @@ test('dashboard shows upcoming actions and concrete tasks independently of a fai
   await expect(tasks.getByRole('link', { name: 'Küche vorbereiten', exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
+
+test('after a failed reload the favorites cannot be changed until they load again', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich');
+  const star = page.getByRole('button', { name: 'Aufgaben als Favorit' });
+  await expect(star.first()).toBeAttached();
+
+  // Back on the start page without a full load, the favorites do not load
+  await page.route('**/api/intern/favoriten', (route) =>
+    route.request().method() === 'GET' ? route.fulfill({ status: 503 }) : route.fallback()
+  );
+  await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/aufgaben/);
+  const failed = page.waitForResponse(
+    (response) => response.url().endsWith('/api/intern/favoriten') && response.status() === 503
+  );
+  await page.goBack();
+  await failed;
+  // Another device may have changed them meanwhile, so the old selection is not saved over them
+  await expect(star).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /aus deinen Favoriten entfernen/ })).toHaveCount(0);
+
+  await page.unroute('**/api/intern/favoriten');
+  await page
+    .getByRole('region', { name: 'Deine Bereiche' })
+    .getByRole('button', { name: 'Erneut versuchen' })
+    .click();
+  await expect(star.first()).toBeAttached();
+});
