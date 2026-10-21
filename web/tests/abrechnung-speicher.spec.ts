@@ -349,3 +349,57 @@ test('accounting recovery is not applied to a different account after login', as
     'Deine Eingaben wurden nach der Anmeldung wiederhergestellt'
   );
 });
+
+test('an amount typed while a revisit checks the saved entries is not saved over a newer version', async ({
+  page,
+}) => {
+  await page.goto(`${URL}?tab=nachweise`);
+  const row = page
+    .getByRole('row', { name: /2026-103/ })
+    .getByRole('button', { name: /Zeltplatz/ });
+  const dialog = page.getByRole('dialog', { name: 'Beleg 2026-103' });
+  const amount = dialog.getByRole('textbox', { name: /Betrag der/ });
+  const save = page.getByRole('button', { name: 'Eingaben speichern' });
+  await row.click();
+  await amount.fill('11,11');
+  await dialog.getByRole('button', { name: 'Betrag übernehmen' }).click();
+  await save.click();
+  await expect
+    .poll(async () => Object.keys((await (await page.request.get(API)).json()).session.betraege))
+    .toHaveLength(1);
+  const first = await (await page.request.get(API)).json();
+  const [key, cent] = Object.entries(first.session.betraege as Record<string, number>)[0];
+
+  // Left and opened again: the entries of the last visit show at once while they are checked
+  await page.getByRole('link', { name: 'Abrechnung', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung\/?$/);
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/eingaben', async (route) => {
+    if (route.request().method() === 'GET') await held;
+    await route.fallback();
+  });
+  await page.goBack();
+  await row.click();
+  await expect(amount).toHaveValue('11,11');
+  await amount.fill('15,00');
+
+  // Meanwhile another device saves a different amount for the same receipt
+  first.session.betraege[key] = cent * 2;
+  expect(
+    (await page.request.put(API, { data: { session: first.session, etag: first.etag } })).ok()
+  ).toBe(true);
+  const checked = page.waitForResponse(
+    (response) => response.url().endsWith('/eingaben') && response.request().method() === 'GET'
+  );
+  release();
+  await checked;
+  await dialog.getByRole('button', { name: 'Betrag übernehmen' }).click();
+
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Du hast die Eingaben inzwischen auf einem anderen Gerät geändert.'
+  );
+  await expect(save).toBeDisabled();
+  const saved = await (await page.request.get(API)).json();
+  expect(saved.session.betraege[key]).toBe(cent * 2);
+});
