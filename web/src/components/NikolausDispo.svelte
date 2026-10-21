@@ -148,10 +148,15 @@
     element.querySelector<HTMLElement>('select')?.focus({ preventScroll: true });
   }
 
-  function showOnMap(id: string): void {
+  async function showOnMap(id: string): Promise<void> {
     mapFocus = id;
     selectView('karte');
     window.scrollTo({ top: 0 });
+    // The pressed button is hidden with the list; keep the keyboard at the same visit
+    await tick();
+    document
+      .querySelector<HTMLElement>(`#dispo-map-item-${CSS.escape(id)} button`)
+      ?.focus({ preventScroll: true });
   }
 
   /** Builds the working state from the loaded data: the saved Dispo or a new suggestion. */
@@ -487,7 +492,7 @@
                 {date}
                 onteam={changeTeam}
                 onpin={toggleFixed}
-                onmap={showOnMap}
+                onmap={(id) => void showOnMap(id)}
                 km={teamKmLabel(
                   mapTeams.find((team) => team.name === route.team) ?? {
                     km: null,
