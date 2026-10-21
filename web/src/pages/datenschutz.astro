@@ -11,8 +11,6 @@ import { getVorstandContent } from '../lib/content/content';
 
 // Baked at build time, refreshed in the browser
 const vorstand = await getVorstandContent();
-
-const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
 ---
 
 <BaseLayout
@@ -371,14 +369,10 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
           Um die Adresse auf einer Karte anzuzeigen und die Touren zu planen, schickt unser Server
           sie (Straße, Hausnummer, Postleitzahl und Ort, ohne deinen Namen) an den Kartendienst
           Microsoft Azure Maps. Für die Fahrzeiten und Wege der Touren gehen nur die Koordinaten an
-          Azure Maps. Microsoft verarbeitet diese Anfragen für uns in Rechenzentren in Europa. Die
-          Kartenausschnitte lädt dein Browser direkt von OpenStreetMap (tile.openstreetmap.org);
-          dabei werden deine IP-Adresse, der angezeigte Kartenausschnitt und die Adresse unserer
-          Website (ohne die aufgerufene Seite) an die OpenStreetMap Foundation übermittelt. Ihre{' '}
-          <TextLink href={OSM_PRIVACY_URL} external>
-            Datenschutzerklärung
-          </TextLink>{' '}
-          gilt zusätzlich.
+          Azure Maps. Auch die Kartenausschnitte holt unser Server von Azure Maps und gibt sie an
+          deinen Browser weiter; dein Browser verbindet sich dafür nur mit unserer Website, deine
+          IP-Adresse erfährt Microsoft dabei nicht. Microsoft verarbeitet diese Anfragen für uns in
+          Rechenzentren in Europa.
         </Text>
         <Text class="mt-3">
           Für Notfälle am Besuchstag tragen wir Name und Handynummer einer verantwortlichen Person

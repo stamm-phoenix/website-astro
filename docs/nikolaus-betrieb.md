@@ -86,7 +86,7 @@ Eine Zulassung wird bei Fehlern, Konflikten, ungewissen Graph-Antworten oder ein
 
 ## Kartendienst Azure Maps
 
-Seit #187 verortet Azure Maps die Adressen (Karte im Buchungsformular, Speichern einer Buchung, Leitendenbereich) und liefert der Dispo die Fahrzeiten und die Straßenverläufe der Karte. Vorher waren das OpenStreetMap Nominatim und OpenRouteService. Die Kartenkacheln kommen weiter von OpenStreetMap; die Umstellung ist #408.
+Seit #187 verortet Azure Maps die Adressen (Karte im Buchungsformular, Speichern einer Buchung, Leitendenbereich) und liefert der Dispo die Fahrzeiten und die Straßenverläufe der Karte. Vorher waren das OpenStreetMap Nominatim und OpenRouteService. Seit #408 kommen auch die Kartenkacheln beider Karten von Azure Maps statt von OpenStreetMap (siehe „Kartenkacheln“).
 
 ### Einrichtung
 
@@ -129,6 +129,16 @@ Gefundene Orte stehen 24 Stunden in `geocoding:azure-maps` in `nikolaus.state`, 
 - Schlägt ein Block oder eine einzelne Zelle fehl oder brauchen alle Blöcke zusammen länger als 25 Sekunden, gilt für diesen Abruf die Luftlinien-Schätzung (Faktor 1,4, 35 km/h), und die Dispo zeigt „geschätzt“; der nächste Abruf holt nur das Fehlende. Paare, zwischen denen Azure Maps ausdrücklich keine Route findet, werden einzeln geschätzt. Jede Fahrt bekommt zwei Minuten zum Parken dazu.
 - Die Straßenverläufe der Karte kommen aus Route Directions mit bis zu 150 Punkten pro Team, sonst zeichnet die Karte gerade Linien.
 
+### Kartenkacheln
+
+Die Adresskarte (Buchungsformular, Terminseite der Familien, Leitendenbereich) und die Karte der Dispo laden ihre Kacheln von `/api/karte/<hell|dunkel>/<z>/<x>/<y>.png`; im dunklen Theme den Stil `microsoft.base.darkgrey`, sonst `microsoft.base.road` (Render API `2024-04-01`, deutsche Beschriftung). Die API holt jede Kachel mit derselben Anmeldung von Azure Maps (`api/lib/map-tiles.ts`). Der Browser verbindet sich so nur mit unserer Website, und kein Schlüssel landet dort.
+
+- **Gebiet:** Nur Kacheln, die das Quadrat von 40 km um den Startpunkt der Teams berühren (`CONFIG.mapTiles.areaRadiusKm`), bis Zoom 19, und nur solange Online-Anmeldung oder Nikolausverwaltung eingeschaltet sind. Alles andere antwortet 404, die Karte zeigt dort leere Flächen.
+- **Limit:** höchstens 5.000 Kacheln pro Tag und Instanz (`CONFIG.mapTiles.maxRequestsPerDay`), danach 503 und das Log-Ereignis `scope=map_tiles`, `event=limit`.
+- **Zwischenspeichern:** Die [Product Terms von Azure Maps](https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure/MCA) erlauben Caching nur zur Verringerung der Latenz und verbieten, gecachte Ergebnisse an mehrere Nutzende auszuliefern. Die API speichert deshalb keine Kacheln, und die Antworten sind `Cache-Control: private` mit der Gültigkeit, die Azure Maps angibt (höchstens ein Tag). Cloudflare darf sie nicht für alle cachen; eine Cache-Regel für `/api/karte/*` darf es dort nicht geben.
+- **Namensnennung:** Die Bedingungen verlangen den Text der API „Get Map Attribution“. Die Karte lädt ihn pro Zoomstufe von `/api/karte-quelle/<stil>/<z>` (in der API eine Stunde gemerkt) und zeigt ihn neben „© Microsoft“, z. B. „©2026 TomTom“ und ab Zoom 17 „©2026 OSM“.
+- **Keine fremden Karten:** Ergebnisse von Azure Maps (Orte, Routen) dürfen nicht auf Karten anderer Anbieter gezeigt werden. Beide Karten nutzen deshalb nur noch Azure-Maps-Kacheln. Offen ist der Link „Karte“ in den Details einer Anmeldung im Leitendenbereich: Er öffnet die von Azure Maps ermittelten Koordinaten auf openstreetmap.org.
+
 ### Kosten (Stand Oktober 2026)
 
 Laut [Preisliste](https://azure.microsoft.com/pricing/details/azure-maps/) und Retail Prices API sind pro Monat 5.000 Search-Transaktionen (Geocoding) und 1.000 Routing-Transaktionen frei, danach je 4,50 USD pro 1.000. Eine Matrix kostet eine Routing-Transaktion pro 4 Zellen, eine Route eine. Fehlerantworten (401, 403, 408, 429, 5xx) werden nicht berechnet.
@@ -142,6 +152,7 @@ Grobe Abschätzung für eine Saison mit drei Besuchstagen zu je etwa 30 Buchunge
 | Matrix, neue Buchung | Zeile und Spalte, etwa 62 Zellen | etwa 16 |
 | Matrix, Neustart oder nach 6 Stunden | wie erster Abruf | einige Male je Tag |
 | Routen der Karte | je Team und Änderung der Reihenfolge | einige Hundert |
+| Kartenkacheln | etwa 30 Kacheln je Kartenansicht, 15 Kacheln = 1 Transaktion; 5.000 Transaktionen (75.000 Kacheln) im Monat frei | meist im Freikontingent |
 
 Das ergibt grob 3.000 bis 6.000 Routing-Transaktionen pro Saison, also etwa 10 bis 25 USD über dem Freikontingent, getragen von der Nonprofit-Gutschrift. Für die Ressourcengruppe eine Budgetwarnung einrichten.
 

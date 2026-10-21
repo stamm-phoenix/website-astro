@@ -376,6 +376,22 @@ function requireLogin(req: MockRequest): MockResult | null {
 // ---------------------------------------------------------------------------------------------
 // Public content
 
+route('GET', '/api/karte-quelle/:style/:z', () => json({ copyrights: ['©2026 TomTom'] }), true);
+
+// Map tiles: a plain grid with the tile's coordinates instead of Azure Maps
+route(
+  'GET',
+  '/api/karte/:style/:z/:x/:y',
+  (req) => {
+    const dark = req.params.style === 'dunkel';
+    const label = `${req.params.z}/${req.params.x}/${req.params.y.replace(/\.png$/, '')}`;
+    return svg(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="${dark ? '#1c2630' : '#eef1ea'}" stroke="${dark ? '#33414f' : '#cfd6cc'}"/><text x="8" y="20" font-family="sans-serif" font-size="11" fill="${dark ? '#8796a5' : '#7b8577'}">${label}</text></svg>`
+    );
+  },
+  true
+);
+
 route('GET', '/api/gruppenstunden', () => json(publicGruppenstunden()));
 route(
   'GET',

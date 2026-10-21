@@ -73,6 +73,7 @@ import UpdateNikolausBookingEndpoint from './endpoints/nikolaus-manage-update';
 import RescheduleNikolausBookingEndpoint from './endpoints/nikolaus-manage-reschedule';
 import ResendNikolausLinkEndpoint from './endpoints/nikolaus-manage-resend-link';
 import GeocodeNikolausAddressEndpoint from './endpoints/nikolaus-geocode';
+import { KarteKachel, KarteQuelle } from './endpoints/karte-kachel';
 import { AltchaChallenge } from './endpoints/altcha';
 import { KontaktSend } from './endpoints/kontakt';
 import GetInternNikolausBookingsEndpoint from './endpoints/intern-nikolaus-bookings';
@@ -352,6 +353,22 @@ app.http('nikolausGeocode', {
   authLevel: 'anonymous',
   route: 'nikolaus/geocode',
   handler: GeocodeNikolausAddressEndpoint,
+});
+
+// Map tiles of the Nikolaus maps and their copyright notices from Azure Maps, so browsers load
+// them from our own origin
+app.http('karteKachel', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'karte/{style}/{z}/{x}/{y}',
+  handler: KarteKachel,
+});
+
+app.http('karteQuelle', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'karte-quelle/{style}/{z}',
+  handler: KarteQuelle,
 });
 
 // Proof of work for the public forms (Kontakt, Nikolaus booking, Sammelbestellung link request)

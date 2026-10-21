@@ -43,11 +43,13 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 /**
- * Sends a request and returns the parsed JSON answer, unchecked. The deadline also covers the
- * login. Errors carry only the HTTP status, never addresses or coordinates, so they can be
- * logged.
+ * Runs `read` on the answer within the deadline, which also covers the login and the body.
+ * Errors carry only the HTTP status, never addresses or coordinates, so they can be logged.
  */
-export async function requestAzureMaps(request: AzureMapsRequest): Promise<unknown> {
+async function withDeadline<T>(
+  request: AzureMapsRequest,
+  read: (response: Response) => Promise<T>
+): Promise<T> {
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_resolve, reject) => {
@@ -57,13 +59,50 @@ export async function requestAzureMaps(request: AzureMapsRequest): Promise<unkno
     }, request.timeoutMs);
   });
   try {
-    return await Promise.race([perform(request, controller.signal), deadline]);
+    return await Promise.race([
+      perform(request, controller.signal).then((response) => read(response)),
+      deadline,
+    ]);
   } finally {
     clearTimeout(timeout);
   }
 }
 
-async function perform(request: AzureMapsRequest, signal: AbortSignal): Promise<unknown> {
+/** Sends a request and returns the parsed JSON answer, unchecked. */
+export async function requestAzureMaps(request: AzureMapsRequest): Promise<unknown> {
+  return withDeadline(request, async (response) => {
+    try {
+      return (await response.json()) as unknown;
+    } catch {
+      throw new AzureMapsError('Unreadable answer of Azure Maps');
+    }
+  });
+}
+
+/** Sends a request for an image, such as a map tile, and returns its bytes and type. */
+export async function requestAzureMapsImage(
+  request: AzureMapsRequest
+): Promise<{ contentType: string; body: Buffer; maxAgeSeconds: number }> {
+  return withDeadline(request, async (response) => {
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!/^image\/(png|jpeg|webp)$/.test(contentType)) {
+      throw new AzureMapsError('Azure Maps returned no image');
+    }
+    try {
+      // How long the answer may be kept: the terms of Azure Maps allow no longer
+      const maxAge = /max-age=(\d+)/.exec(response.headers.get('cache-control') ?? '');
+      return {
+        contentType,
+        body: Buffer.from(await response.arrayBuffer()),
+        maxAgeSeconds: maxAge ? Number(maxAge[1]) : 0,
+      };
+    } catch {
+      throw new AzureMapsError('Unreadable answer of Azure Maps');
+    }
+  });
+}
+
+async function perform(request: AzureMapsRequest, signal: AbortSignal): Promise<Response> {
   const url = new URL(request.path, CONFIG.azureMaps.endpoint);
   url.searchParams.set('api-version', request.apiVersion);
   for (const [name, value] of Object.entries(request.query ?? {})) {
@@ -91,9 +130,5 @@ async function perform(request: AzureMapsRequest, signal: AbortSignal): Promise<
   }
   // 429: the rate limit of the account
   if (!response.ok) throw new AzureMapsError(`Azure Maps request failed: ${response.status}`);
-  try {
-    return (await response.json()) as unknown;
-  } catch {
-    throw new AzureMapsError('Unreadable answer of Azure Maps');
-  }
+  return response;
 }

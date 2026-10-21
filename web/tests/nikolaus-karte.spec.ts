@@ -1,0 +1,29 @@
+import { test, expect } from './fixtures';
+
+test('the maps load their tiles from our own site and follow the dark theme', async ({ page }) => {
+  const foreign: string[] = [];
+  page.on('request', (request) => {
+    const { hostname } = new URL(request.url());
+    if (request.resourceType() === 'image' && !['127.0.0.1', 'localhost'].includes(hostname))
+      foreign.push(hostname);
+  });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/leitendenbereich/nikolaus-dispo');
+  const map = page.locator('.dispo-map.leaflet-container');
+  await expect(map).toBeVisible();
+  await expect(map.locator('img.leaflet-tile').first()).toHaveAttribute(
+    'src',
+    /^\/api\/karte\/hell\/\d+\/\d+\/\d+\.png$/
+  );
+  // The copyright notice Azure Maps requires, next to our own
+  const attribution = map.locator('.leaflet-control-attribution');
+  await expect(attribution).toContainText('© Microsoft');
+  await expect(attribution).toContainText('TomTom');
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(map.locator('img.leaflet-tile').first()).toHaveAttribute(
+    'src',
+    /^\/api\/karte\/dunkel\//
+  );
+  expect(foreign).toEqual([]);
+});
