@@ -1,6 +1,5 @@
 import type { HttpResponseInit } from '@azure/functions';
 import { randomBytes } from 'node:crypto';
-import sharp from 'sharp';
 import {
   commitStagedBlob,
   deleteBlob,
@@ -184,6 +183,7 @@ export async function serveDownloadPreview(
 
 /** Scales a preview image (any format sharp reads) to the stored JPEGs. */
 export async function toPreviews(image: Uint8Array): Promise<Record<PreviewSize, Buffer>> {
+  const { default: sharp } = await import('sharp');
   const scale = (width: number): Promise<Buffer> =>
     sharp(image, { limitInputPixels: MAX_PREVIEW_PIXELS })
       .rotate()

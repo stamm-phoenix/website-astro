@@ -1,4 +1,3 @@
-import sharp from 'sharp';
 import { readLimited } from './response-utils';
 
 /**
@@ -71,6 +70,7 @@ async function loadScaledImage(url: string, size: ImageSize): Promise<ScaledImag
     return undefined;
   }
   const original = await readLimited(response, MAX_INPUT_BYTES);
+  const { default: sharp } = await import('sharp');
   const body = await sharp(original, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()
     .resize(MAX_SIZES[size], MAX_SIZES[size], { fit: 'inside', withoutEnlargement: true })

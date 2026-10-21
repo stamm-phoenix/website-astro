@@ -1,5 +1,4 @@
 import { randomInt } from 'node:crypto';
-import sharp from 'sharp';
 import { deleteBlob, getBlob, listBlobs, putBlob } from './blob-storage';
 
 /**
@@ -95,6 +94,7 @@ export async function readBelegPhoto(
   const full = await getBlob(belegBlobName(id, photo));
   if (!full) return undefined;
   let thumb: Buffer;
+  const { default: sharp } = await import('sharp');
   try {
     thumb = await sharp(full, { limitInputPixels: MAX_INPUT_PIXELS })
       .rotate()

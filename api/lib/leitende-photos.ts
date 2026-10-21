@@ -1,5 +1,4 @@
 import { randomInt } from 'node:crypto';
-import sharp from 'sharp';
 
 /** Edge length of the stored photos of the Leitende; the upload sends a square of 600 px. */
 export const PHOTO_SIZE = 300;
@@ -24,7 +23,8 @@ export function photoBlobName(id: number | string, file: string): string {
  * Scales a photo into a JPEG of at most `PHOTO_SIZE` px per side. Encoding it anew also drops
  * the metadata of the original (camera, location); `rotate` applies its orientation first.
  */
-export function toStoredPhoto(bytes: Uint8Array): Promise<Buffer> {
+export async function toStoredPhoto(bytes: Uint8Array): Promise<Buffer> {
+  const { default: sharp } = await import('sharp');
   return sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()
     .resize({ width: PHOTO_SIZE, height: PHOTO_SIZE, fit: 'inside', withoutEnlargement: true })
