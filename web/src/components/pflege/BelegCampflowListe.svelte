@@ -159,7 +159,9 @@
             <span class="shrink-0 sm:text-right">
               {#if beleg.status !== 'unbooked'}
                 <span class="block font-semibold tabular-nums text-brand-900">
-                  {formatEuro(Math.abs(beleg.amountCent))}
+                  {beleg.amountCent > 0 ? 'Einnahme · ' : ''}{formatEuro(
+                    Math.abs(beleg.amountCent)
+                  )}
                 </span>
               {/if}
               <StatusLabel label={state.label} tone={state.tone} dot />
