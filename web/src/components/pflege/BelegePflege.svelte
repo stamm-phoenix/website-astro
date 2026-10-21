@@ -311,14 +311,17 @@
         saved = etag;
       }
       const result = await sendApi<{
-        campflow: { number: string | null };
+        campflow: { state: string; number: string | null };
         created: boolean;
         deleted: boolean;
       }>('POST', `/intern/pflege/belege/${id}/campflow`, { etag, ...choice });
       const number = result?.campflow.number ?? '';
-      message = result?.deleted
-        ? `Beleg von ${shop} ist in CampFlow als ${number} gebucht und wurde hier gelöscht.`
-        : `Beleg von ${shop} ist in CampFlow als ${number} gebucht, aber mit einem früheren Stand. Er wurde danach geändert und bleibt deshalb hier, bis du CampFlow geprüft hast.`;
+      message =
+        result?.campflow.state !== 'Hochgeladen'
+          ? `Beleg von ${shop}: Gerade läuft ein weiterer Versuch, ihn zu übertragen. Lade die Seite gleich neu, um das Ergebnis zu sehen.`
+          : result?.deleted
+            ? `Beleg von ${shop} ist in CampFlow als ${number} gebucht und wurde hier gelöscht.`
+            : `Beleg von ${shop} ist in CampFlow als ${number} gebucht, aber mit einem früheren Stand. Er wurde danach geändert und bleibt deshalb hier, bis du CampFlow geprüft hast.`;
       form = null;
       await Promise.all([
         belegePflege.load({ force: true }),
@@ -391,7 +394,11 @@
       >Beleg einreichen</ActionButton
     >
     <a href="/leitendenbereich/eigenbeleg" class="btn-secondary">Eigenbeleg erstellen</a>
-    <ReloadButton resource={belegePflege} />
+    {#if view === 'campflow'}
+      <ReloadButton resource={uebertrageneBelege} />
+    {:else}
+      <ReloadButton resource={belegePflege} />
+    {/if}
   {/snippet}
 </StaffPageHead>
 <div class="space-y-6">

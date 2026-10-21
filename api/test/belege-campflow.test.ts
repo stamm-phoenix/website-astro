@@ -371,10 +371,12 @@ dbTest('a refused repeat keeps an unclear attempt unclear and its Kategorie', as
   const answers: Array<() => Response> = [
     () => Response.json({ error: 'Job exceeded 60000 ms' }, { status: 504 }),
     () => Response.json({ error: 'Kein CampFlow-Login' }, { status: 503 }),
+    () => Response.json({ error: 'Bitte in 90 Sekunden erneut versuchen' }, { status: 429 }),
     () => uploaded(false),
   ];
   const { context, blobs, calls } = setup(t, () => answers.shift()!());
   const etag = await store(blobs, 7);
+  assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
   assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
   assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
   assert.equal((await transferRow(7))?.state, 'Gestartet');
@@ -388,8 +390,60 @@ dbTest('a refused repeat keeps an unclear attempt unclear and its Kategorie', as
   const uploads = calls.filter((call) => call.method === 'POST');
   assert.deepEqual(
     uploads.map((call) => call.body?.category),
+    ['cat_Essen', 'cat_Essen', 'cat_Essen', 'cat_Essen']
+  );
+});
+
+dbTest('an older attempt never overwrites the result of a newer one', async (t) => {
+  const deferred = () => {
+    let resolve!: (response: Response) => void;
+    const promise = new Promise<Response>((done) => (resolve = done));
+    return { promise, resolve };
+  };
+  const first = deferred();
+  const second = deferred();
+  const answers: Array<() => Response | Promise<Response>> = [
+    () => first.promise,
+    () => second.promise,
+    () => uploaded(false),
+  ];
+  const { context, blobs, calls } = setup(t, () => answers.shift()!());
+  const etag = await store(blobs, 7);
+  const uploads = () => calls.filter((call) => call.method === 'POST');
+  const until = async (count: number) => {
+    while (uploads().length < count) await new Promise((resolve) => setTimeout(resolve, 10));
+  };
+
+  // A first attempt runs, a second one starts before it answers
+  const attempt1 = transfer(context, 7, { etag, ...CHOICE });
+  await until(1);
+  const attempt2 = transfer(context, 7, { etag, ...CHOICE });
+  await until(2);
+
+  // The first one is refused; the second still runs, so it stays unclear
+  first.resolve(Response.json({ error: 'Kategorie fehlt' }, { status: 404 }));
+  assert.equal((await attempt1).status, 502);
+  assert.equal((await transferRow(7))?.state, 'Gestartet');
+
+  // A third one with another Kategorie still books on the target of the running one
+  const attempt3 = await transfer(context, 7, {
+    etag,
+    costUnitId: 'cun_Lager',
+    categoryId: 'cat_Fahrt',
+  });
+  assert.equal(attempt3.status, 200, JSON.stringify(attempt3.jsonBody));
+  second.resolve(uploaded());
+  assert.equal((await attempt2).status, 200);
+
+  const row = await transferRow(7);
+  assert.equal(row?.state, 'Hochgeladen');
+  assert.equal(row?.category_id, 'cat_Essen');
+  assert.equal(row?.campflow_number, '2026-112');
+  assert.deepEqual(
+    uploads().map((call) => call.body?.category),
     ['cat_Essen', 'cat_Essen', 'cat_Essen']
   );
+  assert.deepEqual(await getBelege(), []);
 });
 
 dbTest('saving a receipt answers with the version it wrote', async (t) => {

@@ -36,7 +36,7 @@ import { errorResponse } from './response-utils';
  */
 
 /** Answers of the Playwright API that come before anything was written to CampFlow. */
-const NOTHING_WRITTEN = new Set([400, 401, 403, 404, 409, 413, 503]);
+const NOTHING_WRITTEN = new Set([400, 401, 403, 404, 409, 413, 429, 503]);
 /** The Playwright API limits file names to 200 characters and descriptions to 255. */
 const MAX_SHOP_IN_FILE_NAME = 80;
 const MAX_DESCRIPTION = 255;
@@ -146,7 +146,8 @@ function snapshot(beleg: StoredBeleg) {
 
 /**
  * Stores the attempt before CampFlow is called; a concurrent attempt makes it a conflict. After
- * an unclear attempt the details it sent stay: CampFlow may hold them already.
+ * an unclear attempt the details it sent stay: CampFlow may hold them already. Returns the
+ * version of the row this attempt wrote, which its result needs to be stored.
  */
 async function startAttempt(
   beleg: StoredBeleg,
@@ -154,7 +155,7 @@ async function startAttempt(
   fileName: string,
   previous: Selectable<BelegCampflowTable> | undefined,
   actor: string
-): Promise<void> {
+): Promise<Buffer> {
   const attempt = {
     state: 'Gestartet' as const,
     error: '',
@@ -173,28 +174,36 @@ async function startAttempt(
   const id = Number(beleg.id);
   if (!previous) {
     try {
-      await getDb()
+      const inserted = await getDb()
         .insertInto('organisation.beleg_campflow')
         .values({ beleg_id: id, ...values })
-        .execute();
+        .output('inserted.version')
+        .executeTakeFirstOrThrow();
+      return inserted.version;
     } catch (error: unknown) {
       // 2627: someone else started a transfer of this receipt at the same moment
       if (getSqlErrorNumber(error) === 2627) throw new VersionConflictError();
       throw error;
     }
-    return;
   }
-  const result = await getDb()
+  const updated = await getDb()
     .updateTable('organisation.beleg_campflow')
     .set(previous.state === 'Gestartet' ? attempt : values)
     .where('beleg_id', '=', id)
     .where('version', '=', previous.version)
+    .output('inserted.version')
     .executeTakeFirst();
-  if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
+  if (!updated) throw new VersionConflictError();
+  return updated.version;
 }
 
+/**
+ * Stores the result of the attempt that wrote `attempt`. If another attempt started meanwhile,
+ * the row is that one's: its own result counts, this one changes nothing.
+ */
 async function finishAttempt(
   id: number,
+  attempt: Buffer,
   values:
     | { state: 'Fehlgeschlagen' | 'Gestartet'; error: string }
     | {
@@ -219,7 +228,7 @@ async function finishAttempt(
         : { state: values.state, error: values.error.slice(0, 1000) }
     )
     .where('beleg_id', '=', id)
-    .where('state', '<>', 'Hochgeladen')
+    .where('version', '=', attempt)
     .execute();
 }
 
@@ -278,11 +287,11 @@ export async function transferBelegToCampflow(
           }
         : { ...choice, ...(await resolveChoice(choice)) };
     const fileName = row?.file_name ?? campflowFileName(beleg);
-    await startAttempt(beleg, target, fileName, row, actor);
+    const attempt = await startAttempt(beleg, target, fileName, row, actor);
 
     const photo = await readBelegPhoto(id, beleg.photo, 'photo');
     if (!photo) {
-      await finishAttempt(id, {
+      await finishAttempt(id, attempt, {
         state: wasUnclear ? 'Gestartet' : 'Fehlgeschlagen',
         error: 'Foto nicht gefunden',
       });
@@ -304,6 +313,7 @@ export async function transferBelegToCampflow(
       // An existing booking came from an earlier attempt, whose details the row keeps
       await finishAttempt(
         id,
+        attempt,
         {
           state: 'Hochgeladen',
           campflow_number: uploaded.number,
@@ -316,7 +326,7 @@ export async function transferBelegToCampflow(
       if (!(error instanceof PlaywrightApiError)) throw error;
       const definite = NOTHING_WRITTEN.has(error.status);
       const detail = error.detail || error.message;
-      await finishAttempt(id, {
+      await finishAttempt(id, attempt, {
         state: definite && !wasUnclear ? 'Fehlgeschlagen' : 'Gestartet',
         error: detail,
       });
@@ -338,12 +348,16 @@ export async function transferBelegToCampflow(
   if (!row) throw new RecordNotFoundError();
 
   // Only a receipt that still looks like what CampFlow got is deleted; a correction made after
-  // the upload stays, so the Kasse can fix CampFlow and then delete it by hand
-  let deleted = row.beleg_version.equals(requireVersion(etag));
+  // the upload stays, so the Kasse can fix CampFlow and then delete it by hand. If a newer
+  // attempt took over meanwhile, its result decides.
+  let deleted = row.state === 'Hochgeladen' && row.beleg_version.equals(requireVersion(etag));
   if (deleted) {
     try {
       await deleteBeleg(id, etag);
     } catch (error: unknown) {
+      // Gone already: an overlapping attempt for the same booking deleted it
+      if (error instanceof RecordNotFoundError)
+        return { campflow: toBelegCampflow(row), created, deleted: true };
       if (!(error instanceof VersionConflictError)) throw error;
       deleted = false;
     }

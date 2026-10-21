@@ -33,6 +33,17 @@
     untrack(() => void fetchKostenstellen());
   });
 
+  // After an unclear attempt the server books on its target whatever is chosen here, so the
+  // dialog always shows that target, also when the state arrives after a choice was made
+  $effect(() => {
+    const last = transfer;
+    if (last?.state !== 'Gestartet') return;
+    untrack(() => {
+      costUnitId = last.costUnitId;
+      categoryId = last.categoryId;
+    });
+  });
+
   // Preselect the last attempt's choice, or the Kostenstelle named like the Aktion
   $effect(() => {
     const data = kostenstellenStore.data;
