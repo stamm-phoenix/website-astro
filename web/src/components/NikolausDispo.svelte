@@ -130,6 +130,8 @@
 
   function selectView(next: View): void {
     view = next;
+    // A visit from „Auf der Karte zeigen“ is shown once, not again on the next switch
+    mapFocus = null;
     const url = new URL(window.location.href);
     if (next === 'karte') url.searchParams.set('ansicht', 'karte');
     else url.searchParams.delete('ansicht');
@@ -149,8 +151,8 @@
   }
 
   async function showOnMap(id: string): Promise<void> {
-    mapFocus = id;
     selectView('karte');
+    mapFocus = id;
     window.scrollTo({ top: 0 });
     // The pressed button is hidden with the list; keep the keyboard at the same visit
     await tick();
