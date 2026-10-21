@@ -183,6 +183,52 @@ test('a pair without a route is estimated, without the service nothing is asked'
   assert.equal(fetch.mock.callCount(), 0);
 });
 
+test('a failed cell is not kept: the load is estimated and the pair asked again', async (t) => {
+  setKey(t, 'test-key');
+  const [a, b] = points(2);
+  let recovered = false;
+  const fetch = t.mock.method(globalThis, 'fetch', async () =>
+    Response.json({
+      properties: {
+        matrix: [
+          { originIndex: 0, destinationIndex: 1, statusCode: 200, durationInSeconds: 300 },
+          recovered
+            ? { originIndex: 1, destinationIndex: 0, statusCode: 200, durationInSeconds: 600 }
+            : { originIndex: 1, destinationIndex: 0, statusCode: 500, error: { code: 'x' } },
+        ],
+      },
+    })
+  );
+  const failed = await getTravelMatrix([a, b]);
+  assert.equal(failed.source, 'estimate');
+
+  recovered = true;
+  const routed = await getTravelMatrix([a, b]);
+  assert.equal(routed.source, 'route');
+  assert.equal(routed.minutes[1][0], 12);
+  assert.equal(routed.minutes[0][1], 7);
+  assert.equal(fetch.mock.callCount(), 2);
+});
+
+test('a hanging service on a long day still answers in time with the estimate', async (t) => {
+  setKey(t, 'test-key');
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
+  const fetch = t.mock.method(globalThis, 'fetch', () => new Promise<Response>(() => undefined));
+  let settled = false;
+  const pending = getTravelMatrix(points(65)).finally(() => {
+    settled = true;
+  });
+  while (!settled && Date.now() - 1_000_000 < 60_000) {
+    await new Promise((resolve) => setImmediate(resolve));
+    t.mock.timers.tick(500);
+  }
+  const result = await pending;
+  assert.equal(result.source, 'estimate');
+  // Well below the 45 seconds after which the Static Web App ends the request
+  assert.ok(Date.now() - 1_000_000 <= 26_000, `took ${Date.now() - 1_000_000} ms`);
+  assert.ok(fetch.mock.callCount() < 22);
+});
+
 test('a timeout falls back to the estimate', async (t) => {
   setKey(t, 'test-key');
   t.mock.timers.enable({ apis: ['setTimeout'] });

@@ -21,6 +21,11 @@ export interface TravelOptions {
 }
 
 const TIMEOUT_MS = 8000;
+/**
+ * All matrix requests of one Dispo load, well below the 45 seconds after which the Static Web
+ * App ends an API request; what is missing then is estimated.
+ */
+const MATRIX_BUDGET_MS = 25_000;
 const CACHE_TTL_MS = 6 * 60 * 60_000;
 /**
  * Cells of one synchronous Azure Maps matrix with a departure time. Above 100 cells all points
@@ -81,16 +86,31 @@ function multiPoint(points: NikolausCoordinates[], pointType: 'origins' | 'desti
   };
 }
 
-/** Driving minutes `[origin][destination]` of one request; `null` where no route was found. */
+/** Whether a cell's status says that no route exists, unlike a failure that may pass. */
+function isNoRoute(statusCode: unknown): boolean {
+  return (
+    typeof statusCode === 'number' &&
+    statusCode >= 400 &&
+    statusCode < 500 &&
+    statusCode !== 408 &&
+    statusCode !== 429
+  );
+}
+
+/**
+ * Driving minutes `[origin][destination]` of one request: `null` where no route exists,
+ * `undefined` where the cell failed or is missing.
+ */
 export function parseMatrix(
   value: unknown,
   origins: number,
   destinations: number
-): (number | null)[][] {
+): (number | null | undefined)[][] {
   const cells = (value as { properties?: { matrix?: unknown } } | null)?.properties?.matrix;
   if (!Array.isArray(cells)) throw new Error('Azure Maps returned no matrix');
-  const minutes: (number | null)[][] = Array.from({ length: origins }, () =>
-    Array.from({ length: destinations }, () => null)
+  // `undefined` until a cell answers: missing or failed cells are asked again next time
+  const minutes: (number | null | undefined)[][] = Array.from({ length: origins }, () =>
+    Array.from({ length: destinations }, () => undefined)
   );
   for (const cell of cells as unknown[]) {
     if (typeof cell !== 'object' || cell === null) continue;
@@ -107,9 +127,13 @@ export function parseMatrix(
       (originIndex as number) < 0 ||
       (originIndex as number) >= origins ||
       (destinationIndex as number) < 0 ||
-      (destinationIndex as number) >= destinations ||
-      (statusCode !== undefined && statusCode !== 200)
+      (destinationIndex as number) >= destinations
     ) {
+      continue;
+    }
+    if (statusCode !== undefined && statusCode !== 200) {
+      // A client error such as OUT_OF_REGION: there is no route between the two points
+      if (isNoRoute(statusCode)) minutes[originIndex as number][destinationIndex as number] = null;
       continue;
     }
     const seconds =
@@ -124,8 +148,9 @@ export function parseMatrix(
 async function fetchMatrix(
   origins: NikolausCoordinates[],
   destinations: NikolausCoordinates[],
-  departAt: string | undefined
-): Promise<(number | null)[][]> {
+  departAt: string | undefined,
+  timeoutMs: number
+): Promise<(number | null | undefined)[][]> {
   const body = await requestAzureMaps({
     method: 'POST',
     path: '/route/matrix',
@@ -136,7 +161,7 @@ async function fetchMatrix(
       travelMode: 'driving',
       ...(departAt ? { departAt, traffic: 'historical' } : {}),
     },
-    timeoutMs: TIMEOUT_MS,
+    timeoutMs,
   });
   return parseMatrix(body, origins.length, destinations.length);
 }
@@ -162,15 +187,28 @@ export function matrixBlocks(origins: string[], destinations: string[]): MatrixB
   return blocks;
 }
 
-/** Runs the tasks with at most `MAX_PARALLEL_REQUESTS` at a time; true if all succeeded. */
-async function runLimited(tasks: (() => Promise<void>)[]): Promise<boolean> {
+/**
+ * Runs the tasks with at most `MAX_PARALLEL_REQUESTS` at a time, each with the time left until
+ * `deadline`; none starts after it. True if all ran and succeeded.
+ */
+async function runLimited(
+  tasks: ((timeoutMs: number) => Promise<void>)[],
+  deadline: number
+): Promise<boolean> {
   let next = 0;
   let ok = true;
   async function worker(): Promise<void> {
     while (next < tasks.length) {
+      const left = deadline - Date.now();
+      if (left <= 0) {
+        console.warn('Azure Maps matrix took too long, using air-line estimate');
+        next = tasks.length;
+        ok = false;
+        return;
+      }
       const task = tasks[next++];
       try {
-        await task();
+        await task(Math.min(TIMEOUT_MS, left));
       } catch (error: unknown) {
         ok = false;
         console.warn('Azure Maps matrix failed, using air-line estimate', error);
@@ -214,19 +252,27 @@ async function fillPairs(
     splitCells > all.length * all.length - all.length
       ? matrixBlocks(all, all)
       : [...matrixBlocks(missing, all), ...matrixBlocks(others, missing)];
+  const deadline = Date.now() + MATRIX_BUDGET_MS;
   return runLimited(
-    blocks.map((block) => async () => {
+    blocks.map((block) => async (timeoutMs) => {
       const minutes = await fetchMatrix(
         block.origins.map((key) => points.get(key) as NikolausCoordinates),
         block.destinations.map((key) => points.get(key) as NikolausCoordinates),
-        departAt
+        departAt,
+        timeoutMs
       );
+      let failed = 0;
       block.origins.forEach((from, i) =>
         block.destinations.forEach((to, j) => {
-          if (from !== to) cachePair(pairKey(from, to, time), minutes[i][j]);
+          if (from === to) return;
+          const value = minutes[i][j];
+          if (value === undefined) failed++;
+          else cachePair(pairKey(from, to, time), value);
         })
       );
-    })
+      if (failed) throw new Error(`Azure Maps matrix failed for ${failed} cells`);
+    }),
+    deadline
   );
 }
 
