@@ -16,6 +16,7 @@ import {
 import { deleteHelper, getHelper, getHelpers, updateHelper } from '../lib/nikolaus-helfende-list';
 import { deleteBooking } from '../lib/nikolaus-bookings';
 import { NikolausStateConflictError } from '../lib/nikolaus-state';
+import { ValidationError } from '../lib/pflege-validation';
 import { dbTest } from './fixtures/database';
 import { insertBooking, insertHelper } from './fixtures/nikolaus-data';
 
@@ -74,11 +75,17 @@ dbTest('a stale Dispo version conflicts and replanning keeps checked-off visits'
   // Checking off does not change the planning version
   const version = getDispoVersion(await getDispoRows(DATE));
   assert.equal(version, getDispoVersion(loaded));
-  await saveDispo(DATE, [entry(id, 1, 'B')], version);
+  await saveDispo(DATE, [entry(id, 2)], version);
   const replanned = await getDispoRows(DATE);
-  assert.equal(replanned[0].team, 'B');
+  assert.equal(replanned[0].order, 2);
   assert.equal(replanned[0].visitedAt, '2026-12-05T16:10:00.000Z');
   await assert.rejects(saveDispo(DATE, [entry(id, 1, 'A')], version), NikolausStateConflictError);
+  // A page loaded before the check-off cannot give the visit to another team
+  await assert.rejects(
+    saveDispo(DATE, [entry(id, 2, 'B')], getDispoVersion(replanned)),
+    ValidationError
+  );
+  assert.equal((await getDispoRows(DATE))[0].team, 'A');
 });
 
 dbTest('a Dispo with a booking deleted meanwhile is a conflict', async () => {

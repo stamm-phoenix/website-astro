@@ -9,6 +9,7 @@ export {
 } from '../../../api/lib/nikolaus-dispo';
 export type {
   DispoAssignment,
+  DispoDone,
   DispoPlan,
   DispoPlannedStop,
   DispoProblem,

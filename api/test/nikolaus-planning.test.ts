@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluateDispo, solveDispo, visitMinutes } from '../lib/nikolaus-dispo';
+import { evaluateDispo, moveStop, solveDispo, visitMinutes } from '../lib/nikolaus-dispo';
 import type { DispoProblem } from '../lib/nikolaus-dispo';
 import {
   completeEinteilung,
@@ -91,6 +91,55 @@ test('Dispo evaluates waiting, delay after a slot, driving home and empty routes
   assert.equal(visitMinutes(3), 15);
   assert.equal(visitMinutes(9), 45);
   assert.equal(visitMinutes(20), 45);
+});
+
+test('checked-off visits stay first in their team and the rest starts at the last check-off', () => {
+  // Team B left family 2 at 18:00, ten minutes after the end of its slot
+  const problem = dispo({ done: { '2': { team: 'B', leftAt: 1080 } } });
+
+  const plan = evaluateDispo(problem, { A: ['2', '1'], B: ['3'] });
+  const [a, b] = plan.routes;
+  assert.deepEqual(
+    a.stops.map((stop) => stop.id),
+    ['1']
+  );
+  assert.deepEqual(
+    b.stops.map((stop) => stop.id),
+    ['2', '3']
+  );
+  // The visit ends at its check-off and counts no delay any more
+  assert.equal(b.stops[0].start, 1070);
+  assert.equal(b.stops[0].end, 1080);
+  assert.equal(b.stops[0].lateAfterSlot, 0);
+  assert.equal(b.departure, 1065);
+  assert.equal(b.stops[1].arrival, 1100);
+  assert.equal(b.stops[1].lateAfterSlot, 20);
+
+  const result = solveDispo(problem);
+  assert.equal(result.B[0], '2');
+  assert.deepEqual(Object.values(result).flat().sort(), ['1', '2', '3']);
+
+  assert.deepEqual(moveStop(problem, { A: ['1'], B: ['2', '3'] }, '2', 'A'), {
+    A: ['1'],
+    B: ['2', '3'],
+  });
+  const moved = moveStop(problem, { A: ['3', '1'], B: ['2'] }, '1', 'B');
+  assert.deepEqual(moved.B, ['2', '1']);
+  assert.deepEqual(moved.A, ['3']);
+});
+
+test('checked-off visits keep the order of their check-offs', () => {
+  const problem = dispo({
+    done: {
+      '1': { team: 'A', leftAt: 1060 },
+      '3': { team: 'A', leftAt: 1040 },
+      '2': { team: 'C' },
+    },
+  });
+  const result = solveDispo(problem);
+  assert.deepEqual(result.A.slice(0, 2), ['3', '1']);
+  // A team that does not exist does not hold a visit
+  assert.deepEqual(Object.values(result).flat().sort(), ['1', '2', '3']);
 });
 
 test('negative tags block automatic assignments using normalized tag comparisons', () => {

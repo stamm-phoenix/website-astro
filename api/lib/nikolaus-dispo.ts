@@ -60,6 +60,19 @@ export interface DispoProblem {
    * negative tag matching the family. Ignored for a stop if it would leave no team at all.
    */
   forbidden?: Record<string, string[]>;
+  /**
+   * Visits already checked off on the visit day (booking ID → team and when the team left, in
+   * minutes since midnight). They stay at the start of their team's route, in the order they
+   * were checked off, and are never moved; the rest of the route starts where and when the team
+   * left the last of them.
+   */
+  done?: Record<string, DispoDone>;
+}
+
+export interface DispoDone {
+  team: string;
+  /** When the team checked the visit off, i.e. left; unknown for old check-offs. */
+  leftAt?: number;
 }
 
 /** Ordered booking IDs per team. */
@@ -123,18 +136,95 @@ function indexStops(problem: DispoProblem): Map<string, number> {
   return new Map(problem.stops.map((stop, i) => [stop.id, i]));
 }
 
+/** Where a team's route continues: after the visits it has already checked off. */
+interface TeamStart {
+  /** Checked-off stops in the order they were checked off. */
+  done: number[];
+  /** Their planned course, with each visit ending when it was checked off. */
+  planned: DispoPlannedStop[];
+  /** Index in the travel matrix where the team is (0 = base). */
+  position: number;
+  /** When the team left the last checked-off stop; `null` before the first one. */
+  time: number | null;
+  departure: number | null;
+  driveMinutes: number;
+}
+
+interface Live {
+  starts: TeamStart[];
+  /** Per stop: checked off, so not to be planned again. */
+  isDone: boolean[];
+}
+
+const liveCache = new WeakMap<DispoProblem, Live>();
+
+/** The checked-off visits of each team and where its route continues. */
+function live(problem: DispoProblem): Live {
+  const cached = liveCache.get(problem);
+  if (cached) return cached;
+  const { stops, travel } = problem;
+  const doneOf = (index: number): DispoDone | undefined => {
+    const done = problem.done?.[stops[index].id];
+    return done && problem.teams.includes(done.team) ? done : undefined;
+  };
+  const isDone = stops.map((_, index) => doneOf(index) !== undefined);
+
+  const starts = problem.teams.map((team): TeamStart => {
+    const done = stops
+      .map((_, index) => index)
+      .filter((index) => doneOf(index)?.team === team)
+      .sort((a, b) => (doneOf(a)?.leftAt ?? -Infinity) - (doneOf(b)?.leftAt ?? -Infinity));
+    const planned: DispoPlannedStop[] = [];
+    let position = 0;
+    let time: number | null = null;
+    let departure: number | null = null;
+    let driveMinutes = 0;
+    for (const index of done) {
+      const stop = stops[index];
+      const drive = travel[position][index + 1];
+      const leftAt = doneOf(index)?.leftAt;
+      // A visit ends when it is checked off, so the families' expected arrival (planned arrival
+      // plus the team's delay at its last check-off) does not count the delay twice
+      const start: number =
+        leftAt !== undefined
+          ? leftAt - stop.duration
+          : Math.max(time === null ? stop.slotStart : time + drive, stop.slotStart);
+      if (departure === null) departure = start - drive;
+      planned.push({
+        id: stop.id,
+        arrival: start,
+        start,
+        end: start + stop.duration,
+        driveMinutes: drive,
+        lateInSlot: 0,
+        lateAfterSlot: 0,
+      });
+      driveMinutes += drive;
+      time = start + stop.duration;
+      position = index + 1;
+    }
+    return { done, planned, position, time, departure, driveMinutes };
+  });
+
+  const result = { starts, isDone };
+  liveCache.set(problem, result);
+  return result;
+}
+
+/** Simulates the open part of a route, after the visits the team has already checked off. */
 function simulate(
   team: string,
   order: number[],
-  problem: DispoProblem
+  problem: DispoProblem,
+  start: TeamStart
 ): { route: DispoRoute; cost: number } {
   const { stops, travel } = problem;
-  const planned: DispoPlannedStop[] = [];
+  const planned: DispoPlannedStop[] = [...start.planned];
   let cost = 0;
-  let driveTotal = 0;
-  let position = 0;
-  let time = 0;
-  let departure: number | null = null;
+  let driveTotal = start.driveMinutes;
+  let position = start.position;
+  let time = start.time ?? 0;
+  let departure: number | null = start.departure;
 
   for (const index of order) {
     const stop = stops[index];
@@ -181,22 +271,24 @@ function simulate(
 }
 
 /**
- * Cost of a route, like `simulate` but without building the result. Evaluated millions of
- * times during the search, so it can leave out the stop at position `skip` and insert the
- * stop `insert` at position `at` (counted without the skipped one) without copying arrays.
+ * Cost of the open part of a route, like `simulate` but without building the result. Evaluated
+ * millions of times during the search, so it can leave out the stop at position `skip` and
+ * insert the stop `insert` at position `at` (counted without the skipped one) without copying
+ * arrays. The checked-off visits before `start` cost the same in every plan and are left out.
  */
 function routeCost(
   order: number[],
   problem: DispoProblem,
+  start: TeamStart,
   skip = -1,
   insert = -1,
   at = -1
 ): number {
   const { stops, travel } = problem;
   let cost = 0;
-  let position = 0;
-  let time = 0;
-  let visited = 0;
+  let position = start.position;
+  let time = start.time ?? 0;
+  let visited = start.done.length;
   let reduced = 0;
 
   const visit = (index: number): void => {
@@ -239,11 +331,12 @@ function createRandom(seed: number): () => number {
 function bestInsertion(
   order: number[],
   index: number,
-  problem: DispoProblem
+  problem: DispoProblem,
+  start: TeamStart
 ): { position: number; cost: number } {
   let best = { position: 0, cost: Infinity };
   for (let position = 0; position <= order.length; position++) {
-    const cost = routeCost(order, problem, -1, index, position);
+    const cost = routeCost(order, problem, start, -1, index, position);
     if (cost < best.cost) best = { position, cost };
   }
   return best;
@@ -270,17 +363,19 @@ function allowedTeams(problem: DispoProblem, index: number): number[] {
 
 /** Builds a first solution: visits in chronological order, each to the cheapest team. */
 function construct(problem: DispoProblem, random: () => number, noise: number): number[][] {
+  const { starts, isDone } = live(problem);
   const routes: number[][] = problem.teams.map(() => []);
   const order = problem.stops
     .map((stop, index) => ({ index, key: stop.slotStart + random() * noise }))
+    .filter((entry) => !isDone[entry.index])
     .sort((a, b) => a.key - b.key)
     .map((entry) => entry.index);
 
   for (const index of order) {
     let best = { team: -1, position: 0, delta: Infinity };
     for (const team of allowedTeams(problem, index)) {
-      const before = routeCost(routes[team], problem);
-      const insertion = bestInsertion(routes[team], index, problem);
+      const before = routeCost(routes[team], problem, starts[team]);
+      const insertion = bestInsertion(routes[team], index, problem, starts[team]);
       // Noise lets restarts explore other distributions
       const delta = insertion.cost - before + random() * noise;
       if (delta < best.delta) best = { team, position: insertion.position, delta };
@@ -292,7 +387,8 @@ function construct(problem: DispoProblem, random: () => number, noise: number): 
 
 /** Improves a solution by moving and swapping visits until nothing gets cheaper. */
 function improve(routes: number[][], problem: DispoProblem): number[][] {
-  const costs = routes.map((order) => routeCost(order, problem));
+  const { starts } = live(problem);
+  const costs = routes.map((order, t) => routeCost(order, problem, starts[t]));
   const EPSILON = 1e-9;
   let improved = true;
 
@@ -304,10 +400,10 @@ function improve(routes: number[][], problem: DispoProblem): number[][] {
       for (let i = 0; i < routes[from].length && !improved; i++) {
         const index = routes[from][i];
         const remaining = routes[from].filter((_, k) => k !== i);
-        const remainingCost = routeCost(remaining, problem);
+        const remainingCost = routeCost(remaining, problem, starts[from]);
         for (const to of allowedTeams(problem, index)) {
           const base = to === from ? remaining : routes[to];
-          const insertion = bestInsertion(base, index, problem);
+          const insertion = bestInsertion(base, index, problem, starts[to]);
           const newCost = to === from ? insertion.cost : remainingCost + insertion.cost;
           const oldCost = to === from ? costs[from] : costs[from] + costs[to];
           if (newCost < oldCost - EPSILON) {
@@ -342,8 +438,8 @@ function improve(routes: number[][], problem: DispoProblem): number[][] {
             if (tailB.some((index) => !allowedTeams(problem, index).includes(a))) continue;
             const newA = [...routes[a].slice(0, i), ...tailB];
             const newB = [...routes[b].slice(0, j), ...tailA];
-            const costA = routeCost(newA, problem);
-            const costB = routeCost(newB, problem);
+            const costA = routeCost(newA, problem, starts[a]);
+            const costB = routeCost(newB, problem, starts[b]);
             if (costA + costB < costs[a] + costs[b] - EPSILON) {
               routes[a] = newA;
               routes[b] = newB;
@@ -370,8 +466,8 @@ function improve(routes: number[][], problem: DispoProblem): number[][] {
             const newB = [...routes[b]];
             newA[i] = ib;
             newB[j] = ia;
-            const costA = routeCost(newA, problem);
-            const costB = routeCost(newB, problem);
+            const costA = routeCost(newA, problem, starts[a]);
+            const costB = routeCost(newB, problem, starts[b]);
             if (costA + costB < costs[a] + costs[b] - EPSILON) {
               routes[a] = newA;
               routes[b] = newB;
@@ -387,28 +483,41 @@ function improve(routes: number[][], problem: DispoProblem): number[][] {
   return routes;
 }
 
+/** Routes of open stops → booking IDs per team, each after the team's checked-off visits. */
 function toAssignment(routes: number[][], problem: DispoProblem): DispoAssignment {
+  const { starts } = live(problem);
   const assignment: DispoAssignment = {};
   problem.teams.forEach((team, t) => {
-    assignment[team] = routes[t].map((index) => problem.stops[index].id);
+    assignment[team] = [...starts[t].done, ...routes[t]].map((index) => problem.stops[index].id);
   });
   return assignment;
 }
 
-/** Evaluates a given distribution: times, delays and driving per team. */
-export function evaluateDispo(problem: DispoProblem, assignment: DispoAssignment): DispoPlan {
+/** The open stops of each team in the given order; checked-off ones are left out. */
+function openRoutes(problem: DispoProblem, assignment: DispoAssignment): number[][] {
   const index = indexStops(problem);
-  const routes = problem.teams.map((team) => {
-    const order = (assignment[team] ?? [])
+  const { isDone } = live(problem);
+  return problem.teams.map((team) =>
+    (assignment[team] ?? [])
       .map((id) => index.get(id))
-      .filter((i): i is number => i !== undefined);
-    return simulate(team, order, problem).route;
-  });
+      .filter((i): i is number => i !== undefined && !isDone[i])
+  );
+}
+
+/**
+ * Evaluates a given distribution: times, delays and driving per team. Checked-off visits come
+ * first in their team's route, wherever the distribution lists them.
+ */
+export function evaluateDispo(problem: DispoProblem, assignment: DispoAssignment): DispoPlan {
+  const { starts } = live(problem);
+  const open = openRoutes(problem, assignment);
+  const routes = problem.teams.map((team, t) => simulate(team, open[t], problem, starts[t]).route);
   return { routes, cost: routes.reduce((sum, route) => sum + route.cost, 0) };
 }
 
 /** Moves a few random visits to random teams, to leave a local optimum. */
 function perturb(routes: number[][], problem: DispoProblem, random: () => number): number[][] {
+  const { starts } = live(problem);
   const next = routes.map((order) => [...order]);
   const moves = 2 + Math.floor(random() * 3);
   for (let m = 0; m < moves; m++) {
@@ -419,13 +528,14 @@ function perturb(routes: number[][], problem: DispoProblem, random: () => number
     const teams = allowedTeams(problem, index);
     const to = teams[Math.floor(random() * teams.length)];
     next[from].splice(i, 1);
-    next[to].splice(bestInsertion(next[to], index, problem).position, 0, index);
+    next[to].splice(bestInsertion(next[to], index, problem, starts[to]).position, 0, index);
   }
   return next;
 }
 
 function totalCost(routes: number[][], problem: DispoProblem): number {
-  return routes.reduce((sum, order) => sum + routeCost(order, problem), 0);
+  const { starts } = live(problem);
+  return routes.reduce((sum, order, t) => sum + routeCost(order, problem, starts[t]), 0);
 }
 
 /** Calculates a distribution of all stops to the teams with as little driving and delay as possible. */
@@ -458,8 +568,8 @@ export function solveDispo(problem: DispoProblem): DispoAssignment {
 }
 
 /**
- * Moves one stop to another team at its cheapest position, leaving everything else as it is.
- * Used for manual changes.
+ * Moves one stop to another team at its cheapest position after the team's checked-off visits,
+ * leaving everything else as it is. Used for manual changes; a checked-off visit stays.
  */
 export function moveStop(
   problem: DispoProblem,
@@ -467,18 +577,15 @@ export function moveStop(
   id: string,
   team: string
 ): DispoAssignment {
-  const index = indexStops(problem);
-  const stopIndex = index.get(id);
-  if (stopIndex === undefined || !problem.teams.includes(team)) return assignment;
+  const stopIndex = indexStops(problem).get(id);
+  const to = problem.teams.indexOf(team);
+  const { starts, isDone } = live(problem);
+  if (stopIndex === undefined || to < 0 || isDone[stopIndex]) return assignment;
 
-  const next: DispoAssignment = {};
-  for (const name of problem.teams) {
-    next[name] = (assignment[name] ?? []).filter((other) => other !== id);
-  }
-  const order = next[team]
-    .map((other) => index.get(other))
-    .filter((i): i is number => i !== undefined);
-  const { position } = bestInsertion(order, stopIndex, problem);
-  next[team].splice(position, 0, id);
-  return next;
+  const routes = openRoutes(problem, assignment).map((order) =>
+    order.filter((other) => other !== stopIndex)
+  );
+  const { position } = bestInsertion(routes[to], stopIndex, problem, starts[to]);
+  routes[to].splice(position, 0, stopIndex);
+  return toAssignment(routes, problem);
 }

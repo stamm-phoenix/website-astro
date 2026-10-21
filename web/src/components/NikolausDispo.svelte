@@ -257,6 +257,7 @@
       info={[
         'Verteilt die Termine neu auf die Teams, mit möglichst wenig Fahrzeit und ohne Verspätungen.',
         'Festgehaltene Termine bleiben bei ihrem Team.',
+        'Abgehakte Besuche bleiben, wo sie sind. Die übrigen Termine eines Teams plant die Dispo ab dem letzten Abhaken.',
       ]}
       onrecalculate={recalculate}
       onreload={reload}
