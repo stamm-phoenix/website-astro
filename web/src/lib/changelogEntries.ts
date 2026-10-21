@@ -12,7 +12,7 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-10-21-01-ohne-neuladen',
+    id: '2026-10-21-02-ohne-neuladen',
     date: '2026-10-21',
     title: 'Weniger Neuladen beim Weitergehen',
     changes: [
