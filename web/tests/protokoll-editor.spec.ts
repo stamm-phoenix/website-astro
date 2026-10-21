@@ -690,7 +690,7 @@ test('„Bearbeiten“ before the login check answers keeps the unsaved copy of 
     .getByRole('dialog', { name: 'Sitzungsende eintragen?' })
     .getByRole('button', { name: 'Ja, Ende auf jetzt setzen' })
     .click();
-  await expect(page.getByText('Gerade schreibt niemand.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
   const id = new URL(url).searchParams.get('id');
   const detail = (await (await page.request.get(`/api/intern/protokoll-editor/${id}`)).json()) as {
     date: string;
