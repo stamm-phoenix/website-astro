@@ -174,6 +174,15 @@ test('road courses that arrive late are fitted into the map', async ({ page }) =
   await expect.poll(zoom).toBeLessThan(before);
 });
 
+test('showing a route from the panel brings the map back into view', async ({ page }) => {
+  await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
+  await expect(page.locator('.dispo-map-main .leaflet-marker-icon').first()).toBeVisible();
+  const button = page.getByRole('button', { name: 'Route zeigen' }).last();
+  await button.scrollIntoViewIfNeeded();
+  await button.click();
+  await expect(page.locator('.dispo-map-main')).toBeInViewport({ ratio: 0.5 });
+});
+
 test('teams can be hidden on the map', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
   const map = page.locator('.dispo-map-main.leaflet-container');
@@ -182,6 +191,7 @@ test('teams can be hidden on the map', async ({ page }) => {
   const chip = page.locator('.team-chip').first();
   await chip.click();
   await expect(chip).toHaveAttribute('aria-pressed', 'false');
+  await expect(chip).toContainText('ausgeblendet');
   await expect.poll(() => map.locator('.leaflet-marker-icon').count()).toBeLessThan(all);
   await page.getByRole('button', { name: 'Alle Teams zeigen' }).click();
   await expect.poll(() => map.locator('.leaflet-marker-icon').count()).toBe(all);
