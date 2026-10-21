@@ -5,7 +5,8 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
-  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../../lib/api';
+  import { protokollEditorOverview } from '../../lib/pflegeStore.svelte';
   import { todayIso } from '../../lib/format';
   import {
     PROTOKOLL_STATUS as STATUS,
@@ -14,26 +15,18 @@
     formatMeetingDate,
     protokollEditorUrl,
   } from '../../lib/protokollEditor';
-  import type { ProtokollEditorOverview } from '../../lib/types';
 
-  let overview = $state.raw<ProtokollEditorOverview | null>(null);
-  let loadError = $state<string | null>(null);
+  // Kept across pages: a revisit shows the last loaded list at once while it loads again
+  const store = protokollEditorOverview.state;
+  const overview = $derived(store.data);
 
   let draft = $state<{ title: string; date: string; beginnJetzt: boolean } | null>(null);
   let draftErrors = $state<Record<string, string>>({});
   let draftError = $state<string | null>(null);
   let draftBusy = $state(false);
 
-  async function load(): Promise<void> {
-    loadError = null;
-    try {
-      overview = await fetchApi<ProtokollEditorOverview>('/intern/protokoll-editor');
-    } catch (error: unknown) {
-      loadError = errorMessage(
-        error,
-        'Die Protokolle konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
-      );
-    }
+  function load(): Promise<void> {
+    return protokollEditorOverview.load({ force: true });
   }
 
   function startCreate(): void {
@@ -86,8 +79,8 @@
 
   <LoadState
     data={overview}
-    loading={!overview && !loadError}
-    error={loadError}
+    loading={store.loading}
+    error={store.error}
     loadingText="Protokolle werden geladen …"
     onretry={load}
     isEmpty={(data) => data.protokolle.length === 0}

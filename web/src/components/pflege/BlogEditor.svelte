@@ -3,7 +3,9 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { onMount } from 'svelte';
   import { navigate } from 'astro:transitions/client';
-  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../../lib/api';
+  import { requestBlogPost } from '../../lib/blogPostRequest';
+  import { blogPflege } from '../../lib/pflegeStore.svelte';
   import { todayIso } from '../../lib/format';
   import {
     getBlogPostUrl,
@@ -13,7 +15,7 @@
     toEditorHtml,
     toScaledJpeg,
   } from '../../lib/blog';
-  import type { BlogImage, StaffBlogPost } from '../../lib/types';
+  import type { BlogImage } from '../../lib/types';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import FormField from './FormField.svelte';
   import TextEditor from '../ui/TextEditor.svelte';
@@ -80,7 +82,7 @@
     form = null;
     conflict = false;
     try {
-      const post = await fetchApi<StaffBlogPost>(`/intern/pflege/blog/${encodeURIComponent(id)}`);
+      const post = await requestBlogPost(id);
       etag = post.etag;
       images = post.images;
       setForm({
@@ -150,6 +152,8 @@
       published = snapshot.published;
       form.published = snapshot.published;
       saved = sent;
+      // The list of posts asks again when it is shown next
+      blogPflege.invalidate();
       notify(
         snapshot.published
           ? 'Der Beitrag ist jetzt auf der Website sichtbar.'
@@ -189,6 +193,12 @@
     try {
       await sendApi('DELETE', `/intern/pflege/blog/${postId}`, undefined, { etag });
       saved = JSON.stringify(form);
+      // Gone from the list at once; the list asks again when it is shown
+      const deletedId = postId;
+      if (blogPflege.state.data) {
+        blogPflege.state.data = blogPflege.state.data.filter((post) => post.id !== deletedId);
+      }
+      blogPflege.invalidate();
       busy = false;
       await navigate(`${LIST_URL}?geloescht=1`);
     } catch (error: unknown) {
@@ -214,6 +224,8 @@
   function applyImages(result: ImagesResponse): void {
     etag = result.etag;
     images = result.images;
+    // The list shows the cover image
+    blogPflege.invalidate();
   }
 
   async function upload(event: Event): Promise<void> {

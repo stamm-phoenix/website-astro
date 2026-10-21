@@ -2,8 +2,9 @@
   import { onMount, untrack } from 'svelte';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import { errorMessage, fetchApi } from '../../lib/api';
+  import { fetchApi } from '../../lib/api';
   import { suggestedDate } from '../../lib/anwesenheit';
+  import { anwesenheitOverview } from '../../lib/pflegeStore.svelte';
   import type { AnwesenheitMeeting, AnwesenheitOverview } from '../../lib/types';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -13,8 +14,9 @@
 
   type View = 'erfassen' | 'verlauf';
 
-  let overview = $state.raw<AnwesenheitOverview | null>(null);
-  let overviewError = $state<string | null>(null);
+  // Kept across pages: a revisit shows the last loaded Termine at once while they load again
+  const store = anwesenheitOverview.state;
+  const overview = $derived(store.data);
   let view = $state<View>('erfassen');
   let slug = $state('');
   let date = $state('');
@@ -36,18 +38,35 @@
   const selected = $derived(overview?.stufen.find((s) => s.slug === slug));
   const loaded = $derived(overview && selected ? { overview, selected } : null);
 
+  /** Selects the own Stufe (or the first one) once the Stufen are there. */
+  function selectInitialStufe(): void {
+    const data = store.data;
+    if (slug || !data) return;
+    const own = data.stufen.find((s) => data.ownStufen.includes(s.stufe));
+    void selectStufe((own ?? data.stufen[0]).slug);
+  }
+
   async function loadOverview(): Promise<void> {
-    overviewError = null;
-    try {
-      const loaded = await fetchApi<AnwesenheitOverview>('/intern/anwesenheit');
-      overview = loaded;
-      const own = loaded.stufen.find((s) => loaded.ownStufen.includes(s.stufe));
-      selectStufe((own ?? loaded.stufen[0]).slug);
-    } catch (error: unknown) {
-      overviewError = errorMessage(
-        error,
-        'Die Anwesenheit konnte nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
-      );
+    selectInitialStufe();
+    const before = store.data;
+    await anwesenheitOverview.load({ force: true });
+    const fresh = store.data;
+    const stufe = fresh?.stufen.find((s) => s.slug === slug);
+    if (!stufe) {
+      // Nothing shown yet, or the Stufe shown from the last visit is gone
+      slug = '';
+      selectInitialStufe();
+      return;
+    }
+    // A day passed since the last visit: the suggested date moves along, unless it was changed
+    if (
+      before &&
+      fresh &&
+      fresh.today !== before.today &&
+      !dirty &&
+      date === suggestedDate(stufe.weekday, before.today)
+    ) {
+      date = suggestedDate(stufe.weekday, fresh.today);
     }
   }
 
@@ -61,7 +80,7 @@
   /** Loads the recorded Termine again; the ones loaded before stay visible on failure. */
   async function refreshOverview(): Promise<void> {
     try {
-      overview = await fetchApi<AnwesenheitOverview>('/intern/anwesenheit');
+      store.data = await fetchApi<AnwesenheitOverview>('/intern/anwesenheit');
     } catch {
       // The statistics loaded before stay visible
     }
@@ -69,7 +88,7 @@
 
   function updateMeeting(meeting: AnwesenheitMeeting): void {
     if (!overview) return;
-    overview = {
+    store.data = {
       ...overview,
       meetings: overview.meetings.map((previous) =>
         previous.stufe === meeting.stufe && previous.date === meeting.date ? meeting : previous
@@ -80,7 +99,7 @@
   /** Removes a deleted Termin at once, also if loading the Termine again fails. */
   function removeMeeting(stufe: string, date: string): void {
     if (overview) {
-      overview = {
+      store.data = {
         ...overview,
         meetings: overview.meetings.filter((m) => m.stufe !== stufe || m.date !== date),
       };
@@ -108,8 +127,8 @@
 
 <LoadState
   data={loaded}
-  loading={!loaded && !overviewError}
-  error={overviewError}
+  loading={store.loading || (store.data !== null && !loaded)}
+  error={store.error}
   loadingText="Wird geladen …"
   onretry={() => void loadOverview()}
 >
