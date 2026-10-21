@@ -582,6 +582,25 @@ export interface BelegCampflow {
   startedAt: string;
 }
 
+/** A receipt transferred to CampFlow and deleted in the module; its photo is in CampFlow. */
+export interface TransferredBeleg {
+  id: string;
+  shop: string;
+  date: string;
+  amountCent: number;
+  paidBy: string;
+  payout: boolean;
+  aktion: string;
+  note: string;
+  submittedBy: string;
+  /** Belegnummer in CampFlow, e.g. `2026-112`. */
+  number: string;
+  costUnitName: string;
+  categoryName: string;
+  transferredBy: string;
+  transferredAt: string;
+}
+
 export interface StaffDownload {
   id: string;
   fileName: string;

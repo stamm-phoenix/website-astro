@@ -2,7 +2,8 @@
 -- per Knopfdruck über die Playwright-API, danach wird er im Modul „Belege“ gelöscht. Jede Zeile
 -- hält Versuch, Ergebnis und Löschung eines Belegs, damit sich nachvollziehen lässt, was wann
 -- übertragen wurde. Ohne Fremdschlüssel auf `organisation.beleg`, weil die Zeile den gelöschten
--- Beleg überdauert; Geschäft, Datum und Betrag stehen deshalb hier noch einmal.
+-- Beleg überdauert; seine Angaben stehen deshalb hier noch einmal, damit das Modul übertragene
+-- Belege weiter anzeigen kann (die Fotos liegen dann nur noch in CampFlow).
 -- Ablauf und Zustände: docs/belege-campflow.md.
 
 CREATE TABLE organisation.beleg_campflow (
@@ -25,6 +26,12 @@ CREATE TABLE organisation.beleg_campflow (
   shop             nvarchar(255)  NOT NULL,
   beleg_date       date           NULL,
   amount_cent      int            NOT NULL,
+  paid_by          nvarchar(255)  NOT NULL CONSTRAINT df_beleg_campflow_paid_by DEFAULT N'',
+  payout           bit            NOT NULL CONSTRAINT df_beleg_campflow_payout DEFAULT 0,
+  aktion           nvarchar(255)  NOT NULL CONSTRAINT df_beleg_campflow_aktion DEFAULT N'',
+  note             nvarchar(max)  NOT NULL CONSTRAINT df_beleg_campflow_note DEFAULT N'',
+  -- Login der Person, die den Beleg eingereicht hat; sie sieht ihn auch nach der Übertragung.
+  submitted_by     nvarchar(254)  NOT NULL CONSTRAINT df_beleg_campflow_submitted_by DEFAULT N'',
   -- Fehlermeldung des letzten Versuchs, leer nach Erfolg.
   error            nvarchar(1000) NOT NULL CONSTRAINT df_beleg_campflow_error DEFAULT N'',
   campflow_number  varchar(50)    NULL,
@@ -40,3 +47,7 @@ CREATE TABLE organisation.beleg_campflow (
     OR (state <> 'Hochgeladen' AND campflow_number IS NULL AND beleg_deleted_at IS NULL)
   )
 );
+
+-- Übertragene Belege, die neuesten zuerst, für die Liste „In CampFlow“.
+CREATE INDEX ix_beleg_campflow_uploaded_at ON organisation.beleg_campflow (uploaded_at DESC)
+  WHERE beleg_deleted_at IS NOT NULL;

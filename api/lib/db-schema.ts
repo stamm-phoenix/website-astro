@@ -352,6 +352,11 @@ export interface BelegCampflowTable {
   shop: string;
   beleg_date: ColumnType<Date | string | null, string | null, string | null>;
   amount_cent: number;
+  paid_by: Generated<string>;
+  payout: Generated<boolean>;
+  aktion: Generated<string>;
+  note: Generated<string>;
+  submitted_by: Generated<string>;
   error: Generated<string>;
   campflow_number: ColumnType<string | null, string | null | undefined, string | null>;
   campflow_receipt_id: ColumnType<string | null, string | null | undefined, string | null>;

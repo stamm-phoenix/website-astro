@@ -6,6 +6,7 @@ import type {
   SammelAktion,
   StaffAktionenData,
   StaffBeleg,
+  TransferredBeleg,
   StaffBlogListItem,
   StaffDownload,
   StaffGruppenstundenData,
@@ -128,6 +129,9 @@ export const blogPflege = createResource<StaffBlogListItem[]>('/intern/pflege/bl
 export const faqPflege = createResource<StaffQuestionsData>('/intern/pflege/qa');
 export const aktionenPflege = createResource<StaffAktionenData>('/intern/pflege/aktionen');
 export const belegePflege = createResource<StaffBeleg[]>('/intern/pflege/belege');
+export const uebertrageneBelege = createResource<TransferredBeleg[]>(
+  '/intern/pflege/belege/uebertragen'
+);
 export const protokollePflege = createResource<StaffProtokolleData>('/intern/pflege/protokolle');
 export const personenPflege = createResource<PersonenUebersicht>('/intern/pflege/personen');
 /** The Gruppenstunden with their recorded Termine; loaded again on every visit. */

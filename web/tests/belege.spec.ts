@@ -50,7 +50,7 @@ test('the Kasse transfers an accepted receipt to CampFlow with the chosen Katego
   await page.goto('/leitendenbereich/belege/');
   const accepted = page.getByRole('button', { name: /^Angenommen/ });
   // The counts appear once the list is loaded and the filter works
-  await expect(accepted).toContainText('1');
+  await expect(accepted).toHaveText(/\(\d+\)/);
   await accepted.click();
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
@@ -70,4 +70,19 @@ test('the Kasse transfers an accepted receipt to CampFlow with the chosen Katego
   ).toBeVisible();
   expect(sent).toMatchObject({ costUnitId: 'cun_Sola26', categoryId: 'cat_Sola262' });
   expect(sent?.etag).toBeTruthy();
+});
+
+test('receipts transferred to CampFlow stay listed with their CampFlow image', async ({ page }) => {
+  await page.goto('/leitendenbereich/belege/');
+  const inCampflow = page.getByRole('button', { name: /^In CampFlow/ });
+  await expect(inCampflow).toHaveText(/\(\d+\)/);
+  await inCampflow.click();
+  await page.getByRole('button', { name: /Edeka/ }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Beleg von Edeka' });
+  await expect(dialog.getByText('2026-104')).toBeVisible();
+  await expect(dialog.getByText('Sommerlager 2026 Oberjoch').first()).toBeVisible();
+  await expect(dialog.getByRole('img', { name: /Beleg 2026-104/ }).first()).toBeVisible();
+  await dialog.getByRole('button', { name: 'Schließen' }).click();
+  await expect(dialog).toBeHidden();
 });

@@ -13,6 +13,8 @@
   import BelegList from './BelegList.svelte';
   import BelegPhotoSection from './BelegPhotoSection.svelte';
   import BelegReview from './BelegReview.svelte';
+  import BelegUebertragenDialog from './BelegUebertragenDialog.svelte';
+  import BelegUebertragenList from './BelegUebertragenList.svelte';
 
   import ReloadButton from './ReloadButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
@@ -25,29 +27,33 @@
   import { confirmAction } from '../../lib/confirm';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
-  import { belegePflege } from '../../lib/pflegeStore.svelte';
+  import { belegePflege, uebertrageneBelege } from '../../lib/pflegeStore.svelte';
   import { centToInput, parseEuroToCent } from '../../lib/belege';
   import { formatEuro, todayIso } from '../../lib/format';
-  import type { BelegStatus, StaffBeleg } from '../../lib/types';
+  import type { BelegStatus, StaffBeleg, TransferredBeleg } from '../../lib/types';
 
   import EditDialog from './EditDialog.svelte';
 
   import StatusNotice from './StatusNotice.svelte';
 
-  type View = 'offen' | 'angenommen' | 'abgelehnt' | 'alle';
+  type View = 'offen' | 'angenommen' | 'abgelehnt' | 'alle' | 'campflow';
 
   const VIEWS: { id: View; label: string }[] = [
     { id: 'offen', label: 'Offen' },
     { id: 'angenommen', label: 'Angenommen' },
     { id: 'abgelehnt', label: 'Abgelehnt' },
     { id: 'alle', label: 'Alle' },
+    { id: 'campflow', label: 'In CampFlow' },
   ];
-  const VIEW_STATUS: Record<Exclude<View, 'alle'>, BelegStatus> = {
+  const VIEW_STATUS: Record<Exclude<View, 'alle' | 'campflow'>, BelegStatus> = {
     offen: 'Eingereicht',
     angenommen: 'Angenommen',
     abgelehnt: 'Abgelehnt',
   };
   const store = belegePflege.state;
+  /** Receipts transferred to CampFlow and deleted here; they live on as history. */
+  const transferredStore = uebertrageneBelege.state;
+  let openTransferred = $state<TransferredBeleg | null>(null);
 
   let view = $state<View>('offen');
   /** Member of the Kasse: sees all receipts and accepts or rejects them. */
@@ -76,17 +82,27 @@
     angenommen: items.filter((b) => b.status === 'Angenommen').length,
     abgelehnt: items.filter((b) => b.status === 'Abgelehnt').length,
     alle: items.length,
+    campflow: transferredStore.data?.length ?? 0,
   });
-  const visible = $derived.by(() => {
+  const matches = (b: { shop: string; aktion: string; paidBy: string; note: string }): boolean => {
     const query = search.trim().toLowerCase();
+    return (
+      !query ||
+      [b.shop, b.aktion, b.paidBy, b.note].some((text) => text.toLowerCase().includes(query))
+    );
+  };
+  const visibleTransferred = $derived(
+    (transferredStore.data ?? []).filter(
+      (b) => matches(b) && (!onlyMine || b.submittedBy === login)
+    )
+  );
+  const visible = $derived.by(() => {
+    if (view === 'campflow') return [];
+    const currentView = view;
     return items
-      .filter((b) => view === 'alle' || b.status === VIEW_STATUS[view])
+      .filter((b) => currentView === 'alle' || b.status === VIEW_STATUS[currentView])
       .filter((b) => !onlyMine || b.submittedBy === login)
-      .filter(
-        (b) =>
-          !query ||
-          [b.shop, b.aktion, b.paidBy, b.note].some((text) => text.toLowerCase().includes(query))
-      );
+      .filter(matches);
   });
   const aktionSuggestions = $derived(aktionTitles(campflowEventsStore.data ?? []));
 
@@ -95,6 +111,7 @@
       // Only suggestions; the form works without CampFlow. They follow the list, so it comes
       // first, and are there by the time a receipt is opened (which also asks for them)
       void belegePflege.load().finally(() => fetchCampflowEvents());
+      uebertrageneBelege.load();
       fetchPrincipal();
       fetchApi<{ reviewer: boolean }>('/intern/pflege/belege/rolle')
         .then((role) => (reviewer = role.reviewer))
@@ -302,7 +319,10 @@
         ? `Beleg von ${shop} ist in CampFlow als ${number} gebucht und wurde hier gelöscht.`
         : `Beleg von ${shop} ist in CampFlow als ${number} gebucht. Er wurde inzwischen geändert und deshalb hier nicht gelöscht.`;
       form = null;
-      await belegePflege.load({ force: true });
+      await Promise.all([
+        belegePflege.load({ force: true }),
+        uebertrageneBelege.load({ force: true }),
+      ]);
     }, 'Der Beleg wurde nicht übertragen. Prüfe deine Internetverbindung und versuche es noch einmal.');
     // The attempt is stored either way; show its state
     if (form?.id === id) {
@@ -392,30 +412,53 @@
 
   <StatusNotice {message} popup />
 
-  <LoadState
-    data={store.data}
-    loading={store.loading}
-    error={store.error}
-    loadingText="Belege werden geladen …"
-    onretry={() => void belegePflege.load({ force: true })}
-    isEmpty={() => visible.length === 0}
-  >
-    {#snippet skeleton()}
-      <div class="grid min-h-[60dvh] gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {#each [1, 2, 3] as n (n)}
-          <div class="skeleton-element h-28 rounded-[var(--radius-lg)]"></div>
-        {/each}
-      </div>
-    {/snippet}
-    {#snippet empty()}
-      <p class="surface p-6 text-sm text-neutral-700">
-        {view === 'offen' && !search && !onlyMine
-          ? 'Keine offenen Belege. Alles vorgeprüft!'
-          : 'Keine Belege für diese Auswahl.'}
-      </p>
-    {/snippet}
-    <BelegList items={visible} onedit={edit} />
-  </LoadState>
+  {#if view === 'campflow'}
+    <LoadState
+      data={transferredStore.data}
+      loading={transferredStore.loading}
+      error={transferredStore.error}
+      loadingText="Übertragene Belege werden geladen …"
+      onretry={() => void uebertrageneBelege.load({ force: true })}
+      isEmpty={() => visibleTransferred.length === 0}
+    >
+      {#snippet empty()}
+        <p class="surface p-6 text-sm text-neutral-700">
+          {search || onlyMine
+            ? 'Keine übertragenen Belege für diese Auswahl.'
+            : 'Noch keine Belege nach CampFlow übertragen.'}
+        </p>
+      {/snippet}
+      <BelegUebertragenList
+        items={visibleTransferred}
+        onopen={(beleg) => (openTransferred = beleg)}
+      />
+    </LoadState>
+  {:else}
+    <LoadState
+      data={store.data}
+      loading={store.loading}
+      error={store.error}
+      loadingText="Belege werden geladen …"
+      onretry={() => void belegePflege.load({ force: true })}
+      isEmpty={() => visible.length === 0}
+    >
+      {#snippet skeleton()}
+        <div class="grid min-h-[60dvh] gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {#each [1, 2, 3] as n (n)}
+            <div class="skeleton-element h-28 rounded-[var(--radius-lg)]"></div>
+          {/each}
+        </div>
+      {/snippet}
+      {#snippet empty()}
+        <p class="surface p-6 text-sm text-neutral-700">
+          {view === 'offen' && !search && !onlyMine
+            ? 'Keine offenen Belege. Alles vorgeprüft!'
+            : 'Keine Belege für diese Auswahl.'}
+        </p>
+      {/snippet}
+      <BelegList items={visible} onedit={edit} />
+    </LoadState>
+  {/if}
 </div>
 
 <EditDialog
@@ -461,3 +504,5 @@
     />
   {/if}
 </EditDialog>
+
+<BelegUebertragenDialog beleg={openTransferred} onclose={() => (openTransferred = null)} />
