@@ -398,7 +398,15 @@
                 href="#dispo-stop-{plan?.routes
                   .flatMap((route) => route.stops)
                   .find((stop) => stop.lateAfterSlot > 0)?.id}"
-                >{totals.lateAfterSlot} nach Ende des gebuchten Termins – Besuche ansehen</a
+                onclick={(event) => {
+                  // The list is hidden behind the map, so switch to it first
+                  if (view !== 'karte') return;
+                  event.preventDefault();
+                  const late = plan?.routes
+                    .flatMap((route) => route.stops)
+                    .find((stop) => stop.lateAfterSlot > 0);
+                  if (late) void showInList(late.id);
+                }}>{totals.lateAfterSlot} nach Ende des gebuchten Termins – Besuche ansehen</a
               >
             {/if}
             {#if dirty}· <span class="font-semibold text-warning">nicht gespeichert</span>{/if}
