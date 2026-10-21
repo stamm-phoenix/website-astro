@@ -119,6 +119,7 @@
       !belegeStore.error &&
       campflowStore.data !== null &&
       !campflowStore.loading &&
+      !campflowStore.error &&
       ownBelege.length === 0
   );
   const cardCount = $derived(
