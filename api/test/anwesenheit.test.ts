@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as campflow from '../lib/campflow';
+import * as anwesenheit from '../lib/anwesenheit';
 import {
   addGuest,
   markChild,
@@ -20,11 +21,13 @@ import {
   AnwesenheitChild,
   AnwesenheitGuests,
   AnwesenheitNotes,
+  GetAnwesenheit,
   GetAnwesenheitTermin,
   buildTerminView,
 } from '../endpoints/intern-anwesenheit';
 import { attendanceSnapshot } from '../lib/anwesenheit-model';
 import { dbTest } from './fixtures/database';
+import { recordQueries } from './fixtures/queries';
 
 function berlinToday(now: Date = new Date()): string {
   return dateToLocalParts(now).date;
@@ -370,6 +373,155 @@ dbTest('a Termin is read with the children of its Stufe from CampFlow', async (t
     ['per_Current']
   );
   assert.equal(body.etag, null);
+});
+
+/** A Termin of the Wölflinge with present and excused members and guests. */
+async function seedTermin(
+  date: string,
+  notes: string,
+  present: string[],
+  excused: string[],
+  guests: string[]
+): Promise<void> {
+  const { id } = await getDb()
+    .insertInto('gruppenstunde.meeting')
+    .values({ stufe: 'Wölflinge', date, notes, updated_by: 'test' })
+    .output('inserted.id')
+    .executeTakeFirstOrThrow();
+  await getDb()
+    .insertInto('gruppenstunde.attendance')
+    .values([
+      ...present.map((person) => ({ meeting_id: id, guest: false, person_id: person })),
+      ...excused.map((person) => ({
+        meeting_id: id,
+        guest: false,
+        person_id: person,
+        excused: true,
+      })),
+      ...guests.map((name) => ({ meeting_id: id, guest: true, guest_name: name })),
+    ])
+    .execute();
+}
+
+async function namedRows(date: string): Promise<number> {
+  const rows = await getDb()
+    .selectFrom('gruppenstunde.attendance as a')
+    .innerJoin('gruppenstunde.meeting as m', 'm.id', 'a.meeting_id')
+    .select(['a.person_id', 'a.guest_name'])
+    .where('m.date', '=', date)
+    .execute();
+  return rows.filter((row) => row.person_id !== null || row.guest_name !== null).length;
+}
+
+dbTest('the overview removes expired names while it reads the counts', async (t) => {
+  const today = berlinToday();
+  await seedTermin('2000-01-07', 'Alt', ['per_Old'], ['per_Other'], ['Gast Alt']);
+  await seedTermin(today, 'Heute', ['per_Current'], [], ['Gast Neu']);
+  const queries = recordQueries(t);
+  const response = await GetAnwesenheit(
+    terminRequest('GET'),
+    new InvocationContext({ functionName: 'anwesenheit-test' })
+  );
+
+  assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
+  // The counts hold no names, so the anonymization runs together with the reads
+  assert.equal(queries.roundTrips, 1);
+  assert.deepEqual((response.jsonBody as { meetings: unknown }).meetings, [
+    {
+      stufe: 'Wölflinge',
+      date: today,
+      members: 1,
+      excused: 0,
+      guests: 1,
+      notes: 'Heute',
+      cancelled: false,
+    },
+    {
+      stufe: 'Wölflinge',
+      date: '2000-01-07',
+      members: 1,
+      excused: 1,
+      guests: 1,
+      notes: 'Alt',
+      cancelled: false,
+    },
+  ]);
+  assert.equal(await namedRows('2000-01-07'), 0);
+  assert.equal(await namedRows(today), 2);
+});
+
+dbTest(
+  'a Termin past the retention period never shows names, even before they are removed',
+  async (t) => {
+    const persons = t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+    await seedTermin('2000-01-07', 'Alt', ['per_Old'], ['per_Other'], ['Gast Alt']);
+    const read = async () => {
+      const response = await GetAnwesenheitTermin(
+        terminRequest('GET', { datum: '2000-01-07' }),
+        quietContext(t)
+      );
+      assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
+      const { etag, ...body } = response.jsonBody as { etag: string };
+      assert.match(etag, /^"[0-9a-f]{16}"$/);
+      return body;
+    };
+    const expected = {
+      stufe: 'Wölflinge',
+      date: '2000-01-07',
+      editable: false,
+      notes: 'Alt',
+      cancelled: false,
+      children: [],
+      anonymized: 1,
+      anonymizedExcused: 1,
+      guests: [],
+      anonymizedGuests: 1,
+    };
+
+    // As if the removal had not finished yet when the Termin is read
+    const anonymize = t.mock.method(anwesenheit, 'anonymizeExpired', async () => 0);
+    assert.deepEqual(await read(), expected);
+    assert.equal(await namedRows('2000-01-07'), 3);
+    anonymize.mock.restore();
+    assert.deepEqual(await read(), expected);
+    assert.equal(await namedRows('2000-01-07'), 0);
+    assert.equal(persons.mock.callCount(), 0);
+  }
+);
+
+dbTest('a current Termin is read while expired names are removed', async (t) => {
+  t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+  await seedTermin('2000-01-07', 'Alt', ['per_Old'], [], []);
+  await seedTermin(berlinToday(), 'Heute', ['per_Current', 'per_Gone'], [], ['Gast Neu']);
+  const queries = recordQueries(t);
+  const response = await GetAnwesenheitTermin(terminRequest('GET'), quietContext(t));
+
+  assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
+  assert.equal(queries.roundTrips, 2);
+  const { etag, guests, ...body } = response.jsonBody as {
+    etag: string;
+    guests: { id: string; name: string }[];
+  };
+  assert.match(etag, /^"[0-9a-f]{16}"$/);
+  assert.deepEqual(
+    guests.map((guest) => guest.name),
+    ['Gast Neu']
+  );
+  assert.deepEqual(body, {
+    stufe: 'Wölflinge',
+    date: berlinToday(),
+    editable: true,
+    notes: 'Heute',
+    cancelled: false,
+    children: [
+      { kind: 'stufe', id: 'per_Current', firstName: 'Anna', lastName: 'Test', status: 'anwesend' },
+      { kind: 'unbekannt', id: 'per_Gone', status: 'anwesend' },
+    ],
+    anonymized: 0,
+    anonymizedExcused: 0,
+    anonymizedGuests: 0,
+  });
+  assert.equal(await namedRows('2000-01-07'), 0);
 });
 
 dbTest(

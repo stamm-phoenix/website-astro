@@ -8,6 +8,7 @@ import {
   getChildren,
   getMeetingRecord,
   getMeetingSummaries,
+  withoutNames,
   isCurrentChild,
   isEditable,
   markAbsent,
@@ -82,16 +83,17 @@ function terminHandler(
 /**
  * GET: the Gruppenstunden with their times, the Stufen the logged-in person leads (a
  * suggestion from the list „Leitende & Teams“) and all recorded Termine with their counts.
- * Removes the names of Termine past the retention period first.
+ * Removes the names of Termine past the retention period along the way.
  */
 export async function GetAnwesenheitEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const principal = requireStaff(request);
   if (isStaffError(principal)) return principal;
 
   const now = new Date();
-  await anonymizeExpired(now);
-  // The SharePoint lists only add convenience; recording works without them
-  const [gruppenstunden, leitende, meetings] = await Promise.all([
+  // The counts hold no names, so the removal of expired ones runs along with the reads
+  const [, gruppenstunden, leitende, meetings] = await Promise.all([
+    anonymizeExpired(now),
+    // The SharePoint lists only add convenience; recording works without them
     getGruppenstunden().catch(() => []),
     getLeitende().catch(() => []),
     getMeetingSummaries(),
@@ -188,18 +190,24 @@ export async function GetAnwesenheitTerminEndpoint(
   const now = new Date();
   const termin = readTermin(request, now);
   if (!termin) return NOT_FOUND;
-  await anonymizeExpired(now);
   try {
     // Older Termine keep only their counts, so they need no names from CampFlow
     const editable = isEditable(termin, now);
-    const [record, children] = await Promise.all([
+    const [, record, children] = await Promise.all([
+      anonymizeExpired(now),
       getMeetingRecord(termin),
       editable ? getChildren(now) : [],
     ]);
+    // The removal runs along with the read, so an older Termin drops its names here as well
     return {
       status: 200,
       headers: NO_STORE_HEADERS,
-      jsonBody: buildTerminView(termin, record, children, editable),
+      jsonBody: buildTerminView(
+        termin,
+        editable ? record : withoutNames(record),
+        children,
+        editable
+      ),
     };
   } catch (error: unknown) {
     return campflowErrorResponse(error);

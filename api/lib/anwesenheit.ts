@@ -160,6 +160,23 @@ export async function getMeetingRecord(termin: Termin, db: Db = getDb()): Promis
   };
 }
 
+/**
+ * The record as `anonymizeExpired` leaves it: no CampFlow IDs and no guest names, only the
+ * counts. For Termine before the retention start, so a read never depends on the removal having
+ * finished first.
+ */
+export function withoutNames(record: MeetingRecord): MeetingRecord {
+  return {
+    ...record,
+    presentIds: [],
+    excusedIds: [],
+    anonymized: record.anonymized + record.presentIds.length,
+    anonymizedExcused: record.anonymizedExcused + record.excusedIds.length,
+    guests: [],
+    anonymizedGuests: record.anonymizedGuests + record.guests.length,
+  };
+}
+
 // --- Writing ---
 
 /** One Gruppenstunde: a Stufe on a date (`YYYY-MM-DD`). */
