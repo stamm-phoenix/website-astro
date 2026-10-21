@@ -294,42 +294,52 @@
 {/snippet}
 
 {#snippet belegeBody()}
-  <LoadState
-    data={belegeStore.data}
-    loading={belegeStore.loading}
-    error={belegeStore.error}
-    loadingText="Belege werden geladen …"
-    onretry={() => belegePflege.load({ force: true })}
-  >
-    {#snippet skeleton()}
-      <p aria-hidden="true" class="mt-2 text-sm text-neutral-700">Belege werden geladen …</p>
-    {/snippet}
-    {#if campflowStore.loading && !campflowStore.data}
-      <p role="status" class="text-sm text-neutral-700">Belege aus CampFlow werden geladen …</p>
-    {:else if campflowStore.error}
-      <p class="text-sm text-neutral-700">Ohne CampFlow fehlen schon gebuchte Belege.</p>
-    {/if}
-    <ul class="mt-1 divide-y divide-neutral-200" data-testid="meine-belege">
-      {#each ownBelege.slice(0, CARD_LIMIT) as beleg (beleg.key)}
-        <li class="py-2">
-          <a
-            href="/leitendenbereich/belege"
-            class="text-link block truncate font-semibold"
-            title={beleg.title}>{beleg.title}</a
+  <!-- Two sources: what one of them delivered shows even if the other fails -->
+  {#if belegeStore.loading && !belegeStore.data}
+    <p role="status" class="mt-2 text-sm text-neutral-700">Belege werden geladen …</p>
+  {:else if belegeStore.error}
+    <p class="mt-2 text-sm text-neutral-700">
+      Deine eingereichten Belege konnten nicht geladen werden.
+      <button
+        type="button"
+        class="text-link min-h-11 underline underline-offset-4"
+        onclick={() => belegePflege.load({ force: true })}>Erneut versuchen</button
+      >
+    </p>
+  {/if}
+  {#if campflowStore.loading && !campflowStore.data}
+    <p role="status" class="text-sm text-neutral-700">Belege aus CampFlow werden geladen …</p>
+  {:else if campflowStore.error}
+    <p class="text-sm text-neutral-700">
+      Ohne CampFlow fehlen schon gebuchte Belege.
+      <button
+        type="button"
+        class="text-link min-h-11 underline underline-offset-4"
+        onclick={() => campflowBelegeStore.load({ force: true, param: false })}
+        >Erneut versuchen</button
+      >
+    </p>
+  {/if}
+  <ul class="mt-1 divide-y divide-neutral-200" data-testid="meine-belege">
+    {#each ownBelege.slice(0, CARD_LIMIT) as beleg (beleg.key)}
+      <li class="py-2">
+        <a
+          href="/leitendenbereich/belege"
+          class="text-link block truncate font-semibold"
+          title={beleg.title}>{beleg.title}</a
+        >
+        <p class="flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
+          <span
+            >{[beleg.date ? formatIsoDate(beleg.date) : '', formatEuro(beleg.amountCent)]
+              .filter(Boolean)
+              .join(' · ')}</span
           >
-          <p class="flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
-            <span
-              >{[beleg.date ? formatIsoDate(beleg.date) : '', formatEuro(beleg.amountCent)]
-                .filter(Boolean)
-                .join(' · ')}</span
-            >
-            <StatusLabel label={beleg.label} tone={beleg.tone} dot />
-          </p>
-        </li>
-      {/each}
-    </ul>
-    {@render more(ownBelege.length)}
-  </LoadState>
+          <StatusLabel label={beleg.label} tone={beleg.tone} dot />
+        </p>
+      </li>
+    {/each}
+  </ul>
+  {@render more(ownBelege.length)}
 {/snippet}
 
 {#snippet fristenBody()}

@@ -20,7 +20,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: 'Unter „In CampFlow“ siehst du jetzt alle Belege aus CampFlow mit Kostenstelle, Kategorie und Stand: noch nicht gebucht, gebucht mit offener Erstattung, erstattet oder bezahlt. Dafür brauchst du keinen eigenen CampFlow-Zugang.',
         href: '/leitendenbereich/belege',
       },
-      'Du kannst die Belege nach Kostenstelle und Kategorie filtern. „Nur meine Belege“ zeigt die Belege, die du ausgelegt hast, und die du hier eingereicht hast. Tippst du einen Beleg an, siehst du sein Bild aus CampFlow.',
+      'Du kannst die Belege nach Kostenstelle und Kategorie filtern. „Nur meine Belege“ zeigt die Belege, die du ausgelegt hast, und die du hier eingereicht hast. Tippst du einen gebuchten Beleg an, siehst du sein Bild aus CampFlow.',
       'Auf der Startseite zeigt die neue Box „Meine Belege“ deine Belege mit ihrem Stand, vom Einreichen bis zur Erstattung.',
       'Als Kasse überträgst du einen angenommenen Beleg direkt aus dem Beleg heraus nach CampFlow. Du wählst nur noch Kostenstelle und Kategorie; die Kostenstelle, die so heißt wie die Aktion, ist schon ausgewählt. CampFlow bekommt das Foto, Geschäft, Bemerkung, Datum und Betrag, und bei gewünschter Auszahlung die Person unter „Auslage durch“.',
       'Danach siehst du die neue Belegnummer aus CampFlow, und der Beleg wird hier gelöscht. Ging beim Übertragen etwas schief, kannst du es einfach noch einmal versuchen: Ein schon angekommener Beleg wird nicht doppelt angelegt.',

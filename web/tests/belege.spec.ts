@@ -121,3 +121,18 @@ test('the start page lists my receipts with their state', async ({ page }) => {
     '/leitendenbereich/belege'
   );
 });
+
+test('my receipts from CampFlow show even if the submitted ones fail to load', async ({ page }) => {
+  await page.route('**/api/intern/pflege/belege', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ status: 500, json: { error: { code: 'X', message: 'kaputt' } } })
+      : route.fallback()
+  );
+  await page.goto('/leitendenbereich/');
+  const box = page.getByRole('region', { name: 'Meine Belege' });
+  await expect(
+    box.getByText('Deine eingereichten Belege konnten nicht geladen werden.')
+  ).toBeVisible();
+  await expect(box.getByText('Edeka – Grillabend')).toBeVisible();
+  await expect(box.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
+});

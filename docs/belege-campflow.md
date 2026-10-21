@@ -49,7 +49,7 @@ verknüpfte CampFlow-Person aus „Personen“, sonst der Name des Microsoft-Kon
 (Buchung `campflow_expense_id`, eingereicht von `submitted_by`) und gibt nur `viaWebsite` und
 `submittedByMe` weiter, keine Anmeldekennungen. Der Dateiname aus CampFlow nennt oft, wer
 hochgeladen hat; er wird nur für ungebuchte Belege gezeigt, die sonst nichts haben. Das Bild kommt
-wie in der Abrechnung über `/api/intern/abrechnung/belege/{nummer}/bild`.
+wie in der Abrechnung über `/api/intern/abrechnung/belege/{nummer}/bild`, also nur für gebuchte Belege mit Nummer; ungeprüfte Belege zeigen kein Bild.
 
 ## Meine Belege auf der Startseite
 
