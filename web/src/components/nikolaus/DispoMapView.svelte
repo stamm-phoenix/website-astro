@@ -341,7 +341,16 @@
       if (top < panel.scrollTop || top + item.offsetHeight > panel.scrollTop + panel.clientHeight) {
         panel.scrollTo({ top: top - panel.clientHeight / 3, behavior: 'smooth' });
       }
-    } else if (fromPanel && mapArea && mapArea.getBoundingClientRect().top < 0) {
+    } else if (fromPanel) {
+      bringMapIntoView();
+    }
+  }
+
+  /** On a phone the panel sits below the map; an action there scrolls back up to the map. */
+  function bringMapIntoView(): void {
+    if (!mapArea || large) return;
+    const { top } = mapArea.getBoundingClientRect();
+    if (top < 0 || top > window.innerHeight / 2) {
       mapArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
@@ -359,6 +368,7 @@
       .flatMap((team) => routePoints(team));
     const bounds = leaflet.latLngBounds([[base.lat, base.lon], ...points]);
     map.flyToBounds(bounds, { padding: [32, 32], maxZoom: 15, duration: 0.5 });
+    bringMapIntoView();
   }
 
   function toggleTeam(name: string): void {
@@ -491,6 +501,9 @@
             Team {team.name}
             <span class="tabular-nums text-neutral-700"
               >({team.stops.length + team.unlocated.length})</span
+            >
+            <span class="font-normal text-neutral-700"
+              >{hidden.includes(team.name) ? 'ausgeblendet' : 'eingeblendet'}</span
             >
           </button>
         {/each}
