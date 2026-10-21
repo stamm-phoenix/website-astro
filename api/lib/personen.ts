@@ -278,7 +278,11 @@ function forgetIch(): void {
  */
 async function getVerknuepfte(login: string, now: number): Promise<Verknuepfte | null> {
   const id = await getCampflowPersonId(login);
-  if (!id) return null;
+  return id ? ladeVerknuepfte(id, now) : null;
+}
+
+/** The linked CampFlow person by its ID, from memory or CampFlow. */
+async function ladeVerknuepfte(id: string, now: number): Promise<Verknuepfte> {
   const cached = ichCache.get(id);
   if (cached && now - cached.at < ICH_CACHE_MS) return cached.campflow;
   try {
@@ -316,11 +320,19 @@ async function adresseGeteilt(id: string, email: string): Promise<boolean> {
  * The logged-in person with the name of their CampFlow person (`GET /api/intern/ich`), without
  * the address: own registrations to events are matched on the server (`eigeneAnmeldungen`).
  */
-export async function getIch(login: string, now: number = Date.now()): Promise<Ich> {
-  const linked = await getVerknuepfte(login, now);
-  if (!linked) return { login, campflow: null };
-  const { id, firstName, lastName } = linked;
-  return { login, campflow: { id, firstName, lastName } };
+export async function getIch(
+  login: string,
+  now: number = Date.now(),
+  timeoutMs: number = ICH_TIMEOUT_MS
+): Promise<Ich> {
+  const id = await getCampflowPersonId(login);
+  if (!id) return { login, campflow: null };
+  // Without an answer in time the ID alone; a later answer still fills the memory
+  const linked = await innerhalb(ladeVerknuepfte(id, now), timeoutMs);
+  return {
+    login,
+    campflow: { id, firstName: linked?.firstName ?? '', lastName: linked?.lastName ?? '' },
+  };
 }
 
 /**
