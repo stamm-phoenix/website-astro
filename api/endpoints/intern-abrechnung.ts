@@ -53,6 +53,12 @@ function validTimestamp(value: unknown): string | null {
 
 export const EVENT_ID_PATTERN = /^evt_[A-Za-z0-9]+$/;
 
+/** The value of a settled promise, or its error thrown. */
+function settled<T>(result: PromiseSettledResult<T>): T {
+  if (result.status === 'rejected') throw result.reason;
+  return result.value;
+}
+
 /** Loads a CampFlow event and its registrations, or the error response to send instead. */
 export async function loadAktion(
   id: string
@@ -95,7 +101,10 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
     return errorResponse(400, 'INVALID_KOSTENSTELLE', 'Ungültige Kostenstelle.');
   }
 
-  const loaded = await loadAktion(id);
+  // The marks of the Aktion need only its ID, so they are read while CampFlow answers. Both are
+  // settled before any return; their errors keep the order in which they were reported before.
+  const [aktion, art] = await Promise.allSettled([loadAktion(id), getAktionArt(id)]);
+  const loaded = settled(aktion);
   if ('response' in loaded) return loaded.response;
   const { event, persons } = loaded;
 
@@ -117,7 +126,7 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
       title: event.title,
       start_date: event.start_date,
       end_date: event.end_date,
-      ...(await getAktionArt(id)),
+      ...settled(art),
     },
     costUnit: report.costUnit,
     persons: kjrPersons(persons, event.start_date),
