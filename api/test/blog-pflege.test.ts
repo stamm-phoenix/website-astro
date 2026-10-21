@@ -10,7 +10,9 @@ import {
   BlogItem,
 } from '../endpoints/intern-pflege-blog';
 import { GetBlogEndpoint, GetBlogImage, GetBlogPost } from '../endpoints/blog';
+import { getDb } from '../lib/db';
 import { dbTest } from './fixtures/database';
+import { recordQueries } from './fixtures/queries';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -195,6 +197,80 @@ dbTest(
     }
   }
 );
+
+dbTest('the list of posts reads only what it shows and counts the text as before', async (t) => {
+  const { context } = setup(t);
+  const insert = async (title: string, date: string, published: boolean, content: string) =>
+    (
+      await getDb()
+        .insertInto('content.blog_post')
+        .values({ title, post_date: date, published, content, updated_by: 'test' })
+        .output('inserted.id')
+        .executeTakeFirstOrThrow()
+    ).id;
+  // Stored text that the sanitizer still changes: a script, an image that is gone
+  const lager = await insert(
+    'Lager',
+    '2026-05-01',
+    true,
+    '<p>Hallo <strong>Welt</strong>&nbsp;&amp; Co<script>boese()</script></p>' +
+      '<p>Vor<img data-bild="bild-9.jpg">her</p><img data-bild="bild-2.jpg"><p>Ende</p>'
+  );
+  const draft = await insert('Entwurf', '2026-06-01', false, '');
+  const sameDay = await insert('Gleicher Tag', '2026-05-01', true, '<p>Kurz</p>');
+  const image = (post: number, file: string, position: number) => ({
+    post_id: post,
+    file,
+    position,
+    alt: `Bild ${file}`,
+    width: 1600,
+    height: 900 + position,
+  });
+  await getDb()
+    .insertInto('content.blog_image')
+    .values([
+      image(lager, 'bild-1.jpg', 1),
+      image(lager, 'bild-2.jpg', 0),
+      image(sameDay, 'bild-3.jpg', 0),
+    ])
+    .execute();
+
+  const queries = recordQueries(t);
+  const response = await BlogCollection(request('GET'), context);
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, [
+    {
+      id: String(draft),
+      title: 'Entwurf',
+      date: '2026-06-01',
+      published: false,
+      cover: null,
+      imageCount: 0,
+      textLength: 0,
+    },
+    {
+      id: String(sameDay),
+      title: 'Gleicher Tag',
+      date: '2026-05-01',
+      published: true,
+      cover: { file: 'bild-3.jpg', alt: 'Bild bild-3.jpg', width: 1600, height: 900 },
+      imageCount: 1,
+      textLength: 4,
+    },
+    {
+      id: String(lager),
+      title: 'Lager',
+      date: '2026-05-01',
+      published: true,
+      cover: { file: 'bild-2.jpg', alt: 'Bild bild-2.jpg', width: 1600, height: 900 },
+      imageCount: 2,
+      textLength: 27,
+    },
+  ]);
+  // Neither the version nor who changed a post when are part of the list
+  assert.equal(queries.roundTrips, 1);
+  assert.ok(queries.statements.every((statement) => !/select \*|updated_by/.test(statement)));
+});
 
 dbTest('image order and alt texts are saved with the version of the post', async (t) => {
   const { context } = setup(t);
