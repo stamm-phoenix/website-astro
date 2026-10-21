@@ -91,17 +91,19 @@
 
   $effect(() => {
     untrack(() => {
-      belegePflege.load();
+      // Only suggestions; the form works without CampFlow. They follow the list, so it comes
+      // first, and are there by the time a receipt is opened (which also asks for them)
+      void belegePflege.load().finally(() => fetchCampflowEvents());
       fetchPrincipal();
       fetchApi<{ reviewer: boolean }>('/intern/pflege/belege/rolle')
         .then((role) => (reviewer = role.reviewer))
         .catch(() => undefined);
-      // Only suggestions; the form works without CampFlow
-      fetchCampflowEvents();
     });
   });
 
   function resetDialog(): void {
+    // The suggestions of the form, in case the list is still loading
+    void fetchCampflowEvents();
     photo.reset();
     dialog.reset();
     dialogNotice = null;

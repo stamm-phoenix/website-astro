@@ -87,15 +87,20 @@
       return;
     }
     void loadTaskUsers();
-    void Promise.all([loadTasks(), fetchCampflowEvents()]).then(async () => {
+    void loadTasks().then(async () => {
       await tick();
       if (location.hash.startsWith('#aufgabe-'))
         document.getElementById(location.hash.slice(1))?.scrollIntoView();
       const action = params.get('aktion');
       if (!action) return;
       const project = aufgabenStore.data?.projects.find((project) => project.campflowId === action);
-      if (project) projectFilter = String(project.id);
-      else projectAction = action;
+      if (project) {
+        projectFilter = String(project.id);
+        return;
+      }
+      // Only a new project for the Aktion needs CampFlow, for its title and the list of Aktionen
+      await fetchCampflowEvents();
+      projectAction = action;
     });
   });
 </script>
