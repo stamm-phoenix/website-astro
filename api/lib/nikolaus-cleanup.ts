@@ -49,37 +49,44 @@ export function addCalendarMonth(date: string): string {
 type CountedTable =
   'nikolaus.booking' | 'nikolaus.helper' | 'nikolaus.dispo_visit' | 'nikolaus.assignment';
 
-async function count(db: Db, table: CountedTable): Promise<number> {
-  const row = await db
-    .selectFrom(table)
-    .select((eb) => eb.fn.countAll<number>().as('count'))
-    .executeTakeFirstOrThrow();
-  return Number(row.count);
-}
-
+/**
+ * One statement for all figures: every page of the Leitendenbereich asks for the status, and
+ * separate queries would each take a connection of the pool.
+ */
 export async function getCleanupStatus(
   now: Date = new Date(),
   db: Db = getDb()
 ): Promise<CleanupStatus> {
-  const [bookings, dispoVisits, helpers, assignments, booked, visited] = await Promise.all([
-    count(db, 'nikolaus.booking'),
-    count(db, 'nikolaus.dispo_visit'),
-    count(db, 'nikolaus.helper'),
-    count(db, 'nikolaus.assignment'),
-    db
-      .selectFrom('nikolaus.booking')
-      .select((eb) => eb.fn.max('visit_date').as('last'))
-      .where('status', '=', 'Bestaetigt')
-      .executeTakeFirst(),
-    db
-      .selectFrom('nikolaus.dispo_visit')
-      .select((eb) => eb.fn.max('visited_at').as('last'))
-      .executeTakeFirst(),
-  ]);
+  const figures = await db
+    .selectNoFrom((eb) => {
+      const count = (table: CountedTable) =>
+        eb.selectFrom(table).select((sub) => sub.fn.countAll<number>().as('count'));
+      return [
+        count('nikolaus.booking').as('bookings'),
+        count('nikolaus.dispo_visit').as('dispoVisits'),
+        count('nikolaus.helper').as('helpers'),
+        count('nikolaus.assignment').as('assignments'),
+        eb
+          .selectFrom('nikolaus.booking')
+          .select((sub) => sub.fn.max('visit_date').as('last'))
+          .where('status', '=', 'Bestaetigt')
+          .as('booked'),
+        eb
+          .selectFrom('nikolaus.dispo_visit')
+          .select((sub) => sub.fn.max('visited_at').as('last'))
+          .as('visited'),
+      ];
+    })
+    .executeTakeFirstOrThrow();
+  const bookings = Number(figures.bookings);
+  const dispoVisits = Number(figures.dispoVisits);
+  const helpers = Number(figures.helpers);
+  const assignments = Number(figures.assignments);
+  const { booked, visited } = figures;
   const candidates = [
-    booked?.last ? toDateString(booked.last) : null,
+    booked ? toDateString(booked) : null,
     // A visit checked off after midnight still belongs to the local date it happened on
-    visited?.last ? dateToLocalParts(new Date(visited.last)).date : null,
+    visited ? dateToLocalParts(new Date(visited)).date : null,
   ].filter((date): date is string => date !== null);
   const lastVisit = candidates.length ? candidates.sort().at(-1)! : null;
   const deleteBy = lastVisit ? addCalendarMonth(lastVisit) : null;
