@@ -20,6 +20,7 @@
     conflicts: { name: string; tags: string[] }[];
     onteam: (team: string) => void;
     onpin: () => void;
+    onmap?: () => void;
   }
   let {
     booking,
@@ -33,6 +34,7 @@
     conflicts,
     onteam,
     onpin,
+    onmap,
   }: Props = $props();
   const selectId = $derived(`dispo-team-${booking.id}`);
   const NOTABLE_LATE_IN_SLOT = 10;
@@ -118,8 +120,8 @@
         </p>
       {/if}
 
-      {#if !visited}
-        <div class="mt-2 flex flex-wrap items-center gap-2 print:hidden">
+      <div class="mt-2 flex flex-wrap items-center gap-2 print:hidden">
+        {#if !visited}
           <label class="sr-only" for={selectId}>Team für Familie {booking.familyName}</label>
           <select
             id={selectId}
@@ -136,13 +138,28 @@
             label={`für Familie ${booking.familyName}`}
             onclick={() => onpin()}
           />
-        </div>
-      {/if}
+        {/if}
+        {#if onmap}
+          <button
+            type="button"
+            class="inline-flex min-h-11 items-center px-1 text-sm font-semibold text-link underline"
+            onclick={() => onmap()}
+          >
+            Auf der Karte zeigen
+          </button>
+        {/if}
+      </div>
     </div>
   </div>
 </li>
 
 <style>
+  .stop-card {
+    transition: background-color 0.4s;
+  }
+  :global(.stop-card.is-flashing) {
+    background: var(--color-field);
+  }
   @media print {
     .stop-card {
       break-inside: avoid;

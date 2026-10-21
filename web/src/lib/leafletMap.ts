@@ -51,9 +51,19 @@ async function loadAttribution(style: string, zoom: number): Promise<string[]> {
 /**
  * Shared map interaction and attribution for address and route maps. The tiles follow the
  * theme of the website, also when it is switched while the map is open.
+ *
+ * A map inside a page lets the page scroll past it; a map that is the main part of the page
+ * (`main`) zooms with the mouse wheel and can be moved with one finger.
  */
-export function createMap(L: typeof Leaflet, element: HTMLElement): Leaflet.Map {
-  const map = L.map(element, { scrollWheelZoom: false, dragging: !L.Browser.mobile });
+export function createMap(
+  L: typeof Leaflet,
+  element: HTMLElement,
+  { main = false }: { main?: boolean } = {}
+): Leaflet.Map {
+  const map = L.map(element, {
+    scrollWheelZoom: main,
+    dragging: main || !L.Browser.mobile,
+  });
   let url = tileUrl();
   const layer = L.tileLayer(url, { maxZoom: 19, attribution: '&copy; Microsoft' }).addTo(map);
 

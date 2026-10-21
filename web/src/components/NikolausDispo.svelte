@@ -8,7 +8,7 @@
 
   import { createPlanEditor } from '../lib/planEditor.svelte';
   import LoadState from './ui/LoadState.svelte';
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { sendApi } from '../lib/api';
   import { confirmAction } from '../lib/confirm';
   import { dateToLocalParts } from '../lib/nikolausConfig';
@@ -27,6 +27,9 @@
 
   import NikolausDispoMap from './NikolausDispoMap.svelte';
   import type { DispoMapRoute } from './NikolausDispoMap.svelte';
+  import DispoMapView from './nikolaus/DispoMapView.svelte';
+  import { dispoMapTeam } from '../lib/nikolausDispoMap';
+  import type { DispoMapTeam } from '../lib/nikolausDispoMap';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import InfoHint from './ui/InfoHint.svelte';
 
@@ -51,6 +54,13 @@
   let calculating = $state(false);
   /** Hints about changes since the Dispo was saved. */
   let changes = $state<string[]>([]);
+
+  type View = 'liste' | 'karte';
+  let view = $state<View>(
+    new URLSearchParams(window.location.search).get('ansicht') === 'karte' ? 'karte' : 'liste'
+  );
+  /** Visit the map shows first when switching from the list. */
+  let mapFocus = $state<string | null>(null);
 
   const editor = createPlanEditor({
     dirty: () => dirty,
@@ -97,6 +107,51 @@
       }),
     }))
   );
+
+  const mapTeams = $derived.by((): DispoMapTeam[] => {
+    if (!plan || !data) return [];
+    const travelIndex = new Map(data.stops.map((stop, i) => [stop.id, i + 1]));
+    const visited = new Set(data.rows.filter((row) => row.visited).map((row) => row.bookingId));
+    return plan.routes.map((route) =>
+      dispoMapTeam({
+        route,
+        color: teamColor.get(route.team) ?? '#003056',
+        base,
+        stopsById,
+        travelIndex,
+        travel: data.travel,
+        path: routePaths.path(date, route.team, assignment[route.team]),
+        fixed,
+        visited,
+      })
+    );
+  });
+
+  function selectView(next: View): void {
+    view = next;
+    const url = new URL(window.location.href);
+    if (next === 'karte') url.searchParams.set('ansicht', 'karte');
+    else url.searchParams.delete('ansicht');
+    history.replaceState(history.state, '', url);
+  }
+
+  /** Switches to the list and brings the visit into view. */
+  async function showInList(id: string): Promise<void> {
+    selectView('liste');
+    await tick();
+    const element = document.getElementById(`dispo-stop-${id}`);
+    if (!element) return;
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    element.classList.add('is-flashing');
+    setTimeout(() => element.classList.remove('is-flashing'), 2000);
+    element.querySelector<HTMLElement>('select')?.focus({ preventScroll: true });
+  }
+
+  function showOnMap(id: string): void {
+    mapFocus = id;
+    selectView('karte');
+    window.scrollTo({ top: 0 });
+  }
 
   /** Builds the working state from the loaded data: the saved Dispo or a new suggestion. */
   function initFrom(source: StaffNikolausDispoData): void {
@@ -285,6 +340,16 @@
       onselect={selectDate}
       class="border-b border-neutral-200"
     />
+    <FilterTabs
+      label="Ansicht"
+      variant="segmented"
+      options={[
+        { value: 'liste', label: 'Liste' },
+        { value: 'karte', label: 'Karte' },
+      ]}
+      value={view}
+      onselect={selectView}
+    />
   </div>
 
   <div class="min-h-20 print:hidden">
@@ -376,12 +441,26 @@
             Für diesen Tag gibt es noch keine bestätigten Termine.
           </p>
         {:else}
-          <div class="print:hidden">
-            <NikolausDispoMap routes={mapRoutes} {base} />
-          </div>
+          {#if view === 'karte'}
+            <DispoMapView
+              teams={mapTeams}
+              options={data.teams}
+              {base}
+              focus={mapFocus}
+              onteam={changeTeam}
+              onpin={toggleFixed}
+              onlist={(id) => void showInList(id)}
+            />
+          {:else}
+            <div class="print:hidden">
+              <NikolausDispoMap routes={mapRoutes} {base} />
+            </div>
+          {/if}
 
+          <!-- The list stays for printing while the map is shown -->
           <div
-            class="grid gap-x-8 gap-y-10 md:grid-cols-2 {data.teams.length >= 3
+            class="{view === 'karte' ? 'hidden' : 'grid'} gap-x-8 gap-y-10 md:grid-cols-2 {data
+              .teams.length >= 3
               ? 'xl:grid-cols-3'
               : ''} {data.teams.length >= 4 ? '2xl:grid-cols-4' : ''} print:block"
           >
@@ -398,6 +477,7 @@
                 {date}
                 onteam={changeTeam}
                 onpin={toggleFixed}
+                onmap={showOnMap}
               />
             {/each}
           </div>
