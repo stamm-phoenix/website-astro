@@ -30,6 +30,10 @@ function escapeHtml(text: string): string {
   );
 }
 
+/** Requests of the copyright notice of one zoom level, with a growing pause in between. */
+const ATTRIBUTION_ATTEMPTS = 4;
+const ATTRIBUTION_RETRY_MS = 5000;
+
 /** The copyright notices Azure Maps requires for the tiles of a zoom level, as plain text. */
 async function loadAttribution(style: string, zoom: number): Promise<string[]> {
   try {
@@ -53,18 +57,34 @@ export function createMap(L: typeof Leaflet, element: HTMLElement): Leaflet.Map 
   let url = tileUrl();
   const layer = L.tileLayer(url, { maxZoom: 19, attribution: '&copy; Microsoft' }).addTo(map);
 
-  // The notices depend on the zoom level and the style; the newest request wins
+  // The notices depend on the zoom level and the style; the newest request wins. Only notices
+  // that arrived count as shown; a failed request is asked again a few times.
   let notices: string[] = [];
   let shown = '';
+  let loading = '';
+  let attempts = { key: '', count: 0 };
+  let retry: ReturnType<typeof setTimeout> | undefined;
   async function updateAttribution(): Promise<void> {
-    const key = `${tileStyle()}/${Math.round(map.getZoom())}`;
-    if (key === shown) return;
-    shown = key;
-    const texts = (await loadAttribution(tileStyle(), Math.round(map.getZoom()))).map(escapeHtml);
-    if (shown !== key) return;
+    const style = tileStyle();
+    const zoom = Math.round(map.getZoom());
+    const key = `${style}/${zoom}`;
+    if (key === shown || key === loading) return;
+    clearTimeout(retry);
+    loading = key;
+    const texts = (await loadAttribution(style, zoom)).map(escapeHtml);
+    if (loading !== key) return;
+    loading = '';
+    if (texts.length === 0) {
+      attempts = { key, count: attempts.key === key ? attempts.count + 1 : 1 };
+      if (attempts.count < ATTRIBUTION_ATTEMPTS) {
+        retry = setTimeout(() => void updateAttribution(), ATTRIBUTION_RETRY_MS * attempts.count);
+      }
+      return;
+    }
     for (const text of notices) map.attributionControl.removeAttribution(text);
     for (const text of texts) map.attributionControl.addAttribution(text);
     notices = texts;
+    shown = key;
   }
   map.on('zoomend', () => void updateAttribution());
   map.whenReady(() => void updateAttribution());
@@ -80,6 +100,7 @@ export function createMap(L: typeof Leaflet, element: HTMLElement): Leaflet.Map 
   const preference = matchMedia('(prefers-color-scheme: dark)');
   preference.addEventListener('change', update);
   map.on('unload', () => {
+    clearTimeout(retry);
     observer.disconnect();
     preference.removeEventListener('change', update);
   });

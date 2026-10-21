@@ -37,9 +37,11 @@ export interface Tile {
 
 export type TileResult =
   | { status: 'ok'; tile: Tile }
-  /** Not a tile of the maps: outside the area, too deep or the maps are off. */
+  /** Not a tile of the maps: outside the area or too deep. */
   | { status: 'outside' }
-  /** Azure Maps failed or the daily limit is used up. */
+  /** Online booking and staff modules are off; may change any moment. */
+  | { status: 'off' }
+  /** The settings or Azure Maps failed, or the daily limit is used up. */
   | { status: 'unavailable' };
 
 const TIMEOUT_MS = 8000;
@@ -50,7 +52,8 @@ const MAX_TILE_AGE_SECONDS = 24 * 60 * 60;
 const ATTRIBUTION_TTL_MS = 60 * 60_000;
 
 const admit = dailyLimit(() => CONFIG.mapTiles.maxRequestsPerDay);
-let area: { value: Promise<NikolausCoordinates | null>; expires: number } | undefined;
+type MapArea = NikolausCoordinates | 'off' | 'error';
+let area: { value: Promise<MapArea>; expires: number } | undefined;
 const attributions = new Map<string, { value: Promise<string[]>; expires: number }>();
 
 /** Reads `<style>/<z>/<x>/<y>` (the `y` may end in `.png`); null if it is no valid tile. */
@@ -116,16 +119,17 @@ export function isTileInArea(
  * The starting point of the teams while the Nikolausdienst shows maps (online booking or staff
  * modules on), read at most every ten minutes because every map loads dozens of tiles.
  */
-async function mapArea(): Promise<NikolausCoordinates | null> {
+async function mapArea(): Promise<MapArea> {
   if (!area || area.expires <= Date.now()) {
     const value = getNikolausSettings().then(
-      (settings) => (settings.publicActive || settings.staffActive ? settings.area.base : null),
-      () => null
+      (settings): MapArea =>
+        settings.publicActive || settings.staffActive ? settings.area.base : 'off',
+      (): MapArea => 'error'
     );
     area = { value, expires: Date.now() + SETTINGS_TTL_MS };
     // Maps that are off or a failed read are checked again with the next request
-    void value.then((base) => {
-      if (base === null && area?.value === value) area = undefined;
+    void value.then((result) => {
+      if (typeof result === 'string' && area?.value === value) area = undefined;
     });
   }
   return area.value;
@@ -134,9 +138,9 @@ async function mapArea(): Promise<NikolausCoordinates | null> {
 /** One map tile for the Nikolaus maps. Never throws. */
 export async function getMapTile(address: TileAddress): Promise<TileResult> {
   const center = await mapArea();
-  if (!center || !isTileInArea(address, center, CONFIG.mapTiles.areaRadiusKm)) {
-    return { status: 'outside' };
-  }
+  if (center === 'off') return { status: 'off' };
+  if (center === 'error') return { status: 'unavailable' };
+  if (!isTileInArea(address, center, CONFIG.mapTiles.areaRadiusKm)) return { status: 'outside' };
   if (!admit()) {
     console.warn(JSON.stringify({ scope: 'map_tiles', event: 'limit', at: Date.now() }));
     return { status: 'unavailable' };
@@ -205,7 +209,7 @@ export function parseAttribution(value: unknown): string[] {
  */
 export async function getMapAttribution(style: TileStyle, z: number): Promise<string[]> {
   const center = await mapArea();
-  if (!center || z > CONFIG.mapTiles.maxZoom) return [];
+  if (typeof center === 'string' || z > CONFIG.mapTiles.maxZoom) return [];
   const key = `${style}/${z}`;
   const cached = attributions.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;

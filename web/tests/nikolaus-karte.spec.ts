@@ -27,3 +27,17 @@ test('the maps load their tiles from our own site and follow the dark theme', as
   );
   expect(foreign).toEqual([]);
 });
+
+test('a failed copyright notice is asked again without zooming', async ({ page }) => {
+  let calls = 0;
+  await page.route('**/api/karte-quelle/**', async (route) => {
+    calls++;
+    if (calls === 1) return route.fulfill({ status: 200, json: { copyrights: [] } });
+    return route.fallback();
+  });
+  await page.goto('/leitendenbereich/nikolaus-dispo');
+  const attribution = page.locator('.dispo-map .leaflet-control-attribution');
+  await expect(attribution).toContainText('© Microsoft');
+  await expect(attribution).toContainText('TomTom', { timeout: 15_000 });
+  expect(calls).toBe(2);
+});
