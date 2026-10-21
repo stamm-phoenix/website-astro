@@ -7,9 +7,8 @@ import {
   createBlogPost,
   deleteBlogPost,
   findImage,
-  getBlogEntries,
   getBlogEntry,
-  getPlainText,
+  getBlogList,
   removeBlogImage,
   saveBlogImages,
   updateBlogPost,
@@ -65,18 +64,7 @@ export const BlogCollectionEndpoint = pflegeHandler(
   'blog',
   async (request: HttpRequest, _context, principal) => {
     if (request.method === 'GET') {
-      const entries = await getBlogEntries();
-      return ok(
-        entries.map((entry) => ({
-          id: entry.id,
-          title: entry.title,
-          date: entry.date,
-          published: entry.published,
-          cover: entry.images[0] ?? null,
-          imageCount: entry.images.length,
-          textLength: getPlainText(entry.content).length,
-        }))
-      );
+      return ok(await getBlogList());
     }
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
 

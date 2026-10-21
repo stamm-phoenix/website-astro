@@ -35,11 +35,11 @@ export interface BlogEntry {
 /** Widths offered for images in posts; the upload scales to at most the largest one. */
 export const BLOG_IMAGE_WIDTHS = [800, 1600];
 
-function toBlogEntry(
-  row: Selectable<BlogPostTable>,
-  imageRows: Selectable<BlogImageTable>[]
-): BlogEntry {
-  const images = imageRows
+type ImageRow = Selectable<BlogImageTable>;
+
+/** The images of a post in display order. */
+function toImages(imageRows: ImageRow[]): BlogImage[] {
+  return imageRows
     .sort((a, b) => a.position - b.position)
     .map((image) => ({
       file: image.file,
@@ -47,19 +47,42 @@ function toBlogEntry(
       width: image.width,
       height: image.height,
     }));
+}
+
+/** Sanitized on write; again on read, so an image that is gone never leaves a placeholder. */
+function readContent(content: string, images: BlogImage[]): string {
+  return sanitizeBlogHtml(
+    content,
+    images.map((image) => image.file)
+  ).html;
+}
+
+function toBlogEntry(row: Selectable<BlogPostTable>, imageRows: ImageRow[]): BlogEntry {
+  const images = toImages(imageRows);
   return {
     id: String(row.id),
     etag: toVersion(row.version),
     title: row.title,
     date: toDateString(row.post_date),
     published: row.published,
-    // Sanitized on write; again on read, so an image that is gone never leaves a placeholder
-    content: sanitizeBlogHtml(
-      row.content,
-      images.map((image) => image.file)
-    ).html,
+    content: readContent(row.content, images),
     images,
   };
+}
+
+/** The image rows of all posts, by post. */
+async function loadImagesByPost(db: Db): Promise<Map<number, ImageRow[]>> {
+  const rows = await db
+    .selectFrom('content.blog_image')
+    .select(['post_id', 'file', 'position', 'alt', 'width', 'height'])
+    .execute();
+  const byPost = new Map<number, ImageRow[]>();
+  for (const row of rows) {
+    const images = byPost.get(row.post_id);
+    if (images) images.push(row);
+    else byPost.set(row.post_id, [row]);
+  }
+  return byPost;
 }
 
 /** All posts including drafts, newest first. */
@@ -72,14 +95,51 @@ export async function getBlogEntries(): Promise<BlogEntry[]> {
       .orderBy('post_date', 'desc')
       .orderBy('id', 'desc')
       .execute(),
-    db.selectFrom('content.blog_image').selectAll().execute(),
+    loadImagesByPost(db),
   ]);
-  return posts.map((post) =>
-    toBlogEntry(
-      post,
-      images.filter((image) => image.post_id === post.id)
-    )
-  );
+  return posts.map((post) => toBlogEntry(post, images.get(post.id) ?? []));
+}
+
+/** A post in the list of the Leitendenbereich. */
+export interface BlogListEntry {
+  id: string;
+  title: string;
+  /** `YYYY-MM-DD` */
+  date: string;
+  published: boolean;
+  cover: BlogImage | null;
+  imageCount: number;
+  /** Length of the visible text, see `getPlainText`. */
+  textLength: number;
+}
+
+/**
+ * All posts including drafts, newest first, with only what the list shows: without version and
+ * change log, and the text only to count it.
+ */
+export async function getBlogList(): Promise<BlogListEntry[]> {
+  const db = getDb();
+  const [posts, imagesByPost] = await Promise.all([
+    db
+      .selectFrom('content.blog_post')
+      .select(['id', 'title', 'post_date', 'published', 'content'])
+      .orderBy('post_date', 'desc')
+      .orderBy('id', 'desc')
+      .execute(),
+    loadImagesByPost(db),
+  ]);
+  return posts.map((post) => {
+    const images = toImages(imagesByPost.get(post.id) ?? []);
+    return {
+      id: String(post.id),
+      title: post.title,
+      date: toDateString(post.post_date),
+      published: post.published,
+      cover: images[0] ?? null,
+      imageCount: images.length,
+      textLength: getPlainText(readContent(post.content, images)).length,
+    };
+  });
 }
 
 async function loadEntry(db: Db, id: number): Promise<BlogEntry | undefined> {
