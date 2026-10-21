@@ -186,3 +186,45 @@ test('a new Sammelbestellung opens without a page reload or a discard prompt', a
     await page.evaluate(() => (window as unknown as { sameDocument?: boolean }).sameDocument)
   ).toBe(true);
 });
+
+test('an article tapped in the list of the last visit never opens another variant', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/sammelbestellungen/101');
+  const mayr = page
+    .locator('article')
+    .filter({ has: page.getByRole('heading', { name: 'Familie Mayr', exact: true }) });
+  await expect(mayr.getByRole('button', { name: 'Nicht mitbestellen' }).first()).toBeVisible();
+  await page
+    .getByRole('navigation', { name: 'Zurück' })
+    .getByRole('link', { name: 'Sammelbestellungen' })
+    .click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/sammelbestellungen\/?$/);
+
+  // Meanwhile the first article (size 152) was removed; the same article in 128 moves up
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/pflege/sammelbestellungen/101', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    const view = (await response.json()) as {
+      orders: { name: string; items: { variant: string }[] }[];
+    };
+    const order = view.orders.find((entry) => entry.name === 'Familie Mayr')!;
+    order.items = order.items.filter((item) => item.variant !== '152');
+    await held;
+    await route.fulfill({ response, json: view });
+  });
+  await page.goBack();
+  await mayr.getByRole('button', { name: 'Nicht mitbestellen' }).first().click();
+  release();
+
+  await expect(
+    page
+      .getByText('Die Bestellung von Familie Mayr hat sich inzwischen geändert.', {
+        exact: false,
+      })
+      .first()
+  ).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Artikel ausschließen' })).toHaveCount(0);
+});

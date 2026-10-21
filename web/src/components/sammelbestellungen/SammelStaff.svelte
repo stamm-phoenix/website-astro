@@ -288,10 +288,13 @@
           onedit={(order) => void current(order).then((fresh) => fresh && edit(fresh))}
           onpayment={(order) => void current(order).then((fresh) => (paymentOrder = fresh))}
           onitem={(order, index) => {
+            const tapped = JSON.stringify(order.items[index]);
             void current(order).then((fresh) => {
-              // Only the same article; a list changed meanwhile is tapped again
-              if (fresh && fresh.items[index]?.reference === order.items[index]?.reference)
+              // Only the same article in the same variant and state; another one is never edited
+              if (fresh && JSON.stringify(fresh.items[index]) === tapped)
                 itemEditing = { order: fresh, index };
+              else
+                message = `Die Bestellung von ${order.name} hat sich inzwischen geändert. Tippe den Artikel noch einmal an.`;
             });
           }}
         />
