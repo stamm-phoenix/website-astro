@@ -9,7 +9,8 @@ test('the map view shows the visits and drives and leads to the list', async ({ 
   await expect(page.locator('.stop-card').first()).toBeHidden();
 
   // Pointing at a visit shows its details
-  const marker = map.locator('.leaflet-marker-icon').first();
+  // A marker away from the others, so no neighbour's tap area covers it
+  const marker = map.locator('.leaflet-marker-icon').last();
   await marker.hover();
   await expect(page.locator('.leaflet-tooltip .dispo-tip-title').first()).toContainText('Familie');
   await page.screenshot({ path: test.info().outputPath('karte.png') });
@@ -62,7 +63,12 @@ test('pointing at a drive highlights both visits and the team shows its kilometr
   page,
   isMobile,
 }) => {
+  // The courses along the roads arrive after the map is drawn and move the lines
+  const courses = page.waitForResponse((response) =>
+    response.url().includes('/api/intern/nikolaus/dispo/routes')
+  );
   await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
+  await courses;
   const map = page.locator('.dispo-map-main.leaflet-container');
   await expect(map.locator('.leaflet-marker-icon').nth(1)).toBeVisible();
   await expect(
@@ -93,6 +99,27 @@ test('pointing at a drive highlights both visits and the team shows its kilometr
   else await page.mouse.move(5, 5);
   await expect(map.locator('.dispo-marker.is-leg-end')).toHaveCount(0);
   await expect(page.locator('.stop-item.is-leg-end')).toHaveCount(0);
+});
+
+test('the Großansicht keeps the keyboard on the map and gives it back', async ({ page }) => {
+  await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
+  const open = page.getByRole('button', { name: 'Großansicht', exact: true });
+  await open.click();
+  const close = page.getByRole('button', { name: 'Großansicht beenden' });
+  await expect(close).toBeFocused();
+  // The covered page cannot be reached
+  expect(
+    await page
+      .getByRole('button', { name: 'Speichern' })
+      .evaluate((element) => element.closest('[inert]') !== null)
+  ).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(open).toBeFocused();
+  expect(
+    await page
+      .getByRole('button', { name: 'Speichern' })
+      .evaluate((element) => element.closest('[inert]') !== null)
+  ).toBe(false);
 });
 
 test('teams can be hidden on the map', async ({ page }) => {

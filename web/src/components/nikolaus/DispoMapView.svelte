@@ -194,14 +194,23 @@
           .addTo(group);
       }
       for (const stop of team.stops) {
+        // The number stays small; the area around it takes a tap of at least 44px
+        const target = document.createElement('span');
+        target.className = 'dispo-marker-target';
         const icon = document.createElement('span');
+        target.append(icon);
         icon.className = 'dispo-marker';
         if (stop.lateAfterSlot > 0 || stop.conflicts.length > 0) icon.classList.add('is-late');
         if (stop.visited) icon.classList.add('is-visited');
         icon.style.background = team.color;
         icon.textContent = String(stop.number);
         const marker = L.marker(stop.position, {
-          icon: L.divIcon({ className: '', html: icon, iconSize: [28, 28], iconAnchor: [14, 14] }),
+          icon: L.divIcon({
+            className: '',
+            html: target,
+            iconSize: [44, 44],
+            iconAnchor: [22, 22],
+          }),
           title: `${stop.number}. Familie ${stop.booking.familyName}`,
           alt: `Team ${team.name}, ${stop.number}. Besuch, Familie ${stop.booking.familyName}`,
           riseOnHover: true,
@@ -213,8 +222,8 @@
           })
           .addTo(group);
         markers[stop.id] = { marker, element: icon, team: team.name };
-        bounds.extend(stop.position);
       }
+      for (const point of routePoints(team)) bounds.extend(point);
     }
 
     baseMarker = L.circleMarker(home, {
@@ -260,11 +269,11 @@
   /** Selects a visit and moves the map to it. */
   function select(id: string, move = true): void {
     selectedId = id;
+    void tick().then(() => revealItem(id, move));
     const entry = markers[id];
     if (!entry || !map) return;
     if (move) map.flyTo(entry.marker.getLatLng(), Math.max(map.getZoom(), 15), { duration: 0.5 });
     entry.marker.openTooltip();
-    void tick().then(() => revealItem(id, move));
   }
 
   let panel = $state<HTMLElement | null>(null);
@@ -287,11 +296,16 @@
     }
   }
 
+  /** Visits and the course of the drives, which may leave the area of the visits. */
+  function routePoints(team: DispoMapTeam): [number, number][] {
+    return [...team.stops.map((stop) => stop.position), ...team.legs.flatMap((leg) => leg.points)];
+  }
+
   function fitTeams(names: string[]): void {
     if (!map || !leaflet) return;
     const points = teams
       .filter((team) => names.includes(team.name))
-      .flatMap((team) => team.stops.map((stop) => stop.position));
+      .flatMap((team) => routePoints(team));
     const bounds = leaflet.latLngBounds([[base.lat, base.lon], ...points]);
     map.flyToBounds(bounds, { padding: [32, 32], maxZoom: 15, duration: 0.5 });
   }
@@ -319,12 +333,30 @@
     if (event.pointerType === 'mouse') highlight = name;
   }
 
+  let view = $state<HTMLElement | null>(null);
+  let largeButton = $state<HTMLButtonElement | null>(null);
+  /** Page parts hidden behind the Großansicht, which keyboard and screen reader must skip. */
+  let covered: HTMLElement[] = [];
+
   async function toggleLarge(): Promise<void> {
     large = !large;
     // The page content is a layer below the site header; lift it while the map fills the screen
     document.body.classList.toggle('dispo-map-large', large);
+    for (const element of covered) element.inert = false;
+    covered = [];
+    if (large && view) {
+      for (let node: HTMLElement = view; node.parentElement; node = node.parentElement) {
+        for (const sibling of node.parentElement.children) {
+          if (sibling !== node && sibling instanceof HTMLElement && !sibling.inert) {
+            sibling.inert = true;
+            covered.push(sibling);
+          }
+        }
+      }
+    }
     await tick();
     map?.invalidateSize();
+    largeButton?.focus();
   }
 
   function onkeydown(event: KeyboardEvent): void {
@@ -335,6 +367,7 @@
 
   onDestroy(() => {
     document.body.classList.remove('dispo-map-large');
+    for (const element of covered) element.inert = false;
     map?.remove();
     map = null;
     layers = null;
@@ -343,7 +376,7 @@
 
 <svelte:window {onkeydown} />
 
-<div class="map-view {large ? 'is-large' : ''} print:hidden">
+<div bind:this={view} class="map-view {large ? 'is-large' : ''} print:hidden">
   <div class="map-area scroll-mt-28" bind:this={mapArea}>
     <div
       bind:this={container}
@@ -359,7 +392,13 @@
       >
         Alle Routen zeigen
       </button>
-      <button type="button" class="map-button" aria-pressed={large} onclick={toggleLarge}>
+      <button
+        bind:this={largeButton}
+        type="button"
+        class="map-button"
+        aria-pressed={large}
+        onclick={toggleLarge}
+      >
         {large ? 'Großansicht beenden' : 'Großansicht'}
       </button>
     </div>
@@ -785,6 +824,13 @@
     }
   }
 
+  :global(.dispo-marker-target) {
+    display: flex;
+    height: 44px;
+    width: 44px;
+    align-items: center;
+    justify-content: center;
+  }
   :global(.dispo-map-main .dispo-marker) {
     display: flex;
     height: 28px;
