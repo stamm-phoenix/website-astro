@@ -1,7 +1,7 @@
 import { NIKOLAUS_SLOT_MINUTES } from './nikolausConfig';
 import { conflictingTags } from './nikolausEinteilung';
 import { timeToMinutes, visitMinutes, moveStop, evaluateDispo } from './nikolausDispo';
-import type { DispoProblem, DispoAssignment } from './nikolausDispo';
+import type { DispoProblem, DispoAssignment, DispoDone } from './nikolausDispo';
 import type { StaffNikolausBooking, StaffNikolausDispoData } from './types';
 
 /** Negative tags of a team's helpers that match a family's tags. */
@@ -25,8 +25,18 @@ export function toProblem(source: StaffNikolausDispoData): DispoProblem {
       .filter((team) => tagConflicts(source, booking, team).length > 0);
     if (teams.length > 0) forbidden[booking.id] = teams;
   }
+  // Visits checked off on the visit day stay with their team and are not planned again
+  const done: Record<string, DispoDone> = {};
+  for (const row of source.rows) {
+    if (!row.visited) continue;
+    done[row.bookingId] = {
+      team: row.team,
+      leftAt: row.visitedAt ? timeToMinutes(row.visitedAt) : undefined,
+    };
+  }
   return {
     forbidden,
+    done,
     stops: source.stops.map((booking) => {
       const slotStart = timeToMinutes(booking.slotKey.split('T')[1] ?? '00:00');
       return {

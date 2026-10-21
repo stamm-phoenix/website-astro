@@ -12,6 +12,19 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-21-08-nikolaus-dispo-abend',
+    date: '2026-10-21',
+    title: 'Die Dispo am Besuchsabend umplanen',
+    changes: [
+      {
+        text: 'Abgehakte Besuche bleiben in der Dispo bei ihrem Team und stehen am Anfang der Tour. Auch „Neu berechnen“ verschiebt sie nicht mehr.',
+        href: '/leitendenbereich/nikolaus-dispo',
+      },
+      'Gibst du am Abend einen Termin einem anderen Team, kommt er hinter die Besuche, die dieses Team schon abgehakt hat. Die Zeiten der übrigen Termine rechnet die Dispo ab dem letzten Abhaken, also mit der echten Verspätung.',
+      'Hat ein Team einen Besuch abgehakt, nachdem du die Dispo geöffnet hast, kannst du ihn nicht mehr einem anderen Team geben. Die Dispo sagt dir dann, dass du neu laden sollst.',
+    ],
+  },
+  {
     id: '2026-10-21-07-nikolaus-merkmale-fahrer',
     date: '2026-10-21',
     title: '„Nicht zu Familien mit“ gilt nicht für Fahrer*innen',

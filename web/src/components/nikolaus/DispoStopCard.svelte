@@ -118,24 +118,26 @@
         </p>
       {/if}
 
-      <div class="mt-2 flex flex-wrap items-center gap-2 print:hidden">
-        <label class="sr-only" for={selectId}>Team für Familie {booking.familyName}</label>
-        <select
-          id={selectId}
-          class="form-input mt-0! w-auto py-1.5 text-sm"
-          value={team}
-          onchange={(event) => onteam(event.currentTarget.value)}
-        >
-          {#each teams as option (option.name)}
-            <option value={option.name}>Team {option.name}</option>
-          {/each}
-        </select>
-        <PinToggle
-          fixed={isFixed}
-          label={`für Familie ${booking.familyName}`}
-          onclick={() => onpin()}
-        />
-      </div>
+      {#if !visited}
+        <div class="mt-2 flex flex-wrap items-center gap-2 print:hidden">
+          <label class="sr-only" for={selectId}>Team für Familie {booking.familyName}</label>
+          <select
+            id={selectId}
+            class="form-input mt-0! w-auto py-1.5 text-sm"
+            value={team}
+            onchange={(event) => onteam(event.currentTarget.value)}
+          >
+            {#each teams as option (option.name)}
+              <option value={option.name}>Team {option.name}</option>
+            {/each}
+          </select>
+          <PinToggle
+            fixed={isFixed}
+            label={`für Familie ${booking.familyName}`}
+            onclick={() => onpin()}
+          />
+        </div>
+      {/if}
     </div>
   </div>
 </li>

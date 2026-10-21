@@ -30,6 +30,26 @@ Besuche in der Fahrtansicht tragen eine Vorgangs-ID und die Version der Zeile. E
 desselben Vorgangs (z. B. aus der Offline-Warteschlange) gibt den gespeicherten Stand zurück;
 ein Vorgang auf Grundlage einer älteren Version wird abgelehnt.
 
+## Umplanen am Besuchsabend
+
+Abgehakte Besuche gelten in der Dispo als erledigt (`done` im `DispoProblem`,
+`api/lib/nikolaus-dispo.ts`). Sie stehen am Anfang der Route ihres Teams, in der Reihenfolge,
+in der sie abgehakt wurden, und werden weder von Hand noch durch „Neu berechnen“ verschoben.
+Bei ihnen gibt es keine Teamauswahl mehr. Die übrigen Termine eines Teams plant die Dispo ab
+dem zuletzt abgehakten Besuch, und zwar ab dem Zeitpunkt des Abhakens. Ein Termin, der einem
+anderen Team gegeben wird, kommt also immer hinter dessen erledigte Besuche. Die aktuelle Uhrzeit
+zählt dabei nicht: Hakt ein Team länger nicht ab, rechnet die Dispo weiter mit dem letzten
+Abhaken.
+
+Ein abgehakter Besuch endet in der Planung beim Abhaken. Beim Speichern bekommt er als geplante
+Ankunft deshalb die Zeit des Abhakens minus Besuchsdauer. So zählt der Fortschritt der Familien
+(Verspätung beim letzten Abhaken plus geplante Ankunft) die Verspätung nicht doppelt, wenn die
+übrigen Termine neu geplant gespeichert werden.
+
+Die Dispo lädt Abhaken nicht von selbst nach. Wer sie vor einem Abhaken geöffnet hat, kann
+den Besuch beim Speichern trotzdem nicht einem anderen Team geben: Die API lehnt das mit
+HTTP 400 ab und speichert nichts.
+
 Der Zeitpunkt eines abgehakten Besuchs zählt für die Löschfrist der Steuerung
 ([nikolaus-betrieb.md](nikolaus-betrieb.md#verantwortung-und-frist)).
 

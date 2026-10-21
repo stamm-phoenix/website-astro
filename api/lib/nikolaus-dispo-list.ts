@@ -4,6 +4,7 @@ import type { DispoVisitTable } from './db-schema';
 import { getDb, getSqlErrorNumber, inTransaction, lockResource, toDateString } from './db';
 import type { Db } from './db';
 import { NikolausStateConflictError } from './nikolaus-state';
+import { ValidationError } from './pflege-validation';
 import { assertTeamsConfigured, dispoLock as planLock } from './nikolaus-settings';
 
 /** One planned visit of the Dispo (one row per booking and day). */
@@ -176,8 +177,8 @@ export async function setDispoVisited(
 
 /**
  * Replaces the Dispo of a day in one transaction, if nobody saved another one since the
- * caller loaded `expectedVersion`. Visits already checked off keep their state. Saving the
- * same plan again changes nothing.
+ * caller loaded `expectedVersion`. Visits already checked off keep their state and their team.
+ * Saving the same plan again changes nothing.
  */
 export async function saveDispo(
   date: string,
@@ -205,6 +206,13 @@ export async function saveDispo(
         };
       });
       if (getDispoVersion(desired) === getDispoVersion(current)) return;
+      // A page loaded before the check-off must not give the visit to another team
+      if (desired.some((row) => row.visited && byBooking.get(row.bookingId)?.team !== row.team)) {
+        throw new ValidationError({
+          entries:
+            'Ein Besuch, den du einem anderen Team geben wolltest, ist schon abgehakt. Nichts wurde gespeichert. Bitte lade die Dispo neu und plane dort weiter.',
+        });
+      }
       if (getDispoVersion(current) !== expectedVersion) throw new NikolausStateConflictError();
       await trx.deleteFrom('nikolaus.dispo_visit').where('date', '=', date).execute();
       for (let index = 0; index < desired.length; index += 150) {
