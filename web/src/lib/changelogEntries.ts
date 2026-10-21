@@ -17,7 +17,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Weniger Neuladen beim Weitergehen',
     changes: [
       {
-        text: 'Ein neues Protokoll öffnet sich zum Schreiben, ohne dass die Seite neu lädt. Das gilt auch für den Weg zurück zur Liste nach dem Löschen.',
+        text: 'Nach dem Löschen eines Protokolls kommst du ohne Neuladen zurück zur Liste.',
         href: '/leitendenbereich/protokolle',
       },
       {

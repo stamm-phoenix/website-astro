@@ -1,6 +1,5 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { navigate } from 'astro:transitions/client';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
@@ -61,7 +60,7 @@
       });
       draft = null;
       await tick();
-      await navigate(protokollEditorUrl(id, true));
+      window.location.href = protokollEditorUrl(id, true);
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) draftErrors = error.fields;
       draftError = errorMessage(
