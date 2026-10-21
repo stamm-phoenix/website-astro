@@ -12,6 +12,7 @@ import {
 } from '../lib/protokoll-import';
 import {
   withProtokollMetadata,
+  withProtokollMetadataList,
   updateProtokollMetadata,
   completeProtokollDelivery,
   assertProtokollImport,
@@ -176,6 +177,54 @@ dbTest(
     assert.equal(
       (await withProtokollMetadata('create-race', item)).metadata?.fields.Status,
       'Entwurf'
+    );
+  }
+);
+
+dbTest(
+  'the list reads the stored workflow of all files and creates rows only for new ones',
+  async (t) => {
+    overrideConfig(t, CONFIG.protokolle, { folderPath: 'Protokolle/Leitendenrunde' });
+    const reviewed = driveItem({ Status: 'Review' }, { id: 'reviewed' });
+    const approved = driveItem({ Status: 'Freigegeben' }, { id: 'approved' });
+    const added = driveItem({}, { id: 'added' });
+    await importProtokollMetadata('list', [reviewed, approved]);
+    // The same file id in another library must not be mixed up
+    await importProtokollMetadata('list-other', [
+      driveItem({ Status: 'Verschickt' }, { id: 'approved' }),
+    ]);
+    await activateProtokolle(async () => verifyProtokollImport('list', [reviewed, approved]));
+
+    const listed = await withProtokollMetadataList('list', [approved, added, reviewed]);
+
+    assert.deepEqual(
+      listed.map((item) => [item.id, item.metadata?.fields.Status, item.listItem]),
+      [
+        ['approved', 'Freigegeben', undefined],
+        ['added', undefined, undefined],
+        ['reviewed', 'Review', undefined],
+      ]
+    );
+    // The same versions as reading each file on its own, so saving from the list still works
+    for (const item of [approved, added, reviewed]) {
+      assert.equal(
+        listed.find((entry) => entry.id === item.id)?.metadata?.etag,
+        (await withProtokollMetadata('list', item)).metadata?.etag
+      );
+    }
+    const rows = await getDb()
+      .selectFrom('organisation.protokoll')
+      .select('item_id')
+      .where('drive_id', '=', 'list')
+      .orderBy('item_id')
+      .execute();
+    assert.deepEqual(
+      rows.map((row) => row.item_id),
+      ['added', 'approved', 'reviewed']
+    );
+    await assert.rejects(
+      withProtokollMetadataList('not-imported', [added]),
+      (error: unknown) => error instanceof ValidationError
     );
   }
 );

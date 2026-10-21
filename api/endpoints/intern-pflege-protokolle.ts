@@ -6,7 +6,7 @@ import {
   createProtokollMetadata,
   updateProtokollMetadata,
   completeProtokollDelivery,
-  withProtokollMetadata,
+  withProtokollMetadataList,
 } from '../lib/protokoll-metadata';
 import { findDrive, loadProtokoll } from '../lib/protokoll-source';
 import { editorAblageItemIds } from '../lib/protokoll-editor';
@@ -191,35 +191,25 @@ async function readTermin(
   }
 }
 
+/** The minutes of the folder; PDFs filed by the editor are listed with their minutes there. */
+async function listProtokolle(driveId: string): Promise<ProtokollDriveItem[]> {
+  const [editorFiles, children] = await Promise.all([
+    editorAblageItemIds(driveId),
+    getSharePointDriveFolderChildren(driveId, CONFIG.protokolle.folderPath),
+  ]);
+  const files = (children as ProtokollDriveItem[]).filter(
+    (item) => isProtokollFile(item, CONFIG.protokolle.folderPath) && !editorFiles.has(item.id)
+  );
+  return withProtokollContentVersions(driveId, await withProtokollMetadataList(driveId, files));
+}
+
 /** GET: all minutes with the role of the user; POST: new minutes from the template. */
 export const ProtokolleCollectionEndpoint = pflegeHandler(
   'protokolle',
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
     if (request.method === 'GET') {
       const driveId = await findDrive();
-      // PDFs filed by the editor are listed with their minutes there, not as files here
-      const editorFiles = driveId ? await editorAblageItemIds(driveId) : new Set<string>();
-      const items = driveId
-        ? (
-            await withProtokollContentVersions(
-              driveId,
-              await Promise.all(
-                (
-                  (await getSharePointDriveFolderChildren(
-                    driveId,
-                    CONFIG.protokolle.folderPath
-                  )) as ProtokollDriveItem[]
-                )
-                  .filter(
-                    (item) =>
-                      isProtokollFile(item, CONFIG.protokolle.folderPath) &&
-                      !editorFiles.has(item.id)
-                  )
-                  .map((item) => withProtokollMetadata(driveId, item))
-              )
-            )
-          ).map(toStaffProtokoll)
-        : [];
+      const items = driveId ? (await listProtokolle(driveId)).map(toStaffProtokoll) : [];
       return ok({
         configured: driveId !== undefined,
         defaultTitle: CONFIG.protokolle.defaultTitle,

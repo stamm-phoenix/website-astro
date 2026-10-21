@@ -71,6 +71,13 @@ export async function withProtokollMetadata(
         .executeTakeFirstOrThrow();
     return row;
   });
+  return withRow(item, row);
+}
+
+function withRow(
+  item: ProtokollDriveItem,
+  row: { fields: string; version: Buffer }
+): ProtokollDriveItem {
   return {
     ...item,
     listItem: undefined,
@@ -79,6 +86,39 @@ export async function withProtokollMetadata(
       etag: etag(row.version, item.cTag),
     },
   };
+}
+
+/** SQL Server takes at most 2100 parameters per statement. */
+const IDS_PER_QUERY = 1000;
+
+/**
+ * `withProtokollMetadata` for a whole folder: the existing rows are read together, only files
+ * without one take the locked path that creates it.
+ */
+export async function withProtokollMetadataList(
+  driveId: string,
+  items: ProtokollDriveItem[]
+): Promise<ProtokollDriveItem[]> {
+  if (items.length === 0) return [];
+  await assertProtokollImport(driveId);
+  const rows = new Map<string, { fields: string; version: Buffer }>();
+  for (let start = 0; start < items.length; start += IDS_PER_QUERY) {
+    const ids = items.slice(start, start + IDS_PER_QUERY).map((item) => item.id);
+    for (const row of await getDb()
+      .selectFrom('organisation.protokoll')
+      .select(['item_id', 'fields', 'version'])
+      .where('drive_id', '=', driveId)
+      .where('item_id', 'in', ids)
+      .execute()) {
+      rows.set(row.item_id, row);
+    }
+  }
+  return Promise.all(
+    items.map((item) => {
+      const row = rows.get(item.id);
+      return row ? withRow(item, row) : withProtokollMetadata(driveId, item);
+    })
+  );
 }
 /** Conditional SQL writes, including mail reservations. No library columns are written. */
 export async function updateProtokollMetadata(

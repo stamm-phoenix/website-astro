@@ -70,6 +70,11 @@ export function setupLegacyProtokolle(t: TestContext): InvocationContext {
   );
   t.mock.method(
     metadata,
+    'withProtokollMetadataList',
+    async (_drive: string, items: ProtokollDriveItem[]) => items
+  );
+  t.mock.method(
+    metadata,
     'createProtokollMetadata',
     async (drive: string, id: string, fields: ProtokollFields) =>
       sharePoint.updateSharePointDriveItemFields(drive, id, { ...fields })
