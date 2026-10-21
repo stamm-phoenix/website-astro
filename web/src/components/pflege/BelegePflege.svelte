@@ -93,7 +93,7 @@
   };
   const visibleTransferred = $derived(
     (transferredStore.data ?? []).filter(
-      (b) => matches(b) && (!onlyMine || b.submittedBy === login)
+      (b) => matches(b) && (!onlyMine || b.submittedBy.toLowerCase() === login.toLowerCase())
     )
   );
   const visible = $derived.by(() => {
