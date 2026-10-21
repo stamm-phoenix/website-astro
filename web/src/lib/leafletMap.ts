@@ -64,15 +64,21 @@ export function createMap(L: typeof Leaflet, element: HTMLElement): Leaflet.Map 
   let loading = '';
   let attempts = { key: '', count: 0 };
   let retry: ReturnType<typeof setTimeout> | undefined;
+  const currentKey = (): string => `${tileStyle()}/${Math.round(map.getZoom())}`;
   async function updateAttribution(): Promise<void> {
     const style = tileStyle();
     const zoom = Math.round(map.getZoom());
     const key = `${style}/${zoom}`;
-    if (key === shown || key === loading) return;
+    if (key === loading) return;
     clearTimeout(retry);
+    if (key === shown) {
+      // Back at the shown level: a request for another level must not replace its notices
+      loading = '';
+      return;
+    }
     loading = key;
     const texts = (await loadAttribution(style, zoom)).map(escapeHtml);
-    if (loading !== key) return;
+    if (loading !== key || currentKey() !== key) return;
     loading = '';
     if (texts.length === 0) {
       attempts = { key, count: attempts.key === key ? attempts.count + 1 : 1 };
