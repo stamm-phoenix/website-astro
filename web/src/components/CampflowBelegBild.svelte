@@ -43,8 +43,12 @@
           total = pages;
           seitenTotal = pages;
           const seite = await toSeite(blob);
+          // Closed while the page was decoded: the cleanup has run already
+          if (!current) {
+            URL.revokeObjectURL(seite.url);
+            return;
+          }
           loaded.push(seite);
-          if (!current) return;
           seiten = [...seiten, seite];
         }
       } catch (error: unknown) {
