@@ -33,7 +33,6 @@ export const CHANGELOG_PATH = '/leitendenbereich/neuigkeiten';
 export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/aufgaben',
-    reload: true,
     title: 'Aufgaben',
     intro: 'Verteile Aufgaben, behalte Fristen im Blick und hake Erledigtes ab.',
     description:
@@ -365,14 +364,12 @@ export const STAFF_SUBPAGES: StaffPage[] = [
     title: 'Projekte',
     description: 'Projekte bündeln Aufgaben für Aktionen und andere Vorhaben.',
     parent: '/leitendenbereich/aufgaben',
-    reload: true,
   },
   {
     href: '/leitendenbereich/aufgaben/vorlagen',
     title: 'Vorlagen',
     description: 'Wiederverwendbare Vorlagen für die Aufgaben einer Aktion.',
     parent: '/leitendenbereich/aufgaben',
-    reload: true,
   },
   {
     href: '/leitendenbereich/aufgaben/vorschlaege',
@@ -380,7 +377,6 @@ export const STAFF_SUBPAGES: StaffPage[] = [
     description: 'Aufgabenvorschläge aus Protokollen prüfen und übernehmen.',
     intro: 'Prüfe vorgeschlagene Aufgaben aus euren Protokollen und übernimm, was passt.',
     parent: '/leitendenbereich/aufgaben',
-    reload: true,
   },
   {
     href: '/leitendenbereich/aktionen/aktion',

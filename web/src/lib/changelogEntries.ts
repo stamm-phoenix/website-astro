@@ -12,6 +12,17 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-21-03-aufgaben-seitenwechsel',
+    date: '2026-10-21',
+    title: 'Aufgaben öffnen ohne Neuladen',
+    changes: [
+      {
+        text: 'Die Aufgaben öffnen sich wie die anderen Bereiche, ohne dass die ganze Seite neu lädt. Das gilt auch für Projekte, Vorlagen und Aufgabenvorschläge.',
+        href: '/leitendenbereich/aufgaben',
+      },
+    ],
+  },
+  {
     id: '2026-10-21-02-ohne-neuladen',
     date: '2026-10-21',
     title: 'Weniger Neuladen beim Weitergehen',

@@ -148,10 +148,8 @@
 
 <AufgabenLadestatus />
 <StatusNotice kind="error" message={rejectTarget ? null : actions.state.error} popup />
-<a
-  class="inline-flex min-h-11 items-center text-link"
-  href="/leitendenbereich/aufgaben"
-  data-astro-reload>Zur Aufgabenliste</a
+<a class="inline-flex min-h-11 items-center text-link" href="/leitendenbereich/aufgaben"
+  >Zur Aufgabenliste</a
 >
 {#if data}
   <section aria-labelledby="recognize-heading" class="my-5 surface-muted rounded-lg p-4">
