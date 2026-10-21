@@ -39,7 +39,7 @@
       <FormField
         id="bl-review-note"
         label="Bemerkung der Kasse"
-        hint={`Geht per Mail an ${form.submittedBy || 'die Person, die den Beleg eingereicht hat'}.`}
+        hint={`Pflicht beim Ablehnen; geht dann per Mail an ${form.submittedBy || 'die Person, die den Beleg eingereicht hat'}.`}
         error={errors.reviewNote}
       >
         {#snippet children(attrs)}

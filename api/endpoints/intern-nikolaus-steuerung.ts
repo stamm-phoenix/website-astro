@@ -138,7 +138,9 @@ export const NikolausSteuerungGeocoding = pflegeHandler(
         return errorResponse(
           409,
           error.code,
-          'Die Sperre hat sich inzwischen geändert. Bitte neu laden und erneut prüfen.'
+          error.code === 'GEOCODING_STILL_RUNNING'
+            ? 'Die Adresssuche läuft noch keine zehn Minuten. Die Sperre bleibt, bis sie hängt; lade die Seite später neu.'
+            : 'Die Sperre hat sich inzwischen geändert. Bitte neu laden und erneut prüfen.'
         );
       }
       throw error;
