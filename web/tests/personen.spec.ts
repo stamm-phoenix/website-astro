@@ -28,6 +28,10 @@ test('leaders are linked to CampFlow and find themselves in an Aktion', async ({
   await eigener.getByLabel('Person in CampFlow').press('Enter');
   await expect(eigener).toBeVisible();
   await expect(eigener.getByText('Tippe auf die richtige Person.')).toBeVisible();
+  // A single match is picked, and the focus stays in the dialog
+  await eigener.getByLabel('Person in CampFlow').fill('paula');
+  await eigener.getByLabel('Person in CampFlow').press('Enter');
+  await expect(eigener.getByRole('button', { name: 'Andere Person wählen' })).toBeFocused();
   // The removed link is an unsaved change, so closing asks first
   await eigener.getByRole('button', { name: 'Abbrechen' }).click();
   await page

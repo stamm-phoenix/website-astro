@@ -10,6 +10,7 @@ import {
   ICH_CACHE_MS,
   cachedIch,
   eigeneAnmeldungen,
+  getIch,
   getPersonenUebersicht,
   mitEigenerAdresse,
   rememberIch,
@@ -467,6 +468,11 @@ dbTest('a slow CampFlow never holds up a page, it only leaves out the marks', as
   const started = Date.now();
   const anmeldungen = [{ id: 'per_S', primary_email: 'sina@example.org' }];
   assert.equal(await eigeneAnmeldungen(ANNA, anmeldungen, Date.now(), 50), null);
+  // `/intern/ich` still knows the link, only without the name
+  assert.deepEqual(await getIch(ANNA, Date.now(), 50), {
+    login: ANNA,
+    campflow: { id: 'per_IchSina', firstName: '', lastName: '' },
+  });
   assert.ok(Date.now() - started < 2000);
 });
 

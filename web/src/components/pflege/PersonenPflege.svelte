@@ -267,6 +267,8 @@
     if (!form) return;
     form.campflowPersonId = mitglied.id;
     suche = '';
+    // The search field goes away; keep the focus in the dialog
+    void tick().then(() => document.getElementById('person-campflow-andere')?.focus());
   }
 
   const gewaehlt = $derived(form?.campflowPersonId ? byId.get(form.campflowPersonId) : undefined);
@@ -571,6 +573,7 @@
                     : 'Verknüpft (CampFlow gerade nicht erreichbar)'}
               </span>
               <ActionButton
+                id="person-campflow-andere"
                 variant="secondary"
                 aria-describedby={attrs['aria-describedby']}
                 onclick={() => {
