@@ -566,26 +566,29 @@
         {#if selected.visited}
           <p class="mt-1 font-semibold text-success">✓ Besucht</p>
         {/if}
-        <div class="mt-2 flex flex-wrap items-center gap-2">
-          <label class="sr-only" for="dispo-map-team-select"
-            >Team für Familie {booking.familyName}</label
-          >
-          <select
-            id="dispo-map-team-select"
-            class="form-input mt-0! w-auto py-1.5 text-sm"
-            value={selected.team}
-            onchange={(event) => onteam(selected.id, event.currentTarget.value)}
-          >
-            {#each options as option (option.name)}
-              <option value={option.name}>Team {option.name}</option>
-            {/each}
-          </select>
-          <PinToggle
-            fixed={selected.fixed}
-            label={`für Familie ${booking.familyName}`}
-            onclick={() => onpin(selected.id, selected.team)}
-          />
-        </div>
+        <!-- A visit already checked off stays with its team, as in the list -->
+        {#if !selected.visited}
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <label class="sr-only" for="dispo-map-team-select"
+              >Team für Familie {booking.familyName}</label
+            >
+            <select
+              id="dispo-map-team-select"
+              class="form-input mt-0! w-auto py-1.5 text-sm"
+              value={selected.team}
+              onchange={(event) => onteam(selected.id, event.currentTarget.value)}
+            >
+              {#each options as option (option.name)}
+                <option value={option.name}>Team {option.name}</option>
+              {/each}
+            </select>
+            <PinToggle
+              fixed={selected.fixed}
+              label={`für Familie ${booking.familyName}`}
+              onclick={() => onpin(selected.id, selected.team)}
+            />
+          </div>
+        {/if}
         <div class="mt-1 flex flex-wrap gap-x-4">
           <button
             type="button"
