@@ -2,7 +2,7 @@
   import { onMount, tick, untrack } from 'svelte';
   import StaffModuleSearch from './StaffModuleSearch.svelte';
   import ChangelogBadge from './changelog/ChangelogBadge.svelte';
-  import { loadChangelogSeen } from '../lib/staffChangelogStore.svelte';
+  import { CHANGELOG_SEEN_MAX_AGE_MS, loadChangelogSeen } from '../lib/staffChangelogStore.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import {
@@ -70,12 +70,10 @@
   ]);
 
   // Stable shortcuts: favorites first, filled up with the usual areas.
-  // Without favorites (load failed, login not checked) the bar still fills up
+  // Without favorites (load failed) the bar still fills up
   const ready = $derived(
     (nikolausStatusStore.data !== null || nikolausStatusStore.error !== null) &&
-      (favoritesStore.loaded ||
-        favoritesStore.loadError !== null ||
-        (!authStore.loading && !authStore.principal))
+      (favoritesStore.loaded || favoritesStore.loadError !== null)
   );
   const quick = $derived.by(() => {
     return yourStaffModules(
@@ -143,23 +141,21 @@
     if (module) void recordVisit(module);
     else void loadRecent();
     void fetchPrincipal();
-    void loadChangelogSeen();
+    void loadChangelogSeen({ maxAge: CHANGELOG_SEEN_MAX_AGE_MS });
     // Whether Nikolaus modules may appear in the bar; the Steuerung refreshes it on a change
     void fetchNikolausStatus();
   });
 
   // The start page loads the favorites itself (StaffDashboard); elsewhere the bar needs them
   $effect(() => {
-    const userId = authStore.principal?.userId;
     // A failed load is not repeated here, the start page offers „Erneut versuchen“
     if (
       !home &&
-      userId &&
       !favoritesStore.loaded &&
       !favoritesStore.loading &&
       favoritesStore.loadError === null
     ) {
-      void loadFavorites(userId, STAFF_FAVORITE_PATHS);
+      untrack(() => void loadFavorites(STAFF_FAVORITE_PATHS));
     }
   });
 

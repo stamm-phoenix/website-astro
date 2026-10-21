@@ -33,20 +33,36 @@ export const changelogStore = $state<ChangelogState>({
 });
 
 let loading: Promise<boolean> | null = null;
+/** When the seen state last came from the server or was saved (epoch milliseconds). */
+let freshAt: number | null = null;
 /** Saves that are running right now. */
 let saving = 0;
 /** Counts the start and the end of every save, so a load can tell whether one overlapped it. */
 let writes = 0;
 
+/** How long the menu and the start page keep the seen state before asking again. */
+export const CHANGELOG_SEEN_MAX_AGE_MS = 5 * 60_000;
+
 /**
- * Loads the seen state from the server. Astro keeps the store across pages, so every page asks
- * again: reading on another device shows here at the next page. Calls that overlap share one
- * request. Resolves to whether the state is fresh.
+ * Loads the seen state from the server. Astro keeps the store across pages; `maxAge` keeps a
+ * state that is younger than that many milliseconds instead of asking again, so the bubble in
+ * the menu does not cost a request on every page. Reading on another device then shows here
+ * once it is older. Without `maxAge` it always asks, as the page „Neuigkeiten“ does. Calls that
+ * overlap share one request. Resolves to whether the state is fresh.
  *
  * An answer that overlapped a save is dropped: the server may have read the state before the
  * save and answered after it, and that older state must not replace the saved one.
  */
-export function loadChangelogSeen(): Promise<boolean> {
+export function loadChangelogSeen({ maxAge }: { maxAge?: number } = {}): Promise<boolean> {
+  if (
+    !loading &&
+    maxAge !== undefined &&
+    changelogStore.loaded &&
+    freshAt !== null &&
+    Date.now() - freshAt < maxAge
+  ) {
+    return Promise.resolve(true);
+  }
   loading ??= (async () => {
     const before = writes;
     const overlapsSave = saving > 0;
@@ -55,6 +71,7 @@ export function loadChangelogSeen(): Promise<boolean> {
       if (!overlapsSave && writes === before) {
         changelogStore.lastSeenId = lastSeenId;
         changelogStore.loaded = true;
+        freshAt = Date.now();
       }
       changelogStore.loadError = null;
       return changelogStore.loaded;
@@ -85,6 +102,7 @@ export async function markChangelogSeen(): Promise<boolean> {
     });
     changelogStore.lastSeenId = lastSeenId;
     changelogStore.loaded = true;
+    freshAt = Date.now();
     changelogStore.saveError = null;
     return true;
   } catch (error) {

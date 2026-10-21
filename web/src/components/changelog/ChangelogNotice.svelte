@@ -1,10 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { loadChangelogSeen, unseenCount } from '../../lib/staffChangelogStore.svelte';
+  import {
+    CHANGELOG_SEEN_MAX_AGE_MS,
+    loadChangelogSeen,
+    unseenCount,
+  } from '../../lib/staffChangelogStore.svelte';
 
   const count = $derived(unseenCount());
 
-  onMount(() => void loadChangelogSeen());
+  onMount(() => void loadChangelogSeen({ maxAge: CHANGELOG_SEEN_MAX_AGE_MS }));
 </script>
 
 <div role="status" aria-live="polite">

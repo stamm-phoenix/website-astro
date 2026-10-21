@@ -8,7 +8,7 @@
   import { longPress } from '../lib/longPress';
   import FavoriteStar from './FavoriteStar.svelte';
   import ChangelogBadge from './changelog/ChangelogBadge.svelte';
-  import { loadChangelogSeen } from '../lib/staffChangelogStore.svelte';
+  import { CHANGELOG_SEEN_MAX_AGE_MS, loadChangelogSeen } from '../lib/staffChangelogStore.svelte';
 
   interface Props {
     groups: StaffModuleGroup[];
@@ -55,7 +55,7 @@
   );
   onMount(() => {
     if (nikolausModules.length > 0) void fetchNikolausStatus();
-    void loadChangelogSeen();
+    void loadChangelogSeen({ maxAge: CHANGELOG_SEEN_MAX_AGE_MS });
   });
 
   const id = $props.id();
