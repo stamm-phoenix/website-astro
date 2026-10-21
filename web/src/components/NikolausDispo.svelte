@@ -353,7 +353,8 @@
     />
   </div>
 
-  <div class="min-h-20 print:hidden">
+  <!-- Takes room only while a notice is shown; the live region stays for screen readers -->
+  <div class="mb-0! has-[p]:mb-6! print:hidden">
     <StatusNotice
       message={editor.state.notice?.text ?? null}
       kind={editor.state.notice?.kind}

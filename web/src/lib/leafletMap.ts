@@ -14,13 +14,19 @@ function isDark(): boolean {
   );
 }
 
-function tileStyle(): 'hell' | 'dunkel' {
+export type TileStyle = 'hell' | 'dunkel';
+
+/** Event that makes a map ask its `style` again, e.g. after a switch next to the map. */
+export const TILE_STYLE_CHANGE = 'tilestylechange';
+
+/** Tiles that fit the theme of the website. */
+export function themeStyle(): TileStyle {
   return isDark() ? 'dunkel' : 'hell';
 }
 
 /** Our API serves the tiles from Azure Maps, so the browser contacts no other service (#408). */
-function tileUrl(): string {
-  return `/api/karte/${tileStyle()}/{z}/{x}/{y}.png`;
+function tileUrl(style: TileStyle): string {
+  return `/api/karte/${style}/{z}/{x}/{y}.png`;
 }
 
 function escapeHtml(text: string): string {
@@ -58,13 +64,21 @@ async function loadAttribution(style: string, zoom: number): Promise<string[]> {
 export function createMap(
   L: typeof Leaflet,
   element: HTMLElement,
-  { main = false }: { main?: boolean } = {}
+  {
+    main = false,
+    style,
+  }: {
+    main?: boolean;
+    /** Tiles chosen next to the map; `null` follows the theme of the website. */
+    style?: () => TileStyle | null;
+  } = {}
 ): Leaflet.Map {
+  const tileStyle = (): TileStyle => style?.() ?? themeStyle();
   const map = L.map(element, {
     scrollWheelZoom: main,
     dragging: main || !L.Browser.mobile,
   });
-  let url = tileUrl();
+  let url = tileUrl(tileStyle());
   const layer = L.tileLayer(url, { maxZoom: 19, attribution: '&copy; Microsoft' }).addTo(map);
 
   // The notices depend on the zoom level and the style; the newest request wins. Only notices
@@ -106,8 +120,8 @@ export function createMap(
   map.whenReady(() => void updateAttribution());
 
   const update = (): void => {
-    if (tileUrl() === url) return;
-    url = tileUrl();
+    if (tileUrl(tileStyle()) === url) return;
+    url = tileUrl(tileStyle());
     layer.setUrl(url);
     void updateAttribution();
   };
@@ -115,6 +129,7 @@ export function createMap(
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   const preference = matchMedia('(prefers-color-scheme: dark)');
   preference.addEventListener('change', update);
+  map.on(TILE_STYLE_CHANGE, update);
   map.on('unload', () => {
     // A request still on its way must neither show its notices nor ask again
     loading = '';

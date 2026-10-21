@@ -1,8 +1,16 @@
+<script lang="ts" module>
+  import type { TileStyle } from '../../lib/leafletMap';
+
+  /** Tiles chosen for the large map; kept while switching between list and map. */
+  let chosenStyle = $state<TileStyle | null>(null);
+</script>
+
 <script lang="ts">
   import { onDestroy, onMount, tick, untrack } from 'svelte';
   import type { CircleMarker, LayerGroup, Map as LeafletMap, Marker, Polyline } from 'leaflet';
   import PinToggle from './PinToggle.svelte';
-  import { createMap, loadLeaflet } from '../../lib/leafletMap';
+  import FilterTabs from '../ui/FilterTabs.svelte';
+  import { TILE_STYLE_CHANGE, createMap, loadLeaflet, themeStyle } from '../../lib/leafletMap';
   import { minutesToTime } from '../../lib/nikolausDispo';
   import { legSummary, teamKmLabel } from '../../lib/nikolausDispoMap';
   import type { DispoMapLeg, DispoMapStop, DispoMapTeam } from '../../lib/nikolausDispoMap';
@@ -59,6 +67,32 @@
   let baseMarker: CircleMarker | null = null;
   /** Teams the map was last fitted to; the view only jumps when they change. */
   let fittedTo: string | null = null;
+
+  /** Tiles of the website's theme, shown while nothing was chosen. */
+  let siteStyle = $state<TileStyle>(themeStyle());
+  const mapStyle = $derived(chosenStyle ?? siteStyle);
+
+  function chooseStyle(style: TileStyle): void {
+    chosenStyle = style;
+    map?.fire(TILE_STYLE_CHANGE);
+  }
+
+  onMount(() => {
+    const follow = (): void => {
+      siteStyle = themeStyle();
+    };
+    const observer = new MutationObserver(follow);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+    const preference = matchMedia('(prefers-color-scheme: dark)');
+    preference.addEventListener('change', follow);
+    return () => {
+      observer.disconnect();
+      preference.removeEventListener('change', follow);
+    };
+  });
 
   onMount(() => {
     let active = true;
@@ -146,7 +180,7 @@
     current: DispoMapTeam[]
   ): void {
     if (!map) {
-      map = createMap(L, element, { main: true });
+      map = createMap(L, element, { main: true, style: () => chosenStyle });
       layers = L.layerGroup().addTo(map);
       map.on('click', () => {
         selectedId = null;
@@ -401,6 +435,18 @@
       >
         {large ? 'Großansicht beenden' : 'Großansicht'}
       </button>
+    </div>
+    <div class="map-style">
+      <FilterTabs
+        label="Kartenfarbe"
+        variant="segmented"
+        options={[
+          { value: 'hell', label: 'Helle Karte' },
+          { value: 'dunkel', label: 'Dunkle Karte' },
+        ]}
+        value={mapStyle}
+        onselect={chooseStyle}
+      />
     </div>
   </div>
 
@@ -682,6 +728,14 @@
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 0.5rem;
+  }
+  .map-style {
+    position: absolute;
+    bottom: 1.75rem;
+    left: 0.75rem;
+    z-index: 1;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+    border-radius: 0.375rem;
   }
   .map-button {
     min-height: 44px;
