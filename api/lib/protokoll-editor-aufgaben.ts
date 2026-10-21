@@ -185,13 +185,3 @@ export async function createProtokollTasks(
   }
   return count;
 }
-
-/** How many tasks the approval of these minutes created. */
-export async function countProtokollTasks(protokollId: number): Promise<number> {
-  const row = await getDb()
-    .selectFrom('organisation.task')
-    .select((eb) => eb.fn.countAll<number>().as('count'))
-    .where('protokoll_id', '=', protokollId)
-    .executeTakeFirst();
-  return Number(row?.count ?? 0);
-}

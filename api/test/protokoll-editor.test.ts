@@ -38,7 +38,10 @@ import {
 } from '../lib/protokoll-editor-model';
 import { PersonItem, PersonenCollection } from '../endpoints/intern-pflege-personen';
 import * as taskDirectory from '../lib/task-directory';
+import { CONFIG } from '../lib/config';
+import { getDb, toVersion } from '../lib/db';
 import { dbTest } from './fixtures/database';
+import { recordQueries } from './fixtures/queries';
 
 const ANNA = 'anna.autorin@stamm-phoenix.de';
 const BEN = 'ben.beobachter@stamm-phoenix.de';
@@ -353,6 +356,167 @@ dbTest('readers get the minutes only when they changed', async (t) => {
   assert.equal(live.sperre?.name, 'Anna Autorin');
   assert.equal(live.sperre?.mine, false);
   assert.equal(live.sperre?.aktiverPunkt, detail.inhalt.punkte[0].id);
+});
+
+dbTest('the minutes, their lock and their tasks are read in one statement', async (t) => {
+  mockDirectory(t);
+  const context = quietContext(t);
+  const detail = await create(t);
+  const params = { id: String(detail.id) };
+  const inhalt = withText(detail.inhalt, 'Beschlossen');
+  const saved = await EditorItem(
+    request(ANNA, 'PUT', params, save(detail, detail.etag, TOKEN_A, inhalt)),
+    context
+  );
+  assert.equal(saved.status, 200);
+  const db = getDb();
+  const at = new Date('2026-10-15T18:30:00.000Z');
+  await db
+    .updateTable('protokoll.protokoll')
+    .set({
+      status: 'freigegeben',
+      submitted_by: ANNA,
+      submitted_at: at,
+      review_note: 'Passt.',
+      approved_by: BEN,
+      approved_at: at,
+      pdf_drive_id: 'drive',
+      pdf_item_id: 'item',
+      pdf_name: 'Protokoll.pdf',
+      pdf_url: 'https://example.test/Protokoll.pdf',
+      delivery_state: 'sent',
+      delivery_recipients: 12,
+      delivery_at: at,
+      delivery_by: BEN,
+    })
+    .where('id', '=', detail.id)
+    .execute();
+  const task = (aufgabe: string) => ({
+    title: `Aufgabe ${aufgabe}`,
+    description: '',
+    assignee: '',
+    due_date: null,
+    project_id: null,
+    state: 'offen' as const,
+    protokoll_id: detail.id,
+    protokoll_aufgabe: aufgabe,
+    updated_by: 'test',
+  });
+  await db
+    .insertInto('organisation.task')
+    .values([task('a1'), task('a2')])
+    .execute();
+  const row = await db
+    .selectFrom('protokoll.protokoll')
+    .selectAll()
+    .where('id', '=', detail.id)
+    .executeTakeFirstOrThrow();
+  const lock = await db
+    .selectFrom('protokoll.sperre')
+    .selectAll()
+    .where('protokoll_id', '=', detail.id)
+    .executeTakeFirstOrThrow();
+  const etag = toVersion(row.version);
+  const expected = (mine: boolean): ProtokollEditorDetail => ({
+    id: detail.id,
+    title: 'Leitendenrunde',
+    date: '2026-10-14',
+    status: 'freigegeben',
+    inhalt,
+    etag,
+    createdAt: detail.createdAt,
+    createdBy: ANNA,
+    updatedAt: row.updated_at.toISOString(),
+    updatedBy: ANNA,
+    sperre: {
+      login: ANNA,
+      name: 'Anna Autorin',
+      since: lock.since.toISOString(),
+      until: lock.until.toISOString(),
+      aktiverPunkt: inhalt.punkte[0].id,
+      mine,
+      expired: false,
+    },
+    canDelete: false,
+    submittedBy: ANNA,
+    submittedAt: at.toISOString(),
+    reviewNote: 'Passt.',
+    approvedBy: BEN,
+    approvedAt: at.toISOString(),
+    ablage: { fileName: 'Protokoll.pdf', webUrl: 'https://example.test/Protokoll.pdf' },
+    versand: { state: 'sent', recipients: 12, at: at.toISOString(), by: BEN },
+    sendingConfigured: CONFIG.protokolle.sender !== '',
+    aufgabenAngelegt: 2,
+  });
+
+  const queries = recordQueries(t);
+  const read = await GetEditorProtokoll(
+    request(ANNA, 'GET', params, undefined, '', TOKEN_A),
+    context
+  );
+  assert.deepEqual(read.jsonBody, expected(true));
+  assert.equal(queries.roundTrips, 1);
+
+  queries.reset();
+  const quiet = await GetEditorLive(
+    request(BEN, 'GET', params, undefined, `?etag=${encodeURIComponent(etag)}`),
+    context
+  );
+  assert.deepEqual(quiet.jsonBody, { etag, sperre: expected(false).sperre, protokoll: null });
+  // The poll of an unchanged version is a single small statement
+  assert.equal(queries.statements.length, 1);
+  assert.doesNotMatch(queries.statements[0] ?? '', /content/);
+
+  queries.reset();
+  const changed = await GetEditorLive(
+    request(BEN, 'GET', params, undefined, `?etag=${encodeURIComponent(detail.etag)}`),
+    context
+  );
+  assert.deepEqual(changed.jsonBody, {
+    etag,
+    sperre: expected(false).sperre,
+    protokoll: expected(false),
+  });
+  assert.equal(queries.roundTrips, 2);
+
+  // Tasks only count once the minutes are approved
+  await db
+    .updateTable('protokoll.protokoll')
+    .set({ status: 'review' })
+    .where('id', '=', detail.id)
+    .execute();
+  const review = (await GetEditorProtokoll(request(BEN, 'GET', params), context))
+    .jsonBody as ProtokollEditorDetail;
+  assert.equal(review.status, 'review');
+  assert.equal(review.aufgabenAngelegt, 0);
+  assert.equal(review.sperre?.mine, false);
+
+  await db.deleteFrom('protokoll.sperre').execute();
+  const free = await GetEditorLive(
+    request(BEN, 'GET', params, undefined, `?etag=${encodeURIComponent(review.etag)}`),
+    context
+  );
+  assert.deepEqual(free.jsonBody, { etag: review.etag, sperre: null, protokoll: null });
+  assert.equal(
+    (
+      (await GetEditorProtokoll(request(BEN, 'GET', params), context)).jsonBody as
+        ProtokollEditorDetail | undefined
+    )?.sperre,
+    null
+  );
+  assert.equal(
+    (await GetEditorProtokoll(request(BEN, 'GET', { id: String(detail.id + 1) }), context)).status,
+    404
+  );
+  assert.equal(
+    (
+      await GetEditorLive(
+        request(BEN, 'GET', { id: String(detail.id + 1) }, undefined, `?etag=${etag}`),
+        context
+      )
+    ).status,
+    404
+  );
 });
 
 dbTest(
