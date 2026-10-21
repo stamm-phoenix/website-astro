@@ -144,9 +144,11 @@ export const BelegeCollectionEndpoint = pflegeHandler(
   'belege',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
     if (request.method === 'GET') {
-      const belege = (await getBelege())
+      const reviewer = isBelegReviewer(principal);
+      // The database narrows the list to the uploader's receipts; the exact check stays here
+      const belege = (await getBelege(reviewer ? undefined : principal.userDetails))
         .map(toStaffBeleg)
-        .filter((beleg) => isBelegReviewer(principal) || isOwner(beleg, principal));
+        .filter((beleg) => reviewer || isOwner(beleg, principal));
       return ok(belege);
     }
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;

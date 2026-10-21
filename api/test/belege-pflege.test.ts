@@ -23,6 +23,7 @@ import {
 import { validateBeleg, ValidationError } from '../lib/pflege-validation';
 import { BelegCheckError, parseStoredBelegCheck, toBelegCheck } from '../lib/beleg-check';
 import { dbTest } from './fixtures/database';
+import { recordQueries } from './fixtures/queries';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -273,6 +274,95 @@ dbTest('the receipt list sorts the newest first and keeps photo names on the ser
   assert.equal(items[0]?.submittedAt, '2026-09-30T10:00:00.000Z');
   assert.equal('photo' in (items[0] ?? {}), false);
   assert.equal((response.headers as Record<string, string>)['Cache-Control'], 'no-store');
+});
+
+dbTest('uploaders get only their own receipts from the database, unchanged', async (t) => {
+  const { context, blobs } = setup(t);
+  overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
+  await store(
+    blobs,
+    { id: 1, submittedBy: 'Leitung@Example.test', submittedAt: '2026-09-02T10:00:00.000Z' },
+    { id: 2, submittedBy: 'other@example.test', submittedAt: '2026-09-03T10:00:00.000Z' },
+    { id: 3, status: 'Abgelehnt', submittedAt: '2026-09-01T10:00:00.000Z', photo: 'beleg-3.jpg' },
+    { id: 4, submittedBy: '', submittedAt: '2026-08-01T10:00:00.000Z' },
+    { id: 5, submittedAt: '2026-09-02T10:00:00.000Z', photo: 'beleg-5-scan.jpg' }
+  );
+  await getDb()
+    .updateTable('organisation.beleg')
+    .set({
+      ai_check: '{"ok":false,"issues":["Unscharf."],"shop":"REWE","amountCent":1234}',
+      review_note: 'Bitte neu fotografieren.',
+      beleg_date: null,
+    })
+    .where('id', '=', 3)
+    .execute();
+  const list = async (userDetails: string) => {
+    const response = await BelegeCollection(
+      request('GET', undefined, { principal: { ...PRINCIPAL, userDetails } }),
+      context
+    );
+    assert.equal(response.status, 200);
+    return (response.jsonBody as { etag: string }[]).map(({ etag, ...beleg }) => {
+      assert.match(etag, /^"[0-9a-f]{16}"$/);
+      return beleg;
+    });
+  };
+  const beleg = (id: number, submittedBy: string, submittedAt: string) => ({
+    id: String(id),
+    shop: 'REWE',
+    date: '2026-09-30',
+    amountCent: 1234,
+    paidBy: 'Alex Beispiel',
+    payout: true,
+    aktion: 'Sommerlager',
+    note: '',
+    status: 'Eingereicht',
+    reviewNote: '',
+    submittedBy,
+    submittedAt,
+    hasImage: false,
+    hasOriginal: false,
+    aiCheck: null as unknown,
+  });
+  const first = beleg(1, 'Leitung@Example.test', '2026-09-02T10:00:00.000Z');
+  const own = {
+    ...beleg(5, 'leitung@example.test', '2026-09-02T10:00:00.000Z'),
+    hasImage: true,
+    hasOriginal: true,
+  };
+  const rejected = {
+    ...beleg(3, 'leitung@example.test', '2026-09-01T10:00:00.000Z'),
+    date: '',
+    status: 'Abgelehnt',
+    reviewNote: 'Bitte neu fotografieren.',
+    hasImage: true,
+    aiCheck: {
+      ok: false,
+      isReceipt: false,
+      complete: false,
+      readable: false,
+      issues: ['Unscharf.'],
+      restrictedItems: [],
+      shop: 'REWE',
+      date: null,
+      amountCent: 1234,
+      checkedAt: '',
+    },
+  };
+
+  const queries = recordQueries(t);
+  assert.deepEqual(await list('leitung@example.test'), [own, first, rejected]);
+  // The filter runs in the database, so other people's receipts are never read
+  assert.equal(queries.statements.length, 1);
+  assert.match(queries.statements[0] ?? '', /where "submitted_by" = @1/);
+  assert.deepEqual(await list('nobody@example.test'), []);
+  assert.deepEqual(await list('kasse@example.test'), [
+    beleg(2, 'other@example.test', '2026-09-03T10:00:00.000Z'),
+    own,
+    first,
+    rejected,
+    beleg(4, '', '2026-08-01T10:00:00.000Z'),
+  ]);
 });
 
 dbTest('reviewing and deleting receipts require the loaded version', async (t) => {

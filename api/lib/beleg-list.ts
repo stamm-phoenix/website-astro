@@ -89,14 +89,14 @@ export function toStaffBeleg(beleg: StoredBeleg): StaffBeleg {
   return staff;
 }
 
-/** All receipts, newest first. */
-export async function getBelege(): Promise<StoredBeleg[]> {
-  const rows = await getDb()
-    .selectFrom('organisation.beleg')
-    .selectAll()
-    .orderBy('submitted_at', 'desc')
-    .orderBy('id', 'desc')
-    .execute();
+/**
+ * All receipts, newest first; with `submittedBy` only those of that login (compared without
+ * regard to case, like the database collation), so nobody else's are read.
+ */
+export async function getBelege(submittedBy?: string): Promise<StoredBeleg[]> {
+  let query = getDb().selectFrom('organisation.beleg').selectAll();
+  if (submittedBy !== undefined) query = query.where('submitted_by', '=', submittedBy);
+  const rows = await query.orderBy('submitted_at', 'desc').orderBy('id', 'desc').execute();
   return rows.map(toBeleg);
 }
 
