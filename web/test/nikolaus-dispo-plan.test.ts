@@ -33,14 +33,17 @@ function row(bookingId: string, order: number, extra: Partial<StaffNikolausDispo
   };
 }
 
-function data(rows: StaffNikolausDispoRow[]): StaffNikolausDispoData {
+function data(
+  rows: StaffNikolausDispoRow[],
+  stops = [booking('1', '17:00'), booking('2', '17:00'), booking('3', '17:00')]
+): StaffNikolausDispoData {
   return {
     date: DATE,
     teams: [{ name: 'A', color: '#000' }],
     minutesPerChild: 5,
     minVisitMinutes: 10,
     maxVisitMinutes: 45,
-    stops: [booking('1', '17:00'), booking('2', '17:00'), booking('3', '17:00')],
+    stops,
     travel: [
       [0, 5, 5, 5],
       [5, 0, 5, 5],
@@ -74,9 +77,27 @@ describe('restoring a saved Dispo', () => {
 
   test('keeps a saved order that already starts with the checked-off visits', () => {
     const restored = restoreDispoDraft(
-      data([row('1', 1, { visited: true, visitedAt: '17:10' }), row('2', 2), row('3', 3)])
+      data([
+        row('1', 1, { visited: true, visitedAt: '17:10' }),
+        row('2', 2, { plannedArrival: '17:15' }),
+        row('3', 3, { plannedArrival: '17:30' }),
+      ])
     );
     assert.deepEqual(restored.assignment.A, ['1', '2', '3']);
     assert.deepEqual(restored.changes, []);
+  });
+
+  test('asks to save times calculated anew from a late check-off', () => {
+    const restored = restoreDispoDraft(
+      data(
+        [
+          row('1', 1, { visited: true, visitedAt: '17:30' }),
+          row('2', 2, { plannedArrival: '17:15' }),
+        ],
+        [booking('1', '17:00'), booking('2', '17:00')]
+      )
+    );
+    assert.deepEqual(restored.assignment.A, ['1', '2']);
+    assert.equal(restored.changes.length, 1);
   });
 });

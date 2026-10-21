@@ -214,9 +214,9 @@ export async function saveDispo(
       const planned = new Set(desired.map((row) => row.bookingId));
       const doneNow = desired.filter((row) => row.visited).map((row) => row.bookingId);
       const doneLoaded = done && [...new Set(done)].filter((id) => planned.has(id));
-      const stale = doneLoaded
-        ? doneLoaded.sort().join() !== doneNow.sort().join()
-        : desired.some((row) => row.visited && byBooking.get(row.bookingId)?.team !== row.team);
+      const stale =
+        (doneLoaded !== undefined && doneLoaded.sort().join() !== doneNow.sort().join()) ||
+        desired.some((row) => row.visited && byBooking.get(row.bookingId)?.team !== row.team);
       if (stale) {
         throw new ValidationError({
           entries:

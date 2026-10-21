@@ -114,6 +114,17 @@ dbTest('a Dispo built on older check-offs is refused', async () => {
     second,
   ]);
   assert.equal((await getDispoRows(DATE)).find((row) => row.bookingId === third)?.team, 'B');
+
+  // The same check-offs do not allow giving a done visit to another team
+  const current = getDispoVersion(await getDispoRows(DATE));
+  await assert.rejects(
+    saveDispo(DATE, [entry(first, 1, 'B'), entry(second, 2), entry(third, 3, 'B')], current, [
+      first,
+      second,
+    ]),
+    ValidationError
+  );
+  assert.equal((await getDispoRows(DATE)).find((row) => row.bookingId === first)?.team, 'A');
 });
 
 dbTest('a Dispo with a booking deleted meanwhile is a conflict', async () => {
