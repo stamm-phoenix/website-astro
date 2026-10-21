@@ -5,6 +5,7 @@ import { getNikolausTeams } from './nikolaus-config';
 import { getDb, parseStringList } from './db';
 import type { HelperRole } from './nikolaus-einteilung';
 import { HELPER_ROLES, KITCHEN } from './nikolaus-einteilung';
+import { isValidDate } from './pflege-validation';
 
 /** A helper of a team on one day, from the saved Einteilung. */
 export interface TeamMember {
@@ -15,10 +16,13 @@ export interface TeamMember {
   positiveTags: string[];
 }
 
-/** The `date` query parameter, if it is a date; before the settings are known. */
+/**
+ * The `date` query parameter, if it is a calendar date; before the settings are known. Reads start
+ * with it before the configured days are checked, so it must be a date SQL Server accepts.
+ */
 export function readDateParam(request: HttpRequest): string | null {
   const date = request.query.get('date') ?? '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+  return isValidDate(date) && date >= '0001-01-01' ? date : null;
 }
 
 /** The `date` query parameter, if it is a configured Nikolaus day. */
