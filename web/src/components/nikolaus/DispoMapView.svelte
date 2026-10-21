@@ -67,6 +67,10 @@
   let baseMarker: CircleMarker | null = null;
   /** Teams the map was last fitted to; the view only jumps when they change. */
   let fittedTo: string | null = null;
+  /** Road courses the map was last fitted to; they arrive after the first drawing. */
+  let fittedRoads: string | null = null;
+  /** Set once the person moves or zooms the map; late courses must not move it then. */
+  let moved = false;
 
   /** Tiles of the website's theme, shown while nothing was chosen. */
   let siteStyle = $state<TileStyle>(themeStyle());
@@ -182,6 +186,15 @@
     if (!map) {
       map = createMap(L, element, { main: true, style: () => chosenStyle });
       layers = L.layerGroup().addTo(map);
+      map.on('dragstart', () => (moved = true));
+      for (const type of ['wheel', 'dblclick'] as const) {
+        element.addEventListener(type, () => (moved = true), { passive: true });
+      }
+      element.addEventListener('click', (event) => {
+        if (event.target instanceof Element && event.target.closest('.leaflet-control-zoom')) {
+          moved = true;
+        }
+      });
       map.on('click', () => {
         selectedId = null;
         pointedLeg = null;
@@ -272,8 +285,10 @@
 
     map.invalidateSize();
     const key = current.map((team) => team.name).join(',');
-    if (key !== fittedTo) {
+    const roads = current.map((team) => `${team.name}:${team.kmAlongRoads}`).join(',');
+    if (key !== fittedTo || (roads !== fittedRoads && !moved)) {
       fittedTo = key;
+      fittedRoads = roads;
       map.fitBounds(bounds, { padding: [32, 32], maxZoom: 15 });
     }
   }
@@ -303,6 +318,7 @@
   /** Selects a visit and moves the map to it. */
   function select(id: string, move = true): void {
     selectedId = id;
+    moved = true;
     void tick().then(() => revealItem(id, move));
     const entry = markers[id];
     if (!entry || !map) return;
@@ -337,6 +353,7 @@
 
   function fitTeams(names: string[]): void {
     if (!map || !leaflet) return;
+    moved = true;
     const points = teams
       .filter((team) => names.includes(team.name))
       .flatMap((team) => routePoints(team));
