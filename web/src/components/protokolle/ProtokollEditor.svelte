@@ -281,6 +281,8 @@
           aktiverPunkt: activePunkt,
         }),
         fixTextModus(),
+        // The copy kept on this device belongs to the login, which may still be on its way
+        fetchPrincipal(),
       ]);
       sperre = result.sperre;
       let loaded = detail;
