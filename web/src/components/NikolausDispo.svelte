@@ -147,7 +147,10 @@
     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     element.classList.add('is-flashing');
     setTimeout(() => element.classList.remove('is-flashing'), 2000);
-    element.querySelector<HTMLElement>('select')?.focus({ preventScroll: true });
+    // Checked-off visits have no team choice; then the next control, or the entry itself
+    const target = element.querySelector<HTMLElement>('select, button') ?? element;
+    if (target === element) element.tabIndex = -1;
+    target.focus({ preventScroll: true });
   }
 
   async function showOnMap(id: string): Promise<void> {

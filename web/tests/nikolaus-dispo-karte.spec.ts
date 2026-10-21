@@ -198,6 +198,15 @@ test('a visit already checked off keeps its team on the map', async ({ page }) =
   await expect(card).toContainText('Besucht');
   await expect(card.getByRole('combobox')).toHaveCount(0);
   await expect(card.getByRole('button', { name: /^Team festhalten/ })).toHaveCount(0);
+  // Back in the list the keyboard stays at that visit
+  const family = (await card.locator('h2').textContent())!.replace(/^\s*\d+:\d+\s*/, '').trim();
+  await card.getByRole('button', { name: 'In der Liste zeigen' }).click();
+  await expect(
+    page.locator('.stop-card').filter({ hasText: family }).getByRole('button', {
+      name: 'Auf der Karte zeigen',
+    })
+  ).toBeFocused();
+  await page.getByRole('button', { name: 'Karte', exact: true }).click();
   await page.locator('.stop-item').filter({ hasNotText: 'besucht' }).first().click();
   await expect(card.getByRole('combobox')).toBeVisible();
 });
