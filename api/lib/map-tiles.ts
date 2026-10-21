@@ -175,6 +175,8 @@ export function parseAttribution(value: unknown): string[] {
     .map((text) =>
       text
         .replace(/<[^>]*>/g, '')
+        // Nested or broken tags such as `<scr<script>ipt>` must not leave markup behind
+        .replace(/[<>]/g, '')
         .replace(/&copy;/g, '©')
         .replace(/&amp;/g, '&')
         .replace(/\s+/g, ' ')

@@ -153,10 +153,14 @@ test('the copyright notice is plain text, per zoom level and kept for an hour', 
         '<a>&copy;2026 TomTom</a>',
         '<a>&copy;2026 TomTom</a>',
         '<img src=x onerror=alert(1)>',
+        '<scr<script>ipt>alert(1)</script>',
       ],
     }),
-    ['©2026 OSM', '©2026 TomTom']
+    ['©2026 OSM', '©2026 TomTom', 'iptalert(1)']
   );
+  for (const text of parseAttribution({ copyrights: ['<<a>b>c', '<scr<script>ipt>'] })) {
+    assert.doesNotMatch(text, /[<>]/);
+  }
 
   setup(t);
   const fetch = t.mock.method(globalThis, 'fetch', async (url: URL) => {
