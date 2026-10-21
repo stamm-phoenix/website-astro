@@ -135,3 +135,32 @@ test('my receipts from CampFlow show even if the submitted ones fail to load', a
   await expect(box.getByText('Edeka – Grillabend')).toBeVisible();
   await expect(box.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
 });
+
+test('a transfer whose answer is lost closes the receipt once it is gone', async ({ page }) => {
+  // The server transferred and deleted the receipt, but the answer never reaches the browser.
+  // Simulated here, so the shared demo keeps its receipt for the other tests.
+  let transferred = false;
+  await page.route('**/api/intern/pflege/belege/*/campflow', async (route) => {
+    transferred = true;
+    await route.abort('connectionreset');
+  });
+  await page.route('**/api/intern/pflege/belege', async (route) => {
+    if (!transferred || route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    const belege = (await response.json()) as { shop: string }[];
+    await route.fulfill({ response, json: belege.filter((b) => b.shop !== 'Deutsche Bahn') });
+  });
+  await page.goto('/leitendenbereich/belege/');
+  const accepted = page.getByRole('button', { name: /^Angenommen/ });
+  await expect(accepted).toHaveText(/\(\d+\)/);
+  await accepted.click();
+  await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
+  await dialog.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
+  await dialog.getByRole('button', { name: 'Nach CampFlow übertragen' }).click();
+
+  await expect(dialog).toBeHidden();
+  await expect(
+    page.getByText(/Beleg von Deutsche Bahn ist hier nicht mehr vorhanden/)
+  ).toBeVisible();
+});
