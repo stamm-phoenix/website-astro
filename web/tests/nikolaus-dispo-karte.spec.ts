@@ -122,6 +122,28 @@ test('the Großansicht keeps the keyboard on the map and gives it back', async (
   ).toBe(false);
 });
 
+test('the large map switches between light and dark tiles on its own', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
+  const map = page.locator('.dispo-map-main.leaflet-container');
+  const tile = map.locator('img.leaflet-tile').first();
+  await expect(tile).toHaveAttribute('src', /^\/api\/karte\/hell\//);
+  const light = page.getByRole('button', { name: 'Helle Karte' });
+  const dark = page.getByRole('button', { name: 'Dunkle Karte' });
+  await expect(light).toHaveAttribute('aria-pressed', 'true');
+  await dark.click();
+  await expect(dark).toHaveAttribute('aria-pressed', 'true');
+  await expect(tile).toHaveAttribute('src', /^\/api\/karte\/dunkel\//);
+  // The choice stays when the list was shown in between
+  await page.getByRole('button', { name: 'Liste', exact: true }).click();
+  await page.getByRole('button', { name: 'Karte', exact: true }).click();
+  await expect(map.locator('img.leaflet-tile').first()).toHaveAttribute(
+    'src',
+    /^\/api\/karte\/dunkel\//
+  );
+  await expectNoHorizontalOverflow(page);
+});
+
 test('teams can be hidden on the map', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
   const map = page.locator('.dispo-map-main.leaflet-container');

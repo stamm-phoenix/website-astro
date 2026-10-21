@@ -25,6 +25,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'In der Liste bringt dich „Auf der Karte zeigen“ bei jedem Termin zurück zur Karte. Mit „Großansicht“ füllt die Karte den ganzen Bildschirm.',
       'Zeigst du auf eine Fahrt, werden die beiden Termine an ihren Enden auf der Karte und in der Liste daneben hervorgehoben.',
       'Bei jedem Team steht jetzt, wie viele Kilometer es insgesamt fährt, in der Karte und in der Liste.',
+      'Unten links auf der großen Karte wählst du zwischen heller und dunkler Karte, unabhängig vom Design der Seite.',
     ],
   },
   {
