@@ -106,6 +106,8 @@ export function createMap(L: typeof Leaflet, element: HTMLElement): Leaflet.Map 
   const preference = matchMedia('(prefers-color-scheme: dark)');
   preference.addEventListener('change', update);
   map.on('unload', () => {
+    // A request still on its way must neither show its notices nor ask again
+    loading = '';
     clearTimeout(retry);
     observer.disconnect();
     preference.removeEventListener('change', update);
