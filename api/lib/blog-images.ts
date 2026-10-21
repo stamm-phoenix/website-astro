@@ -1,4 +1,3 @@
-import sharp from 'sharp';
 import type { HttpResponseInit } from '@azure/functions';
 import { deleteBlobs, getBlob, putBlob } from './blob-storage';
 import { getImageWidths } from './blog-list';
@@ -34,6 +33,7 @@ export async function storeBlogImageFiles(
   image: BlogImage,
   bytes: Uint8Array
 ): Promise<void> {
+  const { default: sharp } = await import('sharp');
   for (const width of getImageWidths(image.width)) {
     const scaled = await sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS })
       .resize({ width, withoutEnlargement: true })

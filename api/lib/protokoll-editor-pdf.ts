@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import pdfmake from 'pdfmake';
+import type pdfmake from 'pdfmake';
 import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces';
 import type {
   OffeneAufgabe,
@@ -61,26 +61,34 @@ const ASSETS = join(__dirname, '..', '..', 'assets');
 const FONTS = join(ASSETS, 'fonts');
 
 let images: { logo: string; dpsg: string } | undefined;
+let loadedPrinter: Promise<typeof pdfmake> | undefined;
 
 function dataUrl(file: string): string {
   return `data:image/png;base64,${readFileSync(join(ASSETS, 'protokoll', file)).toString('base64')}`;
 }
 
-function setup(): { logo: string; dpsg: string } {
-  if (images) return images;
-  pdfmake.setFonts({
-    [FONT]: {
-      normal: join(FONTS, 'SourceSans3-Regular.ttf'),
-      bold: join(FONTS, 'SourceSans3-Bold.ttf'),
-      italics: join(FONTS, 'SourceSans3-It.ttf'),
-      bolditalics: join(FONTS, 'SourceSans3-Bold.ttf'),
-    },
-  });
-  // Only the bundled fonts; the document never loads anything from elsewhere
-  pdfmake.setLocalAccessPolicy((path) => path.startsWith(FONTS));
-  pdfmake.setUrlAccessPolicy(() => false);
-  images = { logo: dataUrl('stammeslilie.png'), dpsg: dataUrl('dpsg-stamm-phoenix.png') };
+function loadImages(): { logo: string; dpsg: string } {
+  images ??= { logo: dataUrl('stammeslilie.png'), dpsg: dataUrl('dpsg-stamm-phoenix.png') };
   return images;
+}
+
+/** pdfmake is large and only needed for a PDF, so it is loaded with the first one. */
+function loadPrinter(): Promise<typeof pdfmake> {
+  loadedPrinter ??= import('pdfmake').then(({ default: loaded }) => {
+    loaded.setFonts({
+      [FONT]: {
+        normal: join(FONTS, 'SourceSans3-Regular.ttf'),
+        bold: join(FONTS, 'SourceSans3-Bold.ttf'),
+        italics: join(FONTS, 'SourceSans3-It.ttf'),
+        bolditalics: join(FONTS, 'SourceSans3-Bold.ttf'),
+      },
+    });
+    // Only the bundled fonts; the document never loads anything from elsewhere
+    loaded.setLocalAccessPolicy((path) => path.startsWith(FONTS));
+    loaded.setUrlAccessPolicy(() => false);
+    return loaded;
+  });
+  return loadedPrinter;
 }
 
 const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
@@ -610,7 +618,7 @@ function reducedHeader(heading: string): Content {
 export async function protokollPdfDefinition(
   input: ProtokollPdfInput
 ): Promise<TDocumentDefinitions> {
-  const { logo, dpsg } = setup();
+  const { logo, dpsg } = loadImages();
   const lex = await loadLexer();
   const titel = input.title.trim() || 'Protokoll';
   const heading = `${titel} vom ${formatPdfDate(input.date)}`;
@@ -700,6 +708,7 @@ export async function protokollPdfDefinition(
 
 /** The PDF of the minutes. */
 export async function createProtokollPdf(input: ProtokollPdfInput): Promise<Uint8Array> {
-  const buffer = await pdfmake.createPdf(await protokollPdfDefinition(input)).getBuffer();
+  const [printer, definition] = await Promise.all([loadPrinter(), protokollPdfDefinition(input)]);
+  const buffer = await printer.createPdf(definition).getBuffer();
   return new Uint8Array(buffer);
 }
