@@ -10,6 +10,7 @@
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
   import { geaenderteBetraege } from '../../lib/abrechnungRechnung';
   import type { Leihgebuehren, NachweisZeile } from '../../lib/abrechnungRechnung';
+  import { holdAbrechnungDraft } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { parseEuroToCent } from '../../lib/belege';
   import { formatEuro } from '../../lib/format';
@@ -275,8 +276,13 @@
     }
   }
 
+  /** Ends the hold of the open dialog on the version it was opened with. */
+  let releaseDraft: (() => void) | null = null;
+
   function openDetails(nachweis: NachweisZeile): void {
     releaseSeiten();
+    releaseDraft?.();
+    releaseDraft = holdAbrechnungDraft(abrechnung.event.id);
     openKey = nachweis.key;
     amountInput = centToAmount(nachweis.cent);
     amountError = null;
@@ -285,6 +291,8 @@
   }
 
   function closeDetails(): void {
+    releaseDraft?.();
+    releaseDraft = null;
     bildLoad++;
     releaseSeiten();
     bildError = null;
@@ -332,6 +340,7 @@
   }
 
   onDestroy(() => {
+    releaseDraft?.();
     bildLoad++;
     releaseSeiten();
   });

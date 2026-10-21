@@ -243,13 +243,30 @@ export async function loadAbrechnungSession(eventId: string): Promise<void> {
   }
 }
 
+/** Dialogs open per Aktion whose input is not in the session yet, such as an amount being typed. */
+const openDrafts: Record<string, number> = {};
+
+/**
+ * Marks a dialog of the Aktion as open until the returned function is called. Its input builds on
+ * the shown version, so a newer one saved meanwhile counts as a conflict instead of replacing it.
+ */
+export function holdAbrechnungDraft(eventId: string): () => void {
+  openDrafts[eventId] = (openDrafts[eventId] ?? 0) + 1;
+  let held = true;
+  return () => {
+    if (held) openDrafts[eventId]--;
+    held = false;
+  };
+}
+
 const CONFLICT_MESSAGE =
   'Du hast die Eingaben inzwischen auf einem anderen Gerät geändert. Hier wurde nichts überschrieben. Kopiere deine neuen Angaben und lade dann die gespeicherte Fassung.';
 
 /**
  * Asks the server again for the entries of a session kept from an earlier visit, while they stay
- * shown and editable. A newer saved version replaces them only while nothing was changed here;
- * a change made meanwhile is kept and the page reports the conflict, as a failed save would.
+ * shown and editable. A newer saved version replaces them only while nothing was changed here and
+ * no dialog is open; otherwise the input is kept and the page reports the conflict, as a failed
+ * save would.
  * A failed request changes nothing: saving still checks the version.
  */
 export async function refreshAbrechnungSession(eventId: string): Promise<void> {
@@ -273,7 +290,7 @@ export async function refreshAbrechnungSession(eventId: string): Promise<void> {
     state.deleteAfter = saved.deleteAfter;
     return;
   }
-  if (JSON.stringify(target) === storedJson[eventId]) {
+  if (!openDrafts[eventId] && JSON.stringify(target) === storedJson[eventId]) {
     Object.assign(target, saved.session);
     storedJson[eventId] = JSON.stringify(saved.session);
     Object.assign(state, {
