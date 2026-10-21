@@ -337,9 +337,9 @@
           form.etag = saved;
         }
       } else if (!fresh && store.data && !store.error) {
-        // The answer was lost, but the transfer went through and deleted the receipt here
+        // Gone: transferred with a lost answer, or deleted by someone else meanwhile
         form = null;
-        message = `Beleg von ${shop} ist hier nicht mehr vorhanden: Er wurde nach CampFlow übertragen und danach gelöscht. Du findest ihn unter „In CampFlow“.`;
+        message = `Beleg von ${shop} ist hier nicht mehr vorhanden. Ob er nach CampFlow übertragen oder nur gelöscht wurde, siehst du unter „In CampFlow“.`;
         void campflowBelegeStore.load({ force: true, param: false });
       }
     }
