@@ -2,8 +2,7 @@ import type { HttpRequest } from '@azure/functions';
 import type { NikolausBooking } from './nikolaus-bookings';
 import type { NikolausConfig } from './nikolaus-config';
 import { getNikolausTeams } from './nikolaus-config';
-import { getHelpers } from './nikolaus-helfende-list';
-import { getEinteilungRows } from './nikolaus-einteilung-list';
+import { getDb, parseStringList } from './db';
 import type { HelperRole } from './nikolaus-einteilung';
 import { HELPER_ROLES, KITCHEN } from './nikolaus-einteilung';
 
@@ -16,12 +15,16 @@ export interface TeamMember {
   positiveTags: string[];
 }
 
+/** The `date` query parameter, if it is a date; before the settings are known. */
+export function readDateParam(request: HttpRequest): string | null {
+  const date = request.query.get('date') ?? '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+}
+
 /** The `date` query parameter, if it is a configured Nikolaus day. */
 export function readDate(request: HttpRequest, config: NikolausConfig): string | null {
-  const date = request.query.get('date') ?? '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && getNikolausTeams(date, config).length > 0
-    ? date
-    : null;
+  const date = readDateParam(request);
+  return date && getNikolausTeams(date, config).length > 0 ? date : null;
 }
 
 /** Confirmed bookings of a day, in chronological order. */
@@ -37,18 +40,22 @@ export function confirmedOfDay(bookings: NikolausBooking[], date: string): Nikol
  */
 export async function getTeamMembers(date: string): Promise<Record<string, TeamMember[]>> {
   try {
-    const [helpers, rows] = await Promise.all([getHelpers(), getEinteilungRows()]);
-    const byId = new Map(helpers.map((h) => [h.id, h]));
+    const rows = await getDb()
+      .selectFrom('nikolaus.assignment as a')
+      .innerJoin('nikolaus.helper as h', 'h.id', 'a.helper_id')
+      .select(['a.helper_id', 'a.team', 'a.role', 'h.name', 'h.negative_tags', 'h.positive_tags'])
+      .where('a.date', '=', date)
+      .where('a.team', '<>', KITCHEN)
+      .orderBy('a.helper_id')
+      .execute();
     const members: Record<string, TeamMember[]> = {};
     for (const row of rows) {
-      const helper = byId.get(row.personId);
-      if (row.date !== date || row.team === KITCHEN || !helper) continue;
       (members[row.team] ??= []).push({
-        personId: helper.id,
-        name: helper.name,
+        personId: String(row.helper_id),
+        name: row.name.trim(),
         role: row.role,
-        negativeTags: helper.negativeTags,
-        positiveTags: helper.positiveTags,
+        negativeTags: parseStringList(row.negative_tags),
+        positiveTags: parseStringList(row.positive_tags),
       });
     }
     // Always in the order of the posts (Nikolaus, Krampus, …), not in the order of the list

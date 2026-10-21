@@ -24,6 +24,7 @@ import {
   NikolausEinteilungSave,
 } from '../endpoints/intern-nikolaus-helfende';
 import { pflegeHandler } from '../lib/pflege-api';
+import { NIKOLAUS_STAFF_INACTIVE } from '../lib/nikolaus-staff';
 import { withNikolausWriteHandling } from '../lib/nikolaus-api';
 import * as db from '../lib/db';
 import * as geocoding from '../lib/geocoding';
@@ -174,9 +175,10 @@ test('switched-off staff modules refuse all requests, the Steuerung stays reacha
     assert.equal(response.status, 403);
     assert.equal((response.jsonBody as { code: string }).code, 'NIKOLAUS_INACTIVE');
   }
-  const overview = await GetInternNikolausBookingsEndpoint(request('GET', PRINCIPAL), context(t));
-  assert.equal(overview.status, 403);
   assert.equal(database.mock.callCount(), 0);
+  // Reads may start together with the settings; their result is dropped
+  const overview = await GetInternNikolausBookingsEndpoint(request('GET', PRINCIPAL), context(t));
+  assert.deepEqual(overview, NIKOLAUS_STAFF_INACTIVE);
   const steuerung = pflegeHandler('nikolaus-steuerung', async () => ({ status: 200 }));
   assert.equal((await steuerung(request('PUT', PRINCIPAL), context(t))).status, 200);
 });

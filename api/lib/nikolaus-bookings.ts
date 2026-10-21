@@ -210,19 +210,14 @@ export async function getAllBookings(db: Db = getDb()): Promise<NikolausBooking[
   return rows.map(mapBooking);
 }
 
-/** Bookings that currently occupy one of the configured slots. */
-export async function getCapacityBlockingBookings(
-  config: NikolausConfig,
-  now: Date = new Date()
-): Promise<NikolausBooking[]> {
-  const slots = new Set(getNikolausSlots(config).map((slot) => slot.key));
-  const rows = await getDb()
+/** The internal tags of all bookings in the order of the bookings, for the suggestions. */
+export async function getAllBookingTags(db: Db = getDb()): Promise<string[][]> {
+  const rows = await db
     .selectFrom('nikolaus.booking')
-    .selectAll()
-    .where(blockingAt(now))
+    .select('internal_tags')
     .orderBy('id')
     .execute();
-  return rows.map(mapBooking).filter((booking) => slots.has(booking.slotKey));
+  return rows.map((row) => parseStringList(row.internal_tags));
 }
 
 async function countBlocking(

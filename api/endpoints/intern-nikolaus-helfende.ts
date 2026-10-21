@@ -1,12 +1,18 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { EinteilungDay } from '../lib/nikolaus-einteilung';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
-import { getAllBookings, getBooking, setBookingTags } from '../lib/nikolaus-bookings';
+import {
+  getAllBookingTags,
+  getAllBookings,
+  getBooking,
+  setBookingTags,
+} from '../lib/nikolaus-bookings';
 import { toStaffBooking } from '../lib/nikolaus-api';
 import type { NikolausConfig } from '../lib/nikolaus-config';
 import { getNikolausTeams } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
-import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
+import { isNikolausStaffError, readAsNikolausStaff } from '../lib/nikolaus-staff';
+import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllDispoRows } from '../lib/nikolaus-dispo-list';
 import {
   getEinteilungRows,
@@ -69,11 +75,11 @@ function toClientRow(row: EinteilungRow) {
  * Per configured day the teams and the tags of the families on each team's route, taken from
  * the saved Dispo. Days without a saved Dispo get `familyTags: null`.
  */
-async function getEinteilungDays(
+function getEinteilungDays(
   bookings: NikolausBooking[],
+  dispoRows: DispoRow[],
   config: NikolausConfig
-): Promise<EinteilungDay[]> {
-  const dispoRows = await getAllDispoRows();
+): EinteilungDay[] {
   const confirmed = new Map(
     bookings.filter((b) => b.status === 'Bestaetigt').map((b) => [b.id, b])
   );
@@ -96,11 +102,15 @@ async function getEinteilungDays(
 export async function GetInternNikolausHelfendeEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const access = await requireNikolausStaff(request);
+  const access = await readAsNikolausStaff(request, () =>
+    Promise.all([getHelpers(), getAllBookingTags()])
+  );
   if (isNikolausStaffError(access)) return access;
-  const { config } = access;
+  const {
+    config,
+    data: [helpers, bookingTags],
+  } = access;
 
-  const [helpers, bookings] = await Promise.all([getHelpers(), getAllBookings()]);
   return {
     status: 200,
     headers: NO_STORE_HEADERS,
@@ -108,7 +118,7 @@ export async function GetInternNikolausHelfendeEndpoint(
       persons: helpers,
       tags: collectTags([
         ...helpers.flatMap((h) => [h.positiveTags, h.negativeTags]),
-        ...bookings.map((b) => b.internalTags),
+        ...bookingTags,
       ]),
       days: configuredDates(config).map((date) => ({
         date,
@@ -122,21 +132,21 @@ export async function GetInternNikolausHelfendeEndpoint(
 export async function GetInternNikolausEinteilungEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const access = await requireNikolausStaff(request);
+  const access = await readAsNikolausStaff(request, () =>
+    Promise.all([getHelpers(), getAllBookings(), getEinteilungRows(), getAllDispoRows()])
+  );
   if (isNikolausStaffError(access)) return access;
-  const { config } = access;
+  const {
+    config,
+    data: [helpers, bookings, rows, dispoRows],
+  } = access;
 
-  const [helpers, bookings, rows] = await Promise.all([
-    getHelpers(),
-    getAllBookings(),
-    getEinteilungRows(),
-  ]);
   return {
     status: 200,
     headers: NO_STORE_HEADERS,
     jsonBody: {
       persons: helpers,
-      days: await getEinteilungDays(bookings, config),
+      days: getEinteilungDays(bookings, dispoRows, config),
       rows: rows.map(toClientRow),
       version: getEinteilungVersion(rows),
     },

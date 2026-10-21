@@ -1,9 +1,14 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
+import type { NikolausSettings } from '../lib/nikolaus-config';
 import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
 import { getNikolausTeams, localDateTimeToDate } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
-import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
+import {
+  isNikolausStaffError,
+  readAsNikolausStaff,
+  requireNikolausStaff,
+} from '../lib/nikolaus-staff';
 import {
   DISPO_MAX_VISIT_MINUTES,
   DISPO_MINUTES_PER_CHILD,
@@ -13,7 +18,7 @@ import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
 import { NO_STORE_HEADERS, toLocation, toStaffBooking } from '../lib/nikolaus-api';
 import { getRoutePath, getTravelMatrix } from '../lib/travel-times';
-import { confirmedOfDay, getTeamMembers, readDate } from '../lib/nikolaus-day';
+import { confirmedOfDay, getTeamMembers, readDate, readDateParam } from '../lib/nikolaus-day';
 import { validateDispoSave } from '../lib/pflege-validation';
 import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
@@ -37,6 +42,16 @@ function toClientRow(row: DispoRow) {
   };
 }
 
+/** The usual traffic when the teams set off; once the evening has begun, without traffic. */
+function departureOf(config: NikolausSettings, date: string): string | undefined {
+  const start = config.days.find((day) => day.date === date)?.start;
+  return start
+    ? localDateTimeToDate(date, start)
+        .toISOString()
+        .replace(/\.\d{3}Z$/, 'Z')
+    : undefined;
+}
+
 /**
  * GET: everything the Dispo page needs for one day – the confirmed bookings, the driving
  * times between them and the saved Dispo. The distribution itself is calculated in the
@@ -45,33 +60,31 @@ function toClientRow(row: DispoRow) {
 export async function GetInternNikolausDispoEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const access = await requireNikolausStaff(request);
+  const requested = readDateParam(request);
+  const access = await readAsNikolausStaff(request, async (active) => {
+    if (!requested) return null;
+    const bookings = getAllBookings();
+    // The driving times start with the bookings, while the Dispo and the Einteilung still load
+    const travel = Promise.all([active, bookings]).then(([config, list]) => {
+      const day = readDate(request, config) ? confirmedOfDay(list, requested) : [];
+      return getTravelMatrix([config.area.base, ...day.map((b) => toLocation(b))], {
+        departAt: departureOf(config, requested),
+      });
+    });
+    return Promise.all([bookings, getDispoRows(requested), getTeamMembers(requested), travel]);
+  });
   if (isNikolausStaffError(access)) return access;
-  const { config } = access;
+  const { config, data } = access;
 
   const date = readDate(request, config);
-  if (!date) return NOT_FOUND;
+  if (!date || !data) return NOT_FOUND;
 
   const now = new Date();
-  const [bookings, rows, members] = await Promise.all([
-    getAllBookings(),
-    getDispoRows(date),
-    getTeamMembers(date),
-  ]);
+  const [bookings, rows, members, travel] = data;
   const stops = confirmedOfDay(bookings, date);
   const pending = bookings.filter(
     (b) => b.status === 'Ausstehend' && b.slotKey.startsWith(`${date}T`) && isBlocking(b, now)
   ).length;
-
-  const { base } = config.area;
-  // The usual traffic when the teams set off; once the evening has begun, without traffic
-  const start = config.days.find((day) => day.date === date)?.start;
-  const departAt = start
-    ? localDateTimeToDate(date, start)
-        .toISOString()
-        .replace(/\.\d{3}Z$/, 'Z')
-    : undefined;
-  const travel = await getTravelMatrix([base, ...stops.map((b) => toLocation(b))], { departAt });
 
   return {
     status: 200,

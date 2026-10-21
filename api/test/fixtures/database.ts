@@ -151,3 +151,21 @@ export function dbTest(name: string, fn: (t: TestContext) => Promise<void>): voi
     await fn(t);
   });
 }
+
+export interface RecordedQuery {
+  sql: string;
+  rows: unknown[];
+}
+
+/** Records the statements sent through `getDb()` from now on, with the rows they returned. */
+export function recordQueries(t: TestContext): RecordedQuery[] {
+  const executor = getDb().getExecutor();
+  const original = executor.executeQuery.bind(executor);
+  const queries: RecordedQuery[] = [];
+  t.mock.method(executor, 'executeQuery', async (...args: Parameters<typeof original>) => {
+    const result = await original(...args);
+    queries.push({ sql: args[0].sql, rows: result.rows });
+    return result;
+  });
+  return queries;
+}
