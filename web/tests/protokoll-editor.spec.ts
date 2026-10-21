@@ -680,3 +680,58 @@ test('deleting minutes names the protocol and cancellation keeps it', async ({ p
   await expect(page.getByLabel('Titel', { exact: true })).toHaveValue(title);
   await expectNoHorizontalOverflow(page);
 });
+
+test('„Bearbeiten“ before the login check answers keeps the unsaved copy of this device', async ({
+  page,
+}) => {
+  const url = await createProtokoll(page, 'Leitendenrunde Handy');
+  await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
+  await page
+    .getByRole('dialog', { name: 'Sitzungsende eintragen?' })
+    .getByRole('button', { name: 'Ja, Ende auf jetzt setzen' })
+    .click();
+  await expect(page.getByText('Gerade schreibt niemand.')).toBeVisible();
+  const id = new URL(url).searchParams.get('id');
+  const detail = (await (await page.request.get(`/api/intern/protokoll-editor/${id}`)).json()) as {
+    date: string;
+    inhalt: unknown;
+    etag: string;
+  };
+  await page.addInitScript(
+    ([key, draft]) => localStorage.setItem(key, draft),
+    [
+      `phoenix:protokoll-entwurf:v1:${id}`,
+      JSON.stringify({
+        title: 'Leitendenrunde vom Handy',
+        date: detail.date,
+        inhalt: detail.inhalt,
+        baseEtag: detail.etag,
+        changedAt: '2026-10-21T08:00:00.000Z',
+        login: 'leitung@example.test',
+      }),
+    ]
+  );
+  // The minutes arrive while the login check still runs
+  let answerLogin = (): void => undefined;
+  const loginAnswered = new Promise<void>((resolve) => (answerLogin = resolve));
+  await page.route('**/.auth/me', async (route) => {
+    await loginAnswered;
+    await route.continue();
+  });
+
+  await page.goto(url);
+  const locked = page.waitForResponse((response) => response.url().endsWith('/sperre'));
+  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  // Without waiting for the login, the editor would now open the saved version and drop the copy
+  await locked;
+  await page.waitForTimeout(500);
+  answerLogin();
+
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: /Nicht gespeicherte Änderungen von .* wiederhergestellt/ })
+  ).toBeVisible();
+  await page.getByText(/^Sitzungsdaten und Teilnehmende bearbeiten/).click();
+  await expect(page.getByLabel('Titel', { exact: true })).toHaveValue('Leitendenrunde vom Handy');
+});
