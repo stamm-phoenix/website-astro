@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import * as contentVersion from '../lib/protokoll-content-version';
+import * as contentVersionStore from '../lib/protokoll-content-version-store';
 import { realContentResolver } from './fixtures/protokolle';
+import { dbTest } from './fixtures/database';
+import { docx, paragraph } from './fixtures/docx';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import * as campflow from '../lib/campflow';
 import * as mail from '../lib/mail';
@@ -290,6 +293,54 @@ test('PDFs filed by the Protokoll-Editor are neither listed nor changed here', a
   );
   assert.equal(item.status, 404);
 });
+
+const { readProtokollContentVersions, saveProtokollContentVersions } = contentVersionStore;
+
+dbTest(
+  'after a restart the list answers the same without downloading approved files',
+  async (t) => {
+    const context = setupLegacyProtokolle(t);
+    t.mock.method(
+      contentVersionStore,
+      'readProtokollContentVersions',
+      readProtokollContentVersions
+    );
+    t.mock.method(
+      contentVersionStore,
+      'saveProtokollContentVersions',
+      saveProtokollContentVersions
+    );
+    contentVersion.resetProtokollContentVersionCache();
+    const file = docx(paragraph('Leitendenrunde'));
+    const items = [
+      driveItem({
+        Status: 'Freigegeben',
+        FreigegebenVon: REVIEWER.userDetails,
+        FreigabeVersion: contentVersion.docxContentVersion(file),
+      }),
+      driveItem({ Status: 'Entwurf' }, { id: 'P2', name: '2026-10-14 Leitendenrunde.docx' }),
+    ];
+    t.mock.method(sharePoint, 'getSharePointDriveFolderChildren', async () =>
+      structuredClone(items)
+    );
+    t.mock.method(sharePoint, 'getSharePointDriveItem', async (_drive: string, id: string) =>
+      structuredClone(items.find((item) => item.id === id))
+    );
+    const download = t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => file);
+
+    const cold = await ProtokolleCollection(request('GET'), context);
+    assert.equal(cold.status, 200);
+    assert.equal(download.mock.callCount(), 1);
+    contentVersion.resetProtokollContentVersionCache();
+    const restarted = await ProtokolleCollection(request('GET'), context);
+    assert.equal(download.mock.callCount(), 1);
+    assert.deepEqual(restarted.jsonBody, cold.jsonBody);
+    const listed = (
+      restarted.jsonBody as { items: { id: string; changedSinceApproval: boolean }[] }
+    ).items;
+    assert.equal(listed.find((item) => item.id === 'P1')?.changedSinceApproval, false);
+  }
+);
 
 test('new minutes are copied from the template and marked as draft of the author', async (t) => {
   const context = setupLegacyProtokolle(t);

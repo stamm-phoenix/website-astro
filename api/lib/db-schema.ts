@@ -49,6 +49,7 @@ export interface Database {
   'organisation.protokoll_cutover': ProtokollCutoverTable;
   'organisation.protokoll': ProtokollTable;
   'organisation.protokoll_import': ProtokollImportTable;
+  'organisation.protokoll_content_version': ProtokollContentVersionTable;
   'organisation.project': TaskProjectTable;
   'organisation.template': TaskTemplateTable;
   'organisation.task': TaskTable;
@@ -471,6 +472,16 @@ export interface ProtokollImportTable {
   drive_id: string;
   completed_at: Generated<Date>;
   version: ReadOnly<Buffer>;
+}
+
+/** Content fingerprint of a file, valid while its cTag is unchanged (migration 0038). */
+export interface ProtokollContentVersionTable {
+  drive_id: string;
+  item_id: string;
+  ctag: string;
+  /** `docx-word-sha256:…` or `file-sha256:…`, see `protokoll-content-version.ts`. */
+  content_version: string;
+  updated_at: Generated<Date>;
 }
 
 export interface EditorProtokollTable {

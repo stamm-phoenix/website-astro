@@ -8,6 +8,7 @@ import { overrideConfig } from './config';
 import type { ProtokollDriveItem, ProtokollFields } from '../../lib/protokolle';
 import * as sharePoint from '../../lib/sharepoint-data-access';
 import * as contentVersion from '../../lib/protokoll-content-version';
+import * as contentVersionStore from '../../lib/protokoll-content-version-store';
 
 export const realContentResolver = contentVersion.withProtokollContentVersion;
 
@@ -107,6 +108,9 @@ export function setupLegacyProtokolle(t: TestContext): InvocationContext {
     'withProtokollContentVersion',
     async (_drive: string, item: ProtokollDriveItem) => item
   );
+  // Stored versions are tested against SQL in protokoll-content-version.test.ts
+  t.mock.method(contentVersionStore, 'readProtokollContentVersions', async () => new Map());
+  t.mock.method(contentVersionStore, 'saveProtokollContentVersions', async () => undefined);
   const context = new InvocationContext({ functionName: 'protokolle-test' });
   t.mock.method(context, 'log', () => undefined);
   t.mock.method(context, 'warn', () => undefined);
