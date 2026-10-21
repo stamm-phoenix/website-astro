@@ -240,7 +240,14 @@
       const saved = await sendApi<StaffNikolausDispoSaved>(
         'PUT',
         `/intern/pflege/nikolaus-dispo?date=${encodeURIComponent(date)}`,
-        { version: data.version, entries }
+        {
+          version: data.version,
+          entries,
+          // The check-offs this plan is built on; the server refuses it if they changed
+          done: data.rows
+            .filter((row) => row.visited && stopsById.has(row.bookingId))
+            .map((row) => row.bookingId),
+        }
       );
       nikolausDispoStore.data = { ...data, rows: saved.rows, version: saved.version };
     }, 'Dispo gespeichert.');

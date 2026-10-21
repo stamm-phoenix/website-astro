@@ -21,7 +21,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         href: '/leitendenbereich/nikolaus-dispo',
       },
       'Gibst du am Abend einen Termin einem anderen Team, kommt er hinter die Besuche, die dieses Team schon abgehakt hat. Die Zeiten der übrigen Termine rechnet die Dispo ab dem letzten Abhaken, also mit der echten Verspätung.',
-      'Hat ein Team einen Besuch abgehakt, nachdem du die Dispo geöffnet hast, kannst du ihn nicht mehr einem anderen Team geben. Die Dispo sagt dir dann, dass du neu laden sollst.',
+      'Hat ein Team einen Besuch abgehakt, nachdem du die Dispo geöffnet hast, speichert die Dispo deine Änderungen nicht. Sie sagt dir dann, dass du neu laden sollst.',
     ],
   },
   {
