@@ -2594,7 +2594,7 @@ route('POST', '/api/intern/pflege/belege/:id/campflow', (req) => {
   }
   if (beleg.status !== 'Angenommen') {
     return error(
-      409,
+      422,
       'NOT_ACCEPTED',
       'Nur angenommene Belege können nach CampFlow übertragen werden.'
     );

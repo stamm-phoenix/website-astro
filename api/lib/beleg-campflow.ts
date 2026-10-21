@@ -37,6 +37,11 @@ import { errorResponse } from './response-utils';
 
 /** Answers of the Playwright API that come before anything was written to CampFlow. */
 const NOTHING_WRITTEN = new Set([400, 401, 403, 404, 409, 413, 429, 503]);
+/**
+ * An attempt without a result counts as running this long; longer than a call to the Playwright
+ * API may take, so a crashed attempt does not lock the receipt for good.
+ */
+const RUNNING_MS = 60_000;
 /** The Playwright API limits file names to 200 characters and descriptions to 255. */
 const MAX_SHOP_IN_FILE_NAME = 80;
 const MAX_DESCRIPTION = 255;
@@ -121,7 +126,7 @@ async function resolveChoice(
   }
   if (unit.archived) {
     throw new BelegCampflowError(
-      409,
+      422,
       'KOSTENSTELLE_ARCHIVED',
       `Die Kostenstelle „${unit.name}“ ist in CampFlow archiviert.`
     );
@@ -248,7 +253,7 @@ export async function transferBelegToCampflow(
   if (!requireVersion(etag).equals(requireVersion(beleg.etag))) throw new VersionConflictError();
   if (beleg.status !== 'Angenommen') {
     throw new BelegCampflowError(
-      409,
+      422,
       'NOT_ACCEPTED',
       'Nur angenommene Belege können nach CampFlow übertragen werden.'
     );
@@ -257,6 +262,19 @@ export async function transferBelegToCampflow(
   let created = false;
   let row = await getBelegCampflowRow(id);
   if (row?.state !== 'Hochgeladen') {
+    // Only one attempt at a time: overlapping ones could book on one target and store another's
+    // details. A finished unclear attempt has its error stored and may be repeated right away.
+    if (
+      row?.state === 'Gestartet' &&
+      row.error === '' &&
+      Date.now() - row.started_at.getTime() < RUNNING_MS
+    ) {
+      throw new BelegCampflowError(
+        423,
+        'TRANSFER_RUNNING',
+        'Dieser Beleg wird gerade nach CampFlow übertragen. Bitte einen Moment warten und die Seite neu laden.'
+      );
+    }
     /** After an unclear attempt every failure stays unclear: that one may have written. */
     const wasUnclear = row?.state === 'Gestartet';
     if (!beleg.photo) {
@@ -355,9 +373,17 @@ export async function transferBelegToCampflow(
     try {
       await deleteBeleg(id, etag);
     } catch (error: unknown) {
-      // Gone already: an overlapping attempt for the same booking deleted it
-      if (error instanceof RecordNotFoundError)
+      // Deleted by hand while it was uploaded: the booking stays in the history all the same
+      if (error instanceof RecordNotFoundError) {
+        await getDb()
+          .updateTable('organisation.beleg_campflow')
+          .set({ beleg_deleted_at: sql<string>`SYSUTCDATETIME()` })
+          .where('beleg_id', '=', id)
+          .where('state', '=', 'Hochgeladen')
+          .where('beleg_deleted_at', 'is', null)
+          .execute();
         return { campflow: toBelegCampflow(row), created, deleted: true };
+      }
       if (!(error instanceof VersionConflictError)) throw error;
       deleted = false;
     }
