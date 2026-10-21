@@ -34,6 +34,30 @@ test('the map view shows the visits and drives and leads to the list', async ({ 
   await expectNoHorizontalOverflow(page);
 });
 
+test('choosing a visit on the map keeps its details open, and printing shows the list', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
+  const map = page.locator('.dispo-map-main.leaflet-container');
+  const marker = map.locator('.leaflet-marker-icon').last();
+  await marker.click();
+  await expect(page.locator('.selected-card')).toBeVisible();
+  // The marker is not drawn anew, so its details stay open
+  await expect(map.locator('.leaflet-tooltip .dispo-tip-title')).toBeVisible();
+  await expect(marker.locator('.dispo-marker')).toHaveClass(/is-selected/);
+
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('.map-view')).toBeHidden();
+  await expect(page.locator('.stop-card').first()).toBeVisible();
+});
+
+test('choosing a visit in the panel keeps the map in view', async ({ page }) => {
+  await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
+  await page.locator('.stop-item').last().click();
+  await expect(page.locator('.selected-card')).toBeVisible();
+  await expect(page.locator('.dispo-map-main')).toBeInViewport({ ratio: 0.5 });
+});
+
 test('teams can be hidden on the map', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
   const map = page.locator('.dispo-map-main.leaflet-container');

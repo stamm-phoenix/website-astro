@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount, tick } from 'svelte';
+  import { onDestroy, onMount, tick, untrack } from 'svelte';
   import type { LayerGroup, Map as LeafletMap, Marker, Polyline } from 'leaflet';
   import PinToggle from './PinToggle.svelte';
   import { createMap, loadLeaflet } from '../../lib/leafletMap';
@@ -66,7 +66,8 @@
     const current = $state.snapshot(shown) as DispoMapTeam[];
     if (container && leaflet) {
       render(leaflet, container, current);
-      applyStyles();
+      // Choosing or pointing at a visit only restyles the drawn markers
+      untrack(applyStyles);
     }
   });
 
@@ -106,6 +107,14 @@
         } · ca. ${stop.end - stop.start} Min${booking.withKrampus ? ' · mit Krampus' : ''}`
       )
     );
+    for (const conflict of stop.conflicts) {
+      element.append(
+        line(
+          `⚠ ${conflict.name} – nicht zu Familien mit „${conflict.tags.join('“, „')}“`,
+          'dispo-tip-danger'
+        )
+      );
+    }
     if (stop.lateAfterSlot > 0) {
       element.append(
         line(
@@ -168,7 +177,7 @@
       for (const stop of team.stops) {
         const icon = document.createElement('span');
         icon.className = 'dispo-marker';
-        if (stop.lateAfterSlot > 0) icon.classList.add('is-late');
+        if (stop.lateAfterSlot > 0 || stop.conflicts.length > 0) icon.classList.add('is-late');
         if (stop.visited) icon.classList.add('is-visited');
         icon.style.background = team.color;
         icon.textContent = String(stop.number);
@@ -226,9 +235,27 @@
     if (!entry || !map) return;
     if (move) map.flyTo(entry.marker.getLatLng(), Math.max(map.getZoom(), 15), { duration: 0.5 });
     entry.marker.openTooltip();
-    void tick().then(() =>
-      document.getElementById(`dispo-map-item-${id}`)?.scrollIntoView({ block: 'nearest' })
-    );
+    void tick().then(() => revealItem(id, move));
+  }
+
+  let panel = $state<HTMLElement | null>(null);
+  let mapArea = $state<HTMLElement | null>(null);
+
+  /**
+   * Shows the chosen visit in the panel when it scrolls on its own (next to the map). Below the
+   * map on a phone the page would scroll away from the map, so it brings the map into view.
+   */
+  function revealItem(id: string, fromPanel: boolean): void {
+    const item = document.getElementById(`dispo-map-item-${id}`);
+    if (!panel || !item) return;
+    if (panel.scrollHeight > panel.clientHeight + 1) {
+      const top = item.offsetTop - panel.offsetTop;
+      if (top < panel.scrollTop || top + item.offsetHeight > panel.scrollTop + panel.clientHeight) {
+        panel.scrollTo({ top: top - panel.clientHeight / 3, behavior: 'smooth' });
+      }
+    } else if (fromPanel && mapArea && mapArea.getBoundingClientRect().top < 0) {
+      mapArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   function fitTeams(names: string[]): void {
@@ -288,7 +315,7 @@
 <svelte:window {onkeydown} />
 
 <div class="map-view {large ? 'is-large' : ''} print:hidden">
-  <div class="map-area">
+  <div class="map-area scroll-mt-28" bind:this={mapArea}>
     <div
       bind:this={container}
       class="dispo-map dispo-map-main overflow-hidden rounded-md border border-[var(--color-brand-200)]"
@@ -309,7 +336,7 @@
     </div>
   </div>
 
-  <aside class="map-panel" aria-label="Teams und Termine">
+  <aside class="map-panel" aria-label="Teams und Termine" bind:this={panel}>
     <section aria-labelledby="dispo-map-teams">
       <h2 id="dispo-map-teams" class="text-sm font-semibold text-neutral-900">
         Teams auf der Karte
@@ -384,6 +411,11 @@
             {Math.round(selected.lateInSlot)} Min nach Beginn des gebuchten Termins
           </p>
         {/if}
+        {#each selected.conflicts as conflict (conflict.name)}
+          <p class="mt-1 font-semibold text-danger">
+            ⚠ {conflict.name} – nicht zu Familien mit „{conflict.tags.join('“, „')}“
+          </p>
+        {/each}
         {#if booking.notes}
           <p class="mt-1"><span class="font-semibold">Bemerkungen:</span> {booking.notes}</p>
         {/if}
@@ -510,7 +542,9 @@
                 >
                 <span class="tabular-nums font-semibold">{minutesToTime(stop.start)}</span>
                 <span class="min-w-0 flex-1 truncate">Familie {stop.booking.familyName}</span>
-                {#if stop.lateAfterSlot > 0}
+                {#if stop.conflicts.length > 0}
+                  <span class="text-danger font-semibold">⚠ Merkmal</span>
+                {:else if stop.lateAfterSlot > 0}
                   <span class="text-danger font-semibold">⚠ zu spät</span>
                 {:else if stop.visited}
                   <span class="text-success">✓ besucht</span>
@@ -547,6 +581,16 @@
   .map-view {
     display: grid;
     gap: 1rem;
+  }
+  /* Printed is the list; the component's own display would win over print:hidden */
+  @media print {
+    .map-view,
+    .map-view.is-large {
+      display: none;
+    }
+    :global(body.dispo-map-large) {
+      overflow: visible;
+    }
   }
   .map-area {
     position: relative;
