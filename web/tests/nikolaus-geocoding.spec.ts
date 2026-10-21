@@ -23,3 +23,20 @@ for (const [name, geocoding, enabled] of [
     else await expect(release).toBeDisabled();
   });
 }
+
+test('a running address search can be released once its ten minutes pass with the page open', async ({
+  page,
+}) => {
+  await page.clock.install();
+  const geocoding = { owner: 'o1', startedAt: Date.now() - 540_000, stuckInMs: 60_000 };
+  await page.route('**/api/intern/nikolaus/steuerung', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...(await response.json()), geocoding } });
+  });
+  await page.goto('/leitendenbereich/nikolaus-steuerung');
+  const release = page.getByRole('button', { name: 'Sperre lösen' });
+  await expect(release).toBeDisabled();
+  await page.clock.runFor(95_000);
+  await expect(release).toBeEnabled();
+});

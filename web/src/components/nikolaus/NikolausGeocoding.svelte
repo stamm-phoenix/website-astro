@@ -26,8 +26,10 @@
   let now = $state(performance.now());
   $effect(() => {
     const remaining = data.geocoding.stuckInMs;
-    now = performance.now();
-    stuckAt = remaining === null ? null : now + remaining;
+    // A local value, so the effect does not also run on every tick of the timer below
+    const at = performance.now();
+    now = at;
+    stuckAt = remaining === null ? null : at + remaining;
   });
   // The ten minutes may pass while the page is open
   $effect(() => {
