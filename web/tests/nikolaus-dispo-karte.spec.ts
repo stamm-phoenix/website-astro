@@ -191,6 +191,17 @@ test('showing a route from the panel brings the map back into view', async ({ pa
   await expect(page.locator('.dispo-map-main')).toBeInViewport({ ratio: 0.5 });
 });
 
+test('a visit already checked off keeps its team on the map', async ({ page }) => {
+  await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
+  await page.locator('.stop-item').filter({ hasText: 'besucht' }).first().click();
+  const card = page.locator('.selected-card');
+  await expect(card).toContainText('Besucht');
+  await expect(card.getByRole('combobox')).toHaveCount(0);
+  await expect(card.getByRole('button', { name: /^Team festhalten/ })).toHaveCount(0);
+  await page.locator('.stop-item').filter({ hasNotText: 'besucht' }).first().click();
+  await expect(card.getByRole('combobox')).toBeVisible();
+});
+
 test('teams can be hidden on the map', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
   const map = page.locator('.dispo-map-main.leaflet-container');
