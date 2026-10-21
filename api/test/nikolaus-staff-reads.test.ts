@@ -68,17 +68,30 @@ async function within<T>(promise: Promise<T>, what: string, ms = 2000): Promise<
 
 /** Answers OpenRouteService matrix requests with 5 minutes per trip and counts them. */
 function mockRouting(t: TestContext): { calls: () => number; called: Promise<void> } {
-  const previous = process.env.OPENROUTESERVICE_API_KEY;
-  process.env.OPENROUTESERVICE_API_KEY = 'test-key';
+  const previous = process.env.AZURE_MAPS_API_KEY;
+  process.env.AZURE_MAPS_API_KEY = 'test-key';
   t.after(() => {
-    if (previous === undefined) delete process.env.OPENROUTESERVICE_API_KEY;
-    else process.env.OPENROUTESERVICE_API_KEY = previous;
+    if (previous === undefined) delete process.env.AZURE_MAPS_API_KEY;
+    else process.env.AZURE_MAPS_API_KEY = previous;
   });
   const called = deferred<void>();
-  const fetch = t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+  // Azure Maps answers every pair of the matrix with five minutes of driving
+  const fetch = t.mock.method(globalThis, 'fetch', async (_url: URL, init: RequestInit) => {
     called.resolve();
-    const { locations } = JSON.parse(String(init.body)) as { locations: unknown[] };
-    return Response.json({ durations: locations.map(() => locations.map(() => 300)) });
+    const { features } = JSON.parse(String(init.body)) as {
+      features: { geometry: { coordinates: unknown[] }; properties: { pointType: string } }[];
+    };
+    const count = (type: string) =>
+      features.find((f) => f.properties.pointType === type)?.geometry.coordinates.length ?? 0;
+    const matrix = Array.from({ length: count('origins') }, (_, originIndex) =>
+      Array.from({ length: count('destinations') }, (_, destinationIndex) => ({
+        originIndex,
+        destinationIndex,
+        statusCode: 200,
+        durationInSeconds: 300,
+      }))
+    ).flat();
+    return Response.json({ type: 'Feature', geometry: null, properties: { matrix } });
   });
   return { calls: () => fetch.mock.callCount(), called: called.promise };
 }
