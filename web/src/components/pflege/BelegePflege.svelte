@@ -272,35 +272,11 @@
     <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}
       >Beleg einreichen</ActionButton
     >
+    <a href="/leitendenbereich/eigenbeleg" class="btn-secondary">Eigenbeleg erstellen</a>
     <ReloadButton resource={belegePflege} />
   {/snippet}
 </StaffPageHead>
 <div class="space-y-6">
-  <details class="surface ui-quickinfo space-y-3 p-4 sm:p-6" open={items.length === 0}>
-    <summary class="min-h-11 cursor-pointer"
-      ><h2 class="inline font-serif text-xl text-brand-900">So geht's</h2></summary
-    >
-    <ol class="max-w-prose list-decimal space-y-1 pl-5 text-sm text-neutral-700">
-      <li>
-        Beleg am besten mit der <strong>Scan-Funktion deines Handys</strong> aufnehmen und den Scan hochladen:
-        auf dem iPhone in der Notizen- oder Dateien-App „Dokumente scannen“, auf Android in Google Drive
-        „Scannen“. Ein normales Foto geht auch – flach hingelegt, gut beleuchtet, alle Ränder sichtbar,
-        am besten auf dunklem Untergrund. Die Seite schneidet es dann selbst zu.
-      </li>
-      <li>Geschäft, Datum, Betrag und Aktion eintragen und einreichen.</li>
-      <li>
-        Die Kasse prüft den Beleg vor. Angenommene Belege überträgt sie nach CampFlow, dort passiert
-        die eigentliche Buchhaltung. Lehnt sie einen Beleg ab, bekommst du die Begründung per Mail
-        und kannst ihn korrigiert erneut einreichen.
-      </li>
-    </ol>
-    <p class="max-w-prose text-sm text-neutral-700">
-      Kein Beleg bekommen oder verloren? Erstelle einen
-      <a href="/leitendenbereich/eigenbeleg" class="font-semibold text-link underline">Eigenbeleg</a
-      >, unterschreibe ihn und reiche ihn hier ein.
-    </p>
-  </details>
-
   <form
     class="surface grid gap-4 p-4"
     role="search"

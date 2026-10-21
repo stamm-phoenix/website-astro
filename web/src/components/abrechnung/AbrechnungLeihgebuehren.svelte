@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { downloadLeihgebuehrenPdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
@@ -101,18 +102,9 @@
 <div class="space-y-6">
   <section aria-labelledby="leihgebuehren-titel" class="surface p-6">
     <div class="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h2 id="leihgebuehren-titel" class="font-serif text-lg font-semibold text-brand-900">
-          Leihgebühren für Zelte und Material
-        </h2>
-        <p class="mt-1 text-sm text-neutral-700">
-          Gebühren laut Beschluss der {leihgebuehrenBeschluss(abrechnung.leihgebuehren)}. Die Tage
-          sind mit den {zuschussfaehig ? 'Tagen des KJR-Zuschusses' : 'Tagen der Aktion'} vorbelegt ({defaultDays}
-          {defaultDays === 1 ? 'Tag' : 'Tage'}: {zuschussfaehig
-            ? 'Übernachtungen und Zusatztag'
-            : 'Übernachtungen, bei eintägigen Aktionen 1'}) und lassen sich pro Zeile ändern.
-        </p>
-      </div>
+      <h2 id="leihgebuehren-titel" class="font-serif text-lg font-semibold text-brand-900">
+        Leihgebühren für Zelte und Material
+      </h2>
       <div class="flex flex-wrap gap-2">
         {#if changed}
           <ActionButton variant="secondary" type="button" onclick={reset}>
@@ -133,7 +125,14 @@
             <th scope="col" class="py-2 pr-2">Material</th>
             <th scope="col" class="py-2 pr-2 text-right">Gebühr pro Tag</th>
             <th scope="col" class="py-2 pr-2 text-right">Anzahl</th>
-            <th scope="col" class="py-2 pr-2 text-right">Tage</th>
+            <th scope="col" class="py-2 pr-2 text-right whitespace-nowrap">
+              Tage
+              <InfoHint
+                label="Tage"
+                text={`Vorbelegt mit den ${defaultDays} ${defaultDays === 1 ? 'Tag' : 'Tagen'} ${zuschussfaehig ? 'des KJR-Zuschusses (Übernachtungen und Zusatztag)' : 'der Aktion (Übernachtungen, bei eintägigen Aktionen 1)'}.`}
+                class="ml-1"
+              />
+            </th>
             <th scope="col" class="py-2 text-right">Betrag</th>
           </tr>
         </thead>
@@ -191,6 +190,10 @@
         </tfoot>
       </table>
     </div>
+    <p class="mt-2 text-xs text-neutral-700">
+      Die Summe zählt bereits in der Übersicht und in den Einzelnachweisen. Gebühren laut Beschluss
+      der {leihgebuehrenBeschluss(abrechnung.leihgebuehren)}.
+    </p>
   </section>
 
   <section aria-labelledby="leihgebuehren-ablauf-titel" class="surface p-6">
@@ -199,20 +202,17 @@
     </h2>
     <ol class="mt-2 list-decimal space-y-1 pl-5 text-sm text-neutral-700">
       <li>
-        Anzahl eintragen. Die Summe zählt sofort als virtuelle Ausgabe in der Übersicht und in den
-        Einzelnachweisen.{zuschussfaehig
-          ? ` Ziel ist ein Endergebnis um 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}).`
-          : ''}
-      </li>
-      <li>Das PDF herunterladen.</li>
-      <li>
-        Das PDF in CampFlow als Beleg der Aktion hochladen, mit Kategorie „{LEIHGEBUEHREN_KATEGORIE}“
-        (nicht Material, das will der KJR so) und „Ausgelegt von“ Sparbuch, damit die Kasse weiß,
-        dass der Betrag überwiesen gehört.
+        Das PDF in CampFlow als Beleg der Aktion hochladen: Kategorie „{LEIHGEBUEHREN_KATEGORIE}“,
+        Ausgelegt von „Sparbuch“.
+        <InfoHint
+          label="Kategorie und Ausgelegt von"
+          text="Nicht „Material“, das will der KJR so. „Sparbuch“ zeigt der Kasse, dass der Betrag überwiesen gehört."
+          class="ml-1"
+        />
       </li>
       <li>
-        Danach die Abrechnung neu laden (die Nachfrage des Browsers bestätigen): Die Leihgebühren
-        stehen dann als echter Einzelnachweis in der Liste, und die Eingaben hier sind wieder leer.
+        Danach die Abrechnung neu laden: Die Leihgebühren stehen dann als Einzelnachweis in der
+        Liste.
       </li>
     </ol>
     {#if zuschussfaehig}
@@ -228,7 +228,7 @@
       </p>
     {:else}
       <p class="mt-3 text-sm text-neutral-700">
-        Ergebnis mit Leihgebühren (ohne KJR-Zuschuss):
+        Ergebnis mit Leihgebühren:
         <span
           class="font-semibold tabular-nums text-brand-900"
           data-testid="leihgebuehren-endergebnis"

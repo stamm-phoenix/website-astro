@@ -1,14 +1,12 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
-  import {
-    SAMMEL_SHOPS,
-    getSammelShop,
-    isSammelProductUrl,
-    sammelAvailabilityLabel,
-  } from '../../lib/sammelShops';
+  import { isSammelProductUrl, sammelAvailabilityLabel } from '../../lib/sammelShops';
   import { postApi } from '../../lib/api';
   import { formatEuro } from '../../lib/format';
   import type { SammelProductInfo } from '../../lib/types';
+
+  /** Availability values worth a line; an unknown availability says nothing. */
+  const KNOWN_AVAILABILITY = ['available', 'unavailable', 'preorder'];
 
   interface Props {
     reference: string;
@@ -90,19 +88,17 @@
           />
         {/if}
         <div class="min-w-0 flex-1">
-          <p class="text-sm text-neutral-700">
-            Gefunden bei {SAMMEL_SHOPS[getSammelShop(product.sourceUrl)].name}
-          </p>
-          <p class="mt-1 font-semibold text-brand-900">{product.name}</p>
+          <p class="font-semibold text-brand-900">{product.name}</p>
           <p class="mt-2 text-sm text-brand-900">
             {product.unitPriceCents === null
-              ? 'Kein Einzelpreis verfügbar'
-              : `Einzelpreis: ${formatEuro(product.unitPriceCents)}`}
+              ? 'Preis nicht verfügbar'
+              : `Richtpreis ${formatEuro(product.unitPriceCents)}`}
           </p>
-          <p class="mt-2 text-sm text-brand-900">{sammelAvailabilityLabel(product.availability)}</p>
-          <p class="mt-1 text-xs text-neutral-700">
-            Preis zur Orientierung. Größe / Variante und endgültigen Preis prüft das Team.
-          </p>
+          {#if KNOWN_AVAILABILITY.includes(product.availability ?? '')}<p
+              class="mt-2 text-sm text-brand-900"
+            >
+              {sammelAvailabilityLabel(product.availability)}
+            </p>{/if}
           <div class="mt-3 flex flex-wrap gap-3">
             <a
               href={product.sourceUrl}

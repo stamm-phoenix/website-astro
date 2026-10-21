@@ -36,7 +36,7 @@
   {#if module && status && !status.staffActive}
     <p class="mb-4 border-l-4 border-warning py-2 pl-4 text-sm text-neutral-800">
       <strong class="text-warning">Die Nikolausverwaltung ist ausgeschaltet.</strong>
-      Einschalten lässt sie sich in der
+      Einschalten in der
       <a href="/leitendenbereich/nikolaus-steuerung" class="font-semibold text-link">Steuerung</a>.
     </p>
   {/if}

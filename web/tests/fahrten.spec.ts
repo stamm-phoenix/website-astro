@@ -9,7 +9,7 @@ const EVENT = 'evt_HikeMangfall';
 async function plannedNames(page: Page): Promise<string[]> {
   const plan = page.getByRole('region', { name: 'Planung' });
   return plan
-    .getByRole('button', { name: /, ändern$/ })
+    .getByRole('button', { name: /ändern$/ })
     .evaluateAll((buttons) =>
       buttons.map((button) => button.querySelector('span:nth-child(2)')?.textContent?.trim() ?? '')
     );

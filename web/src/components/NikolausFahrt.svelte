@@ -335,10 +335,10 @@
 
       {#if !data.dispoSaved}
         <p class="surface p-6 text-sm text-neutral-800">
-          Für diesen Tag ist noch keine Dispo gespeichert. Sobald die Routen in der
+          Für diesen Tag ist noch keine
           <a class="font-semibold text-link underline" href="/leitendenbereich/nikolaus-dispo"
             >Dispo</a
-          > gespeichert sind, erscheinen sie hier.
+          > gespeichert.
         </p>
       {:else if teamInfo}
         <section
@@ -401,8 +401,8 @@
               {/if}
 
               <p class="text-neutral-700">
-                Hakt einen Besuch ab, wenn ihr wieder losfahrt – daraus berechnen wir den Familien
-                nach euch, wann ihr voraussichtlich bei ihnen seid.
+                Hakt einen Besuch erst ab, wenn ihr wieder losfahrt – die nächsten Familien sehen
+                dann, wann ihr kommt.
               </p>
 
               <ol class="divide-y divide-neutral-200 border-y border-neutral-200">

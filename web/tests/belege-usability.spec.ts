@@ -119,7 +119,7 @@ test('photo warnings and automatic reading share one verdict and adjustments are
     buffer: Buffer.from(largePhoto, 'base64'),
   });
   await expect(dialog.getByLabel('Geschäft', { exact: true })).toHaveValue('Testmarkt');
-  const verdict = dialog.getByRole('note').filter({ hasText: 'Automatische Prüfung:' });
+  const verdict = dialog.getByRole('note').filter({ hasText: 'Foto prüfen' });
   await expect(verdict).toHaveCount(1);
   await expect(verdict).toContainText('unscharf');
   await expect(verdict).toContainText('Angaben lesen');
@@ -139,19 +139,16 @@ test('photo warnings and automatic reading share one verdict and adjustments are
   await expectNoHorizontalOverflow(page);
 });
 
-test('receipt help starts collapsed when receipts already exist and the main action comes first', async ({
-  page,
-}) => {
+test('the photo tips wait behind the (i) next to the photo field', async ({ page }) => {
   await page.goto('/leitendenbereich/belege');
-  const help = page
-    .locator('details')
-    .filter({ has: page.getByText("So geht's", { exact: true }) });
-  await expect(help).toBeVisible();
-  await expect(help).not.toHaveAttribute('open');
-  const action = page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first();
-  expect((await action.boundingBox())!.y).toBeLessThan((await help.boundingBox())!.y);
-  await help.locator('summary').click();
-  await expect(help.getByText(/Scan-Funktion deines Handys/)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Eigenbeleg erstellen' })).toBeVisible();
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  const tips = dialog.getByText(/Scan-Funktion des Handys/);
+  await expect(tips).toBeHidden();
+  await dialog.getByRole('button', { name: 'Erklärung zu Foto des Belegs' }).click();
+  await expect(tips).toBeVisible();
+  await expectNoHorizontalOverflow(page);
 });
 
 test('choosing a suggestion on an existing receipt asks before discarding the change', async ({

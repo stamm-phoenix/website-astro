@@ -57,8 +57,13 @@ test('payment review explains mapping setup and retains dialog confirmation guar
     .click();
   const dialog = page.getByRole('dialog', { name: 'Bezahlung über CampFlow' });
   await dialog.getByRole('button', { name: 'Beitrag vorbereiten', exact: true }).click();
+  // The bookkeeping background waits behind the (i) next to the Kostenstelle.
+  await expect(dialog.getByText(/Fehlende Kostenstellen und Kategorien werden/)).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Erklärung zu Kostenstelle', exact: true }).click();
   await expect(dialog.getByText(/Fehlende Kostenstellen und Kategorien werden/)).toBeVisible();
   await expect(dialog.getByText(/wirtschaftlichen\s+Geschäftsbetrieb/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Erklärung zu Kostenstelle', exact: true }).click();
+  await expect(dialog.getByText(/Fehlende Kostenstellen und Kategorien werden/)).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: test.info().outputPath('payment-review.png') });
   await dialog.getByRole('button', { name: 'Beitrag anlegen', exact: true }).click();
@@ -167,13 +172,15 @@ for (const condition of [
       await expect(
         dialog.getByRole('button', { name: 'Beitrag zuordnen', exact: true })
       ).toBeEnabled();
-      await expect(dialog.getByText(/vorhandenen CampFlow-Beitrag kannst du/)).toBeVisible();
+      await expect(dialog.getByText(/bereits bezahlt/)).toBeVisible();
       expect(actions).toEqual(['assign']);
       expect(personRequests).toBe(1);
     } else {
       await expect(submit).toBeDisabled();
       await expect(
-        dialog.getByText(/Dafür kann keine CampFlow-Person zugeordnet werden/)
+        dialog
+          .getByRole('status')
+          .getByText(/archiviert|storniert|noch nicht eingereicht|schon ein Beitrag vorbereitet/)
       ).toBeVisible();
       await expect(dialog.getByLabel('CampFlow-Person')).toHaveCount(0);
       await dialog.locator('form').evaluate((form) => (form as HTMLFormElement).requestSubmit());

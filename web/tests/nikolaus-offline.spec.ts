@@ -26,7 +26,7 @@ async function prepare(page: Page): Promise<void> {
   await page.goto(URL);
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
   await page.getByRole('button', { name: 'Route für Funklöcher speichern' }).click();
-  await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible({
+  await expect(page.getByText(/Auf diesem Gerät gespeichert bis/)).toBeVisible({
     timeout: 20_000,
   });
 }
@@ -55,7 +55,7 @@ test('selected route stays readable offline; pending visit replays on reconnecti
   await context.setOffline(true);
   await visitButton(page).click();
   await expect(page.getByText('Besucht – noch nicht bestätigt', { exact: true })).toBeVisible();
-  await expect(page.getByText(/wartet auf Verbindung und Bestätigung/)).toBeVisible();
+  await expect(page.getByText(/wartet auf Verbindung/)).toBeVisible();
   await expect.poll(() => queueLength(page)).toBe(1);
   await expectNoHorizontalOverflow(page);
   await context.setOffline(false);
@@ -104,7 +104,7 @@ test('lost response retries same operation ID without duplicate effects', async 
     } else await route.fulfill({ response });
   });
   await visitButton(page).click();
-  await expect(page.getByText(/wartet auf Verbindung und Bestätigung/)).toBeVisible();
+  await expect(page.getByText(/wartet auf Verbindung/)).toBeVisible();
   await expect.poll(() => queueLength(page)).toBe(1);
   await expect(page.getByRole('button', { name: /Rückgängig/ }).first()).toBeDisabled();
   await expect.poll(() => loseResponse).toBe(false);
@@ -172,11 +172,11 @@ test('local route restores when API fails and expires without retention extensio
 
 test('explicit deletion and logout remove locally saved family data', async ({ page }) => {
   await prepare(page);
-  await page.getByRole('button', { name: 'Lokale Route und Markierungen löschen' }).click();
+  await page.getByRole('button', { name: 'Route von diesem Gerät löschen' }).click();
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
   await page.getByRole('button', { name: 'Route für Funklöcher speichern' }).click();
-  await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible({
+  await expect(page.getByText(/Auf diesem Gerät gespeichert bis/)).toBeVisible({
     timeout: 20_000,
   });
   await page.goto('/leitendenbereich');
@@ -240,7 +240,7 @@ test('deleting a saved route preserves server data after a failed refresh', asyn
   await page.route('**/api/intern/nikolaus/fahrt?*', (route) => route.abort());
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByText(/Gerade keine Verbindung/)).toBeVisible();
-  await page.getByRole('button', { name: 'Lokale Route und Markierungen löschen' }).click();
+  await page.getByRole('button', { name: 'Route von diesem Gerät löschen' }).click();
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
 });
@@ -251,7 +251,7 @@ test('deleting a restored snapshot clears the displayed family data', async ({ p
   await page.reload();
   await expect(page.getByText(/Gerade keine Verbindung/)).toBeVisible();
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
-  await page.getByRole('button', { name: 'Lokale Route und Markierungen löschen' }).click();
+  await page.getByRole('button', { name: 'Route von diesem Gerät löschen' }).click();
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toHaveCount(0);
 });
@@ -308,7 +308,7 @@ test('expiry during preparation preserves the new deployment HTML and its depend
     void store.expireNikolausRoute();
   });
   await page.evaluate(() => (window as unknown as { releaseAsset: () => void }).releaseAsset());
-  await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible({
+  await expect(page.getByText(/Auf diesem Gerät gespeichert bis/)).toBeVisible({
     timeout: 20_000,
   });
   const cached = await page.evaluate(async () => {
@@ -353,7 +353,7 @@ test('a saved day added after the baked settings still restores offline', async 
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
-  await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible();
+  await expect(page.getByText(/Auf diesem Gerät gespeichert bis/)).toBeVisible();
   await expect(
     page.getByRole('group', { name: 'Tag wählen' }).getByRole('button', { name: /7\.12\./ })
   ).toHaveAttribute('aria-pressed', 'true');

@@ -37,6 +37,12 @@
     onremovelast?: () => void;
     /** Any typing, before the list updates. */
     onedit?: () => void;
+    /**
+     * Take typed text over only after a tap that left the field, so a button that moves when a
+     * name is added still gets the tap. Only for callers whose own actions take the text over
+     * first (a submit), since a button's handler runs before the deferred `oncommit`.
+     */
+    commitAfterTap?: boolean;
   }
   let {
     id,
@@ -49,6 +55,7 @@
     oncommit,
     onremovelast,
     onedit,
+    commitAfterTap = false,
     class: className = 'form-input',
     disabled,
     ...rest
@@ -89,6 +96,28 @@
     open = false;
   }
 
+  /** Whether a finger or mouse button is down, for `commitAfterTap`. */
+  let pressing = false;
+
+  /** Typed text is taken over when the field is left; with `commitAfterTap` after the tap. */
+  function leave(): void {
+    open = false;
+    if (!commitAfterTap || !pressing) {
+      if (query.trim()) oncommit?.(query);
+      return;
+    }
+    const done = (): void => {
+      window.removeEventListener('pointerup', done, true);
+      window.removeEventListener('pointercancel', done, true);
+      // After the click of the same tap; a submit may have taken the text over already
+      setTimeout(() => {
+        if (query.trim() && document.activeElement !== input) oncommit?.(query);
+      });
+    };
+    window.addEventListener('pointerup', done, true);
+    window.addEventListener('pointercancel', done, true);
+  }
+
   function keydown(event: KeyboardEvent): void {
     if (event.key === 'Escape' && expanded) {
       event.preventDefault();
@@ -120,6 +149,12 @@
   }
 </script>
 
+<svelte:window
+  onpointerdowncapture={() => (pressing = true)}
+  onpointerupcapture={() => setTimeout(() => (pressing = false))}
+  onpointercancelcapture={() => setTimeout(() => (pressing = false))}
+/>
+
 <div class="relative">
   <input
     bind:this={input}
@@ -143,10 +178,7 @@
       open = true;
       active = -1;
     }}
-    onblur={() => {
-      if (query.trim()) oncommit?.(query);
-      open = false;
-    }}
+    onblur={leave}
     onkeydown={keydown}
   />
   <ul

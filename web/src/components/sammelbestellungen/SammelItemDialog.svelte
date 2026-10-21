@@ -20,7 +20,6 @@
     loadOrder,
   }: Props = $props();
   let conflict = $state(false);
-  const excluded = $derived(!!itemEditing?.order.items[itemEditing.index].excluded);
   let itemError = $state<string | null>(null);
   let itemReason = $state(
     untrack(() => itemEditing?.order.items[itemEditing.index].excluded?.reason ?? '')
@@ -114,10 +113,9 @@
     {itemEditing?.order.items[itemEditing.index].name} · {itemEditing?.order.name}
   </p>
   <p class="mb-4 text-sm text-neutral-700">
-    {excluded
-      ? 'Der Artikel wird wieder mitbestellt.'
-      : 'Der Artikel bleibt in der Bestellung sichtbar und wird nicht mitbestellt.'}
-    Die Familie erhält eine E-Mail. Der endgültige Betrag und die Zahlungsmarkierung werden zurückgesetzt.
+    Die Familie bekommt eine E-Mail.
+    {#if itemEditing && (itemEditing.order.totalCents !== null || itemEditing.order.paid)}Gesamtbetrag
+      und „Bezahlt“ werden zurückgesetzt.{/if}
   </p>
   <FormField id="item-reason" label="Kommentar" optional
     >{#snippet children(attrs)}<textarea

@@ -49,7 +49,7 @@
       deleteProjectTarget = null;
       const refreshed = await loadTasks();
       message = refreshed
-        ? 'Projekt gelöscht. Zugehörige Aufgaben bleiben erhalten.'
+        ? 'Projekt gelöscht.'
         : 'Projekt gelöscht. Die Ansicht konnte nicht aktualisiert werden. Bitte neu laden.';
       busy = false;
       await tick();
@@ -66,7 +66,6 @@
   >Zur Aufgabenliste</a
 >
 {#if data}
-  <p class="my-3 text-neutral-700">Projekte bündeln Aufgaben für Aktionen und andere Vorhaben.</p>
   <ActionButton type="button" onclick={() => edit()} disabled={busy}>Projekt anlegen</ActionButton>
   <ul class="mt-4 divide-y divide-neutral-200">
     {#each data.projects as project (project.id)}
@@ -80,7 +79,7 @@
               class="text-link"
               href="/leitendenbereich/aktionen/aktion?id={encodeURIComponent(project.campflowId)}"
               >CampFlow-Aktion öffnen</a
-            >{:else}<p class="text-sm text-neutral-700">Eigenständiges Projekt</p>{/if}
+            >{/if}
           <p class="mt-1 text-sm text-neutral-700">
             {openCount}
             {openCount === 1 ? 'offene Aufgabe' : 'offene Aufgaben'}
@@ -104,9 +103,7 @@
           >
         </div>
       </li>
-    {:else}<li class="py-4">
-        Noch keine Projekte. Lege ein Projekt für eure nächste Aktion an.
-      </li>{/each}
+    {:else}<li class="py-4">Noch keine Projekte.</li>{/each}
   </ul>
   <AufgabenNavigation area="projekte" />{/if}
 {#if editing}<AufgabenProjectDialog
@@ -135,9 +132,5 @@
     busy = false;
   }}
 >
-  <p>Projekt „{deleteProjectTarget?.title ?? ''}“ wirklich löschen?</p>
-  <p class="text-sm text-neutral-700">
-    Die Aufgaben bleiben erhalten und werden „Ohne Projekt“ angezeigt. Vorlagen und die verknüpfte
-    CampFlow-Aktion bleiben erhalten.
-  </p>
+  <p>Die Aufgaben bleiben erhalten, ohne Projekt.</p>
 </ConfirmDialog>

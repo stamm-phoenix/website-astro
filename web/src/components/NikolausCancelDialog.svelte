@@ -76,8 +76,8 @@
 >
   {#if booking}
     <p role="note" class="border-l-4 border-danger py-1 pl-3 text-sm text-danger">
-      Der Termin <strong>{formatSlotKey(booking.slotKey)}</strong> wird abgesagt und der Platz wieder
-      frei. Das lässt sich nicht rückgängig machen – die Familie müsste sich neu anmelden.
+      Termin <strong>{formatSlotKey(booking.slotKey)}</strong> absagen – das lässt sich nicht rückgängig
+      machen; die Familie müsste neu buchen.
     </p>
 
     <div>
@@ -88,18 +88,13 @@
         format="html"
         id="cancel-message"
         labelledBy="cancel-message-label"
-        describedBy={errors.message ? 'cancel-message-error' : 'cancel-message-hint'}
+        describedBy={errors.message ? 'cancel-message-error' : undefined}
         invalid={!!errors.message}
         bind:value={message}
       />
       {#if errors.message}
         <p id="cancel-message-error" class="mt-1 text-sm text-danger">
           {errors.message}
-        </p>
-      {:else}
-        <p id="cancel-message-hint" class="mt-1 text-xs text-neutral-700">
-          Die Familie wird in jedem Fall per E-Mail über die Absage informiert – mit dieser
-          Erklärung, falls du eine schreibst.
         </p>
       {/if}
     </div>

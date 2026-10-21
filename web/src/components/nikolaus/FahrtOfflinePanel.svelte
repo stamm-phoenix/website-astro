@@ -27,8 +27,8 @@
     if (
       snapshot?.queue.length &&
       !(await confirmAction({
-        title: 'Lokale Route löschen?',
-        message: 'Lokale Route und ausstehende Markierungen unwiderruflich löschen?',
+        title: 'Route von diesem Gerät löschen?',
+        message: 'Die noch nicht bestätigten Markierungen gehen dabei verloren.',
       }))
     ) {
       return;
@@ -44,20 +44,20 @@
   >
     {#if savedHere && snapshot}
       <p>
-        Diese Teamroute ist auf diesem Gerät bis {formatTime(new Date(snapshot.expiresAt))} Uhr gespeichert
-        (maximal zwölf Stunden).
+        Auf diesem Gerät gespeichert bis {formatTime(new Date(snapshot.expiresAt))} Uhr (höchstens zwölf
+        Stunden).
       </p>
       <p class="mt-1 text-neutral-700">
-        Neuladen funktioniert im selben Tab auch ohne Verbindung. Navigation in Karten-Apps benötigt
-        gegebenenfalls eine eigene Offline-Karte.
+        Lasst die Seite während der Fahrt geöffnet; neu laden klappt im selben Tab auch ohne
+        Verbindung.
       </p>
       <ActionButton variant="secondary" type="button" class="mt-2" onclick={remove}
-        >Lokale Route und Markierungen löschen</ActionButton
+        >Route von diesem Gerät löschen</ActionButton
       >
     {:else}
       <p>
-        Speichert eure Teamroute vor der Fahrt für Funklöcher. Familiendaten bleiben maximal zwölf
-        Stunden auf diesem Gerät; verwendet dafür ein eigenes oder ein Teamgerät.
+        Die Daten bleiben bis zu zwölf Stunden auf diesem Gerät – nur auf dem eigenen oder dem
+        Teamhandy.
       </p>
       <ActionButton
         variant="secondary"
@@ -81,10 +81,7 @@
         ? 'Markierungen werden abgeglichen …'
         : `${snapshot.queue.length} ${snapshot.queue.length === 1 ? 'Besuch noch nicht bestätigt' : 'Besuche noch nicht bestätigt'}`}
     </p>
-    <p>
-      Solange eine Markierung aussteht, sehen Familien und Dispo sie noch nicht zuverlässig. Die
-      Besuchszeit wird übernommen, sobald die Verbindung wieder steht und der Besuch bestätigt ist.
-    </p>
+    <p>Familien und Dispo sehen ausstehende Markierungen erst, wenn die Verbindung wieder steht.</p>
     <ul class="mt-2 space-y-2">
       {#each snapshot.queue as entry (entry.operationId)}
         <li>
@@ -93,7 +90,7 @@
           {entry.visited ? 'besucht' : 'zurücksetzen'} –
           {entry.status === 'conflict'
             ? 'Konflikt: Besuch oder Planung inzwischen geändert. Aktuellen Stand prüfen und bei Bedarf neu markieren.'
-            : 'wartet auf Verbindung und Bestätigung'}
+            : 'wartet auf Verbindung'}
           <button
             type="button"
             class="ml-2 font-semibold underline"
@@ -101,8 +98,7 @@
               if (
                 await confirmAction({
                   title: 'Markierung verwerfen?',
-                  message:
-                    'Diese lokale Markierung verwerfen? Ein möglicherweise bereits gespeicherter Serverstand bleibt bestehen.',
+                  message: 'Was schon übertragen wurde, bleibt.',
                   confirmLabel: 'Verwerfen',
                 })
               )

@@ -70,7 +70,7 @@
     </p>
     {#if order.status === 'Storniert'}
       <p role="note" class="border-l-2 border-warning py-1 pl-3 text-sm text-warning">
-        Diese Bestellung ist storniert. Die Nachricht wird trotzdem verschickt.
+        Diese Bestellung ist storniert.
       </p>
     {/if}
     <FormField id="sammel-msg-subject" label="Betreff" error={errors.subject}>
@@ -90,7 +90,7 @@
       label="Nachricht"
       labelAs="span"
       error={errors.message}
-      hint="Die Familie erhält die Nachricht im Phoenix-Maildesign mit ihrem Bestelllink und deinem Vornamen. Antworten landen im Sammelbestellpostfach. Höchstens 5000 Zeichen."
+      info="Bestelllink und dein Vorname werden automatisch angehängt. Antworten gehen an das Sammelbestellpostfach."
     >
       {#snippet children(attrs)}
         <LazyTextEditor

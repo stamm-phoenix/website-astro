@@ -38,9 +38,11 @@
     onpayment,
     onitem,
   }: Props = $props();
+  /** Availability values worth a line; an unknown availability says nothing. */
+  const KNOWN_AVAILABILITY = ['available', 'unavailable', 'preorder'];
   const ORDER_FILTERS = [
     { key: 'submitted', label: 'Eingereicht' },
-    { key: 'unpriced', label: 'Noch offen' },
+    { key: 'unpriced', label: 'Ohne Gesamtbetrag' },
     { key: 'unpaid', label: 'Unbezahlt' },
     { key: 'undelivered', label: 'Nicht ausgeliefert' },
   ] as const;
@@ -143,9 +145,6 @@
         >
       {/each}
     </div>
-    <p class="mt-2 text-sm text-neutral-700">
-      Mehrere Filter gelten gemeinsam. „Noch offen“ bedeutet: Der Gesamtbetrag fehlt noch.
-    </p>
   </fieldset>
   <label class="mt-4 flex items-center gap-2 text-sm text-neutral-700">
     <input type="checkbox" bind:checked={filters.showFinished} class="h-4 w-4 accent-brand-900" />
@@ -184,16 +183,16 @@
               <span class={item.excluded ? 'line-through text-neutral-500' : ''}
                 >{item.quantity} × {item.name}{item.variant ? ` · ${item.variant}` : ''}</span
               >
-              <span class="float-right ml-3 font-semibold tabular-nums text-brand-900"
-                >{item.excluded
-                  ? 'Nicht mitbestellt'
-                  : linePrice(item.reference, item.quantity)}</span
-              ><span class="block break-all text-xs text-neutral-700"
+              {#if !item.excluded}<span
+                  class="float-right ml-3 font-semibold tabular-nums text-brand-900"
+                  >{linePrice(item.reference, item.quantity)}</span
+                >{/if}<span class="block break-all text-xs text-neutral-700"
                 >{SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name} · {item.reference}</span
               >
-              <span class="block text-xs text-neutral-700"
-                >{sammelAvailabilityLabel(availability[item.reference])}</span
-              >
+              {#if KNOWN_AVAILABILITY.includes(availability[item.reference] ?? '')}<span
+                  class="block text-xs text-neutral-700"
+                  >{sammelAvailabilityLabel(availability[item.reference])}</span
+                >{/if}
               {#if item.excluded}<p class="text-sm text-danger">
                   Wird nicht mitbestellt{item.excluded.reason ? ': ' + item.excluded.reason : ''}
                 </p>{/if}

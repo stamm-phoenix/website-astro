@@ -139,7 +139,10 @@ const title =
       {header === 'page' && (
         <div class:list={{ 'print:hidden': printable }}>
           <PageHeader title={heading} hasActions={Astro.slots.has('actions')} tight>
-            {intro && <StaffIntro {intro} open={page.introOpen} />}
+            {intro && !page.introOpen && (
+              <StaffIntro slot="beside-title" {heading} {intro} client:load />
+            )}
+            {intro && page.introOpen && <StaffIntro {heading} {intro} open />}
             <slot name="header" />
             <slot name="actions" slot="actions" />
           </PageHeader>

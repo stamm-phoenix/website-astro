@@ -21,7 +21,11 @@ test('family characteristics are explained, removable by touch and kept after a 
   await page.getByRole('button', { name: /Familie Huber/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Familie Huber', exact: true });
   const input = dialog.getByRole('combobox', { name: 'Merkmale für die Einteilung', exact: true });
-  await expect(dialog.getByText(/Nicht zu Familien mit/)).toBeVisible();
+  await dialog
+    .getByRole('button', { name: 'Erklärung zu Merkmale für die Einteilung', exact: true })
+    .click();
+  await expect(dialog.getByRole('note').getByText(/Nicht zu Familien mit/)).toBeVisible();
+  await dialog.getByText('Die Familie sieht das nicht.', { exact: true }).click();
   const remove = dialog.getByRole('button', { name: 'Wölflinge entfernen', exact: true });
   const size = await remove.boundingBox();
   expect(size!.width).toBeGreaterThanOrEqual(44);

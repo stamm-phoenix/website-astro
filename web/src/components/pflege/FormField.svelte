@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
 
   interface Props {
     /** Id of the input; used for the label and the ids of hint and error. */
@@ -9,7 +10,10 @@
     /** Contenteditable controls receive their name through aria-labelledby. */
     labelAs?: 'label' | 'span';
     error?: string;
+    /** Short note under the field, for what the input needs (format, example). */
     hint?: string;
+    /** Explanation behind an „(i)“ next to the label, for a rule the field cannot show. */
+    info?: string;
     optional?: boolean;
     class?: string;
     /** Receives the attributes to spread onto the input. */
@@ -32,6 +36,7 @@
     labelAs = 'label',
     error,
     hint,
+    info,
     optional = false,
     class: className = '',
     children,
@@ -47,11 +52,12 @@
     this={labelAs}
     for={labelAs === 'label' ? id : undefined}
     id="{id}-label"
-    class="form-label"
+    class="form-label {info ? 'inline' : ''}"
   >
     {label}
     {#if optional}<span class="font-normal text-neutral-700">(optional)</span>{/if}
   </svelte:element>
+  {#if info}<InfoHint {label} text={info} class="ml-1" />{/if}
   {@render children({
     id,
     name,

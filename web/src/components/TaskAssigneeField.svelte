@@ -90,13 +90,7 @@
   });
 </script>
 
-<FormField
-  {id}
-  label="Zuständigkeit"
-  optional
-  error={error ?? rejected}
-  hint="Personen suchen und auswählen. Mehrere Personen sind möglich."
->
+<FormField {id} label="Zuständigkeit" optional error={error ?? rejected}>
   {#snippet children(attrs)}
     <div class="space-y-2">
       <input type="hidden" name="{id}-people" value={JSON.stringify(selected)} />
@@ -132,6 +126,7 @@
         }}
         onpick={(person) => choose(person)}
         oncommit={commit}
+        commitAfterTap
         onremovelast={selected.length ? () => update(selected.slice(0, -1)) : undefined}
       />
     </div>
@@ -142,6 +137,6 @@
   </p>
 {:else if unavailable}<p role="status" class="text-sm text-neutral-700">
     {configurationError
-      ? 'Die Personenliste ist nicht vollständig eingerichtet. Bitte die Administration informieren.'
-      : 'Personenvorschläge sind gerade nicht verfügbar.'} Du kannst vollständige Namen eingeben.
+      ? 'Die Personensuche ist nicht vollständig eingerichtet. Schreib bitte an admin@stamm-phoenix.de. Bis dahin kannst du vollständige Namen eintippen.'
+      : 'Personensuche gerade nicht verfügbar – vollständigen Namen eintippen.'}
   </p>{/if}

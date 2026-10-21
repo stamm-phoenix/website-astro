@@ -161,20 +161,14 @@
     id="{id}-status"
     role="status"
     aria-live="polite"
-    class="text-sm text-neutral-700 {searching || variant === 'sheet'
-      ? 'mt-1.5'
-      : 'sr-only'} {variant === 'sidebar' ? 'px-2' : ''}"
+    class="text-sm text-neutral-700 {searching ? 'mt-1.5' : 'sr-only'} {variant === 'sidebar'
+      ? 'px-2'
+      : ''}"
   >
-    {#if !searching}
-      {variant === 'sheet'
-        ? 'Sucht in Namen und Beschreibungen. Lange tippen macht einen Bereich zum Favoriten oder entfernt ihn.'
-        : ''}
-    {:else if count === 0}
-      Kein Bereich passt zu „{query.trim()}“. Versuch ein anderes Wort.
-    {:else}
-      {count === 1 ? '1 Bereich gefunden' : `${count} Bereiche gefunden`}{variant !== 'sidebar'
-        ? ' · Enter öffnet den ersten'
-        : ''}
+    {#if searching && count === 0}
+      Kein Bereich passt zu „{query.trim()}“.
+    {:else if searching}
+      {count === 1 ? '1 Bereich gefunden' : `${count} Bereiche gefunden`}
     {/if}
   </p>
 

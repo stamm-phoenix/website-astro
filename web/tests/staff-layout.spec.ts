@@ -79,7 +79,8 @@ test('on a phone the bar at the bottom and the sheet „Menü“ lead to every m
   await expect(sheet.getByRole('link', { name: /^Steuerung/ })).toBeAttached();
   await expect(sheet.getByRole('link', { name: 'Abmelden' })).toHaveAttribute('href', '/logout');
   await sheet.getByRole('searchbox', { name: 'Bereich finden' }).fill('kassenzettel');
-  await expect(sheet.getByRole('status')).toHaveText(/1 Bereich gefunden/);
+  // Belege by keyword, Eigenbeleg by its description
+  await expect(sheet.getByRole('status')).toHaveText(/2 Bereiche gefunden/);
   await sheet.getByRole('link', { name: /^Belege/ }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/belege$/);
   await expect(sheet).toBeHidden();
@@ -99,11 +100,13 @@ test('the start page lists every area and the recently used ones without opening
       response.url().endsWith('/api/intern/zuletzt') && response.request().method() === 'POST'
   );
   await page.goto('/leitendenbereich/eigenbeleg');
-  // The intro waits behind „Was ist das?“, so the form starts high up
+  // The intro waits behind the „(i)“ next to the heading, so the form starts high up
   const intro = page.getByText('Für Ausgaben ohne Originalbeleg, z. B. am Parkautomaten');
   await expect(intro).toBeHidden();
-  await page.getByText('Was ist das?').click();
+  await page.getByRole('button', { name: 'Erklärung zu Eigenbeleg' }).click();
   await expect(intro).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(intro).toBeHidden();
 
   await visited;
   await page.goto('/leitendenbereich');

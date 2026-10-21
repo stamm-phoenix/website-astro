@@ -100,7 +100,7 @@
     list={listId}
     class="min-h-11 min-w-[10rem] flex-1 border-0 bg-transparent px-1 py-1 text-base focus:outline-none"
     {placeholder}
-    aria-describedby={[describedBy, `${id}-entry-hint`].filter(Boolean).join(' ')}
+    aria-describedby={describedBy}
     aria-invalid={invalid ? 'true' : undefined}
     bind:value={draft}
     {disabled}
@@ -126,8 +126,11 @@
       <option value={suggestion}></option>
     {/each}
   </datalist>
+  <button
+    type="button"
+    class="min-h-11 shrink-0 px-2 text-sm font-semibold text-link disabled:opacity-50"
+    disabled={disabled || !draft.trim()}
+    onmousedown={(event) => event.preventDefault()}
+    onclick={() => add(draft)}>Hinzufügen</button
+  >
 </div>
-
-<p id={`${id}-entry-hint`} class="mt-1 text-xs text-neutral-700">
-  Tippe nach einem Eintrag außerhalb des Felds oder drücke die Eingabetaste, um ihn hinzuzufügen.
-</p>

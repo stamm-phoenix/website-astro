@@ -50,12 +50,7 @@
       />
     {/snippet}
   </FormField>
-  <FormField
-    id="bl-amount"
-    label="Betrag in €"
-    hint="Gesamtbetrag laut Beleg"
-    error={errors.amountCent}
-  >
+  <FormField id="bl-amount" label="Betrag in €" error={errors.amountCent}>
     {#snippet children(attrs)}
       <input
         {...attrs}
@@ -80,13 +75,7 @@
       />
     {/snippet}
   </FormField>
-  <FormField
-    id="bl-aktion"
-    label="Aktion"
-    hint="Wähle eine Aktion aus den Vorschlägen. Für etwas anderes beschreibe den Zweck genau, z. B. „Gruppenstunde Wölflinge“."
-    error={errors.aktion}
-    class="sm:col-span-2"
-  >
+  <FormField id="bl-aktion" label="Aktion" error={errors.aktion} class="sm:col-span-2">
     {#snippet children(attrs)}
       <input
         {...attrs}
@@ -94,6 +83,7 @@
         maxlength="120"
         list="bl-aktion-suggestions"
         autocomplete="off"
+        placeholder="z. B. Sommerlager oder Gruppenstunde Wölflinge"
         bind:value={form!.aktion}
         oninput={() => onfield('aktion')}
       />
@@ -120,8 +110,8 @@
             </div>
           {:else}
             <p>
-              Die Aktion steht nicht in der Liste. Beschreibe sie möglichst genau, damit die Kasse
-              sie zuordnen kann.
+              Nicht in der Aktionsliste – beschreibe den Zweck so genau, dass die Kasse ihn zuordnen
+              kann.
             </p>
           {/if}
         </div>

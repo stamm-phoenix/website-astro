@@ -11,7 +11,7 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
 }, testInfo) => {
   await page.goto('/leitendenbereich/belege');
   await expect(page.getByText('REWE', { exact: true })).toBeVisible();
-  await expect(page.getByText('Wird von der Kasse geprüft: evtl. Alkohol/Tabak')).toBeVisible();
+  await expect(page.getByText('Evtl. Alkohol/Tabak')).toBeVisible();
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).click();
 
   // A photo of a slightly turned receipt on a dark table, drawn in the browser
@@ -39,13 +39,12 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
     .locator('input[type="file"]')
     .setInputFiles({ name: 'beleg.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo) });
   await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
-  await expect(page.getByText(/Ränder erkannt/)).toBeVisible();
   // Corners can be moved with the keyboard as well
   await page.getByRole('button', { name: /Ecke oben links verschieben/ }).press('ArrowLeft');
   await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
-  await expect(page.getByRole('note').filter({ hasText: 'Automatische Prüfung:' })).toContainText(
-    /vollständig und lesbar|Angaben lesen/
-  );
+  await expect(
+    page.getByRole('note').filter({ hasText: /Foto geprüft|Foto prüfen/ })
+  ).toBeVisible();
   await expect(page.getByLabel('Geschäft')).toHaveValue('Demo-Markt');
   await expect(page.getByLabel('Betrag in €')).toHaveValue('9,99');
 
@@ -261,9 +260,9 @@ test('a QR code is styled and downloaded as PNG', async ({ page }) => {
   await expect(page.getByRole('radio', { name: 'Phoenix' })).toBeChecked();
   await page.getByRole('radio', { name: 'Lilie' }).check();
   await page.getByLabel('Hintergrund').fill('#888888');
-  await expect(page.getByText(/Der Kontrast ist gering/)).toBeVisible();
+  await expect(page.getByText(/Geringer Kontrast/)).toBeVisible();
   await page.getByLabel('Transparent').check();
-  await expect(page.getByText(/Der Kontrast ist gering/)).toHaveCount(0);
+  await expect(page.getByText(/Geringer Kontrast/)).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 
   await page.getByLabel('Größe', { exact: true }).selectOption('2048');
@@ -370,7 +369,10 @@ test('Neu laden exports the Einzelnachweise again and keeps the entries', async 
   const before = ((await (await first).json()) as { exportedAt: string }).exportedAt;
   // Opening the page uses the last export of the Playwright API
   expect((await first).url()).not.toContain('refresh');
-  await expect(page.getByTestId('export-stand')).toContainText(/exportiert am .+ Uhr/);
+  // The fixtures fix the clock at 2026-10-01, so the export of the server's today shows its date
+  await expect(page.getByTestId('export-stand')).toContainText(
+    /Stand: (\d{2}\.\d{2}\.\d{4}, )?\d{2}:\d{2} Uhr/
+  );
 
   const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
   await zusatztag.check();

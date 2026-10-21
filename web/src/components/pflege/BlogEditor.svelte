@@ -18,6 +18,7 @@
   import FormField from './FormField.svelte';
   import TextEditor from '../ui/TextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
+  import StatusLabel from '../ui/StatusLabel.svelte';
   import { confirmAction } from '../../lib/confirm';
 
   interface Form {
@@ -346,9 +347,6 @@
     >
       {postId ? 'Beitrag bearbeiten' : 'Neuer Beitrag'}
     </h1>
-    <p class="text-neutral-800">
-      Schreibe einen Blogbeitrag, füge Bilder hinzu und veröffentliche ihn auf der Website.
-    </p>
   </div>
 </header>
 
@@ -380,12 +378,12 @@
     }}
   >
     <div class="surface space-y-5 p-4 sm:p-6">
-      <p class="font-semibold text-brand-900">
-        Status: {published
-          ? 'Veröffentlicht – auf der Website sichtbar.'
-          : postId
-            ? 'Entwurf – nur hier sichtbar.'
-            : 'Neuer Entwurf – noch nicht gespeichert.'}
+      <p data-testid="blog-status">
+        <StatusLabel
+          label={published ? 'Veröffentlicht' : postId ? 'Entwurf' : 'Noch nicht gespeichert'}
+          tone={published ? 'success' : 'neutral'}
+          dot
+        />
       </p>
       <FormField id="blog-title" label="Titel" error={errors.title}>
         {#snippet children(attrs)}
@@ -403,7 +401,7 @@
         <FormField
           id="blog-date"
           label="Datum"
-          hint="Z. B. der Tag der Aktion; bestimmt die Reihenfolge."
+          info="Bestimmt die Reihenfolge im Blog, z. B. der Tag der Aktion."
           error={errors.date}
         >
           {#snippet children(attrs)}
@@ -412,15 +410,7 @@
         </FormField>
       </div>
 
-      <FormField
-        id="blog-content"
-        label="Text"
-        labelAs="span"
-        error={errors.content}
-        hint={postId
-          ? 'Bilder fügst du im Bereich „Bilder“ mit „In Text einfügen“ an der Cursorposition ein.'
-          : undefined}
-      >
+      <FormField id="blog-content" label="Text" labelAs="span" error={errors.content}>
         {#snippet children(attrs)}
           <TextEditor
             bind:this={editor}
@@ -526,14 +516,9 @@
       </div>
 
       {#if !postId}
-        <p class="text-sm text-neutral-700">
-          Lege den Beitrag zuerst als Entwurf an, dann kannst du Bilder hinzufügen.
-        </p>
+        <p class="text-sm text-neutral-700">Bilder kannst du nach dem Anlegen hinzufügen.</p>
       {:else}
-        <p class="text-xs text-neutral-700">
-          Das erste Bild ist das Titelbild für die Übersicht. Bilder werden verkleinert und sofort
-          gespeichert.
-        </p>
+        <p class="text-xs text-neutral-700">Bilder werden sofort gespeichert.</p>
         <div role="status" aria-live="polite" class="text-sm text-neutral-700">
           {imageBusy ?? ''}
         </div>

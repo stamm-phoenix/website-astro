@@ -36,11 +36,7 @@
     {formatDateTime(view.campaign.startsAt)} bis {formatDateTime(view.campaign.endsAt)} Uhr ·
     {isSammelOpen(view.campaign) ? 'Bestellzeitraum offen' : 'Bestellzeitraum geschlossen'}
   </p>
-  <p class="mt-3 text-sm text-neutral-700">
-    Diesen Link erhalten alle Mitglieder in derselben CampFlow-Mail. Die Website verschickt
-    anschließend die persönlichen Bestelllinks. Der Einladungslink ist nur für Mitglieder bestimmt.
-  </p>
-  <label class="form-label mt-4" for="invitation-url">Gemeinsamer Einladungslink</label>
+  <label class="form-label mt-4" for="invitation-url">Einladungslink</label>
   <div class="flex flex-col gap-2 sm:flex-row">
     <input
       id="invitation-url"
@@ -59,6 +55,7 @@
       ></ActionButton
     >
   </div>
+  <p class="mt-1 text-xs text-neutral-700">Nur für Mitglieder, nicht öffentlich teilen.</p>
   <SammelInvitationRelease
     campaignId={view.campaign.id}
     disabled={!isSammelOpen(view.campaign) || busy || loading}

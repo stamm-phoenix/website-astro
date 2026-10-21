@@ -133,9 +133,6 @@
       </li>
     {/each}
   </ul>
-  <p class="text-sm text-neutral-700">
-    Bei der Freigabe des Protokolls werden daraus Aufgaben im Modul Aufgaben.
-  </p>
 {/if}
 
 {#if termine.length > 0}

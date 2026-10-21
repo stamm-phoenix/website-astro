@@ -5,18 +5,29 @@ interface Props {
   title: string;
   description?: string;
   hasActions?: boolean;
-  /** Little space below the heading, for a short line such as „Was ist das?“. */
+  /** Little space below the heading, for a short line under it. */
   tight?: boolean;
 }
 
 const { title, description, hasActions = Astro.slots.has('actions'), tight = false } = Astro.props;
+/* The slot `beside-title` sits next to the heading, e.g. the „(i)“ with the intro of a page. */
+const besideTitle = Astro.slots.has('beside-title');
 ---
 
 <header class="ui-pagehead flex flex-wrap items-end gap-x-8 gap-y-4 pb-4">
   <div class="prose min-w-0 max-w-3xl flex-1 basis-96">
-    <Heading level={1} variant="section" class={tight ? 'mb-2!' : ''}>
-      {title}
-    </Heading>
+    {besideTitle ? (
+      <div class:list={['flex items-start gap-2', tight ? 'mb-2' : 'mb-8']}>
+        <Heading level={1} variant="section" class="mb-0!">
+          {title}
+        </Heading>
+        <slot name="beside-title" />
+      </div>
+    ) : (
+      <Heading level={1} variant="section" class={tight ? 'mb-2!' : ''}>
+        {title}
+      </Heading>
+    )}
     {description && <p class="text-neutral-800">{description}</p>}
     <slot />
   </div>

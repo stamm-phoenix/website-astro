@@ -142,7 +142,7 @@ test('Teilnehmende can be left out or added and both lists export as PDF', async
 test('younger Leitende can be entered as Betreuer*innen, from 27 on always', async ({ page }) => {
   // Nobody on the Hike is 27 or older
   await page.goto('/leitendenbereich/abrechnung/evt_HikeMangfall?kostenstelle=cun_Hike');
-  const hinweis = page.getByText(/Auf der Aktion ist niemand 27 Jahre oder älter/);
+  const hinweis = page.getByText(/Niemand ist 27 Jahre oder älter/);
   await expect(hinweis).toBeVisible();
   await page.getByRole('button', { name: 'Betreuer*innen eintragen' }).click();
   await expect(page).toHaveURL(/tab=teilnehmende/);
@@ -156,7 +156,7 @@ test('younger Leitende can be entered as Betreuer*innen, from 27 on always', asy
   await rolle.selectOption('Betreuer*in');
   await expect(betreuer.getByRole('combobox', { name: `Rolle ${name}` })).toBeVisible();
   await expect(betreuer).toContainText('Betreuer*innen (1)');
-  await expect(page.getByTestId('tn-zusammenfassung')).toContainText('1 Betreuer*innen (0 ab 27)');
+  await expect(page.getByTestId('tn-zusammenfassung')).toContainText('1 Betreuer*innen');
   await expectNoHorizontalOverflow(page);
 
   await page.getByRole('tab', { name: 'Übersicht' }).click();

@@ -16,6 +16,7 @@
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
 
   /**
    * Personen (`docs/personen.md`): links the Microsoft account of every leader to their person
@@ -296,8 +297,7 @@
   >
     {#if mitglieder === null}
       <p class="border-l-4 border-l-warning py-1 pl-3 text-sm text-neutral-800">
-        Die CampFlow-Mitgliederliste ist gerade nicht erreichbar. Verknüpfungen bleiben erhalten,
-        neue lassen sich erst nach „Neu laden“ wählen.
+        CampFlow ist gerade nicht erreichbar. Neue Verknüpfungen erst nach „Neu laden“.
       </p>
     {/if}
 
@@ -314,8 +314,7 @@
         </p>
       {:else}
         <p class="pt-3 text-sm text-neutral-700">
-          {verknuepft} von {konten.length} Leitenden mit ihrer Person in CampFlow verknüpft. Die Module
-          erkennen dich daran in CampFlow, z. B. mit „(ich)“ in Teilnehmendenlisten.
+          {verknuepft} von {konten.length} Leitenden verknüpft.
         </p>
         {#if vorschlaege.size > 0}
           <div
@@ -324,7 +323,7 @@
             <p class="text-sm text-neutral-800">
               Für {vorschlaege.size}
               {vorschlaege.size === 1 ? 'Konto gibt' : 'Konten gibt'} es in CampFlow genau eine Person
-              mit demselben Namen. Bitte prüfen und übernehmen.
+              mit demselben Namen.
             </p>
             <ActionButton
               variant="secondary"
@@ -374,15 +373,15 @@
 
     {#if ehemalige.length > 0}
       <section class="pt-2" aria-labelledby="personen-ehemalige">
-        <h2
-          id="personen-ehemalige"
-          class="border-b border-neutral-300 pb-2 font-serif text-xl font-semibold text-brand-900"
-        >
-          Nicht mehr in der Gruppe der Leitenden
-        </h2>
-        <p class="pt-3 text-sm text-neutral-700">
-          Ihr Konto ist nicht mehr in der Gruppe. Als Altleitende weiterführen oder löschen.
-        </p>
+        <div class="flex items-center gap-1 border-b border-neutral-300 pb-2">
+          <h2 id="personen-ehemalige" class="font-serif text-xl font-semibold text-brand-900">
+            Nicht mehr in der Gruppe der Leitenden
+          </h2>
+          <InfoHint
+            label="Nicht mehr in der Gruppe der Leitenden"
+            text="Über „Bearbeiten“ als Altleitende weiterführen oder löschen."
+          />
+        </div>
         <ul class="mt-2 divide-y divide-neutral-200 border-b border-neutral-200">
           {#each ehemalige as person (person.id)}
             {@const link = campflowText(person.campflowPersonId)}
@@ -418,10 +417,7 @@
           {PERSON_GRUPPE_LABELS[gruppe]}
         </h2>
         {#if liste.length === 0}
-          <p class="py-4 text-sm text-neutral-700">
-            Niemand eingetragen. Trage Altleitende und andere ein, die oft dabei sind, damit sie im
-            Protokoll zur Auswahl stehen.
-          </p>
+          <p class="py-4 text-sm text-neutral-700">Niemand eingetragen.</p>
         {:else}
           <ul class="divide-y divide-neutral-200 border-b border-neutral-200">
             {#each liste as person (person.id)}
@@ -502,8 +498,7 @@
       <legend class="sr-only">Person</legend>
       {#if form.konto}
         <p class="text-sm text-neutral-700">
-          Microsoft-Konto <span class="font-semibold [overflow-wrap:anywhere]">{form.login}</span>
-          aus der Gruppe der Leitenden.
+          Konto <span class="font-semibold [overflow-wrap:anywhere]">{form.login}</span>
         </p>
         {#if errors.login}
           <!-- The account cannot be edited here, so its error is told in words, e.g. when someone
@@ -538,9 +533,9 @@
         </FormField>
         <FormField
           id="person-login"
-          label="E-Mail-Adresse des Microsoft-Kontos"
+          label="Konto-Adresse"
           optional={form.gruppe !== 'leitende'}
-          hint="Nur wenn die Person ein Konto bei uns hat, z. B. vorname.nachname@stamm-phoenix.de."
+          info="Nur wenn die Person ein Konto bei uns hat."
           error={errors.login}
         >
           {#snippet children(attrs)}
@@ -550,6 +545,7 @@
               class="form-input"
               maxlength="254"
               autocomplete="off"
+              placeholder="vorname.nachname@stamm-phoenix.de"
               bind:value={form!.login}
             />
           {/snippet}
@@ -559,7 +555,6 @@
         id="person-campflow"
         label="Person in CampFlow"
         optional
-        hint="Aus der Mitgliederliste, nach Namen suchen. In CampFlow steht meist die private Adresse, deshalb wird hier zugeordnet."
         error={errors.campflowPersonId}
       >
         {#snippet children(attrs)}
@@ -626,9 +621,6 @@
                       </li>
                     {/each}
                   </ul>
-                  {#if treffer.length > 1}
-                    <p class="mt-1 text-sm text-neutral-700">Tippe auf die richtige Person.</p>
-                  {/if}
                   {#if treffer.length > MAX_TREFFER}
                     <p class="mt-1 text-sm text-neutral-700">
                       {treffer.length - MAX_TREFFER} weitere Treffer. Bitte genauer suchen.
@@ -645,19 +637,27 @@
         {/snippet}
       </FormField>
       {#if !form.konto}
-        <FormField
-          id="person-aktiv"
-          label="Auswahl"
-          hint="Inaktive Personen bleiben in alten Protokollen stehen, werden aber nicht mehr angeboten."
-          error={errors.aktiv}
-        >
-          {#snippet children(attrs)}
+        <div class="form-field">
+          <div class="flex items-center gap-2">
             <label class="flex items-center gap-2 text-sm font-semibold text-neutral-800">
-              <input {...attrs} type="checkbox" bind:checked={form!.aktiv} />
+              <input
+                id="person-aktiv"
+                type="checkbox"
+                aria-invalid={errors.aktiv ? 'true' : undefined}
+                aria-describedby={errors.aktiv ? 'person-aktiv-error' : undefined}
+                bind:checked={form!.aktiv}
+              />
               Im Protokoll zur Auswahl anbieten
             </label>
-          {/snippet}
-        </FormField>
+            <InfoHint
+              label="Im Protokoll zur Auswahl anbieten"
+              text="Inaktive Personen bleiben in alten Protokollen stehen, werden aber nicht mehr angeboten."
+            />
+          </div>
+          {#if errors.aktiv}
+            <p id="person-aktiv-error" class="mt-1 text-sm text-danger">{errors.aktiv}</p>
+          {/if}
+        </div>
       {/if}
     </fieldset>
   {/if}

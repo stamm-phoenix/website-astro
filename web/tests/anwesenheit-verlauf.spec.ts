@@ -199,7 +199,7 @@ test('history retries a name lookup and explains anonymized attendance', async (
     row.getByText('Die Namen konnten nicht geladen werden.', { exact: false })
   ).toBeVisible();
   await row.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
-  await expect(row.getByText(/Namen.*Aufbewahrungsfrist/)).toBeVisible();
+  await expect(row.getByText(/Ohne Namen/)).toBeVisible();
   await expect(row.getByRole('button', { name: 'Ansehen', exact: true })).toBeVisible();
   await expect(row.getByRole('button', { name: 'Gruppenstunde löschen' })).toHaveCount(0);
   expect(tries).toBe(2);

@@ -6,6 +6,7 @@
   import FilterTabs from './ui/FilterTabs.svelte';
   import Toast from './ui/Toast.svelte';
   import ModalDialog from './ui/ModalDialog.svelte';
+  import InfoHint from './ui/InfoHint.svelte';
   import {
     campflowDetailStore,
     campflowEventsStore,
@@ -182,7 +183,7 @@
     <span class={isDriver ? 'font-semibold text-brand-900' : ''}>{p.name}</span>
     {#if ichIds.has(p.id)}<span class="text-neutral-700">(ich)</span>{/if}
     {#if p.gruppe}<span class="text-sm text-neutral-700">{groupName(p.gruppe)}</span>{/if}
-    <span class="sr-only">, ändern</span>
+    <span class="ml-auto shrink-0 text-sm text-link underline underline-offset-2">ändern</span>
   </button>
 {/snippet}
 
@@ -195,10 +196,6 @@
       >
         Fahrten planen
       </h1>
-      <p class="mt-2 max-w-[72ch] text-neutral-700">
-        Wähle eine Aktion. Die Planung verteilt die Teilnehmenden auf die Autos, für die in CampFlow
-        Plätze angeboten wurden.
-      </p>
     </div>
     <LoadState
       data={campflowEventsStore.data}
@@ -253,12 +250,6 @@
               Fahrten: {event.title}
             </h1>
             <p class="mt-2 font-semibold text-brand-800">{formatEventRange(event)}</p>
-            <p class="mt-1 max-w-[72ch] text-sm text-neutral-700">
-              Leitende, die in CampFlow Plätze angeboten haben, fahren immer, notfalls allein. Von
-              den Familien fahren so wenige Autos wie nötig, große zuerst. Geschwister fahren im
-              Familienauto, Leitende sonst bei Leitenden oder den ältesten Kindern. Tippe auf einen
-              Namen, um ihn umzusetzen.
-            </p>
           </div>
           <div class="flex flex-wrap gap-2">
             <a
@@ -276,7 +267,7 @@
 
         <section aria-labelledby="fahrten-spalten-heading" class="space-y-3">
           <h2 id="fahrten-spalten-heading" class="font-serif text-2xl font-semibold text-brand-900">
-            Plätze aus CampFlow
+            Angebotene Plätze
           </h2>
           <div class="grid gap-4 sm:grid-cols-2">
             {#each FAHRTEN as f (f)}
@@ -297,17 +288,30 @@
           </div>
           {#if !seatColumns.hin && !seatColumns.rueck}
             <p class="border-l-2 border-warning py-1 pl-4 text-sm text-neutral-700">
-              Wähle die Felder aus dem Anmeldeformular, in denen Eltern und Leitende ihre freien
-              Plätze eintragen. Ohne sie hat niemand einen Platz.
+              Ohne diese Felder hat niemand einen Platz: Wähle die Felder des Anmeldeformulars, in
+              die Eltern und Leitende ihre freien Plätze eintragen.
             </p>
           {/if}
         </section>
 
         <section aria-labelledby="fahrten-plan-heading" class="space-y-4">
           <div class="flex flex-wrap items-end justify-between gap-4">
-            <h2 id="fahrten-plan-heading" class="font-serif text-2xl font-semibold text-brand-900">
-              Planung
-            </h2>
+            <div class="flex items-center gap-1">
+              <h2
+                id="fahrten-plan-heading"
+                class="font-serif text-2xl font-semibold text-brand-900"
+              >
+                Planung
+              </h2>
+              <InfoHint label="Planung" class="ml-1">
+                <p>Leitende, die Plätze angeboten haben, fahren immer, notfalls allein.</p>
+                <p>Von den Familien fahren so wenige Autos wie nötig, große zuerst.</p>
+                <p>
+                  Geschwister fahren im Familienauto, Leitende sonst bei Leitenden oder den ältesten
+                  Kindern.
+                </p>
+              </InfoHint>
+            </div>
             <div class="flex flex-wrap gap-2">
               <ActionButton onclick={() => downloadCsv(event.title)}>Als CSV</ActionButton>
               <ActionButton onclick={copyLink}>Link kopieren</ActionButton>
@@ -387,7 +391,6 @@
             {#if plan.ohnePlatz.length === 0}
               <p class="mt-1 text-sm text-success">Alle haben einen Platz.</p>
             {:else}
-              <p class="mt-1 text-sm text-neutral-700">Diese Kinder müssen die Eltern bringen.</p>
               <ul class="mt-1">
                 {#each plan.ohnePlatz as p (p.id)}
                   <li>{@render person(p, null)}</li>

@@ -147,9 +147,6 @@
         <span class="font-semibold text-brand-900">
           {draft.files.length ? 'Weitere Fotos hinzufügen' : 'Fotos und Videos auswählen'}
         </span>
-        <span class="text-xs text-neutral-700">
-          Aus der Galerie, vom Computer oder von der Speicherkarte. Originale in voller Qualität.
-        </span>
         <input
           type="file"
           multiple
@@ -204,9 +201,6 @@
             <p class="text-xs font-semibold text-neutral-700">Deine Fotos landen in</p>
             {#if aktionPath}
               <FotoPfad path={aktionPath} />
-              <p class="mt-1 text-xs text-neutral-700">
-                Fehlende Ordner werden automatisch angelegt. Der letzte Ordner ist dein Vorname.
-              </p>
             {:else if fotoPerson.error}
               <p class="text-sm text-danger" role="alert">
                 <MessageText text={fotoPerson.error} />
@@ -218,29 +212,20 @@
           </div>
         {/if}
       {:else}
-        <FotoOrdnerWahl bind:path={draft.folder} />
-        <FormField
-          id="foto-unterordner"
-          label="Neuer Ordner darin"
-          optional
-          hint="Zum Beispiel der Vorname, wenn du Fotos von jemand anderem hochlädst."
-          error={errors.ordner}
-        >
+        <FotoOrdnerWahl bind:path={draft.folder} pending={cleanSub ? [cleanSub] : []} />
+        <FormField id="foto-unterordner" label="Neuer Ordner darin" optional error={errors.ordner}>
           {#snippet children(attrs)}
-            <input {...attrs} class="form-input" autocomplete="off" bind:value={draft.subfolder} />
+            <input
+              {...attrs}
+              class="form-input"
+              autocomplete="off"
+              placeholder="z. B. Anna"
+              bind:value={draft.subfolder}
+            />
           {/snippet}
         </FormField>
-        <div class="surface-muted px-3 py-2">
-          <p class="text-xs font-semibold text-neutral-700">Deine Fotos landen in</p>
-          <FotoPfad path={draft.folder} pending={cleanSub ? [cleanSub] : []} />
-        </div>
       {/if}
     </section>
-
-    <p class="text-sm text-neutral-700">
-      Lass die Seite offen, bis alles hochgeladen ist. Bricht die Verbindung ab, geht es von selbst
-      weiter, sobald du wieder online bist.
-    </p>
 
     <!-- Stays at the bottom of the screen, so the main action is in reach on a phone -->
     <section

@@ -140,7 +140,7 @@ test('sent minutes edited after approval expose no date decision or recognition 
   await page.goto('/leitendenbereich/protokolle');
   await page.getByRole('button', { name: /^Erledigt/ }).click();
   const block = page.locator('#protokoll-prot-3 section[aria-labelledby^="protokoll-termin-"]');
-  await expect(block.getByText(/Datei wurde nach dem Versand geändert/)).toBeVisible();
+  await expect(block.getByText(/Nach dem Versand geändert/)).toBeVisible();
   await expect(block.getByRole('button')).toHaveCount(0);
 });
 
@@ -259,7 +259,7 @@ for (const configured of [true, false]) {
       await expect(block.getByText('Vorschlag:', { exact: false })).toBeVisible();
     } else {
       await expect(retry).toHaveCount(0);
-      await expect(block.getByText(/automatische Auswertung ist nicht eingerichtet/)).toBeVisible();
+      await expect(block.getByText('Noch kein Termin eingetragen.')).toBeVisible();
     }
     await expectNoHorizontalOverflow(page);
   });

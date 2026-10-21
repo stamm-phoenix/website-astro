@@ -53,12 +53,12 @@
             {#if beleg.aiCheck && !beleg.aiCheck.ok}
               <span
                 class="rounded-sm bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning"
-                >Automatische Prüfung: Foto prüfen</span
+                >Foto prüfen</span
               >
             {/if}
             {#if beleg.aiCheck?.restrictedItems.length}
               <span class="rounded-sm bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger"
-                >Wird von der Kasse geprüft: evtl. Alkohol/Tabak</span
+                >Evtl. Alkohol/Tabak</span
               >
             {/if}
           </span>

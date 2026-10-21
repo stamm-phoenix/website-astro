@@ -24,7 +24,7 @@ test('the participant list shows Beitrag, payment status and Verwendungszweck', 
   const fee = beitraege.persons[offen!.id][0];
 
   await page.goto(PAGE);
-  await expect(page.getByTestId('aktion-beitraege-stand')).toContainText('Beiträge: Stand');
+  await expect(page.getByTestId('aktion-beitraege-stand')).toContainText('Stand:');
   await expect(page.getByText('Beitrag offen', { exact: true })).toBeVisible();
 
   const isMobile = (page.viewportSize()?.width ?? 0) < 768;

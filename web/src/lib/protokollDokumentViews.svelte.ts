@@ -199,7 +199,6 @@ export function titelView(views: DokumentViews): NodeViewRenderer {
       ? el('button', 'griff icon-button', { type: 'button', contenteditable: 'false' })
       : null;
     if (griff) {
-      griff.title = 'Ziehen zum Verschieben';
       griff.append(svg(GRIFF_DOTS, true));
     }
 

@@ -83,11 +83,6 @@
       Neues Protokoll schreiben
     </ActionButton>
   </div>
-  <p class="max-w-prose text-sm text-neutral-700">
-    Neu: Protokolle direkt hier schreiben, ohne Word. Eine Person schreibt, alle anderen lesen live
-    mit. Gespeichert wird laufend, frühere Fassungen bleiben erhalten. Nach der Freigabe, auf Wunsch
-    mit Review, liegt das Protokoll als PDF im Protokoll-Ordner und geht an alle Leitenden.
-  </p>
 
   <LoadState
     data={overview}
@@ -165,19 +160,6 @@
         <input type="checkbox" class="size-5 shrink-0" bind:checked={draft.beginnJetzt} />
         Sitzungsbeginn auf jetzt setzen
       </label>
-      {#if draft.beginnJetzt}
-        <p class="text-sm text-neutral-700">
-          Beim Anlegen wird die aktuelle Uhrzeit als Beginn eingetragen.
-        </p>
-      {:else}
-        <p class="text-sm text-neutral-700">
-          Der Beginn bleibt leer; du kannst ihn später eintragen.
-        </p>
-      {/if}
-      <p class="text-sm text-neutral-700">
-        Die Tagesordnung startet mit Stufenberichten, Reflexion, Planung und Sonstigem; alles lässt
-        sich ändern.
-      </p>
     </div>
   {/if}
 </EditDialog>

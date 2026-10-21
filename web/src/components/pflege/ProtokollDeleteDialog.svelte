@@ -26,7 +26,7 @@
       );
       deleting = null;
       ondeleted(protokoll.id);
-      notify(`„${protokoll.title}“ gelöscht. Es liegt im SharePoint-Papierkorb.`);
+      notify(`„${protokoll.title}“ gelöscht.`);
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
       deleteError = errorMessage(
@@ -51,10 +51,7 @@
     if (!deleteBusy) deleting = null;
   }}
 >
-  {#if deleting}
-    <p class="text-sm text-neutral-800">
-      „{deleting.fileName}“ wird gelöscht und verschwindet aus der Liste. Aus dem
-      SharePoint-Papierkorb lässt es sich noch wiederherstellen.
-    </p>
-  {/if}
+  <p class="text-sm text-neutral-800">
+    Aus dem SharePoint-Papierkorb lässt es sich wiederherstellen.
+  </p>
 </ConfirmDialog>

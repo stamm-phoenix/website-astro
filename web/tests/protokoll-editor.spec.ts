@@ -45,7 +45,7 @@ test('the writer types, autosave keeps it and a reload continues writing', async
   const frage = page.getByRole('dialog', { name: 'Sitzungsende eintragen?' });
   await frage.getByRole('button', { name: 'Ja, Ende auf jetzt setzen' }).click();
   await expect(page.getByText(/Sitzungsende \d\d:\d\d Uhr eingetragen/).first()).toBeVisible();
-  await expect(page.getByText('Gerade schreibt niemand.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
   const ansicht = page.getByRole('article', { name: 'Protokoll' });
   await expect(ansicht.locator('header')).toContainText(/\d\d:\d\d–\d\d:\d\d Uhr/);
   await expect(ansicht.getByRole('listitem').filter({ hasText: 'Verbände' })).toBeVisible();
@@ -230,7 +230,7 @@ test('the presentation recovers when its first load fails', async ({ page, brows
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
   await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
   await page.getByRole('button', { name: 'Nein, Ende leer lassen' }).click();
-  await expect(page.getByText('Gerade schreibt niemand.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
 
   // A reader on another device: no writing tab in its browser, only the server
   const readerContext = await browser.newContext({ baseURL });
@@ -266,7 +266,7 @@ test('names are picked from Leitende and Altleitende or typed for guests', async
   await expect(page.getByRole('list', { name: 'Protokoll' })).toHaveText('Anna Altleiterin');
 
   // Further people present: from the list, or typed by hand
-  const weitere = page.getByRole('combobox', { name: 'Weitere Person als anwesend eintragen' });
+  const weitere = page.getByRole('combobox', { name: 'Weitere Person' });
   await weitere.fill('Ingo');
   await expect(page.getByRole('option', { name: 'Ingo Inaktiv' })).toHaveCount(0);
   await weitere.fill('Otto');
@@ -570,7 +570,7 @@ test('the start can stay empty and leaving without an end keeps it empty', async
   await expect(page.getByLabel('Sitzungsende', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
   await frage.getByRole('button', { name: 'Nein, Ende leer lassen' }).click();
-  await expect(page.getByText('Gerade schreibt niemand.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
   await expect(
     page.getByRole('article', { name: 'Protokoll' }).locator('header')
   ).not.toContainText('Uhr');

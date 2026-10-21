@@ -64,20 +64,17 @@
 <section class="surface p-5 md:p-6" aria-labelledby="cleanup-heading">
   <h2 id="cleanup-heading" class="font-serif text-xl font-bold text-brand-900">Daten löschen</h2>
   <p class="mt-1 text-sm text-neutral-800">
-    Nach dem Nikolausdienst werden die Daten einen Kalendermonat nach dem letzten Besuch gelöscht
-    (Datenschutzerklärung).
     {#if data.cleanup.deleteBy}
-      Letzter Besuch: <strong>{formatDay(data.cleanup.lastVisit)}</strong>, löschen bis
-      <strong>{formatDay(data.cleanup.deleteBy)}</strong>.
+      Laut Datenschutzerklärung bis <strong>{formatDay(data.cleanup.deleteBy)}</strong> löschen (ein
+      Monat nach dem letzten Besuch am <strong>{formatDay(data.cleanup.lastVisit)}</strong>).
     {:else}
-      Es gibt noch keinen bestätigten Besuch.
+      Laut Datenschutzerklärung einen Monat nach dem letzten Besuch löschen; es gibt noch keinen
+      bestätigten Besuch.
     {/if}
-    Gelöscht wird endgültig; eine Wiederherstellung ist nur noch sieben Tage lang aus der Sicherung der
-    Datenbank möglich.
   </p>
 
   <ul class="mt-4 divide-y divide-neutral-200 border-y border-neutral-200">
-    {#each [{ scope: 'bookings', title: 'Anmeldungen', text: `${data.cleanup.bookings} Anmeldungen der Familien mit Adressen, ${data.cleanup.dispoVisits} geplante Besuche der Dispo und die gespeicherten Ortsangaben der Adresssuche.`, count: data.cleanup.bookings + data.cleanup.dispoVisits }, { scope: 'helpers', title: 'Helfende', text: `${data.cleanup.helpers} Helfende mit Verfügbarkeiten und Merkmalen, ${data.cleanup.assignments} Einträge der Einteilung.`, count: data.cleanup.helpers }] as item (item.scope)}
+    {#each [{ scope: 'bookings', title: 'Anmeldungen', text: `${data.cleanup.bookings} Anmeldungen, ${data.cleanup.dispoVisits} Besuche der Dispo`, count: data.cleanup.bookings + data.cleanup.dispoVisits }, { scope: 'helpers', title: 'Helfende', text: `${data.cleanup.helpers} Helfende, ${data.cleanup.assignments} Einträge der Einteilung`, count: data.cleanup.helpers }] as item (item.scope)}
       {@const scope = item.scope as NikolausCleanupScope}
       <li class="py-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -103,8 +100,7 @@
             aria-labelledby="delete-{scope}-warning"
           >
             <p id="delete-{scope}-warning" class="text-sm font-semibold text-danger">
-              Achtung: Das löscht {item.text.charAt(0).toLowerCase() + item.text.slice(1)} Das lässt sich
-              nicht rückgängig machen.
+              Endgültig – das lässt sich nicht rückgängig machen.
               {#if !data.cleanup.due}
                 Die Löschfrist ist noch nicht erreicht.
               {/if}

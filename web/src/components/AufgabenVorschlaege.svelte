@@ -23,6 +23,7 @@
   import AufgabenTaskDialog from './AufgabenTaskDialog.svelte';
   import AufgabenAktionen from './AufgabenAktionen.svelte';
   import ConfirmDialog from './ui/ConfirmDialog.svelte';
+  import InfoHint from './ui/InfoHint.svelte';
   let sourceId = $state('');
   let protocolSearch = $state('');
   let rejectTarget = $state<Task | null>(null);
@@ -103,11 +104,10 @@
       await loadTaskProtocols();
       if (sequence !== recognitionRequest) return;
       recognitionMessage = result.count
-        ? `${result.count} ${result.count === 1 ? 'neuer Vorschlag' : 'neue Vorschläge'} erkannt. Bitte Fundstellen, Zuständigkeit und Fristen prüfen.`
+        ? `${result.count} ${result.count === 1 ? 'neuer Vorschlag' : 'neue Vorschläge'} erkannt.`
         : 'Keine neuen Aufgabenvorschläge gefunden.';
       if (result.assignmentUnavailable)
-        recognitionMessage +=
-          ' Die Personenzuordnung ist nicht verfügbar; bitte Zuständigkeiten prüfen.';
+        recognitionMessage += ' Personen konnten nicht automatisch zugeordnet werden.';
     } catch (e) {
       if (sequence === recognitionRequest) recognitionError = taskProblem(e);
       await loadTaskProtocols();
@@ -158,19 +158,20 @@
       data-focus-fallback
       bind:this={focusHeading}
       tabindex="-1"
-      class="text-lg font-semibold"
+      class="inline text-lg font-semibold"
     >
       Aufgaben aus Protokollen
     </h2>
-    <p class="my-2 text-sm text-neutral-700">
-      Du kannst freigegebene oder archivierte Protokolle auswerten. Die automatische Erkennung
-      schlägt Aufgaben vor; ihr prüft und übernehmt die Aufgaben einzeln.
-    </p>
+    <InfoHint
+      label="Aufgaben aus Protokollen"
+      text="Nur freigegebene oder archivierte Protokolle. Die automatische Erkennung schlägt Aufgaben vor; ihr prüft und übernehmt sie einzeln."
+      class="ml-1"
+    />
     <StatusNotice kind="error" message={aufgabenStore.protocolError} />
     {#if aufgabenStore.protocolError}<ActionButton onclick={loadTaskProtocols}
         >Protokolle neu laden</ActionButton
       >{/if}
-    <FormField id="task-protocol-search" label="Protokoll suchen" optional>
+    <FormField id="task-protocol-search" label="Protokoll suchen" optional class="mt-3">
       {#snippet children(attrs)}<input
           {...attrs}
           type="search"
@@ -182,7 +183,7 @@
     <FormField id="task-protocol" label="Protokoll"
       >{#snippet children(attrs)}
         <select {...attrs} class="form-input" bind:value={sourceId} onchange={clearRecognition}
-          ><option value="">Bitte auswählen</option
+          ><option value="">Protokoll wählen …</option
           >{#each protocolOptions as protocol (protocol.id)}<option value={protocol.id}
               >{protocolLabel(protocol.date)} · {protocol.title
                 .replace(/^(?:\d{4}-\d{2}-\d{2}|YYYY-MM-DD)[_ -]+/, '')
@@ -191,19 +192,17 @@
         >
       {/snippet}</FormField
     >
-    {#if !data.extractionConfigured}<p class="my-2 text-sm">
-        Die automatische Erkennung ist nicht eingerichtet. Aufgaben können manuell angelegt werden.
+    {#if data.extractionConfigured}
+      <ActionButton
+        type="button"
+        class="mt-3"
+        onclick={recognize}
+        disabled={busy || !source}
+        aria-busy={busy}>{busy ? 'Wird verarbeitet …' : 'Aufgaben erkennen'}</ActionButton
+      >
+    {:else}<p class="mt-2 text-sm text-neutral-700">
+        Die automatische Erkennung ist nicht eingerichtet. Aufgaben kannst du selbst anlegen.
       </p>{/if}
-    {#if !source && data.extractionConfigured}<p class="mt-2 text-sm text-neutral-700">
-        Wähle zuerst ein Protokoll.
-      </p>{/if}
-    <ActionButton
-      type="button"
-      class="mt-3"
-      onclick={recognize}
-      disabled={busy || !source || !data?.extractionConfigured}
-      aria-busy={busy}>{busy ? 'Wird verarbeitet …' : 'Aufgaben erkennen'}</ActionButton
-    >
     <div role="status" aria-live="polite" aria-label="Erkennungsergebnis">
       {#if recognitionMessage || recognitionError}
         <div
@@ -273,5 +272,5 @@
     if (!actions.state.error) await closeReject();
   }}
 >
-  <p>„{rejectTarget?.title}“ ablehnen? Dieser Vorschlag wird nicht als Aufgabe übernommen.</p>
+  <p>Der Vorschlag wird nicht als Aufgabe übernommen.</p>
 </ConfirmDialog>

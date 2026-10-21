@@ -83,8 +83,7 @@
       {/if}
       {#each conflicts as conflict (conflict.name)}
         <p class="mt-1 font-semibold text-danger">
-          ⚠ {conflict.name} soll nicht zu Familien mit „{conflict.tags.join('“, „')}“ eingeteilt
-          werden.
+          ⚠ {conflict.name} – nicht zu Familien mit „{conflict.tags.join('“, „')}“
         </p>
       {/each}
       {#if booking.hidingPlace}
@@ -133,7 +132,6 @@
         </select>
         <PinToggle
           fixed={isFixed}
-          title="Festgehaltene Teams bleiben beim Neuberechnen erhalten"
           label={`für Familie ${booking.familyName}`}
           onclick={() => onpin()}
         />

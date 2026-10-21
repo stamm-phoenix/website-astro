@@ -2,6 +2,7 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import { isIch } from '../../lib/ichStore.svelte';
   import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
   import { loadPlzOrte, plzOrteStore } from '../../lib/plzOrte.svelte';
@@ -274,17 +275,12 @@
         </h2>
         <p class="mt-1 text-sm text-neutral-700" data-testid="tn-zusammenfassung">
           {counts.total} von {allPersons.length} Personen werden abgerechnet: {counts.teilnehmende}
-          Teilnehmende, {counts.betreuende} Betreuer*innen ({counts.ab27} ab {KJR_BETREUER_AGE}){zuschussfaehig
+          Teilnehmende, {counts.betreuende} Betreuer*innen{zuschussfaehig
             ? `, ${counts.subsidised} bezuschusst`
             : ''}.
         </p>
-        <p class="mt-1 text-sm text-neutral-700">
-          Ab {KJR_BETREUER_AGE} Jahren ist jede*r {zuschussfaehig ? 'für den KJR' : ''} Betreuer*in. Jüngere
-          Leitende lassen sich in der Spalte „Rolle“ als Betreuer*in eintragen.
-        </p>
         {#if zuschussfaehig}
           <p class="mt-1 text-sm text-neutral-700">
-            Die ausgefüllte KJR-Teilnahmeliste (Excel) mit dieser Liste gibt es in der Übersicht.
             <button
               type="button"
               class="font-semibold text-brand-900 underline hover:no-underline"
@@ -359,6 +355,13 @@
                   class="pt-4 pb-1 text-xs font-semibold text-brand-900"
                 >
                   {group.title} ({group.persons.length})
+                  {#if group.id === 'betreuer'}
+                    <InfoHint
+                      label="Betreuer*innen"
+                      text={`Ab ${KJR_BETREUER_AGE} Jahren zählt jede Person${zuschussfaehig ? ' für den KJR' : ''} als Betreuer*in. Jüngere Leitende wählst du unter „Rolle“ als Betreuer*in.`}
+                      class="ml-1"
+                    />
+                  {/if}
                 </th>
               </tr>
               {#each group.persons as person (person.id)}
@@ -423,10 +426,8 @@
                         session.plz[person.id] ??
                         originalPlz.get(person.id) ??
                         ''}
-                      placeholder="Unbekannt"
                       aria-label={`PLZ ${fullName(person)}`}
                       aria-invalid={plzInvalid(person.id)}
-                      title="Leer lassen für die Postleitzahl aus CampFlow"
                       oninput={(event) => setPlz(person, event.currentTarget.value)}
                       onblur={() => delete plzInputs[person.id]}
                     />
@@ -438,9 +439,7 @@
                   <td class="tn-rolle py-2 pr-2">
                     <span class="tn-label" aria-hidden="true">Rolle</span>
                     {#if isKjrBetreuerAge(person.age)}
-                      <span title={`Ab ${KJR_BETREUER_AGE} Jahren immer Betreuer*in`}
-                        >Betreuer*in</span
-                      >
+                      <span>Betreuer*in</span>
                     {:else}
                       <select
                         class="rounded-md border border-neutral-300 bg-surface px-2 py-1 text-sm focus:border-brand-900 focus:outline-none"
@@ -468,7 +467,7 @@
                 <tr>
                   <td colspan={columnCount} class="py-2 text-neutral-600">
                     {group.id === 'betreuer'
-                      ? `Noch keine Betreuer*innen. Jüngere Leitende über die Spalte „Rolle“ eintragen.`
+                      ? 'Noch keine Betreuer*innen.'
                       : 'Keine Teilnehmenden.'}
                   </td>
                 </tr>
@@ -485,8 +484,7 @@
       Person nachtragen
     </h2>
     <p class="mt-1 text-sm text-neutral-700">
-      Für Personen, die mit abgerechnet werden, aber nicht in CampFlow angemeldet sind. Sie zählen
-      in der Übersicht{zuschussfaehig ? ' und stehen in der KJR-Teilnahmeliste' : ''}.
+      Für Personen, die nicht in CampFlow angemeldet sind, aber mit abgerechnet werden.
     </p>
     <form
       class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_8rem_6rem_8rem_auto] lg:items-end"

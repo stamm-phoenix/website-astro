@@ -60,7 +60,12 @@
         >
       {/snippet}</FormField
     >
-    <FormField name="templateId" id="checklist-template" label="Vorlage" error={fields.templateId}
+    <FormField
+      name="templateId"
+      id="checklist-template"
+      label="Vorlage"
+      info="Wird je Projekt nur einmal angewendet."
+      error={fields.templateId}
       >{#snippet children(attrs)}<select
           {...attrs}
           class="form-input"
@@ -80,9 +85,5 @@
           onchange={(value) => (date = value)}
         />{/snippet}</FormField
     >
-    <p class="text-sm text-neutral-700">
-      Die Vorlage wird einmal je Projekt angewendet. Zuständigkeiten und Fristen kannst du danach in
-      den Aufgaben ändern.
-    </p>
   </div>
 </EditDialog>

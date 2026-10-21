@@ -88,12 +88,12 @@
     <FormField
       name="campflowId"
       id="project-event"
-      label="CampFlow-Aktion"
+      label="Aktion"
       optional
       error={fields.campflowId}
       >{#snippet children(attrs)}
         <select {...attrs} class="form-input" bind:value={campflowId} onchange={eventProject}
-          ><option value="">Eigenständiges Projekt</option
+          ><option value="">Ohne Aktion</option
           >{#if campflowId && !campflowEventsStore.data?.some((e) => e.id === campflowId)}<option
               value={campflowId}>Verknüpfte Aktion</option
             >{/if}{#each eventOptions as event (event.id)}<option value={event.id}

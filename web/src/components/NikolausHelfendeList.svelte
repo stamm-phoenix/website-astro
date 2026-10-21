@@ -12,6 +12,7 @@
   import FormField from './pflege/FormField.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import TagInput from './pflege/TagInput.svelte';
+  import InfoHint from './ui/InfoHint.svelte';
   import type { RescueField } from '../lib/geretteteEingaben';
 
   interface Props {
@@ -213,10 +214,7 @@
   {#if data.persons.length === 0}
     <p class="surface p-6 text-sm text-neutral-800">Noch niemand eingetragen.</p>
   {:else}
-    <p class="text-sm text-neutral-700 md:hidden">
-      Die Liste ist breiter als der Bildschirm. Wische seitlich, um alle Posten und „Bearbeiten“ zu
-      sehen.
-    </p>
+    <p class="text-sm text-neutral-700 md:hidden">Seitlich wischen ›</p>
     <div class="overflow-x-auto">
       <table class="w-full min-w-[40rem] text-left text-sm">
         <caption class="sr-only"
@@ -297,13 +295,17 @@
   {/if}
 
   <section aria-labelledby="helfende-coverage-heading" class="border-t border-neutral-200 pt-6">
-    <h2 id="helfende-coverage-heading" class="font-serif text-xl font-semibold text-brand-900">
+    <h2
+      id="helfende-coverage-heading"
+      class="inline font-serif text-xl font-semibold text-brand-900"
+    >
       Meldungen pro Tag und Posten
     </h2>
-    <p class="text-xs text-neutral-700">
-      Gebraucht wird pro Team je eine Person pro Posten. Wer sich für mehrere Posten meldet, zählt
-      bei jedem mit.
-    </p>
+    <InfoHint
+      label="Meldungen pro Tag und Posten"
+      text="Gebraucht wird pro Team eine Person pro Posten. Wer sich für mehrere Posten meldet, zählt bei jedem mit."
+      class="ml-1"
+    />
     <div class="mt-3 overflow-x-auto">
       <table class="w-full min-w-[32rem] text-left text-sm">
         <thead class="border-b-2 border-neutral-300 text-neutral-700">
@@ -375,13 +377,8 @@
     </FormField>
 
     <fieldset>
-      <legend class="form-label">Posten pro Tag</legend>
-      <p class="text-xs text-neutral-700">
-        Pro Tag übernimmt jede Person höchstens einen Posten. Mehrere Kreuze heißen „eines davon“.
-      </p>
-      <p class="mt-1 text-xs text-neutral-700 sm:hidden">
-        Wische seitlich, um alle Posten zu sehen.
-      </p>
+      <legend class="form-label">Kann übernehmen (pro Tag einen davon)</legend>
+      <p class="mt-1 text-xs text-neutral-700 sm:hidden">Seitlich wischen ›</p>
       {#if fieldErrors.availability}
         <p class="mt-1 text-sm text-danger">{fieldErrors.availability}</p>
       {/if}
@@ -423,7 +420,6 @@
       id="helper-positive-tags"
       label="Bevorzugt zu Familien mit"
       optional
-      hint="Wenn möglich zu Familien mit diesen Merkmalen einteilen, z. B. „Jupfis“."
       error={fieldErrors.positiveTags}
     >
       {#snippet children(attrs)}
@@ -431,6 +427,7 @@
           id={attrs.id}
           tags={form!.positiveTags}
           suggestions={data.tags}
+          placeholder="z. B. Jupfis"
           tone="positive"
           describedBy={attrs['aria-describedby']}
           invalid={!!fieldErrors.positiveTags}
@@ -443,7 +440,7 @@
       id="helper-negative-tags"
       label="Nicht zu Familien mit"
       optional
-      hint="Nicht zu Familien mit diesen Merkmalen einteilen, z. B. der eigenen Stufe. Wähle denselben Begriff wie bei der Familie."
+      hint="Gleicher Begriff wie bei der Familie, z. B. die eigene Stufe."
       error={fieldErrors.negativeTags}
     >
       {#snippet children(attrs)}
@@ -451,6 +448,7 @@
           id={attrs.id}
           tags={form!.negativeTags}
           suggestions={data.tags}
+          placeholder="z. B. Wölflinge"
           tone="negative"
           describedBy={attrs['aria-describedby']}
           invalid={!!fieldErrors.negativeTags}

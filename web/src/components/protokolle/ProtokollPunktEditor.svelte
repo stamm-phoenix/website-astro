@@ -101,24 +101,9 @@
     class="form-input text"
     rows="2"
     maxlength={MAX_TEXT}
-    placeholder="Was besprochen wurde … (Markdown: - Aufzählung, 1. Liste, **fett**)"
+    placeholder="Was besprochen wurde …"
     bind:value={punkt.text}
     {onkeydown}></textarea>
-  <details class="hilfe text-sm text-neutral-700">
-    <summary class="cursor-pointer">Formatierung</summary>
-    <ul class="mt-2 space-y-0.5">
-      <li><code>**fett**</code>, <code>*kursiv*</code>, <code>~~durchgestrichen~~</code></li>
-      <li><code>- Punkt</code> oder <code>1. Punkt</code>, eingerückt verschachtelt</li>
-      <li><code>- [ ] offen</code>, <code>- [x] erledigt</code></li>
-      <li><code>[Text](https://…)</code>, Adressen werden von selbst zu Links</li>
-      <li>
-        <code>## Zwischenüberschrift</code>, <code>&gt; Zitat</code>, <code>---</code> Linie
-      </li>
-      <li><code>| A | B |</code> mit <code>|---|---|</code> darunter für Tabellen</li>
-      <li><code>`Code`</code>, drei <code>```</code> für einen Codeblock</li>
-    </ul>
-    <p class="mt-1">Enter setzt eine Liste fort, Enter in einem leeren Punkt beendet sie.</p>
-  </details>
 {/snippet}
 
 <section
@@ -134,7 +119,6 @@
         id="griff-{punkt.id}"
         class="griff icon-button"
         aria-label="{label} verschieben. Ziehen oder Pfeiltasten: hoch und runter verschieben, rechts macht ihn zum Unterpunkt, links zum Hauptpunkt."
-        title="Ziehen zum Verschieben"
         onpointerdown={(event) => griff.down(event, punkt.id)}
         onkeydown={(event) => griff.key(event, punkt.id)}
       >
@@ -314,15 +298,6 @@
     resize: vertical;
     line-height: 1.55;
     overflow: hidden;
-  }
-  .hilfe summary {
-    width: fit-content;
-  }
-  .hilfe code {
-    font-size: 0.8125rem;
-    background: var(--color-neutral-100);
-    padding: 0 0.2rem;
-    border-radius: var(--radius-sm);
   }
   .icon-button {
     display: grid;

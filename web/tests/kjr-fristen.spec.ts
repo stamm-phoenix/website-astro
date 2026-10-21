@@ -70,7 +70,9 @@ test('the Abrechnung shows the KJR deadline of each Aktion', async ({ page }) =>
   );
   // Coming Aktionen already show when their Abrechnung will be due
   await page.goto('/leitendenbereich/abrechnung/evt_WoeHerbst');
-  await expect(page.getByTestId('kjr-frist')).toContainText('(3 Monate nach Ende)');
+  await expect(page.getByTestId('kjr-frist')).toHaveText(
+    /^Abgabe beim KJR bis \d{2}\.\d{2}\.\d{4}$/
+  );
 });
 
 test('a KJR deadline within two weeks is highlighted in the Abrechnung', async ({ page }) => {

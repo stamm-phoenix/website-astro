@@ -6,6 +6,7 @@
   import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
   import ProtokollEmpfaenger from './ProtokollEmpfaenger.svelte';
   import { ApiError, errorMessage, fetchFile, saveFile, sendApi } from '../../lib/api';
+  import { HELP_CONTACTS } from '../../lib/helpContacts';
   import {
     PROTOKOLL_STATUS,
     aufgabenAnzahl,
@@ -242,18 +243,6 @@
     </div>
   {/if}
 
-  {#if detail.status === 'entwurf'}
-    <p class="text-sm text-neutral-700">
-      Ist das Protokoll fertig, gib es zur Prüfung, wenn noch jemand drüberschauen soll, oder gib es
-      direkt frei. Nach der Freigabe liegt es als PDF im Protokoll-Ordner und lässt sich nicht mehr
-      ändern.
-    </p>
-  {:else if detail.status === 'review'}
-    <p class="text-sm text-neutral-700">
-      Wartet auf Prüfung. Alle Leitenden können es freigeben oder mit einem Hinweis zurückgeben.
-    </p>
-  {/if}
-
   {#if detail.versand?.state === 'attempted'}
     <p class="border-l-2 border-danger py-1 pl-4 text-sm text-danger">
       Der Versand wurde gestartet, aber nicht bestätigt. Bitte im Postfach des Absenders unter
@@ -261,7 +250,9 @@
     </p>
   {/if}
   {#if detail.status === 'freigegeben' && !detail.sendingConfigured}
-    <p class="text-sm text-neutral-700">Für den Versand ist noch kein Absender eingerichtet.</p>
+    <p class="text-sm text-neutral-700">
+      Verschicken ist hier noch nicht eingerichtet. Schreib an {HELP_CONTACTS.technik}.
+    </p>
   {/if}
 
   <div class="flex flex-wrap gap-2">
@@ -311,11 +302,6 @@
       </ActionButton>
     {/if}
   </div>
-  {#if draftPdf}
-    <p class="text-xs text-neutral-700">
-      Die Vorschau zeigt den zuletzt gespeicherten Stand, als Entwurf gekennzeichnet.
-    </p>
-  {/if}
 </section>
 
 <ProtokollFreigabeDialog
@@ -382,8 +368,7 @@
 >
   {#if sending}
     <p class="text-sm text-neutral-800">
-      „{detail.title}“ geht als PDF mit Link in Blindkopie an alle mit Häkchen. Dabei sind alle
-      Leitenden und alle mit dem Merkmal „Protokollempfang“ aus CampFlow.
+      „{detail.title}“ geht als PDF mit Link an alle mit Häkchen.
     </p>
     {#if sending.retry}
       <p class="text-sm text-danger">

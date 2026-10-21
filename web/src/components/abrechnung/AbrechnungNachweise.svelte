@@ -170,7 +170,7 @@
     pdfBusy = true;
     pdfError = null;
     pdfWarning = null;
-    pdfStatus = withReceipts ? 'Belege werden aus CampFlow geladen …' : 'PDF wird erstellt …';
+    pdfStatus = withReceipts ? 'Belege werden geladen …' : 'PDF wird erstellt …';
     try {
       const belege: PdfBeleg[] = withReceipts
         ? visible
@@ -185,7 +185,7 @@
           ? await leihgebuehrenPdfData(abrechnung, leihgebuehren)
           : undefined,
         onProgress: (done, total) => {
-          pdfStatus = `Belege werden aus CampFlow geladen: ${done} von ${total} …`;
+          pdfStatus = `Belege werden geladen: ${done} von ${total} …`;
         },
       });
       if (failed.length > 0) {
@@ -268,7 +268,7 @@
       }
     } catch (error: unknown) {
       if (load === bildLoad) {
-        bildError = `Der Beleg konnte nicht aus CampFlow geladen werden (${
+        bildError = `Der Beleg konnte nicht geladen werden (${
           error instanceof Error ? error.message : 'keine Verbindung'
         }). Prüfe deine Internetverbindung und öffne den Beleg noch einmal.`;
       }
@@ -339,15 +339,9 @@
 
 <section aria-labelledby="nachweise-titel" class="surface p-6">
   <div class="flex flex-wrap items-start justify-between gap-4">
-    <div>
-      <h2 id="nachweise-titel" class="font-serif text-lg font-semibold text-brand-900">
-        Einzelnachweise
-      </h2>
-      <p class="mt-1 text-sm text-neutral-700">
-        Alle Einnahmen und Ausgaben der Kostenstelle „{abrechnung.costUnit.name}“, wie in CampFlow
-        unter Kasse → Auswertungen → Einzelnachweise.
-      </p>
-    </div>
+    <h2 id="nachweise-titel" class="font-serif text-lg font-semibold text-brand-900">
+      Einzelnachweise
+    </h2>
     <div class="flex flex-wrap gap-2">
       <ActionButton
         variant="secondary"
@@ -367,16 +361,6 @@
       </ActionButton>
     </div>
   </div>
-  <p class="mt-3 text-xs text-neutral-600">
-    „Mit Belegen“ hängt an die Liste jeden Beleg auf einer eigenen DIN-A4-Seite an, mit den Angaben
-    zur Buchung oben und dem Bild darunter, zum Ausdrucken und Anheften des Originalbelegs. Das
-    Laden der Belege aus CampFlow dauert einige Sekunden pro Beleg.
-  </p>
-  <p class="mt-2 text-xs text-neutral-600">
-    Ein Klick auf die Beschreibung zeigt alle Angaben und das Bild des Belegs. Dort lässt sich der
-    Betrag für die Abrechnung ändern, z. B. wenn er in CampFlow falsch gebucht ist; die Änderung
-    gilt nur für diese Abrechnung auf diesem Gerät und ändert nichts in CampFlow.
-  </p>
   {#if changedCount > 0}
     <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
       <StatusLabel
@@ -532,7 +516,7 @@
           ? 'Betrag der Ausgabe'
           : 'Betrag der Einnahme'}
         error={amountError ?? undefined}
-        hint={`In CampFlow ${formatEuro(campflowCent(selected))}. Die Änderung gilt nur für diese Abrechnung auf diesem Gerät und ändert nichts in CampFlow.`}
+        info="Gilt nur für diese Abrechnung auf diesem Gerät und ändert nichts in CampFlow."
       >
         {#snippet children(attrs)}
           <div class="relative mt-1 max-w-48">
@@ -560,13 +544,7 @@
             Beleg{seitenTotal > 1 ? ` (${seitenTotal} Seiten)` : ''}
           </h3>
           {#each seiten as seite, index (seite.url)}
-            <a
-              href={seite.url}
-              target="_blank"
-              rel="noopener"
-              class="mt-2 block"
-              title="In neuem Tab vergrößern"
-            >
+            <a href={seite.url} target="_blank" rel="noopener" class="mt-2 block">
               <img
                 src={seite.url}
                 width={seite.width}
@@ -580,9 +558,7 @@
             <p class="mt-2 text-sm text-danger"><MessageText text={bildError} /></p>
           {:else if seitenTotal === 0 || seiten.length < seitenTotal}
             <div role="status" aria-live="polite" class="mt-2">
-              <p class="text-sm text-neutral-700">
-                Der Beleg wird aus CampFlow geladen. Das dauert einige Sekunden …
-              </p>
+              <p class="text-sm text-neutral-700">Der Beleg wird geladen …</p>
               <div class="skeleton-element mt-2 h-48 w-full rounded"></div>
             </div>
           {/if}

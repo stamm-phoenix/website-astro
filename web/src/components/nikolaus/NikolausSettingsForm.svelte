@@ -2,6 +2,7 @@
   import { formatDateTime } from '../../lib/format';
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
 
   import FormField from '../pflege/FormField.svelte';
 
@@ -154,7 +155,7 @@
       onnotice(
         onlySwitches
           ? 'Gespeichert. Die Änderung gilt ab sofort.'
-          : 'Gespeichert. Änderungen an Anmeldung, Tagen und Gebiet erscheinen auf den öffentlichen Seiten nach dem Neubau in etwa 5 bis 10 Minuten.',
+          : 'Gespeichert. Änderungen an Anmeldung, Tagen und Gebiet sind auf den öffentlichen Seiten in etwa 5 bis 10 Minuten sichtbar.',
         'success'
       );
     } catch (error: unknown) {
@@ -233,8 +234,7 @@
             <span>
               <span class="font-semibold text-brand-900">Online-Anmeldung aktiv</span>
               <span class="block text-sm text-neutral-700">
-                Zeigt „Nikolaus“ im Menü, den Banner auf der Startseite und das Formular auf
-                /nikolaus. Familien können dann buchen und umbuchen.
+                Familien können auf der Website buchen und umbuchen.
               </span>
             </span>
           </label>
@@ -243,8 +243,7 @@
             <span>
               <span class="font-semibold text-brand-900">Nikolausverwaltung aktiv</span>
               <span class="block text-sm text-neutral-700">
-                Zeigt die Module Anmeldungen, Dispo, Route und Helfende im Leitendenbereich. Aus:
-                Nur diese Steuerung bleibt erreichbar.
+                Zeigt die Nikolaus-Module im Leitendenbereich.
               </span>
             </span>
           </label>
@@ -253,21 +252,16 @@
             <span>
               <span class="font-semibold text-brand-900">Wartungsmodus</span>
               <span class="block text-sm text-neutral-700">
-                Stoppt sofort alle Änderungen an Nikolaus-Daten, von Familien wie im
-                Leitendenbereich. Lesen bleibt möglich. Nur für Störungen.
+                Sperrt alle Änderungen (Familien und Leitende). Nur bei Störungen.
               </span>
             </span>
           </label>
         </div>
         {#if !form.staffActive && data.settings.staffActive}
           <p class="mt-4 text-sm text-warning">
-            Noch nicht gespeichert: Nach dem Speichern verschwinden Anmeldungen, Dispo, Route und
-            Helfende für alle.
+            Nach dem Speichern verschwinden Anmeldungen, Dispo, Route und Helfende für alle.
           </p>
         {/if}
-        {#if dirty}<p class="mt-3 text-sm font-semibold text-warning" role="status">
-            Noch nicht gespeichert. Tippe unten auf „Einstellungen speichern“.
-          </p>{/if}
         {#if form.maintenance && !data.settings.maintenance}
           <p class="mt-4 border-l-2 border-warning py-1 pl-3 text-sm text-warning">
             Nach dem Speichern werden alle Änderungen abgelehnt, bis der Wartungsmodus wieder aus
@@ -277,12 +271,14 @@
       </section>
 
       <section class="surface p-5 md:p-6" aria-labelledby="days-heading">
-        <h2 id="days-heading" class="font-serif text-xl font-bold text-brand-900">Besuchstage</h2>
-        <p class="mt-1 text-sm text-neutral-700">
-          Pro Tag Beginn des ersten und Ende des letzten Termins. Termine dauern
-          {NIKOLAUS_SLOT_MINUTES} Minuten; die Zahl der Teams ist die Zahl der Buchungen pro Termin. Die
-          Online-Buchung eines Tages schließt um Mitternacht davor.
-        </p>
+        <h2 id="days-heading" class="inline font-serif text-xl font-bold text-brand-900">
+          Besuchstage
+        </h2>
+        <InfoHint
+          label="Besuchstage"
+          text="Termine dauern {NIKOLAUS_SLOT_MINUTES} Minuten. Die Online-Buchung eines Tages schließt um Mitternacht davor."
+          class="ml-1"
+        />
         {#if errors.days}
           <p class="mt-2 text-sm text-danger">{errors.days}</p>
         {/if}
@@ -296,7 +292,11 @@
                   <input {...attrs} type="date" class="form-input" bind:value={day.date} required />
                 {/snippet}
               </FormField>
-              <FormField id="day-{day.key}-start" label="Von" error={dayError(day, 'start')}>
+              <FormField
+                id="day-{day.key}-start"
+                label="Erster Termin ab"
+                error={dayError(day, 'start')}
+              >
                 {#snippet children(attrs)}
                   <input
                     {...attrs}
@@ -308,7 +308,11 @@
                   />
                 {/snippet}
               </FormField>
-              <FormField id="day-{day.key}-end" label="Bis" error={dayError(day, 'end')}>
+              <FormField
+                id="day-{day.key}-end"
+                label="Letzter Termin bis"
+                error={dayError(day, 'end')}
+              >
                 {#snippet children(attrs)}
                   <input
                     {...attrs}
@@ -320,7 +324,11 @@
                   />
                 {/snippet}
               </FormField>
-              <FormField id="day-{day.key}-teams" label="Teams" error={dayError(day, 'teams')}>
+              <FormField
+                id="day-{day.key}-teams"
+                label="Teams (Buchungen pro Termin)"
+                error={dayError(day, 'teams')}
+              >
                 {#snippet children(attrs)}
                   <select {...attrs} class="form-input" bind:value={day.teams}>
                     {#each NIKOLAUS_TEAMS.map((_, index) => index + 1) as count (count)}
@@ -358,7 +366,7 @@
           <FormField
             id="pendingHoldMinutes"
             label="Reservierungsdauer (Minuten)"
-            hint="So lange hält eine unbestätigte Anmeldung ihren Termin frei."
+            info="So lange hält eine unbestätigte Anmeldung ihren Termin frei."
             error={errors.pendingHoldMinutes}
           >
             {#snippet children(attrs)}
@@ -375,7 +383,7 @@
           <FormField
             id="changeDeadlineHours"
             label="Änderungsfrist (Stunden vor dem Termin)"
-            hint="Bis dahin können Familien selbst ändern, umbuchen oder absagen."
+            info="Bis dahin können Familien selbst ändern, umbuchen oder absagen."
             error={errors.changeDeadlineHours}
           >
             {#snippet children(attrs)}
@@ -441,18 +449,24 @@
           <FormField
             id="postalCodes"
             label="Postleitzahlen"
-            hint="Durch Komma getrennt. Bei anderen Postleitzahlen sehen Familien einen Hinweis."
+            info="Bei anderen Postleitzahlen sehen Familien einen Hinweis."
             error={errors['area.servicePostalCodes']}
             class="md:col-span-2"
           >
             {#snippet children(attrs)}
-              <input {...attrs} type="text" class="form-input" bind:value={form!.postalCodes} />
+              <input
+                {...attrs}
+                type="text"
+                class="form-input"
+                placeholder="z. B. 81541, 81543"
+                bind:value={form!.postalCodes}
+              />
             {/snippet}
           </FormField>
           <FormField
             id="farDistanceKm"
             label="Weit entfernt ab (km)"
-            hint="Ab dieser Luftlinie kann der Besuch später und kürzer sein."
+            info="Ab dieser Luftlinie kann der Besuch später und kürzer sein."
             error={errors['area.farDistanceKm']}
           >
             {#snippet children(attrs)}
@@ -473,10 +487,7 @@
           Kontakt am Besuchstag
         </h2>
         <p class="mt-1 text-sm text-neutral-700">
-          Eine Person für alle Termine, die Familien nur im Notfall anrufen, z. B. wenn sie doch
-          nicht zu Hause sind; sonst schreiben sie über das Kontaktformular. Familien sehen Name und
-          Nummer erst zwei Stunden vor ihrem Termin auf ihrer Terminseite. Leer lassen, wenn niemand
-          angezeigt werden soll.
+          Notfallnummer für Familien am Besuchstag; sie sehen sie ab zwei Stunden vor ihrem Termin.
         </p>
         <div class="mt-4 grid gap-5 md:grid-cols-2">
           <FormField id="contactName" label="Name" optional error={errors['dayContact.name']}>

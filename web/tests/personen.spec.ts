@@ -27,7 +27,8 @@ test('leaders are linked to CampFlow and find themselves in an Aktion', async ({
   await eigener.getByLabel('Person in CampFlow').fill('muster');
   await eigener.getByLabel('Person in CampFlow').press('Enter');
   await expect(eigener).toBeVisible();
-  await expect(eigener.getByText('Tippe auf die richtige Person.')).toBeVisible();
+  // Several matches stay to be tapped
+  expect(await eigener.getByRole('listitem').count()).toBeGreaterThan(1);
   // A single match is picked, and the focus stays in the dialog
   await eigener.getByLabel('Person in CampFlow').fill('paula');
   await eigener.getByLabel('Person in CampFlow').press('Enter');

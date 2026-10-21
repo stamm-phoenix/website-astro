@@ -150,7 +150,7 @@ export function farbHinweis(optionen: QrOptionen): string | null {
     return 'Der Code ist heller als der Hintergrund. Viele Scanner lesen nur dunkle Codes auf hellem Grund.';
   }
   if (kontrast(optionen.vordergrund, hintergrund) < 4) {
-    return 'Der Kontrast ist gering. Der Code lässt sich damit eventuell nicht zuverlässig scannen.';
+    return 'Geringer Kontrast – der Code wird eventuell nicht erkannt.';
   }
   return null;
 }

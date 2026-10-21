@@ -501,18 +501,12 @@ test('empty Kanban columns show an appropriate next step and administration link
     .getByRole('group', { name: 'Darstellung', exact: true })
     .getByRole('button', { name: 'Kanban', exact: true })
     .click();
-  await expect(
-    page.getByText('Noch keine offenen Aufgaben. Lege eine Aufgabe an.', { exact: true })
-  ).toBeVisible();
+  await expect(page.getByText('Keine offenen Aufgaben.', { exact: true })).toBeVisible();
   await taskStatus(page, 'Erledigt');
-  await expect(
-    page.getByText('Noch nichts erledigt. Markiere fertige Aufgaben als erledigt.', { exact: true })
-  ).toBeVisible();
+  await expect(page.getByText('Noch nichts erledigt.', { exact: true })).toBeVisible();
   await taskFilters(page);
   await page.getByLabel('Nur mir zugewiesen', { exact: true }).check();
-  await expect(
-    page.getByText('Keine passenden Aufgaben. Passe die Filter an.', { exact: true })
-  ).toBeVisible();
+  await expect(page.getByText('Keine passenden Aufgaben.', { exact: true })).toBeVisible();
   const navigation = page.getByRole('navigation', { name: 'Planung und Verwaltung', exact: true });
   await expect(navigation.getByRole('link', { name: /^Projekte/ })).toHaveAccessibleName(
     /^Projekte\s*, 1 Projekt\. Vorhaben und ihre Aufgaben verwalten$/

@@ -257,9 +257,6 @@
           <h2 id="nikolaus-problems-heading" class="font-semibold text-danger">
             <span aria-hidden="true">⚠</span> Termine, die geklärt werden müssen
           </h2>
-          <p class="mt-1 text-neutral-800">
-            Bitte mit den Familien Kontakt aufnehmen und Buchungen auf einen freien Termin verlegen.
-          </p>
           <ul class="mt-3 space-y-3">
             {#each overbooked as entry (entry.slot.key)}
               <li>
@@ -313,10 +310,6 @@
       </div>
 
       {#if view === 'matrix'}
-        <p class="text-sm text-neutral-700">
-          Tipp: Ziehe eine Buchung auf einen freien Platz, um sie zu verlegen. Du kannst die Buchung
-          auch öffnen und „Termin verlegen“ wählen.
-        </p>
         <NikolausAdminMatrix
           slots={data.slots}
           bookings={data.bookings}

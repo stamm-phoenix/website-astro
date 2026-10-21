@@ -90,11 +90,13 @@
     }
   }
 
-  /** Formats fetched catalog prices as euros and distinguishes missing prices from loading. */
+  /** Labels a price as list or indicative price and distinguishes missing prices from loading. */
   function catalogPrice(reference: string): string {
     const key = reference.trim();
-    const price = getSammelStammProdukt(key)?.unitPriceCents ?? catalogPrices[key];
-    if (typeof price === 'number') return formatEuro(price);
+    const stock = getSammelStammProdukt(key);
+    const price = stock?.unitPriceCents ?? catalogPrices[key];
+    if (typeof price === 'number')
+      return `${stock ? 'Listenpreis' : 'Richtpreis'} ${formatEuro(price)}`;
     return pricesLoading && !Object.hasOwn(catalogPrices, key)
       ? 'Preis wird geladen …'
       : 'Preis nicht verfügbar';
@@ -176,12 +178,6 @@
       </button>
     </h2>
     {#if popularOpen}<div id="popular-content">
-        <p class="mt-1 text-sm text-neutral-700">
-          Artikel auswählen und die passende Größe oder Variante unten eintragen.
-        </p>
-        <p class="mt-1 text-xs text-neutral-700">
-          Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis. Ohne Versand.
-        </p>
         <ul class="mt-4 grid border-b border-neutral-200 md:grid-cols-2 md:gap-x-10">
           {#each catalog as article (article)}
             {@const image = getSammelProductImage(article.reference)}
@@ -208,11 +204,9 @@
                 >
                   {catalogPrice(article.reference)}
                 </p>
-                {#if stock}<p class="mt-1 text-sm text-neutral-700">Vom Stamm Phoenix</p>
-                  {#if stock.limited}<p class="mt-1 text-sm text-neutral-700">
-                      Begrenzte Auflage. Verfügbarkeit prüft das Team.
-                    </p>{/if}
-                {/if}
+                {#if stock}<p class="mt-1 text-sm text-neutral-700">
+                    Vom Stamm Phoenix{stock.limited ? ' · Begrenzte Auflage' : ''}
+                  </p>{/if}
                 {#if article.variants.length}<p class="mt-1 text-sm text-neutral-700">
                     {article.variants.join(' · ')}
                   </p>{/if}
@@ -256,12 +250,9 @@
       {/each}
     </div>
   </div>
-  <p class="mt-2 text-sm text-neutral-700">
-    Stammesartikel wählst du oben aus. Weitere Artikel kannst du von Rüsthaus und Ausrüster Eschwege
-    angeben. Preise und Verfügbarkeit prüft das Team vor der Sammelbestellung.
-  </p>
+  <p class="mt-2 text-sm text-neutral-700">Preise und Verfügbarkeit prüft das Team.</p>
   {#if !items.length}<p class="mt-4 border-t border-neutral-200 pt-4 text-neutral-700">
-      Wähle einen häufigen Artikel oder füge einen anderen Artikel hinzu.
+      Noch keine Artikel.
     </p>{/if}
   <div class="mt-4 border-b border-neutral-200">
     {#each items as item, index (item)}
@@ -344,9 +335,7 @@
           </FormField>
         </div>
         {#if stock}<p class="mt-3 text-sm text-neutral-700">
-            Listenpreis: {catalogPrice(item.reference)} pro Stück. {stock.limited
-              ? 'Begrenzte Auflage. '
-              : ''}Verfügbarkeit prüft das Team.
+            {catalogPrice(item.reference)}{stock.limited ? ' · Begrenzte Auflage' : ''}
           </p>{/if}
         <ShopProductLookup
           reference={item.reference}

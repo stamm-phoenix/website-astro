@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatClock } from '../../lib/format';
+  import { formatClock, formatDateTime, isToday } from '../../lib/format';
   import type { Snippet } from 'svelte';
   import type { HTMLButtonAttributes } from 'svelte/elements';
 
@@ -14,7 +14,14 @@
     type = 'button',
     ...attributes
   }: Props = $props();
-  const time = $derived(loadedAt === null ? null : formatClock(loadedAt));
+  /** Only the clock for today's loads; an older stand, e.g. an export, keeps its date. */
+  const time = $derived(
+    loadedAt === null
+      ? null
+      : isToday(loadedAt)
+        ? formatClock(loadedAt)
+        : formatDateTime(new Date(loadedAt))
+  );
 </script>
 
 <span class="inline-flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">

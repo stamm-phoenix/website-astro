@@ -189,10 +189,6 @@
       {#if store.data?.items.length === 0}
         <div class="border-t border-neutral-200 pt-5">
           <h2 class="font-serif text-xl text-brand-900">Noch keine Fragen angelegt</h2>
-          <p class="mt-2 text-sm text-neutral-700">
-            Lege die erste Frage als Entwurf an und veröffentliche sie, sobald die Antwort fertig
-            ist.
-          </p>
         </div>
       {:else}
         <div class="border-t border-neutral-200 pt-5" role="status">
@@ -263,19 +259,23 @@
   deleteQuestion="Die Frage und ihre Antwort endgültig löschen?"
 >
   {#if form}
-    <p class="text-sm text-neutral-700">
-      Nur veröffentlichte Fragen und Antworten sind in der öffentlichen FAQ sichtbar.
-    </p>
     <fieldset disabled={busy} class="min-w-0 space-y-4">
       <legend class="sr-only">Frage und Antwort</legend>
-      <FormField id="faq-published" label="Status" error={errors.published}>
-        {#snippet children(attrs)}
-          <label class="flex items-center gap-2 text-sm font-semibold text-neutral-800">
-            <input {...attrs} type="checkbox" bind:checked={form!.published} />
-            Veröffentlicht (auf der Website sichtbar)
-          </label>
-        {/snippet}
-      </FormField>
+      <div class="form-field">
+        <label class="flex items-center gap-2 text-sm font-semibold text-neutral-800">
+          <input
+            id="faq-published"
+            type="checkbox"
+            aria-invalid={errors.published ? 'true' : undefined}
+            aria-describedby={errors.published ? 'faq-published-error' : undefined}
+            bind:checked={form!.published}
+          />
+          Auf der Website veröffentlichen
+        </label>
+        {#if errors.published}
+          <p id="faq-published-error" class="mt-1 text-sm text-danger">{errors.published}</p>
+        {/if}
+      </div>
       <FormField id="faq-question" label="Frage" error={errors.question}>
         {#snippet children(attrs)}<textarea
             {...attrs}
@@ -288,9 +288,6 @@
         id="faq-category"
         label="Thema"
         optional={store.data?.allowCustomCategories}
-        hint={store.data?.allowCustomCategories
-          ? 'Wähle ein vorhandenes Thema oder gib ein neues ein. Ohne Thema wird die Frage unter „Allgemein“ angezeigt.'
-          : 'Wähle eines der vorhandenen Themen.'}
         error={errors.category}
       >
         {#snippet children(attrs)}
@@ -300,6 +297,7 @@
               class="form-input"
               list="faq-categories"
               maxlength="100"
+              placeholder="Allgemein"
               bind:value={form!.category}
             />
           {:else}
@@ -317,13 +315,7 @@
           ></option>{/each}</datalist
       >
       <div inert={busy}>
-        <FormField
-          id="faq-answer"
-          label="Antwort"
-          labelAs="span"
-          error={errors.answer}
-          hint="Bis zu 5000 Zeichen. Fett, kursiv, Listen und Links sind möglich. Für Entwürfe kann die Antwort noch leer bleiben."
-        >
+        <FormField id="faq-answer" label="Antwort" labelAs="span" error={errors.answer}>
           {#snippet children(attrs)}
             <LazyTextEditor
               format="html"

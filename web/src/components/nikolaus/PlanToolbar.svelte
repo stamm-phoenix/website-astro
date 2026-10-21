@@ -1,6 +1,7 @@
 <script lang="ts">
   import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   interface Props {
     recalculateDisabled?: boolean;
     printDisabled?: boolean;
@@ -9,7 +10,8 @@
     saveDisabled: boolean;
     saving: boolean;
     calculating?: boolean;
-    title: string;
+    /** Paragraphs of the „(i)“ next to „Neu berechnen“: what it does and what stays. */
+    info: string[];
     onrecalculate: () => void;
     onreload: () => void;
     onsave: () => void;
@@ -23,7 +25,7 @@
     saveDisabled,
     saving,
     calculating = false,
-    title,
+    info,
     onrecalculate,
     onreload,
     onsave,
@@ -31,7 +33,7 @@
   }: Props = $props();
 </script>
 
-<div class="flex flex-wrap gap-2 {className}">
+<div class="flex flex-wrap items-center gap-2 {className}">
   <ActionButton variant="primary" type="button" disabled={saveDisabled} onclick={onsave}
     >{saving ? 'Speichert …' : 'Speichern'}</ActionButton
   >
@@ -39,9 +41,13 @@
     variant="secondary"
     type="button"
     disabled={recalculateDisabled}
-    onclick={onrecalculate}
-    {title}>{calculating ? 'Berechne …' : 'Neu berechnen'}</ActionButton
+    onclick={onrecalculate}>{calculating ? 'Berechne …' : 'Neu berechnen'}</ActionButton
   >
+  <InfoHint label="Neu berechnen">
+    {#each info as paragraph (paragraph)}
+      <p>{paragraph}</p>
+    {/each}
+  </InfoHint>
   <ActionButton
     variant="secondary"
     type="button"

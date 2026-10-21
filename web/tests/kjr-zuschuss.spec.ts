@@ -20,13 +20,13 @@ test('an Aktion without KJR grant leaves the deadlines and is marked in the list
   const schalter = page.getByTestId('kjr-zuschuss-schalter');
   const checkbox = schalter.getByRole('checkbox', { name: 'KJR-Zuschuss beantragen' });
   await expect(checkbox).toBeChecked();
-  await expect(schalter).toContainText('Ja. Die Aktion steht in den KJR-Fristen');
+  await expect(schalter).toContainText('Steht in den KJR-Fristen.');
 
   await checkbox.uncheck();
   await expect(schalter).toContainText(
     'Gespeichert: Für „Stammesversammlung“ wird kein KJR-Zuschuss beantragt.'
   );
-  await expect(schalter).toContainText('Nein. Keine KJR-Frist');
+  await expect(schalter).toContainText('Keine KJR-Frist.');
   await expect(checkbox).not.toBeChecked();
 
   await page.goto('/leitendenbereich');
@@ -67,7 +67,7 @@ test('the Abrechnung of an Aktion without KJR grant shows income and expenses on
   await expect(page.getByRole('heading', { name: 'Teilnahmeliste für den KJR' })).toBeVisible();
 
   await page.getByRole('checkbox', { name: 'KJR-Zuschuss beantragen' }).uncheck();
-  await expect(page.getByTestId('ohne-kjr-zuschuss')).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'KJR-Zuschuss beantragen' })).not.toBeChecked();
   await expect(page.getByTestId('kjr-frist')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'KJR-Zuschuss', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Teilnahmeliste für den KJR' })).toHaveCount(0);
@@ -84,7 +84,8 @@ test('the Abrechnung of an Aktion without KJR grant shows income and expenses on
   // Without grant the final result is income − expenses
   await page.getByRole('tab', { name: /Leihgebühren/ }).click();
   await expect(page.getByTestId('leihgebuehren-endergebnis')).toHaveText((ergebnis ?? '').trim());
-  await expect(page.getByText('Tagen der Aktion vorbelegt')).toBeVisible();
+  await page.getByRole('button', { name: 'Erklärung zu Tage' }).click();
+  await expect(page.getByText(/Vorbelegt mit den \d+ Tagen der Aktion/)).toBeVisible();
 
   // The API refuses the KJR list as well
   const response = await page.request.post('/api/intern/abrechnung/evt_Sola26/kjr-liste', {

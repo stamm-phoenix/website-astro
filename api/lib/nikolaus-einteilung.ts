@@ -94,11 +94,10 @@ export interface EinteilungProblem {
 }
 
 export const OPEN_REASON_LABELS: Record<OpenReason, string> = {
-  NOBODY: 'Niemand hat sich für diesen Posten gemeldet.',
-  ALL_BUSY: 'Alle, die sich gemeldet haben, sind an dem Tag schon eingeteilt.',
-  ONLY_TAG_CONFLICTS:
-    'Die noch verfügbaren Personen sollen nicht zu den Familien in diesem Team eingeteilt werden.',
-  UNFILLED: 'Noch nicht besetzt, es sind aber Leute frei: Person wählen oder „Neu berechnen“.',
+  NOBODY: 'Niemand gemeldet.',
+  ALL_BUSY: 'Alle Gemeldeten sind an dem Tag schon eingeteilt.',
+  ONLY_TAG_CONFLICTS: 'Die freien Gemeldeten passen nicht zu den Familien dieses Teams (Merkmale).',
+  UNFILLED: 'Noch offen, es sind aber Leute frei.',
 };
 
 /** Normalises a tag for comparisons: trimmed, lower case, single spaces. */

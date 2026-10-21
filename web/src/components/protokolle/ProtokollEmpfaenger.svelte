@@ -76,12 +76,8 @@
 
 <div class="space-y-4">
   <fieldset class="space-y-2" {disabled}>
-    <legend class="form-label">Aus CampFlow ({selected} von {list.length} ausgewählt)</legend>
-    <p class="text-xs text-neutral-700">
-      Nimm das Häkchen raus, wenn jemand das Protokoll diesmal nicht bekommen soll. Das gilt nur für
-      diesen Versand, in CampFlow ändert sich nichts. Die Liste ist nach Namen sortiert, scroll
-      darin, um alle zu sehen.
-    </p>
+    <legend class="form-label">Empfänger*innen ({selected} von {list.length})</legend>
+    <p class="text-xs text-neutral-700">Gilt nur für diesen Versand.</p>
     {#if list.length === 0}
       <p class="text-sm text-danger">
         In CampFlow wurden keine Leitenden und niemand mit dem Merkmal „Protokollempfang“ mit E-Mail
@@ -122,13 +118,7 @@
   </fieldset>
 
   <div class="space-y-2">
-    <FormField
-      id="protokoll-extra"
-      label="Weitere E-Mail-Adresse"
-      optional
-      hint="Nur für diesen Versand. Die Website speichert die Adresse nicht, die Mail liegt danach im Postfach des Absenders."
-      error={extraError}
-    >
+    <FormField id="protokoll-extra" label="Weitere E-Mail-Adresse" optional error={extraError}>
       {#snippet children(field)}
         <div class="flex flex-wrap gap-2">
           <input
@@ -158,10 +148,7 @@
           <li
             class="flex min-h-11 items-center justify-between gap-3 border-t border-neutral-200 px-3 py-1 first:border-t-0"
           >
-            <span class="min-w-0 text-sm break-all text-neutral-900">
-              {address}
-              <span class="block text-xs text-neutral-700">Von Hand eingetragen</span>
-            </span>
+            <span class="min-w-0 text-sm break-all text-neutral-900">{address}</span>
             <ActionButton
               {disabled}
               aria-label={`${address} entfernen`}

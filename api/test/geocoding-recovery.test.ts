@@ -33,7 +33,7 @@ dbTest(
     await state.seed(KEY, RESERVATION);
     const version = await stateVersion();
     const status = await readGeocodingReservationStatus();
-    assert.deepEqual(status, { owner: 'geo-owner', startedAt: 1000 });
+    assert.deepEqual(status, { owner: 'geo-owner', startedAt: 1000, stuckInMs: 0 });
     assert.equal(JSON.stringify(status).includes('private'), false);
     assert.equal(await stateVersion(), version);
   }
@@ -89,6 +89,24 @@ dbTest(
       recoverStoppedGeocodingReservation('geo-owner', { confirmedStopped: true }),
       (error: unknown) =>
         error instanceof GeocodingRecoveryError && error.code === 'GEOCODING_OWNER_MISMATCH'
+    );
+    assert.equal(await stateVersion(), version);
+  }
+);
+
+dbTest(
+  'a search that runs less than ten minutes cannot be released, whatever the device clock says',
+  async (t) => {
+    const state = setupSharedState(t);
+    const startedAt = Date.now() - 60_000;
+    await state.seed(KEY, { ...RESERVATION, lease: { ...RESERVATION.lease, startedAt } });
+    const status = await readGeocodingReservationStatus();
+    assert.ok(status.stuckInMs !== null && status.stuckInMs > 8 * 60_000);
+    const version = await stateVersion();
+    await assert.rejects(
+      recoverStoppedGeocodingReservation('geo-owner', { confirmedStopped: true }),
+      (error: unknown) =>
+        error instanceof GeocodingRecoveryError && error.code === 'GEOCODING_STILL_RUNNING'
     );
     assert.equal(await stateVersion(), version);
   }

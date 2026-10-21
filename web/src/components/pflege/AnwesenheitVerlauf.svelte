@@ -206,9 +206,7 @@
         <summary class="min-h-11 cursor-pointer py-3 text-sm font-semibold text-link"
           >Zahlen pro Monat als Tabelle</summary
         >
-        {#if wideTable}<p class="text-xs text-neutral-700">
-            Die Tabelle ist breiter als der Bildschirm. Wische seitlich, um alle Zahlen zu sehen.
-          </p>{/if}
+        {#if wideTable}<p class="text-xs text-neutral-700">Seitlich wischen ›</p>{/if}
         <div class="overflow-x-auto" use:watchTable>
           <table class="w-full text-left text-sm whitespace-nowrap">
             <thead class="border-b border-neutral-300 text-neutral-700">
@@ -248,10 +246,6 @@
 
     <div class="space-y-3">
       <h3 class="font-semibold text-brand-900">Gruppenstunden</h3>
-      <p class="text-sm text-neutral-700">
-        Tippe auf eine Gruppenstunde, um zu sehen, wer da war, oder um sie zu bearbeiten oder zu
-        löschen.
-      </p>
       <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
         {#each rows as meeting (meeting.date)}
           <!-- The opened details may be newer than the list, e.g. after a conflict -->
@@ -312,8 +306,11 @@
                       {/if}
                       {#if termin.anonymized || termin.anonymizedExcused || termin.anonymizedGuests}
                         <p class="text-neutral-700">
-                          Namen wurden nach Ablauf der Aufbewahrungsfrist entfernt. Erhalten sind
-                          die Zahlen: {plural(termin.anonymized, 'Kind', 'Kinder')} da,
+                          Ohne Namen (nach zwölf Monaten gelöscht): {plural(
+                            termin.anonymized,
+                            'Kind',
+                            'Kinder'
+                          )} da,
                           {termin.anonymizedExcused} entschuldigt und {plural(
                             termin.anonymizedGuests,
                             'Gast',

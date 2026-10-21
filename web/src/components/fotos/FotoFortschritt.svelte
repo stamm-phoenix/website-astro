@@ -63,7 +63,7 @@
   });
   const finishedText = $derived(
     count.done === 0 && count.skipped > 0 && count.failed === 0
-      ? `${count.skipped === 1 ? 'Die Datei war' : `Alle ${count.skipped} Dateien waren`} schon in der Ablage. Es wurde nichts doppelt hochgeladen.`
+      ? `${count.skipped === 1 ? 'Die Datei war' : `Alle ${count.skipped} Dateien waren`} schon in der Ablage.`
       : [
           `${count.done} ${count.done === 1 ? 'Datei' : 'Dateien'} hochgeladen.`,
           count.skipped
@@ -150,9 +150,8 @@
           </p>
           {#if reloginOnlyHere()}
             <p class="mt-1">
-              In der App auf dem Home-Bildschirm geht das Anmelden nur in diesem Fenster. Fertige
-              Fotos bleiben gespeichert. Merk dir, welche fehlen, melde dich neu an und lade sie
-              danach noch einmal hoch.
+              Fertige Fotos bleiben gespeichert. Melde dich neu an und lade die fehlenden danach
+              noch einmal hoch.
             </p>
             <a class="btn-secondary mt-2" href={reloginHereUrl()} data-astro-reload>Neu anmelden</a>
           {:else}
@@ -177,7 +176,7 @@
         </p>
       {:else if running && fotoUpload.waits.retry > 0}
         <p class="border-l-2 border-warning py-1 pl-3 text-sm font-semibold text-warning">
-          Die Verbindung zu SharePoint hakt. Es wird gleich von selbst noch einmal versucht.
+          Die Verbindung hakt. Es wird gleich noch einmal versucht.
         </p>
       {:else if phase === 'finished'}
         <p
@@ -196,8 +195,7 @@
 
     {#if running}
       <p class="text-sm text-neutral-700">
-        Lass diese Seite offen und das Handy entsperrt, bis alles hochgeladen ist. Fertige Dateien
-        sind sofort in der Ablage.
+        Lass diese Seite offen und das Handy entsperrt, bis alles hochgeladen ist.
       </p>
       <ActionButton onclick={() => void cancel()}>Hochladen abbrechen</ActionButton>
     {/if}

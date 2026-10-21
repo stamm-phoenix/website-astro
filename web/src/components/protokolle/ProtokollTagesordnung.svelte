@@ -391,26 +391,6 @@
   }}
 />
 
-<p class="text-sm text-neutral-700">
-  Punkte am Griff
-  <svg
-    aria-hidden="true"
-    class="inline h-4 w-4 align-[-2px]"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    ><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle
-      cx="9"
-      cy="12"
-      r="1.6"
-    /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle
-      cx="15"
-      cy="18"
-      r="1.6"
-    /></svg
-  >
-  verschieben. Nach rechts gezogen wird ein Punkt Unterpunkt, nach links Hauptpunkt.
-</p>
-
 {#snippet markdownListe()}
   {#each punkte as punkt, at (punkt.id)}
     <div class="border-t border-neutral-200 pt-4">

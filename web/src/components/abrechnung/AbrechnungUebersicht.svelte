@@ -1,7 +1,8 @@
 <script lang="ts">
   import Panel from '../ui/Panel.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import { formatEuro, formatDateTime } from '../../lib/format';
+  import InfoHint from '../ui/InfoHint.svelte';
+  import { formatEuro } from '../../lib/format';
   import { isIch } from '../../lib/ichStore.svelte';
   import { errorMessage, postForFile, saveFile } from '../../lib/api';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
@@ -69,9 +70,6 @@
   const schluessel = $derived(betreuungsschluessel(counts.teilnehmende, counts.betreuende));
   /** More than one Betreuer*in per eight Teilnehmende matters for the KJR only. */
   const schluesselWarning = $derived(zuschussfaehig && schluessel.warning);
-  const exportStand = $derived(
-    abrechnung.exportedAt ? formatDateTime(abrechnung.exportedAt) : null
-  );
 
   /** Real bookings only: the Leihgebühren are paid from the Sparbuch, not by a person. */
   const auslagenListe = $derived(auslagen(nachweise));
@@ -170,7 +168,7 @@
               {row.category}
               <span class="block text-xs text-neutral-600">
                 {#if row.virtual}
-                  im Tab „Leihgebühren“ eingetragen, noch nicht in CampFlow
+                  noch nicht in CampFlow gebucht
                 {:else}
                   {row.count}
                   {row.count === 1 ? 'Buchung' : 'Buchungen'}
@@ -202,12 +200,12 @@
 
 <div class="space-y-6">
   <Panel aria-labelledby="teilnehmende-titel">
-    <h2 id="teilnehmende-titel" class={HEADING_CLASS}>Teilnehmende</h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      Bestätigte Anmeldungen, Alter am ersten Tag der Aktion. Ab {KJR_BETREUER_AGE} Jahren zählen Personen
-      {zuschussfaehig ? 'für den KJR' : ''} immer als Betreuer*innen; Jüngere lassen sich im Tab „Teilnehmende“
-      als Betreuer*in eintragen.
-    </p>
+    <h2 id="teilnehmende-titel" class="{HEADING_CLASS} inline">Teilnehmende</h2>
+    <InfoHint
+      label="Teilnehmende"
+      text="Bestätigte Anmeldungen aus CampFlow, das Alter zählt am ersten Tag der Aktion."
+      class="ml-1"
+    />
     <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
       <div class="border-t border-neutral-200 py-3">
         <dt class="text-xs font-semibold text-neutral-700">Gesamt</dt>
@@ -256,7 +254,7 @@
       <StatusNotice
         class="mt-4"
         kind="warning"
-        message={`Auf der Aktion ist niemand ${KJR_BETREUER_AGE} Jahre oder älter. Damit der Betreuungsschlüssel stimmt, muss mindestens eine*r der Teilnehmenden als Betreuer*in eingetragen werden.`}
+        message={`Niemand ist ${KJR_BETREUER_AGE} Jahre oder älter: Trag mindestens eine*n der Teilnehmenden als Betreuer*in ein.`}
       />
       <ActionButton
         variant="secondary"
@@ -271,14 +269,14 @@
         class="mt-4"
         kind="warning"
         message={schluesselWarning
-          ? `Ihr hattet mehr Betreuer*innen als der KJR erwartet (normal: höchstens 1 Betreuer*in auf ${KJR_MIN_TEILNEHMENDE_PER_BETREUER} Teilnehmende, bei euch ${schluessel.label.replace(/\s*:\s*/, ' auf ')}). Schreib im Zuschussantrag ins Bemerkungsfeld, warum – z. B. „Es waren Ehemalige dabei“.${counts.betreuende > counts.ab27 ? ' Oder prüfe im Tab „Teilnehmende“, ob die jünger eingetragenen Betreuer*innen so stimmen.' : ''}`
+          ? `Der KJR erwartet höchstens 1 Betreuer*in auf ${KJR_MIN_TEILNEHMENDE_PER_BETREUER} Teilnehmende, bei euch ${schluessel.label.replace(/\s*:\s*/, ' auf ')}. Begründe das im Zuschussantrag im Bemerkungsfeld, z. B. „Es waren Ehemalige dabei“.${counts.betreuende > counts.ab27 ? ' Oder prüfe, ob die jünger eingetragenen Betreuer*innen stimmen.' : ''}`
           : null}
       />
     {/if}
     {#if counts.unknownAge > 0}
       <p class="mt-2 text-sm text-neutral-700">
-        Bei {counts.unknownAge}
-        {counts.unknownAge === 1 ? 'Person' : 'Personen'} ist in CampFlow kein Alter hinterlegt;
+        {counts.unknownAge}
+        {counts.unknownAge === 1 ? 'Person' : 'Personen'} ohne Alter,
         {counts.unknownAge === 1 ? 'sie zählt' : 'sie zählen'} nur in der Gesamtzahl.
       </p>
     {/if}
@@ -298,20 +296,11 @@
 
   <Panel aria-labelledby="bilanz-titel">
     <h2 id="bilanz-titel" class={HEADING_CLASS}>Einnahmen und Ausgaben</h2>
-    <p class="mt-1 text-sm text-neutral-700" data-testid="export-stand">
-      {#if exportStand}
-        Stand der Einzelnachweise: aus CampFlow exportiert am {exportStand} Uhr. „Neu laden“ holt den
-        aktuellen Stand.
-      {:else}
-        Wann die Einzelnachweise aus CampFlow exportiert wurden, ist nicht bekannt. „Neu laden“ holt
-        den aktuellen Stand.
-      {/if}
-    </p>
     {#if geaendert > 0}
       <p class="mt-2 text-sm text-warning" data-testid="betraege-geaendert">
         {geaendert === 1
-          ? 'Ein Betrag ist auf dieser Seite geändert und weicht von CampFlow ab.'
-          : `${geaendert} Beträge sind auf dieser Seite geändert und weichen von CampFlow ab.`}
+          ? 'Ein Betrag weicht von CampFlow ab.'
+          : `${geaendert} Beträge weichen von CampFlow ab.`}
         <button
           type="button"
           class="font-semibold text-brand-900 underline"
@@ -329,7 +318,7 @@
       class="mt-6 flex flex-wrap items-baseline justify-between gap-2 border-t-2 border-brand-900 pt-3"
     >
       <dt class="font-semibold text-brand-900">
-        Ergebnis (Einnahmen − Ausgaben{leihgebuehrenCent > 0 ? ' inkl. Leihgebühren' : ''})
+        Ergebnis{leihgebuehrenCent > 0 ? ' inkl. Leihgebühren' : ''}
       </dt>
       <dd
         class="text-xl font-semibold tabular-nums {signClass(bilanz.resultCent)}"
@@ -342,10 +331,7 @@
 
   <Panel aria-labelledby="auslagen-titel">
     <h2 id="auslagen-titel" class={HEADING_CLASS}>Auslagen</h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      Ausgaben, die jemand vorgestreckt hat („Auslage durch“ in CampFlow), je Person. Diese Beträge
-      bekommen die Personen von der Kasse zurück. Ausgaben ohne Angabe hat der Stamm direkt bezahlt.
-    </p>
+    <p class="mt-1 text-sm text-neutral-700">Die Kasse zahlt diese Beträge zurück.</p>
     {#if auslagenListe.length > 0}
       <table class="mt-4 w-full text-left text-sm" data-testid="auslagen">
         <thead class="border-b border-neutral-200 text-xs text-neutral-700">
@@ -380,33 +366,25 @@
         </tfoot>
       </table>
     {:else}
-      <p class="mt-3 text-sm text-neutral-600">
-        Keine Auslagen: Alle Ausgaben hat der Stamm direkt bezahlt.
-      </p>
+      <p class="mt-3 text-sm text-neutral-600">Keine Auslagen.</p>
     {/if}
   </Panel>
 
-  {#if !zuschussfaehig}
+  {#if zuschussfaehig}
     <Panel aria-labelledby="zuschuss-titel">
-      <h2 id="zuschuss-titel" class={HEADING_CLASS}>Ohne KJR-Zuschuss</h2>
-      <p class="mt-1 text-sm text-neutral-700" data-testid="ohne-kjr-zuschuss">
-        Für diese Aktion wird kein KJR-Zuschuss beantragt. Das Ergebnis oben ist deshalb das
-        Endergebnis, und es gibt keine Teilnahmeliste für den KJR. Soll doch ein Zuschuss beantragt
-        werden, setze oben das Häkchen bei „KJR-Zuschuss beantragen“.
-      </p>
-    </Panel>
-  {:else}
-    <Panel aria-labelledby="zuschuss-titel">
-      <h2 id="zuschuss-titel" class={HEADING_CLASS}>KJR-Zuschuss</h2>
-      <p class="mt-1 text-sm text-neutral-700">
-        Der Kreisjugendring Rosenheim bezuschusst nur ein Defizit, höchstens bis zu seiner Höhe, und
-        nur Teilnehmende aus dem Landkreis Rosenheim. Betreuer*innen zählen immer.
-      </p>
+      <h2 id="zuschuss-titel" class="{HEADING_CLASS} inline">KJR-Zuschuss</h2>
+      <InfoHint label="KJR-Zuschuss" class="ml-1">
+        <p>
+          Der Kreisjugendring Rosenheim bezuschusst nur ein Defizit, höchstens bis zu seiner Höhe,
+          und nur Teilnehmende aus dem Landkreis Rosenheim. Betreuer*innen zählen immer.
+        </p>
+        <p>Ziel ist ein Ergebnis um 0 € (±{formatEuro(ZIEL_TOLERANZ_CENT)}).</p>
+      </InfoHint>
       <StatusNotice
         class="mt-3"
         kind="warning"
         message={counts.outsideLandkreis > 0
-          ? `${counts.outsideLandkreis} ${counts.outsideLandkreis === 1 ? 'Teilnehmer*in wohnt' : 'Teilnehmende wohnen'} laut Postleitzahl nicht im Landkreis Rosenheim oder ${counts.outsideLandkreis === 1 ? 'hat' : 'haben'} keine Postleitzahl. Der KJR bezuschusst sie nicht, deshalb ${counts.outsideLandkreis === 1 ? 'ist sie' : 'sind sie'} in der Berechnung nicht enthalten.`
+          ? `${counts.outsideLandkreis} ${counts.outsideLandkreis === 1 ? 'Teilnehmer*in wohnt' : 'Teilnehmende wohnen'} laut Postleitzahl nicht im Landkreis Rosenheim oder ${counts.outsideLandkreis === 1 ? 'hat' : 'haben'} keine Postleitzahl und ${counts.outsideLandkreis === 1 ? 'wird' : 'werden'} nicht bezuschusst.`
           : null}
       />
 
@@ -424,8 +402,8 @@
             {#if nights === 0}
               Nur bei Aktionen mit Übernachtung möglich.
             {:else}
-              Nur ankreuzen, wenn an An- und Abreisetag mehr als 6 Stunden „echtes“ Programm
-              stattfand. „Unterwegs sein“ zählt nicht als Programm.
+              Nur wenn An- und Abreisetag je mehr als 6 Stunden Programm hatten; Fahrtzeit zählt
+              nicht.
             {/if}
           </span>
         </span>
@@ -493,10 +471,10 @@
         <StatusNotice
           kind={zielErreicht ? 'success' : 'warning'}
           message={zielErreicht
-            ? `Ziel erreicht: Das Ergebnis liegt innerhalb von ±${formatEuro(ZIEL_TOLERANZ_CENT)} um 0 €.`
+            ? `Ziel erreicht: Das Ergebnis liegt bei 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}).`
             : zuschuss.resultAfterCent > 0
-              ? `Überschuss von ${formatEuro(zuschuss.resultAfterCent)}. Ziel ist ein Ergebnis um 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}): Mit Materialleihgebühren lässt sich der Zuschuss ausschöpfen.`
-              : `Auch mit Zuschuss bleibt ein Defizit von ${formatEuro(-zuschuss.resultAfterCent)}. Ziel ist ein Ergebnis um 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}).`}
+              ? 'Überschuss: Mit Materialleihgebühren lässt sich der Zuschuss ausschöpfen.'
+              : 'Auch mit Zuschuss bleibt ein Defizit.'}
         />
         {#if !zielErreicht && zuschuss.resultAfterCent > 0}
           <button
@@ -515,11 +493,7 @@
         Teilnahmeliste für den KJR
       </h2>
       <p class="mt-1 text-sm text-neutral-700">
-        Die Excel-Vorlage des KJR, ausgefüllt mit den Personen der Abrechnung (ohne ausgeschlossene,
-        mit nachgetragenen): ab
-        {KJR_BETREUER_AGE} Jahren und eingetragene Betreuer*innen als Betreuer*innen (ehrenamtlich), sonst
-        als Teilnehmende, jeweils mit den Übernachtungen ohne Zusatztag. Ort, Landkreis-Zuordnung und
-        Summen rechnet die Vorlage selbst.
+        Die Excel-Vorlage des KJR mit den Personen der Abrechnung.
       </p>
       <form
         class="mt-4 grid gap-4 sm:grid-cols-2"
@@ -578,12 +552,6 @@
 
   <Panel aria-labelledby="deckblatt-titel">
     <h2 id="deckblatt-titel" class={HEADING_CLASS}>Deckblatt</h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      Deckblatt für die ausgedruckte Abrechnung mit Aktion, Zeitraum und den Personen der
-      Abrechnung:
-      {counts.betreuende} Leitende (Betreuer*innen), {counts.teilnehmende} Teilnehmende, {counts.total}
-      insgesamt.
-    </p>
     <form
       class="mt-4 grid gap-4 sm:grid-cols-2"
       onsubmit={(event) => {

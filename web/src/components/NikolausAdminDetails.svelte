@@ -3,6 +3,7 @@
   import MessageText from './ui/MessageText.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import ModalDialog from './ui/ModalDialog.svelte';
+  import InfoHint from './ui/InfoHint.svelte';
   import { untrack } from 'svelte';
   import {
     STATUS_LABEL,
@@ -194,12 +195,11 @@
     <div class="overflow-y-auto px-5 py-4 md:px-6">
       <p class="font-semibold text-brand-800">{formatSlotKey(booking.slotKey)}</p>
       {#if problem}
-        <p role="note" class="mt-3 border-l-4 border-danger py-1 pl-3 text-sm text-danger">
-          <span class="font-semibold">
-            {PROBLEM_LABEL[problem]}.
-          </span>
-          {problem === 'overbooked' ? 'Es gibt mehr Buchungen als Teams.' : ''} Bitte mit der Familie
-          Kontakt aufnehmen und die Buchung auf einen freien Termin verlegen.
+        <p
+          role="note"
+          class="mt-3 border-l-4 border-danger py-1 pl-3 text-sm font-semibold text-danger"
+        >
+          {PROBLEM_LABEL[problem]}{problem === 'overbooked' ? ' – mehr Buchungen als Teams' : ''}.
         </p>
       {/if}
 
@@ -267,14 +267,16 @@
         aria-labelledby="booking-tags-heading"
         class="mt-5 border-t border-neutral-200 pt-4 text-sm"
       >
-        <h3 id="booking-tags-heading" class="font-semibold text-brand-900">
-          <label for="booking-tags-input">Merkmale für die Einteilung</label>
-        </h3>
-        <p id="booking-tags-hint" class="text-xs text-neutral-700">
-          Nur für unsere Planung; die Familie sieht diese Merkmale nicht. Beispiel: Steht hier
-          „Wölflinge“ und bei einer helfenden Person unter „Nicht zu Familien mit“ ebenfalls
-          „Wölflinge“, wird diese Person nicht dieser Familie zugeteilt.
-        </p>
+        <div class="flex items-center gap-1">
+          <h3 id="booking-tags-heading" class="font-semibold text-brand-900">
+            <label for="booking-tags-input">Merkmale für die Einteilung</label>
+          </h3>
+          <InfoHint
+            label="Merkmale für die Einteilung"
+            text="Steht hier z. B. „Wölflinge“ und bei einer helfenden Person unter „Nicht zu Familien mit“ ebenfalls „Wölflinge“, wird diese Person nicht zu dieser Familie eingeteilt."
+          />
+        </div>
+        <p id="booking-tags-hint" class="text-xs text-neutral-700">Die Familie sieht das nicht.</p>
         {#key `${booking.id}:${tagsRevision}`}<TagInput
             id="booking-tags-input"
             {tags}

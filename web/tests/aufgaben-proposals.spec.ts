@@ -190,7 +190,7 @@ test('a late tag lookup preserves reviewer edits and unavailable mapping allows 
   await expect(dialog.getByRole('button', { name: 'Annehmen', exact: true })).toBeDisabled();
   await dialog.getByLabel('Zuständigkeit', { exact: false }).fill('andere@example.test');
   release();
-  await expect(dialog.getByText('Deine Eingabe bleibt erhalten.', { exact: false })).toBeVisible();
+  await expect(dialog.getByText('Die Zuständigkeit passt zu', { exact: false })).toBeVisible();
   await expect(dialog.getByLabel('Zuständigkeit', { exact: false })).toHaveValue(
     'andere@example.test'
   );
@@ -206,7 +206,7 @@ test('a late tag lookup preserves reviewer edits and unavailable mapping allows 
   );
   await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   await expect(
-    dialog.getByText('Die Personenzuordnung ist nicht verfügbar.', { exact: false })
+    dialog.getByText('Die Person konnte nicht automatisch erkannt werden.', { exact: false })
   ).toBeVisible();
   await expect(
     dialog.getByRole('button', { name: 'Demo Leitung entfernen', exact: true })
@@ -319,7 +319,8 @@ test('recognition feedback is local, neutral, dismissible and cleared when conti
   ).toBeVisible();
   const color = await result.locator('p').evaluate((element) => getComputedStyle(element).color);
   const reference = await page
-    .locator('#recognize-heading + p')
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByText('Aufgaben aus Protokollen prüfen', { exact: true })
     .evaluate((element) => getComputedStyle(element).color);
   expect(color).toBe(reference);
   const box = await result.boundingBox();
@@ -389,9 +390,7 @@ test('directory mapping remains an explicit proposal in card and review dialog',
   await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Aufgabenvorschlag prüfen' });
   await expect(
-    dialog.getByText('Zuordnungsvorschlag: Kathi → Katharina Muster. Bitte prüfen.', {
-      exact: true,
-    })
+    dialog.getByText('Zuordnungsvorschlag: Kathi → Katharina Muster.', { exact: true })
   ).toBeVisible();
   await expect(
     dialog.getByRole('button', { name: 'Katharina Muster entfernen', exact: true })

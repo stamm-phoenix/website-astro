@@ -15,6 +15,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal } from '../../lib/authStore.svelte';
@@ -995,14 +996,11 @@
       {:else}
         <p class="text-sm" role="status" aria-live="polite">
           {#if detail.status === 'review'}
-            In Prüfung · Geändert wird es erst wieder, wenn es zurückgegeben wird.
+            In Prüfung
           {:else if !editable}
-            Freigegeben · Das Protokoll lässt sich nicht mehr ändern.
+            Freigegeben
           {:else if writerActive && sperre}
-            <span class="font-semibold">{sperre.name}</span> schreibt gerade · Änderungen erscheinen hier
-            nach wenigen Sekunden.
-          {:else}
-            Gerade schreibt niemand.
+            <span class="font-semibold">{sperre.name}</span> schreibt gerade
           {/if}
         </p>
       {/if}
@@ -1022,7 +1020,7 @@
         {#if mode === 'lesen'}
           <label class="flex items-center gap-2 text-sm">
             <input type="checkbox" bind:checked={follow} />
-            Mitlaufen
+            Mitlesen
           </label>
         {/if}
         {#if mode === 'schreiben'}
@@ -1059,8 +1057,7 @@
     {/if}
     {#if localWarning && mode === 'schreiben'}
       <p class="border-l-2 border-warning py-1 pl-4 text-sm text-warning">
-        Dieser Browser kann keine Sicherung auf dem Gerät anlegen (Speicher voll oder gesperrt).
-        Gespeichert wird trotzdem, solange die Verbindung steht.
+        Ungespeicherte Änderungen gehen verloren, wenn du diese Seite schließt.
       </p>
     {/if}
 
@@ -1071,10 +1068,7 @@
             localConflict.changedAt
           )}.
         </p>
-        <p class="text-neutral-800">
-          Das Protokoll wurde inzwischen anders gespeichert. Du kannst deine Fassung ansehen, sie
-          übernehmen (die jetzige bleibt als Version gesichert) oder verwerfen.
-        </p>
+        <p class="text-neutral-800">Das Protokoll wurde inzwischen anders gespeichert.</p>
         <div class="flex flex-wrap gap-2">
           <ActionButton onclick={() => (localPreview = true)}>Ansehen</ActionButton>
           {#if editable}
@@ -1133,27 +1127,65 @@
 
         <section class="space-y-4" aria-labelledby="tagesordnung-titel">
           <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <h2 id="tagesordnung-titel" class="font-serif text-xl text-brand-900">Tagesordnung</h2>
+            <div class="flex items-center gap-1">
+              <h2 id="tagesordnung-titel" class="font-serif text-xl text-brand-900">
+                Tagesordnung
+              </h2>
+              <InfoHint label="Tagesordnung">
+                <p>
+                  Punkte lassen sich am Griff
+                  <svg
+                    aria-hidden="true"
+                    class="inline h-4 w-4 align-[-2px]"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    ><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle
+                      cx="9"
+                      cy="12"
+                      r="1.6"
+                    /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle
+                      cx="15"
+                      cy="18"
+                      r="1.6"
+                    /></svg
+                  >
+                  verschieben: nach rechts gezogen wird ein Punkt Unterpunkt, nach links Hauptpunkt.
+                </p>
+              </InfoHint>
+            </div>
             <!-- Not in the sticky bar: on phones every row there hides content -->
-            <FilterTabs
-              variant="segmented"
-              label="Texte schreiben als"
-              showLabel
-              options={[
-                { value: 'formatiert', label: 'Formatiert' },
-                { value: 'markdown', label: 'Einfacher Text (Markdown)' },
-              ]}
-              value={textModus}
-              onselect={(value) => void chooseTextModus(value)}
-            />
+            <div class="flex items-center gap-1">
+              <FilterTabs
+                variant="segmented"
+                label="Texte schreiben als"
+                showLabel
+                options={[
+                  { value: 'formatiert', label: 'Formatiert' },
+                  { value: 'markdown', label: 'Einfacher Text (Markdown)' },
+                ]}
+                value={textModus}
+                onselect={(value) => void chooseTextModus(value)}
+              />
+              <InfoHint label="Markdown" class="markdown-hilfe">
+                <p>
+                  <code>**fett**</code>, <code>*kursiv*</code>, <code>~~durchgestrichen~~</code>
+                </p>
+                <p>
+                  <code>- Punkt</code> oder <code>1. Punkt</code>, eingerückt verschachtelt;
+                  <code>- [ ] offen</code>, <code>- [x] erledigt</code>
+                </p>
+                <p><code>[Text](https://…)</code>, Adressen werden von selbst zu Links</p>
+                <p>
+                  <code>## Zwischenüberschrift</code>, <code>&gt; Zitat</code>, <code>---</code> Linie
+                </p>
+                <p><code>| A | B |</code> mit <code>|---|---|</code> darunter für Tabellen</p>
+                <p><code>`Code`</code>, drei <code>```</code> für einen Codeblock</p>
+              </InfoHint>
+            </div>
           </div>
           {#if textModusHinweis}
             <p class="text-sm text-warning" role="status" aria-live="polite">
               <MessageText text={textModusHinweis} />
-            </p>
-          {:else}
-            <p class="text-sm text-neutral-700">
-              Deine Wahl wird sofort gespeichert und gilt auf allen deinen Geräten.
             </p>
           {/if}
           {#if protokollAufgaben.state.error && !protokollAufgaben.state.data}
@@ -1294,20 +1326,13 @@
       <strong>{takeover.name}</strong> schreibt gerade (seit {formatTime(takeover.since)}). Wenn du
       übernimmst, kann {takeover.name} nicht mehr speichern.
     </p>
-    <p class="text-sm text-neutral-700">
-      Die Fassung bis jetzt wird gesichert. Was dort noch nicht gespeichert war, bleibt auf dem
-      anderen Gerät erhalten.
-    </p>
+    <p class="text-sm text-neutral-700">Die bisherige Fassung bleibt erhalten.</p>
   {/if}
 </ConfirmDialog>
 
 <ModalDialog open={endeFrage} title="Sitzungsende eintragen?" onclose={() => (endeFrage = false)}>
   <div class="space-y-3 px-5 py-4">
     <p>Für das Sitzungsende ist noch keine Uhrzeit eingetragen. Endet die Sitzung jetzt?</p>
-    <p class="text-sm text-neutral-700">
-      Mit „Ja“ wird {endeJetzt} Uhr als Ende eingetragen. Mit „Nein“ bleibt das Ende leer. In beiden Fällen
-      wird gespeichert und die Bearbeitung beendet.
-    </p>
   </div>
   <div class="flex flex-wrap justify-end gap-2 border-t border-neutral-200 px-5 py-3">
     <ActionButton onclick={() => (endeFrage = false)}>Weiter bearbeiten</ActionButton>
@@ -1327,12 +1352,7 @@
     removing = null;
   }}
 >
-  {#if removing}
-    <p>
-      Punkt {removing.nummer} „{removing.titel}“ hat Inhalt. Er wird mit Text, Aufgaben, Terminen
-      und Unterpunkten gelöscht. Frühere Fassungen bleiben unter „Versionen“ erhalten.
-    </p>
-  {/if}
+  <p>Text, Aufgaben, Termine und Unterpunkte werden mitgelöscht.</p>
 </ConfirmDialog>
 
 <ConfirmDialog
@@ -1362,9 +1382,6 @@
     Danach kann niemand mehr schreiben, bis jemand anderes das Protokoll freigibt oder mit einem
     Hinweis zurückgibt.
   </p>
-  {#if mode === 'schreiben'}
-    <p class="text-sm text-neutral-700">Was noch nicht gespeichert ist, wird vorher gespeichert.</p>
-  {/if}
 </ConfirmDialog>
 
 {#if detail}
@@ -1374,7 +1391,7 @@
     own={login !== '' && detail.createdBy.toLowerCase() === login.toLowerCase()}
     draft
     version={detail.etag}
-    consequence={`${mode === 'schreiben' ? 'Was noch nicht gespeichert ist, wird vorher gespeichert. ' : ''}Das Protokoll wird als PDF im Protokoll-Ordner abgelegt und lässt sich danach nicht mehr ändern.`}
+    consequence="Das Protokoll wird als PDF im Protokoll-Ordner abgelegt und lässt sich danach nicht mehr ändern."
     aufgaben={freigabeAufgaben(stand?.inhalt ?? detail.inhalt)}
     busy={submitBusy}
     error={submitError}
@@ -1437,6 +1454,12 @@
     z-index: 20;
     background: var(--color-neutral-50);
     border-bottom: 1px solid var(--color-neutral-200);
+  }
+  :global(.markdown-hilfe code) {
+    font-size: 0.8125rem;
+    background: var(--color-neutral-100);
+    padding: 0 0.2rem;
+    border-radius: var(--radius-sm);
   }
   @media (min-width: 48rem) {
     .leiste {

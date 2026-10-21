@@ -665,10 +665,7 @@
               />
             {/if}
           {:else if file.kind !== 'video'}
-            <p class="max-w-sm px-6 text-center">
-              Für „{file.name}“ gibt es keine Vorschau. Du kannst die Datei herunterladen oder in
-              SharePoint öffnen.
-            </p>
+            <p class="max-w-sm px-6 text-center">Keine Vorschau für „{file.name}“.</p>
           {/if}
         </div>
         {#if file.kind === 'video' && !videoSrc && !playingUrl}
@@ -732,21 +729,13 @@
       <div class="viewer-bar space-y-2 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p class="text-sm text-white/80">{meta}</p>
         {#if file.kind === 'video' && (playingUrl === '' || (videoFailed && detail && !detail.embedUrl))}
-          <p class="text-sm">
-            Dieses Video lässt sich hier nicht abspielen. Lade es herunter oder öffne es in
-            SharePoint.
-          </p>
-        {:else if file.kind === 'video' && soundOnly && playingUrl}
-          <p class="text-sm" role="status">
-            Dein Browser kann von diesem Video nur den Ton abspielen. Es läuft deshalb im Player von
-            SharePoint.
-          </p>
+          <p class="text-sm">Dieses Video lässt sich hier nicht abspielen.</p>
         {:else if file.kind === 'video' && videoSrc && !videoFailed && !playingUrl && detail?.embedUrl}
           <button
             type="button"
             class="min-h-11 text-sm text-white/80 underline underline-offset-2"
             onclick={() => (playingUrl = detail?.embedUrl ?? '')}
-            >Video bleibt schwarz oder ohne Bild? Im Player von SharePoint abspielen</button
+            >Im Player von SharePoint abspielen</button
           >
         {/if}
         {#if downloadNote}

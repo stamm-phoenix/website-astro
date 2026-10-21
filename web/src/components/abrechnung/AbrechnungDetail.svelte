@@ -2,6 +2,7 @@
   import { scrollBehavior } from '../../lib/motion';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { onMount, tick } from 'svelte';
   import {
@@ -30,12 +31,7 @@
   import { formatDateTime, formatEuro, todayIso } from '../../lib/format';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
-  import {
-    KJR_ABGABE_MONATE,
-    kjrAbgabefrist,
-    kjrFristStand,
-    kjrRestzeit,
-  } from '../../lib/kjrFristen';
+  import { kjrAbgabefrist, kjrFristStand, kjrRestzeit } from '../../lib/kjrFristen';
   import { abrechnungLoeschdatum } from '../../lib/abrechnungAblage';
   import { localDate } from '../../lib/dateUtils';
   import { countKjrPersons, countNights, kjrZuschuss } from '../../lib/kjrZuschuss';
@@ -350,7 +346,7 @@
     data={ablage.loaded ? (abrechnung ?? null) : null}
     loading={loading || (!ablage.loaded && !ablage.error)}
     error={loadError?.message ?? ablage.error ?? null}
-    loadingText="Die Einzelnachweise werden aus CampFlow exportiert. Das dauert einige Sekunden …"
+    loadingText="Die Abrechnung wird geladen. Das dauert einige Sekunden …"
     onretry={() => {
       void fetchAbrechnung(eventId, kostenstelle, { force: true });
       if (!ablage.loaded) void loadAbrechnungSession(eventId);
@@ -359,7 +355,7 @@
     {#snippet skeleton()}
       <div class="surface p-6">
         <p aria-hidden="true" class="text-sm text-neutral-700">
-          Die Einzelnachweise werden aus CampFlow exportiert. Das dauert einige Sekunden …
+          Die Abrechnung wird geladen. Das dauert einige Sekunden …
         </p>
         <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
         <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
@@ -384,7 +380,7 @@
                   data-testid="kjr-frist"
                 >
                   {#if !frist.vorbei}
-                    Abgabe beim KJR bis {formatDate(frist.frist)} ({KJR_ABGABE_MONATE} Monate nach Ende)
+                    Abgabe beim KJR bis {formatDate(frist.frist)}
                   {:else if frist.tage >= 0}
                     Abgabe beim KJR bis {formatDate(frist.frist)}, {kjrRestzeit(frist.tage)}
                   {:else}
@@ -403,14 +399,16 @@
               >
                 Andere Kostenstelle
               </ActionButton>
-              <ReloadAction
-                type="button"
-                disabled={loading}
-                title="Teilnehmende und Einzelnachweise neu aus CampFlow laden"
-                onclick={() => fetchAbrechnung(eventId, kostenstelle, { refresh: true })}
-              >
-                {loading ? 'Wird neu geladen …' : 'Neu laden'}
-              </ReloadAction>
+              <span data-testid="export-stand">
+                <ReloadAction
+                  type="button"
+                  disabled={loading}
+                  loadedAt={abrechnung.exportedAt ? Date.parse(abrechnung.exportedAt) : null}
+                  onclick={() => fetchAbrechnung(eventId, kostenstelle, { refresh: true })}
+                >
+                  {loading ? 'Wird neu geladen …' : 'Neu laden'}
+                </ReloadAction>
+              </span>
             </div>
           </div>
           {#if pickKostenstelle}
@@ -469,18 +467,14 @@
                   onclick={() => resetEntries(abrechnung.event.title)}
                   >Eingaben zurücksetzen</ActionButton
                 >{/if}
-            </div>
-            <details>
-              <summary class="min-h-11 cursor-pointer content-center"
-                >Aufbewahrung und Hilfe</summary
-              >
-              <p>
-                Die Eingaben gehören zu deinem Account. {ablage.deleteAfter
+              <InfoHint label="Deine Eingaben" class="self-center">
+                Teilnehmende, Rollen, Zusatztag, geänderte Beträge, Leihgebühren und Deckblatt
+                gehören zu dir und stehen auf all deinen Geräten bereit. {ablage.deleteAfter
                   ? `Nach dem ${formatDate(ablage.deleteAfter)} werden sie gelöscht.`
-                  : ''} „Neu laden“ aktualisiert die Daten aus CampFlow und behält deine Eingaben. Ältere
-                Eingaben von diesem Gerät kannst du mit „Eingaben speichern“ übernehmen.
-              </p>
-            </details>
+                  : ''} Beim Neu laden bleiben sie erhalten. Ältere Eingaben von diesem Gerät übernimmst
+                du mit „Eingaben speichern“.
+              </InfoHint>
+            </div>
             {#if resetResult === 'done'}<StatusNotice message="Eingaben zurückgesetzt." />{/if}
           </div>
         </header>

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { archiveSammelCampaign } from '../../lib/sammelStaffApi';
+  import { confirmAction } from '../../lib/confirm';
+  import InfoHint from '../ui/InfoHint.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import StaffPageHead from '../StaffPageHead.svelte';
   import MessageText from '../ui/MessageText.svelte';
@@ -97,6 +99,16 @@
   /** Saves a version-checked archive change and reloads the campaign overview. */
   async function archiveCampaign(campaign: SammelAktion): Promise<void> {
     if (busy) return;
+    if (
+      !campaign.archived &&
+      !(await confirmAction({
+        title: `„${campaign.title}“ archivieren?`,
+        message: 'Mitglieder können dann nicht mehr bestellen.',
+        confirmLabel: 'Archivieren',
+        tone: 'neutral',
+      }))
+    )
+      return;
     busy = true;
     error = null;
     message = null;
@@ -288,7 +300,7 @@
         {:else}<li class="py-6 text-neutral-700">
             {showArchive
               ? 'Noch keine Sammelbestellungen archiviert.'
-              : 'Keine aktuellen Sammelbestellungen. Lege eine neue an oder schaue im Archiv nach.'}
+              : 'Keine aktuellen Sammelbestellungen.'}
           </li>{/each}
       </ul>
     </section>
@@ -315,11 +327,7 @@
       />{/snippet}</FormField
   >
   <div class="grid gap-3 sm:grid-cols-2">
-    <FormField
-      id="campaign-start"
-      label="Beginn"
-      error={fields.startsAt}
-      hint="Ortszeit Europe/Berlin"
+    <FormField id="campaign-start" label="Beginn" error={fields.startsAt}
       >{#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
@@ -327,7 +335,7 @@
           bind:value={startsAt}
         />{/snippet}</FormField
     >
-    <FormField id="campaign-end" label="Ende" error={fields.endsAt} hint="Ortszeit Europe/Berlin"
+    <FormField id="campaign-end" label="Ende" error={fields.endsAt}
       >{#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
@@ -348,13 +356,13 @@
         maxlength="2000"
         bind:value={description}></textarea>{/snippet}</FormField
   >
-  <h3 class="border-t border-neutral-200 pt-4 text-lg font-semibold text-brand-900">
-    Häufige Artikel
-  </h3>
-  <p class="text-sm text-neutral-700">
-    Auswahl und Größen vor dem Speichern prüfen. Mitglieder können zusätzlich Artikel von Rüsthaus
-    oder Ausrüster Eschwege frei eintragen.
-  </p>
+  <div class="flex items-center gap-1 border-t border-neutral-200 pt-4">
+    <h3 class="text-lg font-semibold text-brand-900">Häufige Artikel</h3>
+    <InfoHint
+      label="Häufige Artikel"
+      text="Mitglieder können zusätzlich Artikel von Rüsthaus oder Ausrüster Eschwege frei eintragen."
+    />
+  </div>
   {#each catalog as article, index (article)}
     {@const image = getSammelProductImage(article.reference)}
     {@const stock = getSammelStammProdukt(article.reference)}
@@ -375,9 +383,9 @@
         />
       {/if}
       {#if stock}<p class="text-sm text-neutral-700">
-          Listenpreis: {formatEuro(stock.unitPriceCents)}. {stock.limited
-            ? 'Begrenzte Auflage. '
-            : ''}Verfügbarkeit prüft das Team.
+          Listenpreis {formatEuro(stock.unitPriceCents)}{stock.limited
+            ? ' · Begrenzte Auflage'
+            : ''}
         </p>{/if}
       <FormField id="catalog-shop-{index}" label="Anbieter">
         {#snippet children(attrs)}<select
@@ -410,15 +418,12 @@
             maxlength="500"
           />{/snippet}</FormField
       >
-      <FormField
-        id="catalog-variants-{index}"
-        label="Größen / Varianten"
-        optional
-        hint="Mit Komma trennen"
+      <FormField id="catalog-variants-{index}" label="Größen / Varianten" optional
         >{#snippet children(attrs)}<input
             {...attrs}
             class="form-input"
             disabled={!!stock}
+            placeholder="S, M, L, XL"
             bind:value={article.variantsText}
           />{/snippet}</FormField
       >

@@ -72,6 +72,5 @@
     }
   }}
 >
-  <p>Aufgabe „{state.deleteTarget?.title ?? ''}“ wirklich löschen?</p>
-  <p class="text-sm text-neutral-700">Das Löschen kann nicht rückgängig gemacht werden.</p>
+  <p>Das Löschen kann nicht rückgängig gemacht werden.</p>
 </ConfirmDialog>

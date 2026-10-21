@@ -3,6 +3,7 @@
   import { paymentSummary } from '../../lib/sammelPayment';
   import { paymentStep, type PaymentMode } from '../../lib/sammelPaymentStep';
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import { tick, onMount } from 'svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -308,31 +309,30 @@
         <p class="text-sm text-neutral-700 [overflow-wrap:anywhere]">
           {view.order.name} · Bestellung {view.order.id}
         </p>
-        <p class="mt-2 font-serif text-4xl tracking-tight text-brand-900 tabular-nums">
+        <p class="mt-2 text-sm text-neutral-700">
+          {view.order.totalCents === null && !operation
+            ? automaticTotalCents === null
+              ? 'Artikelsumme (unvollständig)'
+              : 'Artikelsumme, ohne Versand'
+            : 'Gesamtbetrag'}
+        </p>
+        <p class="font-serif text-4xl tracking-tight text-brand-900 tabular-nums">
           {formatOptionalEuro(
             operation?.snapshot.amount ?? view.order.totalCents ?? automaticTotalCents,
             'Betrag noch offen'
           )}
-        </p>
-        <p class="mt-2 text-sm text-neutral-700">
-          {view.order.totalCents === null && !operation
-            ? automaticTotalCents === null
-              ? 'Die Artikelsumme ist unvollständig. Trage beim Vorbereiten den vollständigen Gesamtbetrag einschließlich Versand ein.'
-              : 'Berechnete Artikelsumme. Sie wird beim Vorbereiten im Formular vorbelegt und erst mit dem Speichern übernommen. Versandkosten bei Bedarf ergänzen.'
-            : 'Gespeicherter Gesamtbetrag einschließlich eingetragener Versandkosten.'}
         </p>
       </header>
       <StatusNotice message={notice} />
       {#if mode === 'assign' && step.assignmentUnavailable}
         <p role="status" class="text-sm text-neutral-700">
           {step.currentArchived
-            ? 'Die Aktion ist archiviert.'
+            ? 'Die Sammelbestellung ist archiviert.'
             : view.order.status === 'Storniert'
               ? 'Die Bestellung ist storniert.'
               : !view.order.submitted
                 ? 'Die Bestellung wurde noch nicht eingereicht.'
-                : 'Für die Bestellung wurde bereits ein Beitrag vorbereitet.'}
-          Dafür kann keine CampFlow-Person zugeordnet werden.
+                : 'Für die Bestellung ist schon ein Beitrag vorbereitet.'}
         </p>
       {:else if mode === 'assign'}
         <section aria-labelledby="billing-person-heading" class="space-y-4">
@@ -340,18 +340,12 @@
             Wer trägt den Beitrag?
           </h3>
           <p class="text-sm text-neutral-700">
-            Die gesamte Bestellung wird einer Person zugeordnet, auch bei einer gemeinsamen
-            Familienadresse. Bestelladresse: <span class="break-all">{view.order.email}</span>
+            Bestelladresse: <span class="break-all">{view.order.email}</span>
           </p>
           {#if matching.length > 1}<p class="text-sm text-brand-900">
-              Mehrere Mitglieder nutzen diese Adresse. Bitte die zuständige Person auswählen.
+              Mehrere Mitglieder mit dieser Adresse – bitte auswählen.
             </p>{/if}
-          <FormField
-            id="billing-search"
-            label="Mitglied suchen"
-            optional
-            hint="Ohne Suche werden passende E-Mail-Adressen angezeigt."
-          >
+          <FormField id="billing-search" label="Mitglied suchen" optional>
             {#snippet children(attrs)}<input
                 {...attrs}
                 class="form-input"
@@ -377,8 +371,7 @@
               </select>{/snippet}
           </FormField>
           {#if !candidates.length}<p class="text-sm text-neutral-700">
-              Keine passenden Mitglieder. Suche nach einem Namen oder nutze weiter die manuelle
-              Bezahlung.
+              Keine passenden Mitglieder gefunden.
             </p>{/if}
           {#if needsReason}
             <FormField
@@ -408,7 +401,13 @@
           <dt class="text-neutral-700">Beschreibung</dt>
           <dd class="break-words text-brand-900">{preview?.snapshot.description}</dd>
           {#if mode === 'review' && view.creationEnabled && preview?.snapshot.attachedExpense}
-            <dt class="text-neutral-700">Kostenstelle</dt>
+            <dt class="text-neutral-700">
+              Kostenstelle <InfoHint
+                label="Kostenstelle"
+                text="Fehlende Kostenstellen und Kategorien werden vor der Beitragserstellung in CampFlow angelegt. Neue Kategorien „Bestellungen“ gehören zum wirtschaftlichen Geschäftsbetrieb; vorhandene Kategorien bleiben unverändert."
+                class="ml-1"
+              />
+            </dt>
             <dd class="break-words text-brand-900">
               {preview.snapshot.attachedExpense.costunitName}
             </dd>
@@ -418,25 +417,15 @@
         </dl>
         {#if mode === 'review'}
           <p class="text-sm text-neutral-700">
-            Mit der Erstellung werden Betrag, Person und Artikel gesperrt. Den Versand der
-            Zahlungsaufforderung prüfst du anschließend im CampFlow-Dashboard und verschickst sie
-            dort bei Bedarf. Den Bezahlstatus pflegst du auf der Website manuell.
+            Mit der Erstellung werden Betrag, Person und Artikel gesperrt.
           </p>
-          {#if view.creationEnabled && preview?.snapshot.attachedExpense}<p
-              class="text-sm text-neutral-700"
-            >
-              Fehlende Kostenstellen und Kategorien werden vor der Beitragserstellung in CampFlow
-              angelegt. Neue Kategorien „Bestellungen“ gehören zum wirtschaftlichen
-              Geschäftsbetrieb; vorhandene Kategorien bleiben unverändert.
-            </p>{/if}
           {#if !view.creationEnabled}<p class="text-sm text-neutral-700">
-              Die Beitragserstellung auf der Website ist noch nicht freigeschaltet. Du kannst einen
-              bereits in CampFlow angelegten Beitrag zuordnen.
+              Beiträge können hier noch nicht angelegt werden. Lege den Beitrag in CampFlow an und
+              ordne ihn hier zu.
             </p>
           {:else}<label class="flex items-start gap-3 text-sm text-brand-900"
               ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Person und endgültiger
-              Betrag sind geprüft. Für diese Bestellung existiert noch kein Beitrag in CampFlow. Ich
-              bestätige die Erstellung.</label
+              Betrag sind geprüft; in CampFlow gibt es noch keinen Beitrag für diese Bestellung.</label
             >{/if}
           {#if view.creationEnabled}<button
               type="button"
@@ -445,20 +434,12 @@
               onclick={() => changeMode('adopt')}>Vorhandenen Beitrag zuordnen</button
             >{/if}
         {:else}
-          <p class="text-sm text-neutral-700">
-            Prüfe in CampFlow die Person, den Betrag und die Bestellnummer. Diese Zuordnung wird
-            manuell geprüft und protokolliert. Die Website legt dabei keinen Beitrag an.
-          </p>
           {#if operation?.attemptedAt}<p class="text-sm text-danger">
-              Erstellungsversuch vom {formatDateTime(operation.attemptedAt)}. Bevor du einen Beitrag
-              zuordnest, muss feststehen, dass dieser Versuch beendet ist. Bei Unklarheit
-              CampFlow-Support fragen. Keinen weiteren Beitrag anlegen.
+              Erstellungsversuch vom {formatDateTime(operation.attemptedAt)}: Erst in CampFlow
+              prüfen, ob dabei ein Beitrag entstanden ist. Keinen neuen anlegen; bei Unklarheit den
+              CampFlow-Support fragen.
             </p>{/if}
-          <FormField
-            id="billing-fee"
-            label="CampFlow-Beitrags-ID"
-            error={fields.feeId}
-            hint="Die ID beginnt mit fee_. Sie ist nicht die Zahlungsreferenz."
+          <FormField id="billing-fee" label="CampFlow-Beitrags-ID" error={fields.feeId}
             >{#snippet children(attrs)}<input
                 {...attrs}
                 class="form-input"
@@ -479,12 +460,13 @@
             id="billing-evidence"
             label="Nachweis der Prüfung"
             error={fields.evidence}
-            hint="Zum Beispiel Prüfdatum und der Abgleich von Person, Betrag und Bestellnummer. Keine Bankdaten eintragen."
+            hint="Keine Bankdaten eintragen."
             >{#snippet children(attrs)}<textarea
                 {...attrs}
                 class="form-input"
                 rows="3"
                 maxlength="1000"
+                placeholder="z. B. 3.5.: Person, Betrag und Bestellnummer in CampFlow geprüft"
                 bind:value={evidence}></textarea>{/snippet}</FormField
           >
           <label class="flex items-start gap-3 text-sm text-brand-900"
@@ -492,28 +474,23 @@
             Erstellungsversuch mehr.</label
           >
           <label class="flex items-start gap-3 text-sm text-brand-900"
-            ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Der vorhandene Beitrag
-            gehört zur angegebenen Person und hat genau diesen Betrag. Ich habe die Zuordnung in
-            CampFlow geprüft.</label
+            ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Der Beitrag in CampFlow
+            gehört zu dieser Person und hat genau diesen Betrag.</label
           >
         {/if}
       {:else if mode === 'dispatch'}
         <h3 class="font-serif text-xl text-brand-900">Zahlungsaufforderung verschickt?</h3>
         <p class="text-sm text-neutral-700">
-          Öffne den Beitrag in CampFlow und prüfe, ob die Zahlungsaufforderung bereits verschickt
-          wurde. Verschicke sie dort bei Bedarf. Prüfe die tatsächlichen Empfänger einschließlich
-          CC-Adressen. Die Website sendet bei dieser Bestätigung keine Nachricht.
+          Prüfe in CampFlow, ob die Zahlungsaufforderung verschickt wurde, auch an CC-Adressen, und
+          verschicke sie dort bei Bedarf.
         </p>
-        <FormField
-          id="dispatch-evidence"
-          label="Versandnachweis"
-          error={fields.evidence}
-          hint="Wann und an wen wurde die Zahlungsaufforderung in CampFlow verschickt?"
+        <FormField id="dispatch-evidence" label="Versandnachweis" error={fields.evidence}
           >{#snippet children(attrs)}<textarea
               {...attrs}
               class="form-input"
               rows="3"
               maxlength="1000"
+              placeholder="z. B. 3.5. an familie@…"
               bind:value={evidence}></textarea>{/snippet}</FormField
         >
         <label class="flex items-start gap-3 text-sm text-brand-900"
@@ -547,51 +524,40 @@
           <dd>
             {view.order.paid ? 'Bezahlt' : 'Noch offen'}{view.record?.settlement
               ? ` · Manuell geprüft am ${formatDateTime(view.record.settlement.markedAt)}`
-              : ' · Manuell gepflegt'}
+              : ''}
           </dd>
         </dl>
         {#if operation?.state === 'attempted' || operation?.state === 'uncertain'}
           <p role="status" class="border-l-2 border-danger pl-4 text-sm text-danger">
-            Ergebnis unklar. Prüfe in CampFlow, ob ein Beitrag existiert. Die Website sperrt die
-            erneute Erstellung. Ein fehlender Suchtreffer reicht nicht aus, um einen neuen Beitrag
-            anzulegen.
+            Ergebnis unklar: Erst in CampFlow prüfen, ob ein Beitrag entstanden ist. Keinen neuen
+            anlegen, auch wenn du keinen findest; bei Unklarheit den CampFlow-Support fragen.
           </p>
         {:else if operation?.state === 'prepared'}<p class="text-sm text-neutral-700">
-            Der Beitrag ist vorbereitet. Der Aufruf an CampFlow wurde noch nicht reserviert. Prüfe
-            die Daten, um fortzufahren.
+            Beitrag vorbereitet, noch nicht in CampFlow angelegt.
           </p>
         {:else if operation?.state === 'created'}<p class="text-sm text-neutral-700">
-            Betrag, Person und Artikel sind gesperrt. Zahlungen kannst du unter „Status bearbeiten“
-            manuell markieren. Korrekturen oder Stornierungen bitte zuerst in CampFlow klären.
+            Betrag, Person und Artikel sind gesperrt. Änderungen zuerst in CampFlow klären.
           </p>
         {:else if step.unavailable}<p role="status" class="text-sm text-neutral-700">
             {step.currentArchived
-              ? 'Die Aktion ist archiviert.'
+              ? 'Die Sammelbestellung ist archiviert.'
               : view.order.paid
                 ? 'Die Bestellung ist bereits bezahlt.'
                 : view.order.totalCents === 0
-                  ? 'Der Gesamtbetrag ist 0 Euro. Dafür ist kein CampFlow-Beitrag erforderlich.'
+                  ? 'Der Gesamtbetrag ist 0 Euro, ein Beitrag ist nicht nötig.'
                   : 'Die Bestellung wurde noch nicht eingereicht.'}
-            Dafür kann kein neuer Beitrag angelegt werden.
           </p>
         {:else if step.adoptOnly && !step.needsPreparation}<p
             role="status"
             class="text-sm text-neutral-700"
           >
-            Die Bestellung ist bereits bezahlt. Dafür wird kein neuer Beitrag angelegt. Einen
-            vorhandenen CampFlow-Beitrag kannst du nach Prüfung mit „Beitrag zuordnen“ übernehmen.
+            Die Bestellung ist bereits bezahlt. Ein neuer Beitrag wird nicht angelegt.
           </p>
         {:else if step.needsPreparation}<p role="status" class="text-sm text-neutral-700">
-            Noch kein Beitrag angelegt. Wähle „Bestellung vorbereiten“, um den Status auf „Bestellt“
-            oder „Eingetroffen“ zu setzen und den Gesamtbetrag zu speichern.
-            {automaticTotalCents === null && view.order.totalCents === null
-              ? 'Es fehlen Artikelpreise. Trage den vollständigen Gesamtbetrag selbst ein.'
-              : 'Die Artikelsumme wird im Formular vorbelegt, wenn noch kein eigener Betrag gespeichert ist.'}
+            Noch kein Beitrag. Vorher nötig: Status „Bestellt“ oder „Eingetroffen“ und ein
+            Gesamtbetrag.
           </p>
-        {:else}<p class="text-sm text-neutral-700">
-            Noch kein Beitrag angelegt. Mit „Beitrag vorbereiten“ kontrollierst du Betrag und
-            Person. Erst die anschließende Bestätigung „Beitrag anlegen“ erstellt ihn in CampFlow.
-          </p>{/if}
+        {:else}<p class="text-sm text-neutral-700">Noch kein Beitrag angelegt.</p>{/if}
         <div class="flex flex-wrap gap-x-5 gap-y-3">
           {#if !operation}<button
               type="button"

@@ -17,12 +17,24 @@
   class="ui-pagehead mb-4 flex flex-wrap items-end gap-x-8 gap-y-4 pb-4"
 >
   <div class="min-w-0 max-w-3xl flex-1 basis-96">
-    <h1
-      class="ui-h ui-h--section underline-accent mb-2 font-serif text-2xl font-semibold text-brand-900 md:text-3xl"
-    >
-      {page.heading ?? page.title}
-    </h1>
-    <StaffIntro intro={page.intro ?? page.description} open={page.introOpen} />
+    <div class="flex items-start gap-2">
+      <h1
+        class="ui-h ui-h--section underline-accent mb-0 font-serif text-2xl font-semibold text-brand-900 md:text-3xl"
+      >
+        {page.heading ?? page.title}
+      </h1>
+      {#if !page.introOpen}
+        <StaffIntro heading={page.heading ?? page.title} intro={page.intro ?? page.description} />
+      {/if}
+    </div>
+    {#if page.introOpen}
+      <StaffIntro
+        heading={page.heading ?? page.title}
+        intro={page.intro ?? page.description}
+        open
+        class="mt-2"
+      />
+    {/if}
   </div>
   {#if actions}<div class="page-head-actions flex w-full flex-wrap items-center gap-2 lg:w-auto">
       {@render actions()}

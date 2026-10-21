@@ -113,7 +113,7 @@ test('template assignees support pointer selection and unavailable autocomplete 
   await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   await expect(
-    dialog.getByText('Personenvorschläge sind gerade nicht verfügbar.', { exact: false })
+    dialog.getByText('Personensuche gerade nicht verfügbar', { exact: false })
   ).toBeVisible();
   await dialog.getByRole('textbox', { name: 'Titel', exact: true }).fill('Zuordnung prüfen');
   const person = dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false });
