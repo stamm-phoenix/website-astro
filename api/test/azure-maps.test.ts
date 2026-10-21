@@ -6,7 +6,11 @@ import * as token from '../lib/token';
 import * as state from '../lib/nikolaus-state';
 import { AzureMapsError, requestAzureMaps } from '../lib/azure-maps';
 import { geocodeAddress } from '../lib/geocoding';
-import { createGeocodingCache, parseGeocodingCache } from '../lib/geocoding-cache';
+import {
+  createGeocodingCache,
+  parseGeocodingBudget,
+  parseGeocodingCache,
+} from '../lib/geocoding-cache';
 import type { GeocodeResult } from '../lib/geocoding';
 import { overrideConfig } from './fixtures/config';
 import { mockNikolausSettings } from './fixtures/nikolaus-settings';
@@ -22,28 +26,36 @@ function setEnv(t: TestContext, name: string, value: string | undefined): void {
 }
 
 /** Key login, settings and an in-memory shared cache, as in a configured environment. */
-function configured(t: TestContext): { stored: () => unknown } {
+function configured(t: TestContext): {
+  stored: () => unknown;
+  budget: () => unknown;
+  setBudget: (value: unknown) => void;
+} {
   setEnv(t, 'AZURE_MAPS_API_KEY', 'test-key');
   setEnv(t, 'NIKOLAUS_STATE_SECRET', 'x'.repeat(32));
   mockNikolausSettings(t);
-  let data: unknown;
-  t.mock.method(state, 'readNikolausState', async () =>
-    data === undefined ? undefined : { key: 'k', version: '1', data }
+  const records = new Map<string, unknown>();
+  t.mock.method(state, 'readNikolausState', async (key: string) =>
+    records.has(key) ? { key, version: '1', data: records.get(key) } : undefined
   );
   t.mock.method(
     state,
     'mutateNikolausState',
     async (
-      _key: string,
+      key: string,
       parse: (value: unknown) => unknown,
       change: (value: unknown) => unknown
     ) => {
-      const next = change(parse(data));
-      if (next !== undefined) data = next;
+      const next = change(parse(records.get(key)));
+      if (next !== undefined) records.set(key, next);
       return next;
     }
   );
-  return { stored: () => data };
+  return {
+    stored: () => records.get('geocoding:azure-maps'),
+    budget: () => records.get('geocoding:azure-maps:budget'),
+    setBudget: (value: unknown) => records.set('geocoding:azure-maps:budget', value),
+  };
 }
 
 interface Feature {
@@ -299,4 +311,67 @@ test('the cache keeps at most 100 addresses and drops expired ones', async () =>
   });
   assert.equal(asked, true);
   assert.equal((data as { entries: unknown[] }).entries.length, 1);
+});
+
+test('the public address search stops asking Azure Maps once the budget is used up', async (t) => {
+  const { budget } = configured(t);
+  overrideConfig(t, CONFIG.nikolaus, { geocodingHourlyLimit: 3, geocodingDailyLimit: 10 });
+  const fetch = t.mock.method(globalThis, 'fetch', async (url: URL) =>
+    Response.json(
+      features({
+        type: 'Address',
+        lat: 47.9,
+        lon: 11.8,
+        postalCode: '83620',
+        streetNumber: url.searchParams.get('addressLine')?.split(' ')[1],
+      })
+    )
+  );
+  // Many different addresses at once, as from a script
+  const results = await Promise.all(
+    Array.from({ length: 50 }, (_, i) =>
+      geocodeAddress(`Budgetweg ${i + 1}`, '83620', 'Feldkirchen')
+    )
+  );
+  assert.equal(fetch.mock.callCount(), 3);
+  assert.equal(results.filter((r) => r.found).length, 3);
+  assert.ok(results.filter((r) => r.unavailable).length === 47);
+  assert.equal((budget() as { hourCount: number }).hourCount, 3);
+
+  // A located address still comes from the cache without using the budget
+  const again = await geocodeAddress('Budgetweg 1', '83620', 'Feldkirchen');
+  const located = results[0].found ? results[0] : results.find((r) => r.found);
+  assert.equal(again.found || again.unavailable, true);
+  assert.ok(located);
+  assert.equal(fetch.mock.callCount(), 3);
+});
+
+test('both search steps count, and a damaged budget admits nothing', async (t) => {
+  const { budget, setBudget } = configured(t);
+  overrideConfig(t, CONFIG.nikolaus, { geocodingHourlyLimit: 100, geocodingDailyLimit: 100 });
+  geocodingAnswers(t, features(), features());
+  assert.deepEqual(await geocodeAddress('Zweistufig 1', '83620', 'Feldkirchen'), { found: false });
+  assert.equal((budget() as { dayCount: number }).dayCount, 2);
+
+  setBudget({ hour: 'kaputt' });
+  const queries = geocodingAnswers(t);
+  assert.deepEqual(await geocodeAddress('Kaputtbudget 1', '83620', 'Feldkirchen'), {
+    found: false,
+    unavailable: true,
+  });
+  assert.equal(queries.length, 0);
+});
+
+test('the budget starts over in the next hour and day', () => {
+  const hour = 3_600_000;
+  const at = 20 * 86_400_000 + 5 * hour;
+  const used = { hour: at / hour, hourCount: 7, day: 20, dayCount: 9 };
+  assert.deepEqual(parseGeocodingBudget(used, at + 10), used);
+  assert.deepEqual(parseGeocodingBudget(used, at + hour), {
+    hour: at / hour + 1,
+    hourCount: 0,
+    day: 20,
+    dayCount: 9,
+  });
+  assert.equal(parseGeocodingBudget(used, at + 19 * hour).dayCount, 0);
 });

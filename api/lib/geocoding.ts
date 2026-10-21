@@ -3,7 +3,12 @@ import { requestAzureMaps, isAzureMapsConfigured } from './azure-maps';
 import { CONFIG } from './config';
 import type { NikolausCoordinates } from './nikolaus-config';
 import { getNikolausSettings } from './nikolaus-settings';
-import { GEOCODING_STATE_KEY, createGeocodingCache } from './geocoding-cache';
+import {
+  GEOCODING_BUDGET_KEY,
+  GEOCODING_STATE_KEY,
+  createGeocodingCache,
+  reserveGeocodingRequest,
+} from './geocoding-cache';
 import { mutateNikolausState, readNikolausState } from './nikolaus-state';
 
 /** How exactly an address could be located. */
@@ -86,6 +91,16 @@ async function search(
   query: Record<string, string>,
   base: NikolausCoordinates
 ): Promise<GeocodingFeature[]> {
+  const { geocodingHourlyLimit: hourly, geocodingDailyLimit: daily } = CONFIG.nikolaus;
+  const admitted = await reserveGeocodingRequest(
+    (parse, change) => mutateNikolausState(GEOCODING_BUDGET_KEY, parse, change),
+    hourly,
+    daily
+  );
+  if (!admitted) {
+    console.warn(JSON.stringify({ scope: 'nikolaus_geocoding', event: 'limit', at: Date.now() }));
+    throw new Error('Geocoding budget exhausted');
+  }
   const body = await requestAzureMaps({
     method: 'GET',
     path: '/geocode',

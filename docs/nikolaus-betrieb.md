@@ -90,9 +90,16 @@ Seit #187 verortet Azure Maps die Adressen (Karte im Buchungsformular, Speichern
 
 ### Einrichtung
 
-1. Im Azure-Abo mit der Nonprofit-Gutschrift einen Azure-Maps-Account (Gen2) in einer EU-Region anlegen, mit eigener Ressourcengruppe oder Budgetwarnung wie in [belege-ki-pruefung.md](belege-ki-pruefung.md).
+1. Der Account ist `website-astro-maps` (Gen2, West Europe) in der Ressourcengruppe `website-astro`. Für die Kosten eine Budgetwarnung einrichten wie in [belege-ki-pruefung.md](belege-ki-pruefung.md).
 2. Anmeldung, eine der beiden Varianten:
-   - **Entra ID (Standard):** Der App-Registrierung aus `CONFIG.azure` auf dem Account die Rolle „Azure Maps Data Reader“ geben und die Client-ID des Accounts (Seite „Authentication“, `az maps account show --query properties.uniqueId`) als `CONFIG.azureMaps.clientId` in `api/lib/config.ts` eintragen. Die API meldet sich mit demselben Zertifikat (`AZURE_CLIENT_CERT`) an wie für Graph und Azure SQL.
+   - **Entra ID (Standard):** Die Client-ID des Accounts (Seite „Authentication“, `az maps account show --query properties.uniqueId`) steht als `CONFIG.azureMaps.clientId` in `api/lib/config.ts`. Die App-Registrierung der Website (`website-astro`, `5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) braucht auf dem Account die Rolle „Azure Maps Data Reader“; Produktion und Previews melden sich mit demselben Zertifikat (`AZURE_CLIENT_CERT`) an wie für Graph und Azure SQL:
+
+     ```bash
+     az role assignment create --role "Azure Maps Data Reader" \
+       --assignee 5dd5864b-e2c3-4c21-9ef2-8bb3290cd374 \
+       --scope "$(az maps account show -g website-astro -n website-astro-maps --query id -o tsv)"
+     ```
+
    - **Schlüssel:** `AZURE_MAPS_API_KEY` als App Setting setzen (Produktion und Previews). Ist er gesetzt, hat er Vorrang vor Entra ID.
 3. Ohne beides fragt die API Azure Maps nicht an: Adressen bleiben „nicht ermittelt“, die Dispo schätzt aus der Luftlinie und zeichnet gerade Linien.
 
@@ -109,6 +116,8 @@ Die Familien-Adressen gehen damit an Microsoft statt an die OpenStreetMap Founda
 
 Gesucht wird zuerst die vollständige Adresse. Ein Treffer zählt nur mit der eingegebenen Postleitzahl. Typ `Address` mit Hausnummer ergibt die Genauigkeit `address`, eine Straße (`RoadBlock`, `RoadIntersection` oder eine Adresse ohne Hausnummer) `street`. Ohne passenden Treffer sucht die API nur Postleitzahl und Ort (`area`), sonst „nicht gefunden“. Ist Azure Maps nicht eingerichtet, nicht erreichbar oder antwortet unlesbar, wird die Adresse „nicht ermittelt“ (`unavailable`); eine Buchung geht trotzdem durch.
 
+Weil die Adresssuche des Buchungsformulars öffentlich ist, reserviert jede Anfrage an Azure Maps (jede der beiden Suchstufen) vorher atomar einen Platz in `geocoding:azure-maps:budget`: höchstens 150 pro UTC-Stunde und 500 pro UTC-Tag für alle Instanzen einer Umgebung (`CONFIG.nikolaus.geocodingHourlyLimit` und `geocodingDailyLimit`). Treffer aus dem Cache zählen nicht. Ist das Budget erschöpft oder nicht lesbar, wird nicht angefragt, die Adresse bleibt „nicht ermittelt“ und das Log zeigt `event=limit`. Eine Saison braucht nur einige Hundert Anfragen; das Budget begrenzt Missbrauch auf höchstens etwa 15.000 Anfragen im Monat.
+
 Gefundene Orte stehen 24 Stunden in `geocoding:azure-maps` in `nikolaus.state`, höchstens 100, unter einem HMAC-Schlüssel der Adresse (`NIKOLAUS_STATE_SECRET`). So kostet die Adresse aus der Karte beim Buchen keine zweite Anfrage. Fehler werden nicht gespeichert; ein beschädigter Eintrag wird verworfen. Eine Taktung oder Sperre wie bei Nominatim gibt es nicht mehr, daher auch keine „hängende Adresssuche“ in der Steuerung. Das Löschen der Anmeldungen leert den Cache und entfernt den alten Eintrag `geocoding:nominatim`.
 
 ### Fahrzeiten und Routen
@@ -116,6 +125,7 @@ Gefundene Orte stehen 24 Stunden in `geocoding:azure-maps` in `nikolaus.state`, 
 - Die Dispo fragt die Fahrzeiten mit der **Abfahrtszeit des Besuchstags** an (Beginn des ersten Termins, Europe/Berlin) und mit historischem Verkehr, also der üblichen Verkehrslage eines Abends dieses Wochentags. Liegt der Zeitpunkt schon zurück, wird ohne Abfahrtszeit gerechnet.
 - Mit Abfahrtszeit erlaubt die synchrone Matrix höchstens 200 Zellen. Die API teilt größere Tage deshalb in Blöcke, höchstens vier gleichzeitig.
 - Fahrzeiten werden **pro Paar** sechs Stunden im Prozess gemerkt. Kommt eine Buchung hinzu, holt die API nur deren Zeile und Spalte; mehrere Buchungen an einer Adresse teilen sich eine.
+- Die Werte eines Abrufs werden zu Beginn aus dem Merker übernommen; läuft ein Eintrag ab, während die fehlenden Paare angefragt werden, zählt er für diesen Abruf trotzdem.
 - Schlägt ein Block oder eine einzelne Zelle fehl oder brauchen alle Blöcke zusammen länger als 25 Sekunden, gilt für diesen Abruf die Luftlinien-Schätzung (Faktor 1,4, 35 km/h), und die Dispo zeigt „geschätzt“; der nächste Abruf holt nur das Fehlende. Paare, zwischen denen Azure Maps ausdrücklich keine Route findet, werden einzeln geschätzt. Jede Fahrt bekommt zwei Minuten zum Parken dazu.
 - Die Straßenverläufe der Karte kommen aus Route Directions mit bis zu 150 Punkten pro Team, sonst zeichnet die Karte gerade Linien.
 
@@ -137,7 +147,7 @@ Das ergibt grob 3.000 bis 6.000 Routing-Transaktionen pro Saison, also etwa 10 b
 
 ### Beobachten
 
-Die API schreibt JSON-Ereignisse mit `scope=nikolaus_geocoding` und `event` `cache_hit`, `request_finish` (mit `durationMs` und `success`), `cache_failed` oder `unavailable`, ohne Adresse, Koordinate oder Schlüssel. Fehler der Matrix und der Routen stehen als Warnung „Azure Maps matrix failed“ bzw. „Azure Maps route failed“ mit dem HTTP-Status im Log. Die `host.json` deaktiviert weiter das automatische Dependency-Tracking, damit URLs mit Adressen nicht in Application Insights landen.
+Die API schreibt JSON-Ereignisse mit `scope=nikolaus_geocoding` und `event` `cache_hit`, `request_finish` (mit `durationMs` und `success`), `cache_failed`, `limit` oder `unavailable`, ohne Adresse, Koordinate oder Schlüssel. Fehler der Matrix und der Routen stehen als Warnung „Azure Maps matrix failed“ bzw. „Azure Maps route failed“ mit dem HTTP-Status im Log. Die `host.json` deaktiviert weiter das automatische Dependency-Tracking, damit URLs mit Adressen nicht in Application Insights landen.
 
 ```kusto
 traces

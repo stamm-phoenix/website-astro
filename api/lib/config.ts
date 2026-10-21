@@ -80,6 +80,12 @@ export interface ApiConfig {
     /** Shared budget of Nikolaus mails per sender; resends may use a fifth of it. */
     mailHourlyLimit: number;
     mailDailyLimit: number;
+    /**
+     * Shared budget of Azure Maps geocoding requests (each search step counts), because the
+     * address search of the booking form is public; cache hits are free.
+     */
+    geocodingHourlyLimit: number;
+    geocodingDailyLimit: number;
   };
   belege: {
     /** Logins of the Kasse; if empty, every leader may review receipts. */
@@ -241,13 +247,15 @@ export const CONFIG: ApiConfig = {
   },
   azureMaps: {
     endpoint: 'https://eu.atlas.microsoft.com',
-    clientId: '',
+    clientId: '635b735d-f9c5-4510-b567-c209e65f6830',
     searchApiVersion: '2026-01-01',
     routeApiVersion: '2025-01-01',
   },
   nikolaus: {
     mailHourlyLimit: 100,
     mailDailyLimit: 500,
+    geocodingHourlyLimit: 150,
+    geocodingDailyLimit: 500,
   },
   belege: {
     reviewers: [],
