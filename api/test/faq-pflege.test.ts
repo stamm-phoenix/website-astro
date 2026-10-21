@@ -6,7 +6,9 @@ import * as qaList from '../lib/qa-list';
 import { QuestionsCollection, QuestionItem } from '../endpoints/intern-pflege-qa';
 import { GetQuestionsAndAnswersEndpoint } from '../endpoints/qa';
 import { validateQuestionAndAnswer, ValidationError } from '../lib/pflege-validation';
+import { getDb } from '../lib/db';
 import { dbTest } from './fixtures/database';
+import { recordQueries } from './fixtures/queries';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -186,6 +188,60 @@ dbTest('creating a FAQ stores it, logs the acting staff member and offers its to
   assert.ok(item);
   assert.match(item.etag, /^"[0-9a-f]{16}"$/);
   assert.deepEqual({ ...item, etag: undefined }, { ...INPUT, id, etag: undefined });
+});
+
+dbTest('the list takes its topics from the entries in one statement', async (t) => {
+  const context = setup(t);
+  const entry = (question: string, category: string, published = true) => ({
+    question,
+    answer: `<p>${question}</p>`,
+    category,
+    published,
+    updated_by: 'test',
+  });
+  await getDb()
+    .insertInto('content.faq')
+    .values([
+      entry('Wer?', 'Mitmachen'),
+      entry('Wann?', 'Allgemein'),
+      entry('Wie?', 'Mitmachen'),
+      entry('Wo?', 'Zelt', false),
+      entry('Was?', 'Älteres'),
+      entry('Warum?', 'Lager'),
+      entry('Wohin?', 'lager'),
+    ])
+    .execute();
+
+  const queries = recordQueries(t);
+  const response = await QuestionsCollection(request('GET'), context);
+  assert.equal(queries.statements.length, 1);
+  const body = response.jsonBody as StaffList & {
+    items: { etag: string; answer: string }[];
+  };
+  assert.deepEqual(
+    body.items.map(({ etag, ...item }) => {
+      assert.match(etag, /^"[0-9a-f]{16}"$/);
+      return { ...item, id: Number(item.id) - Number(body.items[0]?.id) };
+    }),
+    [
+      { id: 0, question: 'Wer?', answer: '<p>Wer?</p>', category: 'Mitmachen', published: true },
+      { id: 1, question: 'Wann?', answer: '<p>Wann?</p>', category: 'Allgemein', published: true },
+      { id: 2, question: 'Wie?', answer: '<p>Wie?</p>', category: 'Mitmachen', published: true },
+      { id: 3, question: 'Wo?', answer: '<p>Wo?</p>', category: 'Zelt', published: false },
+      { id: 4, question: 'Was?', answer: '<p>Was?</p>', category: 'Älteres', published: true },
+      { id: 5, question: 'Warum?', answer: '<p>Warum?</p>', category: 'Lager', published: true },
+      { id: 6, question: 'Wohin?', answer: '<p>Wohin?</p>', category: 'lager', published: true },
+    ]
+  );
+  // Spellings that differ only in case are one topic, as for the database
+  const lager = body.categories.filter((category) => category.toLowerCase() === 'lager');
+  assert.equal(lager.length, 1);
+  assert.deepEqual(
+    body.categories.filter((category) => category.toLowerCase() !== 'lager'),
+    ['Allgemein', 'Älteres', 'Mitmachen', 'Zelt']
+  );
+  assert.equal(body.categories.indexOf(lager[0] ?? ''), 2);
+  assert.equal(body.allowCustomCategories, true);
 });
 
 dbTest('editing and deleting a FAQ require the loaded version', async (t) => {
