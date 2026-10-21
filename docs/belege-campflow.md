@@ -38,11 +38,14 @@ geändert wird, zeigt die Liste nicht.
 `POST /api/intern/pflege/belege/{id}/campflow` mit `etag`, `costUnitId` und `categoryId`, nur für
 die Kasse (`CONFIG.belege.reviewers`). Code: `api/lib/beleg-campflow.ts`.
 
-1. Der Beleg muss `Angenommen` sein und noch die Version `etag` haben (sonst `409`), damit
+1. Der Beleg muss `Angenommen` sein (sonst `422`) und noch die Version `etag` haben (sonst `409`), damit
    CampFlow genau das bekommt, was die Kasse gesehen hat.
 2. Der Versuch wird in `organisation.beleg_campflow` gespeichert, **bevor** CampFlow gefragt wird
    (Zustand `Gestartet`, mit Dateiname, Kostenstelle, Kategorie, Geschäft, Datum, Betrag, wer und
-   wann). Zwei gleichzeitige Versuche scheitern an der `rowversion` bzw. am Primärschlüssel.
+   wann). Läuft schon ein Versuch (`Gestartet` ohne Ergebnis, jünger als 60 Sekunden), antwortet
+   der Endpunkt mit `423`; gleichzeitige Starts scheitern an der `rowversion` bzw. am
+   Primärschlüssel. Ein Versuch speichert sein Ergebnis nur, solange die Zeile noch seine Version
+   hat.
 3. Die Playwright-API lädt hoch und bucht. Ihre Antwort entscheidet den Zustand:
 
 | Zustand | Bedeutung | Nächster Versuch |

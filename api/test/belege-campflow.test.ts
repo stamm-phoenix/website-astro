@@ -207,7 +207,7 @@ dbTest(
     overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
     const other = { ...PRINCIPAL, userDetails: 'leitung@example.test' };
     assert.equal((await transfer(context, 7, { etag, ...CHOICE }, other)).status, 403);
-    assert.equal((await transfer(context, 8, { etag: submitted, ...CHOICE })).status, 409);
+    assert.equal((await transfer(context, 8, { etag: submitted, ...CHOICE })).status, 422);
     assert.equal((await transfer(context, 7, { etag: submitted, ...CHOICE })).status, 409);
     assert.equal((await transfer(context, 7, { ...CHOICE })).status, 400);
     assert.equal((await transfer(context, 7, { etag, costUnitId: 'cun_Lager' })).status, 400);
@@ -220,7 +220,7 @@ dbTest(
       costUnitId: 'cun_Alt',
       categoryId: 'cat_Alt',
     });
-    assert.equal(archived.status, 409);
+    assert.equal(archived.status, 422);
     assert.equal((await transfer(context, 99, { etag, ...CHOICE })).status, 404);
 
     assert.deepEqual(
@@ -394,56 +394,71 @@ dbTest('a refused repeat keeps an unclear attempt unclear and its Kategorie', as
   );
 });
 
-dbTest('an older attempt never overwrites the result of a newer one', async (t) => {
-  const deferred = () => {
-    let resolve!: (response: Response) => void;
-    const promise = new Promise<Response>((done) => (resolve = done));
-    return { promise, resolve };
-  };
+function deferred(): { promise: Promise<Response>; resolve: (response: Response) => void } {
+  let resolve!: (response: Response) => void;
+  const promise = new Promise<Response>((done) => (resolve = done));
+  return { promise, resolve };
+}
+
+async function untilUploads(calls: Call[], count: number): Promise<void> {
+  while (calls.filter((call) => call.method === 'POST').length < count) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+dbTest('a second attempt is refused while one is running', async (t) => {
   const first = deferred();
-  const second = deferred();
-  const answers: Array<() => Response | Promise<Response>> = [
-    () => first.promise,
-    () => second.promise,
-    () => uploaded(false),
-  ];
-  const { context, blobs, calls } = setup(t, () => answers.shift()!());
+  const { context, blobs, calls } = setup(t, () => first.promise);
   const etag = await store(blobs, 7);
-  const uploads = () => calls.filter((call) => call.method === 'POST');
-  const until = async (count: number) => {
-    while (uploads().length < count) await new Promise((resolve) => setTimeout(resolve, 10));
-  };
 
-  // A first attempt runs, a second one starts before it answers
-  const attempt1 = transfer(context, 7, { etag, ...CHOICE });
-  await until(1);
-  const attempt2 = transfer(context, 7, { etag, ...CHOICE });
-  await until(2);
-
-  // The first one is refused; the second still runs, so it stays unclear
-  first.resolve(Response.json({ error: 'Kategorie fehlt' }, { status: 404 }));
-  assert.equal((await attempt1).status, 502);
-  assert.equal((await transferRow(7))?.state, 'Gestartet');
-
-  // A third one with another Kategorie still books on the target of the running one
-  const attempt3 = await transfer(context, 7, {
+  const running = transfer(context, 7, { etag, ...CHOICE });
+  await untilUploads(calls, 1);
+  const second = await transfer(context, 7, {
     etag,
     costUnitId: 'cun_Lager',
     categoryId: 'cat_Fahrt',
   });
-  assert.equal(attempt3.status, 200, JSON.stringify(attempt3.jsonBody));
-  second.resolve(uploaded());
-  assert.equal((await attempt2).status, 200);
+  assert.equal(second.status, 423);
+  assert.equal((second.jsonBody as { code: string }).code, 'TRANSFER_RUNNING');
 
+  first.resolve(uploaded());
+  assert.equal((await running).status, 200);
+  assert.equal(calls.filter((call) => call.method === 'POST').length, 1);
   const row = await transferRow(7);
-  assert.equal(row?.state, 'Hochgeladen');
   assert.equal(row?.category_id, 'cat_Essen');
-  assert.equal(row?.campflow_number, '2026-112');
-  assert.deepEqual(
-    uploads().map((call) => call.body?.category),
-    ['cat_Essen', 'cat_Essen', 'cat_Essen']
+  assert.equal(row?.amount_cent, 1234);
+});
+
+dbTest('a receipt deleted during its upload still lands in the history', async (t) => {
+  const answer = deferred();
+  const { context, blobs, calls } = setup(t, () => answer.promise);
+  const etag = await store(blobs, 7);
+
+  const running = transfer(context, 7, { etag, ...CHOICE });
+  await untilUploads(calls, 1);
+  const removed = await BelegItem(
+    new HttpRequest({
+      url: 'http://localhost/api/intern/pflege/belege/7',
+      method: 'DELETE',
+      headers: {
+        'if-match': etag,
+        'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+      },
+      params: { id: '7' },
+    }),
+    context
   );
-  assert.deepEqual(await getBelege(), []);
+  assert.equal(removed.status, 204);
+
+  answer.resolve(uploaded());
+  const response = await running;
+  assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
+  assert.equal((response.jsonBody as { deleted: boolean }).deleted, true);
+  const history = (await transferred(context)).jsonBody as { id: string; number: string }[];
+  assert.deepEqual(
+    history.map(({ id, number }) => ({ id, number })),
+    [{ id: '7', number: '2026-112' }]
+  );
 });
 
 dbTest('saving a receipt answers with the version it wrote', async (t) => {
