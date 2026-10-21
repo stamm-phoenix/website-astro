@@ -32,7 +32,8 @@
   function startCreate(): void {
     draft = {
       title: overview?.defaultTitle ?? 'Leitendenrunde',
-      date: overview?.today ?? todayIso(),
+      // While the list of the last visit is shown, its day may lie in the past
+      date: (!store.loading && overview?.today) || todayIso(),
       beginnJetzt: true,
     };
     draftErrors = {};
