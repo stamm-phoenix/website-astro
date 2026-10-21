@@ -1,4 +1,5 @@
-import { describe, expect, test } from 'bun:test';
+import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
 import { navigationLink, placeLink, prefersAppleMaps } from '../src/lib/nikolausMaps';
 
 const IPHONE =
@@ -12,27 +13,31 @@ const WINDOWS =
 
 describe('map links', () => {
   test('Apple devices open Apple Maps, all others Google Maps', () => {
-    expect(prefersAppleMaps(IPHONE)).toBe(true);
-    expect(prefersAppleMaps(IPAD)).toBe(true);
-    expect(prefersAppleMaps(ANDROID)).toBe(false);
-    expect(prefersAppleMaps(WINDOWS)).toBe(false);
-    expect(prefersAppleMaps('')).toBe(false);
+    assert.equal(prefersAppleMaps(IPHONE), true);
+    assert.equal(prefersAppleMaps(IPAD), true);
+    assert.equal(prefersAppleMaps(ANDROID), false);
+    assert.equal(prefersAppleMaps(WINDOWS), false);
+    assert.equal(prefersAppleMaps(''), false);
   });
 
   test('a place opens at its coordinates', () => {
-    expect(placeLink(47.9, 11.8, false)).toBe(
+    assert.equal(
+      placeLink(47.9, 11.8, false),
       'https://www.google.com/maps/search/?api=1&query=47.9%2C11.8'
     );
-    expect(placeLink(47.9, 11.8, true)).toBe(
+    assert.equal(
+      placeLink(47.9, 11.8, true),
       'https://maps.apple.com/?ll=47.9,11.8&q=47.9%2C11.8&z=17'
     );
   });
 
   test('navigation leads to the destination by car', () => {
-    expect(navigationLink('Hauptstraße 1, 83620 Feldkirchen', false)).toBe(
+    assert.equal(
+      navigationLink('Hauptstraße 1, 83620 Feldkirchen', false),
       'https://www.google.com/maps/dir/?api=1&destination=Hauptstra%C3%9Fe%201%2C%2083620%20Feldkirchen&travelmode=driving'
     );
-    expect(navigationLink('47.9,11.8', true)).toBe(
+    assert.equal(
+      navigationLink('47.9,11.8', true),
       'https://maps.apple.com/?daddr=47.9%2C11.8&dirflg=d'
     );
   });
