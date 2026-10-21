@@ -122,19 +122,25 @@ export async function campflowGetAll<T>(
 const SHARED_TTL_MS = 60_000;
 
 /**
- * Requests within a minute share one load, so a page and the pages opened from it do not each
- * wait for CampFlow; a failed load is not kept. Callers must not change the result.
+ * Requests share a running load and its result for a minute after it arrived, so a page and the
+ * pages opened from it do not each wait for CampFlow; a failed load is not kept. Callers must not
+ * change the result.
  */
 function sharedLoad<T>(load: () => Promise<T>): { get: () => Promise<T>; reset: () => void } {
   let current: { promise: Promise<T>; expires: number } | undefined;
   return {
     get() {
       if (current && current.expires > Date.now()) return current.promise;
-      const entry = { promise: load(), expires: Date.now() + SHARED_TTL_MS };
+      const entry = { promise: load(), expires: Infinity };
       current = entry;
-      entry.promise.catch(() => {
-        if (current === entry) current = undefined;
-      });
+      entry.promise.then(
+        () => {
+          entry.expires = Date.now() + SHARED_TTL_MS;
+        },
+        () => {
+          if (current === entry) current = undefined;
+        }
+      );
       return entry.promise;
     },
     reset() {
