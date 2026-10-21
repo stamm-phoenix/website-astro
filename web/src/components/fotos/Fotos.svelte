@@ -18,6 +18,7 @@
     uploadTotals,
   } from '../../lib/fotoUpload.svelte';
   import { fetchCampflowEvents } from '../../lib/campflowStore.svelte';
+  import { loadFotoFolder } from '../../lib/fotoOrdnerStore.svelte';
   import { aktionenPflege } from '../../lib/pflegeStore.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
 
@@ -43,9 +44,14 @@
   ]);
 
   onMount(() => {
-    // The Aktionen take a while to load; start now, so they are there when the upload is opened
-    void fetchCampflowEvents();
-    void aktionenPflege.load();
+    // The Aktionen take a while to load. They are only needed for the upload, so they follow the
+    // folder shown first (the upload form loads them itself) and are there when it is opened
+    const preloadAktionen = (): void => {
+      void fetchCampflowEvents();
+      void aktionenPflege.load();
+    };
+    if (initial.upload) preloadAktionen();
+    else void loadFotoFolder(initial.path).finally(preloadAktionen);
     const read = (): void => {
       view = readFotoAnsicht(window.location.hash);
       if (!view.upload) lastPath = view.path;

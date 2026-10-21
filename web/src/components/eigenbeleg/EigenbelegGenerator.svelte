@@ -61,15 +61,17 @@
   $effect(() => {
     untrack(() => {
       // Only suggestions and the letterhead; the form works without them
-      fetchCampflowEvents();
-      void fetchVorstand();
-      void fetchPrincipal().then(() => {
+      const vorstand = fetchVorstand();
+      const name = fetchPrincipal().then(() => {
         const name = authStore.principal ? getFullName(authStore.principal) : null;
         if (!name || beleg.aussteller.trim()) return;
         const leer = JSON.stringify(beleg) === gesichert;
         beleg.aussteller = name;
         if (leer) gesichert = JSON.stringify(beleg);
       });
+      // The Aktionen are only suggestions for one field: they wait for the name in the form
+      // (or start when that field is used first)
+      void Promise.allSettled([vorstand, name]).then(() => fetchCampflowEvents());
     });
   });
 
@@ -224,6 +226,7 @@
             list="eb-anlass-suggestions"
             autocomplete="off"
             placeholder="z. B. Sommerlager oder Gruppenstunde Wölflinge"
+            onfocus={() => void fetchCampflowEvents()}
             bind:value={beleg.anlass}
           />
           <datalist id="eb-anlass-suggestions">
