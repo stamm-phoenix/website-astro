@@ -453,7 +453,9 @@ dbTest('the overview removes expired names while it reads the counts', async (t)
 dbTest(
   'a Termin past the retention period never shows names, even before they are removed',
   async (t) => {
-    const persons = t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+    const persons = t.mock.method(campflow, 'getCampflowMembers', async () =>
+      structuredClone(PERSONS)
+    );
     await seedTermin('2000-01-07', 'Alt', ['per_Old'], ['per_Other'], ['Gast Alt']);
     const read = async () => {
       const response = await GetAnwesenheitTermin(
@@ -490,7 +492,7 @@ dbTest(
 );
 
 dbTest('a current Termin is read while expired names are removed', async (t) => {
-  t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+  t.mock.method(campflow, 'getCampflowMembers', async () => structuredClone(PERSONS));
   await seedTermin('2000-01-07', 'Alt', ['per_Old'], [], []);
   await seedTermin(berlinToday(), 'Heute', ['per_Current', 'per_Gone'], [], ['Gast Neu']);
   const queries = recordQueries(t);
