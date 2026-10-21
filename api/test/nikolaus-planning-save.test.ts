@@ -17,6 +17,7 @@ import { deleteHelper, getHelper, getHelpers, updateHelper } from '../lib/nikola
 import { deleteBooking } from '../lib/nikolaus-bookings';
 import { NikolausStateConflictError } from '../lib/nikolaus-state';
 import { ValidationError } from '../lib/pflege-validation';
+import type { DispoLoadedCheckOff } from '../lib/pflege-validation';
 import { dbTest } from './fixtures/database';
 import { insertBooking, insertHelper } from './fixtures/nikolaus-data';
 
@@ -88,6 +89,13 @@ dbTest('a stale Dispo version conflicts and replanning keeps checked-off visits'
   assert.equal((await getDispoRows(DATE))[0].team, 'A');
 });
 
+/** Check-offs of the day as the Dispo page loads them. */
+async function checkOffs(): Promise<DispoLoadedCheckOff[]> {
+  return (await getDispoRows(DATE))
+    .filter((row) => row.visited)
+    .map((row) => ({ bookingId: row.bookingId, checkedOffAt: row.visitedAt }));
+}
+
 dbTest('a Dispo built on older check-offs is refused', async () => {
   const [first, second, third] = await Promise.all(
     [1, 2, 3].map(async () => (await insertBooking(`${DATE}T17:00`)).booking.id)
@@ -96,6 +104,7 @@ dbTest('a Dispo built on older check-offs is refused', async () => {
   const rows = await getDispoRows(DATE);
   await setDispoVisited(rows[0], true, '2026-12-05T17:00:00.000Z');
   const version = getDispoVersion(await getDispoRows(DATE));
+  const loaded = await checkOffs();
   // Loaded with only the first visit done; then the team checks off the second one
   await setDispoVisited(
     (await getDispoRows(DATE)).find((row) => row.bookingId === second)!,
@@ -103,28 +112,42 @@ dbTest('a Dispo built on older check-offs is refused', async () => {
     '2026-12-05T17:30:00.000Z'
   );
   const stale = [entry(first, 1), entry(third, 2), entry(second, 3)];
-  await assert.rejects(saveDispo(DATE, stale, version, [first]), ValidationError);
+  await assert.rejects(saveDispo(DATE, stale, version, loaded), ValidationError);
   assert.deepEqual(
     (await getDispoRows(DATE)).map((row) => row.bookingId),
     [first, second, third]
   );
   // A plan built on the current check-offs is saved
-  await saveDispo(DATE, [entry(first, 1), entry(second, 2), entry(third, 3, 'B')], version, [
-    first,
-    second,
-  ]);
+  const reloaded = await checkOffs();
+  await saveDispo(
+    DATE,
+    [entry(first, 1), entry(second, 2), entry(third, 3, 'B')],
+    version,
+    reloaded
+  );
   assert.equal((await getDispoRows(DATE)).find((row) => row.bookingId === third)?.team, 'B');
 
   // The same check-offs do not allow giving a done visit to another team
   const current = getDispoVersion(await getDispoRows(DATE));
   await assert.rejects(
-    saveDispo(DATE, [entry(first, 1, 'B'), entry(second, 2), entry(third, 3, 'B')], current, [
-      first,
-      second,
-    ]),
+    saveDispo(
+      DATE,
+      [entry(first, 1, 'B'), entry(second, 2), entry(third, 3, 'B')],
+      current,
+      reloaded
+    ),
     ValidationError
   );
   assert.equal((await getDispoRows(DATE)).find((row) => row.bookingId === first)?.team, 'A');
+
+  // Undone and checked off again later: the same visits, but the team is somewhere else now
+  const firstRow = (await getDispoRows(DATE)).find((row) => row.bookingId === first)!;
+  const undone = await setDispoVisited(firstRow, false, '');
+  await setDispoVisited(undone, true, '2026-12-05T17:45:00.000Z');
+  await assert.rejects(
+    saveDispo(DATE, [entry(first, 1), entry(second, 2), entry(third, 3)], current, reloaded),
+    ValidationError
+  );
 });
 
 dbTest('a Dispo with a booking deleted meanwhile is a conflict', async () => {

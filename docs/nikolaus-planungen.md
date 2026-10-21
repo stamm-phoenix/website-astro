@@ -47,8 +47,8 @@ Ankunft deshalb die Zeit des Abhakens minus Besuchsdauer. So zählt der Fortschr
 übrigen Termine neu geplant gespeichert werden.
 
 Die Dispo lädt Abhaken nicht von selbst nach. Beim Speichern schickt sie deshalb mit, welche
-Besuche beim Laden abgehakt waren. Hat ein Team seitdem abgehakt oder ein Häkchen
-zurückgenommen, lehnt die API den Plan mit HTTP 400 ab und speichert nichts, denn er wäre auf
+Besuche beim Laden wann abgehakt waren. Hat ein Team seitdem abgehakt, ein Häkchen
+zurückgenommen oder einen Besuch neu abgehakt, lehnt die API den Plan mit HTTP 400 ab und speichert nichts, denn er wäre auf
 einem veralteten Stand gerechnet. Abhaken ändert die Version der Dispo nicht, die
 Versionsprüfung allein fängt das also nicht ab.
 

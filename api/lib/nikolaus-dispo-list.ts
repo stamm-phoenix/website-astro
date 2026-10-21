@@ -5,6 +5,7 @@ import { getDb, getSqlErrorNumber, inTransaction, lockResource, toDateString } f
 import type { Db } from './db';
 import { NikolausStateConflictError } from './nikolaus-state';
 import { ValidationError } from './pflege-validation';
+import type { DispoLoadedCheckOff } from './pflege-validation';
 import { assertTeamsConfigured, dispoLock as planLock } from './nikolaus-settings';
 
 /** One planned visit of the Dispo (one row per booking and day). */
@@ -178,15 +179,15 @@ export async function setDispoVisited(
 /**
  * Replaces the Dispo of a day in one transaction, if nobody saved another one since the
  * caller loaded `expectedVersion`. Visits already checked off keep their state and their team.
- * `done` names the visits checked off when the caller loaded the Dispo: a plan built on other
- * check-offs is rejected, because checking off does not change the version. Saving the same
+ * `done` names the visits checked off when the caller loaded the Dispo, with their time: a plan
+ * built on other check-offs is rejected, because checking off does not change the version. Saving the same
  * plan again changes nothing.
  */
 export async function saveDispo(
   date: string,
   entries: DispoEntry[],
   expectedVersion: string,
-  done?: string[]
+  done?: DispoLoadedCheckOff[]
 ): Promise<void> {
   try {
     await inTransaction(async (trx) => {
@@ -211,9 +212,18 @@ export async function saveDispo(
       if (getDispoVersion(desired) === getDispoVersion(current)) return;
       // A plan built on older check-offs would put a visit done meanwhile behind open ones or
       // give it to another team
+      // Checked off again later counts as another check-off, since it moves the team's position
       const planned = new Set(desired.map((row) => row.bookingId));
-      const doneNow = desired.filter((row) => row.visited).map((row) => row.bookingId);
-      const doneLoaded = done && [...new Set(done)].filter((id) => planned.has(id));
+      const doneNow = desired
+        .filter((row) => row.visited)
+        .map((row) => `${row.bookingId}@${row.visitedAt}`);
+      const doneLoaded = done && [
+        ...new Set(
+          done
+            .filter((item) => planned.has(item.bookingId))
+            .map((item) => `${item.bookingId}@${item.checkedOffAt}`)
+        ),
+      ];
       const stale =
         (doneLoaded !== undefined && doneLoaded.sort().join() !== doneNow.sort().join()) ||
         desired.some((row) => row.visited && byBooking.get(row.bookingId)?.team !== row.team);
