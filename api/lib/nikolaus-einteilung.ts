@@ -7,8 +7,9 @@
  * All days are solved together as one min-cost flow, which gives the exact optimum:
  *   source → person (one arc per day, each further day costs more: spreads the workload)
  *          → person on a day (capacity 1: one post per day)
- *          → post (day, team, role), only if the person volunteered for the role that day and
- *            none of their negative tags matches a family on the team's route
+ *          → post (day, team, role), only if the person volunteered for the role that day and,
+ *            in a role that meets the families, none of their negative tags matches a family on
+ *            the team's route
  *          → sink
  * The weights are strictly ranked: ready teams first (Nikolaus and Fahrer*in, see
  * `solveEinteilung`), then Krampus and Engerl, then the spread of the workload, then positive
@@ -120,12 +121,17 @@ export function parseTags(value: string): string[] {
   return tags;
 }
 
-/** Negative tags of a person that match a family on the team's route. */
+/** Posts that meet the families; negative tags of the Fahrer*in do not count. */
+export const TAGGED_ROLES: readonly TeamRole[] = ['Nikolaus', 'Krampus', 'Engerl'];
+
+/** Negative tags of a person in `role` that match a family on the team's route. */
 export function conflictingTags(
   person: Pick<EinteilungPerson, 'negativeTags'>,
-  families: string[][] | undefined
+  families: string[][] | undefined,
+  role: string
 ): string[] {
   if (!families || person.negativeTags.length === 0) return [];
+  if (!TAGGED_ROLES.includes(role as TeamRole)) return [];
   const familyTags = new Set(families.flat().map(normalizeTag));
   return person.negativeTags.filter((tag) => familyTags.has(normalizeTag(tag)));
 }
@@ -338,10 +344,10 @@ function createSolver(problem: EinteilungProblem): (level: PostLevel) => Einteil
         graph.edge(personNode, dayNode, 1, 0);
         for (const team of day.teams) {
           const families = day.familyTags?.[team];
-          if (conflictingTags(person, families).length > 0) continue;
           const bonus = positiveMatches(person, families);
           for (const role of TEAM_ROLES) {
             if (!volunteers(person, day.date, role)) continue;
+            if (conflictingTags(person, families, role).length > 0) continue;
             const post = { date: day.date, team, role };
             const target = postNodes.get(postKey(post));
             if (target === undefined) continue;
@@ -504,7 +510,7 @@ export function completeEinteilung(
           // A saved plan can leave posts open that free people could fill, e.g. after a
           // team was added in the Steuerung
           if (free.length === 0) reason = 'ALL_BUSY';
-          else if (free.every((p) => conflictingTags(p, families).length > 0)) {
+          else if (free.every((p) => conflictingTags(p, families, role).length > 0)) {
             reason = 'ONLY_TAG_CONFLICTS';
           } else {
             reason = 'UNFILLED';
@@ -519,7 +525,7 @@ export function completeEinteilung(
     const person = personById.get(assignment.personId);
     const day = days.find((d) => d.date === assignment.date);
     if (!person || !day) continue;
-    const tags = conflictingTags(person, day.familyTags?.[assignment.team]);
+    const tags = conflictingTags(person, day.familyTags?.[assignment.team], assignment.role);
     if (tags.length > 0)
       conflicts.push({ personId: person.id, date: day.date, team: assignment.team, tags });
   }

@@ -240,7 +240,7 @@ export async function seedPreviewPlans(): Promise<void> {
     for (const booking of stops) {
       const blocked = teams(date).filter((team) =>
         (members[team] ?? []).some(
-          (member) => conflictingTags(member, [booking.internalTags]).length > 0
+          (member) => conflictingTags(member, [booking.internalTags], member.role).length > 0
         )
       );
       if (blocked.length > 0) forbidden[booking.id] = blocked;

@@ -303,7 +303,7 @@
           (a) =>
             a.date === date && a.personId === person.id && !(a.team === team && a.role === role)
         );
-        const tags = conflictingTags(person, families);
+        const tags = conflictingTags(person, families, role);
         const hints = [
           elsewhere ? `schon Team ${elsewhere.team} ${elsewhere.role}` : '',
           tags.length > 0 ? `nicht zu Familien mit: ${tags.join(', ')}` : '',
