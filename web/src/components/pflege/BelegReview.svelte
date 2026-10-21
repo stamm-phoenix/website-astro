@@ -12,17 +12,8 @@
     errors: Record<string, string>;
     onsave: (decision: BelegStatus) => void;
     ontransfer: (choice: CampflowChoice) => void;
-    ondeleteuploaded: () => void;
   }
-  let {
-    form = $bindable(),
-    reviewer,
-    busy,
-    errors,
-    onsave,
-    ontransfer,
-    ondeleteuploaded,
-  }: Props = $props();
+  let { form = $bindable(), reviewer, busy, errors, onsave, ontransfer }: Props = $props();
 </script>
 
 {#if form.id}
@@ -89,7 +80,7 @@
       </div>
     {/if}
     {#if reviewer && form.status === 'Angenommen'}
-      <BelegCampflowTransfer {form} {busy} {ontransfer} ondelete={ondeleteuploaded} />
+      <BelegCampflowTransfer {form} {busy} {ontransfer} />
     {/if}
   </fieldset>
 {/if}

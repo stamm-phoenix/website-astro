@@ -373,19 +373,6 @@
       ]);
     }, 'Der Beleg wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
-
-  /** Deletes a receipt that was corrected after its upload, once CampFlow was checked. */
-  async function removeUploaded(): Promise<void> {
-    const number = form?.campflow?.number ?? '';
-    const accepted = await confirmAction({
-      title: 'Beleg hier löschen?',
-      message: `In CampFlow steht Beleg ${number} mit dem Stand der Übertragung. Prüfe dort, ob deine späteren Änderungen übernommen sind, bevor du ihn hier löschst.`,
-      confirmLabel: 'Hier löschen',
-      cancelLabel: 'Abbrechen',
-      tone: 'danger',
-    });
-    if (accepted) await remove();
-  }
 </script>
 
 <StaffPageHead href="/leitendenbereich/belege">
@@ -506,7 +493,9 @@
   onclose={close}
   ondelete={form?.id && (reviewer || form.status !== 'Angenommen') ? remove : undefined}
   deleteTitle={`Beleg von ${form?.shop || 'unbekannt'} löschen?`}
-  deleteQuestion="Diesen Beleg endgültig löschen?"
+  deleteQuestion={form?.campflow?.state === 'Hochgeladen'
+    ? `In CampFlow steht Beleg ${form.campflow.number} mit dem Stand der Übertragung. Prüfe dort, ob spätere Änderungen übernommen sind, bevor du ihn hier löschst. Diesen Beleg endgültig löschen?`
+    : 'Diesen Beleg endgültig löschen?'}
 >
   {#if form}
     <BelegPhotoSection {form} {photo} {busy} {errors} />
@@ -526,7 +515,6 @@
       {errors}
       onsave={save}
       ontransfer={transfer}
-      ondeleteuploaded={removeUploaded}
     />
   {/if}
 </EditDialog>

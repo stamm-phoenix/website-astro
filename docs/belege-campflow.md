@@ -58,7 +58,7 @@ die Kasse (`CONFIG.belege.reviewers`). Code: `api/lib/beleg-campflow.ts`.
    das, was an CampFlow ging (`beleg_version`). Nach einem unklaren Versuch bleiben dessen Angaben
    gespeichert: Findet die Wiederholung die frühere Buchung, steht in CampFlow der frühere Stand.
    Wurde der Beleg seitdem korrigiert, bleibt er stehen und zeigt die CampFlow-Nummer; die Kasse
-   prüft CampFlow und löscht ihn dann mit „Hier löschen“ (mit Rückfrage). Jedes Löschen eines
+   prüft CampFlow und löscht ihn dann mit „Löschen“; die Rückfrage nennt die CampFlow-Nummer. Jedes Löschen eines
    hochgeladenen Belegs, auch über den normalen Löschknopf, setzt in derselben Transaktion
    `beleg_deleted_at`, so bleibt er unter „In CampFlow“.
 
