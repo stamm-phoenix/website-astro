@@ -157,7 +157,7 @@
       >
       <span class="max-w-full break-words hyphens-auto">{@render moduleTitle(module)}</span>
     </a>
-    {#if favorite}
+    {#if favorite && !favoritesStore.loading}
       <!-- With a mouse on hover; on a touch screen a long press on the tile removes it -->
       <button
         type="button"

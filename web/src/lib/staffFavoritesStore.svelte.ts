@@ -63,8 +63,6 @@ function removeLegacyFavorites(userId: string): void {
 
 /** Saves run one after another, so an older selection never overwrites a newer one. */
 let queue: Promise<void> = Promise.resolve();
-/** Counts the choices made on this page, so a load can tell whether one came during it. */
-let choices = 0;
 
 /** The account of the logged-in person; only needed to take over favorites of this browser. */
 async function currentUserId(): Promise<string> {
@@ -77,12 +75,12 @@ async function currentUserId(): Promise<string> {
 /**
  * Loads the favorites of the account, keeping only the `known` module paths. An account without
  * saved favorites takes over the selection of this browser once. Favorites already shown stay
- * while the newer ones load; a choice made meanwhile is kept and saved by its own save.
+ * visible while the newer ones load, but cannot be changed until they arrived (`favoriteToggle`),
+ * so a choice never starts from an older selection than the one saved on another device.
  */
 export async function loadFavorites(known: string[]): Promise<void> {
   favoritesStore.loading = true;
   favoritesStore.loadError = null;
-  const before = choices;
   try {
     // Saves still running (e.g. from before leaving the page) finish first, so the answer has them
     await queue;
@@ -102,14 +100,11 @@ export async function loadFavorites(known: string[]): Promise<void> {
           ).modules
         : [];
     }
-    // A choice made while loading is newer than the answer; its save brings the server up to date
-    if (choices === before) {
-      favoritesStore.modules = knownPaths(modules, known);
-      favoritesStore.saved = favoritesStore.modules;
-      // The shown selection is the saved one again, so an earlier save result no longer applies
-      favoritesStore.notice = null;
-    }
+    favoritesStore.modules = knownPaths(modules, known);
+    favoritesStore.saved = favoritesStore.modules;
     favoritesStore.loaded = true;
+    // The shown selection is the saved one again, so an earlier save result no longer applies
+    favoritesStore.notice = null;
     // The server has the favorites now; a copy this browser still kept is no longer needed
     userId ??= authStore.principal?.userId ?? null;
     if (userId) removeLegacyFavorites(userId);
@@ -163,7 +158,6 @@ export function saveFavorites(success = 'Favoriten gespeichert.'): void {
 /** Adds or removes a favorite and saves it right away; `title` names it in the confirmation. */
 export function toggleFavorite(path: string, title?: string): void {
   const adding = !favoritesStore.modules.includes(path);
-  choices++;
   favoritesStore.modules = adding
     ? [...favoritesStore.modules, path]
     : favoritesStore.modules.filter((module) => module !== path);
@@ -181,8 +175,10 @@ export function toggleFavorite(path: string, title?: string): void {
 /**
  * The action of a long press on an area: toggling it as a favorite, once the favorites are
  * loaded and if it can be one (the Nikolaus modules cannot, they are only there in winter).
+ * No choosing while they load, so a late answer cannot replace a newer choice.
  */
 export function favoriteToggle(module: { href: string; title: string }): (() => void) | undefined {
-  if (!favoritesStore.loaded || !STAFF_FAVORITE_PATHS.includes(module.href)) return undefined;
+  if (!favoritesStore.loaded || favoritesStore.loading) return undefined;
+  if (!STAFF_FAVORITE_PATHS.includes(module.href)) return undefined;
   return () => toggleFavorite(module.href, module.title);
 }
