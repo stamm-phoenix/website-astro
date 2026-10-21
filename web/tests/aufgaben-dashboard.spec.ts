@@ -220,19 +220,17 @@ test('after a failed reload the favorites cannot be changed until they load agai
   );
   await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
   await expect(page).toHaveURL(/\/leitendenbereich\/aufgaben/);
-  const failed = page.waitForResponse(
-    (response) => response.url().endsWith('/api/intern/favoriten') && response.status() === 503
-  );
   await page.goBack();
-  await failed;
+  // The page of Aufgaben loads them too, so the start page's own failure is awaited on screen
+  const retry = page
+    .getByRole('region', { name: 'Deine Bereiche' })
+    .getByRole('button', { name: 'Erneut versuchen' });
+  await expect(retry).toBeVisible();
   // Another device may have changed them meanwhile, so the old selection is not saved over them
   await expect(star).toHaveCount(0);
   await expect(page.getByRole('button', { name: /aus deinen Favoriten entfernen/ })).toHaveCount(0);
 
   await page.unroute('**/api/intern/favoriten');
-  await page
-    .getByRole('region', { name: 'Deine Bereiche' })
-    .getByRole('button', { name: 'Erneut versuchen' })
-    .click();
+  await retry.click();
   await expect(star.first()).toBeAttached();
 });
