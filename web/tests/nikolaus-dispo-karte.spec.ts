@@ -144,6 +144,36 @@ test('the large map switches between light and dark tiles on its own', async ({ 
   await expectNoHorizontalOverflow(page);
 });
 
+test('road courses that arrive late are fitted into the map', async ({ page }) => {
+  // The course of a team takes a detour far north of all visits
+  let release: (() => void) | undefined;
+  await page.route('**/api/intern/nikolaus/dispo/routes**', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as { paths: Record<string, [number, number][] | null> };
+    // Team B: all its visits are on the map, so the map follows its course
+    const team = 'B';
+    const path = body.paths[team];
+    const [lat, lon] = path![1];
+    body.paths[team] = [path![0], [lat + 0.3, lon], ...path!.slice(1)];
+    await new Promise<void>((resolve) => (release = resolve));
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
+  const map = page.locator('.dispo-map-main.leaflet-container');
+  const zoom = async (): Promise<number> =>
+    Number(
+      /\/(\d+)\/\d+\/\d+\.png$/.exec(
+        (await map.locator('img.leaflet-tile').last().getAttribute('src')) ?? ''
+      )?.[1]
+    );
+  await expect(map.locator('img.leaflet-tile').first()).toBeVisible();
+  await expect.poll(() => release !== undefined).toBe(true);
+  const before = await zoom();
+  release!();
+  // The map zooms out to show the detour
+  await expect.poll(zoom).toBeLessThan(before);
+});
+
 test('teams can be hidden on the map', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
   const map = page.locator('.dispo-map-main.leaflet-container');
