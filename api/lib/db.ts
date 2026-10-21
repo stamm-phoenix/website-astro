@@ -36,7 +36,9 @@ function configuredTarget(): DatabaseTarget {
 export function createDatabase(target: DatabaseTarget): Kysely<Database> {
   return new Kysely<Database>({
     dialect: new MssqlDialect({
-      tarn: { ...Tarn, options: { min: 0, max: 10, idleTimeoutMillis: 60_000 } },
+      // Connections stay open for ten idle minutes: opening one to Azure SQL (TLS, login, token)
+      // takes longer than most queries, and leaders often pause a few minutes between pages
+      tarn: { ...Tarn, options: { min: 0, max: 10, idleTimeoutMillis: 10 * 60_000 } },
       tedious: {
         ...Tedious,
         connectionFactory: () =>
@@ -73,6 +75,8 @@ export function getLockDb(): Kysely<Database> {
 
 /** Points the pool at another database (tests, local scripts). Returns a function to close it. */
 export function useDatabase(target: DatabaseTarget): () => Promise<void> {
+  // A replaced pool left open keeps the process running until its idle connections time out
+  void Promise.all([instance?.destroy(), lockInstance?.destroy()]);
   override = target;
   instance = undefined;
   lockInstance = undefined;
