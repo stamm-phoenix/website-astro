@@ -58,6 +58,43 @@ test('choosing a visit in the panel keeps the map in view', async ({ page }) => 
   await expect(page.locator('.dispo-map-main')).toBeInViewport({ ratio: 0.5 });
 });
 
+test('pointing at a drive highlights both visits and the team shows its kilometres', async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
+  const map = page.locator('.dispo-map-main.leaflet-container');
+  await expect(map.locator('.leaflet-marker-icon').nth(1)).toBeVisible();
+  await expect(
+    page
+      .locator('.map-panel')
+      .getByText(/Strecke (ca\.|mind\.) [\d,]+ km/)
+      .first()
+  ).toBeVisible();
+  await map.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(1000);
+  // Between the second and third visit of the first team, far enough apart on a phone
+  const [first, second] = await map.locator('.leaflet-marker-icon').evaluateAll((elements) =>
+    elements.slice(1, 3).map((element) => {
+      const box = element.getBoundingClientRect();
+      return [box.x + box.width / 2, box.y + box.height / 2];
+    })
+  );
+  const middle = { x: (first[0] + second[0]) / 2, y: (first[1] + second[1]) / 2 };
+  // On a phone the drive is tapped
+  if (isMobile) await page.touchscreen.tap(middle.x, middle.y);
+  else await page.mouse.move(middle.x, middle.y);
+  await expect(map.locator('.leaflet-tooltip').filter({ hasText: 'Fahrt' })).toContainText(' km');
+  await expect(map.locator('.dispo-marker.is-leg-end')).toHaveCount(2);
+  await expect(page.locator('.stop-item.is-leg-end')).toHaveCount(2);
+
+  const box = (await map.boundingBox())!;
+  if (isMobile) await page.touchscreen.tap(box.x + box.width - 10, box.y + box.height / 2);
+  else await page.mouse.move(5, 5);
+  await expect(map.locator('.dispo-marker.is-leg-end')).toHaveCount(0);
+  await expect(page.locator('.stop-item.is-leg-end')).toHaveCount(0);
+});
+
 test('teams can be hidden on the map', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
   const map = page.locator('.dispo-map-main.leaflet-container');
