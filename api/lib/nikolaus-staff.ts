@@ -31,6 +31,36 @@ export async function requireNikolausStaff(
   return { principal, config };
 }
 
+export interface NikolausStaffData<T> extends NikolausStaffAccess {
+  data: T;
+}
+
+/**
+ * Like `requireNikolausStaff`, for GET requests: `load` starts together with the settings
+ * instead of after them, and its result is only returned while the modules are switched on.
+ * `active` resolves with the settings once the gate passed, for reads that need them or must
+ * not run while the modules are switched off (e.g. calls to other services).
+ */
+export async function readAsNikolausStaff<T>(
+  request: HttpRequest,
+  load: (active: Promise<NikolausSettings>) => Promise<T>
+): Promise<NikolausStaffData<T> | HttpResponseInit> {
+  const principal = requireStaff(request);
+  if (isStaffError(principal)) return principal;
+  const settings = getNikolausSettings();
+  const active = settings.then((config) => {
+    if (!config.staffActive) throw new Error('The Nikolaus staff modules are switched off');
+    return config;
+  });
+  const data = load(active);
+  // Dropped when the gate answers instead; their failure must not end the process
+  active.catch(() => undefined);
+  data.catch(() => undefined);
+  const config = await settings;
+  if (!config.staffActive) return NIKOLAUS_STAFF_INACTIVE;
+  return { principal, config, data: await data };
+}
+
 export function isNikolausStaffError(
   value: NikolausStaffAccess | HttpResponseInit
 ): value is HttpResponseInit {

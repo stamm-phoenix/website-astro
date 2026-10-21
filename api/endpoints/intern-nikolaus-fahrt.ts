@@ -4,10 +4,10 @@ import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings } from '../lib/nikolaus-bookings';
 import { getNikolausTeams } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
-import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
+import { isNikolausStaffError, readAsNikolausStaff } from '../lib/nikolaus-staff';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, getDispoVisitVersion, setDispoVisited } from '../lib/nikolaus-dispo-list';
-import { confirmedOfDay, getTeamMembers, readDate } from '../lib/nikolaus-day';
+import { confirmedOfDay, getTeamMembers, readDate, readDateParam } from '../lib/nikolaus-day';
 import { NO_STORE_HEADERS, toLocation } from '../lib/nikolaus-api';
 import { validateDispoVisit } from '../lib/pflege-validation';
 import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
@@ -48,18 +48,19 @@ function toFahrtStop(row: DispoRow, booking: NikolausBooking) {
 export async function GetInternNikolausFahrtEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const access = await requireNikolausStaff(request);
+  const requested = readDateParam(request);
+  const access = await readAsNikolausStaff(request, async () =>
+    requested
+      ? Promise.all([getAllBookings(), getDispoRows(requested), getTeamMembers(requested)])
+      : null
+  );
   if (isNikolausStaffError(access)) return access;
-  const { config } = access;
+  const { config, data } = access;
 
   const date = readDate(request, config);
-  if (!date) return NOT_FOUND;
+  if (!date || !data) return NOT_FOUND;
 
-  const [bookings, rows, members] = await Promise.all([
-    getAllBookings(),
-    getDispoRows(date),
-    getTeamMembers(date),
-  ]);
+  const [bookings, rows, members] = data;
   const teams = getNikolausTeams(date, config);
   const confirmed = new Map(confirmedOfDay(bookings, date).map((b) => [b.id, b]));
 

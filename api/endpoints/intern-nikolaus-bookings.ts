@@ -1,8 +1,8 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import { getAllBookings, getCapacityBlockingBookings } from '../lib/nikolaus-bookings';
+import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
 import { getNikolausSlots } from '../lib/nikolaus-config';
 import { NO_STORE_HEADERS, toStaffBooking } from '../lib/nikolaus-api';
-import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
+import { isNikolausStaffError, readAsNikolausStaff } from '../lib/nikolaus-staff';
 import { withErrorHandling } from '../lib/response-utils';
 
 interface StaffSlotOverview {
@@ -19,18 +19,13 @@ interface StaffSlotOverview {
 export async function GetInternNikolausBookingsEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const access = await requireNikolausStaff(request);
-  if (isNikolausStaffError(access)) return access;
-  const { config } = access;
-
   const now = new Date();
-  const [bookings, blocking] = await Promise.all([
-    getAllBookings(),
-    getCapacityBlockingBookings(config, now),
-  ]);
+  const access = await readAsNikolausStaff(request, () => getAllBookings());
+  if (isNikolausStaffError(access)) return access;
+  const { config, data: bookings } = access;
 
   const taken = new Map<string, number>();
-  for (const booking of blocking) {
+  for (const booking of bookings.filter((b) => isBlocking(b, now))) {
     taken.set(booking.slotKey, (taken.get(booking.slotKey) ?? 0) + 1);
   }
 
