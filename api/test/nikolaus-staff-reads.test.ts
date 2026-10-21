@@ -292,3 +292,18 @@ dbTest('the team members of a day are read for that day only', async (t) => {
   assert.equal(queries.length, 1);
   assert.equal(queries[0].rows.length, 2, 'neither the kitchen nor other days are loaded');
 });
+
+dbTest(
+  'Dispo and Fahrt answer an impossible date with „not found“, not with an error',
+  async () => {
+    for (const date of ['2026-99-99', '2026-02-30', '0000-01-01']) {
+      for (const [name, endpoint] of [
+        ['dispo', GetInternNikolausDispoEndpoint],
+        ['fahrt', GetInternNikolausFahrtEndpoint],
+      ] as const) {
+        const response = await endpoint(request(`${name}?date=${date}`));
+        assert.equal(response.status, 404, `${name} ${date}`);
+      }
+    }
+  }
+);
