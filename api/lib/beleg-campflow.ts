@@ -18,6 +18,7 @@ import {
   getSqlErrorNumber,
   requireVersion,
 } from './db';
+import { PREVIEW_DATABASE } from './deployment';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import { PlaywrightApiError, getKostenstellen, uploadCampflowBeleg } from './playwright-api';
 import { errorResponse } from './response-utils';
@@ -50,9 +51,10 @@ export class BelegCampflowError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
-    message: string
+    message: string,
+    options?: ErrorOptions
   ) {
-    super(message);
+    super(message, options);
     this.name = 'BelegCampflowError';
   }
 
@@ -78,12 +80,19 @@ export interface BelegCampflowResult {
 
 /**
  * File name in CampFlow, e.g. `2026-09-30 REWE 12,34 EUR (Website-Beleg 123).jpg`. The ID makes
- * it unique, which the Playwright API needs to recognise a receipt it has uploaded before.
+ * it unique, which the Playwright API needs to recognise a receipt it has uploaded before. A
+ * name stored with an attempt is reused for its repeats, also after this rule changes.
  */
-export function campflowFileName(beleg: StoredBeleg): string {
+export function campflowFileName(
+  beleg: StoredBeleg,
+  previewDatabase: string | null = PREVIEW_DATABASE
+): string {
   const shop = beleg.shop.trim().slice(0, MAX_SHOP_IN_FILE_NAME);
   const name = downloadFileName({ ...beleg, shop }).replace(/\.jpg$/, '');
-  return `${name} (Website-Beleg ${beleg.id}).jpg`;
+  // Previews number their receipts from 1 like production and may share its CampFlow, so their
+  // file names name the preview (`website-pr-416` → `pr-416-7`) to stay apart
+  const origin = previewDatabase ? `${previewDatabase.replace(/^website-/, '')}-` : '';
+  return `${name} (Website-Beleg ${origin}${beleg.id}).jpg`;
 }
 
 /**
@@ -313,7 +322,22 @@ export async function transferBelegToCampflow(
     const fileName = row?.file_name ?? campflowFileName(beleg);
     const attempt = await startAttempt(beleg, target, fileName, row, actor);
 
-    const photo = await readBelegPhoto(id, beleg.photo, 'photo');
+    // CampFlow is not called yet, so a failure here wrote nothing there
+    let photo: Buffer | undefined;
+    try {
+      photo = await readBelegPhoto(id, beleg.photo, 'photo');
+    } catch (error: unknown) {
+      await finishAttempt(id, attempt, {
+        state: wasUnclear ? 'Gestartet' : 'Fehlgeschlagen',
+        error: 'Foto konnte nicht geladen werden',
+      });
+      throw new BelegCampflowError(
+        502,
+        'PHOTO_UNAVAILABLE',
+        'Das Foto des Belegs konnte gerade nicht geladen werden. Es wurde nichts übertragen. Bitte versuche es gleich noch einmal.',
+        { cause: error }
+      );
+    }
     if (!photo) {
       await finishAttempt(id, attempt, {
         state: wasUnclear ? 'Gestartet' : 'Fehlgeschlagen',

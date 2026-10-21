@@ -461,6 +461,34 @@ dbTest('a receipt deleted during its upload still lands in the history', async (
   );
 });
 
+dbTest('a failing photo read ends the attempt, so another Kategorie may be chosen', async (t) => {
+  const { context, blobs, calls } = setup(t, () => uploaded());
+  const etag = await store(blobs, 7);
+  let fail = true;
+  const read = blobStorage.getBlob;
+  t.mock.method(blobStorage, 'getBlob', async (name: string) => {
+    if (fail) throw Object.assign(new Error('Storage unavailable'), { statusCode: 503 });
+    return read(name);
+  });
+
+  const failed = await transfer(context, 7, { etag, ...CHOICE });
+  assert.equal(failed.status, 502);
+  assert.equal((failed.jsonBody as { code: string }).code, 'PHOTO_UNAVAILABLE');
+  const row = await transferRow(7);
+  assert.equal(row?.state, 'Fehlgeschlagen');
+  assert.notEqual(row?.error, '');
+  assert.equal(calls.filter((call) => call.method === 'POST').length, 0);
+
+  fail = false;
+  const other = await transfer(context, 7, {
+    etag,
+    costUnitId: 'cun_Lager',
+    categoryId: 'cat_Fahrt',
+  });
+  assert.equal(other.status, 200, JSON.stringify(other.jsonBody));
+  assert.equal(calls.find((call) => call.method === 'POST')?.body?.category, 'cat_Fahrt');
+});
+
 dbTest('saving a receipt answers with the version it wrote', async (t) => {
   const { context, blobs } = setup(t, () => uploaded());
   const etag = await store(blobs, 7);
@@ -562,15 +590,24 @@ test('CampFlow gets a unique file name, the payout person and the rest in the de
     note: 'Frühstück',
   } as StoredBeleg;
   assert.equal(
-    campflowFileName(beleg),
+    campflowFileName(beleg, null),
     '2026-10-01 Bäckerei Huber 5,00 EUR (Website-Beleg 42).jpg'
+  );
+  // Previews number their receipts like production, so their names name the preview
+  assert.equal(
+    campflowFileName(beleg, 'website-pr-416'),
+    '2026-10-01 Bäckerei Huber 5,00 EUR (Website-Beleg pr-416-42).jpg'
+  );
+  assert.notEqual(
+    campflowFileName(beleg, 'website-pr-416'),
+    campflowFileName(beleg, 'website-pr-417')
   );
   assert.equal(campflowDisburser(beleg), null);
   assert.equal(campflowDescription(beleg), 'Bäckerei: "Huber" – Frühstück – bezahlt von Kim');
   assert.equal(campflowDisburser({ ...beleg, payout: true }), 'Kim');
   assert.equal(campflowDescription({ ...beleg, payout: true, note: '' }), 'Bäckerei: "Huber"');
-  const longName = campflowFileName({ ...beleg, shop: 'x'.repeat(300) });
-  assert.ok(longName.length <= 200 && longName.endsWith('(Website-Beleg 42).jpg'));
+  const longName = campflowFileName({ ...beleg, shop: 'x'.repeat(300) }, 'website-pr-99999');
+  assert.ok(longName.length <= 200 && longName.endsWith('(Website-Beleg pr-99999-42).jpg'));
   // A long note is shortened, who paid always stays
   const long = campflowDescription({ ...beleg, note: 'y'.repeat(400) });
   assert.equal(long.length, 255);
