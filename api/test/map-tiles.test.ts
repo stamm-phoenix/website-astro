@@ -135,17 +135,38 @@ test('tiles outside the area, too deep or while the maps are off are not fetched
   assert.equal(fetch.mock.callCount() + off.mock.callCount(), 0);
 });
 
-test('outside the area the empty square may be kept for a day', async (t) => {
+test('an invalid tile may be kept for a day, outside the area only ten minutes', async (t) => {
   setup(t);
   tileService(t);
+  const invalid = await GetKarteKachelEndpoint(
+    tileRequest({ style: 'hell', z: '20', x: '1', y: '1.png' })
+  );
+  assert.equal(invalid.status, 404);
+  assert.equal(
+    (invalid.headers as Record<string, string>)['Cache-Control'],
+    'public, max-age=86400'
+  );
+  // The area moves with the starting point, so a square outside may belong to it soon
   const outside = await GetKarteKachelEndpoint(
     tileRequest({ style: 'hell', z: '13', x: '4342', y: '2794.png' })
   );
   assert.equal(outside.status, 404);
-  assert.equal(
-    (outside.headers as Record<string, string>)['Cache-Control'],
-    'public, max-age=86400'
+  assert.equal((outside.headers as Record<string, string>)['Cache-Control'], 'public, max-age=600');
+});
+
+test('a moved starting point serves its new tiles once the area is read again', async (t) => {
+  setup(t);
+  // Nuremberg as starting point: the tile there belongs to the area
+  t.mock.method(settingsModule, 'getNikolausSettings', async () => ({
+    ...TEST_SETTINGS,
+    publicActive: true,
+    area: { ...TEST_SETTINGS.area, base: { name: 'Nürnberg', lat: 49.4521, lon: 11.0767 } },
+  }));
+  tileService(t);
+  const moved = await GetKarteKachelEndpoint(
+    tileRequest({ style: 'hell', z: '13', x: '4348', y: '2793.png' })
   );
+  assert.equal(moved.status, 200);
 });
 
 test('a passing failure of the settings is not kept, the next tile comes again', async (t) => {
@@ -221,6 +242,37 @@ test('the copyright notice is plain text, per zoom level and kept for an hour', 
     })
   );
   assert.equal(invalid.status, 404);
+});
+
+test('maps asking for the same notice at once both get an empty list on a failure', async (t) => {
+  setup(t);
+  let fail: (() => void) | undefined;
+  const fetch = t.mock.method(
+    globalThis,
+    'fetch',
+    () =>
+      new Promise<Response>((resolve) => {
+        fail = () => resolve(new Response('', { status: 500 }));
+      })
+  );
+  const request = () =>
+    GetKarteQuelleEndpoint(
+      new HttpRequest({
+        url: 'https://example.test/api/karte-quelle/hell/14',
+        method: 'GET',
+        params: { style: 'hell', z: '14' },
+      })
+    );
+  const first = request();
+  const second = request();
+  await new Promise((resolve) => setImmediate(resolve));
+  fail?.();
+  for (const response of await Promise.all([first, second])) {
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.jsonBody, { copyrights: [] });
+    assert.equal((response.headers as Record<string, string>)['Cache-Control'], 'no-store');
+  }
+  assert.equal(fetch.mock.callCount(), 1);
 });
 
 test('without the copyright notice the map shows only its own', async (t) => {
