@@ -10,6 +10,7 @@ import {
   createGeocodingCache,
   parseGeocodingBudget,
   parseGeocodingCache,
+  reserveGeocodingRequest,
 } from '../lib/geocoding-cache';
 import type { GeocodeResult } from '../lib/geocoding';
 import { overrideConfig } from './fixtures/config';
@@ -374,4 +375,21 @@ test('the budget starts over in the next hour and day', () => {
     dayCount: 9,
   });
   assert.equal(parseGeocodingBudget(used, at + 19 * hour).dayCount, 0);
+});
+
+test('a reservation that waited past the hour cannot reset the newer window', async () => {
+  const hour = 3_600_000;
+  const before = 20 * 86_400_000 + 5 * hour - 1;
+  let stored: unknown = { hour: (before + 1) / hour, hourCount: 1, day: 20, dayCount: 1 };
+  const mutate = async <T>(
+    parse: (value: unknown) => T,
+    change: (value: T) => T | undefined
+  ): Promise<T | undefined> => {
+    const next = change(parse(stored));
+    if (next !== undefined) stored = next;
+    return next;
+  };
+  // Started one millisecond before the new hour, got the lock after a newer reservation
+  assert.equal(await reserveGeocodingRequest(mutate, 1, 10, before), false);
+  assert.deepEqual(stored, { hour: (before + 1) / hour, hourCount: 1, day: 20, dayCount: 1 });
 });

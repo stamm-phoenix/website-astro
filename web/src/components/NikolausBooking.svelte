@@ -328,8 +328,9 @@
     <p class="text-xs leading-relaxed text-neutral-700">
       Wir verwenden Ihre Angaben ausschließlich für die Planung und Durchführung des Nikolausbesuchs
       und löschen sie spätestens einen Monat nach dem letzten Besuch der Saison. Für die
-      Kartenanzeige wird Ihre Adresse an OpenStreetMap übermittelt. Die Prüfung, ob Sie ein Mensch
-      sind, rechnet kurz in Ihrem Browser – ohne Cookies und ohne Drittanbieter. Mehr dazu unter
+      Kartenanzeige wird Ihre Adresse an Microsoft Azure Maps übermittelt. Die Prüfung, ob Sie ein
+      Mensch sind, rechnet kurz in Ihrem Browser – ohne Cookies und ohne Drittanbieter. Mehr dazu
+      unter
       <a class="underline" href="/datenschutz#nikolaus">Datenschutz</a>.
     </p>
 

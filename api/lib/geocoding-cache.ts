@@ -35,7 +35,10 @@ export function parseGeocodingBudget(value: unknown | undefined, now: number): G
     !isRecord(value) ||
     !['hour', 'hourCount', 'day', 'dayCount'].every(
       (field) => Number.isSafeInteger(value[field]) && Number(value[field]) >= 0
-    )
+    ) ||
+    // A request that waited for the lock across the hour must not reset the newer window
+    Number(value.hour) > hour ||
+    Number(value.day) > day
   ) {
     throw new Error('Invalid geocoding budget');
   }
