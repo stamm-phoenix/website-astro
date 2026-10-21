@@ -187,11 +187,46 @@ test('Einteilung finds the most ready teams in a sparse mix', () => {
   assert.deepEqual(teamCapacity(problem.persons, DATE), { ready: 2, complete: 1 });
 });
 
+test('negative tags count for Nikolaus, Krampus and Engerl, not for the Fahrer*in', () => {
+  const tags = { negativeTags: ['Müller'] };
+  const problem: EinteilungProblem = {
+    persons: [
+      person('n', ['Nikolaus'], tags),
+      person('k', ['Krampus'], tags),
+      person('f', ['Fahrer*in'], tags),
+      person('e', ['Engerl'], tags),
+    ],
+    days: [{ date: DATE, teams: ['A'], familyTags: { A: [['Müller']] } }],
+  };
+  const result = solveEinteilung(problem);
+  assert.deepEqual(result.assignments, [
+    { personId: 'f', date: DATE, team: 'A', role: 'Fahrer*in', fixed: false },
+  ]);
+  assert.deepEqual(
+    result.open.map((post) => `${post.role}:${post.reason}`),
+    ['Nikolaus:ONLY_TAG_CONFLICTS', 'Krampus:ONLY_TAG_CONFLICTS', 'Engerl:ONLY_TAG_CONFLICTS']
+  );
+  const byHand = completeEinteilung(
+    problem,
+    (['n', 'k', 'f', 'e'] as const).map((id, i) => ({
+      personId: id,
+      date: DATE,
+      team: 'A',
+      role: (['Nikolaus', 'Krampus', 'Fahrer*in', 'Engerl'] as const)[i],
+      fixed: true,
+    }))
+  );
+  assert.deepEqual(
+    byHand.conflicts.map((conflict) => conflict.personId),
+    ['n', 'k', 'e']
+  );
+});
+
 test('Einteilung keeps a team ready even when tags pull people apart', () => {
   const result = solveEinteilung({
     persons: [
-      person('n', ['Nikolaus'], { positiveTags: ['Wölflinge'] }),
-      person('f', ['Fahrer*in'], { negativeTags: ['Wölflinge'] }),
+      person('n', ['Nikolaus'], { negativeTags: ['Wölflinge'] }),
+      person('f', ['Fahrer*in'], { positiveTags: ['Wölflinge'] }),
     ],
     days: [{ date: DATE, teams: ['A', 'B'], familyTags: { A: [['Wölflinge']], B: [] } }],
   });
@@ -206,19 +241,28 @@ test('Einteilung finds the largest combination of ready teams, not the first one
     persons: [
       person('N1', ['Nikolaus'], { negativeTags: ['C'] }),
       person('N2', ['Nikolaus'], { negativeTags: ['A', 'B'] }),
-      person('F1', ['Fahrer*in'], { negativeTags: ['B'] }),
+      // Negative tags of the Fahrer*in do not count
+      person('F1', ['Fahrer*in'], { negativeTags: ['A', 'C'] }),
       person('F2', ['Fahrer*in'], { negativeTags: ['A', 'C'] }),
     ],
     days: [
       { date: DATE, teams: ['A', 'B', 'C'], familyTags: { A: [['A']], B: [['B']], C: [['C']] } },
     ],
   });
-  assert.deepEqual(result.assignments.map((entry) => `${entry.team}:${entry.personId}`).sort(), [
-    'B:F2',
-    'B:N1',
-    'C:F1',
-    'C:N2',
+  assert.deepEqual(result.assignments.map((entry) => `${entry.team}:${entry.role}`).sort(), [
+    'A:Fahrer*in',
+    'A:Nikolaus',
+    'C:Fahrer*in',
+    'C:Nikolaus',
   ]);
+  assert.deepEqual(
+    result.assignments
+      .filter((entry) => entry.role === 'Nikolaus')
+      .map((e) => e.personId)
+      .sort(),
+    ['N1', 'N2']
+  );
+  assert.equal(result.assignments.find((entry) => entry.personId === 'N1')?.team, 'A');
 });
 
 test('team capacity names only complete teams that fit with the ready ones', () => {

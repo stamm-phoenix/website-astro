@@ -440,7 +440,7 @@
       id="helper-negative-tags"
       label="Nicht zu Familien mit"
       optional
-      hint="Gleicher Begriff wie bei der Familie, z. B. die eigene Stufe."
+      hint="Gleicher Begriff wie bei der Familie, z. B. die eigene Stufe. Gilt als Nikolaus, Krampus und Engerl, nicht als Fahrer*in."
       error={fieldErrors.negativeTags}
     >
       {#snippet children(attrs)}

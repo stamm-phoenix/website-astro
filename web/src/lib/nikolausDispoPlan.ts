@@ -11,7 +11,7 @@ export function tagConflicts(
   team: string
 ): { name: string; tags: string[] }[] {
   return (source.members[team] ?? []).flatMap((member) => {
-    const tags = conflictingTags(member, [booking.internalTags]);
+    const tags = conflictingTags(member, [booking.internalTags], member.role);
     return tags.length > 0 ? [{ name: member.name, tags }] : [];
   });
 }
