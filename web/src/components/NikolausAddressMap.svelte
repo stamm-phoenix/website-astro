@@ -169,8 +169,8 @@
 
 {#if !readonly}
   <p class="mt-2 text-xs text-neutral-700">
-    Zur Kontrolle zeigen wir Ihre Adresse auf einer Karte an. Dafür wird sie an OpenStreetMap
-    übermittelt.
+    Zur Kontrolle zeigen wir Ihre Adresse auf einer Karte an. Dafür wird sie an den Kartendienst
+    Microsoft Azure Maps übermittelt; die Karte selbst kommt von OpenStreetMap.
   </p>
 {/if}
 
