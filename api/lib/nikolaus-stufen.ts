@@ -4,7 +4,7 @@
  * (from the Leitende list). Suggestions are only applied when accepted in the Leitendenbereich.
  */
 import type { CampflowPerson } from './campflow';
-import { campflowGetAll } from './campflow';
+import { getCampflowMembers } from './campflow';
 import type { Leitende } from './leitende-list';
 import type { NikolausBooking } from './nikolaus-bookings';
 import type { Helper } from './nikolaus-helfende-list';
@@ -86,7 +86,7 @@ export function toStufenMember(person: CampflowPerson, today: string): StufenMem
 
 /** Current members of the CampFlow member list that belong to a Stufe. */
 export async function getStufenMembers(now: Date = new Date()): Promise<StufenMember[]> {
-  const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
+  const persons = await getCampflowMembers();
   const today = now.toISOString().slice(0, 10);
   return persons
     .map((person) => toStufenMember(person, today))

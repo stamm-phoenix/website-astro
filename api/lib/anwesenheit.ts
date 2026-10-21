@@ -13,7 +13,7 @@ import type {
 } from './anwesenheit-model';
 import { STUFE_SLUGS, attendanceSnapshot, isStufeSlug } from './anwesenheit-model';
 import type { CampflowPerson } from './campflow';
-import { CampflowError, campflowGet, campflowGetAll } from './campflow';
+import { CampflowError, campflowGet, getCampflowMembers } from './campflow';
 import { CONFIG } from './config';
 import type { Db } from './db';
 import {
@@ -430,7 +430,7 @@ function toChild(id: string, person: CampflowPerson, today: string): Child | und
 
 /** Current members of the CampFlow member list that belong to a Stufe. */
 export async function getChildren(now: Date = new Date()): Promise<Child[]> {
-  const persons = await campflowGetAll<CampflowPerson>(MEMBER_PERSONS);
+  const persons = await getCampflowMembers();
   const today = dateToLocalParts(now).date;
   return persons.flatMap((person) => {
     const child = typeof person.id === 'string' ? toChild(person.id, person, today) : undefined;
