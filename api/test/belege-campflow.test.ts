@@ -8,7 +8,7 @@ import * as env from '../lib/environment';
 import { getBelege } from '../lib/beleg-list';
 import { campflowDescription, campflowDisburser, campflowFileName } from '../lib/beleg-campflow';
 import type { StoredBeleg } from '../lib/beleg-list';
-import { BelegCampflow } from '../endpoints/intern-pflege-belege';
+import { BelegCampflow, BelegeUebertragen } from '../endpoints/intern-pflege-belege';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';
 import test from 'node:test';
@@ -315,6 +315,61 @@ dbTest('a receipt changed during the upload stays and is only deleted next time'
   assert.equal((again.jsonBody as { deleted: boolean }).deleted, true);
   assert.equal(calls.filter((call) => call.method === 'POST').length, 1);
   assert.deepEqual(await getBelege(), []);
+});
+
+function transferred(
+  context: InvocationContext,
+  principal = PRINCIPAL
+): ReturnType<typeof BelegeUebertragen> {
+  return BelegeUebertragen(
+    new HttpRequest({
+      url: 'http://localhost/api/intern/pflege/belege/uebertragen',
+      method: 'GET',
+      headers: {
+        'x-ms-client-principal': Buffer.from(JSON.stringify(principal)).toString('base64'),
+      },
+    }),
+    context
+  );
+}
+
+dbTest('transferred receipts stay listed with their details, for the uploader too', async (t) => {
+  const answers: Array<() => Response> = [
+    () => uploaded(),
+    () => Response.json({ error: 'Kategorie fehlt' }, { status: 404 }),
+  ];
+  const { context, blobs } = setup(t, () => answers.shift()!());
+  const first = await store(blobs, 7, { payout: false });
+  const second = await store(blobs, 8);
+  assert.equal((await transfer(context, 7, { etag: first, ...CHOICE })).status, 200);
+  assert.equal((await transfer(context, 8, { etag: second, ...CHOICE })).status, 502);
+
+  overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
+  const kasse = await transferred(context);
+  assert.equal(kasse.status, 200);
+  assert.deepEqual(kasse.jsonBody, [
+    {
+      id: '7',
+      shop: 'REWE',
+      date: '2026-09-30',
+      amountCent: 1234,
+      paidBy: 'Alex Beispiel',
+      payout: false,
+      aktion: 'Stammeslager 2026',
+      note: 'Grillgut',
+      submittedBy: 'leitung@example.test',
+      number: '2026-112',
+      costUnitName: 'Stammeslager 2026',
+      categoryName: 'Verpflegung',
+      transferredBy: 'kasse@example.test',
+      transferredAt: (kasse.jsonBody as { transferredAt: string }[])[0]!.transferredAt,
+    },
+  ]);
+
+  const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test' };
+  assert.equal(((await transferred(context, uploader)).jsonBody as unknown[]).length, 1);
+  const other = { ...PRINCIPAL, userDetails: 'andere@example.test' };
+  assert.deepEqual((await transferred(context, other)).jsonBody, []);
 });
 
 test('CampFlow gets a unique file name, the payout person and the rest in the description', () => {

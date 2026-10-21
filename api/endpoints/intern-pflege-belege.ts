@@ -33,6 +33,7 @@ import {
   downloadFileName,
   getBeleg,
   getBelege,
+  getTransferredBelege,
   setBelegPhoto,
   toStaffBeleg,
   updateBeleg,
@@ -361,6 +362,22 @@ export const BelegCampflowEndpoint = pflegeHandler(
   }
 );
 
+/**
+ * GET: receipts transferred to CampFlow and deleted here, newest first. The Kasse sees all,
+ * others the ones they submitted. Their photos come from CampFlow (`intern-abrechnung-beleg-bild`).
+ */
+export const BelegeUebertragenEndpoint = pflegeHandler(
+  'belege-uebertragen',
+  async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
+    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
+    const belege = await getTransferredBelege();
+    if (isBelegReviewer(principal)) return ok(belege);
+    // Logins compare case-insensitively, like isOwner
+    const login = principal.userDetails.toLowerCase();
+    return ok(belege.filter((b) => b.submittedBy !== '' && b.submittedBy.toLowerCase() === login));
+  }
+);
+
 /** GET: whether the user belongs to the Kasse, so the page can show the review controls. */
 export const BelegRolleEndpoint = pflegeHandler(
   'belege-rolle',
@@ -376,3 +393,4 @@ export const BelegItem = withErrorHandling(BelegItemEndpoint);
 export const BelegPhoto = withErrorHandling(BelegPhotoEndpoint);
 export const BelegPruefung = withErrorHandling(BelegPruefungEndpoint);
 export const BelegCampflow = withErrorHandling(BelegCampflowEndpoint);
+export const BelegeUebertragen = withErrorHandling(BelegeUebertragenEndpoint);

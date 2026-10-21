@@ -31,6 +31,7 @@ import type {
   TasksOverview,
   ProtokollTermin,
   StaffBeleg,
+  TransferredBeleg,
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
   StaffProtokoll,
@@ -2449,6 +2450,25 @@ const belege: StaffBeleg[] = [
     campflow: null,
   },
 ];
+/** Receipts the demo Kasse already transferred to CampFlow; their images come from CampFlow. */
+const uebertrageneBelege: TransferredBeleg[] = [
+  {
+    id: '35',
+    shop: 'Edeka',
+    date: dayFromToday(-30),
+    amountCent: 6412,
+    paidBy: 'Demo Leitung',
+    payout: true,
+    aktion: 'Sommerlager 2026 Oberjoch',
+    note: 'Grillabend',
+    submittedBy: 'leitung@example.test',
+    number: '2026-104',
+    costUnitName: 'Sommerlager 2026 Oberjoch',
+    categoryName: 'Verpflegung',
+    transferredBy: 'kasse@example.test',
+    transferredAt: isoFromNow(-25),
+  },
+];
 const belegPhotos = new Map<string, Uint8Array>();
 const belegOriginals = new Map<string, Uint8Array>();
 
@@ -2521,6 +2541,8 @@ route('POST', '/api/intern/pflege/belege/pruefung', (req) => {
 
 route(['GET'], '/api/intern/pflege/belege/rolle', () => json({ reviewer: true }));
 
+route(['GET'], '/api/intern/pflege/belege/uebertragen', () => json(uebertrageneBelege));
+
 route(['PATCH', 'DELETE'], '/api/intern/pflege/belege/:id', (req) => {
   const index = belege.findIndex((b) => b.id === req.params.id);
   if (index < 0) return notFound();
@@ -2587,6 +2609,23 @@ route('POST', '/api/intern/pflege/belege/:id/campflow', (req) => {
     );
   }
   belege.splice(index, 1);
+  const number = `2026-${nextCampflowNumber++}`;
+  uebertrageneBelege.unshift({
+    id: beleg.id,
+    shop: beleg.shop,
+    date: beleg.date,
+    amountCent: beleg.amountCent,
+    paidBy: beleg.paidBy,
+    payout: beleg.payout,
+    aktion: beleg.aktion,
+    note: beleg.note,
+    submittedBy: beleg.submittedBy,
+    number,
+    costUnitName: unit.name,
+    categoryName: category.name,
+    transferredBy: PRINCIPAL.userDetails,
+    transferredAt: new Date(MOCK_NOW).toISOString(),
+  });
   return json({
     campflow: {
       state: 'Hochgeladen',
@@ -2594,7 +2633,7 @@ route('POST', '/api/intern/pflege/belege/:id/campflow', (req) => {
       costUnitName: unit.name,
       categoryId: category.id,
       categoryName: category.name,
-      number: `2026-${nextCampflowNumber++}`,
+      number,
       error: '',
       startedBy: PRINCIPAL.userDetails,
       startedAt: new Date(MOCK_NOW).toISOString(),

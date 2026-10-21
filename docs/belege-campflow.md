@@ -24,6 +24,15 @@ werden vorher gespeichert. Nach der Übertragung wird der Beleg im Modul gelösc
 Fehlende Kostenstellen oder Kategorien legt die Übertragung nicht an; dafür CampFlow öffnen und
 die Seite neu laden.
 
+## Übertragene Belege ansehen
+
+Der Filter „In CampFlow“ listet die übertragenen und danach gelöschten Belege, die neuesten
+zuerst (`GET /api/intern/pflege/belege/uebertragen`). Die Kasse sieht alle, alle anderen die
+Belege, die sie selbst eingereicht haben. Die Angaben stammen aus `organisation.beleg_campflow`,
+so wie sie bei der Übertragung waren; das Bild kommt über die Playwright-API aus CampFlow
+(`/api/intern/abrechnung/belege/{nummer}/bild`, wie in der Abrechnung). Was danach in CampFlow
+geändert wird, zeigt die Liste nicht.
+
 ## Ablauf und Zustände
 
 `POST /api/intern/pflege/belege/{id}/campflow` mit `etag`, `costUnitId` und `categoryId`, nur für

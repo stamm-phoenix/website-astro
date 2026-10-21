@@ -22,6 +22,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       'Die Kostenstelle, die so heißt wie die Aktion, ist schon ausgewählt. CampFlow bekommt das Foto, Geschäft, Bemerkung, Datum und Betrag, und bei gewünschter Auszahlung die Person unter „Auslage durch“.',
       'Danach siehst du die neue Belegnummer aus CampFlow, und der Beleg wird hier gelöscht. Ging beim Übertragen etwas schief, kannst du es einfach noch einmal versuchen: Ein schon angekommener Beleg wird nicht doppelt angelegt.',
+      'Übertragene Belege findest du unter „In CampFlow“ mit Belegnummer, Kostenstelle und Kategorie. Tippst du einen an, siehst du das Bild, wie es in CampFlow liegt. Wer einen Beleg eingereicht hat, sieht dort auch die eigenen übertragenen Belege.',
     ],
   },
   {

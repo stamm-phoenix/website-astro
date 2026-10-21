@@ -1,10 +1,10 @@
 <script lang="ts">
-  import MessageText from '../ui/MessageText.svelte';
   import { onDestroy } from 'svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { isIch } from '../../lib/ichStore.svelte';
-  import { fetchFile, errorMessage } from '../../lib/api';
+  import { fetchCampflowBelegBild } from '../../lib/campflowBelegBild';
+  import CampflowBelegBild from '../CampflowBelegBild.svelte';
   import { downloadNachweisePdf, pdfFileName } from '../../lib/abrechnungPdf';
   import type { PdfBeleg, PdfTable } from '../../lib/abrechnungPdf';
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
@@ -151,22 +151,6 @@
     ];
   }
 
-  async function fetchBelegBild(
-    receiptNumber: string,
-    page: number
-  ): Promise<{ blob: Blob; pages: number }> {
-    try {
-      const file = await fetchFile(
-        `/intern/abrechnung/belege/${encodeURIComponent(receiptNumber)}/bild?page=${page}`
-      );
-      return { blob: file.blob, pages: Number(file.headers.get('x-campflow-pages')) || 1 };
-    } catch (error: unknown) {
-      throw new Error(errorMessage(error, 'keine Verbindung'), {
-        cause: error,
-      });
-    }
-  }
-
   async function exportPdf(withReceipts: boolean): Promise<void> {
     pdfBusy = true;
     pdfError = null;
@@ -181,7 +165,7 @@
       const withLeihgebuehren = withReceipts && visible.some((n) => n.virtual);
       const { failed } = await downloadNachweisePdf(table(withReceipts), {
         belege,
-        fetchImage: fetchBelegBild,
+        fetchImage: fetchCampflowBelegBild,
         leihgebuehren: withLeihgebuehren
           ? await leihgebuehrenPdfData(abrechnung, leihgebuehren)
           : undefined,
@@ -201,21 +185,10 @@
     }
   }
 
-  interface BelegSeite {
-    url: string;
-    width: number;
-    height: number;
-  }
-
   /** The Einzelnachweis opened in the dialog, by key so it follows changed amounts. */
   let openKey = $state<string | null>(null);
   let amountInput = $state('');
   let amountError = $state<string | null>(null);
-  let seiten = $state<BelegSeite[]>([]);
-  let seitenTotal = $state(0);
-  let bildError = $state<string | null>(null);
-  /** Ignores images that arrive after the dialog was closed or another entry opened. */
-  let bildLoad = 0;
 
   const selected = $derived(
     openKey === null ? null : (nachweise.find((n) => n.key === openKey) ?? null)
@@ -236,66 +209,20 @@
     return parseEuroToCent(unsigned);
   }
 
-  function releaseSeiten(): void {
-    for (const seite of seiten) URL.revokeObjectURL(seite.url);
-    seiten = [];
-    seitenTotal = 0;
-  }
-
-  async function toSeite(blob: Blob): Promise<BelegSeite> {
-    const bitmap = await createImageBitmap(blob);
-    const seite = { url: URL.createObjectURL(blob), width: bitmap.width, height: bitmap.height };
-    bitmap.close();
-    return seite;
-  }
-
-  /** Loads the pages of the receipt one after the other, so the first one shows early. */
-  async function loadBild(receiptNumber: string): Promise<void> {
-    const load = ++bildLoad;
-    bildError = null;
-    try {
-      let total = 1;
-      for (let page = 1; page <= total; page++) {
-        const { blob, pages } = await fetchBelegBild(receiptNumber, page);
-        if (load !== bildLoad) return;
-        total = pages;
-        seitenTotal = pages;
-        const seite = await toSeite(blob);
-        if (load !== bildLoad) {
-          URL.revokeObjectURL(seite.url);
-          return;
-        }
-        seiten = [...seiten, seite];
-      }
-    } catch (error: unknown) {
-      if (load === bildLoad) {
-        bildError = `Der Beleg konnte nicht geladen werden (${
-          error instanceof Error ? error.message : 'keine Verbindung'
-        }). Prüfe deine Internetverbindung und öffne den Beleg noch einmal.`;
-      }
-    }
-  }
-
   /** Ends the hold of the open dialog on the version it was opened with. */
   let releaseDraft: (() => void) | null = null;
 
   function openDetails(nachweis: NachweisZeile): void {
-    releaseSeiten();
     releaseDraft?.();
     releaseDraft = holdAbrechnungDraft(abrechnung.event.id);
     openKey = nachweis.key;
     amountInput = centToAmount(nachweis.cent);
     amountError = null;
-    if (nachweis.receiptNumber) void loadBild(nachweis.receiptNumber);
-    else bildLoad++;
   }
 
   function closeDetails(): void {
     releaseDraft?.();
     releaseDraft = null;
-    bildLoad++;
-    releaseSeiten();
-    bildError = null;
     openKey = null;
   }
 
@@ -341,8 +268,6 @@
 
   onDestroy(() => {
     releaseDraft?.();
-    bildLoad++;
-    releaseSeiten();
   });
 </script>
 
@@ -548,30 +473,7 @@
       </FormField>
 
       {#if selected.receiptNumber}
-        <div>
-          <h3 class="text-sm font-semibold text-neutral-700">
-            Beleg{seitenTotal > 1 ? ` (${seitenTotal} Seiten)` : ''}
-          </h3>
-          {#each seiten as seite, index (seite.url)}
-            <a href={seite.url} target="_blank" rel="noopener" class="mt-2 block">
-              <img
-                src={seite.url}
-                width={seite.width}
-                height={seite.height}
-                alt={`Beleg ${selected.receiptNumber}${seitenTotal > 1 ? `, Seite ${index + 1} von ${seitenTotal}` : ''}`}
-                class="h-auto w-full rounded-md border border-neutral-200 bg-white"
-              />
-            </a>
-          {/each}
-          {#if bildError}
-            <p class="mt-2 text-sm text-danger"><MessageText text={bildError} /></p>
-          {:else if seitenTotal === 0 || seiten.length < seitenTotal}
-            <div role="status" aria-live="polite" class="mt-2">
-              <p class="text-sm text-neutral-700">Der Beleg wird geladen …</p>
-              <div class="skeleton-element mt-2 h-48 w-full rounded"></div>
-            </div>
-          {/if}
-        </div>
+        <CampflowBelegBild receiptNumber={selected.receiptNumber} />
       {:else}
         <p class="text-sm text-neutral-700">Zu dieser Buchung gibt es in CampFlow keinen Beleg.</p>
       {/if}
