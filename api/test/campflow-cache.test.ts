@@ -91,3 +91,25 @@ test('the member list is shared like the events, apart from them', async (t) => 
     ['prs_1']
   );
 });
+
+test('a load still running after a minute is shared, the minute counts from its answer', async (t) => {
+  let answer = (): void => undefined;
+  const answered = new Promise<void>((resolve) => (answer = resolve));
+  const calls = campflow(t, () => Response.json({ data: [{ ...EVENT }] }));
+  const fetch = globalThis.fetch;
+  t.mock.method(globalThis, 'fetch', async (...args: Parameters<typeof fetch>) => {
+    await answered;
+    return fetch(...args);
+  });
+
+  const first = getCampflowEvents();
+  t.mock.timers.tick(90_000);
+  const during = getCampflowEvents();
+  answer();
+  await Promise.all([first, during]);
+  t.mock.timers.tick(59_000);
+  await getCampflowEvents();
+
+  assert.equal(during, first);
+  assert.equal(calls.count, 1);
+});
