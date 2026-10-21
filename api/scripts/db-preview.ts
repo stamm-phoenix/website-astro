@@ -54,6 +54,7 @@ import {
   seedPreviewLeitende,
   seedPreviewAktionen,
   seedPreviewBelege,
+  seedPreviewBelegeCampflow,
   seedPreviewDownloads,
   seedPreviewBlog,
   seedPreviewPlans,
@@ -152,6 +153,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewLeitende();
       await seedPreviewAktionen();
       await seedPreviewBelege();
+      await seedPreviewBelegeCampflow();
       await seedPreviewDownloads();
       await markPreviewSeeded(preview);
     } finally {

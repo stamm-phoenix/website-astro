@@ -373,31 +373,50 @@ async function notChanged(id: number): Promise<never> {
   throw exists ? new VersionConflictError() : new RecordNotFoundError();
 }
 
-/** Saves details and review state if the receipt still has the version `etag`. */
+/**
+ * Saves details and review state if the receipt still has the version `etag`; returns the new
+ * version, the one this change wrote.
+ */
 export async function updateBeleg(
   id: number,
   input: BelegInput,
   etag: string,
   actor: string
-): Promise<void> {
-  const result = await getDb()
+): Promise<string> {
+  const row = await getDb()
     .updateTable('organisation.beleg')
     .set({ ...toColumns(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
     .where('id', '=', id)
     .where('version', '=', requireVersion(etag))
+    .output('inserted.version')
     .executeTakeFirst();
-  if (Number(result.numUpdatedRows) === 0) await notChanged(id);
+  if (!row) return notChanged(id);
   await removeFiles();
+  return toVersion(row.version);
 }
 
-/** Deletes a receipt and its photo if it still has the version `etag`. */
+/**
+ * Deletes a receipt and its photo if it still has the version `etag`. A receipt uploaded to
+ * CampFlow is marked as deleted in the same transaction, so it stays in the history.
+ */
 export async function deleteBeleg(id: number, etag: string): Promise<void> {
-  const row = await getDb()
-    .deleteFrom('organisation.beleg')
-    .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
-    .output('deleted.photo')
-    .executeTakeFirst();
+  const row = await inTransaction(async (trx) => {
+    const deleted = await trx
+      .deleteFrom('organisation.beleg')
+      .where('id', '=', id)
+      .where('version', '=', requireVersion(etag))
+      .output('deleted.photo')
+      .executeTakeFirst();
+    if (deleted) {
+      await trx
+        .updateTable('organisation.beleg_campflow')
+        .set({ beleg_deleted_at: sql<string>`SYSUTCDATETIME()` })
+        .where('beleg_id', '=', id)
+        .where('state', '=', 'Hochgeladen')
+        .execute();
+    }
+    return deleted;
+  });
   if (!row) await notChanged(id);
   const photo = row?.photo;
   await removeFiles(async () => {

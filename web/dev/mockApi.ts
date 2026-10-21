@@ -2558,7 +2558,7 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/belege/:id', (req) => {
   const rejected = str(req.json?.status) === 'Abgelehnt' && belege[index].status !== 'Abgelehnt';
   applyBeleg(belege[index], req.json ?? {});
   // The demo pretends the rejection mail was sent
-  return json({ mailed: rejected });
+  return json({ mailed: rejected, etag: belege[index].etag });
 });
 
 route(

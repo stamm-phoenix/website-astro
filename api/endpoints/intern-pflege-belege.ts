@@ -174,8 +174,9 @@ export const BelegeCollectionEndpoint = pflegeHandler(
 );
 
 /**
- * PATCH: update details and review state (optimistic locking via etag). Rejecting a receipt
- * mails the reason to the uploader; `mailed` says whether that worked. DELETE: remove.
+ * PATCH: update details and review state (optimistic locking via etag); answers with the new
+ * `etag`. Rejecting a receipt mails the reason to the uploader; `mailed` says whether that
+ * worked. DELETE: remove.
  */
 export const BelegItemEndpoint = pflegeHandler(
   'belege',
@@ -205,11 +206,16 @@ export const BelegItemEndpoint = pflegeHandler(
       if (input.status !== previous.status && !resubmit) return FORBIDDEN;
       input.reviewNote = previous.reviewNote;
     }
-    await updateBeleg(id, input, etag, principal.userDetails);
+    // The version this change wrote, so a follow-up (e.g. the transfer to CampFlow) never takes
+    // someone else's later change for it
+    const saved = await updateBeleg(id, input, etag, principal.userDetails);
 
     const rejected = input.status === 'Abgelehnt' && previous.status !== 'Abgelehnt';
-    if (!rejected) return ok({ mailed: false });
-    return ok({ mailed: await mailRejection(previous, input, principal, request, context) });
+    if (!rejected) return ok({ mailed: false, etag: saved });
+    return ok({
+      mailed: await mailRejection(previous, input, principal, request, context),
+      etag: saved,
+    });
   }
 );
 

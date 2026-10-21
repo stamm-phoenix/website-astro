@@ -14,8 +14,10 @@
     form: BelegForm;
     busy: boolean;
     ontransfer: (choice: CampflowChoice) => void;
+    /** Deletes a receipt corrected after its upload. */
+    ondelete: () => void;
   }
-  let { form, busy, ontransfer }: Props = $props();
+  let { form, busy, ontransfer, ondelete }: Props = $props();
 
   const transfer = $derived(form.campflow);
   /** After an unclear attempt only the same Kostenstelle and Kategorie find what it created. */
@@ -61,14 +63,10 @@
   {#if uploaded}
     <p class="text-sm text-neutral-800">
       In CampFlow als Beleg <strong>{transfer?.number}</strong> gebucht ({transfer?.costUnitName} ·
-      {transfer?.categoryName}). Der Beleg wurde danach geändert und deshalb hier nicht gelöscht.
+      {transfer?.categoryName}), mit dem Stand der Übertragung. Der Beleg wurde danach geändert und
+      deshalb hier nicht gelöscht. Prüfe in CampFlow, ob die Änderungen dort stehen.
     </p>
-    <ActionButton
-      variant="secondary"
-      type="button"
-      disabled={busy}
-      onclick={() =>
-        ontransfer({ costUnitId: transfer!.costUnitId, categoryId: transfer!.categoryId })}
+    <ActionButton variant="secondary" type="button" disabled={busy} onclick={ondelete}
       >Hier löschen</ActionButton
     >
   {:else}
