@@ -61,9 +61,22 @@ export interface ApiConfig {
     retentionDays: number;
     mailTimeoutMs: number;
   };
+  /**
+   * Azure Maps for the geocoding of the Nikolaus addresses and the driving times and routes of
+   * the Dispo (`azure-maps.ts`); the optional key `AZURE_MAPS_API_KEY` is a secret.
+   */
+  azureMaps: {
+    /** Geographic endpoint, so addresses are processed and stored in the EU only. */
+    endpoint: string;
+    /**
+     * Client ID (`uniqueId`) of the Maps account for the Entra login of the app registration;
+     * empty without key: no requests, the Dispo estimates and addresses stay unlocated.
+     */
+    clientId: string;
+    searchApiVersion: string;
+    routeApiVersion: string;
+  };
   nikolaus: {
-    /** Nominatim-compatible search endpoint (https, without query). */
-    geocodingUrl: string;
     /** Shared budget of Nikolaus mails per sender; resends may use a fifth of it. */
     mailHourlyLimit: number;
     mailDailyLimit: number;
@@ -226,8 +239,13 @@ export const CONFIG: ApiConfig = {
     retentionDays: 60,
     mailTimeoutMs: 10000,
   },
+  azureMaps: {
+    endpoint: 'https://eu.atlas.microsoft.com',
+    clientId: '',
+    searchApiVersion: '2026-01-01',
+    routeApiVersion: '2025-01-01',
+  },
   nikolaus: {
-    geocodingUrl: 'https://nominatim.openstreetmap.org/search',
     mailHourlyLimit: 100,
     mailDailyLimit: 500,
   },

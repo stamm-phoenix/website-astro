@@ -12,6 +12,19 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-21-06-nikolaus-fahrzeiten',
+    date: '2026-10-21',
+    title: 'Die Dispo rechnet mit dem Verkehr am Besuchsabend',
+    changes: [
+      {
+        text: 'Die Dispo rechnet die Fahrzeiten jetzt mit dem üblichen Verkehr zu Beginn des Besuchstags. Die vorgeschlagenen Touren passen dadurch besser zum echten Abend.',
+        href: '/leitendenbereich/nikolaus-dispo',
+      },
+      'Die Orte der Adressen und die Wege der Teams auf der Karte kommen von einem neuen Kartendienst. Fällt dir ein Haus an der falschen Stelle auf, schreib an admin@stamm-phoenix.de.',
+      'In der Steuerung gibt es den Bereich „Adresssuche“ nicht mehr. Die Adresssuche bleibt nicht mehr hängen, du musst dort nichts mehr freigeben.',
+    ],
+  },
+  {
     id: '2026-10-21-05-erklaerungen',
     date: '2026-10-21',
     title: 'Weniger Erklärtext, Erklärungen hinter dem (i)',

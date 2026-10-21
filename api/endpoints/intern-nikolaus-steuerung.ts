@@ -14,13 +14,6 @@ import {
   deleteNikolausData,
   getCleanupStatus,
 } from '../lib/nikolaus-cleanup';
-import {
-  GeocodingRecoveryError,
-  readGeocodingReservationStatus,
-  recoverStoppedGeocodingReservation,
-} from '../lib/geocoding-recovery';
-import { writeAuditLog } from '../lib/nikolaus-settings';
-import { getDb } from '../lib/db';
 import { ValidationError } from '../lib/pflege-validation';
 import {
   METHOD_NOT_ALLOWED,
@@ -32,29 +25,27 @@ import {
   requireVersion,
 } from '../lib/pflege-api';
 import { requestSiteRebuild } from '../lib/site-rebuild';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { withErrorHandling } from '../lib/response-utils';
 
 /** The area of the Steuerung in `pflegeHandler`: reachable while the modules are off. */
 const AREA = 'nikolaus-steuerung';
 
 /** Everything the module shows. */
 async function steuerungView() {
-  const [stored, cleanup, geocoding, log] = await Promise.all([
+  const [stored, cleanup, log] = await Promise.all([
     loadNikolausSettings(),
     getCleanupStatus(),
-    readGeocodingReservationStatus(),
     listAuditLog(),
   ]);
   return {
     ...stored,
     cleanup,
     confirmations: CLEANUP_CONFIRMATIONS,
-    geocoding,
     log,
   };
 }
 
-/** GET: settings, data to be deleted with its deadline, geocoding reservation and log. */
+/** GET: settings, data to be deleted with its deadline and log. */
 export const NikolausSteuerung = pflegeHandler(AREA, async (request) => {
   if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
   return ok(await steuerungView());
@@ -117,40 +108,6 @@ export const NikolausSteuerungDelete = pflegeHandler(
 );
 
 /**
- * POST: releases a stuck geocoding reservation. Only the owner shown in the module can be
- * released, so a newer reservation is never removed by mistake.
- */
-export const NikolausSteuerungGeocoding = pflegeHandler(
-  AREA,
-  async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-    const body = await readJsonBody(request);
-    const owner = typeof body?.owner === 'string' ? body.owner : '';
-    if (body?.confirmedStopped !== true) {
-      throw new ValidationError({
-        confirmedStopped: 'Bitte bestätigen, dass keine Adresssuche mehr läuft.',
-      });
-    }
-    try {
-      await recoverStoppedGeocodingReservation(owner, { confirmedStopped: true });
-    } catch (error: unknown) {
-      if (error instanceof GeocodingRecoveryError) {
-        return errorResponse(
-          409,
-          error.code,
-          error.code === 'GEOCODING_STILL_RUNNING'
-            ? 'Die Adresssuche läuft noch keine zehn Minuten. Die Sperre bleibt, bis sie hängt; lade die Seite später neu.'
-            : 'Die Sperre hat sich inzwischen geändert. Bitte neu laden und erneut prüfen.'
-        );
-      }
-      throw error;
-    }
-    await writeAuditLog(getDb(), principal.userDetails, 'geocoding-release', { owner });
-    return ok(await steuerungView());
-  }
-);
-
-/**
  * GET: what every page of the Leitendenbereich needs to know about the Nikolausdienst: whether
  * its modules are shown, and whether the data is due for deletion.
  */
@@ -174,4 +131,3 @@ export const NikolausStatus = withErrorHandling(GetNikolausStatusEndpoint);
 export const NikolausSteuerungEndpoint = withErrorHandling(NikolausSteuerung);
 export const NikolausSteuerungSaveEndpoint = withErrorHandling(NikolausSteuerungSave);
 export const NikolausSteuerungDeleteEndpoint = withErrorHandling(NikolausSteuerungDelete);
-export const NikolausSteuerungGeocodingEndpoint = withErrorHandling(NikolausSteuerungGeocoding);

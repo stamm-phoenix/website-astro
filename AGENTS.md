@@ -217,7 +217,7 @@ export async function fetchData(): Promise<void> {
 
 ## API Configuration
 
-Non-secret values (tenant and client ID, database server and name, SharePoint site and drive IDs, mail senders, limits, geocoding URL) live in `CONFIG` in `api/lib/config.ts`. Only secrets and operational switches are read from the environment via `EnvironmentVariable` (`api/lib/environment.ts`); never add an environment override for a `CONFIG` value. In tests, change values with `overrideConfig` (`api/test/fixtures/config.ts`).
+Non-secret values (tenant and client ID, database server and name, SharePoint site and drive IDs, mail senders, limits, Azure Maps endpoint and account) live in `CONFIG` in `api/lib/config.ts`. Only secrets and operational switches are read from the environment via `EnvironmentVariable` (`api/lib/environment.ts`); never add an environment override for a `CONFIG` value. In tests, change values with `overrideConfig` (`api/test/fixtures/config.ts`).
 
 Operational switches stay environment variables so they can be flipped without a deployment; a missing or non-`"true"` value is the safe state. The Nikolausdienst has none: its days, times, switches (online booking, staff modules, maintenance mode) and the deletion after the season are controlled in the Leitendenbereich (module „Steuerung“, `api/lib/nikolaus-settings.ts`, `docs/nikolaus-betrieb.md`). Never add Nikolaus settings to `CONFIG` or the environment; read them with `getNikolausSettings()` and pass them on.
 

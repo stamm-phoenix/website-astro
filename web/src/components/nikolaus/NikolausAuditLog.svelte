@@ -41,6 +41,7 @@
     };
     if (entry.action === 'delete-bookings') return `${count('bookings')} Anmeldungen gelöscht`;
     if (entry.action === 'delete-helpers') return `${count('helpers')} Helfende gelöscht`;
+    // Only in older entries: the address search no longer has a reservation to release
     if (entry.action === 'geocoding-release') return 'Sperre der Adresssuche gelöst';
     return entry.action;
   }

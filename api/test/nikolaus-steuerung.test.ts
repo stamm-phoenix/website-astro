@@ -278,13 +278,18 @@ dbTest('deleting needs the typed confirmation and removes exactly one area', asy
   await insertDispo(booking.id, '2026-12-06', { visitedAt: new Date('2026-12-06T17:10:00Z') });
   await insertHelper({ name: 'Anna', availability: { '2026-12-05': ['Nikolaus'] } });
   await mutateNikolausState(
-    'geocoding:nominatim',
-    (value) => (value as object | undefined) ?? { version: 1, nextRequestAt: 0, cache: [] },
+    'geocoding:azure-maps',
+    (value) => value,
     () => ({
-      version: 1,
-      nextRequestAt: 5,
-      cache: [{ key: 'hash', expires: Date.now() + 60_000, result: { found: false } }],
+      version: 2,
+      entries: [{ key: 'hash', expires: Date.now() + 60_000, result: { found: false } }],
     })
+  );
+  // The record of the former Nominatim search goes as well
+  await mutateNikolausState(
+    'geocoding:nominatim',
+    (value) => value,
+    () => ({ version: 1, nextRequestAt: 5, cache: [] })
   );
 
   const before = await getCleanupStatus(new Date('2027-01-05T12:00:00Z'));
@@ -311,12 +316,11 @@ dbTest('deleting needs the typed confirmation and removes exactly one area', asy
   assert.equal(after.dispoVisits, 0);
   assert.equal(after.helpers, 1);
   assert.equal(after.lastVisit, null);
-  const geocoding = (await readNikolausState('geocoding:nominatim'))?.data as {
-    nextRequestAt: number;
-    cache: unknown[];
+  const geocoding = (await readNikolausState('geocoding:azure-maps'))?.data as {
+    entries: unknown[];
   };
-  assert.deepEqual(geocoding.cache, []);
-  assert.equal(geocoding.nextRequestAt, 5);
+  assert.deepEqual(geocoding.entries, []);
+  assert.equal(await readNikolausState('geocoding:nominatim'), undefined);
 
   const helpers = await NikolausSteuerungDelete(
     request('POST', { scope: 'helpers', confirmation: 'HELFENDE LÖSCHEN' }),

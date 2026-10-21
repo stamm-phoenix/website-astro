@@ -7,7 +7,6 @@
   import { formatDay } from '../lib/nikolausSteuerungForm';
   import NikolausSettingsForm from './nikolaus/NikolausSettingsForm.svelte';
   import NikolausCleanup from './nikolaus/NikolausCleanup.svelte';
-  import NikolausGeocoding from './nikolaus/NikolausGeocoding.svelte';
   import NikolausAuditLog from './nikolaus/NikolausAuditLog.svelte';
   const store = nikolausSteuerung.state;
   const data = $derived(store.data);
@@ -55,7 +54,6 @@
 
       <NikolausSettingsForm {data} {onnotice} />
       <NikolausCleanup {data} {onnotice} />
-      <NikolausGeocoding {data} {onnotice} />
       <NikolausAuditLog entries={data.log} />
     {/snippet}
   </LoadState>

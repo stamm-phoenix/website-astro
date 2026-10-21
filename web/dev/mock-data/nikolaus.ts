@@ -1132,7 +1132,6 @@ export function steuerungView(): StaffNikolausSteuerung {
       due: false,
     },
     confirmations: { bookings: 'ANMELDUNGEN LÖSCHEN', helpers: 'HELFENDE LÖSCHEN' },
-    geocoding: { owner: null, startedAt: null, stuckInMs: null },
     log: [...auditLog].reverse(),
   };
 }
