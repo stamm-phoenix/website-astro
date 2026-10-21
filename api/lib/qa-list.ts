@@ -60,10 +60,22 @@ export async function getQuestionsAndAnswers(): Promise<QuestionAndAnswer[]> {
   }));
 }
 
-/** The topics in use, offered as suggestions in the form. */
-export async function getQuestionCategories(): Promise<string[]> {
-  const rows = await getDb().selectFrom('content.faq').select('category').distinct().execute();
-  return rows.map((row) => row.category).sort((a, b) => a.localeCompare(b, 'de'));
+const TOPIC_COLLATOR = new Intl.Collator('de', { sensitivity: 'accent' });
+
+/**
+ * The topics in use among `items`, offered as suggestions in the form. Spellings that differ
+ * only in case (or trailing spaces) count once, as for `DISTINCT` under the database collation;
+ * the first entry's spelling is kept.
+ */
+export function getQuestionCategories(items: { category: string }[]): string[] {
+  const categories: string[] = [];
+  for (const { category } of items) {
+    const key = category.replace(/ +$/, '');
+    if (!categories.some((known) => TOPIC_COLLATOR.compare(known.replace(/ +$/, ''), key) === 0)) {
+      categories.push(category);
+    }
+  }
+  return categories.sort((a, b) => a.localeCompare(b, 'de'));
 }
 
 /**

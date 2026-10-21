@@ -28,11 +28,8 @@ export const QuestionsCollectionEndpoint = pflegeHandler(
   'faq',
   async (request: HttpRequest, _context, principal) => {
     if (request.method === 'GET') {
-      const [items, categories] = await Promise.all([
-        getStaffQuestionsAndAnswers(),
-        getQuestionCategories(),
-      ]);
-      return ok({ items, categories, allowCustomCategories: true });
+      const items = await getStaffQuestionsAndAnswers();
+      return ok({ items, categories: getQuestionCategories(items), allowCustomCategories: true });
     }
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
 
