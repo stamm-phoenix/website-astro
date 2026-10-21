@@ -109,7 +109,7 @@ export const NikolausDispoSave = pflegeHandler('nikolaus-dispo', async (request)
   const teams = getNikolausTeams(date, config).map((team) => team.name);
   const input = validateDispoSave(await readJsonBody(request), teams, bookingSlots);
 
-  await saveDispo(date, input.entries, input.version);
+  await saveDispo(date, input.entries, input.version, input.done);
   const rows = await getDispoRows(date);
   return ok({ rows: rows.map(toClientRow), version: getDispoVersion(rows) });
 });

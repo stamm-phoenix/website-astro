@@ -46,9 +46,11 @@ Ankunft deshalb die Zeit des Abhakens minus Besuchsdauer. So zählt der Fortschr
 (Verspätung beim letzten Abhaken plus geplante Ankunft) die Verspätung nicht doppelt, wenn die
 übrigen Termine neu geplant gespeichert werden.
 
-Die Dispo lädt Abhaken nicht von selbst nach. Wer sie vor einem Abhaken geöffnet hat, kann
-den Besuch beim Speichern trotzdem nicht einem anderen Team geben: Die API lehnt das mit
-HTTP 400 ab und speichert nichts.
+Die Dispo lädt Abhaken nicht von selbst nach. Beim Speichern schickt sie deshalb mit, welche
+Besuche beim Laden abgehakt waren. Hat ein Team seitdem abgehakt oder ein Häkchen
+zurückgenommen, lehnt die API den Plan mit HTTP 400 ab und speichert nichts, denn er wäre auf
+einem veralteten Stand gerechnet. Abhaken ändert die Version der Dispo nicht, die
+Versionsprüfung allein fängt das also nicht ab.
 
 Der Zeitpunkt eines abgehakten Besuchs zählt für die Löschfrist der Steuerung
 ([nikolaus-betrieb.md](nikolaus-betrieb.md#verantwortung-und-frist)).

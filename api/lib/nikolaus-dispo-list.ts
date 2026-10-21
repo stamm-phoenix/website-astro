@@ -178,12 +178,15 @@ export async function setDispoVisited(
 /**
  * Replaces the Dispo of a day in one transaction, if nobody saved another one since the
  * caller loaded `expectedVersion`. Visits already checked off keep their state and their team.
- * Saving the same plan again changes nothing.
+ * `done` names the visits checked off when the caller loaded the Dispo: a plan built on other
+ * check-offs is rejected, because checking off does not change the version. Saving the same
+ * plan again changes nothing.
  */
 export async function saveDispo(
   date: string,
   entries: DispoEntry[],
-  expectedVersion: string
+  expectedVersion: string,
+  done?: string[]
 ): Promise<void> {
   try {
     await inTransaction(async (trx) => {
@@ -206,11 +209,18 @@ export async function saveDispo(
         };
       });
       if (getDispoVersion(desired) === getDispoVersion(current)) return;
-      // A page loaded before the check-off must not give the visit to another team
-      if (desired.some((row) => row.visited && byBooking.get(row.bookingId)?.team !== row.team)) {
+      // A plan built on older check-offs would put a visit done meanwhile behind open ones or
+      // give it to another team
+      const planned = new Set(desired.map((row) => row.bookingId));
+      const doneNow = desired.filter((row) => row.visited).map((row) => row.bookingId);
+      const doneLoaded = done && [...new Set(done)].filter((id) => planned.has(id));
+      const stale = doneLoaded
+        ? doneLoaded.sort().join() !== doneNow.sort().join()
+        : desired.some((row) => row.visited && byBooking.get(row.bookingId)?.team !== row.team);
+      if (stale) {
         throw new ValidationError({
           entries:
-            'Ein Besuch, den du einem anderen Team geben wolltest, ist schon abgehakt. Nichts wurde gespeichert. Bitte lade die Dispo neu und plane dort weiter.',
+            'Inzwischen hat ein Team einen Besuch abgehakt oder ein Häkchen zurückgenommen. Nichts wurde gespeichert. Bitte lade die Dispo neu und plane dort weiter.',
         });
       }
       if (getDispoVersion(current) !== expectedVersion) throw new NikolausStateConflictError();

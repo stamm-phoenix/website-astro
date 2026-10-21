@@ -656,6 +656,8 @@ export { downloadMimeType } from './download-file-name';
 
 export interface DispoSaveInput {
   version: string;
+  /** Bookings checked off when the Dispo was loaded; the plan is built on them. */
+  done?: string[];
   entries: {
     bookingId: string;
     team: string;
@@ -719,7 +721,10 @@ export function validateDispoSave(
   });
 
   if (Object.keys(errors).length > 0) throw new ValidationError(errors);
-  return { version, entries };
+  const done = Array.isArray(record.done)
+    ? record.done.filter((id): id is string => typeof id === 'string')
+    : undefined;
+  return { version, entries, done };
 }
 
 export interface DispoVisitInput {
