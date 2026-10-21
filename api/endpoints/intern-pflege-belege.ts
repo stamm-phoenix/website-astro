@@ -370,11 +370,8 @@ export const BelegeUebertragenEndpoint = pflegeHandler(
   'belege-uebertragen',
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
     if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
-    const belege = await getTransferredBelege();
-    if (isBelegReviewer(principal)) return ok(belege);
-    // Logins compare case-insensitively, like isOwner
-    const login = principal.userDetails.toLowerCase();
-    return ok(belege.filter((b) => b.submittedBy !== '' && b.submittedBy.toLowerCase() === login));
+    const reviewer = isBelegReviewer(principal);
+    return ok(await getTransferredBelege(reviewer ? undefined : principal.userDetails));
   }
 );
 

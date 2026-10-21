@@ -324,6 +324,7 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
     hasImage: false,
     hasOriginal: false,
     aiCheck: null as unknown,
+    campflow: null,
   });
   const first = beleg(1, 'Leitung@Example.test', '2026-09-02T10:00:00.000Z');
   const own = {
@@ -355,7 +356,7 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
   assert.deepEqual(await list('leitung@example.test'), [own, first, rejected]);
   // The filter runs in the database, so other people's receipts are never read
   assert.equal(queries.statements.length, 1);
-  assert.match(queries.statements[0] ?? '', /where "submitted_by" = @1/);
+  assert.match(queries.statements[0] ?? '', /where "b"\."submitted_by" = @1/);
   assert.deepEqual(await list('nobody@example.test'), []);
   assert.deepEqual(await list('kasse@example.test'), [
     beleg(2, 'other@example.test', '2026-09-03T10:00:00.000Z'),
