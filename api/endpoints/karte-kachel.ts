@@ -2,7 +2,7 @@ import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import { getMapAttribution, getMapTile, isTileStyle, parseTileAddress } from '../lib/map-tiles';
 import { withErrorHandling } from '../lib/response-utils';
 
-/** Empty squares outside the area are not Azure Maps content and may be kept by anyone. */
+/** Squares outside the area stay empty; they are no Azure Maps content and may be kept by anyone. */
 const OUTSIDE_CACHE = 'public, max-age=86400';
 
 /**
@@ -28,7 +28,8 @@ export async function GetKarteKachelEndpoint(request: HttpRequest): Promise<Http
   if (result.status === 'outside') {
     return { status: 404, headers: { 'Cache-Control': OUTSIDE_CACHE } };
   }
-  return { status: 503, headers: { 'Cache-Control': 'no-store' } };
+  // Maps switched off or a passing failure: nothing may keep this answer
+  return { status: result.status === 'off' ? 404 : 503, headers: { 'Cache-Control': 'no-store' } };
 }
 
 /**

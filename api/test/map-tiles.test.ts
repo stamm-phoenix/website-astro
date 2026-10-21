@@ -7,6 +7,7 @@ import { GetKarteKachelEndpoint, GetKarteQuelleEndpoint } from '../endpoints/kar
 import { isTileInArea, parseAttribution, parseTileAddress, resetMapTiles } from '../lib/map-tiles';
 import { overrideConfig } from './fixtures/config';
 import { TEST_SETTINGS, mockNikolausSettings } from './fixtures/nikolaus-settings';
+import * as settingsModule from '../lib/nikolaus-settings';
 
 /** The tile of the starting point of the test settings at zoom 13. */
 const HOME = { z: '13', x: '4365', y: '2848.png' };
@@ -127,8 +128,41 @@ test('tiles outside the area, too deep or while the maps are off are not fetched
   t.mock.restoreAll();
   setup(t, { publicActive: false, staffActive: false });
   const off = tileService(t);
-  assert.equal((await GetKarteKachelEndpoint(tileRequest({ style: 'hell', ...HOME }))).status, 404);
+  const switchedOff = await GetKarteKachelEndpoint(tileRequest({ style: 'hell', ...HOME }));
+  assert.equal(switchedOff.status, 404);
+  // Switched on again, the tile must come at once: nobody may keep this answer
+  assert.equal((switchedOff.headers as Record<string, string>)['Cache-Control'], 'no-store');
   assert.equal(fetch.mock.callCount() + off.mock.callCount(), 0);
+});
+
+test('outside the area the empty square may be kept for a day', async (t) => {
+  setup(t);
+  tileService(t);
+  const outside = await GetKarteKachelEndpoint(
+    tileRequest({ style: 'hell', z: '13', x: '4342', y: '2794.png' })
+  );
+  assert.equal(outside.status, 404);
+  assert.equal(
+    (outside.headers as Record<string, string>)['Cache-Control'],
+    'public, max-age=86400'
+  );
+});
+
+test('a passing failure of the settings is not kept, the next tile comes again', async (t) => {
+  setup(t);
+  let failing = true;
+  t.mock.method(settingsModule, 'getNikolausSettings', async () => {
+    if (failing) throw new Error('database down');
+    return { ...TEST_SETTINGS, publicActive: true };
+  });
+  const fetch = tileService(t);
+  const failed = await GetKarteKachelEndpoint(tileRequest({ style: 'hell', ...HOME }));
+  assert.equal(failed.status, 503);
+  assert.equal((failed.headers as Record<string, string>)['Cache-Control'], 'no-store');
+  assert.equal(fetch.mock.callCount(), 0);
+
+  failing = false;
+  assert.equal((await GetKarteKachelEndpoint(tileRequest({ style: 'hell', ...HOME }))).status, 200);
 });
 
 test('a failing service or the daily limit answer 503 without caching', async (t) => {
