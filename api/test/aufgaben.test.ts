@@ -12,6 +12,7 @@ import {
   deleteTaskProject,
   decideTaskSuggestion,
   getTaskProjects,
+  getTask,
   getTasks,
   getTaskTemplates,
   hasTaskRecognition,
@@ -21,6 +22,7 @@ import {
   updateTask,
 } from '../lib/aufgaben';
 import { dbTest } from './fixtures/database';
+import { recordQueries } from './fixtures/queries';
 import { seedPreviewTasks } from '../lib/db-preview';
 import { ValidationError } from '../lib/pflege-validation';
 
@@ -73,6 +75,113 @@ test('a zero daily extraction limit disables recognition before reading Word or 
     detectProtokollTasks(new Uint8Array(), '2026-10-07'),
     (e: unknown) => e instanceof Error && 'fields' in e
   );
+});
+
+dbTest('tasks are read with only the columns they return, unchanged', async (t) => {
+  const db = getDb();
+  const project = await db
+    .insertInto('organisation.project')
+    .values({ title: 'Sommerlager', campflow_id: '', updated_by: 'test' })
+    .output('inserted.id')
+    .executeTakeFirstOrThrow();
+  const protokoll = await db
+    .insertInto('protokoll.protokoll')
+    .values({
+      title: 'Leitendenrunde',
+      meeting_date: '2026-10-07',
+      content: '{}',
+      created_by: 'test',
+      updated_by: 'test',
+    })
+    .output('inserted.id')
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto('organisation.task')
+    .values([
+      {
+        title: 'Zelte prüfen',
+        description: 'Alle Heringe zählen.',
+        assignee: 'Mara Bertram',
+        assignees:
+          '[{"name":"Mara Bertram","login":"mara@example.test"},{"name":"Bea","login":""}]',
+        due_date: '2026-11-01',
+        project_id: project.id,
+        state: 'offen',
+        suggested_project_title: 'Lager',
+        suggested_assignee_name: 'Mara',
+        assignment_resolution: 'matched',
+        source_id: 'P1',
+        source_version: 'v1',
+        source_key: 'P1:1',
+        quote: '@Mara prüft die Zelte.',
+        protokoll_id: protokoll.id,
+        protokoll_aufgabe: 'a1',
+        protokoll_punkt: '3. Lager',
+        updated_by: 'test',
+      },
+      {
+        title: 'Altes Thema',
+        description: '',
+        assignee: 'Hugo Beispiel',
+        due_date: null,
+        project_id: null,
+        state: 'erledigt',
+        updated_by: 'test',
+      },
+    ])
+    .execute();
+
+  const queries = recordQueries(t);
+  const tasks = await getTasks();
+  const withoutEtags = tasks.map(({ etag, ...task }) => {
+    assert.match(etag, /^"[0-9a-f]{16}"$/);
+    return task;
+  });
+  assert.deepEqual(withoutEtags, [
+    {
+      id: tasks[0]?.id,
+      title: 'Zelte prüfen',
+      description: 'Alle Heringe zählen.',
+      assignee: 'Mara Bertram',
+      assignees: [
+        { name: 'Mara Bertram', login: 'mara@example.test' },
+        { name: 'Bea', login: '' },
+      ],
+      dueDate: '2026-11-01',
+      projectId: project.id,
+      suggestedProjectTitle: 'Lager',
+      suggestedAssigneeName: 'Mara',
+      assignmentResolution: 'matched',
+      state: 'offen',
+      sourceId: 'P1',
+      sourceVersion: 'v1',
+      quote: '@Mara prüft die Zelte.',
+      protokollId: protokoll.id,
+      protokollPunkt: '3. Lager',
+    },
+    {
+      id: tasks[1]?.id,
+      title: 'Altes Thema',
+      description: '',
+      assignee: 'Hugo Beispiel',
+      assignees: [{ name: 'Hugo Beispiel', login: '' }],
+      dueDate: null,
+      projectId: null,
+      suggestedProjectTitle: '',
+      suggestedAssigneeName: '',
+      assignmentResolution: 'legacy',
+      state: 'erledigt',
+      sourceId: '',
+      sourceVersion: '',
+      quote: '',
+      protokollId: null,
+      protokollPunkt: '',
+    },
+  ]);
+  assert.deepEqual(await getTasks({ dueDates: ['2026-11-01'], state: 'offen' }), [tasks[0]]);
+  assert.deepEqual(await getTask(tasks[1]?.id ?? 0), tasks[1]);
+  // Neither the change log nor the internal keys leave the database
+  assert.ok(queries.statements.every((statement) => !/select \*|updated_by/.test(statement)));
 });
 
 dbTest('task writes require the loaded rowversion and preserve source review rules', async () => {

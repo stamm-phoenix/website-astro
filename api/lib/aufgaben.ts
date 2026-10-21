@@ -19,8 +19,29 @@ import { validateTemplate } from './aufgaben-validation';
 function normalizedProjectTitle(title: string): string {
   return title.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('de');
 }
+/** The columns a `Task` is made of; the change log and internal keys stay in the database. */
+const TASK_COLUMNS = [
+  'id',
+  'version',
+  'title',
+  'description',
+  'assignee',
+  'assignees',
+  'due_date',
+  'project_id',
+  'suggested_project_title',
+  'suggested_assignee_name',
+  'assignment_resolution',
+  'state',
+  'source_id',
+  'source_version',
+  'quote',
+  'protokoll_id',
+  'protokoll_punkt',
+] as const satisfies readonly (keyof TaskTable)[];
+
 /** Serialize SQL dates and rowversions for browser consumers. */
-function toTask(row: Selectable<TaskTable>): Task {
+function toTask(row: Pick<Selectable<TaskTable>, (typeof TASK_COLUMNS)[number]>): Task {
   return {
     id: row.id,
     etag: toVersion(row.version),
@@ -49,7 +70,7 @@ export async function getTasks(filter?: {
   dueDates: readonly string[];
   state: 'offen';
 }): Promise<Task[]> {
-  let query = getDb().selectFrom('organisation.task').selectAll();
+  let query = getDb().selectFrom('organisation.task').select(TASK_COLUMNS);
   if (filter)
     query = query.where('state', '=', filter.state).where('due_date', 'in', filter.dueDates);
   return (await query.orderBy('id').execute()).map(toTask);
@@ -58,7 +79,7 @@ export async function getTasks(filter?: {
 export async function getTask(id: number): Promise<Task | undefined> {
   const row = await getDb()
     .selectFrom('organisation.task')
-    .selectAll()
+    .select(TASK_COLUMNS)
     .where('id', '=', id)
     .executeTakeFirst();
   return row ? toTask(row) : undefined;
