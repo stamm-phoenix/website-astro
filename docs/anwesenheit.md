@@ -28,7 +28,7 @@ Von Mitgliedern speichert die Datenbank nur die CampFlow-ID. Den Namen liest die
 
 Nach `CONFIG.anwesenheit.retentionMonths` (12 Monate) setzt `anonymizeExpired()` die CampFlow-IDs und Gastnamen auf NULL. Die Zeilen bleiben, damit die Statistik weiter zählt. Ältere Termine lassen sich nur noch ansehen.
 
-`anonymizeExpired()` läuft bei jedem Aufruf der beiden GET-Endpunkte, also sobald jemand das Modul öffnet. Die verwaltete API der Static Web App kennt keinen Timer-Trigger. Das ist so gewollt und auf `/datenschutz` beschrieben.
+`anonymizeExpired()` läuft bei jedem Aufruf der beiden GET-Endpunkte, also sobald jemand das Modul öffnet. Es läuft parallel zu den Abfragen; ein Termin vor der Frist wird deshalb beim Lesen zusätzlich ohne IDs und Namen ausgegeben (`withoutNames()`), auch wenn das UPDATE noch nicht fertig ist. Die verwaltete API der Static Web App kennt keinen Timer-Trigger. Das ist so gewollt und auf `/datenschutz` beschrieben.
 
 ## Previews
 
