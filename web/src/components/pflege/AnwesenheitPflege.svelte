@@ -3,6 +3,7 @@
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { fetchApi } from '../../lib/api';
+  import { todayIso } from '../../lib/format';
   import { suggestedDate } from '../../lib/anwesenheit';
   import { anwesenheitOverview } from '../../lib/pflegeStore.svelte';
   import type { AnwesenheitMeeting, AnwesenheitOverview } from '../../lib/types';
@@ -17,6 +18,9 @@
   // Kept across pages: a revisit shows the last loaded Termine at once while they load again
   const store = anwesenheitOverview.state;
   const overview = $derived(store.data);
+  /** Whether the Termine were loaded on this visit; the ones of the last visit may be from an earlier day. */
+  let current = $state(false);
+  const today = $derived((current && overview?.today) || todayIso());
   let view = $state<View>('erfassen');
   let slug = $state('');
   let date = $state('');
@@ -48,25 +52,13 @@
 
   async function loadOverview(): Promise<void> {
     selectInitialStufe();
-    const before = store.data;
     await anwesenheitOverview.load({ force: true });
-    const fresh = store.data;
-    const stufe = fresh?.stufen.find((s) => s.slug === slug);
-    if (!stufe) {
-      // Nothing shown yet, or the Stufe shown from the last visit is gone
+    current = store.error === null;
+    // Nothing shown yet, or the Stufe shown from the last visit is gone. The date of a Termin
+    // already shown stays, as attendance may already be recorded for it.
+    if (!store.data?.stufen.some((s) => s.slug === slug)) {
       slug = '';
       selectInitialStufe();
-      return;
-    }
-    // A day passed since the last visit: the suggested date moves along, unless it was changed
-    if (
-      before &&
-      fresh &&
-      fresh.today !== before.today &&
-      !dirty &&
-      date === suggestedDate(stufe.weekday, before.today)
-    ) {
-      date = suggestedDate(stufe.weekday, fresh.today);
     }
   }
 
@@ -74,7 +66,7 @@
     if (next === slug || !(await mayChange())) return;
     slug = next;
     const stufe = overview?.stufen.find((s) => s.slug === next);
-    date = suggestedDate(stufe?.weekday ?? '', overview?.today ?? date);
+    date = suggestedDate(stufe?.weekday ?? '', today);
   }
 
   /** Loads the recorded Termine again; the ones loaded before stay visible on failure. */
@@ -115,8 +107,7 @@
   }
 
   async function changeDate(value: string): Promise<void> {
-    if (!overview || !value || value === date || value > overview.today || !(await mayChange()))
-      return;
+    if (!overview || !value || value === date || value > today || !(await mayChange())) return;
     date = value;
   }
 
@@ -172,7 +163,7 @@
                 {...attrs}
                 type="date"
                 class="form-input"
-                max={overview!.today}
+                max={today}
                 value={date}
                 onchange={async (event) => {
                   const input = event.currentTarget;
