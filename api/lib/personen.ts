@@ -1,7 +1,7 @@
 import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 import type { CampflowPerson } from './campflow';
-import { CampflowError, campflowGet, campflowGetAll } from './campflow';
+import { CampflowError, campflowGet, getCampflowMembers } from './campflow';
 import {
   RecordNotFoundError,
   VersionConflictError,
@@ -171,7 +171,7 @@ export function toCampflowMitglied(person: CampflowPerson, today: string): Campf
 /** The persons of the CampFlow member list, by name; throws `CampflowError` if it fails. */
 export async function getCampflowMitglieder(now: Date = new Date()): Promise<CampflowMitglied[]> {
   const today = berlinToday(now);
-  return (await campflowGetAll<CampflowPerson>(MEMBER_PERSONS))
+  return (await getCampflowMembers())
     .filter((person) => typeof person.id === 'string')
     .map((person) => toCampflowMitglied(person, today))
     .sort(
@@ -306,7 +306,7 @@ async function ladeVerknuepfte(id: string, now: number): Promise<Verknuepfte> {
 async function adresseGeteilt(id: string, email: string): Promise<boolean> {
   if (!email) return false;
   try {
-    const persons = await campflowGetAll<CampflowPerson>(MEMBER_PERSONS);
+    const persons = await getCampflowMembers();
     return persons.some(
       (person) => person.id !== id && text(person.primary_email).toLowerCase() === email
     );
