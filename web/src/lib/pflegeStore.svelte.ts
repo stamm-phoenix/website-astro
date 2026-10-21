@@ -72,17 +72,22 @@ export function createResource<T, P = void>(
     loadedAt: null,
   });
   let latest = 0;
-  let pending: { url: string; promise: Promise<void> } | null = null;
-  let stale = false;
+  let pending: { url: string; promise: Promise<void>; revision: number } | null = null;
+  /** Counts `invalidate` calls; the shown data is current while it matches `loadedRevision`. */
+  let revision = 0;
+  let loadedRevision = 0;
 
   function load({ force = false, param, maxAge }: LoadOptions<P> = {}): Promise<void> {
     const expired =
       maxAge !== undefined && (state.loadedAt === null || Date.now() - state.loadedAt >= maxAge);
-    if (state.data !== null && !force && !stale && !expired) return Promise.resolve();
+    const outdated = loadedRevision !== revision;
+    if (state.data !== null && !force && !outdated && !expired) return Promise.resolve();
     const url = typeof endpoint === 'string' ? endpoint : endpoint(param as P);
-    if (!force && pending?.url === url) return pending.promise;
+    // A request started before the data was marked as outdated may answer with the old data
+    if (!force && pending?.url === url && pending.revision === revision) return pending.promise;
 
     const id = ++latest;
+    const started = revision;
     state.loading = true;
     state.error = null;
     const promise = (async () => {
@@ -91,7 +96,7 @@ export function createResource<T, P = void>(
         if (id === latest) {
           state.data = data;
           state.loadedAt = Date.now();
-          stale = false;
+          loadedRevision = started;
         }
       } catch (error: unknown) {
         if (id === latest) {
@@ -103,12 +108,12 @@ export function createResource<T, P = void>(
       pending = null;
       state.loading = false;
     })();
-    pending = { url, promise };
+    pending = { url, promise, revision: started };
     return promise;
   }
 
   function invalidate(): void {
-    stale = true;
+    revision++;
   }
 
   return { state, load, invalidate };

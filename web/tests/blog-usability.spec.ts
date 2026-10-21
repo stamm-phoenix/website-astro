@@ -148,3 +148,47 @@ test('deleting a blog image names its position and description', async ({ page }
   await confirmation.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   await expect(images.getByLabel('Bildbeschreibung')).toHaveValue('Lagerfeuer');
 });
+
+test('a post saved while an older list answer is on its way shows up in the list', async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.goto('/leitendenbereich/blog/beitrag');
+  await page.getByRole('textbox', { name: 'Titel', exact: true }).fill('TEST – Liste alt');
+  await page.getByRole('textbox', { name: 'Text', exact: true }).fill('Bericht der Gruppenstunde.');
+  await page.getByRole('button', { name: 'Als Entwurf anlegen', exact: true }).click();
+  await expect(page).toHaveURL(/\?id=/);
+  const back = page.getByRole('navigation', { name: 'Zurück' }).getByRole('link', { name: 'Blog' });
+  await back.click();
+  await expect(page.getByRole('link', { name: 'TEST – Liste alt', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'TEST – Liste alt', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+    'TEST – Liste alt'
+  );
+
+  // A minute later the list asks again, and its answer, with the old title, is held back
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/pflege/blog', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    await held;
+    await route.fulfill({ response });
+  });
+  await page.clock.fastForward(61_000);
+  const oldAnswer = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/intern/pflege/blog') && response.request().method() === 'GET'
+  );
+  await back.click();
+  await page.getByRole('link', { name: 'TEST – Liste alt', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Titel', exact: true }).fill('TEST – Liste neu');
+  await page.getByRole('button', { name: 'Als Entwurf speichern', exact: true }).click();
+  await expect(page.getByText('Als Entwurf gespeichert.', { exact: false }).first()).toBeVisible();
+  release();
+  await oldAnswer;
+  await page.unroute('**/api/intern/pflege/blog');
+
+  await back.click();
+  await expect(page.getByRole('link', { name: 'TEST – Liste neu', exact: true })).toBeVisible();
+});
