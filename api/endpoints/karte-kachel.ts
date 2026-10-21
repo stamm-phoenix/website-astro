@@ -2,8 +2,13 @@ import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import { getMapAttribution, getMapTile, isTileStyle, parseTileAddress } from '../lib/map-tiles';
 import { withErrorHandling } from '../lib/response-utils';
 
-/** Squares outside the area stay empty; they are no Azure Maps content and may be kept by anyone. */
-const OUTSIDE_CACHE = 'public, max-age=86400';
+/** Invalid tile addresses stay invalid; they are no Azure Maps content and may be kept by anyone. */
+const INVALID_CACHE = 'public, max-age=86400';
+/**
+ * The area moves with the starting point of the teams, which the API reads every ten minutes;
+ * an empty square outside it may only be kept that long.
+ */
+const OUTSIDE_CACHE = 'public, max-age=600';
 
 /**
  * GET `/api/karte/<hell|dunkel>/<z>/<x>/<y>.png`: a map tile of the Nikolaus maps, public
@@ -14,7 +19,8 @@ const OUTSIDE_CACHE = 'public, max-age=86400';
 export async function GetKarteKachelEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const { style, z, x, y } = request.params;
   const address = parseTileAddress(style, z, x, y);
-  const result = address ? await getMapTile(address) : { status: 'outside' as const };
+  if (!address) return { status: 404, headers: { 'Cache-Control': INVALID_CACHE } };
+  const result = await getMapTile(address);
   if (result.status === 'ok') {
     return {
       status: 200,
@@ -40,7 +46,7 @@ export async function GetKarteQuelleEndpoint(request: HttpRequest): Promise<Http
   const { style, z } = request.params;
   const zoom = /^\d{1,2}$/.test(z ?? '') ? Number(z) : NaN;
   if (!isTileStyle(style) || !Number.isInteger(zoom)) {
-    return { status: 404, headers: { 'Cache-Control': OUTSIDE_CACHE } };
+    return { status: 404, headers: { 'Cache-Control': INVALID_CACHE } };
   }
   const copyrights = await getMapAttribution(style, zoom);
   return {

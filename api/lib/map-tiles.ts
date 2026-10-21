@@ -212,7 +212,26 @@ export async function getMapAttribution(style: TileStyle, z: number): Promise<st
   if (typeof center === 'string' || z > CONFIG.mapTiles.maxZoom) return [];
   const key = `${style}/${z}`;
   const cached = attributions.get(key);
-  if (cached && cached.expires > Date.now()) return cached.value;
+  // A request still running is shared, also its failure
+  const value =
+    cached && cached.expires > Date.now()
+      ? cached.value
+      : requestAttribution(key, style, z, center);
+  try {
+    return await value;
+  } catch (error: unknown) {
+    console.warn('Azure Maps attribution failed', error);
+    if (attributions.get(key)?.value === value) attributions.delete(key);
+    return [];
+  }
+}
+
+function requestAttribution(
+  key: string,
+  style: TileStyle,
+  z: number,
+  center: NikolausCoordinates
+): Promise<string[]> {
   const value = requestAzureMaps({
     method: 'GET',
     path: '/map/attribution',
@@ -227,13 +246,7 @@ export async function getMapAttribution(style: TileStyle, z: number): Promise<st
     timeoutMs: TIMEOUT_MS,
   }).then(parseAttribution);
   attributions.set(key, { value, expires: Date.now() + ATTRIBUTION_TTL_MS });
-  try {
-    return await value;
-  } catch (error: unknown) {
-    console.warn('Azure Maps attribution failed', error);
-    if (attributions.get(key)?.value === value) attributions.delete(key);
-    return [];
-  }
+  return value;
 }
 
 /** For tests: forget the area and the notices. */
