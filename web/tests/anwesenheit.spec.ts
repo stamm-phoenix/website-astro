@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+import { suggestedDate } from '../src/lib/anwesenheit';
 
 /** The three-way choice of one child; each button's aria-pressed marks the current one. */
 function choice(page: Page, name: string) {
@@ -709,4 +710,55 @@ test('a late cancellation response belongs to its original date after another da
   ).json();
   expect(current.notes).toBe('Notiz zum anderen Termin.');
   expect(current.cancelled).toBe(false);
+});
+
+test('a revisit on a later day records attendance for one Termin while the Termine reload', async ({
+  page,
+}) => {
+  const { today } = (await (await page.request.get('/api/intern/anwesenheit')).json()) as {
+    today: string;
+  };
+  await page.clock.setFixedTime(new Date(`${today}T12:00:00Z`));
+  const weekBefore = new Date(`${today}T00:00:00Z`);
+  weekBefore.setUTCDate(weekBefore.getUTCDate() - 7);
+  const earlier = weekBefore.toISOString().slice(0, 10);
+
+  // The last visit was a week ago
+  await page.route('**/api/intern/anwesenheit', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...(await response.json()), today: earlier } });
+  });
+  await page.goto('/leitendenbereich/anwesenheit');
+  const datum = page.getByLabel('Datum', { exact: true });
+  await expect(datum).toHaveValue(suggestedDate('Freitags', earlier));
+  await page.getByRole('link', { name: 'Leitendenbereich – Übersicht' }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
+
+  // Back today: the Termine of the last visit show at once while they load again
+  await page.unroute('**/api/intern/anwesenheit');
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/anwesenheit', async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.goBack();
+  const termin = suggestedDate('Freitags', today);
+  await expect(datum).toHaveValue(termin);
+  const anna = choice(page, 'Anna Test');
+  await anna.anwesend.click();
+  await expect(page.getByTestId('anwesenheit-counts')).toContainText('Gespeichert');
+
+  const reloaded = page.waitForResponse((response) =>
+    response.url().endsWith('/api/intern/anwesenheit')
+  );
+  release();
+  await reloaded;
+  // The next choice belongs to the same Termin as the first one
+  await expect(datum).toHaveValue(termin);
+  await expect(anna.anwesend).toHaveAttribute('aria-pressed', 'true');
+
+  // Restore the demo state for the following tests of this worker
+  await anna.abwesend.click();
+  await expect(anna.abwesend).toHaveAttribute('aria-pressed', 'true');
 });
