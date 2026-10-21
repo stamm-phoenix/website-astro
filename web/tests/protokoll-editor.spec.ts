@@ -735,3 +735,27 @@ test('„Bearbeiten“ before the login check answers keeps the unsaved copy of 
   await page.getByText(/^Sitzungsdaten und Teilnehmende bearbeiten/).click();
   await expect(page.getByLabel('Titel', { exact: true })).toHaveValue('Leitendenrunde vom Handy');
 });
+
+test('a new Protokoll opened while the list of the last visit is shown gets the date of today', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2026-10-21T10:00:00+02:00'));
+  await page.goto('/leitendenbereich/protokolle');
+  await expect(page.getByRole('link', { name: 'Stavo-Sitzung', exact: true })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Zurück' }).getByRole('link').click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
+
+  // The list of the last visit is shown again while it loads; it was loaded on another day
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/protokoll-editor', async (route) => {
+    const response = await route.fetch();
+    const overview = (await response.json()) as { today: string };
+    await held;
+    await route.fulfill({ response, json: { ...overview, today: '2026-10-14' } });
+  });
+  await page.goBack();
+  await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
+  await expect(page.getByLabel('Datum der Sitzung')).toHaveValue('2026-10-21');
+  release();
+});
