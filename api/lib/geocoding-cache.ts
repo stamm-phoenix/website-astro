@@ -16,6 +16,64 @@ export interface GeocodingCache {
 export const GEOCODING_STATE_KEY = 'geocoding:azure-maps';
 /** Pacing and cache of the former Nominatim search; removed with the bookings. */
 export const LEGACY_GEOCODING_STATE_KEY = 'geocoding:nominatim';
+/** Requests to Azure Maps in the current UTC hour and day, shared by all instances. */
+export const GEOCODING_BUDGET_KEY = 'geocoding:azure-maps:budget';
+
+interface GeocodingBudget {
+  hour: number;
+  hourCount: number;
+  day: number;
+  dayCount: number;
+}
+
+/** A damaged budget must not silently reset to zero, so it admits nothing until repaired. */
+export function parseGeocodingBudget(value: unknown | undefined, now: number): GeocodingBudget {
+  const hour = Math.floor(now / 3_600_000);
+  const day = Math.floor(now / 86_400_000);
+  if (value === undefined) return { hour, hourCount: 0, day, dayCount: 0 };
+  if (
+    !isRecord(value) ||
+    !['hour', 'hourCount', 'day', 'dayCount'].every(
+      (field) => Number.isSafeInteger(value[field]) && Number(value[field]) >= 0
+    )
+  ) {
+    throw new Error('Invalid geocoding budget');
+  }
+  return {
+    hour,
+    day,
+    hourCount: value.hour === hour ? Number(value.hourCount) : 0,
+    dayCount: value.day === day ? Number(value.dayCount) : 0,
+  };
+}
+
+/**
+ * Reserves one request to Azure Maps in the shared hourly and daily budget, atomically under
+ * the row lock of `mutate`. False when the budget is used up or cannot be read: then no request
+ * is sent. A reservation is never refunded.
+ */
+export async function reserveGeocodingRequest(
+  mutate: (
+    parse: (value: unknown | undefined) => GeocodingBudget,
+    change: (budget: GeocodingBudget) => GeocodingBudget | undefined
+  ) => Promise<GeocodingBudget | undefined>,
+  hourly: number,
+  daily: number,
+  now = Date.now()
+): Promise<boolean> {
+  try {
+    const reserved = await mutate(
+      (value) => parseGeocodingBudget(value, now),
+      (current) =>
+        current.hourCount >= hourly || current.dayCount >= daily
+          ? undefined
+          : { ...current, hourCount: current.hourCount + 1, dayCount: current.dayCount + 1 }
+    );
+    return reserved !== undefined;
+  } catch {
+    return false;
+  }
+}
 
 export interface GeocodingCacheDependencies {
   read: () => Promise<unknown | undefined>;

@@ -219,20 +219,35 @@ async function runLimited(
   return ok;
 }
 
-/** Requests the pairs not cached yet; true if every request succeeded. */
+interface FilledPairs {
+  /** Whether every pair was cached or requested successfully. */
+  ok: boolean;
+  /**
+   * The minutes of this load by `pairKey`, kept apart from the cache, so an entry that expires
+   * while the rest is requested is not silently estimated.
+   */
+  values: Map<string, number | null>;
+}
+
+/** Requests the pairs not cached yet. */
 async function fillPairs(
   points: Map<string, NikolausCoordinates>,
   departAt: string | undefined
-): Promise<boolean> {
+): Promise<FilledPairs> {
   const all = [...points.keys()];
   const time = departAt ?? 'any';
+  const values = new Map<string, number | null>();
   const gaps: [string, string][] = [];
   for (const a of all) {
     for (const b of all) {
-      if (a !== b && cachedPair(pairKey(a, b, time)) === undefined) gaps.push([a, b]);
+      if (a === b) continue;
+      const key = pairKey(a, b, time);
+      const cached = cachedPair(key);
+      if (cached === undefined) gaps.push([a, b]);
+      else values.set(key, cached);
     }
   }
-  if (gaps.length === 0) return true;
+  if (gaps.length === 0) return { ok: true, values };
   // Points that touch every missing pair, those with the most first; for a new booking only
   // that booking. Their rows and their column from all other points are requested.
   const count = new Map<string, number>();
@@ -253,7 +268,7 @@ async function fillPairs(
       ? matrixBlocks(all, all)
       : [...matrixBlocks(missing, all), ...matrixBlocks(others, missing)];
   const deadline = Date.now() + MATRIX_BUDGET_MS;
-  return runLimited(
+  const ok = await runLimited(
     blocks.map((block) => async (timeoutMs) => {
       const minutes = await fetchMatrix(
         block.origins.map((key) => points.get(key) as NikolausCoordinates),
@@ -266,14 +281,20 @@ async function fillPairs(
         block.destinations.forEach((to, j) => {
           if (from === to) return;
           const value = minutes[i][j];
-          if (value === undefined) failed++;
-          else cachePair(pairKey(from, to, time), value);
+          if (value === undefined) {
+            failed++;
+            return;
+          }
+          const key = pairKey(from, to, time);
+          values.set(key, value);
+          cachePair(key, value);
         })
       );
       if (failed) throw new Error(`Azure Maps matrix failed for ${failed} cells`);
     }),
     deadline
   );
+  return { ok, values };
 }
 
 /**
@@ -293,8 +314,13 @@ export async function getTravelMatrix(
     options.departAt && Date.parse(options.departAt) > Date.now() ? options.departAt : undefined;
   const time = departAt ?? 'any';
   let source: TravelSource = 'estimate';
+  let routes = new Map<string, number | null>();
   if (unique.size > 1 && isAzureMapsConfigured()) {
-    if (await fillPairs(unique, departAt)) source = 'route';
+    const filled = await fillPairs(unique, departAt);
+    if (filled.ok) {
+      source = 'route';
+      routes = filled.values;
+    }
   }
 
   const minutes = points.map((from, i) =>
@@ -303,7 +329,7 @@ export async function getTravelMatrix(
       if (!from || !to) return UNKNOWN_TRIP_MINUTES;
       const a = pointKey(from);
       const b = pointKey(to);
-      const routed = a === b ? 0 : source === 'route' ? cachedPair(pairKey(a, b, time)) : null;
+      const routed = a === b ? 0 : routes.get(pairKey(a, b, time));
       const base = typeof routed === 'number' ? routed : estimate(from, to);
       return Math.round((base + PARKING_MINUTES) * 10) / 10;
     })

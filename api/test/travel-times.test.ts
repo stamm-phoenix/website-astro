@@ -229,6 +229,40 @@ test('a hanging service on a long day still answers in time with the estimate', 
   assert.ok(fetch.mock.callCount() < 22);
 });
 
+test('a cached time that expires while a new booking is asked for is still used', async (t) => {
+  setKey(t, 'test-key');
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 5_000_000 });
+  let delayMs = 0;
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (_url: URL, init: RequestInit) => {
+    calls++;
+    // A slow answer: the clock moves on while it is on its way
+    t.mock.timers.tick(delayMs);
+    const request = readMatrixRequest(init);
+    const matrix = request.origins.flatMap((from, originIndex) =>
+      request.destinations.map((to, destinationIndex) => ({
+        originIndex,
+        destinationIndex,
+        statusCode: 200,
+        durationInSeconds: Math.round(Math.abs(from[0] - to[0]) * 60_000),
+      }))
+    );
+    return Response.json({ properties: { matrix } });
+  });
+  const [a, b] = points(2);
+  await getTravelMatrix([a, b]);
+  t.mock.timers.tick(6 * 60 * 60_000 - 4_000);
+
+  // Row and column of the new point take three seconds each, past the expiry of a → b
+  delayMs = 3_000;
+  const result = await getTravelMatrix([a, b, { lat: a.lat, lon: 11.5 }]);
+  // One full matrix, then the row and the column of the new point
+  assert.equal(calls, 3);
+  assert.equal(result.source, 'route');
+  // a → b: 1 minute of driving plus parking, not the air-line estimate
+  assert.equal(result.minutes[0][1], 3);
+});
+
 test('a timeout falls back to the estimate', async (t) => {
   setKey(t, 'test-key');
   t.mock.timers.enable({ apis: ['setTimeout'] });
