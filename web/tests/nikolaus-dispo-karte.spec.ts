@@ -32,6 +32,8 @@ test('the map view shows the visits and drives and leads to the list', async ({ 
     .getByRole('button', { name: 'Auf der Karte zeigen' })
     .click();
   await expect(page.locator('.selected-card')).toContainText(family);
+  // The keyboard stays at the same visit
+  await expect(page.locator('.stop-item[aria-current="true"]')).toBeFocused();
   await expectNoHorizontalOverflow(page);
 });
 
