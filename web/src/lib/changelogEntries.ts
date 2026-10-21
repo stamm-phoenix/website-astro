@@ -20,7 +20,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: '„Nicht zu Familien mit“ gilt jetzt nur noch, wenn jemand als Nikolaus, Krampus oder Engerl eingeteilt ist. Als Fahrer*in kann die Person auch in ein Team mit so einer Familie, weil sie die Familie nicht besucht.',
         href: '/leitendenbereich/nikolaus-helfende',
       },
-      'Auch die Dispo hält Familien nur noch wegen Nikolaus, Krampus oder Engerl von einem Team fern, nicht mehr wegen der Fahrer*in.',
+      {
+        text: 'Auch die Dispo hält Familien nur noch wegen Nikolaus, Krampus oder Engerl von einem Team fern, nicht mehr wegen der Fahrer*in.',
+        href: '/leitendenbereich/nikolaus-dispo',
+      },
     ],
   },
   {
