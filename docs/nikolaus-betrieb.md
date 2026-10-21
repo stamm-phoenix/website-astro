@@ -116,7 +116,7 @@ Gefundene Orte stehen 24 Stunden in `geocoding:azure-maps` in `nikolaus.state`, 
 - Die Dispo fragt die Fahrzeiten mit der **Abfahrtszeit des Besuchstags** an (Beginn des ersten Termins, Europe/Berlin) und mit historischem Verkehr, also der üblichen Verkehrslage eines Abends dieses Wochentags. Liegt der Zeitpunkt schon zurück, wird ohne Abfahrtszeit gerechnet.
 - Mit Abfahrtszeit erlaubt die synchrone Matrix höchstens 200 Zellen. Die API teilt größere Tage deshalb in Blöcke, höchstens vier gleichzeitig.
 - Fahrzeiten werden **pro Paar** sechs Stunden im Prozess gemerkt. Kommt eine Buchung hinzu, holt die API nur deren Zeile und Spalte; mehrere Buchungen an einer Adresse teilen sich eine.
-- Schlägt ein Block fehl, gilt für diesen Abruf die Luftlinien-Schätzung (Faktor 1,4, 35 km/h), und die Dispo zeigt „geschätzt“; der nächste Abruf holt nur das Fehlende. Paare ohne Route werden einzeln geschätzt. Jede Fahrt bekommt zwei Minuten zum Parken dazu.
+- Schlägt ein Block oder eine einzelne Zelle fehl oder brauchen alle Blöcke zusammen länger als 25 Sekunden, gilt für diesen Abruf die Luftlinien-Schätzung (Faktor 1,4, 35 km/h), und die Dispo zeigt „geschätzt“; der nächste Abruf holt nur das Fehlende. Paare, zwischen denen Azure Maps ausdrücklich keine Route findet, werden einzeln geschätzt. Jede Fahrt bekommt zwei Minuten zum Parken dazu.
 - Die Straßenverläufe der Karte kommen aus Route Directions mit bis zu 150 Punkten pro Team, sonst zeichnet die Karte gerade Linien.
 
 ### Kosten (Stand Oktober 2026)
