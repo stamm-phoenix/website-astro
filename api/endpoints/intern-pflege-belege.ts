@@ -33,13 +33,14 @@ import {
   downloadFileName,
   getBeleg,
   getBelege,
-  getTransferredBelege,
   setBelegPhoto,
   toStaffBeleg,
   updateBeleg,
 } from '../lib/beleg-list';
 import { readBelegPhoto } from '../lib/beleg-photos';
 import { BelegCampflowError, transferBelegToCampflow } from '../lib/beleg-campflow';
+import { readCampflowBelege } from '../lib/campflow-belege';
+import { getCampflowBelege, PlaywrightApiError } from '../lib/playwright-api';
 
 export type { StaffBeleg } from '../lib/beleg-list';
 export { downloadFileName } from '../lib/beleg-list';
@@ -369,15 +370,35 @@ export const BelegCampflowEndpoint = pflegeHandler(
 );
 
 /**
- * GET: receipts transferred to CampFlow and deleted here, newest first. The Kasse sees all,
- * others the ones they submitted. Their photos come from CampFlow (`intern-abrechnung-beleg-bild`).
+ * GET: every receipt in CampFlow with its booking and payment state, read-only and for every
+ * leader, like the Beiträge. The Playwright API serves its last read; `?refresh=true` reads
+ * CampFlow again. Receipts transferred from here carry who submitted them, as a flag for the user.
  */
-export const BelegeUebertragenEndpoint = pflegeHandler(
-  'belege-uebertragen',
+export const BelegeCampflowEndpoint = pflegeHandler(
+  'belege-campflow-liste',
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
     if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
-    const reviewer = isBelegReviewer(principal);
-    return ok(await getTransferredBelege(reviewer ? undefined : principal.userDetails));
+    try {
+      const belege = await readCampflowBelege(
+        await getCampflowBelege({ refresh: request.query.get('refresh') === 'true' }),
+        principal.userDetails
+      );
+      return { status: 200, headers: NO_STORE_HEADERS, jsonBody: belege };
+    } catch (error: unknown) {
+      if (!(error instanceof PlaywrightApiError)) throw error;
+      if (error.status === 503) {
+        return errorResponse(
+          502,
+          'CAMPFLOW_BELEGE_UNAVAILABLE',
+          'Für die Belege aus CampFlow ist kein CampFlow-Zugang eingerichtet. Bitte melde dich bei admin@stamm-phoenix.de.'
+        );
+      }
+      return errorResponse(
+        502,
+        'CAMPFLOW_BELEGE_UNAVAILABLE',
+        'Die Belege konnten nicht aus CampFlow geladen werden. Versuche es in ein paar Minuten noch einmal; klappt es dann nicht, melde dich bei admin@stamm-phoenix.de.'
+      );
+    }
   }
 );
 
@@ -396,4 +417,4 @@ export const BelegItem = withErrorHandling(BelegItemEndpoint);
 export const BelegPhoto = withErrorHandling(BelegPhotoEndpoint);
 export const BelegPruefung = withErrorHandling(BelegPruefungEndpoint);
 export const BelegCampflow = withErrorHandling(BelegCampflowEndpoint);
-export const BelegeUebertragen = withErrorHandling(BelegeUebertragenEndpoint);
+export const BelegeCampflow = withErrorHandling(BelegeCampflowEndpoint);

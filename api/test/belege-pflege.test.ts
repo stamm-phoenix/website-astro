@@ -6,7 +6,7 @@ import sharp from 'sharp';
 import * as blobStorage from '../lib/blob-storage';
 import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
-import { getBelege, getTransferredBelege } from '../lib/beleg-list';
+import { getBelege } from '../lib/beleg-list';
 import { getStaffAktionen } from '../lib/aktionen-list';
 import {
   seedPreviewAktionen,
@@ -897,8 +897,15 @@ dbTest('the preview gets invented Aktionen and Belege once', async (t) => {
   assert.equal(belege.filter((beleg) => beleg.hasOriginal).length, 1);
   // Three photos and the original of the scan
   assert.equal(blobs.size, 4);
-  // Transferred receipts with IDs of their own, for the list „In CampFlow“
-  const transferred = await getTransferredBelege();
+  // Transferred receipts with IDs of their own, deleted here after the upload
+  const transferred = await getDb()
+    .selectFrom('organisation.beleg_campflow')
+    .select(['beleg_id', 'beleg_deleted_at'])
+    .where('state', '=', 'Hochgeladen')
+    .execute();
   assert.equal(transferred.length, 2);
-  assert.ok(transferred.every((entry) => !belege.some((beleg) => beleg.id === entry.id)));
+  assert.ok(transferred.every((entry) => entry.beleg_deleted_at !== null));
+  assert.ok(
+    transferred.every((entry) => !belege.some((beleg) => beleg.id === String(entry.beleg_id)))
+  );
 });

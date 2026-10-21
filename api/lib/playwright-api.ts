@@ -267,6 +267,16 @@ export function getAktionBeitraege(
   );
 }
 
+/**
+ * All receipts of CampFlow's page „Belege“ with booking and payment state, unchecked (see
+ * `readCampflowBelege`). The Playwright API keeps the last result until `refresh` or an upload.
+ */
+export function getCampflowBelege({
+  refresh = false,
+}: { refresh?: boolean } = {}): Promise<unknown> {
+  return request<unknown>('/campflow/belege', refresh ? { refresh: 'true' } : {});
+}
+
 /** All Kostenstellen of the workspace with their Kategorien, archived ones included. */
 export async function getKostenstellen(): Promise<Kostenstelle[]> {
   const response = await request<{

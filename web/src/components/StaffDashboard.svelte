@@ -2,7 +2,7 @@
   import { taskHasAssignee, taskAssigneeNames } from '../../../api/lib/aufgaben-zuordnung';
   import { onMount, type Snippet } from 'svelte';
   import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
-  import { fetchPrincipal } from '../lib/authStore.svelte';
+  import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import {
     favoritesStore,
     canChooseFavorites,
@@ -28,6 +28,12 @@
   import { localDate } from '../lib/dateUtils';
   import { KJR_ABGABE_MONATE, kjrRestzeit, offeneKjrFristen } from '../lib/kjrFristen';
   import LoadState from './ui/LoadState.svelte';
+  import StatusLabel from './ui/StatusLabel.svelte';
+  import { belegePflege, campflowBelegeStore } from '../lib/pflegeStore.svelte';
+  import { meineBelege } from '../lib/campflowBelege';
+  import { isIch } from '../lib/ichStore.svelte';
+  import { formatIsoDate } from '../lib/belege';
+  import { formatEuro } from '../lib/format';
   import InfoHint from './ui/InfoHint.svelte';
 
   /** Entries per area; the link next to the heading leads to the full list. */
@@ -96,16 +102,37 @@
   const tasksEmpty = $derived(
     tasks !== null && !tasksLoading && !tasksError && openTasks.length === 0
   );
+  const belegeStore = belegePflege.state;
+  const campflowStore = campflowBelegeStore.state;
+  // Own receipts in the module and in CampFlow; CampFlow may answer later or not at all
+  const ownBelege = $derived(
+    meineBelege(
+      belegeStore.data ?? [],
+      campflowStore.data,
+      authStore.principal?.userDetails ?? '',
+      isIch
+    )
+  );
+  const belegeEmpty = $derived(
+    belegeStore.data !== null &&
+      !belegeStore.loading &&
+      !belegeStore.error &&
+      campflowStore.data !== null &&
+      !campflowStore.loading &&
+      ownBelege.length === 0
+  );
   const cardCount = $derived(
-    [eventsEmpty, tasksEmpty, fristenEmpty].filter((empty) => !empty).length
+    [eventsEmpty, tasksEmpty, fristenEmpty, belegeEmpty].filter((empty) => !empty).length
   );
   // Side by side once there is room; stacked areas are divided by lines instead
   const gridColumns = $derived(
-    cardCount === 3
-      ? 'xl:grid-cols-3 xl:divide-x xl:divide-y-0'
-      : cardCount === 2
-        ? 'md:grid-cols-2 md:divide-x md:divide-y-0'
-        : ''
+    cardCount === 4
+      ? 'md:grid-cols-2 xl:grid-cols-4 xl:divide-x xl:divide-y-0'
+      : cardCount === 3
+        ? 'xl:grid-cols-3 xl:divide-x xl:divide-y-0'
+        : cardCount === 2
+          ? 'md:grid-cols-2 md:divide-x md:divide-y-0'
+          : ''
   );
 
   onMount(() => {
@@ -117,6 +144,8 @@
     void loadTasks();
     void loadRecent();
     void fetchNikolausStatus();
+    void belegePflege.load();
+    void campflowBelegeStore.load({ param: false });
   });
   function retryFavorites(): void {
     void loadFavorites(STAFF_FAVORITE_PATHS);
@@ -264,6 +293,45 @@
   </LoadState>
 {/snippet}
 
+{#snippet belegeBody()}
+  <LoadState
+    data={belegeStore.data}
+    loading={belegeStore.loading}
+    error={belegeStore.error}
+    loadingText="Belege werden geladen …"
+    onretry={() => belegePflege.load({ force: true })}
+  >
+    {#snippet skeleton()}
+      <p aria-hidden="true" class="mt-2 text-sm text-neutral-700">Belege werden geladen …</p>
+    {/snippet}
+    {#if campflowStore.loading && !campflowStore.data}
+      <p role="status" class="text-sm text-neutral-700">Belege aus CampFlow werden geladen …</p>
+    {:else if campflowStore.error}
+      <p class="text-sm text-neutral-700">Ohne CampFlow fehlen schon gebuchte Belege.</p>
+    {/if}
+    <ul class="mt-1 divide-y divide-neutral-200" data-testid="meine-belege">
+      {#each ownBelege.slice(0, CARD_LIMIT) as beleg (beleg.key)}
+        <li class="py-2">
+          <a
+            href="/leitendenbereich/belege"
+            class="text-link block truncate font-semibold"
+            title={beleg.title}>{beleg.title}</a
+          >
+          <p class="flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
+            <span
+              >{[beleg.date ? formatIsoDate(beleg.date) : '', formatEuro(beleg.amountCent)]
+                .filter(Boolean)
+                .join(' · ')}</span
+            >
+            <StatusLabel label={beleg.label} tone={beleg.tone} dot />
+          </p>
+        </li>
+      {/each}
+    </ul>
+    {@render more(ownBelege.length)}
+  </LoadState>
+{/snippet}
+
 {#snippet fristenBody()}
   {#if eventsLoading}<p role="status" class="mt-2 text-sm text-neutral-700">
       Fristen werden geladen …
@@ -369,9 +437,16 @@
             'Alle Aktionen',
             eventsBody
           )}{/if}
+        {#if !belegeEmpty}{@render card(
+            'meine-belege-heading',
+            'Meine Belege',
+            '/leitendenbereich/belege',
+            'Zu den Belegen',
+            belegeBody
+          )}{/if}
       </div>
     {/if}
-    {#if cardCount < 3}
+    {#if cardCount < 4}
       <ul
         class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-neutral-700"
         data-testid="nothing-open"
@@ -391,6 +466,12 @@
                   >{pendingCount} {pendingCount === 1 ? 'Vorschlag' : 'Vorschläge'} prüfen</a
                 > ·
               {/if}<a href="/leitendenbereich/aufgaben" class="text-link">Alle Aufgaben</a></span
+            >
+          </li>{/if}
+        {#if belegeEmpty}<li class="flex items-center gap-2">
+            {@render check()}<span
+              >Keine eigenen Belege ·
+              <a href="/leitendenbereich/belege" class="text-link">Beleg einreichen</a></span
             >
           </li>{/if}
         {#if fristenEmpty}<li class="flex items-center gap-2">

@@ -65,26 +65,6 @@ export interface BelegCampflow {
   startedAt: string;
 }
 
-/** A receipt transferred to CampFlow and deleted here afterwards; its photo is in CampFlow. */
-export interface TransferredBeleg {
-  id: string;
-  shop: string;
-  date: string;
-  amountCent: number;
-  paidBy: string;
-  payout: boolean;
-  aktion: string;
-  note: string;
-  submittedBy: string;
-  /** Belegnummer in CampFlow, e.g. `2026-112`. */
-  number: string;
-  costUnitName: string;
-  categoryName: string;
-  /** Who transferred it, and when. */
-  transferredBy: string;
-  transferredAt: string;
-}
-
 /** A receipt with the name of its photo, for the photo endpoint. */
 export interface StoredBeleg extends StaffBeleg {
   photo: string | null;
@@ -237,36 +217,6 @@ function withTransfer(row: BelegRow): StoredBeleg {
           started_at,
         };
   return toBeleg(beleg, transfer);
-}
-
-/**
- * Receipts transferred to CampFlow and deleted here, newest first; with `submittedBy` only those
- * of that login (compared without regard to case, like `getBelege`).
- */
-export async function getTransferredBelege(submittedBy?: string): Promise<TransferredBeleg[]> {
-  let query = getDb()
-    .selectFrom('organisation.beleg_campflow')
-    .selectAll()
-    .where('state', '=', 'Hochgeladen')
-    .where('beleg_deleted_at', 'is not', null);
-  if (submittedBy !== undefined) query = query.where('submitted_by', '=', submittedBy);
-  const rows = await query.orderBy('uploaded_at', 'desc').orderBy('beleg_id', 'desc').execute();
-  return rows.map((row) => ({
-    id: String(row.beleg_id),
-    shop: row.shop,
-    date: row.beleg_date === null ? '' : toDateString(row.beleg_date),
-    amountCent: row.amount_cent,
-    paidBy: row.paid_by,
-    payout: row.payout,
-    aktion: row.aktion,
-    note: row.note,
-    submittedBy: row.submitted_by,
-    number: row.campflow_number ?? '',
-    costUnitName: row.costunit_name,
-    categoryName: row.category_name,
-    transferredBy: row.started_by,
-    transferredAt: (row.uploaded_at ?? row.started_at).toISOString(),
-  }));
 }
 
 /** The transfer of a receipt to CampFlow, also of one deleted since. */

@@ -31,7 +31,7 @@ import type {
   TasksOverview,
   ProtokollTermin,
   StaffBeleg,
-  TransferredBeleg,
+  CampflowBeleg,
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
   StaffProtokoll,
@@ -2450,24 +2450,85 @@ const belege: StaffBeleg[] = [
     campflow: null,
   },
 ];
-/** Receipts the demo Kasse already transferred to CampFlow; their images come from CampFlow. */
-const uebertrageneBelege: TransferredBeleg[] = [
-  {
-    id: '35',
-    shop: 'Edeka',
-    date: dayFromToday(-30),
-    amountCent: 6412,
-    paidBy: 'Demo Leitung',
-    payout: true,
-    aktion: 'Sommerlager 2026 Oberjoch',
-    note: 'Grillabend',
-    submittedBy: 'leitung@example.test',
+/** The demo CampFlow's page „Belege“; images of booked ones come from the Abrechnung route. */
+const campflowBeleg = (
+  values: Partial<CampflowBeleg> & Pick<CampflowBeleg, 'id' | 'status'>
+): CampflowBeleg => ({
+  number: null,
+  description: '',
+  date: null,
+  amountCent: 0,
+  openCent: 0,
+  paidBy: null,
+  costUnits: [],
+  categories: [],
+  pages: 1,
+  fileName: null,
+  uploadedAt: null,
+  viaWebsite: false,
+  submittedByMe: false,
+  ...values,
+});
+const sola = { id: 'cun_Sola26', name: 'Sommerlager 2026 Oberjoch' };
+const herbst = { id: 'cun_WoeHerbst', name: 'Wölflings-Herbstwochenende' };
+const campflowBelege: CampflowBeleg[] = [
+  campflowBeleg({
+    id: 'rcp_Neu1',
+    status: 'unbooked',
+    fileName: 'Kassenzettel Baumarkt.pdf',
+    uploadedAt: `${dayFromToday(-1)} 18:12:00`,
+  }),
+  campflowBeleg({
+    id: 'exp_104',
+    status: 'open',
     number: '2026-104',
-    costUnitName: 'Sommerlager 2026 Oberjoch',
-    categoryName: 'Verpflegung',
-    transferredBy: 'kasse@example.test',
-    transferredAt: isoFromNow(-25),
-  },
+    description: 'Edeka – Grillabend',
+    date: dayFromToday(-30),
+    amountCent: -6412,
+    openCent: -6412,
+    paidBy: 'Demo Leitung',
+    costUnits: [sola],
+    categories: [{ id: 'cat_Sola261', name: 'Verpflegung', costUnitId: sola.id }],
+    uploadedAt: `${dayFromToday(-25)} 20:01:00`,
+    viaWebsite: true,
+    submittedByMe: true,
+  }),
+  campflowBeleg({
+    id: 'exp_97',
+    status: 'settled',
+    number: '2026-97',
+    description: 'DB Fahrkarten Vorbereitung',
+    date: dayFromToday(-48),
+    amountCent: -8890,
+    paidBy: 'Demo Leitung',
+    costUnits: [sola],
+    categories: [{ id: 'cat_Sola262', name: 'Fahrtkosten', costUnitId: sola.id }],
+    uploadedAt: `${dayFromToday(-45)} 09:30:00`,
+  }),
+  campflowBeleg({
+    id: 'exp_99',
+    status: 'open',
+    number: '2026-99',
+    description: 'Bastelmaterial',
+    date: dayFromToday(-20),
+    amountCent: -2350,
+    openCent: -2350,
+    paidBy: 'Sam Beispiel',
+    costUnits: [herbst],
+    categories: [{ id: 'cat_WoeHerbst2', name: 'Material', costUnitId: herbst.id }],
+    uploadedAt: `${dayFromToday(-19)} 12:00:00`,
+  }),
+  campflowBeleg({
+    id: 'exp_88',
+    status: 'settled',
+    number: '2026-88',
+    description: 'Selbstversorgerhaus Anzahlung',
+    date: dayFromToday(-90),
+    amountCent: -50000,
+    costUnits: [sola],
+    categories: [{ id: 'cat_Sola264', name: 'Unterkunft', costUnitId: sola.id }],
+    pages: 2,
+  }),
 ];
 const belegPhotos = new Map<string, Uint8Array>();
 const belegOriginals = new Map<string, Uint8Array>();
@@ -2541,7 +2602,14 @@ route('POST', '/api/intern/pflege/belege/pruefung', (req) => {
 
 route(['GET'], '/api/intern/pflege/belege/rolle', () => json({ reviewer: true }));
 
-route(['GET'], '/api/intern/pflege/belege/uebertragen', () => json(uebertrageneBelege));
+// Read from CampFlow by the Playwright API in production
+route(['GET'], '/api/intern/pflege/belege/campflow', () =>
+  json({
+    loadedAt: new Date(MOCK_NOW).toISOString(),
+    costUnits: kostenstellen,
+    belege: campflowBelege,
+  })
+);
 
 route(['PATCH', 'DELETE'], '/api/intern/pflege/belege/:id', (req) => {
   const index = belege.findIndex((b) => b.id === req.params.id);
@@ -2610,22 +2678,24 @@ route('POST', '/api/intern/pflege/belege/:id/campflow', (req) => {
   }
   belege.splice(index, 1);
   const number = `2026-${nextCampflowNumber++}`;
-  uebertrageneBelege.unshift({
-    id: beleg.id,
-    shop: beleg.shop,
-    date: beleg.date,
-    amountCent: beleg.amountCent,
-    paidBy: beleg.paidBy,
-    payout: beleg.payout,
-    aktion: beleg.aktion,
-    note: beleg.note,
-    submittedBy: beleg.submittedBy,
-    number,
-    costUnitName: unit.name,
-    categoryName: category.name,
-    transferredBy: PRINCIPAL.userDetails,
-    transferredAt: new Date(MOCK_NOW).toISOString(),
-  });
+  const payout = beleg.payout && beleg.paidBy.trim() ? beleg.paidBy.trim() : null;
+  campflowBelege.unshift(
+    campflowBeleg({
+      id: `exp_${number}`,
+      status: 'open',
+      number,
+      description: [beleg.shop, beleg.note].filter(Boolean).join(' – '),
+      date: beleg.date,
+      amountCent: -beleg.amountCent,
+      openCent: -beleg.amountCent,
+      paidBy: payout,
+      costUnits: [{ id: unit.id, name: unit.name }],
+      categories: [{ id: category.id, name: category.name, costUnitId: unit.id }],
+      uploadedAt: new Date(MOCK_NOW).toISOString().slice(0, 19).replace('T', ' '),
+      viaWebsite: true,
+      submittedByMe: beleg.submittedBy === PRINCIPAL.userDetails,
+    })
+  );
   return json({
     campflow: {
       state: 'Hochgeladen',

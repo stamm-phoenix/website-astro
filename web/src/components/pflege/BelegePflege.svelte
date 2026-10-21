@@ -13,11 +13,12 @@
   import BelegList from './BelegList.svelte';
   import BelegPhotoSection from './BelegPhotoSection.svelte';
   import BelegReview from './BelegReview.svelte';
-  import BelegUebertragenDialog from './BelegUebertragenDialog.svelte';
-  import BelegUebertragenList from './BelegUebertragenList.svelte';
+  import BelegCampflowDialog from './BelegCampflowDialog.svelte';
+  import BelegCampflowListe from './BelegCampflowListe.svelte';
 
   import ReloadButton from './ReloadButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
+  import ReloadAction from '../ui/ReloadAction.svelte';
 
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -27,10 +28,10 @@
   import { confirmAction } from '../../lib/confirm';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
-  import { belegePflege, uebertrageneBelege } from '../../lib/pflegeStore.svelte';
+  import { belegePflege, campflowBelegeStore } from '../../lib/pflegeStore.svelte';
   import { centToInput, parseEuroToCent } from '../../lib/belege';
-  import { formatEuro, todayIso } from '../../lib/format';
-  import type { BelegStatus, StaffBeleg, TransferredBeleg } from '../../lib/types';
+  import { formatDateTime, formatEuro, todayIso } from '../../lib/format';
+  import type { BelegStatus, CampflowBeleg, StaffBeleg } from '../../lib/types';
 
   import EditDialog from './EditDialog.svelte';
 
@@ -51,9 +52,10 @@
     abgelehnt: 'Abgelehnt',
   };
   const store = belegePflege.state;
-  /** Receipts transferred to CampFlow and deleted here; they live on as history. */
-  const transferredStore = uebertrageneBelege.state;
-  let openTransferred = $state<TransferredBeleg | null>(null);
+  /** Every receipt in CampFlow, read-only, also those uploaded there directly. */
+  const campflowStore = campflowBelegeStore.state;
+  let openCampflow = $state<CampflowBeleg | null>(null);
+  let campflowNotice = $state('');
 
   let view = $state<View>('offen');
   /** Member of the Kasse: sees all receipts and accepts or rejects them. */
@@ -82,7 +84,7 @@
     angenommen: items.filter((b) => b.status === 'Angenommen').length,
     abgelehnt: items.filter((b) => b.status === 'Abgelehnt').length,
     alle: items.length,
-    campflow: transferredStore.data?.length ?? 0,
+    campflow: campflowStore.data?.belege.length ?? 0,
   });
   const matches = (b: { shop: string; aktion: string; paidBy: string; note: string }): boolean => {
     const query = search.trim().toLowerCase();
@@ -91,11 +93,6 @@
       [b.shop, b.aktion, b.paidBy, b.note].some((text) => text.toLowerCase().includes(query))
     );
   };
-  const visibleTransferred = $derived(
-    (transferredStore.data ?? []).filter(
-      (b) => matches(b) && (!onlyMine || b.submittedBy.toLowerCase() === login.toLowerCase())
-    )
-  );
   const visible = $derived.by(() => {
     if (view === 'campflow') return [];
     const currentView = view;
@@ -111,7 +108,7 @@
       // Only suggestions; the form works without CampFlow. They follow the list, so it comes
       // first, and are there by the time a receipt is opened (which also asks for them)
       void belegePflege.load().finally(() => fetchCampflowEvents());
-      uebertrageneBelege.load();
+      void campflowBelegeStore.load({ param: false });
       fetchPrincipal();
       fetchApi<{ reviewer: boolean }>('/intern/pflege/belege/rolle')
         .then((role) => (reviewer = role.reviewer))
@@ -323,9 +320,10 @@
             ? `Beleg von ${shop} ist in CampFlow als ${number} gebucht und wurde hier gelöscht.`
             : `Beleg von ${shop} ist in CampFlow als ${number} gebucht, aber mit einem früheren Stand. Er wurde danach geändert und bleibt deshalb hier, bis du CampFlow geprüft hast.`;
       form = null;
+      // The Playwright API reads CampFlow again after an upload
       await Promise.all([
         belegePflege.load({ force: true }),
-        uebertrageneBelege.load({ force: true }),
+        campflowBelegeStore.load({ force: true, param: false }),
       ]);
     }, 'Der Beleg wurde nicht übertragen. Prüfe deine Internetverbindung und versuche es noch einmal.');
     // The attempt is stored either way; show its state
@@ -357,6 +355,13 @@
     );
   }
 
+  /** Reads CampFlow again instead of the Playwright API's last read. */
+  async function refreshCampflow(): Promise<void> {
+    campflowNotice = '';
+    await campflowBelegeStore.load({ force: true, param: true });
+    if (!campflowStore.error) campflowNotice = 'Belege neu aus CampFlow geladen.';
+  }
+
   async function remove(): Promise<void> {
     const current = form;
     if (!current?.id || photo.photoBusy) return;
@@ -366,11 +371,7 @@
       });
       message = `Beleg von ${current.shop} gelöscht.`;
       form = null;
-      // A receipt uploaded to CampFlow moves to „In CampFlow“
-      await Promise.all([
-        belegePflege.load({ force: true }),
-        uebertrageneBelege.load({ force: true }),
-      ]);
+      await belegePflege.load({ force: true });
     }, 'Der Beleg wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 </script>
@@ -381,9 +382,7 @@
       >Beleg einreichen</ActionButton
     >
     <a href="/leitendenbereich/eigenbeleg" class="btn-secondary">Eigenbeleg erstellen</a>
-    {#if view === 'campflow'}
-      <ReloadButton resource={uebertrageneBelege} />
-    {:else}
+    {#if view !== 'campflow'}
       <ReloadButton resource={belegePflege} />
     {/if}
   {/snippet}
@@ -410,7 +409,9 @@
         options={VIEWS.map((option) => ({
           value: option.id,
           label: option.label,
-          count: store.data ? counts[option.id] : undefined,
+          count: (option.id === 'campflow' ? campflowStore.data : store.data)
+            ? counts[option.id]
+            : undefined,
         }))}
         value={view}
         onselect={(value) => (view = value)}
@@ -425,25 +426,54 @@
   <StatusNotice {message} popup />
 
   {#if view === 'campflow'}
-    <LoadState
-      data={transferredStore.data}
-      loading={transferredStore.loading}
-      error={transferredStore.error}
-      loadingText="Übertragene Belege werden geladen …"
-      onretry={() => void uebertrageneBelege.load({ force: true })}
-      isEmpty={() => visibleTransferred.length === 0}
+    <div
+      class="flex flex-col gap-2 border-b border-neutral-200 pb-4 text-sm text-neutral-700 sm:flex-row sm:items-center sm:justify-between"
     >
-      {#snippet empty()}
-        <p class="surface p-6 text-sm text-neutral-700">
-          {search || onlyMine
-            ? 'Keine übertragenen Belege für diese Auswahl.'
-            : 'Noch keine Belege nach CampFlow übertragen.'}
-        </p>
+      <p>
+        Nur zum Nachschauen. Buchen und Auslagen erstatten geht weiterhin in
+        <a
+          href="https://my.campflow.de/dpsg-stamm-phoenix-5629/finance/receipts"
+          class="text-link underline underline-offset-4"
+          target="_blank"
+          rel="noopener">CampFlow</a
+        >.
+      </p>
+      {#if campflowStore.data}
+        <span class="flex flex-wrap items-center gap-x-2">
+          <span data-testid="campflow-belege-stand"
+            >Stand aus CampFlow: {formatDateTime(campflowStore.data.loadedAt)} Uhr</span
+          >
+          <ReloadAction disabled={campflowStore.loading} onclick={refreshCampflow}>
+            {campflowStore.loading ? 'Lädt … (bis zu 30 Sekunden)' : 'Neu aus CampFlow laden'}
+          </ReloadAction>
+        </span>
+      {/if}
+    </div>
+    <p role="status" aria-live="polite" class="text-sm font-semibold text-success empty:hidden">
+      {campflowNotice}
+    </p>
+    <LoadState
+      data={campflowStore.data}
+      loading={campflowStore.loading}
+      error={campflowStore.error}
+      loadingText="Belege werden aus CampFlow geladen …"
+      onretry={() => void campflowBelegeStore.load({ force: true, param: false })}
+    >
+      {#snippet skeleton()}
+        <div class="space-y-2">
+          {#each [1, 2, 3, 4] as n (n)}
+            <div class="skeleton-element h-16 rounded-[var(--radius-lg)]"></div>
+          {/each}
+        </div>
       {/snippet}
-      <BelegUebertragenList
-        items={visibleTransferred}
-        onopen={(beleg) => (openTransferred = beleg)}
-      />
+      {#if campflowStore.data}
+        <BelegCampflowListe
+          data={campflowStore.data}
+          {search}
+          {onlyMine}
+          onopen={(beleg) => (openCampflow = beleg)}
+        />
+      {/if}
     </LoadState>
   {:else}
     <LoadState
@@ -519,4 +549,4 @@
   {/if}
 </EditDialog>
 
-<BelegUebertragenDialog beleg={openTransferred} onclose={() => (openTransferred = null)} />
+<BelegCampflowDialog beleg={openCampflow} onclose={() => (openCampflow = null)} />
