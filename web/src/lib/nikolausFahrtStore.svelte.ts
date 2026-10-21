@@ -242,6 +242,22 @@ async function flush(snapshot: FahrtSnapshot): Promise<void> {
   }
 }
 
+/** Whether this browser holds a saved route of anyone; `true` if storage cannot be read. */
+function hasStoredRoute(): boolean {
+  try {
+    return localStorage.getItem(FAHRT_STORAGE_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
+
+function requestFahrt(date: string): Promise<StaffNikolausFahrtData> {
+  return fetchApi<StaffNikolausFahrtData>(
+    `/intern/nikolaus/fahrt?date=${encodeURIComponent(date)}`,
+    AbortSignal.timeout(15_000)
+  );
+}
+
 /** Restore a matching local route, replay pending visits, then refresh from the server. */
 export async function fetchNikolausFahrt(
   date: string,
@@ -249,6 +265,10 @@ export async function fetchNikolausFahrt(
 ): Promise<boolean> {
   const current = ++requestId;
   if (!silent) nikolausFahrtStore.loading = true;
+  // Without a saved route there are no visits to send first, so the route is requested at
+  // once instead of after the login check and the lock. Used only if still no route is saved.
+  const early = hasStoredRoute() ? null : requestFahrt(date);
+  early?.catch(() => undefined);
   try {
     await initialize();
     return await locked(async () => {
@@ -265,10 +285,7 @@ export async function fetchNikolausFahrt(
       if (snapshot) await flush(snapshot);
       if (current !== requestId) return false;
       try {
-        const data = await fetchApi<StaffNikolausFahrtData>(
-          `/intern/nikolaus/fahrt?date=${encodeURIComponent(date)}`,
-          AbortSignal.timeout(15_000)
-        );
+        const data = await (snapshot || !early ? requestFahrt(date) : early);
         if (current !== requestId) return false;
         nikolausFahrtStore.data = data;
         nikolausFahrtStore.dataSource = 'server';
