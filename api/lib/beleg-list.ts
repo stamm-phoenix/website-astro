@@ -97,7 +97,21 @@ export interface BelegPhotos {
   original?: Uint8Array;
 }
 
-export function toBelegCampflow(row: Selectable<BelegCampflowTable>): BelegCampflow {
+/** The columns of a transfer the receipt list shows. */
+type CampflowColumns = Pick<
+  Selectable<BelegCampflowTable>,
+  | 'state'
+  | 'costunit_id'
+  | 'costunit_name'
+  | 'category_id'
+  | 'category_name'
+  | 'campflow_number'
+  | 'error'
+  | 'started_by'
+  | 'started_at'
+>;
+
+export function toBelegCampflow(row: CampflowColumns): BelegCampflow {
   return {
     state: row.state,
     costUnitId: row.costunit_id,
@@ -111,10 +125,7 @@ export function toBelegCampflow(row: Selectable<BelegCampflowTable>): BelegCampf
   };
 }
 
-function toBeleg(
-  row: Selectable<BelegTable>,
-  campflow: Selectable<BelegCampflowTable> | undefined
-): StoredBeleg {
+function toBeleg(row: Selectable<BelegTable>, campflow: CampflowColumns | undefined): StoredBeleg {
   return {
     id: String(row.id),
     etag: toVersion(row.version),
@@ -157,39 +168,89 @@ export function toStaffBeleg(beleg: StoredBeleg): StaffBeleg {
  * regard to case, like the database collation), so nobody else's are read.
  */
 export async function getBelege(submittedBy?: string): Promise<StoredBeleg[]> {
-  let query = getDb().selectFrom('organisation.beleg').selectAll();
-  if (submittedBy !== undefined) query = query.where('submitted_by', '=', submittedBy);
-  const [rows, transfers] = await Promise.all([
-    query.orderBy('submitted_at', 'desc').orderBy('id', 'desc').execute(),
-    // Only those of receipts still there; the others are history
-    getDb()
-      .selectFrom('organisation.beleg_campflow')
-      .selectAll()
-      .where('beleg_deleted_at', 'is', null)
-      .execute(),
-  ]);
-  const byId = new Map(transfers.map((transfer) => [transfer.beleg_id, transfer]));
-  return rows.map((row) => toBeleg(row, byId.get(row.id)));
+  let query = selectBelege();
+  if (submittedBy !== undefined) query = query.where('b.submitted_by', '=', submittedBy);
+  const rows = await query.orderBy('b.submitted_at', 'desc').orderBy('b.id', 'desc').execute();
+  return rows.map(withTransfer);
 }
 
 export async function getBeleg(id: number): Promise<StoredBeleg | undefined> {
-  const [row, transfer] = await Promise.all([
-    getDb().selectFrom('organisation.beleg').selectAll().where('id', '=', id).executeTakeFirst(),
-    getBelegCampflowRow(id),
-  ]);
-  return row ? toBeleg(row, transfer) : undefined;
+  const row = await selectBelege().where('b.id', '=', id).executeTakeFirst();
+  return row ? withTransfer(row) : undefined;
 }
 
-/** Receipts transferred to CampFlow and deleted here, newest first. */
-export async function getTransferredBelege(): Promise<TransferredBeleg[]> {
-  const rows = await getDb()
+/** Receipts with their transfer to CampFlow, in one query. */
+function selectBelege() {
+  return getDb()
+    .selectFrom('organisation.beleg as b')
+    .leftJoin('organisation.beleg_campflow as c', (join) =>
+      join.onRef('c.beleg_id', '=', 'b.id').on('c.beleg_deleted_at', 'is', null)
+    )
+    .selectAll('b')
+    .select([
+      'c.state as cf_state',
+      'c.costunit_id as cf_costunit_id',
+      'c.costunit_name as cf_costunit_name',
+      'c.category_id as cf_category_id',
+      'c.category_name as cf_category_name',
+      'c.campflow_number as cf_campflow_number',
+      'c.error as cf_error',
+      'c.started_by as cf_started_by',
+      'c.started_at as cf_started_at',
+    ]);
+}
+
+type BelegRow = Awaited<ReturnType<ReturnType<typeof selectBelege>['executeTakeFirstOrThrow']>>;
+
+function withTransfer(row: BelegRow): StoredBeleg {
+  const {
+    cf_state: state,
+    cf_costunit_id: costunit_id,
+    cf_costunit_name: costunit_name,
+    cf_category_id: category_id,
+    cf_category_name: category_name,
+    cf_campflow_number: campflow_number,
+    cf_error: error,
+    cf_started_by: started_by,
+    cf_started_at: started_at,
+    ...beleg
+  } = row;
+  const transfer =
+    state === null ||
+    costunit_id === null ||
+    costunit_name === null ||
+    category_id === null ||
+    category_name === null ||
+    error === null ||
+    started_by === null ||
+    started_at === null
+      ? undefined
+      : {
+          state,
+          costunit_id,
+          costunit_name,
+          category_id,
+          category_name,
+          campflow_number,
+          error,
+          started_by,
+          started_at,
+        };
+  return toBeleg(beleg, transfer);
+}
+
+/**
+ * Receipts transferred to CampFlow and deleted here, newest first; with `submittedBy` only those
+ * of that login (compared without regard to case, like `getBelege`).
+ */
+export async function getTransferredBelege(submittedBy?: string): Promise<TransferredBeleg[]> {
+  let query = getDb()
     .selectFrom('organisation.beleg_campflow')
     .selectAll()
     .where('state', '=', 'Hochgeladen')
-    .where('beleg_deleted_at', 'is not', null)
-    .orderBy('uploaded_at', 'desc')
-    .orderBy('beleg_id', 'desc')
-    .execute();
+    .where('beleg_deleted_at', 'is not', null);
+  if (submittedBy !== undefined) query = query.where('submitted_by', '=', submittedBy);
+  const rows = await query.orderBy('uploaded_at', 'desc').orderBy('beleg_id', 'desc').execute();
   return rows.map((row) => ({
     id: String(row.beleg_id),
     shop: row.shop,
