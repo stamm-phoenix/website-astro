@@ -217,6 +217,7 @@ dbTest('submitting a receipt stores details, uploader and photo as unchecked', a
       hasImage: true,
       hasOriginal: false,
       aiCheck: null,
+      campflow: null,
       photo: undefined,
     }
   );
@@ -729,6 +730,7 @@ test('receipt helpers use German local dates and safe file names', () => {
       hasImage: true,
       hasOriginal: false,
       aiCheck: null,
+      campflow: null,
     }),
     'Beleg A B C 0,05 EUR.jpg'
   );

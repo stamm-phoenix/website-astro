@@ -30,6 +30,7 @@ import type { BelegPhotos, StaffBeleg } from '../lib/beleg-list';
 import {
   createBeleg,
   deleteBeleg,
+  downloadFileName,
   getBeleg,
   getBelege,
   setBelegPhoto,
@@ -37,8 +38,10 @@ import {
   updateBeleg,
 } from '../lib/beleg-list';
 import { readBelegPhoto } from '../lib/beleg-photos';
+import { BelegCampflowError, transferBelegToCampflow } from '../lib/beleg-campflow';
 
 export type { StaffBeleg } from '../lib/beleg-list';
+export { downloadFileName } from '../lib/beleg-list';
 export { originalFileName } from '../lib/beleg-photos';
 
 /** Previews are requested with the receipt's etag in the URL, so a short private cache is safe. */
@@ -328,13 +331,35 @@ export const BelegPruefungEndpoint = pflegeHandler(
   }
 );
 
-/** File name for the CampFlow upload, e.g. `2026-10-01 REWE 12,34 EUR.jpg`. */
-export function downloadFileName(beleg: StaffBeleg, original = false): string {
-  const amount = (beleg.amountCent / 100).toFixed(2).replace('.', ',');
-  const shop = beleg.shop.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Beleg';
-  const suffix = original ? ' Original' : '';
-  return `${beleg.date || 'Beleg'} ${shop} ${amount} EUR${suffix}.jpg`.replace(/\s+/g, ' ');
-}
+/**
+ * POST: transfers an accepted receipt to CampFlow (`costUnitId`, `categoryId` and the `etag` of
+ * the receipt in the body) and deletes it afterwards; see `beleg-campflow.ts`. Kasse only.
+ */
+export const BelegCampflowEndpoint = pflegeHandler(
+  'belege-campflow',
+  async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
+    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+    const id = parseId(request.params.id ?? '');
+    if (id === undefined) return NOT_FOUND;
+    if (!isBelegReviewer(principal)) return FORBIDDEN;
+
+    const body = await readJsonBody(request);
+    const etag = requireVersion(readEtag(body));
+    const costUnitId = typeof body?.costUnitId === 'string' ? body.costUnitId : '';
+    const categoryId = typeof body?.categoryId === 'string' ? body.categoryId : '';
+    if (!/^cun_\w+$/.test(costUnitId) || !/^cat_\w+$/.test(categoryId)) {
+      return errorResponse(400, 'INVALID', 'Bitte Kostenstelle und Kategorie wählen.');
+    }
+    try {
+      return ok(
+        await transferBelegToCampflow(id, etag, { costUnitId, categoryId }, principal.userDetails)
+      );
+    } catch (error: unknown) {
+      if (error instanceof BelegCampflowError) return error.toResponse();
+      throw error;
+    }
+  }
+);
 
 /** GET: whether the user belongs to the Kasse, so the page can show the review controls. */
 export const BelegRolleEndpoint = pflegeHandler(
@@ -350,3 +375,4 @@ export const BelegRolle = withErrorHandling(BelegRolleEndpoint);
 export const BelegItem = withErrorHandling(BelegItemEndpoint);
 export const BelegPhoto = withErrorHandling(BelegPhotoEndpoint);
 export const BelegPruefung = withErrorHandling(BelegPruefungEndpoint);
+export const BelegCampflow = withErrorHandling(BelegCampflowEndpoint);

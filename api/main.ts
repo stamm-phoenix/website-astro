@@ -154,6 +154,7 @@ import {
 import {
   BelegeCollection,
   BelegItem,
+  BelegCampflow,
   BelegPhoto,
   BelegPruefung,
   BelegRolle,
@@ -767,6 +768,13 @@ app.http('internPflegeBelegFoto', {
   authLevel: 'anonymous',
   route: 'intern/pflege/belege/{id}/foto',
   handler: BelegPhoto,
+});
+
+app.http('internPflegeBelegCampflow', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/{id}/campflow',
+  handler: BelegCampflow,
 });
 
 app.http('internPflegeProtokolle', {

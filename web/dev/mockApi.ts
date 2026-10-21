@@ -2401,6 +2401,7 @@ const belege: StaffBeleg[] = [
       amountCent: 4387,
       restrictedItems: ['Augustiner Hell 0,5l'],
     },
+    campflow: null,
   },
   {
     id: '40',
@@ -2426,6 +2427,7 @@ const belege: StaffBeleg[] = [
       shop: 'Bauhaus',
       amountCent: null,
     },
+    campflow: null,
   },
   {
     id: '39',
@@ -2435,7 +2437,7 @@ const belege: StaffBeleg[] = [
     amountCent: 11840,
     paidBy: 'Sam Muster',
     payout: true,
-    aktion: 'Pfingstlager 2026',
+    aktion: 'Sommerlager 2026 Oberjoch',
     note: 'Fahrkarten Vorbereitungsteam',
     status: 'Angenommen',
     reviewNote: '',
@@ -2444,6 +2446,7 @@ const belege: StaffBeleg[] = [
     hasImage: true,
     hasOriginal: false,
     aiCheck: null,
+    campflow: null,
   },
 ];
 const belegPhotos = new Map<string, Uint8Array>();
@@ -2501,6 +2504,7 @@ route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
     hasImage: true,
     hasOriginal: false,
     aiCheck: mockBelegCheck(),
+    campflow: null,
   };
   const invalid = storeBelegPhotos(beleg, body);
   if (invalid) return invalid;
@@ -2554,6 +2558,51 @@ route(
   },
   true
 );
+
+/** Next Belegnummer the demo CampFlow hands out. */
+let nextCampflowNumber = 112;
+
+// Like the API: checks the version, books the receipt in the demo CampFlow and deletes it here
+route('POST', '/api/intern/pflege/belege/:id/campflow', (req) => {
+  const index = belege.findIndex((b) => b.id === req.params.id);
+  if (index < 0) return notFound();
+  const beleg = belege[index];
+  if (str(req.json?.etag) !== beleg.etag) {
+    return error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
+  }
+  if (beleg.status !== 'Angenommen') {
+    return error(
+      409,
+      'NOT_ACCEPTED',
+      'Nur angenommene Belege können nach CampFlow übertragen werden.'
+    );
+  }
+  const unit = kostenstellen.find((k) => k.id === str(req.json?.costUnitId));
+  const category = unit?.categories.find((c) => c.id === str(req.json?.categoryId));
+  if (!unit || !category) {
+    return error(
+      400,
+      'INVALID_CHOICE',
+      'Diese Kostenstelle oder Kategorie gibt es in CampFlow nicht (mehr).'
+    );
+  }
+  belege.splice(index, 1);
+  return json({
+    campflow: {
+      state: 'Hochgeladen',
+      costUnitId: unit.id,
+      costUnitName: unit.name,
+      categoryId: category.id,
+      categoryName: category.name,
+      number: `2026-${nextCampflowNumber++}`,
+      error: '',
+      startedBy: PRINCIPAL.userDetails,
+      startedAt: new Date(MOCK_NOW).toISOString(),
+    },
+    created: true,
+    deleted: true,
+  });
+});
 
 route('GET', '/api/intern/pflege/downloads', () => json(staffDownloads()));
 

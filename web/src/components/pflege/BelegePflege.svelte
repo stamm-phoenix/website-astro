@@ -6,6 +6,7 @@
     decisionMessage,
     knownBelegAktion,
     type BelegForm,
+    type CampflowChoice,
   } from '../../lib/belegForm';
   import { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import BelegFields from './BelegFields.svelte';
@@ -130,6 +131,7 @@
       submittedBy: '',
       submittedAt: '',
       aiCheck: null,
+      campflow: null,
     };
   }
 
@@ -255,6 +257,82 @@
     if (!saved && form) form.status = previousStatus;
   }
 
+  /**
+   * Saves pending changes of the accepted receipt, then has the API upload it to CampFlow and
+   * delete it here. The API checks the version, so CampFlow gets exactly what was saved.
+   */
+  async function transfer(choice: CampflowChoice): Promise<void> {
+    const current = form;
+    if (!current?.id || photo.photoBusy) return;
+    if (photo.draft) {
+      dialogNotice = 'Bitte zuerst das neue Foto speichern.';
+      return;
+    }
+    if (dialog.invalid(validateBeleg(current, false))) return;
+    const { id, shop } = current;
+    /** Version after saving the form's changes, which the form then holds as well. */
+    let saved: string | null = null;
+    await dialog.run(async () => {
+      const unchanged = store.data?.find((b) => b.id === id);
+      let etag = current.etag;
+      if (!unchanged || belegChanged(current, unchanged)) {
+        await sendApi('PATCH', `/intern/pflege/belege/${id}`, {
+          shop: current.shop,
+          date: current.date,
+          amountCent: parseEuroToCent(current.amount),
+          paidBy: current.paidBy,
+          payout: current.payout,
+          aktion: current.aktion,
+          note: current.note,
+          etag,
+          status: current.status,
+          reviewNote: current.reviewNote,
+        });
+        await belegePflege.load({ force: true });
+        etag = store.data?.find((b) => b.id === id)?.etag ?? etag;
+        saved = etag;
+      }
+      const result = await sendApi<{
+        campflow: { number: string | null };
+        created: boolean;
+        deleted: boolean;
+      }>('POST', `/intern/pflege/belege/${id}/campflow`, { etag, ...choice });
+      const number = result?.campflow.number ?? '';
+      message = result?.deleted
+        ? `Beleg von ${shop} ist in CampFlow als ${number} gebucht und wurde hier gelöscht.`
+        : `Beleg von ${shop} ist in CampFlow als ${number} gebucht. Er wurde inzwischen geändert und deshalb hier nicht gelöscht.`;
+      form = null;
+      await belegePflege.load({ force: true });
+    }, 'Der Beleg wurde nicht übertragen. Prüfe deine Internetverbindung und versuche es noch einmal.');
+    // The attempt is stored either way; show its state
+    if (form?.id === id) {
+      await belegePflege.load({ force: true });
+      const fresh = store.data?.find((b) => b.id === id);
+      if (fresh && form) {
+        form.campflow = fresh.campflow;
+        if (saved) {
+          editDialog?.acceptRescueVersion(form.etag, saved);
+          form.etag = saved;
+        }
+      }
+    }
+  }
+
+  /** Whether the form differs from the stored receipt in a field the API saves. */
+  function belegChanged(current: BelegForm, stored: StaffBeleg): boolean {
+    return (
+      current.shop !== stored.shop ||
+      current.date !== stored.date ||
+      parseEuroToCent(current.amount) !== stored.amountCent ||
+      current.paidBy !== stored.paidBy ||
+      current.payout !== stored.payout ||
+      current.aktion !== stored.aktion ||
+      current.note !== stored.note ||
+      current.reviewNote !== stored.reviewNote ||
+      current.etag !== stored.etag
+    );
+  }
+
   async function remove(): Promise<void> {
     const current = form;
     if (!current?.id || photo.photoBusy) return;
@@ -373,6 +451,13 @@
       onpayment={() => dialog.clearField('payout')}
     />
 
-    <BelegReview bind:form {reviewer} busy={busy || photo.photoBusy} {errors} onsave={save} />
+    <BelegReview
+      bind:form
+      {reviewer}
+      busy={busy || photo.photoBusy}
+      {errors}
+      onsave={save}
+      ontransfer={transfer}
+    />
   {/if}
 </EditDialog>

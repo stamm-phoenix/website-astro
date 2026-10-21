@@ -12,6 +12,19 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-21-11-belege-campflow',
+    date: '2026-10-21',
+    title: 'Angenommene Belege mit einem Klick nach CampFlow übertragen',
+    changes: [
+      {
+        text: 'Als Kasse überträgst du einen angenommenen Beleg jetzt direkt aus dem Beleg heraus nach CampFlow. Du wählst nur noch Kostenstelle und Kategorie, Herunterladen und Hochladen von Hand entfallen.',
+        href: '/leitendenbereich/belege',
+      },
+      'Die Kostenstelle, die so heißt wie die Aktion, ist schon ausgewählt. CampFlow bekommt das Foto, Geschäft, Bemerkung, Datum und Betrag, und bei gewünschter Auszahlung die Person unter „Auslage durch“.',
+      'Danach siehst du die neue Belegnummer aus CampFlow, und der Beleg wird hier gelöscht. Ging beim Übertragen etwas schief, kannst du es einfach noch einmal versuchen: Ein schon angekommener Beleg wird nicht doppelt angelegt.',
+    ],
+  },
+  {
     id: '2026-10-21-10-schneller-laden',
     date: '2026-10-21',
     title: 'Seiten zeigen ihre Daten schneller',

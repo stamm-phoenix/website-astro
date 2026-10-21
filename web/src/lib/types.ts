@@ -402,6 +402,8 @@ export interface Kostenstelle {
   id: string;
   name: string;
   archived: boolean;
+  /** Kategorien of the Kostenstelle; a receipt is booked on one of them. */
+  categories: { id: string; name: string }[];
 }
 
 /** Sum of the income or expenses of one category; `cent` is always positive. */
@@ -560,6 +562,24 @@ export interface StaffBeleg {
   /** Whether the unedited photo is stored next to the scan. */
   hasOriginal: boolean;
   aiCheck: BelegCheck | null;
+  /** The last transfer to CampFlow; null if there was none. */
+  campflow: BelegCampflow | null;
+}
+
+/**
+ * Transfer of a receipt to CampFlow. `Gestartet`: running or result unclear, repeating it is
+ * safe; `Fehlgeschlagen`: nothing was created; `Hochgeladen`: booked under `number`.
+ */
+export interface BelegCampflow {
+  state: 'Gestartet' | 'Fehlgeschlagen' | 'Hochgeladen';
+  costUnitId: string;
+  costUnitName: string;
+  categoryId: string;
+  categoryName: string;
+  number: string | null;
+  error: string;
+  startedBy: string;
+  startedAt: string;
 }
 
 export interface StaffDownload {

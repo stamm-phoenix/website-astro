@@ -31,3 +31,43 @@ test('closing the Beleg dialog asks before a chosen photo is discarded', async (
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).toBeVisible();
 });
+
+test('the Kasse transfers an accepted receipt to CampFlow with the chosen Kategorie', async ({
+  page,
+}) => {
+  // Answered here, so the shared demo keeps its receipt for the other tests
+  let sent: Record<string, unknown> | undefined;
+  await page.route('**/api/intern/pflege/belege/*/campflow', async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({
+      json: {
+        campflow: { state: 'Hochgeladen', number: '2026-112' },
+        created: true,
+        deleted: true,
+      },
+    });
+  });
+  await page.goto('/leitendenbereich/belege/');
+  const accepted = page.getByRole('button', { name: /^Angenommen/ });
+  // The counts appear once the list is loaded and the filter works
+  await expect(accepted).toContainText('1');
+  await accepted.click();
+  await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
+
+  // The Kostenstelle named like the Aktion is preselected; the Kategorie is the Kasse's choice
+  const transfer = dialog.getByRole('button', { name: 'Nach CampFlow übertragen' });
+  await expect(dialog.getByLabel('Kostenstelle')).toHaveValue('cun_Sola26');
+  await expect(transfer).toBeDisabled();
+  await dialog.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
+  await transfer.click();
+
+  await expect(dialog).toBeHidden();
+  await expect(
+    page.getByText(
+      'Beleg von Deutsche Bahn ist in CampFlow als 2026-112 gebucht und wurde hier gelöscht.'
+    )
+  ).toBeVisible();
+  expect(sent).toMatchObject({ costUnitId: 'cun_Sola26', categoryId: 'cat_Sola262' });
+  expect(sent?.etag).toBeTruthy();
+});
