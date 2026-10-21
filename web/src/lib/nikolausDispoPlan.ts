@@ -1,6 +1,12 @@
 import { NIKOLAUS_SLOT_MINUTES } from './nikolausConfig';
 import { conflictingTags } from './nikolausEinteilung';
-import { timeToMinutes, visitMinutes, moveStop, evaluateDispo } from './nikolausDispo';
+import {
+  timeToMinutes,
+  visitMinutes,
+  moveStop,
+  evaluateDispo,
+  minutesToTime,
+} from './nikolausDispo';
 import type { DispoProblem, DispoAssignment, DispoDone } from './nikolausDispo';
 import type { StaffNikolausBooking, StaffNikolausDispoData } from './types';
 
@@ -120,14 +126,21 @@ export function restoreDispoDraft(source: StaffNikolausDispoData): DispoDraft {
   }
 
   // Checked-off visits come first in the order of their check-offs; list, map and the saved
-  // order must all follow that
+  // order must all follow that. From the check-offs on, the times are calculated anew.
   const assignment: DispoAssignment = {};
+  const saved = new Map(source.rows.map((row) => [row.bookingId, row.plannedArrival]));
+  const done = new Set(Object.keys(target.done ?? {}));
   for (const route of evaluateDispo(target, merged).routes) {
     assignment[route.team] = route.stops.map((stop) => stop.id);
     if (assignment[route.team].join() !== (merged[route.team] ?? []).join()) {
       hints.push(
         `Team ${route.team}: Die abgehakten Besuche stehen jetzt vorn, in der Reihenfolge des Abhakens.`
       );
+    } else if (
+      route.stops.some((stop) => done.has(stop.id)) &&
+      route.stops.some((stop) => saved.get(stop.id) !== minutesToTime(stop.start))
+    ) {
+      hints.push(`Team ${route.team}: Die Zeiten sind ab dem letzten Abhaken neu gerechnet.`);
     }
   }
 
