@@ -9,7 +9,7 @@
 </script>
 
 <script lang="ts">
-  import { loadLeaflet, createOsmMap } from '../lib/leafletMap';
+  import { loadLeaflet, createMap } from '../lib/leafletMap';
   import type { Map as LeafletMap, LayerGroup } from 'leaflet';
   import { onMount, onDestroy } from 'svelte';
   import type { NikolausAreaConfig } from '../lib/nikolausConfig';
@@ -49,7 +49,7 @@
     current: DispoMapRoute[]
   ): void {
     if (!map) {
-      map = createOsmMap(L, element);
+      map = createMap(L, element);
       layers = L.layerGroup().addTo(map);
     }
     const group = layers ?? L.layerGroup().addTo(map);

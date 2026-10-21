@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadLeaflet, createOsmMap } from '../lib/leafletMap';
+  import { loadLeaflet, createMap } from '../lib/leafletMap';
   import type { Map as LeafletMap, LayerGroup } from 'leaflet';
   import { onDestroy } from 'svelte';
   import { postApi } from '../lib/api';
@@ -108,7 +108,7 @@
     }
 
     if (!map) {
-      map = createOsmMap(L, element);
+      map = createMap(L, element);
       layers = L.layerGroup().addTo(map);
     }
 
@@ -170,7 +170,7 @@
 {#if !readonly}
   <p class="mt-2 text-xs text-neutral-700">
     Zur Kontrolle zeigen wir Ihre Adresse auf einer Karte an. Dafür wird sie an den Kartendienst
-    Microsoft Azure Maps übermittelt; die Karte selbst kommt von OpenStreetMap.
+    Microsoft Azure Maps übermittelt.
   </p>
 {/if}
 

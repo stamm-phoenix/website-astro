@@ -21,6 +21,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         href: '/leitendenbereich/nikolaus-dispo',
       },
       'Die Orte der Adressen und die Wege der Teams auf der Karte kommen von einem neuen Kartendienst. Fällt dir ein Haus an der falschen Stelle auf, schreib an admin@stamm-phoenix.de.',
+      'Auch die Karten selbst kommen jetzt von diesem Kartendienst, mit deutschen Ortsnamen und im dunklen Design mit einer dunklen Karte.',
       'In der Steuerung gibt es den Bereich „Adresssuche“ nicht mehr. Die Adresssuche bleibt nicht mehr hängen, du musst dort nichts mehr freigeben.',
     ],
   },

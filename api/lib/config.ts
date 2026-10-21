@@ -75,6 +75,15 @@ export interface ApiConfig {
     clientId: string;
     searchApiVersion: string;
     routeApiVersion: string;
+    renderApiVersion: string;
+  };
+  /** Map tiles of the Nikolaus maps, served by the API from Azure Maps (`map-tiles.ts`). */
+  mapTiles: {
+    maxZoom: number;
+    /** Half the side of the square around the starting point of the teams that is served. */
+    areaRadiusKm: number;
+    /** Requests to Azure Maps per day and Function instance, as a safety net for the costs. */
+    maxRequestsPerDay: number;
   };
   nikolaus: {
     /** Shared budget of Nikolaus mails per sender; resends may use a fifth of it. */
@@ -250,6 +259,12 @@ export const CONFIG: ApiConfig = {
     clientId: '635b735d-f9c5-4510-b567-c209e65f6830',
     searchApiVersion: '2026-01-01',
     routeApiVersion: '2025-01-01',
+    renderApiVersion: '2024-04-01',
+  },
+  mapTiles: {
+    maxZoom: 19,
+    areaRadiusKm: 40,
+    maxRequestsPerDay: 5000,
   },
   nikolaus: {
     mailHourlyLimit: 100,
