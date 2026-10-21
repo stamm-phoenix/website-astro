@@ -29,9 +29,11 @@ export function toProblem(source: StaffNikolausDispoData): DispoProblem {
   const done: Record<string, DispoDone> = {};
   for (const row of source.rows) {
     if (!row.visited) continue;
+    const checkedOffAt = Date.parse(row.checkedOffAt ?? '');
     done[row.bookingId] = {
       team: row.team,
       leftAt: row.visitedAt ? timeToMinutes(row.visitedAt) : undefined,
+      checkedOffAt: Number.isFinite(checkedOffAt) ? checkedOffAt : undefined,
     };
   }
   return {
@@ -117,5 +119,17 @@ export function restoreDispoDraft(source: StaffNikolausDispoData): DispoDraft {
     }
   }
 
-  return { assignment: merged, fixed: nextFixed, changes: hints };
+  // Checked-off visits come first in the order of their check-offs; list, map and the saved
+  // order must all follow that
+  const assignment: DispoAssignment = {};
+  for (const route of evaluateDispo(target, merged).routes) {
+    assignment[route.team] = route.stops.map((stop) => stop.id);
+    if (assignment[route.team].join() !== (merged[route.team] ?? []).join()) {
+      hints.push(
+        `Team ${route.team}: Die abgehakten Besuche stehen jetzt vorn, in der Reihenfolge des Abhakens.`
+      );
+    }
+  }
+
+  return { assignment, fixed: nextFixed, changes: hints };
 }
