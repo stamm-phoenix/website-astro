@@ -336,6 +336,11 @@
           editDialog?.acceptRescueVersion(form.etag, saved);
           form.etag = saved;
         }
+      } else if (!fresh && store.data && !store.error) {
+        // The answer was lost, but the transfer went through and deleted the receipt here
+        form = null;
+        message = `Beleg von ${shop} ist hier nicht mehr vorhanden: Er wurde nach CampFlow übertragen und danach gelöscht. Du findest ihn unter „In CampFlow“.`;
+        void campflowBelegeStore.load({ force: true, param: false });
       }
     }
   }

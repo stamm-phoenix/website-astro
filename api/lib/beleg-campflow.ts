@@ -358,7 +358,11 @@ export async function transferBelegToCampflow(
         category: target.categoryId,
       });
       created = uploaded.created;
-      // An existing booking came from an earlier attempt, whose details the row keeps
+      // An existing booking came from an earlier attempt, whose details the row keeps. After an
+      // unclear attempt even a new booking may use the file that attempt uploaded, so it counts
+      // as this receipt only if nothing changed since; otherwise it stays here to be checked.
+      const sentNow =
+        created && (!wasUnclear || row?.beleg_version.equals(requireVersion(beleg.etag)) === true);
       await finishAttempt(
         id,
         attempt,
@@ -368,7 +372,7 @@ export async function transferBelegToCampflow(
           campflow_receipt_id: uploaded.receiptId,
           campflow_expense_id: uploaded.expenseId,
         },
-        created ? beleg : undefined
+        sentNow ? beleg : undefined
       );
     } catch (error: unknown) {
       if (!(error instanceof PlaywrightApiError)) throw error;

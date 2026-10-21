@@ -366,6 +366,44 @@ dbTest(
   }
 );
 
+dbTest(
+  'a new booking after an unclear attempt does not delete a receipt changed since',
+  async (t) => {
+    const answers: Array<() => Response> = [
+      // The upload got through, the booking did not answer
+      () => Response.json({ error: 'Job exceeded 60000 ms' }, { status: 504 }),
+      // The repeat books the file the first attempt uploaded, with the old photo
+      () => uploaded(true),
+    ];
+    const { context, blobs } = setup(t, () => answers.shift()!());
+    const etag = await store(blobs, 7);
+    assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
+
+    // A new photo makes a new version, like the photo endpoint does
+    blobs.set('belege/7/beleg-123-scan.jpg', Buffer.from('neues Foto'));
+    await getDb()
+      .updateTable('organisation.beleg')
+      .set({ note: 'neues Foto' })
+      .where('id', '=', 7)
+      .execute();
+    const corrected = await version(7);
+    const repeat = await transfer(context, 7, { etag: corrected, ...CHOICE });
+    assert.equal(repeat.status, 200, JSON.stringify(repeat.jsonBody));
+    assert.deepEqual(
+      [
+        (repeat.jsonBody as { created: boolean }).created,
+        (repeat.jsonBody as { deleted: boolean }).deleted,
+      ],
+      [true, false]
+    );
+    assert.equal((await getBelege()).length, 1);
+    assert.equal(blobs.get('belege/7/beleg-123-scan.jpg')?.toString(), 'neues Foto');
+    // The history keeps what the unclear attempt sent
+    assert.equal((await transferRow(7))?.state, 'Hochgeladen');
+    assert.equal((await transferRow(7))?.note, 'Grillgut');
+  }
+);
+
 dbTest('a refused repeat keeps an unclear attempt unclear and its Kategorie', async (t) => {
   const answers: Array<() => Response> = [
     () => Response.json({ error: 'Job exceeded 60000 ms' }, { status: 504 }),
