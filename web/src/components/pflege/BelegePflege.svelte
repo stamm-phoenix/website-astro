@@ -293,7 +293,7 @@
       const unchanged = store.data?.find((b) => b.id === id);
       let etag = current.etag;
       if (!unchanged || belegChanged(current, unchanged)) {
-        await sendApi('PATCH', `/intern/pflege/belege/${id}`, {
+        const patched = await sendApi<{ etag?: string }>('PATCH', `/intern/pflege/belege/${id}`, {
           shop: current.shop,
           date: current.date,
           amountCent: parseEuroToCent(current.amount),
@@ -305,8 +305,9 @@
           status: current.status,
           reviewNote: current.reviewNote,
         });
-        await belegePflege.load({ force: true });
-        etag = store.data?.find((b) => b.id === id)?.etag ?? etag;
+        // Only the version this save wrote: a reloaded list could carry someone else's change
+        if (!patched?.etag) throw new Error('Keine Version nach dem Speichern');
+        etag = patched.etag;
         saved = etag;
       }
       const result = await sendApi<{
@@ -317,7 +318,7 @@
       const number = result?.campflow.number ?? '';
       message = result?.deleted
         ? `Beleg von ${shop} ist in CampFlow als ${number} gebucht und wurde hier gelöscht.`
-        : `Beleg von ${shop} ist in CampFlow als ${number} gebucht. Er wurde inzwischen geändert und deshalb hier nicht gelöscht.`;
+        : `Beleg von ${shop} ist in CampFlow als ${number} gebucht, aber mit einem früheren Stand. Er wurde danach geändert und bleibt deshalb hier, bis du CampFlow geprüft hast.`;
       form = null;
       await Promise.all([
         belegePflege.load({ force: true }),
@@ -362,8 +363,25 @@
       });
       message = `Beleg von ${current.shop} gelöscht.`;
       form = null;
-      await belegePflege.load({ force: true });
+      // A receipt uploaded to CampFlow moves to „In CampFlow“
+      await Promise.all([
+        belegePflege.load({ force: true }),
+        uebertrageneBelege.load({ force: true }),
+      ]);
     }, 'Der Beleg wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
+  }
+
+  /** Deletes a receipt that was corrected after its upload, once CampFlow was checked. */
+  async function removeUploaded(): Promise<void> {
+    const number = form?.campflow?.number ?? '';
+    const accepted = await confirmAction({
+      title: 'Beleg hier löschen?',
+      message: `In CampFlow steht Beleg ${number} mit dem Stand der Übertragung. Prüfe dort, ob deine späteren Änderungen übernommen sind, bevor du ihn hier löschst.`,
+      confirmLabel: 'Hier löschen',
+      cancelLabel: 'Abbrechen',
+      tone: 'danger',
+    });
+    if (accepted) await remove();
   }
 </script>
 
@@ -501,6 +519,7 @@
       {errors}
       onsave={save}
       ontransfer={transfer}
+      ondeleteuploaded={removeUploaded}
     />
   {/if}
 </EditDialog>

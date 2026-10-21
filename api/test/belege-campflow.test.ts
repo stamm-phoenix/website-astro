@@ -8,7 +8,7 @@ import * as env from '../lib/environment';
 import { getBelege } from '../lib/beleg-list';
 import { campflowDescription, campflowDisburser, campflowFileName } from '../lib/beleg-campflow';
 import type { StoredBeleg } from '../lib/beleg-list';
-import { BelegCampflow, BelegeUebertragen } from '../endpoints/intern-pflege-belege';
+import { BelegCampflow, BelegeUebertragen, BelegItem } from '../endpoints/intern-pflege-belege';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';
 import test from 'node:test';
@@ -292,11 +292,11 @@ dbTest('after a refused attempt another Kategorie may be chosen', async (t) => {
   assert.equal((await transferRow(7))?.category_name, 'Fahrtkosten');
 });
 
-dbTest('a receipt changed during the upload stays and is only deleted next time', async (t) => {
+dbTest('a receipt changed during the upload stays until the Kasse deletes it', async (t) => {
   const { context, blobs, calls } = setup(t, async () => {
     await getDb()
       .updateTable('organisation.beleg')
-      .set({ review_note: 'geändert' })
+      .set({ amount_cent: 2000 })
       .where('id', '=', 7)
       .execute();
     return uploaded();
@@ -310,11 +310,121 @@ dbTest('a receipt changed during the upload stays and is only deleted next time'
   assert.equal(beleg?.campflow?.state, 'Hochgeladen');
   assert.equal(beleg?.campflow?.number, '2026-112');
 
+  // CampFlow holds the old amount, so the corrected receipt is never deleted automatically
   const again = await transfer(context, 7, { etag: beleg!.etag, ...CHOICE });
   assert.equal(again.status, 200);
-  assert.equal((again.jsonBody as { deleted: boolean }).deleted, true);
+  assert.equal((again.jsonBody as { deleted: boolean }).deleted, false);
   assert.equal(calls.filter((call) => call.method === 'POST').length, 1);
-  assert.deepEqual(await getBelege(), []);
+  assert.equal((await getBelege()).length, 1);
+
+  // Deleted by hand it stays in the history, with what went to CampFlow
+  const removed = await BelegItem(
+    new HttpRequest({
+      url: 'http://localhost/api/intern/pflege/belege/7',
+      method: 'DELETE',
+      headers: {
+        'if-match': beleg!.etag,
+        'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+      },
+      params: { id: '7' },
+    }),
+    context
+  );
+  assert.equal(removed.status, 204);
+  const history = (await transferred(context)).jsonBody as { id: string; amountCent: number }[];
+  assert.deepEqual(
+    history.map(({ id, amountCent }) => ({ id, amountCent })),
+    [{ id: '7', amountCent: 1234 }]
+  );
+});
+
+dbTest(
+  'a correction after an unclear attempt is not deleted with the earlier booking',
+  async (t) => {
+    const answers: Array<() => Response> = [
+      () => Response.json({ error: 'Job exceeded 60000 ms' }, { status: 504 }),
+      // The first attempt had booked the receipt after all
+      () => uploaded(false),
+    ];
+    const { context, blobs } = setup(t, () => answers.shift()!());
+    const etag = await store(blobs, 7);
+    assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
+
+    await getDb()
+      .updateTable('organisation.beleg')
+      .set({ amount_cent: 2000 })
+      .where('id', '=', 7)
+      .execute();
+    const corrected = await version(7);
+    const repeat = await transfer(context, 7, { etag: corrected, ...CHOICE });
+    assert.equal(repeat.status, 200, JSON.stringify(repeat.jsonBody));
+    assert.equal((repeat.jsonBody as { deleted: boolean }).deleted, false);
+    const [beleg] = await getBelege();
+    assert.equal(beleg?.amountCent, 2000);
+    assert.ok(blobs.has('belege/7/beleg-123-scan.jpg'), 'the corrected photo stays');
+    // The history keeps what the first attempt sent, which is what CampFlow holds
+    assert.equal((await transferRow(7))?.amount_cent, 1234);
+  }
+);
+
+dbTest('a refused repeat keeps an unclear attempt unclear and its Kategorie', async (t) => {
+  const answers: Array<() => Response> = [
+    () => Response.json({ error: 'Job exceeded 60000 ms' }, { status: 504 }),
+    () => Response.json({ error: 'Kein CampFlow-Login' }, { status: 503 }),
+    () => uploaded(false),
+  ];
+  const { context, blobs, calls } = setup(t, () => answers.shift()!());
+  const etag = await store(blobs, 7);
+  assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
+  assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
+  assert.equal((await transferRow(7))?.state, 'Gestartet');
+
+  const other = await transfer(context, 7, {
+    etag,
+    costUnitId: 'cun_Lager',
+    categoryId: 'cat_Fahrt',
+  });
+  assert.equal(other.status, 200);
+  const uploads = calls.filter((call) => call.method === 'POST');
+  assert.deepEqual(
+    uploads.map((call) => call.body?.category),
+    ['cat_Essen', 'cat_Essen', 'cat_Essen']
+  );
+});
+
+dbTest('saving a receipt answers with the version it wrote', async (t) => {
+  const { context, blobs } = setup(t, () => uploaded());
+  const etag = await store(blobs, 7);
+  const response = await BelegItem(
+    new HttpRequest({
+      url: 'http://localhost/api/intern/pflege/belege/7',
+      method: 'PATCH',
+      headers: {
+        'content-type': 'application/json',
+        'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+      },
+      params: { id: '7' },
+      body: {
+        string: JSON.stringify({
+          shop: 'REWE',
+          date: '2026-09-30',
+          amountCent: 2000,
+          paidBy: 'Alex Beispiel',
+          payout: true,
+          aktion: 'Stammeslager 2026',
+          note: '',
+          status: 'Angenommen',
+          reviewNote: '',
+          etag,
+        }),
+      },
+    }),
+    context
+  );
+  assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
+  const saved = (response.jsonBody as { etag: string }).etag;
+  assert.notEqual(saved, etag);
+  assert.equal(saved, await version(7));
 });
 
 function transferred(

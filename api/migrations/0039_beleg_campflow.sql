@@ -32,6 +32,9 @@ CREATE TABLE organisation.beleg_campflow (
   note             nvarchar(max)  NOT NULL CONSTRAINT df_beleg_campflow_note DEFAULT N'',
   -- Login der Person, die den Beleg eingereicht hat; sie sieht ihn auch nach der Übertragung.
   submitted_by     nvarchar(254)  NOT NULL CONSTRAINT df_beleg_campflow_submitted_by DEFAULT N'',
+  -- `rowversion` des Belegs, dessen Angaben oben stehen und an CampFlow gingen. Nach einem
+  -- unklaren Versuch bleibt sie stehen; gelöscht wird nur ein Beleg, der noch so aussieht.
+  beleg_version    binary(8)      NOT NULL,
   -- Fehlermeldung des letzten Versuchs, leer nach Erfolg.
   error            nvarchar(1000) NOT NULL CONSTRAINT df_beleg_campflow_error DEFAULT N'',
   campflow_number  varchar(50)    NULL,

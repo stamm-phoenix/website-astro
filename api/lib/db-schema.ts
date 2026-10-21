@@ -357,6 +357,8 @@ export interface BelegCampflowTable {
   aktion: Generated<string>;
   note: Generated<string>;
   submitted_by: Generated<string>;
+  /** `rowversion` of the receipt whose details were sent; the snapshot above. */
+  beleg_version: Buffer;
   error: Generated<string>;
   campflow_number: ColumnType<string | null, string | null | undefined, string | null>;
   campflow_receipt_id: ColumnType<string | null, string | null | undefined, string | null>;

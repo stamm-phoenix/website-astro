@@ -47,13 +47,17 @@ die Kasse (`CONFIG.belege.reviewers`). Code: `api/lib/beleg-campflow.ts`.
 
 | Zustand | Bedeutung | Nächster Versuch |
 | --- | --- | --- |
-| `Gestartet` | läuft, oder das Ergebnis ist unklar (Timeout, `502`, `504`) | sicher; nimmt Dateiname, Kostenstelle und Kategorie des ersten Versuchs |
-| `Fehlgeschlagen` | die Playwright-API hat geantwortet, bevor sie etwas angelegt hat (`400`, `401`, `403`, `404`, `409`, `413`, `503`) | darf eine andere Kostenstelle und Kategorie wählen |
+| `Gestartet` | läuft, oder das Ergebnis ist unklar (Timeout, `502`, `504`) | sicher; nimmt Dateiname, Kostenstelle und Kategorie des ersten Versuchs. Lehnt die Playwright-API eine Wiederholung ab, bleibt der Zustand trotzdem `Gestartet`, weil der frühere Versuch gebucht haben kann |
+| `Fehlgeschlagen` | die Playwright-API hat geantwortet, bevor sie etwas angelegt hat (`400`, `401`, `403`, `404`, `409`, `413`, `503`), und kein früherer Versuch war unklar | darf eine andere Kostenstelle und Kategorie wählen |
 | `Hochgeladen` | gebucht, mit CampFlow-Nummer und IDs | löscht nur noch den Beleg |
 
-4. Erst nach `Hochgeladen` wird der Beleg gelöscht, wieder nur mit der Version `etag`. Wurde er
-   inzwischen geändert, bleibt er stehen und zeigt die CampFlow-Nummer; „Hier löschen“ löscht ihn
-   dann, ohne erneut hochzuladen. `beleg_deleted_at` hält die Löschung fest.
+4. Erst nach `Hochgeladen` wird der Beleg gelöscht, und nur, wenn er noch genau so aussieht wie
+   das, was an CampFlow ging (`beleg_version`). Nach einem unklaren Versuch bleiben dessen Angaben
+   gespeichert: Findet die Wiederholung die frühere Buchung, steht in CampFlow der frühere Stand.
+   Wurde der Beleg seitdem korrigiert, bleibt er stehen und zeigt die CampFlow-Nummer; die Kasse
+   prüft CampFlow und löscht ihn dann mit „Hier löschen“ (mit Rückfrage). Jedes Löschen eines
+   hochgeladenen Belegs, auch über den normalen Löschknopf, setzt in derselben Transaktion
+   `beleg_deleted_at`, so bleibt er unter „In CampFlow“.
 
 **Keine doppelten Belege:** Die Playwright-API sucht vor dem Hochladen in den Buchungen der
 Kostenstelle und Kategorie und unter den *Ungeprüften Belegen* nach genau diesem Dateinamen. Eine

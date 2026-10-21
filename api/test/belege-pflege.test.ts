@@ -6,9 +6,13 @@ import sharp from 'sharp';
 import * as blobStorage from '../lib/blob-storage';
 import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
-import { getBelege } from '../lib/beleg-list';
+import { getBelege, getTransferredBelege } from '../lib/beleg-list';
 import { getStaffAktionen } from '../lib/aktionen-list';
-import { seedPreviewAktionen, seedPreviewBelege } from '../lib/db-preview';
+import {
+  seedPreviewAktionen,
+  seedPreviewBelege,
+  seedPreviewBelegeCampflow,
+} from '../lib/db-preview';
 import { overrideConfig } from './fixtures/config';
 import * as mail from '../lib/mail';
 import {
@@ -382,7 +386,7 @@ dbTest('reviewing and deleting receipts require the loaded version', async (t) =
     context
   );
   assert.equal(patched.status, 200);
-  assert.deepEqual(patched.jsonBody, { mailed: false });
+  assert.deepEqual(patched.jsonBody, { mailed: false, etag: await version(7) });
   assert.equal(send.mock.callCount(), 0);
   assert.equal((await getBelege())[0]?.status, 'Angenommen');
 
@@ -428,14 +432,14 @@ dbTest('rejecting a receipt mails the reason to the uploader once', async (t) =>
   overrideConfig(t, CONFIG.mail, { belegeSender: undefined });
   let response = await BelegItem(request('PATCH', await reject(), { id: '7' }), context);
   assert.equal(response.status, 200);
-  assert.deepEqual(response.jsonBody, { mailed: false });
+  assert.equal((response.jsonBody as { mailed: boolean }).mailed, false);
   assert.equal((await getBelege())[0]?.status, 'Abgelehnt');
   assert.equal(send.mock.callCount(), 0);
 
   await reset();
   CONFIG.mail.belegeSender = 'kasse@example.test';
   response = await BelegItem(request('PATCH', await reject(), { id: '7' }), context);
-  assert.deepEqual(response.jsonBody, { mailed: true });
+  assert.equal((response.jsonBody as { mailed: boolean }).mailed, true);
   const [to, subject, html, sender] = send.mock.calls[0].arguments;
   assert.equal(to, 'leitung@example.test');
   assert.equal(subject, 'Beleg abgelehnt: REWE');
@@ -447,7 +451,7 @@ dbTest('rejecting a receipt mails the reason to the uploader once', async (t) =>
 
   // Saving an already rejected receipt again sends no second mail
   response = await BelegItem(request('PATCH', await reject(), { id: '7' }), context);
-  assert.deepEqual(response.jsonBody, { mailed: false });
+  assert.equal((response.jsonBody as { mailed: boolean }).mailed, false);
   assert.equal(send.mock.callCount(), 1);
 
   // A failing mail never undoes the saved decision
@@ -457,7 +461,7 @@ dbTest('rejecting a receipt mails the reason to the uploader once', async (t) =>
   });
   response = await BelegItem(request('PATCH', await reject(), { id: '7' }), context);
   assert.equal(response.status, 200);
-  assert.deepEqual(response.jsonBody, { mailed: false });
+  assert.equal((response.jsonBody as { mailed: boolean }).mailed, false);
   assert.equal((await getBelege())[0]?.status, 'Abgelehnt');
 });
 
@@ -879,6 +883,7 @@ dbTest('the preview gets invented Aktionen and Belege once', async (t) => {
   for (let run = 0; run < 2; run++) {
     await seedPreviewAktionen();
     await seedPreviewBelege();
+    await seedPreviewBelegeCampflow();
   }
   const aktionen = await getStaffAktionen();
   assert.equal(aktionen.length, 3);
@@ -892,4 +897,8 @@ dbTest('the preview gets invented Aktionen and Belege once', async (t) => {
   assert.equal(belege.filter((beleg) => beleg.hasOriginal).length, 1);
   // Three photos and the original of the scan
   assert.equal(blobs.size, 4);
+  // Transferred receipts with IDs of their own, for the list „In CampFlow“
+  const transferred = await getTransferredBelege();
+  assert.equal(transferred.length, 2);
+  assert.ok(transferred.every((entry) => !belege.some((beleg) => beleg.id === entry.id)));
 });

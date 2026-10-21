@@ -1,4 +1,5 @@
 import type { HttpResponseInit } from '@azure/functions';
+import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 import type { BelegCampflow, StoredBeleg } from './beleg-list';
 import {
@@ -9,6 +10,7 @@ import {
   toBelegCampflow,
 } from './beleg-list';
 import { readBelegPhoto } from './beleg-photos';
+import type { BelegCampflowTable } from './db-schema';
 import {
   RecordNotFoundError,
   VersionConflictError,
@@ -127,21 +129,9 @@ async function resolveChoice(
   return { costUnitName: unit.name, categoryName: category.name };
 }
 
-/** Stores the attempt before CampFlow is called; a concurrent attempt makes it a conflict. */
-async function startAttempt(
-  beleg: StoredBeleg,
-  choice: BelegCampflowChoice & { costUnitName: string; categoryName: string },
-  fileName: string,
-  previousVersion: Buffer | undefined,
-  actor: string
-): Promise<void> {
-  const values = {
-    state: 'Gestartet' as const,
-    file_name: fileName,
-    costunit_id: choice.costUnitId,
-    costunit_name: choice.costUnitName,
-    category_id: choice.categoryId,
-    category_name: choice.categoryName,
+/** The receipt as it goes to CampFlow, kept with the transfer once the receipt is deleted. */
+function snapshot(beleg: StoredBeleg) {
+  return {
     shop: beleg.shop,
     beleg_date: beleg.date || null,
     amount_cent: beleg.amountCent,
@@ -150,12 +140,38 @@ async function startAttempt(
     aktion: beleg.aktion,
     note: beleg.note,
     submitted_by: beleg.submittedBy,
+    beleg_version: requireVersion(beleg.etag),
+  };
+}
+
+/**
+ * Stores the attempt before CampFlow is called; a concurrent attempt makes it a conflict. After
+ * an unclear attempt the details it sent stay: CampFlow may hold them already.
+ */
+async function startAttempt(
+  beleg: StoredBeleg,
+  choice: BelegCampflowChoice & { costUnitName: string; categoryName: string },
+  fileName: string,
+  previous: Selectable<BelegCampflowTable> | undefined,
+  actor: string
+): Promise<void> {
+  const attempt = {
+    state: 'Gestartet' as const,
     error: '',
     started_by: actor,
     started_at: new Date().toISOString(),
   };
+  const values = {
+    ...attempt,
+    file_name: fileName,
+    costunit_id: choice.costUnitId,
+    costunit_name: choice.costUnitName,
+    category_id: choice.categoryId,
+    category_name: choice.categoryName,
+    ...snapshot(beleg),
+  };
   const id = Number(beleg.id);
-  if (!previousVersion) {
+  if (!previous) {
     try {
       await getDb()
         .insertInto('organisation.beleg_campflow')
@@ -170,9 +186,9 @@ async function startAttempt(
   }
   const result = await getDb()
     .updateTable('organisation.beleg_campflow')
-    .set(values)
+    .set(previous.state === 'Gestartet' ? attempt : values)
     .where('beleg_id', '=', id)
-    .where('version', '=', previousVersion)
+    .where('version', '=', previous.version)
     .executeTakeFirst();
   if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
 }
@@ -186,13 +202,20 @@ async function finishAttempt(
         campflow_number: string;
         campflow_receipt_id: string;
         campflow_expense_id: string;
-      }
+      },
+  /** What CampFlow got, if this attempt created the booking. */
+  sent?: StoredBeleg
 ): Promise<void> {
   await getDb()
     .updateTable('organisation.beleg_campflow')
     .set(
       values.state === 'Hochgeladen'
-        ? { ...values, error: '', uploaded_at: sql<string>`SYSUTCDATETIME()` }
+        ? {
+            ...values,
+            ...(sent ? snapshot(sent) : {}),
+            error: '',
+            uploaded_at: sql<string>`SYSUTCDATETIME()`,
+          }
         : { state: values.state, error: values.error.slice(0, 1000) }
     )
     .where('beleg_id', '=', id)
@@ -225,6 +248,8 @@ export async function transferBelegToCampflow(
   let created = false;
   let row = await getBelegCampflowRow(id);
   if (row?.state !== 'Hochgeladen') {
+    /** After an unclear attempt every failure stays unclear: that one may have written. */
+    const wasUnclear = row?.state === 'Gestartet';
     if (!beleg.photo) {
       throw new BelegCampflowError(400, 'NO_PHOTO', 'Der Beleg hat kein Foto.');
     }
@@ -253,11 +278,14 @@ export async function transferBelegToCampflow(
           }
         : { ...choice, ...(await resolveChoice(choice)) };
     const fileName = row?.file_name ?? campflowFileName(beleg);
-    await startAttempt(beleg, target, fileName, row?.version, actor);
+    await startAttempt(beleg, target, fileName, row, actor);
 
     const photo = await readBelegPhoto(id, beleg.photo, 'photo');
     if (!photo) {
-      await finishAttempt(id, { state: 'Fehlgeschlagen', error: 'Foto nicht gefunden' });
+      await finishAttempt(id, {
+        state: wasUnclear ? 'Gestartet' : 'Fehlgeschlagen',
+        error: 'Foto nicht gefunden',
+      });
       throw new BelegCampflowError(400, 'NO_PHOTO', 'Das Foto des Belegs wurde nicht gefunden.');
     }
 
@@ -273,17 +301,25 @@ export async function transferBelegToCampflow(
         category: target.categoryId,
       });
       created = uploaded.created;
-      await finishAttempt(id, {
-        state: 'Hochgeladen',
-        campflow_number: uploaded.number,
-        campflow_receipt_id: uploaded.receiptId,
-        campflow_expense_id: uploaded.expenseId,
-      });
+      // An existing booking came from an earlier attempt, whose details the row keeps
+      await finishAttempt(
+        id,
+        {
+          state: 'Hochgeladen',
+          campflow_number: uploaded.number,
+          campflow_receipt_id: uploaded.receiptId,
+          campflow_expense_id: uploaded.expenseId,
+        },
+        created ? beleg : undefined
+      );
     } catch (error: unknown) {
       if (!(error instanceof PlaywrightApiError)) throw error;
       const definite = NOTHING_WRITTEN.has(error.status);
       const detail = error.detail || error.message;
-      await finishAttempt(id, { state: definite ? 'Fehlgeschlagen' : 'Gestartet', error: detail });
+      await finishAttempt(id, {
+        state: definite && !wasUnclear ? 'Fehlgeschlagen' : 'Gestartet',
+        error: detail,
+      });
       throw definite
         ? new BelegCampflowError(
             502,
@@ -301,19 +337,16 @@ export async function transferBelegToCampflow(
   }
   if (!row) throw new RecordNotFoundError();
 
-  let deleted = true;
-  try {
-    await deleteBeleg(id, etag);
-  } catch (error: unknown) {
-    if (!(error instanceof VersionConflictError)) throw error;
-    deleted = false;
-  }
+  // Only a receipt that still looks like what CampFlow got is deleted; a correction made after
+  // the upload stays, so the Kasse can fix CampFlow and then delete it by hand
+  let deleted = row.beleg_version.equals(requireVersion(etag));
   if (deleted) {
-    await getDb()
-      .updateTable('organisation.beleg_campflow')
-      .set({ beleg_deleted_at: sql<string>`SYSUTCDATETIME()` })
-      .where('beleg_id', '=', id)
-      .execute();
+    try {
+      await deleteBeleg(id, etag);
+    } catch (error: unknown) {
+      if (!(error instanceof VersionConflictError)) throw error;
+      deleted = false;
+    }
   }
   return { campflow: toBelegCampflow(row), created, deleted };
 }
