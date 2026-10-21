@@ -14,6 +14,7 @@ import * as playwright from '../lib/playwright-api';
 import * as products from '../lib/sammelbestellung-product';
 import * as list from '../lib/sammelbestellung-list';
 import { dbTest } from './fixtures/database';
+import { recordQueries } from './fixtures/queries';
 import {
   SAMMEL_ITEM as ITEM,
   changeCampaign,
@@ -33,7 +34,11 @@ import { SammelOrderLookup, SammelOrderSave } from '../endpoints/sammelbestellun
 import { getSammelCampaign, getSammelOrder, sammelToken } from '../lib/sammelbestellung-list';
 import type { SammelOrderChanges } from '../lib/sammelbestellung-list';
 import type { SammelPaymentTable } from '../lib/db-schema';
-import { createSammelContribution, sammelBillingPreview } from '../lib/sammelbestellung-payments';
+import {
+  createSammelContribution,
+  sammelBillingPreview,
+  sammelPaymentView,
+} from '../lib/sammelbestellung-payments';
 import { validateSammelPaymentInput } from '../lib/pflege-validation';
 import type {
   SammelPaymentView,
@@ -219,6 +224,31 @@ test('staff authentication rejects unauthenticated, wrong-provider and foreign-t
       assert.ok([401, 403].includes(response.status!));
       assert.equal(new Headers(response.headers).get('cache-control'), 'no-store');
     }
+  }
+});
+
+dbTest('the payment view reads order and campaign together', async (t) => {
+  const s = await setup(t, { secondOrder: true });
+  await s.assign();
+  const queries = recordQueries(t);
+  const response = await SammelStaffPayment(s.request({}, 'GET'), s.context);
+  assert.equal(response.status, 200);
+  // The campaign is found by the order's ID, so it needs no step of its own
+  assert.equal(queries.roundTrips, 3);
+  const order = await loadOrder();
+  assert.deepEqual(
+    response.jsonBody,
+    sammelPaymentView(order, (await getSammelCampaign(order.campaignId))!)
+  );
+  const other = await SammelStaffPayment(s.request({}, 'GET', PRINCIPAL, '3'), s.context);
+  const third = await loadOrder('3');
+  assert.deepEqual(
+    other.jsonBody,
+    sammelPaymentView(third, (await getSammelCampaign(third.campaignId))!)
+  );
+  for (const id of ['9', 'x']) {
+    const missing = await SammelStaffPayment(s.request({}, 'GET', PRINCIPAL, id), s.context);
+    assert.equal(missing.status, 404);
   }
 });
 

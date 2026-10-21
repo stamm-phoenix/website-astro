@@ -85,7 +85,11 @@ export const SammelStaffCampaigns = sammelHandler(
 /** Returns staff campaign details or applies a version-checked archive change. */
 export const SammelStaffCampaign = sammelHandler(
   pflegeHandler('sammelbestellungen', async (request) => {
-    const campaign = await getSammelCampaign(request.params.id);
+    // The orders need only the ID, so they are read together with the campaign
+    const [campaign, orders] = await Promise.all([
+      getSammelCampaign(request.params.id),
+      request.method === 'PATCH' ? undefined : getSammelOrders(request.params.id),
+    ]);
     if (!campaign) return NOT_FOUND;
     if (request.method === 'PATCH') {
       const body = object(await readJsonBody(request));
@@ -99,7 +103,7 @@ export const SammelStaffCampaign = sammelHandler(
     return ok({
       campaign,
       invitationUrl: sammelUrl(getSiteUrl(request), 'campaign', campaign.id),
-      orders: (await getSammelOrders(campaign.id)).map(publicSammelOrder),
+      orders: (orders ?? []).map(publicSammelOrder),
     });
   })
 );

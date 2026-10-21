@@ -10,6 +10,7 @@ import * as mail from '../lib/mail';
 import * as list from '../lib/sammelbestellung-list';
 import { TEST_ALTCHA_SECRET, solvedAltcha, useAltcha, withoutAltcha } from './fixtures/altcha';
 import { dbTest } from './fixtures/database';
+import { recordQueries } from './fixtures/queries';
 import {
   SAMMEL_ITEM as ITEM,
   changeCampaign,
@@ -331,6 +332,42 @@ dbTest(
     assert.equal((await loadOrder()).etag, saved.etag);
   }
 );
+
+dbTest('the campaign and its orders are read together for staff', async (t) => {
+  const context = setup(t);
+  await seedSammel(
+    [
+      sammelCampaign({
+        catalog: [{ name: ITEM.name, reference: ITEM.reference, variants: ['152', '164'] }],
+      }),
+      sammelCampaign({ id: '5', title: 'Andere' }),
+    ],
+    [
+      sammelOrder(),
+      sammelOrder({ id: '3', email: 'zweite@example.test', status: 'Bestellt', totalCents: 2400 }),
+      sammelOrder({ id: '4', campaignId: '5', email: 'andere@example.test' }),
+    ]
+  );
+  const get = (id: string) =>
+    SammelStaffCampaign(request(undefined, 'GET', PRINCIPAL, id), context);
+  const queries = recordQueries(t);
+  const response = await get('1');
+  assert.equal(response.status, 200);
+  // Campaign and orders start together; the orders need three steps for their version check
+  assert.equal(queries.roundTrips, 3);
+  const campaign = await getSammelCampaign('1');
+  assert.deepEqual(response.jsonBody, {
+    campaign,
+    invitationUrl: list.sammelUrl('https://www.stamm-phoenix.de', 'campaign', '1'),
+    orders: (await list.getSammelOrders('1')).map(list.publicSammelOrder),
+  });
+  assert.deepEqual(
+    (response.jsonBody as { orders: { id: string }[] }).orders.map((order) => order.id),
+    ['2', '3']
+  );
+  assert.equal((await get('9')).status, 404);
+  assert.equal((await get('x')).status, 404);
+});
 
 dbTest('staff can archive and restore campaigns with the loaded version', async (t) => {
   const context = setup(t);
