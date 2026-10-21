@@ -1,3 +1,14 @@
+<script lang="ts" module>
+  import type { SammelStaffView } from '../../lib/types';
+
+  /**
+   * The last loaded view per Sammelbestellung, kept across pages: a revisit shows it at once
+   * while it loads again. The actions wait for the fresh view, so they never use an old version.
+   */
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- a cache, never rendered
+  const shownViews = new Map<string, SammelStaffView>();
+</script>
+
 <script lang="ts">
   import { archiveSammelCampaign } from '../../lib/sammelStaffApi';
   import { confirmAction } from '../../lib/confirm';
@@ -25,7 +36,7 @@
   import { fetchApi, sendApi, errorMessage } from '../../lib/api';
 
   import { sammelReceipt } from '../../lib/sammelExport';
-  import type { SammelBestellung, SammelStaffView, SammelProductInfo } from '../../lib/types';
+  import type { SammelBestellung, SammelProductInfo } from '../../lib/types';
 
   const BASE = '/intern/pflege/sammelbestellungen';
   let selected = $state('');
@@ -52,20 +63,31 @@
   let itemEditing = $state<{ order: SammelBestellung; index: number } | null>(null);
   const orders = $derived(view?.orders.filter((order) => order.submitted) ?? []);
   let loadRevision = 0;
-  /** Reloads the campaign detail, rejecting responses from superseded loads or unmounted pages. */
-  async function loadSelected(): Promise<void> {
+  /** The running load of the campaign detail. */
+  let pendingLoad: Promise<void> = Promise.resolve();
+  /**
+   * Reloads the campaign detail, rejecting responses from superseded loads or unmounted pages.
+   * `shown` is a view to show while loading, e.g. the one from the last visit.
+   */
+  function loadSelected(shown: SammelStaffView | null = null): Promise<void> {
+    pendingLoad = fetchSelected(shown);
+    return pendingLoad;
+  }
+  async function fetchSelected(shown: SammelStaffView | null): Promise<void> {
     if (!selected) return;
     const revision = ++loadRevision;
     loading = true;
     error = null;
     loadError = null;
     message = null;
-    view = null;
+    view = shown;
+    if (shown) document.title = `${shown.campaign.title} | Sammelbestellungen | Stamm Phoenix`;
     pricePool.reset();
     try {
       const nextView = await fetchApi<SammelStaffView>(`${BASE}/${selected}`);
       if (revision === loadRevision) {
         view = nextView;
+        shownViews.set(selected, nextView);
         void loadPrices(nextView);
         document.title = `${nextView.campaign.title} | Sammelbestellungen | Stamm Phoenix`;
       }
@@ -82,6 +104,7 @@
   async function loadOrder(id: string): Promise<SammelBestellung | null> {
     const fresh = await fetchApi<SammelStaffView>(`${BASE}/${selected}`);
     view = fresh;
+    shownViews.set(selected, fresh);
     await loadPrices(fresh);
     return fresh.orders.find((order) => order.id === id) ?? null;
   }
@@ -94,6 +117,14 @@
         ? sendApi<SammelProductInfo>('POST', `${BASE}/product`, { reference })
         : Promise.resolve(null)
     );
+  }
+  /**
+   * The order as loaded last: while the view from the last visit is shown, a tapped action waits
+   * for the fresh view, so a dialog never starts from an old version.
+   */
+  async function current(order: SammelBestellung): Promise<SammelBestellung | null> {
+    await pendingLoad;
+    return view?.orders.find((entry) => entry.id === order.id) ?? null;
   }
   /** Returns the fetched unit price without treating missing values as zero. */
   function unitPrice(reference: string): number | null {
@@ -112,7 +143,7 @@
     selected =
       window.location.pathname.match(/^\/leitendenbereich\/sammelbestellungen\/(\d+)\/?$/)?.[1] ??
       '';
-    if (selected) void loadSelected();
+    if (selected) void loadSelected(shownViews.get(selected) ?? null);
     else {
       loading = false;
       error = 'Ungültiger Link zur Sammelbestellung. Bitte öffne sie über die Übersicht.';
@@ -252,12 +283,16 @@
           onreload={() => void loadSelected()}
           onmessage={(order) => {
             message = null;
-            messageOrder = order;
+            void current(order).then((fresh) => (messageOrder = fresh));
           }}
-          onedit={edit}
-          onpayment={(order) => (paymentOrder = order)}
+          onedit={(order) => void current(order).then((fresh) => fresh && edit(fresh))}
+          onpayment={(order) => void current(order).then((fresh) => (paymentOrder = fresh))}
           onitem={(order, index) => {
-            itemEditing = { order, index };
+            void current(order).then((fresh) => {
+              // Only the same article; a list changed meanwhile is tapped again
+              if (fresh && fresh.items[index]?.reference === order.items[index]?.reference)
+                itemEditing = { order: fresh, index };
+            });
           }}
         />
         {#if priceErrors}

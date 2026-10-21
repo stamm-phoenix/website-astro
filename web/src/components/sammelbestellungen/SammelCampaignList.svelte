@@ -13,7 +13,8 @@
   import FormField from '../pflege/FormField.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
-  import { fetchApi, sendApi, ApiError, errorMessage } from '../../lib/api';
+  import { sendApi, ApiError, errorMessage } from '../../lib/api';
+  import { sammelCampaigns } from '../../lib/pflegeStore.svelte';
   import { formatEuro, formatDateTime } from '../../lib/format';
   import { isSammelOpen, sammelInstant } from '../../lib/sammelbestellung';
   import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
@@ -27,12 +28,14 @@
   import type { SammelAktion } from '../../lib/types';
 
   const BASE = '/intern/pflege/sammelbestellungen';
-  let campaigns = $state<SammelAktion[] | null>(null);
+  // Kept across pages: a revisit shows the last loaded list at once while it loads again
+  const store = sammelCampaigns.state;
+  const campaigns = $derived(store.data);
+  const loading = $derived(store.loading);
+  const loadError = $derived(store.error);
   let showArchive = $state(false);
-  let loading = $state(true);
   let busy = $state(false);
   let error = $state<string | null>(null);
-  let loadError = $state<string | null>(null);
   let dialogError = $state<string | null>(null);
   let message = $state<string | null>(null);
   let fields = $state<Record<string, string>>({});
@@ -41,7 +44,6 @@
       .filter((campaign) => campaign.archived === showArchive)
       .sort((a, b) => b.startsAt.localeCompare(a.startsAt) || a.title.localeCompare(b.title, 'de'))
   );
-  let loadRevision = 0;
   /** Describes whether a campaign is archived, upcoming, open or past its deadline. */
   function campaignStatus(campaign: SammelAktion): string {
     if (isSammelOpen(campaign)) return 'Offen';
@@ -49,24 +51,10 @@
       return 'Noch nicht geöffnet';
     return 'Geschlossen';
   }
-  /** Reloads the campaign overview while ignoring responses from superseded loads. */
+  /** Reloads the campaign overview; a newer load wins over an older answer. */
   async function loadCampaigns(): Promise<void> {
-    const revision = ++loadRevision;
-    loading = true;
     error = null;
-    loadError = null;
-    try {
-      const rows = await fetchApi<SammelAktion[]>(BASE);
-      if (revision === loadRevision) campaigns = rows;
-    } catch (caught) {
-      if (revision === loadRevision)
-        loadError = errorMessage(
-          caught,
-          'Die Sammelbestellungen konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
-        );
-    } finally {
-      if (revision === loadRevision) loading = false;
-    }
+    await sammelCampaigns.load({ force: true });
   }
   onMount(() => {
     const params = new URL(window.location.href).searchParams;
@@ -84,7 +72,6 @@
     window.addEventListener('popstate', readArchive);
     return () => {
       window.removeEventListener('popstate', readArchive);
-      loadRevision++;
     };
   });
   /** Switches the campaign archive tab and preserves its selection in the URL. */

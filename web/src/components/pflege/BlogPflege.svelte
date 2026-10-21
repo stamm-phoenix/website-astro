@@ -8,6 +8,7 @@
   import { formatBlogDate, getBlogPostUrl, getStaffBlogImageUrl } from '../../lib/blog';
 
   const EDITOR_URL = '/leitendenbereich/blog/beitrag';
+  const LIST_MAX_AGE_MS = 60_000;
   const store = blogPflege.state;
 
   let search = $state('');
@@ -26,8 +27,10 @@
     return (store.data ?? []).filter((post) => !query || post.title.toLowerCase().includes(query));
   });
 
+  // The editor marks the list as outdated after a change; posts others changed show once the
+  // list is older than a minute (or with „Neu laden“). The last list stays shown meanwhile.
   $effect(() => {
-    untrack(() => blogPflege.load({ force: true }));
+    untrack(() => blogPflege.load({ maxAge: LIST_MAX_AGE_MS }));
   });
 </script>
 

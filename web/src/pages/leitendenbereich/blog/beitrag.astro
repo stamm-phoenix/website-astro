@@ -6,3 +6,10 @@ import BlogEditor from '../../../components/pflege/BlogEditor.svelte';
 <StaffLayout header="none">
   <BlogEditor client:only="svelte" />
 </StaffLayout>
+
+<script>
+  // The post loads while the editor's code is still loading, instead of after it
+  import { requestBlogPostEarly } from '../../../lib/blogPostRequest';
+
+  requestBlogPostEarly();
+</script>

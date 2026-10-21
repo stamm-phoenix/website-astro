@@ -1,6 +1,9 @@
 import { errorMessage, fetchApi } from './api';
 import type {
+  AnwesenheitOverview,
   BeitraegeData,
+  ProtokollEditorOverview,
+  SammelAktion,
   StaffAktionenData,
   StaffBeleg,
   StaffBlogListItem,
@@ -26,6 +29,8 @@ export interface LoadOptions<P> {
   force?: boolean;
   /** Passed to the URL builder of the resource, e.g. a date. */
   param?: P;
+  /** Reloads data older than this many milliseconds; it stays shown until the answer is there. */
+  maxAge?: number;
 }
 
 export interface Resource<T, P = void> {
@@ -35,12 +40,22 @@ export interface Resource<T, P = void> {
    * promise of a replaced load settles with the newer one.
    */
   load: (options?: LoadOptions<P>) => Promise<void>;
+  /**
+   * Marks the data as outdated, e.g. after it was changed on another page: the next load asks
+   * the server again, and the data stays shown until the answer is there.
+   */
+  invalidate: () => void;
 }
 
 interface ResourceOptions {
   /** Starts as not loading, for data that is only loaded on request (default: loading). */
   idle?: boolean;
+  /** Shown when loading fails and the error has no message of its own. */
+  loadError?: string;
 }
+
+const LOAD_FAILED =
+  'Die Daten konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.';
 
 /**
  * A store for data from the API. Loads without `force` are skipped when data is present and
@@ -48,7 +63,7 @@ interface ResourceOptions {
  */
 export function createResource<T, P = void>(
   endpoint: string | ((param: P) => string),
-  { idle = false }: ResourceOptions = {}
+  { idle = false, loadError = LOAD_FAILED }: ResourceOptions = {}
 ): Resource<T, P> {
   const state = $state<ResourceState<T>>({
     data: null,
@@ -58,9 +73,12 @@ export function createResource<T, P = void>(
   });
   let latest = 0;
   let pending: { url: string; promise: Promise<void> } | null = null;
+  let stale = false;
 
-  function load({ force = false, param }: LoadOptions<P> = {}): Promise<void> {
-    if (state.data !== null && !force) return Promise.resolve();
+  function load({ force = false, param, maxAge }: LoadOptions<P> = {}): Promise<void> {
+    const expired =
+      maxAge !== undefined && (state.loadedAt === null || Date.now() - state.loadedAt >= maxAge);
+    if (state.data !== null && !force && !stale && !expired) return Promise.resolve();
     const url = typeof endpoint === 'string' ? endpoint : endpoint(param as P);
     if (!force && pending?.url === url) return pending.promise;
 
@@ -73,13 +91,11 @@ export function createResource<T, P = void>(
         if (id === latest) {
           state.data = data;
           state.loadedAt = Date.now();
+          stale = false;
         }
       } catch (error: unknown) {
         if (id === latest) {
-          state.error = errorMessage(
-            error,
-            'Die Daten konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.'
-          );
+          state.error = errorMessage(error, loadError);
         }
       }
       // A replaced load settles together with the newer one, so callers see its result
@@ -91,7 +107,11 @@ export function createResource<T, P = void>(
     return promise;
   }
 
-  return { state, load };
+  function invalidate(): void {
+    stale = true;
+  }
+
+  return { state, load, invalidate };
 }
 
 export const gruppenstundenPflege = createResource<StaffGruppenstundenData>(
@@ -105,6 +125,24 @@ export const aktionenPflege = createResource<StaffAktionenData>('/intern/pflege/
 export const belegePflege = createResource<StaffBeleg[]>('/intern/pflege/belege');
 export const protokollePflege = createResource<StaffProtokolleData>('/intern/pflege/protokolle');
 export const personenPflege = createResource<PersonenUebersicht>('/intern/pflege/personen');
+/** The Gruppenstunden with their recorded Termine; loaded again on every visit. */
+export const anwesenheitOverview = createResource<AnwesenheitOverview>('/intern/anwesenheit', {
+  loadError:
+    'Die Anwesenheit konnte nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.',
+});
+/** The minutes written in the editor; loaded again on every visit (who is writing changes). */
+export const protokollEditorOverview = createResource<ProtokollEditorOverview>(
+  '/intern/protokoll-editor',
+  {
+    loadError:
+      'Die Protokolle konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.',
+  }
+);
+/** All Sammelbestellungen; loaded again on every visit. */
+export const sammelCampaigns = createResource<SammelAktion[]>('/intern/pflege/sammelbestellungen', {
+  loadError:
+    'Die Sammelbestellungen konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.',
+});
 export const nikolausSteuerung = createResource<StaffNikolausSteuerung>(
   '/intern/nikolaus/steuerung'
 );
