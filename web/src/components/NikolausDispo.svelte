@@ -246,7 +246,7 @@
           // The check-offs this plan is built on; the server refuses it if they changed
           done: data.rows
             .filter((row) => row.visited && stopsById.has(row.bookingId))
-            .map((row) => row.bookingId),
+            .map((row) => ({ bookingId: row.bookingId, checkedOffAt: row.checkedOffAt ?? '' })),
         }
       );
       nikolausDispoStore.data = { ...data, rows: saved.rows, version: saved.version };

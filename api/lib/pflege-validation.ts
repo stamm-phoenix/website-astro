@@ -654,10 +654,16 @@ export { downloadMimeType } from './download-file-name';
 
 // --- Nikolaus-Dispo ---
 
+export interface DispoLoadedCheckOff {
+  bookingId: string;
+  /** Exact time of the check-off as the Dispo delivered it. */
+  checkedOffAt: string;
+}
+
 export interface DispoSaveInput {
   version: string;
-  /** Bookings checked off when the Dispo was loaded; the plan is built on them. */
-  done?: string[];
+  /** Visits checked off when the Dispo was loaded, with their time; the plan is built on them. */
+  done?: DispoLoadedCheckOff[];
   entries: {
     bookingId: string;
     team: string;
@@ -722,7 +728,12 @@ export function validateDispoSave(
 
   if (Object.keys(errors).length > 0) throw new ValidationError(errors);
   const done = Array.isArray(record.done)
-    ? record.done.filter((id): id is string => typeof id === 'string')
+    ? record.done.flatMap((value): DispoLoadedCheckOff[] => {
+        const item = asRecord(value);
+        return typeof item.bookingId === 'string' && typeof item.checkedOffAt === 'string'
+          ? [{ bookingId: item.bookingId, checkedOffAt: item.checkedOffAt }]
+          : [];
+      })
     : undefined;
   return { version, entries, done };
 }
