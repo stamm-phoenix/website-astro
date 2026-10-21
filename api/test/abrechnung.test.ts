@@ -332,6 +332,58 @@ test('rejects anonymous requests, invalid IDs and unknown events', async (t) => 
   assert.equal(fetch.mock.callCount(), 0);
 });
 
+test('reads the marks of the Aktion before waiting for the Einzelnachweise', async (t) => {
+  mockCampflow(t, [confirmed('2015-01-01')]);
+  let marksRead = false;
+  t.mock.method(aktionArt, 'getAktionArt', async () => {
+    marksRead = true;
+    return { zuschussfaehig: false, keineAktion: true };
+  });
+  let marksReadBeforeExport: boolean | undefined;
+  t.mock.method(globalThis, 'fetch', async () => {
+    marksReadBeforeExport = marksRead;
+    return Response.json({ costUnit: { id: 'cun_1', name: 'Lager' }, entries: MAPPE });
+  });
+
+  const response = await GetInternAbrechnungEndpoint(request('evt_Lager'));
+
+  assert.equal(response.status, 200);
+  assert.equal(marksReadBeforeExport, true);
+  assert.deepEqual((response.jsonBody as { event: unknown }).event, {
+    id: 'evt_Lager',
+    title: 'Stammeslager 2026',
+    start_date: '2026-05-24',
+    end_date: '2026-05-31',
+    zuschussfaehig: false,
+    keineAktion: true,
+  });
+});
+
+test('a failed read of the marks keeps the earlier errors and is never left unhandled', async (t) => {
+  const unhandled: unknown[] = [];
+  const listener = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on('unhandledRejection', listener);
+  t.after(() => process.off('unhandledRejection', listener));
+  mockCampflow(t, []);
+  const failure = new Error('database unavailable');
+  t.mock.method(aktionArt, 'getAktionArt', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    throw failure;
+  });
+
+  assert.equal((await GetInternAbrechnungEndpoint(request('evt_Unbekannt'))).status, 404);
+  const fetch = mockPlaywright(t, 504, { error: 'Timeout' });
+  assert.equal((await GetInternAbrechnungEndpoint(request('evt_Lager'))).status, 502);
+  fetch.mock.mockImplementation(async () =>
+    Response.json({ costUnit: { id: 'cun_1', name: 'Lager' }, entries: [] })
+  );
+  await assert.rejects(GetInternAbrechnungEndpoint(request('evt_Lager')), failure);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(unhandled, []);
+});
+
 test('lists the Kostenstellen, active ones first', async (t) => {
   t.mock.method(env, 'getEnvironment', () => 'test-key');
   mockPlaywright(t, 200, {
