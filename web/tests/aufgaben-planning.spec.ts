@@ -276,6 +276,7 @@ test('new project ideas are reviewed with the task and created only with explici
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
     .getByRole('link', { name: /^Vorschläge\b/ })
     .click();
+  await expect(page).toHaveURL(/\/aufgaben\/vorschlaege$/);
   await page
     .getByLabel('Protokoll', { exact: true })
     .selectOption(testInfo.project.name === 'mobile' ? 'prot-8' : 'prot-5');
@@ -303,11 +304,13 @@ test('new project ideas are reviewed with the task and created only with explici
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
     .getByRole('link', { name: /^Projekte\b/ })
     .click();
+  await expect(page).toHaveURL(/\/aufgaben\/projekte$/);
   await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
     .getByRole('link', { name: /^Vorschläge\b/ })
     .click();
+  await expect(page).toHaveURL(/\/aufgaben\/vorschlaege$/);
   await row.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   await expect(consent).not.toBeChecked();
   await consent.check();
@@ -318,6 +321,7 @@ test('new project ideas are reviewed with the task and created only with explici
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
     .getByRole('link', { name: /^Projekte\b/ })
     .click();
+  await expect(page).toHaveURL(/\/aufgaben\/projekte$/);
   await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(1);
   await taskStatus(page, 'Offen');
   await expect(row).toContainText(title);

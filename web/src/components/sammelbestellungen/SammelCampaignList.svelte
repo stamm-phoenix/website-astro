@@ -8,7 +8,8 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
+  import { navigate } from 'astro:transitions/client';
   import FormField from '../pflege/FormField.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
@@ -179,7 +180,8 @@
         })),
       });
       createOpen = false;
-      window.location.assign(`/leitendenbereich/sammelbestellungen/${result.id}`);
+      await tick();
+      await navigate(`/leitendenbereich/sammelbestellungen/${result.id}`);
     } catch (caught) {
       dialogError = errorMessage(
         caught,

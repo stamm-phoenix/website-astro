@@ -12,14 +12,41 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-10-20-07-erklaerungen',
-    date: '2026-10-20',
+    id: '2026-10-21-04-erklaerungen',
+    date: '2026-10-21',
     title: 'Weniger Erklärtext, Erklärungen hinter dem (i)',
     changes: [
       'Statt langer Erklärsätze sagen Beschriftungen und Buttons jetzt selbst, was passiert.',
       'Regeln und Hintergründe findest du hinter dem (i) neben einer Überschrift oder einem Feld. Tippe darauf, um die Erklärung zu lesen.',
       '„Was ist das?“ unter der Seitenüberschrift ist ebenfalls zu einem (i) neben der Überschrift geworden.',
       '„Eigenbeleg erstellen“ steht jetzt direkt neben „Beleg einreichen“, und das Archivieren einer Sammelbestellung fragt vorher nach.',
+    ],
+  },
+  {
+    id: '2026-10-21-03-aufgaben-seitenwechsel',
+    date: '2026-10-21',
+    title: 'Aufgaben öffnen ohne Neuladen',
+    changes: [
+      {
+        text: 'Die Aufgaben öffnen sich wie die anderen Bereiche, ohne dass die ganze Seite neu lädt. Das gilt auch für Projekte, Vorlagen und Aufgabenvorschläge.',
+        href: '/leitendenbereich/aufgaben',
+      },
+    ],
+  },
+  {
+    id: '2026-10-21-02-ohne-neuladen',
+    date: '2026-10-21',
+    title: 'Weniger Neuladen beim Weitergehen',
+    changes: [
+      {
+        text: 'Nach dem Löschen eines Protokolls kommst du ohne Neuladen zurück zur Liste.',
+        href: '/leitendenbereich/protokolle',
+      },
+      {
+        text: 'Nach dem Anlegen einer Sammelbestellung geht die Seite der neuen Bestellung ohne Neuladen auf.',
+        href: '/leitendenbereich/sammelbestellungen',
+      },
+      'Nach dem Löschen eines Blogbeitrags kommst du ohne Neuladen zurück zur Liste.',
     ],
   },
   {

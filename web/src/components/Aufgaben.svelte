@@ -126,7 +126,6 @@
 {#if data}
   {#if pending > 0}<a
       href="/leitendenbereich/aufgaben/vorschlaege"
-      data-astro-reload
       class="mb-3 inline-flex min-h-11 items-center gap-2 text-link"
       ><span
         class="rounded-full bg-[var(--color-warning-soft)] px-2 py-0.5 text-sm font-semibold text-warning"

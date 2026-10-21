@@ -62,10 +62,8 @@
 </script>
 
 <AufgabenLadestatus />
-<a
-  class="inline-flex min-h-11 items-center text-link"
-  href="/leitendenbereich/aufgaben"
-  data-astro-reload>Zur Aufgabenliste</a
+<a class="inline-flex min-h-11 items-center text-link" href="/leitendenbereich/aufgaben"
+  >Zur Aufgabenliste</a
 >
 {#if data}
   <ActionButton type="button" onclick={() => edit()} disabled={busy}>Projekt anlegen</ActionButton>

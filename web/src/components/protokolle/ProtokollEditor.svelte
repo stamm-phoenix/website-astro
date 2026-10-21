@@ -2,6 +2,7 @@
   import { scrollBehavior } from '../../lib/motion';
   import MessageText from '../ui/MessageText.svelte';
   import { onMount, tick, untrack } from 'svelte';
+  import { navigate } from 'astro:transitions/client';
   import ProtokollAktionDialog from './ProtokollAktionDialog.svelte';
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
   import ProtokollKopfEditor from './ProtokollKopfEditor.svelte';
@@ -855,7 +856,7 @@
       clearLocalDraft(id);
       rememberWriting(id, false);
       mode = 'lesen';
-      window.location.href = '/leitendenbereich/protokolle';
+      await navigate('/leitendenbereich/protokolle');
     } catch (error: unknown) {
       deleteError = errorMessage(
         error,

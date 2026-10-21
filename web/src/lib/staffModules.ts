@@ -33,7 +33,6 @@ export const CHANGELOG_PATH = '/leitendenbereich/neuigkeiten';
 export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/aufgaben',
-    reload: true,
     title: 'Aufgaben',
     description: 'Aufgaben verteilen, Fristen im Blick behalten und Erledigtes abhaken.',
     keywords: ['todo', 'erledigen', 'frist', 'kanban', 'projekt', 'vorlage', 'zuständig'],
@@ -343,21 +342,18 @@ export const STAFF_SUBPAGES: StaffPage[] = [
     title: 'Projekte',
     description: 'Projekte bündeln Aufgaben für Aktionen und andere Vorhaben.',
     parent: '/leitendenbereich/aufgaben',
-    reload: true,
   },
   {
     href: '/leitendenbereich/aufgaben/vorlagen',
     title: 'Vorlagen',
     description: 'Wiederverwendbare Vorlagen für die Aufgaben einer Aktion.',
     parent: '/leitendenbereich/aufgaben',
-    reload: true,
   },
   {
     href: '/leitendenbereich/aufgaben/vorschlaege',
     title: 'Aufgabenvorschläge',
     description: 'Aufgabenvorschläge aus Protokollen prüfen und übernehmen.',
     parent: '/leitendenbereich/aufgaben',
-    reload: true,
   },
   {
     href: '/leitendenbereich/aktionen/aktion',

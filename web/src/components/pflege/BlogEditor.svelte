@@ -2,6 +2,7 @@
   import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { onMount } from 'svelte';
+  import { navigate } from 'astro:transitions/client';
   import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { todayIso } from '../../lib/format';
   import {
@@ -189,7 +190,7 @@
       await sendApi('DELETE', `/intern/pflege/blog/${postId}`, undefined, { etag });
       saved = JSON.stringify(form);
       busy = false;
-      window.location.href = `${LIST_URL}?geloescht=1`;
+      await navigate(`${LIST_URL}?geloescht=1`);
     } catch (error: unknown) {
       handleError(
         error,
