@@ -681,6 +681,8 @@ export interface StaffNikolausDispoRow {
   fixed: boolean;
   visited: boolean;
   visitedAt: string;
+  /** Exact time of the check-off (ISO), only when the Dispo is loaded. */
+  checkedOffAt?: string;
   /** Family of the booking, also when it left the day; only when the Dispo is loaded. */
   familyName?: string | null;
 }

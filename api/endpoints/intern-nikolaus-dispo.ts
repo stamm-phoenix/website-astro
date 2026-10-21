@@ -32,6 +32,8 @@ function toClientRow(row: DispoRow) {
     fixed: row.fixed,
     visited: row.visited,
     visitedAt: getVisitedTime(row.visitedAt),
+    // Exact time, so the Dispo knows the order of check-offs within the same minute
+    checkedOffAt: row.visitedAt,
   };
 }
 

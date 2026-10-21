@@ -73,6 +73,16 @@ export interface DispoDone {
   team: string;
   /** When the team checked the visit off, i.e. left; unknown for old check-offs. */
   leftAt?: number;
+  /** Exact time of the check-off (ms), for the order of check-offs within the same minute. */
+  checkedOffAt?: number;
+}
+
+/** Order of two check-offs: by the exact time if both have it, else by the minute. */
+function compareDone(a: DispoDone | undefined, b: DispoDone | undefined): number {
+  if (a?.checkedOffAt !== undefined && b?.checkedOffAt !== undefined) {
+    return a.checkedOffAt - b.checkedOffAt;
+  }
+  return (a?.leftAt ?? -Infinity) - (b?.leftAt ?? -Infinity);
 }
 
 /** Ordered booking IDs per team. */
@@ -173,7 +183,7 @@ function live(problem: DispoProblem): Live {
     const done = stops
       .map((_, index) => index)
       .filter((index) => doneOf(index)?.team === team)
-      .sort((a, b) => (doneOf(a)?.leftAt ?? -Infinity) - (doneOf(b)?.leftAt ?? -Infinity));
+      .sort((a, b) => compareDone(doneOf(a), doneOf(b)));
     const planned: DispoPlannedStop[] = [];
     let position = 0;
     let time: number | null = null;
@@ -257,7 +267,7 @@ function simulate(
   }
 
   let returnTime: number | null = null;
-  if (order.length > 0) {
+  if (planned.length > 0) {
     const back = travel[position][0];
     driveTotal += back;
     cost += back * COST_DRIVING;

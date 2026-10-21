@@ -128,6 +128,31 @@ test('checked-off visits stay first in their team and the rest starts at the las
   assert.deepEqual(moved.A, ['3']);
 });
 
+test('a team with only checked-off visits still drives back to the base', () => {
+  const problem: DispoProblem = {
+    stops: [
+      { id: '1', slotStart: 1020, slotEnd: 1050, duration: 10 },
+      { id: '2', slotStart: 1080, slotEnd: 1110, duration: 10 },
+    ],
+    teams: ['A', 'B'],
+    travel: [
+      [0, 30, 15],
+      [30, 0, 20],
+      [15, 20, 0],
+    ],
+    done: { '1': { team: 'A', leftAt: 1050 } },
+  };
+  const finished = evaluateDispo(problem, { A: ['1'], B: [] }).routes[0];
+  assert.equal(finished.returnTime, 1080);
+  assert.equal(finished.driveMinutes, 60);
+  // Team A drives 35 minutes more with the new visit, an empty team B 30 plus A's way back 30
+  assert.ok(
+    evaluateDispo(problem, { A: ['1', '2'], B: [] }).cost <
+      evaluateDispo(problem, { A: ['1'], B: ['2'] }).cost
+  );
+  assert.deepEqual(solveDispo(problem), { A: ['1', '2'], B: [] });
+});
+
 test('checked-off visits keep the order of their check-offs', () => {
   const problem = dispo({
     done: {
@@ -140,6 +165,15 @@ test('checked-off visits keep the order of their check-offs', () => {
   assert.deepEqual(result.A.slice(0, 2), ['3', '1']);
   // A team that does not exist does not hold a visit
   assert.deepEqual(Object.values(result).flat().sort(), ['1', '2', '3']);
+
+  // Within the same minute the exact time decides
+  const sameMinute = dispo({
+    done: {
+      '1': { team: 'A', leftAt: 1060, checkedOffAt: 2_000 },
+      '3': { team: 'A', leftAt: 1060, checkedOffAt: 1_000 },
+    },
+  });
+  assert.deepEqual(solveDispo(sameMinute).A.slice(0, 2), ['3', '1']);
 });
 
 test('negative tags block automatic assignments using normalized tag comparisons', () => {
