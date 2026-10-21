@@ -4,9 +4,9 @@
   "description": "Azure Static Web Apps API",
   "main": "dist/bundle/main.js",
   "scripts": {
-    "build": "tsc && esbuild main.ts lib/protokoll-pdf-worker.ts --bundle --platform=node --target=es2022 --outdir=dist/bundle --entry-names=[name] --external:@azure/functions --external:sharp --external:pdfmake --external:pdfjs-dist --log-level=warning",
+    "build": "tsc && node scripts/bundle.mjs",
     "test": "bun run build && node --test dist/test/*.test.js",
-    "watch": "tsc -w",
+    "watch": "node scripts/bundle.mjs --watch",
     "prestart": "bun run build",
     "start": "node ../scripts/dev-full.mjs",
     "lint": "eslint .",
