@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { dispoMapTeam, legSummary, splitRoutePath } from '../src/lib/nikolausDispoMap';
+import {
+  dispoMapTeam,
+  legSummary,
+  pathKm,
+  splitRoutePath,
+  teamKmLabel,
+} from '../src/lib/nikolausDispoMap';
 import type { LatLon } from '../src/lib/nikolausDispoMap';
 import type { DispoRoute } from '../src/lib/nikolausDispo';
 import type { StaffNikolausBooking } from '../src/lib/types';
@@ -122,13 +128,15 @@ describe('Dispo map', () => {
       visited: new Set(['a']),
     });
     assert.deepEqual(
-      team.legs.map((leg) => [leg.from, leg.to, legSummary(leg)]),
+      team.legs.map((leg) => [leg.from, leg.to, leg.fromId, leg.toId, legSummary(leg, false)]),
       [
-        ['Pfarrheim', 'Familie a', '17:00 → 17:10 · 10 Min Fahrt'],
-        ['Familie a', 'Familie b', '17:25 → 17:33 · 8 Min Fahrt'],
-        ['Familie b', 'Pfarrheim', '17:50 → 18:05 · 15 Min Fahrt'],
+        ['Pfarrheim', 'Familie a', null, 'a', '17:00 → 17:10 · 10 Min Fahrt · 11 km Luftlinie'],
+        ['Familie a', 'Familie b', 'a', 'b', '17:25 → 17:33 · 8 Min Fahrt · 11 km Luftlinie'],
+        ['Familie b', 'Pfarrheim', 'b', null, '17:50 → 18:05 · 15 Min Fahrt · 22 km Luftlinie'],
       ]
     );
+    assert.equal(team.kmAlongRoads, false);
+    assert.equal(teamKmLabel(team), 'mind. 44 km Luftlinie');
     assert.deepEqual(
       team.stops.map((stop) => [stop.number, stop.fixed, stop.visited]),
       [
@@ -184,5 +192,19 @@ describe('Dispo map', () => {
       team.legs.map((leg) => [leg.from, leg.to]),
       [['Familie b', 'Pfarrheim']]
     );
+  });
+
+  test('kilometres follow the course and read in German', () => {
+    // 0.1° of latitude is about 11.1 km
+    assert.ok(
+      Math.abs(
+        pathKm([
+          [48, 11],
+          [48.1, 11],
+        ]) - 11.12
+      ) < 0.05
+    );
+    assert.equal(teamKmLabel({ km: 4.26, kmAlongRoads: true }), 'ca. 4,3 km');
+    assert.equal(teamKmLabel({ km: null, kmAlongRoads: true }), null);
   });
 });

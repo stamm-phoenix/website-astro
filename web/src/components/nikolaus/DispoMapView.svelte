@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onDestroy, onMount, tick, untrack } from 'svelte';
-  import type { LayerGroup, Map as LeafletMap, Marker, Polyline } from 'leaflet';
+  import type { CircleMarker, LayerGroup, Map as LeafletMap, Marker, Polyline } from 'leaflet';
   import PinToggle from './PinToggle.svelte';
   import { createMap, loadLeaflet } from '../../lib/leafletMap';
   import { minutesToTime } from '../../lib/nikolausDispo';
-  import { legSummary } from '../../lib/nikolausDispoMap';
-  import type { DispoMapStop, DispoMapTeam } from '../../lib/nikolausDispoMap';
+  import { legSummary, teamKmLabel } from '../../lib/nikolausDispoMap';
+  import type { DispoMapLeg, DispoMapStop, DispoMapTeam } from '../../lib/nikolausDispoMap';
   import { slotLabel } from '../../lib/nikolausMaps';
   import type { NikolausAreaConfig } from '../../lib/nikolausConfig';
 
@@ -30,6 +30,13 @@
   let selectedId = $state<string | null>(null);
   /** Team pointed at in the legend or the list; the other routes fade. */
   let highlight = $state<string | null>(null);
+  /** Drive pointed at on the map; its two ends stand out on the map and in the panel. */
+  let pointedLeg = $state<{ team: string; fromId: string | null; toId: string | null } | null>(
+    null
+  );
+  const legEnds = $derived(
+    pointedLeg ? [pointedLeg.fromId, pointedLeg.toId].filter((id) => id !== null) : []
+  );
   let large = $state(false);
 
   const shown = $derived(teams.filter((team) => !hidden.includes(team.name)));
@@ -48,7 +55,8 @@
   let layers: LayerGroup | null = null;
   /** Markers of the visits by booking ID; drawn anew with the map, so not reactive. */
   let markers: Record<string, { marker: Marker; element: HTMLElement; team: string }> = {};
-  let lines: { team: string; line: Polyline }[] = [];
+  let lines: { team: string; line: Polyline; leg: DispoMapLeg }[] = [];
+  let baseMarker: CircleMarker | null = null;
   /** Teams the map was last fitted to; the view only jumps when they change. */
   let fittedTo: string | null = null;
 
@@ -74,6 +82,7 @@
   $effect(() => {
     void highlight;
     void selectedId;
+    void pointedLeg;
     applyStyles();
   });
 
@@ -139,7 +148,10 @@
     if (!map) {
       map = createMap(L, element, { main: true });
       layers = L.layerGroup().addTo(map);
-      map.on('click', () => (selectedId = null));
+      map.on('click', () => {
+        selectedId = null;
+        pointedLeg = null;
+      });
     }
     const group = layers ?? L.layerGroup().addTo(map);
     layers = group;
@@ -158,20 +170,27 @@
           opacity: 0.85,
           interactive: false,
         }).addTo(group);
-        lines.push({ team: team.name, line: visible });
+        lines.push({ team: team.name, line: visible, leg });
         // A wider invisible line makes the drive easy to point at
         const tip = document.createElement('div');
         tip.className = 'dispo-tip';
         tip.append(
           line(`Team ${team.name} · Fahrt`, 'dispo-tip-muted'),
           line(`${leg.from} → ${leg.to}`, 'dispo-tip-title'),
-          line(legSummary(leg))
+          line(legSummary(leg, team.kmAlongRoads))
         );
+        const point = (): void => {
+          pointedLeg = { team: team.name, fromId: leg.fromId, toId: leg.toId };
+        };
         L.polyline(leg.points, { color: team.color, weight: 18, opacity: 0 })
           .bindTooltip(tip, { sticky: true })
-          .on('mouseover', () => visible.setStyle({ weight: 8, opacity: 1 }))
-          .on('mouseout', () => applyStyles())
-          .on('click', (event) => L.DomEvent.stopPropagation(event))
+          .on('mouseover', point)
+          .on('mouseout', () => (pointedLeg = null))
+          .on('click', (event) => {
+            // A tap on a phone: the drive stays pointed at until the next tap on the map
+            L.DomEvent.stopPropagation(event);
+            point();
+          })
           .addTo(group);
       }
       for (const stop of team.stops) {
@@ -198,7 +217,7 @@
       }
     }
 
-    L.circleMarker(home, {
+    baseMarker = L.circleMarker(home, {
       radius: 9,
       color: '#ffffff',
       fillColor: '#003056',
@@ -217,15 +236,25 @@
   }
 
   function applyStyles(): void {
-    for (const { team, line } of lines) {
-      const faded = highlight !== null && team !== highlight;
-      line.setStyle({ weight: 4, opacity: faded ? 0.2 : 0.85 });
+    const leg = pointedLeg;
+    const focusTeam = leg?.team ?? highlight;
+    for (const { team, line, leg: drawn } of lines) {
+      const pointed =
+        leg !== null && team === leg.team && drawn.fromId === leg.fromId && drawn.toId === leg.toId;
+      const faded = focusTeam !== null && team !== focusTeam;
+      line.setStyle(
+        pointed ? { weight: 8, opacity: 1 } : { weight: 4, opacity: faded ? 0.2 : 0.85 }
+      );
     }
+    const ends = leg ? [leg.fromId, leg.toId] : [];
     for (const [id, { marker, element, team }] of Object.entries(markers)) {
-      element.classList.toggle('is-faded', highlight !== null && team !== highlight);
+      const end = ends.includes(id);
+      element.classList.toggle('is-faded', focusTeam !== null && team !== focusTeam);
       element.classList.toggle('is-selected', id === selectedId);
-      marker.setZIndexOffset(id === selectedId ? 1000 : 0);
+      element.classList.toggle('is-leg-end', end);
+      marker.setZIndexOffset(id === selectedId || end ? 1000 : 0);
     }
+    baseMarker?.setRadius(leg && (leg.fromId === null || leg.toId === null) ? 13 : 9);
   }
 
   /** Selects a visit and moves the map to it. */
@@ -522,6 +551,7 @@
           <p class="text-sm text-neutral-700">
             Abfahrt {minutesToTime(team.departure)} · zurück ca. {minutesToTime(team.returnTime)}
             · Fahrzeit {Math.round(team.driveMinutes)} Min
+            {#if teamKmLabel(team)}· Strecke {teamKmLabel(team)}{/if}
           </p>
         {:else}
           <p class="text-sm text-neutral-700">Keine Termine.</p>
@@ -532,6 +562,7 @@
               <button
                 type="button"
                 class="stop-item"
+                class:is-leg-end={legEnds.includes(stop.id)}
                 aria-current={stop.id === selectedId ? 'true' : undefined}
                 onclick={() => select(stop.id)}
                 onpointerenter={(event) => event.pointerType === 'mouse' && pointAt(stop.id)}
@@ -670,8 +701,13 @@
     color: var(--color-neutral-900);
   }
   .stop-item:hover,
+  .stop-item.is-leg-end,
   .stop-item[aria-current='true'] {
     background: var(--color-field);
+  }
+  .stop-item.is-leg-end {
+    box-shadow: inset 4px 0 0 var(--color-brand-900);
+    font-weight: 600;
   }
   .stop-number {
     display: flex;
@@ -776,9 +812,15 @@
     opacity: 0.25;
   }
   :global(.dispo-marker.is-selected),
+  :global(.dispo-marker.is-leg-end),
   :global(.dispo-marker.is-pointed) {
     transform: scale(1.35);
     opacity: 1;
+  }
+  :global(.dispo-marker.is-leg-end) {
+    box-shadow:
+      0 0 0 3px white,
+      0 0 0 6px var(--color-brand-900);
   }
   :global(.dispo-tip) {
     width: max-content;

@@ -13,6 +13,11 @@ export interface DispoMapLeg {
   departure: number;
   arrival: number;
   driveMinutes: number;
+  /** Visits at both ends; `null` for the base. */
+  fromId: string | null;
+  toId: string | null;
+  /** Length of the drive in kilometres. */
+  km: number;
   /** Course of the drive; at least the two end points. */
   points: LatLon[];
 }
@@ -46,6 +51,34 @@ export interface DispoMapTeam {
   departure: number | null;
   returnTime: number | null;
   driveMinutes: number;
+  /** Kilometres of all drives on the map, `null` without visits. */
+  km: number | null;
+  /**
+   * Whether `km` follows the roads. Otherwise it adds straight lines and leaves out the drives
+   * to and from visits without a place, so the team drives at least that far.
+   */
+  kmAlongRoads: boolean;
+}
+
+const EARTH_RADIUS_KM = 6371;
+
+/** Length of a course in kilometres. */
+export function pathKm(points: LatLon[]): number {
+  let km = 0;
+  for (let i = 1; i < points.length; i++) {
+    const [lat1, lon1] = points[i - 1].map((d) => (d * Math.PI) / 180);
+    const [lat2, lon2] = points[i].map((d) => (d * Math.PI) / 180);
+    const a =
+      Math.sin((lat2 - lat1) / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin((lon2 - lon1) / 2) ** 2;
+    km += 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(a)));
+  }
+  return km;
+}
+
+/** `12,3 km` */
+export function formatKm(km: number): string {
+  return `${km.toLocaleString('de-DE', { maximumFractionDigits: km < 10 ? 1 : 0 })} km`;
 }
 
 function distance(a: LatLon, b: LatLon): number {
@@ -155,6 +188,7 @@ export function dispoMapTeam(source: TeamSource): DispoMapTeam {
     const pieces = splitRoutePath(path, [home, ...stops.map((stop) => stop.position), home]);
     let departure = route.departure;
     let from = base.name;
+    let fromId: string | null = null;
     stops.forEach((stop, i) => {
       const planned = route.stops.find((s) => s.id === stop.id);
       // After a visit without a place the drive starts there, which the map cannot show
@@ -167,11 +201,15 @@ export function dispoMapTeam(source: TeamSource): DispoMapTeam {
           departure,
           arrival: planned.arrival,
           driveMinutes: planned.driveMinutes,
+          fromId,
+          toId: stop.id,
+          km: pathKm(pieces[i]),
           points: pieces[i],
         });
       }
       departure = stop.end;
       from = `Familie ${stop.booking.familyName}`;
+      fromId = stop.id;
     });
     const last = route.stops[route.stops.length - 1];
     const lastStop = stops[stops.length - 1];
@@ -183,6 +221,9 @@ export function dispoMapTeam(source: TeamSource): DispoMapTeam {
         departure: lastStop.end,
         arrival: route.returnTime,
         driveMinutes: index === undefined ? 0 : (source.travel[index]?.[0] ?? 0),
+        fromId,
+        toId: null,
+        km: pathKm(pieces[pieces.length - 1]),
         points: pieces[pieces.length - 1],
       });
     }
@@ -197,10 +238,20 @@ export function dispoMapTeam(source: TeamSource): DispoMapTeam {
     departure: route.departure,
     returnTime: route.returnTime,
     driveMinutes: route.driveMinutes,
+    km: legs.length > 0 ? legs.reduce((sum, leg) => sum + leg.km, 0) : null,
+    kmAlongRoads: path !== null && path.length >= 2,
   };
 }
 
-/** `17:05 → 17:17 · 12 Min Fahrt` */
-export function legSummary(leg: DispoMapLeg): string {
-  return `${minutesToTime(leg.departure)} → ${minutesToTime(leg.arrival)} · ${Math.round(leg.driveMinutes)} Min Fahrt`;
+/** `ca. 23 km`, or `mind. 21 km Luftlinie` while the course along the roads is missing. */
+export function teamKmLabel(team: Pick<DispoMapTeam, 'km' | 'kmAlongRoads'>): string | null {
+  if (team.km === null) return null;
+  return team.kmAlongRoads ? `ca. ${formatKm(team.km)}` : `mind. ${formatKm(team.km)} Luftlinie`;
+}
+
+/** `17:05 → 17:17 · 12 Min Fahrt · 4,3 km` */
+export function legSummary(leg: DispoMapLeg, alongRoads = true): string {
+  return `${minutesToTime(leg.departure)} → ${minutesToTime(leg.arrival)} · ${Math.round(
+    leg.driveMinutes
+  )} Min Fahrt · ${formatKm(leg.km)}${alongRoads ? '' : ' Luftlinie'}`;
 }

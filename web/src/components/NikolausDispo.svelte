@@ -28,7 +28,7 @@
   import NikolausDispoMap from './NikolausDispoMap.svelte';
   import type { DispoMapRoute } from './NikolausDispoMap.svelte';
   import DispoMapView from './nikolaus/DispoMapView.svelte';
-  import { dispoMapTeam } from '../lib/nikolausDispoMap';
+  import { dispoMapTeam, teamKmLabel } from '../lib/nikolausDispoMap';
   import type { DispoMapTeam } from '../lib/nikolausDispoMap';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import InfoHint from './ui/InfoHint.svelte';
@@ -479,6 +479,12 @@
                 onteam={changeTeam}
                 onpin={toggleFixed}
                 onmap={showOnMap}
+                km={teamKmLabel(
+                  mapTeams.find((team) => team.name === route.team) ?? {
+                    km: null,
+                    kmAlongRoads: false,
+                  }
+                )}
               />
             {/each}
           </div>

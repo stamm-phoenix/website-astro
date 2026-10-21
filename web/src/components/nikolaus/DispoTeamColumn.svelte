@@ -16,10 +16,13 @@
     date: string;
     onteam: (id: string, team: string) => void;
     onpin: (id: string, team: string) => void;
+    /** Kilometres of the route, e.g. `ca. 23 km`. */
+    km?: string | null;
     /** Shows the visit in the map view. */
     onmap?: (id: string) => void;
   }
-  let { route, ids, data, color, base, fixed, dirty, date, onteam, onpin, onmap }: Props = $props();
+  let { route, ids, data, color, base, fixed, dirty, date, onteam, onpin, onmap, km }: Props =
+    $props();
   const stopsById = $derived(new Map(data.stops.map((stop) => [stop.id, stop])));
   const rowsById = $derived(new Map(data.rows.map((row) => [row.bookingId, row])));
   const childrenCount = $derived(
@@ -47,6 +50,7 @@
         <br />Abfahrt {base.name}
         {minutesToTime(route.departure)} · zurück ca. {minutesToTime(route.returnTime)}
         · Fahrzeit {Math.round(route.driveMinutes)} Min
+        {#if km}· Strecke {km}{/if}
       {/if}
     </p>
     {#if (data.members[route.team] ?? []).length > 0}
