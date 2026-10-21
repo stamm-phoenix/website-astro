@@ -130,9 +130,8 @@ test('my receipts from CampFlow show even if the submitted ones fail to load', a
   );
   await page.goto('/leitendenbereich/');
   const box = page.getByRole('region', { name: 'Meine Belege' });
-  await expect(
-    box.getByText('Deine eingereichten Belege konnten nicht geladen werden.')
-  ).toBeVisible();
+  // The load error says what to do and whom to ask
+  await expect(box.getByRole('link', { name: 'admin@stamm-phoenix.de' })).toBeVisible();
   await expect(box.getByText('Edeka – Grillabend')).toBeVisible();
   await expect(box.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
 });

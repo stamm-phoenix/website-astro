@@ -28,6 +28,7 @@
   import { localDate } from '../lib/dateUtils';
   import { KJR_ABGABE_MONATE, kjrRestzeit, offeneKjrFristen } from '../lib/kjrFristen';
   import LoadState from './ui/LoadState.svelte';
+  import MessageText from './ui/MessageText.svelte';
   import StatusLabel from './ui/StatusLabel.svelte';
   import { belegePflege, campflowBelegeStore } from '../lib/pflegeStore.svelte';
   import { meineBelege } from '../lib/campflowBelege';
@@ -300,7 +301,7 @@
     <p role="status" class="mt-2 text-sm text-neutral-700">Belege werden geladen …</p>
   {:else if belegeStore.error}
     <p class="mt-2 text-sm text-neutral-700">
-      Deine eingereichten Belege konnten nicht geladen werden.
+      <MessageText text={belegeStore.error} />
       <button
         type="button"
         class="text-link min-h-11 underline underline-offset-4"
@@ -312,7 +313,7 @@
     <p role="status" class="text-sm text-neutral-700">Belege aus CampFlow werden geladen …</p>
   {:else if campflowStore.error}
     <p class="text-sm text-neutral-700">
-      Ohne CampFlow fehlen schon gebuchte Belege.
+      <MessageText text={campflowStore.error} />
       <button
         type="button"
         class="text-link min-h-11 underline underline-offset-4"
