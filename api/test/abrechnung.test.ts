@@ -389,7 +389,12 @@ test('lists the Kostenstellen, active ones first', async (t) => {
   mockPlaywright(t, 200, {
     data: [
       { id: 'cun_3', name: 'Alt', archived: true, color: '#000', categories: [] },
-      { id: 'cun_2', name: 'Zeltlager', archived: false, categories: [] },
+      {
+        id: 'cun_2',
+        name: 'Zeltlager',
+        archived: false,
+        categories: [{ id: 'cat_1', name: 'Verpflegung', sphere: 'purpose' }],
+      },
       { id: 'cun_1', name: 'Hike', archived: false, categories: [] },
     ],
   });
@@ -398,9 +403,14 @@ test('lists the Kostenstellen, active ones first', async (t) => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(response.jsonBody, [
-    { id: 'cun_1', name: 'Hike', archived: false },
-    { id: 'cun_2', name: 'Zeltlager', archived: false },
-    { id: 'cun_3', name: 'Alt', archived: true },
+    { id: 'cun_1', name: 'Hike', archived: false, categories: [] },
+    {
+      id: 'cun_2',
+      name: 'Zeltlager',
+      archived: false,
+      categories: [{ id: 'cat_1', name: 'Verpflegung' }],
+    },
+    { id: 'cun_3', name: 'Alt', archived: true, categories: [] },
   ]);
 });
 

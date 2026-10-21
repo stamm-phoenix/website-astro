@@ -42,6 +42,7 @@ export interface Database {
   'content.aktion': AktionTable;
   'content.aktion_stufe': AktionStufeTable;
   'organisation.beleg': BelegTable;
+  'organisation.beleg_campflow': BelegCampflowTable;
   'content.instagram_token': InstagramTokenTable;
   'content.download': DownloadTable;
   'gruppenstunde.meeting': MeetingTable;
@@ -333,6 +334,33 @@ export interface BelegTable {
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
   updated_by: Generated<string>;
+}
+
+export type BelegCampflowState = 'Gestartet' | 'Fehlgeschlagen' | 'Hochgeladen';
+
+/** Transfer of a receipt to CampFlow; outlives the receipt, so it has no foreign key. */
+export interface BelegCampflowTable {
+  beleg_id: number;
+  version: ReadOnly<Buffer>;
+  state: BelegCampflowState;
+  /** File name in CampFlow, the key against duplicates; the same for every attempt. */
+  file_name: string;
+  costunit_id: string;
+  costunit_name: string;
+  category_id: string;
+  category_name: string;
+  shop: string;
+  beleg_date: ColumnType<Date | string | null, string | null, string | null>;
+  amount_cent: number;
+  error: Generated<string>;
+  campflow_number: ColumnType<string | null, string | null | undefined, string | null>;
+  campflow_receipt_id: ColumnType<string | null, string | null | undefined, string | null>;
+  campflow_expense_id: ColumnType<string | null, string | null | undefined, string | null>;
+  started_by: string;
+  /** Written as ISO text, so `datetime2(3)` keeps the milliseconds. */
+  started_at: ColumnType<Date, string, string>;
+  uploaded_at: ColumnType<Date | null, string | null | undefined, string | null>;
+  beleg_deleted_at: ColumnType<Date | null, string | null | undefined, string | null>;
 }
 
 export interface InstagramTokenTable {

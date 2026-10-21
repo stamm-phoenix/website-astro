@@ -2,7 +2,8 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import FormField from './FormField.svelte';
   import BelegStatusLabel from './BelegStatusLabel.svelte';
-  import type { BelegForm } from '../../lib/belegForm';
+  import BelegCampflowTransfer from './BelegCampflowTransfer.svelte';
+  import type { BelegForm, CampflowChoice } from '../../lib/belegForm';
   import type { BelegStatus } from '../../lib/types';
   interface Props {
     form: BelegForm;
@@ -10,8 +11,9 @@
     busy: boolean;
     errors: Record<string, string>;
     onsave: (decision: BelegStatus) => void;
+    ontransfer: (choice: CampflowChoice) => void;
   }
-  let { form = $bindable(), reviewer, busy, errors, onsave }: Props = $props();
+  let { form = $bindable(), reviewer, busy, errors, onsave, ontransfer }: Props = $props();
 </script>
 
 {#if form.id}
@@ -78,9 +80,7 @@
       </div>
     {/if}
     {#if reviewer && form.status === 'Angenommen'}
-      <p class="text-xs text-neutral-700">
-        Foto herunterladen, in CampFlow als Beleg hochladen und den Beleg hier löschen.
-      </p>
+      <BelegCampflowTransfer {form} {busy} {ontransfer} />
     {/if}
   </fieldset>
 {/if}

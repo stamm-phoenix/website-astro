@@ -15,12 +15,63 @@ import { countNights } from '../../../api/lib/kjr-zuschuss';
 import { campflowDetail } from './campflow';
 
 export const kostenstellen: Kostenstelle[] = [
-  { id: 'cun_Sola26', name: 'Sommerlager 2026 Oberjoch', archived: false },
-  { id: 'cun_WoeHerbst', name: 'Wölflings-Herbstwochenende', archived: false },
-  { id: 'cun_Hike', name: 'Hike 2026', archived: false },
-  { id: 'cun_Stavo', name: 'Stammesversammlung', archived: false },
-  { id: 'cun_Allgemein', name: 'Allgemein', archived: false },
-  { id: 'cun_Sola25', name: 'Sommerlager 2025', archived: true },
+  {
+    id: 'cun_Sola26',
+    name: 'Sommerlager 2026 Oberjoch',
+    archived: false,
+    categories: [
+      { id: 'cat_Sola261', name: 'Verpflegung' },
+      { id: 'cat_Sola262', name: 'Fahrtkosten' },
+      { id: 'cat_Sola263', name: 'Material' },
+      { id: 'cat_Sola264', name: 'Unterkunft' },
+    ],
+  },
+  {
+    id: 'cun_WoeHerbst',
+    name: 'Wölflings-Herbstwochenende',
+    archived: false,
+    categories: [
+      { id: 'cat_WoeHerbst1', name: 'Verpflegung' },
+      { id: 'cat_WoeHerbst2', name: 'Material' },
+    ],
+  },
+  {
+    id: 'cun_Hike',
+    name: 'Hike 2026',
+    archived: false,
+    categories: [
+      { id: 'cat_Hike1', name: 'Verpflegung' },
+      { id: 'cat_Hike2', name: 'Material' },
+    ],
+  },
+  {
+    id: 'cun_Stavo',
+    name: 'Stammesversammlung',
+    archived: false,
+    categories: [
+      { id: 'cat_Stavo1', name: 'Verpflegung' },
+      { id: 'cat_Stavo2', name: 'Material' },
+    ],
+  },
+  {
+    id: 'cun_Allgemein',
+    name: 'Allgemein',
+    archived: false,
+    categories: [
+      { id: 'cat_Allgemein1', name: 'Material' },
+      { id: 'cat_Allgemein2', name: 'Verwaltung' },
+      { id: 'cat_Allgemein3', name: 'Lager und Aktionen' },
+    ],
+  },
+  {
+    id: 'cun_Sola25',
+    name: 'Sommerlager 2025',
+    archived: true,
+    categories: [
+      { id: 'cat_Sola251', name: 'Verpflegung' },
+      { id: 'cat_Sola252', name: 'Material' },
+    ],
+  },
 ];
 
 type Eintrag = [category: string, amountEur: number];

@@ -27,6 +27,8 @@ export interface Kostenstelle {
   id: string;
   name: string;
   archived: boolean;
+  /** The Kategorien of the Kostenstelle, to book a receipt on one of them. */
+  categories: { id: string; name: string }[];
 }
 
 export interface EinzelnachweiseResponse {
@@ -39,10 +41,24 @@ export interface EinzelnachweiseResponse {
 export class PlaywrightApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    /** The API's own explanation (`error` of its JSON body), e.g. which Kategorie is missing. */
+    public detail = ''
   ) {
     super(message);
     this.name = 'PlaywrightApiError';
+  }
+}
+
+/** The `error` text of a failed response of the Playwright API, if it sent one. */
+async function errorDetail(response: Response): Promise<string> {
+  try {
+    const body: unknown = await response.json();
+    const error =
+      body && typeof body === 'object' ? (body as Record<string, unknown>).error : undefined;
+    return typeof error === 'string' ? error.slice(0, 500) : '';
+  } catch {
+    return '';
   }
 }
 
@@ -51,7 +67,7 @@ async function send<T>(
   query: Record<string, string>,
   accept: string,
   read: (response: Response) => Promise<T>,
-  options: { method?: 'PUT'; body?: unknown; signal?: AbortSignal } = {}
+  options: { method?: 'PUT' | 'POST'; body?: unknown; signal?: AbortSignal } = {}
 ): Promise<T> {
   const url = new URL(path, CONFIG.playwrightApi.url);
   for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
@@ -78,7 +94,8 @@ async function send<T>(
     if (!response.ok) {
       throw new PlaywrightApiError(
         response.status,
-        `Playwright API request ${url.pathname} failed: ${response.status} ${response.statusText}`
+        `Playwright API request ${url.pathname} failed: ${response.status} ${response.statusText}`,
+        await errorDetail(response)
       );
     }
     return await read(response);
@@ -94,7 +111,7 @@ async function send<T>(
 function request<T>(
   path: string,
   query: Record<string, string> = {},
-  options: { method?: 'PUT'; body?: unknown; signal?: AbortSignal } = {}
+  options: { method?: 'PUT' | 'POST'; body?: unknown; signal?: AbortSignal } = {}
 ): Promise<T> {
   return send(
     path,
@@ -107,7 +124,7 @@ function request<T>(
 
 export type CampflowSphere = 'ideal' | 'purpose' | 'assets' | 'business';
 
-interface KostenstelleWithCategories extends Kostenstelle {
+interface KostenstelleWithCategories extends Omit<Kostenstelle, 'categories'> {
   categories: { name: string; sphere: CampflowSphere }[];
 }
 
@@ -250,12 +267,85 @@ export function getAktionBeitraege(
   );
 }
 
-/** All Kostenstellen of the workspace, archived ones included. */
+/** All Kostenstellen of the workspace with their Kategorien, archived ones included. */
 export async function getKostenstellen(): Promise<Kostenstelle[]> {
-  const response = await request<{ data: { id: string; name: string; archived?: boolean }[] }>(
-    '/campflow/kostenstellen'
+  const response = await request<{
+    data: { id: string; name: string; archived?: boolean; categories?: unknown }[];
+  }>('/campflow/kostenstellen');
+  return response.data.map(({ id, name, archived, categories }) => ({
+    id,
+    name,
+    archived: archived === true,
+    categories: (Array.isArray(categories) ? categories : [])
+      .filter(
+        (category: unknown): category is { id: string; name: string } =>
+          !!category &&
+          typeof category === 'object' &&
+          typeof (category as Record<string, unknown>).id === 'string' &&
+          typeof (category as Record<string, unknown>).name === 'string'
+      )
+      .map((category) => ({ id: category.id, name: category.name })),
+  }));
+}
+
+/** A receipt to upload to CampFlow and book as an expense (`POST /campflow/belege`). */
+export interface CampflowBelegUpload {
+  /** File name in CampFlow; the Playwright API's key against duplicates, unique per receipt. */
+  filename: string;
+  content: Uint8Array;
+  description: string;
+  /** `YYYY-MM-DD` */
+  date: string;
+  /** Positive. */
+  amountCent: number;
+  /** „Auslage durch“: who gets the money back, null if nobody. */
+  disburser: string | null;
+  /** `cun_…` */
+  costUnit: string;
+  /** `cat_…` */
+  category: string;
+}
+
+export interface CampflowBelegUploaded {
+  /** False if CampFlow had the receipt already, e.g. from an attempt whose answer was lost. */
+  created: boolean;
+  number: string;
+  receiptId: string;
+  expenseId: string;
+}
+
+/**
+ * Uploads a receipt to CampFlow and books it. The Playwright API returns an existing booking
+ * with the same file name instead of creating a second one, so repeating a call with the same
+ * file name, Kostenstelle and Kategorie after a lost answer is safe.
+ */
+export async function uploadCampflowBeleg(
+  beleg: CampflowBelegUpload,
+  options: { signal?: AbortSignal } = {}
+): Promise<CampflowBelegUploaded> {
+  const { content, ...fields } = beleg;
+  const response = await request<unknown>(
+    '/campflow/belege',
+    {},
+    {
+      method: 'POST',
+      body: { ...fields, content: Buffer.from(content).toString('base64') },
+      signal: options.signal,
+    }
   );
-  return response.data.map(({ id, name, archived }) => ({ id, name, archived: archived === true }));
+  const data = (response && typeof response === 'object' ? response : {}) as Record<
+    string,
+    unknown
+  >;
+  if (typeof data.number !== 'string' || !data.number || typeof data.created !== 'boolean') {
+    throw new PlaywrightApiError(502, 'Invalid receipt upload response');
+  }
+  return {
+    created: data.created,
+    number: data.number,
+    receiptId: typeof data.receiptId === 'string' ? data.receiptId : '',
+    expenseId: typeof data.expenseId === 'string' ? data.expenseId : '',
+  };
 }
 
 /** Maps errors of the Playwright API to API responses; other errors are rethrown. */

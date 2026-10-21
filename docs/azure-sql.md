@@ -234,6 +234,10 @@ Die Website hat sie wie in Abschnitt 11 beim ersten Zugriff selbst übertragen (
 - **Belege:** Die Fotos (bei Scans samt Original) liegen im Blob Storage (`belege/<id>/…`). Die
   Vorschau in der Liste entsteht beim ersten Abruf. Verwaiste Dateien entfernt die nächste
   Änderung wie bei den Leitenden.
+  Die Übertragung nach CampFlow hält `organisation.beleg_campflow` fest (Migration
+  `0039_beleg_campflow.sql`): eine Zeile je Beleg mit Versuch, Ergebnis, CampFlow-Nummer und
+  Löschung, ohne Fremdschlüssel, damit sie den gelöschten Beleg überdauert; siehe
+  [belege-campflow.md](belege-campflow.md).
 - **Instagram-Token:** eine Zeile mit dem Zeitpunkt der letzten Erneuerung. Fehlt sie, beginnt
   die Website mit `INSTAGRAM_ACCESS_TOKEN`. Previews bekommen kein Token als Testdaten: Sie legen
   beim ersten Abruf des Feeds `INSTAGRAM_ACCESS_TOKEN` in ihrer eigenen Datenbank ab.

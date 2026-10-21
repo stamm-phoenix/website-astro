@@ -18,7 +18,7 @@ import {
   toDateString,
   toVersion,
 } from './db';
-import type { BelegTable } from './db-schema';
+import type { BelegCampflowState, BelegCampflowTable, BelegTable } from './db-schema';
 import type { BelegInput, BelegStatus } from './pflege-validation';
 
 /**
@@ -46,6 +46,23 @@ export interface StaffBeleg {
   hasOriginal: boolean;
   /** Preliminary check of the photo by the image model, if configured. */
   aiCheck: BelegCheck | null;
+  /** The last transfer to CampFlow (`beleg-campflow.ts`), null if there was none. */
+  campflow: BelegCampflow | null;
+}
+
+/** Transfer of a receipt to CampFlow, as the Kasse sees it. */
+export interface BelegCampflow {
+  state: BelegCampflowState;
+  costUnitId: string;
+  costUnitName: string;
+  categoryId: string;
+  categoryName: string;
+  /** Belegnummer in CampFlow once uploaded, e.g. `2026-112`. */
+  number: string | null;
+  /** What went wrong in the last attempt; empty after success. */
+  error: string;
+  startedBy: string;
+  startedAt: string;
 }
 
 /** A receipt with the name of its photo, for the photo endpoint. */
@@ -60,7 +77,24 @@ export interface BelegPhotos {
   original?: Uint8Array;
 }
 
-function toBeleg(row: Selectable<BelegTable>): StoredBeleg {
+export function toBelegCampflow(row: Selectable<BelegCampflowTable>): BelegCampflow {
+  return {
+    state: row.state,
+    costUnitId: row.costunit_id,
+    costUnitName: row.costunit_name,
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+    number: row.campflow_number,
+    error: row.error,
+    startedBy: row.started_by,
+    startedAt: row.started_at.toISOString(),
+  };
+}
+
+function toBeleg(
+  row: Selectable<BelegTable>,
+  campflow: Selectable<BelegCampflowTable> | undefined
+): StoredBeleg {
   return {
     id: String(row.id),
     etag: toVersion(row.version),
@@ -78,8 +112,17 @@ function toBeleg(row: Selectable<BelegTable>): StoredBeleg {
     hasImage: row.photo !== null,
     hasOriginal: originalFileName(row.photo) !== undefined,
     aiCheck: parseStoredBelegCheck(row.ai_check ?? undefined),
+    campflow: campflow ? toBelegCampflow(campflow) : null,
     photo: row.photo,
   };
+}
+
+/** File name of the photo for CampFlow, e.g. `2026-10-01 REWE 12,34 EUR.jpg`. */
+export function downloadFileName(beleg: StaffBeleg, original = false): string {
+  const amount = (beleg.amountCent / 100).toFixed(2).replace('.', ',');
+  const shop = beleg.shop.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Beleg';
+  const suffix = original ? ' Original' : '';
+  return `${beleg.date || 'Beleg'} ${shop} ${amount} EUR${suffix}.jpg`.replace(/\s+/g, ' ');
 }
 
 /** Without the name of the photo, which stays on the server. */
@@ -96,17 +139,36 @@ export function toStaffBeleg(beleg: StoredBeleg): StaffBeleg {
 export async function getBelege(submittedBy?: string): Promise<StoredBeleg[]> {
   let query = getDb().selectFrom('organisation.beleg').selectAll();
   if (submittedBy !== undefined) query = query.where('submitted_by', '=', submittedBy);
-  const rows = await query.orderBy('submitted_at', 'desc').orderBy('id', 'desc').execute();
-  return rows.map(toBeleg);
+  const [rows, transfers] = await Promise.all([
+    query.orderBy('submitted_at', 'desc').orderBy('id', 'desc').execute(),
+    // Only those of receipts still there; the others are history
+    getDb()
+      .selectFrom('organisation.beleg_campflow')
+      .selectAll()
+      .where('beleg_deleted_at', 'is', null)
+      .execute(),
+  ]);
+  const byId = new Map(transfers.map((transfer) => [transfer.beleg_id, transfer]));
+  return rows.map((row) => toBeleg(row, byId.get(row.id)));
 }
 
 export async function getBeleg(id: number): Promise<StoredBeleg | undefined> {
-  const row = await getDb()
-    .selectFrom('organisation.beleg')
+  const [row, transfer] = await Promise.all([
+    getDb().selectFrom('organisation.beleg').selectAll().where('id', '=', id).executeTakeFirst(),
+    getBelegCampflowRow(id),
+  ]);
+  return row ? toBeleg(row, transfer) : undefined;
+}
+
+/** The transfer of a receipt to CampFlow, also of one deleted since. */
+export function getBelegCampflowRow(
+  id: number
+): Promise<Selectable<BelegCampflowTable> | undefined> {
+  return getDb()
+    .selectFrom('organisation.beleg_campflow')
     .selectAll()
-    .where('id', '=', id)
+    .where('beleg_id', '=', id)
     .executeTakeFirst();
-  return row ? toBeleg(row) : undefined;
 }
 
 function toColumns(input: BelegInput): {
@@ -269,5 +331,5 @@ export async function setBelegPhoto(
   if (!updated) return notChanged(id);
   const old = previous.photo;
   if (old && old !== photo) await removeFiles(() => deleteBelegPhoto(id, old));
-  return toStaffBeleg(toBeleg(updated));
+  return toStaffBeleg(toBeleg(updated, await getBelegCampflowRow(id)));
 }

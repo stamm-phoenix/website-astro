@@ -1,6 +1,6 @@
 import { parseEuroToCent } from './belege';
 import { todayIso, formatDateTime } from './format';
-import type { BelegCheck, BelegStatus } from './types';
+import type { BelegCampflow, BelegCheck, BelegStatus } from './types';
 export interface BelegForm {
   id: string | null;
   etag: string;
@@ -18,6 +18,15 @@ export interface BelegForm {
   submittedBy: string;
   submittedAt: string;
   aiCheck: BelegCheck | null;
+  campflow: BelegCampflow | null;
+}
+
+/** Where an accepted receipt is booked in CampFlow. */
+export interface CampflowChoice {
+  /** `cun_…` */
+  costUnitId: string;
+  /** `cat_…` */
+  categoryId: string;
 }
 
 export function photoUrl(beleg: { id: string | null; etag: string }, variant = ''): string {
@@ -53,7 +62,7 @@ export function decisionMessage(
 ): string {
   switch (decision) {
     case 'Angenommen':
-      return `Beleg von ${shop} angenommen. Jetzt das Foto herunterladen, in CampFlow hochladen und den Beleg hier löschen.`;
+      return `Beleg von ${shop} angenommen. Jetzt Kostenstelle und Kategorie wählen und nach CampFlow übertragen.`;
     case 'Abgelehnt':
       return mailed
         ? `Beleg von ${shop} abgelehnt. ${submittedBy} hat die Begründung per Mail bekommen.`
@@ -68,4 +77,13 @@ export function decisionMessage(
 export function knownBelegAktion(value: string, suggestions: string[]): boolean {
   const text = value.trim().toLocaleLowerCase('de');
   return suggestions.some((suggestion) => suggestion.trim().toLocaleLowerCase('de') === text);
+}
+
+/** The Kostenstelle whose name is the receipt's Aktion, as the Abrechnung matches them. */
+export function matchingKostenstelle<T extends { name: string; archived: boolean }>(
+  aktion: string,
+  kostenstellen: T[]
+): T | undefined {
+  const name = aktion.trim().toLocaleLowerCase('de');
+  return kostenstellen.find((k) => !k.archived && k.name.trim().toLocaleLowerCase('de') === name);
 }
