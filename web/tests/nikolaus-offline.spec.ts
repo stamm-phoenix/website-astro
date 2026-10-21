@@ -359,3 +359,43 @@ test('a saved day added after the baked settings still restores offline', async 
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(page).toHaveURL(/tag=2026-12-07/);
 });
+
+/** Holds the login check until `release`; records it and the route requests in their order. */
+async function holdLoginCheck(page: Page): Promise<{ release: () => void; events: string[] }> {
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  const events: string[] = [];
+  await page.route('**/.auth/me', async (route) => {
+    await held;
+    events.push('login');
+    await route.continue();
+  });
+  page.on('request', (request) => {
+    if (request.url().endsWith(GET)) events.push('route');
+  });
+  return { release: () => release(), events };
+}
+
+test('without a saved route the route is requested before the login check answers', async ({
+  page,
+}) => {
+  const login = await holdLoginCheck(page);
+  await page.goto(URL);
+  await expect.poll(() => login.events).toEqual(['route']);
+  login.release();
+  await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
+  expect(login.events.filter((event) => event === 'route')).toHaveLength(1);
+});
+
+test('a saved route is requested only after the login check names its owner', async ({ page }) => {
+  await prepare(page);
+  const login = await holdLoginCheck(page);
+  const early = page.waitForRequest((request) => request.url().endsWith(GET), { timeout: 3000 });
+  await page.reload();
+  // Pending visits of the saved route have to be sent before the route is loaded again
+  await early.catch(() => undefined);
+  login.release();
+  await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
+  await expect.poll(() => login.events.indexOf('route')).toBeGreaterThan(0);
+  expect(login.events[0]).toBe('login');
+});
