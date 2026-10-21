@@ -5,6 +5,11 @@ import { DocxError } from './docx-text';
 import type { ProtokollDriveItem } from './protokolle';
 import { parseProtokollTermin } from './protokoll-termin';
 import { getSharePointDriveFileContent, getSharePointDriveItem } from './sharepoint-data-access';
+import {
+  readProtokollContentVersions,
+  saveProtokollContentVersions,
+} from './protokoll-content-version-store';
+import type { StoredContentVersion } from './protokoll-content-version-store';
 
 const PREFIX = 'docx-word-sha256:';
 const FILE_PREFIX = 'file-sha256:';
@@ -19,7 +24,25 @@ export function fileContentVersion(content: Uint8Array, fileName: string): strin
 const MAX_WORD_BYTES = 50 * 1024 * 1024;
 const versions = new Map<string, { cTag: string; version: string }>();
 
-/** Retain one version per file in the current folder, with at most four Graph downloads. */
+/** Forgets the versions in memory, as after a restart (for tests). */
+export function resetProtokollContentVersionCache(): void {
+  versions.clear();
+}
+
+function warn(warning: string, error: unknown): void {
+  console.warn(
+    JSON.stringify({
+      scope: 'protokoll-content-version',
+      warning,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  );
+}
+
+/**
+ * Retain one version per file in the current folder, with at most four Graph downloads. The
+ * versions are also stored in Azure SQL, so a new process downloads only files whose cTag changed.
+ */
 export async function withProtokollContentVersions(
   driveId: string,
   items: ProtokollDriveItem[]
@@ -27,6 +50,18 @@ export async function withProtokollContentVersions(
   const keys = new Set(items.map((item) => JSON.stringify([driveId, item.id])));
   for (const key of versions.keys()) {
     if (JSON.parse(key)[0] === driveId && !keys.has(key)) versions.delete(key);
+  }
+  let stored: Map<string, StoredContentVersion> | undefined;
+  try {
+    stored = await readProtokollContentVersions(driveId);
+  } catch (error: unknown) {
+    warn('Stored content versions could not be read; the files are downloaded', error);
+  }
+  for (const item of items) {
+    const row = stored?.get(item.id);
+    const key = JSON.stringify([driveId, item.id]);
+    if (row && item.cTag && row.cTag === item.cTag && versions.get(key)?.cTag !== item.cTag)
+      versions.set(key, row);
   }
   const result = new Array<ProtokollDriveItem>(items.length);
   let next = 0;
@@ -38,7 +73,31 @@ export async function withProtokollContentVersions(
       }
     })
   );
+  if (stored) await storeContentVersions(driveId, items, stored);
   return result;
+}
+
+/** Writes during a GET: a failure is only logged, the next list stores the versions again. */
+async function storeContentVersions(
+  driveId: string,
+  items: ProtokollDriveItem[],
+  stored: Map<string, StoredContentVersion>
+): Promise<void> {
+  const changed = new Map<string, StoredContentVersion>();
+  for (const item of items) {
+    const cached = versions.get(JSON.stringify([driveId, item.id]));
+    const row = stored.get(item.id);
+    if (!item.cTag || cached?.cTag !== item.cTag) continue;
+    if (row?.cTag !== cached.cTag || row.version !== cached.version) changed.set(item.id, cached);
+  }
+  const ids = new Set(items.map((item) => item.id));
+  const removed = [...stored.keys()].filter((id) => !ids.has(id));
+  if (changed.size === 0 && removed.length === 0) return;
+  try {
+    await saveProtokollContentVersions(driveId, changed, removed);
+  } catch (error: unknown) {
+    warn('Content versions could not be stored; the next list stores them again', error);
+  }
 }
 
 /** SharePoint writes library columns into customXml and changes cTag, even without a Word edit. */
