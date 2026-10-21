@@ -3,7 +3,7 @@ import { validateSammelPaymentInput } from '../lib/pflege-validation';
 import { CampflowError } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { errorResponse } from '../lib/response-utils';
-import { getSammelOrder, getSammelCampaign } from '../lib/sammelbestellung-list';
+import { getSammelOrder, getSammelOrderCampaign } from '../lib/sammelbestellung-list';
 import { requireSammelVersion, sammelHandler } from './sammelbestellungen';
 import {
   SammelPaymentError,
@@ -22,8 +22,10 @@ export const SammelStaffPayment = sammelHandler(
     // SWA ends the entire API request at 45 seconds; leave five seconds of gateway margin.
     const deadline = Date.now() + 40_000;
     try {
-      const order = await getSammelOrder(request.params.id);
-      const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
+      const [order, campaign] = await Promise.all([
+        getSammelOrder(request.params.id),
+        getSammelOrderCampaign(request.params.id),
+      ]);
       if (!order || !campaign) return NOT_FOUND;
       if (request.method === 'GET') return ok(sammelPaymentView(order, campaign));
       const input = validateSammelPaymentInput(await readJsonBody(request));

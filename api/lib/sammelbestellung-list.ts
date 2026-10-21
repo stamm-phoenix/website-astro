@@ -329,7 +329,10 @@ function groupBy<T extends Record<K, number>, K extends string>(
   return groups;
 }
 
-async function loadCampaigns(db: Db, id?: number): Promise<SammelAktion[]> {
+/** One campaign by its ID, or the campaign of an order by the order's ID. */
+type CampaignFilter = { id: number } | { orderId: number };
+
+async function loadCampaigns(db: Db, filter?: CampaignFilter): Promise<SammelAktion[]> {
   let campaigns = db.selectFrom('sammel.campaign').selectAll().orderBy('id');
   let items = db
     .selectFrom('sammel.catalog_item')
@@ -342,7 +345,14 @@ async function loadCampaigns(db: Db, id?: number): Promise<SammelAktion[]> {
     .orderBy('campaign_id')
     .orderBy('item_position')
     .orderBy('position');
-  if (id !== undefined) {
+  if (filter !== undefined) {
+    const id =
+      'id' in filter
+        ? filter.id
+        : db
+            .selectFrom('sammel.member_order')
+            .select('campaign_id')
+            .where('id', '=', filter.orderId);
     campaigns = campaigns.where('id', '=', id);
     items = items.where('campaign_id', '=', id);
     variants = variants.where('campaign_id', '=', id);
@@ -387,7 +397,16 @@ export async function getSammelCampaigns(): Promise<SammelAktion[]> {
 export async function getSammelCampaign(id: string): Promise<SammelAktion | undefined> {
   const campaignId = parseId(id);
   if (campaignId === undefined) return undefined;
-  return (await loadCampaigns(getDb(), campaignId))[0];
+  return (await loadCampaigns(getDb(), { id: campaignId }))[0];
+}
+/**
+ * Loads the campaign of an order by the order's ID, so it can be read together with the order
+ * instead of after it.
+ */
+export async function getSammelOrderCampaign(orderId: string): Promise<SammelAktion | undefined> {
+  const id = parseId(orderId);
+  if (id === undefined) return undefined;
+  return (await loadCampaigns(getDb(), { orderId: id }))[0];
 }
 
 async function campaignByKey(creationKey: string): Promise<string | undefined> {
