@@ -22,7 +22,7 @@ bun run lint                    # ESLint
 
 # API (cd api)
 bun install                     # Install dependencies
-bun run build                   # Compile with tsc
+bun run build                   # Compile with tsc, then bundle main.ts into dist/bundle/ (loaded by the Functions host)
 bun run lint                    # ESLint
 TEST_SQL_PASSWORD=… bun run test  # Tests; database tests need a SQL Server (docs/azure-sql.md)
 ```
