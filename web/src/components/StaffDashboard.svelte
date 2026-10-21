@@ -1,8 +1,8 @@
 <script lang="ts">
   import { taskHasAssignee, taskAssigneeNames } from '../../../api/lib/aufgaben-zuordnung';
-  import { onMount, untrack, type Snippet } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
-  import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
+  import { fetchPrincipal } from '../lib/authStore.svelte';
   import {
     favoritesStore,
     favoriteToggle,
@@ -108,6 +108,8 @@
   );
 
   onMount(() => {
+    // The favorites come first: they are the main content and do not wait for the login check
+    void loadFavorites(STAFF_FAVORITE_PATHS);
     void loadTaskUsers();
     void fetchPrincipal();
     void fetchCampflowEvents();
@@ -115,25 +117,8 @@
     void loadRecent();
     void fetchNikolausStatus();
   });
-  function reloadFavorites(): void {
-    const userId = authStore.principal?.userId;
-    if (userId) void loadFavorites(userId, STAFF_FAVORITE_PATHS);
-  }
-  $effect(() => {
-    if (authStore.principal) untrack(reloadFavorites);
-  });
-  // The favorites belong to the account, so they wait for it; a failed check of the login is
-  // shown like a failed load, and retrying checks it again (the effect above then loads them)
-  const favoritesLoading = $derived(favoritesStore.loading || authStore.loading);
-  const favoritesError = $derived(
-    favoritesStore.loadError ??
-      (authStore.error && !authStore.principal
-        ? 'Deine Favoriten konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.'
-        : null)
-  );
   function retryFavorites(): void {
-    if (authStore.principal) reloadFavorites();
-    else void fetchPrincipal();
+    void loadFavorites(STAFF_FAVORITE_PATHS);
   }
 </script>
 
@@ -330,8 +315,8 @@
     </div>
     <LoadState
       data={favoritesStore.loaded ? favoritesStore.modules : null}
-      loading={favoritesLoading}
-      error={favoritesError}
+      loading={favoritesStore.loading}
+      error={favoritesStore.loadError}
       loadingText="Favoriten werden geladen …"
       onretry={retryFavorites}
       isEmpty={(selection) => selection.length === 0}

@@ -1,4 +1,5 @@
 import { errorMessage, fetchApi, sendApi } from './api';
+import { authStore, fetchPrincipal } from './authStore.svelte';
 import { STAFF_FAVORITE_PATHS } from './staffModules';
 
 /**
@@ -62,21 +63,33 @@ function removeLegacyFavorites(userId: string): void {
 
 /** Saves run one after another, so an older selection never overwrites a newer one. */
 let queue: Promise<void> = Promise.resolve();
+/** Counts the choices made on this page, so a load can tell whether one came during it. */
+let choices = 0;
+
+/** The account of the logged-in person; only needed to take over favorites of this browser. */
+async function currentUserId(): Promise<string> {
+  await fetchPrincipal();
+  const userId = authStore.principal?.userId;
+  if (!userId) throw new Error('Login not checked');
+  return userId;
+}
 
 /**
  * Loads the favorites of the account, keeping only the `known` module paths. An account without
- * saved favorites takes over the selection of this browser once.
+ * saved favorites takes over the selection of this browser once. Favorites already shown stay
+ * while the newer ones load; a choice made meanwhile is kept and saved by its own save.
  */
-export async function loadFavorites(userId: string, known: string[]): Promise<void> {
-  // No choosing while loading, so a late answer cannot replace a newer choice
-  favoritesStore.loaded = false;
+export async function loadFavorites(known: string[]): Promise<void> {
   favoritesStore.loading = true;
   favoritesStore.loadError = null;
+  const before = choices;
   try {
     // Saves still running (e.g. from before leaving the page) finish first, so the answer has them
     await queue;
     let { modules } = await fetchApi<{ modules: string[] | null }>(ENDPOINT);
+    let userId: string | null = null;
     if (modules === null) {
+      userId = await currentUserId();
       const legacy = readLegacyFavorites(userId, known);
       // An empty selection is taken over too, so another browser cannot bring back old ones.
       // The server keeps favorites saved meanwhile on another device and answers with them.
@@ -89,12 +102,17 @@ export async function loadFavorites(userId: string, known: string[]): Promise<vo
           ).modules
         : [];
     }
-    favoritesStore.modules = knownPaths(modules, known);
-    favoritesStore.saved = favoritesStore.modules;
+    // A choice made while loading is newer than the answer; its save brings the server up to date
+    if (choices === before) {
+      favoritesStore.modules = knownPaths(modules, known);
+      favoritesStore.saved = favoritesStore.modules;
+      // The shown selection is the saved one again, so an earlier save result no longer applies
+      favoritesStore.notice = null;
+    }
     favoritesStore.loaded = true;
-    // The shown selection is the saved one again, so an earlier save result no longer applies
-    favoritesStore.notice = null;
-    removeLegacyFavorites(userId);
+    // The server has the favorites now; a copy this browser still kept is no longer needed
+    userId ??= authStore.principal?.userId ?? null;
+    if (userId) removeLegacyFavorites(userId);
   } catch (error: unknown) {
     favoritesStore.loadError = errorMessage(error, LOAD_FAILED);
   } finally {
@@ -145,6 +163,7 @@ export function saveFavorites(success = 'Favoriten gespeichert.'): void {
 /** Adds or removes a favorite and saves it right away; `title` names it in the confirmation. */
 export function toggleFavorite(path: string, title?: string): void {
   const adding = !favoritesStore.modules.includes(path);
+  choices++;
   favoritesStore.modules = adding
     ? [...favoritesStore.modules, path]
     : favoritesStore.modules.filter((module) => module !== path);
