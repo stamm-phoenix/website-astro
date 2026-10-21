@@ -1,8 +1,9 @@
 import { createHmac } from 'node:crypto';
+import { requestAzureMaps, isAzureMapsConfigured } from './azure-maps';
 import { CONFIG } from './config';
 import type { NikolausCoordinates } from './nikolaus-config';
 import { getNikolausSettings } from './nikolaus-settings';
-import { createGeocodingCoordinator } from './geocoding-coordination';
+import { GEOCODING_STATE_KEY, createGeocodingCache } from './geocoding-cache';
 import { mutateNikolausState, readNikolausState } from './nikolaus-state';
 
 /** How exactly an address could be located. */
@@ -17,148 +18,125 @@ export interface GeocodeResult {
   unavailable?: boolean;
 }
 
-interface NominatimResult {
-  lat: string;
-  lon: string;
-  address?: { postcode?: string; house_number?: string };
+/** The fields of an Azure Maps geocoding result that are used here. */
+interface GeocodingFeature {
+  lat: number;
+  lon: number;
+  type: string;
+  postalCode?: string;
+  streetNumber?: string;
 }
 
-// Nominatim's usage policy requires an identifying user agent with contact information
-const USER_AGENT = 'StammPhoenixWebsite/1.0 (+https://stamm-phoenix.de; kontakt@stamm-phoenix.de)';
 const TIMEOUT_MS = 5000;
-// Production, preview and every Function instance must use this same state record.
-const STATE_KEY = 'geocoding:nominatim';
-const coordinator = createGeocodingCoordinator({
-  read: async () => (await readNikolausState(STATE_KEY))?.data,
-  mutate: (parse, change) => mutateNikolausState(STATE_KEY, parse, change),
+/** Result types of Azure Maps that are a single building or a stretch of a street. */
+const ADDRESS_TYPES = new Set(['Address']);
+const STREET_TYPES = new Set(['RoadBlock', 'RoadIntersection']);
+
+const cache = createGeocodingCache({
+  read: async () => (await readNikolausState(GEOCODING_STATE_KEY))?.data,
+  mutate: (parse, change) => mutateNikolausState(GEOCODING_STATE_KEY, parse, change),
   log: (event) => console.info(JSON.stringify({ scope: 'nikolaus_geocoding', ...event })),
 });
 
-type CoordinatedRequest = <T>(task: () => Promise<T>) => Promise<T>;
-
-function geocodingUrl(): string {
-  const url = new URL(CONFIG.nikolaus.geocodingUrl);
-  if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.search) {
-    throw new Error('Invalid geocoding provider configuration');
-  }
-  return url.toString();
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseSearchResults(value: unknown): NominatimResult[] {
-  if (!Array.isArray(value)) throw new Error('Invalid geocoding response');
-  return value.filter((item: unknown): item is NominatimResult => {
-    if (typeof item !== 'object' || item === null) return false;
-    const candidate = item as Partial<NominatimResult>;
-    return (
-      typeof candidate.lat === 'string' &&
-      typeof candidate.lon === 'string' &&
-      Number.isFinite(Number(candidate.lat)) &&
-      Math.abs(Number(candidate.lat)) <= 90 &&
-      Number.isFinite(Number(candidate.lon)) &&
-      Math.abs(Number(candidate.lon)) <= 180 &&
-      (candidate.address === undefined ||
-        (typeof candidate.address === 'object' &&
-          candidate.address !== null &&
-          (candidate.address.postcode === undefined ||
-            typeof candidate.address.postcode === 'string') &&
-          (candidate.address.house_number === undefined ||
-            typeof candidate.address.house_number === 'string')))
-    );
+function optionalText(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+/** Reads the GeoJSON answer; results without valid coordinates are left out. */
+export function parseGeocodingFeatures(value: unknown): GeocodingFeature[] {
+  if (!isRecord(value) || !Array.isArray(value.features)) {
+    throw new Error('Invalid geocoding response');
+  }
+  return value.features.flatMap((feature: unknown): GeocodingFeature[] => {
+    if (!isRecord(feature) || !isRecord(feature.geometry) || !isRecord(feature.properties)) {
+      return [];
+    }
+    const coordinates = feature.geometry.coordinates;
+    if (!Array.isArray(coordinates)) return [];
+    const [lon, lat] = coordinates as unknown[];
+    if (
+      typeof lat !== 'number' ||
+      typeof lon !== 'number' ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lon) ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lon) > 180
+    ) {
+      return [];
+    }
+    const { type, address } = feature.properties;
+    const parts = isRecord(address) ? address : {};
+    return [
+      {
+        lat,
+        lon,
+        type: typeof type === 'string' ? type : '',
+        postalCode: optionalText(parts.postalCode),
+        streetNumber: optionalText(parts.streetNumber),
+      },
+    ];
   });
 }
 
 async function search(
-  query: string,
-  url: string,
-  base: NikolausCoordinates,
-  request: CoordinatedRequest
-): Promise<NominatimResult[]> {
-  // Prefer results around the base without excluding others (bounded=0)
-  const viewbox = [base.lon - 0.3, base.lat + 0.2, base.lon + 0.3, base.lat - 0.2].join(',');
-  const params = new URLSearchParams({
-    q: query,
-    countrycodes: 'de',
-    format: 'jsonv2',
-    addressdetails: '1',
-    limit: '5',
-    viewbox,
-    bounded: '0',
+  query: Record<string, string>,
+  base: NikolausCoordinates
+): Promise<GeocodingFeature[]> {
+  const body = await requestAzureMaps({
+    method: 'GET',
+    path: '/geocode',
+    apiVersion: CONFIG.azureMaps.searchApiVersion,
+    query: {
+      ...query,
+      countryRegion: 'DE',
+      top: '5',
+      // Prefer results around the starting point of the teams without excluding others
+      coordinates: `${base.lon},${base.lat}`,
+    },
+    timeoutMs: TIMEOUT_MS,
   });
-
-  return request(async () => {
-    const response = await fetch(`${url}?${params.toString()}`, {
-      headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'de' },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!response.ok) {
-      throw new Error(`Nominatim responded with ${response.status}`);
-    }
-    const body: unknown = await response.json();
-    return parseSearchResults(body);
-  });
+  return parseGeocodingFeatures(body);
 }
 
-/** Nominatim does not reliably filter by postal code, so results are checked here. */
+/** Results outside the postal code are another place of the same name. */
 function matchingPostalCode(
-  results: NominatimResult[],
+  results: GeocodingFeature[],
   postalCode: string
-): NominatimResult | undefined {
-  return results.find((result) =>
-    (result.address?.postcode ?? '')
-      .split(/[;,]/)
-      .map((code) => code.trim())
-      .includes(postalCode)
-  );
+): GeocodingFeature | undefined {
+  return results.find((result) => result.postalCode === postalCode);
 }
 
-function toResult(match: NominatimResult, precision: GeoPrecision): GeocodeResult {
-  const round = (value: string): number => Math.round(Number(value) * 1e6) / 1e6;
+function precisionOf(result: GeocodingFeature): GeoPrecision {
+  if (ADDRESS_TYPES.has(result.type)) return result.streetNumber ? 'address' : 'street';
+  return STREET_TYPES.has(result.type) ? 'street' : 'area';
+}
+
+function toResult(match: GeocodingFeature, precision: GeoPrecision): GeocodeResult {
+  const round = (value: number): number => Math.round(value * 1e6) / 1e6;
   return { found: true, precision, lat: round(match.lat), lon: round(match.lon) };
 }
 
-/** Removes a trailing house number like "1", "12a" or "3-5" from a street. */
-function stripHouseNumber(street: string): string {
-  return street.replace(/\s+\d+\s*[a-zA-Z]?(\s*[-/]\s*\d+\s*[a-zA-Z]?)?$/, '').trim();
-}
-
-async function lookup(
-  street: string,
-  postalCode: string,
-  city: string,
-  url: string,
-  request: CoordinatedRequest
-): Promise<GeocodeResult> {
-  // Results around the starting point of the teams are preferred
+async function lookup(street: string, postalCode: string, city: string): Promise<GeocodeResult> {
   const { base } = (await getNikolausSettings()).area;
-  // 1. Full address
+  // 1. The full address; without the house number Azure Maps answers with the street
   const exact = matchingPostalCode(
-    await search(`${street}, ${postalCode} ${city}`, url, base, request),
+    await search({ addressLine: street, postalCode, locality: city }, base),
     postalCode
   );
-  if (exact) return toResult(exact, exact.address?.house_number ? 'address' : 'street');
+  if (exact) return toResult(exact, precisionOf(exact));
 
-  // 2. Street without house number
-  const streetOnly = stripHouseNumber(street);
-  if (streetOnly && streetOnly !== street) {
-    const road = matchingPostalCode(
-      await search(`${streetOnly}, ${postalCode} ${city}`, url, base, request),
-      postalCode
-    );
-    if (road) return toResult(road, 'street');
-  }
-
-  // 3. Only the town, the map then shows roughly the area
-  const area = matchingPostalCode(
-    await search(`${postalCode} ${city}`, url, base, request),
-    postalCode
-  );
+  // 2. Only the town, the map then shows roughly the area
+  const area = matchingPostalCode(await search({ postalCode, locality: city }, base), postalCode);
   return area ? toResult(area, 'area') : { found: false };
 }
 
 /**
- * Locates an address via OpenStreetMap Nominatim. Never throws: if the service is
- * unreachable, `unavailable` is set instead. Workers share pacing, durable reservations and a
- * 24-hour cache. A crashed reservation owner requires confirmed operator recovery.
+ * Locates an address via Azure Maps. Never throws: if the service is not configured or
+ * unreachable, `unavailable` is set instead. Results are shared for 24 hours by all instances.
  */
 export async function geocodeAddress(
   street: string,
@@ -170,16 +148,14 @@ export async function geocodeAddress(
     if (!secret || secret.length < 32) {
       throw new Error('Missing shared geocoding configuration');
     }
-    const url = geocodingUrl();
+    if (!isAzureMapsConfigured()) throw new Error('Azure Maps is not configured');
     const normalized = [street, postalCode, city].map((part) =>
       part.trim().normalize('NFC').toLowerCase()
     );
     const key = createHmac('sha256', secret)
-      .update(JSON.stringify([url, ...normalized]))
+      .update(JSON.stringify([CONFIG.azureMaps.endpoint, ...normalized]))
       .digest('hex');
-    return await coordinator.lookup(key, (request) =>
-      lookup(street.trim(), postalCode.trim(), city.trim(), url, request)
-    );
+    return await cache.lookup(key, () => lookup(street.trim(), postalCode.trim(), city.trim()));
   } catch {
     console.info(
       JSON.stringify({ scope: 'nikolaus_geocoding', event: 'unavailable', at: Date.now() })

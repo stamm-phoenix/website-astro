@@ -2,10 +2,14 @@ import type { Transaction } from 'kysely';
 import type { Database } from './db-schema';
 import type { Db } from './db';
 import { getDb, inTransaction, lockResource, toDateString } from './db';
-import { parseGeocodingState } from './geocoding-coordination';
-import type { GeocodingState } from './geocoding-coordination';
+import {
+  GEOCODING_STATE_KEY,
+  LEGACY_GEOCODING_STATE_KEY,
+  parseGeocodingCache,
+} from './geocoding-cache';
+import type { GeocodingCache } from './geocoding-cache';
 import { dateToLocalParts } from './nikolaus-config';
-import { mutateNikolausState } from './nikolaus-state';
+import { deleteNikolausState, mutateNikolausState } from './nikolaus-state';
 import { CAPACITY_LOCK, EINTEILUNG_LOCK, writeAuditLog } from './nikolaus-settings';
 
 /**
@@ -96,18 +100,19 @@ export interface CleanupResult {
   deleted: Record<string, number>;
 }
 
-/** Drops the cached locations of addresses; lease and pace of the geocoding stay. */
+/** Drops the cached locations of addresses, including the record of the former Nominatim search. */
 async function clearGeocodingCache(trx: Transaction<Database>): Promise<number> {
   let removed = 0;
   await mutateNikolausState(
-    'geocoding:nominatim',
-    parseGeocodingState,
-    (current): GeocodingState | undefined => {
-      removed = current.cache.length;
-      return removed ? { ...current, cache: [] } : undefined;
+    GEOCODING_STATE_KEY,
+    parseGeocodingCache,
+    (current): GeocodingCache | undefined => {
+      removed = current.entries.length;
+      return removed ? { ...current, entries: [] } : undefined;
     },
     trx
   );
+  await deleteNikolausState(LEGACY_GEOCODING_STATE_KEY, trx);
   return removed;
 }
 

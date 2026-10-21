@@ -1,7 +1,7 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
-import { getNikolausTeams } from '../lib/nikolaus-config';
+import { getNikolausTeams, localDateTimeToDate } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
 import {
@@ -62,7 +62,14 @@ export async function GetInternNikolausDispoEndpoint(
   ).length;
 
   const { base } = config.area;
-  const travel = await getTravelMatrix([base, ...stops.map((b) => toLocation(b))]);
+  // The usual traffic when the teams set off; once the evening has begun, without traffic
+  const start = config.days.find((day) => day.date === date)?.start;
+  const departAt = start
+    ? localDateTimeToDate(date, start)
+        .toISOString()
+        .replace(/\.\d{3}Z$/, 'Z')
+    : undefined;
+  const travel = await getTravelMatrix([base, ...stops.map((b) => toLocation(b))], { departAt });
 
   return {
     status: 200,

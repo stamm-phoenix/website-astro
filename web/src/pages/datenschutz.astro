@@ -369,10 +369,12 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
         </Text>
         <Text class="mt-3">
           Um die Adresse auf einer Karte anzuzeigen und die Touren zu planen, schickt unser Server
-          sie an den Geocoding-Dienst Nominatim der OpenStreetMap Foundation. Die Kartenausschnitte
-          lädt dein Browser direkt von OpenStreetMap (tile.openstreetmap.org); dabei werden deine
-          IP-Adresse, der angezeigte Kartenausschnitt und die Adresse unserer Website (ohne die
-          aufgerufene Seite) an die OpenStreetMap Foundation übermittelt. Ihre{' '}
+          sie (Straße, Hausnummer, Postleitzahl und Ort, ohne deinen Namen) an den Kartendienst
+          Microsoft Azure Maps. Für die Fahrzeiten und Wege der Touren gehen nur die Koordinaten an
+          Azure Maps. Microsoft verarbeitet diese Anfragen für uns in Rechenzentren in Europa. Die
+          Kartenausschnitte lädt dein Browser direkt von OpenStreetMap (tile.openstreetmap.org);
+          dabei werden deine IP-Adresse, der angezeigte Kartenausschnitt und die Adresse unserer
+          Website (ohne die aufgerufene Seite) an die OpenStreetMap Foundation übermittelt. Ihre{' '}
           <TextLink href={OSM_PRIVACY_URL} external>
             Datenschutzerklärung
           </TextLink>{' '}

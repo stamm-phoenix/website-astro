@@ -284,8 +284,6 @@ export interface StaffNikolausSteuerung {
   cleanup: NikolausCleanupStatus;
   /** What has to be typed to confirm a deletion. */
   confirmations: Record<NikolausCleanupScope, string>;
-  /** `stuckInMs`: time until the search counts as hung, by the server's clock. */
-  geocoding: { owner: string | null; startedAt: number | null; stuckInMs: number | null };
   log: NikolausAuditEntry[];
 }
 

@@ -99,7 +99,6 @@ import {
   NikolausStatus,
   NikolausSteuerungDeleteEndpoint,
   NikolausSteuerungEndpoint,
-  NikolausSteuerungGeocodingEndpoint,
   NikolausSteuerungSaveEndpoint,
 } from './endpoints/intern-nikolaus-steuerung';
 import {
@@ -1024,13 +1023,6 @@ app.http('internPflegeNikolausSteuerungDelete', {
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-steuerung/loeschen',
   handler: NikolausSteuerungDeleteEndpoint,
-});
-
-app.http('internPflegeNikolausSteuerungGeocoding', {
-  methods: ['POST'],
-  authLevel: 'anonymous',
-  route: 'intern/pflege/nikolaus-steuerung/geocoding',
-  handler: NikolausSteuerungGeocodingEndpoint,
 });
 
 // Sammelbestellungen: shared invitation and private order links; staff writes require Entra ID.

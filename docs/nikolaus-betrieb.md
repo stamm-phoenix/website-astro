@@ -32,7 +32,7 @@ Die Steuerung zeigt den letzten Besuch und das Datum, bis zu dem gelöscht sein 
 
 Unter **Daten löschen** gibt es zwei getrennte Knöpfe. Beide verlangen, dass der angezeigte Text („ANMELDUNGEN LÖSCHEN“ bzw. „HELFENDE LÖSCHEN“) eingetippt wird, und warnen, wenn die Frist noch nicht erreicht ist.
 
-- **Anmeldungen:** alle Buchungen jeden Status mit Adressen, die Dispo und die zwischengespeicherten Orte der Adresssuche. Mailquote, Tempo und eine laufende Reservierung der Adresssuche bleiben.
+- **Anmeldungen:** alle Buchungen jeden Status mit Adressen, die Dispo und die zwischengespeicherten Orte der Adresssuche. Die Mailquote bleibt.
 - **Helfende:** alle Helfenden mit Verfügbarkeiten und Merkmalen und die Einteilung.
 
 Jede Löschung läuft in einer Transaktion: Schlägt etwas fehl, bleibt alles unverändert. Neue Buchungen warten währenddessen auf die Kapazitätssperre; wer eine gelöschte Buchung vorher geladen hat, bekommt beim Speichern einen Versionskonflikt. IDs werden nicht wiederverwendet, damit eine alte Offline-Warteschlange der Fahrtansicht nie eine Buchung der nächsten Saison trifft.
@@ -41,9 +41,9 @@ Die Löschung entfernt die Daten aus der Datenbank. In den automatischen Sicheru
 
 ## Gemeinsamer Zustand
 
-Die Produktion und jede ihrer Azure-Functions-Instanzen verwenden dieselbe Datenbank (`CONFIG.database` in `api/lib/config.ts`) und damit denselben Zustand in der Tabelle `nikolaus.state`: Mailquote sowie Tempo, Lease und Cache des Geocodings. Die Einstellungen der Steuerung stehen in `nikolaus.settings` und `nikolaus.day`. Jedes dieser JSON-Dokumente wird unter einer Zeilensperre geändert, gleichzeitige Änderungen laufen nacheinander. Ist die Datenbank nicht erreichbar, führt Geocoding zu `unavailable`; es entsteht keine unkoordinierte Anfrage an den Anbieter. PR-Previews haben je eine eigene Datenbank mit Testdaten und damit auch eigene Einstellungen, eine eigene Mailquote und ein eigenes Tempo für die Adresssuche ([azure-sql.md](azure-sql.md#previews)).
+Die Produktion und jede ihrer Azure-Functions-Instanzen verwenden dieselbe Datenbank (`CONFIG.database` in `api/lib/config.ts`) und damit denselben Zustand in der Tabelle `nikolaus.state`: Mailquote und Cache des Geocodings. Die Einstellungen der Steuerung stehen in `nikolaus.settings` und `nikolaus.day`. Jedes dieser JSON-Dokumente wird unter einer Zeilensperre geändert, gleichzeitige Änderungen laufen nacheinander. Ist die Datenbank nicht erreichbar, sucht das Geocoding ohne Cache. PR-Previews haben je eine eigene Datenbank mit Testdaten und damit auch eigene Einstellungen, eine eigene Mailquote und einen eigenen Geocoding-Cache ([azure-sql.md](azure-sql.md#previews)).
 
-`NIKOLAUS_STATE_SECRET` muss mindestens 32 Zeichen lang und in allen beteiligten Umgebungen identisch sein. Es bildet HMAC-Schlüssel für Adress-Lookups. Der Zustand enthält keine Klartextadressen im Geocoding-Schlüssel; die zwischengespeicherten Koordinaten sind trotzdem Standortdaten. Eine Änderung des Secrets verwirft die bisherige Zuordnung von Cache-Schlüsseln; sie hebt die gemeinsame Sperre und das gemeinsame Tempo nicht auf. Wie Dispo und Einteilung gespeichert werden, steht in [Planungen speichern](nikolaus-planungen.md).
+`NIKOLAUS_STATE_SECRET` muss mindestens 32 Zeichen lang und in allen beteiligten Umgebungen identisch sein. Es bildet HMAC-Schlüssel für Adress-Lookups. Der Zustand enthält keine Klartextadressen im Geocoding-Schlüssel; die zwischengespeicherten Koordinaten sind trotzdem Standortdaten. Eine Änderung des Secrets verwirft die bisherige Zuordnung von Cache-Schlüsseln. Wie Dispo und Einteilung gespeichert werden, steht in [Planungen speichern](nikolaus-planungen.md).
 
 ## Azure-Einrichtung vom 2. Oktober 2026
 
@@ -84,83 +84,82 @@ Die Erstellung reserviert vor dem Anlegen einer Buchung. Das Neusenden reservier
 
 Eine Zulassung wird bei Fehlern, Konflikten, ungewissen Graph-Antworten oder einer unbekannten Adresse nicht zurückgebucht. Das vermeidet einen unbeabsichtigten zusätzlichen Versand, kann das Budget aber früher ausschöpfen. Ein reservierter Versandplatz ist nur einmal im reservierenden Prozess verwendbar. HTTP-Antworten und Logs enthalten keine Empfängeradresse; Logs zur Erschöpfung enthalten nur Ereignis und Absenderhash.
 
-## Geocoding messen und kontrollieren
+## Kartendienst Azure Maps
 
-Der bisherige Code begrenzte Anfragen nur pro Prozess. Tatsächliche Azure-Instanzzahlen und historische Anfragen lassen sich daraus nicht ableiten. Der lokale Prozess-Test mit drei getrennten Node-Prozessen bestätigt die Zusammenfassung identischer Lookups und mindestens 1.100 ms Abstand verschiedener Requests. Er ersetzt keine Azure-Messung.
+Seit #187 verortet Azure Maps die Adressen (Karte im Buchungsformular, Speichern einer Buchung, Leitendenbereich) und liefert der Dispo die Fahrzeiten und die Straßenverläufe der Karte. Vorher waren das OpenStreetMap Nominatim und OpenRouteService. Die Kartenkacheln kommen weiter von OpenStreetMap; die Umstellung ist #408.
 
-Vor der produktiven Freigabe sollen die Azure-verantwortlichen Personen in Application Insights einen Zeitraum mit Buchungsbetrieb prüfen und die Ergebnisse festhalten:
+### Einrichtung
 
-| Messwert                                                       | Quelle                                                | Ergebnis                                                            |
-| -------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
-| Beobachtete Functions-Instanzen in einem festgelegten Zeitraum | `cloud_RoleInstance` in Requests/Traces               | Nach Verknüpfung und Deployment messen                              |
-| Bisherige Nominatim-Anfragen, gesamt und je Instanz            | `dependencies`, falls die HTTP-Aufrufe erfasst wurden | Nicht messbar: keine historische Dependency-Telemetrie verfügbar    |
-| Gemeinsamer Zustand aller Instanzen einer Umgebung             | `CONFIG.database` (Previews: eigene Datenbank)        | Seit #165 erfüllt; Previews takten Nominatim getrennt               |
-| Abstände nach Einführung der Koordination                      | `nikolaus_geocoding`-Trace-Ereignisse                 | Nach Deployment prüfen                                              |
+1. Im Azure-Abo mit der Nonprofit-Gutschrift einen Azure-Maps-Account (Gen2) in einer EU-Region anlegen, mit eigener Ressourcengruppe oder Budgetwarnung wie in [belege-ki-pruefung.md](belege-ki-pruefung.md).
+2. Anmeldung, eine der beiden Varianten:
+   - **Entra ID (Standard):** Der App-Registrierung aus `CONFIG.azure` auf dem Account die Rolle „Azure Maps Data Reader“ geben und die Client-ID des Accounts (Seite „Authentication“, `az maps account show --query properties.uniqueId`) als `CONFIG.azureMaps.clientId` in `api/lib/config.ts` eintragen. Die API meldet sich mit demselben Zertifikat (`AZURE_CLIENT_CERT`) an wie für Graph und Azure SQL.
+   - **Schlüssel:** `AZURE_MAPS_API_KEY` als App Setting setzen (Produktion und Previews). Ist er gesetzt, hat er Vorrang vor Entra ID.
+3. Ohne beides fragt die API Azure Maps nicht an: Adressen bleiben „nicht ermittelt“, die Dispo schätzt aus der Luftlinie und zeichnet gerade Linien.
 
-Beispiel für die bisherige Last. Die Abfrage gibt weder URLs mit Adressen noch Anfrageinhalte aus. Sie funktioniert nur, wenn HTTP-Dependencies bisher aufgezeichnet wurden. Ein leeres Ergebnis beweist keine Last von null.
+Alle Anfragen gehen an den europäischen Endpunkt `eu.atlas.microsoft.com` (`CONFIG.azureMaps.endpoint`). Microsoft verarbeitet und speichert Anfragen dort laut [Geographic scope](https://learn.microsoft.com/en-us/azure/azure-maps/geographic-scope) nur innerhalb Europas. Verwendet werden Geocoding (`/geocode`, API-Version `2026-01-01`), Route Matrix (`/route/matrix`) und Route Directions (`/route/directions`, beide `2025-01-01`).
 
-```kusto
-dependencies
-| where timestamp > ago(30d)
-| where target has "nominatim.openstreetmap.org"
-| summarize recordedRequests=count(), estimatedRequests=sum(itemCount),
-            observedInstances=dcount(cloud_RoleInstance)
-            by bin(timestamp, 1h)
-| order by timestamp asc
-```
+### Was an Microsoft geht
 
-Der neue Code schreibt JSON-Ereignisse mit `scope=nikolaus_geocoding`, `event`, einem Zeitstempel in Millisekunden und bei Abschlüssen Dauer sowie Erfolg. Er protokolliert keine Adresse, Koordinate, E-Mail, HMAC-Adresse oder Management-Tokens. Die Instanzkennung kommt aus Application Insights. Diese Abfrage zählt die tatsächlich aufgezeichneten Ereignisse:
+- **Geocoding:** Straße mit Hausnummer, Postleitzahl und Ort, eingeschränkt auf Deutschland, mit dem Startpunkt der Teams als Bevorzugung. Keine Namen, Telefonnummern, E-Mails oder Angaben über Kinder.
+- **Fahrzeiten und Routen:** nur Koordinaten, ohne Bezug zu einer Familie, und bei der Matrix der Beginn des Besuchstags als Abfahrtszeit.
+
+Die Familien-Adressen gehen damit an Microsoft statt an die OpenStreetMap Foundation und HeiGIT; das Verzeichnis der Verarbeitungstätigkeiten muss das nennen. Die Datenschutzerklärung (`/datenschutz#nikolaus`) ist angepasst.
+
+### Geocoding
+
+Gesucht wird zuerst die vollständige Adresse. Ein Treffer zählt nur mit der eingegebenen Postleitzahl. Typ `Address` mit Hausnummer ergibt die Genauigkeit `address`, eine Straße (`RoadBlock`, `RoadIntersection` oder eine Adresse ohne Hausnummer) `street`. Ohne passenden Treffer sucht die API nur Postleitzahl und Ort (`area`), sonst „nicht gefunden“. Ist Azure Maps nicht eingerichtet, nicht erreichbar oder antwortet unlesbar, wird die Adresse „nicht ermittelt“ (`unavailable`); eine Buchung geht trotzdem durch.
+
+Gefundene Orte stehen 24 Stunden in `geocoding:azure-maps` in `nikolaus.state`, höchstens 100, unter einem HMAC-Schlüssel der Adresse (`NIKOLAUS_STATE_SECRET`). So kostet die Adresse aus der Karte beim Buchen keine zweite Anfrage. Fehler werden nicht gespeichert; ein beschädigter Eintrag wird verworfen. Eine Taktung oder Sperre wie bei Nominatim gibt es nicht mehr, daher auch keine „hängende Adresssuche“ in der Steuerung. Das Löschen der Anmeldungen leert den Cache und entfernt den alten Eintrag `geocoding:nominatim`.
+
+### Fahrzeiten und Routen
+
+- Die Dispo fragt die Fahrzeiten mit der **Abfahrtszeit des Besuchstags** an (Beginn des ersten Termins, Europe/Berlin) und mit historischem Verkehr, also der üblichen Verkehrslage eines Abends dieses Wochentags. Liegt der Zeitpunkt schon zurück, wird ohne Abfahrtszeit gerechnet.
+- Mit Abfahrtszeit erlaubt die synchrone Matrix höchstens 200 Zellen. Die API teilt größere Tage deshalb in Blöcke, höchstens vier gleichzeitig.
+- Fahrzeiten werden **pro Paar** sechs Stunden im Prozess gemerkt. Kommt eine Buchung hinzu, holt die API nur deren Zeile und Spalte; mehrere Buchungen an einer Adresse teilen sich eine.
+- Schlägt ein Block fehl, gilt für diesen Abruf die Luftlinien-Schätzung (Faktor 1,4, 35 km/h), und die Dispo zeigt „geschätzt“; der nächste Abruf holt nur das Fehlende. Paare ohne Route werden einzeln geschätzt. Jede Fahrt bekommt zwei Minuten zum Parken dazu.
+- Die Straßenverläufe der Karte kommen aus Route Directions mit bis zu 150 Punkten pro Team, sonst zeichnet die Karte gerade Linien.
+
+### Kosten (Stand Oktober 2026)
+
+Laut [Preisliste](https://azure.microsoft.com/pricing/details/azure-maps/) und Retail Prices API sind pro Monat 5.000 Search-Transaktionen (Geocoding) und 1.000 Routing-Transaktionen frei, danach je 4,50 USD pro 1.000. Eine Matrix kostet eine Routing-Transaktion pro 4 Zellen, eine Route eine. Fehlerantworten (401, 403, 408, 429, 5xx) werden nicht berechnet.
+
+Grobe Abschätzung für eine Saison mit drei Besuchstagen zu je etwa 30 Buchungen:
+
+| Anfrage | Annahme | Transaktionen |
+| --- | --- | ---: |
+| Geocoding | 100 Buchungen, je 2 bis 4 Suchen (Karte, Buchen, Änderungen; zweistufig) | etwa 400, im Freikontingent |
+| Matrix, erster Abruf eines Tages | 31 × 31 Punkte = 961 Zellen | etwa 240 je Tag und Prozess |
+| Matrix, neue Buchung | Zeile und Spalte, etwa 62 Zellen | etwa 16 |
+| Matrix, Neustart oder nach 6 Stunden | wie erster Abruf | einige Male je Tag |
+| Routen der Karte | je Team und Änderung der Reihenfolge | einige Hundert |
+
+Das ergibt grob 3.000 bis 6.000 Routing-Transaktionen pro Saison, also etwa 10 bis 25 USD über dem Freikontingent, getragen von der Nonprofit-Gutschrift. Für die Ressourcengruppe eine Budgetwarnung einrichten.
+
+### Beobachten
+
+Die API schreibt JSON-Ereignisse mit `scope=nikolaus_geocoding` und `event` `cache_hit`, `request_finish` (mit `durationMs` und `success`), `cache_failed` oder `unavailable`, ohne Adresse, Koordinate oder Schlüssel. Fehler der Matrix und der Routen stehen als Warnung „Azure Maps matrix failed“ bzw. „Azure Maps route failed“ mit dem HTTP-Status im Log. Die `host.json` deaktiviert weiter das automatische Dependency-Tracking, damit URLs mit Adressen nicht in Application Insights landen.
 
 ```kusto
 traces
-| where timestamp > ago(24h)
+| where timestamp > ago(7d)
 | extend geo=parse_json(message)
 | where tostring(geo.scope) == "nikolaus_geocoding"
-| summarize recordedEvents=count(), estimatedEvents=sum(itemCount),
-            observedInstances=dcount(cloud_RoleInstance)
-            by event=tostring(geo.event), bin(timestamp, 1h)
+| summarize count() by event=tostring(geo.event), success=tostring(geo.success), bin(timestamp, 1d)
 ```
 
-Die folgende Abfrage sucht unterschrittene Abstände über **alle** Instanzen hinweg:
+Die Anfragen pro Monat zeigt außerdem der Azure-Maps-Account unter **Metriken** („Usage“, nach API aufgeteilt).
 
-```kusto
-traces
-| where timestamp > ago(24h)
-| extend geo=parse_json(message)
-| where tostring(geo.scope) == "nikolaus_geocoding"
-    and tostring(geo.event) == "request_start"
-| extend startedAt=unixtime_milliseconds_todatetime(tolong(geo.at))
-| order by startedAt asc
-| serialize
-| extend gapMs=datetime_diff("millisecond", startedAt, prev(startedAt))
-| where isnotnull(gapMs) and gapMs < 1000
-| project startedAt, gapMs, cloud_RoleInstance
-```
+### Vor der ersten Saison prüfen
 
-Bei Sampling können Requests fehlen. Für die Abnahme muss deshalb die Aufzeichnung dieser Ereignisse vollständig sein oder Sampling muss für den Messzeitraum deaktiviert werden. Unterschiedliche Host-Uhren beeinflussen eine Auswertung anhand der Startzeit; Azure-Zeitsynchronisation muss funktionieren. Jede Anfrage wartet auch nach dem Erwerb der gemeinsamen Sperre ein vollständiges lokales Intervall.
-
-Die Anwendung serialisiert vollständige Lookups über `geocoding:nominatim`. Erfolgreiche Ergebnisse bleiben für höchstens 24 Stunden verwendbar, höchstens 100 Ergebnisse gleichzeitig. Identische wartende Aufrufe lesen anschließend dasselbe Ergebnis. Fehler bleiben fünf Sekunden gemeinsam sichtbar, damit eine Anbieter-Störung keine unmittelbare zweite identische Anfrage auslöst. Wartende Aufrufe haben 30 Sekunden Wartebudget; pro Prozess warten höchstens sechs unterschiedliche Lookups. Bei State-Ausfällen, verlorenen Sperren oder voller Warteschlange kann die Buchung mit `nicht ermittelt` statt automatisch bestimmten Koordinaten weitergehen.
-
-## Geocoding-Anbieter und Nutzungsregeln
-
-Die [offizielle Nominatim-Nutzungsrichtlinie](https://operations.osmfoundation.org/policies/nominatim/) begrenzt die gesamte Anwendung auf höchstens einen Request pro Sekunde. Sie verlangt einen identifizierenden User-Agent, Attribution und Caching, untersagt unter anderem Autocomplete und systematische Reverse-Abfragen und fordert, keine persönlichen oder vertraulichen Informationen zu übermitteln. Die verantwortlichen Personen müssen die übermittelten Angaben und den gewählten Anbieter prüfen. Die bestehende Anwendung übermittelt eine Anschrift als Suchanfrage; Namen, Telefonnummern, E-Mails und Angaben über Kinder gehen nicht an den Geocoding-Anbieter.
-
-Der Anbieter steht als `CONFIG.nikolaus.geocodingUrl` in `api/lib/config.ts`; eingestellt ist Nominatim. Ein Wechsel braucht einen PR und ein Deployment. Der konfigurierte Anbieter muss die Nominatim-Suchparameter und das JSON-Antwortformat unterstützen und über HTTPS erreichbar sein. Die gemeinsame Begrenzung bleibt auch bei einem Wechsel bestehen. Die Karte muss ihre bestehende OpenStreetMap-Attribution behalten. Automatische Dependency-Telemetrie darf Such-URLs mit Adressparametern nicht als frei einsehbare Logs speichern; die oben beschriebenen Zählereignisse reichen für die Abnahme.
-
-`api/scripts/nikolaus-testdata.ts` verwendet jetzt erfundene lokale Adressen und synthetische Koordinaten. Es führt keine Nominatim-Reverse-Abfragen mehr aus und kann das Gesamtlimit nicht umgehen. Seine Daten heißen `TEST – bitte löschen`. Er schreibt direkt in die Datenbank aus `CONFIG.database`; `--delete` entfernt seine Daten wieder.
-
-## Hängende Adresssuche
-
-Eine Reservierung der Adresssuche (Geocoding) verfällt absichtlich nicht automatisch: Ein pausierter Prozess könnte sonst nach Ablauf weiter Anfragen an den Anbieter schicken. Stürzt ein Prozess mitten in einer Anfrage ab, bleibt die Reservierung stehen und Adressen werden bis zur Freigabe nicht mehr verortet (Buchungen gehen mit „nicht ermittelt“ weiter).
-
-Die Steuerung zeigt unter **Adresssuche**, ob und seit wann eine Suche läuft. Normalerweise dauert sie Sekunden. Läuft sie seit mehr als zehn Minuten, hängt kein Vorgang mehr daran (Azure Functions brechen früher ab): Bestätigen und **Sperre lösen**. Gelöst wird nur genau die angezeigte Reservierung; hat inzwischen eine neue begonnen, lehnt die API ab. Cache und Tempo bleiben erhalten.
+- **Qualität:** Eine Stichprobe echter Adressen aus dem Einzugsgebiet (auch Neubaugebiete und Hausnummern mit Zusätzen) mit Azure Maps verorten und mit der Karte vergleichen. OpenStreetMap ist in Deutschland bei kleinen Straßen teils genauer als die TomTom-Daten von Azure Maps. Die Ergebnisse in #187 festhalten.
+- **Fahrzeiten:** Die Dispo eines Testtags öffnen und prüfen, dass oben keine „geschätzten“ Fahrzeiten stehen und die Karte Straßenverläufe zeigt.
 
 ## Saison wechseln
 
 1. Nach der Aktion bis zum angezeigten Datum Anmeldungen und Helfende löschen (siehe oben).
 2. In der Steuerung die Besuchstage, Zeiten und Teams der kommenden Saison eintragen. Die Nikolausverwaltung einschalten, sobald geplant wird.
 3. Kapazitäten, Bestätigung, Änderung, Storno, Dispo und Fahrtansicht mit lokalen Mock-Daten prüfen. In der echten Datenbank Tests ausschließlich als `TEST – bitte löschen` oder mit `scripts/nikolaus-testdata.ts` anlegen und sofort wieder entfernen.
-4. Datenbankzugriff, Mailversand und Geocoding prüfen, dann die Online-Anmeldung einschalten.
+4. Datenbankzugriff, Mailversand, Geocoding und Fahrzeiten der Dispo (Azure Maps, siehe oben) prüfen, dann die Online-Anmeldung einschalten.
 
 ## Fahrtansicht bei Funklöchern
 
