@@ -207,7 +207,7 @@ dbTest('a login and a CampFlow person belong to one row', async (t) => {
   t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => [
     { login: ANNA, name: 'Anna Autorin', givenName: 'Anna' },
   ]);
-  t.mock.method(campflow, 'campflowGetAll', async () => [
+  t.mock.method(campflow, 'getCampflowMembers', async () => [
     { id: 'per_Anna', name: { first_name: 'Anna', last_name: 'Autorin' } },
   ]);
   const context = quietContext(t);
@@ -290,7 +290,7 @@ dbTest('the overview still loads when Entra and CampFlow fail', async (t) => {
   t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => {
     throw new Error('Graph down');
   });
-  t.mock.method(campflow, 'campflowGetAll', async () => {
+  t.mock.method(campflow, 'getCampflowMembers', async () => {
     throw new CampflowError(502, 'down');
   });
   const overview = (await PersonenCollection(request(ANNA, 'GET'), quietContext(t)))
@@ -303,7 +303,7 @@ dbTest('a slow CampFlow member list leaves only its part out of the overview', a
     { login: ANNA, name: 'Anna Leiterin', givenName: 'Anna' },
   ]);
   // Every page in time, all of them together too slow
-  t.mock.method(campflow, 'campflowGetAll', () => new Promise(() => undefined));
+  t.mock.method(campflow, 'getCampflowMembers', () => new Promise(() => undefined));
   const overview = await getPersonenUebersicht(20);
   assert.deepEqual(overview, {
     personen: [],
@@ -342,7 +342,7 @@ dbTest('the logged-in person learns their CampFlow person', async (t) => {
     };
   });
   // Nobody else in the member list has Anna's address
-  t.mock.method(campflow, 'campflowGetAll', async () => [
+  t.mock.method(campflow, 'getCampflowMembers', async () => [
     { id: 'per_IchAnna', primary_email: 'anna@example.org' },
     { id: 'per_Andere', primary_email: 'andere@example.org' },
   ]);
@@ -422,7 +422,7 @@ dbTest('a family address marks only the registration with the own first name', a
     primary_email: 'familie@example.org',
   }));
   // Her child is in the member list with the same address
-  t.mock.method(campflow, 'campflowGetAll', async () => [
+  t.mock.method(campflow, 'getCampflowMembers', async () => [
     { id: 'per_IchLea', primary_email: 'familie@example.org' },
     { id: 'per_Kind', primary_email: 'Familie@example.org' },
   ]);
@@ -498,7 +498,7 @@ dbTest('without the member list an address counts as shared', async (t) => {
     name: { first_name: 'Otto', last_name: 'Offen' },
     primary_email: 'otto@example.org',
   }));
-  t.mock.method(campflow, 'campflowGetAll', async () => {
+  t.mock.method(campflow, 'getCampflowMembers', async () => {
     throw new CampflowError(502, 'down');
   });
   const anmeldungen = [
