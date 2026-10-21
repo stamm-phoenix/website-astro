@@ -34,6 +34,12 @@ test('the map view shows the visits and drives and leads to the list', async ({ 
   await expect(page.locator('.selected-card')).toContainText(family);
   // The keyboard stays at the same visit
   await expect(page.locator('.stop-item[aria-current="true"]')).toBeFocused();
+  // Switching to the list and back does not choose that visit again
+  await page.locator('.selected-card').getByRole('button', { name: 'Schließen' }).click();
+  await page.getByRole('button', { name: 'Liste', exact: true }).click();
+  await page.getByRole('button', { name: 'Karte', exact: true }).click();
+  await expect(page.locator('.dispo-map-main .leaflet-marker-icon').first()).toBeVisible();
+  await expect(page.locator('.selected-card')).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 });
 
