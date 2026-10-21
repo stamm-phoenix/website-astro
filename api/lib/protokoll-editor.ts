@@ -15,7 +15,6 @@ import {
 import type { Db } from './db';
 import type { EditorSperreTable } from './db-schema';
 import { dateToLocalParts } from './nikolaus-config';
-import { countProtokollTasks } from './protokoll-editor-aufgaben';
 import type {
   OffeneAufgabeQuelle,
   ProtokollEditorDetail,
@@ -151,19 +150,71 @@ export async function getEditorOverview(now: Date = new Date()): Promise<Protoko
   };
 }
 
+/** The lock of the minutes, read along with them (`p` joined with `s`). */
+const SPERRE_COLUMNS = [
+  's.login as sperre_login',
+  's.name as sperre_name',
+  's.token as sperre_token',
+  's.since as sperre_since',
+  's.until as sperre_until',
+  's.aktiver_punkt as sperre_aktiver_punkt',
+] as const;
+
+interface JoinedSperre {
+  sperre_login: string | null;
+  sperre_name: string | null;
+  sperre_token: string | null;
+  sperre_since: Date | null;
+  sperre_until: Date | null;
+  sperre_aktiver_punkt: string | null;
+}
+
+function joinedSperre(
+  row: JoinedSperre,
+  id: number,
+  token: string | null,
+  now: Date
+): ProtokollSperre | null {
+  if (row.sperre_login === null || row.sperre_since === null || row.sperre_until === null) {
+    return null;
+  }
+  return toSperre(
+    {
+      protokoll_id: id,
+      login: row.sperre_login,
+      name: row.sperre_name ?? '',
+      token: row.sperre_token ?? '',
+      since: row.sperre_since,
+      until: row.sperre_until,
+      aktiver_punkt: row.sperre_aktiver_punkt,
+    },
+    token,
+    now
+  );
+}
+
 /** The minutes as the editor and the readers see them; `undefined` if they do not exist. */
 export async function getEditorProtokoll(
   id: number,
   token: string | null,
   now: Date = new Date()
 ): Promise<ProtokollEditorDetail | undefined> {
+  // One statement: the minutes with their lock and the tasks their approval created
   const row = await getDb()
-    .selectFrom('protokoll.protokoll')
-    .selectAll()
-    .where('id', '=', id)
+    .selectFrom('protokoll.protokoll as p')
+    .leftJoin('protokoll.sperre as s', 's.protokoll_id', 'p.id')
+    .selectAll('p')
+    .select(SPERRE_COLUMNS)
+    .select((eb) =>
+      eb
+        .selectFrom('organisation.task as t')
+        .select(eb.fn.countAll<number>().as('count'))
+        .whereRef('t.protokoll_id', '=', 'p.id')
+        .as('aufgaben')
+    )
+    .where('p.id', '=', id)
     .executeTakeFirst();
   if (!row) return undefined;
-  const sperre = await readSperre(getDb(), id);
   const approved = row.status === 'freigegeben' || row.status === 'verschickt';
   return {
     id: row.id,
@@ -176,7 +227,7 @@ export async function getEditorProtokoll(
     createdBy: row.created_by,
     updatedAt: row.updated_at.toISOString(),
     updatedBy: row.updated_by,
-    sperre: sperre ? toSperre(sperre, token, now) : null,
+    sperre: joinedSperre(row, id, token, now),
     canDelete: row.status === 'entwurf',
     submittedBy: row.submitted_by ?? '',
     submittedAt: row.submitted_at?.toISOString() ?? '',
@@ -196,13 +247,13 @@ export async function getEditorProtokoll(
         }
       : null,
     sendingConfigured: CONFIG.protokolle.sender !== '',
-    aufgabenAngelegt: approved ? await countProtokollTasks(id) : 0,
+    aufgabenAngelegt: approved ? Number(row.aufgaben ?? 0) : 0,
   };
 }
 
 /**
  * The live check of the readers: who writes, and the full minutes only if their version is no
- * longer `etag`, so an unchanged check stays tiny.
+ * longer `etag`, so an unchanged check stays one small statement.
  */
 export async function getEditorLive(
   id: number,
@@ -211,9 +262,11 @@ export async function getEditorLive(
   now: Date = new Date()
 ): Promise<ProtokollLiveResponse | undefined> {
   const row = await getDb()
-    .selectFrom('protokoll.protokoll')
-    .select('version')
-    .where('id', '=', id)
+    .selectFrom('protokoll.protokoll as p')
+    .leftJoin('protokoll.sperre as s', 's.protokoll_id', 'p.id')
+    .select('p.version')
+    .select(SPERRE_COLUMNS)
+    .where('p.id', '=', id)
     .executeTakeFirst();
   if (!row) return undefined;
   const current = toVersion(row.version);
@@ -222,8 +275,7 @@ export async function getEditorLive(
     if (!protokoll) return undefined;
     return { etag: protokoll.etag, sperre: protokoll.sperre, protokoll };
   }
-  const sperre = await readSperre(getDb(), id);
-  return { etag: current, sperre: sperre ? toSperre(sperre, token, now) : null, protokoll: null };
+  return { etag: current, sperre: joinedSperre(row, id, token, now), protokoll: null };
 }
 
 /**
