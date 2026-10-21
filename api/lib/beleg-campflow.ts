@@ -86,14 +86,20 @@ export function campflowFileName(beleg: StoredBeleg): string {
   return `${name} (Website-Beleg ${beleg.id}).jpg`;
 }
 
-/** „Beschreibung“ in CampFlow: shop and note, and who paid if nobody wants the money back. */
+/**
+ * „Beschreibung“ in CampFlow: shop and note, and who paid if nobody wants the money back. Who
+ * paid always fits; shop and note are shortened to make room.
+ */
 export function campflowDescription(beleg: StoredBeleg): string {
-  const paidBy = !beleg.payout && beleg.paidBy.trim() ? `bezahlt von ${beleg.paidBy.trim()}` : '';
-  const text = [beleg.shop.trim(), beleg.note.trim(), paidBy]
+  const paidBy =
+    !beleg.payout && beleg.paidBy.trim() ? ` – bezahlt von ${beleg.paidBy.trim()}` : '';
+  const room = MAX_DESCRIPTION - paidBy.length;
+  const text = [beleg.shop.trim(), beleg.note.trim()]
     .filter(Boolean)
     .join(' – ')
     .replace(/\s+/g, ' ');
-  return text.length > MAX_DESCRIPTION ? `${text.slice(0, MAX_DESCRIPTION - 1)}…` : text;
+  const shortened = text.length > room ? `${text.slice(0, Math.max(0, room - 1))}…` : text;
+  return `${shortened}${paidBy}`.replace(/^ – /, '').slice(0, MAX_DESCRIPTION);
 }
 
 /** „Auslage durch“: only the person who wants the money back. */
@@ -289,7 +295,7 @@ export async function transferBelegToCampflow(
       throw new BelegCampflowError(
         503,
         'PLAYWRIGHT_KEY_REQUIRED',
-        'Für die Übertragung nach CampFlow ist kein Schlüssel der Playwright-API eingerichtet.'
+        'Die Übertragung nach CampFlow ist noch nicht eingerichtet. Es wurde nichts übertragen. Bitte wende dich an admin@stamm-phoenix.de.'
       );
     }
 
