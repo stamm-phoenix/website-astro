@@ -16,8 +16,10 @@
     date: string;
     onteam: (id: string, team: string) => void;
     onpin: (id: string, team: string) => void;
+    /** Shows the visit in the map view. */
+    onmap?: (id: string) => void;
   }
-  let { route, ids, data, color, base, fixed, dirty, date, onteam, onpin }: Props = $props();
+  let { route, ids, data, color, base, fixed, dirty, date, onteam, onpin, onmap }: Props = $props();
   const stopsById = $derived(new Map(data.stops.map((stop) => [stop.id, stop])));
   const rowsById = $derived(new Map(data.rows.map((row) => [row.bookingId, row])));
   const childrenCount = $derived(
@@ -74,6 +76,7 @@
             conflicts={tagConflicts(data, booking, route.team)}
             onteam={(team) => onteam(booking.id, team)}
             onpin={() => onpin(booking.id, route.team)}
+            onmap={onmap && booking.location ? () => onmap(booking.id) : undefined}
           />
         {/if}
       {/each}
