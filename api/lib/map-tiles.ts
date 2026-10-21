@@ -166,6 +166,23 @@ export async function getMapTile(address: TileAddress): Promise<TileResult> {
   }
 }
 
+/**
+ * The text outside of tags. Splitting at every `<` leaves none behind, also for nested or broken
+ * tags such as `<scr<script>ipt>`; a stray `>` is dropped as well.
+ */
+function visibleText(html: string): string {
+  return html
+    .split('<')
+    .map((part, index) => {
+      if (index === 0) return part;
+      const end = part.indexOf('>');
+      return end === -1 ? '' : part.slice(end + 1);
+    })
+    .join('')
+    .split('>')
+    .join('');
+}
+
 /** The text of the notices, without their links: `<a …>&copy;2026 TomTom</a>` → `©2026 TomTom`. */
 export function parseAttribution(value: unknown): string[] {
   const copyrights = (value as { copyrights?: unknown } | null)?.copyrights;
@@ -173,10 +190,7 @@ export function parseAttribution(value: unknown): string[] {
   return copyrights
     .filter((text): text is string => typeof text === 'string')
     .map((text) =>
-      text
-        .replace(/<[^>]*>/g, '')
-        // Nested or broken tags such as `<scr<script>ipt>` must not leave markup behind
-        .replace(/[<>]/g, '')
+      visibleText(text)
         .replace(/&copy;/g, '©')
         .replace(/&amp;/g, '&')
         .replace(/\s+/g, ' ')
