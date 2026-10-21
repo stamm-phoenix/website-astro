@@ -36,7 +36,6 @@
     {#each items as item (item.value)}
       <a
         href="/leitendenbereich/aufgaben/{item.path}"
-        data-astro-reload
         aria-current={area === item.value ? 'page' : undefined}
         class="surface rounded-lg p-4 text-link"
       >
