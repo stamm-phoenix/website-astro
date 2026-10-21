@@ -118,11 +118,53 @@ export async function campflowGetAll<T>(
   return items;
 }
 
-/** Loads all events; the embed snippet is dropped as it is of no use here. */
-export async function getCampflowEvents(): Promise<CampflowEvent[]> {
-  const events = await campflowGetAll<CampflowEvent>('/events');
-  for (const event of events) delete event.embed_snippet;
-  return events;
+/** How long a shared load is reused; a change in CampFlow shows up after at most this time. */
+const SHARED_TTL_MS = 60_000;
+
+/**
+ * Requests within a minute share one load, so a page and the pages opened from it do not each
+ * wait for CampFlow; a failed load is not kept. Callers must not change the result.
+ */
+function sharedLoad<T>(load: () => Promise<T>): { get: () => Promise<T>; reset: () => void } {
+  let current: { promise: Promise<T>; expires: number } | undefined;
+  return {
+    get() {
+      if (current && current.expires > Date.now()) return current.promise;
+      const entry = { promise: load(), expires: Date.now() + SHARED_TTL_MS };
+      current = entry;
+      entry.promise.catch(() => {
+        if (current === entry) current = undefined;
+      });
+      return entry.promise;
+    },
+    reset() {
+      current = undefined;
+    },
+  };
+}
+
+const events = sharedLoad(async () => {
+  const loaded = await campflowGetAll<CampflowEvent>('/events');
+  for (const event of loaded) delete event.embed_snippet;
+  return loaded;
+});
+
+const members = sharedLoad(() => campflowGetAll<CampflowPerson>('/lists/member/persons'));
+
+/** All events, without the embed snippet as it is of no use here; shared for a minute. */
+export function getCampflowEvents(): Promise<CampflowEvent[]> {
+  return events.get();
+}
+
+/** All persons of the member list; shared for a minute. */
+export function getCampflowMembers(): Promise<CampflowPerson[]> {
+  return members.get();
+}
+
+/** Forgets the shared loads (for tests). */
+export function resetCampflowLoads(): void {
+  events.reset();
+  members.reset();
 }
 
 /** Removes payment details that should not leave the API. */

@@ -25,10 +25,11 @@ export async function GetInternAktionEndpoint(request: HttpRequest): Promise<Htt
 
   try {
     const listPath = `/lists/${encodeURIComponent(id)}`;
-    const [events, columns, persons] = await Promise.all([
+    const [events, columns, persons, art] = await Promise.all([
       getCampflowEvents(),
       campflowGetAll<CampflowColumn>(`${listPath}/custom_columns`),
       campflowGetAll<CampflowPerson>(`${listPath}/persons`),
+      getAktionArt(id),
     ]);
 
     const event = events.find((e) => e.id === id);
@@ -40,7 +41,7 @@ export async function GetInternAktionEndpoint(request: HttpRequest): Promise<Htt
       status: 200,
       headers: NO_STORE_HEADERS,
       jsonBody: {
-        event: { ...event, ...(await getAktionArt(id)) },
+        event: { ...event, ...art },
         columns,
         persons: persons.map(sanitizePerson),
         // Own registrations, matched by address on the server for „(ich)“ (docs/personen.md)

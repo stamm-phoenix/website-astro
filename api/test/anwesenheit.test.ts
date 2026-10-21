@@ -93,7 +93,7 @@ const PERSONS = [
 ];
 
 test('getChildren leaves out members who have not joined yet or have left', async (t) => {
-  t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+  t.mock.method(campflow, 'getCampflowMembers', async () => structuredClone(PERSONS));
 
   const children = await getChildren(new Date('2026-10-08T12:00:00Z'));
 
@@ -350,7 +350,7 @@ dbTest('the preview seed adds invented Termine once and stores no CampFlow ID', 
 });
 
 dbTest('a Termin is read with the children of its Stufe from CampFlow', async (t) => {
-  t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+  t.mock.method(campflow, 'getCampflowMembers', async () => structuredClone(PERSONS));
   const response = await GetAnwesenheitTermin(
     new HttpRequest({
       url: 'https://example.test/api/intern/anwesenheit',
@@ -375,7 +375,9 @@ dbTest('a Termin is read with the children of its Stufe from CampFlow', async (t
 dbTest(
   'a Termin before the retention start shows only its counts, no current children',
   async (t) => {
-    const persons = t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+    const persons = t.mock.method(campflow, 'getCampflowMembers', async () =>
+      structuredClone(PERSONS)
+    );
     const date = '2000-01-07';
     await getDb()
       .insertInto('gruppenstunde.meeting')
