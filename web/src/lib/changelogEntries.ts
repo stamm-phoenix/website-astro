@@ -12,6 +12,20 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-21-10-schneller-laden',
+    date: '2026-10-21',
+    title: 'Seiten zeigen ihre Daten schneller',
+    changes: [
+      'Nach einer Pause von ein paar Minuten zeigen die Seiten ihre Daten schneller als bisher.',
+      'Aktionen, Abrechnung und Anwesenheit warten seltener auf CampFlow. Hast du gerade etwas in CampFlow geändert, siehst du es hier spätestens nach einer Minute.',
+      {
+        text: 'Die Liste der Protokolle lädt schneller.',
+        href: '/leitendenbereich/protokolle',
+      },
+      'Ein Protokoll im Protokoll-Editor geht schneller auf.',
+    ],
+  },
+  {
     id: '2026-10-21-09-dispo-karte',
     date: '2026-10-21',
     title: 'Die Dispo gibt es jetzt auch als große Karte',
