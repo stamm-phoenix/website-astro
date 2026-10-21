@@ -8,7 +8,7 @@ import * as env from '../lib/environment';
 import { getBelege } from '../lib/beleg-list';
 import { campflowDescription, campflowDisburser, campflowFileName } from '../lib/beleg-campflow';
 import type { StoredBeleg } from '../lib/beleg-list';
-import { BelegCampflow, BelegeUebertragen, BelegItem } from '../endpoints/intern-pflege-belege';
+import { BelegCampflow, BelegeCampflow, BelegItem } from '../endpoints/intern-pflege-belege';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';
 import test from 'node:test';
@@ -80,6 +80,9 @@ function setup(
       return Response.json({ data: UNITS });
     }
     if (method === 'POST' && url.pathname === '/campflow/belege' && body) return answer(body);
+    if (method === 'GET' && url.pathname === '/campflow/belege') {
+      return answer({ refresh: url.searchParams.get('refresh') === 'true' });
+    }
     throw new Error(`Unexpected request ${method} ${url.pathname}`);
   });
   const context = new InvocationContext({ functionName: 'belege-campflow-test' });
@@ -331,11 +334,7 @@ dbTest('a receipt changed during the upload stays until the Kasse deletes it', a
     context
   );
   assert.equal(removed.status, 204);
-  const history = (await transferred(context)).jsonBody as { id: string; amountCent: number }[];
-  assert.deepEqual(
-    history.map(({ id, amountCent }) => ({ id, amountCent })),
-    [{ id: '7', amountCent: 1234 }]
-  );
+  assert.deepEqual(await deletedTransfers(), [{ id: 7, number: '2026-112' }]);
 });
 
 dbTest(
@@ -454,11 +453,7 @@ dbTest('a receipt deleted during its upload still lands in the history', async (
   const response = await running;
   assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
   assert.equal((response.jsonBody as { deleted: boolean }).deleted, true);
-  const history = (await transferred(context)).jsonBody as { id: string; number: string }[];
-  assert.deepEqual(
-    history.map(({ id, number }) => ({ id, number })),
-    [{ id: '7', number: '2026-112' }]
-  );
+  assert.deepEqual(await deletedTransfers(), [{ id: 7, number: '2026-112' }]);
 });
 
 dbTest('a failing photo read ends the attempt, so another Kategorie may be chosen', async (t) => {
@@ -524,13 +519,28 @@ dbTest('saving a receipt answers with the version it wrote', async (t) => {
   assert.equal(saved, await version(7));
 });
 
-function transferred(
+type Json = Record<string, unknown>;
+
+/** Uploaded receipts whose receipt here is gone, as the transfer table remembers them. */
+async function deletedTransfers(): Promise<{ id: number; number: string | null }[]> {
+  const rows = await getDb()
+    .selectFrom('organisation.beleg_campflow')
+    .select(['beleg_id', 'campflow_number'])
+    .where('state', '=', 'Hochgeladen')
+    .where('beleg_deleted_at', 'is not', null)
+    .orderBy('beleg_id')
+    .execute();
+  return rows.map((row) => ({ id: row.beleg_id, number: row.campflow_number }));
+}
+
+function campflowList(
   context: InvocationContext,
-  principal = PRINCIPAL
-): ReturnType<typeof BelegeUebertragen> {
-  return BelegeUebertragen(
+  principal = PRINCIPAL,
+  query = ''
+): ReturnType<typeof BelegeCampflow> {
+  return BelegeCampflow(
     new HttpRequest({
-      url: 'http://localhost/api/intern/pflege/belege/uebertragen',
+      url: `http://localhost/api/intern/pflege/belege/campflow${query}`,
       method: 'GET',
       headers: {
         'x-ms-client-principal': Buffer.from(JSON.stringify(principal)).toString('base64'),
@@ -540,43 +550,163 @@ function transferred(
   );
 }
 
-dbTest('transferred receipts stay listed with their details, for the uploader too', async (t) => {
-  const answers: Array<() => Response> = [
-    () => uploaded(),
-    () => Response.json({ error: 'Kategorie fehlt' }, { status: 404 }),
-  ];
-  const { context, blobs } = setup(t, () => answers.shift()!());
-  const first = await store(blobs, 7, { payout: false });
-  const second = await store(blobs, 8);
-  assert.equal((await transfer(context, 7, { etag: first, ...CHOICE })).status, 200);
-  assert.equal((await transfer(context, 8, { etag: second, ...CHOICE })).status, 502);
+/** Shaped like the Playwright API's GET /campflow/belege. */
+const CAMPFLOW_LIST = {
+  loadedAt: '2026-10-21T20:00:00.000Z',
+  costUnits: [
+    {
+      id: 'cun_Lager',
+      name: 'Stammeslager 2026',
+      archived: false,
+      categories: [{ id: 'cat_Essen', name: 'Verpflegung' }],
+    },
+  ],
+  receipts: [
+    {
+      id: 'rcp_Offen',
+      receiptId: 'rcp_Offen',
+      number: null,
+      status: 'unbooked',
+      description: '',
+      date: null,
+      amount: 0,
+      currency: 'EUR',
+      amountEur: 0,
+      openAmountEur: 0,
+      paidBy: null,
+      costUnits: [],
+      categories: [],
+      pages: 1,
+      originalFilename: 'Kassenzettel.pdf',
+      uploadedAt: '2026-10-20 08:00:00',
+    },
+    {
+      id: 'exp_Neu',
+      receiptId: 'rcp_Neu',
+      number: '2026-112',
+      status: 'open',
+      description: 'REWE – Grillgut',
+      date: '2026-09-30',
+      amount: -12.34,
+      currency: 'EUR',
+      amountEur: -12.34,
+      openAmountEur: -12.34,
+      paidBy: 'Alex Beispiel',
+      costUnits: [{ id: 'cun_Lager', name: 'Stammeslager 2026' }],
+      categories: [
+        { id: 'cat_Essen', name: 'Verpflegung', costUnitId: 'cun_Lager', amountEur: -12.34 },
+      ],
+      pages: 1,
+      originalFilename: '2026-09-30 REWE 12,34 EUR (Website-Beleg 7).jpg',
+      uploadedAt: '2026-10-21 19:00:00',
+    },
+    {
+      id: 'exp_Alt',
+      receiptId: 'rcp_Alt',
+      number: '2026-5',
+      status: 'settled',
+      description: 'Zeltplatz',
+      date: '2026-01-10',
+      amount: -250,
+      currency: 'EUR',
+      amountEur: -250,
+      openAmountEur: 0,
+      paidBy: null,
+      costUnits: [{ id: 'cun_Lager', name: 'Stammeslager 2026' }],
+      categories: [
+        { id: 'cat_Essen', name: 'Verpflegung', costUnitId: 'cun_Lager', amountEur: -250 },
+      ],
+      pages: 2,
+      originalFilename: 'Rechnung Zeltplatz Max Mustermann.pdf',
+      uploadedAt: null,
+    },
+  ],
+};
+
+dbTest('every leader sees all receipts in CampFlow, own transfers marked', async (t) => {
+  const refreshes: unknown[] = [];
+  const { context, blobs } = setup(t, (body) => {
+    if ('refresh' in body) {
+      refreshes.push(body.refresh);
+      return Response.json(CAMPFLOW_LIST);
+    }
+    return uploaded();
+  });
+  const etag = await store(blobs, 7);
+  assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 200);
 
   overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
-  const kasse = await transferred(context);
-  assert.equal(kasse.status, 200);
-  assert.deepEqual(kasse.jsonBody, [
-    {
-      id: '7',
-      shop: 'REWE',
-      date: '2026-09-30',
-      amountCent: 1234,
-      paidBy: 'Alex Beispiel',
-      payout: false,
-      aktion: 'Stammeslager 2026',
-      note: 'Grillgut',
-      submittedBy: 'leitung@example.test',
-      number: '2026-112',
-      costUnitName: 'Stammeslager 2026',
-      categoryName: 'Verpflegung',
-      transferredBy: 'kasse@example.test',
-      transferredAt: (kasse.jsonBody as { transferredAt: string }[])[0]!.transferredAt,
-    },
-  ]);
-
   const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test' };
-  assert.equal(((await transferred(context, uploader)).jsonBody as unknown[]).length, 1);
-  const other = { ...PRINCIPAL, userDetails: 'andere@example.test' };
-  assert.deepEqual((await transferred(context, other)).jsonBody, []);
+  const mine = await campflowList(context, uploader, '?refresh=true');
+  assert.equal(mine.status, 200, JSON.stringify(mine.jsonBody));
+  const body = mine.jsonBody as { loadedAt: string; costUnits: unknown[]; belege: Json[] };
+  assert.equal(body.loadedAt, CAMPFLOW_LIST.loadedAt);
+  assert.deepEqual(body.costUnits, CAMPFLOW_LIST.costUnits);
+  assert.deepEqual(body.belege[0], {
+    id: 'rcp_Offen',
+    number: null,
+    status: 'unbooked',
+    description: '',
+    date: null,
+    amountCent: 0,
+    openCent: 0,
+    paidBy: null,
+    costUnits: [],
+    categories: [],
+    pages: 1,
+    fileName: 'Kassenzettel.pdf',
+    uploadedAt: '2026-10-20 08:00:00',
+    viaWebsite: false,
+    submittedByMe: false,
+  });
+  assert.deepEqual(body.belege[1], {
+    id: 'exp_Neu',
+    number: '2026-112',
+    status: 'open',
+    description: 'REWE – Grillgut',
+    date: '2026-09-30',
+    amountCent: -1234,
+    openCent: -1234,
+    paidBy: 'Alex Beispiel',
+    costUnits: [{ id: 'cun_Lager', name: 'Stammeslager 2026' }],
+    categories: [{ id: 'cat_Essen', name: 'Verpflegung', costUnitId: 'cun_Lager' }],
+    pages: 1,
+    fileName: null,
+    uploadedAt: '2026-10-21 19:00:00',
+    viaWebsite: true,
+    submittedByMe: true,
+  });
+  // The file name of a booked receipt often names who uploaded it, so it stays in CampFlow
+  assert.equal(body.belege[2]!.fileName, null);
+  assert.doesNotMatch(JSON.stringify(body), /Mustermann/);
+
+  // Everyone else sees the same list, without the mark
+  const other = await campflowList(context, { ...PRINCIPAL, userDetails: 'andere@example.test' });
+  const otherBelege = (other.jsonBody as { belege: Json[] }).belege;
+  assert.equal(otherBelege.length, 3);
+  assert.deepEqual(
+    otherBelege.map((beleg) => [beleg.viaWebsite, beleg.submittedByMe]),
+    [
+      [false, false],
+      [true, false],
+      [false, false],
+    ]
+  );
+  assert.deepEqual(refreshes, [true, false]);
+});
+
+dbTest('a missing CampFlow login or a broken answer tells whom to ask', async (t) => {
+  const answers = [
+    () => Response.json({ error: 'CampFlow-Zugang ist nicht konfiguriert' }, { status: 503 }),
+    () => Response.json({ loadedAt: 'gestern', receipts: [] }),
+  ];
+  const { context } = setup(t, () => answers.shift()!());
+  for (const expected of [/kein CampFlow-Zugang/, /in ein paar Minuten/]) {
+    const response = await campflowList(context);
+    assert.equal(response.status, 502);
+    assert.match(JSON.stringify(response.jsonBody), expected);
+    assert.match(JSON.stringify(response.jsonBody), /admin@stamm-phoenix\.de/);
+  }
 });
 
 test('CampFlow gets a unique file name, the payout person and the rest in the description', () => {

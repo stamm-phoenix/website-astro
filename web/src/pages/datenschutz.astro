@@ -404,8 +404,11 @@ const vorstand = await getVorstandContent();
           unserer Website wird der Beleg danach gelöscht. Damit nachvollziehbar bleibt, was wann
           übertragen wurde, behalten wir in unserer Datenbank bei Microsoft Azure in Deutschland die
           Angaben des Belegs ohne Foto, die Belegnummer in Campflow, die Anmeldekennung der Person,
-          die ihn eingereicht hat, und wer ihn wann übertragen hat. Die eingereichte Person und das
-          Kassenteam sehen diese Angaben im Leitendenbereich unter „In CampFlow“.
+          die ihn eingereicht hat, und wer ihn wann übertragen hat. Außerdem zeigt der
+          Leitendenbereich allen angemeldeten Leitenden die Belege aus Campflow mit Beschreibung,
+          Betrag, Kostenstelle, Kategorie, der Person, die ausgelegt hat, und ob die Auslage
+          erstattet ist. Diese Angaben lesen wir bei jedem Aufruf aus Campflow und speichern sie
+          nicht.
         </Text>
       </InfoCard>
       <InfoCard title="Sammelbestellungen" id="sammelbestellungen">

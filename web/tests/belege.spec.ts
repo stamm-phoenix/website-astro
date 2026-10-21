@@ -72,17 +72,52 @@ test('the Kasse transfers an accepted receipt to CampFlow with the chosen Katego
   expect(sent?.etag).toBeTruthy();
 });
 
-test('receipts transferred to CampFlow stay listed with their CampFlow image', async ({ page }) => {
+test('all receipts from CampFlow can be filtered and opened with their image', async ({ page }) => {
   await page.goto('/leitendenbereich/belege/');
   const inCampflow = page.getByRole('button', { name: /^In CampFlow/ });
-  await expect(inCampflow).toHaveText(/\(\d+\)/);
+  await expect(inCampflow).toHaveText(/\(5\)/);
   await inCampflow.click();
-  await page.getByRole('button', { name: /Edeka/ }).click();
+  await expect(page.getByTestId('campflow-belege-stand')).toBeVisible();
+  const list = page.getByRole('list', { name: 'Belege in CampFlow' });
+  await expect(list.getByRole('listitem')).toHaveCount(5);
 
-  const dialog = page.getByRole('dialog', { name: 'Beleg von Edeka' });
+  // Kostenstelle and Kategorie narrow the list, the status tabs too
+  await page.getByLabel('Kostenstelle').selectOption({ label: 'Sommerlager 2026 Oberjoch' });
+  await expect(list.getByRole('listitem')).toHaveCount(3);
+  await page.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
+  await expect(list.getByRole('listitem')).toHaveCount(1);
+  await expect(list.getByText('Erstattet')).toBeVisible();
+  await page.getByLabel('Kostenstelle').selectOption({ label: 'Alle Kostenstellen' });
+  await page.getByRole('button', { name: /^Zahlung offen/ }).click();
+  await expect(list.getByRole('listitem')).toHaveCount(2);
+  await page.getByRole('button', { name: /^Alle/ }).last().click();
+
+  // Own receipts: paid out of pocket by the demo user, matched by name
+  await page.getByLabel('Nur meine Belege').check();
+  await expect(list.getByRole('listitem')).toHaveCount(2);
+  await expect(list.getByText('Sam Beispiel')).toHaveCount(0);
+
+  await list.getByRole('button', { name: /Edeka – Grillabend/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edeka – Grillabend' });
   await expect(dialog.getByText('2026-104')).toBeVisible();
-  await expect(dialog.getByText('Sommerlager 2026 Oberjoch').first()).toBeVisible();
+  await expect(dialog.getByText('Gebucht, Erstattung offen')).toBeVisible();
+  await expect(dialog.getByText('von dir über die Website')).toBeVisible();
   await expect(dialog.getByRole('img', { name: /Beleg 2026-104/ }).first()).toBeVisible();
   await dialog.getByRole('button', { name: 'Schließen' }).click();
   await expect(dialog).toBeHidden();
+});
+
+test('the start page lists my receipts with their state', async ({ page }) => {
+  await page.goto('/leitendenbereich/');
+  const box = page.getByRole('region', { name: 'Meine Belege' });
+  await expect(box).toBeVisible();
+  const items = box.getByTestId('meine-belege').getByRole('listitem');
+  await expect(items.first()).toBeVisible();
+  // Submitted here and booked in CampFlow, newest first
+  await expect(box.getByText('Edeka – Grillabend')).toBeVisible();
+  await expect(box.getByText('Gebucht, Erstattung offen')).toBeVisible();
+  await expect(box.getByRole('link', { name: 'Zu den Belegen' })).toHaveAttribute(
+    'href',
+    '/leitendenbereich/belege'
+  );
 });

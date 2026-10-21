@@ -582,23 +582,52 @@ export interface BelegCampflow {
   startedAt: string;
 }
 
-/** A receipt transferred to CampFlow and deleted in the module; its photo is in CampFlow. */
-export interface TransferredBeleg {
+/**
+ * Where a receipt stands in CampFlow: `unbooked` uploaded but not booked („Ungeprüfte Belege“),
+ * `open` booked but not fully matched to a payment (an Auslage is not paid back yet), `settled`
+ * matched in full (paid, or paid back).
+ */
+export type CampflowBelegStatus = 'unbooked' | 'open' | 'settled';
+
+/** A receipt as CampFlow's page „Belege“ lists it (`GET /api/intern/pflege/belege/campflow`). */
+export interface CampflowBeleg {
+  /** The booking (`exp_…`), or for an unbooked receipt the receipt (`rcp_…`). */
   id: string;
-  shop: string;
-  date: string;
+  /** Belegnummer like `2026-94`, null until booked. */
+  number: string | null;
+  status: CampflowBelegStatus;
+  description: string;
+  /** Belegdatum `YYYY-MM-DD`, null for an unbooked receipt. */
+  date: string | null;
+  /** Negative for expenses, positive for income. */
   amountCent: number;
-  paidBy: string;
-  payout: boolean;
-  aktion: string;
-  note: string;
-  submittedBy: string;
-  /** Belegnummer in CampFlow, e.g. `2026-112`. */
-  number: string;
-  costUnitName: string;
-  categoryName: string;
-  transferredBy: string;
-  transferredAt: string;
+  /** Part not yet matched to a payment, with the amount's sign. */
+  openCent: number;
+  /** „Auslage durch“: who paid out of pocket. */
+  paidBy: string | null;
+  costUnits: { id: string; name: string }[];
+  categories: { id: string; name: string; costUnitId: string | null }[];
+  pages: number;
+  /** File name in CampFlow, only for unbooked receipts. */
+  fileName: string | null;
+  /** Upload time as CampFlow reports it, `YYYY-MM-DD HH:MM:SS`. */
+  uploadedAt: string | null;
+  /** Transferred from this website's Belege module. */
+  viaWebsite: boolean;
+  /** Transferred from the Belege module and submitted there by the logged-in user. */
+  submittedByMe: boolean;
+}
+
+export interface CampflowBelegeData {
+  /** When the receipts were read from CampFlow (ISO 8601). */
+  loadedAt: string;
+  costUnits: {
+    id: string;
+    name: string;
+    archived: boolean;
+    categories: { id: string; name: string }[];
+  }[];
+  belege: CampflowBeleg[];
 }
 
 export interface StaffDownload {

@@ -2,11 +2,11 @@ import { errorMessage, fetchApi } from './api';
 import type {
   AnwesenheitOverview,
   BeitraegeData,
+  CampflowBelegeData,
   ProtokollEditorOverview,
   SammelAktion,
   StaffAktionenData,
   StaffBeleg,
-  TransferredBeleg,
   StaffBlogListItem,
   StaffDownload,
   StaffGruppenstundenData,
@@ -129,9 +129,6 @@ export const blogPflege = createResource<StaffBlogListItem[]>('/intern/pflege/bl
 export const faqPflege = createResource<StaffQuestionsData>('/intern/pflege/qa');
 export const aktionenPflege = createResource<StaffAktionenData>('/intern/pflege/aktionen');
 export const belegePflege = createResource<StaffBeleg[]>('/intern/pflege/belege');
-export const uebertrageneBelege = createResource<TransferredBeleg[]>(
-  '/intern/pflege/belege/uebertragen'
-);
 export const protokollePflege = createResource<StaffProtokolleData>('/intern/pflege/protokolle');
 export const personenPflege = createResource<PersonenUebersicht>('/intern/pflege/personen');
 /** The Gruppenstunden with their recorded Termine; loaded again on every visit. */
@@ -154,6 +151,17 @@ export const sammelCampaigns = createResource<SammelAktion[]>('/intern/pflege/sa
 });
 export const nikolausSteuerung = createResource<StaffNikolausSteuerung>(
   '/intern/nikolaus/steuerung'
+);
+
+/** All receipts in CampFlow, read-only; `true` as param has them read from CampFlow again. */
+export const campflowBelegeStore = createResource<CampflowBelegeData, boolean>(
+  (refresh) =>
+    refresh ? '/intern/pflege/belege/campflow?refresh=true' : '/intern/pflege/belege/campflow',
+  {
+    idle: true,
+    loadError:
+      'Die Belege aus CampFlow konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
+  }
 );
 
 /** CampFlow's Beiträge, read-only; `true` as param has them read from CampFlow again. */

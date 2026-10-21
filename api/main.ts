@@ -155,7 +155,7 @@ import {
   BelegeCollection,
   BelegItem,
   BelegCampflow,
-  BelegeUebertragen,
+  BelegeCampflow,
   BelegPhoto,
   BelegPruefung,
   BelegRolle,
@@ -751,11 +751,11 @@ app.http('internPflegeBelegPruefung', {
 });
 
 // Registered before `belege/{id}` as well
-app.http('internPflegeBelegeUebertragen', {
+app.http('internPflegeBelegeCampflow', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'intern/pflege/belege/uebertragen',
-  handler: BelegeUebertragen,
+  route: 'intern/pflege/belege/campflow',
+  handler: BelegeCampflow,
 });
 
 app.http('internPflegeBelegRolle', {

@@ -1,10 +1,13 @@
-# Belege nach CampFlow übertragen
+# Belege und CampFlow
 
 Die Kasse überträgt einen angenommenen Beleg aus dem Modul „Belege“ per Knopfdruck nach CampFlow
 (Issue #166). Die offizielle CampFlow-API kennt keine Belege, deshalb läuft die Übertragung über
 die [Playwright-API](https://github.com/stamm-phoenix/playwright-api) (`POST /campflow/belege`),
 die CampFlow wie die Oberfläche bedient: *Belege hochladen* und danach *Beleg prüfen →
 Speichern*. Erst diese Buchung gibt dem Beleg seine CampFlow-Nummer (z. B. `2026-112`).
+
+Außerdem zeigt das Modul alle Belege aus CampFlow mit ihrem Stand, nur lesend, damit Leitende ohne
+eigenen CampFlow-Zugang sehen, was mit ihren Belegen passiert ist (wie die Beiträge).
 
 ## Bedienung
 
@@ -24,14 +27,43 @@ werden vorher gespeichert. Nach der Übertragung wird der Beleg im Modul gelösc
 Fehlende Kostenstellen oder Kategorien legt die Übertragung nicht an; dafür CampFlow öffnen und
 die Seite neu laden.
 
-## Übertragene Belege ansehen
+## Belege aus CampFlow ansehen
 
-Der Filter „In CampFlow“ listet die übertragenen und danach gelöschten Belege, die neuesten
-zuerst (`GET /api/intern/pflege/belege/uebertragen`). Die Kasse sieht alle, alle anderen die
-Belege, die sie selbst eingereicht haben. Die Angaben stammen aus `organisation.beleg_campflow`,
-so wie sie bei der Übertragung waren; das Bild kommt über die Playwright-API aus CampFlow
-(`/api/intern/abrechnung/belege/{nummer}/bild`, wie in der Abrechnung). Was danach in CampFlow
-geändert wird, zeigt die Liste nicht.
+Der Filter „In CampFlow“ zeigt alle Belege der Seite *Belege* in CampFlow
+(`GET /api/intern/pflege/belege/campflow`, für alle Leitenden). Die Liste kommt live über die
+Playwright-API (`GET /campflow/belege`), die ihren letzten Stand im Speicher hält, bis jemand „Neu
+aus CampFlow laden“ tippt (`?refresh=true`) oder ein Upload die Liste geändert haben kann. Die
+Website speichert davon nichts.
+
+| Stand | in CampFlow |
+| --- | --- |
+| In CampFlow, noch nicht gebucht | unter *Ungeprüfte Belege*, ohne Buchung und Nummer |
+| Gebucht, Erstattung offen | gebucht mit „Auslage durch“, aber noch nicht ganz einer Zahlung auf dem Konto zugeordnet |
+| Gebucht | gebucht ohne Auslage, noch nicht ganz zugeordnet |
+| Erstattet / Bezahlt | ganz einer Zahlung zugeordnet (`unassigned_bca` 0) |
+
+Filter: Kostenstelle, Kategorie (der gewählten Kostenstelle), Stand und Suche. „Nur meine Belege“
+zeigt Belege mit dem eigenen Namen unter „Auslage durch“ (wie „(ich)“ in Beiträgen und Abrechnung:
+verknüpfte CampFlow-Person aus „Personen“, sonst der Name des Microsoft-Kontos) und die, die man
+über die Website eingereicht hat. Letztere erkennt die API an `organisation.beleg_campflow`
+(Buchung `campflow_expense_id`, eingereicht von `submitted_by`) und gibt nur `viaWebsite` und
+`submittedByMe` weiter, keine Anmeldekennungen. Der Dateiname aus CampFlow nennt oft, wer
+hochgeladen hat; er wird nur für ungebuchte Belege gezeigt, die sonst nichts haben. Das Bild kommt
+wie in der Abrechnung über `/api/intern/abrechnung/belege/{nummer}/bild`.
+
+## Meine Belege auf der Startseite
+
+Die Box „Meine Belege“ (`StaffDashboard.svelte`, `meineBelege` in `web/src/lib/campflowBelege.ts`)
+führt die eigenen Belege aus dem Modul (Eingereicht, Abgelehnt, Angenommen) und die eigenen Belege
+aus CampFlow zusammen, die neuesten zuerst. Ein Beleg, der nach dem Upload hier stehen blieb, steht
+nur einmal da, mit seinem Stand aus CampFlow.
+
+## Was die Website speichert
+
+`organisation.beleg_campflow` hält je übertragenem Beleg den Versuch (Zustand, Ziel, Fehler), den
+gesendeten Stand und die CampFlow-Nummer. Die Zeile bleibt nach dem Löschen des Belegs stehen: Sie
+macht Wiederholungen sicher und ordnet die Buchung in CampFlow der Person zu, die den Beleg
+eingereicht hat. Alles andere zu Belegen in CampFlow liest die Website jedes Mal neu.
 
 ## Ablauf und Zustände
 
