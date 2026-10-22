@@ -52,6 +52,10 @@ const run = query({
   prompt: REVIEW_PROMPT,
   options: {
     model: MODEL,
+    // Upper limits, so that a run that keeps reading (a large PR, an instruction in the diff) does
+    // not use up the monthly credit; so far reviews took 6 to 19 turns and up to 1.66 $
+    maxTurns: 60,
+    maxBudgetUsd: 5,
     cwd: process.cwd(),
     additionalDirectories: [PR_DIR],
     systemPrompt: { type: 'preset', preset: 'claude_code' },
