@@ -344,6 +344,12 @@
    * Saves pending changes of the accepted receipt, then has the API upload it to CampFlow and
    * delete it here. The API checks the version, so CampFlow gets exactly what was saved.
    */
+  /**
+   * What the last save before a transfer wrote, with its version. A retry compares with it, as
+   * the list may still hold the state before that save.
+   */
+  let confirmedSave: StaffBeleg | null = null;
+
   async function transfer(choice: CampflowChoice): Promise<void> {
     const current = form;
     if (!current?.id || photo.photoBusy) return;
@@ -354,9 +360,11 @@
     if (dialog.invalid(validateBeleg(current, false))) return;
     const { id, shop } = current;
     await dialog.run(async () => {
-      const unchanged = store.data?.find((b) => b.id === id);
+      const listed = store.data?.find((b) => b.id === id);
+      const stored =
+        confirmedSave?.id === id && confirmedSave.etag === current.etag ? confirmedSave : listed;
       let etag = current.etag;
-      if (!unchanged || belegChanged(current, unchanged)) {
+      if (!stored || belegChanged(current, stored)) {
         const patched = await sendApi<{ etag?: string }>('PATCH', `/intern/pflege/belege/${id}`, {
           shop: current.shop,
           date: current.date,
@@ -372,6 +380,20 @@
         // Only the version this save wrote: a reloaded list could carry someone else's change
         if (!patched?.etag) throw new Error('Keine Version nach dem Speichern');
         etag = patched.etag;
+        if (listed) {
+          confirmedSave = {
+            ...listed,
+            shop: current.shop,
+            date: current.date,
+            amountCent: parseEuroToCent(current.amount) ?? listed.amountCent,
+            paidBy: current.paidBy,
+            payout: current.payout === true,
+            aktion: current.aktion,
+            note: current.note,
+            reviewNote: current.reviewNote,
+            etag,
+          };
+        }
         // Taken over at once, so a retry after a failed transfer saves on top of it
         if (form === current) {
           editDialog?.acceptRescueVersion(current.etag, etag);
