@@ -31,12 +31,15 @@ const real = (p) => {
 };
 const ROOTS = [real(process.cwd()), real(PR_DIR)];
 const inside = (p) => {
+  // The tools expand ~ to the home directory, path.resolve does not
+  if (p.startsWith('~')) return false;
   const target = real(path.resolve(process.cwd(), p));
   return ROOTS.some((root) => target === root || target.startsWith(root + path.sep));
 };
 // A glob pattern must stay below the directory it is applied to
 const relativePattern = (pattern) =>
-  pattern === undefined || (!path.isAbsolute(pattern) && !pattern.split(/[\\/]/).includes('..'));
+  pattern === undefined ||
+  (!path.isAbsolute(pattern) && !pattern.startsWith('~') && !pattern.split(/[\\/]/).includes('..'));
 const readable = (tool, input) => {
   if (tool === 'Read') return typeof input.file_path === 'string' && inside(input.file_path);
   if (!inside(input.path ?? '.')) return false;
