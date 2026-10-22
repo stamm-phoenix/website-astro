@@ -61,6 +61,6 @@ Neben Codex prüft auch Claude Code jeden Pull Request, über die Anthropic API 
 
 ### Kosten und Abschalten
 
-Abgerechnet wird pro Token über das Guthaben in der Anthropic Console; beide Repos teilen es. Was ein Lauf gekostet hat, steht im Log unter „Claude Code“ (`total_cost_usd`), den Verbrauch insgesamt zeigt die Console unter **Usage** bzw. **Cost**. Die ersten Reviews kleiner PRs mit Opus kosteten 0,14 bis 0,34 $; große PRs kosten mehr, ein gründliches Review mit Fable etwa das Doppelte bis Dreifache. Jeder Push löst ein neues Review aus. Ist das Guthaben aufgebraucht, schlagen die Reviews bis zum nächsten Monat fehl (rotes Häkchen „Claude Review“, blockiert keinen Merge).
+Abgerechnet wird pro Token über das Guthaben in der Anthropic Console; beide Repos teilen es. Was ein Lauf gekostet hat, steht im Log unter „Claude Code“ (`total_cost_usd`), den Verbrauch insgesamt zeigt die Console unter **Usage** bzw. **Cost**. Die ersten Reviews kleiner PRs kosteten mit Opus 0,14 bis 0,34 $ (30 bis 60 Sekunden), ein gründliches Review mit Fable 1,66 $ (3 Minuten, 19 Schritte); große PRs kosten mehr. Jeder Push löst ein neues Review aus. Ist das Guthaben aufgebraucht, schlagen die Reviews bis zum nächsten Monat fehl (rotes Häkchen „Claude Review“, blockiert keinen Merge).
 
 Abschalten: den Workflow unter **Actions → Claude Review → … → Disable workflow** deaktivieren. Das Secret zu löschen reicht nicht: Der Workflow startet dann weiter und schlägt bei jedem PR fehl.
