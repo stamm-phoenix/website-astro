@@ -38,6 +38,42 @@ test('a new receipt asks how it was paid without preselecting a payout', async (
   await expectNoHorizontalOverflow(page);
 });
 
+test('my own Auslage takes the name of the linked CampFlow person without a name claim', async ({
+  page,
+}) => {
+  // A login without its name, and the linked CampFlow person known only a moment later
+  const principal = await (await page.request.get('/.auth/me')).json();
+  principal.clientPrincipal.claims = [];
+  await page.route('**/.auth/me', (route) => route.fulfill({ json: principal }));
+  let releaseIch!: () => void;
+  const ichHeld = new Promise<void>((resolve) => (releaseIch = resolve));
+  await page.route('**/api/intern/ich', async (route) => {
+    await ichHeld;
+    await route.fulfill({
+      json: {
+        login: principal.clientPrincipal.userDetails,
+        campflow: { id: 'per_kim', firstName: 'Kim', lastName: 'Verknüpft' },
+      },
+    });
+  });
+  const sent: Array<Record<string, unknown>> = [];
+  await page.route('**/api/intern/pflege/belege/41', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    sent.push(route.request().postDataJSON());
+    await route.fulfill({ json: { mailed: false, etag: 'gespeichert' } });
+  });
+  await page.goto('/leitendenbereich/belege/');
+  await page.getByRole('button', { name: /REWE/ }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg von REWE' });
+  await dialog
+    .getByRole('radio', { name: 'Mit meinem Geld – bitte an mich auszahlen', exact: true })
+    .check();
+  releaseIch();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(sent.at(-1)).toMatchObject({ payout: true, paidBy: 'Kim Verknüpft' });
+});
+
 test('an Auslage of someone else names that person, the savings book names itself', async ({
   page,
 }) => {

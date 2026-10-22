@@ -42,7 +42,7 @@
     type BelegQuelle,
     type BelegStand,
   } from '../../lib/belegEintraege';
-  import { isIch } from '../../lib/ichStore.svelte';
+  import { ichStore, isIch } from '../../lib/ichStore.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import Toast from '../ui/Toast.svelte';
   import type { BelegStatus, CampflowBeleg, StaffBeleg } from '../../lib/types';
@@ -90,6 +90,18 @@
   let message = $state<string | null>(null);
   /** Photo being scanned; raw because the pixel arrays are large. */
   const login = $derived(authStore.principal?.userDetails ?? '');
+  /** The own name for an Auslage: from the login, else from the linked CampFlow person. */
+  const myName = $derived.by(() => {
+    const fromLogin = authStore.principal ? getFullName(authStore.principal) : null;
+    if (fromLogin) return fromLogin;
+    const linked = ichStore.ich?.campflow;
+    return linked ? `${linked.firstName} ${linked.lastName}`.trim() : '';
+  });
+
+  // The name may arrive after „Mit meinem Geld“ was chosen
+  $effect(() => {
+    if (form?.zahlung === 'ich' && !form.paidBy.trim() && myName) form.paidBy = myName;
+  });
   const eintraege = $derived(belegEintraege(store.data ?? [], campflowStore.data, { isIch }));
   const kostenstellen = $derived(eintragKostenstellen(eintraege, campflowStore.data));
   const kategorien = $derived(kostenstellen.find((k) => k.id === costUnitId)?.categories ?? []);
@@ -624,7 +636,7 @@
       bind:form
       {errors}
       {aktionSuggestions}
-      myName={authStore.principal ? (getFullName(authStore.principal) ?? '') : ''}
+      {myName}
       onfield={(field) => dialog.clearField(field)}
       onpayment={() => {
         dialog.clearField('payout');

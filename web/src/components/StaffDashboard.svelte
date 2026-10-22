@@ -317,20 +317,19 @@
   {/if}
   <ul class="mt-1 divide-y divide-neutral-200" data-testid="meine-belege">
     {#each ownBelege.slice(0, CARD_LIMIT) as beleg (beleg.key)}
-      <li class="py-2">
-        <a
-          href="/leitendenbereich/belege"
-          class="text-link block truncate font-semibold"
-          title={beleg.title}>{beleg.title}</a
-        >
-        <p class="flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
-          <span
-            >{[beleg.date ? formatIsoDate(beleg.date) : '', formatEuro(beleg.amountCent)]
-              .filter(Boolean)
-              .join(' · ')}</span
-          >
-          <StatusLabel label={beleg.label} tone={beleg.tone} dot />
-        </p>
+      <li>
+        <!-- The whole line is the link, so it is easy to hit on a phone -->
+        <a href="/leitendenbereich/belege" class="block min-h-11 py-2" title={beleg.title}>
+          <span class="text-link block truncate font-semibold">{beleg.title}</span>
+          <span class="flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
+            <span
+              >{[beleg.date ? formatIsoDate(beleg.date) : '', formatEuro(beleg.amountCent)]
+                .filter(Boolean)
+                .join(' · ')}</span
+            >
+            <StatusLabel label={beleg.label} tone={beleg.tone} dot />
+          </span>
+        </a>
       </li>
     {/each}
   </ul>
