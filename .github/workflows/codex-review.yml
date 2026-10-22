@@ -1,7 +1,10 @@
 name: Codex Review
 # AI review of pull requests with Codex and model deployments on our Azure OpenAI resource (paid
 # by the Azure grant). Every new or updated PR gets a review with gpt-6.1-sol; the label
-# "codex-review" starts a thorough review with gpt-6-astra. Setup and costs: docs/ki-review.md.
+# "codex-review" starts a thorough review with gpt-6-astra. Apart from the connection to the
+# provider and the models, this file is the same as claude-review.yml, and both are the same in
+# website-astro and playwright-api; what to look for in each repo is in
+# .github/review-instructions.md. Setup and costs: docs/ki-review.md.
 # The run name tells the label step which runs are thorough reviews
 run-name: ${{ github.event.action == 'labeled' && github.event.label.name == 'codex-review' && 'Thorough review' || 'Review' }}
 on:
@@ -10,8 +13,13 @@ on:
 permissions:
   contents: read
 env:
-  # Names of the model deployments in Azure (website-astro-openai)
-  CODEX_MODEL: ${{ github.event.action == 'labeled' && 'gpt-6-astra' || 'gpt-6.1-sol' }}
+  # Name in the comments and label of the thorough review (also the name of this file)
+  REVIEWER: Codex
+  LABEL: codex-review
+  # Names of the model deployments in Azure (website-astro-openai, shared by website-astro and
+  # playwright-api)
+  MODEL: ${{ github.event.action == 'labeled' && 'gpt-6-astra' || 'gpt-6.1-sol' }}
+  THOROUGH_MODEL: gpt-6-astra
   # The automatic review thinks hard, the thorough one as hard as Codex can (it runs rarely and
   # does not hold up the queue of the automatic reviews)
   CODEX_EFFORT: ${{ github.event.action == 'labeled' && 'xhigh' || 'high' }}
@@ -38,7 +46,7 @@ jobs:
     # one review per deployment runs at a time; the others wait in order (`queue: max`, up to 100)
     # instead of failing with "exceeded token rate limit". A push still cancels a waiting automatic
     # review through the concurrency of the workflow above. Only github/needs/vars are available
-    # here, not env, so the model is derived from the event like CODEX_MODEL.
+    # here, not env, so the model is derived from the event like MODEL.
     concurrency:
       group: codex-review-model-${{ github.event.action == 'labeled' && 'gpt-6-astra' || 'gpt-6.1-sol' }}
       queue: max
@@ -56,7 +64,7 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       # A label set together with a push (or while the automatic review waits) starts a thorough
-      # review of the same commit; the automatic one would only repeat it and hold the queue.
+      # review of the same commit; the automatic one would only repeat it (and cost or wait twice).
       # A thorough review that failed or was cancelled does not count, nor one whose comments
       # could not be posted.
       - name: Skip if a thorough review of this commit exists
@@ -70,7 +78,7 @@ jobs:
         # is posted there. The runs list of the API leaves pull_requests empty for many PRs.
         run: |
           found=false
-          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/codex-review.yml/runs?head_sha=$HEAD_SHA&per_page=100" \
+          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$LABEL.yml/runs?head_sha=$HEAD_SHA&per_page=100" \
             --jq '.workflow_runs[] | select(.head_branch == env.HEAD_REF) | .id'); do
             if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
               --jq 'select(any(.jobs[]; .name == "Thorough review" and (.conclusion == null or .conclusion == "success"))
@@ -83,15 +91,15 @@ jobs:
           echo "found=$found" >> "$GITHUB_OUTPUT"
 
       # The PR head, so that the line numbers of the findings match the diff
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.thorough.outputs.found != 'true'
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
           persist-credentials: false
 
-      # Codex runs without network access and without a GitHub token, so everything it needs
-      # from GitHub is fetched here into files
+      # The reviewer gets no network access and no GitHub token, so everything it needs from
+      # GitHub is fetched here into files
       - name: PR context
         if: steps.thorough.outputs.found != 'true'
         env:
@@ -135,7 +143,7 @@ jobs:
           openai-api-key: ${{ secrets.AZURE_OPENAI_REVIEW_KEY }}
           # The rate limit proxy, which forwards to https://website-astro-openai.openai.azure.com
           responses-api-endpoint: http://127.0.0.1:8788/openai/v1/responses
-          model: ${{ env.CODEX_MODEL }}
+          model: ${{ env.MODEL }}
           effort: ${{ env.CODEX_EFFORT }}
           permission-profile: ":read-only"
           prompt: |
@@ -149,30 +157,24 @@ jobs:
             Schreibe alle Texte auf Deutsch.
 
             Vorgehen:
-            1. Lies Beschreibung und Diff. Lockfiles (`bun.lock`, `package-lock.json`, `flake.lock`) und
-               minifizierte Dateien überspringst du.
-            2. Halte dich an AGENTS.md. Sie enthält die Regeln des Projekts (Astro 7, Svelte 5 Runes,
-               Tailwind CSS 4, Azure Functions in api/, Azure SQL mit Migrationen, Usability für Leitende).
-            3. Was in `review-comments.jsonl` schon steht (von dir oder anderen), meldest du nicht noch einmal.
-            4. Suche nach echten Problemen: Fehler im Verhalten, Sicherheitslücken, Datenverlust, kaputte
-               Migrationen und Verstöße gegen AGENTS.md. Achte besonders auf:
-               - jeder neue `/api/intern/*`-Endpunkt beginnt mit `requireStaff(request)` (bzw. `requireNikolausStaff`);
-                 Pflege-Schreibendpunkte nutzen `pflegeHandler` und prüfen Eingaben in `api/lib/pflege-validation.ts`
-               - Migrationen sind neue Dateien, ändern keine bestehenden und bleiben rückwärtskompatibel;
-                 neue Tabellen bekommen Testdaten in `api/scripts/db-preview.ts` und ein höheres `SEEDED_KEY`
-               - `content.ts` wird nur im Frontmatter von Seiten importiert, nie in Islands; Sanitizer nutzen `parseHtml`
-               - Barrierefreiheit (aria-labelledby, width/height an Bildern, ARIA an interaktiven Elementen)
-               - Texte im Leitendenbereich: einfache Sprache in der Du-Form, Fehlermeldungen mit nächstem Schritt
-            5. Prüfe jeden möglichen Fund im Code nach, bevor du ihn meldest: Lies die aufgerufenen Funktionen,
+            1. Lies `.github/review-instructions.md`. Dort steht, was das Projekt ist, worauf du besonders
+               achten sollst und welche Bereiche es für die Funde gibt.
+            2. Lies Beschreibung und Diff. Lockfiles und minifizierte Dateien überspringst du.
+            3. Halte dich an AGENTS.md, falls es sie gibt. Sie enthält die Regeln des Projekts.
+            4. Was in `review-comments.jsonl` schon steht (von dir, einem anderen KI-Review oder Menschen),
+               meldest du nicht noch einmal.
+            5. Suche nach echten Problemen: Fehler im Verhalten, Sicherheitslücken, Datenverlust, Ausfälle
+               und Verstöße gegen die Regeln des Projekts.
+            6. Prüfe jeden möglichen Fund im Code nach, bevor du ihn meldest: Lies die aufgerufenen Funktionen,
                Typen und Aufrufer. Melde nur, was du belegen kannst. Keine reinen Stilfragen, keine Vermutungen.
 
             Gib das Ergebnis im vorgegebenen Format zurück:
             - `summary`: ein bis drei Sätze Gesamteindruck (was der PR macht und ob er so in Ordnung ist).
             - `findings`: je Fund
               - `severity`: `kritisch` (Sicherheitslücke, Datenverlust, Ausfall), `fehler` (falsches Verhalten)
-                oder `hinweis` (Verstoß gegen AGENTS.md, Barrierefreiheit, Wortwahl, kleines Risiko)
-              - `category`: genau einer von Sicherheit, Funktion, Daten, Barrierefreiheit, Usability,
-                Projektregeln, Performance
+                oder `hinweis` (Verstoß gegen die Regeln des Projekts, kleines Risiko; Beispiele in
+                `.github/review-instructions.md`)
+              - `category`: genau einer der Bereiche aus `.github/review-instructions.md`
               - `title`: ein Satz, der das Problem benennt
               - `body`: zwei bis fünf Sätze Markdown: welche Eingabe oder welcher Zustand führt zu welchem
                 falschen Ergebnis, und warum. Code, Dateien und Funktionen in `Backticks`.
@@ -226,7 +228,7 @@ jobs:
         if: always() && steps.codex.outcome != 'skipped'
         run: sleep 20
 
-  # Posting runs in a job of its own: it needs write access, the Codex job must not have it
+  # Posting runs in a job of its own: it needs write access, the review job must not have it
   comment:
     needs: review
     if: needs.review.outputs.review != ''
@@ -250,12 +252,12 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
-            const MARKER = '<!-- codex-review-summary -->';
+            const MARKER = `<!-- ${process.env.LABEL}-summary -->`;
             let review;
             try {
               review = JSON.parse(process.env.REVIEW);
             } catch (error) {
-              core.setFailed(`Codex returned no valid JSON (${error.message}): ${process.env.REVIEW.slice(0, 500)}`);
+              core.setFailed(`${process.env.REVIEWER} returned no valid JSON (${error.message}): ${process.env.REVIEW.slice(0, 500)}`);
               return;
             }
             const sha = process.env.HEAD_SHA;
@@ -268,7 +270,7 @@ jobs:
             // the comment jobs run one after the other, so the second skips what the first posted.
             // Compared on the reviewed commit: after a push GitHub moves `line` of older comments,
             // `original_line` keeps the line on the commit they were posted on. Findings of earlier
-            // commits Codex already leaves out itself (review-comments.jsonl).
+            // commits the reviewer already leaves out itself (review-comments.jsonl).
             const posted = await github.paginate(github.rest.pulls.listReviewComments, { owner, repo, pull_number });
             const isPosted = (f) =>
               posted.some(
@@ -339,7 +341,7 @@ jobs:
               .filter(([, n]) => n > 0)
               .map(([s, n]) => `${icons[s]} ${n} ${labels[s]}`)
               .join(' · ');
-            const lines = [MARKER, `## 🤖 Codex-Review${process.env.THOROUGH === 'true' ? ' (gründlich)' : ''}`, '', review.summary, ''];
+            const lines = [MARKER, `## 🤖 ${process.env.REVIEWER}-Review${process.env.THOROUGH === 'true' ? ' (gründlich)' : ''}`, '', review.summary, ''];
             if (findings.length === 0) {
               lines.push('✅ **Keine neuen Funde.**');
             } else {
@@ -353,7 +355,7 @@ jobs:
                 lines.push('', '---', '', `Konnte nicht an die Zeile gesetzt werden (${link(f)}):`, '', commentBody(f));
               }
             }
-            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · ${process.env.CODEX_MODEL} · Gründliches Review mit gpt-6-astra: Label \`codex-review\` setzen</sub>`);
+            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · ${process.env.MODEL} · Gründliches Review mit ${process.env.THOROUGH_MODEL}: Label \`${process.env.LABEL}\` setzen</sub>`);
             const body = lines.join('\n');
 
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pull_number });
@@ -383,7 +385,7 @@ jobs:
           script: |
             const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
               ...context.repo,
-              workflow_id: 'codex-review.yml',
+              workflow_id: `${process.env.LABEL}.yml`,
               branch: context.payload.pull_request.head.ref,
               event: 'pull_request',
               per_page: 100,
@@ -399,7 +401,7 @@ jobs:
               await github.rest.issues.removeLabel({
                 ...context.repo,
                 issue_number: context.payload.pull_request.number,
-                name: 'codex-review',
+                name: process.env.LABEL,
               });
             } catch (error) {
               // Someone removed it in the meantime

@@ -1,6 +1,6 @@
-# Worauf das Claude-Review achtet
+# Worauf die KI-Reviews achten
 
-Anweisungen an Claude für das gründliche Review mit dem Label `claude-review` (`.github/workflows/claude-review.yml`, Einrichtung in `docs/ki-review.md`). Der Workflow ist in website-astro und playwright-api gleich; was nur für dieses Repo gilt, steht hier.
+Anweisungen für das Codex- und das Claude-Review (`.github/workflows/codex-review.yml`, `.github/workflows/claude-review.yml`, Einrichtung in `docs/ki-review.md`). Beide Workflows sind in website-astro und playwright-api gleich; was nur für dieses Repo gilt, steht hier.
 
 ## Projekt
 

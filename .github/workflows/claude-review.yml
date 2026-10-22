@@ -1,9 +1,10 @@
 name: Claude Review
 # AI review of pull requests with Claude Code on the Anthropic API (paid from the monthly API
-# credit). Every new or updated PR gets a review with Claude Opus; the label "claude-review" starts
-# a thorough review with Claude Fable. This file is the same in website-astro and playwright-api;
-# what Claude should look for in each repo is in .github/claude-review.md. Setup and costs:
-# docs/ki-review.md.
+# credit). Every new or updated PR gets a review with claude-opus-5-5; the label "claude-review"
+# starts a thorough review with claude-fable-5-1. Apart from the connection to the provider and
+# the models, this file is the same as codex-review.yml, and both are the same in website-astro
+# and playwright-api; what to look for in each repo is in .github/review-instructions.md. Setup
+# and costs: docs/ki-review.md.
 # The run name tells the label step which runs are thorough reviews
 run-name: ${{ github.event.action == 'labeled' && github.event.label.name == 'claude-review' && 'Thorough review' || 'Review' }}
 on:
@@ -12,7 +13,11 @@ on:
 permissions:
   contents: read
 env:
-  CLAUDE_MODEL: ${{ github.event.action == 'labeled' && 'claude-fable-5-1' || 'claude-opus-5-5' }}
+  # Name in the comments and label of the thorough review (also the name of this file)
+  REVIEWER: Claude
+  LABEL: claude-review
+  MODEL: ${{ github.event.action == 'labeled' && 'claude-fable-5-1' || 'claude-opus-5-5' }}
+  THOROUGH_MODEL: claude-fable-5-1
   THOROUGH: ${{ github.event.action == 'labeled' }}
 # A new push cancels the running automatic review of the same PR. A thorough review gets a group
 # of its own per PR and label: a push does not cancel it, a second label waits for it, and other
@@ -46,7 +51,7 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       # A label set together with a push (or while the automatic review waits) starts a thorough
-      # review of the same commit; the automatic one would only repeat it and cost twice.
+      # review of the same commit; the automatic one would only repeat it (and cost or wait twice).
       # A thorough review that failed or was cancelled does not count, nor one whose comments
       # could not be posted.
       - name: Skip if a thorough review of this commit exists
@@ -60,7 +65,7 @@ jobs:
         # is posted there. The runs list of the API leaves pull_requests empty for many PRs.
         run: |
           found=false
-          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/claude-review.yml/runs?head_sha=$HEAD_SHA&per_page=100" \
+          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$LABEL.yml/runs?head_sha=$HEAD_SHA&per_page=100" \
             --jq '.workflow_runs[] | select(.head_branch == env.HEAD_REF) | .id'); do
             if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
               --jq 'select(any(.jobs[]; .name == "Thorough review" and (.conclusion == null or .conclusion == "success"))
@@ -73,15 +78,15 @@ jobs:
           echo "found=$found" >> "$GITHUB_OUTPUT"
 
       # The PR head, so that the line numbers of the findings match the diff
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.thorough.outputs.found != 'true'
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
           persist-credentials: false
 
-      # Claude gets no shell and no write access, so everything it needs from GitHub is fetched
-      # here into files
+      # The reviewer gets no network access and no GitHub token, so everything it needs from
+      # GitHub is fetched here into files
       - name: PR context
         if: steps.thorough.outputs.found != 'true'
         env:
@@ -111,8 +116,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             Du prüfst Pull Request #${{ github.event.pull_request.number }} in ${{ github.repository }}.
-            Der Stand des PRs ist im aktuellen Verzeichnis ausgecheckt. Alles von GitHub liegt in
-            `${{ runner.temp }}/pr/`:
+            Der Stand des PRs ist im aktuellen Verzeichnis ausgecheckt. Du hast keinen Netzzugriff;
+            alles von GitHub liegt in `${{ runner.temp }}/pr/`:
             - `description.md`: Titel und Beschreibung des PRs
             - `diff.patch`: der Diff des PRs gegen den Zielbranch
             - `review-comments.jsonl`: bisherige Kommentare an den Zeilen (eine Zeile JSON pro Kommentar)
@@ -120,11 +125,12 @@ jobs:
             Schreibe alle Texte auf Deutsch.
 
             Vorgehen:
-            1. Lies `.github/claude-review.md`. Dort steht, was das Projekt ist, worauf du besonders achten
-               sollst und welche Bereiche es für die Funde gibt.
+            1. Lies `.github/review-instructions.md`. Dort steht, was das Projekt ist, worauf du besonders
+               achten sollst und welche Bereiche es für die Funde gibt.
             2. Lies Beschreibung und Diff. Lockfiles und minifizierte Dateien überspringst du.
             3. Halte dich an AGENTS.md, falls es sie gibt. Sie enthält die Regeln des Projekts.
-            4. Was in `review-comments.jsonl` schon steht (von dir, Codex oder anderen), meldest du nicht noch einmal.
+            4. Was in `review-comments.jsonl` schon steht (von dir, einem anderen KI-Review oder Menschen),
+               meldest du nicht noch einmal.
             5. Suche nach echten Problemen: Fehler im Verhalten, Sicherheitslücken, Datenverlust, Ausfälle
                und Verstöße gegen die Regeln des Projekts.
             6. Prüfe jeden möglichen Fund im Code nach, bevor du ihn meldest: Lies die aufgerufenen Funktionen,
@@ -135,8 +141,8 @@ jobs:
             - `findings`: je Fund
               - `severity`: `kritisch` (Sicherheitslücke, Datenverlust, Ausfall), `fehler` (falsches Verhalten)
                 oder `hinweis` (Verstoß gegen die Regeln des Projekts, kleines Risiko; Beispiele in
-                `.github/claude-review.md`)
-              - `category`: genau einer der Bereiche aus `.github/claude-review.md`
+                `.github/review-instructions.md`)
+              - `category`: genau einer der Bereiche aus `.github/review-instructions.md`
               - `title`: ein Satz, der das Problem benennt
               - `body`: zwei bis fünf Sätze Markdown: welche Eingabe oder welcher Zustand führt zu welchem
                 falschen Ergebnis, und warum. Code, Dateien und Funktionen in `Backticks`.
@@ -154,7 +160,7 @@ jobs:
           # the PR's code, so its project settings (hooks in .claude/settings.json) and MCP servers
           # (.mcp.json) are not loaded: they would run commands next to the key.
           claude_args: |
-            --model ${{ env.CLAUDE_MODEL }}
+            --model ${{ env.MODEL }}
             --add-dir ${{ runner.temp }}/pr
             --setting-sources user
             --strict-mcp-config
@@ -162,7 +168,7 @@ jobs:
             --allowedTools "Read,Grep,Glob"
             --json-schema '{"type":"object","additionalProperties":false,"required":["summary","findings"],"properties":{"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["severity","category","title","body","path","line","start_line","suggestion","agent_prompt"],"properties":{"severity":{"type":"string","enum":["kritisch","fehler","hinweis"]},"category":{"type":"string"},"title":{"type":"string"},"body":{"type":"string"},"path":{"type":"string"},"line":{"type":"integer"},"start_line":{"type":["integer","null"]},"suggestion":{"type":["string","null"]},"agent_prompt":{"type":"string"}}}}}}'
 
-  # Posting runs in a job of its own: it needs write access, the Claude job must not have it
+  # Posting runs in a job of its own: it needs write access, the review job must not have it
   comment:
     needs: review
     if: needs.review.outputs.review != ''
@@ -186,12 +192,12 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
-            const MARKER = '<!-- claude-review-summary -->';
+            const MARKER = `<!-- ${process.env.LABEL}-summary -->`;
             let review;
             try {
               review = JSON.parse(process.env.REVIEW);
             } catch (error) {
-              core.setFailed(`Claude returned no valid JSON (${error.message}): ${process.env.REVIEW.slice(0, 500)}`);
+              core.setFailed(`${process.env.REVIEWER} returned no valid JSON (${error.message}): ${process.env.REVIEW.slice(0, 500)}`);
               return;
             }
             const sha = process.env.HEAD_SHA;
@@ -201,10 +207,10 @@ jobs:
             const labels = { kritisch: 'Kritisch', fehler: 'Fehler', hinweis: 'Hinweis' };
             const order = ['kritisch', 'fehler', 'hinweis'];
             // An automatic and a thorough review of the same commit can report the same finding;
-            // the comment jobs run one after the other, so the second skips what the first posted. Compared on the reviewed commit: after a push GitHub
-            // moves `line` of older comments, `original_line` keeps the line on the commit they were
-            // posted on. Findings of earlier commits Claude already leaves out itself
-            // (review-comments.jsonl).
+            // the comment jobs run one after the other, so the second skips what the first posted.
+            // Compared on the reviewed commit: after a push GitHub moves `line` of older comments,
+            // `original_line` keeps the line on the commit they were posted on. Findings of earlier
+            // commits the reviewer already leaves out itself (review-comments.jsonl).
             const posted = await github.paginate(github.rest.pulls.listReviewComments, { owner, repo, pull_number });
             const isPosted = (f) =>
               posted.some(
@@ -275,7 +281,7 @@ jobs:
               .filter(([, n]) => n > 0)
               .map(([s, n]) => `${icons[s]} ${n} ${labels[s]}`)
               .join(' · ');
-            const lines = [MARKER, `## 🤖 Claude-Review${process.env.THOROUGH === 'true' ? ' (gründlich)' : ''}`, '', review.summary, ''];
+            const lines = [MARKER, `## 🤖 ${process.env.REVIEWER}-Review${process.env.THOROUGH === 'true' ? ' (gründlich)' : ''}`, '', review.summary, ''];
             if (findings.length === 0) {
               lines.push('✅ **Keine neuen Funde.**');
             } else {
@@ -289,7 +295,7 @@ jobs:
                 lines.push('', '---', '', `Konnte nicht an die Zeile gesetzt werden (${link(f)}):`, '', commentBody(f));
               }
             }
-            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · ${process.env.CLAUDE_MODEL} · Gründliches Review mit claude-fable-5-1: Label \`claude-review\` setzen</sub>`);
+            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · ${process.env.MODEL} · Gründliches Review mit ${process.env.THOROUGH_MODEL}: Label \`${process.env.LABEL}\` setzen</sub>`);
             const body = lines.join('\n');
 
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pull_number });
@@ -319,7 +325,7 @@ jobs:
           script: |
             const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
               ...context.repo,
-              workflow_id: 'claude-review.yml',
+              workflow_id: `${process.env.LABEL}.yml`,
               branch: context.payload.pull_request.head.ref,
               event: 'pull_request',
               per_page: 100,
@@ -335,7 +341,7 @@ jobs:
               await github.rest.issues.removeLabel({
                 ...context.repo,
                 issue_number: context.payload.pull_request.number,
-                name: 'claude-review',
+                name: process.env.LABEL,
               });
             } catch (error) {
               // Someone removed it in the meantime
