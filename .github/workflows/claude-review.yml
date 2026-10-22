@@ -170,6 +170,14 @@ jobs:
             --disallowedTools "Read(//proc/**)" "Read(//sys/**)" "Read(//etc/**)" "Read(//home/runner/.*/**)"
             --json-schema '{"type":"object","additionalProperties":false,"required":["summary","findings"],"properties":{"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["severity","category","title","body","path","line","start_line","suggestion","agent_prompt"],"properties":{"severity":{"type":"string","enum":["kritisch","fehler","hinweis"]},"category":{"type":"string"},"title":{"type":"string"},"body":{"type":"string"},"path":{"type":"string"},"line":{"type":"integer"},"start_line":{"type":["integer","null"]},"suggestion":{"type":["string","null"]},"agent_prompt":{"type":"string"}}}}}}'
 
+      # The action hides Claude's output in the log (it may contain secrets); when the run fails,
+      # only the final message is shown, e.g. the API's reason for refusing (credit, rate limit)
+      - name: Reason of the failure
+        if: failure() && steps.claude.outcome == 'failure'
+        run: >-
+          jq -r '.[] | select(.type == "result") | .result // empty'
+          "$RUNNER_TEMP/claude-execution-output.json" 2>/dev/null || true
+
   # Posting runs in a job of its own: it needs write access, the review job must not have it
   comment:
     needs: review
