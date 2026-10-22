@@ -88,7 +88,7 @@ function staff(path: string, id: string, body: unknown): HttpRequest {
           identityProvider: 'aad',
           userId: 'staff-test',
           userDetails: 'staff@example.test',
-          userRoles: ['authenticated'],
+          userRoles: ['authenticated', 'team_leitende'],
         })
       ).toString('base64'),
     },

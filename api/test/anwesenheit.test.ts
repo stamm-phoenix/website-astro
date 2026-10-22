@@ -72,7 +72,7 @@ const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'staff',
   userDetails: 'staff@example.test',
-  userRoles: ['authenticated'],
+  userRoles: ['authenticated', 'team_leitende'],
 };
 
 const PERSONS = [

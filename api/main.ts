@@ -11,6 +11,7 @@ import {
   AufgabenDecision,
 } from './endpoints/intern-pflege-aufgaben';
 import { app } from '@azure/functions';
+import { GetRoles } from './endpoints/get-roles';
 import {
   SammelStaffPayment,
   SammelStaffPaymentPersons,
@@ -170,6 +171,14 @@ import {
   ProtokollVersand,
   ProtokollVorschau,
 } from './endpoints/intern-pflege-protokolle';
+
+// `rolesSource` of staticwebapp.config.json, called by Static Web Apps after each login
+app.http('getRoles', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'GetRoles',
+  handler: GetRoles,
+});
 
 app.http('gruppenstunden', {
   methods: ['GET'],

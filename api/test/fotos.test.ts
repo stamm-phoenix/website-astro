@@ -26,7 +26,7 @@ const NICO = {
   identityProvider: 'aad',
   userId: 'nico',
   userDetails: 'nico.welles@example.test',
-  userRoles: ['authenticated'],
+  userRoles: ['authenticated', 'team_leitende'],
 };
 
 function graphError(statusCode: number): Error {

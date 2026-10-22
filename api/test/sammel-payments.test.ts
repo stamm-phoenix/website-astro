@@ -51,7 +51,7 @@ const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'staff',
   userDetails: 'staff@example.test',
-  userRoles: ['authenticated'],
+  userRoles: ['authenticated', 'team_leitende'],
 };
 const FEE = { id: 'fee_One', reference: 'GC12345' };
 const createFeeFromApi = fees.createCampflowFee;

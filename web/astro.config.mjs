@@ -52,6 +52,7 @@ export default defineConfig({
         !page.includes('/leitendenbereich') &&
         !page.includes('/mitgliederbereich') &&
         !page.includes('/abgemeldet') &&
+        !page.includes('/kein-zugang') &&
         // Live view of posts without a page of their own, see 404.astro
         !page.includes('/blog/beitrag'),
     }),
