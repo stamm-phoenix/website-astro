@@ -23,7 +23,7 @@ async function longestUnderline(button: Locator): Promise<{ run: number; width: 
 test('the underline of a filter runs under the label and the count', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/leitendenbereich/belege/');
-  const filters = page.getByRole('group', { name: 'Nach Status filtern' });
+  const filters = page.getByRole('group', { name: 'Nach Quelle filtern' });
   const pressed = filters.locator('button[aria-pressed="true"]');
   await expect(pressed).toContainText('(');
   const { run, width } = await longestUnderline(pressed);
