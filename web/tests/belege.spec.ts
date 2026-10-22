@@ -185,6 +185,56 @@ test('a failed reload of the receipts here shows its error above the last list',
   await expect(list.getByRole('listitem').first()).toBeVisible();
 });
 
+test('a retry right after a failed transfer saves on the version just written', async ({
+  page,
+}) => {
+  // Answered here, so the shared demo keeps its receipt for the other tests
+  const etags: unknown[] = [];
+  let posts = 0;
+  let failed = false;
+  let releaseList!: () => void;
+  const listHeld = new Promise<void>((resolve) => (releaseList = resolve));
+  await page.route('**/api/intern/pflege/belege/*', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    etags.push(route.request().postDataJSON().etag);
+    await route.fulfill({ json: { mailed: false, etag: `gespeichert-${etags.length}` } });
+  });
+  await page.route('**/api/intern/pflege/belege/*/campflow', async (route) => {
+    if (posts++ === 0) {
+      failed = true;
+      return route.fulfill({ status: 502, json: { error: 'CampFlow antwortet nicht' } });
+    }
+    await route.fulfill({
+      json: {
+        campflow: { state: 'Hochgeladen', number: '2026-113' },
+        created: true,
+        deleted: true,
+      },
+    });
+  });
+  // The list read after the failure answers late, so the retry comes first
+  await page.route('**/api/intern/pflege/belege', async (route) => {
+    if (route.request().method() === 'GET' && failed) await listHeld;
+    await route.fallback();
+  });
+  await page.goto('/leitendenbereich/belege/');
+  await openFilters(page);
+  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
+  await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
+  await dialog.getByLabel('Bemerkung').fill('Rückfahrt');
+  await dialog.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
+  const transfer = dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true });
+  await transfer.click();
+  await expect(dialog.getByRole('alert')).toContainText('Der Beleg wurde nicht übertragen');
+
+  await transfer.click();
+  await expect(dialog).toBeHidden();
+  releaseList();
+  expect(etags).toHaveLength(2);
+  expect(etags[1]).toBe('gespeichert-1');
+});
+
 test('one list holds the receipts here and in CampFlow, filtered by source and more', async ({
   page,
 }) => {
