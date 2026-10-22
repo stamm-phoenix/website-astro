@@ -122,6 +122,49 @@ test('Neu laden brings Kategorien changed in CampFlow into the transfer', async 
   await expect(category.getByRole('option', { name: 'Fahrtkosten' })).toHaveCount(0);
 });
 
+test('a late answer of an earlier Kostenstellen read keeps the newer Kategorien', async ({
+  page,
+}) => {
+  let reads = 0;
+  let oldAnswered = false;
+  let releaseOld!: () => void;
+  const oldHeld = new Promise<void>((resolve) => (releaseOld = resolve));
+  await page.route('**/api/intern/abrechnung/kostenstellen*', async (route) => {
+    const read = ++reads;
+    const response = await route.fetch();
+    const units = (await response.json()) as Array<{ id: string; categories: unknown[] }>;
+    // The first two reads know the Sommerlager without Kategorien, the second answers late
+    if (read <= 2) units.find((unit) => unit.id === 'cun_Sola26')!.categories = [];
+    if (read === 2) await oldHeld;
+    await route.fulfill({ response, json: units });
+    if (read === 2) oldAnswered = true;
+  });
+  await page.goto('/leitendenbereich/belege/');
+  await openFilters(page);
+  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
+  const open = async () => {
+    await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
+    const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
+    await expect(dialog.getByLabel('Kostenstelle')).toHaveValue('cun_Sola26');
+    return dialog;
+  };
+  let dialog = await open();
+  await dialog.getByRole('button', { name: 'Neu aus CampFlow laden' }).click();
+  await expect.poll(() => reads).toBe(2);
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await expect(page.getByText('Belege neu geladen.')).toBeVisible();
+  expect(reads).toBe(3);
+  releaseOld();
+  await expect.poll(() => oldAnswered).toBe(true);
+  dialog = await open();
+  await expect(
+    dialog.getByLabel('Kategorie').getByRole('option', { name: 'Fahrtkosten' })
+  ).toBeAttached();
+});
+
 test('a failed reload of the receipts here shows its error above the last list', async ({
   page,
 }) => {
