@@ -185,7 +185,7 @@ test('a failed reload of the receipts here shows its error above the last list',
   await expect(list.getByRole('listitem').first()).toBeVisible();
 });
 
-test('a retry right after a failed transfer saves on the version just written', async ({
+test('a retry right after a failed transfer sends the version just written, without saving again', async ({
   page,
 }) => {
   // Answered here, so the shared demo keeps its receipt for the other tests
@@ -199,7 +199,9 @@ test('a retry right after a failed transfer saves on the version just written', 
     etags.push(route.request().postDataJSON().etag);
     await route.fulfill({ json: { mailed: false, etag: `gespeichert-${etags.length}` } });
   });
+  const transferred: unknown[] = [];
   await page.route('**/api/intern/pflege/belege/*/campflow', async (route) => {
+    transferred.push(route.request().postDataJSON().etag);
     if (posts++ === 0) {
       failed = true;
       return route.fulfill({ status: 502, json: { error: 'CampFlow antwortet nicht' } });
@@ -231,8 +233,10 @@ test('a retry right after a failed transfer saves on the version just written', 
   await transfer.click();
   await expect(dialog).toBeHidden();
   releaseList();
-  expect(etags).toHaveLength(2);
-  expect(etags[1]).toBe('gespeichert-1');
+  // Nothing changed since the save, so the retry does not save again (which would make a
+  // receipt already in CampFlow look changed afterwards) and transfers the saved version
+  expect(etags).toHaveLength(1);
+  expect(transferred).toEqual(['gespeichert-1', 'gespeichert-1']);
 });
 
 test('my Auslage submitted by someone else is mine to look at, not to change', async ({ page }) => {
