@@ -20,11 +20,13 @@ concurrency:
 jobs:
   review:
     # Only pull_request events: they run without secrets for PRs from forks, so code from a PR
-    # never runs next to the key. Fork PRs and bots are skipped because they get no secrets anyway;
-    # labels can only be set by people with write access.
+    # never runs next to the key. Fork PRs are skipped because they get no secrets anyway; labels can
+    # only be set by people with write access. PRs of bots (Dependabot) are skipped too, also when a
+    # person sets the label (the sender of a `labeled` event is whoever set the label).
     if: >-
       github.event.label.name == 'claude-review' &&
       github.event.sender.type != 'Bot' &&
+      github.event.pull_request.user.type != 'Bot' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 30
