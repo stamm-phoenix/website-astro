@@ -79,6 +79,7 @@ interface BelegPhotoDraft {
   zuschnittAbbrechen: () => void;
   savePhoto: () => Promise<void>;
   photoPayload: (draft: Draft) => Promise<{ photo: string; original?: string }>;
+  fertig: () => Promise<void>;
   reset: () => void;
 }
 export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
@@ -89,6 +90,9 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
   /** Hint about the found edges of the receipt. */
   let scanHint = $state<string | null>(null);
   let checkTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The check waiting for the edits to settle, and the one running with what follows it. */
+  let geplant: (() => Promise<void>) | null = null;
+  let laufend: Promise<void> | null = null;
   /** Quality hints for the photo chosen last. */
   let photoWarnings = $state<string[]>([]);
   /** KI-Vorprüfung of the photo chosen for a new receipt. */
@@ -107,6 +111,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       if (draft.result) URL.revokeObjectURL(draft.result.url);
     }
     clearTimeout(checkTimer);
+    geplant = null;
     zuschnittAbbrechen();
     draft = null;
     scanHint = null;
@@ -211,7 +216,8 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
         clearTimeout(checkTimer);
         const still = stillPruefen;
         stillPruefen = false;
-        checkTimer = setTimeout(() => void checkNewPhoto(result.blob, current.bild, still), 1000);
+        geplant = () => checkNewPhoto(result.blob, current.bild, still);
+        checkTimer = setTimeout(() => void pruefen(), 1000);
       }
       return true;
     } catch {
@@ -345,7 +351,31 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
    * tool is open or it was already turned once. The turned photo is checked again in the
    * background, so submitting finds its check.
    */
-  function aufrichten(bild: Pixels, grad: BelegCheck['rotation']): void {
+  /** Starts the planned check now. */
+  function pruefen(): Promise<void> {
+    clearTimeout(checkTimer);
+    const run = geplant;
+    geplant = null;
+    if (!run) return laufend ?? Promise.resolve();
+    const current: Promise<void> = run().finally(() => {
+      if (laufend === current) laufend = null;
+    });
+    laufend = current;
+    return current;
+  }
+
+  /**
+   * Waits until the photo is final before it is submitted: the check of a new photo and the
+   * turn upright it may bring. A failed check does not hold it up.
+   */
+  async function fertig(): Promise<void> {
+    // A check, its turn, and the quiet check of the turned photo at most
+    for (let round = 0; round < 3 && (geplant || laufend); round++) {
+      await (geplant ? pruefen() : laufend);
+    }
+  }
+
+  async function aufrichten(bild: Pixels, grad: BelegCheck['rotation']): Promise<void> {
     const current = draft;
     const schritte = drehungen(grad);
     if (!current || !schritte.length || zuschnitt) return;
@@ -358,7 +388,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     }
     draft = { ...current, bild: gedreht, quad };
     stillPruefen = true;
-    void render();
+    await render();
   }
 
   /**
@@ -388,7 +418,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       if (check.date && form.date === todayIso() && check.date <= todayIso())
         form.date = check.date;
       if (!form.amount.trim() && check.amountCent) form.amount = centToInput(check.amountCent);
-      aufrichten(bild, check.rotation);
+      await aufrichten(bild, check.rotation);
     } catch (error: unknown) {
       if (generation !== photoGeneration || still) return;
       aiNotice = errorMessage(
@@ -444,6 +474,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     zuschnittAbbrechen,
     savePhoto,
     photoPayload,
+    fertig,
     reset,
   };
 }

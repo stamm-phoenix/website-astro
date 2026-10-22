@@ -323,6 +323,8 @@
         });
         message = decisionMessage(shop, decision, result?.mailed === true, submittedBy);
       } else {
+        // The photo as the check may still turn it upright
+        await photo.fertig();
         const created = await sendApi<{ id: string }>('POST', '/intern/pflege/belege', {
           ...details,
           ...(await photo.photoPayload(photo.draft!)),

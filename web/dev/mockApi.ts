@@ -2491,6 +2491,7 @@ const campflowBeleg = (
   uploadedAt: null,
   viaWebsite: false,
   submittedByMe: false,
+  mine: false,
   ...values,
 });
 const sola = { id: 'cun_Sola26', name: 'Sommerlager 2026 Oberjoch' };

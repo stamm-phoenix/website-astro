@@ -406,6 +406,64 @@ test('a sideways photo is turned upright after its check, which runs again quiet
   await expect.poll(size).toEqual({ width: lying.height, height: lying.width });
 });
 
+test('submitting during the check sends the photo as the check turns it upright', async ({
+  page,
+}) => {
+  let checks = 0;
+  await page.route('**/api/intern/pflege/belege/pruefung', async (route) => {
+    checks++;
+    const first = checks === 1;
+    if (first) await new Promise((resolve) => setTimeout(resolve, 2500));
+    await route.fulfill({
+      json: { available: true, check: { ...knownCheck, rotation: first ? 90 : 0 } },
+    });
+  });
+  let sent: string | null = null;
+  await page.route('**/api/intern/pflege/belege', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    sent = (route.request().postDataJSON() as { photo: string }).photo;
+    await route.fallback();
+  });
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  const photo = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1200;
+    canvas.height = 900;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#333';
+    context.fillRect(0, 0, 1200, 900);
+    context.fillStyle = '#fff';
+    context.fillRect(150, 150, 900, 600);
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), 'image/png')
+    );
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await dialog
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'beleg.png', mimeType: 'image/png', buffer: Buffer.from(photo) });
+  await expect(dialog.getByAltText('Vorschau des Fotos')).toBeVisible();
+  await dialog.getByRole('textbox', { name: 'Geschäft' }).fill('Quermarkt');
+  await dialog.getByLabel('Betrag in €').fill('7,89');
+  await dialog.getByLabel('Aktion', { exact: true }).fill('Sommerlager 2026 Oberjoch');
+  await dialog
+    .getByRole('radio', { name: 'Mit Stammeskarte / aus der Kasse', exact: true })
+    .check();
+  // Before the check answered
+  await dialog.getByRole('button', { name: 'Einreichen', exact: true }).click();
+  await expect(page.getByText(/über 7,89\s€ eingereicht/).first()).toBeVisible({ timeout: 15000 });
+  expect(sent).not.toBeNull();
+  const size = await page.evaluate(async (base64) => {
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+    return { width: bitmap.width, height: bitmap.height };
+  }, sent!);
+  // Upright: the receipt lay sideways, so the photo sent is taller than wide
+  expect(size.height).toBeGreaterThan(size.width);
+});
+
 test('the photo tips wait behind the (i) next to the photo field', async ({ page }) => {
   await page.goto('/leitendenbereich/belege');
   await expect(page.getByRole('link', { name: 'Eigenbeleg erstellen' })).toBeVisible();

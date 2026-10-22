@@ -180,14 +180,19 @@ export const BelegeCollectionEndpoint = pflegeHandler(
   'belege',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
     if (request.method === 'GET') {
-      if (isBelegReviewer(principal)) return ok((await getBelege()).map(toStaffBeleg));
+      const names = await ownNames(principal);
+      // The browser does not know the user's names, so the server marks their Auslagen
+      const markMine = (beleg: StaffBeleg): StaffBeleg =>
+        isAuslageOf(beleg, names) ? { ...beleg, mine: true } : beleg;
+      if (isBelegReviewer(principal))
+        return ok((await getBelege()).map(toStaffBeleg).map(markMine));
       // Own receipts, and to look at the ones someone else submitted for the user's Auslage
       // The database narrows the list, so other people's receipts are never read
-      const names = await ownNames(principal);
       const belege = (await getBelege({ submittedBy: principal.userDetails, auslageNames: names }))
         .map(toStaffBeleg)
         .filter((beleg) => isOwner(beleg, principal) || isAuslageOf(beleg, names))
-        .map((beleg) => (isOwner(beleg, principal) ? beleg : { ...beleg, readOnly: true }));
+        .map((beleg) => (isOwner(beleg, principal) ? beleg : { ...beleg, readOnly: true as const }))
+        .map(markMine);
       return ok(belege);
     }
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
@@ -420,7 +425,8 @@ export const BelegeCampflowEndpoint = pflegeHandler(
     try {
       const belege = await readCampflowBelege(
         await getCampflowBelege({ refresh: request.query.get('refresh') === 'true' }),
-        principal.userDetails
+        principal.userDetails,
+        await ownNames(principal)
       );
       return { status: 200, headers: NO_STORE_HEADERS, jsonBody: belege };
     } catch (error: unknown) {

@@ -569,6 +569,8 @@ export interface StaffBeleg {
   campflow: BelegCampflow | null;
   /** Someone else submitted the user's Auslage: they may look at it, not change it. */
   readOnly?: true;
+  /** An Auslage of the logged-in user, as the server knows their names. */
+  mine?: true;
 }
 
 /**
@@ -621,6 +623,8 @@ export interface CampflowBeleg {
   viaWebsite: boolean;
   /** Transferred from the Belege module and submitted there by the logged-in user. */
   submittedByMe: boolean;
+  /** „Auslage durch“ names the logged-in user, as the server knows their names. */
+  mine: boolean;
 }
 
 export interface CampflowBelegeData {

@@ -308,11 +308,11 @@ dbTest('who laid out the money sees the receipt someone else submitted, read onl
 
   const response = await BelegeCollection(request('GET', undefined, { principal: alex }), context);
   assert.equal(response.status, 200);
-  const items = response.jsonBody as { id: string; readOnly?: boolean }[];
-  // Only the Auslage, not the one the Stamm paid
+  const items = response.jsonBody as { id: string; readOnly?: boolean; mine?: boolean }[];
+  // Only the Auslage, not the one the Stamm paid; marked as theirs, the browser knows no names
   assert.deepEqual(
-    items.map(({ id, readOnly }) => [id, readOnly]),
-    [['1', true]]
+    items.map(({ id, readOnly, mine }) => [id, readOnly, mine]),
+    [['1', true, true]]
   );
   const photo = await BelegPhoto(
     request('GET', undefined, { id: '1', principal: alex, query: '?thumb=1' }),
