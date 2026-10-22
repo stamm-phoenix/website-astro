@@ -41,6 +41,9 @@ import { readBelegPhoto } from '../lib/beleg-photos';
 import { BelegCampflowError, transferBelegToCampflow } from '../lib/beleg-campflow';
 import { readCampflowBelege } from '../lib/campflow-belege';
 import { getCampflowBelege, PlaywrightApiError } from '../lib/playwright-api';
+import { getIch } from '../lib/personen';
+import { sameName } from '../lib/personen-model';
+import * as taskDirectory from '../lib/task-directory';
 
 export type { StaffBeleg } from '../lib/beleg-list';
 export { downloadFileName } from '../lib/beleg-list';
@@ -69,6 +72,34 @@ function isOwner(beleg: StaffBeleg, principal: ClientPrincipal): boolean {
     beleg.submittedBy !== '' &&
     beleg.submittedBy.toLowerCase() === principal.userDetails.toLowerCase()
   );
+}
+
+/**
+ * The names the user goes by: in the Entra directory and as the linked CampFlow person. Static
+ * Web Apps does not pass the name claim on, so these are what an Auslage names.
+ */
+async function ownNames(principal: ClientPrincipal): Promise<string[]> {
+  const login = principal.userDetails.toLowerCase();
+  const [users, ich] = await Promise.allSettled([
+    taskDirectory.getTaskDirectoryUsers(),
+    getIch(login),
+  ]);
+  const names: string[] = [];
+  // Written like saved receipts: trimmed, single spaces
+  if (users.status === 'fulfilled') {
+    const me = users.value.find((user) => user.login.toLowerCase() === login);
+    if (me?.name) names.push(me.name.trim().replace(/\s+/g, ' '));
+  }
+  const linked = ich.status === 'fulfilled' ? ich.value.campflow : null;
+  if (linked?.firstName || linked?.lastName) {
+    names.push(`${linked.firstName} ${linked.lastName}`.trim().replace(/\s+/g, ' '));
+  }
+  return names;
+}
+
+/** An Auslage of the user: they may see the receipt, whoever submitted it. */
+function isAuslageOf(beleg: { payout: boolean; paidBy: string }, names: string[]): boolean {
+  return beleg.payout && names.some((name) => sameName(name, beleg.paidBy));
 }
 
 /** Uploaders may still change, replace or withdraw their receipt until it is accepted. */
@@ -149,11 +180,14 @@ export const BelegeCollectionEndpoint = pflegeHandler(
   'belege',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
     if (request.method === 'GET') {
-      const reviewer = isBelegReviewer(principal);
-      // The database narrows the list to the uploader's receipts; the exact check stays here
-      const belege = (await getBelege(reviewer ? undefined : principal.userDetails))
+      if (isBelegReviewer(principal)) return ok((await getBelege()).map(toStaffBeleg));
+      // Own receipts, and to look at the ones someone else submitted for the user's Auslage
+      // The database narrows the list, so other people's receipts are never read
+      const names = await ownNames(principal);
+      const belege = (await getBelege({ submittedBy: principal.userDetails, auslageNames: names }))
         .map(toStaffBeleg)
-        .filter((beleg) => reviewer || isOwner(beleg, principal));
+        .filter((beleg) => isOwner(beleg, principal) || isAuslageOf(beleg, names))
+        .map((beleg) => (isOwner(beleg, principal) ? beleg : { ...beleg, readOnly: true }));
       return ok(belege);
     }
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
@@ -262,7 +296,12 @@ export const BelegPhotoEndpoint = pflegeHandler(
 
     const beleg = await getBeleg(id);
     if (!beleg) return NOT_FOUND;
-    if (!isBelegReviewer(principal) && !isOwner(beleg, principal)) return NOT_FOUND;
+    if (!isBelegReviewer(principal) && !isOwner(beleg, principal)) {
+      // Who laid out the money may look at the photo, not change it
+      if (request.method !== 'GET' || !isAuslageOf(beleg, await ownNames(principal))) {
+        return NOT_FOUND;
+      }
+    }
 
     if (request.method === 'GET') {
       if (!beleg.photo) return NOT_FOUND;

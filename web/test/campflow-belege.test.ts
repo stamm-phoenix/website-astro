@@ -253,3 +253,30 @@ test('the choice of payment sets who gets the Auslage', () => {
   assert.equal(zahlungOf({ payout: true, paidBy: 'Sam' }, isKim), 'andere');
   assert.equal(zahlungOf({ payout: true, paidBy: 'Sparbuch' }, isKim), 'sparbuch');
 });
+
+test('a receipt here of an archived Kostenstelle is found by its filter', () => {
+  const archived: CampflowBelegeData = {
+    ...campflow,
+    costUnits: [
+      { id: 'cun_alt', name: 'Pfingstlager 2025', archived: true, categories: [] },
+      ...campflow.costUnits,
+    ],
+    belege: [
+      beleg({
+        id: 'exp_alt',
+        costUnits: [{ id: 'cun_alt', name: 'Pfingstlager 2025' }],
+      }),
+    ],
+  };
+  const eintraege = belegEintraege([submitted('8', { aktion: 'Pfingstlager 2025' })], archived, {
+    isIch: isKim,
+  });
+  assert.ok(eintragKostenstellen(eintraege, archived).some((unit) => unit.id === 'cun_alt'));
+  assert.deepEqual(
+    eintraege
+      .filter((e) => matchesBelegFilter(e, { ...NO_FILTER, costUnitId: 'cun_alt' }))
+      .map((e) => e.key)
+      .sort(),
+    ['campflow-exp_alt', 'website-8']
+  );
+});

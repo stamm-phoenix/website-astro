@@ -120,8 +120,12 @@ export function knownBelegAktion(value: string, suggestions: string[]): boolean 
 /** The Kostenstelle whose name is the receipt's Aktion, as the Abrechnung matches them. */
 export function matchingKostenstelle<T extends { name: string; archived: boolean }>(
   aktion: string,
-  kostenstellen: T[]
+  kostenstellen: T[],
+  /** Archived ones too, e.g. to find old receipts; never to book new ones. */
+  { archived = false }: { archived?: boolean } = {}
 ): T | undefined {
   const name = aktion.trim().toLocaleLowerCase('de');
-  return kostenstellen.find((k) => !k.archived && k.name.trim().toLocaleLowerCase('de') === name);
+  return kostenstellen.find(
+    (k) => (archived || !k.archived) && k.name.trim().toLocaleLowerCase('de') === name
+  );
 }

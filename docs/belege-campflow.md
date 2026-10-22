@@ -86,6 +86,13 @@ angemeldete Person ihn ausgelegt hat („Auslage durch“ ist ihr Name, wie bei 
 eingereicht hat. Belege ohne Auslage und Umbuchungen aufs Sparbuch gehören niemandem. Dasselbe
 gilt für „Nur meine Belege“.
 
+Hat jemand anderes den Beleg eingereicht, liefert `GET /api/intern/pflege/belege` ihn der Person,
+die ausgelegt hat, mit `readOnly: true`, ebenso sein Foto. Die API vergleicht dafür „Auslage
+durch“ mit dem Namen aus dem Entra-Verzeichnis und dem der verknüpften CampFlow-Person; die
+Datenbank liefert nur diese und die selbst eingereichten Belege. Ändern, löschen und übertragen
+dürfen weiter nur die Person, die ihn eingereicht hat, und die Kasse. Die Seite öffnet ihn nur
+zum Ansehen.
+
 ## Was die Website speichert
 
 `organisation.beleg_campflow` hält je übertragenem Beleg den Versuch (Zustand, Ziel, Fehler), den

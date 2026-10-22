@@ -235,6 +235,41 @@ test('a retry right after a failed transfer saves on the version just written', 
   expect(etags[1]).toBe('gespeichert-1');
 });
 
+test('my Auslage submitted by someone else is mine to look at, not to change', async ({ page }) => {
+  // The API adds it read only, as someone else submitted it for the demo user's Auslage
+  await page.route('**/api/intern/pflege/belege', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    const belege = (await response.json()) as Record<string, unknown>[];
+    const template = belege[0]!;
+    await route.fulfill({
+      response,
+      json: [
+        {
+          ...template,
+          id: '777',
+          shop: 'Baumarkt Fremd',
+          paidBy: 'Demo Leitung',
+          payout: true,
+          submittedBy: 'sam@example.test',
+          status: 'Eingereicht',
+          readOnly: true,
+        },
+        ...belege,
+      ],
+    });
+  });
+  await page.goto('/leitendenbereich/belege/');
+  await page.getByLabel('Nur meine Belege').check();
+  const list = page.getByRole('list', { name: 'Belege' });
+  await list.getByRole('button', { name: /Baumarkt Fremd/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg von Baumarkt Fremd' });
+  await expect(dialog.getByText('sam@example.test')).toBeVisible();
+  await expect(dialog.getByText('Demo Leitung')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Speichern' })).toHaveCount(0);
+  await expect(dialog.getByRole('textbox')).toHaveCount(0);
+});
+
 test('one list holds the receipts here and in CampFlow, filtered by source and more', async ({
   page,
 }) => {

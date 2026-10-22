@@ -48,6 +48,8 @@ export interface StaffBeleg {
   aiCheck: BelegCheck | null;
   /** The last transfer to CampFlow (`beleg-campflow.ts`), null if there was none. */
   campflow: BelegCampflow | null;
+  /** Someone else submitted the user's Auslage: they may look at it, not change it. */
+  readOnly?: true;
 }
 
 /** Transfer of a receipt to CampFlow, as the Kasse sees it. */
@@ -147,9 +149,26 @@ export function toStaffBeleg(beleg: StoredBeleg): StaffBeleg {
  * All receipts, newest first; with `submittedBy` only those of that login (compared without
  * regard to case, like the database collation), so nobody else's are read.
  */
-export async function getBelege(submittedBy?: string): Promise<StoredBeleg[]> {
+/**
+ * All receipts, or only those of one person: submitted by them, or an Auslage under one of
+ * their names (the database compares without case; the caller checks the names exactly).
+ */
+export async function getBelege(of?: {
+  submittedBy: string;
+  auslageNames?: string[];
+}): Promise<StoredBeleg[]> {
   let query = selectBelege();
-  if (submittedBy !== undefined) query = query.where('b.submitted_by', '=', submittedBy);
+  if (of) {
+    const names = of.auslageNames ?? [];
+    query = query.where((eb) =>
+      names.length
+        ? eb.or([
+            eb('b.submitted_by', '=', of.submittedBy),
+            eb.and([eb('b.payout', '=', true), eb('b.paid_by', 'in', names)]),
+          ])
+        : eb('b.submitted_by', '=', of.submittedBy)
+    );
+  }
   const rows = await query.orderBy('b.submitted_at', 'desc').orderBy('b.id', 'desc').execute();
   return rows.map(withTransfer);
 }
