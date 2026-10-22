@@ -104,6 +104,8 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
   let aufgerichtet: Pixels | null = null;
   /** The check itself renders the photo it turned upright; that render plans no other check. */
   let imPruefen = false;
+  /** A direction that came while the crop tool was open, applied once it closes. */
+  let offeneDrehung: { bild: Pixels; grad: 0 | 90 | 180 | 270 } | null = null;
 
   function clearDraft(): void {
     if (draft) {
@@ -112,7 +114,8 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     }
     clearTimeout(checkTimer);
     geplant = null;
-    zuschnittAbbrechen();
+    offeneDrehung = null;
+    zuschnittSchliessen();
     draft = null;
     scanHint = null;
   }
@@ -247,7 +250,8 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
   /** Back to the photo as it was chosen: uncropped, unturned, with its own colours. */
   function zuruecksetzen(): void {
     if (!draft || !isEdited(draft)) return;
-    zuschnittAbbrechen();
+    zuschnittSchliessen();
+    offeneDrehung = null;
     scanHint = null;
     draft = { ...draft, bild: draft.original, quad: null, mode: 'original' };
     void render();
@@ -281,9 +285,27 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     if (zuschnitt) zuschnitt = { ...zuschnitt, quad };
   }
 
-  function zuschnittAbbrechen(): void {
+  function zuschnittSchliessen(): void {
     if (zuschnitt) URL.revokeObjectURL(zuschnitt.url);
     zuschnitt = null;
+  }
+
+  /** Closes the crop tool without its corners; a turn upright that waited for it follows. */
+  function zuschnittAbbrechen(): void {
+    zuschnittSchliessen();
+    if (offeneDrehungAnwenden()) void render();
+  }
+
+  /**
+   * Turns the photo by the direction that came while the crop tool was open, unless it was
+   * turned or mirrored since. Renders nothing; true if it turned.
+   */
+  function offeneDrehungAnwenden(): boolean {
+    const offen = offeneDrehung;
+    offeneDrehung = null;
+    if (!offen || !draft || draft.bild !== offen.bild) return false;
+    draft = gedreht(draft, drehungen(offen.grad));
+    return true;
   }
 
   /** Applies the corners; corners that make no crop keep the tool open with a hint. */
@@ -294,10 +316,13 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     const whole = ganzesBild(open.quad, open.width, open.height);
     draft = { ...current, quad: whole ? null : open.quad };
     scanHint = null;
+    const pending = offeneDrehung;
+    offeneDrehungAnwenden();
     if (await render()) {
-      zuschnittAbbrechen();
+      zuschnittSchliessen();
     } else if (draft) {
-      draft = { ...draft, quad: current.quad };
+      offeneDrehung = pending;
+      draft = { ...current, quad: current.quad };
       scanHint = 'Die Ecken bilden kein Viereck. Bitte die Ecken weiter auseinanderziehen.';
     }
   }
@@ -366,9 +391,19 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     }
   }
 
+  /** The draft rotated by `schritte`, its crop turned along. */
+  function gedreht(current: Draft, schritte: Ausrichtung[]): Draft {
+    let { bild, quad } = current;
+    for (const schritt of schritte) {
+      quad = quad ? eckenAusrichten(quad, bild.width, bild.height, schritt) : null;
+      bild = ausrichten(bild, schritt);
+    }
+    return { ...current, bild, quad };
+  }
+
   /**
    * Turns the photo upright by `grad` and renders it, unless it was turned or mirrored since
-   * `bild` was asked about or the crop tool is open. Returns the photo to check, or null.
+   * `bild` was asked about. Returns the photo to check, or null.
    */
   async function aufrichten(
     bild: Pixels,
@@ -376,20 +411,16 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
   ): Promise<{ blob: Blob; bild: Pixels } | null> {
     const current = draft;
     const schritte = drehungen(grad);
-    if (!current || !schritte.length || zuschnitt || current.bild !== bild) return null;
-    let { bild: gedreht, quad } = current;
-    for (const schritt of schritte) {
-      quad = quad ? eckenAusrichten(quad, gedreht.width, gedreht.height, schritt) : null;
-      gedreht = ausrichten(gedreht, schritt);
-    }
-    draft = { ...current, bild: gedreht, quad };
+    if (!current || !schritte.length || current.bild !== bild) return null;
+    const turned = gedreht(current, schritte);
+    draft = turned;
     imPruefen = true;
     try {
-      if (!(await render()) || !draft?.result || draft.bild !== gedreht) return null;
+      if (!(await render()) || !draft?.result || draft.bild !== turned.bild) return null;
     } finally {
       imPruefen = false;
     }
-    return { blob: draft.result.blob, bild: gedreht };
+    return { blob: draft.result.blob, bild: turned.bild };
   }
 
   /**
@@ -415,9 +446,14 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
           );
           if (generation !== photoGeneration) return;
           if (!drehung.available) return;
-          const gedreht = await aufrichten(bild, drehung.rotation);
+          if (zuschnitt && drehung.rotation) {
+            // Turned once the crop tool closes, then checked upright
+            offeneDrehung = { bild, grad: drehung.rotation };
+            return;
+          }
+          const upright = await aufrichten(bild, drehung.rotation);
           if (generation !== photoGeneration) return;
-          if (gedreht) ({ blob, bild } = gedreht);
+          if (upright) ({ blob, bild } = upright);
         } catch {
           // Without the direction the photo is checked as it is
           if (generation !== photoGeneration) return;

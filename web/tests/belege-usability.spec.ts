@@ -420,6 +420,49 @@ test('a sideways photo is turned upright first, then checked upright', async ({ 
   expect(asked).toEqual(['drehung', 'pruefung']);
 });
 
+test('a direction that comes while cropping turns the photo once the crop is done', async ({
+  page,
+}) => {
+  let asked = 0;
+  let checked: Buffer | null = null;
+  await page.route('**/api/intern/pflege/belege/pruefung**', async (route) => {
+    if (new URL(route.request().url()).searchParams.get('nur') === 'drehung') {
+      asked++;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      return route.fulfill({ json: { available: true, rotation: 90 } });
+    }
+    checked = route.request().postDataBuffer();
+    await route.fulfill({ json: { available: true, check: knownCheck } });
+  });
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  await dialog
+    .locator('input[type=file]')
+    .setInputFiles({
+      name: 'beleg.png',
+      mimeType: 'image/png',
+      buffer: await sidewaysReceipt(page),
+    });
+  const preview = dialog.getByAltText('Vorschau des Fotos');
+  await expect(preview).toBeVisible();
+  // Cropping while the direction is asked
+  await expect.poll(() => asked).toBe(1);
+  await dialog.getByRole('button', { name: 'Zuschneiden', exact: true }).click();
+  await page.waitForTimeout(2500);
+  await expect(dialog.getByRole('group', { name: 'Ecken des Belegs' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Zuschneiden fertig' }).click();
+  const size = async () => ({
+    width: Number(await preview.getAttribute('width')),
+    height: Number(await preview.getAttribute('height')),
+  });
+  await expect.poll(async () => (await size()).height > (await size()).width).toBe(true);
+  // Checked upright, without asking for the direction again
+  await expect.poll(() => checked !== null).toBe(true);
+  expect(await jpegSize(page, checked!)).toEqual(await size());
+  expect(asked).toBe(1);
+});
+
 test('submitting during the check sends the photo as the check turns it upright', async ({
   page,
 }) => {
