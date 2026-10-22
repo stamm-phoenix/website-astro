@@ -1,9 +1,12 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import { getBelegBild, playwrightErrorResponse } from '../lib/playwright-api';
+import { getBelegBild, getBelegVorschau, playwrightErrorResponse } from '../lib/playwright-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 
-/** Like the Playwright API: CampFlow's receipt numbers, e.g. `2026-94`. */
+/**
+ * Like the Playwright API: CampFlow's receipt numbers, e.g. `2026-94`, or the ID of a receipt
+ * not booked yet (`rcp_…`).
+ */
 const RECEIPT_NUMBER_PATTERN = /^[A-Za-z0-9_.-]{1,50}$/;
 const MAX_PAGE = 100;
 
@@ -45,5 +48,38 @@ export async function GetInternAbrechnungBelegBildEndpoint(
     );
   }
 }
+
+/**
+ * The small preview of a receipt from CampFlow, for the gallery of the Belege. It does not
+ * change, so the browser may keep it.
+ */
+export async function GetInternAbrechnungBelegVorschauEndpoint(
+  request: HttpRequest
+): Promise<HttpResponseInit> {
+  const principal = requireStaff(request);
+  if (isStaffError(principal)) return principal;
+
+  const nummer = request.params.nummer ?? '';
+  if (!RECEIPT_NUMBER_PATTERN.test(nummer)) {
+    return errorResponse(400, 'INVALID_NUMBER', 'Ungültige Belegnummer.');
+  }
+  try {
+    return {
+      status: 200,
+      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=86400' },
+      body: await getBelegVorschau(nummer),
+    };
+  } catch (error: unknown) {
+    return playwrightErrorResponse(
+      error,
+      undefined,
+      errorResponse(404, 'BELEG_NOT_FOUND', `Den Beleg ${nummer} gibt es in CampFlow nicht.`)
+    );
+  }
+}
+
+export const GetInternAbrechnungBelegVorschau = withErrorHandling(
+  GetInternAbrechnungBelegVorschauEndpoint
+);
 
 export default withErrorHandling(GetInternAbrechnungBelegBildEndpoint);

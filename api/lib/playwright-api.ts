@@ -228,6 +228,19 @@ export function getBelegBild(nummer: string, page: number): Promise<BelegBild> {
   );
 }
 
+/**
+ * The small preview of a receipt as CampFlow's list shows it, by number or, not booked yet, by
+ * its ID (`rcp_…`). The Playwright API keeps it once fetched.
+ */
+export function getBelegVorschau(nummer: string): Promise<Uint8Array> {
+  return send(
+    `/campflow/belege/${encodeURIComponent(nummer)}/vorschau`,
+    {},
+    'image/png',
+    async (response) => new Uint8Array(await response.arrayBuffer())
+  );
+}
+
 /** All income and expenses of a Kostenstelle, by its name or `cun_…` ID. */
 /**
  * The Einzelnachweise of a Kostenstelle. The Playwright API keeps the last export; `refresh`
@@ -277,11 +290,16 @@ export function getCampflowBelege({
   return request<unknown>('/campflow/belege', refresh ? { refresh: 'true' } : {});
 }
 
-/** All Kostenstellen of the workspace with their Kategorien, archived ones included. */
-export async function getKostenstellen(): Promise<Kostenstelle[]> {
+/**
+ * All Kostenstellen of the workspace with their Kategorien, archived ones included. The
+ * Playwright API keeps the last list; `refresh` makes it read CampFlow again.
+ */
+export async function getKostenstellen({ refresh = false }: { refresh?: boolean } = {}): Promise<
+  Kostenstelle[]
+> {
   const response = await request<{
     data: { id: string; name: string; archived?: boolean; categories?: unknown }[];
-  }>('/campflow/kostenstellen');
+  }>('/campflow/kostenstellen', refresh ? { refresh: 'true' } : {});
   return response.data.map(({ id, name, archived, categories }) => ({
     id,
     name,

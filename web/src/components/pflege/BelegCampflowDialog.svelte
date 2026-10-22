@@ -3,7 +3,7 @@
   import ModalDialog from '../ui/ModalDialog.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { formatIsoDate } from '../../lib/belege';
-  import { campflowStatusLabel } from '../../lib/campflowBelege';
+  import { campflowBildKey, campflowStand } from '../../lib/belegEintraege';
   import { formatEuro } from '../../lib/format';
   import type { CampflowBeleg } from '../../lib/types';
   interface Props {
@@ -12,7 +12,9 @@
   }
   let { beleg, onclose }: Props = $props();
 
-  const state = $derived(beleg ? campflowStatusLabel(beleg) : null);
+  const CAMPFLOW_BELEGE = 'https://my.campflow.de/dpsg-stamm-phoenix-5629/finance/receipts';
+
+  const state = $derived(beleg ? campflowStand(beleg) : null);
   const details = $derived.by<[string, string][]>(() => {
     if (!beleg) return [];
     const rows: [string, string | null][] = [
@@ -55,17 +57,19 @@
 >
   {#if beleg && state}
     <div class="min-h-0 space-y-4 overflow-y-auto px-5 py-4">
-      <StatusLabel label={state.label} tone={state.tone} dot />
-      <p class="text-sm text-neutral-700">Ändern geht nur in CampFlow.</p>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <StatusLabel label={state.label} tone={state.tone} dot />
+        <a href={CAMPFLOW_BELEGE} class="btn-secondary" target="_blank" rel="noopener"
+          >In CampFlow öffnen</a
+        >
+      </div>
       <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         {#each details as [label, value] (label)}
           <dt class="font-semibold text-neutral-700">{label}</dt>
           <dd class="min-w-0 break-words text-neutral-900">{value}</dd>
         {/each}
       </dl>
-      {#if beleg.number}
-        <CampflowBelegBild receiptNumber={beleg.number} />
-      {/if}
+      <CampflowBelegBild receiptNumber={campflowBildKey(beleg)} />
     </div>
   {/if}
 </ModalDialog>

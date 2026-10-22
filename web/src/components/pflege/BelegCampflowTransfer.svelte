@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { fetchKostenstellen, kostenstellenStore } from '../../lib/abrechnungStore.svelte';
   import {
@@ -68,7 +69,13 @@
 </script>
 
 <div class="space-y-3 border-t border-neutral-200 pt-4">
-  <h3 class="text-sm font-semibold text-brand-900">Nach CampFlow übertragen</h3>
+  <h3 class="flex items-center gap-1 text-sm font-semibold text-brand-900">
+    Nach CampFlow übertragen
+    <InfoHint
+      label="Nach CampFlow übertragen"
+      text={`Lädt das Foto als Beleg hoch und bucht es mit Geschäft, Datum, Betrag und Bemerkung als Ausgabe${form.payout ? `, Auslage durch ${form.paidBy}` : ''}. Danach wird der Beleg hier gelöscht.`}
+    />
+  </h3>
   {#if uploaded}
     <p class="text-sm text-neutral-800">
       In CampFlow als Beleg <strong>{transfer?.number}</strong> gebucht ({transfer?.costUnitName} ·
@@ -77,11 +84,6 @@
       dann hier mit „Löschen“.
     </p>
   {:else}
-    <p class="text-xs text-neutral-700">
-      Lädt das Foto als Beleg hoch und bucht es mit Geschäft, Datum, Betrag und Bemerkung als
-      Ausgabe{form.payout ? `, Auslage durch ${form.paidBy}` : ''}. Danach wird der Beleg hier
-      gelöscht.
-    </p>
     {#if transfer?.state === 'Gestartet'}
       <p role="status" class="rounded-md bg-warning-soft p-3 text-sm text-warning">
         Der letzte Versuch ({formatTimestamp(transfer.startedAt)}, {transfer.startedBy}) ist unklar
@@ -139,8 +141,15 @@
         </label>
       </div>
       {#if costUnitId && categories.length === 0 && !locked}
-        <p class="text-xs text-neutral-700">
-          Diese Kostenstelle hat keine Kategorien. Lege in CampFlow eine an und lade die Seite neu.
+        <p class="text-sm text-neutral-700">
+          Diese Kostenstelle hat in CampFlow keine Kategorien.
+          <button
+            type="button"
+            class="text-link min-h-11 underline underline-offset-4"
+            disabled={kostenstellenStore.loading}
+            onclick={() => void fetchKostenstellen({ refresh: true })}
+            >{kostenstellenStore.loading ? 'Lädt …' : 'Neu aus CampFlow laden'}</button
+          >
         </p>
       {/if}
     </LoadState>

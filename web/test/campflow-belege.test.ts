@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  campflowStatusLabel,
-  inCampflowSelection,
-  isOwnCampflowBeleg,
-  matchesCampflowSearch,
-  meineBelege,
-  sortCampflowBelege,
-} from '../src/lib/campflowBelege';
+  belegEintraege,
+  campflowStand,
+  eintragKostenstellen,
+  matchesBelegFilter,
+  type BelegFilter,
+} from '../src/lib/belegEintraege';
+import { meineBelege } from '../src/lib/campflowBelege';
 import type { CampflowBeleg, CampflowBelegeData, StaffBeleg } from '../src/lib/types';
 
 function beleg(values: Partial<CampflowBeleg> & Pick<CampflowBeleg, 'id'>): CampflowBeleg {
@@ -30,117 +30,166 @@ function beleg(values: Partial<CampflowBeleg> & Pick<CampflowBeleg, 'id'>): Camp
   };
 }
 
+const submitted = (id: string, values: Partial<StaffBeleg> = {}) =>
+  ({
+    id,
+    etag: 'AAA=',
+    shop: `Laden ${id}`,
+    date: '2026-10-01',
+    amountCent: 500,
+    paidBy: 'Kim',
+    payout: false,
+    aktion: 'Sommerlager',
+    note: '',
+    status: 'Eingereicht',
+    reviewNote: '',
+    submittedBy: 'kim@example.test',
+    hasImage: true,
+    aiCheck: null,
+    campflow: null,
+    ...values,
+  }) as StaffBeleg;
+
+const lager = { id: 'cun_1', name: 'Sommerlager' };
+const campflow: CampflowBelegeData = {
+  loadedAt: '2026-10-21T10:00:00Z',
+  costUnits: [
+    { ...lager, archived: false, categories: [{ id: 'cat_1', name: 'Verpflegung' }] },
+    { id: 'cun_2', name: 'Leer', archived: false, categories: [] },
+  ],
+  belege: [
+    beleg({
+      id: 'exp_1',
+      number: '2026-1',
+      description: 'Edeka',
+      date: '2026-09-01',
+      paidBy: 'Kim',
+      costUnits: [lager],
+      categories: [{ id: 'cat_1', name: 'Verpflegung', costUnitId: 'cun_1' }],
+    }),
+    beleg({
+      id: 'exp_2',
+      number: '2026-2',
+      description: 'Fremd',
+      date: '2026-09-02',
+      paidBy: 'Sam',
+      status: 'settled',
+      amountCent: 2000,
+      openCent: 0,
+    }),
+    beleg({
+      id: 'exp_3',
+      number: '2026-3',
+      description: 'Hochgeladen',
+      date: '2026-08-01',
+      submittedByMe: true,
+    }),
+    beleg({
+      id: 'rcp_9',
+      status: 'unbooked',
+      fileName: 'neu.pdf',
+      uploadedAt: '2026-10-20 08:00:00',
+      amountCent: 0,
+    }),
+  ],
+};
 const isKim = ({ name }: { name: string }) => name === 'Kim';
+const NO_FILTER: Omit<BelegFilter, 'quelle'> = {
+  stand: '',
+  costUnitId: '',
+  categoryId: '',
+  search: '',
+  onlyMine: false,
+};
 
 test('the state names whether an Auslage is paid back', () => {
-  assert.equal(
-    campflowStatusLabel(beleg({ id: 'a', status: 'unbooked' })).label,
-    'In CampFlow, noch nicht gebucht'
-  );
-  assert.deepEqual(campflowStatusLabel(beleg({ id: 'b', paidBy: 'Kim' })), {
-    label: 'Gebucht, Erstattung offen',
-    tone: 'warning',
+  assert.deepEqual(campflowStand(beleg({ id: 'a', status: 'unbooked' })), {
+    stand: 'ungebucht',
+    label: 'Noch nicht gebucht',
+    tone: 'neutral',
   });
-  assert.equal(campflowStatusLabel(beleg({ id: 'c' })).label, 'Gebucht');
+  assert.equal(campflowStand(beleg({ id: 'b', paidBy: 'Kim' })).label, 'Gebucht, Erstattung offen');
+  assert.equal(campflowStand(beleg({ id: 'c' })).label, 'Gebucht');
   assert.equal(
-    campflowStatusLabel(beleg({ id: 'd', status: 'settled', paidBy: 'Kim' })).label,
+    campflowStand(beleg({ id: 'd', status: 'settled', paidBy: 'Kim' })).label,
     'Erstattet'
   );
-  assert.equal(campflowStatusLabel(beleg({ id: 'e', status: 'settled' })).label, 'Bezahlt');
+  assert.equal(campflowStand(beleg({ id: 'e', status: 'settled' })).label, 'Bezahlt');
 });
 
-test('own receipts are those submitted here or paid out of pocket by name', () => {
-  assert.equal(isOwnCampflowBeleg(beleg({ id: 'a', paidBy: 'Kim' }), isKim), true);
-  assert.equal(isOwnCampflowBeleg(beleg({ id: 'b', submittedByMe: true }), isKim), true);
-  assert.equal(isOwnCampflowBeleg(beleg({ id: 'c', paidBy: 'Sam' }), isKim), false);
-});
-
-test('filters by Kostenstelle, Kategorie and search words', () => {
-  const lager = beleg({
-    id: 'a',
-    number: '2026-7',
-    description: 'REWE Grillgut',
-    costUnits: [{ id: 'cun_1', name: 'Sommerlager' }],
-    categories: [{ id: 'cat_1', name: 'Verpflegung', costUnitId: 'cun_1' }],
-  });
-  assert.equal(inCampflowSelection(lager, { costUnitId: '', categoryId: '' }), true);
-  assert.equal(inCampflowSelection(lager, { costUnitId: 'cun_1', categoryId: 'cat_1' }), true);
-  assert.equal(inCampflowSelection(lager, { costUnitId: 'cun_2', categoryId: '' }), false);
-  assert.equal(inCampflowSelection(lager, { costUnitId: 'cun_1', categoryId: 'cat_2' }), false);
-  assert.equal(matchesCampflowSearch(lager, 'rewe sommer'), true);
-  assert.equal(matchesCampflowSearch(lager, '2026-7 verpflegung'), true);
-  assert.equal(matchesCampflowSearch(lager, 'edeka'), false);
-});
-
-test('unbooked receipts come first, then the newest Belegdatum', () => {
-  const sorted = sortCampflowBelege([
-    beleg({ id: 'old', date: '2026-01-01', number: '2026-1' }),
-    beleg({ id: 'new', date: '2026-09-01', number: '2026-9' }),
-    beleg({ id: 'waiting', status: 'unbooked', uploadedAt: '2026-10-01 10:00:00' }),
-  ]);
-  assert.deepEqual(
-    sorted.map((entry) => entry.id),
-    ['waiting', 'new', 'old']
-  );
-});
-
-test('my receipts merge the module and CampFlow, each receipt once', () => {
-  const submitted = (id: string, values: Partial<StaffBeleg> = {}) =>
-    ({
-      id,
-      shop: `Laden ${id}`,
-      date: '2026-10-01',
-      amountCent: 500,
-      status: 'Eingereicht',
-      submittedBy: 'kim@example.test',
-      campflow: null,
-      ...values,
-    }) as StaffBeleg;
-  const campflow: CampflowBelegeData = {
-    loadedAt: '2026-10-21T10:00:00Z',
-    costUnits: [],
-    belege: [
-      beleg({
-        id: 'exp_1',
-        number: '2026-1',
-        description: 'Edeka',
-        date: '2026-09-01',
-        paidBy: 'Kim',
-      }),
-      beleg({
-        id: 'exp_2',
-        number: '2026-2',
-        description: 'Fremd',
-        date: '2026-09-02',
-        paidBy: 'Sam',
-      }),
-      beleg({
-        id: 'exp_3',
-        number: '2026-3',
-        description: 'Hochgeladen',
-        date: '2026-08-01',
-        submittedByMe: true,
-      }),
-    ],
-  };
+test('one list holds the receipts here and in CampFlow, each with its source', () => {
   const belege = [
     submitted('1'),
-    submitted('2', { submittedBy: 'sam@example.test' }),
-    // Kept here after its upload; listed with its state in CampFlow
+    submitted('2', {
+      status: 'Abgelehnt',
+      reviewNote: 'Unleserlich',
+      submittedBy: 'sam@example.test',
+    }),
+    // Kept here after its upload: listed once, as the receipt here
     submitted('3', {
       status: 'Angenommen',
-      campflow: { state: 'Hochgeladen', number: '2026-3' } as StaffBeleg['campflow'],
+      campflow: {
+        state: 'Hochgeladen',
+        number: '2026-3',
+        costUnitId: 'cun_1',
+        categoryId: 'cat_1',
+      } as StaffBeleg['campflow'],
     }),
   ];
-  const mine = meineBelege(belege, campflow, 'Kim@Example.test', isKim);
+  const eintraege = belegEintraege(belege, campflow, { login: 'Kim@Example.test', isIch: isKim });
   assert.deepEqual(
-    mine.map((entry) => [entry.title, entry.label, entry.amountCent]),
+    eintraege.map((e) => [e.key, e.quelle, e.stand, e.own]),
     [
-      ['Laden 1', 'Eingereicht', 500],
-      ['Edeka', 'Gebucht, Erstattung offen', 1000],
-      ['Hochgeladen', 'Gebucht', 1000],
+      ['website-1', 'website', 'eingereicht', true],
+      ['website-3', 'website', 'angenommen', true],
+      ['campflow-rcp_9', 'campflow', 'ungebucht', false],
+      ['website-2', 'website', 'abgelehnt', false],
+      ['campflow-exp_2', 'campflow', 'bezahlt', false],
+      ['campflow-exp_1', 'campflow', 'gebucht', true],
     ]
   );
-  // While CampFlow loads, the module's receipts show already
-  assert.equal(meineBelege(belege, null, 'kim@example.test', isKim).length, 2);
+  const unbooked = eintraege.find((e) => e.key === 'campflow-rcp_9')!;
+  assert.equal(unbooked.previewUrl, '/api/intern/abrechnung/belege/rcp_9/vorschau');
+  assert.equal(unbooked.hasAmount, false);
+  assert.equal(unbooked.title, 'neu.pdf');
+  const kept = eintraege.find((e) => e.key === 'website-3')!;
+  assert.deepEqual(kept.tags[0], { label: 'In CampFlow als 2026-3', tone: 'warning' });
+  assert.deepEqual([kept.costUnitIds, kept.categoryIds], [['cun_1'], ['cat_1']]);
+  // The Aktion named like a Kostenstelle counts for its filter
+  assert.deepEqual(eintraege.find((e) => e.key === 'website-1')!.costUnitIds, ['cun_1']);
+  assert.equal(eintraege.find((e) => e.key === 'website-2')!.hinweis, 'Unleserlich');
+});
+
+test('filters by state, Kostenstelle, Kategorie, own receipts and search words', () => {
+  const eintraege = belegEintraege([submitted('1')], campflow, {
+    login: 'kim@example.test',
+    isIch: isKim,
+  });
+  const keys = (filter: Partial<BelegFilter>) =>
+    eintraege.filter((e) => matchesBelegFilter(e, { ...NO_FILTER, ...filter })).map((e) => e.key);
+  assert.deepEqual(keys({ stand: 'bezahlt' }), ['campflow-exp_2']);
+  assert.deepEqual(keys({ costUnitId: 'cun_1' }), ['website-1', 'campflow-exp_1']);
+  assert.deepEqual(keys({ costUnitId: 'cun_1', categoryId: 'cat_1' }), ['campflow-exp_1']);
+  assert.deepEqual(keys({ onlyMine: true }), ['website-1', 'campflow-exp_1', 'campflow-exp_3']);
+  assert.deepEqual(keys({ search: 'edeka verpflegung' }), ['campflow-exp_1']);
+  assert.deepEqual(keys({ search: '2026-2' }), ['campflow-exp_2']);
+  // Only Kostenstellen with receipts are offered
+  assert.deepEqual(
+    eintragKostenstellen(eintraege, campflow).map((k) => [k.id, k.categories.length]),
+    [['cun_1', 1]]
+  );
+});
+
+test('my receipts are the own entries, newest first', () => {
+  const mine = meineBelege([submitted('1')], campflow, 'kim@example.test', isKim);
+  assert.deepEqual(
+    mine.map((entry) => [entry.title, entry.label]),
+    [
+      ['Laden 1', 'Eingereicht'],
+      ['Edeka', 'Gebucht, Erstattung offen'],
+      ['Hochgeladen', 'Gebucht'],
+    ]
+  );
+  // While CampFlow loads, the receipts here show already
+  assert.equal(meineBelege([submitted('1')], null, 'kim@example.test', isKim).length, 1);
 });

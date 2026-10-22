@@ -10,13 +10,11 @@
   } from '../../lib/belegForm';
   import { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import BelegFields from './BelegFields.svelte';
-  import BelegList from './BelegList.svelte';
   import BelegPhotoSection from './BelegPhotoSection.svelte';
   import BelegReview from './BelegReview.svelte';
   import BelegCampflowDialog from './BelegCampflowDialog.svelte';
-  import BelegCampflowListe from './BelegCampflowListe.svelte';
+  import BelegUebersicht from './BelegUebersicht.svelte';
 
-  import ReloadButton from './ReloadButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
 
@@ -30,34 +28,43 @@
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { belegePflege, campflowBelegeStore } from '../../lib/pflegeStore.svelte';
   import { centToInput, parseEuroToCent } from '../../lib/belege';
-  import { formatDateTime, formatEuro, todayIso } from '../../lib/format';
+  import { formatEuro, todayIso } from '../../lib/format';
+  import {
+    BELEG_QUELLEN,
+    BELEG_STAENDE,
+    belegEintraege,
+    eintragKostenstellen,
+    matchesBelegFilter,
+    type BelegEintrag,
+    type BelegQuelle,
+    type BelegStand,
+  } from '../../lib/belegEintraege';
+  import { isIch } from '../../lib/ichStore.svelte';
+  import MessageText from '../ui/MessageText.svelte';
+  import Toast from '../ui/Toast.svelte';
   import type { BelegStatus, CampflowBeleg, StaffBeleg } from '../../lib/types';
 
   import EditDialog from './EditDialog.svelte';
 
   import StatusNotice from './StatusNotice.svelte';
 
-  type View = 'offen' | 'angenommen' | 'abgelehnt' | 'alle' | 'campflow';
+  type Ansicht = 'liste' | 'galerie';
 
-  const VIEWS: { id: View; label: string }[] = [
-    { id: 'offen', label: 'Offen' },
-    { id: 'angenommen', label: 'Angenommen' },
-    { id: 'abgelehnt', label: 'Abgelehnt' },
-    { id: 'alle', label: 'Alle' },
-    { id: 'campflow', label: 'In CampFlow' },
-  ];
-  const VIEW_STATUS: Record<Exclude<View, 'alle' | 'campflow'>, BelegStatus> = {
-    offen: 'Eingereicht',
-    angenommen: 'Angenommen',
-    abgelehnt: 'Abgelehnt',
-  };
   const store = belegePflege.state;
   /** Every receipt in CampFlow, read-only, also those uploaded there directly. */
   const campflowStore = campflowBelegeStore.state;
   let openCampflow = $state<CampflowBeleg | null>(null);
-  let campflowNotice = $state('');
+  let reloadNotice = $state<string | null>(null);
 
-  let view = $state<View>('offen');
+  let quelle = $state<BelegQuelle | ''>('');
+  let stand = $state<BelegStand | ''>('');
+  let costUnitId = $state('');
+  let categoryId = $state('');
+  /** The filters fold away on a phone, so the receipts come first. */
+  let filtersOpen = $state(false);
+  const activeFilters = $derived([stand, costUnitId, categoryId].filter(Boolean).length);
+  /** List or gallery, kept in the address so a reload or a shared link keeps it. */
+  let ansicht = $state<Ansicht>('liste');
   /** Member of the Kasse: sees all receipts and accepts or rejects them. */
   let reviewer = $state(false);
   let onlyMine = $state(false);
@@ -78,29 +85,58 @@
   let message = $state<string | null>(null);
   /** Photo being scanned; raw because the pixel arrays are large. */
   const login = $derived(authStore.principal?.userDetails ?? '');
-  const items = $derived(store.data ?? []);
-  const counts = $derived({
-    offen: items.filter((b) => b.status === 'Eingereicht').length,
-    angenommen: items.filter((b) => b.status === 'Angenommen').length,
-    abgelehnt: items.filter((b) => b.status === 'Abgelehnt').length,
-    alle: items.length,
-    campflow: campflowStore.data?.belege.length ?? 0,
+  const eintraege = $derived(
+    belegEintraege(store.data ?? [], campflowStore.data, { login, isIch })
+  );
+  const kostenstellen = $derived(eintragKostenstellen(eintraege, campflowStore.data));
+  const kategorien = $derived(kostenstellen.find((k) => k.id === costUnitId)?.categories ?? []);
+  /** All filters but the source, whose tabs count what the others leave. */
+  const gefiltert = $derived(
+    eintraege.filter((e) =>
+      matchesBelegFilter(e, { stand, costUnitId, categoryId, search, onlyMine })
+    )
+  );
+  const visible = $derived(quelle ? gefiltert.filter((e) => e.quelle === quelle) : gefiltert);
+  const reloading = $derived(store.loading || campflowStore.loading);
+
+  $effect(() => {
+    // A Kostenstelle or Kategorie gone after reloading would hide receipts without a visible filter
+    if (costUnitId && campflowStore.data && !kostenstellen.some((k) => k.id === costUnitId)) {
+      costUnitId = '';
+    }
+    if (categoryId && !kategorien.some((c) => c.id === categoryId)) categoryId = '';
   });
-  const matches = (b: { shop: string; aktion: string; paidBy: string; note: string }): boolean => {
-    const query = search.trim().toLowerCase();
-    return (
-      !query ||
-      [b.shop, b.aktion, b.paidBy, b.note].some((text) => text.toLowerCase().includes(query))
-    );
-  };
-  const visible = $derived.by(() => {
-    if (view === 'campflow') return [];
-    const currentView = view;
-    return items
-      .filter((b) => currentView === 'alle' || b.status === VIEW_STATUS[currentView])
-      .filter((b) => !onlyMine || b.submittedBy === login)
-      .filter(matches);
-  });
+
+  function readAnsicht(): void {
+    ansicht =
+      new URLSearchParams(window.location.search).get('ansicht') === 'galerie'
+        ? 'galerie'
+        : 'liste';
+  }
+
+  function selectAnsicht(next: Ansicht): void {
+    ansicht = next;
+    const url = new URL(window.location.href);
+    if (next === 'galerie') url.searchParams.set('ansicht', 'galerie');
+    else url.searchParams.delete('ansicht');
+    history.replaceState(history.state, '', url);
+  }
+
+  function open(eintrag: BelegEintrag): void {
+    if (eintrag.beleg) edit(eintrag.beleg);
+    else if (eintrag.campflow) openCampflow = eintrag.campflow;
+  }
+
+  /** Reloads the receipts here and reads CampFlow again. */
+  async function reload(): Promise<void> {
+    reloadNotice = null;
+    await Promise.all([
+      belegePflege.load({ force: true }),
+      campflowBelegeStore.load({ force: true, param: true }),
+    ]);
+    if (!store.error && !campflowStore.error) reloadNotice = 'Belege neu geladen.';
+  }
+
   const aktionSuggestions = $derived(aktionTitles(campflowEventsStore.data ?? []));
 
   $effect(() => {
@@ -109,6 +145,8 @@
       // first, and are there by the time a receipt is opened (which also asks for them)
       void belegePflege.load().finally(() => fetchCampflowEvents());
       void campflowBelegeStore.load({ param: false });
+      readAnsicht();
+      filtersOpen = window.matchMedia('(min-width: 640px)').matches;
       fetchPrincipal();
       fetchApi<{ reviewer: boolean }>('/intern/pflege/belege/rolle')
         .then((role) => (reviewer = role.reviewer))
@@ -262,7 +300,9 @@
           ...(await photo.photoPayload(photo.draft!)),
         });
         message = `Beleg von ${shop} über ${formatEuro(details.amountCent!)} eingereicht. Danke!`;
-        view = 'offen';
+        // The new receipt is to be seen in the list
+        if (stand && stand !== 'eingereicht') stand = '';
+        if (quelle === 'campflow') quelle = '';
       }
       form = null;
       photo.clearDraft();
@@ -360,13 +400,6 @@
     );
   }
 
-  /** Reads CampFlow again instead of the Playwright API's last read. */
-  async function refreshCampflow(): Promise<void> {
-    campflowNotice = '';
-    await campflowBelegeStore.load({ force: true, param: true });
-    if (!campflowStore.error) campflowNotice = 'Belege neu aus CampFlow geladen.';
-  }
-
   async function remove(): Promise<void> {
     const current = form;
     if (!current?.id || photo.photoBusy) return;
@@ -387,125 +420,148 @@
       >Beleg einreichen</ActionButton
     >
     <a href="/leitendenbereich/eigenbeleg" class="btn-secondary">Eigenbeleg erstellen</a>
-    {#if view !== 'campflow'}
-      <ReloadButton resource={belegePflege} />
-    {/if}
+    <ReloadAction
+      disabled={reloading}
+      aria-busy={reloading}
+      loadedAt={campflowStore.data ? Date.parse(campflowStore.data.loadedAt) : store.loadedAt}
+      onclick={() => void reload()}
+    >
+      {reloading && store.data ? 'Lädt …' : 'Neu laden'}
+    </ReloadAction>
   {/snippet}
 </StaffPageHead>
+<Toast message={reloadNotice} onclose={() => (reloadNotice = null)} />
 <div class="space-y-6">
   <form
-    class="surface grid gap-4 p-4"
+    class="surface grid gap-4 p-4 sm:grid-cols-3"
     role="search"
     aria-label="Belege filtern"
     onsubmit={(event) => event.preventDefault()}
   >
-    <label class="block text-sm">
+    <label class="block text-sm sm:col-span-3">
       <span class="font-semibold text-neutral-700">Suche</span>
       <input
         type="search"
         class="form-input"
-        placeholder="Geschäft, Aktion, Person …"
+        placeholder="Geschäft, Aktion, Person, Belegnummer …"
         bind:value={search}
       />
     </label>
-    <div class="flex flex-wrap items-center gap-1.5 sm:col-span-2">
+    <div class="sm:col-span-3">
       <FilterTabs
-        label="Nach Status filtern"
-        options={VIEWS.map((option) => ({
-          value: option.id,
-          label: option.label,
-          count: (option.id === 'campflow' ? campflowStore.data : store.data)
-            ? counts[option.id]
-            : undefined,
-        }))}
-        value={view}
-        onselect={(value) => (view = value)}
+        label="Nach Quelle filtern"
+        options={[
+          { value: '', label: 'Alle', count: store.data ? gefiltert.length : undefined },
+          ...BELEG_QUELLEN.map((option) => ({
+            value: option.value,
+            label: option.label,
+            count: (option.value === 'campflow' ? campflowStore.data : store.data)
+              ? gefiltert.filter((e) => e.quelle === option.value).length
+              : undefined,
+          })),
+        ]}
+        value={quelle}
+        onselect={(value) => (quelle = value)}
+        countNouns={['Beleg', 'Belege']}
       />
-      <label class="ml-auto inline-flex items-center gap-2 text-sm">
+    </div>
+    <details class="group sm:col-span-3" bind:open={filtersOpen}>
+      <summary
+        class="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-neutral-700"
+      >
+        Filter{activeFilters ? ` (${activeFilters})` : ''}
+      </summary>
+      <div class="mt-2 grid gap-4 sm:grid-cols-3">
+        <label class="block text-sm">
+          <span class="font-semibold text-neutral-700">Stand</span>
+          <select class="form-input mt-1 w-full" bind:value={stand}>
+            <option value="">Alle</option>
+            {#each BELEG_STAENDE as option (option.value)}
+              <option value={option.value}>{option.label}</option>
+            {/each}
+          </select>
+        </label>
+        <label class="block text-sm">
+          <span class="font-semibold text-neutral-700">Kostenstelle</span>
+          <select
+            class="form-input mt-1 w-full"
+            value={costUnitId}
+            onchange={(event) => {
+              costUnitId = event.currentTarget.value;
+              categoryId = '';
+            }}
+          >
+            <option value="">Alle</option>
+            {#each kostenstellen as unit (unit.id)}
+              <option value={unit.id}>{unit.name}{unit.archived ? ' (archiviert)' : ''}</option>
+            {/each}
+          </select>
+        </label>
+        <label class="block text-sm">
+          <span class="font-semibold text-neutral-700">Kategorie</span>
+          <select class="form-input mt-1 w-full" bind:value={categoryId} disabled={!costUnitId}>
+            <option value="">Alle</option>
+            {#each kategorien as category (category.id)}
+              <option value={category.id}>{category.name}</option>
+            {/each}
+          </select>
+        </label>
+      </div>
+    </details>
+    <div class="flex flex-wrap items-center justify-between gap-3 sm:col-span-3">
+      <label class="inline-flex min-h-11 items-center gap-2 text-sm">
         <input type="checkbox" bind:checked={onlyMine} disabled={!login} />
         Nur meine Belege
       </label>
+      <FilterTabs
+        label="Ansicht"
+        variant="segmented"
+        options={[
+          { value: 'liste', label: 'Liste' },
+          { value: 'galerie', label: 'Galerie' },
+        ]}
+        value={ansicht}
+        onselect={selectAnsicht}
+      />
     </div>
   </form>
 
   <StatusNotice {message} popup />
 
-  {#if view === 'campflow'}
-    <div
-      class="flex flex-col gap-2 border-b border-neutral-200 pb-4 text-sm text-neutral-700 sm:flex-row sm:items-center sm:justify-between"
-    >
-      <p>
-        Nur zum Nachschauen. Buchen und Auslagen erstatten geht weiterhin in
-        <a
-          href="https://my.campflow.de/dpsg-stamm-phoenix-5629/finance/receipts"
-          class="text-link underline underline-offset-4"
-          target="_blank"
-          rel="noopener">CampFlow</a
-        >.
-      </p>
-      {#if campflowStore.data}
-        <span class="flex flex-wrap items-center gap-x-2">
-          <span data-testid="campflow-belege-stand"
-            >Stand aus CampFlow: {formatDateTime(campflowStore.data.loadedAt)} Uhr</span
-          >
-          <ReloadAction disabled={campflowStore.loading} onclick={refreshCampflow}>
-            {campflowStore.loading ? 'Lädt … (bis zu 30 Sekunden)' : 'Neu aus CampFlow laden'}
-          </ReloadAction>
-        </span>
-      {/if}
-    </div>
-    <p role="status" aria-live="polite" class="text-sm font-semibold text-success empty:hidden">
-      {campflowNotice}
+  {#if campflowStore.loading && !campflowStore.data}
+    <p role="status" class="text-sm text-neutral-700">Belege aus CampFlow werden geladen …</p>
+  {:else if campflowStore.error}
+    <p class="text-sm text-neutral-700">
+      <MessageText text={campflowStore.error} />
+      <button
+        type="button"
+        class="text-link min-h-11 underline underline-offset-4"
+        onclick={() => void campflowBelegeStore.load({ force: true, param: false })}
+        >Erneut versuchen</button
+      >
     </p>
-    <LoadState
-      data={campflowStore.data}
-      loading={campflowStore.loading}
-      error={campflowStore.error}
-      loadingText="Belege werden aus CampFlow geladen …"
-      onretry={() => void campflowBelegeStore.load({ force: true, param: false })}
-    >
-      {#snippet skeleton()}
-        <div class="space-y-2">
-          {#each [1, 2, 3, 4] as n (n)}
-            <div class="skeleton-element h-16 rounded-[var(--radius-lg)]"></div>
-          {/each}
-        </div>
-      {/snippet}
-      {#if campflowStore.data}
-        <BelegCampflowListe
-          data={campflowStore.data}
-          {search}
-          {onlyMine}
-          onopen={(beleg) => (openCampflow = beleg)}
-        />
-      {/if}
-    </LoadState>
-  {:else}
-    <LoadState
-      data={store.data}
-      loading={store.loading}
-      error={store.error}
-      loadingText="Belege werden geladen …"
-      onretry={() => void belegePflege.load({ force: true })}
-      isEmpty={() => visible.length === 0}
-    >
-      {#snippet skeleton()}
-        <div class="grid min-h-[60dvh] gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {#each [1, 2, 3] as n (n)}
-            <div class="skeleton-element h-28 rounded-[var(--radius-lg)]"></div>
-          {/each}
-        </div>
-      {/snippet}
-      {#snippet empty()}
-        <p class="surface p-6 text-sm text-neutral-700">
-          {view === 'offen' && !search && !onlyMine
-            ? 'Keine offenen Belege. Alles vorgeprüft!'
-            : 'Keine Belege für diese Auswahl.'}
-        </p>
-      {/snippet}
-      <BelegList items={visible} onedit={edit} />
-    </LoadState>
   {/if}
+
+  <LoadState
+    data={store.data}
+    loading={store.loading}
+    error={store.error}
+    loadingText="Belege werden geladen …"
+    onretry={() => void belegePflege.load({ force: true })}
+    isEmpty={() => visible.length === 0}
+  >
+    {#snippet skeleton()}
+      <div class="min-h-[60dvh] space-y-2">
+        {#each [1, 2, 3, 4] as n (n)}
+          <div class="skeleton-element h-20 rounded-[var(--radius-lg)]"></div>
+        {/each}
+      </div>
+    {/snippet}
+    {#snippet empty()}
+      <p class="surface p-6 text-sm text-neutral-700">Keine Belege für diese Auswahl.</p>
+    {/snippet}
+    <BelegUebersicht eintraege={visible} {ansicht} onopen={open} />
+  </LoadState>
 </div>
 
 <EditDialog

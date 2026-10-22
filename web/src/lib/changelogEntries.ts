@@ -14,13 +14,13 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-10-21-11-belege-campflow',
     date: '2026-10-21',
-    title: 'Belege: alle Belege aus CampFlow ansehen und eigene auf der Startseite',
+    title: 'Belege: alle Belege in einer Liste, auch aus CampFlow, und eigene auf der Startseite',
     changes: [
       {
-        text: 'Unter „In CampFlow“ siehst du jetzt alle Belege aus CampFlow mit Kostenstelle, Kategorie und Stand: noch nicht gebucht, gebucht mit offener Erstattung, erstattet oder bezahlt. Dafür brauchst du keinen eigenen CampFlow-Zugang.',
+        text: 'Die Belege zeigen jetzt alle Belege in einer Liste: die hier eingereichten und alle aus CampFlow, jeweils mit ihrer Quelle und ihrem Stand von „Eingereicht“ bis „Erstattet“ oder „Bezahlt“. Für die Belege aus CampFlow brauchst du keinen eigenen CampFlow-Zugang.',
         href: '/leitendenbereich/belege',
       },
-      'Du kannst die Belege nach Kostenstelle und Kategorie filtern. „Nur meine Belege“ zeigt die Belege, die du ausgelegt hast, und die du hier eingereicht hast. Tippst du einen gebuchten Beleg an, siehst du sein Bild aus CampFlow.',
+      'Du kannst nach Quelle, Stand, Kostenstelle und Kategorie filtern. „Nur meine Belege“ zeigt die, die du eingereicht oder ausgelegt hast. In der Galerie siehst du die Belege als Kacheln mit größerem Bild; tippst du einen an, siehst du alle Seiten, auch bei Belegen, die in CampFlow noch nicht gebucht sind.',
       'Auf der Startseite zeigt die neue Box „Meine Belege“ deine Belege mit ihrem Stand, vom Einreichen bis zur Erstattung.',
       'Als Kasse überträgst du einen angenommenen Beleg direkt aus dem Beleg heraus nach CampFlow. Du wählst nur noch Kostenstelle und Kategorie; die Kostenstelle, die so heißt wie die Aktion, ist schon ausgewählt. CampFlow bekommt das Foto, Geschäft, Bemerkung, Datum und Betrag, und bei gewünschter Auszahlung die Person unter „Auslage durch“.',
       'Danach siehst du die neue Belegnummer aus CampFlow, und der Beleg wird hier gelöscht. Ging beim Übertragen etwas schief, kannst du es einfach noch einmal versuchen: Ein schon angekommener Beleg wird nicht doppelt angelegt.',

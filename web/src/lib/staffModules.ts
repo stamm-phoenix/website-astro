@@ -50,9 +50,10 @@ export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/belege',
     title: 'Belege',
-    description: 'Kassenbelege fotografieren und bei der Kasse einreichen.',
+    description:
+      'Kassenbelege fotografieren und einreichen, und alle Belege aus CampFlow mit ihrem Stand ansehen.',
     intro:
-      'Belege fotografieren und bei der Kasse einreichen. Lehnt die Kasse einen Beleg ab, bekommst du die Begründung per Mail und kannst ihn korrigiert erneut einreichen.',
+      'Belege fotografieren und bei der Kasse einreichen. Lehnt die Kasse einen Beleg ab, bekommst du die Begründung per Mail und kannst ihn korrigiert erneut einreichen. Die Belege aus CampFlow kannst du hier nur ansehen; gebucht und erstattet wird in CampFlow. „Neu laden“ holt den aktuellen Stand aus CampFlow.',
     keywords: ['kasse', 'kassenzettel', 'quittung', 'rechnung', 'geld', 'auslage', 'erstattung'],
     icon: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
   },

@@ -1,6 +1,15 @@
+import type { Page } from '@playwright/test';
 import { resetAccountingInputs } from './abrechnung-helpers';
 import { readFile } from 'node:fs/promises';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
+
+/** Opens the folded filters of the Belege, closed on a phone. */
+async function openFilters(page: Page): Promise<void> {
+  const filters = page.locator('details', { has: page.locator('summary', { hasText: /^Filter/ }) });
+  if (!(await filters.evaluate((details: HTMLDetailsElement) => details.open))) {
+    await filters.locator('summary').click();
+  }
+}
 
 test.beforeEach(async ({ page }) => {
   await resetAccountingInputs(page);
@@ -74,17 +83,21 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   await expect(
     page.getByText(/abgelehnt\. leitung@example\.test hat die Begründung/)
   ).toBeVisible();
-  await expect(card).toHaveCount(0);
-  await page.getByRole('button', { name: /^Abgelehnt/ }).click();
+  await expect(card).toContainText('Abgelehnt');
+  await openFilters(page);
+  await page.getByLabel('Stand').selectOption({ label: 'Abgelehnt' });
   await card.click();
   await page.getByRole('button', { name: 'Erneut einreichen', exact: true }).click();
   await expect(page.getByText(`Beleg von ${shop} erneut eingereicht.`)).toBeVisible();
-  await page.getByRole('button', { name: /^Offen/ }).click();
+  await openFilters(page);
+  await page.getByLabel('Stand').selectOption({ label: 'Eingereicht' });
   await card.click();
   await page.getByRole('button', { name: 'Annehmen', exact: true }).click();
   await expect(page.getByText(new RegExp(`Beleg von ${shop} angenommen`))).toBeVisible();
-  await page.getByRole('button', { name: /^Angenommen/ }).click();
+  await openFilters(page);
+  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
   await expect(card).toBeVisible();
+  await expect(card).toContainText('Angenommen');
   await expectNoHorizontalOverflow(page);
 });
 
