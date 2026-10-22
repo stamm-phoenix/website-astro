@@ -25,7 +25,12 @@ import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
 import { getJpegSize, isJpeg } from '../lib/jpeg';
 import type { BelegCheck } from '../lib/beleg-check';
-import { BelegCheckLimitError, checkBelegPhoto, isBelegCheckConfigured } from '../lib/beleg-check';
+import {
+  BelegCheckLimitError,
+  checkBelegPhoto,
+  checkBelegRotation,
+  isBelegCheckConfigured,
+} from '../lib/beleg-check';
 import type { BelegPhotos, StaffBeleg } from '../lib/beleg-list';
 import {
   createBeleg,
@@ -353,18 +358,27 @@ export const BelegPhotoEndpoint = pflegeHandler(
 
 /**
  * POST: checks the JPEG in the body before it is submitted, to show problems right away and
- * prefill the form. `available` is false if no model is configured.
+ * prefill the form. With `?nur=drehung` it answers only how to turn the photo upright
+ * (`rotation`), which the form does before the check. `available` is false without a model.
  */
 export const BelegPruefungEndpoint = pflegeHandler(
   'belege-pruefung',
   async (request: HttpRequest) => {
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-    if (!isBelegCheckConfigured()) return ok({ available: false, check: null });
+    const onlyRotation = request.query.get('nur') === 'drehung';
+    if (!isBelegCheckConfigured()) {
+      return ok(
+        onlyRotation ? { available: false, rotation: 0 } : { available: false, check: null }
+      );
+    }
 
     const bytes = new Uint8Array(await request.arrayBuffer());
     const invalidPhoto = checkPhoto(bytes);
     if (invalidPhoto) return invalidPhoto;
     try {
+      if (onlyRotation) {
+        return ok({ available: true, rotation: (await checkBelegRotation(bytes)) ?? 0 });
+      }
       return ok({ available: true, check: await checkBelegPhoto(bytes) });
     } catch (error: unknown) {
       if (error instanceof BelegCheckLimitError) {

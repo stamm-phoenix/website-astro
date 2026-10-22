@@ -416,7 +416,6 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
       shop: 'REWE',
       date: null,
       amountCent: 1234,
-      rotation: 0,
       checkedAt: '',
     },
   };
@@ -828,7 +827,6 @@ const MODEL_ANSWER = {
   shop: 'REWE',
   date: '2026-09-30',
   amount: 12.34,
-  rotation: 90,
 };
 
 const MODEL_ENDPOINT = 'https://example.openai.azure.com';
@@ -875,12 +873,8 @@ test('the model answer is normalized and never trusted blindly', () => {
     shop: 'REWE',
     date: '2026-09-30',
     amountCent: 1234,
-    rotation: 90,
     checkedAt: '2026-10-01T10:00:00.000Z',
   });
-  // Anything but a quarter turn means upright
-  assert.equal(toBelegCheck({ ...MODEL_ANSWER, rotation: 45 }, now).rotation, 0);
-  assert.equal(toBelegCheck({ ...MODEL_ANSWER, rotation: '180' }, now).rotation, 0);
   const notAReceipt = toBelegCheck(
     {
       isReceipt: false,
@@ -928,6 +922,33 @@ test('the photo check sends the image to the configured deployment', async (t) =
   assert.equal(sent.reasoning_effort, 'high');
   assert.equal('temperature' in sent, false);
   assert.ok(sent.max_completion_tokens >= 4000);
+});
+
+test('the form asks first only how to turn the photo, quickly and with little thinking', async (t) => {
+  const { context } = setup(t);
+  withModel(t);
+  const fetch = mockModel(t, { rotation: 270 });
+  const response = await BelegPruefung(
+    request('POST', jpeg(1600, 1200), { query: '?nur=drehung' }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { available: true, rotation: 270 });
+  const sent = JSON.parse(String((fetch.mock.calls[0].arguments[1] as RequestInit).body)) as {
+    reasoning_effort?: string;
+    response_format: { json_schema: { name: string } };
+  };
+  assert.equal(sent.reasoning_effort, 'low');
+  assert.equal(sent.response_format.json_schema.name, 'belegdrehung');
+
+  // Anything but a quarter turn means upright
+  fetch.mock.restore();
+  mockModel(t, { rotation: 45 });
+  const odd = await BelegPruefung(
+    request('POST', jpeg(1600, 1201), { query: '?nur=drehung' }),
+    context
+  );
+  assert.deepEqual(odd.jsonBody, { available: true, rotation: 0 });
 });
 
 dbTest('submitting the checked photo reuses the check instead of asking again', async (t) => {

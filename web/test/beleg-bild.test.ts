@@ -116,11 +116,12 @@ test('a found receipt keeps a thin margin inside the picture', () => {
     { x: 300, y: 500 },
     { x: 100, y: 500 },
   ];
+  // A tenth of the long edge on every side, also across the narrow receipt
   assert.deepEqual(eckenErweitern(quad, 1000, 1000, 0.1), [
-    { x: 90, y: 80 },
-    { x: 310, y: 80 },
-    { x: 310, y: 520 },
-    { x: 90, y: 520 },
+    { x: 60, y: 60 },
+    { x: 340, y: 60 },
+    { x: 340, y: 540 },
+    { x: 60, y: 540 },
   ]);
   // Never beyond the picture
   assert.deepEqual(eckenErweitern(quad, 305, 505, 0.1)[2], { x: 305, y: 505 });

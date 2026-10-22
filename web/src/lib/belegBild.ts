@@ -101,16 +101,21 @@ export function eckenAusrichten(
 }
 
 /**
- * Moves the corners outwards from the middle by `anteil` of the receipt's size, within the
- * picture: a found receipt keeps a thin margin, so no letter at its edge is cut.
+ * Moves the corners outwards by `anteil` of the receipt's longest edge, across and along it,
+ * within the picture: a found receipt keeps a margin, so no letter at its edge is cut, also
+ * where curled paper leaves the straight edge the corners make.
  */
 export function eckenErweitern(quad: Quad, width: number, height: number, anteil: number): Quad {
   const cx = quad.reduce((sum, p) => sum + p.x, 0) / 4;
   const cy = quad.reduce((sum, p) => sum + p.y, 0) / 4;
+  const longest = Math.max(
+    ...quad.map((p, i) => Math.hypot(quad[(i + 1) % 4].x - p.x, quad[(i + 1) % 4].y - p.y))
+  );
+  const margin = longest * anteil;
   const clamp = (value: number, max: number) => Math.min(max, Math.max(0, value));
   return quad.map((p) => ({
-    x: clamp(p.x + (p.x - cx) * anteil, width),
-    y: clamp(p.y + (p.y - cy) * anteil, height),
+    x: clamp(p.x + Math.sign(p.x - cx) * margin, width),
+    y: clamp(p.y + Math.sign(p.y - cy) * margin, height),
   })) as Quad;
 }
 

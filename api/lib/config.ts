@@ -280,10 +280,12 @@ export const CONFIG: ApiConfig = {
       endpoint: AZURE_OPENAI.endpoint,
       // Data Zone Standard: the photos are processed in the EU only. In a comparison of
       // receipts with abbreviated alcohol and tobacco, cut-off and blurry photos it found
-      // everything with `high`, in about 8 s (docs/belege-ki-pruefung.md)
+      // everything with `medium` as with `high`, in about 7 s instead of 12; a long real
+      // receipt took 25 s instead of 41 (docs/belege-ki-pruefung.md)
       deployment: 'gpt-6.1-sol-datazone',
-      reasoningEffort: 'high',
-      maxChecksPerDay: 100,
+      reasoningEffort: 'medium',
+      // Each photo is asked twice: how to turn it, then the check itself
+      maxChecksPerDay: 200,
     },
   },
   playwrightApi: {
