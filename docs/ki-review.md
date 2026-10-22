@@ -44,7 +44,7 @@ Abschalten: den Workflow unter **Actions → Codex Review → … → Disable wo
 
 ## Claude-Review
 
-Neben Codex prüft auch Claude Code jeden Pull Request, über die Anthropic API und bezahlt aus einem monatlichen API-Guthaben (derzeit 100 $; danach lehnt die API weitere Reviews ab, es entstehen keine Zusatzkosten). Das Konzept ist dasselbe wie bei Codex:
+Neben Codex prüft auch Claude jeden Pull Request, mit dem [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) über die Anthropic API, bezahlt aus dem monatlichen Aktionsguthaben der Organisation (derzeit 100 $). Das Aktionsguthaben gilt für Agent SDK und API, aber nicht für Claude Code; deshalb läuft das Review nicht über `anthropics/claude-code-action`, die sich als Claude Code meldet (damit wurde das normale Guthaben belastet). Das Skript `.github/scripts/claude-review.mjs` startet das Review und schreibt das Ergebnis für den Job zum Posten. Das Konzept ist dasselbe wie bei Codex:
 
 - Bei jedem neuen oder aktualisierten PR: ein **Review** mit `claude-opus-5-5`. Ein neuer Push bricht ein laufendes automatisches Review desselben PRs ab.
 - Gründlicheres Review auf Wunsch: das Label `claude-review` an den PR setzen (nur mit Schreibrechten im Repo). Das läuft einmal mit `claude-fable-5-1` und wird von Pushes nicht abgebrochen. Sobald es gepostet ist, entfernt der Workflow das Label wieder; für ein weiteres gründliches Review es erneut setzen. Schlägt es fehl, bleibt das Label stehen; dann es entfernen und neu setzen. Gibt es für denselben Commit schon ein laufendes oder erfolgreiches gründliches Review, überspringt sich das automatische.
@@ -54,13 +54,13 @@ Neben Codex prüft auch Claude Code jeden Pull Request, über die Anthropic API 
 
 ### Einrichtung
 
-1. In der [Anthropic Console](https://platform.claude.com/) unter **API Keys** einen Schlüssel für die Reviews anlegen, in der Organisation mit dem Monatsguthaben. Dort einstellen, dass nach dem Guthaben keine weiteren Kosten entstehen.
+1. In der [Anthropic Console](https://platform.claude.com/) unter **API Keys** einen Schlüssel für die Reviews anlegen, in der Organisation mit dem Aktionsguthaben. Unter **Abrechnung** das automatische Aufladen ausgeschaltet lassen und das monatliche Ausgabenlimit auf etwa 100 $ setzen; ist das Guthaben leer, lehnt die API weitere Reviews ab (ein paar Cent können darüber hinaus noch über die hinterlegte Karte abgerechnet werden).
 2. In beiden Repos unter **Settings → Secrets and variables → Actions** das Secret `ANTHROPIC_REVIEW_KEY` mit diesem Schlüssel anlegen.
 3. In beiden Repos unter **Issues → Labels → New label** das Label `claude-review` anlegen (Beschreibung z. B. „Gründliches KI-Review mit Claude Fable“).
 4. Testen: einen PR öffnen. Nach ein bis zwei Minuten erscheinen die Kommentare von `github-actions`. Wenn nicht: unter **Actions → Claude Review** das Log des Laufs ansehen.
 
 ### Kosten und Abschalten
 
-Abgerechnet wird pro Token über das Guthaben in der Anthropic Console; beide Repos teilen es. Was ein Lauf gekostet hat, steht im Log unter „Claude Code“ (`total_cost_usd`), den Verbrauch insgesamt zeigt die Console unter **Usage** bzw. **Cost**. Die ersten Reviews kleiner PRs kosteten mit Opus 0,14 bis 0,34 $ (30 bis 60 Sekunden), ein gründliches Review mit Fable 1,66 $ (3 Minuten, 19 Schritte); große PRs kosten mehr. Jeder Push löst ein neues Review aus. Ist das Guthaben aufgebraucht, schlagen die Reviews bis zum nächsten Monat fehl (rotes Häkchen „Claude Review“, blockiert keinen Merge).
+Abgerechnet wird pro Token über das Guthaben in der Anthropic Console; beide Repos teilen es. Was ein Lauf gekostet hat, steht im Log unter „Claude“ (z. B. „claude-opus-5-5: 8 turns, 0.22 $“); schlägt ein Lauf fehl, steht dort auch der Grund der API (z. B. „Credit balance is too low“), den Verbrauch insgesamt zeigt die Console unter **Usage** bzw. **Cost**. Die ersten Reviews kleiner PRs kosteten mit Opus 0,14 bis 0,34 $ (30 bis 60 Sekunden), ein gründliches Review mit Fable 1,66 $ (3 Minuten, 19 Schritte); große PRs kosten mehr. Jeder Push löst ein neues Review aus. Ist das Guthaben aufgebraucht, schlagen die Reviews bis zum nächsten Monat fehl (rotes Häkchen „Claude Review“, blockiert keinen Merge).
 
 Abschalten: den Workflow unter **Actions → Claude Review → … → Disable workflow** deaktivieren. Das Secret zu löschen reicht nicht: Der Workflow startet dann weiter und schlägt bei jedem PR fehl.

@@ -1,5 +1,5 @@
 name: Claude Review
-# AI review of pull requests with Claude Code on the Anthropic API (paid from the monthly API
+# AI review of pull requests with the Claude Agent SDK on the Anthropic API (paid from the API
 # credit). Every new or updated PR gets a review with claude-opus-5-5; the label "claude-review"
 # starts a thorough review with claude-fable-5-1. Apart from the connection to the provider and
 # the models, this file is the same as codex-review.yml, and both are the same in website-astro
@@ -46,7 +46,7 @@ jobs:
       pull-requests: read
       actions: read
     outputs:
-      review: ${{ steps.claude.outputs.structured_output }}
+      review: ${{ steps.claude.outputs.review }}
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
@@ -105,16 +105,28 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --paginate \
             --jq '.[] | {path, line, author: .user.login, body}' > "$dir/review-comments.jsonl"
 
-      - name: Claude Code
+      # The Claude Agent SDK, pinned to a version. The anthropics/claude-code-action identifies itself
+      # as Claude Code, which the promotional API credit does not cover; the Agent SDK it does.
+      # Installed outside the checkout, so nothing from the PR (package.json, .npmrc) takes part.
+      - name: Claude Agent SDK
+        if: steps.thorough.outputs.found != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/claude-sdk"
+          cd "$RUNNER_TEMP/claude-sdk"
+          echo '{}' > package.json
+          npm install --no-save --no-audit --no-fund --ignore-scripts @anthropic-ai/claude-agent-sdk@0.3.300
+          cp "$GITHUB_WORKSPACE/.github/scripts/claude-review.mjs" .
+
+      # Only reading tools in the checkout and the PR files, no shell, no network, no settings, hooks
+      # or MCP servers from the repo (details in the script)
+      - name: Claude
         id: claude
         if: steps.thorough.outputs.found != 'true'
-        # v1.0.250, pinned to the commit because the action gets the Anthropic key
-        uses: anthropics/claude-code-action@a26b07d8c778b0c43f64618e5fd29fd0f8af72e8
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_REVIEW_KEY }}
-          # The read-only token of this job instead of the Claude GitHub App
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: |
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_REVIEW_KEY }}
+          PR_DIR: ${{ runner.temp }}/pr
+          REVIEW_SCHEMA: '{"type":"object","additionalProperties":false,"required":["summary","findings"],"properties":{"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["severity","category","title","body","path","line","start_line","suggestion","agent_prompt"],"properties":{"severity":{"type":"string","enum":["kritisch","fehler","hinweis"]},"category":{"type":"string"},"title":{"type":"string"},"body":{"type":"string"},"path":{"type":"string"},"line":{"type":"integer"},"start_line":{"type":["integer","null"]},"suggestion":{"type":["string","null"]},"agent_prompt":{"type":"string"}}}}}}'
+          REVIEW_PROMPT: |
             Du prüfst Pull Request #${{ github.event.pull_request.number }} in ${{ github.repository }}.
             Der Stand des PRs ist im aktuellen Verzeichnis ausgecheckt. Du hast keinen Netzzugriff;
             alles von GitHub liegt in `${{ runner.temp }}/pr/`:
@@ -154,29 +166,7 @@ jobs:
               - `agent_prompt`: Anweisung für einen KI-Agenten: in welcher Datei um welche Zeile was geändert
                 werden soll und warum, so dass er es ohne den Kommentar umsetzen kann; mit dem Hinweis, vorher
                 zu prüfen, ob das Problem noch besteht.
-          # Only reading tools: no shell, no network, no GitHub tools. `--tools` is the list of
-          # built-in tools Claude has at all. They are not in `--allowedTools`: that would allow them
-          # on any path, e.g. /proc/self/environ with the key. Without it they read only the checkout
-          # and the `--add-dir` directory, everything else is refused (nobody can approve in CI);
-          # the deny rules hold even if that changes. The checkout is the PR's code, so its project
-          # settings (hooks in .claude/settings.json) and MCP servers (.mcp.json) are not loaded:
-          # they would run commands next to the key.
-          claude_args: |
-            --model ${{ env.MODEL }}
-            --add-dir ${{ runner.temp }}/pr
-            --setting-sources user
-            --strict-mcp-config
-            --tools "Read,Grep,Glob"
-            --disallowedTools "Read(//proc/**)" "Read(//sys/**)" "Read(//etc/**)" "Read(//home/runner/.*/**)"
-            --json-schema '{"type":"object","additionalProperties":false,"required":["summary","findings"],"properties":{"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["severity","category","title","body","path","line","start_line","suggestion","agent_prompt"],"properties":{"severity":{"type":"string","enum":["kritisch","fehler","hinweis"]},"category":{"type":"string"},"title":{"type":"string"},"body":{"type":"string"},"path":{"type":"string"},"line":{"type":"integer"},"start_line":{"type":["integer","null"]},"suggestion":{"type":["string","null"]},"agent_prompt":{"type":"string"}}}}}}'
-
-      # The action hides Claude's output in the log (it may contain secrets); when the run fails,
-      # only the final message is shown, e.g. the API's reason for refusing (credit, rate limit)
-      - name: Reason of the failure
-        if: failure() && steps.claude.outcome == 'failure'
-        run: >-
-          jq -r '.[] | select(.type == "result") | .result // empty'
-          "$RUNNER_TEMP/claude-execution-output.json" 2>/dev/null || true
+        run: node "$RUNNER_TEMP/claude-sdk/claude-review.mjs"
 
   # Posting runs in a job of its own: it needs write access, the review job must not have it
   comment:
