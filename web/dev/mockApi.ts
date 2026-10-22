@@ -2398,7 +2398,6 @@ function mockBelegCheck(): NonNullable<StaffBeleg['aiCheck']> {
     shop: 'Demo-Markt',
     date: dayFromToday(-1),
     amountCent: 999,
-    rotation: 0,
     checkedAt: new Date(MOCK_NOW).toISOString(),
   };
 }
@@ -2624,6 +2623,7 @@ route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
 route('POST', '/api/intern/pflege/belege/pruefung', (req) => {
   if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
     return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
+  if (req.query.get('nur') === 'drehung') return json({ available: true, rotation: 0 });
   return json({ available: true, check: mockBelegCheck() });
 });
 

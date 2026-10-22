@@ -11,7 +11,7 @@ Das Modul **Belege** im Leitendenbereich kann jedes Belegfoto von einem Bildmode
 
 ## Modell
 
-`CONFIG.belege.check` nutzt `gpt-6.1-sol` mit `reasoningEffort: 'high'` als Bereitstellung im **Datenzonenstandard** auf `website-astro-openai` (Kapazität 100). Die Fotos werden damit nur in der EU verarbeitet.
+`CONFIG.belege.check` nutzt `gpt-6.1-sol` mit `reasoningEffort: 'medium'` als Bereitstellung im **Datenzonenstandard** auf `website-astro-openai` (Kapazität 100). Die Fotos werden damit nur in der EU verarbeitet.
 
 Ausgewählt im Oktober 2026 nach einem Vergleich mit gezeichneten Belegfotos und bekannter Lösung, je zwei bis drei Läufe mit dem Prompt aus `beleg-check.ts`. Die Fotos enthielten abgekürzten Alkohol und Tabak („RADL.ZITR.“, „OETT.PILS“, „SMIRN.ICE“, „JAEGERM.“, „IQOS TEREA“, „ELFBAR“), Fallen, die nicht gemeldet werden dürfen (alkoholfreies Bier, Kindersekt, Malzbier, Weingummi, Pfand, Essig), einen verblassten Bon, einen abgeschnittenen und einen unscharfen Beleg:
 
@@ -23,11 +23,13 @@ Ausgewählt im Oktober 2026 nach einem Vergleich mit gezeichneten Belegfotos und
 | `gpt-6-astra` (high) | 18 von 18 | 8,4 s | 12 s |
 | `gpt-6.1-sol` (high) | 18 von 18 | 8,1 s | 12,5 s |
 
+Nachgemessen mit den Regeln für Ränder (siehe unten), knapp zugeschnittenen und abgeschnittenen Belegen und einem echten, 30 Zeilen langen Kassenbon: `gpt-6.1-sol` mit `medium` 16 von 16 richtig in Ø 7,4 s (der echte Bon 18–25 s), mit `high` ebenfalls 16 von 16, aber Ø 12,5 s und bis 41 s. Deshalb `medium`.
+
 `gpt-4.1-mini` übersah Radler und Liquid, meldete alkoholfreies Bier und Malzbier und erkannte die abgeschnittene Summe nicht. Den abgeschnittenen Beleg erkannten nur `gpt-6-astra` und `gpt-6.1-sol` mit `high` in jedem Lauf.
 
 **Vollständig** heißt: Kein Inhalt fehlt (Kopf mit Geschäft, Positionen, Gesamtbetrag, Datum, keine angeschnittenen Zeilen). Papierränder müssen nicht zu sehen sein, weil das Formular Fotos knapp auf den Beleg zuschneidet. Mit dieser Regel (geprüft im Oktober 2026) galten knapp zugeschnittene Belege in allen vier Drehungen als vollständig, ein unten auslaufender Beleg mit allem Text ebenfalls; ein fehlendes Datum und rechts angeschnittene Beträge wurden gemeldet, auch quer fotografiert.
 
-Das Modell meldet außerdem `rotation`, die Drehung im Uhrzeigersinn, damit der Text aufrecht steht (0, 90, 180 oder 270). Das Formular dreht ein neues Foto danach einmal automatisch, sofern es seither nicht von Hand gedreht wurde, und prüft das gedrehte Foto im Hintergrund noch einmal. Dessen Ergebnis ersetzt das erste; quer liegende Fotos werden gelegentlich schlechter beurteilt als aufrechte. Beim Einreichen findet die API so die Prüfung des eingereichten Fotos.
+**Drehung zuerst:** Quer liegende Fotos prüft das Modell deutlich langsamer und schlechter (der echte Bon quer: 38–54 s und mit wenig Denkaufwand ohne den Alkohol; aufrecht 11 s). Das Formular fragt deshalb vor der Prüfung nur nach der Drehung (`POST …/pruefung?nur=drehung`, `reasoning_effort: low`, eigenes kurzes Schema): in 3–6 s, in allen Tests richtig, auch für 180°. Es dreht ein neues Foto einmal entsprechend, sofern es seither nicht von Hand gedreht wurde, und prüft dann das aufrechte Foto. Beide Anfragen zählen gegen `maxChecksPerDay`. Die KI erzeugt dabei kein Bild: Drehen, Zuschneiden und Aufhellen rechnet der Browser, damit der Inhalt des Belegs nicht verfälscht werden kann.
 
 Diese Modelle denken vor der Antwort (Reasoning). Sie lehnen `temperature: 0` ab; `azure-openai.ts` sendet deshalb bei gesetztem `reasoningEffort` stattdessen `reasoning_effort`. Die Denk-Token zählen zu `max_completion_tokens` (4.000 für die Belegprüfung), das Timeout liegt bei 60 Sekunden. Für ein anderes Modell: Bereitstellung anlegen, `deployment` und gegebenenfalls `reasoningEffort` in `config.ts` ändern; ohne `reasoningEffort` wird wie früher `temperature: 0` gesendet.
 

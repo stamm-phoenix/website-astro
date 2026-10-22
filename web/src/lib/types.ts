@@ -536,8 +536,6 @@ export interface BelegCheck {
   shop: string | null;
   date: string | null;
   amountCent: number | null;
-  /** Degrees clockwise the photo must be turned for the text to read upright. */
-  rotation: 0 | 90 | 180 | 270;
   checkedAt: string;
 }
 

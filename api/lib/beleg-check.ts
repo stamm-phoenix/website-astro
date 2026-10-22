@@ -43,11 +43,10 @@ export interface BelegCheck {
   /** `YYYY-MM-DD` */
   date: string | null;
   amountCent: number | null;
-  /** Degrees clockwise the photo must be turned for the text to read upright. */
-  rotation: BelegRotation;
   checkedAt: string;
 }
 
+/** Degrees clockwise a photo must be turned for its text to read upright. */
 export type BelegRotation = 0 | 90 | 180 | 270;
 const ROTATIONS: readonly BelegRotation[] = [0, 90, 180, 270];
 
@@ -87,7 +86,6 @@ Beurteile:
 - complete: Ist der ganze Inhalt zu sehen, nur ein Beleg auf dem Foto? Unvollständig ist ein Beleg nur, wenn Inhalt fehlt oder verdeckt ist: angeschnittene Zeichen oder Zeilen am Bildrand, ein fehlender Kopf mit dem Geschäft, fehlende Positionen, ein fehlender Gesamtbetrag oder ein fehlendes Datum. Ein knapper Zuschnitt ohne fehlenden Text ist vollständig.
 - readable: Sind Geschäft, Datum, Gesamtbetrag und Positionen scharf und gut lesbar (kein Verwackeln, keine Spiegelung, kein starker Schatten, nicht zu dunkel, nicht stark verzerrt)?
 - issues: Konkrete Mängel auf Deutsch, je ein kurzer Satz mit Hinweis zur Abhilfe, z. B. „Der Gesamtbetrag am Ende des Belegs fehlt. Bitte den ganzen Beleg fotografieren.“ Nenne nur, was wirklich fehlt oder unlesbar ist, keine fehlenden Papierränder und nicht die Drehung. Leer, wenn alles passt.
-- rotation: Um wie viel Grad im Uhrzeigersinn muss das Foto gedreht werden, damit der Text aufrecht steht? 0, wenn er schon aufrecht steht; 90, wenn die Zeilen von unten nach oben laufen (Foto nach links gekippt); 180, wenn er auf dem Kopf steht; 270, wenn die Zeilen von oben nach unten laufen (Foto nach rechts gekippt).
 - shop, date (YYYY-MM-DD), amount (Gesamtbetrag in Euro als Zahl): nur, wenn sicher lesbar, sonst null.
 - restrictedItems: Positionen, die in der Jugendarbeit nicht abgerechnet werden dürfen, so wie sie auf dem Beleg stehen (z. B. „Augustiner Hell 0,5l“): alkoholische Getränke (Bier, Radler, Wein, Sekt, Spirituosen, Alkopops, alkoholhaltige Mixgetränke), Lebensmittel mit deutlichem Alkoholgehalt (z. B. Weinbrandbohnen, Rumtopf, Eierlikör), Tabakwaren (Zigaretten, Tabak, Zigarren, Shisha-Tabak, E-Zigaretten, Liquids, Nikotinbeutel) und sonstige nicht jugendfreie Artikel (z. B. Medien ab 18, Erotikartikel). Nicht dazu gehören alkoholfreie Varianten („alkoholfrei“, „0,0 %“), Pfand und Kochzutaten wie Essig. Nur aufnehmen, wenn die Position auf dem Beleg eindeutig erkennbar ist; leer, wenn nichts davon zu sehen ist.
 
@@ -105,7 +103,6 @@ const RESPONSE_SCHEMA = {
     'shop',
     'date',
     'amount',
-    'rotation',
   ],
   properties: {
     isReceipt: { type: 'boolean' },
@@ -116,7 +113,6 @@ const RESPONSE_SCHEMA = {
     shop: { type: ['string', 'null'] },
     date: { type: ['string', 'null'] },
     amount: { type: ['number', 'null'] },
-    rotation: { type: 'integer', enum: [0, 90, 180, 270] },
   },
 };
 
@@ -168,7 +164,6 @@ export function toBelegCheck(raw: unknown, now = new Date()): BelegCheck {
     shop: readText(answer.shop, 100),
     date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
     amountCent,
-    rotation: readRotation(answer.rotation),
     checkedAt: now.toISOString(),
   };
 }
@@ -236,6 +231,58 @@ async function askModel(jpeg: Uint8Array): Promise<BelegCheck | undefined> {
   return toBelegCheck(answer);
 }
 
+const ROTATION_PROMPT =
+  'Das Foto zeigt einen Kassenbeleg, möglicherweise gedreht. Um wie viel Grad im Uhrzeigersinn muss das Foto gedreht werden, damit der Text aufrecht steht und von links nach rechts gelesen werden kann? 0, 90, 180 oder 270. Achte auf die Leserichtung der Buchstaben, z. B. des Gesamtbetrags.';
+
+const ROTATION_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['rotation'],
+  properties: { rotation: { type: 'integer', enum: ROTATIONS } },
+};
+
+/** Asking only for the direction is quick; a few seconds even for a long receipt lying sideways. */
+const ROTATION_TIMEOUT_MS = 30_000;
+const ROTATION_MAX_TOKENS = 2_000;
+
+/**
+ * Asks only how the photo must be turned, with little thinking. The form turns the photo upright
+ * before the real check, which is quicker and more reliable on an upright receipt. Undefined
+ * if the check is not configured.
+ */
+export async function checkBelegRotation(jpeg: Uint8Array): Promise<BelegRotation | undefined> {
+  if (!isBelegCheckConfigured()) return undefined;
+  reserveCheck();
+  const answer = await requestStructuredOutput(
+    { ...CONFIG.belege.check, reasoningEffort: 'low' },
+    {
+      schemaName: 'belegdrehung',
+      schema: ROTATION_SCHEMA,
+      maxCompletionTokens: ROTATION_MAX_TOKENS,
+      timeoutMs: ROTATION_TIMEOUT_MS,
+      messages: [
+        { role: 'system', content: ROTATION_PROMPT },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/jpeg;base64,${Buffer.from(jpeg).toString('base64')}`,
+                detail: 'high',
+              },
+            },
+          ],
+        },
+      ],
+    }
+  );
+  if (answer === null || typeof answer !== 'object') {
+    throw new BelegCheckError('Unexpected answer of the model');
+  }
+  return readRotation((answer as Record<string, unknown>).rotation);
+}
+
 /** Parses a stored check; invalid or missing values yield null. */
 export function parseStoredBelegCheck(value: string | undefined): BelegCheck | null {
   if (!value) return null;
@@ -254,7 +301,6 @@ export function parseStoredBelegCheck(value: string | undefined): BelegCheck | n
       shop: typeof parsed.shop === 'string' ? parsed.shop : null,
       date: typeof parsed.date === 'string' ? parsed.date : null,
       amountCent: typeof parsed.amountCent === 'number' ? parsed.amountCent : null,
-      rotation: readRotation(parsed.rotation),
       checkedAt: typeof parsed.checkedAt === 'string' ? parsed.checkedAt : '',
     };
   } catch {
