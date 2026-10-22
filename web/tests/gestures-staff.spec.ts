@@ -22,9 +22,9 @@ async function openSheet(page: Page): Promise<void> {
 
 /**
  * Swipes one finger down the title of the sheet by `dy` pixels in ten moves `step`
- * milliseconds apart, resting `pause` milliseconds before letting go. The time between the
- * events is real, so the sheet sees the speed of the finger. Returns the inline transition
- * of the sheet right after the finger left it.
+ * milliseconds apart, resting `pause` milliseconds before letting go. The events carry these
+ * times as their time stamps, so the sheet sees the speed of the finger however busy the
+ * machine is. Returns the inline transition of the sheet right after the finger left it.
  */
 async function swipeSheet(
   page: Page,
@@ -39,31 +39,26 @@ async function swipeSheet(
       const box = target.getBoundingClientRect();
       const x = box.left + 20;
       const y0 = box.top + box.height / 2;
+      // Waiting for real would let a busy test machine stretch a step of a flick into a slow
+      // pull, so each event gets the time the finger would have reached it
+      let time = performance.now();
       const fire = (type: string, y: number): void => {
         const touch = new Touch({ identifier: 1, target, clientX: x, clientY: y });
-        target.dispatchEvent(
-          new TouchEvent(type, {
-            bubbles: true,
-            cancelable: true,
-            touches: type === 'touchend' ? [] : [touch],
-            changedTouches: [touch],
-          })
-        );
-      };
-      // The moves wait on the clock itself: timers of a busy test machine fire late, which
-      // would turn a flick into a slow pull
-      const hold = (ms: number): void => {
-        const end = performance.now() + ms;
-        while (performance.now() < end) {
-          // Real time passes between the events, as with a finger
-        }
+        const event = new TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches: type === 'touchend' ? [] : [touch],
+          changedTouches: [touch],
+        });
+        Object.defineProperty(event, 'timeStamp', { value: time });
+        target.dispatchEvent(event);
       };
       fire('touchstart', y0);
       for (let index = 1; index <= 10; index++) {
-        hold(step);
+        time += step;
         fire('touchmove', y0 + (dy * index) / 10);
       }
-      if (pause > 0) await new Promise((resolve) => setTimeout(resolve, pause));
+      time += pause;
       fire('touchend', y0 + dy);
       // Svelte applies the state of the release in a microtask
       await new Promise<void>((resolve) => queueMicrotask(resolve));
