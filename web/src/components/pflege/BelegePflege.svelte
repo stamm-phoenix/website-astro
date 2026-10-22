@@ -281,6 +281,7 @@
       aktion,
       note,
     };
+    let newId: string | null = null;
     const saved = await dialog.run(async () => {
       if (id) {
         // A new photo chosen for this receipt is saved first, so a decision never discards it
@@ -304,18 +305,25 @@
         });
         message = decisionMessage(shop, decision, result?.mailed === true, submittedBy);
       } else {
-        await sendApi('POST', '/intern/pflege/belege', {
+        const created = await sendApi<{ id: string }>('POST', '/intern/pflege/belege', {
           ...details,
           ...(await photo.photoPayload(photo.draft!)),
         });
         message = `Beleg von ${shop} über ${formatEuro(details.amountCent!)} eingereicht. Danke!`;
-        // The new receipt is to be seen in the list
-        if (stand && stand !== 'eingereicht') stand = '';
-        if (quelle === 'campflow') quelle = '';
+        newId = created?.id ?? null;
       }
       form = null;
       photo.clearDraft();
       await belegePflege.load({ force: true });
+      // The new receipt is to be seen in the list, whatever the filters said
+      if (newId && !visible.some((e) => e.key === `website-${newId}`)) {
+        quelle = '';
+        stand = '';
+        costUnitId = '';
+        categoryId = '';
+        search = '';
+        onlyMine = false;
+      }
     }, 'Der Beleg wurde nicht gespeichert. Deine Eingaben und das Foto sind noch da. Prüfe deine Internetverbindung und versuche es noch einmal.');
     if (!saved && form) form.status = previousStatus;
   }

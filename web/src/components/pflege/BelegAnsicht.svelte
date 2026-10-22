@@ -49,7 +49,9 @@
         <img
           src={photoUrl(beleg)}
           alt={`Foto des Belegs von ${beleg.shop || 'unbekannt'}`}
-          class="h-auto w-full rounded-md bg-neutral-100"
+          width="600"
+          height="800"
+          class="aspect-[3/4] h-auto w-full rounded-md bg-neutral-100 object-contain"
         />
       {/if}
     </div>
