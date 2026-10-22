@@ -9,30 +9,38 @@ import {
   photoWarnings as measurePhotoWarnings,
 } from './belege';
 import { todayIso } from './format';
-import {
-  findReceipt,
-  fullFrame,
-  isFullFrame,
-  readPixels,
-  scanReceipt,
-  toCanvas,
-} from './belegScan';
-import type { Pixels, Quad, ScanMode } from './belegScan';
+import { findReceipt, fullFrame, isFullFrame, readPixels, toCanvas } from './belegScan';
+import type { Pixels, Quad } from './belegScan';
+import { ausrichten, bildBearbeiten, eckenAusrichten } from './belegBild';
+import type { Ausrichtung, FotoFarben } from './belegBild';
 import type { BelegCheck, StaffBeleg } from './types';
 import type { BelegForm } from './belegForm';
 import type { createDialogForm } from './dialogForm.svelte';
-/** `aus`: the photo is used as it is, e.g. because it already is a scan of the phone. */
-type Mode = ScanMode | 'aus';
-
-/** A chosen photo while it is being scanned. */
+/** A chosen photo while it is being edited. */
 interface Draft {
   original: Pixels;
   originalBlob: Blob;
   originalUrl: string;
-  quad: Quad;
-  mode: Mode;
-  /** Result of the scan (or the original with mode `aus`). */
+  /** The photo rotated and mirrored as chosen; the original itself while it is not. */
+  bild: Pixels;
+  /** The receipt's corners in `bild`; null for the whole picture. */
+  quad: Quad | null;
+  mode: FotoFarben;
+  /** The photo as it will be submitted. */
   result: { blob: Blob; url: string; width: number; height: number } | null;
+}
+
+/** The crop tool while it is open: the uncropped picture and the corners being moved. */
+interface Zuschnitt {
+  url: string;
+  width: number;
+  height: number;
+  quad: Quad;
+}
+
+/** Whether anything was changed, so the photo differs from the one chosen. */
+function isEdited(draft: Draft): boolean {
+  return draft.bild !== draft.original || draft.quad !== null || draft.mode !== 'original';
 }
 
 interface Options {
@@ -45,13 +53,20 @@ interface BelegPhotoDraft {
   readonly photoBusy: boolean;
   readonly draft: Draft | null;
   readonly scanHint: string | null;
+  readonly zuschnitt: Zuschnitt | null;
+  readonly edited: boolean;
   readonly photoWarnings: string[];
   readonly aiChecking: boolean;
   readonly aiNotice: string | null;
   choosePhoto: (event: Event) => Promise<void>;
   clearDraft: () => void;
-  setQuad: (quad: Quad) => void;
-  setMode: (mode: Mode) => void;
+  setMode: (mode: FotoFarben) => void;
+  ausrichten: (schritt: Ausrichtung) => void;
+  zuruecksetzen: () => void;
+  zuschneiden: () => Promise<void>;
+  setZuschnitt: (quad: Quad) => void;
+  zuschnittFertig: () => Promise<void>;
+  zuschnittAbbrechen: () => void;
   savePhoto: () => Promise<void>;
   photoPayload: (draft: Draft) => Promise<{ photo: string; original?: string }>;
   reset: () => void;
@@ -60,6 +75,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
   const dialog = options.dialog;
   let photoBusy = $state(false);
   let draft = $state.raw<Draft | null>(null);
+  let zuschnitt = $state.raw<Zuschnitt | null>(null);
   /** Hint about the found edges of the receipt. */
   let scanHint = $state<string | null>(null);
   let checkTimer: ReturnType<typeof setTimeout> | undefined;
@@ -77,6 +93,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       if (draft.result) URL.revokeObjectURL(draft.result.url);
     }
     clearTimeout(checkTimer);
+    zuschnittAbbrechen();
     draft = null;
     scanHint = null;
   }
@@ -110,19 +127,21 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       const originalBlob = await canvasToJpeg(canvas);
       clearDraft();
       const found = findReceipt(original);
-      let quad = found ?? fullFrame(original.width, original.height);
-      let mode: Mode = 'farbe';
+      let quad: Quad | null = found;
+      let mode: FotoFarben = 'farbe';
       if (!found) {
-        scanHint = 'Ränder nicht erkannt – zieh die Ecken selbst auf den Beleg.';
+        scanHint =
+          'Ränder nicht erkannt. Mit „Zuschneiden“ ziehst du die Ecken selbst auf den Beleg.';
       } else if (isFullFrame(found, original.width, original.height)) {
         // The photo shows only the receipt, e.g. a scan of the phone camera
-        quad = fullFrame(original.width, original.height);
-        mode = 'aus';
+        quad = null;
+        mode = 'original';
       }
       draft = {
         original,
         originalBlob,
         originalUrl: URL.createObjectURL(originalBlob),
+        bild: original,
         quad,
         mode,
         result: null,
@@ -137,16 +156,16 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     }
   }
 
-  /** Computes the scan for the current corners and mode. */
-  async function render(): Promise<void> {
+  /** Computes the photo for the current edits; false if the corners make no crop. */
+  async function render(): Promise<boolean> {
     const form = options.form();
     const current = draft;
-    if (!current) return;
+    if (!current) return false;
     photoBusy = true;
     try {
       await nextFrame();
       let result: Draft['result'];
-      if (current.mode === 'aus') {
+      if (!isEdited(current)) {
         result = {
           blob: current.originalBlob,
           url: URL.createObjectURL(current.originalBlob),
@@ -154,53 +173,119 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
           height: current.original.height,
         };
       } else {
-        const scan = toCanvas(
-          scanReceipt(current.original, current.quad, current.mode, BELEG_PHOTO_EDGE)
+        const edited = toCanvas(
+          bildBearbeiten(current.bild, current.quad, current.mode, BELEG_PHOTO_EDGE)
         );
-        const blob = await canvasToJpeg(scan);
-        result = { blob, url: URL.createObjectURL(blob), width: scan.width, height: scan.height };
+        const blob = await canvasToJpeg(edited);
+        result = {
+          blob,
+          url: URL.createObjectURL(blob),
+          width: edited.width,
+          height: edited.height,
+        };
       }
       if (draft !== current) {
         URL.revokeObjectURL(result.url);
-        return;
+        return true;
       }
       if (current.result) URL.revokeObjectURL(current.result.url);
       draft = { ...current, result };
       if (form && !form.id) {
-        // Only check once the corners have settled
+        // Only check once the edits have settled
         clearTimeout(checkTimer);
-        checkTimer = setTimeout(() => void checkNewPhoto(result.blob), 600);
+        checkTimer = setTimeout(() => void checkNewPhoto(result.blob), 1000);
       }
+      return true;
     } catch {
-      // E.g. two corners dragged onto the same point; never keep the scan of the old corners
-      if (draft === current) {
-        if (current.result) URL.revokeObjectURL(current.result.url);
-        draft = { ...current, result: null };
-        scanHint = 'Die Ecken bilden kein Viereck. Bitte die Ecken weiter auseinanderziehen.';
-      }
+      // E.g. two corners dragged onto the same point
+      return false;
     } finally {
       photoBusy = false;
     }
   }
 
-  function setQuad(quad: Quad): void {
-    if (!draft) return;
-    draft = { ...draft, quad };
+  function setMode(mode: FotoFarben): void {
+    if (!draft || draft.mode === mode || zuschnitt) return;
+    draft = { ...draft, mode };
     void render();
   }
 
-  function setMode(mode: Mode): void {
-    if (!draft || draft.mode === mode) return;
-    draft = { ...draft, mode };
+  /** Rotates or mirrors the photo; a crop turns with it. */
+  function ausrichtenBild(schritt: Ausrichtung): void {
+    if (!draft || zuschnitt) return;
+    const { bild, quad } = draft;
+    draft = {
+      ...draft,
+      bild: ausrichten(bild, schritt),
+      quad: quad ? eckenAusrichten(quad, bild.width, bild.height, schritt) : null,
+    };
     void render();
+  }
+
+  /** Back to the photo as it was chosen: uncropped, unturned, with its own colours. */
+  function zuruecksetzen(): void {
+    if (!draft || !isEdited(draft)) return;
+    zuschnittAbbrechen();
+    scanHint = null;
+    draft = { ...draft, bild: draft.original, quad: null, mode: 'original' };
+    void render();
+  }
+
+  /** Opens the crop tool on the uncropped picture, with the current corners. */
+  async function zuschneiden(): Promise<void> {
+    const current = draft;
+    if (!current || zuschnitt) return;
+    photoBusy = true;
+    try {
+      await nextFrame();
+      const blob =
+        current.bild === current.original
+          ? current.originalBlob
+          : await canvasToJpeg(toCanvas(current.bild));
+      if (draft !== current) return;
+      const { width, height } = current.bild;
+      zuschnitt = {
+        url: URL.createObjectURL(blob),
+        width,
+        height,
+        quad: current.quad ?? fullFrame(width, height),
+      };
+    } finally {
+      photoBusy = false;
+    }
+  }
+
+  function setZuschnitt(quad: Quad): void {
+    if (zuschnitt) zuschnitt = { ...zuschnitt, quad };
+  }
+
+  function zuschnittAbbrechen(): void {
+    if (zuschnitt) URL.revokeObjectURL(zuschnitt.url);
+    zuschnitt = null;
+  }
+
+  /** Applies the corners; corners that make no crop keep the tool open with a hint. */
+  async function zuschnittFertig(): Promise<void> {
+    const current = draft;
+    const open = zuschnitt;
+    if (!current || !open) return;
+    const whole = isFullFrame(open.quad, open.width, open.height);
+    draft = { ...current, quad: whole ? null : open.quad };
+    scanHint = null;
+    if (await render()) {
+      zuschnittAbbrechen();
+    } else if (draft) {
+      draft = { ...draft, quad: current.quad };
+      scanHint = 'Die Ecken bilden kein Viereck. Bitte die Ecken weiter auseinanderziehen.';
+    }
   }
 
   /** The photos for the API: the scan, plus the original if the scan differs from it. */
   async function photoPayload(current: Draft): Promise<{ photo: string; original?: string }> {
     const photo = await blobToBase64(current.result!.blob);
-    return current.mode === 'aus'
-      ? { photo }
-      : { photo, original: await blobToBase64(current.originalBlob) };
+    return isEdited(current)
+      ? { photo, original: await blobToBase64(current.originalBlob) }
+      : { photo };
   }
 
   /** Replaces the photo of an existing receipt with the current scan. */
@@ -287,6 +372,12 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     get scanHint() {
       return scanHint;
     },
+    get zuschnitt() {
+      return zuschnitt;
+    },
+    get edited() {
+      return draft ? isEdited(draft) : false;
+    },
     get photoWarnings() {
       return photoWarnings;
     },
@@ -298,8 +389,13 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     },
     choosePhoto,
     clearDraft,
-    setQuad,
     setMode,
+    ausrichten: ausrichtenBild,
+    zuruecksetzen,
+    zuschneiden,
+    setZuschnitt,
+    zuschnittFertig,
+    zuschnittAbbrechen,
     savePhoto,
     photoPayload,
     reset,

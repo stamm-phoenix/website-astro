@@ -250,6 +250,10 @@
   /** Saves the receipt; `decision` accepts, rejects or resubmits it at the same time. */
   async function save(decision?: BelegStatus): Promise<void> {
     if (!form) return;
+    if (photo.zuschnitt) {
+      dialogNotice = 'Bitte zuerst das Zuschneiden abschließen.';
+      return;
+    }
     const previousStatus = form.status;
     if (decision) form.status = decision;
     if (dialog.invalid(validateBeleg(form, !!photo.draft?.result))) {

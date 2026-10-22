@@ -1067,8 +1067,10 @@ test('in the iPhone app receipt login links warn that the chosen photo and crop 
     mimeType: 'image/png',
     buffer: Buffer.from(photo, 'base64'),
   });
-  await expect(dialog.getByAltText('Vorschau des Scans')).toBeVisible();
+  await expect(dialog.getByAltText('Vorschau des Fotos')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Zuschneiden', exact: true }).click();
   await dialog.getByRole('button', { name: /Ecke oben links verschieben/ }).press('ArrowLeft');
+  await dialog.getByRole('button', { name: 'Zuschneiden fertig' }).click();
   const checkNotice = dialog.getByRole('note').filter({ hasText: warning });
   await expect(checkNotice.getByRole('link', { name: 'Neu anmelden', exact: true })).toBeVisible();
   await expect(checkNotice).toContainText('Wähle das Foto nach der neuen Anmeldung erneut aus');
@@ -1086,7 +1088,7 @@ test('in the iPhone app receipt login links warn that the chosen photo and crop 
   await open.click();
   await expect(dialog.getByLabel('Geschäft')).toHaveValue('Recovery receipt photo');
   await expect(dialog.getByLabel('Betrag in €')).toHaveValue('12,34');
-  await expect(dialog.getByAltText('Vorschau des Scans')).toHaveCount(0);
+  await expect(dialog.getByAltText('Vorschau des Fotos')).toHaveCount(0);
   await expect(dialog.getByText(warning, { exact: false })).toHaveCount(0);
 });
 

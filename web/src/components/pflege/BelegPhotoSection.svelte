@@ -6,7 +6,8 @@
   import InfoHint from '../ui/InfoHint.svelte';
   import { photoUrl, formatTimestamp, type BelegForm } from '../../lib/belegForm';
   import type { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
-  import type { ScanMode } from '../../lib/belegScan';
+  import FilterTabs from '../ui/FilterTabs.svelte';
+  import type { Ausrichtung, FotoFarben } from '../../lib/belegBild';
   interface Props {
     form: BelegForm;
     photo: ReturnType<typeof createBelegPhotoDraft>;
@@ -14,11 +15,49 @@
     errors: Record<string, string>;
   }
   let { form, photo, busy, errors }: Props = $props();
-  const MODES: { id: ScanMode | 'aus'; label: string }[] = [
-    { id: 'farbe', label: 'Farbe' },
-    { id: 'graustufen', label: 'Graustufen' },
-    { id: 'aus', label: 'Unverändert (ist schon ein Scan)' },
+  const FARBEN: { value: FotoFarben; label: string }[] = [
+    { value: 'farbe', label: 'Farbe' },
+    { value: 'graustufen', label: 'Graustufen' },
+    { value: 'original', label: 'Original' },
   ];
+  type Werkzeug = 'zuschneiden' | Ausrichtung | 'zuruecksetzen';
+  /** The tools; icons from simple strokes, the label is also the tooltip. */
+  const TOOLS: { id: Werkzeug; label: string; text?: string; icon: string }[] = [
+    {
+      id: 'zuschneiden',
+      label: 'Zuschneiden',
+      text: 'Zuschneiden',
+      icon: 'M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14',
+    },
+    { id: 'links', label: 'Nach links drehen', icon: 'M3 4v6h6M3.5 13a9 9 0 1 0 2.1-8.4L3 7' },
+    {
+      id: 'rechts',
+      label: 'Nach rechts drehen',
+      icon: 'M21 4v6h-6M20.5 13a9 9 0 1 1-2.1-8.4L21 7',
+    },
+    {
+      id: 'horizontal',
+      label: 'Horizontal spiegeln',
+      icon: 'M12 3v18M8 7l-5 5 5 5V7zM16 7l5 5-5 5V7z',
+    },
+    {
+      id: 'vertikal',
+      label: 'Vertikal spiegeln',
+      icon: 'M3 12h18M7 8l5-5 5 5H7zM7 16l5 5 5-5H7z',
+    },
+    {
+      id: 'zuruecksetzen',
+      label: 'Auf das Originalfoto zurücksetzen',
+      text: 'Zurücksetzen',
+      icon: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
+    },
+  ];
+
+  function runTool(id: Werkzeug): void {
+    if (id === 'zuschneiden') void photo.zuschneiden();
+    else if (id === 'zuruecksetzen') photo.zuruecksetzen();
+    else photo.ausrichten(id);
+  }
 </script>
 
 <section aria-labelledby="bl-photo-label" class="space-y-2">
@@ -46,73 +85,92 @@
     </a>
   {/if}
   {#if photo.draft}
-    <div class="grid gap-3 sm:grid-cols-2">
-      <figure class="space-y-1">
-        <figcaption class="text-xs font-semibold text-neutral-700">
-          {photo.draft.mode === 'aus' ? 'Foto' : 'Original – Ecken auf den Beleg ziehen'}
-        </figcaption>
-        {#if photo.draft.mode === 'aus'}
-          <img
-            src={photo.draft.originalUrl}
-            alt="Gewähltes Foto"
-            width={photo.draft.original.width}
-            height={photo.draft.original.height}
-            class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-neutral-100"
-          />
-        {:else}
-          <BelegScanEditor
-            src={photo.draft.originalUrl}
-            width={photo.draft.original.width}
-            height={photo.draft.original.height}
-            quad={photo.draft.quad}
-            disabled={busy}
-            onchange={photo.setQuad}
-          />
-        {/if}
-      </figure>
-      {#if photo.draft.result && photo.draft.mode !== 'aus'}
-        <figure class="space-y-1">
-          <figcaption class="text-xs font-semibold text-neutral-700">Scan</figcaption>
-          <img
-            src={photo.draft.result.url}
-            alt="Vorschau des Scans"
-            width={photo.draft.result.width}
-            height={photo.draft.result.height}
-            class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-surface"
-          />
-        </figure>
+    {@const draft = photo.draft}
+    {@const locked = photo.photoBusy || busy}
+    {#if photo.zuschnitt}
+      <BelegScanEditor
+        src={photo.zuschnitt.url}
+        width={photo.zuschnitt.width}
+        height={photo.zuschnitt.height}
+        quad={photo.zuschnitt.quad}
+        disabled={locked}
+        onchange={photo.setZuschnitt}
+      />
+      <div class="flex flex-wrap gap-2">
+        <ActionButton
+          variant="primary"
+          type="button"
+          disabled={locked}
+          onclick={photo.zuschnittFertig}>Zuschneiden fertig</ActionButton
+        >
+        <ActionButton
+          variant="secondary"
+          type="button"
+          disabled={locked}
+          onclick={photo.zuschnittAbbrechen}>Abbrechen</ActionButton
+        >
+      </div>
+    {:else}
+      {#if draft.result}
+        <img
+          src={draft.result.url}
+          alt="Vorschau des Fotos"
+          width={draft.result.width}
+          height={draft.result.height}
+          class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-surface"
+        />
+      {:else}
+        <div
+          role="status"
+          class="flex h-48 w-36 items-center justify-center rounded-md border border-neutral-200 bg-neutral-100 text-sm text-neutral-700"
+        >
+          Wird verarbeitet …
+        </div>
       {/if}
-    </div>
+      <div role="toolbar" aria-label="Foto bearbeiten" class="flex flex-wrap items-center gap-1">
+        {#each TOOLS as tool (tool.label)}
+          <button
+            type="button"
+            class="werkzeug"
+            title={tool.label}
+            aria-label={tool.label}
+            disabled={locked || (tool.id === 'zuruecksetzen' && !photo.edited)}
+            onclick={() => runTool(tool.id)}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"><path d={tool.icon} /></svg
+            >
+            {#if tool.text}<span>{tool.text}</span>{/if}
+          </button>
+        {/each}
+      </div>
+      <FilterTabs
+        label="Farben"
+        showLabel
+        variant="segmented"
+        options={FARBEN}
+        value={draft.mode}
+        disabled={locked}
+        onselect={photo.setMode}
+      />
+    {/if}
     {#if photo.scanHint}
       <p class="text-xs text-neutral-700">{photo.scanHint}</p>
     {/if}
-    <details class="mt-2">
-      <summary class="min-h-11 cursor-pointer font-semibold text-link">Foto anpassen …</summary>
-      <fieldset>
-        <legend class="sr-only">Bearbeitung</legend>
-        <div class="mt-1 space-y-1">
-          {#each MODES as option (option.id)}
-            <label class="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
-              <input
-                type="radio"
-                class="size-6 shrink-0 accent-[var(--color-action)]"
-                name="bl-scan-mode"
-                checked={photo.draft.mode === option.id}
-                disabled={photo.photoBusy || busy}
-                onchange={() => photo.setMode(option.id)}
-              />
-              {option.label}
-            </label>
-          {/each}
-        </div>
-      </fieldset>
-    </details>
     {#if form.id}
       <div class="flex flex-wrap gap-2">
         <ActionButton
           variant="primary"
           type="button"
-          disabled={photo.photoBusy || busy || !photo.draft.result}
+          disabled={photo.photoBusy || busy || !photo.draft.result || !!photo.zuschnitt}
           onclick={photo.savePhoto}>Neues Foto speichern</ActionButton
         >
         <ActionButton
@@ -175,6 +233,36 @@
 </section>
 
 <style>
+  .werkzeug {
+    display: inline-flex;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-md, 0.375rem);
+    padding: 0 0.625rem;
+    color: var(--color-brand-900);
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: var(--color-surface, transparent);
+  }
+
+  .werkzeug:hover:not(:disabled) {
+    border-color: var(--color-brand-300);
+  }
+
+  .werkzeug:focus-visible {
+    outline: 2px solid var(--color-action);
+    outline-offset: 2px;
+  }
+
+  .werkzeug:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .pruefung-fortschritt {
     width: 90%;
     animation: pruefung-fuellen 12s cubic-bezier(0.2, 0.7, 0.3, 1) both;

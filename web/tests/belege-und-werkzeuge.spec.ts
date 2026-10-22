@@ -47,10 +47,12 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   await page
     .locator('input[type="file"]')
     .setInputFiles({ name: 'beleg.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo) });
-  await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
-  // Corners can be moved with the keyboard as well
+  await expect(page.getByAltText('Vorschau des Fotos')).toBeVisible();
+  // Corners can be moved with the keyboard as well, in the crop tool
+  await page.getByRole('button', { name: 'Zuschneiden', exact: true }).click();
   await page.getByRole('button', { name: /Ecke oben links verschieben/ }).press('ArrowLeft');
-  await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
+  await page.getByRole('button', { name: 'Zuschneiden fertig' }).click();
+  await expect(page.getByAltText('Vorschau des Fotos')).toBeVisible();
   await expect(
     page.getByRole('note').filter({ hasText: /Foto geprüft|Foto prüfen/ })
   ).toBeVisible();
@@ -127,7 +129,7 @@ test('a new receipt shows after submitting, even with a Kategorie filter chosen'
   await page
     .locator('input[type="file"]')
     .setInputFiles({ name: 'beleg.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo) });
-  await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
+  await expect(page.getByAltText('Vorschau des Fotos')).toBeVisible();
   const shop = `Filtermarkt ${testInfo.project.name}`;
   await page.getByLabel('Geschäft').fill(shop);
   await page.getByLabel('Betrag in €').fill('3,21');

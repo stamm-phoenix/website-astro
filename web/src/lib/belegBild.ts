@@ -1,0 +1,126 @@
+import { enhance, outputSize, warpPerspective } from './belegScan';
+import type { Pixels, Point, Quad, ScanMode } from './belegScan';
+
+/**
+ * The small image editor of the receipt form: rotating and mirroring the photo, cropping it to
+ * the receipt and evening out its colours. Pure functions on pixel arrays; the canvas glue is
+ * in `belegPhotoDraft.svelte.ts`.
+ */
+
+/** `original`: the colours of the photo as they are, e.g. for a scan of the phone. */
+export type FotoFarben = ScanMode | 'original';
+
+export type Drehung = 'links' | 'rechts';
+export type Spiegelung = 'horizontal' | 'vertikal';
+export type Ausrichtung = Drehung | Spiegelung;
+
+/** Rotates by a quarter turn, `rechts` clockwise. */
+export function drehen(pixels: Pixels, richtung: Drehung): Pixels {
+  const { data, width, height } = pixels;
+  const out = new Uint8ClampedArray(data.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      // The new picture is `height` wide
+      const nx = richtung === 'rechts' ? height - 1 - y : y;
+      const ny = richtung === 'rechts' ? x : width - 1 - x;
+      const from = (y * width + x) * 4;
+      const to = (ny * height + nx) * 4;
+      out[to] = data[from];
+      out[to + 1] = data[from + 1];
+      out[to + 2] = data[from + 2];
+      out[to + 3] = data[from + 3];
+    }
+  }
+  return { data: out, width: height, height: width };
+}
+
+/** Mirrors left to right (`horizontal`) or top to bottom (`vertikal`). */
+export function spiegeln(pixels: Pixels, achse: Spiegelung): Pixels {
+  const { data, width, height } = pixels;
+  const out = new Uint8ClampedArray(data.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const nx = achse === 'horizontal' ? width - 1 - x : x;
+      const ny = achse === 'vertikal' ? height - 1 - y : y;
+      const from = (y * width + x) * 4;
+      const to = (ny * width + nx) * 4;
+      out[to] = data[from];
+      out[to + 1] = data[from + 1];
+      out[to + 2] = data[from + 2];
+      out[to + 3] = data[from + 3];
+    }
+  }
+  return { data: out, width, height };
+}
+
+/** Rotates or mirrors the picture. */
+export function ausrichten(pixels: Pixels, schritt: Ausrichtung): Pixels {
+  return schritt === 'links' || schritt === 'rechts'
+    ? drehen(pixels, schritt)
+    : spiegeln(pixels, schritt);
+}
+
+/** Where a point of a `width` × `height` picture lands when it is rotated or mirrored. */
+export function punktAusrichten(
+  point: Point,
+  width: number,
+  height: number,
+  schritt: Ausrichtung
+): Point {
+  switch (schritt) {
+    case 'rechts':
+      return { x: height - point.y, y: point.x };
+    case 'links':
+      return { x: point.y, y: width - point.x };
+    case 'horizontal':
+      return { x: width - point.x, y: point.y };
+    case 'vertikal':
+      return { x: point.x, y: height - point.y };
+  }
+}
+
+/**
+ * Orders four corners as the crop needs them: top left, top right, bottom right, bottom left,
+ * as they are seen, so the cropped receipt keeps the orientation of the picture.
+ */
+export function eckenOrdnen(points: Point[]): Quad {
+  const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+  const cy = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+  // Clockwise on screen (y grows downwards), starting from the corner nearest the top left
+  const sorted = [...points].sort(
+    (a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx)
+  );
+  let start = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].x + sorted[i].y < sorted[start].x + sorted[start].y) start = i;
+  }
+  return [0, 1, 2, 3].map((i) => sorted[(start + i) % 4]) as Quad;
+}
+
+/** Moves the crop corners along when the picture is rotated or mirrored. */
+export function eckenAusrichten(
+  quad: Quad,
+  width: number,
+  height: number,
+  schritt: Ausrichtung
+): Quad {
+  return eckenOrdnen(quad.map((point) => punktAusrichten(point, width, height, schritt)));
+}
+
+/**
+ * The edited photo: the receipt cut out along `quad` and straightened (or the whole picture
+ * without one), then with evened-out colours unless `farben` is `original`.
+ */
+export function bildBearbeiten(
+  bild: Pixels,
+  quad: Quad | null,
+  farben: FotoFarben,
+  maxEdge: number
+): Pixels {
+  let cropped = bild;
+  if (quad) {
+    const size = outputSize(quad, maxEdge);
+    cropped = warpPerspective(bild, quad, size.width, size.height);
+  }
+  return farben === 'original' ? cropped : enhance(cropped, farben);
+}
