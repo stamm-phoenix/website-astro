@@ -109,10 +109,13 @@ jobs:
               - `agent_prompt`: Anweisung für einen KI-Agenten: in welcher Datei um welche Zeile was geändert
                 werden soll und warum, so dass er es ohne den Kommentar umsetzen kann; mit dem Hinweis, vorher
                 zu prüfen, ob das Problem noch besteht.
-          # Only reading tools: no shell, no network, no GitHub tools
+          # Only reading tools: no shell, no network, no GitHub tools. `--tools` is the list of
+          # built-in tools Claude has at all; `--allowedTools` alone only lets the listed ones run
+          # without asking and would leave e.g. read-only shell commands available.
           claude_args: |
             --model ${{ env.CLAUDE_MODEL }}
             --add-dir ${{ runner.temp }}/pr
+            --tools "Read,Grep,Glob"
             --allowedTools "Read,Grep,Glob"
             --json-schema '{"type":"object","additionalProperties":false,"required":["summary","findings"],"properties":{"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["severity","category","title","body","path","line","start_line","suggestion","agent_prompt"],"properties":{"severity":{"type":"string","enum":["kritisch","fehler","hinweis"]},"category":{"type":"string"},"title":{"type":"string"},"body":{"type":"string"},"path":{"type":"string"},"line":{"type":"integer"},"start_line":{"type":["integer","null"]},"suggestion":{"type":["string","null"]},"agent_prompt":{"type":"string"}}}}}}'
 
