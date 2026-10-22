@@ -37,6 +37,9 @@ export const test = base.extend<Fixtures>({
         }
       });
       await use();
+      // A route handler of the test can still be waiting on route.fetch() or response.json()
+      // when the test ends; closing the page then fails it with "Response has been disposed"
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
       expect(errors, 'No uncaught browser errors').toEqual([]);
     },
     { auto: true },

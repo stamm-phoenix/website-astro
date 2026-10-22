@@ -445,9 +445,11 @@ test('an item from an Aktion survives Backspace in its emptied title', async ({ 
     if (!text || !nummer) throw new Error('Titelzeile nicht gefunden');
     document.getSelection()?.setBaseAndExtent(text, text.textContent?.length ?? 0, nummer, 0);
   });
+  // The editor moves the end into the title; a caret left there by the first Backspace would
+  // only take one letter
   await expect
-    .poll(() => page.evaluate(() => document.getSelection()?.focusNode?.parentElement?.className))
-    .toContain('punkt-titel');
+    .poll(() => page.evaluate(() => document.getSelection()?.toString()))
+    .toMatch(/^Pfadi-Winterlager/);
   await page.keyboard.press('Backspace');
   await expect.poll(reihenfolge(page)).toContain('5. ');
   await page.keyboard.press('Backspace');
