@@ -48,7 +48,7 @@ Zusätzlich zu Codex gibt es ein gründliches Review mit Claude Code und `claude
 
 - Ergebnis in derselben Form wie bei Codex: Kommentare an den Zeilen und ein eigener Zusammenfassungs-Kommentar „🤖 Claude-Review“. Claude bekommt die bisherigen Kommentare (auch die von Codex) und meldet sie nicht noch einmal.
 - Sobald das Review gepostet ist, entfernt der Workflow das Label wieder; für ein weiteres Review es erneut setzen. Schlägt das Review fehl, bleibt das Label stehen; dann es entfernen und neu setzen. Ein Push bricht ein laufendes Claude-Review nicht ab.
-- Claude darf nur lesen (`Read`, `Grep`, `Glob`), hat keine Shell, kein Netz und keine Schreibrechte auf GitHub. Gepostet wird in einem eigenen Job. PRs aus Forks und von Bots werden nicht geprüft.
+- Claude darf nur lesen (`Read`, `Grep`, `Glob`), hat keine Shell, kein Netz und keine Schreibrechte auf GitHub. Einstellungen, Hooks und MCP-Server aus dem Repo (`.claude/settings.json`, `.mcp.json`) lädt es nicht, weil der ausgecheckte Stand der Code des PRs ist. Gepostet wird in einem eigenen Job. PRs aus Forks und von Bots werden nicht geprüft.
 - Workflow: `.github/workflows/claude-review.yml`, in website-astro und playwright-api **gleich**; Änderungen daran in beiden Repos nachziehen. Was nur für ein Repo gilt (Projekt, worauf Claude besonders achten soll, Bereiche der Funde), steht in `.github/claude-review.md`.
 
 ### Einrichtung
