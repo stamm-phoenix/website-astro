@@ -222,7 +222,7 @@ test('a retry right after a failed transfer saves on the version just written', 
   await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
-  await dialog.getByLabel('Bemerkung').fill('Rückfahrt');
+  await dialog.getByRole('textbox', { name: 'Bemerkung (optional)' }).fill('Rückfahrt');
   await dialog.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
   const transfer = dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true });
   await transfer.click();
