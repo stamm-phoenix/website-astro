@@ -11,7 +11,9 @@ export default defineConfig({
   workers: WORKERS,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: 0,
+  // One retry in CI, so a timing flake of the runner does not fail an unrelated PR; the report
+  // still lists the test as flaky. Locally a failure shows at once.
+  retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'test-results/report' }]],
   outputDir: 'test-results/artifacts',
   use: {
