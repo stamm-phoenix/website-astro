@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import {
   bildBearbeiten,
   drehen,
+  drehungen,
+  eckenErweitern,
   eckenAusrichten,
   eckenOrdnen,
   ganzesBild,
@@ -106,4 +108,28 @@ test('a thin cut by hand is a crop, untouched corners are the whole picture', ()
   };
   const cropped = bildBearbeiten(picture, thin, 'original', 2000);
   assert.deepEqual([cropped.width, cropped.height], [960, 1560]);
+});
+
+test('a found receipt keeps a thin margin inside the picture', () => {
+  const quad: Quad = [
+    { x: 100, y: 100 },
+    { x: 300, y: 100 },
+    { x: 300, y: 500 },
+    { x: 100, y: 500 },
+  ];
+  assert.deepEqual(eckenErweitern(quad, 1000, 1000, 0.1), [
+    { x: 90, y: 80 },
+    { x: 310, y: 80 },
+    { x: 310, y: 520 },
+    { x: 90, y: 520 },
+  ]);
+  // Never beyond the picture
+  assert.deepEqual(eckenErweitern(quad, 305, 505, 0.1)[2], { x: 305, y: 505 });
+});
+
+test('the degrees of the check become turns', () => {
+  assert.deepEqual(drehungen(0), []);
+  assert.deepEqual(drehungen(90), ['rechts']);
+  assert.deepEqual(drehungen(180), ['rechts', 'rechts']);
+  assert.deepEqual(drehungen(270), ['links']);
 });

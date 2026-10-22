@@ -11,7 +11,14 @@ import {
 import { todayIso } from './format';
 import { findReceipt, fullFrame, isFullFrame, readPixels, toCanvas } from './belegScan';
 import type { Pixels, Quad } from './belegScan';
-import { ausrichten, bildBearbeiten, eckenAusrichten, ganzesBild } from './belegBild';
+import {
+  ausrichten,
+  bildBearbeiten,
+  drehungen,
+  eckenAusrichten,
+  eckenErweitern,
+  ganzesBild,
+} from './belegBild';
 import type { Ausrichtung, FotoFarben } from './belegBild';
 import type { BelegCheck, StaffBeleg } from './types';
 import type { BelegForm } from './belegForm';
@@ -42,6 +49,9 @@ interface Zuschnitt {
 function isEdited(draft: Draft): boolean {
   return draft.bild !== draft.original || draft.quad !== null || draft.mode !== 'original';
 }
+
+/** Share of the receipt's size left around a found receipt, so no letter at its edge is cut. */
+const RAND = 0.03;
 
 interface Options {
   form: () => BelegForm | null;
@@ -86,6 +96,10 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
   let aiNotice = $state<string | null>(null);
   /** Increments per chosen photo, so a late check result of an older photo is ignored. */
   let photoGeneration = 0;
+  /** The photo turned upright after its check; each photo is turned at most once on its own. */
+  let aufgerichtet: Pixels | null = null;
+  /** The next check follows the automatic turn: the result shown so far stays. */
+  let stillPruefen = false;
 
   function clearDraft(): void {
     if (draft) {
@@ -136,6 +150,8 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
         // The photo shows only the receipt, e.g. a scan of the phone camera
         quad = null;
         mode = 'original';
+      } else {
+        quad = eckenErweitern(found, original.width, original.height, RAND);
       }
       draft = {
         original,
@@ -193,7 +209,9 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       if (form && !form.id) {
         // Only check once the edits have settled
         clearTimeout(checkTimer);
-        checkTimer = setTimeout(() => void checkNewPhoto(result.blob), 1000);
+        const still = stillPruefen;
+        stillPruefen = false;
+        checkTimer = setTimeout(() => void checkNewPhoto(result.blob, current.bild, still), 1000);
       }
       return true;
     } catch {
@@ -322,13 +340,40 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
   }
 
   /** Asks the image model about a new photo and prefills empty fields with what it read. */
-  async function checkNewPhoto(blob: Blob): Promise<void> {
+  /**
+   * Turns the photo upright as the check says, unless it was turned or mirrored since, the crop
+   * tool is open or it was already turned once. The turned photo is checked again in the
+   * background, so submitting finds its check.
+   */
+  function aufrichten(bild: Pixels, grad: BelegCheck['rotation']): void {
+    const current = draft;
+    const schritte = drehungen(grad);
+    if (!current || !schritte.length || zuschnitt) return;
+    if (current.bild !== bild || aufgerichtet === current.original) return;
+    aufgerichtet = current.original;
+    let { bild: gedreht, quad } = current;
+    for (const schritt of schritte) {
+      quad = quad ? eckenAusrichten(quad, gedreht.width, gedreht.height, schritt) : null;
+      gedreht = ausrichten(gedreht, schritt);
+    }
+    draft = { ...current, bild: gedreht, quad };
+    stillPruefen = true;
+    void render();
+  }
+
+  /**
+   * Checks the photo for a new receipt and prefills the form. `bild` is the orientation that was
+   * checked; `still` keeps the result shown so far, after the photo was turned upright.
+   */
+  async function checkNewPhoto(blob: Blob, bild: Pixels, still = false): Promise<void> {
     const form = options.form();
     if (!form) return;
     const generation = ++photoGeneration;
-    form.aiCheck = null;
     aiNotice = null;
-    aiChecking = true;
+    if (!still) {
+      form.aiCheck = null;
+      aiChecking = true;
+    }
     try {
       const result = await sendApi<{ available: boolean; check: BelegCheck | null }>(
         'POST',
@@ -343,8 +388,9 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       if (check.date && form.date === todayIso() && check.date <= todayIso())
         form.date = check.date;
       if (!form.amount.trim() && check.amountCent) form.amount = centToInput(check.amountCent);
+      aufrichten(bild, check.rotation);
     } catch (error: unknown) {
-      if (generation !== photoGeneration) return;
+      if (generation !== photoGeneration || still) return;
       aiNotice = errorMessage(
         error,
         'Das Foto konnte nicht automatisch gelesen werden. Trag die Angaben selbst ein.'

@@ -2398,6 +2398,7 @@ function mockBelegCheck(): NonNullable<StaffBeleg['aiCheck']> {
     shop: 'Demo-Markt',
     date: dayFromToday(-1),
     amountCent: 999,
+    rotation: 0,
     checkedAt: new Date(MOCK_NOW).toISOString(),
   };
 }

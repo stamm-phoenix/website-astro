@@ -108,6 +108,28 @@ export function eckenAusrichten(
 }
 
 /**
+ * Moves the corners outwards from the middle by `anteil` of the receipt's size, within the
+ * picture: a found receipt keeps a thin margin, so no letter at its edge is cut.
+ */
+export function eckenErweitern(quad: Quad, width: number, height: number, anteil: number): Quad {
+  const cx = quad.reduce((sum, p) => sum + p.x, 0) / 4;
+  const cy = quad.reduce((sum, p) => sum + p.y, 0) / 4;
+  const clamp = (value: number, max: number) => Math.min(max, Math.max(0, value));
+  return quad.map((p) => ({
+    x: clamp(p.x + (p.x - cx) * anteil, width),
+    y: clamp(p.y + (p.y - cy) * anteil, height),
+  })) as Quad;
+}
+
+/** The turns that make the text upright, from the degrees clockwise the check names. */
+export function drehungen(grad: 0 | 90 | 180 | 270): Drehung[] {
+  if (grad === 90) return ['rechts'];
+  if (grad === 180) return ['rechts', 'rechts'];
+  if (grad === 270) return ['links'];
+  return [];
+}
+
+/**
  * Whether hand-placed corners sit exactly on the corners of the picture, i.e. cut nothing away.
  * Unlike `isFullFrame`, which tolerates the edges an automatic detection leaves, even a thin cut
  * by hand counts.
