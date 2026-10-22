@@ -1,4 +1,5 @@
 import { getDb } from './db';
+import { sameName } from './personen-model';
 import { PlaywrightApiError } from './playwright-api';
 
 /**
@@ -37,6 +38,8 @@ export interface CampflowBeleg {
   viaWebsite: boolean;
   /** Transferred from the Belege module and submitted there by the user asking. */
   submittedByMe: boolean;
+  /** „Auslage durch“ names the user asking. */
+  mine: boolean;
 }
 
 export interface CampflowKostenstelle {
@@ -93,7 +96,7 @@ function readKostenstelle(value: unknown): CampflowKostenstelle {
   };
 }
 
-function readBeleg(value: unknown): Omit<CampflowBeleg, 'viaWebsite' | 'submittedByMe'> {
+function readBeleg(value: unknown): Omit<CampflowBeleg, 'viaWebsite' | 'submittedByMe' | 'mine'> {
   if (!isObject(value) || typeof value.id !== 'string') invalid();
   const status = STATUSES.find((candidate) => candidate === value.status) ?? invalid();
   return {
@@ -121,9 +124,13 @@ function readBeleg(value: unknown): Omit<CampflowBeleg, 'viaWebsite' | 'submitte
 
 /**
  * Checks the answer of the Playwright API (`GET /campflow/belege`) and marks the receipts this
- * website transferred, and which of them `login` submitted.
+ * website transferred, which of them `login` submitted, and the Auslagen of one of `ownNames`.
  */
-export async function readCampflowBelege(value: unknown, login: string): Promise<CampflowBelege> {
+export async function readCampflowBelege(
+  value: unknown,
+  login: string,
+  ownNames: readonly string[] = []
+): Promise<CampflowBelege> {
   if (
     !isObject(value) ||
     typeof value.loadedAt !== 'string' ||
@@ -151,6 +158,7 @@ export async function readCampflowBelege(value: unknown, login: string): Promise
       ...beleg,
       viaWebsite: submitters.has(beleg.id),
       submittedByMe: submitters.get(beleg.id) === me,
+      mine: !!beleg.paidBy && ownNames.some((name) => sameName(name, beleg.paidBy!)),
     })),
   };
 }

@@ -149,7 +149,7 @@ export function belegEintraege(
       previewUrl: beleg.hasImage
         ? `/api/intern/pflege/belege/${beleg.id}/foto?v=${encodeURIComponent(beleg.etag)}&thumb=1`
         : null,
-      own: beleg.payout && isOwnAuslage(beleg.paidBy, isIch),
+      own: beleg.mine === true || (beleg.payout && isOwnAuslage(beleg.paidBy, isIch)),
       tags,
       hinweis: beleg.status === 'Abgelehnt' && beleg.reviewNote ? beleg.reviewNote : null,
       beleg,
@@ -177,7 +177,7 @@ export function belegEintraege(
         costUnitIds: beleg.costUnits.map((unit) => unit.id),
         categoryIds: beleg.categories.map((category) => category.id),
         previewUrl: campflowPreviewUrl(beleg),
-        own: isOwnAuslage(beleg.paidBy, isIch),
+        own: beleg.mine || isOwnAuslage(beleg.paidBy, isIch),
         tags: beleg.number ? [{ label: `Nr. ${beleg.number}`, tone: 'neutral' }] : [],
         hinweis: null,
         campflow: beleg,

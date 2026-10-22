@@ -27,6 +27,7 @@ function beleg(values: Partial<CampflowBeleg> & Pick<CampflowBeleg, 'id'>): Camp
     uploadedAt: null,
     viaWebsite: false,
     submittedByMe: false,
+    mine: false,
     ...values,
   };
 }
@@ -229,6 +230,23 @@ test('my receipts are my own Auslagen, newest first, whoever submitted them', ()
   assert.equal(sparbuch.tags[0]!.label, 'Umbuchung Sparbuch');
   // While CampFlow loads, the receipts here show already
   assert.equal(meineBelege(belege, null, isKim).length, 2);
+});
+
+test('the server marks my Auslagen when the browser does not know my name', () => {
+  const nobody = () => false;
+  const data: CampflowBelegeData = {
+    ...campflow,
+    belege: [beleg({ id: 'exp_7', paidBy: 'Kim Beispiel', mine: true }), beleg({ id: 'exp_8' })],
+  };
+  const mine = meineBelege(
+    [submitted('5', { payout: true, paidBy: 'Kim Beispiel', mine: true }), submitted('6')],
+    data,
+    nobody
+  );
+  assert.deepEqual(
+    mine.map((entry) => entry.key),
+    ['website-5', 'campflow-exp_7']
+  );
 });
 
 test('the choice of payment sets who gets the Auslage', () => {

@@ -6,6 +6,7 @@ import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
 import * as env from '../lib/environment';
 import { getBelege } from '../lib/beleg-list';
+import * as taskDirectory from '../lib/task-directory';
 import { campflowDescription, campflowDisburser, campflowFileName } from '../lib/beleg-campflow';
 import type { StoredBeleg } from '../lib/beleg-list';
 import { BelegCampflow, BelegeCampflow, BelegItem } from '../endpoints/intern-pflege-belege';
@@ -674,6 +675,10 @@ dbTest('every leader sees all receipts in CampFlow, own transfers marked', async
   assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 200);
 
   overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
+  // The browser does not know the names; the server marks Auslagen by the directory
+  t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => [
+    { login: 'leitung@example.test', name: 'Alex  Beispiel', givenName: 'Alex' },
+  ]);
   const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test' };
   const mine = await campflowList(context, uploader, '?refresh=true');
   assert.equal(mine.status, 200, JSON.stringify(mine.jsonBody));
@@ -696,6 +701,7 @@ dbTest('every leader sees all receipts in CampFlow, own transfers marked', async
     uploadedAt: '2026-10-20 08:00:00',
     viaWebsite: false,
     submittedByMe: false,
+    mine: false,
   });
   assert.deepEqual(body.belege[1], {
     id: 'exp_Neu',
@@ -713,6 +719,7 @@ dbTest('every leader sees all receipts in CampFlow, own transfers marked', async
     uploadedAt: '2026-10-21 19:00:00',
     viaWebsite: true,
     submittedByMe: true,
+    mine: true,
   });
   // The file name of a booked receipt often names who uploaded it, so it stays in CampFlow
   assert.equal(body.belege[2]!.fileName, null);
@@ -723,11 +730,11 @@ dbTest('every leader sees all receipts in CampFlow, own transfers marked', async
   const otherBelege = (other.jsonBody as { belege: Json[] }).belege;
   assert.equal(otherBelege.length, 3);
   assert.deepEqual(
-    otherBelege.map((beleg) => [beleg.viaWebsite, beleg.submittedByMe]),
+    otherBelege.map((beleg) => [beleg.viaWebsite, beleg.submittedByMe, beleg.mine]),
     [
-      [false, false],
-      [true, false],
-      [false, false],
+      [false, false, false],
+      [true, false, false],
+      [false, false, false],
     ]
   );
   assert.deepEqual(refreshes, [true, false]);

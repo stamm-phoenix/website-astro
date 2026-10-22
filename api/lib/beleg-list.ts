@@ -50,6 +50,8 @@ export interface StaffBeleg {
   campflow: BelegCampflow | null;
   /** Someone else submitted the user's Auslage: they may look at it, not change it. */
   readOnly?: true;
+  /** An Auslage of the user asking, by the names the server knows for them. */
+  mine?: true;
 }
 
 /** Transfer of a receipt to CampFlow, as the Kasse sees it. */
