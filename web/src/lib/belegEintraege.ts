@@ -133,7 +133,10 @@ export function belegEintraege(
       previewUrl: beleg.hasImage
         ? `/api/intern/pflege/belege/${beleg.id}/foto?v=${encodeURIComponent(beleg.etag)}&thumb=1`
         : null,
-      own: !!me && beleg.submittedBy.toLowerCase() === me,
+      // Submitted by the user, or by someone else for the user's Auslage
+      own:
+        (!!me && beleg.submittedBy.toLowerCase() === me) ||
+        (beleg.payout && !!beleg.paidBy && isIch({ name: beleg.paidBy })),
       tags,
       hinweis: beleg.status === 'Abgelehnt' && beleg.reviewNote ? beleg.reviewNote : null,
       beleg,

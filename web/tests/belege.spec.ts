@@ -211,3 +211,18 @@ test('a transfer whose answer is lost closes the receipt once it is gone', async
     page.getByText(/Beleg von Deutsche Bahn ist hier nicht mehr vorhanden/)
   ).toBeVisible();
 });
+
+test('the receipts from CampFlow show and open even if the ones here fail to load', async ({
+  page,
+}) => {
+  await page.route('**/api/intern/pflege/belege', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ status: 500, json: { error: { code: 'X', message: 'kaputt' } } })
+      : route.fallback()
+  );
+  await page.goto('/leitendenbereich/belege/');
+  await expect(page.getByRole('link', { name: 'admin@stamm-phoenix.de' }).first()).toBeVisible();
+  const list = page.getByRole('list', { name: 'Belege' });
+  await list.getByRole('button', { name: /Edeka – Grillabend/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Edeka – Grillabend' })).toBeVisible();
+});

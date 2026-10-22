@@ -180,6 +180,22 @@ test('filters by state, Kostenstelle, Kategorie, own receipts and search words',
   );
 });
 
+test('a receipt kept here stays mine when someone else submitted my Auslage', () => {
+  const kept = submitted('5', {
+    status: 'Angenommen',
+    submittedBy: 'sam@example.test',
+    paidBy: 'Kim',
+    payout: true,
+    campflow: { state: 'Hochgeladen', number: '2026-1' } as StaffBeleg['campflow'],
+  });
+  const eintraege = belegEintraege([kept], campflow, { login: 'kim@example.test', isIch: isKim });
+  const mine = eintraege.filter((e) => matchesBelegFilter(e, { ...NO_FILTER, onlyMine: true }));
+  assert.ok(mine.some((e) => e.key === 'website-5'));
+  assert.ok(
+    meineBelege([kept], campflow, 'kim@example.test', isKim).some((b) => b.key === 'website-5')
+  );
+});
+
 test('my receipts are the own entries, newest first', () => {
   const mine = meineBelege([submitted('1')], campflow, 'kim@example.test', isKim);
   assert.deepEqual(
