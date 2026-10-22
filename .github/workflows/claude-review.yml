@@ -173,9 +173,11 @@ jobs:
     needs: review
     if: needs.review.outputs.review != ''
     # An automatic and a thorough review of the same PR can finish at the same time; one after the
-    # other, the second finds the summary comment of the first instead of creating another one
+    # other, the second finds the summary comment of the first instead of creating another one. The
+    # group is shared with the other KI review, so neither reads the line comments while the other
+    # posts.
     concurrency:
-      group: claude-review-comment-${{ github.event.pull_request.number }}
+      group: review-comment-${{ github.event.pull_request.number }}
       queue: max
     runs-on: ubuntu-24.04
     permissions:
