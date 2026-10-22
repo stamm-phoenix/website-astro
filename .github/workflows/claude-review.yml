@@ -1,22 +1,26 @@
 name: Claude Review
-# Thorough AI review of a pull request with Claude Code on the Anthropic API (paid from the monthly
-# API credit). Runs only when someone sets the label "claude-review"; the automatic review of every
-# push stays with Codex (codex-review.yml). This file is the same in website-astro and
-# playwright-api; what Claude should look for in this repo is in .github/claude-review.md.
-# Setup and costs: docs/ki-review.md.
+# AI review of pull requests with Claude Code on the Anthropic API (paid from the monthly API
+# credit). Every new or updated PR gets a review with Claude Opus; the label "claude-review" starts
+# a thorough review with Claude Fable. This file is the same in website-astro and playwright-api;
+# what Claude should look for in each repo is in .github/claude-review.md. Setup and costs:
+# docs/ki-review.md.
+# The run name tells the label step which runs are thorough reviews
+run-name: ${{ github.event.action == 'labeled' && github.event.label.name == 'claude-review' && 'Thorough review' || 'Review' }}
 on:
   pull_request:
-    types: [labeled]
+    types: [opened, reopened, ready_for_review, synchronize, labeled]
 permissions:
   contents: read
 env:
-  CLAUDE_MODEL: claude-opus-5-5
-# One review per PR at a time: a push does not cancel it, a second label waits for it. The group
-# includes the label, because other labels start skipped runs (concurrency applies before the
-# job's `if`) and must not replace a waiting review.
+  CLAUDE_MODEL: ${{ github.event.action == 'labeled' && 'claude-fable-5-1' || 'claude-opus-5-5' }}
+  THOROUGH: ${{ github.event.action == 'labeled' }}
+# A new push cancels the running automatic review of the same PR. A thorough review gets a group
+# of its own per PR and label: a push does not cancel it, a second label waits for it, and other
+# labels (which start skipped runs, because concurrency applies before the job's `if`) do not
+# replace a waiting one.
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
-  cancel-in-progress: false
+  group: claude-review-${{ github.event.pull_request.number }}${{ github.event.action == 'labeled' && format('-{0}', github.event.label.name) || '' }}
+  cancel-in-progress: ${{ github.event.action != 'labeled' }}
 jobs:
   review:
     # Only pull_request events: they run without secrets for PRs from forks, so code from a PR
@@ -24,22 +28,53 @@ jobs:
     # only be set by people with write access. PRs of bots (Dependabot) are skipped too, also when a
     # person sets the label (the sender of a `labeled` event is whoever set the label).
     if: >-
-      github.event.label.name == 'claude-review' &&
       github.event.sender.type != 'Bot' &&
       github.event.pull_request.user.type != 'Bot' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'claude-review')
+    # The name tells the automatic review that a thorough one of the same commit exists
+    name: ${{ github.event.action == 'labeled' && 'Thorough review' || 'Review' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: read
+      actions: read
     outputs:
       review: ${{ steps.claude.outputs.structured_output }}
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
+      # A label set together with a push (or while the automatic review waits) starts a thorough
+      # review of the same commit; the automatic one would only repeat it and cost twice.
+      # A thorough review that failed or was cancelled does not count, nor one whose comments
+      # could not be posted.
+      - name: Skip if a thorough review of this commit exists
+        id: thorough
+        if: env.THOROUGH != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        # Only runs of this PR's branch: another PR may point at the same commit, and its review
+        # is posted there. The runs list of the API leaves pull_requests empty for many PRs.
+        run: |
+          found=false
+          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/claude-review.yml/runs?head_sha=$HEAD_SHA&per_page=100" \
+            --jq '.workflow_runs[] | select(.head_branch == env.HEAD_REF) | .id'); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
+              --jq 'select(any(.jobs[]; .name == "Thorough review" and (.conclusion == null or .conclusion == "success"))
+                and all(.jobs[]; .name != "comment" or .conclusion == null or .conclusion == "success" or .conclusion == "skipped")) | .total_count' | grep -q .; then
+              found=true
+              echo "::notice::Run $run reviews this commit thoroughly; skipping the automatic review."
+              break
+            fi
+          done
+          echo "found=$found" >> "$GITHUB_OUTPUT"
+
       # The PR head, so that the line numbers of the findings match the diff
       - uses: actions/checkout@v4
+        if: steps.thorough.outputs.found != 'true'
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
@@ -48,6 +83,7 @@ jobs:
       # Claude gets no shell and no write access, so everything it needs from GitHub is fetched
       # here into files
       - name: PR context
+        if: steps.thorough.outputs.found != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -66,6 +102,7 @@ jobs:
 
       - name: Claude Code
         id: claude
+        if: steps.thorough.outputs.found != 'true'
         # v1.0.250, pinned to the commit because the action gets the Anthropic key
         uses: anthropics/claude-code-action@a26b07d8c778b0c43f64618e5fd29fd0f8af72e8
         with:
@@ -129,11 +166,16 @@ jobs:
   comment:
     needs: review
     if: needs.review.outputs.review != ''
+    # An automatic and a thorough review of the same PR can finish at the same time; one after the
+    # other, the second finds the summary comment of the first instead of creating another one
+    concurrency:
+      group: claude-review-comment-${{ github.event.pull_request.number }}
+      queue: max
     runs-on: ubuntu-24.04
     permissions:
       # Review comments, the summary comment on the PR and removing the label
       pull-requests: write
-      # Finding a newer review of the same PR that waits for this one
+      # Finding a newer thorough review of the same PR that waits for this one
       actions: read
     steps:
       - name: Post review
@@ -158,8 +200,8 @@ jobs:
             const icons = { kritisch: '🔴', fehler: '🟠', hinweis: '🟡' };
             const labels = { kritisch: 'Kritisch', fehler: 'Fehler', hinweis: 'Hinweis' };
             const order = ['kritisch', 'fehler', 'hinweis'];
-            // A second review of the same commit (label set again) can report the same finding; it
-            // skips what an earlier one posted. Compared on the reviewed commit: after a push GitHub
+            // An automatic and a thorough review of the same commit can report the same finding;
+            // the comment jobs run one after the other, so the second skips what the first posted. Compared on the reviewed commit: after a push GitHub
             // moves `line` of older comments, `original_line` keeps the line on the commit they were
             // posted on. Findings of earlier commits Claude already leaves out itself
             // (review-comments.jsonl).
@@ -233,7 +275,7 @@ jobs:
               .filter(([, n]) => n > 0)
               .map(([s, n]) => `${icons[s]} ${n} ${labels[s]}`)
               .join(' · ');
-            const lines = [MARKER, '## 🤖 Claude-Review', '', review.summary, ''];
+            const lines = [MARKER, `## 🤖 Claude-Review${process.env.THOROUGH === 'true' ? ' (gründlich)' : ''}`, '', review.summary, ''];
             if (findings.length === 0) {
               lines.push('✅ **Keine neuen Funde.**');
             } else {
@@ -247,13 +289,13 @@ jobs:
                 lines.push('', '---', '', `Konnte nicht an die Zeile gesetzt werden (${link(f)}):`, '', commentBody(f));
               }
             }
-            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · ${process.env.CLAUDE_MODEL} · Neues Review: Label \`claude-review\` erneut setzen</sub>`);
+            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · ${process.env.CLAUDE_MODEL} · Gründliches Review mit claude-fable-5-1: Label \`claude-review\` setzen</sub>`);
             const body = lines.join('\n');
 
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pull_number });
             const existing = comments.find((c) => c.user?.type === 'Bot' && c.body?.startsWith(MARKER));
-            // A push does not cancel a running review; when an older one finishes after the review of
-            // the new head, it must not replace that summary (its line comments are posted anyway)
+            // A thorough review keeps running after a push; when it finishes after the review of the
+            // new head, it must not replace that summary (its line comments are posted anyway)
             const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number });
             const head = pr.head.sha;
             if (existing && sha !== head && existing.body.includes(`Geprüfter Stand: ${head.slice(0, 7)}`)) {
@@ -264,11 +306,13 @@ jobs:
               await github.rest.issues.createComment({ owner, repo, issue_number: pull_number, body });
             }
 
-      # The label only starts the review; removing it shows that the review is done and lets the
-      # next one start by setting it again. It stays after a failed review (this job does not run
-      # then), so that it is clear the review is still missing. When the label was set again during
-      # this review, a newer run waits for this one (concurrency) and the label belongs to it.
+      # The label only starts the thorough review; removing it shows that the review is done and
+      # lets the next one start by setting it again. It stays after a failed review (this job does
+      # not run then), so that it is clear the thorough review is still missing. When the label was
+      # set again during this review, a newer run waits for this one (concurrency) and the label
+      # belongs to it.
       - name: Remove label
+        if: env.THOROUGH == 'true'
         # v8.0.0
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
@@ -280,9 +324,11 @@ jobs:
               event: 'pull_request',
               per_page: 100,
             });
-            const newer = runs.find((r) => r.id > context.runId && r.status !== 'completed');
+            const newer = runs.find(
+              (r) => r.id > context.runId && r.status !== 'completed' && r.display_title === 'Thorough review',
+            );
             if (newer) {
-              core.notice(`Run ${newer.id} reviews this PR again; keeping the label for it.`);
+              core.notice(`Run ${newer.id} reviews this PR thoroughly again; keeping the label for it.`);
               return;
             }
             try {
