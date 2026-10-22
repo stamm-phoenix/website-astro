@@ -542,10 +542,22 @@
     </p>
   {/if}
 
+  <!-- Two sources: what one of them delivered shows even if the other fails -->
+  {#if store.error && !store.data && campflowStore.data}
+    <p class="text-sm text-neutral-700">
+      <MessageText text={store.error} />
+      <button
+        type="button"
+        class="text-link min-h-11 underline underline-offset-4"
+        onclick={() => void belegePflege.load({ force: true })}>Erneut versuchen</button
+      >
+    </p>
+  {/if}
+
   <LoadState
-    data={store.data}
-    loading={store.loading}
-    error={store.error}
+    data={store.data ?? (campflowStore.data ? [] : null)}
+    loading={store.loading && !campflowStore.data}
+    error={store.data || campflowStore.data ? null : store.error}
     loadingText="Belege werden geladen …"
     onretry={() => void belegePflege.load({ force: true })}
     isEmpty={() => visible.length === 0}
