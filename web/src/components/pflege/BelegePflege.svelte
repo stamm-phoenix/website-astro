@@ -323,13 +323,21 @@
         });
         message = decisionMessage(shop, decision, result?.mailed === true, submittedBy);
       } else {
-        // The photo as the check may still turn it upright
+        // The photo as the check may still turn it upright, and what the check read meanwhile
         await photo.fertig();
+        const final = form
+          ? {
+              ...details,
+              shop: form.shop,
+              date: form.date,
+              amountCent: parseEuroToCent(form.amount),
+            }
+          : details;
         const created = await sendApi<{ id: string }>('POST', '/intern/pflege/belege', {
-          ...details,
+          ...final,
           ...(await photo.photoPayload(photo.draft!)),
         });
-        message = `Beleg von ${shop} über ${formatEuro(details.amountCent!)} eingereicht. Danke!`;
+        message = `Beleg von ${final.shop} über ${formatEuro(final.amountCent!)} eingereicht. Danke!`;
         newId = created?.id ?? null;
       }
       form = null;

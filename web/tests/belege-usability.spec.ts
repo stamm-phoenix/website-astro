@@ -397,13 +397,11 @@ test('a sideways photo is turned upright first, then checked upright', async ({ 
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
-  await dialog
-    .locator('input[type=file]')
-    .setInputFiles({
-      name: 'beleg.png',
-      mimeType: 'image/png',
-      buffer: await sidewaysReceipt(page),
-    });
+  await dialog.locator('input[type=file]').setInputFiles({
+    name: 'beleg.png',
+    mimeType: 'image/png',
+    buffer: await sidewaysReceipt(page),
+  });
   const preview = dialog.getByAltText('Vorschau des Fotos');
   const size = async () => ({
     width: Number(await preview.getAttribute('width')),
@@ -433,21 +431,20 @@ test('submitting during the check sends the photo as the check turns it upright'
     await route.fulfill({ json: { available: true, check: knownCheck } });
   });
   let sent: string | null = null;
+  let date: string | null = null;
   await page.route('**/api/intern/pflege/belege', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
-    sent = (route.request().postDataJSON() as { photo: string }).photo;
+    ({ photo: sent, date } = route.request().postDataJSON() as { photo: string; date: string });
     await route.fallback();
   });
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
-  await dialog
-    .locator('input[type=file]')
-    .setInputFiles({
-      name: 'beleg.png',
-      mimeType: 'image/png',
-      buffer: await sidewaysReceipt(page),
-    });
+  await dialog.locator('input[type=file]').setInputFiles({
+    name: 'beleg.png',
+    mimeType: 'image/png',
+    buffer: await sidewaysReceipt(page),
+  });
   await expect(dialog.getByAltText('Vorschau des Fotos')).toBeVisible();
   await dialog.getByRole('textbox', { name: 'Geschäft' }).fill('Quermarkt');
   await dialog.getByLabel('Betrag in €').fill('7,89');
@@ -461,6 +458,8 @@ test('submitting during the check sends the photo as the check turns it upright'
   const size = await jpegSize(page, Buffer.from(sent!, 'base64'));
   // Upright: the receipt lay sideways, so the photo sent is taller than wide
   expect(size.height).toBeGreaterThan(size.width);
+  // With the date the check read meanwhile, not the prefilled today
+  expect(date).toBe(knownCheck.date);
 });
 
 test('the photo tips wait behind the (i) next to the photo field', async ({ page }) => {
