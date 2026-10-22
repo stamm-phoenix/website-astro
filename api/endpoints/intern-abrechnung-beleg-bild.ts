@@ -66,7 +66,7 @@ export async function GetInternAbrechnungBelegVorschauEndpoint(
   try {
     return {
       status: 200,
-      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=86400' },
+      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, no-store' },
       body: await getBelegVorschau(nummer),
     };
   } catch (error: unknown) {

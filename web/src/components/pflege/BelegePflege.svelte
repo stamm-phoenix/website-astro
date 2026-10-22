@@ -60,6 +60,8 @@
   /** A receipt someone else submitted for the user's Auslage, shown read only. */
   let openAnsicht = $state<StaffBeleg | null>(null);
   let reloadNotice = $state<string | null>(null);
+  /** The receipt submitted last, kept among the shown entries of the list. */
+  let neuerBeleg = $state<string | null>(null);
 
   let quelle = $state<BelegQuelle | ''>('');
   let stand = $state<BelegStand | ''>('');
@@ -332,6 +334,7 @@
       photo.clearDraft();
       await belegePflege.load({ force: true });
       // The new receipt is to be seen in the list, whatever the filters said
+      if (newId) neuerBeleg = `website-${newId}`;
       if (newId && !visible.some((e) => e.key === `website-${newId}`)) {
         quelle = '';
         stand = '';
@@ -627,7 +630,7 @@
     {#snippet empty()}
       <p class="surface p-6 text-sm text-neutral-700">Keine Belege für diese Auswahl.</p>
     {/snippet}
-    <BelegUebersicht eintraege={visible} {ansicht} {geladen} onopen={open} />
+    <BelegUebersicht eintraege={visible} {ansicht} {geladen} onopen={open} zeigen={neuerBeleg} />
   </LoadState>
 </div>
 

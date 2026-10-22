@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { resetAccountingInputs } from './abrechnung-helpers';
 import { readFile } from 'node:fs/promises';
+import type { StaffBeleg } from '../src/lib/types';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 
 /** Opens the folded filters of the Belege, closed on a phone. */
@@ -138,6 +139,54 @@ test('a new receipt shows after submitting, even with a Kategorie filter chosen'
   await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
   await expect(page.getByText(/über 3,21\s€ eingereicht/).first()).toBeVisible();
   // Not booked yet, so without Kategorie: the filters step aside to show it
+  await expect(page.getByRole('button', { name: new RegExp(shop) })).toBeVisible();
+});
+
+test('a receipt submitted behind many waiting ones is shown right away', async ({
+  page,
+}, testInfo) => {
+  // 65 waiting receipts dated today, so an older new one sorts after the first 60
+  await page.route('**/api/intern/pflege/belege', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    const belege = (await response.json()) as StaffBeleg[];
+    const today = new Date().toISOString().slice(0, 10);
+    const many = Array.from({ length: 65 }, (_, i) => ({
+      ...belege[0],
+      id: `viele-${i}`,
+      shop: `Wartemarkt ${i}`,
+      date: today,
+      status: 'Eingereicht' as const,
+      readOnly: false,
+    }));
+    await route.fulfill({ response, json: [...many, ...belege] });
+  });
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const photo = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 900;
+    canvas.height = 1200;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, 900, 1200);
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), 'image/jpeg')
+    );
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({ name: 'beleg.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo) });
+  await expect(page.getByAltText('Vorschau des Fotos')).toBeVisible();
+  const shop = `Spätmarkt ${testInfo.project.name}`;
+  await page.getByLabel('Geschäft').fill(shop);
+  await page.getByLabel('Datum des Belegs').fill('2026-01-02');
+  await page.getByLabel('Betrag in €').fill('4,56');
+  await page.getByLabel('Aktion', { exact: true }).fill('Sommerlager 2026 Oberjoch');
+  await page.getByRole('radio', { name: 'Mit Stammeskarte / aus der Kasse', exact: true }).check();
+  await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
+  await expect(page.getByText(/über 4,56\s€ eingereicht/).first()).toBeVisible();
   await expect(page.getByRole('button', { name: new RegExp(shop) })).toBeVisible();
 });
 
