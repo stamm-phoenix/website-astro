@@ -194,6 +194,13 @@ test('a receipt kept here stays mine when someone else submitted my Auslage', ()
   assert.ok(
     meineBelege([kept], campflow, 'kim@example.test', isKim).some((b) => b.key === 'website-5')
   );
+  // Found by the CampFlow number it shows
+  assert.deepEqual(
+    eintraege
+      .filter((e) => matchesBelegFilter(e, { ...NO_FILTER, search: '2026-1' }))
+      .map((e) => e.key),
+    ['website-5']
+  );
 });
 
 test('my receipts are the own entries, newest first', () => {

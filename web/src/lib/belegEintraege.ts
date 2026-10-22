@@ -215,7 +215,7 @@ export function matchesBelegFilter(
     eintrag.where,
     eintrag.paidBy ?? '',
     eintrag.beleg?.note ?? '',
-    eintrag.campflow?.number ?? '',
+    eintrag.campflow?.number ?? eintrag.beleg?.campflow?.number ?? '',
   ]
     .join(' ')
     .toLowerCase();

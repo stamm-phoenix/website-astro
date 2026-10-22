@@ -9,15 +9,22 @@
   interface Props {
     eintraege: BelegEintrag[];
     ansicht: 'liste' | 'galerie';
+    /** Changes with every load of the receipts; failed previews are tried again then. */
+    geladen: string;
     onopen: (eintrag: BelegEintrag) => void;
   }
-  let { eintraege, ansicht, onopen }: Props = $props();
+  let { eintraege, ansicht, geladen, onopen }: Props = $props();
 
   /** Entries shown at first and added per click, so a phone stays quick with hundreds of them. */
   const PAGE = 60;
   let shown = $state(PAGE);
   /** Previews that could not be loaded show the placeholder instead. */
   const failed = new SvelteSet<string>();
+
+  $effect(() => {
+    void geladen;
+    failed.clear();
+  });
 
   $effect(() => {
     // Back to the first entries whenever the filters change the list
