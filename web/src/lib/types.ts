@@ -525,7 +525,7 @@ export type BelegStatus = 'Eingereicht' | 'Angenommen' | 'Abgelehnt';
 
 /** Preliminary check of a receipt photo by the image model. */
 export interface BelegCheck {
-  /** Receipt, fully visible and readable: fit for the archive. */
+  /** Receipt, complete and readable: fit for the archive. */
   ok: boolean;
   isReceipt: boolean;
   complete: boolean;
@@ -536,6 +536,8 @@ export interface BelegCheck {
   shop: string | null;
   date: string | null;
   amountCent: number | null;
+  /** Degrees clockwise the photo must be turned for the text to read upright. */
+  rotation: 0 | 90 | 180 | 270;
   checkedAt: string;
 }
 

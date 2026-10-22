@@ -11,6 +11,7 @@ const knownCheck: BelegCheck = {
   shop: 'Testmarkt',
   date: '2026-09-30',
   amountCent: 999,
+  rotation: 0,
   checkedAt: '2026-10-01T12:00:00Z',
 };
 
@@ -351,6 +352,58 @@ test('the photo is rotated, mirrored, cropped and reset with the tools, one pict
   );
   await expect(reset).toBeDisabled();
   await expectNoHorizontalOverflow(page);
+});
+
+test('a sideways photo is turned upright after its check, which runs again quietly', async ({
+  page,
+}) => {
+  const checked: number[] = [];
+  await page.route('**/api/intern/pflege/belege/pruefung', async (route) => {
+    checked.push(Date.now());
+    if (checked.length > 1) await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.fulfill({
+      json: { available: true, check: { ...knownCheck, rotation: checked.length === 1 ? 90 : 0 } },
+    });
+  });
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  // A white receipt lying sideways on a dark table
+  const photo = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1200;
+    canvas.height = 900;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#333';
+    context.fillRect(0, 0, 1200, 900);
+    context.fillStyle = '#fff';
+    context.fillRect(150, 150, 900, 600);
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), 'image/png')
+    );
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await dialog
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'beleg.png', mimeType: 'image/png', buffer: Buffer.from(photo) });
+  const preview = dialog.getByAltText('Vorschau des Fotos');
+  const size = async () => ({
+    width: Number(await preview.getAttribute('width')),
+    height: Number(await preview.getAttribute('height')),
+  });
+  // Cropped with a thin margin around the receipt, still lying
+  await expect.poll(async () => (await size()).width).toBeGreaterThan(900);
+  const lying = await size();
+  expect(lying.width).toBeLessThan(1200);
+  // Upright after the check; the second check keeps the result and shows no progress
+  await expect.poll(size).toEqual({ width: lying.height, height: lying.width });
+  await expect.poll(() => checked.length).toBe(2);
+  await expect(dialog.getByTestId('beleg-pruefung')).toHaveCount(0);
+  await expect(dialog.getByRole('textbox', { name: 'Geschäft' })).toHaveValue('Testmarkt');
+  // Turned only once
+  await page.waitForTimeout(2500);
+  expect(checked.length).toBe(2);
+  await expect.poll(size).toEqual({ width: lying.height, height: lying.width });
 });
 
 test('the photo tips wait behind the (i) next to the photo field', async ({ page }) => {

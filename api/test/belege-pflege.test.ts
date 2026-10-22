@@ -416,6 +416,7 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
       shop: 'REWE',
       date: null,
       amountCent: 1234,
+      rotation: 0,
       checkedAt: '',
     },
   };
@@ -827,6 +828,7 @@ const MODEL_ANSWER = {
   shop: 'REWE',
   date: '2026-09-30',
   amount: 12.34,
+  rotation: 90,
 };
 
 const MODEL_ENDPOINT = 'https://example.openai.azure.com';
@@ -873,8 +875,12 @@ test('the model answer is normalized and never trusted blindly', () => {
     shop: 'REWE',
     date: '2026-09-30',
     amountCent: 1234,
+    rotation: 90,
     checkedAt: '2026-10-01T10:00:00.000Z',
   });
+  // Anything but a quarter turn means upright
+  assert.equal(toBelegCheck({ ...MODEL_ANSWER, rotation: 45 }, now).rotation, 0);
+  assert.equal(toBelegCheck({ ...MODEL_ANSWER, rotation: '180' }, now).rotation, 0);
   const notAReceipt = toBelegCheck(
     {
       isReceipt: false,

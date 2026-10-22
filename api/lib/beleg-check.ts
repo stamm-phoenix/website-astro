@@ -27,12 +27,12 @@ const MAX_ITEM_LENGTH = 100;
 
 /** Result of the check as stored with the receipt and sent to the browser. */
 export interface BelegCheck {
-  /** Receipt, fully visible and readable: fit for the archive. */
+  /** Receipt, complete and readable: fit for the archive. */
   ok: boolean;
   isReceipt: boolean;
   complete: boolean;
   readable: boolean;
-  /** Concrete problems in German, e.g. „Der obere Rand ist abgeschnitten.“ */
+  /** Concrete problems in German, e.g. „Der Gesamtbetrag ist abgeschnitten.“ */
   issues: string[];
   /**
    * Positions that are not suitable for youth work (alcohol, tobacco, other adult-only items),
@@ -43,8 +43,13 @@ export interface BelegCheck {
   /** `YYYY-MM-DD` */
   date: string | null;
   amountCent: number | null;
+  /** Degrees clockwise the photo must be turned for the text to read upright. */
+  rotation: BelegRotation;
   checkedAt: string;
 }
+
+export type BelegRotation = 0 | 90 | 180 | 270;
+const ROTATIONS: readonly BelegRotation[] = [0, 90, 180, 270];
 
 export class BelegCheckError extends Error {
   constructor(message: string) {
@@ -73,17 +78,20 @@ export function reserveCheck(now = new Date()): void {
   if (!takeCheck(now)) throw new BelegCheckLimitError();
 }
 
-const PROMPT = `Du prüfst Fotos von Kassenbelegen (Kassenbons, Quittungen, Rechnungen) für das Belegarchiv eines Pfadfinderstammes. Das Archiv ist revisionssicher: Ein Foto ist nur geeignet, wenn der ganze Beleg zu sehen und alles Wesentliche gut lesbar ist.
+const PROMPT = `Du prüfst Fotos von Kassenbelegen (Kassenbons, Quittungen, Rechnungen) für das Belegarchiv eines Pfadfinderstammes. Das Archiv ist revisionssicher: Ein Foto ist nur geeignet, wenn der ganze Inhalt des Belegs zu sehen und alles Wesentliche gut lesbar ist.
+
+Die Fotos sind meist schon auf den Beleg zugeschnitten, oft knapp an der Papierkante oder sogar ein wenig ins leere Papier hinein. Das ist gewollt: Die Papierränder und der leere Rand um den Text müssen nicht zu sehen sein. Das Foto kann auch gedreht sein (seitlich oder auf dem Kopf); das wird automatisch korrigiert und ist kein Mangel.
 
 Beurteile:
 - isReceipt: Zeigt das Foto einen Beleg? (Nicht: Produktfoto, Bildschirmfoto einer Bestellung ohne Rechnungsdaten, Person, Landschaft.)
-- complete: Sind alle Ränder des Belegs zu sehen, nichts abgeschnitten oder verdeckt, nur ein Beleg auf dem Foto?
+- complete: Ist der ganze Inhalt zu sehen, nur ein Beleg auf dem Foto? Unvollständig ist ein Beleg nur, wenn Inhalt fehlt oder verdeckt ist: angeschnittene Zeichen oder Zeilen am Bildrand, ein fehlender Kopf mit dem Geschäft, fehlende Positionen, ein fehlender Gesamtbetrag oder ein fehlendes Datum. Ein knapper Zuschnitt ohne fehlenden Text ist vollständig.
 - readable: Sind Geschäft, Datum, Gesamtbetrag und Positionen scharf und gut lesbar (kein Verwackeln, keine Spiegelung, kein starker Schatten, nicht zu dunkel, nicht stark verzerrt)?
-- issues: Konkrete Mängel auf Deutsch, je ein kurzer Satz mit Hinweis zur Abhilfe, z. B. „Der untere Rand mit dem Gesamtbetrag ist abgeschnitten.“ Leer, wenn alles passt.
+- issues: Konkrete Mängel auf Deutsch, je ein kurzer Satz mit Hinweis zur Abhilfe, z. B. „Der Gesamtbetrag am Ende des Belegs fehlt. Bitte den ganzen Beleg fotografieren.“ Nenne nur, was wirklich fehlt oder unlesbar ist, keine fehlenden Papierränder und nicht die Drehung. Leer, wenn alles passt.
+- rotation: Um wie viel Grad im Uhrzeigersinn muss das Foto gedreht werden, damit der Text aufrecht steht? 0, wenn er schon aufrecht steht; 90, wenn die Zeilen von unten nach oben laufen (Foto nach links gekippt); 180, wenn er auf dem Kopf steht; 270, wenn die Zeilen von oben nach unten laufen (Foto nach rechts gekippt).
 - shop, date (YYYY-MM-DD), amount (Gesamtbetrag in Euro als Zahl): nur, wenn sicher lesbar, sonst null.
 - restrictedItems: Positionen, die in der Jugendarbeit nicht abgerechnet werden dürfen, so wie sie auf dem Beleg stehen (z. B. „Augustiner Hell 0,5l“): alkoholische Getränke (Bier, Radler, Wein, Sekt, Spirituosen, Alkopops, alkoholhaltige Mixgetränke), Lebensmittel mit deutlichem Alkoholgehalt (z. B. Weinbrandbohnen, Rumtopf, Eierlikör), Tabakwaren (Zigaretten, Tabak, Zigarren, Shisha-Tabak, E-Zigaretten, Liquids, Nikotinbeutel) und sonstige nicht jugendfreie Artikel (z. B. Medien ab 18, Erotikartikel). Nicht dazu gehören alkoholfreie Varianten („alkoholfrei“, „0,0 %“), Pfand und Kochzutaten wie Essig. Nur aufnehmen, wenn die Position auf dem Beleg eindeutig erkennbar ist; leer, wenn nichts davon zu sehen ist.
 
-Sei streng bei complete und readable, aber erfinde keine Mängel und keine Positionen.`;
+Sei streng bei readable und bei fehlendem Inhalt, aber erfinde keine Mängel und keine Positionen.`;
 
 const RESPONSE_SCHEMA = {
   type: 'object',
@@ -97,6 +105,7 @@ const RESPONSE_SCHEMA = {
     'shop',
     'date',
     'amount',
+    'rotation',
   ],
   properties: {
     isReceipt: { type: 'boolean' },
@@ -107,6 +116,7 @@ const RESPONSE_SCHEMA = {
     shop: { type: ['string', 'null'] },
     date: { type: ['string', 'null'] },
     amount: { type: ['number', 'null'] },
+    rotation: { type: 'integer', enum: [0, 90, 180, 270] },
   },
 };
 
@@ -121,6 +131,10 @@ function readTexts(value: unknown, maxLength: number, maxCount: number): string[
     .map((entry) => readText(entry, maxLength))
     .filter((entry): entry is string => entry !== null)
     .slice(0, maxCount);
+}
+
+function readRotation(value: unknown): BelegRotation {
+  return ROTATIONS.find((rotation) => rotation === value) ?? 0;
 }
 
 /** Turns the model's answer into a checked result; anything unexpected is dropped. */
@@ -154,6 +168,7 @@ export function toBelegCheck(raw: unknown, now = new Date()): BelegCheck {
     shop: readText(answer.shop, 100),
     date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
     amountCent,
+    rotation: readRotation(answer.rotation),
     checkedAt: now.toISOString(),
   };
 }
@@ -239,6 +254,7 @@ export function parseStoredBelegCheck(value: string | undefined): BelegCheck | n
       shop: typeof parsed.shop === 'string' ? parsed.shop : null,
       date: typeof parsed.date === 'string' ? parsed.date : null,
       amountCent: typeof parsed.amountCent === 'number' ? parsed.amountCent : null,
+      rotation: readRotation(parsed.rotation),
       checkedAt: typeof parsed.checkedAt === 'string' ? parsed.checkedAt : '',
     };
   } catch {

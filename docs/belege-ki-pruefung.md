@@ -25,6 +25,10 @@ Ausgewählt im Oktober 2026 nach einem Vergleich mit gezeichneten Belegfotos und
 
 `gpt-4.1-mini` übersah Radler und Liquid, meldete alkoholfreies Bier und Malzbier und erkannte die abgeschnittene Summe nicht. Den abgeschnittenen Beleg erkannten nur `gpt-6-astra` und `gpt-6.1-sol` mit `high` in jedem Lauf.
 
+**Vollständig** heißt: Kein Inhalt fehlt (Kopf mit Geschäft, Positionen, Gesamtbetrag, Datum, keine angeschnittenen Zeilen). Papierränder müssen nicht zu sehen sein, weil das Formular Fotos knapp auf den Beleg zuschneidet. Mit dieser Regel (geprüft im Oktober 2026) galten knapp zugeschnittene Belege in allen vier Drehungen als vollständig, ein unten auslaufender Beleg mit allem Text ebenfalls; ein fehlendes Datum und rechts angeschnittene Beträge wurden gemeldet, auch quer fotografiert.
+
+Das Modell meldet außerdem `rotation`, die Drehung im Uhrzeigersinn, damit der Text aufrecht steht (0, 90, 180 oder 270). Das Formular dreht ein neues Foto danach einmal automatisch, sofern es seither nicht von Hand gedreht wurde, und prüft das gedrehte Foto im Hintergrund noch einmal. Dessen Ergebnis ersetzt das erste; quer liegende Fotos werden gelegentlich schlechter beurteilt als aufrechte. Beim Einreichen findet die API so die Prüfung des eingereichten Fotos.
+
 Diese Modelle denken vor der Antwort (Reasoning). Sie lehnen `temperature: 0` ab; `azure-openai.ts` sendet deshalb bei gesetztem `reasoningEffort` stattdessen `reasoning_effort`. Die Denk-Token zählen zu `max_completion_tokens` (4.000 für die Belegprüfung), das Timeout liegt bei 60 Sekunden. Für ein anderes Modell: Bereitstellung anlegen, `deployment` und gegebenenfalls `reasoningEffort` in `config.ts` ändern; ohne `reasoningEffort` wird wie früher `temperature: 0` gesendet.
 
 ## Einrichtung
@@ -76,7 +80,7 @@ Die Website speichert das Prüfergebnis als JSON mit dem Beleg in Azure SQL (`or
 
 ### 7. Testen
 
-Im Leitendenbereich unter **Belege → Beleg einreichen** ein Foto wählen. Während der Prüfung zeigt das Formular „Beleg wird geprüft …“ mit einem Fortschrittsbalken; nach etwa zehn Sekunden erscheint das Ergebnis, und Geschäft, Datum und Betrag sind vorbelegt. Ein absichtlich abgeschnittenes Foto sollte als Mangel gemeldet werden.
+Im Leitendenbereich unter **Belege → Beleg einreichen** ein Foto wählen. Während der Prüfung zeigt das Formular „Beleg wird geprüft …“ mit einem Fortschrittsbalken; nach etwa zehn Sekunden erscheint das Ergebnis, und Geschäft, Datum und Betrag sind vorbelegt. Ein Foto mit absichtlich abgeschnittenem Betrag oder Datum sollte als Mangel gemeldet werden, ein quer fotografierter Beleg aufrecht gedreht werden.
 
 ## Kosten begrenzen
 
