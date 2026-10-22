@@ -1,6 +1,6 @@
 # KI-Review für Pull Requests (Codex und Claude)
 
-[Codex](https://github.com/openai/codex-action) prüft jeden Pull Request mit Modellen auf unserer Azure-OpenAI-Ressource `website-astro-openai` und schreibt das Ergebnis in den PR (auf Deutsch). Abgerechnet wird über die Nonprofit-Gutschrift von Azure. Ein gründliches Review mit Claude gibt es auf Wunsch über ein Label (siehe [Claude-Review](#claude-review-gründlich-auf-wunsch)).
+[Codex](https://github.com/openai/codex-action) prüft jeden Pull Request mit Modellen auf unserer Azure-OpenAI-Ressource `website-astro-openai` und schreibt das Ergebnis in den PR (auf Deutsch). Abgerechnet wird über die Nonprofit-Gutschrift von Azure. Zusätzlich prüft Claude jeden PR (siehe [Claude-Review](#claude-review)).
 
 - Bei jedem neuen oder aktualisierten PR: ein **Review** mit `gpt-6.1-sol`. Codex liest dazu nicht nur den Diff, sondern auch den übrigen Code im Repo und die Regeln in `AGENTS.md`, und meldet nur Funde, die es im Code nachgeprüft hat.
 - Gründlicheres Review auf Wunsch: das Label `codex-review` an den PR setzen. Das läuft mit `gpt-6-astra` und der höchsten Denkstufe (`xhigh`), das automatische Review mit `high`, damit die Warteschlange kürzer bleibt; Labels setzen können nur Personen mit Schreibrechten im Repo. Sobald das Review gepostet ist, entfernt der Workflow das Label wieder; für ein weiteres gründliches Review es einfach erneut setzen. Schlägt das Review fehl, bleibt das Label stehen; dann es entfernen und neu setzen.
@@ -42,24 +42,25 @@ Abgerechnet wird pro Token über die Azure-Gutschrift. Weil Codex für jeden Fun
 
 Abschalten: den Workflow unter **Actions → Codex Review → … → Disable workflow** deaktivieren. Das Secret zu löschen reicht nicht: Der Workflow startet dann weiter und schlägt bei jedem PR fehl.
 
-## Claude-Review (gründlich, auf Wunsch)
+## Claude-Review
 
-Zusätzlich zu Codex gibt es ein gründliches Review mit Claude Code und `claude-opus-5-5` über die Anthropic API. Es läuft **nur**, wenn jemand das Label `claude-review` an den PR setzt (nur mit Schreibrechten im Repo), nie automatisch, weil es aus einem festen Monatsguthaben bezahlt wird.
+Neben Codex prüft auch Claude Code jeden Pull Request, über die Anthropic API und bezahlt aus einem monatlichen API-Guthaben (derzeit 100 $; danach lehnt die API weitere Reviews ab, es entstehen keine Zusatzkosten). Das Konzept ist dasselbe wie bei Codex:
 
-- Ergebnis in derselben Form wie bei Codex: Kommentare an den Zeilen und ein eigener Zusammenfassungs-Kommentar „🤖 Claude-Review“. Claude bekommt die bisherigen Kommentare (auch die von Codex) und meldet sie nicht noch einmal.
-- Sobald das Review gepostet ist, entfernt der Workflow das Label wieder; für ein weiteres Review es erneut setzen. Schlägt das Review fehl, bleibt das Label stehen; dann es entfernen und neu setzen. Ein Push bricht ein laufendes Claude-Review nicht ab.
+- Bei jedem neuen oder aktualisierten PR: ein **Review** mit `claude-opus-5-5`. Ein neuer Push bricht ein laufendes automatisches Review desselben PRs ab.
+- Gründlicheres Review auf Wunsch: das Label `claude-review` an den PR setzen (nur mit Schreibrechten im Repo). Das läuft einmal mit `claude-fable-5-1` und wird von Pushes nicht abgebrochen. Sobald es gepostet ist, entfernt der Workflow das Label wieder; für ein weiteres gründliches Review es erneut setzen. Schlägt es fehl, bleibt das Label stehen; dann es entfernen und neu setzen. Gibt es für denselben Commit schon ein laufendes oder erfolgreiches gründliches Review, überspringt sich das automatische.
+- Ergebnis in derselben Form wie bei Codex: Kommentare an den Zeilen und ein eigener Zusammenfassungs-Kommentar „🤖 Claude-Review“, den jeder Lauf aktualisiert. Claude bekommt die bisherigen Kommentare (auch die von Codex) und meldet sie nicht noch einmal.
 - Claude darf nur lesen (`Read`, `Grep`, `Glob`), hat keine Shell, kein Netz und keine Schreibrechte auf GitHub. Einstellungen, Hooks und MCP-Server aus dem Repo (`.claude/settings.json`, `.mcp.json`) lädt es nicht, weil der ausgecheckte Stand der Code des PRs ist. Gepostet wird in einem eigenen Job. PRs aus Forks und von Bots werden nicht geprüft.
 - Workflow: `.github/workflows/claude-review.yml`, in website-astro und playwright-api **gleich**; Änderungen daran in beiden Repos nachziehen. Was nur für ein Repo gilt (Projekt, worauf Claude besonders achten soll, Bereiche der Funde), steht in `.github/claude-review.md`.
 
 ### Einrichtung
 
-1. In der [Anthropic Console](https://platform.claude.com/) unter **API Keys** einen Schlüssel für die Reviews anlegen, in der Organisation mit dem Monatsguthaben. Unter **Limits** ein monatliches Ausgabenlimit setzen (z. B. 100 $), damit Reviews danach abgelehnt statt berechnet werden.
+1. In der [Anthropic Console](https://platform.claude.com/) unter **API Keys** einen Schlüssel für die Reviews anlegen, in der Organisation mit dem Monatsguthaben. Dort einstellen, dass nach dem Guthaben keine weiteren Kosten entstehen.
 2. In beiden Repos unter **Settings → Secrets and variables → Actions** das Secret `ANTHROPIC_REVIEW_KEY` mit diesem Schlüssel anlegen.
-3. In beiden Repos unter **Issues → Labels → New label** das Label `claude-review` anlegen (Beschreibung z. B. „Gründliches KI-Review mit Claude“).
-4. Testen: Label an einen PR setzen. Nach einigen Minuten erscheinen die Kommentare von `github-actions`. Wenn nicht: unter **Actions → Claude Review** das Log des Laufs ansehen.
+3. In beiden Repos unter **Issues → Labels → New label** das Label `claude-review` anlegen (Beschreibung z. B. „Gründliches KI-Review mit Claude Fable“).
+4. Testen: einen PR öffnen. Nach ein bis zwei Minuten erscheinen die Kommentare von `github-actions`. Wenn nicht: unter **Actions → Claude Review** das Log des Laufs ansehen.
 
 ### Kosten und Abschalten
 
-Abgerechnet wird pro Token über das Guthaben in der Anthropic Console; beide Repos teilen es. Claude liest für jeden Fund im Repo nach; ein Review kostet grob 1 bis 1,50 $, bei großen PRs 3 bis 5 $. 100 $ im Monat reichen also für etwa 50 bis 100 Reviews. Den tatsächlichen Verbrauch zeigt die Console unter **Usage** bzw. **Cost**.
+Abgerechnet wird pro Token über das Guthaben in der Anthropic Console; beide Repos teilen es. Was ein Lauf gekostet hat, steht im Log unter „Claude Code“ (`total_cost_usd`), den Verbrauch insgesamt zeigt die Console unter **Usage** bzw. **Cost**. Die ersten Reviews kleiner PRs mit Opus kosteten 0,14 bis 0,34 $; große PRs kosten mehr, ein gründliches Review mit Fable etwa das Doppelte bis Dreifache. Jeder Push löst ein neues Review aus. Ist das Guthaben aufgebraucht, schlagen die Reviews bis zum nächsten Monat fehl (rotes Häkchen „Claude Review“, blockiert keinen Merge).
 
-Abschalten: den Workflow unter **Actions → Claude Review → … → Disable workflow** deaktivieren, oder einfach das Label nicht mehr setzen.
+Abschalten: den Workflow unter **Actions → Claude Review → … → Disable workflow** deaktivieren. Das Secret zu löschen reicht nicht: Der Workflow startet dann weiter und schlägt bei jedem PR fehl.
