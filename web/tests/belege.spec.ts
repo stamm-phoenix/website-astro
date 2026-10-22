@@ -226,3 +226,19 @@ test('the receipts from CampFlow show and open even if the ones here fail to loa
   await list.getByRole('button', { name: /Edeka – Grillabend/ }).click();
   await expect(page.getByRole('dialog', { name: 'Edeka – Grillabend' })).toBeVisible();
 });
+
+test('previews that failed are tried again after „Neu laden“', async ({ page }) => {
+  let broken = true;
+  await page.route('**/api/intern/abrechnung/belege/*/vorschau', (route) =>
+    broken ? route.fulfill({ status: 502, body: '' }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/belege/?ansicht=galerie');
+  const tile = page
+    .getByRole('list', { name: 'Belege' })
+    .getByRole('button', { name: /Kassenzettel Baumarkt\.pdf/ });
+  await expect(tile.locator('img')).toHaveCount(0);
+  broken = false;
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await expect(tile.locator('img')).toHaveCount(1);
+  await expect(tile.locator('img')).toHaveJSProperty('complete', true);
+});

@@ -98,6 +98,8 @@
   );
   const visible = $derived(quelle ? gefiltert.filter((e) => e.quelle === quelle) : gefiltert);
   const reloading = $derived(store.loading || campflowStore.loading);
+  /** Changes with every load, so previews that failed are tried again after „Neu laden“. */
+  const geladen = $derived(`${store.loadedAt ?? ''}|${campflowStore.loadedAt ?? ''}`);
 
   $effect(() => {
     // A Kostenstelle or Kategorie gone after reloading would hide receipts without a visible filter
@@ -369,6 +371,8 @@
     // The attempt is stored either way; show its state
     if (form?.id === id) {
       await belegePflege.load({ force: true });
+      // Closed or replaced by another receipt meanwhile: leave that one alone
+      if (form !== current) return;
       const fresh = store.data?.find((b) => b.id === id);
       if (fresh && form) {
         form.campflow = fresh.campflow;
@@ -572,7 +576,7 @@
     {#snippet empty()}
       <p class="surface p-6 text-sm text-neutral-700">Keine Belege für diese Auswahl.</p>
     {/snippet}
-    <BelegUebersicht eintraege={visible} {ansicht} onopen={open} />
+    <BelegUebersicht eintraege={visible} {ansicht} {geladen} onopen={open} />
   </LoadState>
 </div>
 
