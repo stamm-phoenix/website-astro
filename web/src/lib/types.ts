@@ -547,8 +547,9 @@ export interface StaffBeleg {
   /** Date of the receipt, `YYYY-MM-DD`. */
   date: string;
   amountCent: number;
+  /** Who gets the Auslage back, also „Sparbuch“; empty when the Stamm paid. */
   paidBy: string;
-  /** Whether the person who paid gets the money back. */
+  /** Whether it is an Auslage: someone or the savings book gets the money. */
   payout: boolean;
   aktion: string;
   note: string;
@@ -564,6 +565,8 @@ export interface StaffBeleg {
   aiCheck: BelegCheck | null;
   /** The last transfer to CampFlow; null if there was none. */
   campflow: BelegCampflow | null;
+  /** Someone else submitted the user's Auslage: they may look at it, not change it. */
+  readOnly?: true;
 }
 
 /**

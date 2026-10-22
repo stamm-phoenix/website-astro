@@ -15,6 +15,7 @@ import {
 } from '../lib/db-preview';
 import { overrideConfig } from './fixtures/config';
 import * as mail from '../lib/mail';
+import * as taskDirectory from '../lib/task-directory';
 import {
   BelegeCollection,
   BelegItem,
@@ -281,6 +282,64 @@ dbTest('the receipt list sorts the newest first and keeps photo names on the ser
   assert.equal((response.headers as Record<string, string>)['Cache-Control'], 'no-store');
 });
 
+dbTest('who laid out the money sees the receipt someone else submitted, read only', async (t) => {
+  const { context, blobs } = setup(t);
+  overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
+  // Both receipts name Alex Beispiel as Auslage; Alex submitted neither
+  await store(
+    blobs,
+    { id: 1, submittedBy: 'sam@example.test', photo: 'beleg-1-scan.jpg' },
+    { id: 2, submittedBy: 'sam@example.test' }
+  );
+  await getDb()
+    .updateTable('organisation.beleg')
+    .set({ payout: false, paid_by: '' })
+    .where('id', '=', 2)
+    .execute();
+  t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => [
+    { login: 'alex@example.test', name: 'Alex Beispiel', givenName: 'Alex' },
+  ]);
+  const alex = { ...PRINCIPAL, userDetails: 'alex@example.test' };
+
+  const response = await BelegeCollection(request('GET', undefined, { principal: alex }), context);
+  assert.equal(response.status, 200);
+  const items = response.jsonBody as { id: string; readOnly?: boolean }[];
+  // Only the Auslage, not the one the Stamm paid
+  assert.deepEqual(
+    items.map(({ id, readOnly }) => [id, readOnly]),
+    [['1', true]]
+  );
+  const photo = await BelegPhoto(
+    request('GET', undefined, { id: '1', principal: alex, query: '?thumb=1' }),
+    context
+  );
+  assert.equal(photo.status, 200);
+
+  // Looking only: no saving, no new photo, no deleting
+  const etag = await version(1);
+  const patched = await BelegItem(
+    request('PATCH', { ...INPUT, etag }, { id: '1', principal: alex, etag }),
+    context
+  );
+  assert.equal(patched.status, 403, JSON.stringify(patched.jsonBody));
+  const replaced = await BelegPhoto(
+    request('PUT', { photo: 'x' }, { id: '1', principal: alex, etag }),
+    context
+  );
+  assert.equal(replaced.status, 404);
+  const deleted = await BelegItem(
+    request('DELETE', undefined, { id: '1', principal: alex, etag }),
+    context
+  );
+  assert.equal(deleted.status, 403);
+  // Others still do not see it
+  const other = await BelegeCollection(
+    request('GET', undefined, { principal: { ...PRINCIPAL, userDetails: 'kim@example.test' } }),
+    context
+  );
+  assert.deepEqual(other.jsonBody, []);
+});
+
 dbTest('uploaders get only their own receipts from the database, unchanged', async (t) => {
   const { context, blobs } = setup(t);
   overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
@@ -356,11 +415,15 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
     },
   };
 
+  t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => []);
   const queries = recordQueries(t);
   assert.deepEqual(await list('leitung@example.test'), [own, first, rejected]);
   // The filter runs in the database, so other people's receipts are never read
-  assert.equal(queries.statements.length, 1);
-  assert.match(queries.statements[0] ?? '', /where "b"\."submitted_by" = @1/);
+  const read = queries.statements.filter((statement) =>
+    statement.includes('"organisation"."beleg"')
+  );
+  assert.equal(read.length, 1);
+  assert.match(read[0] ?? '', /where "b"\."submitted_by" = @1/);
   assert.deepEqual(await list('nobody@example.test'), []);
   assert.deepEqual(await list('kasse@example.test'), [
     beleg(2, 'other@example.test', '2026-09-03T10:00:00.000Z'),

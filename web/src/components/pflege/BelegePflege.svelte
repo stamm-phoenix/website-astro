@@ -13,6 +13,7 @@
   import BelegFields from './BelegFields.svelte';
   import BelegPhotoSection from './BelegPhotoSection.svelte';
   import BelegReview from './BelegReview.svelte';
+  import BelegAnsicht from './BelegAnsicht.svelte';
   import BelegCampflowDialog from './BelegCampflowDialog.svelte';
   import BelegUebersicht from './BelegUebersicht.svelte';
 
@@ -56,6 +57,8 @@
   /** Every receipt in CampFlow, read-only, also those uploaded there directly. */
   const campflowStore = campflowBelegeStore.state;
   let openCampflow = $state<CampflowBeleg | null>(null);
+  /** A receipt someone else submitted for the user's Auslage, shown read only. */
+  let openAnsicht = $state<StaffBeleg | null>(null);
   let reloadNotice = $state<string | null>(null);
 
   let quelle = $state<BelegQuelle | ''>('');
@@ -125,7 +128,8 @@
   }
 
   function open(eintrag: BelegEintrag): void {
-    if (eintrag.beleg) edit(eintrag.beleg);
+    if (eintrag.beleg?.readOnly) openAnsicht = eintrag.beleg;
+    else if (eintrag.beleg) edit(eintrag.beleg);
     else if (eintrag.campflow) openCampflow = eintrag.campflow;
   }
 
@@ -632,3 +636,4 @@
 </EditDialog>
 
 <BelegCampflowDialog beleg={openCampflow} onclose={() => (openCampflow = null)} />
+<BelegAnsicht beleg={openAnsicht} onclose={() => (openAnsicht = null)} />

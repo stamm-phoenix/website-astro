@@ -116,7 +116,8 @@ export function belegEintraege(
   const keptHere = new Set(belege.flatMap((b) => (b.campflow?.number ? [b.campflow.number] : [])));
 
   const website = belege.map((beleg): BelegEintrag => {
-    const unit = matchingKostenstelle(beleg.aktion, kostenstellen);
+    // Also an archived Kostenstelle, so its filter finds the receipts still here
+    const unit = matchingKostenstelle(beleg.aktion, kostenstellen, { archived: true });
     const uploaded = beleg.campflow?.state === 'Hochgeladen' ? beleg.campflow : null;
     const tags: BelegEintrag['tags'] = [];
     if (uploaded?.number)
