@@ -259,18 +259,97 @@ test('photo warnings and automatic reading share one verdict and adjustments are
   await expect(verdict).toContainText('unscharf');
   await expect(verdict).toContainText('Angaben lesen');
   await expect(dialog.getByText(/vollständig und gut lesbar/)).toHaveCount(0);
-  const options = dialog.getByRole('radio', {
+  // The tools of the photo are at hand and big enough to tap
+  const grey = dialog.getByRole('group', { name: /^Farben/ }).getByRole('button', {
     name: 'Graustufen',
-    exact: true,
-    includeHidden: true,
   });
-  await expect(options).toBeHidden();
-  await dialog.getByText('Foto anpassen …', { exact: true }).click();
-  await expect(options).toBeVisible();
-  const rowHeight = await options.evaluate(
-    (input) => input.closest('label')!.getBoundingClientRect().height
+  await expect(grey).toBeVisible();
+  for (const tool of [grey, dialog.getByRole('button', { name: 'Nach rechts drehen' })]) {
+    expect((await tool.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  }
+  await expectNoHorizontalOverflow(page);
+});
+
+test('the photo is rotated, mirrored, cropped and reset with the tools, one picture at a time', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  // A white receipt on a dark table, upright
+  const photo = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 900;
+    canvas.height = 1200;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#333';
+    context.fillRect(0, 0, 900, 1200);
+    context.fillStyle = '#fff';
+    context.fillRect(150, 150, 600, 900);
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), 'image/png')
+    );
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await dialog
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'beleg.png', mimeType: 'image/png', buffer: Buffer.from(photo) });
+  const preview = dialog.getByAltText('Vorschau des Fotos');
+  const size = async () => {
+    const width = Number(await preview.getAttribute('width'));
+    const height = Number(await preview.getAttribute('height'));
+    return { width, height };
+  };
+  // Found and cropped to the receipt: upright, only the cropped picture is shown
+  await expect(preview).toBeVisible();
+  await expect(dialog.getByRole('img')).toHaveCount(1);
+  const before = await size();
+  expect(before.height).toBeGreaterThan(before.width);
+
+  const reset = dialog.getByRole('button', { name: 'Auf das Originalfoto zurücksetzen' });
+  await expect(reset).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Nach rechts drehen' }).click();
+  await expect.poll(size).toEqual({ width: before.height, height: before.width });
+  await dialog.getByRole('button', { name: 'Nach links drehen' }).click();
+  await expect.poll(size).toEqual(before);
+  const src = await preview.getAttribute('src');
+  await dialog.getByRole('button', { name: 'Horizontal spiegeln' }).click();
+  await expect(preview).not.toHaveAttribute('src', src!);
+  await dialog.getByRole('button', { name: 'Vertikal spiegeln' }).click();
+
+  // The crop tool shows the uncropped picture with its corners, and nothing else
+  await dialog.getByRole('button', { name: 'Zuschneiden', exact: true }).click();
+  const corners = dialog.getByRole('group', { name: 'Ecken des Belegs' });
+  await expect(corners).toBeVisible();
+  await expect(preview).toHaveCount(0);
+  await expect(dialog.getByRole('toolbar', { name: 'Foto bearbeiten' })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('zuschneiden.png') });
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).first().click();
+  await expect.poll(size).toEqual(before);
+  await dialog.getByRole('button', { name: 'Zuschneiden', exact: true }).click();
+  await dialog
+    .getByRole('button', { name: /Ecke oben links verschieben/ })
+    .press('Shift+ArrowRight');
+  await dialog.getByRole('button', { name: 'Zuschneiden fertig' }).click();
+  await expect(corners).toHaveCount(0);
+  await expect.poll(async () => (await size()).width).toBeLessThan(before.width);
+
+  const colours = dialog.getByRole('group', { name: /^Farben/ });
+  await colours.getByRole('button', { name: 'Graustufen' }).click();
+  await expect(colours.getByRole('button', { name: 'Graustufen' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
   );
-  expect(rowHeight).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: testInfo.outputPath('werkzeuge.png') });
+
+  // Back to the photo as it was chosen
+  await reset.click();
+  await expect.poll(size).toEqual({ width: 900, height: 1200 });
+  await expect(colours.getByRole('button', { name: 'Original' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(reset).toBeDisabled();
   await expectNoHorizontalOverflow(page);
 });
 
