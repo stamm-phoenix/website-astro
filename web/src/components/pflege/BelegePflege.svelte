@@ -619,7 +619,11 @@
   notice={dialogNotice}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}
   submitLabel={form?.id ? 'Speichern' : 'Einreichen'}
-  busyLabel={form?.id ? 'Wird gespeichert …' : 'Wird hochgeladen …'}
+  busyLabel={form?.id
+    ? 'Wird gespeichert …'
+    : photo.aiChecking
+      ? 'Beleg wird geprüft …'
+      : 'Wird hochgeladen …'}
   dirty={photo.draft !== null}
   onsubmit={() => save()}
   onclose={close}
