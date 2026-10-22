@@ -81,6 +81,67 @@ test('the Kasse transfers an accepted receipt to CampFlow with the chosen Katego
   expect(sent?.etag).toBeTruthy();
 });
 
+test('Neu laden brings Kategorien changed in CampFlow into the transfer', async ({ page }) => {
+  let reads = 0;
+  await page.route('**/api/intern/abrechnung/kostenstellen*', async (route) => {
+    const response = await route.fetch();
+    const units = (await response.json()) as Array<{
+      id: string;
+      categories: Array<{ id: string; name: string }>;
+    }>;
+    // Read again from CampFlow: Fahrtkosten was replaced by Bahnfahrten there
+    if (reads++ > 0) {
+      const sola = units.find((unit) => unit.id === 'cun_Sola26')!;
+      sola.categories = sola.categories
+        .filter((category) => category.name !== 'Fahrtkosten')
+        .concat({ id: 'cat_neu', name: 'Bahnfahrten' });
+    }
+    await route.fulfill({ response, json: units });
+  });
+  await page.goto('/leitendenbereich/belege/');
+  await openFilters(page);
+  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
+  const open = async () => {
+    await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
+    const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
+    await expect(dialog.getByLabel('Kostenstelle')).toHaveValue('cun_Sola26');
+    return dialog;
+  };
+  let dialog = await open();
+  await expect(
+    dialog.getByLabel('Kategorie').getByRole('option', { name: 'Fahrtkosten' })
+  ).toBeAttached();
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await expect(page.getByText('Belege neu geladen.')).toBeVisible();
+  dialog = await open();
+  const category = dialog.getByLabel('Kategorie');
+  await expect(category.getByRole('option', { name: 'Bahnfahrten' })).toBeAttached();
+  await expect(category.getByRole('option', { name: 'Fahrtkosten' })).toHaveCount(0);
+});
+
+test('a failed reload of the receipts here shows its error above the last list', async ({
+  page,
+}) => {
+  let reads = 0;
+  await page.route('**/api/intern/pflege/belege', async (route) => {
+    if (route.request().method() !== 'GET' || reads++ === 0) return route.fallback();
+    await route.fulfill({ status: 500, json: { error: 'Belege gerade nicht erreichbar' } });
+  });
+  await page.goto('/leitendenbereich/belege/');
+  const list = page.getByRole('list', { name: 'Belege' });
+  await expect(list.getByRole('listitem').first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await expect(page.getByText('Angezeigt wird der zuletzt geladene Stand.')).toBeVisible();
+  await expect(
+    page.getByRole('alert').getByRole('button', { name: 'Erneut versuchen' })
+  ).toBeVisible();
+  await expect(list.getByRole('listitem').first()).toBeVisible();
+});
+
 test('one list holds the receipts here and in CampFlow, filtered by source and more', async ({
   page,
 }) => {
