@@ -27,6 +27,7 @@
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { belegePflege, campflowBelegeStore } from '../../lib/pflegeStore.svelte';
+  import { fetchKostenstellen, kostenstellenStore } from '../../lib/abrechnungStore.svelte';
   import { centToInput, parseEuroToCent } from '../../lib/belege';
   import { formatEuro, todayIso } from '../../lib/format';
   import {
@@ -129,14 +130,17 @@
     else if (eintrag.campflow) openCampflow = eintrag.campflow;
   }
 
-  /** Reloads the receipts here and reads CampFlow again. */
+  /** Reloads the receipts here and reads CampFlow again, its Kostenstellen too once loaded. */
   async function reload(): Promise<void> {
     reloadNotice = null;
     await Promise.all([
       belegePflege.load({ force: true }),
       campflowBelegeStore.load({ force: true, param: true }),
+      kostenstellenStore.data ? fetchKostenstellen({ refresh: true }) : undefined,
     ]);
-    if (!store.error && !campflowStore.error) reloadNotice = 'Belege neu geladen.';
+    if (!store.error && !campflowStore.error && !kostenstellenStore.error) {
+      reloadNotice = 'Belege neu geladen.';
+    }
   }
 
   const aktionSuggestions = $derived(aktionTitles(campflowEventsStore.data ?? []));
@@ -561,7 +565,7 @@
   <LoadState
     data={store.data ?? (campflowStore.data ? [] : null)}
     loading={store.loading && !campflowStore.data}
-    error={store.data || campflowStore.data ? null : store.error}
+    error={store.data || !campflowStore.data ? store.error : null}
     loadingText="Belege werden geladen …"
     onretry={() => void belegePflege.load({ force: true })}
     isEmpty={() => visible.length === 0}

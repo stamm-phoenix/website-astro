@@ -61,6 +61,20 @@
     });
   });
 
+  // A Kostenstelle or Kategorie gone from CampFlow since it was chosen is chosen no longer
+  $effect(() => {
+    const available = units;
+    if (locked) return;
+    untrack(() => {
+      if (costUnitId && !available.some((k) => k.id === costUnitId)) {
+        costUnitId = '';
+        categoryId = '';
+      } else if (categoryId && !categories.some((c) => c.id === categoryId)) {
+        categoryId = '';
+      }
+    });
+  });
+
   function selectCostUnit(id: string): void {
     costUnitId = id;
     const options = units.find((k) => k.id === id)?.categories ?? [];
