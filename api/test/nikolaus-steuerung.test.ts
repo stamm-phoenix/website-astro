@@ -36,7 +36,7 @@ const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'test-staff',
   userDetails: 'staff@example.test',
-  userRoles: ['authenticated'],
+  userRoles: ['authenticated', 'team_leitende'],
 };
 
 const NOW = new Date('2026-11-01T12:00:00Z');

@@ -1,5 +1,6 @@
 {
   "auth": {
+    "rolesSource": "/api/GetRoles",
     "identityProviders": {
       "azureActiveDirectory": {
         "registration": {
@@ -45,7 +46,7 @@
     },
     {
       "route": "/leitendenbereich/abrechnung",
-      "allowedRoles": ["authenticated"],
+      "allowedRoles": ["team_leitende"],
       "rewrite": "/leitendenbereich/abrechnung/index.html",
       "headers": {
         "X-Robots-Tag": "noindex",
@@ -54,7 +55,7 @@
     },
     {
       "route": "/leitendenbereich/abrechnung/*",
-      "allowedRoles": ["authenticated"],
+      "allowedRoles": ["team_leitende"],
       "rewrite": "/leitendenbereich/abrechnung/detail/index.html",
       "headers": {
         "X-Robots-Tag": "noindex",
@@ -63,7 +64,7 @@
     },
     {
       "route": "/leitendenbereich/sammelbestellungen",
-      "allowedRoles": ["authenticated"],
+      "allowedRoles": ["team_leitende"],
       "rewrite": "/leitendenbereich/sammelbestellungen/index.html",
       "headers": {
         "X-Robots-Tag": "noindex",
@@ -72,7 +73,7 @@
     },
     {
       "route": "/leitendenbereich/sammelbestellungen/*",
-      "allowedRoles": ["authenticated"],
+      "allowedRoles": ["team_leitende"],
       "rewrite": "/leitendenbereich/sammelbestellungen/detail/index.html",
       "headers": {
         "X-Robots-Tag": "noindex",
@@ -81,7 +82,7 @@
     },
     {
       "route": "/leitendenbereich/*",
-      "allowedRoles": ["authenticated"],
+      "allowedRoles": ["team_leitende"],
       "headers": {
         "X-Robots-Tag": "noindex",
         "Cache-Control": "no-store"
@@ -89,7 +90,7 @@
     },
     {
       "route": "/api/intern/*",
-      "allowedRoles": ["authenticated"]
+      "allowedRoles": ["team_leitende"]
     },
     {
       "route": "/.auth/login/github",
@@ -135,6 +136,9 @@
     "401": {
       "redirect": "/.auth/login/aad?post_login_redirect_uri=.referrer",
       "statusCode": 302
+    },
+    "403": {
+      "rewrite": "/kein-zugang/index.html"
     },
     "404": {
       "rewrite": "/404.html"

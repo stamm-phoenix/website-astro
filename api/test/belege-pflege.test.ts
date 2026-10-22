@@ -35,11 +35,13 @@ import {
 import { dbTest } from './fixtures/database';
 import { recordQueries } from './fixtures/queries';
 
+const STAFF_ROLES = ['authenticated', 'team_leitende'];
+/** In the team „Kasse“ unless a test gives a principal `STAFF_ROLES`. */
 const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'test-staff',
   userDetails: 'staff@example.test',
-  userRoles: ['authenticated'],
+  userRoles: [...STAFF_ROLES, 'team_kasse'],
 };
 const INPUT = {
   shop: 'REWE',
@@ -289,7 +291,6 @@ dbTest('the receipt list sorts the newest first and keeps photo names on the ser
 
 dbTest('who laid out the money sees the receipt someone else submitted, read only', async (t) => {
   const { context, blobs } = setup(t);
-  overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
   // Both receipts name Alex Beispiel as Auslage; Alex submitted neither
   await store(
     blobs,
@@ -304,7 +305,7 @@ dbTest('who laid out the money sees the receipt someone else submitted, read onl
   t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => [
     { login: 'alex@example.test', name: 'Alex Beispiel', givenName: 'Alex' },
   ]);
-  const alex = { ...PRINCIPAL, userDetails: 'alex@example.test' };
+  const alex = { ...PRINCIPAL, userDetails: 'alex@example.test', userRoles: STAFF_ROLES };
 
   const response = await BelegeCollection(request('GET', undefined, { principal: alex }), context);
   assert.equal(response.status, 200);
@@ -339,7 +340,9 @@ dbTest('who laid out the money sees the receipt someone else submitted, read onl
   assert.equal(deleted.status, 403);
   // Others still do not see it
   const other = await BelegeCollection(
-    request('GET', undefined, { principal: { ...PRINCIPAL, userDetails: 'kim@example.test' } }),
+    request('GET', undefined, {
+      principal: { ...PRINCIPAL, userDetails: 'kim@example.test', userRoles: STAFF_ROLES },
+    }),
     context
   );
   assert.deepEqual(other.jsonBody, []);
@@ -347,7 +350,6 @@ dbTest('who laid out the money sees the receipt someone else submitted, read onl
 
 dbTest('uploaders get only their own receipts from the database, unchanged', async (t) => {
   const { context, blobs } = setup(t);
-  overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
   await store(
     blobs,
     { id: 1, submittedBy: 'Leitung@Example.test', submittedAt: '2026-09-02T10:00:00.000Z' },
@@ -367,7 +369,13 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
     .execute();
   const list = async (userDetails: string) => {
     const response = await BelegeCollection(
-      request('GET', undefined, { principal: { ...PRINCIPAL, userDetails } }),
+      request('GET', undefined, {
+        principal: {
+          ...PRINCIPAL,
+          userDetails,
+          userRoles: userDetails === 'kasse@example.test' ? PRINCIPAL.userRoles : STAFF_ROLES,
+        },
+      }),
       context
     );
     assert.equal(response.status, 200);
@@ -535,9 +543,8 @@ dbTest('rejecting a receipt mails the reason to the uploader once', async (t) =>
 
 dbTest('only the Kasse sees all receipts and decides; uploaders manage their own', async (t) => {
   const { context, blobs } = setup(t);
-  const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test' };
+  const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test', userRoles: STAFF_ROLES };
   const kasse = { ...PRINCIPAL, userDetails: 'kasse@example.test' };
-  overrideConfig(t, CONFIG.belege, { reviewers: ['Kasse@example.test', 'schatz@example.test'] });
   await store(
     blobs,
     { id: 7, status: 'Abgelehnt', submittedAt: '2026-09-01T10:00:00.000Z' },

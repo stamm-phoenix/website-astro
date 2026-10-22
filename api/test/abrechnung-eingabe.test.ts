@@ -141,7 +141,7 @@ test('reading a draft obtains its current retention from CampFlow before touchin
     identityProvider: 'aad',
     userId: 'postponed',
     userDetails: 'postponed@example.test',
-    userRoles: ['authenticated'],
+    userRoles: ['authenticated', 'team_leitende'],
   };
   const response = await AbrechnungEingabeEndpoint(
     new HttpRequest({
@@ -176,7 +176,7 @@ test('an undated Aktion can still read its draft without accepting an invented d
     identityProvider: 'aad',
     userId: 'undated',
     userDetails: 'undated@example.test',
-    userRoles: ['authenticated'],
+    userRoles: ['authenticated', 'team_leitende'],
   };
   const response = await AbrechnungEingabeEndpoint(
     new HttpRequest({

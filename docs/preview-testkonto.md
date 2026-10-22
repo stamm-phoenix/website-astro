@@ -4,7 +4,7 @@ Mit einem eigenen Testkonto kann Claude Code (oder jede andere automatisierte Pr
 
 ## Wie es geschützt ist
 
-- Das Konto steht in `CONFIG.staff.previewOnlyLogins` (`api/lib/config.ts`). `requireStaff` (`api/lib/staff-auth.ts`) lehnt es außerhalb von PR-Previews mit `403 PREVIEW_ONLY` ab. Damit sieht es auf der Produktion keine Daten, sondern höchstens die leeren Seitengerüste des Leitendenbereichs.
+- Das Konto steht in `CONFIG.staff.previewOnlyLogins` (`api/lib/config.ts`). `requireStaff` (`api/lib/staff-auth.ts`) lehnt es außerhalb von PR-Previews mit `403 PREVIEW_ONLY` ab. Damit sieht es auf der Produktion keine Daten. Seine Rollen bekommt es nicht aus den Teams: `GetRoles` gibt ihm auf PR-Previews alle Rollen aus `CONFIG.staff.teams` (Leitende und Kasse) und sonst keine, also kommt es auf der Produktion nicht einmal in den Leitendenbereich (`docs/berechtigungen.md`).
 - Previews haben eine eigene Datenbank und einen eigenen Blob-Container mit Testdaten (`docs/azure-sql.md`). Nicht abgetrennt sind aber zum Beispiel SharePoint (Fotos, Protokoll-Dateien), CampFlow und der Mailversand. Auf Previews also keine Mails, Uploads oder CampFlow-Änderungen auslösen, die nicht zum Test gehören.
 - Das Konto behält seine Zwei-Faktor-Anmeldung. Das Skript erzeugt den Code aus dem TOTP-Schlüssel, wie es eine Authenticator-App tut.
 - Die Zugangsdaten liegen nur in den Einstellungen der Claude-Code-Umgebung. Alles, was in einer Session läuft, kann sie lesen. Gib dem Konto deshalb keine weiteren Rechte, keine Lizenz und keine Gruppen.

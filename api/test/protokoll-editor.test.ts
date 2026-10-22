@@ -53,7 +53,7 @@ function principal(login: string) {
     identityProvider: 'aad',
     userId: login,
     userDetails: login,
-    userRoles: ['authenticated'],
+    userRoles: ['authenticated', 'team_leitende'],
   };
 }
 

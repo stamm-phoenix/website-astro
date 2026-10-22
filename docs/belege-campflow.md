@@ -103,7 +103,7 @@ eingereicht hat. Alles andere zu Belegen in CampFlow liest die Website jedes Mal
 ## Ablauf und Zustände
 
 `POST /api/intern/pflege/belege/{id}/campflow` mit `etag`, `costUnitId` und `categoryId`, nur für
-die Kasse (`CONFIG.belege.reviewers`). Code: `api/lib/beleg-campflow.ts`.
+die Kasse (Team „Kasse“, Rolle `team_kasse`, siehe `docs/berechtigungen.md`). Code: `api/lib/beleg-campflow.ts`.
 
 1. Der Beleg muss `Angenommen` sein (sonst `422`) und noch die Version `etag` haben (sonst `409`), damit
    CampFlow genau das bekommt, was die Kasse gesehen hat.

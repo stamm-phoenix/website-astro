@@ -9,7 +9,7 @@ const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'test-staff',
   userDetails: 'staff@example.test',
-  userRoles: ['authenticated'],
+  userRoles: ['authenticated', 'team_leitende'],
 };
 
 function request(id = 'evt_1', query = '', principal: object | null = PRINCIPAL): HttpRequest {

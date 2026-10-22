@@ -1,4 +1,5 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import type { StaffTeam } from './config';
 import { CONFIG } from './config';
 import { errorResponse } from './response-utils';
 
@@ -36,14 +37,28 @@ const PREVIEW_ONLY = errorResponse(
   'Dieses Testkonto ist nur für die Vorschau-Umgebungen von Pull Requests freigegeben.'
 );
 
+const NOT_IN_TEAM = errorResponse(
+  403,
+  'NOT_IN_TEAM',
+  'Der Leitendenbereich ist nur für das Team „Leitende“ in Microsoft Teams freigegeben. Bist du gerade erst ins Team gekommen, melde dich ab und wieder an.'
+);
+
 /** PR previews have a database of their own on the preview server (`deployment.ts`). */
-function isPreviewDeployment(): boolean {
+export function isPreviewDeployment(): boolean {
   return CONFIG.database.server === CONFIG.database.previewServer;
 }
 
-function isPreviewOnlyLogin(principal: ClientPrincipal): boolean {
-  const login = principal.userDetails.toLowerCase();
-  return CONFIG.staff.previewOnlyLogins.some((entry) => entry.toLowerCase() === login);
+export function isPreviewOnlyLogin(login: string): boolean {
+  const lower = login.toLowerCase();
+  return CONFIG.staff.previewOnlyLogins.some((entry) => entry.toLowerCase() === lower);
+}
+
+/**
+ * Whether the user belongs to the team. `GetRoles` turns the team into a role of Static Web Apps
+ * at login, so a change of the team takes effect with the next login.
+ */
+export function hasTeam(principal: ClientPrincipal, team: StaffTeam): boolean {
+  return principal.userRoles.includes(CONFIG.staff.teams[team].role);
 }
 
 function isClientPrincipal(value: unknown): value is ClientPrincipal {
@@ -71,15 +86,18 @@ export function getClientPrincipal(request: HttpRequest): ClientPrincipal | unde
 }
 
 /** Returns the value of the first claim with one of the given types. */
-export function getClaim(principal: ClientPrincipal, types: string[]): string | undefined {
+export function getClaim(
+  principal: Pick<ClientPrincipal, 'claims'>,
+  types: string[]
+): string | undefined {
   return principal.claims?.find((claim) => types.includes(claim.typ))?.val;
 }
 
 /**
- * Ensures the request comes from a logged-in member of our Entra ID tenant.
+ * Ensures the request comes from a logged-in member of our Entra ID tenant in the team „Leitende“.
  *
- * The routes in staticwebapp.config.json already restrict `/api/intern/*`; this check is a
- * second line of defence in case a route rule is missing or misconfigured.
+ * The routes in staticwebapp.config.json already restrict `/api/intern/*` to the team's role; this
+ * check is a second line of defence in case a route rule is missing or misconfigured.
  *
  * The tenant itself is enforced by the login: the `openIdIssuer` of the Entra ID provider only
  * accepts accounts of our tenant. Static Web Apps does not forward the token claims to managed
@@ -103,8 +121,12 @@ export function requireStaff(request: HttpRequest): ClientPrincipal | HttpRespon
     return FORBIDDEN;
   }
 
-  if (isPreviewOnlyLogin(principal) && !isPreviewDeployment()) {
+  if (isPreviewOnlyLogin(principal.userDetails) && !isPreviewDeployment()) {
     return PREVIEW_ONLY;
+  }
+
+  if (!hasTeam(principal, 'leitende')) {
+    return NOT_IN_TEAM;
   }
 
   return principal;

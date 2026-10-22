@@ -21,7 +21,7 @@ const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'test-staff',
   userDetails: 'staff@example.test',
-  userRoles: ['authenticated'],
+  userRoles: ['authenticated', 'team_leitende'],
 };
 
 function entry(category: string | null, amountEur: number): Einzelnachweis {

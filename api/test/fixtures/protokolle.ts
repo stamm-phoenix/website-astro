@@ -16,7 +16,7 @@ export const AUTHOR = {
   identityProvider: 'aad',
   userId: 'author',
   userDetails: 'autorin@example.test',
-  userRoles: ['authenticated'],
+  userRoles: ['authenticated', 'team_leitende'],
 };
 export const REVIEWER = { ...AUTHOR, userId: 'reviewer', userDetails: 'stavo@example.test' };
 export const ETAG = '"item,4"';

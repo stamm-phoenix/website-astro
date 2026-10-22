@@ -35,7 +35,7 @@ function request(
     identityProvider: 'aad',
     userId: login,
     userDetails: login,
-    userRoles: ['authenticated'],
+    userRoles: ['authenticated', 'team_leitende'],
   };
   return new HttpRequest({
     url: 'https://example.test/api/intern/pflege/personen',

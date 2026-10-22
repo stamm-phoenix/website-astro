@@ -59,7 +59,7 @@ const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'staff',
   userDetails: 'staff@example.test',
-  userRoles: ['authenticated'],
+  userRoles: ['authenticated', 'team_leitende'],
 };
 
 /** Accepts any proof of work unless `realAltcha` is set. */

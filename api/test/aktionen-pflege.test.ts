@@ -19,7 +19,7 @@ const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'test-staff',
   userDetails: 'staff@example.test',
-  userRoles: ['authenticated'],
+  userRoles: ['authenticated', 'team_leitende'],
 };
 const STUFEN = ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover', 'Leitende'];
 const EVENT: campflow.CampflowEvent = {

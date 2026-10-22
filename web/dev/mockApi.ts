@@ -334,7 +334,8 @@ const PRINCIPAL: ClientPrincipal = {
   identityProvider: 'aad',
   userId: 'mock-0f3c2a7e9b1d4c58',
   userDetails: 'leitung@example.test',
-  userRoles: ['anonymous', 'authenticated'],
+  // Roles of the teams „Leitende“ and „Kasse“, as `GetRoles` assigns them at login
+  userRoles: ['anonymous', 'authenticated', 'team_leitende', 'team_kasse'],
   claims: [
     { typ: 'name', val: 'Demo Leitung' },
     { typ: 'given_name', val: 'Demo' },
@@ -2627,7 +2628,9 @@ route('POST', '/api/intern/pflege/belege/pruefung', (req) => {
   return json({ available: true, check: mockBelegCheck() });
 });
 
-route(['GET'], '/api/intern/pflege/belege/rolle', () => json({ reviewer: true }));
+route(['GET'], '/api/intern/pflege/belege/rolle', () =>
+  json({ reviewer: PRINCIPAL.userRoles.includes('team_kasse') })
+);
 
 // Read from CampFlow by the Playwright API in production
 route(['GET'], '/api/intern/pflege/belege/campflow', () => {

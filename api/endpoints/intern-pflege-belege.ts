@@ -1,6 +1,6 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
-import { CONFIG } from '../lib/config';
+import { hasTeam } from '../lib/staff-auth';
 import { parseId } from '../lib/db';
 import type { BelegInput } from '../lib/pflege-validation';
 import {
@@ -63,13 +63,9 @@ const FORBIDDEN = errorResponse(
   'Das darf nur die Kasse oder die Person, die den Beleg eingereicht hat.'
 );
 
-/**
- * Whether the user may see all receipts and accept or reject them. `CONFIG.belege.reviewers`
- * lists the logins of the Kasse; without any every leader may review.
- */
+/** Whether the user may see all receipts and accept or reject them: the team „Kasse“. */
 export function isBelegReviewer(principal: ClientPrincipal): boolean {
-  const reviewers = CONFIG.belege.reviewers.map((login) => login.toLowerCase());
-  return reviewers.length === 0 || reviewers.includes(principal.userDetails.toLowerCase());
+  return hasTeam(principal, 'kasse');
 }
 
 function isOwner(beleg: StaffBeleg, principal: ClientPrincipal): boolean {

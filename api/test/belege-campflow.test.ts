@@ -10,7 +10,6 @@ import * as taskDirectory from '../lib/task-directory';
 import { campflowDescription, campflowDisburser, campflowFileName } from '../lib/beleg-campflow';
 import type { StoredBeleg } from '../lib/beleg-list';
 import { BelegCampflow, BelegeCampflow, BelegItem } from '../endpoints/intern-pflege-belege';
-import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';
 import test from 'node:test';
 
@@ -18,8 +17,9 @@ const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'test-staff',
   userDetails: 'kasse@example.test',
-  userRoles: ['authenticated'],
+  userRoles: ['authenticated', 'team_leitende', 'team_kasse'],
 };
+const STAFF_ROLES = ['authenticated', 'team_leitende'];
 const PHOTO = Buffer.from('jpeg of the scan');
 const UNITS = [
   {
@@ -208,8 +208,7 @@ dbTest(
     const etag = await store(blobs, 7);
     const submitted = await store(blobs, 8, { status: 'Eingereicht' });
 
-    overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
-    const other = { ...PRINCIPAL, userDetails: 'leitung@example.test' };
+    const other = { ...PRINCIPAL, userDetails: 'leitung@example.test', userRoles: STAFF_ROLES };
     assert.equal((await transfer(context, 7, { etag, ...CHOICE }, other)).status, 403);
     assert.equal((await transfer(context, 8, { etag: submitted, ...CHOICE })).status, 422);
     assert.equal((await transfer(context, 7, { etag: submitted, ...CHOICE })).status, 409);
@@ -674,12 +673,11 @@ dbTest('every leader sees all receipts in CampFlow, own transfers marked', async
   const etag = await store(blobs, 7);
   assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 200);
 
-  overrideConfig(t, CONFIG.belege, { reviewers: ['kasse@example.test'] });
   // The browser does not know the names; the server marks Auslagen by the directory
   t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => [
     { login: 'leitung@example.test', name: 'Alex  Beispiel', givenName: 'Alex' },
   ]);
-  const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test' };
+  const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test', userRoles: STAFF_ROLES };
   const mine = await campflowList(context, uploader, '?refresh=true');
   assert.equal(mine.status, 200, JSON.stringify(mine.jsonBody));
   const body = mine.jsonBody as { loadedAt: string; costUnits: unknown[]; belege: Json[] };
@@ -726,7 +724,11 @@ dbTest('every leader sees all receipts in CampFlow, own transfers marked', async
   assert.doesNotMatch(JSON.stringify(body), /Mustermann/);
 
   // Everyone else sees the same list, without the mark
-  const other = await campflowList(context, { ...PRINCIPAL, userDetails: 'andere@example.test' });
+  const other = await campflowList(context, {
+    ...PRINCIPAL,
+    userDetails: 'andere@example.test',
+    userRoles: STAFF_ROLES,
+  });
   const otherBelege = (other.jsonBody as { belege: Json[] }).belege;
   assert.equal(otherBelege.length, 3);
   assert.deepEqual(
