@@ -19,13 +19,27 @@ werden vorher gespeichert. Nach der Übertragung wird der Beleg im Modul gelösc
 | CampFlow-Feld | kommt aus |
 | --- | --- |
 | Datei | das Foto (der Scan bzw. das unbearbeitete Foto, nicht das Original neben dem Scan), Name wie beim Herunterladen plus `(Website-Beleg <ID>)` |
-| Beschreibung | Geschäft – Bemerkung, ohne Auszahlung zusätzlich „bezahlt von …“ |
+| Beschreibung | Geschäft – Bemerkung |
 | Belegdatum, Betrag | Datum und Betrag, immer als Ausgabe in Euro |
-| Auslage durch | „Bezahlt von“, nur wenn eine Auszahlung gewünscht ist |
+| Auslage durch | wer ausgelegt hat (siehe unten), leer, wenn der Stamm bezahlt hat |
 | Kostenstelle, Kategorie | die Auswahl der Kasse |
 
 Fehlende Kostenstellen oder Kategorien legt die Übertragung nicht an; dafür CampFlow öffnen und
 die Seite neu laden.
+
+## Wie wurde bezahlt?
+
+Das Formular fragt, wie bezahlt wurde, und füllt danach „Auslage durch“ (`paidBy`, `payout`):
+
+| Auswahl | `payout` | `paidBy` |
+| --- | --- | --- |
+| Mit meinem Geld | ja | der eigene Name |
+| Jemand anderes hat ausgelegt | ja | der eingetragene Name; vorgeschlagen werden die Leitenden und die aktiven Personen aus dem Modul „Personen“ (`GET /api/intern/protokoll-editor-personen`), jeder andere Name geht auch |
+| Stammeskarte / Kasse | nein | leer, die API speichert keinen Namen |
+| Umbuchung aufs Sparbuch | ja | „Sparbuch“ |
+
+Beim Öffnen eines gespeicherten Belegs ergibt sich die Auswahl aus diesen beiden Feldern
+(`zahlungOf` in `web/src/lib/belegForm.ts`).
 
 ## Eine Liste für alle Belege
 
@@ -67,7 +81,10 @@ ihrer ID (`rcp_…`) angesprochen. Die Playwright-API holt jede Datei nur einmal
 ## Meine Belege auf der Startseite
 
 Die Box „Meine Belege“ (`StaffDashboard.svelte`, `meineBelege` in `web/src/lib/campflowBelege.ts`)
-zeigt die eigenen Einträge derselben Liste, die neuesten zuerst.
+zeigt die eigenen Einträge derselben Liste, die neuesten zuerst. Eigen ist ein Beleg nur, wenn die
+angemeldete Person ihn ausgelegt hat („Auslage durch“ ist ihr Name, wie bei „(ich)“), egal wer ihn
+eingereicht hat. Belege ohne Auslage und Umbuchungen aufs Sparbuch gehören niemandem. Dasselbe
+gilt für „Nur meine Belege“.
 
 ## Was die Website speichert
 

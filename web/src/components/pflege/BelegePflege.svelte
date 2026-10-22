@@ -5,6 +5,7 @@
     validateBeleg,
     decisionMessage,
     knownBelegAktion,
+    zahlungOf,
     type BelegForm,
     type CampflowChoice,
   } from '../../lib/belegForm';
@@ -86,9 +87,7 @@
   let message = $state<string | null>(null);
   /** Photo being scanned; raw because the pixel arrays are large. */
   const login = $derived(authStore.principal?.userDetails ?? '');
-  const eintraege = $derived(
-    belegEintraege(store.data ?? [], campflowStore.data, { login, isIch })
-  );
+  const eintraege = $derived(belegEintraege(store.data ?? [], campflowStore.data, { isIch }));
   const kostenstellen = $derived(eintragKostenstellen(eintraege, campflowStore.data));
   const kategorien = $derived(kostenstellen.find((k) => k.id === costUnitId)?.categories ?? []);
   /** All filters but the source, whose tabs count what the others leave. */
@@ -171,15 +170,15 @@
 
   function create(): void {
     resetDialog();
-    const principal = authStore.principal;
     form = {
       id: null,
       etag: '',
       shop: '',
       date: todayIso(),
       amount: '',
-      paidBy: principal ? (getFullName(principal) ?? '') : '',
+      paidBy: '',
       payout: null,
+      zahlung: null,
       aktion: '',
       note: '',
       status: 'Eingereicht',
@@ -195,7 +194,7 @@
 
   function edit(beleg: StaffBeleg): void {
     resetDialog();
-    form = { ...beleg, amount: centToInput(beleg.amountCent) };
+    form = { ...beleg, amount: centToInput(beleg.amountCent), zahlung: zahlungOf(beleg, isIch) };
     confirmedAktion = beleg.aktion.trim();
   }
 
@@ -615,8 +614,12 @@
       bind:form
       {errors}
       {aktionSuggestions}
+      myName={authStore.principal ? (getFullName(authStore.principal) ?? '') : ''}
       onfield={(field) => dialog.clearField(field)}
-      onpayment={() => dialog.clearField('payout')}
+      onpayment={() => {
+        dialog.clearField('payout');
+        dialog.clearField('paidBy');
+      }}
     />
 
     <BelegReview

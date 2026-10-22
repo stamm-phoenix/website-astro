@@ -685,12 +685,21 @@ dbTest('a scan is stored together with its original, which can be downloaded', a
 
 test('receipt validation rejects missing, future and implausible values', () => {
   const today = '2026-10-01';
+  assert.deepEqual(validateBeleg(INPUT, today), {
+    ...INPUT,
+    status: 'Eingereicht',
+    reviewNote: '',
+  });
+  // Paid by the Stamm: no Auslage, so nobody to name
   assert.deepEqual(validateBeleg({ ...INPUT, payout: false }, today), {
     ...INPUT,
+    paidBy: '',
     payout: false,
     status: 'Eingereicht',
     reviewNote: '',
   });
+  assert.equal(validateBeleg({ ...INPUT, payout: false, paidBy: '' }, today).paidBy, '');
+  assert.equal(validateBeleg({ ...INPUT, paidBy: 'Sparbuch' }, today).paidBy, 'Sparbuch');
   for (const [body, field] of [
     [{ ...INPUT, shop: ' ' }, 'shop'],
     [{ ...INPUT, paidBy: '' }, 'paidBy'],

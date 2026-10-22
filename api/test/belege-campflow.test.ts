@@ -747,7 +747,7 @@ dbTest('a missing CampFlow login or a broken answer tells whom to ask', async (t
   }
 });
 
-test('CampFlow gets a unique file name, the payout person and the rest in the description', () => {
+test('CampFlow gets a unique file name, the Auslage and shop and note in the description', () => {
   const beleg = {
     id: '42',
     shop: 'Bäckerei: "Huber"',
@@ -771,13 +771,14 @@ test('CampFlow gets a unique file name, the payout person and the rest in the de
     campflowFileName(beleg, 'website-pr-417')
   );
   assert.equal(campflowDisburser(beleg), null);
-  assert.equal(campflowDescription(beleg), 'Bäckerei: "Huber" – Frühstück – bezahlt von Kim');
+  assert.equal(campflowDescription(beleg), 'Bäckerei: "Huber" – Frühstück');
   assert.equal(campflowDisburser({ ...beleg, payout: true }), 'Kim');
+  assert.equal(campflowDisburser({ ...beleg, payout: true, paidBy: 'Sparbuch' }), 'Sparbuch');
   assert.equal(campflowDescription({ ...beleg, payout: true, note: '' }), 'Bäckerei: "Huber"');
   const longName = campflowFileName({ ...beleg, shop: 'x'.repeat(300) }, 'website-pr-99999');
   assert.ok(longName.length <= 200 && longName.endsWith('(Website-Beleg pr-99999-42).jpg'));
-  // A long note is shortened, who paid always stays
+  // A long note is shortened
   const long = campflowDescription({ ...beleg, note: 'y'.repeat(400) });
   assert.equal(long.length, 255);
-  assert.ok(long.endsWith('… – bezahlt von Kim'), long.slice(-30));
+  assert.ok(long.endsWith('y…'), long.slice(-30));
 });

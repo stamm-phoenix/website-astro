@@ -956,8 +956,9 @@ export interface BelegInput {
   /** Date of the receipt, `YYYY-MM-DD`. */
   date: string;
   amountCent: number;
+  /** Who gets the Auslage back; empty without one. */
   paidBy: string;
-  /** Whether the person who paid gets the money back. */
+  /** Whether it is an Auslage: someone or the savings book gets the money. */
   payout: boolean;
   aktion: string;
   note: string;
@@ -983,7 +984,8 @@ export function validateBeleg(body: unknown, today: string): BelegInput {
     shop: reader.text('shop', 'das Geschäft', 100, true),
     date: reader.text('date', 'das Datum', 10, true),
     amountCent: 0,
-    paidBy: reader.text('paidBy', 'wer bezahlt hat', 100, true),
+    // Who gets the Auslage back, also „Sparbuch“; nobody when the Stamm paid
+    paidBy: reader.text('paidBy', 'wer das Geld ausgelegt hat', 100, record.payout === true),
     payout: record.payout === true,
     aktion: reader.text('aktion', 'die Aktion', 120, true),
     note: reader.text('note', 'die Bemerkung', 1000),
@@ -1012,6 +1014,7 @@ export function validateBeleg(body: unknown, today: string): BelegInput {
   if (input.status === 'Abgelehnt' && !input.reviewNote) {
     reader.errors.reviewNote = 'Bitte begründen, warum der Beleg abgelehnt wird.';
   }
+  if (!input.payout) input.paidBy = '';
 
   reader.done();
   return input;

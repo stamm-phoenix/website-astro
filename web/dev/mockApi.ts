@@ -2581,6 +2581,8 @@ function applyBeleg(target: StaffBeleg, body: Record<string, unknown>): void {
   target.amountCent = typeof body.amountCent === 'number' ? body.amountCent : target.amountCent;
   target.paidBy = str(body.paidBy, target.paidBy);
   target.payout = body.payout === true;
+  // Like the server: without an Auslage nobody is named
+  if (!target.payout) target.paidBy = '';
   target.aktion = str(body.aktion, target.aktion);
   target.note = str(body.note, target.note);
   target.status = (str(body.status, target.status) as StaffBeleg['status']) || 'Eingereicht';
