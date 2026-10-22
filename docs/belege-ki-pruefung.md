@@ -2,12 +2,30 @@
 
 Das Modul **Belege** im Leitendenbereich kann jedes Belegfoto von einem Bildmodell vorprüfen lassen: Ist das ein Beleg, ist er vollständig zu sehen und gut lesbar, also tauglich für das revisionssichere Belegarchiv? Dabei liest das Modell Geschäft, Datum und Betrag und füllt leere Felder der Eingabemaske vor.
 
-- Die Prüfung läuft einmal, sobald ein Foto gewählt wurde (Rückmeldung an die einreichende Person), und noch einmal beim Speichern; dieses Ergebnis wird beim Beleg gespeichert und dem Kassenteam angezeigt.
-- Außerdem meldet das Modell Positionen, die in der Jugendarbeit nicht abgerechnet werden dürfen (Alkohol, Tabak, sonstige nicht jugendfreie Artikel). Das ist ein Hinweis für die Kasse und erscheint als „KI: Alkohol/Tabak?“ auf der Karte.
+- Die Prüfung läuft, sobald ein Foto gewählt wurde (Rückmeldung an die einreichende Person, mit Fortschrittsbalken „Beleg wird geprüft …“). Das Ergebnis wird beim Beleg gespeichert und dem Kassenteam angezeigt. Beim Einreichen fragt die API das Modell nicht noch einmal: Sie erkennt dasselbe Foto an seinem Inhalt (SHA-256) und nimmt das Ergebnis der Vorschau oder wartet auf die noch laufende Prüfung (`checkBelegPhoto` in `beleg-check.ts`, je Functions-Instanz, eine Stunde lang). Nur ein anderes oder unbekanntes Foto wird neu geprüft.
+- Außerdem meldet das Modell Positionen, die in der Jugendarbeit nicht abgerechnet werden dürfen (Alkohol, Tabak, sonstige nicht jugendfreie Artikel), auch aus abgekürzten Artikelnamen. Das ist ein Hinweis für die Kasse und erscheint als „Evtl. Alkohol/Tabak“ am Beleg.
 - Die Prüfung ist nur ein Hinweis. Einreichen geht auch mit Mängeln, die Freigabe macht das Kassenteam.
 - Ohne Einrichtung (keine App-Settings) wird die Prüfung übersprungen, das Modul funktioniert trotzdem.
 - Code: `api/lib/beleg-check.ts`, der Aufruf von Azure OpenAI in `api/lib/azure-openai.ts`.
-- Dieselbe Ressource und Bereitstellung erkennt auch den nächsten Termin in freigegebenen Protokollen (siehe [Protokolle](protokolle.md#nächster-termin)).
+- Die Belegprüfung hat eine eigene Bereitstellung (`gpt-6.1-sol-datazone`). Den nächsten Termin und Aufgaben in freigegebenen Protokollen erkennt weiter `gpt-4.1-mini` auf derselben Ressource (siehe [Protokolle](protokolle.md#nächster-termin)).
+
+## Modell
+
+`CONFIG.belege.check` nutzt `gpt-6.1-sol` mit `reasoningEffort: 'high'` als Bereitstellung im **Datenzonenstandard** auf `website-astro-openai` (Kapazität 100). Die Fotos werden damit nur in der EU verarbeitet.
+
+Ausgewählt im Oktober 2026 nach einem Vergleich mit gezeichneten Belegfotos und bekannter Lösung, je zwei bis drei Läufe mit dem Prompt aus `beleg-check.ts`. Die Fotos enthielten abgekürzten Alkohol und Tabak („RADL.ZITR.“, „OETT.PILS“, „SMIRN.ICE“, „JAEGERM.“, „IQOS TEREA“, „ELFBAR“), Fallen, die nicht gemeldet werden dürfen (alkoholfreies Bier, Kindersekt, Malzbier, Weingummi, Pfand, Essig), einen verblassten Bon, einen abgeschnittenen und einen unscharfen Beleg:
+
+| Modell (Reasoning) | richtig | Ø Zeit | max. Zeit |
+| --- | --- | --- | --- |
+| `gpt-4.1-mini` (vorher) | 0 von 8 | 3,6 s | 4 s |
+| `gpt-5.4` (high) | 15 von 18 | 10,0 s | 27 s |
+| `gpt-6-astra` (medium) | 17 von 18 | 6,1 s | 8 s |
+| `gpt-6-astra` (high) | 18 von 18 | 8,4 s | 12 s |
+| `gpt-6.1-sol` (high) | 18 von 18 | 8,1 s | 12,5 s |
+
+`gpt-4.1-mini` übersah Radler und Liquid, meldete alkoholfreies Bier und Malzbier und erkannte die abgeschnittene Summe nicht. Den abgeschnittenen Beleg erkannten nur `gpt-6-astra` und `gpt-6.1-sol` mit `high` in jedem Lauf.
+
+Diese Modelle denken vor der Antwort (Reasoning). Sie lehnen `temperature: 0` ab; `azure-openai.ts` sendet deshalb bei gesetztem `reasoningEffort` stattdessen `reasoning_effort`. Die Denk-Token zählen zu `max_completion_tokens` (4.000 für die Belegprüfung), das Timeout liegt bei 60 Sekunden. Für ein anderes Modell: Bereitstellung anlegen, `deployment` und gegebenenfalls `reasoningEffort` in `config.ts` ändern; ohne `reasoningEffort` wird wie früher `temperature: 0` gesendet.
 
 ## Einrichtung
 
@@ -30,11 +48,11 @@ Eine eigene Ressourcengruppe macht die Kosten übersichtlich und lässt sich gez
 ### 3. Modell bereitstellen (Deployment)
 
 1. Die neue Ressource öffnen → **Zum Azure AI Foundry-Portal wechseln**.
-2. **Bereitstellungen → Modell bereitstellen → Basismodell bereitstellen** → `gpt-4.1-mini` wählen.
+2. **Bereitstellungen → Modell bereitstellen → Basismodell bereitstellen** → das Modell wählen (für die Belegprüfung `gpt-6.1-sol`, siehe oben).
 3. Einstellungen:
    - **Bereitstellungstyp: Datenzonenstandard** (englisch „Data Zone Standard“) – bei einer Ressource in einer EU-Region werden die Fotos dann nur in der EU verarbeitet. („Globaler Standard“ ist minimal günstiger, verarbeitet aber weltweit.)
-   - **Name der Bereitstellung:** `gpt-4.1-mini` (das wird `CONFIG.belege.check.deployment`).
-   - **Ratenlimit: Token pro Minute: 5K** (der Regler steht anfangs deutlich höher) – das ist die harte Kostenbremse, siehe unten. Darunter scheitern einzelne Prüfungen, weil ein Foto schon 1.000–3.000 Token braucht.
+   - **Name der Bereitstellung:** z. B. `gpt-6.1-sol-datazone` (das wird `CONFIG.belege.check.deployment`).
+   - **Ratenlimit:** Es ist die harte Kostenbremse, siehe unten. Unter 5K Token pro Minute scheitern einzelne Prüfungen, weil ein Foto schon 1.000–3.000 Token braucht; ein Reasoning-Modell braucht mehr. Die Bereitstellung `gpt-6.1-sol-datazone` hat die Kapazität 100.
 4. Bereitstellen.
 
 ### 4. Endpoint und Schlüssel
@@ -58,16 +76,16 @@ Die Website speichert das Prüfergebnis als JSON mit dem Beleg in Azure SQL (`or
 
 ### 7. Testen
 
-Im Leitendenbereich unter **Belege → Beleg einreichen** ein Foto wählen. Nach wenigen Sekunden erscheint „KI-Vorprüfung: …“ und Geschäft, Datum und Betrag sind vorbelegt. Ein absichtlich abgeschnittenes Foto sollte als Mangel gemeldet werden.
+Im Leitendenbereich unter **Belege → Beleg einreichen** ein Foto wählen. Während der Prüfung zeigt das Formular „Beleg wird geprüft …“ mit einem Fortschrittsbalken; nach etwa zehn Sekunden erscheint das Ergebnis, und Geschäft, Datum und Betrag sind vorbelegt. Ein absichtlich abgeschnittenes Foto sollte als Mangel gemeldet werden.
 
 ## Kosten begrenzen
 
 Azure-Budgets **warnen** nur, sie stoppen nichts. Die Website hat deshalb zwei eigene Bremsen, die stattdessen abbrechen:
 
-1. **Ratenlimit der Bereitstellung (harte Grenze in Azure).** Mit 5.000 Token pro Minute kann das Modell höchstens 5.000 Token pro Minute verbrauchen; alles darüber lehnt Azure mit „429 Too Many Requests“ ab und es entstehen keine Kosten. Selbst im theoretischen Dauerbetrieb rund um die Uhr sind das grob 220 Mio. Token im Monat, bei GPT‑4.1 mini also eine Obergrenze von etwa 90 € – erreichbar nur, wenn jemand die ganze Zeit Fotos hochlädt.
-2. **Tageslimit der Website (`CONFIG.belege.check.maxChecksPerDay`).** Ist das Limit erreicht, ruft die Website das Modell an diesem Tag nicht mehr auf; Einreichen geht weiter, nur ohne Vorprüfung. Das Limit zählt pro Functions-Instanz (meist eine, bei Last kurzzeitig mehrere). Bei 100 Prüfungen pro Tag liegen die Kosten unter etwa 0,30 € pro Tag und Instanz. `0` schaltet die Prüfung mit dem nächsten Deployment ab.
+1. **Ratenlimit der Bereitstellung (harte Grenze in Azure).** Alles über dem Ratenlimit lehnt Azure mit „429 Too Many Requests“ ab, und es entstehen keine Kosten. Für die Belegprüfung ist die Kapazität bewusst großzügig (100), weil Zuverlässigkeit vor Preis geht; die eigentliche Bremse ist das Tageslimit.
+2. **Tageslimit der Website (`CONFIG.belege.check.maxChecksPerDay`).** Ist das Limit erreicht, ruft die Website das Modell an diesem Tag nicht mehr auf; Einreichen geht weiter, nur ohne Vorprüfung. Das Limit zählt pro Functions-Instanz (meist eine, bei Last kurzzeitig mehrere). `0` schaltet die Prüfung mit dem nächsten Deployment ab.
 
-Realistisch kostet eine Prüfung etwa 0,1–0,2 Cent (ein Foto ≈ 1.000–3.000 Token Eingabe, die Antwort ≈ 200 Token; Preise laut [Azure-Preisrechner](https://azure.microsoft.com/de-de/pricing/calculator/) prüfen). Jeder Beleg wird zweimal geprüft (Vorschau und Speichern); 100 Belege im Monat kosten also deutlich unter 1 €.
+Eine Prüfung braucht etwa 1.000–3.000 Token Eingabe für das Foto und einige hundert Token für Denken und Antwort; mit `gpt-6.1-sol` kostet sie deutlich mehr als mit `gpt-4.1-mini`, bei den wenigen Belegen im Monat aber nur Cent- bis niedrige Eurobeträge (Preise laut [Azure-Preisrechner](https://azure.microsoft.com/de-de/pricing/calculator/) prüfen). Ein Beleg wird in der Regel einmal geprüft, beim Einreichen nur dann noch einmal, wenn das Foto ein anderes ist.
 
 Zusätzlich ein **Budget mit Warnung** einrichten, damit ihr es merkt, falls doch etwas aus dem Ruder läuft:
 
@@ -82,4 +100,4 @@ Wenn eine Warnung kommt: sofort die Bereitstellung im Foundry-Portal löschen (E
 
 Die Fotos gehen an Azure OpenAI in eurem eigenen Abonnement. Microsoft verwendet sie nicht zum Training. Zur Missbrauchserkennung kann Microsoft Ein- und Ausgaben bis zu 30 Tage speichern; mit „Datenzonenstandard“ in einer EU-Region bleibt die Verarbeitung in der EU. Belege können Namen oder Teile von Kartennummern enthalten – das gehört in das Verzeichnis der Verarbeitungstätigkeiten des Stammes.
 
-Die am 10. Oktober 2026 geprüfte gemeinsame Bereitstellung `gpt-4.1-mini` verwendet tatsächlich „Global Standard“, abweichend von der Einrichtungsempfehlung oben. Damit kann die Verarbeitung weltweit erfolgen; die Ressourcenregion Germany West Central garantiert keine Verarbeitung ausschließlich in der EU. Die Datenschutzerklärung beschreibt diese Verarbeitung auch für Protokolltexte.
+Die Belegfotos gehen an die Bereitstellung `gpt-6.1-sol-datazone` im Datenzonenstandard und werden damit nur in der EU verarbeitet. Die Bereitstellung `gpt-4.1-mini` für die Protokolle verwendet „Global Standard“; dort kann die Verarbeitung weltweit erfolgen. Die Datenschutzerklärung beschreibt beides.

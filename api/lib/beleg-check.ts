@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { CONFIG } from './config';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 
@@ -12,7 +13,13 @@ import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './a
  * runaway costs; the hard limit is the deployment's quota.
  */
 
-const REQUEST_TIMEOUT_MS = 30_000;
+/** A reasoning model takes about 8 s, rarely 15; a minute leaves room for a slow moment. */
+const REQUEST_TIMEOUT_MS = 60_000;
+/** The answer is short, but the model's thinking counts against this as well. */
+const MAX_COMPLETION_TOKENS = 4_000;
+/** How long the check of a photo is reused, e.g. when the form submits the photo it checked. */
+const REUSE_MS = 60 * 60 * 1000;
+const MAX_REUSED = 200;
 const MAX_ISSUES = 8;
 const MAX_ISSUE_LENGTH = 200;
 const MAX_RESTRICTED_ITEMS = 20;
@@ -151,15 +158,49 @@ export function toBelegCheck(raw: unknown, now = new Date()): BelegCheck {
   };
 }
 
-/** Checks a JPEG photo; returns undefined if the check is not configured. */
-export async function checkBelegPhoto(jpeg: Uint8Array): Promise<BelegCheck | undefined> {
-  if (!isBelegCheckConfigured()) return undefined;
-  reserveCheck();
+/**
+ * Checks of the last photos on this instance, by their bytes. The form checks a new photo as
+ * soon as it is chosen and submits exactly these bytes, so submitting reuses that check (or
+ * waits for it) instead of asking the model a second time.
+ */
+const recentChecks = new Map<string, { at: number; check: Promise<BelegCheck | undefined> }>();
 
+/** Forgets the reused checks, e.g. between tests. */
+export function forgetBelegChecks(): void {
+  recentChecks.clear();
+}
+
+/** Checks a JPEG photo; returns undefined if the check is not configured. */
+export function checkBelegPhoto(
+  jpeg: Uint8Array,
+  now = Date.now()
+): Promise<BelegCheck | undefined> {
+  if (!isBelegCheckConfigured()) return Promise.resolve(undefined);
+  for (const [key, entry] of recentChecks) {
+    if (now - entry.at < REUSE_MS) break;
+    recentChecks.delete(key);
+  }
+  const key = `${CONFIG.belege.check.deployment}:${createHash('sha256').update(jpeg).digest('hex')}`;
+  const known = recentChecks.get(key);
+  if (known) return known.check;
+
+  const check = askModel(jpeg);
+  const entry = { at: now, check };
+  recentChecks.set(key, entry);
+  if (recentChecks.size > MAX_REUSED) recentChecks.delete(recentChecks.keys().next().value!);
+  // A failed check is asked again next time
+  check.catch(() => {
+    if (recentChecks.get(key) === entry) recentChecks.delete(key);
+  });
+  return check;
+}
+
+async function askModel(jpeg: Uint8Array): Promise<BelegCheck | undefined> {
+  reserveCheck();
   const answer = await requestStructuredOutput(CONFIG.belege.check, {
     schemaName: 'belegpruefung',
     schema: RESPONSE_SCHEMA,
-    maxCompletionTokens: 800,
+    maxCompletionTokens: MAX_COMPLETION_TOKENS,
     timeoutMs: REQUEST_TIMEOUT_MS,
     messages: [
       { role: 'system', content: PROMPT },

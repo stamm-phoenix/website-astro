@@ -38,6 +38,45 @@ test('a new receipt asks how it was paid without preselecting a payout', async (
   await expectNoHorizontalOverflow(page);
 });
 
+test('the check of a new photo shows its progress until the answer arrives', async ({
+  page,
+}, testInfo) => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/pflege/belege/pruefung', async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  const photo = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1200;
+    canvas.height = 1600;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#3a3027';
+    context.fillRect(0, 0, 1200, 1600);
+    context.fillStyle = '#f4f1ea';
+    context.fillRect(250, 200, 700, 1200);
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), 'image/jpeg')
+    );
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await dialog
+    .locator('input[type="file"]')
+    .setInputFiles({ name: 'beleg.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo) });
+  const progress = dialog.getByTestId('beleg-pruefung');
+  await expect(progress).toBeVisible();
+  await expect(progress).toContainText('Beleg wird geprüft …');
+  await progress.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('pruefung.png') });
+  release();
+  await expect(progress).toBeHidden();
+  await expect(dialog.getByLabel('Geschäft')).toHaveValue('Demo-Markt');
+});
+
 test('my own Auslage takes the name of the linked CampFlow person without a name claim', async ({
   page,
 }) => {

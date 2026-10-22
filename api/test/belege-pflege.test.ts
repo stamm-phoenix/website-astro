@@ -26,7 +26,12 @@ import {
   todayInBerlin,
 } from '../endpoints/intern-pflege-belege';
 import { validateBeleg, ValidationError } from '../lib/pflege-validation';
-import { BelegCheckError, parseStoredBelegCheck, toBelegCheck } from '../lib/beleg-check';
+import {
+  BelegCheckError,
+  forgetBelegChecks,
+  parseStoredBelegCheck,
+  toBelegCheck,
+} from '../lib/beleg-check';
 import { dbTest } from './fixtures/database';
 import { recordQueries } from './fixtures/queries';
 
@@ -829,9 +834,13 @@ const MODEL_ENDPOINT = 'https://example.openai.azure.com';
 function withModel(t: TestContext, maxChecksPerDay = 1000): void {
   overrideConfig(t, CONFIG.belege.check, {
     endpoint: MODEL_ENDPOINT,
-    deployment: 'gpt-4.1-mini',
+    deployment: 'gpt-6.1-sol-datazone',
+    reasoningEffort: 'high',
     maxChecksPerDay,
   });
+  // Every test asks the model afresh
+  forgetBelegChecks();
+  t.after(forgetBelegChecks);
   const previousKey = process.env.AZURE_OPENAI_API_KEY;
   process.env.AZURE_OPENAI_API_KEY = 'test-key';
   t.after(() => {
@@ -903,9 +912,45 @@ test('the photo check sends the image to the configured deployment', async (t) =
   const sent = JSON.parse(String(init.body)) as {
     model: string;
     messages: { content: unknown }[];
+    reasoning_effort?: string;
+    temperature?: number;
+    max_completion_tokens: number;
   };
-  assert.equal(sent.model, 'gpt-4.1-mini');
+  assert.equal(sent.model, 'gpt-6.1-sol-datazone');
   assert.match(JSON.stringify(sent.messages[1].content), /data:image\/jpeg;base64,/);
+  // A reasoning model refuses `temperature`, and its thinking counts against the tokens
+  assert.equal(sent.reasoning_effort, 'high');
+  assert.equal('temperature' in sent, false);
+  assert.ok(sent.max_completion_tokens >= 4000);
+});
+
+dbTest('submitting the checked photo reuses the check instead of asking again', async (t) => {
+  const { context } = setup(t);
+  withModel(t);
+  const fetch = mockModel(t);
+  const bytes = jpeg(1200, 1600);
+  assert.equal((await BelegPruefung(request('POST', bytes), context)).status, 200);
+  const photo = Buffer.from(bytes).toString('base64');
+  assert.equal((await BelegeCollection(request('POST', { ...INPUT, photo }), context)).status, 201);
+  assert.equal(fetch.mock.callCount(), 1);
+  assert.equal((await getBelege())[0]?.aiCheck?.ok, false);
+
+  // Another photo is checked anew
+  const other = Buffer.from(jpeg(1200, 1601)).toString('base64');
+  await BelegeCollection(request('POST', { ...INPUT, photo: other }), context);
+  assert.equal(fetch.mock.callCount(), 2);
+});
+
+test('models without reasoning get temperature 0 as before', async (t) => {
+  const { context } = setup(t);
+  withModel(t);
+  CONFIG.belege.check.reasoningEffort = undefined;
+  const fetch = mockModel(t);
+  await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
+  const [, init] = fetch.mock.calls[0].arguments as unknown as [string, RequestInit];
+  const sent = JSON.parse(String(init.body)) as Record<string, unknown>;
+  assert.equal(sent.temperature, 0);
+  assert.equal('reasoning_effort' in sent, false);
 });
 
 dbTest('without a model the check is skipped and failures never block submitting', async (t) => {

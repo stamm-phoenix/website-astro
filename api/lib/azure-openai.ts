@@ -12,6 +12,11 @@ export interface AzureOpenAiDeployment {
   /** `https://<resource>.openai.azure.com`, without a trailing slash. */
   endpoint: string;
   deployment: string;
+  /**
+   * For reasoning models (GPT-5 and later): how long the model thinks before answering. They
+   * refuse `temperature: 0`, so it is only sent without this.
+   */
+  reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 export class AzureOpenAiError extends Error {
@@ -103,7 +108,9 @@ async function performStructuredRequest(
       signal,
       body: JSON.stringify({
         model: deployment.deployment,
-        temperature: 0,
+        ...(deployment.reasoningEffort
+          ? { reasoning_effort: deployment.reasoningEffort }
+          : { temperature: 0 }),
         max_completion_tokens: request.maxCompletionTokens,
         response_format: {
           type: 'json_schema',

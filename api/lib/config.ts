@@ -103,6 +103,8 @@ export interface ApiConfig {
     check: {
       endpoint: string;
       deployment: string;
+      /** For reasoning models; see `AzureOpenAiDeployment`. */
+      reasoningEffort?: 'low' | 'medium' | 'high';
       /** Checks per day and Function instance. */
       maxChecksPerDay: number;
     };
@@ -275,7 +277,12 @@ export const CONFIG: ApiConfig = {
   belege: {
     reviewers: [],
     check: {
-      ...AZURE_OPENAI,
+      endpoint: AZURE_OPENAI.endpoint,
+      // Data Zone Standard: the photos are processed in the EU only. In a comparison of
+      // receipts with abbreviated alcohol and tobacco, cut-off and blurry photos it found
+      // everything with `high`, in about 8 s (docs/belege-ki-pruefung.md)
+      deployment: 'gpt-6.1-sol-datazone',
+      reasoningEffort: 'high',
       maxChecksPerDay: 100,
     },
   },
