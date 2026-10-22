@@ -49,7 +49,8 @@
       id: 'zuruecksetzen',
       label: 'Auf das Originalfoto zurücksetzen',
       text: 'Zurücksetzen',
-      icon: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
+      // A picture with a mountain: back to the photo as taken
+      icon: 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM3 16l5-5 4 4 3-3 6 6M15.5 9.5h.01',
     },
   ];
 
@@ -132,6 +133,7 @@
           <button
             type="button"
             class="werkzeug"
+            class:ml-auto={tool.id === 'zuruecksetzen'}
             title={tool.label}
             aria-label={tool.label}
             disabled={locked || (tool.id === 'zuruecksetzen' && !photo.edited)}
