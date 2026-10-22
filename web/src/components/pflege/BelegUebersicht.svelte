@@ -12,8 +12,10 @@
     /** Changes with every load of the receipts; failed previews are tried again then. */
     geladen: string;
     onopen: (eintrag: BelegEintrag) => void;
+    /** An entry that must be among the shown ones, e.g. the receipt just submitted. */
+    zeigen?: string | null;
   }
-  let { eintraege, ansicht, geladen, onopen }: Props = $props();
+  let { eintraege, ansicht, geladen, onopen, zeigen = null }: Props = $props();
 
   /** Entries shown at first and added per click, so a phone stays quick with hundreds of them. */
   const PAGE = 60;
@@ -27,9 +29,9 @@
   });
 
   $effect(() => {
-    // Back to the first entries whenever the filters change the list
-    void eintraege;
-    shown = PAGE;
+    // Back to the first entries whenever the filters change the list, but far enough for `zeigen`
+    const index = zeigen ? eintraege.findIndex((eintrag) => eintrag.key === zeigen) : -1;
+    shown = Math.max(PAGE, index + 1);
   });
 
   const quelleLabel = (eintrag: BelegEintrag) =>
