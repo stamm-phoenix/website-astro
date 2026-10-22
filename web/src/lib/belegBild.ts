@@ -1,4 +1,4 @@
-import { enhance, outputSize, warpPerspective } from './belegScan';
+import { enhance, fullFrame, outputSize, warpPerspective } from './belegScan';
 import type { Pixels, Point, Quad, ScanMode } from './belegScan';
 
 /**
@@ -105,6 +105,17 @@ export function eckenAusrichten(
   schritt: Ausrichtung
 ): Quad {
   return eckenOrdnen(quad.map((point) => punktAusrichten(point, width, height, schritt)));
+}
+
+/**
+ * Whether hand-placed corners sit exactly on the corners of the picture, i.e. cut nothing away.
+ * Unlike `isFullFrame`, which tolerates the edges an automatic detection leaves, even a thin cut
+ * by hand counts.
+ */
+export function ganzesBild(quad: Quad, width: number, height: number): boolean {
+  return fullFrame(width, height).every(
+    (corner, i) => Math.abs(corner.x - quad[i].x) < 0.5 && Math.abs(corner.y - quad[i].y) < 0.5
+  );
 }
 
 /**

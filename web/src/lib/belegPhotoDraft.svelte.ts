@@ -11,7 +11,7 @@ import {
 import { todayIso } from './format';
 import { findReceipt, fullFrame, isFullFrame, readPixels, toCanvas } from './belegScan';
 import type { Pixels, Quad } from './belegScan';
-import { ausrichten, bildBearbeiten, eckenAusrichten } from './belegBild';
+import { ausrichten, bildBearbeiten, eckenAusrichten, ganzesBild } from './belegBild';
 import type { Ausrichtung, FotoFarben } from './belegBild';
 import type { BelegCheck, StaffBeleg } from './types';
 import type { BelegForm } from './belegForm';
@@ -269,7 +269,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     const current = draft;
     const open = zuschnitt;
     if (!current || !open) return;
-    const whole = isFullFrame(open.quad, open.width, open.height);
+    const whole = ganzesBild(open.quad, open.width, open.height);
     draft = { ...current, quad: whole ? null : open.quad };
     scanHint = null;
     if (await render()) {

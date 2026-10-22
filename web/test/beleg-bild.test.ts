@@ -5,9 +5,11 @@ import {
   drehen,
   eckenAusrichten,
   eckenOrdnen,
+  ganzesBild,
   punktAusrichten,
   spiegeln,
 } from '../src/lib/belegBild';
+import { fullFrame } from '../src/lib/belegScan';
 import type { Pixels, Quad } from '../src/lib/belegScan';
 
 /** A 3 × 2 picture whose red channel numbers the pixels row by row: 0 1 2 / 3 4 5. */
@@ -86,4 +88,22 @@ test('without crop and with the original colours the picture stays as it is', ()
     2000
   );
   assert.deepEqual([cropped.width, cropped.height], [2, 2]);
+});
+
+test('a thin cut by hand is a crop, untouched corners are the whole picture', () => {
+  assert.equal(ganzesBild(fullFrame(1000, 1600), 1000, 1600), true);
+  const thin: Quad = [
+    { x: 20, y: 20 },
+    { x: 980, y: 20 },
+    { x: 980, y: 1580 },
+    { x: 20, y: 1580 },
+  ];
+  assert.equal(ganzesBild(thin, 1000, 1600), false);
+  const picture: Pixels = {
+    data: new Uint8ClampedArray(1000 * 1600 * 4),
+    width: 1000,
+    height: 1600,
+  };
+  const cropped = bildBearbeiten(picture, thin, 'original', 2000);
+  assert.deepEqual([cropped.width, cropped.height], [960, 1560]);
 });
