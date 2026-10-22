@@ -95,23 +95,16 @@ export function campflowFileName(
   return `${name} (Website-Beleg ${origin}${beleg.id}).jpg`;
 }
 
-/**
- * „Beschreibung“ in CampFlow: shop and note, and who paid if nobody wants the money back. Who
- * paid always fits; shop and note are shortened to make room.
- */
+/** „Beschreibung“ in CampFlow: shop and note, shortened to fit. */
 export function campflowDescription(beleg: StoredBeleg): string {
-  const paidBy =
-    !beleg.payout && beleg.paidBy.trim() ? ` – bezahlt von ${beleg.paidBy.trim()}` : '';
-  const room = MAX_DESCRIPTION - paidBy.length;
   const text = [beleg.shop.trim(), beleg.note.trim()]
     .filter(Boolean)
     .join(' – ')
     .replace(/\s+/g, ' ');
-  const shortened = text.length > room ? `${text.slice(0, Math.max(0, room - 1))}…` : text;
-  return `${shortened}${paidBy}`.replace(/^ – /, '').slice(0, MAX_DESCRIPTION);
+  return text.length > MAX_DESCRIPTION ? `${text.slice(0, MAX_DESCRIPTION - 1)}…` : text;
 }
 
-/** „Auslage durch“: only the person who wants the money back. */
+/** „Auslage durch“: whoever gets the money back, also „Sparbuch“; nobody when the Stamm paid. */
 export function campflowDisburser(beleg: StoredBeleg): string | null {
   return beleg.payout && beleg.paidBy.trim() ? beleg.paidBy.trim() : null;
 }

@@ -15,17 +15,16 @@ export interface MeinBeleg {
 }
 
 /**
- * The receipts of the logged-in user, newest first: the ones submitted here with their review
- * state, and the ones in CampFlow they submitted here or paid out of pocket, with their booking
- * and payment state. `campflow` may still be loading (`null`).
+ * The receipts the logged-in user paid out of pocket, newest first: the ones here with their
+ * review state and the ones in CampFlow with their booking and payment state, whoever submitted
+ * them. `campflow` may still be loading (`null`).
  */
 export function meineBelege(
   belege: readonly StaffBeleg[],
   campflow: CampflowBelegeData | null,
-  login: string,
   isIch: (person: { name: string }) => boolean
 ): MeinBeleg[] {
-  return belegEintraege(belege, campflow, { login, isIch })
+  return belegEintraege(belege, campflow, { isIch })
     .filter((eintrag) => eintrag.own)
     .map(({ key, title, date, amountCent, label, tone }) => ({
       key,

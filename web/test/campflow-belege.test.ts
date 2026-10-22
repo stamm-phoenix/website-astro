@@ -7,6 +7,7 @@ import {
   matchesBelegFilter,
   type BelegFilter,
 } from '../src/lib/belegEintraege';
+import { applyZahlung, zahlungOf, type BelegForm } from '../src/lib/belegForm';
 import { meineBelege } from '../src/lib/campflowBelege';
 import type { CampflowBeleg, CampflowBelegeData, StaffBeleg } from '../src/lib/types';
 
@@ -136,12 +137,13 @@ test('one list holds the receipts here and in CampFlow, each with its source', (
       } as StaffBeleg['campflow'],
     }),
   ];
-  const eintraege = belegEintraege(belege, campflow, { login: 'Kim@Example.test', isIch: isKim });
+  const eintraege = belegEintraege(belege, campflow, { isIch: isKim });
   assert.deepEqual(
     eintraege.map((e) => [e.key, e.quelle, e.stand, e.own]),
     [
-      ['website-1', 'website', 'eingereicht', true],
-      ['website-3', 'website', 'angenommen', true],
+      // Paid by the Stamm: nobody's, also not of who submitted it
+      ['website-1', 'website', 'eingereicht', false],
+      ['website-3', 'website', 'angenommen', false],
       ['campflow-rcp_9', 'campflow', 'ungebucht', false],
       ['website-2', 'website', 'abgelehnt', false],
       ['campflow-exp_2', 'campflow', 'bezahlt', false],
@@ -161,8 +163,7 @@ test('one list holds the receipts here and in CampFlow, each with its source', (
 });
 
 test('filters by state, Kostenstelle, Kategorie, own receipts and search words', () => {
-  const eintraege = belegEintraege([submitted('1')], campflow, {
-    login: 'kim@example.test',
+  const eintraege = belegEintraege([submitted('1', { payout: true })], campflow, {
     isIch: isKim,
   });
   const keys = (filter: Partial<BelegFilter>) =>
@@ -170,7 +171,8 @@ test('filters by state, Kostenstelle, Kategorie, own receipts and search words',
   assert.deepEqual(keys({ stand: 'bezahlt' }), ['campflow-exp_2']);
   assert.deepEqual(keys({ costUnitId: 'cun_1' }), ['website-1', 'campflow-exp_1']);
   assert.deepEqual(keys({ costUnitId: 'cun_1', categoryId: 'cat_1' }), ['campflow-exp_1']);
-  assert.deepEqual(keys({ onlyMine: true }), ['website-1', 'campflow-exp_1', 'campflow-exp_3']);
+  // Own Auslagen only: not the one submitted here by Kim without an Auslage (exp_3)
+  assert.deepEqual(keys({ onlyMine: true }), ['website-1', 'campflow-exp_1']);
   assert.deepEqual(keys({ search: 'edeka verpflegung' }), ['campflow-exp_1']);
   assert.deepEqual(keys({ search: '2026-2' }), ['campflow-exp_2']);
   // Only Kostenstellen with receipts are offered
@@ -188,12 +190,10 @@ test('a receipt kept here stays mine when someone else submitted my Auslage', ()
     payout: true,
     campflow: { state: 'Hochgeladen', number: '2026-1' } as StaffBeleg['campflow'],
   });
-  const eintraege = belegEintraege([kept], campflow, { login: 'kim@example.test', isIch: isKim });
+  const eintraege = belegEintraege([kept], campflow, { isIch: isKim });
   const mine = eintraege.filter((e) => matchesBelegFilter(e, { ...NO_FILTER, onlyMine: true }));
   assert.ok(mine.some((e) => e.key === 'website-5'));
-  assert.ok(
-    meineBelege([kept], campflow, 'kim@example.test', isKim).some((b) => b.key === 'website-5')
-  );
+  assert.ok(meineBelege([kept], campflow, isKim).some((b) => b.key === 'website-5'));
   // Found by the CampFlow number it shows
   assert.deepEqual(
     eintraege
@@ -203,16 +203,53 @@ test('a receipt kept here stays mine when someone else submitted my Auslage', ()
   );
 });
 
-test('my receipts are the own entries, newest first', () => {
-  const mine = meineBelege([submitted('1')], campflow, 'kim@example.test', isKim);
+test('my receipts are my own Auslagen, newest first, whoever submitted them', () => {
+  const belege = [
+    submitted('1', { payout: true }),
+    // Submitted by Kim for Sam, paid by the Stamm, booked to the savings book: not Kim's
+    submitted('2', { payout: true, paidBy: 'Sam' }),
+    submitted('3', { payout: false, paidBy: '' }),
+    submitted('4', { payout: true, paidBy: 'Sparbuch' }),
+    // Submitted by Sam for Kim
+    submitted('5', { payout: true, submittedBy: 'sam@example.test', date: '2026-10-02' }),
+  ];
+  const mine = meineBelege(belege, campflow, isKim);
   assert.deepEqual(
     mine.map((entry) => [entry.title, entry.label]),
     [
+      ['Laden 5', 'Eingereicht'],
       ['Laden 1', 'Eingereicht'],
       ['Edeka', 'Gebucht, Erstattung offen'],
-      ['Hochgeladen', 'Gebucht'],
     ]
   );
+  // A savings book booking is marked as such
+  const sparbuch = belegEintraege(belege, campflow, { isIch: isKim }).find(
+    (e) => e.key === 'website-4'
+  )!;
+  assert.equal(sparbuch.tags[0]!.label, 'Umbuchung Sparbuch');
   // While CampFlow loads, the receipts here show already
-  assert.equal(meineBelege([submitted('1')], null, 'kim@example.test', isKim).length, 1);
+  assert.equal(meineBelege(belege, null, isKim).length, 2);
+});
+
+test('the choice of payment sets who gets the Auslage', () => {
+  const form = { zahlung: null, paidBy: '', payout: null } as unknown as BelegForm;
+  applyZahlung(form, 'andere', 'Kim');
+  assert.deepEqual([form.payout, form.paidBy], [true, '']);
+  form.paidBy = 'Sam';
+  applyZahlung(form, 'andere', 'Kim');
+  assert.equal(form.paidBy, 'Sam', 'a typed name stays');
+  applyZahlung(form, 'ich', 'Kim');
+  assert.deepEqual([form.payout, form.paidBy], [true, 'Kim']);
+  applyZahlung(form, 'sparbuch', 'Kim');
+  assert.deepEqual([form.payout, form.paidBy], [true, 'Sparbuch']);
+  applyZahlung(form, 'andere', 'Kim');
+  assert.equal(form.paidBy, '', 'neither the own name nor the savings book stay');
+  applyZahlung(form, 'stamm', 'Kim');
+  assert.deepEqual([form.payout, form.paidBy], [false, '']);
+
+  // Read back from a stored receipt
+  assert.equal(zahlungOf({ payout: false, paidBy: 'Kim' }, isKim), 'stamm');
+  assert.equal(zahlungOf({ payout: true, paidBy: 'Kim' }, isKim), 'ich');
+  assert.equal(zahlungOf({ payout: true, paidBy: 'Sam' }, isKim), 'andere');
+  assert.equal(zahlungOf({ payout: true, paidBy: 'Sparbuch' }, isKim), 'sparbuch');
 });

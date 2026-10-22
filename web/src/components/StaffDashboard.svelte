@@ -2,7 +2,7 @@
   import { taskHasAssignee, taskAssigneeNames } from '../../../api/lib/aufgaben-zuordnung';
   import { onMount, type Snippet } from 'svelte';
   import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
-  import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
+  import { fetchPrincipal } from '../lib/authStore.svelte';
   import {
     favoritesStore,
     canChooseFavorites,
@@ -105,15 +105,8 @@
   );
   const belegeStore = belegePflege.state;
   const campflowStore = campflowBelegeStore.state;
-  // Own receipts in the module and in CampFlow; CampFlow may answer later or not at all
-  const ownBelege = $derived(
-    meineBelege(
-      belegeStore.data ?? [],
-      campflowStore.data,
-      authStore.principal?.userDetails ?? '',
-      isIch
-    )
-  );
+  // Own Auslagen in the module and in CampFlow; CampFlow may answer later or not at all
+  const ownBelege = $derived(meineBelege(belegeStore.data ?? [], campflowStore.data, isIch));
   const belegeEmpty = $derived(
     belegeStore.data !== null &&
       !belegeStore.loading &&

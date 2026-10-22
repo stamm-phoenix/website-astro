@@ -7,8 +7,11 @@ export interface BelegForm {
   shop: string;
   date: string;
   amount: string;
+  /** Who gets the Auslage back; empty when the Stamm paid. */
   paidBy: string;
   payout: boolean | null;
+  /** How it was paid, as chosen in the form; sets `paidBy` and `payout`. */
+  zahlung: BelegZahlung | null;
   aktion: string;
   note: string;
   status: BelegStatus;
@@ -19,6 +22,37 @@ export interface BelegForm {
   submittedAt: string;
   aiCheck: BelegCheck | null;
   campflow: BelegCampflow | null;
+}
+
+/**
+ * How a receipt was paid: out of the own pocket, by someone else, by the Stamm (card or cash box)
+ * or as a transfer to the savings book. All but the Stamm are an Auslage in CampFlow.
+ */
+export type BelegZahlung = 'ich' | 'andere' | 'stamm' | 'sparbuch';
+
+/** What CampFlow's „Auslage durch“ says for a transfer to the savings book. */
+export const SPARBUCH = 'Sparbuch';
+
+/** The choice in the form for a stored receipt; `isIch` tells the own Auslage from others. */
+export function zahlungOf(
+  beleg: { payout: boolean; paidBy: string },
+  isIch: (person: { name: string }) => boolean
+): BelegZahlung {
+  if (!beleg.payout) return 'stamm';
+  if (beleg.paidBy.trim() === SPARBUCH) return 'sparbuch';
+  return isIch({ name: beleg.paidBy }) ? 'ich' : 'andere';
+}
+
+/** Sets who gets the Auslage for a choice; `myName` for the own one. */
+export function applyZahlung(form: BelegForm, zahlung: BelegZahlung, myName: string): void {
+  const before = form.zahlung;
+  form.zahlung = zahlung;
+  form.payout = zahlung !== 'stamm';
+  if (zahlung === 'ich') form.paidBy = myName;
+  else if (zahlung === 'sparbuch') form.paidBy = SPARBUCH;
+  else if (zahlung === 'stamm') form.paidBy = '';
+  // Someone else: a name typed before stays, the own name or „Sparbuch“ does not
+  else if (before !== 'andere') form.paidBy = '';
 }
 
 /** Where an accepted receipt is booked in CampFlow. */
@@ -45,8 +79,12 @@ export function validateBeleg(f: BelegForm, hasPhoto: boolean): Record<string, s
   else if (f.date > todayIso()) result.date = 'Das Datum liegt in der Zukunft.';
   if (parseEuroToCent(f.amount) === null)
     result.amountCent = 'Bitte einen Betrag wie 12,34 angeben.';
-  if (f.payout === null) result.payout = 'Bitte auswählen, wie du bezahlt hast.';
-  if (!f.paidBy.trim()) result.paidBy = 'Bitte angeben, wer bezahlt hat.';
+  if (f.zahlung === null) result.payout = 'Bitte auswählen, wie bezahlt wurde.';
+  else if (f.zahlung === 'andere' && !f.paidBy.trim()) {
+    result.paidBy = 'Bitte angeben, wer das Geld ausgelegt hat.';
+  } else if (f.zahlung === 'ich' && !f.paidBy.trim()) {
+    result.payout = 'Dein Name ist nicht bekannt. Wähle „Jemand anderes“ und trage ihn ein.';
+  }
   if (!f.aktion.trim()) result.aktion = 'Bitte die Aktion angeben.';
   if (f.status === 'Abgelehnt' && !f.reviewNote.trim()) {
     result.reviewNote = 'Bitte begründen, warum der Beleg abgelehnt wird.';

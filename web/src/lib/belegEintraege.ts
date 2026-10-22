@@ -1,4 +1,4 @@
-import { matchingKostenstelle } from './belegForm';
+import { matchingKostenstelle, SPARBUCH } from './belegForm';
 import type { StatusTone } from './status';
 import type { CampflowBeleg, CampflowBelegeData, StaffBeleg } from './types';
 
@@ -93,15 +93,25 @@ export function campflowBildKey(beleg: CampflowBeleg): string {
 }
 
 /**
+ * A receipt is someone's only if they paid it out of pocket: whoever submitted it, and never one
+ * the Stamm paid or a transfer to the savings book.
+ */
+function isOwnAuslage(
+  paidBy: string | null,
+  isIch: (person: { name: string }) => boolean
+): boolean {
+  return !!paidBy?.trim() && paidBy.trim() !== SPARBUCH && isIch({ name: paidBy });
+}
+
+/**
  * All receipts in one list: the ones submitted here and the ones in CampFlow. A receipt kept here
  * after its upload is listed once, as the one here, which still needs the Kasse.
  */
 export function belegEintraege(
   belege: readonly StaffBeleg[],
   campflow: CampflowBelegeData | null,
-  { login, isIch }: { login: string; isIch: (person: { name: string }) => boolean }
+  { isIch }: { isIch: (person: { name: string }) => boolean }
 ): BelegEintrag[] {
-  const me = login.toLowerCase();
   const kostenstellen = campflow?.costUnits ?? [];
   const keptHere = new Set(belege.flatMap((b) => (b.campflow?.number ? [b.campflow.number] : [])));
 
@@ -111,7 +121,12 @@ export function belegEintraege(
     const tags: BelegEintrag['tags'] = [];
     if (uploaded?.number)
       tags.push({ label: `In CampFlow als ${uploaded.number}`, tone: 'warning' });
-    if (beleg.payout) tags.push({ label: 'Auszahlung', tone: 'neutral' });
+    if (beleg.payout) {
+      tags.push({
+        label: beleg.paidBy === SPARBUCH ? 'Umbuchung Sparbuch' : 'Auszahlung',
+        tone: 'neutral',
+      });
+    }
     if (beleg.aiCheck && !beleg.aiCheck.ok) tags.push({ label: 'Foto prüfen', tone: 'warning' });
     if (beleg.aiCheck?.restrictedItems.length) {
       tags.push({ label: 'Evtl. Alkohol/Tabak', tone: 'danger' });
@@ -133,10 +148,7 @@ export function belegEintraege(
       previewUrl: beleg.hasImage
         ? `/api/intern/pflege/belege/${beleg.id}/foto?v=${encodeURIComponent(beleg.etag)}&thumb=1`
         : null,
-      // Submitted by the user, or by someone else for the user's Auslage
-      own:
-        (!!me && beleg.submittedBy.toLowerCase() === me) ||
-        (beleg.payout && !!beleg.paidBy && isIch({ name: beleg.paidBy })),
+      own: beleg.payout && isOwnAuslage(beleg.paidBy, isIch),
       tags,
       hinweis: beleg.status === 'Abgelehnt' && beleg.reviewNote ? beleg.reviewNote : null,
       beleg,
@@ -164,7 +176,7 @@ export function belegEintraege(
         costUnitIds: beleg.costUnits.map((unit) => unit.id),
         categoryIds: beleg.categories.map((category) => category.id),
         previewUrl: campflowPreviewUrl(beleg),
-        own: beleg.submittedByMe || (!!beleg.paidBy && isIch({ name: beleg.paidBy })),
+        own: isOwnAuslage(beleg.paidBy, isIch),
         tags: beleg.number ? [{ label: `Nr. ${beleg.number}`, tone: 'neutral' }] : [],
         hinweis: null,
         campflow: beleg,
