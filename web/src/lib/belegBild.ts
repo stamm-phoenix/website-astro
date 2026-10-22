@@ -80,22 +80,15 @@ export function punktAusrichten(
 }
 
 /**
- * Orders four corners as the crop needs them: top left, top right, bottom right, bottom left,
- * as they are seen, so the cropped receipt keeps the orientation of the picture.
+ * Which old corner becomes top left, top right, bottom right, bottom left: the corners of a crop
+ * are kept in this order as seen, so the cropped receipt turns with the picture.
  */
-export function eckenOrdnen(points: Point[]): Quad {
-  const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
-  const cy = points.reduce((sum, p) => sum + p.y, 0) / points.length;
-  // Clockwise on screen (y grows downwards), starting from the corner nearest the top left
-  const sorted = [...points].sort(
-    (a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx)
-  );
-  let start = 0;
-  for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i].x + sorted[i].y < sorted[start].x + sorted[start].y) start = i;
-  }
-  return [0, 1, 2, 3].map((i) => sorted[(start + i) % 4]) as Quad;
-}
+const ECKEN_NACH: Record<Ausrichtung, [number, number, number, number]> = {
+  rechts: [3, 0, 1, 2],
+  links: [1, 2, 3, 0],
+  horizontal: [1, 0, 3, 2],
+  vertikal: [3, 2, 1, 0],
+};
 
 /** Moves the crop corners along when the picture is rotated or mirrored. */
 export function eckenAusrichten(
@@ -104,7 +97,7 @@ export function eckenAusrichten(
   height: number,
   schritt: Ausrichtung
 ): Quad {
-  return eckenOrdnen(quad.map((point) => punktAusrichten(point, width, height, schritt)));
+  return ECKEN_NACH[schritt].map((i) => punktAusrichten(quad[i], width, height, schritt)) as Quad;
 }
 
 /**

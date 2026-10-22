@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   bildBearbeiten,
+  ausrichten,
   drehen,
   drehungen,
   eckenErweitern,
   eckenAusrichten,
-  eckenOrdnen,
   ganzesBild,
   punktAusrichten,
   spiegeln,
@@ -59,7 +59,6 @@ test('the crop corners stay top left, top right, bottom right, bottom left as se
     { x: 85, y: 180 },
     { x: 15, y: 170 },
   ];
-  assert.deepEqual(eckenOrdnen([quad[2], quad[0], quad[3], quad[1]]), quad);
   // In a 100 × 200 picture turned clockwise the old bottom left corner is the new top left
   const turned = eckenAusrichten(quad, 100, 200, 'rechts');
   assert.deepEqual(turned[0], { x: 30, y: 15 });
@@ -132,4 +131,39 @@ test('the degrees of the check become turns', () => {
   assert.deepEqual(drehungen(90), ['rechts']);
   assert.deepEqual(drehungen(180), ['rechts', 'rechts']);
   assert.deepEqual(drehungen(270), ['links']);
+});
+
+test('a perspective crop turns with the picture, content and all', () => {
+  // 1000 × 1600, the red channel marks the corner of the receipt at its top left
+  const data = new Uint8ClampedArray(1000 * 1600 * 4).fill(255);
+  for (let y = 190; y < 230; y++)
+    for (let x = 100; x < 140; x++) data[(y * 1000 + x) * 4 + 1] = data[(y * 1000 + x) * 4 + 2] = 0;
+  const picture: Pixels = { data, width: 1000, height: 1600 };
+  const quad: Quad = [
+    { x: 100, y: 200 },
+    { x: 400, y: 100 },
+    { x: 800, y: 1200 },
+    { x: 300, y: 650 },
+  ];
+  const before = bildBearbeiten(picture, quad, 'original', 2000);
+  for (const [schritt, size] of [
+    ['rechts', [before.height, before.width]],
+    ['links', [before.height, before.width]],
+    ['horizontal', [before.width, before.height]],
+    ['vertikal', [before.width, before.height]],
+  ] as const) {
+    const turned = bildBearbeiten(
+      ausrichten(picture, schritt),
+      eckenAusrichten(quad, 1000, 1600, schritt),
+      'original',
+      2000
+    );
+    assert.deepEqual([turned.width, turned.height], size, schritt);
+    // The red corner ends up where the step puts the receipt's top left corner
+    const at = (x: number, y: number) => turned.data[(y * turned.width + x) * 4 + 1];
+    const w = turned.width - 3;
+    const h = turned.height - 3;
+    const corner = { rechts: [w, 2], links: [2, h], horizontal: [w, 2], vertikal: [2, h] }[schritt];
+    assert.equal(at(corner[0], corner[1]), 0, schritt);
+  }
 });
