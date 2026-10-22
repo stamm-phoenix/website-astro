@@ -304,11 +304,32 @@ function receiptPng(seed: number): Uint8Array {
 }
 
 /** Like `GET /api/intern/abrechnung/belege/{nummer}/bild`: receipt 2026-101 has two pages. */
+/** Receipts of the demo CampFlow's page „Belege“ that have no Einzelnachweis (yet). */
+const listedReceipts = new Set<string>();
+
+/** Makes the receipts of the demo's list „Belege“ known to the image routes. */
+export function knowBelege(keys: Iterable<string>): void {
+  for (const key of keys) listedReceipts.add(key);
+}
+
+/** The small preview of a receipt, like CampFlow's list shows it. */
+export function belegVorschauFor(nummer: string): Uint8Array | 'NOT_FOUND' {
+  const result = belegBildFor(nummer, 1);
+  return result === 'NOT_FOUND' ? result : result.png;
+}
+
 export function belegBildFor(
   nummer: string,
   page: number
 ): { png: Uint8Array; pages: number } | 'NOT_FOUND' {
-  const known = kostenstellen.some((k) => entries(k).some((e) => e.receiptNumber === nummer));
+  // Not booked yet: no number, addressed by its ID
+  if (/^rcp_\w+$/.test(nummer)) {
+    if (!listedReceipts.has(nummer) || page > 1) return 'NOT_FOUND';
+    return { png: receiptPng(nummer.length * 7), pages: 1 };
+  }
+  const known =
+    listedReceipts.has(nummer) ||
+    kostenstellen.some((k) => entries(k).some((e) => e.receiptNumber === nummer));
   const match = /^2026-(\d+)$/.exec(nummer);
   if (!known || !match) return 'NOT_FOUND';
   const pages = nummer === '2026-101' ? 2 : 1;

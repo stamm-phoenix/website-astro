@@ -3,7 +3,7 @@
   import { fetchCampflowBelegBild } from '../lib/campflowBelegBild';
 
   interface Props {
-    /** Belegnummer in CampFlow, e.g. `2026-94`. */
+    /** Belegnummer in CampFlow, e.g. `2026-94`, or the ID of a receipt not booked yet. */
     receiptNumber: string;
   }
   let { receiptNumber }: Props = $props();
@@ -76,7 +76,7 @@
         src={seite.url}
         width={seite.width}
         height={seite.height}
-        alt={`Beleg ${receiptNumber}${seitenTotal > 1 ? `, Seite ${index + 1} von ${seitenTotal}` : ''}`}
+        alt={`Beleg${receiptNumber.startsWith('rcp_') ? '' : ` ${receiptNumber}`}${seitenTotal > 1 ? `, Seite ${index + 1} von ${seitenTotal}` : ''}`}
         class="h-auto w-full rounded-md border border-neutral-200 bg-white"
       />
     </a>

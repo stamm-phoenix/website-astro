@@ -36,7 +36,14 @@ import type {
   StaffNikolausEinteilungRow,
   StaffProtokoll,
 } from '../src/lib/types';
-import { abrechnungFor, belegBildFor, kjrListeFor, kostenstellen } from './mock-data/abrechnung';
+import {
+  abrechnungFor,
+  belegBildFor,
+  belegVorschauFor,
+  kjrListeFor,
+  knowBelege,
+  kostenstellen,
+} from './mock-data/abrechnung';
 import { beitraegeFor } from './mock-data/beitraege';
 import { aktionBeitraegeFor, campflowDetail, campflowEvents } from './mock-data/campflow';
 import {
@@ -1056,6 +1063,22 @@ route(
       body: result.png,
       headers: { 'x-campflow-pages': String(result.pages) },
     };
+  },
+  true
+);
+route(
+  'GET',
+  '/api/intern/abrechnung/belege/:nummer/vorschau',
+  (req) => {
+    const png = belegVorschauFor(req.params.nummer);
+    if (png === 'NOT_FOUND') {
+      return error(
+        404,
+        'BELEG_NOT_FOUND',
+        `Den Beleg ${req.params.nummer} gibt es in CampFlow nicht.`
+      );
+    }
+    return { kind: 'raw', status: 200, contentType: 'image/png', body: png };
   },
   true
 );
@@ -2603,13 +2626,14 @@ route('POST', '/api/intern/pflege/belege/pruefung', (req) => {
 route(['GET'], '/api/intern/pflege/belege/rolle', () => json({ reviewer: true }));
 
 // Read from CampFlow by the Playwright API in production
-route(['GET'], '/api/intern/pflege/belege/campflow', () =>
-  json({
+route(['GET'], '/api/intern/pflege/belege/campflow', () => {
+  knowBelege(campflowBelege.map((beleg) => beleg.number ?? beleg.id));
+  return json({
     loadedAt: new Date(MOCK_NOW).toISOString(),
     costUnits: kostenstellen,
     belege: campflowBelege,
-  })
-);
+  });
+});
 
 route(['PATCH', 'DELETE'], '/api/intern/pflege/belege/:id', (req) => {
   const index = belege.findIndex((b) => b.id === req.params.id);

@@ -12,7 +12,10 @@ import { betreuungsschluessel, countNights, kjrZuschuss } from '../lib/kjr-zusch
 import type { Einzelnachweis } from '../lib/playwright-api';
 import { GetInternAbrechnungEndpoint } from '../endpoints/intern-abrechnung';
 import { GetInternAbrechnungKostenstellenEndpoint } from '../endpoints/intern-abrechnung-kostenstellen';
-import { GetInternAbrechnungBelegBildEndpoint } from '../endpoints/intern-abrechnung-beleg-bild';
+import {
+  GetInternAbrechnungBelegBildEndpoint,
+  GetInternAbrechnungBelegVorschauEndpoint,
+} from '../endpoints/intern-abrechnung-beleg-bild';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -386,7 +389,7 @@ test('a failed read of the marks keeps the earlier errors and is never left unha
 
 test('lists the Kostenstellen, active ones first', async (t) => {
   t.mock.method(env, 'getEnvironment', () => 'test-key');
-  mockPlaywright(t, 200, {
+  const fetch = mockPlaywright(t, 200, {
     data: [
       { id: 'cun_3', name: 'Alt', archived: true, color: '#000', categories: [] },
       {
@@ -412,6 +415,11 @@ test('lists the Kostenstellen, active ones first', async (t) => {
     },
     { id: 'cun_3', name: 'Alt', archived: true, categories: [] },
   ]);
+  // The last read of the Playwright API, unless the page asks for a new one
+  const url = (call: number) => new URL(String(fetch.mock.calls[call]!.arguments[0]));
+  assert.equal(url(0).searchParams.get('refresh'), null);
+  await GetInternAbrechnungKostenstellenEndpoint(request('kostenstellen', '?refresh=true'));
+  assert.equal(url(1).searchParams.get('refresh'), 'true');
 });
 
 test('a missing API key is a configuration error, not an unavailable upstream', async (t) => {
@@ -460,6 +468,34 @@ test('passes receipt images through with their page count', async (t) => {
   assert.equal((await bild('2026-94', '', null)).status, 401);
   assert.equal((await bild('../x')).status, 400);
   assert.equal((await bild('2026-94', '?page=0')).status, 400);
+  assert.equal(fetch.mock.callCount(), 1);
+});
+
+test('passes the preview of a receipt through, also of one not booked yet', async (t) => {
+  t.mock.method(env, 'getEnvironment', () => 'test-key');
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1]);
+  const fetch = t.mock.method(globalThis, 'fetch', async () => new Response(png, { status: 200 }));
+  const vorschau = (nummer: string) =>
+    GetInternAbrechnungBelegVorschauEndpoint(
+      new HttpRequest({
+        url: `https://example.test/api/intern/abrechnung/belege/${nummer}/vorschau`,
+        method: 'GET',
+        headers: {
+          'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+        },
+        params: { nummer },
+      })
+    );
+
+  const response = await vorschau('rcp_Neu1');
+  assert.equal(response.status, 200);
+  assert.equal((response.headers as Record<string, string>)['Content-Type'], 'image/png');
+  assert.deepEqual([...(response.body as Uint8Array)], [...png]);
+  assert.equal(
+    new URL(String(fetch.mock.calls[0]!.arguments[0])).pathname,
+    '/campflow/belege/rcp_Neu1/vorschau'
+  );
+  assert.equal((await vorschau('../x')).status, 400);
   assert.equal(fetch.mock.callCount(), 1);
 });
 

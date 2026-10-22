@@ -4,7 +4,10 @@ import { getKostenstellen, playwrightErrorResponse } from '../lib/playwright-api
 import { withErrorHandling } from '../lib/response-utils';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 
-/** All Kostenstellen from CampFlow, to pick one when an Aktion's title matches none. */
+/**
+ * All Kostenstellen from CampFlow, to pick one when an Aktion's title matches none. The
+ * Playwright API serves its last read; `?refresh=true` reads CampFlow again.
+ */
 export async function GetInternAbrechnungKostenstellenEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
@@ -12,7 +15,8 @@ export async function GetInternAbrechnungKostenstellenEndpoint(
   if (isStaffError(principal)) return principal;
 
   try {
-    const kostenstellen = (await getKostenstellen()).sort(
+    const refresh = request.query.get('refresh') === 'true';
+    const kostenstellen = (await getKostenstellen({ refresh })).sort(
       (a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name, 'de')
     );
     return { status: 200, headers: NO_STORE_HEADERS, jsonBody: kostenstellen };

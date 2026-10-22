@@ -101,17 +101,27 @@ export function fetchAbrechnung(
 
 let kostenstellenPromise: Promise<void> | null = null;
 
-/** Loads all Kostenstellen from CampFlow, to pick one when the Aktion's title matches none. */
-export function fetchKostenstellen({ force = false }: { force?: boolean } = {}): Promise<void> {
-  if (kostenstellenStore.data && !force) return Promise.resolve();
-  if (kostenstellenPromise) return kostenstellenPromise;
+/**
+ * Loads all Kostenstellen from CampFlow, to pick one when the Aktion's title matches none. The
+ * Playwright API answers with its last read; `refresh` has it read CampFlow again.
+ */
+export function fetchKostenstellen({
+  force = false,
+  refresh = false,
+}: { force?: boolean; refresh?: boolean } = {}): Promise<void> {
+  if (kostenstellenStore.data && !force && !refresh) return Promise.resolve();
+  if (kostenstellenPromise && !refresh) return kostenstellenPromise;
 
   kostenstellenStore.loading = true;
   kostenstellenStore.error = null;
 
   kostenstellenPromise = (async () => {
     try {
-      kostenstellenStore.data = await fetchApi<Kostenstelle[]>('/intern/abrechnung/kostenstellen');
+      kostenstellenStore.data = await fetchApi<Kostenstelle[]>(
+        refresh
+          ? '/intern/abrechnung/kostenstellen?refresh=true'
+          : '/intern/abrechnung/kostenstellen'
+      );
     } catch (error: unknown) {
       kostenstellenStore.error = toStoreError(error).message;
     } finally {

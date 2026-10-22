@@ -126,7 +126,9 @@ import GetInternAbrechnungKostenstellenEndpoint from './endpoints/intern-abrechn
 import { AbrechnungEingabeHandler } from './endpoints/intern-abrechnung-eingabe';
 import GetInternAbrechnungEndpoint from './endpoints/intern-abrechnung';
 import PostInternAbrechnungKjrListeEndpoint from './endpoints/intern-abrechnung-kjr-liste';
-import GetInternAbrechnungBelegBildEndpoint from './endpoints/intern-abrechnung-beleg-bild';
+import GetInternAbrechnungBelegBildEndpoint, {
+  GetInternAbrechnungBelegVorschau,
+} from './endpoints/intern-abrechnung-beleg-bild';
 import GetInternBeitraegeEndpoint from './endpoints/intern-beitraege';
 import {
   GruppenstundenCollection,
@@ -445,6 +447,13 @@ app.http('internAbrechnungBelegBild', {
   authLevel: 'anonymous',
   route: 'intern/abrechnung/belege/{nummer}/bild',
   handler: GetInternAbrechnungBelegBildEndpoint,
+});
+
+app.http('internAbrechnungBelegVorschau', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/belege/{nummer}/vorschau',
+  handler: GetInternAbrechnungBelegVorschau,
 });
 
 app.http('internAbrechnungKjrListe', {

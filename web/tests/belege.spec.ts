@@ -1,4 +1,13 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
+
+/** Opens the folded filters of the Belege, closed on a phone. */
+async function openFilters(page: Page): Promise<void> {
+  const filters = page.locator('details', { has: page.locator('summary', { hasText: /^Filter/ }) });
+  if (!(await filters.evaluate((details: HTMLDetailsElement) => details.open))) {
+    await filters.locator('summary').click();
+  }
+}
 
 test('closing the Beleg dialog asks before a chosen photo is discarded', async ({ page }) => {
   await page.goto('/leitendenbereich/belege/');
@@ -48,15 +57,13 @@ test('the Kasse transfers an accepted receipt to CampFlow with the chosen Katego
     });
   });
   await page.goto('/leitendenbereich/belege/');
-  const accepted = page.getByRole('button', { name: /^Angenommen/ });
-  // The counts appear once the list is loaded and the filter works
-  await expect(accepted).toHaveText(/\(\d+\)/);
-  await accepted.click();
+  await openFilters(page);
+  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
 
   // The Kostenstelle named like the Aktion is preselected; the Kategorie is the Kasse's choice
-  const transfer = dialog.getByRole('button', { name: 'Nach CampFlow übertragen' });
+  const transfer = dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true });
   await expect(dialog.getByLabel('Kostenstelle')).toHaveValue('cun_Sola26');
   await expect(transfer).toBeDisabled();
   await dialog.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
@@ -64,33 +71,41 @@ test('the Kasse transfers an accepted receipt to CampFlow with the chosen Katego
 
   await expect(dialog).toBeHidden();
   await expect(
-    page.getByText(
-      'Beleg von Deutsche Bahn ist in CampFlow als 2026-112 gebucht und wurde hier gelöscht.'
-    )
+    page
+      .getByText(
+        'Beleg von Deutsche Bahn ist in CampFlow als 2026-112 gebucht und wurde hier gelöscht.'
+      )
+      .first()
   ).toBeVisible();
   expect(sent).toMatchObject({ costUnitId: 'cun_Sola26', categoryId: 'cat_Sola262' });
   expect(sent?.etag).toBeTruthy();
 });
 
-test('all receipts from CampFlow can be filtered and opened with their image', async ({ page }) => {
+test('one list holds the receipts here and in CampFlow, filtered by source and more', async ({
+  page,
+}) => {
   await page.goto('/leitendenbereich/belege/');
-  const inCampflow = page.getByRole('button', { name: /^In CampFlow/ });
-  await expect(inCampflow).toHaveText(/\(5\)/);
-  await inCampflow.click();
-  await expect(page.getByTestId('campflow-belege-stand')).toBeVisible();
-  const list = page.getByRole('list', { name: 'Belege in CampFlow' });
-  await expect(list.getByRole('listitem')).toHaveCount(5);
+  const list = page.getByRole('list', { name: 'Belege' });
+  const tabs = page.getByRole('group', { name: 'Nach Quelle filtern' });
+  // Five in CampFlow, the receipts here first, as they wait for the Kasse
+  await expect(tabs.getByRole('button', { name: /^CampFlow/ })).toHaveText(/\(5\)/);
+  await expect(list.getByRole('listitem').first()).toContainText('Website');
 
-  // Kostenstelle and Kategorie narrow the list, the status tabs too
+  await tabs.getByRole('button', { name: /^CampFlow/ }).click();
+  await expect(list.getByRole('listitem')).toHaveCount(5);
+  await openFilters(page);
   await page.getByLabel('Kostenstelle').selectOption({ label: 'Sommerlager 2026 Oberjoch' });
   await expect(list.getByRole('listitem')).toHaveCount(3);
   await page.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
   await expect(list.getByRole('listitem')).toHaveCount(1);
   await expect(list.getByText('Erstattet')).toBeVisible();
-  await page.getByLabel('Kostenstelle').selectOption({ label: 'Alle Kostenstellen' });
-  await page.getByRole('button', { name: /^Zahlung offen/ }).click();
+  await openFilters(page);
+  await page.getByLabel('Kostenstelle').selectOption({ label: 'Alle' });
+  await openFilters(page);
+  await page.getByLabel('Stand').selectOption({ label: 'Gebucht' });
   await expect(list.getByRole('listitem')).toHaveCount(2);
-  await page.getByRole('button', { name: /^Alle/ }).last().click();
+  await openFilters(page);
+  await page.getByLabel('Stand').selectOption({ label: 'Alle' });
 
   // Own receipts: paid out of pocket by the demo user, matched by name
   await page.getByLabel('Nur meine Belege').check();
@@ -102,18 +117,51 @@ test('all receipts from CampFlow can be filtered and opened with their image', a
   await expect(dialog.getByText('2026-104')).toBeVisible();
   await expect(dialog.getByText('Gebucht, Erstattung offen')).toBeVisible();
   await expect(dialog.getByText('von dir über die Website')).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'In CampFlow öffnen' })).toBeVisible();
   await expect(dialog.getByRole('img', { name: /Beleg 2026-104/ }).first()).toBeVisible();
   await dialog.getByRole('button', { name: 'Schließen' }).click();
   await expect(dialog).toBeHidden();
 });
 
+test('the gallery shows previews, also of a receipt not booked yet, and opens its photo', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/belege/');
+  await page
+    .getByRole('group', { name: 'Ansicht' })
+    .getByRole('button', { name: 'Galerie' })
+    .click();
+  await expect(page).toHaveURL(/ansicht=galerie/);
+  const gallery = page.getByRole('list', { name: 'Belege' });
+  const unbooked = gallery.getByRole('button', { name: /Kassenzettel Baumarkt\.pdf/ });
+  await expect(unbooked).toContainText('Noch nicht gebucht');
+  await expect(unbooked.locator('img')).toHaveJSProperty('complete', true);
+  expect(
+    await unbooked.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)
+  ).toBeGreaterThan(0);
+
+  await unbooked.click();
+  const dialog = page.getByRole('dialog', { name: 'Kassenzettel Baumarkt.pdf' });
+  await expect(dialog.getByRole('img', { name: 'Beleg' })).toBeVisible();
+
+  // The view stays after a reload
+  await page.reload();
+  await expect(
+    page.getByRole('group', { name: 'Ansicht' }).getByRole('button', { name: 'Galerie' })
+  ).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('the start page lists my receipts with their state', async ({ page }) => {
+  // Without receipts here, which other tests add to the shared demo
+  await page.route('**/api/intern/pflege/belege', (route) =>
+    route.request().method() === 'GET' ? route.fulfill({ json: [] }) : route.fallback()
+  );
   await page.goto('/leitendenbereich/');
   const box = page.getByRole('region', { name: 'Meine Belege' });
   await expect(box).toBeVisible();
   const items = box.getByTestId('meine-belege').getByRole('listitem');
   await expect(items.first()).toBeVisible();
-  // Submitted here and booked in CampFlow, newest first
+  // Submitted here and booked in CampFlow
   await expect(box.getByText('Edeka – Grillabend')).toBeVisible();
   await expect(box.getByText('Gebucht, Erstattung offen')).toBeVisible();
   await expect(box.getByRole('link', { name: 'Zu den Belegen' })).toHaveAttribute(
@@ -151,13 +199,12 @@ test('a transfer whose answer is lost closes the receipt once it is gone', async
     await route.fulfill({ response, json: belege.filter((b) => b.shop !== 'Deutsche Bahn') });
   });
   await page.goto('/leitendenbereich/belege/');
-  const accepted = page.getByRole('button', { name: /^Angenommen/ });
-  await expect(accepted).toHaveText(/\(\d+\)/);
-  await accepted.click();
+  await openFilters(page);
+  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
   await dialog.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
-  await dialog.getByRole('button', { name: 'Nach CampFlow übertragen' }).click();
+  await dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true }).click();
 
   await expect(dialog).toBeHidden();
   await expect(
