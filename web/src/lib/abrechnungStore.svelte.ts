@@ -100,6 +100,8 @@ export function fetchAbrechnung(
 }
 
 let kostenstellenPromise: Promise<void> | null = null;
+/** Counts the loads; only the latest sets the store, so a late answer cannot undo a newer one. */
+let kostenstellenRequest = 0;
 
 /**
  * Loads all Kostenstellen from CampFlow, to pick one when the Aktion's title matches none. The
@@ -115,18 +117,22 @@ export function fetchKostenstellen({
   kostenstellenStore.loading = true;
   kostenstellenStore.error = null;
 
+  const request = ++kostenstellenRequest;
   kostenstellenPromise = (async () => {
     try {
-      kostenstellenStore.data = await fetchApi<Kostenstelle[]>(
+      const data = await fetchApi<Kostenstelle[]>(
         refresh
           ? '/intern/abrechnung/kostenstellen?refresh=true'
           : '/intern/abrechnung/kostenstellen'
       );
+      if (request === kostenstellenRequest) kostenstellenStore.data = data;
     } catch (error: unknown) {
-      kostenstellenStore.error = toStoreError(error).message;
+      if (request === kostenstellenRequest) kostenstellenStore.error = toStoreError(error).message;
     } finally {
-      kostenstellenPromise = null;
-      kostenstellenStore.loading = false;
+      if (request === kostenstellenRequest) {
+        kostenstellenPromise = null;
+        kostenstellenStore.loading = false;
+      }
     }
   })();
   return kostenstellenPromise;
