@@ -329,8 +329,6 @@
     }
     if (dialog.invalid(validateBeleg(current, false))) return;
     const { id, shop } = current;
-    /** Version after saving the form's changes, which the form then holds as well. */
-    let saved: string | null = null;
     await dialog.run(async () => {
       const unchanged = store.data?.find((b) => b.id === id);
       let etag = current.etag;
@@ -350,7 +348,11 @@
         // Only the version this save wrote: a reloaded list could carry someone else's change
         if (!patched?.etag) throw new Error('Keine Version nach dem Speichern');
         etag = patched.etag;
-        saved = etag;
+        // Taken over at once, so a retry after a failed transfer saves on top of it
+        if (form === current) {
+          editDialog?.acceptRescueVersion(current.etag, etag);
+          current.etag = etag;
+        }
       }
       const result = await sendApi<{
         campflow: { state: string; number: string | null };
@@ -379,10 +381,6 @@
       const fresh = store.data?.find((b) => b.id === id);
       if (fresh && form) {
         form.campflow = fresh.campflow;
-        if (saved) {
-          editDialog?.acceptRescueVersion(form.etag, saved);
-          form.etag = saved;
-        }
       } else if (!fresh && store.data && !store.error) {
         // Gone: transferred with a lost answer, or deleted by someone else meanwhile
         form = null;
