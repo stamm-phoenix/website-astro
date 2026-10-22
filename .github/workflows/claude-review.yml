@@ -5,8 +5,9 @@ name: Claude Review
 # the models, this file is the same as codex-review.yml, and both are the same in website-astro
 # and playwright-api; what to look for in each repo is in .github/review-instructions.md. Setup
 # and costs: docs/ki-review.md.
-# The run name tells the label step which runs are thorough reviews
-run-name: ${{ github.event.action == 'labeled' && github.event.label.name == 'claude-review' && 'Thorough review' || 'Review' }}
+# The run name tells the skip and label steps which runs are thorough reviews of which PR (the
+# runs list of the API leaves pull_requests empty for many PRs)
+run-name: "${{ format('{0} #{1}', github.event.action == 'labeled' && github.event.label.name == 'claude-review' && 'Thorough review' || 'Review', github.event.pull_request.number) }}"
 on:
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize, labeled]
@@ -60,13 +61,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-        # Only runs of this PR's branch: another PR may point at the same commit, and its review
-        # is posted there. The runs list of the API leaves pull_requests empty for many PRs.
+          THOROUGH_TITLE: "Thorough review #${{ github.event.pull_request.number }}"
+        # Only runs of this PR: another PR may point at the same commit (also from the same branch,
+        # against another base), and its review is posted there
         run: |
           found=false
           for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$LABEL.yml/runs?head_sha=$HEAD_SHA&per_page=100" \
-            --jq '.workflow_runs[] | select(.head_branch == env.HEAD_REF) | .id'); do
+            --jq '.workflow_runs[] | select(.display_title == env.THOROUGH_TITLE) | .id'); do
             if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
               --jq 'select(any(.jobs[]; .name == "Thorough review" and (.conclusion == null or .conclusion == "success"))
                 and all(.jobs[]; .name != "comment" or .conclusion == null or .conclusion == "success" or .conclusion == "skipped")) | .total_count' | grep -q .; then
@@ -333,7 +334,10 @@ jobs:
               per_page: 100,
             });
             const newer = runs.find(
-              (r) => r.id > context.runId && r.status !== 'completed' && r.display_title === 'Thorough review',
+              (r) =>
+                r.id > context.runId &&
+                r.status !== 'completed' &&
+                r.display_title === `Thorough review #${context.payload.pull_request.number}`,
             );
             if (newer) {
               core.notice(`Run ${newer.id} reviews this PR thoroughly again; keeping the label for it.`);
