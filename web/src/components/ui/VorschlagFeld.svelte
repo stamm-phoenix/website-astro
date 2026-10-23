@@ -200,6 +200,19 @@
     }
   }
 
+  /** A sticky page header may cover the field scrolled to the top; then it goes below the header. */
+  function keepBelowCover(field: HTMLInputElement): void {
+    const rect = field.getBoundingClientRect();
+    let cover = document.elementFromPoint(rect.left + 4, rect.top + 4);
+    if (!cover || field.contains(cover)) return;
+    while (cover && !/fixed|sticky/.test(getComputedStyle(cover).position))
+      cover = cover.parentElement;
+    if (!cover) return;
+    field.style.scrollMarginTop = `${cover.getBoundingClientRect().bottom - rect.top + 8}px`;
+    field.scrollIntoView({ block: 'start', behavior: 'instant' });
+    field.style.scrollMarginTop = '';
+  }
+
   /** Keeps the list above the on-screen keyboard: shorter, or the field scrolled up. */
   function fit(scroll: boolean): void {
     if (!input || !open) return;
@@ -219,6 +232,7 @@
     if (space < 3 * 44 && scroll) {
       // Instant despite the smooth scrolling of the page, so the room below is measured after it
       input.scrollIntoView({ block: 'start', behavior: 'instant' });
+      keepBelowCover(input);
       void tick().then(() => fit(false));
       return;
     }

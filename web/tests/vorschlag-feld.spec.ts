@@ -217,3 +217,24 @@ test('the list stays above the fixed bar at the bottom', async ({ page }) => {
     })
     .toBeLessThanOrEqual(0);
 });
+
+test('a variant field moved up stays below the sticky page header', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.goto('/mitgliederbereich/sammelbestellungen#kind=order&id=2002&token=mock');
+  await page.getByRole('button', { name: 'Klufthemd Fairtrade hinzufügen', exact: true }).click();
+  const variant = page.getByRole('combobox', { name: /Größe \/ Farbe \/ Variante/ }).last();
+  await expect(variant).toBeAttached();
+  // The field just above the bottom edge, so it is moved up when tapped
+  await variant.evaluate((el) => {
+    const top = el.getBoundingClientRect().bottom + window.scrollY - window.innerHeight + 20;
+    window.scrollTo({ top, behavior: 'instant' });
+  });
+  await variant.click();
+  const list = page.locator(`#${await variant.getAttribute('aria-controls')}`);
+  await expect(list.getByRole('option').first()).toBeVisible();
+  const covered = await variant.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return !el.contains(document.elementFromPoint(rect.left + 4, rect.top + 4));
+  });
+  expect(covered).toBe(false);
+});
