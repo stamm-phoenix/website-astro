@@ -32,6 +32,14 @@ test('people are suggested under „Ausgelegt von“ and picked by tap', async (
     .toBeLessThanOrEqual(1);
   await expect(paidBy).toHaveAttribute('aria-expanded', 'true');
 
+  // A tap on the hint about further names keeps the field focused
+  await list
+    .locator('xpath=..')
+    .getByText(/weiterer? – tippe weiter/)
+    .click();
+  await expect(paidBy).toBeFocused();
+  await expect(list).toBeVisible();
+
   // Any part of the name, in any case
   await paidBy.fill('LEITERIN');
   const lea = list.getByRole('option', { name: 'Lea Leiterin', exact: true });
