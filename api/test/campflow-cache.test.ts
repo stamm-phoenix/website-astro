@@ -5,6 +5,7 @@ import {
   getCampflowEvents,
   getCampflowMembers,
   getCampflowMembersWithTime,
+  holdsCampflowMembers,
   resetCampflowLoads,
 } from '../lib/campflow';
 
@@ -22,7 +23,11 @@ const EVENT = {
 };
 
 /** Answers every CampFlow request with `answer`; returns how many requests were sent. */
-function campflow(t: TestContext, answer: () => Response): { count: number } {
+function campflow(
+  t: TestContext,
+  answer: () => Response,
+  timers: ('Date' | 'setTimeout')[] = ['Date']
+): { count: number } {
   const token = process.env.CAMPFLOW_API_TOKEN;
   process.env.CAMPFLOW_API_TOKEN = 'test-token';
   t.after(() => {
@@ -31,7 +36,7 @@ function campflow(t: TestContext, answer: () => Response): { count: number } {
     resetCampflowLoads();
   });
   resetCampflowLoads();
-  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-21T10:00:00Z') });
+  t.mock.timers.enable({ apis: timers, now: Date.parse('2026-10-21T10:00:00Z') });
   const calls = { count: 0 };
   t.mock.method(globalThis, 'fetch', async () => {
     calls.count++;
@@ -133,4 +138,17 @@ test('a refresh of the member list asks CampFlow again and tells when', async (t
   assert.equal(refreshed.loadedAt.toISOString(), '2026-10-21T10:00:10.000Z');
   // The other modules get the fresh list as well
   assert.equal(await getCampflowMembers(), refreshed.value);
+});
+
+test('the member list is dropped from memory a minute after it arrived', async (t) => {
+  campflow(t, () => Response.json({ data: [{ id: 'per_1' }] }), ['Date', 'setTimeout']);
+
+  await getCampflowMembers();
+  // Let the success handler of the load run and arm its timer
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(holdsCampflowMembers(), true);
+  t.mock.timers.tick(59_999);
+  assert.equal(holdsCampflowMembers(), true);
+  t.mock.timers.tick(1);
+  assert.equal(holdsCampflowMembers(), false);
 });
