@@ -280,11 +280,13 @@
     onblur={leave}
     onkeydown={keydown}
   />
+  <!-- svelte-ignore a11y_no_static_element_interactions (a tap on the hint or a heading keeps the focus in the field) -->
   <div
     bind:this={popup}
     hidden={!(expanded || showLoading)}
     class="surface absolute z-30 mt-1 w-full overflow-y-auto overscroll-contain rounded-lg shadow-lg"
     style:max-height={maxHeight ? `${maxHeight}px` : '16rem'}
+    onpointerdown={(event) => event.preventDefault()}
   >
     <ul id="{id}-options" role="listbox" aria-label={listLabel}>
       {#each groups as group (group.label)}
@@ -299,7 +301,6 @@
                 tabindex="-1"
                 class="flex min-h-11 w-full items-center break-words px-3 py-2 text-left hover:bg-neutral-100"
                 class:bg-neutral-100={active === index}
-                onpointerdown={(event) => event.preventDefault()}
                 onclick={() => pick(option)}
                 ><span
                   >{#each trefferTeile(option.label ?? option.value, value) as part, partIndex (partIndex)}{#if part.hit}<mark
