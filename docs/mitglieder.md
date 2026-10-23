@@ -20,7 +20,9 @@ weiter nur in CampFlow.
 `GET /api/intern/mitglieder` (`api/endpoints/intern-mitglieder.ts`, nur Team „Leitende“) liest
 über die offizielle CampFlow-API `GET /lists/member/persons` (geteilt mit den anderen Modulen
 für eine Minute, `getCampflowMembers`) und `GET /lists/member/custom_columns`. Antwort:
-`{ loadedAt, columns, persons }`. `bank_account` und `sepa_mandate` entfernt der Server
+`{ loadedAt, columns, persons }`; `loadedAt` ist der Zeitpunkt, zu dem CampFlow gelesen wurde.
+„Neu aus CampFlow laden“ schickt `?refresh=true`: Dann liest der Server die Liste sofort neu, und
+auch die anderen Module bekommen den neuen Stand. `bank_account` und `sepa_mandate` entfernt der Server
 (`sanitizePerson`). Fehlen die eigenen Felder, kommt die Liste trotzdem, nur ohne deren Namen.
 
 Gespeichert wird nichts. Die CampFlow-Weboberfläche bietet mehr (Nachweise wie

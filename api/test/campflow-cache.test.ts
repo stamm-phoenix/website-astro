@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
-import { getCampflowEvents, getCampflowMembers, resetCampflowLoads } from '../lib/campflow';
+import {
+  getCampflowEvents,
+  getCampflowMembers,
+  getCampflowMembersWithTime,
+  resetCampflowLoads,
+} from '../lib/campflow';
 
 const EVENT = {
   id: 'evt_Sola',
@@ -112,4 +117,20 @@ test('a load still running after a minute is shared, the minute counts from its 
 
   assert.equal(during, first);
   assert.equal(calls.count, 1);
+});
+
+test('a refresh of the member list asks CampFlow again and tells when', async (t) => {
+  const calls = campflow(t, () => Response.json({ data: [{ id: 'per_1' }] }));
+
+  const first = await getCampflowMembersWithTime();
+  t.mock.timers.tick(10_000);
+  const shared = await getCampflowMembers();
+  const refreshed = await getCampflowMembersWithTime(true);
+
+  assert.equal(calls.count, 2);
+  assert.equal(shared, first.value);
+  assert.equal(first.loadedAt.toISOString(), '2026-10-21T10:00:00.000Z');
+  assert.equal(refreshed.loadedAt.toISOString(), '2026-10-21T10:00:10.000Z');
+  // The other modules get the fresh list as well
+  assert.equal(await getCampflowMembers(), refreshed.value);
 });

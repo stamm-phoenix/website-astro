@@ -1,6 +1,11 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { CampflowColumn } from '../lib/campflow';
-import { CampflowError, campflowGetAll, getCampflowMembers, sanitizePerson } from '../lib/campflow';
+import {
+  CampflowError,
+  campflowGetAll,
+  getCampflowMembersWithTime,
+  sanitizePerson,
+} from '../lib/campflow';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
@@ -17,19 +22,24 @@ async function memberColumns(): Promise<CampflowColumn[]> {
 
 /**
  * The CampFlow member list with its custom fields, read-only for all Leitende
- * (`docs/mitglieder.md`). Payment details stay on the server.
+ * (`docs/mitglieder.md`). Payment details stay on the server. The list is shared with the other
+ * modules for a minute; `?refresh=true` reads CampFlow again.
  */
 export async function GetInternMitgliederEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const principal = requireStaff(request);
   if (isStaffError(principal)) return principal;
 
   try {
-    const [persons, columns] = await Promise.all([getCampflowMembers(), memberColumns()]);
+    const refresh = request.query.get('refresh') === 'true';
+    const [{ value: persons, loadedAt }, columns] = await Promise.all([
+      getCampflowMembersWithTime(refresh),
+      memberColumns(),
+    ]);
     return {
       status: 200,
       headers: NO_STORE_HEADERS,
       jsonBody: {
-        loadedAt: new Date().toISOString(),
+        loadedAt: loadedAt.toISOString(),
         columns,
         persons: persons.filter((person) => typeof person.id === 'string').map(sanitizePerson),
       },

@@ -54,6 +54,12 @@ test('Leitende see the members by group and look up one of them, read-only', asy
   await dialog.getByRole('button', { name: 'Details schließen' }).click();
   await expect(dialog).toBeHidden();
 
+  // „Neu aus CampFlow laden“ asks CampFlow again and says so
+  const refresh = page.waitForRequest((r) => r.url().includes('/intern/mitglieder?refresh=true'));
+  await page.getByRole('button', { name: 'Neu aus CampFlow laden' }).click();
+  await refresh;
+  await expect(page.getByText('Mitgliederliste neu aus CampFlow geladen.')).toBeVisible();
+
   // Nothing on the page changes CampFlow
   await expect(page.locator('main form, main [contenteditable]')).toHaveCount(0);
 });
