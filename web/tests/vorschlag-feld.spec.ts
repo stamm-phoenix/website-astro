@@ -176,4 +176,28 @@ test('field near the bottom moves up and keeps room for several suggestions', as
   const box = (await popup.boundingBox())!;
   expect(box.height).toBeGreaterThanOrEqual(3 * 44);
   expect(box.y + box.height).toBeLessThanOrEqual(600);
+  // Not behind the fixed bar at the bottom of the Leitendenbereich
+  const bar = (await page.locator('.staff-bottom-bar').boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+});
+
+test('the list stays above the fixed bar at the bottom', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.goto('/leitendenbereich/eigenbeleg');
+  const anlass = page.getByRole('combobox', { name: 'Aktion oder Zweck' });
+  // The field in the middle: room down to the screen edge, but the bar covers part of it
+  await anlass.evaluate((el) => {
+    const top = el.getBoundingClientRect().bottom + window.scrollY - 450;
+    window.scrollTo({ top, behavior: 'instant' });
+  });
+  await anlass.click();
+  const popup = page.locator('#eb-anlass-options').locator('..');
+  await expect(popup.getByRole('option').nth(3)).toBeAttached();
+  const bar = (await page.locator('.staff-bottom-bar').boundingBox())!;
+  await expect
+    .poll(async () => {
+      const box = (await popup.boundingBox())!;
+      return box.y + box.height - bar.y;
+    })
+    .toBeLessThanOrEqual(0);
 });

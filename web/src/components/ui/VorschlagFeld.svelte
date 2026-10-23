@@ -205,6 +205,10 @@
     if (!input || !open) return;
     const viewport = window.visualViewport;
     let bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+    // The fixed bar at the bottom of the Leitendenbereich covers the list on smaller screens
+    const bar = document.querySelector('.staff-bottom-bar');
+    if (bar && getComputedStyle(bar).display !== 'none')
+      bottom = Math.min(bottom, bar.getBoundingClientRect().top);
     // A scrolling dialog body cuts the list off before the screen does
     for (let el = input.parentElement; el && el !== document.body; el = el.parentElement) {
       if (/auto|scroll|hidden|clip/.test(getComputedStyle(el).overflowY))
