@@ -126,22 +126,31 @@ const SHARED_TTL_MS = 60_000;
  * pages opened from it do not each wait for CampFlow; a failed load is not kept. Callers must not
  * change the result.
  */
-function sharedLoad<T>(load: () => Promise<T>): { get: () => Promise<T>; reset: () => void } {
-  let current: { promise: Promise<T>; expires: number } | undefined;
+function sharedLoad<T>(load: () => Promise<T>): {
+  get: () => Promise<T>;
+  getWithTime: () => Promise<{ value: T; loadedAt: Date }>;
+  reset: () => void;
+} {
+  let current: { promise: Promise<T>; expires: number; startedAt: Date } | undefined;
+  function entry(): NonNullable<typeof current> {
+    if (current && current.expires > Date.now()) return current;
+    const started = { promise: load(), expires: Infinity, startedAt: new Date() };
+    current = started;
+    started.promise.then(
+      () => {
+        started.expires = Date.now() + SHARED_TTL_MS;
+      },
+      () => {
+        if (current === started) current = undefined;
+      }
+    );
+    return started;
+  }
   return {
-    get() {
-      if (current && current.expires > Date.now()) return current.promise;
-      const entry = { promise: load(), expires: Infinity };
-      current = entry;
-      entry.promise.then(
-        () => {
-          entry.expires = Date.now() + SHARED_TTL_MS;
-        },
-        () => {
-          if (current === entry) current = undefined;
-        }
-      );
-      return entry.promise;
+    get: () => entry().promise,
+    async getWithTime() {
+      const { promise, startedAt } = entry();
+      return { value: await promise, loadedAt: startedAt };
     },
     reset() {
       current = undefined;
@@ -165,6 +174,17 @@ export function getCampflowEvents(): Promise<CampflowEvent[]> {
 /** All persons of the member list; shared for a minute. */
 export function getCampflowMembers(): Promise<CampflowPerson[]> {
   return members.get();
+}
+
+/**
+ * All persons of the member list with the time CampFlow was asked; shared for a minute, unless
+ * `refresh` asks CampFlow again (the new load is then shared with the other modules).
+ */
+export function getCampflowMembersWithTime(
+  refresh = false
+): Promise<{ value: CampflowPerson[]; loadedAt: Date }> {
+  if (refresh) members.reset();
+  return members.getWithTime();
 }
 
 /** Forgets the shared loads (for tests). */

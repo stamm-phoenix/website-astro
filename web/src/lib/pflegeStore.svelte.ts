@@ -171,9 +171,12 @@ export const beitraegeStore = createResource<BeitraegeData, boolean>(
   { idle: true }
 );
 
-/** The CampFlow member list with its groups, read-only. */
-export const mitgliederStore = createResource<MitgliederData>('/intern/mitglieder', {
-  idle: true,
-  loadError:
-    'Die Mitgliederliste konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
-});
+/** The CampFlow member list with its groups, read-only; `true` as param reads CampFlow again. */
+export const mitgliederStore = createResource<MitgliederData, boolean>(
+  (refresh) => (refresh ? '/intern/mitglieder?refresh=true' : '/intern/mitglieder'),
+  {
+    idle: true,
+    loadError:
+      'Die Mitgliederliste konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
+  }
+);

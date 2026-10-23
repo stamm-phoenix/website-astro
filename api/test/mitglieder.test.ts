@@ -11,9 +11,9 @@ const STAFF = {
   userRoles: ['authenticated', 'team_leitende'],
 };
 
-function request(principal: object | null = STAFF): HttpRequest {
+function request(principal: object | null = STAFF, query = ''): HttpRequest {
   return new HttpRequest({
-    url: 'https://example.test/api/intern/mitglieder',
+    url: `https://example.test/api/intern/mitglieder${query}`,
     method: 'GET',
     headers: principal
       ? { 'x-ms-client-principal': Buffer.from(JSON.stringify(principal)).toString('base64') }
@@ -40,13 +40,19 @@ const COLUMNS: campflow.CampflowColumn[] = [
   },
 ];
 
+const LOADED_AT = new Date('2026-10-23T10:00:00Z');
+
 interface Body {
+  loadedAt: string;
   columns: campflow.CampflowColumn[];
   persons: campflow.CampflowPerson[];
 }
 
 test('the member list comes with its custom fields and without payment details', async (t) => {
-  t.mock.method(campflow, 'getCampflowMembers', async () => [MEMBER]);
+  t.mock.method(campflow, 'getCampflowMembersWithTime', async () => ({
+    value: [MEMBER],
+    loadedAt: LOADED_AT,
+  }));
   const getAll = t.mock.method(campflow, 'campflowGetAll', async () => COLUMNS);
 
   const response = await GetInternMitgliederEndpoint(request());
@@ -54,6 +60,8 @@ test('the member list comes with its custom fields and without payment details',
   assert.equal(response.status, 200);
   assert.equal(getAll.mock.calls[0].arguments[0], '/lists/member/custom_columns');
   const body = response.jsonBody as Body;
+  // The time CampFlow was read, not the time of the answer
+  assert.equal(body.loadedAt, LOADED_AT.toISOString());
   assert.deepEqual(body.columns, COLUMNS);
   assert.deepEqual(body.persons, [
     {
@@ -68,7 +76,10 @@ test('the member list comes with its custom fields and without payment details',
 });
 
 test('the member list still loads when its custom fields cannot be read', async (t) => {
-  t.mock.method(campflow, 'getCampflowMembers', async () => [MEMBER]);
+  t.mock.method(campflow, 'getCampflowMembersWithTime', async () => ({
+    value: [MEMBER],
+    loadedAt: LOADED_AT,
+  }));
   t.mock.method(campflow, 'campflowGetAll', async () => {
     throw new campflow.CampflowError(404, 'not found');
   });
@@ -81,14 +92,14 @@ test('the member list still loads when its custom fields cannot be read', async 
 
 test('a failing CampFlow is reported with what to do', async (t) => {
   t.mock.method(campflow, 'campflowGetAll', async () => COLUMNS);
-  t.mock.method(campflow, 'getCampflowMembers', async () => {
+  t.mock.method(campflow, 'getCampflowMembersWithTime', async () => {
     throw new campflow.CampflowError(504, 'timeout');
   });
   const unavailable = await GetInternMitgliederEndpoint(request());
   assert.equal(unavailable.status, 502);
   assert.match(JSON.stringify(unavailable.jsonBody), /admin@stamm-phoenix\.de/);
 
-  t.mock.method(campflow, 'getCampflowMembers', async () => {
+  t.mock.method(campflow, 'getCampflowMembersWithTime', async () => {
     throw new campflow.CampflowError(403, 'forbidden');
   });
   const forbidden = await GetInternMitgliederEndpoint(request());
@@ -97,7 +108,10 @@ test('a failing CampFlow is reported with what to do', async (t) => {
 });
 
 test('only Leitende see the member list', async (t) => {
-  const members = t.mock.method(campflow, 'getCampflowMembers', async () => [MEMBER]);
+  const members = t.mock.method(campflow, 'getCampflowMembersWithTime', async () => ({
+    value: [MEMBER],
+    loadedAt: LOADED_AT,
+  }));
 
   const anonymous = await GetInternMitgliederEndpoint(request(null));
   const other = await GetInternMitgliederEndpoint(
@@ -107,4 +121,20 @@ test('only Leitende see the member list', async (t) => {
   assert.equal(anonymous.status, 401);
   assert.equal(other.status, 403);
   assert.equal(members.mock.callCount(), 0);
+});
+
+test('only „Neu aus CampFlow laden“ asks CampFlow again', async (t) => {
+  t.mock.method(campflow, 'campflowGetAll', async () => COLUMNS);
+  const members = t.mock.method(campflow, 'getCampflowMembersWithTime', async () => ({
+    value: [MEMBER],
+    loadedAt: LOADED_AT,
+  }));
+
+  await GetInternMitgliederEndpoint(request());
+  await GetInternMitgliederEndpoint(request(STAFF, '?refresh=true'));
+
+  assert.deepEqual(
+    members.mock.calls.map((call) => call.arguments[0]),
+    [false, true]
+  );
 });

@@ -58,13 +58,13 @@
 
   async function refresh(): Promise<void> {
     refreshed = '';
-    await mitgliederStore.load({ force: true });
+    await mitgliederStore.load({ force: true, param: true });
     if (!store.error) refreshed = 'Mitgliederliste neu aus CampFlow geladen.';
   }
 
   onMount(() => {
     readUrl();
-    void mitgliederStore.load();
+    void mitgliederStore.load({ param: false });
   });
 
   function tabs(data: MitgliederData) {
@@ -129,7 +129,7 @@
     loading={store.loading}
     error={store.error}
     loadingText="Mitgliederliste wird aus CampFlow geladen …"
-    onretry={() => mitgliederStore.load({ force: true })}
+    onretry={() => mitgliederStore.load({ force: true, param: false })}
   >
     {#snippet children(data: MitgliederData)}
       {@const list = visible(data)}
