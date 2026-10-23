@@ -31,7 +31,9 @@
   const fields = $derived(
     person
       ? getPersonFields(person, columns)
-          .filter((field) => !HIDDEN.has(field.key))
+          // A field without a readable name (e.g. `col_…` when its name could not be loaded)
+          // would only confuse; its key is no label for Leitende
+          .filter((field) => !HIDDEN.has(field.key) && field.label !== field.key)
           .map((field) =>
             field.key === 'custom_annuity_amount' &&
             typeof person.custom_annuity_amount === 'number'
