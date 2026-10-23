@@ -16,6 +16,20 @@ test('people are suggested under „Ausgelegt von“ and picked by tap', async (
   // Without typing the list already offers names, also on a phone
   await paidBy.click();
   await expect(list.getByRole('option').first()).toBeVisible();
+  // The scrolling dialog body does not cut the list off
+  await expect
+    .poll(() =>
+      list.evaluate((el) => {
+        const popup = el.parentElement!;
+        let limit = window.innerHeight;
+        for (let a = popup.parentElement; a && a !== document.body; a = a.parentElement) {
+          if (/auto|scroll|hidden|clip/.test(getComputedStyle(a).overflowY))
+            limit = Math.min(limit, a.getBoundingClientRect().bottom);
+        }
+        return popup.getBoundingClientRect().bottom - limit;
+      })
+    )
+    .toBeLessThanOrEqual(1);
   await expect(paidBy).toHaveAttribute('aria-expanded', 'true');
 
   // Any part of the name, in any case

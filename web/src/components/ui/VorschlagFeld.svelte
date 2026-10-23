@@ -204,7 +204,12 @@
   function fit(scroll: boolean): void {
     if (!input || !open) return;
     const viewport = window.visualViewport;
-    const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+    let bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+    // A scrolling dialog body cuts the list off before the screen does
+    for (let el = input.parentElement; el && el !== document.body; el = el.parentElement) {
+      if (/auto|scroll|hidden|clip/.test(getComputedStyle(el).overflowY))
+        bottom = Math.min(bottom, el.getBoundingClientRect().bottom);
+    }
     const space = bottom - input.getBoundingClientRect().bottom - 12;
     // Room for three entries at least; otherwise move the field up first
     if (space < 3 * 44 && scroll) {
