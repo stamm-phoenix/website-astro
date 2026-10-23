@@ -93,8 +93,9 @@ ihrer ID (`rcp_…`) angesprochen. Die Playwright-API holt jede Datei nur einmal
 Die Box „Meine Belege“ (`StaffDashboard.svelte`, `meineBelege` in `web/src/lib/campflowBelege.ts`)
 zeigt die eigenen Einträge derselben Liste, die neuesten zuerst, aber nur die, die noch nicht
 erstattet sind (eingereicht, angenommen, abgelehnt, noch nicht gebucht, Erstattung offen), und
-die in den letzten 30 Tagen erstatteten (`MEINE_BELEGE_ERSTATTET_TAGE`). Erstattete Belege ohne
-bekanntes Datum und ältere bleiben im Modul mit „Nur meine Belege“ auffindbar. Eigen ist ein Beleg nur, wenn die
+die in den letzten 30 Tagen erstatteten (`MEINE_BELEGE_ERSTATTET_TAGE`). Ältere erstattete bleiben
+im Modul mit „Nur meine Belege“ auffindbar. Erstattete Belege ohne bekanntes Datum bleiben in der
+Box, damit ein gerade erstatteter Beleg nicht verschwindet, nur weil CampFlow keinen Umsatz nennt. Eigen ist ein Beleg nur, wenn die
 angemeldete Person ihn ausgelegt hat („Auslage durch“ ist ihr Name, wie bei „(ich)“), egal wer ihn
 eingereicht hat. Belege ohne Auslage und Umbuchungen aufs Sparbuch gehören niemandem. Dasselbe
 gilt für „Nur meine Belege“.

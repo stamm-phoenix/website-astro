@@ -151,7 +151,15 @@ test('my receipts leave the start page 30 days after they were paid back', () =>
     meineBelege(belege, data, isKim, today)
       .map((entry) => entry.title)
       .sort();
-  assert.deepEqual(titles('2026-10-23'), ['Edeka', 'Laden 1', 'Laden 2', 'grenze', 'heute']);
+  // Paid back on an unknown day: stays rather than vanish right after being paid back
+  assert.deepEqual(titles('2026-10-23'), [
+    'Edeka',
+    'Laden 1',
+    'Laden 2',
+    'grenze',
+    'heute',
+    'ohne Datum',
+  ]);
   // The same receipts stay in the module with „Nur meine Belege“
   assert.ok(
     belegEintraege(belege, data, { isIch: isKim }).some(

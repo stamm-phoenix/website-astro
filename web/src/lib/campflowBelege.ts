@@ -27,11 +27,12 @@ function daysBefore(day: string, days: number): string {
 
 /**
  * Whether a receipt still belongs on the start page: everything not paid back yet, and what was
- * paid back in the last `MEINE_BELEGE_ERSTATTET_TAGE` days. Older ones stay in the module.
+ * paid back in the last `MEINE_BELEGE_ERSTATTET_TAGE` days. Older ones stay in the module. One
+ * paid back on an unknown day stays, so it never vanishes right after being paid back.
  */
 function stillCurrent(eintrag: BelegEintrag, today: string): boolean {
-  if (eintrag.stand !== 'bezahlt') return true;
-  return !!eintrag.settledAt && eintrag.settledAt >= daysBefore(today, MEINE_BELEGE_ERSTATTET_TAGE);
+  if (eintrag.stand !== 'bezahlt' || !eintrag.settledAt) return true;
+  return eintrag.settledAt >= daysBefore(today, MEINE_BELEGE_ERSTATTET_TAGE);
 }
 
 /**
