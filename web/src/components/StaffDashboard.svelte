@@ -474,7 +474,7 @@
           </li>{/if}
         {#if belegeEmpty}<li class="flex items-center gap-2">
             {@render check()}<span
-              >Keine eigenen Belege ·
+              >Keine offenen Belege ·
               <a href="/leitendenbereich/belege" class="text-link">Beleg einreichen</a></span
             >
           </li>{/if}
