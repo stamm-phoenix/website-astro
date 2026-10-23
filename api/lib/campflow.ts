@@ -130,6 +130,7 @@ function sharedLoad<T>(load: () => Promise<T>): {
   get: () => Promise<T>;
   getWithTime: () => Promise<{ value: T; loadedAt: Date }>;
   reset: () => void;
+  held: () => boolean;
 } {
   let current: { promise: Promise<T>; expires: number; startedAt: Date } | undefined;
   function entry(): NonNullable<typeof current> {
@@ -139,6 +140,11 @@ function sharedLoad<T>(load: () => Promise<T>): {
     started.promise.then(
       () => {
         started.expires = Date.now() + SHARED_TTL_MS;
+        // Drop the result after the minute, so personal data does not stay until the next request
+        const timer = setTimeout(() => {
+          if (current === started) current = undefined;
+        }, SHARED_TTL_MS);
+        timer.unref?.();
       },
       () => {
         if (current === started) current = undefined;
@@ -155,6 +161,7 @@ function sharedLoad<T>(load: () => Promise<T>): {
     reset() {
       current = undefined;
     },
+    held: () => current !== undefined,
   };
 }
 
@@ -185,6 +192,11 @@ export function getCampflowMembersWithTime(
 ): Promise<{ value: CampflowPerson[]; loadedAt: Date }> {
   if (refresh) members.reset();
   return members.getWithTime();
+}
+
+/** Whether the member list is still held in memory (for tests). */
+export function holdsCampflowMembers(): boolean {
+  return members.held();
 }
 
 /** Forgets the shared loads (for tests). */
