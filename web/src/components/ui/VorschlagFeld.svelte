@@ -208,7 +208,8 @@
     const space = bottom - input.getBoundingClientRect().bottom - 12;
     // Room for three entries at least; otherwise move the field up first
     if (space < 3 * 44 && scroll) {
-      input.scrollIntoView({ block: 'start' });
+      // Instant despite the smooth scrolling of the page, so the room below is measured after it
+      input.scrollIntoView({ block: 'start', behavior: 'instant' });
       void tick().then(() => fit(false));
       return;
     }

@@ -137,3 +137,21 @@ test('Merkmale in use are suggested while typing and added by tap', async ({ pag
   await input.press('Enter');
   await expect(chips).toHaveCount(before + 1);
 });
+
+test('field near the bottom moves up and keeps room for several suggestions', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.goto('/leitendenbereich/eigenbeleg');
+  const anlass = page.getByRole('combobox', { name: 'Aktion oder Zweck' });
+  await anlass.evaluate((el) => {
+    const top = el.getBoundingClientRect().bottom + window.scrollY - window.innerHeight + 20;
+    window.scrollTo({ top, behavior: 'instant' });
+  });
+  await anlass.click();
+  await anlass.fill('e');
+  const popup = page.locator('#eb-anlass-options').locator('..');
+  await expect(popup).toBeVisible();
+  await page.waitForTimeout(800);
+  const box = (await popup.boundingBox())!;
+  expect(box.height).toBeGreaterThanOrEqual(3 * 44);
+  expect(box.y + box.height).toBeLessThanOrEqual(600);
+});
