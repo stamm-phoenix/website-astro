@@ -25,7 +25,7 @@
   const PAGE = 100;
 
   const store = mitgliederStore.state;
-  const today = todayIso();
+  let today = $state(todayIso());
 
   let ansicht = $state<MitgliederAnsicht>('alle');
   let search = $state('');
@@ -58,6 +58,7 @@
 
   async function refresh(): Promise<void> {
     refreshed = '';
+    today = todayIso();
     await mitgliederStore.load({ force: true, param: true });
     if (!store.error) refreshed = 'Mitgliederliste neu aus CampFlow geladen.';
   }
@@ -67,6 +68,16 @@
     // The store outlives a change of page; a list older than the server's shared minute is
     // asked for again and stays shown until the answer is there
     void mitgliederStore.load({ param: false, maxAge: 60_000 });
+    // A page left open overnight would otherwise judge joins and leaves by the day before
+    const refreshToday = (): void => {
+      today = todayIso();
+    };
+    window.addEventListener('focus', refreshToday);
+    document.addEventListener('visibilitychange', refreshToday);
+    return () => {
+      window.removeEventListener('focus', refreshToday);
+      document.removeEventListener('visibilitychange', refreshToday);
+    };
   });
 
   function tabs(data: MitgliederData) {
