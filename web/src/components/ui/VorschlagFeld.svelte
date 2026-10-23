@@ -271,7 +271,8 @@
     {disabled}
     oninput={(event) => {
       onedit?.(event.currentTarget.value);
-      show();
+      // Restored input (after a new login) fills the field without opening the list
+      if (document.activeElement === event.currentTarget) show();
     }}
     onfocus={() => {
       // The list opens on a tap or typing, not when a script moves the focus here
