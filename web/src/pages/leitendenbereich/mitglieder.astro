@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../layouts/StaffLayout.astro';
+import Mitglieder from '../../components/mitglieder/Mitglieder.svelte';
+---
+
+<StaffLayout>
+  <Mitglieder client:only="svelte" />
+</StaffLayout>

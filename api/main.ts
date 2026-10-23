@@ -131,6 +131,7 @@ import GetInternAbrechnungBelegBildEndpoint, {
   GetInternAbrechnungBelegVorschau,
 } from './endpoints/intern-abrechnung-beleg-bild';
 import GetInternBeitraegeEndpoint from './endpoints/intern-beitraege';
+import GetInternMitgliederEndpoint from './endpoints/intern-mitglieder';
 import {
   GruppenstundenCollection,
   GruppenstundeItem,
@@ -477,6 +478,13 @@ app.http('internBeitraege', {
   authLevel: 'anonymous',
   route: 'intern/beitraege',
   handler: GetInternBeitraegeEndpoint,
+});
+
+app.http('internMitglieder', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/mitglieder',
+  handler: GetInternMitgliederEndpoint,
 });
 
 // Edit modules of the Leitendenbereich (write to SharePoint)
