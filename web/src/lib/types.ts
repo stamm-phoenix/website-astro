@@ -617,6 +617,8 @@ export interface CampflowBeleg {
   fileName: string | null;
   /** Upload time as CampFlow reports it, `YYYY-MM-DD HH:MM:SS`. */
   uploadedAt: string | null;
+  /** When a `settled` receipt was paid or paid back, `YYYY-MM-DD`; null otherwise or if unknown. */
+  settledAt: string | null;
   /** Transferred from this website's Belege module. */
   viaWebsite: boolean;
   /** Transferred from the Belege module and submitted there by the logged-in user. */

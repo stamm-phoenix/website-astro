@@ -1,3 +1,4 @@
+import { formatIsoDate } from './belege';
 import { matchingKostenstelle, SPARBUCH } from './belegForm';
 import type { StatusTone } from './status';
 import type { CampflowBeleg, CampflowBelegeData, StaffBeleg } from './types';
@@ -48,6 +49,8 @@ export interface BelegEintrag {
   previewUrl: string | null;
   /** Submitted here by the user, or paid out of pocket by them. */
   own: boolean;
+  /** When a receipt in CampFlow was paid or paid back, `YYYY-MM-DD`; null if not or unknown. */
+  settledAt: string | null;
   /** Extra tags, e.g. „Auszahlung“ or „Foto prüfen“. */
   tags: { label: string; tone: StatusTone }[];
   /** Why the Kasse rejected it, for a rejected receipt. */
@@ -69,10 +72,14 @@ export function campflowStand(beleg: CampflowBeleg): {
       return beleg.paidBy
         ? { stand: 'gebucht', label: 'Gebucht, Erstattung offen', tone: 'warning' }
         : { stand: 'gebucht', label: 'Gebucht', tone: 'neutral' };
-    default:
-      return beleg.paidBy
-        ? { stand: 'bezahlt', label: 'Erstattet', tone: 'success' }
-        : { stand: 'bezahlt', label: 'Bezahlt', tone: 'success' };
+    default: {
+      const on = beleg.settledAt ? ` am ${formatIsoDate(beleg.settledAt)}` : '';
+      return {
+        stand: 'bezahlt',
+        label: `${beleg.paidBy ? 'Erstattet' : 'Bezahlt'}${on}`,
+        tone: 'success',
+      };
+    }
   }
 }
 
@@ -150,6 +157,7 @@ export function belegEintraege(
         ? `/api/intern/pflege/belege/${beleg.id}/foto?v=${encodeURIComponent(beleg.etag)}&thumb=1`
         : null,
       own: beleg.mine === true || (beleg.payout && isOwnAuslage(beleg.paidBy, isIch)),
+      settledAt: null,
       tags,
       hinweis: beleg.status === 'Abgelehnt' && beleg.reviewNote ? beleg.reviewNote : null,
       beleg,
@@ -178,6 +186,7 @@ export function belegEintraege(
         categoryIds: beleg.categories.map((category) => category.id),
         previewUrl: campflowPreviewUrl(beleg),
         own: beleg.mine || isOwnAuslage(beleg.paidBy, isIch),
+        settledAt: beleg.status === 'settled' ? beleg.settledAt : null,
         tags: beleg.number ? [{ label: `Nr. ${beleg.number}`, tone: 'neutral' }] : [],
         hinweis: null,
         campflow: beleg,

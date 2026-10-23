@@ -34,6 +34,8 @@ export interface CampflowBeleg {
   fileName: string | null;
   /** Upload time as CampFlow reports it, `YYYY-MM-DD HH:MM:SS`. */
   uploadedAt: string | null;
+  /** When a `settled` receipt was paid or paid back, `YYYY-MM-DD`; null otherwise or if unknown. */
+  settledAt: string | null;
   /** Transferred from the Belege module of this website. */
   viaWebsite: boolean;
   /** Transferred from the Belege module and submitted there by the user asking. */
@@ -119,6 +121,7 @@ function readBeleg(value: unknown): Omit<CampflowBeleg, 'viaWebsite' | 'submitte
     pages: typeof value.pages === 'number' && value.pages >= 1 ? Math.floor(value.pages) : 1,
     fileName: status === 'unbooked' ? optionalText(value.originalFilename) : null,
     uploadedAt: optionalText(value.uploadedAt),
+    settledAt: status === 'settled' ? day(value.settledAt) : null,
   };
 }
 

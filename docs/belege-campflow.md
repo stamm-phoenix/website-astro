@@ -63,7 +63,17 @@ Microsoft-Kontos). „Liste“ oder „Galerie“ (Kacheln mit größerem Vorsch
 | Noch nicht gebucht | CampFlow | unter *Ungeprüfte Belege*, ohne Buchung und Nummer |
 | Gebucht, Erstattung offen | CampFlow | gebucht mit „Auslage durch“, aber noch nicht ganz einer Zahlung auf dem Konto zugeordnet |
 | Gebucht | CampFlow | gebucht ohne Auslage, noch nicht ganz zugeordnet |
-| Erstattet / Bezahlt | CampFlow | ganz einer Zahlung zugeordnet (`unassigned_bca` 0) |
+| Erstattet / Bezahlt (am …) | CampFlow | ganz einer Zahlung zugeordnet (`unassigned_bca` 0) |
+
+**Erstattungsdatum:** Ein erstatteter bzw. bezahlter Beleg nennt sein Datum, z. B. „Erstattet am
+25.06.2026“, in Liste, Galerie, Details und „Meine Belege“ (`settledAt`). Eine Buchung in CampFlow
+hat selbst kein Zahlungsdatum. Die Playwright-API liest dafür alle Konten (`GET /accounts`, Bank
+und Kasse, auch archivierte) und ihre zugeordneten Umsätze
+(`GET /accounts/{id}/transactions?unassigned=false`); jeder Umsatz nennt in
+`assignment_uniqueness_keys` die Buchungen, denen er zugeordnet ist. Das Datum ist das späteste
+`transaction_date` dieser Umsätze, nur bei ganz zugeordneten Buchungen. Findet sich kein Umsatz,
+steht nur „Erstattet“ bzw. „Bezahlt“. Die Umsätze werden mit der Liste gelesen und wie sie im
+Speicher gehalten; „Neu laden“ liest auch sie neu (etwa 40 Anfragen mehr).
 
 Die Belege aus CampFlow kommen über `GET /api/intern/pflege/belege/campflow` (für alle Leitenden)
 von der Playwright-API (`GET /campflow/belege`). Sie liefert ihren letzten Stand aus dem Speicher;
@@ -81,7 +91,10 @@ ihrer ID (`rcp_…`) angesprochen. Die Playwright-API holt jede Datei nur einmal
 ## Meine Belege auf der Startseite
 
 Die Box „Meine Belege“ (`StaffDashboard.svelte`, `meineBelege` in `web/src/lib/campflowBelege.ts`)
-zeigt die eigenen Einträge derselben Liste, die neuesten zuerst. Eigen ist ein Beleg nur, wenn die
+zeigt die eigenen Einträge derselben Liste, die neuesten zuerst, aber nur die, die noch nicht
+erstattet sind (eingereicht, angenommen, abgelehnt, noch nicht gebucht, Erstattung offen), und
+die in den letzten 30 Tagen erstatteten (`MEINE_BELEGE_ERSTATTET_TAGE`). Erstattete Belege ohne
+bekanntes Datum und ältere bleiben im Modul mit „Nur meine Belege“ auffindbar. Eigen ist ein Beleg nur, wenn die
 angemeldete Person ihn ausgelegt hat („Auslage durch“ ist ihr Name, wie bei „(ich)“), egal wer ihn
 eingereicht hat. Belege ohne Auslage und Umbuchungen aufs Sparbuch gehören niemandem. Dasselbe
 gilt für „Nur meine Belege“.
