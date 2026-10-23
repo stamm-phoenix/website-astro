@@ -30,7 +30,8 @@
   let ansicht = $state<MitgliederAnsicht>('alle');
   let search = $state('');
   let shown = $state(PAGE);
-  let selected = $state<CampflowPerson | null>(null);
+  /** ID of the member whose details are open; resolved in the current data, so a reload updates them. */
+  let selectedId = $state<string | null>(null);
   let refreshed = $state('');
 
   function readUrl(): void {
@@ -202,7 +203,7 @@
                 <button
                   type="button"
                   class="group flex min-h-11 w-full flex-col gap-1 py-3 text-left sm:flex-row sm:items-start sm:justify-between sm:gap-6"
-                  onclick={() => (selected = person)}
+                  onclick={() => (selectedId = person.id)}
                 >
                   <span class="min-w-0">
                     <span class="block font-semibold text-brand-900 group-hover:underline"
@@ -247,10 +248,10 @@
       </section>
 
       <MitgliedDetails
-        person={selected}
+        person={data.persons.find((p) => p.id === selectedId) ?? null}
         columns={data.columns}
         {today}
-        onclose={() => (selected = null)}
+        onclose={() => (selectedId = null)}
       />
     {/snippet}
   </LoadState>
