@@ -25,6 +25,14 @@ test('Leitende see the members by group and look up one of them, read-only', asy
   await expect(liste.getByRole('button', { name: /Nina Neu/ })).toContainText(/Tritt am .* ein/);
   await expectNoHorizontalOverflow(page);
 
+  // The count of a group with a space in its name reaches screen readers (desktop tabs)
+  const tabs = page.getByRole('group', { name: 'Nach Gruppe filtern' });
+  if (await tabs.isVisible()) {
+    await expect(tabs.getByRole('button', { name: /Wölfling/ })).toHaveAccessibleDescription(
+      '7 Mitglieder'
+    );
+  }
+
   await gruppe(page, /Wölfling/);
   await expect(page).toHaveURL(/\?gruppe=/);
   await expect(liste.getByRole('listitem')).toHaveCount(7);
