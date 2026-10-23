@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getContext } from 'svelte';
   import FormField from './FormField.svelte';
+  import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import { todayIso } from '../../lib/format';
   import {
     applyZahlung,
@@ -9,6 +10,7 @@
     type BelegZahlung,
   } from '../../lib/belegForm';
   import { belegPersonen, fetchBelegPersonen } from '../../lib/belegPersonen.svelte';
+  import { campflowEventsStore } from '../../lib/campflowStore.svelte';
   interface Props {
     form: BelegForm;
     errors: Record<string, string>;
@@ -33,7 +35,8 @@
     { value: 'stamm', label: 'Mit Stammeskarte / aus der Kasse' },
     { value: 'sparbuch', label: 'Umbuchung aufs Sparbuch' },
   ];
-  const personen = $derived(belegPersonen.names);
+  const personen = $derived(belegPersonen.names.map((name) => ({ value: name })));
+  const aktionen = $derived(aktionSuggestions.map((title) => ({ value: title })));
 
   // Names from the module „Personen“ to pick from; any other name can be typed
   $effect(() => {
@@ -94,21 +97,16 @@
   </FormField>
   <FormField id="bl-aktion" label="Aktion" error={errors.aktion} class="sm:col-span-2">
     {#snippet children(attrs)}
-      <input
+      <VorschlagFeld
         {...attrs}
-        class="form-input"
-        maxlength="120"
-        list="bl-aktion-suggestions"
-        autocomplete="off"
+        maxlength={120}
         placeholder="z. B. Sommerlager oder Gruppenstunde Wölflinge"
+        options={aktionen}
+        loading={campflowEventsStore.loading}
+        listLabel="Aktion auswählen"
         bind:value={form!.aktion}
-        oninput={() => onfield('aktion')}
+        onedit={() => onfield('aktion')}
       />
-      <datalist id="bl-aktion-suggestions">
-        {#each aktionSuggestions as title (title)}
-          <option value={title}></option>
-        {/each}
-      </datalist>
       {#if unknownAktion}
         <div class="mt-2 text-sm text-neutral-700" aria-live="polite">
           {#if relatedAktionen.length}
@@ -156,20 +154,16 @@
     {#if option.value === 'andere' && form.zahlung === 'andere'}
       <FormField id="bl-paid-by" label="Ausgelegt von" error={errors.paidBy} class="pl-9">
         {#snippet children(attrs)}
-          <input
+          <VorschlagFeld
             {...attrs}
-            class="form-input"
-            maxlength="100"
-            list="bl-paid-by-suggestions"
-            autocomplete="off"
+            maxlength={100}
+            placeholder="Name suchen oder eingeben"
+            options={personen}
+            loading={belegPersonen.loading}
+            listLabel="Person auswählen"
             bind:value={form!.paidBy}
-            oninput={() => onfield('paidBy')}
+            onedit={() => onfield('paidBy')}
           />
-          <datalist id="bl-paid-by-suggestions">
-            {#each personen as name (name)}
-              <option value={name}></option>
-            {/each}
-          </datalist>
         {/snippet}
       </FormField>
     {/if}

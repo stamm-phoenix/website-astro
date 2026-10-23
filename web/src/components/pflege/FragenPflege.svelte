@@ -10,6 +10,7 @@
   import type { StaffQuestionAndAnswer } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
+  import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
 
@@ -292,12 +293,12 @@
       >
         {#snippet children(attrs)}
           {#if store.data?.allowCustomCategories}
-            <input
+            <VorschlagFeld
               {...attrs}
-              class="form-input"
-              list="faq-categories"
-              maxlength="100"
+              maxlength={100}
               placeholder="Allgemein"
+              options={categories.map((category) => ({ value: category }))}
+              listLabel="Thema auswählen"
               bind:value={form!.category}
             />
           {:else}
@@ -310,10 +311,6 @@
           {/if}
         {/snippet}
       </FormField>
-      <datalist id="faq-categories"
-        >{#each categories as category (category)}<option value={category}
-          ></option>{/each}</datalist
-      >
       <div inert={busy}>
         <FormField id="faq-answer" label="Antwort" labelAs="span" error={errors.answer}>
           {#snippet children(attrs)}

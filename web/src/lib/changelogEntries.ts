@@ -12,6 +12,15 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-23-02-vorschlaege',
+    date: '2026-10-23',
+    title: 'Vorschläge beim Tippen, auch auf dem Handy',
+    changes: [
+      'Felder mit Vorschlägen zeigen ihre Liste jetzt direkt unter dem Feld, auch auf dem Handy: „Ausgelegt von“ und „Aktion“ bei den Belegen, „Aktion oder Zweck“ im Eigenbeleg, das Thema bei Fragen & Antworten, die Variante in der Sammelbestellung und die Merkmale im Nikolausdienst.',
+      'Die Liste findet dein Wort an jeder Stelle, egal ob groß oder klein geschrieben, und hebt es hervor. Du wählst per Tippen oder mit Pfeiltasten und Enter. Was nicht in der Liste steht, kannst du weiterhin einfach eintippen.',
+    ],
+  },
+  {
     id: '2026-10-23-01-belege-erstattet',
     date: '2026-10-23',
     title: 'Belege: Erstattungsdatum und kürzere Liste „Meine Belege“',
