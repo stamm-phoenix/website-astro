@@ -42,12 +42,12 @@
     aria-labelledby={showLabel ? `${id}-label` : undefined}
     class={`${variant === 'segmented' ? 'segments' : 'flex flex-wrap gap-x-5 gap-y-1'} ${groupClass}`}
   >
-    {#each options as option (option.value)}
+    {#each options as option, index (option.value)}
       <button
         type="button"
         class="filter-tab"
         aria-pressed={value === option.value}
-        aria-describedby={option.count === undefined ? undefined : `${id}-${option.value}`}
+        aria-describedby={option.count === undefined ? undefined : `${id}-count-${index}`}
         data-tone={variant === 'segmented' ? option.tone : undefined}
         {disabled}
         onclick={() => onselect(option.value)}
@@ -60,7 +60,7 @@
             class="ml-1 tabular-nums">({option.count})</span
           >{/if}
       </button>
-      {#if option.count !== undefined}<span class="sr-only" id="{id}-{option.value}"
+      {#if option.count !== undefined}<span class="sr-only" id="{id}-count-{index}"
           >{option.count} {option.count === 1 ? countNouns[0] : countNouns[1]}</span
         >{/if}
     {/each}
