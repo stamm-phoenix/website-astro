@@ -79,12 +79,17 @@ function normalize(value: string): string {
   return value.toLocaleLowerCase('de').normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
-/** Whether every word of the search appears in the name, member number or e-mail address. */
+/** Whether every word of the search appears in the name, member number or an e-mail address. */
 export function matchesSearch(person: CampflowPerson, search: string): boolean {
   const words = normalize(search).split(/\s+/).filter(Boolean);
   if (words.length === 0) return true;
   const haystack = normalize(
-    [formatName(person), text(person.membership_number), text(person.primary_email)].join(' ')
+    [
+      formatName(person),
+      text(person.membership_number),
+      text(person.primary_email),
+      ...(Array.isArray(person.cc_emails) ? person.cc_emails.map(text) : []),
+    ].join(' ')
   );
   return words.every((word) => haystack.includes(word));
 }

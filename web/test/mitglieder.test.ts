@@ -81,11 +81,13 @@ test('the search finds names, member numbers and addresses without accents', () 
     name: { first_name: 'José', last_name: 'Müller' },
     membership_number: 'M123',
     primary_email: 'jose@example.org',
+    cc_emails: ['eltern.mueller@example.net', 42],
   });
   assert.ok(matchesSearch(jose, ''));
   assert.ok(matchesSearch(jose, 'jose mül'));
   assert.ok(matchesSearch(jose, 'm123'));
   assert.ok(matchesSearch(jose, 'example.org'));
+  assert.ok(matchesSearch(jose, 'eltern.mueller'));
   assert.ok(!matchesSearch(jose, 'jose huber'));
 });
 
