@@ -113,6 +113,27 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M9 4h6v3H9zM9 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3M9 14l2 2 4-4',
   },
   {
+    href: '/leitendenbereich/mitglieder',
+    title: 'Mitglieder',
+    description: 'Die Mitglieder aus CampFlow nach Gruppen ansehen und ihre Angaben nachschlagen.',
+    intro:
+      'Die Mitgliederliste aus CampFlow zum Nachschlagen. Ändern, aufnehmen und austragen geht nur in CampFlow. Bankverbindungen werden hier nicht angezeigt.',
+    keywords: [
+      'mitgliederliste',
+      'mitgliederverwaltung',
+      'campflow',
+      'gruppe',
+      'stufe',
+      'kinder',
+      'adresse',
+      'telefon',
+      'geburtstag',
+      'kontakt',
+      'eltern',
+    ],
+    icon: 'M4 4h16v16H4zM9.5 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6.5 16a3 3 0 0 1 6 0M15 9h3M15 13h3',
+  },
+  {
     href: '/leitendenbereich/aktionen',
     title: 'Aktionen',
     description:
@@ -312,7 +333,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
   {
     id: 'gruppen',
     title: 'Gruppen & Aktionen',
-    modules: byPath('anwesenheit', 'aktionen', 'fahrten', 'fotos'),
+    modules: byPath('anwesenheit', 'mitglieder', 'aktionen', 'fahrten', 'fotos'),
   },
   {
     id: 'kasse',

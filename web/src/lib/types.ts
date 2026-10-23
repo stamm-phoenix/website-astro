@@ -341,6 +341,13 @@ export interface CampflowPerson {
   [key: string]: unknown;
 }
 
+/** The CampFlow member list, read-only (`/api/intern/mitglieder`, without payment details). */
+export interface MitgliederData {
+  loadedAt: string;
+  columns: CampflowColumn[];
+  persons: CampflowPerson[];
+}
+
 export interface CampflowEventDetail {
   event: CampflowEvent;
   columns: CampflowColumn[];

@@ -46,6 +46,7 @@ import {
 } from './mock-data/abrechnung';
 import { beitraegeFor } from './mock-data/beitraege';
 import { aktionBeitraegeFor, campflowDetail, campflowEvents } from './mock-data/campflow';
+import { mitgliederData } from './mock-data/mitglieder';
 import {
   MOCK_LEITENDE,
   addPerson,
@@ -975,6 +976,8 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
     ? json({ ...detail, ich: mockEigeneAnmeldungen(detail.persons) })
     : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
 });
+
+route('GET', '/api/intern/mitglieder', () => json(mitgliederData()));
 
 route('GET', '/api/intern/aktionen/:id/beitraege', (req) => {
   const beitraege = aktionBeitraegeFor(req.params.id, req.query.get('refresh') === 'true');
