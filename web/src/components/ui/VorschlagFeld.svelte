@@ -212,7 +212,8 @@
       void tick().then(() => fit(false));
       return;
     }
-    maxHeight = Math.max(3 * 44, Math.min(space, 16 * 16));
+    // Never taller than the room left, but one entry stays reachable
+    maxHeight = Math.max(44, Math.min(space, 16 * 16));
   }
 
   $effect(() => {
