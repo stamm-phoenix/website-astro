@@ -2489,6 +2489,7 @@ const campflowBeleg = (
   pages: 1,
   fileName: null,
   uploadedAt: null,
+  settledAt: null,
   viaWebsite: false,
   submittedByMe: false,
   mine: false,
@@ -2529,6 +2530,20 @@ const campflowBelege: CampflowBeleg[] = [
     costUnits: [sola],
     categories: [{ id: 'cat_Sola262', name: 'Fahrtkosten', costUnitId: sola.id }],
     uploadedAt: `${dayFromToday(-45)} 09:30:00`,
+    settledAt: dayFromToday(-2),
+  }),
+  campflowBeleg({
+    id: 'exp_61',
+    status: 'settled',
+    number: '2026-61',
+    description: 'Gaskartuschen',
+    date: dayFromToday(-75),
+    amountCent: -1798,
+    paidBy: 'Demo Leitung',
+    costUnits: [sola],
+    categories: [{ id: 'cat_Sola263', name: 'Material', costUnitId: sola.id }],
+    uploadedAt: `${dayFromToday(-74)} 21:05:00`,
+    settledAt: dayFromToday(-60),
   }),
   campflowBeleg({
     id: 'exp_99',
@@ -2553,6 +2568,7 @@ const campflowBelege: CampflowBeleg[] = [
     costUnits: [sola],
     categories: [{ id: 'cat_Sola264', name: 'Unterkunft', costUnitId: sola.id }],
     pages: 2,
+    settledAt: dayFromToday(-70),
   }),
 ];
 const belegPhotos = new Map<string, Uint8Array>();

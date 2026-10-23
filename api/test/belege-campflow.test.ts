@@ -637,6 +637,8 @@ const CAMPFLOW_LIST = {
       pages: 1,
       originalFilename: '2026-09-30 REWE 12,34 EUR (Website-Beleg 7).jpg',
       uploadedAt: '2026-10-21 19:00:00',
+      // Not paid back in full, so no date even if one came along
+      settledAt: '2026-10-22',
     },
     {
       id: 'exp_Alt',
@@ -657,6 +659,7 @@ const CAMPFLOW_LIST = {
       pages: 2,
       originalFilename: 'Rechnung Zeltplatz Max Mustermann.pdf',
       uploadedAt: null,
+      settledAt: '2026-02-01',
     },
   ],
 };
@@ -697,6 +700,7 @@ dbTest('every leader sees all receipts in CampFlow, own transfers marked', async
     pages: 1,
     fileName: 'Kassenzettel.pdf',
     uploadedAt: '2026-10-20 08:00:00',
+    settledAt: null,
     viaWebsite: false,
     submittedByMe: false,
     mine: false,
@@ -715,12 +719,14 @@ dbTest('every leader sees all receipts in CampFlow, own transfers marked', async
     pages: 1,
     fileName: null,
     uploadedAt: '2026-10-21 19:00:00',
+    settledAt: null,
     viaWebsite: true,
     submittedByMe: true,
     mine: true,
   });
   // The file name of a booked receipt often names who uploaded it, so it stays in CampFlow
   assert.equal(body.belege[2]!.fileName, null);
+  assert.equal(body.belege[2]!.settledAt, '2026-02-01');
   assert.doesNotMatch(JSON.stringify(body), /Mustermann/);
 
   // Everyone else sees the same list, without the mark

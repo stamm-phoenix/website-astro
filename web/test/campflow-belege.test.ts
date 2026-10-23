@@ -8,7 +8,7 @@ import {
   type BelegFilter,
 } from '../src/lib/belegEintraege';
 import { applyZahlung, zahlungOf, type BelegForm } from '../src/lib/belegForm';
-import { meineBelege } from '../src/lib/campflowBelege';
+import { MEINE_BELEGE_ERSTATTET_TAGE, meineBelege } from '../src/lib/campflowBelege';
 import type { CampflowBeleg, CampflowBelegeData, StaffBeleg } from '../src/lib/types';
 
 function beleg(values: Partial<CampflowBeleg> & Pick<CampflowBeleg, 'id'>): CampflowBeleg {
@@ -25,6 +25,7 @@ function beleg(values: Partial<CampflowBeleg> & Pick<CampflowBeleg, 'id'>): Camp
     pages: 1,
     fileName: null,
     uploadedAt: null,
+    settledAt: null,
     viaWebsite: false,
     submittedByMe: false,
     mine: false,
@@ -117,6 +118,48 @@ test('the state names whether an Auslage is paid back', () => {
     'Erstattet'
   );
   assert.equal(campflowStand(beleg({ id: 'e', status: 'settled' })).label, 'Bezahlt');
+  assert.equal(
+    campflowStand(beleg({ id: 'f', status: 'settled', paidBy: 'Kim', settledAt: '2026-06-25' }))
+      .label,
+    'Erstattet am 25.06.2026'
+  );
+  assert.equal(
+    campflowStand(beleg({ id: 'g', status: 'settled', settledAt: '2026-06-25' })).label,
+    'Bezahlt am 25.06.2026'
+  );
+});
+
+test('my receipts leave the start page 30 days after they were paid back', () => {
+  assert.equal(MEINE_BELEGE_ERSTATTET_TAGE, 30);
+  const paidBack = (id: string, settledAt: string | null) =>
+    beleg({ id, description: id, status: 'settled', openCent: 0, paidBy: 'Kim', settledAt });
+  const data: CampflowBelegeData = {
+    ...campflow,
+    belege: [
+      ...campflow.belege,
+      paidBack('heute', '2026-10-23'),
+      paidBack('grenze', '2026-09-23'),
+      paidBack('zu alt', '2026-09-22'),
+      paidBack('ohne Datum', null),
+    ],
+  };
+  const belege = [
+    submitted('1', { payout: true }),
+    submitted('2', { payout: true, status: 'Abgelehnt' }),
+  ];
+  const titles = (today: string) =>
+    meineBelege(belege, data, isKim, today)
+      .map((entry) => entry.title)
+      .sort();
+  assert.deepEqual(titles('2026-10-23'), ['Edeka', 'Laden 1', 'Laden 2', 'grenze', 'heute']);
+  // The same receipts stay in the module with „Nur meine Belege“
+  assert.ok(
+    belegEintraege(belege, data, { isIch: isKim }).some(
+      (e) => e.title === 'zu alt' && matchesBelegFilter(e, { ...NO_FILTER, onlyMine: true })
+    )
+  );
+  // A day later the oldest one left falls off too
+  assert.ok(!titles('2026-10-24').includes('grenze'));
 });
 
 test('one list holds the receipts here and in CampFlow, each with its source', () => {
