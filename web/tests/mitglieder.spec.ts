@@ -78,3 +78,22 @@ test('the own member entry is marked', async ({ page }) => {
     page.getByRole('list', { name: 'Mitglieder' }).getByRole('button', { name: /Demo Leitung/ })
   ).toContainText('(ich)');
 });
+
+test('fields whose names could not be loaded are left out instead of showing their keys', async ({
+  page,
+}) => {
+  await page.route('**/api/intern/mitglieder', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as { columns: unknown[] };
+    await route.fulfill({ response, json: { ...body, columns: [] } });
+  });
+  await page.goto('/leitendenbereich/mitglieder');
+  await page.getByRole('searchbox', { name: 'Suche' }).fill('vera');
+  await page
+    .getByRole('list', { name: 'Mitglieder' })
+    .getByRole('button', { name: /Vera Vorstand/ })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Vera Vorstand' });
+  await expect(dialog).toContainText('Telefon');
+  await expect(dialog).not.toContainText('col_');
+});
