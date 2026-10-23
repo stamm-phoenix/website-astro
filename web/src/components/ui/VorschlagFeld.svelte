@@ -104,6 +104,12 @@
     return value.trim() && options.length ? 'Keine Vorschläge' : '';
   });
 
+  // New text, also when a caller takes it over (comma in TagInput): no stale highlight
+  $effect(() => {
+    void value;
+    active = -1;
+  });
+
   /** Close suggestions after a surrounding form has reported an error. */
   export function close(): void {
     open = false;
@@ -173,9 +179,10 @@
             : (active + (down ? 1 : -1) + matches.length) % matches.length;
       }
     } else if (event.key === 'Enter') {
-      if (expanded && (active >= 0 || (pickFirstOnEnter && value.trim()))) {
+      const option = matches[Math.max(0, active)];
+      if (expanded && option && (active >= 0 || (pickFirstOnEnter && value.trim()))) {
         event.preventDefault();
-        pick(matches[Math.max(0, active)]);
+        pick(option);
       } else if (oncommit) {
         open = false;
         if (!value.trim()) return;
@@ -184,7 +191,7 @@
       } else {
         open = false;
       }
-    } else if (event.key === 'Tab' && expanded && active >= 0) {
+    } else if (event.key === 'Tab' && expanded && matches[active]) {
       // Focus moves on; the highlighted suggestion is taken along
       pick(matches[active]);
     } else if (event.key === 'Backspace' && !value && onremovelast) {

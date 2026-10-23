@@ -124,4 +124,16 @@ test('Merkmale in use are suggested while typing and added by tap', async ({ pag
   // A Merkmal already added is not offered again
   await input.fill('hund');
   await expect(list).toBeHidden();
+
+  // A comma takes the typed text over; Enter afterwards adds nothing highlighted before
+  const chips = dialog.getByRole('button', { name: / entfernen$/ });
+  await input.fill('n');
+  await input.press('ArrowUp');
+  await expect(input).toHaveAttribute('aria-activedescendant', /-option-\d+$/);
+  const before = await chips.count();
+  await input.press(',');
+  await expect(dialog.getByRole('button', { name: 'n entfernen', exact: true })).toBeVisible();
+  await expect(input).not.toHaveAttribute('aria-activedescendant');
+  await input.press('Enter');
+  await expect(chips).toHaveCount(before + 1);
 });

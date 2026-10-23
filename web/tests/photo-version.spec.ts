@@ -111,7 +111,10 @@ for (const pathway of ['photo', 'receipt'] as const) {
       .filter({ has: page.getByLabel('Geschäft', { exact: true }) });
     // Pick a known Aktion so this regression only concerns photo/version handling.
     await editor.getByLabel('Aktion', { exact: true }).fill('Herbst');
-    await editor.getByRole('button', { name: 'Wölflings-Herbstwochenende', exact: true }).click();
+    await editor
+      .getByRole('listbox', { name: 'Aktion auswählen' })
+      .getByRole('option', { name: 'Wölflings-Herbstwochenende', exact: true })
+      .click();
     const note = editor.getByLabel(/^Bemerkung(?: \(optional\))?$/, { exact: true });
     await note.fill('Mein noch nicht gespeicherter Hinweis');
     const photo = await page.evaluate(() => {
