@@ -114,6 +114,22 @@ test('the Aktion of a receipt can be typed when the Aktionen fail to load', asyn
   await expect(dialog.getByText('Vorschläge werden geladen …')).toBeHidden();
 });
 
+test('a value filled in by the page does not open the list', async ({ page }) => {
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  const aktion = dialog.getByRole('combobox', { name: 'Aktion' });
+  await dialog.getByRole('textbox', { name: 'Geschäft' }).focus();
+  // As the restore of saved input after a new login does it
+  await aktion.evaluate((el: HTMLInputElement) => {
+    el.value = 'Sommerlager 2026 Oberjoch';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(aktion).toHaveValue('Sommerlager 2026 Oberjoch');
+  await expect(aktion).toHaveAttribute('aria-expanded', 'false');
+  await expect(dialog.getByRole('listbox', { name: 'Aktion auswählen' })).toBeHidden();
+});
+
 test('FAQ themes are suggested and a new one can be typed', async ({ page }) => {
   await page.goto('/leitendenbereich/fragen-und-antworten');
   await page.getByRole('button', { name: 'Neue Frage', exact: true }).click();
