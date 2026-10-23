@@ -6,6 +6,7 @@
   import type { SammelShop } from '../../lib/sammelShops';
   import { tick, untrack } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
+  import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import ShopProductLookup from './ShopProductLookup.svelte';
   import { getSammelStammProdukt, getSammelProductImage } from '../../lib/sammelKatalog';
   import { postApi } from '../../lib/api';
@@ -307,18 +308,15 @@
               label="Größe / Farbe / Variante"
               optional
             >
-              {#snippet children(attrs)}<input
+              {#snippet children(attrs)}<VorschlagFeld
                   {...attrs}
-                  class="form-input"
-                  maxlength="120"
+                  maxlength={120}
+                  options={(
+                    catalog.find((entry) => entry.reference === item.reference)?.variants ?? []
+                  ).map((variant) => ({ value: variant }))}
+                  listLabel="Variante auswählen"
                   bind:value={item.variant}
-                  list="variants-{index}"
-                />
-                <datalist id="variants-{index}"
-                  >{#each catalog.find((entry) => entry.reference === item.reference)?.variants ?? [] as variant, variantIndex (variantIndex)}<option
-                      value={variant}
-                    ></option>{/each}</datalist
-                >{/snippet}
+                />{/snippet}
             </FormField>
           {/if}
           <FormField id="article-quantity-{index}" label="Anzahl">

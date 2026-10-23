@@ -4,6 +4,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import Panel from '../ui/Panel.svelte';
   import FormField from '../pflege/FormField.svelte';
+  import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
@@ -41,7 +42,9 @@
   const summeCent = $derived(eigenbelegSumme(beleg));
   const geaendert = $derived(JSON.stringify(beleg) !== gesichert);
 
-  const aktionSuggestions = $derived(aktionTitles(campflowEventsStore.data ?? []));
+  const aktionSuggestions = $derived(
+    aktionTitles(campflowEventsStore.data ?? []).map((title) => ({ value: title }))
+  );
 
   onMount(() => {
     const stopGuard = guardUnsavedChanges(() => geaendert);
@@ -219,21 +222,16 @@
         class="sm:col-span-2"
       >
         {#snippet children(attrs)}
-          <input
+          <VorschlagFeld
             {...attrs}
-            class="form-input"
-            maxlength="120"
-            list="eb-anlass-suggestions"
-            autocomplete="off"
+            maxlength={120}
             placeholder="z. B. Sommerlager oder Gruppenstunde Wölflinge"
+            options={aktionSuggestions}
+            loading={campflowEventsStore.loading}
+            listLabel="Aktion auswählen"
             onfocus={() => void fetchCampflowEvents()}
             bind:value={beleg.anlass}
           />
-          <datalist id="eb-anlass-suggestions">
-            {#each aktionSuggestions as title (title)}
-              <option value={title}></option>
-            {/each}
-          </datalist>
         {/snippet}
       </FormField>
     </div>

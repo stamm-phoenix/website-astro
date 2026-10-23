@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getContext } from 'svelte';
+  import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   interface Props {
     /** Id of the text input; a label must point to it. */
     id: string;
@@ -43,9 +44,10 @@
 
   const normalize = (tag: string): string =>
     tag.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de');
-  const listId = $derived(`${id}-suggestions`);
   const open = $derived(
-    suggestions.filter((s) => !tags.some((t) => normalize(t) === normalize(s)))
+    suggestions
+      .filter((s) => !tags.some((t) => normalize(t) === normalize(s)))
+      .map((s) => ({ value: s }))
   );
 
   function add(value: string): void {
@@ -93,39 +95,37 @@
       >
     </span>
   {/each}
-  <input
-    bind:this={input}
+  <VorschlagFeld
+    bind:input
     {id}
-    type="text"
-    list={listId}
-    class="min-h-11 min-w-[10rem] flex-1 border-0 bg-transparent px-1 py-1 text-base focus:outline-none"
+    wrapperClass="min-w-[10rem] flex-1"
+    class="min-h-11 w-full border-0 bg-transparent px-1 py-1 text-base focus:outline-none"
     {placeholder}
     aria-describedby={describedBy}
     aria-invalid={invalid ? 'true' : undefined}
+    options={open}
+    listLabel="Merkmal auswählen"
+    clearOnPick
     bind:value={draft}
     {disabled}
-    oninput={(event) => ondraftchange?.(event.currentTarget.value)}
+    onedit={(text) => ondraftchange?.(text)}
     onkeydown={(event) => {
-      if (event.key === 'Enter' || event.key === ',') {
+      if (event.key === ',') {
         event.preventDefault();
         add(draft);
-      } else if (event.key === 'Backspace' && draft === '' && tags.length > 0) {
-        remove(tags[tags.length - 1]);
+      } else if (
+        event.key === 'Enter' &&
+        !draft.trim() &&
+        !input?.getAttribute('aria-activedescendant')
+      ) {
+        // Enter in the empty field never sends the surrounding form
+        event.preventDefault();
       }
     }}
-    onchange={() => {
-      // Choosing a suggestion from the list fires change without Enter
-      if (open.some((s) => s === draft)) add(draft);
-    }}
-    onblur={() => {
-      if (draft.trim()) add(draft);
-    }}
+    onpick={(option) => add(option.value)}
+    oncommit={add}
+    onremovelast={tags.length > 0 ? () => remove(tags[tags.length - 1]) : undefined}
   />
-  <datalist id={listId}>
-    {#each open as suggestion (suggestion)}
-      <option value={suggestion}></option>
-    {/each}
-  </datalist>
   <button
     type="button"
     class="min-h-11 shrink-0 px-2 text-sm font-semibold text-link disabled:opacity-50"

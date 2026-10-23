@@ -142,7 +142,10 @@ test('an Auslage of someone else names that person, the savings book names itsel
     .check();
   await expect(paidBy).toHaveValue('');
   // The people of the module „Personen“ are suggested, any name can be typed
-  await expect(dialog.locator('#bl-paid-by-suggestions option').first()).toBeAttached();
+  await paidBy.click();
+  await expect(
+    dialog.getByRole('listbox', { name: 'Person auswählen' }).getByRole('option').first()
+  ).toBeVisible();
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(
     dialog.getByText('Bitte angeben, wer das Geld ausgelegt hat.', { exact: true })
