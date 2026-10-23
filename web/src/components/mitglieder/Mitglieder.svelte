@@ -64,7 +64,9 @@
 
   onMount(() => {
     readUrl();
-    void mitgliederStore.load({ param: false });
+    // The store outlives a change of page; a list older than the server's shared minute is
+    // asked for again and stays shown until the answer is there
+    void mitgliederStore.load({ param: false, maxAge: 60_000 });
   });
 
   function tabs(data: MitgliederData) {
