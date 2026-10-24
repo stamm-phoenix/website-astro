@@ -3,6 +3,7 @@ import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import { toggleFavoriteLikeAPerson } from './favorites-helpers';
 test.beforeEach(async ({ page }, testInfo) => {
   await prepareTaskTest(page, testInfo.project.name);
+  await page.request.post('/api/__mock/zuletzt/reset');
 });
 test('favorites are set on the areas themselves, saved for the account and survive a failed save', async ({
   page,
@@ -10,10 +11,11 @@ test('favorites are set on the areas themselves, saved for the account and survi
   // Waits for the popup of a failed save to outlast the usual display time
   test.setTimeout(75_000);
   await page.goto('/leitendenbereich');
-  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
-  await expect(favorites.getByText('Noch keine Favoriten', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' }).first()).toBeAttached();
+  await expect(page.getByRole('region', { name: 'Deine Bereiche' })).toHaveCount(0);
   await toggleFavoriteLikeAPerson(page, 'Aufgaben');
   await expect(page.getByText('„Aufgaben“ ist jetzt ein Favorit.')).toBeVisible();
+  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
   await expect(favorites.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
   // Saved on the server, not in the browser
   await page.evaluate(() => localStorage.clear());
@@ -69,7 +71,8 @@ test('favorites are set on the areas themselves, saved for the account and survi
   await toggleFavoriteLikeAPerson(page, 'Aktionen');
   await expect(page.getByText('„Aktionen“ ist kein Favorit mehr.')).toBeVisible();
   await page.reload();
-  await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' }).first()).toBeAttached();
+  await expect(page.getByRole('region', { name: 'Deine Bereiche' })).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 
   // After discarding a choice that failed to save, the start page shows no stale error
@@ -86,7 +89,12 @@ test('favorites are set on the areas themselves, saved for the account and survi
     .click();
   await expect(page).toHaveURL(/\/leitendenbereich\/aufgaben/);
   await page.goBack();
-  await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' }).first()).toBeAttached();
+  // The visit remains a recent area even though no favorites are saved.
+  await expect(favorites.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
+  await expect(
+    favorites.getByRole('button', { name: /aus deinen Favoriten entfernen/ })
+  ).toHaveCount(0);
   await expect(page.getByText('nicht gespeichert', { exact: false })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Erneut speichern' })).toHaveCount(0);
 });
@@ -114,13 +122,17 @@ test('favorites from this browser are taken over once and a failed load can be r
 
   await page.route('**/api/intern/favoriten', (route) => route.fulfill({ status: 503 }));
   await page.reload();
-  await expect(favorites.getByText('nicht geladen', { exact: false })).toBeVisible();
+  await expect(page.getByText('nicht geladen', { exact: false }).first()).toBeVisible();
   // Without loaded favorites, nothing claims there are none
   await expect(favorites.getByText('Noch keine', { exact: false })).toHaveCount(0);
   // Nothing can be marked before the favorites are known
   await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' })).toHaveCount(0);
   await page.unroute('**/api/intern/favoriten');
-  await favorites.getByRole('button', { name: 'Erneut versuchen' }).click();
+  await page
+    .getByRole('alert')
+    .filter({ hasText: 'Deine Favoriten' })
+    .getByRole('button', { name: 'Erneut versuchen' })
+    .click();
   await expect(favorites.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' }).first()).toBeAttached();
 
@@ -149,33 +161,36 @@ test('an empty selection from this browser is taken over as well', async ({ page
     localStorage.setItem(`phoenix:staff-favorites:v1:${clientPrincipal.userId}`, '[]');
   });
   await page.reload();
-  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
-  await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' }).first()).toBeAttached();
+  await expect(page.getByRole('region', { name: 'Deine Bereiche' })).toHaveCount(0);
   const saved = await page.request.get('/api/intern/favoriten');
   expect(await saved.json()).toEqual({ modules: [] });
 });
 test('favorites can be loaded again after the login could not be checked', async ({ page }) => {
   await page.route('**/.auth/me', (route) => route.fulfill({ status: 503 }));
   await page.goto('/leitendenbereich');
-  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
-  await expect(favorites.getByText('nicht geladen', { exact: false })).toBeVisible();
+  const retry = page
+    .getByRole('alert')
+    .filter({ hasText: 'Deine Favoriten' })
+    .getByRole('button', { name: 'Erneut versuchen' });
+  await expect(retry).toBeVisible();
   // Every part of the page has asked for the login once, so none of them loads it meanwhile
   await expect(page.locator('astro-island[ssr]')).toHaveCount(0);
   await page.unroute('**/.auth/me');
-  await favorites.getByRole('button', { name: 'Erneut versuchen' }).click();
-  await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
+  await retry.click();
   await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' }).first()).toBeAttached();
+  await expect(page.getByRole('region', { name: 'Deine Bereiche' })).toHaveCount(0);
 });
 test('a favorite taken back before it was saved still asks before leaving', async ({ page }) => {
   await page.goto('/leitendenbereich');
-  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
+  await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' }).first()).toBeAttached();
   let release = (): void => undefined;
   const held = new Promise<void>((resolve) => (release = resolve));
   await page.route('**/api/intern/favoriten', async (route) => {
     if (route.request().method() === 'PUT') await held;
     await route.fallback();
   });
-  await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Deine Bereiche' })).toHaveCount(0);
   await toggleFavoriteLikeAPerson(page, 'Aufgaben');
   await toggleFavoriteLikeAPerson(page, 'Aufgaben');
   // The first save may already be on the server, so leaving now would keep the removed favorite
@@ -185,7 +200,8 @@ test('a favorite taken back before it was saved still asks before leaving', asyn
   release();
   await expect(page.getByText('„Aufgaben“ ist kein Favorit mehr.')).toBeVisible();
   await page.reload();
-  await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' }).first()).toBeAttached();
+  await expect(page.getByRole('region', { name: 'Deine Bereiche' })).toHaveCount(0);
 });
 test('dashboard shows upcoming actions and concrete tasks independently of a failed source', async ({
   page,
@@ -223,7 +239,8 @@ test('after a failed reload the favorites cannot be changed until they load agai
   await page.goBack();
   // The page of Aufgaben loads them too, so the start page's own failure is awaited on screen
   const retry = page
-    .getByRole('region', { name: 'Deine Bereiche' })
+    .getByRole('alert')
+    .filter({ hasText: 'Deine Favoriten' })
     .getByRole('button', { name: 'Erneut versuchen' });
   await expect(retry).toBeVisible();
   // Another device may have changed them meanwhile, so the old selection is not saved over them

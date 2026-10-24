@@ -53,11 +53,11 @@
   const tasksError = $derived(aufgabenStore.error);
   const tasksLoading = $derived(aufgabenStore.loading);
   const eventsLoading = $derived(campflowEventsStore.loading);
-  // Known areas are available in the built HTML, independently of the personal selection.
+  // Personal areas contain only saved favorites and actual recent visits.
   const selectedModules = $derived(
     yourStaffModules(
       favoritesStore.modules,
-      [...recentStore.modules, ...modules.map((module) => module.href)],
+      recentStore.modules,
       allModules,
       Math.max(TILE_LIMIT, favoritesStore.modules.length)
     )
@@ -70,7 +70,11 @@
   const visibleModules = $derived.by(() => {
     const result = [...selectedModules];
     if (pinned) {
-      const module = allModules.find((entry) => entry.href === pinned?.href);
+      const module = allModules.find(
+        (entry) =>
+          entry.href === pinned?.href &&
+          (favoritesStore.modules.includes(entry.href) || recentStore.modules.includes(entry.href))
+      );
       if (module) {
         const index = result.findIndex((entry) => entry.href === module.href);
         if (index >= 0) result.splice(index, 1);
@@ -411,47 +415,46 @@
 {/snippet}
 
 <div class="mt-6 space-y-6">
-  <section
-    aria-labelledby="favorites-heading"
-    class="min-h-[18rem] sm:min-h-[16rem] xl:min-h-[11rem]"
-  >
-    <div class="flex items-center gap-1">
-      <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
-        Deine Bereiche
-      </h2>
-      <InfoHint label="Deine Bereiche">
-        <p class="pointer-coarse:hidden">
-          Zeig mit der Maus auf einen Bereich und klick auf den Stern, um ihn zum Favoriten zu
-          machen; das Minus an einer Kachel entfernt ihn wieder.
-        </p>
-        <p class="hidden pointer-coarse:block">
-          Tippe auf den Stern neben einem Bereich, um ihn zum Favoriten zu machen. Das Minus an
-          einer Kachel entfernt ihn wieder. Langes Tippen geht auch.
-        </p>
-      </InfoHint>
-    </div>
+  {#if selectedModules.length > 0}
+    <section aria-labelledby="favorites-heading">
+      <div class="flex items-center gap-1">
+        <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
+          Deine Bereiche
+        </h2>
+        <InfoHint label="Deine Bereiche">
+          <p class="pointer-coarse:hidden">
+            Zeig mit der Maus auf einen Bereich und klick auf den Stern, um ihn zum Favoriten zu
+            machen; das Minus an einer Kachel entfernt ihn wieder.
+          </p>
+          <p class="hidden pointer-coarse:block">
+            Tippe auf den Stern neben einem Bereich, um ihn zum Favoriten zu machen. Das Minus an
+            einer Kachel entfernt ihn wieder. Langes Tippen geht auch.
+          </p>
+        </InfoHint>
+      </div>
 
-    <ul class={tileGrid}>
-      {#each visibleModules as module (module.href)}
-        {@render tile(
-          module,
-          favoritesStore.loaded && favoritesStore.modules.includes(module.href)
-        )}
-      {/each}
-    </ul>
+      <ul class={tileGrid}>
+        {#each visibleModules as module (module.href)}
+          {@render tile(
+            module,
+            favoritesStore.loaded && favoritesStore.modules.includes(module.href)
+          )}
+        {/each}
+      </ul>
+    </section>
+  {/if}
+  <div class:sr-only={!favoritesStore.loadError}>
     <LoadState
       data={favoritesStore.loaded ? favoritesStore.modules : null}
       loading={favoritesStore.loading}
       error={favoritesStore.loadError}
       loadingText="Favoriten werden geladen …"
       onretry={retryFavorites}
-      isEmpty={(selection) => selection.length === 0}
     >
       {#snippet skeleton()}{/snippet}
-      {#snippet empty()}<p class="text-sm text-neutral-700">Noch keine Favoriten.</p>{/snippet}
-      <span></span>
+      <span hidden></span>
     </LoadState>
-  </section>
+  </div>
 
   <section aria-labelledby="for-you-heading">
     <h2 id="for-you-heading" class="font-serif text-lg font-semibold text-brand-900">Für dich</h2>

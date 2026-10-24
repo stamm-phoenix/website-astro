@@ -16,8 +16,9 @@ function choice(page: Page, name: string) {
 test('leaders check in children, add a guest and save what they did', async ({ page }) => {
   await page.goto('/leitendenbereich');
   await page
-    .getByRole('region', { name: 'Deine Bereiche' })
     .getByRole('link', { name: /Anwesenheit/ })
+    .filter({ visible: true })
+    .first()
     .click();
   await expect(page.getByRole('heading', { name: 'Anwesenheit', level: 1 })).toBeVisible();
 
