@@ -1,6 +1,7 @@
 import { CONFIG } from './config';
 import { escapeHtml, sendMail } from './mail';
 import { mailButton, mailLayout } from './mail-template';
+import { readTaskDirectory } from './task-directory';
 
 export interface RejectedBelegMail {
   /** Login (e-mail address) of the person who uploaded the receipt. */
@@ -15,7 +16,24 @@ export interface RejectedBelegMail {
   url: string;
 }
 
-/** Mailbox the rejection mails are sent from; without it no mail is sent. */
+export interface SubmittedBelegMail {
+  shop: string;
+  /** `YYYY-MM-DD` */
+  date: string;
+  amountCent: number;
+  /** Who gets the Auslage back; empty without one. */
+  paidBy: string;
+  payout: boolean;
+  aktion: string;
+  note: string;
+  /** Name (or login) of the person who submitted the receipt. */
+  submitter: string;
+  /** Whether a rejected receipt was corrected and submitted again. */
+  resubmitted: boolean;
+  url: string;
+}
+
+/** Mailbox the receipt mails are sent from; without it no mail is sent. */
 export function belegMailSender(): string | undefined {
   return CONFIG.mail.belegeSender;
 }
@@ -47,4 +65,66 @@ export async function sendBelegRejectedMail(
     <p style="font-size:13px;color:#6b7280;">Bei Fragen wende dich an ${escapeHtml(data.reviewer)}.</p>
   `);
   await sendMail(data.to, `Beleg abgelehnt: ${data.shop}`, html, sender);
+}
+
+/**
+ * The members of the team „Kasse“ to tell about a new receipt: person accounts of its Entra
+ * group with an address of the Stamm, without the person who submitted it.
+ */
+export async function belegReviewerAddresses(submittedBy: string): Promise<string[]> {
+  const users = await readTaskDirectory(undefined, CONFIG.staff.teams.kasse.groupId);
+  const submitter = submittedBy.toLowerCase();
+  return users.map((user) => user.login).filter((login) => login !== submitter);
+}
+
+/** Subject and text of the note to the Kasse about a submitted receipt. */
+export function belegSubmittedMailContent(data: SubmittedBelegMail): {
+  subject: string;
+  html: string;
+} {
+  const rows: [string, string][] = [
+    ['Geschäft', data.shop],
+    ['Datum', formatDate(data.date)],
+    ['Betrag', formatEuro(data.amountCent)],
+    ['Aktion', data.aktion],
+    ['Auslage von', data.payout ? data.paidBy : ''],
+    ['Notiz', data.note],
+  ];
+  const table = rows
+    .filter(([, value]) => value.trim() !== '')
+    .map(
+      ([label, value]) => `<tr>
+        <td style="padding:4px 12px 4px 0;color:#6b7280;vertical-align:top;white-space:nowrap;">${label}</td>
+        <td style="padding:4px 0;vertical-align:top;">${escapeHtml(value).replace(/\r?\n/g, '<br />')}</td>
+      </tr>`
+    )
+    .join('');
+  const heading = data.resubmitted ? 'Beleg erneut eingereicht' : 'Neuer Beleg zur Prüfung';
+  const intro = data.resubmitted
+    ? `${escapeHtml(data.submitter)} hat einen abgelehnten Beleg korrigiert und erneut eingereicht:`
+    : `${escapeHtml(data.submitter)} hat einen neuen Beleg zur Prüfung eingereicht:`;
+  const html = mailLayout(`
+    <h1 style="font-size:20px;color:#003056;">${heading}</h1>
+    <p>Hallo Kasse,</p>
+    <p>${intro}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0;border-collapse:collapse;">${table}</table>
+    ${mailButton(data.url, 'Belege prüfen', 'Falls der Button nicht funktioniert, kopiere diese Adresse in deinen Browser:')}
+  `);
+  return { subject: `${heading}: ${data.shop}`, html };
+}
+
+/**
+ * Tells the Kasse about a submitted receipt, one mail per member.
+ * @returns The addresses whose mail could not be sent.
+ */
+export async function sendBelegSubmittedMail(
+  data: SubmittedBelegMail,
+  recipients: string[],
+  sender: string
+): Promise<string[]> {
+  const { subject, html } = belegSubmittedMailContent(data);
+  const results = await Promise.allSettled(
+    recipients.map((to) => sendMail(to, subject, html, sender, undefined, { timeoutMs: 10_000 }))
+  );
+  return recipients.filter((_to, index) => results[index]?.status === 'rejected');
 }

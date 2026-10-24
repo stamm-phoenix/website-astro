@@ -53,7 +53,10 @@ export interface ApiConfig {
   mail: {
     nikolausSender: string;
     sammelbestellungSender: string;
-    /** Mailbox for rejected receipts; without it no mail is sent. */
+    /**
+     * Mailbox for the receipt mails (rejection to the uploader, new receipt to the Kasse);
+     * without it no mail is sent.
+     */
     belegeSender?: string;
   };
   taskDirectory: { groupId: string; domain: string; shortNames: Record<string, readonly string[]> };
@@ -255,6 +258,7 @@ export const CONFIG: ApiConfig = {
   mail: {
     nikolausSender: 'nikolaus@stamm-phoenix.de',
     sammelbestellungSender: 'bestellungen@stamm-phoenix.de',
+    belegeSender: 'kontakt@stamm-phoenix.de',
   },
   taskDirectory: {
     groupId: TEAM_LEITENDE,

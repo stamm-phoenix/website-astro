@@ -11,12 +11,16 @@ export class TaskDirectoryConfigurationError extends Error {
   }
 }
 
-/** Only person accounts in the configured Leitende group, including nested memberships. */
+/**
+ * Only person accounts in the configured Leitende group, including nested memberships; another
+ * Entra group with `groupId`, e.g. the team „Kasse“.
+ */
 export async function readTaskDirectory(
-  signal: AbortSignal = AbortSignal.timeout(5000)
+  signal: AbortSignal = AbortSignal.timeout(5000),
+  groupId: string = CONFIG.taskDirectory.groupId
 ): Promise<TaskDirectoryUser[]> {
   const client = getClient();
-  const path = `/groups/${encodeURIComponent(CONFIG.taskDirectory.groupId)}/transitiveMembers/microsoft.graph.user`;
+  const path = `/groups/${encodeURIComponent(groupId)}/transitiveMembers/microsoft.graph.user`;
   let next = `${path}?$select=id,displayName,givenName,surname,userPrincipalName,accountEnabled,userType&$count=true&$top=999`;
   const users = new Map<string, TaskDirectoryUser>();
   const seen = new Set<string>();
