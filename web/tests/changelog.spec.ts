@@ -38,8 +38,8 @@ test('a person who has read everything is told so', async ({ page }) => {
   await page.goto('/leitendenbereich/neuigkeiten');
   await expect(page.getByText('Du bist auf dem neuesten Stand.')).toBeVisible();
   await expect(page.getByText('Neu', { exact: true })).toHaveCount(0);
-  // A change about a specific page links to it
-  await expect(page.getByRole('link', { name: '„Fotos“ öffnen' })).toHaveAttribute(
+  // A change about a specific page links to it; several changes may link the same page
+  await expect(page.getByRole('link', { name: '„Fotos“ öffnen' }).first()).toHaveAttribute(
     'href',
     '/leitendenbereich/fotos'
   );
