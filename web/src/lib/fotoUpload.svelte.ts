@@ -46,7 +46,7 @@ interface FotoUploadState {
   error: string | null;
   /** Measured over the last seconds; null until known. */
   bytesPerSecond: number | null;
-  /** Files of this upload the leaders were told about, and to how many addresses. */
+  /** Files of this upload the leaders were told about, and the addresses of the last note. */
   notified: { recipients: number; names: string[] } | null;
 }
 
