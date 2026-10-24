@@ -117,7 +117,7 @@ export const STAFF_MODULES: StaffModule[] = [
     title: 'Mitglieder',
     description: 'Die Mitglieder aus CampFlow nach Gruppen ansehen und ihre Angaben nachschlagen.',
     intro:
-      'Die Mitgliederliste aus CampFlow zum Nachschlagen. Ändern, aufnehmen und austragen geht nur in CampFlow. Bankverbindungen werden hier nicht angezeigt.',
+      'Die Mitgliederliste aus CampFlow zum Nachschlagen. Ändern, aufnehmen und austragen geht nur in CampFlow. Bankverbindungen, Gesundheitsangaben und Notizen werden hier nicht angezeigt.',
     keywords: [
       'mitgliederliste',
       'mitgliederverwaltung',

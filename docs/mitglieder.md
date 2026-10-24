@@ -22,8 +22,9 @@ weiter nur in CampFlow.
 für eine Minute, `getCampflowMembers`) und `GET /lists/member/custom_columns`. Antwort:
 `{ loadedAt, columns, persons }`; `loadedAt` ist der Zeitpunkt, zu dem CampFlow gelesen wurde.
 „Neu aus CampFlow laden“ schickt `?refresh=true`: Dann liest der Server die Liste sofort neu, und
-auch die anderen Module bekommen den neuen Stand. `bank_account` und `sepa_mandate` entfernt der Server
-(`sanitizePerson`). Fehlen die eigenen Felder, kommt die Liste trotzdem, nur ohne deren Namen.
+auch die anderen Module bekommen den neuen Stand. `bank_account` und `sepa_mandate` (`sanitizePerson`) sowie `health`,
+`intolerances`, `diet` und `notes` (`MITGLIED_REDACTED_FIELDS`) entfernt der Server; die
+Aktionen zeigen Gesundheitsangaben ihrer Teilnehmenden weiterhin. Fehlen die eigenen Felder, kommt die Liste trotzdem, nur ohne deren Namen.
 
 Gespeichert wird nichts. Die CampFlow-Weboberfläche bietet mehr (Nachweise wie
 Führungszeugnis, Familien), liest diese aber über Anfragen, die schreibenden ähneln

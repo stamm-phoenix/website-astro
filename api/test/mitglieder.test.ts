@@ -27,6 +27,10 @@ const MEMBER: campflow.CampflowPerson = {
   group_names: ['🟠 Wölfling'],
   bank_account: { iban: 'DE02700100800030876808' },
   sepa_mandate: { reference: 'MR1' },
+  health: ['Asthma'],
+  intolerances: ['Nüsse'],
+  diet: ['vegetarian'],
+  notes: 'Notfallspray im Rucksack',
   col_Konfession: 'rk',
 };
 
@@ -48,7 +52,7 @@ interface Body {
   persons: campflow.CampflowPerson[];
 }
 
-test('the member list comes with its custom fields and without payment details', async (t) => {
+test('the member list comes with its custom fields, without payment details, health and notes', async (t) => {
   t.mock.method(campflow, 'getCampflowMembersWithTime', async () => ({
     value: [MEMBER],
     loadedAt: LOADED_AT,
@@ -73,6 +77,7 @@ test('the member list comes with its custom fields and without payment details',
   ]);
   // The shared load of the member list stays untouched
   assert.ok(MEMBER.bank_account);
+  assert.ok(MEMBER.health);
 });
 
 test('the member list still loads when its custom fields cannot be read', async (t) => {
