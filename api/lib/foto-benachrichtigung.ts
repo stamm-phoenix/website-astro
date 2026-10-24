@@ -12,8 +12,15 @@ import { getFotoThumbnail } from './fotos';
 import type { MailAttachment } from './mail';
 import { escapeHtml, sendBlindCopyMail } from './mail';
 import { mailButton, mailLayout } from './mail-template';
+import { getPersonen } from './personen';
+import type { Person } from './personen-model';
+import type { PersonGruppe } from './protokoll-editor-model';
+import { PERSON_GRUPPEN } from './protokoll-editor-model';
 import type { ProtokollRecipient } from './protokolle';
 import { protokollRecipients } from './protokolle';
+import { email } from './sammelbestellung-validation';
+import { getTaskDirectoryUsers } from './task-directory';
+import type { TaskDirectoryUser } from './task-directory-types';
 
 /** Previews shown in the mail; more make it long on a phone. */
 export const FOTO_MAIL_PREVIEWS = 6;
@@ -21,14 +28,83 @@ export const FOTO_MAIL_PREVIEWS = 6;
 const PREVIEW_SIZE = 160;
 
 /**
- * Current members of the groups in `CONFIG.fotos.campflowGroups`; throws `CampflowError`. Read
- * fresh from CampFlow, not from the list shared for a minute, so the version confirmed before
- * sending sees a change made in between.
+ * The CampFlow member list, read fresh, not from the list shared for a minute, so the version
+ * confirmed before sending sees a change made in between; throws `CampflowError`.
  */
-export async function loadFotoRecipients(): Promise<ProtokollRecipient[]> {
-  const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
+export function loadFotoMembers(): Promise<CampflowPerson[]> {
+  return campflowGetAll<CampflowPerson>('/lists/member/persons');
+}
+
+/** Current members of the groups and labels in `CONFIG.fotos`, like the minutes. */
+export function fotoRecipients(persons: CampflowPerson[]): ProtokollRecipient[] {
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
-  return protokollRecipients(persons, today, CONFIG.fotos.campflowGroups);
+  return protokollRecipients(
+    persons,
+    today,
+    CONFIG.fotos.campflowGroups,
+    CONFIG.fotos.campflowLabels
+  );
+}
+
+/** A person of the module „Personen“ to add by hand, with the address the note goes to. */
+export interface FotoPerson {
+  name: string;
+  email: string;
+  gruppe: PersonGruppe;
+}
+
+function campflowEmail(person: CampflowPerson | undefined): string {
+  if (typeof person?.primary_email !== 'string') return '';
+  try {
+    return email(person.primary_email);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * People to offer in the address field: the leaders of the Entra group and the active
+ * Altleitende and others of the list, like the Protokoll-Editor. The address is the primary one
+ * of the linked CampFlow person (the one the list uses), otherwise the login; people without
+ * either are left out.
+ */
+export function fotoPersonen(
+  persons: CampflowPerson[],
+  leitende: TaskDirectoryUser[],
+  rows: Person[]
+): FotoPerson[] {
+  const byId = new Map(persons.map((person) => [person.id, person]));
+  const linked = new Map(
+    rows.filter((row) => row.login).map((row) => [row.login.toLowerCase(), row.campflowPersonId])
+  );
+  const result = new Map<string, FotoPerson>();
+  const add = (name: string, login: string, campflowId: string, gruppe: PersonGruppe): void => {
+    const address = campflowEmail(byId.get(campflowId)) || login.trim().toLowerCase();
+    if (address && name && !result.has(address))
+      result.set(address, { name, email: address, gruppe });
+  };
+  for (const user of leitende) {
+    add(user.name, user.login, linked.get(user.login.toLowerCase()) ?? '', 'leitende');
+  }
+  // Rows of leaders only link them to CampFlow; the Entra group says who leads
+  for (const row of rows.filter((p) => p.aktiv && p.gruppe !== 'leitende')) {
+    add(row.name, row.login, row.campflowPersonId, row.gruppe);
+  }
+  return [...result.values()].sort(
+    (a, b) =>
+      PERSON_GRUPPEN.indexOf(a.gruppe) - PERSON_GRUPPEN.indexOf(b.gruppe) ||
+      a.name.localeCompare(b.name, 'de')
+  );
+}
+
+/** `fotoPersonen` with the directory and the list; a source that fails is left out. */
+export async function loadFotoPersonen(persons: CampflowPerson[]): Promise<FotoPerson[]> {
+  const [leitende, rows] = await Promise.allSettled([getTaskDirectoryUsers(), getPersonen()]);
+  return fotoPersonen(
+    persons,
+    leitende.status === 'fulfilled' ? leitende.value : [],
+    rows.status === 'fulfilled' ? rows.value : []
+  );
 }
 
 /**
@@ -128,6 +204,7 @@ export async function sendFotoBenachrichtigung(
 
 /** CampFlow and the mail of this module; a seam for the tests. */
 export const fotoMail = {
-  recipients: loadFotoRecipients,
+  members: loadFotoMembers,
+  personen: loadFotoPersonen,
   send: sendFotoBenachrichtigung,
 };

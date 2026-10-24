@@ -3181,11 +3181,16 @@ route('POST', '/api/intern/fotos/upload', (req) => {
   );
 });
 
-/** The leaders of the invented CampFlow list, without those only on it for the minutes. */
-const MOCK_FOTO_EMPFAENGER = MOCK_VERSAND_LIST.map((r) => ({
-  ...r,
-  reasons: r.reasons.filter((reason) => reason.startsWith('Gruppe')),
-})).filter((r) => r.reasons.length > 0);
+/** The invented CampFlow list, the same as for the minutes. */
+const MOCK_FOTO_EMPFAENGER = MOCK_VERSAND_LIST;
+
+/** People of the module „Personen“ to add by hand: one leader on the list, two others. */
+const MOCK_FOTO_PERSONEN = [
+  { name: MOCK_VERSAND_LIST[0].name, email: MOCK_VERSAND_LIST[0].email, gruppe: 'leitende' },
+  { name: 'Anna Altleiterin', email: 'anna.altleiterin@example.test', gruppe: 'altleitende' },
+  { name: 'Otto Ehemalig', email: 'otto.ehemalig@example.test', gruppe: 'altleitende' },
+  { name: 'Wanda Weitere', email: 'wanda@example.test', gruppe: 'weitere' },
+];
 
 route('POST', '/api/intern/fotos/benachrichtigung', (req) => {
   const body = req.json ?? {};
@@ -3194,6 +3199,7 @@ route('POST', '/api/intern/fotos/benachrichtigung', (req) => {
       recipients: MOCK_FOTO_EMPFAENGER.length,
       version: 'mock',
       list: mockMitEigenerAdresse(MOCK_FOTO_EMPFAENGER),
+      personen: MOCK_FOTO_PERSONEN,
     });
   }
   const excluded = strings(body.excluded);

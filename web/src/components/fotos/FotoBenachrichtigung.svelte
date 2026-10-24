@@ -6,6 +6,7 @@
   import { sendApi } from '../../lib/api';
   import { fotoAnzahlText } from '../../lib/fotoPfade';
   import { fotoUpload, unnotifiedFotoNames } from '../../lib/fotoUpload.svelte';
+  import { PERSON_GRUPPE_LABELS } from '../../lib/protokollEditor';
   import type { ProtokollVersandAuswahl, ProtokollVersandPreview } from '../../lib/protokolleView';
   import {
     LIST_RELOADED,
@@ -28,7 +29,18 @@
   const LOAD_FAILED =
     'Die Leitenden konnten nicht aus CampFlow geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.';
 
+  /** People of the module „Personen“ to add by hand, with headings. */
+  interface FotoPerson {
+    name: string;
+    email: string;
+    gruppe: 'leitende' | 'altleitende' | 'weitere';
+  }
+  interface FotoVersandPreview extends ProtokollVersandPreview {
+    personen: FotoPerson[];
+  }
+
   let auswahl = $state<ProtokollVersandAuswahl | null>(null);
+  let vorschlaege = $state<{ name: string; email: string; gruppe: string }[]>([]);
   /** Files the open dialog is about, as they were when it opened. */
   let names = $state<string[]>([]);
   let loading = $state(false);
@@ -41,8 +53,8 @@
   const count = $derived(auswahl ? auswahlCount(auswahl) : 0);
   const folderName = $derived(path.split('/').filter(Boolean).slice(-2).join(' / '));
 
-  async function preview(): Promise<ProtokollVersandPreview> {
-    return sendApi<ProtokollVersandPreview>('POST', '/intern/fotos/benachrichtigung', {
+  async function preview(): Promise<FotoVersandPreview> {
+    return sendApi<FotoVersandPreview>('POST', '/intern/fotos/benachrichtigung', {
       action: 'preview',
     });
   }
@@ -51,7 +63,12 @@
     loading = true;
     message = null;
     try {
-      auswahl = startAuswahl(await preview(), false);
+      const loaded = await preview();
+      vorschlaege = (loaded.personen ?? []).map((p) => ({
+        ...p,
+        gruppe: PERSON_GRUPPE_LABELS[p.gruppe],
+      }));
+      auswahl = startAuswahl(loaded, false);
       names = open;
       error = null;
     } catch (failure: unknown) {
@@ -128,8 +145,9 @@
       bind:pending={auswahl.pending}
       disabled={busy}
       subject="die Mail"
-      emptyText="In CampFlow wurden keine Leitenden mit E-Mail gefunden."
+      emptyText="In CampFlow wurden keine Leitenden und niemand mit dem Merkmal „Protokollempfang“ mit E-Mail gefunden."
       fieldId="foto-benachrichtigung-extra"
+      personen={vorschlaege}
     />
   {/if}
 </EditDialog>

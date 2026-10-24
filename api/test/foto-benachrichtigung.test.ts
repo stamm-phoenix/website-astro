@@ -5,12 +5,15 @@ import { HttpRequest, InvocationContext } from '@azure/functions';
 import { FotosNoteEndpoint } from '../endpoints/intern-fotos';
 import {
   fotoMail,
+  fotoPersonen,
+  fotoRecipients,
   fotoMailContent,
   fotoOrdnerTitel,
   sendFotoBenachrichtigung,
 } from '../lib/foto-benachrichtigung';
 import { fotoAnzahlText, fotoOrdnerLink } from '../lib/foto-pfade';
 import { fotoGraph, type FotoFile } from '../lib/fotos';
+import type { Person } from '../lib/personen-model';
 import { audienceVersion } from '../lib/protokolle';
 import * as token from '../lib/token';
 
@@ -21,10 +24,34 @@ const NICO = {
   userRoles: ['authenticated', 'team_leitende'],
 };
 
-const RECIPIENTS = [
-  { email: 'anna@example.test', name: 'Anna', reasons: ['Gruppe Leiter*in'] },
-  { email: 'ben@example.test', name: 'Ben', reasons: ['Gruppe Leiter*in'] },
+/** Two leaders, one member only with the label of the minutes, one child. */
+const MEMBERS = [
+  {
+    id: 'per_anna',
+    name: { first_name: 'Anna', last_name: 'Alt' },
+    primary_email: 'anna@example.test',
+    group_names: ['🐦‍🔥 Leiter*in'],
+  },
+  {
+    id: 'per_ben',
+    name: { first_name: 'Ben', last_name: 'Bau' },
+    primary_email: 'ben@example.test',
+    group_names: ['🐦‍🔥 Leiter*in'],
+  },
+  {
+    id: 'per_erika',
+    name: { first_name: 'Erika', last_name: 'Eltern' },
+    primary_email: 'erika@example.test',
+    label_names: ['📄 Protokollempfang'],
+  },
+  {
+    id: 'per_kind',
+    name: { first_name: 'Kim', last_name: 'Kind' },
+    primary_email: 'familie@example.test',
+    group_names: ['Wölflinge'],
+  },
 ];
+const RECIPIENTS = fotoRecipients(MEMBERS);
 
 function file(name: string, id = name): FotoFile {
   return {
@@ -91,6 +118,74 @@ test('fotoAnzahlText counts photos and videos in plain German', () => {
     fotoAnzahlText([file('a.jpg'), file('b.jpg'), file('c.pdf')]),
     '2 neue Fotos und 1 neue Datei'
   );
+});
+
+test('the leaders and the label of the minutes get the note, children do not', () => {
+  assert.deepEqual(
+    RECIPIENTS.map((r) => [r.email, r.reasons]),
+    [
+      ['anna@example.test', ['Gruppe 🐦‍🔥 Leiter*in']],
+      ['ben@example.test', ['Gruppe 🐦‍🔥 Leiter*in']],
+      ['erika@example.test', ['Label 📄 Protokollempfang']],
+    ]
+  );
+});
+
+test('fotoPersonen offers leaders and active further people with their CampFlow address', () => {
+  const row = (fields: Partial<Person>): Person => ({
+    id: 1,
+    name: '',
+    login: '',
+    gruppe: 'weitere',
+    campflowPersonId: '',
+    aktiv: true,
+    etag: '',
+    updatedAt: '',
+    updatedBy: '',
+    ...fields,
+  });
+  const personen = fotoPersonen(
+    MEMBERS,
+    [
+      { name: 'Anna Alt', login: 'anna.alt@stamm-phoenix.de', givenName: 'Anna' },
+      { name: 'Lea Neu', login: 'lea.neu@stamm-phoenix.de', givenName: 'Lea' },
+    ],
+    [
+      row({
+        name: 'Anna Alt',
+        login: 'anna.alt@stamm-phoenix.de',
+        gruppe: 'leitende',
+        campflowPersonId: 'per_anna',
+      }),
+      row({ name: 'Otto Oldie', gruppe: 'altleitende', campflowPersonId: 'per_kind' }),
+      row({
+        name: 'Paula Pause',
+        gruppe: 'altleitende',
+        aktiv: false,
+        login: 'paula@example.test',
+      }),
+      row({ name: 'Ohne Adresse', gruppe: 'weitere' }),
+    ]
+  );
+  assert.deepEqual(personen, [
+    { name: 'Anna Alt', email: 'anna@example.test', gruppe: 'leitende' },
+    { name: 'Lea Neu', email: 'lea.neu@stamm-phoenix.de', gruppe: 'leitende' },
+    { name: 'Otto Oldie', email: 'familie@example.test', gruppe: 'altleitende' },
+  ]);
+});
+
+test('the preview brings the people to add by hand along', async (t) => {
+  t.mock.method(fotoMail, 'members', async () => MEMBERS);
+  t.mock.method(fotoMail, 'personen', async () => [
+    { name: 'Otto Oldie', email: 'otto@example.test', gruppe: 'altleitende' },
+  ]);
+  const response = await FotosNoteEndpoint(request({ action: 'preview' }), context(t));
+  assert.equal(response.status, 200);
+  const body = response.jsonBody as { recipients: number; personen: unknown[] };
+  assert.equal(body.recipients, 3);
+  assert.deepEqual(body.personen, [
+    { name: 'Otto Oldie', email: 'otto@example.test', gruppe: 'altleitende' },
+  ]);
 });
 
 test('fotoOrdnerTitel names the last two levels of the folder', () => {
@@ -171,7 +266,7 @@ test('sendFotoBenachrichtigung embeds the previews it gets and skips missing one
 
 test('the note goes to the confirmed list and names only files in the folder', async (t) => {
   fakeFolder(t);
-  t.mock.method(fotoMail, 'recipients', async () => RECIPIENTS);
+  t.mock.method(fotoMail, 'members', async () => MEMBERS);
   const sent: { to: string[]; data: Parameters<typeof fotoMail.send>[1] }[] = [];
   t.mock.method(fotoMail, 'send', async (to: string[], data: (typeof sent)[number]['data']) => {
     sent.push({ to, data });
@@ -188,8 +283,8 @@ test('the note goes to the confirmed list and names only files in the folder', a
     context(t)
   );
   assert.equal(response.status, 200);
-  assert.deepEqual(response.jsonBody, { recipients: 2, files: 2 });
-  assert.deepEqual(sent[0].to, ['anna@example.test', 'gast@example.test']);
+  assert.deepEqual(response.jsonBody, { recipients: 3, files: 2 });
+  assert.deepEqual(sent[0].to, ['anna@example.test', 'erika@example.test', 'gast@example.test']);
   assert.deepEqual(
     sent[0].data.files.map((f) => f.name),
     ['IMG_1.jpg', 'Clip.mp4']
@@ -204,7 +299,7 @@ test('the note goes to the confirmed list and names only files in the folder', a
 
 test('the note is refused for a changed list or an empty choice, and nothing is sent', async (t) => {
   fakeFolder(t);
-  t.mock.method(fotoMail, 'recipients', async () => RECIPIENTS);
+  t.mock.method(fotoMail, 'members', async () => MEMBERS);
   const send = t.mock.method(fotoMail, 'send', async () => undefined);
   const base = { action: 'send', pfad: 'Aktionen/2026/Sola/Nico', dateien: ['IMG_1.jpg'] };
 
