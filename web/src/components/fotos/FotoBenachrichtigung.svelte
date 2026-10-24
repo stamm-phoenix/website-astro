@@ -85,7 +85,7 @@
         { action: 'send', pfad: path, dateien: names, ...auswahlBody(auswahl) }
       );
       fotoUpload.notified = {
-        recipients: (fotoUpload.notified?.recipients ?? 0) + result.recipients,
+        recipients: result.recipients,
         names: [...(fotoUpload.notified?.names ?? []), ...names],
       };
       auswahl = null;
