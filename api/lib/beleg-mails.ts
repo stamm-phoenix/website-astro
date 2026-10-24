@@ -47,10 +47,14 @@ function formatEuro(cent: number): string {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(cent / 100);
 }
 
-/** Tells the uploader why their receipt was rejected and how to correct it. */
+/**
+ * Tells the uploader why their receipt was rejected and how to correct it, within `timeoutMs`
+ * and without retries, so the request that saved the decision answers in time.
+ */
 export async function sendBelegRejectedMail(
   data: RejectedBelegMail,
-  sender: string
+  sender: string,
+  timeoutMs = 10_000
 ): Promise<void> {
   const summary = `${data.shop} vom ${formatDate(data.date)} über ${formatEuro(data.amountCent)}`;
   const reason = escapeHtml(data.reason).replace(/\r?\n/g, '<br />');
@@ -64,7 +68,10 @@ export async function sendBelegRejectedMail(
     ${mailButton(data.url, 'Belege öffnen', 'Falls der Button nicht funktioniert, kopiere diese Adresse in deinen Browser:')}
     <p style="font-size:13px;color:#6b7280;">Bei Fragen wende dich an ${escapeHtml(data.reviewer)}.</p>
   `);
-  await sendMail(data.to, `Beleg abgelehnt: ${data.shop}`, html, sender);
+  await sendMail(data.to, `Beleg abgelehnt: ${data.shop}`, html, sender, undefined, {
+    retry: false,
+    timeoutMs: Math.max(1, Math.min(10_000, timeoutMs)),
+  });
 }
 
 /**
