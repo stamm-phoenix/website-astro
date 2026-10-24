@@ -3,7 +3,8 @@
  * mail in blind copy with a few small previews in the text and a link to the folder. The
  * recipients come from CampFlow like those of the minutes and can be changed per mail.
  */
-import { getCampflowMembers } from './campflow';
+import type { CampflowPerson } from './campflow';
+import { campflowGetAll } from './campflow';
 import { CONFIG } from './config';
 import { fotoAnzahlText } from './foto-pfade';
 import type { FotoFile, FotoThumbnail } from './fotos';
@@ -19,9 +20,13 @@ export const FOTO_MAIL_PREVIEWS = 6;
 /** Edge of a preview in the mail, in pixels. */
 const PREVIEW_SIZE = 160;
 
-/** Current members of the groups in `CONFIG.fotos.campflowGroups`; throws `CampflowError`. */
+/**
+ * Current members of the groups in `CONFIG.fotos.campflowGroups`; throws `CampflowError`. Read
+ * fresh from CampFlow, not from the list shared for a minute, so the version confirmed before
+ * sending sees a change made in between.
+ */
 export async function loadFotoRecipients(): Promise<ProtokollRecipient[]> {
-  const persons = await getCampflowMembers();
+  const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
   return protokollRecipients(persons, today, CONFIG.fotos.campflowGroups);
 }
