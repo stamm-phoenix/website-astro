@@ -226,7 +226,7 @@ export const BelegeCollectionEndpoint = pflegeHandler(
 /**
  * PATCH: update details and review state (optimistic locking via etag); answers with the new
  * `etag`. Rejecting a receipt mails the reason to the uploader; `mailed` says whether that
- * worked. A resubmitted receipt is mailed to the Kasse again. DELETE: remove.
+ * worked. A receipt its uploader resubmits is mailed to the Kasse again. DELETE: remove.
  */
 export const BelegItemEndpoint = pflegeHandler(
   'belege',
@@ -260,7 +260,12 @@ export const BelegItemEndpoint = pflegeHandler(
     // someone else's later change for it
     const saved = await updateBeleg(id, input, etag, principal.userDetails);
 
-    if (previous.status === 'Abgelehnt' && input.status === 'Eingereicht') {
+    // Only the uploader corrects and resubmits; the Kasse resetting a decision mails nobody
+    if (
+      previous.status === 'Abgelehnt' &&
+      input.status === 'Eingereicht' &&
+      isOwner(previous, principal)
+    ) {
       await notifyKasse(input, true, principal, request, context);
     }
     const rejected = input.status === 'Abgelehnt' && previous.status !== 'Abgelehnt';

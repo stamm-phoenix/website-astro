@@ -606,6 +606,19 @@ dbTest('submitting and resubmitting a receipt mails the team „Kasse“', async
   assert.equal(send.mock.callCount(), 4);
   assert.equal(send.mock.calls[2].arguments[1], 'Beleg erneut eingereicht: REWE');
 
+  // The Kasse resetting someone else's rejected receipt mails nobody
+  await getDb()
+    .updateTable('organisation.beleg')
+    .set({ status: 'Abgelehnt' })
+    .where('id', '=', Number(id))
+    .execute();
+  const reset = await BelegItem(
+    request('PATCH', { ...INPUT, status: 'Eingereicht', etag: await version(Number(id)) }, { id }),
+    context
+  );
+  assert.equal(reset.status, 200);
+  assert.equal(send.mock.callCount(), 4);
+
   // A failing mail or directory never blocks submitting
   send.mock.mockImplementation(async () => {
     throw new Error('mailbox');
