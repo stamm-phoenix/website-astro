@@ -3,8 +3,10 @@ export {
   MEDIA_ACCEPT,
   aktionFotoPath,
   cleanName,
+  fotoAnzahlText,
   fotoKind,
   fotoNameCandidates,
+  fotoOrdnerLink,
   numberedName,
   splitFotoPath,
 } from '../../../api/lib/foto-pfade';

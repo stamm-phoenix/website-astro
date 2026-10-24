@@ -1,8 +1,11 @@
 import { HELP_CONTACTS } from '../lib/help-contacts';
 import type { HttpResponseInit } from '@azure/functions';
+import { CampflowError } from '../lib/campflow';
+import { fotoMail, fotoRecipients } from '../lib/foto-benachrichtigung';
 import {
   aktionFotoPath,
   fotoKind,
+  fotoOrdnerLink,
   fotoNameCandidates,
   isCleanName,
   splitFotoPath,
@@ -17,13 +20,19 @@ import {
   listFotoFolder,
 } from '../lib/fotos';
 import { METHOD_NOT_ALLOWED, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
+import { ValidationError } from '../lib/pflege-validation';
+import { mitEigenerAdresse } from '../lib/personen';
+import { audienceVersion, protokollDeliveryAddresses } from '../lib/protokolle';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { getSiteUrl } from '../lib/site-url';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 
 /** Largest file SharePoint accepts in an upload session. */
 const MAX_FILE_BYTES = 250 * 1024 ** 3;
 /** Names held by other files of an upload that one request may skip; at most every name tried. */
 const MAX_RESERVED_NAMES = 50;
+/** Files one note about new photos may name; far more than one upload of a weekend. */
+const MAX_NOTE_FILES = 5000;
 
 const FOLDER_NOT_FOUND = errorResponse(
   404,
@@ -35,6 +44,12 @@ const FILE_NOT_FOUND = errorResponse(
   404,
   'NOT_FOUND',
   'Diese Datei gibt es nicht mehr. Vielleicht wurde sie in SharePoint gelöscht oder verschoben. Lade den Ordner neu.'
+);
+
+const CAMPFLOW_UNAVAILABLE = errorResponse(
+  502,
+  'CAMPFLOW_UNAVAILABLE',
+  'Die Leitenden konnten nicht aus CampFlow geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.'
 );
 
 const LIBRARY_MISSING = errorResponse(
@@ -206,7 +221,92 @@ export const FotosUploadEndpoint = pflegeHandler(
   { quiet: true }
 );
 
+/**
+ * Note to the leaders about new photos in a folder.
+ * - `{ action: 'preview' }`: the recipients from CampFlow (with reasons), a version of that list
+ *   and the people of the module „Personen“ to add by hand (`personen`).
+ * - `{ action: 'send', pfad, dateien, version, excluded?, extra? }`: mails the note about the
+ *   files named in `dateien` that are in the folder, to that list without the addresses in
+ *   `excluded` and with those in `extra`, if the list still matches the confirmed version.
+ */
+export const FotosNoteEndpoint = pflegeHandler(
+  'fotos-benachrichtigung',
+  async (request, context, user) => {
+    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+    const body = await readJsonBody(request);
+    const action = body?.action;
+    if (action !== 'preview' && action !== 'send') {
+      throw new ValidationError({ form: 'Unbekannte Aktion.' });
+    }
+
+    let members;
+    try {
+      members = await fotoMail.members();
+    } catch (error: unknown) {
+      if (!(error instanceof CampflowError)) throw error;
+      context.error(error);
+      return CAMPFLOW_UNAVAILABLE;
+    }
+    const recipients = fotoRecipients(members);
+    const version = audienceVersion(recipients);
+    if (action === 'preview') {
+      const [list, personen] = await Promise.all([
+        mitEigenerAdresse(user.userDetails, recipients),
+        fotoMail.personen(members),
+      ]);
+      return ok({ recipients: recipients.length, version, list, personen });
+    }
+
+    const path = string(body?.pfad);
+    if (!path || !splitFotoPath(path)) return INVALID_PATH;
+    const names = body?.dateien;
+    if (
+      !Array.isArray(names) ||
+      names.length === 0 ||
+      names.length > MAX_NOTE_FILES ||
+      !names.every((name) => typeof name === 'string' && name.length <= 255)
+    ) {
+      return invalid('dateien', 'Die Liste der hochgeladenen Dateien ist ungültig.');
+    }
+    if (body?.version !== version) {
+      throw new ValidationError({
+        form: 'Die Leitenden in CampFlow haben sich geändert. Bitte prüf die Liste und bestätige sie erneut.',
+      });
+    }
+    const addresses = protokollDeliveryAddresses(recipients, body?.excluded, body?.extra);
+    if (addresses.length === 0) {
+      throw new ValidationError({
+        form: 'Es ist niemand ausgewählt. Wähle mindestens eine Person aus oder trag eine Adresse ein.',
+      });
+    }
+
+    return withFotoErrors(async () => {
+      const folder = await listFotoFolder(path);
+      if (!folder) return FOLDER_NOT_FOUND;
+      // Only files that are really there, in the order they were named
+      const byName = new Map(folder.files.map((file) => [file.name.toLowerCase(), file]));
+      const files = [...new Set(names.map((name) => String(name).toLowerCase()))]
+        .map((name) => byName.get(name))
+        .filter((file) => file !== undefined);
+      if (files.length === 0) {
+        throw new ValidationError({
+          form: 'Die hochgeladenen Dateien sind nicht mehr in diesem Ordner. Vielleicht wurden sie in SharePoint verschoben.',
+        });
+      }
+      await fotoMail.send(addresses, {
+        person: getPrincipalFirstName(user),
+        replyTo: user.userDetails,
+        path: folder.path,
+        files,
+        url: `${getSiteUrl(request)}${fotoOrdnerLink(folder.path)}`,
+      });
+      return ok({ recipients: addresses.length, files: files.length });
+    });
+  }
+);
+
 export const FotosFolder = withErrorHandling(FotosFolderEndpoint);
+export const FotosNote = withErrorHandling(FotosNoteEndpoint);
 export const FotosFile = withErrorHandling(FotosFileEndpoint);
 export const FotosTarget = withErrorHandling(FotosTargetEndpoint);
 export const FotosUpload = withErrorHandling(FotosUploadEndpoint);

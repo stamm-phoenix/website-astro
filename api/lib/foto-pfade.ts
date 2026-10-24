@@ -187,3 +187,28 @@ export function aktionFotoPath(year: string, aktion: string, person: string): st
   const segments = [FOTO_AKTIONEN_FOLDER, year, cleanName(aktion), cleanName(person)];
   return segments.every(Boolean) ? segments.join('/') : null;
 }
+
+/**
+ * Page of the module „Fotos“ with a folder open, e.g. `/leitendenbereich/fotos#pfad=Aktionen%2F2026`;
+ * the same hash as the page sets itself (`web/src/lib/fotoAnsicht.ts`).
+ */
+export function fotoOrdnerLink(path: string): string {
+  return `/leitendenbereich/fotos#${new URLSearchParams({ pfad: path }).toString()}`;
+}
+
+/** „12 neue Fotos und 2 neue Videos“, „1 neues Foto“, „3 neue Dateien“. */
+export function fotoAnzahlText(files: { name: string }[]): string {
+  const photos = files.filter((file) => fotoKind(file.name) === 'photo').length;
+  const videos = files.filter((file) => fotoKind(file.name) === 'video').length;
+  const others = files.length - photos - videos;
+  const part = (count: number, one: string, many: string): string =>
+    count === 0 ? '' : count === 1 ? `1 ${one}` : `${count} ${many}`;
+  const parts = [
+    part(photos, 'neues Foto', 'neue Fotos'),
+    part(videos, 'neues Video', 'neue Videos'),
+    part(others, 'neue Datei', 'neue Dateien'),
+  ].filter(Boolean);
+  return parts.length > 1
+    ? `${parts.slice(0, -1).join(', ')} und ${parts[parts.length - 1]}`
+    : (parts[0] ?? '0 neue Fotos');
+}

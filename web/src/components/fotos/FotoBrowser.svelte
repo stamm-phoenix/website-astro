@@ -14,6 +14,7 @@
     zipLimitMessage,
   } from '../../lib/fotoDownload.svelte';
   import { folderEntry, isFresh, loadFotoFolder } from '../../lib/fotoOrdnerStore.svelte';
+  import { fotoOrdnerLink } from '../../lib/fotoPfade';
   import type { FotoFile } from '../../lib/types';
 
   interface Props {
@@ -40,6 +41,9 @@
   let messageKind = $state<'success' | 'error'>('success');
   /** Preview links that failed to load, e.g. expired; a new link of the same file is tried. */
   const brokenPreviews = new SvelteSet<string>();
+  /** The link was copied; confirmed on the button itself for a few seconds. */
+  let copied = $state(false);
+  let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
   const selectedFiles = $derived(files.filter((file) => selected.has(file.id)));
   const selectedBytes = $derived(selectedFiles.reduce((sum, file) => sum + file.size, 0));
@@ -63,9 +67,23 @@
       selected.clear();
       brokenPreviews.clear();
       message = null;
+      copied = false;
       void loadFotoFolder(current);
     });
   });
+
+  /** Copies a link that opens this folder, e.g. to send it in a chat. */
+  async function copyLink(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${fotoOrdnerLink(path)}`);
+      copied = true;
+      clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(() => (copied = false), 3000);
+    } catch {
+      messageKind = 'error';
+      message = 'Kopieren ging nicht. Kopiere die Adresse aus der Adresszeile.';
+    }
+  }
 
   function toggle(file: FotoFile): void {
     if (preparing) return;
@@ -165,6 +183,9 @@
     <div class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2">
       {#if path}
         <ActionButton onclick={() => onupload(path)}>Hierher hochladen</ActionButton>
+        <ActionButton onclick={() => void copyLink()}>
+          <span aria-live="polite">{copied ? 'Link kopiert ✓' : 'Link kopieren'}</span>
+        </ActionButton>
       {/if}
       {#if data?.webUrl}
         <a

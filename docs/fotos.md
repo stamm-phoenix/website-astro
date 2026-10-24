@@ -27,6 +27,13 @@ Struktur wird nur beim Hochladen für eine Aktion verwendet:
   beliebigen Ordner, optional in einen neuen Unterordner, z. B. für Fotos einer anderen Person.
   Ist der letzte Upload fertig, öffnet „Hierher hochladen“ ein neues Formular mit diesem Ziel.
 
+Jeder Ordner hat eine eigene Adresse: Die Seite hält den offenen Ordner im Hash
+(`/leitendenbereich/fotos#pfad=Aktionen%2F2026`, `web/src/lib/fotoAnsicht.ts`), und „Link
+kopieren“ kopiert genau diesen Link (`fotoOrdnerLink` in `api/lib/foto-pfade.ts`, auch für die
+Benachrichtigung verwendet). Der Hash erreicht den Server nie; muss man sich erst anmelden, ist
+nicht geprüft, ob er den Umweg über die Anmeldung von Static Web Apps übersteht (wie bei den
+Links der Protokoll-Mails, `#protokoll-<id>`).
+
 Umbenennen, Verschieben und Löschen gibt es im Modul bewusst nicht; dafür führt „In SharePoint
 öffnen“ zum Ordner bzw. zur Datei.
 
@@ -66,6 +73,29 @@ Nach der Auswahl zeigt das Formular kleine Vorschaubilder (für HEIC und RAW den
 denen man einzelne Dateien wieder entfernen kann. Der Button „Hochladen“ steht in einer festen
 Leiste unten, und die Liste der Aktionen klappt nach der Wahl zu. Die gewählten Dateien bleiben beim Wechsel zu „Fotos ansehen“ und nach einem Fehler beim
 Anlegen des Ordners („Ziel ändern“) erhalten, bis man neue auswählt oder die Seite verlässt.
+
+## Leitende benachrichtigen
+
+Ist ein Upload fertig (oder abgebrochen) und ist mindestens eine Datei neu angekommen, bietet der
+Fortschritt „Leitende benachrichtigen“ an. Die Empfängerauswahl ist die des Protokollversands
+(`ProtokollEmpfaenger.svelte`): die aktuellen Mitglieder der CampFlow-Gruppen in
+`CONFIG.fotos.campflowGroups` (Leiter*innen) und mit den Labels in `CONFIG.fotos.campflowLabels`
+(„Protokollempfang“). Einzelne Personen lassen sich herausnehmen. Das Feld für weitere Adressen
+ist die Personensuche (`ui/PersonSuche.svelte`) und bietet die Personen des Moduls „Personen“ an:
+die Leitenden der Entra-Gruppe und die aktiven Altleitenden und Weiteren, jeweils mit der
+primären Adresse ihrer verknüpften CampFlow-Person, sonst mit ihrem Login (`fotoPersonen`).
+Jede andere Adresse lässt sich weiter von Hand eintragen.
+
+`POST /api/intern/fotos/benachrichtigung` mit `action: 'preview'` liefert die Liste, ihre
+Version und die Personen zum Hinzufügen (`personen`), mit `action: 'send'` (`pfad`, `dateien`,
+`version`, `excluded`, `extra`) geht eine Mail in Blindkopie von `CONFIG.fotos.sender` (`api/lib/foto-benachrichtigung.ts`). Gezählt und gezeigt
+werden nur Dateien, die wirklich im Ordner liegen. Die Mail nennt Vorname, Anzahl und Ordner
+(„Nico hat 12 neue Fotos in den Ordner „Sola / Nico“ hochgeladen“), zeigt bis zu sechs
+quadratische Vorschaubilder von SharePoint (240 Pixel, als eingebettete Anhänge mit `cid:`) und
+verlinkt den Ordner im Leitendenbereich. Antworten gehen an die hochladende Person. Fehlt für
+eine Datei noch eine Vorschau, fehlt sie in der Mail. Welche Dateien schon gemeldet wurden, merkt
+sich nur die offene Seite; nach „Fehlgeschlagene erneut versuchen“ lässt sich für die neu
+angekommenen noch einmal benachrichtigen.
 
 Ausfallsicherheit: Ohne Verbindung wartet der Upload, bis das Gerät wieder online ist, und fragt
 SharePoint dann, ab welchem Byte es weitergeht. Fehler von SharePoint werden mit wachsendem

@@ -3181,6 +3181,39 @@ route('POST', '/api/intern/fotos/upload', (req) => {
   );
 });
 
+/** The invented CampFlow list, the same as for the minutes. */
+const MOCK_FOTO_EMPFAENGER = MOCK_VERSAND_LIST;
+
+/** People of the module „Personen“ to add by hand: one leader on the list, two others. */
+const MOCK_FOTO_PERSONEN = [
+  { name: MOCK_VERSAND_LIST[0].name, email: MOCK_VERSAND_LIST[0].email, gruppe: 'leitende' },
+  { name: 'Anna Altleiterin', email: 'anna.altleiterin@example.test', gruppe: 'altleitende' },
+  { name: 'Otto Ehemalig', email: 'otto.ehemalig@example.test', gruppe: 'altleitende' },
+  { name: 'Wanda Weitere', email: 'wanda@example.test', gruppe: 'weitere' },
+];
+
+route('POST', '/api/intern/fotos/benachrichtigung', (req) => {
+  const body = req.json ?? {};
+  if (str(body.action) === 'preview') {
+    return json({
+      recipients: MOCK_FOTO_EMPFAENGER.length,
+      version: 'mock',
+      list: mockMitEigenerAdresse(MOCK_FOTO_EMPFAENGER),
+      personen: MOCK_FOTO_PERSONEN,
+    });
+  }
+  const excluded = strings(body.excluded);
+  const addresses = new Set(
+    MOCK_FOTO_EMPFAENGER.map((r) => r.email).filter((address) => !excluded.includes(address))
+  );
+  for (const address of strings(body.extra)) addresses.add(address.trim().toLowerCase());
+  if (addresses.size === 0) return error(400, 'INVALID', 'Es ist niemand ausgewählt.');
+  const files = strings(body.dateien).length;
+  if (files === 0)
+    return error(400, 'INVALID', 'Die Liste der hochgeladenen Dateien ist ungültig.');
+  return json({ recipients: addresses.size, files });
+});
+
 route(
   'GET',
   '/api/mock-fotos/vorschau/:id',

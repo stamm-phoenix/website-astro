@@ -46,6 +46,8 @@ interface FotoUploadState {
   error: string | null;
   /** Measured over the last seconds; null until known. */
   bytesPerSecond: number | null;
+  /** Files of this upload the leaders were told about, and the addresses of the last note. */
+  notified: { recipients: number; names: string[] } | null;
 }
 
 export const fotoUpload = $state<FotoUploadState>({
@@ -56,6 +58,7 @@ export const fotoUpload = $state<FotoUploadState>({
   waits: { offline: 0, login: 0, retry: 0 },
   error: null,
   bytesPerSecond: null,
+  notified: null,
 });
 
 /**
@@ -225,7 +228,17 @@ export function startFotoUpload(selected: File[], request: FotoTargetRequest, la
   });
   fotoUpload.label = label;
   fotoUpload.target = null;
+  fotoUpload.notified = null;
   void begin({ controller: new AbortController(), request });
+}
+
+/** Names of the files this upload brought into the folder that the leaders were not told about. */
+export function unnotifiedFotoNames(): string[] {
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local to this function
+  const told = new Set(fotoUpload.notified?.names ?? []);
+  return fotoUpload.items
+    .filter((item) => item.status === 'done' && !told.has(item.name))
+    .map((item) => item.name);
 }
 
 /** Tries the failed files again (or the preparation of the folder, if that failed). */
@@ -273,6 +286,7 @@ export function resetFotoUpload({ keepSelection = false } = {}): void {
   fotoUpload.target = null;
   fotoUpload.error = null;
   fotoUpload.label = '';
+  fotoUpload.notified = null;
 }
 
 async function begin(next: Run): Promise<void> {
