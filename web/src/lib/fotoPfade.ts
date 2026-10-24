@@ -3,6 +3,7 @@ export {
   MEDIA_ACCEPT,
   aktionFotoPath,
   cleanName,
+  fotoAnzahlText,
   fotoKind,
   fotoNameCandidates,
   fotoOrdnerLink,

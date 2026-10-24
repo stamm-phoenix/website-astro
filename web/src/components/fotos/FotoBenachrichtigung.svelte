@@ -4,7 +4,7 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import ProtokollEmpfaenger from '../protokolle/ProtokollEmpfaenger.svelte';
   import { sendApi } from '../../lib/api';
-  import { fotoKind } from '../../lib/fotoPfade';
+  import { fotoAnzahlText } from '../../lib/fotoPfade';
   import { fotoUpload, unnotifiedFotoNames } from '../../lib/fotoUpload.svelte';
   import type { ProtokollVersandAuswahl, ProtokollVersandPreview } from '../../lib/protokolleView';
   import {
@@ -40,18 +40,6 @@
   const open = $derived(unnotifiedFotoNames());
   const count = $derived(auswahl ? auswahlCount(auswahl) : 0);
   const folderName = $derived(path.split('/').filter(Boolean).slice(-2).join(' / '));
-
-  /** „3 neue Fotos“, „2 neue Fotos und 1 neues Video“, like the subject of the mail. */
-  function anzahl(files: string[]): string {
-    const videos = files.filter((name) => fotoKind(name) === 'video').length;
-    const photos = files.length - videos;
-    return [
-      photos ? (photos === 1 ? '1 neues Foto' : `${photos} neue Fotos`) : '',
-      videos ? (videos === 1 ? '1 neues Video' : `${videos} neue Videos`) : '',
-    ]
-      .filter(Boolean)
-      .join(' und ');
-  }
 
   async function preview(): Promise<ProtokollVersandPreview> {
     return sendApi<ProtokollVersandPreview>('POST', '/intern/fotos/benachrichtigung', {
@@ -131,8 +119,8 @@
 >
   {#if auswahl}
     <p class="text-sm text-neutral-800">
-      Alle mit Häkchen bekommen eine Mail: {anzahl(names)} in „{folderName}“, mit kleinen
-      Vorschaubildern und Link zum Ordner.
+      Alle mit Häkchen bekommen eine Mail: {fotoAnzahlText(names.map((name) => ({ name })))} in „{folderName}“,
+      mit kleinen Vorschaubildern und Link zum Ordner.
     </p>
     <ProtokollEmpfaenger
       list={auswahl.list}
