@@ -187,3 +187,11 @@ export function aktionFotoPath(year: string, aktion: string, person: string): st
   const segments = [FOTO_AKTIONEN_FOLDER, year, cleanName(aktion), cleanName(person)];
   return segments.every(Boolean) ? segments.join('/') : null;
 }
+
+/**
+ * Page of the module „Fotos“ with a folder open, e.g. `/leitendenbereich/fotos#pfad=Aktionen%2F2026`;
+ * the same hash as the page sets itself (`web/src/lib/fotoAnsicht.ts`).
+ */
+export function fotoOrdnerLink(path: string): string {
+  return `/leitendenbereich/fotos#${new URLSearchParams({ pfad: path }).toString()}`;
+}

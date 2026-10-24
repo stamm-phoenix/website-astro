@@ -5,6 +5,7 @@ export {
   cleanName,
   fotoKind,
   fotoNameCandidates,
+  fotoOrdnerLink,
   numberedName,
   splitFotoPath,
 } from '../../../api/lib/foto-pfade';

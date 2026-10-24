@@ -50,6 +50,8 @@ export interface MailAttachment {
   name: string;
   contentType: string;
   content: Uint8Array;
+  /** Shown in the text as `<img src="cid:…">` instead of as an attachment. */
+  contentId?: string;
 }
 
 /** Graph rejects a sendMail request above 4 MB; attachments grow by a third in base64. */
@@ -67,6 +69,8 @@ export async function sendBlindCopyMail(options: {
   subject: string;
   html: string;
   attachments?: MailAttachment[];
+  /** Where replies go instead of the sender, e.g. the person who wrote about the mail. */
+  replyTo?: MailReplyTo;
 }): Promise<void> {
   const attachments = options.attachments ?? [];
   await getClient()
@@ -77,6 +81,7 @@ export async function sendBlindCopyMail(options: {
         body: { contentType: 'HTML', content: options.html },
         toRecipients: [{ emailAddress: { address: options.sender } }],
         bccRecipients: options.bcc.map((address) => ({ emailAddress: { address } })),
+        ...(options.replyTo ? { replyTo: [{ emailAddress: options.replyTo }] } : {}),
         ...(attachments.length > 0
           ? {
               attachments: attachments.map((attachment) => ({
@@ -84,6 +89,9 @@ export async function sendBlindCopyMail(options: {
                 name: attachment.name,
                 contentType: attachment.contentType,
                 contentBytes: Buffer.from(attachment.content).toString('base64'),
+                ...(attachment.contentId
+                  ? { contentId: attachment.contentId, isInline: true }
+                  : {}),
               })),
             }
           : {}),

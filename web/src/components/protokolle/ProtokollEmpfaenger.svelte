@@ -15,6 +15,12 @@
     /** Text in the address field that was not added yet. */
     pending: string;
     disabled?: boolean;
+    /** What the recipients get, e.g. „das Protokoll“ or „die Nachricht“. */
+    subject?: string;
+    /** Shown when CampFlow has nobody with an address. */
+    emptyText?: string;
+    /** ID of the address field; unique on the page. */
+    fieldId?: string;
   }
 
   let {
@@ -23,6 +29,9 @@
     extra = $bindable(),
     pending = $bindable(),
     disabled = false,
+    subject = 'das Protokoll',
+    emptyText = 'In CampFlow wurden keine Leitenden und niemand mit dem Merkmal „Protokollempfang“ mit E-Mail gefunden.',
+    fieldId = 'protokoll-extra',
   }: Props = $props();
 
   let extraError = $state('');
@@ -54,7 +63,7 @@
         excluded = excluded.filter((e) => e !== address);
         notice = `${address} steht schon in der Liste. Das Häkchen ist wieder gesetzt.`;
       } else {
-        notice = `${address} steht schon in der Liste und bekommt das Protokoll.`;
+        notice = `${address} steht schon in der Liste und bekommt ${subject}.`;
       }
       pending = '';
       return;
@@ -79,10 +88,7 @@
     <legend class="form-label">Empfänger*innen ({selected} von {list.length})</legend>
     <p class="text-xs text-neutral-700">Gilt nur für diesen Versand.</p>
     {#if list.length === 0}
-      <p class="text-sm text-danger">
-        In CampFlow wurden keine Leitenden und niemand mit dem Merkmal „Protokollempfang“ mit E-Mail
-        gefunden.
-      </p>
+      <p class="text-sm text-danger">{emptyText}</p>
     {:else}
       <ul
         class="max-h-72 overflow-y-auto border border-neutral-200"
@@ -118,7 +124,7 @@
   </fieldset>
 
   <div class="space-y-2">
-    <FormField id="protokoll-extra" label="Weitere E-Mail-Adresse" optional error={extraError}>
+    <FormField id={fieldId} label="Weitere E-Mail-Adresse" optional error={extraError}>
       {#snippet children(field)}
         <div class="flex flex-wrap gap-2">
           <input

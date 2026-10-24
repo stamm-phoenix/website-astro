@@ -3181,6 +3181,33 @@ route('POST', '/api/intern/fotos/upload', (req) => {
   );
 });
 
+/** The leaders of the invented CampFlow list, without those only on it for the minutes. */
+const MOCK_FOTO_EMPFAENGER = MOCK_VERSAND_LIST.map((r) => ({
+  ...r,
+  reasons: r.reasons.filter((reason) => reason.startsWith('Gruppe')),
+})).filter((r) => r.reasons.length > 0);
+
+route('POST', '/api/intern/fotos/benachrichtigung', (req) => {
+  const body = req.json ?? {};
+  if (str(body.action) === 'preview') {
+    return json({
+      recipients: MOCK_FOTO_EMPFAENGER.length,
+      version: 'mock',
+      list: mockMitEigenerAdresse(MOCK_FOTO_EMPFAENGER),
+    });
+  }
+  const excluded = strings(body.excluded);
+  const addresses = new Set(
+    MOCK_FOTO_EMPFAENGER.map((r) => r.email).filter((address) => !excluded.includes(address))
+  );
+  for (const address of strings(body.extra)) addresses.add(address.trim().toLowerCase());
+  if (addresses.size === 0) return error(400, 'INVALID', 'Es ist niemand ausgewählt.');
+  const files = strings(body.dateien).length;
+  if (files === 0)
+    return error(400, 'INVALID', 'Die Liste der hochgeladenen Dateien ist ungültig.');
+  return json({ recipients: addresses.size, files });
+});
+
 route(
   'GET',
   '/api/mock-fotos/vorschau/:id',
