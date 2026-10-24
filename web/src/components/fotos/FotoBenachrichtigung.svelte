@@ -118,9 +118,8 @@
   }}
 >
   {#if auswahl}
-    <p class="text-sm text-neutral-800">
-      Alle mit Häkchen bekommen eine Mail: {fotoAnzahlText(names.map((name) => ({ name })))} in „{folderName}“,
-      mit kleinen Vorschaubildern und Link zum Ordner.
+    <p class="text-sm font-semibold text-neutral-900">
+      {fotoAnzahlText(names.map((name) => ({ name })))} · „{folderName}“
     </p>
     <ProtokollEmpfaenger
       list={auswahl.list}
