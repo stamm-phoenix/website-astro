@@ -527,6 +527,15 @@ dbTest('rejecting a receipt mails the reason to the uploader once', async (t) =>
   assert.match(String(html), /\/leitendenbereich\/belege/);
   assert.match(String(html), /staff@example\.test/);
 
+  // PR previews hold made-up receipts and mail nobody
+  await reset();
+  const server = CONFIG.database.server;
+  overrideConfig(t, CONFIG.database, { server: CONFIG.database.previewServer });
+  response = await BelegItem(request('PATCH', await reject(), { id: '7' }), context);
+  assert.equal((response.jsonBody as { mailed: boolean }).mailed, false);
+  assert.equal(send.mock.callCount(), 1);
+  CONFIG.database.server = server;
+
   // Saving an already rejected receipt again sends no second mail
   response = await BelegItem(request('PATCH', await reject(), { id: '7' }), context);
   assert.equal((response.jsonBody as { mailed: boolean }).mailed, false);
@@ -566,6 +575,13 @@ dbTest('submitting and resubmitting a receipt mails the team „Kasse“', async
   );
   assert.equal(response.status, 201);
   assert.equal(directory.mock.calls[0]?.arguments[1], CONFIG.staff.teams.kasse.groupId);
+  // Everything after saving stays within the request's time, without retries
+  assert.ok(directory.mock.calls[0]?.arguments[0] instanceof AbortSignal);
+  const options = send.mock.calls[0]?.arguments[5] as { retry?: boolean; timeoutMs?: number };
+  assert.equal(options.retry, false);
+  assert.ok(
+    options.timeoutMs !== undefined && options.timeoutMs > 0 && options.timeoutMs <= 10_000
+  );
   // Everyone in the Kasse except the uploader, each with a mail of their own
   assert.deepEqual(
     send.mock.calls.map((call) => call.arguments[0]),

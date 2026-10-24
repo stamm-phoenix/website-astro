@@ -71,8 +71,11 @@ export async function sendBelegRejectedMail(
  * The members of the team „Kasse“ to tell about a new receipt: person accounts of its Entra
  * group with an address of the Stamm, without the person who submitted it.
  */
-export async function belegReviewerAddresses(submittedBy: string): Promise<string[]> {
-  const users = await readTaskDirectory(undefined, CONFIG.staff.teams.kasse.groupId);
+export async function belegReviewerAddresses(
+  submittedBy: string,
+  signal?: AbortSignal
+): Promise<string[]> {
+  const users = await readTaskDirectory(signal, CONFIG.staff.teams.kasse.groupId);
   const submitter = submittedBy.toLowerCase();
   return users.map((user) => user.login).filter((login) => login !== submitter);
 }
@@ -114,17 +117,22 @@ export function belegSubmittedMailContent(data: SubmittedBelegMail): {
 }
 
 /**
- * Tells the Kasse about a submitted receipt, one mail per member.
+ * Tells the Kasse about a submitted receipt, one mail per member, all within `timeoutMs` and
+ * without retries, so the request that saved the receipt answers in time.
  * @returns The addresses whose mail could not be sent.
  */
 export async function sendBelegSubmittedMail(
   data: SubmittedBelegMail,
   recipients: string[],
-  sender: string
+  sender: string,
+  timeoutMs = 10_000
 ): Promise<string[]> {
   const { subject, html } = belegSubmittedMailContent(data);
+  const timeout = Math.max(1, Math.min(10_000, timeoutMs));
   const results = await Promise.allSettled(
-    recipients.map((to) => sendMail(to, subject, html, sender, undefined, { timeoutMs: 10_000 }))
+    recipients.map((to) =>
+      sendMail(to, subject, html, sender, undefined, { retry: false, timeoutMs: timeout })
+    )
   );
   return recipients.filter((_to, index) => results[index]?.status === 'rejected');
 }
