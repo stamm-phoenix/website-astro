@@ -105,3 +105,63 @@ test('a delayed selection keeps the touched tile until the interaction is cancel
   await tile.dispatchEvent('pointercancel', { pointerType: 'touch' });
   await expect(areas.getByRole('link').first()).toHaveText('Belege');
 });
+
+test('removing a favorite through its keyboard control releases the tile', async ({ page }) => {
+  await page.request.put('/api/intern/favoriten', {
+    data: { modules: ['/leitendenbereich/mitglieder'] },
+  });
+  await page.route('**/api/intern/zuletzt', (route) => route.fulfill({ json: { modules: [] } }));
+  await page.goto('/leitendenbereich');
+  const areas = page.getByRole('region', { name: 'Deine Bereiche' });
+  const remove = areas.getByRole('button', { name: 'Mitglieder aus deinen Favoriten entfernen' });
+  await expect(remove).toBeVisible();
+  await areas.getByRole('link', { name: 'Mitglieder', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(remove).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(areas.getByRole('link', { name: 'Mitglieder', exact: true })).toHaveCount(0);
+  await expect(areas.getByRole('link')).toHaveCount(8);
+});
+
+test('leaving a different tile with the mouse preserves the keyboard focus', async ({ page }) => {
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/favoriten', async (route) => {
+    await held;
+    await route.fulfill({
+      json: {
+        modules: [
+          '/leitendenbereich/mitglieder',
+          '/leitendenbereich/aktionen',
+          '/leitendenbereich/abrechnung',
+          '/leitendenbereich/beitraege',
+          '/leitendenbereich/gruppenstunden',
+          '/leitendenbereich/leitende',
+          '/leitendenbereich/blog',
+          '/leitendenbereich/downloads',
+        ],
+      },
+    });
+  });
+  await page.goto('/leitendenbereich');
+  const areas = page.getByRole('region', { name: 'Deine Bereiche' });
+  const tasks = areas.getByRole('link', { name: 'Aufgaben', exact: true });
+  await tasks.focus();
+  const before = await tasks.boundingBox();
+  await areas
+    .getByRole('link', { name: 'Belege', exact: true })
+    .dispatchEvent('pointerleave', { pointerType: 'mouse' });
+  release();
+  await expect(
+    areas.getByRole('button', { name: 'Mitglieder aus deinen Favoriten entfernen' })
+  ).toBeVisible();
+  await expect(tasks).toBeFocused();
+  expect(await tasks.boundingBox()).toEqual(before);
+});
+
+test('favorites have one loading announcement', async ({ page }) => {
+  await page.route('**/api/intern/favoriten', () => new Promise(() => {}));
+  await page.goto('/leitendenbereich');
+  const areas = page.getByRole('region', { name: 'Deine Bereiche' });
+  await expect(areas.getByText('Favoriten werden geladen …', { exact: true })).toHaveCount(1);
+});

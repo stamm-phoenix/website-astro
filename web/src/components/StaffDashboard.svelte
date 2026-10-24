@@ -182,20 +182,29 @@
 {/snippet}
 
 {#snippet tile(module: StaffModule, favorite: boolean)}
-  <li class="group relative min-w-0">
+  <li
+    class="group relative min-w-0"
+    onfocusout={(event) => {
+      if (
+        pinned?.href === module.href &&
+        (!(event.relatedTarget instanceof Node) ||
+          !event.currentTarget.contains(event.relatedTarget))
+      )
+        pinned = null;
+    }}
+  >
     <a
       onfocus={() => pinTile(module.href)}
       onpointerdown={() => pinTile(module.href)}
-      onblur={(event) => {
+      onpointercancel={() => {
+        if (pinned?.href === module.href) pinned = null;
+      }}
+      onpointerleave={(event) => {
         if (
-          !(event.relatedTarget instanceof Node) ||
-          !event.currentTarget.closest('li')?.contains(event.relatedTarget)
+          pinned?.href === module.href &&
+          !event.currentTarget.closest('li')?.contains(document.activeElement)
         )
           pinned = null;
-      }}
-      onpointercancel={() => (pinned = null)}
-      onpointerleave={(event) => {
-        if (document.activeElement !== event.currentTarget) pinned = null;
       }}
       use:longPress={favoriteToggle(module)}
       href={module.href}
@@ -221,7 +230,10 @@
         class="absolute -top-2 -right-2 flex size-11 items-center justify-center rounded-full border border-neutral-300 bg-surface text-brand-900 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:border-brand-900 focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
         aria-label="{module.title} aus deinen Favoriten entfernen"
         title="Aus deinen Favoriten entfernen"
-        onclick={() => toggleFavorite(module.href, module.title)}
+        onclick={() => {
+          if (pinned?.href === module.href) pinned = null;
+          toggleFavorite(module.href, module.title);
+        }}
       >
         <svg
           aria-hidden="true"
@@ -433,8 +445,10 @@
       error={favoritesStore.loadError}
       loadingText="Favoriten werden geladen …"
       onretry={retryFavorites}
+      isEmpty={(selection) => selection.length === 0}
     >
-      {#snippet skeleton()}<span class="sr-only">Favoriten werden geladen …</span>{/snippet}
+      {#snippet skeleton()}{/snippet}
+      {#snippet empty()}<p class="text-sm text-neutral-700">Noch keine Favoriten.</p>{/snippet}
       <span></span>
     </LoadState>
   </section>
