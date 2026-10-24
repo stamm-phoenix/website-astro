@@ -60,7 +60,6 @@ test('news is visible above the dashboard on a phone', async ({ page }) => {
   await page.goto('/leitendenbereich');
   const news = page.getByRole('link', { name: 'Neuigkeiten lesen', exact: true });
   await expect(news).toBeInViewport();
-  await page.screenshot({ path: '/tmp/429-news-personal.png' });
   const dashboard = page.getByRole('heading', { name: 'Für dich', exact: true });
   expect((await news.boundingBox())!.y).toBeLessThan((await dashboard.boundingBox())!.y);
 });
