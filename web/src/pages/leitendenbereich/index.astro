@@ -34,14 +34,14 @@ const searchGroups = [
     </div>
   </section>
 
+  <div class="mt-4">
+    <ChangelogNotice client:only="svelte" />
+  </div>
+
   <StaffDashboard client:load />
 
   <div class="mt-4">
     <NikolausStaffNotice client:only="svelte" />
-  </div>
-
-  <div class="mt-4">
-    <ChangelogNotice client:only="svelte" />
   </div>
 
   <!-- On wide screens the sidebar lists every area -->

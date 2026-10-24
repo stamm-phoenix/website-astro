@@ -331,8 +331,9 @@ test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs dow
 test('a QR code is styled and downloaded as PNG', async ({ page }) => {
   await page.goto('/leitendenbereich');
   await page
-    .getByRole('region', { name: 'Deine Bereiche' })
     .getByRole('link', { name: /QR-Code/ })
+    .filter({ visible: true })
+    .first()
     .click();
   await expect(page).toHaveURL(/\/leitendenbereich\/qr-code$/);
   const download = page.getByRole('button', { name: 'Als Bild herunterladen' });
@@ -390,8 +391,9 @@ test('a QR code is styled and downloaded as PNG', async ({ page }) => {
 test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
   await page.goto('/leitendenbereich');
   await page
-    .getByRole('region', { name: 'Deine Bereiche' })
     .getByRole('link', { name: /Eigenbeleg/ })
+    .filter({ visible: true })
+    .first()
     .click();
   await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
   // The logged-in user paid
