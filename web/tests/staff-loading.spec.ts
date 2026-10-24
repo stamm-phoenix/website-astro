@@ -187,3 +187,36 @@ test('Nikolaus warnings appear after news and before the dashboard', async ({ pa
   expect((await deletion.boundingBox())!.y).toBeLessThan((await dashboard.boundingBox())!.y);
   expect((await maintenance.boundingBox())!.y).toBeLessThan((await dashboard.boundingBox())!.y);
 });
+
+for (const blocked of ['/api/intern/favoriten', '/api/intern/pflege/aufgaben']) {
+  test(`other dashboard sources load when ${blocked} does not answer`, async ({ page }) => {
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(
+      (url) => url.pathname === blocked,
+      async (route) => {
+        await held;
+        await route.fallback();
+      }
+    );
+    await page.route('**/api/intern/aktionen', (route) => route.fulfill({ json: [] }));
+    await page.route('**/api/intern/pflege/belege', (route) => route.fulfill({ json: [] }));
+    await page.route('**/api/intern/pflege/belege/campflow', (route) =>
+      route.fulfill({
+        json: {
+          loadedAt: '2026-10-01T12:00:00Z',
+          costUnits: [],
+          belege: [],
+        },
+      })
+    );
+    await page.goto('/leitendenbereich');
+    const empty = page.getByTestId('nothing-open');
+    await expect(empty.getByText('Keine offenen Belege', { exact: false })).toBeVisible({
+      timeout: 3500,
+    });
+    await expect(empty.getByText('Keine kommenden Aktionen', { exact: false })).toBeVisible();
+    await expect(empty.getByText('Keine offenen KJR-Fristen', { exact: false })).toBeVisible();
+    release();
+  });
+}

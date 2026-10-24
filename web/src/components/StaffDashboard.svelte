@@ -41,6 +41,7 @@
   const CARD_LIMIT = 3;
   /** Tiles of „Deine Bereiche“: two rows of four on a phone. */
   const TILE_LIMIT = 8;
+  const SECONDARY_LOAD_DELAY_MS = 1500;
   const modules = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE];
   const tileGrid = 'mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8';
   // Modules of the Nikolausdienst only while they are switched on (Steuerung always)
@@ -159,11 +160,22 @@
     const tasks = loadTasks();
     void loadRecent();
     void fetchNikolausStatus();
-    void Promise.allSettled([favorites, tasks]).then(() => {
+    // Prioritize favorites and tasks, but do not let either block the other cards.
+    let secondaryPending = true;
+    const startSecondary = (): void => {
+      if (!secondaryPending) return;
+      secondaryPending = false;
+      clearTimeout(timeout);
       void fetchCampflowEvents();
       void belegePflege.load();
       void campflowBelegeStore.load({ param: false });
-    });
+    };
+    const timeout = setTimeout(startSecondary, SECONDARY_LOAD_DELAY_MS);
+    void Promise.allSettled([favorites, tasks]).then(startSecondary);
+    return () => {
+      secondaryPending = false;
+      clearTimeout(timeout);
+    };
   });
   function retryFavorites(): void {
     void loadFavorites(STAFF_FAVORITE_PATHS);
