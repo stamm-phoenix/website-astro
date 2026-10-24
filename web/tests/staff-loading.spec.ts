@@ -163,3 +163,27 @@ test('a touched recent area keeps its position until the touch is canceled', asy
   await tasks.dispatchEvent('pointercancel', { pointerType: 'touch' });
   await expect(areas.getByRole('link')).toHaveText(['Belege', 'Aufgaben']);
 });
+
+test('Nikolaus warnings appear after news and before the dashboard', async ({ page }) => {
+  await page.route('**/api/intern/nikolaus/status', (route) =>
+    route.fulfill({
+      json: {
+        staffActive: true,
+        maintenance: true,
+        deletionDue: true,
+        deleteBy: '2026-10-01',
+      },
+    })
+  );
+  await page.goto('/leitendenbereich');
+  const news = page.getByRole('link', { name: 'Neuigkeiten lesen', exact: true });
+  const deletion = page.getByText('Nikolausdienst: Löschfrist erreicht.', { exact: true });
+  const maintenance = page.getByText('Nikolausdienst im Wartungsmodus:', { exact: true });
+  const dashboard = page.getByRole('heading', { name: 'Für dich', exact: true });
+  await expect(news).toBeVisible();
+  await expect(deletion).toBeVisible();
+  await expect(maintenance).toBeVisible();
+  expect((await news.boundingBox())!.y).toBeLessThan((await deletion.boundingBox())!.y);
+  expect((await deletion.boundingBox())!.y).toBeLessThan((await dashboard.boundingBox())!.y);
+  expect((await maintenance.boundingBox())!.y).toBeLessThan((await dashboard.boundingBox())!.y);
+});
