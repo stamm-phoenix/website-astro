@@ -1,6 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import MessageText from '../ui/MessageText.svelte';
+  import FotoBenachrichtigung from './FotoBenachrichtigung.svelte';
   import FotoPfad from './FotoPfad.svelte';
   import { RELOGIN_URL, reloginHereUrl, reloginOnlyHere } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -232,6 +233,19 @@
             </li>
           {/each}
         </ul>
+      </div>
+    {/if}
+
+    {#if !running && fotoUpload.target && count.done > 0}
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <FotoBenachrichtigung path={fotoUpload.target.path} />
+        <p class="text-sm font-semibold text-success" role="status">
+          {#if fotoUpload.notified}
+            Benachrichtigung an {fotoUpload.notified.recipients === 1
+              ? '1 Person'
+              : `${fotoUpload.notified.recipients} Personen`} verschickt.
+          {/if}
+        </p>
       </div>
     {/if}
 

@@ -143,6 +143,10 @@ export interface ApiConfig {
   fotos: {
     /** Document library of the site (name in its URL). */
     library: string;
+    /** Mailbox the note about new photos is sent from. */
+    sender: string;
+    /** CampFlow groups whose members get the note about new photos (prefix, like the minutes). */
+    campflowGroups: string[];
   };
   /** Attendance in the Gruppenstunden (`docs/anwesenheit.md`). */
   anwesenheit: {
@@ -334,6 +338,8 @@ export const CONFIG: ApiConfig = {
   },
   fotos: {
     library: 'Fotos',
+    sender: 'kontakt@stamm-phoenix.de',
+    campflowGroups: ['Leiter*in'],
   },
   anwesenheit: {
     retentionMonths: 12,

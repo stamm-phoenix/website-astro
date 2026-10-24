@@ -139,6 +139,15 @@ export const fotoGraph = {
   driveId(): Promise<string | undefined> {
     return getSharePointDriveIdByName(CONFIG.fotos.library);
   },
+  /** Loads a preview from its short-lived link, which needs no login. */
+  async download(url: string): Promise<{ contentType: string; content: Uint8Array }> {
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) throw new Error(`Preview answered ${response.status}`);
+    return {
+      contentType: response.headers.get('content-type') ?? 'image/jpeg',
+      content: new Uint8Array(await response.arrayBuffer()),
+    };
+  },
 };
 
 async function fotoDrive(): Promise<string> {
@@ -379,4 +388,38 @@ export async function createFotoUploadSession(
     return { exists: false, name, uploadUrl, expiresAt: text(session.expirationDateTime) };
   }
   throw new FotoNameTakenError(fileName);
+}
+
+/** A small square preview of a file, e.g. to show in a mail. */
+export interface FotoThumbnail {
+  contentType: string;
+  content: Uint8Array;
+}
+
+/** Largest preview taken into a mail; a square of 240 pixels is far smaller. */
+const MAX_THUMBNAIL_BYTES = 200 * 1024;
+
+/**
+ * A square preview of `size` pixels, cut from the middle of the photo or video.
+ * @returns null if SharePoint has none (yet) or it cannot be loaded.
+ */
+export async function getFotoThumbnail(id: string, size = 240): Promise<FotoThumbnail | null> {
+  const driveId = await fotoDrive();
+  const key = `c${size}x${size}_crop`;
+  try {
+    const response = (await fotoGraph.get(
+      `${getDrivePath(driveId)}/items/${encodeURIComponent(id)}/thumbnails`,
+      { select: key }
+    )) as { value?: Record<string, GraphThumbnail | undefined>[] };
+    const url = text(response.value?.[0]?.[key]?.url);
+    if (!url) return null;
+    const preview = await fotoGraph.download(url);
+    if (!preview.contentType.startsWith('image/')) return null;
+    if (preview.content.byteLength === 0 || preview.content.byteLength > MAX_THUMBNAIL_BYTES) {
+      return null;
+    }
+    return preview;
+  } catch {
+    return null;
+  }
 }
