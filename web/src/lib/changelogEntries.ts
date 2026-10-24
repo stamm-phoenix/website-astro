@@ -16,7 +16,10 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-24',
     title: 'Deine Startseite',
     changes: [
-      'Neuigkeiten stehen auf der Startseite direkt oben; „Deine Bereiche“ zeigt nur deine Favoriten und zuletzt besuchten Bereiche.',
+      {
+        text: 'Neuigkeiten stehen auf der Startseite direkt oben; „Deine Bereiche“ zeigt nur deine Favoriten und zuletzt besuchten Bereiche.',
+        href: '/leitendenbereich',
+      },
     ],
   },
   {
