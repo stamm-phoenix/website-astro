@@ -3,6 +3,8 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Azure CLI's Fabric dependency is currently broken on unstable (Invoke 3).
+    nixpkgs-azure-cli.url = "github:NixOS/nixpkgs/nixos-26.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -10,6 +12,7 @@
     self,
     nixpkgs,
     flake-utils,
+    nixpkgs-azure-cli,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (system: let
@@ -18,6 +21,7 @@
         config = {allowUnfree = true;};
       };
 
+      azureCli = nixpkgs-azure-cli.legacyPackages.${system}.azure-cli;
       bun = pkgs.bun;
       node = pkgs.nodejs_22;
       # nixpkgs still ships 3.0.0-beta.33, whose documentation tool fails on
@@ -79,7 +83,7 @@
           chmod +x "$out/libexec/azure-mcp/azmcp"
 
           makeWrapper "$out/libexec/azure-mcp/azmcp" "$out/bin/azure-mcp" \
-            --prefix PATH : ${pkgs.lib.makeBinPath [pkgs.azure-cli]} \
+            --prefix PATH : ${pkgs.lib.makeBinPath [azureCli]} \
             --prefix ${
             if pkgs.stdenv.hostPlatform.isDarwin
             then "DYLD_LIBRARY_PATH"
@@ -160,7 +164,7 @@
         buildInputs = [
           bun
           node
-          pkgs.azure-cli
+          azureCli
           azureMcp
           pkgs.git
           pkgs.direnv
