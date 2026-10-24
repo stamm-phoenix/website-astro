@@ -17,6 +17,7 @@ import { overrideConfig } from './fixtures/config';
 import * as mail from '../lib/mail';
 import * as taskDirectory from '../lib/task-directory';
 import {
+  beforeDeadline,
   BelegeCollection,
   BelegItem,
   BelegPhoto,
@@ -526,6 +527,12 @@ dbTest('rejecting a receipt mails the reason to the uploader once', async (t) =>
   assert.match(String(html), /30\.09\.2026 über 12,34/);
   assert.match(String(html), /\/leitendenbereich\/belege/);
   assert.match(String(html), /staff@example\.test/);
+  // The decision is saved already, so the mail stays within the request's time
+  const options = send.mock.calls[0].arguments[5] as { retry?: boolean; timeoutMs?: number };
+  assert.equal(options.retry, false);
+  assert.ok(
+    options.timeoutMs !== undefined && options.timeoutMs > 0 && options.timeoutMs <= 10_000
+  );
 
   // PR previews hold made-up receipts and mail nobody
   await reset();
@@ -550,6 +557,12 @@ dbTest('rejecting a receipt mails the reason to the uploader once', async (t) =>
   assert.equal(response.status, 200);
   assert.equal((response.jsonBody as { mailed: boolean }).mailed, false);
   assert.equal((await getBelege())[0]?.status, 'Abgelehnt');
+});
+
+test('a mail that hangs past the deadline never holds the answer', async () => {
+  const hanging = new Promise<boolean>(() => undefined);
+  assert.equal(await beforeDeadline(hanging, Date.now() + 20, false), false);
+  assert.equal(await beforeDeadline(Promise.resolve(true), Date.now() + 1_000, false), true);
 });
 
 dbTest('submitting and resubmitting a receipt mails the team „Kasse“', async (t) => {

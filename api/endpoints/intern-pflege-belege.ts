@@ -65,7 +65,7 @@ const REQUEST_BUDGET_MS = 40_000;
 const MIN_MAIL_BUDGET_MS = 2_000;
 
 /** Resolves with `fallback` once `deadline` has passed, so a slow lookup never holds the answer. */
-function beforeDeadline<T>(promise: Promise<T>, deadline: number, fallback: T): Promise<T> {
+export function beforeDeadline<T>(promise: Promise<T>, deadline: number, fallback: T): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const late = new Promise<T>((resolve) => {
     timer = setTimeout(() => resolve(fallback), Math.max(0, deadline - Date.now()));
@@ -233,7 +233,11 @@ export const BelegeCollectionEndpoint = pflegeHandler(
     // The model takes a few seconds; let it work while the photo is stored
     const check = startCheck(photos.photo, context);
     const id = await createBeleg(input, principal.userDetails, photos, check);
-    await notifyKasse(input, false, principal, request, context, deadline);
+    await beforeDeadline(
+      notifyKasse(input, false, principal, request, context, deadline),
+      deadline,
+      undefined
+    );
     return ok({ id }, 201);
   }
 );
@@ -282,12 +286,21 @@ export const BelegItemEndpoint = pflegeHandler(
       input.status === 'Eingereicht' &&
       isOwner(previous, principal)
     ) {
-      await notifyKasse(input, true, principal, request, context, deadline);
+      await beforeDeadline(
+        notifyKasse(input, true, principal, request, context, deadline),
+        deadline,
+        undefined
+      );
     }
     const rejected = input.status === 'Abgelehnt' && previous.status !== 'Abgelehnt';
     if (!rejected) return ok({ mailed: false, etag: saved });
     return ok({
-      mailed: await mailRejection(previous, input, principal, request, context),
+      // Graph or its sign-in may hang; the decision is saved, so answer in time without the mail
+      mailed: await beforeDeadline(
+        mailRejection(previous, input, principal, request, context, deadline),
+        deadline,
+        false
+      ),
       etag: saved,
     });
   }
@@ -356,10 +369,13 @@ async function mailRejection(
   input: BelegInput,
   principal: ClientPrincipal,
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
+  deadline: number
 ): Promise<boolean> {
   const sender = belegMailSender();
   if (!sender || isPreviewDeployment() || !beleg.submittedBy.includes('@')) return false;
+  const left = deadline - Date.now() - MIN_MAIL_BUDGET_MS;
+  if (left <= 0) return false;
   try {
     await sendBelegRejectedMail(
       {
@@ -371,7 +387,8 @@ async function mailRejection(
         reviewer: principal.userDetails,
         url: `${getSiteUrl(request)}/leitendenbereich/belege`,
       },
-      sender
+      sender,
+      left
     );
     return true;
   } catch (error: unknown) {
