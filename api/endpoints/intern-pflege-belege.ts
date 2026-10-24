@@ -1,6 +1,6 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
-import { hasTeam } from '../lib/staff-auth';
+import { hasTeam, isPreviewDeployment } from '../lib/staff-auth';
 import { parseId } from '../lib/db';
 import type { BelegInput } from '../lib/pflege-validation';
 import {
@@ -20,7 +20,12 @@ import {
   readJsonBody,
   requireVersion,
 } from '../lib/pflege-api';
-import { belegMailSender, sendBelegRejectedMail } from '../lib/beleg-mails';
+import {
+  belegMailSender,
+  belegReviewerAddresses,
+  sendBelegRejectedMail,
+  sendBelegSubmittedMail,
+} from '../lib/beleg-mails';
 import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
 import { getJpegSize, isJpeg } from '../lib/jpeg';
@@ -176,7 +181,10 @@ function startCheck(
   return isBelegCheckConfigured() ? runCheck(bytes, context) : undefined;
 }
 
-/** GET: all receipts, newest first; POST: submit a receipt with its photo. */
+/**
+ * GET: all receipts, newest first; POST: submit a receipt with its photo and tell the Kasse
+ * about it by mail.
+ */
 export const BelegeCollectionEndpoint = pflegeHandler(
   'belege',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
@@ -210,6 +218,7 @@ export const BelegeCollectionEndpoint = pflegeHandler(
     // The model takes a few seconds; let it work while the photo is stored
     const check = startCheck(photos.photo, context);
     const id = await createBeleg(input, principal.userDetails, photos, check);
+    await notifyKasse(input, false, principal, request, context);
     return ok({ id }, 201);
   }
 );
@@ -217,7 +226,7 @@ export const BelegeCollectionEndpoint = pflegeHandler(
 /**
  * PATCH: update details and review state (optimistic locking via etag); answers with the new
  * `etag`. Rejecting a receipt mails the reason to the uploader; `mailed` says whether that
- * worked. DELETE: remove.
+ * worked. A resubmitted receipt is mailed to the Kasse again. DELETE: remove.
  */
 export const BelegItemEndpoint = pflegeHandler(
   'belege',
@@ -251,6 +260,9 @@ export const BelegItemEndpoint = pflegeHandler(
     // someone else's later change for it
     const saved = await updateBeleg(id, input, etag, principal.userDetails);
 
+    if (previous.status === 'Abgelehnt' && input.status === 'Eingereicht') {
+      await notifyKasse(input, true, principal, request, context);
+    }
     const rejected = input.status === 'Abgelehnt' && previous.status !== 'Abgelehnt';
     if (!rejected) return ok({ mailed: false, etag: saved });
     return ok({
@@ -259,6 +271,46 @@ export const BelegItemEndpoint = pflegeHandler(
     });
   }
 );
+
+/**
+ * Tells the members of the team „Kasse“ that a receipt waits for their check. A failure never
+ * undoes the saved receipt; PR previews hold made-up receipts and send nothing.
+ */
+async function notifyKasse(
+  input: BelegInput,
+  resubmitted: boolean,
+  principal: ClientPrincipal,
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<void> {
+  const sender = belegMailSender();
+  if (!sender || isPreviewDeployment()) return;
+  try {
+    const recipients = await belegReviewerAddresses(principal.userDetails);
+    if (recipients.length === 0) return;
+    const failed = await sendBelegSubmittedMail(
+      {
+        shop: input.shop,
+        date: input.date,
+        amountCent: input.amountCent,
+        paidBy: input.paidBy,
+        payout: input.payout,
+        aktion: input.aktion,
+        note: input.note,
+        submitter: (await ownNames(principal))[0] ?? principal.userDetails,
+        resubmitted,
+        url: `${getSiteUrl(request)}/leitendenbereich/belege`,
+      },
+      recipients,
+      sender
+    );
+    if (failed.length > 0) {
+      context.warn(`[belege] Mail an die Kasse an ${failed.length} Person(en) fehlgeschlagen`);
+    }
+  } catch (error: unknown) {
+    context.warn('[belege] Kasse konnte nicht benachrichtigt werden', error);
+  }
+}
 
 /** Sends the rejection mail; a failure never undoes the saved decision. */
 async function mailRejection(

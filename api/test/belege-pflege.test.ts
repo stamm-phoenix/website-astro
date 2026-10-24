@@ -105,6 +105,8 @@ function setup(t: TestContext): Storage {
       .map((name) => ({ name, lastModified: times.get(name) ?? new Date() }))
   );
   t.mock.method(console, 'warn', () => undefined);
+  // No team „Kasse“ to notify unless a test gives one
+  t.mock.method(taskDirectory, 'readTaskDirectory', async () => []);
   const context = new InvocationContext({ functionName: 'belege-test' });
   t.mock.method(context, 'log', () => undefined);
   t.mock.method(context, 'error', () => undefined);
@@ -539,6 +541,102 @@ dbTest('rejecting a receipt mails the reason to the uploader once', async (t) =>
   assert.equal(response.status, 200);
   assert.equal((response.jsonBody as { mailed: boolean }).mailed, false);
   assert.equal((await getBelege())[0]?.status, 'Abgelehnt');
+});
+
+dbTest('submitting and resubmitting a receipt mails the team „Kasse“', async (t) => {
+  const { context } = setup(t);
+  const warn = t.mock.method(context, 'warn', () => undefined);
+  const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test', userRoles: STAFF_ROLES };
+  const kasse = (login: string) => ({ name: login, givenName: login, login });
+  const directory = t.mock.method(taskDirectory, 'readTaskDirectory', async () => [
+    kasse('kasse.eins@stamm-phoenix.de'),
+    kasse('kasse.zwei@stamm-phoenix.de'),
+    kasse('leitung@example.test'),
+  ]);
+  t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => [
+    { name: 'Lea Leitung', givenName: 'Lea', login: 'leitung@example.test' },
+  ]);
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  overrideConfig(t, CONFIG.mail, { belegeSender: 'kasse@example.test' });
+  const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
+
+  const response = await BelegeCollection(
+    request('POST', { ...INPUT, note: 'Für <alle>', photo }, { principal: uploader }),
+    context
+  );
+  assert.equal(response.status, 201);
+  assert.equal(directory.mock.calls[0]?.arguments[1], CONFIG.staff.teams.kasse.groupId);
+  // Everyone in the Kasse except the uploader, each with a mail of their own
+  assert.deepEqual(
+    send.mock.calls.map((call) => call.arguments[0]),
+    ['kasse.eins@stamm-phoenix.de', 'kasse.zwei@stamm-phoenix.de']
+  );
+  const [, subject, html, sender] = send.mock.calls[0].arguments;
+  assert.equal(subject, 'Neuer Beleg zur Prüfung: REWE');
+  assert.equal(sender, 'kasse@example.test');
+  assert.match(String(html), /Lea Leitung hat einen neuen Beleg/);
+  assert.match(String(html), /30\.09\.2026/);
+  assert.match(String(html), /12,34/);
+  assert.match(String(html), /Sommerlager/);
+  assert.match(String(html), /Alex Beispiel/);
+  assert.match(String(html), /Für &lt;alle&gt;/);
+  assert.match(String(html), /http:\/\/localhost\/leitendenbereich\/belege/);
+
+  // Correcting details sends nothing; resubmitting a rejected receipt tells the Kasse again
+  const { id } = response.jsonBody as { id: string };
+  const patch = async (status: string): Promise<number> =>
+    (
+      await BelegItem(
+        request(
+          'PATCH',
+          { ...INPUT, status, etag: await version(Number(id)) },
+          { id, principal: uploader }
+        ),
+        context
+      )
+    ).status ?? 0;
+  assert.equal(await patch('Eingereicht'), 200);
+  assert.equal(send.mock.callCount(), 2);
+  await getDb()
+    .updateTable('organisation.beleg')
+    .set({ status: 'Abgelehnt' })
+    .where('id', '=', Number(id))
+    .execute();
+  assert.equal(await patch('Eingereicht'), 200);
+  assert.equal(send.mock.callCount(), 4);
+  assert.equal(send.mock.calls[2].arguments[1], 'Beleg erneut eingereicht: REWE');
+
+  // A failing mail or directory never blocks submitting
+  send.mock.mockImplementation(async () => {
+    throw new Error('mailbox');
+  });
+  const failing = await BelegeCollection(
+    request('POST', { ...INPUT, photo }, { principal: uploader }),
+    context
+  );
+  assert.equal(failing.status, 201);
+  directory.mock.mockImplementation(async () => {
+    throw new Error('directory');
+  });
+  const offline = await BelegeCollection(
+    request('POST', { ...INPUT, photo }, { principal: uploader }),
+    context
+  );
+  assert.equal(offline.status, 201);
+  const warnings = warn.mock.calls.map((call) => String(call.arguments[0]));
+  assert.ok(warnings.includes('[belege] Mail an die Kasse an 2 Person(en) fehlgeschlagen'));
+  assert.ok(warnings.includes('[belege] Kasse konnte nicht benachrichtigt werden'));
+
+  // Without a sender mailbox and in PR previews nothing is sent
+  directory.mock.resetCalls();
+  send.mock.resetCalls();
+  CONFIG.mail.belegeSender = undefined;
+  await BelegeCollection(request('POST', { ...INPUT, photo }, { principal: uploader }), context);
+  CONFIG.mail.belegeSender = 'kasse@example.test';
+  overrideConfig(t, CONFIG.database, { server: CONFIG.database.previewServer });
+  await BelegeCollection(request('POST', { ...INPUT, photo }, { principal: uploader }), context);
+  assert.equal(directory.mock.callCount(), 0);
+  assert.equal(send.mock.callCount(), 0);
 });
 
 dbTest('only the Kasse sees all receipts and decides; uploaders manage their own', async (t) => {
