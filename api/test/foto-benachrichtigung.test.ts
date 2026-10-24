@@ -4,13 +4,12 @@ import type { Client } from '@microsoft/microsoft-graph-client';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import { FotosNoteEndpoint } from '../endpoints/intern-fotos';
 import {
-  fotoAnzahlText,
   fotoMail,
   fotoMailContent,
   fotoOrdnerTitel,
   sendFotoBenachrichtigung,
 } from '../lib/foto-benachrichtigung';
-import { fotoOrdnerLink } from '../lib/foto-pfade';
+import { fotoAnzahlText, fotoOrdnerLink } from '../lib/foto-pfade';
 import { fotoGraph, type FotoFile } from '../lib/fotos';
 import { audienceVersion } from '../lib/protokolle';
 import * as token from '../lib/token';
@@ -87,6 +86,10 @@ test('fotoAnzahlText counts photos and videos in plain German', () => {
   assert.equal(
     fotoAnzahlText([file('a.jpg'), file('b.jpg'), file('c.mp4')]),
     '2 neue Fotos und 1 neues Video'
+  );
+  assert.equal(
+    fotoAnzahlText([file('a.jpg'), file('b.jpg'), file('c.pdf')]),
+    '2 neue Fotos und 1 neue Datei'
   );
 });
 

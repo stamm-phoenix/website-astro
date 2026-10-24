@@ -195,3 +195,20 @@ export function aktionFotoPath(year: string, aktion: string, person: string): st
 export function fotoOrdnerLink(path: string): string {
   return `/leitendenbereich/fotos#${new URLSearchParams({ pfad: path }).toString()}`;
 }
+
+/** „12 neue Fotos und 2 neue Videos“, „1 neues Foto“, „3 neue Dateien“. */
+export function fotoAnzahlText(files: { name: string }[]): string {
+  const photos = files.filter((file) => fotoKind(file.name) === 'photo').length;
+  const videos = files.filter((file) => fotoKind(file.name) === 'video').length;
+  const others = files.length - photos - videos;
+  const part = (count: number, one: string, many: string): string =>
+    count === 0 ? '' : count === 1 ? `1 ${one}` : `${count} ${many}`;
+  const parts = [
+    part(photos, 'neues Foto', 'neue Fotos'),
+    part(videos, 'neues Video', 'neue Videos'),
+    part(others, 'neue Datei', 'neue Dateien'),
+  ].filter(Boolean);
+  return parts.length > 1
+    ? `${parts.slice(0, -1).join(', ')} und ${parts[parts.length - 1]}`
+    : (parts[0] ?? '0 neue Fotos');
+}
