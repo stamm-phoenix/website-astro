@@ -79,12 +79,16 @@ Anlegen des Ordners („Ziel ändern“) erhalten, bis man neue auswählt oder d
 Ist ein Upload fertig (oder abgebrochen) und ist mindestens eine Datei neu angekommen, bietet der
 Fortschritt „Leitende benachrichtigen“ an. Die Empfängerauswahl ist die des Protokollversands
 (`ProtokollEmpfaenger.svelte`): die aktuellen Mitglieder der CampFlow-Gruppen in
-`CONFIG.fotos.campflowGroups` (Leiter*innen), einzelne Personen lassen sich herausnehmen,
-weitere Adressen eintragen.
+`CONFIG.fotos.campflowGroups` (Leiter*innen) und mit den Labels in `CONFIG.fotos.campflowLabels`
+(„Protokollempfang“). Einzelne Personen lassen sich herausnehmen. Das Feld für weitere Adressen
+ist die Personensuche (`ui/PersonSuche.svelte`) und bietet die Personen des Moduls „Personen“ an:
+die Leitenden der Entra-Gruppe und die aktiven Altleitenden und Weiteren, jeweils mit der
+primären Adresse ihrer verknüpften CampFlow-Person, sonst mit ihrem Login (`fotoPersonen`).
+Jede andere Adresse lässt sich weiter von Hand eintragen.
 
-`POST /api/intern/fotos/benachrichtigung` mit `action: 'preview'` liefert die Liste und ihre
-Version, mit `action: 'send'` (`pfad`, `dateien`, `version`, `excluded`, `extra`) geht eine Mail
-in Blindkopie von `CONFIG.fotos.sender` (`api/lib/foto-benachrichtigung.ts`). Gezählt und gezeigt
+`POST /api/intern/fotos/benachrichtigung` mit `action: 'preview'` liefert die Liste, ihre
+Version und die Personen zum Hinzufügen (`personen`), mit `action: 'send'` (`pfad`, `dateien`,
+`version`, `excluded`, `extra`) geht eine Mail in Blindkopie von `CONFIG.fotos.sender` (`api/lib/foto-benachrichtigung.ts`). Gezählt und gezeigt
 werden nur Dateien, die wirklich im Ordner liegen. Die Mail nennt Vorname, Anzahl und Ordner
 („Nico hat 12 neue Fotos in den Ordner „Sola / Nico“ hochgeladen“), zeigt bis zu sechs
 quadratische Vorschaubilder von SharePoint (240 Pixel, als eingebettete Anhänge mit `cid:`) und

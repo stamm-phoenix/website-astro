@@ -1,7 +1,7 @@
 import { HELP_CONTACTS } from '../lib/help-contacts';
 import type { HttpResponseInit } from '@azure/functions';
 import { CampflowError } from '../lib/campflow';
-import { fotoMail } from '../lib/foto-benachrichtigung';
+import { fotoMail, fotoRecipients } from '../lib/foto-benachrichtigung';
 import {
   aktionFotoPath,
   fotoKind,
@@ -223,7 +223,8 @@ export const FotosUploadEndpoint = pflegeHandler(
 
 /**
  * Note to the leaders about new photos in a folder.
- * - `{ action: 'preview' }`: the recipients from CampFlow (with reasons) and a version of that list.
+ * - `{ action: 'preview' }`: the recipients from CampFlow (with reasons), a version of that list
+ *   and the people of the module „Personen“ to add by hand (`personen`).
  * - `{ action: 'send', pfad, dateien, version, excluded?, extra? }`: mails the note about the
  *   files named in `dateien` that are in the folder, to that list without the addresses in
  *   `excluded` and with those in `extra`, if the list still matches the confirmed version.
@@ -238,21 +239,22 @@ export const FotosNoteEndpoint = pflegeHandler(
       throw new ValidationError({ form: 'Unbekannte Aktion.' });
     }
 
-    let recipients;
+    let members;
     try {
-      recipients = await fotoMail.recipients();
+      members = await fotoMail.members();
     } catch (error: unknown) {
       if (!(error instanceof CampflowError)) throw error;
       context.error(error);
       return CAMPFLOW_UNAVAILABLE;
     }
+    const recipients = fotoRecipients(members);
     const version = audienceVersion(recipients);
     if (action === 'preview') {
-      return ok({
-        recipients: recipients.length,
-        version,
-        list: await mitEigenerAdresse(user.userDetails, recipients),
-      });
+      const [list, personen] = await Promise.all([
+        mitEigenerAdresse(user.userDetails, recipients),
+        fotoMail.personen(members),
+      ]);
+      return ok({ recipients: recipients.length, version, list, personen });
     }
 
     const path = string(body?.pfad);
