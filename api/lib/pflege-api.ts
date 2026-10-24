@@ -1,3 +1,4 @@
+import { withServerTiming } from './server-timing';
 import { ProtokollMaintenanceError, withProtokollGate } from './protokoll-cutover';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from './staff-auth';
@@ -77,44 +78,46 @@ export interface PflegeOptions {
  */
 export function pflegeHandler(area: string, handler: PflegeHandler, options: PflegeOptions = {}) {
   return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
-    const principal = requireStaff(request);
-    if (isStaffError(principal)) return principal;
+    return withServerTiming(async () => {
+      const principal = requireStaff(request);
+      if (isStaffError(principal)) return principal;
 
-    const nikolaus = area.startsWith('nikolaus') && area !== NIKOLAUS_CONTROL_AREA;
-    const gated = nikolaus && request.method !== 'GET';
-    const markGate = (response: HttpResponseInit): HttpResponseInit => {
-      if (!gated) return response;
-      const headers = new Headers(response.headers);
-      headers.set('Cache-Control', 'no-store');
-      return { ...response, headers: Object.fromEntries(headers.entries()) };
-    };
-    const invoke = async (): Promise<HttpResponseInit> => {
-      try {
-        if (nikolaus) {
-          const settings = await getNikolausSettings();
-          if (!settings.staffActive) return NIKOLAUS_STAFF_INACTIVE;
-          if (gated && settings.maintenance) throw new NikolausMaintenanceError();
-        }
-        const response =
-          area === 'protokolle'
-            ? await withProtokollGate(() => handler(request, context, principal))
-            : await handler(request, context, principal);
-        if (request.method !== 'GET' && (response.status ?? 200) < 400) {
-          if (!options.quiet) {
-            context.log(
-              `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()
-            );
+      const nikolaus = area.startsWith('nikolaus') && area !== NIKOLAUS_CONTROL_AREA;
+      const gated = nikolaus && request.method !== 'GET';
+      const markGate = (response: HttpResponseInit): HttpResponseInit => {
+        if (!gated) return response;
+        const headers = new Headers(response.headers);
+        headers.set('Cache-Control', 'no-store');
+        return { ...response, headers: Object.fromEntries(headers.entries()) };
+      };
+      const invoke = async (): Promise<HttpResponseInit> => {
+        try {
+          if (nikolaus) {
+            const settings = await getNikolausSettings();
+            if (!settings.staffActive) return NIKOLAUS_STAFF_INACTIVE;
+            if (gated && settings.maintenance) throw new NikolausMaintenanceError();
           }
-          // The public pages are baked at build time; changes to their content start a build
-          await requestSiteRebuild(area, context);
+          const response =
+            area === 'protokolle'
+              ? await withProtokollGate(() => handler(request, context, principal))
+              : await handler(request, context, principal);
+          if (request.method !== 'GET' && (response.status ?? 200) < 400) {
+            if (!options.quiet) {
+              context.log(
+                `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()
+              );
+            }
+            // The public pages are baked at build time; changes to their content start a build
+            await requestSiteRebuild(area, context);
+          }
+          return response;
+        } catch (error: unknown) {
+          return toErrorResponse(error);
         }
-        return response;
-      } catch (error: unknown) {
-        return toErrorResponse(error);
-      }
-    };
-    // Keep the no-store header on unexpected Nikolaus errors too.
-    return markGate(gated ? await withErrorHandling(invoke)(request, context) : await invoke());
+      };
+      // Keep the no-store header on unexpected Nikolaus errors too.
+      return markGate(gated ? await withErrorHandling(invoke)(request, context) : await invoke());
+    });
   };
 }
 
