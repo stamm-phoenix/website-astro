@@ -1,3 +1,4 @@
+import { addTiming, measureTiming } from './server-timing';
 import { Kysely, MssqlDialect, sql } from 'kysely';
 import type { Transaction } from 'kysely';
 import * as Tarn from 'tarn';
@@ -26,23 +27,36 @@ let override: DatabaseTarget | undefined;
 
 /** Azure SQL with the certificate of the app registration (Entra authentication only). */
 function configuredTarget(): DatabaseTarget {
+  const credential = getCredential();
   return {
     server: CONFIG.database.server,
     database: CONFIG.database.name,
-    authentication: { type: 'token-credential', options: { credential: getCredential() } },
+    authentication: {
+      type: 'token-credential',
+      options: {
+        credential: {
+          getToken: (scopes, options) =>
+            measureTiming('token', () => credential.getToken(scopes, options)),
+        },
+      },
+    },
   };
 }
 
 export function createDatabase(target: DatabaseTarget): Kysely<Database> {
   return new Kysely<Database>({
+    log: (event) => {
+      addTiming('query', event.queryDurationMillis);
+    },
     dialect: new MssqlDialect({
       // Connections stay open for ten idle minutes: opening one to Azure SQL (TLS, login, token)
       // takes longer than most queries, and leaders often pause a few minutes between pages
       tarn: { ...Tarn, options: { min: 0, max: 10, idleTimeoutMillis: 10 * 60_000 } },
       tedious: {
         ...Tedious,
-        connectionFactory: () =>
-          new Tedious.Connection({
+        connectionFactory: () => {
+          const start = performance.now();
+          const connection = new Tedious.Connection({
             server: target.server,
             authentication: target.authentication,
             options: {
@@ -55,7 +69,10 @@ export function createDatabase(target: DatabaseTarget): Kysely<Database> {
               // Dates are UTC on both sides; never the host's time zone.
               useUTC: true,
             },
-          }),
+          });
+          connection.once('connect', () => addTiming('connection', performance.now() - start));
+          return connection;
+        },
       },
     }),
   });

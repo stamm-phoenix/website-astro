@@ -12,6 +12,14 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-24-04-startseite-bereiche',
+    date: '2026-10-24',
+    title: 'Bereiche sofort öffnen',
+    changes: [
+      'Auf der Startseite kannst du die Bereiche sofort öffnen, während deine Favoriten und Aufgaben noch laden.',
+    ],
+  },
+  {
     id: '2026-10-24-03-belege-kasse-mail',
     date: '2026-10-24',
     title: 'Belege: Mail an die Kasse bei neuen Belegen',

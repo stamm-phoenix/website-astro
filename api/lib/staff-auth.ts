@@ -1,3 +1,4 @@
+import { addTiming } from './server-timing';
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { StaffTeam } from './config';
 import { CONFIG } from './config';
@@ -107,29 +108,34 @@ export function getClaim(
  * never see production data.
  */
 export function requireStaff(request: HttpRequest): ClientPrincipal | HttpResponseInit {
-  const principal = getClientPrincipal(request);
-  if (
-    !principal ||
-    principal.identityProvider !== 'aad' ||
-    !principal.userRoles.includes('authenticated')
-  ) {
-    return UNAUTHENTICATED;
-  }
+  const start = performance.now();
+  try {
+    const principal = getClientPrincipal(request);
+    if (
+      !principal ||
+      principal.identityProvider !== 'aad' ||
+      !principal.userRoles.includes('authenticated')
+    ) {
+      return UNAUTHENTICATED;
+    }
 
-  const tenantId = getClaim(principal, TENANT_CLAIM_TYPES);
-  if (tenantId && tenantId !== CONFIG.azure.tenantId) {
-    return FORBIDDEN;
-  }
+    const tenantId = getClaim(principal, TENANT_CLAIM_TYPES);
+    if (tenantId && tenantId !== CONFIG.azure.tenantId) {
+      return FORBIDDEN;
+    }
 
-  if (isPreviewOnlyLogin(principal.userDetails) && !isPreviewDeployment()) {
-    return PREVIEW_ONLY;
-  }
+    if (isPreviewOnlyLogin(principal.userDetails) && !isPreviewDeployment()) {
+      return PREVIEW_ONLY;
+    }
 
-  if (!hasTeam(principal, 'leitende')) {
-    return NOT_IN_TEAM;
-  }
+    if (!hasTeam(principal, 'leitende')) {
+      return NOT_IN_TEAM;
+    }
 
-  return principal;
+    return principal;
+  } finally {
+    addTiming('auth', performance.now() - start);
+  }
 }
 
 export function isStaffError(value: ClientPrincipal | HttpResponseInit): value is HttpResponseInit {

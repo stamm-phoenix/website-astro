@@ -1,3 +1,4 @@
+import { withServerTiming } from './server-timing';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
 type EndpointHandler = (
@@ -21,32 +22,37 @@ export function withErrorHandling(
   options?: ErrorHandlingOptions
 ): EndpointHandler {
   return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
-    try {
-      return await handler(request, context);
-    } catch (error: unknown) {
-      context.error(error);
+    const invoke = async (): Promise<HttpResponseInit> => {
+      try {
+        return await handler(request, context);
+      } catch (error: unknown) {
+        context.error(error);
 
-      if (!options?.exposeErrorDetails) {
+        if (!options?.exposeErrorDetails) {
+          return {
+            status: 500,
+            jsonBody: {
+              error: 'Error',
+              message: 'Internal Server Error',
+            },
+          };
+        }
+
+        const errorName = error instanceof Error ? error.name : 'Error';
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
         return {
           status: 500,
           jsonBody: {
-            error: 'Error',
-            message: 'Internal Server Error',
+            error: errorName,
+            message: errorMessage,
           },
         };
       }
-
-      const errorName = error instanceof Error ? error.name : 'Error';
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      return {
-        status: 500,
-        jsonBody: {
-          error: errorName,
-          message: errorMessage,
-        },
-      };
-    }
+    };
+    return new URL(request.url).pathname.startsWith('/api/intern/')
+      ? withServerTiming(invoke)
+      : invoke();
   };
 }
 

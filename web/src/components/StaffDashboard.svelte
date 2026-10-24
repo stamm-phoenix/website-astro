@@ -53,18 +53,35 @@
   const tasksError = $derived(aufgabenStore.error);
   const tasksLoading = $derived(aufgabenStore.loading);
   const eventsLoading = $derived(campflowEventsStore.loading);
-  const favoriteModules = $derived(
-    modules.filter((module) => favoritesStore.modules.includes(module.href))
-  );
-  // Recently used areas fill up the tiles after the favorites
-  const recentModules = $derived(
+  // Known areas are available in the built HTML, independently of the personal selection.
+  const selectedModules = $derived(
     yourStaffModules(
-      [],
-      recentStore.modules,
-      allModules.filter((module) => !favoritesStore.modules.includes(module.href)),
-      Math.max(0, TILE_LIMIT - favoriteModules.length)
+      favoritesStore.modules,
+      [...recentStore.modules, ...modules.map((module) => module.href)],
+      allModules,
+      Math.max(TILE_LIMIT, favoritesStore.modules.length)
     )
   );
+  interface PinnedTile {
+    href: string;
+    index: number;
+  }
+  let pinned = $state<PinnedTile | null>(null);
+  const visibleModules = $derived.by(() => {
+    const result = [...selectedModules];
+    if (pinned) {
+      const module = allModules.find((entry) => entry.href === pinned?.href);
+      if (module) {
+        const index = result.findIndex((entry) => entry.href === module.href);
+        if (index >= 0) result.splice(index, 1);
+        result.splice(pinned.index, 0, module);
+      }
+    }
+    return result;
+  });
+  function pinTile(href: string): void {
+    pinned = { href, index: visibleModules.findIndex((module) => module.href === href) };
+  }
   const upcoming = $derived(
     nurAktionen(campflowEventsStore.data ?? [])
       .filter(
@@ -132,15 +149,17 @@
 
   onMount(() => {
     // The favorites come first: they are the main content and do not wait for the login check
-    void loadFavorites(STAFF_FAVORITE_PATHS);
+    const favorites = loadFavorites(STAFF_FAVORITE_PATHS);
     void loadTaskUsers();
     void fetchPrincipal();
-    void fetchCampflowEvents();
-    void loadTasks();
+    const tasks = loadTasks();
     void loadRecent();
     void fetchNikolausStatus();
-    void belegePflege.load();
-    void campflowBelegeStore.load({ param: false });
+    void Promise.allSettled([favorites, tasks]).then(() => {
+      void fetchCampflowEvents();
+      void belegePflege.load();
+      void campflowBelegeStore.load({ param: false });
+    });
   });
   function retryFavorites(): void {
     void loadFavorites(STAFF_FAVORITE_PATHS);
@@ -165,6 +184,19 @@
 {#snippet tile(module: StaffModule, favorite: boolean)}
   <li class="group relative min-w-0">
     <a
+      onfocus={() => pinTile(module.href)}
+      onpointerdown={() => pinTile(module.href)}
+      onblur={(event) => {
+        if (
+          !(event.relatedTarget instanceof Node) ||
+          !event.currentTarget.closest('li')?.contains(event.relatedTarget)
+        )
+          pinned = null;
+      }}
+      onpointercancel={() => (pinned = null)}
+      onpointerleave={(event) => {
+        if (document.activeElement !== event.currentTarget) pinned = null;
+      }}
       use:longPress={favoriteToggle(module)}
       href={module.href}
       data-astro-reload={module.reload || undefined}
@@ -386,33 +418,24 @@
         </p>
       </InfoHint>
     </div>
+
+    <ul class={tileGrid}>
+      {#each visibleModules as module (module.href)}
+        {@render tile(
+          module,
+          favoritesStore.loaded && favoritesStore.modules.includes(module.href)
+        )}
+      {/each}
+    </ul>
     <LoadState
       data={favoritesStore.loaded ? favoritesStore.modules : null}
       loading={favoritesStore.loading}
       error={favoritesStore.loadError}
       loadingText="Favoriten werden geladen …"
       onretry={retryFavorites}
-      isEmpty={(selection) => selection.length === 0}
     >
-      {#snippet skeleton()}
-        <ul class={tileGrid} aria-hidden="true">
-          {#each Array.from({ length: TILE_LIMIT }, (_, index) => index) as i (i)}<li
-              class="skeleton-element min-h-20"
-            ></li>{/each}
-        </ul>
-      {/snippet}
-      {#snippet empty()}
-        <p class="text-sm text-neutral-700">Noch keine Favoriten.</p>
-        {#if recentModules.length > 0}
-          <ul class={tileGrid}>
-            {#each recentModules as module (module.href)}{@render tile(module, false)}{/each}
-          </ul>
-        {/if}
-      {/snippet}
-      <ul class={tileGrid}>
-        {#each favoriteModules as module (module.href)}{@render tile(module, true)}{/each}
-        {#each recentModules as module (module.href)}{@render tile(module, false)}{/each}
-      </ul>
+      {#snippet skeleton()}<span class="sr-only">Favoriten werden geladen …</span>{/snippet}
+      <span></span>
     </LoadState>
   </section>
 
