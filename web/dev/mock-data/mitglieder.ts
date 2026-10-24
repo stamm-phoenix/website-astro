@@ -78,7 +78,6 @@ function member(
     custom_annuity_amount: null,
     group_names: groups,
     label_names: [],
-    notes: null,
     creation_date: isoFromNow(-400),
     external_id: null,
     col_MockKonfession: index % 2 ? 'römisch-katholisch' : 'evangelisch',

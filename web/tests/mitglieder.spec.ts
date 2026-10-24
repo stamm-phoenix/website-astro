@@ -57,6 +57,7 @@ test('Leitende see the members by group and look up one of them, read-only', asy
   await expect(dialog).toContainText(/40,00\s€/);
   await expect(dialog.getByRole('link', { name: /^0176/ })).toHaveAttribute('href', /^tel:/);
   await expect(dialog).not.toContainText('IBAN');
+  await expect(dialog).not.toContainText('Gesundheit');
   await expect(dialog).not.toContainText('per_MockVera');
   await expectNoHorizontalOverflow(page);
   await dialog.getByRole('button', { name: 'Details schließen' }).click();

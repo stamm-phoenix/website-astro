@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import type { CampflowColumn } from '../lib/campflow';
+import type { CampflowColumn, CampflowPerson } from '../lib/campflow';
 import {
   CampflowError,
   campflowGetAll,
@@ -9,6 +9,20 @@ import {
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
+
+/**
+ * Fields of the member list that stay on the server on top of the payment details: health and
+ * notes are sensitive and not needed to look up a member (the Aktionen still show them for their
+ * participants).
+ */
+export const MITGLIED_REDACTED_FIELDS = ['health', 'intolerances', 'diet', 'notes'];
+
+/** A member without payment details, health and notes. */
+function toMitglied(person: CampflowPerson): CampflowPerson {
+  const mitglied = sanitizePerson(person);
+  for (const field of MITGLIED_REDACTED_FIELDS) delete mitglied[field];
+  return mitglied;
+}
 
 /** Custom fields of the member list; without them the fields only lose their names. */
 async function memberColumns(): Promise<CampflowColumn[]> {
@@ -22,7 +36,7 @@ async function memberColumns(): Promise<CampflowColumn[]> {
 
 /**
  * The CampFlow member list with its custom fields, read-only for all Leitende
- * (`docs/mitglieder.md`). Payment details stay on the server. The list is shared with the other
+ * (`docs/mitglieder.md`). Payment details, health and notes stay on the server. The list is shared with the other
  * modules for a minute; `?refresh=true` reads CampFlow again.
  */
 export async function GetInternMitgliederEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
@@ -41,7 +55,7 @@ export async function GetInternMitgliederEndpoint(request: HttpRequest): Promise
       jsonBody: {
         loadedAt: loadedAt.toISOString(),
         columns,
-        persons: persons.filter((person) => typeof person.id === 'string').map(sanitizePerson),
+        persons: persons.filter((person) => typeof person.id === 'string').map(toMitglied),
       },
     };
   } catch (error: unknown) {
