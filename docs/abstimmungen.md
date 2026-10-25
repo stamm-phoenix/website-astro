@@ -11,7 +11,7 @@ WhatsApp-Umfrage.
    gewähltes Datum (mit optionaler Uhrzeit) als Text wie „Sa, 14.11.2026, 18:00 Uhr“ hinein.
 2. Leitende stimmen im Leitendenbereich ab. Ihre Antwort hängt an ihrem Login.
 3. „Per Mail einladen“ bietet wie der Protokollversand alle aktuellen Mitglieder der CampFlow-Gruppe
-   „Leiter*in“ und mit dem Merkmal „Protokollempfang“ an (`CONFIG.abstimmungen`). Einzelne
+   „Leiter\*in“ und mit dem Merkmal „Protokollempfang“ an (`CONFIG.abstimmungen`). Einzelne
    lassen sich abwählen, weitere Personen aus dem Modul „Personen“ oder Adressen dazunehmen.
    Jede Adresse bekommt eine eigene Mail mit ihrem persönlichen Link; wer schon eingeladen ist,
    bekommt keine zweite Einladung.
@@ -41,7 +41,8 @@ Wer über einen Link abstimmt, sieht Ergebnis und Namen, aber keine Adressen.
   verschickt die Seite sie in Schritten über `POST /api/intern/pflege/abstimmungen/{id}/mails`
   (fünf je Anfrage, wegen des Zeitlimits von Static Web Apps). Jede Mail wird vor dem Versand
   reserviert (`versucht`); eine Mail mit unklarem Ergebnis wird nie automatisch wiederholt, die
-  nächste Erinnerung erreicht die Person aber.
+  nächste Erinnerung erreicht die Person aber. Wer abstimmt, bevor die vorgemerkte Erinnerung
+  rausging, bekommt sie nicht mehr.
 - Familienadressen: Mehrere CampFlow-Personen mit einer Adresse bekommen eine Mail („Hallo
   zusammen“) mit einem Link. Die Teilnahme dazu ist als `familie` markiert (Migration 0042) und
   hält selbst keine Antwort: Jede Person, die über diesen Link abstimmt, wird eine eigene

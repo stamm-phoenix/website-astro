@@ -510,6 +510,21 @@ async function writeAntwort(
     .set({ name, geantwortet_am: new Date().toISOString() })
     .where('id', '=', teilnahmeId)
     .execute();
+  await dropErinnerung(trx, teilnahmeId);
+}
+
+/**
+ * Takes back a queued reminder of someone who answered meanwhile, so it neither goes out nor
+ * keeps the mails open. A reminder already being sent is not stopped.
+ */
+async function dropErinnerung(trx: Transaction<Database>, teilnahmeId: number): Promise<void> {
+  await trx
+    .updateTable('abstimmung.teilnahme')
+    .set({ mail_status: 'gesendet' })
+    .where('id', '=', teilnahmeId)
+    .where('mail_art', '=', 'erinnerung')
+    .where('mail_status', '=', 'offen')
+    .execute();
 }
 
 /** Refuses new people once the Abstimmung has `MAX_ABSTIMMUNG_TEILNAHMEN`. */
@@ -712,6 +727,7 @@ export async function votePublic(
         .where('id', '=', familie)
         .where('geantwortet_am', 'is', null)
         .execute();
+      await dropErinnerung(trx, familie);
     }
     return { token };
   });
