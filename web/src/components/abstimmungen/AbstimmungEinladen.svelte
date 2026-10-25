@@ -147,8 +147,13 @@
   }
 
   /** Sends the queued mails one request at a time until none are left. */
-  async function deliver(art: 'Einladungen' | 'Erinnerungen' | 'Mails'): Promise<void> {
-    let stand: MailStand = { offen: 1, gesendet: 0, unklar: 0 };
+  async function deliver(
+    art: 'Einladungen' | 'Erinnerungen' | 'Mails',
+    start: MailStand = { offen: offeneMails, gesendet: 0, unklar: 0 }
+  ): Promise<void> {
+    let stand: MailStand = { ...start, offen: Math.max(start.offen, 1) };
+    // Shown at once and keeps the buttons locked until the last mail went out
+    fortschritt = { ...start, gesendet: 0 };
     try {
       while (stand.offen > 0) {
         stand = await sendApi<MailStand>(
@@ -179,11 +184,13 @@
     error = pendingProblem(auswahl);
     if (error) return;
     busy = true;
+    let vorgemerkt: MailStand;
     try {
-      await sendApi('POST', `/intern/pflege/abstimmungen/${abstimmung.id}/einladung`, {
-        action: 'send',
-        ...auswahlBody(auswahl),
-      });
+      vorgemerkt = await sendApi<MailStand>(
+        'POST',
+        `/intern/pflege/abstimmungen/${abstimmung.id}/einladung`,
+        { action: 'send', ...auswahlBody(auswahl) }
+      );
       auswahl = null;
     } catch (failure: unknown) {
       error = versandProblem(
@@ -200,7 +207,7 @@
     } finally {
       busy = false;
     }
-    await deliver('Einladungen');
+    await deliver('Einladungen', vorgemerkt);
   }
 
   async function remind(): Promise<void> {
@@ -213,10 +220,13 @@
     if (!confirmed) return;
     busy = true;
     message = null;
+    let vorgemerkt: MailStand;
     try {
-      await sendApi('POST', `/intern/pflege/abstimmungen/${abstimmung.id}/erinnerung`, {
-        action: 'send',
-      });
+      vorgemerkt = await sendApi<MailStand>(
+        'POST',
+        `/intern/pflege/abstimmungen/${abstimmung.id}/erinnerung`,
+        { action: 'send' }
+      );
     } catch (failure: unknown) {
       messageKind = 'error';
       message = errorMessage(
@@ -226,7 +236,7 @@
       busy = false;
       return;
     }
-    await deliver('Erinnerungen');
+    await deliver('Erinnerungen', vorgemerkt);
     busy = false;
   }
 </script>

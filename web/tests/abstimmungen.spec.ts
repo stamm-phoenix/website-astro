@@ -330,3 +330,65 @@ test('in the iPhone app the own answer survives a new login', async ({ page }) =
   await page.getByRole('button', { name: 'Antwort speichern' }).click();
   await expect(page.getByText('Antwort gespeichert.').first()).toBeVisible();
 });
+
+test('a failed reload after a conflict keeps the input', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Was essen wir auf dem Sommerlager/ }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Was essen wir auf dem Sommerlager?' })
+  ).toBeVisible();
+  const id = new URL(page.url()).searchParams.get('id');
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Abstimmung bearbeiten' });
+  await dialog.getByRole('textbox', { name: 'Frage' }).fill('Mein Stand');
+  const current = (await (
+    await page.request.get(`/api/intern/pflege/abstimmungen/${id}`)
+  ).json()) as {
+    etag: string;
+    optionen: { id: number; text: string }[];
+  };
+  await page.request.patch(`/api/intern/pflege/abstimmungen/${id}`, {
+    data: {
+      etag: current.etag,
+      titel: 'Anderer Stand',
+      beschreibung: '',
+      mehrfach: false,
+      optionen: current.optionen.map(({ id: optionId, text }) => ({ id: optionId, text })),
+    },
+  });
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog.getByRole('button', { name: 'Aktuelle Fassung laden' })).toBeVisible();
+  // Loading the current version fails
+  await page.route(`**/api/intern/pflege/abstimmungen/${id}`, (route) =>
+    route.request().method() === 'GET' ? route.abort() : route.fallback()
+  );
+  await dialog.getByRole('button', { name: 'Aktuelle Fassung laden' }).click();
+  await page
+    .getByRole('dialog', { name: 'Aktuelle Fassung laden?' })
+    .getByRole('button', { name: 'Neu laden' })
+    .click();
+  await expect(dialog.getByRole('textbox', { name: 'Frage' })).toHaveValue('Mein Stand');
+  await expect(dialog.getByRole('button', { name: 'Aktuelle Fassung laden' })).toBeVisible();
+});
+
+test('sending the invitations shows at once that mails go out', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  let answer: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (answer = resolve));
+  await page.route('**/api/intern/pflege/abstimmungen/*/mails', async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Was essen wir auf dem Sommerlager/ }).click();
+  await page.getByRole('button', { name: 'Per Mail einladen' }).click();
+  await page
+    .getByRole('dialog', { name: 'Zur Abstimmung einladen' })
+    .getByRole('button', { name: /einladen$/ })
+    .click();
+  await expect(page.getByText(/Mails werden verschickt/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Per Mail einladen' })).toBeDisabled();
+  answer();
+  await expect(page.getByText('Einladungen verschickt.').first()).toBeVisible({ timeout: 30_000 });
+});
