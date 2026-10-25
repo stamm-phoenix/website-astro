@@ -32,6 +32,11 @@ export function abstimmungEinsicht(
 
 /** Most options of one Abstimmung; more do not fit on a phone. */
 export const MAX_ABSTIMMUNG_OPTIONEN = 40;
+/**
+ * Answers needed before people who may not see who chose what see the votes per option; with
+ * fewer, the counts would show a single person's choice.
+ */
+export const MIN_ANTWORTEN_FUER_ZAHLEN = 3;
 /** Most people per Abstimmung, so a shared link cannot fill the table. */
 export const MAX_ABSTIMMUNG_TEILNAHMEN = 300;
 
@@ -71,6 +76,11 @@ export interface AbstimmungErgebnis {
   optionen: AbstimmungOption[];
   /** `alles`: names and choices; `namen`: names without choices; `anzahl`: empty. */
   antworten: AbstimmungAntwort[];
+  /**
+   * The votes per option are held back (all 0) until `MIN_ANTWORTEN_FUER_ZAHLEN` answered,
+   * for everyone who may not see who chose what.
+   */
+  zahlenVerborgen: boolean;
   /** How many people answered. */
   anzahlAntworten: number;
 }
@@ -327,8 +337,12 @@ export function abstimmungErgebnis(
     }
     return counts;
   };
-  const ja = zaehlen((antwort) => antwort.gewaehlt);
-  const vielleicht = zaehlen((antwort) => antwort.vielleicht);
+  const zahlenVerborgen =
+    einsicht !== 'alles' && daten.antworten.length < MIN_ANTWORTEN_FUER_ZAHLEN;
+  const ja = zahlenVerborgen ? new Map<number, number>() : zaehlen((antwort) => antwort.gewaehlt);
+  const vielleicht = zahlenVerborgen
+    ? new Map<number, number>()
+    : zaehlen((antwort) => antwort.vielleicht);
   return {
     id: daten.id,
     titel: daten.titel,
@@ -353,5 +367,6 @@ export function abstimmungErgebnis(
               : { name, gewaehlt: [], vielleicht: [] }
           ),
     anzahlAntworten: daten.antworten.length,
+    zahlenVerborgen,
   };
 }

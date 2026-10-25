@@ -468,6 +468,11 @@ test('a limit, „Vielleicht“ and hidden answers work from creating to the tab
     guest.getByText('Was die anderen gewählt haben, sieht nur Lea Leitung.')
   ).toBeVisible();
   await expect(guest.getByText('Abgestimmt: Lea Leitung')).toBeVisible();
+  // With one answer, the votes per option would show Lea's choice
+  await expect(
+    guest.getByText('Die Stimmen je Option siehst du, sobald 3 Personen abgestimmt haben.')
+  ).toBeVisible();
+  await expect(guest.getByText(/1 Stimme/)).toHaveCount(0);
   await expect(guest.getByRole('button', { name: 'Tabelle' })).toHaveCount(0);
   await expect(guest.getByText('Vielleicht: Lea Leitung')).toHaveCount(0);
   await guest.close();

@@ -251,6 +251,7 @@
           optionen={ansicht.optionen}
           maxAuswahl={ansicht.maxAuswahl}
           vielleichtErlaubt={ansicht.vielleichtErlaubt}
+          zahlenVerborgen={ansicht.zahlenVerborgen}
           bind:gewaehlt={wahl.gewaehlt}
           bind:vielleicht={wahl.vielleicht}
           disabled={saving}

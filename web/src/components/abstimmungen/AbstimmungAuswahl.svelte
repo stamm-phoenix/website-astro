@@ -14,6 +14,8 @@
     gewaehlt: number[];
     /** IDs of the options chosen with „Vielleicht“. */
     vielleicht: number[];
+    /** The votes per option are held back until enough people answered. */
+    zahlenVerborgen?: boolean;
     disabled?: boolean;
   }
   let {
@@ -23,6 +25,7 @@
     vielleichtErlaubt,
     gewaehlt = $bindable(),
     vielleicht = $bindable(),
+    zahlenVerborgen = false,
     disabled = false,
   }: Props = $props();
 
@@ -49,6 +52,7 @@
   }
 
   function zahlen(option: AbstimmungOption): string {
+    if (zahlenVerborgen) return '';
     const text = stimmenText(option.stimmen);
     return option.vielleicht > 0 ? `${text}, ${option.vielleicht} vielleicht` : text;
   }

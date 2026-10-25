@@ -266,6 +266,19 @@ test('abstimmungErgebnis counts the votes per option and shows the answers by Ei
   const namen = abstimmungErgebnis(daten, 'namen');
   assert.deepEqual(namen.optionen, ergebnis.optionen);
   assert.deepEqual(namen.antworten[1], { name: 'Max', gewaehlt: [], vielleicht: [] });
+  // With fewer than three answers the counts would show single choices: held back
+  const wenige = { ...daten, antworten: daten.antworten.slice(0, 2) };
+  const verborgen = abstimmungErgebnis(wenige, 'namen');
+  assert.equal(verborgen.zahlenVerborgen, true);
+  assert.deepEqual(
+    verborgen.optionen.map((option) => [option.stimmen, option.vielleicht]),
+    [
+      [0, 0],
+      [0, 0],
+    ]
+  );
+  assert.equal(abstimmungErgebnis(wenige, 'alles').zahlenVerborgen, false);
+  assert.equal(namen.zahlenVerborgen, false);
   // Only how many answered
   const anzahl = abstimmungErgebnis(daten, 'anzahl');
   assert.deepEqual(anzahl.antworten, []);
@@ -1336,16 +1349,18 @@ dbTest('only the organizer sees who chose what when the answers are not open', a
   assert.equal((await vote(t, id, BEN, [sa12])).status, 204);
   assert.equal((await vote(t, id, ANNA, [fr11])).status, 204);
 
-  // Ben sees who answered and the counts, but not who chose what; his own answer stays his
+  // Ben sees who answered, but not who chose what; with two answers not even the counts,
+  // which would show Anna's choice. His own answer stays his
   const ben = await detail(t, id, BEN);
   assert.equal(ben.einsicht, 'namen');
   assert.deepEqual(ben.antworten, [
     { name: 'Ben Bau', gewaehlt: [], vielleicht: [] },
     { name: 'Anna Alt', gewaehlt: [], vielleicht: [] },
   ]);
+  assert.equal(ben.zahlenVerborgen, true);
   assert.deepEqual(
     ben.optionen.map((option) => option.stimmen),
-    [1, 1, 0]
+    [0, 0, 0]
   );
   assert.deepEqual(ben.ich?.gewaehlt, [sa12]);
   // Anna created it and sees everything
@@ -1367,14 +1382,28 @@ dbTest('only the organizer sees who chose what when the answers are not open', a
   ).jsonBody as AbstimmungAnsicht;
   assert.equal(shared.einsicht, 'namen');
   assert.ok(shared.antworten.every((antwort) => antwort.gewaehlt.length === 0));
+  // From the third answer on, everyone sees the votes per option
+  const oma = await AbstimmungAbstimmen(
+    request('PUT', 'abstimmungen/stimme', {
+      body: { link: linkToken(anna.link), name: 'Oma Erna', gewaehlt: [sa12] },
+    }),
+    context(t)
+  );
+  assert.equal(oma.status, 200);
+  const drei = await detail(t, id, BEN);
+  assert.equal(drei.zahlenVerborgen, false);
+  assert.deepEqual(
+    drei.optionen.map((option) => option.stimmen),
+    [1, 2, 0]
+  );
 
   // Secret: not even who answered, only how many
   assert.equal((await einstellen(t, id, { sichtbarkeit: 'geheim' })).status, 204);
   const geheim = await detail(t, id, BEN);
   assert.equal(geheim.einsicht, 'anzahl');
   assert.deepEqual(geheim.antworten, []);
-  assert.equal(geheim.anzahlAntworten, 2);
-  assert.equal((await detail(t, id)).antworten.length, 2);
+  assert.equal(geheim.anzahlAntworten, 3);
+  assert.equal((await detail(t, id)).antworten.length, 3);
 
   // Who answered relied on it: the answers never become more visible
   for (const sichtbarkeit of ['anonym', 'offen']) {
