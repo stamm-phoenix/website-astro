@@ -236,14 +236,30 @@ export const AbstimmungEinladungEndpoint = pflegeHandler(
     );
     const version = audienceVersion(recipients);
     const personen = await abstimmungQuellen.personen(members);
+    // Several CampFlow persons with one address, e.g. a family: the list joins their names
+    const familien = new Set(
+      recipients.filter((entry) => entry.name.includes(', ')).map((entry) => entry.email)
+    );
+    const logins = await getAbstimmungLogins(id);
+    // Leaders who answered here may have a CampFlow address shared with others, so it is not
+    // stored with their answer; their own invitation would count them twice
+    const eigeneAdressen = (
+      await Promise.all(logins.map(async (eigener) => (await eigeneAdresse(eigener)).email))
+    ).filter(Boolean);
     if (action === 'preview') {
       const detail = await getAbstimmungDetail(id, await identity(principal), getSiteUrl(request));
+      // The addresses the send skips, so the dialog counts only who gets an invitation
+      const eingeladen = new Set([
+        ...(detail?.teilnahmen ?? []).map((t) => t.email).filter(Boolean),
+        ...logins,
+        ...eigeneAdressen.filter((email) => !familien.has(email)),
+      ]);
       return ok({
         recipients: recipients.length,
         version,
         list: await mitEigenerAdresse(principal.userDetails, recipients),
         personen,
-        eingeladen: (detail?.teilnahmen ?? []).map((t) => t.email).filter(Boolean),
+        eingeladen: [...eingeladen],
       });
     }
     if (body?.version !== version) {
@@ -260,17 +276,6 @@ export const AbstimmungEinladungEndpoint = pflegeHandler(
     const names = new Map<string, string>();
     for (const entry of personen) names.set(entry.email, entry.name);
     for (const entry of recipients) if (entry.name) names.set(entry.email, entry.name);
-    // Several CampFlow persons with one address, e.g. a family: the list joins their names
-    const familien = new Set(
-      recipients.filter((entry) => entry.name.includes(', ')).map((entry) => entry.email)
-    );
-    // Leaders who answered here may have a CampFlow address shared with others, so it is not
-    // stored with their answer; their own invitation would count them twice
-    const eigeneAdressen = (
-      await Promise.all(
-        (await getAbstimmungLogins(id)).map(async (eigener) => (await eigeneAdresse(eigener)).email)
-      )
-    ).filter(Boolean);
     const result = await queueAbstimmungEinladungen(
       id,
       principal.userDetails.trim().toLowerCase(),
