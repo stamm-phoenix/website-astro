@@ -3,7 +3,11 @@ import type { AnwesenheitStufeName } from './anwesenheit-model';
 import type { SammelShop } from './sammelbestellung-shops';
 import type { SammelStatus } from './sammelbestellung-model';
 import type { SammelPaymentEvent, SammelPaymentOperation } from './sammelbestellung-payment-model';
-import type { AbstimmungMailArt, AbstimmungMailStatus } from './abstimmung-model';
+import type {
+  AbstimmungMailArt,
+  AbstimmungMailStatus,
+  AbstimmungSichtbarkeit,
+} from './abstimmung-model';
 import type { ProtokollEditorStatus, ProtokollRevisionReason } from './protokoll-editor-model';
 
 /** Set by the database (rowversion, computed columns); never written by the code. */
@@ -781,7 +785,11 @@ export interface AbstimmungTable {
   version: ReadOnly<Buffer>;
   titel: string;
   beschreibung: Generated<string>;
-  mehrfach: Generated<boolean>;
+  /** At most this many options with „Ja“; `null`: any number. */
+  max_auswahl: number | null;
+  /** Options may also be chosen with „Vielleicht“. */
+  vielleicht: Generated<boolean>;
+  sichtbarkeit: Generated<AbstimmungSichtbarkeit>;
   link_token: string;
   erstellt_von: string;
   erstellt_von_name: string;
@@ -818,4 +826,6 @@ export interface AbstimmungTeilnahmeTable {
 export interface AbstimmungStimmeTable {
   teilnahme_id: number;
   option_id: number;
+  /** Chosen with „Vielleicht“ instead of „Ja“. */
+  vielleicht: Generated<boolean>;
 }

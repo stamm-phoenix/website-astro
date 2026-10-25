@@ -21,9 +21,11 @@ import type { Db } from './db';
 import type { Database } from './db-schema';
 import { ValidationError } from './pflege-validation';
 import {
+  ABSTIMMUNG_SICHTBARKEITEN,
   MAX_ABSTIMMUNG_TEILNAHMEN,
+  abstimmungEinsicht,
   abstimmungErgebnis,
-  validateGewaehlt,
+  validateAntwort,
 } from './abstimmung-model';
 import type {
   AbstimmungAnsicht,
@@ -31,6 +33,7 @@ import type {
   AbstimmungEingabe,
   AbstimmungMailArt,
   AbstimmungRohdaten,
+  AbstimmungSichtbarkeit,
   AbstimmungTeilnahme,
   AbstimmungUebersicht,
 } from './abstimmung-model';
@@ -110,7 +113,9 @@ export interface AbstimmungKopf {
   version: Buffer;
   titel: string;
   beschreibung: string;
-  mehrfach: boolean;
+  max_auswahl: number | null;
+  vielleicht: boolean;
+  sichtbarkeit: AbstimmungSichtbarkeit;
   link_token: string;
   erstellt_von: string;
   erstellt_von_name: string;
@@ -132,19 +137,25 @@ async function loadOptionen(db: Db, id: number): Promise<{ id: number; text: str
     .execute();
 }
 
+/** The options one person chose with „Ja“ (`gewaehlt`) and with „Vielleicht“. */
+interface Antwort {
+  gewaehlt: number[];
+  vielleicht: number[];
+}
+
 /** The votes of every person of the Abstimmung, by participation. */
-async function loadStimmen(db: Db, id: number): Promise<Map<number, number[]>> {
+async function loadStimmen(db: Db, id: number): Promise<Map<number, Antwort>> {
   const rows = await db
     .selectFrom('abstimmung.stimme as s')
     .innerJoin('abstimmung.teilnahme as t', 't.id', 's.teilnahme_id')
-    .select(['s.teilnahme_id', 's.option_id'])
+    .select(['s.teilnahme_id', 's.option_id', 's.vielleicht'])
     .where('t.abstimmung_id', '=', id)
     .execute();
-  const result = new Map<number, number[]>();
+  const result = new Map<number, Antwort>();
   for (const row of rows) {
-    const list = result.get(row.teilnahme_id) ?? [];
-    list.push(row.option_id);
-    result.set(row.teilnahme_id, list);
+    const antwort = result.get(row.teilnahme_id) ?? { gewaehlt: [], vielleicht: [] };
+    (row.vielleicht ? antwort.vielleicht : antwort.gewaehlt).push(row.option_id);
+    result.set(row.teilnahme_id, antwort);
   }
   return result;
 }
@@ -188,7 +199,7 @@ interface Geladen {
   row: AbstimmungKopf;
   rohdaten: AbstimmungRohdaten;
   teilnahmen: TeilnahmeRow[];
-  stimmen: Map<number, number[]>;
+  stimmen: Map<number, Antwort>;
 }
 
 async function load(db: Db, id: number): Promise<Geladen | undefined> {
@@ -200,11 +211,15 @@ async function load(db: Db, id: number): Promise<Geladen | undefined> {
     loadStimmen(db, id),
   ]);
   const order = new Map(optionen.map((option, index) => [option.id, index]));
+  const sorted = (ids: number[] | undefined): number[] =>
+    (ids ?? []).sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
   const rohdaten: AbstimmungRohdaten = {
     id: row.id,
     titel: row.titel,
     beschreibung: row.beschreibung,
-    mehrfach: row.mehrfach,
+    maxAuswahl: row.max_auswahl,
+    vielleichtErlaubt: row.vielleicht,
+    sichtbarkeit: row.sichtbarkeit,
     geschlossen: row.geschlossen_am !== null,
     erstelltVonName: row.erstellt_von_name,
     optionen,
@@ -214,9 +229,8 @@ async function load(db: Db, id: number): Promise<Geladen | undefined> {
       .map((teilnahme) => ({
         teilnahmeId: teilnahme.id,
         name: teilnahme.name || 'Ohne Namen',
-        gewaehlt: (stimmen.get(teilnahme.id) ?? []).sort(
-          (a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)
-        ),
+        gewaehlt: sorted(stimmen.get(teilnahme.id)?.gewaehlt),
+        vielleicht: sorted(stimmen.get(teilnahme.id)?.vielleicht),
       })),
   };
   return { row, rohdaten, teilnahmen, stimmen };
@@ -225,11 +239,12 @@ async function load(db: Db, id: number): Promise<Geladen | undefined> {
 function ich(geladen: Geladen, teilnahme: TeilnahmeRow | undefined): AbstimmungAnsicht['ich'] {
   if (!teilnahme) return null;
   // The link of a family: everyone enters their own name and answer
-  if (teilnahme.familie) return { name: '', gewaehlt: [], geantwortet: false };
+  if (teilnahme.familie) return { name: '', gewaehlt: [], vielleicht: [], geantwortet: false };
+  const antwort = geladen.rohdaten.antworten.find((a) => a.teilnahmeId === teilnahme.id);
   return {
     name: teilnahme.name,
-    gewaehlt:
-      geladen.rohdaten.antworten.find((a) => a.teilnahmeId === teilnahme.id)?.gewaehlt ?? [],
+    gewaehlt: antwort?.gewaehlt ?? [],
+    vielleicht: antwort?.vielleicht ?? [],
     geantwortet: teilnahme.geantwortet_am !== null,
   };
 }
@@ -294,7 +309,7 @@ export async function getAbstimmungDetail(
   const { row, teilnahmen } = geladen;
   const eigene = row.erstellt_von === person.login;
   return {
-    ...abstimmungErgebnis(geladen.rohdaten),
+    ...abstimmungErgebnis(geladen.rohdaten, abstimmungEinsicht(row.sichtbarkeit, eigene)),
     ich: ich(geladen, eigeneTeilnahme(teilnahmen, person)),
     etag: toVersion(row.version),
     erstelltAm: row.erstellt_am.toISOString(),
@@ -356,7 +371,9 @@ export async function createAbstimmung(
       .values({
         titel: input.titel,
         beschreibung: input.beschreibung,
-        mehrfach: input.mehrfach,
+        max_auswahl: input.maxAuswahl,
+        vielleicht: input.vielleichtErlaubt,
+        sichtbarkeit: input.sichtbarkeit,
         link_token: newAbstimmungToken(),
         erstellt_von: person.login,
         erstellt_von_name: person.name,
@@ -368,14 +385,17 @@ export async function createAbstimmung(
   });
 }
 
-/** Takes the version of the loaded Abstimmung and checks the organizer. */
+/**
+ * Takes the version of the loaded Abstimmung and checks the organizer; returns the row as it was
+ * before the change.
+ */
 async function claimVersion(
   trx: Transaction<Database>,
   id: number,
   etag: string | undefined,
   login: string,
   changes: Updateable<Database['abstimmung.abstimmung']> = {}
-): Promise<void> {
+): Promise<AbstimmungKopf> {
   // Same lock as a vote, so a vote checked against the old rules never lands after the change
   await lockResource(trx, `abstimmung:${id}`);
   const row = await loadRow(trx, id);
@@ -389,11 +409,14 @@ async function claimVersion(
     .where('version', '=', version)
     .executeTakeFirst();
   if (Number(result.numUpdatedRows) !== 1) throw new VersionConflictError();
+  return row;
 }
 
 /**
  * Saves the form of the organizer. Options without `id` are new, missing ones are deleted with
- * their votes. Turning off `mehrfach` is refused while someone chose several of the options left.
+ * their votes. Refused while answers break the new rules: more „Ja“ than `maxAuswahl`, a
+ * „Vielleicht“ when it is turned off. The answers never become more visible than they were
+ * when someone answered.
  */
 export async function updateAbstimmung(
   id: number,
@@ -402,11 +425,29 @@ export async function updateAbstimmung(
   login: string
 ): Promise<void> {
   await inTransaction(async (trx) => {
-    await claimVersion(trx, id, etag, login, {
+    const vorher = await claimVersion(trx, id, etag, login, {
       titel: input.titel,
       beschreibung: input.beschreibung,
-      mehrfach: input.mehrfach,
+      max_auswahl: input.maxAuswahl,
+      vielleicht: input.vielleichtErlaubt,
+      sichtbarkeit: input.sichtbarkeit,
     });
+    const stufe = (sichtbarkeit: AbstimmungSichtbarkeit): number =>
+      ABSTIMMUNG_SICHTBARKEITEN.indexOf(sichtbarkeit);
+    if (stufe(input.sichtbarkeit) < stufe(vorher.sichtbarkeit)) {
+      const beantwortet = await trx
+        .selectFrom('abstimmung.teilnahme')
+        .select('id')
+        .where('abstimmung_id', '=', id)
+        .where('geantwortet_am', 'is not', null)
+        .executeTakeFirst();
+      if (beantwortet) {
+        throw new ValidationError({
+          sichtbarkeit:
+            'Es haben schon Leute abgestimmt, die sich auf die bisherige Einstellung verlassen. Ihre Antworten können nicht mehr für mehr Leute sichtbar werden.',
+        });
+      }
+    }
     const bisher = await loadOptionen(trx, id);
     const bekannt = new Set(bisher.map((option) => option.id));
     if (input.optionen.some((option) => option.id && !bekannt.has(option.id))) {
@@ -436,19 +477,35 @@ export async function updateAbstimmung(
       await trx.deleteFrom('abstimmung.stimme').where('option_id', 'in', weg).execute();
       await trx.deleteFrom('abstimmung.optionen').where('id', 'in', weg).execute();
     }
-    if (!input.mehrfach) {
-      const mehrere = await trx
+    if (input.maxAuswahl !== null) {
+      const mehr = await trx
         .selectFrom('abstimmung.stimme as s')
         .innerJoin('abstimmung.teilnahme as t', 't.id', 's.teilnahme_id')
         .select('s.teilnahme_id')
         .where('t.abstimmung_id', '=', id)
+        .where('s.vielleicht', '=', false)
         .groupBy('s.teilnahme_id')
-        .having((eb) => eb.fn.countAll(), '>', 1)
+        .having((eb) => eb.fn.countAll(), '>', input.maxAuswahl)
         .executeTakeFirst();
-      if (mehrere) {
+      if (mehr) {
         throw new ValidationError({
-          mehrfach:
-            'Es haben schon Leute mehrere Optionen gewählt. Lass „Mehrere Optionen wählbar“ an oder leg eine neue Abstimmung an.',
+          maxAuswahl:
+            'Es haben schon Leute mehr Optionen gewählt. Erlaube mehr Optionen oder leg eine neue Abstimmung an.',
+        });
+      }
+    }
+    if (!input.vielleichtErlaubt) {
+      const vielleicht = await trx
+        .selectFrom('abstimmung.stimme as s')
+        .innerJoin('abstimmung.teilnahme as t', 't.id', 's.teilnahme_id')
+        .select('s.teilnahme_id')
+        .where('t.abstimmung_id', '=', id)
+        .where('s.vielleicht', '=', true)
+        .executeTakeFirst();
+      if (vielleicht) {
+        throw new ValidationError({
+          vielleichtErlaubt:
+            'Es haben schon Leute mit „Vielleicht“ geantwortet. Lass „Vielleicht“ an oder leg eine neue Abstimmung an.',
         });
       }
     }
@@ -496,15 +553,18 @@ async function writeAntwort(
   trx: Transaction<Database>,
   teilnahmeId: number,
   name: string,
-  gewaehlt: number[]
+  antwort: Antwort
 ): Promise<void> {
   await trx.deleteFrom('abstimmung.stimme').where('teilnahme_id', '=', teilnahmeId).execute();
-  if (gewaehlt.length) {
-    await trx
-      .insertInto('abstimmung.stimme')
-      .values(gewaehlt.map((option_id) => ({ teilnahme_id: teilnahmeId, option_id })))
-      .execute();
-  }
+  const values = [
+    ...antwort.gewaehlt.map((option_id) => ({ teilnahme_id: teilnahmeId, option_id })),
+    ...antwort.vielleicht.map((option_id) => ({
+      teilnahme_id: teilnahmeId,
+      option_id,
+      vielleicht: true,
+    })),
+  ];
+  if (values.length) await trx.insertInto('abstimmung.stimme').values(values).execute();
   await trx
     .updateTable('abstimmung.teilnahme')
     .set({ name, geantwortet_am: new Date().toISOString() })
@@ -550,6 +610,26 @@ async function openForVote(trx: Transaction<Database>, id: number): Promise<Abst
   return row;
 }
 
+/** An answer as sent by a page: option IDs with „Ja“ and with „Vielleicht“, unchecked. */
+export interface AbstimmungAntwortEingabe {
+  gewaehlt: unknown;
+  vielleicht?: unknown;
+}
+
+/** Checks an answer against the current options and rules of the Abstimmung. */
+async function checkAntwort(
+  trx: Transaction<Database>,
+  row: AbstimmungKopf,
+  eingabe: AbstimmungAntwortEingabe
+): Promise<Antwort> {
+  const optionen = await loadOptionen(trx, row.id);
+  return validateAntwort(eingabe.gewaehlt, eingabe.vielleicht, {
+    optionIds: optionen.map((option) => option.id),
+    maxAuswahl: row.max_auswahl,
+    vielleichtErlaubt: row.vielleicht,
+  });
+}
+
 /**
  * Saves the answer of a leader in the Leitendenbereich. An invitation to one of their addresses
  * becomes theirs, so the reminder knows they answered.
@@ -557,16 +637,11 @@ async function openForVote(trx: Transaction<Database>, id: number): Promise<Abst
 export async function voteAsStaff(
   id: number,
   person: AbstimmungPerson,
-  gewaehltInput: unknown
+  eingabe: AbstimmungAntwortEingabe
 ): Promise<void> {
   await inTransaction(async (trx) => {
     const row = await openForVote(trx, id);
-    const optionen = await loadOptionen(trx, id);
-    const gewaehlt = validateGewaehlt(
-      gewaehltInput,
-      optionen.map((option) => option.id),
-      row.mehrfach
-    );
+    const antwort = await checkAntwort(trx, row, eingabe);
     const teilnahmen = await loadTeilnahmen(trx, id);
     let teilnahme = eigeneTeilnahme(teilnahmen, person);
     // An invitation to the person's own address next to the row of their login, e.g. when the
@@ -609,7 +684,7 @@ export async function voteAsStaff(
           .executeTakeFirstOrThrow()
       ).id;
     }
-    await writeAntwort(trx, teilnahmeId, person.name, gewaehlt);
+    await writeAntwort(trx, teilnahmeId, person.name, antwort);
   });
 }
 
@@ -653,7 +728,8 @@ export async function getAbstimmungAnsicht(link: {
   const geladen = await load(db, ziel.abstimmungId);
   if (!geladen) return undefined;
   return {
-    ...abstimmungErgebnis(geladen.rohdaten),
+    // Whoever comes over a link never manages the Abstimmung
+    ...abstimmungErgebnis(geladen.rohdaten, abstimmungEinsicht(geladen.row.sichtbarkeit, false)),
     ich: ich(
       geladen,
       geladen.teilnahmen.find((t) => t.id === ziel.teilnahmeId)
@@ -668,7 +744,7 @@ export async function getAbstimmungAnsicht(link: {
 export async function votePublic(
   link: { link?: unknown; token?: unknown },
   name: string,
-  gewaehltInput: unknown,
+  eingabe: AbstimmungAntwortEingabe,
   /** Key the page sends with every try of the same new answer (`isAbstimmungVersuch`). */
   versuch?: string
 ): Promise<{ token: string } | undefined> {
@@ -676,12 +752,7 @@ export async function votePublic(
   if (!ziel) return undefined;
   return inTransaction(async (trx) => {
     const row = await openForVote(trx, ziel.abstimmungId);
-    const optionen = await loadOptionen(trx, row.id);
-    const gewaehlt = validateGewaehlt(
-      gewaehltInput,
-      optionen.map((option) => option.id),
-      row.mehrfach
-    );
+    const gewaehlt = await checkAntwort(trx, row, eingabe);
     let familie: number | undefined;
     if (ziel.teilnahmeId !== null) {
       const teilnahme = await trx

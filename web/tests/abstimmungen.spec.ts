@@ -147,7 +147,7 @@ test('after a conflict the current version replaces the form', async ({ page }) 
       etag: current.etag,
       titel: 'Neuer Titel aus dem anderen Tab',
       beschreibung: '',
-      mehrfach: false,
+      maxAuswahl: 1,
       optionen: current.optionen.map(({ id: optionId, text }) => ({ id: optionId, text })),
     },
   });
@@ -359,7 +359,7 @@ test('a failed reload after a conflict keeps the input', async ({ page }) => {
       etag: current.etag,
       titel: 'Anderer Stand',
       beschreibung: '',
-      mehrfach: false,
+      maxAuswahl: 1,
       optionen: current.optionen.map(({ id: optionId, text }) => ({ id: optionId, text })),
     },
   });
@@ -420,4 +420,61 @@ test('the progress counts only the mails of this run', async ({ page }) => {
   await expect(page.getByText(/Mails werden verschickt … 5 verschickt,/)).toBeVisible();
   answer();
   await expect(page.getByText('Einladungen verschickt.').first()).toBeVisible({ timeout: 30_000 });
+});
+
+test('a limit, „Vielleicht“ and hidden answers work from creating to the table', async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(60_000);
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('button', { name: 'Abstimmung anlegen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Neue Abstimmung' });
+  await dialog.getByRole('textbox', { name: 'Frage' }).fill('Welche Spiele machen wir?');
+  for (const [index, text] of ['Fußball', 'Völkerball', 'Capture the Flag'].entries()) {
+    if (index > 1) await dialog.getByRole('button', { name: 'Option hinzufügen' }).click();
+    await dialog.getByLabel(`Option ${index + 1}`, { exact: true }).fill(text);
+  }
+  await dialog.getByLabel('„Vielleicht“ als Antwort erlauben').check();
+  await dialog
+    .getByLabel('Wie viele Optionen darf man mit „Ja“ wählen?')
+    .selectOption({ label: 'Nur eine' });
+  await dialog.getByRole('radio', { name: /Nur ich sehe, wer was gewählt hat/ }).check();
+  await dialog.getByRole('button', { name: 'Abstimmung anlegen' }).click();
+  await expect(page.getByRole('heading', { name: 'Welche Spiele machen wir?' })).toBeVisible();
+
+  // One „Ja“ at most; „Vielleicht“ for the others
+  const option = (name: string) => page.getByRole('group', { name: new RegExp(name) });
+  await option('Fußball').getByLabel('Ja', { exact: true }).check();
+  await expect(option('Völkerball').getByLabel('Ja', { exact: true })).toBeDisabled();
+  await option('Völkerball').getByLabel('Vielleicht').check();
+  await page.getByRole('button', { name: 'Antwort speichern' }).click();
+  await expect(page.getByText('Antwort gespeichert.').first()).toBeVisible();
+  await expect(page.getByText('Nur du siehst, wer was gewählt hat.')).toBeVisible();
+  await expect(page.getByText('Vielleicht: Lea Leitung')).toBeVisible();
+
+  // The table shows who chose what
+  await page.getByRole('button', { name: 'Tabelle' }).click();
+  const table = page.getByRole('table');
+  const row = table.getByRole('row', { name: /^Lea Leitung/ });
+  await expect(row.getByRole('cell')).toHaveText(['✓Ja', '(✓)Vielleicht', '–Nein']);
+
+  // A guest over the shared link sees who answered, but not what
+  const link = await page.getByText(/\/abstimmung#link=/).textContent();
+  const guest = await browser.newPage();
+  await guest.goto(link!.trim());
+  await expect(
+    guest.getByText('Was die anderen gewählt haben, sieht nur Lea Leitung.')
+  ).toBeVisible();
+  await expect(guest.getByText('Abgestimmt: Lea Leitung')).toBeVisible();
+  await expect(guest.getByRole('button', { name: 'Tabelle' })).toHaveCount(0);
+  await expect(guest.getByText('Vielleicht: Lea Leitung')).toHaveCount(0);
+  await guest.close();
+
+  // The answers can no longer become visible to everyone
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  const edit = page.getByRole('dialog', { name: 'Abstimmung bearbeiten' });
+  await expect(edit.getByRole('radio', { name: /Alle, die abstimmen/ })).toBeDisabled();
+  await expect(edit.getByLabel('„Vielleicht“ als Antwort erlauben')).toBeDisabled();
 });

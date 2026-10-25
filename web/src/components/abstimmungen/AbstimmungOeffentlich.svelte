@@ -10,8 +10,8 @@
   import { ApiError, errorMessage, postApi, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import type { AbstimmungAnsicht, AbstimmungLink } from '../../lib/abstimmungen';
-  import { parseAbstimmungHash } from '../../lib/abstimmungen';
+  import type { AbstimmungAnsicht, AbstimmungLink, AbstimmungWahl } from '../../lib/abstimmungen';
+  import { parseAbstimmungHash, wahlVon } from '../../lib/abstimmungen';
 
   /**
    * The Abstimmung behind a link without login: the shared link asks for a name, the personal
@@ -24,7 +24,7 @@
   let loading = $state(true);
   let loadError = $state<string | null>(null);
   let name = $state('');
-  let gewaehlt = $state<number[]>([]);
+  let wahl = $state<AbstimmungWahl>({ gewaehlt: [], vielleicht: [] });
   let gespeichert = $state<string | null>(null);
   let saving = $state(false);
   let fields = $state<Record<string, string>>({});
@@ -33,7 +33,7 @@
   /** Shown once after the first answer over the shared link. */
   let eigenerLink = $state<string | null>(null);
 
-  const snapshot = $derived(JSON.stringify({ name: name.trim(), gewaehlt }));
+  const snapshot = $derived(JSON.stringify({ name: name.trim(), wahl }));
   const dirty = $derived(gespeichert !== null && gespeichert !== snapshot);
 
   /**
@@ -55,8 +55,8 @@
       if (current !== loads) return;
       ansicht = loaded;
       name = loaded.ich?.name ?? name;
-      gewaehlt = loaded.ich?.gewaehlt ?? [];
-      gespeichert = JSON.stringify({ name: name.trim(), gewaehlt });
+      wahl = wahlVon(loaded.ich);
+      gespeichert = JSON.stringify({ name: name.trim(), wahl });
     } catch (failure: unknown) {
       if (current !== loads) return;
       loadError = errorMessage(
@@ -98,7 +98,7 @@
     else link = gemerkterLink();
     ansicht = null;
     name = '';
-    gewaehlt = [];
+    wahl = { gewaehlt: [], vielleicht: [] };
     gespeichert = null;
     message = null;
     eigenerLink = null;
@@ -153,7 +153,7 @@
       const { token } = await sendApi<{ token: string }>('PUT', '/abstimmungen/stimme', {
         ...link,
         name,
-        gewaehlt,
+        ...wahl,
         versuch,
       });
       // Another link was opened meanwhile; its page stays as it is
@@ -249,8 +249,10 @@
         <AbstimmungAuswahl
           id="abstimmung-public"
           optionen={ansicht.optionen}
-          mehrfach={ansicht.mehrfach}
-          bind:gewaehlt
+          maxAuswahl={ansicht.maxAuswahl}
+          vielleichtErlaubt={ansicht.vielleichtErlaubt}
+          bind:gewaehlt={wahl.gewaehlt}
+          bind:vielleicht={wahl.vielleicht}
           disabled={saving}
         />
         {#if fields.gewaehlt}

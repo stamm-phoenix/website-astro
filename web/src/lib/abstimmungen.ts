@@ -2,17 +2,78 @@ import { createResource } from './pflegeStore.svelte';
 import type {
   AbstimmungDetail,
   AbstimmungErgebnis,
+  AbstimmungSichtbarkeit,
   AbstimmungUebersicht,
 } from '../../../api/lib/abstimmung-model';
 export type {
   AbstimmungAnsicht,
   AbstimmungDetail,
+  AbstimmungEinsicht,
   AbstimmungErgebnis,
   AbstimmungOption,
+  AbstimmungSichtbarkeit,
   AbstimmungTeilnahme,
   AbstimmungUebersicht,
 } from '../../../api/lib/abstimmung-model';
-export { MAX_ABSTIMMUNG_OPTIONEN } from '../../../api/lib/abstimmung-model';
+export { MAX_ABSTIMMUNG_OPTIONEN, maxAuswahlText } from '../../../api/lib/abstimmung-model';
+
+/** An answer on a page: the options chosen with „Ja“ (`gewaehlt`) and with „Vielleicht“. */
+export interface AbstimmungWahl {
+  gewaehlt: number[];
+  vielleicht: number[];
+}
+
+/** The answer of `ich`, or an empty one. */
+export function wahlVon(ich: AbstimmungWahl | null | undefined): AbstimmungWahl {
+  return { gewaehlt: [...(ich?.gewaehlt ?? [])], vielleicht: [...(ich?.vielleicht ?? [])] };
+}
+
+/** The answer without options that are gone. */
+export function wahlOhne(wahl: AbstimmungWahl, optionen: ReadonlySet<number>): AbstimmungWahl {
+  return {
+    gewaehlt: wahl.gewaehlt.filter((id) => optionen.has(id)),
+    vielleicht: wahl.vielleicht.filter((id) => optionen.has(id)),
+  };
+}
+
+/**
+ * A kept answer read back, without options that are gone: an object, or the plain list of IDs
+ * kept before „Vielleicht“ existed.
+ */
+export function wahlAusText(text: string, optionen: ReadonlySet<number>): AbstimmungWahl | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const ids = (list: unknown): number[] =>
+    Array.isArray(list) ? list.filter((id): id is number => typeof id === 'number') : [];
+  if (Array.isArray(value)) return wahlOhne({ gewaehlt: ids(value), vielleicht: [] }, optionen);
+  if (!value || typeof value !== 'object') return null;
+  const { gewaehlt, vielleicht } = value as Record<string, unknown>;
+  return wahlOhne({ gewaehlt: ids(gewaehlt), vielleicht: ids(vielleicht) }, optionen);
+}
+
+/** Who sees who chose what, as the form offers it. */
+export const SICHTBARKEIT_LABELS: Record<AbstimmungSichtbarkeit, string> = {
+  offen: 'Alle, die abstimmen, sehen, wer was gewählt hat',
+  anonym: 'Nur ich sehe, wer was gewählt hat. Die anderen sehen, wer abgestimmt hat',
+  geheim: 'Nur ich sehe, wer abgestimmt hat und was. Die anderen sehen, wie viele abgestimmt haben',
+};
+
+/** A note on the result when not everyone sees who chose what; `null` when they do. */
+export function sichtbarkeitHinweis(ergebnis: AbstimmungErgebnis, eigene: boolean): string | null {
+  if (ergebnis.sichtbarkeit === 'offen') return null;
+  if (eigene) {
+    return ergebnis.sichtbarkeit === 'anonym'
+      ? 'Nur du siehst, wer was gewählt hat. Die anderen sehen, wer abgestimmt hat.'
+      : 'Nur du siehst, wer abgestimmt hat und was.';
+  }
+  return ergebnis.sichtbarkeit === 'anonym'
+    ? `Was die anderen gewählt haben, sieht nur ${ergebnis.erstelltVonName}.`
+    : `Wer abgestimmt hat und was, sieht nur ${ergebnis.erstelltVonName}.`;
+}
 
 /** Path of the detail page in the Leitendenbereich. */
 export function abstimmungHref(id: number): string {

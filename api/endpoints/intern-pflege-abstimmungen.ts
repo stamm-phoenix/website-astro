@@ -173,7 +173,7 @@ export const AbstimmungItemEndpoint = pflegeHandler(
   })
 );
 
-/** PUT `{ gewaehlt }`: the answer of the logged-in person; replaces an earlier one. */
+/** PUT `{ gewaehlt, vielleicht? }`: the answer of the logged-in person; replaces an earlier one. */
 export const AbstimmungStimmeEndpoint = pflegeHandler(
   AREA,
   abstimmungHandler(async (request, _context, principal) => {
@@ -181,7 +181,10 @@ export const AbstimmungStimmeEndpoint = pflegeHandler(
     if (id === undefined) return NOT_FOUND;
     if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
-    await voteAsStaff(id, await person(principal), body?.gewaehlt);
+    await voteAsStaff(id, await person(principal), {
+      gewaehlt: body?.gewaehlt,
+      vielleicht: body?.vielleicht,
+    });
     return NO_CONTENT;
   })
 );
