@@ -13,12 +13,7 @@ import {
 } from '../lib/pflege-api';
 import { validatePerson } from '../lib/pflege-validation';
 import { withErrorHandling } from '../lib/response-utils';
-import {
-  createPerson,
-  deletePerson,
-  getPersonenUebersicht,
-  updatePerson,
-} from '../lib/personen';
+import { createPerson, deletePerson, getPersonenUebersicht, updatePerson } from '../lib/personen';
 
 /**
  * Personen (`docs/personen.md`): the leaders' links to CampFlow, Altleitende and others, kept by

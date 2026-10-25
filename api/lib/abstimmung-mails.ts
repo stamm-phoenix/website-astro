@@ -28,7 +28,10 @@ export function abstimmungMailContent(data: AbstimmungMailDaten): {
   html: string;
 } {
   const erinnerung = data.art === 'erinnerung';
+  // An address several CampFlow persons share, e.g. „Ben Bau, Clara Bau“, greets them all
+  const familie = data.name.includes(',');
   const vorname = data.name.trim().split(/\s+/)[0] ?? '';
+  const anrede = familie ? 'Hallo zusammen' : `Hallo${vorname ? ` ${escapeHtml(vorname)}` : ''}`;
   const beschreibung = data.beschreibung
     ? `<div style="margin:16px 0;padding:12px 16px;border-left:4px solid #810a1a;background:#faf7f2;">${escapeHtml(
         data.beschreibung
@@ -36,7 +39,7 @@ export function abstimmungMailContent(data: AbstimmungMailDaten): {
     : '';
   const html = mailLayout(`
     <h1 style="font-size:20px;color:#003056;">${erinnerung ? 'Erinnerung: ' : ''}${escapeHtml(data.titel)}</h1>
-    <p>Hallo${vorname ? ` ${escapeHtml(vorname)}` : ''},</p>
+    <p>${anrede},</p>
     <p>${
       erinnerung
         ? `du hast bei der Abstimmung <strong>${escapeHtml(data.titel)}</strong> noch nicht mitgemacht. ${escapeHtml(data.organisatorName)} freut sich über deine Antwort.`
@@ -44,8 +47,11 @@ export function abstimmungMailContent(data: AbstimmungMailDaten): {
     }</p>
     ${beschreibung}
     ${mailButton(data.url, 'Jetzt abstimmen', FALLBACK)}
-    <p style="font-size:13px;color:#6b7280;">Der Link gehört nur dir: Mit ihm kannst du deine Antwort
-      jederzeit ändern. Fragen zur Abstimmung? Antworte einfach auf diese Mail.</p>
+    <p style="font-size:13px;color:#6b7280;">${
+      familie
+        ? 'Mit diesem Link kann jede und jeder von euch abstimmen: Trag einfach deinen eigenen Namen ein.'
+        : 'Der Link gehört nur dir: Mit ihm kannst du deine Antwort jederzeit ändern.'
+    } Fragen zur Abstimmung? Antworte einfach auf diese Mail.</p>
   `);
   return {
     subject: `${erinnerung ? 'Erinnerung: ' : 'Abstimmung: '}${data.titel}`,

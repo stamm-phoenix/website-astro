@@ -8,6 +8,7 @@
   import AbstimmungErgebnisListe from './AbstimmungErgebnisListe.svelte';
   import AbstimmungLinkKopieren from './AbstimmungLinkKopieren.svelte';
   import { ApiError, errorMessage, postApi, sendApi } from '../../lib/api';
+  import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type { AbstimmungAnsicht, AbstimmungLink } from '../../lib/abstimmungen';
   import { parseAbstimmungHash } from '../../lib/abstimmungen';
@@ -35,31 +36,82 @@
   const snapshot = $derived(JSON.stringify({ name: name.trim(), gewaehlt }));
   const dirty = $derived(gespeichert !== null && gespeichert !== snapshot);
 
+  /** Counts the loads, so the answer for a link opened before never replaces a newer one. */
+  let loads = 0;
+
   async function load(): Promise<void> {
     if (!link) return;
+    const current = ++loads;
     loading = true;
     loadError = null;
     try {
-      ansicht = await postApi<AbstimmungAnsicht>('/abstimmungen/ansehen', link);
-      name = ansicht.ich?.name ?? name;
-      gewaehlt = ansicht.ich?.gewaehlt ?? [];
+      const loaded = await postApi<AbstimmungAnsicht>('/abstimmungen/ansehen', link);
+      if (current !== loads) return;
+      ansicht = loaded;
+      name = loaded.ich?.name ?? name;
+      gewaehlt = loaded.ich?.gewaehlt ?? [];
       gespeichert = JSON.stringify({ name: name.trim(), gewaehlt });
     } catch (failure: unknown) {
+      if (current !== loads) return;
       loadError = errorMessage(
         failure,
         'Die Abstimmung konnte nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
       );
     } finally {
-      loading = false;
+      if (current === loads) loading = false;
     }
   }
 
-  onMount(() => {
+  /** Opens the link in the address bar; another link in the same tab is another person. */
+  function openLink(): void {
     link = parseAbstimmungHash(window.location.hash);
+    ansicht = null;
+    name = '';
+    gewaehlt = [];
+    gespeichert = null;
+    message = null;
+    eigenerLink = null;
+    fields = {};
     if (link) void load();
     else loading = false;
-    return guardUnsavedChanges(() => dirty);
+  }
+
+  async function hashChanged(event: HashChangeEvent): Promise<void> {
+    const next = parseAbstimmungHash(new URL(event.newURL).hash);
+    if (next?.token === link?.token && next?.link === link?.link) return;
+    if (dirty) {
+      // The address bar shows the new link already; keep the old one until the choice is made
+      const neu = window.location.hash;
+      history.replaceState(history.state, '', new URL(event.oldURL).hash || '#');
+      const confirmed = await confirmAction({
+        title: 'Anderen Link öffnen?',
+        message: 'Deine Antwort hier ist noch nicht gespeichert und geht verloren.',
+        confirmLabel: 'Anderen Link öffnen',
+      });
+      if (!confirmed) return;
+      history.replaceState(history.state, '', neu);
+    }
+    openLink();
+  }
+
+  onMount(() => {
+    openLink();
+    const listener = (event: HashChangeEvent): void => void hashChanged(event);
+    window.addEventListener('hashchange', listener);
+    const unguard = guardUnsavedChanges(() => dirty);
+    return () => {
+      window.removeEventListener('hashchange', listener);
+      unguard();
+    };
   });
+
+  /** On a link that already has an answer, another name saves a new person. */
+  const anderePerson = $derived(
+    !!ansicht?.ich?.geantwortet &&
+      !!name.trim() &&
+      name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de') !==
+        ansicht.ich.name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de')
+  );
 
   async function save(): Promise<void> {
     if (!link || !ansicht || saving) return;
@@ -71,14 +123,14 @@
     }
     saving = true;
     message = null;
-    const erste = !link.token;
     try {
       const { token } = await sendApi<{ token: string }>('PUT', '/abstimmungen/stimme', {
         ...link,
         name,
         gewaehlt,
       });
-      if (erste) {
+      // The shared link, or a family link that already had someone else's answer
+      if (token !== link.token) {
         // From now on this page is the personal link: reloading or a bookmark keeps the answer
         link = { token };
         history.replaceState(history.state, '', `${window.location.pathname}#t=${token}`);
@@ -157,6 +209,11 @@
             />
           {/snippet}
         </FormField>
+        {#if anderePerson && ansicht.ich}
+          <p class="border-l-4 border-l-warning py-1 pl-3 text-sm text-neutral-800">
+            Du stimmst als neue Person ab. Die Antwort von {ansicht.ich.name} bleibt erhalten.
+          </p>
+        {/if}
         <AbstimmungAuswahl
           id="abstimmung-public"
           optionen={ansicht.optionen}
