@@ -1,5 +1,11 @@
 /** Beiträge of the mock API (Leitendenbereich → Beiträge); all names are invented. */
-import type { Beitrag, BeitraegeData, BeitragSammlung, BeitragStatus } from '../../src/lib/types';
+import type {
+  Beitrag,
+  BeitraegeData,
+  BeitragSammlung,
+  BeitragStatus,
+  OffeneBeitraegeData,
+} from '../../src/lib/types';
 
 const NAMEN = [
   'Anna Berger',
@@ -117,6 +123,7 @@ function beitrag(plan: SammlungPlan, status: BeitragStatus, index: number): Beit
     costUnit: plan.costUnit,
     category: plan.type === 'annuity' ? 'Mitgliedsbeiträge' : 'Teilnehmerbeiträge',
     payer: NAMEN[(index * 5 + plan.cent) % NAMEN.length],
+    payerId: `per_${plan.id.slice(4)}${index}`,
     paymentMethod: 'bank_transfer',
     date: plan.date,
     amountCent: plan.cent,
@@ -130,12 +137,28 @@ function beitrag(plan: SammlungPlan, status: BeitragStatus, index: number): Beit
 
 const fees = PLAN.flatMap((plan) => plan.status.map((status, i) => beitrag(plan, status, i)));
 
+/**
+ * The demo account's own Beiträge: its registration to an Aktion (a person of its own in
+ * CampFlow) has not paid yet, and it paid its Mitgliedsbeitrag twice.
+ */
+const DEMO_BEITRAEGE: Record<string, string> = {
+  fee_bat_WoeHerbst_1: 'per_AnmeldungDemo',
+  fee_bat_Mitglied26_3: 'per_MockDemo',
+};
+for (const fee of fees) {
+  if (DEMO_BEITRAEGE[fee.id]) {
+    fee.payer = 'Demo Leitung';
+    fee.payerId = DEMO_BEITRAEGE[fee.id];
+  }
+}
+
 const batches: BeitragSammlung[] = PLAN.map((plan) => {
   const own = fees.filter((fee) => fee.batchId === plan.id);
   return {
     id: plan.id,
     name: plan.name,
     type: plan.type,
+    eventId: plan.type === 'event' ? `evt_${plan.id.slice(4)}` : null,
     feeCount: own.length,
     settledCount: own.filter((fee) => fee.status === 'paid' || fee.status === 'cancelled').length,
     totalCent: own.reduce((sum, fee) => sum + fee.amountCent, 0),
@@ -150,4 +173,23 @@ let loadedAt = '';
 export function beitraegeFor(refresh: boolean): BeitraegeData {
   if (refresh || !loadedAt) loadedAt = new Date().toISOString();
   return { loadedAt, batches, fees };
+}
+
+/**
+ * Like `GET /api/intern/beitraege/meine`: the Beiträge with something left to do and the own ones
+ * among them, as the server matches them by the linked CampFlow person (`null` without a link).
+ */
+export function offeneBeitraegeFor(linkedId: string | null): OffeneBeitraegeData {
+  const { loadedAt, batches, fees } = beitraegeFor(false);
+  const offen = fees.filter((fee) => ['unpaid', 'partial', 'refund'].includes(fee.status));
+  const batchIds = new Set(offen.map((fee) => fee.batchId));
+  return {
+    loadedAt,
+    batches: batches.filter((batch) => batchIds.has(batch.id)),
+    fees: offen,
+    ich:
+      linkedId === 'per_MockDemo'
+        ? offen.filter((fee) => DEMO_BEITRAEGE[fee.id]).map((fee) => fee.id)
+        : null,
+  };
 }

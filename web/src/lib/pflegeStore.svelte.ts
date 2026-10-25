@@ -2,6 +2,7 @@ import { errorMessage, fetchApi } from './api';
 import type {
   AnwesenheitOverview,
   BeitraegeData,
+  OffeneBeitraegeData,
   CampflowBelegeData,
   MitgliederData,
   ProtokollEditorOverview,
@@ -170,6 +171,13 @@ export const beitraegeStore = createResource<BeitraegeData, boolean>(
   (refresh) => (refresh ? '/intern/beitraege?refresh=true' : '/intern/beitraege'),
   { idle: true }
 );
+
+/** The Beiträge with something left to do and which of them are the own ones, for the start page. */
+export const offeneBeitraegeStore = createResource<OffeneBeitraegeData>('/intern/beitraege/meine', {
+  idle: true,
+  loadError:
+    'Deine Beiträge konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
+});
 
 /** The CampFlow member list with its groups, read-only; `true` as param reads CampFlow again. */
 export const mitgliederStore = createResource<MitgliederData, boolean>(

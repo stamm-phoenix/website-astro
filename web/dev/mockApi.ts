@@ -44,7 +44,7 @@ import {
   knowBelege,
   kostenstellen,
 } from './mock-data/abrechnung';
-import { beitraegeFor } from './mock-data/beitraege';
+import { beitraegeFor, offeneBeitraegeFor } from './mock-data/beitraege';
 import { aktionBeitraegeFor, campflowDetail, campflowEvents } from './mock-data/campflow';
 import { mitgliederData } from './mock-data/mitglieder';
 import {
@@ -1014,6 +1014,9 @@ route('PUT', '/api/intern/pflege/aktionen-art/:id', (req) => {
 // Beiträge: read from CampFlow by the Playwright API in production
 route('GET', '/api/intern/beitraege', (req) =>
   json(beitraegeFor(req.query.get('refresh') === 'true'))
+);
+route('GET', '/api/intern/beitraege/meine', () =>
+  json(offeneBeitraegeFor(mockIch(PRINCIPAL.userDetails).campflow?.id ?? null))
 );
 
 // Abrechnung: Einzelnachweise come from the Playwright API in production

@@ -4,6 +4,8 @@ import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
 import * as env from '../lib/environment';
 import { GetInternBeitraegeEndpoint } from '../endpoints/intern-beitraege';
+import { GetInternBeitraegeMeineEndpoint } from '../endpoints/intern-beitraege-meine';
+import { offeneBeitraege, readBeitraege } from '../lib/beitraege';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -60,6 +62,7 @@ const ANSWER = {
       costUnit: { id: 'cun_1', name: 'Stammeslager 2026', color: '#eab308' },
       category: { id: 'cat_1', name: 'Teilnehmerbeiträge' },
       payer: 'Kim Beispiel',
+      payerId: 'per_1',
       paymentMethod: 'bank_transfer',
       date: '2026-03-21',
       amount: 75.5,
@@ -96,6 +99,7 @@ test('Beiträge come from the Playwright API in cents', async (t) => {
         id: 'bat_1',
         name: 'Stammeslager 2026',
         type: 'event',
+        eventId: 'evt_1',
         feeCount: 2,
         settledCount: 1,
         totalCent: 17550,
@@ -112,6 +116,7 @@ test('Beiträge come from the Playwright API in cents', async (t) => {
         costUnit: { id: 'cun_1', name: 'Stammeslager 2026' },
         category: 'Teilnehmerbeiträge',
         payer: 'Kim Beispiel',
+        payerId: 'per_1',
         paymentMethod: 'bank_transfer',
         date: '2026-03-21',
         amountCent: 7550,
@@ -145,4 +150,53 @@ test('a failing Playwright API says what to do next', async (t) => {
   const response = await GetInternBeitraegeEndpoint(request());
   assert.equal(response.status, 502);
   assert.match(JSON.stringify(response.jsonBody), /admin@stamm-phoenix\.de/);
+});
+
+test('the start page gets only the Beiträge with something left to do', () => {
+  const fee = (id: string, status: string, batch: string) => ({
+    ...ANSWER.fees[0],
+    id,
+    status,
+    batch: { id: batch, name: batch },
+  });
+  const beitraege = readBeitraege({
+    ...ANSWER,
+    batches: [ANSWER.batches[0], { ...ANSWER.batches[0], id: 'bat_2', eventId: null }],
+    fees: [
+      fee('fee_unpaid', 'unpaid', 'bat_1'),
+      fee('fee_partial', 'partial', 'bat_1'),
+      fee('fee_refund', 'refund', 'bat_1'),
+      fee('fee_paid', 'paid', 'bat_2'),
+      fee('fee_cancelled', 'cancelled', 'bat_2'),
+    ],
+  });
+  const offen = offeneBeitraege(beitraege);
+  assert.deepEqual(
+    offen.fees.map((f) => f.id),
+    ['fee_unpaid', 'fee_partial', 'fee_refund']
+  );
+  assert.deepEqual(
+    offen.batches.map((b) => b.id),
+    ['bat_1']
+  );
+});
+
+test('own Beiträge without a link leave the names to decide', async (t) => {
+  mockPlaywright(t, 200, ANSWER);
+  const response = await GetInternBeitraegeMeineEndpoint(request());
+  assert.equal(response.status, 200);
+  const body = response.jsonBody as { fees: { id: string }[]; ich: string[] | null };
+  assert.deepEqual(
+    body.fees.map((f) => f.id),
+    ['fee_1']
+  );
+  assert.equal(body.ich, null);
+});
+
+test('own Beiträge need a login and say when CampFlow fails', async (t) => {
+  mockPlaywright(t, 504, { error: 'Job exceeded' });
+  assert.equal((await GetInternBeitraegeMeineEndpoint(request('', null))).status, 401);
+  const response = await GetInternBeitraegeMeineEndpoint(request());
+  assert.equal(response.status, 502);
+  assert.equal((response.jsonBody as { code: string }).code, 'BEITRAEGE_UNAVAILABLE');
 });

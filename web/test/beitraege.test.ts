@@ -4,11 +4,13 @@ import {
   isErledigt,
   matchesFilter,
   matchesSearch,
+  meineBeitraege,
   sammlungStand,
   sammlungZahlen,
   statusLabel,
   summen,
 } from '../src/lib/beitraege';
+import { formatEuro } from '../src/lib/format';
 import type { Beitrag, BeitragSammlung } from '../src/lib/types';
 
 function beitrag(status: Beitrag['status'], dueCent: number, paidCent: number): Beitrag {
@@ -20,6 +22,7 @@ function beitrag(status: Beitrag['status'], dueCent: number, paidCent: number): 
     costUnit: { id: 'cun_1', name: 'Stammeslager 2026' },
     category: 'Teilnehmerbeiträge',
     payer: 'Kim Beispiel',
+    payerId: 'per_Kim',
     paymentMethod: 'bank_transfer',
     date: '2026-03-21',
     amountCent: dueCent || 10000,
@@ -35,6 +38,7 @@ const sammlung = (extra: Partial<BeitragSammlung>): BeitragSammlung => ({
   id: 'bat_1',
   name: 'Stammeslager 2026',
   type: 'event',
+  eventId: 'evt_1',
   feeCount: 14,
   settledCount: 11,
   totalCent: 122000,
@@ -122,4 +126,36 @@ test('a Sammlung without Beiträge is not called cancelled', () => {
     refundCent: 0,
   });
   assert.equal(sammlungStand(empty, sammlungZahlen([])), 'Noch keine Beiträge');
+});
+
+test('„Meine Beiträge“ lists the own ones with something left to do, on either side', () => {
+  const fees = [
+    beitrag('unpaid', 10000, 0),
+    beitrag('partial', 10000, 4000),
+    beitrag('refund', 7000, 10000),
+    beitrag('paid', 10000, 10000),
+    beitrag('cancelled', 0, 0),
+    { ...beitrag('unpaid', 5000, 0), id: 'fee_other', payer: 'Kim Anders', batchId: null },
+  ];
+  const data = { loadedAt: '', batches: [sammlung({})], fees, ich: null };
+  const byName = (person: { name: string; ich?: boolean }) =>
+    person.ich ?? person.name === 'Kim Beispiel';
+  const own = meineBeitraege(data, byName);
+  assert.deepEqual(
+    own.map((fee) => fee.id),
+    ['fee_unpaid', 'fee_partial', 'fee_refund']
+  );
+  assert.equal(own[0].title, 'Stammeslager 2026');
+  assert.equal(own[0].href, '/leitendenbereich/beitraege?sammlung=bat_1');
+  assert.equal(own[2].label, `${formatEuro(3000)} zu viel bezahlt`);
+  // The server's match wins over the name: a namesake is not „ich“, another payer may be
+  const matched = meineBeitraege({ ...data, ich: ['fee_refund', 'fee_other'] }, byName);
+  assert.deepEqual(
+    matched.map((fee) => [fee.id, fee.title, fee.href]),
+    [
+      ['fee_refund', 'Stammeslager 2026', '/leitendenbereich/beitraege?sammlung=bat_1'],
+      ['fee_other', 'Teilnehmendenbeitrag', '/leitendenbereich/beitraege?ansicht=alle'],
+    ]
+  );
+  assert.deepEqual(meineBeitraege(null, byName), []);
 });

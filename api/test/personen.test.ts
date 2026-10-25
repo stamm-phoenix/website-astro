@@ -10,6 +10,7 @@ import {
   ICH_CACHE_MS,
   cachedIch,
   eigeneAnmeldungen,
+  eigeneBeitraege,
   getIch,
   getPersonenUebersicht,
   mitEigenerAdresse,
@@ -514,4 +515,99 @@ dbTest('without the member list an address counts as shared', async (t) => {
     },
   ];
   assert.deepEqual(await eigeneAnmeldungen(ANNA, anmeldungen), ['per_A']);
+});
+
+dbTest('own Beiträge: the member by ID, registrations to Aktionen by address', async (t) => {
+  const context = quietContext(t);
+  const fees = [
+    // Mitgliedsbeitrag: the payer is the person of the member list
+    { id: 'fee_Mitglied', payer: 'Mia M.', payerId: 'per_IchMia', eventId: null },
+    { id: 'fee_Andere', payer: 'Mia Meier', payerId: 'per_Andere', eventId: null },
+    // Aktionen: the payer is the registration, a person of its own
+    { id: 'fee_Lager', payer: 'Mia Meier', payerId: 'per_AnmeldungMia', eventId: 'evt_Lager' },
+    { id: 'fee_Kind', payer: 'Kai Meier', payerId: 'per_AnmeldungKai', eventId: 'evt_Lager' },
+    { id: 'fee_Fahrt', payer: 'Mia Meier', payerId: 'per_FahrtMia', eventId: 'evt_Fahrt' },
+    { id: 'fee_Fremd', payer: 'Max Muster', payerId: 'per_FahrtMax', eventId: 'evt_Fahrt' },
+  ];
+  // Without a link nothing could be compared: the page goes by the names
+  assert.equal(await eigeneBeitraege(ANNA, fees), null);
+
+  await PersonenCollection(
+    request(
+      ANNA,
+      'POST',
+      {},
+      {
+        name: 'Mia Meier',
+        login: ANNA,
+        gruppe: 'leitende',
+        campflowPersonId: 'per_IchMia',
+        aktiv: true,
+      }
+    ),
+    context
+  );
+  t.mock.method(campflow, 'campflowGet', async () => ({
+    id: 'per_IchMia',
+    name: { first_name: 'Mia', last_name: 'Meier' },
+    primary_email: 'mia@example.org',
+  }));
+  t.mock.method(campflow, 'getCampflowMembers', async () => [
+    { id: 'per_IchMia', primary_email: 'mia@example.org' },
+  ]);
+  const lists = t.mock.method(campflow, 'campflowGetAll', async (path: string) => {
+    // The list of the Fahrt does not answer: there the name decides
+    if (path.includes('evt_Fahrt')) throw new CampflowError(502, 'down');
+    return [
+      { id: 'per_AnmeldungMia', primary_email: 'Mia@example.org' },
+      { id: 'per_AnmeldungKai', primary_email: 'kai@example.org' },
+    ];
+  });
+  assert.deepEqual(await eigeneBeitraege(ANNA, fees), ['fee_Mitglied', 'fee_Lager', 'fee_Fahrt']);
+  // Each Aktion is asked once, the Mitgliedsbeiträge need none
+  assert.deepEqual(lists.mock.calls.map((call) => call.arguments[0]).sort(), [
+    '/lists/evt_Fahrt/persons',
+    '/lists/evt_Lager/persons',
+  ]);
+  // An older Playwright API without payer IDs: only the names can tell
+  assert.equal(
+    await eigeneBeitraege(
+      ANNA,
+      fees.map((fee) => ({ ...fee, payerId: null }))
+    ),
+    null
+  );
+});
+
+dbTest('slow lists of the Aktionen leave the names to decide', async (t) => {
+  const context = quietContext(t);
+  await PersonenCollection(
+    request(
+      ANNA,
+      'POST',
+      {},
+      {
+        name: 'Rita Rasch',
+        login: ANNA,
+        gruppe: 'leitende',
+        campflowPersonId: 'per_IchRita',
+        aktiv: true,
+      }
+    ),
+    context
+  );
+  t.mock.method(campflow, 'campflowGet', async () => ({
+    id: 'per_IchRita',
+    name: { first_name: 'Rita', last_name: 'Rasch' },
+    primary_email: 'rita@example.org',
+  }));
+  t.mock.method(campflow, 'getCampflowMembers', async () => []);
+  t.mock.method(campflow, 'campflowGetAll', () => new Promise(() => undefined));
+  const fees = [
+    { id: 'fee_1', payer: 'Rita Rasch', payerId: 'per_R', eventId: 'evt_1' },
+    { id: 'fee_2', payer: 'Rolf Rasch', payerId: 'per_O', eventId: 'evt_1' },
+  ];
+  const started = Date.now();
+  assert.deepEqual(await eigeneBeitraege(ANNA, fees, Date.now(), 1000, 50), ['fee_1']);
+  assert.ok(Date.now() - started < 2000);
 });

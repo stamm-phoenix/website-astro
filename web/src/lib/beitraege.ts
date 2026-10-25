@@ -1,5 +1,5 @@
 import type { StatusTone } from './status';
-import type { AktionBeitrag, Beitrag, BeitragSammlung } from './types';
+import type { AktionBeitrag, Beitrag, BeitragSammlung, OffeneBeitraegeData } from './types';
 import { formatEuro } from './format';
 
 /** Status filters of the list, like CampFlow's quick filters. */
@@ -110,4 +110,46 @@ export function kostenstellen(fees: readonly Beitrag[]): { id: string; name: str
   return [...byId]
     .map(([id, name]) => ({ id, name }))
     .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+/** An own Beitrag with something left to do, as the start page lists it. */
+export interface MeinBeitrag {
+  id: string;
+  /** The Sammlung, e.g. the Aktion; the description if it has none. */
+  title: string;
+  reference: string;
+  dueCent: number;
+  label: string;
+  tone: StatusTone;
+  /** The Sammlung on the page „Beiträge“. */
+  href: string;
+}
+
+/**
+ * The logged-in person's Beiträge with something left to do, on either side: to be paid, or paid
+ * too much and to be paid back. The server's `ich` decides; without it the payer's name does.
+ */
+export function meineBeitraege(
+  data: OffeneBeitraegeData | null,
+  isIch: (person: { name: string; ich?: boolean }) => boolean
+): MeinBeitrag[] {
+  if (!data) return [];
+  const sammlungen = new Map(data.batches.map((batch) => [batch.id, batch.name]));
+  return data.fees
+    .filter(
+      (fee) =>
+        (fee.status === 'unpaid' || fee.status === 'partial' || fee.status === 'refund') &&
+        isIch({ name: fee.payer, ich: data.ich ? data.ich.includes(fee.id) : undefined })
+    )
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((fee) => ({
+      id: fee.id,
+      title: (fee.batchId && sammlungen.get(fee.batchId)) || fee.description,
+      reference: fee.reference,
+      dueCent: fee.dueCent,
+      ...statusLabel(fee),
+      href: fee.batchId
+        ? `/leitendenbereich/beitraege?sammlung=${encodeURIComponent(fee.batchId)}`
+        : '/leitendenbereich/beitraege?ansicht=alle',
+    }));
 }

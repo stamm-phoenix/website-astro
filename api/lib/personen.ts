@@ -1,7 +1,7 @@
 import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 import type { CampflowPerson } from './campflow';
-import { CampflowError, campflowGet, getCampflowMembers } from './campflow';
+import { CampflowError, campflowGet, campflowGetAll, getCampflowMembers } from './campflow';
 import {
   RecordNotFoundError,
   VersionConflictError,
@@ -352,6 +352,14 @@ export async function eigeneAnmeldungen(
   const linked = await findVerknuepfte(login, now, timeoutMs);
   // Nothing to compare: the page falls back to the names, as without a link
   if (!linked?.email) return null;
+  return mitEigenerAnmeldung(linked, persons);
+}
+
+/** The IDs of the registrations with the primary address of the linked person. */
+function mitEigenerAnmeldung(
+  linked: Verknuepfte,
+  persons: readonly { id: string; primary_email?: unknown; name?: unknown }[]
+): string[] {
   return persons
     .filter(
       (person) =>
@@ -361,6 +369,69 @@ export async function eigeneAnmeldungen(
           sameName(names(person as CampflowPerson).firstName, linked.firstName))
     )
     .map((p) => p.id);
+}
+
+/** How long „Meine Beiträge“ waits for the registrations to the Aktionen at most. */
+export const BEITRAEGE_ANMELDUNGEN_TIMEOUT_MS = 10_000;
+
+/** A Beitrag as `eigeneBeitraege` compares it: who pays, and the Aktion it belongs to. */
+export interface BeitragZahlende {
+  id: string;
+  payer: string;
+  payerId: string | null;
+  /** The CampFlow event of the Sammlung, null for a Mitgliedsbeitrag or a manual Sammlung. */
+  eventId: string | null;
+}
+
+/**
+ * IDs of the Beiträge the login has to pay or gets paid back (`GET /api/intern/beitraege/meine`).
+ * A Mitgliedsbeitrag names the linked person of the member list as payer. A Beitrag of an Aktion
+ * names the registration, a person of its own (`docs/personen.md`): the server compares the
+ * addresses of the registrations to the Aktionen, as `eigeneAnmeldungen` does. If an Aktion does
+ * not answer in time, the name of the linked person decides for its Beiträge. `null`, like
+ * `eigeneAnmeldungen`, when nothing could be compared, so the page falls back to the names.
+ */
+export async function eigeneBeitraege(
+  login: string,
+  fees: readonly BeitragZahlende[],
+  now: number = Date.now(),
+  timeoutMs: number = ICH_TIMEOUT_MS,
+  anmeldungenTimeoutMs: number = BEITRAEGE_ANMELDUNGEN_TIMEOUT_MS
+): Promise<string[] | null> {
+  // An older Playwright API sends no payer IDs: then only the names can tell
+  if (!fees.some((fee) => fee.payerId)) return null;
+  const linked = await findVerknuepfte(login, now, timeoutMs);
+  // Without a link, or without CampFlow's answer for it, the page falls back to the names
+  if (!linked || (!linked.email && !linked.firstName)) return null;
+
+  const rest = fees.filter((fee) => fee.payerId && fee.payerId !== linked.id && fee.eventId);
+  const eventIds = linked.email ? [...new Set(rest.map((fee) => fee.eventId as string))] : [];
+  const anmeldungen = new Map<string, Set<string>>();
+  await innerhalb(
+    Promise.all(
+      eventIds.map(async (eventId) => {
+        try {
+          const persons = await campflowGetAll<CampflowPerson>(
+            `/lists/${encodeURIComponent(eventId)}/persons`
+          );
+          anmeldungen.set(eventId, new Set(mitEigenerAnmeldung(linked, persons)));
+        } catch {
+          // Without the registrations the name decides for this Aktion
+        }
+      })
+    ),
+    anmeldungenTimeoutMs
+  );
+
+  const name = `${linked.firstName} ${linked.lastName}`;
+  return fees
+    .filter((fee) => {
+      if (!fee.payerId) return false;
+      if (fee.payerId === linked.id) return true;
+      const eigene = fee.eventId ? anmeldungen.get(fee.eventId) : undefined;
+      return eigene ? eigene.has(fee.payerId) : !!fee.eventId && sameName(name, fee.payer);
+    })
+    .map((fee) => fee.id);
 }
 
 /**
