@@ -14,7 +14,9 @@ WhatsApp-Umfrage.
    - ob man auch „Vielleicht“ sagen darf (`vielleicht`); „Vielleicht“ zählt nicht zur Höchstzahl,
    - wer die Antworten sieht (`sichtbarkeit`): `offen` alle, die abstimmen; `anonym` nur die
      organisierende Person, die anderen sehen, wer abgestimmt hat; `geheim` nur die organisierende
-     Person, die anderen sehen nur die Anzahl. Die Stimmen je Option sehen immer alle.
+     Person, die anderen sehen nur die Anzahl. Die Stimmen je Option sehen alle; bei `anonym` und
+     `geheim` sehen die anderen sie erst ab `MIN_ANTWORTEN_FUER_ZAHLEN` (3) Antworten
+     (`zahlenVerborgen`), weil sie vorher die Auswahl einzelner Personen zeigen würden.
 2. Leitende stimmen im Leitendenbereich ab. Ihre Antwort hängt an ihrem Login.
 3. „Per Mail einladen“ bietet wie der Protokollversand alle aktuellen Mitglieder der CampFlow-Gruppe
    „Leiter\*in“ und mit dem Merkmal „Protokollempfang“ an (`CONFIG.abstimmungen`). Einzelne

@@ -4,6 +4,7 @@
   import AbstimmungMatrix from './AbstimmungMatrix.svelte';
   import type { AbstimmungErgebnis } from '../../lib/abstimmungen';
   import {
+    MIN_ANTWORTEN_FUER_ZAHLEN,
     antwortenText,
     sichtbarkeitHinweis,
     spitzenreiter,
@@ -76,7 +77,16 @@
         onselect={(value) => (ansicht = value)}
       />
     {/if}
-    {#if alles && ansicht === 'tabelle'}
+    {#if ergebnis.zahlenVerborgen}
+      <p class="py-3 text-sm text-neutral-700">
+        Die Stimmen je Option siehst du, sobald {MIN_ANTWORTEN_FUER_ZAHLEN} Personen abgestimmt haben.
+      </p>
+      {#if ergebnis.einsicht === 'namen'}
+        <p class="text-sm text-neutral-700 [overflow-wrap:anywhere]">
+          Abgestimmt: {ergebnis.antworten.map((a) => a.name).join(', ')}
+        </p>
+      {/if}
+    {:else if alles && ansicht === 'tabelle'}
       <AbstimmungMatrix {ergebnis} />
     {:else}
       <ul class="divide-y divide-neutral-200 border-b border-neutral-200">

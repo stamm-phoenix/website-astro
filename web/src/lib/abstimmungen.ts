@@ -15,7 +15,11 @@ export type {
   AbstimmungTeilnahme,
   AbstimmungUebersicht,
 } from '../../../api/lib/abstimmung-model';
-export { MAX_ABSTIMMUNG_OPTIONEN, maxAuswahlText } from '../../../api/lib/abstimmung-model';
+export {
+  MAX_ABSTIMMUNG_OPTIONEN,
+  MIN_ANTWORTEN_FUER_ZAHLEN,
+  maxAuswahlText,
+} from '../../../api/lib/abstimmung-model';
 
 /** An answer on a page: the options chosen with „Ja“ (`gewaehlt`) and with „Vielleicht“. */
 export interface AbstimmungWahl {
@@ -59,8 +63,9 @@ export function wahlAusText(text: string, optionen: ReadonlySet<number>): Abstim
 export const SICHTBARKEIT_LABELS: Record<AbstimmungSichtbarkeit, string> = {
   offen: 'Alle, die abstimmen, sehen, wer was gewählt hat',
   anonym:
-    'Nur ich sehe, wer was gewählt hat. Die anderen sehen, wer abgestimmt hat, und die Stimmen je Option',
-  geheim: 'Nur ich sehe, wer abgestimmt hat und was. Die anderen sehen nur die Stimmen je Option',
+    'Nur ich sehe, wer was gewählt hat. Die anderen sehen, wer abgestimmt hat, und ab 3 Antworten die Stimmen je Option',
+  geheim:
+    'Nur ich sehe, wer abgestimmt hat und was. Die anderen sehen ab 3 Antworten nur die Stimmen je Option',
 };
 
 /** A note on the result when not everyone sees who chose what; `null` when they do. */
