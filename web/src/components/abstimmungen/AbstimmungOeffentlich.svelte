@@ -72,9 +72,30 @@
   /** Counts the links opened, so a late response for the one before changes nothing. */
   let ansichten = 0;
 
+  /** Tab-local copy of the link, for a reload after another fragment like `#main`. */
+  const LINK_KEY = 'abstimmung-link';
+
+  function merken(hash: string): void {
+    try {
+      sessionStorage.setItem(LINK_KEY, hash);
+    } catch {
+      /* The link in the address bar still works when browser storage is disabled. */
+    }
+  }
+
+  function gemerkterLink(): AbstimmungLink | null {
+    try {
+      return parseAbstimmungHash(sessionStorage.getItem(LINK_KEY) ?? '');
+    } catch {
+      return null;
+    }
+  }
+
   function openLink(): void {
     ansichten++;
     link = parseAbstimmungHash(window.location.hash);
+    if (link) merken(window.location.hash);
+    else link = gemerkterLink();
     ansicht = null;
     name = '';
     gewaehlt = [];
@@ -89,7 +110,8 @@
 
   async function hashChanged(event: HashChangeEvent): Promise<void> {
     const next = parseAbstimmungHash(new URL(event.newURL).hash);
-    if (next?.token === link?.token && next?.link === link?.link) return;
+    // Another fragment, e.g. „Zum Inhalt springen“, opens no other link
+    if (!next || (next.token === link?.token && next.link === link?.link)) return;
     if (dirty) {
       // The address bar shows the new link already; keep the old one until the choice is made
       const neu = window.location.hash;
@@ -143,6 +165,7 @@
         // From now on this page is the personal link: reloading or a bookmark keeps the answer
         link = { token };
         history.replaceState(history.state, '', `${window.location.pathname}#t=${token}`);
+        merken(`#t=${token}`);
         eigenerLink = window.location.href;
       }
       messageKind = 'success';
