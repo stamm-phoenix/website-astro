@@ -1165,9 +1165,12 @@ dbTest('a leader whose address a child shares is not invited after answering', a
       request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
       context(t)
     );
-  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+  const { version, eingeladen } = (await post('einladung', { action: 'preview' })).jsonBody as {
     version: string;
+    eingeladen: string[];
   };
+  // The dialog counts Ben as answered, like the send does
+  assert.ok(eingeladen.includes('ben.privat@example.test'));
   const queued = await post('einladung', { action: 'send', version, excluded: [ANNA] });
   assert.equal((queued.jsonBody as { neu: number }).neu, 1);
   await post('mails', {});
