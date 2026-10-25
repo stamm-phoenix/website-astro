@@ -36,16 +36,20 @@
     gespeichert !== null && JSON.stringify(gespeichert) !== JSON.stringify(gewaehlt)
   );
 
-  function take(detail: AbstimmungDetail | null): void {
+  /** Takes the saved answer; an unsaved choice stays, without options that are gone. */
+  function take(detail: AbstimmungDetail | null, keep: boolean): void {
     if (!detail) return;
+    const optionen = new Set(detail.optionen.map((option) => option.id));
     gespeichert = detail.ich?.gewaehlt ?? [];
-    gewaehlt = [...gespeichert];
+    gewaehlt = keep ? gewaehlt.filter((option) => optionen.has(option)) : [...gespeichert];
   }
 
   async function load(): Promise<void> {
     if (id === null) return;
+    const keep = dirty;
     await abstimmungStore.load({ force: true, param: id });
-    take(data);
+    // A failed load keeps the data shown before; the choice stays as it is
+    if (!store.error) take(data, keep);
   }
 
   onMount(() => {
