@@ -199,4 +199,29 @@ test('own Beiträge need a login and say when CampFlow fails', async (t) => {
   const response = await GetInternBeitraegeMeineEndpoint(request());
   assert.equal(response.status, 502);
   assert.equal((response.jsonBody as { code: string }).code, 'BEITRAEGE_UNAVAILABLE');
+  assert.match(JSON.stringify(response.jsonBody), /in ein paar Minuten/);
+});
+
+test('own Beiträge without a CampFlow login point to the admin', async (t) => {
+  mockPlaywright(t, 503, { error: 'Not configured' });
+  const response = await GetInternBeitraegeMeineEndpoint(request());
+  assert.equal(response.status, 502);
+  assert.match(JSON.stringify(response.jsonBody), /kein CampFlow-Zugang.*admin@stamm-phoenix\.de/);
+});
+
+test('after a slow Playwright API the names decide instead of waiting longer', async (t) => {
+  const now = Date.now();
+  // The Beiträge took the whole budget
+  const clock = t.mock.method(Date, 'now', () => now);
+  t.mock.method(env, 'getEnvironment', () => 'test-key');
+  t.mock.method(globalThis, 'fetch', async () => {
+    clock.mock.mockImplementation(() => now + 41_000);
+    return new Response(JSON.stringify(ANSWER), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
+  const response = await GetInternBeitraegeMeineEndpoint(request());
+  assert.equal(response.status, 200);
+  assert.equal((response.jsonBody as { ich: string[] | null }).ich, null);
 });

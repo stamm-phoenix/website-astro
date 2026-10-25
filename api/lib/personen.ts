@@ -390,22 +390,29 @@ export interface BeitragZahlende {
  * addresses of the registrations to the Aktionen, as `eigeneAnmeldungen` does. If an Aktion does
  * not answer in time, the name of the linked person decides for its Beiträge. `null`, like
  * `eigeneAnmeldungen`, when nothing could be compared, so the page falls back to the names.
+ * Nothing waits past `deadline` (ms since the epoch): what is left then is decided by the names,
+ * so the page stays within the time limit of Static Web Apps (45 seconds).
  */
 export async function eigeneBeitraege(
   login: string,
   fees: readonly BeitragZahlende[],
-  now: number = Date.now(),
-  timeoutMs: number = ICH_TIMEOUT_MS,
-  anmeldungenTimeoutMs: number = BEITRAEGE_ANMELDUNGEN_TIMEOUT_MS
+  deadline: number = Date.now() + EIGENE_BEITRAEGE_TIMEOUT_MS
 ): Promise<string[] | null> {
   // An older Playwright API sends no payer IDs: then only the names can tell
   if (!fees.some((fee) => fee.payerId)) return null;
-  const linked = await findVerknuepfte(login, now, timeoutMs);
+  const now = Date.now();
+  const ichTimeoutMs = Math.min(ICH_TIMEOUT_MS, deadline - now);
+  if (ichTimeoutMs <= 0) return null;
+  const linked = await findVerknuepfte(login, now, ichTimeoutMs);
   // Without a link, or without CampFlow's answer for it, the page falls back to the names
   if (!linked || (!linked.email && !linked.firstName)) return null;
 
   const rest = fees.filter((fee) => fee.payerId && fee.payerId !== linked.id && fee.eventId);
-  const eventIds = linked.email ? [...new Set(rest.map((fee) => fee.eventId as string))] : [];
+  const anmeldungenTimeoutMs = Math.min(BEITRAEGE_ANMELDUNGEN_TIMEOUT_MS, deadline - Date.now());
+  const eventIds =
+    linked.email && anmeldungenTimeoutMs > 0
+      ? [...new Set(rest.map((fee) => fee.eventId as string))]
+      : [];
   const anmeldungen = new Map<string, Set<string>>();
   await innerhalb(
     Promise.all(
@@ -439,6 +446,9 @@ export async function eigeneBeitraege(
  * holds up an Aktion or an Abrechnung near the time limit of Static Web Apps (45 seconds).
  */
 export const ICH_TIMEOUT_MS = 5000;
+
+/** How long `eigeneBeitraege` takes at most when the caller sets no earlier deadline. */
+export const EIGENE_BEITRAEGE_TIMEOUT_MS = ICH_TIMEOUT_MS + BEITRAEGE_ANMELDUNGEN_TIMEOUT_MS;
 
 /**
  * `getVerknuepfte` for pages that only mark entries: a failure, or no answer within `timeoutMs`,

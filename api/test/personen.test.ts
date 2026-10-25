@@ -608,6 +608,10 @@ dbTest('slow lists of the Aktionen leave the names to decide', async (t) => {
     { id: 'fee_2', payer: 'Rolf Rasch', payerId: 'per_O', eventId: 'evt_1' },
   ];
   const started = Date.now();
-  assert.deepEqual(await eigeneBeitraege(ANNA, fees, Date.now(), 1000, 50), ['fee_1']);
+  assert.deepEqual(await eigeneBeitraege(ANNA, fees, Date.now() + 500), ['fee_1']);
   assert.ok(Date.now() - started < 2000);
+  // No time left at all: CampFlow is not asked, the page goes by the names
+  const lists = t.mock.method(campflow, 'campflowGetAll', async () => []);
+  assert.equal(await eigeneBeitraege(ANNA, fees, Date.now()), null);
+  assert.equal(lists.mock.callCount(), 0);
 });
