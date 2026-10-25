@@ -146,12 +146,30 @@
     }
   }
 
-  /** Sends the queued mails one request at a time until none are left. */
+  /** The mails of the Abstimmung as the page knows them. */
+  function mailStand(): MailStand {
+    const status = (abstimmung.teilnahmen ?? []).map((t) => t.mailStatus);
+    return {
+      offen: status.filter((s) => s === 'offen').length,
+      gesendet: status.filter((s) => s === 'gesendet').length,
+      unklar: status.filter((s) => s === 'versucht').length,
+    };
+  }
+
+  /**
+   * Sends the queued mails one request at a time until none are left. The counts of the server
+   * cover all mails of the Abstimmung; progress and result show only this run.
+   */
   async function deliver(
     art: 'Einladungen' | 'Erinnerungen' | 'Mails',
-    start: MailStand = { offen: offeneMails, gesendet: 0, unklar: 0 }
+    start: MailStand = mailStand()
   ): Promise<void> {
     let stand: MailStand = { ...start, offen: Math.max(start.offen, 1) };
+    const dieserLauf = (neu: MailStand): MailStand => ({
+      offen: neu.offen,
+      gesendet: Math.max(neu.gesendet - start.gesendet, 0),
+      unklar: Math.max(neu.unklar - start.unklar, 0),
+    });
     // Shown at once and keeps the buttons locked until the last mail went out
     fortschritt = { ...start, gesendet: 0 };
     try {
@@ -160,12 +178,13 @@
           'POST',
           `/intern/pflege/abstimmungen/${abstimmung.id}/mails`
         );
-        fortschritt = stand;
+        fortschritt = dieserLauf(stand);
       }
-      messageKind = stand.unklar > 0 ? 'warning' : 'success';
+      const { unklar } = dieserLauf(stand);
+      messageKind = unklar > 0 ? 'warning' : 'success';
       message =
-        stand.unklar > 0
-          ? `${art} verschickt. Bei ${personen(stand.unklar)} ist unklar, ob die Mail angekommen ist; eine Erinnerung erreicht sie.`
+        unklar > 0
+          ? `${art} verschickt. Bei ${personen(unklar)} ist unklar, ob die Mail angekommen ist; eine Erinnerung erreicht sie.`
           : `${art} verschickt.`;
     } catch (failure: unknown) {
       messageKind = 'error';
