@@ -53,6 +53,12 @@ test('a leader creates an Abstimmung, invites, and a guest votes over the shared
   await guest.reload();
   await expect(guest.getByLabel('Dein Name')).toHaveValue('Oma Erna');
   await expect(guest.getByLabel('Sa, 21.11.2026')).toBeChecked();
+  // „Zum Inhalt springen“ replaces the fragment; a reload still opens the answer
+  await guest.keyboard.press('Tab');
+  await guest.getByRole('link', { name: 'Zum Inhalt springen' }).press('Enter');
+  await expect(guest).toHaveURL(/#main$/);
+  await guest.reload();
+  await expect(guest.getByLabel('Dein Name')).toHaveValue('Oma Erna');
   await guest.close();
 
   await page.getByRole('button', { name: 'Abstimmung beenden' }).click();
