@@ -654,6 +654,49 @@ dbTest('a reminder waits for a mail that is being sent', async (t) => {
   assert.deepEqual(sent, ['einladung:erika@example.test', 'erinnerung:erika@example.test']);
 });
 
+dbTest('a queued reminder is taken back when the person answers', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => MEMBERS.slice(2));
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  const sent: { to: string; data: AbstimmungMailDaten }[] = [];
+  t.mock.method(abstimmungMail, 'send', async (to: string, data: AbstimmungMailDaten) => {
+    sent.push({ to, data });
+  });
+  const id = await create(t);
+  const [first] = (await detail(t, id)).optionen.map((option) => option.id);
+  const post = (path: 'einladung' | 'erinnerung' | 'mails', body: unknown) =>
+    ({
+      einladung: AbstimmungEinladungEndpoint,
+      erinnerung: AbstimmungErinnerungEndpoint,
+      mails: AbstimmungMailsEndpoint,
+    })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  await post('einladung', { action: 'send', version });
+  await post('mails', {});
+  assert.deepEqual(
+    sent.map((mail) => mail.to),
+    ['erika@example.test']
+  );
+  const token = new URL(sent[0].data.url).hash.slice(3);
+
+  // The reminder is queued, then Erika answers before it goes out
+  await post('erinnerung', { action: 'send' });
+  await AbstimmungAbstimmen(
+    request('PUT', 'abstimmungen/stimme', {
+      body: { token, name: 'Erika Muster', gewaehlt: [first] },
+    }),
+    context(t)
+  );
+  const stand = await post('mails', {});
+  assert.equal(sent.length, 1);
+  assert.equal((stand.jsonBody as { offen: number }).offen, 0);
+});
+
 dbTest('a family sharing one address answers as separate people', async (t) => {
   offline(t);
   t.mock.method(abstimmungQuellen, 'members', async () => [
