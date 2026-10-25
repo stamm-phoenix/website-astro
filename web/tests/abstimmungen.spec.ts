@@ -86,3 +86,70 @@ test('emptying an option with votes warns that its votes are lost', async ({ pag
     dialog.getByText('Beim Speichern gehen die Stimmen für „Kässpatzn“ verloren.')
   ).toBeVisible();
 });
+
+test('an unanswered link can be reloaded without a question', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  const list = (await (await page.request.get('/api/intern/pflege/abstimmungen')).json()) as {
+    id: number;
+    eigene: boolean;
+  }[];
+  const own = list.find((entry) => entry.eigene)!;
+  const detail = (await (
+    await page.request.get(`/api/intern/pflege/abstimmungen/${own.id}`)
+  ).json()) as { link: string };
+  let asked = false;
+  page.on('dialog', async (dialog) => {
+    asked = true;
+    await dialog.accept();
+  });
+  await page.goto(new URL(detail.link).pathname + new URL(detail.link).hash);
+  await expect(page.getByLabel('Dein Name')).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('Dein Name')).toBeVisible();
+  expect(asked).toBe(false);
+});
+
+test('reloading keeps an unsaved answer', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Termin für die Weihnachtsfeier/ }).click();
+  await page.getByLabel('Sa, 12.12.2026, 18:00 Uhr').check();
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await expect(page.getByText('Noch nicht gespeichert')).toBeVisible();
+  await expect(page.getByLabel('Sa, 12.12.2026, 18:00 Uhr')).toBeChecked();
+});
+
+test('after a conflict the current version replaces the form', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Was essen wir auf dem Sommerlager/ }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Abstimmung bearbeiten' });
+  await dialog.getByRole('textbox', { name: 'Frage' }).fill('Mein alter Stand');
+  // Meanwhile someone else saves a new title in another tab
+  const id = new URL(page.url()).searchParams.get('id');
+  const current = (await (
+    await page.request.get(`/api/intern/pflege/abstimmungen/${id}`)
+  ).json()) as {
+    etag: string;
+    optionen: { id: number; text: string }[];
+  };
+  await page.request.patch(`/api/intern/pflege/abstimmungen/${id}`, {
+    data: {
+      etag: current.etag,
+      titel: 'Neuer Titel aus dem anderen Tab',
+      beschreibung: '',
+      mehrfach: false,
+      optionen: current.optionen.map(({ id: optionId, text }) => ({ id: optionId, text })),
+    },
+  });
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await dialog.getByRole('button', { name: 'Aktuelle Fassung laden' }).click();
+  await page
+    .getByRole('dialog', { name: 'Aktuelle Fassung laden?' })
+    .getByRole('button', { name: 'Neu laden' })
+    .click();
+  await expect(dialog.getByRole('textbox', { name: 'Frage' })).toHaveValue(
+    'Neuer Titel aus dem anderen Tab'
+  );
+});

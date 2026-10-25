@@ -44,23 +44,34 @@
     return { key: nextKey++, id, text };
   }
 
+  /** Puts the values of `abstimmung` (or an empty form) into the fields. */
+  function fill(): void {
+    titel = abstimmung?.titel ?? '';
+    beschreibung = abstimmung?.beschreibung ?? '';
+    mehrfach = abstimmung?.mehrfach ?? true;
+    zeilen = abstimmung
+      ? abstimmung.optionen.map((option) => zeile(option.text, option.id))
+      : [zeile(), zeile()];
+    datum = '';
+    uhrzeit = '';
+    geaendert = false;
+    dialog.reset();
+  }
+
   // Fills the form whenever the dialog opens
   let warOffen = false;
   $effect(() => {
-    if (open && !warOffen) {
-      titel = abstimmung?.titel ?? '';
-      beschreibung = abstimmung?.beschreibung ?? '';
-      mehrfach = abstimmung?.mehrfach ?? true;
-      zeilen = abstimmung
-        ? abstimmung.optionen.map((option) => zeile(option.text, option.id))
-        : [zeile(), zeile()];
-      datum = '';
-      uhrzeit = '';
-      geaendert = false;
-      dialog.reset();
-    }
+    if (open && !warOffen) fill();
     warOffen = open;
   });
+
+  /** After a conflict: the current version replaces the input, so it is not saved over. */
+  async function reload(): Promise<boolean> {
+    if (!onreload || !(await onreload())) return false;
+    await tick();
+    fill();
+    return true;
+  }
 
   const voll = $derived(zeilen.length >= MAX_ABSTIMMUNG_OPTIONEN);
 
@@ -173,7 +184,7 @@
   dirty={geaendert}
   rescueKey={`abstimmung:${abstimmung?.id ?? 'neu'}`}
   rescueVersion={abstimmung?.etag}
-  onreload={dialog.state.conflict ? onreload : undefined}
+  onreload={dialog.state.conflict && onreload ? reload : undefined}
   onsubmit={() => void save()}
   {onclose}
   ondelete={abstimmung && ondelete ? remove : undefined}

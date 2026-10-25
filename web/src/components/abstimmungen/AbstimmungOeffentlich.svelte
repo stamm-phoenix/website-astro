@@ -43,7 +43,7 @@
       ansicht = await postApi<AbstimmungAnsicht>('/abstimmungen/ansehen', link);
       name = ansicht.ich?.name ?? name;
       gewaehlt = ansicht.ich?.gewaehlt ?? [];
-      gespeichert = ansicht.ich?.geantwortet ? JSON.stringify({ name: name.trim(), gewaehlt }) : '';
+      gespeichert = JSON.stringify({ name: name.trim(), gewaehlt });
     } catch (failure: unknown) {
       loadError = errorMessage(
         failure,
