@@ -174,3 +174,28 @@ test('the start page says when no Beitrag of mine is open', async ({ page }) => 
   await expect(page.getByTestId('nothing-open')).toContainText('Keine offenen Beiträge');
   await expect(page.getByRole('region', { name: 'Meine Beiträge' })).toHaveCount(0);
 });
+
+test('after „Neu laden“ in Beiträge the start page shows the new state', async ({ page }) => {
+  let paid = false;
+  await page.route('**/api/intern/beitraege/meine', async (route) => {
+    const body = await (await route.fetch()).json();
+    await route.fulfill({
+      json: paid ? { ...body, fees: [], batches: [], ich: {} } : body,
+    });
+  });
+  await page.goto('/leitendenbereich/');
+  const items = page
+    .getByRole('region', { name: 'Meine Beiträge' })
+    .getByTestId('meine-beitraege')
+    .getByRole('listitem');
+  await expect(items).toHaveCount(2);
+
+  await items.nth(0).getByRole('link').click();
+  await expect(page.getByRole('heading', { name: 'Wölflings-Herbstwochenende' })).toBeVisible();
+  paid = true;
+  await page.getByRole('button', { name: /Neu aus CampFlow laden/ }).click();
+  await expect(page.getByText('Beiträge neu aus CampFlow geladen.')).toBeVisible();
+
+  await page.goBack();
+  await expect(page.getByTestId('nothing-open')).toContainText('Keine offenen Beiträge');
+});
