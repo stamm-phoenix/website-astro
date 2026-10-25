@@ -809,6 +809,8 @@ export interface AbstimmungTeilnahmeTable {
   eingeladen_am: SqlTimeOrNull;
   erinnert_am: SqlTimeOrNull;
   erstellt_am: Generated<Date>;
+  /** Key of the first answer over the shared link, so a repeated request finds this row. */
+  versuch: string | null;
 }
 
 export interface AbstimmungStimmeTable {

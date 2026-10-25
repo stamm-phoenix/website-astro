@@ -4,6 +4,7 @@ import {
   AbstimmungClosedError,
   getAbstimmungAnsicht,
   isAbstimmungToken,
+  isAbstimmungVersuch,
   votePublic,
 } from '../lib/abstimmungen';
 import { RecordNotFoundError } from '../lib/db';
@@ -67,14 +68,16 @@ export const AbstimmungAnsehen = publicHandler(async (request) => {
 });
 
 /**
- * PUT `{ link | token, name, gewaehlt }`: saves the answer. Over the shared link a new person is
- * added; the answer carries the personal link token, so the page can change the answer later.
+ * PUT `{ link | token, name, gewaehlt, versuch? }`: saves the answer. Over the shared link a new
+ * person is added; the answer carries the personal link token, so the page can change the answer
+ * later. `versuch` (a UUID per new answer) makes a repeated request find that person again.
  */
 export const AbstimmungAbstimmen = publicHandler(async (request) => {
   const body = await readJsonBody(request);
   const link = linkOf(body);
   if (!link.link && !link.token) return INVALID_LINK;
   const name = validateAbstimmungName(body?.name);
-  const result = await votePublic(link, name, body?.gewaehlt);
+  const versuch = isAbstimmungVersuch(body?.versuch) ? body.versuch : undefined;
+  const result = await votePublic(link, name, body?.gewaehlt, versuch);
   return result ? { status: 200, jsonBody: result } : INVALID_LINK;
 });

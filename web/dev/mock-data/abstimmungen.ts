@@ -376,12 +376,12 @@ export function mockMailStand(id: number): { offen: number; gesendet: number; un
   };
 }
 
-/** Sends up to two queued mails per request, so the progress is visible. */
+/** Sends up to five queued mails per request, like the API. */
 export function mockSendMails(id: number): void {
   const now = new Date().toISOString();
   for (const t of (byId(id)?.teilnahmen ?? [])
     .filter((x) => x.mailStatus === 'offen')
-    .slice(0, 2)) {
+    .slice(0, 5)) {
     t.mailStatus = 'gesendet';
     if (t.mailArt === 'erinnerung') t.erinnertAm = now;
     else t.eingeladenAm = now;

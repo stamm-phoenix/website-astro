@@ -62,6 +62,11 @@ export interface AbstimmungPerson {
    * linked CampFlow person. An invitation to one of them is taken over when they vote here.
    */
   adressen: string[];
+  /**
+   * The address stored with an answer given here, so a later invitation to it finds the answer:
+   * the linked CampFlow address, or the login when that address is shared, e.g. by a family.
+   */
+  adresse?: string;
 }
 
 /** A secret for a link: 32 random bytes, base64url without padding (43 characters). */
@@ -72,6 +77,14 @@ export function newAbstimmungToken(): string {
 /** Whether a value can be a token at all; anything else is not looked up. */
 export function isAbstimmungToken(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
+}
+
+/** Whether a value can be the key of an answer try: a UUID from the page. */
+export function isAbstimmungVersuch(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)
+  );
 }
 
 /** Link for everyone; whoever opens it enters a name. */
@@ -544,11 +557,9 @@ export async function voteAsStaff(
       }
     } else {
       await assertPlatz(trx, id, 1);
-      // The address invitations go to (the CampFlow one first), so a later invitation to it
-      // finds this answer instead of adding the person a second time
+      // So a later invitation to this address finds the answer instead of adding the person
       const vergeben = new Set(teilnahmen.map((t) => t.email));
-      const email =
-        [...person.adressen].reverse().find((adresse) => !vergeben.has(adresse)) ?? null;
+      const email = person.adresse && !vergeben.has(person.adresse) ? person.adresse : null;
       teilnahmeId = (
         await trx
           .insertInto('abstimmung.teilnahme')
@@ -616,7 +627,9 @@ export async function getAbstimmungAnsicht(link: {
 export async function votePublic(
   link: { link?: unknown; token?: unknown },
   name: string,
-  gewaehltInput: unknown
+  gewaehltInput: unknown,
+  /** Key the page sends with every try of the same new answer (`isAbstimmungVersuch`). */
+  versuch?: string
 ): Promise<{ token: string } | undefined> {
   const ziel = await findLink(getDb(), link);
   if (!ziel) return undefined;
@@ -642,11 +655,24 @@ export async function votePublic(
         return { token: teilnahme.token };
       }
     }
+    // A repeated request whose first answer arrived, but not its response
+    if (versuch) {
+      const frueher = await trx
+        .selectFrom('abstimmung.teilnahme')
+        .select(['id', 'token'])
+        .where('abstimmung_id', '=', row.id)
+        .where('versuch', '=', versuch)
+        .executeTakeFirst();
+      if (frueher) {
+        await writeAntwort(trx, frueher.id, name, gewaehlt);
+        return { token: frueher.token };
+      }
+    }
     await assertPlatz(trx, row.id, 1);
     const token = newAbstimmungToken();
     const created = await trx
       .insertInto('abstimmung.teilnahme')
-      .values({ abstimmung_id: row.id, token, name })
+      .values({ abstimmung_id: row.id, token, name, versuch: versuch ?? null })
       .output('inserted.id')
       .executeTakeFirstOrThrow();
     await writeAntwort(trx, created.id, name, gewaehlt);

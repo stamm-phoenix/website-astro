@@ -4,6 +4,8 @@ test('a leader creates an Abstimmung, invites, and a guest votes over the shared
   page,
   browser,
 }) => {
+  // The whole flow of the module, with two pages and mails sent in several requests
+  test.setTimeout(60_000);
   await page.request.post('/api/__mock/abstimmungen/reset');
   await page.goto('/leitendenbereich/abstimmungen');
   await page.getByRole('button', { name: 'Abstimmung anlegen' }).click();

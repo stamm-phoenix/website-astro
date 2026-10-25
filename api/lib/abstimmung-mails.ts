@@ -59,13 +59,23 @@ export function abstimmungMailContent(data: AbstimmungMailDaten): {
   };
 }
 
-/** Sends one invitation or reminder; replies go to the organizer. */
+/** Longest wait for one mail; it ends as unclear, never sent again automatically. */
+export const ABSTIMMUNG_MAIL_TIMEOUT_MS = 10_000;
+
+/**
+ * Sends one invitation or reminder; replies go to the organizer. Without retries and with a
+ * time limit, so a step of several mails stays within the time limit of Static Web Apps.
+ */
 export async function sendAbstimmungMail(to: string, data: AbstimmungMailDaten): Promise<void> {
   const { subject, html } = abstimmungMailContent(data);
-  await sendMail(to, subject, html, CONFIG.abstimmungen.sender, {
-    address: data.organisatorLogin,
-    name: data.organisatorName,
-  });
+  await sendMail(
+    to,
+    subject,
+    html,
+    CONFIG.abstimmungen.sender,
+    { address: data.organisatorLogin, name: data.organisatorName },
+    { retry: false, timeoutMs: ABSTIMMUNG_MAIL_TIMEOUT_MS }
+  );
 }
 
 /** The mail of this module; a seam for the tests. */
