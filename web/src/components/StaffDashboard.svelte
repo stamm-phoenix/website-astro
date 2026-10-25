@@ -426,19 +426,16 @@
     {/snippet}
     <ul class="mt-1 divide-y divide-neutral-200" data-testid="meine-beitraege">
       {#each ownBeitraege.slice(0, CARD_LIMIT) as beitrag (beitrag.id)}
-        <li class="pb-2">
+        <li class="py-2">
           <!-- Only the title is the link: the Verwendungszweck is a button that copies it -->
           <a
             href={beitrag.href}
-            class="text-link flex min-h-11 items-center font-semibold"
+            class="text-link flex items-center font-semibold pointer-coarse:min-h-11"
             title={beitrag.title}><span class="truncate">{beitrag.title}</span></a
           >
-          <!-- The copy button reaches out of its line (touch target), so the line leaves room -->
-          <span
-            class="flex flex-wrap items-center gap-x-3 gap-y-3 pt-1 pb-2 text-sm text-neutral-700"
-          >
+          <span class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
             <span class="tabular-nums">{formatEuro(beitrag.dueCent)}</span>
-            {#if beitrag.reference}<CopyCode code={beitrag.reference} compact />{/if}
+            {#if beitrag.reference}<CopyCode code={beitrag.reference} compact small />{/if}
             <StatusLabel label={beitrag.label} tone={beitrag.tone} dot />
           </span>
         </li>

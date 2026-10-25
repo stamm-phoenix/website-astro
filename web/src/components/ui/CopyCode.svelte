@@ -8,8 +8,10 @@
     label?: string;
     /** Only the check mark confirms visually, for narrow table cells; screen readers still hear it. */
     compact?: boolean;
+    /** Fits a line of text, e.g. in a card; with touch it keeps the full size to tap. */
+    small?: boolean;
   }
-  let { code, label = 'Verwendungszweck', compact = false }: Props = $props();
+  let { code, label = 'Verwendungszweck', compact = false, small = false }: Props = $props();
 
   let state = $state<'idle' | 'copied' | 'failed'>('idle');
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -34,6 +36,7 @@
   <button
     type="button"
     class="copy-code"
+    class:small
     data-state={state}
     aria-label={`${label} ${code} kopieren`}
     title="Kopieren"
@@ -76,6 +79,23 @@
     font-size: 0.875rem;
     cursor: copy;
     white-space: nowrap;
+  }
+  .copy-code.small {
+    min-height: 1.75rem;
+    margin-block: 0;
+    gap: 0.25rem;
+    padding: 0 0.375rem;
+    font-size: 0.8125rem;
+  }
+  .copy-code.small svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+  @media (pointer: coarse) {
+    .copy-code.small {
+      min-height: 2.75rem;
+      padding: 0 0.5rem;
+    }
   }
   .copy-code:hover {
     border-color: var(--color-brand-800);
