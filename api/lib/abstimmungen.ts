@@ -510,7 +510,8 @@ export async function voteAsStaff(
       optionen.map((option) => option.id),
       row.mehrfach
     );
-    const teilnahme = eigeneTeilnahme(await loadTeilnahmen(trx, id), person);
+    const teilnahmen = await loadTeilnahmen(trx, id);
+    const teilnahme = eigeneTeilnahme(teilnahmen, person);
     let teilnahmeId: number;
     if (teilnahme) {
       teilnahmeId = teilnahme.id;
@@ -523,10 +524,15 @@ export async function voteAsStaff(
       }
     } else {
       await assertPlatz(trx, id, 1);
+      // The address invitations go to (the CampFlow one first), so a later invitation to it
+      // finds this answer instead of adding the person a second time
+      const vergeben = new Set(teilnahmen.map((t) => t.email));
+      const email =
+        [...person.adressen].reverse().find((adresse) => !vergeben.has(adresse)) ?? null;
       teilnahmeId = (
         await trx
           .insertInto('abstimmung.teilnahme')
-          .values({ abstimmung_id: id, token: newAbstimmungToken(), login: person.login })
+          .values({ abstimmung_id: id, token: newAbstimmungToken(), login: person.login, email })
           .output('inserted.id')
           .executeTakeFirstOrThrow()
       ).id;
@@ -665,15 +671,15 @@ export async function queueAbstimmungEinladungen(
   return inTransaction(async (trx) => {
     const row = await openForVote(trx, id);
     if (row.erstellt_von !== login) throw new AbstimmungForbiddenError();
+    // Leaders who answered here count with their login and their stored address
     const vorhanden = new Set(
       (
         await trx
           .selectFrom('abstimmung.teilnahme')
-          .select('email')
+          .select(['email', 'login'])
           .where('abstimmung_id', '=', id)
-          .where('email', 'is not', null)
           .execute()
-      ).map((t) => t.email)
+      ).flatMap((t) => [t.email, t.login])
     );
     const neu = einladungen.filter((einladung) => !vorhanden.has(einladung.email));
     if (neu.length) {

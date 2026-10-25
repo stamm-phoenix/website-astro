@@ -258,8 +258,8 @@
             {#if abstimmung.link}
               <AbstimmungLinkKopieren url={abstimmung.link} label="Link für alle" />
             {/if}
-            {#if abstimmung.teilnahmen && abstimmung.teilnahmen.some((t) => t.email)}
-              {@const eingeladene = abstimmung.teilnahmen.filter((t) => t.email)}
+            {#if abstimmung.teilnahmen && abstimmung.teilnahmen.some((t) => t.mailStatus !== null)}
+              {@const eingeladene = abstimmung.teilnahmen.filter((t) => t.mailStatus !== null)}
               <details class="border-t border-neutral-200">
                 <summary class="min-h-11 cursor-pointer py-2.5 font-semibold text-brand-900">
                   Eingeladen: {eingeladene.length}, davon {eingeladene.filter((t) => t.geantwortet)

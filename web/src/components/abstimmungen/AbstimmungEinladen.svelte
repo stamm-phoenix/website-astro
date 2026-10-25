@@ -58,7 +58,7 @@
   let fortschritt = $state<MailStand | null>(null);
 
   const count = $derived(auswahl ? auswahlCount(auswahl) : 0);
-  /** Selected addresses that already have an invitation; they get none again. */
+  /** Selected addresses already invited or answering here; they get no invitation. */
   const schon = $derived.by(() => {
     if (!auswahl) return 0;
     const { excluded, extra } = auswahl;
@@ -243,8 +243,8 @@
     {#if schon > 0}
       <p class="text-sm text-neutral-700">
         {personen(schon)}
-        {schon === 1 ? 'ist' : 'sind'} schon eingeladen und {schon === 1 ? 'bekommt' : 'bekommen'} keine
-        zweite Einladung.
+        {schon === 1 ? 'ist' : 'sind'} schon eingeladen oder {schon === 1 ? 'hat' : 'haben'} schon abgestimmt
+        und {schon === 1 ? 'bekommt' : 'bekommen'} keine Einladung.
       </p>
     {/if}
     <ProtokollEmpfaenger

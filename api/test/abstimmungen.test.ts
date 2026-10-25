@@ -525,3 +525,53 @@ dbTest('invitations and reminders go out one by one with the personal link', asy
     after.teilnahmen?.find((teilnahme) => teilnahme.email === 'gast@example.test')?.erinnertAm
   );
 });
+
+dbTest('a leader who answered here is not invited or reminded again', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => MEMBERS);
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  // Ben's linked CampFlow person has another address than his login
+  t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
+    login === BEN ? 'ben.privat@example.test' : ''
+  );
+  const sent: string[] = [];
+  t.mock.method(abstimmungMail, 'send', async (to: string) => {
+    sent.push(to);
+  });
+  const id = await create(t);
+  const [first] = (await detail(t, id)).optionen.map((option) => option.id);
+  assert.equal((await vote(t, id, ANNA, [first])).status, 204);
+  assert.equal((await vote(t, id, BEN, [first])).status, 204);
+
+  const post = (path: 'einladung' | 'erinnerung' | 'mails', body: unknown) =>
+    ({
+      einladung: AbstimmungEinladungEndpoint,
+      erinnerung: AbstimmungErinnerungEndpoint,
+      mails: AbstimmungMailsEndpoint,
+    })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const preview = await post('einladung', { action: 'preview' });
+  const { version, eingeladen } = preview.jsonBody as { version: string; eingeladen: string[] };
+  assert.ok(eingeladen.includes('ben.privat@example.test'));
+  const queued = await post('einladung', { action: 'send', version });
+  // Anna by her login, Ben by his CampFlow address; only Erika is new
+  assert.deepEqual(
+    {
+      neu: (queued.jsonBody as { neu: number }).neu,
+      schon: (queued.jsonBody as { schon: number }).schon,
+    },
+    { neu: 1, schon: 2 }
+  );
+  await post('mails', {});
+  assert.deepEqual(sent, ['erika@example.test']);
+  assert.deepEqual((await post('erinnerung', { action: 'preview' })).jsonBody, { personen: 1 });
+
+  const view = await detail(t, id);
+  assert.deepEqual(
+    view.antworten.map((antwort) => antwort.name),
+    ['Anna Alt', 'Ben Bau']
+  );
+  assert.equal(view.optionen[0].stimmen, 2);
+});
