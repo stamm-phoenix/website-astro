@@ -908,3 +908,31 @@ dbTest('own invitations are found by address, a family one belongs to nobody', a
     ['Ben Bau', 'Clara Bau']
   );
 });
+
+dbTest('no mail goes out for an ended Abstimmung', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => MEMBERS);
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  const send = t.mock.method(abstimmungMail, 'send', async () => undefined);
+  const id = await create(t);
+  const post = (path: 'einladung' | 'mails', body: unknown) =>
+    ({ einladung: AbstimmungEinladungEndpoint, mails: AbstimmungMailsEndpoint })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  await post('einladung', { action: 'send', version });
+  const ende = await AbstimmungItemEndpoint(
+    request('PATCH', `intern/pflege/abstimmungen/${id}`, {
+      body: { etag: (await detail(t, id)).etag, geschlossen: true },
+      login: ANNA,
+      id,
+    }),
+    context(t)
+  );
+  assert.equal(ende.status, 204);
+  assert.equal((await post('mails', {})).status, 409);
+  assert.equal(send.mock.callCount(), 0);
+});
