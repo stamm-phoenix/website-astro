@@ -245,8 +245,9 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
     .getByRole('button', { name: 'Weiter bearbeiten' })
     .click();
   await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
-  await sidebar.getByRole('link', { name: 'Abrechnung', exact: true }).hover();
-  await expect(flyout).toHaveText('Abrechnung');
+  // A link that is in view: hovering one at the bottom edge scrolls the sidebar first
+  await sidebar.getByRole('link', { name: 'Belege', exact: true }).hover();
+  await expect(flyout).toHaveText('Belege');
   await page.getByLabel('Bezahlt an').fill('');
   await page.mouse.move(800, 500);
   await expect(sidebar.getByRole('link', { name: 'Eigenbeleg', exact: true })).toHaveAttribute(

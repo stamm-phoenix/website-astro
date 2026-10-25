@@ -36,6 +36,12 @@
   const snapshot = $derived(JSON.stringify({ name: name.trim(), gewaehlt }));
   const dirty = $derived(gespeichert !== null && gespeichert !== snapshot);
 
+  /**
+   * Key of a new answer, sent with every try: if a response gets lost and the answer is sent
+   * again, the server finds the person it added before.
+   */
+  let versuch = crypto.randomUUID();
+
   /** Counts the loads, so the answer for a link opened before never replaces a newer one. */
   let loads = 0;
 
@@ -72,6 +78,7 @@
     message = null;
     eigenerLink = null;
     fields = {};
+    versuch = crypto.randomUUID();
     if (link) void load();
     else loading = false;
   }
@@ -128,9 +135,12 @@
         ...link,
         name,
         gewaehlt,
+        versuch,
       });
       // The shared link, or a family link that already had someone else's answer
       if (token !== link.token) {
+        // The next new answer on this page is another one
+        versuch = crypto.randomUUID();
         // From now on this page is the personal link: reloading or a bookmark keeps the answer
         link = { token };
         history.replaceState(history.state, '', `${window.location.pathname}#t=${token}`);

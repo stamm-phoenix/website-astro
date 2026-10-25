@@ -477,9 +477,13 @@ async function findVerknuepfte(
   }
 }
 
-/** The address of the linked CampFlow person, or `''` without a link or an answer in time. */
-export async function eigeneAdresse(login: string): Promise<string> {
-  return (await findVerknuepfte(login, Date.now()))?.email ?? '';
+/**
+ * The address of the linked CampFlow person (`''` without a link or an answer in time) and
+ * whether other members share it, e.g. a family address.
+ */
+export async function eigeneAdresse(login: string): Promise<{ email: string; geteilt: boolean }> {
+  const linked = await findVerknuepfte(login, Date.now());
+  return { email: linked?.email ?? '', geteilt: linked?.adresseGeteilt ?? false };
 }
 
 /** The recipients of minutes with `ich` for the own address; the addresses are on the list anyway. */

@@ -1,6 +1,6 @@
 import type { HttpRequest, InvocationContext } from '@azure/functions';
 import { validateAbstimmung } from '../lib/abstimmung-model';
-import { abstimmungMail } from '../lib/abstimmung-mails';
+import { ABSTIMMUNG_MAIL_TIMEOUT_MS, abstimmungMail } from '../lib/abstimmung-mails';
 import {
   AbstimmungClosedError,
   AbstimmungForbiddenError,
@@ -52,6 +52,11 @@ import { getTaskDirectoryUsers } from '../lib/task-directory';
 const AREA = 'abstimmungen';
 /** Mails one request sends; the page asks again until none are left. */
 const MAILS_PER_STEP = 5;
+/**
+ * No mail is started later than this into a request, so even a mail that takes its whole time
+ * limit ends well before the 45 seconds of Static Web Apps.
+ */
+const STEP_BUDGET_MS = 30_000;
 
 const FORBIDDEN = errorResponse(
   403,
@@ -91,7 +96,12 @@ function abstimmungHandler(handler: PflegeHandler): PflegeHandler {
 async function identity(principal: ClientPrincipal): Promise<Omit<AbstimmungPerson, 'name'>> {
   const login = principal.userDetails.trim().toLowerCase();
   const linked = await eigeneAdresse(login);
-  return { login, adressen: [...new Set([login, linked].filter(Boolean))] };
+  return {
+    login,
+    adressen: [...new Set([login, linked.email].filter(Boolean))],
+    // A family address belongs to the others too; their invitation must still go out
+    adresse: linked.email && !linked.geteilt ? linked.email : login,
+  };
 }
 
 /** `identity` with the full name from the Entra group, else the first name of the login. */
@@ -296,7 +306,9 @@ export const AbstimmungMailsEndpoint = pflegeHandler(
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const kopf = await organizerKopf(id, principal);
     const siteUrl = getSiteUrl(request);
+    const started = Date.now();
     for (let sent = 0; sent < MAILS_PER_STEP; sent++) {
+      if (Date.now() - started + ABSTIMMUNG_MAIL_TIMEOUT_MS > STEP_BUDGET_MS) break;
       let failed: AbstimmungMail | undefined;
       try {
         const more = await sendNextAbstimmungMail(id, async (mail) => {

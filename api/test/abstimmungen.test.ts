@@ -70,7 +70,7 @@ function context(t: TestContext): InvocationContext {
 
 /** No CampFlow link and no Entra group in the tests: names come from the login. */
 function offline(t: TestContext): void {
-  t.mock.method(personen, 'eigeneAdresse', async () => '');
+  t.mock.method(personen, 'eigeneAdresse', async () => ({ email: '', geteilt: false }));
   t.mock.method(personen, 'mitEigenerAdresse', async (_login: string, list: unknown[]) => list);
   t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => [
     { name: 'Anna Alt', login: ANNA, givenName: 'Anna' },
@@ -473,7 +473,9 @@ dbTest('invitations and reminders go out one by one with the personal link', asy
 
   // Ben votes in the Leitendenbereich: the invitation to his CampFlow address becomes his
   t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
-    login === BEN ? 'ben.privat@example.test' : ''
+    login === BEN
+      ? { email: 'ben.privat@example.test', geteilt: false }
+      : { email: '', geteilt: false }
   );
   assert.equal((await vote(t, id, BEN, [])).status, 204);
   // Erika answers with her personal link
@@ -532,7 +534,9 @@ dbTest('a leader who answered here is not invited or reminded again', async (t) 
   t.mock.method(abstimmungQuellen, 'personen', async () => []);
   // Ben's linked CampFlow person has another address than his login
   t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
-    login === BEN ? 'ben.privat@example.test' : ''
+    login === BEN
+      ? { email: 'ben.privat@example.test', geteilt: false }
+      : { email: '', geteilt: false }
   );
   const sent: string[] = [];
   t.mock.method(abstimmungMail, 'send', async (to: string) => {
@@ -703,7 +707,9 @@ dbTest('a family sharing one address answers as separate people', async (t) => {
   );
   // Ben in the Leitendenbereich does not take over Clara's answer
   t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
-    login === BEN ? 'ben.privat@example.test' : ''
+    login === BEN
+      ? { email: 'ben.privat@example.test', geteilt: false }
+      : { email: '', geteilt: false }
   );
   assert.equal((await vote(t, id, BEN, [second])).status, 204);
   const result = await detail(t, id);
@@ -715,4 +721,100 @@ dbTest('a family sharing one address answers as separate people', async (t) => {
       ['Ben Bau', [second]],
     ]
   );
+});
+
+dbTest('a leader voting first does not hold back the invitation to a family address', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => [
+    ...MEMBERS,
+    {
+      id: 'per_clara',
+      name: { first_name: 'Clara', last_name: 'Bau' },
+      primary_email: 'ben.privat@example.test',
+      label_names: ['📄 Protokollempfang'],
+    },
+  ]);
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  // Ben's CampFlow address is the family's
+  t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
+    login === BEN
+      ? { email: 'ben.privat@example.test', geteilt: true }
+      : { email: '', geteilt: false }
+  );
+  const sent: string[] = [];
+  t.mock.method(abstimmungMail, 'send', async (to: string) => {
+    sent.push(to);
+  });
+  const id = await create(t);
+  const [first] = (await detail(t, id)).optionen.map((option) => option.id);
+  assert.equal((await vote(t, id, BEN, [first])).status, 204);
+  const post = (path: 'einladung' | 'mails', body: unknown) =>
+    ({ einladung: AbstimmungEinladungEndpoint, mails: AbstimmungMailsEndpoint })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  await post('einladung', { action: 'send', version, excluded: [ANNA, 'erika@example.test'] });
+  await post('mails', {});
+  // Clara still gets the invitation to the family address
+  assert.deepEqual(sent, ['ben.privat@example.test']);
+  // Ben's own answer stays his
+  assert.deepEqual((await detail(t, id, BEN)).ich, {
+    name: 'Ben Bau',
+    gewaehlt: [first],
+    geantwortet: true,
+  });
+});
+
+dbTest('a repeated first answer over the shared link stays one answer', async (t) => {
+  offline(t);
+  const id = await create(t);
+  const view = await detail(t, id);
+  const [first, second] = view.optionen.map((option) => option.id);
+  const link = linkToken(view.link);
+  const versuch = '0f8e7b52-3c1d-4a6e-9b2f-5d4c3b2a1908';
+  const send = (gewaehlt: number[]) =>
+    AbstimmungAbstimmen(
+      request('PUT', 'abstimmungen/stimme', {
+        body: { link, name: 'Oma Erna', gewaehlt, versuch },
+      }),
+      context(t)
+    );
+  // The response of the first request is lost; the page sends the same answer again
+  const one = (await send([first])).jsonBody as { token: string };
+  const two = (await send([first, second])).jsonBody as { token: string };
+  assert.equal(two.token, one.token);
+  const result = await detail(t, id);
+  assert.deepEqual(
+    result.antworten.map((antwort) => [antwort.name, antwort.gewaehlt]),
+    [['Oma Erna', [first, second]]]
+  );
+});
+
+dbTest('one request starts no mail it cannot finish in time', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => MEMBERS);
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  const send = t.mock.method(abstimmungMail, 'send', async () => {
+    // Every mail takes twelve seconds
+    now += 12_000;
+  });
+  const id = await create(t);
+  const post = (path: 'einladung' | 'mails', body: unknown) =>
+    ({ einladung: AbstimmungEinladungEndpoint, mails: AbstimmungMailsEndpoint })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  await post('einladung', { action: 'send', version });
+  const step = await post('mails', {});
+  // 0 s and 12 s may start, at 24 s a mail of up to 10 s would end after the 30 s budget
+  assert.equal(send.mock.callCount(), 2);
+  assert.deepEqual(step.jsonBody, { offen: 1, gesendet: 2, unklar: 0 });
 });

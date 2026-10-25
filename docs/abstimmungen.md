@@ -42,4 +42,12 @@ Wer über einen Link abstimmt, sieht Ergebnis und Namen, aber keine Adressen.
   (fünf je Anfrage, wegen des Zeitlimits von Static Web Apps). Jede Mail wird vor dem Versand
   reserviert (`versucht`); eine Mail mit unklarem Ergebnis wird nie automatisch wiederholt, die
   nächste Erinnerung erreicht die Person aber.
+- Familienadressen: Mehrere CampFlow-Personen mit einer Adresse bekommen eine Mail („Hallo
+  zusammen“) mit einem Link. Ein anderer Name auf einem schon beantworteten Link legt eine eigene
+  Antwort an. Eine Stimme im Leitendenbereich speichert eine geteilte Adresse nicht, damit die
+  Einladung an die Familie trotzdem rausgeht.
+- Eine neue Antwort über einen Link trägt eine Kennung (`versuch`, Migration 0041); schickt die
+  Seite sie nach einer verlorenen Rückmeldung noch einmal, findet der Server dieselbe Person.
+- Ein Versandschritt startet keine Mail mehr, die das Zeitlimit sprengen könnte (30 s Budget,
+  höchstens 10 s je Mail ohne Wiederholung).
 - Höchstens 40 Optionen und 300 Personen je Abstimmung.
