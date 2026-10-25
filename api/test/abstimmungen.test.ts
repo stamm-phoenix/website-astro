@@ -1427,3 +1427,33 @@ dbTest('a limit counts „Ja“, and „Vielleicht“ only where allowed', async
   assert.equal(refused.status, 400);
   assert.equal((await detail(t, streng)).ich, null);
 });
+
+dbTest('inviting more people than fit says how many fit', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => MEMBERS.slice(2));
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  const id = await create(t);
+  // Guests who came over the shared link, one short of the limit
+  await getDb()
+    .insertInto('abstimmung.teilnahme')
+    .values(
+      Array.from({ length: 299 }, (_, index) => ({
+        abstimmung_id: id,
+        token: `gast${index}`.padEnd(43, 'x'),
+        name: `Gast ${index}`,
+      }))
+    )
+    .execute();
+  const post = (body: unknown) =>
+    AbstimmungEinladungEndpoint(
+      request('POST', `intern/pflege/abstimmungen/${id}/einladung`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post({ action: 'preview' })).jsonBody as { version: string };
+  const refused = await post({ action: 'send', version, extra: ['neu@example.test'] });
+  assert.equal(refused.status, 400);
+  assert.match(
+    (refused.jsonBody as { fields: { form: string } }).fields.form,
+    /höchstens 300 Personen mitmachen\. Es sind schon 299, dazu kämen 2 neue\. Wähle weniger Personen aus\./
+  );
+});
