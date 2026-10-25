@@ -185,3 +185,83 @@ test('another link in the same tab opens that Abstimmung', async ({ page }) => {
   await expect(page.getByLabel('Dein Name')).toHaveValue('Oma Erna');
   await expect(page.getByLabel('Spaghetti')).toBeChecked();
 });
+
+test('after a new login in the iPhone app the options keep their votes', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  let expired = true;
+  await page.route('**/api/intern/pflege/abstimmungen/*', (route) =>
+    expired && route.request().method() === 'PATCH'
+      ? route.fulfill({ status: 401 })
+      : route.fallback()
+  );
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Was essen wir auf dem Sommerlager/ }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Was essen wir auf dem Sommerlager?' })
+  ).toBeVisible();
+  const id = new URL(page.url()).searchParams.get('id');
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Abstimmung bearbeiten' });
+  // Spaghetti goes, Pizza comes; Kässpatzn has a vote
+  await dialog.getByRole('button', { name: /^Option 1 entfernen/ }).click();
+  await dialog.getByRole('button', { name: 'Option hinzufügen' }).click();
+  await dialog.getByLabel('Option 3', { exact: true }).fill('Pizza');
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  expired = false;
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await expect(dialog.getByLabel('Option 1', { exact: true })).toHaveValue('Chili sin Carne');
+  await expect(dialog.getByLabel('Option 2', { exact: true })).toHaveValue('Kässpatzn');
+  await expect(dialog.getByLabel('Option 3', { exact: true })).toHaveValue('Pizza');
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog).toBeHidden();
+  const detail = (await (
+    await page.request.get(`/api/intern/pflege/abstimmungen/${id}`)
+  ).json()) as {
+    optionen: { text: string; stimmen: number }[];
+  };
+  expect(detail.optionen.map((option) => [option.text, option.stimmen])).toEqual([
+    ['Chili sin Carne', 0],
+    ['Kässpatzn', 1],
+    ['Pizza', 0],
+  ]);
+});
+
+test('a late save of the link before does not take the page back', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  const list = (await (await page.request.get('/api/intern/pflege/abstimmungen')).json()) as {
+    id: number;
+    titel: string;
+  }[];
+  const essen = list.find((entry) => entry.titel.startsWith('Was essen'))!;
+  const { link } = (await (
+    await page.request.get(`/api/intern/pflege/abstimmungen/${essen.id}`)
+  ).json()) as { link: string };
+  let answer: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (answer = resolve));
+  await page.route('**/api/abstimmungen/stimme', async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.goto(new URL(link).pathname + new URL(link).hash);
+  await page.getByLabel('Dein Name').fill('Oma Erna');
+  await page.getByLabel('Spaghetti').check();
+  await page.getByRole('button', { name: /Antwort speichern|Wird gespeichert/ }).click();
+  // Meanwhile another link is opened in the same tab
+  await page.evaluate(() => {
+    window.location.hash = 'link=' + 'x'.repeat(43);
+  });
+  await page
+    .getByRole('dialog', { name: 'Anderen Link öffnen?' })
+    .getByRole('button', { name: 'Anderen Link öffnen' })
+    .click();
+  await expect(page.getByText(/Dieser Link ist ungültig/)).toBeVisible();
+  answer();
+  await page.waitForTimeout(1500);
+  expect(new URL(page.url()).hash).toBe('#link=' + 'x'.repeat(43));
+  await expect(page.getByText(/Dieser Link ist ungültig/)).toBeVisible();
+});

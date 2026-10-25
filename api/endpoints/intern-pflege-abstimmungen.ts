@@ -320,7 +320,7 @@ export const AbstimmungMailsEndpoint = pflegeHandler(
       if (Date.now() - started + ABSTIMMUNG_MAIL_TIMEOUT_MS > STEP_BUDGET_MS) break;
       let failed: AbstimmungMail | undefined;
       try {
-        const more = await sendNextAbstimmungMail(id, async (mail) => {
+        const ergebnis = await sendNextAbstimmungMail(id, async (mail) => {
           failed = mail;
           await abstimmungMail.send(mail.email, {
             art: mail.art,
@@ -334,7 +334,8 @@ export const AbstimmungMailsEndpoint = pflegeHandler(
           });
           failed = undefined;
         });
-        if (!more) break;
+        if (ergebnis === 'beendet') return CLOSED;
+        if (ergebnis === 'keine') break;
       } catch (error: unknown) {
         if (!failed) throw error;
         context.error(`[abstimmungen] Mail ${failed.art} for Abstimmung ${id} failed`, error);

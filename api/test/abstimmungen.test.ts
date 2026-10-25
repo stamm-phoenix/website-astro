@@ -936,3 +936,54 @@ dbTest('no mail goes out for an ended Abstimmung', async (t) => {
   assert.equal((await post('mails', {})).status, 409);
   assert.equal(send.mock.callCount(), 0);
 });
+
+dbTest('ending an Abstimmung while mails go out stops the next ones', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => MEMBERS);
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  let release: () => void = () => undefined;
+  const blocked = new Promise<void>((resolve) => (release = resolve));
+  let calls = 0;
+  t.mock.method(abstimmungMail, 'send', async () => {
+    if (++calls === 1) await blocked;
+  });
+  const id = await create(t);
+  const post = (path: 'einladung' | 'mails', body: unknown) =>
+    ({ einladung: AbstimmungEinladungEndpoint, mails: AbstimmungMailsEndpoint })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  await post('einladung', { action: 'send', version });
+  const step = post('mails', {});
+  while (calls === 0) await new Promise((resolve) => setTimeout(resolve, 20));
+  const patch = (geschlossen: boolean, etag: string) =>
+    AbstimmungItemEndpoint(
+      request('PATCH', `intern/pflege/abstimmungen/${id}`, {
+        body: { etag, geschlossen },
+        login: ANNA,
+        id,
+      }),
+      context(t)
+    );
+  const ende = patch(true, (await detail(t, id)).etag);
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  } finally {
+    release();
+  }
+  assert.equal((await ende).status, 204);
+  // The mail under way went out, the others wait for the Abstimmung to open again
+  assert.equal((await step).status, 409);
+  assert.equal(calls, 1);
+  const stand = await getDb()
+    .selectFrom('abstimmung.teilnahme')
+    .select('mail_status')
+    .where('abstimmung_id', '=', id)
+    .execute();
+  assert.deepEqual(stand.map((row) => row.mail_status).sort(), ['gesendet', 'offen', 'offen']);
+  assert.equal((await patch(false, (await detail(t, id)).etag)).status, 204);
+  assert.deepEqual((await post('mails', {})).jsonBody, { offen: 0, gesendet: 3, unklar: 0 });
+});
