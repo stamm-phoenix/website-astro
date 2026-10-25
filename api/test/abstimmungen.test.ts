@@ -182,6 +182,7 @@ test('the mail escapes the text and carries the personal link', () => {
   const data: AbstimmungMailDaten = {
     art: 'einladung',
     name: 'Lea Muster',
+    familie: false,
     titel: 'Pizza <oder> Döner',
     beschreibung: 'Zeile 1\nZeile 2',
     organisatorName: 'Anna Alt',
@@ -676,50 +677,76 @@ dbTest('a family sharing one address answers as separate people', async (t) => {
   assert.match(abstimmungMailContent(sent[0].data).html, /Hallo zusammen,/);
   const familie = new URL(sent[0].data.url).hash.slice(3);
 
-  // The link asks everyone of the family for their own name
-  const view = await AbstimmungAnsehen(
-    request('POST', 'abstimmungen/ansehen', { body: { token: familie } }),
-    context(t)
+  // The link asks everyone of the family for their own name, also after a first answer
+  const ansicht = async (token: string): Promise<AbstimmungAnsicht> =>
+    (
+      await AbstimmungAnsehen(
+        request('POST', 'abstimmungen/ansehen', { body: { token } }),
+        context(t)
+      )
+    ).jsonBody as AbstimmungAnsicht;
+  const answer = async (token: string, name: string, gewaehlt: number[]): Promise<string> =>
+    (
+      (
+        await AbstimmungAbstimmen(
+          request('PUT', 'abstimmungen/stimme', { body: { token, name, gewaehlt } }),
+          context(t)
+        )
+      ).jsonBody as { token: string }
+    ).token;
+  assert.deepEqual((await ansicht(familie)).ich, { name: '', gewaehlt: [], geantwortet: false });
+  // Everyone who answers with it becomes a person with a link of their own
+  const clara = await answer(familie, 'Clara Bau', [first]);
+  assert.notEqual(clara, familie);
+  assert.deepEqual((await ansicht(familie)).ich, { name: '', gewaehlt: [], geantwortet: false });
+  const ben = await answer(familie, 'Ben', [second]);
+  assert.notEqual(ben, clara);
+  // Each changes their own answer with their link, also the name
+  assert.equal(await answer(clara, 'Clara Bau', [first, second]), clara);
+  assert.equal(await answer(ben, 'Ben Bau', [second]), ben);
+  // Someone of the family answered: no reminder to the address any more
+  assert.deepEqual(
+    (
+      await AbstimmungErinnerungEndpoint(
+        request('POST', `intern/pflege/abstimmungen/${id}/erinnerung`, {
+          body: { action: 'preview' },
+          login: ANNA,
+          id,
+        }),
+        context(t)
+      )
+    ).jsonBody,
+    { personen: 0 }
   );
-  assert.equal((view.jsonBody as AbstimmungAnsicht).ich?.name, '');
-  const clara = await AbstimmungAbstimmen(
-    request('PUT', 'abstimmungen/stimme', {
-      body: { token: familie, name: 'Clara Bau', gewaehlt: [first] },
-    }),
-    context(t)
-  );
-  assert.equal((clara.jsonBody as { token: string }).token, familie);
-  // Ben uses the same link with his own name and gets an entry of his own
-  const ben = await AbstimmungAbstimmen(
-    request('PUT', 'abstimmungen/stimme', {
-      body: { token: familie, name: 'Ben Bau', gewaehlt: [second] },
-    }),
-    context(t)
-  );
-  const benToken = (ben.jsonBody as { token: string }).token;
-  assert.notEqual(benToken, familie);
-  // Clara can still change her answer, and Ben his
-  await AbstimmungAbstimmen(
-    request('PUT', 'abstimmungen/stimme', {
-      body: { token: familie, name: 'clara  bau', gewaehlt: [first, second] },
-    }),
-    context(t)
-  );
-  // Ben in the Leitendenbereich does not take over Clara's answer
-  t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
-    login === BEN
-      ? { email: 'ben.privat@example.test', geteilt: true }
-      : { email: '', geteilt: false }
-  );
-  assert.equal((await vote(t, id, BEN, [second])).status, 204);
   const result = await detail(t, id);
   assert.deepEqual(
     result.antworten.map((antwort) => [antwort.name, antwort.gewaehlt]),
     [
-      ['clara bau', [first, second]],
-      ['Ben Bau', [second]],
+      ['Clara Bau', [first, second]],
       ['Ben Bau', [second]],
     ]
+  );
+});
+
+dbTest('a corrected name on a personal link stays one answer', async (t) => {
+  offline(t);
+  const id = await create(t);
+  const view = await detail(t, id);
+  const [first] = view.optionen.map((option) => option.id);
+  const put = async (body: Record<string, unknown>): Promise<string> =>
+    (
+      (
+        await AbstimmungAbstimmen(
+          request('PUT', 'abstimmungen/stimme', { body: { gewaehlt: [first], ...body } }),
+          context(t)
+        )
+      ).jsonBody as { token: string }
+    ).token;
+  const token = await put({ link: linkToken(view.link), name: 'Lea' });
+  assert.equal(await put({ token, name: 'Lea Muster' }), token);
+  assert.deepEqual(
+    (await detail(t, id)).antworten.map((antwort) => antwort.name),
+    ['Lea Muster']
   );
 });
 
@@ -819,7 +846,7 @@ dbTest('one request starts no mail it cannot finish in time', async (t) => {
   assert.deepEqual(step.jsonBody, { offen: 1, gesendet: 2, unklar: 0 });
 });
 
-dbTest('own invitations are found by address, a family one only by name', async (t) => {
+dbTest('own invitations are found by address, a family one belongs to nobody', async (t) => {
   offline(t);
   t.mock.method(abstimmungQuellen, 'members', async () => [
     ...MEMBERS,

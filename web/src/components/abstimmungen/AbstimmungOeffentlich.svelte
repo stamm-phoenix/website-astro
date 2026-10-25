@@ -112,14 +112,6 @@
     };
   });
 
-  /** On a link that already has an answer, another name saves a new person. */
-  const anderePerson = $derived(
-    !!ansicht?.ich?.geantwortet &&
-      !!name.trim() &&
-      name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de') !==
-        ansicht.ich.name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de')
-  );
-
   async function save(): Promise<void> {
     if (!link || !ansicht || saving) return;
     fields = name.trim() ? {} : { name: 'Bitte gib deinen Namen ein.' };
@@ -137,7 +129,7 @@
         gewaehlt,
         versuch,
       });
-      // The shared link, or a family link that already had someone else's answer
+      // The shared link or the link of a family: this answer has a link of its own now
       if (token !== link.token) {
         // The next new answer on this page is another one
         versuch = crypto.randomUUID();
@@ -220,11 +212,6 @@
             />
           {/snippet}
         </FormField>
-        {#if anderePerson && ansicht.ich}
-          <p class="border-l-4 border-l-warning py-1 pl-3 text-sm text-neutral-800">
-            Du stimmst als neue Person ab. Die Antwort von {ansicht.ich.name} bleibt erhalten.
-          </p>
-        {/if}
         <AbstimmungAuswahl
           id="abstimmung-public"
           optionen={ansicht.optionen}

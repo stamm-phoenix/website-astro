@@ -1615,7 +1615,7 @@ export async function seedPreviewAbstimmungen(): Promise<void> {
     dritte,
   ]);
   await queueAbstimmungEinladungen(id, organisator.login, [
-    { email: 'alt.leitung@example.test', name: 'Alma Altleitung' },
+    { email: 'alt.leitung@example.test', name: 'Alma Altleitung', familie: false },
   ]);
   // Sent without a mail: the preview never mails invented addresses
   await db
