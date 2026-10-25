@@ -204,14 +204,34 @@ interface Geladen {
   stimmen: Map<number, Antwort>;
 }
 
+/** Seam for tests: runs between reading the Abstimmung and reading its answers. */
+export const abstimmungLesen = {
+  nachKopf: async (): Promise<void> => undefined,
+};
+
+/** The stricter of two Sichtbarkeiten. */
+function strenger(a: AbstimmungSichtbarkeit, b: AbstimmungSichtbarkeit): AbstimmungSichtbarkeit {
+  return ABSTIMMUNG_SICHTBARKEITEN.indexOf(a) >= ABSTIMMUNG_SICHTBARKEITEN.indexOf(b) ? a : b;
+}
+
 async function load(db: Db, id: number): Promise<Geladen | undefined> {
   const row = await loadRow(db, id);
   if (!row) return undefined;
+  await abstimmungLesen.nachKopf();
   const [optionen, teilnahmen, stimmen] = await Promise.all([
     loadOptionen(db, id),
     loadTeilnahmen(db, id),
     loadStimmen(db, id),
   ]);
+  // The reads are separate: if the answers became less visible meanwhile, an answer given under
+  // the new setting may be among them, so the stricter setting counts. Answers that exist never
+  // become more visible (`updateAbstimmung`), so the later read is never too loose
+  const danach = await db
+    .selectFrom('abstimmung.abstimmung')
+    .select('sichtbarkeit')
+    .where('id', '=', id)
+    .executeTakeFirst();
+  const sichtbarkeit = strenger(row.sichtbarkeit, danach?.sichtbarkeit ?? row.sichtbarkeit);
   const order = new Map(optionen.map((option, index) => [option.id, index]));
   const sorted = (ids: number[] | undefined): number[] =>
     (ids ?? []).sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
@@ -221,7 +241,7 @@ async function load(db: Db, id: number): Promise<Geladen | undefined> {
     beschreibung: row.beschreibung,
     maxAuswahl: row.max_auswahl,
     vielleichtErlaubt: row.vielleicht,
-    sichtbarkeit: row.sichtbarkeit,
+    sichtbarkeit,
     geschlossen: row.geschlossen_am !== null,
     erstelltVonName: row.erstellt_von_name,
     optionen,
@@ -284,7 +304,7 @@ export async function listAbstimmungen(
   person: AbstimmungIdentitaet
 ): Promise<AbstimmungUebersicht[]> {
   const db = getDb();
-  const [rows, teilnahmen] = await Promise.all([
+  const [rows, gezaehlt, eigene] = await Promise.all([
     db
       .selectFrom('abstimmung.abstimmung')
       .select(['id', 'titel', 'erstellt_von', 'erstellt_von_name', 'erstellt_am', 'geschlossen_am'])
@@ -293,12 +313,30 @@ export async function listAbstimmungen(
       .execute(),
     db
       .selectFrom('abstimmung.teilnahme')
+      .select(['abstimmung_id', (eb) => eb.fn.countAll<number>().as('anzahl')])
+      .where('geantwortet_am', 'is not', null)
+      .where('familie', '=', false)
+      .where('alias_von', 'is', null)
+      .groupBy('abstimmung_id')
+      .execute(),
+    // Only the rows that can be the person's own
+    db
+      .selectFrom('abstimmung.teilnahme')
       .select(['abstimmung_id', 'login', 'email', 'familie', 'geantwortet_am'])
+      .where((eb) =>
+        eb.or([
+          eb('login', '=', person.login),
+          ...(person.adressen.length ? [eb('email', 'in', person.adressen)] : []),
+        ])
+      )
       .execute(),
   ]);
+  const antworten = new Map(gezaehlt.map((row) => [row.abstimmung_id, Number(row.anzahl)]));
   return rows.map((row) => {
-    const eigene = teilnahmen.filter((t) => t.abstimmung_id === row.id);
-    const mine = eigeneTeilnahme(eigene, person);
+    const mine = eigeneTeilnahme(
+      eigene.filter((t) => t.abstimmung_id === row.id),
+      person
+    );
     return {
       id: row.id,
       titel: row.titel,
@@ -306,7 +344,7 @@ export async function listAbstimmungen(
       erstelltVonName: row.erstellt_von_name,
       erstelltAm: row.erstellt_am.toISOString(),
       eigene: row.erstellt_von === person.login,
-      antworten: eigene.filter((t) => t.geantwortet_am !== null && !t.familie).length,
+      antworten: antworten.get(row.id) ?? 0,
       ichGeantwortet: Boolean(mine?.geantwortet_am),
     };
   });
@@ -323,7 +361,10 @@ export async function getAbstimmungDetail(
   const { row, teilnahmen } = geladen;
   const eigene = row.erstellt_von === person.login;
   return {
-    ...abstimmungErgebnis(geladen.rohdaten, abstimmungEinsicht(row.sichtbarkeit, eigene)),
+    ...abstimmungErgebnis(
+      geladen.rohdaten,
+      abstimmungEinsicht(geladen.rohdaten.sichtbarkeit, eigene)
+    ),
     ich: ich(geladen, eigeneTeilnahme(teilnahmen, person)),
     etag: toVersion(row.version),
     erstelltAm: row.erstellt_am.toISOString(),
@@ -775,7 +816,10 @@ export async function getAbstimmungAnsicht(link: {
   const eigeneZeile = geladen.teilnahmen.find((t) => t.id === ziel.teilnahmeId);
   return {
     // Whoever comes over a link never manages the Abstimmung
-    ...abstimmungErgebnis(geladen.rohdaten, abstimmungEinsicht(geladen.row.sichtbarkeit, false)),
+    ...abstimmungErgebnis(
+      geladen.rohdaten,
+      abstimmungEinsicht(geladen.rohdaten.sichtbarkeit, false)
+    ),
     ich: ich(geladen, eigeneZeile && hauptTeilnahme(geladen.teilnahmen, eigeneZeile)),
   };
 }

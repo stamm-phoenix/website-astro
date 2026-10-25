@@ -21,6 +21,7 @@ import {
 } from '../lib/abstimmung-model';
 import type { AbstimmungAnsicht, AbstimmungDetail } from '../lib/abstimmung-model';
 import { abstimmungMail, abstimmungMailContent } from '../lib/abstimmung-mails';
+import { abstimmungLesen as lesen } from '../lib/abstimmungen';
 import type { AbstimmungMailDaten } from '../lib/abstimmung-mails';
 import { getDb } from '../lib/db';
 import { ValidationError } from '../lib/pflege-validation';
@@ -1485,3 +1486,38 @@ dbTest('inviting more people than fit says how many fit', async (t) => {
     /höchstens 300 Personen mitmachen\. Es sind schon 299, dazu kämen 2 neue\. Wähle weniger Personen aus\./
   );
 });
+
+dbTest(
+  'an answer under a stricter setting is never shown with the setting read before',
+  async (t) => {
+    offline(t);
+    const id = await create(t);
+    const [first] = (await detail(t, id)).optionen.map((option) => option.id);
+    assert.equal((await vote(t, id, ANNA, [first])).status, 204);
+    const { etag } = await detail(t, id);
+    const view = (await detail(t, id)).optionen.map(({ id: optionId, text }) => ({
+      id: optionId,
+      text,
+    }));
+    // Ben's view reads the setting „offen“; meanwhile it becomes „geheim“ and Ben answers
+    let einmal = true;
+    t.mock.method(lesen, 'nachKopf', async () => {
+      if (!einmal) return;
+      einmal = false;
+      const tighter = await AbstimmungItemEndpoint(
+        request('PATCH', `intern/pflege/abstimmungen/${id}`, {
+          body: { ...FORM, sichtbarkeit: 'geheim', etag, optionen: view },
+          login: ANNA,
+          id,
+        }),
+        context(t)
+      );
+      assert.equal(tighter.status, 204, JSON.stringify(tighter.jsonBody));
+      assert.equal((await vote(t, id, BEN, [first])).status, 204);
+    });
+    const ben = await detail(t, id, BEN);
+    assert.equal(ben.einsicht, 'anzahl');
+    assert.deepEqual(ben.antworten, []);
+    assert.equal(ben.anzahlAntworten, 2);
+  }
+);
