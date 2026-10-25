@@ -152,10 +152,13 @@
       if (geoeffnet !== ansichten) return;
       if (failure instanceof ApiError && failure.fields) fields = failure.fields;
       messageKind = 'error';
-      message = errorMessage(
-        failure,
-        'Deine Antwort wurde nicht gespeichert. Deine Auswahl ist noch da. Tippe noch einmal auf „Antwort speichern“.'
-      );
+      // A reason for the whole answer, e.g. the Abstimmung is full
+      message =
+        (failure instanceof ApiError && failure.fields?.form) ||
+        errorMessage(
+          failure,
+          'Deine Antwort wurde nicht gespeichert. Deine Auswahl ist noch da. Tippe noch einmal auf „Antwort speichern“.'
+        );
     } finally {
       saving = false;
     }

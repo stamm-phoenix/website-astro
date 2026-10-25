@@ -298,22 +298,32 @@ dbTest('leaders vote, others vote over the shared link, only the organizer manag
   assert.equal(single.status, 400);
 
   // Removing an option removes its votes; a new one starts without
-  const edited = await AbstimmungItemEndpoint(
-    request('PATCH', `intern/pflege/abstimmungen/${id}`, {
-      body: {
-        ...FORM,
-        etag: view.etag,
-        optionen: [
-          { id: fr18, text: 'Fr, 18.12. ab 19 Uhr' },
-          { id: sa12, text: 'Sa, 12.12.' },
-          { text: 'So, 13.12.' },
-        ],
-      },
-      login: ANNA,
-      id,
-    }),
-    context(t)
+  const remove = (bekannteStimmen: Record<number, number>) =>
+    AbstimmungItemEndpoint(
+      request('PATCH', `intern/pflege/abstimmungen/${id}`, {
+        body: {
+          ...FORM,
+          etag: view.etag,
+          optionen: [
+            { id: fr18, text: 'Fr, 18.12. ab 19 Uhr' },
+            { id: sa12, text: 'Sa, 12.12.' },
+            { text: 'So, 13.12.' },
+          ],
+          bekannteStimmen,
+        },
+        login: ANNA,
+        id,
+      }),
+      context(t)
+    );
+  // The form showed no vote for Fr, 11.12., but Anna voted for it: nothing is deleted
+  const unwarned = await remove({ [fr11]: 0 });
+  assert.equal(unwarned.status, 400);
+  assert.match(
+    (unwarned.jsonBody as { fields: { optionen: string } }).fields.optionen,
+    /Inzwischen hat jemand für „Fr, 11.12.“ gestimmt/
   );
+  const edited = await remove({ [fr11]: 1 });
   assert.equal(edited.status, 204, JSON.stringify(edited.jsonBody));
   view = await detail(t, id);
   assert.deepEqual(

@@ -100,6 +100,11 @@ export interface AbstimmungEingabe {
   beschreibung: string;
   mehrfach: boolean;
   optionen: AbstimmungOptionEingabe[];
+  /**
+   * Votes per option ID as the form showed them; an option removed now may lose at most these,
+   * so a vote cast meanwhile is never deleted without a warning.
+   */
+  bekannteStimmen: Record<number, number>;
 }
 
 function text(value: unknown, field: string, max: number, label: string, optional = false): string {
@@ -157,7 +162,15 @@ export function validateAbstimmung(body: Record<string, unknown> | null): Abstim
       optionen: `Höchstens ${MAX_ABSTIMMUNG_OPTIONEN} Optionen. Bitte nimm welche heraus.`,
     });
   }
-  return { titel, beschreibung, mehrfach: body.mehrfach !== false, optionen };
+  const bekannteStimmen: Record<number, number> = {};
+  const stimmen = body.bekannteStimmen;
+  if (stimmen && typeof stimmen === 'object' && !Array.isArray(stimmen)) {
+    for (const [key, value] of Object.entries(stimmen)) {
+      if (/^\d{1,9}$/.test(key) && Number.isInteger(value) && (value as number) >= 0)
+        bekannteStimmen[Number(key)] = value as number;
+    }
+  }
+  return { titel, beschreibung, mehrfach: body.mehrfach !== false, optionen, bekannteStimmen };
 }
 
 /** The name someone enters over the shared link. */

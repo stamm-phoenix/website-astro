@@ -265,3 +265,46 @@ test('a late save of the link before does not take the page back', async ({ page
   expect(new URL(page.url()).hash).toBe('#link=' + 'x'.repeat(43));
   await expect(page.getByText(/Dieser Link ist ungültig/)).toBeVisible();
 });
+
+test('renaming an option with votes says that the votes move along', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Was essen wir auf dem Sommerlager/ }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Abstimmung bearbeiten' });
+  await dialog.getByLabel('Option 3', { exact: true }).fill('Kasspatzn mit Röstzwiebeln');
+  await expect(
+    dialog.getByText(/Die Stimmen für „Kässpatzn“\s+zählen danach für den neuen Text/)
+  ).toBeVisible();
+});
+
+test('in the iPhone app the invitation list survives a new login', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  let expired = true;
+  await page.route('**/api/intern/pflege/abstimmungen/*/einladung', (route) =>
+    expired && (route.request().postDataJSON() as { action?: string }).action === 'send'
+      ? route.fulfill({ status: 401 })
+      : route.fallback()
+  );
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Was essen wir auf dem Sommerlager/ }).click();
+  await page.getByRole('button', { name: 'Per Mail einladen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Zur Abstimmung einladen' });
+  const first = dialog.getByRole('checkbox').first();
+  const name = (await first.locator('xpath=ancestor::label').innerText()).split('\n')[0];
+  await first.uncheck();
+  await dialog.locator('#abstimmung-einladung-extra').fill('gast@example.test');
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await dialog.getByRole('button', { name: /einladen$/ }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+
+  expired = false;
+  await page.getByRole('button', { name: 'Per Mail einladen' }).click();
+  await expect(dialog.getByRole('checkbox', { name: new RegExp(name) })).not.toBeChecked();
+  await expect(dialog.getByRole('list', { name: 'Von Hand eingetragene Adressen' })).toContainText(
+    'gast@example.test'
+  );
+});

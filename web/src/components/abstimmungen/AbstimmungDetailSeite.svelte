@@ -46,10 +46,12 @@
 
   async function load(): Promise<void> {
     if (id === null) return;
+    const vorher = JSON.stringify(gewaehlt);
     const keep = dirty;
     await abstimmungStore.load({ force: true, param: id });
     // A failed load keeps the data shown before; the choice stays as it is
-    if (!store.error) take(data, keep);
+    // A choice changed while loading is kept too
+    if (!store.error) take(data, keep || JSON.stringify(gewaehlt) !== vorher);
   }
 
   onMount(() => {
