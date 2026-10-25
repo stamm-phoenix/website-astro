@@ -143,6 +143,14 @@ test('the start page lists my Beiträge with something left to do', async ({ pag
   await expect(items.nth(0)).toContainText('Nicht bezahlt');
   await expect(items.nth(1)).toContainText('Mitgliedsbeitrag 2026');
   await expect(items.nth(1)).toContainText(/20,00\s€ zu viel bezahlt/);
+  // The Verwendungszweck is copied with one click, without leaving the start page
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const copy = items.nth(0).getByRole('button', { name: /^Verwendungszweck \S+ kopieren$/ });
+  const reference = (await copy.textContent())?.trim() ?? '';
+  await copy.click();
+  await expect(items.nth(0).getByRole('status').filter({ hasText: 'Kopiert' })).toHaveCount(1);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(reference);
+  await expect(page).toHaveURL(/\/leitendenbereich\/$/);
   await items.nth(0).getByRole('link').click();
   await expect(page).toHaveURL(/\/leitendenbereich\/beitraege\?sammlung=bat_WoeHerbst$/);
   await expect(page.getByRole('heading', { name: 'Wölflings-Herbstwochenende' })).toBeVisible();

@@ -27,6 +27,7 @@
   import { dueLabel, dueSoon, pendingTask } from '../lib/aufgabenView';
   import { localDate } from '../lib/dateUtils';
   import { KJR_ABGABE_MONATE, kjrRestzeit, offeneKjrFristen } from '../lib/kjrFristen';
+  import CopyCode from './ui/CopyCode.svelte';
   import LoadState from './ui/LoadState.svelte';
   import MessageText from './ui/MessageText.svelte';
   import StatusLabel from './ui/StatusLabel.svelte';
@@ -425,18 +426,18 @@
     {/snippet}
     <ul class="mt-1 divide-y divide-neutral-200" data-testid="meine-beitraege">
       {#each ownBeitraege.slice(0, CARD_LIMIT) as beitrag (beitrag.id)}
-        <li>
-          <a href={beitrag.href} class="block min-h-11 py-2" title={beitrag.title}>
-            <span class="text-link block truncate font-semibold">{beitrag.title}</span>
-            <span class="flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
-              <span
-                >{[formatEuro(beitrag.dueCent), beitrag.reference]
-                  .filter(Boolean)
-                  .join(' · ')}</span
-              >
-              <StatusLabel label={beitrag.label} tone={beitrag.tone} dot />
-            </span>
-          </a>
+        <li class="py-2">
+          <!-- Only the title is the link: the Verwendungszweck is a button that copies it -->
+          <a
+            href={beitrag.href}
+            class="text-link flex min-h-11 items-center font-semibold"
+            title={beitrag.title}><span class="truncate">{beitrag.title}</span></a
+          >
+          <span class="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-neutral-700">
+            <span>{formatEuro(beitrag.dueCent)}</span>
+            {#if beitrag.reference}<CopyCode code={beitrag.reference} compact />{/if}
+            <StatusLabel label={beitrag.label} tone={beitrag.tone} dot />
+          </span>
         </li>
       {/each}
     </ul>
