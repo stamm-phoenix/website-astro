@@ -13,6 +13,8 @@ export interface AbstimmungMailDaten {
   art: AbstimmungMailArt;
   /** Name of the person invited, if known from CampFlow. */
   name: string;
+  /** The address belongs to several CampFlow persons, e.g. a family. */
+  familie: boolean;
   titel: string;
   beschreibung: string;
   /** Name and login of the organizer; replies go to the login. */
@@ -28,8 +30,7 @@ export function abstimmungMailContent(data: AbstimmungMailDaten): {
   html: string;
 } {
   const erinnerung = data.art === 'erinnerung';
-  // An address several CampFlow persons share, e.g. „Ben Bau, Clara Bau“, greets them all
-  const familie = data.name.includes(',');
+  const { familie } = data;
   const vorname = data.name.trim().split(/\s+/)[0] ?? '';
   const anrede = familie ? 'Hallo zusammen' : `Hallo${vorname ? ` ${escapeHtml(vorname)}` : ''}`;
   const beschreibung = data.beschreibung

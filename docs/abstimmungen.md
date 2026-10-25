@@ -43,9 +43,12 @@ Wer über einen Link abstimmt, sieht Ergebnis und Namen, aber keine Adressen.
   reserviert (`versucht`); eine Mail mit unklarem Ergebnis wird nie automatisch wiederholt, die
   nächste Erinnerung erreicht die Person aber.
 - Familienadressen: Mehrere CampFlow-Personen mit einer Adresse bekommen eine Mail („Hallo
-  zusammen“) mit einem Link. Ein anderer Name auf einem schon beantworteten Link legt eine eigene
-  Antwort an. Eine Stimme im Leitendenbereich speichert eine geteilte Adresse nicht, damit die
-  Einladung an die Familie trotzdem rausgeht.
+  zusammen“) mit einem Link. Die Teilnahme dazu ist als `familie` markiert (Migration 0042) und
+  hält selbst keine Antwort: Jede Person, die über diesen Link abstimmt, wird eine eigene
+  Teilnahme mit eigenem Link. Sobald jemand aus der Familie geantwortet hat, geht keine
+  Erinnerung mehr an die Adresse. Eine Stimme im Leitendenbereich speichert eine geteilte
+  Adresse nicht und übernimmt nie eine Familieneinladung.
+- Jeder andere persönliche Link ändert immer die Antwort seiner Person, auch den Namen.
 - Eine neue Antwort über einen Link trägt eine Kennung (`versuch`, Migration 0041); schickt die
   Seite sie nach einer verlorenen Rückmeldung noch einmal, findet der Server dieselbe Person.
 - Ein Versandschritt startet keine Mail mehr, die das Zeitlimit sprengen könnte (30 s Budget,

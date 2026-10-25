@@ -258,12 +258,19 @@ export const AbstimmungEinladungEndpoint = pflegeHandler(
     }
     const names = new Map<string, string>();
     for (const entry of personen) names.set(entry.email, entry.name);
-    // Several CampFlow names share a family address; the list joins them with commas
     for (const entry of recipients) if (entry.name) names.set(entry.email, entry.name);
+    // Several CampFlow persons with one address, e.g. a family: the list joins their names
+    const familien = new Set(
+      recipients.filter((entry) => entry.name.includes(', ')).map((entry) => entry.email)
+    );
     const result = await queueAbstimmungEinladungen(
       id,
       principal.userDetails.trim().toLowerCase(),
-      addresses.map((email) => ({ email, name: names.get(email) ?? '' }))
+      addresses.map((email) => ({
+        email,
+        name: names.get(email) ?? '',
+        familie: familien.has(email),
+      }))
     );
     return ok({ ...result, ...(await getAbstimmungMailStand(id)) });
   })
@@ -316,6 +323,7 @@ export const AbstimmungMailsEndpoint = pflegeHandler(
           await abstimmungMail.send(mail.email, {
             art: mail.art,
             name: mail.name,
+            familie: mail.familie,
             titel: kopf.titel,
             beschreibung: kopf.beschreibung,
             organisatorName: kopf.erstellt_von_name,

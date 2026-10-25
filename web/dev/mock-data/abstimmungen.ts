@@ -326,9 +326,6 @@ export function mockPublicVote(
     a.mehrfach
   );
   let t = found.t;
-  // Another name on a link that has an answer is another person, as in the API
-  const norm = (value: string): string => value.trim().replace(/\s+/g, ' ').toLowerCase();
-  if (t?.geantwortet && norm(t.name) !== norm(name)) t = undefined;
   if (!t) {
     t = teilnahme({});
     a.teilnahmen.push(t);

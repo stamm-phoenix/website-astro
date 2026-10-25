@@ -811,6 +811,8 @@ export interface AbstimmungTeilnahmeTable {
   erstellt_am: Generated<Date>;
   /** Key of the first answer over the shared link, so a repeated request finds this row. */
   versuch: string | null;
+  /** Invitation to an address several CampFlow persons share; holds no answer itself. */
+  familie: Generated<boolean>;
 }
 
 export interface AbstimmungStimmeTable {

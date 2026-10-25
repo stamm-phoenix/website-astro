@@ -70,9 +70,7 @@ export interface AbstimmungPerson {
 }
 
 /** What recognizes the logged-in person in the rows of an Abstimmung. */
-export type AbstimmungIdentitaet = Pick<AbstimmungPerson, 'login' | 'adressen' | 'adresse'> & {
-  name?: string;
-};
+export type AbstimmungIdentitaet = Pick<AbstimmungPerson, 'login' | 'adressen'>;
 
 /** A secret for a link: 32 random bytes, base64url without padding (43 characters). */
 export function newAbstimmungToken(): string {
@@ -162,6 +160,7 @@ interface TeilnahmeRow {
   mail_status: AbstimmungTeilnahme['mailStatus'];
   eingeladen_am: Date | null;
   erinnert_am: Date | null;
+  familie: boolean;
 }
 
 async function loadTeilnahmen(db: Db, id: number): Promise<TeilnahmeRow[]> {
@@ -178,6 +177,7 @@ async function loadTeilnahmen(db: Db, id: number): Promise<TeilnahmeRow[]> {
       'mail_status',
       'eingeladen_am',
       'erinnert_am',
+      'familie',
     ])
     .where('abstimmung_id', '=', id)
     .orderBy('id')
@@ -208,8 +208,9 @@ async function load(db: Db, id: number): Promise<Geladen | undefined> {
     geschlossen: row.geschlossen_am !== null,
     erstelltVonName: row.erstellt_von_name,
     optionen,
+    // A family invitation only records that someone of the family answered
     antworten: teilnahmen
-      .filter((teilnahme) => teilnahme.geantwortet_am !== null)
+      .filter((teilnahme) => teilnahme.geantwortet_am !== null && !teilnahme.familie)
       .map((teilnahme) => ({
         teilnahmeId: teilnahme.id,
         name: teilnahme.name || 'Ohne Namen',
@@ -223,46 +224,30 @@ async function load(db: Db, id: number): Promise<Geladen | undefined> {
 
 function ich(geladen: Geladen, teilnahme: TeilnahmeRow | undefined): AbstimmungAnsicht['ich'] {
   if (!teilnahme) return null;
+  // The link of a family: everyone enters their own name and answer
+  if (teilnahme.familie) return { name: '', gewaehlt: [], geantwortet: false };
   return {
-    // Everyone of a family enters their own name
-    name:
-      teilnahme.geantwortet_am === null && mehrerePersonen(teilnahme.name) ? '' : teilnahme.name,
+    name: teilnahme.name,
     gewaehlt:
       geladen.rohdaten.antworten.find((a) => a.teilnahmeId === teilnahme.id)?.gewaehlt ?? [],
     geantwortet: teilnahme.geantwortet_am !== null,
   };
 }
 
-/** The participation of the logged-in person: by login, else an invitation to one of their addresses. */
-function eigeneTeilnahme<
-  T extends Pick<TeilnahmeRow, 'login' | 'email' | 'name' | 'geantwortet_am'>,
->(teilnahmen: T[], person: AbstimmungIdentitaet): T | undefined {
+/**
+ * The participation of the logged-in person: by login, else an invitation to one of their
+ * addresses. A family invitation belongs to no single person.
+ */
+function eigeneTeilnahme<T extends Pick<TeilnahmeRow, 'login' | 'email' | 'familie'>>(
+  teilnahmen: T[],
+  person: AbstimmungIdentitaet
+): T | undefined {
   return (
     teilnahmen.find((t) => t.login === person.login) ??
     teilnahmen.find(
-      (t) =>
-        t.login === null &&
-        t.email &&
-        person.adressen.includes(t.email) &&
-        // An address of this person alone is theirs whatever name was entered; on a family
-        // address someone else of the family may have answered already
-        (t.email === person.login ||
-          t.email === person.adresse ||
-          t.geantwortet_am === null ||
-          (person.name !== undefined && sameName(t.name, person.name)))
+      (t) => t.login === null && !t.familie && t.email && person.adressen.includes(t.email)
     )
   );
-}
-
-/** Names compared without case and extra spaces. */
-export function sameName(a: string, b: string): boolean {
-  const norm = (value: string): string => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de');
-  return norm(a) === norm(b);
-}
-
-/** An invitation to an address that several CampFlow persons share, e.g. „Ben Bau, Clara Bau“. */
-function mehrerePersonen(name: string): boolean {
-  return name.includes(',');
 }
 
 /** The Abstimmungen, newest first, with the own answer. */
@@ -279,7 +264,7 @@ export async function listAbstimmungen(
       .execute(),
     db
       .selectFrom('abstimmung.teilnahme')
-      .select(['abstimmung_id', 'login', 'email', 'name', 'geantwortet_am'])
+      .select(['abstimmung_id', 'login', 'email', 'familie', 'geantwortet_am'])
       .execute(),
   ]);
   return rows.map((row) => {
@@ -292,7 +277,7 @@ export async function listAbstimmungen(
       erstelltVonName: row.erstellt_von_name,
       erstelltAm: row.erstellt_am.toISOString(),
       eigene: row.erstellt_von === person.login,
-      antworten: eigene.filter((t) => t.geantwortet_am !== null).length,
+      antworten: eigene.filter((t) => t.geantwortet_am !== null && !t.familie).length,
       ichGeantwortet: Boolean(mine?.geantwortet_am),
     };
   });
@@ -647,19 +632,21 @@ export async function votePublic(
       optionen.map((option) => option.id),
       row.mehrfach
     );
+    let familie: number | undefined;
     if (ziel.teilnahmeId !== null) {
       const teilnahme = await trx
         .selectFrom('abstimmung.teilnahme')
-        .select(['token', 'name', 'geantwortet_am'])
+        .select(['token', 'familie'])
         .where('id', '=', ziel.teilnahmeId)
         .executeTakeFirst();
       if (!teilnahme) throw new RecordNotFoundError();
-      // Another name on a link that already has an answer is another person, e.g. of a family
-      // sharing one address: they get their own entry instead of replacing that answer
-      if (teilnahme.geantwortet_am === null || sameName(teilnahme.name, name)) {
+      // A personal link changes the answer of its person, also a corrected name
+      if (!teilnahme.familie) {
         await writeAntwort(trx, ziel.teilnahmeId, name, gewaehlt);
         return { token: teilnahme.token };
       }
+      // The link of a family adds everyone who answers with it as a person of their own
+      familie = ziel.teilnahmeId;
     }
     // A repeated request whose first answer arrived, but not its response
     if (versuch) {
@@ -682,6 +669,15 @@ export async function votePublic(
       .output('inserted.id')
       .executeTakeFirstOrThrow();
     await writeAntwort(trx, created.id, name, gewaehlt);
+    if (familie !== undefined) {
+      // Someone of the family answered: the reminder no longer goes to the address
+      await trx
+        .updateTable('abstimmung.teilnahme')
+        .set({ geantwortet_am: new Date().toISOString() })
+        .where('id', '=', familie)
+        .where('geantwortet_am', 'is', null)
+        .execute();
+    }
     return { token };
   });
 }
@@ -713,6 +709,8 @@ export async function getAbstimmungMailStand(id: number): Promise<AbstimmungMail
 export interface AbstimmungEinladung {
   email: string;
   name: string;
+  /** Several CampFlow persons share the address, e.g. a family. */
+  familie: boolean;
 }
 
 /**
@@ -750,6 +748,7 @@ export async function queueAbstimmungEinladungen(
               token: newAbstimmungToken(),
               name: einladung.name,
               email: einladung.email,
+              familie: einladung.familie,
               mail_art: 'einladung' as const,
               mail_status: 'offen' as const,
             }))
@@ -804,6 +803,7 @@ export interface AbstimmungMail {
   name: string;
   token: string;
   art: AbstimmungMailArt;
+  familie: boolean;
 }
 
 /** Held while one mail is reserved and sent, so a reminder cannot queue it again meanwhile. */
@@ -844,19 +844,27 @@ export async function reserveAbstimmungMail(id: number): Promise<AbstimmungMail 
     name: string;
     token: string;
     mail_art: AbstimmungMailArt;
+    familie: boolean;
   }>`
     WITH next AS (
-      SELECT TOP (1) id, email, name, token, mail_art, mail_status
+      SELECT TOP (1) id, email, name, token, mail_art, mail_status, familie
       FROM abstimmung.teilnahme WITH (UPDLOCK, READPAST, READCOMMITTEDLOCK)
       WHERE abstimmung_id = ${id} AND mail_status = 'offen'
       ORDER BY id
     )
     UPDATE next SET mail_status = 'versucht'
-    OUTPUT inserted.id, inserted.email, inserted.name, inserted.token, inserted.mail_art;
+    OUTPUT inserted.id, inserted.email, inserted.name, inserted.token, inserted.mail_art, inserted.familie;
   `.execute(getDb());
   const row = result.rows[0];
   return row
-    ? { teilnahmeId: row.id, email: row.email, name: row.name, token: row.token, art: row.mail_art }
+    ? {
+        teilnahmeId: row.id,
+        email: row.email,
+        name: row.name,
+        token: row.token,
+        art: row.mail_art,
+        familie: Boolean(row.familie),
+      }
     : undefined;
 }
 
