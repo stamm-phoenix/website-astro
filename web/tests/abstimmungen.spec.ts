@@ -398,3 +398,26 @@ test('sending the invitations shows at once that mails go out', async ({ page })
   answer();
   await expect(page.getByText('Einladungen verschickt.').first()).toBeVisible({ timeout: 30_000 });
 });
+
+test('the progress counts only the mails of this run', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  let answer: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (answer = resolve));
+  let steps = 0;
+  await page.route('**/api/intern/pflege/abstimmungen/*/mails', async (route) => {
+    // The second step waits, so the progress after the first one stays visible
+    if (++steps === 2) await held;
+    await route.fallback();
+  });
+  await page.goto('/leitendenbereich/abstimmungen');
+  // An invitation went out before; it is not part of this run
+  await page.getByRole('link', { name: /Was essen wir auf dem Sommerlager/ }).click();
+  await page.getByRole('button', { name: 'Per Mail einladen' }).click();
+  await page
+    .getByRole('dialog', { name: 'Zur Abstimmung einladen' })
+    .getByRole('button', { name: /einladen$/ })
+    .click();
+  await expect(page.getByText(/Mails werden verschickt … 5 verschickt,/)).toBeVisible();
+  answer();
+  await expect(page.getByText('Einladungen verschickt.').first()).toBeVisible({ timeout: 30_000 });
+});
