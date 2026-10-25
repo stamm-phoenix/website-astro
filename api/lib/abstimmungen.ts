@@ -69,6 +69,11 @@ export interface AbstimmungPerson {
   adresse?: string;
 }
 
+/** What recognizes the logged-in person in the rows of an Abstimmung. */
+export type AbstimmungIdentitaet = Pick<AbstimmungPerson, 'login' | 'adressen' | 'adresse'> & {
+  name?: string;
+};
+
 /** A secret for a link: 32 random bytes, base64url without padding (43 characters). */
 export function newAbstimmungToken(): string {
   return randomBytes(32).toString('base64url');
@@ -229,10 +234,9 @@ function ich(geladen: Geladen, teilnahme: TeilnahmeRow | undefined): AbstimmungA
 }
 
 /** The participation of the logged-in person: by login, else an invitation to one of their addresses. */
-function eigeneTeilnahme(
-  teilnahmen: TeilnahmeRow[],
-  person: Pick<AbstimmungPerson, 'login' | 'adressen'> & { name?: string }
-): TeilnahmeRow | undefined {
+function eigeneTeilnahme<
+  T extends Pick<TeilnahmeRow, 'login' | 'email' | 'name' | 'geantwortet_am'>,
+>(teilnahmen: T[], person: AbstimmungIdentitaet): T | undefined {
   return (
     teilnahmen.find((t) => t.login === person.login) ??
     teilnahmen.find(
@@ -240,8 +244,12 @@ function eigeneTeilnahme(
         t.login === null &&
         t.email &&
         person.adressen.includes(t.email) &&
-        // A family address: someone else of the family may have answered with it already
-        (t.geantwortet_am === null || person.name === undefined || sameName(t.name, person.name))
+        // An address of this person alone is theirs whatever name was entered; on a family
+        // address someone else of the family may have answered already
+        (t.email === person.login ||
+          t.email === person.adresse ||
+          t.geantwortet_am === null ||
+          (person.name !== undefined && sameName(t.name, person.name)))
     )
   );
 }
@@ -259,7 +267,7 @@ function mehrerePersonen(name: string): boolean {
 
 /** The Abstimmungen, newest first, with the own answer. */
 export async function listAbstimmungen(
-  person: Pick<AbstimmungPerson, 'login' | 'adressen'>
+  person: AbstimmungIdentitaet
 ): Promise<AbstimmungUebersicht[]> {
   const db = getDb();
   const [rows, teilnahmen] = await Promise.all([
@@ -271,14 +279,12 @@ export async function listAbstimmungen(
       .execute(),
     db
       .selectFrom('abstimmung.teilnahme')
-      .select(['abstimmung_id', 'login', 'email', 'geantwortet_am'])
+      .select(['abstimmung_id', 'login', 'email', 'name', 'geantwortet_am'])
       .execute(),
   ]);
   return rows.map((row) => {
     const eigene = teilnahmen.filter((t) => t.abstimmung_id === row.id);
-    const mine =
-      eigene.find((t) => t.login === person.login) ??
-      eigene.find((t) => t.login === null && t.email && person.adressen.includes(t.email));
+    const mine = eigeneTeilnahme(eigene, person);
     return {
       id: row.id,
       titel: row.titel,
@@ -295,7 +301,7 @@ export async function listAbstimmungen(
 /** One Abstimmung for the Leitendenbereich; the organizer also gets the link and the invitations. */
 export async function getAbstimmungDetail(
   id: number,
-  person: Pick<AbstimmungPerson, 'login' | 'adressen'> & { name?: string },
+  person: AbstimmungIdentitaet,
   siteUrl: string
 ): Promise<AbstimmungDetail | undefined> {
   const geladen = await load(getDb(), id);

@@ -708,7 +708,7 @@ dbTest('a family sharing one address answers as separate people', async (t) => {
   // Ben in the Leitendenbereich does not take over Clara's answer
   t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
     login === BEN
-      ? { email: 'ben.privat@example.test', geteilt: false }
+      ? { email: 'ben.privat@example.test', geteilt: true }
       : { email: '', geteilt: false }
   );
   assert.equal((await vote(t, id, BEN, [second])).status, 204);
@@ -817,4 +817,67 @@ dbTest('one request starts no mail it cannot finish in time', async (t) => {
   // 0 s and 12 s may start, at 24 s a mail of up to 10 s would end after the 30 s budget
   assert.equal(send.mock.callCount(), 2);
   assert.deepEqual(step.jsonBody, { offen: 1, gesendet: 2, unklar: 0 });
+});
+
+dbTest('own invitations are found by address, a family one only by name', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => [
+    ...MEMBERS,
+    {
+      id: 'per_clara',
+      name: { first_name: 'Clara', last_name: 'Bau' },
+      primary_email: 'familie@example.test',
+      label_names: ['📄 Protokollempfang'],
+    },
+    {
+      id: 'per_carl',
+      name: { first_name: 'Carl', last_name: 'Bau' },
+      primary_email: 'familie@example.test',
+      label_names: ['📄 Protokollempfang'],
+    },
+  ]);
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  const sent: { to: string; url: string }[] = [];
+  t.mock.method(abstimmungMail, 'send', async (to: string, data: AbstimmungMailDaten) => {
+    sent.push({ to, url: data.url });
+  });
+  const id = await create(t);
+  const [first] = (await detail(t, id)).optionen.map((option) => option.id);
+  const post = (path: 'einladung' | 'mails', body: unknown) =>
+    ({ einladung: AbstimmungEinladungEndpoint, mails: AbstimmungMailsEndpoint })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  await post('einladung', { action: 'send', version, excluded: [ANNA, 'erika@example.test'] });
+  await post('mails', {});
+  const tokenOf = (to: string): string =>
+    new URL(sent.find((mail) => mail.to === to)!.url).hash.slice(3);
+  const answer = (token: string, name: string) =>
+    AbstimmungAbstimmen(
+      request('PUT', 'abstimmungen/stimme', { body: { token, name, gewaehlt: [first] } }),
+      context(t)
+    );
+  // Ben answers his own invitation as „Ben“, then votes here as „Ben Bau“: one answer
+  t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
+    login === BEN
+      ? { email: 'ben.privat@example.test', geteilt: false }
+      : { email: 'familie@example.test', geteilt: true }
+  );
+  await answer(tokenOf('ben.privat@example.test'), 'Ben');
+  assert.equal((await vote(t, id, BEN, [first])).status, 204);
+  // Clara answers the family invitation; Anna's CampFlow address is that family's in this test
+  await answer(tokenOf('familie@example.test'), 'Clara Bau');
+  const list = await AbstimmungenCollectionEndpoint(
+    request('GET', 'intern/pflege/abstimmungen', { login: ANNA }),
+    context(t)
+  );
+  assert.equal((list.jsonBody as { ichGeantwortet: boolean }[])[0].ichGeantwortet, false);
+  assert.equal((await detail(t, id)).ich, null);
+  assert.deepEqual(
+    (await detail(t, id)).antworten.map((antwort) => antwort.name),
+    ['Ben Bau', 'Clara Bau']
+  );
 });
