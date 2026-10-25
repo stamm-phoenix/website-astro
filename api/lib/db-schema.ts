@@ -821,6 +821,8 @@ export interface AbstimmungTeilnahmeTable {
   versuch: string | null;
   /** Invitation to an address several CampFlow persons share; holds no answer itself. */
   familie: Generated<boolean>;
+  /** Another invitation of the same leader: its link opens and changes that participation. */
+  alias_von: number | null;
 }
 
 export interface AbstimmungStimmeTable {

@@ -172,6 +172,7 @@ interface TeilnahmeRow {
   eingeladen_am: Date | null;
   erinnert_am: Date | null;
   familie: boolean;
+  alias_von: number | null;
 }
 
 async function loadTeilnahmen(db: Db, id: number): Promise<TeilnahmeRow[]> {
@@ -189,6 +190,7 @@ async function loadTeilnahmen(db: Db, id: number): Promise<TeilnahmeRow[]> {
       'eingeladen_am',
       'erinnert_am',
       'familie',
+      'alias_von',
     ])
     .where('abstimmung_id', '=', id)
     .orderBy('id')
@@ -223,9 +225,13 @@ async function load(db: Db, id: number): Promise<Geladen | undefined> {
     geschlossen: row.geschlossen_am !== null,
     erstelltVonName: row.erstellt_von_name,
     optionen,
-    // A family invitation only records that someone of the family answered
+    // A family invitation only records that someone of the family answered; another invitation
+    // of a leader answers through the leader's participation
     antworten: teilnahmen
-      .filter((teilnahme) => teilnahme.geantwortet_am !== null && !teilnahme.familie)
+      .filter(
+        (teilnahme) =>
+          teilnahme.geantwortet_am !== null && !teilnahme.familie && teilnahme.alias_von === null
+      )
       .map((teilnahme) => ({
         teilnahmeId: teilnahme.id,
         name: teilnahme.name || 'Ohne Namen',
@@ -247,6 +253,14 @@ function ich(geladen: Geladen, teilnahme: TeilnahmeRow | undefined): AbstimmungA
     vielleicht: antwort?.vielleicht ?? [],
     geantwortet: teilnahme.geantwortet_am !== null,
   };
+}
+
+/** The participation another invitation of the same leader answers through, or the row itself. */
+function hauptTeilnahme(teilnahmen: TeilnahmeRow[], teilnahme: TeilnahmeRow): TeilnahmeRow {
+  return (
+    (teilnahme.alias_von !== null && teilnahmen.find((t) => t.id === teilnahme.alias_von)) ||
+    teilnahme
+  );
 }
 
 /**
@@ -320,7 +334,7 @@ export async function getAbstimmungDetail(
           id: t.id,
           name: t.name,
           email: t.email ?? '',
-          geantwortet: t.geantwortet_am !== null,
+          geantwortet: hauptTeilnahme(teilnahmen, t).geantwortet_am !== null,
           eingeladenAm: iso(t.eingeladen_am),
           erinnertAm: iso(t.erinnert_am),
           mailStatus: t.mail_status,
@@ -662,15 +676,18 @@ export async function voteAsStaff(
     // CampFlow address could not be loaded at an earlier vote: the invitation stays, because its
     // link went out by mail, and takes over the login. The login row goes only if it never had a
     // mail itself; two invitations both stay, so no link that went out stops working
-    const einladung = teilnahmen.find(
-      (t) =>
-        t.id !== teilnahme?.id &&
-        t.login === null &&
-        !t.familie &&
-        t.email &&
-        person.adressen.includes(t.email)
-    );
+    const eigeneEinladung = (t: TeilnahmeRow): boolean =>
+      t.login === null &&
+      !t.familie &&
+      t.alias_von === null &&
+      Boolean(t.email && person.adressen.includes(t.email));
+    const einladung = teilnahmen.find((t) => t.id !== teilnahme?.id && eigeneEinladung(t));
     if (teilnahme?.login === person.login && teilnahme.mail_status === null && einladung) {
+      await trx
+        .updateTable('abstimmung.teilnahme')
+        .set({ alias_von: einladung.id })
+        .where('alias_von', '=', teilnahme.id)
+        .execute();
       await trx.deleteFrom('abstimmung.stimme').where('teilnahme_id', '=', teilnahme.id).execute();
       await trx.deleteFrom('abstimmung.teilnahme').where('id', '=', teilnahme.id).execute();
       teilnahme = { ...einladung, login: null };
@@ -699,6 +716,20 @@ export async function voteAsStaff(
       ).id;
     }
     await writeAntwort(trx, teilnahmeId, person.name, antwort);
+    // Further invitations to the person's addresses: their links answer through this one, so
+    // the person counts once and gets no reminder there
+    const weitere = teilnahmen
+      .filter((t) => t.id !== teilnahmeId && eigeneEinladung(t))
+      .map((t) => t.id);
+    if (weitere.length) {
+      await trx.deleteFrom('abstimmung.stimme').where('teilnahme_id', 'in', weitere).execute();
+      await trx
+        .updateTable('abstimmung.teilnahme')
+        .set({ alias_von: teilnahmeId, geantwortet_am: null })
+        .where('id', 'in', weitere)
+        .execute();
+      for (const weitereId of weitere) await dropErinnerung(trx, weitereId);
+    }
   });
 }
 
@@ -741,13 +772,11 @@ export async function getAbstimmungAnsicht(link: {
   if (!ziel) return undefined;
   const geladen = await load(db, ziel.abstimmungId);
   if (!geladen) return undefined;
+  const eigeneZeile = geladen.teilnahmen.find((t) => t.id === ziel.teilnahmeId);
   return {
     // Whoever comes over a link never manages the Abstimmung
     ...abstimmungErgebnis(geladen.rohdaten, abstimmungEinsicht(geladen.row.sichtbarkeit, false)),
-    ich: ich(
-      geladen,
-      geladen.teilnahmen.find((t) => t.id === ziel.teilnahmeId)
-    ),
+    ich: ich(geladen, eigeneZeile && hauptTeilnahme(geladen.teilnahmen, eigeneZeile)),
   };
 }
 
@@ -771,13 +800,13 @@ export async function votePublic(
     if (ziel.teilnahmeId !== null) {
       const teilnahme = await trx
         .selectFrom('abstimmung.teilnahme')
-        .select(['token', 'familie'])
+        .select(['token', 'familie', 'alias_von'])
         .where('id', '=', ziel.teilnahmeId)
         .executeTakeFirst();
       if (!teilnahme) throw new RecordNotFoundError();
-      // A personal link changes the answer of its person, also a corrected name
+      // A personal link changes the answer of its person, also a corrected name; the link stays
       if (!teilnahme.familie) {
-        await writeAntwort(trx, ziel.teilnahmeId, name, gewaehlt);
+        await writeAntwort(trx, teilnahme.alias_von ?? ziel.teilnahmeId, name, gewaehlt);
         return { token: teilnahme.token };
       }
       // The link of a family adds everyone who answers with it as a person of their own
@@ -922,6 +951,7 @@ function erinnerungKandidaten(db: Db, id: number) {
     .selectFrom('abstimmung.teilnahme')
     .where('abstimmung_id', '=', id)
     .where('geantwortet_am', 'is', null)
+    .where('alias_von', 'is', null)
     .where('email', 'is not', null)
     .where('mail_status', 'in', ['gesendet', 'versucht']);
 }
