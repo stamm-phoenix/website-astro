@@ -12,15 +12,14 @@ import {
   getAbstimmungKopf,
   getAbstimmungMailStand,
   listAbstimmungen,
-  markAbstimmungMailSent,
   queueAbstimmungEinladungen,
   queueAbstimmungErinnerungen,
-  reserveAbstimmungMail,
+  sendNextAbstimmungMail,
   setAbstimmungGeschlossen,
   updateAbstimmung,
   voteAsStaff,
 } from '../lib/abstimmungen';
-import type { AbstimmungKopf, AbstimmungPerson } from '../lib/abstimmungen';
+import type { AbstimmungKopf, AbstimmungMail, AbstimmungPerson } from '../lib/abstimmungen';
 import { CampflowError, campflowGetAll } from '../lib/campflow';
 import type { CampflowPerson } from '../lib/campflow';
 import { CONFIG } from '../lib/config';
@@ -297,23 +296,27 @@ export const AbstimmungMailsEndpoint = pflegeHandler(
     const kopf = await organizerKopf(id, principal);
     const siteUrl = getSiteUrl(request);
     for (let sent = 0; sent < MAILS_PER_STEP; sent++) {
-      const mail = await reserveAbstimmungMail(id);
-      if (!mail) break;
+      let failed: AbstimmungMail | undefined;
       try {
-        await abstimmungMail.send(mail.email, {
-          art: mail.art,
-          name: mail.name,
-          titel: kopf.titel,
-          beschreibung: kopf.beschreibung,
-          organisatorName: kopf.erstellt_von_name,
-          organisatorLogin: kopf.erstellt_von,
-          url: abstimmungPersonalLink(siteUrl, mail.token),
+        const more = await sendNextAbstimmungMail(id, async (mail) => {
+          failed = mail;
+          await abstimmungMail.send(mail.email, {
+            art: mail.art,
+            name: mail.name,
+            titel: kopf.titel,
+            beschreibung: kopf.beschreibung,
+            organisatorName: kopf.erstellt_von_name,
+            organisatorLogin: kopf.erstellt_von,
+            url: abstimmungPersonalLink(siteUrl, mail.token),
+          });
+          failed = undefined;
         });
+        if (!more) break;
       } catch (error: unknown) {
-        context.error(`[abstimmungen] Mail ${mail.art} for Abstimmung ${id} failed`, error);
+        if (!failed) throw error;
+        context.error(`[abstimmungen] Mail ${failed.art} for Abstimmung ${id} failed`, error);
         return MAIL_FAILED;
       }
-      await markAbstimmungMailSent(mail);
     }
     return ok(await getAbstimmungMailStand(id));
   }),
