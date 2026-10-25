@@ -11,6 +11,15 @@ import {
   AufgabenDecision,
 } from './endpoints/intern-pflege-aufgaben';
 import { app } from '@azure/functions';
+import { AbstimmungAbstimmen, AbstimmungAnsehen } from './endpoints/abstimmungen';
+import {
+  AbstimmungEinladung,
+  AbstimmungErinnerung,
+  AbstimmungItem,
+  AbstimmungMails,
+  AbstimmungStimme,
+  AbstimmungenCollection,
+} from './endpoints/intern-pflege-abstimmungen';
 import { GetRoles } from './endpoints/get-roles';
 import {
   SammelStaffPayment,
@@ -1195,6 +1204,56 @@ app.http('sammelStaffInvite', {
   methods: ['POST'],
   authLevel: 'anonymous',
   handler: SammelStaffInvite,
+});
+
+// Abstimmungen: links with a token work without login; staff routes require Entra ID.
+app.http('abstimmungAnsehen', {
+  route: 'abstimmungen/ansehen',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: AbstimmungAnsehen,
+});
+app.http('abstimmungAbstimmen', {
+  route: 'abstimmungen/stimme',
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  handler: AbstimmungAbstimmen,
+});
+app.http('internPflegeAbstimmungen', {
+  route: 'intern/pflege/abstimmungen',
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  handler: AbstimmungenCollection,
+});
+app.http('internPflegeAbstimmung', {
+  route: 'intern/pflege/abstimmungen/{id}',
+  methods: ['GET', 'PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  handler: AbstimmungItem,
+});
+app.http('internPflegeAbstimmungStimme', {
+  route: 'intern/pflege/abstimmungen/{id}/stimme',
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  handler: AbstimmungStimme,
+});
+app.http('internPflegeAbstimmungEinladung', {
+  route: 'intern/pflege/abstimmungen/{id}/einladung',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: AbstimmungEinladung,
+});
+app.http('internPflegeAbstimmungErinnerung', {
+  route: 'intern/pflege/abstimmungen/{id}/erinnerung',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: AbstimmungErinnerung,
+});
+app.http('internPflegeAbstimmungMails', {
+  route: 'intern/pflege/abstimmungen/{id}/mails',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: AbstimmungMails,
 });
 
 app.http('internPflegeAufgaben', {

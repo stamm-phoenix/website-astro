@@ -161,6 +161,15 @@ export interface ApiConfig {
      */
     retentionMonths: number;
   };
+  /** Abstimmungen and Terminfindung (`docs/abstimmungen.md`). */
+  abstimmungen: {
+    /** Mailbox the invitations and reminders are sent from. */
+    sender: string;
+    /** CampFlow groups whose members are offered for an invitation (prefix, like the minutes). */
+    campflowGroups: string[];
+    /** CampFlow labels whose members are offered too, like the minutes. */
+    campflowLabels: string[];
+  };
   staff: {
     /**
      * Logins of test accounts that may enter the Leitendenbereich only on PR previews, e.g. for
@@ -350,6 +359,12 @@ export const CONFIG: ApiConfig = {
   },
   anwesenheit: {
     retentionMonths: 12,
+  },
+  abstimmungen: {
+    sender: 'kontakt@stamm-phoenix.de',
+    // Invited with one click, like the recipients of the minutes
+    campflowGroups: ['Leiter*in'],
+    campflowLabels: ['Protokollempfang'],
   },
   staff: {
     previewOnlyLogins: ['claude-preview@stamm-phoenix.de'],

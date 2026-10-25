@@ -12,6 +12,20 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-25-02-abstimmungen',
+    date: '2026-10-25',
+    title: 'Neu: Abstimmungen und Terminfindung',
+    changes: [
+      {
+        text: 'Im neuen Bereich „Abstimmungen“ findest du Termine oder lässt über Vorschläge abstimmen, ähnlich wie bei Doodle oder einer Umfrage in WhatsApp. Trag Termine über den Kalender ein oder schreib beliebige Optionen hin, und leg fest, ob man eine oder mehrere wählen kann.',
+        href: '/leitendenbereich/abstimmungen',
+      },
+      'Mit „Per Mail einladen“ lädst du die Leitendenrunde und alle mit dem Merkmal „Protokollempfang“ auf Knopfdruck ein, so wie beim Protokollversand; weitere Personen und Adressen kannst du dazunehmen. Jede Person bekommt ihren eigenen Link und kann ohne Anmeldung abstimmen und ihre Antwort später ändern.',
+      'Über den Link für alle können auch Gäste mitmachen: Sie tragen nur ihren Namen ein.',
+      'Mit „An Abstimmung erinnern“ bekommen alle Eingeladenen, die noch nicht abgestimmt haben, eine Erinnerung. Wenn alles entschieden ist, beendest du die Abstimmung; das Ergebnis bleibt sichtbar.',
+    ],
+  },
+  {
     id: '2026-10-25-01-meine-beitraege',
     date: '2026-10-25',
     title: 'Startseite: deine offenen Beiträge',

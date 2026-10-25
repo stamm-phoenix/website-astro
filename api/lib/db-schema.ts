@@ -3,6 +3,7 @@ import type { AnwesenheitStufeName } from './anwesenheit-model';
 import type { SammelShop } from './sammelbestellung-shops';
 import type { SammelStatus } from './sammelbestellung-model';
 import type { SammelPaymentEvent, SammelPaymentOperation } from './sammelbestellung-payment-model';
+import type { AbstimmungMailArt, AbstimmungMailStatus } from './abstimmung-model';
 import type { ProtokollEditorStatus, ProtokollRevisionReason } from './protokoll-editor-model';
 
 /** Set by the database (rowversion, computed columns); never written by the code. */
@@ -78,6 +79,10 @@ export interface Database {
   'sammel.payment': SammelPaymentTable;
   'sammel.payment_email': SammelPaymentEmailTable;
   'sammel.payment_event': SammelPaymentEventTable;
+  'abstimmung.abstimmung': AbstimmungTable;
+  'abstimmung.optionen': AbstimmungOptionTable;
+  'abstimmung.teilnahme': AbstimmungTeilnahmeTable;
+  'abstimmung.stimme': AbstimmungStimmeTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -769,4 +774,44 @@ export interface AbrechnungEingabeTable {
   delete_after: Date;
   updated_at: Generated<Date>;
   version: ReadOnly<Buffer>;
+}
+
+export interface AbstimmungTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  titel: string;
+  beschreibung: Generated<string>;
+  mehrfach: Generated<boolean>;
+  link_token: string;
+  erstellt_von: string;
+  erstellt_von_name: string;
+  erstellt_am: Generated<Date>;
+  geschlossen_am: SqlTimeOrNull;
+}
+
+export interface AbstimmungOptionTable {
+  id: Generated<number>;
+  abstimmung_id: number;
+  position: number;
+  text: string;
+}
+
+export interface AbstimmungTeilnahmeTable {
+  id: Generated<number>;
+  abstimmung_id: number;
+  token: string;
+  name: Generated<string>;
+  login: string | null;
+  email: string | null;
+  geantwortet_am: SqlTimeOrNull;
+  mail_art: AbstimmungMailArt | null;
+  mail_status: AbstimmungMailStatus | null;
+  eingeladen_am: SqlTimeOrNull;
+  erinnert_am: SqlTimeOrNull;
+  erstellt_am: Generated<Date>;
+}
+
+export interface AbstimmungStimmeTable {
+  teilnahme_id: number;
+  option_id: number;
 }

@@ -77,6 +77,26 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5',
   },
   {
+    href: '/leitendenbereich/abstimmungen',
+    title: 'Abstimmungen',
+    wrap: 'Abstim|mungen',
+    description:
+      'Termine finden oder über Vorschläge abstimmen, die Leitendenrunde und Gäste per Mail einladen und erinnern.',
+    intro:
+      'Wie Doodle oder eine Umfrage in WhatsApp: Du legst eine Frage mit Terminen oder anderen Optionen an. Leitende stimmen hier ab, alle anderen über ihren Link aus der Einladung oder über den Link für alle, bei dem sie ihren Namen eintragen. Ändern, einladen und erinnern kann nur, wer die Abstimmung angelegt hat.',
+    keywords: [
+      'doodle',
+      'umfrage',
+      'termin',
+      'terminfindung',
+      'abstimmen',
+      'entscheidung',
+      'datum',
+      'whatsapp',
+    ],
+    icon: 'M4 20h16M7 16v-6M12 16V4M17 16v-9',
+  },
+  {
     href: '/leitendenbereich/qr-code',
     title: 'QR-Code-Generator',
     wrap: 'QR-Code-|Generator',
@@ -328,7 +348,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
   {
     id: 'leitendenrunde',
     title: 'Leitendenrunde',
-    modules: byPath('aufgaben', 'protokolle', 'personen'),
+    modules: byPath('aufgaben', 'protokolle', 'abstimmungen', 'personen'),
   },
   {
     id: 'gruppen',
@@ -386,6 +406,12 @@ export const STAFF_SUBPAGES: StaffPage[] = [
     title: 'Aufgabenvorschläge',
     description: 'Aufgabenvorschläge aus Protokollen prüfen und übernehmen.',
     parent: '/leitendenbereich/aufgaben',
+  },
+  {
+    href: '/leitendenbereich/abstimmungen/abstimmung',
+    title: 'Abstimmung',
+    description: 'Bei einer Abstimmung mitmachen, das Ergebnis ansehen und dazu einladen.',
+    parent: '/leitendenbereich/abstimmungen',
   },
   {
     href: '/leitendenbereich/aktionen/aktion',
