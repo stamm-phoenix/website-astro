@@ -308,3 +308,25 @@ test('in the iPhone app the invitation list survives a new login', async ({ page
     'gast@example.test'
   );
 });
+
+test('in the iPhone app the own answer survives a new login', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true });
+  });
+  let expired = true;
+  await page.route('**/api/intern/pflege/abstimmungen/*/stimme', (route) =>
+    expired ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Termin für die Weihnachtsfeier/ }).click();
+  await page.getByLabel('Sa, 12.12.2026, 18:00 Uhr').check();
+  await page.getByRole('button', { name: 'Antwort speichern' }).click();
+  await page.getByRole('link', { name: 'Neu anmelden', exact: true }).first().click();
+
+  expired = false;
+  await expect(page.getByLabel('Sa, 12.12.2026, 18:00 Uhr')).toBeChecked();
+  await expect(page.getByText('Noch nicht gespeichert')).toBeVisible();
+  await page.getByRole('button', { name: 'Antwort speichern' }).click();
+  await expect(page.getByText('Antwort gespeichert.').first()).toBeVisible();
+});

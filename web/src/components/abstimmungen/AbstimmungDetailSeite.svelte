@@ -15,6 +15,12 @@
   import { confirmAction } from '../../lib/confirm';
   import { formatDateTime } from '../../lib/format';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import {
+    findRescue,
+    forgetRescue,
+    rescueValues,
+    setRescueContext,
+  } from '../../lib/geretteteEingaben';
   import type { AbstimmungDetail, AbstimmungTeilnahme } from '../../lib/abstimmungen';
   import { abstimmungStore, abstimmungenStore } from '../../lib/abstimmungen';
 
@@ -54,10 +60,45 @@
     if (!store.error) take(data, keep || JSON.stringify(gewaehlt) !== vorher);
   }
 
+  /** Record of the kept answer: one per Abstimmung, in this tab only. */
+  const rescueRecord = (): string => `abstimmung-antwort:${id}`;
+  const RESCUE_FIELD = 'Deine Antwort#custom';
+
+  // A new login in the iPhone app reloads the page: the unsaved answer is kept and comes back
+  setRescueContext({
+    warning: () => null,
+    enabled: () => id !== null && dirty,
+    rescue: () =>
+      rescueValues(rescueRecord(), 'Deine Antwort', '', [
+        {
+          key: RESCUE_FIELD,
+          kind: 'custom',
+          value: JSON.stringify(gewaehlt),
+          display: `${gewaehlt.length} gewählt`,
+        },
+      ]),
+    register: () => () => undefined,
+  });
+
+  /** Puts back a kept answer, without options that are gone; it stays unsaved. */
+  function restoreAnswer(): void {
+    if (!data) return;
+    const kept = findRescue(rescueRecord(), '', Date.now())?.find((v) => v.key === RESCUE_FIELD);
+    if (!kept) return;
+    forgetRescue(rescueRecord());
+    try {
+      const ids: unknown = JSON.parse(kept.value);
+      const optionen = new Set(data.optionen.map((option) => option.id));
+      if (Array.isArray(ids)) gewaehlt = ids.filter((option) => optionen.has(option));
+    } catch {
+      /* Nothing usable kept */
+    }
+  }
+
   onMount(() => {
     const value = Number(new URLSearchParams(window.location.search).get('id'));
     id = Number.isInteger(value) && value > 0 ? value : null;
-    void load();
+    void load().then(restoreAnswer);
     return guardUnsavedChanges(() => dirty);
   });
 

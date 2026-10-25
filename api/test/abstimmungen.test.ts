@@ -1042,3 +1042,48 @@ dbTest('a vote while CampFlow was not reachable joins the invitation later', asy
     [['ben.privat@example.test', true]]
   );
 });
+
+dbTest('two invitations of one leader both keep their links', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => MEMBERS);
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  const sent: { to: string; url: string }[] = [];
+  t.mock.method(abstimmungMail, 'send', async (to: string, data: AbstimmungMailDaten) => {
+    sent.push({ to, url: data.url });
+  });
+  t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
+    login === BEN
+      ? { email: 'ben.privat@example.test', geteilt: false }
+      : { email: '', geteilt: false }
+  );
+  const id = await create(t);
+  const [first, second] = (await detail(t, id)).optionen.map((option) => option.id);
+  const post = (path: 'einladung' | 'mails', body: unknown) =>
+    ({ einladung: AbstimmungEinladungEndpoint, mails: AbstimmungMailsEndpoint })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  // Ben is invited at his login and at his CampFlow address
+  await post('einladung', {
+    action: 'send',
+    version,
+    excluded: [ANNA, 'erika@example.test'],
+    extra: [BEN],
+  });
+  await post('mails', {});
+  assert.deepEqual(sent.map((mail) => mail.to).sort(), ['ben.privat@example.test', BEN]);
+  assert.equal((await vote(t, id, BEN, [first])).status, 204);
+  assert.equal((await vote(t, id, BEN, [second])).status, 204);
+  // Every link that went out still opens the Abstimmung
+  for (const mail of sent) {
+    const token = new URL(mail.url).hash.slice(3);
+    const view = await AbstimmungAnsehen(
+      request('POST', 'abstimmungen/ansehen', { body: { token } }),
+      context(t)
+    );
+    assert.equal(view.status, 200, mail.to);
+  }
+});
