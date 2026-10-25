@@ -717,6 +717,17 @@ export async function votePublic(
   });
 }
 
+/** Logins of the leaders who answered in the Leitendenbereich. */
+export async function getAbstimmungLogins(id: number): Promise<string[]> {
+  const rows = await getDb()
+    .selectFrom('abstimmung.teilnahme')
+    .select('login')
+    .where('abstimmung_id', '=', id)
+    .where('login', 'is not', null)
+    .execute();
+  return rows.flatMap((row) => (row.login ? [row.login] : []));
+}
+
 /** Counts of the mails of one Abstimmung. */
 export interface AbstimmungMailStand {
   /** Still to send. */
@@ -755,7 +766,12 @@ export interface AbstimmungEinladung {
 export async function queueAbstimmungEinladungen(
   id: number,
   login: string,
-  einladungen: AbstimmungEinladung[]
+  einladungen: AbstimmungEinladung[],
+  /**
+   * CampFlow addresses of leaders who answered here with their login; an invitation to one of
+   * them alone would count them twice. A family address still gets its invitation.
+   */
+  eigeneAdressen: readonly string[] = []
 ): Promise<{ neu: number; schon: number }> {
   return inTransaction(async (trx) => {
     const row = await openForVote(trx, id);
@@ -770,7 +786,11 @@ export async function queueAbstimmungEinladungen(
           .execute()
       ).flatMap((t) => [t.email, t.login])
     );
-    const neu = einladungen.filter((einladung) => !vorhanden.has(einladung.email));
+    const beantwortet = new Set(eigeneAdressen);
+    const neu = einladungen.filter(
+      (einladung) =>
+        !vorhanden.has(einladung.email) && (einladung.familie || !beantwortet.has(einladung.email))
+    );
     if (neu.length) {
       await assertPlatz(trx, id, neu.length);
       // SQL Server takes at most 2100 parameters per statement
