@@ -361,7 +361,7 @@
         ondelete={remove}
         onreload={async () => {
           await load();
-          return data !== null;
+          return data !== null && !store.error;
         }}
       />
     {/snippet}
