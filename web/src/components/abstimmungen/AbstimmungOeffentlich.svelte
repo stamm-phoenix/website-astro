@@ -214,6 +214,7 @@
               autocomplete="name"
               maxlength="100"
               placeholder="z. B. Lea Muster"
+              disabled={saving}
               bind:value={name}
               oninput={() => (fields = {})}
             />

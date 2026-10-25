@@ -134,7 +134,7 @@ async function organizerKopf(id: number, principal: ClientPrincipal): Promise<Ab
 export const AbstimmungenCollectionEndpoint = pflegeHandler(
   AREA,
   abstimmungHandler(async (request, _context, principal) => {
-    if (request.method === 'GET') return ok(await listAbstimmungen(await identity(principal)));
+    if (request.method === 'GET') return ok(await listAbstimmungen(await person(principal)));
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const input = validateAbstimmung(await readJsonBody(request));
     return ok({ id: await createAbstimmung(input, await person(principal)) }, 201);
