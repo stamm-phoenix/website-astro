@@ -380,6 +380,8 @@ export interface BeitragZahlende {
   payerId: string | null;
   /** The CampFlow event of the Sammlung, null for a Mitgliedsbeitrag or a manual Sammlung. */
   eventId: string | null;
+  /** In a Sammlung of Mitgliedsbeiträge (`annuity`): the payer is a person of the member list. */
+  mitgliedsbeitrag: boolean;
 }
 
 /**
@@ -435,8 +437,8 @@ export async function eigeneBeitraege(
     if (!fee.payerId) continue;
     if (fee.payerId === linked.id) ich[fee.id] = true;
     // Another person of the member list, even with the same name
-    else if (!fee.eventId) ich[fee.id] = false;
-    else {
+    else if (fee.mitgliedsbeitrag) ich[fee.id] = false;
+    else if (fee.eventId) {
       const eigene = anmeldungen.get(fee.eventId);
       if (eigene) ich[fee.id] = eigene.has(fee.payerId);
     }

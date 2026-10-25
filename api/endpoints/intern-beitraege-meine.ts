@@ -26,13 +26,14 @@ export async function GetInternBeitraegeMeineEndpoint(
   const started = Date.now();
   try {
     const { loadedAt, batches, fees } = offeneBeitraege(readBeitraege(await getBeitraege()));
-    const events = new Map(batches.map((batch) => [batch.id, batch.eventId]));
+    const sammlungen = new Map(batches.map((batch) => [batch.id, batch]));
     const ich = await eigeneBeitraege(
       principal.userDetails,
       fees.map((fee) => ({
         id: fee.id,
         payerId: fee.payerId,
-        eventId: (fee.batchId && events.get(fee.batchId)) || null,
+        eventId: (fee.batchId && sammlungen.get(fee.batchId)?.eventId) || null,
+        mitgliedsbeitrag: !!fee.batchId && sammlungen.get(fee.batchId)?.type === 'annuity',
       })),
       Math.min(started + MEINE_BEITRAEGE_BUDGET_MS, Date.now() + EIGENE_BEITRAEGE_TIMEOUT_MS)
     );

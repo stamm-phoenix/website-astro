@@ -521,14 +521,16 @@ dbTest('own Beiträge: the member by ID, registrations to Aktionen by address', 
   const context = quietContext(t);
   const fees = [
     // Mitgliedsbeitrag: the payer is the person of the member list
-    { id: 'fee_Mitglied', payerId: 'per_IchMia', eventId: null },
-    { id: 'fee_Andere', payerId: 'per_Andere', eventId: null },
+    { id: 'fee_Mitglied', payerId: 'per_IchMia', eventId: null, mitgliedsbeitrag: true },
+    { id: 'fee_Andere', payerId: 'per_Andere', eventId: null, mitgliedsbeitrag: true },
     // Aktionen: the payer is the registration, a person of its own
-    { id: 'fee_Lager', payerId: 'per_AnmeldungMia', eventId: 'evt_Lager' },
-    { id: 'fee_Kind', payerId: 'per_AnmeldungKai', eventId: 'evt_Lager' },
-    { id: 'fee_Fahrt', payerId: 'per_FahrtMia', eventId: 'evt_Fahrt' },
+    { id: 'fee_Lager', payerId: 'per_AnmeldungMia', eventId: 'evt_Lager', mitgliedsbeitrag: false },
+    { id: 'fee_Kind', payerId: 'per_AnmeldungKai', eventId: 'evt_Lager', mitgliedsbeitrag: false },
+    { id: 'fee_Fahrt', payerId: 'per_FahrtMia', eventId: 'evt_Fahrt', mitgliedsbeitrag: false },
     // Without a payer ID the page decides by the name
-    { id: 'fee_OhneId', payerId: null, eventId: 'evt_Lager' },
+    { id: 'fee_OhneId', payerId: null, eventId: 'evt_Lager', mitgliedsbeitrag: false },
+    // Neither a Mitgliedsbeitrag nor an Aktion: the payer may be anyone, the page decides
+    { id: 'fee_Manuell', payerId: 'per_Kontakt', eventId: null, mitgliedsbeitrag: false },
   ];
   // Without a link nothing could be compared: the page goes by the names
   assert.equal(await eigeneBeitraege(ANNA, fees), null);
@@ -608,8 +610,8 @@ dbTest('without CampFlow the link still finds the own Mitgliedsbeitrag', async (
   });
   const lists = t.mock.method(campflow, 'campflowGetAll', async () => []);
   const fees = [
-    { id: 'fee_Mitglied', payerId: 'per_IchPaul', eventId: null },
-    { id: 'fee_Lager', payerId: 'per_P', eventId: 'evt_1' },
+    { id: 'fee_Mitglied', payerId: 'per_IchPaul', eventId: null, mitgliedsbeitrag: true },
+    { id: 'fee_Lager', payerId: 'per_P', eventId: 'evt_1', mitgliedsbeitrag: false },
   ];
   // The Aktion cannot be compared without the address, so the page decides it by the name
   assert.deepEqual(await eigeneBeitraege(ANNA, fees), { fee_Mitglied: true });
@@ -641,8 +643,8 @@ dbTest('slow lists of the Aktionen leave the names to decide', async (t) => {
   t.mock.method(campflow, 'getCampflowMembers', async () => []);
   t.mock.method(campflow, 'campflowGetAll', () => new Promise(() => undefined));
   const fees = [
-    { id: 'fee_1', payerId: 'per_R', eventId: 'evt_1' },
-    { id: 'fee_2', payerId: 'per_IchRita', eventId: null },
+    { id: 'fee_1', payerId: 'per_R', eventId: 'evt_1', mitgliedsbeitrag: false },
+    { id: 'fee_2', payerId: 'per_IchRita', eventId: null, mitgliedsbeitrag: true },
   ];
   const started = Date.now();
   assert.deepEqual(await eigeneBeitraege(ANNA, fees, Date.now() + 500), { fee_2: true });
