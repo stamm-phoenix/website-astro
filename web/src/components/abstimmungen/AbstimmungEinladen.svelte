@@ -9,9 +9,11 @@
   import type { ProtokollVersandAuswahl, ProtokollVersandPreview } from '../../lib/protokolleView';
   import {
     LIST_RELOADED,
+    MAX_EXTRA_RECIPIENTS,
     auswahlBody,
     auswahlCount,
     auswahlDirty,
+    isEmailAddress,
     pendingProblem,
     personen,
     refreshAuswahl,
@@ -19,6 +21,7 @@
     versandProblem,
   } from '../../lib/protokolleView';
   import type { AbstimmungDetail } from '../../lib/abstimmungen';
+  import type { RescueField } from '../../lib/geretteteEingaben';
 
   /**
    * Invitations and reminders of an Abstimmung: the leaders and members with the label from
@@ -77,6 +80,41 @@
         t.email && !t.geantwortet && (t.mailStatus === 'gesendet' || t.mailStatus === 'versucht')
     ).length
   );
+
+  /**
+   * The changes to the list, so they survive a new login in the iPhone app: who was taken out
+   * (only people still on the list) and which addresses were added.
+   */
+  const auswahlRettung: RescueField = {
+    key: 'Einladung#custom',
+    get: () => JSON.stringify({ excluded: auswahl?.excluded ?? [], extra: auswahl?.extra ?? [] }),
+    describe: (value) => {
+      try {
+        const saved = JSON.parse(value) as { excluded?: unknown[]; extra?: unknown[] };
+        return `${saved.excluded?.length ?? 0} abgewählt, ${saved.extra?.length ?? 0} hinzugefügt`;
+      } catch {
+        return 'Auswahl der Empfänger*innen';
+      }
+    },
+    set(value) {
+      if (!auswahl) return false;
+      let saved: unknown;
+      try {
+        saved = JSON.parse(value);
+      } catch {
+        return false;
+      }
+      const { excluded, extra } = (saved ?? {}) as { excluded?: unknown; extra?: unknown };
+      const strings = (list: unknown): string[] =>
+        Array.isArray(list) ? list.filter((item): item is string => typeof item === 'string') : [];
+      const listed = new Set(auswahl.list.map((r) => r.email));
+      auswahl.excluded = strings(excluded).filter((email) => listed.has(email));
+      auswahl.extra = strings(extra)
+        .filter((email) => isEmailAddress(email) && !listed.has(email))
+        .slice(0, MAX_EXTRA_RECIPIENTS);
+      return true;
+    },
+  };
 
   function preview(): Promise<EinladungPreview> {
     return sendApi<EinladungPreview>(
@@ -233,6 +271,8 @@
   busyLabel="Wird vorbereitet …"
   submitDisabled={!auswahl || count - schon <= 0}
   dirty={auswahlDirty(auswahl)}
+  rescueKey={`abstimmung-einladung:${abstimmung.id}`}
+  rescueFields={[auswahlRettung]}
   onsubmit={() => void send()}
   onclose={() => {
     if (!busy) auswahl = null;

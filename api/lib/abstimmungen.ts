@@ -417,6 +417,22 @@ export async function updateAbstimmung(
     const bleiben = new Set(input.optionen.flatMap((option) => (option.id ? [option.id] : [])));
     const weg = bisher.filter((option) => !bleiben.has(option.id)).map((option) => option.id);
     if (weg.length) {
+      // Votes cast after the form was opened are never deleted without the warning
+      const gezaehlt = await trx
+        .selectFrom('abstimmung.stimme')
+        .select(['option_id', (eb) => eb.fn.countAll<number>().as('anzahl')])
+        .where('option_id', 'in', weg)
+        .groupBy('option_id')
+        .execute();
+      const neu = gezaehlt.find(
+        (row) => Number(row.anzahl) > (input.bekannteStimmen[row.option_id] ?? 0)
+      );
+      if (neu) {
+        const text = bisher.find((option) => option.id === neu.option_id)?.text ?? '';
+        throw new ValidationError({
+          optionen: `Inzwischen hat jemand für „${text}“ gestimmt. Lade die Abstimmung neu und entscheide dann, ob du die Option trotzdem entfernst.`,
+        });
+      }
       await trx.deleteFrom('abstimmung.stimme').where('option_id', 'in', weg).execute();
       await trx.deleteFrom('abstimmung.optionen').where('id', 'in', weg).execute();
     }
@@ -505,7 +521,7 @@ async function assertPlatz(trx: Transaction<Database>, id: number, neu: number):
     .executeTakeFirstOrThrow();
   if (Number(count) + neu > MAX_ABSTIMMUNG_TEILNAHMEN) {
     throw new ValidationError({
-      form: `Bei dieser Abstimmung machen schon ${MAX_ABSTIMMUNG_TEILNAHMEN} Personen mit. Mehr gehen nicht.`,
+      form: `Bei dieser Abstimmung machen schon ${MAX_ABSTIMMUNG_TEILNAHMEN} Personen mit, mehr gehen nicht. Deine Antwort wurde nicht gespeichert. Sag der Person Bescheid, die dich eingeladen hat.`,
     });
   }
 }

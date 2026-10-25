@@ -159,6 +159,17 @@
         )
       : []
   );
+  /** Options with votes whose text changed; the votes then count for the new text. */
+  const geaenderteMitStimmen = $derived(
+    abstimmung
+      ? abstimmung.optionen.filter(
+          (option) =>
+            zeilen.some(
+              (z) => z.id === option.id && z.text.trim() && z.text.trim() !== option.text
+            ) && option.stimmen > 0
+        )
+      : []
+  );
 
   async function remove(): Promise<void> {
     if (!ondelete) return;
@@ -183,6 +194,10 @@
       beschreibung,
       mehrfach,
       optionen: zeilen.map((z) => (z.id ? { id: z.id, text: z.text } : { text: z.text })),
+      // The votes the warning above was about; more cast meanwhile stop the save
+      bekannteStimmen: Object.fromEntries(
+        (abstimmung?.optionen ?? []).map((option) => [option.id, option.stimmen])
+      ),
     };
     const current = abstimmung;
     await dialog.run(
@@ -330,6 +345,12 @@
           Beim Speichern gehen die Stimmen für {entfernteMitStimmen
             .map((option) => `„${option.text}“`)
             .join(', ')} verloren.
+        </p>
+      {/if}
+      {#if geaenderteMitStimmen.length > 0}
+        <p class="mt-4 border-l-4 border-l-warning py-1 pl-3 text-sm text-neutral-800">
+          Die Stimmen für {geaenderteMitStimmen.map((option) => `„${option.text}“`).join(', ')}
+          zählen danach für den neuen Text. Für einen anderen Termin leg besser eine neue Option an.
         </p>
       {/if}
     </fieldset>
