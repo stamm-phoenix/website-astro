@@ -451,6 +451,8 @@ export async function setAbstimmungGeschlossen(
     await claimVersion(trx, id, etag, login, {
       geschlossen_am: geschlossen ? new Date().toISOString() : null,
     });
+    // Waits for a mail being sent; the next one sees the Abstimmung ended and stays queued
+    if (geschlossen) await lockResource(trx, mailLock(id));
   });
 }
 
@@ -814,12 +816,12 @@ function mailLock(id: number): string {
 /**
  * Reserves the next queued mail, sends it with `send` and marks it as sent, all while holding
  * the mail lock. A failing `send` leaves the mail reserved (`versucht`), never sent again
- * automatically. Returns whether there was a mail.
+ * automatically. Returns whether a mail was sent, none was queued or the Abstimmung is ended.
  */
 export async function sendNextAbstimmungMail(
   id: number,
   send: (mail: AbstimmungMail) => Promise<void>
-): Promise<boolean> {
+): Promise<'gesendet' | 'keine' | 'beendet'> {
   // Not `inTransaction`: the mail must not be sent again after a deadlock retry. The
   // transaction only holds the lock; reserving and marking commit on their own.
   // The lock pool, so waiting senders never hold the connections reserving and marking need
@@ -827,11 +829,14 @@ export async function sendNextAbstimmungMail(
     .transaction()
     .execute(async (trx) => {
       await lockResource(trx, mailLock(id));
+      // Ending takes the same lock, so no mail starts after the Abstimmung was ended
+      const row = await loadRow(getDb(), id);
+      if (!row || row.geschlossen_am) return 'beendet';
       const mail = await reserveAbstimmungMail(id);
-      if (!mail) return false;
+      if (!mail) return 'keine';
       await send(mail);
       await markAbstimmungMailSent(mail);
-      return true;
+      return 'gesendet';
     });
 }
 

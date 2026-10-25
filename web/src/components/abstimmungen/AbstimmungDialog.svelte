@@ -6,6 +6,7 @@
   import { sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import type { AbstimmungDetail } from '../../lib/abstimmungen';
+  import type { RescueField } from '../../lib/geretteteEingaben';
   import { MAX_ABSTIMMUNG_OPTIONEN, terminText } from '../../lib/abstimmungen';
 
   interface Props {
@@ -58,12 +59,42 @@
     dialog.reset();
   }
 
-  // Fills the form whenever the dialog opens
+  // Fills the form whenever the dialog opens, before `EditDialog` puts back the input of an
+  // expired login, so that input wins
   let warOffen = false;
-  $effect(() => {
+  $effect.pre(() => {
     if (open && !warOffen) fill();
     warOffen = open;
   });
+
+  /**
+   * The rows as they were, before their texts are filled in again after a new login: which
+   * option each row keeps (0 for a new one), so a text never lands on another option's votes.
+   */
+  const optionenStruktur: RescueField = {
+    key: 'Optionen#custom',
+    structure: true,
+    get: () => JSON.stringify(zeilen.map((z) => z.id ?? 0)),
+    describe: (value) => `${value.split(',').length} Optionen`,
+    set(value) {
+      let ids: unknown;
+      try {
+        ids = JSON.parse(value);
+      } catch {
+        return false;
+      }
+      const bekannt = new Map((abstimmung?.optionen ?? []).map((o) => [o.id, o.text]));
+      if (
+        !Array.isArray(ids) ||
+        ids.length > MAX_ABSTIMMUNG_OPTIONEN ||
+        !ids.every((id) => id === 0 || bekannt.has(id))
+      )
+        return false;
+      zeilen = ids.map((id: number) => zeile(bekannt.get(id) ?? '', id || undefined));
+      geaendert = true;
+      return true;
+    },
+  };
 
   /** After a conflict: the current version replaces the input, so it is not saved over. */
   async function reload(): Promise<boolean> {
@@ -184,6 +215,7 @@
   dirty={geaendert}
   rescueKey={`abstimmung:${abstimmung?.id ?? 'neu'}`}
   rescueVersion={abstimmung?.etag}
+  rescueFields={[optionenStruktur]}
   onreload={dialog.state.conflict && onreload ? reload : undefined}
   onsubmit={() => void save()}
   {onclose}

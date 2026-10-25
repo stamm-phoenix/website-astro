@@ -69,7 +69,11 @@
   }
 
   /** Opens the link in the address bar; another link in the same tab is another person. */
+  /** Counts the links opened, so a late response for the one before changes nothing. */
+  let ansichten = 0;
+
   function openLink(): void {
+    ansichten++;
     link = parseAbstimmungHash(window.location.hash);
     ansicht = null;
     name = '';
@@ -122,6 +126,7 @@
     }
     saving = true;
     message = null;
+    const geoeffnet = ansichten;
     try {
       const { token } = await sendApi<{ token: string }>('PUT', '/abstimmungen/stimme', {
         ...link,
@@ -129,6 +134,8 @@
         gewaehlt,
         versuch,
       });
+      // Another link was opened meanwhile; its page stays as it is
+      if (geoeffnet !== ansichten) return;
       // The shared link or the link of a family: this answer has a link of its own now
       if (token !== link.token) {
         // The next new answer on this page is another one
@@ -142,6 +149,7 @@
       message = 'Antwort gespeichert.';
       await load();
     } catch (failure: unknown) {
+      if (geoeffnet !== ansichten) return;
       if (failure instanceof ApiError && failure.fields) fields = failure.fields;
       messageKind = 'error';
       message = errorMessage(
