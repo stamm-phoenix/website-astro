@@ -7,6 +7,29 @@ import { ValidationError } from './pflege-validation';
 export type AbstimmungMailArt = 'einladung' | 'erinnerung';
 export type AbstimmungMailStatus = 'offen' | 'versucht' | 'gesendet';
 
+/**
+ * Who sees who chose what: `offen` everyone who votes; `anonym` only the organizer, the others
+ * see who answered; `geheim` only the organizer, the others see only how many answered.
+ */
+export type AbstimmungSichtbarkeit = 'offen' | 'anonym' | 'geheim';
+export const ABSTIMMUNG_SICHTBARKEITEN: readonly AbstimmungSichtbarkeit[] = [
+  'offen',
+  'anonym',
+  'geheim',
+];
+
+/** What someone sees of the answers of others: everything, only the names, only the number. */
+export type AbstimmungEinsicht = 'alles' | 'namen' | 'anzahl';
+
+/** The organizer sees everything; everyone else what the Sichtbarkeit allows. */
+export function abstimmungEinsicht(
+  sichtbarkeit: AbstimmungSichtbarkeit,
+  organisator: boolean
+): AbstimmungEinsicht {
+  if (organisator || sichtbarkeit === 'offen') return 'alles';
+  return sichtbarkeit === 'anonym' ? 'namen' : 'anzahl';
+}
+
 /** Most options of one Abstimmung; more do not fit on a phone. */
 export const MAX_ABSTIMMUNG_OPTIONEN = 40;
 /** Most people per Abstimmung, so a shared link cannot fill the table. */
@@ -15,33 +38,48 @@ export const MAX_ABSTIMMUNG_TEILNAHMEN = 300;
 export interface AbstimmungOption {
   id: number;
   text: string;
-  /** How many people chose it. */
+  /** How many people chose it with „Ja“. */
   stimmen: number;
+  /** How many people chose it with „Vielleicht“. */
+  vielleicht: number;
 }
 
-/** The answer of one person, with the IDs of the chosen options (none: no option fits). */
+/**
+ * The answer of one person, with the IDs of the options chosen with „Ja“ and „Vielleicht“
+ * (none: no option fits). Both are empty when the viewer may only see who answered.
+ */
 export interface AbstimmungAntwort {
   name: string;
   gewaehlt: number[];
+  vielleicht: number[];
 }
 
-/** What everyone who may vote sees: question, options with counts and who chose what. */
+/** What everyone who may vote sees: question, options with counts and the answers. */
 export interface AbstimmungErgebnis {
   id: number;
   titel: string;
   beschreibung: string;
-  /** Several options may be chosen, e.g. every date that fits. */
-  mehrfach: boolean;
+  /** At most this many options with „Ja“, e.g. 1 for a single choice; `null`: any number. */
+  maxAuswahl: number | null;
+  /** Options may also be chosen with „Vielleicht“. */
+  vielleichtErlaubt: boolean;
+  sichtbarkeit: AbstimmungSichtbarkeit;
+  /** What the viewer sees of the answers of others; decides what `antworten` holds. */
+  einsicht: AbstimmungEinsicht;
   geschlossen: boolean;
   erstelltVonName: string;
   optionen: AbstimmungOption[];
+  /** `alles`: names and choices; `namen`: names without choices; `anzahl`: empty. */
   antworten: AbstimmungAntwort[];
+  /** How many people answered. */
+  anzahlAntworten: number;
 }
 
 /** The own answer; `null` before someone who came over the shared link entered a name. */
 export interface AbstimmungIch {
   name: string;
   gewaehlt: number[];
+  vielleicht: number[];
   geantwortet: boolean;
 }
 
@@ -98,7 +136,9 @@ export interface AbstimmungOptionEingabe {
 export interface AbstimmungEingabe {
   titel: string;
   beschreibung: string;
-  mehrfach: boolean;
+  maxAuswahl: number | null;
+  vielleichtErlaubt: boolean;
+  sichtbarkeit: AbstimmungSichtbarkeit;
   optionen: AbstimmungOptionEingabe[];
   /**
    * Votes per option ID as the form showed them; an option removed now may lose at most these,
@@ -124,8 +164,20 @@ export function validateAbstimmung(body: Record<string, unknown> | null): Abstim
   if (!body) throw new ValidationError({ form: 'Bitte prüfe die Eingaben.' });
   const titel = text(body.titel, 'titel', 200, 'Die Frage');
   const beschreibung = text(body.beschreibung, 'beschreibung', 2000, 'Die Beschreibung', true);
-  if (body.mehrfach !== undefined && typeof body.mehrfach !== 'boolean') {
-    throw new ValidationError({ mehrfach: 'Bitte wähle, wie viele Optionen man wählen kann.' });
+  const max = body.maxAuswahl;
+  if (
+    max !== undefined &&
+    max !== null &&
+    (typeof max !== 'number' || !Number.isInteger(max) || max < 1 || max > MAX_ABSTIMMUNG_OPTIONEN)
+  ) {
+    throw new ValidationError({ maxAuswahl: 'Bitte wähle, wie viele Optionen man wählen kann.' });
+  }
+  if (body.vielleichtErlaubt !== undefined && typeof body.vielleichtErlaubt !== 'boolean') {
+    throw new ValidationError({ vielleichtErlaubt: 'Bitte wähle, ob „Vielleicht“ möglich ist.' });
+  }
+  const sichtbarkeit = body.sichtbarkeit ?? 'offen';
+  if (!ABSTIMMUNG_SICHTBARKEITEN.includes(sichtbarkeit as AbstimmungSichtbarkeit)) {
+    throw new ValidationError({ sichtbarkeit: 'Bitte wähle, wer die Antworten sieht.' });
   }
   if (!Array.isArray(body.optionen)) {
     throw new ValidationError({ optionen: 'Bitte trag mindestens zwei Optionen ein.' });
@@ -170,7 +222,15 @@ export function validateAbstimmung(body: Record<string, unknown> | null): Abstim
         bekannteStimmen[Number(key)] = value as number;
     }
   }
-  return { titel, beschreibung, mehrfach: body.mehrfach !== false, optionen, bekannteStimmen };
+  return {
+    titel,
+    beschreibung,
+    maxAuswahl: typeof max === 'number' ? max : null,
+    vielleichtErlaubt: body.vielleichtErlaubt === true,
+    sichtbarkeit: sichtbarkeit as AbstimmungSichtbarkeit,
+    optionen,
+    bekannteStimmen,
+  };
 }
 
 /** The name someone enters over the shared link. */
@@ -178,32 +238,66 @@ export function validateAbstimmungName(value: unknown): string {
   return text(value, 'name', 100, 'Dein Name').replace(/\s+/g, ' ');
 }
 
+/** The rules an answer must follow. */
+export interface AbstimmungRegeln {
+  optionIds: readonly number[];
+  maxAuswahl: number | null;
+  vielleichtErlaubt: boolean;
+}
+
+/** „Hier kannst du nur eine Option wählen.“ or „… höchstens 3 Optionen …“. */
+export function maxAuswahlText(max: number): string {
+  return max === 1
+    ? 'Hier kannst du nur eine Option wählen.'
+    : `Hier kannst du höchstens ${max} Optionen mit „Ja“ wählen.`;
+}
+
 /**
- * The chosen options: existing IDs, each once, at most one without `mehrfach`. An empty list is
- * an answer too: none of the options fits.
+ * The chosen options: existing IDs, each once and either with „Ja“ or „Vielleicht“, at most
+ * `maxAuswahl` with „Ja“ (any number with „Vielleicht“). Empty lists are an answer too: none of
+ * the options fits.
  */
-export function validateGewaehlt(
-  value: unknown,
-  optionIds: readonly number[],
-  mehrfach: boolean
-): number[] {
-  if (!Array.isArray(value) || value.length > optionIds.length) {
-    throw new ValidationError({ gewaehlt: 'Die Auswahl ist ungültig. Bitte lade die Seite neu.' });
-  }
+export function validateAntwort(
+  gewaehltValue: unknown,
+  vielleichtValue: unknown,
+  regeln: AbstimmungRegeln
+): { gewaehlt: number[]; vielleicht: number[] } {
+  const { optionIds, maxAuswahl, vielleichtErlaubt } = regeln;
   const known = new Set(optionIds);
-  const chosen = new Set<number>();
-  for (const id of value) {
-    if (typeof id !== 'number' || !known.has(id)) {
+  const read = (value: unknown): Set<number> => {
+    if (!Array.isArray(value) || value.length > optionIds.length) {
       throw new ValidationError({
-        gewaehlt: 'Eine Option gibt es nicht mehr. Bitte lade die Seite neu.',
+        gewaehlt: 'Die Auswahl ist ungültig. Bitte lade die Seite neu.',
       });
     }
-    chosen.add(id);
+    const chosen = new Set<number>();
+    for (const id of value) {
+      if (typeof id !== 'number' || !known.has(id)) {
+        throw new ValidationError({
+          gewaehlt: 'Eine Option gibt es nicht mehr. Bitte lade die Seite neu.',
+        });
+      }
+      chosen.add(id);
+    }
+    return chosen;
+  };
+  const ja = read(gewaehltValue);
+  const vielleicht = read(vielleichtValue ?? []);
+  if (vielleicht.size > 0 && !vielleichtErlaubt) {
+    throw new ValidationError({
+      gewaehlt: '„Vielleicht“ geht bei dieser Abstimmung nicht mehr. Bitte lade die Seite neu.',
+    });
   }
-  if (!mehrfach && chosen.size > 1) {
-    throw new ValidationError({ gewaehlt: 'Hier kannst du nur eine Option wählen.' });
+  if ([...vielleicht].some((id) => ja.has(id))) {
+    throw new ValidationError({ gewaehlt: 'Die Auswahl ist ungültig. Bitte lade die Seite neu.' });
   }
-  return optionIds.filter((id) => chosen.has(id));
+  if (maxAuswahl !== null && ja.size > maxAuswahl) {
+    throw new ValidationError({ gewaehlt: maxAuswahlText(maxAuswahl) });
+  }
+  return {
+    gewaehlt: optionIds.filter((id) => ja.has(id)),
+    vielleicht: optionIds.filter((id) => vielleicht.has(id)),
+  };
 }
 
 /** Row data the result is built from. */
@@ -211,28 +305,53 @@ export interface AbstimmungRohdaten {
   id: number;
   titel: string;
   beschreibung: string;
-  mehrfach: boolean;
+  maxAuswahl: number | null;
+  vielleichtErlaubt: boolean;
+  sichtbarkeit: AbstimmungSichtbarkeit;
   geschlossen: boolean;
   erstelltVonName: string;
   optionen: { id: number; text: string }[];
   /** Everyone who answered, in the order of their first answer. */
-  antworten: { teilnahmeId: number; name: string; gewaehlt: number[] }[];
+  antworten: { teilnahmeId: number; name: string; gewaehlt: number[]; vielleicht: number[] }[];
 }
 
-/** Counts the votes per option. */
-export function abstimmungErgebnis(daten: AbstimmungRohdaten): AbstimmungErgebnis {
-  const stimmen = new Map<number, number>();
-  for (const antwort of daten.antworten) {
-    for (const id of antwort.gewaehlt) stimmen.set(id, (stimmen.get(id) ?? 0) + 1);
-  }
+/** Counts the votes per option; the answers only as far as `einsicht` allows. */
+export function abstimmungErgebnis(
+  daten: AbstimmungRohdaten,
+  einsicht: AbstimmungEinsicht
+): AbstimmungErgebnis {
+  const zaehlen = (pick: (antwort: AbstimmungRohdaten['antworten'][number]) => number[]) => {
+    const counts = new Map<number, number>();
+    for (const antwort of daten.antworten) {
+      for (const id of pick(antwort)) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return counts;
+  };
+  const ja = zaehlen((antwort) => antwort.gewaehlt);
+  const vielleicht = zaehlen((antwort) => antwort.vielleicht);
   return {
     id: daten.id,
     titel: daten.titel,
     beschreibung: daten.beschreibung,
-    mehrfach: daten.mehrfach,
+    maxAuswahl: daten.maxAuswahl,
+    vielleichtErlaubt: daten.vielleichtErlaubt,
+    sichtbarkeit: daten.sichtbarkeit,
+    einsicht,
     geschlossen: daten.geschlossen,
     erstelltVonName: daten.erstelltVonName,
-    optionen: daten.optionen.map((option) => ({ ...option, stimmen: stimmen.get(option.id) ?? 0 })),
-    antworten: daten.antworten.map(({ name, gewaehlt }) => ({ name, gewaehlt })),
+    optionen: daten.optionen.map((option) => ({
+      ...option,
+      stimmen: ja.get(option.id) ?? 0,
+      vielleicht: vielleicht.get(option.id) ?? 0,
+    })),
+    antworten:
+      einsicht === 'anzahl'
+        ? []
+        : daten.antworten.map(({ name, gewaehlt, vielleicht: auch }) =>
+            einsicht === 'alles'
+              ? { name, gewaehlt, vielleicht: auch }
+              : { name, gewaehlt: [], vielleicht: [] }
+          ),
+    anzahlAntworten: daten.antworten.length,
   };
 }

@@ -68,7 +68,7 @@ export const AbstimmungAnsehen = publicHandler(async (request) => {
 });
 
 /**
- * PUT `{ link | token, name, gewaehlt, versuch? }`: saves the answer. Over the shared link a new
+ * PUT `{ link | token, name, gewaehlt, vielleicht?, versuch? }`: saves the answer. Over the shared link a new
  * person is added; the answer carries the personal link token, so the page can change the answer
  * later. `versuch` (a UUID per new answer) makes a repeated request find that person again.
  */
@@ -78,6 +78,11 @@ export const AbstimmungAbstimmen = publicHandler(async (request) => {
   if (!link.link && !link.token) return INVALID_LINK;
   const name = validateAbstimmungName(body?.name);
   const versuch = isAbstimmungVersuch(body?.versuch) ? body.versuch : undefined;
-  const result = await votePublic(link, name, body?.gewaehlt, versuch);
+  const result = await votePublic(
+    link,
+    name,
+    { gewaehlt: body?.gewaehlt, vielleicht: body?.vielleicht },
+    versuch
+  );
   return result ? { status: 200, jsonBody: result } : INVALID_LINK;
 });

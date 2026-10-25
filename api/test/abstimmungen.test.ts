@@ -13,10 +13,11 @@ import {
   abstimmungQuellen,
 } from '../endpoints/intern-pflege-abstimmungen';
 import {
+  abstimmungEinsicht,
   abstimmungErgebnis,
   validateAbstimmung,
   validateAbstimmungName,
-  validateGewaehlt,
+  validateAntwort,
 } from '../lib/abstimmung-model';
 import type { AbstimmungAnsicht, AbstimmungDetail } from '../lib/abstimmung-model';
 import { abstimmungMail, abstimmungMailContent } from '../lib/abstimmung-mails';
@@ -81,7 +82,6 @@ function offline(t: TestContext): void {
 const FORM = {
   titel: 'Termin Weihnachtsfeier',
   beschreibung: 'Bitte alle passenden Termine wählen.',
-  mehrfach: true,
   optionen: [{ text: 'Fr, 11.12.' }, { text: 'Sa, 12.12.' }, { text: 'Fr, 18.12.' }],
 };
 
@@ -107,10 +107,40 @@ async function vote(
   t: TestContext,
   id: number,
   login: string,
-  gewaehlt: number[]
+  gewaehlt: number[],
+  vielleicht?: number[]
 ): Promise<HttpResponseInit> {
   return AbstimmungStimmeEndpoint(
-    request('PUT', `intern/pflege/abstimmungen/${id}/stimme`, { body: { gewaehlt }, login, id }),
+    request('PUT', `intern/pflege/abstimmungen/${id}/stimme`, {
+      body: { gewaehlt, vielleicht },
+      login,
+      id,
+    }),
+    context(t)
+  );
+}
+
+/** Saves the form with new settings, keeping the options. */
+async function einstellen(
+  t: TestContext,
+  id: number,
+  settings: Record<string, unknown>
+): Promise<HttpResponseInit> {
+  const view = await detail(t, id);
+  return AbstimmungItemEndpoint(
+    request('PATCH', `intern/pflege/abstimmungen/${id}`, {
+      body: {
+        ...FORM,
+        maxAuswahl: view.maxAuswahl,
+        vielleichtErlaubt: view.vielleichtErlaubt,
+        sichtbarkeit: view.sichtbarkeit,
+        ...settings,
+        etag: view.etag,
+        optionen: view.optionen.map(({ id: optionId, text }) => ({ id: optionId, text })),
+      },
+      login: ANNA,
+      id,
+    }),
     context(t)
   );
 }
@@ -127,7 +157,37 @@ test('validateAbstimmung leaves out empty rows and refuses duplicates and single
     optionen: [{ text: 'Pizza' }, { text: '  ' }, { text: 'Döner' }],
   });
   assert.equal(input.titel, 'Pizza oder Döner?');
-  assert.equal(input.mehrfach, true);
+  // Any number of options, no „Vielleicht“, everyone sees the answers
+  assert.equal(input.maxAuswahl, null);
+  assert.equal(input.vielleichtErlaubt, false);
+  assert.equal(input.sichtbarkeit, 'offen');
+  const settings = validateAbstimmung({
+    titel: 'X',
+    maxAuswahl: 2,
+    vielleichtErlaubt: true,
+    sichtbarkeit: 'geheim',
+    optionen: [{ text: 'A' }, { text: 'B' }],
+  });
+  assert.deepEqual(
+    [settings.maxAuswahl, settings.vielleichtErlaubt, settings.sichtbarkeit],
+    [2, true, 'geheim']
+  );
+  for (const maxAuswahl of [0, 1.5, '2', 41]) {
+    assert.throws(
+      () =>
+        validateAbstimmung({ titel: 'X', maxAuswahl, optionen: [{ text: 'A' }, { text: 'B' }] }),
+      (error: unknown) => error instanceof ValidationError && 'maxAuswahl' in error.fields
+    );
+  }
+  assert.throws(
+    () =>
+      validateAbstimmung({
+        titel: 'X',
+        sichtbarkeit: 'alle',
+        optionen: [{ text: 'A' }, { text: 'B' }],
+      }),
+    (error: unknown) => error instanceof ValidationError && 'sichtbarkeit' in error.fields
+  );
   assert.deepEqual(input.optionen, [{ text: 'Pizza' }, { text: 'Döner' }]);
   assert.throws(
     () => validateAbstimmung({ titel: 'X', optionen: [{ text: 'Pizza' }, { text: 'pizza' }] }),
@@ -143,22 +203,42 @@ test('validateAbstimmung leaves out empty rows and refuses duplicates and single
   assert.equal(validateAbstimmungName(' Lea   Muster '), 'Lea Muster');
 });
 
-test('validateGewaehlt keeps the order of the options and honors a single choice', () => {
-  assert.deepEqual(validateGewaehlt([3, 1], [1, 2, 3], true), [1, 3]);
-  assert.deepEqual(validateGewaehlt([], [1, 2], false), []);
+test('validateAntwort keeps the order of the options and honors the rules', () => {
+  const regeln = { optionIds: [1, 2, 3], maxAuswahl: null, vielleichtErlaubt: true };
+  assert.deepEqual(validateAntwort([3, 1], [2], regeln), { gewaehlt: [1, 3], vielleicht: [2] });
+  assert.deepEqual(validateAntwort([], undefined, { ...regeln, maxAuswahl: 1 }), {
+    gewaehlt: [],
+    vielleicht: [],
+  });
   const field = (pattern: RegExp) => (error: unknown) =>
     error instanceof ValidationError && pattern.test(error.fields.gewaehlt);
-  assert.throws(() => validateGewaehlt([1, 2], [1, 2], false), field(/nur eine/));
-  assert.throws(() => validateGewaehlt([9], [1, 2], true), field(/gibt es nicht mehr/));
-  assert.throws(() => validateGewaehlt('1', [1, 2], true), ValidationError);
+  assert.throws(() => validateAntwort([1, 2], [], { ...regeln, maxAuswahl: 1 }), field(/nur eine/));
+  assert.throws(
+    () => validateAntwort([1, 2, 3], [], { ...regeln, maxAuswahl: 2 }),
+    field(/höchstens 2 Optionen/)
+  );
+  // „Vielleicht“ does not count against the limit
+  assert.deepEqual(validateAntwort([1], [2, 3], { ...regeln, maxAuswahl: 1 }), {
+    gewaehlt: [1],
+    vielleicht: [2, 3],
+  });
+  assert.throws(
+    () => validateAntwort([1], [2], { ...regeln, vielleichtErlaubt: false }),
+    field(/Vielleicht/)
+  );
+  assert.throws(() => validateAntwort([1], [1], regeln), field(/ungültig/));
+  assert.throws(() => validateAntwort([9], [], regeln), field(/gibt es nicht mehr/));
+  assert.throws(() => validateAntwort('1', [], regeln), ValidationError);
 });
 
-test('abstimmungErgebnis counts the votes per option', () => {
-  const ergebnis = abstimmungErgebnis({
+test('abstimmungErgebnis counts the votes per option and shows the answers by Einsicht', () => {
+  const daten = {
     id: 1,
     titel: 'T',
     beschreibung: '',
-    mehrfach: true,
+    maxAuswahl: null,
+    vielleichtErlaubt: true,
+    sichtbarkeit: 'anonym' as const,
     geschlossen: false,
     erstelltVonName: 'Anna',
     optionen: [
@@ -166,16 +246,37 @@ test('abstimmungErgebnis counts the votes per option', () => {
       { id: 2, text: 'B' },
     ],
     antworten: [
-      { teilnahmeId: 5, name: 'Lea', gewaehlt: [1, 2] },
-      { teilnahmeId: 6, name: 'Max', gewaehlt: [2] },
-      { teilnahmeId: 7, name: 'Kim', gewaehlt: [] },
+      { teilnahmeId: 5, name: 'Lea', gewaehlt: [1, 2], vielleicht: [] },
+      { teilnahmeId: 6, name: 'Max', gewaehlt: [2], vielleicht: [1] },
+      { teilnahmeId: 7, name: 'Kim', gewaehlt: [], vielleicht: [] },
     ],
-  });
+  };
+  const ergebnis = abstimmungErgebnis(daten, 'alles');
   assert.deepEqual(
-    ergebnis.optionen.map((option) => option.stimmen),
-    [1, 2]
+    ergebnis.optionen.map((option) => [option.stimmen, option.vielleicht]),
+    [
+      [1, 1],
+      [2, 0],
+    ]
   );
-  assert.deepEqual(ergebnis.antworten[2], { name: 'Kim', gewaehlt: [] });
+  assert.deepEqual(ergebnis.antworten[1], { name: 'Max', gewaehlt: [2], vielleicht: [1] });
+  assert.equal(ergebnis.anzahlAntworten, 3);
+  // Only who answered: the counts stay, the choices of each person go
+  const namen = abstimmungErgebnis(daten, 'namen');
+  assert.deepEqual(namen.optionen, ergebnis.optionen);
+  assert.deepEqual(namen.antworten[1], { name: 'Max', gewaehlt: [], vielleicht: [] });
+  // Only how many answered
+  const anzahl = abstimmungErgebnis(daten, 'anzahl');
+  assert.deepEqual(anzahl.antworten, []);
+  assert.equal(anzahl.anzahlAntworten, 3);
+  assert.deepEqual(
+    [abstimmungEinsicht('offen', false), abstimmungEinsicht('anonym', false)],
+    ['alles', 'namen']
+  );
+  assert.deepEqual(
+    [abstimmungEinsicht('geheim', false), abstimmungEinsicht('geheim', true)],
+    ['anzahl', 'alles']
+  );
 });
 
 test('the mail escapes the text and carries the personal link', () => {
@@ -220,7 +321,12 @@ dbTest('leaders vote, others vote over the shared link, only the organizer manag
   assert.equal(ben.eigene, false);
   assert.equal(ben.link, null);
   assert.equal(ben.teilnahmen, null);
-  assert.deepEqual(ben.ich, { name: 'Ben Bau', gewaehlt: [fr18], geantwortet: true });
+  assert.deepEqual(ben.ich, {
+    name: 'Ben Bau',
+    gewaehlt: [fr18],
+    vielleicht: [],
+    geantwortet: true,
+  });
   assert.deepEqual(
     ben.optionen.map((option) => option.stimmen),
     [1, 0, 2]
@@ -255,7 +361,12 @@ dbTest('leaders vote, others vote over the shared link, only the organizer manag
     context(t)
   );
   const ownView = own.jsonBody as AbstimmungAnsicht;
-  assert.deepEqual(ownView.ich, { name: 'Oma Erna', gewaehlt: [sa12, fr18], geantwortet: true });
+  assert.deepEqual(ownView.ich, {
+    name: 'Oma Erna',
+    gewaehlt: [sa12, fr18],
+    vielleicht: [],
+    geantwortet: true,
+  });
   assert.deepEqual(
     ownView.antworten.map((antwort) => antwort.name),
     ['Anna Alt', 'Ben Bau', 'Oma Erna']
@@ -281,13 +392,13 @@ dbTest('leaders vote, others vote over the shared link, only the organizer manag
   );
   assert.equal(forbidden.status, 403);
 
-  // Turning off several choices is refused while people chose several
+  // A single choice is refused while people chose several
   const single = await AbstimmungItemEndpoint(
     request('PATCH', `intern/pflege/abstimmungen/${id}`, {
       body: {
         ...FORM,
         etag: view.etag,
-        mehrfach: false,
+        maxAuswahl: 1,
         optionen: view.optionen.map(({ id: optionId, text }) => ({ id: optionId, text })),
       },
       login: ANNA,
@@ -747,11 +858,21 @@ dbTest('a family sharing one address answers as separate people', async (t) => {
         )
       ).jsonBody as { token: string }
     ).token;
-  assert.deepEqual((await ansicht(familie)).ich, { name: '', gewaehlt: [], geantwortet: false });
+  assert.deepEqual((await ansicht(familie)).ich, {
+    name: '',
+    gewaehlt: [],
+    vielleicht: [],
+    geantwortet: false,
+  });
   // Everyone who answers with it becomes a person with a link of their own
   const clara = await answer(familie, 'Clara Bau', [first]);
   assert.notEqual(clara, familie);
-  assert.deepEqual((await ansicht(familie)).ich, { name: '', gewaehlt: [], geantwortet: false });
+  assert.deepEqual((await ansicht(familie)).ich, {
+    name: '',
+    gewaehlt: [],
+    vielleicht: [],
+    geantwortet: false,
+  });
   const ben = await answer(familie, 'Ben', [second]);
   assert.notEqual(ben, clara);
   // Each changes their own answer with their link, also the name
@@ -844,6 +965,7 @@ dbTest('a leader voting first does not hold back the invitation to a family addr
   assert.deepEqual((await detail(t, id, BEN)).ich, {
     name: 'Ben Bau',
     gewaehlt: [first],
+    vielleicht: [],
     geantwortet: true,
   });
 });
@@ -1176,4 +1298,132 @@ dbTest('a leader whose address a child shares is not invited after answering', a
   await post('mails', {});
   assert.deepEqual(sent, ['erika@example.test']);
   assert.deepEqual((await post('erinnerung', { action: 'preview' })).jsonBody, { personen: 1 });
+});
+
+dbTest('only the organizer sees who chose what when the answers are not open', async (t) => {
+  offline(t);
+  const id = await create(t, { ...FORM, sichtbarkeit: 'anonym' });
+  const [fr11, sa12] = (await detail(t, id)).optionen.map((option) => option.id);
+  assert.equal((await vote(t, id, BEN, [sa12])).status, 204);
+  assert.equal((await vote(t, id, ANNA, [fr11])).status, 204);
+
+  // Ben sees who answered and the counts, but not who chose what; his own answer stays his
+  const ben = await detail(t, id, BEN);
+  assert.equal(ben.einsicht, 'namen');
+  assert.deepEqual(ben.antworten, [
+    { name: 'Ben Bau', gewaehlt: [], vielleicht: [] },
+    { name: 'Anna Alt', gewaehlt: [], vielleicht: [] },
+  ]);
+  assert.deepEqual(
+    ben.optionen.map((option) => option.stimmen),
+    [1, 1, 0]
+  );
+  assert.deepEqual(ben.ich?.gewaehlt, [sa12]);
+  // Anna created it and sees everything
+  const anna = await detail(t, id);
+  assert.equal(anna.einsicht, 'alles');
+  assert.deepEqual(
+    anna.antworten.map((antwort) => [antwort.name, antwort.gewaehlt]),
+    [
+      ['Ben Bau', [sa12]],
+      ['Anna Alt', [fr11]],
+    ]
+  );
+  // Over the shared link, also when Anna opens it
+  const shared = (
+    await AbstimmungAnsehen(
+      request('POST', 'abstimmungen/ansehen', { body: { link: linkToken(anna.link) } }),
+      context(t)
+    )
+  ).jsonBody as AbstimmungAnsicht;
+  assert.equal(shared.einsicht, 'namen');
+  assert.ok(shared.antworten.every((antwort) => antwort.gewaehlt.length === 0));
+
+  // Secret: not even who answered, only how many
+  assert.equal((await einstellen(t, id, { sichtbarkeit: 'geheim' })).status, 204);
+  const geheim = await detail(t, id, BEN);
+  assert.equal(geheim.einsicht, 'anzahl');
+  assert.deepEqual(geheim.antworten, []);
+  assert.equal(geheim.anzahlAntworten, 2);
+  assert.equal((await detail(t, id)).antworten.length, 2);
+
+  // Who answered relied on it: the answers never become more visible
+  for (const sichtbarkeit of ['anonym', 'offen']) {
+    const looser = await einstellen(t, id, { sichtbarkeit });
+    assert.equal(looser.status, 400);
+    assert.match(
+      (looser.jsonBody as { fields: { sichtbarkeit: string } }).fields.sichtbarkeit,
+      /schon Leute abgestimmt/
+    );
+  }
+  // Without answers the setting is free
+  const leer = await create(t, { ...FORM, sichtbarkeit: 'geheim' });
+  assert.equal((await einstellen(t, leer, { sichtbarkeit: 'offen' })).status, 204);
+});
+
+dbTest('a limit counts „Ja“, and „Vielleicht“ only where allowed', async (t) => {
+  offline(t);
+  const id = await create(t, { ...FORM, maxAuswahl: 2, vielleichtErlaubt: true });
+  const [fr11, sa12, fr18] = (await detail(t, id)).optionen.map((option) => option.id);
+  const tooMany = await vote(t, id, BEN, [fr11, sa12, fr18]);
+  assert.equal(tooMany.status, 400);
+  assert.match(
+    (tooMany.jsonBody as { fields: { gewaehlt: string } }).fields.gewaehlt,
+    /höchstens 2 Optionen/
+  );
+  assert.equal((await vote(t, id, BEN, [fr11, sa12], [fr18])).status, 204);
+  let view = await detail(t, id, BEN);
+  assert.deepEqual(view.ich?.vielleicht, [fr18]);
+  assert.deepEqual(
+    view.optionen.map((option) => [option.stimmen, option.vielleicht]),
+    [
+      [1, 0],
+      [1, 0],
+      [0, 1],
+    ]
+  );
+  assert.deepEqual(view.antworten, [
+    { name: 'Ben Bau', gewaehlt: [fr11, sa12], vielleicht: [fr18] },
+  ]);
+
+  // Over a personal link, too
+  const link = linkToken((await detail(t, id)).link);
+  const saved = await AbstimmungAbstimmen(
+    request('PUT', 'abstimmungen/stimme', {
+      body: { link, name: 'Oma Erna', gewaehlt: [fr18], vielleicht: [fr11, sa12] },
+    }),
+    context(t)
+  );
+  assert.equal(saved.status, 200, JSON.stringify(saved.jsonBody));
+  const { token } = saved.jsonBody as { token: string };
+  const own = (
+    await AbstimmungAnsehen(
+      request('POST', 'abstimmungen/ansehen', { body: { token } }),
+      context(t)
+    )
+  ).jsonBody as AbstimmungAnsicht;
+  assert.deepEqual(own.ich, {
+    name: 'Oma Erna',
+    gewaehlt: [fr18],
+    vielleicht: [fr11, sa12],
+    geantwortet: true,
+  });
+
+  // The rules cannot change under the answers given
+  const lower = await einstellen(t, id, { maxAuswahl: 1 });
+  assert.equal(lower.status, 400);
+  assert.ok('maxAuswahl' in (lower.jsonBody as { fields: object }).fields);
+  const ohne = await einstellen(t, id, { vielleichtErlaubt: false });
+  assert.equal(ohne.status, 400);
+  assert.ok('vielleichtErlaubt' in (ohne.jsonBody as { fields: object }).fields);
+  assert.equal((await einstellen(t, id, { maxAuswahl: null })).status, 204);
+  view = await detail(t, id);
+  assert.equal(view.maxAuswahl, null);
+
+  // Where „Vielleicht“ is not allowed, it is refused
+  const streng = await create(t);
+  const [erste, zweite] = (await detail(t, streng)).optionen.map((option) => option.id);
+  const refused = await vote(t, streng, BEN, [erste], [zweite]);
+  assert.equal(refused.status, 400);
+  assert.equal((await detail(t, streng)).ich, null);
 });

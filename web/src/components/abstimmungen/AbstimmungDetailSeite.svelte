@@ -21,16 +21,26 @@
     rescueValues,
     setRescueContext,
   } from '../../lib/geretteteEingaben';
-  import type { AbstimmungDetail, AbstimmungTeilnahme } from '../../lib/abstimmungen';
-  import { abstimmungStore, abstimmungenStore } from '../../lib/abstimmungen';
+  import type {
+    AbstimmungDetail,
+    AbstimmungTeilnahme,
+    AbstimmungWahl,
+  } from '../../lib/abstimmungen';
+  import {
+    abstimmungStore,
+    abstimmungenStore,
+    wahlAusText,
+    wahlOhne,
+    wahlVon,
+  } from '../../lib/abstimmungen';
 
   /** One Abstimmung: the own answer, the result and, for the organizer, invitations and settings. */
 
   const store = abstimmungStore.state;
   let id = $state<number | null>(null);
-  let gewaehlt = $state<number[]>([]);
+  let wahl = $state<AbstimmungWahl>({ gewaehlt: [], vielleicht: [] });
   /** The own answer as loaded, to notice unsaved changes. */
-  let gespeichert = $state<number[] | null>(null);
+  let gespeichert = $state<AbstimmungWahl | null>(null);
   let saving = $state(false);
   let busy = $state(false);
   let message = $state<string | null>(null);
@@ -39,25 +49,25 @@
 
   const data = $derived(store.data && store.data.id === id ? store.data : null);
   const dirty = $derived(
-    gespeichert !== null && JSON.stringify(gespeichert) !== JSON.stringify(gewaehlt)
+    gespeichert !== null && JSON.stringify(gespeichert) !== JSON.stringify(wahl)
   );
 
   /** Takes the saved answer; an unsaved choice stays, without options that are gone. */
   function take(detail: AbstimmungDetail | null, keep: boolean): void {
     if (!detail) return;
     const optionen = new Set(detail.optionen.map((option) => option.id));
-    gespeichert = detail.ich?.gewaehlt ?? [];
-    gewaehlt = keep ? gewaehlt.filter((option) => optionen.has(option)) : [...gespeichert];
+    gespeichert = wahlVon(detail.ich);
+    wahl = keep ? wahlOhne(wahl, optionen) : wahlVon(gespeichert);
   }
 
   async function load(): Promise<void> {
     if (id === null) return;
-    const vorher = JSON.stringify(gewaehlt);
+    const vorher = JSON.stringify(wahl);
     const keep = dirty;
     await abstimmungStore.load({ force: true, param: id });
     // A failed load keeps the data shown before; the choice stays as it is
     // A choice changed while loading is kept too
-    if (!store.error) take(data, keep || JSON.stringify(gewaehlt) !== vorher);
+    if (!store.error) take(data, keep || JSON.stringify(wahl) !== vorher);
   }
 
   /** Record of the kept answer: one per Abstimmung, in this tab only. */
@@ -73,8 +83,8 @@
         {
           key: RESCUE_FIELD,
           kind: 'custom',
-          value: JSON.stringify(gewaehlt),
-          display: `${gewaehlt.length} gewählt`,
+          value: JSON.stringify(wahl),
+          display: `${wahl.gewaehlt.length + wahl.vielleicht.length} gewählt`,
         },
       ]),
     register: () => () => undefined,
@@ -86,13 +96,8 @@
     const kept = findRescue(rescueRecord(), '', Date.now())?.find((v) => v.key === RESCUE_FIELD);
     if (!kept) return;
     forgetRescue(rescueRecord());
-    try {
-      const ids: unknown = JSON.parse(kept.value);
-      const optionen = new Set(data.optionen.map((option) => option.id));
-      if (Array.isArray(ids)) gewaehlt = ids.filter((option) => optionen.has(option));
-    } catch {
-      /* Nothing usable kept */
-    }
+    const gerettet = wahlAusText(kept.value, new Set(data.optionen.map((option) => option.id)));
+    if (gerettet) wahl = gerettet;
   }
 
   onMount(() => {
@@ -107,12 +112,13 @@
     saving = true;
     message = null;
     try {
-      await sendApi('PUT', `/intern/pflege/abstimmungen/${data.id}/stimme`, { gewaehlt });
-      gespeichert = [...gewaehlt];
+      await sendApi('PUT', `/intern/pflege/abstimmungen/${data.id}/stimme`, wahl);
+      gespeichert = wahlVon(wahl);
       messageKind = 'success';
-      message = gewaehlt.length
-        ? 'Antwort gespeichert.'
-        : 'Antwort gespeichert: Keine Option passt.';
+      message =
+        wahl.gewaehlt.length + wahl.vielleicht.length
+          ? 'Antwort gespeichert.'
+          : 'Antwort gespeichert: Keine Option passt.';
       abstimmungenStore.invalidate();
       await abstimmungStore.load({ force: true, param: data.id });
     } catch (failure: unknown) {
@@ -265,8 +271,10 @@
             <AbstimmungAuswahl
               id="abstimmung-staff"
               optionen={abstimmung.optionen}
-              mehrfach={abstimmung.mehrfach}
-              bind:gewaehlt
+              maxAuswahl={abstimmung.maxAuswahl}
+              vielleichtErlaubt={abstimmung.vielleichtErlaubt}
+              bind:gewaehlt={wahl.gewaehlt}
+              bind:vielleicht={wahl.vielleicht}
               disabled={abstimmung.geschlossen || saving}
             />
           </div>
@@ -288,7 +296,11 @@
           {/if}
         </section>
 
-        <AbstimmungErgebnisListe id="abstimmung-ergebnis" ergebnis={abstimmung} />
+        <AbstimmungErgebnisListe
+          id="abstimmung-ergebnis"
+          ergebnis={abstimmung}
+          eigene={abstimmung.eigene}
+        />
 
         {#if abstimmung.eigene}
           <section aria-labelledby="abstimmung-einladen" class="space-y-4">

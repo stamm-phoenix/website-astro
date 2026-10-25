@@ -3262,7 +3262,8 @@ route('PUT', `${ABSTIMMUNGEN}/:id/stimme`, (req) => {
     Number(req.params.id),
     PRINCIPAL.userDetails,
     MOCK_NAME,
-    req.json?.gewaehlt
+    req.json?.gewaehlt,
+    req.json?.vielleicht
   );
   if (result === 'closed') return ABSTIMMUNG_CLOSED();
   return result === 'missing' ? notFound() : noContent();

@@ -6,9 +6,15 @@ WhatsApp-Umfrage.
 
 ## Ablauf
 
-1. Eine Leitung legt eine Abstimmung an: Frage, optionale Beschreibung, ob mehrere Optionen
-   wählbar sind, und die Optionen. Optionen sind freier Text; „Termin hinzufügen“ schreibt ein
-   gewähltes Datum (mit optionaler Uhrzeit) als Text wie „Sa, 14.11.2026, 18:00 Uhr“ hinein.
+1. Eine Leitung legt eine Abstimmung an: Frage, optionale Beschreibung und die Optionen.
+   Optionen sind freier Text; „Termin hinzufügen“ schreibt ein gewähltes Datum (mit optionaler
+   Uhrzeit) als Text wie „Sa, 14.11.2026, 18:00 Uhr“ hinein. Dazu kommen die Einstellungen:
+   - wie viele Optionen man mit „Ja“ wählen darf (`max_auswahl`, Standard: beliebig viele; 1 ist
+     eine Einzelauswahl),
+   - ob man auch „Vielleicht“ sagen darf (`vielleicht`); „Vielleicht“ zählt nicht zur Höchstzahl,
+   - wer die Antworten sieht (`sichtbarkeit`): `offen` alle, die abstimmen; `anonym` nur die
+     organisierende Person, die anderen sehen, wer abgestimmt hat; `geheim` nur die organisierende
+     Person, die anderen sehen nur die Anzahl. Die Stimmen je Option sehen immer alle.
 2. Leitende stimmen im Leitendenbereich ab. Ihre Antwort hängt an ihrem Login.
 3. „Per Mail einladen“ bietet wie der Protokollversand alle aktuellen Mitglieder der CampFlow-Gruppe
    „Leiter\*in“ und mit dem Merkmal „Protokollempfang“ an (`CONFIG.abstimmungen`). Einzelne
@@ -23,14 +29,21 @@ WhatsApp-Umfrage.
 6. „Abstimmung beenden“ sperrt weitere Antworten; das Ergebnis bleibt sichtbar. Die Abstimmung
    kann wieder geöffnet oder gelöscht werden.
 
-Ändern, einladen, erinnern, beenden und löschen darf nur, wer die Abstimmung angelegt hat. Alle
-Leitenden sehen das Ergebnis mit Namen; Adressen und Einladungsstand sieht nur diese Person.
-Wer über einen Link abstimmt, sieht Ergebnis und Namen, aber keine Adressen.
+Ändern, einladen, erinnern, beenden und löschen darf nur, wer die Abstimmung angelegt hat. Was
+die anderen von den Antworten sehen, entscheidet die Sichtbarkeit; die API liefert es schon so
+(`einsicht` im Ergebnis: `alles`, `namen` oder `anzahl`). Bei `alles` zeigt die Seite das
+Ergebnis je Option oder als Tabelle (Personen × Optionen). Adressen und Einladungsstand sieht nur
+die organisierende Person.
+
+Nachträglich gilt: Haben schon Leute abgestimmt, werden ihre Antworten nie für mehr Leute
+sichtbar, die Höchstzahl sinkt nicht unter die meisten „Ja“ einer Person, und „Vielleicht“ bleibt
+erlaubt, solange jemand so geantwortet hat.
 
 ## Technik
 
-- Tabellen im Schema `abstimmung` (`api/migrations/0040_abstimmungen.sql`): `abstimmung`,
-  `optionen`, `teilnahme` (eine Zeile je Person, mit Login, Adresse oder nur Namen) und `stimme`.
+- Tabellen im Schema `abstimmung` (`api/migrations/0040_abstimmungen.sql`, Einstellungen in
+  `0043_abstimmung_einstellungen.sql`): `abstimmung`, `optionen`, `teilnahme` (eine Zeile je
+  Person, mit Login, Adresse oder nur Namen) und `stimme` (mit `vielleicht`).
 - Links: `/abstimmung#link=<link_token>` (für alle) und `/abstimmung#t=<token>` (persönlich).
   Beide Tokens sind 32 Zufallsbytes (base64url) in der Datenbank; sie stehen nur im Fragment der
   URL und gehen im Body an `POST /api/abstimmungen/ansehen` und `PUT /api/abstimmungen/stimme`.

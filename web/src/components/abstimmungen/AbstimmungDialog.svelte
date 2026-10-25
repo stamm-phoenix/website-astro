@@ -5,9 +5,9 @@
   import FormField from '../pflege/FormField.svelte';
   import { sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
-  import type { AbstimmungDetail } from '../../lib/abstimmungen';
+  import type { AbstimmungDetail, AbstimmungSichtbarkeit } from '../../lib/abstimmungen';
   import type { RescueField } from '../../lib/geretteteEingaben';
-  import { MAX_ABSTIMMUNG_OPTIONEN, terminText } from '../../lib/abstimmungen';
+  import { MAX_ABSTIMMUNG_OPTIONEN, SICHTBARKEIT_LABELS, terminText } from '../../lib/abstimmungen';
 
   interface Props {
     open: boolean;
@@ -31,7 +31,10 @@
 
   let titel = $state('');
   let beschreibung = $state('');
-  let mehrfach = $state(true);
+  /** „Beliebig viele“ as an empty value. */
+  let maxAuswahl = $state('');
+  let vielleichtErlaubt = $state(false);
+  let sichtbarkeit = $state<AbstimmungSichtbarkeit>('offen');
   let zeilen = $state<Zeile[]>([]);
   let datum = $state('');
   let uhrzeit = $state('');
@@ -49,7 +52,9 @@
   function fill(): void {
     titel = abstimmung?.titel ?? '';
     beschreibung = abstimmung?.beschreibung ?? '';
-    mehrfach = abstimmung?.mehrfach ?? true;
+    maxAuswahl = abstimmung?.maxAuswahl ? String(abstimmung.maxAuswahl) : '';
+    vielleichtErlaubt = abstimmung?.vielleichtErlaubt ?? false;
+    sichtbarkeit = abstimmung?.sichtbarkeit ?? 'offen';
     zeilen = abstimmung
       ? abstimmung.optionen.map((option) => zeile(option.text, option.id))
       : [zeile(), zeile()];
@@ -106,6 +111,25 @@
 
   const voll = $derived(zeilen.length >= MAX_ABSTIMMUNG_OPTIONEN);
 
+  const STUFEN: AbstimmungSichtbarkeit[] = ['offen', 'anonym', 'geheim'];
+  /** Who answered relied on the setting: the answers never become more visible. */
+  const beantwortet = $derived((abstimmung?.anzahlAntworten ?? 0) > 0);
+  const bisherigeStufe = $derived(STUFEN.indexOf(abstimmung?.sichtbarkeit ?? 'offen'));
+  /** Most „Ja“ of one person; a lower limit would break their answer. */
+  const meisteJa = $derived(
+    Math.max(0, ...(abstimmung?.antworten ?? []).map((antwort) => antwort.gewaehlt.length))
+  );
+  /** „Vielleicht“ stays on while someone answered with it. */
+  const mitVielleicht = $derived((abstimmung?.optionen ?? []).some((o) => o.vielleicht > 0));
+  /** The limits offered: up to one less than the options, and the current one. */
+  const grenzen = $derived.by(() => {
+    const optionen = zeilen.filter((z) => z.text.trim()).length;
+    const hoechste = Math.max(2, optionen - 1, Number(maxAuswahl) || 0);
+    return Array.from({ length: hoechste }, (_, index) => index + 1).filter(
+      (grenze) => grenze >= meisteJa || String(grenze) === maxAuswahl
+    );
+  });
+
   async function focusRow(key: number): Promise<void> {
     await tick();
     document.getElementById(`abstimmung-option-${key}`)?.focus();
@@ -155,7 +179,9 @@
     abstimmung
       ? abstimmung.optionen.filter(
           // An emptied row is left out on saving, so its votes go too
-          (option) => option.stimmen > 0 && !zeilen.some((z) => z.id === option.id && z.text.trim())
+          (option) =>
+            option.stimmen + option.vielleicht > 0 &&
+            !zeilen.some((z) => z.id === option.id && z.text.trim())
         )
       : []
   );
@@ -166,7 +192,7 @@
           (option) =>
             zeilen.some(
               (z) => z.id === option.id && z.text.trim() && z.text.trim() !== option.text
-            ) && option.stimmen > 0
+            ) && option.stimmen + option.vielleicht > 0
         )
       : []
   );
@@ -192,11 +218,16 @@
     const body = {
       titel,
       beschreibung,
-      mehrfach,
+      maxAuswahl: maxAuswahl ? Number(maxAuswahl) : null,
+      vielleichtErlaubt,
+      sichtbarkeit,
       optionen: zeilen.map((z) => (z.id ? { id: z.id, text: z.text } : { text: z.text })),
       // The votes the warning above was about; more cast meanwhile stop the save
       bekannteStimmen: Object.fromEntries(
-        (abstimmung?.optionen ?? []).map((option) => [option.id, option.stimmen])
+        (abstimmung?.optionen ?? []).map((option) => [
+          option.id,
+          option.stimmen + option.vielleicht,
+        ])
       ),
     };
     const current = abstimmung;
@@ -268,16 +299,6 @@
           bind:value={beschreibung}></textarea>
       {/snippet}
     </FormField>
-
-    <label class="flex min-h-11 items-center gap-3">
-      <input
-        type="checkbox"
-        bind:checked={mehrfach}
-        onchange={() => dialog.clearField('mehrfach')}
-      />
-      <span>Mehrere Optionen wählbar</span>
-    </label>
-    {#if errors.mehrfach}<p class="text-sm text-danger" role="alert">{errors.mehrfach}</p>{/if}
 
     <fieldset class="min-w-0">
       <legend class="font-semibold text-brand-900">Optionen</legend>
@@ -352,6 +373,85 @@
           Die Stimmen für {geaenderteMitStimmen.map((option) => `„${option.text}“`).join(', ')}
           zählen danach für den neuen Text. Für einen anderen Termin leg besser eine neue Option an.
         </p>
+      {/if}
+    </fieldset>
+
+    <FormField
+      id="abstimmung-max"
+      label={vielleichtErlaubt
+        ? 'Wie viele Optionen darf man mit „Ja“ wählen?'
+        : 'Wie viele Optionen darf man wählen?'}
+      error={errors.maxAuswahl}
+    >
+      {#snippet children(attrs)}
+        <select
+          {...attrs}
+          class="form-input"
+          bind:value={maxAuswahl}
+          onchange={() => {
+            geaendert = true;
+            dialog.clearField('maxAuswahl');
+          }}
+        >
+          <option value="">Beliebig viele</option>
+          {#each grenzen as grenze (grenze)}
+            <option value={String(grenze)}
+              >{grenze === 1 ? 'Nur eine' : `Höchstens ${grenze}`}</option
+            >
+          {/each}
+        </select>
+      {/snippet}
+    </FormField>
+
+    <div>
+      <label class="flex min-h-11 items-center gap-3">
+        <input
+          type="checkbox"
+          bind:checked={vielleichtErlaubt}
+          disabled={mitVielleicht && vielleichtErlaubt}
+          onchange={() => {
+            geaendert = true;
+            dialog.clearField('vielleichtErlaubt');
+          }}
+        />
+        <span>„Vielleicht“ als Antwort erlauben</span>
+      </label>
+      {#if mitVielleicht && vielleichtErlaubt}
+        <p class="text-sm text-neutral-700">Es haben schon Leute mit „Vielleicht“ geantwortet.</p>
+      {/if}
+      {#if errors.vielleichtErlaubt}
+        <p class="text-sm text-danger" role="alert">{errors.vielleichtErlaubt}</p>
+      {/if}
+    </div>
+
+    <fieldset class="min-w-0">
+      <legend class="font-semibold text-brand-900">Wer sieht die Antworten?</legend>
+      <div class="mt-1">
+        {#each STUFEN as stufe, index (stufe)}
+          <label class="flex min-h-11 items-center gap-3 py-1">
+            <input
+              type="radio"
+              name="abstimmung-sichtbarkeit"
+              value={stufe}
+              bind:group={sichtbarkeit}
+              disabled={beantwortet && index < bisherigeStufe}
+              onchange={() => {
+                geaendert = true;
+                dialog.clearField('sichtbarkeit');
+              }}
+            />
+            <span>{SICHTBARKEIT_LABELS[stufe]}</span>
+          </label>
+        {/each}
+      </div>
+      {#if beantwortet && bisherigeStufe > 0}
+        <p class="text-sm text-neutral-700">
+          Es haben schon Leute abgestimmt. Ihre Antworten können nicht mehr für mehr Leute sichtbar
+          werden.
+        </p>
+      {/if}
+      {#if errors.sichtbarkeit}
+        <p class="text-sm text-danger" role="alert">{errors.sichtbarkeit}</p>
       {/if}
     </fieldset>
   </fieldset>

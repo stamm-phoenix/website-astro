@@ -1,14 +1,17 @@
 import {
+  ABSTIMMUNG_SICHTBARKEITEN,
+  abstimmungEinsicht,
   abstimmungErgebnis,
   validateAbstimmung,
   validateAbstimmungName,
-  validateGewaehlt,
+  validateAntwort,
 } from '../../../api/lib/abstimmung-model';
 import type {
   AbstimmungAnsicht,
   AbstimmungDetail,
   AbstimmungEingabe,
   AbstimmungMailStatus,
+  AbstimmungSichtbarkeit,
   AbstimmungUebersicht,
 } from '../../../api/lib/abstimmung-model';
 import { ValidationError } from '../../../api/lib/pflege-validation';
@@ -25,6 +28,7 @@ interface MockTeilnahme {
   login: string | null;
   email: string | null;
   gewaehlt: number[];
+  vielleicht: number[];
   geantwortet: boolean;
   mailStatus: AbstimmungMailStatus | null;
   mailArt: 'einladung' | 'erinnerung' | null;
@@ -37,7 +41,9 @@ interface MockAbstimmung {
   version: number;
   titel: string;
   beschreibung: string;
-  mehrfach: boolean;
+  maxAuswahl: number | null;
+  vielleichtErlaubt: boolean;
+  sichtbarkeit: AbstimmungSichtbarkeit;
   linkToken: string;
   erstelltVon: string;
   erstelltVonName: string;
@@ -66,6 +72,7 @@ function teilnahme(values: Partial<MockTeilnahme>): MockTeilnahme {
     login: null,
     email: null,
     gewaehlt: [],
+    vielleicht: [],
     geantwortet: false,
     mailStatus: null,
     mailArt: null,
@@ -82,7 +89,9 @@ function create(input: AbstimmungEingabe, login: string, name: string): MockAbst
     version: 1,
     titel: input.titel,
     beschreibung: input.beschreibung,
-    mehrfach: input.mehrfach,
+    maxAuswahl: input.maxAuswahl,
+    vielleichtErlaubt: input.vielleichtErlaubt,
+    sichtbarkeit: input.sichtbarkeit,
     linkToken: token(`link${id}`),
     erstelltVon: login,
     erstelltVonName: name,
@@ -95,14 +104,37 @@ function create(input: AbstimmungEingabe, login: string, name: string): MockAbst
   return abstimmung;
 }
 
-/** Test data: one Terminfindung by someone else, one decision of the mock login. */
+/**
+ * Test data: a Terminfindung and a question with hidden answers by someone else, one decision of
+ * the mock login.
+ */
 export function resetMockAbstimmungen(login: string): void {
   abstimmungen.length = 0;
+  const ziel = create(
+    validateAbstimmung({
+      titel: 'Wohin geht das Leitendenwochenende?',
+      beschreibung: '',
+      maxAuswahl: 2,
+      vielleichtErlaubt: true,
+      sichtbarkeit: 'anonym',
+      optionen: [{ text: 'Zeltplatz am See' }, { text: 'Hütte in den Bergen' }, { text: 'Stadt' }],
+    }),
+    'vroni@example.test',
+    'Vroni Vorstand'
+  );
+  ziel.teilnahmen.push(
+    teilnahme({
+      name: 'Theo Tester',
+      login: 'theo@example.test',
+      gewaehlt: [ziel.optionen[0].id, ziel.optionen[1].id],
+      vielleicht: [ziel.optionen[2].id],
+      geantwortet: true,
+    })
+  );
   const termin = create(
     validateAbstimmung({
       titel: 'Termin für die Weihnachtsfeier',
       beschreibung: 'Bitte alle Termine wählen, die bei dir gehen.',
-      mehrfach: true,
       optionen: [
         { text: 'Fr, 11.12.2026, 19:00 Uhr' },
         { text: 'Sa, 12.12.2026, 18:00 Uhr' },
@@ -132,7 +164,7 @@ export function resetMockAbstimmungen(login: string): void {
     validateAbstimmung({
       titel: 'Was essen wir auf dem Sommerlager?',
       beschreibung: '',
-      mehrfach: false,
+      maxAuswahl: 1,
       optionen: [{ text: 'Spaghetti' }, { text: 'Chili sin Carne' }, { text: 'Kässpatzn' }],
     }),
     login,
@@ -159,12 +191,34 @@ function byId(id: number): MockAbstimmung | undefined {
   return abstimmungen.find((a) => a.id === id);
 }
 
-function ergebnis(a: MockAbstimmung) {
-  return abstimmungErgebnis({
-    ...a,
-    antworten: a.teilnahmen
-      .filter((t) => t.geantwortet)
-      .map((t) => ({ teilnahmeId: t.id, name: t.name, gewaehlt: t.gewaehlt })),
+function ergebnis(a: MockAbstimmung, eigene: boolean) {
+  return abstimmungErgebnis(
+    {
+      ...a,
+      antworten: a.teilnahmen
+        .filter((t) => t.geantwortet)
+        .map((t) => ({
+          teilnahmeId: t.id,
+          name: t.name,
+          gewaehlt: t.gewaehlt,
+          vielleicht: t.vielleicht,
+        })),
+    },
+    abstimmungEinsicht(a.sichtbarkeit, eigene)
+  );
+}
+
+function ich(t: MockTeilnahme | undefined): AbstimmungAnsicht['ich'] {
+  return t
+    ? { name: t.name, gewaehlt: t.gewaehlt, vielleicht: t.vielleicht, geantwortet: t.geantwortet }
+    : null;
+}
+
+function antwort(a: MockAbstimmung, gewaehlt: unknown, vielleicht: unknown) {
+  return validateAntwort(gewaehlt, vielleicht, {
+    optionIds: a.optionen.map((o) => o.id),
+    maxAuswahl: a.maxAuswahl,
+    vielleichtErlaubt: a.vielleichtErlaubt,
   });
 }
 
@@ -189,10 +243,9 @@ export function mockAbstimmungDetail(
   const a = byId(id);
   if (!a) return undefined;
   const eigene = a.erstelltVon === login;
-  const ich = a.teilnahmen.find((t) => t.login === login);
   return {
-    ...ergebnis(a),
-    ich: ich ? { name: ich.name, gewaehlt: ich.gewaehlt, geantwortet: ich.geantwortet } : null,
+    ...ergebnis(a, eigene),
+    ich: ich(a.teilnahmen.find((t) => t.login === login)),
     etag: `"${a.version}"`,
     erstelltAm: a.erstelltAm,
     eigene,
@@ -230,21 +283,41 @@ export function mockUpdateAbstimmung(
   } else {
     const input = validateAbstimmung(body);
     const keep = new Set(input.optionen.flatMap((o) => (o.id ? [o.id] : [])));
+    const stufe = (s: AbstimmungSichtbarkeit): number => ABSTIMMUNG_SICHTBARKEITEN.indexOf(s);
     if (
-      !input.mehrfach &&
-      a.teilnahmen.some((t) => t.gewaehlt.filter((g) => keep.has(g)).length > 1)
+      stufe(input.sichtbarkeit) < stufe(a.sichtbarkeit) &&
+      a.teilnahmen.some((t) => t.geantwortet)
     )
       throw new ValidationError({
-        mehrfach:
-          'Es haben schon Leute mehrere Optionen gewählt. Lass „Mehrere Optionen wählbar“ an oder leg eine neue Abstimmung an.',
+        sichtbarkeit:
+          'Es haben schon Leute abgestimmt, die sich auf die bisherige Einstellung verlassen. Ihre Antworten können nicht mehr für mehr Leute sichtbar werden.',
+      });
+    const max = input.maxAuswahl;
+    if (
+      max !== null &&
+      a.teilnahmen.some((t) => t.gewaehlt.filter((g) => keep.has(g)).length > max)
+    )
+      throw new ValidationError({
+        maxAuswahl:
+          'Es haben schon Leute mehr Optionen gewählt. Erlaube mehr Optionen oder leg eine neue Abstimmung an.',
+      });
+    if (!input.vielleichtErlaubt && a.teilnahmen.some((t) => t.vielleicht.some((g) => keep.has(g))))
+      throw new ValidationError({
+        vielleichtErlaubt:
+          'Es haben schon Leute mit „Vielleicht“ geantwortet. Lass „Vielleicht“ an oder leg eine neue Abstimmung an.',
       });
     Object.assign(a, {
       titel: input.titel,
       beschreibung: input.beschreibung,
-      mehrfach: input.mehrfach,
+      maxAuswahl: input.maxAuswahl,
+      vielleichtErlaubt: input.vielleichtErlaubt,
+      sichtbarkeit: input.sichtbarkeit,
     });
     a.optionen = input.optionen.map((o) => ({ id: o.id ?? nextId++, text: o.text }));
-    for (const t of a.teilnahmen) t.gewaehlt = t.gewaehlt.filter((g) => keep.has(g));
+    for (const t of a.teilnahmen) {
+      t.gewaehlt = t.gewaehlt.filter((g) => keep.has(g));
+      t.vielleicht = t.vielleicht.filter((g) => keep.has(g));
+    }
   }
   a.version++;
   return 'ok';
@@ -268,22 +341,19 @@ export function mockStaffVote(
   id: number,
   login: string,
   name: string,
-  gewaehlt: unknown
+  gewaehlt: unknown,
+  vielleicht: unknown
 ): 'closed' | 'missing' | 'ok' {
   const a = byId(id);
   if (!a) return 'missing';
   if (a.geschlossen) return 'closed';
-  const choice = validateGewaehlt(
-    gewaehlt,
-    a.optionen.map((o) => o.id),
-    a.mehrfach
-  );
+  const choice = antwort(a, gewaehlt, vielleicht);
   let own = a.teilnahmen.find((t) => t.login === login);
   if (!own) {
     own = teilnahme({ login });
     a.teilnahmen.push(own);
   }
-  Object.assign(own, { name, gewaehlt: choice, geantwortet: true });
+  Object.assign(own, { name, ...choice, geantwortet: true });
   return 'ok';
 }
 
@@ -306,10 +376,7 @@ export function mockPublicAnsicht(link: {
   const found = find(link);
   if (!found) return undefined;
   const { a, t } = found;
-  return {
-    ...ergebnis(a),
-    ich: t ? { name: t.name, gewaehlt: t.gewaehlt, geantwortet: t.geantwortet } : null,
-  };
+  return { ...ergebnis(a, false), ich: ich(t) };
 }
 
 export function mockPublicVote(
@@ -320,17 +387,13 @@ export function mockPublicVote(
   const { a } = found;
   if (a.geschlossen) return 'closed';
   const name = validateAbstimmungName(body.name);
-  const choice = validateGewaehlt(
-    body.gewaehlt,
-    a.optionen.map((o) => o.id),
-    a.mehrfach
-  );
+  const choice = antwort(a, body.gewaehlt, body.vielleicht);
   let t = found.t;
   if (!t) {
     t = teilnahme({});
     a.teilnahmen.push(t);
   }
-  Object.assign(t, { name, gewaehlt: choice, geantwortet: true });
+  Object.assign(t, { name, ...choice, geantwortet: true });
   return { token: t.token };
 }
 
