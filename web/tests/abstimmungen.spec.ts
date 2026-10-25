@@ -504,4 +504,17 @@ test('a refused answer in the Leitendenbereich says why', async ({ page }) => {
       .first()
   ).toBeVisible();
   await expect(page.getByLabel('Fr, 11.12.2026, 19:00 Uhr')).toBeChecked();
+
+  // A reason for the whole answer already says that it was not saved, once
+  const voll =
+    'Bei dieser Abstimmung machen schon 300 Personen mit, mehr gehen nicht. Deine Antwort wurde nicht gespeichert. Sag der Person Bescheid, die die Abstimmung angelegt hat.';
+  await page.unroute('**/api/intern/pflege/abstimmungen/*/stimme');
+  await page.route('**/api/intern/pflege/abstimmungen/*/stimme', (route) =>
+    route.fulfill({
+      status: 400,
+      json: { code: 'INVALID', message: 'Bitte prüfe die Eingaben.', fields: { form: voll } },
+    })
+  );
+  await page.getByRole('button', { name: 'Antwort speichern' }).click();
+  await expect(page.getByText(voll, { exact: true }).first()).toBeVisible();
 });

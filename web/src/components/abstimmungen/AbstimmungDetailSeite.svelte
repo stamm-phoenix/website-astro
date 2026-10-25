@@ -123,12 +123,13 @@
       await abstimmungStore.load({ force: true, param: data.id });
     } catch (failure: unknown) {
       messageKind = 'error';
-      // The reason the answer was refused, e.g. an option that is gone, with what to do next
-      const grund =
-        failure instanceof ApiError && (failure.fields?.gewaehlt || failure.fields?.form);
-      message = grund
-        ? `Deine Antwort wurde nicht gespeichert. ${grund}`
-        : errorMessage(
+      // The reason the answer was refused, e.g. an option that is gone, with what to do next;
+      // a reason for the whole answer (e.g. the Abstimmung is full) says that it was not saved
+      const fields = failure instanceof ApiError ? failure.fields : undefined;
+      message = fields?.gewaehlt
+        ? `Deine Antwort wurde nicht gespeichert. ${fields.gewaehlt}`
+        : fields?.form ||
+          errorMessage(
             failure,
             'Deine Antwort wurde nicht gespeichert. Deine Auswahl ist noch da. Tippe noch einmal auf „Antwort speichern“.'
           );
