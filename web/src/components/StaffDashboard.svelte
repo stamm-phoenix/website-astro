@@ -430,7 +430,7 @@
           <!-- Only the title is the link: the Verwendungszweck is a button that copies it -->
           <a
             href={beitrag.href}
-            class="text-link flex items-center font-semibold pointer-coarse:min-h-11"
+            class="text-link flex items-center font-semibold any-pointer-coarse:min-h-11"
             title={beitrag.title}><span class="truncate">{beitrag.title}</span></a
           >
           <span class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">

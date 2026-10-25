@@ -8,7 +8,7 @@
     label?: string;
     /** Only the check mark confirms visually, for narrow table cells; screen readers still hear it. */
     compact?: boolean;
-    /** Fits a line of text, e.g. in a card; with touch it keeps the full size to tap. */
+    /** Fits a line of text, e.g. in a card; on any device with touch it keeps the full size to tap. */
     small?: boolean;
   }
   let { code, label = 'Verwendungszweck', compact = false, small = false }: Props = $props();
@@ -91,7 +91,7 @@
     width: 0.875rem;
     height: 0.875rem;
   }
-  @media (pointer: coarse) {
+  @media (any-pointer: coarse) {
     .copy-code.small {
       min-height: 2.75rem;
       padding: 0 0.5rem;
