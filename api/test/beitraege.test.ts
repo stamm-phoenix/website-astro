@@ -6,6 +6,7 @@ import * as env from '../lib/environment';
 import { GetInternBeitraegeEndpoint } from '../endpoints/intern-beitraege';
 import { GetInternBeitraegeMeineEndpoint } from '../endpoints/intern-beitraege-meine';
 import { offeneBeitraege, readBeitraege } from '../lib/beitraege';
+import { dbTest } from './fixtures/database';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -181,7 +182,7 @@ test('the start page gets only the Beiträge with something left to do', () => {
   );
 });
 
-test('own Beiträge without a link leave the names to decide', async (t) => {
+dbTest('own Beiträge without a link leave the names to decide', async (t) => {
   mockPlaywright(t, 200, ANSWER);
   const response = await GetInternBeitraegeMeineEndpoint(request());
   assert.equal(response.status, 200);
