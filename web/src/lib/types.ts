@@ -1246,8 +1246,8 @@ export interface BeitraegeData {
  */
 export interface OffeneBeitraegeData extends BeitraegeData {
   /**
-   * IDs of the logged-in person's own Beiträge, matched on the server (`docs/personen.md`);
-   * `null` when it could not compare, then the payer's name decides.
+   * Per Beitrag ID whether it is the logged-in person's own, as far as the server could check it
+   * (`docs/personen.md`); a missing Beitrag, or `null` without a link, is decided by the payer.
    */
-  ich: string[] | null;
+  ich: Record<string, boolean> | null;
 }

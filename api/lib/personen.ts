@@ -377,41 +377,41 @@ export const BEITRAEGE_ANMELDUNGEN_TIMEOUT_MS = 10_000;
 /** A Beitrag as `eigeneBeitraege` compares it: who pays, and the Aktion it belongs to. */
 export interface BeitragZahlende {
   id: string;
-  payer: string;
   payerId: string | null;
   /** The CampFlow event of the Sammlung, null for a Mitgliedsbeitrag or a manual Sammlung. */
   eventId: string | null;
 }
 
 /**
- * IDs of the Beiträge the login has to pay or gets paid back (`GET /api/intern/beitraege/meine`).
- * A Mitgliedsbeitrag names the linked person of the member list as payer. A Beitrag of an Aktion
- * names the registration, a person of its own (`docs/personen.md`): the server compares the
- * addresses of the registrations to the Aktionen, as `eigeneAnmeldungen` does. If an Aktion does
- * not answer in time, the name of the linked person decides for its Beiträge. `null`, like
- * `eigeneAnmeldungen`, when nothing could be compared, so the page falls back to the names.
- * Nothing waits past `deadline` (ms since the epoch): what is left then is decided by the names,
- * so the page stays within the time limit of Static Web Apps (45 seconds).
+ * Which Beiträge the login has to pay or gets paid back (`GET /api/intern/beitraege/meine`), per
+ * Beitrag ID: `true` for an own one, `false` for another person's. A Mitgliedsbeitrag names the
+ * person of the member list as payer, so the link decides. A Beitrag of an Aktion names the
+ * registration, a person of its own (`docs/personen.md`): the server compares the addresses of
+ * the registrations to the Aktion, as `eigeneAnmeldungen` does. A Beitrag the server could not
+ * check (no payer ID, the Aktion did not answer in time, no address of the linked person) is left
+ * out, so the page decides it by the payer's ID and name. `null`, like `eigeneAnmeldungen`, when
+ * there is no link to compare with. Nothing waits past `deadline` (ms since the epoch), so the
+ * page stays within the time limit of Static Web Apps (45 seconds).
  */
 export async function eigeneBeitraege(
   login: string,
   fees: readonly BeitragZahlende[],
   deadline: number = Date.now() + EIGENE_BEITRAEGE_TIMEOUT_MS
-): Promise<string[] | null> {
+): Promise<Record<string, boolean> | null> {
   // An older Playwright API sends no payer IDs: then only the names can tell
   if (!fees.some((fee) => fee.payerId)) return null;
   const now = Date.now();
   const ichTimeoutMs = Math.min(ICH_TIMEOUT_MS, deadline - now);
   if (ichTimeoutMs <= 0) return null;
   const linked = await findVerknuepfte(login, now, ichTimeoutMs);
-  // Without a link, or without CampFlow's answer for it, the page falls back to the names
-  if (!linked || (!linked.email && !linked.firstName)) return null;
+  if (!linked) return null;
 
-  const rest = fees.filter((fee) => fee.payerId && fee.payerId !== linked.id && fee.eventId);
+  // Without CampFlow the linked person has no address: then the Aktionen cannot be compared
+  const offen = fees.filter((fee) => fee.payerId && fee.payerId !== linked.id && fee.eventId);
   const anmeldungenTimeoutMs = Math.min(BEITRAEGE_ANMELDUNGEN_TIMEOUT_MS, deadline - Date.now());
   const eventIds =
     linked.email && anmeldungenTimeoutMs > 0
-      ? [...new Set(rest.map((fee) => fee.eventId as string))]
+      ? [...new Set(offen.map((fee) => fee.eventId as string))]
       : [];
   const anmeldungen = new Map<string, Set<string>>();
   await innerhalb(
@@ -423,22 +423,25 @@ export async function eigeneBeitraege(
           );
           anmeldungen.set(eventId, new Set(mitEigenerAnmeldung(linked, persons)));
         } catch {
-          // Without the registrations the name decides for this Aktion
+          // Without the registrations the page decides this Aktion by the names
         }
       })
     ),
     anmeldungenTimeoutMs
   );
 
-  const name = `${linked.firstName} ${linked.lastName}`;
-  return fees
-    .filter((fee) => {
-      if (!fee.payerId) return false;
-      if (fee.payerId === linked.id) return true;
-      const eigene = fee.eventId ? anmeldungen.get(fee.eventId) : undefined;
-      return eigene ? eigene.has(fee.payerId) : !!fee.eventId && sameName(name, fee.payer);
-    })
-    .map((fee) => fee.id);
+  const ich: Record<string, boolean> = {};
+  for (const fee of fees) {
+    if (!fee.payerId) continue;
+    if (fee.payerId === linked.id) ich[fee.id] = true;
+    // Another person of the member list, even with the same name
+    else if (!fee.eventId) ich[fee.id] = false;
+    else {
+      const eigene = anmeldungen.get(fee.eventId);
+      if (eigene) ich[fee.id] = eigene.has(fee.payerId);
+    }
+  }
+  return ich;
 }
 
 /**

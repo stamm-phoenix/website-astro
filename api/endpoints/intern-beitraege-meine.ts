@@ -14,8 +14,8 @@ export const MEINE_BEITRAEGE_BUDGET_MS = 40_000;
 
 /**
  * The Beiträge with something left to do (open or paid too much) for the start page, and `ich`:
- * the IDs of the logged-in person's own, matched on the server (`docs/personen.md`); `null` when
- * nothing could be compared, then the page goes by the payer's name.
+ * per Beitrag whether it is the logged-in person's own, as far as the server could check it
+ * (`eigeneBeitraege`, `docs/personen.md`); the page decides the rest by the payer's name.
  */
 export async function GetInternBeitraegeMeineEndpoint(
   request: HttpRequest
@@ -31,7 +31,6 @@ export async function GetInternBeitraegeMeineEndpoint(
       principal.userDetails,
       fees.map((fee) => ({
         id: fee.id,
-        payer: fee.payer,
         payerId: fee.payerId,
         eventId: (fee.batchId && events.get(fee.batchId)) || null,
       })),

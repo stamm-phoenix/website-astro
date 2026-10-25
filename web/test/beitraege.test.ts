@@ -138,9 +138,10 @@ test('„Meine Beiträge“ lists the own ones with something left to do, on eit
     { ...beitrag('unpaid', 5000, 0), id: 'fee_other', payer: 'Kim Anders', batchId: null },
   ];
   const data = { loadedAt: '', batches: [sammlung({})], fees, ich: null };
-  const byName = (person: { name: string; ich?: boolean }) =>
-    person.ich ?? person.name === 'Kim Beispiel';
-  const own = meineBeitraege(data, byName);
+  // Like `isIch`: the server's answer, else the linked person by ID, else the name
+  const isIch = (person: { id?: string; name: string; ich?: boolean }) =>
+    person.ich ?? (person.id === 'per_Ich' || person.name === 'Kim Beispiel');
+  const own = meineBeitraege(data, isIch);
   assert.deepEqual(
     own.map((fee) => fee.id),
     ['fee_unpaid', 'fee_partial', 'fee_refund']
@@ -148,14 +149,28 @@ test('„Meine Beiträge“ lists the own ones with something left to do, on eit
   assert.equal(own[0].title, 'Stammeslager 2026');
   assert.equal(own[0].href, '/leitendenbereich/beitraege?sammlung=bat_1');
   assert.equal(own[2].label, `${formatEuro(3000)} zu viel bezahlt`);
-  // The server's match wins over the name: a namesake is not „ich“, another payer may be
-  const matched = meineBeitraege({ ...data, ich: ['fee_refund', 'fee_other'] }, byName);
+  // The server's answer wins over the name: a namesake is not „ich“, another payer may be.
+  // What it could not check (fee_partial) is decided by the payer as before.
+  const matched = meineBeitraege(
+    { ...data, ich: { fee_unpaid: false, fee_refund: true, fee_other: true } },
+    isIch
+  );
   assert.deepEqual(
     matched.map((fee) => [fee.id, fee.title, fee.href]),
     [
+      ['fee_partial', 'Stammeslager 2026', '/leitendenbereich/beitraege?sammlung=bat_1'],
       ['fee_refund', 'Stammeslager 2026', '/leitendenbereich/beitraege?sammlung=bat_1'],
       ['fee_other', 'Teilnehmendenbeitrag', '/leitendenbereich/beitraege?ansicht=alle'],
     ]
   );
-  assert.deepEqual(meineBeitraege(null, byName), []);
+  // The payer's ID finds the linked person even under another name
+  const byId = meineBeitraege(
+    { ...data, fees: [{ ...fees[0], payer: 'K. B.', payerId: 'per_Ich' }] },
+    isIch
+  );
+  assert.deepEqual(
+    byId.map((fee) => fee.id),
+    ['fee_unpaid']
+  );
+  assert.deepEqual(meineBeitraege(null, isIch), []);
 });

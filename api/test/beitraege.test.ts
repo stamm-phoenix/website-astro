@@ -185,7 +185,7 @@ test('own Beiträge without a link leave the names to decide', async (t) => {
   mockPlaywright(t, 200, ANSWER);
   const response = await GetInternBeitraegeMeineEndpoint(request());
   assert.equal(response.status, 200);
-  const body = response.jsonBody as { fees: { id: string }[]; ich: string[] | null };
+  const body = response.jsonBody as { fees: { id: string }[]; ich: object | null };
   assert.deepEqual(
     body.fees.map((f) => f.id),
     ['fee_1']
@@ -223,5 +223,5 @@ test('after a slow Playwright API the names decide instead of waiting longer', a
   });
   const response = await GetInternBeitraegeMeineEndpoint(request());
   assert.equal(response.status, 200);
-  assert.equal((response.jsonBody as { ich: string[] | null }).ich, null);
+  assert.equal((response.jsonBody as { ich: object | null }).ich, null);
 });

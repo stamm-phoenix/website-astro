@@ -189,7 +189,7 @@ export function offeneBeitraegeFor(linkedId: string | null): OffeneBeitraegeData
     fees: offen,
     ich:
       linkedId === 'per_MockDemo'
-        ? offen.filter((fee) => DEMO_BEITRAEGE[fee.id]).map((fee) => fee.id)
+        ? Object.fromEntries(offen.map((fee) => [fee.id, !!DEMO_BEITRAEGE[fee.id]]))
         : null,
   };
 }

@@ -521,13 +521,14 @@ dbTest('own Beiträge: the member by ID, registrations to Aktionen by address', 
   const context = quietContext(t);
   const fees = [
     // Mitgliedsbeitrag: the payer is the person of the member list
-    { id: 'fee_Mitglied', payer: 'Mia M.', payerId: 'per_IchMia', eventId: null },
-    { id: 'fee_Andere', payer: 'Mia Meier', payerId: 'per_Andere', eventId: null },
+    { id: 'fee_Mitglied', payerId: 'per_IchMia', eventId: null },
+    { id: 'fee_Andere', payerId: 'per_Andere', eventId: null },
     // Aktionen: the payer is the registration, a person of its own
-    { id: 'fee_Lager', payer: 'Mia Meier', payerId: 'per_AnmeldungMia', eventId: 'evt_Lager' },
-    { id: 'fee_Kind', payer: 'Kai Meier', payerId: 'per_AnmeldungKai', eventId: 'evt_Lager' },
-    { id: 'fee_Fahrt', payer: 'Mia Meier', payerId: 'per_FahrtMia', eventId: 'evt_Fahrt' },
-    { id: 'fee_Fremd', payer: 'Max Muster', payerId: 'per_FahrtMax', eventId: 'evt_Fahrt' },
+    { id: 'fee_Lager', payerId: 'per_AnmeldungMia', eventId: 'evt_Lager' },
+    { id: 'fee_Kind', payerId: 'per_AnmeldungKai', eventId: 'evt_Lager' },
+    { id: 'fee_Fahrt', payerId: 'per_FahrtMia', eventId: 'evt_Fahrt' },
+    // Without a payer ID the page decides by the name
+    { id: 'fee_OhneId', payerId: null, eventId: 'evt_Lager' },
   ];
   // Without a link nothing could be compared: the page goes by the names
   assert.equal(await eigeneBeitraege(ANNA, fees), null);
@@ -556,14 +557,19 @@ dbTest('own Beiträge: the member by ID, registrations to Aktionen by address', 
     { id: 'per_IchMia', primary_email: 'mia@example.org' },
   ]);
   const lists = t.mock.method(campflow, 'campflowGetAll', async (path: string) => {
-    // The list of the Fahrt does not answer: there the name decides
+    // The list of the Fahrt does not answer: the page decides its Beiträge by the names
     if (path.includes('evt_Fahrt')) throw new CampflowError(502, 'down');
     return [
       { id: 'per_AnmeldungMia', primary_email: 'Mia@example.org' },
       { id: 'per_AnmeldungKai', primary_email: 'kai@example.org' },
     ];
   });
-  assert.deepEqual(await eigeneBeitraege(ANNA, fees), ['fee_Mitglied', 'fee_Lager', 'fee_Fahrt']);
+  assert.deepEqual(await eigeneBeitraege(ANNA, fees), {
+    fee_Mitglied: true,
+    fee_Andere: false,
+    fee_Lager: true,
+    fee_Kind: false,
+  });
   // Each Aktion is asked once, the Mitgliedsbeiträge need none
   assert.deepEqual(lists.mock.calls.map((call) => call.arguments[0]).sort(), [
     '/lists/evt_Fahrt/persons',
@@ -577,6 +583,37 @@ dbTest('own Beiträge: the member by ID, registrations to Aktionen by address', 
     ),
     null
   );
+});
+
+dbTest('without CampFlow the link still finds the own Mitgliedsbeitrag', async (t) => {
+  const context = quietContext(t);
+  await PersonenCollection(
+    request(
+      ANNA,
+      'POST',
+      {},
+      {
+        name: 'Paul Pech',
+        login: ANNA,
+        gruppe: 'leitende',
+        campflowPersonId: 'per_IchPaul',
+        aktiv: true,
+      }
+    ),
+    context
+  );
+  // Name and address of the linked person cannot be loaded
+  t.mock.method(campflow, 'campflowGet', async () => {
+    throw new CampflowError(502, 'down');
+  });
+  const lists = t.mock.method(campflow, 'campflowGetAll', async () => []);
+  const fees = [
+    { id: 'fee_Mitglied', payerId: 'per_IchPaul', eventId: null },
+    { id: 'fee_Lager', payerId: 'per_P', eventId: 'evt_1' },
+  ];
+  // The Aktion cannot be compared without the address, so the page decides it by the name
+  assert.deepEqual(await eigeneBeitraege(ANNA, fees), { fee_Mitglied: true });
+  assert.equal(lists.mock.callCount(), 0);
 });
 
 dbTest('slow lists of the Aktionen leave the names to decide', async (t) => {
@@ -604,11 +641,11 @@ dbTest('slow lists of the Aktionen leave the names to decide', async (t) => {
   t.mock.method(campflow, 'getCampflowMembers', async () => []);
   t.mock.method(campflow, 'campflowGetAll', () => new Promise(() => undefined));
   const fees = [
-    { id: 'fee_1', payer: 'Rita Rasch', payerId: 'per_R', eventId: 'evt_1' },
-    { id: 'fee_2', payer: 'Rolf Rasch', payerId: 'per_O', eventId: 'evt_1' },
+    { id: 'fee_1', payerId: 'per_R', eventId: 'evt_1' },
+    { id: 'fee_2', payerId: 'per_IchRita', eventId: null },
   ];
   const started = Date.now();
-  assert.deepEqual(await eigeneBeitraege(ANNA, fees, Date.now() + 500), ['fee_1']);
+  assert.deepEqual(await eigeneBeitraege(ANNA, fees, Date.now() + 500), { fee_2: true });
   assert.ok(Date.now() - started < 2000);
   // No time left at all: CampFlow is not asked, the page goes by the names
   const lists = t.mock.method(campflow, 'campflowGetAll', async () => []);

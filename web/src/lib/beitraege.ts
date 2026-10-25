@@ -127,11 +127,12 @@ export interface MeinBeitrag {
 
 /**
  * The logged-in person's Beiträge with something left to do, on either side: to be paid, or paid
- * too much and to be paid back. The server's `ich` decides; without it the payer's name does.
+ * too much and to be paid back. The server's `ich` decides; for a Beitrag it could not check, the
+ * payer does: the linked CampFlow person by ID, else the name.
  */
 export function meineBeitraege(
   data: OffeneBeitraegeData | null,
-  isIch: (person: { name: string; ich?: boolean }) => boolean
+  isIch: (person: { id?: string; name: string; ich?: boolean }) => boolean
 ): MeinBeitrag[] {
   if (!data) return [];
   const sammlungen = new Map(data.batches.map((batch) => [batch.id, batch.name]));
@@ -139,7 +140,11 @@ export function meineBeitraege(
     .filter(
       (fee) =>
         (fee.status === 'unpaid' || fee.status === 'partial' || fee.status === 'refund') &&
-        isIch({ name: fee.payer, ich: data.ich ? data.ich.includes(fee.id) : undefined })
+        isIch({
+          id: fee.payerId ?? undefined,
+          name: fee.payer,
+          ich: data.ich && Object.hasOwn(data.ich, fee.id) ? data.ich[fee.id] : undefined,
+        })
     )
     .sort((a, b) => b.date.localeCompare(a.date))
     .map((fee) => ({
