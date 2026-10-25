@@ -62,6 +62,17 @@ Die Adresse verlässt den Server nie. Die Seiten bekommen nur die IDs der eigene
 - `GET /api/intern/aktionen/{id}`: `ich`, die IDs der eigenen Anmeldungen (Aktion, Fahrten)
 - `GET /api/intern/abrechnung/{id}`: `ich`, ebenso (die Abrechnung liefert sonst keine
   Kontaktdaten)
+- `GET /api/intern/beitraege/meine`: `ich`, je Beitrag `true` oder `false`, ob er zu den eigenen
+  gehört (Box „Meine Beiträge“ auf der Startseite, nur Beiträge, die noch offen oder zu viel
+  bezahlt sind). CampFlow nennt zu jedem Beitrag die zahlende Person (`payerId`, über die
+  Playwright-API). Beim Mitgliedsbeitrag ist das die Person der Mitgliederliste, dort entscheidet
+  die Verknüpfung, auch wenn CampFlow gerade nicht antwortet. Bei Beiträgen einer Aktion ist es
+  die Anmeldung; der Server liest dafür die Anmeldungen der Aktion und vergleicht die Adressen wie
+  oben. Was der Server nicht prüfen konnte (keine `payerId`, die Aktion antwortet nicht binnen
+  zehn Sekunden, keine Adresse), fehlt in `ich` und die Seite entscheidet es über ID und Namen der
+  zahlenden Person. Der Endpoint bleibt insgesamt unter 40 Sekunden; nach einer langsamen
+  Playwright-API ist `ich` deshalb auch `null`. Nach dem Speichern im Modul „Personen“ lädt die
+  Startseite die Box neu.
 - Versand-Vorschau der Protokolle: `ich` an der eigenen Adresse der Empfängerliste
   (`mitEigenerAdresse`; die Adressen stehen dort ohnehin)
 

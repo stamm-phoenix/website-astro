@@ -1,7 +1,7 @@
 import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 import type { CampflowPerson } from './campflow';
-import { CampflowError, campflowGet, getCampflowMembers } from './campflow';
+import { CampflowError, campflowGet, campflowGetAll, getCampflowMembers } from './campflow';
 import {
   RecordNotFoundError,
   VersionConflictError,
@@ -352,6 +352,14 @@ export async function eigeneAnmeldungen(
   const linked = await findVerknuepfte(login, now, timeoutMs);
   // Nothing to compare: the page falls back to the names, as without a link
   if (!linked?.email) return null;
+  return mitEigenerAnmeldung(linked, persons);
+}
+
+/** The IDs of the registrations with the primary address of the linked person. */
+function mitEigenerAnmeldung(
+  linked: Verknuepfte,
+  persons: readonly { id: string; primary_email?: unknown; name?: unknown }[]
+): string[] {
   return persons
     .filter(
       (person) =>
@@ -363,11 +371,95 @@ export async function eigeneAnmeldungen(
     .map((p) => p.id);
 }
 
+/** How long „Meine Beiträge“ waits for the registrations to the Aktionen at most. */
+export const BEITRAEGE_ANMELDUNGEN_TIMEOUT_MS = 10_000;
+
+/** A Beitrag as `eigeneBeitraege` compares it: who pays, and the Aktion it belongs to. */
+export interface BeitragZahlende {
+  id: string;
+  payerId: string | null;
+  /** The CampFlow event of the Sammlung, null for a Mitgliedsbeitrag or a manual Sammlung. */
+  eventId: string | null;
+  /** In a Sammlung of Mitgliedsbeiträge (`annuity`): the payer is a person of the member list. */
+  mitgliedsbeitrag: boolean;
+}
+
+/**
+ * Which Beiträge the login has to pay or gets paid back (`GET /api/intern/beitraege/meine`), per
+ * Beitrag ID: `true` for an own one, `false` for another person's. A Mitgliedsbeitrag names the
+ * person of the member list as payer, so the link decides. A Beitrag of an Aktion names the
+ * registration, a person of its own (`docs/personen.md`): the server compares the addresses of
+ * the registrations to the Aktion, as `eigeneAnmeldungen` does. A Beitrag the server could not
+ * check (no payer ID, the Aktion did not answer in time, no address of the linked person) is left
+ * out, so the page decides it by the payer's ID and name. `null`, like `eigeneAnmeldungen`, when
+ * there is no link to compare with. Nothing waits past `deadline` (ms since the epoch), so the
+ * page stays within the time limit of Static Web Apps (45 seconds).
+ */
+export async function eigeneBeitraege(
+  login: string,
+  fees: readonly BeitragZahlende[],
+  deadline: number = Date.now() + EIGENE_BEITRAEGE_TIMEOUT_MS
+): Promise<Record<string, boolean> | null> {
+  // An older Playwright API sends no payer IDs: then only the names can tell
+  if (!fees.some((fee) => fee.payerId)) return null;
+  const now = Date.now();
+  const ichTimeoutMs = Math.min(ICH_TIMEOUT_MS, deadline - now);
+  if (ichTimeoutMs <= 0) return null;
+  const linked = await findVerknuepfte(login, now, ichTimeoutMs);
+  if (!linked) return null;
+
+  // Without CampFlow the linked person has no address: then the Aktionen cannot be compared
+  const offen = fees.filter((fee) => fee.payerId && fee.payerId !== linked.id && fee.eventId);
+  const anmeldungenTimeoutMs = Math.min(BEITRAEGE_ANMELDUNGEN_TIMEOUT_MS, deadline - Date.now());
+  const eventIds =
+    linked.email && anmeldungenTimeoutMs > 0
+      ? [...new Set(offen.map((fee) => fee.eventId as string))]
+      : [];
+  /** Per Aktion: the own registrations, and those with an address to compare at all. */
+  const anmeldungen = new Map<string, { eigene: Set<string>; geprueft: Set<string> }>();
+  await innerhalb(
+    Promise.all(
+      eventIds.map(async (eventId) => {
+        try {
+          const persons = await campflowGetAll<CampflowPerson>(
+            `/lists/${encodeURIComponent(eventId)}/persons`
+          );
+          anmeldungen.set(eventId, {
+            eigene: new Set(mitEigenerAnmeldung(linked, persons)),
+            geprueft: new Set(persons.filter((p) => text(p.primary_email)).map((p) => p.id)),
+          });
+        } catch {
+          // Without the registrations the page decides this Aktion by the names
+        }
+      })
+    ),
+    anmeldungenTimeoutMs
+  );
+
+  const ich: Record<string, boolean> = {};
+  for (const fee of fees) {
+    if (!fee.payerId) continue;
+    if (fee.payerId === linked.id) ich[fee.id] = true;
+    // Another person of the member list, even with the same name
+    else if (fee.mitgliedsbeitrag) ich[fee.id] = false;
+    else if (fee.eventId) {
+      const liste = anmeldungen.get(fee.eventId);
+      // A registration without an address, or not in the list, cannot be compared
+      if (liste?.eigene.has(fee.payerId)) ich[fee.id] = true;
+      else if (liste?.geprueft.has(fee.payerId)) ich[fee.id] = false;
+    }
+  }
+  return ich;
+}
+
 /**
  * How long pages wait for the linked person at most. Marking own entries is an extra, so it never
  * holds up an Aktion or an Abrechnung near the time limit of Static Web Apps (45 seconds).
  */
 export const ICH_TIMEOUT_MS = 5000;
+
+/** How long `eigeneBeitraege` takes at most when the caller sets no earlier deadline. */
+export const EIGENE_BEITRAEGE_TIMEOUT_MS = ICH_TIMEOUT_MS + BEITRAEGE_ANMELDUNGEN_TIMEOUT_MS;
 
 /**
  * `getVerknuepfte` for pages that only mark entries: a failure, or no answer within `timeoutMs`,

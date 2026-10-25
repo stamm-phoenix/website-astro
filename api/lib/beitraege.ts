@@ -11,6 +11,8 @@ export interface BeitragSammlung {
   name: string;
   /** `event`, `annuity` (Mitgliedsbeitrag) or `manual`. */
   type: string;
+  /** The CampFlow event (`evt_…`) of a Sammlung of type `event`, else null. */
+  eventId: string | null;
   feeCount: number;
   /** Paid in full or cancelled. */
   settledCount: number;
@@ -31,6 +33,11 @@ export interface Beitrag {
   costUnit: { id: string; name: string } | null;
   category: string | null;
   payer: string;
+  /**
+   * CampFlow's ID of the payer: a person of the member list, or for a fee of an event the
+   * registration (`per_…`, see `docs/personen.md`); null if unknown.
+   */
+  payerId: string | null;
   /** CampFlow's name of the payment method, e.g. `bank_transfer`; null if unknown. */
   paymentMethod: string | null;
   /** Day the fee was created, `YYYY-MM-DD`. */
@@ -119,6 +126,7 @@ function readSammlung(value: unknown): BeitragSammlung {
     id: value.id,
     name: text(value.name),
     type: text(value.type),
+    eventId: optionalText(value.eventId),
     feeCount: count(value.feeCount),
     settledCount: count(value.settledCount),
     totalCent: cent(value.totalAmount),
@@ -149,6 +157,7 @@ function readBeitrag(value: unknown): Beitrag {
     costUnit: reference(value.costUnit),
     category: reference(value.category)?.name ?? null,
     payer: text(value.payer),
+    payerId: optionalText(value.payerId),
     paymentMethod: optionalText(value.paymentMethod),
     date: day(value.date) ?? '',
     paidAt: day(value.paidAt),
@@ -169,6 +178,22 @@ export function readBeitraege(value: unknown): Beitraege {
     loadedAt: value.loadedAt,
     batches: value.batches.map(readSammlung),
     fees: value.fees.map(readBeitrag),
+  };
+}
+
+/** Whether something is left to do for a Beitrag: to be paid, or paid too much and to pay back. */
+export function istOffen(fee: Pick<Beitrag, 'status'>): boolean {
+  return fee.status === 'unpaid' || fee.status === 'partial' || fee.status === 'refund';
+}
+
+/** Only the Beiträge with something left to do, and the Sammlungen they belong to. */
+export function offeneBeitraege(beitraege: Beitraege): Beitraege {
+  const fees = beitraege.fees.filter(istOffen);
+  const batchIds = new Set(fees.map((fee) => fee.batchId));
+  return {
+    loadedAt: beitraege.loadedAt,
+    batches: beitraege.batches.filter((batch) => batchIds.has(batch.id)),
+    fees,
   };
 }
 

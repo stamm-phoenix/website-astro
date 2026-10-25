@@ -132,3 +132,70 @@ test('Beiträge without a Sammlung are not reported as missing', async ({ page }
   await page.getByRole('link', { name: 'Alle Beiträge einzeln ansehen' }).click();
   await expect(page.getByRole('list', { name: 'Beiträge' }).getByRole('listitem')).toHaveCount(32);
 });
+
+test('the start page lists my Beiträge with something left to do', async ({ page }) => {
+  await page.goto('/leitendenbereich/');
+  const box = page.getByRole('region', { name: 'Meine Beiträge' });
+  const items = box.getByTestId('meine-beitraege').getByRole('listitem');
+  // To pay for the own registration, and paid too much for the Mitgliedsbeitrag
+  await expect(items).toHaveCount(2);
+  await expect(items.nth(0)).toContainText('Wölflings-Herbstwochenende');
+  await expect(items.nth(0)).toContainText('Nicht bezahlt');
+  await expect(items.nth(1)).toContainText('Mitgliedsbeitrag 2026');
+  await expect(items.nth(1)).toContainText(/20,00\s€ zu viel bezahlt/);
+  // The Verwendungszweck is copied with one click, without leaving the start page
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const copy = items.nth(0).getByRole('button', { name: /^Verwendungszweck \S+ kopieren$/ });
+  const reference = (await copy.textContent())?.trim() ?? '';
+  await copy.click();
+  await expect(items.nth(0).getByRole('status').filter({ hasText: 'Kopiert' })).toHaveCount(1);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(reference);
+  await expect(page).toHaveURL(/\/leitendenbereich\/$/);
+  await items.nth(0).getByRole('link').click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/beitraege\?sammlung=bat_WoeHerbst$/);
+  await expect(page.getByRole('heading', { name: 'Wölflings-Herbstwochenende' })).toBeVisible();
+});
+
+test('without the server match the payer name finds my Beiträge', async ({ page }) => {
+  await page.route('**/api/intern/beitraege/meine', async (route) => {
+    const body = await (await route.fetch()).json();
+    await route.fulfill({ json: { ...body, ich: null } });
+  });
+  await page.goto('/leitendenbereich/');
+  const box = page.getByRole('region', { name: 'Meine Beiträge' });
+  await expect(box.getByTestId('meine-beitraege').getByRole('listitem')).toHaveCount(2);
+});
+
+test('the start page says when no Beitrag of mine is open', async ({ page }) => {
+  await page.route('**/api/intern/beitraege/meine', (route) =>
+    route.fulfill({ json: { loadedAt: new Date().toISOString(), batches: [], fees: [], ich: [] } })
+  );
+  await page.goto('/leitendenbereich/');
+  await expect(page.getByTestId('nothing-open')).toContainText('Keine offenen Beiträge');
+  await expect(page.getByRole('region', { name: 'Meine Beiträge' })).toHaveCount(0);
+});
+
+test('after „Neu laden“ in Beiträge the start page shows the new state', async ({ page }) => {
+  let paid = false;
+  await page.route('**/api/intern/beitraege/meine', async (route) => {
+    const body = await (await route.fetch()).json();
+    await route.fulfill({
+      json: paid ? { ...body, fees: [], batches: [], ich: {} } : body,
+    });
+  });
+  await page.goto('/leitendenbereich/');
+  const items = page
+    .getByRole('region', { name: 'Meine Beiträge' })
+    .getByTestId('meine-beitraege')
+    .getByRole('listitem');
+  await expect(items).toHaveCount(2);
+
+  await items.nth(0).getByRole('link').click();
+  await expect(page.getByRole('heading', { name: 'Wölflings-Herbstwochenende' })).toBeVisible();
+  paid = true;
+  await page.getByRole('button', { name: /Neu aus CampFlow laden/ }).click();
+  await expect(page.getByText('Beiträge neu aus CampFlow geladen.')).toBeVisible();
+
+  await page.goBack();
+  await expect(page.getByTestId('nothing-open')).toContainText('Keine offenen Beiträge');
+});

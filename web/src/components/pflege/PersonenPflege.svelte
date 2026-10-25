@@ -6,7 +6,7 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { ApiError, sendApi } from '../../lib/api';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
-  import { personenPflege } from '../../lib/pflegeStore.svelte';
+  import { offeneBeitraegeStore, personenPflege } from '../../lib/pflegeStore.svelte';
   import { forgetAbrechnungen } from '../../lib/abrechnungStore.svelte';
   import { forgetCampflowEvents } from '../../lib/campflowStore.svelte';
   import { reloadIch } from '../../lib/ichStore.svelte';
@@ -163,6 +163,8 @@
     reloadIch();
     forgetCampflowEvents();
     forgetAbrechnungen();
+    // The start page asks again which Beiträge are the own ones
+    offeneBeitraegeStore.invalidate();
   }
 
   /** After a conflict: replaces the input with the current version of the person. */

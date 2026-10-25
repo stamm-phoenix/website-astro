@@ -4,7 +4,7 @@
   import ReloadAction from '../ui/ReloadAction.svelte';
   import BeitraegeListe from './BeitraegeListe.svelte';
   import BeitraegeSammlungen from './BeitraegeSammlungen.svelte';
-  import { beitraegeStore } from '../../lib/pflegeStore.svelte';
+  import { beitraegeStore, offeneBeitraegeStore } from '../../lib/pflegeStore.svelte';
   import { formatDateTime } from '../../lib/format';
   import type { BeitraegeData } from '../../lib/types';
 
@@ -47,7 +47,10 @@
     refreshed = '';
     refreshing = true;
     await beitraegeStore.load({ force: true, param: true });
-    if (!store.error) refreshed = 'Beiträge neu aus CampFlow geladen.';
+    if (store.error) return;
+    refreshed = 'Beiträge neu aus CampFlow geladen.';
+    // „Meine Beiträge“ on the start page loads the new state on its next visit
+    offeneBeitraegeStore.invalidate();
   }
 
   onMount(() => {

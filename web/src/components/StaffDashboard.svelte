@@ -27,10 +27,16 @@
   import { dueLabel, dueSoon, pendingTask } from '../lib/aufgabenView';
   import { localDate } from '../lib/dateUtils';
   import { KJR_ABGABE_MONATE, kjrRestzeit, offeneKjrFristen } from '../lib/kjrFristen';
+  import CopyCode from './ui/CopyCode.svelte';
   import LoadState from './ui/LoadState.svelte';
   import MessageText from './ui/MessageText.svelte';
   import StatusLabel from './ui/StatusLabel.svelte';
-  import { belegePflege, campflowBelegeStore } from '../lib/pflegeStore.svelte';
+  import {
+    belegePflege,
+    campflowBelegeStore,
+    offeneBeitraegeStore,
+  } from '../lib/pflegeStore.svelte';
+  import { meineBeitraege } from '../lib/beitraege';
   import { meineBelege } from '../lib/campflowBelege';
   import { isIch } from '../lib/ichStore.svelte';
   import { formatIsoDate } from '../lib/belege';
@@ -138,18 +144,28 @@
       !campflowStore.error &&
       ownBelege.length === 0
   );
-  const cardCount = $derived(
-    [eventsEmpty, tasksEmpty, fristenEmpty, belegeEmpty].filter((empty) => !empty).length
+  const beitraegeStore = offeneBeitraegeStore.state;
+  // Own Beiträge with something left to do, whether to pay or to be paid back
+  const ownBeitraege = $derived(meineBeitraege(beitraegeStore.data, isIch));
+  const beitraegeEmpty = $derived(
+    beitraegeStore.data !== null &&
+      !beitraegeStore.loading &&
+      !beitraegeStore.error &&
+      ownBeitraege.length === 0
   );
+  const cards = $derived([eventsEmpty, tasksEmpty, fristenEmpty, belegeEmpty, beitraegeEmpty]);
+  const cardCount = $derived(cards.filter((empty) => !empty).length);
   // Side by side once there is room; stacked areas are divided by lines instead
   const gridColumns = $derived(
-    cardCount === 4
-      ? 'md:grid-cols-2 xl:grid-cols-4 xl:divide-x xl:divide-y-0'
-      : cardCount === 3
-        ? 'xl:grid-cols-3 xl:divide-x xl:divide-y-0'
-        : cardCount === 2
-          ? 'md:grid-cols-2 md:divide-x md:divide-y-0'
-          : ''
+    cardCount === 5
+      ? 'md:grid-cols-2 xl:grid-cols-3'
+      : cardCount === 4
+        ? 'md:grid-cols-2 xl:grid-cols-4 xl:divide-x xl:divide-y-0'
+        : cardCount === 3
+          ? 'xl:grid-cols-3 xl:divide-x xl:divide-y-0'
+          : cardCount === 2
+            ? 'md:grid-cols-2 md:divide-x md:divide-y-0'
+            : ''
   );
 
   onMount(() => {
@@ -169,6 +185,7 @@
       void fetchCampflowEvents();
       void belegePflege.load();
       void campflowBelegeStore.load({ param: false });
+      void offeneBeitraegeStore.load();
     };
     const timeout = setTimeout(startSecondary, SECONDARY_LOAD_DELAY_MS);
     void Promise.allSettled([favorites, tasks]).then(startSecondary);
@@ -396,6 +413,38 @@
   {@render more(ownBelege.length)}
 {/snippet}
 
+{#snippet beitraegeBody()}
+  <LoadState
+    data={beitraegeStore.data}
+    loading={beitraegeStore.loading}
+    error={beitraegeStore.error}
+    loadingText="Beiträge werden geladen …"
+    onretry={() => offeneBeitraegeStore.load({ force: true })}
+  >
+    {#snippet skeleton()}
+      <p aria-hidden="true" class="mt-2 text-sm text-neutral-700">Beiträge werden geladen …</p>
+    {/snippet}
+    <ul class="mt-1 divide-y divide-neutral-200" data-testid="meine-beitraege">
+      {#each ownBeitraege.slice(0, CARD_LIMIT) as beitrag (beitrag.id)}
+        <li class="py-2">
+          <!-- Only the title is the link: the Verwendungszweck is a button that copies it -->
+          <a
+            href={beitrag.href}
+            class="text-link flex items-center font-semibold any-pointer-coarse:min-h-11"
+            title={beitrag.title}><span class="truncate">{beitrag.title}</span></a
+          >
+          <span class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
+            <span class="tabular-nums">{formatEuro(beitrag.dueCent)}</span>
+            {#if beitrag.reference}<CopyCode code={beitrag.reference} compact small />{/if}
+            <StatusLabel label={beitrag.label} tone={beitrag.tone} dot />
+          </span>
+        </li>
+      {/each}
+    </ul>
+    {@render more(ownBeitraege.length)}
+  </LoadState>
+{/snippet}
+
 {#snippet fristenBody()}
   {#if eventsLoading}<p role="status" class="mt-2 text-sm text-neutral-700">
       Fristen werden geladen …
@@ -500,9 +549,16 @@
             'Zu den Belegen',
             belegeBody
           )}{/if}
+        {#if !beitraegeEmpty}{@render card(
+            'meine-beitraege-heading',
+            'Meine Beiträge',
+            '/leitendenbereich/beitraege',
+            'Zu den Beiträgen',
+            beitraegeBody
+          )}{/if}
       </div>
     {/if}
-    {#if cardCount < 4}
+    {#if cardCount < cards.length}
       <ul
         class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-neutral-700"
         data-testid="nothing-open"
@@ -528,6 +584,12 @@
             {@render check()}<span
               >Keine offenen Belege ·
               <a href="/leitendenbereich/belege" class="text-link">Beleg einreichen</a></span
+            >
+          </li>{/if}
+        {#if beitraegeEmpty}<li class="flex items-center gap-2">
+            {@render check()}<span
+              >Keine offenen Beiträge ·
+              <a href="/leitendenbereich/beitraege" class="text-link">Zu den Beiträgen</a></span
             >
           </li>{/if}
         {#if fristenEmpty}<li class="flex items-center gap-2">

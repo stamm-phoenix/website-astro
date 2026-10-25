@@ -1177,6 +1177,8 @@ export interface BeitragSammlung {
   name: string;
   /** `event`, `annuity` (Mitgliedsbeitrag) or `manual`. */
   type: string;
+  /** The CampFlow event (`evt_…`) of a Sammlung of type `event`, else null. */
+  eventId: string | null;
   feeCount: number;
   /** Paid in full or cancelled. */
   settledCount: number;
@@ -1211,6 +1213,8 @@ export interface Beitrag extends AktionBeitrag {
   costUnit: { id: string; name: string } | null;
   category: string | null;
   payer: string;
+  /** CampFlow's ID of the payer (member or registration, `per_…`); null if unknown. */
+  payerId: string | null;
   paymentMethod: string | null;
   /** Day the Beitrag was created, `YYYY-MM-DD`. */
   date: string;
@@ -1234,4 +1238,16 @@ export interface BeitraegeData {
   loadedAt: string;
   batches: BeitragSammlung[];
   fees: Beitrag[];
+}
+
+/**
+ * The Beiträge with something left to do (open or paid too much), for „Meine Beiträge“ on the
+ * start page (`GET /api/intern/beitraege/meine`).
+ */
+export interface OffeneBeitraegeData extends BeitraegeData {
+  /**
+   * Per Beitrag ID whether it is the logged-in person's own, as far as the server could check it
+   * (`docs/personen.md`); a missing Beitrag, or `null` without a link, is decided by the payer.
+   */
+  ich: Record<string, boolean> | null;
 }
