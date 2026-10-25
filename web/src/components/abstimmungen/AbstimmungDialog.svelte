@@ -112,10 +112,19 @@
   const entfernteMitStimmen = $derived(
     abstimmung
       ? abstimmung.optionen.filter(
-          (option) => option.stimmen > 0 && !zeilen.some((z) => z.id === option.id)
+          // An emptied row is left out on saving, so its votes go too
+          (option) => option.stimmen > 0 && !zeilen.some((z) => z.id === option.id && z.text.trim())
         )
       : []
   );
+
+  async function remove(): Promise<void> {
+    if (!ondelete) return;
+    await dialog.run(
+      ondelete,
+      'Die Abstimmung wurde nicht gelöscht. Lade die Seite neu und versuche es noch einmal.'
+    );
+  }
 
   async function save(): Promise<void> {
     const local: Record<string, string> = {};
@@ -167,7 +176,7 @@
   onreload={dialog.state.conflict ? onreload : undefined}
   onsubmit={() => void save()}
   {onclose}
-  ondelete={abstimmung ? ondelete : undefined}
+  ondelete={abstimmung && ondelete ? remove : undefined}
   deleteTitle={`„${abstimmung?.titel ?? ''}“ löschen?`}
   deleteQuestion="Die Abstimmung mit allen Antworten löschen? Das lässt sich nicht rückgängig machen."
 >

@@ -74,3 +74,15 @@ test('an Abstimmung of someone else can be answered but not managed', async ({ p
   await page.getByRole('button', { name: 'Antwort speichern' }).click();
   await expect(page.getByText('Antwort gespeichert.').first()).toBeVisible();
 });
+
+test('emptying an option with votes warns that its votes are lost', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Was essen wir auf dem Sommerlager/ }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Abstimmung bearbeiten' });
+  await dialog.getByLabel('Option 3', { exact: true }).fill('');
+  await expect(
+    dialog.getByText('Beim Speichern gehen die Stimmen für „Kässpatzn“ verloren.')
+  ).toBeVisible();
+});

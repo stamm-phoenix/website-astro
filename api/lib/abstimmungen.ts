@@ -343,10 +343,7 @@ export async function createAbstimmung(
   });
 }
 
-/**
- * Takes the version of the loaded Abstimmung and checks the organizer. Writing the row first
- * also makes concurrent changes of one Abstimmung wait for each other.
- */
+/** Takes the version of the loaded Abstimmung and checks the organizer. */
 async function claimVersion(
   trx: Transaction<Database>,
   id: number,
@@ -354,6 +351,8 @@ async function claimVersion(
   login: string,
   changes: Updateable<Database['abstimmung.abstimmung']> = {}
 ): Promise<void> {
+  // Same lock as a vote, so a vote checked against the old rules never lands after the change
+  await lockResource(trx, `abstimmung:${id}`);
   const row = await loadRow(trx, id);
   if (!row) throw new RecordNotFoundError();
   if (row.erstellt_von !== login) throw new AbstimmungForbiddenError();
@@ -728,6 +727,8 @@ export async function queueAbstimmungErinnerungen(id: number, login: string): Pr
   return inTransaction(async (trx) => {
     const row = await openForVote(trx, id);
     if (row.erstellt_von !== login) throw new AbstimmungForbiddenError();
+    // Waits for a mail being sent, so `versucht` below only means an unclear result
+    await lockResource(trx, mailLock(id));
     const ids = (await erinnerungKandidaten(trx, id).select('id').execute()).map((t) => t.id);
     if (!ids.length) return 0;
     await trx
@@ -746,6 +747,34 @@ export interface AbstimmungMail {
   name: string;
   token: string;
   art: AbstimmungMailArt;
+}
+
+/** Held while one mail is reserved and sent, so a reminder cannot queue it again meanwhile. */
+function mailLock(id: number): string {
+  return `abstimmung:${id}:mail`;
+}
+
+/**
+ * Reserves the next queued mail, sends it with `send` and marks it as sent, all while holding
+ * the mail lock. A failing `send` leaves the mail reserved (`versucht`), never sent again
+ * automatically. Returns whether there was a mail.
+ */
+export async function sendNextAbstimmungMail(
+  id: number,
+  send: (mail: AbstimmungMail) => Promise<void>
+): Promise<boolean> {
+  // Not `inTransaction`: the mail must not be sent again after a deadlock retry. The
+  // transaction only holds the lock; reserving and marking commit on their own.
+  return getDb()
+    .transaction()
+    .execute(async (trx) => {
+      await lockResource(trx, mailLock(id));
+      const mail = await reserveAbstimmungMail(id);
+      if (!mail) return false;
+      await send(mail);
+      await markAbstimmungMailSent(mail);
+      return true;
+    });
 }
 
 /** Reserves the next mail to send; concurrent steps never get the same one. */

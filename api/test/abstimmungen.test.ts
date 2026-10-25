@@ -575,3 +575,66 @@ dbTest('a leader who answered here is not invited or reminded again', async (t) 
   );
   assert.equal(view.optionen[0].stimmen, 2);
 });
+
+dbTest('a reminder waits for a mail that is being sent', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => MEMBERS.slice(2));
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  let release: () => void = () => undefined;
+  const blocked = new Promise<void>((resolve) => (release = resolve));
+  const sent: string[] = [];
+  t.mock.method(abstimmungMail, 'send', async (to: string, data: AbstimmungMailDaten) => {
+    if (data.art === 'einladung') await blocked;
+    sent.push(`${data.art}:${to}`);
+  });
+  const id = await create(t);
+  const post = (path: 'einladung' | 'erinnerung' | 'mails', body: unknown) =>
+    ({
+      einladung: AbstimmungEinladungEndpoint,
+      erinnerung: AbstimmungErinnerungEndpoint,
+      mails: AbstimmungMailsEndpoint,
+    })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  await post('einladung', { action: 'send', version });
+
+  const step = post('mails', {});
+  // The invitation is reserved and being sent; a reminder now must wait for it
+  while (
+    !(await getDb()
+      .selectFrom('abstimmung.teilnahme')
+      .select('id')
+      .where('mail_status', '=', 'versucht')
+      .executeTakeFirst())
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  let reminded = false;
+  const reminder = post('erinnerung', { action: 'send' }).then((response) => {
+    reminded = true;
+    return response;
+  });
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(reminded, false);
+  } finally {
+    // Even a failed check lets the step finish, so the database can be dropped
+    release();
+  }
+  assert.deepEqual((await step).jsonBody, { offen: 0, gesendet: 1, unklar: 0 });
+  await reminder;
+  await post('mails', {});
+  // The invitation was recorded as sent before the reminder took the row over
+  const [row] = await getDb()
+    .selectFrom('abstimmung.teilnahme')
+    .select(['eingeladen_am', 'erinnert_am', 'mail_status'])
+    .execute();
+  assert.ok(row.eingeladen_am);
+  assert.ok(row.erinnert_am);
+  assert.equal(row.mail_status, 'gesendet');
+  assert.deepEqual(sent, ['einladung:erika@example.test', 'erinnerung:erika@example.test']);
+});
