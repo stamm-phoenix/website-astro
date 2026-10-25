@@ -587,18 +587,32 @@ async function dropErinnerung(trx: Transaction<Database>, teilnahmeId: number): 
     .execute();
 }
 
-/** Refuses new people once the Abstimmung has `MAX_ABSTIMMUNG_TEILNAHMEN`. */
-async function assertPlatz(trx: Transaction<Database>, id: number, neu: number): Promise<void> {
+/**
+ * Refuses new people once the Abstimmung has `MAX_ABSTIMMUNG_TEILNAHMEN`, with the message for
+ * whoever adds them: a guest, a leader voting, or the organizer inviting.
+ */
+async function assertPlatz(
+  trx: Transaction<Database>,
+  id: number,
+  neu: number,
+  wer: 'gast' | 'leitung' | 'einladung'
+): Promise<void> {
   const { count } = await trx
     .selectFrom('abstimmung.teilnahme')
     .select((eb) => eb.fn.countAll<number>().as('count'))
     .where('abstimmung_id', '=', id)
     .executeTakeFirstOrThrow();
-  if (Number(count) + neu > MAX_ABSTIMMUNG_TEILNAHMEN) {
-    throw new ValidationError({
-      form: `Bei dieser Abstimmung machen schon ${MAX_ABSTIMMUNG_TEILNAHMEN} Personen mit, mehr gehen nicht. Deine Antwort wurde nicht gespeichert. Sag der Person Bescheid, die dich eingeladen hat.`,
-    });
-  }
+  const vorhanden = Number(count);
+  if (vorhanden + neu <= MAX_ABSTIMMUNG_TEILNAHMEN) return;
+  const voll = `Bei dieser Abstimmung machen schon ${MAX_ABSTIMMUNG_TEILNAHMEN} Personen mit, mehr gehen nicht. Deine Antwort wurde nicht gespeichert.`;
+  throw new ValidationError({
+    form:
+      wer === 'einladung'
+        ? `Bei einer Abstimmung können höchstens ${MAX_ABSTIMMUNG_TEILNAHMEN} Personen mitmachen. Es sind schon ${vorhanden}, dazu kämen ${neu} neue. Wähle weniger Personen aus.`
+        : wer === 'leitung'
+          ? `${voll} Sag der Person Bescheid, die die Abstimmung angelegt hat.`
+          : `${voll} Sag der Person Bescheid, die dich eingeladen hat.`,
+  });
 }
 
 /** Opens an Abstimmung for a vote: it exists and is not closed. */
@@ -672,7 +686,7 @@ export async function voteAsStaff(
           .execute();
       }
     } else {
-      await assertPlatz(trx, id, 1);
+      await assertPlatz(trx, id, 1, 'leitung');
       // So a later invitation to this address finds the answer instead of adding the person
       const vergeben = new Set(teilnahmen.map((t) => t.email));
       const email = person.adresse && !vergeben.has(person.adresse) ? person.adresse : null;
@@ -782,7 +796,7 @@ export async function votePublic(
         return { token: frueher.token };
       }
     }
-    await assertPlatz(trx, row.id, 1);
+    await assertPlatz(trx, row.id, 1, 'gast');
     const token = newAbstimmungToken();
     const created = await trx
       .insertInto('abstimmung.teilnahme')
@@ -879,7 +893,7 @@ export async function queueAbstimmungEinladungen(
         !vorhanden.has(einladung.email) && (einladung.familie || !beantwortet.has(einladung.email))
     );
     if (neu.length) {
-      await assertPlatz(trx, id, neu.length);
+      await assertPlatz(trx, id, neu.length, 'einladung');
       // SQL Server takes at most 2100 parameters per statement
       for (let index = 0; index < neu.length; index += 200) {
         await trx
