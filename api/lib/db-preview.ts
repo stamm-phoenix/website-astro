@@ -15,6 +15,8 @@ import {
   updateBlogPost,
 } from './blog-list';
 import { neuerInhalt } from './protokoll-editor-model';
+import { validateAbstimmung } from './abstimmung-model';
+import { createAbstimmung, queueAbstimmungEinladungen, voteAsStaff } from './abstimmungen';
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
 import { createGruppenstunde, getStaffGruppenstunden } from './gruppenstunden-list';
 import { createLeitende, getStaffLeitende, setLeitendePhoto } from './leitende-list';
@@ -179,7 +181,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:29';
+const SEEDED_KEY = 'preview:seeded:30';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -1576,4 +1578,50 @@ export async function seedPreviewSammel(now: Date = new Date()): Promise<void> {
         day_count: 5,
       })
       .execute();
+}
+
+/**
+ * An invented Terminfindung with a few answers and an invitation, so every table of the
+ * Abstimmungen has rows. Created by an invented leader: real logins of the preview see it as
+ * participants and create their own to manage. Skipped if the preview has one already.
+ */
+export async function seedPreviewAbstimmungen(): Promise<void> {
+  const db = getDb();
+  if (await db.selectFrom('abstimmung.abstimmung').select('id').executeTakeFirst()) return;
+  const organisator = { login: 'vorschau@example.test', name: 'Vroni Vorschau', adressen: [] };
+  const id = await createAbstimmung(
+    validateAbstimmung({
+      titel: 'Termin für die Weihnachtsfeier (Test)',
+      beschreibung: 'Erfundene Testdaten der Preview. Bitte alle Termine wählen, die gehen.',
+      mehrfach: true,
+      optionen: [
+        { text: 'Fr, 11.12. ab 19 Uhr' },
+        { text: 'Sa, 12.12. ab 18 Uhr' },
+        { text: 'Fr, 18.12. ab 19 Uhr' },
+      ],
+    }),
+    organisator
+  );
+  const optionen = await db
+    .selectFrom('abstimmung.optionen')
+    .select('id')
+    .where('abstimmung_id', '=', id)
+    .orderBy('position')
+    .execute();
+  const [erste, zweite, dritte] = optionen.map((option) => option.id);
+  await voteAsStaff(id, { ...organisator, adressen: [organisator.login] }, [erste, dritte]);
+  await voteAsStaff(id, { login: 'theo.test@example.test', name: 'Theo Test', adressen: [] }, [
+    zweite,
+    dritte,
+  ]);
+  await queueAbstimmungEinladungen(id, organisator.login, [
+    { email: 'alt.leitung@example.test', name: 'Alma Altleitung' },
+  ]);
+  // Sent without a mail: the preview never mails invented addresses
+  await db
+    .updateTable('abstimmung.teilnahme')
+    .set({ mail_status: 'gesendet', eingeladen_am: new Date().toISOString() })
+    .where('abstimmung_id', '=', id)
+    .where('mail_status', '=', 'offen')
+    .execute();
 }

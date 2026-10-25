@@ -39,6 +39,20 @@
       }
     },
     {
+      "route": "/abstimmung",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer"
+      }
+    },
+    {
+      "route": "/api/abstimmungen/*",
+      "headers": {
+        "Cache-Control": "no-store"
+      }
+    },
+    {
       "route": "/api/sammelbestellungen/*",
       "headers": {
         "Cache-Control": "no-store"

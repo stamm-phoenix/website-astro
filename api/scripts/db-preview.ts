@@ -50,6 +50,7 @@ import {
   seedPreviewStaffSettings,
   seedPreviewAbrechnungEingabe,
   seedPreviewSammel,
+  seedPreviewAbstimmungen,
   seedPreviewGruppenstunden,
   seedPreviewLeitende,
   seedPreviewAktionen,
@@ -149,6 +150,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewStaffSettings();
       await seedPreviewAbrechnungEingabe();
       await seedPreviewSammel();
+      await seedPreviewAbstimmungen();
       await seedPreviewGruppenstunden();
       await seedPreviewLeitende();
       await seedPreviewAktionen();

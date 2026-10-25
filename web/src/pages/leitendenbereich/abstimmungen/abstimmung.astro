@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../../layouts/StaffLayout.astro';
+import AbstimmungDetailSeite from '../../../components/abstimmungen/AbstimmungDetailSeite.svelte';
+---
+
+<StaffLayout header="none">
+  <AbstimmungDetailSeite client:only="svelte" />
+</StaffLayout>

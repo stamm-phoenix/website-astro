@@ -477,6 +477,11 @@ async function findVerknuepfte(
   }
 }
 
+/** The address of the linked CampFlow person, or `''` without a link or an answer in time. */
+export async function eigeneAdresse(login: string): Promise<string> {
+  return (await findVerknuepfte(login, Date.now()))?.email ?? '';
+}
+
 /** The recipients of minutes with `ich` for the own address; the addresses are on the list anyway. */
 export async function mitEigenerAdresse<T extends { email: string }>(
   login: string,
