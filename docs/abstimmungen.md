@@ -50,6 +50,9 @@ erlaubt, solange jemand so geantwortet hat.
 - Eine Einladung an die Adresse eines Leitenden (Login oder Adresse der verknüpften
   CampFlow-Person, `docs/personen.md`) übernimmt dessen Antwort im Leitendenbereich, damit die
   Erinnerung weiß, dass er abgestimmt hat.
+  Gingen zwei Einladungen an Adressen derselben Leitung, zeigt die zweite danach mit `alias_von`
+  (Migration 0044) auf ihre Teilnahme: Beide Links öffnen und ändern dieselbe Antwort, sie zählt
+  einmal, und an die zweite Adresse geht keine Erinnerung.
 - Mails: Einladung und Erinnerung werden zuerst vorgemerkt (`mail_status = 'offen'`), dann
   verschickt die Seite sie in Schritten über `POST /api/intern/pflege/abstimmungen/{id}/mails`
   (fünf je Anfrage, wegen des Zeitlimits von Static Web Apps). Jede Mail wird vor dem Versand

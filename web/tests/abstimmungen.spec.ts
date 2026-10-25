@@ -478,3 +478,30 @@ test('a limit, „Vielleicht“ and hidden answers work from creating to the tab
   await expect(edit.getByRole('radio', { name: /Alle, die abstimmen/ })).toBeDisabled();
   await expect(edit.getByLabel('„Vielleicht“ als Antwort erlauben')).toBeDisabled();
 });
+
+test('a refused answer in the Leitendenbereich says why', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Termin für die Weihnachtsfeier/ }).click();
+  await page.getByLabel('Fr, 11.12.2026, 19:00 Uhr').check();
+  // Meanwhile the option was removed
+  await page.route('**/api/intern/pflege/abstimmungen/*/stimme', (route) =>
+    route.fulfill({
+      status: 400,
+      json: {
+        code: 'INVALID',
+        message: 'Bitte prüfe die Eingaben.',
+        fields: { gewaehlt: 'Eine Option gibt es nicht mehr. Bitte lade die Seite neu.' },
+      },
+    })
+  );
+  await page.getByRole('button', { name: 'Antwort speichern' }).click();
+  await expect(
+    page
+      .getByText(
+        'Deine Antwort wurde nicht gespeichert. Eine Option gibt es nicht mehr. Bitte lade die Seite neu.'
+      )
+      .first()
+  ).toBeVisible();
+  await expect(page.getByLabel('Fr, 11.12.2026, 19:00 Uhr')).toBeChecked();
+});

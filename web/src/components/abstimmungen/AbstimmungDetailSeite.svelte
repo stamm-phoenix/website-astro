@@ -11,7 +11,7 @@
   import AbstimmungEinladen from './AbstimmungEinladen.svelte';
   import AbstimmungErgebnisListe from './AbstimmungErgebnisListe.svelte';
   import AbstimmungLinkKopieren from './AbstimmungLinkKopieren.svelte';
-  import { errorMessage, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { formatDateTime } from '../../lib/format';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -123,10 +123,15 @@
       await abstimmungStore.load({ force: true, param: data.id });
     } catch (failure: unknown) {
       messageKind = 'error';
-      message = errorMessage(
-        failure,
-        'Deine Antwort wurde nicht gespeichert. Deine Auswahl ist noch da. Tippe noch einmal auf „Antwort speichern“.'
-      );
+      // The reason the answer was refused, e.g. an option that is gone, with what to do next
+      const grund =
+        failure instanceof ApiError && (failure.fields?.gewaehlt || failure.fields?.form);
+      message = grund
+        ? `Deine Antwort wurde nicht gespeichert. ${grund}`
+        : errorMessage(
+            failure,
+            'Deine Antwort wurde nicht gespeichert. Deine Auswahl ist noch da. Tippe noch einmal auf „Antwort speichern“.'
+          );
     } finally {
       saving = false;
     }

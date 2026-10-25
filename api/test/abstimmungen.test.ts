@@ -1242,15 +1242,43 @@ dbTest('two invitations of one leader both keep their links', async (t) => {
   assert.deepEqual(sent.map((mail) => mail.to).sort(), ['ben.privat@example.test', BEN]);
   assert.equal((await vote(t, id, BEN, [first])).status, 204);
   assert.equal((await vote(t, id, BEN, [second])).status, 204);
-  // Every link that went out still opens the Abstimmung
-  for (const mail of sent) {
+  // Every link that went out still opens Ben's one answer and changes it
+  for (const [index, mail] of sent.entries()) {
     const token = new URL(mail.url).hash.slice(3);
     const view = await AbstimmungAnsehen(
       request('POST', 'abstimmungen/ansehen', { body: { token } }),
       context(t)
     );
     assert.equal(view.status, 200, mail.to);
+    assert.equal((view.jsonBody as AbstimmungAnsicht).ich?.geantwortet, true, mail.to);
+    const gewaehlt = index === 0 ? [first, second] : [first];
+    const saved = await AbstimmungAbstimmen(
+      request('PUT', 'abstimmungen/stimme', { body: { token, name: 'Ben Bau', gewaehlt } }),
+      context(t)
+    );
+    assert.deepEqual(saved.jsonBody, { token }, mail.to);
   }
+  // Ben counts once, with his last answer, and gets no reminder at the other address
+  const result = await detail(t, id);
+  assert.deepEqual(
+    result.antworten.map((antwort) => [antwort.name, antwort.gewaehlt]),
+    [['Ben Bau', [first]]]
+  );
+  assert.deepEqual((await detail(t, id, BEN)).ich?.gewaehlt, [first]);
+  assert.ok(result.teilnahmen?.every((teilnahme) => teilnahme.geantwortet));
+  assert.deepEqual(
+    (
+      await AbstimmungErinnerungEndpoint(
+        request('POST', `intern/pflege/abstimmungen/${id}/erinnerung`, {
+          body: { action: 'preview' },
+          login: ANNA,
+          id,
+        }),
+        context(t)
+      )
+    ).jsonBody,
+    { personen: 0 }
+  );
 });
 
 dbTest('a leader whose address a child shares is not invited after answering', async (t) => {
