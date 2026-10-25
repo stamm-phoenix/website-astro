@@ -58,8 +58,9 @@ export function wahlAusText(text: string, optionen: ReadonlySet<number>): Abstim
 /** Who sees who chose what, as the form offers it. */
 export const SICHTBARKEIT_LABELS: Record<AbstimmungSichtbarkeit, string> = {
   offen: 'Alle, die abstimmen, sehen, wer was gewählt hat',
-  anonym: 'Nur ich sehe, wer was gewählt hat. Die anderen sehen, wer abgestimmt hat',
-  geheim: 'Nur ich sehe, wer abgestimmt hat und was. Die anderen sehen, wie viele abgestimmt haben',
+  anonym:
+    'Nur ich sehe, wer was gewählt hat. Die anderen sehen, wer abgestimmt hat, und die Stimmen je Option',
+  geheim: 'Nur ich sehe, wer abgestimmt hat und was. Die anderen sehen nur die Stimmen je Option',
 };
 
 /** A note on the result when not everyone sees who chose what; `null` when they do. */
