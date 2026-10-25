@@ -527,6 +527,13 @@ dbTest('own Beiträge: the member by ID, registrations to Aktionen by address', 
     { id: 'fee_Lager', payerId: 'per_AnmeldungMia', eventId: 'evt_Lager', mitgliedsbeitrag: false },
     { id: 'fee_Kind', payerId: 'per_AnmeldungKai', eventId: 'evt_Lager', mitgliedsbeitrag: false },
     { id: 'fee_Fahrt', payerId: 'per_FahrtMia', eventId: 'evt_Fahrt', mitgliedsbeitrag: false },
+    // A registration without an address cannot be compared: the page decides by the name
+    {
+      id: 'fee_OhneAdresse',
+      payerId: 'per_AnmeldungOhne',
+      eventId: 'evt_Lager',
+      mitgliedsbeitrag: false,
+    },
     // Without a payer ID the page decides by the name
     { id: 'fee_OhneId', payerId: null, eventId: 'evt_Lager', mitgliedsbeitrag: false },
     // Neither a Mitgliedsbeitrag nor an Aktion: the payer may be anyone, the page decides
@@ -564,6 +571,7 @@ dbTest('own Beiträge: the member by ID, registrations to Aktionen by address', 
     return [
       { id: 'per_AnmeldungMia', primary_email: 'Mia@example.org' },
       { id: 'per_AnmeldungKai', primary_email: 'kai@example.org' },
+      { id: 'per_AnmeldungOhne', primary_email: '' },
     ];
   });
   assert.deepEqual(await eigeneBeitraege(ANNA, fees), {

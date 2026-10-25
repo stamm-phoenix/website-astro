@@ -415,7 +415,8 @@ export async function eigeneBeitraege(
     linked.email && anmeldungenTimeoutMs > 0
       ? [...new Set(offen.map((fee) => fee.eventId as string))]
       : [];
-  const anmeldungen = new Map<string, Set<string>>();
+  /** Per Aktion: the own registrations, and those with an address to compare at all. */
+  const anmeldungen = new Map<string, { eigene: Set<string>; geprueft: Set<string> }>();
   await innerhalb(
     Promise.all(
       eventIds.map(async (eventId) => {
@@ -423,7 +424,10 @@ export async function eigeneBeitraege(
           const persons = await campflowGetAll<CampflowPerson>(
             `/lists/${encodeURIComponent(eventId)}/persons`
           );
-          anmeldungen.set(eventId, new Set(mitEigenerAnmeldung(linked, persons)));
+          anmeldungen.set(eventId, {
+            eigene: new Set(mitEigenerAnmeldung(linked, persons)),
+            geprueft: new Set(persons.filter((p) => text(p.primary_email)).map((p) => p.id)),
+          });
         } catch {
           // Without the registrations the page decides this Aktion by the names
         }
@@ -439,8 +443,10 @@ export async function eigeneBeitraege(
     // Another person of the member list, even with the same name
     else if (fee.mitgliedsbeitrag) ich[fee.id] = false;
     else if (fee.eventId) {
-      const eigene = anmeldungen.get(fee.eventId);
-      if (eigene) ich[fee.id] = eigene.has(fee.payerId);
+      const liste = anmeldungen.get(fee.eventId);
+      // A registration without an address, or not in the list, cannot be compared
+      if (liste?.eigene.has(fee.payerId)) ich[fee.id] = true;
+      else if (liste?.geprueft.has(fee.payerId)) ich[fee.id] = false;
     }
   }
   return ich;
