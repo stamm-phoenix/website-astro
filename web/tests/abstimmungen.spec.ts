@@ -153,3 +153,33 @@ test('after a conflict the current version replaces the form', async ({ page }) 
     'Neuer Titel aus dem anderen Tab'
   );
 });
+
+test('another link in the same tab opens that Abstimmung', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  const list = (await (await page.request.get('/api/intern/pflege/abstimmungen')).json()) as {
+    id: number;
+    titel: string;
+  }[];
+  const essen = list.find((entry) => entry.titel.startsWith('Was essen'))!;
+  const { link } = (await (
+    await page.request.get(`/api/intern/pflege/abstimmungen/${essen.id}`)
+  ).json()) as { link: string };
+  const first = new URL(link);
+  // A personal link of the other Abstimmung, from an answer over its shared link
+  await page.goto(`${first.pathname}${first.hash}`);
+  await page.getByLabel('Dein Name').fill('Oma Erna');
+  await page.getByLabel('Spaghetti').check();
+  await page.getByRole('button', { name: 'Antwort speichern' }).click();
+  await expect(page.getByText('Antwort gespeichert.').first()).toBeVisible();
+  const own = new URL(page.url()).hash;
+
+  await page.evaluate(() => {
+    window.location.hash = 'link=' + 'x'.repeat(43);
+  });
+  await expect(page.getByText(/Dieser Link ist ungültig/)).toBeVisible();
+  await page.evaluate((hash) => {
+    window.location.hash = hash;
+  }, own);
+  await expect(page.getByLabel('Dein Name')).toHaveValue('Oma Erna');
+  await expect(page.getByLabel('Spaghetti')).toBeChecked();
+});

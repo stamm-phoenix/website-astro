@@ -638,3 +638,81 @@ dbTest('a reminder waits for a mail that is being sent', async (t) => {
   assert.equal(row.mail_status, 'gesendet');
   assert.deepEqual(sent, ['einladung:erika@example.test', 'erinnerung:erika@example.test']);
 });
+
+dbTest('a family sharing one address answers as separate people', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => [
+    ...MEMBERS,
+    {
+      id: 'per_clara',
+      name: { first_name: 'Clara', last_name: 'Bau' },
+      primary_email: 'ben.privat@example.test',
+      label_names: ['📄 Protokollempfang'],
+    },
+  ]);
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  const sent: { to: string; data: AbstimmungMailDaten }[] = [];
+  t.mock.method(abstimmungMail, 'send', async (to: string, data: AbstimmungMailDaten) => {
+    sent.push({ to, data });
+  });
+  const id = await create(t);
+  const [first, second] = (await detail(t, id)).optionen.map((option) => option.id);
+  const post = (path: 'einladung' | 'mails', body: unknown) =>
+    ({ einladung: AbstimmungEinladungEndpoint, mails: AbstimmungMailsEndpoint })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  await post('einladung', { action: 'send', version, excluded: [ANNA, 'erika@example.test'] });
+  await post('mails', {});
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].data.name, /Ben Bau.*Clara Bau|Clara Bau.*Ben Bau/);
+  assert.match(abstimmungMailContent(sent[0].data).html, /Hallo zusammen,/);
+  const familie = new URL(sent[0].data.url).hash.slice(3);
+
+  // The link asks everyone of the family for their own name
+  const view = await AbstimmungAnsehen(
+    request('POST', 'abstimmungen/ansehen', { body: { token: familie } }),
+    context(t)
+  );
+  assert.equal((view.jsonBody as AbstimmungAnsicht).ich?.name, '');
+  const clara = await AbstimmungAbstimmen(
+    request('PUT', 'abstimmungen/stimme', {
+      body: { token: familie, name: 'Clara Bau', gewaehlt: [first] },
+    }),
+    context(t)
+  );
+  assert.equal((clara.jsonBody as { token: string }).token, familie);
+  // Ben uses the same link with his own name and gets an entry of his own
+  const ben = await AbstimmungAbstimmen(
+    request('PUT', 'abstimmungen/stimme', {
+      body: { token: familie, name: 'Ben Bau', gewaehlt: [second] },
+    }),
+    context(t)
+  );
+  const benToken = (ben.jsonBody as { token: string }).token;
+  assert.notEqual(benToken, familie);
+  // Clara can still change her answer, and Ben his
+  await AbstimmungAbstimmen(
+    request('PUT', 'abstimmungen/stimme', {
+      body: { token: familie, name: 'clara  bau', gewaehlt: [first, second] },
+    }),
+    context(t)
+  );
+  // Ben in the Leitendenbereich does not take over Clara's answer
+  t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
+    login === BEN ? 'ben.privat@example.test' : ''
+  );
+  assert.equal((await vote(t, id, BEN, [second])).status, 204);
+  const result = await detail(t, id);
+  assert.deepEqual(
+    result.antworten.map((antwort) => [antwort.name, antwort.gewaehlt]),
+    [
+      ['clara bau', [first, second]],
+      ['Ben Bau', [second]],
+      ['Ben Bau', [second]],
+    ]
+  );
+});

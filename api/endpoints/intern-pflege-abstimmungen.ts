@@ -143,7 +143,8 @@ export const AbstimmungItemEndpoint = pflegeHandler(
     if (id === undefined) return NOT_FOUND;
     const login = principal.userDetails.trim().toLowerCase();
     if (request.method === 'GET') {
-      const detail = await getAbstimmungDetail(id, await identity(principal), getSiteUrl(request));
+      // With the name: an invitation a family member answered under it is not the own one
+      const detail = await getAbstimmungDetail(id, await person(principal), getSiteUrl(request));
       return detail ? ok(detail) : NOT_FOUND;
     }
     if (request.method === 'DELETE') {

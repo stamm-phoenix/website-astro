@@ -11,6 +11,7 @@ import {
   RecordNotFoundError,
   VersionConflictError,
   getDb,
+  getLockDb,
   inTransaction,
   lockResource,
   requireVersion,
@@ -205,7 +206,9 @@ async function load(db: Db, id: number): Promise<Geladen | undefined> {
 function ich(geladen: Geladen, teilnahme: TeilnahmeRow | undefined): AbstimmungAnsicht['ich'] {
   if (!teilnahme) return null;
   return {
-    name: teilnahme.name,
+    // Everyone of a family enters their own name
+    name:
+      teilnahme.geantwortet_am === null && mehrerePersonen(teilnahme.name) ? '' : teilnahme.name,
     gewaehlt:
       geladen.rohdaten.antworten.find((a) => a.teilnahmeId === teilnahme.id)?.gewaehlt ?? [],
     geantwortet: teilnahme.geantwortet_am !== null,
@@ -215,12 +218,30 @@ function ich(geladen: Geladen, teilnahme: TeilnahmeRow | undefined): AbstimmungA
 /** The participation of the logged-in person: by login, else an invitation to one of their addresses. */
 function eigeneTeilnahme(
   teilnahmen: TeilnahmeRow[],
-  person: Pick<AbstimmungPerson, 'login' | 'adressen'>
+  person: Pick<AbstimmungPerson, 'login' | 'adressen'> & { name?: string }
 ): TeilnahmeRow | undefined {
   return (
     teilnahmen.find((t) => t.login === person.login) ??
-    teilnahmen.find((t) => t.login === null && t.email && person.adressen.includes(t.email))
+    teilnahmen.find(
+      (t) =>
+        t.login === null &&
+        t.email &&
+        person.adressen.includes(t.email) &&
+        // A family address: someone else of the family may have answered with it already
+        (t.geantwortet_am === null || person.name === undefined || sameName(t.name, person.name))
+    )
   );
+}
+
+/** Names compared without case and extra spaces. */
+export function sameName(a: string, b: string): boolean {
+  const norm = (value: string): string => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de');
+  return norm(a) === norm(b);
+}
+
+/** An invitation to an address that several CampFlow persons share, e.g. „Ben Bau, Clara Bau“. */
+function mehrerePersonen(name: string): boolean {
+  return name.includes(',');
 }
 
 /** The Abstimmungen, newest first, with the own answer. */
@@ -261,7 +282,7 @@ export async function listAbstimmungen(
 /** One Abstimmung for the Leitendenbereich; the organizer also gets the link and the invitations. */
 export async function getAbstimmungDetail(
   id: number,
-  person: Pick<AbstimmungPerson, 'login' | 'adressen'>,
+  person: Pick<AbstimmungPerson, 'login' | 'adressen'> & { name?: string },
   siteUrl: string
 ): Promise<AbstimmungDetail | undefined> {
   const geladen = await load(getDb(), id);
@@ -610,12 +631,16 @@ export async function votePublic(
     if (ziel.teilnahmeId !== null) {
       const teilnahme = await trx
         .selectFrom('abstimmung.teilnahme')
-        .select('token')
+        .select(['token', 'name', 'geantwortet_am'])
         .where('id', '=', ziel.teilnahmeId)
         .executeTakeFirst();
       if (!teilnahme) throw new RecordNotFoundError();
-      await writeAntwort(trx, ziel.teilnahmeId, name, gewaehlt);
-      return { token: teilnahme.token };
+      // Another name on a link that already has an answer is another person, e.g. of a family
+      // sharing one address: they get their own entry instead of replacing that answer
+      if (teilnahme.geantwortet_am === null || sameName(teilnahme.name, name)) {
+        await writeAntwort(trx, ziel.teilnahmeId, name, gewaehlt);
+        return { token: teilnahme.token };
+      }
     }
     await assertPlatz(trx, row.id, 1);
     const token = newAbstimmungToken();
@@ -765,7 +790,8 @@ export async function sendNextAbstimmungMail(
 ): Promise<boolean> {
   // Not `inTransaction`: the mail must not be sent again after a deadlock retry. The
   // transaction only holds the lock; reserving and marking commit on their own.
-  return getDb()
+  // The lock pool, so waiting senders never hold the connections reserving and marking need
+  return getLockDb()
     .transaction()
     .execute(async (trx) => {
       await lockResource(trx, mailLock(id));
