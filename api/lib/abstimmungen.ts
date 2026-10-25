@@ -553,7 +553,23 @@ export async function voteAsStaff(
       row.mehrfach
     );
     const teilnahmen = await loadTeilnahmen(trx, id);
-    const teilnahme = eigeneTeilnahme(teilnahmen, person);
+    let teilnahme = eigeneTeilnahme(teilnahmen, person);
+    // An invitation to the person's own address next to the row of their login, e.g. when the
+    // CampFlow address could not be loaded at an earlier vote: the invitation stays, because its
+    // link went out by mail, and takes over the login; the login row goes
+    const einladung = teilnahmen.find(
+      (t) =>
+        t.id !== teilnahme?.id &&
+        t.login === null &&
+        !t.familie &&
+        t.email &&
+        person.adressen.includes(t.email)
+    );
+    if (teilnahme?.login === person.login && einladung) {
+      await trx.deleteFrom('abstimmung.stimme').where('teilnahme_id', '=', teilnahme.id).execute();
+      await trx.deleteFrom('abstimmung.teilnahme').where('id', '=', teilnahme.id).execute();
+      teilnahme = { ...einladung, login: null };
+    }
     let teilnahmeId: number;
     if (teilnahme) {
       teilnahmeId = teilnahme.id;

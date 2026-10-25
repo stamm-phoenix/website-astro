@@ -997,3 +997,48 @@ dbTest('ending an Abstimmung while mails go out stops the next ones', async (t) 
   assert.equal((await patch(false, (await detail(t, id)).etag)).status, 204);
   assert.deepEqual((await post('mails', {})).jsonBody, { offen: 0, gesendet: 3, unklar: 0 });
 });
+
+dbTest('a vote while CampFlow was not reachable joins the invitation later', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => MEMBERS);
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  t.mock.method(abstimmungMail, 'send', async () => undefined);
+  let campflow = false;
+  t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
+    login === BEN && campflow
+      ? { email: 'ben.privat@example.test', geteilt: false }
+      : { email: '', geteilt: false }
+  );
+  const id = await create(t);
+  const [first, second] = (await detail(t, id)).optionen.map((option) => option.id);
+  // CampFlow does not answer: Ben's answer has only his login
+  assert.equal((await vote(t, id, BEN, [first])).status, 204);
+  const post = (path: 'einladung' | 'erinnerung' | 'mails', body: unknown) =>
+    ({
+      einladung: AbstimmungEinladungEndpoint,
+      erinnerung: AbstimmungErinnerungEndpoint,
+      mails: AbstimmungMailsEndpoint,
+    })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  // So the invitation to his CampFlow address is a row of its own
+  await post('einladung', { action: 'send', version, excluded: [ANNA, 'erika@example.test'] });
+  await post('mails', {});
+  // With CampFlow back, Ben's next answer joins both
+  campflow = true;
+  assert.equal((await vote(t, id, BEN, [second])).status, 204);
+  const result = await detail(t, id);
+  assert.deepEqual(
+    result.antworten.map((antwort) => [antwort.name, antwort.gewaehlt]),
+    [['Ben Bau', [second]]]
+  );
+  assert.deepEqual((await post('erinnerung', { action: 'preview' })).jsonBody, { personen: 0 });
+  assert.deepEqual(
+    result.teilnahmen?.map((teilnahme) => [teilnahme.email, teilnahme.geantwortet]),
+    [['ben.privat@example.test', true]]
+  );
+});
