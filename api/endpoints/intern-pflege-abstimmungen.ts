@@ -10,6 +10,7 @@ import {
   deleteAbstimmung,
   getAbstimmungDetail,
   getAbstimmungKopf,
+  getAbstimmungLogins,
   getAbstimmungMailStand,
   listAbstimmungen,
   queueAbstimmungEinladungen,
@@ -263,6 +264,13 @@ export const AbstimmungEinladungEndpoint = pflegeHandler(
     const familien = new Set(
       recipients.filter((entry) => entry.name.includes(', ')).map((entry) => entry.email)
     );
+    // Leaders who answered here may have a CampFlow address shared with others, so it is not
+    // stored with their answer; their own invitation would count them twice
+    const eigeneAdressen = (
+      await Promise.all(
+        (await getAbstimmungLogins(id)).map(async (eigener) => (await eigeneAdresse(eigener)).email)
+      )
+    ).filter(Boolean);
     const result = await queueAbstimmungEinladungen(
       id,
       principal.userDetails.trim().toLowerCase(),
@@ -270,7 +278,8 @@ export const AbstimmungEinladungEndpoint = pflegeHandler(
         email,
         name: names.get(email) ?? '',
         familie: familien.has(email),
-      }))
+      })),
+      eigeneAdressen
     );
     return ok({ ...result, ...(await getAbstimmungMailStand(id)) });
   })

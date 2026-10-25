@@ -1087,3 +1087,47 @@ dbTest('two invitations of one leader both keep their links', async (t) => {
     assert.equal(view.status, 200, mail.to);
   }
 });
+
+dbTest('a leader whose address a child shares is not invited after answering', async (t) => {
+  offline(t);
+  t.mock.method(abstimmungQuellen, 'members', async () => [
+    ...MEMBERS,
+    // Same address, but neither in a group nor with the label: not offered for invitations
+    {
+      id: 'per_kim',
+      name: { first_name: 'Kim', last_name: 'Bau' },
+      primary_email: 'ben.privat@example.test',
+      group_names: ['Wölflinge'],
+    },
+  ]);
+  t.mock.method(abstimmungQuellen, 'personen', async () => []);
+  t.mock.method(personen, 'eigeneAdresse', async (login: string) =>
+    login === BEN
+      ? { email: 'ben.privat@example.test', geteilt: true }
+      : { email: '', geteilt: false }
+  );
+  const sent: string[] = [];
+  t.mock.method(abstimmungMail, 'send', async (to: string) => {
+    sent.push(to);
+  });
+  const id = await create(t);
+  const [first] = (await detail(t, id)).optionen.map((option) => option.id);
+  assert.equal((await vote(t, id, BEN, [first])).status, 204);
+  const post = (path: 'einladung' | 'erinnerung' | 'mails', body: unknown) =>
+    ({
+      einladung: AbstimmungEinladungEndpoint,
+      erinnerung: AbstimmungErinnerungEndpoint,
+      mails: AbstimmungMailsEndpoint,
+    })[path](
+      request('POST', `intern/pflege/abstimmungen/${id}/${path}`, { body, login: ANNA, id }),
+      context(t)
+    );
+  const { version } = (await post('einladung', { action: 'preview' })).jsonBody as {
+    version: string;
+  };
+  const queued = await post('einladung', { action: 'send', version, excluded: [ANNA] });
+  assert.equal((queued.jsonBody as { neu: number }).neu, 1);
+  await post('mails', {});
+  assert.deepEqual(sent, ['erika@example.test']);
+  assert.deepEqual((await post('erinnerung', { action: 'preview' })).jsonBody, { personen: 1 });
+});
