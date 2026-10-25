@@ -312,6 +312,8 @@ export const AbstimmungMailsEndpoint = pflegeHandler(
     if (id === undefined) return NOT_FOUND;
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const kopf = await organizerKopf(id, principal);
+    // Queued mails wait while it is ended; reopening sends them
+    if (kopf.geschlossen_am) return CLOSED;
     const siteUrl = getSiteUrl(request);
     const started = Date.now();
     for (let sent = 0; sent < MAILS_PER_STEP; sent++) {
