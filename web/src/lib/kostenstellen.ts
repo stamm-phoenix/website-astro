@@ -132,9 +132,14 @@ export function sortiere<T extends KostenstellenSummen & { name: string }>(
 export function kategorien(
   kostenstelle: KostenstelleStatistik,
   sortierung: KostenstellenSortierung
-): KategorieStatistik[] {
+): (KategorieStatistik & { key: string })[] {
   return sortiere(
-    kostenstelle.categories.map((kategorie) => ({ ...kategorie, name: kategorieName(kategorie) })),
+    kostenstelle.categories.map((kategorie) => ({
+      ...kategorie,
+      // From the name CampFlow reports, before „Ohne Kategorie“ replaces an empty one
+      key: kategorie.id ?? `name:${kategorie.name}`,
+      name: kategorieName(kategorie),
+    })),
     sortierung
   );
 }
