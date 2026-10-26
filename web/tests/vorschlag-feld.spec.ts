@@ -136,7 +136,9 @@ test('a value filled in by the page does not open the list', async ({ page }) =>
   });
   await expect(kostenstelle).toHaveValue('Sommerlager 2026 Oberjoch');
   await expect(kostenstelle).toHaveAttribute('aria-expanded', 'false');
-  await expect(dialog.getByRole('listbox', { name: 'Kostenstelle auswählen' })).toBeHidden();
+  await expect(
+    dialog.getByRole('listbox', { name: 'Kostenstelle oder Kategorie auswählen' })
+  ).toBeHidden();
 });
 
 test('FAQ themes are suggested and a new one can be typed', async ({ page }) => {

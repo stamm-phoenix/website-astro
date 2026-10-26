@@ -18,13 +18,14 @@ Leitendenrunde, stehen unter *Allgemein → Leitendenrunde*). Gespeichert werden
 weil beide frei eingegeben werden können. Code: `web/src/lib/belegZuordnung.ts`,
 `web/src/components/pflege/BelegZuordnung.svelte`.
 
-- **Suche:** „Kostenstelle oder Kategorie suchen“ bietet alle nicht archivierten Kostenstellen und
-  alle ihre Kategorien an, eine Kategorie unter dem Namen ihrer Kostenstelle. Jedes getippte Wort
+- **Suche:** Das Feld „Kostenstelle“ sucht zugleich: Es bietet alle nicht archivierten
+  Kostenstellen und alle ihre Kategorien an, eine Kategorie unter dem Namen ihrer Kostenstelle. Jedes getippte Wort
   muss vorkommen, und eine Kategorie braucht eines davon im eigenen Namen: „leite“ findet also
   „Leitendenlager 2026“ und „Leitendenrunde“ in „Allgemein“, aber nicht jede Kategorie des
   Leitendenlagers; „verpflegung stammes“ grenzt die vielen „Verpflegung“ auf die der
-  Kostenstellen mit „Stammes…“ ein. Eine Kostenstelle füllt nur das Feld Kostenstelle, eine
-  Kategorie beide.
+  Kostenstellen mit „Stammes…“ ein. Eine Kategorie füllt beide Felder; eine Kostenstelle behält
+  die Kategorie, wenn sie zu ihr passt, sonst leert sie sie. Den Hinweis auf eine neue
+  Kostenstelle zeigt das Formular erst, wenn das Feld verlassen wird, nicht schon beim Suchen.
 - **Standardkategorien:** Die Kategorien des KJR (`STANDARD_KATEGORIEN`: Fahrtkosten,
   Verpflegungskosten, Miet- und Übernachtungskosten, Honorare, Arbeits- und Hilfsmittel) stehen
   bei jeder Kostenstelle zuerst, auch wenn es sie dort noch nicht gibt; danach die übrigen der

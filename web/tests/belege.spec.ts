@@ -99,13 +99,15 @@ test('the Kasse transfers an accepted receipt to CampFlow on its Kostenstelle an
   expect(sent).toEqual({ etag: 'gespeichert' });
 });
 
-/** The suggestions of the search for Kostenstelle and Kategorie in the open receipt. */
+/** The field Kostenstelle, which also searches the Kategorien, and its suggestions. */
 async function searchZuordnung(dialog: ReturnType<Page['getByRole']>, text: string) {
-  await dialog.getByLabel('Kostenstelle oder Kategorie suchen').fill(text);
+  await dialog.getByLabel('Kostenstelle', { exact: true }).fill(text);
   return dialog.getByRole('listbox', { name: 'Kostenstelle oder Kategorie auswählen' });
 }
 
-test('the search finds Kostenstellen and Kategorien and fills the fields', async ({ page }) => {
+test('the field Kostenstelle finds Kostenstellen and Kategorien and fills both', async ({
+  page,
+}) => {
   await page.goto('/leitendenbereich/belege/');
   await page.getByRole('button', { name: 'Beleg einreichen' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
@@ -131,6 +133,9 @@ test('the search finds Kostenstellen and Kategorien and fills the fields', async
 
   // Typed in: told it will be created
   await kostenstelle.fill('Herbstfahrt 2026');
+  // Told once the field is left: while typing it is a search
+  await expect(dialog.getByText(/Herbstfahrt 2026“ gibt es in CampFlow/)).toHaveCount(0);
+  await kostenstelle.press('Tab');
   await expect(
     dialog.getByText('Die Kostenstelle „Herbstfahrt 2026“ gibt es in CampFlow noch nicht.', {
       exact: false,
@@ -163,6 +168,7 @@ test('Neu laden brings Kategorien changed in CampFlow into the search', async ({
   let dialog = await open();
   let list = await searchZuordnung(dialog, 'bahn');
   await expect(list).toBeHidden();
+  await dialog.getByLabel('Kostenstelle', { exact: true }).fill('');
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(dialog).toBeHidden();
 
@@ -198,6 +204,7 @@ test('a late answer of an earlier Kostenstellen read keeps the newer Kategorien'
   let dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
   let list = await searchZuordnung(dialog, 'fahrt');
   await expect(list.getByRole('option', { name: 'Fahrtkosten' })).toBeVisible();
+  await dialog.getByLabel('Kostenstelle', { exact: true }).fill('');
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(dialog).toBeHidden();
   expect(reads).toBe(1);

@@ -40,19 +40,19 @@ export function findKostenstelle<T extends Unit>(units: readonly T[], name: stri
   return matches.find((unit) => !unit.archived) ?? matches[0];
 }
 
-/** Value of a suggestion of the search: which Kostenstelle, and which Kategorie if any. */
+/** What a suggestion of the field Kostenstelle fills in: the Kostenstelle, and a Kategorie. */
 export interface ZuordnungTreffer {
   kostenstelle: string;
   kategorie: string | null;
 }
 
 /**
- * Suggestions of the search across all Kostenstellen and Kategorien: the Kostenstellen first,
- * then the Kategorien under the name of their Kostenstelle. Every word typed must appear, and a
- * Kategorie needs one of them in its own name: „leite“ finds „Leitendenrunde“ in „Allgemein“
- * without every Kategorie of „Leitendenlager“, and „verpflegung stammes“ narrows the many
- * „Verpflegung“ to those of the Kostenstellen named so. The suggestions already match `query`,
- * so the field keeps them all.
+ * Suggestions of the field Kostenstelle, which also searches the Kategorien: the Kostenstellen
+ * first, then the Kategorien under the name of their Kostenstelle. Every word typed must appear,
+ * and a Kategorie needs one of them in its own name: „leite“ finds „Leitendenrunde“ in
+ * „Allgemein“ without every Kategorie of „Leitendenlager“, and „verpflegung stammes“ narrows the
+ * many „Verpflegung“ to those of the Kostenstellen named so. Each suggestion's value is the
+ * Kostenstelle it fills in; the suggestions already match `query`, so the field keeps them all.
  */
 export function zuordnungVorschlaege(units: readonly Unit[], query = ''): Vorschlag[] {
   const words = fold(query).split(' ').filter(Boolean);
@@ -62,13 +62,7 @@ export function zuordnungVorschlaege(units: readonly Unit[], query = ''): Vorsch
   return [
     ...active
       .filter((unit) => words.every((word) => has(unit.name, word)))
-      .map((unit) => ({
-        value: JSON.stringify({ kostenstelle: unit.name, kategorie: null }),
-        label: unit.name,
-        search,
-        gruppe: 'Kostenstellen',
-        key: unit.id,
-      })),
+      .map((unit) => ({ value: unit.name, search, gruppe: 'Kostenstellen', key: unit.id })),
     ...active.flatMap((unit) =>
       unit.categories
         .filter(
@@ -77,7 +71,7 @@ export function zuordnungVorschlaege(units: readonly Unit[], query = ''): Vorsch
             (!words.length || words.some((word) => has(category.name, word)))
         )
         .map((category) => ({
-          value: JSON.stringify({ kostenstelle: unit.name, kategorie: category.name }),
+          value: unit.name,
           label: category.name,
           search,
           gruppe: `Kategorie in ${unit.name}`,
@@ -87,8 +81,14 @@ export function zuordnungVorschlaege(units: readonly Unit[], query = ''): Vorsch
   ];
 }
 
-export function readZuordnungTreffer(value: string): ZuordnungTreffer {
-  return JSON.parse(value) as ZuordnungTreffer;
+/** What the picked suggestion fills in, found by its key (the ID in CampFlow). */
+export function zuordnungTreffer(units: readonly Unit[], option: Vorschlag): ZuordnungTreffer {
+  for (const unit of units) {
+    if (unit.id === option.key) return { kostenstelle: unit.name, kategorie: null };
+    const category = unit.categories.find((c) => c.id === option.key);
+    if (category) return { kostenstelle: unit.name, kategorie: category.name };
+  }
+  return { kostenstelle: option.value, kategorie: null };
 }
 
 /** Kategorien to pick for a Kostenstelle: the standard ones first, then its own others. */
@@ -100,10 +100,6 @@ export function kategorieVorschlaege(units: readonly Unit[], kostenstelle: strin
       .filter((category) => !isStandardKategorie(category.name))
       .map((category) => ({ value: category.name, gruppe: 'Weitere in dieser Kostenstelle' })),
   ];
-}
-
-export function kostenstelleVorschlaege(units: readonly Unit[]): Vorschlag[] {
-  return units.filter((unit) => !unit.archived).map((unit) => ({ value: unit.name, key: unit.id }));
 }
 
 /** What booking on the chosen names means in CampFlow; `null` while the list is unknown. */
