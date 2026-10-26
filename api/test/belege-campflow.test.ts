@@ -7,7 +7,13 @@ import { getDb } from '../lib/db';
 import * as env from '../lib/environment';
 import { getBelege } from '../lib/beleg-list';
 import * as taskDirectory from '../lib/task-directory';
-import { campflowDescription, campflowDisburser, campflowFileName } from '../lib/beleg-campflow';
+import {
+  BelegCampflowError,
+  campflowDescription,
+  campflowDisburser,
+  campflowFileName,
+  transferBelegToCampflow,
+} from '../lib/beleg-campflow';
 import type { StoredBeleg } from '../lib/beleg-list';
 import { BelegCampflow, BelegeCampflow, BelegItem } from '../endpoints/intern-pflege-belege';
 import { dbTest } from './fixtures/database';
@@ -60,7 +66,9 @@ function setup(
   t: TestContext,
   answer: (body: Record<string, unknown>) => Response | Promise<Response>,
   /** Answers a request that adds a Kostenstelle or Kategorie instead of adding it. */
-  refuseAdding?: Response
+  refuseAdding?: Response,
+  /** An addition answers this late, unless its request is given up before. */
+  addingDelayMs = 0
 ): { context: InvocationContext; blobs: Map<string, Buffer>; calls: Call[] } {
   // CampFlow's Kostenstellen as the stand-in keeps them; additions land here
   const units: Array<{
@@ -97,6 +105,15 @@ function setup(
     }
     if (method === 'PUT' && url.pathname.startsWith('/campflow/kostenstellen') && body) {
       if (refuseAdding) return refuseAdding;
+      if (addingDelayMs) {
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(resolve, addingDelayMs);
+          init.signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(init.signal?.reason);
+          });
+        });
+      }
       const id = decodeURIComponent(url.pathname.split('/')[3] ?? '');
       const category = (name: unknown, sphere: unknown) => ({
         id: `cat_Neu${units.flatMap((u) => u.categories).length}`,
@@ -361,6 +378,24 @@ dbTest('a standard Kategorie typed in another spelling is created in its own', a
     [{ name: 'Honorare', sphere: 'purpose' }]
   );
   assert.equal((await transferRow(7))?.category_name, 'Honorare');
+});
+
+dbTest('creating that runs into the upload reserve starts no upload', async (t) => {
+  const { blobs, calls } = setup(t, () => uploaded(), undefined, 5_000);
+  const etag = await store(blobs, 7, { kategorie: 'Honorare' });
+
+  // One second for the preparation, the rest is the upload's
+  await assert.rejects(
+    transferBelegToCampflow(7, etag, 'kasse@example.test', Date.now() + 26_000),
+    (error: unknown) => error instanceof BelegCampflowError && error.code === 'CAMPFLOW_SLOW'
+  );
+  assert.equal(calls.filter((call) => call.method === 'POST').length, 0);
+  assert.equal(await transferRow(7), undefined, 'no attempt stored, a repeat is free');
+
+  await assert.rejects(
+    transferBelegToCampflow(7, etag, 'kasse@example.test', Date.now() + 20_000),
+    (error: unknown) => error instanceof BelegCampflowError && error.code === 'CAMPFLOW_SLOW'
+  );
 });
 
 dbTest('a Kategorie CampFlow does not create stops the transfer before it starts', async (t) => {

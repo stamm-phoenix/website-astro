@@ -32,7 +32,7 @@ const UNITS = [
 ];
 
 test('the search finds Kostenstellen and Kategorien by their own names', () => {
-  const { matches } = filterVorschlaege(zuordnungVorschlaege(UNITS), 'leite', 20);
+  const { matches } = filterVorschlaege(zuordnungVorschlaege(UNITS, 'leite'), 'leite', 20);
   assert.deepEqual(
     matches.map((m) => [m.gruppe, readZuordnungTreffer(m.value)]),
     [
@@ -77,4 +77,26 @@ test('a standard Kategorie takes its own spelling, others stay as typed', () => 
   assert.equal(kategorieSchreibweise(' honorare '), 'Honorare');
   assert.equal(kategorieSchreibweise('arbeits-  und hilfsmittel'), 'Arbeits- und Hilfsmittel');
   assert.equal(kategorieSchreibweise('getränke'), 'getränke');
+});
+
+test('more words narrow the many Kategorien of the same name down to their Kostenstelle', () => {
+  const units = Array.from({ length: 15 }, (_, n) => ({
+    id: `cun_${n}`,
+    name: n === 14 ? 'Stammeslager 2026' : `Lager ${n}`,
+    archived: false,
+    categories: [{ id: `cat_${n}`, name: 'Verpflegung' }],
+  }));
+  const search = (query: string) =>
+    filterVorschlaege(zuordnungVorschlaege(units, query), query, 12);
+  assert.equal(search('verpflegung').total, 15);
+  const narrowed = search('Verpflegung  stammes');
+  assert.deepEqual(
+    narrowed.matches.map((m) => readZuordnungTreffer(m.value)),
+    [{ kostenstelle: 'Stammeslager 2026', kategorie: 'Verpflegung' }]
+  );
+  // Words only in the Kostenstelle find it, not each of its Kategorien
+  assert.deepEqual(
+    search('stammeslager 2026').matches.map((m) => m.gruppe),
+    ['Kostenstellen']
+  );
 });

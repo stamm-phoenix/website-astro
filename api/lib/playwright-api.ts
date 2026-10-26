@@ -304,12 +304,13 @@ export function getCampflowBelege({
  * All Kostenstellen of the workspace with their Kategorien, archived ones included. The
  * Playwright API keeps the last list; `refresh` makes it read CampFlow again.
  */
-export async function getKostenstellen({ refresh = false }: { refresh?: boolean } = {}): Promise<
-  Kostenstelle[]
-> {
+export async function getKostenstellen({
+  refresh = false,
+  signal,
+}: { refresh?: boolean; signal?: AbortSignal } = {}): Promise<Kostenstelle[]> {
   const response = await request<{
     data: { id: string; name: string; archived?: boolean; categories?: unknown }[];
-  }>('/campflow/kostenstellen', refresh ? { refresh: 'true' } : {});
+  }>('/campflow/kostenstellen', refresh ? { refresh: 'true' } : {}, { signal });
   return response.data.map(({ id, name, archived, categories }) => ({
     id,
     name,
