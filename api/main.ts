@@ -141,7 +141,7 @@ import GetInternAbrechnungBelegBildEndpoint, {
 } from './endpoints/intern-abrechnung-beleg-bild';
 import GetInternBeitraegeEndpoint from './endpoints/intern-beitraege';
 import GetInternBeitraegeMeineEndpoint from './endpoints/intern-beitraege-meine';
-import GetInternKostenstellenEndpoint from './endpoints/intern-kostenstellen';
+import GetInternKostenstellenSummenEndpoint from './endpoints/intern-kostenstellen-summen';
 import GetInternMitgliederEndpoint from './endpoints/intern-mitglieder';
 import {
   GruppenstundenCollection,
@@ -505,11 +505,11 @@ app.http('internBeitraegeMeine', {
   handler: GetInternBeitraegeMeineEndpoint,
 });
 
-app.http('internKostenstellen', {
+app.http('internKostenstellenSummen', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'intern/kostenstellen',
-  handler: GetInternKostenstellenEndpoint,
+  route: 'intern/kostenstellen/summen',
+  handler: GetInternKostenstellenSummenEndpoint,
 });
 
 app.http('internMitglieder', {

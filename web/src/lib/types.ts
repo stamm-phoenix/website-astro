@@ -1299,7 +1299,7 @@ export interface KostenstelleStatistik extends KostenstellenSummen {
   categories: KategorieStatistik[];
 }
 
-/** Sums per CampFlow Kostenstelle and Kategorie (`GET /api/intern/kostenstellen`). */
+/** Sums per CampFlow Kostenstelle and Kategorie (`GET /api/intern/kostenstellen/summen`). */
 export interface KostenstellenData {
   /** When CampFlow's report was exported (ISO 8601). */
   loadedAt: string;

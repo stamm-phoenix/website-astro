@@ -1039,7 +1039,7 @@ route('GET', '/api/intern/beitraege/meine', () =>
 );
 
 // Kostenstellen: sums of CampFlow's report, exported by the Playwright API in production
-route('GET', '/api/intern/kostenstellen', (req) => {
+route('GET', '/api/intern/kostenstellen/summen', (req) => {
   if (!['team_kasse', 'team_vorstand'].some((role) => PRINCIPAL.userRoles.includes(role))) {
     return error(403, 'NOT_IN_TEAM', 'Die Kostenstellen sehen nur die Kasse und der Vorstand.');
   }

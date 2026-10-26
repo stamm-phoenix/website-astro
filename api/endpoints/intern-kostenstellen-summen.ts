@@ -16,7 +16,7 @@ const NOT_ALLOWED = errorResponse(
  * the teams Kasse and Vorstand. The Playwright API serves its last export; `?refresh=true`
  * exports CampFlow's report again.
  */
-export async function GetInternKostenstellenEndpoint(
+export async function GetInternKostenstellenSummenEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
   const principal = requireStaff(request);
@@ -45,4 +45,4 @@ export async function GetInternKostenstellenEndpoint(
   }
 }
 
-export default withErrorHandling(GetInternKostenstellenEndpoint);
+export default withErrorHandling(GetInternKostenstellenSummenEndpoint);
