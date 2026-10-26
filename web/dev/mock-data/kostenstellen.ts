@@ -1,10 +1,14 @@
 /** Sums per Kostenstelle of the mock API (Leitendenbereich → Kostenstellen); invented figures. */
 import type {
+  JahresSummen,
   KategorieStatistik,
   KostenstelleStatistik,
   KostenstellenData,
   KostenstellenSphaere,
+  KostenstellenSummen,
 } from '../../src/lib/types';
+
+type KategorieOhneJahre = Omit<KategorieStatistik, 'yearTotals'>;
 
 const kategorie = (
   id: string | null,
@@ -14,7 +18,7 @@ const kategorie = (
   expensesCent: number,
   bookings: number,
   open: { income?: number; expenses?: number } = {}
-): KategorieStatistik => ({
+): KategorieOhneJahre => ({
   id,
   name,
   sphere,
@@ -26,47 +30,67 @@ const kategorie = (
   bookings,
 });
 
+/** Invented split of a Kategorie over the years: equal parts, the rest and anything open last. */
+function aufJahre(summen: KostenstellenSummen, years: number[]): JahresSummen[] {
+  const part = (total: number, index: number): number => {
+    const each = Math.trunc(total / years.length);
+    return index === years.length - 1 ? total - each * (years.length - 1) : each;
+  };
+  const last = years.length - 1;
+  return years
+    .map((year, index) => {
+      const incomeCent = part(summen.incomeCent, index);
+      const expensesCent = part(summen.expensesCent, index);
+      return {
+        year,
+        incomeCent,
+        expensesCent,
+        balanceCent: incomeCent + expensesCent,
+        openIncomeCent: index === last ? summen.openIncomeCent : 0,
+        openExpensesCent: index === last ? summen.openExpensesCent : 0,
+        bookings: part(summen.bookings, index),
+      };
+    })
+    .filter((jahr) => jahr.bookings > 0);
+}
+
+const SUMMEN_KEYS = [
+  'incomeCent',
+  'expensesCent',
+  'balanceCent',
+  'openIncomeCent',
+  'openExpensesCent',
+  'bookings',
+] as const;
+
+function addiere(eintraege: KostenstellenSummen[]): KostenstellenSummen {
+  return Object.fromEntries(
+    SUMMEN_KEYS.map((key) => [key, eintraege.reduce((total, e) => total + e[key], 0)])
+  ) as unknown as KostenstellenSummen;
+}
+
 function kostenstelle(
   id: string | null,
   name: string,
   color: string | null,
   archived: boolean,
   years: number[],
-  categories: KategorieStatistik[]
+  ohneJahre: KategorieOhneJahre[]
 ): KostenstelleStatistik {
-  const sum = (key: 'incomeCent' | 'expensesCent' | 'openIncomeCent' | 'openExpensesCent') =>
-    categories.reduce((total, category) => total + category[key], 0);
-  const bookings = categories.reduce((total, category) => total + category.bookings, 0);
-  // Invented split over the years: equal parts, the rest in the last year
-  const part = (total: number, index: number): number => {
-    const each = Math.trunc(total / years.length);
-    return index === years.length - 1 ? total - each * (years.length - 1) : each;
-  };
-  const yearTotals = years.map((year, index) => {
-    const incomeCent = part(sum('incomeCent'), index);
-    const expensesCent = part(sum('expensesCent'), index);
-    return {
+  const categories = ohneJahre.map((k) => ({ ...k, yearTotals: aufJahre(k, years) }));
+  const yearTotals = years
+    .map((year) => ({
       year,
-      incomeCent,
-      expensesCent,
-      balanceCent: incomeCent + expensesCent,
-      openIncomeCent: index === years.length - 1 ? sum('openIncomeCent') : 0,
-      openExpensesCent: index === years.length - 1 ? sum('openExpensesCent') : 0,
-      bookings: part(bookings, index),
-    };
-  });
+      ...addiere(categories.flatMap((k) => k.yearTotals.filter((j) => j.year === year))),
+    }))
+    .filter((jahr) => jahr.bookings > 0);
   return {
     id,
     name,
     color,
     archived,
-    incomeCent: sum('incomeCent'),
-    expensesCent: sum('expensesCent'),
-    balanceCent: sum('incomeCent') + sum('expensesCent'),
-    openIncomeCent: sum('openIncomeCent'),
-    openExpensesCent: sum('openExpensesCent'),
-    bookings,
-    years,
+    ...addiere(categories),
+    years: yearTotals.map((jahr) => jahr.year),
     yearTotals,
     categories,
   };

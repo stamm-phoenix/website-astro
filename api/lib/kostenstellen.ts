@@ -28,6 +28,8 @@ export interface KategorieStatistik extends KostenstellenSummen {
   /** "" for bookings without a Kategorie. */
   name: string;
   sphere: KostenstellenSphaere | null;
+  /** The sums of each year with bookings in this Kategorie. */
+  yearTotals: JahresSummen[];
 }
 
 export interface KostenstelleStatistik extends KostenstellenSummen {
@@ -95,6 +97,7 @@ function readKategorie(value: unknown): KategorieStatistik {
     name: value.name.trim(),
     sphere: SPHERES.find((sphere) => sphere === value.sphere) ?? null,
     ...summen(value),
+    yearTotals: readYearTotals(value.yearTotals),
   };
 }
 

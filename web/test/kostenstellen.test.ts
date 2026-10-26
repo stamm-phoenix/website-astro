@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   gesamt,
   imJahr,
+  imJahrGesehen,
   inAnsicht,
   jahre,
   kategorieName,
@@ -38,8 +39,8 @@ const kostenstelle = (
 const lager = kostenstelle('Stammeslager', 9000, -12000, {
   years: [2025, 2026],
   categories: [
-    { id: 'cat_1', name: 'Verpflegung', sphere: 'purpose', ...gesamt([]) },
-    { id: null, name: '', sphere: null, ...gesamt([]) },
+    { id: 'cat_1', name: 'Verpflegung', sphere: 'purpose', ...gesamt([]), yearTotals: [] },
+    { id: null, name: '', sphere: null, ...gesamt([]), yearTotals: [] },
   ],
 });
 const allgemein = kostenstelle('Allgemein', 5000, -100);
@@ -106,11 +107,50 @@ test('filters by the years with bookings, keeping every Kategorie', () => {
 test('the sums of one year come from the yearly totals, none without bookings that year', () => {
   const jahr2025 = { ...gesamt([]), incomeCent: 4000, balanceCent: 4000, bookings: 2 };
   const mitJahren = { ...lager, yearTotals: [{ year: 2025, ...jahr2025 }] };
-  assert.deepEqual(summenImJahr(mitJahren, 2025), { year: 2025, ...jahr2025 });
+  assert.deepEqual(summenImJahr(mitJahren, 2025), jahr2025);
   assert.deepEqual(summenImJahr(mitJahren, 2024), gesamt([]));
   assert.equal(summenImJahr(mitJahren, null), mitJahren);
   assert.equal(
     gesamt([summenImJahr(mitJahren, 2025), summenImJahr(allgemein, 2025)]).incomeCent,
     4000
   );
+});
+
+test('with a year chosen, the Kostenstelle and all its Kategorien show only that year', () => {
+  const kat = (name: string, cent: number, years: number[]) => ({
+    id: `cat_${name}`,
+    name,
+    sphere: null,
+    ...gesamt([]),
+    incomeCent: cent * years.length,
+    balanceCent: cent * years.length,
+    bookings: years.length,
+    yearTotals: years.map((year) => ({
+      year,
+      ...gesamt([]),
+      incomeCent: cent,
+      balanceCent: cent,
+      bookings: 1,
+    })),
+  });
+  const k = kostenstelle('Lager', 0, 0, {
+    years: [2024, 2025],
+    yearTotals: [
+      { year: 2024, ...gesamt([]), incomeCent: 100, balanceCent: 100, bookings: 1 },
+      { year: 2025, ...gesamt([]), incomeCent: 300, balanceCent: 300, bookings: 2 },
+    ],
+    categories: [kat('A', 100, [2024, 2025]), kat('B', 200, [2025])],
+  });
+  assert.equal(imJahrGesehen(k, null), k);
+  const y2024 = imJahrGesehen(k, 2024);
+  assert.equal(y2024.incomeCent, 100);
+  assert.equal(y2024.bookings, 1);
+  assert.deepEqual(
+    y2024.categories.map((c) => [c.name, c.incomeCent, c.bookings]),
+    [
+      ['A', 100, 1],
+      ['B', 0, 0],
+    ]
+  );
+  assert.equal(imJahrGesehen(k, 2025).categories[1].incomeCent, 200);
 });
