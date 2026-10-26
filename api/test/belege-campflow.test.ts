@@ -32,6 +32,13 @@ const UNITS = [
     ],
   },
   {
+    // CampFlow keeps runs of spaces; the website saves names with single ones
+    id: 'cun_Zelte',
+    name: 'Zelte  Lager',
+    archived: false,
+    categories: [{ id: 'cat_Holz', name: 'Holz  und Kohle', sphere: 'purpose' }],
+  },
+  {
     id: 'cun_Alt',
     name: 'Lager 2019',
     archived: true,
@@ -307,7 +314,7 @@ dbTest(
       ]
     );
     const upload = calls.find((call) => call.method === 'POST');
-    assert.deepEqual([upload?.body?.costUnit, upload?.body?.category], ['cun_Lager', 'cat_Neu3']);
+    assert.deepEqual([upload?.body?.costUnit, upload?.body?.category], ['cun_Lager', 'cat_Neu4']);
     const row = await transferRow(7);
     assert.deepEqual(
       [row?.costunit_name, row?.category_name],
@@ -325,9 +332,24 @@ dbTest(
         ],
       ]
     );
-    assert.equal(calls.find((call) => call.method === 'POST')?.body?.costUnit, 'cun_Neu2');
+    assert.equal(calls.find((call) => call.method === 'POST')?.body?.costUnit, 'cun_Neu3');
   }
 );
+
+dbTest('names differing only in runs of spaces book on the existing Kategorie', async (t) => {
+  const { context, blobs, calls } = setup(t, () => uploaded());
+  const etag = await store(blobs, 7, { kostenstelle: 'Zelte Lager', kategorie: 'holz und kohle' });
+
+  const response = await transfer(context, 7, { etag });
+  assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
+  assert.deepEqual(
+    calls.filter((call) => call.method === 'PUT'),
+    [],
+    'nothing created'
+  );
+  const upload = calls.find((call) => call.method === 'POST');
+  assert.deepEqual([upload?.body?.costUnit, upload?.body?.category], ['cun_Zelte', 'cat_Holz']);
+});
 
 dbTest('a Kategorie CampFlow does not create stops the transfer before it starts', async (t) => {
   const { context, blobs, calls } = setup(

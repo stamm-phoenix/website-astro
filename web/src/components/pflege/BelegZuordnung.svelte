@@ -64,8 +64,14 @@
         loading={kostenstellenStore.loading}
         listLabel="Kostenstelle oder Kategorie auswählen"
         clearOnPick
+        pickFirstOnEnter
         bind:value={suche}
         onpick={pick}
+        oncommit={() => {
+          // Only a search: what was typed without picking is no change of the receipt
+          suche = '';
+          notifyEdited?.();
+        }}
       />
     {/snippet}
   </FormField>

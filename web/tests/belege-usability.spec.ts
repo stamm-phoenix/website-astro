@@ -177,7 +177,7 @@ test('an Auslage of someone else names that person, the savings book names itsel
   await expect(bahn.getByLabel('Ausgelegt von')).toHaveValue('Sam Muster');
 });
 
-test('an unclear Aktion asks once, keeps the receipt after a failed save and allows retry', async ({
+test('new names are saved with a warning, kept after a failed save and retried', async ({
   page,
 }) => {
   const records = (await (
@@ -185,34 +185,29 @@ test('an unclear Aktion asks once, keeps the receipt after a failed save and all
   ).json()) as StaffBeleg[];
   const receipt = records.find((item) => item.status === 'Eingereicht')!;
   let writes = 0;
+  let saved: Record<string, unknown> | undefined;
   await page.route(`**/api/intern/pflege/belege/${receipt.id}`, async (route) => {
     if (route.request().method() !== 'PATCH') return route.continue();
     writes++;
+    saved = route.request().postDataJSON();
     if (writes === 1) await route.fulfill({ status: 500, json: {} });
     else await route.fulfill({ json: { mailed: false } });
   });
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
-  const editor = page
-    .getByRole('dialog')
-    .filter({ has: page.getByLabel('Aktion', { exact: true }) });
-  await editor.getByLabel('Aktion', { exact: true }).fill('Herbst');
-  await expect(
-    editor.getByRole('button', { name: 'Wölflings-Herbstwochenende', exact: true })
-  ).toBeVisible();
+  const editor = page.getByRole('dialog', { name: `Beleg von ${receipt.shop}` });
+  await editor.getByLabel('Kostenstelle', { exact: true }).fill('Herbstfahrt 2026');
+  await editor.getByLabel('Kategorie', { exact: true }).fill('Getränke');
+  await expect(editor.getByRole('status').filter({ hasText: 'neu angelegt' })).toContainText(
+    '„Herbstfahrt 2026“'
+  );
   await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
-  const confirmation = page.getByRole('dialog', { name: 'Aktion prüfen' });
-  await expect(confirmation).toContainText('Herbst');
-  expect(writes).toBe(0);
-  await confirmation.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
-  await expect(editor.getByLabel('Aktion', { exact: true })).toHaveValue('Herbst');
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await confirmation.getByRole('button', { name: 'So speichern', exact: true }).click();
   await expect(editor.getByRole('alert')).toContainText('Der Beleg wurde nicht gespeichert');
-  await expect(editor.getByLabel('Aktion', { exact: true })).toHaveValue('Herbst');
+  await expect(editor.getByLabel('Kostenstelle', { exact: true })).toHaveValue('Herbstfahrt 2026');
   await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(editor).toBeHidden();
   expect(writes).toBe(2);
+  expect(saved).toMatchObject({ kostenstelle: 'Herbstfahrt 2026', kategorie: 'Getränke' });
 });
 
 test('photo warnings and automatic reading share one verdict and adjustments are optional', async ({
@@ -440,13 +435,11 @@ test('a direction that comes while cropping turns the photo once the crop is don
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
-  await dialog
-    .locator('input[type=file]')
-    .setInputFiles({
-      name: 'beleg.png',
-      mimeType: 'image/png',
-      buffer: await sidewaysReceipt(page),
-    });
+  await dialog.locator('input[type=file]').setInputFiles({
+    name: 'beleg.png',
+    mimeType: 'image/png',
+    buffer: await sidewaysReceipt(page),
+  });
   const preview = dialog.getByAltText('Vorschau des Fotos');
   await expect(preview).toBeVisible();
   // Cropping while the direction is asked
@@ -494,7 +487,8 @@ test('submitting during the check sends the photo as the check turns it upright'
   await expect(dialog.getByAltText('Vorschau des Fotos')).toBeVisible();
   await dialog.getByRole('textbox', { name: 'Geschäft' }).fill('Quermarkt');
   await dialog.getByLabel('Betrag in €').fill('7,89');
-  await dialog.getByLabel('Aktion', { exact: true }).fill('Sommerlager 2026 Oberjoch');
+  await dialog.getByLabel('Kostenstelle', { exact: true }).fill('Sommerlager 2026 Oberjoch');
+  await dialog.getByLabel('Kategorie', { exact: true }).fill('Verpflegungskosten');
   await dialog
     .getByRole('radio', { name: 'Mit Stammeskarte / aus der Kasse', exact: true })
     .check();
@@ -527,24 +521,20 @@ test('choosing a suggestion on an existing receipt asks before discarding the ch
     await page.request.get('/api/intern/pflege/belege')
   ).json()) as StaffBeleg[];
   const receipt = records.find((item) => item.status === 'Eingereicht')!;
-  await page.route('**/api/intern/pflege/belege', (route) =>
-    route.fulfill({
-      json: records.map((item) => (item.id === receipt.id ? { ...item, aktion: 'Herbst' } : item)),
-    })
-  );
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
-  const editor = page
-    .getByRole('dialog')
-    .filter({ has: page.getByLabel('Aktion', { exact: true }) });
-  await editor.getByRole('button', { name: 'Wölflings-Herbstwochenende', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: `Beleg von ${receipt.shop}` });
+  await editor.getByLabel('Kostenstelle oder Kategorie suchen').fill('leite');
+  await editor
+    .getByRole('listbox', { name: 'Kostenstelle oder Kategorie auswählen' })
+    .getByRole('option', { name: 'Leitendenrunde' })
+    .click();
   await editor.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
   await expect(confirmation).toBeVisible();
   await confirmation.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
-  await expect(editor.getByLabel('Aktion', { exact: true })).toHaveValue(
-    'Wölflings-Herbstwochenende'
-  );
+  await expect(editor.getByLabel('Kostenstelle', { exact: true })).toHaveValue('Allgemein');
+  await expect(editor.getByLabel('Kategorie', { exact: true })).toHaveValue('Leitendenrunde');
 });
 
 for (const decision of [
@@ -552,37 +542,33 @@ for (const decision of [
   { label: 'Ablehnen', source: 'Eingereicht', target: 'Abgelehnt' },
   { label: 'Erneut einreichen', source: 'Abgelehnt', target: 'Eingereicht' },
 ]) {
-  test(`an unknown Aktion confirmation keeps the action name ${decision.label}`, async ({
-    page,
-  }) => {
+  test(`a decision saves Kostenstelle and Kategorie: ${decision.label}`, async ({ page }) => {
     const records = (await (
       await page.request.get('/api/intern/pflege/belege')
     ).json()) as StaffBeleg[];
     const receipt = records.find((item) => item.status === decision.source)!;
-    let savedStatus: string | undefined;
+    let saved: Record<string, unknown> | undefined;
     await page.route(`**/api/intern/pflege/belege/${receipt.id}`, async (route) => {
       if (route.request().method() !== 'PATCH') return route.continue();
-      savedStatus = route.request().postDataJSON().status;
+      saved = route.request().postDataJSON();
       await route.fulfill({ json: { mailed: false } });
     });
     await page.goto('/leitendenbereich/belege');
     await page.getByRole('button', { name: /^Alle/ }).click();
     await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
-    const editor = page
-      .getByRole('dialog')
-      .filter({ has: page.getByLabel('Aktion', { exact: true }) });
-    await editor.getByLabel('Aktion', { exact: true }).fill('Herbst');
+    const editor = page.getByRole('dialog', { name: `Beleg von ${receipt.shop}` });
+    await editor.getByLabel('Kostenstelle', { exact: true }).fill('Hike 2026');
+    await editor.getByLabel('Kategorie', { exact: true }).fill('Fahrtkosten');
     if (decision.target === 'Abgelehnt')
       await editor
         .getByLabel('Bemerkung der Kasse', { exact: false })
         .fill('Bitte den vollständigen Beleg fotografieren.');
     await editor.getByRole('button', { name: decision.label, exact: true }).click();
-    const confirmation = page.getByRole('dialog', { name: 'Aktion prüfen' });
-    await expect(
-      confirmation.getByRole('button', { name: decision.label, exact: true })
-    ).toBeVisible();
-    await confirmation.getByRole('button', { name: decision.label, exact: true }).click();
     await expect(editor).toBeHidden();
-    expect(savedStatus).toBe(decision.target);
+    expect(saved).toMatchObject({
+      status: decision.target,
+      kostenstelle: 'Hike 2026',
+      kategorie: 'Fahrtkosten',
+    });
   });
 }
