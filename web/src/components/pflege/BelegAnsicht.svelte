@@ -19,7 +19,9 @@
     const rows: [string, string | null][] = [
       ['Datum', beleg.date ? formatIsoDate(beleg.date) : null],
       ['Betrag', formatEuro(beleg.amountCent)],
-      ['Aktion', beleg.aktion || null],
+      ['Kostenstelle', beleg.kostenstelle || null],
+      ['Kategorie', beleg.kategorie || null],
+      ['Aktion', beleg.kostenstelle ? null : beleg.aktion || null],
       ['Ausgelegt von', beleg.paidBy || null],
       ['Bemerkung', beleg.note || null],
       ['Eingereicht von', beleg.submittedBy || null],

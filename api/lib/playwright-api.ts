@@ -170,7 +170,9 @@ export async function ensureCampflowExpenseAssignment(
         ? (response as Record<string, unknown>).data
         : undefined;
     if (!Array.isArray(data)) throw new PlaywrightApiError(502, 'Invalid cost centre list');
-    return data.map(readKostenstelle).find((unit) => sameName(unit.name, costunitName));
+    const matches = data.map(readKostenstelle).filter((unit) => sameName(unit.name, costunitName));
+    // An archived one of the same name only counts if there is no other
+    return matches.find((unit) => !unit.archived) ?? matches[0];
   };
   const put = async (
     path: string,

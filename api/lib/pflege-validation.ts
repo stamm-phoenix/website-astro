@@ -948,6 +948,8 @@ export type BelegStatus = (typeof BELEG_STATUSES)[number];
 export const MAX_BELEG_PHOTO_BYTES = 4 * 1024 * 1024;
 /** Shorter photos are too small to read a receipt. */
 export const MIN_BELEG_PHOTO_EDGE = 800;
+/** Kostenstelle and Kategorie; CampFlow's own names are far shorter. */
+export const MAX_BELEG_ZUORDNUNG = 120;
 /** 10.000 € – anything above is surely a typo. */
 const MAX_BELEG_CENT = 1_000_000;
 
@@ -960,7 +962,12 @@ export interface BelegInput {
   paidBy: string;
   /** Whether it is an Auslage: someone or the savings book gets the money. */
   payout: boolean;
+  /** Older receipts only; it stands in for Kostenstelle and Kategorie where they are missing. */
   aktion: string;
+  /** Name of the Kostenstelle in CampFlow; one that does not exist is created on transfer. */
+  kostenstelle: string;
+  /** Name of the Kategorie; one the Kostenstelle lacks is created on transfer. */
+  kategorie: string;
   note: string;
   status: BelegStatus;
   /** Remark of the Kasse; for a rejected receipt the reason sent to the uploader. */
@@ -976,8 +983,9 @@ function isIsoDate(value: string): boolean {
 /**
  * Validates the details of a receipt.
  * @param today Current date as `YYYY-MM-DD`; receipts from the future are rejected.
+ * @param aktion The Aktion stored with an older receipt; it is no longer entered.
  */
-export function validateBeleg(body: unknown, today: string): BelegInput {
+export function validateBeleg(body: unknown, today: string, aktion = ''): BelegInput {
   const record = asRecord(body);
   const reader = new Reader(record);
   const input: BelegInput = {
@@ -987,7 +995,9 @@ export function validateBeleg(body: unknown, today: string): BelegInput {
     // Who gets the Auslage back, also „Sparbuch“; nobody when the Stamm paid
     paidBy: reader.text('paidBy', 'wer das Geld ausgelegt hat', 100, record.payout === true),
     payout: record.payout === true,
-    aktion: reader.text('aktion', 'die Aktion', 120, true),
+    aktion,
+    kostenstelle: reader.text('kostenstelle', 'die Kostenstelle', MAX_BELEG_ZUORDNUNG),
+    kategorie: reader.text('kategorie', 'die Kategorie', MAX_BELEG_ZUORDNUNG),
     note: reader.text('note', 'die Bemerkung', 1000),
     status: 'Eingereicht',
     reviewNote: reader.text('reviewNote', 'die Bemerkung der Kasse', 1000),
@@ -1010,6 +1020,15 @@ export function validateBeleg(body: unknown, today: string): BelegInput {
 
   if (record.status !== undefined) {
     input.status = reader.choice('status', 'den Status', [...BELEG_STATUSES]) as BelegStatus;
+  }
+  // A receipt from before Kostenstelle and Kategorie keeps its Aktion until someone picks them
+  if (!input.aktion || input.kostenstelle || input.kategorie) {
+    if (!input.kostenstelle && !reader.errors.kostenstelle) {
+      reader.errors.kostenstelle = 'Bitte die Kostenstelle angeben.';
+    }
+    if (!input.kategorie && !reader.errors.kategorie) {
+      reader.errors.kategorie = 'Bitte die Kategorie angeben.';
+    }
   }
   if (input.status === 'Abgelehnt' && !input.reviewNote) {
     reader.errors.reviewNote = 'Bitte begründen, warum der Beleg abgelehnt wird.';

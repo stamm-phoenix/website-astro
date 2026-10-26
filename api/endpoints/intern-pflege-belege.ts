@@ -265,11 +265,11 @@ export const BelegItemEndpoint = pflegeHandler(
     if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
     const body = await readJsonBody(request);
-    const input = validateBeleg(body, todayInBerlin());
     const etag = requireVersion(readEtag(body));
     const previous = await getBeleg(id);
     if (!previous) return NOT_FOUND;
     if (!mayChange(previous, principal)) return FORBIDDEN;
+    const input = validateBeleg(body, todayInBerlin(), previous.aktion);
     if (!isBelegReviewer(principal)) {
       // Uploaders correct their details and resubmit a rejected receipt, nothing more
       const resubmit = previous.status === 'Abgelehnt' && input.status === 'Eingereicht';
@@ -343,6 +343,8 @@ async function notifyKasse(
         paidBy: input.paidBy,
         payout: input.payout,
         aktion: input.aktion,
+        kostenstelle: input.kostenstelle,
+        kategorie: input.kategorie,
         note: input.note,
         submitter: names[0] ?? principal.userDetails,
         resubmitted,
@@ -501,8 +503,9 @@ export const BelegPruefungEndpoint = pflegeHandler(
 );
 
 /**
- * POST: transfers an accepted receipt to CampFlow (`costUnitId`, `categoryId` and the `etag` of
- * the receipt in the body) and deletes it afterwards; see `beleg-campflow.ts`. Kasse only.
+ * POST: transfers an accepted receipt to CampFlow (the `etag` of the receipt in the body), booked
+ * on its Kostenstelle and Kategorie, and deletes it afterwards; see `beleg-campflow.ts`. Kasse
+ * only.
  */
 export const BelegCampflowEndpoint = pflegeHandler(
   'belege-campflow',
@@ -514,15 +517,8 @@ export const BelegCampflowEndpoint = pflegeHandler(
 
     const body = await readJsonBody(request);
     const etag = requireVersion(readEtag(body));
-    const costUnitId = typeof body?.costUnitId === 'string' ? body.costUnitId : '';
-    const categoryId = typeof body?.categoryId === 'string' ? body.categoryId : '';
-    if (!/^cun_\w+$/.test(costUnitId) || !/^cat_\w+$/.test(categoryId)) {
-      return errorResponse(400, 'INVALID', 'Bitte Kostenstelle und Kategorie wählen.');
-    }
     try {
-      return ok(
-        await transferBelegToCampflow(id, etag, { costUnitId, categoryId }, principal.userDetails)
-      );
+      return ok(await transferBelegToCampflow(id, etag, principal.userDetails));
     } catch (error: unknown) {
       if (error instanceof BelegCampflowError) return error.toResponse();
       throw error;

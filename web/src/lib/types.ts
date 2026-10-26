@@ -558,7 +558,12 @@ export interface StaffBeleg {
   paidBy: string;
   /** Whether it is an Auslage: someone or the savings book gets the money. */
   payout: boolean;
+  /** Older receipts only; newer ones name Kostenstelle and Kategorie. */
   aktion: string;
+  /** Name of the Kostenstelle in CampFlow; may not exist there yet. */
+  kostenstelle: string;
+  /** Name of the Kategorie; may not exist in the Kostenstelle yet. */
+  kategorie: string;
   note: string;
   status: BelegStatus;
   /** Remark of the Kasse; for a rejected receipt the reason mailed to the uploader. */

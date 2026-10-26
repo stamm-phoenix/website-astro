@@ -329,7 +329,12 @@ export interface BelegTable {
   amount_cent: number;
   paid_by: string;
   payout: boolean;
-  aktion: string;
+  /** Older receipts only; newer ones name Kostenstelle and Kategorie. */
+  aktion: Generated<string>;
+  /** Name of the Kostenstelle in CampFlow, or a new one typed in. */
+  kostenstelle: Generated<string>;
+  /** Name of the Kategorie of that Kostenstelle, or a new one typed in. */
+  kategorie: Generated<string>;
   note: string;
   status: 'Eingereicht' | 'Angenommen' | 'Abgelehnt';
   review_note: string;

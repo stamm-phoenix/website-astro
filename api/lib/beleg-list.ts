@@ -35,7 +35,12 @@ export interface StaffBeleg {
   amountCent: number;
   paidBy: string;
   payout: boolean;
+  /** Older receipts only; newer ones name Kostenstelle and Kategorie. */
   aktion: string;
+  /** Name of the Kostenstelle in CampFlow; may not exist there yet. */
+  kostenstelle: string;
+  /** Name of the Kategorie; may not exist in the Kostenstelle yet. */
+  kategorie: string;
   note: string;
   status: BelegStatus;
   reviewNote: string;
@@ -119,6 +124,8 @@ function toBeleg(row: Selectable<BelegTable>, campflow: CampflowColumns | undefi
     paidBy: row.paid_by,
     payout: row.payout,
     aktion: row.aktion,
+    kostenstelle: row.kostenstelle,
+    kategorie: row.kategorie,
     note: row.note,
     status: row.status,
     reviewNote: row.review_note,
@@ -258,6 +265,8 @@ function toColumns(input: BelegInput): {
   paid_by: string;
   payout: boolean;
   aktion: string;
+  kostenstelle: string;
+  kategorie: string;
   note: string;
   status: BelegStatus;
   review_note: string;
@@ -269,6 +278,8 @@ function toColumns(input: BelegInput): {
     paid_by: input.paidBy,
     payout: input.payout,
     aktion: input.aktion,
+    kostenstelle: input.kostenstelle,
+    kategorie: input.kategorie,
     note: input.note,
     status: input.status,
     review_note: input.reviewNote,

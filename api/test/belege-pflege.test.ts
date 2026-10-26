@@ -50,7 +50,8 @@ const INPUT = {
   amountCent: 1234,
   paidBy: 'Alex Beispiel',
   payout: true,
-  aktion: 'Sommerlager',
+  kostenstelle: 'Sommerlager 2026',
+  kategorie: 'Verpflegungskosten',
   note: '',
 };
 
@@ -135,7 +136,8 @@ async function store(blobs: Map<string, Buffer>, ...rows: StoredBelegRow[]): Pro
         amount_cent: 1234,
         paid_by: 'Alex Beispiel',
         payout: true,
-        aktion: 'Sommerlager',
+        kostenstelle: 'Sommerlager 2026',
+        kategorie: 'Verpflegungskosten',
         note: '',
         status: row.status ?? 'Eingereicht',
         review_note: '',
@@ -225,6 +227,7 @@ dbTest('submitting a receipt stores details, uploader and photo as unchecked', a
       id,
       etag: undefined,
       ...INPUT,
+      aktion: '',
       status: 'Eingereicht',
       reviewNote: '',
       submittedBy: 'staff@example.test',
@@ -394,7 +397,9 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
     amountCent: 1234,
     paidBy: 'Alex Beispiel',
     payout: true,
-    aktion: 'Sommerlager',
+    aktion: '',
+    kostenstelle: 'Sommerlager 2026',
+    kategorie: 'Verpflegungskosten',
     note: '',
     status: 'Eingereicht',
     reviewNote: '',
@@ -902,12 +907,26 @@ test('receipt validation rejects missing, future and implausible values', () => 
   const today = '2026-10-01';
   assert.deepEqual(validateBeleg(INPUT, today), {
     ...INPUT,
+    aktion: '',
+    status: 'Eingereicht',
+    reviewNote: '',
+  });
+  // The Aktion is no longer entered: a receipt keeps the one it has
+  assert.equal(validateBeleg({ ...INPUT, aktion: 'Lager' }, today).aktion, '');
+  assert.equal(validateBeleg(INPUT, today, 'Lager').aktion, 'Lager');
+  // An older receipt with only its Aktion may still be saved, e.g. to reject it
+  assert.deepEqual(validateBeleg({ ...INPUT, kostenstelle: '', kategorie: '' }, today, 'Lager'), {
+    ...INPUT,
+    kostenstelle: '',
+    kategorie: '',
+    aktion: 'Lager',
     status: 'Eingereicht',
     reviewNote: '',
   });
   // Paid by the Stamm: no Auslage, so nobody to name
   assert.deepEqual(validateBeleg({ ...INPUT, payout: false }, today), {
     ...INPUT,
+    aktion: '',
     paidBy: '',
     payout: false,
     status: 'Eingereicht',
@@ -918,7 +937,9 @@ test('receipt validation rejects missing, future and implausible values', () => 
   for (const [body, field] of [
     [{ ...INPUT, shop: ' ' }, 'shop'],
     [{ ...INPUT, paidBy: '' }, 'paidBy'],
-    [{ ...INPUT, aktion: '' }, 'aktion'],
+    [{ ...INPUT, kostenstelle: '' }, 'kostenstelle'],
+    [{ ...INPUT, kategorie: ' ' }, 'kategorie'],
+    [{ ...INPUT, kategorie: 'x'.repeat(121) }, 'kategorie'],
     [{ ...INPUT, date: '2026-10-02' }, 'date'],
     [{ ...INPUT, date: '2026-02-30' }, 'date'],
     [{ ...INPUT, date: '30.09.2026' }, 'date'],
@@ -951,6 +972,8 @@ test('receipt helpers use German local dates and safe file names', () => {
       paidBy: '',
       payout: false,
       aktion: '',
+      kostenstelle: '',
+      kategorie: '',
       note: '',
       status: 'Eingereicht',
       reviewNote: '',

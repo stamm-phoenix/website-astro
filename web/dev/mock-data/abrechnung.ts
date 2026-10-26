@@ -61,7 +61,14 @@ export const kostenstellen: Kostenstelle[] = [
       { id: 'cat_Allgemein1', name: 'Material' },
       { id: 'cat_Allgemein2', name: 'Verwaltung' },
       { id: 'cat_Allgemein3', name: 'Lager und Aktionen' },
+      { id: 'cat_Allgemein4', name: 'Leitendenrunde' },
     ],
+  },
+  {
+    id: 'cun_Lela26',
+    name: 'Leitendenlager 2026',
+    archived: false,
+    categories: [{ id: 'cat_Lela261', name: 'Teilnahmebeiträge' }],
   },
   {
     id: 'cun_Sola25',

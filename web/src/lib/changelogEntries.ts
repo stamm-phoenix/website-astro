@@ -12,6 +12,20 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-26-01-belege-kostenstelle',
+    date: '2026-10-26',
+    title: 'Belege: Kostenstelle und Kategorie statt Aktion',
+    changes: [
+      {
+        text: 'Beim Einreichen eines Belegs wählst du jetzt Kostenstelle und Kategorie wie in CampFlow, statt eine Aktion anzugeben. So geht auch Verpflegung für die Leitendenrunde, die zu keiner Aktion gehört.',
+        href: '/leitendenbereich/belege',
+      },
+      'Über „Kostenstelle oder Kategorie suchen“ findest du beides auf einmal: Tippst du z. B. „leite“, bekommst du die Kostenstelle „Leitendenlager“ und die Kategorie „Leitendenrunde“ in „Allgemein“ angeboten. Eine Kategorie füllt beide Felder aus, eine Kostenstelle nur ihr Feld.',
+      'Die Kategorien des KJR (Fahrtkosten, Verpflegungskosten, Miet- und Übernachtungskosten, Honorare, Arbeits- und Hilfsmittel) stehen bei jeder Kostenstelle zur Auswahl, auch wenn es sie dort noch nicht gibt.',
+      'Du kannst Kostenstelle und Kategorie auch frei eintippen. Gibt es sie in CampFlow noch nicht, siehst du einen Hinweis; die Kasse legt sie beim Übertragen nach CampFlow automatisch an.',
+    ],
+  },
+  {
     id: '2026-10-25-02-abstimmungen',
     date: '2026-10-25',
     title: 'Neu: Abstimmungen und Terminfindung',
