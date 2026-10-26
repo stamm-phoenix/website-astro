@@ -211,7 +211,10 @@
                       aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg
                     >
                   </span>
-                  <KostenstellenZahlen summen={kostenstelle} />
+                  <KostenstellenZahlen
+                    summen={kostenstelle}
+                    zeitraum={jahr !== null ? 'Alle Jahre' : undefined}
+                  />
                 </summary>
 
                 <div class="border-t border-neutral-200 px-4 pb-4">
@@ -233,7 +236,10 @@
                                 .join(' · ')}</span
                             >
                           </p>
-                          <KostenstellenZahlen summen={kategorie} />
+                          <KostenstellenZahlen
+                            summen={kategorie}
+                            zeitraum={jahr !== null ? 'Alle Jahre' : undefined}
+                          />
                         </li>
                       {/each}
                     </ul>
