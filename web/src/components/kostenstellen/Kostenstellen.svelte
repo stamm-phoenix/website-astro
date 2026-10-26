@@ -38,7 +38,10 @@
     refreshed = '';
     refreshing = true;
     await kostenstellenStore.load({ force: true, param: true });
-    if (!store.error) refreshed = 'Kostenstellen neu aus CampFlow geladen.';
+    if (store.error || !store.data) return;
+    // A year without bookings any more is no longer offered, so it must not keep filtering
+    if (jahr !== null && !jahre(store.data.costUnits).includes(jahr)) jahr = null;
+    refreshed = 'Kostenstellen neu aus CampFlow geladen.';
   }
 
   onMount(() => {
