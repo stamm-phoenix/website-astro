@@ -1066,7 +1066,7 @@ route('PUT', '/api/intern/abrechnung/:id/eingaben', (req) => {
   abrechnungDrafts.set(req.params.id, saved);
   return json(saved);
 });
-route('GET', '/api/intern/abrechnung/kostenstellen', () => json(kostenstellen));
+route('GET', '/api/intern/kostenstellen', () => json(kostenstellen));
 route(
   'GET',
   '/api/intern/abrechnung/belege/:nummer/bild',

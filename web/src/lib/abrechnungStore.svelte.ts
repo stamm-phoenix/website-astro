@@ -122,8 +122,8 @@ export function fetchKostenstellen({
     try {
       const data = await fetchApi<Kostenstelle[]>(
         refresh
-          ? '/intern/abrechnung/kostenstellen?refresh=true'
-          : '/intern/abrechnung/kostenstellen'
+          ? '/intern/kostenstellen?refresh=true'
+          : '/intern/kostenstellen'
       );
       if (request === kostenstellenRequest) kostenstellenStore.data = data;
     } catch (error: unknown) {

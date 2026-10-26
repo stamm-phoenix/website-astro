@@ -105,7 +105,7 @@ test('Aktionen are suggested in the Eigenbeleg after loading and picked by keybo
 test('Kostenstelle and Kategorie of a receipt can be typed when the Kostenstellen fail to load', async ({
   page,
 }) => {
-  await page.route('**/api/intern/abrechnung/kostenstellen*', (route) =>
+  await page.route('**/api/intern/kostenstellen*', (route) =>
     route.fulfill({
       status: 500,
       json: { code: 'X', message: 'Die Kostenstellen sind gerade nicht erreichbar.' },
@@ -252,7 +252,7 @@ test('an expired login while loading the Kostenstellen offers to log in again', 
   page,
 }) => {
   await page.goto('/leitendenbereich/belege');
-  await page.route('**/api/intern/abrechnung/kostenstellen*', (route) =>
+  await page.route('**/api/intern/kostenstellen*', (route) =>
     route.fulfill({ status: 401, json: {} })
   );
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
