@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getContext, untrack } from 'svelte';
   import FormField from './FormField.svelte';
+  import MessageText from '../ui/MessageText.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import { fetchKostenstellen, kostenstellenStore } from '../../lib/abrechnungStore.svelte';
   import { matchingKostenstelle, type BelegForm } from '../../lib/belegForm';
@@ -149,7 +150,7 @@
   {/if}
   {#if kostenstellenStore.error && !kostenstellenStore.data}
     <p class="text-sm text-neutral-700">
-      Die Kostenstellen aus CampFlow konnten nicht geladen werden.
+      <MessageText text={kostenstellenStore.error} />
       <button
         type="button"
         class="text-link min-h-11 underline underline-offset-4"
