@@ -35,6 +35,22 @@ export function inAnsicht(
   return ansicht === 'archiviert' ? kostenstelle.archived : !kostenstelle.archived;
 }
 
+/** Whether the Kostenstelle has a booking in the year; `null` means every year. */
+export function imJahr(kostenstelle: KostenstelleStatistik, jahr: number | null): boolean {
+  return jahr === null || kostenstelle.years.includes(jahr);
+}
+
+/** The years with bookings of any Kostenstelle, newest first. */
+export function jahre(kostenstellen: readonly KostenstelleStatistik[]): number[] {
+  return [...new Set(kostenstellen.flatMap((k) => k.years))].sort((a, b) => b - a);
+}
+
+/** The empty state when no Kostenstelle of the view has a booking in the year. */
+export function keineImJahr(ansicht: KostenstellenAnsicht, jahr: number): string {
+  const art = { aktuell: 'aktuelle ', archiviert: 'archivierte ', alle: '' }[ansicht];
+  return `Keine ${art}Kostenstelle hat Buchungen aus ${jahr}.`;
+}
+
 const normalize = (value: string): string => value.toLocaleLowerCase('de').trim();
 
 /** Whether the search matches the Kostenstelle, and whether only through a Kategorie. */

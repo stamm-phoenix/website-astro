@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { gesamt, inAnsicht, kategorieName, sortiere, treffer } from '../src/lib/kostenstellen';
+import {
+  gesamt,
+  imJahr,
+  inAnsicht,
+  jahre,
+  kategorieName,
+  keineImJahr,
+  sortiere,
+  treffer,
+} from '../src/lib/kostenstellen';
 import type { KostenstelleStatistik } from '../src/lib/types';
 
 const kostenstelle = (
@@ -19,18 +28,20 @@ const kostenstelle = (
   openIncomeCent: 0,
   openExpensesCent: 0,
   bookings: 1,
+  years: [],
   categories: [],
   ...fields,
 });
 
 const lager = kostenstelle('Stammeslager', 9000, -12000, {
+  years: [2025, 2026],
   categories: [
     { id: 'cat_1', name: 'Verpflegung', sphere: 'purpose', ...gesamt([]) },
     { id: null, name: '', sphere: null, ...gesamt([]) },
   ],
 });
 const allgemein = kostenstelle('Allgemein', 5000, -100);
-const alt = kostenstelle('Lager 2019', 0, -500, { archived: true });
+const alt = kostenstelle('Lager 2019', 0, -500, { archived: true, years: [2019] });
 
 test('sorts by name or by the chosen sum', () => {
   const names = (list: KostenstelleStatistik[]) => list.map((k) => k.name);
@@ -78,4 +89,14 @@ test('adds up the sums of several Kostenstellen', () => {
     openExpensesCent: 0,
     bookings: 2,
   });
+});
+
+test('filters by the years with bookings, keeping every Kategorie', () => {
+  assert.equal(imJahr(lager, null), true);
+  assert.equal(imJahr(lager, 2025), true);
+  assert.equal(imJahr(lager, 2019), false);
+  assert.equal(imJahr(allgemein, 2026), false);
+  assert.deepEqual(jahre([alt, lager, allgemein]), [2026, 2025, 2019]);
+  assert.equal(keineImJahr('aktuell', 2024), 'Keine aktuelle Kostenstelle hat Buchungen aus 2024.');
+  assert.equal(keineImJahr('alle', 2024), 'Keine Kostenstelle hat Buchungen aus 2024.');
 });

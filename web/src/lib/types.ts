@@ -1286,6 +1286,8 @@ export interface KostenstelleStatistik extends KostenstellenSummen {
   name: string;
   color: string | null;
   archived: boolean;
+  /** Calendar years with at least one booking, ascending. */
+  years: number[];
   categories: KategorieStatistik[];
 }
 
