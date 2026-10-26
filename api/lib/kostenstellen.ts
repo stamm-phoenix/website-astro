@@ -101,9 +101,8 @@ function readKategorie(value: unknown): KategorieStatistik {
   };
 }
 
-/** An older Playwright API sends no years; then no year filter finds the Kostenstelle. */
+/** Missing years or sums per year are refused: shown as 0 they would look like real figures. */
 function readYears(value: unknown): number[] {
-  if (value === undefined) return [];
   if (!Array.isArray(value)) invalid();
   return value.map((year: unknown) => (isYear(year) ? year : invalid()));
 }
@@ -111,9 +110,7 @@ function readYears(value: unknown): number[] {
 const isYear = (value: unknown): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= 1900 && value <= 9999;
 
-/** An older Playwright API sends no sums per year. */
 function readYearTotals(value: unknown): JahresSummen[] {
-  if (value === undefined) return [];
   if (!Array.isArray(value)) invalid();
   return value.map((item: unknown) => {
     if (!isObject(item) || !isYear(item.year)) invalid();

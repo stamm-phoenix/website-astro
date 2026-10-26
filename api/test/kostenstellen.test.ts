@@ -54,6 +54,8 @@ const ANSWER = {
       color: '#0d9488',
       archived: true,
       ...sums(0, 0, 0),
+      years: [],
+      yearTotals: [],
       categories: [],
     },
     {
@@ -81,7 +83,14 @@ const ANSWER = {
             { year: 2026, ...sums(0, -100, 2), openExpenses: -0.1 },
           ],
         },
-        { id: null, name: '', sphere: null, ...sums(90, 0, 1), openIncome: 10 },
+        {
+          id: null,
+          name: '',
+          sphere: null,
+          ...sums(90, 0, 1),
+          openIncome: 10,
+          yearTotals: [{ year: 2026, ...sums(90, 0, 1), openIncome: 10 }],
+        },
       ],
     },
     {
@@ -90,7 +99,17 @@ const ANSWER = {
       color: 'red; background: url(x)',
       archived: false,
       ...sums(50, 0, 1),
-      categories: [{ id: 'cat_spenden', name: 'Spenden', sphere: 'unbekannt', ...sums(50, 0, 1) }],
+      years: [2026],
+      yearTotals: [{ year: 2026, ...sums(50, 0, 1) }],
+      categories: [
+        {
+          id: 'cat_spenden',
+          name: 'Spenden',
+          sphere: 'unbekannt',
+          ...sums(50, 0, 1),
+          yearTotals: [{ year: 2026, ...sums(50, 0, 1) }],
+        },
+      ],
     },
   ],
 };
@@ -144,8 +163,8 @@ test('Kostenstellen come from the Playwright API in cents, open ones first', asy
         incomeCent: 5000,
         balanceCent: 5000,
         bookings: 1,
-        years: [],
-        yearTotals: [],
+        years: [2026],
+        yearTotals: [{ year: 2026, ...zero, incomeCent: 5000, balanceCent: 5000, bookings: 1 }],
         categories: [
           {
             id: 'cat_spenden',
@@ -155,7 +174,7 @@ test('Kostenstellen come from the Playwright API in cents, open ones first', asy
             incomeCent: 5000,
             balanceCent: 5000,
             bookings: 1,
-            yearTotals: [],
+            yearTotals: [{ year: 2026, ...zero, incomeCent: 5000, balanceCent: 5000, bookings: 1 }],
           },
         ],
       },
@@ -214,7 +233,16 @@ test('Kostenstellen come from the Playwright API in cents, open ones first', asy
             balanceCent: 9000,
             openIncomeCent: 1000,
             bookings: 1,
-            yearTotals: [],
+            yearTotals: [
+              {
+                year: 2026,
+                ...zero,
+                incomeCent: 9000,
+                balanceCent: 9000,
+                openIncomeCent: 1000,
+                bookings: 1,
+              },
+            ],
           },
         ],
       },
@@ -255,4 +283,17 @@ test('Kostenstellen answer 502 with a message when CampFlow fails or answers non
   const unconfigured = await GetInternKostenstellenEndpoint(request());
   assert.equal(unconfigured.status, 502);
   assert.match(JSON.stringify(unconfigured.jsonBody), /kein CampFlow-Zugang/);
+});
+
+test('Kostenstellen without sums per year are refused instead of shown as 0', async (t) => {
+  const ohneJahre = structuredClone(ANSWER);
+  delete (ohneJahre.costUnits[1].categories[1] as { yearTotals?: unknown }).yearTotals;
+  mockPlaywright(t, 200, ohneJahre);
+  assert.equal((await GetInternKostenstellenEndpoint(request())).status, 502);
+
+  t.mock.restoreAll();
+  const ohneJahresliste = structuredClone(ANSWER);
+  delete (ohneJahresliste.costUnits[0] as { years?: unknown }).years;
+  mockPlaywright(t, 200, ohneJahresliste);
+  assert.equal((await GetInternKostenstellenEndpoint(request())).status, 502);
 });
