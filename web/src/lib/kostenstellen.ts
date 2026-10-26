@@ -1,4 +1,5 @@
 import type {
+  JahresSummen,
   KategorieStatistik,
   KostenstelleStatistik,
   KostenstellenSphaere,
@@ -49,13 +50,40 @@ const KEINE_SUMMEN: KostenstellenSummen = {
   bookings: 0,
 };
 
-/** The sums of the Kostenstelle in the year, or over the whole period for `null`. */
+/** The sums of a Kostenstelle or Kategorie in the year, or over the whole period for `null`. */
 export function summenImJahr(
-  kostenstelle: KostenstelleStatistik,
+  eintrag: KostenstellenSummen & { yearTotals: JahresSummen[] },
   jahr: number | null
 ): KostenstellenSummen {
+  if (jahr === null) return eintrag;
+  const summen = eintrag.yearTotals.find((s) => s.year === jahr) ?? KEINE_SUMMEN;
+  return {
+    incomeCent: summen.incomeCent,
+    expensesCent: summen.expensesCent,
+    balanceCent: summen.balanceCent,
+    openIncomeCent: summen.openIncomeCent,
+    openExpensesCent: summen.openExpensesCent,
+    bookings: summen.bookings,
+  };
+}
+
+/**
+ * The Kostenstelle as the view shows it for the year: its sums and those of every Kategorie
+ * (also one without bookings that year) only from that year; unchanged for `null`.
+ */
+export function imJahrGesehen(
+  kostenstelle: KostenstelleStatistik,
+  jahr: number | null
+): KostenstelleStatistik {
   if (jahr === null) return kostenstelle;
-  return kostenstelle.yearTotals.find((summen) => summen.year === jahr) ?? KEINE_SUMMEN;
+  return {
+    ...kostenstelle,
+    ...summenImJahr(kostenstelle, jahr),
+    categories: kostenstelle.categories.map((kategorie) => ({
+      ...kategorie,
+      ...summenImJahr(kategorie, jahr),
+    })),
+  };
 }
 
 /** The years with bookings of any Kostenstelle, newest first. */

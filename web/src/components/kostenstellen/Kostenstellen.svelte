@@ -9,6 +9,7 @@
     buchungen,
     gesamt,
     imJahr,
+    imJahrGesehen,
     inAnsicht,
     jahre,
     keineImJahr,
@@ -16,7 +17,6 @@
     SORTIERUNGEN,
     SPHAEREN,
     sortiere,
-    summenImJahr,
     treffer,
     type KostenstellenAnsicht,
     type KostenstellenSortierung,
@@ -50,10 +50,11 @@
   });
 
   function sichtbar(data: KostenstellenData): KostenstelleStatistik[] {
+    // With a year chosen, every number on the page is that year's
     return sortiere(
-      data.costUnits.filter(
-        (k) => inAnsicht(k, ansicht) && imJahr(k, jahr) && treffer(k, suche) !== null
-      ),
+      data.costUnits
+        .filter((k) => inAnsicht(k, ansicht) && imJahr(k, jahr) && treffer(k, suche) !== null)
+        .map((k) => imJahrGesehen(k, jahr)),
       sortierung
     );
   }
@@ -113,7 +114,7 @@
     {/snippet}
     {#snippet children(data: KostenstellenData)}
       {@const liste = sichtbar(data)}
-      {@const summe = gesamt(liste.map((k) => summenImJahr(k, jahr)))}
+      {@const summe = gesamt(liste)}
       <section aria-labelledby="kostenstellen-gesamt" class="surface-muted space-y-2 p-4">
         <h2 id="kostenstellen-gesamt" class="font-semibold text-brand-900">
           Summe aus {liste.length}
@@ -211,10 +212,7 @@
                       aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg
                     >
                   </span>
-                  <KostenstellenZahlen
-                    summen={kostenstelle}
-                    zeitraum={jahr !== null ? 'Alle Jahre' : undefined}
-                  />
+                  <KostenstellenZahlen summen={kostenstelle} />
                 </summary>
 
                 <div class="border-t border-neutral-200 px-4 pb-4">
@@ -236,10 +234,7 @@
                                 .join(' · ')}</span
                             >
                           </p>
-                          <KostenstellenZahlen
-                            summen={kategorie}
-                            zeitraum={jahr !== null ? 'Alle Jahre' : undefined}
-                          />
+                          <KostenstellenZahlen summen={kategorie} />
                         </li>
                       {/each}
                     </ul>

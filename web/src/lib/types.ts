@@ -1282,6 +1282,8 @@ export interface KategorieStatistik extends KostenstellenSummen {
   /** "" for bookings without a Kategorie. */
   name: string;
   sphere: KostenstellenSphaere | null;
+  /** The sums of each year with bookings in this Kategorie. */
+  yearTotals: JahresSummen[];
 }
 
 export interface KostenstelleStatistik extends KostenstellenSummen {
