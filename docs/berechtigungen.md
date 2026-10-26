@@ -31,7 +31,7 @@ Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leiten
    `/kein-zugang` (`responseOverrides.403`) mit einem Knopf zum Ab- und Neuanmelden.
 5. Die API prüft zusätzlich: `requireStaff` verlangt `team_leitende` (sonst `403 NOT_IN_TEAM`),
    die Belege prüfen `hasTeam(principal, 'kasse')`, die Kostenstellen
-   (`GET /api/intern/kostenstellen`) `kasse` oder `vorstand`. Menü, Suche und Startseite zeigen
+   (`GET /api/intern/kostenstellen/summen`) `kasse` oder `vorstand`. Menü, Suche und Startseite zeigen
    die Seite `/leitendenbereich/kostenstellen` nur mit einer der beiden Rollen (`roles` in
    `staffModules.ts`); wer sie ohne aufruft, sieht nur die Fehlermeldung der API.
 

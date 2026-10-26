@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
 import * as env from '../lib/environment';
-import { GetInternKostenstellenEndpoint } from '../endpoints/intern-kostenstellen';
+import { GetInternKostenstellenSummenEndpoint } from '../endpoints/intern-kostenstellen-summen';
 
 const KASSE = {
   identityProvider: 'aad',
@@ -14,7 +14,7 @@ const KASSE = {
 
 function request(query = '', principal: object | null = KASSE): HttpRequest {
   return new HttpRequest({
-    url: `https://example.test/api/intern/kostenstellen${query}`,
+    url: `https://example.test/api/intern/kostenstellen/summen${query}`,
     method: 'GET',
     headers: principal
       ? { 'x-ms-client-principal': Buffer.from(JSON.stringify(principal)).toString('base64') }
@@ -116,7 +116,7 @@ const ANSWER = {
 
 test('Kostenstellen need a login', async (t) => {
   const fetch = mockPlaywright(t, 200, ANSWER);
-  const response = await GetInternKostenstellenEndpoint(request('', null));
+  const response = await GetInternKostenstellenSummenEndpoint(request('', null));
   assert.equal(response.status, 401);
   assert.equal(fetch.mock.callCount(), 0);
 });
@@ -124,20 +124,20 @@ test('Kostenstellen need a login', async (t) => {
 test('Kostenstellen are only for the teams Kasse and Vorstand', async (t) => {
   const fetch = mockPlaywright(t, 200, ANSWER);
   const leitende = { ...KASSE, userRoles: ['authenticated', 'team_leitende'] };
-  const response = await GetInternKostenstellenEndpoint(request('', leitende));
+  const response = await GetInternKostenstellenSummenEndpoint(request('', leitende));
   assert.equal(response.status, 403);
   assert.equal(fetch.mock.callCount(), 0);
 
   const vorstand = { ...KASSE, userRoles: ['authenticated', 'team_leitende', 'team_vorstand'] };
-  assert.equal((await GetInternKostenstellenEndpoint(request('', vorstand))).status, 200);
+  assert.equal((await GetInternKostenstellenSummenEndpoint(request('', vorstand))).status, 200);
   // The Leitendenbereich itself still needs the team Leitende
   const nurVorstand = { ...KASSE, userRoles: ['authenticated', 'team_vorstand'] };
-  assert.equal((await GetInternKostenstellenEndpoint(request('', nurVorstand))).status, 403);
+  assert.equal((await GetInternKostenstellenSummenEndpoint(request('', nurVorstand))).status, 403);
 });
 
 test('Kostenstellen come from the Playwright API in cents, open ones first', async (t) => {
   const fetch = mockPlaywright(t, 200, ANSWER);
-  const response = await GetInternKostenstellenEndpoint(request());
+  const response = await GetInternKostenstellenSummenEndpoint(request());
   assert.equal(response.status, 200);
   assert.deepEqual(response.headers, { 'Cache-Control': 'no-store' });
   const url = new URL(String(fetch.mock.calls[0].arguments[0]));
@@ -262,7 +262,7 @@ test('Kostenstellen come from the Playwright API in cents, open ones first', asy
 
 test('Kostenstellen are exported again on request', async (t) => {
   const fetch = mockPlaywright(t, 200, ANSWER);
-  const response = await GetInternKostenstellenEndpoint(request('?refresh=true'));
+  const response = await GetInternKostenstellenSummenEndpoint(request('?refresh=true'));
   assert.equal(response.status, 200);
   const url = new URL(String(fetch.mock.calls[0].arguments[0]));
   assert.equal(url.searchParams.get('refresh'), 'true');
@@ -270,17 +270,17 @@ test('Kostenstellen are exported again on request', async (t) => {
 
 test('Kostenstellen answer 502 with a message when CampFlow fails or answers nonsense', async (t) => {
   mockPlaywright(t, 502, { error: 'Export abgebrochen' });
-  const failed = await GetInternKostenstellenEndpoint(request());
+  const failed = await GetInternKostenstellenSummenEndpoint(request());
   assert.equal(failed.status, 502);
   assert.match(JSON.stringify(failed.jsonBody), /KOSTENSTELLEN_UNAVAILABLE/);
 
   t.mock.restoreAll();
   mockPlaywright(t, 200, { exportedAt: 'gestern', costUnits: [] });
-  assert.equal((await GetInternKostenstellenEndpoint(request())).status, 502);
+  assert.equal((await GetInternKostenstellenSummenEndpoint(request())).status, 502);
 
   t.mock.restoreAll();
   mockPlaywright(t, 503, { error: 'nicht konfiguriert' });
-  const unconfigured = await GetInternKostenstellenEndpoint(request());
+  const unconfigured = await GetInternKostenstellenSummenEndpoint(request());
   assert.equal(unconfigured.status, 502);
   assert.match(JSON.stringify(unconfigured.jsonBody), /kein CampFlow-Zugang/);
 });
@@ -289,11 +289,11 @@ test('Kostenstellen without sums per year are refused instead of shown as 0', as
   const ohneJahre = structuredClone(ANSWER);
   delete (ohneJahre.costUnits[1].categories[1] as { yearTotals?: unknown }).yearTotals;
   mockPlaywright(t, 200, ohneJahre);
-  assert.equal((await GetInternKostenstellenEndpoint(request())).status, 502);
+  assert.equal((await GetInternKostenstellenSummenEndpoint(request())).status, 502);
 
   t.mock.restoreAll();
   const ohneJahresliste = structuredClone(ANSWER);
   delete (ohneJahresliste.costUnits[0] as { years?: unknown }).years;
   mockPlaywright(t, 200, ohneJahresliste);
-  assert.equal((await GetInternKostenstellenEndpoint(request())).status, 502);
+  assert.equal((await GetInternKostenstellenSummenEndpoint(request())).status, 502);
 });

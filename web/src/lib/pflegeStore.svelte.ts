@@ -175,7 +175,8 @@ export const beitraegeStore = createResource<BeitraegeData, boolean>(
 
 /** Sums per Kostenstelle and Kategorie, read-only; `true` as param exports CampFlow's report again. */
 export const kostenstellenStore = createResource<KostenstellenData, boolean>(
-  (refresh) => (refresh ? '/intern/kostenstellen?refresh=true' : '/intern/kostenstellen'),
+  (refresh) =>
+    refresh ? '/intern/kostenstellen/summen?refresh=true' : '/intern/kostenstellen/summen',
   {
     idle: true,
     loadError:
