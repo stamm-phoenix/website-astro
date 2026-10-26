@@ -121,9 +121,7 @@ export function fetchKostenstellen({
   kostenstellenPromise = (async () => {
     try {
       const data = await fetchApi<Kostenstelle[]>(
-        refresh
-          ? '/intern/kostenstellen?refresh=true'
-          : '/intern/kostenstellen'
+        refresh ? '/intern/kostenstellen?refresh=true' : '/intern/kostenstellen'
       );
       if (request === kostenstellenRequest) kostenstellenStore.data = data;
     } catch (error: unknown) {

@@ -524,7 +524,7 @@ test('choosing a suggestion on an existing receipt asks before discarding the ch
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
   const editor = page.getByRole('dialog', { name: `Beleg von ${receipt.shop}` });
-  await editor.getByLabel('Kostenstelle oder Kategorie suchen').fill('leite');
+  await editor.getByLabel('Kostenstelle', { exact: true }).fill('leite');
   await editor
     .getByRole('listbox', { name: 'Kostenstelle oder Kategorie auswählen' })
     .getByRole('option', { name: 'Leitendenrunde' })
@@ -546,7 +546,12 @@ for (const decision of [
     const records = (await (
       await page.request.get('/api/intern/pflege/belege')
     ).json()) as StaffBeleg[];
-    const receipt = records.find((item) => item.status === decision.source)!;
+    // A shop named once, as other tests on this demo server submit the same shop again
+    const receipt = records.find(
+      (item) =>
+        item.status === decision.source &&
+        records.filter((other) => other.shop === item.shop).length === 1
+    )!;
     let saved: Record<string, unknown> | undefined;
     await page.route(`**/api/intern/pflege/belege/${receipt.id}`, async (route) => {
       if (route.request().method() !== 'PATCH') return route.continue();

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import {
   kategorieSchreibweise,
   kategorieVorschlaege,
-  readZuordnungTreffer,
+  zuordnungTreffer,
   zuordnungStand,
   zuordnungVorschlaege,
 } from '../src/lib/belegZuordnung';
@@ -34,7 +34,7 @@ const UNITS = [
 test('the search finds Kostenstellen and Kategorien by their own names', () => {
   const { matches } = filterVorschlaege(zuordnungVorschlaege(UNITS, 'leite'), 'leite', 20);
   assert.deepEqual(
-    matches.map((m) => [m.gruppe, readZuordnungTreffer(m.value)]),
+    matches.map((m) => [m.gruppe, zuordnungTreffer(UNITS, m)]),
     [
       ['Kostenstellen', { kostenstelle: 'Leitendenlager 2026', kategorie: null }],
       ['Kategorie in Allgemein', { kostenstelle: 'Allgemein', kategorie: 'Leitendenrunde' }],
@@ -91,7 +91,7 @@ test('more words narrow the many Kategorien of the same name down to their Koste
   assert.equal(search('verpflegung').total, 15);
   const narrowed = search('Verpflegung  stammes');
   assert.deepEqual(
-    narrowed.matches.map((m) => readZuordnungTreffer(m.value)),
+    narrowed.matches.map((m) => zuordnungTreffer(units, m)),
     [{ kostenstelle: 'Stammeslager 2026', kategorie: 'Verpflegung' }]
   );
   // Words only in the Kostenstelle find it, not each of its Kategorien
@@ -99,4 +99,19 @@ test('more words narrow the many Kategorien of the same name down to their Koste
     search('stammeslager 2026').matches.map((m) => m.gruppe),
     ['Kostenstellen']
   );
+});
+
+test('a suggestion fills the Kostenstelle in, a Kategorie also its own', () => {
+  const [unit, category] = [
+    ...zuordnungVorschlaege(UNITS, 'leitendenlager'),
+    ...zuordnungVorschlaege(UNITS, 'runde'),
+  ];
+  assert.deepEqual(
+    [unit?.value, category?.value, category?.label],
+    ['Leitendenlager 2026', 'Allgemein', 'Leitendenrunde']
+  );
+  assert.deepEqual(zuordnungTreffer(UNITS, category!), {
+    kostenstelle: 'Allgemein',
+    kategorie: 'Leitendenrunde',
+  });
 });

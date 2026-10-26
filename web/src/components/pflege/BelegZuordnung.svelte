@@ -6,11 +6,12 @@
   import { fetchKostenstellen, kostenstellenStore } from '../../lib/abrechnungStore.svelte';
   import { matchingKostenstelle, type BelegForm } from '../../lib/belegForm';
   import {
-    kategorieVorschlaege,
+    isStandardKategorie,
     kategorieSchreibweise,
-    kostenstelleVorschlaege,
-    readZuordnungTreffer,
+    kategorieVorschlaege,
+    sameName,
     zuordnungStand,
+    zuordnungTreffer,
     zuordnungVorschlaege,
   } from '../../lib/belegZuordnung';
   import type { Vorschlag } from '../../lib/vorschlaege';
@@ -24,10 +25,9 @@
 
   const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   const units = $derived(kostenstellenStore.data ?? []);
-  let suche = $state('');
-
-  const treffer = $derived(zuordnungVorschlaege(units, suche));
-  const kostenstellen = $derived(kostenstelleVorschlaege(units));
+  const kostenstellen = $derived(zuordnungVorschlaege(units, form.kostenstelle));
+  /** The field Kostenstelle is a search too: what is being typed there is no new name yet. */
+  let suchtKostenstelle = $state(false);
   const kategorien = $derived(kategorieVorschlaege(units, form.kostenstelle));
   const stand = $derived(
     zuordnungStand(kostenstellenStore.data, form.kostenstelle, form.kategorie)
@@ -43,41 +43,19 @@
     untrack(() => void fetchKostenstellen());
   });
 
+  /** A Kategorie fills both fields; a Kostenstelle keeps a Kategorie that suits it. */
   function pick(option: Vorschlag): void {
-    const { kostenstelle, kategorie } = readZuordnungTreffer(option.value);
+    const { kostenstelle, kategorie } = zuordnungTreffer(units, option);
     form.kostenstelle = kostenstelle;
-    // Only the Kostenstelle: its Kategorie is picked next
-    form.kategorie = kategorie ?? '';
-    onfield('kostenstelle');
+    const own = units.find((unit) => sameName(unit.name, kostenstelle))?.categories ?? [];
+    const fits =
+      isStandardKategorie(form.kategorie) || own.some((c) => sameName(c.name, form.kategorie));
+    if (kategorie !== null || !fits) form.kategorie = kategorie ?? '';
     onfield('kategorie');
-    notifyEdited?.();
   }
 </script>
 
 <div class="space-y-3 sm:col-span-2">
-  <FormField id="bl-zuordnung" label="Kostenstelle oder Kategorie suchen" optional>
-    {#snippet children(attrs)}
-      <VorschlagFeld
-        {...attrs}
-        maxlength={120}
-        placeholder="z. B. Leitendenrunde oder Stammeslager"
-        options={treffer}
-        maxResults={12}
-        loading={kostenstellenStore.loading}
-        listLabel="Kostenstelle oder Kategorie auswählen"
-        clearOnPick
-        pickFirstOnEnter
-        bind:value={suche}
-        onpick={pick}
-        oncommit={() => {
-          // Only a search: what was typed without picking is no change of the receipt
-          suche = '';
-          notifyEdited?.();
-        }}
-      />
-    {/snippet}
-  </FormField>
-
   {#if bisher}
     <p class="text-sm text-neutral-800">
       Bisher angegeben: Aktion „{bisher.aktion}“.
@@ -96,21 +74,27 @@
   {/if}
 
   <div class="grid gap-4 sm:grid-cols-2">
-    <FormField id="bl-kostenstelle" label="Kostenstelle" error={errors.kostenstelle}>
-      {#snippet children(attrs)}
-        <VorschlagFeld
-          {...attrs}
-          maxlength={120}
-          placeholder="Auswählen oder neu eingeben"
-          options={kostenstellen}
-          maxResults={12}
-          loading={kostenstellenStore.loading}
-          listLabel="Kostenstelle auswählen"
-          bind:value={form!.kostenstelle}
-          onedit={() => onfield('kostenstelle')}
-        />
-      {/snippet}
-    </FormField>
+    <div
+      onfocusin={() => (suchtKostenstelle = true)}
+      onfocusout={() => (suchtKostenstelle = false)}
+    >
+      <FormField id="bl-kostenstelle" label="Kostenstelle" error={errors.kostenstelle}>
+        {#snippet children(attrs)}
+          <VorschlagFeld
+            {...attrs}
+            maxlength={120}
+            placeholder="Suchen, z. B. Leitendenrunde"
+            options={kostenstellen}
+            maxResults={12}
+            loading={kostenstellenStore.loading}
+            listLabel="Kostenstelle oder Kategorie auswählen"
+            bind:value={form!.kostenstelle}
+            onedit={() => onfield('kostenstelle')}
+            onpick={pick}
+          />
+        {/snippet}
+      </FormField>
+    </div>
     <FormField id="bl-kategorie" label="Kategorie" error={errors.kategorie}>
       {#snippet children(attrs)}
         <VorschlagFeld
@@ -134,7 +118,7 @@
       Die Kostenstelle „{form.kostenstelle.trim()}“ ist in CampFlow archiviert. Bitte wähle eine
       andere.
     </p>
-  {:else if stand && (stand.neueKostenstelle || stand.neueKategorie)}
+  {:else if stand && (stand.neueKostenstelle ? !suchtKostenstelle : stand.neueKategorie)}
     <p role="status" class="rounded-md bg-warning-soft p-3 text-sm text-warning">
       {#if stand.neueKostenstelle}
         Die Kostenstelle „{form.kostenstelle.trim()}“ gibt es in CampFlow noch nicht. Sie wird beim
