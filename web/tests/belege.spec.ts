@@ -140,7 +140,7 @@ test('the search finds Kostenstellen and Kategorien and fills the fields', async
 
 test('Neu laden brings Kategorien changed in CampFlow into the search', async ({ page }) => {
   let reads = 0;
-  await page.route('**/api/intern/abrechnung/kostenstellen*', async (route) => {
+  await page.route('**/api/intern/kostenstellen*', async (route) => {
     const response = await route.fetch();
     const units = (await response.json()) as Array<{
       id: string;
@@ -180,7 +180,7 @@ test('a late answer of an earlier Kostenstellen read keeps the newer Kategorien'
   let oldAnswered = false;
   let releaseOld!: () => void;
   const oldHeld = new Promise<void>((resolve) => (releaseOld = resolve));
-  await page.route('**/api/intern/abrechnung/kostenstellen*', async (route) => {
+  await page.route('**/api/intern/kostenstellen*', async (route) => {
     const read = ++reads;
     const response = await route.fetch();
     const units = (await response.json()) as Array<{ id: string; categories: unknown[] }>;

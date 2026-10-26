@@ -446,11 +446,12 @@ app.http('internAktionBeitraege', {
   handler: GetInternAktionBeitraegeEndpoint,
 });
 
-// Registered before `intern/abrechnung/{id}`, which would otherwise catch it
-app.http('internAbrechnungKostenstellen', {
+// Not under `intern/abrechnung/`: the host sends that path to `intern/abrechnung/{id}`, whatever
+// the order of registration
+app.http('internKostenstellen', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'intern/abrechnung/kostenstellen',
+  route: 'intern/kostenstellen',
   handler: GetInternAbrechnungKostenstellenEndpoint,
 });
 
