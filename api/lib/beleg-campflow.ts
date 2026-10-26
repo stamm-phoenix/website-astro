@@ -20,7 +20,13 @@ import {
 } from './db';
 import { PREVIEW_DATABASE } from './deployment';
 import { EnvironmentVariable, getEnvironment } from './environment';
-import { PlaywrightApiError, getKostenstellen, uploadCampflowBeleg } from './playwright-api';
+import type { Kostenstelle } from './playwright-api';
+import {
+  PlaywrightApiError,
+  ensureCampflowExpenseAssignment,
+  getKostenstellen,
+  uploadCampflowBeleg,
+} from './playwright-api';
 import { errorResponse } from './response-utils';
 
 /**
@@ -33,6 +39,9 @@ import { errorResponse } from './response-utils';
  *   a repeat keeps file name, Kostenstelle and Kategorie of the first attempt.
  * - `Fehlgeschlagen`: the Playwright API answered before writing anything (unknown Kategorie,
  *   archived Kostenstelle, …); the next attempt may pick another Kostenstelle.
+ *
+ * The receipt is booked on the Kostenstelle and Kategorie it names (`resolveTarget`); whichever
+ * of them CampFlow lacks is created before the attempt is stored.
  * - `Hochgeladen`: booked in CampFlow with a number. Only then is the receipt deleted.
  */
 
@@ -63,11 +72,14 @@ export class BelegCampflowError extends Error {
   }
 }
 
-export interface BelegCampflowChoice {
+/** Where a receipt is booked in CampFlow. */
+export interface BelegCampflowTarget {
   /** `cun_…` */
   costUnitId: string;
+  costUnitName: string;
   /** `cat_…` */
   categoryId: string;
+  categoryName: string;
 }
 
 export interface BelegCampflowResult {
@@ -109,12 +121,47 @@ export function campflowDisburser(beleg: StoredBeleg): string | null {
   return beleg.payout && beleg.paidBy.trim() ? beleg.paidBy.trim() : null;
 }
 
-async function resolveChoice(
-  choice: BelegCampflowChoice
-): Promise<{ costUnitName: string; categoryName: string }> {
-  let units;
+/** Sphäre of a Kategorie the transfer creates: like every Kategorie of the Aktionen so far. */
+const NEW_CATEGORY_SPHERE = 'purpose';
+
+const sameName = (a: string, b: string): boolean =>
+  a.trim().toLocaleLowerCase('de') === b.trim().toLocaleLowerCase('de');
+
+/** The Kostenstelle and Kategorie of that name, an archived Kostenstelle only if no other has it. */
+function findTarget(
+  units: Kostenstelle[],
+  costUnitName: string,
+  categoryName: string
+): { unit?: Kostenstelle; category?: { id: string; name: string } } {
+  const matches = units.filter((unit) => sameName(unit.name, costUnitName));
+  const unit = matches.find((u) => !u.archived) ?? matches[0];
+  return { unit, category: unit?.categories.find((c) => sameName(c.name, categoryName)) };
+}
+
+/**
+ * The Kostenstelle and Kategorie the receipt names, by their IDs in CampFlow. One that does not
+ * exist there yet, e.g. typed in or one of the standard Kategorien, is created first; that is
+ * safe to repeat, as an existing name is found and not created again.
+ */
+async function resolveTarget(beleg: StoredBeleg): Promise<BelegCampflowTarget> {
+  const costUnitName = beleg.kostenstelle.trim();
+  const categoryName = beleg.kategorie.trim();
+  if (!costUnitName || !categoryName) {
+    throw new BelegCampflowError(
+      400,
+      'NO_TARGET',
+      'Bitte zuerst Kostenstelle und Kategorie eintragen.'
+    );
+  }
+  const archived = (name: string): BelegCampflowError =>
+    new BelegCampflowError(
+      422,
+      'KOSTENSTELLE_ARCHIVED',
+      `Die Kostenstelle „${name}“ ist in CampFlow archiviert.`
+    );
+  let found: ReturnType<typeof findTarget>;
   try {
-    units = await getKostenstellen();
+    found = findTarget(await getKostenstellen(), costUnitName, categoryName);
   } catch (error: unknown) {
     if (!(error instanceof PlaywrightApiError)) throw error;
     throw new BelegCampflowError(
@@ -123,23 +170,35 @@ async function resolveChoice(
       'Die Kostenstellen konnten nicht aus CampFlow geladen werden. Es wurde nichts übertragen.'
     );
   }
-  const unit = units.find(({ id }) => id === choice.costUnitId);
-  const category = unit?.categories.find(({ id }) => id === choice.categoryId);
-  if (!unit || !category) {
-    throw new BelegCampflowError(
-      400,
-      'INVALID_CHOICE',
-      'Diese Kostenstelle oder Kategorie gibt es in CampFlow nicht (mehr). Bitte neu wählen.'
-    );
+  if (found.unit?.archived) throw archived(found.unit.name);
+  if (!found.unit || !found.category) {
+    try {
+      await ensureCampflowExpenseAssignment(costUnitName, categoryName, NEW_CATEGORY_SPHERE);
+      found = findTarget(await getKostenstellen({ refresh: true }), costUnitName, categoryName);
+    } catch (error: unknown) {
+      if (!(error instanceof PlaywrightApiError)) throw error;
+      if (error.status === 409) throw archived(costUnitName);
+      throw new BelegCampflowError(
+        502,
+        'TARGET_NOT_CREATED',
+        `„${costUnitName}“ mit der Kategorie „${categoryName}“ konnte in CampFlow nicht angelegt werden. Der Beleg wurde nicht übertragen. Bitte versuche es noch einmal.`,
+        { cause: error }
+      );
+    }
+    if (!found.unit || !found.category) {
+      throw new BelegCampflowError(
+        502,
+        'TARGET_NOT_CREATED',
+        `„${costUnitName}“ mit der Kategorie „${categoryName}“ ist nach dem Anlegen nicht in CampFlow zu finden. Der Beleg wurde nicht übertragen. Bitte lade die Seite neu und versuche es noch einmal.`
+      );
+    }
   }
-  if (unit.archived) {
-    throw new BelegCampflowError(
-      422,
-      'KOSTENSTELLE_ARCHIVED',
-      `Die Kostenstelle „${unit.name}“ ist in CampFlow archiviert.`
-    );
-  }
-  return { costUnitName: unit.name, categoryName: category.name };
+  return {
+    costUnitId: found.unit.id,
+    costUnitName: found.unit.name,
+    categoryId: found.category.id,
+    categoryName: found.category.name,
+  };
 }
 
 /** The receipt as it goes to CampFlow, kept with the transfer once the receipt is deleted. */
@@ -164,7 +223,7 @@ function snapshot(beleg: StoredBeleg) {
  */
 async function startAttempt(
   beleg: StoredBeleg,
-  choice: BelegCampflowChoice & { costUnitName: string; categoryName: string },
+  choice: BelegCampflowTarget,
   fileName: string,
   previous: Selectable<BelegCampflowTable> | undefined,
   actor: string
@@ -252,7 +311,6 @@ async function finishAttempt(
 export async function transferBelegToCampflow(
   id: number,
   etag: string,
-  choice: BelegCampflowChoice,
   actor: string
 ): Promise<BelegCampflowResult> {
   const beleg = await getBeleg(id);
@@ -303,7 +361,7 @@ export async function transferBelegToCampflow(
 
     // After an unclear attempt the same file name, Kostenstelle and Kategorie must be used again,
     // or the Playwright API would not find what that attempt may have created.
-    const target =
+    const target: BelegCampflowTarget =
       row?.state === 'Gestartet'
         ? {
             costUnitId: row.costunit_id,
@@ -311,7 +369,7 @@ export async function transferBelegToCampflow(
             costUnitName: row.costunit_name,
             categoryName: row.category_name,
           }
-        : { ...choice, ...(await resolveChoice(choice)) };
+        : await resolveTarget(beleg);
     const fileName = row?.file_name ?? campflowFileName(beleg);
     const attempt = await startAttempt(beleg, target, fileName, row, actor);
 

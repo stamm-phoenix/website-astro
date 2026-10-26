@@ -1080,7 +1080,9 @@ export async function seedPreviewBelege(now: Date = new Date()): Promise<void> {
         amountCent: beleg.amountCent,
         paidBy: 'Lea Leiterin',
         payout: true,
-        aktion: 'Stammeswochenende (Testdaten)',
+        // Both exist in CampFlow, so a test transfer from a preview creates nothing there
+        kostenstelle: 'Allgemein',
+        kategorie: 'Material',
         note: '',
         status: beleg.status,
         reviewNote: beleg.reviewNote,

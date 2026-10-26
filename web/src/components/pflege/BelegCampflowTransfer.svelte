@@ -2,19 +2,14 @@
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
-  import LoadState from '../ui/LoadState.svelte';
   import { fetchKostenstellen, kostenstellenStore } from '../../lib/abrechnungStore.svelte';
-  import {
-    formatTimestamp,
-    matchingKostenstelle,
-    type BelegForm,
-    type CampflowChoice,
-  } from '../../lib/belegForm';
+  import { formatTimestamp, type BelegForm } from '../../lib/belegForm';
+  import { zuordnungStand } from '../../lib/belegZuordnung';
 
   interface Props {
     form: BelegForm;
     busy: boolean;
-    ontransfer: (choice: CampflowChoice) => void;
+    ontransfer: () => void;
   }
   let { form, busy, ontransfer }: Props = $props();
 
@@ -22,64 +17,24 @@
   /** After an unclear attempt only the same Kostenstelle and Kategorie find what it created. */
   const locked = $derived(transfer?.state === 'Gestartet');
   const uploaded = $derived(transfer?.state === 'Hochgeladen');
-  const units = $derived((kostenstellenStore.data ?? []).filter((k) => !k.archived));
-
-  let costUnitId = $state('');
-  let categoryId = $state('');
-  const categories = $derived(units.find((k) => k.id === costUnitId)?.categories ?? []);
+  const kostenstelle = $derived(form.kostenstelle.trim());
+  const kategorie = $derived(form.kategorie.trim());
+  const stand = $derived(zuordnungStand(kostenstellenStore.data, kostenstelle, kategorie));
+  /** What the transfer creates in CampFlow before it books; a standard Kategorie goes unmentioned. */
+  const neu = $derived.by(() => {
+    if (locked || !stand || stand.archiviert) return null;
+    if (stand.neueKostenstelle) {
+      return `Dabei wird in CampFlow die Kostenstelle „${kostenstelle}“ mit der Kategorie „${kategorie}“ neu angelegt.`;
+    }
+    if (stand.neueKategorie) {
+      return `Dabei wird in „${kostenstelle}“ die Kategorie „${kategorie}“ neu angelegt.`;
+    }
+    return null;
+  });
 
   $effect(() => {
     untrack(() => void fetchKostenstellen());
   });
-
-  // After an unclear attempt the server books on its target whatever is chosen here, so the
-  // dialog always shows that target, also when the state arrives after a choice was made
-  $effect(() => {
-    const last = transfer;
-    if (last?.state !== 'Gestartet') return;
-    untrack(() => {
-      costUnitId = last.costUnitId;
-      categoryId = last.categoryId;
-    });
-  });
-
-  // Preselect the last attempt's choice, or the Kostenstelle named like the Aktion
-  $effect(() => {
-    const data = kostenstellenStore.data;
-    const last = transfer;
-    untrack(() => {
-      if (!data || costUnitId) return;
-      if (last && last.state !== 'Hochgeladen') {
-        costUnitId = last.costUnitId;
-        categoryId = last.categoryId;
-        return;
-      }
-      const match = matchingKostenstelle(form.aktion, data);
-      if (!match) return;
-      costUnitId = match.id;
-      if (match.categories.length === 1) categoryId = match.categories[0]!.id;
-    });
-  });
-
-  // A Kostenstelle or Kategorie gone from CampFlow since it was chosen is chosen no longer
-  $effect(() => {
-    const available = units;
-    if (locked) return;
-    untrack(() => {
-      if (costUnitId && !available.some((k) => k.id === costUnitId)) {
-        costUnitId = '';
-        categoryId = '';
-      } else if (categoryId && !categories.some((c) => c.id === categoryId)) {
-        categoryId = '';
-      }
-    });
-  });
-
-  function selectCostUnit(id: string): void {
-    costUnitId = id;
-    const options = units.find((k) => k.id === id)?.categories ?? [];
-    categoryId = options.length === 1 ? options[0]!.id : '';
-  }
 </script>
 
 <div class="space-y-3 border-t border-neutral-200 pt-4">
@@ -109,69 +64,28 @@
         Der letzte Versuch hat nichts in CampFlow angelegt: {transfer.error}
       </p>
     {/if}
-    <LoadState
-      data={kostenstellenStore.data}
-      loading={kostenstellenStore.loading}
-      error={kostenstellenStore.error}
-      loadingText="Kostenstellen werden geladen …"
-      onretry={() => fetchKostenstellen({ force: true })}
-    >
-      {#snippet skeleton()}
-        <p aria-hidden="true" class="text-sm text-neutral-700">Kostenstellen werden geladen …</p>
-      {/snippet}
-      <div class="grid gap-3 sm:grid-cols-2">
-        <label class="block text-sm">
-          <span class="font-semibold text-neutral-700">Kostenstelle</span>
-          <select
-            class="form-input mt-1"
-            value={costUnitId}
-            disabled={locked || busy}
-            onchange={(event) => selectCostUnit(event.currentTarget.value)}
-          >
-            <option value="" disabled={!!costUnitId}>Kostenstelle wählen …</option>
-            {#each units as unit (unit.id)}
-              <option value={unit.id}>{unit.name}</option>
-            {/each}
-            {#if locked && transfer && !units.some((k) => k.id === transfer.costUnitId)}
-              <option value={transfer.costUnitId}>{transfer.costUnitName}</option>
-            {/if}
-          </select>
-        </label>
-        <label class="block text-sm">
-          <span class="font-semibold text-neutral-700">Kategorie</span>
-          <select
-            class="form-input mt-1"
-            bind:value={categoryId}
-            disabled={locked || busy || !costUnitId}
-          >
-            <option value="" disabled={!!categoryId}>Kategorie wählen …</option>
-            {#each categories as category (category.id)}
-              <option value={category.id}>{category.name}</option>
-            {/each}
-            {#if locked && transfer && !categories.some((c) => c.id === transfer.categoryId)}
-              <option value={transfer.categoryId}>{transfer.categoryName}</option>
-            {/if}
-          </select>
-        </label>
-      </div>
-      {#if costUnitId && categories.length === 0 && !locked}
-        <p class="text-sm text-neutral-700">
-          Diese Kostenstelle hat in CampFlow keine Kategorien.
-          <button
-            type="button"
-            class="text-link min-h-11 underline underline-offset-4"
-            disabled={kostenstellenStore.loading}
-            onclick={() => void fetchKostenstellen({ refresh: true })}
-            >{kostenstellenStore.loading ? 'Lädt …' : 'Neu aus CampFlow laden'}</button
-          >
+    {#if locked && transfer}
+      <p class="text-sm text-neutral-800">
+        Wird wie beim letzten Versuch gebucht auf <strong>{transfer.costUnitName}</strong> ·
+        <strong>{transfer.categoryName}</strong>.
+      </p>
+    {:else if kostenstelle && kategorie}
+      <p class="text-sm text-neutral-800">
+        Wird gebucht auf <strong>{kostenstelle}</strong> · <strong>{kategorie}</strong>.
+      </p>
+      {#if neu}
+        <p role="status" class="rounded-md bg-warning-soft p-3 text-sm text-warning">
+          {neu} Prüfe die Schreibweise, damit nichts doppelt entsteht.
         </p>
       {/if}
-    </LoadState>
+    {:else}
+      <p class="text-sm text-neutral-800">Bitte oben Kostenstelle und Kategorie eintragen.</p>
+    {/if}
     <ActionButton
       variant="primary"
       type="button"
-      disabled={busy || !costUnitId || !categoryId}
-      onclick={() => ontransfer({ costUnitId, categoryId })}
+      disabled={busy || (!locked && (!kostenstelle || !kategorie || !!stand?.archiviert))}
+      onclick={ontransfer}
       >{transfer ? 'Erneut übertragen' : 'Nach CampFlow übertragen'}</ActionButton
     >
   {/if}

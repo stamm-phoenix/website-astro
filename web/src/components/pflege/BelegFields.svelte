@@ -1,33 +1,19 @@
 <script lang="ts">
-  import { getContext } from 'svelte';
+  import BelegZuordnung from './BelegZuordnung.svelte';
   import FormField from './FormField.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import { todayIso } from '../../lib/format';
-  import {
-    applyZahlung,
-    knownBelegAktion,
-    type BelegForm,
-    type BelegZahlung,
-  } from '../../lib/belegForm';
+  import { applyZahlung, type BelegForm, type BelegZahlung } from '../../lib/belegForm';
   import { belegPersonen, fetchBelegPersonen } from '../../lib/belegPersonen.svelte';
-  import { campflowEventsStore } from '../../lib/campflowStore.svelte';
   interface Props {
     form: BelegForm;
     errors: Record<string, string>;
-    aktionSuggestions: string[];
     /** The name of the logged-in person, for the own Auslage. */
     myName: string;
     onpayment: () => void;
     onfield: (field: string) => void;
   }
-  let {
-    form = $bindable(),
-    errors,
-    aktionSuggestions,
-    myName,
-    onpayment,
-    onfield,
-  }: Props = $props();
+  let { form = $bindable(), errors, myName, onpayment, onfield }: Props = $props();
 
   const ZAHLUNGEN: { value: BelegZahlung; label: string }[] = [
     { value: 'ich', label: 'Mit meinem Geld – bitte an mich auszahlen' },
@@ -36,25 +22,11 @@
     { value: 'sparbuch', label: 'Umbuchung aufs Sparbuch' },
   ];
   const personen = $derived(belegPersonen.names.map((name) => ({ value: name })));
-  const aktionen = $derived(aktionSuggestions.map((title) => ({ value: title })));
 
   // Names from the module „Personen“ to pick from; any other name can be typed
   $effect(() => {
     if (form.zahlung === 'andere') void fetchBelegPersonen();
   });
-  const notifyEdited = getContext<(() => void) | undefined>('form-edited');
-  const unknownAktion = $derived(
-    !!form.aktion.trim() && !knownBelegAktion(form.aktion, aktionSuggestions)
-  );
-  const relatedAktionen = $derived(
-    unknownAktion
-      ? aktionSuggestions
-          .filter((title) =>
-            title.toLocaleLowerCase('de').includes(form.aktion.trim().toLocaleLowerCase('de'))
-          )
-          .slice(0, 3)
-      : []
-  );
 </script>
 
 <div class="grid gap-4 sm:grid-cols-2">
@@ -95,44 +67,7 @@
       />
     {/snippet}
   </FormField>
-  <FormField id="bl-aktion" label="Aktion" error={errors.aktion} class="sm:col-span-2">
-    {#snippet children(attrs)}
-      <VorschlagFeld
-        {...attrs}
-        maxlength={120}
-        placeholder="z. B. Sommerlager oder Gruppenstunde Wölflinge"
-        options={aktionen}
-        loading={campflowEventsStore.loading}
-        listLabel="Aktion auswählen"
-        bind:value={form!.aktion}
-        onedit={() => onfield('aktion')}
-      />
-      {#if unknownAktion}
-        <div class="mt-2 text-sm text-neutral-700" aria-live="polite">
-          {#if relatedAktionen.length}
-            <p>Meinst du eine dieser Aktionen?</p>
-            <div class="flex flex-wrap gap-x-4">
-              {#each relatedAktionen as title (title)}
-                <button
-                  type="button"
-                  class="min-h-11 text-left font-semibold text-link underline"
-                  onclick={() => {
-                    form.aktion = title;
-                    notifyEdited?.();
-                  }}>{title}</button
-                >
-              {/each}
-            </div>
-          {:else}
-            <p>
-              Nicht in der Aktionsliste – beschreibe den Zweck so genau, dass die Kasse ihn zuordnen
-              kann.
-            </p>
-          {/if}
-        </div>
-      {/if}
-    {/snippet}
-  </FormField>
+  <BelegZuordnung bind:form {errors} {onfield} />
 </div>
 
 <fieldset class="space-y-2" aria-describedby={errors.payout ? 'bl-payout-error' : undefined}>

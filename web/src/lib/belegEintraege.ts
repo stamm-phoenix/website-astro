@@ -1,5 +1,6 @@
 import { formatIsoDate } from './belege';
 import { matchingKostenstelle, SPARBUCH } from './belegForm';
+import { findKostenstelle, sameName } from './belegZuordnung';
 import type { StatusTone } from './status';
 import type { CampflowBeleg, CampflowBelegeData, StaffBeleg } from './types';
 
@@ -123,8 +124,12 @@ export function belegEintraege(
   const keptHere = new Set(belege.flatMap((b) => (b.campflow?.number ? [b.campflow.number] : [])));
 
   const website = belege.map((beleg): BelegEintrag => {
-    // Also an archived Kostenstelle, so its filter finds the receipts still here
-    const unit = matchingKostenstelle(beleg.aktion, kostenstellen, { archived: true });
+    // Also an archived Kostenstelle, so its filter finds the receipts still here; older receipts
+    // only name an Aktion
+    const unit = beleg.kostenstelle.trim()
+      ? findKostenstelle(kostenstellen, beleg.kostenstelle)
+      : matchingKostenstelle(beleg.aktion, kostenstellen, { archived: true });
+    const category = unit?.categories.find((c) => sameName(c.name, beleg.kategorie));
     const uploaded = beleg.campflow?.state === 'Hochgeladen' ? beleg.campflow : null;
     const tags: BelegEintrag['tags'] = [];
     if (uploaded?.number)
@@ -150,9 +155,11 @@ export function belegEintraege(
       income: false,
       hasAmount: true,
       paidBy: beleg.paidBy || null,
-      where: beleg.aktion,
+      where: beleg.kostenstelle.trim()
+        ? [beleg.kostenstelle, beleg.kategorie].filter((part) => part.trim()).join(' · ')
+        : beleg.aktion,
       costUnitIds: [uploaded?.costUnitId ?? unit?.id].filter((id): id is string => !!id),
-      categoryIds: uploaded ? [uploaded.categoryId] : [],
+      categoryIds: [uploaded?.categoryId ?? category?.id].filter((id): id is string => !!id),
       previewUrl: beleg.hasImage
         ? `/api/intern/pflege/belege/${beleg.id}/foto?v=${encodeURIComponent(beleg.etag)}&thumb=1`
         : null,

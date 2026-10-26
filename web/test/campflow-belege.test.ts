@@ -43,6 +43,8 @@ const submitted = (id: string, values: Partial<StaffBeleg> = {}) =>
     paidBy: 'Kim',
     payout: false,
     aktion: 'Sommerlager',
+    kostenstelle: '',
+    kategorie: '',
     note: '',
     status: 'Eingereicht',
     reviewNote: '',
@@ -348,4 +350,15 @@ test('a receipt here of an archived Kostenstelle is found by its filter', () => 
       .sort(),
     ['campflow-exp_alt', 'website-8']
   );
+});
+
+test('a receipt with Kostenstelle and Kategorie is filtered by both', () => {
+  const [eintrag] = belegEintraege(
+    [submitted('9', { aktion: '', kostenstelle: 'sommerlager', kategorie: 'verpflegung' })],
+    campflow,
+    { isIch: isKim }
+  );
+  assert.deepEqual(eintrag?.costUnitIds, ['cun_1']);
+  assert.deepEqual(eintrag?.categoryIds, ['cat_1']);
+  assert.equal(eintrag?.where, 'sommerlager · verpflegung');
 });

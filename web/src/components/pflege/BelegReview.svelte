@@ -3,7 +3,7 @@
   import FormField from './FormField.svelte';
   import BelegStatusLabel from './BelegStatusLabel.svelte';
   import BelegCampflowTransfer from './BelegCampflowTransfer.svelte';
-  import type { BelegForm, CampflowChoice } from '../../lib/belegForm';
+  import type { BelegForm } from '../../lib/belegForm';
   import type { BelegStatus } from '../../lib/types';
   interface Props {
     form: BelegForm;
@@ -11,7 +11,7 @@
     busy: boolean;
     errors: Record<string, string>;
     onsave: (decision: BelegStatus) => void;
-    ontransfer: (choice: CampflowChoice) => void;
+    ontransfer: () => void;
   }
   let { form = $bindable(), reviewer, busy, errors, onsave, ontransfer }: Props = $props();
 </script>

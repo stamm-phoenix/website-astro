@@ -9,12 +9,38 @@ Speichern*. Erst diese Buchung gibt dem Beleg seine CampFlow-Nummer (z. B. `2026
 Außerdem zeigt das Modul alle Belege aus CampFlow mit ihrem Stand, nur lesend, damit Leitende ohne
 eigenen CampFlow-Zugang sehen, was mit ihren Belegen passiert ist (wie die Beiträge).
 
+## Kostenstelle und Kategorie
+
+Wer einen Beleg einreicht, gibt Kostenstelle und Kategorie an, wie CampFlow eine Ausgabe bucht
+(jede Buchung dort hat genau eine Kategorie; Ausgaben ohne Aktion, z. B. Verpflegung der
+Leitendenrunde, stehen unter *Allgemein → Leitendenrunde*). Gespeichert werden die Namen
+(`organisation.beleg.kostenstelle`/`kategorie`, Migration `0045_beleg_kostenstelle.sql`),
+weil beide frei eingegeben werden können. Code: `web/src/lib/belegZuordnung.ts`,
+`web/src/components/pflege/BelegZuordnung.svelte`.
+
+- **Suche:** „Kostenstelle oder Kategorie suchen“ bietet alle nicht archivierten Kostenstellen und
+  alle ihre Kategorien an, eine Kategorie unter dem Namen ihrer Kostenstelle. Eine Kategorie
+  passt nur über ihren eigenen Namen, „leite“ findet also „Leitendenlager 2026“ und
+  „Leitendenrunde“ in „Allgemein“, aber nicht jede Kategorie des Leitendenlagers. Eine Kostenstelle
+  füllt nur das Feld Kostenstelle, eine Kategorie beide.
+- **Standardkategorien:** Die Kategorien des KJR (`STANDARD_KATEGORIEN`: Fahrtkosten,
+  Verpflegungskosten, Miet- und Übernachtungskosten, Honorare, Arbeits- und Hilfsmittel) stehen
+  bei jeder Kostenstelle zuerst, auch wenn es sie dort noch nicht gibt; danach die übrigen der
+  Kostenstelle. Ältere Namen wie „Verpflegung“ oder „Arbeits- & Hilfsmittel“ bleiben wählbar,
+  sollen aber nicht mehr verwendet werden.
+- **Freier Text:** Kostenstelle und Kategorie dürfen frei eingetippt werden. Gibt es die
+  Kostenstelle oder (außer bei den Standardkategorien) die Kategorie noch nicht, warnt das
+  Formular, und der Bereich „Nach CampFlow übertragen“ nennt der Kasse, was angelegt wird. Eine
+  archivierte Kostenstelle lässt das Formular nicht zu.
+- **Ältere Belege** haben nur eine Aktion (`aktion`, wird nicht mehr eingegeben). Sie dürfen so
+  gespeichert werden; zum Übertragen braucht es Kostenstelle und Kategorie. Das Formular nennt die
+  Aktion und bietet die gleichnamige Kostenstelle zum Übernehmen an.
+
 ## Bedienung
 
-Im Dialog eines angenommenen Belegs wählt die Kasse unter „Nach CampFlow übertragen“
-Kostenstelle und Kategorie. Vorausgewählt ist die Kostenstelle, die wie die Aktion heißt (wie in
-der Abrechnung), und ihre Kategorie, wenn sie nur eine hat. Ungespeicherte Änderungen am Beleg
-werden vorher gespeichert. Nach der Übertragung wird der Beleg im Modul gelöscht.
+Im Dialog eines angenommenen Belegs prüft die Kasse Kostenstelle und Kategorie in den Feldern des
+Belegs; „Nach CampFlow übertragen“ zeigt das Ziel. Ungespeicherte Änderungen am Beleg werden vorher
+gespeichert. Nach der Übertragung wird der Beleg im Modul gelöscht.
 
 | CampFlow-Feld | kommt aus |
 | --- | --- |
@@ -22,10 +48,14 @@ werden vorher gespeichert. Nach der Übertragung wird der Beleg im Modul gelösc
 | Beschreibung | Geschäft – Bemerkung |
 | Belegdatum, Betrag | Datum und Betrag, immer als Ausgabe in Euro |
 | Auslage durch | wer ausgelegt hat (siehe unten), leer, wenn der Stamm bezahlt hat |
-| Kostenstelle, Kategorie | die Auswahl der Kasse |
+| Kostenstelle, Kategorie | die Felder des Belegs; Groß-/Kleinschreibung egal |
 
-Fehlende Kostenstellen oder Kategorien legt die Übertragung nicht an; dafür CampFlow öffnen und
-die Seite neu laden.
+Fehlt eines davon in CampFlow, legt die Übertragung es an, **bevor** der Versuch gespeichert und
+der Beleg hochgeladen wird (`ensureCampflowExpenseAssignment`, über `PUT /campflow/kostenstellen`
+bzw. `PUT /campflow/kostenstellen/{id}/kategorien` der Playwright-API), mit der Sphäre
+`purpose` (Zweckbetrieb) wie alle Kategorien der Aktionen. Das ist wiederholbar: Ein vorhandener
+Name wird gefunden und nicht noch einmal angelegt. Scheitert das Anlegen, antwortet der Endpunkt
+mit `502` (`TARGET_NOT_CREATED`) und hat keinen Beleg übertragen.
 
 ## Wie wurde bezahlt?
 
@@ -51,7 +81,8 @@ Hinweis „In CampFlow als …“. Belege, die auf jemanden warten (eingereicht,
 gebucht), stehen oben, der Rest nach Datum.
 
 Filter: Quelle, Stand, Kostenstelle, Kategorie (der gewählten Kostenstelle), Suche und „Nur meine
-Belege“. Für Belege von hier zählt die Kostenstelle, die wie ihre Aktion heißt. „Nur meine Belege“
+Belege“. Für Belege von hier zählen ihre Kostenstelle und Kategorie, bei älteren die
+Kostenstelle, die wie ihre Aktion heißt. „Nur meine Belege“
 zeigt die selbst eingereichten und die mit dem eigenen Namen unter „Auslage durch“ (wie „(ich)“ in
 Beiträgen und Abrechnung: verknüpfte CampFlow-Person aus „Personen“, sonst der Name des
 Microsoft-Kontos). „Liste“ oder „Galerie“ (Kacheln mit größerem Vorschaubild) steht in der Adresse
@@ -116,7 +147,7 @@ eingereicht hat. Alles andere zu Belegen in CampFlow liest die Website jedes Mal
 
 ## Ablauf und Zustände
 
-`POST /api/intern/pflege/belege/{id}/campflow` mit `etag`, `costUnitId` und `categoryId`, nur für
+`POST /api/intern/pflege/belege/{id}/campflow` mit `etag`, nur für
 die Kasse (Team „Kasse“, Rolle `team_kasse`, siehe `docs/berechtigungen.md`). Code: `api/lib/beleg-campflow.ts`.
 
 1. Der Beleg muss `Angenommen` sein (sonst `422`) und noch die Version `etag` haben (sonst `409`), damit
@@ -132,7 +163,7 @@ die Kasse (Team „Kasse“, Rolle `team_kasse`, siehe `docs/berechtigungen.md`)
 | Zustand | Bedeutung | Nächster Versuch |
 | --- | --- | --- |
 | `Gestartet` | läuft, oder das Ergebnis ist unklar (Timeout, `502`, `504`) | sicher; nimmt Dateiname, Kostenstelle und Kategorie des ersten Versuchs. Lehnt die Playwright-API eine Wiederholung ab, bleibt der Zustand trotzdem `Gestartet`, weil der frühere Versuch gebucht haben kann |
-| `Fehlgeschlagen` | die Playwright-API hat geantwortet, bevor sie etwas angelegt hat (`400`, `401`, `403`, `404`, `409`, `413`, `429`, `503`), und kein früherer Versuch war unklar | darf eine andere Kostenstelle und Kategorie wählen |
+| `Fehlgeschlagen` | die Playwright-API hat geantwortet, bevor sie etwas angelegt hat (`400`, `401`, `403`, `404`, `409`, `413`, `429`, `503`), und kein früherer Versuch war unklar | nimmt Kostenstelle und Kategorie, wie sie dann im Beleg stehen |
 | `Hochgeladen` | gebucht, mit CampFlow-Nummer und IDs | löscht nur noch den Beleg |
 
 4. Erst nach `Hochgeladen` wird der Beleg gelöscht, und nur, wenn er noch genau so aussieht wie

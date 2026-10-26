@@ -2436,7 +2436,9 @@ const belege: StaffBeleg[] = [
     amountCent: 4387,
     paidBy: 'Demo Leitung',
     payout: true,
-    aktion: 'Herbstlager 2026',
+    aktion: '',
+    kostenstelle: 'Wölflings-Herbstwochenende',
+    kategorie: 'Verpflegungskosten',
     note: 'Lebensmittel für Samstag',
     status: 'Eingereicht',
     reviewNote: '',
@@ -2460,7 +2462,10 @@ const belege: StaffBeleg[] = [
     amountCent: 2199,
     paidBy: 'Kim Beispiel',
     payout: true,
+    // From before Kostenstelle and Kategorie
     aktion: 'Gruppenstunde Pfadfinder',
+    kostenstelle: '',
+    kategorie: '',
     note: '',
     status: 'Abgelehnt',
     reviewNote: 'Der Betrag ist auf dem Foto abgeschnitten. Bitte neu fotografieren.',
@@ -2486,7 +2491,9 @@ const belege: StaffBeleg[] = [
     amountCent: 11840,
     paidBy: 'Sam Muster',
     payout: true,
-    aktion: 'Sommerlager 2026 Oberjoch',
+    aktion: '',
+    kostenstelle: 'Sommerlager 2026 Oberjoch',
+    kategorie: 'Fahrtkosten',
     note: 'Fahrkarten Vorbereitungsteam',
     status: 'Angenommen',
     reviewNote: '',
@@ -2612,7 +2619,8 @@ function applyBeleg(target: StaffBeleg, body: Record<string, unknown>): void {
   target.payout = body.payout === true;
   // Like the server: without an Auslage nobody is named
   if (!target.payout) target.paidBy = '';
-  target.aktion = str(body.aktion, target.aktion);
+  target.kostenstelle = str(body.kostenstelle, target.kostenstelle).trim();
+  target.kategorie = str(body.kategorie, target.kategorie).trim();
   target.note = str(body.note, target.note);
   target.status = (str(body.status, target.status) as StaffBeleg['status']) || 'Eingereicht';
   target.reviewNote = str(body.reviewNote, target.reviewNote);
@@ -2631,6 +2639,8 @@ route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
     paidBy: '',
     payout: false,
     aktion: '',
+    kostenstelle: '',
+    kategorie: '',
     note: '',
     status: 'Eingereicht',
     reviewNote: '',
@@ -2725,14 +2735,27 @@ route('POST', '/api/intern/pflege/belege/:id/campflow', (req) => {
       'Nur angenommene Belege können nach CampFlow übertragen werden.'
     );
   }
-  const unit = kostenstellen.find((k) => k.id === str(req.json?.costUnitId));
-  const category = unit?.categories.find((c) => c.id === str(req.json?.categoryId));
-  if (!unit || !category) {
-    return error(
-      400,
-      'INVALID_CHOICE',
-      'Diese Kostenstelle oder Kategorie gibt es in CampFlow nicht (mehr).'
-    );
+  if (!beleg.kostenstelle || !beleg.kategorie) {
+    return error(400, 'NO_TARGET', 'Bitte zuerst Kostenstelle und Kategorie eintragen.');
+  }
+  // Like the API: whatever the demo CampFlow lacks is created first
+  const same = (a: string, b: string) => a.toLocaleLowerCase('de') === b.toLocaleLowerCase('de');
+  let unit = kostenstellen.find((k) => !k.archived && same(k.name, beleg.kostenstelle));
+  if (!unit) {
+    if (kostenstellen.some((k) => same(k.name, beleg.kostenstelle))) {
+      return error(
+        422,
+        'KOSTENSTELLE_ARCHIVED',
+        `Die Kostenstelle „${beleg.kostenstelle}“ ist in CampFlow archiviert.`
+      );
+    }
+    unit = { id: `cun_${newId()}`, name: beleg.kostenstelle, archived: false, categories: [] };
+    kostenstellen.push(unit);
+  }
+  let category = unit.categories.find((c) => same(c.name, beleg.kategorie));
+  if (!category) {
+    category = { id: `cat_${newId()}`, name: beleg.kategorie };
+    unit.categories.push(category);
   }
   belege.splice(index, 1);
   const number = `2026-${nextCampflowNumber++}`;

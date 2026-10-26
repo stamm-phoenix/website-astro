@@ -24,7 +24,10 @@ export interface SubmittedBelegMail {
   /** Who gets the Auslage back; empty without one. */
   paidBy: string;
   payout: boolean;
+  /** Older receipts only. */
   aktion: string;
+  kostenstelle: string;
+  kategorie: string;
   note: string;
   /** Name (or login) of the person who submitted the receipt. */
   submitter: string;
@@ -96,6 +99,8 @@ export function belegSubmittedMailContent(data: SubmittedBelegMail): {
     ['Geschäft', data.shop],
     ['Datum', formatDate(data.date)],
     ['Betrag', formatEuro(data.amountCent)],
+    ['Kostenstelle', data.kostenstelle],
+    ['Kategorie', data.kategorie],
     ['Aktion', data.aktion],
     ['Auslage von', data.payout ? data.paidBy : ''],
     ['Notiz', data.note],

@@ -38,7 +38,6 @@ const UNITS = [
     categories: [{ id: 'cat_Alt', name: 'Verpflegung', sphere: 'purpose' }],
   },
 ];
-const CHOICE = { costUnitId: 'cun_Lager', categoryId: 'cat_Essen' };
 
 interface Call {
   method: string;
@@ -52,8 +51,17 @@ interface Call {
  */
 function setup(
   t: TestContext,
-  answer: (body: Record<string, unknown>) => Response | Promise<Response>
+  answer: (body: Record<string, unknown>) => Response | Promise<Response>,
+  /** Answers a request that adds a Kostenstelle or Kategorie instead of adding it. */
+  refuseAdding?: Response
 ): { context: InvocationContext; blobs: Map<string, Buffer>; calls: Call[] } {
+  // CampFlow's Kostenstellen as the stand-in keeps them; additions land here
+  const units: Array<{
+    id: string;
+    name: string;
+    archived: boolean;
+    categories: { id: string; name: string; sphere: string }[];
+  }> = structuredClone(UNITS);
   const blobs = new Map<string, Buffer>();
   t.mock.method(blobStorage, 'putBlob', async (name: string, bytes: Uint8Array) => {
     blobs.set(name, Buffer.from(bytes));
@@ -78,7 +86,33 @@ function setup(
     const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined;
     calls.push({ method, path: url.pathname, ...(body ? { body } : {}) });
     if (method === 'GET' && url.pathname === '/campflow/kostenstellen') {
-      return Response.json({ data: UNITS });
+      return Response.json({ data: units });
+    }
+    if (method === 'PUT' && url.pathname.startsWith('/campflow/kostenstellen') && body) {
+      if (refuseAdding) return refuseAdding;
+      const id = decodeURIComponent(url.pathname.split('/')[3] ?? '');
+      const category = (name: unknown, sphere: unknown) => ({
+        id: `cat_Neu${units.flatMap((u) => u.categories).length}`,
+        name: String(name),
+        sphere: String(sphere),
+      });
+      if (!id) {
+        const added = (body.categories as { name: string; sphere: string }[]).map((c) =>
+          category(c.name, c.sphere)
+        );
+        units.push({
+          id: `cun_Neu${units.length}`,
+          name: String(body.name),
+          archived: false,
+          categories: [],
+        });
+        units.at(-1)!.categories.push(...added);
+        return Response.json(units.at(-1), { status: 201 });
+      }
+      const unit = units.find((u) => u.id === id);
+      assert.ok(unit, `Kostenstelle ${id}`);
+      unit.categories.push(category(body.name, body.sphere));
+      return Response.json(unit, { status: 201 });
     }
     if (method === 'POST' && url.pathname === '/campflow/belege' && body) return answer(body);
     if (method === 'GET' && url.pathname === '/campflow/belege') {
@@ -107,7 +141,14 @@ const uploaded = (created = true) =>
 async function store(
   blobs: Map<string, Buffer>,
   id: number,
-  values: { status?: 'Eingereicht' | 'Angenommen'; payout?: boolean; note?: string } = {}
+  values: {
+    status?: 'Eingereicht' | 'Angenommen';
+    payout?: boolean;
+    note?: string;
+    kostenstelle?: string;
+    kategorie?: string;
+    aktion?: string;
+  } = {}
 ): Promise<string> {
   await getDb()
     .insertInto('organisation.beleg')
@@ -118,7 +159,9 @@ async function store(
       amount_cent: 1234,
       paid_by: 'Alex Beispiel',
       payout: values.payout ?? true,
-      aktion: 'Stammeslager 2026',
+      aktion: values.aktion ?? '',
+      kostenstelle: values.kostenstelle ?? 'Stammeslager 2026',
+      kategorie: values.kategorie ?? 'Verpflegung',
       note: values.note ?? 'Grillgut',
       status: values.status ?? 'Angenommen',
       review_note: '',
@@ -129,6 +172,12 @@ async function store(
     .execute();
   blobs.set(`belege/${id}/beleg-123-scan.jpg`, PHOTO);
   blobs.set(`belege/${id}/beleg-123-original.jpg`, Buffer.from('original'));
+  return version(id);
+}
+
+/** Another Kategorie, as the Kasse picks it in the form; answers the new version. */
+async function rebook(id: number, kategorie: string): Promise<string> {
+  await getDb().updateTable('organisation.beleg').set({ kategorie }).where('id', '=', id).execute();
   return version(id);
 }
 
@@ -170,7 +219,7 @@ dbTest('an accepted receipt is uploaded with its details and deleted afterwards'
   const { context, blobs, calls } = setup(t, () => uploaded());
   const etag = await store(blobs, 7);
 
-  const response = await transfer(context, 7, { etag, ...CHOICE });
+  const response = await transfer(context, 7, { etag });
 
   assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
   assert.equal((response.jsonBody as { deleted: boolean }).deleted, true);
@@ -202,38 +251,99 @@ dbTest('an accepted receipt is uploaded with its details and deleted afterwards'
 });
 
 dbTest(
-  'only the Kasse transfers accepted, unchanged receipts to existing Kategorien',
+  'only the Kasse transfers accepted, unchanged receipts with Kostenstelle and Kategorie',
   async (t) => {
     const { context, blobs, calls } = setup(t, () => uploaded());
     const etag = await store(blobs, 7);
     const submitted = await store(blobs, 8, { status: 'Eingereicht' });
+    // From before Kostenstelle and Kategorie: the Kasse picks them first
+    const old = await store(blobs, 9, { kostenstelle: '', kategorie: '', aktion: 'Lager' });
+    const archived = await store(blobs, 10, { kostenstelle: 'lager 2019' });
 
     const other = { ...PRINCIPAL, userDetails: 'leitung@example.test', userRoles: STAFF_ROLES };
-    assert.equal((await transfer(context, 7, { etag, ...CHOICE }, other)).status, 403);
-    assert.equal((await transfer(context, 8, { etag: submitted, ...CHOICE })).status, 422);
-    assert.equal((await transfer(context, 7, { etag: submitted, ...CHOICE })).status, 409);
-    assert.equal((await transfer(context, 7, { ...CHOICE })).status, 400);
-    assert.equal((await transfer(context, 7, { etag, costUnitId: 'cun_Lager' })).status, 400);
-    assert.equal(
-      (await transfer(context, 7, { etag, costUnitId: 'cun_Lager', categoryId: 'cat_Alt' })).status,
-      400
-    );
-    const archived = await transfer(context, 7, {
-      etag,
-      costUnitId: 'cun_Alt',
-      categoryId: 'cat_Alt',
-    });
-    assert.equal(archived.status, 422);
-    assert.equal((await transfer(context, 99, { etag, ...CHOICE })).status, 404);
+    assert.equal((await transfer(context, 7, { etag }, other)).status, 403);
+    assert.equal((await transfer(context, 8, { etag: submitted })).status, 422);
+    assert.equal((await transfer(context, 7, { etag: submitted })).status, 409);
+    assert.equal((await transfer(context, 7, {})).status, 400);
+    const missing = await transfer(context, 9, { etag: old });
+    assert.equal(missing.status, 400);
+    assert.equal((missing.jsonBody as { code: string }).code, 'NO_TARGET');
+    const refused = await transfer(context, 10, { etag: archived });
+    assert.equal(refused.status, 422);
+    assert.equal((refused.jsonBody as { code: string }).code, 'KOSTENSTELLE_ARCHIVED');
+    assert.equal((await transfer(context, 99, { etag })).status, 404);
 
     assert.deepEqual(
-      calls.filter((call) => call.method === 'POST'),
-      []
+      calls.filter((call) => call.method !== 'GET'),
+      [],
+      'nothing created or uploaded'
     );
     assert.equal(await transferRow(7), undefined);
-    assert.equal((await getBelege()).length, 2);
+    assert.equal(await transferRow(10), undefined);
+    assert.equal((await getBelege()).length, 4);
   }
 );
+
+dbTest(
+  'a missing Kategorie or Kostenstelle is created in CampFlow before the upload',
+  async (t) => {
+    const { context, blobs, calls } = setup(t, () => uploaded());
+    const etag = await store(blobs, 7, {
+      kostenstelle: 'stammeslager 2026',
+      kategorie: 'Miet- und Übernachtungskosten',
+    });
+    const fresh = await store(blobs, 8, { kostenstelle: 'Leitendenrunde', kategorie: 'Honorare' });
+
+    const response = await transfer(context, 7, { etag });
+    assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
+    assert.deepEqual(
+      calls.filter((call) => call.method === 'PUT'),
+      [
+        {
+          method: 'PUT',
+          path: '/campflow/kostenstellen/cun_Lager/kategorien',
+          body: { name: 'Miet- und Übernachtungskosten', sphere: 'purpose' },
+        },
+      ]
+    );
+    const upload = calls.find((call) => call.method === 'POST');
+    assert.deepEqual([upload?.body?.costUnit, upload?.body?.category], ['cun_Lager', 'cat_Neu3']);
+    const row = await transferRow(7);
+    assert.deepEqual(
+      [row?.costunit_name, row?.category_name],
+      ['Stammeslager 2026', 'Miet- und Übernachtungskosten']
+    );
+
+    calls.length = 0;
+    assert.equal((await transfer(context, 8, { etag: fresh })).status, 200);
+    assert.deepEqual(
+      calls.filter((call) => call.method === 'PUT').map((call) => [call.path, call.body]),
+      [
+        [
+          '/campflow/kostenstellen',
+          { name: 'Leitendenrunde', categories: [{ name: 'Honorare', sphere: 'purpose' }] },
+        ],
+      ]
+    );
+    assert.equal(calls.find((call) => call.method === 'POST')?.body?.costUnit, 'cun_Neu2');
+  }
+);
+
+dbTest('a Kategorie CampFlow does not create stops the transfer before it starts', async (t) => {
+  const { context, blobs, calls } = setup(
+    t,
+    () => uploaded(),
+    Response.json({ error: 'CampFlow hat die Änderung abgelehnt' }, { status: 502 })
+  );
+  const etag = await store(blobs, 7, { kategorie: 'Honorare' });
+
+  const response = await transfer(context, 7, { etag });
+  assert.equal(response.status, 502);
+  assert.equal((response.jsonBody as { code: string }).code, 'TARGET_NOT_CREATED');
+  assert.equal(calls.filter((call) => call.method === 'POST').length, 0);
+  assert.equal(await transferRow(7), undefined, 'no attempt stored, another choice is free');
+  assert.equal((await getBelege()).length, 1);
+});
 
 dbTest(
   'after an unclear attempt the repeat keeps file and Kategorie and finds the receipt',
@@ -245,7 +355,7 @@ dbTest(
     const { context, blobs, calls } = setup(t, () => answers.shift()!());
     const etag = await store(blobs, 7);
 
-    const unclear = await transfer(context, 7, { etag, ...CHOICE });
+    const unclear = await transfer(context, 7, { etag });
     assert.equal(unclear.status, 502);
     assert.equal((unclear.jsonBody as { code: string }).code, 'CAMPFLOW_UNCLEAR');
     const [beleg] = await getBelege();
@@ -254,17 +364,14 @@ dbTest(
     assert.equal(beleg?.etag, etag, 'the receipt itself is unchanged');
 
     // Another Kategorie is ignored: only the first one finds what the first attempt created
-    const repeat = await transfer(context, 7, {
-      etag,
-      costUnitId: 'cun_Lager',
-      categoryId: 'cat_Fahrt',
-    });
+    const repeat = await transfer(context, 7, { etag: await rebook(7, 'Fahrtkosten') });
     assert.equal(repeat.status, 200, JSON.stringify(repeat.jsonBody));
     assert.equal((repeat.jsonBody as { created: boolean }).created, false);
     const uploads = calls.filter((call) => call.method === 'POST');
     assert.equal(uploads.length, 2);
     assert.deepEqual(uploads[1]?.body, uploads[0]?.body);
-    assert.deepEqual(await getBelege(), []);
+    // Booked as before the change, so the changed receipt stays to be checked
+    assert.equal((repeat.jsonBody as { deleted: boolean }).deleted, false);
     assert.equal((await transferRow(7))?.state, 'Hochgeladen');
     answers = [];
   }
@@ -278,17 +385,13 @@ dbTest('after a refused attempt another Kategorie may be chosen', async (t) => {
   const { context, blobs, calls } = setup(t, () => answers.shift()!());
   const etag = await store(blobs, 7);
 
-  const refused = await transfer(context, 7, { etag, ...CHOICE });
+  const refused = await transfer(context, 7, { etag });
   assert.equal(refused.status, 502);
   assert.equal((refused.jsonBody as { code: string }).code, 'CAMPFLOW_REJECTED');
   assert.match((refused.jsonBody as { message: string }).message, /Kategorie „X“/);
   assert.equal((await transferRow(7))?.state, 'Fehlgeschlagen');
 
-  const other = await transfer(context, 7, {
-    etag,
-    costUnitId: 'cun_Lager',
-    categoryId: 'cat_Fahrt',
-  });
+  const other = await transfer(context, 7, { etag: await rebook(7, 'Fahrtkosten') });
   assert.equal(other.status, 200, JSON.stringify(other.jsonBody));
   const uploads = calls.filter((call) => call.method === 'POST');
   assert.equal(uploads[1]?.body?.category, 'cat_Fahrt');
@@ -306,7 +409,7 @@ dbTest('a receipt changed during the upload stays until the Kasse deletes it', a
   });
   const etag = await store(blobs, 7);
 
-  const response = await transfer(context, 7, { etag, ...CHOICE });
+  const response = await transfer(context, 7, { etag });
   assert.equal(response.status, 200);
   assert.equal((response.jsonBody as { deleted: boolean }).deleted, false);
   const [beleg] = await getBelege();
@@ -314,7 +417,7 @@ dbTest('a receipt changed during the upload stays until the Kasse deletes it', a
   assert.equal(beleg?.campflow?.number, '2026-112');
 
   // CampFlow holds the old amount, so the corrected receipt is never deleted automatically
-  const again = await transfer(context, 7, { etag: beleg!.etag, ...CHOICE });
+  const again = await transfer(context, 7, { etag: beleg!.etag });
   assert.equal(again.status, 200);
   assert.equal((again.jsonBody as { deleted: boolean }).deleted, false);
   assert.equal(calls.filter((call) => call.method === 'POST').length, 1);
@@ -347,7 +450,7 @@ dbTest(
     ];
     const { context, blobs } = setup(t, () => answers.shift()!());
     const etag = await store(blobs, 7);
-    assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
+    assert.equal((await transfer(context, 7, { etag })).status, 502);
 
     await getDb()
       .updateTable('organisation.beleg')
@@ -355,7 +458,7 @@ dbTest(
       .where('id', '=', 7)
       .execute();
     const corrected = await version(7);
-    const repeat = await transfer(context, 7, { etag: corrected, ...CHOICE });
+    const repeat = await transfer(context, 7, { etag: corrected });
     assert.equal(repeat.status, 200, JSON.stringify(repeat.jsonBody));
     assert.equal((repeat.jsonBody as { deleted: boolean }).deleted, false);
     const [beleg] = await getBelege();
@@ -377,7 +480,7 @@ dbTest(
     ];
     const { context, blobs } = setup(t, () => answers.shift()!());
     const etag = await store(blobs, 7);
-    assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
+    assert.equal((await transfer(context, 7, { etag })).status, 502);
 
     // A new photo makes a new version, like the photo endpoint does
     blobs.set('belege/7/beleg-123-scan.jpg', Buffer.from('neues Foto'));
@@ -387,7 +490,7 @@ dbTest(
       .where('id', '=', 7)
       .execute();
     const corrected = await version(7);
-    const repeat = await transfer(context, 7, { etag: corrected, ...CHOICE });
+    const repeat = await transfer(context, 7, { etag: corrected });
     assert.equal(repeat.status, 200, JSON.stringify(repeat.jsonBody));
     assert.deepEqual(
       [
@@ -413,16 +516,12 @@ dbTest('a refused repeat keeps an unclear attempt unclear and its Kategorie', as
   ];
   const { context, blobs, calls } = setup(t, () => answers.shift()!());
   const etag = await store(blobs, 7);
-  assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
-  assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
-  assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 502);
+  assert.equal((await transfer(context, 7, { etag })).status, 502);
+  assert.equal((await transfer(context, 7, { etag })).status, 502);
+  assert.equal((await transfer(context, 7, { etag })).status, 502);
   assert.equal((await transferRow(7))?.state, 'Gestartet');
 
-  const other = await transfer(context, 7, {
-    etag,
-    costUnitId: 'cun_Lager',
-    categoryId: 'cat_Fahrt',
-  });
+  const other = await transfer(context, 7, { etag: await rebook(7, 'Fahrtkosten') });
   assert.equal(other.status, 200);
   const uploads = calls.filter((call) => call.method === 'POST');
   assert.deepEqual(
@@ -448,13 +547,9 @@ dbTest('a second attempt is refused while one is running', async (t) => {
   const { context, blobs, calls } = setup(t, () => first.promise);
   const etag = await store(blobs, 7);
 
-  const running = transfer(context, 7, { etag, ...CHOICE });
+  const running = transfer(context, 7, { etag });
   await untilUploads(calls, 1);
-  const second = await transfer(context, 7, {
-    etag,
-    costUnitId: 'cun_Lager',
-    categoryId: 'cat_Fahrt',
-  });
+  const second = await transfer(context, 7, { etag });
   assert.equal(second.status, 423);
   assert.equal((second.jsonBody as { code: string }).code, 'TRANSFER_RUNNING');
 
@@ -471,7 +566,7 @@ dbTest('a receipt deleted during its upload still lands in the history', async (
   const { context, blobs, calls } = setup(t, () => answer.promise);
   const etag = await store(blobs, 7);
 
-  const running = transfer(context, 7, { etag, ...CHOICE });
+  const running = transfer(context, 7, { etag });
   await untilUploads(calls, 1);
   const removed = await BelegItem(
     new HttpRequest({
@@ -504,7 +599,7 @@ dbTest('a failing photo read ends the attempt, so another Kategorie may be chose
     return read(name);
   });
 
-  const failed = await transfer(context, 7, { etag, ...CHOICE });
+  const failed = await transfer(context, 7, { etag });
   assert.equal(failed.status, 502);
   assert.equal((failed.jsonBody as { code: string }).code, 'PHOTO_UNAVAILABLE');
   const row = await transferRow(7);
@@ -513,11 +608,7 @@ dbTest('a failing photo read ends the attempt, so another Kategorie may be chose
   assert.equal(calls.filter((call) => call.method === 'POST').length, 0);
 
   fail = false;
-  const other = await transfer(context, 7, {
-    etag,
-    costUnitId: 'cun_Lager',
-    categoryId: 'cat_Fahrt',
-  });
+  const other = await transfer(context, 7, { etag: await rebook(7, 'Fahrtkosten') });
   assert.equal(other.status, 200, JSON.stringify(other.jsonBody));
   assert.equal(calls.find((call) => call.method === 'POST')?.body?.category, 'cat_Fahrt');
 });
@@ -541,7 +632,8 @@ dbTest('saving a receipt answers with the version it wrote', async (t) => {
           amountCent: 2000,
           paidBy: 'Alex Beispiel',
           payout: true,
-          aktion: 'Stammeslager 2026',
+          kostenstelle: 'Stammeslager 2026',
+          kategorie: 'Verpflegung',
           note: '',
           status: 'Angenommen',
           reviewNote: '',
@@ -674,7 +766,7 @@ dbTest('every leader sees all receipts in CampFlow, own transfers marked', async
     return uploaded();
   });
   const etag = await store(blobs, 7);
-  assert.equal((await transfer(context, 7, { etag, ...CHOICE })).status, 200);
+  assert.equal((await transfer(context, 7, { etag })).status, 200);
 
   // The browser does not know the names; the server marks Auslagen by the directory
   t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => [

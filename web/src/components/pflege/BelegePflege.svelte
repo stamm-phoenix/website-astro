@@ -1,14 +1,7 @@
 <script lang="ts">
-  import { aktionTitles } from '../../lib/campflowFields';
   import StaffPageHead from '../StaffPageHead.svelte';
-  import {
-    validateBeleg,
-    decisionMessage,
-    knownBelegAktion,
-    zahlungOf,
-    type BelegForm,
-    type CampflowChoice,
-  } from '../../lib/belegForm';
+  import { validateBeleg, decisionMessage, zahlungOf, type BelegForm } from '../../lib/belegForm';
+  import { zuordnungStand } from '../../lib/belegZuordnung';
   import { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import BelegFields from './BelegFields.svelte';
   import BelegPhotoSection from './BelegPhotoSection.svelte';
@@ -25,9 +18,7 @@
   import { untrack } from 'svelte';
   import { fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
-  import { confirmAction } from '../../lib/confirm';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
-  import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { belegePflege, campflowBelegeStore } from '../../lib/pflegeStore.svelte';
   import { fetchKostenstellen, kostenstellenStore } from '../../lib/abrechnungStore.svelte';
   import { centToInput, parseEuroToCent } from '../../lib/belege';
@@ -78,7 +69,6 @@
   let search = $state('');
   let form = $state<BelegForm | null>(null);
   let editDialog = $state<EditDialog | null>(null);
-  let confirmedAktion = $state<string | null>(null);
   const dialog = createDialogForm();
   const photo = createBelegPhotoDraft({
     form: () => form,
@@ -160,13 +150,11 @@
     }
   }
 
-  const aktionSuggestions = $derived(aktionTitles(campflowEventsStore.data ?? []));
-
   $effect(() => {
     untrack(() => {
       // Only suggestions; the form works without CampFlow. They follow the list, so it comes
       // first, and are there by the time a receipt is opened (which also asks for them)
-      void belegePflege.load().finally(() => fetchCampflowEvents());
+      void belegePflege.load().finally(() => fetchKostenstellen());
       void campflowBelegeStore.load({ param: false });
       readAnsicht();
       filtersOpen = window.matchMedia('(min-width: 640px)').matches;
@@ -179,11 +167,10 @@
 
   function resetDialog(): void {
     // The suggestions of the form, in case the list is still loading
-    void fetchCampflowEvents();
+    void fetchKostenstellen();
     photo.reset();
     dialog.reset();
     dialogNotice = null;
-    confirmedAktion = null;
   }
 
   function create(): void {
@@ -198,6 +185,8 @@
       payout: null,
       zahlung: null,
       aktion: '',
+      kostenstelle: '',
+      kategorie: '',
       note: '',
       status: 'Eingereicht',
       reviewNote: '',
@@ -213,7 +202,16 @@
   function edit(beleg: StaffBeleg): void {
     resetDialog();
     form = { ...beleg, amount: centToInput(beleg.amountCent), zahlung: zahlungOf(beleg, isIch) };
-    confirmedAktion = beleg.aktion.trim();
+  }
+
+  /** The errors of the form; CampFlow refuses to book on an archived Kostenstelle. */
+  function formErrors(current: BelegForm, hasPhoto: boolean, forTransfer = false) {
+    const result = validateBeleg(current, hasPhoto, forTransfer);
+    const stand = zuordnungStand(kostenstellenStore.data, current.kostenstelle, current.kategorie);
+    if (stand?.archiviert && !result.kostenstelle) {
+      result.kostenstelle = 'Diese Kostenstelle ist in CampFlow archiviert.';
+    }
+    return result;
   }
 
   /** After a conflict: replaces the input with the current version of the receipt. */
@@ -258,45 +256,21 @@
     }
     const previousStatus = form.status;
     if (decision) form.status = decision;
-    if (dialog.invalid(validateBeleg(form, !!photo.draft?.result))) {
+    if (dialog.invalid(formErrors(form, !!photo.draft?.result))) {
       form.status = previousStatus;
       return;
     }
 
-    const actionName = form.aktion.trim();
-    if (!knownBelegAktion(actionName, aktionSuggestions) && confirmedAktion !== actionName) {
-      const accepted = await confirmAction({
-        title: 'Aktion prüfen',
-        message: `„${actionName}“ steht nicht in der Aktionsliste. Ist damit klar, wofür der Beleg ist? Sonst beschreibe den Zweck genauer, z. B. „Gruppenstunde Wölflinge“.`,
-        confirmLabel:
-          decision === 'Angenommen'
-            ? 'Annehmen'
-            : decision === 'Abgelehnt'
-              ? 'Ablehnen'
-              : decision === 'Eingereicht'
-                ? 'Erneut einreichen'
-                : form.id
-                  ? 'So speichern'
-                  : 'So einreichen',
-        cancelLabel: 'Weiter bearbeiten',
-        tone: 'neutral',
-      });
-      if (!accepted || !form) {
-        if (form) form.status = previousStatus;
-        return;
-      }
-      confirmedAktion = actionName;
-    }
-
-    const { id, etag, shop, date, paidBy, payout, aktion, note, status, reviewNote, submittedBy } =
-      form;
+    const { id, etag, shop, date, paidBy, payout, kostenstelle, kategorie, note } = form;
+    const { status, reviewNote, submittedBy } = form;
     const details = {
       shop,
       date,
       amountCent: parseEuroToCent(form.amount),
       paidBy,
       payout,
-      aktion,
+      kostenstelle,
+      kategorie,
       note,
     };
     let newId: string | null = null;
@@ -367,14 +341,15 @@
    */
   let confirmedSave: StaffBeleg | null = null;
 
-  async function transfer(choice: CampflowChoice): Promise<void> {
+  async function transfer(): Promise<void> {
     const current = form;
     if (!current?.id || photo.photoBusy) return;
     if (photo.draft) {
       dialogNotice = 'Bitte zuerst das neue Foto speichern.';
       return;
     }
-    if (dialog.invalid(validateBeleg(current, false))) return;
+    const locked = current.campflow?.state === 'Gestartet';
+    if (dialog.invalid(formErrors(current, false, !locked))) return;
     const { id, shop } = current;
     await dialog.run(async () => {
       const listed = store.data?.find((b) => b.id === id);
@@ -388,7 +363,8 @@
           amountCent: parseEuroToCent(current.amount),
           paidBy: current.paidBy,
           payout: current.payout,
-          aktion: current.aktion,
+          kostenstelle: current.kostenstelle,
+          kategorie: current.kategorie,
           note: current.note,
           etag,
           status: current.status,
@@ -405,7 +381,8 @@
             amountCent: parseEuroToCent(current.amount) ?? listed.amountCent,
             paidBy: current.paidBy,
             payout: current.payout === true,
-            aktion: current.aktion,
+            kostenstelle: current.kostenstelle,
+            kategorie: current.kategorie,
             note: current.note,
             reviewNote: current.reviewNote,
             etag,
@@ -421,7 +398,7 @@
         campflow: { state: string; number: string | null };
         created: boolean;
         deleted: boolean;
-      }>('POST', `/intern/pflege/belege/${id}/campflow`, { etag, ...choice });
+      }>('POST', `/intern/pflege/belege/${id}/campflow`, { etag });
       const number = result?.campflow.number ?? '';
       message =
         result?.campflow.state !== 'Hochgeladen'
@@ -430,10 +407,12 @@
             ? `Beleg von ${shop} ist in CampFlow als ${number} gebucht und wurde hier gelöscht.`
             : `Beleg von ${shop} ist in CampFlow als ${number} gebucht, aber mit einem früheren Stand. Er wurde danach geändert und bleibt deshalb hier, bis du CampFlow geprüft hast.`;
       form = null;
-      // The Playwright API reads CampFlow again after an upload
+      // The Playwright API reads CampFlow again after an upload; the transfer may have added a
+      // Kostenstelle or Kategorie
       await Promise.all([
         belegePflege.load({ force: true }),
         campflowBelegeStore.load({ force: true, param: false }),
+        fetchKostenstellen({ force: true }),
       ]);
     }, 'Der Beleg wurde nicht übertragen. Prüfe deine Internetverbindung und versuche es noch einmal.');
     // The attempt is stored either way; show its state
@@ -461,7 +440,8 @@
       parseEuroToCent(current.amount) !== stored.amountCent ||
       current.paidBy !== stored.paidBy ||
       current.payout !== stored.payout ||
-      current.aktion !== stored.aktion ||
+      current.kostenstelle !== stored.kostenstelle ||
+      current.kategorie !== stored.kategorie ||
       current.note !== stored.note ||
       current.reviewNote !== stored.reviewNote ||
       current.etag !== stored.etag
@@ -511,7 +491,7 @@
       <input
         type="search"
         class="form-input"
-        placeholder="Geschäft, Aktion, Person, Belegnummer …"
+        placeholder="Geschäft, Kostenstelle, Person, Belegnummer …"
         bind:value={search}
       />
     </label>
@@ -678,7 +658,6 @@
     <BelegFields
       bind:form
       {errors}
-      {aktionSuggestions}
       {myName}
       onfield={(field) => dialog.clearField(field)}
       onpayment={() => {

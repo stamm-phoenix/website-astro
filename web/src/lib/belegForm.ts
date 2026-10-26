@@ -12,7 +12,10 @@ export interface BelegForm {
   payout: boolean | null;
   /** How it was paid, as chosen in the form; sets `paidBy` and `payout`. */
   zahlung: BelegZahlung | null;
+  /** Older receipts only; it is shown, not edited. */
   aktion: string;
+  kostenstelle: string;
+  kategorie: string;
   note: string;
   status: BelegStatus;
   reviewNote: string;
@@ -55,14 +58,6 @@ export function applyZahlung(form: BelegForm, zahlung: BelegZahlung, myName: str
   else if (before !== 'andere') form.paidBy = '';
 }
 
-/** Where an accepted receipt is booked in CampFlow. */
-export interface CampflowChoice {
-  /** `cun_…` */
-  costUnitId: string;
-  /** `cat_…` */
-  categoryId: string;
-}
-
 export function photoUrl(beleg: { id: string | null; etag: string }, variant = ''): string {
   return `/api/intern/pflege/belege/${beleg.id}/foto?v=${encodeURIComponent(beleg.etag)}${variant}`;
 }
@@ -71,7 +66,11 @@ export function formatTimestamp(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '' : formatDateTime(date);
 }
-export function validateBeleg(f: BelegForm, hasPhoto: boolean): Record<string, string> {
+export function validateBeleg(
+  f: BelegForm,
+  hasPhoto: boolean,
+  forTransfer = false
+): Record<string, string> {
   const result: Record<string, string> = {};
   if (!f.id && !hasPhoto) result.photo = 'Bitte ein Foto des Belegs hinzufügen.';
   if (!f.shop.trim()) result.shop = 'Bitte das Geschäft angeben.';
@@ -85,7 +84,11 @@ export function validateBeleg(f: BelegForm, hasPhoto: boolean): Record<string, s
   } else if (f.zahlung === 'ich' && !f.paidBy.trim()) {
     result.payout = 'Dein Name ist nicht bekannt. Wähle „Jemand anderes“ und trage ihn ein.';
   }
-  if (!f.aktion.trim()) result.aktion = 'Bitte die Aktion angeben.';
+  // A receipt from before Kostenstelle and Kategorie may keep its Aktion, unless it is transferred
+  if (!f.aktion.trim() || f.kostenstelle.trim() || f.kategorie.trim() || forTransfer) {
+    if (!f.kostenstelle.trim()) result.kostenstelle = 'Bitte die Kostenstelle angeben.';
+    if (!f.kategorie.trim()) result.kategorie = 'Bitte die Kategorie angeben.';
+  }
   if (f.status === 'Abgelehnt' && !f.reviewNote.trim()) {
     result.reviewNote = 'Bitte begründen, warum der Beleg abgelehnt wird.';
   }
@@ -100,7 +103,7 @@ export function decisionMessage(
 ): string {
   switch (decision) {
     case 'Angenommen':
-      return `Beleg von ${shop} angenommen. Jetzt Kostenstelle und Kategorie wählen und nach CampFlow übertragen.`;
+      return `Beleg von ${shop} angenommen. Jetzt Kostenstelle und Kategorie prüfen und nach CampFlow übertragen.`;
     case 'Abgelehnt':
       return mailed
         ? `Beleg von ${shop} abgelehnt. ${submittedBy} hat die Begründung per Mail bekommen.`
@@ -110,11 +113,6 @@ export function decisionMessage(
     default:
       return `Beleg von ${shop} gespeichert.`;
   }
-}
-
-export function knownBelegAktion(value: string, suggestions: string[]): boolean {
-  const text = value.trim().toLocaleLowerCase('de');
-  return suggestions.some((suggestion) => suggestion.trim().toLocaleLowerCase('de') === text);
 }
 
 /** The Kostenstelle whose name is the receipt's Aktion, as the Abrechnung matches them. */
