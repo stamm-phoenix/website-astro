@@ -351,6 +351,18 @@ dbTest('names differing only in runs of spaces book on the existing Kategorie', 
   assert.deepEqual([upload?.body?.costUnit, upload?.body?.category], ['cun_Zelte', 'cat_Holz']);
 });
 
+dbTest('a standard Kategorie typed in another spelling is created in its own', async (t) => {
+  const { context, blobs, calls } = setup(t, () => uploaded());
+  const etag = await store(blobs, 7, { kategorie: 'honorare' });
+
+  assert.equal((await transfer(context, 7, { etag })).status, 200);
+  assert.deepEqual(
+    calls.filter((call) => call.method === 'PUT').map((call) => call.body),
+    [{ name: 'Honorare', sphere: 'purpose' }]
+  );
+  assert.equal((await transferRow(7))?.category_name, 'Honorare');
+});
+
 dbTest('a Kategorie CampFlow does not create stops the transfer before it starts', async (t) => {
   const { context, blobs, calls } = setup(
     t,

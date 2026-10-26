@@ -28,6 +28,11 @@ export function isStandardKategorie(name: string): boolean {
   return STANDARD_KATEGORIEN.some((standard) => sameName(standard, name));
 }
 
+/** A standard Kategorie in its own spelling, any other name as typed. */
+export function kategorieSchreibweise(name: string): string {
+  return STANDARD_KATEGORIEN.find((standard) => sameName(standard, name)) ?? name;
+}
+
 /** The Kostenstelle of that name, an archived one only if no other has it, as the API picks it. */
 export function findKostenstelle<T extends Unit>(units: readonly T[], name: string): T | undefined {
   if (!name.trim()) return undefined;
