@@ -8,7 +8,10 @@
   import {
     buchungen,
     gesamt,
+    imJahr,
     inAnsicht,
+    jahre,
+    keineImJahr,
     kategorien,
     SORTIERUNGEN,
     SPHAEREN,
@@ -25,6 +28,8 @@
   let ansicht = $state<KostenstellenAnsicht>('aktuell');
   let sortierung = $state<KostenstellenSortierung>('name');
   let suche = $state('');
+  /** Only Kostenstellen with a booking in this year; `null` for all. */
+  let jahr = $state<number | null>(null);
   let refreshed = $state('');
   /** Whether the last load asked CampFlow again, so „Erneut versuchen“ repeats that. */
   let refreshing = false;
@@ -42,14 +47,16 @@
 
   function sichtbar(data: KostenstellenData): KostenstelleStatistik[] {
     return sortiere(
-      data.costUnits.filter((k) => inAnsicht(k, ansicht) && treffer(k, suche) !== null),
+      data.costUnits.filter(
+        (k) => inAnsicht(k, ansicht) && imJahr(k, jahr) && treffer(k, suche) !== null
+      ),
       sortierung
     );
   }
 
   function tabs(data: KostenstellenData) {
     const count = (value: KostenstellenAnsicht): number =>
-      data.costUnits.filter((k) => inAnsicht(k, value)).length;
+      data.costUnits.filter((k) => inAnsicht(k, value) && imJahr(k, jahr)).length;
     return [
       { value: 'aktuell' as const, label: 'Aktuelle', count: count('aktuell') },
       { value: 'archiviert' as const, label: 'Archivierte', count: count('archiviert') },
@@ -130,6 +137,15 @@
             />
           </label>
           <label class="block w-full text-sm sm:w-56">
+            <span class="font-semibold text-neutral-700">Buchungen im Jahr</span>
+            <select bind:value={jahr} class="form-input mt-1 w-full">
+              <option value={null}>Alle Jahre</option>
+              {#each jahre(data.costUnits) as option (option)}
+                <option value={option}>{option}</option>
+              {/each}
+            </select>
+          </label>
+          <label class="block w-full text-sm sm:w-56">
             <span class="font-semibold text-neutral-700">Sortieren nach</span>
             <select bind:value={sortierung} class="form-input mt-1 w-full">
               {#each SORTIERUNGEN as option (option.value)}
@@ -144,11 +160,13 @@
         <p class="surface p-6 text-sm text-neutral-700">
           {suche.trim()
             ? 'Keine Kostenstelle und keine Kategorie passt zur Suche.'
-            : ansicht === 'archiviert'
-              ? 'In CampFlow ist keine Kostenstelle archiviert.'
-              : ansicht === 'aktuell' && data.costUnits.length > 0
-                ? 'In CampFlow sind alle Kostenstellen archiviert.'
-                : 'In CampFlow gibt es noch keine Kostenstellen.'}
+            : jahr !== null
+              ? keineImJahr(ansicht, jahr)
+              : ansicht === 'archiviert'
+                ? 'In CampFlow ist keine Kostenstelle archiviert.'
+                : ansicht === 'aktuell' && data.costUnits.length > 0
+                  ? 'In CampFlow sind alle Kostenstellen archiviert.'
+                  : 'In CampFlow gibt es noch keine Kostenstellen.'}
         </p>
       {:else}
         <ul class="space-y-3" aria-label="Kostenstellen">

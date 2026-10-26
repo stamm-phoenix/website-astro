@@ -33,6 +33,8 @@ export interface KostenstelleStatistik extends KostenstellenSummen {
   /** Hex colour from CampFlow, null if unknown. */
   color: string | null;
   archived: boolean;
+  /** Calendar years with at least one booking, ascending. */
+  years: number[];
   categories: KategorieStatistik[];
 }
 
@@ -90,6 +92,17 @@ function readKategorie(value: unknown): KategorieStatistik {
   };
 }
 
+/** An older Playwright API sends no years; then no year filter finds the Kostenstelle. */
+function readYears(value: unknown): number[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) invalid();
+  return value.map((year: unknown) => {
+    if (typeof year !== 'number' || !Number.isInteger(year) || year < 1900 || year > 9999)
+      invalid();
+    return year;
+  });
+}
+
 function readKostenstelle(value: unknown): KostenstelleStatistik {
   if (!isObject(value) || typeof value.name !== 'string' || !Array.isArray(value.categories))
     invalid();
@@ -100,6 +113,7 @@ function readKostenstelle(value: unknown): KostenstelleStatistik {
       typeof value.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(value.color) ? value.color : null,
     archived: value.archived === true,
     ...summen(value),
+    years: readYears(value.years),
     categories: value.categories.map(readKategorie),
   };
 }
