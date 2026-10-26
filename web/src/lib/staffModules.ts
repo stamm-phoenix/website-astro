@@ -220,7 +220,7 @@ export const STAFF_MODULES: StaffModule[] = [
     description:
       'Einnahmen, Ausgaben und Saldo je Kostenstelle und Kategorie aus CampFlow – für Kasse und Vorstand.',
     intro:
-      'Summen aller Buchungen in CampFlow über den gesamten Zeitraum, je Kostenstelle und je Kategorie. „Offen“ ist der Teil, der noch keiner Zahlung auf dem Konto zugeordnet ist: bei Einnahmen zum Beispiel unbezahlte Beiträge, bei Ausgaben noch nicht erstattete Auslagen. Nur die Kasse und der Vorstand sehen diesen Bereich.',
+      'Summen aller Buchungen in CampFlow über den gesamten Zeitraum, je Kostenstelle und je Kategorie; ist ein Jahr gewählt, gilt die Summe oben nur für dieses Jahr. „Offen“ ist der Teil, der noch keiner Zahlung auf dem Konto zugeordnet ist: bei Einnahmen zum Beispiel unbezahlte Beiträge, bei Ausgaben noch nicht erstattete Auslagen. Nur die Kasse und der Vorstand sehen diesen Bereich.',
     roles: ['team_kasse', 'team_vorstand'],
     keywords: [
       'kasse',

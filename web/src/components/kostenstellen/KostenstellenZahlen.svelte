@@ -6,8 +6,10 @@
     summen: KostenstellenSummen;
     /** Larger numbers, for the sum of all shown Kostenstellen. */
     gross?: boolean;
+    /** Names the period of the numbers, when it differs from the sum above (a year is chosen). */
+    zeitraum?: string;
   }
-  let { summen, gross = false }: Props = $props();
+  let { summen, gross = false, zeitraum }: Props = $props();
 
   // Spans only: the numbers also sit inside a <summary>, which takes no lists
   const spalten = $derived([
@@ -28,6 +30,9 @@
 </script>
 
 <span class="block">
+  {#if zeitraum}
+    <span class="mb-1 block text-xs font-semibold text-neutral-700">{zeitraum}</span>
+  {/if}
   <span class="grid grid-cols-3 gap-2">
     {#each spalten as spalte (spalte.label)}
       <span class="block min-w-0">
