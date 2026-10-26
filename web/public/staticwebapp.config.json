@@ -95,22 +95,6 @@
       }
     },
     {
-      "route": "/leitendenbereich/kostenstellen",
-      "allowedRoles": ["team_kasse", "team_vorstand"],
-      "headers": {
-        "X-Robots-Tag": "noindex",
-        "Cache-Control": "no-store"
-      }
-    },
-    {
-      "route": "/leitendenbereich/kostenstellen/*",
-      "allowedRoles": ["team_kasse", "team_vorstand"],
-      "headers": {
-        "X-Robots-Tag": "noindex",
-        "Cache-Control": "no-store"
-      }
-    },
-    {
       "route": "/leitendenbereich/*",
       "allowedRoles": ["team_leitende"],
       "headers": {

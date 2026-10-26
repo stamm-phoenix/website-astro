@@ -27,7 +27,9 @@ export interface StaffModule extends StaffPage {
   wrap?: string;
   /**
    * Only for these roles of the teams (`CONFIG.staff.teams`), one of them is enough; the module is
-   * hidden from everyone else. The page needs the same `allowedRoles` in `staticwebapp.config.json`.
+   * hidden from everyone else. Its API checks the teams with `hasTeam`; the page itself stays under
+   * `team_leitende`, because a route of its own in `staticwebapp.config.json` could only allow
+   * these roles instead of Leitende, not in addition.
    */
   roles?: string[];
 }
