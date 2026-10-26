@@ -146,7 +146,9 @@
             ? 'Keine Kostenstelle und keine Kategorie passt zur Suche.'
             : ansicht === 'archiviert'
               ? 'In CampFlow ist keine Kostenstelle archiviert.'
-              : 'In CampFlow gibt es noch keine Kostenstellen.'}
+              : ansicht === 'aktuell' && data.costUnits.length > 0
+                ? 'In CampFlow sind alle Kostenstellen archiviert.'
+                : 'In CampFlow gibt es noch keine Kostenstellen.'}
         </p>
       {:else}
         <ul class="space-y-3" aria-label="Kostenstellen">
