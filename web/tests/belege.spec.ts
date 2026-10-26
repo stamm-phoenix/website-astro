@@ -193,7 +193,14 @@ test('a late answer of an earlier Kostenstellen read keeps the newer Kategorien'
     if (read === 2) oldAnswered = true;
   });
   await page.goto('/leitendenbereich/belege/');
-  await expect.poll(() => reads).toBe(1);
+  // „Neu laden“ reads the Kostenstellen again only once the first read is in the page
+  await page.getByRole('button', { name: 'Beleg einreichen' }).first().click();
+  let dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  let list = await searchZuordnung(dialog, 'fahrt');
+  await expect(list.getByRole('option', { name: 'Fahrtkosten' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(dialog).toBeHidden();
+  expect(reads).toBe(1);
   const reload = page.getByRole('button', { name: 'Neu laden' });
   await reload.click();
   await expect.poll(() => reads).toBe(2);
@@ -205,8 +212,8 @@ test('a late answer of an earlier Kostenstellen read keeps the newer Kategorien'
   await expect.poll(() => oldAnswered).toBe(true);
 
   await page.getByRole('button', { name: 'Beleg einreichen' }).first().click();
-  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
-  const list = await searchZuordnung(dialog, 'fahrt');
+  dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  list = await searchZuordnung(dialog, 'fahrt');
   await expect(
     list.getByRole('group', { name: 'Kategorie in Sommerlager 2026 Oberjoch' })
   ).toBeVisible();
