@@ -19,10 +19,12 @@ weil beide frei eingegeben werden können. Code: `web/src/lib/belegZuordnung.ts`
 `web/src/components/pflege/BelegZuordnung.svelte`.
 
 - **Suche:** „Kostenstelle oder Kategorie suchen“ bietet alle nicht archivierten Kostenstellen und
-  alle ihre Kategorien an, eine Kategorie unter dem Namen ihrer Kostenstelle. Eine Kategorie
-  passt nur über ihren eigenen Namen, „leite“ findet also „Leitendenlager 2026“ und
-  „Leitendenrunde“ in „Allgemein“, aber nicht jede Kategorie des Leitendenlagers. Eine Kostenstelle
-  füllt nur das Feld Kostenstelle, eine Kategorie beide.
+  alle ihre Kategorien an, eine Kategorie unter dem Namen ihrer Kostenstelle. Jedes getippte Wort
+  muss vorkommen, und eine Kategorie braucht eines davon im eigenen Namen: „leite“ findet also
+  „Leitendenlager 2026“ und „Leitendenrunde“ in „Allgemein“, aber nicht jede Kategorie des
+  Leitendenlagers; „verpflegung stammes“ grenzt die vielen „Verpflegung“ auf die der
+  Kostenstellen mit „Stammes…“ ein. Eine Kostenstelle füllt nur das Feld Kostenstelle, eine
+  Kategorie beide.
 - **Standardkategorien:** Die Kategorien des KJR (`STANDARD_KATEGORIEN`: Fahrtkosten,
   Verpflegungskosten, Miet- und Übernachtungskosten, Honorare, Arbeits- und Hilfsmittel) stehen
   bei jeder Kostenstelle zuerst, auch wenn es sie dort noch nicht gibt; danach die übrigen der
@@ -56,6 +58,12 @@ bzw. `PUT /campflow/kostenstellen/{id}/kategorien` der Playwright-API), mit der 
 `purpose` (Zweckbetrieb) wie alle Kategorien der Aktionen. Das ist wiederholbar: Ein vorhandener
 Name wird gefunden und nicht noch einmal angelegt. Scheitert das Anlegen, antwortet der Endpunkt
 mit `502` (`TARGET_NOT_CREATED`) und hat keinen Beleg übertragen.
+
+Prüfen und Anlegen haben zusammen eine Frist: Von den 40 Sekunden einer Anfrage bleiben 25 für
+Upload, Buchung und Speichern des Ergebnisses (`UPLOAD_RESERVE_MS`), weil Static Web Apps nach
+45 Sekunden abbricht. Braucht CampFlow für die Vorbereitung länger, beginnt kein Upload; der
+Endpunkt antwortet mit `503` (`CAMPFLOW_SLOW`), und ein neuer Versuch findet, was schon angelegt
+ist.
 
 ## Wie wurde bezahlt?
 

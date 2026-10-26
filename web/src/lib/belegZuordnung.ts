@@ -48,25 +48,41 @@ export interface ZuordnungTreffer {
 
 /**
  * Suggestions of the search across all Kostenstellen and Kategorien: the Kostenstellen first,
- * then the Kategorien under the name of their Kostenstelle. A Kategorie matches by its own name,
- * so „leite“ finds „Leitendenrunde“ in „Allgemein“ without every Kategorie of „Leitendenlager“.
+ * then the Kategorien under the name of their Kostenstelle. Every word typed must appear, and a
+ * Kategorie needs one of them in its own name: „leite“ finds „Leitendenrunde“ in „Allgemein“
+ * without every Kategorie of „Leitendenlager“, and „verpflegung stammes“ narrows the many
+ * „Verpflegung“ to those of the Kostenstellen named so. The suggestions already match `query`,
+ * so the field keeps them all.
  */
-export function zuordnungVorschlaege(units: readonly Unit[]): Vorschlag[] {
+export function zuordnungVorschlaege(units: readonly Unit[], query = ''): Vorschlag[] {
+  const words = fold(query).split(' ').filter(Boolean);
+  const has = (text: string, word: string): boolean => fold(text).includes(word);
   const active = units.filter((unit) => !unit.archived);
+  const search = query || undefined;
   return [
-    ...active.map((unit) => ({
-      value: JSON.stringify({ kostenstelle: unit.name, kategorie: null }),
-      label: unit.name,
-      gruppe: 'Kostenstellen',
-      key: unit.id,
-    })),
+    ...active
+      .filter((unit) => words.every((word) => has(unit.name, word)))
+      .map((unit) => ({
+        value: JSON.stringify({ kostenstelle: unit.name, kategorie: null }),
+        label: unit.name,
+        search,
+        gruppe: 'Kostenstellen',
+        key: unit.id,
+      })),
     ...active.flatMap((unit) =>
-      unit.categories.map((category) => ({
-        value: JSON.stringify({ kostenstelle: unit.name, kategorie: category.name }),
-        label: category.name,
-        gruppe: `Kategorie in ${unit.name}`,
-        key: category.id,
-      }))
+      unit.categories
+        .filter(
+          (category) =>
+            words.every((word) => has(`${category.name} ${unit.name}`, word)) &&
+            (!words.length || words.some((word) => has(category.name, word)))
+        )
+        .map((category) => ({
+          value: JSON.stringify({ kostenstelle: unit.name, kategorie: category.name }),
+          label: category.name,
+          search,
+          gruppe: `Kategorie in ${unit.name}`,
+          key: category.id,
+        }))
     ),
   ];
 }

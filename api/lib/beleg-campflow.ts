@@ -126,6 +126,13 @@ export function campflowDisburser(beleg: StoredBeleg): string | null {
 const NEW_CATEGORY_SPHERE = 'purpose';
 
 /**
+ * Of the request's time, what upload, booking and storing the result need after the preparation
+ * (a transfer takes about 10 to 20 seconds). Finding and creating Kostenstelle and Kategorie get
+ * the rest; a preparation that needs longer starts no upload, so the answer comes in time.
+ */
+const UPLOAD_RESERVE_MS = 25_000;
+
+/**
  * The Kategorien of the KJR the form offers for every Kostenstelle (`STANDARD_KATEGORIEN` in
  * `web/src/lib/belegZuordnung.ts`); one typed in another spelling is created in this one.
  */
@@ -155,7 +162,7 @@ function findTarget(
  * exist there yet, e.g. typed in or one of the standard Kategorien, is created first; that is
  * safe to repeat, as an existing name is found and not created again.
  */
-async function resolveTarget(beleg: StoredBeleg): Promise<BelegCampflowTarget> {
+async function resolveTarget(beleg: StoredBeleg, deadline: number): Promise<BelegCampflowTarget> {
   const costUnitName = beleg.kostenstelle.trim();
   const categoryName =
     STANDARD_KATEGORIEN.find((name) => sameName(name, beleg.kategorie)) ?? beleg.kategorie.trim();
@@ -172,11 +179,24 @@ async function resolveTarget(beleg: StoredBeleg): Promise<BelegCampflowTarget> {
       'KOSTENSTELLE_ARCHIVED',
       `Die Kostenstelle „${name}“ ist in CampFlow archiviert. Bitte trage oben im Beleg eine andere Kostenstelle ein und übertrage ihn dann noch einmal.`
     );
+  /** Time left before the upload's reserve. */
+  const left = (): number => deadline - UPLOAD_RESERVE_MS - Date.now();
+  const slow = (cause?: unknown): BelegCampflowError =>
+    new BelegCampflowError(
+      503,
+      'CAMPFLOW_SLOW',
+      'CampFlow hat zu lange gebraucht, um Kostenstelle und Kategorie zu prüfen oder anzulegen. Der Beleg wurde noch nicht übertragen. Bitte übertrage ihn gleich noch einmal; schon Angelegtes wird dabei erkannt.',
+      { cause }
+    );
+  if (left() <= 0) throw slow();
+  // One time limit for the whole preparation, whatever the number of calls
+  const signal = AbortSignal.timeout(left());
   let found: ReturnType<typeof findTarget>;
   try {
-    found = findTarget(await getKostenstellen(), costUnitName, categoryName);
+    found = findTarget(await getKostenstellen({ signal }), costUnitName, categoryName);
   } catch (error: unknown) {
     if (!(error instanceof PlaywrightApiError)) throw error;
+    if (signal.aborted) throw slow(error);
     throw new BelegCampflowError(
       502,
       'KOSTENSTELLEN_UNAVAILABLE',
@@ -186,10 +206,14 @@ async function resolveTarget(beleg: StoredBeleg): Promise<BelegCampflowTarget> {
   if (found.unit?.archived) throw archived(found.unit.name);
   if (!found.unit || !found.category) {
     try {
-      await ensureCampflowExpenseAssignment(costUnitName, categoryName, NEW_CATEGORY_SPHERE);
-      found = findTarget(await getKostenstellen({ refresh: true }), costUnitName, categoryName);
+      await ensureCampflowExpenseAssignment(costUnitName, categoryName, NEW_CATEGORY_SPHERE, {
+        signal,
+      });
+      // The Playwright API drops its list after an addition, so this reads CampFlow again
+      found = findTarget(await getKostenstellen({ signal }), costUnitName, categoryName);
     } catch (error: unknown) {
       if (!(error instanceof PlaywrightApiError)) throw error;
+      if (signal.aborted) throw slow(error);
       if (error.status === 409) throw archived(costUnitName);
       throw new BelegCampflowError(
         502,
@@ -205,6 +229,8 @@ async function resolveTarget(beleg: StoredBeleg): Promise<BelegCampflowTarget> {
         `„${costUnitName}“ mit der Kategorie „${categoryName}“ ist nach dem Anlegen nicht in CampFlow zu finden. Der Beleg wurde nicht übertragen. Bitte lade die Seite neu und versuche es noch einmal.`
       );
     }
+    // Created, but too late for the upload to answer in time; the next attempt finds it
+    if (left() <= 0) throw slow();
   }
   return {
     costUnitId: found.unit.id,
@@ -324,7 +350,9 @@ async function finishAttempt(
 export async function transferBelegToCampflow(
   id: number,
   etag: string,
-  actor: string
+  actor: string,
+  /** When the answer must be sent (`Date.now()` milliseconds). */
+  deadline: number = Date.now() + 40_000
 ): Promise<BelegCampflowResult> {
   const beleg = await getBeleg(id);
   if (!beleg) throw new RecordNotFoundError();
@@ -382,7 +410,7 @@ export async function transferBelegToCampflow(
             costUnitName: row.costunit_name,
             categoryName: row.category_name,
           }
-        : await resolveTarget(beleg);
+        : await resolveTarget(beleg, deadline);
     const fileName = row?.file_name ?? campflowFileName(beleg);
     const attempt = await startAttempt(beleg, target, fileName, row, actor);
 

@@ -26,7 +26,7 @@
   const units = $derived(kostenstellenStore.data ?? []);
   let suche = $state('');
 
-  const treffer = $derived(zuordnungVorschlaege(units));
+  const treffer = $derived(zuordnungVorschlaege(units, suche));
   const kostenstellen = $derived(kostenstelleVorschlaege(units));
   const kategorien = $derived(kategorieVorschlaege(units, form.kostenstelle));
   const stand = $derived(

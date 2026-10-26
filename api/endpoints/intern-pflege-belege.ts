@@ -518,7 +518,14 @@ export const BelegCampflowEndpoint = pflegeHandler(
     const body = await readJsonBody(request);
     const etag = requireVersion(readEtag(body));
     try {
-      return ok(await transferBelegToCampflow(id, etag, principal.userDetails));
+      return ok(
+        await transferBelegToCampflow(
+          id,
+          etag,
+          principal.userDetails,
+          Date.now() + REQUEST_BUDGET_MS
+        )
+      );
     } catch (error: unknown) {
       if (error instanceof BelegCampflowError) return error.toResponse();
       throw error;
