@@ -24,7 +24,8 @@ export function statusLabel(fee: AktionBeitrag): { label: string; tone: StatusTo
     case 'partial':
       return { label: `Teilweise bezahlt, ${formatEuro(fee.openCent)} offen`, tone: 'warning' };
     case 'refund':
-      return { label: `${formatEuro(-fee.openCent)} zu viel bezahlt`, tone: 'warning' };
+      // Mostly a fee lowered after paying: the Kasse has to pay back the difference
+      return { label: `${formatEuro(-fee.openCent)} zu erstatten`, tone: 'warning' };
     case 'cancelled':
       return { label: 'Storniert', tone: 'neutral' };
     default:
@@ -152,7 +153,10 @@ export function meineBeitraege(
       title: (fee.batchId && sammlungen.get(fee.batchId)) || fee.description,
       reference: fee.reference,
       dueCent: fee.dueCent,
-      ...statusLabel(fee),
+      // Paying back is up to the Kasse, the person has nothing to do
+      ...(fee.status === 'refund'
+        ? { label: `${formatEuro(-fee.openCent)} bekommst du zurück`, tone: 'neutral' as const }
+        : statusLabel(fee)),
       href: fee.batchId
         ? `/leitendenbereich/beitraege?sammlung=${encodeURIComponent(fee.batchId)}`
         : '/leitendenbereich/beitraege?ansicht=alle',

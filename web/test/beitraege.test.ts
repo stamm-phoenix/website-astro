@@ -59,7 +59,7 @@ test('the status says in words what is paid, open or to pay back', () => {
   );
   assert.equal(
     statusLabel(beitrag('refund', 7000, 10000)).label.replace(/\s/g, ' '),
-    '30,00 € zu viel bezahlt'
+    '30,00 € zu erstatten'
   );
   assert.equal(statusLabel(beitrag('cancelled', 0, 0)).label, 'Storniert');
 });
@@ -148,7 +148,7 @@ test('„Meine Beiträge“ lists the own ones with something left to do, on eit
   );
   assert.equal(own[0].title, 'Stammeslager 2026');
   assert.equal(own[0].href, '/leitendenbereich/beitraege?sammlung=bat_1');
-  assert.equal(own[2].label, `${formatEuro(3000)} zu viel bezahlt`);
+  assert.equal(own[2].label, `${formatEuro(3000)} bekommst du zurück`);
   // The server's answer wins over the name: a namesake is not „ich“, another payer may be.
   // What it could not check (fee_partial) is decided by the payer as before.
   const matched = meineBeitraege(
