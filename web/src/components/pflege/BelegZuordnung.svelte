@@ -6,6 +6,7 @@
   import { matchingKostenstelle, type BelegForm } from '../../lib/belegForm';
   import {
     kategorieVorschlaege,
+    kategorieSchreibweise,
     kostenstelleVorschlaege,
     readZuordnungTreffer,
     zuordnungStand,
@@ -121,6 +122,7 @@
           listLabel="Kategorie auswählen"
           bind:value={form!.kategorie}
           onedit={() => onfield('kategorie')}
+          oncommit={(text) => (form.kategorie = kategorieSchreibweise(text))}
         />
       {/snippet}
     </FormField>

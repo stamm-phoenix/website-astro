@@ -125,6 +125,18 @@ export function campflowDisburser(beleg: StoredBeleg): string | null {
 /** Sphäre of a Kategorie the transfer creates: like every Kategorie of the Aktionen so far. */
 const NEW_CATEGORY_SPHERE = 'purpose';
 
+/**
+ * The Kategorien of the KJR the form offers for every Kostenstelle (`STANDARD_KATEGORIEN` in
+ * `web/src/lib/belegZuordnung.ts`); one typed in another spelling is created in this one.
+ */
+const STANDARD_KATEGORIEN = [
+  'Fahrtkosten',
+  'Verpflegungskosten',
+  'Miet- und Übernachtungskosten',
+  'Honorare',
+  'Arbeits- und Hilfsmittel',
+];
+
 const sameName = sameCampflowName;
 
 /** The Kostenstelle and Kategorie of that name, an archived Kostenstelle only if no other has it. */
@@ -145,7 +157,8 @@ function findTarget(
  */
 async function resolveTarget(beleg: StoredBeleg): Promise<BelegCampflowTarget> {
   const costUnitName = beleg.kostenstelle.trim();
-  const categoryName = beleg.kategorie.trim();
+  const categoryName =
+    STANDARD_KATEGORIEN.find((name) => sameName(name, beleg.kategorie)) ?? beleg.kategorie.trim();
   if (!costUnitName || !categoryName) {
     throw new BelegCampflowError(
       400,

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  kategorieSchreibweise,
   kategorieVorschlaege,
   readZuordnungTreffer,
   zuordnungStand,
@@ -70,4 +71,10 @@ test('new names are told apart from existing and standard ones', () => {
   assert.equal(stand('Allgemein', 'Getränke')?.neueKategorie, true);
   assert.equal(stand('Herbstfahrt', 'Honorare')?.neueKostenstelle, true);
   assert.equal(stand('Leitendenlager 2019', 'Honorare')?.archiviert, true);
+});
+
+test('a standard Kategorie takes its own spelling, others stay as typed', () => {
+  assert.equal(kategorieSchreibweise(' honorare '), 'Honorare');
+  assert.equal(kategorieSchreibweise('arbeits-  und hilfsmittel'), 'Arbeits- und Hilfsmittel');
+  assert.equal(kategorieSchreibweise('getränke'), 'getränke');
 });
