@@ -18,6 +18,10 @@ export interface KostenstellenSummen {
   bookings: number;
 }
 
+export interface JahresSummen extends KostenstellenSummen {
+  year: number;
+}
+
 export interface KategorieStatistik extends KostenstellenSummen {
   /** null for a Kategorie with bookings that the Kostenstelle no longer lists. */
   id: string | null;
@@ -35,6 +39,8 @@ export interface KostenstelleStatistik extends KostenstellenSummen {
   archived: boolean;
   /** Calendar years with at least one booking, ascending. */
   years: number[];
+  /** The sums of each of these years. */
+  yearTotals: JahresSummen[];
   categories: KategorieStatistik[];
 }
 
@@ -96,10 +102,19 @@ function readKategorie(value: unknown): KategorieStatistik {
 function readYears(value: unknown): number[] {
   if (value === undefined) return [];
   if (!Array.isArray(value)) invalid();
-  return value.map((year: unknown) => {
-    if (typeof year !== 'number' || !Number.isInteger(year) || year < 1900 || year > 9999)
-      invalid();
-    return year;
+  return value.map((year: unknown) => (isYear(year) ? year : invalid()));
+}
+
+const isYear = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 1900 && value <= 9999;
+
+/** An older Playwright API sends no sums per year. */
+function readYearTotals(value: unknown): JahresSummen[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) invalid();
+  return value.map((item: unknown) => {
+    if (!isObject(item) || !isYear(item.year)) invalid();
+    return { year: item.year, ...summen(item) };
   });
 }
 
@@ -114,6 +129,7 @@ function readKostenstelle(value: unknown): KostenstelleStatistik {
     archived: value.archived === true,
     ...summen(value),
     years: readYears(value.years),
+    yearTotals: readYearTotals(value.yearTotals),
     categories: value.categories.map(readKategorie),
   };
 }

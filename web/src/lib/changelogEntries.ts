@@ -18,7 +18,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       // No link: most Leitende may not open the page
       'Im neuen Bereich „Kostenstellen“ siehst du alle Kostenstellen aus CampFlow mit Einnahmen, Ausgaben und Saldo, und darunter dieselben Summen für jede Kategorie. Offene Beträge, etwa unbezahlte Beiträge oder noch nicht erstattete Auslagen, stehen dabei.',
-      'Du kannst nach Kostenstelle oder Kategorie suchen, archivierte Kostenstellen dazunehmen, nur Kostenstellen mit Buchungen aus einem bestimmten Jahr zeigen und nach den höchsten Ausgaben oder Einnahmen sortieren. Ändern geht weiterhin in CampFlow.',
+      'Du kannst nach Kostenstelle oder Kategorie suchen, archivierte Kostenstellen dazunehmen, nur Kostenstellen mit Buchungen aus einem bestimmten Jahr zeigen (die Summe oben gilt dann für dieses Jahr) und nach den höchsten Ausgaben oder Einnahmen sortieren. Ändern geht weiterhin in CampFlow.',
       'Den Bereich sehen nur die Kasse und der Vorstand.',
     ],
   },

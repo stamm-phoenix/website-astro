@@ -8,6 +8,7 @@ import {
   kategorieName,
   keineImJahr,
   sortiere,
+  summenImJahr,
   treffer,
 } from '../src/lib/kostenstellen';
 import type { KostenstelleStatistik } from '../src/lib/types';
@@ -29,6 +30,7 @@ const kostenstelle = (
   openExpensesCent: 0,
   bookings: 1,
   years: [],
+  yearTotals: [],
   categories: [],
   ...fields,
 });
@@ -99,4 +101,16 @@ test('filters by the years with bookings, keeping every Kategorie', () => {
   assert.deepEqual(jahre([alt, lager, allgemein]), [2026, 2025, 2019]);
   assert.equal(keineImJahr('aktuell', 2024), 'Keine aktuelle Kostenstelle hat Buchungen aus 2024.');
   assert.equal(keineImJahr('alle', 2024), 'Keine Kostenstelle hat Buchungen aus 2024.');
+});
+
+test('the sums of one year come from the yearly totals, none without bookings that year', () => {
+  const jahr2025 = { ...gesamt([]), incomeCent: 4000, balanceCent: 4000, bookings: 2 };
+  const mitJahren = { ...lager, yearTotals: [{ year: 2025, ...jahr2025 }] };
+  assert.deepEqual(summenImJahr(mitJahren, 2025), { year: 2025, ...jahr2025 });
+  assert.deepEqual(summenImJahr(mitJahren, 2024), gesamt([]));
+  assert.equal(summenImJahr(mitJahren, null), mitJahren);
+  assert.equal(
+    gesamt([summenImJahr(mitJahren, 2025), summenImJahr(allgemein, 2025)]).incomeCent,
+    4000
+  );
 });

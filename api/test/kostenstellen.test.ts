@@ -63,6 +63,10 @@ const ANSWER = {
       archived: false,
       ...sums(90, -120.8, 4),
       years: [2025, 2026],
+      yearTotals: [
+        { year: 2025, ...sums(0, -20.8, 1) },
+        { year: 2026, ...sums(90, -100, 3), openIncome: 10, openExpenses: -0.1 },
+      ],
       openIncome: 10,
       openExpenses: -0.1,
       categories: [
@@ -137,6 +141,7 @@ test('Kostenstellen come from the Playwright API in cents, open ones first', asy
         balanceCent: 5000,
         bookings: 1,
         years: [],
+        yearTotals: [],
         categories: [
           {
             id: 'cat_spenden',
@@ -161,6 +166,18 @@ test('Kostenstellen come from the Playwright API in cents, open ones first', asy
         openExpensesCent: -10,
         bookings: 4,
         years: [2025, 2026],
+        yearTotals: [
+          { year: 2025, ...zero, expensesCent: -2080, balanceCent: -2080, bookings: 1 },
+          {
+            year: 2026,
+            incomeCent: 9000,
+            expensesCent: -10000,
+            balanceCent: -1000,
+            openIncomeCent: 1000,
+            openExpensesCent: -10,
+            bookings: 3,
+          },
+        ],
         categories: [
           {
             id: 'cat_fahrt',
@@ -191,6 +208,7 @@ test('Kostenstellen come from the Playwright API in cents, open ones first', asy
         archived: true,
         ...zero,
         years: [],
+        yearTotals: [],
         categories: [],
       },
     ],
