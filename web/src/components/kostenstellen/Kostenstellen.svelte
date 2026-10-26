@@ -221,7 +221,7 @@
                     <p class="pt-3 text-sm text-neutral-700">Keine Kategorien.</p>
                   {:else}
                     <ul class="divide-y divide-neutral-200">
-                      {#each kategorien(kostenstelle, sortierung) as kategorie (kategorie.id ?? `name:${kategorie.name}`)}
+                      {#each kategorien(kostenstelle, sortierung) as kategorie (kategorie.key)}
                         <li class="space-y-2 py-3">
                           <p class="text-sm">
                             <span class="font-semibold text-brand-900">{kategorie.name}</span>

@@ -7,6 +7,7 @@ import {
   inAnsicht,
   jahre,
   kategorieName,
+  kategorien,
   keineImJahr,
   sortiere,
   summenImJahr,
@@ -153,4 +154,16 @@ test('with a year chosen, the Kostenstelle and all its Kategorien show only that
     ]
   );
   assert.equal(imJahrGesehen(k, 2025).categories[1].incomeCent, 200);
+});
+
+test('bookings without a Kategorie and a deleted Kategorie „Ohne Kategorie“ stay apart', () => {
+  const ohne = { id: null, name: '', sphere: null, ...gesamt([]), incomeCent: 100, yearTotals: [] };
+  const geloescht = { ...ohne, name: 'Ohne Kategorie', incomeCent: 200 };
+  const liste = kategorien(
+    kostenstelle('Lager', 300, 0, { categories: [ohne, geloescht] }),
+    'name'
+  );
+  assert.equal(liste.length, 2);
+  assert.equal(new Set(liste.map((k) => k.key)).size, 2);
+  assert.deepEqual(liste.map((k) => k.incomeCent).sort(), [100, 200]);
 });
