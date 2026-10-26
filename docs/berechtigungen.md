@@ -31,10 +31,9 @@ Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leiten
    `/kein-zugang` (`responseOverrides.403`) mit einem Knopf zum Ab- und Neuanmelden.
 5. Die API prüft zusätzlich: `requireStaff` verlangt `team_leitende` (sonst `403 NOT_IN_TEAM`),
    die Belege prüfen `hasTeam(principal, 'kasse')`, die Kostenstellen
-   (`GET /api/intern/kostenstellen`) `kasse` oder `vorstand`. Die Seite
-   `/leitendenbereich/kostenstellen` verlangt eine der beiden Rollen schon in
-   `staticwebapp.config.json`, und Menü, Suche und Startseite zeigen sie nur mit einer davon
-   (`roles` in `staffModules.ts`).
+   (`GET /api/intern/kostenstellen`) `kasse` oder `vorstand`. Menü, Suche und Startseite zeigen
+   die Seite `/leitendenbereich/kostenstellen` nur mit einer der beiden Rollen (`roles` in
+   `staffModules.ts`); wer sie ohne aufruft, sieht nur die Fehlermeldung der API.
 
 ## Was man wissen muss
 
@@ -57,8 +56,9 @@ Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leiten
 2. In der API mit `hasTeam(principal, '<team>')` prüfen. Die Oberfläche fragt die API, ob sie
    die Bedienelemente zeigen soll (wie `GET /api/intern/pflege/belege/rolle`), statt selbst
    Rollen zu lesen.
-3. Soll eine ganze Seite gesperrt sein, eine Route mit `allowedRoles` in
-   `staticwebapp.config.json` vor `/leitendenbereich/*` eintragen und dem Modul in
-   `staffModules.ts` dieselben `roles` geben, damit es nur sieht, wer es öffnen darf. Die
-   API-Prüfung bleibt trotzdem nötig.
+3. Ist ein ganzes Modul nur für ein Team, bekommt es in `staffModules.ts` `roles`, damit es nur
+   sieht, wer es öffnen darf. Keine eigene Route mit `allowedRoles` in
+   `staticwebapp.config.json`: `allowedRoles` gilt als ODER und die erste passende Route gewinnt,
+   eine solche Route ließe also Teammitglieder ohne `team_leitende` in den Leitendenbereich. Die
+   Daten schützt die API-Prüfung.
 4. Die Tabelle oben ergänzen.
