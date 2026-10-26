@@ -21,6 +21,7 @@
     type StaffModule,
   } from '../lib/staffModules';
   import { yourStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
+  import { canOpenModule } from '../lib/staffAccess.svelte';
   import { HELP_CONTACTS } from '../lib/helpContacts';
   import {
     SWIPE_START,
@@ -55,11 +56,13 @@
   const QUICK_COUNT = 3;
   const nikolausActive = $derived(nikolausStatusStore.data?.staffActive === true);
   // Modules of the Nikolausdienst only while they are switched on (Steuerung always)
-  const allModules = $derived([
-    ...sections.flatMap((section) => section.modules),
-    nikolausControl,
-    ...(nikolausActive ? nikolausModules : []),
-  ]);
+  const allModules = $derived(
+    [
+      ...sections.flatMap((section) => section.modules),
+      nikolausControl,
+      ...(nikolausActive ? nikolausModules : []),
+    ].filter(canOpenModule)
+  );
   const groups = $derived<StaffModuleGroup[]>([
     ...sections,
     {

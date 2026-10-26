@@ -327,6 +327,17 @@ export async function getKostenstellen({
   }));
 }
 
+/**
+ * Income and expenses of every Kostenstelle and its Kategorien, only the sums, unchecked (see
+ * `readKostenstellenSummen`). The Playwright API keeps the last export; `refresh` makes it export
+ * CampFlow's report again (a few seconds).
+ */
+export function getKostenstellenSummen({
+  refresh = false,
+}: { refresh?: boolean } = {}): Promise<unknown> {
+  return request<unknown>('/campflow/kostenstellen/summen', refresh ? { refresh: 'true' } : {});
+}
+
 /** A receipt to upload to CampFlow and book as an expense (`POST /campflow/belege`). */
 export interface CampflowBelegUpload {
   /** File name in CampFlow; the Playwright API's key against duplicates, unique per receipt. */

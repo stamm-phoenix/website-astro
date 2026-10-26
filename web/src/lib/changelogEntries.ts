@@ -12,6 +12,19 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-26-02-kostenstellen',
+    date: '2026-10-26',
+    title: 'Neu für Kasse und Vorstand: Kostenstellen',
+    changes: [
+      {
+        text: 'Im neuen Bereich „Kostenstellen“ siehst du alle Kostenstellen aus CampFlow mit Einnahmen, Ausgaben und Saldo, und darunter dieselben Summen für jede Kategorie. Offene Beträge, etwa unbezahlte Beiträge oder noch nicht erstattete Auslagen, stehen dabei.',
+        href: '/leitendenbereich/kostenstellen',
+      },
+      'Du kannst nach Kostenstelle oder Kategorie suchen, archivierte Kostenstellen dazunehmen und nach den höchsten Ausgaben oder Einnahmen sortieren. Ändern geht weiterhin in CampFlow.',
+      'Den Bereich sehen nur die Kasse und der Vorstand.',
+    ],
+  },
+  {
     id: '2026-10-26-01-belege-kostenstelle',
     date: '2026-10-26',
     title: 'Belege: Kostenstelle und Kategorie statt Aktion',

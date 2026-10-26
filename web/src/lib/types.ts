@@ -1256,3 +1256,42 @@ export interface OffeneBeitraegeData extends BeitraegeData {
    */
   ich: Record<string, boolean> | null;
 }
+
+/** Gemeinnützige Sphäre of a CampFlow Kategorie. */
+export type KostenstellenSphaere = 'ideal' | 'purpose' | 'assets' | 'business';
+
+/** Sums of a Kostenstelle or Kategorie in euro cents; expenses are negative. */
+export interface KostenstellenSummen {
+  incomeCent: number;
+  expensesCent: number;
+  balanceCent: number;
+  /** Income not yet matched to a payment, e.g. unpaid Beiträge. */
+  openIncomeCent: number;
+  /** Expenses not yet matched to a payment, e.g. Auslagen not paid back yet; negative. */
+  openExpensesCent: number;
+  bookings: number;
+}
+
+export interface KategorieStatistik extends KostenstellenSummen {
+  /** null for a Kategorie with bookings that the Kostenstelle no longer lists. */
+  id: string | null;
+  /** "" for bookings without a Kategorie. */
+  name: string;
+  sphere: KostenstellenSphaere | null;
+}
+
+export interface KostenstelleStatistik extends KostenstellenSummen {
+  /** null for a Kostenstelle with bookings that CampFlow no longer lists. */
+  id: string | null;
+  name: string;
+  color: string | null;
+  archived: boolean;
+  categories: KategorieStatistik[];
+}
+
+/** Sums per CampFlow Kostenstelle and Kategorie (`GET /api/intern/kostenstellen`). */
+export interface KostenstellenData {
+  /** When CampFlow's report was exported (ISO 8601). */
+  loadedAt: string;
+  costUnits: KostenstelleStatistik[];
+}

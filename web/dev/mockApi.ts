@@ -63,6 +63,7 @@ import {
   resetMockAbstimmungen,
 } from './mock-data/abstimmungen';
 import { beitraegeFor, offeneBeitraegeFor } from './mock-data/beitraege';
+import { kostenstellenFor } from './mock-data/kostenstellen';
 import { aktionBeitraegeFor, campflowDetail, campflowEvents } from './mock-data/campflow';
 import { mitgliederData } from './mock-data/mitglieder';
 import {
@@ -353,8 +354,8 @@ const PRINCIPAL: ClientPrincipal = {
   identityProvider: 'aad',
   userId: 'mock-0f3c2a7e9b1d4c58',
   userDetails: 'leitung@example.test',
-  // Roles of the teams „Leitende“ and „Kasse“, as `GetRoles` assigns them at login
-  userRoles: ['anonymous', 'authenticated', 'team_leitende', 'team_kasse'],
+  // Roles of the teams „Leitende“, „Kasse“ and „Vorstand“, as `GetRoles` assigns them at login
+  userRoles: ['anonymous', 'authenticated', 'team_leitende', 'team_kasse', 'team_vorstand'],
   claims: [
     { typ: 'name', val: 'Demo Leitung' },
     { typ: 'given_name', val: 'Demo' },
@@ -1036,6 +1037,14 @@ route('GET', '/api/intern/beitraege', (req) =>
 route('GET', '/api/intern/beitraege/meine', () =>
   json(offeneBeitraegeFor(mockIch(PRINCIPAL.userDetails).campflow?.id ?? null))
 );
+
+// Kostenstellen: sums of CampFlow's report, exported by the Playwright API in production
+route('GET', '/api/intern/kostenstellen', (req) => {
+  if (!['team_kasse', 'team_vorstand'].some((role) => PRINCIPAL.userRoles.includes(role))) {
+    return error(403, 'NOT_IN_TEAM', 'Die Kostenstellen sehen nur die Kasse und der Vorstand.');
+  }
+  return json(kostenstellenFor(req.query.get('refresh') === 'true'));
+});
 
 // Abrechnung: Einzelnachweise come from the Playwright API in production
 const abrechnungDrafts = new Map<string, AbrechnungEingabe>();

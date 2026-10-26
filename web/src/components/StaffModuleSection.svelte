@@ -4,6 +4,7 @@
   import { favoriteToggle } from '../lib/staffFavoritesStore.svelte';
   import { longPress } from '../lib/longPress';
   import FavoriteStar from './FavoriteStar.svelte';
+  import { canOpenModule } from '../lib/staffAccess.svelte';
 
   interface Props {
     title: string;
@@ -23,7 +24,7 @@
 <section aria-labelledby={id} class="staff-section mt-5">
   <h3 {id} class="m-0 text-xs font-semibold tracking-wide text-neutral-700 uppercase">{title}</h3>
   <ul class="grid grid-cols-2 gap-x-4 md:grid-cols-3">
-    {#each modules as module (module.href)}
+    {#each modules.filter(canOpenModule) as module (module.href)}
       <li class="group flex min-w-0 items-center border-b border-neutral-200">
         <a
           use:longPress={favoriteToggle(module)}

@@ -2,6 +2,7 @@ import { errorMessage, fetchApi } from './api';
 import type {
   AnwesenheitOverview,
   BeitraegeData,
+  KostenstellenData,
   OffeneBeitraegeData,
   CampflowBelegeData,
   MitgliederData,
@@ -170,6 +171,16 @@ export const campflowBelegeStore = createResource<CampflowBelegeData, boolean>(
 export const beitraegeStore = createResource<BeitraegeData, boolean>(
   (refresh) => (refresh ? '/intern/beitraege?refresh=true' : '/intern/beitraege'),
   { idle: true }
+);
+
+/** Sums per Kostenstelle and Kategorie, read-only; `true` as param exports CampFlow's report again. */
+export const kostenstellenStore = createResource<KostenstellenData, boolean>(
+  (refresh) => (refresh ? '/intern/kostenstellen?refresh=true' : '/intern/kostenstellen'),
+  {
+    idle: true,
+    loadError:
+      'Die Kostenstellen konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
+  }
 );
 
 /** The Beiträge with something left to do and which of them are the own ones, for the start page. */
