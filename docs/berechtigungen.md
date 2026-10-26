@@ -9,7 +9,8 @@ reicht nicht: Gäste, die aus anderen Gründen ein Konto haben, kommen nicht hin
 | Team (Mail-Alias) | Rolle           | Erlaubt                                                          |
 | ----------------- | --------------- | ---------------------------------------------------------------- |
 | `team-leitende`   | `team_leitende` | Leitendenbereich (`/leitendenbereich/*`, `/api/intern/*`)        |
-| `team-kasse`      | `team_kasse`    | Belege: alle sehen, annehmen, ablehnen, nach CampFlow übertragen |
+| `team-kasse`      | `team_kasse`    | Belege: alle sehen, annehmen, ablehnen, nach CampFlow übertragen; Kostenstellen |
+| `team-vorstand`   | `team_vorstand` | Kostenstellen (Summen je Kostenstelle und Kategorie aus CampFlow) |
 
 Die Gruppen-IDs stehen in `CONFIG.staff.teams` (`api/lib/config.ts`). Rollennamen von Static
 Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leitende` statt
@@ -29,7 +30,11 @@ Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leiten
 4. Die Routen verlangen `team_leitende`. Wer angemeldet ist, aber die Rolle nicht hat, sieht
    `/kein-zugang` (`responseOverrides.403`) mit einem Knopf zum Ab- und Neuanmelden.
 5. Die API prüft zusätzlich: `requireStaff` verlangt `team_leitende` (sonst `403 NOT_IN_TEAM`),
-   die Belege prüfen `hasTeam(principal, 'kasse')`.
+   die Belege prüfen `hasTeam(principal, 'kasse')`, die Kostenstellen
+   (`GET /api/intern/kostenstellen`) `kasse` oder `vorstand`. Die Seite
+   `/leitendenbereich/kostenstellen` verlangt eine der beiden Rollen schon in
+   `staticwebapp.config.json`, und Menü, Suche und Startseite zeigen sie nur mit einer davon
+   (`roles` in `staffModules.ts`).
 
 ## Was man wissen muss
 
@@ -42,7 +47,7 @@ Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leiten
 - **Das Preview-Testkonto** (`CONFIG.staff.previewOnlyLogins`) bekommt auf PR-Previews alle
   Rollen, ohne in einem Team zu sein, und auf der Produktion keine
   ([preview-testkonto.md](preview-testkonto.md)).
-- **Lokal:** `dev:mock` meldet als Leitende und Kasse an (`web/dev/mockApi.ts`). Bei `dev:full`
+- **Lokal:** `dev:mock` meldet als Leitende, Kasse und Vorstand an (`web/dev/mockApi.ts`). Bei `dev:full`
   ruft die SWA CLI `GetRoles` nicht auf; die Rollen trägt man im Mock-Login selbst ein.
 
 ## Neues Team oder neue Prüfung
@@ -53,6 +58,7 @@ Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leiten
    die Bedienelemente zeigen soll (wie `GET /api/intern/pflege/belege/rolle`), statt selbst
    Rollen zu lesen.
 3. Soll eine ganze Seite gesperrt sein, eine Route mit `allowedRoles` in
-   `staticwebapp.config.json` vor `/leitendenbereich/*` eintragen. Die API-Prüfung bleibt
-   trotzdem nötig.
+   `staticwebapp.config.json` vor `/leitendenbereich/*` eintragen und dem Modul in
+   `staffModules.ts` dieselben `roles` geben, damit es nur sieht, wer es öffnen darf. Die
+   API-Prüfung bleibt trotzdem nötig.
 4. Die Tabelle oben ergänzen.

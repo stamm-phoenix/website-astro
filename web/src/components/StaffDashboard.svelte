@@ -21,6 +21,7 @@
   import { loadRecent, recentStore } from '../lib/staffRecentStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { yourStaffModules } from '../lib/staffSearch';
+  import { canOpenModule } from '../lib/staffAccess.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { nurAktionen } from '../lib/aktionArt';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
@@ -51,10 +52,11 @@
   const modules = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE];
   const tileGrid = 'mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8';
   // Modules of the Nikolausdienst only while they are switched on (Steuerung always)
-  const allModules = $derived([
-    ...modules,
-    ...(nikolausStatusStore.data?.staffActive ? NIKOLAUS_MODULES : []),
-  ]);
+  const allModules = $derived(
+    [...modules, ...(nikolausStatusStore.data?.staffActive ? NIKOLAUS_MODULES : [])].filter(
+      canOpenModule
+    )
+  );
   const tasks = $derived(aufgabenStore.data);
   const users = $derived(aufgabenStore.users);
   const tasksError = $derived(aufgabenStore.error);

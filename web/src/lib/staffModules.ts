@@ -25,6 +25,11 @@ export interface StaffModule extends StaffPage {
   keywords?: string[];
   /** The title with `|` where a long word may break in narrow places (tiles, the bar). */
   wrap?: string;
+  /**
+   * Only for these roles of the teams (`CONFIG.staff.teams`), one of them is enough; the module is
+   * hidden from everyone else. The page needs the same `allowedRoles` in `staticwebapp.config.json`.
+   */
+  roles?: string[];
 }
 
 /** The page that lists the changes of the Leitendenbereich; its bubble counts the unread ones. */
@@ -207,6 +212,30 @@ export const STAFF_MODULES: StaffModule[] = [
     ],
   },
   {
+    href: '/leitendenbereich/kostenstellen',
+    title: 'Kostenstellen',
+    wrap: 'Kosten|stellen',
+    description:
+      'Einnahmen, Ausgaben und Saldo je Kostenstelle und Kategorie aus CampFlow – für Kasse und Vorstand.',
+    intro:
+      'Summen aller Buchungen in CampFlow über den gesamten Zeitraum, je Kostenstelle und je Kategorie. „Offen“ ist der Teil, der noch keiner Zahlung auf dem Konto zugeordnet ist: bei Einnahmen zum Beispiel unbezahlte Beiträge, bei Ausgaben noch nicht erstattete Auslagen. Nur die Kasse und der Vorstand sehen diesen Bereich.',
+    roles: ['team_kasse', 'team_vorstand'],
+    keywords: [
+      'kasse',
+      'vorstand',
+      'kategorie',
+      'saldo',
+      'einnahmen',
+      'ausgaben',
+      'haushalt',
+      'budget',
+      'statistik',
+      'auswertung',
+      'geld',
+    ],
+    icon: 'M21 12a9 9 0 1 1-9-9v9zM15 3.5A9 9 0 0 1 20.5 9H15z',
+  },
+  {
     href: '/leitendenbereich/gruppenstunden',
     title: 'Gruppenstunden',
     description: 'Zeiten, Orte und Beschreibungen der Gruppenstunden bearbeiten.',
@@ -358,7 +387,14 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
   {
     id: 'kasse',
     title: 'Kasse & Material',
-    modules: byPath('belege', 'eigenbeleg', 'abrechnung', 'beitraege', 'sammelbestellungen'),
+    modules: byPath(
+      'belege',
+      'eigenbeleg',
+      'abrechnung',
+      'beitraege',
+      'kostenstellen',
+      'sammelbestellungen'
+    ),
   },
   {
     // Modules whose content appears on the public website

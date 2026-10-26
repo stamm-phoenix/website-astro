@@ -4,6 +4,7 @@
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { searchStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
   import { CHANGELOG_PATH, type StaffModule } from '../lib/staffModules';
+  import { canOpenModule } from '../lib/staffAccess.svelte';
   import { favoriteToggle } from '../lib/staffFavoritesStore.svelte';
   import { longPress } from '../lib/longPress';
   import FavoriteStar from './FavoriteStar.svelte';
@@ -45,13 +46,14 @@
   }: Props = $props();
 
   const searchable = $derived(
-    nikolausModules.length > 0 && nikolausStatusStore.data?.staffActive
+    (nikolausModules.length > 0 && nikolausStatusStore.data?.staffActive
       ? groups.map((group) =>
           group.id === 'nikolaus'
             ? { ...group, modules: [...nikolausModules, ...group.modules] }
             : group
         )
       : groups
+    ).map((group) => ({ ...group, modules: group.modules.filter(canOpenModule) }))
   );
   onMount(() => {
     if (nikolausModules.length > 0) void fetchNikolausStatus();

@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../layouts/StaffLayout.astro';
+import Kostenstellen from '../../components/kostenstellen/Kostenstellen.svelte';
+---
+
+<StaffLayout>
+  <Kostenstellen client:only="svelte" />
+</StaffLayout>

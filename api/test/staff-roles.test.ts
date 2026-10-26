@@ -71,7 +71,11 @@ test('gives preview test accounts every role on previews only, without asking Gr
   const preview = user('Claude-Preview@stamm-phoenix.de');
   assert.deepEqual(await getTeamRoles(preview, reader([LEITENDE], calls)), []);
   overrideConfig(t, CONFIG.database, { server: CONFIG.database.previewServer });
-  assert.deepEqual(await getTeamRoles(preview, reader([], calls)), ['team_leitende', 'team_kasse']);
+  assert.deepEqual(await getTeamRoles(preview, reader([], calls)), [
+    'team_leitende',
+    'team_kasse',
+    'team_vorstand',
+  ]);
   assert.deepEqual(calls, []);
 });
 
