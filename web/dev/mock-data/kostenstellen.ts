@@ -30,28 +30,31 @@ const kategorie = (
   bookings,
 });
 
-/** Invented split of a Kategorie over the years: equal parts, the rest and anything open last. */
-function aufJahre(summen: KostenstellenSummen, years: number[]): JahresSummen[] {
+/**
+ * Invented split of a Kategorie over the years: equal parts, the rest and anything open last.
+ * Only as many years as the Kategorie has bookings (the latest ones), so every year keeps at
+ * least one booking and the parts add up to the total.
+ */
+function aufJahre(summen: KostenstellenSummen, alleJahre: number[]): JahresSummen[] {
+  const years = alleJahre.slice(alleJahre.length - Math.min(alleJahre.length, summen.bookings));
+  const last = years.length - 1;
   const part = (total: number, index: number): number => {
     const each = Math.trunc(total / years.length);
-    return index === years.length - 1 ? total - each * (years.length - 1) : each;
+    return index === last ? total - each * last : each;
   };
-  const last = years.length - 1;
-  return years
-    .map((year, index) => {
-      const incomeCent = part(summen.incomeCent, index);
-      const expensesCent = part(summen.expensesCent, index);
-      return {
-        year,
-        incomeCent,
-        expensesCent,
-        balanceCent: incomeCent + expensesCent,
-        openIncomeCent: index === last ? summen.openIncomeCent : 0,
-        openExpensesCent: index === last ? summen.openExpensesCent : 0,
-        bookings: part(summen.bookings, index),
-      };
-    })
-    .filter((jahr) => jahr.bookings > 0);
+  return years.map((year, index) => {
+    const incomeCent = part(summen.incomeCent, index);
+    const expensesCent = part(summen.expensesCent, index);
+    return {
+      year,
+      incomeCent,
+      expensesCent,
+      balanceCent: incomeCent + expensesCent,
+      openIncomeCent: index === last ? summen.openIncomeCent : 0,
+      openExpensesCent: index === last ? summen.openExpensesCent : 0,
+      bookings: part(summen.bookings, index),
+    };
+  });
 }
 
 const SUMMEN_KEYS = [
