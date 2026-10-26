@@ -56,7 +56,7 @@ test('all Beiträge can be filtered by Kostenstelle and searched', async ({ page
   await expect(beitraege.getByRole('listitem')).toHaveCount(10);
   await page.getByRole('button', { name: /Zu erstatten/ }).click();
   await expect(beitraege.getByRole('listitem')).toHaveCount(1);
-  await expect(beitraege).toContainText(/20,00\s€ zu viel bezahlt/);
+  await expect(beitraege).toContainText(/20,00\s€ zu erstatten/);
 
   await page.getByRole('button', { name: /^Alle/ }).click();
   await page.getByLabel('Suche').fill('gibt es nicht');
@@ -137,12 +137,12 @@ test('the start page lists my Beiträge with something left to do', async ({ pag
   await page.goto('/leitendenbereich/');
   const box = page.getByRole('region', { name: 'Meine Beiträge' });
   const items = box.getByTestId('meine-beitraege').getByRole('listitem');
-  // To pay for the own registration, and paid too much for the Mitgliedsbeitrag
+  // To pay for the own registration, and to get back for the Mitgliedsbeitrag
   await expect(items).toHaveCount(2);
   await expect(items.nth(0)).toContainText('Wölflings-Herbstwochenende');
   await expect(items.nth(0)).toContainText('Nicht bezahlt');
   await expect(items.nth(1)).toContainText('Mitgliedsbeitrag 2026');
-  await expect(items.nth(1)).toContainText(/20,00\s€ zu viel bezahlt/);
+  await expect(items.nth(1)).toContainText(/20,00\s€ bekommst du zurück/);
   // The Verwendungszweck is copied with one click, without leaving the start page
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   const copy = items.nth(0).getByRole('button', { name: /^Verwendungszweck \S+ kopieren$/ });

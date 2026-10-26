@@ -63,8 +63,8 @@ Die Adresse verlässt den Server nie. Die Seiten bekommen nur die IDs der eigene
 - `GET /api/intern/abrechnung/{id}`: `ich`, ebenso (die Abrechnung liefert sonst keine
   Kontaktdaten)
 - `GET /api/intern/beitraege/meine`: `ich`, je Beitrag `true` oder `false`, ob er zu den eigenen
-  gehört (Box „Meine Beiträge“ auf der Startseite, nur Beiträge, die noch offen oder zu viel
-  bezahlt sind). CampFlow nennt zu jedem Beitrag die zahlende Person (`payerId`, über die
+  gehört (Box „Meine Beiträge“ auf der Startseite, nur Beiträge, die noch offen oder zu
+  erstatten sind). CampFlow nennt zu jedem Beitrag die zahlende Person (`payerId`, über die
   Playwright-API). Beim Mitgliedsbeitrag ist das die Person der Mitgliederliste, dort entscheidet
   die Verknüpfung, auch wenn CampFlow gerade nicht antwortet. Bei Beiträgen einer Aktion ist es
   die Anmeldung; der Server liest dafür die Anmeldungen der Aktion und vergleicht die Adressen wie
