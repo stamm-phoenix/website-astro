@@ -204,11 +204,14 @@
     form = { ...beleg, amount: centToInput(beleg.amountCent), zahlung: zahlungOf(beleg, isIch) };
   }
 
-  /** The errors of the form; CampFlow refuses to book on an archived Kostenstelle. */
+  /**
+   * The errors of the form. CampFlow refuses to book on an archived Kostenstelle, so it blocks a
+   * new receipt and a transfer; one archived after submitting may still be saved or rejected.
+   */
   function formErrors(current: BelegForm, hasPhoto: boolean, forTransfer = false) {
     const result = validateBeleg(current, hasPhoto, forTransfer);
     const stand = zuordnungStand(kostenstellenStore.data, current.kostenstelle, current.kategorie);
-    if (stand?.archiviert && !result.kostenstelle) {
+    if (stand?.archiviert && (!current.id || forTransfer) && !result.kostenstelle) {
       result.kostenstelle = 'Diese Kostenstelle ist in CampFlow archiviert.';
     }
     return result;
