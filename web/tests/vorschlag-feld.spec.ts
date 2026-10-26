@@ -106,7 +106,10 @@ test('Kostenstelle and Kategorie of a receipt can be typed when the Kostenstelle
   page,
 }) => {
   await page.route('**/api/intern/abrechnung/kostenstellen*', (route) =>
-    route.fulfill({ status: 500, json: {} })
+    route.fulfill({
+      status: 500,
+      json: { code: 'X', message: 'Die Kostenstellen sind gerade nicht erreichbar.' },
+    })
   );
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
@@ -116,9 +119,8 @@ test('Kostenstelle and Kategorie of a receipt can be typed when the Kostenstelle
   await expect(kostenstelle).toHaveValue('Gruppenstunde Wölflinge');
   await expect(kostenstelle).toHaveAttribute('aria-expanded', 'false');
   await expect(dialog.getByText('Vorschläge werden geladen …')).toBeHidden();
-  await expect(
-    dialog.getByText('Die Kostenstellen aus CampFlow konnten nicht geladen werden.')
-  ).toBeVisible();
+  await expect(dialog.getByText('Die Kostenstellen sind gerade nicht erreichbar.')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
 });
 
 test('a value filled in by the page does not open the list', async ({ page }) => {
@@ -244,4 +246,16 @@ test('a variant field moved up stays below the sticky page header', async ({ pag
     return !el.contains(document.elementFromPoint(rect.left + 4, rect.top + 4));
   });
   expect(covered).toBe(false);
+});
+
+test('an expired login while loading the Kostenstellen offers to log in again', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/belege');
+  await page.route('**/api/intern/abrechnung/kostenstellen*', (route) =>
+    route.fulfill({ status: 401, json: {} })
+  );
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  await expect(dialog.getByRole('link', { name: 'Neu anmelden' })).toBeVisible();
 });
