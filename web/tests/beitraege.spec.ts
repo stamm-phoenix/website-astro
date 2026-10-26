@@ -52,7 +52,7 @@ test('all Beiträge can be filtered by Kostenstelle and searched', async ({ page
   const beitraege = page.getByRole('list', { name: 'Beiträge' });
   await expect(beitraege.getByRole('listitem')).toHaveCount(32);
 
-  await page.getByLabel('Kostenstelle').selectOption({ label: 'Allgemein' });
+  await page.getByRole('combobox', { name: 'Kostenstelle' }).selectOption({ label: 'Allgemein' });
   await expect(beitraege.getByRole('listitem')).toHaveCount(10);
   await page.getByRole('button', { name: /Zu erstatten/ }).click();
   await expect(beitraege.getByRole('listitem')).toHaveCount(1);
@@ -100,7 +100,7 @@ test('„Erneut versuchen“ after a failed reload asks CampFlow again', async (
 test('a Kostenstelle that is gone after reloading no longer filters the list', async ({ page }) => {
   await page.goto('/leitendenbereich/beitraege?ansicht=alle');
   const beitraege = page.getByRole('list', { name: 'Beiträge' });
-  await page.getByLabel('Kostenstelle').selectOption({ label: 'Allgemein' });
+  await page.getByRole('combobox', { name: 'Kostenstelle' }).selectOption({ label: 'Allgemein' });
   await expect(beitraege.getByRole('listitem')).toHaveCount(10);
   // After reloading, no Beitrag is booked on „Allgemein“ any more
   await page.route('**/api/intern/beitraege?refresh=true', async (route) => {
@@ -111,7 +111,7 @@ test('a Kostenstelle that is gone after reloading no longer filters the list', a
   });
   await page.getByRole('button', { name: 'Neu aus CampFlow laden' }).click();
   await expect(page.getByText('Beiträge neu aus CampFlow geladen.')).toBeVisible();
-  await expect(page.getByLabel('Kostenstelle')).toHaveValue('');
+  await expect(page.getByRole('combobox', { name: 'Kostenstelle' })).toHaveValue('');
   await expect(beitraege.getByRole('listitem')).toHaveCount(32);
 });
 
