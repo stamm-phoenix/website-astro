@@ -40,6 +40,24 @@ export function imJahr(kostenstelle: KostenstelleStatistik, jahr: number | null)
   return jahr === null || kostenstelle.years.includes(jahr);
 }
 
+const KEINE_SUMMEN: KostenstellenSummen = {
+  incomeCent: 0,
+  expensesCent: 0,
+  balanceCent: 0,
+  openIncomeCent: 0,
+  openExpensesCent: 0,
+  bookings: 0,
+};
+
+/** The sums of the Kostenstelle in the year, or over the whole period for `null`. */
+export function summenImJahr(
+  kostenstelle: KostenstelleStatistik,
+  jahr: number | null
+): KostenstellenSummen {
+  if (jahr === null) return kostenstelle;
+  return kostenstelle.yearTotals.find((summen) => summen.year === jahr) ?? KEINE_SUMMEN;
+}
+
 /** The years with bookings of any Kostenstelle, newest first. */
 export function jahre(kostenstellen: readonly KostenstelleStatistik[]): number[] {
   return [...new Set(kostenstellen.flatMap((k) => k.years))].sort((a, b) => b - a);
@@ -104,14 +122,7 @@ export function gesamt(eintraege: readonly KostenstellenSummen[]): Kostenstellen
       openExpensesCent: sum.openExpensesCent + eintrag.openExpensesCent,
       bookings: sum.bookings + eintrag.bookings,
     }),
-    {
-      incomeCent: 0,
-      expensesCent: 0,
-      balanceCent: 0,
-      openIncomeCent: 0,
-      openExpensesCent: 0,
-      bookings: 0,
-    }
+    KEINE_SUMMEN
   );
 }
 

@@ -36,6 +36,25 @@ function kostenstelle(
 ): KostenstelleStatistik {
   const sum = (key: 'incomeCent' | 'expensesCent' | 'openIncomeCent' | 'openExpensesCent') =>
     categories.reduce((total, category) => total + category[key], 0);
+  const bookings = categories.reduce((total, category) => total + category.bookings, 0);
+  // Invented split over the years: equal parts, the rest in the last year
+  const part = (total: number, index: number): number => {
+    const each = Math.trunc(total / years.length);
+    return index === years.length - 1 ? total - each * (years.length - 1) : each;
+  };
+  const yearTotals = years.map((year, index) => {
+    const incomeCent = part(sum('incomeCent'), index);
+    const expensesCent = part(sum('expensesCent'), index);
+    return {
+      year,
+      incomeCent,
+      expensesCent,
+      balanceCent: incomeCent + expensesCent,
+      openIncomeCent: index === years.length - 1 ? sum('openIncomeCent') : 0,
+      openExpensesCent: index === years.length - 1 ? sum('openExpensesCent') : 0,
+      bookings: part(bookings, index),
+    };
+  });
   return {
     id,
     name,
@@ -46,8 +65,9 @@ function kostenstelle(
     balanceCent: sum('incomeCent') + sum('expensesCent'),
     openIncomeCent: sum('openIncomeCent'),
     openExpensesCent: sum('openExpensesCent'),
-    bookings: categories.reduce((total, category) => total + category.bookings, 0),
+    bookings,
     years,
+    yearTotals,
     categories,
   };
 }

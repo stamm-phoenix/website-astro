@@ -16,6 +16,7 @@
     SORTIERUNGEN,
     SPHAEREN,
     sortiere,
+    summenImJahr,
     treffer,
     type KostenstellenAnsicht,
     type KostenstellenSortierung,
@@ -112,12 +113,12 @@
     {/snippet}
     {#snippet children(data: KostenstellenData)}
       {@const liste = sichtbar(data)}
-      {@const summe = gesamt(liste)}
+      {@const summe = gesamt(liste.map((k) => summenImJahr(k, jahr)))}
       <section aria-labelledby="kostenstellen-gesamt" class="surface-muted space-y-2 p-4">
         <h2 id="kostenstellen-gesamt" class="font-semibold text-brand-900">
           Summe aus {liste.length}
           {liste.length === 1 ? 'Kostenstelle' : 'Kostenstellen'}{jahr !== null
-            ? ', alle Jahre'
+            ? ` in ${jahr}`
             : ''}
         </h2>
         <KostenstellenZahlen summen={summe} gross />

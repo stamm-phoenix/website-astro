@@ -1272,6 +1272,10 @@ export interface KostenstellenSummen {
   bookings: number;
 }
 
+export interface JahresSummen extends KostenstellenSummen {
+  year: number;
+}
+
 export interface KategorieStatistik extends KostenstellenSummen {
   /** null for a Kategorie with bookings that the Kostenstelle no longer lists. */
   id: string | null;
@@ -1288,6 +1292,8 @@ export interface KostenstelleStatistik extends KostenstellenSummen {
   archived: boolean;
   /** Calendar years with at least one booking, ascending. */
   years: number[];
+  /** The sums of each of these years. */
+  yearTotals: JahresSummen[];
   categories: KategorieStatistik[];
 }
 
