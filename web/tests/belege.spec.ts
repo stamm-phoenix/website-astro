@@ -347,13 +347,15 @@ test('one list holds the receipts here and in CampFlow, filtered by source and m
   await tabs.getByRole('button', { name: /^CampFlow/ }).click();
   await expect(list.getByRole('listitem')).toHaveCount(5);
   await openFilters(page);
-  await page.getByLabel('Kostenstelle').selectOption({ label: 'Sommerlager 2026 Oberjoch' });
+  await page
+    .getByRole('combobox', { name: 'Kostenstelle' })
+    .selectOption({ label: 'Sommerlager 2026 Oberjoch' });
   await expect(list.getByRole('listitem')).toHaveCount(3);
   await page.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
   await expect(list.getByRole('listitem')).toHaveCount(1);
   await expect(list.getByText('Erstattet')).toBeVisible();
   await openFilters(page);
-  await page.getByLabel('Kostenstelle').selectOption({ label: 'Alle' });
+  await page.getByRole('combobox', { name: 'Kostenstelle' }).selectOption({ label: 'Alle' });
   await openFilters(page);
   await page.getByLabel('Stand').selectOption({ label: 'Gebucht' });
   await expect(list.getByRole('listitem')).toHaveCount(2);

@@ -117,7 +117,9 @@ test('a new receipt shows after submitting, even with a Kategorie filter chosen'
 }, testInfo) => {
   await page.goto('/leitendenbereich/belege');
   await openFilters(page);
-  await page.getByLabel('Kostenstelle').selectOption({ label: 'Sommerlager 2026 Oberjoch' });
+  await page
+    .getByRole('combobox', { name: 'Kostenstelle' })
+    .selectOption({ label: 'Sommerlager 2026 Oberjoch' });
   await page.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).click();
 
