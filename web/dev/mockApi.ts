@@ -2746,7 +2746,7 @@ route('POST', '/api/intern/pflege/belege/:id/campflow', (req) => {
       return error(
         422,
         'KOSTENSTELLE_ARCHIVED',
-        `Die Kostenstelle „${beleg.kostenstelle}“ ist in CampFlow archiviert.`
+        `Die Kostenstelle „${beleg.kostenstelle}“ ist in CampFlow archiviert. Bitte trage oben im Beleg eine andere Kostenstelle ein und übertrage ihn dann noch einmal.`
       );
     }
     unit = { id: `cun_${newId()}`, name: beleg.kostenstelle, archived: false, categories: [] };

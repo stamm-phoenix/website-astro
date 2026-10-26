@@ -152,6 +152,15 @@ function readKostenstelle(value: unknown): KostenstelleWithCategories {
   return unit as unknown as KostenstelleWithCategories;
 }
 
+/**
+ * Whether two names of a Kostenstelle or Kategorie are the same, ignoring case and runs of spaces:
+ * the website saves names with single spaces (`Reader.text`), CampFlow may hold more.
+ */
+export function sameCampflowName(a: string, b: string): boolean {
+  const fold = (text: string): string => text.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de');
+  return fold(a) === fold(b);
+}
+
 /** Ensure the saved expense assignment exists before the contribution becomes attempted. */
 export async function ensureCampflowExpenseAssignment(
   costunitName: string,
@@ -161,8 +170,7 @@ export async function ensureCampflowExpenseAssignment(
 ): Promise<void> {
   // Bound the entire prerequisite workflow, not just each separate browser request.
   const signal = options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-  const sameName = (a: string, b: string): boolean =>
-    a.trim().toLowerCase() === b.trim().toLowerCase();
+  const sameName = sameCampflowName;
   const find = async (): Promise<KostenstelleWithCategories | undefined> => {
     const response = await request<unknown>('/campflow/kostenstellen', {}, { signal });
     const data =

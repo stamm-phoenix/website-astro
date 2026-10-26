@@ -41,11 +41,17 @@ test('closing the Beleg dialog asks before a chosen photo is discarded', async (
   await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).toBeVisible();
 });
 
-test('the Kasse transfers an accepted receipt to CampFlow with the chosen Kategorie', async ({
+test('the Kasse transfers an accepted receipt to CampFlow on its Kostenstelle and Kategorie', async ({
   page,
 }) => {
   // Answered here, so the shared demo keeps its receipt for the other tests
   let sent: Record<string, unknown> | undefined;
+  let saved: Record<string, unknown> | undefined;
+  await page.route('**/api/intern/pflege/belege/*', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    saved = route.request().postDataJSON();
+    await route.fulfill({ json: { mailed: false, etag: 'gespeichert' } });
+  });
   await page.route('**/api/intern/pflege/belege/*/campflow', async (route) => {
     sent = route.request().postDataJSON();
     await route.fulfill({
@@ -62,12 +68,21 @@ test('the Kasse transfers an accepted receipt to CampFlow with the chosen Katego
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
 
-  // The Kostenstelle named like the Aktion is preselected; the Kategorie is the Kasse's choice
-  const transfer = dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true });
-  await expect(dialog.getByLabel('Kostenstelle')).toHaveValue('cun_Sola26');
-  await expect(transfer).toBeDisabled();
-  await dialog.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
-  await transfer.click();
+  // Booked on the receipt's own fields; the Kasse corrects them there
+  await expect(dialog.getByLabel('Kostenstelle', { exact: true })).toHaveValue(
+    'Sommerlager 2026 Oberjoch'
+  );
+  await expect(dialog.getByLabel('Kategorie', { exact: true })).toHaveValue('Fahrtkosten');
+  await expect(dialog.getByText('Wird gebucht auf')).toContainText(
+    'Sommerlager 2026 Oberjoch · Fahrtkosten'
+  );
+  // A Kategorie of the KJR the Kostenstelle lacks is created without a warning, any other with one
+  const kategorie = dialog.getByLabel('Kategorie', { exact: true });
+  await kategorie.fill('Getränke');
+  await expect(dialog.getByText(/Dabei wird in „Sommerlager 2026 Oberjoch“/)).toBeVisible();
+  await kategorie.fill('Honorare');
+  await expect(dialog.getByText(/neu angelegt/)).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true }).click();
 
   await expect(dialog).toBeHidden();
   await expect(
@@ -77,11 +92,53 @@ test('the Kasse transfers an accepted receipt to CampFlow with the chosen Katego
       )
       .first()
   ).toBeVisible();
-  expect(sent).toMatchObject({ costUnitId: 'cun_Sola26', categoryId: 'cat_Sola262' });
-  expect(sent?.etag).toBeTruthy();
+  expect(saved).toMatchObject({
+    kostenstelle: 'Sommerlager 2026 Oberjoch',
+    kategorie: 'Honorare',
+  });
+  expect(sent).toEqual({ etag: 'gespeichert' });
 });
 
-test('Neu laden brings Kategorien changed in CampFlow into the transfer', async ({ page }) => {
+/** The suggestions of the search for Kostenstelle and Kategorie in the open receipt. */
+async function searchZuordnung(dialog: ReturnType<Page['getByRole']>, text: string) {
+  await dialog.getByLabel('Kostenstelle oder Kategorie suchen').fill(text);
+  return dialog.getByRole('listbox', { name: 'Kostenstelle oder Kategorie auswählen' });
+}
+
+test('the search finds Kostenstellen and Kategorien and fills the fields', async ({ page }) => {
+  await page.goto('/leitendenbereich/belege/');
+  await page.getByRole('button', { name: 'Beleg einreichen' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  const kostenstelle = dialog.getByLabel('Kostenstelle', { exact: true });
+  const kategorie = dialog.getByLabel('Kategorie', { exact: true });
+
+  let list = await searchZuordnung(dialog, 'leite');
+  await list.getByRole('option', { name: 'Leitendenrunde' }).click();
+  await expect(kostenstelle).toHaveValue('Allgemein');
+  await expect(kategorie).toHaveValue('Leitendenrunde');
+
+  list = await searchZuordnung(dialog, 'leite');
+  await list.getByRole('option', { name: 'Leitendenlager 2026' }).click();
+  await expect(kostenstelle).toHaveValue('Leitendenlager 2026');
+  await expect(kategorie).toHaveValue('');
+
+  // The KJR Kategorien come first, also where the Kostenstelle lacks them
+  await kategorie.click();
+  const kategorien = dialog.getByRole('listbox', { name: 'Kategorie auswählen' });
+  await expect(kategorien.getByRole('option').first()).toHaveText('Fahrtkosten');
+  await kategorien.getByRole('option', { name: 'Honorare' }).click();
+  await expect(dialog.getByText(/gibt es .* noch nicht/)).toHaveCount(0);
+
+  // Typed in: told it will be created
+  await kostenstelle.fill('Herbstfahrt 2026');
+  await expect(
+    dialog.getByText('Die Kostenstelle „Herbstfahrt 2026“ gibt es in CampFlow noch nicht.', {
+      exact: false,
+    })
+  ).toBeVisible();
+});
+
+test('Neu laden brings Kategorien changed in CampFlow into the search', async ({ page }) => {
   let reads = 0;
   await page.route('**/api/intern/abrechnung/kostenstellen*', async (route) => {
     const response = await route.fetch();
@@ -99,27 +156,21 @@ test('Neu laden brings Kategorien changed in CampFlow into the transfer', async 
     await route.fulfill({ response, json: units });
   });
   await page.goto('/leitendenbereich/belege/');
-  await openFilters(page);
-  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
   const open = async () => {
-    await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
-    await expect(dialog.getByLabel('Kostenstelle')).toHaveValue('cun_Sola26');
-    return dialog;
+    await page.getByRole('button', { name: 'Beleg einreichen' }).first().click();
+    return page.getByRole('dialog', { name: 'Beleg einreichen' });
   };
   let dialog = await open();
-  await expect(
-    dialog.getByLabel('Kategorie').getByRole('option', { name: 'Fahrtkosten' })
-  ).toBeAttached();
+  let list = await searchZuordnung(dialog, 'bahn');
+  await expect(list).toBeHidden();
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(dialog).toBeHidden();
 
   await page.getByRole('button', { name: 'Neu laden' }).click();
   await expect(page.getByText('Belege neu geladen.')).toBeVisible();
   dialog = await open();
-  const category = dialog.getByLabel('Kategorie');
-  await expect(category.getByRole('option', { name: 'Bahnfahrten' })).toBeAttached();
-  await expect(category.getByRole('option', { name: 'Fahrtkosten' })).toHaveCount(0);
+  list = await searchZuordnung(dialog, 'bahn');
+  await expect(list.getByRole('option', { name: 'Bahnfahrten' })).toBeVisible();
 });
 
 test('a late answer of an earlier Kostenstellen read keeps the newer Kategorien', async ({
@@ -133,36 +184,32 @@ test('a late answer of an earlier Kostenstellen read keeps the newer Kategorien'
     const read = ++reads;
     const response = await route.fetch();
     const units = (await response.json()) as Array<{ id: string; categories: unknown[] }>;
-    // The first two reads know the Sommerlager without Kategorien, the second answers late
-    if (read <= 2) units.find((unit) => unit.id === 'cun_Sola26')!.categories = [];
-    if (read === 2) await oldHeld;
+    // The second read knows the Sommerlager without Kategorien and answers late
+    if (read === 2) {
+      units.find((unit) => unit.id === 'cun_Sola26')!.categories = [];
+      await oldHeld;
+    }
     await route.fulfill({ response, json: units });
     if (read === 2) oldAnswered = true;
   });
   await page.goto('/leitendenbereich/belege/');
-  await openFilters(page);
-  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
-  const open = async () => {
-    await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
-    await expect(dialog.getByLabel('Kostenstelle')).toHaveValue('cun_Sola26');
-    return dialog;
-  };
-  let dialog = await open();
-  await dialog.getByRole('button', { name: 'Neu aus CampFlow laden' }).click();
+  await expect.poll(() => reads).toBe(1);
+  const reload = page.getByRole('button', { name: 'Neu laden' });
+  await reload.click();
   await expect.poll(() => reads).toBe(2);
-  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
-  await expect(dialog).toBeHidden();
-
-  await page.getByRole('button', { name: 'Neu laden' }).click();
-  await expect(page.getByText('Belege neu geladen.')).toBeVisible();
-  expect(reads).toBe(3);
+  // The first reload still waits for its Kostenstellen; a second one reads them anew
+  await expect(reload).toBeEnabled();
+  await reload.click();
+  await expect.poll(() => reads).toBe(3);
   releaseOld();
   await expect.poll(() => oldAnswered).toBe(true);
-  dialog = await open();
+
+  await page.getByRole('button', { name: 'Beleg einreichen' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  const list = await searchZuordnung(dialog, 'fahrt');
   await expect(
-    dialog.getByLabel('Kategorie').getByRole('option', { name: 'Fahrtkosten' })
-  ).toBeAttached();
+    list.getByRole('group', { name: 'Kategorie in Sommerlager 2026 Oberjoch' })
+  ).toBeVisible();
 });
 
 test('a failed reload of the receipts here shows its error above the last list', async ({
@@ -225,7 +272,6 @@ test('a retry right after a failed transfer sends the version just written, with
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
   await dialog.getByRole('textbox', { name: 'Bemerkung (optional)' }).fill('Rückfahrt');
-  await dialog.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
   const transfer = dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true });
   await transfer.click();
   await expect(dialog.getByRole('alert')).toContainText('Der Beleg wurde nicht übertragen');
@@ -396,7 +442,6 @@ test('a transfer whose answer is lost closes the receipt once it is gone', async
   await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
-  await dialog.getByLabel('Kategorie').selectOption({ label: 'Fahrtkosten' });
   await dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true }).click();
 
   await expect(dialog).toBeHidden();

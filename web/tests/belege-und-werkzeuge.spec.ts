@@ -63,7 +63,15 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   const shop = `Testmarkt ${testInfo.project.name}`;
   await page.getByLabel('Geschäft').fill(shop);
   await page.getByLabel('Betrag in €').fill('12,34');
-  await page.getByLabel('Aktion', { exact: true }).fill('Wölflings-Herbstwochenende');
+  await page
+    .getByRole('dialog')
+    .getByLabel('Kostenstelle', { exact: true })
+    .fill('Wölflings-Herbstwochenende');
+  await page
+    .getByRole('dialog')
+    .getByLabel('Kategorie', { exact: true })
+    .fill('Verpflegungskosten');
+  await page.getByRole('dialog').getByLabel('Kategorie', { exact: true }).press('Escape');
   await page
     .getByRole('radio', { name: 'Mit meinem Geld – bitte an mich auszahlen', exact: true })
     .check();
@@ -134,11 +142,19 @@ test('a new receipt shows after submitting, even with a Kategorie filter chosen'
   const shop = `Filtermarkt ${testInfo.project.name}`;
   await page.getByLabel('Geschäft').fill(shop);
   await page.getByLabel('Betrag in €').fill('3,21');
-  await page.getByLabel('Aktion', { exact: true }).fill('Sommerlager 2026 Oberjoch');
+  await page
+    .getByRole('dialog')
+    .getByLabel('Kostenstelle', { exact: true })
+    .fill('Sommerlager 2026 Oberjoch');
+  await page
+    .getByRole('dialog')
+    .getByLabel('Kategorie', { exact: true })
+    .fill('Verpflegungskosten');
+  await page.getByRole('dialog').getByLabel('Kategorie', { exact: true }).press('Escape');
   await page.getByRole('radio', { name: 'Mit Stammeskarte / aus der Kasse', exact: true }).check();
   await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
   await expect(page.getByText(/über 3,21\s€ eingereicht/).first()).toBeVisible();
-  // Not booked yet, so without Kategorie: the filters step aside to show it
+  // Under another Kategorie than the filter's: the filters step aside to show it
   await expect(page.getByRole('button', { name: new RegExp(shop) })).toBeVisible();
 });
 
@@ -183,7 +199,15 @@ test('a receipt submitted behind many waiting ones is shown right away', async (
   await page.getByLabel('Geschäft').fill(shop);
   await page.getByLabel('Datum des Belegs').fill('2026-01-02');
   await page.getByLabel('Betrag in €').fill('4,56');
-  await page.getByLabel('Aktion', { exact: true }).fill('Sommerlager 2026 Oberjoch');
+  await page
+    .getByRole('dialog')
+    .getByLabel('Kostenstelle', { exact: true })
+    .fill('Sommerlager 2026 Oberjoch');
+  await page
+    .getByRole('dialog')
+    .getByLabel('Kategorie', { exact: true })
+    .fill('Verpflegungskosten');
+  await page.getByRole('dialog').getByLabel('Kategorie', { exact: true }).press('Escape');
   await page.getByRole('radio', { name: 'Mit Stammeskarte / aus der Kasse', exact: true }).check();
   await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
   await expect(page.getByText(/über 4,56\s€ eingereicht/).first()).toBeVisible();

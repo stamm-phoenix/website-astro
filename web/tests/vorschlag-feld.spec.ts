@@ -102,32 +102,39 @@ test('Aktionen are suggested in the Eigenbeleg after loading and picked by keybo
   await expect(anlass).toHaveValue('Sommer');
 });
 
-test('the Aktion of a receipt can be typed when the Aktionen fail to load', async ({ page }) => {
-  await page.route('**/api/intern/aktionen', (route) => route.fulfill({ status: 500, json: {} }));
+test('Kostenstelle and Kategorie of a receipt can be typed when the Kostenstellen fail to load', async ({
+  page,
+}) => {
+  await page.route('**/api/intern/abrechnung/kostenstellen*', (route) =>
+    route.fulfill({ status: 500, json: {} })
+  );
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
-  const aktion = dialog.getByRole('combobox', { name: 'Aktion' });
-  await aktion.fill('Gruppenstunde Wölflinge');
-  await expect(aktion).toHaveValue('Gruppenstunde Wölflinge');
-  await expect(aktion).toHaveAttribute('aria-expanded', 'false');
+  const kostenstelle = dialog.getByRole('combobox', { name: 'Kostenstelle', exact: true });
+  await kostenstelle.fill('Gruppenstunde Wölflinge');
+  await expect(kostenstelle).toHaveValue('Gruppenstunde Wölflinge');
+  await expect(kostenstelle).toHaveAttribute('aria-expanded', 'false');
   await expect(dialog.getByText('Vorschläge werden geladen …')).toBeHidden();
+  await expect(
+    dialog.getByText('Die Kostenstellen aus CampFlow konnten nicht geladen werden.')
+  ).toBeVisible();
 });
 
 test('a value filled in by the page does not open the list', async ({ page }) => {
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
-  const aktion = dialog.getByRole('combobox', { name: 'Aktion' });
+  const kostenstelle = dialog.getByRole('combobox', { name: 'Kostenstelle', exact: true });
   await dialog.getByRole('textbox', { name: 'Geschäft' }).focus();
   // As the restore of saved input after a new login does it
-  await aktion.evaluate((el: HTMLInputElement) => {
+  await kostenstelle.evaluate((el: HTMLInputElement) => {
     el.value = 'Sommerlager 2026 Oberjoch';
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await expect(aktion).toHaveValue('Sommerlager 2026 Oberjoch');
-  await expect(aktion).toHaveAttribute('aria-expanded', 'false');
-  await expect(dialog.getByRole('listbox', { name: 'Aktion auswählen' })).toBeHidden();
+  await expect(kostenstelle).toHaveValue('Sommerlager 2026 Oberjoch');
+  await expect(kostenstelle).toHaveAttribute('aria-expanded', 'false');
+  await expect(dialog.getByRole('listbox', { name: 'Kostenstelle auswählen' })).toBeHidden();
 });
 
 test('FAQ themes are suggested and a new one can be typed', async ({ page }) => {

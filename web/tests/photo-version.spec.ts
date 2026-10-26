@@ -48,13 +48,11 @@ for (const operation of ['PUT', 'DELETE'] as const) {
         context.fillRect(0, 0, 900, 900);
         return canvas.toDataURL('image/jpeg').split(',')[1];
       });
-      await editor
-        .locator('input[type="file"]')
-        .setInputFiles({
-          name: 'person.jpg',
-          mimeType: 'image/jpeg',
-          buffer: Buffer.from(photo, 'base64'),
-        });
+      await editor.locator('input[type="file"]').setInputFiles({
+        name: 'person.jpg',
+        mimeType: 'image/jpeg',
+        buffer: Buffer.from(photo, 'base64'),
+      });
       await expect(editor).toContainText('Foto gespeichert.');
     } else {
       await editor.getByRole('button', { name: 'Foto entfernen', exact: true }).click();
@@ -109,12 +107,6 @@ for (const pathway of ['photo', 'receipt'] as const) {
     const editor = page
       .getByRole('dialog')
       .filter({ has: page.getByLabel('Geschäft', { exact: true }) });
-    // Pick a known Aktion so this regression only concerns photo/version handling.
-    await editor.getByLabel('Aktion', { exact: true }).fill('Herbst');
-    await editor
-      .getByRole('listbox', { name: 'Aktion auswählen' })
-      .getByRole('option', { name: 'Wölflings-Herbstwochenende', exact: true })
-      .click();
     const note = editor.getByLabel(/^Bemerkung(?: \(optional\))?$/, { exact: true });
     await note.fill('Mein noch nicht gespeicherter Hinweis');
     const photo = await page.evaluate(() => {
@@ -125,13 +117,11 @@ for (const pathway of ['photo', 'receipt'] as const) {
       context.fillRect(0, 0, 900, 900);
       return canvas.toDataURL('image/jpeg').split(',')[1];
     });
-    await editor
-      .locator('input[type="file"]')
-      .setInputFiles({
-        name: 'beleg.jpg',
-        mimeType: 'image/jpeg',
-        buffer: Buffer.from(photo, 'base64'),
-      });
+    await editor.locator('input[type="file"]').setInputFiles({
+      name: 'beleg.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from(photo, 'base64'),
+    });
     const photoSave = editor.getByRole('button', { name: 'Neues Foto speichern', exact: true });
     await expect(photoSave).toBeEnabled();
     if (pathway === 'photo') {

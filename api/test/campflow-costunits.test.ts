@@ -116,3 +116,11 @@ test('malformed mappings fail closed before writes', async (t) => {
   );
   assert.equal(calls.length, 1);
 });
+
+test('names differing only in case and runs of spaces are found without writes', async (t) => {
+  const calls = setup(t, [
+    json({ data: [{ ...UNIT, name: 'Frühjahr  /  2027', categories: [CATEGORY] }] }),
+  ]);
+  await ensureCampflowExpenseAssignment('frühjahr / 2027', 'bestellungen', 'business');
+  assert.deepEqual(calls, [{ path: '/campflow/kostenstellen' }]);
+});

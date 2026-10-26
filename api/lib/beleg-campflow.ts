@@ -25,6 +25,7 @@ import {
   PlaywrightApiError,
   ensureCampflowExpenseAssignment,
   getKostenstellen,
+  sameCampflowName,
   uploadCampflowBeleg,
 } from './playwright-api';
 import { errorResponse } from './response-utils';
@@ -124,8 +125,7 @@ export function campflowDisburser(beleg: StoredBeleg): string | null {
 /** Sphäre of a Kategorie the transfer creates: like every Kategorie of the Aktionen so far. */
 const NEW_CATEGORY_SPHERE = 'purpose';
 
-const sameName = (a: string, b: string): boolean =>
-  a.trim().toLocaleLowerCase('de') === b.trim().toLocaleLowerCase('de');
+const sameName = sameCampflowName;
 
 /** The Kostenstelle and Kategorie of that name, an archived Kostenstelle only if no other has it. */
 function findTarget(
@@ -157,7 +157,7 @@ async function resolveTarget(beleg: StoredBeleg): Promise<BelegCampflowTarget> {
     new BelegCampflowError(
       422,
       'KOSTENSTELLE_ARCHIVED',
-      `Die Kostenstelle „${name}“ ist in CampFlow archiviert.`
+      `Die Kostenstelle „${name}“ ist in CampFlow archiviert. Bitte trage oben im Beleg eine andere Kostenstelle ein und übertrage ihn dann noch einmal.`
     );
   let found: ReturnType<typeof findTarget>;
   try {

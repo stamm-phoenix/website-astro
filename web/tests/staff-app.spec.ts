@@ -1076,7 +1076,10 @@ test('in the iPhone app receipt login links warn that the chosen photo and crop 
   await expect(checkNotice).toContainText('Wähle das Foto nach der neuen Anmeldung erneut aus');
   await dialog.getByLabel('Geschäft').fill('Recovery receipt photo');
   await dialog.getByLabel('Betrag in €').fill('12,34');
-  await dialog.getByLabel('Aktion', { exact: true }).fill('Wölflings-Herbstwochenende');
+  await dialog.getByLabel('Kostenstelle', { exact: true }).fill('Wölflings-Herbstwochenende');
+  await dialog.getByLabel('Kategorie', { exact: true }).fill('Verpflegungskosten');
+  // The open suggestions would cover the choice below on a small screen
+  await dialog.getByLabel('Kategorie', { exact: true }).press('Escape');
   await dialog
     .getByRole('radio', { name: 'Mit meinem Geld – bitte an mich auszahlen', exact: true })
     .check();
