@@ -106,4 +106,4 @@ Wenn eine Warnung kommt: sofort die Bereitstellung im Foundry-Portal löschen (E
 
 Die Fotos gehen an Azure OpenAI in eurem eigenen Abonnement. Microsoft verwendet sie nicht zum Training. Zur Missbrauchserkennung kann Microsoft Ein- und Ausgaben bis zu 30 Tage speichern; mit „Datenzonenstandard“ in einer EU-Region bleibt die Verarbeitung in der EU. Belege können Namen oder Teile von Kartennummern enthalten – das gehört in das Verzeichnis der Verarbeitungstätigkeiten des Stammes.
 
-Die Belegfotos gehen an die Bereitstellung `gpt-6.1-sol-datazone` im Datenzonenstandard und werden damit nur in der EU verarbeitet. Die Bereitstellung `gpt-4.1-mini` für die Protokolle verwendet „Global Standard“; dort kann die Verarbeitung weltweit erfolgen. Die Datenschutzerklärung beschreibt beides.
+Die Belegfotos gehen an die Bereitstellung `gpt-6.1-sol-datazone` im Datenzonenstandard und werden damit nur in der EU verarbeitet. Die Bereitstellung `gpt-4.1-mini` für die Protokolle verwendet „Global Standard“; dort kann die Verarbeitung weltweit erfolgen.

@@ -46,13 +46,6 @@ const vorstand = await getVorstandContent();
         </Text>
       </InfoCard>
 
-      <InfoCard title="Datenschutzbeauftragte" id="datenschutzbeauftragte">
-        <Text>
-          Unsere Datenschutzbeauftragten sind Hugo Berendi und Nico Welles. Du erreichst sie unter{' '}
-          <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>.
-        </Text>
-      </InfoCard>
-
       <InfoCard title="Geltendes Recht" id="recht">
         <Text>
           Als Teil eines katholischen Jugendverbands gilt für uns das Gesetz über den Kirchlichen
@@ -75,156 +68,13 @@ const vorstand = await getVorstandContent();
         <Text class="mt-3">
           Daten aus unseren Formularen speichern wir in unserem Microsoft-365-Konto (SharePoint)
           oder in einer Datenbank bei Microsoft Azure (Azure SQL, Rechenzentren in Deutschland) und
-          versenden E-Mails über Microsoft 365. Die Bilder unserer Blogbeiträge, die Fotos der
-          Leitenden und die Fotos von Belegen liegen ebenfalls bei Microsoft Azure in Deutschland
-          (Azure Blob Storage). Mit Microsoft besteht ein Vertrag zur Auftragsverarbeitung.
+          versenden E-Mails über Microsoft 365. Bilder und Dateien unserer Website liegen ebenfalls
+          bei Microsoft Azure in Deutschland (Azure Blob Storage). Mit Microsoft besteht ein Vertrag
+          zur Auftragsverarbeitung.
         </Text>
         <Text class="mt-3">
           Die Verbindungsdaten verarbeiten wir für die Auslieferung und Sicherheit der Website
           aufgrund unseres berechtigten Interesses (§ 6 Abs. 1 lit. g KDG).
-        </Text>
-      </InfoCard>
-
-      <InfoCard title="KI-Unterstützung für Belege und Protokolle" id="azure-openai">
-        <Text>
-          Im Leitendenbereich nutzen wir Microsoft Azure OpenAI, um Belegfotos auf Vollständigkeit
-          und Lesbarkeit zu prüfen, Artikel zu erkennen, die in der Jugendarbeit nicht abgerechnet
-          werden dürfen, und Geschäft, Datum und Betrag vorzuschlagen. Dafür übermittelt unser
-          Server das Foto an Microsoft. Es kann personenbezogene Angaben enthalten, etwa Namen oder
-          Teile von Kartennummern. Aus freigegebenen Protokollen und bei einer manuell gestarteten
-          Erkennung aus archivierten Protokollen lassen wir den nächsten Termin der Leitendenrunde
-          vorschlagen. Dafür übertragen wir das Sitzungsdatum und den Text des Protokolls, bei
-          längeren Dokumenten nur den Anfang und das Ende. Auch darin können Namen und andere
-          personenbezogene Angaben stehen. Auf ausdrücklichen Start durch Leitende lassen wir
-          außerdem konkrete Aufgaben, Zuständigkeiten, Fristen und Projektzuordnungen vorschlagen.
-          Dafür übertragen wir den vollständigen Protokolltext bis maximal 24.000 Zeichen und das
-          Sitzungsdatum an Microsoft; längere Protokolle werden nicht ausgewertet.
-        </Text>
-        <Text class="mt-3">
-          Die Ergebnisse dienen als Vorschläge: Das Kassenteam entscheidet über Belege, und Leitende
-          prüfen, korrigieren oder verwerfen Terminvorschläge. Die Ergebnisse speichern wir bei
-          Belegen und Protokollen in Azure SQL. Protokolldateien (DOCX, PDF und TXT) bleiben in
-          SharePoint; Reviewstatus, Freigaben, Versand und Terminvorschläge liegen in Azure SQL.
-          Texte werden lokal auf unserem Server ausgelesen; gescannte PDFs werden nicht an einen
-          OCR-Dienst übermittelt. Aufgabenvorschläge mit Fundstellen und Dokumentreferenz sowie
-          bestätigte Aufgaben, Zuständigkeiten, Fristen, Projekte und wiederverwendbare Checklisten
-          speichern wir in Azure SQL. Für Projektzuordnungen erhält die KI zusätzlich die Namen
-          bestehender Projekte; neue Projektideen werden erst nach ausdrücklicher Bestätigung
-          zusammen mit einer Aufgabe angelegt. Leitende müssen Aufgabenvorschläge prüfen und
-          ausdrücklich annehmen; die KI weist keine Aufgaben selbstständig zu. Für
-          Zuordnungsvorschläge lesen wir über Microsoft Graph aktivierte Mitgliedskonten der
-          Entra-Gruppe „Leitende“ mit Vor- und Nachnamen und Stammes-Login. Die Personenliste wird
-          fünf Minuten im Arbeitsspeicher zwischengespeichert, bei Ausfällen höchstens zehn Minuten.
-          Dieselbe Personenliste versorgt die Autovervollständigung. Für die Aufgabenerkennung
-          senden wir zusätzlich Anzeigenamen und Vornamen mit kurzlebigen Nummern an die unten
-          beschriebene Azure-OpenAI-Bereitstellung gpt-4.1-mini (website-astro-openai).
-          E-Mail-Adressen, Logins und Entra-Konto-IDs aus dieser Liste werden nicht an das Modell
-          gesendet; im Protokoll selbst enthaltene Angaben bleiben Teil des übermittelten
-          Dokumenttexts. Der Server prüft vorgeschlagene Personen gegen die Fundstelle; mehrdeutige
-          Namen bleiben unzugeordnet. Eine Aufgabe kann mehrere Zuständige haben. Für ausgewählte
-          Personen speichern wir Klarname und Login, bei Vorschlägen zusätzlich die ursprüngliche
-          Namensform zur Prüfung. Erst die ausdrückliche Annahme bestätigt die Zuordnung. Diese
-          Angaben sind nur im angemeldeten Leitendenbereich verfügbar. Wir nutzen diese
-          Unterstützung zur Bearbeitung unserer Belege und zur Organisation der Leitendenrunde auf
-          Grundlage unseres berechtigten Interesses (§ 6 KDG).
-        </Text>
-        <Text class="mt-3">
-          Für offene Aufgaben mit Frist erhalten zugewiesene Personen mit Stammes-Login am Vortag
-          und am Fälligkeitstag eine private Erinnerungsmail. Dafür übermitteln wir
-          Empfängeradresse, Aufgabentitel, Fälligkeit und gegebenenfalls Projekt an Microsoft Graph.
-          Eine Kopie bleibt im Gesendet-Ordner des Absenderpostfachs. Versandnachweise mit
-          Empfängeradresse, Datum und Status speichern wir für 60 Tage in Azure SQL, um doppelte
-          Erinnerungen zu verhindern. Vorschläge und erledigte Aufgaben werden nicht erinnert.
-        </Text>
-        <Text class="mt-3">
-          Microsoft verarbeitet die Eingaben und Antworten in unserem Auftrag und verwendet sie
-          nicht zum Training der KI-Modelle. Belegfotos verarbeitet Microsoft dabei nur in der EU.
-          Die Verarbeitung der Protokolltexte kann weltweit und damit auch außerhalb der EU
-          erfolgen. Zur Missbrauchserkennung kann Microsoft sie bis zu 30 Tage speichern.
-          Einzelheiten beschreibt Microsoft in seinen{' '}
-          <TextLink
-            href="https://learn.microsoft.com/de-de/azure/ai-foundry/responsible-ai/openai/data-privacy"
-            external
-          >
-            Angaben zum Datenschutz bei Azure OpenAI
-          </TextLink>
-          .
-        </Text>
-      </InfoCard>
-
-      <InfoCard title="Personen im Leitendenbereich" id="protokoll-personen">
-        <Text>
-          Im Leitendenbereich führen wir eine Liste der Personen, die bei uns mitarbeiten. Für jedes
-          Microsoft-Konto unserer Leitenden kann sie die passende Person in unserer
-          CampFlow-Mitgliederliste festhalten. Damit erkennt der Leitendenbereich, welcher Eintrag
-          in einer Teilnehmendenliste, einer Abrechnung oder einer Sammelbestellung die angemeldete
-          Person selbst ist, und markiert ihn mit „(ich)“. Dafür liest er beim Öffnen solcher Seiten
-          Vor- und Nachname und die primäre E-Mail-Adresse der verknüpften Person aus CampFlow und
-          hält sie bis zu zehn Minuten im Arbeitsspeicher; gespeichert werden sie dabei nicht. Die
-          E-Mail-Adresse bleibt auf dem Server: Er vergleicht sie mit den Anmeldungen einer Aktion
-          und teilt der Seite nur mit, welche davon die eigenen sind. Damit eine gemeinsame
-          Familienadresse nicht die Anmeldung eines Kindes als eigene ausgibt, prüft er dabei in der
-          Mitgliederliste, ob noch jemand diese Adresse nutzt, und vergleicht dann zusätzlich den
-          Vornamen.
-        </Text>
-        <Text>
-          Außerdem enthält die Liste Altleitende und weitere regelmäßig beteiligte Personen, die der
-          Protokoll-Editor neben den Leitenden aus unserer Entra-Gruppe für Sitzungsleitung,
-          Protokoll, Anwesende und Zuständige anbietet. Wir speichern die Liste in Azure SQL mit
-          Name, Gruppe (Leitende, Altleitende oder Weitere), gegebenenfalls dem Microsoft-Konto,
-          gegebenenfalls der Kennung der Person in CampFlow, ob die Person angeboten wird, sowie
-          wann und von wem der Eintrag zuletzt geändert wurde. Sie ist nur im angemeldeten
-          Leitendenbereich sichtbar und wird dort gepflegt; ein gelöschter Eintrag verschwindet aus
-          der Auswahl und der Zuordnung, bereits geschriebene Protokolle behalten den Namen. Wir
-          nutzen die Liste zur Organisation unserer Leitendenrunde und unserer Aktionen (§ 6 KDG,
-          berechtigtes Interesse).
-        </Text>
-      </InfoCard>
-
-      <InfoCard title="Mitgliederliste im Leitendenbereich" id="mitgliederliste">
-        <Text>
-          Unsere Mitglieder verwalten wir in CampFlow. Damit Leitende zum Beispiel vor einer
-          Gruppenstunde eine Telefonnummer nachschlagen können, zeigt das Modul „Mitglieder“ im
-          angemeldeten Leitendenbereich die Mitgliederliste mit ihren Gruppen und den Angaben der
-          einzelnen Mitglieder an, nur lesend. Der Server liest sie dafür beim Öffnen über die
-          Schnittstelle von CampFlow und hält sie höchstens eine Minute im Arbeitsspeicher;
-          gespeichert wird sie auf der Website nicht. Bankverbindung, Lastschriftmandat, Angaben zu
-          Gesundheit, Unverträglichkeiten und Ernährung sowie Notizen bleiben auf dem Server und
-          werden nicht angezeigt. Sehen können die Liste nur Mitglieder unserer Gruppe der
-          Leitenden. Wir nutzen sie zur Organisation unserer Gruppenstunden und Aktionen (§ 6 KDG,
-          berechtigtes Interesse).
-        </Text>
-      </InfoCard>
-
-      <InfoCard title="Versand der Protokolle" id="protokoll-versand">
-        <Text>
-          Freigegebene Protokolle der Leitendenrunde verschicken wir per Mail in Blindkopie an die
-          aktuellen Leitenden und an Mitglieder mit dem Label „Protokollempfang“ aus unserer
-          Mitgliederverwaltung CampFlow. Vor dem Versand zeigt der Leitendenbereich die Liste mit
-          Name, Haupt-E-Mail-Adresse und dem Grund (Gruppe oder Label). Leitende können für einen
-          Versand Personen herausnehmen und weitere E-Mail-Adressen von Hand eintragen. Diese
-          Auswahl speichert die Website nicht, beim Protokoll steht nur die Anzahl der
-          Empfänger*innen. Die Mail geht über Microsoft 365 aus dem Postfach
-          kontakt@stamm-phoenix.de hinaus und bleibt dort mit den Empfängeradressen im Ordner
-          „Gesendete Elemente“. Wir nutzen die Adressen nur, um das Protokoll zuzustellen (§ 6 KDG,
-          berechtigtes Interesse an der Organisation unserer Leitendenrunde).
-        </Text>
-      </InfoCard>
-
-      <InfoCard title="Foto-Ablage im Leitendenbereich" id="foto-ablage">
-        <Text>
-          Fotos und Videos unserer Aktionen liegen in einer Dokumentbibliothek in unserem
-          Microsoft-365-Konto (SharePoint). Im angemeldeten Leitendenbereich lassen sie sich
-          ansehen, herunterladen und hochladen. Dabei lädt der Browser Vorschaubilder und Dateien
-          direkt von SharePoint (stammphoenix.sharepoint.com und Vorschaudienste von Microsoft unter
-          svc.ms) und schickt hochgeladene Fotos direkt dorthin, jeweils über kurzlebige Links, die
-          unser Server ausstellt. Neue Fotos landen in einem Ordner mit Jahr, Aktion und dem
-          Vornamen der hochladenden Person. Nach dem Hochladen kann die Person die Leitenden per
-          E-Mail benachrichtigen; die Mail nennt ihren Vornamen, die Anzahl und den Ordner und
-          enthält kleine Vorschaubilder. Die Adressen kommen aus unserer Mitgliederverwaltung
-          CampFlow und der Personenliste des Leitendenbereichs, die Mail geht über Microsoft 365.
-          Die Website speichert dazu nichts weiter, weder im Browser noch in einer Datenbank. Wir
-          nutzen die Ablage zur Dokumentation unserer Aktionen (§ 6 KDG, berechtigtes Interesse).
         </Text>
       </InfoCard>
 
@@ -274,23 +124,7 @@ const vorstand = await getVorstandContent();
           Sie bleiben auf deinem Gerät und werden nicht an uns übertragen:
         </Text>
         <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-neutral-800">
-          <li>
-            früher gespeicherte Favoriten im Leitendenbereich (Schlüssel{' '}
-            <code>phoenix:staff-favorites:v1:&lt;Benutzer-ID&gt;</code>); die Startseite übernimmt
-            sie einmalig in deinen Account und löscht sie dann aus dem Browser,
-          </li>
           <li>deine Wahl zwischen hellem und dunklem Design (dauerhaft, bis du sie änderst),</li>
-          <li>
-            im Leitendenbereich, ob die Seitenleiste eingeklappt ist (Schlüssel{' '}
-            <code>phoenix:staff-sidebar:v1</code>) auf diesem Gerät (dauerhaft, bis du sie änderst
-            oder den Browserspeicher löschst),
-          </li>
-          <li>
-            die Aufgabenansicht Liste oder Kanban (Speicherschlüssel{' '}
-            <code>phoenix:task-presentation:v1</code>; frühere Version:{' '}
-            <code>phoenix-task-presentation</code>) auf diesem Gerät (dauerhaft, bis du sie änderst
-            oder den Browserspeicher löschst),
-          </li>
           <li>
             ob du das Laden von Instagram-Inhalten oder des Mitgliedsantrags von Campflow bestätigt
             hast (bis du den Browser-Tab schließt),
@@ -299,61 +133,11 @@ const vorstand = await getVorstandContent();
             Zugangslinks aus unseren E-Mails, etwa zum Verwalten einer Nikolaus-Buchung oder einer
             Sammelbestellung, und Links zu einer Abstimmung (bis du den Browser-Tab schließt).
           </li>
-          <li>
-            im Leitendenbereich beim Schreiben eines Protokolls die noch nicht gespeicherten
-            Änderungen, damit bei einem Verbindungsabbruch nichts verloren geht (Schlüssel{' '}
-            <code>phoenix:protokoll-entwurf:v1:&lt;Protokoll&gt;</code>, bis sie gespeichert sind).
-            Passt eine solche Fassung nicht mehr zum gespeicherten Protokoll, legt der Browser bis
-            zu fünf davon beiseite (
-            <code>phoenix:protokoll-entwurf:v1:&lt;Protokoll&gt;:geparkt</code>, bis du sie
-            übernimmst oder verwirfst). Dazu kommen für den Browser-Tab eine zufällige Kennung und
-            ob er gerade schreibt (<code>phoenix:protokoll-tab:v1:&lt;Protokoll&gt;</code>,{' '}
-            <code>phoenix:protokoll-schreiben:v1:&lt;Protokoll&gt;</code>, bis du den Tab schließt).
-          </li>
-          <li>
-            in der App des Leitendenbereichs auf dem iPhone die Eingaben eines Formulars, wenn du
-            dich dort nach einer abgelaufenen Anmeldung neu anmeldest, einschließlich deiner
-            persönlichen Abrechnungseingaben mit Zuordnung zu deinem Account, damit du sie danach
-            wieder übernehmen kannst (Schlüssel <code>phoenix:gerettete-eingaben:v1</code>, bis du
-            den Tab schließt, sie löschst oder dich abmeldest, höchstens eine Stunde).
-          </li>
-          <li>
-            ältere Eingaben zur Abrechnung einer Aktion, die du bisher nur auf diesem Gerät
-            gespeichert hast (<code>phoenix:abrechnung:v1:&lt;Aktion&gt;</code>). Beim Öffnen werden
-            sie angeboten, falls für deinen Account noch nichts gespeichert ist. Erst nach dem
-            ausdrücklichen Speichern in der Datenbank wird die alte Kopie entfernt. Nicht
-            übernommene Kopien löscht die Website spätestens einen Monat nach der Abgabefrist beim
-            Kreisjugendring beim nächsten Besuch.
-          </li>
         </ul>
-        <Text class="mt-3">
-          Wenn du in der Nikolaus-Route „Route für Funklöcher speichern“ wählst, speichert der
-          Browser genau die Route deines Teams und noch nicht bestätigte Besuche für höchstens zwölf
-          Stunden (<code>nikolaus-fahrt-offline-v1</code>). Die Nutzerkennung liegt für die
-          Wiederherstellung im selben Tab unter <code>nikolaus-fahrt-owner</code>, die zuletzt
-          gewählte Teambezeichnung unter <code>nikolaus-fahrt-team</code>. Zusätzlich hält ein
-          Service Worker die statischen Dateien dieser Fahrtansicht im Speicher{' '}
-          <code>nikolaus-route-shell-v1</code>, damit Neuladen ohne Verbindung funktioniert.
-          Antworten mit Familien- oder Anmeldedaten werden darin nicht gespeichert. Löschen der
-          Route, Abmelden und der nächste Aufruf nach Ablauf der Frist entfernen die Kopie. Bei
-          geschlossener Seite kann der Browser erst beim nächsten Aufruf löschen.
-        </Text>
         <Text class="mt-3">
           Den Leitendenbereich können nur Mitglieder unseres Stammes nach einer Anmeldung über
           Microsoft nutzen. Erst bei dieser Anmeldung setzt Microsoft Azure Cookies, die für die
-          Anmeldung erforderlich sind. Damit angemeldete Leitende auf Blog und FAQ direkt zum
-          Bearbeiten springen können, fragen diese Seiten bei unserem eigenen Server nach, ob eine
-          Anmeldung besteht; dabei werden keine Daten an Dritte übertragen und nichts gespeichert.
-          Die Favoriten, die Leitende auf der Startseite des Leitendenbereichs auswählen, die
-          zuletzt geöffneten Bereiche (höchstens acht, damit Startseite und Leiste sie anbieten
-          können), Einstellungen wie die Textdarstellung im Protokoll und die Angabe, welche
-          Neuigkeiten des Leitendenbereichs sie schon gelesen haben (die Kennung des neuesten
-          gelesenen Eintrags, damit die Zahl ungelesener Neuigkeiten stimmt) speichern wir mit ihrer
-          Benutzer-ID und ihrem Login in unserer Datenbank bei Microsoft Azure, damit sie auf jedem
-          Gerät gelten; sie bleiben gespeichert, bis die Person sie ändert oder uns um Löschung
-          bittet. Öffnen Leitende im Leitendenbereich die Vorschau eines Protokolls, lädt ihr
-          Browser sie direkt von Microsoft SharePoint, wo unsere Protokolle liegen; dabei wird ihre
-          IP-Adresse an Microsoft übermittelt.
+          Anmeldung erforderlich sind.
         </Text>
       </InfoCard>
 
@@ -403,56 +187,16 @@ const vorstand = await getVorstandContent();
           IP-Adresse erfährt Microsoft dabei nicht. Microsoft verarbeitet diese Anfragen für uns in
           Rechenzentren in Europa.
         </Text>
-        <Text class="mt-3">
-          Für Notfälle am Besuchstag tragen wir Name und Handynummer einer verantwortlichen Person
-          unseres Stamms ein. Familien sehen diese Angaben ab zwei Stunden vor ihrem Termin auf
-          ihrer Terminseite. Sie liegen in derselben Datenbank, jede Änderung wird mit Person und
-          Zeitpunkt protokolliert, und sie bleiben gespeichert, bis wir sie in der Steuerung des
-          Nikolausdienstes ändern oder entfernen.
-        </Text>
       </InfoCard>
 
-      <InfoCard title="Persönliche Eingaben zur Abrechnung">
-        <Text>
-          Deine Ergänzungen zur Abrechnung (etwa Namen, Alter, Postleitzahlen, Rollen, Beträge und
-          Leihgebühren) speichern wir nach „Eingaben speichern“ für deinen Account in unserer
-          Datenbank bei Microsoft Azure in Deutschland. Sie sind auf deinen Geräten verfügbar und
-          werden einen Monat nach der dreimonatigen Abgabefrist der Aktion beim Kreisjugendring beim
-          nächsten Zugriff gelöscht; aus den Sicherungen verschwinden sie sieben Tage später. Andere
-          Leitende sehen deine persönlichen Ergänzungen nicht. Zur Nachvollziehbarkeit speichern wir
-          deine Anmeldekennung und den Änderungszeitpunkt.
-        </Text>
-      </InfoCard>
-      <InfoCard title="Belege und Campflow" id="belege-campflow">
-        <Text>
-          Angenommene Belege überträgt unser Kassenteam aus dem Leitendenbereich in Campflow, wo wir
-          unsere Kasse führen. Übertragen werden das Foto des Belegs, Geschäft, Bemerkung, Datum und
-          Betrag, die gewählte Kostenstelle und Kategorie und, wenn jemand das Geld ausgelegt hat,
-          der Name dieser Person (bei einer Umbuchung aufs Sparbuch „Sparbuch“). Hat der Stamm
-          bezahlt, wird kein Name übertragen. Reicht jemand einen Beleg für deine Auslage ein,
-          siehst du ihn schon vor der Übertragung mit Foto und der Anmeldekennung der Person, die
-          ihn eingereicht hat, kannst ihn aber nicht ändern. In Campflow bleiben Beleg und Buchung
-          für die Buchhaltung gespeichert. Auf unserer Website wird der Beleg danach gelöscht. Damit
-          nachvollziehbar bleibt, was wann übertragen wurde, behalten wir in unserer Datenbank bei
-          Microsoft Azure in Deutschland die Angaben des Belegs ohne Foto, die Belegnummer in
-          Campflow, die Anmeldekennung der Person, die ihn eingereicht hat, und wer ihn wann
-          übertragen hat. Außerdem zeigt der Leitendenbereich allen angemeldeten Leitenden die
-          Belege aus Campflow mit Beschreibung, Betrag, Kostenstelle, Kategorie, der Person, die
-          ausgelegt hat, und ob die Auslage erstattet ist. Diese Angaben lesen wir bei jedem Aufruf
-          aus Campflow und speichern sie nicht.
-        </Text>
-      </InfoCard>
       <InfoCard title="Sammelbestellungen" id="sammelbestellungen">
         <Text>
           Für Sammelbestellungen erfassen wir Name, E-Mail-Adresse und die bestellten Artikel und
-          nutzen sie nur zur Abwicklung der Bestellung. Für die Bezahlung ordnen unsere Leitenden
-          die Bestellung einer Person aus Campflow zu und legen dort einen Beitrag an; dazu
-          speichern wir ihren Namen, ihre Kennung und E-Mail-Adressen aus Campflow, Beitragsnummer
-          und Zahlungsreferenz sowie, wer welchen Schritt wann erledigt hat; diese Angaben zur
-          Bezahlung erscheinen nicht in deiner Bestellansicht. Alle Angaben zur Sammelbestellung
-          liegen in unserer Datenbank bei Microsoft Azure in Deutschland. Wenn du einen Produktlink
-          von Rüsthaus oder Ausrüster Eschwege einfügst, lädt dein Browser das Produktbild direkt
-          vom jeweiligen Shop. Dabei wird deine IP-Adresse an den Shop übermittelt, aber nicht, von
+          nutzen sie nur zur Abwicklung der Bestellung. Für die Bezahlung legen wir in Campflow, wo
+          wir unsere Kasse führen, einen Beitrag an. Die Angaben zur Sammelbestellung liegen in
+          unserer Datenbank bei Microsoft Azure in Deutschland. Wenn du einen Produktlink von
+          Rüsthaus oder Ausrüster Eschwege einfügst, lädt dein Browser das Produktbild direkt vom
+          jeweiligen Shop. Dabei wird deine IP-Adresse an den Shop übermittelt, aber nicht, von
           welcher Seite die Anfrage kommt.
         </Text>
         <Text class="mt-3">
@@ -468,35 +212,14 @@ const vorstand = await getVorstandContent();
           E-Mail einladen. Für eine Einladung speichern wir deine E-Mail-Adresse und, wenn du in
           Campflow stehst, deinen Namen von dort, außerdem wann wir dich eingeladen oder erinnert
           haben. Stimmst du ab, speichern wir den Namen, den du eingibst, deine Auswahl und den
-          Zeitpunkt. Die Person, die die Abstimmung angelegt hat, sieht alle Namen und Antworten.
-          Die Zahl der Stimmen je Option sehen alle Teilnehmenden; sieht nur sie, wer was gewählt
-          hat, sehen die anderen diese Zahlen erst, wenn mindestens drei Personen abgestimmt haben.
-          Ob sie dazu auch sehen, wer was gewählt hat, nur wer abgestimmt hat oder keine Namen, legt
-          sie fest und zeigt die Abstimmung an. E-Mail-Adressen sieht nur die Person, die die
-          Abstimmung angelegt hat. Die Einladung enthält einen persönlichen Link, mit dem du ohne
-          Anmeldung abstimmen und deine Antwort ändern kannst; gib ihn deshalb nicht weiter. Die
-          Angaben liegen in unserer Datenbank bei Microsoft Azure in Deutschland, bis die Person,
-          die die Abstimmung angelegt hat, sie löscht. Damit die Seite deinen Link auch nach „Zum
-          Inhalt springen“ und Neuladen wiederfindet, merkt sich dein Browser ihn (Schlüssel{' '}
-          <code>abstimmung-link</code>, bis du den Browser-Tab schließt).
-        </Text>
-      </InfoCard>
-
-      <InfoCard title="Anwesenheit in den Gruppenstunden" id="anwesenheit">
-        <Text>
-          Unsere Leitenden halten im Leitendenbereich fest, wer bei einer Gruppenstunde war und wer
-          entschuldigt gefehlt hat. Von Mitgliedern speichern wir dafür nur ihre Kennung aus
-          Campflow; den Namen zeigt die Seite beim Öffnen aus Campflow an. Kinder, die nicht in
-          Campflow stehen, etwa beim Schnuppern, tragen wir als Gast mit ihrem Namen ein. Dazu kommt
-          eine kurze Beschreibung, was die Gruppe gemacht hat, ohne Namen von Kindern, ob die
-          Gruppenstunde ausgefallen ist und welche Leitung den Termin zuletzt geändert hat.
-        </Text>
-        <Text class="mt-3">
-          Die Angaben liegen in unserer Datenbank bei Microsoft Azure in Deutschland. Nach zwölf
-          Monaten entfernen wir Kennungen und Gastnamen. Von den Kindern bleibt nur, wie viele bei
-          einem Termin da oder entschuldigt waren, für unsere Statistik. Das Entfernen geschieht,
-          sobald Leitende die Anwesenheit das nächste Mal im Leitendenbereich öffnen. Aus den
-          automatischen Sicherungen von Microsoft verschwinden die Angaben sieben Tage später.
+          Zeitpunkt. Was die anderen Teilnehmenden davon sehen, zeigt die Abstimmung an.
+          E-Mail-Adressen sieht nur die Person, die die Abstimmung angelegt hat. Die Einladung
+          enthält einen persönlichen Link, mit dem du ohne Anmeldung abstimmen und deine Antwort
+          ändern kannst; gib ihn deshalb nicht weiter. Die Angaben liegen in unserer Datenbank bei
+          Microsoft Azure in Deutschland, bis die Person, die die Abstimmung angelegt hat, sie
+          löscht. Damit die Seite deinen Link auch nach „Zum Inhalt springen“ und Neuladen
+          wiederfindet, merkt sich dein Browser ihn (Schlüssel <code>abstimmung-link</code>, bis du
+          den Browser-Tab schließt).
         </Text>
       </InfoCard>
 
