@@ -1,10 +1,9 @@
 name: Codex Review
 # AI review of pull requests with Codex and model deployments on our Azure OpenAI resource (paid
 # by the Azure grant). Every new or updated PR gets a review with gpt-6.1-sol; the label
-# "codex-review" starts a thorough review with gpt-6-astra. Apart from the connection to the
-# provider and the models, this file is the same as claude-review.yml, and both are the same in
-# website-astro and playwright-api; what to look for in each repo is in
-# .github/review-instructions.md. Setup and costs: docs/ki-review.md.
+# "codex-review" starts a thorough review with gpt-6-astra. This file is the same in website-astro
+# and playwright-api; what to look for in each repo is in .github/review-instructions.md. Setup and
+# costs: docs/ki-review.md.
 # The run name tells the skip and label steps which runs are thorough reviews of which PR (the
 # runs list of the API leaves pull_requests empty for many PRs)
 run-name: "${{ format('{0} #{1}', github.event.action == 'labeled' && github.event.label.name == 'codex-review' && 'Thorough review' || 'Review', github.event.pull_request.number) }}"
@@ -234,9 +233,7 @@ jobs:
     needs: review
     if: needs.review.outputs.review != ''
     # An automatic and a thorough review of the same PR can finish at the same time; one after the
-    # other, the second finds the summary comment of the first instead of creating another one. The
-    # group is shared with the other KI review, so neither reads the line comments while the other
-    # posts.
+    # other, the second finds the summary comment of the first instead of creating another one.
     concurrency:
       group: review-comment-${{ github.event.pull_request.number }}
       queue: max
