@@ -47,6 +47,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          check-latest: true
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
@@ -90,6 +91,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          check-latest: true
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
@@ -146,6 +148,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          check-latest: true
       - name: Install API test dependencies
         working-directory: api
         run: bun install --frozen-lockfile --ignore-scripts
@@ -231,6 +234,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          check-latest: true
       - name: Install frontend dependencies
         working-directory: web
         run: bun install --frozen-lockfile
@@ -541,6 +545,7 @@ jobs:
         if: steps.current.outputs.deploy == 'true'
         with:
           node-version: "22"
+          check-latest: true
       - name: Build standalone timer package
         if: steps.current.outputs.deploy == 'true'
         run: bash scripts/package-task-worker.sh /tmp/task-reminder-worker
@@ -628,6 +633,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          check-latest: true
       # No dependency cache: this job runs in the context of the default branch
       - name: Install dependencies
         working-directory: web
