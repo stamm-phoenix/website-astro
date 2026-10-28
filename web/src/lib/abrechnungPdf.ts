@@ -1,6 +1,6 @@
 // PDF exports of the Abrechnung: lists, the receipts for printing, the Deckblatt, the
-// Materialleihgebühren and Eigenbelege. jsPDF is loaded only when a PDF is created, so it does
-// not weigh on the page itself. All PDFs are DIN A4 portrait.
+// Materialleihgebühren, Eigenbelege and the Kurzbeschreibung for the KJR. jsPDF is loaded only
+// when a PDF is created, so it does not weigh on the page itself. All PDFs are DIN A4 portrait.
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn } from 'jspdf-autotable';
 import { saveFile } from './api';
@@ -592,6 +592,20 @@ function drawFolgeseitenKopf(
   doc.line(MARGIN, 23, PAGE_WIDTH - MARGIN, 23);
 }
 
+/**
+ * Finishes a letter of several pages on the Stamm's letter paper: the short header on the follow
+ * pages and the footer on every page. Call it after all content is drawn, as it needs the number
+ * of pages; the content keeps `FOLGESEITE_TOP` and `BRIEF_FUSS_SPACE` free.
+ */
+function drawBriefseiten(doc: JsPdf, bilder: BriefBilder, betreff: string): void {
+  const pages = doc.getNumberOfPages();
+  for (let page = 1; page <= pages; page++) {
+    doc.setPage(page);
+    if (page > 1) drawFolgeseitenKopf(doc, bilder, betreff, page, pages);
+    drawBriefFuss(doc, bilder);
+  }
+}
+
 /** The Eigenbeleg on the Stamm's letter paper, to sign and upload or hand in as receipt. */
 export async function downloadEigenbelegPdf(data: PdfEigenbeleg, fileName: string): Promise<void> {
   const [{ doc, autoTable }, bilder] = await Promise.all([loadPdf(), loadBriefBilder()]);
@@ -701,12 +715,7 @@ export async function downloadEigenbelegPdf(data: PdfEigenbeleg, fileName: strin
     doc.setTextColor(30, 30, 30);
   }
 
-  const pages = doc.getNumberOfPages();
-  for (let page = 1; page <= pages; page++) {
-    doc.setPage(page);
-    if (page > 1) drawFolgeseitenKopf(doc, bilder, `Eigenbeleg vom ${data.datum}`, page, pages);
-    drawBriefFuss(doc, bilder);
-  }
+  drawBriefseiten(doc, bilder, `Eigenbeleg vom ${data.datum}`);
   saveFile(doc.output('blob'), fileName);
 }
 
@@ -717,5 +726,236 @@ export async function downloadLeihgebuehrenPdf(
 ): Promise<void> {
   const { doc, autoTable } = await loadPdf();
   await drawLeihgebuehren(doc, autoTable, data);
+  saveFile(doc.output('blob'), fileName);
+}
+
+/** The Kurzbeschreibung for the KJR, with dates and times already formatted. */
+export interface PdfKurzbeschreibung {
+  aktion: string;
+  zeitraum: string;
+  einleitung: string;
+  /** Days with at least one block, e.g. „Montag, 25.05.2026“. */
+  tage: { titel: string; bloecke: { zeit: string; text: string }[] }[];
+  vorstaende: Vorstand[];
+}
+
+const ZEITPLAN_GAP = 6;
+const ZEITPLAN_FONT = 8.5;
+const ZEITPLAN_LINE = 3.5;
+const ZEITPLAN_ROW_GAP = 0.9;
+const ZEITPLAN_HEADER = 7;
+
+interface ZeitplanItem {
+  /** Index of the day. */
+  tag: number;
+  /** The day's heading, or a block with its wrapped text. */
+  header: boolean;
+  zeit: string;
+  lines: string[];
+  height: number;
+}
+
+interface PlacedItem {
+  item: ZeitplanItem;
+  /** The day's heading again, above a block that continues a day in a new column. */
+  continued: boolean;
+  page: number;
+  column: number;
+  y: number;
+}
+
+/**
+ * Places the items of the Zeitplan in columns, newspaper style: down the first column, then the
+ * next, then on to a new page. A day's heading stays with its first block, and a day that goes on
+ * in a new column gets its heading again. `limit` caps the height of the first page's columns,
+ * to balance them; `null` when anything does not fit within the given pages.
+ */
+function placeZeitplan(
+  items: ZeitplanItem[],
+  columns: number,
+  firstTop: number,
+  limit: number,
+  maxPages = Infinity
+): PlacedItem[] | null {
+  const bottom = PAGE_HEIGHT - BRIEF_FUSS_SPACE - 2;
+  const placed: PlacedItem[] = [];
+  let page = 1;
+  let column = 0;
+  let top = firstTop;
+  let end = Math.min(bottom, firstTop + limit);
+  let y = top;
+  const nextColumn = (): boolean => {
+    column++;
+    if (column >= columns) {
+      if (page >= maxPages) return false;
+      page++;
+      column = 0;
+      top = FOLGESEITE_TOP + 4;
+      end = bottom;
+    }
+    y = top;
+    return true;
+  };
+  for (const [index, item] of items.entries()) {
+    const next = items[index + 1];
+    // A heading needs room for its first block below it
+    const needed = item.header && next && !next.header ? item.height + next.height : item.height;
+    const continues = (): boolean => !item.header && y === top;
+    const height = (): number => needed + (continues() ? ZEITPLAN_HEADER : 0);
+    if (y + height() > end && y > top && !nextColumn()) return null;
+    // Taller than a whole column: fails a try within limits, otherwise drawn anyway
+    if (y + height() > end && maxPages !== Infinity) return null;
+    const continued = continues();
+    if (continued) y += ZEITPLAN_HEADER;
+    placed.push({ item, continued, page, column, y });
+    y += item.height;
+  }
+  return placed;
+}
+
+function drawZeitplanHeader(doc: JsPdf, titel: string, x: number, y: number, width: number): void {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(...BRAND);
+  doc.text(titel, x, y + 4);
+  doc.setDrawColor(...BRAND);
+  doc.setLineWidth(0.3);
+  doc.line(x, y + 5.3, x + width, y + 5.3);
+}
+
+/**
+ * The Kurzbeschreibung of an Aktion for the KJR's grant on the Stamm's letter paper: the Aktion
+ * and its dates, the sentence about its aim and the Zeitplan. The blocks are short, so the
+ * Zeitplan goes into two or three columns, balanced so that a short Aktion fits on one page.
+ */
+export async function downloadKurzbeschreibungPdf(
+  data: PdfKurzbeschreibung,
+  fileName: string
+): Promise<void> {
+  const [{ doc }, bilder] = await Promise.all([loadPdf(), loadBriefBilder()]);
+  let top = drawBriefkopf(doc, bilder, data.vorstaende);
+  const width = PAGE_WIDTH - 2 * MARGIN;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...GREY);
+  doc.text('Kurzbeschreibung', MARGIN, top - 6);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(...BRAND);
+  const title = doc.splitTextToSize(data.aktion, width);
+  doc.text(title, MARGIN, top);
+  top += 6.5 * (title.length - 1) + 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10.5);
+  doc.setTextColor(30, 30, 30);
+  doc.text(data.zeitraum, MARGIN, top);
+  top += 9;
+
+  const section = (heading: string): void => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...BRAND);
+    doc.text(heading, MARGIN, top);
+    top += 5.5;
+  };
+  if (data.einleitung.trim()) {
+    section('Zielsetzung');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(30, 30, 30);
+    for (const paragraph of data.einleitung.trim().split(/\n\s*\n/)) {
+      const lines = doc.splitTextToSize(paragraph.replace(/\s*\n\s*/g, ' '), width);
+      doc.text(lines, MARGIN, top);
+      top += 4.6 * lines.length + 2;
+    }
+    top += 4;
+  }
+
+  const tage = data.tage.filter((tag) => tag.bloecke.length > 0);
+  if (tage.length > 0) {
+    section('Zeitplan');
+    top -= 1.5;
+    const columns = tage.length === 2 ? 2 : 3;
+    const columnWidth = (width - ZEITPLAN_GAP * (columns - 1)) / columns;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(ZEITPLAN_FONT);
+    const zeitWidth = Math.min(
+      columnWidth / 2,
+      Math.max(0, ...tage.flatMap((t) => t.bloecke.map((b) => doc.getTextWidth(b.zeit)))) + 2.5
+    );
+    doc.setFont('helvetica', 'normal');
+    const items: ZeitplanItem[] = tage.flatMap((tag, index) => [
+      { tag: index, header: true, zeit: '', lines: [], height: ZEITPLAN_HEADER },
+      ...tag.bloecke.map((block) => {
+        const lines: string[] = doc.splitTextToSize(
+          block.text || '–',
+          columnWidth - (block.zeit ? zeitWidth : 0)
+        );
+        return {
+          tag: index,
+          header: false,
+          zeit: block.zeit,
+          lines,
+          height: ZEITPLAN_LINE * lines.length + ZEITPLAN_ROW_GAP,
+        };
+      }),
+    ]);
+
+    // Up to three days each in a column of their own; otherwise the shortest columns that
+    // still fit on the first page; otherwise as many pages as needed
+    const available = PAGE_HEIGHT - BRIEF_FUSS_SPACE - 2 - top;
+    const dayHeights = tage.map((_tag, index) =>
+      items.filter((item) => item.tag === index).reduce((sum, item) => sum + item.height, 0)
+    );
+    let placed: PlacedItem[] | null = null;
+    if (tage.length <= columns && Math.max(...dayHeights) <= available) {
+      let y = 0;
+      placed = items.map((item, index) => {
+        if (item.header && index > 0) y = 0;
+        const at = { item, continued: false, page: 1, column: item.tag, y: top + y };
+        y += item.height;
+        return at;
+      });
+    } else if (placeZeitplan(items, columns, top, available, 1)) {
+      let low = Math.max(...items.map((item) => item.height)) + ZEITPLAN_HEADER;
+      let high = available;
+      while (high - low > 0.5) {
+        const middle = (low + high) / 2;
+        if (placeZeitplan(items, columns, top, middle, 1)) high = middle;
+        else low = middle;
+      }
+      placed = placeZeitplan(items, columns, top, high, 1);
+    }
+    placed ??= placeZeitplan(items, columns, top, available) ?? [];
+
+    for (const { item, continued, page, column, y } of placed) {
+      while (doc.getNumberOfPages() < page) doc.addPage('a4', 'portrait');
+      doc.setPage(page);
+      const x = MARGIN + column * (columnWidth + ZEITPLAN_GAP);
+      const titel = tage[item.tag].titel;
+      if (item.header) {
+        drawZeitplanHeader(doc, titel, x, y, columnWidth);
+        continue;
+      }
+      if (continued) {
+        drawZeitplanHeader(doc, `${titel} (Fortsetzung)`, x, y - ZEITPLAN_HEADER, columnWidth);
+      }
+      doc.setFontSize(ZEITPLAN_FONT);
+      const baseline = y + ZEITPLAN_LINE - 0.6;
+      if (item.zeit) {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...GREY);
+        doc.text(item.zeit, x, baseline);
+      }
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(30, 30, 30);
+      doc.text(item.lines, x + (item.zeit ? zeitWidth : 0), baseline, {
+        lineHeightFactor: ZEITPLAN_LINE / ((ZEITPLAN_FONT * 25.4) / 72),
+      });
+    }
+  }
+
+  drawBriefseiten(doc, bilder, `Kurzbeschreibung „${data.aktion}“`);
   saveFile(doc.output('blob'), fileName);
 }

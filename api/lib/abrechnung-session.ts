@@ -6,6 +6,35 @@ export interface AbrechnungEingabe {
   deleteAfter: string | null;
 }
 
+/** A block of the Zeitplan, e.g. 8:00–9:00 Frühstück. */
+export interface ZeitBlock {
+  /** Random ID, keeps a block apart while it is moved. */
+  id: string;
+  /** `HH:MM` or empty, e.g. for something that takes all day. */
+  von: string;
+  /** `HH:MM` or empty for an open end or a single point in time. */
+  bis: string;
+  text: string;
+}
+
+export interface ZeitplanTag {
+  /** `YYYY-MM-DD` */
+  datum: string;
+  bloecke: ZeitBlock[];
+}
+
+/** The Kurzbeschreibung the KJR asks for with the grant: a sentence and a rough Zeitplan. */
+export interface Kurzbeschreibung {
+  einleitung: string;
+  /** Empty until something was entered; the page shows the days of the Aktion until then. */
+  tage: ZeitplanTag[];
+}
+
+export const MAX_ZEITPLAN_TAGE = 31;
+export const MAX_ZEITBLOECKE_PRO_TAG = 30;
+export const MAX_ZEITBLOCK_TEXT = 200;
+export const MAX_EINLEITUNG = 2_000;
+
 interface LeihgebuehrEingabe {
   count: number;
   days: number | null;
@@ -28,6 +57,7 @@ export interface AbrechnungSession {
   deckblatt: { vorkalkulation: string; kalkulation: string };
   /** Amounts of Einzelnachweise changed on the page, in cent, by `NachweisZeile.key`. */
   betraege: Record<string, number>;
+  kurzbeschreibung: Kurzbeschreibung;
 }
 
 export function emptySession(): AbrechnungSession {
@@ -41,6 +71,7 @@ export function emptySession(): AbrechnungSession {
     leihgebuehren: {},
     deckblatt: { vorkalkulation: '', kalkulation: '' },
     betraege: {},
+    kurzbeschreibung: { einleitung: '', tage: [] },
   };
 }
 
@@ -116,6 +147,56 @@ function parseLeihgebuehr(value: unknown): LeihgebuehrEingabe | undefined {
   return isCount(count) && (days === null || isCount(days)) ? { count, days } : undefined;
 }
 
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const BLOCK_ID_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
+
+function parseZeitBlock(value: unknown): ZeitBlock | null {
+  if (!isRecord(value)) return null;
+  const { id, von, bis, text } = value;
+  if (
+    typeof id !== 'string' ||
+    !BLOCK_ID_PATTERN.test(id) ||
+    typeof von !== 'string' ||
+    !(von === '' || TIME_PATTERN.test(von)) ||
+    typeof bis !== 'string' ||
+    !(bis === '' || TIME_PATTERN.test(bis)) ||
+    typeof text !== 'string' ||
+    text.length > MAX_ZEITBLOCK_TEXT
+  ) {
+    return null;
+  }
+  return { id, von, bis, text };
+}
+
+function parseZeitplanTag(value: unknown): ZeitplanTag | null {
+  if (!isRecord(value) || typeof value.datum !== 'string' || !DATE_PATTERN.test(value.datum))
+    return null;
+  return {
+    datum: value.datum,
+    bloecke: Array.isArray(value.bloecke)
+      ? value.bloecke
+          .map(parseZeitBlock)
+          .filter((b): b is ZeitBlock => b !== null)
+          .slice(0, MAX_ZEITBLOECKE_PRO_TAG)
+      : [],
+  };
+}
+
+function parseKurzbeschreibung(value: unknown): Kurzbeschreibung {
+  if (!isRecord(value)) return { einleitung: '', tage: [] };
+  const einleitung = pickString(value.einleitung);
+  return {
+    einleitung: einleitung.length > MAX_EINLEITUNG ? '' : einleitung,
+    tage: Array.isArray(value.tage)
+      ? value.tage
+          .map(parseZeitplanTag)
+          .filter((t): t is ZeitplanTag => t !== null)
+          .slice(0, MAX_ZEITPLAN_TAGE)
+      : [],
+  };
+}
+
 /** Rebuilds a stored session; fields that do not fit are left empty instead. */
 export function parseSession(value: unknown): AbrechnungSession {
   if (!isRecord(value)) return emptySession();
@@ -143,6 +224,7 @@ export function parseSession(value: unknown): AbrechnungSession {
     betraege: pickEntries(value.betraege, (entry) =>
       typeof entry === 'number' && Number.isInteger(entry) ? entry : undefined
     ),
+    kurzbeschreibung: parseKurzbeschreibung(value.kurzbeschreibung),
   };
 }
 
@@ -161,9 +243,11 @@ export function validAbrechnungSession(value: unknown): value is AbrechnungSessi
       );
     return JSON.stringify(input);
   }
-  return (
-    isRecord(value) &&
-    JSON.stringify(value).length <= 100_000 &&
-    canonical(parseSession(value)) === canonical(value)
-  );
+  if (!isRecord(value) || JSON.stringify(value).length > 100_000) return false;
+  // Pages opened before the Kurzbeschreibung existed send sessions without it
+  const complete =
+    value.kurzbeschreibung === undefined
+      ? { ...value, kurzbeschreibung: emptySession().kurzbeschreibung }
+      : value;
+  return canonical(parseSession(complete)) === canonical(complete);
 }

@@ -48,6 +48,7 @@
   import AbrechnungTeilnehmende from './AbrechnungTeilnehmende.svelte';
   import AbrechnungNachweise from './AbrechnungNachweise.svelte';
   import AbrechnungLeihgebuehren from './AbrechnungLeihgebuehren.svelte';
+  import AbrechnungKurzbeschreibung from './AbrechnungKurzbeschreibung.svelte';
   import AktionZuschussSchalter from '../AktionZuschussSchalter.svelte';
 
   const TABS = [
@@ -55,6 +56,7 @@
     { id: 'teilnehmende', label: 'Teilnehmende' },
     { id: 'nachweise', label: 'Einzelnachweise' },
     { id: 'leihgebuehren', label: 'Leihgebühren' },
+    { id: 'kurzbeschreibung', label: 'Kurzbeschreibung' },
   ] as const;
   type TabId = (typeof TABS)[number]['id'];
 
@@ -474,8 +476,8 @@
                   >Eingaben zurücksetzen</ActionButton
                 >{/if}
               <InfoHint label="Deine Eingaben" class="self-center">
-                Teilnehmende, Rollen, Zusatztag, geänderte Beträge, Leihgebühren und Deckblatt
-                gehören zu dir und stehen auf all deinen Geräten bereit. {ablage.deleteAfter
+                Teilnehmende, Rollen, Zusatztag, geänderte Beträge, Leihgebühren, Deckblatt und
+                Kurzbeschreibung gehören zu dir und stehen auf all deinen Geräten bereit. {ablage.deleteAfter
                   ? `Nach dem ${formatDate(ablage.deleteAfter)} werden sie gelöscht.`
                   : ''} Beim Neu laden bleiben sie erhalten. Ältere Eingaben von diesem Gerät übernimmst
                 du mit „Eingaben speichern“.
@@ -546,6 +548,8 @@
               {nachweise}
               leihgebuehren={leihgebuehrenResult}
             />
+          {:else if tab === 'kurzbeschreibung'}
+            <AbrechnungKurzbeschreibung {abrechnung} {session} />
           {:else}
             <AbrechnungLeihgebuehren
               {abrechnung}

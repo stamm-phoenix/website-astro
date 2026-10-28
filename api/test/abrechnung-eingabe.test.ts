@@ -5,6 +5,7 @@ import { AbrechnungEingabeEndpoint } from '../endpoints/intern-abrechnung-eingab
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { emptySession, parseSession, validAbrechnungSession } from '../lib/abrechnung-session';
+import type { AbrechnungSession } from '../lib/abrechnung-session';
 import {
   abrechnungDeleteAfter,
   getAbrechnungEingabe,
@@ -39,6 +40,49 @@ test('session validation preserves complete drafts and rejects destructive malfo
     false
   );
   assert.equal(validAbrechnungSession({ ...draft, plz: [] }), false);
+});
+
+test('session validation keeps the Kurzbeschreibung and accepts drafts of older pages', () => {
+  const draft = emptySession();
+  draft.kurzbeschreibung = {
+    einleitung: 'Wir fahren gemeinsam ins Zeltlager.',
+    tage: [
+      {
+        datum: '2026-05-24',
+        bloecke: [
+          { id: 'a1', von: '08:00', bis: '09:00', text: 'Frühstück' },
+          { id: 'a2', von: '', bis: '', text: 'Hike' },
+        ],
+      },
+    ],
+  };
+  assert.equal(validAbrechnungSession(draft), true);
+  assert.deepEqual(parseSession(draft), draft);
+
+  const older: Partial<AbrechnungSession> = emptySession();
+  delete older.kurzbeschreibung;
+  assert.equal(validAbrechnungSession(older), true);
+  assert.deepEqual(parseSession(older).kurzbeschreibung, { einleitung: '', tage: [] });
+
+  const block = draft.kurzbeschreibung.tage[0].bloecke[0];
+  const withBlock = (changed: object): unknown => ({
+    ...draft,
+    kurzbeschreibung: {
+      ...draft.kurzbeschreibung,
+      tage: [{ datum: '2026-05-24', bloecke: [{ ...block, ...changed }] }],
+    },
+  });
+  assert.equal(validAbrechnungSession(withBlock({ von: '8 Uhr' })), false);
+  assert.equal(validAbrechnungSession(withBlock({ bis: '24:00' })), false);
+  assert.equal(validAbrechnungSession(withBlock({ id: '<x>' })), false);
+  assert.equal(validAbrechnungSession(withBlock({ text: 'x'.repeat(201) })), false);
+  assert.equal(
+    validAbrechnungSession({
+      ...draft,
+      kurzbeschreibung: { ...draft.kurzbeschreibung, tage: [{ datum: 'Montag', bloecke: [] }] },
+    }),
+    false
+  );
 });
 
 test('retention keeps calendar months including leap years', () => {

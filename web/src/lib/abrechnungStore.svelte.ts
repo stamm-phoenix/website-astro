@@ -434,7 +434,9 @@ export function abrechnungSessionChanged(session: AbrechnungSession): boolean {
     Object.values(session.kjr).some(filled) ||
     Object.values(session.leihgebuehren).some((e) => e.count > 0 || e.days !== null) ||
     Object.values(session.deckblatt).some(filled) ||
-    Object.keys(session.betraege).length > 0
+    Object.keys(session.betraege).length > 0 ||
+    filled(session.kurzbeschreibung.einleitung) ||
+    session.kurzbeschreibung.tage.some((tag) => tag.bloecke.length > 0)
   );
 }
 

@@ -12,6 +12,20 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-28-02-kurzbeschreibung',
+    date: '2026-10-28',
+    title: 'Abrechnung: Kurzbeschreibung für den KJR',
+    changes: [
+      {
+        text: 'Die Abrechnung einer Aktion hat einen neuen Bereich „Kurzbeschreibung“. Dort schreibst du die Zielsetzung der Aktion und einen groben Zeitplan und lädst beides als PDF auf dem Briefpapier des Stammes für den Antrag beim KJR herunter.',
+        href: '/leitendenbereich/abrechnung',
+      },
+      'Die Tage der Aktion sind schon angelegt. Zeitblöcke fügst du einzeln oder mit „Mehrere Zeilen einfügen“ auf einmal hinzu (z. B. „8-9 Uhr Frühstück“), übernimmst den Ablauf vom Vortag, sortierst nach Uhrzeit und verschiebst Blöcke mit den Pfeilen oder mit der Maus, auch auf einen anderen Tag.',
+      'Hast du den Zeitplan schon als Foto, PDF oder Excel-Tabelle, trägt „Aus Datei übernehmen“ ihn für dich ein. Prüfe die Blöcke danach.',
+      'Die Kurzbeschreibung gehört zu deinen Eingaben der Abrechnung und wird mit „Eingaben speichern“ gesichert.',
+    ],
+  },
+  {
     id: '2026-10-28-01-belege-einnahmen-pdf',
     date: '2026-10-28',
     title: 'Belege: Einnahmen und PDFs einreichen',

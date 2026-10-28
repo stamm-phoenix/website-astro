@@ -186,6 +186,11 @@ export interface ApiConfig {
     /** „Antragsteller (Verband/Verein)“ in the KJR's Teilnahmeliste. */
     antragsteller: string;
     leihgebuehren: LeihgebuehrenConfig;
+    /**
+     * Reading a Zeitplan for the Kurzbeschreibung from a file, with the model of the receipt
+     * check (`belege.check`). Reads per day and Function instance; 0 switches it off.
+     */
+    zeitplanMaxReadsPerDay: number;
   };
 }
 
@@ -379,6 +384,7 @@ export const CONFIG: ApiConfig = {
   },
   abrechnung: {
     antragsteller: 'DPSG Stamm Phoenix Feldkirchen-Westerham',
+    zeitplanMaxReadsPerDay: 50,
     // When new fees are decided, change the prices and `stand`. Keep the `id` of an item that
     // stays, and give new items a new `id`.
     leihgebuehren: {

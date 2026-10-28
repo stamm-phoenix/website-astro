@@ -15,30 +15,48 @@ function isPdf(file: File): boolean {
   return file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
 }
 
-async function drawPdf(file: File): Promise<HTMLCanvasElement> {
+/**
+ * Draws the first `maxPages` pages of a PDF, each `width` pixels wide on a white background.
+ * Also used to send the pages of a Zeitplan as images (`zeitplanDatei.ts`).
+ */
+export async function drawPdfPages(
+  data: Uint8Array,
+  width: number,
+  maxPages: number
+): Promise<HTMLCanvasElement[]> {
   // The legacy build runs in older browsers too (the current one needs very new JavaScript)
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   const worker = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url');
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
-  const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  const task = pdfjs.getDocument({ data });
   try {
     const document = await task.promise;
-    const page = await document.getPage(1);
-    const unscaled = page.getViewport({ scale: 1 });
-    const viewport = page.getViewport({ scale: PREVIEW_WIDTH / unscaled.width });
-    const canvas = window.document.createElement('canvas');
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('No canvas');
-    // PDFs without a background would turn black as a JPEG
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvas, canvasContext: context, viewport }).promise;
-    return canvas;
+    const canvases: HTMLCanvasElement[] = [];
+    for (let number = 1; number <= Math.min(maxPages, document.numPages); number++) {
+      const page = await document.getPage(number);
+      const unscaled = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: width / unscaled.width });
+      const canvas = window.document.createElement('canvas');
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('No canvas');
+      // PDFs without a background would turn black as a JPEG
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvas, canvasContext: context, viewport }).promise;
+      canvases.push(canvas);
+    }
+    return canvases;
   } finally {
     await task.destroy();
   }
+}
+
+async function drawPdf(file: File): Promise<HTMLCanvasElement> {
+  const [canvas] = await drawPdfPages(new Uint8Array(await file.arrayBuffer()), PREVIEW_WIDTH, 1);
+  if (!canvas) throw new Error('No page');
+  return canvas;
 }
 
 async function drawImage(file: File): Promise<HTMLCanvasElement> {

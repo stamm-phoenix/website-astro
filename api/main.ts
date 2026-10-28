@@ -134,6 +134,7 @@ import GetInternAktionEndpoint from './endpoints/intern-aktion';
 import GetInternAktionBeitraegeEndpoint from './endpoints/intern-aktion-beitraege';
 import GetInternAbrechnungKostenstellenEndpoint from './endpoints/intern-abrechnung-kostenstellen';
 import { AbrechnungEingabeHandler } from './endpoints/intern-abrechnung-eingabe';
+import { AbrechnungZeitplanHandler } from './endpoints/intern-abrechnung-zeitplan';
 import GetInternAbrechnungEndpoint from './endpoints/intern-abrechnung';
 import PostInternAbrechnungKjrListeEndpoint from './endpoints/intern-abrechnung-kjr-liste';
 import GetInternAbrechnungBelegBildEndpoint, {
@@ -461,6 +462,13 @@ app.http('internAbrechnungEingabe', {
   authLevel: 'anonymous',
   route: 'intern/abrechnung/{id}/eingaben',
   handler: AbrechnungEingabeHandler,
+});
+
+app.http('internAbrechnungZeitplan', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/{id}/zeitplan',
+  handler: AbrechnungZeitplanHandler,
 });
 
 app.http('internAbrechnung', {

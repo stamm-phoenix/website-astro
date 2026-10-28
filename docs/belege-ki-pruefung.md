@@ -7,6 +7,7 @@ Das Modul **Belege** im Leitendenbereich kann jedes Belegfoto von einem Bildmode
 - Die Prüfung ist nur ein Hinweis. Einreichen geht auch mit Mängeln, die Freigabe macht das Kassenteam.
 - Ohne Einrichtung (keine App-Settings) wird die Prüfung übersprungen, das Modul funktioniert trotzdem.
 - Code: `api/lib/beleg-check.ts`, der Aufruf von Azure OpenAI in `api/lib/azure-openai.ts`.
+- Dieselbe Bereitstellung liest in der Abrechnung den Zeitplan der Kurzbeschreibung aus einem Foto, PDF oder einer Excel-Tabelle (eigenes Tageslimit, siehe [abrechnung-eingaben.md](abrechnung-eingaben.md#kurzbeschreibung)).
 - Die Belegprüfung hat eine eigene Bereitstellung (`gpt-6.1-sol-datazone`). Den nächsten Termin und Aufgaben in freigegebenen Protokollen erkennt weiter `gpt-4.1-mini` auf derselben Ressource (siehe [Protokolle](protokolle.md#nächster-termin)).
 
 ## Modell
