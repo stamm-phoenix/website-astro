@@ -12,19 +12,6 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-10-28-03-leitendenrunde-erinnerung',
-    date: '2026-10-28',
-    title: 'Erinnerung an die nächste Leitendenrunde',
-    changes: [
-      {
-        text: 'Ab jetzt bekommst du als Leitende*r eine Mail, wenn die nächste Leitendenrunde ansteht: eine Woche und einen Tag vorher. Sie nennt Tag, Uhrzeit und Ort und führt zum Protokoll.',
-        href: '/leitendenbereich/protokolle',
-      },
-      'Der Termin kommt aus dem freigegebenen Protokoll. Trage deshalb im Feld „Nächste Leitendenrunde“ Datum, Uhrzeit und Ort ein, bevor das Protokoll freigegeben wird. Bei Word-Protokollen zählt der Termin, den jemand bestätigt hat.',
-      'Änderst du den Termin, bekommen alle die Erinnerung für den neuen Termin. Ist die Mail nicht angekommen, fehlt in CampFlow vermutlich deine E-Mail-Adresse.',
-    ],
-  },
-  {
     id: '2026-10-28-02-kurzbeschreibung',
     date: '2026-10-28',
     title: 'Abrechnung: Kurzbeschreibung für den KJR',
