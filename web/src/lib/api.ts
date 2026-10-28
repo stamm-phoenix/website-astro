@@ -168,11 +168,14 @@ export async function sendApi<T = undefined>(
   method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
   endpoint: string,
   body?: unknown,
-  /** Version of the item as loaded; the API rejects the request if it has changed since. */
-  options: { etag?: string; signal?: AbortSignal } = {}
+  /**
+   * `etag`: version of the item as loaded; the API rejects the request if it has changed since.
+   * `headers`: more request headers, e.g. the token of a link.
+   */
+  options: { etag?: string; signal?: AbortSignal; headers?: Record<string, string> } = {}
 ): Promise<T> {
   const isBinary = body instanceof Blob;
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...options.headers };
   if (body !== undefined) {
     headers['Content-Type'] = isBinary
       ? body.type || 'application/octet-stream'

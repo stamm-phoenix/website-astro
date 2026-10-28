@@ -10,8 +10,16 @@
     compact?: boolean;
     /** Fits a line of text, e.g. in a card; on any device with touch it keeps the full size to tap. */
     small?: boolean;
+    /** Long codes such as a link wrap onto more lines instead of running off a phone screen. */
+    wrap?: boolean;
   }
-  let { code, label = 'Verwendungszweck', compact = false, small = false }: Props = $props();
+  let {
+    code,
+    label = 'Verwendungszweck',
+    compact = false,
+    small = false,
+    wrap = false,
+  }: Props = $props();
 
   let state = $state<'idle' | 'copied' | 'failed'>('idle');
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -32,11 +40,12 @@
   onDestroy(() => clearTimeout(timer));
 </script>
 
-<span class="inline-flex flex-wrap items-center gap-x-2">
+<span class="inline-flex max-w-full flex-wrap items-center gap-x-2">
   <button
     type="button"
     class="copy-code"
     class:small
+    class:wrap
     data-state={state}
     aria-label={`${label} ${code} kopieren`}
     title="Kopieren"
@@ -79,6 +88,14 @@
     font-size: 0.875rem;
     cursor: copy;
     white-space: nowrap;
+  }
+  .copy-code.wrap {
+    max-width: 100%;
+    margin-block: 0;
+    padding-block: 0.5rem;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .copy-code.small {
     min-height: 1.75rem;

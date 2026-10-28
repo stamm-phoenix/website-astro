@@ -104,6 +104,12 @@ export interface Database {
   'essen.zutat': EssenZutatTable;
   'essen.zutat_unvertraeglichkeit': EssenZutatUnvertraeglichkeitTable;
   'problem.meldung': ProblemMeldungTable;
+  'essen.anlage_anfrage': EssenAnlageAnfrageTable;
+  'essen.planung': EssenPlanungTable;
+  'essen.mitglied': EssenMitgliedTable;
+  'essen.tag': EssenTagTable;
+  'essen.mahlzeit': EssenMahlzeitTable;
+  'essen.aenderung': EssenAenderungTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -910,7 +916,6 @@ export interface EssenUnvertraeglichkeitTable {
   name: string;
 }
 
-
 export interface EssenZutatTable {
   id: Generated<number>;
   version: ReadOnly<Buffer>;
@@ -975,4 +980,76 @@ export interface ProblemMeldungTable {
   github_number: number | null;
   github_url: Generated<string>;
   github_at: SqlTimeOrNull;
+}
+
+/** A request to create a Planung, confirmed by the link in a mail. */
+export interface EssenAnlageAnfrageTable {
+  id: Generated<number>;
+  token_hash: string;
+  email: string;
+  name: string;
+  planung_name: string;
+  erster_tag: SqlDate;
+  letzter_tag: SqlDate;
+  erstellt_am: Generated<Date>;
+  laeuft_ab: Date;
+  planung_id: number | null;
+}
+
+export interface EssenPlanungTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  name: string;
+  mitglieder_verwalten: Generated<boolean>;
+  beitritt_token: string | null;
+  lese_token: string | null;
+  /** bigint; the driver reads it as a string. */
+  aenderung_seq: ColumnType<string, never, string>;
+  erstellt_am: Generated<Date>;
+  geaendert_am: Generated<Date>;
+}
+
+export interface EssenMitgliedTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  name: string;
+  email: string | null;
+  rolle: 'besitzer' | 'bearbeiten';
+  token_hash: string | null;
+  erstellt_am: Generated<Date>;
+  zuletzt_da_am: Date | null;
+  link_gesendet_am: Date | null;
+  entzogen_am: Date | null;
+  /** The deletion date the owner was warned about (retention). */
+  loeschwarnung_fuer: SqlDate | null;
+}
+
+export interface EssenTagTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  datum: SqlDate;
+}
+
+export interface EssenMahlzeitTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  tag_id: number;
+  position: number;
+  name: string;
+  /** `HH:MM`. */
+  uhrzeit: string | null;
+}
+
+export interface EssenAenderungTable {
+  /** bigint; the driver reads it as a string. */
+  id: Generated<string>;
+  planung_id: number;
+  seq: ColumnType<string, string | number, never>;
+  at: Generated<Date>;
+  mitglied_id: number | null;
+  aktion: string;
+  /** JSON object. */
+  details: string;
 }

@@ -1,7 +1,7 @@
 # Aufgaben-Erinnerungen in Azure
 
 Der Timer läuft unabhängig von GitHub Actions. Die Website bleibt eine Static Web App mit
-verwalteter HTTP-API; die separate Function App registriert nur `taskReminders` und `leitendenrundeReminders`. GitHub darf
+verwalteter HTTP-API; die separate Function App registriert nur `taskReminders`, `leitendenrundeReminders` und `essensplanungAufbewahrung`. GitHub darf
 deren Code nach einem `main`-Deployment aktualisieren, führt den Versand aber niemals aus.
 
 ## Bestehende Einrichtung
@@ -104,7 +104,7 @@ Die Leitenden werden per Mail an die nächste Leitendenrunde erinnert (#184). Da
 derselben Function App ein zweiter Timer, `leitendenrundeReminders` (`api/timers/leitendenrunde-reminders.ts`),
 stündlich zur Minute 47 in UTC. Er hat seinen eigenen Not-Aus `LEITENDENRUNDE_REMINDERS_ENABLED`
 (Standard `false`), unabhängig von `TASK_REMINDERS_ENABLED`. Das Paket verwendet `dist/timers/index.js`
-(`api/timers/index.ts`, lädt beide Timer) als Einstiegspunkt; beide Timer teilen sich Datenbank, Entra-App und Graph-Zugang.
+(`api/timers/index.ts`, lädt alle Timer) als Einstiegspunkt; alle Timer teilen sich Datenbank, Entra-App und Graph-Zugang.
 
 **Welcher Termin zählt.** Maßgeblich ist das neueste freigegebene Protokoll der Leitendenrunde
 (`api/lib/leitendenrunde-termin.ts`):
@@ -182,3 +182,16 @@ Bei einer fehlgeschlagenen Ausführung (Alarm in Application Insights) nennt die
 Zähler. `failed` und `uncertain` im Postfach prüfen, `missingAddress` in CampFlow beheben; nach
 `uncertain` entscheiden Menschen, ob nachgesendet wird. Einen Termin korrigiert man im Protokoll
 (Editor-Feld bzw. Termin bestätigen), nicht in der Datenbank.
+
+## Aufbewahrung der Essensplanung
+
+Der dritte Timer, `essensplanungAufbewahrung` (`api/timers/essensplanung-aufbewahrung.ts`), läuft
+täglich um 03:23 UTC und räumt die [Essensplanung](essensplanung.md) auf: Er löscht alte
+Anlage-Anfragen, schickt den Besitzer:innen 14 Tage vor dem Löschdatum einer Planung eine Warnmail
+von `kontakt@stamm-phoenix.de` und löscht abgelaufene Planungen mit allen Daten. Not-Aus ist
+`ESSENSPLANUNG_AUFBEWAHRUNG_ENABLED` (Standard `false`, Bicep-Parameter
+`essensplanungAufbewahrungEnabled`); ausgeschaltet protokolliert er nur „disabled“.
+
+Aktivieren erst, wenn die Migrationen 0049, 0050, 0053 und 0054 in Produktion sind und der Timer-Code deployt
+ist; dann prüfen, dass die Entra-App von dort aus Mails als `kontakt@stamm-phoenix.de` senden darf,
+und `ESSENSPLANUNG_AUFBEWAHRUNG_ENABLED=true` setzen. Das Protokoll nennt nur Zähler.

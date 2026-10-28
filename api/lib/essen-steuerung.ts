@@ -8,12 +8,14 @@ import {
   inTransaction,
   parseId,
   requireVersion,
+  toDateString,
   toVersion,
 } from './db';
 import type {
   EssenAuditEntry,
   EssenEinstellungen,
   EssenKategorie,
+  EssenPlanungUebersicht,
   EssenSteuerungView,
   EssenUnvertraeglichkeit,
   EssenZutat,
@@ -21,6 +23,8 @@ import type {
   ZutatInput,
 } from './essen-validation';
 import { COLLATOR, readGruppen, readStrings } from './essen-validation';
+import { deletePlanung } from './essen-planung-loeschen';
+import { loeschDatum } from './essen-planung-model';
 import type { FieldErrors } from './pflege-validation';
 import { ValidationError } from './pflege-validation';
 
@@ -161,6 +165,53 @@ export async function listZutaten(db: Db = getDb()): Promise<EssenZutat[]> {
     .sort((a, b) => COLLATOR.compare(a.name, b.name));
 }
 
+/** All Planungen with their owners, newest first. */
+export async function listPlanungen(
+  aufbewahrungMonate: number,
+  db: Db = getDb()
+): Promise<EssenPlanungUebersicht[]> {
+  const [planungen, tage, mitglieder] = await Promise.all([
+    db
+      .selectFrom('essen.planung')
+      .select(['id', 'version', 'name', 'erstellt_am', 'geaendert_am'])
+      .orderBy('id', 'desc')
+      .execute(),
+    db
+      .selectFrom('essen.tag')
+      .select([
+        'planung_id',
+        (eb) => eb.fn.min('datum').as('erster'),
+        (eb) => eb.fn.max('datum').as('letzter'),
+      ])
+      .groupBy('planung_id')
+      .execute(),
+    db
+      .selectFrom('essen.mitglied')
+      .select(['planung_id', 'name', 'email', 'rolle'])
+      .where('entzogen_am', 'is', null)
+      .execute(),
+  ]);
+  return planungen.map((planung) => {
+    const range = tage.find((row) => row.planung_id === planung.id);
+    const letzterTag = range?.letzter ? toDateString(range.letzter as Date | string) : null;
+    const eigene = mitglieder.filter((mitglied) => mitglied.planung_id === planung.id);
+    return {
+      id: planung.id,
+      etag: toVersion(planung.version),
+      name: planung.name,
+      ersterTag: range?.erster ? toDateString(range.erster as Date | string) : null,
+      letzterTag,
+      erstelltAm: planung.erstellt_am.toISOString(),
+      geaendertAm: planung.geaendert_am.toISOString(),
+      besitzer: eigene
+        .filter((mitglied) => mitglied.rolle === 'besitzer')
+        .map((mitglied) => ({ name: mitglied.name, email: mitglied.email })),
+      mitglieder: eigene.length,
+      loeschtAm: letzterTag ? loeschDatum(letzterTag, aufbewahrungMonate) : null,
+    };
+  });
+}
+
 /** Everything the Steuerung shows. */
 export async function loadEssenSteuerung(db: Db = getDb()): Promise<EssenSteuerungView> {
   const [stored, kategorien, unvertraeglichkeiten, zutaten, log] = await Promise.all([
@@ -170,7 +221,28 @@ export async function loadEssenSteuerung(db: Db = getDb()): Promise<EssenSteueru
     listZutaten(db),
     listEssenAuditLog(100, db),
   ]);
-  return { ...stored, kategorien, unvertraeglichkeiten, zutaten, log };
+  const planungen = await listPlanungen(stored.einstellungen.aufbewahrungMonate, db);
+  return { ...stored, kategorien, unvertraeglichkeiten, zutaten, planungen, log };
+}
+
+/** Deletes a Planung from the Steuerung if it still has the version `etag`. */
+export async function deletePlanungSteuerung(
+  id: string,
+  etag: string,
+  actor: string
+): Promise<void> {
+  const numericId = readRouteId(id);
+  await inTransaction(async (trx) => {
+    // Locked until the end, so no change slips in between the version check and the delete
+    const { rows } = await sql<{ name: string; version: Buffer }>`
+      SELECT name, version FROM essen.planung WITH (UPDLOCK, HOLDLOCK) WHERE id = ${numericId}
+    `.execute(trx);
+    const row = rows[0];
+    if (!row) throw new RecordNotFoundError();
+    if (toVersion(row.version) !== etag.replace(/^W\//, '')) throw new VersionConflictError();
+    await deletePlanung(trx, numericId);
+    await audit(trx, actor, 'planung-geloescht', { id: numericId, name: row.name });
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
