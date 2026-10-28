@@ -11,7 +11,12 @@ const MAX_INPUT_PIXELS = 8000 * 8000;
  * deletes its own.
  */
 export function newPhotoFileName(): string {
-  return `foto-${Date.now()}${String(randomInt(1_000_000_000)).padStart(9, '0')}.jpg`;
+  return `foto-${Date.now()}${String(randomInt(1_000_000_000)).padStart(9, '0')}.webp`;
+}
+
+/** The type of a stored photo; photos stored before the switch to WebP are `.jpg`. */
+export function photoContentType(file: string): string {
+  return file.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
 }
 
 /** The blob of a photo: `leitende/<id>/<foto-…jpg>`. */
@@ -20,7 +25,7 @@ export function photoBlobName(id: number | string, file: string): string {
 }
 
 /**
- * Scales a photo into a JPEG of at most `PHOTO_SIZE` px per side. Encoding it anew also drops
+ * Scales a photo into a WebP of at most `PHOTO_SIZE` px per side. Encoding it anew also drops
  * the metadata of the original (camera, location); `rotate` applies its orientation first.
  */
 export async function toStoredPhoto(bytes: Uint8Array): Promise<Buffer> {
@@ -28,6 +33,6 @@ export async function toStoredPhoto(bytes: Uint8Array): Promise<Buffer> {
   return sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()
     .resize({ width: PHOTO_SIZE, height: PHOTO_SIZE, fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 82, mozjpeg: true })
+    .webp({ quality: 80 })
     .toBuffer();
 }

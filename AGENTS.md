@@ -254,6 +254,10 @@ Public content (Gruppenstunden, Vorstand, Aktionen, Blog incl. `/blog/<id>/` pag
 - Aktionen: CampFlow is the main source. Calendar entries linked via `CampFlowId` get title, dates and link live from CampFlow in `getAktionen()` (`api/lib/aktionen-list.ts`); only Stufen and description are edited on the website.
 - New public endpoints go into `CONTENT_SOURCES` (`web/src/lib/content/version.ts`); new Pflege areas with public content into `PUBLIC_CONTENT_AREAS` (`api/lib/site-rebuild.ts`), which triggers the content refresh (jobs `content-*` in the main workflow `.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml`; it must stay in that file, because the Static Web App accepts OIDC deploys only from the workflow file named after it).
 
+## Images
+
+Images are made automatically; do not commit hand-made derivatives. SVGs in `web/src/assets/` and `web/public/` are shrunk by SVGO in every build (`web/integrations/optimizeSvg.ts`), so keep the sources as drawn. Raster images in `web/src/assets/` go through `<Image>` from `astro:assets`, which scales them and writes WebP. Uploaded images (blog, Leitende) are scaled and stored as WebP by the API (`api/lib/blog-images.ts`, `api/lib/leitende-photos.ts`).
+
 ## Changelog
 
 The Leitendenbereich shows its changes under „Neuigkeiten“ (`web/src/pages/leitendenbereich/neuigkeiten.astro`). The entries are written in `web/src/lib/changelogEntries.ts`, newest first. Keep this changelog up to date: every PR that changes what leaders see or can do in the Leitendenbereich adds or extends an entry in the same PR, and a PR without one is not finished. Before you commit, ask yourself: would a leader notice this change or have to do something differently? If yes, it needs a sentence. That covers new modules and pages, changed flows, wording or layout that leaders see, behavior fixes they noticed, and removed features. Pure refactorings, tests, CI, dependency updates and documentation need none; say in the PR description that none is needed.

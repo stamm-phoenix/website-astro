@@ -185,7 +185,7 @@ dbTest('Leitende are kept with their teams and photo', async (t) => {
   assert.notEqual(withPhoto.etag, stored.etag);
   const names = [...blobs.keys()];
   assert.equal(names.length, 1);
-  assert.match(names[0], new RegExp(`^leitende/${id}/foto-\\d+\\.jpg$`));
+  assert.match(names[0], new RegExp(`^leitende/${id}/foto-\\d+\\.webp$`));
   const meta = await sharp(blobs.get(names[0])).metadata();
   assert.deepEqual([meta.width, meta.height], [300, 300]);
   assert.equal((await GetLeitendeImage(request('GET', { id }), context)).status, 200);
@@ -357,7 +357,7 @@ dbTest('concurrent photo uploads at the same moment keep the saved photo', async
     .select('photo')
     .where('id', '=', Number(id))
     .executeTakeFirstOrThrow();
-  assert.match(stored.photo ?? '', /^foto-\d+\.jpg$/);
+  assert.match(stored.photo ?? '', /^foto-\d+\.webp$/);
   assert.deepEqual([...blobs.keys()], [`leitende/${id}/${stored.photo}`]);
   assert.equal((await GetLeitendeImage(request('GET', { id }), context)).status, 200);
 });

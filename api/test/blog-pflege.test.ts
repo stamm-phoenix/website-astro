@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { TestContext } from 'node:test';
+import test, { type TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import sharp from 'sharp';
 import * as blobStorage from '../lib/blob-storage';
@@ -10,6 +10,7 @@ import {
   BlogItem,
 } from '../endpoints/intern-pflege-blog';
 import { GetBlogEndpoint, GetBlogImage, GetBlogPost } from '../endpoints/blog';
+import { serveBlogImage } from '../lib/blog-images';
 import { getDb } from '../lib/db';
 import { dbTest } from './fixtures/database';
 import { recordQueries } from './fixtures/queries';
@@ -144,11 +145,11 @@ dbTest(
     assert.deepEqual(images, [{ file: image.file, alt: '', width: 2000, height: 1000 }]);
     assert.notEqual(afterUpload, etag);
     assert.deepEqual([...blobs.keys()].sort(), [
-      `blog/${id}/${image.file}/1600.jpg`,
-      `blog/${id}/${image.file}/800.jpg`,
+      `blog/${id}/${image.file}/1600.webp`,
+      `blog/${id}/${image.file}/800.webp`,
     ]);
     assert.equal(
-      (await sharp(blobs.get(`blog/${id}/${image.file}/800.jpg`)).metadata()).width,
+      (await sharp(blobs.get(`blog/${id}/${image.file}/800.webp`)).metadata()).width,
       800
     );
 
@@ -159,7 +160,7 @@ dbTest(
     );
     const smallImage = (small.jsonBody as ImagesResult).image;
     assert.ok(smallImage);
-    assert.equal(blobs.has(`blog/${id}/${smallImage.file}/600.jpg`), true);
+    assert.equal(blobs.has(`blog/${id}/${smallImage.file}/600.webp`), true);
 
     // Drafts show their images only in the Leitendenbereich
     const params = { id, file: image.file };
@@ -188,7 +189,7 @@ dbTest(
       );
       assert.equal(response.status, status);
       if (status === 200) {
-        assert.equal((response.headers as Record<string, string>)['Content-Type'], 'image/jpeg');
+        assert.equal((response.headers as Record<string, string>)['Content-Type'], 'image/webp');
         assert.equal(
           (response.headers as Record<string, string>)['Cache-Control'],
           'private, max-age=3600'
@@ -384,4 +385,21 @@ dbTest('a failed file upload leaves neither files nor an image entry behind', as
   assert.equal(blobs.size, 0);
   const post = (await BlogItem(request('GET', { id }), context)).jsonBody as ImagesResult;
   assert.deepEqual(post.images, []);
+});
+
+test('blog images stored as JPEG before the switch to WebP are still served', async (t) => {
+  const { blobs } = setup(t);
+  blobs.set('blog/7/bild-1.jpg/800.jpg', await jpeg(800, 400));
+  blobs.set(
+    'blog/7/bild-2.jpg/800.webp',
+    await sharp(await jpeg(800, 400))
+      .webp()
+      .toBuffer()
+  );
+
+  const legacy = await serveBlogImage('7', 'bild-1.jpg', 800);
+  assert.equal((legacy?.headers as Record<string, string>)['Content-Type'], 'image/jpeg');
+  const current = await serveBlogImage('7', 'bild-2.jpg', 800);
+  assert.equal((current?.headers as Record<string, string>)['Content-Type'], 'image/webp');
+  assert.equal(await serveBlogImage('7', 'bild-3.jpg', 800), undefined);
 });

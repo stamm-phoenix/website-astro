@@ -4,6 +4,7 @@ import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 import bakedContent from './integrations/bakedContent';
+import optimizeSvgs from './integrations/optimizeSvg';
 
 // Baked dates and times are rendered like in the browser of our visitors
 process.env.TZ ??= 'Europe/Berlin';
@@ -57,6 +58,7 @@ export default defineConfig({
         !page.includes('/blog/beitrag'),
     }),
     bakedContent(),
+    optimizeSvgs(),
     svelte(),
   ],
   vite: {
