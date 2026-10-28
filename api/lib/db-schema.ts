@@ -1,4 +1,5 @@
 import type { ColumnType, Generated } from 'kysely';
+import type { EssenEinheitenart } from './essen-validation';
 import type { AnwesenheitStufeName } from './anwesenheit-model';
 import type { SammelShop } from './sammelbestellung-shops';
 import type { SammelStatus } from './sammelbestellung-model';
@@ -900,7 +901,6 @@ export interface EssenUnvertraeglichkeitTable {
   name: string;
 }
 
-export type EssenEinheitenart = 'masse' | 'volumen' | 'stueck' | 'packung' | 'bund';
 
 export interface EssenZutatTable {
   id: Generated<number>;
