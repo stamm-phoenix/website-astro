@@ -98,6 +98,24 @@ test('Excel sheets become lines with times, dates, shared and inline strings', (
   assert.equal(plan('<c r="B2" t="s"><v>2</v></c>'), '# Plan\nMontag | Dienstag\n | Frühstück');
   assert.equal(columnIndex('AB12'), 27);
 
+  // Defect: SpreadsheetML with a bound prefix (`<x:row>`) was read without its cells
+  const praefix = Buffer.from(
+    writeZip([
+      {
+        name: 'xl/sharedStrings.xml',
+        data: Buffer.from('<x:sst xmlns:x="m"><x:si><x:t>Frühstück</x:t></x:si></x:sst>'),
+      },
+      {
+        name: 'xl/worksheets/sheet1.xml',
+        data: Buffer.from(
+          '<x:worksheet xmlns:x="m"><x:sheetData><x:row r="1"><x:c r="A1"><x:v>0.333333333333333</x:v></x:c>' +
+            '<x:c r="B1" t="s"><x:v>0</x:v></x:c></x:row></x:sheetData></x:worksheet>'
+        ),
+      },
+    ])
+  );
+  assert.equal(xlsxToText(new Uint8Array(praefix)), '# Tabelle 1\n08:00 | Frühstück');
+
   // Defect: workbooks in the 1904 date system (older Mac files) were read four years off
   assert.equal(excelNumber('44704', true), '24.05.2026');
   assert.equal(excelNumber('0.5', true), '12:00');
@@ -145,7 +163,8 @@ test('the model answer is checked: times normalised, unknown days and empty bloc
         datum: '2026-05-25',
         bloecke: [
           { von: '08:00', bis: '14:00', text: 'Hike + Anreise' },
-          { von: '', bis: '', text: 'Ganztags' },
+          // An end time alone stays, as for „Anreise bis 10 Uhr“
+          { von: '', bis: '23:00', text: 'Ganztags' },
           { von: '20:30', bis: '', text: 'Versprechen' },
         ],
       },

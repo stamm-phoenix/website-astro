@@ -304,7 +304,7 @@
 
   /**
    * Reads a Zeitplan from a file or a description and takes it over, after asking when it would
-   * replace one. Returns whether anything was taken over.
+   * replace one. Returns whether everything read was taken over.
    */
   async function uebernehmen(
     herkunft: Herkunft,
@@ -368,7 +368,8 @@
           `Zeitplan ${herkunft.aus} übernommen: ${days} ${days === 1 ? 'Tag' : 'Tage'}, ${taken} ${taken === 1 ? 'Block' : 'Blöcke'}${taken < gefunden ? ` von ${gefunden}` : ''}${einleitung ? ' und die Zielsetzung' : ''}. ${taken < gefunden ? `Mehr als ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke passen nicht an einen Tag; trage die fehlenden zusammengefasst selbst ein.` : 'Prüfe ihn bitte und passe ihn an.'}`,
           taken < gefunden ? 'warning' : 'success'
         );
-        return true;
+        // Only a complete result lets go of the description; otherwise it stays to be shortened
+        return taken >= gefunden;
       }
       if (einleitung) {
         say(`Zielsetzung ${herkunft.aus} übernommen. Einen Zeitplan enthält sie nicht.`);
