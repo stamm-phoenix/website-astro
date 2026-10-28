@@ -83,9 +83,9 @@ function uhrzeit(value: string): string {
   return value.replace(/^0(\d)/, '$1');
 }
 
-/** „8:00–9:00“, „20:30“ or empty. */
+/** „8:00–9:00“, „20:30“, „bis 10:00“ or empty. */
 export function formatZeit(block: Pick<ZeitBlock, 'von' | 'bis'>): string {
-  if (!block.von) return '';
+  if (!block.von) return block.bis ? `bis ${uhrzeit(block.bis)}` : '';
   return block.bis ? `${uhrzeit(block.von)}–${uhrzeit(block.bis)}` : uhrzeit(block.von);
 }
 
@@ -185,7 +185,7 @@ export function kurzbeschreibungPdfData(
       .map((tag) => ({
         titel: tagTitel(tag.datum),
         bloecke: tag.bloecke
-          .filter((block) => block.text.trim() !== '' || block.von !== '')
+          .filter((block) => block.text.trim() !== '' || block.von !== '' || block.bis !== '')
           .map((block) => ({ zeit: formatZeit(block), text: block.text.trim() })),
       }))
       .filter((tag) => tag.bloecke.length > 0),

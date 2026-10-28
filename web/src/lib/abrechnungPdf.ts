@@ -759,6 +759,7 @@ interface PlacedItem {
   item: ZeitplanItem;
   /** The day's heading again, above a block that continues a day in a new column. */
   continued: boolean;
+  /** Counted from the page the Zeitplan starts on, which is 1. */
   page: number;
   column: number;
   y: number;
@@ -852,7 +853,15 @@ export async function downloadKurzbeschreibungPdf(
   doc.text(data.zeitraum, MARGIN, top);
   top += 9;
 
-  const section = (heading: string): void => {
+  // A long Zielsetzung or Zeitplan goes on below the short header of a follow page
+  const bottom = PAGE_HEIGHT - BRIEF_FUSS_SPACE - 2;
+  const room = (height: number): void => {
+    if (top + height <= bottom) return;
+    doc.addPage('a4', 'portrait');
+    top = FOLGESEITE_TOP + 4;
+  };
+  const section = (heading: string, keepWith: number): void => {
+    room(5.5 + keepWith);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(...BRAND);
@@ -860,22 +869,29 @@ export async function downloadKurzbeschreibungPdf(
     top += 5.5;
   };
   if (data.einleitung.trim()) {
-    section('Zielsetzung');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(30, 30, 30);
+    section('Zielsetzung', 4.6);
     for (const paragraph of data.einleitung.trim().split(/\n\s*\n/)) {
-      const lines = doc.splitTextToSize(paragraph.replace(/\s*\n\s*/g, ' '), width);
-      doc.text(lines, MARGIN, top);
-      top += 4.6 * lines.length + 2;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const lines: string[] = doc.splitTextToSize(paragraph.replace(/\s*\n\s*/g, ' '), width);
+      for (const line of lines) {
+        room(4.6);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        doc.text(line, MARGIN, top);
+        top += 4.6;
+      }
+      top += 2;
     }
     top += 4;
   }
 
   const tage = data.tage.filter((tag) => tag.bloecke.length > 0);
   if (tage.length > 0) {
-    section('Zeitplan');
+    section('Zeitplan', ZEITPLAN_HEADER + 2 * ZEITPLAN_LINE);
     top -= 1.5;
+    const zeitplanPage = doc.getNumberOfPages();
     const columns = tage.length === 2 ? 2 : 3;
     const columnWidth = (width - ZEITPLAN_GAP * (columns - 1)) / columns;
     doc.setFont('helvetica', 'bold');
@@ -904,7 +920,7 @@ export async function downloadKurzbeschreibungPdf(
 
     // Up to three days each in a column of their own; otherwise the shortest columns that
     // still fit on the first page; otherwise as many pages as needed
-    const available = PAGE_HEIGHT - BRIEF_FUSS_SPACE - 2 - top;
+    const available = bottom - top;
     const dayHeights = tage.map((_tag, index) =>
       items.filter((item) => item.tag === index).reduce((sum, item) => sum + item.height, 0)
     );
@@ -930,8 +946,9 @@ export async function downloadKurzbeschreibungPdf(
     placed ??= placeZeitplan(items, columns, top, available) ?? [];
 
     for (const { item, continued, page, column, y } of placed) {
-      while (doc.getNumberOfPages() < page) doc.addPage('a4', 'portrait');
-      doc.setPage(page);
+      const actual = zeitplanPage + page - 1;
+      while (doc.getNumberOfPages() < actual) doc.addPage('a4', 'portrait');
+      doc.setPage(actual);
       const x = MARGIN + column * (columnWidth + ZEITPLAN_GAP);
       const titel = tage[item.tag].titel;
       if (item.header) {

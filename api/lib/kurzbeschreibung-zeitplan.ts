@@ -93,6 +93,8 @@ Gib zurück:
 - bloecke: von und bis als HH:MM (24 Stunden, z. B. „8-9 Uhr“ → von 08:00, bis 09:00; „20.30“ → 20:30). Steht nur eine Uhrzeit oder ein offenes Ende („20.30 – …“), bis leer lassen; ohne Uhrzeit (z. B. „ganztags“) beide leer. text: der Programmpunkt kurz und auf Deutsch, so wie er in der Datei steht, offensichtliche Tippfehler verbessert, höchstens etwa 60 Zeichen. Mehrere Programmpunkte zur selben Zeit in einen Block, mit Komma getrennt.
 - einleitung: steht in der Datei ein Satz zu Ziel oder Inhalt der Aktion, diesen Satz; sonst null. Nichts erfinden.
 
+Eine Tabelle kommt als Text: je Zeile die Zellen mit „ | “ getrennt, leere Zellen als leere Felder, sodass die n-te Zelle jeder Zeile in derselben Spalte steht (z. B. ein Tag pro Spalte).
+
 Lies nur, was in der Datei steht. Erfinde keine Programmpunkte, Zeiten oder Tage. Personennamen, Telefonnummern und Adressen nicht übernehmen.`;
 }
 

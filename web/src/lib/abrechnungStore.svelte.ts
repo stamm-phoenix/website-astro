@@ -154,6 +154,15 @@ export interface AbrechnungAblage {
 }
 
 export const abrechnungSessions = $state<Record<string, AbrechnungSession>>({});
+/**
+ * Lines typed under „Mehrere Zeilen einfügen“ of the Kurzbeschreibung and not taken over yet, by
+ * Aktion and day. Kept here so they survive a change of tab, and guarded like unsaved entries.
+ */
+export const zeitplanZeilen = $state<Record<string, Record<string, string>>>({});
+
+export function offeneZeitplanZeilen(eventId: string): boolean {
+  return Object.values(zeitplanZeilen[eventId] ?? {}).some((text) => text.trim() !== '');
+}
 export const abrechnungAblage = $state<Record<string, AbrechnungAblage>>({});
 
 const STORAGE_KEY = ABRECHNUNG_STORAGE_PREFIX;
@@ -472,7 +481,7 @@ export function rescueAbrechnungSession(eventId: string, userId: string, title: 
     {
       key: 'Abrechnung#custom',
       kind: 'custom',
-      value: JSON.stringify({ session, etag: state.etag }),
+      value: JSON.stringify({ session, etag: state.etag, zeilen: zeitplanZeilen[eventId] ?? {} }),
       display: 'Deine persönlichen Ergänzungen zur Abrechnung',
     },
   ]);
@@ -489,13 +498,20 @@ export function restoreAbrechnungRescue(eventId: string, userId: string): boolea
   );
   if (!kept) return false;
   try {
-    const draft = JSON.parse(kept.value) as { session: unknown; etag: unknown };
+    const draft = JSON.parse(kept.value) as { session: unknown; etag: unknown; zeilen?: unknown };
     if (
       !validAbrechnungSession(draft.session) ||
       !(draft.etag === null || typeof draft.etag === 'string')
     )
       return false;
     Object.assign(session, parseSession(draft.session));
+    if (isRecord(draft.zeilen)) {
+      zeitplanZeilen[eventId] = Object.fromEntries(
+        Object.entries(draft.zeilen).filter(
+          (entry): entry is [string, string] => typeof entry[1] === 'string'
+        )
+      );
+    }
     state.dirty = JSON.stringify(session) !== storedJson[eventId];
     if (draft.etag !== state.etag) {
       // Keep the draft's base version even across a second login, so repeated recovery

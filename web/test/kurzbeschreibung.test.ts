@@ -4,6 +4,7 @@ import {
   aktionTage,
   formatZeit,
   istNachUhrzeit,
+  kurzbeschreibungPdfData,
   mitAktionTagen,
   nachUhrzeit,
   parseZeitzeilen,
@@ -62,7 +63,6 @@ test('pasted lines become blocks, with the usual ways to write times', () => {
 test('times are shown short and blocks sort by their start', () => {
   assert.equal(formatZeit({ von: '08:00', bis: '09:30' }), '8:00–9:30');
   assert.equal(formatZeit({ von: '20:30', bis: '' }), '20:30');
-  assert.equal(formatZeit({ von: '', bis: '10:00' }), '');
   const bloecke = [
     { id: 'a', von: '18:00', bis: '', text: 'Abendessen' },
     { id: 'b', von: '', bis: '', text: 'Hike' },
@@ -96,4 +96,26 @@ test('days read from a file keep the days of the Aktion', () => {
     ]
   );
   assert.match(tage[0].bloecke[0].id, /^[A-Za-z0-9_-]{1,40}$/);
+});
+
+test('a block with only an end time keeps it in the PDF', () => {
+  assert.equal(formatZeit({ von: '', bis: '10:00' }), 'bis 10:00');
+  const data = kurzbeschreibungPdfData(
+    'Lager',
+    '01.08.2026',
+    { einleitung: '', tage: [] },
+    [
+      {
+        datum: '2026-08-01',
+        bloecke: [
+          { id: 'a', von: '', bis: '10:00', text: '' },
+          { id: 'b', von: '', bis: '', text: '  ' },
+        ],
+      },
+    ],
+    []
+  );
+  assert.deepEqual(data.tage, [
+    { titel: 'Samstag, 01.08.2026', bloecke: [{ zeit: 'bis 10:00', text: '' }] },
+  ]);
 });
