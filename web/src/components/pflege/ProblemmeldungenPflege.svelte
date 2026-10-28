@@ -11,6 +11,7 @@
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { formatDateTime } from '../../lib/format';
   import { problemmeldungenPflege } from '../../lib/pflegeStore.svelte';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
     buildIssueBody,
     isProblemOpen,
@@ -65,6 +66,12 @@
   const draftMoved = $derived(
     selected !== null && baseDraft !== null && !sameDraft(selected.draft, baseDraft)
   );
+
+  // The edit dialog is temporarily hidden while the discard confirmation is open.
+  // Keep protecting its draft until the confirmation is cancelled or completed.
+  $effect(() => {
+    if (discarding && draftChanged) return guardUnsavedChanges(() => draftChanged);
+  });
 
   $effect(() => {
     untrack(() => void problemmeldungenPflege.load({ force: true }));

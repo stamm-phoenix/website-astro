@@ -180,7 +180,7 @@ function withoutWrappedQuery(text: string): string {
  * and long random-looking strings.
  */
 export function redactSensitive(text: string): string {
-  return (
+  return redactNamedSecrets(
     withoutWrappedQuery(text)
       // eslint-disable-next-line no-control-regex -- control characters other than line breaks
       .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '')
@@ -189,15 +189,73 @@ export function redactSensitive(text: string): string {
       .replace(/\bBearer\s+\S+/gi, `Bearer ${REDACTED}`)
       // Headers carry more than one word (`Basic dXNlcjpwYXNz`, `a=1; b=2`): the rest of the line goes
       .replace(
-        /\b(authorization|set-cookie|cookie)\s*[:=][^\n]*/gi,
-        (_match, name: string) => `${name}: ${REDACTED}`
+        /\b(authorization|set-cookie|cookie)(["'“”’]?)\s*[:=][^\n]*/gi,
+        (_match, name: string, quote: string) => `${name}${quote}: ${REDACTED}`
       )
-      .replace(
-        /\b(token|key|secret|passwort|password|kennwort)\s*[:=]\s*(?:"[^"\n]{0,200}"|'[^'\n]{0,200}'|„[^“\n]{0,200}“|\S+)/gi,
-        (_match, name: string) => `${name}: ${REDACTED}`
-      )
-      .replace(/\b[A-Za-z0-9_-]{32,}\b/g, REDACTED)
-  );
+  ).replace(/\b[A-Za-z0-9_-]{32,}\b/g, REDACTED);
+}
+
+/** End of a quoted value, or the remaining text if its closing quote is missing. */
+function quotedSecretEnd(text: string, start: number): number {
+  const closing = text[start] === '„' ? '“' : text[start];
+  let end = start + 1;
+  while (end < text.length) {
+    if (text[end] === '\\') end = Math.min(end + 2, text.length);
+    else if (text[end++] === closing) break;
+  }
+  return end;
+}
+
+function isSecretQuote(character: string): boolean {
+  return character === '"' || character === "'" || character === '„';
+}
+
+/** End of a complete object/array value, with an explicit stack instead of recursion. */
+function structuredSecretEnd(text: string, start: number): number {
+  const closing: string[] = [];
+  let end = start;
+  while (end < text.length) {
+    const character = text[end];
+    if (isSecretQuote(character)) {
+      end = quotedSecretEnd(text, end);
+      continue;
+    }
+    if (character === '{' || character === '[') closing.push(character === '{' ? '}' : ']');
+    else if (character === '}' || character === ']') {
+      // A malformed value is safer to remove to the end than to retain a possible secret.
+      if (closing.pop() !== character) return text.length;
+      if (closing.length === 0) return end + 1;
+    }
+    end++;
+  }
+  return end;
+}
+
+/** Scan each secret value once, including escaped quotes and nested structured values. */
+function redactNamedSecrets(text: string): string {
+  const field = /\b(token|key|secret|passwort|password|kennwort)(["'“”’]?)\s*[:=]\s*/gi;
+  const parts: string[] = [];
+  let copied = 0;
+  let match: RegExpExecArray | null;
+  while ((match = field.exec(text)) !== null) {
+    let end = field.lastIndex;
+    const opening = text[end];
+    if (isSecretQuote(opening)) {
+      end = quotedSecretEnd(text, end);
+    } else {
+      if (opening === '{' || opening === '[') end = structuredSecretEnd(text, end);
+      // Structured fields keep their separators, so the next field is checked too.
+      while (end < text.length && !/\s/.test(text[end])) {
+        if (match[2] && (text[end] === ',' || text[end] === '}')) break;
+        end++;
+      }
+    }
+    parts.push(text.slice(copied, match.index), `${match[1]}${match[2]}: ${REDACTED}`);
+    copied = end;
+    field.lastIndex = end;
+  }
+  parts.push(text.slice(copied));
+  return parts.join('');
 }
 
 /** Whether a domain part has a dot with something on both sides. */
