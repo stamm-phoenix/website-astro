@@ -95,9 +95,20 @@ export async function sendProblemToGithub(
   if (!claim) throw await explainProblemConflict(id, etag);
 
   const numericId = Number(id);
+  const body = buildIssueBody(current.draft.body, {
+    id: numericId,
+    createdAt: current.createdAt,
+    entry: current.entry,
+    environment: current.environment,
+    context: current.context,
+    contact: current.contact,
+  });
   try {
     if (claim.previousAttempt) {
-      const existing = await findGithubIssue(numericId, claim.previousAttempt, current.draft.title);
+      const existing = await findGithubIssue(numericId, claim.previousAttempt, {
+        title: current.draft.title,
+        body,
+      });
       if (existing) {
         await saveProblemGithub(id, existing.number, existing.url);
         return { meldung: (await getProblemMeldung(id)) ?? current, found: true };
@@ -105,14 +116,7 @@ export async function sendProblemToGithub(
     }
     const issue = await createGithubIssue({
       title: current.draft.title,
-      body: buildIssueBody(current.draft.body, {
-        id: numericId,
-        createdAt: current.createdAt,
-        entry: current.entry,
-        environment: current.environment,
-        context: current.context,
-        contact: current.contact,
-      }),
+      body,
       label: current.draft.label,
     });
     await saveProblemGithub(id, issue.number, issue.url);

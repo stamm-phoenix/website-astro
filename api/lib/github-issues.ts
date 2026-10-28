@@ -11,13 +11,15 @@ import { containsIssueMarker } from './problemmeldung-model';
  * repository.
  */
 
-const TIMEOUT_MS = 15_000;
+// A request of the browser ends after 45 s (Static Web App): a search and the issue that may
+// follow it, with the database in between, have to fit into that.
+const TIMEOUT_MS = 10_000;
 const PAGE_SIZE = 100;
 /**
  * The whole search ends within this time, so it and the issue that may follow it (one request of
  * `TIMEOUT_MS`) stay shorter than the reservation of the hand-over (`GITHUB_ATTEMPT_MINUTES`).
  */
-const SEARCH_DEADLINE_MS = 60_000;
+const SEARCH_DEADLINE_MS = 20_000;
 /** Pages read when looking for an issue; more changes than this since the attempt are unclear. */
 const MAX_SEARCH_PAGES = 10;
 
@@ -114,13 +116,15 @@ export async function createGithubIssue(issue: {
  * Finds the issue a report may have created in an earlier attempt, by the marker in its text.
  * Looks at the recently changed issues, which is current at once, unlike the search.
  * @param since Start of the earlier attempt.
- * @param title Title that was sent; an issue of somebody else that quotes the marker has another one.
+ * @param sent Title and text that were sent. The issue is recognized by its footer and by one
+ * of them, so a renamed or edited issue is still found, while somebody else's issue that only
+ * quotes the footer is not.
  * @throws GithubIssueError `unclear` if GitHub cannot say.
  */
 export async function findGithubIssue(
   id: number,
   since: Date,
-  title: string
+  sent: { title: string; body: string }
 ): Promise<GithubIssue | null> {
   const start = new Date(since.getTime() - 5 * 60_000).toISOString();
   const deadline = Date.now() + SEARCH_DEADLINE_MS;
@@ -140,9 +144,9 @@ export async function findGithubIssue(
     for (const entry of issues as Record<string, unknown>[]) {
       if (entry.pull_request) continue;
       if (
-        entry.title === title &&
         typeof entry.body === 'string' &&
-        containsIssueMarker(entry.body, id)
+        containsIssueMarker(entry.body, id) &&
+        (entry.title === sent.title || entry.body.startsWith(sent.body.slice(0, 120)))
       )
         return toIssue(entry);
     }

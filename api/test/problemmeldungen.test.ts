@@ -551,6 +551,40 @@ dbTest('an issue of somebody else that quotes the marker is not taken over', asy
   assert.equal(calls.github.filter((call) => call.method === 'POST').length, 2);
 });
 
+dbTest('an issue that was renamed on GitHub is still found again', async (t) => {
+  let down = true;
+  let sentBody = '';
+  const { context, calls } = setup(t, {
+    github: (_url, init) => {
+      if (init.method === 'POST') {
+        sentBody = String(JSON.parse(String(init.body)).body);
+        if (down) throw new Error('timeout');
+        throw new Error('No new issue expected');
+      }
+      return new Response(
+        JSON.stringify([
+          {
+            number: 91,
+            html_url: 'https://github.com/stamm-phoenix/website-astro/issues/91',
+            title: 'Von jemandem umbenannt',
+            body: sentBody,
+          },
+        ])
+      );
+    },
+  });
+  const id = await submit(context);
+  const currentId = Number(id);
+  assert.equal((await send(context, id, (await load(context, id)).etag)).status, 502);
+  await sql`UPDATE problem.meldung SET github_started_at = DATEADD(minute, -3, SYSUTCDATETIME()) WHERE id = ${currentId}`.execute(
+    getDb()
+  );
+  down = false;
+  assert.equal((await send(context, id, (await load(context, id)).etag)).status, 200);
+  assert.equal((await load(context, id)).github.number, 91);
+  assert.equal(calls.github.filter((call) => call.method === 'POST').length, 1);
+});
+
 dbTest('a refused issue keeps report and draft and can be sent again at once', async (t) => {
   let refuse = true;
   const { context } = setup(t, {

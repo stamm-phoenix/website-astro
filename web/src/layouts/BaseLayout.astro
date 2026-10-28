@@ -211,6 +211,19 @@ const websiteLd = {
   }
   expireStoredRoute();
   document.addEventListener('astro:page-load', expireStoredRoute);
+  // „Problem melden“ in the footers names the page that is open now. The built page can be another
+  // one (a detail page served for /leitendenbereich/abrechnung/<id>), so the link learns it here.
+  function markProblemLinks(): void {
+    for (const link of document.querySelectorAll<HTMLAnchorElement>(
+      'a[href^="/problem-melden?quelle=footer"]'
+    )) {
+      const url = new URL(link.href);
+      url.searchParams.set('seite', location.pathname);
+      link.href = `${url.pathname}${url.search}`;
+    }
+  }
+  markProblemLinks();
+  document.addEventListener('astro:page-load', markProblemLinks);
   // Abrechnung entries contain personal data: gone one month after the KJR deadline
   removeExpiredAbrechnungen(localDate());
   document.addEventListener('click', (event) => {
