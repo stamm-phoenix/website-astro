@@ -277,7 +277,7 @@ export interface LeitendeTable {
   street: Generated<string>;
   postal_code: Generated<string>;
   city: Generated<string>;
-  /** File name of the photo (`foto-<digits>.jpg`), or null without a photo. */
+  /** File name of the photo (`foto-<digits>.webp`, or `.jpg` for photos stored earlier), or null without a photo. */
   photo: ColumnType<string | null, string | null | undefined, string | null>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
