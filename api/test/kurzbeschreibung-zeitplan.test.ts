@@ -326,6 +326,20 @@ test('a description is structured once, with its own instructions', async (t) =>
   assert.equal(bodies.length, 1);
 });
 
+test('a slow CampFlow leaves the model only the rest of the time limit', async (t) => {
+  const { bodies } = setup(t, { einleitung: null, tage: [] });
+  // CampFlow took 35 of the 40 seconds: too little left for the model
+  let now = 1_000_000;
+  t.mock.method(Date, 'now', () => {
+    const value = now;
+    now += 35_000;
+    return value;
+  });
+  const response = await AbrechnungZeitplanEndpoint(request({ bilder: [JPEG] }), context(t));
+  assert.equal(response.status, 503);
+  assert.equal(bodies.length, 0);
+});
+
 test('without a model the page is told so and nothing is sent', async (t) => {
   overrideConfig(t, CONFIG.belege.check, { endpoint: '' });
   const fetch = t.mock.method(globalThis, 'fetch', async () => {

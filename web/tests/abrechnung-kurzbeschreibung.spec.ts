@@ -165,3 +165,24 @@ test('a description in own words becomes Zielsetzung and Zeitplan once', async (
   await expect(samstag.getByLabel('Programmpunkt').first()).toHaveValue('Anreise und Aufbau');
   await expectNoHorizontalOverflow(page);
 });
+
+test('an answer that arrives after the Kurzbeschreibung changed is not taken over', async ({
+  page,
+}) => {
+  await page.goto(URL);
+  await page.route('**/zeitplan', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'In eigenen Worten beschreiben' }).click();
+  await page.getByLabel('Ablauf der Aktion').fill('Samstag um 10 Anreise.');
+  await page.getByRole('button', { name: 'Kurzbeschreibung erstellen' }).click();
+  await page.getByLabel('Zielsetzung').fill('Selbst geschrieben.');
+  await expect(page.getByText(/während der Zeitplan gelesen wurde/).first()).toBeVisible();
+  await expect(page.getByLabel('Zielsetzung')).toHaveValue('Selbst geschrieben.');
+  await expect(
+    page.getByRole('region', { name: 'Samstag, 01.08.2026' }).getByLabel('Programmpunkt')
+  ).toHaveCount(0);
+  // The description stays for another try
+  await expect(page.getByLabel('Ablauf der Aktion')).toHaveValue('Samstag um 10 Anreise.');
+});
