@@ -936,7 +936,7 @@ export interface EssenZutatUnvertraeglichkeitTable {
   unvertraeglichkeit_id: number;
 }
 
-/** A report of „Problem melden“ (`problem.meldung`, migration `0048_problemmeldung.sql`). */
+/** A report of „Problem melden“ (`problem.meldung`, migration `0051_problemmeldung.sql`). */
 export interface ProblemMeldungTable {
   id: Generated<number>;
   version: ReadOnly<Buffer>;
