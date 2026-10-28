@@ -31,4 +31,12 @@ resource certificate 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
     value: website.listAppSettings().properties.AZURE_CLIENT_CERT
   }
 }
+// CampFlow token for the reminders of the Leitendenrunde: the worker loads the current leaders itself.
+resource campflowToken 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  name: 'campflow-api-token'
+  parent: vault
+  properties: {
+    value: website.listAppSettings().properties.CAMPFLOW_API_TOKEN
+  }
+}
 output vaultName string = vault.name

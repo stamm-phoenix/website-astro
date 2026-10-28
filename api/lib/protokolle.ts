@@ -389,6 +389,35 @@ export function protokollRecipients(
 }
 
 /**
+ * How many current members of the given CampFlow groups have no usable primary address, so
+ * they cannot get a mail. Counted per person; they are reported, never guessed.
+ */
+export function membersWithoutAddress(
+  persons: CampflowPerson[],
+  today: string,
+  groups: string[]
+): number {
+  const prefixes = groups.map(normalizeGroup).filter((prefix) => prefix !== '');
+  let count = 0;
+  for (const person of persons) {
+    if (typeof person.leave_date === 'string' && person.leave_date && person.leave_date <= today)
+      continue;
+    if (typeof person.join_date === 'string' && person.join_date > today) continue;
+    const inGroup =
+      matching(person.group_names, prefixes, (name, prefix) =>
+        normalizeGroup(name).startsWith(prefix)
+      ).length > 0;
+    if (!inGroup) continue;
+    try {
+      email(person.primary_email);
+    } catch {
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
  * Current leaders and members with a recipient label from the CampFlow member list; throws
  * `CampflowError` if it fails.
  */

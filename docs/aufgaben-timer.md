@@ -1,7 +1,7 @@
 # Aufgaben-Erinnerungen in Azure
 
 Der Timer läuft unabhängig von GitHub Actions. Die Website bleibt eine Static Web App mit
-verwalteter HTTP-API; die separate Function App registriert nur `taskReminders`. GitHub darf
+verwalteter HTTP-API; die separate Function App registriert nur `taskReminders` und `leitendenrundeReminders`. GitHub darf
 deren Code nach einem `main`-Deployment aktualisieren, führt den Versand aber niemals aus.
 
 ## Bestehende Einrichtung
@@ -71,7 +71,7 @@ enthält die fertigen `node_modules`; Azure führt weder einen Remote-Build noch
 ## Aktivierung und Betrieb
 
 1. #257 mergen und die Produktionsmigrationen erfolgreich deployen.
-2. Timer-Code deployen. In Azure Functions muss genau `taskReminders` erscheinen.
+2. Timer-Code deployen. In Azure Functions müssen genau `taskReminders` und `leitendenrundeReminders` erscheinen.
 3. In der Key-Vault-Referenzverwaltung muss `AZURE_CLIENT_CERT` den Status `Resolved` haben.
    In der Function App `TASK_REMINDERS_ENABLED=true` setzen. Vorher verschickt sie nichts.
 4. Der Timer läuft stündlich zur Minute 17 in UTC. Die Anwendung prüft das Berliner Datum und
@@ -97,3 +97,83 @@ Die Vorlage kompiliert lokal und wurde mit Azure ARM erfolgreich validiert. Für
 Bereitstellung wird eine Identität mit Deployment- und Erstellrechten auf der Ressourcengruppe
 `website-astro` benötigt (z. B. Contributor); Contributor nur auf der vorhandenen Static Web App
 reicht dafür nicht. Der spätere Code-Deploy benötigt nur Rechte auf der Function App.
+
+## Erinnerungen an die Leitendenrunde
+
+Die Leitenden werden per Mail an die nächste Leitendenrunde erinnert (#184). Dafür läuft in
+derselben Function App ein zweiter Timer, `leitendenrundeReminders` (`api/timers/leitendenrunde-reminders.ts`),
+stündlich zur Minute 47 in UTC. Er hat seinen eigenen Not-Aus `LEITENDENRUNDE_REMINDERS_ENABLED`
+(Standard `false`), unabhängig von `TASK_REMINDERS_ENABLED`. Das Paket verwendet `dist/timers/*.js`
+als Einstiegspunkt; beide Timer teilen sich Datenbank, Entra-App und Graph-Zugang.
+
+**Welcher Termin zählt.** Maßgeblich ist das neueste freigegebene Protokoll der Leitendenrunde
+(`api/lib/leitendenrunde-termin.ts`):
+
+- Editor-Protokoll: das Feld „Nächste Leitendenrunde“ (Datum, Uhrzeit, Ort), sobald das Protokoll
+  freigegeben oder verschickt ist.
+- Word-Protokoll: nur ein von Reviewenden **bestätigter** Termin der freigegebenen Fassung, nie
+  ein Vorschlag. Das gilt, solange der Word-Weg besteht (#284).
+- Entwürfe und Protokolle im Review erzeugen nichts. Hat das neueste freigegebene Protokoll
+  keinen Termin (leer, abgelehnt, nur vorgeschlagen), gibt es keine Erinnerung; ein Termin aus
+  einem älteren Protokoll kehrt nicht zurück.
+
+**Wann erinnert wird.** Sieben Tage und einen Tag vor dem Termin, jeweils ab 9:00 Uhr Berliner
+Zeit (`CONFIG.leitendenrundeReminders`); die Zeitumstellung ist berücksichtigt, weil die Zeitpunkte
+aus Berliner Datum und Uhrzeit berechnet werden. Es gilt immer genau die Stufe, deren Zeit zuletzt
+gekommen ist: Wird ein Termin spät bestätigt (z. B. drei Tage vorher), geht einmal sofort die
+Erinnerung der gerade gültigen Stufe hinaus, nie mehrere auf einmal. Ab dem Beginn des Termins
+(ohne Uhrzeit ab dem Ende des Tages) wird nichts mehr versendet.
+
+**Termin geändert oder abgesagt.** Der Plan wird bei jedem Lauf aus dem aktuellen Protokoll
+abgeleitet und vor jeder einzelnen Mail erneut geprüft. Ein anderes Datum oder eine andere Uhrzeit
+ist ein anderer Termin mit eigenen Erinnerungen: Die Leitenden bekommen für den neuen Termin die
+Erinnerung, die gerade gilt (das ist zugleich die Nachricht über die Änderung). Wird der Termin
+gelöscht oder das Protokoll nicht mehr freigegeben, entfallen alle offenen Erinnerungen; bereits
+reservierte, aber noch nicht gesendete Mails werden verworfen. Eine eigene Absage-Mail gibt es nicht.
+
+**Empfänger.** Vor jedem Lauf werden die aktuellen Leitenden wie beim Protokollversand frisch aus
+CampFlow geladen (`CONFIG.protokolle.campflowGroups`, Ein- und Austrittsdatum, geprüfte und
+doppelfreie Adressen, aber ohne das Label „Protokollempfang“). Fällt CampFlow aus, bricht der Lauf ab; es
+wird keine alte Liste verwendet. Leitende ohne brauchbare Adresse bekommen keine Mail und lassen die
+Ausführung als Fehler enden (Zähler `missingAddress`), damit sie in den Alarmen auftauchen. Jede
+Person bekommt eine eigene Mail, die Adressen sind für andere nicht sichtbar. Die Mail enthält Tag,
+Uhrzeit und Ort und einen geschützten Link auf das Protokoll (bei Word-Protokollen auf die Liste).
+
+**Zuverlässigkeit.** Pro Termin, Stufe und Person gibt es höchstens eine Zeile in
+`protokoll.erinnerung` (Migration 0046, eindeutiger Schlüssel), die vor dem Versand reserviert
+wird; parallele Läufe senden deshalb nicht doppelt. Gespeichert wird nur der Hash der Adresse.
+Ein Timeout oder ein anderer unklarer Fehler setzt `uncertain` und wird nie automatisch wiederholt
+(Graph `202` bestätigt Annahme, nicht Zustellung); das Ergebnis lässt sich im Postfach
+`kontakt@stamm-phoenix.de` unter „Gesendete Elemente“ klären. Nur 429 wird nach 45 Minuten erneut versucht, andere
+4xx-Fehler gelten als endgültig (`failed`). Verpasste Läufe holt der nächste stündliche Lauf nach, solange die
+Stufe gilt. Eine Mailquote ergibt sich aus dem eindeutigen Schlüssel plus `maxMailsPerRun`; der Rest
+bleibt für den nächsten Lauf. Reservierungen ohne Ergebnis nach fünf Minuten zählen als `uncertain`. Zeilen
+werden 120 Tage nach dem Termin gelöscht. Die Logs enthalten nur Ergebniszähler.
+
+**Previews und Tests** senden nie echte Mails (`taskReminderMailAllowed()`), und kein Timer läuft
+in einer Preview-Umgebung.
+
+### Einrichtung des Workers
+
+Der Timer braucht das CampFlow-Token wie die Website. Es kommt wie das Zertifikat als
+Key-Vault-Referenz in die Function App:
+
+1. Das Token in den Vault übernehmen (legt `campflow-api-token` aus den App Settings der Website an,
+   ohne die Einstellungen der Function App zu ändern):
+   `bash scripts/rotate-task-worker-certificate.sh`
+2. In der Function App die Einstellungen setzen (neue Installationen erhalten sie über die Bicep-Vorlage):
+
+   ```sh
+   az functionapp config appsettings set --resource-group website-astro \
+     --name website-astro-task-reminders --output none --settings \
+     'CAMPFLOW_API_TOKEN=@Microsoft.KeyVault(SecretUri=https://<Vault>.vault.azure.net/secrets/campflow-api-token)' \
+     LEITENDENRUNDE_REMINDERS_ENABLED=false
+   ```
+
+3. Migration 0046 und Timer-Code deployen, den Status der Referenz `CAMPFLOW_API_TOKEN` auf `Resolved`
+   prüfen, dann `LEITENDENRUNDE_REMINDERS_ENABLED=true` setzen. Zum Pausieren wieder `false`.
+
+Bei einer fehlgeschlagenen Ausführung (Alarm in Application Insights) nennt die Fehlermeldung nur
+Zähler. `failed` und `uncertain` im Postfach prüfen, `missingAddress` in CampFlow beheben; nach
+`uncertain` entscheiden Menschen, ob nachgesendet wird. Einen Termin korrigiert man im Protokoll
+(Editor-Feld bzw. Termin bestätigen), nicht in der Datenbank.

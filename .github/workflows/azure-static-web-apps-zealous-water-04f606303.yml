@@ -171,7 +171,7 @@ jobs:
       - name: Validate standalone timer package
         run: |
           bash scripts/package-task-worker.sh /tmp/task-reminder-build-check --use-built
-          node -e "require('/tmp/task-reminder-build-check/dist/timers/task-reminders.js')"
+          node -e "require('/tmp/task-reminder-build-check/dist/timers/task-reminders.js'); require('/tmp/task-reminder-build-check/dist/timers/leitendenrunde-reminders.js')"
   build:
     # One stable check name for branch protection over the website and API jobs. Skipped when
     # a newer push cancelled one of them (a manual cancel of the run still fails it).

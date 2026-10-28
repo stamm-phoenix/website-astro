@@ -70,6 +70,18 @@ export interface ApiConfig {
     retentionDays: number;
     mailTimeoutMs: number;
   };
+  /** Reminder mails for the next Leitendenrunde (`docs/aufgaben-timer.md`). */
+  leitendenrundeReminders: {
+    sender: string;
+    siteUrl: string;
+    /** Reminders this many days before the meeting, at `startHour` Berlin time or later. */
+    daysBefore: readonly number[];
+    startHour: number;
+    /** Upper bound of mails per run, so a wrong recipient list stays small. */
+    maxMailsPerRun: number;
+    retentionDays: number;
+    mailTimeoutMs: number;
+  };
   /**
    * Azure Maps for the geocoding of the Nikolaus addresses and the driving times and routes of
    * the Dispo (`azure-maps.ts`); the optional key `AZURE_MAPS_API_KEY` is a secret.
@@ -287,6 +299,15 @@ export const CONFIG: ApiConfig = {
     batchSize: 2,
     maxBatches: 50,
     retentionDays: 60,
+    mailTimeoutMs: 10000,
+  },
+  leitendenrundeReminders: {
+    sender: 'kontakt@stamm-phoenix.de',
+    siteUrl: PRODUCTION_SITE_URL,
+    daysBefore: [7, 1],
+    startHour: 9,
+    maxMailsPerRun: 100,
+    retentionDays: 120,
     mailTimeoutMs: 10000,
   },
   azureMaps: {
