@@ -64,6 +64,23 @@ test('session validation keeps the Kurzbeschreibung and accepts drafts of older 
   assert.equal(validAbrechnungSession(older), true);
   assert.deepEqual(parseSession(older).kurzbeschreibung, { einleitung: '', tage: [] });
 
+  // Defect: a Zeitplan the page allows made the whole session too large to save
+  const voll = emptySession();
+  voll.kurzbeschreibung.tage = Array.from({ length: 31 }, (_tag, day) => ({
+    datum: `2026-07-${String(day + 1).padStart(2, '0')}`,
+    bloecke: Array.from({ length: 30 }, (_block, index) => ({
+      id: `b${day}x${index}`,
+      von: '08:00',
+      bis: '09:00',
+      text: '"'.repeat(200),
+    })),
+  }));
+  assert.equal(validAbrechnungSession(voll), true);
+  assert.equal(
+    validAbrechnungSession({ ...voll, kjr: { ...voll.kjr, ort: 'x'.repeat(100_001) } }),
+    false
+  );
+
   const block = draft.kurzbeschreibung.tage[0].bloecke[0];
   const withBlock = (changed: object): unknown => ({
     ...draft,

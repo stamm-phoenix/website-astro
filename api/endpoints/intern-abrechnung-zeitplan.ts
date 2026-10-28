@@ -72,8 +72,11 @@ export const AbrechnungZeitplanEndpoint = pflegeHandler('abrechnung-zeitplan', a
   if (typeof quelle === 'string') return invalid(quelle);
   if ('text' in quelle && quelle.text.trim() === '')
     return invalid('In der Tabelle steht nichts. Bitte eine andere Datei wählen.');
-  if ('text' in quelle && quelle.text.length > MAX_ZEITPLAN_TEXT * 3)
-    return invalid('Die Tabelle ist zu lang. Bitte nur das Blatt mit dem Zeitplan hochladen.');
+  // Cut off, the Zeitplan on a later sheet would be missing without anyone noticing
+  if ('text' in quelle && quelle.text.length > MAX_ZEITPLAN_TEXT)
+    return invalid(
+      'Die Tabelle ist zu lang. Speichere nur das Blatt mit dem Zeitplan in einer eigenen Datei und wähle diese.'
+    );
 
   const event = (await getCampflowEvents()).find((entry) => entry.id === id);
   if (!event) return errorResponse(404, 'NOT_FOUND', 'Diese Aktion gibt es nicht mehr.');

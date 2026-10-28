@@ -42,11 +42,18 @@ function formatTime(fraction: number): string {
   return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
 }
 
-/** A number as Excel shows it in a Zeitplan: times, dates or the number itself. */
-export function excelNumber(raw: string): string {
-  const value = Number(raw);
-  if (!Number.isFinite(value)) return raw;
-  if (value > 0 && value < 1) return formatTime(value);
+/** Days between the start of Excel's 1900 and 1904 date systems. */
+const DATE_1904_OFFSET = 1462;
+
+/**
+ * A number as Excel shows it in a Zeitplan: times, dates or the number itself. `date1904` for
+ * workbooks with the 1904 date system (older Mac files), which count days from 1904.
+ */
+export function excelNumber(raw: string, date1904 = false): string {
+  const number = Number(raw);
+  if (!Number.isFinite(number)) return raw;
+  if (number > 0 && number < 1) return formatTime(number);
+  const value = date1904 ? number + DATE_1904_OFFSET : number;
   // 1982 to 2119 in Excel's day count (1900 date system)
   if (value >= 30_000 && value < 80_000) {
     const day = Math.floor(value);
@@ -57,14 +64,14 @@ export function excelNumber(raw: string): string {
   return raw;
 }
 
-function cellText(attributes: string, inner: string, strings: string[]): string {
+function cellText(attributes: string, inner: string, strings: string[], date1904: boolean): string {
   const type = /\st="([^"]*)"/.exec(attributes)?.[1] ?? 'n';
   if (type === 'inlineStr') return runsText(inner);
   const value = /<v(?:\s[^>]*)?>([\s\S]*?)<\/v>/.exec(inner)?.[1];
   if (value === undefined) return '';
   if (type === 's') return strings[Number(value)] ?? '';
   if (type === 'b') return value === '1' ? 'WAHR' : 'FALSCH';
-  if (type === 'n') return excelNumber(value);
+  if (type === 'n') return excelNumber(value, date1904);
   return decodeXmlEntities(value);
 }
 
@@ -82,7 +89,7 @@ export function columnIndex(reference: string | undefined): number | undefined {
  * One line per row, with each cell in its column: empty cells stay as empty fields, so a
  * programme item under „Dienstag“ in column B does not slide under „Montag“ in column A.
  */
-function sheetLines(xml: string, strings: string[]): string[] {
+function sheetLines(xml: string, strings: string[], date1904: boolean): string[] {
   const lines: string[] = [];
   for (const row of xml.matchAll(/<row(?:\s[^>]*)?>([\s\S]*?)<\/row>/g)) {
     if (lines.length >= MAX_ROWS) break;
@@ -90,7 +97,7 @@ function sheetLines(xml: string, strings: string[]): string[] {
     for (const cell of row[1].matchAll(/<c(\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/c>)/g)) {
       const column = columnIndex(/\sr="([^"]*)"/.exec(cell[1] ?? '')?.[1]) ?? cells.length;
       if (column >= MAX_COLUMNS) continue;
-      const text = cellText(cell[1] ?? '', cell[2] ?? '', strings)
+      const text = cellText(cell[1] ?? '', cell[2] ?? '', strings, date1904)
         .replace(/\s+/g, ' ')
         .trim();
       while (cells.length < column) cells.push('');
@@ -102,15 +109,20 @@ function sheetLines(xml: string, strings: string[]): string[] {
   return lines;
 }
 
-/** Sheet names by their part in the archive, e.g. `xl/worksheets/sheet1.xml` → „Montag“. */
-function sheetNames(archive: Buffer): Map<string, string> {
+/**
+ * Sheet names by their part in the archive, e.g. `xl/worksheets/sheet1.xml` → „Montag“, and
+ * whether the workbook counts dates in the 1904 date system.
+ */
+function workbookInfo(archive: Buffer): { names: Map<string, string>; date1904: boolean } {
   const names = new Map<string, string>();
+  let date1904 = false;
   try {
     const workbook = readZipEntry(archive, 'xl/workbook.xml', MAX_UNPACKED_BYTES)?.toString('utf8');
+    date1904 = /<workbookPr\b[^>]*\sdate1904="(?:1|true)"/.test(workbook ?? '');
     const rels = readZipEntry(archive, 'xl/_rels/workbook.xml.rels', MAX_UNPACKED_BYTES)?.toString(
       'utf8'
     );
-    if (!workbook || !rels) return names;
+    if (!workbook || !rels) return { names, date1904 };
     const targets = new Map(
       [...rels.matchAll(/<Relationship\s[^>]*>/g)].flatMap((match) => {
         const id = /\sId="([^"]*)"/.exec(match[0])?.[1];
@@ -127,7 +139,7 @@ function sheetNames(archive: Buffer): Map<string, string> {
   } catch {
     // Without names the sheets are still read, numbered
   }
-  return names;
+  return { names, date1904 };
 }
 
 const sheetNumber = (name: string): number => Number(/(\d+)\.xml$/.exec(name)?.[1] ?? 0);
@@ -147,10 +159,10 @@ export function xlsxToText(bytes: Uint8Array): string {
       .filter((part) => part.name.startsWith('xl/worksheets/'))
       .sort((a, b) => sheetNumber(a.name) - sheetNumber(b.name));
     if (sheets.length === 0) throw new XlsxError('No worksheets');
-    const names = sheetNames(archive);
+    const { names, date1904 } = workbookInfo(archive);
     return sheets
       .map((sheet, index) => {
-        const lines = sheetLines(sheet.data.toString('utf8'), strings);
+        const lines = sheetLines(sheet.data.toString('utf8'), strings, date1904);
         return [`# ${names.get(sheet.name) ?? `Tabelle ${index + 1}`}`, ...lines].join('\n');
       })
       .join('\n\n');

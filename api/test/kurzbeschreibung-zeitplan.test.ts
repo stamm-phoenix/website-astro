@@ -97,6 +97,25 @@ test('Excel sheets become lines with times, dates, shared and inline strings', (
   assert.equal(plan('<c r="A2" t="s"><v>2</v></c>'), '# Plan\nMontag | Dienstag\nFrühstück');
   assert.equal(plan('<c r="B2" t="s"><v>2</v></c>'), '# Plan\nMontag | Dienstag\n | Frühstück');
   assert.equal(columnIndex('AB12'), 27);
+
+  // Defect: workbooks in the 1904 date system (older Mac files) were read four years off
+  assert.equal(excelNumber('44704', true), '24.05.2026');
+  assert.equal(excelNumber('0.5', true), '12:00');
+  const mac = Buffer.from(
+    writeZip([
+      {
+        name: 'xl/workbook.xml',
+        data: Buffer.from('<workbook><workbookPr date1904="1"/></workbook>'),
+      },
+      {
+        name: 'xl/worksheets/sheet1.xml',
+        data: Buffer.from(
+          '<worksheet><sheetData><row r="1"><c r="A1"><v>44704</v></c></row></sheetData></worksheet>'
+        ),
+      },
+    ])
+  );
+  assert.equal(xlsxToText(new Uint8Array(mac)), '# Tabelle 1\n24.05.2026');
   assert.equal(excelNumber('46166.75'), '24.05.2026 18:00');
 });
 
@@ -240,6 +259,8 @@ test('an Excel file goes to the model as text; wrong files never reach it', asyn
     { tabelle: { name: 'Plan.xlsx', data: Buffer.from('kein zip').toString('base64') } },
     { bilder: [Buffer.from('GIF89a').toString('base64')] },
     { bilder: [JPEG, JPEG, JPEG, JPEG, JPEG] },
+    // A long material list before the Zeitplan is refused instead of cut off
+    { tabelle: { name: 'lang.csv', data: Buffer.from('x;'.repeat(20_001)).toString('base64') } },
     {},
   ]) {
     const response = await AbrechnungZeitplanEndpoint(request(body), context(t));

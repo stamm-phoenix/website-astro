@@ -228,6 +228,22 @@ export function parseSession(value: unknown): AbrechnungSession {
   };
 }
 
+/** JSON of everything but the Kurzbeschreibung, whose own limits bound its size. */
+const MAX_SESSION_JSON = 100_000;
+/**
+ * JSON of the whole session: a full Kurzbeschreibung (31 days of 30 blocks of 200 characters)
+ * stays well below, even with every character escaped.
+ */
+const MAX_SESSION_JSON_TOTAL = 2_000_000;
+
+/** Whether a session from the browser is small enough to be checked and stored. */
+export function sessionSizeOk(value: Record<string, unknown>): boolean {
+  return (
+    JSON.stringify(value).length <= MAX_SESSION_JSON_TOTAL &&
+    JSON.stringify({ ...value, kurzbeschreibung: null }).length <= MAX_SESSION_JSON
+  );
+}
+
 /** Reject malformed input rather than silently deleting fields during persistence. */
 export function validAbrechnungSession(value: unknown): value is AbrechnungSession {
   function canonical(input: unknown): string {
@@ -243,7 +259,7 @@ export function validAbrechnungSession(value: unknown): value is AbrechnungSessi
       );
     return JSON.stringify(input);
   }
-  if (!isRecord(value) || JSON.stringify(value).length > 100_000) return false;
+  if (!isRecord(value) || !sessionSizeOk(value)) return false;
   // Pages opened before the Kurzbeschreibung existed send sessions without it
   const complete =
     value.kurzbeschreibung === undefined
