@@ -154,8 +154,13 @@ export function redactSensitive(text: string): string {
       .replace(/\S+/g, withoutQuery)
       .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]*/g, REDACTED)
       .replace(/\bBearer\s+\S+/gi, `Bearer ${REDACTED}`)
+      // Headers carry more than one word (`Basic dXNlcjpwYXNz`, `a=1; b=2`): the rest of the line goes
       .replace(
-        /\b(token|key|secret|passwort|password|kennwort|authorization|cookie)\s*[:=]\s*\S+/gi,
+        /\b(authorization|set-cookie|cookie)\s*[:=][^\n]*/gi,
+        (_match, name: string) => `${name}: ${REDACTED}`
+      )
+      .replace(
+        /\b(token|key|secret|passwort|password|kennwort)\s*[:=]\s*\S+/gi,
         (_match, name: string) => `${name}: ${REDACTED}`
       )
       .replace(/\b[A-Za-z0-9_-]{32,}\b/g, REDACTED)
@@ -190,6 +195,17 @@ function cleanText(value: unknown, max: number): string {
 }
 
 /**
+ * A path segment that is probably a link secret or an ID: long, and with a digit or mixed case,
+ * which names of pages (`fragen-und-antworten`) do not have.
+ */
+function looksLikeSecret(segment: string): boolean {
+  return (
+    /^[A-Za-z0-9_-]{20,}$/.test(segment) &&
+    (/\d/.test(segment) || (/[a-z]/.test(segment) && /[A-Z]/.test(segment)))
+  );
+}
+
+/**
  * The path of a page or route without origin, query and fragment. Long segments that look like
  * a token or an ID are replaced by `:id`, as they may be a link secret (`/abstimmung/<token>`).
  * `''` if the value is no path.
@@ -201,7 +217,7 @@ export function cleanPath(value: unknown, max = PROBLEM_MAX_LENGTH.page): string
   if (!path.startsWith('/') || !/^[A-Za-z0-9/_\-.~%:]+$/.test(path)) return '';
   const masked = path
     .split('/')
-    .map((segment) => (/^[A-Za-z0-9_-]{20,}$/.test(segment) ? ':id' : segment))
+    .map((segment) => (looksLikeSecret(segment) ? ':id' : segment))
     .join('/');
   return masked.length <= max ? masked : '';
 }

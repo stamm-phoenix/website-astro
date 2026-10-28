@@ -1,6 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
+  import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
@@ -107,6 +108,7 @@
 
   function openItem(item: StaffProblemMeldung): void {
     selectedId = item.id;
+    discardReason = '';
     fillDraft(item);
     dialog.reset();
   }
@@ -150,7 +152,11 @@
       if (announce) message = 'Entwurf gespeichert.';
       await reload();
       const fresh = store.data?.items.find((item) => item.id === id);
-      if (fresh) fillDraft(fresh);
+      // A failed reload leaves the old data: it must not replace what was just saved
+      if (fresh && !store.error) fillDraft(fresh);
+      else baseDraft = { ...draft };
+      // Like the other forms: a saved dialog closes (and forgets its unsaved state)
+      if (announce) selectedId = null;
     }, 'Der Entwurf wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Entwurf speichern“.');
     return saved;
   }
@@ -189,6 +195,7 @@
         etag,
       });
       message = 'Meldung verworfen.';
+      discardReason = '';
       discarding = false;
       selectedId = null;
       await reload();
@@ -508,16 +515,29 @@
             </select>
           {/snippet}
         </FormField>
-        <FormField id="pm-body" label="Beschreibung">
-          {#snippet children(attrs)}
-            <textarea
-              {...attrs}
-              class="form-input min-h-48 font-mono text-sm"
-              maxlength={store.data?.maxLength.body ?? PROBLEM_MAX_LENGTH.body}
-              readonly={!open}
-              bind:value={draft.body}></textarea>
-          {/snippet}
-        </FormField>
+        {#if open}
+          <div inert={busy}>
+            <FormField id="pm-body" label="Beschreibung" labelAs="span">
+              {#snippet children(attrs)}
+                <LazyTextEditor
+                  features={{ headings: [2, 3], links: true }}
+                  id={attrs.id}
+                  labelledBy="pm-body-label"
+                  describedBy={attrs['aria-describedby']}
+                  maxLength={store.data?.maxLength.body ?? PROBLEM_MAX_LENGTH.body}
+                  bind:value={draft.body}
+                />
+              {/snippet}
+            </FormField>
+          </div>
+        {:else}
+          <FormField id="pm-body" label="Beschreibung">
+            {#snippet children(attrs)}
+              <textarea {...attrs} class="form-input min-h-48" readonly bind:value={draft.body}
+              ></textarea>
+            {/snippet}
+          </FormField>
+        {/if}
       </section>
     </div>
   {/if}
