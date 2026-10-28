@@ -137,7 +137,7 @@
   async function remove(tagIndex: number, index: number): Promise<void> {
     const tag = editable()[tagIndex];
     const [block] = tag.bloecke.splice(index, 1);
-    if (block.text.trim() || block.von) {
+    if (block.text.trim() || block.von || block.bis) {
       notice = null;
       deleted = { block, datum: tag.datum, index };
     }
@@ -474,7 +474,7 @@
         />
       </div>
       <div class="flex flex-wrap gap-2">
-        {#if filled}
+        {#if filled || kurz.tage.length > 0}
           <ActionButton variant="secondary" onclick={resetAll}>Zurücksetzen</ActionButton>
         {/if}
         <ActionButton variant="primary" disabled={pdfBusy} onclick={exportPdf}>
