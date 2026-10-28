@@ -1,0 +1,35 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHeader from '../components/PageHeader.astro';
+import Card from '../components/Card.astro';
+import TextLink from '../components/TextLink.astro';
+import ProblemMelden from '../components/ProblemMelden.svelte';
+import { BUILD_INFO } from '../lib/buildInfo';
+---
+
+<BaseLayout
+  title="Problem melden | Stamm Phoenix"
+  description="Melde uns ein Problem mit der Website des DPSG Stamm Phoenix."
+>
+  <Header slot="header" />
+
+  <PageHeader
+    title="Problem melden"
+    description="Etwas funktioniert nicht oder sieht falsch aus? Sag uns, was du siehst."
+  />
+
+  <section aria-label="Problem melden" class="mt-8">
+    <Card class="max-w-3xl">
+      <ProblemMelden client:only="svelte" version={BUILD_INFO.shortCommit ?? ''}>
+        <p slot="fallback" class="text-sm text-neutral-700">
+          Ohne JavaScript funktioniert das Formular nicht. Schreib uns stattdessen an{' '}
+          <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>.
+        </p>
+      </ProblemMelden>
+    </Card>
+  </section>
+
+  <Footer slot="footer" />
+</BaseLayout>

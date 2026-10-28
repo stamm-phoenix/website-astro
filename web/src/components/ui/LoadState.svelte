@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte';
   import ActionButton from './ActionButton.svelte';
   import MessageText from './MessageText.svelte';
+  import { problemMeldenHref } from '../../lib/problemMelden';
 
   interface Props {
     data: T | null;
@@ -36,15 +37,16 @@
 </script>
 
 {#snippet retry()}
-  {#if onretry}
-    <ActionButton
-      variant="secondary"
-      type="button"
-      class="mt-3"
-      disabled={loading}
-      onclick={onretry}>Erneut versuchen</ActionButton
+  <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+    {#if onretry}
+      <ActionButton variant="secondary" type="button" disabled={loading} onclick={onretry}
+        >Erneut versuchen</ActionButton
+      >
+    {/if}
+    <a class="text-link inline-flex min-h-11 items-center text-sm" href={problemMeldenHref()}
+      >Problem melden</a
     >
-  {/if}
+  </div>
 {/snippet}
 
 {#if data === null}

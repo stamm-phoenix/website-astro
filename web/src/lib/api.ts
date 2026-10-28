@@ -76,18 +76,68 @@ export function errorMessage(error: unknown, fallback: string): string {
  */
 async function request(endpoint: string, init: RequestInit = {}): Promise<Response> {
   const internal = endpoint.startsWith('/intern/');
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...init,
-    cache: 'no-store',
-    ...(internal ? { redirect: 'manual' } : {}),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...init,
+      cache: 'no-store',
+      ...(internal ? { redirect: 'manual' } : {}),
+    });
+  } catch (error: unknown) {
+    recordFailure(endpoint, 0, 'NETWORK', null);
+    throw error;
+  }
   if (internal && response.type === 'opaqueredirect') {
     throw new ApiError(401, SESSION_EXPIRED_MESSAGE);
   }
   if (!response.ok) {
-    throw await toApiError(response, internal);
+    const error = await toApiError(response, internal);
+    recordFailure(endpoint, response.status, error.code ?? '', response);
+    throw error;
   }
   return response;
+}
+
+/**
+ * The last failed request: what „Problem melden“ adds to a report (`problemMelden.ts`). Only
+ * status, code, route without query and a correlation number of the response, never a message
+ * or content.
+ */
+export interface ApiFailure {
+  status: number;
+  code: string;
+  route: string;
+  correlationId: string;
+  at: number;
+}
+
+let lastFailure: ApiFailure | null = null;
+
+function recordFailure(
+  endpoint: string,
+  status: number,
+  code: string,
+  response: Response | null
+): void {
+  // A failing report must not replace the problem it is about
+  if (endpoint.startsWith('/problemmeldung')) return;
+  lastFailure = {
+    status,
+    code,
+    route: `${API_BASE}${endpoint.split('?')[0]}`,
+    // The ID of the request at Cloudflare or Azure, if one answered
+    correlationId:
+      response?.headers.get('x-ms-request-id') ??
+      response?.headers.get('x-request-id') ??
+      response?.headers.get('cf-ray') ??
+      '',
+    at: Date.now(),
+  };
+}
+
+/** The failed request of the last ten minutes, if any; older ones no longer explain the page. */
+export function getLastApiFailure(maxAgeMs = 600_000): ApiFailure | null {
+  return lastFailure && Date.now() - lastFailure.at <= maxAgeMs ? lastFailure : null;
 }
 
 /** Fetch uncached JSON; `headers` e.g. for a token that must stay out of the URL. */
