@@ -156,9 +156,11 @@ werden 120 Tage nach dem Termin gelöscht. Die Logs enthalten nur Ergebniszähle
 **Previews und Tests** senden nie echte Mails (`taskReminderMailAllowed()`), und kein Timer läuft
 in einer Preview-Umgebung.
 
-### Einrichtung des Workers
+### Einrichtung des Workers (Stand: nicht aktiviert)
 
-Der Timer braucht das CampFlow-Token wie die Website. Es kommt wie das Zertifikat als
+Nach dem Deployment bleibt der Timer ausgeschaltet (`LEITENDENRUNDE_REMINDERS_ENABLED` ist nicht
+gesetzt, er protokolliert nur „disabled“). Die Function App hat nur eigene App Settings; das
+CampFlow-Token der Website steht dort nicht. Vor einer Aktivierung kommt es wie das Zertifikat als
 Key-Vault-Referenz in die Function App:
 
 1. Das Token in den Vault übernehmen (legt `campflow-api-token` aus den App Settings der Website an,

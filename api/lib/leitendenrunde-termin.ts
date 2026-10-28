@@ -10,7 +10,7 @@ import { CONFIG } from './config';
 import { getDb } from './db';
 import { localDateTimeToDate } from './nikolaus-config';
 import { parseProtokollTermin } from './protokoll-termin';
-import { getSharePointDriveItem } from './sharepoint-data-access';
+import { loadProtokoll } from './protokoll-source';
 import type { ProtokollFields } from './protokolle';
 
 export interface Sitzung {
@@ -150,9 +150,15 @@ export async function currentSitzung(): Promise<Sitzung | null> {
   }
   candidates.sort((a, b) => b.at - a.at);
   for (const candidate of candidates) {
-    // Deleting Word minutes only removes the file; its row stays for a restore from the recycle
-    // bin. Deleted minutes do not count. A failing check stops the run instead of guessing.
-    if (candidate.file && !(await getSharePointDriveItem(...candidate.file))) continue;
+    if (candidate.file) {
+      // The same check as the minutes list: the file must still be in the folder (deleting only
+      // removes the file, its row stays for a restore from the recycle bin), and an approved file
+      // changed since then no longer backs its date. A failing check stops the run.
+      const loaded = await loadProtokoll(...candidate.file, 'current-version');
+      if (!loaded) continue;
+      // The newest minutes decide, so a changed file gives no date and no older one takes over.
+      if (loaded.protokoll.changedSinceApproval || loaded.protokoll.terminStale) return null;
+    }
     return candidate.sitzung;
   }
   return null;
