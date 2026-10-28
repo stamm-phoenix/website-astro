@@ -191,7 +191,8 @@ export async function renderEinteilungBild(bild: EinteilungBild): Promise<Blob> 
     ctx.fillStyle = day.kitchen.length ? COLORS.text : COLORS.muted;
     ctx.font = font(400, 14);
     kitchenLines[index].forEach((line, i) => {
-      ctx.fillText(line, PAD + 56, y + i * KITCHEN_LINE + KITCHEN_LINE / 2);
+      // A single name wider than the line is cut, so it cannot run past the edge
+      ctx.fillText(fit(ctx, line, inner - 56), PAD + 56, y + i * KITCHEN_LINE + KITCHEN_LINE / 2);
     });
     y += kitchenLines[index].length * KITCHEN_LINE + 18;
 

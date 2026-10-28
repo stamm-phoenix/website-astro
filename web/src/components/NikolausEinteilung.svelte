@@ -355,6 +355,7 @@
   }
 
   let exporting = $state(false);
+  const EXPORT_ERROR = 'Das Bild konnte nicht erstellt werden. Bitte noch einmal versuchen.';
 
   /** Exports the Einteilung as shown as a compact PNG, e.g. for a messenger group. */
   async function exportImage(): Promise<void> {
@@ -392,13 +393,17 @@
         ),
       });
       const day = now.toLocaleDateString('sv-SE');
-      await shareOrSaveImage(blob, `nikolaus-einteilung-${day}.png`, saveFile);
+      const done = await shareOrSaveImage(blob, `nikolaus-einteilung-${day}.png`, saveFile);
+      if (done) {
+        editor.state.notice = dirty
+          ? { text: 'Bild exportiert. Die Einteilung ist noch nicht gespeichert.', kind: 'warning' }
+          : { text: 'Bild exportiert.', kind: 'success' };
+      } else if (editor.state.notice?.text === EXPORT_ERROR) {
+        editor.state.notice = null;
+      }
     } catch (error) {
       editor.state.notice = {
-        text: errorMessage(
-          error,
-          'Das Bild konnte nicht erstellt werden. Bitte noch einmal versuchen.'
-        ),
+        text: errorMessage(error, EXPORT_ERROR),
         kind: 'error',
       };
     } finally {
