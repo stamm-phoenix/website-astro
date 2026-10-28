@@ -221,6 +221,15 @@ test('relative and bare-domain URLs lose their query and fragment', () => {
   assert.equal(redactSensitive('Warum geht das nicht?'), 'Warum geht das nicht?');
 });
 
+test('a query with further paths and parameters is removed completely', () => {
+  assert.equal(
+    redactSensitive('Seite /anmelden?code=123456&return=/start?x=1#weiter war leer'),
+    'Seite /anmelden war leer'
+  );
+  assert.equal(redactSensitive('https://x.de/a?next=https://y.de/b?code=9'), 'https://x.de/a');
+  assert.ok(!redactForForwarding('/anmelden?code=123456&return=/start#weiter').includes('123456'));
+});
+
 test('every accepted address and the contact itself stay out of forwarded text', () => {
   const contact = 'erika@bücher.de';
   assert.equal(

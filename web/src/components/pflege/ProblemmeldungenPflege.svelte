@@ -171,8 +171,6 @@
       const fresh = await refresh(id);
       // The assessment only fills a draft nobody started
       if (fresh && !typed) fillDraft(fresh);
-      // Typed text wins over a draft that was filled in the meantime
-      else if (fresh) baseDraft = { ...fresh.draft };
       if (fresh?.ai.status === 'fertig') message = 'Einschätzung erstellt.';
       else
         dialog.fail(
