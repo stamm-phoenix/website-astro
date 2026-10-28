@@ -313,7 +313,12 @@ export async function refreshAbrechnungSession(eventId: string): Promise<void> {
     state.deleteAfter = saved.deleteAfter;
     return;
   }
-  if (!openDrafts[eventId] && JSON.stringify(target) === storedJson[eventId]) {
+  // Lines typed under „Mehrere Zeilen einfügen“ count as unsaved input: their day must stay
+  if (
+    !openDrafts[eventId] &&
+    !offeneZeitplanZeilen(eventId) &&
+    JSON.stringify(target) === storedJson[eventId]
+  ) {
     Object.assign(target, saved.session);
     storedJson[eventId] = JSON.stringify(saved.session);
     Object.assign(state, {

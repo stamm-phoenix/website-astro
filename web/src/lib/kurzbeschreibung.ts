@@ -113,17 +113,24 @@ const LINE = new RegExp(
 export function parseZeitzeilen(text: string): NeuerBlock[] {
   return text
     .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line !== '')
-    .map((line) => {
-      // Cells copied from a table: Beginn, Ende (may be empty), Programmpunkt
-      const cells = line.split('\t').map((cell) => cell.trim());
-      const tabVon = cells.length >= 2 ? parseUhrzeit(cells[0].replace(/\s*uhr$/i, '')) : null;
-      if (tabVon !== null) {
-        const tabBis = cells.length >= 3 ? parseUhrzeit(cells[1].replace(/\s*uhr$/i, '')) : null;
-        const rest = cells.slice(tabBis !== null || (cells.length >= 3 && cells[1] === '') ? 2 : 1);
-        const text = rest.filter(Boolean).join(' ');
-        if (text) return { von: tabVon, bis: tabBis ?? '', text };
+    .filter((line) => line.trim() !== '')
+    .map((raw) => {
+      const line = raw.trim();
+      // Cells copied from a table: Beginn, Ende, Programmpunkt; either time may be empty
+      const cells = raw.split('\t').map((cell) => cell.trim());
+      if (cells.length >= 2) {
+        const zeit = (cell: string): string | null =>
+          cell === '' ? '' : parseUhrzeit(cell.replace(/\s*uhr$/i, ''));
+        const tabVon = zeit(cells[0]);
+        const tabBis = cells.length >= 3 ? zeit(cells[1]) : null;
+        // Without a start only „leer, Ende, Programmpunkt“ counts as times
+        if (tabVon !== null && (tabVon !== '' || tabBis)) {
+          const text = cells
+            .slice(tabBis !== null ? 2 : 1)
+            .filter(Boolean)
+            .join(' ');
+          if (text) return { von: tabVon, bis: tabBis ?? '', text };
+        }
       }
       const match = LINE.exec(line);
       // „3 Teams“ is no time: a full hour needs „Uhr“, a range or a table cell after it
