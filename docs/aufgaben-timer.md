@@ -103,8 +103,8 @@ reicht dafür nicht. Der spätere Code-Deploy benötigt nur Rechte auf der Funct
 Die Leitenden werden per Mail an die nächste Leitendenrunde erinnert (#184). Dafür läuft in
 derselben Function App ein zweiter Timer, `leitendenrundeReminders` (`api/timers/leitendenrunde-reminders.ts`),
 stündlich zur Minute 47 in UTC. Er hat seinen eigenen Not-Aus `LEITENDENRUNDE_REMINDERS_ENABLED`
-(Standard `false`), unabhängig von `TASK_REMINDERS_ENABLED`. Das Paket verwendet `dist/timers/*.js`
-als Einstiegspunkt; beide Timer teilen sich Datenbank, Entra-App und Graph-Zugang.
+(Standard `false`), unabhängig von `TASK_REMINDERS_ENABLED`. Das Paket verwendet `dist/timers/index.js`
+(`api/timers/index.ts`, lädt beide Timer) als Einstiegspunkt; beide Timer teilen sich Datenbank, Entra-App und Graph-Zugang.
 
 **Welcher Termin zählt.** Maßgeblich ist das neueste freigegebene Protokoll der Leitendenrunde
 (`api/lib/leitendenrunde-termin.ts`):

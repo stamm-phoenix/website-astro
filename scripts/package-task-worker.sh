@@ -17,6 +17,7 @@ cd "$repository_root/api"
 if [[ "$use_built" == --use-built ]]; then
   test -f dist/timers/task-reminders.js
   test -f dist/timers/leitendenrunde-reminders.js
+  test -f dist/timers/index.js
 else
   bun install --frozen-lockfile --ignore-scripts
   rm -rf dist
@@ -31,7 +32,7 @@ const path = require('node:path');
 const dir = process.argv[2];
 const source = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({
-  ...source, private: true, main: 'dist/timers/*.js', engines: { node: '22.x' },
+  ...source, private: true, main: 'dist/timers/index.js', engines: { node: '22.x' },
   scripts: {},
 }, null, 2));
 fs.copyFileSync('bun.lock', path.join(dir, 'bun.lock'));
