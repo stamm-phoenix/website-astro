@@ -549,3 +549,29 @@ test('contact accepts one address and rejects mailto parameter injection in the 
     assert.equal(decodeURIComponent(link.pathname), contact);
   }
 });
+
+test('URL user information is removed before storage and forwarding', () => {
+  for (const url of [
+    'http://erika:hunter2@localhost:4321/kontakt',
+    'https://erika:hunter2@example.test/a?x=1',
+    '//erika:hunter2@[::1]/a',
+    'ftp://erika:hunter2@localhost/a',
+    '[Link](https://erika:hunter2@localhost/a)',
+  ]) {
+    const description = 'Beim Öffnen von ' + url + ' erscheint ein Fehler.';
+    const browser = validateProblemReport({ description }).report;
+    assert.ok(browser);
+    const server = validateProblemReport({ ...browser }).report;
+    assert.ok(server);
+    for (const value of [
+      browser.description,
+      server.description,
+      problemModelInput({ ...MELDUNG, description }),
+      buildIssueBody(description, SOURCE),
+    ]) {
+      assert.ok(!value.includes('hunter2') && !value.includes('erika'), value);
+      assert.ok(value.includes('/a') || value.includes('/kontakt'), value);
+    }
+    assert.equal(redactSensitive(browser.description), browser.description);
+  }
+});
