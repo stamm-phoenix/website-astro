@@ -6,7 +6,7 @@
   import ReloadAction from '../ui/ReloadAction.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { untrack } from 'svelte';
-  import { sendApi } from '../../lib/api';
+  import { ApiError, sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { formatDateTime } from '../../lib/format';
   import { problemmeldungenPflege } from '../../lib/pflegeStore.svelte';
@@ -38,6 +38,8 @@
   let view = $state<View>('offen');
   let selectedId = $state<string | null>(null);
   let draft = $state<Draft>({ title: '', body: '', label: 'bug' });
+  /** The draft as it was loaded into the fields: what the leader started from. */
+  let baseDraft = $state<Draft | null>(null);
   let message = $state<string | null>(null);
   let discarding = $state(false);
   let discardReason = $state('');
@@ -54,11 +56,13 @@
   const count = (match: (item: StaffProblemMeldung) => boolean): number =>
     items.filter(match).length;
   const open = $derived(selected ? isProblemOpen(selected.status) : false);
-  const draftChanged = $derived(
-    selected !== null &&
-      (draft.title !== selected.draft.title ||
-        draft.body !== selected.draft.body ||
-        draft.label !== selected.draft.label)
+  const sameDraft = (a: Draft, b: Draft): boolean =>
+    a.title === b.title && a.body === b.body && a.label === b.label;
+  /** The leader changed the fields since they were loaded. */
+  const draftChanged = $derived(baseDraft !== null && !sameDraft(draft, baseDraft));
+  /** Someone else saved another draft since the fields were loaded. */
+  const draftMoved = $derived(
+    selected !== null && baseDraft !== null && !sameDraft(selected.draft, baseDraft)
   );
 
   $effect(() => {
@@ -94,6 +98,7 @@
 
   function fillDraft(item: StaffProblemMeldung): void {
     draft = { ...item.draft };
+    baseDraft = { ...item.draft };
   }
 
   async function reload(): Promise<void> {
@@ -133,6 +138,12 @@
   async function save(announce = true): Promise<boolean> {
     if (!selected || busy) return false;
     if (dialog.invalid(validate())) return false;
+    // The fresh version of the report must not carry fields that were loaded before another
+    // leader saved: this would overwrite that draft without asking
+    if (draftMoved) {
+      dialog.fail(new ApiError(409, 'Entwurf geändert'), '');
+      return false;
+    }
     const { id, etag } = selected;
     const saved = await dialog.run(async () => {
       await sendApi('PATCH', `/intern/pflege/problemmeldungen/${id}`, { ...draft, etag });
@@ -160,6 +171,8 @@
       const fresh = await refresh(id);
       // The assessment only fills a draft nobody started
       if (fresh && !typed) fillDraft(fresh);
+      // Typed text wins over a draft that was filled in the meantime
+      else if (fresh) baseDraft = { ...fresh.draft };
       if (fresh?.ai.status === 'fertig') message = 'Einschätzung erstellt.';
       else
         dialog.fail(
@@ -223,7 +236,9 @@
     if (!ok) {
       sending = false;
       // Reserving the hand-over changes the version; the retry needs the current one
-      await reload();
+      const fresh = await refresh(id);
+      // Fields nobody touched follow the current draft; typed ones stay and meet a conflict on saving
+      if (fresh && !draftChanged) fillDraft(fresh);
     }
   }
 
@@ -235,6 +250,7 @@
           entry: selected.entry,
           environment: selected.environment,
           context: selected.context,
+          contact: selected.contact,
         })
       : ''
   );

@@ -118,7 +118,9 @@ export function redactSensitive(text: string): string {
     text
       // eslint-disable-next-line no-control-regex -- control characters other than line breaks
       .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '')
-      .replace(/(https?:\/\/[^\s?#]+)[?#]\S*/gi, '$1')
+      // Query and fragment of URLs, absolute, relative (`/anmelden?code=1`) or with only a domain
+      .replace(/(\S*\/[^\s?#]*)[?#]\S*/g, '$1')
+      .replace(/\b((?:[a-z0-9-]+\.)+[a-z]{2,})[?#]\S+/gi, '$1')
       .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]*/g, REDACTED)
       .replace(/\bBearer\s+\S+/gi, `Bearer ${REDACTED}`)
       .replace(
@@ -129,9 +131,19 @@ export function redactSensitive(text: string): string {
   );
 }
 
-/** For text that is sent on to GitHub or the model: also without e-mail addresses. */
-export function redactForForwarding(text: string): string {
-  return redactSensitive(text).replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '[E-Mail entfernt]');
+/**
+ * For text that is sent on to GitHub or the model: also without e-mail addresses (anything that
+ * looks like one, so every address the form accepts is covered) and without the contact address
+ * of the report itself, wherever it appears.
+ */
+export function redactForForwarding(text: string, contact = ''): string {
+  let result = redactSensitive(text);
+  const own = contact.trim().toLowerCase();
+  if (own) {
+    const escaped = own.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(escaped, 'gi'), '[E-Mail entfernt]');
+  }
+  return result.replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[E-Mail entfernt]');
 }
 
 /** Trimmed text of one line, cut to `max`; `''` for anything else. */
@@ -320,6 +332,8 @@ export interface IssueSource {
   entry: ProblemEntry;
   environment: ProblemEnvironment;
   context: ProblemContext;
+  /** The contact address of the report; it is removed from the draft wherever it appears. */
+  contact?: string;
 }
 
 /** The line that identifies the report in the issue; used to find it again after an unclear send. */
@@ -361,7 +375,7 @@ export function issueDetails(source: IssueSource): string {
 /** The complete issue text: the draft, the technical details and the marker. */
 export function buildIssueBody(draft: string, source: IssueSource): string {
   return [
-    redactForForwarding(draft).trim(),
+    redactForForwarding(draft, source.contact).trim(),
     '## Technische Angaben',
     issueDetails(source),
     `_${issueMarker(source.id)} · über „Problem melden“ auf stamm-phoenix.de gemeldet_`,

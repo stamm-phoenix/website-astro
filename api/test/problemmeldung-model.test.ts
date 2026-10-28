@@ -212,3 +212,24 @@ test('an answer of the model is checked against the schema', () => {
     assert.throws(() => parseProblemAssessment(broken), /schema/);
   }
 });
+
+test('relative and bare-domain URLs lose their query and fragment', () => {
+  const redacted = redactSensitive(
+    'Nach /anmelden?code=123456#weiter und x.de?token=abc und stamm-phoenix.de/a/b?x=1 geht nichts.'
+  );
+  assert.equal(redacted, 'Nach /anmelden und x.de und stamm-phoenix.de/a/b geht nichts.');
+  assert.equal(redactSensitive('Warum geht das nicht?'), 'Warum geht das nicht?');
+});
+
+test('every accepted address and the contact itself stay out of forwarded text', () => {
+  const contact = 'erika@bücher.de';
+  assert.equal(
+    validateProblemReport({ description: 'Es geht nicht.', contact }).errors.contact,
+    undefined
+  );
+  const text = `Schreib an erika@bücher.de oder ERIKA@BÜCHER.DE, ${contact}.`;
+  assert.ok(!redactForForwarding(text).includes('bücher'));
+  assert.ok(!redactForForwarding(text, contact).includes('bücher'));
+  const body = buildIssueBody(text, { ...SOURCE, contact });
+  assert.ok(!body.includes('bücher'));
+});
