@@ -396,3 +396,71 @@ test('every accepted address and the contact itself stay out of forwarded text',
   const body = buildIssueBody(text, { ...SOURCE, contact });
   assert.ok(!body.includes('bücher'));
 });
+
+test('quoted secret field names are redacted before storage and model forwarding', () => {
+  for (const description of [
+    'Fehler {"password":"hunter2","token":"abc123"} beim Speichern.',
+    'Fehler password=[entfernt]hunter2 beim Speichern.',
+    'Fehler {"token":123,"password": "hunter2"} beim Speichern.',
+    'Fehler {"token":[entfernt]hunter2,"password":"abc123"} beim Speichern.',
+    "Fehler {'secret': 'abc123', 'key': 'hunter2'} beim Speichern.",
+    'Fehler {"authorization":"Basic abc123"} beim Speichern.',
+    'Fehler {"cookie":"session=hunter2"} beim Speichern.',
+    'Fehler {"set-cookie":"session=abc123"} beim Speichern.',
+  ]) {
+    const browser = validateProblemReport({ description }).report;
+    assert.ok(browser);
+    const server = validateProblemReport({ ...browser }).report;
+    assert.ok(server);
+    const model = problemModelInput({ ...MELDUNG, description: server.description });
+    for (const value of [browser.description, server.description, model]) {
+      assert.ok(!value.includes('hunter2') && !value.includes('abc123'), value);
+      assert.ok(value.includes('Fehler'), value);
+    }
+    assert.equal(redactSensitive(browser.description), browser.description);
+    assert.equal(server.description, browser.description);
+  }
+  assert.equal(
+    redactSensitive('Der Text enthält "title": "Fehler".'),
+    'Der Text enthält "title": "Fehler".'
+  );
+});
+
+test('quoted secrets include escaped delimiters and long values', () => {
+  for (const password of [
+    'abc" hunter2',
+    'abc\\" hunter2',
+    'a'.repeat(240) + ' hunter2',
+    'a'.repeat(240) + ' hunter2" end',
+  ]) {
+    const description =
+      'Fehler ' + JSON.stringify({ password, token: 'abc123' }) + ' beim Speichern.';
+    const once = redactSensitive(description);
+    assert.ok(!once.includes('hunter2') && !once.includes('abc123'), once);
+    assert.ok(once.endsWith('beim Speichern.'), once);
+    assert.equal(redactSensitive(once), once);
+    assert.ok(!problemModelInput({ ...MELDUNG, description }).includes('hunter2'));
+  }
+});
+
+test('structured secret values are removed completely', () => {
+  for (const value of [
+    ['first-secret', 'hunter2'],
+    { access: 'first-secret', refresh: 'hunter2' },
+    [{ nested: ['first-secret', { inner: 'hunter2' }] }],
+    ['brackets } ] and escaped " quote', 'hunter2'],
+  ]) {
+    const description =
+      'Fehler ' +
+      JSON.stringify({ password: value, token: 'abc123', title: 'Normales Feld' }) +
+      ' beim Speichern.';
+    const once = redactSensitive(description);
+    assert.ok(
+      !once.includes('hunter2') && !once.includes('first-secret') && !once.includes('abc123'),
+      once
+    );
+    assert.ok(once.includes('Normales Feld') && once.endsWith('beim Speichern.'), once);
+    assert.equal(redactSensitive(once), once);
+    assert.ok(!problemModelInput({ ...MELDUNG, description }).includes('hunter2'));
+  }
+});
