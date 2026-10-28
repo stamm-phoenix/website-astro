@@ -50,6 +50,11 @@ export interface Resource<T, P = void> {
    * the server again, and the data stays shown until the answer is there.
    */
   invalidate: () => void;
+  /**
+   * Shows the view a write answered with; a load still in flight was asked before the write and
+   * must not bring the old data back.
+   */
+  set: (data: T) => void;
 }
 
 interface ResourceOptions {
@@ -121,7 +126,17 @@ export function createResource<T, P = void>(
     revision++;
   }
 
-  return { state, load, invalidate };
+  function set(data: T): void {
+    latest++;
+    pending = null;
+    state.data = data;
+    state.loadedAt = Date.now();
+    state.error = null;
+    state.loading = false;
+    loadedRevision = revision;
+  }
+
+  return { state, load, invalidate, set };
 }
 
 export const gruppenstundenPflege = createResource<StaffGruppenstundenData>(

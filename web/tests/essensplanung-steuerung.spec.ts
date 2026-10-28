@@ -35,6 +35,36 @@ test('the Steuerung saves who may create Planungen and the templates', async ({ 
   await expect(save).toBeDisabled();
 });
 
+test('a load asked before saving does not bring the old settings back', async ({ page }) => {
+  await page.goto('/leitendenbereich/essensplanung-steuerung');
+  const months = page.getByLabel(/Aufbewahrung in Monaten/);
+  await expect(months).toHaveValue('12');
+  // The reload reads the old settings, but its answer only arrives after the save
+  let release: () => void = () => undefined;
+  const released = new Promise<void>((done) => (release = done));
+  await page.route('**/api/intern/essensplanung/steuerung', async (route) => {
+    const old = await route.fetch();
+    await released;
+    await route.fulfill({ response: old });
+  });
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await months.fill('24');
+  await page.getByRole('button', { name: 'Einstellungen speichern' }).click();
+  await expect(
+    page.getByText('Einstellungen gespeichert. Sie gelten ab sofort.').first()
+  ).toBeVisible();
+  release();
+  await page.waitForResponse('**/api/intern/essensplanung/steuerung');
+  await page.unroute('**/api/intern/essensplanung/steuerung');
+  await expect(months).toHaveValue('24');
+  await expect(page.getByText('Alle Änderungen gespeichert.')).toBeVisible();
+
+  // Restore the demo state for the following tests of this worker
+  await months.fill('12');
+  await page.getByRole('button', { name: 'Einstellungen speichern' }).click();
+  await expect(page.getByRole('button', { name: 'Einstellungen speichern' })).toBeDisabled();
+});
+
 test('the maintenance mode asks before it is switched on', async ({ page }) => {
   await page.goto('/leitendenbereich/essensplanung-steuerung');
   const save = page.getByRole('button', { name: 'Einstellungen speichern' });

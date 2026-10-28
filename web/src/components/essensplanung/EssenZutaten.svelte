@@ -121,10 +121,12 @@
     onnotice(null);
     await dialog.run(async () => {
       if (id) {
-        store.data = await sendApi<StaffEssenSteuerung>(
-          'PATCH',
-          `/intern/pflege/essensplanung/zutaten/${id}`,
-          { ...body, etag }
+        essensplanungSteuerung.set(
+          await sendApi<StaffEssenSteuerung>(
+            'PATCH',
+            `/intern/pflege/essensplanung/zutaten/${id}`,
+            { ...body, etag }
+          )
         );
       } else {
         const result = await sendApi<{ id: number; view: StaffEssenSteuerung }>(
@@ -132,7 +134,7 @@
           '/intern/pflege/essensplanung/zutaten',
           body
         );
-        store.data = result.view;
+        essensplanungSteuerung.set(result.view);
       }
       onnotice(`Zutat „${body.name.trim()}“ gespeichert.`);
       form = null;
@@ -145,11 +147,13 @@
     // A new message even when it repeats the last one, so the popup shows again
     onnotice(null);
     await dialog.run(async () => {
-      store.data = await sendApi<StaffEssenSteuerung>(
-        'DELETE',
-        `/intern/pflege/essensplanung/zutaten/${current.id}`,
-        undefined,
-        { etag: current.etag }
+      essensplanungSteuerung.set(
+        await sendApi<StaffEssenSteuerung>(
+          'DELETE',
+          `/intern/pflege/essensplanung/zutaten/${current.id}`,
+          undefined,
+          { etag: current.etag }
+        )
       );
       onnotice(`Zutat „${current.name}“ gelöscht.`);
       form = null;
