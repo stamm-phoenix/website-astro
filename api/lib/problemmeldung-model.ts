@@ -109,17 +109,17 @@ export const EMPTY_PROBLEM_CONTEXT: ProblemContext = {
 const REDACTED = '[entfernt]';
 
 /**
- * A token of a text without query and fragment, if it is a URL: it has a path (`/anmelden?code=1`,
- * `https://x.de/a?b`) or is only a domain. Everything from the first `?` or `#` goes, also paths
- * and further parameters inside the query. Other tokens (`Warum?`) stay.
+ * A token of a text without query and fragment, if it looks like a URL: before the first `?` or
+ * `#` it has a path, a dot, a port or an IPv6 address (`/a`, `x.de`, `localhost:4321`, `[::1]`), or
+ * after it comes a `name=value`. Everything from there goes, also paths and further parameters
+ * inside the query. Other tokens (`Warum?`, `ja?nein`) stay. Errs on the side of cutting: a
+ * secret in a link is worse than a lost word.
  */
 function withoutQuery(token: string): string {
   const cut = token.search(/[?#]/);
-  if (cut < 0 || cut === token.length - 1) return token;
+  if (cut <= 0 || cut === token.length - 1) return token;
   const prefix = token.slice(0, cut);
-  return prefix.includes('/') || /^[([<"'„“‚‘»]*(?:[a-z0-9-]+\.)+[a-z]{2,}$/i.test(prefix)
-    ? prefix
-    : token;
+  return /[/.:\]]/.test(prefix) || token.slice(cut).includes('=') ? prefix : token;
 }
 
 /**

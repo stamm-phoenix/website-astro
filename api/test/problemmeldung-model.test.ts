@@ -238,6 +238,28 @@ test('domains in brackets or quotation marks lose their query too', () => {
   }
 });
 
+test('hosts with ports, addresses and odd punctuation lose their query', () => {
+  for (const url of [
+    'stamm-phoenix.de:443?code=123456',
+    '192.168.0.1:8080?code=123456',
+    '192.168.0.1?code=123456',
+    'localhost:4321?code=123456',
+    'localhost?code=123456',
+    '[::1]:4321?code=123456',
+    'stamm-phoenix.de:443#123456',
+    '«stamm-phoenix.de?code=123456»',
+    '{stamm-phoenix.de?code=123456}',
+    'stamm-phoenix.de.?code=123456',
+    'mailto:kontakt@stamm-phoenix.de?subject=123456',
+    'WWW.Stamm-Phoenix.DE?CODE=123456',
+  ]) {
+    const text = `Bei ${url} geht es nicht.`;
+    assert.ok(!redactSensitive(text).includes('123456'), url);
+    assert.ok(!redactForForwarding(text).includes('123456'), url);
+  }
+  assert.equal(redactSensitive('Warum? Geht das? ja?nein #42'), 'Warum? Geht das? ja?nein #42');
+});
+
 test('every accepted address and the contact itself stay out of forwarded text', () => {
   const contact = 'erika@bücher.de';
   assert.equal(
