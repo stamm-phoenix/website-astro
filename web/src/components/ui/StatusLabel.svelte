@@ -25,7 +25,7 @@
   .status-label {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
+    gap: calc(var(--spacing) * 1.5);
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--color-neutral-700);

@@ -899,8 +899,8 @@
 <style>
   .zeitplan-icon {
     display: inline-flex;
-    min-height: 2.75rem;
-    min-width: 2.75rem;
+    min-height: calc(var(--spacing) * 11);
+    min-width: calc(var(--spacing) * 11);
     align-items: center;
     justify-content: center;
     border-radius: 0.25rem;

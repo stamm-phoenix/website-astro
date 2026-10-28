@@ -3,6 +3,7 @@ import BaseLayout from './BaseLayout.astro';
 import StaffHeader from '../components/StaffHeader.astro';
 import StaffNav from '../components/StaffNav.svelte';
 import StaffSidebar from '../components/StaffSidebar.svelte';
+import { DENSITY_KEY } from '../lib/density';
 import { SIDEBAR_KEY } from '../lib/staffSidebar';
 import StaffIntro from '../components/StaffIntro.svelte';
 import StaffFooter from '../components/StaffFooter.astro';
@@ -73,6 +74,13 @@ const title =
     <link rel="manifest" href="/leitendenbereich.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="Leitende" />
+    {!bare && <script is:inline define:vars={{ key: DENSITY_KEY }}>
+      // Before the first paint: the compact view of this device, see lib/density.ts
+      try {
+        if (localStorage.getItem(key) === 'kompakt')
+          document.documentElement.dataset.density = 'compact';
+      } catch {}
+    </script>}
   </Fragment>
   <StaffHeader slot="header" />
 
@@ -207,6 +215,6 @@ const title =
 
 <style>
   :global(html:has(#staff-content)) {
-    scroll-padding-top: 6rem;
+    scroll-padding-top: calc(var(--spacing) * 24);
   }
 </style>

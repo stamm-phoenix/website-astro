@@ -265,10 +265,10 @@
     min-width: 2.5rem;
   }
   .inhalt {
-    padding-left: 5.5rem;
+    padding-left: calc(var(--spacing) * 22);
   }
   .is-sub .inhalt {
-    padding-left: 5.75rem;
+    padding-left: calc(var(--spacing) * 23);
   }
   /* While an item is dragged, every item shrinks to its title row */
   :global(.is-ordering) .details,
@@ -276,7 +276,7 @@
     display: none;
   }
   :global(.is-ordering) .punkt-editor {
-    row-gap: 0.25rem;
+    row-gap: var(--spacing);
   }
   .icon-button.griff {
     width: 2.75rem;
@@ -294,7 +294,7 @@
     font-size: 1.0625rem;
   }
   .text {
-    min-height: 4.5rem;
+    min-height: calc(var(--spacing) * 18);
     resize: vertical;
     line-height: 1.55;
     overflow: hidden;

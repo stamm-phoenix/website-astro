@@ -201,9 +201,10 @@
 </li>
 
 <style>
-  /* Keep the first 28px title line centered on the 44px checkbox/menu targets. */
+  /* Keep the first 28px title line centered on the checkbox/menu targets (44px, or their 24px
+     icons in the compact view). */
   .accepted-title {
-    padding-block: 0.5rem;
+    padding-block: max(0px, (max(var(--spacing) * 11, 1.5rem) - 1.75rem) / 2);
     line-height: 1.75rem;
   }
   .task-open {

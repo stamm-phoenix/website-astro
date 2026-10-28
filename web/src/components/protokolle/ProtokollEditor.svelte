@@ -1461,7 +1461,7 @@
   :global(.markdown-hilfe code) {
     font-size: 0.8125rem;
     background: var(--color-neutral-100);
-    padding: 0 0.2rem;
+    padding: 0 calc(var(--spacing) * 0.8);
     border-radius: var(--radius-sm);
   }
   @media (min-width: 48rem) {

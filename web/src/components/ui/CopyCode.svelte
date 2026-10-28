@@ -67,11 +67,11 @@
 <style>
   .copy-code {
     display: inline-flex;
-    min-height: 2.75rem;
+    min-height: calc(var(--spacing) * 11);
     align-items: center;
-    gap: 0.375rem;
-    margin-block: -0.5rem;
-    padding: 0 0.5rem;
+    gap: calc(var(--spacing) * 1.5);
+    margin-block: calc(var(--spacing) * -2);
+    padding: 0 calc(var(--spacing) * 2);
     border: 1px solid var(--color-neutral-300);
     border-radius: 0.375rem;
     background: var(--color-surface);
@@ -81,10 +81,10 @@
     white-space: nowrap;
   }
   .copy-code.small {
-    min-height: 1.75rem;
+    min-height: calc(var(--spacing) * 7);
     margin-block: 0;
-    gap: 0.25rem;
-    padding: 0 0.375rem;
+    gap: var(--spacing);
+    padding: 0 calc(var(--spacing) * 1.5);
     font-size: 0.8125rem;
   }
   .copy-code.small svg {
@@ -93,8 +93,8 @@
   }
   @media (any-pointer: coarse) {
     .copy-code.small {
-      min-height: 2.75rem;
-      padding: 0 0.5rem;
+      min-height: calc(var(--spacing) * 11);
+      padding: 0 calc(var(--spacing) * 2);
     }
   }
   .copy-code:hover {

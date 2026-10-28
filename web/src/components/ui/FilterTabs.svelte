@@ -89,12 +89,12 @@
     border: 1px solid var(--color-neutral-300);
     border-radius: 0.375rem;
     background: var(--color-surface);
-    padding: 0.25rem;
+    padding: var(--spacing);
   }
   .segments .filter-tab {
     min-height: 44px;
     flex-shrink: 0;
-    padding: 0.5rem 0.75rem;
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
     border-radius: 0.25rem;
     font-weight: 600;
     box-shadow: none;
@@ -120,10 +120,10 @@
   }
   /* The underline is drawn under the whole button, so the count is included. */
   .filter-tab {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
+    min-width: calc(var(--spacing) * 11);
+    min-height: calc(var(--spacing) * 11);
     text-align: center;
-    padding-block: 0.5rem;
+    padding-block: calc(var(--spacing) * 2);
     color: var(--color-neutral-700);
     font-size: 0.875rem;
     white-space: nowrap;

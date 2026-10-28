@@ -201,11 +201,11 @@
   /* Square toggles like the Anwesenheit of the Gruppenstunden */
   .status {
     display: inline-flex;
-    min-height: 2.75rem;
+    min-height: calc(var(--spacing) * 11);
     align-items: center;
-    gap: 0.4rem;
+    gap: calc(var(--spacing) * 1.6);
     border: 1px solid var(--color-neutral-300);
-    padding: 0 0.6rem 0 0.45rem;
+    padding: 0 calc(var(--spacing) * 2.4) 0 calc(var(--spacing) * 1.8);
     font-size: 0.875rem;
     color: var(--color-neutral-700);
   }

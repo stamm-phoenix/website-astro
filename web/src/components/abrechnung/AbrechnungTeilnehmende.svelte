@@ -591,10 +591,10 @@
     .tn-table .tn-row {
       display: grid;
       grid-template-columns: 3.5rem minmax(0, 1fr) minmax(0, 1fr);
-      column-gap: 0.75rem;
-      row-gap: 0.5rem;
+      column-gap: calc(var(--spacing) * 3);
+      row-gap: calc(var(--spacing) * 2);
       align-items: start;
-      padding-block: 0.75rem;
+      padding-block: calc(var(--spacing) * 3);
     }
 
     .tn-row > * {
@@ -610,10 +610,10 @@
 
     .tn-check-target {
       flex-direction: column;
-      gap: 0.25rem;
+      gap: var(--spacing);
       width: 3.5rem;
-      min-height: 2.75rem;
-      padding-top: 0.25rem;
+      min-height: calc(var(--spacing) * 11);
+      padding-top: var(--spacing);
     }
 
     .tn-name {
@@ -622,8 +622,8 @@
     }
 
     .tn-name button {
-      min-height: 2.75rem;
-      padding-inline: 0.25rem;
+      min-height: calc(var(--spacing) * 11);
+      padding-inline: var(--spacing);
     }
 
     .tn-row > .tn-gender,
@@ -645,7 +645,7 @@
 
     .tn-row input[type='text'],
     .tn-row select {
-      min-height: 2.75rem;
+      min-height: calc(var(--spacing) * 11);
     }
 
     .tn-row select {

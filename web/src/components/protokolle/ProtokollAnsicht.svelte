@@ -328,7 +328,7 @@
   .protokoll-ansicht {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: calc(var(--spacing) * 8);
     min-width: 0;
   }
 
@@ -336,13 +336,13 @@
   .kopf {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding: 1.25rem 1.5rem;
+    gap: calc(var(--spacing) * 3);
+    padding: calc(var(--spacing) * 5) calc(var(--spacing) * 6);
   }
   .kopf-daten {
     display: grid;
-    gap: 0.75rem 2rem;
-    margin-top: 0.25rem;
+    gap: calc(var(--spacing) * 3) calc(var(--spacing) * 8);
+    margin-top: var(--spacing);
   }
   @media (min-width: 40rem) {
     .kopf-daten {
@@ -360,12 +360,12 @@
     color: var(--color-neutral-700);
   }
   .kopf-daten dd {
-    margin-top: 0.15rem;
+    margin-top: calc(var(--spacing) * 0.6);
   }
   .namen {
     display: flex;
     flex-wrap: wrap;
-    column-gap: 0.3rem;
+    column-gap: calc(var(--spacing) * 1.2);
   }
   .namen li:not(:last-child)::after {
     content: ',';
@@ -375,19 +375,19 @@
   .punkte {
     display: flex;
     flex-direction: column;
-    gap: 2.25rem;
+    gap: calc(var(--spacing) * 9);
   }
   .punkt {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: calc(var(--spacing) * 2.4);
     border-radius: var(--radius-md);
     transition: background-color 1.2s ease-out;
   }
   .punkt-titel {
     display: flex;
     align-items: baseline;
-    gap: 0.75rem;
+    gap: calc(var(--spacing) * 3);
     font-size: 1.25rem;
     font-weight: 600;
     line-height: 1.3;
@@ -395,7 +395,7 @@
   }
   .punkt:not(.is-sub) > .punkt-titel {
     border-bottom: 1px solid var(--color-neutral-200);
-    padding-bottom: 0.4rem;
+    padding-bottom: calc(var(--spacing) * 1.6);
   }
   .punkt-titel .nummer {
     flex: none;
@@ -412,19 +412,19 @@
   .punkt-inhalt {
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
-    padding-left: 2.75rem;
+    gap: calc(var(--spacing) * 3.6);
+    padding-left: calc(var(--spacing) * 11);
   }
   .punkt.is-sub .punkt-inhalt {
-    padding-left: 3rem;
+    padding-left: calc(var(--spacing) * 12);
   }
   .unterpunkte {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    margin-top: 0.4rem;
+    gap: calc(var(--spacing) * 6);
+    margin-top: calc(var(--spacing) * 1.6);
     border-left: 2px solid var(--color-neutral-200);
-    padding-left: 1rem;
+    padding-left: calc(var(--spacing) * 4);
   }
   @media (max-width: 40rem) {
     .punkt-inhalt,
@@ -432,7 +432,7 @@
       padding-left: 0;
     }
     .unterpunkte {
-      padding-left: 0.75rem;
+      padding-left: calc(var(--spacing) * 3);
     }
   }
   .lesetext {
@@ -461,7 +461,7 @@
   }
   .liste th {
     border-bottom: 2px solid var(--color-neutral-200);
-    padding: 0.35rem 0.75rem 0.35rem 0;
+    padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 3) calc(var(--spacing) * 1.4) 0;
     text-align: left;
     font-size: 0.75rem;
     font-weight: 600;
@@ -475,7 +475,7 @@
   }
   .liste td {
     border-bottom: 1px solid var(--color-neutral-200);
-    padding: 0.45rem 0.75rem 0.45rem 0;
+    padding: calc(var(--spacing) * 1.8) calc(var(--spacing) * 3) calc(var(--spacing) * 1.8) 0;
     vertical-align: top;
   }
   @media (max-width: 40rem) {
@@ -495,11 +495,11 @@
     }
     .liste tr {
       border-bottom: 1px solid var(--color-neutral-200);
-      padding: 0.5rem 0;
+      padding: calc(var(--spacing) * 2) 0;
     }
     .liste td {
       border: 0;
-      padding: 0.1rem 0;
+      padding: calc(var(--spacing) * 0.4) 0;
     }
     .liste td:not(:first-child)::before {
       content: attr(data-label) ': ';
@@ -515,18 +515,18 @@
   .ueberblick {
     display: flex;
     flex-direction: column;
-    gap: 1.75rem;
+    gap: calc(var(--spacing) * 7);
     border-top: 2px solid var(--color-neutral-200);
-    padding-top: 1.5rem;
+    padding-top: calc(var(--spacing) * 6);
   }
   .abschnitt-titel {
-    margin-bottom: 0.5rem;
+    margin-bottom: calc(var(--spacing) * 2);
     font-size: 1.15rem;
     font-weight: 600;
     color: var(--color-brand-900);
   }
   .naechste {
-    padding: 1rem 1.5rem;
+    padding: calc(var(--spacing) * 4) calc(var(--spacing) * 6);
   }
 
   /* Presentation window */
@@ -565,7 +565,7 @@
 
   @media print {
     .protokoll-ansicht {
-      gap: 1.25rem;
+      gap: calc(var(--spacing) * 5);
       font-size: 11pt;
     }
     .kopf,

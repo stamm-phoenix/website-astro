@@ -160,6 +160,6 @@
 
 <style>
   .check {
-    min-height: 2.75rem;
+    min-height: calc(var(--spacing) * 11);
   }
 </style>

@@ -355,7 +355,7 @@
    */
   :global(html[data-staff-sidebar='eingeklappt'] astro-island[ssr]) .staff-sidebar {
     width: 3.5rem;
-    padding-right: 0.5rem;
+    padding-right: calc(var(--spacing) * 2);
   }
   :global(html[data-staff-sidebar='eingeklappt'] astro-island[ssr] .staff-fold) {
     opacity: 0;

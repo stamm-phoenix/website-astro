@@ -60,6 +60,16 @@ Die dunkle Palette verwendet Nacht `#101b26` für die Seite, Zelt `#172633` für
 
 Ohne gespeicherte Auswahl folgt das Theme der Systemeinstellung, auch ohne JavaScript. Der Hell-/Dunkel-Schalter im Header speichert eine bewusste Auswahl lokal. Diese übersteuert die Systemeinstellung und bleibt beim Neuladen sowie nach Astro-Navigation erhalten. Ist der Speicher gesperrt, bleibt die Auswahl während der aktuellen Sitzung und Astro-Navigation erhalten. Logos und Browserfarbe wechseln mit. Ohne JavaScript wird der Schalter ausgeblendet. Externe CampFlow-Formulare und Karten können hell bleiben. Das Mitgliedsformular hat ausdrücklich `color-scheme: light` und einen weißen Hintergrund. Logos stehen direkt auf dem Theme-Hintergrund.
 
+## Kompakte Ansicht im Leitendenbereich
+
+Neben dem Hell-/Dunkel-Schalter sitzt im Leitendenbereich ein Schalter für die kompakte Ansicht (`DensityToggle.astro`, `lib/density.ts`). Er setzt `data-density="compact"` am `html`-Element und speichert die Wahl pro Gerät (`phoenix:staff-density:v1`); das Inline-Script in `StaffLayout.astro` setzt sie vor dem ersten Zeichnen. Die kompakte Ansicht verkleinert bewusst auch Touch-Ziele unter 44px; wer sie braucht, schaltet zurück.
+
+Beide Ansichten unterscheiden sich nur in den Variablen von `:root[data-density='compact']` in `global.css`: `--density` (Faktor für alle Abstände) und `--body-leading` (Zeilenhöhe). Tailwinds Einheit `--spacing` ist `0.25rem * var(--density)`, damit schrumpfen alle `p-*`, `m-*`, `gap-*`, `space-*`, `min-h-*` und `min-w-*`. `size-*`, `w-*`, `h-*`, `max-w-*`, `max-h-*` und `basis-*` rechnen mit `--size-unit` und bleiben gleich, damit Icons, Bilder und Spalten ihre Größe behalten. Daraus folgt für neuen Code:
+
+- Eigene Styles schreiben Abstände und Touch-Ziele als `calc(var(--spacing) * n)` statt in `rem`, Abstände in `em` als `calc(0.5em * var(--density))`.
+- Touch-Ziele mit Icon bekommen `min-h-11 min-w-11` statt `size-11`, sonst bleiben sie in der kompakten Ansicht groß.
+- Feste Größen, die nicht schrumpfen sollen (Spaltenbreiten, Nummernspalten, Badges), bleiben in `rem`.
+
 ## Prüfung
 
 Die bestehenden Ablaufprüfungen bleiben erhalten. `web/tests/theme.spec.ts` ergänzt helle und dunkle Präferenzen, deren Wechsel, Astro-Navigation, Navigation ohne JavaScript, Fehlermarkierungen und Druckzustände. Ein eigenes WebKit-Projekt mit iPad-Viewport prüft die Theme-Suite zusätzlich zu Chromium auf Desktop und Mobil, einschließlich der inline gerenderten Lilie bei manueller Auswahl gegen die Systemeinstellung. Das ist keine Prüfung auf einem echten iPad. Screenshots sollen öffentliche Seiten, Mitgliederansichten sowie Belege, Kalender, Abrechnung und Dialoge auf Desktop und Mobil einbeziehen.

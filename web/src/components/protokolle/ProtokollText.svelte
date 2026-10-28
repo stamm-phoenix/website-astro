@@ -112,31 +112,31 @@
   .protokoll-text {
     display: flex;
     flex-direction: column;
-    gap: 0.6em;
+    gap: calc(0.6em * var(--density));
     overflow-wrap: anywhere;
   }
   .protokoll-text :global(.md-item) {
     display: flex;
     flex-direction: column;
-    gap: 0.35em;
+    gap: calc(0.35em * var(--density));
   }
   .md-list {
     display: flex;
     flex-direction: column;
-    gap: 0.25em;
-    padding-left: 1.5em;
+    gap: calc(0.25em * var(--density));
+    padding-left: calc(1.5em * var(--density));
   }
   .md-list.is-tasks {
     list-style: none;
-    padding-left: 0.25em;
+    padding-left: calc(0.25em * var(--density));
   }
   .md-list .md-list {
-    margin-top: 0.25em;
+    margin-top: calc(0.25em * var(--density));
   }
   li.is-task {
     display: flex;
     align-items: flex-start;
-    gap: 0.5em;
+    gap: calc(0.5em * var(--density));
   }
   .md-check {
     display: inline-grid;
@@ -144,7 +144,7 @@
     place-items: center;
     width: 1.05em;
     height: 1.05em;
-    margin-top: 0.25em;
+    margin-top: calc(0.25em * var(--density));
     border: 1.5px solid var(--color-neutral-500, currentColor);
     border-radius: 0.2em;
   }
@@ -158,7 +158,7 @@
     height: 0.8em;
   }
   .md-heading {
-    margin-top: 0.4em;
+    margin-top: calc(0.4em * var(--density));
     font-weight: 600;
     color: var(--color-brand-900);
   }
@@ -170,25 +170,25 @@
     border-radius: var(--radius-sm, 0.25rem);
   }
   .md-code {
-    padding: 0.1em 0.3em;
+    padding: calc(0.1em * var(--density)) calc(0.3em * var(--density));
   }
   .md-pre {
-    padding: 0.75em 1em;
+    padding: calc(0.75em * var(--density)) calc(1em * var(--density));
     overflow-x: auto;
     white-space: pre;
   }
   .md-quote {
     display: flex;
     flex-direction: column;
-    gap: 0.5em;
+    gap: calc(0.5em * var(--density));
     border-left: 3px solid var(--color-neutral-300);
-    padding-left: 0.9em;
+    padding-left: calc(0.9em * var(--density));
     color: var(--color-neutral-700);
   }
   .md-hr {
     border: 0;
     border-top: 1px solid var(--color-neutral-200);
-    margin: 0.4em 0;
+    margin: calc(0.4em * var(--density)) 0;
   }
   .md-table-wrap {
     max-width: 100%;
@@ -201,7 +201,7 @@
   .md-table th,
   .md-table td {
     border: 1px solid var(--color-neutral-200);
-    padding: 0.35em 0.65em;
+    padding: calc(0.35em * var(--density)) calc(0.65em * var(--density));
     text-align: left;
     vertical-align: top;
   }

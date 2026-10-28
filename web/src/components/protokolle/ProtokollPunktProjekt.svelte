@@ -297,7 +297,7 @@
 <style>
   .offene {
     border-left: 2px solid var(--color-neutral-300);
-    padding-left: 0.75rem;
+    padding-left: calc(var(--spacing) * 3);
   }
   /* The document styles lists of the text; this one is a list of boxes */
   .offene ul {
@@ -309,7 +309,7 @@
     text-decoration: line-through;
   }
   .link-button {
-    min-height: 2.75rem;
+    min-height: calc(var(--spacing) * 11);
     color: var(--color-link);
     text-decoration: underline;
     text-underline-offset: 2px;

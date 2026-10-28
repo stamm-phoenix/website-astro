@@ -319,7 +319,7 @@
             />
             <button
               type="button"
-              class="inline-flex size-11 shrink-0 items-center justify-center rounded text-danger"
+              class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-danger"
               aria-label="Option {index + 1} entfernen{z.text.trim() ? `: ${z.text.trim()}` : ''}"
               onclick={() => removeZeile(index)}>✕</button
             >

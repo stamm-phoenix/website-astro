@@ -1,0 +1,40 @@
+<button
+  type="button"
+  hidden
+  data-density-toggle
+  aria-label="Kompakte Ansicht"
+  aria-pressed="false"
+  class="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-sm p-2 text-brand-900 hover:bg-neutral-100"
+>
+  <!-- Off: two arrows push towards the line (make it compact). On: they turn and point away from
+       it. Hidden until the script has set aria-pressed, like the theme toggle. -->
+  <svg
+    aria-hidden="true"
+    class="density-icon size-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M4 12h16" />
+    <path data-density-arrow="top" d="M12 2.5v6m-3-3 3 3 3-3" />
+    <path data-density-arrow="bottom" d="M12 21.5v-6m-3 3 3-3 3 3" />
+  </svg>
+</button>
+
+<style>
+  [data-density-arrow] {
+    transition: transform var(--motion-quick) var(--motion-move);
+  }
+  [data-density-arrow='top'] {
+    transform-origin: 12px 5.5px;
+  }
+  [data-density-arrow='bottom'] {
+    transform-origin: 12px 18.5px;
+  }
+  [aria-pressed='true'] [data-density-arrow] {
+    transform: rotate(180deg);
+  }
+</style>

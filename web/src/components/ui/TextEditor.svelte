@@ -168,8 +168,8 @@
 <style>
   /* The editable area; Tiptap renders the document inside it. Same surface as the fields */
   .inhalt :global(.text-editor-inhalt) {
-    min-height: 4.5rem;
-    padding: 0.5rem 0.75rem;
+    min-height: calc(var(--spacing) * 18);
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
   }
   .inhalt :global(p.is-editor-empty:first-child::before) {
     content: attr(data-placeholder);

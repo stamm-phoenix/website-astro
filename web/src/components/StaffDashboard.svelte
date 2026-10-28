@@ -262,7 +262,7 @@
       <!-- With a mouse on hover; on a touch screen a long press on the tile removes it -->
       <button
         type="button"
-        class="absolute -top-2 -right-2 flex size-11 items-center justify-center rounded-full border border-neutral-300 bg-surface text-brand-900 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:border-brand-900 focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
+        class="absolute -top-2 -right-2 flex min-h-11 min-w-11 items-center justify-center rounded-full border border-neutral-300 bg-surface text-brand-900 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:border-brand-900 focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
         aria-label="{module.title} aus deinen Favoriten entfernen"
         title="Aus deinen Favoriten entfernen"
         onclick={() => {

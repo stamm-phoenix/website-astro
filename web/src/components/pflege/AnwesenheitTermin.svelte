@@ -563,7 +563,7 @@
 <style>
   .child-list {
     display: grid;
-    gap: 0 1.5rem;
+    gap: 0 calc(var(--spacing) * 6);
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
   }
   .child {
@@ -571,9 +571,9 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 0.25rem 0.75rem;
+    gap: var(--spacing) calc(var(--spacing) * 3);
     border-bottom: 1px solid var(--color-neutral-200);
-    padding: 0.5rem 0;
+    padding: calc(var(--spacing) * 2) 0;
   }
   .child-name {
     color: var(--color-brand-900);

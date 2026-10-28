@@ -68,7 +68,7 @@
           <span class="min-w-0 break-words">{person.name}</span>
           <button
             type="button"
-            class="grid h-11 w-11 shrink-0 place-items-center border-l border-neutral-300 text-neutral-700 hover:text-danger"
+            class="grid min-h-11 min-w-11 shrink-0 place-items-center border-l border-neutral-300 text-neutral-700 hover:text-danger"
             aria-label="{person.name} entfernen"
             onclick={() => selected.splice(index, 1)}
           >

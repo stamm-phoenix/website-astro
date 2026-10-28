@@ -88,7 +88,7 @@
       <span class="min-w-0 break-words">{tag}</span>
       <button
         type="button"
-        class="flex size-11 shrink-0 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
+        class="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
         aria-label="{tag} entfernen"
         {disabled}
         onclick={() => remove(tag)}>×</button

@@ -824,8 +824,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
+    min-width: calc(var(--spacing) * 11);
+    min-height: calc(var(--spacing) * 11);
     border-radius: 9999px;
     background: rgb(0 0 0 / 0.5);
     color: white;

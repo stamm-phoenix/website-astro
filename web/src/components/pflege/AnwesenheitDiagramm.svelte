@@ -165,7 +165,7 @@
   }
   .labels {
     margin-left: var(--axis);
-    padding-top: 0.25rem;
+    padding-top: var(--spacing);
   }
   .labels li {
     flex: 1;

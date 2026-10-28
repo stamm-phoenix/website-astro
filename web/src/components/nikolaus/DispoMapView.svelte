@@ -729,7 +729,7 @@
 <style>
   .map-view {
     display: grid;
-    gap: 1rem;
+    gap: calc(var(--spacing) * 4);
   }
   /* Printed is the list; the component's own display would win over print:hidden */
   @media print {
@@ -760,7 +760,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: calc(var(--spacing) * 2);
   }
   .map-style {
     position: absolute;
@@ -775,7 +775,7 @@
     border: 1px solid var(--color-neutral-300);
     border-radius: 0.375rem;
     background: var(--color-surface);
-    padding: 0 0.75rem;
+    padding: 0 calc(var(--spacing) * 3);
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--color-brand-900);
@@ -788,10 +788,10 @@
     display: inline-flex;
     min-height: 44px;
     align-items: center;
-    gap: 0.5rem;
+    gap: calc(var(--spacing) * 2);
     border: 1px solid var(--color-neutral-300);
     border-radius: 9999px;
-    padding: 0 0.875rem;
+    padding: 0 calc(var(--spacing) * 3.5);
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--color-neutral-700);
@@ -819,9 +819,9 @@
     width: 100%;
     min-height: 44px;
     align-items: center;
-    gap: 0.5rem;
+    gap: calc(var(--spacing) * 2);
     border-radius: 0.375rem;
-    padding: 0 0.5rem;
+    padding: 0 calc(var(--spacing) * 2);
     text-align: left;
     font-size: 0.875rem;
     color: var(--color-neutral-900);
@@ -861,7 +861,7 @@
       max-height: calc(100vh - 12rem);
       min-height: 520px;
       overflow-y: auto;
-      padding-right: 0.25rem;
+      padding-right: var(--spacing);
     }
   }
 
@@ -897,7 +897,7 @@
   .is-large .map-panel {
     max-height: 40vh;
     overflow-y: auto;
-    padding: 0.75rem 1rem;
+    padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
   }
   @media (min-width: 1024px) {
     .map-view.is-large {

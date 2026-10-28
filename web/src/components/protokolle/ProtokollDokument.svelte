@@ -307,30 +307,30 @@
   }
   .inhalt :global(.text-editor-inhalt.dokument) {
     gap: 0;
-    padding: 0 0.75rem 0.75rem;
+    padding: 0 calc(var(--spacing) * 3) calc(var(--spacing) * 3);
   }
 
   /* An item: a section with a line above it, like the fields before */
   .inhalt :global(.punkt) {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding-top: 1rem;
+    gap: calc(var(--spacing) * 3);
+    padding-top: calc(var(--spacing) * 4);
     border-top: 1px solid var(--color-neutral-200);
   }
   .inhalt :global(.punkt + .punkt) {
-    margin-top: 1.5rem;
+    margin-top: calc(var(--spacing) * 6);
   }
   .inhalt :global(.unterpunkt) {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    margin-left: 5.5rem;
-    padding-left: 1rem;
+    gap: calc(var(--spacing) * 3);
+    margin-left: calc(var(--spacing) * 22);
+    padding-left: calc(var(--spacing) * 4);
     border-left: 1px solid var(--color-neutral-200);
   }
   .inhalt :global(.unterpunkt + .unterpunkt) {
-    margin-top: 0.5rem;
+    margin-top: calc(var(--spacing) * 2);
   }
 
   /* The title row: handle, number, title, tools; the Aktion below the title */
@@ -342,7 +342,7 @@
       '. . aktion aktion'
       '. . warnung warnung';
     align-items: start;
-    column-gap: 0.25rem;
+    column-gap: var(--spacing);
   }
   .inhalt :global(.punkt-kopf > .griff) {
     grid-area: griff;
@@ -350,7 +350,7 @@
   .inhalt :global(.punkt-kopf > .nummer) {
     grid-area: nummer;
     min-width: 2.25rem;
-    padding-top: 0.5rem;
+    padding-top: calc(var(--spacing) * 2);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--color-brand-900);
@@ -360,8 +360,8 @@
   }
   .inhalt :global(.punkt-kopf > .punkt-titel) {
     grid-area: titel;
-    min-height: 2.75rem;
-    padding: 0.5rem 0.75rem;
+    min-height: calc(var(--spacing) * 11);
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
     border: 1px solid var(--color-neutral-300);
     border-radius: var(--radius-md);
     background: var(--color-field);
@@ -380,15 +380,15 @@
   .inhalt :global(.punkt-kopf > .werkzeuge) {
     grid-area: werkzeuge;
     display: flex;
-    gap: 0.25rem;
+    gap: var(--spacing);
   }
   .inhalt :global(.punkt-kopf > .aktion-zeile) {
     grid-area: aktion;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0 0.5rem;
-    margin-top: 0.25rem;
+    gap: 0 calc(var(--spacing) * 2);
+    margin-top: var(--spacing);
     font-size: 0.875rem;
     color: var(--color-neutral-700);
   }
@@ -397,7 +397,7 @@
   }
   .inhalt :global(.punkt-kopf > .zu-lang) {
     grid-area: warnung;
-    margin-top: 0.25rem;
+    margin-top: var(--spacing);
     font-size: 0.875rem;
     color: var(--color-danger);
   }
@@ -408,18 +408,18 @@
   /* The text and the tasks sit below the title, aligned with it */
   .inhalt :global(.punkt-text),
   .inhalt :global(.punkt-extras) {
-    margin-left: 5.5rem;
+    margin-left: calc(var(--spacing) * 22);
   }
   .inhalt :global(.unterpunkt > .punkt-text),
   .inhalt :global(.unterpunkt > .punkt-extras) {
-    margin-left: 5.75rem;
+    margin-left: calc(var(--spacing) * 23);
   }
   .inhalt :global(.punkt-text) {
     display: flex;
     flex-direction: column;
-    gap: 0.6em;
-    min-height: 4.5rem;
-    padding: 0.5rem 0.75rem;
+    gap: calc(0.6em * var(--density));
+    min-height: calc(var(--spacing) * 18);
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
     border: 1px solid var(--color-neutral-300);
     border-radius: var(--radius-md);
   }
@@ -433,7 +433,7 @@
   .inhalt :global(.punkt-extras) {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: calc(var(--spacing) * 3);
   }
   @media (max-width: 40rem) {
     .inhalt :global(.punkt-text),
@@ -443,7 +443,7 @@
       margin-left: 0;
     }
     .inhalt :global(.unterpunkt) {
-      margin-left: 0.5rem;
+      margin-left: calc(var(--spacing) * 2);
     }
     /* The title gets the width; the buttons move below it, next to the Aktion */
     .inhalt :global(.punkt-kopf) {
@@ -473,11 +473,11 @@
   }
   :global(.is-ordering) .inhalt :global(.punkt),
   :global(.is-ordering) .inhalt :global(.unterpunkt) {
-    gap: 0.25rem;
-    padding-top: 0.5rem;
+    gap: var(--spacing);
+    padding-top: calc(var(--spacing) * 2);
   }
   :global(.is-ordering) .inhalt :global(.punkt + .punkt) {
-    margin-top: 0.5rem;
+    margin-top: calc(var(--spacing) * 2);
   }
 
   .inhalt :global(.icon-button) {

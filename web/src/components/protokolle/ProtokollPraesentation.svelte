@@ -182,13 +182,13 @@
   .praesentation {
     display: flex;
     justify-content: center;
-    padding: 2.5rem 3rem 50vh;
+    padding: calc(var(--spacing) * 10) calc(var(--spacing) * 12) 50vh;
   }
   .hinweis {
     position: fixed;
     right: 1rem;
     bottom: 1rem;
-    padding: 0.4rem 0.75rem;
+    padding: calc(var(--spacing) * 1.6) calc(var(--spacing) * 3);
     border: 1px solid var(--color-neutral-200);
     background: var(--color-surface);
     font-size: 0.875rem;
@@ -197,7 +197,7 @@
   }
   @media (max-width: 40rem) {
     .praesentation {
-      padding: 1.5rem 1rem 50vh;
+      padding: calc(var(--spacing) * 6) calc(var(--spacing) * 4) 50vh;
     }
   }
 </style>

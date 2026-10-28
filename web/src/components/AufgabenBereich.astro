@@ -26,6 +26,6 @@ const { area = 'aufgaben' } = Astro.props;
 
 <style is:global>
   .task-page:has([data-toast] > div) {
-    padding-bottom: 8rem;
+    padding-bottom: calc(var(--spacing) * 32);
   }
 </style>

@@ -144,7 +144,7 @@
     /* 44 px hit area around an 18 px icon, without pushing the neighbouring text apart. */
     width: 2.75rem;
     height: 2.75rem;
-    margin: -0.8125rem -0.5rem;
+    margin: calc(var(--spacing) * -3.25) calc(var(--spacing) * -2);
     border: 0;
     border-radius: 9999px;
     background: transparent;
@@ -159,7 +159,7 @@
     position: fixed;
     z-index: 60;
     display: block;
-    padding: 0.625rem 0.75rem;
+    padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 3);
     border: 1px solid var(--color-neutral-200);
     border-radius: var(--radius-md);
     background: var(--color-surface);
@@ -174,6 +174,6 @@
     overscroll-behavior: contain;
   }
   .info-hint-panel :global(p + p) {
-    margin-top: 0.5rem;
+    margin-top: calc(var(--spacing) * 2);
   }
 </style>

@@ -31,7 +31,7 @@
     height: 1.25rem;
     align-items: center;
     justify-content: center;
-    padding: 0 0.3rem;
+    padding: 0 calc(var(--spacing) * 1.2);
     border-radius: 9999px;
     background: var(--color-danger-soft);
     color: var(--color-danger);

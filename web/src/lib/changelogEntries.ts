@@ -12,6 +12,15 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-28-05-kompakte-ansicht',
+    date: '2026-10-28',
+    title: 'Neu: kompakte Ansicht zum Ausprobieren',
+    changes: [
+      'Neben dem Schalter für das dunkle Theme oben rechts gibt es jetzt einen Schalter für eine kompakte Ansicht. Sie lässt viel weniger Platz zwischen und in allen Elementen, damit mehr auf den Bildschirm passt.',
+      'Knöpfe und Felder werden dabei auch kleiner und sind auf dem Handy schwerer zu treffen. Mit demselben Schalter kommst du jederzeit zur normalen Ansicht zurück. Die Wahl gilt nur für das Gerät, auf dem du sie triffst.',
+    ],
+  },
+  {
     id: '2026-10-28-04-problemmeldungen',
     date: '2026-10-28',
     title: 'Neu: Problemmeldungen der Website sichten',

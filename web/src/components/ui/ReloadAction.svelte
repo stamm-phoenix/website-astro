@@ -34,12 +34,12 @@
 <style>
   .reload-action {
     display: inline-flex;
-    min-height: 2.75rem;
-    min-width: 2.75rem;
+    min-height: calc(var(--spacing) * 11);
+    min-width: calc(var(--spacing) * 11);
     align-items: center;
     justify-content: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.5rem;
+    gap: calc(var(--spacing) * 1.5);
+    padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
     border: 0;
     background: transparent;
     color: var(--color-link);

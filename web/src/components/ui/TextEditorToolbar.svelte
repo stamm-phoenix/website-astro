@@ -421,13 +421,13 @@
   .table-tool {
     display: grid;
     place-items: center;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
+    min-width: calc(var(--spacing) * 11);
+    min-height: calc(var(--spacing) * 11);
     border-radius: var(--radius-md);
     color: var(--color-brand-900);
   }
   .table-tool {
-    padding: 0 0.6rem;
+    padding: 0 calc(var(--spacing) * 2.4);
     font-size: 0.875rem;
   }
   .tool:hover:not(:disabled),

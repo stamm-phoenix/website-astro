@@ -243,14 +243,14 @@
 <style>
   .werkzeug {
     display: inline-flex;
-    min-height: 2.75rem;
-    min-width: 2.75rem;
+    min-height: calc(var(--spacing) * 11);
+    min-width: calc(var(--spacing) * 11);
     align-items: center;
     justify-content: center;
-    gap: 0.375rem;
+    gap: calc(var(--spacing) * 1.5);
     border: 1px solid var(--color-neutral-200);
     border-radius: var(--radius-md, 0.375rem);
-    padding: 0 0.625rem;
+    padding: 0 calc(var(--spacing) * 2.5);
     color: var(--color-brand-900);
     font-size: 0.875rem;
     font-weight: 600;

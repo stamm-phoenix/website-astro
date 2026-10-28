@@ -24,8 +24,8 @@
   <button
     type="button"
     class="favorite-star flex shrink-0 items-center justify-center text-brand-900 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100 {compact
-      ? 'size-11 pointer-fine:size-9'
-      : 'size-11'} {active ? 'pointer-coarse:opacity-100' : ''}"
+      ? 'min-h-11 min-w-11 pointer-fine:min-h-9 pointer-fine:min-w-9'
+      : 'min-h-11 min-w-11'} {active ? 'pointer-coarse:opacity-100' : ''}"
     aria-pressed={active}
     aria-label="{module.title} als Favorit"
     title={active ? 'Aus deinen Favoriten entfernen' : 'Zu deinen Favoriten hinzufügen'}

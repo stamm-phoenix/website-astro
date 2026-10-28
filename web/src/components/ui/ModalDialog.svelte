@@ -51,9 +51,9 @@
     children,
   }: Props = $props();
   const WIDTH = {
-    wide: 'w-[min(44rem,calc(100%-2rem))]',
-    medium: 'w-[min(40rem,calc(100%-2rem))]',
-    narrow: 'w-[min(28rem,calc(100%-4rem))]',
+    wide: 'w-[min(44rem,calc(100%-var(--spacing)*8))]',
+    medium: 'w-[min(40rem,calc(100%-var(--spacing)*8))]',
+    narrow: 'w-[min(28rem,calc(100%-var(--spacing)*16))]',
   } as const;
   /** Whether the current click started on the backdrop, so a drag out of the dialog keeps it open. */
   let pressedBackdrop = false;
@@ -230,7 +230,7 @@
 <dialog
   bind:this={dialog}
   aria-labelledby={id}
-  class="m-auto max-h-[calc(100dvh-2rem)] {WIDTH[
+  class="m-auto max-h-[calc(100dvh-var(--spacing)*8)] {WIDTH[
     size
   ]} rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
   class:action-sheet={sheet}
@@ -264,7 +264,7 @@
   }}
 >
   {#if open}
-    <div class="flex max-h-[calc(100dvh-2rem)] flex-col">
+    <div class="flex max-h-[calc(100dvh-var(--spacing)*8)] flex-col">
       <div bind:this={header} class="shrink-0 border-b border-neutral-200">
         {#if sheet && !closeDisabled}
           <!-- Grip: on phones the sheet can be pulled down to close it -->

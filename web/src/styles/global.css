@@ -15,6 +15,31 @@
   }
 }
 
+/* Kompaktmodus of the Leitendenbereich (`data-density`, lib/density.ts): every padding, margin,
+   gap and touch target is a multiple of `--spacing`, so the two modes differ only in the variables
+   at the end of the block below. Sizes of icons, images and columns use `--size-unit` instead and
+   stay the same in both modes. Own rules write `calc(var(--spacing) * n)` for space and multiply
+   `em` spacing with `--density`. */
+@utility size-* {
+  width: calc(var(--size-unit) * --value(number));
+  height: calc(var(--size-unit) * --value(number));
+}
+@utility w-* {
+  width: calc(var(--size-unit) * --value(number));
+}
+@utility h-* {
+  height: calc(var(--size-unit) * --value(number));
+}
+@utility max-w-* {
+  max-width: calc(var(--size-unit) * --value(number));
+}
+@utility max-h-* {
+  max-height: calc(var(--size-unit) * --value(number));
+}
+@utility basis-* {
+  flex-basis: calc(var(--size-unit) * --value(number));
+}
+
 /* Leitfaden: DPSG marks and typography, with semantic colors shared by every area. */
 @theme {
   --font-sans: 'Source Sans 3 Variable', 'Myriad Pro', 'Segoe UI', system-ui, sans-serif;
@@ -82,6 +107,14 @@
   --page-decoration-filter: grayscale(1) brightness(0.1);
   --button-press: #001a30;
   --field-border: var(--color-brand-900);
+  --size-unit: 0.25rem;
+  --density: 1;
+  --spacing: calc(0.25rem * var(--density));
+  --body-leading: 1.55;
+}
+:root[data-density='compact'] {
+  --density: 0.4;
+  --body-leading: 1.35;
 }
 
 /* CSS media queries apply before the first render, without JS or saved theme state. */
@@ -140,7 +173,7 @@ body {
   @apply bg-neutral-50 text-neutral-900 antialiased overflow-x-clip max-w-full min-h-dvh flex flex-col;
   font-family: var(--font-sans);
   font-size: 1.0625rem;
-  line-height: 1.55;
+  line-height: var(--body-leading);
 }
 /* The outlined DPSG lily is the one recurring graphic from the selected proposal. */
 body::before {
@@ -178,7 +211,7 @@ body.is-bare::before {
   html:has(.staff-bottom-bar) {
     --staff-bar-h: var(
       --staff-bar-measured,
-      calc(3.75rem + 3px + env(safe-area-inset-bottom, 0px))
+      calc(var(--spacing) * 15 + 3px + env(safe-area-inset-bottom, 0px))
     );
     scroll-padding-bottom: var(--staff-bar-h);
   }
@@ -250,7 +283,7 @@ p {
   padding-inline: 0;
 }
 .ui-quickinfo {
-  padding: 1.25rem;
+  padding: calc(var(--spacing) * 5);
   background: var(--color-surface);
   border: 1px solid var(--color-neutral-200);
   border-top: 3px solid var(--color-dpsg-blue);
@@ -296,7 +329,7 @@ p {
   .underline-accent {
     position: relative;
     padding-bottom: 0.35em;
-    margin-bottom: 0.4rem;
+    margin-bottom: calc(var(--spacing) * 1.6);
   }
   .underline-accent::after {
     content: '';
@@ -316,7 +349,7 @@ p {
     @apply block text-sm font-semibold text-brand-900;
   }
   .form-input {
-    min-height: 2.75rem;
+    min-height: calc(var(--spacing) * 11);
     min-width: 0;
     @apply mt-1 block w-full rounded-sm bg-neutral-100 px-3 py-2 text-base text-neutral-900;
     border: 0;
@@ -599,7 +632,8 @@ dialog {
   }
 }
 
-[data-theme-toggle][hidden] {
+[data-theme-toggle][hidden],
+[data-density-toggle][hidden] {
   display: none;
 }
 
@@ -617,20 +651,20 @@ dialog {
 .form-check-row,
 .staff-page label:has(input:is([type='checkbox'], [type='radio'])) {
   display: flex;
-  min-height: 2.75rem;
+  min-height: calc(var(--spacing) * 11);
   align-items: center;
-  gap: 0.75rem;
+  gap: calc(var(--spacing) * 3);
 }
 /* FormField uses an explicit label followed by its control rather than a wrapping label. */
 .staff-page .form-field:has(> input:is([type='checkbox'], [type='radio'])) {
   display: grid;
   grid-template-columns: 1.5rem minmax(0, 1fr);
   align-items: center;
-  column-gap: 0.75rem;
+  column-gap: calc(var(--spacing) * 3);
 }
 .staff-page .form-field:has(> input:is([type='checkbox'], [type='radio'])) > label {
   grid-column: 2;
-  min-height: 2.75rem;
+  min-height: calc(var(--spacing) * 11);
   display: flex;
   align-items: center;
 }
@@ -646,7 +680,7 @@ dialog {
 .text-editor-inhalt {
   display: flex;
   flex-direction: column;
-  gap: 0.6em;
+  gap: calc(0.6em * var(--density));
   background: var(--color-field);
   font-size: 1rem;
   line-height: 1.55;
@@ -657,7 +691,7 @@ dialog {
 .text-editor-inhalt h1,
 .text-editor-inhalt h2,
 .text-editor-inhalt h3 {
-  margin-top: 0.4em;
+  margin-top: calc(0.4em * var(--density));
   font-weight: 600;
   color: var(--color-brand-900);
 }
@@ -676,7 +710,7 @@ dialog {
 .text-editor-inhalt ol {
   display: flex;
   flex-direction: column;
-  gap: 0.25em;
+  gap: calc(0.25em * var(--density));
   padding-left: 1.5em;
 }
 .text-editor-inhalt ul {
@@ -689,7 +723,7 @@ dialog {
 .text-editor-inhalt li > p + ol,
 .text-editor-inhalt li > div > p + ul,
 .text-editor-inhalt li > div > p + ol {
-  margin-top: 0.25em;
+  margin-top: calc(0.25em * var(--density));
 }
 .text-editor-inhalt ul[data-type='taskList'] {
   list-style: none;
@@ -700,16 +734,17 @@ dialog {
   align-items: flex-start;
   gap: 0.5em;
   /* Each row is as tall as the touch target, so neighbouring boxes never overlap */
-  min-height: 2.75rem;
+  --task-target: max(calc(var(--spacing) * 11), 1.55em);
+  min-height: var(--task-target);
 }
 .text-editor-inhalt ul[data-type='taskList'] > li > label {
   display: grid;
   flex: none;
   place-items: center;
   /* A 44 px touch target around the box; the negative margins keep the box in place */
-  width: 2.75rem;
-  height: 2.75rem;
-  margin-inline: calc((1.05em - 2.75rem) / 2);
+  width: var(--task-target);
+  height: var(--task-target);
+  margin-inline: calc((1.05em - var(--task-target)) / 2);
 }
 .text-editor-inhalt ul[data-type='taskList'] > li input {
   width: 1.05em;
@@ -721,7 +756,7 @@ dialog {
   flex: 1;
   min-width: 0;
   /* The first line sits level with the box */
-  padding-top: calc((2.75rem - 1.55em) / 2);
+  padding-top: calc((var(--task-target) - 1.55em) / 2);
 }
 .text-editor-inhalt code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -735,7 +770,7 @@ dialog {
   font-size: 0.875em;
   background: var(--color-neutral-100);
   border-radius: var(--radius-sm);
-  padding: 0.75em 1em;
+  padding: calc(0.75em * var(--density)) calc(1em * var(--density));
   overflow-x: auto;
   white-space: pre;
 }
@@ -747,7 +782,7 @@ dialog {
 .text-editor-inhalt blockquote {
   display: flex;
   flex-direction: column;
-  gap: 0.5em;
+  gap: calc(0.5em * var(--density));
   border-left: 3px solid var(--color-neutral-300);
   padding-left: 0.9em;
   color: var(--color-neutral-700);
@@ -755,7 +790,7 @@ dialog {
 .text-editor-inhalt hr {
   border: 0;
   border-top: 1px solid var(--color-neutral-200);
-  margin: 0.4em 0;
+  margin: calc(0.4em * var(--density)) 0;
 }
 .text-editor-inhalt img {
   display: block;
@@ -779,7 +814,7 @@ dialog {
   position: relative;
   min-width: 3em;
   border: 1px solid var(--color-neutral-200);
-  padding: 0.35em 0.65em;
+  padding: calc(0.35em * var(--density)) calc(0.65em * var(--density));
   text-align: left;
   vertical-align: top;
 }

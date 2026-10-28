@@ -460,10 +460,10 @@
     pointer-events: none;
   }
   .is-ordering > div {
-    padding-top: 0.5rem;
+    padding-top: calc(var(--spacing) * 2);
   }
   .tagesordnung.is-ordering {
-    row-gap: 0.5rem;
+    row-gap: calc(var(--spacing) * 2);
   }
   .tagesordnung :global(.is-dragged) {
     position: relative;
@@ -499,7 +499,7 @@
     border-radius: var(--radius-sm);
     background: var(--color-action);
     color: var(--color-on-action);
-    padding: 0.1rem 0.4rem;
+    padding: calc(var(--spacing) * 0.4) calc(var(--spacing) * 1.6);
     font-size: 0.8125rem;
     font-weight: 600;
   }

@@ -216,7 +216,7 @@
       {/if}
       <button
         type="button"
-        class="flex size-9 shrink-0 items-center justify-center text-neutral-700"
+        class="flex min-h-9 min-w-9 shrink-0 items-center justify-center text-neutral-700"
         aria-label="Hinweis schließen"
         onclick={onclose}
       >

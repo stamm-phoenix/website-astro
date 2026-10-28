@@ -593,13 +593,13 @@
   }
   .staff-bar-item {
     display: flex;
-    min-height: 3.75rem;
+    min-height: calc(var(--spacing) * 15);
     min-width: 0;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.125rem;
-    padding: 0.375rem 0.125rem 0.25rem;
+    gap: calc(var(--spacing) * 0.5);
+    padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 0.5) var(--spacing);
     border-top: 3px solid transparent;
     color: var(--color-neutral-700);
     font-size: 0.75rem;
