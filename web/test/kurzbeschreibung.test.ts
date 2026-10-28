@@ -119,3 +119,19 @@ test('a block with only an end time keeps it in the PDF', () => {
     { titel: 'Samstag, 01.08.2026', bloecke: [{ zeit: 'bis 10:00', text: '' }] },
   ]);
 });
+
+test('found blocks are never pushed out by empty days of a long Aktion', () => {
+  const tage = mitAktionTagen(
+    [{ datum: '2026-08-01', bloecke: [{ von: '10:00', bis: '', text: 'Abbau' }] }],
+    '2026-07-01',
+    '2026-07-31'
+  );
+  assert.equal(tage.length, 31);
+  assert.equal(tage.at(-1)?.datum, '2026-08-01');
+  assert.equal(tage.at(-1)?.bloecke[0].text, 'Abbau');
+  assert.equal(tage[0].datum, '2026-07-01');
+  assert.equal(
+    tage.some((tag) => tag.datum === '2026-07-31'),
+    false
+  );
+});

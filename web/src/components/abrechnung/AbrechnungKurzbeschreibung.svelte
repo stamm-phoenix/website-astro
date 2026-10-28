@@ -185,16 +185,24 @@
 
   async function removeDay(tagIndex: number): Promise<void> {
     const tag = editable()[tagIndex];
+    const zeilen = !!quick[tag.datum]?.trim();
+    const inhalt = [
+      tag.bloecke.length > 0
+        ? `${tag.bloecke.length} ${tag.bloecke.length === 1 ? 'Block' : 'Blöcken'}`
+        : '',
+      zeilen ? 'noch nicht übernommenen Zeilen' : '',
+    ].filter(Boolean);
     if (
-      tag.bloecke.length > 0 &&
+      inhalt.length > 0 &&
       !(await confirmAction({
         title: `${tagTitel(tag.datum)} entfernen?`,
-        message: `${tagTitel(tag.datum)} mit ${tag.bloecke.length} ${tag.bloecke.length === 1 ? 'Block' : 'Blöcken'} aus dem Zeitplan entfernen?`,
+        message: `${tagTitel(tag.datum)} mit ${inhalt.join(' und ')} aus dem Zeitplan entfernen?`,
         confirmLabel: 'Tag entfernen',
       }))
     )
       return;
     editable().splice(tagIndex, 1);
+    delete quick[tag.datum];
     say(`${tagTitel(tag.datum)} entfernt.`);
   }
 
@@ -278,20 +286,17 @@
         say('Zeitplan nicht übernommen. Es wurde nichts geändert.', 'warning');
         return;
       }
-      if (count > 0) {
-        session.kurzbeschreibung.tage = mitAktionTagen(
-          zeitplan.tage,
-          event.start_date,
-          event.end_date
-        );
-      }
+      const neu = mitAktionTagen(zeitplan.tage, event.start_date, event.end_date);
+      const days = neu.filter((tag) => tag.bloecke.length > 0).length;
+      const taken = neu.reduce((sum, tag) => sum + tag.bloecke.length, 0);
+      if (count > 0) session.kurzbeschreibung.tage = neu;
       const einleitung = !!zeitplan.einleitung && !kurz.einleitung.trim();
       if (einleitung) session.kurzbeschreibung.einleitung = zeitplan.einleitung!;
-      const days = zeitplan.tage.length;
       say(
         count > 0
-          ? `Zeitplan aus „${file.name}“ übernommen: ${days} ${days === 1 ? 'Tag' : 'Tage'}, ${count} ${count === 1 ? 'Block' : 'Blöcke'}${einleitung ? ' und die Zielsetzung' : ''}. Prüfe ihn bitte.`
-          : `Zielsetzung aus „${file.name}“ übernommen. Einen Zeitplan enthält die Datei nicht.`
+          ? `Zeitplan aus „${file.name}“ übernommen: ${days} ${days === 1 ? 'Tag' : 'Tage'}, ${taken} ${taken === 1 ? 'Block' : 'Blöcke'}${taken < count ? ` von ${count}` : ''}${einleitung ? ' und die Zielsetzung' : ''}. Prüfe ihn bitte.`
+          : `Zielsetzung aus „${file.name}“ übernommen. Einen Zeitplan enthält die Datei nicht.`,
+        taken < count ? 'warning' : 'success'
       );
     } catch (error: unknown) {
       if (controller?.signal.aborted) return;

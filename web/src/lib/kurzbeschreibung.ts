@@ -160,13 +160,20 @@ export function mitAktionTagen(
   start: string | null,
   end: string | null
 ): ZeitplanTag[] {
-  const tage = new Map<string, ZeitBlock[]>(aktionTage(start, end).map((datum) => [datum, []]));
+  const gefunden = new Map<string, ZeitBlock[]>();
   for (const tag of gelesen) {
-    tage.set(tag.datum, [...(tage.get(tag.datum) ?? []), ...tag.bloecke.map(mitId)]);
+    gefunden.set(tag.datum, [...(gefunden.get(tag.datum) ?? []), ...tag.bloecke.map(mitId)]);
   }
-  return [...tage.entries()]
+  // Days with blocks first, so empty days of the Aktion never push a found block out
+  const tage = [...gefunden.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .slice(0, MAX_ZEITPLAN_TAGE)
+    .slice(0, MAX_ZEITPLAN_TAGE);
+  for (const datum of aktionTage(start, end)) {
+    if (tage.length >= MAX_ZEITPLAN_TAGE) break;
+    if (!gefunden.has(datum)) tage.push([datum, []]);
+  }
+  return tage
+    .sort(([a], [b]) => a.localeCompare(b))
     .map(([datum, bloecke]) => ({ datum, bloecke: bloecke.slice(0, MAX_ZEITBLOECKE_PRO_TAG) }));
 }
 
