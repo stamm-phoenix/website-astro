@@ -206,7 +206,8 @@ export async function renderEinteilungBild(bild: EinteilungBild): Promise<Blob> 
 
   return new Promise((resolve, reject) =>
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('Das Bild konnte nicht erstellt werden.'))),
+      (blob) =>
+        blob ? resolve(blob) : reject(new Error('Das Bild konnte nicht erstellt werden.')),
       'image/png'
     )
   );
