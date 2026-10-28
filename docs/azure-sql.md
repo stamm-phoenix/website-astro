@@ -275,7 +275,7 @@ entfernt die nächste Änderung wie bei den Leitenden.
 Dateien liegen in Azure Blob Storage, im Storage-Konto `stammphoenixwebsite` (Container
 `website`) für die Produktion und `stammphoenixpreviews` für die Previews (ein Container
 `pr-<Nummer>` je PR). Bisher sind das die Bilder der Blogbeiträge unter
-`blog/<Beitrag>/<Datei>/<Breite>.jpg`, die Fotos der Leitenden unter `leitende/<ID>/<Datei>` und
+`blog/<Beitrag>/<Datei>/<Breite>.webp` (ältere Bilder noch `.jpg`), die Fotos der Leitenden unter `leitende/<ID>/<Datei>` und
 die Fotos der Belege unter `belege/<ID>/<Datei>` und die Downloads unter `downloads/<Schlüssel>/…`.
 
 - Kein öffentlicher Zugriff und keine Kontoschlüssel: Die Website meldet sich wie bei der

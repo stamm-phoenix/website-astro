@@ -199,8 +199,8 @@ they are stored and again before rendering.
 Logged-in staff write posts at `/leitendenbereich/blog` (`/api/intern/pflege/blog`).
 Posts live in `content.blog_post`, their images in `content.blog_image` (alt text,
 size, order; the first one is the cover). The image files are in Azure Blob Storage
-(`blog/<post>/<file>/<width>.jpg`, `api/lib/blog-images.ts`): the browser scales an
-upload to at most 1600 px, the API stores it re-encoded (without metadata) in the
+(`blog/<post>/<file>/<width>.webp`, `api/lib/blog-images.ts`): the browser scales an
+upload to at most 1600 px, the API stores it re-encoded as WebP (without metadata; images from before the switch stay JPEG) in the
 widths offered in `srcset` (800 and 1600 px, smaller images once at their own width).
 Images are only served through the API (`/api/blog/<id>/bilder/<file>?w=…`), and only
 for published posts.

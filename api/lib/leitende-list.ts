@@ -15,7 +15,12 @@ import {
 import type { Database, LeitendeTable } from './db-schema';
 import type { LeitendeInput } from './pflege-validation';
 import { sortTeams } from './pflege-validation';
-import { newPhotoFileName, photoBlobName, toStoredPhoto } from './leitende-photos';
+import {
+  newPhotoFileName,
+  photoBlobName,
+  photoContentType,
+  toStoredPhoto,
+} from './leitende-photos';
 
 /**
  * The Leitende in Azure SQL (`content.leitende` with their teams in `content.leitende_team`,
@@ -252,7 +257,7 @@ export async function setLeitendePhoto(
   const current = await loadPhoto(id);
   const expected = etag === undefined ? current.version : requireVersion(etag);
   const file = newPhotoFileName();
-  await putBlob(photoBlobName(id, file), await toStoredPhoto(bytes), 'image/jpeg');
+  await putBlob(photoBlobName(id, file), await toStoredPhoto(bytes), photoContentType(file));
   const result = await getDb()
     .updateTable('content.leitende')
     .set({ photo: file, updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
@@ -306,7 +311,10 @@ export async function serveLeitendePhoto(id: string): Promise<HttpResponseInit |
   if (!bytes) return undefined;
   return {
     status: 200,
-    headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(bytes.length) },
+    headers: {
+      'Content-Type': photoContentType(row.photo),
+      'Content-Length': String(bytes.length),
+    },
     body: new Uint8Array(bytes),
   };
 }

@@ -4,11 +4,12 @@ import { getImageWidths } from './blog-list';
 import type { BlogImage } from './pflege-validation';
 
 /**
- * The files of blog images in Blob Storage: `blog/<post>/<file>/<width>.jpg`, one per width of
- * `getImageWidths`. They are computed once on upload, so serving them needs no scaling.
+ * The files of blog images in Blob Storage: `blog/<post>/<file>/<width>.webp`, one per width of
+ * `getImageWidths`. They are computed once on upload, so serving them needs no scaling. Images
+ * uploaded before the switch to WebP are still stored as `<width>.jpg` and served from there.
  */
 
-const QUALITY = 82;
+const QUALITY = 80;
 // The upload accepts at most 4 MB; a JPEG that size with more pixels is a decompression bomb
 const MAX_INPUT_PIXELS = 8000 * 8000;
 
@@ -20,13 +21,18 @@ function imagePrefix(postId: string, file: string): string {
   return `${postPrefix(postId)}${file}/`;
 }
 
-export function blogImageBlobName(postId: string, file: string, width: number): string {
-  return `${imagePrefix(postId, file)}${width}.jpg`;
+export function blogImageBlobName(
+  postId: string,
+  file: string,
+  width: number,
+  extension: 'webp' | 'jpg' = 'webp'
+): string {
+  return `${imagePrefix(postId, file)}${width}.${extension}`;
 }
 
 /**
- * Stores an uploaded JPEG in all widths. Every width is encoded anew, which also drops the
- * metadata of the original (camera, location).
+ * Stores an uploaded JPEG in all widths as WebP. Every width is encoded anew, which also drops
+ * the metadata of the original (camera, location).
  */
 export async function storeBlogImageFiles(
   postId: string,
@@ -37,9 +43,9 @@ export async function storeBlogImageFiles(
   for (const width of getImageWidths(image.width)) {
     const scaled = await sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS })
       .resize({ width, withoutEnlargement: true })
-      .jpeg({ quality: QUALITY, mozjpeg: true })
+      .webp({ quality: QUALITY })
       .toBuffer();
-    await putBlob(blogImageBlobName(postId, image.file, width), scaled, 'image/jpeg');
+    await putBlob(blogImageBlobName(postId, image.file, width), scaled, 'image/webp');
   }
 }
 
@@ -49,11 +55,16 @@ export async function serveBlogImage(
   file: string,
   width: number
 ): Promise<HttpResponseInit | undefined> {
-  const bytes = await getBlob(blogImageBlobName(postId, file, width));
+  let contentType = 'image/webp';
+  let bytes = await getBlob(blogImageBlobName(postId, file, width));
+  if (!bytes) {
+    contentType = 'image/jpeg';
+    bytes = await getBlob(blogImageBlobName(postId, file, width, 'jpg'));
+  }
   if (!bytes) return undefined;
   return {
     status: 200,
-    headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(bytes.length) },
+    headers: { 'Content-Type': contentType, 'Content-Length': String(bytes.length) },
     body: new Uint8Array(bytes),
   };
 }

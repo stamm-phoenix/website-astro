@@ -366,18 +366,12 @@
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  // On a tile, once visible and the first image is there, the other images are loaded one after
-  // another in the background, starting with the next one
-  let preloadStarted = false;
+  // A tile that advances by itself prepares only the next image, once it is visible and the first
+  // one is there; the rest follows with each step, and a swipe loads its neighbours itself
   $effect(() => {
-    if (isModal || !isCarousel || !visible || !loaded.has(0) || preloadStarted) return;
-    preloadStarted = true;
-    const start = untrack(() => index);
-    void (async () => {
-      for (let step = 1; step < post.imageCount; step++) {
-        await preload((start + step) % post.imageCount);
-      }
-    })();
+    if (isModal || !isCarousel || !visible || browsed || reducedMotion || !loaded.has(0)) return;
+    const next = wrap(index + 1);
+    void untrack(() => preload(next));
   });
 
   // In the strip, the current image and both neighbours are loaded, so the image a swipe
