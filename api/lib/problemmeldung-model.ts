@@ -184,6 +184,8 @@ export function redactSensitive(text: string): string {
     withoutWrappedQuery(text)
       // eslint-disable-next-line no-control-regex -- control characters other than line breaks
       .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '')
+      // URL user information is private, including on localhost and protocol-relative links.
+      .replace(/\/\/[^/\s?#]*@/g, '//')
       .replace(/\S+/g, withoutQuery)
       .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]*/g, REDACTED)
       .replace(/\bBearer\s+\S+/gi, `Bearer ${REDACTED}`)
