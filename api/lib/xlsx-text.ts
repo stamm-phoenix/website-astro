@@ -21,6 +21,14 @@ export class XlsxError extends Error {
   }
 }
 
+/**
+ * The XML without namespace prefixes on element names (`<x:row>` → `<row>`), which some
+ * programs write instead of a default namespace. Attributes such as `r:id` keep theirs.
+ */
+function ohnePraefix(xml: string): string {
+  return xml.replace(/<(\/?)[A-Za-z_][\w.-]*:(?=[A-Za-z_])/g, '<$1');
+}
+
 /** Text of all `<t>` runs inside an element, e.g. a shared string with formatted parts. */
 function runsText(xml: string): string {
   let text = '';
@@ -117,10 +125,13 @@ function workbookInfo(archive: Buffer): { names: Map<string, string>; date1904: 
   const names = new Map<string, string>();
   let date1904 = false;
   try {
-    const workbook = readZipEntry(archive, 'xl/workbook.xml', MAX_UNPACKED_BYTES)?.toString('utf8');
-    date1904 = /<workbookPr\b[^>]*\sdate1904="(?:1|true)"/.test(workbook ?? '');
-    const rels = readZipEntry(archive, 'xl/_rels/workbook.xml.rels', MAX_UNPACKED_BYTES)?.toString(
-      'utf8'
+    const workbook = ohnePraefix(
+      readZipEntry(archive, 'xl/workbook.xml', MAX_UNPACKED_BYTES)?.toString('utf8') ?? ''
+    );
+    date1904 = /<workbookPr\b[^>]*\sdate1904="(?:1|true)"/.test(workbook);
+    const rels = ohnePraefix(
+      readZipEntry(archive, 'xl/_rels/workbook.xml.rels', MAX_UNPACKED_BYTES)?.toString('utf8') ??
+        ''
     );
     if (!workbook || !rels) return { names, date1904 };
     const targets = new Map(
@@ -153,7 +164,9 @@ export function xlsxToText(bytes: Uint8Array): string {
       MAX_UNPACKED_BYTES
     );
     const strings = sharedStrings(
-      parts.find((part) => part.name === 'xl/sharedStrings.xml')?.data.toString('utf8')
+      ohnePraefix(
+        parts.find((part) => part.name === 'xl/sharedStrings.xml')?.data.toString('utf8') ?? ''
+      ) || undefined
     );
     const sheets = parts
       .filter((part) => part.name.startsWith('xl/worksheets/'))
@@ -162,7 +175,7 @@ export function xlsxToText(bytes: Uint8Array): string {
     const { names, date1904 } = workbookInfo(archive);
     return sheets
       .map((sheet, index) => {
-        const lines = sheetLines(sheet.data.toString('utf8'), strings, date1904);
+        const lines = sheetLines(ohnePraefix(sheet.data.toString('utf8')), strings, date1904);
         return [`# ${names.get(sheet.name) ?? `Tabelle ${index + 1}`}`, ...lines].join('\n');
       })
       .join('\n\n');

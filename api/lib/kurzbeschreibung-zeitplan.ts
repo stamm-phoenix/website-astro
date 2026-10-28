@@ -185,7 +185,7 @@ export function toZeitplan(raw: unknown): GelesenerZeitplan {
       if (!isRecord(block)) return [];
       const text = oneLine(block.text, MAX_ZEITBLOCK_TEXT);
       const von = normalizeTime(block.von);
-      return text ? [{ von, bis: von ? normalizeTime(block.bis) : '', text }] : [];
+      return text ? [{ von, bis: normalizeTime(block.bis), text }] : [];
     });
     if (bloecke.length === 0) continue;
     byDate.set(tag.datum, [...(byDate.get(tag.datum) ?? []), ...bloecke]);
