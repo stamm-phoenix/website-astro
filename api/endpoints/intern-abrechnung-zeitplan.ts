@@ -7,6 +7,8 @@ import { XlsxError, xlsxToText } from '../lib/xlsx-text';
 import {
   MAX_ZEITPLAN_BILDER,
   MAX_ZEITPLAN_FREITEXT,
+  MIN_MODEL_MS,
+  ZEITPLAN_BUDGET_MS,
   MAX_ZEITPLAN_TEXT,
   ZeitplanLimitError,
   isZeitplanConfigured,
@@ -72,6 +74,7 @@ function readQuelle(body: Record<string, unknown> | null): ZeitplanQuelle | stri
  * answers with days and blocks to prefill the Kurzbeschreibung. Nothing is stored. `available` is false without a model.
  */
 export const AbrechnungZeitplanEndpoint = pflegeHandler('abrechnung-zeitplan', async (request) => {
+  const started = Date.now();
   const id = request.params.id ?? '';
   if (!EVENT_ID_PATTERN.test(id) || id.length > 128) return invalid('Ungültige Aktion.');
   if (!isZeitplanConfigured()) return ok({ available: false, zeitplan: null });
@@ -96,10 +99,21 @@ export const AbrechnungZeitplanEndpoint = pflegeHandler('abrechnung-zeitplan', a
     return Number.isNaN(date.getTime()) ? null : berlinDay(date);
   };
 
+  // Loading the events from CampFlow counts against the time limit of Static Web Apps too
+  const remaining = ZEITPLAN_BUDGET_MS - (Date.now() - started);
+  if (remaining < MIN_MODEL_MS) {
+    return errorResponse(
+      503,
+      'READ_UNAVAILABLE',
+      'CampFlow hat gerade lange gebraucht. Es wurde nichts geändert. Versuche es gleich noch einmal.'
+    );
+  }
+
   try {
     const zeitplan = await readZeitplan(
       { title: event.title, start: day(event.start_date), end: day(event.end_date) },
-      quelle
+      quelle,
+      remaining
     );
     return ok({ available: true, zeitplan });
   } catch (error: unknown) {

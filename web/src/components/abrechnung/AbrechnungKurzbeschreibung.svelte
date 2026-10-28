@@ -285,6 +285,7 @@
       }))
     )
       return;
+    controller?.abort();
     session.kurzbeschreibung = { einleitung: '', tage: [] };
     zeitplanZeilen[event.id] = {};
     delete zeitplanFreitext[event.id];
@@ -324,8 +325,17 @@
     reading = label;
     notice = null;
     deleted = null;
+    // Changed or reset while reading: the answer belongs to an older state and is dropped
+    const vorher = JSON.stringify(session.kurzbeschreibung);
     try {
       const zeitplan = await lesen(controller.signal);
+      if (JSON.stringify(session.kurzbeschreibung) !== vorher) {
+        say(
+          'Die Kurzbeschreibung wurde geändert, während der Zeitplan gelesen wurde. Es wurde nichts übernommen; versuche es noch einmal.',
+          'warning'
+        );
+        return false;
+      }
       if (!zeitplan) {
         say(
           'Zeitpläne lesen lassen ist gerade nicht möglich. Trage den Zeitplan bitte selbst ein.',

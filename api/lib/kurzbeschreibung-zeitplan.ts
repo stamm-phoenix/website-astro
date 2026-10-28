@@ -15,6 +15,13 @@ import { MAX_EINLEITUNG, MAX_ZEITBLOCK_TEXT, MAX_ZEITBLOECKE_PRO_TAG } from './a
  * the model thinks `low` and answers well within that, also for a long camp.
  */
 const REQUEST_TIMEOUT_MS = 38_000;
+/**
+ * The whole request, CampFlow's events included, ends within this, a few seconds below the 45 of
+ * Static Web Apps; the model gets what is left of it.
+ */
+export const ZEITPLAN_BUDGET_MS = 40_000;
+/** Less than this left is too little for the model to answer. */
+export const MIN_MODEL_MS = 10_000;
 /** A long camp has a hundred blocks; the model's thinking counts against this as well. */
 const MAX_COMPLETION_TOKENS = 12_000;
 export const MAX_ZEITPLAN_BILDER = 4;
@@ -202,7 +209,8 @@ export function toZeitplan(raw: unknown): GelesenerZeitplan {
 
 export async function readZeitplan(
   aktion: ZeitplanAktion,
-  quelle: ZeitplanQuelle
+  quelle: ZeitplanQuelle,
+  timeoutMs = REQUEST_TIMEOUT_MS
 ): Promise<GelesenerZeitplan> {
   if (!takeRead()) throw new ZeitplanLimitError();
   const content =
@@ -223,7 +231,7 @@ export async function readZeitplan(
       schemaName: 'zeitplan',
       schema: RESPONSE_SCHEMA,
       maxCompletionTokens: MAX_COMPLETION_TOKENS,
-      timeoutMs: REQUEST_TIMEOUT_MS,
+      timeoutMs: Math.min(REQUEST_TIMEOUT_MS, timeoutMs),
       messages: [
         { role: 'system', content: prompt(aktion, 'freitext' in quelle) },
         { role: 'user', content },
