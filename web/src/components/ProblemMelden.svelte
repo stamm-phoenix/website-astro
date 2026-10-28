@@ -139,62 +139,66 @@
   </p>
 {:else}
   <form class="space-y-5" novalidate onsubmit={submit}>
-    <FormField id="{ID}-description" label="Was ist das Problem?" error={errors.description}>
-      {#snippet children(field)}
-        <textarea
-          {...field}
-          rows="5"
-          maxlength={PROBLEM_MAX_LENGTH.description}
-          required
-          bind:value={description}
-          oninput={() => clearError('description')}
-          class="form-input"></textarea>
-      {/snippet}
-    </FormField>
+    <!-- While the report is sent, the fields stay as they were captured: nothing typed is lost -->
+    <fieldset disabled={sending} class="min-w-0 space-y-5">
+      <legend class="sr-only">Dein Problem</legend>
+      <FormField id="{ID}-description" label="Was ist das Problem?" error={errors.description}>
+        {#snippet children(field)}
+          <textarea
+            {...field}
+            rows="5"
+            maxlength={PROBLEM_MAX_LENGTH.description}
+            required
+            bind:value={description}
+            oninput={() => clearError('description')}
+            class="form-input"></textarea>
+        {/snippet}
+      </FormField>
 
-    <FormField id="{ID}-steps" label="Was hast du vorher gemacht?" optional error={errors.steps}>
-      {#snippet children(field)}
-        <textarea
-          {...field}
-          rows="3"
-          maxlength={PROBLEM_MAX_LENGTH.steps}
-          placeholder="1. Gruppenstunden öffnen&#10;2. Auf „Wölflinge“ tippen"
-          bind:value={steps}
-          oninput={() => clearError('steps')}
-          class="form-input"></textarea>
-      {/snippet}
-    </FormField>
+      <FormField id="{ID}-steps" label="Was hast du vorher gemacht?" optional error={errors.steps}>
+        {#snippet children(field)}
+          <textarea
+            {...field}
+            rows="3"
+            maxlength={PROBLEM_MAX_LENGTH.steps}
+            placeholder="1. Gruppenstunden öffnen&#10;2. Auf „Wölflinge“ tippen"
+            bind:value={steps}
+            oninput={() => clearError('steps')}
+            class="form-input"></textarea>
+        {/snippet}
+      </FormField>
 
-    <FormField id="{ID}-expected" label="Was hast du erwartet?" optional error={errors.expected}>
-      {#snippet children(field)}
-        <textarea
-          {...field}
-          rows="2"
-          maxlength={PROBLEM_MAX_LENGTH.expected}
-          bind:value={expected}
-          oninput={() => clearError('expected')}
-          class="form-input"></textarea>
-      {/snippet}
-    </FormField>
+      <FormField id="{ID}-expected" label="Was hast du erwartet?" optional error={errors.expected}>
+        {#snippet children(field)}
+          <textarea
+            {...field}
+            rows="2"
+            maxlength={PROBLEM_MAX_LENGTH.expected}
+            bind:value={expected}
+            oninput={() => clearError('expected')}
+            class="form-input"></textarea>
+        {/snippet}
+      </FormField>
 
-    <FormField
-      id="{ID}-contact"
-      label="Deine E-Mail-Adresse für Rückfragen"
-      optional
-      error={errors.contact}
-    >
-      {#snippet children(field)}
-        <input
-          {...field}
-          type="email"
-          autocomplete="email"
-          maxlength={PROBLEM_MAX_LENGTH.contact}
-          bind:value={contact}
-          oninput={() => clearError('contact')}
-          class="form-input"
-        />
-      {/snippet}
-    </FormField>
+      <FormField
+        id="{ID}-contact"
+        label="Deine E-Mail-Adresse für Rückfragen"
+        optional
+        error={errors.contact}
+      >
+        {#snippet children(field)}
+          <input
+            {...field}
+            type="email"
+            autocomplete="email"
+            maxlength={PROBLEM_MAX_LENGTH.contact}
+            bind:value={contact}
+            oninput={() => clearError('contact')}
+            class="form-input"
+          />
+        {/snippet}
+      </FormField>
+    </fieldset>
 
     {#if details.length > 0}
       <section aria-labelledby="{ID}-details" class="surface-muted p-4 text-sm">
