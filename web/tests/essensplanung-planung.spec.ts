@@ -378,3 +378,60 @@ test('typing on while a meal or an invitation is saved keeps the next input', as
   await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Cleo Chor');
   await expect(page.getByLabel('Mailadresse')).toHaveValue('cleo@example.org');
 });
+
+test('a replaced link keeps the input; drafts ask before leaving; arrow keys switch areas', async ({
+  page,
+  browser,
+}) => {
+  await anlegen(page, 'E2E Ersetzt');
+
+  // Arrow keys move between the areas
+  await page.getByRole('tab', { name: 'Plan' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Mitglieder' })).toBeFocused();
+  await expect(page.getByRole('tab', { name: 'Mitglieder' })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
+
+  // An invitation typed but not sent asks before leaving
+  await page.getByLabel('Name', { exact: true }).fill('Ben Bezirk');
+  await page.getByRole('link', { name: 'Impressum' }).first().click();
+  const frage = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await expect(frage).toBeVisible();
+  await frage.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+
+  // Ben's link is replaced while he types: his page stops saving but keeps the input
+  await page.getByLabel('Mailadresse').fill('ben@example.org');
+  await page.getByRole('button', { name: 'Einladen' }).click();
+  const einladung = await page
+    .getByRole('link', { name: /essensplanung\/planung#t=/ })
+    .getAttribute('href');
+  const ben = await (await browser.newContext()).newPage();
+  await ben.goto(einladung!);
+  await ben.getByLabel('Name von 1_1').fill('Brunch');
+  await page
+    .getByRole('listitem')
+    .filter({ hasText: 'Ben Bezirk' })
+    .getByRole('button', { name: 'Neuen Link schicken' })
+    .click();
+  await expect(page.getByText(/Vorschau-Umgebung|ist unterwegs/).first()).toBeVisible();
+  await ben.bringToFront();
+  await expect(ben.getByText(/Dieser Link gilt nicht mehr, wahrscheinlich/).first()).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(ben.getByLabel('Name von 1_1')).toHaveValue('Brunch');
+
+  // A meal typed while the one before is added stays
+  await page.getByRole('tab', { name: 'Plan' }).click();
+  await page.route('**/api/essensplanung/planung/mahlzeiten', async (route) => {
+    if (route.request().method() === 'POST') await new Promise((done) => setTimeout(done, 1500));
+    await route.continue();
+  });
+  await page.getByLabel('Neue Mahlzeit an Tag 1').fill('Grillen');
+  await page.getByLabel('Neue Mahlzeit an Tag 1').press('Enter');
+  await page.getByLabel('Neue Mahlzeit an Tag 1').fill('Nachtsnack');
+  await expect(page.getByText('Grillen hinzugefügt.').first()).toBeVisible();
+  await expect(page.getByLabel('Neue Mahlzeit an Tag 1')).toHaveValue('Nachtsnack');
+  await ben.context().close();
+});

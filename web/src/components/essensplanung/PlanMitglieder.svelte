@@ -141,7 +141,10 @@
       eigenerName = neu;
     });
   });
-  $effect(() => guardUnsavedChanges(() => namensEntwurf));
+  // The own name and an invitation typed but not sent ask before leaving the page
+  $effect(() =>
+    guardUnsavedChanges(() => namensEntwurf || name.trim() !== '' || email.trim() !== '')
+  );
 
   async function namenSpeichern(event: SubmitEvent): Promise<void> {
     event.preventDefault();

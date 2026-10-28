@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { ApiError, errorMessage } from '../../lib/api';
   import { merkeGeoeffnet, planungApi, tokenAusHash, datumLang } from '../../lib/essensplanung';
@@ -20,6 +20,8 @@
   const POLL_MAX_MS = 30_000;
   /** Tab-local copy of the token, for a reload after another fragment like `#main`. */
   const LINK_KEY = 'essensplanung-link';
+  const LINK_ERSETZT =
+    'Dieser Link gilt nicht mehr, wahrscheinlich wurde ein neuer verschickt. Deine Eingaben stehen noch in den Feldern: kopiere sie dir und öffne die Planung mit dem neuen Link aus deiner Mail.';
 
   let token = $state<string | null>(null);
   let ansicht = $state<PlanungAnsicht | null>(null);
@@ -38,6 +40,26 @@
       ? [{ id: 'einstellungen', label: 'Einstellungen' }]
       : []),
   ] as { id: typeof bereich; label: string }[]);
+
+  /** Arrow keys, Home and End move between the areas (WAI-ARIA tabs pattern). */
+  async function bereichTaste(event: KeyboardEvent): Promise<void> {
+    const index = bereiche.findIndex((eintrag) => eintrag.id === bereich);
+    const next =
+      event.key === 'ArrowRight'
+        ? (index + 1) % bereiche.length
+        : event.key === 'ArrowLeft'
+          ? (index - 1 + bereiche.length) % bereiche.length
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? bereiche.length - 1
+              : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    bereich = bereiche[next].id;
+    await tick();
+    document.getElementById(`bereich-${bereich}`)?.focus();
+  }
 
   function zeige(neu: PlanungAnsicht): void {
     ansicht = neu;
@@ -84,6 +106,11 @@
     erfolg?: string
   ): Promise<boolean> {
     if (!token) return false;
+    // The link was replaced meanwhile: nothing more is sent, the input stays on the page
+    if (ungueltig) {
+      hinweis(LINK_ERSETZT, 'error');
+      return false;
+    }
     busy = true;
     hinweis(null);
     try {
@@ -94,7 +121,8 @@
       return true;
     } catch (error: unknown) {
       if (error instanceof ApiError && error.code === 'LINK_UNGUELTIG') ungueltig = true;
-      if (error instanceof ApiError && [404, 409].includes(error.status)) await laden();
+      if (!ungueltig && error instanceof ApiError && [404, 409].includes(error.status))
+        await laden();
       hinweis(
         errorMessage(
           error,
@@ -187,7 +215,7 @@
   });
 </script>
 
-{#if ungueltig || (ladeFehler && !ansicht)}
+{#if !ansicht && (ungueltig || ladeFehler)}
   <div class="max-w-xl space-y-4">
     <StatusNotice message={ladeFehler ?? 'Dieser Link gilt nicht mehr.'} kind="error" />
     <p>
@@ -215,6 +243,10 @@
       </p>
     </div>
 
+    {#if ungueltig}
+      <!-- A Planung already open keeps its fields, so nothing typed gets lost -->
+      <StatusNotice message={LINK_ERSETZT} kind="error" />
+    {/if}
     {#if ansicht.wartung}
       <p class="border-l-4 border-warning py-2 pl-3 text-sm text-warning" role="status">
         Die Essensplanung wird gerade gewartet. Du kannst alles ansehen, aber nichts ändern.
@@ -241,23 +273,42 @@
           <button
             type="button"
             role="tab"
+            id="bereich-{eintrag.id}"
             aria-selected={bereich === eintrag.id}
+            aria-controls="bereich-panel-{eintrag.id}"
+            tabindex={bereich === eintrag.id ? 0 : -1}
             class={bereich === eintrag.id ? 'btn-primary' : 'btn-secondary'}
-            onclick={() => (bereich = eintrag.id)}>{eintrag.label}</button
+            onclick={() => (bereich = eintrag.id)}
+            onkeydown={bereichTaste}>{eintrag.label}</button
           >
         {/each}
       </div>
     {/if}
 
     <!-- All areas stay mounted, so switching keeps what is typed in another one -->
-    <div role="tabpanel" hidden={bereich !== 'plan'}>
+    <div
+      role="tabpanel"
+      id="bereich-panel-plan"
+      aria-labelledby="bereich-plan"
+      hidden={bereich !== 'plan'}
+    >
       <PlanTage {kontext} />
     </div>
     {#if ansicht.zugang !== 'lesen'}
-      <div role="tabpanel" hidden={bereich !== 'mitglieder'}>
+      <div
+        role="tabpanel"
+        id="bereich-panel-mitglieder"
+        aria-labelledby="bereich-mitglieder"
+        hidden={bereich !== 'mitglieder'}
+      >
         <PlanMitglieder {kontext} />
       </div>
-      <div role="tabpanel" hidden={bereich !== 'einstellungen'}>
+      <div
+        role="tabpanel"
+        id="bereich-panel-einstellungen"
+        aria-labelledby="bereich-einstellungen"
+        hidden={bereich !== 'einstellungen'}
+      >
         <PlanEinstellungen {kontext} />
       </div>
     {/if}
