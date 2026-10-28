@@ -1,0 +1,434 @@
+name,vegetarisch,vegan,allergene,hinweis
+Agavendicksaft,true,true,,
+Ahornsirup,true,true,,
+Ajvar,true,true,,
+Alufolie,,,,
+Amaretto,true,true,,je nach Produkt mit Mandeln
+Ananas-Saft,true,true,,
+Angostura Bitter,true,true,,
+Apfelessig,true,true,,kann Sulfite enthalten
+Apfelmus,true,true,,
+Apfelsaft,true,true,,
+Aprikosen,true,true,,
+Aubergine,true,true,,
+Ausstechform,,,,
+Ayran,true,false,milch,
+Backcamembert,true,false,milch;gluten;ei,Panade meist mit Ei
+Backpulver,true,true,,Trennmittel je nach Produkt Weizenstärke
+Backpulver (Weinstein 18g),true,true,,
+Baguette,true,true,gluten,
+Balisto,true,false,gluten;milch;soja,je nach Sorte Nüsse
+Balsamico,true,true,sulfite,
+Bananen,true,true,,
+Basilikum (getrocknet),true,true,,
+Basilikum frisch,true,true,,
+Bergkäse,true,false,milch,meist tierisches Lab
+Binden,,,,
+Birnen,true,true,,
+Blaubeeren,true,true,,
+Blauschimmelkäse,true,false,milch,
+Blue Curacao(alkoholfrei),true,true,,
+Bohnen (BBQ),true,true,,
+Bohnen (grün),true,true,,
+Bohnen (Kidney),true,true,,
+Bohnen (weiße Riesenbohnen),true,true,,
+Breze,true,true,gluten,teils mit Butter gebacken
+Brokkoli,true,true,,
+Brot (geschnitten),true,true,gluten,"je nach Sorte Milch, Sesam o. Ä."
+Brot (Laib),true,true,gluten,"je nach Sorte Milch, Sesam o. Ä."
+Brühwurst (Aufschnitt),false,false,,kann Senf/Sellerie/Milcheiweiß enthalten
+Brühwürfel,true,true,sellerie,je nach Sorte Fleisch/Huhn; Brühe kann Sellerie enthalten
+Burgersoße,true,false,ei;senf,"meist mit Ei, vegane Varianten erhältlich"
+Butter,true,false,milch,"im Sheet auch für vegan angehakt, enthält aber Milch"
+Butter (vegan),true,true,,
+Butterbrottüten,,,,
+Cashewnüsse,true,true,schalenfruechte,
+Cayennepfeffer,true,true,,
+Champignons,true,true,,
+Chiliflocken,true,true,,
+Chilipulver,true,true,,
+Chilischoten,true,true,,
+Chips,true,true,,je nach Würzung Milch
+Chorizo,false,false,,
+Ciabatta,true,true,gluten,
+Cocktailkirschen,true,true,sulfite,Farbstoff teils Karmin (nicht vegan)
+Cocktailtomaten,true,true,,
+Cornflakes,true,true,gluten,Gerstenmalzextrakt
+Couscous,true,true,gluten,
+Creme fraiche,true,false,milch,
+Creme fraiche (vegan),true,true,,Basis je nach Produkt (Soja/Hafer/Kokos)
+Currypaste grün / gelb (vegan),true,true,,normale Thai-Pasten oft mit Garnelen/Fisch
+Currypulver,true,true,,kann Senf/Sellerie enthalten
+Desinfektion (Hand),,,,
+Dill,true,true,,
+Dillspitzen,true,true,,
+Doppelkeks 500g,true,false,gluten;milch;soja,
+Edammer (Aufschnitt),true,false,milch,
+Eier,true,false,ei,"im Sheet auch für vegan angehakt, sind aber tierisch"
+Eierlikör,true,false,ei,teils mit Sahne/Milch
+Eierspätzle,true,false,gluten;ei,
+Einmalhandschuhe,,,,
+Eis,true,false,milch,"je nach Sorte Ei, Nüsse, Gluten"
+Eis Vanille,true,false,milch,oft mit Ei
+Eisbergsalat,true,true,,
+Eiswürfel,true,true,,
+Emmentaler,true,false,milch,traditionell tierisches Lab
+Emmentaler (Aufschnitt),true,false,milch,traditionell tierisches Lab
+Emmentaler (gerieben),true,false,milch,traditionell tierisches Lab
+Endiviensalat,true,true,,
+Erbsen,true,true,,
+Erbsen TK,true,true,,
+Erdbeeren,true,true,,
+Erdnussbutter,true,true,erdnuesse,
+Essig,true,true,,Weinessig kann Sulfite enthalten
+Essig essenz,true,true,,
+Essiggurken,true,true,senf,meist mit Senfsaat
+Essiggurken (Streifen),true,true,senf,meist mit Senfsaat
+Essigreiniger,,,,
+Fake --Kitkat,true,false,gluten;milch;soja,
+Fake --Lion,true,false,gluten;milch;soja,Spuren von Erdnüssen möglich
+Fake --SoftCake,true,false,gluten;ei,je nach Produkt Milch
+Fake --Twix,true,false,gluten;milch;soja,
+Federweißer,true,true,sulfite,Klärung teils mit tierischen Hilfsstoffen
+Fenchel,true,true,,
+Feta,true,false,milch,
+Feuerzeug,,,,
+Fisch,false,false,fisch,
+Fischstäbchen,false,false,fisch;gluten,
+Fladenbrot (für einen Döner),true,true,gluten,oft mit Sesam bestreut
+Fleischsalat,false,false,ei;senf,Mayonnaise-Basis
+Flips,true,true,erdnuesse,Erdnussflips
+Frischhaltefolie,,,,
+Frischkäse,true,false,milch,
+Frischkäse (Vegan),true,true,,Basis je nach Produkt (Soja/Mandel/Kokos)
+Frittierfett,true,true,,je nach Produkt tierisch (Rindertalg)
+Frittieröl,true,true,,
+Frühlingszwiebeln,true,true,,
+Garam Masala,true,true,,
+Gefrierbeutel mit Zip,,,,
+Gelantine,false,false,,
+Gemüsebrühe in g,true,true,sellerie,Brühe kann Sellerie enthalten
+Gemüsebrühe in L,true,true,sellerie,Brühe kann Sellerie enthalten
+Geschirrtücher,,,,
+Geschnetzeltes,false,false,,
+Geschnetzeltes (Schwein),false,false,,
+Gewürzgurke,true,true,senf,meist mit Senfsaat
+Ginger Ale,true,true,,
+Gnocchi,true,false,gluten,je nach Produkt mit Ei; im Sheet für vegan angehakt
+Gnocchi (vegan),true,true,gluten,
+Gouda,true,false,milch,
+Gouda (Aufschnitt),true,false,milch,
+Gouda (gerieben),true,false,milch,
+Grenadine Sirup,true,true,,
+griechischer Joghurt,true,false,milch,
+griechischer Joghurt (vegan),true,true,,Basis je nach Produkt (Soja/Kokos)
+Grieß,true,true,gluten,
+Grillkohle,,,,
+Grillwurst (Curry),false,false,,kann Senf/Sellerie enthalten
+Grillwurst (Käse-Knacker),false,false,milch,
+Grünkern,true,true,gluten,
+Grünkernschrot,true,true,gluten,
+Gummibärchen 500g,false,false,,Gelatine
+Gummibärchen 500g (Frösche),false,false,,Gelatine; im Sheet für vegetarisch/vegan angehakt
+Gummibärchen 500g (vegan),true,true,,
+Gurke,true,true,,
+H-Milch,true,false,milch,"im Sheet auch für vegan angehakt, ist aber Milch"
+H-Sahne,true,false,milch,
+Haarnetz,,,,
+Hackfleisch,false,false,,
+Haferflocken,true,true,gluten,"Hafer, nur zertifizierte Ware glutenfrei"
+Hafermilch,true,true,gluten,"Hafer, nur zertifizierte Ware glutenfrei"
+Hafersahne,true,true,gluten,"Hafer, nur zertifizierte Ware glutenfrei"
+Halloumi,true,false,milch,
+Haribo BRIXX,false,false,,je nach Sorte Gelatine
+Haribo Schlümpfe,false,false,,Gelatine
+Haribo Topf,false,false,,Gelatine
+Harissa-Paste,true,true,,
+Haselnüsse,true,true,schalenfruechte,
+Haselnüsse (gehackt),true,true,schalenfruechte,
+Hefe,true,true,,
+Hefe (trocken),true,true,,
+Hefeflocken,true,true,,
+Hinterschinken,false,false,,
+Honig,true,false,,"im Sheet auch für vegan angehakt, Honig ist nicht vegan"
+Honigmelone,true,true,,
+Hummus,true,true,sesam,
+Hähnchenkeulen,false,false,,
+Hähnchenschenkel,false,false,,
+Hühnerbrühe,false,false,sellerie,Brühe kann Sellerie enthalten
+Ingwer,true,true,,
+italienische Kräuter,true,true,,
+Jameson Whiskey,true,true,,
+Joghurt,true,false,milch,
+Joghurt(vegan),true,true,soja,"meist Soja, je nach Produkt Hafer/Kokos"
+Kaba,true,true,,
+Kaffee,true,true,,
+Kaiserschmarn (gefroren),true,false,gluten;ei;milch,
+Kakaopulver,true,true,,
+Kaminwurzn,false,false,,
+Karotten,true,true,,
+Kartoffelknödel (trocken),true,true,,je nach Produkt Milch/Ei
+Kartoffeln (festkochend),true,true,,
+Kartoffeln (mehlig),true,true,,
+Kartoffeln (vw festkochend),true,true,,
+Kartoffeln B-Ware,true,true,,
+Kartoffelstärke,true,true,,
+Kekse,true,false,gluten;milch,"je nach Sorte Ei, Nüsse, vegan möglich"
+Ketchup,true,true,,
+Ketchup (Gewürz),true,true,,
+Kichererbsen,true,true,,
+Kidneybohnen,true,true,,
+Kirschen,true,true,,
+Kiwi,true,true,,
+Klebefallen (Fliegen),,,,
+Klopapier,,,,
+Knoblauch (Knollen),true,true,,
+Knoblauch (Zehen),true,true,,
+Knoblauchpulver,true,true,,
+Knochen,false,false,,
+Knollensellerie,true,true,sellerie,
+Knödelbrot,true,true,gluten,
+Kochschinken,false,false,,
+Kokosfett,true,true,,
+Kokosflocken,true,true,,
+Kokosmilch,true,true,,
+Kolrabi,true,true,,
+Kopfsalat,true,true,,
+Koriander (frisch),true,true,,
+Kreuzkümmel (gemalen),true,true,,
+Kurkuma,true,true,,
+Käse (Aufschnitt),true,false,milch,"im Sheet auch für vegan angehakt, enthält aber Milch"
+"Käse (Aufschnitt, laktosefrei)",true,false,milch,"laktosefrei, enthält aber Milcheiweiß"
+"Käse (Aufschnitt, vegan)",true,true,,
+Käse (Cheddar),true,false,milch,
+Käse (grieben),true,false,milch,"im Sheet auch für vegan angehakt, enthält aber Milch"
+"Käse (grieben, vegan)",true,true,,
+Käse (Manchego),true,false,milch,meist tierisches Lab
+Köttbullar (vegan),true,true,gluten;soja,je nach Produkt (Erbse statt Soja)
+Küchenrolle,,,,
+Kümmel gemahlen,true,true,,
+Kürbis Butternut,true,true,,
+Kürbis Hokkaido,true,true,,
+Landjäger,false,false,,
+Lasagneplatten,true,true,gluten,teils mit Ei
+Lasagneplatten (glutenfrei),true,true,,
+Lauch,true,true,,
+Lebensmittelfarbe (Stufenweise),true,true,,"teils Karmin (E120, nicht vegan)"
+Leberkäsbrät,false,false,,
+Leberkäse,false,false,,
+Lecksuchspray,,,,
+Limetten,true,true,,
+Limettensaft,true,true,sulfite,Flaschensaft oft geschwefelt
+Limettenschale (abgerieben),true,true,,
+Linsen,true,true,,
+Linsen rot,true,true,,
+Lorbeerblätter,true,true,,
+Lyoner,false,false,,
+Mais,true,true,,
+Majoran,true,true,,
+Mandelblättchen,true,true,schalenfruechte,
+Mandeln,true,true,schalenfruechte,
+"Mandeln (gemalen, blanchiert)",true,true,schalenfruechte,"im Sheet nicht für vegan angehakt, ist aber vegan"
+Mango,true,true,,
+Marmelade,true,true,,
+Mayonaise,true,false,ei;senf,
+Mayonaise (vegan),true,true,senf,oft auf Sojabasis
+"Mehl ( Weizen, 550)",true,true,gluten,
+Mehl (Dinkel),true,true,gluten,
+Mehl (Dinkel-Vollkorn),true,true,gluten,
+Mehl (Weizen),true,true,gluten,
+"Mehl (Weizen, 1050)",true,true,gluten,
+Messbecher,,,,
+Metalltopfreiniger,,,,
+Mettwurst,false,false,,
+Milch,true,false,milch,
+Milch (laktosefrei),true,false,milch,
+Mineralwasser,true,true,,
+Minifrikadellen 1kg,false,false,gluten;ei,je nach Produkt Senf
+Minze frisch,true,true,,
+Miracle Whip,true,false,ei;senf,
+Mittelscharfer Senf,true,true,senf,
+Mozzarella,true,false,milch,
+Mozzarella (vegan),true,true,,
+Multivitaminsaft,true,true,,
+Muskat,true,true,,
+Müllbeutel (groß),,,,
+Müllbeutel (klein),,,,
+Müllsäcke 120L,,,,
+Müsli,true,true,gluten,"je nach Sorte Honig, Milch, Nüsse"
+Müsliriegel,true,false,gluten;milch,meist Honig/Milch; im Sheet für vegan angehakt
+"Müsliriegel (glutenfrei, nussfrei)",true,false,,oft Honig/Milch; im Sheet für vegan angehakt
+Naturjoghurt,true,false,milch,
+Nudeln,true,true,gluten,
+Nudeln (Fusili),true,true,gluten,
+Nudeln (Spaghetti),true,true,gluten,
+Nussmischung,true,true,schalenfruechte;erdnuesse,je nach Mischung
+Nutella,true,false,milch;schalenfruechte;soja,"im Sheet für vegan angehakt, enthält aber Milchpulver"
+Oliven,true,true,,
+Olivenöl,true,true,,
+Orangen,true,true,,
+Orangen-Saft,true,true,,
+Oregano,true,true,,
+Paniermehl,true,true,gluten,
+Panzertape,,,,
+Papierhandtücher,,,,
+Paprika,true,true,,
+Paprika Lyoner,false,false,,
+Paprikapulver (edelsüß),true,true,,
+Paprikapulver (geräuchert),true,true,,
+Paprikapulver (scharf),true,true,,
+Parmesan,true,false,milch,"immer tierisches Lab, streng genommen nicht vegetarisch"
+Pesto Rosso,true,false,milch;schalenfruechte,meist mit Käse; Nüsse je nach Produkt
+Petersilie,true,true,,
+Pfeffer,true,true,,
+Pfirsich,true,true,,
+Pflaumen,true,true,,
+Pizzateig (fertig),true,true,gluten,
+Preiselbeeren,true,true,,
+Preiselbeermarmelade,true,true,,
+Pudding (Vanille),true,false,milch,
+Puddingpulver (Schoko),true,true,,Zubereitung meist mit Milch
+Puddingpulver (Vanille),true,true,,Zubereitung meist mit Milch
+Puderzucker,true,true,,
+Putzhandschuhe,,,,
+Putzlappen,,,,
+Quark (mager),true,false,milch,
+Quark (vegan),true,true,soja,je nach Produkt
+"Quetschflasche 0,7 l",,,,
+Radi,true,true,,
+Radieschen,true,true,,
+Ranner,true,true,,
+Rapskernöl,true,true,,
+Rapsöl,true,true,,
+Reibekäse (vegan),true,true,,
+Reiberdatschi,true,false,ei,je nach Produkt mit Ei
+Reis (Basmati),true,true,,
+Reis (Langkorn),true,true,,
+Reis (Risotto),true,true,,
+Reispapier,true,true,,
+Remoulade,true,false,ei;senf,
+Rinderbrühe,false,false,sellerie,Brühe kann Sellerie enthalten
+Romadour / Limburger,true,false,milch,
+Rosinen,true,true,,geschwefelte Sorten enthalten Sulfite
+Rote Beete,true,true,,
+Rotwein,true,true,sulfite,Klärung teils mit Gelatine/Eiweiß
+Rucola,true,true,,
+Rum (dunkel),true,true,,
+Räuchertofu,true,true,soja,
+Röstzwiebeln,true,true,gluten,mit Weizenmehl
+Safran,true,true,,
+Sahne,true,false,milch,
+Sahne(vegan),true,true,,Basis je nach Produkt (Hafer/Soja)
+Sahnejoghurt,true,false,milch,
+Salami,false,false,,
+Salat,true,true,,
+Salatgurke,true,true,,
+Salatkräuter,true,true,,
+Salsasoße,true,true,,
+Salz,true,true,,
+Salzstangen,true,true,gluten,
+Sauerkirschen,true,true,,"im Sheet nicht für vegan angehakt, ist aber vegan"
+Sauerkraut,true,true,,
+Sauerrahm,true,false,milch,
+Saure Gummibärchen 500g,false,false,,Gelatine
+Schalotten,true,true,,
+Schinkenspeck,false,false,,
+Schinkenwürfel,false,false,,
+Schmand,true,false,milch,
+Schnittlauch,true,true,,
+Schnittlauch (TK),true,true,,
+Schokolade,true,false,milch;soja,
+Schokolade (Vegan),true,true,,
+Schokoraspeln,true,true,soja,"Zartbitter oft vegan, Vollmilch-Raspeln mit Milch"
+Schupfnudeln,true,false,gluten;ei,teils ohne Ei
+Schupfnudeln (vegan),true,true,gluten,
+Schwein (gewürfelt),false,false,,
+Schweinenackensteaks,false,false,,
+Schweineschulter,false,false,,
+Seife (flüssig),,,,
+Seife (flüssig) (L),,,,
+Sellerie,true,true,sellerie,
+Semmelbrösel,true,true,gluten,
+Semmeln,true,true,gluten,
+Senf (mittelscharf),true,true,senf,
+Sesamsamen,true,true,sesam,
+Sesamöl,true,true,sesam,
+Skyr (vegan),true,true,soja,je nach Produkt
+Sojadrink (ungesüßt),true,true,soja,
+Sojagranulat,true,true,soja,
+Sojajoghurt,true,true,soja,
+Sojamehl,true,true,soja,
+Sojasoße,true,true,soja;gluten,
+Sonnenblumenkerne,true,true,,
+Sonnenblumenöl,true,true,,
+Sonnencreme,,,,
+Sonnencreme (sprüh),,,,
+Soßen,true,false,ei;senf,"unklar welche Soße, Zutaten prüfen"
+Speisestärke,true,true,,
+Spinat,true,true,,
+Spätzle,true,false,gluten;ei,
+Spülbürste,,,,
+Spülhandschuhe,,,,
+Spüllappen,,,,
+Spülmittel,,,,
+Spülmittel (L),,,,
+Spülschwamm,,,,
+Staudenselerie,true,true,sellerie,
+Streichwurst,false,false,,
+Suppengemüse,true,true,sellerie,enthält meist Sellerie
+Süßer Senf,true,true,senf,
+Süßkartoffeln,true,true,,
+Tahina,true,true,sesam,
+Tee,true,true,,
+Tequila,true,true,,
+Thymian,true,true,,
+Tilsiter (Aufschnitt),true,false,milch,
+TK- Beeren,true,true,,
+TK- Obstmischung,true,true,,
+TK-Edamame,true,true,soja,
+TK-Petersilie,true,true,,
+Toastbrot,true,true,gluten,teils mit Milch
+Tofu,true,true,soja,
+Tomaten,true,true,,
+Tomaten (geschält),true,true,,
+Tomaten (getrocknet),true,true,,geschwefelte Sorten enthalten Sulfite
+Tomaten (passiert),true,true,,
+Tomaten (stückig),true,true,,
+Tomatenmark,true,true,,
+Topfreiniger (Draht),,,,
+Tortilla Chips,true,true,,
+Tymian,true,true,,
+Vanillepaste,true,true,,
+Vanilleschoten,true,true,,
+Vanillezucker,true,true,,
+Vodka,true,true,,
+Wachholderbeeren,true,true,,
+Wachholderbeeren (g),true,true,,
+Waldmeisterpulver,true,true,,
+Wasser,true,true,,
+Wassermelone,true,true,,
+Weintrauben,true,true,,
+Weißkohl,true,true,,
+Weißwein,true,true,sulfite,Klärung teils mit Gelatine/Eiweiß
+Wiener,false,false,,
+Wurst (Aufschnitt),false,false,,
+Wäscheklammern,,,,
+Wäschewanne,,,,
+Würzmischung Taco,true,true,,je nach Produkt Sellerie/Gluten
+Zartbitterschokolade,true,true,soja,"meist vegan (im Sheet nicht vegan angehakt), Spuren Milch möglich"
+Zimt,true,true,,
+Zitrone,true,true,,"im Sheet nicht für vegan angehakt, ist aber vegan"
+Zitronenabrieb,true,true,,
+Zitronenlimonade,true,true,,
+Zitronensaft,true,true,sulfite,Flaschensaft oft geschwefelt
+Zitronensaftkonzentrat,true,true,sulfite,oft geschwefelt
+Zucchini,true,true,,
+Zucker (braun),true,true,,
+Zucker (weiß),true,true,,
+Zuckersirup,true,true,,
+Zwetschgen,true,true,,
+Zwiebeln,true,true,,
+Zündhölzer,,,,
+Äpfel,true,true,,
+Öl,true,true,,
+Ü-Eier,true,false,milch;soja,Spuren von Nüssen möglich

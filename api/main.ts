@@ -113,6 +113,12 @@ import {
   NikolausSteuerungSaveEndpoint,
 } from './endpoints/intern-nikolaus-steuerung';
 import {
+  EssensplanungEinstellungenEndpoint,
+  EssensplanungListeEintragEndpoint,
+  EssensplanungListeEndpoint,
+  EssensplanungSteuerungEndpoint,
+} from './endpoints/intern-essensplanung-steuerung';
+import {
   EditorCollection,
   EditorItem,
   EditorReview,
@@ -1130,6 +1136,35 @@ app.http('internPflegeNikolausSteuerungDelete', {
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-steuerung/loeschen',
   handler: NikolausSteuerungDeleteEndpoint,
+});
+
+// Essensplanung: the Steuerung for the teams Admin and Vorstand (docs/essensplanung.md).
+app.http('internEssensplanungSteuerung', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/essensplanung/steuerung',
+  handler: EssensplanungSteuerungEndpoint,
+});
+
+app.http('internPflegeEssensplanungEinstellungen', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/essensplanung/einstellungen',
+  handler: EssensplanungEinstellungenEndpoint,
+});
+
+app.http('internPflegeEssensplanungListe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/essensplanung/{liste}',
+  handler: EssensplanungListeEndpoint,
+});
+
+app.http('internPflegeEssensplanungListeEintrag', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/essensplanung/{liste}/{id}',
+  handler: EssensplanungListeEintragEndpoint,
 });
 
 // Sammelbestellungen: shared invitation and private order links; staff writes require Entra ID.

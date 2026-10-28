@@ -287,6 +287,83 @@ export interface StaffNikolausSteuerung {
   log: NikolausAuditEntry[];
 }
 
+/** Units of an ingredient of the Essensplanung: g/kg, ml/l, or counted. */
+export type EssenEinheitenart = 'masse' | 'volumen' | 'stueck' | 'packung' | 'bund';
+
+export interface EssenVorlageGruppe {
+  name: string;
+  faktor: number;
+}
+
+/** Switches and templates of the Essensplanung (Steuerung, `docs/essensplanung.md`). */
+export interface EssenEinstellungen {
+  anlegenExtern: boolean;
+  whitelist: string[];
+  aufbewahrungMonate: number;
+  wartung: boolean;
+  vorlageGruppen: EssenVorlageGruppe[];
+  vorlageMahlzeiten: string[];
+}
+
+export interface EssenKategorie {
+  id: number;
+  etag: string;
+  name: string;
+  zutaten: number;
+}
+
+export interface EssenUnvertraeglichkeit {
+  id: number;
+  etag: string;
+  /** Key of the 14 EU allergens, which cannot be deleted. */
+  schluessel: string | null;
+  name: string;
+  zutaten: number;
+}
+
+export interface EssenZutatInput {
+  name: string;
+  kategorieId: number;
+  einheitenart: EssenEinheitenart;
+  abtropfgewicht: boolean;
+  lebensmittel: boolean;
+  /** null: not known yet. */
+  vegetarisch: boolean | null;
+  vegan: boolean | null;
+  merkmaleGeprueft: boolean;
+  hinweis: string;
+  grammProTl: number | null;
+  grammProEl: number | null;
+  grammProStueck: number | null;
+  allergene: number[];
+}
+
+export interface EssenZutat extends EssenZutatInput {
+  id: number;
+  etag: string;
+  geaendertAm: string;
+  geaendertVon: string;
+}
+
+export interface EssenAuditEntry {
+  id: number;
+  at: string;
+  actor: string;
+  action: string;
+  details: Record<string, unknown>;
+}
+
+export interface StaffEssenSteuerung {
+  einstellungen: EssenEinstellungen;
+  etag: string;
+  updatedAt: string;
+  updatedBy: string;
+  kategorien: EssenKategorie[];
+  unvertraeglichkeiten: EssenUnvertraeglichkeit[];
+  zutaten: EssenZutat[];
+  log: EssenAuditEntry[];
+}
+
 /** Status of the Nikolausdienst for every page of the Leitendenbereich. */
 export interface StaffNikolausStatus {
   staffActive: boolean;

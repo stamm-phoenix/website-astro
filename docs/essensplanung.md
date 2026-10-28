@@ -2,7 +2,7 @@
 
 Neues öffentliches Modul **„Essensplanung“**. Ein Küchenteam plant damit für eine Aktion Mahlzeiten, Gerichte mit Zutaten und die Teilnehmendenzahlen. Daraus berechnet das Modul Einkaufsliste, Einkäufe, Lager und Packliste. Es ersetzt das Google Sheet „2026 – Küche Bezirkslager“ und ist für Leitende des Stammes **und** für Externe gedacht, z. B. Aktionen im Bezirk. Angemeldet wird nicht per OAuth, sondern über **persönliche Links mit Token**.
 
-**Stand: geplant.** Umgesetzt wird in Teil-PRs. Fortschritt, Reihenfolge und Entscheidungen stehen in [#452](https://github.com/stamm-phoenix/website-astro/issues/452); jeder Teil-PR schreibt diese Doku auf den Stand fort, den er umsetzt.
+**Stand: Steuerung und zentrale Listen sind umgesetzt (PR 2), die Planungen selbst folgen.** Umgesetzt wird in Teil-PRs. Fortschritt, Reihenfolge und Entscheidungen stehen in [#452](https://github.com/stamm-phoenix/website-astro/issues/452); jeder Teil-PR schreibt diese Doku auf den Stand fort, den er umsetzt.
 
 ## Begriffe
 
@@ -51,23 +51,30 @@ Neues öffentliches Modul **„Essensplanung“**. Ein Küchenteam plant damit f
 
 ## Steuerung (Leitendenbereich)
 
-Die Seite `/leitendenbereich/essensplanung-steuerung` ist nur für die Teams **`team-admin`** und **`team-vorstand`**.
+Die Seite `/leitendenbereich/essensplanung-steuerung` (Kachel „Essensplanung“ unter „Gruppen & Aktionen“) ist nur für die Teams **`team-admin`** und **`team-vorstand`**.
 
-- **Rolle für Admins:** In `CONFIG.staff.teams` kommt `admin: { groupId: '8d15b638-5de2-4960-a4e4-5e1966cafc55', role: 'team_admin' }` dazu (Gruppe „IT-Administratoren“, Mail-Alias `team-admin`). Die Tabelle in `docs/berechtigungen.md` wird ergänzt.
-- **Zugriff:** Die Kachel bekommt `roles: ['team_admin', 'team_vorstand']` in `staffModules.ts`, die API prüft `hasTeam(principal, 'admin') || hasTeam(principal, 'vorstand')`.
-  - Wie bei den Kostenstellen bleibt die Seite unter `team_leitende`. Admins ohne Leitenden-Rolle kommen also nicht hinein. So ist es gewollt und so wird es dokumentiert.
-- **Inhalt:**
-  - **Schalter:** „Anlegen durch Externe“ an/aus, Whitelist (Adressen und Domains), Aufbewahrungszeit (Standard 12 Monate nach dem letzten Tag), Wartungsmodus (Schreiben gesperrt, Lesen geht).
-  - **Alle Planungen:** Name, Zeitraum, angelegt am, Besitzer:in (Name und Mail), letzte Änderung, Anzahl Mitglieder. Planungen lassen sich hier löschen.
-  - **Zentrale Zutatenliste** pflegen (siehe unten), dazu Kategorien und Unverträglichkeiten.
-  - **Vorlagen für neue Planungen:**
-    - Gruppen mit Faktor: Wö 0,7, Jupfi 0,8, Pfadi 1,0, Rover 1,2, Leitende 1,2.
-    - Standard-Mahlzeiten.
-  - **Protokoll** aller Änderungen in der Steuerung mit Person und Zeit, wie `nikolaus.audit_log`.
-- **Aufbewahrung:**
-  - Ein täglicher Timer (wie in `api/timers/`) löscht Planungen, deren Aufbewahrungszeit abgelaufen ist.
-  - 14 Tage vorher bekommen die Besitzer:innen eine Warnmail. Wer etwas ändert, verschiebt die Frist nicht, sie hängt am letzten Tag der Planung.
-  - Die Besitzer:in kann die Planung jederzeit selbst löschen.
+- **Rollen:** `CONFIG.staff.teams.admin` ist die Gruppe „IT-Administratoren“ (Mail-Alias `team-admin`, Rolle `team_admin`), siehe [Berechtigungen](berechtigungen.md). Die Kachel hat `roles: ['team_admin', 'team_vorstand']`, die API prüft `hasTeam(principal, 'admin') || hasTeam(principal, 'vorstand')` (`api/endpoints/intern-essensplanung-steuerung.ts`).
+  - Wie bei den Kostenstellen bleibt die Seite unter `team_leitende`. Admins ohne Leitenden-Rolle kommen also nicht hinein.
+- **Einstellungen** (eine Zeile `essen.einstellungen`, gespeichert mit Version wie die Nikolaus-Steuerung):
+  - **Anlegen durch Externe** an/aus und die **Liste erlaubter Adressen und Domains**. Die Regel steht in `darfPlanungAnlegen` (`api/lib/essen-validation.ts`): `@stamm-phoenix.de` darf immer; alle anderen nur bei eingeschaltetem Schalter und wenn die Liste leer ist oder die Adresse oder genau ihre Domain enthält (Subdomains zählen nicht).
+  - **Aufbewahrung** in Monaten nach dem letzten Tag (1 bis 120, Standard 12).
+  - **Wartungsmodus**: Änderungen an Planungen werden abgelehnt, Lesen geht. Greift ab den Planungen (PR 3).
+  - **Vorlagen für neue Planungen**: Gruppen mit Faktor (Wö 0,7, Jupfi 0,8, Pfadi 1, Rover 1,2, Leitende 1,2) und die Mahlzeiten eines neuen Tages. Sie stehen als JSON in `essen.einstellungen`, weil eine neue Planung sie nur kopiert.
+- **Zentrale Zutatenliste, Kategorien, Allergene** pflegen (siehe unten). Kategorien lassen sich erst löschen, wenn keine Zutat mehr dazugehört; die 14 EU-Hauptallergene nur umbenennen.
+- **Protokoll**: Jede Änderung steht mit Person und Zeit in `essen.audit_log`; die Seite zeigt die letzten 100.
+- **Noch offen** (mit den Planungen in PR 3): die Liste aller Planungen mit Löschen, der tägliche Lösch-Timer mit Warnmail 14 Tage vorher. Die Frist hängt am letzten Tag der Planung, Änderungen verschieben sie nicht; die Besitzer:in kann jederzeit selbst löschen.
+
+### API
+
+| Methode und Route | Inhalt |
+| --- | --- |
+| `GET /api/intern/essensplanung/steuerung` | Einstellungen mit `etag`, Kategorien, Unverträglichkeiten, Zutaten, Protokoll |
+| `PUT /api/intern/pflege/essensplanung/einstellungen` | `{ etag, einstellungen }`; `409` bei veralteter Version |
+| `POST /api/intern/pflege/essensplanung/{zutaten\|kategorien\|unvertraeglichkeiten}` | neuer Eintrag; Antwort `{ id, view }` |
+| `PATCH /api/intern/pflege/essensplanung/{liste}/{id}` | `{ etag, … }` ändert; `409` bei veralteter Version |
+| `DELETE /api/intern/pflege/essensplanung/{liste}/{id}` | mit `If-Match`; `400` bei benutzten Kategorien und EU-Allergenen |
+
+Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite ersetzt damit ihren Stand. Doppelte Namen ergeben `400` mit `fields.name`. Prüfungen ohne Datenbank (auch für die Mock-API) stehen in `api/lib/essen-validation.ts`, Lesen und Schreiben in `api/lib/essen-steuerung.ts`.
 
 ## Zentrale Zutatenliste
 
@@ -79,6 +86,7 @@ Die Seite `/leitendenbereich/essensplanung-steuerung` ist nur für die Teams **`
   - Abtropfgewicht (Anzeige „kg (ATG)“),
   - Merkmale **vegan**, **vegetarisch** und **Allergene/Unverträglichkeiten**: Gluten, Laktose, Nüsse … nach der zentralen Unverträglichkeiten-Liste,
   - optional die Umrechnungshilfe: Gramm pro TL, Gramm pro EL, Durchschnittsgewicht pro Stück.
+- **Merkmale aus den Startdaten** (vegetarisch, vegan, Allergene) sind ungeprüfte Vorschläge (`merkmale_geprueft = 0`). Die Steuerung zeigt „Merkmale ungeprüft“ und filtert mit „Nur ungeprüfte“; wer einen Eintrag prüft, hakt „Ernährung und Allergene sind geprüft“ an. Vegetarisch/vegan sind `NULL`, solange unbekannt; vegan schließt vegetarisch ein (Datenbankregel). Nicht-Lebensmittel haben weder Ernährung noch Allergene.
 - **Wer ändert was:** Gepflegt wird die Liste **nur in der Steuerung**.
   - In einer Planung kann man Zutaten ergänzen oder abweichend festlegen, z. B. eine andere Kategorie oder Einheit. Das gilt **nur für diese Planung**.
   - Abweichungen gezielt in die zentrale Liste zu übernehmen, ist eine spätere Ausbaustufe.
@@ -196,14 +204,13 @@ So sicher gegen Konflikte wie der Protokoll-Editor, ohne Neuladen, aber ohne ech
 
 ## Datenmodell (Schema `essen`, Azure SQL)
 
-Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach.
+Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`); Typen in `api/lib/db-schema.ts`.
 
 | Tabelle | Inhalt |
 | --- | --- |
-| `einstellungen` | eine Zeile: Anlegen durch Externe, Whitelist, Aufbewahrung, Wartungsmodus |
+| `einstellungen` | eine Zeile: `anlegen_extern`, `whitelist` (JSON), `aufbewahrung_monate`, `wartung`, `vorlage_gruppen` und `vorlage_mahlzeiten` (JSON), `updated_at`, `updated_by` |
 | `audit_log` | Protokoll der Steuerung |
-| `kategorie`, `unvertraeglichkeit`, `zutat`, `zutat_unvertraeglichkeit` | zentrale Listen |
-| `vorlage_gruppe`, `vorlage_mahlzeit` | Vorlagen für neue Planungen |
+| `kategorie`, `unvertraeglichkeit` (`schluessel` für die 14 EU-Allergene), `zutat`, `zutat_unvertraeglichkeit` | zentrale Listen; `zutat`: `name`, `kategorie_id`, `einheitenart`, `abtropfgewicht`, `lebensmittel`, `vegetarisch`, `vegan`, `merkmale_geprueft`, `hinweis`, `gramm_pro_tl`, `gramm_pro_el`, `gramm_pro_stueck`, `geaendert_am`, `geaendert_von` |
 | `anlage_anfrage` | unbestätigte Anlagen (Mail-Bestätigung, 24 h) |
 | `planung` | Name, angelegt, Einstellungen (Mitglieder verwalten erlaubt), Hashes von Beitritts- und Lese-Token, `aenderung_seq` |
 | `mitglied` | Name, Mail (optional), Rolle, Token-Hash, entzogen |
@@ -238,7 +245,7 @@ Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen eine
 
 Aus dem Sheet „2026 – Küche Bezirkslager“ (die Datei selbst liegt nicht im Repo):
 
-- **`api/migrations/seed/essensplanung/`:** zentrale Zutatenliste (392 Lebensmittel, 41 Nicht-Lebensmittel), 28 Kategorien, Vorlagen für Gruppen und Mahlzeiten, Umrechnung TL/EL in Gramm, Stückgewichte und die Metro-Artikel des Lagers mit Packung und Preis. Spalten und Herkunft: [README](../api/migrations/seed/essensplanung/README.md). Die Migration `essen` liest die Dateien; bis dahin sind sie nicht in der Datenbank.
+- **`api/migrations/seed/essensplanung/`:** zentrale Zutatenliste (392 Lebensmittel, 41 Nicht-Lebensmittel), 28 Kategorien, Vorlagen für Gruppen und Mahlzeiten, Umrechnung TL/EL in Gramm, Stückgewichte und die Metro-Artikel des Lagers mit Packung und Preis. Spalten und Herkunft: [README](../api/migrations/seed/essensplanung/README.md). `zutaten_merkmale.csv` enthält die Vorschläge für vegetarisch, vegan und Allergene. Aus den Dateien erzeugt `bun scripts/essensplanung-startdaten.ts` (in `api/`) die Migration `0050_essensplanung_startdaten.sql`; ein Test prüft, dass beide zusammenpassen.
 - **`web/test/fixtures/essensplanung-bezirkslager/`:** das ganze Lager (Tagesplan mit Anwesenden je Mahlzeit, 683 Zutatenzeilen mit den Ergebnissen des Sheets, Bestand, Zusätzliches) als Testdaten für die Berechnung. Siehe [README](../web/test/fixtures/essensplanung-bezirkslager/README.md).
 
 ## Was wir aus dem Sheet gelernt haben

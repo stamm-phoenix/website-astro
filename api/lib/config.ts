@@ -18,7 +18,7 @@ const PREVIEW_SQL_SERVER = 'stamm-phoenix-previews.database.windows.net';
 const TEAM_LEITENDE = '554e9d9c-be77-407b-bd21-37b056947faf';
 
 /** Teams that grant a role in the Leitendenbereich (`CONFIG.staff.teams`). */
-export type StaffTeam = 'leitende' | 'kasse' | 'vorstand';
+export type StaffTeam = 'leitende' | 'kasse' | 'vorstand' | 'admin';
 
 export interface ApiConfig {
   /** App registration the API uses to access SharePoint, the database, Blob Storage and send mails. */
@@ -401,6 +401,8 @@ export const CONFIG: ApiConfig = {
       kasse: { groupId: '4e311109-cde1-4201-a132-238ec84c8fd2', role: 'team_kasse' },
       // Sees the Kostenstellen with the Kasse
       vorstand: { groupId: '88f21607-1ee8-45c2-96e4-c9a8303bbe3a', role: 'team_vorstand' },
+      // IT-Administratoren: Steuerung der Essensplanung, mit dem Vorstand
+      admin: { groupId: '8d15b638-5de2-4960-a4e4-5e1966cafc55', role: 'team_admin' },
     },
   },
   abrechnung: {
