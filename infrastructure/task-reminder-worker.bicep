@@ -9,7 +9,7 @@ param workerName string = 'website-astro-task-reminders'
 param location string = resourceGroup().location
 @description('Enable only after the production task migrations and worker code are deployed.')
 param enabled bool = false
-@description('Enable the reminders of the Leitendenrunde only after the migration 0046 and the worker code are deployed.')
+@description('Enable the reminders of the Leitendenrunde only after the migration 0047 and the worker code are deployed.')
 param leitendenrundeEnabled bool = false
 
 var certificateVaultName = 'taskcert${uniqueString(resourceGroup().id, workerName)}'

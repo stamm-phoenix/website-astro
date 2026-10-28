@@ -143,7 +143,7 @@ Person bekommt eine eigene Mail, die Adressen sind für andere nicht sichtbar. D
 Uhrzeit und Ort und einen geschützten Link auf das Protokoll (bei Word-Protokollen auf die Liste).
 
 **Zuverlässigkeit.** Pro Termin, Stufe und Person gibt es höchstens eine Zeile in
-`protokoll.erinnerung` (Migration 0046, eindeutiger Schlüssel), die vor dem Versand reserviert
+`protokoll.erinnerung` (Migration 0047, eindeutiger Schlüssel), die vor dem Versand reserviert
 wird; parallele Läufe senden deshalb nicht doppelt. Gespeichert wird nur der Hash der Adresse.
 Ein Timeout oder ein anderer unklarer Fehler setzt `uncertain` und wird nie automatisch wiederholt
 (Graph `202` bestätigt Annahme, nicht Zustellung); das Ergebnis lässt sich im Postfach
@@ -175,7 +175,7 @@ Key-Vault-Referenz in die Function App:
      LEITENDENRUNDE_REMINDERS_ENABLED=false
    ```
 
-3. Migration 0046 und Timer-Code deployen, den Status der Referenz `CAMPFLOW_API_TOKEN` auf `Resolved`
+3. Migration 0047 und Timer-Code deployen, den Status der Referenz `CAMPFLOW_API_TOKEN` auf `Resolved`
    prüfen, dann `LEITENDENRUNDE_REMINDERS_ENABLED=true` setzen. Zum Pausieren wieder `false`.
 
 Bei einer fehlgeschlagenen Ausführung (Alarm in Application Insights) nennt die Fehlermeldung nur
