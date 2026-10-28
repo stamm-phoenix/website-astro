@@ -585,8 +585,13 @@ function drawFolgeseitenKopf(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...GREY);
-  doc.text(betreff, MARGIN + 12, 19);
-  doc.text(`Seite ${page} von ${pages}`, PAGE_WIDTH - MARGIN, 19, { align: 'right' });
+  const seite = `Seite ${page} von ${pages}`;
+  // A long subject, such as the name of an Aktion, is cut short before the page number
+  const room = PAGE_WIDTH - 2 * MARGIN - 12 - doc.getTextWidth(seite) - 6;
+  let text = betreff;
+  while (text.length > 1 && doc.getTextWidth(text) > room) text = `${text.slice(0, -2)}…`;
+  doc.text(text, MARGIN + 12, 19);
+  doc.text(seite, PAGE_WIDTH - MARGIN, 19, { align: 'right' });
   doc.setDrawColor(...RED);
   doc.setLineWidth(0.4);
   doc.line(MARGIN, 23, PAGE_WIDTH - MARGIN, 23);
