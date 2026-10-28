@@ -432,13 +432,13 @@ export function buildIssueBody(draft: string, source: IssueSource): string {
 }
 
 /** The cleaned title of an issue: one line, no secrets, within the limit. */
-export function cleanIssueTitle(value: unknown): string {
-  return redactForForwarding(oneLine(value, PROBLEM_MAX_LENGTH.title)).trim();
+export function cleanIssueTitle(value: unknown, max = PROBLEM_MAX_LENGTH.title): string {
+  return redactForForwarding(oneLine(value, Infinity)).trim().slice(0, max);
 }
 
 /** The cleaned draft text of an issue. */
-export function cleanIssueText(value: unknown): string {
-  return cleanText(value, PROBLEM_MAX_LENGTH.body);
+export function cleanIssueText(value: unknown, max = PROBLEM_MAX_LENGTH.body): string {
+  return cleanText(value, Infinity).slice(0, max);
 }
 
 export function isProblemLabel(value: unknown): value is ProblemLabel {
