@@ -233,11 +233,14 @@ function structuredSecretEnd(text: string, start: number): number {
 
 /** Scan each secret value once, including escaped quotes and nested structured values. */
 function redactNamedSecrets(text: string): string {
-  const field = /\b(token|key|secret|passwort|password|kennwort)(["'“”’]?)\s*[:=]\s*/gi;
+  // Match whole identifiers once; restarting inside a long compound name must stay cheap.
+  const field = /(?<![\w-])(-*[A-Za-z_][\w-]*)(["'“”’]?)\s*[:=]\s*/g;
   const parts: string[] = [];
   let copied = 0;
   let match: RegExpExecArray | null;
   while ((match = field.exec(text)) !== null) {
+    const name = match[1].replace(/([a-z0-9])([A-Z])/g, '$1_$2');
+    if (!/(?:^|[_-])(token|key|secret|passwort|password|kennwort)(?:$|[_-])/i.test(name)) continue;
     let end = field.lastIndex;
     const opening = text[end];
     if (isSecretQuote(opening)) {
@@ -405,7 +408,10 @@ export function describeBrowser(userAgent: string): string {
 
 /** Whether the value is a plausible e-mail address within the length limit. */
 function isEmail(value: string): boolean {
-  return value.length <= PROBLEM_MAX_LENGTH.contact && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  return (
+    value.length <= PROBLEM_MAX_LENGTH.contact &&
+    /^[^\s@,;:<>()[\]\\"]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+$/u.test(value)
+  );
 }
 
 /**
