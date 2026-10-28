@@ -181,7 +181,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:31';
+const SEEDED_KEY = 'preview:seeded:32';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -691,6 +691,26 @@ export async function seedPreviewTasks(): Promise<void> {
           recipient: 'alex@example.test',
           status: 'sent',
           sent_at: new Date('2026-10-12T07:17:00Z'),
+        })
+        .execute();
+    const rundeReminder = await trx
+      .selectFrom('protokoll.erinnerung')
+      .select('id')
+      .where('meeting_key', '=', '2026-10-14T19:00')
+      .where('days_before', '=', 7)
+      .executeTakeFirst();
+    if (!rundeReminder)
+      await trx
+        .insertInto('protokoll.erinnerung')
+        .values({
+          meeting_key: '2026-10-14T19:00',
+          meeting_date: '2026-10-14',
+          meeting_at: new Date('2026-10-14T17:00:00Z'),
+          protokoll_ref: 'editor:0',
+          days_before: 7,
+          recipient_hash: 'a'.repeat(64),
+          status: 'sent',
+          sent_at: new Date('2026-10-07T07:47:00Z'),
         })
         .execute();
     if (registry) {

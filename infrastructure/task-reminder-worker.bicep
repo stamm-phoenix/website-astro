@@ -9,6 +9,8 @@ param workerName string = 'website-astro-task-reminders'
 param location string = resourceGroup().location
 @description('Enable only after the production task migrations and worker code are deployed.')
 param enabled bool = false
+@description('Enable the reminders of the Leitendenrunde only after the migration 0046 and the worker code are deployed.')
+param leitendenrundeEnabled bool = false
 
 var certificateVaultName = 'taskcert${uniqueString(resourceGroup().id, workerName)}'
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
@@ -71,6 +73,8 @@ resource worker 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'false' }
         { name: 'ENABLE_ORYX_BUILD', value: 'false' }
         { name: 'TASK_REMINDERS_ENABLED', value: enabled ? 'true' : 'false' }
+        { name: 'LEITENDENRUNDE_REMINDERS_ENABLED', value: leitendenrundeEnabled ? 'true' : 'false' }
+        { name: 'CAMPFLOW_API_TOKEN', value: '@Microsoft.KeyVault(SecretUri=https://${certificateVaultName}.vault.azure.net/secrets/campflow-api-token)' }
         { name: 'AZURE_CLIENT_CERT', value: '@Microsoft.KeyVault(SecretUri=https://${certificateVaultName}.vault.azure.net/secrets/website-client-certificate)' }
       ]
     }

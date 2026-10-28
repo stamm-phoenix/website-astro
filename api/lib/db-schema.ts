@@ -65,6 +65,7 @@ export interface Database {
   'protokoll.protokoll': EditorProtokollTable;
   'protokoll.sperre': EditorSperreTable;
   'protokoll.revision': EditorRevisionTable;
+  'protokoll.erinnerung': LeitendenrundeErinnerungTable;
   'organisation.person': PersonTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
   'organisation.aktion_keine_aktion': AktionKeineAktionTable;
@@ -568,6 +569,23 @@ export interface EditorProtokollTable {
   delivery_recipients: number | null;
   delivery_at: Date | null;
   delivery_by: string | null;
+}
+
+/** One reminder mail per meeting, stage and recipient (migration 0046). */
+export interface LeitendenrundeErinnerungTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  meeting_key: string;
+  meeting_date: SqlDate;
+  meeting_at: Date;
+  protokoll_ref: string;
+  days_before: number;
+  /** SHA-256 of the lowercase address; the address itself is not stored. */
+  recipient_hash: string;
+  status: 'attempted' | 'sent' | 'uncertain' | 'failed' | 'retryable';
+  attempted_at: Generated<Date>;
+  sent_at: Date | null;
+  retry_after: Generated<Date | null>;
 }
 
 export interface EditorSperreTable {

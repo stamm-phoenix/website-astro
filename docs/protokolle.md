@@ -47,7 +47,7 @@ Bei deaktivierter KI lässt sich ein veralteter Archivtermin mit „Termin zurü
 
 Vor dem Modellaufruf prüft die API, ob die heruntergeladene Datei noch zur geladenen Version gehört. Beim Speichern vergleicht sie die Version des Bibliothekseintrags erneut. Eine Änderung oder Entscheidung während der Erkennung verwirft das Ergebnis; die Freigabe bleibt bestehen.
 
-Erinnerungen oder Mails zum nächsten Termin gibt es noch nicht. Der bestätigte Termin wird nur beim Protokoll gespeichert.
+Der bestätigte Termin ist die Grundlage der Erinnerungsmails an die Leitenden (#184, [Aufgaben-Timer](aufgaben-timer.md#erinnerungen-an-die-leitendenrunde)). Nur ein bestätigter Termin zählt, nie ein bloßer Vorschlag.
 
 Code: `api/lib/protokoll-termin.ts` (Prompt, Prüfung der Antwort, Entscheidungen), `api/lib/docx-text.ts` (Word → Text), `api/lib/azure-openai.ts` (Aufruf von Azure OpenAI, gemeinsam mit der Belegprüfung).
 
