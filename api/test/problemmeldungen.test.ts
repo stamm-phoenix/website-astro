@@ -302,6 +302,7 @@ dbTest('saving the draft needs the loaded version and moves the report into revi
   const saved = await load(context, id);
   assert.equal(saved.status, 'in_pruefung');
   assert.equal(saved.reviewedBy, 'staff@example.test');
+  assert.ok(saved.reviewedAt);
   assert.deepEqual(saved.draft, { title: 'Neuer Titel', body: 'Text', label: 'enhancement' });
 
   assert.equal((await patch(item.etag)).status, 409);
@@ -444,6 +445,9 @@ dbTest('a send that ends unclear is checked on GitHub before the next attempt', 
   });
   const currentId = Number(await submit(context));
   const id = String(currentId);
+  await sql`UPDATE problem.meldung SET reviewed_by = N'alice@example.test', reviewed_at = DATEADD(day, -1, SYSUTCDATETIME()) WHERE id = ${currentId}`.execute(
+    getDb()
+  );
   const item = await load(context, id);
 
   const unclear = await send(context, id, item.etag);
@@ -453,6 +457,9 @@ dbTest('a send that ends unclear is checked on GitHub before the next attempt', 
   assert.equal(pending.status, 'in_pruefung');
   assert.equal(pending.github.pending, true);
   assert.equal(pending.draft.title, ANSWER.title);
+  assert.equal(pending.reviewedBy, 'staff@example.test');
+  assert.ok(pending.reviewedAt && item.reviewedAt);
+  assert.ok(new Date(pending.reviewedAt).getTime() > new Date(item.reviewedAt).getTime());
 
   // Too soon: the first attempt may still be running
   assert.equal((await send(context, id, pending.etag)).status, 409);
@@ -504,7 +511,7 @@ dbTest('an unclear send without a trace on GitHub is created on the next attempt
   assert.equal((await load(context, id)).github.number, 79);
 });
 
-dbTest('an issue of somebody else that quotes the marker is not taken over', async (t) => {
+dbTest('a conflicting footer blocks recovery without creating another issue', async (t) => {
   let currentId = 0;
   let down = true;
   const { context, calls } = setup(t, {
@@ -546,9 +553,13 @@ dbTest('an issue of somebody else that quotes the marker is not taken over', asy
     getDb()
   );
   down = false;
-  assert.equal((await send(context, id, (await load(context, id)).etag)).status, 200);
-  assert.equal((await load(context, id)).github.number, 90);
-  assert.equal(calls.github.filter((call) => call.method === 'POST').length, 2);
+  const retry = await send(context, id, (await load(context, id)).etag);
+  assert.equal(retry.status, 502);
+  assert.equal((retry.jsonBody as { code: string }).code, 'GITHUB_NEEDS_REVIEW');
+  const unchanged = await load(context, id);
+  assert.equal(unchanged.github.number, null);
+  assert.equal(unchanged.github.pending, true);
+  assert.equal(calls.github.filter((call) => call.method === 'POST').length, 1);
 });
 
 dbTest('an issue that was renamed on GitHub is still found again', async (t) => {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -138,17 +139,28 @@
 
   /** After a conflict: replaces the input with the current version of the report. */
   async function reloadCurrent(): Promise<boolean> {
+    if (busy) return false;
     const id = selectedId;
-    await reload();
-    const fresh = store.data?.items.find((item) => item.id === id);
-    if (!fresh) {
-      selectedId = null;
-      message = 'Die Meldung gibt es nicht mehr.';
-      return false;
+    dialog.state.busy = true;
+    try {
+      await reload();
+      if (store.error) {
+        dialog.state.error = store.error;
+        dialog.state.conflict = true;
+        return false;
+      }
+      const fresh = store.data?.items.find((item) => item.id === id);
+      if (!fresh) {
+        selectedId = null;
+        message = 'Die Meldung gibt es nicht mehr.';
+        return false;
+      }
+      fillDraft(fresh);
+      dialog.reset();
+      return true;
+    } finally {
+      dialog.state.busy = false;
     }
-    fillDraft(fresh);
-    dialog.reset();
-    return true;
   }
 
   function validate(): Record<string, string> {
@@ -309,6 +321,8 @@
       ? [
           ['Meldung', `PM-${selected.id}`],
           ['Eingang', formatDateTime(selected.createdAt)],
+          ['Bearbeitet von', selected.reviewedBy],
+          ['Bearbeitet am', selected.reviewedAt ? formatDateTime(selected.reviewedAt) : ''],
           ['Einstieg', selected.entry === 'fehler' ? 'Fehleranzeige' : 'Footer'],
           ['Seite', selected.context.page],
           ['Bereich', selected.context.module],
@@ -456,12 +470,8 @@
         {/if}
       </div>
 
-      {#if selected.status === 'verworfen'}
-        <p class="text-sm">
-          Verworfen von {selected.reviewedBy}{selected.discardReason
-            ? `: ${selected.discardReason}`
-            : '.'}
-        </p>
+      {#if selected.status === 'verworfen' && selected.discardReason}
+        <StatusLabel label={`Grund: ${selected.discardReason}`} />
       {/if}
 
       {#if open && github?.unavailable === 'preview'}
@@ -636,10 +646,14 @@
 >
   {#if selected}
     <div class="space-y-3">
-      <p class="text-sm">
-        Auf GitHub ({github?.repository}) ist das öffentlich sichtbar. Die Mail-Adresse und die
-        Meldung im Original gehen nicht mit.
-      </p>
+      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        <dt class="text-neutral-700">GitHub-Projekt</dt>
+        <dd class="min-w-0 [overflow-wrap:anywhere]">{github?.repository}</dd>
+      </dl>
+      <InfoHint
+        label="An GitHub senden"
+        text="Der Eintrag ist öffentlich sichtbar. Die E-Mail-Adresse für Rückfragen und die Meldung im Original werden nicht mitgesendet."
+      />
       <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         <dt class="text-neutral-700">Label</dt>
         <dd>{labelName(selected.draft.label)}</dd>

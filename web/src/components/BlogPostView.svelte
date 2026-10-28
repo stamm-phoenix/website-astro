@@ -6,6 +6,7 @@
   import type { BlogPost } from '../lib/types';
   import BlogContent from './BlogContent.svelte';
   import StaffLink from './StaffLink.svelte';
+  import ProblemMeldenLink from './ui/ProblemMeldenLink.svelte';
 
   interface Props {
     id: string;
@@ -52,7 +53,12 @@
         ? 'Diesen Beitrag gibt es nicht (mehr).'
         : 'Bitte versuche es später noch einmal.'}
     </p>
-    <a href="/blog" class="mt-4 inline-block font-semibold text-link underline underline-offset-4"
+    {#if error === 'failed'}
+      <ProblemMeldenLink class="text-link inline-flex min-h-11 items-center text-sm" />
+    {/if}
+    <a
+      href="/blog"
+      class="mt-4 inline-flex min-h-11 items-center font-semibold text-link underline underline-offset-4"
       >Alle Beiträge</a
     >
   </div>
