@@ -1,6 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import { confirmAction } from '../../lib/confirm';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { datumKurz } from '../../lib/essensplanung';
   import type { PlanungTag } from '../../lib/types';
   import MahlzeitZeile from './MahlzeitZeile.svelte';
@@ -17,6 +18,12 @@
 
   let neuerTag = $state('');
   let neueMahlzeit = $state<Record<number, string>>({});
+  // A day or a meal typed but not added asks before leaving the page
+  $effect(() =>
+    guardUnsavedChanges(
+      () => neuerTag !== '' || Object.values(neueMahlzeit).some((name) => name.trim() !== '')
+    )
+  );
 
   function vorschlagNeuerTag(): string {
     const letzter = ansicht.tage.at(-1)?.datum;
@@ -28,13 +35,16 @@
 
   async function tagHinzufuegen(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const datum = neuerTag || vorschlagNeuerTag();
+    const gesendet = neuerTag;
+    const datum = gesendet || vorschlagNeuerTag();
     if (!datum) return;
     if (
-      await kontext.aendern(
+      (await kontext.aendern(
         () => kontext.api.senden('POST', '/tage', { datum }),
         `Tag ${datumKurz(datum)} hinzugefügt.`
-      )
+      )) &&
+      // A date picked again while adding stays
+      neuerTag === gesendet
     )
       neuerTag = '';
   }
@@ -64,13 +74,16 @@
 
   async function mahlzeitHinzufuegen(event: SubmitEvent, tag: PlanungTag): Promise<void> {
     event.preventDefault();
-    const name = (neueMahlzeit[tag.id] ?? '').trim();
+    const gesendet = neueMahlzeit[tag.id] ?? '';
+    const name = gesendet.trim();
     if (!name) return;
     if (
-      await kontext.aendern(
+      (await kontext.aendern(
         () => kontext.api.senden('POST', '/mahlzeiten', { tagId: tag.id, name }),
         `${name} hinzugefügt.`
-      )
+      )) &&
+      // The next meal typed while adding stays
+      neueMahlzeit[tag.id] === gesendet
     )
       neueMahlzeit[tag.id] = '';
   }
