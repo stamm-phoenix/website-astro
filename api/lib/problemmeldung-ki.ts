@@ -67,7 +67,8 @@ const RESPONSE_SCHEMA = {
 
 /** What the model gets of a report: cleaned text and technical context, never the contact. */
 export function problemModelInput(meldung: StaffProblemMeldung): string {
-  const part = (value: string): string => redactForForwarding(value).slice(0, MAX_PART);
+  const part = (value: string): string =>
+    redactForForwarding(value, meldung.contact).slice(0, MAX_PART);
   return JSON.stringify({
     meldung: {
       einstieg: meldung.entry === 'fehler' ? 'Fehleranzeige' : 'Footer',

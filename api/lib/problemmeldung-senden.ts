@@ -89,6 +89,7 @@ export async function sendProblemToGithub(
         entry: current.entry,
         environment: current.environment,
         context: current.context,
+        contact: current.contact,
       }),
       label: current.draft.label,
     });

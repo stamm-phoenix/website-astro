@@ -13,6 +13,11 @@ import { containsIssueMarker } from './problemmeldung-model';
 
 const TIMEOUT_MS = 15_000;
 const PAGE_SIZE = 100;
+/**
+ * The whole search ends within this time, so it and the issue that may follow it (one request of
+ * `TIMEOUT_MS`) stay shorter than the reservation of the hand-over (`GITHUB_ATTEMPT_MINUTES`).
+ */
+const SEARCH_DEADLINE_MS = 60_000;
 /** Pages read when looking for an issue; more changes than this since the attempt are unclear. */
 const MAX_SEARCH_PAGES = 10;
 
@@ -59,14 +64,14 @@ function issuesUrl(): string {
   return `https://api.github.com/repos/${CONFIG.problemmeldung.githubRepository}/issues`;
 }
 
-async function request(url: string, init: RequestInit): Promise<Response> {
+async function request(url: string, init: RequestInit, timeoutMs = TIMEOUT_MS): Promise<Response> {
   const blocked = githubIssuesUnavailable();
   if (blocked) throw new GithubIssueError(blocked, `GitHub issues unavailable: ${blocked}`);
   try {
     return await fetch(url, {
       ...init,
       headers: headers(),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     throw new GithubIssueError('unclear', 'GitHub did not answer');
@@ -113,10 +118,14 @@ export async function createGithubIssue(issue: {
  */
 export async function findGithubIssue(id: number, since: Date): Promise<GithubIssue | null> {
   const start = new Date(since.getTime() - 5 * 60_000).toISOString();
+  const deadline = Date.now() + SEARCH_DEADLINE_MS;
   for (let page = 1; page <= MAX_SEARCH_PAGES; page++) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new GithubIssueError('unclear', 'The search took too long');
     const response = await request(
       `${issuesUrl()}?state=all&sort=created&direction=desc&per_page=${PAGE_SIZE}&page=${page}&since=${encodeURIComponent(start)}`,
-      { method: 'GET' }
+      { method: 'GET' },
+      Math.min(TIMEOUT_MS, remaining)
     );
     if (!response.ok)
       throw new GithubIssueError('unclear', `GitHub answered with ${response.status}`);
