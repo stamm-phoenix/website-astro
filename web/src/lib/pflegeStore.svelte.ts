@@ -15,6 +15,7 @@ import type {
   StaffGruppenstundenData,
   StaffLeitendeData,
   StaffNikolausSteuerung,
+  StaffEssenSteuerung,
   StaffProtokolleData,
   StaffQuestionsData,
   PersonenUebersicht,
@@ -154,6 +155,11 @@ export const sammelCampaigns = createResource<SammelAktion[]>('/intern/pflege/sa
 });
 export const nikolausSteuerung = createResource<StaffNikolausSteuerung>(
   '/intern/nikolaus/steuerung'
+);
+
+/** Steuerung of the Essensplanung, only for the teams Admin and Vorstand. */
+export const essensplanungSteuerung = createResource<StaffEssenSteuerung>(
+  '/intern/essensplanung/steuerung'
 );
 
 /** All receipts in CampFlow, read-only; `true` as param has them read from CampFlow again. */

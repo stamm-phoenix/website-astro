@@ -64,6 +64,19 @@ import {
 } from './mock-data/abstimmungen';
 import { beitraegeFor, offeneBeitraegeFor } from './mock-data/beitraege';
 import { kostenstellenFor } from './mock-data/kostenstellen';
+import {
+  changeEssenEintrag,
+  createEssenEintrag,
+  deleteEssenEintrag,
+  essenSteuerungView,
+  saveEssenEinstellungen,
+} from './mock-data/essensplanung';
+import type { EssenListe, EssenMockResult } from './mock-data/essensplanung';
+import {
+  validateEssenEinstellungen,
+  validateListName,
+  validateZutat,
+} from '../../api/lib/essen-validation';
 import { aktionBeitraegeFor, campflowDetail, campflowEvents } from './mock-data/campflow';
 import { mitgliederData } from './mock-data/mitglieder';
 import {
@@ -820,6 +833,69 @@ route('POST', '/api/intern/pflege/nikolaus-steuerung/loeschen', (req) => {
   }
   deleteSteuerungData(scope, 'mock@stamm-phoenix.de');
   return json({ scope, deleted: {}, view: steuerungView() });
+});
+
+// Essensplanung: Steuerung for the teams Admin and Vorstand (docs/essensplanung.md)
+const ESSEN_NOT_ALLOWED = (): MockResult | null =>
+  ['team_admin', 'team_vorstand'].some((role) => PRINCIPAL.userRoles.includes(role))
+    ? null
+    : error(403, 'NOT_IN_TEAM', 'Die Steuerung der Essensplanung ist nur für Admin und Vorstand.');
+
+function essenListe(value: string | undefined): EssenListe | undefined {
+  return value === 'zutaten' || value === 'kategorien' || value === 'unvertraeglichkeiten'
+    ? value
+    : undefined;
+}
+
+function essenResult(result: EssenMockResult, body: () => unknown): MockResult {
+  if (result === 'not-found') return notFound();
+  if (result === 'conflict')
+    return error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen von jemand anderem geändert.');
+  if ('field' in result)
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
+      [result.field]: result.message,
+    });
+  return json(body(), 'id' in result && result.id !== undefined ? 201 : 200);
+}
+
+route(
+  'GET',
+  '/api/intern/essensplanung/steuerung',
+  () => ESSEN_NOT_ALLOWED() ?? json(essenSteuerungView())
+);
+
+route('PUT', '/api/intern/pflege/essensplanung/einstellungen', (req) => {
+  const denied = ESSEN_NOT_ALLOWED();
+  if (denied) return denied;
+  const einstellungen = validateEssenEinstellungen(req.json?.einstellungen);
+  if (!saveEssenEinstellungen(einstellungen, req.json?.etag))
+    return error(409, 'CONFLICT', 'Die Einstellungen wurden inzwischen geändert.');
+  return json(essenSteuerungView());
+});
+
+route('POST', '/api/intern/pflege/essensplanung/:liste', (req) => {
+  const liste = essenListe(req.params.liste);
+  if (!liste) return notFound();
+  const denied = ESSEN_NOT_ALLOWED();
+  if (denied) return denied;
+  const input = liste === 'zutaten' ? validateZutat(req.json) : validateListName(req.json);
+  const result = createEssenEintrag(liste, input);
+  return essenResult(result, () => ({
+    id: result !== 'conflict' && result !== 'not-found' && 'id' in result ? result.id : 0,
+    view: essenSteuerungView(),
+  }));
+});
+
+route(['PATCH', 'DELETE'], '/api/intern/pflege/essensplanung/:liste/:id', (req) => {
+  const liste = essenListe(req.params.liste);
+  const id = Number(req.params.id);
+  if (!liste || !Number.isInteger(id)) return notFound();
+  const denied = ESSEN_NOT_ALLOWED();
+  if (denied) return denied;
+  if (req.method === 'DELETE')
+    return essenResult(deleteEssenEintrag(liste, id, req.headers['if-match']), essenSteuerungView);
+  const input = liste === 'zutaten' ? validateZutat(req.json) : validateListName(req.json);
+  return essenResult(changeEssenEintrag(liste, id, input, req.json?.etag), essenSteuerungView);
 });
 
 route('POST', '/api/intern/nikolaus/bookings/:id/message', (req) =>

@@ -214,6 +214,29 @@ export const STAFF_MODULES: StaffModule[] = [
     ],
   },
   {
+    href: '/leitendenbereich/essensplanung-steuerung',
+    title: 'Essensplanung',
+    wrap: 'Essens|planung',
+    heading: 'Essensplanung: Steuerung',
+    description:
+      'Essensplanung für Aktionen einrichten: wer Planungen anlegen darf, Vorlagen und die zentrale Zutatenliste – für Admins und Vorstand.',
+    intro:
+      'Die Essensplanung ist ein öffentliches Werkzeug, mit dem Küchenteams – auch außerhalb des Stammes – Mahlzeiten, Gerichte und Einkäufe für Aktionen planen. Hier legst du fest, wer Planungen anlegen darf, und pflegst die Zutatenliste, die alle Planungen teilen. Nur die Teams Admin und Vorstand sehen diesen Bereich.',
+    roles: ['team_admin', 'team_vorstand'],
+    keywords: [
+      'essen',
+      'küche',
+      'kochen',
+      'einkauf',
+      'zutaten',
+      'lebensmittel',
+      'allergene',
+      'rezepte',
+      'lager',
+    ],
+    icon: 'M4 3v8a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M6 13v8M6 3v5M17 21V3c-2 1-3 4-3 7h3',
+  },
+  {
     href: '/leitendenbereich/kostenstellen',
     title: 'Kostenstellen',
     wrap: 'Kosten|stellen',
@@ -384,7 +407,14 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
   {
     id: 'gruppen',
     title: 'Gruppen & Aktionen',
-    modules: byPath('anwesenheit', 'mitglieder', 'aktionen', 'fahrten', 'fotos'),
+    modules: byPath(
+      'anwesenheit',
+      'mitglieder',
+      'aktionen',
+      'fahrten',
+      'fotos',
+      'essensplanung-steuerung'
+    ),
   },
   {
     id: 'kasse',

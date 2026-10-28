@@ -88,6 +88,12 @@ export interface Database {
   'abstimmung.optionen': AbstimmungOptionTable;
   'abstimmung.teilnahme': AbstimmungTeilnahmeTable;
   'abstimmung.stimme': AbstimmungStimmeTable;
+  'essen.einstellungen': EssenEinstellungenTable;
+  'essen.audit_log': AuditLogTable;
+  'essen.kategorie': EssenKategorieTable;
+  'essen.unvertraeglichkeit': EssenUnvertraeglichkeitTable;
+  'essen.zutat': EssenZutatTable;
+  'essen.zutat_unvertraeglichkeit': EssenZutatUnvertraeglichkeitTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -861,4 +867,62 @@ export interface AbstimmungStimmeTable {
   option_id: number;
   /** Chosen with „Vielleicht“ instead of „Ja“. */
   vielleicht: Generated<boolean>;
+}
+
+/** The one row with the switches and templates of the Essensplanung (`docs/essensplanung.md`). */
+export interface EssenEinstellungenTable {
+  id: number;
+  version: ReadOnly<Buffer>;
+  anlegen_extern: boolean;
+  /** JSON array of addresses and domains. */
+  whitelist: string;
+  aufbewahrung_monate: number;
+  wartung: boolean;
+  /** JSON array of `{ name, faktor }`. */
+  vorlage_gruppen: string;
+  /** JSON array of names. */
+  vorlage_mahlzeiten: string;
+  updated_at: Generated<Date>;
+  updated_by: string;
+}
+
+export interface EssenKategorieTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  name: string;
+}
+
+export interface EssenUnvertraeglichkeitTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  /** Fixed key of the 14 EU allergens; null for the ones added in the Steuerung. */
+  schluessel: string | null;
+  name: string;
+}
+
+export type EssenEinheitenart = 'masse' | 'volumen' | 'stueck' | 'packung' | 'bund';
+
+export interface EssenZutatTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  name: string;
+  kategorie_id: number;
+  einheitenart: EssenEinheitenart;
+  abtropfgewicht: Generated<boolean>;
+  lebensmittel: Generated<boolean>;
+  vegetarisch: boolean | null;
+  vegan: boolean | null;
+  merkmale_geprueft: Generated<boolean>;
+  hinweis: Generated<string>;
+  /** decimal; the driver reads it as a number. */
+  gramm_pro_tl: number | null;
+  gramm_pro_el: number | null;
+  gramm_pro_stueck: number | null;
+  geaendert_am: Generated<Date>;
+  geaendert_von: string;
+}
+
+export interface EssenZutatUnvertraeglichkeitTable {
+  zutat_id: number;
+  unvertraeglichkeit_id: number;
 }

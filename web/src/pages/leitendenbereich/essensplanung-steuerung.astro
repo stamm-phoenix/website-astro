@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../layouts/StaffLayout.astro';
+import EssensplanungSteuerung from '../../components/essensplanung/EssensplanungSteuerung.svelte';
+---
+
+<StaffLayout>
+  <EssensplanungSteuerung client:only="svelte" />
+</StaffLayout>

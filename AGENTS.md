@@ -39,7 +39,7 @@ web/                  # Astro frontend
 │   └── lib/          # Utilities, types, Svelte stores (*Store.svelte.ts)
 └── public/           # Static assets served at root (incl. staticwebapp.config.json)
 api/                  # Azure Functions backend (deployed via SWA api_location)
-└── migrations/       # SQL migrations of the Azure SQL database (Nikolaus, Blog, FAQ, Anwesenheit, Aufgaben, Protokolle, Sammelbestellungen, Abstimmungen)
+└── migrations/       # SQL migrations of the Azure SQL database (Nikolaus, Blog, FAQ, Anwesenheit, Aufgaben, Protokolle, Sammelbestellungen, Abstimmungen, Essensplanung)
 ```
 
 ## Code Style
