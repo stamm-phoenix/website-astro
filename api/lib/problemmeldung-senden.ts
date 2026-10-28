@@ -10,7 +10,7 @@ import {
   findGithubIssue,
   githubIssuesUnavailable,
 } from './github-issues';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import {
   buildIssueBody,
   cleanIssueText,

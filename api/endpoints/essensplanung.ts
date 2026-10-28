@@ -65,7 +65,7 @@ import {
   validatePlanungZutat,
 } from '../lib/essen-gerichte-validation';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import { isPreviewDeployment } from '../lib/staff-auth';

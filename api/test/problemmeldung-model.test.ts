@@ -14,7 +14,7 @@ import {
   validateProblemReport,
 } from '../lib/problemmeldung-model';
 import { validateProblemDraft } from '../lib/problemmeldung-senden';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import type { StaffProblemMeldung } from '../lib/problemmeldung-model';
 import { parseProblemAssessment, problemModelInput } from '../lib/problemmeldung-ki';
 

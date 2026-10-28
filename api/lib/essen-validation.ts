@@ -1,5 +1,5 @@
-import type { FieldErrors } from './pflege-validation';
-import { ValidationError } from './pflege-validation';
+import type { FieldErrors } from './validation/errors';
+import { ValidationError } from './validation/errors';
 import { MAX_MAHLZEITEN_PRO_TAG } from './essen-planung-model';
 
 /**

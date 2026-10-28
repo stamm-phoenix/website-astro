@@ -20,7 +20,7 @@ import {
   validateEssenEinstellungen,
   validateZutat,
 } from '../lib/essen-validation';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import { dbTest } from './fixtures/database';
 
 const MIGRATIONS = resolve(__dirname, '../../migrations');

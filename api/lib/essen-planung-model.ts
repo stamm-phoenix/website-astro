@@ -1,6 +1,6 @@
 import type { Gericht, PlanungZutat } from './essen-gerichte-model';
-import type { FieldErrors } from './pflege-validation';
-import { ValidationError } from './pflege-validation';
+import type { FieldErrors } from './validation/errors';
+import { ValidationError } from './validation/errors';
 
 /**
  * Types, rules and checks of a Planung of the Essensplanung without database access, so the

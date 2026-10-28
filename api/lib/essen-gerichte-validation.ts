@@ -1,8 +1,8 @@
 import type { EssenEinheitenart } from './essen-validation';
 import type { GerichtEinheit, GerichtLink } from './essen-gerichte-model';
 import { EINHEITEN_JE_ART, MAX_LINKS, MAX_WERKZEUGE } from './essen-gerichte-model';
-import type { FieldErrors } from './pflege-validation';
-import { ValidationError } from './pflege-validation';
+import type { FieldErrors } from './validation/errors';
+import { ValidationError } from './validation/errors';
 
 /** Checks of the input for dishes and the ingredients of a Planung (`essen-gerichte-model.ts`). */
 
