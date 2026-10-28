@@ -2,7 +2,7 @@
 
 Neues öffentliches Modul **„Essensplanung“**. Ein Küchenteam plant damit für eine Aktion Mahlzeiten, Gerichte mit Zutaten und die Teilnehmendenzahlen. Daraus berechnet das Modul Einkaufsliste, Einkäufe, Lager und Packliste. Es ersetzt das Google Sheet „2026 – Küche Bezirkslager“ und ist für Leitende des Stammes **und** für Externe gedacht, z. B. Aktionen im Bezirk. Angemeldet wird nicht per OAuth, sondern über **persönliche Links mit Token**.
 
-**Stand: Steuerung und zentrale Listen sind umgesetzt (PR 2), die Planungen selbst folgen.** Umgesetzt wird in Teil-PRs. Fortschritt, Reihenfolge und Entscheidungen stehen in [#452](https://github.com/stamm-phoenix/website-astro/issues/452); jeder Teil-PR schreibt diese Doku auf den Stand fort, den er umsetzt.
+**Stand: Steuerung und zentrale Listen (PR 2) sowie Planungen mit Tagen, Mahlzeiten, Mitgliedern und Links (PR 3) sind umgesetzt; Gerichte und alles Weitere folgen.** Umgesetzt wird in Teil-PRs. Fortschritt, Reihenfolge und Entscheidungen stehen in [#452](https://github.com/stamm-phoenix/website-astro/issues/452); jeder Teil-PR schreibt diese Doku auf den Stand fort, den er umsetzt.
 
 ## Begriffe
 
@@ -23,7 +23,8 @@ Neues öffentliches Modul **„Essensplanung“**. Ein Küchenteam plant damit f
 - **Links:** Alle Links tragen das Token im Fragment, also `/essensplanung/planung#t=<token>`. Es landet so in keinem Server-Log und in keinem Referrer.
   - Die Seite schickt das Token im Header `x-essensplanung-token`, weil Polling-Requests `GET` sind.
   - Tokens sind 32 Byte aus `randomBytes`, base64url.
-  - In der Datenbank steht nur der SHA-256-Hash, verglichen wird in konstanter Zeit. Vorbild ist `hashToken` in `api/lib/nikolaus-bookings.ts`.
+  - In der Datenbank steht für persönliche Links nur der SHA-256-Hash. Vorbild ist `hashToken` in `api/lib/nikolaus-bookings.ts`.
+  - Die gemeinsamen Links (Beitritt, Lesen) stehen im Klartext in `essen.planung` (wie `link_token` der Abstimmungen), weil Mitglieder sie jederzeit wieder ansehen und kopieren können sollen. Sie lassen sich neu erzeugen und abschalten.
 - **Persönlicher Link je Mitglied.** Jedes Mitglied hat einen eigenen Link und einen frei wählbaren Anzeigenamen. Diesen Namen sieht man bei Zuständigkeiten und Änderungen.
 - **Rollen:**
   - **Besitzer:in**: hat die Planung angelegt.
@@ -39,7 +40,7 @@ Neues öffentliches Modul **„Essensplanung“**. Ein Küchenteam plant damit f
   - Zusätzlich merkt sich die Seite im `localStorage`, welche Planungen auf diesem Gerät geöffnet wurden. Das ist nur eine Bequemlichkeit.
 - **Anlegen:**
   - Name der Planung, eigener Name und Mailadresse eingeben, ALTCHA lösen.
-  - Danach kommt eine Mail mit einem Bestätigungslink. Erst mit dem Klick entsteht die Planung, unbestätigte Anfragen verfallen nach 24 h.
+  - Danach kommt eine Mail mit einem Bestätigungslink. Erst mit dem Klick entsteht die Planung, unbestätigte Anfragen verfallen nach 24 h und werden nach sieben Tagen gelöscht. Je Adresse gehen höchstens drei Anfragen pro Stunde.
   - Prüfung beim Anlegen:
     - Für Adressen auf `@stamm-phoenix.de` ist das Anlegen immer erlaubt.
     - Für alle anderen nur, wenn „Anlegen durch Externe“ in der Steuerung an ist **und** eine dort gepflegte Whitelist leer ist oder die Adresse beziehungsweise ihre Domain enthält.
@@ -58,11 +59,12 @@ Die Seite `/leitendenbereich/essensplanung-steuerung` (Kachel „Essensplanung�
 - **Einstellungen** (eine Zeile `essen.einstellungen`, gespeichert mit Version wie die Nikolaus-Steuerung):
   - **Anlegen durch Externe** an/aus und die **Liste erlaubter Adressen und Domains**. Die Regel steht in `darfPlanungAnlegen` (`api/lib/essen-validation.ts`): `@stamm-phoenix.de` darf immer; alle anderen nur bei eingeschaltetem Schalter und wenn die Liste leer ist oder die Adresse oder genau ihre Domain enthält (Subdomains zählen nicht).
   - **Aufbewahrung** in Monaten nach dem letzten Tag (1 bis 120, Standard 12).
-  - **Wartungsmodus**: Änderungen an Planungen werden abgelehnt, Lesen geht. Greift ab den Planungen (PR 3).
+  - **Wartungsmodus**: Änderungen an Planungen werden abgelehnt (`503`), Lesen geht.
   - **Vorlagen für neue Planungen**: Gruppen mit Faktor (Wö 0,7, Jupfi 0,8, Pfadi 1, Rover 1,2, Leitende 1,2) und die Mahlzeiten eines neuen Tages. Sie stehen als JSON in `essen.einstellungen`, weil eine neue Planung sie nur kopiert.
 - **Zentrale Zutatenliste, Kategorien, Allergene** pflegen (siehe unten). Kategorien lassen sich erst löschen, wenn keine Zutat mehr dazugehört; die 14 EU-Hauptallergene nur umbenennen.
 - **Protokoll**: Jede Änderung steht mit Person und Zeit in `essen.audit_log`; die Seite zeigt die letzten 100.
-- **Noch offen** (mit den Planungen in PR 3): die Liste aller Planungen mit Löschen, der tägliche Lösch-Timer mit Warnmail 14 Tage vorher. Die Frist hängt am letzten Tag der Planung, Änderungen verschieben sie nicht; die Besitzer:in kann jederzeit selbst löschen.
+- **Alle Planungen**: Name, Besitzer:innen, Zeitraum und Löschdatum, mit Löschen (Audit-Eintrag). Den Inhalt sieht die Steuerung nicht.
+- **Aufbewahrung**: Der Timer `essensplanungAufbewahrung` (`api/timers/essensplanung-aufbewahrung.ts`, täglich 03:23 UTC, in der Function App der Timer, siehe [Aufgaben-Timer](aufgaben-timer.md)) ruft `raeumeAuf` (`api/lib/essen-aufbewahrung.ts`). Er löscht alte Anfragen, schickt den Besitzer:innen 14 Tage vor dem Löschdatum eine Warnmail (je Besitzer:in einmal pro Löschdatum, `mitglied.loeschwarnung_fuer`; eine gescheiterte Mail wird am nächsten Tag nachgeholt) und löscht abgelaufene Planungen. Vor dem Löschen sperrt er die Planung und rechnet das Datum neu, eine inzwischen verlängerte Planung bleibt. Die Frist hängt am letzten Tag der Planung, Änderungen verschieben sie nicht; die Besitzer:in kann jederzeit selbst löschen. Not-Aus `ESSENSPLANUNG_AUFBEWAHRUNG_ENABLED` (Standard `false`).
 
 ### API
 
@@ -204,7 +206,7 @@ So sicher gegen Konflikte wie der Protokoll-Editor, ohne Neuladen, aber ohne ech
 
 ## Datenmodell (Schema `essen`, Azure SQL)
 
-Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`); Typen in `api/lib/db-schema.ts`.
+Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`) und Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`); Typen in `api/lib/db-schema.ts`.
 
 | Tabelle | Inhalt |
 | --- | --- |
@@ -236,10 +238,19 @@ Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen eine
     - Gerichte, Teilnehmende, Einkaufsliste, Einkäufe (mit Live-Modus), Lager, Packliste,
     - Mitglieder & Freigabe, Einstellungen.
   - Die Texte sind neutral für Externe gehalten („Stamm Phoenix stellt das Werkzeug bereit“).
-- **API:** `/api/essensplanung/*` mit Token-Header, `requireEssensplanMitglied(request, planungId, { schreiben })`. Der Lese-Link darf nur `GET`.
-- **Steuerung:** `/api/intern/essensplanung-steuerung/*`.
-- **Mails:** über `api/lib/mail.ts` mit der Vorlage aus `mail-template.ts`: Bestätigung, Einladung, Meine Planungen, Warnung vor dem Löschen.
-- **Datenschutz:** In `web/src/pages/datenschutz.astro` kommt ein Absatz dazu, was gespeichert wird (Name, Mail, Planungsdaten), wofür, wie lange und wie man löscht.
+  - Umgesetzt sind bisher Plan (Tage und Mahlzeiten), Mitglieder & Freigabe, Änderungen und Einstellungen. Weitere Seiten: `/essensplanung/bestaetigen#a=…` (Anlegen bestätigen) und `/essensplanung/beitreten#b=…`.
+- **API** (`api/endpoints/essensplanung.ts`, Logik in `api/lib/essen-planung.ts`, reine Regeln in `api/lib/essen-planung-model.ts`):
+  - ohne Token mit ALTCHA: `POST essensplanung/anlegen`, `POST essensplanung/meine`; mit Anfrage- bzw. Beitrittstoken: `anlegen/bestaetigen`, `beitritt/ansehen`, `beitritt`.
+  - mit Header `x-essensplanung-token`: `planung` (GET/PATCH/DELETE), `planung/stand?seit=`, `planung/ich`, `planung/links`, `planung/mitglieder[/{id}[/link]]`, `planung/tage[/{id}]`, `planung/mahlzeiten[/{id}]`.
+  - `ladeZugang` löst das Token zu Mitglied oder Lese-Link auf; `aendere()` prüft Recht und Wartungsmodus, zählt `aenderung_seq` in derselben Transaktion hoch (das serialisiert auch gleichzeitige Änderungen) und schreibt `essen.aenderung`. Der Lese-Link darf nur `GET`.
+  - Konflikte auf Tag oder Mahlzeit (`rowversion`) und `404` antworten mit der aktuellen Ansicht. Die Planung selbst hat keine Version, weil jede Änderung ihre Zeile berührt; Name und Einstellungen gewinnen zuletzt.
+- **Gleichzeitig planen:** Die App fragt alle 2,5 s `planung/stand?seit=<seq>`; nur wenn sich etwas geändert hat, kommt die volle Ansicht zurück. `ladeAnsicht` liest den Zähler vor den Daten, damit eine Ansicht nie einen neueren Zähler als ihre Daten trägt.
+  - Ein Feld, in dem jemand tippt oder das ungespeicherte Eingaben hat, wird nicht überschrieben. Gespeichert werden nur die geänderten Felder; hat jemand anderes dasselbe Feld inzwischen geändert, bleibt die Eingabe stehen und die Seite sagt es.
+  - Änderungen laufen nacheinander (`aendern` in `EssensplanungApp.svelte`); ein Feld, das während einer laufenden Speicherung verlassen wird, wird danach gespeichert.
+  - Die Bereiche (Plan, Mitglieder, Einstellungen) bleiben beim Wechseln erhalten, ungespeicherte Einstellungen auch.
+- **Steuerung:** `/api/intern/essensplanung/steuerung` und `/api/intern/pflege/essensplanung/*`.
+- **Mails** (`api/lib/essen-mails.ts`, Absender `kontakt@stamm-phoenix.de`): Bestätigung, Einladung, neuer Link, Meine Planungen, Warnung vor dem Löschen. Previews verschicken keine Mails, die Antwort enthält dann `vorschauLink(s)`. Scheitert eine Mail mit neuem Link, gilt der alte Link weiter (`linkZuruecknehmen`) und ein neuer Versuch geht sofort.
+- **Datenschutz:** Abschnitt „Essensplanung“ in `web/src/pages/datenschutz.astro`.
 
 ## Startdaten
 

@@ -353,6 +353,20 @@ export interface EssenAuditEntry {
   details: Record<string, unknown>;
 }
 
+/** A Planung in the list of the Steuerung. */
+export interface EssenPlanungUebersicht {
+  id: number;
+  etag: string;
+  name: string;
+  ersterTag: string | null;
+  letzterTag: string | null;
+  erstelltAm: string;
+  geaendertAm: string;
+  besitzer: { name: string; email: string | null }[];
+  mitglieder: number;
+  loeschtAm: string | null;
+}
+
 export interface StaffEssenSteuerung {
   einstellungen: EssenEinstellungen;
   etag: string;
@@ -361,7 +375,67 @@ export interface StaffEssenSteuerung {
   kategorien: EssenKategorie[];
   unvertraeglichkeiten: EssenUnvertraeglichkeit[];
   zutaten: EssenZutat[];
+  planungen: EssenPlanungUebersicht[];
   log: EssenAuditEntry[];
+}
+
+/** What a link to a Planung allows (`docs/essensplanung.md`). */
+export type PlanungZugang = 'besitzer' | 'bearbeiten' | 'lesen';
+
+export interface PlanungMitglied {
+  id: number;
+  etag: string;
+  name: string;
+  rolle: 'besitzer' | 'bearbeiten';
+  email: string | null;
+  entzogen: boolean;
+  ich: boolean;
+}
+
+export interface PlanungMahlzeit {
+  id: number;
+  etag: string;
+  position: number;
+  /** Shown ID `<Tag>_<Slot>`, e.g. `3_1`. */
+  kennung: string;
+  name: string;
+  uhrzeit: string | null;
+}
+
+export interface PlanungTag {
+  id: number;
+  etag: string;
+  datum: string;
+  nummer: number;
+  mahlzeiten: PlanungMahlzeit[];
+}
+
+export interface PlanungAenderung {
+  seq: number;
+  at: string;
+  wer: string;
+  aktion: string;
+  details: Record<string, unknown>;
+}
+
+/** Everything the page of a Planung shows. */
+export interface PlanungAnsicht {
+  id: number;
+  etag: string;
+  name: string;
+  seq: number;
+  /** What the page polls with; changes with the Planung and with the Steuerung. */
+  stand: string;
+  zugang: PlanungZugang;
+  ichId: number | null;
+  darfVerwalten: boolean;
+  mitgliederVerwalten: boolean;
+  links: { beitritt: string | null; lesen: string | null } | null;
+  tage: PlanungTag[];
+  mitglieder: PlanungMitglied[];
+  loeschtAm: string | null;
+  wartung: boolean;
+  aenderungen: PlanungAenderung[];
 }
 
 /** Status of the Nikolausdienst for every page of the Leitendenbereich. */

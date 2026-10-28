@@ -9,6 +9,7 @@
   import EssenZutaten from './EssenZutaten.svelte';
   import EssenListe from './EssenListe.svelte';
   import EssenProtokoll from './EssenProtokoll.svelte';
+  import EssenPlanungen from './EssenPlanungen.svelte';
 
   const store = essensplanungSteuerung.state;
   let message = $state<string | null>(null);
@@ -60,6 +61,7 @@
         {onnotice}
         onrescue={(rettung) => (einstellungenRettung = rettung)}
       />
+      <EssenPlanungen {data} {onnotice} />
       <EssenZutaten {data} {onnotice} />
       <div class="grid gap-8 lg:grid-cols-2">
         <EssenListe

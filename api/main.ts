@@ -127,6 +127,24 @@ import {
   EssensplanungSteuerungEndpoint,
 } from './endpoints/intern-essensplanung-steuerung';
 import {
+  EssensplanungAnlegen,
+  EssensplanungBeitreten,
+  EssensplanungBeitrittAnsehen,
+  EssensplanungBestaetigen,
+  EssensplanungIch,
+  EssensplanungLinks,
+  EssensplanungMahlzeit,
+  EssensplanungMahlzeiten,
+  EssensplanungMeine,
+  EssensplanungMitglied,
+  EssensplanungMitgliedLink,
+  EssensplanungMitglieder,
+  EssensplanungPlanung,
+  EssensplanungStand,
+  EssensplanungTag,
+  EssensplanungTage,
+} from './endpoints/essensplanung';
+import {
   EditorCollection,
   EditorItem,
   EditorReview,
@@ -1186,6 +1204,119 @@ app.http('internPflegeNikolausSteuerungDelete', {
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-steuerung/loeschen',
   handler: NikolausSteuerungDeleteEndpoint,
+});
+
+// Essensplanung: public, access only by the token of a link (docs/essensplanung.md).
+app.http('essensplanungAnlegen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/anlegen',
+  handler: EssensplanungAnlegen,
+});
+
+app.http('essensplanungBestaetigen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/anlegen/bestaetigen',
+  handler: EssensplanungBestaetigen,
+});
+
+app.http('essensplanungMeine', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/meine',
+  handler: EssensplanungMeine,
+});
+
+app.http('essensplanungBeitrittAnsehen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/beitritt/ansehen',
+  handler: EssensplanungBeitrittAnsehen,
+});
+
+app.http('essensplanungBeitreten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/beitritt',
+  handler: EssensplanungBeitreten,
+});
+
+app.http('essensplanungPlanung', {
+  methods: ['GET', 'PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung',
+  handler: EssensplanungPlanung,
+});
+
+app.http('essensplanungStand', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/stand',
+  handler: EssensplanungStand,
+});
+
+app.http('essensplanungIch', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/ich',
+  handler: EssensplanungIch,
+});
+
+app.http('essensplanungLinks', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/links',
+  handler: EssensplanungLinks,
+});
+
+app.http('essensplanungMitglieder', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mitglieder',
+  handler: EssensplanungMitglieder,
+});
+
+app.http('essensplanungMitglied', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mitglieder/{id}',
+  handler: EssensplanungMitglied,
+});
+
+app.http('essensplanungMitgliedLink', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mitglieder/{id}/link',
+  handler: EssensplanungMitgliedLink,
+});
+
+app.http('essensplanungTage', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/tage',
+  handler: EssensplanungTage,
+});
+
+app.http('essensplanungTag', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/tage/{id}',
+  handler: EssensplanungTag,
+});
+
+app.http('essensplanungMahlzeiten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mahlzeiten',
+  handler: EssensplanungMahlzeiten,
+});
+
+app.http('essensplanungMahlzeit', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mahlzeiten/{id}',
+  handler: EssensplanungMahlzeit,
 });
 
 // Essensplanung: the Steuerung for the teams Admin and Vorstand (docs/essensplanung.md).

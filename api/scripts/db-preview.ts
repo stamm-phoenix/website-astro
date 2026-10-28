@@ -53,6 +53,7 @@ import {
   seedPreviewAbstimmungen,
   seedPreviewEssensplanung,
   seedPreviewProblemmeldungen,
+  seedPreviewEssensplanungPlanung,
   seedPreviewGruppenstunden,
   seedPreviewLeitende,
   seedPreviewAktionen,
@@ -161,6 +162,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewBelegeCampflow();
       await seedPreviewDownloads();
       await seedPreviewEssensplanung();
+      await seedPreviewEssensplanungPlanung();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();

@@ -11,6 +11,8 @@ param location string = resourceGroup().location
 param enabled bool = false
 @description('Enable the reminders of the Leitendenrunde only after the migration 0047 and the worker code are deployed.')
 param leitendenrundeEnabled bool = false
+@description('Deletes expired Essensplanungen and warns their owners; keep false until the Essensplanung migrations (0049, 0050, 0053, 0054) are live.')
+param essensplanungAufbewahrungEnabled bool = false
 
 var certificateVaultName = 'taskcert${uniqueString(resourceGroup().id, workerName)}'
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
@@ -74,6 +76,7 @@ resource worker 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'ENABLE_ORYX_BUILD', value: 'false' }
         { name: 'TASK_REMINDERS_ENABLED', value: enabled ? 'true' : 'false' }
         { name: 'LEITENDENRUNDE_REMINDERS_ENABLED', value: leitendenrundeEnabled ? 'true' : 'false' }
+        { name: 'ESSENSPLANUNG_AUFBEWAHRUNG_ENABLED', value: essensplanungAufbewahrungEnabled ? 'true' : 'false' }
         { name: 'CAMPFLOW_API_TOKEN', value: '@Microsoft.KeyVault(SecretUri=https://${certificateVaultName}.vault.azure.net/secrets/campflow-api-token)' }
         { name: 'AZURE_CLIENT_CERT', value: '@Microsoft.KeyVault(SecretUri=https://${certificateVaultName}.vault.azure.net/secrets/website-client-certificate)' }
       ]

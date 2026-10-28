@@ -6,6 +6,7 @@ import {
   createUnvertraeglichkeit,
   createZutat,
   deleteKategorie,
+  deletePlanungSteuerung,
   deleteUnvertraeglichkeit,
   deleteZutat,
   loadEssenSteuerung,
@@ -67,11 +68,14 @@ export const EssensplanungEinstellungen = steuerungHandler(
   }
 );
 
-type Liste = 'zutaten' | 'kategorien' | 'unvertraeglichkeiten';
+type Liste = 'zutaten' | 'kategorien' | 'unvertraeglichkeiten' | 'planungen';
 
 function readListe(request: HttpRequest): Liste | undefined {
   const liste = request.params.liste;
-  return liste === 'zutaten' || liste === 'kategorien' || liste === 'unvertraeglichkeiten'
+  return liste === 'zutaten' ||
+    liste === 'kategorien' ||
+    liste === 'unvertraeglichkeiten' ||
+    liste === 'planungen'
     ? liste
     : undefined;
 }
@@ -80,7 +84,7 @@ function readListe(request: HttpRequest): Liste | undefined {
 export const EssensplanungListe = steuerungHandler(
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
     const liste = readListe(request);
-    if (!liste) return NOT_FOUND;
+    if (!liste || liste === 'planungen') return NOT_FOUND;
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const actor = principal.userDetails;
@@ -109,13 +113,15 @@ export const EssensplanungListeEintrag = steuerungHandler(
 
     if (request.method === 'DELETE') {
       const etag = requireVersion(readIfMatch(request));
-      if (liste === 'zutaten') await deleteZutat(id, etag, actor);
+      if (liste === 'planungen') await deletePlanungSteuerung(id, etag, actor);
+      else if (liste === 'zutaten') await deleteZutat(id, etag, actor);
       else if (liste === 'kategorien') await deleteKategorie(id, etag, actor);
       else await deleteUnvertraeglichkeit(id, etag, actor);
       return ok(await loadEssenSteuerung());
     }
     if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
+    if (liste === 'planungen') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const etag = requireVersion(readEtag(body));
     if (liste === 'zutaten') await updateZutat(id, validateZutat(body), etag, actor);

@@ -89,7 +89,24 @@ export interface EssenAuditEntry {
   details: Record<string, unknown>;
 }
 
+/** A Planung in the list of the Steuerung. */
+export interface EssenPlanungUebersicht {
+  id: number;
+  etag: string;
+  name: string;
+  /** `YYYY-MM-DD`; null while the Planung has no days. */
+  ersterTag: string | null;
+  letzterTag: string | null;
+  erstelltAm: string;
+  geaendertAm: string;
+  besitzer: { name: string; email: string | null }[];
+  mitglieder: number;
+  /** When the retention deletes it (`YYYY-MM-DD`). */
+  loeschtAm: string | null;
+}
+
 export interface EssenSteuerungView extends StoredEssenEinstellungen {
+  planungen: EssenPlanungUebersicht[];
   kategorien: EssenKategorie[];
   unvertraeglichkeiten: EssenUnvertraeglichkeit[];
   zutaten: EssenZutat[];

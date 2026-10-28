@@ -192,6 +192,11 @@ export interface ApiConfig {
      */
     retentionMonths: number;
   };
+  /** Essensplanung (`docs/essensplanung.md`). */
+  essensplanung: {
+    /** Mailbox the confirmations, invitations and links are sent from. */
+    sender: string;
+  };
   /** Abstimmungen and Terminfindung (`docs/abstimmungen.md`). */
   abstimmungen: {
     /** Mailbox the invitations and reminders are sent from. */
@@ -415,6 +420,9 @@ export const CONFIG: ApiConfig = {
   },
   anwesenheit: {
     retentionMonths: 12,
+  },
+  essensplanung: {
+    sender: 'kontakt@stamm-phoenix.de',
   },
   abstimmungen: {
     sender: 'kontakt@stamm-phoenix.de',

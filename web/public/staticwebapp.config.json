@@ -39,6 +39,28 @@
       }
     },
     {
+      "route": "/essensplanung",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer"
+      }
+    },
+    {
+      "route": "/essensplanung/*",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer"
+      }
+    },
+    {
+      "route": "/api/essensplanung/*",
+      "headers": {
+        "Cache-Control": "no-store"
+      }
+    },
+    {
       "route": "/abstimmung",
       "headers": {
         "X-Robots-Tag": "noindex",

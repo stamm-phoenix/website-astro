@@ -57,6 +57,7 @@ import {
 } from './nikolaus-einteilung-list';
 import { getHelpers } from './nikolaus-helfende-list';
 import { getNikolausSettings } from './nikolaus-settings';
+import { anfrageBestaetigen, hashToken, neuesToken } from './essen-planung';
 import { getTravelMatrix } from './travel-times';
 import {
   createSammelCampaign,
@@ -181,7 +182,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:34';
+const SEEDED_KEY = 'preview:seeded:35';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -1685,6 +1686,33 @@ export async function seedPreviewAbstimmungen(): Promise<void> {
     const [see, huette] = await previewOptionen(id);
     await voteAsStaff(id, theo, { gewaehlt: [see, huette] });
   }
+}
+
+/**
+ * An invented Planung for the list in the Steuerung. Nobody gets its links: the owner's token is
+ * thrown away, so the test account creates its own Planung to try the pages.
+ */
+export async function seedPreviewEssensplanungPlanung(now: Date = new Date()): Promise<void> {
+  const db = getDb();
+  const name = 'Sommerlager (Test)';
+  if (await db.selectFrom('essen.planung').select('id').where('name', '=', name).executeTakeFirst())
+    return;
+  const token = neuesToken();
+  const erster = new Date(now.getTime() + 60 * 24 * 60 * 60_000).toISOString().slice(0, 10);
+  const letzter = new Date(now.getTime() + 66 * 24 * 60 * 60_000).toISOString().slice(0, 10);
+  await db
+    .insertInto('essen.anlage_anfrage')
+    .values({
+      token_hash: hashToken(token),
+      email: 'vorschau@example.test',
+      name: 'Vroni Vorschau',
+      planung_name: name,
+      erster_tag: erster,
+      letzter_tag: letzter,
+      laeuft_ab: new Date(now.getTime() + 60 * 60_000),
+    })
+    .execute();
+  await anfrageBestaetigen(token);
 }
 
 /** Invented entries in the log of the Essensplanung-Steuerung; the settings stay as migrated. */

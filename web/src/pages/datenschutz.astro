@@ -131,7 +131,11 @@ const vorstand = await getVorstandContent();
           </li>
           <li>
             Zugangslinks aus unseren E-Mails, etwa zum Verwalten einer Nikolaus-Buchung oder einer
-            Sammelbestellung (bis du den Browser-Tab schließt).
+            Sammelbestellung (bis du den Browser-Tab schließt),
+          </li>
+          <li>
+            die Namen und Links der Essensplanungen, die du zuletzt geöffnet hast (dauerhaft, bis du
+            sie unter „Auf diesem Gerät geöffnet“ entfernst oder den Speicher löschst).
           </li>
         </ul>
         <Text class="mt-3">
@@ -206,6 +210,30 @@ const vorstand = await getVorstandContent();
           Bemerkungen sind freiwillig.
         </Text>
       </InfoCard>
+      <InfoCard title="Essensplanung" id="essensplanung">
+        <Text>
+          Mit der <TextLink href="/essensplanung">Essensplanung</TextLink> planen Küchenteams
+          Mahlzeiten und Einkäufe für eine Aktion. Wer eine Planung anlegt, gibt Name und
+          E-Mail-Adresse an; an die Adresse schicken wir den Link zum Bestätigen. Wer mitplant,
+          trägt einen Namen ein und freiwillig eine E-Mail-Adresse, an die wir die Einladung und auf
+          Wunsch neue Links schicken. Die Namen sehen alle, die an der Planung mitarbeiten, damit
+          sie wissen, wer was geändert hat. Die Adressen sehen nur die, die Mitglieder verwalten
+          dürfen.
+        </Text>
+        <Text class="mt-3">
+          Die Angaben liegen in unserer Datenbank bei Microsoft Azure in Deutschland; die Mails
+          verschicken wir über Microsoft 365. Nicht bestätigte Anfragen löschen wir nach sieben
+          Tagen. Eine Planung löschen wir mit allen Angaben automatisch einige Monate nach ihrem
+          letzten Tag; die Besitzer:innen bekommen zwei Wochen vorher eine Mail. Sie können die
+          Planung auch jederzeit selbst löschen.
+        </Text>
+        <Text class="mt-3">
+          Wir verarbeiten die Angaben, um dir das Werkzeug bereitzustellen, das du nutzen möchtest
+          (§ 6 Abs. 1 lit. c KDG). Die E-Mail-Adresse beim Anlegen ist dafür erforderlich, alle
+          anderen Adressen sind freiwillig.
+        </Text>
+      </InfoCard>
+
       <InfoCard title="Instagram-Beiträge" id="instagram">
         <Text>
           Auf der Startseite zeigen wir unsere neuesten Beiträge von Instagram. Texte und Bilder

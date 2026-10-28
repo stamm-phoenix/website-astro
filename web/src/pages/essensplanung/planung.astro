@@ -1,0 +1,25 @@
+---
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import EssensplanungApp from '../../components/essensplanung/EssensplanungApp.svelte';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  privatePage
+  title="Essensplanung | Stamm Phoenix"
+  description="Eine Essensplanung ansehen und bearbeiten."
+>
+  <Header slot="header" />
+  <PageHeader title="Essensplanung" />
+  <div class="mt-8">
+    <EssensplanungApp client:only="svelte" />
+    <noscript>
+      <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
+        Die Essensplanung braucht JavaScript.
+      </p>
+    </noscript>
+  </div>
+  <Footer slot="footer" />
+</BaseLayout>

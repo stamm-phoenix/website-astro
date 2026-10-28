@@ -199,6 +199,7 @@ const LISTEN_AKTIONEN: Record<string, string> = {
   'unvertraeglichkeit-angelegt': 'Unverträglichkeit angelegt',
   'unvertraeglichkeit-umbenannt': 'Unverträglichkeit umbenannt',
   'unvertraeglichkeit-geloescht': 'Unverträglichkeit gelöscht',
+  'planung-geloescht': 'Planung gelöscht',
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

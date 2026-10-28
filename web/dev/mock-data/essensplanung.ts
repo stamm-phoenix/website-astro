@@ -13,6 +13,7 @@ import type {
   StaffEssenSteuerung,
 } from '../../src/lib/types';
 import { MOCK_NOW, newEtag } from './util';
+import { planungenUebersicht } from './essensplanung-planung';
 
 const ACTOR = 'leitung@example.test';
 
@@ -157,8 +158,18 @@ export function essenSteuerungView(): StaffEssenSteuerung {
       zutaten: s.zutaten.filter((z) => z.allergene.includes(u.id)).length,
     })),
     zutaten: sorted(structuredClone(s.zutaten)),
+    planungen: planungenUebersicht(s.einstellungen.aufbewahrungMonate),
     log: structuredClone(s.log),
   };
+}
+
+/** The current settings, for the mock API of the Planungen. */
+export function essenEinstellungen(): EssenEinstellungen {
+  return current().einstellungen;
+}
+
+export function essenAudit(action: string, details: Record<string, unknown>): void {
+  audit(action, details);
 }
 
 function audit(action: string, details: Record<string, unknown>): void {
