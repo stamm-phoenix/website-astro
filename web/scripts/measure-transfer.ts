@@ -8,12 +8,15 @@
  * Every page is opened in a fresh browser context (cold cache) on a phone and on a desktop
  * viewport, then scrolled to the bottom so lazy images count, then reloaded in the same context
  * (warm cache). Bytes are what the browser reports from the network (headers included, after
- * compression); requests answered from the cache count as 0. The median of `--runs` runs is
- * kept. `--serve <dir>` serves a build locally with Brotli/gzip and the cache headers of
- * staticwebapp.config.json, without `/api/*` (answered 404 like the content refresh of a page
- * without a backend). Needs PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH or an installed Chromium.
+ * compression, redirects included); requests answered from the cache count as 0. The median of
+ * `--runs` runs is kept, also for the cold total. `--serve <dir>` serves a build locally with
+ * Brotli/gzip and the `Cache-Control` of the matching route in the build's
+ * staticwebapp.config.json (none without a match), without `/api/*` (answered 404 like the
+ * content refresh of a page without a backend). The commit is read from the footer of the
+ * measured pages. `--blog <path>` pins the post (default: the first one of the blog page), so
+ * two reports compare the same pages. Needs PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH or an
+ * installed Chromium.
  */
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import path from 'node:path';
@@ -33,9 +36,11 @@ interface Measurement {
   load: Sample;
   /** After scrolling to the bottom, lazy images included */
   scrolled: Sample;
+  /** Load plus scroll of the same visit, so its median is the median of real totals */
+  cold: Sample;
   /** Reload with the cache of the first visit */
   warm: Sample;
-  /** Largest Contentful Paint of the first load in ms, and the layout shift of the whole visit */
+  /** Largest Contentful Paint of the first load in ms, and the layout shift of the first visit */
   lcp: number;
   cls: number;
 }
@@ -93,6 +98,14 @@ async function trackTransfer(page: Page): Promise<CDPSession & { take: () => Sam
   session.on('Network.responseReceived', (event) => {
     types.set(event.requestId, resourceType(event.type));
   });
+  // A redirect hop has no loadingFinished of its own; its bytes arrive with the next request
+  session.on('Network.requestWillBeSent', (event) => {
+    const bytes = event.redirectResponse?.encodedDataLength ?? 0;
+    if (bytes <= 0) return;
+    sample.bytes += bytes;
+    sample.byType[resourceType(event.type ?? 'Other')] += bytes;
+    sample.requests++;
+  });
   session.on('Network.loadingFinished', (event) => {
     const type = types.get(event.requestId) ?? 'other';
     sample.bytes += event.encodedDataLength;
@@ -134,6 +147,11 @@ async function measurePage(
   try {
     await context.addInitScript(() => {
       const metrics = { lcp: 0, cls: 0 };
+      // Layout shifts count in session windows: at most 5 s long, a gap of 1 s ends one; CLS is
+      // the largest window
+      let windowValue = 0;
+      let windowStart = 0;
+      let windowEnd = 0;
       Object.assign(window, { __metrics: metrics });
       new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) metrics.lcp = entry.startTime;
@@ -141,9 +159,22 @@ async function measurePage(
       new PerformanceObserver((list) => {
         for (const entry of list.getEntries() as unknown as {
           value: number;
+          startTime: number;
           hadRecentInput: boolean;
         }[]) {
-          if (!entry.hadRecentInput) metrics.cls += entry.value;
+          if (entry.hadRecentInput) continue;
+          if (
+            windowValue &&
+            entry.startTime - windowEnd < 1000 &&
+            entry.startTime - windowStart < 5000
+          ) {
+            windowValue += entry.value;
+          } else {
+            windowValue = entry.value;
+            windowStart = entry.startTime;
+          }
+          windowEnd = entry.startTime;
+          metrics.cls = Math.max(metrics.cls, windowValue);
         }
       }).observe({ type: 'layout-shift', buffered: true });
     });
@@ -157,17 +188,27 @@ async function measurePage(
     );
     await scrollToBottom(page);
     const scrolled = tracker.take();
-    tracker.take();
-    await page.reload();
-    await settle(page);
-    const warm = tracker.take();
+    // The reload starts the page anew, so the shifts of the first visit are read before it
     const cls = await page.evaluate(
       () => (window as unknown as { __metrics: { cls: number } }).__metrics.cls
     );
-    return { load, scrolled, warm, lcp, cls };
+    await page.reload();
+    await settle(page);
+    const warm = tracker.take();
+    return { load, scrolled, cold: addSamples(load, scrolled), warm, lcp, cls };
   } finally {
     await context.close();
   }
+}
+
+function addSamples(a: Sample, b: Sample): Sample {
+  return {
+    bytes: a.bytes + b.bytes,
+    requests: a.requests + b.requests,
+    byType: Object.fromEntries(
+      TYPES.map((type) => [type, a.byType[type] + b.byType[type]])
+    ) as Record<ResourceType, number>,
+  };
 }
 
 function median(values: number[]): number {
@@ -189,6 +230,7 @@ function medianMeasurement(runs: Measurement[]): Measurement {
   return {
     load: medianSample(runs.map((run) => run.load)),
     scrolled: medianSample(runs.map((run) => run.scrolled)),
+    cold: medianSample(runs.map((run) => run.cold)),
     warm: medianSample(runs.map((run) => run.warm)),
     lcp: Math.round(median(runs.map((run) => run.lcp))),
     cls: Math.round(median(runs.map((run) => run.cls)) * 1000) / 1000,
@@ -213,12 +255,52 @@ const CONTENT_TYPES: Record<string, string> = {
 };
 const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.svg', '.json', '.xml', '.webmanifest']);
 
+interface RouteRule {
+  route: string;
+  headers?: Record<string, string>;
+}
+
+/** The pattern of a route of staticwebapp.config.json: `*` is any text, `{a,b}` a choice. */
+function routePattern(route: string): RegExp {
+  const source = route
+    .replace(/[.+?^$()|[\]\\]/g, '\\$&')
+    .replace(/\{([^}]*)\}/g, (_match, choices: string) => `(${choices.split(',').join('|')})`)
+    .replace(/\*/g, '.*');
+  return new RegExp(`^${source}$`);
+}
+
+/** The `Cache-Control` of the first route that matches, like the Static Web App picks it. */
+function cacheControl(
+  rules: { pattern: RegExp; headers?: Record<string, string> }[],
+  pathname: string
+) {
+  return rules.find((rule) => rule.pattern.test(pathname))?.headers?.['Cache-Control'];
+}
+
 function serveDirectory(directory: string): Promise<{ server: Server; base: string }> {
+  const root = path.resolve(directory);
+  const configFile = path.join(root, 'staticwebapp.config.json');
+  const rules = (
+    existsSync(configFile)
+      ? ((JSON.parse(readFileSync(configFile, 'utf8')) as { routes?: RouteRule[] }).routes ?? [])
+      : []
+  ).map((rule) => ({ pattern: routePattern(rule.route), headers: rule.headers }));
   const cache = new Map<string, { body: Buffer; encoding?: string }>();
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost');
-    let file = path.join(directory, decodeURIComponent(url.pathname));
-    if (!file.startsWith(path.resolve(directory)) || url.pathname.startsWith('/api/')) {
+    let file: string;
+    try {
+      file = path.resolve(root, `.${decodeURIComponent(url.pathname)}`);
+    } catch {
+      response.writeHead(400).end();
+      return;
+    }
+    const relative = path.relative(root, file);
+    if (
+      relative.startsWith('..') ||
+      path.isAbsolute(relative) ||
+      url.pathname.startsWith('/api/')
+    ) {
       response.writeHead(404).end();
       return;
     }
@@ -249,11 +331,11 @@ function serveDirectory(directory: string): Promise<{ server: Server; base: stri
       entry = { body, encoding };
       cache.set(key, entry);
     }
-    const immutable = url.pathname.startsWith('/_astro/');
+    const control = cacheControl(rules, url.pathname);
     response.writeHead(200, {
       'Content-Type': CONTENT_TYPES[extension] ?? 'application/octet-stream',
       'Content-Length': entry.body.length,
-      'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=86400',
+      ...(control ? { 'Cache-Control': control } : {}),
       Vary: 'Accept-Encoding',
       ...(entry.encoding ? { 'Content-Encoding': entry.encoding } : {}),
     });
@@ -285,14 +367,16 @@ function compare(beforeFile: string, afterFile: string): string {
   ];
   let totalBefore = 0;
   let totalAfter = 0;
+  const onlyBefore = Object.keys(before.results).filter((key) => !(key in after.results));
+  const onlyAfter = Object.keys(after.results).filter((key) => !(key in before.results));
   for (const [key, a] of Object.entries(after.results)) {
     const b = before.results[key];
     if (!b) continue;
     const [profile, page] = key.split(' ');
-    totalBefore += b.scrolled.bytes + b.load.bytes;
-    totalAfter += a.scrolled.bytes + a.load.bytes;
-    const coldBefore = b.load.bytes + b.scrolled.bytes;
-    const coldAfter = a.load.bytes + a.scrolled.bytes;
+    const coldBefore = b.cold.bytes;
+    const coldAfter = a.cold.bytes;
+    totalBefore += coldBefore;
+    totalAfter += coldAfter;
     lines.push(
       `| ${page} | ${profile} | ${kb(coldBefore)} | ${kb(coldAfter)} | ${percent(coldBefore, coldAfter)} | ${kb(b.warm.bytes)} | ${kb(a.warm.bytes)} | ${b.lcp} → ${a.lcp} | ${b.cls} → ${a.cls} |`
     );
@@ -301,6 +385,12 @@ function compare(beforeFile: string, afterFile: string): string {
     '',
     `Summe kalt: ${kb(totalBefore)} → ${kb(totalAfter)} (${percent(totalBefore, totalAfter)}).`
   );
+  if (onlyBefore.length + onlyAfter.length > 0) {
+    lines.push(
+      '',
+      `Nicht verglichen, weil nur ein Bericht sie enthält: ${[...onlyBefore, ...onlyAfter].join(', ')}. Mit --blog denselben Beitrag festlegen.`
+    );
+  }
   return lines.join('\n');
 }
 
@@ -311,10 +401,10 @@ function describe(report: Report): string {
   ];
   for (const [key, m] of Object.entries(report.results)) {
     const [profile, page] = key.split(' ');
-    const cold = m.load.bytes + m.scrolled.bytes;
-    const type = (name: ResourceType): number => m.load.byType[name] + m.scrolled.byType[name];
+    const cold = m.cold.bytes;
+    const type = (name: ResourceType): number => m.cold.byType[name];
     lines.push(
-      `| ${page} | ${profile} | ${kb(cold)} | ${kb(type('image'))} | ${kb(type('font'))} | ${kb(type('script'))} | ${m.load.requests + m.scrolled.requests} | ${kb(m.warm.bytes)} | ${m.lcp} | ${m.cls} |`
+      `| ${page} | ${profile} | ${kb(cold)} | ${kb(type('image'))} | ${kb(type('font'))} | ${kb(type('script'))} | ${m.cold.requests} | ${kb(m.warm.bytes)} | ${m.lcp} | ${m.cls} |`
     );
   }
   return lines.join('\n');
@@ -347,13 +437,21 @@ async function main(): Promise<void> {
       : {}
   );
   try {
-    // `/blog/*` stands for the first post linked on the blog page
+    // `/blog/*` stands for the pinned post, else the first one linked on the blog page
     const probe = await browser.newPage();
     await probe.goto(`${base}/blog/`);
-    const post = await probe
-      .locator('a[href^="/blog/"]:not([href="/blog/"])')
+    const post =
+      option('blog') ??
+      (await probe
+        .locator('a[href^="/blog/"]:not([href="/blog/"])')
+        .first()
+        .getAttribute('href')
+        .catch(() => null));
+    // The footer links the commit the measured build was made from
+    const buildTitle = await probe
+      .locator('a[title^="Build "]')
       .first()
-      .getAttribute('href')
+      .getAttribute('title')
       .catch(() => null);
     await probe.close();
     const pages = PAGES.flatMap((page) => (page === '/blog/*' ? (post ? [post] : []) : [page]));
@@ -368,15 +466,7 @@ async function main(): Promise<void> {
         console.error(`${profile} ${page}`);
       }
     }
-    let commit = 'unbekannt';
-    try {
-      // The commit of the measured build, not of the checkout the script runs in
-      commit = execFileSync('git', ['-C', directory ?? '.', 'rev-parse', '--short', 'HEAD'], {
-        encoding: 'utf8',
-      }).trim();
-    } catch {
-      // not a git checkout
-    }
+    const commit = buildTitle?.match(/^Build ([0-9a-f]{7,40})/)?.[1]?.slice(0, 8) ?? 'unbekannt';
     const report: Report = {
       label: option('label') ?? 'messung',
       base: served ? 'lokal (dist)' : base,
