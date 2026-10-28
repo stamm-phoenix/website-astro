@@ -84,6 +84,19 @@ test('the Zeitplan starts with the days of the Aktion and blocks are added, move
 
 test('a Zeitplan read from a file replaces the entered one only after asking', async ({ page }) => {
   await page.goto(URL);
+  // A day with lines not taken over yet is removed only after asking
+  const dienstag = page.getByRole('region', { name: 'Dienstag, 11.08.2026' });
+  await dienstag.getByRole('button', { name: 'Mehrere Zeilen einfügen' }).click();
+  await dienstag.getByLabel('Mehrere Blöcke, einer pro Zeile').fill('10 Uhr Abreise');
+  await dienstag.getByRole('button', { name: 'Tag entfernen' }).click();
+  await answerConfirm(page, 'Dienstag, 11.08.2026 entfernen?', 'Abbrechen');
+  await expect(dienstag.getByLabel('Mehrere Blöcke, einer pro Zeile')).toHaveValue(
+    '10 Uhr Abreise'
+  );
+  await dienstag.getByRole('button', { name: 'Tag entfernen' }).click();
+  await answerConfirm(page, 'Dienstag, 11.08.2026 entfernen?', 'Tag entfernen');
+  await expect(dienstag).toHaveCount(0);
+
   const samstag = page.getByRole('region', { name: 'Samstag, 01.08.2026' });
   await samstag.getByRole('button', { name: 'Block hinzufügen' }).click();
   await samstag.getByLabel('Programmpunkt').fill('Packen');
