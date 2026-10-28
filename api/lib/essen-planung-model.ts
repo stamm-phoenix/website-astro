@@ -13,7 +13,8 @@ export type PlanungZugang = PlanungRolle | 'lesen';
 
 /** At most this many days per Planung; a camp of two weeks with buffer. */
 export const MAX_TAGE = 60;
-export const MAX_MAHLZEITEN_PRO_TAG = 15;
+/** Also the limit of the template, so a day from the template can always take a replacement. */
+export const MAX_MAHLZEITEN_PRO_TAG = 20;
 export const MAX_MITGLIEDER = 50;
 
 /** Unconfirmed requests to create a Planung expire after this time. */

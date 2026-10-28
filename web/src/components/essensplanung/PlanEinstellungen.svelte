@@ -44,21 +44,26 @@
       ...(mitgliederVerwalten !== basis.mitgliederVerwalten ? { mitgliederVerwalten } : {}),
       vorher: basis,
     };
+    const gesendet = { name, mitgliederVerwalten };
     const ok = await kontext.aendern(
       () => kontext.api.senden('PATCH', '', body),
       'Einstellungen gespeichert.'
     );
     const aktuell = { name: ansicht.name, mitgliederVerwalten: ansicht.mitgliederVerwalten };
+    // A field typed in again while saving keeps the new input as a draft
+    const nameDanach = name !== gesendet.name;
+    const schalterDanach = mitgliederVerwalten !== gesendet.mitgliederVerwalten;
     if (ok) {
       basis = aktuell;
-      name = aktuell.name;
-      mitgliederVerwalten = aktuell.mitgliederVerwalten;
+      if (!nameDanach) name = aktuell.name;
+      if (!schalterDanach) mitgliederVerwalten = aktuell.mitgliederVerwalten;
       return;
     }
     // After a conflict the next try starts from what is saved now; a field the person did not
     // touch shows it, the changed one keeps the input
-    if (!('name' in body)) name = aktuell.name;
-    if (!('mitgliederVerwalten' in body)) mitgliederVerwalten = aktuell.mitgliederVerwalten;
+    if (!('name' in body) && !nameDanach) name = aktuell.name;
+    if (!('mitgliederVerwalten' in body) && !schalterDanach)
+      mitgliederVerwalten = aktuell.mitgliederVerwalten;
     basis = aktuell;
   }
 

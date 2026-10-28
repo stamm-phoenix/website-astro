@@ -1,5 +1,6 @@
 import type { FieldErrors } from './pflege-validation';
 import { ValidationError } from './pflege-validation';
+import { MAX_MAHLZEITEN_PRO_TAG } from './essen-planung-model';
 
 /**
  * Types and checks of the Steuerung of the Essensplanung, without database access, so the mock
@@ -239,8 +240,8 @@ export function validateEssenEinstellungen(input: unknown): EssenEinstellungen {
   const vorlageMahlzeiten: string[] = [];
   if (!Array.isArray(value.vorlageMahlzeiten) || value.vorlageMahlzeiten.length === 0) {
     errors.vorlageMahlzeiten = 'Bitte mindestens eine Mahlzeit eintragen.';
-  } else if (value.vorlageMahlzeiten.length > 20) {
-    errors.vorlageMahlzeiten = 'Höchstens 20 Mahlzeiten.';
+  } else if (value.vorlageMahlzeiten.length > MAX_MAHLZEITEN_PRO_TAG) {
+    errors.vorlageMahlzeiten = `Höchstens ${MAX_MAHLZEITEN_PRO_TAG} Mahlzeiten.`;
   } else {
     value.vorlageMahlzeiten.forEach((item: unknown, index) => {
       vorlageMahlzeiten.push(readName(item, 50, errors, `vorlageMahlzeiten.${index}`));

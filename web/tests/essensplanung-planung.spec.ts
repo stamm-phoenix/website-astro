@@ -277,3 +277,38 @@ test('saving the name keeps a setting someone else changed; long links fit', asy
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   await anderes.context().close();
 });
+
+test('unsaved meals ask before leaving; typing while saving the settings keeps the input', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E Verlassen');
+
+  // A meal whose save failed stays as a draft, and leaving the page asks first
+  await page.route('**/api/essensplanung/planung/mahlzeiten/*', (route) =>
+    route.request().method() === 'PATCH'
+      ? route.fulfill({ status: 500, json: { error: 'Kaputt' } })
+      : route.continue()
+  );
+  await page.getByLabel('Name von 1_1').fill('Brunch');
+  await page.getByLabel('Name von 1_1').press('Enter');
+  await expect(page.getByLabel('Name von 1_1')).toHaveValue('Brunch');
+  await page.getByRole('link', { name: 'Impressum' }).first().click();
+  const frage = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await expect(frage).toBeVisible();
+  await frage.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await expect(page.getByLabel('Name von 1_1')).toHaveValue('Brunch');
+  await page.unroute('**/api/essensplanung/planung/mahlzeiten/*');
+
+  // A name typed again while the first one is still saving stays as a draft
+  await page.getByRole('tab', { name: 'Einstellungen' }).click();
+  await page.route('**/api/essensplanung/planung', async (route) => {
+    if (route.request().method() === 'PATCH') await new Promise((done) => setTimeout(done, 1500));
+    await route.continue();
+  });
+  await page.getByLabel('Name der Planung').fill('E2E Verlassen eins');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByLabel('Name der Planung').fill('E2E Verlassen zwei');
+  await expect(page.getByText('Einstellungen gespeichert.').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'E2E Verlassen eins', level: 2 })).toBeVisible();
+  await expect(page.getByLabel('Name der Planung')).toHaveValue('E2E Verlassen zwei');
+});

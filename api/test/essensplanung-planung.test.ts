@@ -14,8 +14,10 @@ import { raeumeAuf } from '../lib/essen-aufbewahrung';
 import { essenMail } from '../lib/essen-mails';
 import { PlanungError, einladen, ladeZugang, planungLoeschen } from '../lib/essen-planung';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
-import { loeschDatum } from '../lib/essen-planung-model';
+import { loeschDatum, MAX_MAHLZEITEN_PRO_TAG } from '../lib/essen-planung-model';
+import { loadEssenEinstellungen } from '../lib/essen-steuerung';
 import type { EssenSteuerungView } from '../lib/essen-validation';
+import { validateEssenEinstellungen } from '../lib/essen-validation';
 import { solvedAltcha, useAltcha } from './fixtures/altcha';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';
@@ -831,4 +833,49 @@ dbTest('a Planung without days shows the deletion from the day it was created', 
     .toISOString()
     .slice(0, 10);
   assert.equal(aktuell.loeschtAm, loeschDatum(erstellt, 12));
+});
+
+dbTest('a day from the largest template still takes a replacement meal', async (t) => {
+  const mails = captureMails(t);
+  const vorher = await getDb()
+    .selectFrom('essen.einstellungen')
+    .select('vorlage_mahlzeiten')
+    .executeTakeFirstOrThrow();
+  const vorlage = Array.from({ length: MAX_MAHLZEITEN_PRO_TAG }, (_, i) => `Mahlzeit ${i + 1}`);
+  await getDb()
+    .updateTable('essen.einstellungen')
+    .set({ vorlage_mahlzeiten: JSON.stringify(vorlage) })
+    .execute();
+  t.after(async () => {
+    await getDb()
+      .updateTable('essen.einstellungen')
+      .set({ vorlage_mahlzeiten: vorher.vorlage_mahlzeiten })
+      .execute();
+  });
+  // The Steuerung allows a template of exactly this size and no more
+  const { einstellungen } = await loadEssenEinstellungen(getDb());
+  assert.deepEqual(validateEssenEinstellungen(einstellungen).vorlageMahlzeiten, vorlage);
+  assert.throws(() =>
+    validateEssenEinstellungen({ ...einstellungen, vorlageMahlzeiten: [...vorlage, 'Zu viel'] })
+  );
+
+  const { token, ansicht } = await anlegen(t, mails);
+  const tag = ansicht.tage[0];
+  assert.equal(tag.mahlzeiten.length, MAX_MAHLZEITEN_PRO_TAG);
+  const weg = tag.mahlzeiten[0];
+  await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${weg.id}`, {
+    token,
+    params: { id: String(weg.id) },
+    ifMatch: weg.etag,
+  });
+  const ersatz = await call(t, endpoints.EssensplanungMahlzeiten, 'POST', 'planung/mahlzeiten', {
+    token,
+    body: { tagId: tag.id, name: 'Ersatz' },
+  });
+  assert.equal(ersatz.status, 201, JSON.stringify(ersatz.jsonBody));
+  const zuViel = await call(t, endpoints.EssensplanungMahlzeiten, 'POST', 'planung/mahlzeiten', {
+    token,
+    body: { tagId: tag.id, name: 'Noch eine' },
+  });
+  assert.equal(zuViel.status, 400);
 });
