@@ -326,6 +326,32 @@ test('a huge text is refused cheaply and cleaning twice changes nothing', () => 
   assert.equal(redactForForwarding(once), redactForForwarding(text));
 });
 
+test('wrapped values without a name are removed, e-mail removal stays linear', () => {
+  const text = 'https://x.de/teilen#\nAbCdEf123456\nNicht gespeichert.';
+  const once = redactSensitive(text);
+  assert.ok(!once.includes('AbCdEf123456'));
+  assert.ok(once.includes('Nicht gespeichert.'));
+  assert.equal(redactSensitive(once), once);
+  assert.equal(
+    redactSensitive('Ich öffne x.de/a?\nNein, es geht nicht.'),
+    'Ich öffne x.de/a?\nNein, es geht nicht.'
+  );
+  for (const input of [
+    '.'.repeat(32_000),
+    'a'.repeat(16_000) + '@' + 'b'.repeat(16_000),
+    '@'.repeat(32_000),
+    'a@'.repeat(16_000),
+  ]) {
+    const started = Date.now();
+    redactForForwarding(input, 'x@y.de');
+    assert.ok(Date.now() - started < 300, input.slice(0, 8));
+  }
+  assert.equal(
+    redactForForwarding('a x@y.de, b@ä.de. c@d'),
+    'a [E-Mail entfernt] [E-Mail entfernt] c@d'
+  );
+});
+
 test('every accepted address and the contact itself stay out of forwarded text', () => {
   const contact = 'erika@bücher.de';
   assert.equal(

@@ -143,8 +143,9 @@ function withoutWrappedQuery(text: string): string {
     const last = line.slice(Math.max(line.lastIndexOf(' '), line.lastIndexOf('\t')) + 1);
     if (!/[?&#]$/.test(last) || !(last.includes('/') || /\w\.\w/.test(last))) continue;
     const next = i + 1 < lines.length ? /^[ \t]*(\S+)/.exec(lines[i + 1]) : null;
-    // Only a value of the query (`name=value`) goes; a following sentence stays, also in a second pass
-    if (!next?.[1].includes('=')) continue;
+    // Only what is a value of the query goes (`name=value`, or a code with a digit in it); a
+    // following sentence stays, also in a second pass
+    if (!next || !(next[1].includes('=') || /^[\w.~%+-]*\d[\w.~%+-]*$/.test(next[1]))) continue;
     lines[i + 1] = lines[i + 1].replace(/^[ \t]*\S+/, '');
     lines[i] = line.replace(/[?&#]+$/, '');
   }
@@ -177,6 +178,32 @@ export function redactSensitive(text: string): string {
   );
 }
 
+/** Whether a domain part has a dot with something on both sides. */
+function hasInnerDot(domain: string): boolean {
+  const dot = domain.indexOf('.', 1);
+  return dot !== -1 && dot < domain.length - 1;
+}
+
+/**
+ * A token without what looks like an e-mail address (`name@domain.tld`, also with umlauts), by
+ * splitting at the `@`: linear, unlike a pattern that searches around each one.
+ */
+function redactEmailToken(token: string): string {
+  if (!token.includes('@')) return token;
+  const parts = token.split('@');
+  let result = '';
+  for (let i = 0; i < parts.length;) {
+    if (i + 1 < parts.length && parts[i] !== '' && hasInnerDot(parts[i + 1])) {
+      result += '[E-Mail entfernt]';
+      i += 2;
+    } else {
+      result += parts[i] + (i + 1 < parts.length ? '@' : '');
+      i += 1;
+    }
+  }
+  return result;
+}
+
 /**
  * For text that is sent on to GitHub or the model: also without e-mail addresses (anything that
  * looks like one, so every address the form accepts is covered) and without the contact address
@@ -189,7 +216,7 @@ export function redactForForwarding(text: string, contact = ''): string {
     const escaped = own.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     result = result.replace(new RegExp(escaped, 'gi'), '[E-Mail entfernt]');
   }
-  return result.replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[E-Mail entfernt]');
+  return result.replace(/\S+/g, redactEmailToken);
 }
 
 /** Trimmed text of one line, cut to `max`; `''` for anything else. */
