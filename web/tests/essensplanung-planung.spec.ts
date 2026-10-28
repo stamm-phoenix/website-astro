@@ -312,3 +312,27 @@ test('unsaved meals ask before leaving; typing while saving the settings keeps t
   await expect(page.getByRole('heading', { name: 'E2E Verlassen eins', level: 2 })).toBeVisible();
   await expect(page.getByLabel('Name der Planung')).toHaveValue('E2E Verlassen zwei');
 });
+
+test('the skip link keeps the Planung on reload; a name typed while saving stays', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E Sprung');
+  await page.getByRole('link', { name: 'Zum Inhalt springen' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#main$/);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'E2E Sprung', level: 2 })).toBeVisible();
+  await expect(page.getByLabel('Name von 1_1')).toHaveValue('Frühstück');
+
+  await page.getByRole('tab', { name: 'Mitglieder' }).click();
+  await page.route('**/api/essensplanung/planung/ich', async (route) => {
+    if (route.request().method() === 'PATCH') await new Promise((done) => setTimeout(done, 1500));
+    await route.continue();
+  });
+  await page.getByLabel('Dein Name in dieser Planung').fill('Kim Kocht');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByLabel('Dein Name in dieser Planung').fill('Kim Backt');
+  await expect(page.getByText('Dein Name ist gespeichert.').first()).toBeVisible();
+  await expect(page.getByText('Kim Kocht (du)')).toBeVisible();
+  await expect(page.getByLabel('Dein Name in dieser Planung')).toHaveValue('Kim Backt');
+});

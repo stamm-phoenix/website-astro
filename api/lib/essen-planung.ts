@@ -329,16 +329,18 @@ export async function aendere<T>(
  * Stores a request to create a Planung and returns the token for the confirmation link.
  * Refuses addresses the Steuerung does not allow and too many requests.
  */
+function ANLEGEN_NICHT_ERLAUBT(): PlanungError {
+  return new PlanungError(
+    403,
+    'ANLEGEN_NICHT_ERLAUBT',
+    'Mit dieser Mailadresse kannst du gerade keine Planung anlegen. Frag beim Stamm Phoenix nach (kontakt@stamm-phoenix.de) oder lass dich von jemandem in eine bestehende Planung einladen.'
+  );
+}
+
 export async function anfrageAnlegen(input: AnlegenInput, db: Db = getDb()): Promise<string> {
   const { einstellungen } = await loadEssenEinstellungen(db);
   if (einstellungen.wartung) throw WARTUNG();
-  if (!darfPlanungAnlegen(input.email, einstellungen)) {
-    throw new PlanungError(
-      403,
-      'ANLEGEN_NICHT_ERLAUBT',
-      'Mit dieser Mailadresse kannst du gerade keine Planung anlegen. Frag beim Stamm Phoenix nach (kontakt@stamm-phoenix.de) oder lass dich von jemandem in eine bestehende Planung einladen.'
-    );
-  }
+  if (!darfPlanungAnlegen(input.email, einstellungen)) throw ANLEGEN_NICHT_ERLAUBT();
   // Counting and storing under one lock per address, so requests at the same time cannot all
   // slip under the limit
   return db.transaction().execute(async (trx) => {
@@ -378,7 +380,10 @@ export async function anfrageAnlegen(input: AnlegenInput, db: Db = getDb()): Pro
  * requester becomes owner. Returns the owner's personal token. A second click on the same link
  * creates nothing new, it says the Planung exists.
  */
-export async function anfrageBestaetigen(token: unknown): Promise<string> {
+export async function anfrageBestaetigen(
+  token: unknown,
+  { freigabePruefen = true }: { freigabePruefen?: boolean } = {}
+): Promise<string> {
   if (!isToken(token)) throw LINK_UNGUELTIG();
   return inTransaction(async (trx) => {
     // Two tabs confirming at once: the second waits here and then sees the Planung
@@ -404,6 +409,10 @@ export async function anfrageBestaetigen(token: unknown): Promise<string> {
     }
     const { einstellungen } = await loadEssenEinstellungen(trx);
     if (einstellungen.wartung) throw WARTUNG();
+    // The Steuerung may have closed creating for this address since the request
+    if (freigabePruefen && !darfPlanungAnlegen(anfrage.email, einstellungen)) {
+      throw ANLEGEN_NICHT_ERLAUBT();
+    }
 
     const planung = await trx
       .insertInto('essen.planung')

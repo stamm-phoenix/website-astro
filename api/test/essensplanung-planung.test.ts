@@ -879,3 +879,53 @@ dbTest('a day from the largest template still takes a replacement meal', async (
   });
   assert.equal(zuViel.status, 400);
 });
+
+dbTest('a confirmation link no longer creates once the address is not allowed', async (t) => {
+  const mails = captureMails(t);
+  useAltcha(t);
+  const freigabe = (anlegenExtern: boolean, whitelist: string[]) =>
+    getDb()
+      .updateTable('essen.einstellungen')
+      .set({ anlegen_extern: anlegenExtern, whitelist: JSON.stringify(whitelist) })
+      .execute();
+  t.after(() => freigabe(false, []));
+  const anfrage = async (email: string) => {
+    const antwort = await call(t, endpoints.EssensplanungAnlegen, 'POST', 'anlegen', {
+      body: {
+        email,
+        name: 'Bea Bezirk',
+        planungName: 'Bezirkslager',
+        ersterTag: '2027-07-01',
+        letzterTag: '2027-07-02',
+        altcha: await solvedAltcha(),
+      },
+    });
+    assert.equal(antwort.status, 200);
+    return tokenAus(mails.at(-1)!, 'a');
+  };
+  const bestaetigen = (token: string) =>
+    call(t, endpoints.EssensplanungBestaetigen, 'POST', 'anlegen/bestaetigen', {
+      body: { token },
+    });
+
+  // Creating by externals switched off between request and confirmation
+  await freigabe(true, ['dpsg-bezirk.de']);
+  const abgeschaltet = await anfrage('bea@dpsg-bezirk.de');
+  await freigabe(false, ['dpsg-bezirk.de']);
+  const nachAbschalten = await bestaetigen(abgeschaltet);
+  assert.equal(nachAbschalten.status, 403);
+  assert.equal(json(nachAbschalten).code, 'ANLEGEN_NICHT_ERLAUBT');
+
+  // The domain taken off the list
+  await freigabe(true, ['dpsg-bezirk.de']);
+  const entfernt = await anfrage('bea@dpsg-bezirk.de');
+  await freigabe(true, ['anderer-bezirk.de']);
+  assert.equal((await bestaetigen(entfernt)).status, 403);
+
+  const planungen = await getDb()
+    .selectFrom('essen.mitglied')
+    .select('id')
+    .where('email', '=', 'bea@dpsg-bezirk.de')
+    .execute();
+  assert.equal(planungen.length, 0);
+});
