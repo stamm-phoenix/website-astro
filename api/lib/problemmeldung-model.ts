@@ -109,17 +109,36 @@ export const EMPTY_PROBLEM_CONTEXT: ProblemContext = {
 const REDACTED = '[entfernt]';
 
 /**
- * A token of a text without query and fragment, if it looks like a URL: before the first `?` or
- * `#` it has a path, a dot, a port or an IPv6 address (`/a`, `x.de`, `localhost:4321`, `[::1]`), or
- * after it comes a `name=value`. Everything from there goes, also paths and further parameters
- * inside the query. Other tokens (`Warum?`, `ja?nein`) stay. Errs on the side of cutting: a
- * secret in a link is worse than a lost word.
+ * A token of a text without query and fragment, if it looks like a URL: at some `?` or `#` the
+ * part before it has a path, a dot, a port or an IPv6 address (`/a`, `x.de`, `localhost:4321`,
+ * `[::1]`), or the part after it has a `name=value`. Everything from the first such place goes,
+ * also paths and further parameters inside the query. Other tokens (`Warum?`, `ja?nein`, `#42`)
+ * stay; the earlier `?` of `[Warum?](https://x.de/a#1)` does not hide the link behind it. Errs on
+ * the side of cutting: a secret in a link is worse than a lost word.
  */
 function withoutQuery(token: string): string {
-  const cut = token.search(/[?#]/);
-  if (cut <= 0 || cut === token.length - 1) return token;
-  const prefix = token.slice(0, cut);
-  return /[/.:\]]/.test(prefix) || token.slice(cut).includes('=') ? prefix : token;
+  for (let cut = token.search(/[?#]/); cut >= 0; cut = nextDelimiter(token, cut)) {
+    if (cut === 0 || cut === token.length - 1) continue;
+    if (/[/.:\]]/.test(token.slice(0, cut)) || token.slice(cut).includes('=')) {
+      return token.slice(0, cut);
+    }
+  }
+  return token;
+}
+
+function nextDelimiter(token: string, after: number): number {
+  const next = token.slice(after + 1).search(/[?#]/);
+  return next < 0 ? -1 : after + 1 + next;
+}
+
+/**
+ * Parts of a copied link that a line break separated from its start: the line after a link that
+ * ends in `?` or `&`, and lines that continue the query with `&name=value`.
+ */
+function withoutWrappedQuery(text: string): string {
+  return text
+    .replace(/(\S*(?:\/|\w\.\w)\S*[?&#])[ \t]*\r?\n[ \t]*\S+/g, '$1')
+    .replace(/(\r?\n)[ \t]*&[\w.%-]+=\S*/g, '$1');
 }
 
 /**
@@ -129,7 +148,7 @@ function withoutQuery(token: string): string {
  */
 export function redactSensitive(text: string): string {
   return (
-    text
+    withoutWrappedQuery(text)
       // eslint-disable-next-line no-control-regex -- control characters other than line breaks
       .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '')
       .replace(/\S+/g, withoutQuery)

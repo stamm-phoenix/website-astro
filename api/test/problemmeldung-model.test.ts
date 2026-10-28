@@ -260,6 +260,24 @@ test('hosts with ports, addresses and odd punctuation lose their query', () => {
   assert.equal(redactSensitive('Warum? Geht das? ja?nein #42'), 'Warum? Geht das? ja?nein #42');
 });
 
+test('links in markdown and links wrapped over lines lose their query', () => {
+  for (const text of [
+    '[Warum?](https://x.de/a#654321) geht nicht',
+    '[Seite](https://x.de/a?654321)',
+    '<https://x.de/a?code=654321>',
+    'https://x.de/anmelden?state=offen\n&code=654321',
+    'https://x.de/anmelden?\ncode=654321 ist falsch',
+    'https://x.de/anmelden?state=offen&\n  code=654321',
+  ]) {
+    assert.ok(!redactSensitive(text).includes('654321'), text);
+    assert.ok(!redactForForwarding(text).includes('654321'), text);
+  }
+  assert.equal(
+    redactSensitive('Warum geht das nicht?\nIch habe es mehrfach versucht.'),
+    'Warum geht das nicht?\nIch habe es mehrfach versucht.'
+  );
+});
+
 test('every accepted address and the contact itself stay out of forwarded text', () => {
   const contact = 'erika@bücher.de';
   assert.equal(
