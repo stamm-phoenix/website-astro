@@ -42,7 +42,9 @@
     Nach CampFlow übertragen
     <InfoHint
       label="Nach CampFlow übertragen"
-      text={`Lädt das Foto als Beleg hoch und bucht es mit Geschäft, Datum, Betrag und Bemerkung als Ausgabe${form.payout ? `, Auslage durch ${form.paidBy}` : ''}. Danach wird der Beleg hier gelöscht.`}
+      text={form.art === 'Einnahme'
+        ? `Lädt ${form.isPdf ? 'das PDF' : 'das Foto'} als Beleg hoch und bucht es mit „Einnahme von“, Datum, Betrag und Bemerkung als Einnahme. Danach wird der Beleg hier gelöscht.`
+        : `Lädt ${form.isPdf ? 'das PDF' : 'das Foto'} als Beleg hoch und bucht es mit Geschäft, Datum, Betrag und Bemerkung als Ausgabe${form.payout ? `, Auslage durch ${form.paidBy}` : ''}. Danach wird der Beleg hier gelöscht.`}
     />
   </h3>
   {#if uploaded}

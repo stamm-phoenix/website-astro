@@ -317,6 +317,7 @@ test('my Auslage submitted by someone else is mine to look at, not to change', a
           payout: true,
           submittedBy: 'sam@example.test',
           status: 'Eingereicht',
+          isPdf: true,
           readOnly: true,
         },
         ...belege,
@@ -332,6 +333,11 @@ test('my Auslage submitted by someone else is mine to look at, not to change', a
   await expect(dialog.getByText('Demo Leitung')).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Speichern' })).toHaveCount(0);
   await expect(dialog.getByRole('textbox')).toHaveCount(0);
+  // The picture shows only the first page; the whole PDF is a download away
+  await expect(dialog.getByRole('link', { name: 'PDF herunterladen' })).toHaveAttribute(
+    'href',
+    /\/api\/intern\/pflege\/belege\/777\/foto\?v=.*&download=1$/
+  );
 });
 
 test('one list holds the receipts here and in CampFlow, filtered by source and more', async ({
