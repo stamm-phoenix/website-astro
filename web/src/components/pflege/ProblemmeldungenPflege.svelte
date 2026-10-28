@@ -8,6 +8,7 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { untrack } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
+  import { confirmAction } from '../../lib/confirm';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { formatDateTime } from '../../lib/format';
   import { problemmeldungenPflege } from '../../lib/pflegeStore.svelte';
@@ -161,7 +162,7 @@
 
   /** Saves the draft; returns whether it worked. */
   async function save(announce = true): Promise<boolean> {
-    if (!selected || busy) return false;
+    if (!selected || busy || selected.github.pending) return false;
     if (dialog.invalid(validate())) return false;
     // The fresh version of the report must not carry fields that were loaded before another
     // leader saved: this would overwrite that draft without asking
@@ -210,7 +211,7 @@
   }
 
   async function discard(): Promise<void> {
-    if (!selected || busy) return;
+    if (!selected || busy || selected.github.pending) return;
     const { id, etag } = selected;
     const ok = await dialog.run(async () => {
       await sendApi('POST', `/intern/pflege/problemmeldungen/${id}/verwerfen`, {
@@ -233,6 +234,24 @@
   /** Saves a changed draft first, so the preview shows exactly what is sent. */
   async function startSend(): Promise<void> {
     if (!selected || busy) return;
+    if (selected.github.pending) {
+      // A pending hand-over can only use the saved draft; ask before dropping local edits.
+      const id = selected.id;
+      if (
+        draftChanged &&
+        !(await confirmAction({
+          title: `Entwurf PM-${id} verwerfen?`,
+          message: 'Der gespeicherte Entwurf wird gesendet. Deine Änderungen gehen verloren.',
+          confirmLabel: 'Änderungen verwerfen',
+          tone: 'neutral',
+        }))
+      )
+        return;
+      if (!selected || selected.id !== id || !selected.github.pending) return;
+      fillDraft(selected);
+      sending = true;
+      return;
+    }
     if (!draft.title.trim() || !draft.body.trim()) {
       dialog.invalid({ title: draft.title.trim() ? '' : 'Bitte gib einen Titel an.' });
       dialog.fail(
@@ -397,7 +416,7 @@
   error={dialog.state.error}
   submitLabel="Entwurf speichern"
   cancelLabel="Schließen"
-  submitDisabled={!open}
+  submitDisabled={!open || selected?.github.pending === true}
   dirty={draftChanged}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}
   onsubmit={() => void save()}
@@ -408,7 +427,7 @@
       <ActionButton
         variant="danger"
         type="button"
-        disabled={busy}
+        disabled={busy || selected?.github.pending === true}
         onclick={() => (discarding = true)}>Verwerfen</ActionButton
       >
       <ActionButton
@@ -524,14 +543,19 @@
               {...attrs}
               class="form-input"
               maxlength={store.data?.maxLength.title ?? PROBLEM_MAX_LENGTH.title}
-              readonly={!open}
+              readonly={!open || selected.github.pending}
               bind:value={draft.title}
             />
           {/snippet}
         </FormField>
         <FormField id="pm-label" label="Label">
           {#snippet children(attrs)}
-            <select {...attrs} class="form-input" disabled={!open} bind:value={draft.label}>
+            <select
+              {...attrs}
+              class="form-input"
+              disabled={!open || selected.github.pending}
+              bind:value={draft.label}
+            >
               {#each store.data?.labels ?? PROBLEM_LABELS as label (label.id)}
                 <option value={label.id}>{label.label}</option>
               {/each}
@@ -539,7 +563,7 @@
           {/snippet}
         </FormField>
         {#if open}
-          <div inert={busy}>
+          <div inert={busy || selected.github.pending}>
             <FormField
               id="pm-body"
               label="Beschreibung"
