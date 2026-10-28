@@ -445,7 +445,8 @@ export function abrechnungSessionChanged(session: AbrechnungSession): boolean {
     Object.values(session.deckblatt).some(filled) ||
     Object.keys(session.betraege).length > 0 ||
     filled(session.kurzbeschreibung.einleitung) ||
-    session.kurzbeschreibung.tage.some((tag) => tag.bloecke.length > 0)
+    // Days changed by hand, even without blocks, can be reset
+    session.kurzbeschreibung.tage.length > 0
   );
 }
 
