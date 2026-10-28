@@ -9,7 +9,7 @@
   import { errorMessage } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { formatEventRange } from '../../lib/campflowFields';
-  import { todayIso } from '../../lib/format';
+  import { berlinDay, todayIso } from '../../lib/format';
   import { fetchVorstand, vorstandStore } from '../../lib/vorstandStore.svelte';
   import {
     MAX_ZEITBLOCK_TEXT,
@@ -56,7 +56,15 @@
   const tage = $derived(zeitplanTage(kurz, event.start_date, event.end_date));
   const aktionsTage = $derived(new Set(aktionTage(event.start_date, event.end_date)));
   const blockCount = $derived(tage.reduce((sum, tag) => sum + tag.bloecke.length, 0));
-  const filled = $derived(kurz.einleitung.trim() !== '' || blockCount > 0);
+  /** Something the PDF would show; empty blocks, as the PDF leaves them out, do not count. */
+  const filled = $derived(
+    kurz.einleitung.trim() !== '' ||
+      tage.some((tag) =>
+        tag.bloecke.some(
+          (block) => block.text.trim() !== '' || block.von !== '' || block.bis !== ''
+        )
+      )
+  );
 
   let pdfBusy = $state(false);
   let pdfError = $state<string | null>(null);
@@ -459,7 +467,11 @@
       await downloadKurzbeschreibungPdf(
         kurzbeschreibungPdfData(
           event.title,
-          formatEventRange(event),
+          // The days in Berlin, as the days of the Zeitplan (`aktionTage`)
+          formatEventRange({
+            start_date: berlinDay(event.start_date),
+            end_date: berlinDay(event.end_date),
+          }),
           kurz,
           tage,
           vorstandStore.data ?? []

@@ -186,3 +186,15 @@ test('an answer that arrives after the Kurzbeschreibung changed is not taken ove
   // The description stays for another try
   await expect(page.getByLabel('Ablauf der Aktion')).toHaveValue('Samstag um 10 Anreise.');
 });
+
+test('an empty block alone gives no PDF but a hint what to enter', async ({ page }) => {
+  await page.goto(URL);
+  await page
+    .getByRole('region', { name: 'Samstag, 01.08.2026' })
+    .getByRole('button', { name: 'Block hinzufügen' })
+    .click();
+  await page.getByRole('button', { name: 'Als PDF herunterladen' }).click();
+  await expect(
+    page.getByText('Trage zuerst die Zielsetzung oder einen Block im Zeitplan ein.')
+  ).toBeVisible();
+});
