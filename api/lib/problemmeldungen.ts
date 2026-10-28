@@ -13,7 +13,7 @@ import type {
 } from './problemmeldung-model';
 
 /**
- * Problemmeldungen in Azure SQL (`problem.meldung`, migration `0046_problemmeldung.sql`): the
+ * Problemmeldungen in Azure SQL (`problem.meldung`, migration `0047_problemmeldung.sql`): the
  * reports of „Problem melden“, the assessment of the language model, the issue draft and the
  * result of the hand-over to GitHub. `docs/problemmeldungen.md` describes the flow.
  */

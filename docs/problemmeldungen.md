@@ -67,4 +67,4 @@ geöffnet wird (es gibt keinen Timer). Sichten, verwerfen und senden darf jede P
   (`docs/belege-ki-pruefung.md`), Bereitstellung `CONFIG.problemmeldung.ai`.
 - Labels zur Wahl: `PROBLEM_LABELS` (bug, enhancement, documentation, question); sie müssen im
   Repository existieren.
-- Datenbank: Migration `0046_problemmeldung.sql`, Schema `problem`.
+- Datenbank: Migrationen `0047_problemmeldung.sql` und `0048_problemmeldung_github_erster_versuch.sql`, Schema `problem`.
