@@ -184,6 +184,7 @@
   }
 
   async function removeDay(tagIndex: number): Promise<void> {
+    if (tage.length <= 1) return;
     const tag = editable()[tagIndex];
     const zeilen = !!quick[tag.datum]?.trim();
     const inhalt = [
@@ -292,12 +293,19 @@
       if (count > 0) session.kurzbeschreibung.tage = neu;
       const einleitung = !!zeitplan.einleitung && !kurz.einleitung.trim();
       if (einleitung) session.kurzbeschreibung.einleitung = zeitplan.einleitung!;
-      say(
-        count > 0
-          ? `Zeitplan aus „${file.name}“ übernommen: ${days} ${days === 1 ? 'Tag' : 'Tage'}, ${taken} ${taken === 1 ? 'Block' : 'Blöcke'}${taken < count ? ` von ${count}` : ''}${einleitung ? ' und die Zielsetzung' : ''}. Prüfe ihn bitte.`
-          : `Zielsetzung aus „${file.name}“ übernommen. Einen Zeitplan enthält die Datei nicht.`,
-        taken < count ? 'warning' : 'success'
-      );
+      if (count > 0) {
+        say(
+          `Zeitplan aus „${file.name}“ übernommen: ${days} ${days === 1 ? 'Tag' : 'Tage'}, ${taken} ${taken === 1 ? 'Block' : 'Blöcke'}${taken < count ? ` von ${count}` : ''}${einleitung ? ' und die Zielsetzung' : ''}. Prüfe ihn bitte.`,
+          taken < count ? 'warning' : 'success'
+        );
+      } else if (einleitung) {
+        say(`Zielsetzung aus „${file.name}“ übernommen. Einen Zeitplan enthält die Datei nicht.`);
+      } else {
+        say(
+          `„${file.name}“ enthält keinen Zeitplan, nur eine Zielsetzung. Deine Zielsetzung bleibt unverändert; nichts wurde übernommen.`,
+          'warning'
+        );
+      }
     } catch (error: unknown) {
       if (controller?.signal.aborted) return;
       say(
@@ -525,9 +533,12 @@
                   Nach Uhrzeit sortieren
                 </ActionButton>
               {/if}
-              <ActionButton variant="danger" onclick={() => removeDay(tagIndex)}>
-                Tag entfernen
-              </ActionButton>
+              <!-- The last day stays: no days at all would show the days of the Aktion again -->
+              {#if tage.length > 1}
+                <ActionButton variant="danger" onclick={() => removeDay(tagIndex)}>
+                  Tag entfernen
+                </ActionButton>
+              {/if}
             </div>
           </div>
 
