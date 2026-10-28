@@ -196,6 +196,7 @@
       type="button"
       class="md:ml-auto"
       disabled={busy}
+      data-focus-fallback
       onclick={() => open()}>Neue Zutat</ActionButton
     >
   </div>
@@ -207,7 +208,10 @@
   {#if gefiltert.length}
     <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
       {#each gefiltert as zutat (zutat.id)}
-        <li class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <li
+          data-focus-item
+          class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
           <div class="min-w-0">
             <p class="font-semibold text-brand-900 [overflow-wrap:anywhere]">{zutat.name}</p>
             <p class="text-sm text-neutral-700">
