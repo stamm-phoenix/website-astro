@@ -26,7 +26,8 @@ import {
   downloadFileName,
   todayInBerlin,
 } from '../endpoints/intern-pflege-belege';
-import { validateBeleg, ValidationError } from '../lib/pflege-validation';
+import { validateBeleg } from '../lib/validation/beleg';
+import { ValidationError } from '../lib/validation/errors';
 import {
   BelegCheckError,
   forgetBelegChecks,

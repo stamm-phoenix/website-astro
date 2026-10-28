@@ -20,7 +20,7 @@ import {
   toVersion,
 } from './db';
 import type { BelegCampflowState, BelegCampflowTable, BelegTable } from './db-schema';
-import type { BelegArt, BelegInput, BelegStatus } from './pflege-validation';
+import type { BelegArt, BelegInput, BelegStatus } from './validation/beleg';
 
 /**
  * The Belege in Azure SQL (`organisation.beleg`, migration `0026_aktionen_belege_instagram.sql`)

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipalClaim } from '../lib/staff-auth';
 import type { ReadMemberGroups } from '../lib/staff-roles';
@@ -9,21 +10,28 @@ interface LoginUser {
   claims?: ClientPrincipalClaim[];
 }
 
+const claimSchema = z.looseObject({ typ: z.string(), val: z.string() });
+
+const loginUserSchema = z.object({
+  identityProvider: z.string(),
+  userDetails: z.string(),
+  // Claims that are no text pairs are left out; without a list the login is used instead
+  claims: z
+    .unknown()
+    .optional()
+    .transform((claims): ClientPrincipalClaim[] | undefined =>
+      Array.isArray(claims)
+        ? claims.flatMap((claim) => {
+            const parsed = claimSchema.safeParse(claim);
+            return parsed.success ? [parsed.data] : [];
+          })
+        : undefined
+    ),
+});
+
 function readLoginUser(body: unknown): LoginUser | undefined {
-  if (!body || typeof body !== 'object') return undefined;
-  const user = body as Record<string, unknown>;
-  if (typeof user.identityProvider !== 'string' || typeof user.userDetails !== 'string')
-    return undefined;
-  const claims = Array.isArray(user.claims)
-    ? user.claims.filter(
-        (claim): claim is ClientPrincipalClaim =>
-          !!claim &&
-          typeof claim === 'object' &&
-          typeof (claim as Record<string, unknown>).typ === 'string' &&
-          typeof (claim as Record<string, unknown>).val === 'string'
-      )
-    : undefined;
-  return { identityProvider: user.identityProvider, userDetails: user.userDetails, claims };
+  const user = loginUserSchema.safeParse(body);
+  return user.success ? user.data : undefined;
 }
 
 /**

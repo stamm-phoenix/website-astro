@@ -9,7 +9,7 @@ import type { AzureOpenAiDeployment } from './azure-openai';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 import { CONFIG } from './config';
 import { protokollToText } from './protokoll-text';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 
 export const TERMIN_EXTRACTIONS = [
   'gefunden',
@@ -24,8 +24,8 @@ export type TerminExtraction = (typeof TERMIN_EXTRACTIONS)[number];
 export const TERMIN_DECISIONS = ['offen', 'bestaetigt', 'abgelehnt'] as const;
 export type TerminDecision = (typeof TERMIN_DECISIONS)[number];
 
-export type TerminAction = 'erkennen' | 'bestaetigen' | 'ablehnen';
-export const TERMIN_ACTIONS: TerminAction[] = ['erkennen', 'bestaetigen', 'ablehnen'];
+export const TERMIN_ACTIONS = ['erkennen', 'bestaetigen', 'ablehnen'] as const;
+export type TerminAction = (typeof TERMIN_ACTIONS)[number];
 
 export interface TerminSuggestion {
   /** `YYYY-MM-DD` */

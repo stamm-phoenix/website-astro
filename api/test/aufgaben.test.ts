@@ -24,7 +24,7 @@ import {
 import { dbTest } from './fixtures/database';
 import { recordQueries } from './fixtures/queries';
 import { seedPreviewTasks } from '../lib/db-preview';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 
 const input = {
   title: 'Zelte prüfen',

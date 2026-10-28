@@ -12,19 +12,18 @@ import {
   AbstimmungenCollectionEndpoint,
   abstimmungQuellen,
 } from '../endpoints/intern-pflege-abstimmungen';
+import { abstimmungEinsicht, abstimmungErgebnis } from '../lib/abstimmung-model';
 import {
-  abstimmungEinsicht,
-  abstimmungErgebnis,
   validateAbstimmung,
   validateAbstimmungName,
   validateAntwort,
-} from '../lib/abstimmung-model';
+} from '../lib/abstimmung-schema';
 import type { AbstimmungAnsicht, AbstimmungDetail } from '../lib/abstimmung-model';
 import { abstimmungMail, abstimmungMailContent } from '../lib/abstimmung-mails';
 import { abstimmungLesen as lesen } from '../lib/abstimmungen';
 import type { AbstimmungMailDaten } from '../lib/abstimmung-mails';
 import { getDb } from '../lib/db';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import * as personen from '../lib/personen';
 import { audienceVersion, protokollRecipients } from '../lib/protokolle';
 import * as taskDirectory from '../lib/task-directory';

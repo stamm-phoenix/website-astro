@@ -1,4 +1,5 @@
 import type { InvocationContext } from '@azure/functions';
+import { z } from 'zod';
 import { getDb, getSqlErrorNumber } from './db';
 import { EnvironmentVariable, getEnvironment } from './environment';
 
@@ -113,16 +114,26 @@ async function storeToken(token: string): Promise<void> {
   }
 }
 
+/** The answer of the refresh: the new token, or the error message of Instagram. */
+const refreshResponseSchema = z
+  .object({
+    access_token: z.string().optional().catch(undefined),
+    error: z
+      .object({ message: z.string().catch('') })
+      .optional()
+      .catch(undefined),
+  })
+  .catch({ access_token: undefined, error: undefined });
+
 async function refreshToken(token: string): Promise<string> {
   const params = new URLSearchParams({ grant_type: 'ig_refresh_token', access_token: token });
   // Never log this URL, it contains the token
   const response = await fetch(`${INSTAGRAM_GRAPH_URL}/refresh_access_token?${params.toString()}`, {
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  const body = (await response.json().catch(() => undefined)) as
-    { access_token?: unknown; error?: { message?: unknown } } | undefined;
-  if (!response.ok || typeof body?.access_token !== 'string') {
-    const message = typeof body?.error?.message === 'string' ? body.error.message : '';
+  const body = refreshResponseSchema.parse(await response.json().catch(() => undefined));
+  if (!response.ok || body.access_token === undefined) {
+    const message = body.error?.message ?? '';
     throw new Error(`Instagram responded with ${response.status} ${message}`.trim());
   }
   return body.access_token;

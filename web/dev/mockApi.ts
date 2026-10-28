@@ -1,14 +1,14 @@
 import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
+import { ValidationError } from '../../api/lib/validation/errors';
 import {
-  ValidationError,
   validateStaffFavorites,
   validateChangelogSeen,
   validateStaffRecentVisit,
-  validatePerson,
   validateStaffSettings,
-} from '../../api/lib/pflege-validation';
+} from '../../api/lib/validation/staff';
+import { validatePerson } from '../../api/lib/validation/person';
 /**
  * Local mock of the Azure Functions API and the Static Web Apps auth endpoints, so every page
  * renders with realistic test data without a backend: `MOCK_API=1 bun run dev`.

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renamedDownloadFileName } from '../lib/download-file-name';
-import { checkFileName, downloadMimeType } from '../lib/pflege-validation';
+import { checkFileName, downloadMimeType } from '../lib/validation/downloads';
 
 test('punctuation and dates keep the original PDF extension and content type', () => {
   for (const name of ['Anmeldung 1. Advent', 'Anmeldung 20.10.2026', 'Anmeldung']) {

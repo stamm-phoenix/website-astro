@@ -1,6 +1,6 @@
 import type { HttpRequest } from '@azure/functions';
 import { METHOD_NOT_ALLOWED, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
-import { validateChangelogSeen } from '../lib/pflege-validation';
+import { validateChangelogSeen } from '../lib/validation/staff';
 import { withErrorHandling } from '../lib/response-utils';
 import { getChangelogSeen, saveChangelogSeen } from '../lib/staff-changelog';
 

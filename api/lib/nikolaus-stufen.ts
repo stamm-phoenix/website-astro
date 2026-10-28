@@ -9,7 +9,7 @@ import type { Leitende } from './leitende-list';
 import type { NikolausBooking } from './nikolaus-bookings';
 import type { Helper } from './nikolaus-helfende-list';
 import { normalizeTag } from './nikolaus-einteilung';
-import { STUFEN } from './pflege-validation';
+import { STUFEN } from './validation/constants';
 import { mapGroupToStufe } from './campflow-groups';
 
 export { mapGroupToStufe };

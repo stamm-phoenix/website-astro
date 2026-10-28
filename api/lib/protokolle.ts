@@ -5,12 +5,13 @@
  * leaders and to members with the label „Protokollempfang“, whose addresses come from CampFlow.
  */
 import { createHash } from 'node:crypto';
+import { z } from 'zod';
 import type { CampflowPerson } from './campflow';
 import { campflowGetAll } from './campflow';
 import { CONFIG } from './config';
 import type { ClientPrincipal } from './staff-auth';
 import { email } from './sammelbestellung-validation';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import type { ProtokollTermin } from './protokoll-termin';
 import { isTerminStale, parseProtokollTermin } from './protokoll-termin';
 import { protokollContentVersion } from './protokoll-content-version';
@@ -127,19 +128,29 @@ function toStatus(value: string | undefined): ProtokollStatus {
     : 'Archiv';
 }
 
+const unknownDelivery = (): ProtokollDelivery => ({
+  state: 'attempted',
+  recipients: 0,
+  at: '',
+  by: '',
+});
+
+const deliverySchema = z
+  .object({
+    state: z.enum(['attempted', 'sent']).catch('attempted'),
+    recipients: z.number().catch(0),
+    at: z.string().catch(''),
+    by: z.string().catch(''),
+  })
+  .catch(unknownDelivery);
+
 /** Reads the stored mailing state; unreadable values count as an unknown attempt. */
 export function parseDelivery(value: string | undefined): ProtokollDelivery | null {
   if (!value) return null;
   try {
-    const parsed = JSON.parse(value) as Partial<ProtokollDelivery>;
-    return {
-      state: parsed.state === 'sent' ? 'sent' : 'attempted',
-      recipients: typeof parsed.recipients === 'number' ? parsed.recipients : 0,
-      at: typeof parsed.at === 'string' ? parsed.at : '',
-      by: typeof parsed.by === 'string' ? parsed.by : '',
-    };
+    return deliverySchema.parse(JSON.parse(value));
   } catch {
-    return { state: 'attempted', recipients: 0, at: '', by: '' };
+    return unknownDelivery();
   }
 }
 

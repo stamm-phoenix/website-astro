@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { z } from 'zod';
 import type * as AltchaLib from 'altcha-lib' with { 'resolution-mode': 'import' };
 import type { Challenge, DeriveKeyFunction, Solution } from 'altcha-lib' with {
   'resolution-mode': 'import',
@@ -73,23 +74,30 @@ export async function createAltchaChallenge(now = Date.now()): Promise<AltchaCha
   });
 }
 
+const MAX_PAYLOAD_LENGTH = 10_000;
+
+/** The outer shape of the decoded payload; the signatures and the solution are checked later. */
+const payloadSchema = z.object({
+  challenge: z.looseObject({ parameters: z.looseObject({ nonce: z.string() }) }),
+  // Any object, an array included: the verifier decides whether it solves the challenge
+  solution: z.custom<Solution>((solution) => !!solution && typeof solution === 'object'),
+});
+
 /**
  * Decodes the widget's base64 JSON payload and checks its outer shape and string nonce.
  * Returns null for non-strings, strings over 10,000 code units, decoding/JSON errors, or
  * missing structure; signatures and the solution are not verified here.
  */
 function parsePayload(value: unknown): { challenge: Challenge; solution: Solution } | null {
-  if (typeof value !== 'string' || value.length > 10_000) return null;
+  if (typeof value !== 'string' || value.length > MAX_PAYLOAD_LENGTH) return null;
   try {
-    const payload: unknown = JSON.parse(Buffer.from(value, 'base64').toString('utf8'));
-    if (!payload || typeof payload !== 'object') return null;
-    const { challenge, solution } = payload as Record<string, unknown>;
-    if (!challenge || typeof challenge !== 'object' || !solution || typeof solution !== 'object')
-      return null;
-    const parameters = (challenge as Record<string, unknown>).parameters;
-    if (!parameters || typeof parameters !== 'object') return null;
-    if (typeof (parameters as Record<string, unknown>).nonce !== 'string') return null;
-    return { challenge: challenge as Challenge, solution: solution as Solution };
+    const payload = payloadSchema.safeParse(
+      JSON.parse(Buffer.from(value, 'base64').toString('utf8'))
+    );
+    // The loose objects keep the fields the verifier needs (signature, expiry, algorithm)
+    return payload.success
+      ? (payload.data as unknown as { challenge: Challenge; solution: Solution })
+      : null;
   } catch {
     return null;
   }

@@ -19,7 +19,8 @@ import {
 } from '../lib/personen';
 import type { CampflowMitglied, Ich as IchBody, PersonenUebersicht } from '../lib/personen-model';
 import { campflowVorschlaege, istVerknuepftePerson } from '../lib/personen-model';
-import { ValidationError, validatePerson } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
+import { validatePerson } from '../lib/validation/person';
 import * as taskDirectory from '../lib/task-directory';
 import { dbTest } from './fixtures/database';
 

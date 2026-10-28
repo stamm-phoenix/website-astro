@@ -24,7 +24,13 @@ import {
   validateSammelMessage,
   text,
 } from '../lib/sammelbestellung-validation';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
+import {
+  validateSammelArchived,
+  validateSammelCreationKey,
+  validateSammelInviteAction,
+  validateSammelItemStatus,
+} from '../lib/validation/sammel-input';
 import { requireSammelVersion, sammelHandler } from './sammelbestellungen';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { sendSammelStaffMessage } from '../lib/sammelbestellung-mails';
@@ -73,11 +79,9 @@ export const SammelStaffCampaigns = sammelHandler(
   pflegeHandler('sammelbestellungen', async (request) => {
     if (request.method === 'GET') return ok(await getSammelCampaigns());
     const body = object(await readJsonBody(request));
-    if (typeof body.creationKey !== 'string' || !/^[a-f0-9-]{36}$/.test(body.creationKey)) {
-      throw new ValidationError({ creationKey: 'Bitte öffne das Formular erneut.' });
-    }
+    const creationKey = validateSammelCreationKey(body);
     const input = validateSammelCampaign(body);
-    const id = await createSammelCampaign(input, body.creationKey);
+    const id = await createSammelCampaign(input, creationKey);
     return ok({ id }, 201);
   })
 );
@@ -95,9 +99,8 @@ export const SammelStaffCampaign = sammelHandler(
       const body = object(await readJsonBody(request));
       const versionError = requireSammelVersion(body.etag, campaign.etag);
       if (versionError) return versionError;
-      if (typeof body.archived !== 'boolean')
-        throw new ValidationError({ archived: 'Bitte gib den Archivstatus an.' });
-      await setSammelCampaignArchived(campaign.id, body.archived, campaign.etag);
+      const archived = validateSammelArchived(body);
+      await setSammelCampaignArchived(campaign.id, archived, campaign.etag);
       return NO_CONTENT;
     }
     return ok({
@@ -168,23 +171,17 @@ export const SammelStaffItem = sammelHandler(
     const body = object(await readJsonBody(request));
     const versionError = requireSammelVersion(body.etag, order.etag);
     if (versionError) return versionError;
-    if (
-      !Number.isInteger(body.index) ||
-      Number(body.index) < 0 ||
-      Number(body.index) >= order.items.length ||
-      typeof body.excluded !== 'boolean'
-    )
-      throw new ValidationError({ form: 'Bitte wähle einen Artikel und seinen Bestellstatus.' });
+    const { index, excluded } = validateSammelItemStatus(body, order.items.length);
     const reason = text(body.reason, 'reason', 1000, true);
     const items = order.items.map((item) => ({ ...item }));
-    const item = items[Number(body.index)];
-    if (!!item.excluded === body.excluded)
+    const item = items[index];
+    if (!!item.excluded === excluded)
       return errorResponse(
         409,
         'ITEM_ALREADY_UPDATED',
         'Der Artikel hat bereits diesen Status. Bitte lade die Bestellung neu.'
       );
-    if (body.excluded) item.excluded = { reason };
+    if (excluded) item.excluded = { reason };
     else delete item.excluded;
     await updateSammelOrder(order.id, { items, totalCents: null, paid: false }, order.etag);
     try {
@@ -192,15 +189,13 @@ export const SammelStaffItem = sammelHandler(
         campaign,
         { ...publicSammelOrder(order), items },
         {
-          subject: body.excluded
-            ? 'Artikel wird nicht mitbestellt'
-            : 'Artikel wird wieder mitbestellt',
+          subject: excluded ? 'Artikel wird nicht mitbestellt' : 'Artikel wird wieder mitbestellt',
           messageHtml:
             '<p>' +
             escapeHtml(
               item.quantity + ' × ' + item.name + (item.variant ? ' · ' + item.variant : '')
             ) +
-            (body.excluded ? ' wird nicht mitbestellt.' : ' wird wieder mitbestellt.') +
+            (excluded ? ' wird nicht mitbestellt.' : ' wird wieder mitbestellt.') +
             '</p>' +
             (reason ? '<p>' + escapeHtml(reason) + '</p>' : ''),
         },
@@ -225,12 +220,9 @@ export const SammelStaffInvite = sammelHandler(
         form: 'Nur aktuell offene Sammelbestellungen können freigegeben werden.',
       });
     const body = object(await readJsonBody(request));
-    if (body.action !== 'preview' && body.action !== 'send')
-      throw new ValidationError({ form: 'Bitte wähle Vorschau oder Versand.' });
+    const action = validateSammelInviteAction(body);
     try {
-      return ok(
-        await sammelInvitationStep(campaign, body.action, getSiteUrl(request), body.version)
-      );
+      return ok(await sammelInvitationStep(campaign, action, getSiteUrl(request), body.version));
     } catch (error: unknown) {
       if (error instanceof CampflowError) return campflowErrorResponse(error);
       if (

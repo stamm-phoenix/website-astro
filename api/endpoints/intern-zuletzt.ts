@@ -1,6 +1,6 @@
 import type { HttpRequest } from '@azure/functions';
 import { METHOD_NOT_ALLOWED, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
-import { validateStaffRecentVisit } from '../lib/pflege-validation';
+import { validateStaffRecentVisit } from '../lib/validation/staff';
 import { withErrorHandling } from '../lib/response-utils';
 import { addStaffRecent, getStaffRecent } from '../lib/staff-recent';
 

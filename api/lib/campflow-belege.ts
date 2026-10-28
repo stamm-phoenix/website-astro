@@ -1,6 +1,14 @@
+import { z } from 'zod';
+import {
+  dayOrNull,
+  euroCent,
+  idAndName,
+  parseableTimestamp,
+  readAnswer,
+  textOrEmpty,
+} from './campflow-schema';
 import { getDb } from './db';
 import { sameName } from './personen-model';
-import { PlaywrightApiError } from './playwright-api';
 
 /**
  * Where a receipt stands in CampFlow: `unbooked` uploaded but not booked yet („Ungeprüfte
@@ -9,7 +17,7 @@ import { PlaywrightApiError } from './playwright-api';
  */
 export type CampflowBelegStatus = 'unbooked' | 'open' | 'settled';
 
-const STATUSES: readonly CampflowBelegStatus[] = ['unbooked', 'open', 'settled'];
+const STATUSES = ['unbooked', 'open', 'settled'] as const satisfies readonly CampflowBelegStatus[];
 
 /** A receipt as CampFlow's page „Belege“ lists it. */
 export interface CampflowBeleg {
@@ -59,71 +67,62 @@ export interface CampflowBelege {
   belege: CampflowBeleg[];
 }
 
-type Json = Record<string, unknown>;
+/** A text without surrounding spaces; empty or no text is read as null. */
+const trimmedOrNull = z
+  .string()
+  .transform((value) => value.trim() || null)
+  .catch(null);
 
-const isObject = (value: unknown): value is Json =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-const text = (value: unknown): string => (typeof value === 'string' ? value : '');
-const optionalText = (value: unknown): string | null =>
-  typeof value === 'string' && value.trim() ? value.trim() : null;
-const day = (value: unknown): string | null =>
-  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+const kostenstelleSchema: z.ZodType<CampflowKostenstelle> = z.object({
+  id: z.string(),
+  name: textOrEmpty,
+  archived: z.boolean().catch(false),
+  categories: z.array(idAndName),
+});
 
-function invalid(): never {
-  throw new PlaywrightApiError(502, 'Invalid CampFlow-Belege');
-}
+const belegSchema = z
+  .object({
+    id: z.string(),
+    number: trimmedOrNull,
+    status: z.enum(STATUSES),
+    description: textOrEmpty,
+    date: dayOrNull,
+    amountEur: euroCent,
+    openAmountEur: euroCent,
+    paidBy: trimmedOrNull,
+    costUnits: z.array(idAndName),
+    categories: z.array(idAndName.extend({ costUnitId: z.string().nullable().catch(null) })),
+    pages: z
+      .number()
+      .min(1)
+      .transform((pages) => Math.floor(pages))
+      .catch(1),
+    originalFilename: trimmedOrNull,
+    uploadedAt: trimmedOrNull,
+    settledAt: dayOrNull,
+  })
+  .transform((beleg): Omit<CampflowBeleg, 'viaWebsite' | 'submittedByMe' | 'mine'> => ({
+    id: beleg.id,
+    number: beleg.number,
+    status: beleg.status,
+    description: beleg.description,
+    date: beleg.date,
+    amountCent: beleg.amountEur,
+    openCent: beleg.openAmountEur,
+    paidBy: beleg.paidBy,
+    costUnits: beleg.costUnits,
+    categories: beleg.categories,
+    pages: beleg.pages,
+    fileName: beleg.status === 'unbooked' ? beleg.originalFilename : null,
+    uploadedAt: beleg.uploadedAt,
+    settledAt: beleg.status === 'settled' ? beleg.settledAt : null,
+  }));
 
-/** Euros from the Playwright API to whole cents. */
-function cent(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) invalid();
-  return Math.round(value * 100);
-}
-
-function list<T>(value: unknown, read: (item: unknown) => T): T[] {
-  if (!Array.isArray(value)) invalid();
-  return value.map(read);
-}
-
-function idName(value: unknown): { id: string; name: string } {
-  if (!isObject(value) || typeof value.id !== 'string') invalid();
-  return { id: value.id, name: text(value.name) };
-}
-
-function readKostenstelle(value: unknown): CampflowKostenstelle {
-  if (!isObject(value)) invalid();
-  return {
-    ...idName(value),
-    archived: value.archived === true,
-    categories: list(value.categories, idName),
-  };
-}
-
-function readBeleg(value: unknown): Omit<CampflowBeleg, 'viaWebsite' | 'submittedByMe' | 'mine'> {
-  if (!isObject(value) || typeof value.id !== 'string') invalid();
-  const status = STATUSES.find((candidate) => candidate === value.status) ?? invalid();
-  return {
-    id: value.id,
-    number: optionalText(value.number),
-    status,
-    description: text(value.description),
-    date: day(value.date),
-    amountCent: cent(value.amountEur),
-    openCent: cent(value.openAmountEur),
-    paidBy: optionalText(value.paidBy),
-    costUnits: list(value.costUnits, idName),
-    categories: list(value.categories, (item) => {
-      if (!isObject(item)) invalid();
-      return {
-        ...idName(item),
-        costUnitId: typeof item.costUnitId === 'string' ? item.costUnitId : null,
-      };
-    }),
-    pages: typeof value.pages === 'number' && value.pages >= 1 ? Math.floor(value.pages) : 1,
-    fileName: status === 'unbooked' ? optionalText(value.originalFilename) : null,
-    uploadedAt: optionalText(value.uploadedAt),
-    settledAt: status === 'settled' ? day(value.settledAt) : null,
-  };
-}
+const answerSchema = z.object({
+  loadedAt: parseableTimestamp,
+  receipts: z.array(belegSchema),
+  costUnits: z.array(kostenstelleSchema),
+});
 
 /**
  * Checks the answer of the Playwright API (`GET /campflow/belege`) and marks the receipts this
@@ -134,14 +133,11 @@ export async function readCampflowBelege(
   login: string,
   ownNames: readonly string[] = []
 ): Promise<CampflowBelege> {
-  if (
-    !isObject(value) ||
-    typeof value.loadedAt !== 'string' ||
-    Number.isNaN(Date.parse(value.loadedAt))
-  )
-    invalid();
-  const belege = list(value.receipts, readBeleg);
-  const costUnits = list(value.costUnits, readKostenstelle);
+  const {
+    loadedAt,
+    receipts: belege,
+    costUnits,
+  } = readAnswer(answerSchema, value, 'Invalid CampFlow-Belege');
 
   const transfers = await getDb()
     .selectFrom('organisation.beleg_campflow')
@@ -155,7 +151,7 @@ export async function readCampflowBelege(
   );
   const me = login.toLowerCase();
   return {
-    loadedAt: value.loadedAt,
+    loadedAt,
     costUnits,
     belege: belege.map((beleg) => ({
       ...beleg,

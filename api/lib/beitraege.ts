@@ -1,9 +1,23 @@
-import { PlaywrightApiError } from './playwright-api';
+import { z } from 'zod';
+import {
+  dayOrNull,
+  euroCent,
+  parseableTimestamp,
+  readAnswer,
+  textOrEmpty,
+  wholeNumber,
+} from './campflow-schema';
 
 /** Where a Beitrag stands, as CampFlow shows it (see the Playwright API's README). */
 export type BeitragStatus = 'paid' | 'unpaid' | 'partial' | 'refund' | 'cancelled';
 
-const STATUSES: readonly BeitragStatus[] = ['paid', 'unpaid', 'partial', 'refund', 'cancelled'];
+const STATUSES = [
+  'paid',
+  'unpaid',
+  'partial',
+  'refund',
+  'cancelled',
+] as const satisfies readonly BeitragStatus[];
 
 /** A Sammlung of CampFlow's Beiträge: the fees of an event, a Mitgliedsbeitrag or others. */
 export interface BeitragSammlung {
@@ -89,96 +103,102 @@ export interface AktionBeitraege {
   persons: Record<string, AktionBeitrag[]>;
 }
 
-type Json = Record<string, unknown>;
+/** Fails with the 502 of a Beiträge answer the page cannot show. */
+const INVALID = 'Invalid Beiträge';
 
-const isObject = (value: unknown): value is Json =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-const text = (value: unknown): string => (typeof value === 'string' ? value : '');
-const optionalText = (value: unknown): string | null =>
-  typeof value === 'string' && value ? value : null;
-const day = (value: unknown): string | null =>
-  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+const optionalText = z.string().min(1).nullable().catch(null);
 
-function invalid(): never {
-  throw new PlaywrightApiError(502, 'Invalid Beiträge');
-}
+/** A link to another record; absent or null is read as null. */
+const reference = z
+  .object({ id: z.string(), name: z.string() })
+  .nullish()
+  .transform((value) => value ?? null);
 
-function count(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) invalid();
-  return value;
-}
+const sammlungSchema: z.ZodType<BeitragSammlung> = z
+  .object({
+    id: z.string(),
+    name: textOrEmpty,
+    type: textOrEmpty,
+    eventId: optionalText,
+    feeCount: wholeNumber,
+    settledCount: wholeNumber,
+    totalAmount: euroCent,
+    openAmount: euroCent,
+    refundAmount: euroCent,
+  })
+  .transform((sammlung) => ({
+    id: sammlung.id,
+    name: sammlung.name,
+    type: sammlung.type,
+    eventId: sammlung.eventId,
+    feeCount: sammlung.feeCount,
+    settledCount: sammlung.settledCount,
+    totalCent: sammlung.totalAmount,
+    openCent: sammlung.openAmount,
+    refundCent: sammlung.refundAmount,
+  }));
 
-/** Euros from the Playwright API to whole cents. */
-function cent(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) invalid();
-  return Math.round(value * 100);
-}
+const aktionBeitragShape = {
+  id: z.string(),
+  reference: textOrEmpty,
+  description: textOrEmpty,
+  amount: euroCent,
+  dueAmount: euroCent,
+  paidAmount: euroCent,
+  openAmount: euroCent,
+  status: z.enum(STATUSES),
+};
 
-function reference(value: unknown): { id: string; name: string } | null {
-  if (value === null || value === undefined) return null;
-  if (!isObject(value) || typeof value.id !== 'string' || typeof value.name !== 'string') invalid();
-  return { id: value.id, name: value.name };
-}
-
-function readSammlung(value: unknown): BeitragSammlung {
-  if (!isObject(value) || typeof value.id !== 'string') invalid();
+function toAktionBeitrag(fee: z.output<z.ZodObject<typeof aktionBeitragShape>>): AktionBeitrag {
   return {
-    id: value.id,
-    name: text(value.name),
-    type: text(value.type),
-    eventId: optionalText(value.eventId),
-    feeCount: count(value.feeCount),
-    settledCount: count(value.settledCount),
-    totalCent: cent(value.totalAmount),
-    openCent: cent(value.openAmount),
-    refundCent: cent(value.refundAmount),
+    id: fee.id,
+    reference: fee.reference,
+    description: fee.description,
+    amountCent: fee.amount,
+    dueCent: fee.dueAmount,
+    paidCent: fee.paidAmount,
+    openCent: fee.openAmount,
+    status: fee.status,
   };
 }
 
-function readAktionBeitrag(value: unknown): AktionBeitrag {
-  if (!isObject(value) || typeof value.id !== 'string') invalid();
-  return {
-    id: value.id,
-    reference: text(value.reference),
-    description: text(value.description),
-    amountCent: cent(value.amount),
-    dueCent: cent(value.dueAmount),
-    paidCent: cent(value.paidAmount),
-    openCent: cent(value.openAmount),
-    status: STATUSES.find((candidate) => candidate === value.status) ?? invalid(),
-  };
-}
+const aktionBeitragSchema: z.ZodType<AktionBeitrag> = z
+  .object(aktionBeitragShape)
+  .transform(toAktionBeitrag);
 
-function readBeitrag(value: unknown): Beitrag {
-  if (!isObject(value)) invalid();
-  return {
-    ...readAktionBeitrag(value),
-    batchId: reference(value.batch)?.id ?? null,
-    costUnit: reference(value.costUnit),
-    category: reference(value.category)?.name ?? null,
-    payer: text(value.payer),
-    payerId: optionalText(value.payerId),
-    paymentMethod: optionalText(value.paymentMethod),
-    date: day(value.date) ?? '',
-    paidAt: day(value.paidAt),
-  };
-}
+const beitragSchema: z.ZodType<Beitrag> = z
+  .object({
+    ...aktionBeitragShape,
+    batch: reference,
+    costUnit: reference,
+    category: reference,
+    payer: textOrEmpty,
+    payerId: optionalText,
+    paymentMethod: optionalText,
+    date: dayOrNull,
+    paidAt: dayOrNull,
+  })
+  .transform((fee) => ({
+    ...toAktionBeitrag(fee),
+    batchId: fee.batch?.id ?? null,
+    costUnit: fee.costUnit,
+    category: fee.category?.name ?? null,
+    payer: fee.payer,
+    payerId: fee.payerId,
+    paymentMethod: fee.paymentMethod,
+    date: fee.date ?? '',
+    paidAt: fee.paidAt,
+  }));
+
+const beitraegeSchema: z.ZodType<Beitraege> = z.object({
+  loadedAt: parseableTimestamp,
+  batches: z.array(sammlungSchema),
+  fees: z.array(beitragSchema),
+});
 
 /** Checks the answer of the Playwright API and keeps only what the page shows. */
 export function readBeitraege(value: unknown): Beitraege {
-  if (
-    !isObject(value) ||
-    typeof value.loadedAt !== 'string' ||
-    Number.isNaN(Date.parse(value.loadedAt)) ||
-    !Array.isArray(value.batches) ||
-    !Array.isArray(value.fees)
-  )
-    invalid();
-  return {
-    loadedAt: value.loadedAt,
-    batches: value.batches.map(readSammlung),
-    fees: value.fees.map(readBeitrag),
-  };
+  return readAnswer(beitraegeSchema, value, INVALID);
 }
 
 /** Whether something is left to do for a Beitrag: to be paid, or paid too much and to pay back. */
@@ -200,24 +220,22 @@ export function offeneBeitraege(beitraege: Beitraege): Beitraege {
 /** CampFlow's person IDs; anything else would not match a participant (or be `__proto__`). */
 const PERSON_ID = /^per_[A-Za-z0-9]+$/;
 
+const aktionBeitraegeSchema: z.ZodType<AktionBeitraege> = z.object({
+  eventId: z.string(),
+  loadedAt: parseableTimestamp,
+  persons: z
+    .array(z.object({ id: z.string().regex(PERSON_ID), fees: z.array(aktionBeitragSchema) }))
+    .transform((persons) => {
+      const byPerson: Record<string, AktionBeitrag[]> = {};
+      for (const { id, fees } of persons) byPerson[id] = [...(byPerson[id] ?? []), ...fees];
+      return byPerson;
+    }),
+});
+
 /**
  * Checks the answer of the Playwright API for the participants of an Aktion and keeps only the
  * Beiträge per person.
  */
 export function readAktionBeitraege(value: unknown): AktionBeitraege {
-  if (
-    !isObject(value) ||
-    typeof value.eventId !== 'string' ||
-    typeof value.loadedAt !== 'string' ||
-    Number.isNaN(Date.parse(value.loadedAt)) ||
-    !Array.isArray(value.persons)
-  )
-    invalid();
-  const persons: Record<string, AktionBeitrag[]> = {};
-  for (const person of value.persons) {
-    if (!isObject(person) || typeof person.id !== 'string' || !PERSON_ID.test(person.id)) invalid();
-    if (!Array.isArray(person.fees)) invalid();
-    persons[person.id] = [...(persons[person.id] ?? []), ...person.fees.map(readAktionBeitrag)];
-  }
-  return { eventId: value.eventId, loadedAt: value.loadedAt, persons };
+  return readAnswer(aktionBeitraegeSchema, value, INVALID);
 }

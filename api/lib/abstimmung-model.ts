@@ -1,8 +1,8 @@
 /**
- * Abstimmungen (`docs/abstimmungen.md`): types, input checks and the result shared by the API,
- * the mock API and the pages. Free of Node and browser APIs, like the other shared models.
+ * Abstimmungen (`docs/abstimmungen.md`): types and the result shared by the API,
+ * the mock API and the pages. Free of Node, browser APIs and zod (the input checks are in
+ * `abstimmung-schema.ts`), like the other shared models.
  */
-import { ValidationError } from './pflege-validation';
 
 export type AbstimmungMailArt = 'einladung' | 'erinnerung';
 export type AbstimmungMailStatus = 'offen' | 'versucht' | 'gesendet';
@@ -12,11 +12,11 @@ export type AbstimmungMailStatus = 'offen' | 'versucht' | 'gesendet';
  * see who answered; `geheim` only the organizer, the others see only how many answered.
  */
 export type AbstimmungSichtbarkeit = 'offen' | 'anonym' | 'geheim';
-export const ABSTIMMUNG_SICHTBARKEITEN: readonly AbstimmungSichtbarkeit[] = [
+export const ABSTIMMUNG_SICHTBARKEITEN = [
   'offen',
   'anonym',
   'geheim',
-];
+] as const satisfies readonly AbstimmungSichtbarkeit[];
 
 /** What someone sees of the answers of others: everything, only the names, only the number. */
 export type AbstimmungEinsicht = 'alles' | 'namen' | 'anzahl';
@@ -157,97 +157,6 @@ export interface AbstimmungEingabe {
   bekannteStimmen: Record<number, number>;
 }
 
-function text(value: unknown, field: string, max: number, label: string, optional = false): string {
-  const trimmed = typeof value === 'string' ? value.trim() : '';
-  if (typeof value !== 'string' && !(optional && (value === undefined || value === null))) {
-    throw new ValidationError({ [field]: `${label} fehlt.` });
-  }
-  if (!optional && !trimmed) throw new ValidationError({ [field]: `${label} fehlt.` });
-  if (trimmed.length > max) {
-    throw new ValidationError({ [field]: `${label} darf höchstens ${max} Zeichen haben.` });
-  }
-  return trimmed;
-}
-
-/** Checks title, description, mode and options of the form. */
-export function validateAbstimmung(body: Record<string, unknown> | null): AbstimmungEingabe {
-  if (!body) throw new ValidationError({ form: 'Bitte prüfe die Eingaben.' });
-  const titel = text(body.titel, 'titel', 200, 'Die Frage');
-  const beschreibung = text(body.beschreibung, 'beschreibung', 2000, 'Die Beschreibung', true);
-  const max = body.maxAuswahl;
-  if (
-    max !== undefined &&
-    max !== null &&
-    (typeof max !== 'number' || !Number.isInteger(max) || max < 1 || max > MAX_ABSTIMMUNG_OPTIONEN)
-  ) {
-    throw new ValidationError({ maxAuswahl: 'Bitte wähle, wie viele Optionen man wählen kann.' });
-  }
-  if (body.vielleichtErlaubt !== undefined && typeof body.vielleichtErlaubt !== 'boolean') {
-    throw new ValidationError({ vielleichtErlaubt: 'Bitte wähle, ob „Vielleicht“ möglich ist.' });
-  }
-  const sichtbarkeit = body.sichtbarkeit ?? 'offen';
-  if (!ABSTIMMUNG_SICHTBARKEITEN.includes(sichtbarkeit as AbstimmungSichtbarkeit)) {
-    throw new ValidationError({ sichtbarkeit: 'Bitte wähle, wer die Antworten sieht.' });
-  }
-  if (!Array.isArray(body.optionen)) {
-    throw new ValidationError({ optionen: 'Bitte trag mindestens zwei Optionen ein.' });
-  }
-  const optionen: AbstimmungOptionEingabe[] = [];
-  const texte = new Set<string>();
-  const ids = new Set<number>();
-  for (const value of body.optionen) {
-    const entry = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-    const option = text(entry.text, 'optionen', 200, 'Der Text einer Option', true);
-    // Empty rows of the form are left out instead of blocking the save
-    if (!option) continue;
-    const key = option.toLocaleLowerCase('de');
-    if (texte.has(key)) {
-      throw new ValidationError({ optionen: `Die Option „${option}“ steht zweimal in der Liste.` });
-    }
-    texte.add(key);
-    const id = entry.id;
-    if (id !== undefined && id !== null) {
-      if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0 || ids.has(id)) {
-        throw new ValidationError({ optionen: 'Die Liste der Optionen ist ungültig.' });
-      }
-      ids.add(id);
-      optionen.push({ id, text: option });
-    } else {
-      optionen.push({ text: option });
-    }
-  }
-  if (optionen.length < 2) {
-    throw new ValidationError({ optionen: 'Bitte trag mindestens zwei Optionen ein.' });
-  }
-  if (optionen.length > MAX_ABSTIMMUNG_OPTIONEN) {
-    throw new ValidationError({
-      optionen: `Höchstens ${MAX_ABSTIMMUNG_OPTIONEN} Optionen. Bitte nimm welche heraus.`,
-    });
-  }
-  const bekannteStimmen: Record<number, number> = {};
-  const stimmen = body.bekannteStimmen;
-  if (stimmen && typeof stimmen === 'object' && !Array.isArray(stimmen)) {
-    for (const [key, value] of Object.entries(stimmen)) {
-      if (/^\d{1,9}$/.test(key) && Number.isInteger(value) && (value as number) >= 0)
-        bekannteStimmen[Number(key)] = value as number;
-    }
-  }
-  return {
-    titel,
-    beschreibung,
-    maxAuswahl: typeof max === 'number' ? max : null,
-    vielleichtErlaubt: body.vielleichtErlaubt === true,
-    sichtbarkeit: sichtbarkeit as AbstimmungSichtbarkeit,
-    optionen,
-    bekannteStimmen,
-  };
-}
-
-/** The name someone enters over the shared link. */
-export function validateAbstimmungName(value: unknown): string {
-  return text(value, 'name', 100, 'Dein Name').replace(/\s+/g, ' ');
-}
-
 /** The rules an answer must follow. */
 export interface AbstimmungRegeln {
   optionIds: readonly number[];
@@ -260,54 +169,6 @@ export function maxAuswahlText(max: number): string {
   return max === 1
     ? 'Hier kannst du nur eine Option wählen.'
     : `Hier kannst du höchstens ${max} Optionen mit „Ja“ wählen.`;
-}
-
-/**
- * The chosen options: existing IDs, each once and either with „Ja“ or „Vielleicht“, at most
- * `maxAuswahl` with „Ja“ (any number with „Vielleicht“). Empty lists are an answer too: none of
- * the options fits.
- */
-export function validateAntwort(
-  gewaehltValue: unknown,
-  vielleichtValue: unknown,
-  regeln: AbstimmungRegeln
-): { gewaehlt: number[]; vielleicht: number[] } {
-  const { optionIds, maxAuswahl, vielleichtErlaubt } = regeln;
-  const known = new Set(optionIds);
-  const read = (value: unknown): Set<number> => {
-    if (!Array.isArray(value) || value.length > optionIds.length) {
-      throw new ValidationError({
-        gewaehlt: 'Die Auswahl ist ungültig. Bitte lade die Seite neu.',
-      });
-    }
-    const chosen = new Set<number>();
-    for (const id of value) {
-      if (typeof id !== 'number' || !known.has(id)) {
-        throw new ValidationError({
-          gewaehlt: 'Eine Option gibt es nicht mehr. Bitte lade die Seite neu.',
-        });
-      }
-      chosen.add(id);
-    }
-    return chosen;
-  };
-  const ja = read(gewaehltValue);
-  const vielleicht = read(vielleichtValue ?? []);
-  if (vielleicht.size > 0 && !vielleichtErlaubt) {
-    throw new ValidationError({
-      gewaehlt: '„Vielleicht“ geht bei dieser Abstimmung nicht mehr. Bitte lade die Seite neu.',
-    });
-  }
-  if ([...vielleicht].some((id) => ja.has(id))) {
-    throw new ValidationError({ gewaehlt: 'Die Auswahl ist ungültig. Bitte lade die Seite neu.' });
-  }
-  if (maxAuswahl !== null && ja.size > maxAuswahl) {
-    throw new ValidationError({ gewaehlt: maxAuswahlText(maxAuswahl) });
-  }
-  return {
-    gewaehlt: optionIds.filter((id) => ja.has(id)),
-    vielleicht: optionIds.filter((id) => vielleicht.has(id)),
-  };
 }
 
 /** Row data the result is built from. */

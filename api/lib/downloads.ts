@@ -20,7 +20,8 @@ import {
   toVersion,
   VersionConflictError,
 } from './db';
-import { MAX_UPLOAD_BYTES, UPLOAD_PART_BYTES, downloadMimeType } from './pflege-validation';
+import { MAX_UPLOAD_BYTES } from './validation/constants';
+import { UPLOAD_PART_BYTES, downloadMimeType } from './validation/downloads';
 import { encodeContentDisposition } from './response-utils';
 
 /**

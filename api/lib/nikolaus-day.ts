@@ -5,7 +5,7 @@ import { getNikolausTeams } from './nikolaus-config';
 import { getDb, parseStringList } from './db';
 import type { HelperRole } from './nikolaus-einteilung';
 import { HELPER_ROLES, KITCHEN } from './nikolaus-einteilung';
-import { isValidDate } from './pflege-validation';
+import { isValidDate } from './calendar-date';
 
 /** A helper of a team on one day, from the saved Einteilung. */
 export interface TeamMember {

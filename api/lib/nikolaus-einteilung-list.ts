@@ -4,7 +4,7 @@ import type { Database } from './db-schema';
 import { getDb, getSqlErrorNumber, inTransaction, lockResource, toDateString } from './db';
 import type { Db } from './db';
 import type { HelperRole } from './nikolaus-einteilung';
-import type { EinteilungSaveInput } from './pflege-validation';
+import type { EinteilungSaveInput } from './validation/nikolaus-einteilung';
 import { NikolausStateConflictError } from './nikolaus-state';
 import { EINTEILUNG_LOCK as PLAN_LOCK, assertTeamsConfigured } from './nikolaus-settings';
 

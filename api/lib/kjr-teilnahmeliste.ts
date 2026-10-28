@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { toKjrPerson } from './kjr-zuschuss';
 import type { KjrPerson, KjrPersonInput } from './kjr-zuschuss';
 import { readZip, writeZip } from './zip';
@@ -57,53 +58,91 @@ export class KjrListeInputError extends Error {
 }
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const PLZ_PATTERN = /^\d{5}$/;
 const MAX_TEXT_LENGTH = 200;
 const MAX_NAME_LENGTH = 100;
 /** Far more than the template has rows; only guards against oversized requests. */
 const MAX_PERSONS = 500;
+const PERSONS_MESSAGE = 'Ungültige Liste der Personen.';
+const TIMES_MESSAGE = 'Uhrzeiten bitte als HH:MM angeben.';
+const GENDERS: readonly string[] = ['', 'm', 'w', 'd'];
 
-function optionalString(value: unknown, field: string, max: number): string {
-  if (value === undefined || value === null) return '';
-  if (typeof value !== 'string' || value.length > max) {
-    throw new KjrListeInputError(`Ungültige Angabe: ${field}.`);
-  }
-  return value.trim();
+/** Optional text of at most `max` characters (checked before trimming); missing is empty. */
+function optionalText(field: string, max: number) {
+  const error = `Ungültige Angabe: ${field}.`;
+  return z.preprocess((value) => value ?? '', z.string({ error }).max(max, { error }).trim());
 }
 
-function parsePerson(value: unknown, index: number): KjrPerson {
-  if (!value || typeof value !== 'object') {
-    throw new KjrListeInputError(`Ungültige Person Nr. ${index + 1}.`);
-  }
-  const raw = value as Record<string, unknown>;
+const optionalTime = (field: string) =>
+  optionalText(field, 5).refine((time) => !time || TIME_PATTERN.test(time), {
+    error: TIMES_MESSAGE,
+  });
+
+/** One person of the list; `index` names it in the messages, as the page shows no position. */
+function personSchema(index: number) {
   const label = `Person Nr. ${index + 1}`;
-  const lastName = optionalString(raw.lastName, `Nachname (${label})`, MAX_NAME_LENGTH);
-  const firstName = optionalString(raw.firstName, `Vorname (${label})`, MAX_NAME_LENGTH);
-  if (!lastName && !firstName) throw new KjrListeInputError(`${label} hat keinen Namen.`);
-  const gender = optionalString(raw.gender, `Geschlecht (${label})`, 1);
-  if (!['', 'm', 'w', 'd'].includes(gender)) {
-    throw new KjrListeInputError(`Ungültiges Geschlecht (${label}).`);
-  }
-  const age = raw.age ?? null;
-  if (age !== null && (typeof age !== 'number' || !Number.isInteger(age) || age < 0 || age > 120)) {
-    throw new KjrListeInputError(`Ungültiges Alter (${label}).`);
-  }
-  const plz = optionalString(raw.plz, `PLZ (${label})`, 5);
-  if (plz && !/^\d{5}$/.test(plz)) throw new KjrListeInputError(`Ungültige PLZ (${label}).`);
-  const betreuer = raw.betreuer ?? false;
-  if (typeof betreuer !== 'boolean') {
-    throw new KjrListeInputError(`Ungültige Rolle (${label}).`);
-  }
-  const input: KjrPersonInput = {
-    lastName,
-    firstName,
-    gender: gender as KjrPersonInput['gender'],
-    age,
-    plz,
-    betreuer,
-  };
-  // From 27 on a person stays Betreuer*in, whatever the page sends
-  return toKjrPerson(input);
+  const noName = `${label} hat keinen Namen.`;
+  return z.preprocess(
+    (value) => (Array.isArray(value) ? {} : value),
+    z
+      .object(
+        {
+          lastName: optionalText(`Nachname (${label})`, MAX_NAME_LENGTH),
+          firstName: optionalText(`Vorname (${label})`, MAX_NAME_LENGTH),
+          gender: optionalText(`Geschlecht (${label})`, 1).refine(
+            (gender) => GENDERS.includes(gender),
+            {
+              error: `Ungültiges Geschlecht (${label}).`,
+            }
+          ),
+          age: z
+            .number({ error: `Ungültiges Alter (${label}).` })
+            .int({ error: `Ungültiges Alter (${label}).` })
+            .min(0, { error: `Ungültiges Alter (${label}).` })
+            .max(120, { error: `Ungültiges Alter (${label}).` })
+            .nullish()
+            .transform((age) => age ?? null),
+          plz: optionalText(`PLZ (${label})`, 5).refine((plz) => !plz || PLZ_PATTERN.test(plz), {
+            error: `Ungültige PLZ (${label}).`,
+          }),
+          betreuer: z
+            .boolean({ error: `Ungültige Rolle (${label}).` })
+            .nullish()
+            .transform((betreuer) => betreuer ?? false),
+        },
+        { error: `Ungültige Person Nr. ${index + 1}.` }
+      )
+      .refine((person) => person.lastName || person.firstName, { error: noName })
+  );
 }
+
+/** The persons of the list, in order; from 27 on a person stays Betreuer*in, whatever the page sends. */
+const personsSchema = z
+  .array(z.unknown(), { error: PERSONS_MESSAGE })
+  .max(MAX_PERSONS, { error: PERSONS_MESSAGE })
+  .transform((items, ctx): KjrPerson[] => {
+    const persons: KjrPerson[] = [];
+    for (const [index, item] of items.entries()) {
+      const result = personSchema(index).safeParse(item);
+      if (!result.success) {
+        ctx.issues.push({ code: 'custom', message: result.error.issues[0].message, input: item });
+        return z.NEVER;
+      }
+      const { gender, ...rest } = result.data;
+      persons.push(toKjrPerson({ ...rest, gender: gender as KjrPersonInput['gender'] }));
+    }
+    return persons;
+  });
+
+const kjrListeSchema = z.object({
+  ort: optionalText('Veranstaltungsort', MAX_TEXT_LENGTH),
+  plz: optionalText('Postleitzahl', 5).refine((plz) => !plz || PLZ_PATTERN.test(plz), {
+    error: 'Die Postleitzahl muss fünfstellig sein.',
+  }),
+  beginn: optionalTime('Beginn'),
+  ende: optionalTime('Ende'),
+  persons: personsSchema,
+});
 
 /**
  * Validates the request body. Where a person lives is derived here, and so is the role: from 27
@@ -111,23 +150,10 @@ function parsePerson(value: unknown, index: number): KjrPerson {
  */
 export function parseKjrListeRequest(body: Record<string, unknown> | null): KjrListeRequest {
   if (!body) throw new KjrListeInputError('Die Anfrage ist leer oder kein JSON.');
-  const ort = optionalString(body.ort, 'Veranstaltungsort', MAX_TEXT_LENGTH);
-  const plz = optionalString(body.plz, 'Postleitzahl', 5);
-  if (plz && !/^\d{5}$/.test(plz)) {
-    throw new KjrListeInputError('Die Postleitzahl muss fünfstellig sein.');
-  }
-  const beginnZeit = optionalString(body.beginn, 'Beginn', 5);
-  const endeZeit = optionalString(body.ende, 'Ende', 5);
-  if (
-    (beginnZeit && !TIME_PATTERN.test(beginnZeit)) ||
-    (endeZeit && !TIME_PATTERN.test(endeZeit))
-  ) {
-    throw new KjrListeInputError('Uhrzeiten bitte als HH:MM angeben.');
-  }
-  if (!Array.isArray(body.persons) || body.persons.length > MAX_PERSONS) {
-    throw new KjrListeInputError('Ungültige Liste der Personen.');
-  }
-  return { ort, plz, beginnZeit, endeZeit, persons: body.persons.map(parsePerson) };
+  const result = kjrListeSchema.safeParse(body);
+  if (!result.success) throw new KjrListeInputError(result.error.issues[0].message);
+  const { ort, plz, beginn, ende, persons } = result.data;
+  return { ort, plz, beginnZeit: beginn, endeZeit: ende, persons };
 }
 
 export class KjrListeError extends Error {

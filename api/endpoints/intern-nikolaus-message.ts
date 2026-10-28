@@ -1,11 +1,13 @@
 import type { HttpRequest, InvocationContext } from '@azure/functions';
+import { z } from 'zod';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { getBooking } from '../lib/nikolaus-bookings';
 import { findNikolausSlot } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { sendStaffMessageMail } from '../lib/nikolaus-mails';
-import { ValidationError, sanitizeRichTextWithLength } from '../lib/pflege-validation';
+import { sanitizeRichTextWithLength } from '../lib/validation/rich-text';
+import { lenientObject, parseWith } from '../lib/validation/zod';
 import {
   NOT_FOUND,
   NO_CONTENT,
@@ -23,22 +25,39 @@ interface MessageInput {
   messageHtml: string;
 }
 
+/** The subject: trimmed, runs of whitespace collapsed; anything but text counts as missing. */
+const subjectSchema = z.preprocess(
+  (value) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : ''),
+  z
+    .string()
+    .min(1, { error: 'Bitte einen Betreff angeben.' })
+    .max(MAX_SUBJECT_LENGTH, {
+      error: `Der Betreff darf höchstens ${MAX_SUBJECT_LENGTH} Zeichen lang sein.`,
+    })
+);
+
+/** The message as sanitized HTML; its visible text must not be empty nor too long. */
+const messageSchema = z.preprocess(
+  (value) => (typeof value === 'string' ? value : ''),
+  z.string().transform((html, ctx): string => {
+    const { html: clean, textLength } = sanitizeRichTextWithLength(html);
+    if (textLength === 0) {
+      ctx.addIssue({ code: 'custom', message: 'Bitte eine Nachricht schreiben.' });
+    } else if (textLength > MAX_MESSAGE_LENGTH) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Die Nachricht darf höchstens ${MAX_MESSAGE_LENGTH} Zeichen lang sein.`,
+      });
+    }
+    return clean;
+  })
+);
+
+const messageInputSchema = lenientObject({ subject: subjectSchema, message: messageSchema });
+
 function validateMessage(body: Record<string, unknown> | null): MessageInput {
-  const errors: Record<string, string> = {};
-  const subject = typeof body?.subject === 'string' ? body.subject.trim().replace(/\s+/g, ' ') : '';
-  if (!subject) errors.subject = 'Bitte einen Betreff angeben.';
-  else if (subject.length > MAX_SUBJECT_LENGTH) {
-    errors.subject = `Der Betreff darf höchstens ${MAX_SUBJECT_LENGTH} Zeichen lang sein.`;
-  }
-
-  const message = sanitizeRichTextWithLength(typeof body?.message === 'string' ? body.message : '');
-  if (message.textLength === 0) errors.message = 'Bitte eine Nachricht schreiben.';
-  else if (message.textLength > MAX_MESSAGE_LENGTH) {
-    errors.message = `Die Nachricht darf höchstens ${MAX_MESSAGE_LENGTH} Zeichen lang sein.`;
-  }
-
-  if (Object.keys(errors).length > 0) throw new ValidationError(errors);
-  return { subject, messageHtml: message.html };
+  const { subject, message } = parseWith(messageInputSchema, body);
+  return { subject, messageHtml: message };
 }
 
 /** POST: sends a message from the Nikolaus team to the family of a booking. */

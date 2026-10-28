@@ -39,7 +39,7 @@ import {
   sendProtokollMail,
   sendProtokollRejectedMail,
 } from '../lib/protokoll-mails';
-import type { ProtokollTermin as StoredTermin, TerminAction } from '../lib/protokoll-termin';
+import type { ProtokollTermin as StoredTermin } from '../lib/protokoll-termin';
 import {
   TERMIN_ACTIONS,
   TerminExtractionError,
@@ -58,7 +58,13 @@ import {
   protokollContentVersion,
   withProtokollContentVersions,
 } from '../lib/protokoll-content-version';
-import { ValidationError, checkFileName } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
+import {
+  readProtokollNote,
+  validateProtokollAction,
+  validateProtokollCreate,
+  validateProtokollVersand,
+} from '../lib/validation/protokolle';
 import {
   CONFLICT,
   METHOD_NOT_ALLOWED,
@@ -76,7 +82,12 @@ import { mitEigenerAdresse } from '../lib/personen';
 import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
 
-const ACTIONS: ProtokollAction[] = ['review', 'approve', 'reject', 'reopen'];
+const ACTIONS = [
+  'review',
+  'approve',
+  'reject',
+  'reopen',
+] as const satisfies readonly ProtokollAction[];
 
 const NOT_CONFIGURED = errorResponse(
   503,
@@ -116,12 +127,6 @@ const CAMPFLOW_UNAVAILABLE = errorResponse(
 
 function isValidId(id: string): boolean {
   return /^[A-Za-z0-9!_-]+$/.test(id);
-}
-
-function isValidDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
 
 function protokollUrl(request: HttpRequest, id?: string): string {
@@ -223,17 +228,7 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
     const driveId = await findDrive();
     if (!driveId) return NOT_CONFIGURED;
 
-    const body = await readJsonBody(request);
-    const title = typeof body?.title === 'string' ? body.title.trim().replace(/\s+/g, ' ') : '';
-    const date = typeof body?.date === 'string' ? body.date : '';
-    const errors: Record<string, string> = {};
-    if (!title || title.length > 80) {
-      errors.title = 'Bitte einen Titel mit höchstens 80 Zeichen angeben.';
-    } else if (checkFileName(protokollFileName('2000-01-01', title))) {
-      errors.title = 'Der Titel darf keines dieser Zeichen enthalten: " * : < > ? / \\ | # %';
-    }
-    if (!isValidDate(date)) errors.date = 'Bitte das Datum der Sitzung angeben.';
-    if (Object.keys(errors).length > 0) throw new ValidationError(errors);
+    const { title, date } = validateProtokollCreate(await readJsonBody(request));
 
     await assertProtokollImport(driveId);
     let template: Uint8Array;
@@ -304,10 +299,9 @@ export const ProtokollItemEndpoint = pflegeHandler(
     }
 
     const body = await readJsonBody(request);
-    const action = body?.action as ProtokollAction;
-    if (!ACTIONS.includes(action)) throw new ValidationError({ form: 'Unbekannte Aktion.' });
+    const action: ProtokollAction = validateProtokollAction(body, ACTIONS);
     const etag = requireVersion(readEtag(body));
-    const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : '';
+    const note = readProtokollNote(body);
 
     const loaded = await loadProtokoll(
       driveId,
@@ -394,8 +388,7 @@ export const ProtokollTerminEndpoint = pflegeHandler(
     if (!driveId) return NOT_CONFIGURED;
 
     const body = await readJsonBody(request);
-    const action = body?.action as TerminAction;
-    if (!TERMIN_ACTIONS.includes(action)) throw new ValidationError({ form: 'Unbekannte Aktion.' });
+    const action = validateProtokollAction(body, TERMIN_ACTIONS);
     const etag = requireVersion(readEtag(body));
 
     const loaded = await loadProtokoll(driveId, id, 'current-version');
@@ -525,10 +518,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
     if (!driveId) return NOT_CONFIGURED;
 
     const body = await readJsonBody(request);
-    const action = body?.action;
-    if (action !== 'preview' && action !== 'send') {
-      throw new ValidationError({ form: 'Unbekannte Aktion.' });
-    }
+    const { action, retry } = validateProtokollVersand(body);
 
     const loaded = await loadProtokoll(driveId, id, 'stored-version');
     if (!loaded) return NOT_FOUND;
@@ -537,7 +527,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
       throw new ValidationError({ form: 'Nur freigegebene Protokolle können verschickt werden.' });
     }
     if (protokoll.changedSinceApproval) return CHANGED;
-    if (protokoll.delivery?.state === 'attempted' && body?.retry !== true) return UNCERTAIN;
+    if (protokoll.delivery?.state === 'attempted' && !retry) return UNCERTAIN;
 
     let recipients: ProtokollRecipient[];
     try {

@@ -4,8 +4,8 @@ import type { DispoVisitTable } from './db-schema';
 import { getDb, getSqlErrorNumber, inTransaction, lockResource, toDateString } from './db';
 import type { Db } from './db';
 import { NikolausStateConflictError } from './nikolaus-state';
-import { ValidationError } from './pflege-validation';
-import type { DispoLoadedCheckOff } from './pflege-validation';
+import { ValidationError } from './validation/errors';
+import type { DispoLoadedCheckOff } from './validation/nikolaus-dispo';
 import { assertTeamsConfigured, dispoLock as planLock } from './nikolaus-settings';
 
 /** One planned visit of the Dispo (one row per booking and day). */

@@ -28,11 +28,8 @@ import {
 } from '../lib/nikolaus-helfende-list';
 import { normalizeTag } from '../lib/nikolaus-einteilung';
 import { RecordNotFoundError } from '../lib/db';
-import {
-  validateBookingTags,
-  validateEinteilungSave,
-  validateHelper,
-} from '../lib/pflege-validation';
+import { validateBookingTags, validateHelper } from '../lib/validation/nikolaus-helfende';
+import { validateEinteilungSave } from '../lib/validation/nikolaus-einteilung';
 import {
   METHOD_NOT_ALLOWED,
   NOT_FOUND,

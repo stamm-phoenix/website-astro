@@ -2,13 +2,10 @@ import { createHash } from 'node:crypto';
 import type { InvocationContext } from '@azure/functions';
 import { CONFIG } from './config';
 import { InvalidNikolausStateError, mutateNikolausState } from './nikolaus-state';
+import { readRequestBudget } from './request-budget';
+import type { RequestBudget } from './request-budget';
 
-interface MailQuotaState {
-  hour: number;
-  hourCount: number;
-  day: number;
-  dayCount: number;
-}
+type MailQuotaState = RequestBudget;
 
 const permitBrand = Symbol('nikolaus-mail-permit');
 export interface NikolausMailPermit {
@@ -24,22 +21,9 @@ export class NikolausMailQuotaError extends Error {
 }
 
 function parseQuota(value: unknown, now: number, key: string): MailQuotaState {
-  const hour = Math.floor(now / 3_600_000);
-  const day = Math.floor(now / 86_400_000);
-  if (value === undefined) return { hour, hourCount: 0, day, dayCount: 0 };
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new InvalidNikolausStateError(key);
-  const row = value as Record<string, unknown>;
-  for (const field of ['hour', 'hourCount', 'day', 'dayCount'])
-    if (!Number.isSafeInteger(row[field]) || Number(row[field]) < 0)
-      throw new InvalidNikolausStateError(key);
-  if (Number(row.hour) > hour || Number(row.day) > day) throw new InvalidNikolausStateError(key);
-  return {
-    hour,
-    day,
-    hourCount: row.hour === hour ? Number(row.hourCount) : 0,
-    dayCount: row.day === day ? Number(row.dayCount) : 0,
-  };
+  const quota = readRequestBudget(value, now);
+  if (!quota) throw new InvalidNikolausStateError(key);
+  return quota;
 }
 
 /** A denied or failed reservation is never refunded after an ambiguous storage response. */

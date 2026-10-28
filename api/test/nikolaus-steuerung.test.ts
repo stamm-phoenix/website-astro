@@ -20,7 +20,7 @@ import {
   saveNikolausSettings,
   validateNikolausSettings,
 } from '../lib/nikolaus-settings';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import {
   NikolausStateConflictError,
   mutateNikolausState,

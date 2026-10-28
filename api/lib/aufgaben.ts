@@ -13,7 +13,7 @@ import {
   toVersion,
   VersionConflictError,
 } from './db';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import { validateTemplate } from './aufgaben-validation';
 
 function normalizedProjectTitle(title: string): string {

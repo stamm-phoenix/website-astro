@@ -6,7 +6,7 @@ import {
   getStaffQuestionsAndAnswers,
   updateQuestionAndAnswer,
 } from '../lib/qa-list';
-import { validateQuestionAndAnswer } from '../lib/pflege-validation';
+import { validateQuestionAndAnswer } from '../lib/validation/content';
 import {
   METHOD_NOT_ALLOWED,
   NOT_FOUND,

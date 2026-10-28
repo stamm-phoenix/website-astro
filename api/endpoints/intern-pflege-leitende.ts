@@ -9,7 +9,8 @@ import {
   setLeitendePhoto,
   updateLeitende,
 } from '../lib/leitende-list';
-import { MAX_PHOTO_BYTES, validateLeitende } from '../lib/pflege-validation';
+import { MAX_PHOTO_BYTES } from '../lib/validation/constants';
+import { validateLeitende } from '../lib/validation/content';
 import {
   METHOD_NOT_ALLOWED,
   NOT_FOUND,

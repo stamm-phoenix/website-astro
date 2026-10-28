@@ -2,6 +2,14 @@ import { isAzureMapsConfigured, requestAzureMaps } from './azure-maps';
 import { CONFIG } from './config';
 import type { NikolausCoordinates } from './nikolaus-config';
 import { distanceKm } from './nikolaus-config';
+import {
+  matrixCellSchema,
+  matrixResponseSchema,
+  routeGeometrySchema,
+  routePathFeatureSchema,
+  routePointSchema,
+  routeResponseSchema,
+} from './travel-times-schema';
 
 /** Where the driving times come from. */
 export type TravelSource = 'route' | 'estimate';
@@ -86,17 +94,6 @@ function multiPoint(points: NikolausCoordinates[], pointType: 'origins' | 'desti
   };
 }
 
-/** Whether a cell's status says that no route exists, unlike a failure that may pass. */
-function isNoRoute(statusCode: unknown): boolean {
-  return (
-    typeof statusCode === 'number' &&
-    statusCode >= 400 &&
-    statusCode < 500 &&
-    statusCode !== 408 &&
-    statusCode !== 429
-  );
-}
-
 /**
  * Driving minutes `[origin][destination]` of one request: `null` where no route exists,
  * `undefined` where the cell failed or is missing.
@@ -106,41 +103,18 @@ export function parseMatrix(
   origins: number,
   destinations: number
 ): (number | null | undefined)[][] {
-  const cells = (value as { properties?: { matrix?: unknown } } | null)?.properties?.matrix;
-  if (!Array.isArray(cells)) throw new Error('Azure Maps returned no matrix');
+  const response = matrixResponseSchema.safeParse(value);
+  if (!response.success) throw new Error('Azure Maps returned no matrix');
   // `undefined` until a cell answers: missing or failed cells are asked again next time
   const minutes: (number | null | undefined)[][] = Array.from({ length: origins }, () =>
     Array.from({ length: destinations }, () => undefined)
   );
-  for (const cell of cells as unknown[]) {
-    if (typeof cell !== 'object' || cell === null) continue;
-    const {
-      originIndex,
-      destinationIndex,
-      statusCode,
-      durationInSeconds,
-      durationTrafficInSeconds,
-    } = cell as Record<string, unknown>;
-    if (
-      !Number.isInteger(originIndex) ||
-      !Number.isInteger(destinationIndex) ||
-      (originIndex as number) < 0 ||
-      (originIndex as number) >= origins ||
-      (destinationIndex as number) < 0 ||
-      (destinationIndex as number) >= destinations
-    ) {
-      continue;
-    }
-    if (statusCode !== undefined && statusCode !== 200) {
-      // A client error such as OUT_OF_REGION: there is no route between the two points
-      if (isNoRoute(statusCode)) minutes[originIndex as number][destinationIndex as number] = null;
-      continue;
-    }
-    const seconds =
-      typeof durationTrafficInSeconds === 'number' ? durationTrafficInSeconds : durationInSeconds;
-    if (typeof seconds === 'number' && Number.isFinite(seconds) && seconds >= 0) {
-      minutes[originIndex as number][destinationIndex as number] = seconds / 60;
-    }
+  for (const raw of response.data.properties.matrix) {
+    const cell = matrixCellSchema.safeParse(raw);
+    if (!cell.success) continue;
+    const { origin, destination } = cell.data;
+    if (origin < 0 || origin >= origins || destination < 0 || destination >= destinations) continue;
+    if (cell.data.minutes !== undefined) minutes[origin][destination] = cell.data.minutes;
   }
   return minutes;
 }
@@ -345,25 +319,23 @@ const routeCache = new Map<string, { path: [number, number][]; expires: number }
 
 /** The course of the route as `[lat, lon]` pairs, from the `RoutePath` feature. */
 export function parseRoutePath(value: unknown): [number, number][] {
-  const features = (value as { features?: unknown } | null)?.features;
-  if (!Array.isArray(features)) throw new Error('Azure Maps returned no route');
-  const route = features.find(
-    (feature: unknown) =>
-      (feature as { properties?: { type?: unknown } } | null)?.properties?.type === 'RoutePath'
-  ) as { geometry?: { type?: unknown; coordinates?: unknown } } | undefined;
-  const geometry = route?.geometry;
-  if (!geometry || !Array.isArray(geometry.coordinates)) {
-    throw new Error('Azure Maps returned no route');
-  }
-  const lines =
-    geometry.type === 'LineString' ? [geometry.coordinates] : (geometry.coordinates as unknown[]);
+  const response = routeResponseSchema.safeParse(value);
+  if (!response.success) throw new Error('Azure Maps returned no route');
+  const route = response.data.features.find(
+    (feature) => routePathFeatureSchema.safeParse(feature).success
+  );
+  const geometry = routeGeometrySchema.safeParse(
+    (route as { geometry?: unknown } | undefined)?.geometry
+  );
+  if (!geometry.success) throw new Error('Azure Maps returned no route');
+  const { type, coordinates } = geometry.data;
+  const lines = type === 'LineString' ? [coordinates] : coordinates;
   const path = lines
     .flatMap((line) => (Array.isArray(line) ? (line as unknown[]) : []))
-    .filter(
-      (c): c is [number, number] =>
-        Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number'
-    )
-    .map(([lon, lat]): [number, number] => [lat, lon]);
+    .flatMap((point) => {
+      const parsed = routePointSchema.safeParse(point);
+      return parsed.success ? [[parsed.data[1], parsed.data[0]] as [number, number]] : [];
+    });
   if (path.length < 2) throw new Error('Azure Maps returned no route');
   return path;
 }

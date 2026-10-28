@@ -15,7 +15,7 @@ import {
 import type { OrderRow, SammelOrderChanges } from './sammelbestellung-list';
 import type { SammelAktion, SammelStatus } from './sammelbestellung-model';
 import type { ClientPrincipal } from './staff-auth';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import { email } from './sammelbestellung-validation';
 import type {
   SammelBillingPerson,

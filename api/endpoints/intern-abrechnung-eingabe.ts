@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { pflegeHandler, ok, readJsonBody } from '../lib/pflege-api';
 import { parseSession, sessionSizeOk, validAbrechnungSession } from '../lib/abrechnung-session';
 import {
@@ -6,9 +7,27 @@ import {
   saveAbrechnungEingabe,
 } from '../lib/abrechnung-eingabe';
 import { getCampflowEvents } from '../lib/campflow';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
+import { parseWith } from '../lib/validation/zod';
 import { EVENT_ID_PATTERN } from './intern-abrechnung';
 import { withErrorHandling } from '../lib/response-utils';
+
+const SAVE_MESSAGE = 'Die Eingaben konnten nicht gespeichert werden. Bitte prüfe die Felder.';
+
+/** The body of a save: a session object that is not oversized, and the version of the draft read. */
+const saveBodySchema = z.object(
+  {
+    session: z.custom<Record<string, unknown>>(
+      (session) =>
+        session !== null &&
+        typeof session === 'object' &&
+        sessionSizeOk(session as Record<string, unknown>),
+      { error: SAVE_MESSAGE }
+    ),
+    etag: z.string({ error: SAVE_MESSAGE }).nullable(),
+  },
+  { error: SAVE_MESSAGE }
+);
 
 /** Never accept a retention date from the browser, including when reading older drafts. */
 async function currentRetention(id: string, requireDate = false): Promise<string | null> {
@@ -32,19 +51,7 @@ export const AbrechnungEingabeEndpoint = pflegeHandler(
       throw new ValidationError({ id: 'Ungültige Aktion.' });
     if (request.method === 'GET')
       return ok(await getAbrechnungEingabe(principal.userId, id, await currentRetention(id)));
-    const body = (await readJsonBody(request)) as { session?: unknown; etag?: unknown };
-    if (
-      !body ||
-      typeof body !== 'object' ||
-      !body.session ||
-      typeof body.session !== 'object' ||
-      !sessionSizeOk(body.session as Record<string, unknown>) ||
-      !(body.etag === null || typeof body.etag === 'string')
-    ) {
-      throw new ValidationError({
-        session: 'Die Eingaben konnten nicht gespeichert werden. Bitte prüfe die Felder.',
-      });
-    }
+    const body = parseWith(saveBodySchema, await readJsonBody(request), () => 'session');
     const deleteAfter = await currentRetention(id, true);
     if (deleteAfter === null)
       return ok(

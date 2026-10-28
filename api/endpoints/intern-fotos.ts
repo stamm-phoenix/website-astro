@@ -20,7 +20,7 @@ import {
   listFotoFolder,
 } from '../lib/fotos';
 import { METHOD_NOT_ALLOWED, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import { mitEigenerAdresse } from '../lib/personen';
 import { audienceVersion, protokollDeliveryAddresses } from '../lib/protokolle';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';

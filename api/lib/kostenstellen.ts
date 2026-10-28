@@ -1,9 +1,9 @@
-import { PlaywrightApiError } from './playwright-api';
+import { z } from 'zod';
+import { euroCent, parseableTimestamp, readAnswer, wholeNumber } from './campflow-schema';
+import { CAMPFLOW_SPHERES } from './playwright-api-schema';
 
 /** Gemeinnützige Sphäre of a Kategorie, as CampFlow names them. */
-export type KostenstellenSphaere = 'ideal' | 'purpose' | 'assets' | 'business';
-
-const SPHERES: readonly KostenstellenSphaere[] = ['ideal', 'purpose', 'assets', 'business'];
+export type KostenstellenSphaere = (typeof CAMPFLOW_SPHERES)[number];
 
 /** Sums of a Kostenstelle or Kategorie in euro cents; expenses are negative. */
 export interface KostenstellenSummen {
@@ -53,105 +53,90 @@ export interface KostenstellenUebersicht {
   costUnits: KostenstelleStatistik[];
 }
 
-type Json = Record<string, unknown>;
+/** Missing years or sums per year are refused: shown as 0 they would look like real figures. */
+const yearSchema = z.number().refine(Number.isInteger).min(1900).max(9999);
 
-const isObject = (value: unknown): value is Json =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-function invalid(): never {
-  throw new PlaywrightApiError(502, 'Invalid Kostenstellen-Summen');
-}
-
-/** Euros from the Playwright API to whole cents. */
-function cent(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) invalid();
-  return Math.round(value * 100);
-}
-
-function summen(value: Json): KostenstellenSummen {
-  const bookings = value.bookings;
-  if (typeof bookings !== 'number' || !Number.isInteger(bookings) || bookings < 0) invalid();
-  const incomeCent = cent(value.income);
-  const expensesCent = cent(value.expenses);
-  return {
-    incomeCent,
-    expensesCent,
-    // Recomputed, so the parts always add up on screen
-    balanceCent: incomeCent + expensesCent,
-    openIncomeCent: cent(value.openIncome),
-    openExpensesCent: cent(value.openExpenses),
-    bookings,
-  };
-}
-
-const optionalId = (value: unknown): string | null => {
-  if (value === null) return null;
-  if (typeof value !== 'string' || !value) invalid();
-  return value;
+const summenShape = {
+  income: euroCent,
+  expenses: euroCent,
+  openIncome: euroCent,
+  openExpenses: euroCent,
+  bookings: wholeNumber,
 };
 
-function readKategorie(value: unknown): KategorieStatistik {
-  if (!isObject(value) || typeof value.name !== 'string') invalid();
+function toSummen(sums: z.output<z.ZodObject<typeof summenShape>>): KostenstellenSummen {
   return {
-    id: optionalId(value.id),
-    name: value.name.trim(),
-    sphere: SPHERES.find((sphere) => sphere === value.sphere) ?? null,
-    ...summen(value),
-    yearTotals: readYearTotals(value.yearTotals),
+    incomeCent: sums.income,
+    expensesCent: sums.expenses,
+    // Recomputed, so the parts always add up on screen
+    balanceCent: sums.income + sums.expenses,
+    openIncomeCent: sums.openIncome,
+    openExpensesCent: sums.openExpenses,
+    bookings: sums.bookings,
   };
 }
 
-/** Missing years or sums per year are refused: shown as 0 they would look like real figures. */
-function readYears(value: unknown): number[] {
-  if (!Array.isArray(value)) invalid();
-  return value.map((year: unknown) => (isYear(year) ? year : invalid()));
-}
+const optionalId = z.string().min(1).nullable();
 
-const isYear = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isInteger(value) && value >= 1900 && value <= 9999;
+const yearTotalsSchema: z.ZodType<JahresSummen> = z
+  .object({ year: yearSchema, ...summenShape })
+  .transform(({ year, ...sums }) => ({ year, ...toSummen(sums) }));
 
-function readYearTotals(value: unknown): JahresSummen[] {
-  if (!Array.isArray(value)) invalid();
-  return value.map((item: unknown) => {
-    if (!isObject(item) || !isYear(item.year)) invalid();
-    return { year: item.year, ...summen(item) };
-  });
-}
+const kategorieSchema: z.ZodType<KategorieStatistik> = z
+  .object({
+    id: optionalId,
+    name: z.string().transform((name) => name.trim()),
+    sphere: z.enum(CAMPFLOW_SPHERES).nullable().catch(null),
+    ...summenShape,
+    yearTotals: z.array(yearTotalsSchema),
+  })
+  .transform(({ id, name, sphere, yearTotals, ...sums }) => ({
+    id,
+    name,
+    sphere,
+    ...toSummen(sums),
+    yearTotals,
+  }));
 
-function readKostenstelle(value: unknown): KostenstelleStatistik {
-  if (!isObject(value) || typeof value.name !== 'string' || !Array.isArray(value.categories))
-    invalid();
-  return {
-    id: optionalId(value.id),
-    name: value.name.trim(),
-    color:
-      typeof value.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(value.color) ? value.color : null,
-    archived: value.archived === true,
-    ...summen(value),
-    years: readYears(value.years),
-    yearTotals: readYearTotals(value.yearTotals),
-    categories: value.categories.map(readKategorie),
-  };
-}
+const kostenstelleSchema: z.ZodType<KostenstelleStatistik> = z
+  .object({
+    id: optionalId,
+    name: z.string().transform((name) => name.trim()),
+    color: z
+      .string()
+      .regex(/^#[0-9a-f]{3,8}$/i)
+      .nullable()
+      .catch(null),
+    archived: z.boolean().catch(false),
+    ...summenShape,
+    years: z.array(yearSchema),
+    yearTotals: z.array(yearTotalsSchema),
+    categories: z.array(kategorieSchema),
+  })
+  .transform(({ id, name, color, archived, years, yearTotals, categories, ...sums }) => ({
+    id,
+    name,
+    color,
+    archived,
+    ...toSummen(sums),
+    years,
+    yearTotals,
+    categories,
+  }));
+
+const uebersichtSchema: z.ZodType<KostenstellenUebersicht> = z
+  .object({ exportedAt: parseableTimestamp, costUnits: z.array(kostenstelleSchema) })
+  .transform(({ exportedAt, costUnits }) => ({
+    loadedAt: exportedAt,
+    costUnits: costUnits.sort(
+      (a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name, 'de')
+    ),
+  }));
 
 /**
  * Checks the answer of the Playwright API (`GET /campflow/kostenstellen/summen`) and converts it
  * to cents. Open Kostenstellen come first, each group by name.
  */
 export function readKostenstellenSummen(value: unknown): KostenstellenUebersicht {
-  if (
-    !isObject(value) ||
-    typeof value.exportedAt !== 'string' ||
-    Number.isNaN(Date.parse(value.exportedAt)) ||
-    !Array.isArray(value.costUnits)
-  )
-    invalid();
-  return {
-    loadedAt: value.exportedAt,
-    costUnits: value.costUnits
-      .map(readKostenstelle)
-      .sort(
-        (a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name, 'de')
-      ),
-  };
+  return readAnswer(uebersichtSchema, value, 'Invalid Kostenstellen-Summen');
 }
