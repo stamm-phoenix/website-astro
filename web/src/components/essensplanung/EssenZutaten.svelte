@@ -117,6 +117,8 @@
     }
     const { id, etag } = form;
     const body = fromZutatForm(form);
+    // A new message even when it repeats the last one, so the popup shows again
+    onnotice(null);
     await dialog.run(async () => {
       if (id) {
         store.data = await sendApi<StaffEssenSteuerung>(
@@ -140,6 +142,8 @@
   async function remove(): Promise<void> {
     const current = form;
     if (!current?.id || busy) return;
+    // A new message even when it repeats the last one, so the popup shows again
+    onnotice(null);
     await dialog.run(async () => {
       store.data = await sendApi<StaffEssenSteuerung>(
         'DELETE',
