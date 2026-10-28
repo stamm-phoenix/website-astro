@@ -135,6 +135,11 @@ function withoutQuery(token: string): string {
  * Parts of a copied link that a line break separated from its start: the line after a link that
  * ends in `?` or `&`, and lines that continue the query with `&name=value`.
  */
+/** A token of letters, digits and `._~%+-` with a digit: a code, not a word. Two linear tests. */
+function looksLikeCode(token: string): boolean {
+  return /^[\w.~%+-]+$/.test(token) && /\d/.test(token);
+}
+
 function withoutWrappedQuery(text: string): string {
   const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
@@ -145,7 +150,7 @@ function withoutWrappedQuery(text: string): string {
     const next = i + 1 < lines.length ? /^[ \t]*(\S+)/.exec(lines[i + 1]) : null;
     // Only what is a value of the query goes (`name=value`, or a code with a digit in it); a
     // following sentence stays, also in a second pass
-    if (!next || !(next[1].includes('=') || /^[\w.~%+-]*\d[\w.~%+-]*$/.test(next[1]))) continue;
+    if (!next || !(next[1].includes('=') || looksLikeCode(next[1]))) continue;
     lines[i + 1] = lines[i + 1].replace(/^[ \t]*\S+/, '');
     lines[i] = line.replace(/[?&#]+$/, '');
   }
