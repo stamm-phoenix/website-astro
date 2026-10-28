@@ -125,7 +125,12 @@ export async function currentSitzung(): Promise<Sitzung | null> {
     .execute();
 
   // Newest approval first; on a tie the editor minutes win.
-  const candidates: { at: number; sitzung: Sitzung | null; file?: [string, string] }[] = [];
+  const candidates: {
+    at: number;
+    sitzung: Sitzung | null;
+    file?: [string, string];
+    key?: string;
+  }[] = [];
   if (editor?.approved_at)
     candidates.push({
       at: editor.approved_at.getTime(),
@@ -146,6 +151,7 @@ export async function currentSitzung(): Promise<Sitzung | null> {
       at,
       sitzung: wordSitzung(key.slice(0, 32), fields),
       file: [row.drive_id, row.item_id],
+      key: key.slice(0, 32),
     });
   }
   candidates.sort((a, b) => b.at - a.at);
@@ -158,6 +164,11 @@ export async function currentSitzung(): Promise<Sitzung | null> {
       if (!loaded) continue;
       // The newest minutes decide, so a changed file gives no date and no older one takes over.
       if (loaded.protokoll.changedSinceApproval || loaded.protokoll.terminStale) return null;
+      // The state read just now counts, not the earlier snapshot: minutes taken back to the
+      // draft or a date changed in between no longer qualify.
+      const fresh = loaded.item.metadata?.fields ?? loaded.item.listItem?.fields ?? {};
+      if (!APPROVED_WORD.includes(fresh.Status ?? '')) continue;
+      return wordSitzung(candidate.key ?? '', fresh);
     }
     return candidate.sitzung;
   }
