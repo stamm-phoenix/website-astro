@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { confirmAction } from '../../lib/confirm';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type { PlanungMahlzeit } from '../../lib/types';
   import type { PlanKontext } from './planKontext';
 
@@ -32,6 +33,14 @@
     name = basis.name;
     uhrzeit = basis.uhrzeit;
   }
+
+  // Typed, kept after a failed save or a conflict, or still saving: asks before leaving the page
+  $effect(() =>
+    guardUnsavedChanges(
+      () =>
+        entwurf || (name.trim() || basis.name) !== basis.name || uhrzeit.trim() !== basis.uhrzeit
+    )
+  );
 
   // Follow the saved state unless the user is typing or has unsaved input
   $effect(() => {
