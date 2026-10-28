@@ -312,7 +312,11 @@ dbTest('a draft that is too long is refused instead of cut', async (t) => {
   const id = await submit(context);
   const item = await load(context, id);
   const response = await ProblemMeldungItemEndpoint(
-    request('PATCH', { title: 'T', body: 'ab '.repeat(2700), label: 'bug', etag: item.etag }, { id }),
+    request(
+      'PATCH',
+      { title: 'T', body: 'ab '.repeat(2700), label: 'bug', etag: item.etag },
+      { id }
+    ),
     context
   );
   assert.equal(response.status, 400);
