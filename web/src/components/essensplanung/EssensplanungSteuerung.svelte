@@ -4,6 +4,7 @@
   import ReloadButton from '../pflege/ReloadButton.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { essensplanungSteuerung } from '../../lib/pflegeStore.svelte';
+  import { setRescueContext } from '../../lib/geretteteEingaben';
   import EssenEinstellungenForm from './EssenEinstellungenForm.svelte';
   import EssenZutaten from './EssenZutaten.svelte';
   import EssenListe from './EssenListe.svelte';
@@ -20,6 +21,17 @@
 
   $effect(() => {
     untrack(() => essensplanungSteuerung.load());
+  });
+
+  /** Set by the settings form, the only input of this page outside a dialog. */
+  let einstellungenRettung: { enabled: () => boolean; rescue: () => boolean } | null = null;
+
+  // A new login in the iPhone app reloads the page: unsaved settings are kept and come back
+  setRescueContext({
+    warning: () => null,
+    enabled: () => einstellungenRettung?.enabled() ?? false,
+    rescue: () => einstellungenRettung?.rescue() ?? false,
+    register: () => () => undefined,
   });
 </script>
 
@@ -43,7 +55,11 @@
       </div>
     {/snippet}
     {#snippet children(data)}
-      <EssenEinstellungenForm {data} {onnotice} />
+      <EssenEinstellungenForm
+        {data}
+        {onnotice}
+        onrescue={(rettung) => (einstellungenRettung = rettung)}
+      />
       <EssenZutaten {data} {onnotice} />
       <div class="grid gap-8 lg:grid-cols-2">
         <EssenListe

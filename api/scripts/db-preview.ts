@@ -51,6 +51,7 @@ import {
   seedPreviewAbrechnungEingabe,
   seedPreviewSammel,
   seedPreviewAbstimmungen,
+  seedPreviewEssensplanung,
   seedPreviewGruppenstunden,
   seedPreviewLeitende,
   seedPreviewAktionen,
@@ -157,6 +158,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewBelege();
       await seedPreviewBelegeCampflow();
       await seedPreviewDownloads();
+      await seedPreviewEssensplanung();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();

@@ -146,14 +146,21 @@ function readBoolean(value: unknown, errors: FieldErrors, field: string): boolea
   return value === true;
 }
 
-/** A positive number with at most two decimals, or null for an empty field. */
-function readGramm(value: unknown, errors: FieldErrors, field: string): number | null {
+/** Rounds to the two decimals the columns store. */
+function centi(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/** A number from 0,01 to `max` (after rounding to two decimals), or null for an empty field. */
+function readGramm(value: unknown, max: number, errors: FieldErrors, field: string): number | null {
   if (value === null || value === undefined || value === '') return null;
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value > 100_000) {
-    errors[field] = 'Bitte eine Zahl größer als 0 eintragen oder das Feld leer lassen.';
+  const rounded = typeof value === 'number' && Number.isFinite(value) ? centi(value) : Number.NaN;
+  if (!(rounded >= 0.01 && rounded <= max)) {
+    errors[field] =
+      `Bitte eine Zahl von 0,01 bis ${max.toLocaleString('de-DE')} eintragen oder das Feld leer lassen.`;
     return null;
   }
-  return Math.round(value * 100) / 100;
+  return rounded;
 }
 
 function hasDuplicate(names: string[]): number {
@@ -199,14 +206,14 @@ export function validateEssenEinstellungen(input: unknown): EssenEinstellungen {
     value.vorlageGruppen.forEach((item: unknown, index) => {
       const gruppe = isRecord(item) ? item : {};
       const name = readName(gruppe.name, 50, errors, `vorlageGruppen.${index}.name`);
-      const faktor = gruppe.faktor;
-      if (typeof faktor !== 'number' || !Number.isFinite(faktor) || faktor <= 0 || faktor > 5) {
-        errors[`vorlageGruppen.${index}.faktor`] = 'Bitte einen Faktor über 0 und bis 5 eintragen.';
+      const faktor =
+        typeof gruppe.faktor === 'number' && Number.isFinite(gruppe.faktor)
+          ? centi(gruppe.faktor)
+          : Number.NaN;
+      if (!(faktor >= 0.01 && faktor <= 5)) {
+        errors[`vorlageGruppen.${index}.faktor`] = 'Bitte einen Faktor von 0,01 bis 5 eintragen.';
       }
-      vorlageGruppen.push({
-        name,
-        faktor: typeof faktor === 'number' ? Math.round(faktor * 100) / 100 : 0,
-      });
+      vorlageGruppen.push({ name, faktor: Number.isNaN(faktor) ? 0 : faktor });
     });
     const duplicate = hasDuplicate(vorlageGruppen.map((gruppe) => gruppe.name));
     if (duplicate >= 0) errors[`vorlageGruppen.${duplicate}.name`] = 'Diese Gruppe gibt es schon.';
@@ -287,9 +294,9 @@ export function validateZutat(input: unknown): ZutatInput {
     );
     if (allergene.length !== value.allergene.length) errors.allergene = 'Ungültige Auswahl.';
   }
-  const grammProTl = readGramm(value.grammProTl, errors, 'grammProTl');
-  const grammProEl = readGramm(value.grammProEl, errors, 'grammProEl');
-  const grammProStueck = readGramm(value.grammProStueck, errors, 'grammProStueck');
+  const grammProTl = readGramm(value.grammProTl, 1000, errors, 'grammProTl');
+  const grammProEl = readGramm(value.grammProEl, 1000, errors, 'grammProEl');
+  const grammProStueck = readGramm(value.grammProStueck, 100_000, errors, 'grammProStueck');
   if (Object.keys(errors).length) throw new ValidationError(errors);
 
   // Things that are not eaten have no diet and no allergens

@@ -6,6 +6,7 @@
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { essensplanungSteuerung } from '../../lib/pflegeStore.svelte';
+  import { findRescue, forgetRescue, rescueValues } from '../../lib/geretteteEingaben';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { formatDateTime } from '../../lib/format';
   import {
@@ -20,8 +21,10 @@
   interface Props {
     data: StaffEssenSteuerung;
     onnotice: (message: string | null, kind?: 'success' | 'error') => void;
+    /** Hands the page the way to keep unsaved settings across a new login. */
+    onrescue?: (rettung: { enabled: () => boolean; rescue: () => boolean }) => void;
   }
-  let { data, onnotice }: Props = $props();
+  let { data, onnotice, onrescue }: Props = $props();
   const store = essensplanungSteuerung.state;
 
   let form = $state<EinstellungenForm | null>(null);
@@ -41,11 +44,76 @@
   $effect(() => {
     const current = data;
     untrack(() => {
-      if (!form || !dirty) fill(current);
+      if (!form) {
+        fill(current);
+        restoreRescue();
+      } else if (!dirty) fill(current);
     });
   });
 
   $effect(() => guardUnsavedChanges(() => dirty));
+
+  const RESCUE_RECORD = 'essen-einstellungen';
+  const RESCUE_FIELD = 'Einstellungen und Vorlagen#custom';
+
+  // svelte-ignore state_referenced_locally
+  onrescue?.({
+    enabled: () => dirty,
+    rescue: () =>
+      !!form &&
+      rescueValues(RESCUE_RECORD, 'Einstellungen', '', [
+        {
+          key: RESCUE_FIELD,
+          kind: 'custom',
+          value: JSON.stringify({ etag, form }),
+          display: 'Einstellungen und Vorlagen',
+        },
+      ]),
+  });
+
+  /**
+   * Puts back settings kept before a new login. They stay unsaved; if someone saved in between,
+   * the form shows the conflict and keeps them.
+   */
+  function restoreRescue(): void {
+    const kept = findRescue(RESCUE_RECORD, null, Date.now())?.find(
+      (value) => value.key === RESCUE_FIELD
+    );
+    if (!kept) return;
+    forgetRescue(RESCUE_RECORD);
+    try {
+      const parsed = JSON.parse(kept.value) as { etag?: unknown; form?: EinstellungenForm };
+      const f = parsed.form;
+      if (
+        typeof parsed.etag !== 'string' ||
+        !f ||
+        typeof f.whitelist !== 'string' ||
+        typeof f.aufbewahrungMonate !== 'string' ||
+        !Array.isArray(f.vorlageGruppen) ||
+        !Array.isArray(f.vorlageMahlzeiten)
+      )
+        return;
+      etag = parsed.etag;
+      form = {
+        anlegenExtern: f.anlegenExtern === true,
+        whitelist: f.whitelist,
+        aufbewahrungMonate: f.aufbewahrungMonate,
+        wartung: f.wartung === true,
+        vorlageGruppen: f.vorlageGruppen.map((gruppe) => ({
+          key: newRowKey(),
+          name: String(gruppe?.name ?? ''),
+          faktor: String(gruppe?.faktor ?? ''),
+        })),
+        vorlageMahlzeiten: f.vorlageMahlzeiten.map((mahlzeit) => ({
+          key: newRowKey(),
+          name: String(mahlzeit?.name ?? ''),
+        })),
+      };
+      onnotice('Deine ungespeicherten Einstellungen sind wieder da.');
+    } catch {
+      // Unreadable: the saved settings stay
+    }
+  }
 
   function fill(current: StaffEssenSteuerung): void {
     etag = current.etag;
@@ -110,6 +178,17 @@
   }
 
   async function reloadCurrent(): Promise<void> {
+    if (
+      dirty &&
+      !(await confirmAction({
+        title: 'Aktuelle Fassung laden?',
+        message:
+          'Deine ungespeicherten Änderungen an Einstellungen und Vorlagen gehen dabei verloren.',
+        confirmLabel: 'Verwerfen und laden',
+        cancelLabel: 'Weiter bearbeiten',
+      }))
+    )
+      return;
     await essensplanungSteuerung.load({ force: true });
     // Keep the input when reloading failed.
     if (store.error) {

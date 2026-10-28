@@ -181,7 +181,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:32';
+const SEEDED_KEY = 'preview:seeded:33';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -1685,4 +1685,26 @@ export async function seedPreviewAbstimmungen(): Promise<void> {
     const [see, huette] = await previewOptionen(id);
     await voteAsStaff(id, theo, { gewaehlt: [see, huette] });
   }
+}
+
+/** Invented entries in the log of the Essensplanung-Steuerung; the settings stay as migrated. */
+export async function seedPreviewEssensplanung(): Promise<void> {
+  const db = getDb();
+  const vorhanden = await db.selectFrom('essen.audit_log').select('id').top(1).executeTakeFirst();
+  if (vorhanden) return;
+  await db
+    .insertInto('essen.audit_log')
+    .values([
+      {
+        actor: 'Vroni Vorschau',
+        action: 'zutat-geaendert',
+        details: JSON.stringify({ id: 0, name: 'Honig (Test)' }),
+      },
+      {
+        actor: 'Theo Test',
+        action: 'kategorie-umbenannt',
+        details: JSON.stringify({ id: 0, name: 'Backwaren (Test)', vorher: 'Backware' }),
+      },
+    ])
+    .execute();
 }
