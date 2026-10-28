@@ -352,6 +352,25 @@ test('wrapped values without a name are removed, e-mail removal stays linear', (
   );
 });
 
+test('a query over several lines and quoted secrets are removed completely', () => {
+  const wrapped =
+    'https://stamm-phoenix.de/anmelden?\nstate=offen&\ncode=654321\nNicht gespeichert.';
+  const once = redactSensitive(wrapped);
+  assert.ok(!once.includes('654321') && !once.includes('state=offen'));
+  assert.ok(once.includes('Nicht gespeichert.'));
+  assert.equal(redactSensitive(once), once);
+  for (const text of [
+    'Passwort: "mein geheimes Passwort" ging nicht',
+    "password='mein geheimes Passwort' ging nicht",
+    'Kennwort = „mein geheimes Passwort“ ging nicht',
+  ]) {
+    const redacted = redactSensitive(text);
+    assert.ok(!redacted.includes('geheimes') && !redacted.includes('mein'), text);
+    assert.ok(redacted.endsWith('ging nicht'), text);
+  }
+  assert.equal(redactSensitive('Passwort: abc ging nicht'), 'Passwort: [entfernt] ging nicht');
+});
+
 test('every accepted address and the contact itself stay out of forwarded text', () => {
   const contact = 'erika@bücher.de';
   assert.equal(
