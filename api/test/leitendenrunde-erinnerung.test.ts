@@ -397,6 +397,27 @@ dbTest('a failing check before sending frees the reservation for the next run', 
   assert.equal((await runLeitendenrundeReminders(stage7)).sent, 1);
 });
 
+dbTest(
+  'the pause after throttling counts from the moment of the answer, not the run start',
+  async (t) => {
+    await approveEditor(NEXT);
+    mockLeaders(t, [leader('lea@example.test')]);
+    let answered = false;
+    t.mock.method(reminderMail, 'sendLeitendenrundeReminder', async () => {
+      answered = true;
+      throw Object.assign(new Error('Too many requests'), { statusCode: 429 });
+    });
+    const late = new Date(stage7.getTime() + 7 * 60_000);
+    await runLeitendenrundeReminders(stage7, { clock: () => (answered ? late : stage7) });
+    const row = await getDb()
+      .selectFrom('protokoll.erinnerung')
+      .select(['status', 'retry_after'])
+      .executeTakeFirstOrThrow();
+    assert.equal(row.status, 'retryable');
+    assert.equal(new Date(row.retry_after as Date).getTime(), late.getTime() + 45 * 60_000);
+  }
+);
+
 dbTest('an unclear result stays reserved, throttling is retried after the pause', async (t) => {
   await approveEditor(NEXT);
   mockLeaders(t, [leader('lea@example.test')]);
