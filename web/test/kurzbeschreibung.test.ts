@@ -135,3 +135,9 @@ test('found blocks are never pushed out by empty days of a long Aktion', () => {
     false
   );
 });
+
+test('long programme items are not cut off when lines are read', () => {
+  const lang = 'x'.repeat(260);
+  assert.equal(parseZeitzeilen(`8-9 Uhr ${lang}`)[0].text, lang);
+  assert.equal(parseZeitzeilen(lang)[0].text, lang);
+});

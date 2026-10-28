@@ -108,7 +108,7 @@ const LINE = new RegExp(
 /**
  * Lines typed or pasted at once, one block each, e.g. „8-9 Uhr Frühstück“, „20.30 Lagerfeuer“,
  * „ganztags Hike“ or cells copied from a table („08:00⇥09:00⇥Frühstück“). A line without a time
- * becomes a block without one.
+ * becomes a block without one. The text is not shortened: a caller checks `MAX_ZEITBLOCK_TEXT`.
  */
 export function parseZeitzeilen(text: string): NeuerBlock[] {
   return text
@@ -125,13 +125,13 @@ export function parseZeitzeilen(text: string): NeuerBlock[] {
           /^\d{1,2}\s*(uhr|[-–—\t]|bis\b)/i.test(line));
       const von = match && isTime ? parseUhrzeit(match[1]) : null;
       if (!match || von === null || !match[3]?.trim()) {
-        return { von: '', bis: '', text: line.replace(/\t+/g, ' ').slice(0, MAX_ZEITBLOCK_TEXT) };
+        return { von: '', bis: '', text: line.replace(/\t+/g, ' ') };
       }
       const bis = match[2] ? (parseUhrzeit(match[2]) ?? '') : '';
       return {
         von,
         bis,
-        text: match[3].replace(/\t+/g, ' ').trim().slice(0, MAX_ZEITBLOCK_TEXT),
+        text: match[3].replace(/\t+/g, ' ').trim(),
       };
     });
 }

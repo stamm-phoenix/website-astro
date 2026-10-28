@@ -232,23 +232,41 @@
   }
 
   async function applyQuick(tagIndex: number, datum: string): Promise<void> {
-    // One block per non-empty line, in the same order as parseZeitzeilen
     const zeilen = (quick[datum] ?? '').split(/\r?\n/).filter((line) => line.trim() !== '');
-    const neue = parseZeitzeilen(zeilen.join('\n'));
-    if (neue.length === 0) return;
+    if (zeilen.length === 0) return;
     const tag = editable()[tagIndex];
-    const room = Math.max(0, MAX_ZEITBLOECKE_PRO_TAG - tag.bloecke.length);
-    tag.bloecke.push(...neue.slice(0, room).map(mitId));
-    if (neue.length <= room) {
+    let room = Math.max(0, MAX_ZEITBLOECKE_PRO_TAG - tag.bloecke.length);
+    // Lines that are too long or no longer fit stay in the field, nothing is cut off
+    const bleiben: string[] = [];
+    let zuLang = 0;
+    for (const zeile of zeilen) {
+      const [block] = parseZeitzeilen(zeile);
+      if (block.text.length > MAX_ZEITBLOCK_TEXT) zuLang++;
+      if (block.text.length > MAX_ZEITBLOCK_TEXT || room === 0) {
+        bleiben.push(zeile);
+        continue;
+      }
+      tag.bloecke.push(mitId(block));
+      room--;
+    }
+    const taken = zeilen.length - bleiben.length;
+    if (bleiben.length === 0) {
       delete quick[datum];
-      say(`${neue.length} ${neue.length === 1 ? 'Block' : 'Blöcke'} übernommen.`);
+      say(`${taken} ${taken === 1 ? 'Block' : 'Blöcke'} übernommen.`);
       await focusField(`tag-${datum}-neu`);
       return;
     }
-    // The lines that did not fit stay in the field
-    quick[datum] = zeilen.slice(room).join('\n');
+    quick[datum] = bleiben.join('\n');
+    const gruende = [
+      zuLang > 0
+        ? `${zuLang} ${zuLang === 1 ? 'Zeile ist' : 'Zeilen sind'} länger als ${MAX_ZEITBLOCK_TEXT} Zeichen; kürze sie`
+        : '',
+      bleiben.length > zuLang
+        ? `an einen Tag passen höchstens ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke`
+        : '',
+    ].filter(Boolean);
     say(
-      `${room} von ${neue.length} Blöcken übernommen. An einen Tag passen höchstens ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke; die übrigen Zeilen stehen noch im Feld.`,
+      `${taken} von ${zeilen.length} Blöcken übernommen. Die übrigen Zeilen stehen noch im Feld: ${gruende.join(', ')}.`,
       'warning'
     );
     await focusField(`tag-${datum}-zeilen`);
@@ -269,6 +287,15 @@
   }
 
   async function readFile(file: File): Promise<void> {
+    // The days of the file replace the shown ones; lines not taken over must not lose their day
+    if (Object.values(quick).some((text) => text.trim() !== '')) {
+      say(
+        'Übernimm oder verwirf zuerst die Zeilen unter „Mehrere Zeilen einfügen“ und wähle die Datei dann noch einmal.',
+        'warning'
+      );
+      if (fileInput) fileInput.value = '';
+      return;
+    }
     controller?.abort();
     controller = new AbortController();
     reading = file.name;
