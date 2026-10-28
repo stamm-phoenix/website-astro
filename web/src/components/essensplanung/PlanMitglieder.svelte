@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import CopyCode from '../ui/CopyCode.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { beitrittUrl, planungUrl } from '../../lib/essensplanung';
   import type { PlanungAnsicht, PlanungMitglied } from '../../lib/types';
   import type { PlanKontext } from './planKontext';
@@ -122,14 +124,33 @@
     );
   }
 
-  let eigenerName = $derived(ansicht.mitglieder.find((mitglied) => mitglied.ich)?.name ?? '');
+  /** The saved name and the input; changes of others replace the input only without a draft. */
+  const gespeicherterName = $derived(
+    ansicht.mitglieder.find((mitglied) => mitglied.ich)?.name ?? ''
+  );
+  let basisName = $state('');
+  let eigenerName = $state('');
+  const namensEntwurf = $derived(eigenerName !== basisName);
+  $effect(() => {
+    const neu = gespeicherterName;
+    untrack(() => {
+      if (namensEntwurf) return;
+      basisName = neu;
+      eigenerName = neu;
+    });
+  });
+  $effect(() => guardUnsavedChanges(() => namensEntwurf));
 
   async function namenSpeichern(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    await kontext.aendern(
+    const ok = await kontext.aendern(
       () => kontext.api.senden('PATCH', '/ich', { name: eigenerName }),
       'Dein Name ist gespeichert.'
     );
+    if (ok) {
+      basisName = gespeicherterName;
+      eigenerName = gespeicherterName;
+    }
   }
 </script>
 

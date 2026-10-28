@@ -220,7 +220,11 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
         entzogen: mitglied.entzogen_am !== null,
         ich: mitglied.id === zugang.mitgliedId,
       })),
-    loeschtAm: letzterTag ? loeschDatum(letzterTag, stored.einstellungen.aufbewahrungMonate) : null,
+    // Without days the day it was created counts, as in the retention run
+    loeschtAm: loeschDatum(
+      letzterTag ?? planung.erstellt_am.toISOString().slice(0, 10),
+      stored.einstellungen.aufbewahrungMonate
+    ),
     wartung: stored.einstellungen.wartung,
     aenderungen: aenderungen.map((row): PlanungAenderung => ({
       seq: Number(row.seq),
@@ -335,33 +339,38 @@ export async function anfrageAnlegen(input: AnlegenInput, db: Db = getDb()): Pro
       'Mit dieser Mailadresse kannst du gerade keine Planung anlegen. Frag beim Stamm Phoenix nach (kontakt@stamm-phoenix.de) oder lass dich von jemandem in eine bestehende Planung einladen.'
     );
   }
-  const recent = await db
-    .selectFrom('essen.anlage_anfrage')
-    .select((eb) => eb.fn.countAll<number>().as('count'))
-    .where('email', '=', input.email)
-    .where('erstellt_am', '>', new Date(Date.now() - 60 * 60_000))
-    .executeTakeFirstOrThrow();
-  if (Number(recent.count) >= ANFRAGEN_PRO_STUNDE) {
-    throw new PlanungError(
-      429,
-      'ZU_VIELE_ANFRAGEN',
-      'Du hast in der letzten Stunde schon mehrere Planungen angefragt. Schau in dein Postfach (auch in den Spam-Ordner) oder versuche es später noch einmal.'
-    );
-  }
-  const token = neuesToken();
-  await db
-    .insertInto('essen.anlage_anfrage')
-    .values({
-      token_hash: hashToken(token),
-      email: input.email,
-      name: input.name,
-      planung_name: input.planungName,
-      erster_tag: input.ersterTag,
-      letzter_tag: input.letzterTag,
-      laeuft_ab: new Date(Date.now() + ANFRAGE_GUELTIG_MS),
-    })
-    .execute();
-  return token;
+  // Counting and storing under one lock per address, so requests at the same time cannot all
+  // slip under the limit
+  return db.transaction().execute(async (trx) => {
+    await lockResource(trx, `essen-anlegen:${input.email}`);
+    const recent = await trx
+      .selectFrom('essen.anlage_anfrage')
+      .select((eb) => eb.fn.countAll<number>().as('count'))
+      .where('email', '=', input.email)
+      .where('erstellt_am', '>', new Date(Date.now() - 60 * 60_000))
+      .executeTakeFirstOrThrow();
+    if (Number(recent.count) >= ANFRAGEN_PRO_STUNDE) {
+      throw new PlanungError(
+        429,
+        'ZU_VIELE_ANFRAGEN',
+        'Du hast in der letzten Stunde schon mehrere Planungen angefragt. Schau in dein Postfach (auch in den Spam-Ordner) oder versuche es später noch einmal.'
+      );
+    }
+    const token = neuesToken();
+    await trx
+      .insertInto('essen.anlage_anfrage')
+      .values({
+        token_hash: hashToken(token),
+        email: input.email,
+        name: input.name,
+        planung_name: input.planungName,
+        erster_tag: input.ersterTag,
+        letzter_tag: input.letzterTag,
+        laeuft_ab: new Date(Date.now() + ANFRAGE_GUELTIG_MS),
+      })
+      .execute();
+    return token;
+  });
 }
 
 /**

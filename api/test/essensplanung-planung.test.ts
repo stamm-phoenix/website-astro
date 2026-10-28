@@ -784,3 +784,51 @@ dbTest('previews get one invented Planung without a usable link', async () => {
     .execute();
   assert.deepEqual(besitzer, [{ name: 'Vroni Vorschau', rolle: 'besitzer' }]);
 });
+
+dbTest('requests to create at the same time stay within the limit per hour', async (t) => {
+  const mails = captureMails(t);
+  useAltcha(t);
+  const anfrage = async () =>
+    call(t, endpoints.EssensplanungAnlegen, 'POST', 'anlegen', {
+      body: {
+        email: 'eilig@stamm-phoenix.de',
+        name: 'Eli Eilig',
+        planungName: 'Wochenende',
+        ersterTag: '2027-06-01',
+        letzterTag: '2027-06-02',
+        altcha: await solvedAltcha(),
+      },
+    });
+  assert.equal((await anfrage()).status, 200);
+  assert.equal((await anfrage()).status, 200);
+  const gleichzeitig = await Promise.all([anfrage(), anfrage(), anfrage(), anfrage()]);
+  assert.deepEqual(gleichzeitig.map((antwort) => antwort.status).sort(), [200, 429, 429, 429]);
+  assert.equal(mails.length, 3);
+});
+
+dbTest('a Planung without days shows the deletion from the day it was created', async (t) => {
+  const mails = captureMails(t);
+  const { token, ansicht } = await anlegen(t, mails);
+  let aktuell = ansicht;
+  for (const tag of ansicht.tage) {
+    const etag = aktuell.tage.find((eintrag) => eintrag.id === tag.id)!.etag;
+    aktuell = json<PlanungAnsicht>(
+      await call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${tag.id}`, {
+        token,
+        params: { id: String(tag.id) },
+        ifMatch: etag,
+      })
+    );
+  }
+  assert.equal(aktuell.tage.length, 0);
+  const erstellt = (
+    await getDb()
+      .selectFrom('essen.planung')
+      .select('erstellt_am')
+      .where('id', '=', ansicht.id)
+      .executeTakeFirstOrThrow()
+  ).erstellt_am
+    .toISOString()
+    .slice(0, 10);
+  assert.equal(aktuell.loeschtAm, loeschDatum(erstellt, 12));
+});

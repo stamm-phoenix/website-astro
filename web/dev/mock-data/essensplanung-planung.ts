@@ -217,7 +217,7 @@ export function ansichtVon(
         entzogen: m.entzogen,
         ich: m.id === mitglied?.id,
       })),
-    loeschtAm: letzter ? loeschDatum(letzter, monate) : null,
+    loeschtAm: loeschDatum(letzter ?? planung.erstellt.slice(0, 10), monate),
     wartung,
     aenderungen: planung.aenderungen.slice(0, 30),
   };
@@ -570,7 +570,7 @@ export function planungenUebersicht(monate: number): EssenPlanungUebersicht[] {
           .filter((m) => m.rolle === 'besitzer')
           .map((m) => ({ name: m.name, email: m.email })),
         mitglieder: aktiv.length,
-        loeschtAm: letzter ? loeschDatum(letzter, monate) : null,
+        loeschtAm: loeschDatum(letzter ?? planung.erstellt.slice(0, 10), monate),
       };
     });
 }
