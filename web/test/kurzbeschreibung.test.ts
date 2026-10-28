@@ -46,6 +46,8 @@ test('pasted lines become blocks, with the usual ways to write times', () => {
         '19.30-20 Uhr: Leitendenrunde',
         '08:00\t\t3 Teams spielen gegeneinander',
         '20:00\tLagerfeuer',
+        '\t10:00\tAnreise',
+        '8 Uhr\t9 Uhr\tFrühstück',
       ].join('\n')
     ),
     [
@@ -60,6 +62,8 @@ test('pasted lines become blocks, with the usual ways to write times', () => {
       { von: '19:30', bis: '20:00', text: 'Leitendenrunde' },
       { von: '08:00', bis: '', text: '3 Teams spielen gegeneinander' },
       { von: '20:00', bis: '', text: 'Lagerfeuer' },
+      { von: '', bis: '10:00', text: 'Anreise' },
+      { von: '08:00', bis: '09:00', text: 'Frühstück' },
     ]
   );
 });
