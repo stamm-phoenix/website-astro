@@ -1,0 +1,155 @@
+ebene_1,ebene_2,ebene_3,artikel_nr,marke,name,verpackung,preistext,einzelpreis_eur,preismasseinheit,inhalt_verkauf,verpackungsart,bestelleinheit
+Eier,Frische Eier,Frische Eier,165078,Metro Chef Bio,BIO Eier A Gewichtsklasse: L,30-Stk-Pkg,,"14,84",Pkg,"1,00",PG,Pkg
+Einwegsortiment,Einweggeschirr,Müllbeutel,68661,METRO Professional,Müllbeutel mit Zugband 35L,15-Stk-Rolle,Schwarz,"1,46",Rolle,"6,00",RL,Kolli
+Einwegsortiment,Einweggeschirr,Müllbeutel,68602,aro,Müllbeutel 10L,6x40-Stk-Rolle,Weiß,"1,38",Rolle,"6,00",RL,Kolli
+Einwegsortiment,Einweggeschirr,Teller & Tassen,15019,Papstar,Verpackungsbecher mit Deckel 250ml,50-Stk-Pkg,,"15,17",Pkg,"1,00",PG,Pkg
+Einwegsortiment,Folien,Alufolien,72294,METRO Professional,Alufolie 44cm breit,200-m-Rolle,,"44,84",Rolle,"1,00",RL,Rolle
+Einwegsortiment,Einweggeschirr,Müllbeutel,68715,METRO Professional,Müllbeutel schwarz 60l,20-Stk-Rolle,,"2,03",Rolle,"5,00",RL,Kolli
+Einwegsortiment,Einweggeschirr,Müllbeutel,68897,METRO Professional,Müllbeutel Extra Stark 240L,2x10-Stk-Pkg,,"7,98",Rolle,"2,00",RL,Kolli
+Ethno Food,Gewürze & Pasten,Pasten,109678,Al Wadi,Sesampaste Tahina,908-g-Ds,,"13,67",Ds,"1,00",DS,Ds
+Ethno Food,Beilagen,Hülsenfrüchte,52032,COCK,Sesamsaat schwarz,454-g-Pkg,,"6,59",Pkg,"1,00",PG,Pkg
+Ethno Food,Saucen,Saucen,50019,Uni-Eagle,Sriracha Mayo Sauce vegan,740-ml-Fl,,"4,79",Fl,"1,00",FL,Fl
+Ethno Food,Essig & Öl,Öl,157372,Lee Kum,Sesamöl blended vegan,"1,75-l-Flasche",,"22,19",Flasche,"1,00",FL,Flasche
+Ethno Food,Saucen,Saucen,15939,Kikkoman,Sojasauce vegan,1-l-Fl,,"9,83",Fl,"1,00",FL,Fl
+Getränke,Alkoholfreie Getränke,Limonaden,170234,Gröbi,Zitronenlimonade,6-Fl-Tray,"1,5-l-EW-Fl","2,01",Fl,"6,00",FL,Kolli
+Getränke,Alkoholfreie Getränke,Mineral- & Sodawasser,44396,aro,Mineralwasser Prickelnd,6-Fl-Tray,"1,5-l-Fl","0,33",Fl,"6,00",FL,Kolli
+Getränke,Heißgetränke,Kakao & Trinkschokolade,102864,Suchard Express,Express Backkakao,125-g-Pkg,,"4,67",Pkg,"1,00",PG,Pkg
+Getränke,Alkoholfreie Getränke,Fruchtsäfte & Fruchtnektar,6586,Rauch,Zitronensaft 100%,6-Fl-Tray,1-l-EW-Fl,"3,17",Fl,"6,00",FL,Kolli
+Getränke,Heißgetränke,Teebeutel,21206,TEEKANNE,Schwarzer Tee Earl Grey,40-Btl-Pkg,,"6,24",Pkg,"1,00",PG,Pkg
+Getränke,Heißgetränke,Teebeutel,158900,TEEKANNE,FixMille Kamillentee,160-Btl-Pkg,,"18,61",Pkg,"1,00",KA,Pkg
+Getränke,Heißgetränke,Kakao & Trinkschokolade,16734,Benco,Kakao Power Plus,1-kg-Btl,,"11,34",Btl,"1,00",BT,Btl
+Getränke,Alkoholfreie Getränke,Fruchtsäfte & Fruchtnektar,22548,RIOBA,Limettensaft 100%,"0,75-l-EW-Fl",,"2,19",Fl,"1,00",FL,Fl
+Getränke,Heißgetränke,Teebeutel,10104,TEEKANNE,Kräutertee 12 Kräuter,160-Btl-Pkg,,"18,61",Pkg,"1,00",KA,Pkg
+Getränke,Alkoholfreie Getränke,Sirup,32109,METRO Chef,Johannisbeer-Zitronensirup,"5,01-l-EW-Kanister",,"16,86",Knt,"1,00",KN,Knt
+Käse,Schnittkäse,Schnittkäse in Scheiben,47880,Alpi,Tilsiter Scheiben 45% F.i.Tr. würzig laktosefrei,1-kg-Pkg,,"14,94",Pkg,"1,00",PG,Pkg
+Käse,Cheddar,Cheddar in Scheiben,109681,Gusteria,Cheddar Scheiben rot 50% F.i.Tr. würzig,1-kg-Pkg,,"13,79",Pkg,"1,00",PG,Pkg
+Käse,Cheddar,Cheddar in Scheiben,18636,Festival Chef,Irische Cheddarscheiben 50% F.i.Tr. mild,1-kg-Pkg,,"18,62",Pkg,"1,00",PG,Pkg
+Käse,Hartkäse,Hartkäse gerieben,10751,aro,Emmentaler gerieben 45% F.i.Tr. mild,1-kg-Pkg,,"10,45",Pkg,"1,00",BT,Pkg
+Käse,Schnittkäse,Schnittkäse in Scheiben,13708,aro,Gouda Scheiben 48% F.i.Tr. mild,1-kg-Pkg,,"9,30",Pkg,"1,00",PG,Pkg
+Käse,Schnittkäse,Schnittkäse in Scheiben,32616,Kärntner Milch,Lesachtaler Scheiben 50% F.i.Tr. würzig laktosefrei,750-g-Pkg,,"12,02",Pkg,"1,00",PG,Pkg
+Käse,Schnittkäse,Schnittkäse ganz,142408,Alambra,Halloumi Grill und Bratkäse Natur 45% FiT,850-g-Stk,,"16,85",Stk,"1,00",ST,Stk
+Käse,Schnittkäse,Schnittkäse in Scheiben,92099,METRO Chef,Butterkäse Scheiben 45% F.i.Tr. mild,1-kg-Pkg,,"12,98",Pkg,"1,00",PG,Pkg
+Käse,Schnittkäse,Schnittkäse in Scheiben,92094,METRO Chef,Edamer Scheiben 40% F.i.Tr. mild,1-kg-Pkg,,"12,98",Pkg,"1,00",PG,Pkg
+Käse,Schnittkäse,Schnittkäse in Scheiben,80393,SalzburgMilch,Premium Käse Selektion Scheiben 45% F.i.Tr. mild bis würzig laktosefrei,1-kg-Pkg,,"17,24",Pkg,"1,00",PG,Pkg
+Konserven,Fertigsalate & Sauergemüse,Sauergemüse & Eingelegtes,17996,Frey,Delikatess Gurken 6-9cm,"3,2-kg-Glas",,"10,43",Glas,"1,00",GL,Glas
+Konserven,Gemüse- & Tomatenkonserven,Gemüsekonserven,74628,aro,Kichererbsen,"2,5-kg-Ds",,"5,27",Ds,"1,00",DS,Ds
+Konserven,Gemüse- & Tomatenkonserven,Gemüsekonserven,16175,aro,Riesenbohnen weiß,"2,5-kg-Ds",,"5,99",Ds,"1,00",DS,Ds
+Konserven,Gemüse- & Tomatenkonserven,Gemüsekonserven,112037,aro,Kidney Bohnen rot,"2,5-kg-Ds",,"7,07",Ds,"1,00",DS,Ds
+Konserven,Fertigsalate & Sauergemüse,Sauergemüse & Eingelegtes,12168,Felix,Aufschnittgurken,"3,1-kg-Glas",,"13,79",Glas,"1,00",GL,Glas
+Konserven,Gemüse- & Tomatenkonserven,Tomatenkonserven,52586,METRO Chef,Passierte Tomaten,1-l-Pkg,,"2,03",Pkg,"1,00",PG,Pkg
+Konserven,Gemüse- & Tomatenkonserven,Tomatenkonserven,67586,METRO Chef,Tomatenmark,800-g-Ds,,"4,19",Ds,"1,00",DS,Ds
+Molkereiprodukte,"Schlagobers, Topfen & Sauerrahm",Sauerrahm & Creme Fraiche,6091,aro,Creme Fraiche 38% Fett,1-kg-Kübel,,"7,58",Kübel,"1,00",BE,Kübel
+Molkereiprodukte,"Schlagobers, Topfen & Sauerrahm",Topfenprodukte,21289,METRO Chef,Topfen,5-kg-Kübel,,"24,14",Kübel,"1,00",KB,Kübel
+Molkereiprodukte,"Milchgetränke, Molke & Co.",Milchgetränke,104262,aro,"Kakao Magermilch 0,1% Fett",500-ml-Pkg,,"1,25",Pkg,"1,00",PG,Pkg
+Molkereiprodukte,"Butter, Margarine, Fette & Co.",Butter,17654,Metro Chef Bio,BIO Butter,250-g-Pkg,,"3,30",Pkg,"1,00",PG,Pkg
+Molkereiprodukte,"Milch, Buttermilch & Obers",Haltbarmilch,5790,Schärdinger,"Formil Haltbare Vollmilch 3,5% Fett",12x1-l-Karton,,"0,92",Pkg,"12,00",PG,Kolli
+Molkereiprodukte,Joghurt & Desserts,Naturjoghurt,23897,METRO Chef,"Naturjoghurt gerührt 3,6% Fett",5-kg-Kübel,,"11,83",Kübel,"1,00",KB,Kübel
+Molkereiprodukte,Joghurt & Desserts,Fruchtjoghurt,20645,METRO Chef,"Joghurt Pfirsich/Marille 3,2% Fett",5-kg-Kübel,,"14,13",Kübel,"1,00",KB,Kübel
+Molkereiprodukte,Joghurt & Desserts,Fruchtjoghurt,20646,METRO Chef,"Joghurt Heidelbeer 3,2% Fett",5-kg-Kübel,,"14,13",Kübel,"1,00",KB,Kübel
+Molkereiprodukte,"Butter, Margarine, Fette & Co.",Margarine,32529,Alsan,BIO Margarine,250-g-Pkg,,"2,01",Pkg,"1,00",PG,Pkg
+Molkereiprodukte,"Butter, Margarine, Fette & Co.",Margarine,50476,Rama,Pflanzencreme Culinesse,450-ml-Fl,,"2,63",Fl,"1,00",FL,Fl
+Obst & Gemüse,Obst,Steinobst,167916,,Zwetschken frisch Serbien,5-kg-Karton,,"16,04",kg,"1,00",KA,kg
+Obst & Gemüse,Gemüse,Paprika & Pfefferoni,167976,,Paprika rot frisch Österreich,5-kg-Karton,,"19,95",kg,"1,00",KA,kg
+Obst & Gemüse,Gemüse,Wurzel- & Suppengemüse,168002,,BIO Karotten frisch Österreich,5-kg-Kiste,,"12,02",kg,"1,00",KI,kg
+Obst & Gemüse,Obst,Zitrusfrüchte,168101,METRO Chef,Zitronen frisch Südafrika,5-kg-Sack,,"12,45",kg,"1,00",SK,kg
+Obst & Gemüse,Obst,Beeren & Trauben,27722,METRO Chef,Heidelbeeren frisch Österreich,1-kg-Korb,,"16,09",Korb,"1,00",KI,Korb
+Obst & Gemüse,Trockenfrüchte & Nüsse,Trockenfrüchte,23682,METRO Chef,Sultaninen,1-kg-Btl,,"6,54",Btl,"1,00",PG,Btl
+Obst & Gemüse,Gemüse,Salate,24935,,Eisbergsalat frisch Österreich,10-Stk-Kiste,,"0,99",Stk,"10,00",ST,Kolli
+Obst & Gemüse,Gemüse,Kräuter,6080,,Minze frisch Österreich,500-g-Tasse,,"13,79",Tasse,"1,00",TA,Tasse
+Obst & Gemüse,Trockenfrüchte & Nüsse,Trockenfrüchte,111686,METRO Chef,Getrocknete Tomaten,500-g-Pkg,,"6,89",Pkg,"1,00",PG,Pkg
+Obst & Gemüse,Obst,Beeren & Trauben,108008,,Erdbeeren frisch Österreich,900-g-Steige,,"8,27",kg,"1,00",PG,kg
+Obst & Gemüse,Gemüse,Kräuter,26060,,Petersilie glatt frisch Italien,500-g-Bund,,"5,74",Bund,"1,00",BD,Bund
+Obst & Gemüse,Gemüse,Tomaten,11540,,BIO Cocktailtomaten frisch Italien,3-kg-Kiste,,"24,12",Kiste,"1,00",KI,Kiste
+Obst & Gemüse,Gemüse,Tomaten,152981,,Tomaten rund Österreich,6-kg-Karton,,"10,74",Karton,"1,00",KI,Karton
+Obst & Gemüse,Gemüse,"Zwiebeln, Lauch & Knoblauch",24616,,Jungzwiebel frisch Italien,500-g-Bund,,"5,74",Bund,"1,00",BD,Bund
+Obst & Gemüse,Obst,Exotische Früchte,12662,,Wassermelone frisch Spanien,1-Stk,,"3,99",Stk,"1,00",ST,Stk
+Obst & Gemüse,Gemüse,Paprika & Pfefferoni,111709,,Chili rot frisch Italien,100-g-Packung,,"6,08",kg,"1,00",PG,kg
+Obst & Gemüse,Gemüse,Kartoffeln,96587,,BIO Süsskartoffel frisch Spanien,6-kg-Sack,,"30,98",Sack,"1,00",SK,Sack
+Obst & Gemüse,Obst,Exotische Früchte,7729,,Kiwi frisch Chile,3-kg-Karton,,"20,67",Karton,"1,00",KA,Karton
+Obst & Gemüse,Obst,Äpfel & Birnen,162440,,BIO Äpfel Topaz frisch Österreich,5-kg-Kiste,,"30,99",Kiste,"1,00",KI,Kiste
+Obst & Gemüse,Obst,Bananen,26794,,BIO Bananen Farbe 3-4 frisch Fairtrade Ecuador,ca. 1-kg-Pkg,,"2,98",kg,"1,00",KG,kg/Stk
+Obst & Gemüse,Gemüse,Zucchini & Melanzani,10929,,Melanzani Duett frisch Österreich,2-Stk-Pkg,,"3,90",Pkg,"1,00",PG,Pkg
+Obst & Gemüse,Obst,Steinobst,55464,,Marillen frisch Makedonien,5-kg-Kiste,,"20,64",Kiste,"1,00",KI,Kiste
+Obst & Gemüse,Trockenfrüchte & Nüsse,Nüsse,69741,METRO Chef,Nussmix Edelmischung getrocknet,1-kg-Pkg,,"20,69",Pkg,"1,00",PG,Pkg
+Obst & Gemüse,Obst,Äpfel & Birnen,10062,,BIO Birne Williams frisch Argentinien,6-kg-Kiste,,"30,98",Kiste,"1,00",KI,Kiste
+Obst & Gemüse,Gemüse,"Zwiebeln, Lauch & Knoblauch",69767,Metro Chef Bio,BIO Knoblauch weiß frisch Spanien,200-g-Pkg,,"3,09",Pkg,"1,00",PG,Pkg
+Obst & Gemüse,Obst,Exotische Früchte,136575,METRO Chef,Mango frisch Brasilien,1-Stk,,"1,79",Stk,"1,00",ST,Stk
+Obst & Gemüse,Gemüse,Kräuter,63656,,Koriander frisch Österreich,500-g-Kübel,,"20,34",Kübel,"1,00",PG,Kübel
+Obst & Gemüse,Gemüse,Kräuter,162407,METRO Chef,Schnittlauch frisch Deutschland,1-kg-Kiste,,"22,89",Kiste,"1,00",KI,Kiste
+Obst & Gemüse,Gemüse,Gurken,45931,,Gurken frisch Österreich,12-Stk-Karton,,"14,28",Karton,"1,00",KA,Karton
+Obst & Gemüse,Gemüse,"Zwiebeln, Lauch & Knoblauch",167822,METRO Chef,Zwiebel gelb frisch Österreich,25-kg-Sack,,"29,31",kg,"1,00",SK,kg
+Obst & Gemüse,Obst,Beeren & Trauben,167835,,Trauben Sultana frisch Italien,5-kg-Karton,,"17,25",kg,"1,00",KA,kg
+Produkte auf Pflanzenbasis,Käse auf Pflanzenbasis,Käse,112183,Simply V,Reibegenuss vegan,180-g-Pkg,,"3,44",Pkg,"1,00",PG,Pkg
+Produkte auf Pflanzenbasis,Drinks auf Planzenbasis,Drinks,32597,Metro Chef Bio,"BIO Haferdrink Barista 2,8% Fett",1-l-Pkg,,"1,25",Pkg,"1,00",PG,Pkg
+Produkte auf Pflanzenbasis,Drinks auf Planzenbasis,Drinks,32599,Metro Chef Bio,BIO Sojadrink 2% Fett,1-l-Pkg,,"1,25",Pkg,"1,00",PG,Pkg
+Produkte auf Pflanzenbasis,Käse auf Pflanzenbasis,Käse,13723,Joya,BIO Soja Joghurtalternative Natur Mild vegan,500-g-Pkg,,"2,01",Pkg,"1,00",PG,Pkg
+Produkte auf Pflanzenbasis,Käse auf Pflanzenbasis,Käse,21312,Sojarei,BIO Tofu geräuchert vegan,500-g-Pkg,,"6,08",Pkg,"1,00",PG,Pkg
+Produkte auf Pflanzenbasis,Käse auf Pflanzenbasis,Käse,86451,Schlagfix,Vegane Schlagcreme ungesüßt vegan,1-l-Pkg,,"4,70",Pkg,"1,00",PG,Pkg
+Produkte auf Pflanzenbasis,Käse auf Pflanzenbasis,Käse,40253,Bedda,Scheiben Classic vegan laktosefrei,150-g-Pkg,,"3,09",Pkg,"1,00",PG,Pkg
+Produkte auf Pflanzenbasis,Käse auf Pflanzenbasis,Käse,17402,Sojarei,BIO Tofu Natur vegan,1-kg-Pkg,,"9,19",Pkg,"1,00",PG,Pkg
+Produkte auf Pflanzenbasis,Käse auf Pflanzenbasis,Käse,34342,Violife,Scheiben Gouda Geschmack vegan laktosefrei,140-g-Pkg,,"3,32",Pkg,"1,00",PG,Pkg
+Putz- & Reinigungsmittel,Reinigungsmittel,Allzweckreiniger,108843,Frosch,Allzweck-Essigreiniger,5-l-Fl,,"20,72",Fl,"1,00",FL,Fl
+Putz- & Reinigungsmittel,Reinigungsmittel,Insektizide,62218,Aeroxon,Fliegenfänger,4-Stk-Pkg,,"2,79",Pkg,"1,00",PG,Pkg
+Süßware & Salzgebäck,"Pralinen, Schokolade & Riegel",Tafelschokolade,74528,Ritter Sport,Tafelschokolade Vegan Crunchy Mandel,100-g-Tafel,,"4,16",Tafel,"1,00",TF,Tafel
+Süßware & Salzgebäck,"Pralinen, Schokolade & Riegel",Tafelschokolade,74518,Ritter Sport,Tafelschokolade Vegan Salted Caramel,100-g-Tafel,,"4,16",Tafel,"1,00",TF,Tafel
+Süßware & Salzgebäck,"Pralinen, Schokolade & Riegel",Tafelschokolade,11489,Milka,Schokolade Schoko + Keks,300-g-Tafel,,"5,78",Tafel,"1,00",TF,Tafel
+Süßware & Salzgebäck,"Kaugummi, Bonbons & Süßigkeiten",Fruchtgummi & Lakritze,83013,Haribo,Fruchtgummi Pfirsiche,150-Stk-Ds,,"11,15",Ds,"1,00",DS,Ds
+Süßware & Salzgebäck,"Kaugummi, Bonbons & Süßigkeiten",Fruchtgummi & Lakritze,92506,Haribo,Fruchtgummi Frösche,150-Stk-Ds,,"11,15",Ds,"1,00",DS,Ds
+Süßware & Salzgebäck,"Pralinen, Schokolade & Riegel",Tafelschokolade,22615,Milka,Schokolade MMMAX Strawberry Cheesecake,300-g-Tafel,,"5,78",Tafel,"1,00",TF,Tafel
+Süßware & Salzgebäck,"Kaugummi, Bonbons & Süßigkeiten",Fruchtgummi & Lakritze,100462,Haribo,Fruchtgummi Balla Balla Magic,150-Stk-Ds,,"11,15",Ds,"1,00",DS,Ds
+Süßware & Salzgebäck,"Kaugummi, Bonbons & Süßigkeiten",Fruchtgummi & Lakritze,20815,Haribo,Fruchtgummi Pixel Sauer vegan,Ds,150 Stück,"11,15",Ds,"1,00",DS,Ds
+Süßware & Salzgebäck,"Pralinen, Schokolade & Riegel",Tafelschokolade,124050,Milka,Schokolade MMMax Nussini,270-g-Tafel,,"5,78",Tafel,"1,00",TF,Tafel
+Süßware & Salzgebäck,"Pralinen, Schokolade & Riegel",Tafelschokolade,11381,Milka,Schokolade Nuss Nougat,300-g-Tafel,,"5,78",Tafel,"1,00",TF,Tafel
+Süßware & Salzgebäck,"Kaugummi, Bonbons & Süßigkeiten",Fruchtgummi & Lakritze,10766,Haribo,Fruchtgummi Miami FIZZ sauer vegan,150-Stk-Pkg,,"11,15",Pkg,"1,00",DS,Pkg
+Süßware & Salzgebäck,"Pralinen, Schokolade & Riegel",Tafelschokolade,11435,Milka,Schokolade Trauben-Nuss,270-g-Tafel,,"5,78",Tafel,"1,00",TF,Tafel
+Trockensortiment,"Mehl, Brösel & Kartoffelprodukte",Mehl,24209,aro,Weizenmehl glatt,10x1-kg-Tray,,"0,83",kg,"10,00",PG,Kolli
+Trockensortiment,"Zucker, Süßungsmittel & Eispulver",Kristallzucker,54126,aro,Feinkristallzucker,10x1-kg-Pkg,,"1,07",Stk,"10,00",PG,Kolli
+Trockensortiment,"Essig, Dressing & Salatbeigaben",Balsamico,108147,METRO Chef,Aceto Balsamico di Modena 6%,5-l-Kanister,,"16,79",Kanister,"1,00",KN,Kanister
+Trockensortiment,"Konfitüren, Honig & Aufstriche",Konfitüre,24208,Darbo,Konfitüre Marille passiert,5-kg-Kübel,,"25,79",Kübel,"1,00",KB,Kübel
+Trockensortiment,"Konfitüren, Honig & Aufstriche",Süße Aufstriche,109711,Skippy,Aufstrich Erdnussbutter Cream,340-g-Glas,,"5,15",Glas,"1,00",GL,Glas
+Trockensortiment,Gewürze & Salz,Gewürze,24204,WIBERG,Chillies geschrotet,470-ml-Ds,,"11,55",Ds,"1,00",DS,Ds
+Trockensortiment,Öle & Fette,Frittierfett,55909,Senna,Frittierfett Top Zeropalm,20-l-Dose,,"107,99",Ds,"1,00",DS,Ds
+Trockensortiment,Öle & Fette,"Sonnenblumen-, Raps- & Tafelöl",23241,aro,Sonnenblumenöl,10-l-Fl,,"25,79",Fl,"1,00",KN,Fl
+Trockensortiment,"Backwaren, Backzutaten & Aromen",Backpulver,106212,aro,Backpulver,1-kg-Pkg,,"6,49",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Senf, Ketchup & Mayonnaise",Ketchup,23074,METRO Chef,Tomaten Ketchup,5-kg-Kübel,,"16,24",Kübel,"1,00",KB,Kübel
+Trockensortiment,"Backwaren, Backzutaten & Aromen",Trockenfrüchte & Nüsse,22927,Farmer's Country,Haselnüsse gehackt,1-kg-Pkg,,"13,86",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Senf, Ketchup & Mayonnaise",Senf,50827,METRO Chef,Estragonsenf,5-kg-Kübel,,"10,24",Kübel,"1,00",KB,Kübel
+Trockensortiment,"Reis, Hülsenfrüchte &  Couscous",Basmatireis,50865,METRO Chef,Basmatireis,1-kg-Pkg,,"4,79",Pkg,"1,00",PG,Pkg
+Trockensortiment,Gewürze & Salz,Gewürze,19587,Kotányi,Lorbeerblätter ganz,1200-ccm-Ds,,"10,57",Ds,"1,00",DS,Ds
+Trockensortiment,"Backwaren, Backzutaten & Aromen",Dekorartikel,53863,RUF,BIO Zitronenschale gerieben,5-g-Pkg,,"1,36",Pkg,"1,00",PG,Pkg
+Trockensortiment,Gewürze & Salz,Gewürze,18955,Kotányi,Knoblauch Pulver gemahlen,1200-ccm-Ds,,"18,19",Ds,"1,00",DS,Ds
+Trockensortiment,Öle & Fette,"Sonnenblumen-, Raps- & Tafelöl",53398,aro,Rapsöl,10-l-Fl,,"22,79",Fl,"1,00",FL,Fl
+Trockensortiment,"Konfitüren, Honig & Aufstriche",Honig,92154,aro,Waldhonig Spender,500-g-Fl,,"3,59",Fl,"1,00",FL,Fl
+Trockensortiment,Öle & Fette,Olivenöl,115520,METRO Chef,Olivenöl Extra Virgin,5-l-Ds,,"51,59",Ds,"1,00",DS,Ds
+Trockensortiment,"Cerealien, Müsli & Müsliriegel",Cerealien,49346,aro,Zerealien Cornflakes,750-g-Pkg,,"4,19",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Zucker, Süßungsmittel & Eispulver",Sirup,78965,Alnatura,BIO Agavendicksaft,250-ml-Fl,,"2,94",Fl,"1,00",FL,Fl
+Trockensortiment,"Cerealien, Müsli & Müsliriegel",Cerealien,83594,Alnatura,BIO Hefeflocken,100-g-Pkg,,"4,38",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Cerealien, Müsli & Müsliriegel",Müsliriegel,124937,Corny,BIG Schoko Banane,24x50-g-Pkg,,"13,92",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Cerealien, Müsli & Müsliriegel",Müsliriegel,124939,Corny,Big Schoko,24x50-g-Pkg,,"13,92",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Cerealien, Müsli & Müsliriegel",Müsliriegel,124942,Corny,Big Erdnuss-Schoko,24x50-g-Pkg,,"13,92",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Zucker, Süßungsmittel & Eispulver",Spezialzucker,16121,Wiener Zucker,Braunzucker,500-g-Pkg,,"2,99",Pkg,"1,00",PG,Pkg
+Trockensortiment,Gewürze & Salz,Gewürze,15347,Kotányi,Zimt gemahlen,1200-ccm-Ds,,"19,03",Ds,"1,00",DS,Ds
+Trockensortiment,"Zucker, Süßungsmittel & Eispulver",Sirup,36703,Bioquelle,BIO Ahornsirup,"0,5-l-Fl",,"21,59",Fl,"1,00",FL,Fl
+Trockensortiment,Gewürze & Salz,Salz,15143,Bad Ischler,Kristallsalz,500-g-Pkg,,"1,11",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Senf, Ketchup & Mayonnaise",Mayonnaise,89700,Hellmann's,Mayonnaise Vegan 52% Fett,3-l-Kübel,,"30,49",Kübel,"1,00",KB,Kübel
+Trockensortiment,"Konfitüren, Honig & Aufstriche",Konfitüre,14827,aro,Konfitüre Sauerkirsche,3-kg-Kübel,,"19,19",Kübel,"1,00",KB,Kübel
+Trockensortiment,Gewürze & Salz,Gewürze,97671,Kotányi,Bourbon Vanillepaste,50-g-Tube,,"4,61",Tube,"1,00",TB,Tube
+Trockensortiment,Öle & Fette,Kokosmilch,27763,Aroy-D,Kokosnussmilch,1-l-Pkg,,"7,67",Pkg,"1,00",PG,Pkg
+Trockensortiment,Gewürze & Salz,Gewürze,112316,WIBERG,Paprika geräuchert,470-ml-Ds,,"13,37",Ds,"1,00",DS,Ds
+Trockensortiment,"Cerealien, Müsli & Müsliriegel",Haferflocken,55753,aro,Haferflocken zart,1-kg-Pkg,,"2,39",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Konfitüren, Honig & Aufstriche",Konfitüre,14774,aro,Konfitüre Aprikose,3-kg-Kübel,,"15,59",Kübel,"1,00",KB,Kübel
+Trockensortiment,"Zucker, Süßungsmittel & Eispulver",Staubzucker,12763,Wiener Zucker,Staubzucker,20x500-g-Karton,,"1,43",Pkg,"20,00",PG,Kolli
+Trockensortiment,"Essig, Dressing & Salatbeigaben",Tafelessig,12625,Pickfein,Tafelessig 5%,5-l-Kanister,,"7,02",Knt,"1,00",KN,Knt
+Trockensortiment,"Backwaren, Backzutaten & Aromen",Vanille- & Vanillinzucker,11469,Kotányi,Vanillezucker,1200-ccm-Ds,,"8,19",Ds,"1,00",DS,Ds
+Trockensortiment,Gewürze & Salz,Gewürze,46203,METRO Chef,Paprika Edelsüß Spezial gemahlen,1000-ccm-Ds,,"12,59",Ds,"1,00",DS,Ds
+Trockensortiment,Gewürze & Salz,Gewürze,46204,METRO Chef,Paprika scharf gemahlen,1000-ccm-Ds,,"11,19",Ds,"1,00",DS,Ds
+Trockensortiment,Gewürze & Salz,Gewürze,46210,METRO Chef,Pfeffer schwarz gemahlen,1000-ccm-Ds,,"16,79",Ds,"1,00",DS,Ds
+Trockensortiment,Gewürze & Salz,Gewürze,46221,METRO Chef,Kreuzkümmel gemahlen,1000-ccm-Ds,,"13,29",Ds,"1,00",DS,Ds
+Trockensortiment,"Mehl, Brösel & Kartoffelprodukte",Stärke,165129,Agrana,Kartoffelstärke Stärkina,10-kg-Pkg,,"42,38",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Reis, Hülsenfrüchte &  Couscous",Basmatireis,165208,METRO Chef,Basmatireis,5-kg-Pkg,,"20,22",Pkg,"1,00",PG,Pkg
+Trockensortiment,"Senf, Ketchup & Mayonnaise",Mayonnaise,49982,METRO Chef,Mayonnaise 50% Fett,5-kg-Kübel,,"16,61",Kübel,"1,00",KB,Kübel
+Trockensortiment,"Konfitüren, Honig & Aufstriche",Süße Aufstriche,6981,aro,Aufstrich Nuss-Nougatcreme,750-g-Glas,,"4,55",Glas,"1,00",GL,Glas
+Trockensortiment,Gewürze & Salz,Gewürze,26326,METRO Chef,Röstzwiebeln gebacken,2-kg-Pkg,,"20,71",Pkg,"1,00",PG,Pkg
+Trockensortiment,Gewürze & Salz,Gewürze,102370,METRO Chef,Kurkuma gemahlen,330-ccm-Ds,,"5,59",Ds,"1,00",DS,Ds
+Trockensortiment,Gewürze & Salz,Gewürze,102722,METRO Chef,Cayennepfeffer gemahlen,330-ccm-Ds,,"3,35",Ds,"1,00",DS,Ds
+Trockensortiment,Suppenpulver & Einlagen,Suppenpulver,103734,Knorr,BIO Professional Gemüse Bouillon,1-kg-Pkg,,"31,19",Pkg,"1,00",PG,Pkg

@@ -1,0 +1,684 @@
+blatt,mahlzeit_id,gericht,referenz_personen,gerichtsfaktor,zutat,rezeptmenge,einheit,pro_person,mit_allem,vegetarisch,vegan,feste_gesamtmenge,gesamt_sheet,einkaufsmenge_sheet,einkaufseinheit_sheet,geschaeft_sheet,kategorie_sheet
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Kartoffeln (vw festkochend),1100,g,275,true,true,true,,7920,7.92,kg,Bio Bauer Attersee,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Karotten,200,g,50,true,true,true,,1440,1.44,kg,Metro,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Zwiebeln,140,g,35,true,true,true,,1008,1.008,kg,Metro,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Zucchini,1,St,0.25,true,true,true,,7.2,8,St,Metro,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Fenchel,1,St,0.25,true,true,true,,7.2,8,St,Metro,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Quark (mager),300,g,75,true,true,false,,1980,1.98,kg,Metro,Milchprodukt
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Joghurt,150,g,37.5,true,true,false,,990,0.99,kg,Metro,Milchprodukt
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Senf (mittelscharf),5,g,1.25,true,true,true,,36,0.036,kg,Metro,Sonstiges
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Knoblauch (Zehen),1,St,0.25,true,true,true,,7.2,8,St,Metro,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Zitronensaft,5,ml,1.25,true,true,true,,36,0.036,L,Metro,Sonstiges
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Schnittlauch,0.5,Bund,0.125,true,true,true,,3.6,3.6,Bund,Metro,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Salz,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Pfeffer,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Creme fraiche (vegan),250,g,62.5,false,false,true,,150,0.15,kg,Metro,Kühlprodukt
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Eisbergsalat,0.5,St,0.125,true,true,true,,3.6,4,St,Metro,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Salatgurke,0.5,St,0.125,true,true,true,,3.6,4,St,Metro,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Cocktailtomaten,28,g,7,true,true,true,,201.6,0.202,kg,Metro,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Paprika,70,g,17.5,true,true,true,,504,0.504,kg,Metro,Gemüse
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Olivenöl,50,ml,12.5,true,true,true,,360,0.36,L,Metro,Öle / Fette
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Balsamico,20,ml,5,false,false,false,,0,0,L,Metro,Gewürz
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Senf (mittelscharf),10,g,2.5,false,false,false,,0,0,kg,Metro,Sonstiges
+01.08.2026,1_1,Quarkkartoffeln mit Ofengemüse + Salat,4,1,Agavendicksaft,12,ml,3,true,true,true,,86.4,0.087,L,Metro,Sonstiges
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Kartoffelknödel (trocken),200,g,100,true,true,true,,2830,2.83,kg,Metro,Trockengut
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Champignons,250,g,125,true,true,true,,3537.5,3.538,kg,Metro,Gemüse
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Zwiebeln,164,g,82,true,true,true,,2320.6,2.321,kg,Metro,Gemüse
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Knoblauch (Zehen),2,St,1,true,true,true,,28.3,29,St,Metro,Gemüse
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Sojasoße,10,ml,5,true,true,true,,141.5,0.142,L,Metro,Sonstiges
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Mehl (Weizen),40,g,20,true,true,true,,566,0.566,kg,Metro,Backware
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Gemüsebrühe in L,300,ml,150,true,true,true,,4245,4.245,L,Metro,Sonstiges
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Sahne(vegan),95,ml,47.5,true,true,true,,1344.25,1.345,L,Metro,Kühlprodukt
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Salz,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Pfeffer,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Eisbergsalat,0.25,St,0.125,true,true,true,,3.5375,4,St,Metro,Gemüse
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Salatgurke,0.25,St,0.125,true,true,true,,3.5375,4,St,Metro,Gemüse
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Cocktailtomaten,14,g,7,true,true,true,,198.1,0.199,kg,Metro,Gemüse
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Paprika,35,g,17.5,true,true,true,,495.25,0.496,kg,Metro,Gemüse
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Olivenöl,25,ml,12.5,true,true,true,,353.75,0.354,L,Metro,Öle / Fette
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Balsamico,10,ml,5,true,true,true,,141.5,0.142,L,Metro,Gewürz
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Senf (mittelscharf),5,g,2.5,true,true,true,,70.75,0.071,kg,Metro,Sonstiges
+01.08.2026,1_2,Kartoffelknödel mit Pilzrahmsoße,2,1,Agavendicksaft,6,ml,3,true,true,true,,84.9,0.085,L,Metro,Sonstiges
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Brot (geschnitten),80,g,80,true,true,true,,2840,2.84,kg,Bäckerei Attersee,Backware
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Cornflakes,35,g,35,true,true,true,,1242.5,1.243,kg,Metro,Sonstiges
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,H-Milch,200,ml,200,true,true,false,,6240,6.24,L,Metro,Milchprodukt
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Hafermilch,200,ml,200,false,false,true,,860,0.86,L,Metro,Sonstiges
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Butter (vegan),5,g,5,false,false,true,,21.5,0.022,kg,Metro,Kühlprodukt
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Butter,5,g,5,true,true,false,,156,0.156,kg,Metro,Milchprodukt
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Nutella,20,g,20,true,true,true,,710,0.71,kg,Metro,Sonstiges
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Marmelade,10,g,10,true,true,true,,355,0.355,kg,Metro,Sonstiges
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Honig,5,g,5,true,true,true,,177.5,0.178,kg,Metro,Sonstiges
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Kaba,5,g,5,true,true,true,,177.5,0.178,kg,Metro,Sonstiges
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Tee,0.5,Pkg,0.5,true,true,true,,17.75,17.8,Pkg,Metro,Sonstiges
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Joghurt,20,g,20,true,true,false,,624,0.624,kg,Metro,Milchprodukt
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Joghurt(vegan),20,g,20,false,false,true,,86,0.086,kg,Metro,Kühlprodukt
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Käse (Aufschnitt),30,g,30,true,true,false,,936,0.936,kg,Metro,Milchprodukt
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,"Käse (Aufschnitt, vegan)",30,g,30,false,false,true,,129,0.129,kg,Metro,Kühlprodukt
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Kaffee,30,g,30,true,true,true,,1065,1.065,kg,Metro,Sonstiges
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Äpfel,0.25,St,0.25,true,true,true,,8.875,9,St,Metro,Obst
+02.08.2026,2_1,"Frühstück, nur Leiter Tag 2",1,1,Bananen,0.25,St,0.25,true,true,true,,8.875,9,St,Metro,Obst
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,"Mehl ( Weizen, 550)",2500,g,56.818182,true,true,true,,2017.045455,2.018,kg,Metro,Backware
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,"Mehl (Weizen, 1050)",2000,g,45.454545,true,true,true,,1613.636364,1.614,kg,Metro,Backware
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Kartoffeln (festkochend),8000,g,181.818182,true,true,true,,6454.545455,6.455,kg,Bio Bauer Attersee,Gemüse
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Hefe,70,g,1.590909,true,true,true,,56.477273,0.057,kg,Metro,Kühlprodukt
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Salz,150,g,3.409091,true,true,true,,121.022727,0.122,kg,Metro,Gewürz
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Sojadrink (ungesüßt),700,ml,15.909091,true,true,true,,564.772727,0.565,L,Metro,Getränk
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Kichererbsen,2000,g (ATG),45.454545,true,true,true,,1613.636364,1.614,kg (ATG),Metro,Dosengemüse
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Tahina,600,g,13.636364,true,true,true,,484.090909,0.485,kg,Metro,Sonstiges
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Knoblauch (Zehen),4,St,0.090909,true,true,true,,3.227273,4,St,Metro,Gemüse
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Zitronensaft,550,ml,12.5,true,true,true,,443.75,0.444,L,Metro,Sonstiges
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Kreuzkümmel (gemalen),10,g,0.227273,true,true,true,,8.068182,0.009,kg,Metro,Gewürz
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Tomaten (getrocknet),1000,g (ATG),22.727273,true,true,true,,806.818182,0.807,kg (ATG),Metro,Gemüse
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Bohnen (weiße Riesenbohnen),1500,g (ATG),34.090909,true,true,true,,1210.227273,1.211,kg (ATG),Metro,Dosengemüse
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Hefeflocken,120,g,2.727273,true,true,true,,96.818182,0.097,kg,Metro,Sonstiges
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Paprikapulver (edelsüß),10,g,0.227273,true,true,true,,8.068182,0.009,kg,Metro,Gewürz
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Käse (Aufschnitt),2,g,0.045455,true,true,false,,1.418182,0.002,kg,Metro,Milchprodukt
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,"Käse (Aufschnitt, laktosefrei)",500,g,11.363636,true,true,false,,354.545455,0.355,kg,Metro,Milchprodukt
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Paprika,1700,g,38.636364,true,true,true,,1371.590909,1.372,kg,Metro,Gemüse
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Gewürzgurke,2500,g (ATG),56.818182,true,true,true,,2017.045455,2.018,kg (ATG),Metro,Dosengemüse
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Gurke,5,St,0.113636,true,true,true,,4.034091,5,St,Metro,Gemüse
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Karotten,1700,g,38.636364,true,true,true,,1371.590909,1.372,kg,Metro,Gemüse
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Rapsöl,1000,ml,22.727273,true,true,true,,806.818182,0.807,L,Metro,Öle / Fette
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Agavendicksaft,165,ml,3.75,true,true,true,,133.125,0.134,L,Metro,Sonstiges
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Apfelessig,900,ml,20.454545,true,true,true,,726.136364,0.727,L,Metro,Sonstiges
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Gemüsebrühe in L,2750,ml,62.5,true,true,true,,2218.75,2.219,L,Metro,Sonstiges
+02.08.2026,2_2,Kartoffelbrot-Brotzeit mit Aufstrichen + Salat,44,1,Butter,500,g,11.363636,true,true,false,,354.545455,0.355,kg,Metro,Milchprodukt
+02.08.2026,2_3,Obst Sonntag,4,1,Äpfel,2,St,0.5,true,true,true,,17.75,18,St,Metro,Obst
+02.08.2026,2_3,Obst Sonntag,4,1,Bananen,2,St,0.5,true,true,true,,17.75,18,St,Metro,Obst
+02.08.2026,2_3,Obst Sonntag,4,1,Wassermelone,0.5,St,0.125,true,true,true,,4.4375,5,St,Metro,Obst
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Kartoffeln (vw festkochend),1000,g,333.333333,true,true,true,,11833.333333,11.834,kg,Bio Bauer Attersee,Gemüse
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Brokkoli,200,g,66.666667,true,true,true,,2366.666667,2.367,kg,Metro,Gemüse
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Sahne,250,ml,83.333333,true,true,false,,2600,2.6,L,Metro,Milchprodukt
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Milch,250,ml,83.333333,true,true,false,,2600,2.6,L,Metro,Milchprodukt
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Knoblauch (Zehen),1,St,0.333333,true,true,true,,11.833333,12,St,Metro,Gemüse
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Käse (grieben),250,g,83.333333,true,true,true,,2958.333333,2.959,kg,Metro,Milchprodukt
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Butter,50,g,16.666667,true,true,false,,520,0.52,kg,Metro,Milchprodukt
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Gemüsebrühe in g,10,g,3.333333,true,true,true,,118.333333,0.119,kg,Metro,Sonstiges
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Pfeffer,4,g,1.333333,true,true,true,,47.333333,0.048,kg,Metro,Gewürz
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Muskat,5,g,1.666667,true,true,true,,59.166667,0.06,kg,Metro,Gewürz
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Salz,4,g,1.333333,true,true,true,,47.333333,0.048,kg,Metro,Gewürz
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Olivenöl,20,ml,6.666667,true,true,true,,236.666667,0.237,L,Metro,Öle / Fette
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Sahne(vegan),250,ml,83.333333,false,false,true,,358.333333,0.359,L,Metro,Kühlprodukt
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Hafermilch,250,ml,83.333333,false,false,true,,358.333333,0.359,L,Metro,Sonstiges
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,"Käse (grieben, vegan)",250,g,83.333333,false,false,true,,358.333333,0.359,kg,Metro,Kühlprodukt
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Eisbergsalat,0.5,St,0.166667,true,true,true,,5.916667,6,St,Metro,Gemüse
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Salatgurke,0.5,St,0.166667,true,true,true,,5.916667,6,St,Metro,Gemüse
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Cocktailtomaten,28,g,9.333333,true,true,true,,331.333333,0.332,kg,Metro,Gemüse
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Paprika,70,g,23.333333,true,true,true,,828.333333,0.829,kg,Metro,Gemüse
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Olivenöl,50,ml,16.666667,true,true,true,,591.666667,0.592,L,Metro,Öle / Fette
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Balsamico,20,ml,6.666667,true,true,true,,236.666667,0.237,L,Metro,Gewürz
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Senf (mittelscharf),10,g,3.333333,true,true,true,,118.333333,0.119,kg,Metro,Sonstiges
+02.08.2026,2_4,Kartoffelgratin + Salat,3,1,Agavendicksaft,12,ml,4,true,true,true,,142,0.142,L,Metro,Sonstiges
+02.08.2026,2_5,Lager Cafe 70L Teig,4,1,Mehl (Weizen),0,g,0,true,true,true,30000,30000,30,kg,Metro,Backware
+02.08.2026,2_5,Lager Cafe 70L Teig,4,1,Zucker (weiß),0,g,0,true,true,true,12000,12000,12,kg,Metro,Sonstiges
+02.08.2026,2_5,Lager Cafe 70L Teig,4,1,Vanillezucker,0,g,0,true,true,true,960,960,0.96,kg,Metro,Sonstiges
+02.08.2026,2_5,Lager Cafe 70L Teig,4,1,Backpulver,0,Pkg,0,true,true,true,5,5,5,Pkg,Metro,Sonstiges
+02.08.2026,2_5,Lager Cafe 70L Teig,4,1,Sonnenblumenöl,0,ml,0,true,true,true,4000,4000,4,L,Metro,Öle / Fette
+02.08.2026,2_5,Lager Cafe 70L Teig,4,1,H-Milch,0,ml,0,true,true,true,35000,35000,35,L,Metro,Milchprodukt
+02.08.2026,2_5,Lager Cafe 70L Teig,4,1,Sahne(vegan),0,ml,0,true,true,true,10000,10000,10,L,Metro,Kühlprodukt
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Brot (geschnitten),80,g,80,true,true,true,,2840,2.84,kg,Bäckerei Attersee,Backware
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Cornflakes,35,g,35,true,true,true,,1242.5,1.243,kg,Metro,Sonstiges
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,H-Milch,200,ml,200,true,true,false,,6240,6.24,L,Metro,Milchprodukt
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Hafermilch,200,ml,200,false,false,true,,860,0.86,L,Metro,Sonstiges
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Butter (vegan),5,g,5,false,false,true,,21.5,0.022,kg,Metro,Kühlprodukt
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Butter,5,g,5,true,true,false,,156,0.156,kg,Metro,Milchprodukt
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Nutella,20,g,20,true,true,true,,710,0.71,kg,Metro,Sonstiges
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Marmelade,10,g,10,true,true,true,,355,0.355,kg,Metro,Sonstiges
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Honig,5,g,5,true,true,false,,156,0.156,kg,Metro,Sonstiges
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Kaba,5,g,5,true,true,true,,177.5,0.178,kg,Metro,Sonstiges
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Tee,0.5,Pkg,0.5,true,true,true,,17.75,17.8,Pkg,Metro,Sonstiges
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Joghurt,20,g,20,true,true,false,,624,0.624,kg,Metro,Milchprodukt
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Joghurt(vegan),20,g,20,false,false,true,,86,0.086,kg,Metro,Kühlprodukt
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Käse (Aufschnitt),30,g,30,true,true,false,,936,0.936,kg,Metro,Milchprodukt
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,"Käse (Aufschnitt, vegan)",30,g,30,false,false,true,,129,0.129,kg,Metro,Kühlprodukt
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Kaffee,30,g,30,true,true,true,,1065,1.065,kg,Metro,Sonstiges
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Äpfel,0.25,St,0.25,true,true,true,,8.875,9,St,Metro,Obst
+03.08.2026,3_1,"Frühstück, nur Leiter Tag 3",1,1,Bananen,0.25,St,0.25,true,true,true,,8.875,9,St,Metro,Obst
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Schupfnudeln,1000,g,250,true,true,false,,7800,7.8,kg,Metro,Teigware
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Schupfnudeln (vegan),1000,g,250,false,false,true,,1075,1.075,kg,Metro,Teigware
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Sauerkraut,500,g (ATG),125,true,true,true,,4437.5,4.438,kg (ATG),Metro,Dosengemüse
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Öl,70,ml,17.5,true,true,true,,621.25,0.622,L,Metro,Öle / Fette
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Zwiebeln,40,g,10,true,true,true,,355,0.355,kg,Metro,Gemüse
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Äpfel,0.5,St,0.125,true,true,true,,4.4375,5,St,Metro,Obst
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Lorbeerblätter,2,St,0.5,true,true,true,,17.75,18,St,Metro,Gewürz
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Wachholderbeeren (g),0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Kümmel gemahlen,0,Pkg,0,true,true,true,,0,0,Pkg,Metro,Gewürz
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Muskat,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Gemüsebrühe in L,100,ml,25,true,true,true,,887.5,0.888,L,Metro,Sonstiges
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Salz,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Pfeffer,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Apfelmus,300,g,75,true,true,true,,2662.5,2.663,kg,Metro,Dosenobst
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Zimt,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Zucker (weiß),0,g,0,true,true,true,,0,0,kg,Metro,Sonstiges
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Eisbergsalat,0.5,St,0.125,true,true,true,,4.4375,5,St,Metro,Gemüse
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Salatgurke,0.5,St,0.125,true,true,true,,4.4375,5,St,Metro,Gemüse
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Cocktailtomaten,28,g,7,true,true,true,,248.5,0.249,kg,Metro,Gemüse
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Paprika,70,g,17.5,true,true,true,,621.25,0.622,kg,Metro,Gemüse
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Olivenöl,50,ml,12.5,true,true,true,,443.75,0.444,L,Metro,Öle / Fette
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Balsamico,20,ml,5,true,true,true,,177.5,0.178,L,Metro,Gewürz
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Senf (mittelscharf),10,g,2.5,true,true,true,,88.75,0.089,kg,Metro,Sonstiges
+03.08.2026,3_2,"Schupfnudeln mit Sauerkraut + Salat für verrückte Leute auch mit Apfelmus und Zimt, nur Helfer",4,1,Agavendicksaft,12,ml,3,true,true,true,,106.5,0.107,L,Metro,Sonstiges
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Äpfel,2,St,0.5,true,true,true,,119.45,120,St,Metro,Obst
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Bananen,2,St,0.5,true,true,true,,119.45,120,St,Metro,Obst
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Wassermelone,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Obst
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Butter,167,g,41.75,true,true,false,,9101.5,9.102,kg,Metro,Milchprodukt
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Zucker (weiß),145,g,36.25,true,true,false,,7902.5,7.903,kg,Metro,Sonstiges
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Vanillezucker,6,g,1.5,true,true,false,,327,0.327,kg,Metro,Sonstiges
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Salz,0,g,0,true,true,false,,0,0,kg,Metro,Gewürz
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Eier,3.3,St,0.825,true,true,false,,179.85,180,St,Metro,Sonstiges
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Mehl (Weizen),105,g,26.25,true,true,false,,5722.5,5.723,kg,Metro,Backware
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Backpulver,0.2,Pkg,0.05,true,true,false,,10.9,10.9,Pkg,Metro,Sonstiges
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,"Mandeln (gemalen, blanchiert)",84,g,21,true,true,false,,4578,4.578,kg,Metro,Backware
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Zartbitterschokolade,84,g,21,true,true,false,,4578,4.578,kg,Metro,Süßigkeiten / Snacks
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Sauerkirschen,308,g (ATG),77,true,true,false,,16786,16.786,kg (ATG),Metro,Dosenobst
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Backpulver,1,Pkg,0.25,false,false,true,,5.225,5.3,Pkg,Metro,Sonstiges
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Zucker (braun),125,g,31.25,false,false,true,,653.125,0.654,kg,Metro,Sonstiges
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Sojajoghurt,155,g,38.75,false,false,true,,809.875,0.81,kg,Metro,Kühlprodukt
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Sonnenblumenöl,77.5,ml,19.375,false,false,true,,404.9375,0.405,L,Metro,Öle / Fette
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Zitronenabrieb,1,Pkg,0.25,false,false,true,,5.225,5.3,Pkg,Metro,Gewürz
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Zitronensaft,37,ml,9.25,false,false,true,,193.325,0.194,L,Metro,Sonstiges
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Mehl (Weizen),186,g,46.5,false,false,true,,971.85,0.972,kg,Metro,Backware
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Zitronensaft,30,ml,7.5,false,false,true,,156.75,0.157,L,Metro,Sonstiges
+03.08.2026,3_3,Obst / Kirschkuchen & Zitronenkuchen (vegan),4,1,Puderzucker,93,g,23.25,false,false,true,,485.925,0.486,kg,Metro,Sonstiges
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Kartoffeln (vw festkochend),1100,g,275,true,true,true,,65697.5,65.698,kg,Bio Bauer Attersee,Gemüse
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Frittierfett,s,kg,,true,true,true,,0,0,kg,Metro,Öle / Fette
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Salz,30,g,7.5,true,true,true,,1791.75,1.792,kg,Metro,Gewürz
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Paprikapulver (edelsüß),10,g,2.5,true,true,true,,597.25,0.598,kg,Metro,Gewürz
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Knoblauchpulver,4,g,1,true,true,true,,238.9,0.239,kg,Metro,Gewürz
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Kurkuma,1,g,0.25,true,true,true,,59.725,0.06,kg,Metro,Gewürz
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Frittieröl,0.4,L,0.1,true,true,true,,23.89,23.9,L,Metro,Öle / Fette
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Salat,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Gurke,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Tomaten,200,g,50,true,true,true,,11945,11.945,kg,Metro,Gemüse
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Halloumi,320,g,80,true,true,false,,17440,17.44,kg,Metro,Milchprodukt
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Zwiebeln,50,g,12.5,true,true,true,,2986.25,2.987,kg,Metro,Gemüse
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Öl,10,ml,2.5,true,true,true,,597.25,0.598,L,Metro,Öle / Fette
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Tomatenmark,30,g,7.5,true,true,true,,1791.75,1.792,kg,Metro,Dosengemüse
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Currypulver,15,g,3.75,true,true,true,,895.875,0.896,kg,Metro,Gewürz
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Tomaten (passiert),400,g,100,true,true,true,,23890,23.89,kg,Metro,Dosengemüse
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Kokosmilch,100,ml,25,true,true,true,,5972.5,5.973,L,Metro,Konserve
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Salz,2,g,0.5,true,true,true,,119.45,0.12,kg,Metro,Gewürz
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Pfeffer,1,g,0.25,true,true,true,,59.725,0.06,kg,Metro,Gewürz
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Zucker (weiß),2,g,0.5,true,true,true,,119.45,0.12,kg,Metro,Sonstiges
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Ketchup,160,ml,40,true,true,true,,9556,9.556,L,Metro,Sonstiges
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Mayonaise,160,ml,40,true,true,false,,8720,8.72,L,Metro,Milchprodukt
+03.08.2026,3_4,"Pommesbude mit vegetarischem Taxi Teller (Halloumi, Salat,..)",4,1,Tofu,640,g,160,false,false,true,,3344,3.344,kg,Metro,Kühlprodukt
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Brot (geschnitten),80,g,80,true,true,true,,19112,19.112,kg,Bäckerei Attersee,Backware
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Cornflakes,0,g,0,true,true,true,,0,0,kg,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,H-Milch,40,ml,40,true,true,false,,8720,8.72,L,Metro,Milchprodukt
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Hafermilch,150,ml,150,false,false,true,,3135,3.135,L,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Butter (vegan),7,g,7,false,false,true,,146.3,0.147,kg,Metro,Kühlprodukt
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Butter,5,g,5,true,true,false,,1090,1.09,kg,Metro,Milchprodukt
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Nutella,20,g,20,true,true,true,,4778,4.778,kg,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Marmelade,10,g,10,true,true,true,,2389,2.389,kg,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Honig,5,g,5,true,true,false,,1090,1.09,kg,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Kaba,2,g,2,true,true,true,,477.8,0.478,kg,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Tee,0.25,Pkg,0.25,true,true,true,,59.725,59.8,Pkg,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Joghurt,20,g,20,true,true,false,,4360,4.36,kg,Metro,Milchprodukt
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Joghurt(vegan),0,g,0,false,false,true,,0,0,kg,Metro,Kühlprodukt
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Käse (Aufschnitt),30,g,30,true,true,false,,6540,6.54,kg,Metro,Milchprodukt
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,"Käse (Aufschnitt, vegan)",30,g,30,false,false,true,,627,0.627,kg,Metro,Kühlprodukt
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Kaffee,30,g,30,true,true,true,,7167,7.167,kg,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Äpfel,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Bananen,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Haferflocken,25,g,25,true,true,true,,5972.5,5.973,kg,Metro,Trockengemüse
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Hafermilch,37.5,ml,37.5,true,true,true,,8958.75,8.959,L,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Äpfel,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Nussmischung,5,g,5,true,true,true,,1194.5,1.195,kg,Metro,Nüsse
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Zitronensaft,2,ml,2,true,true,true,,477.8,0.478,L,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Rosinen,5,g,5,true,true,true,,1194.5,1.195,kg,Metro,Trockenobst
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Sojajoghurt,50,g,50,true,true,true,,11945,11.945,kg,Metro,Kühlprodukt
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Agavendicksaft,2,ml,2,true,true,true,,477.8,0.478,L,Metro,Sonstiges
+04.08.2026,4_1,Frühstück + Bircher Müsli Tag 4,1,1,Zimt,1,g,1,true,true,true,,238.9,0.239,kg,Metro,Gewürz
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Kartoffeln (vw festkochend),250,g,45.454545,true,true,true,,10859.090909,10.86,kg,Bio Bauer Attersee,Gemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Süßkartoffeln,250,g,45.454545,true,true,true,,10859.090909,10.86,kg,Metro,Gemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Aubergine,0.7,St,0.127273,true,true,true,,30.405455,31,St,Metro,Gemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Karotten,200,g,36.363636,true,true,true,,8687.272727,8.688,kg,Metro,Gemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Zwiebeln,170,g,30.909091,true,true,true,,7384.181818,7.385,kg,Metro,Gemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Knoblauch (Zehen),2,St,0.363636,true,true,true,,86.872727,87,St,Metro,Gemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Erdnussbutter,250,g,45.454545,true,true,true,,10859.090909,10.86,kg,Metro,Sonstiges
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Tomatenmark,45,g,8.181818,true,true,true,,1954.636364,1.955,kg,Metro,Dosengemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Gemüsebrühe in L,800,ml,145.454545,true,true,true,,34749.090909,34.75,L,Metro,Sonstiges
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Currypulver,5,g,0.909091,true,true,true,,217.181818,0.218,kg,Metro,Gewürz
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Räuchertofu,200,g,36.363636,true,true,true,,8687.272727,8.688,kg,Metro,Kühlprodukt
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Öl,0,ml,0,true,true,true,,0,0,L,Metro,Öle / Fette
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Salz,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Pfeffer,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Chilipulver,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Cayennepfeffer,0,g,0,true,true,true,,0,0,kg,Metro,Gewürz
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Reis (Basmati),250,g,45.454545,true,true,true,,10859.090909,10.86,kg,Metro,Getreide
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Eisbergsalat,0.5,St,0.090909,true,true,true,,21.718182,22,St,Metro,Gemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Salatgurke,0.5,St,0.090909,true,true,true,,21.718182,22,St,Metro,Gemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Cocktailtomaten,28,g,5.090909,true,true,true,,1216.218182,1.217,kg,Metro,Gemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Paprika,70,g,12.727273,true,true,true,,3040.545455,3.041,kg,Metro,Gemüse
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Olivenöl,50,ml,9.090909,true,true,true,,2171.818182,2.172,L,Metro,Öle / Fette
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Balsamico,20,ml,3.636364,true,true,true,,868.727273,0.869,L,Metro,Gewürz
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Senf (mittelscharf),10,g,1.818182,true,true,true,,434.363636,0.435,kg,Metro,Sonstiges
+04.08.2026,4_2,Afrikanischer Kartoffeleintopf (Mafé),5.5,1,Agavendicksaft,12,ml,2.181818,true,true,true,,521.236364,0.522,L,Metro,Sonstiges
+04.08.2026,4_3,Obst,4,1,Birnen,300,g,75,true,true,true,,17917.5,17.918,kg,Metro,Obst
+04.08.2026,4_3,Obst,4,1,Bananen,2,St,0.5,true,true,true,,119.45,120,St,Metro,Obst
+04.08.2026,4_3,Obst,4,1,Wassermelone,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Obst
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Kartoffeln (vw festkochend),1200,g,300,true,true,true,,71670,71.67,kg,Bio Bauer Attersee,Gemüse
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Tomatenmark,40,g,10,true,true,true,,2389,2.389,kg,Metro,Dosengemüse
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Butter,40,g,10,true,true,false,,2180,2.18,kg,Metro,Milchprodukt
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Creme fraiche,85,g,21.25,true,true,false,,4632.5,4.633,kg,Metro,Milchprodukt
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Frühlingszwiebeln,2,St,0.5,true,true,true,,119.45,120,St,Metro,Gemüse
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Käse (Cheddar),40,g,10,true,true,false,,2180,2.18,kg,Metro,Milchprodukt
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Emmentaler (gerieben),40,g,10,true,true,false,,2180,2.18,kg,Metro,Milchprodukt
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Olivenöl,40,ml,10,true,true,true,,2389,2.389,L,Metro,Öle / Fette
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Butter (vegan),40,g,10,false,false,true,,209,0.209,kg,Metro,Kühlprodukt
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Creme fraiche (vegan),85,g,21.25,false,false,true,,444.125,0.445,kg,Metro,Kühlprodukt
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,"Käse (grieben, vegan)",80,g,20,false,false,true,,418,0.418,kg,Metro,Kühlprodukt
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Eisbergsalat,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Salatgurke,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Cocktailtomaten,28,g,7,true,true,true,,1672.3,1.673,kg,Metro,Gemüse
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Paprika,70,g,17.5,true,true,true,,4180.75,4.181,kg,Metro,Gemüse
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Olivenöl,50,ml,12.5,true,true,true,,2986.25,2.987,L,Metro,Öle / Fette
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Balsamico,20,ml,5,true,true,true,,1194.5,1.195,L,Metro,Gewürz
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Senf (mittelscharf),10,g,2.5,true,true,true,,597.25,0.598,kg,Metro,Sonstiges
+04.08.2026,4_4,David Hasselhoff's Kartoffeln = Fächerkartoffeln,4,1,Agavendicksaft,12,ml,3,true,true,true,,716.7,0.717,L,Metro,Sonstiges
+05.08.2026,5_1,Frühstück Tag 5,1,1,Brot (geschnitten),80,g,80,true,true,true,,19112,19.112,kg,Bäckerei Attersee,Backware
+05.08.2026,5_1,Frühstück Tag 5,1,1,Cornflakes,35,g,35,true,true,true,,8361.5,8.362,kg,Metro,Sonstiges
+05.08.2026,5_1,Frühstück Tag 5,1,1,H-Milch,200,ml,200,true,true,false,,43600,43.6,L,Metro,Milchprodukt
+05.08.2026,5_1,Frühstück Tag 5,1,1,Hafermilch,200,ml,200,false,false,true,,4180,4.18,L,Metro,Sonstiges
+05.08.2026,5_1,Frühstück Tag 5,1,1,Butter (vegan),5,g,5,false,false,true,,104.5,0.105,kg,Metro,Kühlprodukt
+05.08.2026,5_1,Frühstück Tag 5,1,1,Butter,5,g,5,true,true,false,,1090,1.09,kg,Metro,Milchprodukt
+05.08.2026,5_1,Frühstück Tag 5,1,1,Nutella,20,g,20,true,true,true,,4778,4.778,kg,Metro,Sonstiges
+05.08.2026,5_1,Frühstück Tag 5,1,1,Marmelade,10,g,10,true,true,true,,2389,2.389,kg,Metro,Sonstiges
+05.08.2026,5_1,Frühstück Tag 5,1,1,Honig,5,g,5,true,true,false,,1090,1.09,kg,Metro,Sonstiges
+05.08.2026,5_1,Frühstück Tag 5,1,1,Kaba,5,g,5,true,true,true,,1194.5,1.195,kg,Metro,Sonstiges
+05.08.2026,5_1,Frühstück Tag 5,1,1,Tee,0.5,Pkg,0.5,true,true,true,,119.45,119.5,Pkg,Metro,Sonstiges
+05.08.2026,5_1,Frühstück Tag 5,1,1,Joghurt,20,g,20,true,true,false,,4360,4.36,kg,Metro,Milchprodukt
+05.08.2026,5_1,Frühstück Tag 5,1,1,Joghurt(vegan),20,g,20,false,false,true,,418,0.418,kg,Metro,Kühlprodukt
+05.08.2026,5_1,Frühstück Tag 5,1,1,Käse (Aufschnitt),30,g,30,true,true,false,,6540,6.54,kg,Metro,Milchprodukt
+05.08.2026,5_1,Frühstück Tag 5,1,1,"Käse (Aufschnitt, vegan)",30,g,30,false,false,true,,627,0.627,kg,Metro,Kühlprodukt
+05.08.2026,5_1,Frühstück Tag 5,1,1,Kaffee,30,g,30,true,true,true,,7167,7.167,kg,Metro,Sonstiges
+05.08.2026,5_1,Frühstück Tag 5,1,1,Äpfel,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+05.08.2026,5_1,Frühstück Tag 5,1,1,Bananen,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Brot (geschnitten),3000,g,68.181818,true,true,true,,16288.636364,16.289,kg,Bäckerei Attersee,Backware
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Kichererbsen,2000,g (ATG),45.454545,true,true,true,,10859.090909,10.86,kg (ATG),Metro,Dosengemüse
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Tahina,600,g,13.636364,true,true,true,,3257.727273,3.258,kg,Metro,Sonstiges
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Knoblauch (Zehen),4,St,0.090909,true,true,true,,21.718182,22,St,Metro,Gemüse
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Zitronensaft,550,ml,12.5,true,true,true,,2986.25,2.987,L,Metro,Sonstiges
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Kreuzkümmel (gemalen),10,g,0.227273,true,true,true,,54.295455,0.055,kg,Metro,Gewürz
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Tomaten (getrocknet),1000,g (ATG),22.727273,true,true,true,,5429.545455,5.43,kg (ATG),Metro,Gemüse
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Bohnen (weiße Riesenbohnen),1500,g (ATG),34.090909,true,true,true,,8144.318182,8.145,kg (ATG),Metro,Dosengemüse
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Hefeflocken,120,g,2.727273,true,true,true,,651.545455,0.652,kg,Metro,Sonstiges
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Paprikapulver (edelsüß),10,g,0.227273,true,true,true,,54.295455,0.055,kg,Metro,Gewürz
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Salz,15,g,0.340909,true,true,true,,81.443182,0.082,kg,Metro,Gewürz
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Butter (vegan),200,g,4.545455,false,false,true,,95,0.095,kg,Metro,Kühlprodukt
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Butter,200,g,4.545455,true,true,false,,990.909091,0.991,kg,Metro,Milchprodukt
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Käse (Aufschnitt),1000,g,22.727273,true,true,true,,5429.545455,5.43,kg,Metro,Milchprodukt
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,"Käse (Aufschnitt, vegan)",1000,g,22.727273,false,false,true,,475,0.475,kg,Metro,Kühlprodukt
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,"Käse (Aufschnitt, laktosefrei)",,g,0,false,false,false,,0,0,kg,Metro,Milchprodukt
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Paprika,1700,g,38.636364,true,true,true,,9230.227273,9.231,kg,Metro,Gemüse
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Gurke,5,St,0.113636,true,true,true,,27.147727,28,St,Metro,Gemüse
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Karotten,1700,g,38.636364,true,true,true,,9230.227273,9.231,kg,Metro,Gemüse
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Gewürzgurke,2500,g (ATG),56.818182,true,true,true,,13573.863636,13.574,kg (ATG),Metro,Dosengemüse
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Rapsöl,1000,ml,22.727273,true,true,true,,5429.545455,5.43,L,Metro,Öle / Fette
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Agavendicksaft,170,ml,3.863636,true,true,true,,923.022727,0.924,L,Metro,Sonstiges
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Essig,900,ml,20.454545,true,true,true,,4886.590909,4.887,L,Metro,Gewürz
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Gemüsebrühe in L,2800,ml,63.636364,true,true,true,,15202.727273,15.203,L,Metro,Sonstiges
+05.08.2026,5_2,Kartoffelbrot-brotzeit mit Aufstrichen + Salat + Kartoffelsalat,44,1,Kartoffeln (festkochend),8000,g,181.818182,true,true,true,,43436.363636,43.437,kg,Bio Bauer Attersee,Gemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Kidneybohnen,250,g (ATG),62.5,true,true,true,,14931.25,14.932,kg (ATG),Metro,Dosengemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Zwiebeln,85,g,21.25,true,true,true,,5076.625,5.077,kg,Metro,Gemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Knoblauch (Zehen),1,St,0.25,true,true,true,,59.725,60,St,Metro,Gemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Haferflocken,60,g,15,true,true,true,,3583.5,3.584,kg,Metro,Trockengemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Mehl (Weizen),25,g,6.25,true,true,true,,1493.125,1.494,kg,Metro,Backware
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Öl,13,ml,3.25,true,true,true,,776.425,0.777,L,Metro,Öle / Fette
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Sojasoße,15,ml,3.75,true,true,true,,895.875,0.896,L,Metro,Sonstiges
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Mittelscharfer Senf,15,g,3.75,true,true,true,,895.875,0.896,kg,Metro,Gewürz
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Gemüsebrühe in g,6,g,1.5,true,true,true,,358.35,0.359,kg,Metro,Sonstiges
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Paprikapulver (geräuchert),8,g,2,true,true,true,,477.8,0.478,kg,Metro,Gewürz
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Kreuzkümmel (gemalen),4,g,1,true,true,true,,238.9,0.239,kg,Metro,Gewürz
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Cayennepfeffer,2,g,0.5,true,true,true,,119.45,0.12,kg,Metro,Gewürz
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Salz,2,g,0.5,true,true,true,,119.45,0.12,kg,Metro,Gewürz
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Pfeffer,3,g,0.75,true,true,true,,179.175,0.18,kg,Metro,Gewürz
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Kartoffeln (vw festkochend),800,g,200,true,true,true,,47780,47.78,kg,Bio Bauer Attersee,Gemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Semmeln,4,St,1,true,true,true,,238.9,239,St,Bäckerei Attersee,Backware
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Tomaten,75,g,18.75,true,true,true,,4479.375,4.48,kg,Metro,Gemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Salat,0.15,St,0.0375,true,true,true,,8.95875,9,St,Metro,Gemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Essiggurken (Streifen),75,g (ATG),18.75,true,true,true,,4479.375,4.48,kg (ATG),Metro,Dosengemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Ketchup,160,ml,40,true,true,false,,8720,8.72,L,Metro,Sonstiges
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Mayonaise,160,ml,40,true,true,false,,8720,8.72,L,Metro,Milchprodukt
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Mayonaise (vegan),160,ml,40,false,false,true,,836,0.836,L,Metro,Kühlprodukt
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Eisbergsalat,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Salatgurke,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Cocktailtomaten,28,g,7,true,true,true,,1672.3,1.673,kg,Metro,Gemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Paprika,70,g,17.5,true,true,true,,4180.75,4.181,kg,Metro,Gemüse
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Olivenöl,50,ml,12.5,true,true,true,,2986.25,2.987,L,Metro,Öle / Fette
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Balsamico,20,ml,5,true,true,true,,1194.5,1.195,L,Metro,Gewürz
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Senf (mittelscharf),10,g,2.5,true,true,true,,597.25,0.598,kg,Metro,Sonstiges
+05.08.2026,5_4,Veggie-Burger mit Kartoffelwedges,4,1,Agavendicksaft,12,ml,3,true,true,true,,716.7,0.717,L,Metro,Sonstiges
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Brot (geschnitten),80,g,80,true,true,true,,19112,19.112,kg,Bäckerei Attersee,Backware
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Cornflakes,0,g,0,true,true,true,,0,0,kg,Metro,Sonstiges
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,H-Milch,100,ml,100,true,true,false,,21800,21.8,L,Metro,Milchprodukt
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Hafermilch,150,ml,150,false,false,true,,3135,3.135,L,Metro,Sonstiges
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Butter (vegan),5,g,5,false,false,true,,104.5,0.105,kg,Metro,Kühlprodukt
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Butter,5,g,5,true,true,false,,1090,1.09,kg,Metro,Milchprodukt
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Nutella,20,g,20,true,true,true,,4778,4.778,kg,Metro,Sonstiges
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Marmelade,10,g,10,true,true,true,,2389,2.389,kg,Metro,Sonstiges
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Honig,5,g,5,true,true,false,,1090,1.09,kg,Metro,Sonstiges
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Kaba,5,g,5,true,true,true,,1194.5,1.195,kg,Metro,Sonstiges
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Tee,0.5,Pkg,0.5,true,true,true,,119.45,119.5,Pkg,Metro,Sonstiges
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Joghurt,20,g,20,true,true,false,,4360,4.36,kg,Metro,Milchprodukt
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Joghurt(vegan),20,g,20,false,false,true,,418,0.418,kg,Metro,Kühlprodukt
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Käse (Aufschnitt),30,g,30,true,true,false,,6540,6.54,kg,Metro,Milchprodukt
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,"Käse (Aufschnitt, vegan)",30,g,30,false,false,true,,627,0.627,kg,Metro,Kühlprodukt
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Kaffee,30,g,30,true,true,true,,7167,7.167,kg,Metro,Sonstiges
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Äpfel,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+06.08.2026,6_1,Frühstück + Porridge Tag 6,1,1,Bananen,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,Brot (geschnitten),100,g,100,true,true,true,,23890,23.89,kg,Bäckerei Attersee,Backware
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,Butter,6,g,6,true,true,true,,1433.4,1.434,kg,Metro,Milchprodukt
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,Butter (vegan),5,g,5,false,false,true,,104.5,0.105,kg,Metro,Kühlprodukt
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,"Käse (Aufschnitt, vegan)",40,g,40,false,false,true,,836,0.836,kg,Metro,Kühlprodukt
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,Käse (Aufschnitt),40,g,40,true,true,true,,9556,9.556,kg,Metro,Milchprodukt
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,Äpfel,0.5,St,0.5,true,true,true,,119.45,120,St,Metro,Obst
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,Bananen,0.5,St,0.5,true,true,true,,119.45,120,St,Metro,Obst
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,Müsliriegel,1,St,1,true,true,true,,238.9,239,St,Metro,Sonstiges
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,Gurke,0.2,St,0.2,true,true,true,,47.78,48,St,Metro,Gemüse
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,Paprika,40,g,40,true,true,true,,9556,9.556,kg,Metro,Gemüse
+06.08.2026,6_2,Lunch Pakete (Weil die Riegel kommen eh aus China.),1,1,"Müsliriegel (glutenfrei, nussfrei)",0,St,0,true,true,true,10,10,10,St,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,Äpfel,2,St,0.5,true,true,true,,119.45,120,St,Metro,Obst
+06.08.2026,6_3,Obst Mittwoch,4,1,Bananen,2,St,0.5,true,true,true,,119.45,120,St,Metro,Obst
+06.08.2026,6_3,Obst Mittwoch,4,1,Wassermelone,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Obst
+06.08.2026,6_3,Obst Mittwoch,4,1,Zitrone,1,St,0.25,true,true,false,,54.5,55,St,Metro,Obst
+06.08.2026,6_3,Obst Mittwoch,4,1,Butter,50,g,12.5,true,true,false,,2725,2.725,kg,Metro,Milchprodukt
+06.08.2026,6_3,Obst Mittwoch,4,1,Zucker (weiß),60,g,15,true,true,false,,3270,3.27,kg,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,Vanillezucker,7,g,1.75,true,true,false,,381.5,0.382,kg,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,Eier,1.33,St,0.3325,true,true,false,,72.485,73,St,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,Backpulver,0.33,Pkg,0.0825,true,true,false,,17.985,18,Pkg,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,Mehl (Weizen),83.33,g,20.8325,true,true,false,,4541.485,4.542,kg,Metro,Backware
+06.08.2026,6_3,Obst Mittwoch,4,1,Puderzucker,33.3,g,8.325,true,true,false,,1814.85,1.815,kg,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,Zitronensaft,5,ml,1.25,true,true,false,,272.5,0.273,L,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,"Mehl ( Weizen, 550)",217,g,54.25,false,false,true,,1133.825,1.134,kg,Metro,Backware
+06.08.2026,6_3,Obst Mittwoch,4,1,Zucker (weiß),136.4,g,34.1,false,false,true,,712.69,0.713,kg,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,Backpulver,0.62,Pkg,0.155,false,false,true,,3.2395,3.3,Pkg,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,Vanillezucker,5,g,1.25,false,false,true,,26.125,0.027,kg,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,Salz,0,g,0,false,false,true,,0,0,kg,Metro,Gewürz
+06.08.2026,6_3,Obst Mittwoch,4,1,Sojadrink (ungesüßt),223.2,ml,55.8,false,false,true,,1166.22,1.167,L,Metro,Getränk
+06.08.2026,6_3,Obst Mittwoch,4,1,Rapsöl,99,ml,24.75,false,false,true,,517.275,0.518,L,Metro,Öle / Fette
+06.08.2026,6_3,Obst Mittwoch,4,1,Kakaopulver,16,g,4,false,false,true,,83.6,0.084,kg,Metro,Sonstiges
+06.08.2026,6_3,Obst Mittwoch,4,1,Sojadrink (ungesüßt),30,ml,7.5,false,false,true,,156.75,0.157,L,Metro,Getränk
+06.08.2026,6_3,Obst Mittwoch,4,1,Schokolade (Vegan),75,g,18.75,false,false,true,,391.875,0.392,kg,Metro,Süßigkeiten / Snacks
+06.08.2026,6_3,Obst Mittwoch,4,1,Sojadrink (ungesüßt),18.6,ml,4.65,false,false,true,,97.185,0.098,L,Metro,Getränk
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Kartoffeln (festkochend),600,g,150,true,true,true,,31875,31.875,kg,Bio Bauer Attersee,Gemüse
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Kartoffelstärke,240,g,60,true,true,true,,12750,12.75,kg,Metro,Backware
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Salz,5,g,1.25,true,true,true,,265.625,0.266,kg,Metro,Gewürz
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Wasser,140,ml,35,true,true,true,,7437.5,7.438,L,Metro,Getränk
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Knoblauch (Zehen),4,St,1,true,true,true,,212.5,213,St,Metro,Gemüse
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Chiliflocken,2,g,0.5,true,true,true,,106.25,0.107,kg,Metro,Gewürz
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Sesamsamen,4,g,1,true,true,true,,212.5,0.213,kg,Metro,Sonstiges
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Chilischoten,7,g,1.75,true,true,true,,371.875,0.372,kg,Metro,Gemüse
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Sojasoße,45,ml,11.25,true,true,true,,2390.625,2.391,L,Metro,Sonstiges
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Ahornsirup,30,ml,7.5,true,true,true,,1593.75,1.594,L,Metro,Sirup
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Essig,30,ml,7.5,true,true,true,,1593.75,1.594,L,Metro,Gewürz
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Sesamöl,30,ml,7.5,true,true,true,,1593.75,1.594,L,Metro,Öle / Fette
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Koriander (frisch),0.1,Bund,0.025,true,true,true,,5.3125,5.4,Bund,Metro,Gewürz
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Röstzwiebeln,50,g,12.5,true,true,true,,2656.25,2.657,kg,Metro,Trockengemüse
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Frühlingszwiebeln,1,St,0.25,true,true,true,,53.125,54,St,Metro,Gemüse
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Petersilie,0.1,Bund,0.025,true,true,true,,5.3125,5.4,Bund,Metro,Gemüse
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Eisbergsalat,0.5,St,0.125,true,true,true,,26.5625,27,St,Metro,Gemüse
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Salatgurke,0.3,St,0.075,true,true,true,,15.9375,16,St,Metro,Gemüse
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Cocktailtomaten,28,g,7,true,true,true,,1487.5,1.488,kg,Metro,Gemüse
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Paprika,70,g,17.5,true,true,true,,3718.75,3.719,kg,Metro,Gemüse
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Olivenöl,50,ml,12.5,true,true,true,,2656.25,2.657,L,Metro,Öle / Fette
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Balsamico,20,ml,5,true,true,true,,1062.5,1.063,L,Metro,Gewürz
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Senf (mittelscharf),10,g,2.5,true,true,true,,531.25,0.532,kg,Metro,Sonstiges
+06.08.2026,6_4,Koreanische Kartoffelnudeln,4,1,Agavendicksaft,12,ml,3,true,true,true,,637.5,0.638,L,Metro,Sonstiges
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Quark (mager),200,g,50,true,true,false,,9580,9.58,kg,Metro,Milchprodukt
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Joghurt,100,g,25,true,true,false,,4790,4.79,kg,Metro,Milchprodukt
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Ahornsirup,30,ml,7.5,true,true,true,,1593.75,1.594,L,Metro,Sirup
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Pflaumen,25,g,6.25,true,true,true,,1328.125,1.329,kg,Metro,Obst
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Blaubeeren,25,g,6.25,true,true,true,,1328.125,1.329,kg,Metro,Obst
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Mango,0.17,St,0.0425,true,true,true,,9.03125,10,St,Metro,Obst
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Aprikosen,25,g,6.25,true,true,true,,1328.125,1.329,kg,Metro,Obst
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Weintrauben,25,g,6.25,true,true,true,,1328.125,1.329,kg,Metro,Obst
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Kiwi,25,g,6.25,true,true,true,,1328.125,1.329,kg,Metro,Obst
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Lebensmittelfarbe (Stufenweise),0.2,St,0.05,true,true,true,,10.625,11,St,Sonstiges,Backware
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,griechischer Joghurt (vegan),100,g,25,false,false,true,,522.5,0.523,kg,Metro,Kühlprodukt
+06.08.2026,6_5,"Nachtisch in Stufenfarben WÖ, Jupfi, Pfadi",4,1,Quark (vegan),200,g,50,false,false,true,,1045,1.045,kg,Metro,Kühlprodukt
+06.08.2026,6_6,Stufengetänke,4,0,Erdbeeren,0,g,0,true,true,true,2500,2500,2.5,kg,Metro,Obst
+06.08.2026,6_6,Stufengetänke,4,0,Zucker (weiß),0,g,0,true,true,true,250,250,0.25,kg,Metro,Sonstiges
+06.08.2026,6_6,Stufengetänke,4,0,Limettensaft,0,ml,0,true,true,true,1000,1000,1,L,Metro,Sonstiges
+06.08.2026,6_6,Stufengetänke,4,0,Mineralwasser,0,ml,0,true,true,true,4000,4000,4,L,Metro,Sonstiges
+06.08.2026,6_6,Stufengetänke,4,0,Zitronenlimonade,0,ml,0,true,true,true,4000,4000,4,L,Metro,Getränk
+06.08.2026,6_6,Stufengetänke,4,0,Zucker (weiß),0,g,0,true,true,true,500,500,0.5,kg,Metro,Sonstiges
+06.08.2026,6_6,Stufengetänke,4,0,Gummibärchen 500g (Frösche),0,St,0,true,true,true,1,1,1,St,Metro,Süßigkeiten / Snacks
+06.08.2026,6_6,Stufengetänke,4,0,Minze frisch,0,Pkg,0,true,true,true,2,2,2,Pkg,Metro,Gewürz
+06.08.2026,6_6,Stufengetänke,4,0,Waldmeisterpulver,0,Pkg,0,true,true,true,2,2,2,Pkg,Sonstiges,Getränk
+07.08.2026,7_1,Frühstück Tag 7,1,1,Brot (geschnitten),80,g,80,true,true,true,,17000,17,kg,Bäckerei Attersee,Backware
+07.08.2026,7_1,Frühstück Tag 7,1,1,Cornflakes,35,g,35,true,true,true,,7437.5,7.438,kg,Metro,Sonstiges
+07.08.2026,7_1,Frühstück Tag 7,1,1,H-Milch,200,ml,200,true,true,false,,38320,38.32,L,Metro,Milchprodukt
+07.08.2026,7_1,Frühstück Tag 7,1,1,Hafermilch,200,ml,200,false,false,true,,4180,4.18,L,Metro,Sonstiges
+07.08.2026,7_1,Frühstück Tag 7,1,1,Butter (vegan),5,g,5,false,false,true,,104.5,0.105,kg,Metro,Kühlprodukt
+07.08.2026,7_1,Frühstück Tag 7,1,1,Butter,5,g,5,true,true,false,,958,0.958,kg,Metro,Milchprodukt
+07.08.2026,7_1,Frühstück Tag 7,1,1,Nutella,20,g,20,true,true,true,,4250,4.25,kg,Metro,Sonstiges
+07.08.2026,7_1,Frühstück Tag 7,1,1,Marmelade,10,g,10,true,true,true,,2125,2.125,kg,Metro,Sonstiges
+07.08.2026,7_1,Frühstück Tag 7,1,1,Honig,5,g,5,true,true,false,,958,0.958,kg,Metro,Sonstiges
+07.08.2026,7_1,Frühstück Tag 7,1,1,Kaba,5,g,5,true,true,true,,1062.5,1.063,kg,Metro,Sonstiges
+07.08.2026,7_1,Frühstück Tag 7,1,1,Tee,0.5,Pkg,0.5,true,true,true,,106.25,106.3,Pkg,Metro,Sonstiges
+07.08.2026,7_1,Frühstück Tag 7,1,1,Joghurt,20,g,20,true,true,false,,3832,3.832,kg,Metro,Milchprodukt
+07.08.2026,7_1,Frühstück Tag 7,1,1,Joghurt(vegan),20,g,20,false,false,true,,418,0.418,kg,Metro,Kühlprodukt
+07.08.2026,7_1,Frühstück Tag 7,1,1,Käse (Aufschnitt),30,g,30,true,true,false,,5748,5.748,kg,Metro,Milchprodukt
+07.08.2026,7_1,Frühstück Tag 7,1,1,"Käse (Aufschnitt, vegan)",30,g,30,false,false,true,,627,0.627,kg,Metro,Kühlprodukt
+07.08.2026,7_1,Frühstück Tag 7,1,1,Kaffee,30,g,30,true,true,true,,6375,6.375,kg,Metro,Sonstiges
+07.08.2026,7_1,Frühstück Tag 7,1,1,Äpfel,0.25,St,0.25,true,true,true,,53.125,54,St,Metro,Obst
+07.08.2026,7_1,Frühstück Tag 7,1,1,Bananen,0.25,St,0.25,true,true,true,,53.125,54,St,Metro,Obst
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Äpfel,6,St,1,true,true,true,,212.5,213,St,Metro,Obst
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Bananen,6,St,1,true,true,true,,212.5,213,St,Metro,Obst
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Müsliriegel,6,St,1,true,true,true,,212.5,213,St,Metro,Sonstiges
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Semmeln,6,St,1,true,true,true,,212.5,213,St,Bäckerei Attersee,Backware
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Schmand,150,g,25,true,true,false,,4790,4.79,kg,Metro,Milchprodukt
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Creme fraiche (vegan),150,g,25,false,false,true,,522.5,0.523,kg,Metro,Kühlprodukt
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Tomatenmark,50,g,8.333333,true,true,true,,1770.833333,1.771,kg,Metro,Dosengemüse
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Gouda (gerieben),150,g,25,true,true,false,,4790,4.79,kg,Metro,Milchprodukt
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Reibekäse (vegan),150,g,25,false,false,true,,522.5,0.523,kg,Metro,Kühlprodukt
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Paprika,150,g,25,true,true,true,,5312.5,5.313,kg,Metro,Gemüse
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Mais,140,g (ATG),23.333333,true,true,true,,4958.333333,4.959,kg (ATG),Metro,Dosengemüse
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Salz,15,g,2.5,true,true,true,,531.25,0.532,kg,Metro,Gewürz
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Pfeffer,15,g,2.5,true,true,true,,531.25,0.532,kg,Metro,Gewürz
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Oregano,15,g,2.5,true,true,true,,531.25,0.532,kg,Metro,Gewürz
+07.08.2026,7_2,Lunchpakete (Pizzabrote),6,1,Basilikum (getrocknet),15,g,2.5,true,true,true,,531.25,0.532,kg,Metro,Gewürz
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Kartoffeln (vw festkochend),1500,g,375,true,true,true,,89587.5,89.588,kg,Bio Bauer Attersee,Gemüse
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Zwiebeln,140,g,35,true,true,false,,7630,7.63,kg,Metro,Gemüse
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Eier,4,St,1,true,true,true,,238.9,239,St,Metro,Sonstiges
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Speisestärke,100,g,25,true,true,true,,5972.5,5.973,kg,Metro,Getreide
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Apfelmus,400,g,100,true,true,true,,23890,23.89,kg,Metro,Dosenobst
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Quark (mager),400,g,100,true,true,false,,21800,21.8,kg,Metro,Milchprodukt
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Milch,100,ml,25,true,true,false,,5450,5.45,L,Metro,Milchprodukt
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Schnittlauch,0.2,Bund,0.05,true,true,true,,11.945,12,Bund,Metro,Gemüse
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Petersilie,0.8,Bund,0.2,true,true,true,,47.78,47.8,Bund,Metro,Gemüse
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Basilikum frisch,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Minze frisch,0.5,Pkg,0.125,true,true,true,,29.8625,29.9,Pkg,Metro,Gewürz
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Knoblauch (Zehen),1,St,0.25,true,true,true,,59.725,60,St,Metro,Gemüse
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Senf (mittelscharf),20,g,5,true,true,true,,1194.5,1.195,kg,Metro,Sonstiges
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Olivenöl,100,ml,25,true,true,true,,5972.5,5.973,L,Metro,Öle / Fette
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Essig,10,ml,2.5,true,true,true,,597.25,0.598,L,Metro,Gewürz
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Zitronensaft,20,ml,5,true,true,true,,1194.5,1.195,L,Metro,Sonstiges
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Öl,20,ml,5,true,true,true,,1194.5,1.195,L,Metro,Öle / Fette
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Backpulver,0.4,Pkg,0.1,true,true,true,,23.89,23.9,Pkg,Metro,Sonstiges
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,griechischer Joghurt (vegan),400,g,100,false,false,true,,2090,2.09,kg,Metro,Kühlprodukt
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Hafermilch,100,ml,25,false,false,true,,522.5,0.523,L,Metro,Sonstiges
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Eisbergsalat,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Salatgurke,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Cocktailtomaten,28,g,7,true,true,true,,1672.3,1.673,kg,Metro,Gemüse
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Paprika,70,g,17.5,true,true,true,,4180.75,4.181,kg,Metro,Gemüse
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Olivenöl,50,ml,12.5,true,true,true,,2986.25,2.987,L,Metro,Öle / Fette
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Balsamico,20,ml,5,true,true,true,,1194.5,1.195,L,Metro,Gewürz
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Senf (mittelscharf),10,g,2.5,true,true,true,,597.25,0.598,kg,Metro,Sonstiges
+07.08.2026,7_4,Süd-Amerikanische Räuberdatschi + Salat und Pudding,4,1,Agavendicksaft,12,ml,3,true,true,true,,716.7,0.717,L,Metro,Sonstiges
+07.08.2026,7_5,Pudding,4,1,Hafermilch,500,ml,125,true,true,true,,29862.5,29.863,L,Metro,Sonstiges
+07.08.2026,7_5,Pudding,4,1,Zucker (weiß),50,g,12.5,true,true,true,,2986.25,2.987,kg,Metro,Sonstiges
+07.08.2026,7_5,Pudding,4,1,Speisestärke,32,g,8,true,true,true,,1911.2,1.912,kg,Metro,Getreide
+07.08.2026,7_5,Pudding,4,1,Vanillepaste,0,g,0,true,true,true,150,150,0.15,kg,Metro,Gewürz
+07.08.2026,7_5,Pudding,4,1,Kakaopulver,25,g,6.25,true,true,true,,1493.125,1.494,kg,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Brot (geschnitten),80,g,80,true,true,true,,19112,19.112,kg,Bäckerei Attersee,Backware
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Cornflakes,35,g,35,true,true,true,,8361.5,8.362,kg,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,H-Milch,200,ml,200,true,true,false,,43600,43.6,L,Metro,Milchprodukt
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Hafermilch,200,ml,200,false,false,true,,4180,4.18,L,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Butter (vegan),5,g,5,false,false,true,,104.5,0.105,kg,Metro,Kühlprodukt
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Butter,5,g,5,true,true,false,,1090,1.09,kg,Metro,Milchprodukt
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Nutella,20,g,20,true,true,true,,4778,4.778,kg,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Marmelade,10,g,10,true,true,true,,2389,2.389,kg,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Honig,5,g,5,true,true,false,,1090,1.09,kg,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Kaba,5,g,5,true,true,true,,1194.5,1.195,kg,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Tee,0.5,Pkg,0.5,true,true,true,,119.45,119.5,Pkg,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Joghurt,20,g,20,true,true,false,,4360,4.36,kg,Metro,Milchprodukt
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Joghurt(vegan),20,g,20,false,false,true,,418,0.418,kg,Metro,Kühlprodukt
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Käse (Aufschnitt),30,g,30,true,true,false,,6540,6.54,kg,Metro,Milchprodukt
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,"Käse (Aufschnitt, vegan)",30,g,30,false,false,true,,627,0.627,kg,Metro,Kühlprodukt
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Kaffee,30,g,30,true,true,true,,7167,7.167,kg,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Äpfel,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Bananen,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Haferflocken,25,g,25,true,true,true,,5972.5,5.973,kg,Metro,Trockengemüse
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Hafermilch,40,ml,40,true,true,true,,9556,9.556,L,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Äpfel,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Nussmischung,5,g,5,true,true,true,,1194.5,1.195,kg,Metro,Nüsse
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Zitronensaft,2,ml,2,true,true,true,,477.8,0.478,L,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Rosinen,5,g,5,true,true,true,,1194.5,1.195,kg,Metro,Trockenobst
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Sojajoghurt,0,g,0,true,true,true,,0,0,kg,Metro,Kühlprodukt
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Agavendicksaft,2,ml,2,true,true,true,,477.8,0.478,L,Metro,Sonstiges
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Zimt,1,g,1,true,true,true,,238.9,0.239,kg,Metro,Gewürz
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Schokoraspeln,3,g,3,true,true,true,,716.7,0.717,kg,Metro,Süßigkeiten / Snacks
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Apfelmus,10,g,10,true,true,true,,2389,2.389,kg,Metro,Dosenobst
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Birnen,20,g,20,true,true,true,,4778,4.778,kg,Metro,Obst
+08.08.2026,8_1,Frühstück + Porridge Tag 8,1,1,Bananen,0.1,St,0.1,true,true,true,,23.89,24,St,Metro,Obst
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Gnocchi,500,g,166.666667,true,true,false,,36333.333333,36.334,kg,Metro,Teigware
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Tomaten (stückig),500,g (ATG),166.666667,true,true,false,,36333.333333,36.334,kg (ATG),Metro,Dosengemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Tomaten,400,g,133.333333,true,true,false,,29066.666667,29.067,kg,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Mozzarella,150,g,50,true,true,false,,10900,10.9,kg,Metro,Milchprodukt
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Zwiebeln,250,g,83.333333,true,true,false,,18166.666667,18.167,kg,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Knoblauch (Zehen),1,St,0.333333,true,true,false,,72.666667,73,St,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Sahne,200,ml,66.666667,true,true,false,,14533.333333,14.534,L,Metro,Milchprodukt
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Rucola,250,g,83.333333,true,true,false,,18166.666667,18.167,kg,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Salz,4,g,1.333333,true,true,false,,290.666667,0.291,kg,Metro,Gewürz
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Pfeffer,4,g,1.333333,true,true,false,,290.666667,0.291,kg,Metro,Gewürz
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Gnocchi,500,g,166.666667,false,false,true,,3483.333333,3.484,kg,Metro,Teigware
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Tomaten (stückig),500,g (ATG),166.666667,false,false,true,,3483.333333,3.484,kg (ATG),Metro,Dosengemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Tomaten,400,g,133.333333,false,false,true,,2786.666667,2.787,kg,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Mozzarella (vegan),150,g,50,false,false,true,,1045,1.045,kg,Metro,Kühlprodukt
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Zwiebeln,250,g,83.333333,false,false,true,,1741.666667,1.742,kg,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Knoblauch (Zehen),1,St,0.333333,false,false,true,,6.966667,7,St,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Sahne(vegan),200,ml,66.666667,false,false,true,,1393.333333,1.394,L,Metro,Kühlprodukt
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Rucola,250,g,83.333333,false,false,true,,1741.666667,1.742,kg,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Salz,4,g,1.333333,false,false,true,,27.866667,0.028,kg,Metro,Gewürz
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Pfeffer,4,g,1.333333,false,false,true,,27.866667,0.028,kg,Metro,Gewürz
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Eisbergsalat,0.5,St,0.166667,true,true,true,,39.816667,40,St,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Salatgurke,0.5,St,0.166667,true,true,true,,39.816667,40,St,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Cocktailtomaten,28,g,9.333333,true,true,true,,2229.733333,2.23,kg,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Paprika,70,g,23.333333,true,true,true,,5574.333333,5.575,kg,Metro,Gemüse
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Olivenöl,50,ml,16.666667,true,true,true,,3981.666667,3.982,L,Metro,Öle / Fette
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Balsamico,20,ml,6.666667,true,true,true,,1592.666667,1.593,L,Metro,Gewürz
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Senf (mittelscharf),10,g,3.333333,true,true,true,,796.333333,0.797,kg,Metro,Sonstiges
+08.08.2026,8_2,"Knotschi mit Tomate, Mozzarella, Rucola",3,1,Agavendicksaft,12,ml,4,true,true,true,,955.6,0.956,L,Metro,Sonstiges
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Äpfel,2,St,0.5,true,true,true,,119.45,120,St,Metro,Obst
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Birnen,400,g,100,true,true,true,,23890,23.89,kg,Metro,Obst
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Honigmelone,500,g,125,true,true,true,,29862.5,29.863,kg,Metro,Obst
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Mehl (Weizen),130,g,32.5,true,true,true,,7764.25,7.765,kg,Metro,Backware
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Zucker (weiß),75,g,18.75,true,true,true,,4479.375,4.48,kg,Metro,Sonstiges
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Backpulver,0.5,Pkg,0.125,true,true,true,,29.8625,29.9,Pkg,Metro,Sonstiges
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Vanillezucker,4,g,1,true,true,true,,238.9,0.239,kg,Metro,Sonstiges
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Haselnüsse (gehackt),75,g,18.75,true,true,true,,4479.375,4.48,kg,Metro,Backware
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Zimt,9,g,2.25,true,true,true,,537.525,0.538,kg,Metro,Gewürz
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Muskat,1,g,0.25,true,true,true,,59.725,0.06,kg,Metro,Gewürz
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Mineralwasser,125,ml,31.25,true,true,true,,7465.625,7.466,L,Metro,Sonstiges
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Sonnenblumenöl,25,ml,6.25,true,true,true,,1493.125,1.494,L,Metro,Öle / Fette
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Karotten,40,g,10,true,true,true,,2389,2.389,kg,Metro,Gemüse
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Butter (vegan),57,g,14.25,true,true,true,,3404.325,3.405,kg,Metro,Kühlprodukt
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Puderzucker,125,g,31.25,true,true,true,,7465.625,7.466,kg,Metro,Sonstiges
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Frischkäse (Vegan),75,g,18.75,true,true,true,,4479.375,4.48,kg,Metro,Kühlprodukt
+08.08.2026,8_3,Obst und Kuchen ID_8_3,4,1,Zitronensaft,5,ml,1.25,true,true,true,,298.625,0.299,L,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Sojagranulat,200,g,50,true,true,false,,10900,10.9,kg,Metro,Getreide
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Butter,50,g,12.5,true,true,false,,2725,2.725,kg,Metro,Milchprodukt
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Zwiebeln,50,g,12.5,true,true,false,,2725,2.725,kg,Metro,Gemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Eier,1,St,0.25,true,true,false,,54.5,55,St,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Sahne,45,ml,11.25,true,true,false,,2452.5,2.453,L,Metro,Milchprodukt
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Haferflocken,30,g,7.5,true,true,false,,1635,1.635,kg,Metro,Trockengemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Sojasoße,15,ml,3.75,true,true,false,,817.5,0.818,L,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Preiselbeermarmelade,15,g,3.75,true,true,false,,817.5,0.818,kg,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Öl,15,ml,3.75,true,true,false,,817.5,0.818,L,Metro,Öle / Fette
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Sojagranulat,200,g,50,false,false,true,,1045,1.045,kg,Metro,Getreide
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Butter (vegan),50,g,12.5,false,false,true,,261.25,0.262,kg,Metro,Kühlprodukt
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Zwiebeln,50,g,12.5,false,false,true,,261.25,0.262,kg,Metro,Gemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Hafersahne,45,ml,11.25,false,false,true,,235.125,0.236,L,Metro,Getreide-/Hafererzeugnisse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Haferflocken,30,g,7.5,false,false,true,,156.75,0.157,kg,Metro,Trockengemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Sojasoße,15,ml,3.75,false,false,true,,78.375,0.079,L,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Preiselbeeren,15,Pkg,3.75,false,false,true,,78.375,78.4,Pkg,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Öl,15,ml,3.75,false,false,true,,78.375,0.079,L,Metro,Öle / Fette
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Kartoffeln (mehlig),500,g,125,true,true,true,,29862.5,29.863,kg,Bio Bauer Attersee,Gemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Süßkartoffeln,500,g,125,true,true,true,,29862.5,29.863,kg,Metro,Gemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Hafermilch,350,ml,87.5,true,true,true,,20903.75,20.904,L,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Butter (vegan),30,g,7.5,true,true,true,,1791.75,1.792,kg,Metro,Kühlprodukt
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Muskat,1,g,0.25,true,true,true,,59.725,0.06,kg,Metro,Gewürz
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Hafersahne,250,ml,62.5,true,true,true,,14931.25,14.932,L,Metro,Getreide-/Hafererzeugnisse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Gemüsebrühe in L,250,ml,62.5,true,true,true,,14931.25,14.932,L,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Sojasoße,45,ml,11.25,true,true,true,,2687.625,2.688,L,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Preiselbeermarmelade,30,g,7.5,true,true,true,,1791.75,1.792,kg,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Speisestärke,5,g,1.25,true,true,true,,298.625,0.299,kg,Metro,Getreide
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Wasser,15,ml,3.75,true,true,true,,895.875,0.896,L,Metro,Getränk
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Champignons,300,g,75,true,true,true,,17917.5,17.918,kg,Metro,Gemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Eisbergsalat,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Salatgurke,0.5,St,0.125,true,true,true,,29.8625,30,St,Metro,Gemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Cocktailtomaten,28,g,7,true,true,true,,1672.3,1.673,kg,Metro,Gemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Paprika,70,g,17.5,true,true,true,,4180.75,4.181,kg,Metro,Gemüse
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Olivenöl,50,ml,12.5,true,true,true,,2986.25,2.987,L,Metro,Öle / Fette
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Balsamico,20,ml,5,true,true,true,,1194.5,1.195,L,Metro,Gewürz
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Senf (mittelscharf),10,g,2.5,true,true,true,,597.25,0.598,kg,Metro,Sonstiges
+08.08.2026,8_4,"Kartoffelpüree mit vegetarischen Köttbullar, dunkler Soße und Preiselbeeren",4,1,Agavendicksaft,12,ml,3,true,true,true,,716.7,0.717,L,Metro,Sonstiges
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Brot (geschnitten),80,g,80,true,true,true,,19112,19.112,kg,Bäckerei Attersee,Backware
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Cornflakes,35,g,35,true,true,true,,8361.5,8.362,kg,Metro,Sonstiges
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,H-Milch,200,ml,200,true,true,false,,43600,43.6,L,Metro,Milchprodukt
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Hafermilch,200,ml,200,false,false,true,,4180,4.18,L,Metro,Sonstiges
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Butter (vegan),5,g,5,false,false,true,,104.5,0.105,kg,Metro,Kühlprodukt
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Butter,5,g,5,true,true,false,,1090,1.09,kg,Metro,Milchprodukt
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Nutella,20,g,20,true,true,true,,4778,4.778,kg,Metro,Sonstiges
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Marmelade,10,g,10,true,true,true,,2389,2.389,kg,Metro,Sonstiges
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Honig,5,g,5,true,true,false,,1090,1.09,kg,Metro,Sonstiges
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Kaba,5,g,5,true,true,true,,1194.5,1.195,kg,Metro,Sonstiges
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Tee,0.5,Pkg,0.5,true,true,true,,119.45,119.5,Pkg,Metro,Sonstiges
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Joghurt,20,g,20,true,true,false,,4360,4.36,kg,Metro,Milchprodukt
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Joghurt(vegan),20,g,20,false,false,true,,418,0.418,kg,Metro,Kühlprodukt
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Käse (Aufschnitt),30,g,30,true,true,false,,6540,6.54,kg,Metro,Milchprodukt
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,"Käse (Aufschnitt, vegan)",30,g,30,false,false,true,,627,0.627,kg,Metro,Kühlprodukt
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Kaffee,30,g,30,true,true,true,,7167,7.167,kg,Metro,Sonstiges
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Äpfel,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+09.08.2026,9_1,Frühstück einfach Tag 9,1,1,Bananen,0.25,St,0.25,true,true,true,,59.725,60,St,Metro,Obst
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Äpfel,3,St,0.5,true,true,true,,119.45,120,St,Metro,Obst
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Birnen,600,g,100,true,true,true,,23890,23.89,kg,Metro,Obst
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Müsliriegel,6,St,1,true,true,true,,238.9,239,St,Metro,Sonstiges
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,"Müsliriegel (glutenfrei, nussfrei)",0,St,0,true,true,true,10,10,10,St,Metro,Sonstiges
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Haferflocken,200,g,33.333333,true,true,true,,7963.333333,7.964,kg,Metro,Trockengemüse
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Gemüsebrühe in g,5,g,0.833333,true,true,true,,199.083333,0.2,kg,Metro,Sonstiges
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Karotten,100,g,16.666667,true,true,true,,3981.666667,3.982,kg,Metro,Gemüse
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Zucchini,1,St,0.166667,true,true,true,,39.816667,40,St,Metro,Gemüse
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Zwiebeln,85,g,14.166667,true,true,true,,3384.416667,3.385,kg,Metro,Gemüse
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Eier,2,St,0.333333,true,true,false,,72.666667,73,St,Metro,Sonstiges
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Speisestärke,30,g,5,false,false,true,,104.5,0.105,kg,Metro,Getreide
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Gouda (gerieben),80,g,13.333333,true,true,false,,2906.666667,2.907,kg,Metro,Milchprodukt
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Reibekäse (vegan),80,g,13.333333,false,false,true,,278.666667,0.279,kg,Metro,Kühlprodukt
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Senf (mittelscharf),15,g,2.5,true,true,true,,597.25,0.598,kg,Metro,Sonstiges
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Majoran,15,g,2.5,true,true,true,,597.25,0.598,kg,Metro,Gewürz
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Pfeffer,15,g,2.5,true,true,true,,597.25,0.598,kg,Metro,Gewürz
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Salz,5,g,0.833333,true,true,true,,199.083333,0.2,kg,Metro,Gewürz
+09.08.2026,9_2,Lunchpakete (Brezen & Bratlinge),6,1,Breze,6,St,1,true,true,true,,238.9,239,St,Sonstiges,Backware
+09.08.2026,9_3,Obst Sonntag Abbau,4,1,Äpfel,2,St,0.5,true,true,true,,11.75,12,St,Metro,Obst
+09.08.2026,9_3,Obst Sonntag Abbau,4,1,Bananen,2,St,0.5,true,true,true,,11.75,12,St,Metro,Obst
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Brot (geschnitten),,g,0,true,true,true,,0,0,kg,Bäckerei Attersee,Backware
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Cornflakes,,g,0,true,true,true,,0,0,kg,Metro,Sonstiges
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,H-Milch,,ml,0,true,true,false,,0,0,L,Metro,Milchprodukt
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Hafermilch,,ml,0,false,false,true,,0,0,L,Metro,Sonstiges
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Butter (vegan),,g,0,false,false,true,,0,0,kg,Metro,Kühlprodukt
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Butter,,g,0,true,true,false,,0,0,kg,Metro,Milchprodukt
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Nutella,,g,0,true,true,true,,0,0,kg,Metro,Sonstiges
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Marmelade,,g,0,true,true,true,,0,0,kg,Metro,Sonstiges
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Honig,,g,0,true,true,false,,0,0,kg,Metro,Sonstiges
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Kaba,,g,0,true,true,true,,0,0,kg,Metro,Sonstiges
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Tee,,Pkg,0,true,true,true,,0,0,Pkg,Metro,Sonstiges
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Joghurt,,g,0,true,true,false,,0,0,kg,Metro,Milchprodukt
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Joghurt(vegan),,g,0,false,false,true,,0,0,kg,Metro,Kühlprodukt
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Käse (Aufschnitt),,g,0,true,true,false,,0,0,kg,Metro,Milchprodukt
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,"Käse (Aufschnitt, vegan)",,g,0,false,false,true,,0,0,kg,Metro,Kühlprodukt
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Kaffee,,g,0,true,true,true,,0,0,kg,Metro,Sonstiges
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Äpfel,,St,0,true,true,true,,0,0,St,Metro,Obst
+10.08.2026,10_1,Frühstück einfach Tag 10,1,1,Bananen,,St,0,true,true,true,,0,0,St,Metro,Obst

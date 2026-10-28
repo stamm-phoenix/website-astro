@@ -1,0 +1,434 @@
+name,kategorie,einheitenart,abtropfgewicht,lebensmittel,einheit_sheet,verwendungen_sheet,davon_mit_allem,davon_vegetarisch,davon_vegan
+Agavendicksaft,Sonstiges,volumen,false,true,ml,15,15,15,15
+Ahornsirup,Sirup,volumen,false,true,ml,2,2,2,2
+Ajvar,Gewürz,packung,false,true,Pkg,0,0,0,0
+Alufolie,Sonstiges,stueck,false,false,St,0,0,0,0
+Amaretto,Alkohol,volumen,false,true,ml,0,0,0,0
+Ananas-Saft,Getränk,volumen,false,true,ml,0,0,0,0
+Angostura Bitter,Cocktailbitter,volumen,false,true,ml,0,0,0,0
+Apfelessig,Sonstiges,volumen,false,true,ml,1,1,1,1
+Apfelmus,Dosenobst,masse,false,true,g,3,3,3,3
+Apfelsaft,Getränk,volumen,false,true,ml,0,0,0,0
+Aprikosen,Obst,masse,false,true,g,1,1,1,1
+Aubergine,Gemüse,stueck,false,true,St,1,1,1,1
+Ausstechform,Sonstiges,stueck,false,false,St,0,0,0,0
+Ayran,Milchprodukt,volumen,false,true,ml,0,0,0,0
+Backcamembert,Milchprodukt,stueck,false,true,St,0,0,0,0
+Backpulver,Sonstiges,packung,false,true,Pkg,7,5,5,5
+Backpulver (Weinstein 18g),Sonstiges,packung,false,true,Pkg,0,0,0,0
+Baguette,Backware,stueck,false,true,St,0,0,0,0
+Balisto,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Balsamico,Gewürz,volumen,false,true,ml,11,10,10,10
+Bananen,Obst,stueck,false,true,St,17,17,17,17
+Basilikum (getrocknet),Gewürz,masse,false,true,g,1,1,1,1
+Basilikum frisch,Gemüse,stueck,false,true,St,1,1,1,1
+Bergkäse,Milchprodukt,masse,false,true,g,0,0,0,0
+Binden,Sonstiges,packung,false,false,Pkg,0,0,0,0
+Birnen,Obst,masse,false,true,g,4,4,4,4
+Blaubeeren,Obst,masse,false,true,g,1,1,1,1
+Blauschimmelkäse,Milchprodukt,masse,false,true,g,0,0,0,0
+Blue Curacao(alkoholfrei),Sirup,volumen,false,true,ml,0,0,0,0
+Bohnen (BBQ),Dosengemüse,masse,true,true,g (ATG),0,0,0,0
+Bohnen (grün),Gemüse,masse,false,true,g,0,0,0,0
+Bohnen (Kidney),Dosengemüse,masse,true,true,g (ATG),0,0,0,0
+Bohnen (weiße Riesenbohnen),Dosengemüse,masse,true,true,g (ATG),2,2,2,2
+Breze,Backware,stueck,false,true,St,1,1,1,1
+Brokkoli,Gemüse,masse,false,true,g,1,1,1,1
+Brot (geschnitten),Backware,masse,false,true,g,11,11,11,11
+Brot (Laib),Backware,stueck,false,true,St,0,0,0,0
+Brühwurst (Aufschnitt),Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Brühwürfel,Gewürz,stueck,false,true,St,0,0,0,0
+Burgersoße,Gewürz,volumen,false,true,ml,0,0,0,0
+Butter,Milchprodukt,masse,false,true,g,17,17,17,1
+Butter (vegan),Kühlprodukt,masse,false,true,g,15,2,2,15
+Butterbrottüten,Verpackungsmaterial,stueck,false,false,St,0,0,0,0
+Cashewnüsse,Nüsse,masse,false,true,g,0,0,0,0
+Cayennepfeffer,Gewürz,masse,false,true,g,2,2,2,2
+Champignons,Gemüse,masse,false,true,g,2,2,2,2
+Chiliflocken,Gewürz,masse,false,true,g,1,1,1,1
+Chilipulver,Gewürz,masse,false,true,g,1,1,1,1
+Chilischoten,Gemüse,masse,false,true,g,1,1,1,1
+Chips,Süßigkeiten / Snacks,stueck,false,true,St,0,0,0,0
+Chorizo,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Ciabatta,Backware,masse,false,true,g,0,0,0,0
+Cocktailkirschen,Dosenobst,packung,false,true,Pkg,0,0,0,0
+Cocktailtomaten,Gemüse,masse,false,true,g,11,11,11,11
+Cornflakes,Sonstiges,masse,false,true,g,9,9,9,9
+Couscous,Getreide,masse,false,true,g,0,0,0,0
+Creme fraiche,Milchprodukt,masse,false,true,g,1,1,1,0
+Creme fraiche (vegan),Kühlprodukt,masse,false,true,g,3,0,0,3
+Currypaste grün / gelb (vegan),Gewürz,masse,false,true,g,0,0,0,0
+Currypulver,Gewürz,masse,false,true,g,2,2,2,2
+Desinfektion (Hand),Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Dill,Gewürz,packung,false,true,Pkg,0,0,0,0
+Dillspitzen,Gewürz,masse,false,true,g,0,0,0,0
+Doppelkeks 500g,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Edammer (Aufschnitt),Milchprodukt,masse,false,true,g,0,0,0,0
+Eier,Sonstiges,stueck,false,true,St,5,5,5,1
+Eierlikör,Sonstiges,volumen,false,true,ml,0,0,0,0
+Eierspätzle,Milchprodukt,masse,false,true,g,0,0,0,0
+Einmalhandschuhe,Reinigung/Hygiene,packung,false,false,Pkg,0,0,0,0
+Eis,Tiefkühlprodukt,packung,false,true,Pkg,0,0,0,0
+Eis Vanille,Tiefkühlprodukt,masse,false,true,g,0,0,0,0
+Eisbergsalat,Gemüse,stueck,false,true,St,11,11,11,11
+Eiswürfel,Tiefkühlprodukt,masse,false,true,g,0,0,0,0
+Emmentaler,Milchprodukt,masse,false,true,g,0,0,0,0
+Emmentaler (Aufschnitt),Milchprodukt,masse,false,true,g,0,0,0,0
+Emmentaler (gerieben),Milchprodukt,masse,false,true,g,1,1,1,0
+Endiviensalat,Gemüse,stueck,false,true,St,0,0,0,0
+Erbsen,Dosengemüse,masse,true,true,g (ATG),0,0,0,0
+Erbsen TK,Tiefkühlprodukt,masse,false,true,g,0,0,0,0
+Erdbeeren,Obst,masse,false,true,g,1,1,1,1
+Erdnussbutter,Sonstiges,masse,false,true,g,1,1,1,1
+Essig,Gewürz,volumen,false,true,ml,3,3,3,3
+Essig essenz,Gewürz,volumen,false,true,ml,0,0,0,0
+Essiggurken,Dosengemüse,masse,true,true,g (ATG),0,0,0,0
+Essiggurken (Streifen),Dosengemüse,masse,true,true,g (ATG),1,1,1,1
+Essigreiniger,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Fake --Kitkat,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Fake --Lion,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Fake --SoftCake,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Fake --Twix,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Federweißer,Alkohol,volumen,false,true,ml,0,0,0,0
+Fenchel,Gemüse,stueck,false,true,St,1,1,1,1
+Feta,Milchprodukt,masse,false,true,g,0,0,0,0
+Feuerzeug,Sonstiges,stueck,false,false,St,0,0,0,0
+Fisch,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Fischstäbchen,Fleisch/Wurst,stueck,false,true,St,0,0,0,0
+Fladenbrot (für einen Döner),Backware,stueck,false,true,St,0,0,0,0
+Fleischsalat,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Flips,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Frischhaltefolie,Sonstiges,stueck,false,false,St,0,0,0,0
+Frischkäse,Milchprodukt,masse,false,true,g,0,0,0,0
+Frischkäse (Vegan),Kühlprodukt,masse,false,true,g,1,1,1,1
+Frittierfett,Öle / Fette,masse,false,true,kg,1,1,1,1
+Frittieröl,Öle / Fette,volumen,false,true,L,1,1,1,1
+Frühlingszwiebeln,Gemüse,stueck,false,true,St,2,2,2,2
+Garam Masala,Gewürz,masse,false,true,g,0,0,0,0
+Gefrierbeutel mit Zip,Sonstiges,packung,false,false,Pkg,0,0,0,0
+Gelantine,Sonstiges,packung,false,true,Pkg,0,0,0,0
+Gemüsebrühe in g,Sonstiges,masse,false,true,g,3,3,3,3
+Gemüsebrühe in L,Sonstiges,volumen,false,true,ml,6,6,6,6
+Geschirrtücher,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Geschnetzeltes,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Geschnetzeltes (Schwein),Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Gewürzgurke,Dosengemüse,masse,true,true,g (ATG),2,2,2,2
+Ginger Ale,Sonstiges,volumen,false,true,ml,0,0,0,0
+Gnocchi,Teigware,masse,false,true,g,2,1,1,1
+Gnocchi (vegan),Teigware,masse,false,true,g,0,0,0,0
+Gouda,Milchprodukt,masse,false,true,g,0,0,0,0
+Gouda (Aufschnitt),Milchprodukt,masse,false,true,g,0,0,0,0
+Gouda (gerieben),Milchprodukt,masse,false,true,g,2,2,2,0
+Grenadine Sirup,Sirup,volumen,false,true,ml,0,0,0,0
+griechischer Joghurt,Milchprodukt,masse,false,true,g,0,0,0,0
+griechischer Joghurt (vegan),Kühlprodukt,masse,false,true,g,2,0,0,2
+Grieß,Getreide,masse,false,true,g,0,0,0,0
+Grillkohle,Sonstiges,packung,false,false,Pkg,0,0,0,0
+Grillwurst (Curry),Fleisch/Wurst,stueck,false,true,St,0,0,0,0
+Grillwurst (Käse-Knacker),Fleisch/Wurst,stueck,false,true,St,0,0,0,0
+Grünkern,Getreide,masse,false,true,g,0,0,0,0
+Grünkernschrot,Sonstiges,masse,false,true,g,0,0,0,0
+Gummibärchen 500g,Süßigkeiten / Snacks,stueck,false,true,St,0,0,0,0
+Gummibärchen 500g (Frösche),Süßigkeiten / Snacks,stueck,false,true,St,1,1,1,1
+Gummibärchen 500g (vegan),Süßigkeiten / Snacks,stueck,false,true,St,0,0,0,0
+Gurke,Gemüse,stueck,false,true,St,4,4,4,4
+H-Milch,Milchprodukt,volumen,false,true,ml,10,10,10,1
+H-Sahne,Milchprodukt,volumen,false,true,ml,0,0,0,0
+Haarnetz,Reinigung/Hygiene,packung,false,false,Pkg,0,0,0,0
+Hackfleisch,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Haferflocken,Trockengemüse,masse,false,true,g,6,5,5,5
+Hafermilch,Sonstiges,volumen,false,true,ml,15,4,4,15
+Hafersahne,Getreide-/Hafererzeugnisse,volumen,false,true,ml,2,1,1,2
+Halloumi,Milchprodukt,masse,false,true,g,1,1,1,0
+Haribo BRIXX,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Haribo Schlümpfe,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Haribo Topf,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Harissa-Paste,Gewürz,masse,false,true,g,0,0,0,0
+Haselnüsse,Trockenobst,masse,false,true,g,0,0,0,0
+Haselnüsse (gehackt),Backware,masse,false,true,g,1,1,1,1
+Hefe,Kühlprodukt,masse,false,true,g,1,1,1,1
+Hefe (trocken),Backware,packung,false,true,Pkg,0,0,0,0
+Hefeflocken,Sonstiges,masse,false,true,g,2,2,2,2
+Hinterschinken,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Honig,Sonstiges,masse,false,true,g,9,9,9,1
+Honigmelone,Obst,masse,false,true,g,1,1,1,1
+Hummus,Kühlprodukt,masse,false,true,g,0,0,0,0
+Hähnchenkeulen,Fleisch/Wurst,stueck,false,true,St,0,0,0,0
+Hähnchenschenkel,Fleisch/Wurst,stueck,false,true,St,0,0,0,0
+Hühnerbrühe,Gewürz,masse,false,true,g,0,0,0,0
+Ingwer,Gemüse,masse,false,true,g,0,0,0,0
+italienische Kräuter,Gewürz,masse,false,true,g,0,0,0,0
+Jameson Whiskey,Sonstiges,volumen,false,true,ml,0,0,0,0
+Joghurt,Milchprodukt,masse,false,true,g,11,11,11,0
+Joghurt(vegan),Kühlprodukt,masse,false,true,g,9,0,0,9
+Kaba,Sonstiges,masse,false,true,g,9,9,9,9
+Kaffee,Sonstiges,masse,false,true,g,9,9,9,9
+Kaiserschmarn (gefroren),Tiefkühlprodukt,masse,false,true,g,0,0,0,0
+Kakaopulver,Sonstiges,masse,false,true,g,2,1,1,2
+Kaminwurzn,Fleisch/Wurst,stueck,false,true,St,0,0,0,0
+Karotten,Gemüse,masse,false,true,g,6,6,6,6
+Kartoffelknödel (trocken),Trockengut,masse,false,true,g,1,1,1,1
+Kartoffeln (festkochend),Gemüse,masse,false,true,g,3,3,3,3
+Kartoffeln (mehlig),Gemüse,masse,false,true,g,1,1,1,1
+Kartoffeln (vw festkochend),Gemüse,masse,false,true,g,7,7,7,7
+Kartoffeln B-Ware,Gemüse,masse,false,true,g,0,0,0,0
+Kartoffelstärke,Backware,masse,false,true,g,1,1,1,1
+Kekse,Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Ketchup,Sonstiges,volumen,false,true,ml,2,2,2,1
+Ketchup (Gewürz),Sonstiges,volumen,false,true,ml,0,0,0,0
+Kichererbsen,Dosengemüse,masse,true,true,g (ATG),2,2,2,2
+Kidneybohnen,Dosengemüse,masse,true,true,g (ATG),1,1,1,1
+Kirschen,Obst,masse,false,true,g,0,0,0,0
+Kiwi,Obst,masse,false,true,g,1,1,1,1
+Klebefallen (Fliegen),Reinigung/Hygiene,packung,false,false,Pkg,0,0,0,0
+Klopapier,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Knoblauch (Knollen),Gemüse,stueck,false,true,St,0,0,0,0
+Knoblauch (Zehen),Gemüse,stueck,false,true,St,11,10,10,10
+Knoblauchpulver,Gewürz,masse,false,true,g,1,1,1,1
+Knochen,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Knollensellerie,Gemüse,masse,false,true,g,0,0,0,0
+Knödelbrot,Backware,masse,false,true,g,0,0,0,0
+Kochschinken,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Kokosfett,Öle / Fette,masse,false,true,g,0,0,0,0
+Kokosflocken,Sonstiges,masse,false,true,g,0,0,0,0
+Kokosmilch,Konserve,volumen,false,true,ml,1,1,1,1
+Kolrabi,Gemüse,masse,false,true,g,0,0,0,0
+Kopfsalat,Gemüse,stueck,false,true,St,0,0,0,0
+Koriander (frisch),Gewürz,bund,false,true,Bund,1,1,1,1
+Kreuzkümmel (gemalen),Gewürz,masse,false,true,g,3,3,3,3
+Kurkuma,Gewürz,masse,false,true,g,1,1,1,1
+Käse (Aufschnitt),Milchprodukt,masse,false,true,g,12,12,12,2
+"Käse (Aufschnitt, laktosefrei)",Milchprodukt,masse,false,true,g,2,1,1,0
+"Käse (Aufschnitt, vegan)",Kühlprodukt,masse,false,true,g,11,0,0,11
+Käse (Cheddar),Milchprodukt,masse,false,true,g,1,1,1,0
+Käse (grieben),Milchprodukt,masse,false,true,g,1,1,1,1
+"Käse (grieben, vegan)",Kühlprodukt,masse,false,true,g,2,0,0,2
+Käse (Manchego),Milchprodukt,masse,false,true,g,0,0,0,0
+Köttbullar (vegan),Tiefkühlprodukt,masse,false,true,g,0,0,0,0
+Küchenrolle,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Kümmel gemahlen,Gewürz,packung,false,true,Pkg,1,1,1,1
+Kürbis Butternut,Gemüse,masse,false,true,g,0,0,0,0
+Kürbis Hokkaido,Gemüse,masse,false,true,g,0,0,0,0
+Landjäger,Fleisch/Wurst,stueck,false,true,St,0,0,0,0
+Lasagneplatten,Teigware,masse,false,true,g,0,0,0,0
+Lasagneplatten (glutenfrei),Teigware,masse,false,true,g,0,0,0,0
+Lauch,Gemüse,masse,false,true,g,0,0,0,0
+Lebensmittelfarbe (Stufenweise),Backware,stueck,false,true,St,1,1,1,1
+Leberkäsbrät,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Leberkäse,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Lecksuchspray,Sonstiges,stueck,false,false,St,0,0,0,0
+Limetten,Obst,stueck,false,true,St,0,0,0,0
+Limettensaft,Sonstiges,volumen,false,true,ml,1,1,1,1
+Limettenschale (abgerieben),Obst,stueck,false,true,St,0,0,0,0
+Linsen,Sonstiges,masse,false,true,g,0,0,0,0
+Linsen rot,Hülsenfrucht,masse,false,true,g,0,0,0,0
+Lorbeerblätter,Gewürz,stueck,false,true,St,1,1,1,1
+Lyoner,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Mais,Dosengemüse,masse,true,true,g (ATG),1,1,1,1
+Majoran,Gewürz,masse,false,true,g,1,1,1,1
+Mandelblättchen,Backware,masse,false,true,g,0,0,0,0
+Mandeln,Backware,masse,false,true,g,0,0,0,0
+"Mandeln (gemalen, blanchiert)",Backware,masse,false,true,g,1,1,1,0
+Mango,Obst,stueck,false,true,St,1,1,1,1
+Marmelade,Sonstiges,masse,false,true,g,9,9,9,9
+Mayonaise,Milchprodukt,volumen,false,true,ml,2,2,2,0
+Mayonaise (vegan),Kühlprodukt,volumen,false,true,ml,1,0,0,1
+"Mehl ( Weizen, 550)",Backware,masse,false,true,g,2,1,1,2
+Mehl (Dinkel),Backware,masse,false,true,g,0,0,0,0
+Mehl (Dinkel-Vollkorn),Backware,masse,false,true,g,0,0,0,0
+Mehl (Weizen),Backware,masse,false,true,g,7,6,6,5
+"Mehl (Weizen, 1050)",Backware,masse,false,true,g,1,1,1,1
+Messbecher,Sonstiges,stueck,false,false,St,0,0,0,0
+Metalltopfreiniger,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Mettwurst,Fleisch/Wurst,stueck,false,true,St,0,0,0,0
+Milch,Milchprodukt,volumen,false,true,ml,2,2,2,0
+Milch (laktosefrei),Milchprodukt,volumen,false,true,ml,0,0,0,0
+Mineralwasser,Sonstiges,volumen,false,true,ml,2,2,2,2
+Minifrikadellen 1kg,Fleisch/Wurst,packung,false,true,Pkg,0,0,0,0
+Minze frisch,Gewürz,packung,false,true,Pkg,2,2,2,2
+Miracle Whip,Sonstiges,stueck,false,true,St,0,0,0,0
+Mittelscharfer Senf,Gewürz,masse,false,true,g,1,1,1,1
+Mozzarella,Milchprodukt,masse,false,true,g,1,1,1,0
+Mozzarella (vegan),Kühlprodukt,masse,false,true,g,1,0,0,1
+Multivitaminsaft,Sonstiges,volumen,false,true,ml,0,0,0,0
+Muskat,Gewürz,masse,false,true,g,4,4,4,4
+Müllbeutel (groß),Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Müllbeutel (klein),Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Müllsäcke 120L,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Müsli,Sonstiges,masse,false,true,g,0,0,0,0
+Müsliriegel,Sonstiges,stueck,false,true,St,3,3,3,3
+"Müsliriegel (glutenfrei, nussfrei)",Sonstiges,stueck,false,true,St,2,2,2,2
+Naturjoghurt,Milchprodukt,masse,false,true,g,0,0,0,0
+Nudeln,Teigware,masse,false,true,g,0,0,0,0
+Nudeln (Fusili),Teigware,masse,false,true,g,0,0,0,0
+Nudeln (Spaghetti),Teigware,masse,false,true,g,0,0,0,0
+Nussmischung,Nüsse,masse,false,true,g,2,2,2,2
+Nutella,Sonstiges,masse,false,true,g,9,9,9,9
+Oliven,Dosengemüse,masse,true,true,g (ATG),0,0,0,0
+Olivenöl,Öle / Fette,volumen,false,true,ml,14,14,14,14
+Orangen,Obst,stueck,false,true,St,0,0,0,0
+Orangen-Saft,Getränk,volumen,false,true,ml,0,0,0,0
+Oregano,Gewürz,masse,false,true,g,1,1,1,1
+Paniermehl,Sonstiges,masse,false,true,g,0,0,0,0
+Panzertape,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Papierhandtücher,Reinigung/Hygiene,packung,false,false,Pkg,0,0,0,0
+Paprika,Gemüse,masse,false,true,g,15,15,15,15
+Paprika Lyoner,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Paprikapulver (edelsüß),Gewürz,masse,false,true,g,3,3,3,3
+Paprikapulver (geräuchert),Gewürz,masse,false,true,g,1,1,1,1
+Paprikapulver (scharf),Gewürz,masse,false,true,g,0,0,0,0
+Parmesan,Milchprodukt,masse,false,true,g,0,0,0,0
+Pesto Rosso,Sonstiges,masse,false,true,g,0,0,0,0
+Petersilie,Gemüse,bund,false,true,Bund,2,2,2,2
+Pfeffer,Gewürz,masse,false,true,g,11,10,10,10
+Pfirsich,Obst,masse,false,true,g,0,0,0,0
+Pflaumen,Obst,masse,false,true,g,1,1,1,1
+Pizzateig (fertig),Teigware,stueck,false,true,St,0,0,0,0
+Preiselbeeren,Sonstiges,packung,false,true,Pkg,1,0,0,1
+Preiselbeermarmelade,Sonstiges,masse,false,true,g,2,2,2,1
+Pudding (Vanille),Süßigkeiten / Snacks,packung,false,true,Pkg,0,0,0,0
+Puddingpulver (Schoko),Trockengut,masse,false,true,g,0,0,0,0
+Puddingpulver (Vanille),Trockengut,masse,false,true,g,0,0,0,0
+Puderzucker,Sonstiges,masse,false,true,g,3,2,2,2
+Putzhandschuhe,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Putzlappen,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Quark (mager),Milchprodukt,masse,false,true,g,3,3,3,0
+Quark (vegan),Kühlprodukt,masse,false,true,g,1,0,0,1
+"Quetschflasche 0,7 l",Sonstiges,stueck,false,false,St,0,0,0,0
+Radi,Gemüse,stueck,false,true,St,0,0,0,0
+Radieschen,Gemüse,bund,false,true,Bund,0,0,0,0
+Ranner,Gemüse,masse,false,true,g,0,0,0,0
+Rapskernöl,Öle / Fette,volumen,false,true,ml,0,0,0,0
+Rapsöl,Öle / Fette,volumen,false,true,ml,3,2,2,3
+Reibekäse (vegan),Kühlprodukt,masse,false,true,g,2,0,0,2
+Reiberdatschi,Tiefkühlprodukt,stueck,false,true,St,0,0,0,0
+Reis (Basmati),Getreide,masse,false,true,g,1,1,1,1
+Reis (Langkorn),Getreide,masse,false,true,g,0,0,0,0
+Reis (Risotto),Getreide,masse,false,true,g,0,0,0,0
+Reispapier,Trockengut,masse,false,true,g,0,0,0,0
+Remoulade,Sonstiges,masse,false,true,g,0,0,0,0
+Rinderbrühe,Sonstiges,masse,false,true,g,0,0,0,0
+Romadour / Limburger,Milchprodukt,masse,false,true,g,0,0,0,0
+Rosinen,Trockenobst,masse,false,true,g,2,2,2,2
+Rote Beete,Gemüse,masse,false,true,g,0,0,0,0
+Rotwein,Sonstiges,volumen,false,true,ml,0,0,0,0
+Rucola,Gemüse,masse,false,true,g,2,1,1,1
+Rum (dunkel),Alkohol,volumen,false,true,ml,0,0,0,0
+Räuchertofu,Kühlprodukt,masse,false,true,g,1,1,1,1
+Röstzwiebeln,Trockengemüse,masse,false,true,g,1,1,1,1
+Safran,Gewürz,masse,false,true,g,0,0,0,0
+Sahne,Milchprodukt,volumen,false,true,ml,3,3,3,0
+Sahne(vegan),Kühlprodukt,volumen,false,true,ml,4,2,2,4
+Sahnejoghurt,Milchprodukt,masse,false,true,g,0,0,0,0
+Salami,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Salat,Gemüse,stueck,false,true,St,2,2,2,2
+Salatgurke,Gemüse,stueck,false,true,St,11,11,11,11
+Salatkräuter,Gewürz,packung,false,true,Pkg,0,0,0,0
+Salsasoße,Gewürz,volumen,false,true,ml,0,0,0,0
+Salz,Gewürz,masse,false,true,g,17,15,15,15
+Salzstangen,Süßigkeiten / Snacks,masse,false,true,g,0,0,0,0
+Sauerkirschen,Dosenobst,masse,true,true,g (ATG),1,1,1,0
+Sauerkraut,Dosengemüse,masse,true,true,g (ATG),1,1,1,1
+Sauerrahm,Milchprodukt,masse,false,true,g,0,0,0,0
+Saure Gummibärchen 500g,Süßigkeiten / Snacks,stueck,false,true,St,0,0,0,0
+Schalotten,Gemüse,masse,false,true,g,0,0,0,0
+Schinkenspeck,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Schinkenwürfel,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Schmand,Milchprodukt,masse,false,true,g,1,1,1,0
+Schnittlauch,Gemüse,bund,false,true,Bund,2,2,2,2
+Schnittlauch (TK),Tiefkühlprodukt,masse,false,true,g,0,0,0,0
+Schokolade,Süßigkeiten / Snacks,masse,false,true,g,0,0,0,0
+Schokolade (Vegan),Süßigkeiten / Snacks,masse,false,true,g,1,0,0,1
+Schokoraspeln,Süßigkeiten / Snacks,masse,false,true,g,1,1,1,1
+Schupfnudeln,Teigware,masse,false,true,g,1,1,1,0
+Schupfnudeln (vegan),Teigware,masse,false,true,g,1,0,0,1
+Schwein (gewürfelt),Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Schweinenackensteaks,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Schweineschulter,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Seife (flüssig),Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Seife (flüssig) (L),Reinigung/Hygiene,volumen,false,false,L,0,0,0,0
+Sellerie,Gemüse,stueck,false,true,St,0,0,0,0
+Semmelbrösel,Backware,masse,false,true,g,0,0,0,0
+Semmeln,Backware,stueck,false,true,St,2,2,2,2
+Senf (mittelscharf),Sonstiges,masse,false,true,g,14,13,13,13
+Sesamsamen,Sonstiges,masse,false,true,g,1,1,1,1
+Sesamöl,Öle / Fette,volumen,false,true,ml,1,1,1,1
+Skyr (vegan),Kühlprodukt,masse,false,true,g,0,0,0,0
+Sojadrink (ungesüßt),Getränk,volumen,false,true,ml,4,1,1,4
+Sojagranulat,Getreide,masse,false,true,g,2,1,1,1
+Sojajoghurt,Kühlprodukt,masse,false,true,g,3,2,2,3
+Sojamehl,Getreide,masse,false,true,g,0,0,0,0
+Sojasoße,Sonstiges,volumen,false,true,ml,6,5,5,5
+Sonnenblumenkerne,Sonstiges,masse,false,true,g,0,0,0,0
+Sonnenblumenöl,Öle / Fette,volumen,false,true,ml,3,2,2,3
+Sonnencreme,Sonstiges,packung,false,false,Pkg,0,0,0,0
+Sonnencreme (sprüh),Sonstiges,packung,false,false,Pkg,0,0,0,0
+Soßen,Sonstiges,stueck,false,true,St,0,0,0,0
+Speisestärke,Getreide,masse,false,true,g,4,3,3,4
+Spinat,Gemüse,masse,false,true,g,0,0,0,0
+Spätzle,Teigware,masse,false,true,g,0,0,0,0
+Spülbürste,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Spülhandschuhe,Reinigung/Hygiene,packung,false,false,Pkg,0,0,0,0
+Spüllappen,Reinigung/Hygiene,packung,false,false,Pkg,0,0,0,0
+Spülmittel,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Spülmittel (L),Reinigung/Hygiene,volumen,false,false,L,0,0,0,0
+Spülschwamm,Reinigung/Hygiene,packung,false,false,Pkg,0,0,0,0
+Staudenselerie,Gemüse,stueck,false,true,St,0,0,0,0
+Streichwurst,Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Suppengemüse,Gemüse,masse,false,true,g,0,0,0,0
+Süßer Senf,Gewürz,masse,false,true,g,0,0,0,0
+Süßkartoffeln,Gemüse,masse,false,true,g,2,2,2,2
+Tahina,Sonstiges,masse,false,true,g,2,2,2,2
+Tee,Sonstiges,packung,false,true,Pkg,9,9,9,9
+Tequila,Alkohol,volumen,false,true,ml,0,0,0,0
+Thymian,Gewürz,masse,false,true,g,0,0,0,0
+Tilsiter (Aufschnitt),Milchprodukt,masse,false,true,g,0,0,0,0
+TK- Beeren,Tiefkühlprodukt,masse,false,true,g,0,0,0,0
+TK- Obstmischung,Tiefkühlprodukt,masse,false,true,g,0,0,0,0
+TK-Edamame,Tiefkühlprodukt,masse,false,true,g,0,0,0,0
+TK-Petersilie,Tiefkühlprodukt,masse,false,true,g,0,0,0,0
+Toastbrot,Backware,masse,false,true,g,0,0,0,0
+Tofu,Kühlprodukt,masse,false,true,g,1,0,0,1
+Tomaten,Gemüse,masse,false,true,g,4,3,3,3
+Tomaten (geschält),Dosengemüse,masse,true,true,g (ATG),0,0,0,0
+Tomaten (getrocknet),Gemüse,masse,true,true,g (ATG),2,2,2,2
+Tomaten (passiert),Dosengemüse,masse,false,true,g,1,1,1,1
+Tomaten (stückig),Dosengemüse,masse,true,true,g (ATG),2,1,1,1
+Tomatenmark,Dosengemüse,masse,false,true,g,4,4,4,4
+Topfreiniger (Draht),Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
+Tortilla Chips,Sonstiges,packung,false,true,Pkg,0,0,0,0
+Tymian,Gewürz,masse,false,true,g,0,0,0,0
+Vanillepaste,Gewürz,masse,false,true,g,1,1,1,1
+Vanilleschoten,Gewürz,stueck,false,true,St,0,0,0,0
+Vanillezucker,Sonstiges,masse,false,true,g,5,4,4,3
+Vodka,Alkohol,volumen,false,true,ml,0,0,0,0
+Wachholderbeeren,Gewürz,packung,false,true,Pkg,0,0,0,0
+Wachholderbeeren (g),Gewürz,masse,false,true,g,1,1,1,1
+Waldmeisterpulver,Getränk,packung,false,true,Pkg,1,1,1,1
+Wasser,Getränk,volumen,false,true,ml,2,2,2,2
+Wassermelone,Obst,stueck,false,true,St,4,4,4,4
+Weintrauben,Obst,masse,false,true,g,1,1,1,1
+Weißkohl,Gemüse,stueck,false,true,St,0,0,0,0
+Weißwein,Sonstiges,volumen,false,true,ml,0,0,0,0
+Wiener,Fleisch/Wurst,stueck,false,true,St,0,0,0,0
+Wurst (Aufschnitt),Fleisch/Wurst,masse,false,true,g,0,0,0,0
+Wäscheklammern,Sonstiges,stueck,false,false,St,0,0,0,0
+Wäschewanne,Sonstiges,stueck,false,false,St,0,0,0,0
+Würzmischung Taco,Gewürz,packung,false,true,Pkg,0,0,0,0
+Zartbitterschokolade,Süßigkeiten / Snacks,masse,false,true,g,1,1,1,0
+Zimt,Gewürz,masse,false,true,g,4,4,4,4
+Zitrone,Obst,stueck,false,true,St,1,1,1,0
+Zitronenabrieb,Gewürz,packung,false,true,Pkg,1,0,0,1
+Zitronenlimonade,Getränk,volumen,false,true,ml,1,1,1,1
+Zitronensaft,Sonstiges,volumen,false,true,ml,10,8,8,9
+Zitronensaftkonzentrat,Sonstiges,stueck,false,true,St,0,0,0,0
+Zucchini,Gemüse,stueck,false,true,St,2,2,2,2
+Zucker (braun),Sonstiges,masse,false,true,g,1,0,0,1
+Zucker (weiß),Sonstiges,masse,false,true,g,10,9,9,8
+Zuckersirup,Sirup,volumen,false,true,ml,0,0,0,0
+Zwetschgen,Obst,masse,false,true,g,0,0,0,0
+Zwiebeln,Gemüse,masse,false,true,g,12,10,10,9
+Zündhölzer,Sonstiges,packung,false,false,Pkg,0,0,0,0
+Äpfel,Obst,stueck,false,true,St,20,20,20,20
+Öl,Öle / Fette,volumen,false,true,ml,7,6,6,6
+Ü-Eier,Süßigkeiten / Snacks,stueck,false,true,St,0,0,0,0
