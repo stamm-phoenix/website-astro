@@ -116,6 +116,15 @@ export function parseZeitzeilen(text: string): NeuerBlock[] {
     .map((line) => line.trim())
     .filter((line) => line !== '')
     .map((line) => {
+      // Cells copied from a table: Beginn, Ende (may be empty), Programmpunkt
+      const cells = line.split('\t').map((cell) => cell.trim());
+      const tabVon = cells.length >= 2 ? parseUhrzeit(cells[0].replace(/\s*uhr$/i, '')) : null;
+      if (tabVon !== null) {
+        const tabBis = cells.length >= 3 ? parseUhrzeit(cells[1].replace(/\s*uhr$/i, '')) : null;
+        const rest = cells.slice(tabBis !== null || (cells.length >= 3 && cells[1] === '') ? 2 : 1);
+        const text = rest.filter(Boolean).join(' ');
+        if (text) return { von: tabVon, bis: tabBis ?? '', text };
+      }
       const match = LINE.exec(line);
       // „3 Teams“ is no time: a full hour needs „Uhr“, a range or a table cell after it
       const isTime =
