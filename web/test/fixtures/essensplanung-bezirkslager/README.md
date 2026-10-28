@@ -18,7 +18,7 @@ Die folgende Rechnung bildet alle 683 Zeilen von `gericht_zutaten.csv` exakt ab 
 ```
 Esser  = Σ Anwesende(mahlzeit, ernährung, gruppe) × Faktor(gruppe)
          über alle Ernährungsformen, die bei der Zutat angehakt sind
-Gesamt = feste_gesamtmenge,                                        falls gesetzt
+Gesamt = feste_gesamtmenge (ohne Gerichtsfaktor),                 falls gesetzt
          rezeptmenge ÷ referenz_personen × Esser × gerichtsfaktor, sonst
 ```
 

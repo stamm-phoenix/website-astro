@@ -238,7 +238,7 @@ Mehl (Dinkel),Backware,masse,false,true,g,0,0,0,0
 Mehl (Dinkel-Vollkorn),Backware,masse,false,true,g,0,0,0,0
 Mehl (Weizen),Backware,masse,false,true,g,7,6,6,5
 "Mehl (Weizen, 1050)",Backware,masse,false,true,g,1,1,1,1
-Messbecher,Sonstiges,stueck,false,true,St,0,0,0,0
+Messbecher,Sonstiges,stueck,false,false,St,0,0,0,0
 Metalltopfreiniger,Reinigung/Hygiene,stueck,false,false,St,0,0,0,0
 Mettwurst,Fleisch/Wurst,stueck,false,true,St,0,0,0,0
 Milch,Milchprodukt,volumen,false,true,ml,2,2,2,0
@@ -361,8 +361,8 @@ Sojamehl,Getreide,masse,false,true,g,0,0,0,0
 Sojasoße,Sonstiges,volumen,false,true,ml,6,5,5,5
 Sonnenblumenkerne,Sonstiges,masse,false,true,g,0,0,0,0
 Sonnenblumenöl,Öle / Fette,volumen,false,true,ml,3,2,2,3
-Sonnencreme,Sonstiges,packung,false,true,Pkg,0,0,0,0
-Sonnencreme (sprüh),Sonstiges,packung,false,true,Pkg,0,0,0,0
+Sonnencreme,Sonstiges,packung,false,false,Pkg,0,0,0,0
+Sonnencreme (sprüh),Sonstiges,packung,false,false,Pkg,0,0,0,0
 Soßen,Sonstiges,stueck,false,true,St,0,0,0,0
 Speisestärke,Getreide,masse,false,true,g,4,3,3,4
 Spinat,Gemüse,masse,false,true,g,0,0,0,0

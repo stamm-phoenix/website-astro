@@ -10,7 +10,7 @@ Alle Dateien sind UTF-8, durch Kommas getrennt, mit Kopfzeile.
 
 | Datei | Inhalt |
 | --- | --- |
-| `zutaten.csv` | Zentrale Zutatenliste: 395 Lebensmittel und 38 Nicht-Lebensmittel (Blatt `Bestandsdaten`, Spalten „Zutat“ und „Sonstiges“). Doppelte Namen (Kopfsalat, Ausstechform, Sonnencreme, Sonnencreme (sprüh)) gibt es nur einmal, die Lebensmittel-Zeile gewinnt. |
+| `zutaten.csv` | Zentrale Zutatenliste: 392 Lebensmittel und 41 Nicht-Lebensmittel (Blatt `Bestandsdaten`, Spalten „Zutat“ und „Sonstiges“). Doppelte Namen (Kopfsalat, Ausstechform, Sonnencreme, Sonnencreme (sprüh)) gibt es nur einmal. Messbecher und Sonnencreme standen im Sheet bei den Lebensmitteln und sind hier Nicht-Lebensmittel. |
 | `kategorien.csv` | 28 Kategorien (Blatt `Bestandsdaten`, „Kategorieliste Supermarkt“) |
 | `gruppen_vorlage.csv` | Gruppen mit Faktor für neue Planungen: Wö 0,7, Jupfi 0,8, Pfadi 1, Rover 1,2, Leitende 1,2 („Leiter“ im Sheet) |
 | `mahlzeiten_vorlage.csv` | Standard-Mahlzeiten für neue Tage. Nicht aus dem Sheet, sondern aus der Anforderung in #452. |

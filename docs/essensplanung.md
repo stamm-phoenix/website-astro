@@ -95,11 +95,11 @@ Die Seite `/leitendenbereich/essensplanung-steuerung` ist nur für die Teams **`
   - Links,
   - Notiz,
   - benötigte **Werkzeuge** als Freitext-Einträge, z. B. „Pürierstab“,
-  - Schalter **„feste Menge“**: Das Gericht skaliert dann nicht, die Mengen im Rezept sind die Gesamtmengen. Beispiel ist das Lagercafé mit 70 L Teig.
 - **Zutatenzeilen:**
   - Zutat (aus der Liste oder eine Abweichung der Planung) und Menge.
   - Einheit passend zur Einheitenart der Zutat (g/kg, ml/l, Stück, Packung, Bund).
   - **Ohne Menge** bei Gewürzen nach Augenmaß („Pfeffer“, „eine Prise“).
+  - **Feste Menge**: Die Zeile skaliert nicht mit den Essern und nicht mit dem Faktor der Einplanung, die Menge ist die Gesamtmenge für jede Einplanung des Gerichts. Beispiele aus dem Sheet: 150 g Vanillepaste im Pudding für alle, 10 glutenfreie Müsliriegel im Lunchpaket, und beim Lagercafé („70 L Teig“, 30 kg Mehl) sind alle Zeilen fest. Fest und skalierend lassen sich in einem Gericht mischen.
   - **In der Datenbank wird nie zwischen Einheitenarten umgerechnet.** Milch steht fest in ml/l. Eine Umrechnungshilfe in der Oberfläche schlägt Werte vor, z. B. EL/TL → g aus den Startdaten, für schwierige Fälle per KI.
 - **Für wen gilt eine Zeile:**
   - Häkchen **mit allem / vegetarisch / vegan**. Hackfleisch gilt nur für „mit allem“, Soja-Hack für vegetarisch und vegan.
@@ -138,7 +138,7 @@ Gerechnet wird im Browser aus dem vollständigen Stand der Planung. Das Modul li
 > - keine ihrer Unverträglichkeiten ist bei Z ausgenommen,
 > - falls Z „nur für …“ ist: Sie haben eine dieser Unverträglichkeiten.
 
-**Menge:** Z.menge ÷ Referenz-Personenzahl × Esser × E.faktor. Bei „feste Menge“ gilt nur Z.menge × E.faktor.
+**Menge:** Z.menge ÷ Referenz-Personenzahl × Esser × E.faktor. Bei einer Zeile mit fester Menge gilt Z.menge, ohne Esser und ohne E.faktor (so rechnet auch das Sheet: dort steht bei „Stufengetränke“ der Gerichtsfaktor auf 0, die festen Mengen zählen trotzdem voll).
 
 **Prüfung am Sheet:**
 - Brot 80 g p. P. × 35,5 gewichtete Esser = 2.840 g.
@@ -238,16 +238,16 @@ Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen eine
 
 Aus dem Sheet „2026 – Küche Bezirkslager“ (die Datei selbst liegt nicht im Repo):
 
-- **`api/migrations/seed/essensplanung/`:** zentrale Zutatenliste (395 Lebensmittel, 38 Nicht-Lebensmittel), 28 Kategorien, Vorlagen für Gruppen und Mahlzeiten, Umrechnung TL/EL in Gramm, Stückgewichte und die Metro-Artikel des Lagers mit Packung und Preis. Spalten und Herkunft: [README](../api/migrations/seed/essensplanung/README.md). Die Migration `essen` liest die Dateien; bis dahin sind sie nicht in der Datenbank.
+- **`api/migrations/seed/essensplanung/`:** zentrale Zutatenliste (392 Lebensmittel, 41 Nicht-Lebensmittel), 28 Kategorien, Vorlagen für Gruppen und Mahlzeiten, Umrechnung TL/EL in Gramm, Stückgewichte und die Metro-Artikel des Lagers mit Packung und Preis. Spalten und Herkunft: [README](../api/migrations/seed/essensplanung/README.md). Die Migration `essen` liest die Dateien; bis dahin sind sie nicht in der Datenbank.
 - **`web/test/fixtures/essensplanung-bezirkslager/`:** das ganze Lager (Tagesplan mit Anwesenden je Mahlzeit, 683 Zutatenzeilen mit den Ergebnissen des Sheets, Bestand, Zusätzliches) als Testdaten für die Berechnung. Siehe [README](../web/test/fixtures/essensplanung-bezirkslager/README.md).
 
 ## Was wir aus dem Sheet gelernt haben
 
-- **Die Formel stimmt.** Die [Berechnung](#berechnung) oben bildet alle 683 Zutatenzeilen des Sheets exakt nach, inklusive Gerichtsfaktor und fester Gesamtmenge.
+- **Die Formel stimmt.** Die [Berechnung](#berechnung) oben bildet alle 683 Zutatenzeilen des Sheets exakt nach, inklusive Gerichtsfaktor und fester Gesamtmenge je Zeile.
 - **Anwesenheit ändert sich innerhalb eines Tages.** Am Tag 6 reisen die Rover nach dem Mittagessen ab, an Auf- und Abbautagen essen nur Leitende. Deshalb Anwesenheit pro Mahlzeit und eine Einschränkung der Gruppen pro Mahlzeit.
 - **Ernährungsformen stehen an der Zutat.** Ein Gericht „Schupfnudeln mit Sauerkraut“ hat „Schupfnudeln“ für mit allem und vegetarisch und „Schupfnudeln (vegan)“ nur für vegan. So bleibt es ein Gericht.
 - **Unverträglichkeiten liefen nur als Notiz mit**, z. B. „Allergene: 2x Gluten, 1x Weizen, 13x Laktose“ in der Zutatenspalte. Sie gingen nicht in die Mengen ein. Die Essensplanung macht sie zu Teilnehmenden-Zeilen und Häkchen an der Zutat.
-- **Feste Mengen gibt es wirklich.** Das Lagercafé („70 L Teig“) braucht 30 kg Mehl, egal wie viele kommen. Dafür der Schalter „feste Menge“.
+- **Feste Mengen gibt es wirklich, und zwar je Zutatenzeile.** Das Lagercafé („70 L Teig“) braucht 30 kg Mehl, egal wie viele kommen; im Pudding sind nur die 150 g Vanillepaste fest. Feste Zeilen ignorieren den Gerichtsfaktor. Die festen 10 glutenfreien Müsliriegel waren ein Behelf für Zöliakie; dafür gibt es künftig Zeilen „nur für Gluten“.
 - **Einheiten:** Im Sheet stehen g, ml, Stück, Packung, Bund und g (ATG). Mehr braucht es nicht.
 - **Nicht-Lebensmittel** (Spülmittel, Müllbeutel, Sonnencreme) gehören auf dieselbe Einkaufsliste. Darum stehen sie in der zentralen Liste, mit `lebensmittel = false`.
 - **Beim Einkauf wurde zweimal abgehakt** („Im Einkaufswagen“, „Geprüft“). Die erste Version hat ein Häkchen, zwei Stufen sind eine Ausbaustufe.
