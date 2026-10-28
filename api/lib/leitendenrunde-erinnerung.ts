@@ -171,15 +171,23 @@ async function settle(now: Date): Promise<{ uncertain: number; failed: number }>
   return { uncertain: abandoned.length, failed: expired.length };
 }
 
-/** Whether the plan this run started with still holds: date, time and stage are unchanged. */
-async function stillCurrent(sitzung: Sitzung, stage: number, clock: () => Date): Promise<boolean> {
+/**
+ * The meeting as it stands now if the plan this run started with still holds (same date, time
+ * and stage), otherwise `null`. The mail is written from the fresh values, so a corrected place
+ * or a newer minutes link is not overtaken by what the run loaded first.
+ */
+async function stillCurrent(
+  sitzung: Sitzung,
+  stage: number,
+  clock: () => Date
+): Promise<Sitzung | null> {
   const again = await currentSitzung();
   // The time of this moment, not of the start of the run: the meeting may have begun meanwhile.
-  return (
-    again !== null &&
+  return again !== null &&
     sitzungKey(again) === sitzungKey(sitzung) &&
     reminderStage(again, clock()) === stage
-  );
+    ? again
+    : null;
 }
 
 /**
@@ -244,12 +252,20 @@ export async function runLeitendenrundeReminders(
     if (!reservation) continue;
     processed++;
     // A new date, a cancellation or a newer approval before transport drops the old reminders.
-    if (!(await stillCurrent(sitzung, stage, clock))) {
+    let current: Sitzung | null;
+    try {
+      current = await stillCurrent(sitzung, stage, clock);
+    } catch (error) {
+      // Nothing was sent: a failing check must not turn the reservation into an unclear result.
+      await release(reservation).catch(() => undefined);
+      throw error;
+    }
+    if (!current) {
       await release(reservation);
       return { ...result, reason: 'changed' };
     }
     try {
-      await sendLeitendenrundeReminder(address, sitzung);
+      await sendLeitendenrundeReminder(address, current);
     } catch (error) {
       const statusCode =
         error &&

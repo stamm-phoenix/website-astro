@@ -18,7 +18,7 @@ import {
 } from '../lib/leitendenrunde-termin';
 import { runLeitendenrundeWorker } from '../lib/leitendenrunde-worker';
 import * as mail from '../lib/mail';
-import * as sharePoint from '../lib/sharepoint-data-access';
+import * as protokollSource from '../lib/protokoll-source';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';
 
@@ -307,7 +307,13 @@ dbTest('confirmed Word minutes count, suggestions do not', async (t) => {
       })
       .execute();
   mockLeaders(t, [leader('lea@example.test')]);
-  const files = t.mock.method(sharePoint, 'getSharePointDriveItem', async () => ({}));
+  type Loaded = Awaited<ReturnType<typeof protokollSource.loadProtokoll>>;
+  const loaded = (changed = false, stale = false): Loaded =>
+    ({
+      item: {},
+      protokoll: { changedSinceApproval: changed, terminStale: stale },
+    }) as unknown as Loaded;
+  const files = t.mock.method(protokollSource, 'loadProtokoll', async () => loaded());
   const send = t.mock.method(reminderMail, 'sendLeitendenrundeReminder', async () => undefined);
   await word('offen', 'a', '2026-10-07T21:00:00Z');
   assert.equal((await runLeitendenrundeReminders(stage7)).reason, 'no-meeting');
@@ -315,6 +321,17 @@ dbTest('confirmed Word minutes count, suggestions do not', async (t) => {
   assert.equal((await runLeitendenrundeReminders(new Date('2026-10-09T07:00:00Z'))).sent, 1);
   assert.equal(send.mock.callCount(), 1);
   assert.equal(send.mock.calls[0].arguments[1]?.url.endsWith('/leitendenbereich/protokolle'), true);
+  // A file changed after the approval, or a date from another version, gives no date at all.
+  files.mock.mockImplementation(async () => loaded(true));
+  assert.equal(
+    (await runLeitendenrundeReminders(new Date('2026-10-13T07:00:00Z'))).reason,
+    'no-meeting'
+  );
+  files.mock.mockImplementation(async () => loaded(false, true));
+  assert.equal(
+    (await runLeitendenrundeReminders(new Date('2026-10-13T07:00:00Z'))).reason,
+    'no-meeting'
+  );
   // Deleted minutes (the row stays for a restore) send no more; a failing check stops the run.
   files.mock.mockImplementation(async () => undefined);
   assert.equal(
@@ -347,6 +364,37 @@ dbTest('no mail goes out once the meeting has begun during the run', async (t) =
     rows.map((row) => row.status),
     ['sent']
   );
+});
+
+dbTest('the mail carries the values found just before sending', async (t) => {
+  await approveEditor(NEXT);
+  mockLeaders(t, [leader('lea@example.test')]);
+  const send = t.mock.method(reminderMail, 'sendLeitendenrundeReminder', async () => undefined);
+  const real = termin.currentSitzung;
+  let calls = 0;
+  t.mock.method(termin, 'currentSitzung', async () => {
+    const found = await real();
+    return ++calls === 1 || !found ? found : { ...found, place: 'Neuer Ort', ref: 'editor:99' };
+  });
+  assert.equal((await runLeitendenrundeReminders(stage7)).sent, 1);
+  assert.equal(send.mock.calls[0].arguments[1]?.place, 'Neuer Ort');
+});
+
+dbTest('a failing check before sending frees the reservation for the next run', async (t) => {
+  await approveEditor(NEXT);
+  mockLeaders(t, [leader('lea@example.test')]);
+  const send = t.mock.method(reminderMail, 'sendLeitendenrundeReminder', async () => undefined);
+  const real = termin.currentSitzung;
+  let calls = 0;
+  // The first look plans the run, the second is the check before the mail.
+  t.mock.method(termin, 'currentSitzung', async () => {
+    if (++calls === 2) throw new Error('Graph unavailable');
+    return real();
+  });
+  await assert.rejects(runLeitendenrundeReminders(stage7), /Graph unavailable/);
+  assert.equal(send.mock.callCount(), 0);
+  assert.equal((await getDb().selectFrom('protokoll.erinnerung').selectAll().execute()).length, 0);
+  assert.equal((await runLeitendenrundeReminders(stage7)).sent, 1);
 });
 
 dbTest('an unclear result stays reserved, throttling is retried after the pause', async (t) => {
