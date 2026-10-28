@@ -303,3 +303,36 @@ test('on a phone all five values of a Nikolaus day are visible', async ({ page }
   }
   await expectNoHorizontalOverflow(page);
 });
+
+test('the booking link can be copied and the bookmark hint keeps the token in the address bar', async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'tablet', 'WebKit has no clipboard permissions');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/nikolaus/termin#token=mock');
+  await expect(page.getByText(/Speichern Sie sich diesen Link/)).toBeVisible();
+  await page.getByRole('button', { name: 'Link kopieren' }).click();
+  await expect(page.getByText('Der Link ist in der Zwischenablage.')).toBeVisible();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toMatch(/\/nikolaus\/termin#token=mock$/);
+
+  await page.goto('/nikolaus/termin#main');
+  await page.getByRole('button', { name: 'Als Lesezeichen speichern' }).click();
+  await expect(page).toHaveURL(/\/nikolaus\/termin#token=mock$/);
+  const hint =
+    testInfo.project.name === 'mobile' ? /Lesezeichen hinzufügen/ : /Drücken Sie jetzt Strg \+ D/;
+  await expect(page.getByRole('status').filter({ hasText: hint })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('a failed copy leaves the full booking link in the address bar', async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.clipboard.writeText = () => Promise.reject(new Error('denied'));
+  });
+  await page.goto('/nikolaus/termin#token=mock');
+  await page.goto('/nikolaus/termin#main');
+  await page.getByRole('button', { name: 'Link kopieren' }).click();
+  await expect(page.getByText(/Kopieren ging nicht/)).toBeVisible();
+  await expect(page).toHaveURL(/\/nikolaus\/termin#token=mock$/);
+});
