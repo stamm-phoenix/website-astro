@@ -123,7 +123,10 @@ function withoutQuery(token: string): string {
   for (let i = 0; i < token.length; i++) {
     const char = token[i];
     if (char === '?' || char === '#') {
-      if (i > 0 && i < token.length - 1 && (urlLike || lastEquals > i)) return token.slice(0, i);
+      if (i > 0 && i < token.length - 1 && (urlLike || lastEquals > i)) {
+        // A bracket that closes `[text](https://x.de/a?b=1)` or `(siehe x.de/a?b=1)` stays
+        return token.slice(0, i) + (token.endsWith(')') ? ')' : '');
+      }
     } else if (char === '/' || char === '.' || char === ':' || char === ']') {
       urlLike = true;
     }
