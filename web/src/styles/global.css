@@ -17,9 +17,9 @@
 
 /* Kompaktmodus of the Leitendenbereich (`data-density`, lib/density.ts): every padding, margin,
    gap and touch target is a multiple of `--spacing`, so the two modes differ only in the variables
-   at the end of the block below. Sizes of icons, images and columns use `--size-unit` instead and
-   stay the same in both modes. Own rules write `calc(var(--spacing) * n)` for space and multiply
-   `em` spacing with `--density`. */
+   at the end of the block below. Sizes of icons, images and columns and the offsets below the
+   sticky header use `--size-unit` instead and stay the same in both modes. Own rules write
+   `calc(var(--spacing) * n)` for space and multiply `em` spacing with `--density`. */
 @utility size-* {
   width: calc(var(--size-unit) * --value(number));
   height: calc(var(--size-unit) * --value(number));
@@ -38,6 +38,13 @@
 }
 @utility basis-* {
   flex-basis: calc(var(--size-unit) * --value(number));
+}
+/* Offsets below the sticky header, whose logo keeps its size */
+@utility top-* {
+  top: calc(var(--size-unit) * --value(number));
+}
+@utility scroll-mt-* {
+  scroll-margin-top: calc(var(--size-unit) * --value(number));
 }
 
 /* Leitfaden: DPSG marks and typography, with semantic colors shared by every area. */
