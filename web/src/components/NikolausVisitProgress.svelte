@@ -1,4 +1,5 @@
 <script lang="ts">
+  import NikolausLinkSichern from './NikolausLinkSichern.svelte';
   import { NIKOLAUS_NOTABLE_DELAY_MINUTES } from '../lib/nikolausConfig';
   import { postApi } from '../lib/api';
   import { dateToLocalParts } from '../lib/nikolausConfig';
@@ -119,6 +120,7 @@
       <strong>Am Besuchstag</strong> sehen Sie hier, wie viele Besuche der Nikolaus noch vor Ihnen hat
       und wann er voraussichtlich bei Ihnen ist. Speichern Sie sich diesen Link am besten gut ab.
     </p>
+    <NikolausLinkSichern {token} />
   </div>
 {:else if finished}
   {@render nextSteps()}
