@@ -11,6 +11,8 @@ import {
   redactSensitive,
   validateProblemReport,
 } from '../lib/problemmeldung-model';
+import { validateProblemDraft } from '../lib/problemmeldung-senden';
+import { ValidationError } from '../lib/pflege-validation';
 import type { StaffProblemMeldung } from '../lib/problemmeldung-model';
 import { parseProblemAssessment, problemModelInput } from '../lib/problemmeldung-ki';
 
@@ -291,6 +293,16 @@ test('authorization headers and cookies go completely, page names stay', () => {
   );
   assert.equal(cleanPath('/abstimmung/AbCdEfGhIjKlMnOpQrStUvWx'), '/abstimmung/:id');
   assert.equal(cleanPath('/x/0123456789abcdef0123456789'), '/x/:id');
+});
+
+test('the length of a draft counts after cleaning, which can make it longer', () => {
+  const long = 'a '.repeat(3995) + 'token=x Z';
+  assert.equal(long.length, 7999);
+  assert.throws(
+    () => validateProblemDraft({ title: 'T', body: long, label: 'bug' }),
+    (error: unknown) => error instanceof ValidationError && 'body' in error.fields
+  );
+  assert.equal(validateProblemDraft({ title: 'T', body: 'kurz', label: 'bug' }).body, 'kurz');
 });
 
 test('every accepted address and the contact itself stay out of forwarded text', () => {

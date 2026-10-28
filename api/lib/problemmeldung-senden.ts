@@ -31,15 +31,14 @@ import type { StaffProblemMeldung } from './problemmeldung-model';
 /** The draft as a request sends it, cleaned; fields that are missing or invalid are reported. */
 export function validateProblemDraft(body: Record<string, unknown> | null): ProblemDraft {
   const errors: Record<string, string> = {};
-  // Too long is refused, not cut: the rest of a text would be lost without a word
-  const rawTitle = typeof body?.title === 'string' ? body.title.trim().length : 0;
-  const rawBody = typeof body?.body === 'string' ? body.body.trim().length : 0;
-  if (rawTitle > PROBLEM_MAX_LENGTH.title)
+  // Cleaning can make a text longer (`token=x` becomes `token: [entfernt]`), so the length that
+  // counts is the cleaned one. Too long is refused, not cut: the rest would be lost without a word.
+  const title = cleanIssueTitle(body?.title, Infinity);
+  const text = cleanIssueText(body?.body, Infinity);
+  if (title.length > PROBLEM_MAX_LENGTH.title)
     errors.title = `Der Titel darf höchstens ${PROBLEM_MAX_LENGTH.title} Zeichen lang sein.`;
-  if (rawBody > PROBLEM_MAX_LENGTH.body)
+  if (text.length > PROBLEM_MAX_LENGTH.body)
     errors.body = `Die Beschreibung darf höchstens ${PROBLEM_MAX_LENGTH.body} Zeichen lang sein.`;
-  const title = cleanIssueTitle(body?.title);
-  const text = cleanIssueText(body?.body);
   if (!title && !errors.title) errors.title = 'Bitte gib einen Titel an.';
   if (!isProblemLabel(body?.label)) errors.label = 'Bitte wähle ein Label.';
   if (Object.keys(errors).length > 0) throw new ValidationError(errors);
