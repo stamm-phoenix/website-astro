@@ -143,6 +143,25 @@ export interface ApiConfig {
     hourlyLimit: number;
     dailyLimit: number;
   };
+  /** „Problem melden“: Meldungen der Besuchenden, KI-Sichtung und GitHub (docs/problemmeldungen.md). */
+  problemmeldung: {
+    /** Reports per hour and day over all Function instances, counted in the database. */
+    hourlyLimit: number;
+    dailyLimit: number;
+    /** Azure OpenAI model that assesses a report and drafts the issue (key shared with the receipt check). */
+    ai: {
+      endpoint: string;
+      deployment: string;
+      /** Assessments per day and Function instance. */
+      maxPerDay: number;
+      /** A visitor waits for the assessment while the report is sent; it is retried by hand after a timeout. */
+      timeoutMs: number;
+    };
+    /** Repository that receives the issues, as `owner/name` (the token is a secret). */
+    githubRepository: string;
+    /** Days a report is kept after it was discarded, sent to GitHub or, still open, received. */
+    retention: { discardedDays: number; sentDays: number; openDays: number };
+  };
   /**
    * Proof of work of the ALTCHA widget (PBKDF2 iterations and counter range) in the public forms:
    * Kontakt, Nikolaus booking and the Sammelbestellung link request.
@@ -354,6 +373,17 @@ export const CONFIG: ApiConfig = {
     mailbox: 'kontakt@stamm-phoenix.de',
     hourlyLimit: 20,
     dailyLimit: 100,
+  },
+  problemmeldung: {
+    hourlyLimit: 20,
+    dailyLimit: 100,
+    ai: {
+      ...AZURE_OPENAI,
+      maxPerDay: 200,
+      timeoutMs: 12_000,
+    },
+    githubRepository: 'stamm-phoenix/website-astro',
+    retention: { discardedDays: 30, sentDays: 90, openDays: 180 },
   },
   altcha: {
     // About one second on a laptop, a few on an older phone; the widget starts on focus.

@@ -86,6 +86,14 @@ import GeocodeNikolausAddressEndpoint from './endpoints/nikolaus-geocode';
 import { KarteKachel, KarteQuelle } from './endpoints/karte-kachel';
 import { AltchaChallenge } from './endpoints/altcha';
 import { KontaktSend } from './endpoints/kontakt';
+import { ProblemMeldungSend } from './endpoints/problemmeldung';
+import {
+  ProblemMeldungAssess,
+  ProblemMeldungDiscard,
+  ProblemMeldungGithub,
+  ProblemMeldungItem,
+  ProblemMeldungenCollection,
+} from './endpoints/intern-pflege-problemmeldungen';
 import GetInternNikolausBookingsEndpoint from './endpoints/intern-nikolaus-bookings';
 import NikolausMessageEndpoint from './endpoints/intern-nikolaus-message';
 import NikolausRescheduleEndpoint from './endpoints/intern-nikolaus-reschedule';
@@ -424,6 +432,13 @@ app.http('kontaktSend', {
   handler: KontaktSend,
 });
 
+app.http('problemMeldungSend', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'problemmeldung',
+  handler: ProblemMeldungSend,
+});
+
 // Leitendenbereich: only reachable for logged-in members of our tenant
 // (see staticwebapp.config.json and lib/staff-auth.ts)
 app.http('internNikolausBookings', {
@@ -546,6 +561,41 @@ app.http('internPflegeQuestion', {
   authLevel: 'anonymous',
   route: 'intern/pflege/qa/{id}',
   handler: QuestionItem,
+});
+
+app.http('internPflegeProblemmeldungen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/problemmeldungen',
+  handler: ProblemMeldungenCollection,
+});
+
+app.http('internPflegeProblemmeldung', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/problemmeldungen/{id}',
+  handler: ProblemMeldungItem,
+});
+
+app.http('internPflegeProblemmeldungVerwerfen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/problemmeldungen/{id}/verwerfen',
+  handler: ProblemMeldungDiscard,
+});
+
+app.http('internPflegeProblemmeldungGithub', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/problemmeldungen/{id}/github',
+  handler: ProblemMeldungGithub,
+});
+
+app.http('internPflegeProblemmeldungBewerten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/problemmeldungen/{id}/bewerten',
+  handler: ProblemMeldungAssess,
 });
 
 app.http('internAnwesenheit', {

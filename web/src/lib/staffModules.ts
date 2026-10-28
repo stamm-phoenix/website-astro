@@ -114,6 +114,17 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM6 6h1M17 6h1M6 17h1M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3',
   },
   {
+    href: '/leitendenbereich/problemmeldungen',
+    title: 'Problemmeldungen',
+    wrap: 'Problem|meldungen',
+    description:
+      'Probleme, die Besuchende der Website melden, sichten, verwerfen oder an GitHub weitergeben.',
+    intro:
+      'Besuchende melden Probleme über „Problem melden“ auf der Website. Hier siehst du jede Meldung mit ihren technischen Angaben und einer automatischen Einschätzung, ob sie plausibel ist. Erst wenn du „An GitHub senden“ wählst, entsteht ein Eintrag auf GitHub. Verworfene und gesendete Meldungen werden nach einiger Zeit gelöscht.',
+    keywords: ['fehler', 'bug', 'melden', 'github', 'issue', 'website', 'feedback'],
+    icon: 'M4 21V4M4 4h13l-2 4 2 4H4',
+  },
+  {
     href: '/leitendenbereich/fragen-und-antworten',
     title: 'Fragen & Antworten',
     description: 'Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten.',
@@ -438,6 +449,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
       'blog',
       'downloads',
       'fragen-und-antworten',
+      'problemmeldungen',
       'qr-code'
     ),
   },

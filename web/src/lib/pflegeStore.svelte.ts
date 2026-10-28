@@ -1,4 +1,5 @@
 import { errorMessage, fetchApi } from './api';
+import type { StaffProblemMeldungenData } from './problemMelden';
 import type {
   AnwesenheitOverview,
   BeitraegeData,
@@ -219,5 +220,14 @@ export const mitgliederStore = createResource<MitgliederData, boolean>(
     idle: true,
     loadError:
       'Die Mitgliederliste konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
+  }
+);
+
+/** The Problemmeldungen of „Problem melden“; loaded again on every visit. */
+export const problemmeldungenPflege = createResource<StaffProblemMeldungenData>(
+  '/intern/pflege/problemmeldungen',
+  {
+    loadError:
+      'Die Problemmeldungen konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
   }
 );
