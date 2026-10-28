@@ -305,6 +305,27 @@ test('the length of a draft counts after cleaning, which can make it longer', ()
   assert.equal(validateProblemDraft({ title: 'T', body: 'kurz', label: 'bug' }).body, 'kurz');
 });
 
+test('a huge text is refused cheaply and cleaning twice changes nothing', () => {
+  for (const unit of ['a?', 'a/b?', 'x ', 'http://a/b?c=d&']) {
+    const started = Date.now();
+    const result = validateProblemReport({ description: unit.repeat(200_000) });
+    assert.equal(result.report, null);
+    assert.ok(result.errors.description);
+    assert.ok(Date.now() - started < 1000, unit);
+  }
+  // Within the limit, the pathological shapes stay fast as well
+  const started = Date.now();
+  redactForForwarding('a?'.repeat(2000) + ' ' + 'a/b?c'.repeat(800), 'x@y.de');
+  assert.ok(Date.now() - started < 1000);
+
+  const text = 'https://x.de/anmelden?\ncode=123456\nNicht gespeichert.';
+  const once = redactSensitive(text);
+  assert.ok(!once.includes('123456'));
+  assert.ok(once.includes('Nicht gespeichert.'));
+  assert.equal(redactSensitive(once), once);
+  assert.equal(redactForForwarding(once), redactForForwarding(text));
+});
+
 test('every accepted address and the contact itself stay out of forwarded text', () => {
   const contact = 'erika@bücher.de';
   assert.equal(

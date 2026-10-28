@@ -31,6 +31,21 @@ import type { StaffProblemMeldung } from './problemmeldung-model';
 /** The draft as a request sends it, cleaned; fields that are missing or invalid are reported. */
 export function validateProblemDraft(body: Record<string, unknown> | null): ProblemDraft {
   const errors: Record<string, string> = {};
+  // Cleaning can lengthen a text, but a text far beyond the limit is refused before the work
+  const raw = (value: unknown): number => (typeof value === 'string' ? value.length : 0);
+  if (
+    raw(body?.title) > PROBLEM_MAX_LENGTH.title * 3 ||
+    raw(body?.body) > PROBLEM_MAX_LENGTH.body * 2
+  ) {
+    throw new ValidationError({
+      ...(raw(body?.title) > PROBLEM_MAX_LENGTH.title * 3
+        ? { title: `Der Titel darf höchstens ${PROBLEM_MAX_LENGTH.title} Zeichen lang sein.` }
+        : {}),
+      ...(raw(body?.body) > PROBLEM_MAX_LENGTH.body * 2
+        ? { body: `Die Beschreibung darf höchstens ${PROBLEM_MAX_LENGTH.body} Zeichen lang sein.` }
+        : {}),
+    });
+  }
   // Cleaning can make a text longer (`token=x` becomes `token: [entfernt]`), so the length that
   // counts is the cleaned one. Too long is refused, not cut: the rest would be lost without a word.
   const title = cleanIssueTitle(body?.title, Infinity);
