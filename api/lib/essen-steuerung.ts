@@ -126,17 +126,15 @@ export async function listUnvertraeglichkeiten(
 }
 
 export async function listZutaten(db: Db = getDb()): Promise<EssenZutat[]> {
-  const [rows, links] = await Promise.all([
-    db.selectFrom('essen.zutat').selectAll().execute(),
-    db.selectFrom('essen.zutat_unvertraeglichkeit').selectAll().execute(),
-  ]);
-  const allergene = new Map<number, number[]>();
-  for (const link of links) {
-    allergene.set(link.zutat_id, [
-      ...(allergene.get(link.zutat_id) ?? []),
-      link.unvertraeglichkeit_id,
-    ]);
-  }
+  // One statement, so the allergens always belong to the ingredient rows read.
+  const rows = await db
+    .selectFrom('essen.zutat as z')
+    .selectAll('z')
+    .select(
+      sql<string | null>`(select string_agg(cast(zu.unvertraeglichkeit_id as varchar(12)), ',')
+        from essen.zutat_unvertraeglichkeit zu where zu.zutat_id = z.id)`.as('allergen_ids')
+    )
+    .execute();
   const number = (value: number | null): number | null => (value === null ? null : Number(value));
   return rows
     .map((row) => ({
@@ -154,7 +152,9 @@ export async function listZutaten(db: Db = getDb()): Promise<EssenZutat[]> {
       grammProTl: number(row.gramm_pro_tl),
       grammProEl: number(row.gramm_pro_el),
       grammProStueck: number(row.gramm_pro_stueck),
-      allergene: (allergene.get(row.id) ?? []).sort((a, b) => a - b),
+      allergene: (row.allergen_ids ? row.allergen_ids.split(',').map(Number) : []).sort(
+        (a, b) => a - b
+      ),
       geaendertAm: row.geaendert_am.toISOString(),
       geaendertVon: row.geaendert_von,
     }))

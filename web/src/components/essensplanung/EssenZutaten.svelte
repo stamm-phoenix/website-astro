@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -12,6 +13,7 @@
     einheitKurz,
     ernaehrungLabel,
     fromZutatForm,
+    parseDecimal,
     toZutatForm,
     type ZutatForm,
   } from '../../lib/essensplanungSteuerung';
@@ -37,7 +39,10 @@
 
   const kategorieName = $derived(new Map(data.kategorien.map((k) => [k.id, k.name])));
   const allergenName = $derived(new Map(data.unvertraeglichkeiten.map((u) => [u.id, u.name])));
-  const ungeprueft = $derived(data.zutaten.filter((z) => !z.merkmaleGeprueft).length);
+  // Only food has diet and allergens to check.
+  const ungeprueft = $derived(
+    data.zutaten.filter((z) => z.lebensmittel && !z.merkmaleGeprueft).length
+  );
 
   const gefiltert = $derived.by(() => {
     const query = search.trim().toLocaleLowerCase('de');
@@ -45,7 +50,7 @@
       (zutat) =>
         (!query || zutat.name.toLocaleLowerCase('de').includes(query)) &&
         (!kategorieFilter || String(zutat.kategorieId) === kategorieFilter) &&
-        (!nurUngeprueft || !zutat.merkmaleGeprueft)
+        (!nurUngeprueft || (zutat.lebensmittel && !zutat.merkmaleGeprueft))
     );
   });
 
@@ -65,6 +70,11 @@
   async function reloadCurrent(): Promise<boolean> {
     const id = form?.id;
     await essensplanungSteuerung.load({ force: true });
+    // Keep the input when reloading failed; the dialog still offers to try again.
+    if (store.error) {
+      onnotice(store.error, 'error');
+      return false;
+    }
     const fresh = store.data?.zutaten.find((zutat) => zutat.id === id);
     if (!fresh) {
       form = null;
@@ -79,6 +89,10 @@
     const result: Record<string, string> = {};
     if (!f.name.trim()) result.name = 'Bitte einen Namen eintragen.';
     if (!f.kategorieId) result.kategorieId = 'Bitte eine Kategorie wählen.';
+    for (const field of ['grammProTl', 'grammProEl', 'grammProStueck'] as const) {
+      if (f[field].trim() && !(parseDecimal(f[field]) > 0))
+        result[field] = 'Bitte eine Zahl größer 0 eintragen, z. B. 4,5, oder das Feld leeren.';
+    }
     return result;
   }
 
@@ -86,7 +100,16 @@
     if (!form || busy) return;
     if (dialog.invalid(validate(form))) {
       await tick();
-      document.getElementById(errors.name ? 'zutat-name' : 'zutat-kategorie')?.focus();
+      const first = errors.name
+        ? 'zutat-name'
+        : errors.kategorieId
+          ? 'zutat-kategorie'
+          : errors.grammProTl
+            ? 'zutat-tl'
+            : errors.grammProEl
+              ? 'zutat-el'
+              : 'zutat-stueck';
+      document.getElementById(first)?.focus();
       return;
     }
     const { id, etag } = form;
@@ -137,15 +160,14 @@
 </script>
 
 <section aria-labelledby="zutaten-heading" class="space-y-4">
-  <div>
+  <div class="flex items-center gap-1">
     <h2 id="zutaten-heading" class="font-serif text-xl font-bold text-brand-900">
       Zentrale Zutatenliste
     </h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      Alle Planungen wählen ihre Zutaten aus dieser Liste. Abweichungen in einer Planung gelten nur
-      dort. Vegetarisch, vegan und Allergene sind bei den Startdaten Vorschläge; bitte prüfen und
-      dann als geprüft markieren.
-    </p>
+    <InfoHint
+      label="Zentrale Zutatenliste"
+      text="Alle Planungen wählen ihre Zutaten aus dieser Liste. Abweichungen in einer Planung gelten nur dort. Vegetarisch, vegan und Allergene sind bei den Startdaten Vorschläge; bitte prüfen und dann als geprüft markieren."
+    />
   </div>
 
   <div class="flex flex-col gap-3 md:flex-row md:items-end print:hidden">
@@ -324,15 +346,15 @@
             {/each}
           </div>
         </fieldset>
-        <FormField
-          id="zutat-hinweis"
-          label="Hinweis"
-          optional
-          hint="Z. B. „je nach Produkt mit Gelatine“."
-          error={errors.hinweis}
-        >
+        <FormField id="zutat-hinweis" label="Hinweis" optional error={errors.hinweis}>
           {#snippet children(attrs)}
-            <input {...attrs} class="form-input" maxlength="200" bind:value={form!.hinweis} />
+            <input
+              {...attrs}
+              class="form-input"
+              maxlength="200"
+              placeholder="z. B. je nach Produkt mit Gelatine"
+              bind:value={form!.hinweis}
+            />
           {/snippet}
         </FormField>
         <label class="flex items-center gap-2 text-sm font-semibold text-neutral-800">
@@ -342,10 +364,14 @@
       {/if}
 
       <fieldset class="min-w-0">
-        <legend class="text-sm font-semibold text-neutral-800">Umrechnungshilfe (optional)</legend>
-        <p class="text-sm text-neutral-700">
-          Hilft beim Eintragen von Rezepten, z. B. „2 EL Zucker“ in Gramm.
-        </p>
+        <legend class="text-sm font-semibold text-neutral-800">
+          Umrechnungshilfe (optional)
+          <InfoHint
+            label="Umrechnungshilfe"
+            class="ml-1"
+            text="Hilft beim Eintragen von Rezepten, z. B. „2 EL Zucker“ in Gramm."
+          />
+        </legend>
         <div class="mt-2 grid gap-3 sm:grid-cols-3">
           <FormField id="zutat-tl" label="Gramm pro TL" optional error={errors.grammProTl}>
             {#snippet children(attrs)}

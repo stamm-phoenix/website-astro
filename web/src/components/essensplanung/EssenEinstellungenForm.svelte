@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -110,6 +111,11 @@
 
   async function reloadCurrent(): Promise<void> {
     await essensplanungSteuerung.load({ force: true });
+    // Keep the input when reloading failed.
+    if (store.error) {
+      onnotice(store.error, 'error');
+      return;
+    }
     if (store.data) fill(store.data);
   }
 
@@ -150,30 +156,27 @@
 
     <fieldset disabled={saving} inert={saving} class="min-w-0 space-y-8">
       <section class="surface p-5 md:p-6" aria-labelledby="einstellungen-heading">
-        <h2 id="einstellungen-heading" class="font-serif text-xl font-bold text-brand-900">
-          Wer darf Planungen anlegen?
-        </h2>
-        <p class="mt-1 text-sm text-neutral-700">
-          Adressen auf @stamm-phoenix.de dürfen immer. Alle anderen nur, wenn das Anlegen durch
-          Externe an ist und ihre Adresse oder Domain in der Liste steht. Ist die Liste leer, dürfen
-          alle.
-        </p>
+        <div class="flex items-center gap-1">
+          <h2 id="einstellungen-heading" class="font-serif text-xl font-bold text-brand-900">
+            Wer darf Planungen anlegen?
+          </h2>
+          <InfoHint
+            label="Wer darf Planungen anlegen?"
+            text="Adressen auf @stamm-phoenix.de dürfen immer. Alle anderen nur, wenn das Anlegen durch Externe an ist und ihre Adresse oder Domain in der Liste steht. Ist die Liste leer, dürfen alle."
+          />
+        </div>
         <div class="mt-4 space-y-4">
-          <label class="flex gap-3">
-            <input type="checkbox" class="mt-1" bind:checked={form.anlegenExtern} />
-            <span>
-              <span class="font-semibold text-brand-900">Anlegen durch Externe</span>
-              <span class="block text-sm text-neutral-700">
-                Menschen außerhalb des Stammes, z. B. aus dem Bezirk, können eigene Planungen
-                anlegen.
-              </span>
+          <label class="flex min-h-11 items-center gap-3">
+            <input type="checkbox" bind:checked={form.anlegenExtern} />
+            <span class="font-semibold text-brand-900">
+              Externe dürfen Planungen anlegen: {form.anlegenExtern ? 'an' : 'aus'}
             </span>
           </label>
           <FormField
             id="essen-whitelist"
             label="Erlaubte Adressen und Domains"
             optional
-            hint="Eine pro Zeile, z. B. dpsg-bezirk.de oder kueche@example.org."
+            info="Eine Adresse oder Domain pro Zeile."
             error={whitelistError}
           >
             {#snippet children(attrs)}
@@ -181,13 +184,14 @@
                 {...attrs}
                 class="form-input resize-y font-mono text-sm"
                 rows="4"
+                placeholder="dpsg-bezirk.de&#10;kueche@example.org"
                 bind:value={form!.whitelist}></textarea>
             {/snippet}
           </FormField>
           <FormField
             id="essen-aufbewahrung"
             label="Aufbewahrung in Monaten nach dem letzten Tag"
-            hint="Danach wird eine Planung mit allen Daten gelöscht; die Besitzer:innen bekommen 14 Tage vorher eine Mail."
+            info="Danach wird eine Planung mit allen Daten gelöscht; die Besitzer:innen bekommen 14 Tage vorher eine Mail."
             error={errors.aufbewahrungMonate}
             class="max-w-xs"
           >
@@ -201,26 +205,31 @@
               />
             {/snippet}
           </FormField>
-          <label class="flex gap-3">
-            <input type="checkbox" class="mt-1" bind:checked={form.wartung} />
-            <span>
-              <span class="font-semibold text-brand-900">Wartungsmodus</span>
-              <span class="block text-sm text-neutral-700">
-                Sperrt alle Änderungen an Planungen; ansehen geht weiter. Nur bei Störungen.
+          <div class="flex items-center gap-1">
+            <label class="flex min-h-11 items-center gap-3">
+              <input type="checkbox" bind:checked={form.wartung} />
+              <span class="font-semibold text-brand-900">
+                Wartungsmodus: {form.wartung ? 'an' : 'aus'}
               </span>
-            </span>
-          </label>
+            </label>
+            <InfoHint
+              label="Wartungsmodus"
+              text="Sperrt alle Änderungen an Planungen; ansehen geht weiter. Nur bei Störungen."
+            />
+          </div>
         </div>
       </section>
 
       <section class="surface p-5 md:p-6" aria-labelledby="vorlagen-heading">
-        <h2 id="vorlagen-heading" class="font-serif text-xl font-bold text-brand-900">
-          Vorlagen für neue Planungen
-        </h2>
-        <p class="mt-1 text-sm text-neutral-700">
-          Jede neue Planung startet mit diesen Gruppen und Mahlzeiten und kann sie danach frei
-          ändern. Der Faktor gibt an, wie viel eine Person der Gruppe im Vergleich isst.
-        </p>
+        <div class="flex items-center gap-1">
+          <h2 id="vorlagen-heading" class="font-serif text-xl font-bold text-brand-900">
+            Vorlagen für neue Planungen
+          </h2>
+          <InfoHint
+            label="Vorlagen für neue Planungen"
+            text="Jede neue Planung startet mit diesen Gruppen und Mahlzeiten und kann sie danach frei ändern. Der Faktor gibt an, wie viel eine Person der Gruppe im Vergleich isst."
+          />
+        </div>
         <div class="mt-4 grid gap-8 md:grid-cols-2">
           <fieldset class="min-w-0">
             <legend class="font-semibold text-brand-900">Gruppen</legend>
