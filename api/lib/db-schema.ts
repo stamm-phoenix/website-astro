@@ -571,7 +571,7 @@ export interface EditorProtokollTable {
   delivery_by: string | null;
 }
 
-/** One reminder mail per meeting, stage and recipient (migration 0046). */
+/** One reminder mail per meeting, stage and recipient (migration 0047). */
 export interface LeitendenrundeErinnerungTable {
   id: Generated<number>;
   version: ReadOnly<Buffer>;
