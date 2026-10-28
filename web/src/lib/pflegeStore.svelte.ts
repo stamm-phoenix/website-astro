@@ -228,6 +228,6 @@ export const problemmeldungenPflege = createResource<StaffProblemMeldungenData>(
   '/intern/pflege/problemmeldungen',
   {
     loadError:
-      'Die Problemmeldungen konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
+      'Die Problemmeldungen konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Meldungen noch einmal.',
   }
 );

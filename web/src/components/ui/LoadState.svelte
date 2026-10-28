@@ -2,7 +2,7 @@
   import type { Snippet } from 'svelte';
   import ActionButton from './ActionButton.svelte';
   import MessageText from './MessageText.svelte';
-  import { problemMeldenHref } from '../../lib/problemMelden';
+  import ProblemMeldenLink from './ProblemMeldenLink.svelte';
 
   interface Props {
     data: T | null;
@@ -43,9 +43,7 @@
         >Erneut versuchen</ActionButton
       >
     {/if}
-    <a class="text-link inline-flex min-h-11 items-center text-sm" href={problemMeldenHref()}
-      >Problem melden</a
-    >
+    <ProblemMeldenLink />
   </div>
 {/snippet}
 

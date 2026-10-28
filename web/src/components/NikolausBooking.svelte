@@ -18,6 +18,7 @@
   import NikolausSlotPicker from './NikolausSlotPicker.svelte';
   import NikolausDetailsFields from './NikolausDetailsFields.svelte';
   import NikolausLinkRequest from './NikolausLinkRequest.svelte';
+  import ProblemMeldenLink from './ui/ProblemMeldenLink.svelte';
 
   interface Props {
     /** Settings baked into the page; refreshed from the API. */
@@ -238,6 +239,7 @@
         >kontakt@stamm-phoenix.de</a
       >.
     </p>
+    <ProblemMeldenLink class="text-link inline-flex min-h-11 items-center text-sm" />
   </article>
 {:else}
   {#if fullyBooked}

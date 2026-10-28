@@ -32,7 +32,8 @@ export interface GithubIssue {
  * Why no issue was created. `unclear` means the request may have been processed anyway (no
  * answer, a server error): check before trying again.
  */
-export type GithubIssueFailure = 'not-configured' | 'preview' | 'rejected' | 'unclear';
+export type GithubIssueFailure =
+  'not-configured' | 'preview' | 'rejected' | 'unclear' | 'needs-review';
 
 export class GithubIssueError extends Error {
   constructor(
@@ -118,7 +119,8 @@ export async function createGithubIssue(issue: {
  * @param since Start of the earlier attempt.
  * @param sent Title and text that were sent. The issue is recognized by its footer and by one
  * of them, so a renamed or edited issue is still found, while somebody else's issue that only
- * quotes the footer is not.
+ * quotes the footer is not. A matching footer with changed content needs manual review;
+ * it never proves that no issue exists.
  * @throws GithubIssueError `unclear` if GitHub cannot say.
  */
 export async function findGithubIssue(
@@ -128,6 +130,7 @@ export async function findGithubIssue(
 ): Promise<GithubIssue | null> {
   const start = new Date(since.getTime() - 5 * 60_000).toISOString();
   const deadline = Date.now() + SEARCH_DEADLINE_MS;
+  let conflictingMarker = false;
   for (let page = 1; page <= MAX_SEARCH_PAGES; page++) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) throw new GithubIssueError('unclear', 'The search took too long');
@@ -143,15 +146,20 @@ export async function findGithubIssue(
       throw new GithubIssueError('unclear', 'GitHub sent an unreadable answer');
     for (const entry of issues as Record<string, unknown>[]) {
       if (entry.pull_request) continue;
-      if (
-        typeof entry.body === 'string' &&
-        containsIssueMarker(entry.body, id) &&
-        (entry.title === sent.title || entry.body.startsWith(sent.body.slice(0, 120)))
-      )
-        return toIssue(entry);
+      if (typeof entry.body !== 'string' || !containsIssueMarker(entry.body, id)) continue;
+      if (entry.title === sent.title || entry.body.startsWith(sent.body.slice(0, 120))) {
+        const found = toIssue(entry);
+        if (!found) throw new GithubIssueError('unclear', 'GitHub sent an unreadable issue');
+        return found;
+      }
+      conflictingMarker = true;
     }
     // Only the last page, a short one, proves that the issue is not there
-    if (issues.length < PAGE_SIZE) return null;
+    if (issues.length < PAGE_SIZE) {
+      if (conflictingMarker)
+        throw new GithubIssueError('needs-review', 'A report marker has conflicting issue content');
+      return null;
+    }
   }
   throw new GithubIssueError('unclear', 'Too many changed issues to search through');
 }

@@ -9,6 +9,7 @@
   import { bakedUrl, registerBakedImages, type BakedImages } from '../lib/bakedImages';
   import { withBaked } from '../lib/storeView';
   import type { BlogPostSummary, InstagramPost } from '../lib/types';
+  import ProblemMeldenLink from './ui/ProblemMeldenLink.svelte';
 
   interface Props {
     /** Baked at build time; refreshed from the API in the browser */
@@ -71,6 +72,7 @@
     <p class="text-neutral-700">
       Die Beiträge konnten gerade nicht geladen werden. Bitte versuche es später noch einmal.
     </p>
+    <ProblemMeldenLink class="text-link inline-flex min-h-11 items-center text-sm" />
   </div>
 {:else if !featured && rest.length === 0}
   <p class="mt-12 border-y border-neutral-200 py-6 text-neutral-700">
@@ -135,6 +137,7 @@
     <p role="status" class="mt-12 border-l-4 border-l-danger py-2 pl-5 text-neutral-700">
       Die Blogbeiträge konnten gerade nicht geladen werden; hier siehst du vorerst nur die
       Instagram-Beiträge. Bitte versuche es später noch einmal.
+      <ProblemMeldenLink class="text-link inline-flex min-h-11 items-center text-sm" />
     </p>
   {/if}
 

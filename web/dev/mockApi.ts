@@ -931,6 +931,7 @@ route('PATCH', '/api/intern/pflege/problemmeldungen/:id', (req) => {
   Object.assign(meldung, {
     status: 'in_pruefung',
     reviewedBy: PRINCIPAL.userDetails,
+    reviewedAt: new Date().toISOString(),
     draft: {
       title: str(req.json?.title),
       body: str(req.json?.body),

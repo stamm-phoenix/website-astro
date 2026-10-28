@@ -211,6 +211,7 @@ export async function saveProblemDraft(
       github_label: draft.label,
       status: 'in_pruefung',
       reviewed_by: actor,
+      reviewed_at: sql<string>`SYSUTCDATETIME()`,
     })
     .where('id', '=', numericId)
     .where('version', '=', requireVersion(etag))
@@ -349,6 +350,7 @@ export async function claimProblemGithub(
       github_first_at: sql<string>`COALESCE(github_first_at, SYSUTCDATETIME())`,
       status: 'in_pruefung',
       reviewed_by: actor,
+      reviewed_at: sql<string>`SYSUTCDATETIME()`,
     })
     .where('id', '=', numericId)
     .where('version', '=', requireVersion(etag))

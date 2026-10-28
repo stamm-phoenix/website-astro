@@ -53,6 +53,12 @@ function toResponse(error: unknown): HttpResponseInit {
           'GITHUB_UNCLEAR',
           'Es ist unklar, ob das Issue angelegt wurde. Warte zwei Minuten und tippe dann noch einmal auf „An GitHub senden“: Vorher wird nachgesehen, ob es schon da ist.'
         );
+      case 'needs-review':
+        return errorResponse(
+          502,
+          'GITHUB_NEEDS_REVIEW',
+          `Ein GitHub-Eintrag mit dieser Meldungsnummer wurde verändert. Es wurde kein weiterer Eintrag angelegt. Schreib an ${HELP_CONTACTS.technik} und nenne die Meldungsnummer.`
+        );
     }
   }
   throw error;
