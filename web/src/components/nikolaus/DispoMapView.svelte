@@ -771,7 +771,7 @@
     border-radius: 0.375rem;
   }
   .map-button {
-    min-height: 44px;
+    min-height: calc(var(--spacing) * 11);
     border: 1px solid var(--color-neutral-300);
     border-radius: 0.375rem;
     background: var(--color-surface);
@@ -786,7 +786,7 @@
   }
   .team-chip {
     display: inline-flex;
-    min-height: 44px;
+    min-height: calc(var(--spacing) * 11);
     align-items: center;
     gap: calc(var(--spacing) * 2);
     border: 1px solid var(--color-neutral-300);
@@ -817,7 +817,7 @@
   .stop-item {
     display: flex;
     width: 100%;
-    min-height: 44px;
+    min-height: calc(var(--spacing) * 11);
     align-items: center;
     gap: calc(var(--spacing) * 2);
     border-radius: 0.375rem;

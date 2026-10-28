@@ -92,7 +92,7 @@
     padding: var(--spacing);
   }
   .segments .filter-tab {
-    min-height: 44px;
+    min-height: calc(var(--spacing) * 11);
     flex-shrink: 0;
     padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
     border-radius: 0.25rem;
