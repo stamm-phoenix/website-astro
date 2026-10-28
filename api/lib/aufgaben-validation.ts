@@ -9,8 +9,8 @@ import {
   taskTemplateInputSchema,
 } from './aufgaben-schema';
 import type { TaskInput, TemplateItem } from './aufgaben-schema';
-import { parseWith } from './zod-validation';
-import type { FieldOf } from './zod-validation';
+import { parseWith } from './validation/zod';
+import type { FieldOf } from './validation/zod';
 
 /** Name the person once per identity before writing JSON. */
 function dedupePeople<T extends Pick<TaskInput, 'assignees'>>(entry: T): T {

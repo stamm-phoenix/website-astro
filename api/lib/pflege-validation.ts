@@ -5,6 +5,8 @@
 import type { HelperRole, TeamRole } from './nikolaus-einteilung';
 import { isChangelogId } from './changelog-id';
 import { isValidDate } from './calendar-date';
+import { ValidationError } from './validation/errors';
+import type { FieldErrors } from './validation/errors';
 import { pickStaffSettings } from './staff-settings-model';
 import type { StaffSettings } from './staff-settings-model';
 import { HELPER_ROLES, KITCHEN, TEAM_ROLES, normalizeTag, parseTags } from './nikolaus-einteilung';
@@ -40,14 +42,8 @@ import {
 
 export { isValidDate };
 
-export type FieldErrors = Record<string, string>;
-
-export class ValidationError extends Error {
-  constructor(public fields: FieldErrors) {
-    super('Die Eingaben sind unvollständig oder ungültig.');
-    this.name = 'ValidationError';
-  }
-}
+export { ValidationError };
+export type { FieldErrors };
 
 export interface SammelPaymentInput {
   action: 'assign' | 'preview' | 'create' | 'adopt' | 'dispatched';
