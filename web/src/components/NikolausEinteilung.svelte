@@ -3,7 +3,7 @@
   import PinToggle from './nikolaus/PinToggle.svelte';
   import { createPlanEditor } from '../lib/planEditor.svelte';
   import { untrack } from 'svelte';
-  import { ApiError, errorMessage, fetchApi, sendApi } from '../lib/api';
+  import { ApiError, errorMessage, fetchApi, saveFile, sendApi } from '../lib/api';
   import { confirmAction } from '../lib/confirm';
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
@@ -38,6 +38,11 @@
   } from '../lib/types';
   import { einteilungStore, fetchEinteilung } from '../lib/nikolausHelfendeStore.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
+  import {
+    buildEinteilungBild,
+    renderEinteilungBild,
+    shareOrSaveImage,
+  } from '../lib/nikolausEinteilungBild';
 
   interface Props {
     data: StaffNikolausEinteilungData;
@@ -349,6 +354,63 @@
     }, 'Einteilung gespeichert.');
   }
 
+  let exporting = $state(false);
+  const EXPORT_ERROR = 'Das Bild konnte nicht erstellt werden. Bitte noch einmal versuchen.';
+
+  /** Exports the Einteilung as shown as a compact PNG, e.g. for a messenger group. */
+  async function exportImage(): Promise<void> {
+    if (
+      dirty &&
+      !(await confirmAction({
+        title: 'Ungespeicherten Stand exportieren?',
+        message:
+          'Die Einteilung ist noch nicht gespeichert. Das Bild zeigt den Entwurf, wie er gerade hier steht.',
+        confirmLabel: 'Trotzdem exportieren',
+        tone: 'neutral',
+      }))
+    ) {
+      return;
+    }
+    exporting = true;
+    try {
+      const now = new Date();
+      const stand = now.toLocaleString('de-DE', {
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      const blob = await renderEinteilungBild({
+        title: 'Nikolaus-Einteilung',
+        subtitle: `Stand ${stand} Uhr`,
+        days: buildEinteilungBild(
+          plannedDays,
+          result.assignments,
+          name,
+          (team) => teamColor.get(team) ?? '#5f6b7a',
+          formatShortDate
+        ),
+      });
+      const day = now.toLocaleDateString('sv-SE');
+      const done = await shareOrSaveImage(blob, `nikolaus-einteilung-${day}.png`, saveFile);
+      if (done) {
+        editor.state.notice = dirty
+          ? { text: 'Bild exportiert. Die Einteilung ist noch nicht gespeichert.', kind: 'warning' }
+          : { text: 'Bild exportiert.', kind: 'success' };
+      } else if (editor.state.notice?.text === EXPORT_ERROR) {
+        editor.state.notice = null;
+      }
+    } catch (error) {
+      editor.state.notice = {
+        text: errorMessage(error, EXPORT_ERROR),
+        kind: 'error',
+      };
+    } finally {
+      exporting = false;
+    }
+  }
+
   async function reload(): Promise<void> {
     if (
       !(await editor.confirmReload(
@@ -375,7 +437,15 @@
       onrecalculate={recalculate}
       onreload={reload}
       onsave={save}
-    />
+      printable={false}
+    >
+      <ActionButton
+        variant="secondary"
+        type="button"
+        disabled={exporting || data.persons.length === 0}
+        onclick={exportImage}>{exporting ? 'Exportiert …' : 'Bild exportieren'}</ActionButton
+      >
+    </PlanToolbar>
   </div>
 
   <StatusNotice
@@ -393,7 +463,7 @@
       {@const dayConflicts = result.conflicts.filter((c) => c.date === day.date)}
       {@const kitchen = result.assignments.filter((a) => a.date === day.date && a.team === KITCHEN)}
       {@const idle = result.idle[day.date] ?? []}
-      <section aria-labelledby="einteilung-{day.date}" class="einteilung-day space-y-3">
+      <section aria-labelledby="einteilung-{day.date}" class="space-y-3">
         <h2 id="einteilung-{day.date}" class="font-serif text-2xl font-semibold text-brand-900">
           {formatShortDate(day.date)}
         </h2>
@@ -609,11 +679,3 @@
     {/if}
   {/if}
 </div>
-
-<style>
-  @media print {
-    .einteilung-day + .einteilung-day {
-      break-before: page;
-    }
-  }
-</style>
