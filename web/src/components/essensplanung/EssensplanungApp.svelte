@@ -18,6 +18,8 @@
 
   const POLL_MS = 2500;
   const POLL_MAX_MS = 30_000;
+  /** Tab-local copy of the token, for a reload after another fragment like `#main`. */
+  const LINK_KEY = 'essensplanung-link';
 
   let token = $state<string | null>(null);
   let ansicht = $state<PlanungAnsicht | null>(null);
@@ -125,10 +127,21 @@
   };
 
   onMount(() => {
-    // Another link opened in this tab (same page, other fragment) gets a fresh start
-    const onHash = (): void => window.location.reload();
+    // Another link opened in this tab gets a fresh start; another fragment like „Zum Inhalt
+    // springen“ (#main) keeps the Planung, also for a reload from the tab-local copy
+    const onHash = (event: HashChangeEvent): void => {
+      const neu = tokenAusHash(new URL(event.newURL).hash, 't');
+      if (neu && neu !== token) window.location.reload();
+    };
     window.addEventListener('hashchange', onHash);
     token = tokenAusHash(window.location.hash, 't');
+    try {
+      const ohneLink = !new URLSearchParams(window.location.hash.slice(1)).has('t');
+      if (token) sessionStorage.setItem(LINK_KEY, token);
+      else if (ohneLink) token = tokenAusHash(`#t=${sessionStorage.getItem(LINK_KEY) ?? ''}`, 't');
+    } catch {
+      // Without browser storage only the link in the address bar works
+    }
     if (!token) {
       ungueltig = true;
       ladeFehler = 'Der Link ist unvollständig. Öffne ihn bitte noch einmal aus der Mail.';

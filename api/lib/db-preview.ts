@@ -1712,7 +1712,8 @@ export async function seedPreviewEssensplanungPlanung(now: Date = new Date()): P
       laeuft_ab: new Date(now.getTime() + 60 * 60_000),
     })
     .execute();
-  await anfrageBestaetigen(token);
+  // The invented address is no address of the Stamm, so the Steuerung's release does not apply
+  await anfrageBestaetigen(token, { freigabePruefen: false });
 }
 
 /** Invented entries in the log of the Essensplanung-Steuerung; the settings stay as migrated. */

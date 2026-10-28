@@ -143,13 +143,15 @@
 
   async function namenSpeichern(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    const gesendet = eigenerName;
     const ok = await kontext.aendern(
-      () => kontext.api.senden('PATCH', '/ich', { name: eigenerName }),
+      () => kontext.api.senden('PATCH', '/ich', { name: gesendet }),
       'Dein Name ist gespeichert.'
     );
     if (ok) {
       basisName = gespeicherterName;
-      eigenerName = gespeicherterName;
+      // A name typed again while saving stays as a draft
+      if (eigenerName === gesendet) eigenerName = gespeicherterName;
     }
   }
 </script>
