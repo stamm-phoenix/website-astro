@@ -278,6 +278,21 @@ test('links in markdown and links wrapped over lines lose their query', () => {
   );
 });
 
+test('authorization headers and cookies go completely, page names stay', () => {
+  const text = 'Authorization: Basic dXNlcjpwYXNz\nCookie: a=1; b=2\nGing nicht.';
+  const redacted = redactSensitive(text);
+  assert.ok(!redacted.includes('dXNlcjpwYXNz') && !redacted.includes('b=2'));
+  assert.ok(redacted.endsWith('Ging nicht.'));
+  assert.equal(cleanPath('/fragen-und-antworten'), '/fragen-und-antworten');
+  assert.equal(cleanPath('/leitendenbereich-app'), '/leitendenbereich-app');
+  assert.equal(
+    cleanPath('/leitendenbereich/fragen-und-antworten'),
+    '/leitendenbereich/fragen-und-antworten'
+  );
+  assert.equal(cleanPath('/abstimmung/AbCdEfGhIjKlMnOpQrStUvWx'), '/abstimmung/:id');
+  assert.equal(cleanPath('/x/0123456789abcdef0123456789'), '/x/:id');
+});
+
 test('every accepted address and the contact itself stay out of forwarded text', () => {
   const contact = 'erika@bücher.de';
   assert.equal(
