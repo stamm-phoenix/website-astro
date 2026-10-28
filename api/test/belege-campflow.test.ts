@@ -500,6 +500,50 @@ dbTest('after a refused attempt another Kategorie may be chosen', async (t) => {
   assert.equal((await transferRow(7))?.category_name, 'Fahrtkosten');
 });
 
+dbTest(
+  'after a refused attempt the file name follows a photo replaced by a PDF and back',
+  async (t) => {
+    const refuse = () =>
+      Response.json({ error: 'Kategorie „X“ gibt es in „Y“ nicht' }, { status: 404 });
+    const answers: Array<() => Response> = [refuse, refuse, () => uploaded()];
+    const { context, blobs, calls } = setup(t, () => answers.shift()!());
+    const pdf = Buffer.from('%PDF-1.7 Rechnung');
+    /** Swaps the stored file as a new photo would; answers the new version. */
+    const swap = async (toPdf: boolean): Promise<string> => {
+      blobs.clear();
+      if (toPdf) {
+        blobs.set('belege/7/beleg-456.pdf', pdf);
+        blobs.set('belege/7/beleg-456-seite.jpg', PHOTO);
+      } else {
+        blobs.set('belege/7/beleg-789.jpg', PHOTO);
+      }
+      await getDb()
+        .updateTable('organisation.beleg')
+        .set({ photo: toPdf ? 'beleg-456.pdf' : 'beleg-789.jpg' })
+        .where('id', '=', 7)
+        .execute();
+      return version(7);
+    };
+    const etag = await store(blobs, 7);
+
+    assert.equal((await transfer(context, 7, { etag })).status, 502);
+    assert.equal((await transfer(context, 7, { etag: await swap(true) })).status, 502);
+    assert.equal((await transferRow(7))?.state, 'Fehlgeschlagen');
+    const done = await transfer(context, 7, { etag: await swap(false) });
+    assert.equal(done.status, 200, JSON.stringify(done.jsonBody));
+
+    const uploads = calls.filter((call) => call.method === 'POST').map((call) => call.body);
+    assert.deepEqual(
+      uploads.map((body) => String(body?.filename).replace(/^.* \(/, '(')),
+      ['(Website-Beleg 7).jpg', '(Website-Beleg 7).pdf', '(Website-Beleg 7).jpg']
+    );
+    assert.deepEqual(
+      uploads.map((body) => body?.content),
+      [PHOTO, pdf, PHOTO].map((file) => file.toString('base64'))
+    );
+  }
+);
+
 dbTest('a receipt changed during the upload stays until the Kasse deletes it', async (t) => {
   const { context, blobs, calls } = setup(t, async () => {
     await getDb()

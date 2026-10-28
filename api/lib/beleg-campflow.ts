@@ -419,7 +419,12 @@ export async function transferBelegToCampflow(
             categoryName: row.category_name,
           }
         : await resolveTarget(beleg, deadline);
-    const fileName = row?.file_name ?? campflowFileName(beleg);
+    // After a refused attempt CampFlow holds nothing under the stored name, so its ending follows
+    // a photo replaced by a PDF or back; after an unclear one the name must stay as it was
+    const fileName =
+      row?.state === 'Fehlgeschlagen'
+        ? row.file_name.replace(/\.(jpg|pdf)$/, beleg.isPdf ? '.pdf' : '.jpg')
+        : (row?.file_name ?? campflowFileName(beleg));
     const attempt = await startAttempt(beleg, target, fileName, row, actor);
 
     // CampFlow is not called yet, so a failure here wrote nothing there
