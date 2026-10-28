@@ -230,6 +230,14 @@ test('a query with further paths and parameters is removed completely', () => {
   assert.ok(!redactForForwarding('/anmelden?code=123456&return=/start#weiter').includes('123456'));
 });
 
+test('domains in brackets or quotation marks lose their query too', () => {
+  for (const open of ['(', '„', '"', "'", '[', '«'.replace('«', '»')]) {
+    const text = `Bei ${open}stamm-phoenix.de?code=123456&return=/start#weiter) erscheint ein Fehler.`;
+    assert.ok(!redactSensitive(text).includes('123456'), open);
+    assert.ok(!redactForForwarding(text).includes('123456'), open);
+  }
+});
+
 test('every accepted address and the contact itself stay out of forwarded text', () => {
   const contact = 'erika@bücher.de';
   assert.equal(

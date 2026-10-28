@@ -117,7 +117,9 @@ function withoutQuery(token: string): string {
   const cut = token.search(/[?#]/);
   if (cut < 0 || cut === token.length - 1) return token;
   const prefix = token.slice(0, cut);
-  return prefix.includes('/') || /^(?:[a-z0-9-]+\.)+[a-z]{2,}$/i.test(prefix) ? prefix : token;
+  return prefix.includes('/') || /^[([<"'„“‚‘»]*(?:[a-z0-9-]+\.)+[a-z]{2,}$/i.test(prefix)
+    ? prefix
+    : token;
 }
 
 /**
