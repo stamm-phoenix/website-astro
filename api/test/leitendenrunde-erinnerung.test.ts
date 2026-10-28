@@ -308,12 +308,22 @@ dbTest('confirmed Word minutes count, suggestions do not', async (t) => {
       .execute();
   mockLeaders(t, [leader('lea@example.test')]);
   type Loaded = Awaited<ReturnType<typeof protokollSource.loadProtokoll>>;
-  const loaded = (changed = false, stale = false): Loaded =>
-    ({
-      item: {},
-      protokoll: { changedSinceApproval: changed, terminStale: stale },
-    }) as unknown as Loaded;
-  const files = t.mock.method(protokollSource, 'loadProtokoll', async () => loaded());
+  // The file as the minutes list sees it: the metadata come from the row of that file.
+  const loaded =
+    (changed = false, stale = false, status?: string) =>
+    async (_drive: string, itemId: string): Promise<Loaded> => {
+      const row = await getDb()
+        .selectFrom('organisation.protokoll')
+        .select('fields')
+        .where('item_id', '=', itemId)
+        .executeTakeFirstOrThrow();
+      const fields = JSON.parse(row.fields) as Record<string, string>;
+      return {
+        item: { metadata: { etag: '', fields: status ? { ...fields, Status: status } : fields } },
+        protokoll: { changedSinceApproval: changed, terminStale: stale },
+      } as unknown as Loaded;
+    };
+  const files = t.mock.method(protokollSource, 'loadProtokoll', loaded());
   const send = t.mock.method(reminderMail, 'sendLeitendenrundeReminder', async () => undefined);
   await word('offen', 'a', '2026-10-07T21:00:00Z');
   assert.equal((await runLeitendenrundeReminders(stage7)).reason, 'no-meeting');
@@ -322,12 +332,18 @@ dbTest('confirmed Word minutes count, suggestions do not', async (t) => {
   assert.equal(send.mock.callCount(), 1);
   assert.equal(send.mock.calls[0].arguments[1]?.url.endsWith('/leitendenbereich/protokolle'), true);
   // A file changed after the approval, or a date from another version, gives no date at all.
-  files.mock.mockImplementation(async () => loaded(true));
+  files.mock.mockImplementation(loaded(true));
   assert.equal(
     (await runLeitendenrundeReminders(new Date('2026-10-13T07:00:00Z'))).reason,
     'no-meeting'
   );
-  files.mock.mockImplementation(async () => loaded(false, true));
+  files.mock.mockImplementation(loaded(false, true));
+  assert.equal(
+    (await runLeitendenrundeReminders(new Date('2026-10-13T07:00:00Z'))).reason,
+    'no-meeting'
+  );
+  // Minutes taken back to the draft between the first look and the check send nothing either.
+  files.mock.mockImplementation(loaded(false, false, 'Entwurf'));
   assert.equal(
     (await runLeitendenrundeReminders(new Date('2026-10-13T07:00:00Z'))).reason,
     'no-meeting'
