@@ -100,7 +100,7 @@ function setup(
         : new Response('[]'));
   t.mock.method(globalThis, 'fetch', async (input: string | URL, init: RequestInit = {}) => {
     const url = String(input);
-    if (url.includes('openai.azure.com')) {
+    if (new URL(url).hostname.endsWith('.openai.azure.com')) {
       calls.openai++;
       return openai(url, init);
     }

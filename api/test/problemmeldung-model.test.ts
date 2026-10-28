@@ -80,7 +80,7 @@ test('secrets are removed from free text before it is stored or forwarded', () =
     'Seite https://x.de/a?token=123#y, Bearer abc.def, password: hunter2, eyJhbGciOi.eyJzdWIi.sig, ' +
     'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789, mail erika@example.test';
   const redacted = redactSensitive(text);
-  assert.ok(redacted.includes('https://x.de/a'));
+  assert.match(redacted, /^Seite https:\/\/x\.de\/a /);
   for (const secret of [
     'token=123',
     'abc.def',
