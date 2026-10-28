@@ -182,7 +182,7 @@ test('on a phone every tab of the Abrechnung is on screen', async ({ page }, tes
   test.skip(testInfo.project.name !== 'mobile', 'Narrow screens only');
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
   const tabs = page.getByRole('tab');
-  await expect(tabs).toHaveCount(4);
+  await expect(tabs).toHaveCount(5);
   for (const tab of await tabs.all()) await expectWithinWindowWidth(page, tab);
   for (const tab of await tabs.all()) {
     expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44);
