@@ -114,9 +114,14 @@ export async function createGithubIssue(issue: {
  * Finds the issue a report may have created in an earlier attempt, by the marker in its text.
  * Looks at the recently changed issues, which is current at once, unlike the search.
  * @param since Start of the earlier attempt.
+ * @param title Title that was sent; an issue of somebody else that quotes the marker has another one.
  * @throws GithubIssueError `unclear` if GitHub cannot say.
  */
-export async function findGithubIssue(id: number, since: Date): Promise<GithubIssue | null> {
+export async function findGithubIssue(
+  id: number,
+  since: Date,
+  title: string
+): Promise<GithubIssue | null> {
   const start = new Date(since.getTime() - 5 * 60_000).toISOString();
   const deadline = Date.now() + SEARCH_DEADLINE_MS;
   for (let page = 1; page <= MAX_SEARCH_PAGES; page++) {
@@ -134,7 +139,11 @@ export async function findGithubIssue(id: number, since: Date): Promise<GithubIs
       throw new GithubIssueError('unclear', 'GitHub sent an unreadable answer');
     for (const entry of issues as Record<string, unknown>[]) {
       if (entry.pull_request) continue;
-      if (typeof entry.body === 'string' && containsIssueMarker(entry.body, id))
+      if (
+        entry.title === title &&
+        typeof entry.body === 'string' &&
+        containsIssueMarker(entry.body, id)
+      )
         return toIssue(entry);
     }
     // Only the last page, a short one, proves that the issue is not there

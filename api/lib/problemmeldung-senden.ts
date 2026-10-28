@@ -97,7 +97,7 @@ export async function sendProblemToGithub(
   const numericId = Number(id);
   try {
     if (claim.previousAttempt) {
-      const existing = await findGithubIssue(numericId, claim.previousAttempt);
+      const existing = await findGithubIssue(numericId, claim.previousAttempt, current.draft.title);
       if (existing) {
         await saveProblemGithub(id, existing.number, existing.url);
         return { meldung: (await getProblemMeldung(id)) ?? current, found: true };

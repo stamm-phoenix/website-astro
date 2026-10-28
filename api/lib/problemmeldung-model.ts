@@ -154,12 +154,19 @@ function withoutWrappedQuery(text: string): string {
     const line = lines[i].trimEnd();
     const last = line.slice(Math.max(line.lastIndexOf(' '), line.lastIndexOf('\t')) + 1);
     if (!/[?&#]$/.test(last) || !(last.includes('/') || /\w\.\w/.test(last))) continue;
-    const next = i + 1 < lines.length ? /^[ \t]*(\S+)/.exec(lines[i + 1]) : null;
-    // Only what is a value of the query goes (`name=value`, or a code with a digit in it); a
-    // following sentence stays, also in a second pass
-    if (!next || !(next[1].includes('=') || looksLikeCode(next[1]))) continue;
-    lines[i + 1] = lines[i + 1].replace(/^[ \t]*\S+/, '');
-    lines[i] = line.slice(0, trailingDelimiters(line));
+    // The query may go on over several lines: `?`, `state=offen&`, `code=654321`
+    let end = i;
+    let open = true;
+    while (open && end + 1 < lines.length) {
+      const next = /^[ \t]*(\S+)/.exec(lines[end + 1]);
+      // Only what is a value of the query (`name=value`, or a code with a digit in it) goes; a
+      // following sentence stays, also in a second pass
+      if (!next || !(next[1].includes('=') || looksLikeCode(next[1]))) break;
+      lines[end + 1] = lines[end + 1].replace(/^[ \t]*\S+/, '');
+      open = /[?&#]$/.test(next[1]);
+      end++;
+    }
+    if (end > i) lines[i] = line.slice(0, trailingDelimiters(line));
   }
   return lines.join('\n');
 }
@@ -183,7 +190,7 @@ export function redactSensitive(text: string): string {
         (_match, name: string) => `${name}: ${REDACTED}`
       )
       .replace(
-        /\b(token|key|secret|passwort|password|kennwort)\s*[:=]\s*\S+/gi,
+        /\b(token|key|secret|passwort|password|kennwort)\s*[:=]\s*(?:"[^"\n]{0,200}"|'[^'\n]{0,200}'|„[^“\n]{0,200}“|\S+)/gi,
         (_match, name: string) => `${name}: ${REDACTED}`
       )
       .replace(/\b[A-Za-z0-9_-]{32,}\b/g, REDACTED)
@@ -436,6 +443,11 @@ export interface IssueSource {
   contact?: string;
 }
 
+/** The last line of an issue: the marker and where it comes from. */
+export function issueFooter(id: number): string {
+  return `_${issueMarker(id)} · über „Problem melden“ auf stamm-phoenix.de gemeldet_`;
+}
+
 /** The line that identifies the report in the issue; used to find it again after an unclear send. */
 export function issueMarker(id: number): string {
   return `Problemmeldung PM-${id}`;
@@ -478,7 +490,7 @@ export function buildIssueBody(draft: string, source: IssueSource): string {
     redactForForwarding(draft, source.contact).trim(),
     '## Technische Angaben',
     issueDetails(source),
-    `_${issueMarker(source.id)} · über „Problem melden“ auf stamm-phoenix.de gemeldet_`,
+    issueFooter(source.id),
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -498,7 +510,10 @@ export function isProblemLabel(value: unknown): value is ProblemLabel {
   return PROBLEM_LABELS.some((label) => label.id === value);
 }
 
-/** Whether an issue text carries the marker of the report, so it is the issue of this report. */
+/**
+ * Whether an issue text ends with the footer of the report. A quote of it in the middle of
+ * somebody else's issue does not count; the title is compared as well (`findGithubIssue`).
+ */
 export function containsIssueMarker(text: string, id: number): boolean {
-  return text.includes(`${issueMarker(id)} ·`);
+  return text.trimEnd().endsWith(issueFooter(id));
 }

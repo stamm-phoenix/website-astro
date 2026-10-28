@@ -17,7 +17,7 @@ import {
   purgeExpiredProblemMeldungen,
   resetProblemPurge,
 } from '../lib/problemmeldungen';
-import { validateProblemReport } from '../lib/problemmeldung-model';
+import { issueFooter, validateProblemReport } from '../lib/problemmeldung-model';
 import type { StaffProblemMeldung } from '../lib/problemmeldung-model';
 import { solvedAltcha, useAltcha } from './fixtures/altcha';
 import { overrideConfig } from './fixtures/config';
@@ -417,7 +417,6 @@ dbTest('a send that ends unclear is checked on GitHub before the next attempt', 
     github: (_url, init) => {
       if (outcome === 'down') throw new Error('socket hang up');
       if (init.method === 'GET') {
-        const marker = `Problemmeldung PM-${currentId} ·`;
         return new Response(
           JSON.stringify(
             outcome === 'found'
@@ -426,7 +425,8 @@ dbTest('a send that ends unclear is checked on GitHub before the next attempt', 
                   {
                     number: 77,
                     html_url: 'https://github.com/stamm-phoenix/website-astro/issues/77',
-                    body: `Text\n\n_${marker} gemeldet_`,
+                    title: ANSWER.title,
+                    body: `Text\n\n${issueFooter(currentId)}`,
                   },
                 ]
               : [{ number: 5, html_url: 'x', body: 'fremd' }]
@@ -502,6 +502,53 @@ dbTest('an unclear send without a trace on GitHub is created on the next attempt
     ['POST', 'GET', 'POST']
   );
   assert.equal((await load(context, id)).github.number, 79);
+});
+
+dbTest('an issue of somebody else that quotes the marker is not taken over', async (t) => {
+  let currentId = 0;
+  let down = true;
+  const { context, calls } = setup(t, {
+    github: (_url, init) => {
+      if (down && init.method === 'POST') throw new Error('timeout');
+      if (init.method === 'GET') {
+        return new Response(
+          JSON.stringify([
+            // Same footer, other title
+            {
+              number: 5,
+              html_url: 'x',
+              title: 'Etwas anderes',
+              body: `Hallo\n\n${issueFooter(currentId)}`,
+            },
+            // Same title, the footer only quoted in the middle
+            {
+              number: 6,
+              html_url: 'y',
+              title: ANSWER.title,
+              body: `Siehe ${issueFooter(currentId)}\n\nund weiter`,
+            },
+          ])
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          number: 90,
+          html_url: 'https://github.com/stamm-phoenix/website-astro/issues/90',
+        }),
+        { status: 201 }
+      );
+    },
+  });
+  currentId = Number(await submit(context));
+  const id = String(currentId);
+  assert.equal((await send(context, id, (await load(context, id)).etag)).status, 502);
+  await sql`UPDATE problem.meldung SET github_started_at = DATEADD(minute, -3, SYSUTCDATETIME()) WHERE id = ${currentId}`.execute(
+    getDb()
+  );
+  down = false;
+  assert.equal((await send(context, id, (await load(context, id)).etag)).status, 200);
+  assert.equal((await load(context, id)).github.number, 90);
+  assert.equal(calls.github.filter((call) => call.method === 'POST').length, 2);
 });
 
 dbTest('a refused issue keeps report and draft and can be sent again at once', async (t) => {
@@ -597,7 +644,8 @@ dbTest('later failed searches do not move the search window of the first attempt
             {
               number: 88,
               html_url: 'https://github.com/stamm-phoenix/website-astro/issues/88',
-              body: `Text\n\n_Problemmeldung PM-${currentId} · gemeldet_`,
+              title: ANSWER.title,
+              body: `Text\n\n${issueFooter(currentId)}`,
             },
           ])
         );
@@ -656,7 +704,8 @@ dbTest('the search for an earlier issue reads every page', async (t) => {
                 {
                   number: 89,
                   html_url: 'https://github.com/stamm-phoenix/website-astro/issues/89',
-                  body: `Text\n\n_Problemmeldung PM-${currentId} · gemeldet_`,
+                  title: ANSWER.title,
+                  body: `Text\n\n${issueFooter(currentId)}`,
                 },
               ]
         )
