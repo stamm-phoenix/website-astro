@@ -88,6 +88,7 @@ async function request(endpoint: string, init: RequestInit = {}): Promise<Respon
     throw error;
   }
   if (internal && response.type === 'opaqueredirect') {
+    recordFailure(endpoint, 401, '', response);
     throw new ApiError(401, SESSION_EXPIRED_MESSAGE);
   }
   if (!response.ok) {
