@@ -970,6 +970,8 @@ export interface ProblemMeldungTable {
   reviewed_at: SqlTimeOrNull;
   discard_reason: Generated<string>;
   github_started_at: SqlTimeOrNull;
+  /** Start of the first hand-over that ended unclear; the search for its issue begins here. */
+  github_first_at: SqlTimeOrNull;
   github_number: number | null;
   github_url: Generated<string>;
   github_at: SqlTimeOrNull;

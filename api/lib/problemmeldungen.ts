@@ -1,7 +1,8 @@
 import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 import { CONFIG } from './config';
-import { getDb, parseId, requireVersion, toVersion } from './db';
+import { getDb, inTransaction, lockResource, parseId, requireVersion, toVersion } from './db';
+import type { Db } from './db';
 import type { ProblemMeldungTable } from './db-schema';
 import { PREVIEW_DATABASE } from './deployment';
 import type {
@@ -73,9 +74,12 @@ function toStaffItem(row: Selectable<ProblemMeldungTable>): StaffProblemMeldung 
 }
 
 /** Stores a new report and returns its ID. */
-export async function createProblemMeldung(report: ProblemReport): Promise<number> {
+export async function createProblemMeldung(
+  report: ProblemReport,
+  db: Db = getDb()
+): Promise<number> {
   const { context } = report;
-  const { id } = await getDb()
+  const { id } = await db
     .insertInto('problem.meldung')
     .values({
       entry: report.entry,
@@ -98,6 +102,7 @@ export async function createProblemMeldung(report: ProblemReport): Promise<numbe
       ai_at: null,
       reviewed_at: null,
       github_started_at: null,
+      github_first_at: null,
       github_number: null,
       github_at: null,
     })
@@ -111,8 +116,8 @@ export async function createProblemMeldung(report: ProblemReport): Promise<numbe
  * all Function instances share it; the proof of work of the form makes each report expensive,
  * this caps the assessments if someone pays that price anyway.
  */
-export async function isProblemQuotaReached(): Promise<boolean> {
-  const row = await getDb()
+async function isProblemQuotaReached(db: Db): Promise<boolean> {
+  const row = await db
     .selectFrom('problem.meldung')
     .select([
       sql<number>`COUNT(CASE WHEN created_at >= DATEADD(hour, -1, SYSUTCDATETIME()) THEN 1 END)`.as(
@@ -125,6 +130,17 @@ export async function isProblemQuotaReached(): Promise<boolean> {
   return (
     row.hour >= CONFIG.problemmeldung.hourlyLimit || row.day >= CONFIG.problemmeldung.dailyLimit
   );
+}
+
+/**
+ * Stores a new report unless the limit of the last hour or day is reached (`null`). Counting
+ * and storing run under one lock, so reports that arrive at once cannot all pass the same count.
+ */
+export async function storeProblemMeldung(report: ProblemReport): Promise<number | null> {
+  return inTransaction(async (trx) => {
+    await lockResource(trx, 'problemmeldung-quota');
+    return (await isProblemQuotaReached(trx)) ? null : createProblemMeldung(report, trx);
+  });
 }
 
 /** All reports, the newest first. */
@@ -315,7 +331,8 @@ export const GITHUB_ATTEMPT_MINUTES = 2;
 /**
  * Reserves the hand-over of an open report that still has the version `etag`, so repeated
  * clicks and two people at once send only once. Returns `null` if the reservation was not
- * possible, otherwise when an earlier unfinished attempt started (`null` inside: none).
+ * possible, otherwise when the first earlier attempt that ended unclear started (`null`
+ * inside: there was none).
  */
 export async function claimProblemGithub(
   id: string,
@@ -328,6 +345,8 @@ export async function claimProblemGithub(
     .updateTable('problem.meldung')
     .set({
       github_started_at: sql<string>`SYSUTCDATETIME()`,
+      // The first unclear attempt stays the start of every later search
+      github_first_at: sql<string>`COALESCE(github_first_at, SYSUTCDATETIME())`,
       status: 'in_pruefung',
       reviewed_by: actor,
     })
@@ -345,7 +364,7 @@ export async function claimProblemGithub(
         ),
       ])
     )
-    .output('deleted.github_started_at as previous')
+    .output('deleted.github_first_at as previous')
     .executeTakeFirst();
   return row ? { previousAttempt: row.previous } : null;
 }
@@ -375,7 +394,7 @@ export async function releaseProblemGithub(id: string): Promise<void> {
   if (numericId === undefined) return;
   await getDb()
     .updateTable('problem.meldung')
-    .set({ github_started_at: null })
+    .set({ github_started_at: null, github_first_at: null })
     .where('id', '=', numericId)
     .where('github_number', 'is', null)
     .execute();
