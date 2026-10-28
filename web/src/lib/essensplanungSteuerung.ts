@@ -126,7 +126,7 @@ export function toZutatForm(zutat: EssenZutat | null, kategorieId?: number): Zut
       abtropfgewicht: false,
       lebensmittel: true,
       ernaehrung: 'unbekannt',
-      merkmaleGeprueft: true,
+      merkmaleGeprueft: false,
       hinweis: '',
       grammProTl: '',
       grammProEl: '',

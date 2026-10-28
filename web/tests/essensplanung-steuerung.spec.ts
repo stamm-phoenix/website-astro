@@ -85,6 +85,10 @@ test('ingredients are filtered, checked and added', async ({ page }) => {
   await expect(
     page.getByRole('listitem').filter({ has: page.getByText('Testzutat Dinkel', { exact: true }) })
   ).toContainText('enthält Gluten');
+  // Nobody ticked „geprüft“, so the new ingredient waits for a check
+  await expect(
+    page.getByRole('listitem').filter({ has: page.getByText('Testzutat Dinkel', { exact: true }) })
+  ).toContainText('Merkmale ungeprüft');
 
   // Remove the new ingredient again for the following tests of this worker
   await page.getByRole('button', { name: 'Bearbeiten: Testzutat Dinkel' }).click();
