@@ -1,4 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { z } from 'zod';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { hasTeam } from '../lib/staff-auth';
 import {
@@ -68,16 +69,11 @@ export const EssensplanungEinstellungen = steuerungHandler(
   }
 );
 
-type Liste = 'zutaten' | 'kategorien' | 'unvertraeglichkeiten' | 'planungen';
+const listeSchema = z.enum(['zutaten', 'kategorien', 'unvertraeglichkeiten', 'planungen']);
 
-function readListe(request: HttpRequest): Liste | undefined {
-  const liste = request.params.liste;
-  return liste === 'zutaten' ||
-    liste === 'kategorien' ||
-    liste === 'unvertraeglichkeiten' ||
-    liste === 'planungen'
-    ? liste
-    : undefined;
+function readListe(request: HttpRequest): z.output<typeof listeSchema> | undefined {
+  const parsed = listeSchema.safeParse(request.params.liste);
+  return parsed.success ? parsed.data : undefined;
 }
 
 /** POST: adds an ingredient, category or allergen; answers with the whole view. */

@@ -11,13 +11,9 @@ import {
   githubIssuesUnavailable,
 } from './github-issues';
 import { ValidationError } from './validation/errors';
-import {
-  buildIssueBody,
-  cleanIssueText,
-  cleanIssueTitle,
-  isProblemLabel,
-  PROBLEM_MAX_LENGTH,
-} from './problemmeldung-model';
+import { parseWith } from './validation/zod';
+import { buildIssueBody } from './problemmeldung-model';
+import { problemDraftSchema } from './problemmeldung-schema';
 import {
   claimProblemGithub,
   explainProblemConflict,
@@ -30,34 +26,7 @@ import type { StaffProblemMeldung } from './problemmeldung-model';
 
 /** The draft as a request sends it, cleaned; fields that are missing or invalid are reported. */
 export function validateProblemDraft(body: Record<string, unknown> | null): ProblemDraft {
-  const errors: Record<string, string> = {};
-  // Cleaning can lengthen a text, but a text far beyond the limit is refused before the work
-  const raw = (value: unknown): number => (typeof value === 'string' ? value.length : 0);
-  if (
-    raw(body?.title) > PROBLEM_MAX_LENGTH.title * 3 ||
-    raw(body?.body) > PROBLEM_MAX_LENGTH.body * 2
-  ) {
-    throw new ValidationError({
-      ...(raw(body?.title) > PROBLEM_MAX_LENGTH.title * 3
-        ? { title: `Der Titel darf höchstens ${PROBLEM_MAX_LENGTH.title} Zeichen lang sein.` }
-        : {}),
-      ...(raw(body?.body) > PROBLEM_MAX_LENGTH.body * 2
-        ? { body: `Die Beschreibung darf höchstens ${PROBLEM_MAX_LENGTH.body} Zeichen lang sein.` }
-        : {}),
-    });
-  }
-  // Cleaning can make a text longer (`token=x` becomes `token: [entfernt]`), so the length that
-  // counts is the cleaned one. Too long is refused, not cut: the rest would be lost without a word.
-  const title = cleanIssueTitle(body?.title, Infinity);
-  const text = cleanIssueText(body?.body, Infinity);
-  if (title.length > PROBLEM_MAX_LENGTH.title)
-    errors.title = `Der Titel darf höchstens ${PROBLEM_MAX_LENGTH.title} Zeichen lang sein.`;
-  if (text.length > PROBLEM_MAX_LENGTH.body)
-    errors.body = `Die Beschreibung darf höchstens ${PROBLEM_MAX_LENGTH.body} Zeichen lang sein.`;
-  if (!title && !errors.title) errors.title = 'Bitte gib einen Titel an.';
-  if (!isProblemLabel(body?.label)) errors.label = 'Bitte wähle ein Label.';
-  if (Object.keys(errors).length > 0) throw new ValidationError(errors);
-  return { title, body: text, label: body?.label as ProblemDraft['label'] };
+  return parseWith(problemDraftSchema, body);
 }
 
 export interface SendOutcome {

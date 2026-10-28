@@ -12,6 +12,7 @@ import {
 import { HELP_CONTACTS } from '../lib/help-contacts';
 import { CONFIG } from '../lib/config';
 import { PROBLEM_LABELS, PROBLEM_MAX_LENGTH } from '../lib/problemmeldung-model';
+import { problemDiscardSchema } from '../lib/problemmeldung-schema';
 import { runProblemAssessment } from '../lib/problemmeldung-ki';
 import { sendProblemToGithub, validateProblemDraft } from '../lib/problemmeldung-senden';
 import {
@@ -23,6 +24,7 @@ import {
   saveProblemDraft,
 } from '../lib/problemmeldungen';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { parseWith } from '../lib/validation/zod';
 
 /** Maps what the hand-over can fail with to a response; other errors are rethrown. */
 function toResponse(error: unknown): HttpResponseInit {
@@ -117,10 +119,7 @@ export const ProblemMeldungDiscardEndpoint = pflegeHandler(
     if (!id) return NOT_FOUND;
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
-    const reason =
-      typeof body?.reason === 'string'
-        ? body.reason.trim().slice(0, PROBLEM_MAX_LENGTH.discardReason)
-        : '';
+    const { reason } = parseWith(problemDiscardSchema, body);
     try {
       await discardProblemMeldung(
         id,
