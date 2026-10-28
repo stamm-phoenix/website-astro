@@ -7,8 +7,6 @@ import { BUILD_INFO } from '../lib/buildInfo';
 import { INSTAGRAM_PROFILE_URL } from '../lib/instagramStore.svelte';
 
 const year = new Date().getFullYear();
-// The form learns from the link which page it was opened on
-const problemMeldenFooterHref = `/problem-melden?quelle=footer&seite=${encodeURIComponent(Astro.url.pathname)}`;
 ---
 
 <div class="container">
@@ -70,7 +68,7 @@ const problemMeldenFooterHref = `/problem-melden?quelle=footer&seite=${encodeURI
             </TextLink>
           </li>
           <li>
-            <TextLink href={problemMeldenFooterHref} variant="footer">
+            <TextLink href="/problem-melden?quelle=footer" variant="footer">
               Problem melden
             </TextLink>
           </li>
