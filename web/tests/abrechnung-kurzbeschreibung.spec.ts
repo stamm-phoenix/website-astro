@@ -139,3 +139,29 @@ test('a Zeitplan read from a file replaces the entered one only after asking', a
   await expect(page.getByText(/Es wurde nichts geändert/).first()).toBeVisible();
   await expect(samstag.getByLabel('Programmpunkt')).toHaveCount(5);
 });
+
+test('a description in own words becomes Zielsetzung and Zeitplan once', async ({ page }) => {
+  await page.goto(URL);
+  await page.getByRole('button', { name: 'In eigenen Worten beschreiben' }).click();
+  const beschreibung = page.getByLabel('Ablauf der Aktion');
+  await expect(beschreibung).toBeFocused();
+  await beschreibung.fill(
+    'Wir wollen die Gemeinschaft stärken. Samstag um 10 Anreise, nachmittags Geländespiel.'
+  );
+  // The description survives a look at another tab
+  await page.getByRole('tab', { name: /Übersicht/ }).click();
+  await page.getByRole('tab', { name: 'Kurzbeschreibung' }).click();
+  await expect(page.getByLabel('Ablauf der Aktion')).toHaveValue(/Gemeinschaft stärken/);
+
+  await page.getByRole('button', { name: 'Kurzbeschreibung erstellen' }).click();
+  await expect(
+    page.getByText(/Zeitplan aus deiner Beschreibung übernommen: 2 Tage, 8 Blöcke/).first()
+  ).toBeVisible();
+  await expect(page.getByLabel('Ablauf der Aktion')).toHaveCount(0);
+  await expect(page.getByLabel('Zielsetzung')).toHaveValue(
+    'Mit der Aktion wollen wir die Gemeinschaft im Stamm stärken.'
+  );
+  const samstag = page.getByRole('region', { name: 'Samstag, 01.08.2026' });
+  await expect(samstag.getByLabel('Programmpunkt').first()).toHaveValue('Anreise und Aufbau');
+  await expectNoHorizontalOverflow(page);
+});

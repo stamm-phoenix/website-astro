@@ -1079,8 +1079,8 @@ route('PUT', '/api/intern/abrechnung/:id/eingaben', (req) => {
 route('POST', '/api/intern/abrechnung/:id/zeitplan', (req) => {
   const event = campflowDetail(req.params.id)?.event;
   if (!event) return notFound('Diese Aktion gibt es nicht mehr.');
-  const body = req.json as { bilder?: unknown; tabelle?: unknown } | null;
-  if (!body || (!Array.isArray(body.bilder) && !body.tabelle))
+  const body = req.json as { bilder?: unknown; tabelle?: unknown; freitext?: unknown } | null;
+  if (!body || (!Array.isArray(body.bilder) && !body.tabelle && typeof body.freitext !== 'string'))
     return error(400, 'INVALID', 'Bitte ein Foto, ein PDF oder eine Excel-Datei wählen.');
   const start = (event.start_date ?? new Date(MOCK_NOW).toISOString()).slice(0, 10);
   const day = (offset: number): string => {

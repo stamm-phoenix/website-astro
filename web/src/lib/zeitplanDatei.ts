@@ -1,5 +1,6 @@
-// Reads the Zeitplan of the Kurzbeschreibung from a file: photos and PDF pages go to the API as
-// JPEGs (scans and handwriting included), Excel and CSV files as they are. The API asks the
+// Reads the Zeitplan of the Kurzbeschreibung from a file or a description: photos and PDF pages
+// go to the API as JPEGs (scans and handwriting included), Excel and CSV files and descriptions
+// as they are. The API asks the
 // model of the receipt check and answers with days and blocks, nothing is stored.
 import { sendApi } from './api';
 import { drawPdfPages } from './downloadPreview';
@@ -129,6 +130,24 @@ export async function leseZeitplan(
     'POST',
     `/intern/abrechnung/${encodeURIComponent(eventId)}/zeitplan`,
     body,
+    { signal }
+  );
+  return antwort.available ? antwort.zeitplan : null;
+}
+
+/**
+ * Brings a description of the Zeitplan written on the page into days and blocks, once and
+ * without questions back; null when reading is not set up.
+ */
+export async function beschreibeZeitplan(
+  eventId: string,
+  freitext: string,
+  signal?: AbortSignal
+): Promise<GelesenerZeitplan | null> {
+  const antwort = await sendApi<ZeitplanAntwort>(
+    'POST',
+    `/intern/abrechnung/${encodeURIComponent(eventId)}/zeitplan`,
+    { freitext },
     { signal }
   );
   return antwort.available ? antwort.zeitplan : null;

@@ -160,8 +160,15 @@ export const abrechnungSessions = $state<Record<string, AbrechnungSession>>({});
  */
 export const zeitplanZeilen = $state<Record<string, Record<string, string>>>({});
 
+/** The description of the Zeitplan typed but not sent yet, by Aktion; kept and guarded likewise. */
+export const zeitplanFreitext = $state<Record<string, string>>({});
+
+/** Whether lines or a description of the Zeitplan were typed and not taken over yet. */
 export function offeneZeitplanZeilen(eventId: string): boolean {
-  return Object.values(zeitplanZeilen[eventId] ?? {}).some((text) => text.trim() !== '');
+  return (
+    Object.values(zeitplanZeilen[eventId] ?? {}).some((text) => text.trim() !== '') ||
+    !!zeitplanFreitext[eventId]?.trim()
+  );
 }
 export const abrechnungAblage = $state<Record<string, AbrechnungAblage>>({});
 
@@ -487,7 +494,12 @@ export function rescueAbrechnungSession(eventId: string, userId: string, title: 
     {
       key: 'Abrechnung#custom',
       kind: 'custom',
-      value: JSON.stringify({ session, etag: state.etag, zeilen: zeitplanZeilen[eventId] ?? {} }),
+      value: JSON.stringify({
+        session,
+        etag: state.etag,
+        zeilen: zeitplanZeilen[eventId] ?? {},
+        freitext: zeitplanFreitext[eventId] ?? '',
+      }),
       display: 'Deine persönlichen Ergänzungen zur Abrechnung',
     },
   ]);
@@ -504,13 +516,20 @@ export function restoreAbrechnungRescue(eventId: string, userId: string): boolea
   );
   if (!kept) return false;
   try {
-    const draft = JSON.parse(kept.value) as { session: unknown; etag: unknown; zeilen?: unknown };
+    const draft = JSON.parse(kept.value) as {
+      session: unknown;
+      etag: unknown;
+      zeilen?: unknown;
+      freitext?: unknown;
+    };
     if (
       !validAbrechnungSession(draft.session) ||
       !(draft.etag === null || typeof draft.etag === 'string')
     )
       return false;
     Object.assign(session, parseSession(draft.session));
+    if (typeof draft.freitext === 'string' && draft.freitext.trim())
+      zeitplanFreitext[eventId] = draft.freitext;
     if (isRecord(draft.zeilen)) {
       zeitplanZeilen[eventId] = Object.fromEntries(
         Object.entries(draft.zeilen).filter(
