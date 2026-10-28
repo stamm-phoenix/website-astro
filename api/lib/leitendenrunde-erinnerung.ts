@@ -248,7 +248,7 @@ export async function runLeitendenrundeReminders(
       result.remaining = open.length - index;
       break;
     }
-    const reservation = await reserve(sitzung, stage, hashOf(address), now);
+    const reservation = await reserve(sitzung, stage, hashOf(address), clock());
     if (!reservation) continue;
     processed++;
     // A new date, a cancellation or a newer approval before transport drops the old reminders.
@@ -280,11 +280,11 @@ export async function runLeitendenrundeReminders(
         statusCode,
       });
       const outcome = reminderFailureOutcome(statusCode);
-      await record(reservation, outcome, now);
+      await record(reservation, outcome, clock());
       result[outcome]++;
       continue;
     }
-    await record(reservation, 'sent', now);
+    await record(reservation, 'sent', clock());
     result.sent++;
   }
   return result;
