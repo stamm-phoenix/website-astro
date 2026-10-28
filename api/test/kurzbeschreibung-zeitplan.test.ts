@@ -150,8 +150,21 @@ test('the model answer is checked: times normalised, unknown days and empty bloc
         ],
       },
     ],
+    ausgelassen: 0,
   });
   assert.equal(toZeitplan({ einleitung: null, tage: 'x' }).tage.length, 0);
+  // Defect: blocks beyond the limits were dropped without the page knowing
+  const voll = toZeitplan({
+    einleitung: null,
+    tage: [
+      {
+        datum: '2026-05-24',
+        bloecke: Array.from({ length: 31 }, (_b, i) => ({ von: '', bis: '', text: `P${i}` })),
+      },
+    ],
+  });
+  assert.equal(voll.tage[0].bloecke.length, 30);
+  assert.equal(voll.ausgelassen, 1);
   assert.throws(() => toZeitplan('nein'));
   assert.equal(normalizeTime('24'), '00:00');
   assert.equal(normalizeTime('25:00'), '');
@@ -229,6 +242,7 @@ test('a photo is read with the days of the Aktion and the answer prefills the Ze
       tage: [
         { datum: '2026-05-25', bloecke: [{ von: '18:00', bis: '19:00', text: 'Abendessen' }] },
       ],
+      ausgelassen: 0,
     },
   });
   assert.equal(bodies.length, 1);
