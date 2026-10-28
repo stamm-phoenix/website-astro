@@ -11,6 +11,7 @@
     validateProblemReport,
   } from '../lib/problemMelden';
   import { problemModuleOf } from '../lib/problemModul';
+  import { guardUnsavedChanges } from '../lib/unsavedChanges';
   import type { ProblemContext, ProblemField, ProblemSent } from '../lib/problemMelden';
 
   interface Props {
@@ -62,6 +63,14 @@
   let formError = $state<string | null>(null);
   let sending = $state(false);
   let sentId = $state<string | null>(null);
+
+  const hasUnsentInput = $derived(
+    !sentId && [description, steps, expected, contact].some((value) => value.length > 0)
+  );
+
+  $effect(() => {
+    if (hasUnsentInput) return guardUnsavedChanges(() => hasUnsentInput);
+  });
 
   let altchaWidget = $state<AltchaWidget | null>(null);
 
@@ -232,7 +241,10 @@
       </ActionButton>
       <a
         class="text-link inline-flex min-h-11 items-center text-sm"
-        href="/datenschutz#problem-melden">Was mit deiner Meldung passiert</a
+        href="/datenschutz#problem-melden"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Was mit deiner Meldung passiert <span class="sr-only">(öffnet in neuem Tab)</span></a
       >
     </div>
   </form>

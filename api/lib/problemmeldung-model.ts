@@ -421,22 +421,34 @@ export function validateProblemReport(input: Record<string, unknown>): ProblemVa
   // Cleaning only follows the length check: a huge text from anybody must stay cheap to refuse
   const description =
     rawDescription.length <= PROBLEM_MAX_LENGTH.description
-      ? cleanText(rawDescription, PROBLEM_MAX_LENGTH.description)
+      ? cleanText(rawDescription, Infinity)
       : '';
   if (!rawDescription) {
     errors.description = 'Bitte beschreib das Problem.';
   } else if (rawDescription.length > PROBLEM_MAX_LENGTH.description) {
     errors.description = `Die Beschreibung darf höchstens ${PROBLEM_MAX_LENGTH.description} Zeichen lang sein.`;
+  } else if (description.length > PROBLEM_MAX_LENGTH.description) {
+    errors.description =
+      'Nach dem Entfernen von Zugangsdaten ist die Beschreibung zu lang. Kürze deinen Text.';
   } else if (description.length < PROBLEM_MIN_DESCRIPTION_LENGTH) {
     errors.description = `Bitte beschreib das Problem mit mindestens ${PROBLEM_MIN_DESCRIPTION_LENGTH} Zeichen.`;
   }
 
   const rawSteps = typeof input.steps === 'string' ? input.steps.trim() : '';
+  const steps = rawSteps.length <= PROBLEM_MAX_LENGTH.steps ? cleanText(rawSteps, Infinity) : '';
   if (rawSteps.length > PROBLEM_MAX_LENGTH.steps)
     errors.steps = `Die Schritte dürfen höchstens ${PROBLEM_MAX_LENGTH.steps} Zeichen lang sein.`;
+  else if (steps.length > PROBLEM_MAX_LENGTH.steps)
+    errors.steps =
+      'Nach dem Entfernen von Zugangsdaten sind die Schritte zu lang. Kürze deinen Text.';
   const rawExpected = typeof input.expected === 'string' ? input.expected.trim() : '';
+  const expected =
+    rawExpected.length <= PROBLEM_MAX_LENGTH.expected ? cleanText(rawExpected, Infinity) : '';
   if (rawExpected.length > PROBLEM_MAX_LENGTH.expected)
     errors.expected = `Das darf höchstens ${PROBLEM_MAX_LENGTH.expected} Zeichen lang sein.`;
+  else if (expected.length > PROBLEM_MAX_LENGTH.expected)
+    errors.expected =
+      'Nach dem Entfernen von Zugangsdaten ist die Erwartung zu lang. Kürze deinen Text.';
 
   const contact = typeof input.contact === 'string' ? input.contact.trim() : '';
   if (contact && !isEmail(contact))
@@ -449,8 +461,8 @@ export function validateProblemReport(input: Record<string, unknown>): ProblemVa
     report: {
       entry,
       description,
-      steps: cleanText(rawSteps, PROBLEM_MAX_LENGTH.steps),
-      expected: cleanText(rawExpected, PROBLEM_MAX_LENGTH.expected),
+      steps,
+      expected,
       contact,
       context: cleanProblemContext(input.context),
     },

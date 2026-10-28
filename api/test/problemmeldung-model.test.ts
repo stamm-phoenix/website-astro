@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildIssueBody,
+  PROBLEM_MAX_LENGTH,
   cleanIssueText,
   cleanApiRoute,
   cleanPath,
@@ -462,5 +463,27 @@ test('structured secret values are removed completely', () => {
     assert.ok(once.includes('Normales Feld') && once.endsWith('beim Speichern.'), once);
     assert.equal(redactSensitive(once), once);
     assert.ok(!problemModelInput({ ...MELDUNG, description }).includes('hunter2'));
+  }
+});
+
+test('report fields that grow past their limit during cleaning return errors without truncation', () => {
+  for (const field of ['description', 'steps', 'expected'] as const) {
+    const limit = PROBLEM_MAX_LENGTH[field];
+    const input = 'token=x\n' + 'a '.repeat((limit - 26) / 2) + 'Nicht gespeichert.';
+    assert.equal(input.length, limit);
+    const result = validateProblemReport({
+      description: 'Beim Speichern erscheint ein Fehler.',
+      [field]: input,
+    });
+    assert.equal(result.report, null);
+    assert.ok(result.errors[field]);
+    const unchanged = 'a '.repeat((limit - 18) / 2) + 'Nicht gespeichert.';
+    assert.equal(unchanged.length, limit);
+    const valid = validateProblemReport({
+      description: 'Beim Speichern erscheint ein Fehler.',
+      [field]: unchanged,
+    });
+    assert.ok(valid.report);
+    assert.equal(valid.report[field], unchanged);
   }
 });
