@@ -18,7 +18,7 @@
   >
     <p class="font-semibold">
       {check?.ok && warnings.length === 0
-        ? 'Foto geprüft: vollständig und lesbar.'
+        ? 'Beleg geprüft: vollständig und lesbar.'
         : check && !check.isReceipt
           ? 'Das Foto zeigt möglicherweise keinen Beleg.'
           : 'Foto prüfen:'}

@@ -62,8 +62,8 @@
 </script>
 
 <section aria-labelledby="bl-photo-label" class="space-y-2">
-  <p id="bl-photo-label" class="form-label inline">Foto des Belegs</p>
-  <InfoHint label="Foto des Belegs" class="ml-1">
+  <p id="bl-photo-label" class="form-label inline">Foto oder PDF des Belegs</p>
+  <InfoHint label="Foto oder PDF des Belegs" class="ml-1">
     <p>
       Am besten mit der Scan-Funktion des Handys: auf dem iPhone in der Notizen- oder Dateien-App
       „Dokumente scannen“, auf Android in Google Drive „Scannen“.
@@ -72,12 +72,13 @@
       Ein normales Foto geht auch: Beleg flach hinlegen, gut beleuchten, alle Ränder im Bild, am
       besten auf dunklem Untergrund.
     </p>
+    <p>Rechnungen, die du als PDF bekommen hast, lädst du direkt als PDF hoch (höchstens 5 MB).</p>
   </InfoHint>
   {#if form.id && form.hasImage && !photo.draft}
     <a href={photoUrl(form)} target="_blank" rel="noopener" class="block">
       <img
         src={photoUrl(form)}
-        alt="Foto des Belegs von {form.shop}"
+        alt="{form.isPdf ? 'Erste Seite des PDFs' : 'Foto des Belegs'} von {form.shop}"
         width="600"
         height="800"
         class="max-h-96 w-auto rounded-md border border-neutral-200 bg-neutral-100 object-contain"
@@ -115,7 +116,7 @@
       {#if draft.result}
         <img
           src={draft.result.url}
-          alt="Vorschau des Fotos"
+          alt={draft.pdf ? 'Erste Seite des PDFs' : 'Vorschau des Fotos'}
           width={draft.result.width}
           height={draft.result.height}
           class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-surface"
@@ -128,41 +129,43 @@
           Wird verarbeitet …
         </div>
       {/if}
-      <div role="toolbar" aria-label="Foto bearbeiten" class="flex flex-wrap items-center gap-1">
-        {#each TOOLS as tool (tool.label)}
-          <button
-            type="button"
-            class="werkzeug"
-            class:ml-auto={tool.id === 'zuruecksetzen'}
-            title={tool.label}
-            aria-label={tool.label}
-            disabled={locked || (tool.id === 'zuruecksetzen' && !photo.edited)}
-            onclick={() => runTool(tool.id)}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"><path d={tool.icon} /></svg
+      {#if !draft.pdf}
+        <div role="toolbar" aria-label="Foto bearbeiten" class="flex flex-wrap items-center gap-1">
+          {#each TOOLS as tool (tool.label)}
+            <button
+              type="button"
+              class="werkzeug"
+              class:ml-auto={tool.id === 'zuruecksetzen'}
+              title={tool.label}
+              aria-label={tool.label}
+              disabled={locked || (tool.id === 'zuruecksetzen' && !photo.edited)}
+              onclick={() => runTool(tool.id)}
             >
-            {#if tool.text}<span>{tool.text}</span>{/if}
-          </button>
-        {/each}
-      </div>
-      <FilterTabs
-        label="Farben"
-        showLabel
-        variant="segmented"
-        options={FARBEN}
-        value={draft.mode}
-        disabled={locked}
-        onselect={photo.setMode}
-      />
+              <svg
+                viewBox="0 0 24 24"
+                width="22"
+                height="22"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"><path d={tool.icon} /></svg
+              >
+              {#if tool.text}<span>{tool.text}</span>{/if}
+            </button>
+          {/each}
+        </div>
+        <FilterTabs
+          label="Farben"
+          showLabel
+          variant="segmented"
+          options={FARBEN}
+          value={draft.mode}
+          disabled={locked}
+          onselect={photo.setMode}
+        />
+      {/if}
     {/if}
     {#if photo.scanHint}
       <p class="text-xs text-neutral-700">{photo.scanHint}</p>
@@ -173,7 +176,8 @@
           variant="primary"
           type="button"
           disabled={photo.photoBusy || busy || !photo.draft.result || !!photo.zuschnitt}
-          onclick={photo.savePhoto}>Neues Foto speichern</ActionButton
+          onclick={photo.savePhoto}
+          >{photo.draft.pdf ? 'Neues PDF speichern' : 'Neues Foto speichern'}</ActionButton
         >
         <ActionButton
           variant="secondary"
@@ -189,11 +193,11 @@
       {photo.photoBusy
         ? 'Wird verarbeitet …'
         : form.hasImage || photo.draft
-          ? 'Anderes Foto wählen'
-          : 'Foto aufnehmen oder wählen'}
+          ? 'Anderes Foto oder PDF wählen'
+          : 'Foto aufnehmen oder Datei wählen'}
       <input
         type="file"
-        accept="image/*"
+        accept="image/*,application/pdf"
         class="sr-only"
         aria-describedby={errors.photo ? 'bl-photo-error' : undefined}
         disabled={photo.photoBusy || busy}
@@ -201,7 +205,9 @@
       />
     </label>
     {#if form.id && form.hasImage && !photo.draft}
-      <a class="btn-secondary" href="{photoUrl(form)}&download=1" download> Foto herunterladen </a>
+      <a class="btn-secondary" href="{photoUrl(form)}&download=1" download>
+        {form.isPdf ? 'PDF herunterladen' : 'Foto herunterladen'}
+      </a>
       {#if form.hasOriginal}
         <a class="btn-secondary" href="{photoUrl(form)}&original=1" target="_blank" rel="noopener">
           Original ansehen

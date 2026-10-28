@@ -346,9 +346,14 @@ export interface CampflowBelegUpload {
   description: string;
   /** `YYYY-MM-DD` */
   date: string;
+  /**
+   * An income instead of an expense. Only sent for income, so expenses work also with a
+   * Playwright API that does not know the field yet.
+   */
+  type?: 'income';
   /** Positive. */
   amountCent: number;
-  /** „Auslage durch“: who gets the money back, null if nobody. */
+  /** „Auslage durch“: who gets the money back, null if nobody; always null for income. */
   disburser: string | null;
   /** `cun_…` */
   costUnit: string;

@@ -1,9 +1,11 @@
 import { parseEuroToCent } from './belege';
 import { todayIso, formatDateTime } from './format';
-import type { BelegCampflow, BelegCheck, BelegStatus } from './types';
+import type { BelegArt, BelegCampflow, BelegCheck, BelegStatus } from './types';
 export interface BelegForm {
   id: string | null;
   etag: string;
+  /** An expense or income; income asks nothing about an Auslage. */
+  art: BelegArt;
   shop: string;
   date: string;
   amount: string;
@@ -21,6 +23,7 @@ export interface BelegForm {
   reviewNote: string;
   hasImage: boolean;
   hasOriginal: boolean;
+  isPdf: boolean;
   submittedBy: string;
   submittedAt: string;
   aiCheck: BelegCheck | null;
@@ -44,6 +47,15 @@ export function zahlungOf(
   if (!beleg.payout) return 'stamm';
   if (beleg.paidBy.trim() === SPARBUCH) return 'sparbuch';
   return isIch({ name: beleg.paidBy }) ? 'ich' : 'andere';
+}
+
+/** Switches between expense and income; income has no Auslage, so its choice goes. */
+export function applyArt(form: BelegForm, art: BelegArt): void {
+  if (form.art === art) return;
+  form.art = art;
+  form.zahlung = null;
+  form.payout = art === 'Einnahme' ? false : null;
+  form.paidBy = '';
 }
 
 /** Sets who gets the Auslage for a choice; `myName` for the own one. */
@@ -72,16 +84,20 @@ export function validateBeleg(
   forTransfer = false
 ): Record<string, string> {
   const result: Record<string, string> = {};
-  if (!f.id && !hasPhoto) result.photo = 'Bitte ein Foto des Belegs hinzufügen.';
-  if (!f.shop.trim()) result.shop = 'Bitte das Geschäft angeben.';
+  const einnahme = f.art === 'Einnahme';
+  if (!f.id && !hasPhoto) result.photo = 'Bitte ein Foto oder PDF des Belegs hinzufügen.';
+  if (!f.shop.trim()) {
+    result.shop = einnahme ? 'Bitte angeben, von wem das Geld kam.' : 'Bitte das Geschäft angeben.';
+  }
   if (!f.date) result.date = 'Bitte das Datum angeben.';
   else if (f.date > todayIso()) result.date = 'Das Datum liegt in der Zukunft.';
   if (parseEuroToCent(f.amount) === null)
     result.amountCent = 'Bitte einen Betrag wie 12,34 angeben.';
-  if (f.zahlung === null) result.payout = 'Bitte auswählen, wie bezahlt wurde.';
-  else if (f.zahlung === 'andere' && !f.paidBy.trim()) {
+  // Income has no Auslage
+  if (!einnahme && f.zahlung === null) result.payout = 'Bitte auswählen, wie bezahlt wurde.';
+  else if (!einnahme && f.zahlung === 'andere' && !f.paidBy.trim()) {
     result.paidBy = 'Bitte angeben, wer das Geld ausgelegt hat.';
-  } else if (f.zahlung === 'ich' && !f.paidBy.trim()) {
+  } else if (!einnahme && f.zahlung === 'ich' && !f.paidBy.trim()) {
     result.payout = 'Dein Name ist nicht bekannt. Wähle „Jemand anderes“ und trage ihn ein.';
   }
   // A receipt from before Kostenstelle and Kategorie may keep its Aktion, unless it is transferred

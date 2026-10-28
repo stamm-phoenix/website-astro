@@ -50,7 +50,7 @@
       {#if beleg.hasImage}
         <img
           src={photoUrl(beleg)}
-          alt={`Foto des Belegs von ${beleg.shop || 'unbekannt'}`}
+          alt={`${beleg.isPdf ? 'Erste Seite des PDFs' : 'Foto des Belegs'} von ${beleg.shop || 'unbekannt'}`}
           width="600"
           height="800"
           class="aspect-[3/4] h-auto w-full rounded-md bg-neutral-100 object-contain"

@@ -341,14 +341,21 @@ export interface BelegTable {
   submitted_by: string;
   /** Written as ISO text, so `datetime2(3)` keeps the milliseconds. */
   submitted_at: ColumnType<Date, string, string>;
-  /** `beleg-<digits>.jpg` or `beleg-<digits>-scan.jpg`, or null without a photo. */
+  /**
+   * `beleg-<digits>.jpg`, `beleg-<digits>-scan.jpg` or a PDF `beleg-<digits>.pdf`, or null without
+   * a photo.
+   */
   photo: ColumnType<string | null, string | null | undefined, string | null>;
+  /** An expense or income; income has no Auslage. */
+  art: Generated<BelegArt>;
   /** `BelegCheck` as JSON. */
   ai_check: ColumnType<string | null, string | null | undefined, string | null>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
   updated_by: Generated<string>;
 }
+
+export type BelegArt = 'Ausgabe' | 'Einnahme';
 
 export type BelegCampflowState = 'Gestartet' | 'Fehlgeschlagen' | 'Hochgeladen';
 
@@ -366,6 +373,7 @@ export interface BelegCampflowTable {
   shop: string;
   beleg_date: ColumnType<Date | string | null, string | null, string | null>;
   amount_cent: number;
+  art: Generated<BelegArt>;
   paid_by: Generated<string>;
   payout: Generated<boolean>;
   aktion: Generated<string>;

@@ -35,7 +35,7 @@ test('closing the Beleg dialog asks before a chosen photo is discarded', async (
     mimeType: 'image/png',
     buffer: Buffer.from(photo),
   });
-  await expect(dialog.getByText('Anderes Foto wählen')).toBeVisible();
+  await expect(dialog.getByText('Anderes Foto oder PDF wählen')).toBeVisible();
 
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).toBeVisible();
@@ -495,4 +495,71 @@ test('previews that failed are tried again after „Neu laden“', async ({ page
   await page.getByRole('button', { name: 'Neu laden' }).click();
   await expect(tile.locator('img')).toHaveCount(1);
   await expect(tile.locator('img')).toHaveJSProperty('complete', true);
+});
+
+/** A one-page PDF with a line of text, written by hand with a correct cross-reference table. */
+function onePagePdf(text: string): Buffer {
+  const content = `BT /F1 36 Tf 72 700 Td (${text}) Tj ET`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = objects.map((object, i) => {
+    const offset = pdf.length;
+    pdf += `${i + 1} 0 obj\n${object}\nendobj\n`;
+    return offset;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  pdf += offsets.map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(pdf, 'latin1');
+}
+
+test('income is submitted as a PDF without asking how it was paid', async ({ page }) => {
+  let sent: Record<string, unknown> | undefined;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().endsWith('/api/intern/pflege/belege')) {
+      sent = request.postDataJSON() as Record<string, unknown>;
+    }
+  });
+  await page.goto('/leitendenbereich/belege/');
+  await page.getByRole('button', { name: 'Beleg einreichen' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  const pdf = onePagePdf('Spendenquittung');
+  await dialog
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'spende.pdf', mimeType: 'application/pdf', buffer: pdf });
+  await expect(dialog.getByAltText('Erste Seite des PDFs')).toBeVisible();
+  // A PDF goes as it is: nothing to crop or turn
+  await expect(dialog.getByRole('toolbar', { name: 'Foto bearbeiten' })).toHaveCount(0);
+
+  await dialog.getByRole('radio', { name: 'Einnahme', exact: true }).check();
+  await expect(dialog.getByText('Wie wurde bezahlt?')).toHaveCount(0);
+  await dialog.getByLabel('Einnahme von').fill('Spende Bäckerei Huber');
+  await dialog.getByLabel('Betrag in €').fill('50,00');
+  await dialog.getByLabel('Kostenstelle', { exact: true }).fill('Sommerlager 2026 Oberjoch');
+  await dialog.getByLabel('Kategorie', { exact: true }).fill('Spenden');
+  await dialog.getByRole('button', { name: 'Einreichen', exact: true }).click();
+
+  await expect(
+    page.getByText(/Einnahme von Spende Bäckerei Huber über 50,00\s€ eingereicht/).first()
+  ).toBeVisible();
+  expect(sent?.art).toBe('Einnahme');
+  expect(sent?.payout).toBe(false);
+  expect(Buffer.from(String(sent?.pdf), 'base64').equals(pdf)).toBe(true);
+  expect(Buffer.from(String(sent?.photo), 'base64').subarray(0, 2)).toEqual(
+    Buffer.from([0xff, 0xd8])
+  );
+  const entry = page.getByRole('button', { name: /Spende Bäckerei Huber/ }).first();
+  await expect(entry).toContainText('Einnahme');
+
+  await entry.click();
+  const opened = page.getByRole('dialog', { name: 'Beleg von Spende Bäckerei Huber' });
+  await expect(opened.getByRole('radio', { name: 'Einnahme', exact: true })).toBeChecked();
+  await expect(opened.getByRole('link', { name: 'PDF herunterladen' })).toBeVisible();
 });

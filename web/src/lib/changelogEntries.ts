@@ -12,6 +12,18 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-28-01-belege-einnahmen-pdf',
+    date: '2026-10-28',
+    title: 'Belege: Einnahmen und PDFs einreichen',
+    changes: [
+      {
+        text: 'Du kannst jetzt auch Einnahmen einreichen, etwa eine Spende oder bar eingenommene Beiträge: Wähle beim Einreichen „Einnahme“. Die Frage, wie bezahlt wurde, fällt dann weg, und die Kasse überträgt den Beleg als Einnahme nach CampFlow.',
+        href: '/leitendenbereich/belege',
+      },
+      'Statt eines Fotos kannst du auch ein PDF hochladen, zum Beispiel eine Rechnung, die du per Mail bekommen hast (höchstens 5 MB). Die erste Seite wird als Vorschau gezeigt, nach CampFlow geht das ganze PDF.',
+    ],
+  },
+  {
     id: '2026-10-26-03-beitraege-erstatten',
     date: '2026-10-26',
     title: 'Beiträge: „zu erstatten“ statt „zu viel bezahlt“',

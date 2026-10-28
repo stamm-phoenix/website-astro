@@ -152,7 +152,7 @@ export function belegEintraege(
       title: beleg.shop || 'Ohne Geschäft',
       date: beleg.date,
       amountCent: beleg.amountCent,
-      income: false,
+      income: beleg.art === 'Einnahme',
       hasAmount: true,
       paidBy: beleg.paidBy || null,
       where: beleg.kostenstelle.trim()

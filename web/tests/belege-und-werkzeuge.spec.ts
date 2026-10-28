@@ -55,7 +55,7 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   await page.getByRole('button', { name: 'Zuschneiden fertig' }).click();
   await expect(page.getByAltText('Vorschau des Fotos')).toBeVisible();
   await expect(
-    page.getByRole('note').filter({ hasText: /Foto geprüft|Foto prüfen/ })
+    page.getByRole('note').filter({ hasText: /Beleg geprüft|Foto prüfen/ })
   ).toBeVisible();
   await expect(page.getByLabel('Geschäft')).toHaveValue('Demo-Markt');
   await expect(page.getByLabel('Betrag in €')).toHaveValue('9,99');

@@ -47,10 +47,10 @@ gespeichert. Nach der Übertragung wird der Beleg im Modul gelöscht.
 
 | CampFlow-Feld | kommt aus |
 | --- | --- |
-| Datei | das Foto (der Scan bzw. das unbearbeitete Foto, nicht das Original neben dem Scan), Name wie beim Herunterladen plus `(Website-Beleg <ID>)` |
-| Beschreibung | Geschäft – Bemerkung |
-| Belegdatum, Betrag | Datum und Betrag, immer als Ausgabe in Euro |
-| Auslage durch | wer ausgelegt hat (siehe unten), leer, wenn der Stamm bezahlt hat |
+| Datei | das Foto (der Scan bzw. das unbearbeitete Foto, nicht das Original neben dem Scan) oder das PDF, Name wie beim Herunterladen plus `(Website-Beleg <ID>)` |
+| Beschreibung | Geschäft bzw. „Einnahme von“ – Bemerkung |
+| Belegdatum, Betrag | Datum und Betrag in Euro, als Ausgabe oder Einnahme (`type: "income"`, siehe unten) |
+| Auslage durch | wer ausgelegt hat (siehe unten), leer, wenn der Stamm bezahlt hat, und bei Einnahmen |
 | Kostenstelle, Kategorie | die Felder des Belegs; Groß-/Kleinschreibung egal |
 
 Fehlt eines davon in CampFlow, legt die Übertragung es an, **bevor** der Versuch gespeichert und
@@ -65,6 +65,25 @@ Upload, Buchung und Speichern des Ergebnisses (`UPLOAD_RESERVE_MS`), weil Static
 45 Sekunden abbricht. Braucht CampFlow für die Vorbereitung länger, beginnt kein Upload; der
 Endpunkt antwortet mit `503` (`CAMPFLOW_SLOW`), und ein neuer Versuch findet, was schon angelegt
 ist.
+
+## Einnahmen
+
+Neben Ausgaben lassen sich Einnahmebelege einreichen (`organisation.beleg.art`, `Ausgabe` oder
+`Einnahme`, Migration `0046_beleg_einnahme_pdf.sql`), etwa Spenden oder bar eingenommene
+Beiträge. Das Formular fragt dann nicht, wie bezahlt wurde; die API speichert eine Einnahme immer
+ohne Auslage (`payout` 0, `paidBy` leer). Die Übertragung schickt sie mit `type: "income"` an die
+Playwright-API, die sie in CampFlow mit positivem Betrag bucht. Das Feld geht nur bei Einnahmen
+mit, damit Ausgaben auch mit einer Playwright-API ohne `type` funktionieren.
+`organisation.beleg_campflow.art` hält fest, als was ein Beleg übertragen wurde.
+
+## PDFs
+
+Statt eines Fotos darf der Beleg ein PDF sein (höchstens 5 MB), z. B. eine Rechnung per Mail.
+Der Browser zeichnet die erste Seite mit pdf.js als JPEG (`loadPdfPage` in
+`web/src/lib/belege.ts`) und schickt sie als `photo` mit dem PDF (`pdf`). Die Seite wird gezeigt,
+als Vorschau verkleinert und von der KI-Prüfung gelesen; zugeschnitten oder gedreht wird ein PDF
+nicht. Im Blob Storage liegen `beleg-<Ziffern>.pdf` und daneben `beleg-<Ziffern>-seite.jpg`.
+`…/foto` liefert die Seite, `…/foto?download=1` das PDF; nach CampFlow geht das PDF.
 
 ## Wie wurde bezahlt?
 

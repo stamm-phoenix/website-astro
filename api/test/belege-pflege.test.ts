@@ -226,6 +226,7 @@ dbTest('submitting a receipt stores details, uploader and photo as unchecked', a
     {
       id,
       etag: undefined,
+      art: 'Ausgabe',
       ...INPUT,
       aktion: '',
       status: 'Eingereicht',
@@ -234,6 +235,7 @@ dbTest('submitting a receipt stores details, uploader and photo as unchecked', a
       submittedAt: undefined,
       hasImage: true,
       hasOriginal: false,
+      isPdf: false,
       aiCheck: null,
       campflow: null,
       photo: undefined,
@@ -392,6 +394,7 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
   };
   const beleg = (id: number, submittedBy: string, submittedAt: string) => ({
     id: String(id),
+    art: 'Ausgabe',
     shop: 'REWE',
     date: '2026-09-30',
     amountCent: 1234,
@@ -407,6 +410,7 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
     submittedAt,
     hasImage: false,
     hasOriginal: false,
+    isPdf: false,
     aiCheck: null as unknown,
     campflow: null,
   });
@@ -903,9 +907,97 @@ dbTest('a scan is stored together with its original, which can be downloaded', a
   );
 });
 
+dbTest(
+  'a PDF is stored with its first page, shown as that page and downloaded as PDF',
+  async (t) => {
+    const { context, blobs } = setup(t);
+    const page = Buffer.from(await realJpeg(1200, 1600));
+    const pdf = Buffer.from('%PDF-1.7\n% Rechnung\n%%EOF');
+    const body = { ...INPUT, photo: page.toString('base64') };
+
+    for (const invalid of [
+      { pdf: Buffer.from('kein PDF').toString('base64') },
+      { pdf: pdf.toString('base64'), original: page.toString('base64') },
+      { pdf: Buffer.alloc(5 * 1024 * 1024 + 1, 0x25).toString('base64') },
+    ]) {
+      const response = await BelegeCollection(request('POST', { ...body, ...invalid }), context);
+      assert.ok([400, 413].includes(response.status ?? 0), JSON.stringify(response.jsonBody));
+    }
+    assert.equal(blobs.size, 0);
+
+    const created = await BelegeCollection(
+      request('POST', { ...body, pdf: pdf.toString('base64') }),
+      context
+    );
+    assert.equal(created.status, 201);
+    const { id } = created.jsonBody as { id: string };
+    const [stored] = await getBelege();
+    assert.match(stored?.photo ?? '', /^beleg-\d+\.pdf$/);
+    assert.equal(stored?.isPdf, true);
+    assert.equal(stored?.hasOriginal, false);
+    const pageName = (stored?.photo ?? '').replace('.pdf', '-seite.jpg');
+    assert.deepEqual(
+      [...blobs.keys()].sort(),
+      [`belege/${id}/${stored?.photo}`, `belege/${id}/${pageName}`].sort()
+    );
+
+    const shown = await BelegPhoto(request('GET', undefined, { id }), context);
+    assert.equal((shown.headers as Record<string, string>)['Content-Type'], 'image/jpeg');
+    assert.deepEqual(Buffer.from(shown.body as Uint8Array), page);
+    const thumb = await BelegPhoto(request('GET', undefined, { id, query: '?thumb=1' }), context);
+    assert.equal(thumb.status, 200);
+    const download = await BelegPhoto(
+      request('GET', undefined, { id, query: '?download=1' }),
+      context
+    );
+    const headers = download.headers as Record<string, string>;
+    assert.equal(headers['Content-Type'], 'application/pdf');
+    assert.match(headers['Content-Disposition'], /2026-09-30 REWE 12,34 EUR\.pdf/);
+    assert.deepEqual(Buffer.from(download.body as Uint8Array), pdf);
+
+    // Replaced by a photo, the PDF and its page go
+    const replaced = await BelegPhoto(
+      request('PUT', { photo: page.toString('base64') }, { id, etag: stored?.etag }),
+      context
+    );
+    assert.equal(replaced.status, 200);
+    assert.equal((replaced.jsonBody as { isPdf: boolean }).isPdf, false);
+    const [now] = await getBelege();
+    assert.deepEqual([...blobs.keys()], [`belege/${id}/${now?.photo}`]);
+  }
+);
+
+dbTest('income is stored without an Auslage', async (t) => {
+  const { context } = setup(t);
+  const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
+  const response = await BelegeCollection(
+    request('POST', { ...INPUT, art: 'Einnahme', shop: 'Spende Bäckerei', photo }),
+    context
+  );
+  assert.equal(response.status, 201);
+  const [stored] = await getBelege();
+  assert.equal(stored?.art, 'Einnahme');
+  assert.equal(stored?.payout, false);
+  assert.equal(stored?.paidBy, '');
+});
+
+test('income needs no Auslage, and the kind of receipt must be known', () => {
+  const income = validateBeleg(
+    { ...INPUT, art: 'Einnahme', payout: true, paidBy: '' },
+    '2026-10-01'
+  );
+  assert.deepEqual([income.art, income.payout, income.paidBy], ['Einnahme', false, '']);
+  assert.equal(validateBeleg(INPUT, '2026-10-01').art, 'Ausgabe');
+  assert.throws(
+    () => validateBeleg({ ...INPUT, art: 'Spende' }, '2026-10-01'),
+    (error: unknown) => error instanceof ValidationError && typeof error.fields.art === 'string'
+  );
+});
+
 test('receipt validation rejects missing, future and implausible values', () => {
   const today = '2026-10-01';
   assert.deepEqual(validateBeleg(INPUT, today), {
+    art: 'Ausgabe',
     ...INPUT,
     aktion: '',
     status: 'Eingereicht',
@@ -916,6 +1008,7 @@ test('receipt validation rejects missing, future and implausible values', () => 
   assert.equal(validateBeleg(INPUT, today, 'Lager').aktion, 'Lager');
   // An older receipt with only its Aktion may still be saved, e.g. to reject it
   assert.deepEqual(validateBeleg({ ...INPUT, kostenstelle: '', kategorie: '' }, today, 'Lager'), {
+    art: 'Ausgabe',
     ...INPUT,
     kostenstelle: '',
     kategorie: '',
@@ -925,6 +1018,7 @@ test('receipt validation rejects missing, future and implausible values', () => 
   });
   // Paid by the Stamm: no Auslage, so nobody to name
   assert.deepEqual(validateBeleg({ ...INPUT, payout: false }, today), {
+    art: 'Ausgabe',
     ...INPUT,
     aktion: '',
     paidBy: '',
@@ -963,28 +1057,12 @@ test('receipt validation rejects missing, future and implausible values', () => 
 test('receipt helpers use German local dates and safe file names', () => {
   assert.equal(todayInBerlin(new Date('2026-09-30T22:30:00Z')), '2026-10-01');
   assert.equal(
-    downloadFileName({
-      id: '1',
-      etag: '',
-      shop: 'A:B*C',
-      date: '',
-      amountCent: 5,
-      paidBy: '',
-      payout: false,
-      aktion: '',
-      kostenstelle: '',
-      kategorie: '',
-      note: '',
-      status: 'Eingereicht',
-      reviewNote: '',
-      submittedBy: '',
-      submittedAt: '',
-      hasImage: true,
-      hasOriginal: false,
-      aiCheck: null,
-      campflow: null,
-    }),
+    downloadFileName({ shop: 'A:B*C', date: '', amountCent: 5, isPdf: false }),
     'Beleg A B C 0,05 EUR.jpg'
+  );
+  assert.equal(
+    downloadFileName({ shop: 'Rechnung', date: '2026-10-01', amountCent: 1250, isPdf: true }),
+    '2026-10-01 Rechnung 12,50 EUR.pdf'
   );
 });
 

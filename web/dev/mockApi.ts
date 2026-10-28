@@ -2440,6 +2440,7 @@ const belege: StaffBeleg[] = [
   {
     id: '41',
     etag: newEtag('beleg-41'),
+    art: 'Ausgabe',
     shop: 'REWE',
     date: dayFromToday(-2),
     amountCent: 4387,
@@ -2455,6 +2456,7 @@ const belege: StaffBeleg[] = [
     submittedAt: isoFromNow(-1.8),
     hasImage: true,
     hasOriginal: false,
+    isPdf: false,
     aiCheck: {
       ...mockBelegCheck(),
       shop: 'REWE',
@@ -2466,6 +2468,7 @@ const belege: StaffBeleg[] = [
   {
     id: '40',
     etag: newEtag('beleg-40'),
+    art: 'Ausgabe',
     shop: 'Bauhaus',
     date: dayFromToday(-9),
     amountCent: 2199,
@@ -2482,6 +2485,7 @@ const belege: StaffBeleg[] = [
     submittedAt: isoFromNow(-8),
     hasImage: true,
     hasOriginal: false,
+    isPdf: false,
     aiCheck: {
       ...mockBelegCheck(),
       ok: false,
@@ -2495,6 +2499,7 @@ const belege: StaffBeleg[] = [
   {
     id: '39',
     etag: newEtag('beleg-39'),
+    art: 'Ausgabe',
     shop: 'Deutsche Bahn',
     date: dayFromToday(-20),
     amountCent: 11840,
@@ -2510,6 +2515,7 @@ const belege: StaffBeleg[] = [
     submittedAt: isoFromNow(-19),
     hasImage: true,
     hasOriginal: false,
+    isPdf: false,
     aiCheck: null,
     campflow: null,
   },
@@ -2600,19 +2606,30 @@ const campflowBelege: CampflowBeleg[] = [
 ];
 const belegPhotos = new Map<string, Uint8Array>();
 const belegOriginals = new Map<string, Uint8Array>();
+const belegPdfs = new Map<string, Uint8Array>();
 
-/** Stores `photo` and the optional `original` of a JSON body; returns an error if invalid. */
+/**
+ * Stores `photo` and the optional `original` of a JSON body, or a `pdf` with its first page as
+ * `photo`; returns an error if invalid.
+ */
 function storeBelegPhotos(beleg: StaffBeleg, body: Record<string, unknown>): MockResult | null {
   const photo = Buffer.from(str(body.photo), 'base64');
   const original = body.original ? Buffer.from(str(body.original), 'base64') : null;
+  const pdf = body.pdf ? Buffer.from(str(body.pdf), 'base64') : null;
   for (const bytes of [photo, original]) {
     if (bytes && (bytes[0] !== 0xff || bytes[1] !== 0xd8))
       return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
   }
+  if (pdf && pdf.subarray(0, 5).toString('latin1') !== '%PDF-') {
+    return error(400, 'INVALID', 'Die Datei ist kein PDF. Bitte ein PDF oder ein Foto wählen.');
+  }
   setBelegPhoto(beleg.id, photo);
   if (original) belegOriginals.set(beleg.id, new Uint8Array(original));
   else belegOriginals.delete(beleg.id);
+  if (pdf) belegPdfs.set(beleg.id, new Uint8Array(pdf));
+  else belegPdfs.delete(beleg.id);
   beleg.hasOriginal = original !== null;
+  beleg.isPdf = pdf !== null;
   return null;
 }
 
@@ -2621,11 +2638,12 @@ function setBelegPhoto(id: string, bytes: Uint8Array): void {
 }
 
 function applyBeleg(target: StaffBeleg, body: Record<string, unknown>): void {
+  target.art = body.art === 'Einnahme' ? 'Einnahme' : 'Ausgabe';
   target.shop = str(body.shop, target.shop);
   target.date = str(body.date, target.date);
   target.amountCent = typeof body.amountCent === 'number' ? body.amountCent : target.amountCent;
   target.paidBy = str(body.paidBy, target.paidBy);
-  target.payout = body.payout === true;
+  target.payout = target.art === 'Ausgabe' && body.payout === true;
   // Like the server: without an Auslage nobody is named
   if (!target.payout) target.paidBy = '';
   target.kostenstelle = str(body.kostenstelle, target.kostenstelle).trim();
@@ -2642,6 +2660,7 @@ route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
   const beleg: StaffBeleg = {
     id: newId(),
     etag: '',
+    art: 'Ausgabe',
     shop: '',
     date: '',
     amountCent: 0,
@@ -2657,6 +2676,7 @@ route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
     submittedAt: new Date(MOCK_NOW).toISOString(),
     hasImage: true,
     hasOriginal: false,
+    isPdf: false,
     aiCheck: mockBelegCheck(),
     campflow: null,
   };
@@ -2719,6 +2739,10 @@ route(
       beleg.etag = newEtag(`beleg-${beleg.id}`);
       return json(beleg);
     }
+    const pdf = belegPdfs.get(beleg.id);
+    if (pdf && req.query.get('download') && !req.query.get('original')) {
+      return { kind: 'raw', status: 200, contentType: 'application/pdf', body: pdf };
+    }
     const stored = (req.query.get('original') ? belegOriginals : belegPhotos).get(beleg.id);
     if (stored) return jpeg(stored);
     return svg(documentPreviewSvg(`${beleg.shop}.jpg`, 600, 800));
@@ -2769,6 +2793,8 @@ route('POST', '/api/intern/pflege/belege/:id/campflow', (req) => {
   belege.splice(index, 1);
   const number = `2026-${nextCampflowNumber++}`;
   const payout = beleg.payout && beleg.paidBy.trim() ? beleg.paidBy.trim() : null;
+  // Income is booked with a positive amount
+  const amountCent = beleg.art === 'Einnahme' ? beleg.amountCent : -beleg.amountCent;
   campflowBelege.unshift(
     campflowBeleg({
       id: `exp_${number}`,
@@ -2776,8 +2802,8 @@ route('POST', '/api/intern/pflege/belege/:id/campflow', (req) => {
       number,
       description: [beleg.shop, beleg.note].filter(Boolean).join(' – '),
       date: beleg.date,
-      amountCent: -beleg.amountCent,
-      openCent: -beleg.amountCent,
+      amountCent,
+      openCent: amountCent,
       paidBy: payout,
       costUnits: [{ id: unit.id, name: unit.name }],
       categories: [{ id: category.id, name: category.name, costUnitId: unit.id }],
