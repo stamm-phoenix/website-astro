@@ -1,4 +1,3 @@
-import type { EssenEinheitenart } from './db-schema';
 import type { FieldErrors } from './pflege-validation';
 import { ValidationError } from './pflege-validation';
 
@@ -6,6 +5,9 @@ import { ValidationError } from './pflege-validation';
  * Types and checks of the Steuerung of the Essensplanung, without database access, so the mock
  * API of the website can use them too (`essen-steuerung.ts` reads and writes).
  */
+
+/** masse: g/kg, volumen: ml/l; Stück, Packung und Bund werden nur gezählt. */
+export type EssenEinheitenart = 'masse' | 'volumen' | 'stueck' | 'packung' | 'bund';
 
 export const EINHEITENARTEN: readonly EssenEinheitenart[] = [
   'masse',
