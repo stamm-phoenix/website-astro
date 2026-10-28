@@ -1821,6 +1821,7 @@ export async function seedPreviewProblemmeldungen(now: Date = new Date()): Promi
         ai_at: null,
         reviewed_at: null,
         github_started_at: null,
+        github_first_at: null,
         github_number: null,
         github_at: null,
         ...report,

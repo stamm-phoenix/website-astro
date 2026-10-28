@@ -3,11 +3,7 @@ import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
 import { validateProblemReport } from '../lib/problemmeldung-model';
 import { runProblemAssessment } from '../lib/problemmeldung-ki';
-import {
-  createProblemMeldung,
-  isProblemQuotaReached,
-  purgeExpiredProblemMeldungen,
-} from '../lib/problemmeldungen';
+import { purgeExpiredProblemMeldungen, storeProblemMeldung } from '../lib/problemmeldungen';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 const MAIL = 'kontakt@stamm-phoenix.de';
@@ -73,21 +69,9 @@ export async function ProblemMeldungSendEndpoint(
     };
   }
 
-  if (await isProblemQuotaReached()) {
-    context.warn('Problem report rejected by quota');
-    return {
-      ...errorResponse(
-        429,
-        'QUOTA',
-        `Gerade erreichen uns sehr viele Meldungen. Bitte versuch es später noch einmal oder schreib uns direkt an ${MAIL}.`
-      ),
-      headers: NO_STORE_HEADERS,
-    };
-  }
-
-  let id: number;
+  let id: number | null;
   try {
-    id = await createProblemMeldung(report);
+    id = await storeProblemMeldung(report);
   } catch (error: unknown) {
     context.error('Storing a problem report failed', error);
     return {
@@ -95,6 +79,18 @@ export async function ProblemMeldungSendEndpoint(
         502,
         'STORE_FAILED',
         `Deine Meldung konnte leider nicht gespeichert werden. Deine Eingaben sind noch da. Bitte versuch es später noch einmal oder schreib uns direkt an ${MAIL}.`
+      ),
+      headers: NO_STORE_HEADERS,
+    };
+  }
+
+  if (id === null) {
+    context.warn('Problem report rejected by quota');
+    return {
+      ...errorResponse(
+        429,
+        'QUOTA',
+        `Gerade erreichen uns sehr viele Meldungen. Bitte versuch es später noch einmal oder schreib uns direkt an ${MAIL}.`
       ),
       headers: NO_STORE_HEADERS,
     };

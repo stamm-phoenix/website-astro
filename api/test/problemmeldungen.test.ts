@@ -566,3 +566,110 @@ dbTest('reports are deleted after their retention', async (t) => {
     [ids.openNew, ids.discardedNew, ids.sentNew].sort((a, b) => a - b)
   );
 });
+
+dbTest('later failed searches do not move the search window of the first attempt', async (t) => {
+  let phase: 'down' | 'search-fails' | 'found' = 'down';
+  let currentId = 0;
+  const { context, calls } = setup(t, {
+    github: (_url, init) => {
+      if (phase === 'down') throw new Error('socket hang up');
+      if (init.method === 'GET') {
+        if (phase === 'search-fails') return new Response('boom', { status: 503 });
+        return new Response(
+          JSON.stringify([
+            {
+              number: 88,
+              html_url: 'https://github.com/stamm-phoenix/website-astro/issues/88',
+              body: `Text\n\n_Problemmeldung PM-${currentId} · gemeldet_`,
+            },
+          ])
+        );
+      }
+      throw new Error('No new issue expected');
+    },
+  });
+  currentId = Number(await submit(context));
+  const id = String(currentId);
+  const backdate = () =>
+    sql`UPDATE problem.meldung SET github_started_at = DATEADD(minute, -3, SYSUTCDATETIME()) WHERE id = ${currentId}`.execute(
+      getDb()
+    );
+
+  assert.equal((await send(context, id, (await load(context, id)).etag)).status, 502);
+  const first = await getDb()
+    .selectFrom('problem.meldung')
+    .select('github_first_at')
+    .where('id', '=', currentId)
+    .executeTakeFirstOrThrow();
+  assert.ok(first.github_first_at);
+
+  await backdate();
+  phase = 'search-fails';
+  assert.equal((await send(context, id, (await load(context, id)).etag)).status, 502);
+  await backdate();
+  phase = 'found';
+  assert.equal((await send(context, id, (await load(context, id)).etag)).status, 200);
+
+  const since = calls.github
+    .filter((call) => call.method === 'GET')
+    .map((call) => new URL(call.url).searchParams.get('since'));
+  assert.equal(since.length, 2);
+  assert.equal(since[0], since[1]);
+  assert.equal((await load(context, id)).github.number, 88);
+});
+
+dbTest('the search for an earlier issue reads every page', async (t) => {
+  let currentId = 0;
+  let down = true;
+  const { context, calls } = setup(t, {
+    github: (url, init) => {
+      if (down && init.method === 'POST') throw new Error('timeout');
+      if (init.method !== 'GET') throw new Error('No new issue expected');
+      const page = Number(new URL(url).searchParams.get('page'));
+      const others = Array.from({ length: 100 }, (_, index) => ({
+        number: 1000 + index,
+        html_url: 'x',
+        body: 'fremd',
+      }));
+      return new Response(
+        JSON.stringify(
+          page === 1
+            ? others
+            : [
+                {
+                  number: 89,
+                  html_url: 'https://github.com/stamm-phoenix/website-astro/issues/89',
+                  body: `Text\n\n_Problemmeldung PM-${currentId} · gemeldet_`,
+                },
+              ]
+        )
+      );
+    },
+  });
+  currentId = Number(await submit(context));
+  const id = String(currentId);
+  assert.equal((await send(context, id, (await load(context, id)).etag)).status, 502);
+  await sql`UPDATE problem.meldung SET github_started_at = DATEADD(minute, -3, SYSUTCDATETIME()) WHERE id = ${currentId}`.execute(
+    getDb()
+  );
+  down = false;
+  assert.equal((await send(context, id, (await load(context, id)).etag)).status, 200);
+  assert.equal((await load(context, id)).github.number, 89);
+  assert.equal(calls.github.filter((call) => call.method === 'POST').length, 1);
+});
+
+dbTest('reports that arrive at once cannot pass the same count', async (t) => {
+  const { context } = setup(t);
+  overrideConfig(t, CONFIG, {
+    problemmeldung: { ...CONFIG.problemmeldung, hourlyLimit: 2 },
+  });
+  const proofs = await Promise.all(Array.from({ length: 5 }, () => solvedAltcha()));
+  const responses = await Promise.all(
+    proofs.map((altcha) =>
+      ProblemMeldungSendEndpoint(request('POST', { ...REPORT, altcha }), context)
+    )
+  );
+  assert.equal(responses.filter((response) => response.status === 200).length, 2);
+  assert.equal(responses.filter((response) => response.status === 429).length, 3);
+  assert.equal((await list(context)).length, 2);
+});

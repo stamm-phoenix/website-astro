@@ -12,6 +12,9 @@ import { containsIssueMarker } from './problemmeldung-model';
  */
 
 const TIMEOUT_MS = 15_000;
+const PAGE_SIZE = 100;
+/** Pages read when looking for an issue; more changes than this since the attempt are unclear. */
+const MAX_SEARCH_PAGES = 10;
 
 export interface GithubIssue {
   number: number;
@@ -110,19 +113,23 @@ export async function createGithubIssue(issue: {
  */
 export async function findGithubIssue(id: number, since: Date): Promise<GithubIssue | null> {
   const start = new Date(since.getTime() - 5 * 60_000).toISOString();
-  const response = await request(
-    `${issuesUrl()}?state=all&sort=created&direction=desc&per_page=100&since=${encodeURIComponent(start)}`,
-    { method: 'GET' }
-  );
-  if (!response.ok)
-    throw new GithubIssueError('unclear', `GitHub answered with ${response.status}`);
-  const issues = (await response.json().catch(() => null)) as unknown;
-  if (!Array.isArray(issues))
-    throw new GithubIssueError('unclear', 'GitHub sent an unreadable answer');
-  for (const entry of issues as Record<string, unknown>[]) {
-    if (entry.pull_request) continue;
-    if (typeof entry.body === 'string' && containsIssueMarker(entry.body, id))
-      return toIssue(entry);
+  for (let page = 1; page <= MAX_SEARCH_PAGES; page++) {
+    const response = await request(
+      `${issuesUrl()}?state=all&sort=created&direction=desc&per_page=${PAGE_SIZE}&page=${page}&since=${encodeURIComponent(start)}`,
+      { method: 'GET' }
+    );
+    if (!response.ok)
+      throw new GithubIssueError('unclear', `GitHub answered with ${response.status}`);
+    const issues = (await response.json().catch(() => null)) as unknown;
+    if (!Array.isArray(issues))
+      throw new GithubIssueError('unclear', 'GitHub sent an unreadable answer');
+    for (const entry of issues as Record<string, unknown>[]) {
+      if (entry.pull_request) continue;
+      if (typeof entry.body === 'string' && containsIssueMarker(entry.body, id))
+        return toIssue(entry);
+    }
+    // Only the last page, a short one, proves that the issue is not there
+    if (issues.length < PAGE_SIZE) return null;
   }
-  return null;
+  throw new GithubIssueError('unclear', 'Too many changed issues to search through');
 }

@@ -153,12 +153,19 @@
   async function assess(): Promise<void> {
     if (!selected || busy) return;
     const { id } = selected;
+    // Taken before the answer arrives: the new draft itself would count as a change
+    const typed = draftChanged;
     await dialog.run(async () => {
       await sendApi('POST', `/intern/pflege/problemmeldungen/${id}/bewerten`, {});
       const fresh = await refresh(id);
       // The assessment only fills a draft nobody started
-      if (fresh && !draftChanged) fillDraft(fresh);
-      message = 'Einschätzung erstellt.';
+      if (fresh && !typed) fillDraft(fresh);
+      if (fresh?.ai.status === 'fertig') message = 'Einschätzung erstellt.';
+      else
+        dialog.fail(
+          new Error('Einschätzung fehlgeschlagen'),
+          'Die Einschätzung ist wieder fehlgeschlagen. Die Meldung ist gespeichert. Versuch es später noch einmal.'
+        );
     }, 'Die Einschätzung konnte nicht erstellt werden. Deine Meldung ist gespeichert. Tippe später noch einmal auf „Noch einmal einschätzen“.');
   }
 
@@ -175,7 +182,11 @@
       selectedId = null;
       await reload();
     }, 'Die Meldung wurde nicht verworfen. Tippe noch einmal auf „Verwerfen“.');
-    if (!ok) discarding = false;
+    if (!ok) {
+      discarding = false;
+      // The request may have changed the version; the retry needs the current one
+      await reload();
+    }
   }
 
   /** Saves a changed draft first, so the preview shows exactly what is sent. */
@@ -209,7 +220,11 @@
       selectedId = null;
       await reload();
     }, 'Die Meldung wurde nicht an GitHub gesendet. Meldung und Entwurf sind unverändert. Tippe später noch einmal auf „An GitHub senden“.');
-    if (!ok) sending = false;
+    if (!ok) {
+      sending = false;
+      // Reserving the hand-over changes the version; the retry needs the current one
+      await reload();
+    }
   }
 
   const issueBody = $derived(
