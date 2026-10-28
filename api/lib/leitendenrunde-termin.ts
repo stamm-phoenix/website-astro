@@ -10,6 +10,7 @@ import { CONFIG } from './config';
 import { getDb } from './db';
 import { localDateTimeToDate } from './nikolaus-config';
 import { parseProtokollTermin } from './protokoll-termin';
+import { getSharePointDriveItem } from './sharepoint-data-access';
 import type { ProtokollFields } from './protokolle';
 
 export interface Sitzung {
@@ -123,12 +124,13 @@ export async function currentSitzung(): Promise<Sitzung | null> {
     .select(['drive_id', 'item_id', 'fields'])
     .execute();
 
-  let newest: { at: number; sitzung: Sitzung | null } | null = null;
+  // Newest approval first; on a tie the editor minutes win.
+  const candidates: { at: number; sitzung: Sitzung | null; file?: [string, string] }[] = [];
   if (editor?.approved_at)
-    newest = {
+    candidates.push({
       at: editor.approved_at.getTime(),
       sitzung: editorSitzung(editor.id, editor.content),
-    };
+    });
   for (const row of word) {
     let fields: ProtokollFields;
     try {
@@ -138,9 +140,20 @@ export async function currentSitzung(): Promise<Sitzung | null> {
     }
     if (!APPROVED_WORD.includes(fields.Status ?? '')) continue;
     const at = Date.parse(fields.FreigegebenAm ?? '');
-    if (Number.isNaN(at) || (newest && at <= newest.at)) continue;
+    if (Number.isNaN(at)) continue;
     const key = createHash('sha256').update(`${row.drive_id}|${row.item_id}`).digest('hex');
-    newest = { at, sitzung: wordSitzung(key.slice(0, 32), fields) };
+    candidates.push({
+      at,
+      sitzung: wordSitzung(key.slice(0, 32), fields),
+      file: [row.drive_id, row.item_id],
+    });
   }
-  return newest?.sitzung ?? null;
+  candidates.sort((a, b) => b.at - a.at);
+  for (const candidate of candidates) {
+    // Deleting Word minutes only removes the file; its row stays for a restore from the recycle
+    // bin. Deleted minutes do not count. A failing check stops the run instead of guessing.
+    if (candidate.file && !(await getSharePointDriveItem(...candidate.file))) continue;
+    return candidate.sitzung;
+  }
+  return null;
 }

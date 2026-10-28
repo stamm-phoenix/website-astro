@@ -18,6 +18,7 @@ import {
 } from '../lib/leitendenrunde-termin';
 import { runLeitendenrundeWorker } from '../lib/leitendenrunde-worker';
 import * as mail from '../lib/mail';
+import * as sharePoint from '../lib/sharepoint-data-access';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';
 
@@ -306,6 +307,7 @@ dbTest('confirmed Word minutes count, suggestions do not', async (t) => {
       })
       .execute();
   mockLeaders(t, [leader('lea@example.test')]);
+  const files = t.mock.method(sharePoint, 'getSharePointDriveItem', async () => ({}));
   const send = t.mock.method(reminderMail, 'sendLeitendenrundeReminder', async () => undefined);
   await word('offen', 'a', '2026-10-07T21:00:00Z');
   assert.equal((await runLeitendenrundeReminders(stage7)).reason, 'no-meeting');
@@ -313,6 +315,38 @@ dbTest('confirmed Word minutes count, suggestions do not', async (t) => {
   assert.equal((await runLeitendenrundeReminders(new Date('2026-10-09T07:00:00Z'))).sent, 1);
   assert.equal(send.mock.callCount(), 1);
   assert.equal(send.mock.calls[0].arguments[1]?.url.endsWith('/leitendenbereich/protokolle'), true);
+  // Deleted minutes (the row stays for a restore) send no more; a failing check stops the run.
+  files.mock.mockImplementation(async () => undefined);
+  assert.equal(
+    (await runLeitendenrundeReminders(new Date('2026-10-13T07:00:00Z'))).reason,
+    'no-meeting'
+  );
+  files.mock.mockImplementation(async () => {
+    throw new Error('Graph unavailable');
+  });
+  await assert.rejects(runLeitendenrundeReminders(new Date('2026-10-13T07:00:00Z')), /Graph/);
+  assert.equal(send.mock.callCount(), 1);
+});
+
+dbTest('no mail goes out once the meeting has begun during the run', async (t) => {
+  await approveEditor(NEXT);
+  mockLeaders(t, [leader('a@example.test'), leader('b@example.test')]);
+  const start = new Date('2026-10-14T16:47:00Z');
+  let later = false;
+  const send = t.mock.method(reminderMail, 'sendLeitendenrundeReminder', async () => {
+    later = true;
+  });
+  const result = await runLeitendenrundeReminders(start, {
+    clock: () => (later ? new Date('2026-10-14T17:01:00Z') : start),
+  });
+  assert.equal(result.reason, 'changed');
+  assert.equal(result.sent, 1);
+  assert.equal(send.mock.callCount(), 1);
+  const rows = await getDb().selectFrom('protokoll.erinnerung').select('status').execute();
+  assert.deepEqual(
+    rows.map((row) => row.status),
+    ['sent']
+  );
 });
 
 dbTest('an unclear result stays reserved, throttling is retried after the pause', async (t) => {

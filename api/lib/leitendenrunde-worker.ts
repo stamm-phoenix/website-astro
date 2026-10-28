@@ -5,7 +5,7 @@ export async function runLeitendenrundeWorker(
   report: (result: LeitendenrundeResult) => void,
   now = new Date()
 ): Promise<void> {
-  const result = await runLeitendenrundeReminders(now, Date.now() + 8 * 60_000);
+  const result = await runLeitendenrundeReminders(now, { deadline: Date.now() + 8 * 60_000 });
   report(result);
   if (
     result.failed ||
