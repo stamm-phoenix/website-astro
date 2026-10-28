@@ -89,9 +89,12 @@
     const result: Record<string, string> = {};
     if (!f.name.trim()) result.name = 'Bitte einen Namen eintragen.';
     if (!f.kategorieId) result.kategorieId = 'Bitte eine Kategorie wählen.';
-    for (const field of ['grammProTl', 'grammProEl', 'grammProStueck'] as const) {
-      if (f[field].trim() && !(parseDecimal(f[field]) > 0))
-        result[field] = 'Bitte eine Zahl größer 0 eintragen, z. B. 4,5, oder das Feld leeren.';
+    const grenzen = { grammProTl: 1000, grammProEl: 1000, grammProStueck: 100_000 } as const;
+    for (const [field, max] of Object.entries(grenzen) as [keyof typeof grenzen, number][]) {
+      const zahl = Math.round(parseDecimal(f[field]) * 100) / 100;
+      if (f[field].trim() && !(zahl >= 0.01 && zahl <= max))
+        result[field] =
+          `Bitte eine Zahl von 0,01 bis ${max.toLocaleString('de-DE')} eintragen oder das Feld leeren.`;
     }
     return result;
   }

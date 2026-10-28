@@ -11,6 +11,8 @@ import {
   EssensplanungListeEintrag,
   EssensplanungSteuerung,
 } from '../endpoints/intern-essensplanung-steuerung';
+import { getDb } from '../lib/db';
+import { seedPreviewEssensplanung } from '../lib/db-preview';
 import { buildStartdatenSql, readCsv } from '../lib/essen-startdaten';
 import type { EssenEinstellungen, EssenSteuerungView, EssenZutat } from '../lib/essen-validation';
 import {
@@ -143,7 +145,7 @@ test('the settings are validated per field and normalized', () => {
         whitelist: ['kein eintrag'],
         aufbewahrungMonate: 0,
         vorlageGruppen: [
-          { name: 'Wö', faktor: 0 },
+          { name: 'Wö', faktor: 0.001 },
           { name: 'wö', faktor: 1 },
         ],
         vorlageMahlzeiten: [],
@@ -191,6 +193,13 @@ test('ingredients are validated; things that are not eaten have no diet', () => 
     ),
     ['abtropfgewicht', 'allergene', 'einheitenart', 'grammProEl', 'kategorieId', 'name', 'vegan']
   );
+  assert.deepEqual(
+    fieldErrors(() =>
+      validateZutat(zutatInput({ grammProTl: 0.001, grammProEl: 100_000, grammProStueck: 'x' }))
+    ),
+    ['grammProEl', 'grammProStueck', 'grammProTl']
+  );
+  assert.equal(validateZutat(zutatInput({ grammProStueck: 120.456 })).grammProStueck, 120.46);
   const spuelmittel = validateZutat(
     zutatInput({ name: 'Spülmittel', lebensmittel: false, einheitenart: 'stueck', allergene: [3] })
   );
@@ -222,6 +231,14 @@ dbTest('the migration brings the start data from the kitchen sheet', async (t) =
   assert.equal(byName('Spülmittel').lebensmittel, false);
   assert.equal(byName('Spülmittel').vegan, null);
   assert.equal(byName('Kidneybohnen').abtropfgewicht, true);
+});
+
+dbTest('previews get an invented log once, before anyone changed something', async () => {
+  await seedPreviewEssensplanung();
+  await seedPreviewEssensplanung();
+  const log = await getDb().selectFrom('essen.audit_log').select('actor').execute();
+  assert.deepEqual(log.map((entry) => entry.actor).sort(), ['Theo Test', 'Vroni Vorschau']);
+  await getDb().deleteFrom('essen.audit_log').execute();
 });
 
 dbTest('only the teams Admin and Vorstand reach the Steuerung', async (t) => {
