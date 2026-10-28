@@ -140,6 +140,13 @@ function looksLikeCode(token: string): boolean {
   return /^[\w.~%+-]+$/.test(token) && /\d/.test(token);
 }
 
+/** The length of a line without the `?`, `&` and `#` at its end: one backward scan. */
+function trailingDelimiters(line: string): number {
+  let end = line.length;
+  while (end > 0 && '?&#'.includes(line[end - 1])) end--;
+  return end;
+}
+
 function withoutWrappedQuery(text: string): string {
   const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
@@ -152,7 +159,7 @@ function withoutWrappedQuery(text: string): string {
     // following sentence stays, also in a second pass
     if (!next || !(next[1].includes('=') || looksLikeCode(next[1]))) continue;
     lines[i + 1] = lines[i + 1].replace(/^[ \t]*\S+/, '');
-    lines[i] = line.replace(/[?&#]+$/, '');
+    lines[i] = line.slice(0, trailingDelimiters(line));
   }
   return lines.join('\n');
 }
