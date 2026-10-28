@@ -1,5 +1,5 @@
 import { pflegeHandler, ok, readJsonBody } from '../lib/pflege-api';
-import { parseSession, validAbrechnungSession } from '../lib/abrechnung-session';
+import { parseSession, sessionSizeOk, validAbrechnungSession } from '../lib/abrechnung-session';
 import {
   abrechnungDeleteAfter,
   getAbrechnungEingabe,
@@ -38,7 +38,7 @@ export const AbrechnungEingabeEndpoint = pflegeHandler(
       typeof body !== 'object' ||
       !body.session ||
       typeof body.session !== 'object' ||
-      JSON.stringify(body.session).length > 100_000 ||
+      !sessionSizeOk(body.session as Record<string, unknown>) ||
       !(body.etag === null || typeof body.etag === 'string')
     ) {
       throw new ValidationError({

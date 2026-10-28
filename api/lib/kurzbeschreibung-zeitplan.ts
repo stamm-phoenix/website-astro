@@ -17,8 +17,8 @@ const REQUEST_TIMEOUT_MS = 38_000;
 /** A long camp has a hundred blocks; the model's thinking counts against this as well. */
 const MAX_COMPLETION_TOKENS = 12_000;
 export const MAX_ZEITPLAN_BILDER = 4;
-/** Text of an Excel file handed to the model; a Zeitplan is far shorter. */
-export const MAX_ZEITPLAN_TEXT = 30_000;
+/** Text of an Excel file handed to the model; a Zeitplan is far shorter. Longer is refused. */
+export const MAX_ZEITPLAN_TEXT = 40_000;
 const MAX_TAGE = 31;
 
 export interface GelesenerBlock {
@@ -188,7 +188,7 @@ export async function readZeitplan(
   if (!takeRead()) throw new ZeitplanLimitError();
   const content =
     'text' in quelle
-      ? [{ type: 'text', text: quelle.text.slice(0, MAX_ZEITPLAN_TEXT) }]
+      ? [{ type: 'text', text: quelle.text }]
       : quelle.bilder.map((jpeg) => ({
           type: 'image_url',
           image_url: {

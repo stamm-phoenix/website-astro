@@ -803,8 +803,12 @@ function placeZeitplan(
     const needed = item.header && next && !next.header ? item.height + next.height : item.height;
     const continues = (): boolean => !item.header && y === top;
     const height = (): number => needed + (continues() ? ZEITPLAN_HEADER : 0);
-    if (y + height() > end && y > top && !nextColumn()) return null;
-    // Taller than a whole column: fails a try within limits, otherwise drawn anyway
+    // On to the next column; on the first page, whose columns start lower, on to the next
+    // page if need be
+    while (y + height() > end && (y > top || page === 1)) {
+      if (!nextColumn()) return null;
+    }
+    // Taller than a whole page: fails a try within limits, otherwise drawn anyway
     if (y + height() > end && maxPages !== Infinity) return null;
     const continued = continues();
     if (continued) y += ZEITPLAN_HEADER;
@@ -889,9 +893,6 @@ export async function downloadKurzbeschreibungPdf(
 
   const tage = data.tage.filter((tag) => tag.bloecke.length > 0);
   if (tage.length > 0) {
-    section('Zeitplan', ZEITPLAN_HEADER + 2 * ZEITPLAN_LINE);
-    top -= 1.5;
-    const zeitplanPage = doc.getNumberOfPages();
     const columns = tage.length === 2 ? 2 : 3;
     const columnWidth = (width - ZEITPLAN_GAP * (columns - 1)) / columns;
     doc.setFont('helvetica', 'bold');
@@ -917,6 +918,10 @@ export async function downloadKurzbeschreibungPdf(
         };
       }),
     ]);
+    // The heading stays with the first day's heading and block
+    section('Zeitplan', items[0].height + items[1].height);
+    top -= 1.5;
+    const zeitplanPage = doc.getNumberOfPages();
 
     // Up to three days each in a column of their own; otherwise the shortest columns that
     // still fit on the first page; otherwise as many pages as needed

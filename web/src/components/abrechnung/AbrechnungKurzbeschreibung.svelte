@@ -207,19 +207,26 @@
   }
 
   async function applyQuick(tagIndex: number, datum: string): Promise<void> {
-    const neue = parseZeitzeilen(quick[datum] ?? '');
+    // One block per non-empty line, in the same order as parseZeitzeilen
+    const zeilen = (quick[datum] ?? '').split(/\r?\n/).filter((line) => line.trim() !== '');
+    const neue = parseZeitzeilen(zeilen.join('\n'));
     if (neue.length === 0) return;
     const tag = editable()[tagIndex];
-    const room = MAX_ZEITBLOECKE_PRO_TAG - tag.bloecke.length;
+    const room = Math.max(0, MAX_ZEITBLOECKE_PRO_TAG - tag.bloecke.length);
     tag.bloecke.push(...neue.slice(0, room).map(mitId));
-    delete quick[datum];
+    if (neue.length <= room) {
+      delete quick[datum];
+      say(`${neue.length} ${neue.length === 1 ? 'Block' : 'Blöcke'} übernommen.`);
+      await focusField(`tag-${datum}-neu`);
+      return;
+    }
+    // The lines that did not fit stay in the field
+    quick[datum] = zeilen.slice(room).join('\n');
     say(
-      neue.length > room
-        ? `${room} von ${neue.length} Blöcken übernommen. Mehr als ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke passen nicht an einen Tag.`
-        : `${neue.length} ${neue.length === 1 ? 'Block' : 'Blöcke'} übernommen.`,
-      neue.length > room ? 'warning' : 'success'
+      `${room} von ${neue.length} Blöcken übernommen. An einen Tag passen höchstens ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke; die übrigen Zeilen stehen noch im Feld.`,
+      'warning'
     );
-    await focusField(`tag-${datum}-neu`);
+    await focusField(`tag-${datum}-zeilen`);
   }
 
   async function resetAll(): Promise<void> {
