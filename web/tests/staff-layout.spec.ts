@@ -225,6 +225,8 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   await sidebar.getByRole('link', { name: 'Eigenbeleg', exact: true }).hover();
   await expect(flyout).toHaveText('Eigenbeleg');
   await flyout.evaluate((element) => (element.dataset.kept = 'yes'));
+  // Hovering may scroll the link into view first; the next page keeps what it shows now
+  const scrolled = await sidebar.evaluate((element) => element.scrollTop);
   await sidebar.getByRole('link', { name: 'Eigenbeleg', exact: true }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
   await expect(sidebar).toHaveAttribute('data-kept', 'yes');
@@ -232,7 +234,7 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   await expect(flyout).toHaveText('Eigenbeleg');
   await expect(flyout).toHaveClass(/is-current/);
   // It also keeps its scrolling
-  expect(await sidebar.evaluate((element) => element.scrollTop)).toBe(40);
+  expect(await sidebar.evaluate((element) => element.scrollTop)).toBe(scrolled);
   // Clicked, not tabbed to: the name goes with the pointer
   await page.mouse.move(800, 500);
   await expect(flyout).toHaveCount(0);
