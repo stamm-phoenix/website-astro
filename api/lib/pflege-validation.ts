@@ -4,6 +4,7 @@
  */
 import type { HelperRole, TeamRole } from './nikolaus-einteilung';
 import { isChangelogId } from './changelog-id';
+import { isValidDate } from './calendar-date';
 import { pickStaffSettings } from './staff-settings-model';
 import type { StaffSettings } from './staff-settings-model';
 import { HELPER_ROLES, KITCHEN, TEAM_ROLES, normalizeTag, parseTags } from './nikolaus-einteilung';
@@ -36,6 +37,8 @@ import {
   MAX_UNTERPUNKTE,
   MAX_ZUSTAENDIG,
 } from './protokoll-editor-model';
+
+export { isValidDate };
 
 export type FieldErrors = Record<string, string>;
 
@@ -565,13 +568,6 @@ export interface BlogPostInput {
   published: boolean;
   /** Canonical HTML, see `sanitizeBlogHtml`. */
   content: string;
-}
-
-/** Whether the value is a real calendar date as `YYYY-MM-DD`. */
-export function isValidDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
 
 /**

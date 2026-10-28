@@ -1,16 +1,7 @@
-/** Browser-safe DTOs for the shared tasks module. */
-export interface TaskPerson {
-  name: string;
-  login: string;
-}
-export interface TaskInput {
-  title: string;
-  description: string;
-  assignee: string;
-  assignees?: TaskPerson[];
-  dueDate: string | null;
-  projectId: number | null;
-}
+/** Browser-safe DTOs for the shared tasks module. The input types are inferred from their zod schemas. */
+import type { TaskInput, TaskPerson, TemplateItem } from './aufgaben-schema';
+
+export type { TaskInput, TaskPerson, TemplateItem };
 export interface Task extends TaskInput {
   id: number;
   etag: string;
@@ -30,13 +21,6 @@ export interface TaskProject {
   etag: string;
   title: string;
   campflowId: string;
-}
-export interface TemplateItem {
-  title: string;
-  description: string;
-  assignee: string;
-  assignees?: TaskPerson[];
-  daysBefore: number;
 }
 export interface TaskTemplate {
   id: number;

@@ -655,3 +655,68 @@ dbTest('suggestions retain source names and persisted model vetoes', async () =>
   assert.equal(task.assignee, 'Kathi');
   assert.equal(task.assignees?.[0].login, '');
 });
+
+test('task validation names the field and keeps the German messages', () => {
+  const fields = (run: () => unknown): Record<string, string> => {
+    try {
+      run();
+    } catch (error) {
+      if (error instanceof ValidationError) return error.fields;
+      throw error;
+    }
+    return assert.fail('Expected a ValidationError.');
+  };
+  assert.deepEqual(
+    fields(() => validateTask(null)),
+    { form: 'Bitte die Felder ausfüllen.' }
+  );
+  assert.deepEqual(
+    fields(() => validateTask([])),
+    { form: 'Bitte die Felder ausfüllen.' }
+  );
+  assert.deepEqual(
+    fields(() => validateTask({ ...input, title: ' ', dueDate: '2026-02-29', projectId: '1' })),
+    {
+      title: 'Bitte 1 bis 200 Zeichen angeben.',
+      dueDate: 'Bitte ein gültiges Datum angeben.',
+      projectId: 'Bitte einen gültigen Eintrag auswählen.',
+    }
+  );
+  assert.deepEqual(
+    fields(() => validateTask({ ...input, description: {} })),
+    {
+      description: 'Bitte Text angeben.',
+    }
+  );
+  assert.deepEqual(
+    fields(() => validateTask({ ...input, assignees: [{ name: 'Alex', login: 'bad login' }] })),
+    { assignee: 'Bitte einen gültigen Login auswählen.' }
+  );
+  assert.deepEqual(
+    fields(() => validateTask({ ...input, assignees: Array(21).fill({ name: 'A' }) })),
+    {
+      assignee: 'Bitte höchstens 20 Personen auswählen.',
+    }
+  );
+  assert.deepEqual(
+    fields(() => validateTemplate({ ...templateInput, items: [] })),
+    {
+      items: 'Bitte 1 bis 50 Aufgaben angeben.',
+    }
+  );
+  assert.deepEqual(
+    fields(() =>
+      validateTemplate({
+        ...templateInput,
+        items: [{ ...templateInput.items[0], title: '', daysBefore: 400 }],
+      })
+    ),
+    {
+      title: 'Bitte 1 bis 200 Zeichen angeben.',
+      items: 'Der Abstand zum Aktionsdatum muss zwischen −366 und 366 Tagen liegen.',
+    }
+  );
+  assert.equal(validateTask({ ...input, dueDate: '', projectId: undefined }).dueDate, null);
+  assert.equal(validateTask({ ...input, projectId: undefined }).projectId, null);
+  assert.equal(validateTask({ ...input, title: '  Zelte  ' }).title, 'Zelte');
+});
