@@ -109,6 +109,18 @@ export const EMPTY_PROBLEM_CONTEXT: ProblemContext = {
 const REDACTED = '[entfernt]';
 
 /**
+ * A token of a text without query and fragment, if it is a URL: it has a path (`/anmelden?code=1`,
+ * `https://x.de/a?b`) or is only a domain. Everything from the first `?` or `#` goes, also paths
+ * and further parameters inside the query. Other tokens (`Warum?`) stay.
+ */
+function withoutQuery(token: string): string {
+  const cut = token.search(/[?#]/);
+  if (cut < 0 || cut === token.length - 1) return token;
+  const prefix = token.slice(0, cut);
+  return prefix.includes('/') || /^(?:[a-z0-9-]+\.)+[a-z]{2,}$/i.test(prefix) ? prefix : token;
+}
+
+/**
  * Free text without what must not be stored or forwarded: query strings and fragments of URLs
  * (they carry tokens), JWTs, bearer tokens, values after `token=`, `password:` and the like,
  * and long random-looking strings.
@@ -118,9 +130,7 @@ export function redactSensitive(text: string): string {
     text
       // eslint-disable-next-line no-control-regex -- control characters other than line breaks
       .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '')
-      // Query and fragment of URLs, absolute, relative (`/anmelden?code=1`) or with only a domain
-      .replace(/(\S*\/[^\s?#]*)[?#]\S*/g, '$1')
-      .replace(/\b((?:[a-z0-9-]+\.)+[a-z]{2,})[?#]\S+/gi, '$1')
+      .replace(/\S+/g, withoutQuery)
       .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]*/g, REDACTED)
       .replace(/\bBearer\s+\S+/gi, `Bearer ${REDACTED}`)
       .replace(
