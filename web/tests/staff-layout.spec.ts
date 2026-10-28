@@ -186,7 +186,17 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   await expect(sidebar.getByRole('searchbox')).toHaveCount(0);
   await expect.poll(async () => (await sidebar.boundingBox())?.width).toBeLessThan(80);
   const flyout = page.getByTestId('staff-flyout');
-  await sidebar.getByRole('link', { name: 'Belege', exact: true }).hover();
+  // On a touch screen the items are taller and lower ones sit below the fold: scroll the link
+  // into view first, because scrolling under a still pointer takes the name away again
+  const showAndHover = async (name: string): Promise<void> => {
+    const link = sidebar.getByRole('link', { name, exact: true });
+    await link.scrollIntoViewIfNeeded();
+    await page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+    );
+    await link.hover();
+  };
+  await showAndHover('Belege');
   await expect(flyout).toHaveText('Belege');
   await sidebar.getByRole('button', { name: 'Bereich finden' }).focus();
   await page.keyboard.press('Tab');
@@ -222,7 +232,7 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   // Moving to another area keeps the folded sidebar as it is, without unfolding it on the way,
   // and the name under the pointer stays out instead of sliding in and out again
   await sidebar.evaluate((element) => (element.dataset.kept = 'yes'));
-  await sidebar.getByRole('link', { name: 'Eigenbeleg', exact: true }).hover();
+  await showAndHover('Eigenbeleg');
   await expect(flyout).toHaveText('Eigenbeleg');
   await flyout.evaluate((element) => (element.dataset.kept = 'yes'));
   // Hovering may scroll the link into view first; the next page keeps what it shows now
@@ -248,7 +258,7 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
     .click();
   await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
   // A link that is in view: hovering one at the bottom edge scrolls the sidebar first
-  await sidebar.getByRole('link', { name: 'Belege', exact: true }).hover();
+  await showAndHover('Belege');
   await expect(flyout).toHaveText('Belege');
   await page.getByLabel('Bezahlt an').fill('');
   await page.mouse.move(800, 500);
