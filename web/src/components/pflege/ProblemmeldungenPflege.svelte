@@ -627,6 +627,7 @@
       class="form-input"
       rows="3"
       maxlength={PROBLEM_MAX_LENGTH.discardReason}
+      disabled={busy}
       bind:value={discardReason}></textarea>
   </div>
 </ConfirmDialog>
