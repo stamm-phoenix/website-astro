@@ -307,6 +307,19 @@ dbTest('saving the draft needs the loaded version and moves the report into revi
   assert.equal((await patch(item.etag)).status, 409);
 });
 
+dbTest('a draft that is too long is refused instead of cut', async (t) => {
+  const { context } = setup(t);
+  const id = await submit(context);
+  const item = await load(context, id);
+  const response = await ProblemMeldungItemEndpoint(
+    request('PATCH', { title: 'T', body: 'x'.repeat(8001), label: 'bug', etag: item.etag }, { id }),
+    context
+  );
+  assert.equal(response.status, 400);
+  assert.ok((response.jsonBody as { fields: Record<string, string> }).fields.body);
+  assert.equal((await load(context, id)).draft.title, ANSWER.title);
+});
+
 dbTest('discarding keeps the reason, deletes the contact and blocks the hand-over', async (t) => {
   const { context, calls } = setup(t);
   const id = await submit(context);

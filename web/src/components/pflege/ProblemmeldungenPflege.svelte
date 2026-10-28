@@ -133,7 +133,12 @@
   }
 
   function validate(): Record<string, string> {
-    return draft.title.trim() ? {} : { title: 'Bitte gib einen Titel an.' };
+    const result: Record<string, string> = {};
+    if (!draft.title.trim()) result.title = 'Bitte gib einen Titel an.';
+    const max = store.data?.maxLength.body ?? PROBLEM_MAX_LENGTH.body;
+    if (draft.body.trim().length > max)
+      result.body = `Die Beschreibung darf höchstens ${max} Zeichen lang sein. Kürze sie, dann geht es weiter.`;
+    return result;
   }
 
   /** Saves the draft; returns whether it worked. */
@@ -517,7 +522,12 @@
         </FormField>
         {#if open}
           <div inert={busy}>
-            <FormField id="pm-body" label="Beschreibung" labelAs="span">
+            <FormField
+              id="pm-body"
+              label="Beschreibung"
+              labelAs="span"
+              error={dialog.state.fields.body}
+            >
               {#snippet children(attrs)}
                 <LazyTextEditor
                   features={{ headings: [2, 3], links: true }}
