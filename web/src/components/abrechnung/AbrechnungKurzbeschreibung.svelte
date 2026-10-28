@@ -284,6 +284,12 @@
         return;
       }
       const count = zeitplan.tage.reduce((sum, tag) => sum + tag.bloecke.length, 0);
+      // Found in the file, including blocks beyond 30 a day the page cannot take
+      const gefunden = count + (zeitplan.ausgelassen ?? 0);
+      const fehlen =
+        gefunden > count
+          ? ` ${gefunden - count} der ${gefunden} gefundenen Blöcke passen nicht (höchstens ${MAX_ZEITBLOECKE_PRO_TAG} pro Tag) und fehlen danach.`
+          : '';
       if (count === 0 && !zeitplan.einleitung) {
         say(
           `In „${file.name}“ wurde kein Zeitplan gefunden. Wähle eine andere Datei oder trage ihn selbst ein.`,
@@ -296,7 +302,7 @@
         blockCount > 0 &&
         !(await confirmAction({
           title: 'Zeitplan ersetzen?',
-          message: `Den bisherigen Zeitplan (${blockCount} ${blockCount === 1 ? 'Block' : 'Blöcke'}) durch die ${count} Blöcke aus „${file.name}“ ersetzen?`,
+          message: `Den bisherigen Zeitplan (${blockCount} ${blockCount === 1 ? 'Block' : 'Blöcke'}) durch die ${count} Blöcke aus „${file.name}“ ersetzen?${fehlen}`,
           confirmLabel: 'Zeitplan ersetzen',
           tone: 'neutral',
         }))
@@ -312,8 +318,8 @@
       if (einleitung) session.kurzbeschreibung.einleitung = zeitplan.einleitung!;
       if (count > 0) {
         say(
-          `Zeitplan aus „${file.name}“ übernommen: ${days} ${days === 1 ? 'Tag' : 'Tage'}, ${taken} ${taken === 1 ? 'Block' : 'Blöcke'}${taken < count ? ` von ${count}` : ''}${einleitung ? ' und die Zielsetzung' : ''}. Prüfe ihn bitte.`,
-          taken < count ? 'warning' : 'success'
+          `Zeitplan aus „${file.name}“ übernommen: ${days} ${days === 1 ? 'Tag' : 'Tage'}, ${taken} ${taken === 1 ? 'Block' : 'Blöcke'}${taken < gefunden ? ` von ${gefunden}` : ''}${einleitung ? ' und die Zielsetzung' : ''}. ${taken < gefunden ? `Mehr als ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke passen nicht an einen Tag; trage die fehlenden zusammengefasst selbst ein.` : 'Prüfe ihn bitte.'}`,
+          taken < gefunden ? 'warning' : 'success'
         );
       } else if (einleitung) {
         say(`Zielsetzung aus „${file.name}“ übernommen. Einen Zeitplan enthält die Datei nicht.`);
@@ -560,7 +566,11 @@
           </div>
 
           <ul
-            class="mt-2 space-y-2"
+            class="mt-2 space-y-2 {dragged && tag.bloecke.length === 0
+              ? 'min-h-11 rounded-sm border-2 border-dashed'
+              : ''} {dropAt?.tagIndex === tagIndex && tag.bloecke.length === 0
+              ? 'border-brand-900'
+              : 'border-neutral-300'}"
             aria-label={`Blöcke am ${tagTitel(tag.datum)}`}
             ondragover={(e) => {
               if (!dragged || e.target !== e.currentTarget) return;

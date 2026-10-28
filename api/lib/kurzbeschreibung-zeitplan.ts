@@ -31,6 +31,8 @@ export interface GelesenerZeitplan {
   /** Sentence about the aim of the Aktion, if the file has one. */
   einleitung: string | null;
   tage: { datum: string; bloecke: GelesenerBlock[] }[];
+  /** Blocks found but left out, beyond 30 a day or 31 days; the page says so. */
+  ausgelassen: number;
 }
 
 export interface ZeitplanAktion {
@@ -173,12 +175,14 @@ export function toZeitplan(raw: unknown): GelesenerZeitplan {
     if (bloecke.length === 0) continue;
     byDate.set(tag.datum, [...(byDate.get(tag.datum) ?? []), ...bloecke]);
   }
-  const tage = [...byDate.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
+  const alle = [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const tage = alle
     .slice(0, MAX_TAGE)
     .map(([datum, bloecke]) => ({ datum, bloecke: bloecke.slice(0, MAX_ZEITBLOECKE_PRO_TAG) }));
+  const gefunden = alle.reduce((sum, [, bloecke]) => sum + bloecke.length, 0);
+  const behalten = tage.reduce((sum, tag) => sum + tag.bloecke.length, 0);
   const einleitung = oneLine(raw.einleitung, MAX_EINLEITUNG);
-  return { einleitung: einleitung || null, tage };
+  return { einleitung: einleitung || null, tage, ausgelassen: gefunden - behalten };
 }
 
 export async function readZeitplan(

@@ -18,6 +18,8 @@ export const ZEITPLAN_DATEITYPEN =
 export interface GelesenerZeitplan {
   einleitung: string | null;
   tage: { datum: string; bloecke: NeuerBlock[] }[];
+  /** Blocks found but left out, beyond 30 a day or 31 days. */
+  ausgelassen?: number;
 }
 
 interface ZeitplanAntwort {
