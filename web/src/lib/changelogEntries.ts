@@ -18,7 +18,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       {
         text: 'In der Einteilung der Nikolaus-Helfenden ersetzt „Bild exportieren“ das Drucken. Du bekommst ein kompaktes Bild mit allen Tagen, Teams und der Küche, das du z. B. in die WhatsApp-Gruppe posten kannst. Am Handy öffnet sich dafür gleich das Teilen-Menü.',
-        href: '/leitendenbereich/nikolaus-helfende?ansicht=einteilung',
+        href: '/leitendenbereich/nikolaus-helfende',
       },
     ],
   },
