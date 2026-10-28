@@ -336,3 +336,45 @@ test('the skip link keeps the Planung on reload; a name typed while saving stays
   await expect(page.getByText('Kim Kocht (du)')).toBeVisible();
   await expect(page.getByLabel('Dein Name in dieser Planung')).toHaveValue('Kim Backt');
 });
+
+test('typing on while a meal or an invitation is saved keeps the next input', async ({ page }) => {
+  await anlegen(page, 'E2E Weiter');
+
+  // The name is saved while the time has focus; a second name afterwards is no conflict
+  let ersteMahlzeit = true;
+  await page.route('**/api/essensplanung/planung/mahlzeiten/*', async (route) => {
+    if (ersteMahlzeit && route.request().method() === 'PATCH') {
+      ersteMahlzeit = false;
+      await new Promise((done) => setTimeout(done, 1500));
+    }
+    await route.continue();
+  });
+  const gespeichert = page.waitForResponse(
+    (response) =>
+      response.url().includes('/planung/mahlzeiten/') && response.request().method() === 'PATCH'
+  );
+  await page.getByLabel('Name von 1_1').fill('Brunch');
+  await page.getByLabel('Uhrzeit von 1_1').focus();
+  await gespeichert;
+  await page.getByLabel('Name von 1_1').fill('Spätes Frühstück');
+  await page.getByLabel('Name von 1_1').press('Enter');
+  await page.waitForTimeout(1000);
+  await expect(page.getByText(/Jemand anderes hat 1_1/)).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByLabel('Name von 1_1')).toHaveValue('Spätes Frühstück');
+
+  // The next person typed in while the invitation is sent stays in the form
+  await page.getByRole('tab', { name: 'Mitglieder' }).click();
+  await page.route('**/api/essensplanung/planung/mitglieder', async (route) => {
+    if (route.request().method() === 'POST') await new Promise((done) => setTimeout(done, 1500));
+    await route.continue();
+  });
+  await page.getByLabel('Name', { exact: true }).fill('Ben Bezirk');
+  await page.getByLabel('Mailadresse').fill('ben@example.org');
+  await page.getByRole('button', { name: 'Einladen' }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Cleo Chor');
+  await page.getByLabel('Mailadresse').fill('cleo@example.org');
+  await expect(page.getByText('ben@example.org')).toBeVisible();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Cleo Chor');
+  await expect(page.getByLabel('Mailadresse')).toHaveValue('cleo@example.org');
+});

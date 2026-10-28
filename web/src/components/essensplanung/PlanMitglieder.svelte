@@ -50,10 +50,11 @@
   async function einladen(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     felder = {};
+    const gesendet = { name, email, rolle };
     let antwort: Antwort | undefined;
     const ok = await kontext.aendern(async () => {
       try {
-        antwort = await kontext.api.senden<Antwort>('POST', '/mitglieder', { name, email, rolle });
+        antwort = await kontext.api.senden<Antwort>('POST', '/mitglieder', gesendet);
         return antwort;
       } catch (error: unknown) {
         if (error instanceof ApiError && error.fields) felder = error.fields;
@@ -61,10 +62,11 @@
       }
     });
     if (ok && antwort) {
-      mailHinweis(antwort, email.trim());
-      name = '';
-      email = '';
-      rolle = 'bearbeiten';
+      mailHinweis(antwort, gesendet.email.trim());
+      // What was typed for the next person while sending stays
+      if (name === gesendet.name) name = '';
+      if (email === gesendet.email) email = '';
+      if (rolle === gesendet.rolle) rolle = 'bearbeiten';
     }
   }
 

@@ -89,7 +89,11 @@
     );
     if (ok) {
       entwurf = false;
-      if (!fokus) uebernehme(mahlzeit);
+      // The saved state is the new start even while a field has focus again; what was typed
+      // since stays in the field and counts as a change of its own
+      if (fokus)
+        basis = { name: mahlzeit.name, uhrzeit: mahlzeit.uhrzeit ?? '', etag: mahlzeit.etag };
+      else uebernehme(mahlzeit);
     } else {
       basis = { name: mahlzeit.name, uhrzeit: mahlzeit.uhrzeit ?? '', etag: mahlzeit.etag };
     }
