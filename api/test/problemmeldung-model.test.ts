@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildIssueBody,
+  cleanIssueText,
   cleanApiRoute,
   cleanPath,
   cleanProblemContext,
@@ -369,6 +370,18 @@ test('a query over several lines and quoted secrets are removed completely', () 
     assert.ok(redacted.endsWith('ging nicht'), text);
   }
   assert.equal(redactSensitive('Passwort: abc ging nicht'), 'Passwort: [entfernt] ging nicht');
+});
+
+test('a Markdown link keeps its structure when the query goes', () => {
+  assert.equal(
+    redactSensitive(
+      'Siehe [Gruppenstunden](https://stamm-phoenix.de/gruppenstunden?stufe=rover) bitte'
+    ),
+    'Siehe [Gruppenstunden](https://stamm-phoenix.de/gruppenstunden) bitte'
+  );
+  assert.equal(cleanIssueText('[a](https://x.de/b#c1)'), '[a](https://x.de/b)');
+  assert.equal(redactSensitive('(siehe https://x.de/a?b=1)'), '(siehe https://x.de/a)');
+  assert.equal(redactSensitive('Siehe (x.de/a?b=1) bitte'), 'Siehe (x.de/a) bitte');
 });
 
 test('every accepted address and the contact itself stay out of forwarded text', () => {
