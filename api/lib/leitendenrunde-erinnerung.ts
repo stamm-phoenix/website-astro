@@ -172,12 +172,13 @@ async function settle(now: Date): Promise<{ uncertain: number; failed: number }>
 }
 
 /** Whether the plan this run started with still holds: date, time and stage are unchanged. */
-async function stillCurrent(sitzung: Sitzung, stage: number, now: Date): Promise<boolean> {
+async function stillCurrent(sitzung: Sitzung, stage: number, clock: () => Date): Promise<boolean> {
   const again = await currentSitzung();
+  // The time of this moment, not of the start of the run: the meeting may have begun meanwhile.
   return (
     again !== null &&
     sitzungKey(again) === sitzungKey(sitzung) &&
-    reminderStage(again, now) === stage
+    reminderStage(again, clock()) === stage
   );
 }
 
@@ -187,8 +188,16 @@ async function stillCurrent(sitzung: Sitzung, stage: number, now: Date): Promise
  */
 export async function runLeitendenrundeReminders(
   now = new Date(),
-  deadline = Number.POSITIVE_INFINITY
+  options: {
+    /** `Date.now()` value after which no further mail is started. */
+    deadline?: number;
+    /** The current time; by default `now` plus the time the run has taken so far. */
+    clock?: () => Date;
+  } = {}
 ): Promise<LeitendenrundeResult> {
+  const { deadline = Number.POSITIVE_INFINITY } = options;
+  const started = Date.now();
+  const clock = options.clock ?? ((): Date => new Date(now.getTime() + Date.now() - started));
   const result: LeitendenrundeResult = {
     day: berlinDay(now),
     sent: 0,
@@ -235,7 +244,7 @@ export async function runLeitendenrundeReminders(
     if (!reservation) continue;
     processed++;
     // A new date, a cancellation or a newer approval before transport drops the old reminders.
-    if (!(await stillCurrent(sitzung, stage, now))) {
+    if (!(await stillCurrent(sitzung, stage, clock))) {
       await release(reservation);
       return { ...result, reason: 'changed' };
     }

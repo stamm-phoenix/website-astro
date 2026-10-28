@@ -112,7 +112,9 @@ als Einstiegspunkt; beide Timer teilen sich Datenbank, Entra-App und Graph-Zugan
 - Editor-Protokoll: das Feld „Nächste Leitendenrunde“ (Datum, Uhrzeit, Ort), sobald das Protokoll
   freigegeben oder verschickt ist.
 - Word-Protokoll: nur ein von Reviewenden **bestätigter** Termin der freigegebenen Fassung, nie
-  ein Vorschlag. Das gilt, solange der Word-Weg besteht (#284).
+  ein Vorschlag. Das gilt, solange der Word-Weg besteht (#284). Vor dem Versand prüft der Timer in
+  SharePoint, ob die Datei noch existiert; gelöschte Protokolle zählen nicht (aus dem Papierkorb
+  wiederhergestellte wieder). Schlägt die Prüfung fehl, bricht der Lauf ab.
 - Entwürfe und Protokolle im Review erzeugen nichts. Hat das neueste freigegebene Protokoll
   keinen Termin (leer, abgelehnt, nur vorgeschlagen), gibt es keine Erinnerung; ein Termin aus
   einem älteren Protokoll kehrt nicht zurück.
@@ -125,7 +127,8 @@ Erinnerung der gerade gültigen Stufe hinaus, nie mehrere auf einmal. Ab dem Beg
 (ohne Uhrzeit ab dem Ende des Tages) wird nichts mehr versendet.
 
 **Termin geändert oder abgesagt.** Der Plan wird bei jedem Lauf aus dem aktuellen Protokoll
-abgeleitet und vor jeder einzelnen Mail erneut geprüft. Ein anderes Datum oder eine andere Uhrzeit
+abgeleitet und vor jeder einzelnen Mail mit der aktuellen Uhrzeit erneut geprüft; ein Termin, der
+während des Laufs beginnt, bekommt keine weiteren Mails. Ein anderes Datum oder eine andere Uhrzeit
 ist ein anderer Termin mit eigenen Erinnerungen: Die Leitenden bekommen für den neuen Termin die
 Erinnerung, die gerade gilt (das ist zugleich die Nachricht über die Änderung). Wird der Termin
 gelöscht oder das Protokoll nicht mehr freigegeben, entfallen alle offenen Erinnerungen; bereits
