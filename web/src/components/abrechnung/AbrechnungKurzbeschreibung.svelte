@@ -150,8 +150,24 @@
     if (!deleted) return;
     const { block, datum, index } = deleted;
     const tag = editable().find((t) => t.datum === datum);
+    if (!tag) {
+      deleted = null;
+      notice = {
+        text: `${tagTitel(datum)} gibt es nicht mehr im Zeitplan. Der Block lässt sich nicht zurückholen.`,
+        kind: 'warning',
+      };
+      return;
+    }
+    // Without room the block stays deleted but can still be brought back
+    if (tag.bloecke.length >= MAX_ZEITBLOECKE_PRO_TAG) {
+      notice = {
+        text: `${tagTitel(datum)} hat schon ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke. Lösche dort zuerst einen anderen und tippe dann noch einmal auf „Rückgängig“.`,
+        kind: 'warning',
+      };
+      return;
+    }
     deleted = null;
-    if (!tag || tag.bloecke.length >= MAX_ZEITBLOECKE_PRO_TAG) return;
+    notice = null;
     tag.bloecke.splice(Math.min(index, tag.bloecke.length), 0, block);
     await focusField(`block-${block.id}-text`);
   }
@@ -248,6 +264,7 @@
     )
       return;
     session.kurzbeschreibung = { einleitung: '', tage: [] };
+    zeitplanZeilen[event.id] = {};
     say('Kurzbeschreibung zurückgesetzt.');
   }
 
