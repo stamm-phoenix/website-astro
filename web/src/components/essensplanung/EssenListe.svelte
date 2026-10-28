@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError, sendApi } from '../../lib/api';
@@ -55,6 +56,11 @@
   async function reloadCurrent(): Promise<boolean> {
     const id = form?.id;
     await essensplanungSteuerung.load({ force: true });
+    // Keep the input when reloading failed; the dialog still offers to try again.
+    if (store.error) {
+      onnotice(store.error, 'error');
+      return false;
+    }
     const fresh = (store.data?.[liste] as Eintrag[] | undefined)?.find((item) => item.id === id);
     if (!fresh) {
       form = null;
@@ -109,8 +115,10 @@
 </script>
 
 <section aria-labelledby="{liste}-heading" class="space-y-3">
-  <h2 id="{liste}-heading" class="font-serif text-xl font-bold text-brand-900">{title}</h2>
-  <p class="text-sm text-neutral-700">{intro}</p>
+  <div class="flex items-center gap-1">
+    <h2 id="{liste}-heading" class="font-serif text-xl font-bold text-brand-900">{title}</h2>
+    <InfoHint label={title} text={intro} />
+  </div>
   <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
     {#each items as item (item.id)}
       <li class="flex items-center justify-between gap-3 py-2">
@@ -138,6 +146,8 @@
 <EditDialog
   open={form !== null}
   title={form?.id ? `${singular} bearbeiten` : `Neue ${singular}`}
+  rescueKey={form ? `essen-${liste}:${form.id ?? 'neu'}` : undefined}
+  rescueVersion={form?.etag}
   {busy}
   error={dialog.state.error}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}

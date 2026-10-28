@@ -7,7 +7,7 @@ test('the Steuerung saves who may create Planungen and the templates', async ({ 
   const save = page.getByRole('button', { name: 'Einstellungen speichern' });
   await expect(save).toBeDisabled();
 
-  await page.getByLabel(/Anlegen durch Externe/).check();
+  await page.getByRole('checkbox', { name: /Externe dürfen/ }).check();
   await page.getByLabel(/Erlaubte Adressen und Domains/).fill('kein eintrag');
   await save.click();
   await expect(page.getByText(/Bitte eine Mailadresse/)).toBeVisible();
@@ -28,7 +28,7 @@ test('the Steuerung saves who may create Planungen and the templates', async ({ 
   ).toBeVisible();
 
   // Restore the demo state for the following tests of this worker
-  await page.getByLabel(/Anlegen durch Externe/).uncheck();
+  await page.getByRole('checkbox', { name: /Externe dürfen/ }).uncheck();
   await page.getByLabel(/Erlaubte Adressen und Domains/).fill('');
   await page.getByRole('button', { name: 'Gruppe Küchenteam entfernen' }).click();
   await save.click();
@@ -38,11 +38,11 @@ test('the Steuerung saves who may create Planungen and the templates', async ({ 
 test('the maintenance mode asks before it is switched on', async ({ page }) => {
   await page.goto('/leitendenbereich/essensplanung-steuerung');
   const save = page.getByRole('button', { name: 'Einstellungen speichern' });
-  await page.getByLabel(/Wartungsmodus/).check();
+  await page.getByRole('checkbox', { name: /Wartungsmodus/ }).check();
   await save.click();
   await answerConfirm(page, 'Wartungsmodus einschalten?', 'Weiter bearbeiten');
   await expect(save).toBeEnabled();
-  await page.getByLabel(/Wartungsmodus/).uncheck();
+  await page.getByRole('checkbox', { name: /Wartungsmodus/ }).uncheck();
   await expect(save).toBeDisabled();
 });
 
