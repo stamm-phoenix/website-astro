@@ -155,7 +155,7 @@
         '/intern/pflege/essensplanung/einstellungen',
         { etag, einstellungen: sent }
       );
-      store.data = view;
+      essensplanungSteuerung.set(view);
       fill(view);
       onnotice('Einstellungen gespeichert. Sie gelten ab sofort.');
     } catch (error: unknown) {
