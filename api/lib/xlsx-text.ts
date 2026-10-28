@@ -2,7 +2,8 @@ import { ZipError, readZipEntry, readZipParts } from './zip';
 import { decodeXmlEntities } from './docx-text';
 
 /**
- * Plain text of an Excel file (.xlsx): one line per row with the cells separated by „ | “, each
+ * Plain text of an Excel file (.xlsx): one line per row with the cells separated by „ | “ in
+ * their columns (empty cells as empty fields), each
  * sheet after a line with its name. Good enough to hand a Zeitplan to a language model; formulas
  * show their last result, formatting is lost. Numbers below 1 are shown as times and serial
  * numbers of plausible years as dates, since that is how Excel stores both and the styles that
@@ -67,17 +68,35 @@ function cellText(attributes: string, inner: string, strings: string[]): string 
   return decodeXmlEntities(value);
 }
 
+/** Columns kept per row; a Zeitplan uses a few, one per day at most. */
+const MAX_COLUMNS = 60;
+
+/** Index of the column of a cell reference, e.g. `C7` → 2; undefined without one. */
+export function columnIndex(reference: string | undefined): number | undefined {
+  const letters = reference && /^([A-Z]{1,3})\d+$/.exec(reference)?.[1];
+  if (!letters) return undefined;
+  return [...letters].reduce((sum, letter) => sum * 26 + letter.charCodeAt(0) - 64, 0) - 1;
+}
+
+/**
+ * One line per row, with each cell in its column: empty cells stay as empty fields, so a
+ * programme item under „Dienstag“ in column B does not slide under „Montag“ in column A.
+ */
 function sheetLines(xml: string, strings: string[]): string[] {
   const lines: string[] = [];
   for (const row of xml.matchAll(/<row(?:\s[^>]*)?>([\s\S]*?)<\/row>/g)) {
     if (lines.length >= MAX_ROWS) break;
-    const cells = [...row[1].matchAll(/<c(\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/c>)/g)]
-      .map((cell) =>
-        cellText(cell[1] ?? '', cell[2] ?? '', strings)
-          .replace(/\s+/g, ' ')
-          .trim()
-      )
-      .filter((text) => text !== '');
+    const cells: string[] = [];
+    for (const cell of row[1].matchAll(/<c(\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const column = columnIndex(/\sr="([^"]*)"/.exec(cell[1] ?? '')?.[1]) ?? cells.length;
+      if (column >= MAX_COLUMNS) continue;
+      const text = cellText(cell[1] ?? '', cell[2] ?? '', strings)
+        .replace(/\s+/g, ' ')
+        .trim();
+      while (cells.length < column) cells.push('');
+      cells[column] = text;
+    }
+    while (cells.length > 0 && cells.at(-1) === '') cells.pop();
     if (cells.length > 0) lines.push(cells.join(' | '));
   }
   return lines;

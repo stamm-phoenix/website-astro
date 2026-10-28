@@ -6,7 +6,7 @@ import * as campflow from '../lib/campflow';
 import { CONFIG } from '../lib/config';
 import { AbrechnungZeitplanEndpoint } from '../endpoints/intern-abrechnung-zeitplan';
 import { aktionTage, normalizeTime, toZeitplan } from '../lib/kurzbeschreibung-zeitplan';
-import { excelNumber, xlsxToText } from '../lib/xlsx-text';
+import { columnIndex, excelNumber, xlsxToText } from '../lib/xlsx-text';
 import { writeZip } from '../lib/zip';
 import { overrideConfig } from './fixtures/config';
 
@@ -75,9 +75,28 @@ test('Excel sheets become lines with times, dates, shared and inline strings', (
   );
   assert.equal(
     text,
-    '# Lager & Plan\nMontag\n08:00 | 09:00 | Frühstück & Morgenrunde\nHike\n\n# Material\n24.05.2026'
+    '# Lager & Plan\nMontag\n08:00 | 09:00 | Frühstück & Morgenrunde\n | Hike\n\n# Material\n24.05.2026'
   );
   assert.equal(excelNumber('3'), '3');
+
+  // Defect: dropping empty cells put an item under Dienstag in column B under Montag
+  const plan = (cells: string): string =>
+    xlsxToText(
+      xlsx(
+        [
+          {
+            name: 'Plan',
+            rows:
+              '<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>' +
+              `<row r="2">${cells}</row>`,
+          },
+        ],
+        ['Montag', 'Dienstag', 'Frühstück']
+      )
+    );
+  assert.equal(plan('<c r="A2" t="s"><v>2</v></c>'), '# Plan\nMontag | Dienstag\nFrühstück');
+  assert.equal(plan('<c r="B2" t="s"><v>2</v></c>'), '# Plan\nMontag | Dienstag\n | Frühstück');
+  assert.equal(columnIndex('AB12'), 27);
   assert.equal(excelNumber('46166.75'), '24.05.2026 18:00');
 });
 
@@ -158,7 +177,13 @@ function setup(t: TestContext, answer: unknown): { bodies: Record<string, unknow
     else process.env.AZURE_OPENAI_API_KEY = previousKey;
   });
   t.mock.method(campflow, 'getCampflowEvents', async () => [
-    { id: 'evt_Lager', title: 'Stammeslager', start_date: '2026-05-24', end_date: '2026-05-25' },
+    {
+      id: 'evt_Lager',
+      title: 'Stammeslager',
+      // 22:30 UTC is already the next day in Berlin (summer time)
+      start_date: '2026-05-23T22:30:00Z',
+      end_date: '2026-05-25',
+    },
   ]);
   const bodies: Record<string, unknown>[] = [];
   t.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
@@ -190,7 +215,8 @@ test('a photo is read with the days of the Aktion and the answer prefills the Ze
   assert.equal(bodies.length, 1);
   assert.equal(bodies[0].reasoning_effort, 'low');
   const messages = bodies[0].messages as { content: unknown }[];
-  assert.match(String(messages[0].content), /Montag, 2026-05-25/);
+  assert.match(String(messages[0].content), /Sonntag, 2026-05-24\nMontag, 2026-05-25/);
+  assert.doesNotMatch(String(messages[0].content), /2026-05-23/);
   assert.match(JSON.stringify(messages[1].content), /data:image\/jpeg;base64/);
 });
 

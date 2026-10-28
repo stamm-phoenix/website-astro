@@ -1,5 +1,6 @@
 import { pflegeHandler, ok, readJsonBody } from '../lib/pflege-api';
 import { getCampflowEvents } from '../lib/campflow';
+import { berlinDay } from '../lib/calendar-day';
 import { isJpeg } from '../lib/jpeg';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { XlsxError, xlsxToText } from '../lib/xlsx-text';
@@ -76,8 +77,13 @@ export const AbrechnungZeitplanEndpoint = pflegeHandler('abrechnung-zeitplan', a
 
   const event = (await getCampflowEvents()).find((entry) => entry.id === id);
   if (!event) return errorResponse(404, 'NOT_FOUND', 'Diese Aktion gibt es nicht mehr.');
-  const day = (value: string | null | undefined): string | null =>
-    value && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null;
+  // CampFlow sends plain dates and points in time; the page shows the day in Berlin
+  const day = (value: string | null | undefined): string | null => {
+    if (!value) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : berlinDay(date);
+  };
 
   try {
     const zeitplan = await readZeitplan(

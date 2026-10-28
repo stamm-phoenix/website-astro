@@ -37,6 +37,12 @@ test('the Zeitplan starts with the days of the Aktion and blocks are added, move
   await samstag
     .getByLabel('Mehrere Blöcke, einer pro Zeile')
     .fill('7:30-8 Uhr Morgenrunde\n20 Uhr Lagerfeuer');
+  // Lines not taken over yet survive a look at another tab
+  await page.getByRole('tab', { name: /Übersicht/ }).click();
+  await page.getByRole('tab', { name: 'Kurzbeschreibung' }).click();
+  await expect(samstag.getByLabel('Mehrere Blöcke, einer pro Zeile')).toHaveValue(
+    '7:30-8 Uhr Morgenrunde\n20 Uhr Lagerfeuer'
+  );
   await samstag.getByRole('button', { name: 'Blöcke übernehmen' }).click();
   await expect(page.getByText('2 Blöcke übernommen.').first()).toBeVisible();
   await samstag.getByRole('button', { name: 'Nach Uhrzeit sortieren' }).click();

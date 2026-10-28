@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { onDestroy, tick } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
+  import { zeitplanZeilen } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { downloadKurzbeschreibungPdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { errorMessage } from '../../lib/api';
@@ -59,8 +60,10 @@
   let notice = $state<{ text: string; kind: 'success' | 'error' | 'warning' } | null>(null);
   /** The last deleted block, to bring it back. */
   let deleted = $state<{ block: ZeitBlock; datum: string; index: number } | null>(null);
-  /** Days with the field for several lines open, and what was typed there. */
-  let quick = $state<Record<string, string>>({});
+  // Days with the field for several lines open, and what was typed there; kept in the store so
+  // they survive a change of tab
+  untrack(() => (zeitplanZeilen[abrechnung.event.id] ??= {}));
+  const quick = $derived(zeitplanZeilen[event.id] ?? {});
   let reading = $state<string | null>(null);
   let fileInput = $state<HTMLInputElement | null>(null);
   let controller: AbortController | null = null;
@@ -107,8 +110,16 @@
   async function move(tagIndex: number, index: number, delta: -1 | 1): Promise<void> {
     const days = editable();
     const from = days[tagIndex].bloecke;
-    const [block] = from.splice(index, 1);
     const target = index + delta;
+    const crossing = target < 0 || target >= from.length;
+    if (crossing && days[tagIndex + delta].bloecke.length >= MAX_ZEITBLOECKE_PRO_TAG) {
+      say(
+        `${tagTitel(days[tagIndex + delta].datum)} hat schon ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke. Lösche dort zuerst einen.`,
+        'warning'
+      );
+      return;
+    }
+    const [block] = from.splice(index, 1);
     if (target >= 0 && target <= from.length) {
       from.splice(target, 0, block);
     } else {
@@ -638,7 +649,8 @@
                 id={`tag-${tag.datum}-zeilen`}
                 class="form-input min-h-28 font-mono text-sm"
                 rows="5"
-                bind:value={quick[tag.datum]}
+                value={quick[tag.datum]}
+                oninput={(e) => (quick[tag.datum] = e.currentTarget.value)}
                 placeholder={ZEILEN_BEISPIEL}></textarea>
             </label>
             <div class="mt-2 flex flex-wrap gap-2">
