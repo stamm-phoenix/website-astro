@@ -117,18 +117,18 @@ const REDACTED = '[entfernt]';
  * the side of cutting: a secret in a link is worse than a lost word.
  */
 function withoutQuery(token: string): string {
-  for (let cut = token.search(/[?#]/); cut >= 0; cut = nextDelimiter(token, cut)) {
-    if (cut === 0 || cut === token.length - 1) continue;
-    if (/[/.:\]]/.test(token.slice(0, cut)) || token.slice(cut).includes('=')) {
-      return token.slice(0, cut);
+  // One pass: the work must stay linear, the text comes from anybody
+  const lastEquals = token.lastIndexOf('=');
+  let urlLike = false;
+  for (let i = 0; i < token.length; i++) {
+    const char = token[i];
+    if (char === '?' || char === '#') {
+      if (i > 0 && i < token.length - 1 && (urlLike || lastEquals > i)) return token.slice(0, i);
+    } else if (char === '/' || char === '.' || char === ':' || char === ']') {
+      urlLike = true;
     }
   }
   return token;
-}
-
-function nextDelimiter(token: string, after: number): number {
-  const next = token.slice(after + 1).search(/[?#]/);
-  return next < 0 ? -1 : after + 1 + next;
 }
 
 /**
@@ -136,9 +136,19 @@ function nextDelimiter(token: string, after: number): number {
  * ends in `?` or `&`, and lines that continue the query with `&name=value`.
  */
 function withoutWrappedQuery(text: string): string {
-  return text
-    .replace(/(\S*(?:\/|\w\.\w)\S*[?&#])[ \t]*\r?\n[ \t]*\S+/g, '$1')
-    .replace(/(\r?\n)[ \t]*&[\w.%-]+=\S*/g, '$1');
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (i > 0) lines[i] = lines[i].replace(/^[ \t\r]*&[\w.%-]+=\S*/, '');
+    const line = lines[i].trimEnd();
+    const last = line.slice(Math.max(line.lastIndexOf(' '), line.lastIndexOf('\t')) + 1);
+    if (!/[?&#]$/.test(last) || !(last.includes('/') || /\w\.\w/.test(last))) continue;
+    const next = i + 1 < lines.length ? /^[ \t]*(\S+)/.exec(lines[i + 1]) : null;
+    // Only a value of the query (`name=value`) goes; a following sentence stays, also in a second pass
+    if (!next?.[1].includes('=')) continue;
+    lines[i + 1] = lines[i + 1].replace(/^[ \t]*\S+/, '');
+    lines[i] = line.replace(/[?&#]+$/, '');
+  }
+  return lines.join('\n');
 }
 
 /**
@@ -301,7 +311,11 @@ export function validateProblemReport(input: Record<string, unknown>): ProblemVa
   const errors: ProblemValidation['errors'] = {};
 
   const rawDescription = typeof input.description === 'string' ? input.description.trim() : '';
-  const description = cleanText(input.description, PROBLEM_MAX_LENGTH.description);
+  // Cleaning only follows the length check: a huge text from anybody must stay cheap to refuse
+  const description =
+    rawDescription.length <= PROBLEM_MAX_LENGTH.description
+      ? cleanText(rawDescription, PROBLEM_MAX_LENGTH.description)
+      : '';
   if (!rawDescription) {
     errors.description = 'Bitte beschreib das Problem.';
   } else if (rawDescription.length > PROBLEM_MAX_LENGTH.description) {
@@ -328,8 +342,8 @@ export function validateProblemReport(input: Record<string, unknown>): ProblemVa
     report: {
       entry,
       description,
-      steps: cleanText(input.steps, PROBLEM_MAX_LENGTH.steps),
-      expected: cleanText(input.expected, PROBLEM_MAX_LENGTH.expected),
+      steps: cleanText(rawSteps, PROBLEM_MAX_LENGTH.steps),
+      expected: cleanText(rawExpected, PROBLEM_MAX_LENGTH.expected),
       contact,
       context: cleanProblemContext(input.context),
     },

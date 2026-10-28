@@ -92,6 +92,17 @@
     return { label: 'Einschätzung ausstehend', tone: 'neutral' };
   }
 
+  /** What went wrong with the assessment, in words; the stored text is a technical one. */
+  function assessmentFailure(error: string): string {
+    if (/timed out/i.test(error)) return 'Die Antwort kam nicht rechtzeitig';
+    if (/unreachable/i.test(error)) return 'Der Dienst war nicht erreichbar';
+    if (/Tageslimit/i.test(error)) return 'Das Tageslimit für Einschätzungen ist erreicht';
+    const status = /\b(\d{3})\b/.exec(error)?.[1];
+    if (status === '429') return 'Gerade sind zu viele Anfragen unterwegs';
+    if (status) return `Der Dienst antwortete mit Fehler ${status}`;
+    return 'Die Antwort war nicht brauchbar';
+  }
+
   function title(item: StaffProblemMeldung): string {
     const text = item.draft.title || item.description;
     return text.length > 90 ? `${text.slice(0, 90)} …` : text;
@@ -480,8 +491,8 @@
           <p class="text-sm">{selected.ai.reason}</p>
         {:else if selected.ai.status === 'fehler'}
           <p class="text-sm text-danger">
-            Die Einschätzung ist fehlgeschlagen ({selected.ai.error || 'unbekannter Fehler'}). Die
-            Meldung ist gespeichert.
+            Die Einschätzung ist fehlgeschlagen: {assessmentFailure(selected.ai.error)}. Die Meldung
+            ist gespeichert.
           </p>
         {:else if selected.ai.status === 'nicht_eingerichtet'}
           <p class="text-sm">Es ist keine automatische Einschätzung eingerichtet.</p>
