@@ -539,3 +539,19 @@ for (const operation of ['PUT', 'DELETE'] as const) {
     }
   );
 }
+
+dbTest('the database accepts photo names of both formats and no others', async (t) => {
+  const { context } = setup(t);
+  const created = await LeitendeCollection(
+    request('POST', {}, { name: 'Jan', teams: ['Wölflinge'] }),
+    context
+  );
+  const id = Number((created.jsonBody as { id: string }).id);
+  const setPhoto = (photo: string) =>
+    getDb().updateTable('content.leitende').set({ photo }).where('id', '=', id).execute();
+  await setPhoto('foto-1700000000000123456789.jpg');
+  await setPhoto('foto-1700000000000123456789.webp');
+  for (const name of ['foto-12a.webp', 'foto-.webp', 'foto-12.png', 'foto-12.webp.jpg']) {
+    await assert.rejects(() => setPhoto(name), name);
+  }
+});
