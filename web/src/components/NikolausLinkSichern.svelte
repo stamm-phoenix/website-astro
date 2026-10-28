@@ -18,11 +18,18 @@
     return `${window.location.origin}${window.location.pathname}#${new URLSearchParams({ token })}`;
   }
 
+  /** Copying by hand and bookmarking take the address bar, which must carry the token. */
+  function showLinkInAddressBar(): void {
+    const url = bookingUrl();
+    if (window.location.href !== url) window.history.replaceState(window.history.state, '', url);
+  }
+
   async function copy(): Promise<void> {
     try {
       await navigator.clipboard.writeText(bookingUrl());
       copyState = 'copied';
     } catch {
+      showLinkInAddressBar();
       copyState = 'failed';
     }
     clearTimeout(timer);
@@ -31,9 +38,7 @@
 
   /** Browsers no longer let pages add bookmarks, so the button explains how to do it. */
   function bookmark(): void {
-    // The bookmark takes the address bar, which must carry the token
-    const url = bookingUrl();
-    if (window.location.href !== url) window.history.replaceState(window.history.state, '', url);
+    showLinkInAddressBar();
     if (window.matchMedia('(pointer: coarse)').matches) {
       bookmarkHint =
         'Öffnen Sie das Menü Ihres Browsers (⋮ oder das Teilen-Symbol) und wählen Sie „Lesezeichen hinzufügen“.';

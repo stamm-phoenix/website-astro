@@ -325,3 +325,14 @@ test('the booking link can be copied and the bookmark hint keeps the token in th
   await expect(page.getByRole('status').filter({ hasText: hint })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
+
+test('a failed copy leaves the full booking link in the address bar', async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.clipboard.writeText = () => Promise.reject(new Error('denied'));
+  });
+  await page.goto('/nikolaus/termin#token=mock');
+  await page.goto('/nikolaus/termin#main');
+  await page.getByRole('button', { name: 'Link kopieren' }).click();
+  await expect(page.getByText(/Kopieren ging nicht/)).toBeVisible();
+  await expect(page).toHaveURL(/\/nikolaus\/termin#token=mock$/);
+});
