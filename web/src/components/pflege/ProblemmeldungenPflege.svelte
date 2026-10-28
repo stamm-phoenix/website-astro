@@ -492,8 +492,9 @@
         {#if selected.contact}
           <p class="text-sm font-semibold">Rückfragen an</p>
           <p>
-            <a class="text-link [overflow-wrap:anywhere]" href={`mailto:${selected.contact}`}
-              >{selected.contact}</a
+            <a
+              class="text-link [overflow-wrap:anywhere]"
+              href={`mailto:${encodeURIComponent(selected.contact)}`}>{selected.contact}</a
             >
           </p>
         {/if}

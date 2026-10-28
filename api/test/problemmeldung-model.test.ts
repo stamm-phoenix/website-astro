@@ -487,3 +487,65 @@ test('report fields that grow past their limit during cleaning return errors wit
     assert.equal(valid.report[field], unchanged);
   }
 });
+
+test('compound secret field names are removed throughout the report pipeline', () => {
+  for (const name of [
+    '--token',
+    '--password',
+    '-api-key',
+    'client_secret',
+    'api_key',
+    'access_token',
+    'refresh_token',
+    'AZURE_CLIENT_SECRET',
+    'MY_API_KEY',
+    'accessToken',
+    'clientSecret',
+  ]) {
+    for (const value of ['"mein kurzer Geheimwert"', '{"nested":["mein kurzer Geheimwert"]}']) {
+      const description = 'Beim Speichern: ' + name + '=' + value + ' Fehler.';
+      const browser = validateProblemReport({ description }).report;
+      assert.ok(browser);
+      const server = validateProblemReport({ ...browser }).report;
+      assert.ok(server);
+      for (const cleaned of [
+        browser.description,
+        server.description,
+        problemModelInput({ ...MELDUNG, description }),
+      ]) {
+        assert.ok(!cleaned.includes('Geheimwert'), cleaned);
+      }
+      assert.equal(redactSensitive(browser.description), browser.description);
+    }
+  }
+});
+
+test('contact accepts one address and rejects mailto parameter injection in the domain', () => {
+  for (const contact of [
+    'erika@example.test?bcc=anderer%40example.test',
+    'erika@example.test#x',
+    'erika@example.test,anderer@example.test',
+    'erika@example.test%0d%0abcc:x@example.test',
+  ]) {
+    const result = validateProblemReport({
+      description: 'Beim Speichern erscheint ein Fehler.',
+      contact,
+    });
+    assert.equal(result.report, null);
+    assert.ok(result.errors.contact);
+  }
+  for (const contact of [
+    'erika+gruppe@example.test',
+    'erika?gruppe&team@example.test',
+    'erika@bücher.de',
+  ]) {
+    const result = validateProblemReport({
+      description: 'Beim Speichern erscheint ein Fehler.',
+      contact,
+    });
+    assert.equal(result.report?.contact, contact);
+    const link = new URL('mailto:' + encodeURIComponent(contact));
+    assert.equal(link.search, '');
+    assert.equal(decodeURIComponent(link.pathname), contact);
+  }
+});
