@@ -461,7 +461,8 @@ export const STAFF_SUBPAGES: StaffPage[] = [
     href: '/leitendenbereich/abrechnung/detail',
     title: 'Aktion',
     heading: 'Abrechnung einer Aktion',
-    description: 'Teilnehmende, Einnahmen und Ausgaben und KJR-Zuschuss einer Aktion.',
+    description:
+      'Teilnehmende, Einnahmen und Ausgaben, KJR-Zuschuss und Kurzbeschreibung einer Aktion.',
     parent: '/leitendenbereich/abrechnung',
   },
   {

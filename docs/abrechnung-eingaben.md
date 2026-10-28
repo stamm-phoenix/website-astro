@@ -1,7 +1,7 @@
 # Persönliche Ergänzungen zur Abrechnung
 
 Die Daten aus CampFlow bleiben die Grundlage. Eigene Ergänzungen (Teilnehmende,
-Rollen, Postleitzahlen, Zusatztag, Beträge, Leihgebühren und Deckblatt) werden mit
+Rollen, Postleitzahlen, Zusatztag, Beträge, Leihgebühren, Deckblatt und Kurzbeschreibung) werden mit
 **Eingaben speichern** für den angemeldeten Account in Azure SQL gespeichert.
 Andere Leitende sehen diese persönlichen Ergänzungen nicht. Auf einem anderen
 Gerät mit demselben Account stehen sie nach dem Öffnen der Aktion bereit.
@@ -17,6 +17,30 @@ Alte lokale Ergänzungen werden nur angeboten, wenn noch keine Serverfassung
 existiert. Ihre lokale Kopie wird erst nach einer erfolgreichen ausdrücklichen
 Speicherung entfernt. Ein Zurücksetzen behält eine leere versionierte Serverzeile,
 damit ein älteres Gerät die gelöschten Angaben nicht versehentlich zurückschreibt.
+
+## Kurzbeschreibung
+
+Der KJR verlangt beim Antrag auf Zuschuss eine Kurzbeschreibung: einen Satz zur
+Zielsetzung und einen groben Zeitplan. Sie liegt in `AbrechnungSession.kurzbeschreibung`
+(`einleitung` und `tage` mit Blöcken `von`/`bis` als `HH:MM` oder leer, `text`) und wird
+wie die übrigen Ergänzungen gespeichert. Solange `tage` leer ist, zeigt die Seite die Tage
+der Aktion aus CampFlow; die erste Änderung übernimmt sie. Ältere Seiten ohne das Feld
+dürfen weiter speichern (`validAbrechnungSession` ergänzt es leer).
+
+Das PDF (`downloadKurzbeschreibungPdf` in `web/src/lib/abrechnungPdf.ts`) nutzt dasselbe
+Briefpapier wie Eigenbeleg und Leihgebühren (`drawBriefkopf`, `drawBriefseiten`). Der
+Zeitplan steht in zwei (zwei Tage) oder drei Spalten: bis drei Tage je in einer Spalte,
+sonst so ausgeglichen, dass er auf die erste Seite passt, sonst über weitere Seiten mit
+„(Fortsetzung)“.
+
+„Aus Datei übernehmen“ schickt Fotos und die ersten vier Seiten eines PDFs als JPEG, Excel
+(`.xlsx`) und CSV als Datei an `POST /api/intern/abrechnung/{id}/zeitplan`. Die API liest
+Excel selbst als Text (`api/lib/xlsx-text.ts`) und fragt die Bereitstellung der
+Belegprüfung (`gpt-6.1-sol-datazone`, Datenzonenstandard, mit wenig Denkaufwand wegen der
+45-Sekunden-Grenze der Static Web App; `api/lib/kurzbeschreibung-zeitplan.ts`). Es wird
+nichts gespeichert; die Seite übernimmt das Ergebnis erst nach Rückfrage, wenn schon ein
+Zeitplan da ist. Tageslimit: `CONFIG.abrechnung.zeitplanMaxReadsPerDay` (je
+Functions-Instanz, `0` schaltet es ab).
 
 ## Betrieb
 
@@ -34,6 +58,8 @@ damit ein älteres Gerät die gelöschten Angaben nicht versehentlich zurücksch
 - Preview-Seeding enthält ausschließlich erfundene Angaben.
 
 Gezielte Prüfungen: `api/test/abrechnung-eingabe.test.ts`,
+`api/test/kurzbeschreibung-zeitplan.test.ts`, `web/test/kurzbeschreibung.test.ts`,
+`web/tests/abrechnung-kurzbeschreibung.spec.ts`,
 `web/tests/abrechnung-speicher.spec.ts` und der Gerätekonflikt in
 `web/tests/issue-382.spec.ts`. Die SQL-Prüfung braucht `TEST_SQL_PASSWORD` und wird
 lokal ohne Testdatenbank übersprungen; in CI ist die Testdatenbank vorgeschrieben.

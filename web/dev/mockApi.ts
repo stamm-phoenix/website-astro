@@ -1075,6 +1075,46 @@ route('PUT', '/api/intern/abrechnung/:id/eingaben', (req) => {
   abrechnungDrafts.set(req.params.id, saved);
   return json(saved);
 });
+// Zeitplan of the Kurzbeschreibung, read by the model of the receipt check in production
+route('POST', '/api/intern/abrechnung/:id/zeitplan', (req) => {
+  const event = campflowDetail(req.params.id)?.event;
+  if (!event) return notFound('Diese Aktion gibt es nicht mehr.');
+  const body = req.json as { bilder?: unknown; tabelle?: unknown } | null;
+  if (!body || (!Array.isArray(body.bilder) && !body.tabelle))
+    return error(400, 'INVALID', 'Bitte ein Foto, ein PDF oder eine Excel-Datei wählen.');
+  const start = (event.start_date ?? new Date(MOCK_NOW).toISOString()).slice(0, 10);
+  const day = (offset: number): string => {
+    const date = new Date(`${start}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + offset);
+    return date.toISOString().slice(0, 10);
+  };
+  return json({
+    available: true,
+    zeitplan: {
+      einleitung: 'Mit der Aktion wollen wir die Gemeinschaft im Stamm stärken.',
+      tage: [
+        {
+          datum: day(0),
+          bloecke: [
+            { von: '10:00', bis: '12:00', text: 'Anreise und Aufbau' },
+            { von: '12:30', bis: '13:30', text: 'Mittagessen' },
+            { von: '14:00', bis: '17:00', text: 'Geländespiel' },
+            { von: '18:00', bis: '19:00', text: 'Abendessen' },
+            { von: '20:00', bis: '', text: 'Lagerfeuer' },
+          ],
+        },
+        {
+          datum: day(1),
+          bloecke: [
+            { von: '08:00', bis: '09:00', text: 'Frühstück' },
+            { von: '09:30', bis: '12:00', text: 'Abbau' },
+            { von: '12:00', bis: '', text: 'Abreise' },
+          ],
+        },
+      ],
+    },
+  });
+});
 route('GET', '/api/intern/kostenstellen', () => json(kostenstellen));
 route(
   'GET',
