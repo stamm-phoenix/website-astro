@@ -4,6 +4,7 @@ import { hasTeam, isPreviewDeployment } from '../lib/staff-auth';
 import { parseId } from '../lib/db';
 import type { BelegInput } from '../lib/pflege-validation';
 import {
+  MAX_BELEG_PDF_BYTES,
   MAX_BELEG_PHOTO_BYTES,
   MIN_BELEG_PHOTO_EDGE,
   validateBeleg,
@@ -154,6 +155,26 @@ function checkPhoto(bytes: Uint8Array): HttpResponseInit | undefined {
   return undefined;
 }
 
+/** Whether the bytes start like a PDF. */
+function isPdf(bytes: Uint8Array): boolean {
+  return Buffer.from(bytes.subarray(0, 5)).toString('latin1') === '%PDF-';
+}
+
+/** Checks an uploaded PDF; returns an error response if it cannot be used. */
+function checkPdf(bytes: Uint8Array): HttpResponseInit | undefined {
+  if (bytes.length > MAX_BELEG_PDF_BYTES) {
+    return errorResponse(413, 'TOO_LARGE', 'Das PDF ist zu groß (höchstens 5 MB).');
+  }
+  if (!isPdf(bytes)) {
+    return errorResponse(
+      400,
+      'INVALID',
+      'Die Datei ist kein PDF. Bitte ein PDF oder ein Foto wählen.'
+    );
+  }
+  return undefined;
+}
+
 /** Decodes the base64 photo of a new receipt; invalid input yields an empty array. */
 function decodePhoto(value: unknown): Uint8Array {
   if (typeof value !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)) return new Uint8Array();
@@ -173,11 +194,21 @@ async function runCheck(
   }
 }
 
-/** Reads and checks `photo` and the optional `original` of a JSON body. */
+/**
+ * Reads and checks `photo` and the optional `original` of a JSON body, or a `pdf` with its first
+ * page drawn by the browser as `photo`.
+ */
 function readPhotos(body: Record<string, unknown> | null): BelegPhotos | HttpResponseInit {
   const photo = decodePhoto(body?.photo);
   const invalidPhoto = checkPhoto(photo);
   if (invalidPhoto) return invalidPhoto;
+  if (body?.pdf !== undefined && body.pdf !== null) {
+    const pdf = decodePhoto(body.pdf);
+    if (body.original !== undefined && body.original !== null) {
+      return errorResponse(400, 'INVALID', 'Ein PDF hat kein Originalfoto.');
+    }
+    return checkPdf(pdf) ?? { photo, pdf };
+  }
   if (body?.original === undefined || body.original === null) return { photo };
   const original = decodePhoto(body.original);
   return checkPhoto(original) ?? { photo, original };
@@ -337,6 +368,7 @@ async function notifyKasse(
     if (left() <= 0) throw new Error('Keine Zeit mehr für die Mail');
     const failed = await sendBelegSubmittedMail(
       {
+        art: input.art,
         shop: input.shop,
         date: input.date,
         amountCent: input.amountCent,
@@ -434,14 +466,21 @@ export const BelegPhotoEndpoint = pflegeHandler(
         };
       }
       const original = request.query.get('original');
-      const bytes = await readBelegPhoto(id, beleg.photo, original ? 'original' : 'photo');
+      const download = request.query.get('download');
+      // A PDF is downloaded as such; shown, it is the picture of its first page
+      const pdf = beleg.isPdf && !original && download;
+      const bytes = await readBelegPhoto(
+        id,
+        beleg.photo,
+        original ? 'original' : pdf ? 'file' : 'photo'
+      );
       if (!bytes) return NOT_FOUND;
       const headers: Record<string, string> = {
         ...NO_STORE_HEADERS,
-        'Content-Type': 'image/jpeg',
+        'Content-Type': pdf ? 'application/pdf' : 'image/jpeg',
         'X-Content-Type-Options': 'nosniff',
       };
-      if (request.query.get('download')) {
+      if (download) {
         headers['Content-Disposition'] = encodeContentDisposition(
           downloadFileName(beleg, Boolean(original))
         );

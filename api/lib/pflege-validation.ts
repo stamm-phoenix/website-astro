@@ -944,8 +944,14 @@ export function validateEinteilungSave(
 export const BELEG_STATUSES = ['Eingereicht', 'Angenommen', 'Abgelehnt'] as const;
 export type BelegStatus = (typeof BELEG_STATUSES)[number];
 
+/** An expense, or income such as a donation or a fee paid in cash; income has no Auslage. */
+export const BELEG_ARTEN = ['Ausgabe', 'Einnahme'] as const;
+export type BelegArt = (typeof BELEG_ARTEN)[number];
+
 /** Photos are scaled down in the browser; this only guards against oversized requests. */
 export const MAX_BELEG_PHOTO_BYTES = 4 * 1024 * 1024;
+/** A receipt as PDF, e.g. an invoice by mail; with its page and in base64 the request stays small. */
+export const MAX_BELEG_PDF_BYTES = 5 * 1024 * 1024;
 /** Shorter photos are too small to read a receipt. */
 export const MIN_BELEG_PHOTO_EDGE = 800;
 /** Kostenstelle and Kategorie; CampFlow's own names are far shorter. */
@@ -954,6 +960,7 @@ export const MAX_BELEG_ZUORDNUNG = 120;
 const MAX_BELEG_CENT = 1_000_000;
 
 export interface BelegInput {
+  art: BelegArt;
   shop: string;
   /** Date of the receipt, `YYYY-MM-DD`. */
   date: string;
@@ -988,13 +995,20 @@ function isIsoDate(value: string): boolean {
 export function validateBeleg(body: unknown, today: string, aktion = ''): BelegInput {
   const record = asRecord(body);
   const reader = new Reader(record);
+  // Receipts from before income was possible are expenses
+  const art: BelegArt =
+    record.art === undefined
+      ? 'Ausgabe'
+      : (reader.choice('art', 'die Art des Belegs', [...BELEG_ARTEN]) as BelegArt);
+  const payout = art === 'Ausgabe' && record.payout === true;
   const input: BelegInput = {
+    art,
     shop: reader.text('shop', 'das Geschäft', 100, true),
     date: reader.text('date', 'das Datum', 10, true),
     amountCent: 0,
     // Who gets the Auslage back, also „Sparbuch“; nobody when the Stamm paid
-    paidBy: reader.text('paidBy', 'wer das Geld ausgelegt hat', 100, record.payout === true),
-    payout: record.payout === true,
+    paidBy: reader.text('paidBy', 'wer das Geld ausgelegt hat', 100, payout),
+    payout,
     aktion,
     kostenstelle: reader.text('kostenstelle', 'die Kostenstelle', MAX_BELEG_ZUORDNUNG),
     kategorie: reader.text('kategorie', 'die Kategorie', MAX_BELEG_ZUORDNUNG),

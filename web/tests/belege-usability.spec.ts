@@ -509,7 +509,7 @@ test('the photo tips wait behind the (i) next to the photo field', async ({ page
   const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
   const tips = dialog.getByText(/Scan-Funktion des Handys/);
   await expect(tips).toBeHidden();
-  await dialog.getByRole('button', { name: 'Erklärung zu Foto des Belegs' }).click();
+  await dialog.getByRole('button', { name: 'Erklärung zu Foto oder PDF des Belegs' }).click();
   await expect(tips).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });

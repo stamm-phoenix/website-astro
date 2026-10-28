@@ -101,6 +101,44 @@ export function qualityWarnings(
  * Loads a photo scaled to a canvas of at most BELEG_PHOTO_EDGE px. The orientation from the
  * EXIF data is applied by `createImageBitmap`.
  */
+/** Larger PDFs are refused by the API; mirrors `MAX_BELEG_PDF_BYTES`. */
+export const MAX_BELEG_PDF_BYTES = 5 * 1024 * 1024;
+
+export function isPdfFile(file: File): boolean {
+  return file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+}
+
+/**
+ * The first page of a PDF as a picture, its longer edge `BELEG_PHOTO_EDGE`: shown, checked and
+ * listed instead of the PDF, which goes to CampFlow as it is.
+ */
+export async function loadPdfPage(file: Blob): Promise<HTMLCanvasElement> {
+  // The legacy build runs in older browsers too (the current one needs very new JavaScript)
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const worker = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url');
+  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+  const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  try {
+    const page = await (await task.promise).getPage(1);
+    const unscaled = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({
+      scale: BELEG_PHOTO_EDGE / Math.max(unscaled.width, unscaled.height),
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas not available');
+    // PDFs without a background would turn black as a JPEG
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvas, canvasContext: context, viewport }).promise;
+    return canvas;
+  } finally {
+    await task.destroy();
+  }
+}
+
 export async function loadPhoto(file: Blob): Promise<HTMLCanvasElement> {
   const bitmap = await createImageBitmap(file);
   try {

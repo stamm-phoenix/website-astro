@@ -4,7 +4,10 @@ import {
   BELEG_PHOTO_EDGE,
   MIN_BELEG_PHOTO_EDGE,
   canvasToJpeg,
+  isPdfFile,
+  loadPdfPage,
   loadPhoto,
+  MAX_BELEG_PDF_BYTES,
   centToInput,
   photoWarnings as measurePhotoWarnings,
 } from './belege';
@@ -33,8 +36,10 @@ interface Draft {
   /** The receipt's corners in `bild`; null for the whole picture. */
   quad: Quad | null;
   mode: FotoFarben;
-  /** The photo as it will be submitted. */
+  /** The photo as it will be submitted; for a PDF the picture of its first page. */
   result: { blob: Blob; url: string; width: number; height: number } | null;
+  /** The chosen PDF, submitted as it is; its first page is `original`. Not edited. */
+  pdf: Blob | null;
 }
 
 /** The crop tool while it is open: the uncropped picture and the corners being moved. */
@@ -78,7 +83,7 @@ interface BelegPhotoDraft {
   zuschnittFertig: () => Promise<void>;
   zuschnittAbbrechen: () => void;
   savePhoto: () => Promise<void>;
-  photoPayload: (draft: Draft) => Promise<{ photo: string; original?: string }>;
+  photoPayload: (draft: Draft) => Promise<{ photo: string; original?: string; pdf?: string }>;
   fertig: () => Promise<void>;
   reset: () => void;
 }
@@ -135,6 +140,14 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     photoBusy = true;
     dialog.state.error = null;
     dialog.state.conflict = false;
+    if (isPdfFile(file)) {
+      try {
+        await choosePdf(file);
+      } finally {
+        photoBusy = false;
+      }
+      return;
+    }
     try {
       await nextFrame();
       const canvas = await loadPhoto(file);
@@ -169,14 +182,47 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
         quad,
         mode,
         result: null,
+        pdf: null,
       };
       dialog.clearField('photo');
       await render();
     } catch {
       dialog.state.error =
-        'Das Foto konnte nicht gelesen werden. Bitte ein JPEG- oder PNG-Foto wählen.';
+        'Das Foto konnte nicht gelesen werden. Bitte ein JPEG- oder PNG-Foto oder ein PDF wählen.';
     } finally {
       photoBusy = false;
+    }
+  }
+
+  /** A PDF goes as it is; its first page is shown and checked like a photo. */
+  async function choosePdf(file: File): Promise<void> {
+    if (file.size > MAX_BELEG_PDF_BYTES) {
+      dialog.state.fields.photo =
+        'Das PDF ist zu groß (höchstens 5 MB). Bitte ein kleineres PDF oder ein Foto des Belegs wählen.';
+      return;
+    }
+    try {
+      await nextFrame();
+      const canvas = await loadPdfPage(file);
+      const original = readPixels(canvas, canvas.width, canvas.height);
+      const originalBlob = await canvasToJpeg(canvas);
+      clearDraft();
+      photoWarnings = [];
+      draft = {
+        original,
+        originalBlob,
+        originalUrl: URL.createObjectURL(originalBlob),
+        bild: original,
+        quad: null,
+        mode: 'original',
+        result: null,
+        pdf: file,
+      };
+      dialog.clearField('photo');
+      await render();
+    } catch {
+      dialog.state.error =
+        'Das PDF konnte nicht gelesen werden, vielleicht ist es mit einem Passwort geschützt. Bitte ein anderes PDF oder ein Foto des Belegs wählen.';
     }
   }
 
@@ -230,14 +276,14 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
   }
 
   function setMode(mode: FotoFarben): void {
-    if (!draft || draft.mode === mode || zuschnitt) return;
+    if (!draft || draft.pdf || draft.mode === mode || zuschnitt) return;
     draft = { ...draft, mode };
     void render();
   }
 
   /** Rotates or mirrors the photo; a crop turns with it. */
   function ausrichtenBild(schritt: Ausrichtung): void {
-    if (!draft || zuschnitt) return;
+    if (!draft || draft.pdf || zuschnitt) return;
     const { bild, quad } = draft;
     draft = {
       ...draft,
@@ -260,7 +306,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
   /** Opens the crop tool on the uncropped picture, with the current corners. */
   async function zuschneiden(): Promise<void> {
     const current = draft;
-    if (!current || zuschnitt) return;
+    if (!current || current.pdf || zuschnitt) return;
     photoBusy = true;
     try {
       await nextFrame();
@@ -327,9 +373,15 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     }
   }
 
-  /** The photos for the API: the scan, plus the original if the scan differs from it. */
-  async function photoPayload(current: Draft): Promise<{ photo: string; original?: string }> {
+  /**
+   * The photos for the API: the scan, plus the original if the scan differs from it; for a PDF
+   * the PDF and the picture of its first page.
+   */
+  async function photoPayload(
+    current: Draft
+  ): Promise<{ photo: string; original?: string; pdf?: string }> {
     const photo = await blobToBase64(current.result!.blob);
+    if (current.pdf) return { photo, pdf: await blobToBase64(current.pdf) };
     return isEdited(current)
       ? { photo, original: await blobToBase64(current.originalBlob) }
       : { photo };
@@ -357,11 +409,11 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       photoWarnings = [];
       options.applyPhoto(saved);
       // The dialog stays open, so the confirmation belongs into it.
-      options.notice('Foto ersetzt.');
+      options.notice(saved.isPdf ? 'PDF gespeichert.' : 'Foto ersetzt.');
     } catch (error: unknown) {
       dialog.fail(
         error,
-        'Das Foto wurde nicht ersetzt. Prüfe deine Internetverbindung und wähle es noch einmal aus.'
+        'Das neue Foto oder PDF wurde nicht gespeichert. Prüfe deine Internetverbindung und wähle es noch einmal aus.'
       );
     } finally {
       photoBusy = false;
@@ -436,7 +488,8 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     form.aiCheck = null;
     aiChecking = true;
     try {
-      if (aufgerichtet !== draft.original) {
+      // A PDF is submitted as it is, so its page is not turned
+      if (!draft.pdf && aufgerichtet !== draft.original) {
         aufgerichtet = draft.original;
         try {
           const drehung = await sendApi<{ available: boolean; rotation: 0 | 90 | 180 | 270 }>(

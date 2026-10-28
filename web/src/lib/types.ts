@@ -547,9 +547,13 @@ export interface BelegCheck {
 }
 
 /** A receipt uploaded for the Kassenteam. */
+/** An expense or income such as a donation; income has no Auslage. */
+export type BelegArt = 'Ausgabe' | 'Einnahme';
+
 export interface StaffBeleg {
   id: string;
   etag: string;
+  art: BelegArt;
   shop: string;
   /** Date of the receipt, `YYYY-MM-DD`. */
   date: string;
@@ -574,6 +578,8 @@ export interface StaffBeleg {
   hasImage: boolean;
   /** Whether the unedited photo is stored next to the scan. */
   hasOriginal: boolean;
+  /** Whether the receipt is a PDF; its photo is then the first page. */
+  isPdf: boolean;
   aiCheck: BelegCheck | null;
   /** The last transfer to CampFlow; null if there was none. */
   campflow: BelegCampflow | null;

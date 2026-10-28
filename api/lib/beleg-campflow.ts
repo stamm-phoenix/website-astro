@@ -92,7 +92,8 @@ export interface BelegCampflowResult {
 }
 
 /**
- * File name in CampFlow, e.g. `2026-09-30 REWE 12,34 EUR (Website-Beleg 123).jpg`. The ID makes
+ * File name in CampFlow, e.g. `2026-09-30 REWE 12,34 EUR (Website-Beleg 123).jpg` (`.pdf` for a
+ * PDF). The ID makes
  * it unique, which the Playwright API needs to recognise a receipt it has uploaded before. A
  * name stored with an attempt is reused for its repeats, also after this rule changes.
  */
@@ -101,11 +102,12 @@ export function campflowFileName(
   previewDatabase: string | null = PREVIEW_DATABASE
 ): string {
   const shop = beleg.shop.trim().slice(0, MAX_SHOP_IN_FILE_NAME);
-  const name = downloadFileName({ ...beleg, shop }).replace(/\.jpg$/, '');
+  const name = downloadFileName({ ...beleg, shop }).replace(/\.(jpg|pdf)$/, '');
+  const extension = beleg.isPdf ? 'pdf' : 'jpg';
   // Previews number their receipts from 1 like production and may share its CampFlow, so their
   // file names name the preview (`website-pr-416` → `pr-416-7`) to stay apart
   const origin = previewDatabase ? `${previewDatabase.replace(/^website-/, '')}-` : '';
-  return `${name} (Website-Beleg ${origin}${beleg.id}).jpg`;
+  return `${name} (Website-Beleg ${origin}${beleg.id}).${extension}`;
 }
 
 /** „Beschreibung“ in CampFlow: shop and note, shortened to fit. */
@@ -117,9 +119,14 @@ export function campflowDescription(beleg: StoredBeleg): string {
   return text.length > MAX_DESCRIPTION ? `${text.slice(0, MAX_DESCRIPTION - 1)}…` : text;
 }
 
-/** „Auslage durch“: whoever gets the money back, also „Sparbuch“; nobody when the Stamm paid. */
+/**
+ * „Auslage durch“: whoever gets the money back, also „Sparbuch“; nobody when the Stamm paid or
+ * for income.
+ */
 export function campflowDisburser(beleg: StoredBeleg): string | null {
-  return beleg.payout && beleg.paidBy.trim() ? beleg.paidBy.trim() : null;
+  return beleg.art !== 'Einnahme' && beleg.payout && beleg.paidBy.trim()
+    ? beleg.paidBy.trim()
+    : null;
 }
 
 /** Sphäre of a Kategorie the transfer creates: like every Kategorie of the Aktionen so far. */
@@ -246,6 +253,7 @@ function snapshot(beleg: StoredBeleg) {
     shop: beleg.shop,
     beleg_date: beleg.date || null,
     amount_cent: beleg.amountCent,
+    art: beleg.art,
     paid_by: beleg.paidBy,
     payout: beleg.payout,
     aktion: beleg.aktion,
@@ -417,7 +425,8 @@ export async function transferBelegToCampflow(
     // CampFlow is not called yet, so a failure here wrote nothing there
     let photo: Buffer | undefined;
     try {
-      photo = await readBelegPhoto(id, beleg.photo, 'photo');
+      // A PDF goes as it is, not its first page
+      photo = await readBelegPhoto(id, beleg.photo, 'file');
     } catch (error: unknown) {
       await finishAttempt(id, attempt, {
         state: wasUnclear ? 'Gestartet' : 'Fehlgeschlagen',
@@ -444,6 +453,7 @@ export async function transferBelegToCampflow(
         content: photo,
         description: campflowDescription(beleg),
         date: beleg.date,
+        ...(beleg.art === 'Einnahme' ? { type: 'income' as const } : {}),
         amountCent: beleg.amountCent,
         disburser: campflowDisburser(beleg),
         costUnit: target.costUnitId,

@@ -17,6 +17,8 @@ export interface RejectedBelegMail {
 }
 
 export interface SubmittedBelegMail {
+  /** Income has no Auslage; older callers send expenses. */
+  art?: 'Ausgabe' | 'Einnahme';
   shop: string;
   /** `YYYY-MM-DD` */
   date: string;
@@ -95,14 +97,16 @@ export function belegSubmittedMailContent(data: SubmittedBelegMail): {
   subject: string;
   html: string;
 } {
+  const einnahme = data.art === 'Einnahme';
   const rows: [string, string][] = [
-    ['Geschäft', data.shop],
+    ['Art', einnahme ? 'Einnahme' : ''],
+    [einnahme ? 'Einnahme von' : 'Geschäft', data.shop],
     ['Datum', formatDate(data.date)],
     ['Betrag', formatEuro(data.amountCent)],
     ['Kostenstelle', data.kostenstelle],
     ['Kategorie', data.kategorie],
     ['Aktion', data.aktion],
-    ['Auslage von', data.payout ? data.paidBy : ''],
+    ['Auslage von', data.payout && !einnahme ? data.paidBy : ''],
     ['Notiz', data.note],
   ];
   const table = rows

@@ -167,6 +167,9 @@ async function store(
   id: number,
   values: {
     status?: 'Eingereicht' | 'Angenommen';
+    art?: 'Ausgabe' | 'Einnahme';
+    /** A PDF instead of the scan. */
+    pdf?: Buffer;
     payout?: boolean;
     note?: string;
     kostenstelle?: string;
@@ -191,11 +194,17 @@ async function store(
       review_note: '',
       submitted_by: 'leitung@example.test',
       submitted_at: '2026-09-30T10:00:00.000Z',
-      photo: 'beleg-123-scan.jpg',
+      photo: values.pdf ? 'beleg-123.pdf' : 'beleg-123-scan.jpg',
+      art: values.art ?? 'Ausgabe',
     })
     .execute();
-  blobs.set(`belege/${id}/beleg-123-scan.jpg`, PHOTO);
-  blobs.set(`belege/${id}/beleg-123-original.jpg`, Buffer.from('original'));
+  if (values.pdf) {
+    blobs.set(`belege/${id}/beleg-123.pdf`, values.pdf);
+    blobs.set(`belege/${id}/beleg-123-seite.jpg`, PHOTO);
+  } else {
+    blobs.set(`belege/${id}/beleg-123-scan.jpg`, PHOTO);
+    blobs.set(`belege/${id}/beleg-123-original.jpg`, Buffer.from('original'));
+  }
   return version(id);
 }
 
@@ -272,6 +281,30 @@ dbTest('an accepted receipt is uploaded with its details and deleted afterwards'
   assert.equal(row?.started_by, 'kasse@example.test');
   assert.ok(row?.uploaded_at);
   assert.ok(row?.beleg_deleted_at);
+});
+
+dbTest('income goes to CampFlow as income without an Auslage, a PDF as the PDF', async (t) => {
+  const { context, blobs, calls } = setup(t, () => uploaded());
+  const pdf = Buffer.from('%PDF-1.7 Spendenquittung');
+  const etag = await store(blobs, 8, { art: 'Einnahme', payout: false, pdf });
+
+  const response = await transfer(context, 8, { etag });
+
+  assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
+  const upload = calls.find((call) => call.method === 'POST');
+  assert.deepEqual(upload?.body, {
+    filename: '2026-09-30 REWE 12,34 EUR (Website-Beleg 8).pdf',
+    content: pdf.toString('base64'),
+    description: 'REWE – Grillgut',
+    date: '2026-09-30',
+    type: 'income',
+    amountCent: 1234,
+    disburser: null,
+    costUnit: 'cun_Lager',
+    category: 'cat_Essen',
+  });
+  assert.equal((await transferRow(8))?.art, 'Einnahme');
+  assert.deepEqual([...blobs.keys()], []);
 });
 
 dbTest(
@@ -950,6 +983,12 @@ test('CampFlow gets a unique file name, the Auslage and shop and note in the des
   assert.equal(campflowDescription(beleg), 'Bäckerei: "Huber" – Frühstück');
   assert.equal(campflowDisburser({ ...beleg, payout: true }), 'Kim');
   assert.equal(campflowDisburser({ ...beleg, payout: true, paidBy: 'Sparbuch' }), 'Sparbuch');
+  // Income has no Auslage, whatever is stored
+  assert.equal(campflowDisburser({ ...beleg, art: 'Einnahme', payout: true }), null);
+  assert.equal(
+    campflowFileName({ ...beleg, isPdf: true }, null),
+    '2026-10-01 Bäckerei Huber 5,00 EUR (Website-Beleg 42).pdf'
+  );
   assert.equal(campflowDescription({ ...beleg, payout: true, note: '' }), 'Bäckerei: "Huber"');
   const longName = campflowFileName({ ...beleg, shop: 'x'.repeat(300) }, 'website-pr-99999');
   assert.ok(longName.length <= 200 && longName.endsWith('(Website-Beleg pr-99999-42).jpg'));

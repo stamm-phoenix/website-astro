@@ -178,6 +178,7 @@
     form = {
       id: null,
       etag: '',
+      art: 'Ausgabe',
       shop: '',
       date: todayIso(),
       amount: '',
@@ -192,6 +193,7 @@
       reviewNote: '',
       hasImage: false,
       hasOriginal: false,
+      isPdf: false,
       submittedBy: '',
       submittedAt: '',
       aiCheck: null,
@@ -201,7 +203,12 @@
 
   function edit(beleg: StaffBeleg): void {
     resetDialog();
-    form = { ...beleg, amount: centToInput(beleg.amountCent), zahlung: zahlungOf(beleg, isIch) };
+    form = {
+      ...beleg,
+      amount: centToInput(beleg.amountCent),
+      // Income has no Auslage to choose
+      zahlung: beleg.art === 'Einnahme' ? null : zahlungOf(beleg, isIch),
+    };
   }
 
   /**
@@ -246,6 +253,7 @@
       form.aiCheck = saved.aiCheck;
       form.hasImage = saved.hasImage;
       form.hasOriginal = saved.hasOriginal;
+      form.isPdf = saved.isPdf;
     }
     if (store.data) store.data = store.data.map((beleg) => (beleg.id === saved.id ? saved : beleg));
   }
@@ -264,9 +272,10 @@
       return;
     }
 
-    const { id, etag, shop, date, paidBy, payout, kostenstelle, kategorie, note } = form;
+    const { id, etag, art, shop, date, paidBy, payout, kostenstelle, kategorie, note } = form;
     const { status, reviewNote, submittedBy } = form;
     const details = {
+      art,
       shop,
       date,
       amountCent: parseEuroToCent(form.amount),
@@ -314,7 +323,7 @@
           ...final,
           ...(await photo.photoPayload(photo.draft!)),
         });
-        message = `Beleg von ${final.shop} über ${formatEuro(final.amountCent!)} eingereicht. Danke!`;
+        message = `${art === 'Einnahme' ? 'Einnahme' : 'Beleg'} von ${final.shop} über ${formatEuro(final.amountCent!)} eingereicht. Danke!`;
         newId = created?.id ?? null;
       }
       form = null;
@@ -330,7 +339,7 @@
         search = '';
         onlyMine = false;
       }
-    }, 'Der Beleg wurde nicht gespeichert. Deine Eingaben und das Foto sind noch da. Prüfe deine Internetverbindung und versuche es noch einmal.');
+    }, 'Der Beleg wurde nicht gespeichert. Deine Eingaben und das Foto oder PDF sind noch da. Prüfe deine Internetverbindung und versuche es noch einmal.');
     if (!saved && form) form.status = previousStatus;
   }
 
@@ -348,7 +357,7 @@
     const current = form;
     if (!current?.id || photo.photoBusy) return;
     if (photo.draft) {
-      dialogNotice = 'Bitte zuerst das neue Foto speichern.';
+      dialogNotice = 'Bitte zuerst das neue Foto oder PDF speichern.';
       return;
     }
     const locked = current.campflow?.state === 'Gestartet';
@@ -361,6 +370,7 @@
       let etag = current.etag;
       if (!stored || belegChanged(current, stored)) {
         const patched = await sendApi<{ etag?: string }>('PATCH', `/intern/pflege/belege/${id}`, {
+          art: current.art,
           shop: current.shop,
           date: current.date,
           amountCent: parseEuroToCent(current.amount),
@@ -379,6 +389,7 @@
         if (listed) {
           confirmedSave = {
             ...listed,
+            art: current.art,
             shop: current.shop,
             date: current.date,
             amountCent: parseEuroToCent(current.amount) ?? listed.amountCent,
@@ -438,6 +449,7 @@
   /** Whether the form differs from the stored receipt in a field the API saves. */
   function belegChanged(current: BelegForm, stored: StaffBeleg): boolean {
     return (
+      current.art !== stored.art ||
       current.shop !== stored.shop ||
       current.date !== stored.date ||
       parseEuroToCent(current.amount) !== stored.amountCent ||
@@ -633,9 +645,11 @@
   title={form?.id ? `Beleg von ${form.shop || 'unbekannt'}` : 'Beleg einreichen'}
   rescueKey={form ? `beleg:${form.id ?? 'neu'}` : undefined}
   rescueVersion={form?.etag}
-  rescueWarning={photo.draft
-    ? 'Das ausgewählte Foto und sein Zuschnitt werden nicht gesichert. Wähle das Foto nach der neuen Anmeldung erneut aus und schneide es wieder zu.'
-    : null}
+  rescueWarning={photo.draft?.pdf
+    ? 'Das ausgewählte PDF wird nicht gesichert. Wähle es nach der neuen Anmeldung erneut aus.'
+    : photo.draft
+      ? 'Das ausgewählte Foto und sein Zuschnitt werden nicht gesichert. Wähle das Foto nach der neuen Anmeldung erneut aus und schneide es wieder zu.'
+      : null}
   busy={busy || photo.photoBusy}
   error={dialog.state.error}
   notice={dialogNotice}

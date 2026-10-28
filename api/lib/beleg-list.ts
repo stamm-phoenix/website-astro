@@ -5,6 +5,7 @@ import { parseStoredBelegCheck } from './beleg-check';
 import {
   deleteBelegPhoto,
   deleteOrphanedBelegPhotos,
+  isPdfFileName,
   originalFileName,
   storeBelegPhoto,
 } from './beleg-photos';
@@ -19,7 +20,7 @@ import {
   toVersion,
 } from './db';
 import type { BelegCampflowState, BelegCampflowTable, BelegTable } from './db-schema';
-import type { BelegInput, BelegStatus } from './pflege-validation';
+import type { BelegArt, BelegInput, BelegStatus } from './pflege-validation';
 
 /**
  * The Belege in Azure SQL (`organisation.beleg`, migration `0026_aktionen_belege_instagram.sql`)
@@ -30,6 +31,8 @@ import type { BelegInput, BelegStatus } from './pflege-validation';
 export interface StaffBeleg {
   id: string;
   etag: string;
+  /** An expense or income; income has no Auslage. */
+  art: BelegArt;
   shop: string;
   date: string;
   amountCent: number;
@@ -49,6 +52,8 @@ export interface StaffBeleg {
   hasImage: boolean;
   /** Whether the unedited photo is stored next to the scan. */
   hasOriginal: boolean;
+  /** Whether the receipt is a PDF; the photo endpoint then shows its first page. */
+  isPdf: boolean;
   /** Preliminary check of the photo by the image model, if configured. */
   aiCheck: BelegCheck | null;
   /** The last transfer to CampFlow (`beleg-campflow.ts`), null if there was none. */
@@ -80,10 +85,15 @@ export interface StoredBeleg extends StaffBeleg {
 }
 
 export interface BelegPhotos {
-  /** The photo for the archive: the scan, or the photo itself if it was not edited. */
+  /**
+   * The photo for the archive: the scan, or the photo itself if it was not edited; for a PDF its
+   * first page as a picture.
+   */
   photo: Uint8Array;
   /** The unedited photo, if `photo` is a scan of it. */
   original?: Uint8Array;
+  /** The receipt as a PDF, if it is one. */
+  pdf?: Uint8Array;
 }
 
 /** The columns of a transfer the receipt list shows. */
@@ -118,6 +128,7 @@ function toBeleg(row: Selectable<BelegTable>, campflow: CampflowColumns | undefi
   return {
     id: String(row.id),
     etag: toVersion(row.version),
+    art: row.art,
     shop: row.shop,
     date: row.beleg_date === null ? '' : toDateString(row.beleg_date),
     amountCent: row.amount_cent,
@@ -133,18 +144,29 @@ function toBeleg(row: Selectable<BelegTable>, campflow: CampflowColumns | undefi
     submittedAt: row.submitted_at.toISOString(),
     hasImage: row.photo !== null,
     hasOriginal: originalFileName(row.photo) !== undefined,
+    isPdf: isPdfFileName(row.photo),
     aiCheck: parseStoredBelegCheck(row.ai_check ?? undefined),
     campflow: campflow ? toBelegCampflow(campflow) : null,
     photo: row.photo,
   };
 }
 
-/** File name of the photo for CampFlow, e.g. `2026-10-01 REWE 12,34 EUR.jpg`. */
-export function downloadFileName(beleg: StaffBeleg, original = false): string {
+/**
+ * File name of the photo for CampFlow, e.g. `2026-10-01 REWE 12,34 EUR.jpg`, or `….pdf` for a
+ * PDF (its original is always the photo next to a scan).
+ */
+export function downloadFileName(
+  beleg: Pick<StaffBeleg, 'amountCent' | 'shop' | 'date' | 'isPdf'>,
+  original = false
+): string {
   const amount = (beleg.amountCent / 100).toFixed(2).replace('.', ',');
   const shop = beleg.shop.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Beleg';
   const suffix = original ? ' Original' : '';
-  return `${beleg.date || 'Beleg'} ${shop} ${amount} EUR${suffix}.jpg`.replace(/\s+/g, ' ');
+  const extension = beleg.isPdf && !original ? 'pdf' : 'jpg';
+  return `${beleg.date || 'Beleg'} ${shop} ${amount} EUR${suffix}.${extension}`.replace(
+    /\s+/g,
+    ' '
+  );
 }
 
 /** Without the name of the photo, which stays on the server. */
@@ -259,6 +281,7 @@ export function getBelegCampflowRow(
 }
 
 function toColumns(input: BelegInput): {
+  art: BelegArt;
   shop: string;
   beleg_date: string | null;
   amount_cent: number;
@@ -272,6 +295,7 @@ function toColumns(input: BelegInput): {
   review_note: string;
 } {
   return {
+    art: input.art,
     shop: input.shop,
     beleg_date: input.date || null,
     amount_cent: input.amountCent,
@@ -322,7 +346,7 @@ export async function createBeleg(
   check: Promise<BelegCheck | undefined> | undefined
 ): Promise<string> {
   const id = await inTransaction((trx) => nextContentId(trx, 'organisation.beleg'));
-  const photo = await storeBelegPhoto(id, photos.photo, photos.original);
+  const photo = await storeBelegPhoto(id, photos.photo, photos.original, photos.pdf);
   try {
     const aiCheck = check ? await check : undefined;
     await getDb()
@@ -419,7 +443,7 @@ export async function setBelegPhoto(
 ): Promise<StaffBeleg> {
   const previous = await getBeleg(id);
   if (!previous) throw new RecordNotFoundError();
-  const photo = await storeBelegPhoto(id, photos.photo, photos.original);
+  const photo = await storeBelegPhoto(id, photos.photo, photos.original, photos.pdf);
   let updated: Selectable<BelegTable> | undefined;
   try {
     const aiCheck = check ? await check : undefined;
