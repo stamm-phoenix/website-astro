@@ -210,6 +210,18 @@ test('input survives changes of others and saves in turn', async ({ page, browse
   await page.getByRole('tab', { name: 'Einstellungen' }).click();
   await expect(page.getByLabel('Name der Planung')).toHaveValue('E2E Entwurf neu');
 
+  // The own name typed in the members area stays while others change the plan
+  await page.getByRole('tab', { name: 'Mitglieder' }).click();
+  await page.getByLabel('Dein Name in dieser Planung').fill('Kim Kocht');
+  const abgleichMitglied = naechsterAbgleich();
+  await anderes.getByLabel('Name von 1_3').fill('Waffeln');
+  await anderes.getByLabel('Name von 1_3').press('Enter');
+  await abgeglichen(abgleichMitglied);
+  await expect(page.getByLabel('Dein Name in dieser Planung')).toHaveValue('Kim Kocht');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(page.getByText('Dein Name ist gespeichert.').first()).toBeVisible();
+  await expect(page.getByLabel('Dein Name in dieser Planung')).toHaveValue('Kim Kocht');
+
   // Two fields left while the first save is still running are both saved
   await page.getByRole('tab', { name: 'Plan' }).click();
   let erste = true;

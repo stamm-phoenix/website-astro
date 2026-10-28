@@ -207,7 +207,11 @@ export async function listPlanungen(
         .filter((mitglied) => mitglied.rolle === 'besitzer')
         .map((mitglied) => ({ name: mitglied.name, email: mitglied.email })),
       mitglieder: eigene.length,
-      loeschtAm: letzterTag ? loeschDatum(letzterTag, aufbewahrungMonate) : null,
+      // Without days the day it was created counts, as in the retention run
+      loeschtAm: loeschDatum(
+        letzterTag ?? planung.erstellt_am.toISOString().slice(0, 10),
+        aufbewahrungMonate
+      ),
     };
   });
 }
