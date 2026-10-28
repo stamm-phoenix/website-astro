@@ -33,6 +33,12 @@ Zeitplan steht in zwei (zwei Tage) oder drei Spalten: bis drei Tage je in einer 
 sonst so ausgeglichen, dass er auf die erste Seite passt, sonst über weitere Seiten mit
 „(Fortsetzung)“.
 
+„In eigenen Worten beschreiben“ schickt einen frei geschriebenen Ablauf (höchstens
+10.000 Zeichen, `freitext`) an denselben Endpunkt. Ein eigener Prompt bringt ihn einmal
+in Tage und Blöcke und formuliert aus der Beschreibung eine Zielsetzung; Rückfragen
+gibt es nicht. Der noch nicht abgeschickte Text liegt wie offene Zeilen im Store
+(`zeitplanFreitext`) und ist gegen Verlassen geschützt.
+
 „Aus Datei übernehmen“ schickt Fotos und die ersten vier Seiten eines PDFs als JPEG, Excel
 (`.xlsx`) und CSV als Datei an `POST /api/intern/abrechnung/{id}/zeitplan`. Die API liest
 Excel selbst als Text (`api/lib/xlsx-text.ts`) und fragt die Bereitstellung der

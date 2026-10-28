@@ -26,6 +26,7 @@
     restoreAbrechnungRescue,
     offeneZeitplanZeilen,
     zeitplanZeilen,
+    zeitplanFreitext,
   } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -199,8 +200,9 @@
     );
     return () => {
       stopGuard();
-      // Leaving with lines not taken over was confirmed
+      // Leaving with lines or a description not taken over was confirmed
       delete zeitplanZeilen[eventId];
+      delete zeitplanFreitext[eventId];
       // Entries without unsaved changes stay for the next visit, which shows them at once and
       // checks them against the server. Anything else is forgotten, so the next visit loads the
       // saved entries again (leaving with unsaved changes was confirmed).

@@ -6,6 +6,7 @@ import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { XlsxError, xlsxToText } from '../lib/xlsx-text';
 import {
   MAX_ZEITPLAN_BILDER,
+  MAX_ZEITPLAN_FREITEXT,
   MAX_ZEITPLAN_TEXT,
   ZeitplanLimitError,
   isZeitplanConfigured,
@@ -30,6 +31,13 @@ function decode(value: unknown, maxBytes: number): Uint8Array | null {
 
 /** The file of the request: JPEG pages or photos, or an Excel or CSV file as text. */
 function readQuelle(body: Record<string, unknown> | null): ZeitplanQuelle | string {
+  if (typeof body?.freitext === 'string') {
+    const freitext = body.freitext.trim();
+    if (!freitext) return 'Beschreibe zuerst den Ablauf der Aktion.';
+    if (freitext.length > MAX_ZEITPLAN_FREITEXT)
+      return `Die Beschreibung ist zu lang (höchstens ${MAX_ZEITPLAN_FREITEXT.toLocaleString('de-DE')} Zeichen). Kürze sie bitte.`;
+    return { freitext };
+  }
   if (Array.isArray(body?.bilder)) {
     if (body.bilder.length === 0 || body.bilder.length > MAX_ZEITPLAN_BILDER)
       return `Bitte höchstens ${MAX_ZEITPLAN_BILDER} Seiten oder Fotos auf einmal hochladen.`;
@@ -60,8 +68,8 @@ function readQuelle(body: Record<string, unknown> | null): ZeitplanQuelle | stri
 
 /**
  * POST: reads the Zeitplan of the Aktion from the file in the body (`bilder`: JPEGs as base64,
- * or `tabelle`: `{ name, data }` of an .xlsx or .csv) and answers with days and blocks to prefill
- * the Kurzbeschreibung. Nothing is stored. `available` is false without a model.
+ * or `tabelle`: `{ name, data }` of an .xlsx or .csv) or from a description (`freitext`), and
+ * answers with days and blocks to prefill the Kurzbeschreibung. Nothing is stored. `available` is false without a model.
  */
 export const AbrechnungZeitplanEndpoint = pflegeHandler('abrechnung-zeitplan', async (request) => {
   const id = request.params.id ?? '';

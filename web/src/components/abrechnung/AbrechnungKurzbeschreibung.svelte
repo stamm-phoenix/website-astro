@@ -3,7 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
-  import { zeitplanZeilen } from '../../lib/abrechnungStore.svelte';
+  import { zeitplanFreitext, zeitplanZeilen } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { downloadKurzbeschreibungPdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { errorMessage } from '../../lib/api';
@@ -33,8 +33,10 @@
     MAX_ZEITPLAN_SEITEN,
     ZEITPLAN_DATEITYPEN,
     ZeitplanDateiError,
+    beschreibeZeitplan,
     leseZeitplan,
   } from '../../lib/zeitplanDatei';
+  import type { GelesenerZeitplan } from '../../lib/zeitplanDatei';
   import type { Abrechnung } from '../../lib/types';
 
   interface Props {
@@ -44,6 +46,8 @@
 
   let { abrechnung, session }: Props = $props();
 
+  const FREITEXT_BEISPIEL =
+    'z. B. Wir fahren mit den Jupfis ins Zeltlager, damit sie lernen, selbst ein Lager aufzubauen. Am Samstag reisen wir um 10 Uhr an und bauen auf, nachmittags gibt es ein Geländespiel und abends Lagerfeuer. Am Sonntag nach dem Frühstück um 8 bauen wir ab und fahren gegen 13 Uhr heim.';
   const ZEILEN_BEISPIEL = '8-9 Uhr Frühstück\n9:30-12 Uhr Geländespiel\n20 Uhr Lagerfeuer';
 
   const event = $derived(abrechnung.event);
@@ -283,59 +287,75 @@
       return;
     session.kurzbeschreibung = { einleitung: '', tage: [] };
     zeitplanZeilen[event.id] = {};
+    delete zeitplanFreitext[event.id];
+    freitextOffen = false;
     say('Kurzbeschreibung zurückgesetzt.');
   }
 
-  async function readFile(file: File): Promise<void> {
-    // The days of the file replace the shown ones; lines not taken over must not lose their day
+  /** How a result names its source in the messages, e.g. „aus „Plan.pdf““. */
+  interface Herkunft {
+    /** „aus „Plan.pdf““ or „aus deiner Beschreibung“ */
+    aus: string;
+    /** „In „Plan.pdf““ or „In deiner Beschreibung“ */
+    in: string;
+    /** What to do instead when nothing was found. */
+    sonst: string;
+  }
+
+  /**
+   * Reads a Zeitplan from a file or a description and takes it over, after asking when it would
+   * replace one. Returns whether anything was taken over.
+   */
+  async function uebernehmen(
+    herkunft: Herkunft,
+    lesen: (signal: AbortSignal) => Promise<GelesenerZeitplan | null>,
+    label: string
+  ): Promise<boolean> {
+    // The days read replace the shown ones; lines not taken over must not lose their day
     if (Object.values(quick).some((text) => text.trim() !== '')) {
       say(
-        'Übernimm oder verwirf zuerst die Zeilen unter „Mehrere Zeilen einfügen“ und wähle die Datei dann noch einmal.',
+        'Übernimm oder verwirf zuerst die Zeilen unter „Mehrere Zeilen einfügen“ und versuche es dann noch einmal.',
         'warning'
       );
-      if (fileInput) fileInput.value = '';
-      return;
+      return false;
     }
     controller?.abort();
     controller = new AbortController();
-    reading = file.name;
+    reading = label;
     notice = null;
     deleted = null;
     try {
-      const zeitplan = await leseZeitplan(event.id, file, controller.signal);
+      const zeitplan = await lesen(controller.signal);
       if (!zeitplan) {
         say(
-          'Zeitpläne aus Dateien zu lesen ist gerade nicht möglich. Trage den Zeitplan bitte selbst ein.',
+          'Zeitpläne lesen lassen ist gerade nicht möglich. Trage den Zeitplan bitte selbst ein.',
           'warning'
         );
-        return;
+        return false;
       }
       const count = zeitplan.tage.reduce((sum, tag) => sum + tag.bloecke.length, 0);
-      // Found in the file, including blocks beyond 30 a day the page cannot take
+      // Found, including blocks beyond 30 a day the page cannot take
       const gefunden = count + (zeitplan.ausgelassen ?? 0);
       const fehlen =
         gefunden > count
           ? ` ${gefunden - count} der ${gefunden} gefundenen Blöcke passen nicht (höchstens ${MAX_ZEITBLOECKE_PRO_TAG} pro Tag) und fehlen danach.`
           : '';
       if (count === 0 && !zeitplan.einleitung) {
-        say(
-          `In „${file.name}“ wurde kein Zeitplan gefunden. Wähle eine andere Datei oder trage ihn selbst ein.`,
-          'warning'
-        );
-        return;
+        say(`${herkunft.in} wurde kein Zeitplan gefunden. ${herkunft.sonst}`, 'warning');
+        return false;
       }
       if (
         count > 0 &&
         blockCount > 0 &&
         !(await confirmAction({
           title: 'Zeitplan ersetzen?',
-          message: `Den bisherigen Zeitplan (${blockCount} ${blockCount === 1 ? 'Block' : 'Blöcke'}) durch die ${count} Blöcke aus „${file.name}“ ersetzen?${fehlen}`,
+          message: `Den bisherigen Zeitplan (${blockCount} ${blockCount === 1 ? 'Block' : 'Blöcke'}) durch die ${count} Blöcke ${herkunft.aus} ersetzen?${fehlen}`,
           confirmLabel: 'Zeitplan ersetzen',
           tone: 'neutral',
         }))
       ) {
         say('Zeitplan nicht übernommen. Es wurde nichts geändert.', 'warning');
-        return;
+        return false;
       }
       const neu = mitAktionTagen(zeitplan.tage, event.start_date, event.end_date);
       const days = neu.filter((tag) => tag.bloecke.length > 0).length;
@@ -345,19 +365,22 @@
       if (einleitung) session.kurzbeschreibung.einleitung = zeitplan.einleitung!;
       if (count > 0) {
         say(
-          `Zeitplan aus „${file.name}“ übernommen: ${days} ${days === 1 ? 'Tag' : 'Tage'}, ${taken} ${taken === 1 ? 'Block' : 'Blöcke'}${taken < gefunden ? ` von ${gefunden}` : ''}${einleitung ? ' und die Zielsetzung' : ''}. ${taken < gefunden ? `Mehr als ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke passen nicht an einen Tag; trage die fehlenden zusammengefasst selbst ein.` : 'Prüfe ihn bitte.'}`,
+          `Zeitplan ${herkunft.aus} übernommen: ${days} ${days === 1 ? 'Tag' : 'Tage'}, ${taken} ${taken === 1 ? 'Block' : 'Blöcke'}${taken < gefunden ? ` von ${gefunden}` : ''}${einleitung ? ' und die Zielsetzung' : ''}. ${taken < gefunden ? `Mehr als ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke passen nicht an einen Tag; trage die fehlenden zusammengefasst selbst ein.` : 'Prüfe ihn bitte und passe ihn an.'}`,
           taken < gefunden ? 'warning' : 'success'
         );
-      } else if (einleitung) {
-        say(`Zielsetzung aus „${file.name}“ übernommen. Einen Zeitplan enthält die Datei nicht.`);
-      } else {
-        say(
-          `„${file.name}“ enthält keinen Zeitplan, nur eine Zielsetzung. Deine Zielsetzung bleibt unverändert; nichts wurde übernommen.`,
-          'warning'
-        );
+        return true;
       }
+      if (einleitung) {
+        say(`Zielsetzung ${herkunft.aus} übernommen. Einen Zeitplan enthält sie nicht.`);
+        return true;
+      }
+      say(
+        `${herkunft.in} steht kein Zeitplan, nur eine Zielsetzung. Deine Zielsetzung bleibt unverändert; nichts wurde übernommen.`,
+        'warning'
+      );
+      return false;
     } catch (error: unknown) {
-      if (controller?.signal.aborted) return;
+      if (controller?.signal.aborted) return false;
       say(
         error instanceof ZeitplanDateiError
           ? error.message
@@ -367,9 +390,49 @@
             ),
         'error'
       );
+      return false;
     } finally {
       reading = null;
-      if (fileInput) fileInput.value = '';
+    }
+  }
+
+  async function readFile(file: File): Promise<void> {
+    await uebernehmen(
+      {
+        aus: `aus „${file.name}“`,
+        in: `In „${file.name}“`,
+        sonst: 'Wähle eine andere Datei oder trage ihn selbst ein.',
+      },
+      (signal) => leseZeitplan(event.id, file, signal),
+      `„${file.name}“ wird gelesen`
+    );
+    if (fileInput) fileInput.value = '';
+  }
+
+  // The description typed in the free text mode; kept in the store so it survives a change of tab
+  let freitextOffen = $state(untrack(() => !!zeitplanFreitext[abrechnung.event.id]?.trim()));
+  const freitext = $derived(zeitplanFreitext[event.id] ?? '');
+
+  async function toggleFreitext(): Promise<void> {
+    freitextOffen = !freitextOffen;
+    if (freitextOffen) await focusField('zeitplan-freitext');
+  }
+
+  async function sendFreitext(): Promise<void> {
+    const text = freitext.trim();
+    if (!text) return;
+    const done = await uebernehmen(
+      {
+        aus: 'aus deiner Beschreibung',
+        in: 'In deiner Beschreibung',
+        sonst: 'Ergänze Tage, Uhrzeiten und Programmpunkte und versuche es noch einmal.',
+      },
+      (signal) => beschreibeZeitplan(event.id, text, signal),
+      'Kurzbeschreibung wird erstellt'
+    );
+    if (done) {
+      delete zeitplanFreitext[event.id];
+      freitextOffen = false;
     }
   }
 
@@ -525,18 +588,63 @@
           disabled={reading !== null}
           onclick={() => fileInput?.click()}
         >
-          {reading ? 'Zeitplan wird gelesen …' : 'Aus Datei übernehmen'}
+          Aus Datei übernehmen
         </ActionButton>
-        <InfoHint
-          label="Aus Datei übernehmen"
-          text={`Hast du den Zeitplan schon als Foto, PDF (die ersten ${MAX_ZEITPLAN_SEITEN} Seiten) oder Excel-Tabelle? Dann wird er daraus gelesen und hier eingetragen. Die Datei selbst wird nicht gespeichert. Prüfe die übernommenen Blöcke, bevor du das PDF herunterlädst.`}
-        />
+        <ActionButton
+          variant="secondary"
+          disabled={reading !== null}
+          aria-expanded={freitextOffen}
+          aria-controls="zeitplan-freitext-bereich"
+          onclick={toggleFreitext}
+        >
+          In eigenen Worten beschreiben
+        </ActionButton>
+        <InfoHint label="Zeitplan übernehmen">
+          <p>
+            Hast du den Zeitplan schon als Foto, PDF (die ersten {MAX_ZEITPLAN_SEITEN} Seiten) oder Excel-Tabelle?
+            Dann wird er daraus gelesen und hier eingetragen. Die Datei selbst wird nicht gespeichert.
+          </p>
+          <p class="mt-2">
+            Oder beschreibe den Ablauf in eigenen Worten. Daraus werden einmal Zielsetzung und
+            Zeitplan erstellt, ohne Rückfragen.
+          </p>
+          <p class="mt-2">Prüfe die übernommenen Blöcke, bevor du das PDF herunterlädst.</p>
+        </InfoHint>
       </div>
     </div>
 
+    {#if freitextOffen}
+      <div id="zeitplan-freitext-bereich" class="mt-4 max-w-3xl">
+        <label class="block">
+          <span class="form-label">Ablauf der Aktion</span>
+          <textarea
+            id="zeitplan-freitext"
+            class="form-input min-h-40"
+            rows="7"
+            maxlength={10_000}
+            disabled={reading !== null}
+            value={freitext}
+            oninput={(e) => (zeitplanFreitext[event.id] = e.currentTarget.value)}
+            placeholder={FREITEXT_BEISPIEL}></textarea>
+        </label>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <ActionButton
+            variant="primary"
+            disabled={reading !== null || !freitext.trim()}
+            onclick={sendFreitext}>Kurzbeschreibung erstellen</ActionButton
+          >
+          <ActionButton
+            variant="secondary"
+            disabled={reading !== null}
+            onclick={() => (freitextOffen = false)}>Schließen</ActionButton
+          >
+        </div>
+      </div>
+    {/if}
+
     {#if reading}
       <div role="status" class="mt-3 text-sm text-neutral-700">
-        <p>„{reading}“ wird gelesen. Das dauert bis zu einer halben Minute …</p>
+        <p>{reading}. Das dauert bis zu einer halben Minute …</p>
         <div class="mt-2 h-1.5 w-full max-w-md overflow-hidden rounded bg-neutral-200">
           <div class="zeitplan-progress h-full w-1/3 rounded bg-brand-900"></div>
         </div>

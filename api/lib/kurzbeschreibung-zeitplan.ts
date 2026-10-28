@@ -4,7 +4,8 @@ import { MAX_EINLEITUNG, MAX_ZEITBLOCK_TEXT, MAX_ZEITBLOECKE_PRO_TAG } from './a
 
 /**
  * Reads the Zeitplan of an Aktion from a file the leaders already have (a photo or the pages of a
- * PDF as JPEG, or the text of an Excel sheet) to prefill the Kurzbeschreibung for the KJR. Uses
+ * PDF as JPEG, or the text of an Excel sheet), or from a description written on the page, to
+ * prefill the Kurzbeschreibung for the KJR. One request each, no questions back. Uses
  * the deployment of the receipt check (`CONFIG.belege.check`, Data Zone Standard, EU only); the
  * result is only a proposal the page shows for editing.
  */
@@ -42,7 +43,11 @@ export interface ZeitplanAktion {
   end: string | null;
 }
 
-export type ZeitplanQuelle = { bilder: Uint8Array[] } | { text: string };
+/** Photos or PDF pages, the text of a table, or a description written on the page. */
+export type ZeitplanQuelle = { bilder: Uint8Array[] } | { text: string } | { freitext: string };
+
+/** A described Zeitplan is a few paragraphs; longer is refused. */
+export const MAX_ZEITPLAN_FREITEXT = 10_000;
 
 export class ZeitplanError extends Error {
   constructor(message: string) {
@@ -83,21 +88,31 @@ export function aktionTage(start: string | null, end: string | null): string[] {
   return days;
 }
 
-function prompt(aktion: ZeitplanAktion): string {
+function prompt(aktion: ZeitplanAktion, freitext: boolean): string {
   const tage = aktionTage(aktion.start, aktion.end);
-  return `Du liest den Zeitplan einer Aktion eines Pfadfinderstammes aus einer Datei (Foto, PDF-Seiten oder Tabelle), damit daraus eine Kurzbeschreibung für einen Zuschussantrag wird.
+  const quelle = freitext ? 'der Beschreibung' : 'der Datei';
+  const intro = freitext
+    ? 'Ein Leiter oder eine Leiterin eines Pfadfinderstammes beschreibt in eigenen Worten den Ablauf einer Aktion. Bringe die Beschreibung einmalig in die Form eines Zeitplans, damit daraus eine Kurzbeschreibung für einen Zuschussantrag wird. Es gibt keine Rückfragen: Was unklar bleibt, lässt du weg.'
+    : 'Du liest den Zeitplan einer Aktion eines Pfadfinderstammes aus einer Datei (Foto, PDF-Seiten oder Tabelle), damit daraus eine Kurzbeschreibung für einen Zuschussantrag wird.';
+  const einleitung = freitext
+    ? '- einleitung: ein bis zwei Sätze in der Wir-Form, was die Aktion laut Beschreibung erreichen will und worum es geht (z. B. „Mit der Aktion wollen wir …“). Nur aus der Beschreibung, nichts erfinden; null, wenn sie nichts dazu sagt.'
+    : '- einleitung: steht in der Datei ein Satz zu Ziel oder Inhalt der Aktion, diesen Satz; sonst null. Nichts erfinden.';
+  const besonders = freitext
+    ? 'Gilt etwas für mehrere Tage („jeden Morgen um 8 Frühstück“, „täglich Leitendenrunde um 19.30“), trage es an jedem dieser Tage ein. Ungefähre Zeiten („vormittags“, „nach dem Mittagessen“) ohne Uhrzeit: von und bis leer lassen und den Block an die passende Stelle der Reihenfolge setzen. Gib die Programmpunkte knapp wieder, nicht als ganze Sätze.'
+    : 'Eine Tabelle kommt als Text: je Zeile die Zellen mit „ | “ getrennt, leere Zellen als leere Felder, sodass die n-te Zelle jeder Zeile in derselben Spalte steht (z. B. ein Tag pro Spalte).';
+  return `${intro}
 
 Aktion: ${aktion.title}
 ${tage.length > 0 ? `Tage der Aktion:\n${tage.join('\n')}` : 'Die Aktion hat noch kein Datum.'}
 
 Gib zurück:
-- tage: je Tag des Zeitplans das Datum (YYYY-MM-DD) und seine Blöcke in der Reihenfolge der Datei. Steht in der Datei nur ein Wochentag oder „Tag 1“, ordne ihn dem passenden Tag der Aktion zu. Tage ohne Blöcke weglassen.
-- bloecke: von und bis als HH:MM (24 Stunden, z. B. „8-9 Uhr“ → von 08:00, bis 09:00; „20.30“ → 20:30). Steht nur eine Uhrzeit oder ein offenes Ende („20.30 – …“), bis leer lassen; ohne Uhrzeit (z. B. „ganztags“) beide leer. text: der Programmpunkt kurz und auf Deutsch, so wie er in der Datei steht, offensichtliche Tippfehler verbessert, höchstens etwa 60 Zeichen. Mehrere Programmpunkte zur selben Zeit in einen Block, mit Komma getrennt.
-- einleitung: steht in der Datei ein Satz zu Ziel oder Inhalt der Aktion, diesen Satz; sonst null. Nichts erfinden.
+- tage: je Tag des Zeitplans das Datum (YYYY-MM-DD) und seine Blöcke in der Reihenfolge ${quelle}. Steht dort nur ein Wochentag oder „Tag 1“, „am ersten Tag“, ordne ihn dem passenden Tag der Aktion zu. Tage ohne Blöcke weglassen.
+- bloecke: von und bis als HH:MM (24 Stunden, z. B. „8-9 Uhr“ → von 08:00, bis 09:00; „20.30“ → 20:30). Steht nur eine Uhrzeit oder ein offenes Ende („20.30 – …“), bis leer lassen; ohne Uhrzeit (z. B. „ganztags“) beide leer. text: der Programmpunkt kurz und auf Deutsch, offensichtliche Tippfehler verbessert, höchstens etwa 60 Zeichen. Mehrere Programmpunkte zur selben Zeit in einen Block, mit Komma getrennt.
+${einleitung}
 
-Eine Tabelle kommt als Text: je Zeile die Zellen mit „ | “ getrennt, leere Zellen als leere Felder, sodass die n-te Zelle jeder Zeile in derselben Spalte steht (z. B. ein Tag pro Spalte).
+${besonders}
 
-Lies nur, was in der Datei steht. Erfinde keine Programmpunkte, Zeiten oder Tage. Personennamen, Telefonnummern und Adressen nicht übernehmen.`;
+Übernimm nur, was in ${quelle} steht. Erfinde keine Programmpunkte, Zeiten oder Tage. Personennamen, Telefonnummern und Adressen nicht übernehmen.`;
 }
 
 const RESPONSE_SCHEMA = {
@@ -191,15 +206,17 @@ export async function readZeitplan(
 ): Promise<GelesenerZeitplan> {
   if (!takeRead()) throw new ZeitplanLimitError();
   const content =
-    'text' in quelle
-      ? [{ type: 'text', text: quelle.text }]
-      : quelle.bilder.map((jpeg) => ({
-          type: 'image_url',
-          image_url: {
-            url: `data:image/jpeg;base64,${Buffer.from(jpeg).toString('base64')}`,
-            detail: 'high',
-          },
-        }));
+    'freitext' in quelle
+      ? [{ type: 'text', text: quelle.freitext }]
+      : 'text' in quelle
+        ? [{ type: 'text', text: quelle.text }]
+        : quelle.bilder.map((jpeg) => ({
+            type: 'image_url',
+            image_url: {
+              url: `data:image/jpeg;base64,${Buffer.from(jpeg).toString('base64')}`,
+              detail: 'high',
+            },
+          }));
   const answer = await requestStructuredOutput(
     { ...CONFIG.belege.check, reasoningEffort: 'low' },
     {
@@ -208,7 +225,7 @@ export async function readZeitplan(
       maxCompletionTokens: MAX_COMPLETION_TOKENS,
       timeoutMs: REQUEST_TIMEOUT_MS,
       messages: [
-        { role: 'system', content: prompt(aktion) },
+        { role: 'system', content: prompt(aktion, 'freitext' in quelle) },
         { role: 'user', content },
       ],
     }

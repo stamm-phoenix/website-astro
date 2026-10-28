@@ -22,6 +22,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       'Die Tage der Aktion sind schon angelegt. Zeitblöcke fügst du einzeln oder mit „Mehrere Zeilen einfügen“ auf einmal hinzu (z. B. „8-9 Uhr Frühstück“), übernimmst den Ablauf vom Vortag, sortierst nach Uhrzeit und verschiebst Blöcke mit den Pfeilen oder mit der Maus, auch auf einen anderen Tag.',
       'Hast du den Zeitplan schon als Foto, PDF oder Excel-Tabelle, trägt „Aus Datei übernehmen“ ihn für dich ein. Prüfe die Blöcke danach.',
+      'Oder du beschreibst den Ablauf mit „In eigenen Worten beschreiben“ als Text. Daraus werden einmal Zielsetzung und Zeitplan erstellt, die du anschließend wie gewohnt anpasst.',
       'Die Kurzbeschreibung gehört zu deinen Eingaben der Abrechnung und wird mit „Eingaben speichern“ gesichert.',
     ],
   },

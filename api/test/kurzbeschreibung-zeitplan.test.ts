@@ -283,6 +283,30 @@ test('an Excel file goes to the model as text; wrong files never reach it', asyn
   assert.equal(bodies.length, 1);
 });
 
+test('a description is structured once, with its own instructions', async (t) => {
+  const { bodies } = setup(t, {
+    einleitung: 'Mit der Aktion wollen wir gemeinsam Zeit draußen verbringen.',
+    tage: [{ datum: '2026-05-24', bloecke: [{ von: '08:00', bis: '', text: 'Frühstück' }] }],
+  });
+  const response = await AbrechnungZeitplanEndpoint(
+    request({ freitext: '  Jeden Morgen um 8 gibt es Frühstück, danach wandern wir.  ' }),
+    context(t)
+  );
+  assert.equal(response.status ?? 200, 200);
+  const messages = bodies[0].messages as { content: unknown }[];
+  assert.match(String(messages[0].content), /in eigenen Worten/);
+  assert.match(String(messages[0].content), /jeden Morgen um 8 Frühstück/);
+  assert.deepEqual(messages[1].content, [
+    { type: 'text', text: 'Jeden Morgen um 8 gibt es Frühstück, danach wandern wir.' },
+  ]);
+
+  for (const freitext of ['   ', 'x'.repeat(10_001)]) {
+    const refused = await AbrechnungZeitplanEndpoint(request({ freitext }), context(t));
+    assert.equal(refused.status, 400);
+  }
+  assert.equal(bodies.length, 1);
+});
+
 test('without a model the page is told so and nothing is sent', async (t) => {
   overrideConfig(t, CONFIG.belege.check, { endpoint: '' });
   const fetch = t.mock.method(globalThis, 'fetch', async () => {
