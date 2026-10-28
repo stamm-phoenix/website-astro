@@ -430,27 +430,28 @@ export async function renameKategorie(
 export async function deleteKategorie(id: string, etag: string, actor: string): Promise<void> {
   const numericId = readRouteId(id);
   await inTransaction(async (trx) => {
-    const used = await trx
-      .selectFrom('essen.zutat')
-      .select((eb) => eb.fn.countAll<number>().as('count'))
-      .where('kategorie_id', '=', numericId)
-      .executeTakeFirstOrThrow();
-    if (Number(used.count) > 0) {
-      throw new ValidationError({
-        name: `${used.count} Zutaten gehören zu dieser Kategorie. Ordne sie zuerst einer anderen zu.`,
-      });
-    }
     const row = await trx
       .selectFrom('essen.kategorie')
       .select('name')
       .where('id', '=', numericId)
       .executeTakeFirst();
-    const result = await trx
-      .deleteFrom('essen.kategorie')
-      .where('id', '=', numericId)
-      .where('version', '=', requireVersion(etag))
-      .executeTakeFirst();
-    if (Number(result.numDeletedRows) === 0) await notChanged(trx, 'essen.kategorie', numericId);
+    // The foreign key decides whether ingredients still use the category, so an ingredient
+    // moved into it at the same moment cannot slip past a separate check
+    let deleted: bigint;
+    try {
+      const result = await trx
+        .deleteFrom('essen.kategorie')
+        .where('id', '=', numericId)
+        .where('version', '=', requireVersion(etag))
+        .executeTakeFirst();
+      deleted = result.numDeletedRows;
+    } catch (error: unknown) {
+      if (getSqlErrorNumber(error) !== 547) throw error;
+      throw new ValidationError({
+        name: 'Zu dieser Kategorie gehören noch Zutaten. Ordne sie zuerst einer anderen zu.',
+      });
+    }
+    if (Number(deleted) === 0) await notChanged(trx, 'essen.kategorie', numericId);
     await audit(trx, actor, 'kategorie-geloescht', { id: numericId, name: row?.name ?? '' });
   });
 }
