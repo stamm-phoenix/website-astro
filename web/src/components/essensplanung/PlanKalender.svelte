@@ -19,7 +19,7 @@
     bearbeiten: boolean;
     /** Opens the dialog of planned dishes. */
     oneinplanen: (auftrag: Auftrag) => void;
-    /** Opens ticking off the planned dish, which is done in the list. */
+    /** Opens ticking off the planned dish (or what a cooked one used), which is in the list. */
     onabhaken: (einplanungId: number) => void;
   }
   let { kontext, bearbeiten, oneinplanen, onabhaken }: Props = $props();
@@ -123,6 +123,14 @@
                           >
                             {@render karte()}
                           </div>
+                          {#if einplanung.status === 'gekocht'}
+                            <button
+                              type="button"
+                              class="min-h-11 text-sm font-semibold text-link underline"
+                              aria-label="Verbrauch von {kennung} {name} ansehen"
+                              onclick={() => onabhaken(einplanung.id)}>Verbrauch ansehen</button
+                            >
+                          {/if}
                         {/if}
                       </li>
                     {/each}
