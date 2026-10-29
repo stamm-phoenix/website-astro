@@ -6,6 +6,7 @@
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { meldeVerloren } from './planKontext';
   import {
     getippteZutat,
     leseMenge,
@@ -70,6 +71,41 @@
   let personenNeu = $state<number | null>(null);
   /** Set once the lines are taken over; nothing is left to lose then. */
   let fertig = $state(false);
+  /** Set when the member closes on purpose, discarding the input. */
+  let verworfen = false;
+  /** What is shown: the text, or the preview of the lines read (kept while the text shows). */
+  let schritt = $state<'text' | 'vorschau'>('text');
+  /** The text the preview was read from; unchanged, the preview can be shown again as it is. */
+  let erkannt = $state('');
+  /** The lines as read, to tell which the member changed. */
+  let ursprung: string[] = [];
+  const schnappschuss = (zeile: Zeile): string =>
+    JSON.stringify([zeile.an, zeile.zutatText, zeile.menge, zeile.einheit, zeile.hinweis]);
+  /** How many lines of the preview the member changed. */
+  const bearbeitet = $derived(
+    zeilen.filter((zeile, index) => schnappschuss(zeile) !== ursprung[index]).length
+  );
+
+  // Someone else deleted the dish: the dialog goes, so the text is shown to copy
+  $effect(() => () => {
+    if (fertig || verworfen || (!text.trim() && !zeilen.length)) return;
+    const id = gericht.id;
+    const eingefuegt = text.trim();
+    const kurz = eingefuegt.length > 1500 ? `${eingefuegt.slice(0, 1500)} …` : eingefuegt;
+    // Counted here: a derived value may no longer update while the dialog goes
+    const geaendert = zeilen.filter(
+      (zeile, index) => schnappschuss(zeile) !== ursprung[index]
+    ).length;
+    const meldung = `„${gericht.name}“ wurde gerade gelöscht, das Rezept wurde nicht übernommen${
+      geaendert
+        ? ` (${geaendert === 1 ? 'eine bearbeitete Vorschauzeile' : `${geaendert} bearbeitete Vorschauzeilen`})`
+        : ''
+    }.${kurz ? ` Dein eingefügter Text: ${kurz}` : ''}`;
+    // Checked after the update: the dialog also goes when the page closes
+    setTimeout(() => {
+      if (!kontext.ansicht.gerichte.some((g) => g.id === id)) meldeVerloren(kontext, meldung);
+    });
+  });
   $effect(() =>
     guardUnsavedChanges(() => open && !fertig && (text.trim() !== '' || zeilen.length > 0))
   );
@@ -134,6 +170,15 @@
     fehler = null;
     textFehler = text.trim() ? undefined : 'Bitte ein Rezept einfügen.';
     if (textFehler) return;
+    if (
+      bearbeitet &&
+      !(await confirmAction({
+        title: 'Zutaten neu erkennen?',
+        message: 'Deine Korrekturen in der Vorschau gehen verloren.',
+        confirmLabel: 'Neu erkennen',
+      }))
+    )
+      return;
     liest = true;
     try {
       const antwort = await kontext.api.senden<KiRezept>(
@@ -144,6 +189,9 @@
       rezept = { rezeptPersonen: antwort.rezeptPersonen, personen: antwort.personen };
       personenNeu = null;
       zeilen = antwort.zeilen.map(zeileVon);
+      ursprung = zeilen.map(schnappschuss);
+      erkannt = text;
+      schritt = 'vorschau';
       if (!zeilen.length) fehler = 'Die KI hat in dem Text keine Zutaten gefunden.';
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields?.text) textFehler = error.fields.text;
@@ -282,6 +330,7 @@
       }))
     )
       return;
+    verworfen = true;
     onclose();
   }
 </script>
@@ -292,7 +341,7 @@
   closeDisabled={speichert}
   onclose={() => void schliessen()}
 >
-  {#if !rezept}
+  {#if !rezept || schritt === 'text'}
     <form class="min-h-0 space-y-4 overflow-y-auto px-5 py-4" onsubmit={erkennen}>
       <fieldset class="min-w-0 space-y-4" disabled={liest}>
         <p class="text-sm text-neutral-700">
@@ -319,6 +368,12 @@
         </FormField>
         <div class="flex flex-wrap justify-end gap-2">
           <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
+          {#if rezept && text.trim() === erkannt.trim()}
+            <!-- The same text: back to the preview with the member's changes -->
+            <ActionButton type="button" onclick={() => (schritt = 'vorschau')}
+              >Zur Vorschau</ActionButton
+            >
+          {/if}
           <ActionButton type="submit" variant="primary" disabled={!bearbeiten}
             >{liest ? 'KI liest das Rezept …' : 'Zutaten erkennen'}</ActionButton
           >
@@ -354,19 +409,20 @@
           {#each zeilen as zeile, index (index)}
             {@const einheiten = einheitenVon(zeile)}
             <li class="space-y-2 py-3" data-testid="rezept-zeile">
-              <div class="flex items-start gap-3">
+              <!-- The whole row is the touch area of the checkbox, at least 44 px high -->
+              <label
+                class="form-check-row min-w-0 cursor-pointer text-sm text-neutral-700 [overflow-wrap:anywhere]"
+                data-testid="rezept-zeile-an"
+              >
                 <input
                   id="rezept-{index}-an"
                   type="checkbox"
-                  class="mt-1 size-5"
+                  class="form-check"
                   aria-label="{zeile.original} übernehmen"
                   disabled={!zeile.auswahl}
                   bind:checked={zeile.an}
                 />
-                <label
-                  for="rezept-{index}-an"
-                  class="min-w-0 text-sm text-neutral-700 [overflow-wrap:anywhere]"
-                >
+                <span>
                   Rezept: {zeile.original}
                   {#if zeile.auswahl && !(zeile.fuerVegetarisch && zeile.fuerVegan)}
                     <span>({zeile.fuerVegetarisch ? 'nicht für vegan' : 'nur für mit allem'})</span>
@@ -376,8 +432,8 @@
                       >– nicht in der Liste, bitte wählen</span
                     >
                   {/if}
-                </label>
-              </div>
+                </span>
+              </label>
               <div class="grid gap-2 sm:grid-cols-[minmax(0,2fr)_6rem_7rem_minmax(0,1.5fr)]">
                 <div>
                   <label class="sr-only" for="rezept-{index}-zutat"
@@ -449,7 +505,9 @@
           {/each}
         </ul>
         <div class="flex flex-wrap justify-end gap-2">
-          <ActionButton type="button" onclick={() => (rezept = null)}>Zurück zum Text</ActionButton>
+          <ActionButton type="button" onclick={() => (schritt = 'text')}
+            >Zurück zum Text</ActionButton
+          >
           <ActionButton
             type="submit"
             variant="primary"
