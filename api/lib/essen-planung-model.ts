@@ -1,6 +1,7 @@
 import type { Gericht, PlanungZutat } from './essen-gerichte-model';
 import type { z } from 'zod';
 import type { EinkaufPosten, Geschaeft } from './essen-einkauf-model';
+import type { PacklisteEintrag } from './essen-packliste-model';
 import type { PlanungGruppe, Teilnehmende } from './essen-teilnehmende-model';
 import { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor } from './essen-planung-faktor';
 import { MAX_TAGE, addDays, daysBetween, loeschDatum, readDatum } from './essen-planung-datum';
@@ -141,6 +142,8 @@ export interface PlanungAnsicht {
   bestand: EinkaufPosten[];
   /** What is needed without a dish. */
   zusatzbedarf: EinkaufPosten[];
+  /** Stored states of tools and entries of its own of the packing list, in the order added. */
+  packliste: PacklisteEintrag[];
 }
 
 /** Whether `zugang` may change the plan (days, meals, later dishes). */
@@ -269,4 +272,7 @@ export const AENDERUNG_TEXTE: Record<string, string> = {
   'zusatzbedarf-neu': 'Zusatzbedarf eingetragen',
   'zusatzbedarf-geaendert': 'Zusatzbedarf geändert',
   'zusatzbedarf-geloescht': 'Zusatzbedarf entfernt',
+  'packliste-neu': 'Auf die Packliste gesetzt',
+  'packliste-geaendert': 'Packliste geändert',
+  'packliste-geloescht': 'Von der Packliste genommen',
 };

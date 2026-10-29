@@ -167,6 +167,11 @@ import {
   EssensplanungZutatGeschaeft,
 } from './endpoints/essensplanung-einkauf';
 import {
+  EssensplanungPackEintrag,
+  EssensplanungPackliste,
+  EssensplanungPackWerkzeug,
+} from './endpoints/essensplanung-packliste';
+import {
   EditorCollection,
   EditorItem,
   EditorReview,
@@ -1444,6 +1449,27 @@ app.http('essensplanungZusatzbedarf', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/zusatzbedarf/{id}',
   handler: EssensplanungZusatzbedarf,
+});
+
+app.http('essensplanungPackliste', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/packliste',
+  handler: EssensplanungPackliste,
+});
+
+app.http('essensplanungPackWerkzeug', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/packliste/werkzeug',
+  handler: EssensplanungPackWerkzeug,
+});
+
+app.http('essensplanungPackEintrag', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/packliste/{id}',
+  handler: EssensplanungPackEintrag,
 });
 
 app.http('essensplanungTeilnehmendeListe', {
