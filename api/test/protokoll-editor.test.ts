@@ -793,3 +793,32 @@ dbTest('the list of further people is edited with versions', async (t) => {
   assert.equal(deleted.status, 204);
   assert.equal(await find(), undefined);
 });
+
+dbTest(
+  'new minutes prefill the Stufenberichte from the Gruppenstunden since the last minutes',
+  async (t) => {
+    mockDirectory(t);
+    const db = getDb();
+    const meeting = (stufe: 'Wölflinge', date: string, notes: string) =>
+      db.insertInto('gruppenstunde.meeting').values({ stufe, date, notes }).execute();
+    await meeting('Wölflinge', '2026-09-20', 'zu alt');
+    await meeting('Wölflinge', '2026-10-07', 'Lagerfeuer');
+    await meeting('Wölflinge', '2026-10-20', 'nach der Sitzung');
+    await db
+      .insertInto('protokoll.protokoll')
+      .values({
+        title: 'Davor',
+        meeting_date: '2026-09-30',
+        content: JSON.stringify(neuerInhalt(() => 'x')),
+        created_by: ANNA,
+        updated_by: ANNA,
+      })
+      .execute();
+
+    const detail = await create(t);
+
+    const stufen = detail.inhalt.punkte[0].unterpunkte;
+    assert.equal(stufen[0].text, '- 07.10.: 0 Kinder. Lagerfeuer');
+    assert.equal(stufen[1].text, '');
+  }
+);

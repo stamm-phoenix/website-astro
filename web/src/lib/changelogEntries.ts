@@ -12,6 +12,14 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-29-06-protokoll-stufenberichte',
+    date: '2026-10-29',
+    title: 'Protokoll: Stufenberichte sind vorausgefüllt',
+    changes: [
+      'Wenn du ein neues Protokoll anlegst, stehen bei Wölflingen, Jungpfadfindern, Pfadfindern und Rovern schon die Gruppenstunden seit dem letzten Protokoll: mit Datum, Zahl der Kinder und dem, was ihr in der Anwesenheit dazu eingetragen habt. Namen von Kindern werden nicht übernommen. Du kannst alles ändern.',
+    ],
+  },
+  {
     id: '2026-10-29-05-essensplanung-mengen',
     date: '2026-10-29',
     title: 'Essensplanung: Mengen für jede Mahlzeit',
