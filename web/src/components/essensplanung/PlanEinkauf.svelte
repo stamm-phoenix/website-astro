@@ -10,6 +10,7 @@
   import GeschaeftDialog from './GeschaeftDialog.svelte';
   import NeuerZusatz from './NeuerZusatz.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
+  import PlanLager from './PlanLager.svelte';
   import PostenDialog from './PostenDialog.svelte';
   import type { PlanKontext } from './planKontext';
 
@@ -247,6 +248,7 @@
     'Noch kein Zusatzbedarf.'
   )}
   {@render postenListe('bestand', 'Bestand', ansicht.bestand, 'Noch kein Bestand.')}
+  <PlanLager {kontext} />
 
   <section aria-labelledby="geschaefte-heading" class="space-y-3 print:hidden">
     <h3 id="geschaefte-heading" class="font-serif text-lg font-bold text-brand-900">Geschäfte</h3>

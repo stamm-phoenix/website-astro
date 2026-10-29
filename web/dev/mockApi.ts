@@ -77,6 +77,8 @@ import * as essenPlanung from './mock-data/essensplanung-planung';
 import * as essenGerichte from './mock-data/essensplanung-gerichte';
 import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
 import * as essenEinkauf from './mock-data/essensplanung-einkauf';
+import * as essenKochen from './mock-data/essensplanung-kochen';
+import { validateAbhaken } from '../../api/lib/essen-kochen-validation';
 import {
   validateGeschaeft,
   validatePosten,
@@ -1440,6 +1442,13 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/einplanungen/:id', (req) 
   const input = validateEinplanung(req.json);
   return essenAendern(req, (z) =>
     essenPlanung.einplanungAendern(z, id, input, req.json?.etag, readPosition(req.json?.position))
+  );
+});
+
+route('PUT', '/api/essensplanung/planung/einplanungen/:id/status', (req) => {
+  const input = validateAbhaken(req.json);
+  return essenAendern(req, (z) =>
+    essenKochen.einplanungAbhaken(z, Number(req.params.id), input, req.json?.etag)
   );
 });
 

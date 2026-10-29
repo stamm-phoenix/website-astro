@@ -167,6 +167,7 @@ import {
   EssensplanungZusatzbedarfListe,
   EssensplanungZutatGeschaeft,
 } from './endpoints/essensplanung-einkauf';
+import { EssensplanungEinplanungStatus } from './endpoints/essensplanung-kochen';
 import {
   EditorCollection,
   EditorItem,
@@ -1487,6 +1488,13 @@ app.http('essensplanungEinplanung', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/einplanungen/{id}',
   handler: EssensplanungEinplanung,
+});
+
+app.http('essensplanungEinplanungStatus', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einplanungen/{id}/status',
+  handler: EssensplanungEinplanungStatus,
 });
 
 // Essensplanung: the Steuerung for the teams Admin and Vorstand (docs/essensplanung.md).

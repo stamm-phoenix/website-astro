@@ -15,6 +15,7 @@ import {
   type DruckZeile,
 } from './essensplanungDruck';
 import { postenMenge, type EinkaufsGeschaeft } from './essensplanungEinkauf';
+import type { LagerZeile } from './essensplanungLager';
 import { zahlText } from './essensplanungTeilnehmende';
 import {
   BRAND,
@@ -307,4 +308,29 @@ export async function downloadEinkaufslistePdf(
   }
   drawPageFooters(doc);
   saveFile(doc.output('blob'), essenDateiName('Einkaufsliste', ansicht));
+}
+
+/** The stock: what was there, what the cooked dishes used and what is left. */
+export async function downloadLagerPdf(
+  ansicht: PlanungAnsicht,
+  zeilen: LagerZeile[]
+): Promise<void> {
+  const { doc, autoTable } = await loadPdf();
+  const y = drawTitle(doc, 'Lager', untertitel(ansicht)) + 2;
+  if (!zeilen.length) text(doc, 'Noch nichts im Lager.', y);
+  else
+    autoTable(doc, {
+      ...TABLE_STYLES,
+      startY: y,
+      margin: { left: MARGIN, right: MARGIN, bottom: FOOTER_SPACE },
+      head: [['Zutat', 'Vorher', 'Verbraucht', 'Übrig']],
+      body: zeilen.map((zeile) => [zeile.name, zeile.anfang, zeile.verbraucht, zeile.jetzt]),
+      columnStyles: {
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+        3: { halign: 'right', fontStyle: 'bold' },
+      },
+    });
+  drawPageFooters(doc);
+  saveFile(doc.output('blob'), essenDateiName('Lager', ansicht));
 }

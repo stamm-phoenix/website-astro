@@ -1,11 +1,14 @@
 import { EINHEITEN_JE_ART, mengeText } from '../../../api/lib/essen-gerichte-model';
 import { bedarf, einkaufsMenge, ohneMenge, summiere } from './essensplanungRechnung';
 import type { RechnungsStand } from './essensplanungRechnung';
+import { nurOffene, vorraetig } from './essensplanungLager';
+import type { LagerStand } from './essensplanungLager';
 import type { EinkaufPosten, Geschaeft, GerichtEinheit, PlanungZutat, ZusatzPosten } from './types';
 
 /**
  * The shopping list of a Planung (`docs/essensplanung.md`, Einkaufsliste): what the planned dishes
- * and the extra needs take, less the stock, by shop and category, rounded up only at the end.
+ * still open and the extra needs take, less what is in stock now, by shop and category, rounded up
+ * only at the end.
  */
 
 /**
@@ -50,22 +53,21 @@ const REST = 1e-6;
 const VERGLEICH = new Intl.Collator('de');
 
 export function einkaufsliste(
-  stand: RechnungsStand & {
-    zutaten: PlanungZutat[];
-    geschaefte: Geschaeft[];
-    bestand: EinkaufPosten[];
-    zusatzbedarf: ZusatzPosten[];
-  },
+  alles: RechnungsStand &
+    LagerStand & {
+      zutaten: PlanungZutat[];
+      geschaefte: Geschaeft[];
+      bestand: EinkaufPosten[];
+      zusatzbedarf: ZusatzPosten[];
+    },
   /** Names of the categories of the central list; unknown ones read „Sonstiges“. */
   kategorien: Map<number, string>
 ): EinkaufsGeschaeft[] {
+  // Dishes cooked or left out need nothing more; what is in stock now counts
+  const stand = nurOffene(alles);
   const zutaten = new Map(stand.zutaten.map((zutat) => [zutat.id, zutat]));
-  const vorhanden = new Map(
-    summiere(stand.bestand).map((summe) => [
-      `${summe.planungZutatId}:${summe.einheit}`,
-      summe.menge,
-    ])
-  );
+  // The stock from all dishes: the cooked ones used some of it
+  const vorhanden = vorraetig(alles);
   const geschaefte = new Map<number | null, Map<string, EinkaufsPosten[]>>();
   const gelistet = new Set<number>();
   const hinzu = (
@@ -100,7 +102,7 @@ export function einkaufsliste(
   }
   // Without an amount (from dishes, or extra needs like „Kochhandschuhe“): on the list unless it
   // is listed with one or there is some in stock
-  const imBestand = new Set(stand.bestand.map((posten) => posten.planungZutatId));
+  const imBestand = new Set([...vorhanden.keys()].map((key) => Number(key.split(':')[0])));
   const gefuehl = new Set(ohneMenge(stand));
   const ohne = [
     ...gefuehl,

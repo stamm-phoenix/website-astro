@@ -55,12 +55,18 @@ const konflikt = () =>
 const nichtGefunden = () =>
   new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');
 
-/** The lines of dishes, stock and extra needs that use an ingredient, with their unit. */
+/**
+ * The lines of dishes, stock, extra needs and what cooked dishes used that use an ingredient,
+ * with their unit.
+ */
 function nutzungen(planung: MockPlanung, id: number): { einheit: GerichtZutat['einheit'] }[] {
   return [
     ...planung.gerichte.flatMap((g) => g.zutaten),
     ...planung.bestand,
     ...planung.zusatzbedarf,
+    ...planung.tage
+      .flatMap((t) => t.mahlzeiten.flatMap((m) => m.einplanungen))
+      .flatMap((e) => e.verbrauch),
   ].filter((nutzung) => nutzung.planungZutatId === id);
 }
 
