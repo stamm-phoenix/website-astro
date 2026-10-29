@@ -303,7 +303,7 @@
       aria-labelledby="bereich-gerichte"
       hidden={bereich !== 'gerichte'}
     >
-      <PlanGerichte {kontext} />
+      <PlanGerichte {kontext} sichtbar={bereich === 'gerichte'} />
     </div>
     {#if ansicht.zugang !== 'lesen'}
       <div
