@@ -7,7 +7,7 @@
   import type { AnwesenheitMeeting, AnwesenheitTermin } from '../../lib/types';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import PdfDownloadButton from './PdfDownloadButton.svelte';
+  import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';
   import AnwesenheitDiagramm from './AnwesenheitDiagramm.svelte';
   import StatusNotice from './StatusNotice.svelte';
 
@@ -201,7 +201,7 @@
     </h2>
     {#if rows.length > 0}
       <PdfDownloadButton
-        create={async () =>
+        download={async () =>
           (await import('../../lib/anwesenheitPdf')).downloadAnwesenheitReport(stufe, meetings)}
       />
     {/if}

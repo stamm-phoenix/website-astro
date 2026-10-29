@@ -11,8 +11,10 @@
 
   interface Props {
     download: () => Promise<void>;
+    /** The label, e.g. „Liste zum Ausfüllen (PDF)“ where a page offers several PDFs. */
+    text?: string;
     /** What failed, with what to do next, e.g. „Das PDF der Belege konnte nicht …“. */
-    errorText: string;
+    errorText?: string;
     disabled?: boolean;
     /** The accessible name when several of these buttons are on one page. */
     label?: string;
@@ -22,7 +24,8 @@
   }
   let {
     download,
-    errorText,
+    text = 'PDF herunterladen',
+    errorText = `Das PDF konnte nicht erstellt werden. Es wurde nichts geändert. Tippe noch einmal auf „${text}“.`,
     disabled = false,
     label,
     onresult,
@@ -59,7 +62,7 @@
   disabled={disabled || exporting}
   aria-busy={exporting}
   aria-label={label}
-  onclick={() => void run()}>{exporting ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
+  onclick={() => void run()}>{exporting ? 'Erstellt PDF …' : text}</ActionButton
 >
 {#if !onresult}
   <Toast message={notice?.text ?? null} kind={notice?.kind} onclose={() => (notice = null)} />
