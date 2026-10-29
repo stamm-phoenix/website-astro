@@ -250,15 +250,19 @@
     <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{mahlzeit.name}</span>
     {#if mahlzeit.uhrzeit}<span class="text-sm text-neutral-700">{mahlzeit.uhrzeit} Uhr</span>{/if}
   {/if}
-  {#if ohne.length || bearbeiten}
+  {#if kontext.ansicht.gruppen.length}
     <div class="flex basis-full flex-wrap items-center gap-x-3 pl-14 text-sm">
-      {#if ohne.length}<span class="text-neutral-700">ohne {ohne.join(', ')}</span>{/if}
-      {#if bearbeiten && kontext.ansicht.gruppen.length}
+      <span class="text-neutral-700"
+        >Wer isst mit: <span class="text-neutral-900"
+          >{ohne.length ? `alle außer ${ohne.join(', ')}` : 'alle'}</span
+        ></span
+      >
+      {#if bearbeiten}
         <button
           type="button"
           class="min-h-11 font-semibold text-link underline print:hidden"
-          onclick={() => ongruppen(mahlzeit.id)}
-          >Wer isst mit?<span class="sr-only"> bei {mahlzeit.kennung}</span></button
+          aria-label="Wer isst mit bei {mahlzeit.kennung} ändern"
+          onclick={() => ongruppen(mahlzeit.id)}>Ändern</button
         >
       {/if}
     </div>
@@ -270,6 +274,10 @@
           {#each mahlzeit.einplanungen as einplanung, index (einplanung.id)}
             {@const name = gerichte.get(einplanung.gerichtId) ?? 'Gericht'}
             <li class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span
+                class="font-mono text-sm font-semibold text-brand-900"
+                title="Gericht-ID: Tag_Mahlzeit_Gericht">{mahlzeit.kennung}_{index + 1}</span
+              >
               <span class="min-w-0 font-semibold text-neutral-900 [overflow-wrap:anywhere]"
                 >{name}</span
               >

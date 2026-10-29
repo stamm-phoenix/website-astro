@@ -2,6 +2,7 @@ import { esserJeMahlzeit } from '../../../api/lib/essen-teilnehmende-model';
 import { gerichtWarnungen, mengeText } from '../../../api/lib/essen-gerichte-model';
 import { datumKurz } from './essensplanung';
 import { ernaehrung, fuerText } from './essensplanungGerichte';
+import { einplanungKennung } from './essensplanungEinplanung';
 import { esserRechner, kochMenge, zeilenMenge } from './essensplanungRechnung';
 import { ERNAEHRUNG_TEXT, zahlText, zeitraumText } from './essensplanungTeilnehmende';
 import { parseProtokollMarkdown, type MdBlock, type MdInline } from './protokollMarkdown';
@@ -37,6 +38,8 @@ const ALLE = { fuerAlles: true, fuerVegetarisch: true, fuerVegan: true, ohne: []
 
 /** A planned dish with its amounts for who eats at the meal. */
 export interface DruckEinplanung {
+  /** `1_2_1`: day, meal and dish. */
+  kennung: string;
   name: string;
   /** Everybody who eats at the meal, weighted, times the factor of the planned dish. */
   portionen: number;
@@ -56,6 +59,7 @@ export function einplanungZeilen(
   const zutaten = new Map(ansicht.zutaten.map((z) => [z.id, z]));
   const portionen = esser(mahlzeit, ALLE) * einplanung.faktor;
   return {
+    kennung: einplanungKennung(mahlzeit, einplanung.id),
     name: gericht?.name ?? 'Gericht',
     portionen,
     zustaendig: einplanung.zustaendig,

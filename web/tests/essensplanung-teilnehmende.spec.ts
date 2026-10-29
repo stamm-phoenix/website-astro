@@ -2,9 +2,8 @@ import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import { anlegen } from './essensplanung-helpers';
 
-/** The numbers of a meal in the table „Esser je Mahlzeit“: persons, portions, by diet. */
+/** The numbers of a meal in „Esser je Mahlzeit“: persons, then by diet. */
 async function esser(page: Page, kennung: string): Promise<string[]> {
-  // The table on wide screens, a list per meal on phones; both mark the numbers
   const zeile = page.locator(`[data-esser="${kennung}"]`).filter({ visible: true });
   return zeile.locator('[data-zahl]').allInnerTexts();
 }
@@ -79,9 +78,9 @@ test('groups and participants give the eaters per meal', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /^Tag 1 · So\., 1\.8\./ })).toBeVisible();
   await page.getByRole('tab', { name: 'Teilnehmende' }).click();
 
-  expect(await esser(page, '1_1')).toEqual(['10', '7', '10', '0', '0']);
-  expect(await esser(page, '1_2')).toEqual(['14', '11', '10', '4', '0']);
-  expect(await esser(page, '2_5')).toEqual(['10', '7', '10', '0', '0']);
+  expect(await esser(page, '1_1')).toEqual(['10', '10', '0', '0']);
+  expect(await esser(page, '1_2')).toEqual(['14', '10', '4', '0']);
+  expect(await esser(page, '2_5')).toEqual(['10', '10', '0', '0']);
   await expectNoHorizontalOverflow(page);
 
   // A group with participants cannot be deleted, an empty one can
@@ -92,19 +91,19 @@ test('groups and participants give the eaters per meal', async ({ page }) => {
 
   // The Wölflinge skip breakfast on the first day
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.getByRole('button', { name: 'Wer isst mit? bei 1_1' }).click();
+  await page.getByRole('button', { name: 'Wer isst mit bei 1_1 ändern' }).click();
   await dialog.getByLabel('Wö').uncheck();
   await expect(page.getByText('Wö isst nicht bei 1_1 mit.').first()).toBeVisible();
   await dialog.getByRole('button', { name: 'Fertig' }).click();
-  await expect(page.getByText('ohne Wö').first()).toBeVisible();
+  await expect(page.getByText('alle außer Wö').first()).toBeVisible();
 
   // Deleting the first lunch moves the start of the Pfadis to the next meal
   await page.getByRole('button', { name: 'Mittagessen löschen' }).first().click();
   await answerConfirm(page, '1_2 Mittagessen löschen?', 'Mahlzeit löschen');
   await page.getByRole('tab', { name: 'Teilnehmende' }).click();
   await expect(pfadis).toContainText('ab 1_2 Kaffee & Kuchen bis 2_4 Abendessen');
-  expect(await esser(page, '1_1')).toEqual(['0', '0', '0', '0', '0']);
-  expect(await esser(page, '1_2')).toEqual(['14', '11', '10', '4', '0']);
+  expect(await esser(page, '1_1')).toEqual(['0', '0', '0', '0']);
+  expect(await esser(page, '1_2')).toEqual(['14', '10', '4', '0']);
 
   // Changing and removing a row
   await pfadis.getByRole('button', { name: '4 Pfadi vegetarisch ändern' }).click();
@@ -114,4 +113,31 @@ test('groups and participants give the eaters per meal', async ({ page }) => {
   await pfadis.getByRole('button', { name: '6 Pfadi vegetarisch entfernen' }).click();
   await answerConfirm(page, '6 Pfadi entfernen?', 'Entfernen');
   await expect(page.getByText('Insgesamt 10 Personen')).toBeVisible();
+});
+
+test('the calendar of eaters says when more days are to the side and can be scrolled by keyboard', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E Esser Kalender');
+  // Days are added in the plan; the calendar notices that it got wider
+  await page.getByRole('button', { name: 'Tag danach hinzufügen' }).click();
+  await expect(page.getByText(/Tag .* hinzugefügt\./).first()).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('tab', { name: 'Teilnehmende' }).click();
+  const bereich = page.getByRole('region', { name: 'Kalender der Esser' });
+  await expect(
+    page.getByText('Weitere Tage siehst du, wenn du seitlich wischst oder scrollst.')
+  ).toBeVisible();
+  await expect(bereich).toHaveAttribute('tabindex', '0');
+  await bereich.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => bereich.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  await expectNoHorizontalOverflow(page);
+
+  // Wide enough for all days: no hint, nothing to reach by keyboard
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await expect(
+    page.getByText('Weitere Tage siehst du, wenn du seitlich wischst oder scrollst.')
+  ).toHaveCount(0);
+  await expect(bereich).not.toHaveAttribute('tabindex', '0');
 });

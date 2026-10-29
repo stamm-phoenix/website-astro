@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import { formatDateTime } from '../../lib/format';
   import { aenderungText } from '../../lib/essensplanung';
   import type { PlanungAenderung } from '../../lib/types';
@@ -10,7 +11,12 @@
 </script>
 
 <details class="print:hidden">
-  <summary class="cursor-pointer font-semibold text-brand-900">Letzte Änderungen</summary>
+  <summary
+    class="flex min-h-11 cursor-pointer list-none items-center gap-2 font-semibold text-brand-900 [&::-webkit-details-marker]:hidden"
+  >
+    Letzte Änderungen
+    <AufklappPfeil />
+  </summary>
   {#if aenderungen.length}
     <ul class="mt-2 divide-y divide-neutral-200 border-y border-neutral-200 text-sm">
       {#each aenderungen as aenderung (aenderung.seq)}

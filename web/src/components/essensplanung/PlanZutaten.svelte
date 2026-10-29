@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import { untrack } from 'svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -158,8 +159,11 @@
 </script>
 
 <details>
-  <summary class="flex min-h-11 cursor-pointer items-center font-semibold text-brand-900">
+  <summary
+    class="flex min-h-11 cursor-pointer list-none items-center gap-2 font-semibold text-brand-900 [&::-webkit-details-marker]:hidden"
+  >
     Zutaten dieser Planung ({ansicht.zutaten.length})
+    <AufklappPfeil />
   </summary>
   <ul class="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">
     {#each ansicht.zutaten as zutat (zutat.id)}

@@ -140,7 +140,7 @@ export async function downloadPlanPdf(
       if (!mahlzeit.gerichte.length) y = text(doc, 'Noch kein Gericht eingeplant.', y);
       for (const gericht of mahlzeit.gerichte) {
         const zeile = [
-          `${gericht.name}: ${zahlText(gericht.portionen)} Portionen`,
+          `${gericht.kennung} ${gericht.name}: ${zahlText(gericht.portionen)} Portionen`,
           gericht.zustaendig && `zuständig: ${gericht.zustaendig}`,
         ]
           .filter(Boolean)

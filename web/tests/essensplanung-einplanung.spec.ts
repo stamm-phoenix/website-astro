@@ -76,7 +76,7 @@ test('dishes are planned, ordered, copied, moved and taken off meals', async ({
   // The dish shows where it is planned
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   // Dishes created on this page are open already
-  await expect(page.getByText('Eingeplant: 1_2 Mittagessen')).toBeVisible();
+  await expect(page.getByText('Eingeplant: 1_2_1 Mittagessen')).toBeVisible();
 
   // The printed plan names the dishes
   await page.getByRole('tab', { name: 'Plan' }).click();

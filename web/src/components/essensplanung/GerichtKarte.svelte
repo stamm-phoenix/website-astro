@@ -9,7 +9,7 @@
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { ernaehrung, fuerText, zeileBody } from '../../lib/essensplanungGerichte';
-  import { faktorText, plaetzeVon } from '../../lib/essensplanungEinplanung';
+  import { plaetzeVon } from '../../lib/essensplanungEinplanung';
   import { allergeneText } from '../../lib/essensplanungDruck';
   import {
     gerichtStand,
@@ -17,6 +17,7 @@
     mengeText,
   } from '../../../../api/lib/essen-gerichte-model';
   import type { EssenKatalog, Gericht, GerichtLink, GerichtZutat } from '../../lib/types';
+  import GerichtPlaetze from './GerichtPlaetze.svelte';
   import GerichtZeileDialog from './GerichtZeileDialog.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
   import type { PlanKontext } from './planKontext';
@@ -229,20 +230,7 @@
   <div class="flex flex-wrap items-center justify-between gap-2">
     <div class="space-y-1">
       <p class="text-neutral-700">Mengen für {gericht.personen} Personen</p>
-      <p class="text-sm text-neutral-700">
-        {#if plaetze.length}
-          Eingeplant:
-          {plaetze
-            .map(({ mahlzeit, einplanung }) =>
-              [mahlzeit.kennung, mahlzeit.name, faktorText(einplanung.faktor)]
-                .filter(Boolean)
-                .join(' ')
-            )
-            .join(', ')}
-        {:else}
-          Noch nicht eingeplant.
-        {/if}
-      </p>
+      <GerichtPlaetze {plaetze} />
     </div>
     <div class="flex flex-wrap gap-2 print:hidden">
       <!-- Only with the list, so the card names all allergens -->

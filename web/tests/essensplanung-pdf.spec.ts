@@ -76,7 +76,7 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
     page.getByRole('button', { name: 'Plan als PDF' }).click()
   );
   expect(plan.name).toBe('Plan E2E PDF.pdf');
-  expect(plan.text).toContain('Nudeln: 8 Portionen');
+  expect(plan.text).toContain('1_2_1 Nudeln: 8 Portionen');
   expect(plan.text).toContain('1 kg');
 
   await page.getByRole('tab', { name: 'Einkauf' }).click();
