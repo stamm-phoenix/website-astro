@@ -71,8 +71,9 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
   await dialog.getByLabel('Faktor', { exact: true }).fill('0,5');
   await dialog.getByRole('button', { name: 'Einplanen' }).click();
   await expect(dialog).toBeHidden();
-  await page.locator('summary', { hasText: 'Mengen für 16 Portionen' }).nth(1).click();
-  await expect(page.getByRole('list', { name: 'Mengen für Chili bei 1_4' }).first()).toContainText(
-    '500 g Hackfleisch'
-  );
+  // The portions follow the factor too: 16 × 0,5
+  await page.locator('summary', { hasText: 'Mengen für 8 Portionen' }).click();
+  const abend = page.getByRole('list', { name: 'Mengen für Chili bei 1_4' }).first();
+  await expect(abend).toContainText('500 g Hackfleisch · nur mit allem · für 5 Portionen');
+  await expect(abend).toContainText('30 ml Sonnenblumenöl · nur bei Gluten · für 3 Portionen');
 });

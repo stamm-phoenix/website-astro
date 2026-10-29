@@ -33,8 +33,11 @@
 
   const gericht = $derived(kontext.ansicht.gerichte.find((g) => g.id === einplanung.gerichtId));
   const zutaten = $derived(new Map(kontext.ansicht.zutaten.map((z) => [z.id, z])));
-  /** The portions of the meal: everybody who eats there, weighted. */
-  const portionen = $derived(esser(mahlzeit, ALLE));
+  /**
+   * The portions the amounts are for: everybody who eats at the meal, weighted, times the factor
+   * of the planned dish (0,5 when only half eat the dessert).
+   */
+  const portionen = $derived(esser(mahlzeit, ALLE) * einplanung.faktor);
 
   interface Zeile {
     id: number;
@@ -63,7 +66,9 @@
           fuerText(zeile) ?? '',
           zeile.nur.length ? `nur bei ${namen(zeile.nur)}` : '',
           zeile.ohne.length ? `nicht bei ${namen(zeile.ohne)}` : '',
-          !zeile.fest && Math.abs(wer - portionen) > 0.005 ? `für ${zahlText(wer)} Portionen` : '',
+          !zeile.fest && Math.abs(wer * einplanung.faktor - portionen) > 0.005
+            ? `für ${zahlText(wer * einplanung.faktor)} Portionen`
+            : '',
         ]
           .filter(Boolean)
           .join(' · '),
