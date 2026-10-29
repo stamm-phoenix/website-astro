@@ -144,6 +144,15 @@ Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite e
 - **Einschränkung pro Mahlzeit:** Welche Gruppen essen mit, z. B. „nur Leitende“ an den Aufbau-Tagen oder „ohne Rover“ ab 6_4.
 - **Übersicht:** Esser je Mahlzeit, gewichtet und ungewichtet, nach Ernährungsform. So sieht man es auch im Tagesplan des Sheets.
 
+Umgesetzt (PR 5a):
+
+- Eine neue Planung bekommt die Gruppen aus `vorlage_gruppen` der Steuerung; Planungen von vor der Migration `0058` bekommen sie dort. Gruppen haben einen eindeutigen Namen (bis 50 Zeichen) und einen Faktor von 0,01 bis 5; höchstens 20 je Planung. Eine Gruppe mit Teilnehmenden lässt sich nicht löschen.
+- Eine Zeile hat Gruppe, Ernährung, Unverträglichkeiten, Anzahl (1 bis 2000), optional „ab“ und „bis“ Mahlzeit (leer: erste bzw. letzte) und einen Hinweis; höchstens 300 Zeilen je Planung.
+- „Wer isst mit?“ an jeder Mahlzeit schaltet Gruppen ab (`mahlzeit_ohne_gruppe`), die Mahlzeit zeigt dann „ohne …“.
+- Wird eine Mahlzeit oder ein Tag gelöscht, an dem eine Zeile beginnt oder endet, rückt die Grenze auf die nächste verbleibende Mahlzeit (Beginn) bzw. die vorige (Ende). Gibt es keine mehr, bleibt die gelöschte Mahlzeit stehen und die Zeile isst nirgends mit; der Dialog zeigt sie als „Gelöscht“. Liegt der ganze Aufenthalt auf gelöschten Mahlzeiten, bleiben ebenfalls die gelöschten stehen (`api/lib/essen-teilnehmende-grenzen.ts`).
+- Verschieben einer Mahlzeit oder eines Tages wird abgelehnt, wenn danach bei einer Zeile das Ende vor dem Beginn läge (`pruefeAnwesenheit`, Feld `anwesenheit`); die Seite nennt Gruppe und Anzahl.
+- Die Tabelle „Esser je Mahlzeit“ rechnet `esserJeMahlzeit` (`api/lib/essen-teilnehmende-model.ts`): Personen, Portionen (Personen × Faktor der Gruppe) und Personen je Ernährung. Die Berechnung der Mengen nutzt dieselbe Funktion (PR 5b).
+
 ## Berechnung
 
 Gerechnet wird im Browser aus dem vollständigen Stand der Planung. Das Modul liegt unter `web/src/lib/essensplanung/rechnung.ts` und hat Unit-Tests in `web/test/`, die **gegen Werte aus dem Sheet geprüft** werden.
@@ -214,7 +223,7 @@ So sicher gegen Konflikte wie der Protokoll-Editor, ohne Neuladen, aber ohne ech
 
 ## Datenmodell (Schema `essen`, Azure SQL)
 
-Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`), Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`) und Gerichte mit den Zutaten der Planung (`0055_essensplanung_gerichte.sql`); Typen in `api/lib/db-schema.ts`.
+Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`), Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`) Gerichte mit den Zutaten der Planung (`0055_essensplanung_gerichte.sql`), Einplanungen (`0056`) und Teilnehmende (`0058_essensplanung_teilnehmende.sql`); Typen in `api/lib/db-schema.ts`.
 
 | Tabelle | Inhalt |
 | --- | --- |
@@ -225,8 +234,10 @@ Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach.
 | `planung` | Name, angelegt, Einstellungen (Mitglieder verwalten erlaubt), Hashes von Beitritts- und Lese-Token, `aenderung_seq` |
 | `mitglied` | Name, Mail (optional), Rolle, Token-Hash, entzogen |
 | `aenderung` | Änderungsprotokoll für Polling und „wer hat was geändert“ |
-| `tag`, `mahlzeit`, `mahlzeit_gruppe` | Tage, Slots (Position, Name, Uhrzeit optional), zugelassene Gruppen |
-| `gruppe`, `teilnehmende`, `teilnehmende_unvertraeglichkeit` | Teilnehmende mit Anwesenheit von/bis Mahlzeit |
+| `tag`, `mahlzeit` | Tage, Slots (Position, Name, Uhrzeit optional) |
+| `planung_gruppe` | Gruppen der Planung: `position`, `name` (eindeutig je Planung), `faktor` |
+| `teilnehmende`, `teilnehmende_unvertraeglichkeit` | Zeilen: `gruppe_id` (ohne Kaskade), `ernaehrung` (`alles`/`vegetarisch`/`vegan`), `anzahl`, `von_mahlzeit_id` und `bis_mahlzeit_id` (ohne Fremdschlüssel, `NULL`: erste bzw. letzte Mahlzeit), `hinweis` |
+| `mahlzeit_ohne_gruppe` | Gruppen, die an einer Mahlzeit nicht mitessen (Mahlzeit mit Kaskade, Gruppe ohne) |
 | `geschaeft` | Geschäfte der Planung |
 | `planung_zutat`, `planung_zutat_unvertraeglichkeit` | jede in der Planung genutzte Zutat: `zutat_id` (zentral) mit den Abweichungen `kategorie_id` und `einheitenart` (`NULL`: wie in der Liste), oder eine eigene mit `name`, `kategorie_id`, `einheitenart`, `vegetarisch`, `vegan` und Allergenen; später das Geschäft |
 | `gericht` | `name` (eindeutig je Planung), `personen`, `anleitung`, `notiz`, `links` und `werkzeuge` (JSON, nur mit dem Gericht bearbeitet) |
@@ -248,10 +259,10 @@ Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen eine
     - Gerichte, Teilnehmende, Einkaufsliste, Einkäufe (mit Live-Modus), Lager, Packliste,
     - Mitglieder & Freigabe, Einstellungen.
   - Die Texte sind neutral für Externe gehalten („Stamm Phoenix stellt das Werkzeug bereit“).
-  - Umgesetzt sind bisher Plan (Tage und Mahlzeiten), Gerichte (mit den Zutaten der Planung), Mitglieder & Freigabe, Änderungen und Einstellungen. Weitere Seiten: `/essensplanung/bestaetigen#a=…` (Anlegen bestätigen) und `/essensplanung/beitreten#b=…`.
+  - Umgesetzt sind bisher Plan (Tage und Mahlzeiten), Gerichte (mit den Zutaten der Planung), Teilnehmende, Mitglieder & Freigabe, Änderungen und Einstellungen. Weitere Seiten: `/essensplanung/bestaetigen#a=…` (Anlegen bestätigen) und `/essensplanung/beitreten#b=…`.
 - **API** (`api/endpoints/essensplanung.ts`, Logik in `api/lib/essen-planung.ts`, reine Regeln in `api/lib/essen-planung-model.ts`):
   - ohne Token mit ALTCHA: `POST essensplanung/anlegen`, `POST essensplanung/meine`; mit Anfrage- bzw. Beitrittstoken: `anlegen/bestaetigen`, `beitritt/ansehen`, `beitritt`.
-  - mit Header `x-essensplanung-token`: `planung` (GET/PATCH/DELETE), `planung/stand?seit=`, `planung/ich`, `planung/links`, `planung/mitglieder[/{id}[/link]]`, `planung/tage[/{id}]`, `planung/mahlzeiten[/{id}]`, `planung/katalog` (zentrale Listen), `planung/zutaten[/{id}]` (Zutaten der Planung), `planung/gerichte[/{id}[/zutaten]]`, `planung/gericht-zutaten/{id}`, `planung/einplanungen[/{id}]` (Logik in `api/lib/essen-einplanung.ts`). Logik der Gerichte in `api/lib/essen-gerichte.ts`, Prüfungen in `essen-gerichte-validation.ts`, Typen, Einheiten und Warnungen (auch für die Seite) in `essen-gerichte-model.ts`.
+  - mit Header `x-essensplanung-token`: `planung` (GET/PATCH/DELETE), `planung/stand?seit=`, `planung/ich`, `planung/links`, `planung/mitglieder[/{id}[/link]]`, `planung/tage[/{id}]`, `planung/mahlzeiten[/{id}]`, `planung/katalog` (zentrale Listen), `planung/zutaten[/{id}]` (Zutaten der Planung), `planung/gerichte[/{id}[/zutaten]]`, `planung/gericht-zutaten/{id}`, `planung/einplanungen[/{id}]` (Logik in `api/lib/essen-einplanung.ts`), `planung/gruppen[/{id}]`, `planung/teilnehmende[/{id}]`, `PUT planung/mahlzeiten/{id}/gruppen` mit `{ gruppeId, isst }` (Logik in `api/lib/essen-teilnehmende.ts`). Logik der Gerichte in `api/lib/essen-gerichte.ts`, Prüfungen in `essen-gerichte-validation.ts`, Typen, Einheiten und Warnungen (auch für die Seite) in `essen-gerichte-model.ts`.
   - `ladeZugang` löst das Token zu Mitglied oder Lese-Link auf; `aendere()` prüft Recht und Wartungsmodus, zählt `aenderung_seq` in derselben Transaktion hoch (das serialisiert auch gleichzeitige Änderungen) und schreibt `essen.aenderung`. Der Lese-Link darf nur `GET`.
   - Konflikte auf Tag oder Mahlzeit (`rowversion`) und `404` antworten mit der aktuellen Ansicht. Die Planung selbst hat keine Version, weil jede Änderung ihre Zeile berührt; Name und Einstellungen gewinnen zuletzt.
 - **Gleichzeitig planen:** Die App fragt alle 2,5 s `planung/stand?seit=<stand>`; nur wenn sich etwas geändert hat, kommt die volle Ansicht zurück. Der Stand besteht aus Änderungszähler, Version der Einstellungen und `katalogStand` (neueste Version und Anzahl der zentralen Zutaten, Kategorien und Unverträglichkeiten); ändert sich der Katalogstand, lädt der Bereich Gerichte die zentralen Listen neu.
@@ -312,4 +323,7 @@ Die vollständige, fortgeschriebene Liste steht in #452.
 - Gericht-Zeilen werden als Ganzes mit ihrer Version gespeichert; der Kopf des Gerichts nur mit den geänderten Feldern und seiner Version (PR 4).
 - PR 4 ist geteilt: 4a Gerichte, 4b Einplanung, 4c Umrechnungshilfe.
 - Umrechnungshilfe nur für Lebensmittel in g/kg und nur mit eindeutig zugeordneten, gestrichen gemessenen Werten: Werte aus der Tabelle „TL gehäuft / EL“ zählen nicht; widersprechen sich die Tabellen um mehr als die Hälfte oder wiegt ein EL weniger als zwei TL, bleibt der Wert leer (lieber kein Wert als ein falscher) (PR 4c).
+- PR 5 ist geteilt: 5a Teilnehmende, 5b Berechnung, 5c Einkaufsliste.
+- Gruppen je Mahlzeit werden als Ausnahme gespeichert („ohne Gruppe“), damit neue Gruppen und neue Mahlzeiten ohne weiteres mitessen (PR 5a).
+- Die Grenzen „ab“/„bis“ haben keinen Fremdschlüssel; beim Löschen von Mahlzeiten rücken sie nach, statt die Zeile zu löschen oder auf die ganze Planung zu erweitern (PR 5a).
 - Kopieren einer Einplanung legt eine neue an (gleiche Angaben, andere Mahlzeit); Ändern kann die Mahlzeit wechseln, nicht das Gericht (PR 4b).

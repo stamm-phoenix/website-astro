@@ -56,6 +56,7 @@ import {
   seedPreviewEssensplanungPlanung,
   seedPreviewEssensplanungGerichte,
   seedPreviewEssensplanungEinplanung,
+  seedPreviewEssensplanungTeilnehmende,
   seedPreviewGruppenstunden,
   seedPreviewLeitende,
   seedPreviewAktionen,
@@ -167,6 +168,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewEssensplanungPlanung();
       await seedPreviewEssensplanungGerichte();
       await seedPreviewEssensplanungEinplanung();
+      await seedPreviewEssensplanungTeilnehmende();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();

@@ -15,6 +15,14 @@ export async function deletePlanung(trx: Db, planungId: number): Promise<boolean
     )
     .execute();
   await trx.deleteFrom('essen.gericht').where('planung_id', '=', planungId).execute();
+  // Participants and skipped meals point to the groups without a cascade
+  await trx.deleteFrom('essen.teilnehmende').where('planung_id', '=', planungId).execute();
+  await trx
+    .deleteFrom('essen.mahlzeit_ohne_gruppe')
+    .where('gruppe_id', 'in', (eb) =>
+      eb.selectFrom('essen.planung_gruppe').select('id').where('planung_id', '=', planungId)
+    )
+    .execute();
   const result = await trx
     .deleteFrom('essen.planung')
     .where('id', '=', planungId)

@@ -1,5 +1,6 @@
 import type { Gericht, PlanungZutat } from '../../../api/lib/essen-gerichte-model';
 import type { Einplanung } from '../../../api/lib/essen-planung-model';
+import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilnehmende-model';
 import type { NikolausBookingDetails, NikolausSettings } from './nikolausConfig';
 import type { EinteilungDay, HelperRole as NikolausHelperRole } from './nikolausEinteilung';
 
@@ -404,6 +405,8 @@ export interface PlanungMahlzeit {
   uhrzeit: string | null;
   /** The dishes planned at the meal, in their order. */
   einplanungen: Einplanung[];
+  /** Groups that do not eat at this meal; empty: all eat. */
+  ohneGruppen: number[];
 }
 
 export type { Einplanung } from '../../../api/lib/essen-planung-model';
@@ -446,7 +449,15 @@ export interface PlanungAnsicht {
   katalogStand: string;
   zutaten: PlanungZutat[];
   gerichte: Gericht[];
+  gruppen: PlanungGruppe[];
+  teilnehmende: Teilnehmende[];
 }
+
+export type {
+  Ernaehrung,
+  PlanungGruppe,
+  Teilnehmende,
+} from '../../../api/lib/essen-teilnehmende-model';
 
 export type {
   EssenKatalog,

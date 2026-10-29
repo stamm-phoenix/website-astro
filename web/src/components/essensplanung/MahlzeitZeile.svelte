@@ -22,8 +22,15 @@
     letzte: boolean;
     /** Opens the dialog of planned dishes. */
     oneinplanen: (auftrag: Auftrag) => void;
+    /** Opens the dialog of the groups that eat at the meal. */
+    ongruppen: (mahlzeitId: number) => void;
   }
-  let { kontext, mahlzeit, bearbeiten, erste, letzte, oneinplanen }: Props = $props();
+  let { kontext, mahlzeit, bearbeiten, erste, letzte, oneinplanen, ongruppen }: Props = $props();
+  const ohne = $derived(
+    mahlzeit.ohneGruppen
+      .map((id) => kontext.ansicht.gruppen.find((g) => g.id === id)?.name ?? '')
+      .filter(Boolean)
+  );
   const gerichte = $derived(new Map(kontext.ansicht.gerichte.map((g) => [g.id, g.name])));
 
   let name = $state('');
@@ -228,6 +235,19 @@
   {:else}
     <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{mahlzeit.name}</span>
     {#if mahlzeit.uhrzeit}<span class="text-sm text-neutral-700">{mahlzeit.uhrzeit} Uhr</span>{/if}
+  {/if}
+  {#if ohne.length || bearbeiten}
+    <div class="flex basis-full flex-wrap items-center gap-x-3 pl-14 text-sm">
+      {#if ohne.length}<span class="text-neutral-700">ohne {ohne.join(', ')}</span>{/if}
+      {#if bearbeiten && kontext.ansicht.gruppen.length}
+        <button
+          type="button"
+          class="min-h-11 font-semibold text-link underline print:hidden"
+          onclick={() => ongruppen(mahlzeit.id)}
+          >Wer isst mit?<span class="sr-only"> bei {mahlzeit.kennung}</span></button
+        >
+      {/if}
+    </div>
   {/if}
   {#if mahlzeit.einplanungen.length || (bearbeiten && gerichte.size)}
     <div class="basis-full space-y-1 pl-14">

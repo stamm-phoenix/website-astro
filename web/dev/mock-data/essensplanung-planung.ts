@@ -27,7 +27,14 @@ import type {
 import type { Gericht } from '../../../api/lib/essen-gerichte-model';
 import type { EssenPlanungUebersicht } from '../../src/lib/types';
 import type { MockPlanungZutat } from './essensplanung-gerichte';
+import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilnehmende-model';
 import { essenKatalogStand } from './essensplanung';
+import {
+  gruppenAusVorlage,
+  pruefeAnwesenheit,
+  sortiereTeilnehmende,
+  verschiebeGrenzen,
+} from './essensplanung-teilnehmende';
 import { gerichteAnsicht } from './essensplanung-gerichte';
 
 /** Opens the demo Planung as its owner. */
@@ -60,6 +67,8 @@ interface MockMahlzeit {
   name: string;
   uhrzeit: string | null;
   einplanungen: MockEinplanung[];
+  /** The groups that do not eat at this meal. */
+  ohneGruppen: number[];
 }
 
 interface MockTag {
@@ -84,6 +93,8 @@ export interface MockPlanung {
   geaendert: string;
   zutaten: MockPlanungZutat[];
   gerichte: Gericht[];
+  gruppen: PlanungGruppe[];
+  teilnehmende: Teilnehmende[];
 }
 
 let nextId = 1;
@@ -122,11 +133,19 @@ function neuerTag(datum: string, vorlage: string[]): MockTag {
       name,
       uhrzeit: null,
       einplanungen: [],
+      ohneGruppen: [],
     })),
   };
 }
 
-function erstelle(input: AnlegenInput, token: string, vorlage: string[]): MockPlanung {
+type GruppenVorlage = { name: string; faktor: number }[];
+
+function erstelle(
+  input: AnlegenInput,
+  token: string,
+  vorlage: string[],
+  gruppen: GruppenVorlage
+): MockPlanung {
   const now = new Date().toISOString();
   const planung: MockPlanung = {
     id: nextId++,
@@ -143,6 +162,8 @@ function erstelle(input: AnlegenInput, token: string, vorlage: string[]): MockPl
     geaendert: now,
     zutaten: [],
     gerichte: [],
+    gruppen: gruppenAusVorlage(gruppen),
+    teilnehmende: [],
   };
   const tage = daysBetween(input.ersterTag, input.letzterTag) + 1;
   for (let index = 0; index < tage; index++) {
@@ -178,7 +199,14 @@ erstelle(
     letzterTag: '2027-08-04',
   },
   DEMO_TOKEN,
-  VORLAGE
+  VORLAGE,
+  [
+    { name: 'Wö', faktor: 0.7 },
+    { name: 'Jupfi', faktor: 0.8 },
+    { name: 'Pfadi', faktor: 1 },
+    { name: 'Rover', faktor: 1.2 },
+    { name: 'Leitende', faktor: 1.2 },
+  ]
 );
 
 export class MockPlanungFehler extends Error {
@@ -265,6 +293,8 @@ export function ansichtVon(
     loeschtAm: loeschDatum(letzter ?? planung.erstellt.slice(0, 10), monate),
     wartung,
     aenderungen: planung.aenderungen.slice(0, 30),
+    gruppen: planung.gruppen.slice().sort((a, b) => a.position - b.position),
+    teilnehmende: sortiereTeilnehmende(planung),
     ...gerichteAnsicht(planung),
   };
 }
@@ -304,15 +334,15 @@ export function aendere(
   });
 }
 
-function konflikt(): MockPlanungFehler {
+export function konflikt(): MockPlanungFehler {
   return new MockPlanungFehler(409, 'CONFLICT', 'Jemand anderes hat das gerade geändert.');
 }
 
-function nichtGefunden(): MockPlanungFehler {
+export function nichtGefunden(): MockPlanungFehler {
   return new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');
 }
 
-function feld(field: string, message: string): MockPlanungFehler {
+export function feld(field: string, message: string): MockPlanungFehler {
   return new MockPlanungFehler(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
     [field]: message,
   });
@@ -324,7 +354,7 @@ export function anfrage(input: AnlegenInput): string {
   return token;
 }
 
-export function bestaetige(token: unknown, vorlage: string[]): string {
+export function bestaetige(token: unknown, vorlage: string[], gruppen: GruppenVorlage): string {
   const eintrag = typeof token === 'string' ? anfragen.get(token) : undefined;
   if (!eintrag) {
     throw new MockPlanungFehler(
@@ -337,7 +367,7 @@ export function bestaetige(token: unknown, vorlage: string[]): string {
     throw new MockPlanungFehler(409, 'SCHON_ANGELEGT', 'Diese Planung ist schon angelegt.');
   }
   const besitzerToken = neuesMockToken();
-  eintrag.planungId = erstelle(eintrag, besitzerToken, vorlage).id;
+  eintrag.planungId = erstelle(eintrag, besitzerToken, vorlage, gruppen).id;
   return besitzerToken;
 }
 
@@ -537,9 +567,22 @@ export function tagAendern(
   }
   aendere(z, datum ? 'tag-geaendert' : 'tag-geloescht', { datum: datum ?? tag.datum }, () => {
     if (datum) {
+      const vorher = tag.datum;
       tag.datum = datum;
+      try {
+        pruefeAnwesenheit(z.planung);
+      } catch (error: unknown) {
+        tag.datum = vorher;
+        throw error;
+      }
       tag.etag = etag();
-    } else z.planung.tage.splice(z.planung.tage.indexOf(tag), 1);
+    } else {
+      verschiebeGrenzen(
+        z.planung,
+        tag.mahlzeiten.map((m) => m.id)
+      );
+      z.planung.tage.splice(z.planung.tage.indexOf(tag), 1);
+    }
   });
 }
 
@@ -568,6 +611,7 @@ export function mahlzeitHinzufuegen(
       position: tag.mahlzeiten.length + 1,
       ...input,
       einplanungen: [],
+      ohneGruppen: [],
     };
     tag.mahlzeiten.push(mahlzeit);
     if (position !== undefined) sortiere(tag, mahlzeit, position);
@@ -592,6 +636,7 @@ export function mahlzeitAendern(
   if ((input ? mahlzeit.etag : mahlzeitStandVon(mahlzeit)) !== ifMatch) throw konflikt();
   if (!input) {
     aendere(z, 'mahlzeit-geloescht', { name: mahlzeit.name, datum: tag.datum }, () => {
+      verschiebeGrenzen(z.planung, [mahlzeit.id]);
       tag.mahlzeiten.splice(tag.mahlzeiten.indexOf(mahlzeit), 1);
       tag.mahlzeiten
         .sort((a, b) => a.position - b.position)
@@ -600,10 +645,21 @@ export function mahlzeitAendern(
     return;
   }
   aendere(z, 'mahlzeit-geaendert', { name: input.name, datum: tag.datum }, () => {
+    if (input.position !== undefined) {
+      const vorher = new Map(
+        tag.mahlzeiten.map((m) => [m, { position: m.position, etag: m.etag }])
+      );
+      sortiere(tag, mahlzeit, input.position);
+      try {
+        pruefeAnwesenheit(z.planung);
+      } catch (error: unknown) {
+        for (const [m, alt] of vorher) Object.assign(m, alt);
+        throw error;
+      }
+    }
     mahlzeit.name = input.name;
     mahlzeit.uhrzeit = input.uhrzeit;
     mahlzeit.etag = etag();
-    if (input.position !== undefined) sortiere(tag, mahlzeit, input.position);
   });
 }
 

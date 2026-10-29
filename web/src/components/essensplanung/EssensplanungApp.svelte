@@ -6,6 +6,7 @@
   import type { PlanungAnsicht } from '../../lib/types';
   import PlanTage from './PlanTage.svelte';
   import PlanGerichte from './PlanGerichte.svelte';
+  import PlanTeilnehmende from './PlanTeilnehmende.svelte';
   import PlanMitglieder from './PlanMitglieder.svelte';
   import PlanEinstellungen from './PlanEinstellungen.svelte';
   import PlanAenderungen from './PlanAenderungen.svelte';
@@ -31,12 +32,15 @@
   let busy = $state(false);
   let meldung = $state<string | null>(null);
   let meldungArt = $state<'success' | 'error'>('success');
-  let bereich = $state<'plan' | 'gerichte' | 'mitglieder' | 'einstellungen'>('plan');
+  let bereich = $state<'plan' | 'gerichte' | 'teilnehmende' | 'mitglieder' | 'einstellungen'>(
+    'plan'
+  );
   let offline = $state(false);
 
   const bereiche = $derived([
     { id: 'plan', label: 'Plan' },
     { id: 'gerichte', label: 'Gerichte' },
+    { id: 'teilnehmende', label: 'Teilnehmende' },
     ...(ansicht && ansicht.zugang !== 'lesen' ? [{ id: 'mitglieder', label: 'Mitglieder' }] : []),
     ...(ansicht && ansicht.zugang !== 'lesen'
       ? [{ id: 'einstellungen', label: 'Einstellungen' }]
@@ -125,11 +129,14 @@
       if (error instanceof ApiError && error.code === 'LINK_UNGUELTIG') ungueltig = true;
       if (!ungueltig && error instanceof ApiError && [404, 409].includes(error.status))
         await laden();
+      // A move that would let participants end before they start says which ones
+      const anwesenheit = error instanceof ApiError ? error.fields?.anwesenheit : undefined;
       hinweis(
-        errorMessage(
-          error,
-          'Das hat nicht geklappt. Prüfe deine Internetverbindung und versuche es noch einmal.'
-        ),
+        anwesenheit ??
+          errorMessage(
+            error,
+            'Das hat nicht geklappt. Prüfe deine Internetverbindung und versuche es noch einmal.'
+          ),
         'error'
       );
       return false;
@@ -307,6 +314,14 @@
       hidden={bereich !== 'gerichte'}
     >
       <PlanGerichte {kontext} sichtbar={bereich === 'gerichte'} />
+    </div>
+    <div
+      role="tabpanel"
+      id="bereich-panel-teilnehmende"
+      aria-labelledby="bereich-teilnehmende"
+      hidden={bereich !== 'teilnehmende'}
+    >
+      <PlanTeilnehmende {kontext} sichtbar={bereich === 'teilnehmende'} />
     </div>
     {#if ansicht.zugang !== 'lesen'}
       <div

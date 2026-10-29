@@ -132,6 +132,8 @@ test('an incomplete or old link explains how to get a new one', async ({ page })
 });
 
 test('input survives changes of others and saves in turn', async ({ page, browser }) => {
+  // Two windows and five rounds of polling: about 25 s alone, more on a busy runner
+  test.slow();
   await anlegen(page, 'E2E Entwurf');
   const link = page.url();
   const anderes = await (await browser.newContext()).newPage();
@@ -373,6 +375,8 @@ test('a replaced link keeps the input; drafts ask before leaving; arrow keys swi
   await page.getByRole('tab', { name: 'Plan' }).focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Gerichte' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Teilnehmende' })).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Mitglieder' })).toBeFocused();
   await expect(page.getByRole('tab', { name: 'Mitglieder' })).toHaveAttribute(

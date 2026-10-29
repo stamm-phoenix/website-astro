@@ -48,6 +48,16 @@ import {
 } from '../lib/essen-planung-validation';
 import { einplanen, einplanungAendern, einplanungLoeschen } from '../lib/essen-einplanung';
 import {
+  gruppeAendern,
+  gruppeAnlegen,
+  gruppeLoeschen,
+  mahlzeitGruppeSetzen,
+  teilnehmendeAendern,
+  teilnehmendeAnlegen,
+  teilnehmendeLoeschen,
+} from '../lib/essen-teilnehmende';
+import { validateGruppe, validateTeilnehmende } from '../lib/essen-teilnehmende-validation';
+import {
   eigeneZutatAnlegen,
   gerichtAendern,
   gerichtAnlegen,
@@ -587,5 +597,62 @@ export const EssensplanungEinplanung = planungHandler(async (request) => {
     readEtag(body, request),
     readPosition(body?.position)
   );
+  return ok(await ladeAnsicht(zugang));
+});
+
+/** POST `{ name, faktor }`: adds a group. */
+export const EssensplanungGruppen = planungHandler(async (request) => {
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  await gruppeAnlegen(zugang, validateGruppe(await readJsonBody(request)));
+  return ok(await ladeAnsicht(zugang), 201);
+});
+
+/** PATCH `{ etag, name, faktor }`: changes a group. DELETE (If-Match): only without participants. */
+export const EssensplanungGruppe = planungHandler(async (request) => {
+  const zugang = await zugangVon(request);
+  const id = readId(request);
+  if (request.method === 'DELETE') {
+    await gruppeLoeschen(zugang, id, readEtag(null, request));
+    return ok(await ladeAnsicht(zugang));
+  }
+  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+  const body = await readJsonBody(request);
+  await gruppeAendern(zugang, id, validateGruppe(body), readEtag(body, request));
+  return ok(await ladeAnsicht(zugang));
+});
+
+/** POST `{ gruppeId, ernaehrung, anzahl, unvertraeglichkeiten, vonMahlzeitId, bisMahlzeitId, hinweis }`. */
+export const EssensplanungTeilnehmendeListe = planungHandler(async (request) => {
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  await teilnehmendeAnlegen(zugang, validateTeilnehmende(await readJsonBody(request)));
+  return ok(await ladeAnsicht(zugang), 201);
+});
+
+/** PATCH `{ etag, …the whole row }`: changes a row of participants. DELETE (If-Match). */
+export const EssensplanungTeilnehmende = planungHandler(async (request) => {
+  const zugang = await zugangVon(request);
+  const id = readId(request);
+  if (request.method === 'DELETE') {
+    await teilnehmendeLoeschen(zugang, id, readEtag(null, request));
+    return ok(await ladeAnsicht(zugang));
+  }
+  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+  const body = await readJsonBody(request);
+  await teilnehmendeAendern(zugang, id, validateTeilnehmende(body), readEtag(body, request));
+  return ok(await ladeAnsicht(zugang));
+});
+
+/** PUT `{ gruppeId, isst }`: whether a group eats at the meal. */
+export const EssensplanungMahlzeitGruppe = planungHandler(async (request) => {
+  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  const body = await readJsonBody(request);
+  const gruppeId =
+    typeof body?.gruppeId === 'number' && Number.isInteger(body.gruppeId) ? body.gruppeId : 0;
+  if (gruppeId <= 0 || typeof body?.isst !== 'boolean')
+    throw new ValidationError({ gruppeId: 'Bitte eine Gruppe wählen.' });
+  await mahlzeitGruppeSetzen(zugang, readId(request), gruppeId, body.isst);
   return ok(await ladeAnsicht(zugang));
 });
