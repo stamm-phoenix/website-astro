@@ -16,6 +16,8 @@
     /** What failed, with what to do next, e.g. „Das PDF der Belege konnte nicht …“. */
     errorText?: string;
     disabled?: boolean;
+    /** The page already knows that there is no connection right now. */
+    offline?: boolean;
     /** The accessible name when several of these buttons are on one page. */
     label?: string;
     /** Shows the result elsewhere instead of in the own popup. */
@@ -27,6 +29,7 @@
     text = 'PDF herunterladen',
     errorText = `Das PDF konnte nicht erstellt werden. Es wurde nichts geändert. Tippe noch einmal auf „${text}“.`,
     disabled = false,
+    offline = false,
     label,
     onresult,
     class: className = '',
@@ -48,7 +51,13 @@
       await download();
       show('success', 'PDF heruntergeladen.');
     } catch (failure: unknown) {
-      show('error', errorMessage(failure, errorText));
+      // Without a connection the module of the PDF itself cannot be loaded
+      show(
+        'error',
+        offline || !navigator.onLine
+          ? 'Das PDF geht nur mit Internetverbindung. Versuch es noch einmal, sobald du wieder Empfang hast.'
+          : errorMessage(failure, errorText)
+      );
     } finally {
       exporting = false;
     }

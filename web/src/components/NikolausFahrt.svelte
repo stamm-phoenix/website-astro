@@ -6,7 +6,7 @@
   import { navigationLink } from '../lib/nikolausMaps';
   import FahrtStop from './nikolaus/FahrtStop.svelte';
   import FahrtOfflinePanel from './nikolaus/FahrtOfflinePanel.svelte';
-  import PdfButton from './nikolaus/PdfButton.svelte';
+  import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
 
   import LoadState from './ui/LoadState.svelte';
@@ -351,12 +351,12 @@
               </p>
             {/if}
             {#if stops.length > 0}
-              <PdfButton
+              <PdfDownloadButton
                 class="mt-2"
-                create={createPdf}
+                download={createPdf}
                 {offline}
                 errorText="Das PDF der Route konnte nicht erstellt werden. Versuch es noch einmal; die Route hier bleibt nutzbar."
-                onresult={(result) => (notice = result)}
+                onresult={(kind, text) => (notice = { kind, text })}
               />
             {/if}
             {#if stops.length > 0}
