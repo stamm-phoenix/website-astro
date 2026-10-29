@@ -183,6 +183,18 @@ test('amounts typed to tick off a dish stay through maintenance', async ({ page 
   await page.getByRole('button', { name: 'Eingaben verwerfen' }).click();
   await expect(verbrauch).not.toHaveValue('0,3');
   await expect(page.getByRole('button', { name: 'Eingaben verwerfen' })).toBeHidden();
+  const geplant = await verbrauch.inputValue();
+
+  // Leaving the page and discarding gives the amounts up; coming back shows what is planned
+  await verbrauch.fill('0,3');
+  await page.getByRole('link', { name: 'Impressum' }).first().click();
+  const frage = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await frage.getByRole('button', { name: 'Änderungen verwerfen' }).click();
+  await expect(page).toHaveURL(/impressum/);
+  // Back within the page's router, which keeps the scripts loaded
+  await page.goBack();
+  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  await expect(verbrauch).toHaveValue(geplant);
 });
 
 test('ticking off after someone else did keeps the amounts and saves them on the second try', async ({
