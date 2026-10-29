@@ -409,11 +409,27 @@ export function mergeOffeneAufgaben(
   return [...kept, ...added].slice(0, MAX_OFFENE_AUFGABEN);
 }
 
-/** Content of new minutes with the standard agenda; `nextId` creates unique IDs. */
+/**
+ * Data of other modules that new minutes start with. `texte` maps the title of an agenda item
+ * or sub-item („Wölflinge“, „Planung“) to its text; `naechsteSitzung` presets the time and place
+ * of the next meeting (not the date, which only the writer knows).
+ */
+export interface Vorbelegung {
+  texte: Record<string, string>;
+  naechsteSitzung: Pick<ProtokollNaechsteSitzung, 'uhrzeit' | 'ort'>;
+}
+
+/**
+ * Content of new minutes with the standard agenda; `nextId` creates unique IDs. `vorbelegung`
+ * (see `protokoll-vorbelegung.ts`) fills items and sub-items with the same title.
+ */
 export function neuerInhalt(
   nextId: () => string,
-  kopf: Partial<ProtokollKopf> = {}
+  kopf: Partial<ProtokollKopf> = {},
+  vorbelegung: Partial<Vorbelegung> = {}
 ): ProtokollInhalt {
+  const texte = vorbelegung.texte ?? {};
+  const text = (titel: string): string => (Object.hasOwn(texte, titel) ? texte[titel] : '');
   return {
     kopf: {
       sitzungsleitung: [],
@@ -426,9 +442,13 @@ export function neuerInhalt(
     },
     punkte: STANDARD_PUNKTE.map((punkt) => ({
       ...neuerPunkt(nextId(), punkt.titel),
-      unterpunkte: punkt.unterpunkte.map((titel) => neuerPunkt(nextId(), titel)),
+      text: text(punkt.titel),
+      unterpunkte: punkt.unterpunkte.map((titel) => ({
+        ...neuerPunkt(nextId(), titel),
+        text: text(titel),
+      })),
     })),
-    naechsteSitzung: { datum: '', uhrzeit: '', ort: '' },
+    naechsteSitzung: { datum: '', uhrzeit: '', ort: '', ...vorbelegung.naechsteSitzung },
   };
 }
 
