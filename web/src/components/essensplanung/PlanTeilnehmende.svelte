@@ -9,6 +9,7 @@
   import type { EssenKatalog, PlanungGruppe, Teilnehmende } from '../../lib/types';
   import GruppeDialog from './GruppeDialog.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
+  import QuerScroll from '../ui/QuerScroll.svelte';
   import TeilnehmendeDialog from './TeilnehmendeDialog.svelte';
   import type { PlanKontext } from './planKontext';
 
@@ -200,13 +201,10 @@
       </h3>
       <PdfKnopf {kontext} label="Esser je Mahlzeit als PDF" erstellen={esserPdf} />
     </div>
-    {#if ansicht.tage.length > 1}
-      <p class="text-sm text-neutral-700 sm:hidden print:hidden">
-        Weitere Tage siehst du, wenn du seitlich wischst.
-      </p>
-    {/if}
-    <!-- A calendar: the days next to each other, their meals below each other -->
-    <div class="overflow-x-auto pb-2">
+    <QuerScroll
+      label="Esser je Mahlzeit"
+      hinweis="Weitere Tage siehst du, wenn du seitlich wischst oder scrollst."
+    >
       <ol class="flex gap-3" aria-labelledby="esser-heading">
         {#each ansicht.tage as tag (tag.id)}
           <li class="w-44 shrink-0 space-y-2 sm:w-auto sm:min-w-40 sm:flex-1">
@@ -245,7 +243,7 @@
           </li>
         {/each}
       </ol>
-    </div>
+    </QuerScroll>
   </section>
 
   <section aria-labelledby="gruppen-heading" class="space-y-3">
