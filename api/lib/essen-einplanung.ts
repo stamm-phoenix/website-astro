@@ -46,7 +46,6 @@ export async function ladeEinplanungen(
   db: Db,
   planungId: number
 ): Promise<Map<number, Einplanung[]>> {
-  const verbrauch = await ladeVerbrauch(db, planungId);
   const rows = await db
     .selectFrom('essen.einplanung as e')
     .innerJoin('essen.gericht as g', 'g.id', 'e.gericht_id')
@@ -65,6 +64,9 @@ export async function ladeEinplanungen(
     ])
     .where('g.planung_id', '=', planungId)
     .execute();
+  // Read after the versions: a save in between leaves an old version with new amounts, which a
+  // save on it refuses, never new versions with old amounts
+  const verbrauch = await ladeVerbrauch(db, planungId);
   const jeMahlzeit = new Map<number, Einplanung[]>();
   for (const row of rows) {
     const liste = jeMahlzeit.get(row.mahlzeit_id) ?? [];

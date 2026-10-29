@@ -216,17 +216,30 @@ test('ticking off after someone else did keeps the amounts and saves them on the
   await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
   await expect(verbrauch).toHaveValue('0,3');
 
-  // Typed amounts of a dish someone else takes off the meal are shown to copy
+  // Typed amounts move along when someone else moves the dish to another meal
   await verbrauch.fill('0,4');
-  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
   const zweites = await (await browser.newContext()).newPage();
   await zweites.goto(page.url());
   await zweites
     .getByRole('list', { name: 'Gerichte bei 1_2' })
-    .getByRole('button', { name: 'Nudeln aus 1_2 entfernen' })
+    .getByRole('button', { name: 'Nudeln bei 1_2 ändern' })
     .click();
-  await answerConfirm(zweites, 'Nudeln aus 1_2 nehmen?', 'Entfernen');
-  await expect(zweites.getByRole('list', { name: 'Gerichte bei 1_2' })).toHaveCount(0);
+  await zweites
+    .getByRole('dialog')
+    .getByLabel('Mahlzeit', { exact: true })
+    .selectOption({ label: '1_4 Abendessen' });
+  await zweites.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click();
+  await expect(zweites.getByRole('list', { name: 'Gerichte bei 1_4' })).toContainText('Nudeln');
+  const verschoben = page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_4_1');
+  await expect(verschoben).toHaveValue('0,4', { timeout: 15_000 });
+
+  // Typed amounts of a dish someone else takes off the meal are shown to copy
+  await zweites
+    .getByRole('list', { name: 'Gerichte bei 1_4' })
+    .getByRole('button', { name: 'Nudeln aus 1_4 entfernen' })
+    .click();
+  await answerConfirm(zweites, 'Nudeln aus 1_4 nehmen?', 'Entfernen');
+  await expect(zweites.getByRole('list', { name: 'Gerichte bei 1_4' })).toHaveCount(0);
   await zweites.context().close();
   await expect(page.getByText(/dein Verbrauch: Nudeln \(Spaghetti\) 0,4 g\)/).first()).toBeVisible({
     timeout: 15_000,
