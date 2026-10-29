@@ -9,7 +9,14 @@
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { EINHEITENART_LABELS } from '../../lib/essensplanungSteuerung';
-  import { leseMenge, mengeFeld, zutatVorschlaege } from '../../lib/essensplanungGerichte';
+  import {
+    getippteZutat,
+    leseMenge,
+    mengeFeld,
+    zutatVorschlaege,
+    zutatWahl,
+    type ZutatWahl,
+  } from '../../lib/essensplanungGerichte';
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type {
     EssenEinheitenart,
@@ -39,8 +46,7 @@
   let { kontext, katalog, gericht, zeile, open, onclose }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
 
-  type Auswahl = { art: 'zentral' | 'planung'; id: number };
-  let auswahl = $state<Auswahl | null>(null);
+  let auswahl = $state<ZutatWahl | null>(null);
   let zutatText = $state('');
   let menge = $state('');
   let einheit = $state<GerichtEinheit>('g');
@@ -181,20 +187,17 @@
   }
 
   function nimm(option: Vorschlag): void {
-    const [art, id] = (option.key ?? '').split(':');
-    auswahl = { art: art === 'p' ? 'planung' : 'zentral', id: Number(id) };
+    auswahl = zutatWahl(option);
     eigene = null;
     geaendert = true;
     // An explicit choice: a unit that fits it, e.g. kg instead of ml after picking flour
     passendeEinheit();
   }
 
-  /** A typed name of the list counts as chosen; the text stays as typed (Ol is not Öl). */
+  /** A typed name of the list counts as chosen; the text stays as typed. */
   function getippt(text: string): void {
     geaendert = true;
-    const treffer = vorschlaege.find(
-      (option) => option.value.localeCompare(text.trim(), 'de', { sensitivity: 'accent' }) === 0
-    );
+    const treffer = getippteZutat(vorschlaege, text);
     if (treffer) nimm(treffer);
     else auswahl = null;
   }

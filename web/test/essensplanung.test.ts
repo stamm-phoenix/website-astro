@@ -7,7 +7,13 @@ import {
   planungUrl,
   tokenAusHash,
 } from '../src/lib/essensplanung.ts';
-import { fuerText, leseMenge, mengeFeld } from '../src/lib/essensplanungGerichte.ts';
+import {
+  fuerText,
+  getippteZutat,
+  leseMenge,
+  mengeFeld,
+  zutatWahl,
+} from '../src/lib/essensplanungGerichte.ts';
 import { mengeText } from '../../api/lib/essen-gerichte-model.ts';
 import { leseFaktor, mahlzeitStand, tagStand } from '../../api/lib/essen-planung-model.ts';
 import { faktorFeld, faktorText } from '../src/lib/essensplanungEinplanung.ts';
@@ -151,4 +157,15 @@ test('planned dishes read with factor, place and the delete versions', () => {
     tagStand({ id: 1, etag: '"0000000000000009"', datum: '', nummer: 1, mahlzeiten: [mahlzeit] }),
     '"0000000000000009"'
   );
+});
+
+test('a typed name of the list is that ingredient, umlauts count', () => {
+  const vorschlaege = [
+    { key: 'p:7', value: 'Öl' },
+    { key: 'z:3', value: 'Oliven' },
+  ];
+  assert.equal(getippteZutat(vorschlaege, 'Ol'), undefined);
+  assert.equal(getippteZutat(vorschlaege, ' öl ')?.key, 'p:7');
+  assert.deepEqual(zutatWahl(getippteZutat(vorschlaege, 'oliven')!), { art: 'zentral', id: 3 });
+  assert.deepEqual(zutatWahl(vorschlaege[0]), { art: 'planung', id: 7 });
 });
