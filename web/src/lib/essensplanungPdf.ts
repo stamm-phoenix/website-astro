@@ -67,13 +67,20 @@ function platzFuer(doc: JsPdf, y: number, platz: number): number {
 
 /** A heading in the brand colour; returns where the text below starts. */
 function ueberschrift(doc: JsPdf, text: string, y: number, groesse: number): number {
-  const top = platzFuer(doc, y, groesse * 0.5 + 12);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(groesse);
   doc.setTextColor(...BRAND);
-  const zeilen = doc.splitTextToSize(text, doc.internal.pageSize.getWidth() - 2 * MARGIN);
-  doc.text(zeilen, MARGIN, top + groesse * 0.35);
-  return top + zeilen.length * groesse * 0.45 + 2;
+  const zeilen: string[] = doc.splitTextToSize(text, doc.internal.pageSize.getWidth() - 2 * MARGIN);
+  const hoehe = groesse * 0.45;
+  // The first line keeps some room below it, so a heading never ends a page alone; each further
+  // line checks the room again, so a long heading goes on over the next page
+  let top = platzFuer(doc, y, hoehe + 12);
+  zeilen.forEach((zeile, index) => {
+    if (index > 0) top = platzFuer(doc, top, hoehe);
+    doc.text(zeile, MARGIN, top + groesse * 0.35);
+    top += hoehe;
+  });
+  return top + 2;
 }
 
 /** Grey text, wrapped; returns where the next line starts. */
