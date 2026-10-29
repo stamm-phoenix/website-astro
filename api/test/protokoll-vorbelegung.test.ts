@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Aktion } from '../lib/aktionen-list';
 import { neuerInhalt } from '../lib/protokoll-editor-model';
-import { aktionenTexte, naechsteSitzungAus, stufenberichte } from '../lib/protokoll-vorbelegung';
+import {
+  aktionenTexte,
+  naechsteSitzungAus,
+  stufenberichte,
+  zeitfenster,
+} from '../lib/protokoll-vorbelegung';
 import type { BerichtGruppenstunde } from '../lib/protokoll-vorbelegung';
 
 function stunde(extra: Partial<BerichtGruppenstunde>): BerichtGruppenstunde {
@@ -87,4 +92,18 @@ test('the next meeting presets time and place of the previous minutes, not the d
     ['Jungpfadfinder', ''],
   ]);
   assert.equal(inhalt.punkte[2].text, 'Anstehende Aktionen:');
+});
+
+test('Gruppenstunden reach back at most 60 days, Aktionen back to the previous minutes', () => {
+  assert.deepEqual(zeitfenster('2026-10-29', '2026-08-01'), {
+    gruppenstunden: '2026-08-30',
+    aktionen: '2026-08-01',
+    bis: '2027-01-27',
+  });
+  assert.equal(zeitfenster('2026-10-29', '2026-10-01').gruppenstunden, '2026-10-01');
+  assert.deepEqual(zeitfenster('2026-10-29', undefined), {
+    gruppenstunden: '2026-08-30',
+    aktionen: '2026-08-30',
+    bis: '2027-01-27',
+  });
 });
