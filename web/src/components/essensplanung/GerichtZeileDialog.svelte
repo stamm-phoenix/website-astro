@@ -236,6 +236,21 @@
     if (jetzt) zeileEtag = jetzt.etag;
   }
 
+  // The dish or the line is deleted by someone else while the dialog is open: the dialog goes,
+  // so the input is shown to copy
+  $effect(() => () => {
+    if (!geaendert) return;
+    const eingabe = [
+      zutatText.trim(),
+      menge.trim() && `${menge.trim()} ${EINHEIT_TEXT[einheit]}`,
+      hinweis.trim(),
+    ]
+      .filter(Boolean)
+      .join(', ');
+    const text = `Die Zutat konnte nicht mehr gespeichert werden, das Gericht wurde gelöscht. Deine Eingabe: ${eingabe}`;
+    setTimeout(() => kontext.hinweis(text, 'error'));
+  });
+
   /** Closing with unsaved input asks first; not while saving. */
   async function schliessen(): Promise<void> {
     if (kontext.busy) return;
