@@ -17,6 +17,8 @@ export interface PlanKontext {
     work: () => Promise<PlanungAnsicht | { ansicht: PlanungAnsicht } | undefined>,
     erfolg?: string
   ): Promise<boolean>;
+  /** The message of the last failed change, for dialogs that cover the page's own notice. */
+  readonly fehler: string | null;
   hinweis(text: string | null, art?: 'success' | 'error'): void;
   zeige(ansicht: PlanungAnsicht): void;
 }

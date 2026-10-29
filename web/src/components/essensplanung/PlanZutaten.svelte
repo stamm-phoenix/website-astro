@@ -34,6 +34,8 @@
     allergene: [] as number[],
   });
   let felder = $state<Record<string, string>>({});
+  /** Why the last save failed, shown in the dialog, which covers the page's notice. */
+  let fehler = $state<string | null>(null);
   let geaendert = $state(false);
   $effect(() => guardUnsavedChanges(() => auswahl !== null && geaendert));
 
@@ -43,6 +45,7 @@
   function oeffne(zutat: PlanungZutat): void {
     formEtag = zutat.etag;
     felder = {};
+    fehler = null;
     geaendert = false;
     const zentral = zutat.zutatId !== null;
     form = {
@@ -85,6 +88,8 @@
     const zutat = auswahl;
     if (!zutat) return;
     felder = {};
+    fehler = null;
+    let abgelehnt: unknown = null;
     const eigene = zutat.zutatId === null;
     // The version the form was opened with: a change of others meanwhile is a conflict
     const etag = formEtag;
@@ -103,6 +108,7 @@
       try {
         return await kontext.api.senden('PATCH', `/zutaten/${zutat.id}`, body);
       } catch (error: unknown) {
+        abgelehnt = error;
         if (error instanceof ApiError && error.fields) felder = error.fields;
         throw error;
       }
@@ -112,9 +118,11 @@
       auswahl = null;
       return;
     }
-    // The page told about the conflict; saving again takes the input over what is saved now
+    if (!Object.keys(felder).length) fehler = kontext.fehler;
+    // Only after a conflict does saving again take the input over what is saved now; another
+    // error keeps the version, so a change of others meanwhile stays a conflict
     const jetzt = untrack(() => ansicht.zutaten.find((z) => z.id === zutat.id));
-    if (jetzt) formEtag = jetzt.etag;
+    if (jetzt && abgelehnt instanceof ApiError && abgelehnt.status === 409) formEtag = jetzt.etag;
   }
 
   /** Closing with unsaved input asks first; not while saving. */
@@ -210,6 +218,7 @@
     >
       <!-- Disabled while saving, so nothing typed meanwhile gets lost -->
       <fieldset class="min-w-0 space-y-4" disabled={speichert}>
+        {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
         {#if auswahl.zutatId === null}
           <FormField id="pz-name" label="Name" error={felder.name}>
             {#snippet children(attrs)}

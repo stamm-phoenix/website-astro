@@ -52,6 +52,8 @@
   /** Per intolerance: '' for everyone, 'ohne' (not for) or 'nur' (only for). */
   let unvertraeglich = $state<Record<number, '' | 'ohne' | 'nur'>>({});
   let felder = $state<Record<string, string>>({});
+  /** Why the last save failed, shown in the dialog, which covers the page's notice. */
+  let fehler = $state<string | null>(null);
   /** A new ingredient of the Planung's own, for a name that is not in the list. */
   let eigene = $state<{
     kategorieId: number | null;
@@ -73,6 +75,7 @@
   function fuelle(): void {
     zeileEtag = zeile?.etag ?? '';
     felder = {};
+    fehler = null;
     eigene = null;
     geaendert = false;
     const z = zeile;
@@ -178,6 +181,7 @@
 
   async function speichereFormular(): Promise<void> {
     felder = {};
+    fehler = null;
     const zahl = leseMenge(menge);
     if (Number.isNaN(zahl)) felder.menge = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
     if (!auswahl && !eigene) felder.zutat = 'Bitte eine Zutat aus der Liste wählen.';
@@ -212,11 +216,15 @@
           throw error;
         }
       });
-      if (!angelegt) return;
+      if (!angelegt) {
+        if (!Object.keys(felder).length) fehler = kontext.fehler;
+        return;
+      }
       ziel = { art: 'planung', id };
       auswahl = ziel;
       eigene = null;
     }
+    let abgelehnt: unknown = null;
     const body = {
       ...(ziel!.art === 'planung' ? { planungZutatId: ziel!.id } : { zutatId: ziel!.id }),
       menge: zahl,
@@ -245,6 +253,7 @@
               })
             : await kontext.api.senden('POST', `/gerichte/${gericht.id}/zutaten`, body);
         } catch (error: unknown) {
+          abgelehnt = error;
           if (error instanceof ApiError && error.fields) felder = error.fields;
           throw error;
         }
@@ -256,11 +265,13 @@
       onclose();
       return;
     }
-    // The page told about the conflict; saving again takes the input over what is saved now
+    if (!Object.keys(felder).length) fehler = kontext.fehler;
+    // Only after a conflict does saving again take the input over what is saved now; another
+    // error keeps the version, so a change of others meanwhile stays a conflict
     const jetzt = zeile
       ? ansicht.gerichte.flatMap((g) => g.zutaten).find((z) => z.id === zeile!.id)
       : null;
-    if (jetzt) zeileEtag = jetzt.etag;
+    if (jetzt && abgelehnt instanceof ApiError && abgelehnt.status === 409) zeileEtag = jetzt.etag;
   }
 
   // The dish or the line is deleted by someone else while the dialog is open: the dialog goes,
@@ -308,6 +319,7 @@
   >
     <!-- Disabled while saving, so nothing typed meanwhile gets lost -->
     <fieldset class="min-w-0 space-y-4" disabled={speichert}>
+      {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
       <FormField id="zeile-zutat" label="Zutat" error={felder.zutat}>
         {#snippet children(attrs)}
           <VorschlagFeld

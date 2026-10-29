@@ -32,6 +32,8 @@
   let zustaendig = $state('');
   let zustaendigText = $state('');
   let felder = $state<Record<string, string>>({});
+  /** Why the last save failed, shown in the dialog, which covers the page's notice. */
+  let fehler = $state<string | null>(null);
   let geaendert = $state(false);
   $effect(() => guardUnsavedChanges(() => auftrag !== null && geaendert));
 
@@ -48,6 +50,7 @@
 
   function fuelle(neu: Auftrag): void {
     felder = {};
+    fehler = null;
     geaendert = false;
     mahlzeitId = neu.mahlzeitId;
     const platz = neu.einplanungId === null ? undefined : platzVon(ansicht, neu.einplanungId);
@@ -111,8 +114,10 @@
 
   async function speichereFormular(jetzt: Auftrag): Promise<void> {
     felder = {};
+    fehler = null;
     const zahl = leseFaktor(faktor);
-    if (!(zahl > 0 && zahl <= MAX_FAKTOR))
+    // As the API checks it: three decimals at most
+    if (!(zahl > 0 && zahl <= MAX_FAKTOR) || Math.abs(Math.round(zahl * 1000) - zahl * 1000) > 1e-6)
       felder.faktor = `Bitte eine Zahl größer als 0 und bis ${MAX_FAKTOR} eintragen, z. B. 0,5.`;
     if (gerichtId === null) felder.gerichtId = 'Bitte ein Gericht wählen.';
     if (mahlzeitId === null) felder.mahlzeitId = 'Bitte eine Mahlzeit wählen.';
@@ -125,6 +130,7 @@
       zustaendigText: zustaendig === 'frei' ? zustaendigText : '',
     };
     const name = ansicht.gerichte.find((g) => g.id === gerichtId)?.name ?? 'Gericht';
+    let abgelehnt: unknown = null;
     // A planned dish is changed with the version the form started from: a change of others
     // meanwhile is a conflict, a deletion stays one (never a new one)
     const ok = await kontext.aendern(
@@ -137,6 +143,7 @@
               })
             : await kontext.api.senden('POST', '/einplanungen', body);
         } catch (error: unknown) {
+          abgelehnt = error;
           if (error instanceof ApiError && error.fields) felder = error.fields;
           throw error;
         }
@@ -152,9 +159,12 @@
       onclose();
       return;
     }
-    // The page told about the conflict; saving again takes the input over what is saved now
+    if (!Object.keys(felder).length) fehler = kontext.fehler;
+    // Only after a conflict does saving again take the input over what is saved now; another
+    // error keeps the version, so a change of others meanwhile stays a conflict
     const aktuell = start ? platzVon(ansicht, start.id) : undefined;
-    if (aktuell && start) start = { ...start, etag: aktuell.einplanung.etag };
+    if (aktuell && start && abgelehnt instanceof ApiError && abgelehnt.status === 409)
+      start = { ...start, etag: aktuell.einplanung.etag };
   }
 
   /** Closing with unsaved input asks first; not while saving. */
@@ -188,6 +198,7 @@
   >
     <!-- Disabled while saving, so nothing typed meanwhile gets lost -->
     <fieldset class="min-w-0 space-y-4" disabled={speichert}>
+      {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
       {#if auftrag?.modus === 'neu'}
         <FormField id="einplanung-gericht" label="Gericht" error={felder.gerichtId}>
           {#snippet children(attrs)}
