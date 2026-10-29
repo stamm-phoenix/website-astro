@@ -146,7 +146,8 @@ export async function ladeGerichte(
           ) x)`.as('allergen_ids'),
         sql<number>`(select count(*) from essen.gericht_zutat gz where gz.planung_zutat_id = pz.id)
           + (select count(*) from essen.bestand b where b.planung_zutat_id = pz.id)
-          + (select count(*) from essen.zusatzbedarf zb where zb.planung_zutat_id = pz.id)`.as(
+          + (select count(*) from essen.zusatzbedarf zb where zb.planung_zutat_id = pz.id)
+          + (select count(*) from essen.einplanung_verbrauch ev where ev.planung_zutat_id = pz.id)`.as(
           'zeilen'
         ),
         'pz.geschaeft_id',
@@ -394,7 +395,7 @@ export async function planungZutatAendern(
 }
 
 async function pruefeEinheitenart(trx: Db, planungZutatId: number, art: EssenEinheitenart) {
-  const [zeilen, bestand, zusatzbedarf] = await Promise.all([
+  const [zeilen, bestand, zusatzbedarf, verbrauch] = await Promise.all([
     trx
       .selectFrom('essen.gericht_zutat')
       .select('einheit')
@@ -411,11 +412,20 @@ async function pruefeEinheitenart(trx: Db, planungZutatId: number, art: EssenEin
       .select('einheit')
       .where('planung_zutat_id', '=', planungZutatId)
       .execute(),
+    trx
+      .selectFrom('essen.einplanung_verbrauch')
+      .select('einheit')
+      .where('planung_zutat_id', '=', planungZutatId)
+      .execute(),
   ]);
-  if ([...zeilen, ...bestand, ...zusatzbedarf].some((zeile) => !einheitPasst(art, zeile.einheit))) {
+  if (
+    [...zeilen, ...bestand, ...zusatzbedarf, ...verbrauch].some(
+      (zeile) => !einheitPasst(art, zeile.einheit)
+    )
+  ) {
     throw new ValidationError({
       einheitenart:
-        'Gerichte, Bestand oder Zusatzbedarf nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.',
+        'Gerichte, Bestand, Zusatzbedarf oder abgehakter Verbrauch nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.',
     });
   }
 }

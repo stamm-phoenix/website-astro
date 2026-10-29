@@ -2,6 +2,7 @@ import type { Gericht, PlanungZutat } from './essen-gerichte-model';
 import type { z } from 'zod';
 import type { EinkaufPosten, ZusatzPosten, Geschaeft } from './essen-einkauf-model';
 import type { PacklisteEintrag } from './essen-packliste-model';
+import type { EinplanungStatus, Verbrauch } from './essen-kochen-model';
 import type { PlanungGruppe, Teilnehmende } from './essen-teilnehmende-model';
 import { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor } from './essen-planung-faktor';
 import { MAX_TAGE, addDays, daysBetween, loeschDatum, readDatum } from './essen-planung-datum';
@@ -65,6 +66,10 @@ export interface Einplanung {
   zustaendigId: number | null;
   /** The shown name of who is responsible: the member's or a free one; empty for nobody. */
   zustaendig: string;
+  /** Whether it is still needed, was cooked or left out. */
+  status: EinplanungStatus;
+  /** What it used when cooked; empty otherwise. */
+  verbrauch: Verbrauch[];
 }
 
 export interface PlanungMahlzeit {
@@ -254,6 +259,7 @@ export const AENDERUNG_TEXTE: Record<string, string> = {
   'zutat-geloescht': 'Zutat der Planung gelöscht',
   'einplanung-neu': 'Gericht eingeplant',
   'einplanung-geaendert': 'Einplanung geändert',
+  'einplanung-abgehakt': 'Einplanung abgehakt',
   'einplanung-geloescht': 'Gericht aus Mahlzeit entfernt',
   'gruppe-neu': 'Gruppe angelegt',
   'gruppe-geaendert': 'Gruppe geändert',

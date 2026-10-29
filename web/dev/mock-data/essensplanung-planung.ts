@@ -25,6 +25,7 @@ import type {
   PlanungZugang,
 } from '../../../api/lib/essen-planung-model';
 import type { Gericht } from '../../../api/lib/essen-gerichte-model';
+import type { EinplanungStatus, Verbrauch } from '../../../api/lib/essen-kochen-model';
 import type { EssenPlanungUebersicht } from '../../src/lib/types';
 import type { MockPlanungZutat } from './essensplanung-gerichte';
 import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilnehmende-model';
@@ -60,6 +61,8 @@ export interface MockEinplanung {
   faktor: number;
   zustaendigId: number | null;
   zustaendigText: string;
+  status: EinplanungStatus;
+  verbrauch: Verbrauch[];
 }
 
 interface MockMahlzeit {
@@ -745,6 +748,8 @@ export function einplanen(z: MockZugang, input: EinplanungInput, position?: numb
       faktor: input.faktor,
       zustaendigId: input.zustaendigId,
       zustaendigText: input.zustaendigId === null ? input.zustaendigText : '',
+      status: 'offen',
+      verbrauch: [],
     };
     mahlzeit.einplanungen.push(einplanung);
     sortiereEinplanungen(mahlzeit, einplanung, position);

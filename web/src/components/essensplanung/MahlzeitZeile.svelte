@@ -8,6 +8,7 @@
   import { mahlzeitStand } from '../../../../api/lib/essen-planung-model';
   import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
   import type { PlanKontext } from './planKontext';
+  import EinplanungAbhaken from './EinplanungAbhaken.svelte';
   import EinplanungMengen from './EinplanungMengen.svelte';
   import { esserRechner } from '../../lib/essensplanungRechnung';
 
@@ -288,6 +289,15 @@
                   class="min-w-0 text-sm text-neutral-700 [overflow-wrap:anywhere]"
                   >{einplanung.zustaendig}</span
                 >{/if}
+              <EinplanungAbhaken
+                {kontext}
+                {mahlzeit}
+                {einplanung}
+                {name}
+                {esser}
+                {bearbeiten}
+                teil="status"
+              />
               {#if bearbeiten}
                 <span class="flex flex-wrap gap-1 print:hidden">
                   <ActionButton
@@ -340,6 +350,15 @@
                 {name}
                 {esser}
                 {unvertraeglichkeiten}
+              />
+              <EinplanungAbhaken
+                {kontext}
+                {mahlzeit}
+                {einplanung}
+                {name}
+                {esser}
+                {bearbeiten}
+                teil="abhaken"
               />
             </li>
           {/each}

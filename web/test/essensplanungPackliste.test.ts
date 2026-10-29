@@ -35,6 +35,8 @@ const einplanung = (id: number, gerichtId: number) => ({
   faktor: 1,
   zustaendigId: null,
   zustaendig: '',
+  status: 'offen' as const,
+  verbrauch: [],
 });
 
 const mahlzeit = (id: number, kennung: string, einplanungen: ReturnType<typeof einplanung>[]) => ({

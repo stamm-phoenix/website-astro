@@ -164,6 +164,7 @@ const AENDERUNGEN: Record<string, string> = {
   'einplanung-neu': 'hat ein Gericht eingeplant',
   'einplanung-geaendert': 'hat eine Einplanung geändert',
   'einplanung-geloescht': 'hat ein Gericht aus einer Mahlzeit genommen',
+  'einplanung-abgehakt': 'hat ein Gericht abgehakt',
   'gruppe-neu': 'hat eine Gruppe angelegt',
   'gruppe-geaendert': 'hat eine Gruppe geändert',
   'gruppe-geloescht': 'hat eine Gruppe gelöscht',
@@ -194,10 +195,17 @@ function packText(details: Record<string, unknown>): string {
   return AENDERUNGEN['packliste-geaendert'];
 }
 
+/** What ticking off a planned dish did, by its new status. */
+const ABGEHAKT: Record<string, string> = {
+  gekocht: 'hat ein Gericht als gekocht abgehakt',
+  ausgelassen: 'hat ein Gericht als ausgelassen abgehakt',
+  offen: 'hat ein Gericht wieder offen gesetzt',
+};
+
 /** „Kim hat eine Mahlzeit geändert: Brunch (1.8.)“. */
 export function aenderungText(aenderung: PlanungAenderung): string {
   const wer = aenderung.wer || 'Jemand';
-  const { name, datum, gericht, mahlzeit, verschoben, anzahl, gruppe, isst, geschaeft } =
+  const { name, datum, gericht, mahlzeit, verschoben, anzahl, gruppe, isst, geschaeft, status } =
     aenderung.details;
   const gruppen = aenderung.aktion === 'mahlzeit-gruppen';
   const laden = aenderung.aktion === 'zutat-geschaeft';
@@ -211,7 +219,9 @@ export function aenderungText(aenderung: PlanungAenderung): string {
         ? packText(aenderung.details)
         : verschoben === true
           ? 'hat ein Gericht verschoben'
-          : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
+          : aenderung.aktion === 'einplanung-abgehakt' && typeof status === 'string'
+            ? (ABGEHAKT[status] ?? AENDERUNGEN[aenderung.aktion])
+            : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
   const ziel = [
     gruppen && typeof gruppe === 'string' ? `${gruppe} bei` : '',
     typeof anzahl === 'number' ? String(anzahl) : '',

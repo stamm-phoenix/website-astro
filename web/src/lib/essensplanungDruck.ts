@@ -60,7 +60,8 @@ export function einplanungZeilen(
   const portionen = esser(mahlzeit, ALLE) * einplanung.faktor;
   return {
     kennung: einplanungKennung(mahlzeit, einplanung.id),
-    name: gericht?.name ?? 'Gericht',
+    // Ticked off dishes say so, so the plan on paper shows what is done
+    name: `${gericht?.name ?? 'Gericht'}${einplanung.status && einplanung.status !== 'offen' ? ` (${einplanung.status})` : ''}`,
     portionen,
     zustaendig: einplanung.zustaendig,
     zeilen: (gericht?.zutaten ?? []).map((zeile) => {
