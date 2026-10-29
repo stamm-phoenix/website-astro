@@ -34,13 +34,27 @@
     uhrzeit = basis.uhrzeit;
   }
 
-  // Typed, kept after a failed save or a conflict, or still saving: asks before leaving the page
-  $effect(() =>
-    guardUnsavedChanges(
-      () =>
-        entwurf || (name.trim() || basis.name) !== basis.name || uhrzeit.trim() !== basis.uhrzeit
-    )
-  );
+  /** Typed, kept after a failed save or a conflict, or still saving. */
+  function ungespeichert(): boolean {
+    return (
+      entwurf || (name.trim() || basis.name) !== basis.name || uhrzeit.trim() !== basis.uhrzeit
+    );
+  }
+  // Asks before leaving the page
+  $effect(() => guardUnsavedChanges(ungespeichert));
+
+  /** Set when this page deletes the meal itself, which needs no word about lost input. */
+  let selbstGeloescht = false;
+  // Someone else deleted the meal or its day: the row goes, so the input is shown to copy
+  $effect(() => () => {
+    if (selbstGeloescht || !ungespeichert()) return;
+    const eingabe = [name.trim(), uhrzeit.trim() && `${uhrzeit.trim()} Uhr`]
+      .filter(Boolean)
+      .join(', ');
+    const text = `${mahlzeit.kennung} wurde gerade gelöscht. Deine Eingabe „${eingabe}“ war noch nicht gespeichert.`;
+    // After the update that removes the row, which would not show a change made during it
+    setTimeout(() => kontext.hinweis(text, 'error'));
+  });
 
   // Follow the saved state unless the user is typing or has unsaved input
   $effect(() => {
@@ -108,6 +122,7 @@
       }))
     )
       return;
+    selbstGeloescht = true;
     await kontext.aendern(
       () => kontext.api.senden('DELETE', `/mahlzeiten/${mahlzeit.id}`, undefined, mahlzeit.etag),
       `${mahlzeit.name} gelöscht.`

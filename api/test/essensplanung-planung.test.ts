@@ -929,3 +929,35 @@ dbTest('a confirmation link no longer creates once the address is not allowed', 
     .execute();
   assert.equal(planungen.length, 0);
 });
+
+dbTest('opening a link changes no version the owner holds', async (t) => {
+  const mails = captureMails(t);
+  const { token } = await anlegen(t, mails);
+  await call(t, endpoints.EssensplanungMitglieder, 'POST', 'planung/mitglieder', {
+    token,
+    body: { name: 'Ben Bezirk', email: 'ben@example.org' },
+  });
+  const ben = tokenAus(mails.at(-1)!, 't');
+  const vorher = json<PlanungAnsicht>(
+    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+  );
+  const benVorher = vorher.mitglieder.find((m) => !m.ich)!;
+  // Ben opens his link for the first time and polls
+  await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: ben });
+  await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
+    token: ben,
+    query: `?seit=${encodeURIComponent(vorher.stand)}`,
+  });
+  const geaendert = await call(
+    t,
+    endpoints.EssensplanungMitglied,
+    'PATCH',
+    `planung/mitglieder/${benVorher.id}`,
+    {
+      token,
+      params: { id: String(benVorher.id) },
+      body: { rolle: 'besitzer', etag: benVorher.etag },
+    }
+  );
+  assert.equal(geaendert.status, 200, JSON.stringify(geaendert.jsonBody));
+});

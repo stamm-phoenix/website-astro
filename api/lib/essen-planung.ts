@@ -111,19 +111,11 @@ export async function ladeZugang(token: unknown, db: Db = getDb()): Promise<Zuga
   if (!isToken(token)) throw LINK_UNGUELTIG();
   const mitglied = await db
     .selectFrom('essen.mitglied')
-    .select(['id', 'planung_id', 'rolle', 'name', 'zuletzt_da_am'])
+    .select(['id', 'planung_id', 'rolle', 'name'])
     .where('token_hash', '=', hashToken(token))
     .where('entzogen_am', 'is', null)
     .executeTakeFirst();
   if (mitglied) {
-    // Marks the member as seen at most every ten minutes, not on every poll
-    if (!mitglied.zuletzt_da_am || Date.now() - mitglied.zuletzt_da_am.getTime() > 10 * 60_000) {
-      await db
-        .updateTable('essen.mitglied')
-        .set({ zuletzt_da_am: sql<Date>`SYSUTCDATETIME()` })
-        .where('id', '=', mitglied.id)
-        .execute();
-    }
     return {
       planungId: mitglied.planung_id,
       zugang: mitglied.rolle,
