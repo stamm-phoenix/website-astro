@@ -12,12 +12,13 @@ import type {
   GeschaeftInput,
   PostenArt,
   PostenInput,
+  ZusatzPosten,
 } from './essen-einkauf-model';
 import { MAX_GESCHAEFTE, MAX_POSTEN } from './essen-einkauf-model';
 import { einheitPasst } from './essen-gerichte-model';
 import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
-import { zutatDerPlanung, zutatDerPlanungFuer } from './essen-planung-zutat';
+import { sonstigesDerPlanung, zutatDerPlanung, zutatDerPlanungFuer } from './essen-planung-zutat';
 import type { EssenEinheitenart } from './essen-validation';
 import { ValidationError } from './validation/errors';
 
@@ -29,7 +30,7 @@ import { ValidationError } from './validation/errors';
 export interface EinkaufDaten {
   geschaefte: Geschaeft[];
   bestand: EinkaufPosten[];
-  zusatzbedarf: EinkaufPosten[];
+  zusatzbedarf: ZusatzPosten[];
 }
 
 const TABELLE = { bestand: 'essen.bestand', zusatzbedarf: 'essen.zusatzbedarf' } as const;
@@ -40,13 +41,13 @@ export async function ladeEinkauf(db: Db, planungId: number): Promise<EinkaufDat
     db.selectFrom('essen.bestand').selectAll().where('planung_id', '=', planungId).execute(),
     db.selectFrom('essen.zusatzbedarf').selectAll().where('planung_id', '=', planungId).execute(),
   ]);
-  const posten = (rows: typeof bestand): EinkaufPosten[] =>
+  const posten = (rows: typeof zusatzbedarf): ZusatzPosten[] =>
     rows
       .map((row) => ({
         id: row.id,
         etag: toVersion(row.version),
         planungZutatId: row.planung_zutat_id,
-        menge: Number(row.menge),
+        menge: row.menge === null ? null : Number(row.menge),
         einheit: row.einheit,
         hinweis: row.hinweis,
       }))
@@ -60,7 +61,8 @@ export async function ladeEinkauf(db: Db, planungId: number): Promise<EinkaufDat
         name: row.name,
       }))
       .sort((a, b) => a.position - b.position || a.id - b.id),
-    bestand: posten(bestand),
+    // The stock always has an amount (`essen.bestand`)
+    bestand: posten(bestand) as EinkaufPosten[],
     zusatzbedarf: posten(zusatzbedarf),
   };
 }
@@ -212,8 +214,12 @@ async function postenZutat(
   zugang: Zugang,
   input: PostenInput
 ) {
-  // Things that are not food belong here too, such as dish soap
-  const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: false });
+  // Things that are not food belong here too, such as dish soap; a name of its own becomes such a
+  // thing of the Planung, e.g. „Kochhandschuhe“
+  const zutat =
+    'name' in input.zutat
+      ? await sonstigesDerPlanung(trx, zugang, input.zutat.name, input.einheit)
+      : await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: false });
   if (!einheitPasst(zutat.einheitenart, input.einheit)) {
     throw new ValidationError({
       einheit: `${zutat.name} wird in ${EINHEITENART_TEXT[zutat.einheitenart]} gemessen.`,

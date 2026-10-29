@@ -123,7 +123,7 @@ export interface Database {
   'essen.mahlzeit_ohne_gruppe': EssenMahlzeitOhneGruppeTable;
   'essen.geschaeft': EssenGeschaeftTable;
   'essen.bestand': EssenPostenTable;
-  'essen.zusatzbedarf': EssenPostenTable;
+  'essen.zusatzbedarf': EssenZusatzbedarfTable;
   'essen.packliste_eintrag': EssenPacklisteEintragTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
@@ -1069,6 +1069,8 @@ export interface EssenPlanungZutatTable {
   vegan: boolean | null;
   /** Where it is bought; null: no shop yet. */
   geschaeft_id: Generated<number | null>;
+  /** Only for ingredients of the Planung's own; central ones take the value of the list. */
+  lebensmittel: Generated<boolean>;
 }
 
 export interface EssenPlanungZutatUnvertraeglichkeitTable {
@@ -1188,6 +1190,13 @@ export interface EssenPacklisteEintragTable {
   gepackt: Generated<boolean>;
   zustaendig_mitglied_id: number | null;
   zustaendig_text: Generated<string>;
+}
+
+/** `essen.zusatzbedarf`: like the stock, but an amount is optional („Kochhandschuhe“). */
+export interface EssenZusatzbedarfTable extends Omit<EssenPostenTable, 'menge' | 'einheit'> {
+  /** decimal(12, 3); null with `einheit` null. */
+  menge: number | null;
+  einheit: GerichtEinheit | null;
 }
 
 export interface EssenAenderungTable {

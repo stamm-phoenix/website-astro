@@ -128,6 +128,7 @@ export async function ladeGerichte(
         'pz.einheitenart',
         'pz.vegetarisch',
         'pz.vegan',
+        'pz.lebensmittel',
         'z.name as z_name',
         'z.kategorie_id as z_kategorie_id',
         'z.einheitenart as z_einheitenart',
@@ -206,7 +207,7 @@ export async function ladeGerichte(
           kategorieId: (row.kategorie_id ?? row.z_kategorie_id)!,
           einheitenart: (row.einheitenart ?? row.z_einheitenart)!,
           abtropfgewicht: zentral ? Boolean(row.z_abtropfgewicht) : false,
-          lebensmittel: zentral ? Boolean(row.z_lebensmittel) : true,
+          lebensmittel: zentral ? Boolean(row.z_lebensmittel) : Boolean(row.lebensmittel),
           vegetarisch: zentral ? row.z_vegetarisch : row.vegetarisch,
           vegan: zentral ? row.z_vegan : row.vegan,
           allergene: row.allergen_ids

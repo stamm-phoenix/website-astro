@@ -1539,7 +1539,7 @@ route('PUT', '/api/essensplanung/planung/zutaten/:id/geschaeft', (req) => {
 
 for (const art of ['bestand', 'zusatzbedarf'] as const) {
   route('POST', `/api/essensplanung/planung/${art}`, (req) => {
-    const input = validatePosten(req.json);
+    const input = validatePosten(req.json, art);
     return essenAendern(req, (z) => essenEinkauf.postenAnlegen(z, art, input), 201);
   });
   route(['PATCH', 'DELETE'], `/api/essensplanung/planung/${art}/:id`, (req) => {
@@ -1548,7 +1548,7 @@ for (const art of ['bestand', 'zusatzbedarf'] as const) {
       return essenAendern(req, (z) =>
         essenEinkauf.postenAendern(z, art, id, null, req.headers['if-match'])
       );
-    const input = validatePosten(req.json);
+    const input = validatePosten(req.json, art);
     return essenAendern(req, (z) => essenEinkauf.postenAendern(z, art, id, input, req.json?.etag));
   });
 }

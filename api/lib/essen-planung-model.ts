@@ -1,6 +1,6 @@
 import type { Gericht, PlanungZutat } from './essen-gerichte-model';
 import type { z } from 'zod';
-import type { EinkaufPosten, Geschaeft } from './essen-einkauf-model';
+import type { EinkaufPosten, ZusatzPosten, Geschaeft } from './essen-einkauf-model';
 import type { PacklisteEintrag } from './essen-packliste-model';
 import type { PlanungGruppe, Teilnehmende } from './essen-teilnehmende-model';
 import { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor } from './essen-planung-faktor';
@@ -141,7 +141,7 @@ export interface PlanungAnsicht {
   /** What is there before the Aktion. */
   bestand: EinkaufPosten[];
   /** What is needed without a dish. */
-  zusatzbedarf: EinkaufPosten[];
+  zusatzbedarf: ZusatzPosten[];
   /** Stored states of tools and entries of its own of the packing list, in the order added. */
   packliste: PacklisteEintrag[];
 }
