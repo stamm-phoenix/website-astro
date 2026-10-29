@@ -67,15 +67,19 @@
     const treffer = eingabe.name ? getippteZutat(vorschlaege, eingabe.name) : undefined;
     if (treffer && !auswahl) auswahl = zutatWahl(treffer);
   });
-  const passend = $derived.by((): readonly GerichtEinheit[] => {
-    if (!auswahl) return [];
+  const gewaehlt = $derived.by(() => {
+    if (!auswahl) return undefined;
     const id = auswahl.id;
-    const art =
-      auswahl.art === 'planung'
-        ? ansicht.zutaten.find((z) => z.id === id)?.einheitenart
-        : katalog.zutaten.find((z) => z.id === id)?.einheitenart;
+    return auswahl.art === 'planung'
+      ? ansicht.zutaten.find((z) => z.id === id)
+      : katalog.zutaten.find((z) => z.id === id);
+  });
+  const passend = $derived.by((): readonly GerichtEinheit[] => {
+    const art = gewaehlt?.einheitenart;
     return art ? EINHEITEN_JE_ART[art] : [];
   });
+  /** Tins and jars are weighed drained, shown as „g (ATG)“ like on the saved line. */
+  const abtropfgewicht = $derived(gewaehlt?.abtropfgewicht ?? false);
   /** A unit no longer fitting stays choosable, so a typed amount does not change its meaning. */
   const einheiten = $derived(
     passend.length && eingabe.menge.trim() && !passend.includes(eingabe.einheit)
@@ -206,7 +210,7 @@
       onkeydown={taste}
     >
       {#each einheiten as wert (wert)}
-        <option value={wert}>{einheitText(wert)}</option>
+        <option value={wert}>{einheitText(wert, abtropfgewicht)}</option>
       {/each}
     </select>
     <label class="sr-only" for="gericht-{gericht.id}-neu-hinweis">Hinweis zur neuen Zutat</label>

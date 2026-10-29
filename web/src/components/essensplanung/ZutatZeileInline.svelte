@@ -74,7 +74,7 @@
   let fokus = $state(false);
   let fehler = $state<string | null>(null);
   /** The saved values the input started from. */
-  let basis = $state({ menge: '', einheit: 'g' as GerichtEinheit, hinweis: '' });
+  let basis = $state({ zutat: 0, menge: '', einheit: 'g' as GerichtEinheit, hinweis: '' });
   /** Typed but not saved yet, or saving; changes of others then leave the fields alone. */
   let entwurf = $state(false);
   /** Someone else changed the line under the input: only Enter saves it over theirs. */
@@ -82,6 +82,7 @@
 
   function uebernehme(current: GerichtZutat): void {
     basis = {
+      zutat: current.planungZutatId,
       menge: mengeFeld(current.menge),
       einheit: current.einheit ?? einheiten[0] ?? 'g',
       hinweis: current.hinweis,
@@ -141,18 +142,22 @@
       return false;
     }
     // Someone else saved this line meanwhile: keep the input and let the person decide
+    // The ingredient counts too: an amount typed for sugar must not go to salt unasked
+    const andereZutat = zeile.planungZutatId !== basis.zutat;
     if (
+      andereZutat ||
       mengeFeld(zeile.menge) !== basis.menge ||
       (zeile.einheit ?? basis.einheit) !== basis.einheit ||
       zeile.hinweis !== basis.hinweis
     ) {
       basis = {
+        zutat: zeile.planungZutatId,
         menge: mengeFeld(zeile.menge),
         einheit: zeile.einheit ?? basis.einheit,
         hinweis: zeile.hinweis,
       };
       konflikt = true;
-      fehler = `Jemand anderes hat ${name} gerade geändert (jetzt ${mengeText(zeile.menge, zeile.einheit) ?? 'nach Gefühl'}${zeile.hinweis ? `, ${zeile.hinweis}` : ''}). Deine Eingabe steht noch in der Zeile: Enter speichert sie trotzdem, Escape verwirft sie.`;
+      fehler = `Jemand anderes hat ${andereZutat ? `die Zutat gerade zu ${name}` : `${name} gerade`} geändert (jetzt ${mengeText(zeile.menge, zeile.einheit) ?? 'nach Gefühl'}${zeile.hinweis ? `, ${zeile.hinweis}` : ''}). Deine Eingabe steht noch in der Zeile: Enter speichert sie trotzdem, Escape verwirft sie.`;
       return false;
     }
     entwurf = true;
@@ -166,8 +171,9 @@
       fest: zahl !== null && zeile.fest,
       hinweis: gesendet.hinweis,
     };
-    const ok = await kontext.aendern(() =>
-      kontext.api.senden('PATCH', `/gericht-zutaten/${zeile.id}`, body)
+    const ok = await kontext.aendern(
+      () => kontext.api.senden('PATCH', `/gericht-zutaten/${zeile.id}`, body),
+      `${name} gespeichert.`
     );
     entwurf = false;
     if (ok) {
@@ -179,6 +185,7 @@
       if (!fokus && !weitergetippt) uebernehme(zeile);
       else
         basis = {
+          zutat: zeile.planungZutatId,
           menge: mengeFeld(zeile.menge),
           einheit: zeile.einheit ?? gesendet.einheit,
           hinweis: zeile.hinweis,

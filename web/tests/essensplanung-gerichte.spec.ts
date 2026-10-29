@@ -629,3 +629,50 @@ test('a change of others is only saved over with Enter; a cancelled removal stil
     page.getByText(/Hackfleisch wurde gerade entfernt \(deine Eingabe: 1200 g/).first()
   ).toBeVisible({ timeout: 20_000 });
 });
+
+test('an amount typed for one ingredient does not go to another one others chose', async ({
+  page,
+  browser,
+}) => {
+  test.slow();
+  await anlegen(page, 'E2E Zeilen Zutat');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Eintopf');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Eintopf angelegt.').first()).toBeVisible();
+  const gericht = page.locator('li', { has: page.getByText('Eintopf', { exact: true }) }).first();
+
+  // Tins show their drained weight already in the new row
+  const zutat = gericht.getByLabel('Neue Zutat für Eintopf');
+  await zutat.pressSequentially('Kidneyb');
+  await zutat.press('Enter');
+  await expect(gericht.getByLabel('Einheit der neuen Zutat').locator('option').first()).toHaveText(
+    'g (ATG)'
+  );
+  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
+  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+  await expect(page.getByText('Kidneybohnen hinzugefügt.').first()).toBeVisible();
+  const menge = gericht.getByLabel('Menge von Kidneybohnen');
+
+  // Others swap the ingredient of the line: leaving the row saves nothing, Enter warns
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Eintopf', { exact: true }).click();
+  await menge.fill('600');
+  await anderes.getByRole('button', { name: 'Kidneybohnen ändern' }).click();
+  const dialog = anderes.getByRole('dialog');
+  await dialog.getByLabel('Zutat', { exact: true }).fill('Zwiebeln');
+  await dialog.getByRole('option', { name: 'Zwiebeln', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(gericht.getByLabel('Menge von Zwiebeln')).toBeVisible({ timeout: 15_000 });
+  await gericht.getByLabel('Menge von Zwiebeln').press('Enter');
+  await expect(gericht.getByRole('alert')).toContainText('die Zutat gerade zu Zwiebeln');
+  await page.getByRole('heading', { name: 'E2E Zeilen Zutat' }).click();
+  await page.waitForTimeout(2_000);
+  await anderes.reload();
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Eintopf', { exact: true }).click();
+  await expect(anderes.getByLabel('Menge von Zwiebeln')).not.toHaveValue('600');
+});
