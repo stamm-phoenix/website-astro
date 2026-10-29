@@ -41,10 +41,12 @@
     gericht: Gericht;
     /** The line to change; null adds a new one. */
     zeile: GerichtZutat | null;
+    /** What was typed in the row of a new line, taken over into the dialog. */
+    vorgabe?: { name: string; menge: string; hinweis: string } | null;
     open: boolean;
     onclose: () => void;
   }
-  let { kontext, katalog, gericht, zeile, open, onclose }: Props = $props();
+  let { kontext, katalog, gericht, zeile, vorgabe = null, open, onclose }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
 
   let auswahl = $state<ZutatWahl | null>(null);
@@ -105,9 +107,13 @@
       ]);
     } else {
       auswahl = null;
-      zutatText = '';
-      menge = '';
-      hinweis = '';
+      zutatText = vorgabe?.name ?? '';
+      menge = vorgabe?.menge ?? '';
+      hinweis = vorgabe?.hinweis ?? '';
+      const treffer = zutatText ? getippteZutat(vorschlaege, zutatText) : undefined;
+      if (treffer) auswahl = zutatWahl(treffer);
+      // Typed in the row already: closing asks before it is lost
+      geaendert = Boolean(vorgabe && (vorgabe.name || vorgabe.menge || vorgabe.hinweis));
       fest = false;
       fuerAlles = fuerVegetarisch = fuerVegan = true;
       unvertraeglich = {};

@@ -8,16 +8,13 @@
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import { ernaehrung, fuerText, zeileBody } from '../../lib/essensplanungGerichte';
+  import { zeileBody } from '../../lib/essensplanungGerichte';
   import { plaetzeVon } from '../../lib/essensplanungEinplanung';
-  import { allergeneText } from '../../lib/essensplanungDruck';
-  import {
-    gerichtStand,
-    gerichtWarnungen,
-    mengeText,
-  } from '../../../../api/lib/essen-gerichte-model';
+  import { gerichtStand, gerichtWarnungen } from '../../../../api/lib/essen-gerichte-model';
   import type { EssenKatalog, Gericht, GerichtLink, GerichtZutat } from '../../lib/types';
   import GerichtPlaetze from './GerichtPlaetze.svelte';
+  import NeueZutatZeile from './NeueZutatZeile.svelte';
+  import ZutatZeileInline from './ZutatZeileInline.svelte';
   import GerichtZeileDialog from './GerichtZeileDialog.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
   import type { PlanKontext } from './planKontext';
@@ -214,16 +211,13 @@
     );
   }
 
-  let dialog = $state<{ zeile: GerichtZutat | null } | null>(null);
-
-  function allergene(zeile: GerichtZutat): string {
-    return allergeneText(zeile, zutaten.get(zeile.planungZutatId), unvertraeglichkeiten);
-  }
+  let dialog = $state<{
+    zeile: GerichtZutat | null;
+    vorgabe: { name: string; menge: string; hinweis: string } | null;
+  } | null>(null);
 
   /** Where the dish is planned. */
   const plaetze = $derived(plaetzeVon(ansicht, gericht.id));
-
-  const namen = (ids: number[]) => ids.map((id) => unvertraeglichkeiten.get(id) ?? '?').join(', ');
 </script>
 
 <div class="space-y-5">
@@ -265,72 +259,32 @@
     {#if gericht.zutaten.length}
       <ol class="divide-y divide-neutral-200 border-y border-neutral-200">
         {#each gericht.zutaten as zeile, index (zeile.id)}
-          {@const zutat = zutaten.get(zeile.planungZutatId)}
-          {@const enthalten = allergene(zeile)}
-          <li class="flex flex-wrap items-start justify-between gap-2 py-2">
-            <div class="min-w-0 space-y-0.5">
-              <p class="text-neutral-900 [overflow-wrap:anywhere]">
-                {#if zeile.menge !== null}
-                  <span class="font-semibold tabular-nums"
-                    >{mengeText(zeile.menge, zeile.einheit, zutat?.abtropfgewicht)}</span
-                  >
-                {/if}
-                {zutat?.name ?? 'Zutat'}
-                {#if zeile.hinweis}<span class="text-neutral-700">({zeile.hinweis})</span>{/if}
-              </p>
-              <p class="flex flex-wrap gap-x-3 text-sm text-neutral-700">
-                {#if zeile.fest}<span>feste Menge</span>{/if}
-                {#if fuerText(zeile)}<span>{fuerText(zeile)}</span>{/if}
-                {#if zeile.nur.length}<span>nur bei {namen(zeile.nur)}</span>{/if}
-                {#if zeile.ohne.length}<span>nicht bei {namen(zeile.ohne)}</span>{/if}
-                {#if enthalten}<span>enthält {enthalten}</span>{/if}
-                {#if zutat && ernaehrung(zutat) === 'nicht vegetarisch'}<span
-                    >nicht vegetarisch</span
-                  >{/if}
-              </p>
-            </div>
-            {#if bearbeiten}
-              <div class="flex flex-wrap gap-1 print:hidden">
-                <ActionButton
-                  type="button"
-                  aria-label="{zutat?.name} nach oben"
-                  disabled={kontext.busy || index === 0}
-                  onclick={() => void verschiebe(zeile, index)}>↑</ActionButton
-                >
-                <ActionButton
-                  type="button"
-                  aria-label="{zutat?.name} nach unten"
-                  disabled={kontext.busy || index === gericht.zutaten.length - 1}
-                  onclick={() => void verschiebe(zeile, index + 2)}>↓</ActionButton
-                >
-                <ActionButton
-                  type="button"
-                  aria-label="{zutat?.name} ändern"
-                  disabled={!katalog}
-                  onclick={() => (dialog = { zeile })}>Ändern</ActionButton
-                >
-                <ActionButton
-                  type="button"
-                  variant="danger"
-                  aria-label="{zutat?.name} entfernen"
-                  disabled={kontext.busy}
-                  onclick={() => void zeileLoeschen(zeile)}>Entfernen</ActionButton
-                >
-              </div>
-            {/if}
-          </li>
+          <ZutatZeileInline
+            {kontext}
+            {zeile}
+            zutat={zutaten.get(zeile.planungZutatId)}
+            {bearbeiten}
+            erste={index === 0}
+            letzte={index === gericht.zutaten.length - 1}
+            namen={unvertraeglichkeiten}
+            katalogDa={katalog !== null}
+            position={index + 1}
+            onaendern={() => (dialog = { zeile, vorgabe: null })}
+            onverschiebe={(position) => void verschiebe(zeile, position)}
+            onloeschen={() => void zeileLoeschen(zeile)}
+          />
         {/each}
       </ol>
     {:else}
       <p class="text-sm text-neutral-700">Noch keine Zutaten.</p>
     {/if}
-    {#if bearbeiten}
-      <ActionButton
-        type="button"
-        class="print:hidden"
-        disabled={!katalog}
-        onclick={() => (dialog = { zeile: null })}>Zutat hinzufügen</ActionButton
-      >
+    {#if bearbeiten && katalog}
+      <NeueZutatZeile
+        {kontext}
+        {katalog}
+        {gericht}
+        onmehr={(vorgabe) => (dialog = { zeile: null, vorgabe })}
+      />
     {/if}
   </section>
 
@@ -495,6 +449,7 @@
     {katalog}
     {gericht}
     zeile={dialog.zeile}
+    vorgabe={dialog.vorgabe}
     open={dialog !== null}
     onclose={() => (dialog = null)}
   />

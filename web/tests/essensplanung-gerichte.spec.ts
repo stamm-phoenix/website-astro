@@ -1,5 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import { anlegen, pdfLaden } from './essensplanung-helpers';
+import { anlegen, pdfLaden, zeilenMenge } from './essensplanung-helpers';
 
 test('dishes get ingredients from the list, warnings and a recipe card', async ({
   page,
@@ -17,7 +17,7 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   const chili = page.locator('li', { has: page.getByText('Chili', { exact: true }) }).first();
 
   // A line from the central list in the unit of the ingredient, only for those who eat meat
-  await chili.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await chili.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const dialog = page.getByRole('dialog', { name: 'Zutat für Chili' });
   await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
   await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
@@ -26,14 +26,14 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await dialog.getByLabel('vegetarisch', { exact: true }).uncheck();
   await dialog.getByLabel('vegan', { exact: true }).uncheck();
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(chili.getByText('1,5 kg')).toBeVisible();
+  await expect.poll(() => zeilenMenge(chili, 'Hackfleisch')).toBe('1,5 kg');
   await expect(chili.getByText('nur mit allem')).toBeVisible();
   await expect(
     chili.getByText('Für vegetarisch Essende gibt es in diesem Gericht keine Zutat.')
   ).toBeVisible();
 
   // An ingredient of the Planung's own, without an amount
-  await chili.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await chili.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Omas Chiligewürz');
   await dialog.getByRole('button', { name: 'Als eigene Zutat dieser Planung anlegen' }).click();
   await dialog.getByLabel('Kategorie', { exact: true }).selectOption({ label: 'Gewürz' });
@@ -43,7 +43,7 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await dialog.getByLabel('Hinweis (optional)').fill('nach Geschmack');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(chili.getByText('Omas Chiligewürz')).toBeVisible();
-  await expect(chili.getByText('(nach Geschmack)')).toBeVisible();
+  await expect(chili.getByLabel('Hinweis zu Omas Chiligewürz')).toHaveValue('nach Geschmack');
   await expect(chili.getByText('enthält Sellerie')).toBeVisible();
   await expect(chili.getByText(/Für vegetarisch Essende/)).toHaveCount(0);
 
@@ -78,7 +78,7 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await expect(chili.locator('ol > li').first()).toContainText('Omas Chiligewürz');
   await chili.getByRole('button', { name: 'Hackfleisch entfernen' }).click();
   await answerConfirm(page, 'Hackfleisch entfernen?', 'Entfernen');
-  await expect(chili.getByText('1,5 kg')).toHaveCount(0);
+  await expect(chili.getByLabel('Menge von Hackfleisch')).toHaveCount(0);
 
   // The recipe card downloads as PDF with the instructions; paper has no links, so the
   // address follows the title
@@ -115,7 +115,7 @@ test('the read-only link shows dishes without editing', async ({ page, browser }
   await leser.getByRole('tab', { name: 'Gerichte' }).click();
   await leser.getByText('Brotzeit', { exact: true }).click();
   await expect(leser.getByText('Noch keine Zutaten.')).toBeVisible();
-  await expect(leser.getByRole('button', { name: 'Zutat hinzufügen' })).toHaveCount(0);
+  await expect(leser.getByRole('button', { name: 'Mehr Angaben …' })).toHaveCount(0);
   await expect(leser.getByLabel('Neues Gericht')).toHaveCount(0);
   await leser.context().close();
 });
@@ -130,7 +130,7 @@ test('an open line keeps its version, a deleted one is not added again; closing 
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText('Kakao angelegt.').first()).toBeVisible();
   const kakao = page.locator('li', { has: page.getByText('Kakao', { exact: true }) }).first();
-  await kakao.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await kakao.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Zutat', { exact: true }).fill('H-Milch');
   await dialog.getByRole('option', { name: 'H-Milch', exact: true }).click();
@@ -142,7 +142,7 @@ test('an open line keeps its version, a deleted one is not added again; closing 
   });
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(dialog.getByLabel('Menge', { exact: true })).toBeDisabled();
-  await expect(kakao.getByText('200 ml')).toBeVisible();
+  await expect.poll(() => zeilenMenge(kakao, 'H-Milch')).toBe('200 ml');
   await page.unroute('**/api/essensplanung/planung/gerichte/*/zutaten');
 
   // Closing with unsaved input asks first
@@ -162,11 +162,11 @@ test('an open line keeps its version, a deleted one is not added again; closing 
   await anderes.getByRole('button', { name: 'H-Milch ändern' }).click();
   await anderes.getByRole('dialog').getByLabel('Hinweis (optional)').fill('warm');
   await anderes.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click();
-  await expect(anderes.getByText('(warm)')).toBeVisible();
-  await expect(kakao.getByText('(warm)')).toBeVisible({ timeout: 15_000 });
+  await expect(anderes.getByLabel('Hinweis zu H-Milch')).toHaveValue('warm');
+  await expect(kakao.getByLabel('Hinweis zu H-Milch')).toHaveValue('warm', { timeout: 15_000 });
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
-  await expect(kakao.getByText('(warm)')).toBeVisible();
+  await expect(kakao.getByLabel('Hinweis zu H-Milch')).toHaveValue('warm');
   await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('250');
 
   // The line is deleted meanwhile: saving does not add it again
@@ -220,16 +220,16 @@ test('drained weight is marked; a typed unit stays when others change the ingred
   const dialog = page.getByRole('dialog');
 
   // Tins are weighed drained
-  await eintopf.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await eintopf.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Kidneyb');
   await dialog.getByRole('option', { name: 'Kidneybohnen' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('2');
   await dialog.getByLabel('Einheit', { exact: true }).selectOption('kg');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(eintopf.getByText('2 kg (ATG)')).toBeVisible();
+  await expect.poll(() => zeilenMenge(eintopf, 'Kidneybohnen')).toBe('2 kg (ATG)');
 
   // An own ingredient without an amount
-  await eintopf.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await eintopf.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Hausbrühe');
   await dialog.getByRole('button', { name: 'Als eigene Zutat dieser Planung anlegen' }).click();
   await dialog.getByLabel('Kategorie', { exact: true }).selectOption({ label: 'Gewürz' });
@@ -269,7 +269,7 @@ test('without the central list the card does not hide allergens', async ({ page 
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText('Milchreis angelegt.').first()).toBeVisible();
   const reis = page.locator('li', { has: page.getByText('Milchreis', { exact: true }) }).first();
-  await reis.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await reis.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Zutat', { exact: true }).fill('H-Milch');
   await dialog.getByRole('option', { name: 'H-Milch', exact: true }).click();
@@ -313,7 +313,7 @@ test('a dish changed during the delete question is not deleted', async ({ page, 
   // A line added during the question counts as a change too
   await suppe.getByRole('button', { name: 'Gericht löschen' }).click();
   await expect(page.getByRole('dialog', { name: '„Kürbissuppe“ löschen?' })).toBeVisible();
-  await anderes.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await anderes.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const dialog = anderes.getByRole('dialog');
   await dialog.getByLabel('Zutat', { exact: true }).fill('H-Milch');
   await dialog.getByRole('option', { name: 'H-Milch', exact: true }).click();
@@ -333,7 +333,7 @@ test('spoons and pieces are converted to grams from the list', async ({ page }) 
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText('Rührkuchen angelegt.').first()).toBeVisible();
   const kuchen = page.locator('li', { has: page.getByText('Rührkuchen', { exact: true }) }).first();
-  await kuchen.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await kuchen.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Zutat', { exact: true }).fill('Butter');
   await dialog.getByRole('option', { name: 'Butter', exact: true }).click();
@@ -347,10 +347,10 @@ test('spoons and pieces are converted to grams from the list', async ({ page }) 
   await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('30');
   await expect(dialog.getByLabel('Einheit', { exact: true })).toHaveValue('g');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(kuchen.getByText('30 g')).toBeVisible();
+  await expect.poll(() => zeilenMenge(kuchen, 'Butter')).toBe('30 g');
 
   // Pieces of onions; nothing to convert for milk, which is measured in ml
-  await kuchen.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await kuchen.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Butter');
   await dialog.getByRole('option', { name: 'Butter', exact: true }).click();
   await dialog.getByLabel('Maß zum Umrechnen').selectOption({ label: 'EL' });
@@ -376,7 +376,7 @@ test('typed text stays as typed, Enter takes the first suggestion; discarding sa
   const salat = page.locator('li', { has: page.getByText('Salat', { exact: true }) }).first();
   const dialog = page.getByRole('dialog');
   // „Ol“ is not „Öl“: the text stays, and Enter takes the best suggestion
-  await salat.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await salat.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const feld = dialog.getByLabel('Zutat', { exact: true });
   await feld.pressSequentially('Ol');
   await expect(feld).toHaveValue('Ol');
@@ -391,4 +391,67 @@ test('typed text stays as typed, Enter takes the first suggestion; discarding sa
   await expect(dialog).toHaveCount(0);
   await page.waitForTimeout(500);
   await expect(page.getByText(/das Gericht wurde gelöscht/)).toHaveCount(0);
+});
+
+test('lines are typed and changed right in the rows, like in a sheet', async ({ page }) => {
+  await anlegen(page, 'E2E Zeilen');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Nudeln mit Soße');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Nudeln mit Soße angelegt.').first()).toBeVisible();
+  const gericht = page
+    .locator('li', { has: page.getByText('Nudeln mit Soße', { exact: true }) })
+    .first();
+
+  // The new row: Enter in the name takes the suggestion, Enter in the amount adds the line,
+  // and the next line starts in the name again
+  const zutat = gericht.getByLabel('Neue Zutat für Nudeln mit Soße');
+  await zutat.pressSequentially('Hackfl');
+  await zutat.press('Enter');
+  await expect(zutat).toHaveValue('Hackfleisch');
+  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
+  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+  await expect.poll(() => zeilenMenge(gericht, 'Hackfleisch')).toBe('500 g');
+  await expect(zutat).toHaveValue('');
+  await expect(zutat).toBeFocused();
+
+  // A name not in the list points to the dialog
+  await zutat.fill('Drachenfrucht-Sirup');
+  await gericht.getByRole('button', { name: 'Zeile zu Nudeln mit Soße hinzufügen' }).click();
+  await expect(gericht.getByText(/steht nicht in der Liste/)).toBeVisible();
+  await zutat.fill('');
+
+  // Changing the amount in the row saves when the row is left
+  const menge = gericht.getByLabel('Menge von Hackfleisch');
+  await menge.fill('750');
+  await gericht.getByLabel('Hinweis zu Hackfleisch').fill('gemischt');
+  const gespeichert = page.waitForResponse(
+    (antwort) =>
+      antwort.url().includes('/gericht-zutaten/') && antwort.request().method() === 'PATCH'
+  );
+  await page.getByRole('heading', { name: 'E2E Zeilen' }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await page.reload();
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByText('Nudeln mit Soße', { exact: true }).click();
+  await expect(menge).toBeVisible();
+  await expect.poll(() => zeilenMenge(gericht, 'Hackfleisch')).toBe('750 g');
+  await expect(gericht.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('gemischt');
+
+  // Escape puts the row back; Enter saves without leaving it
+  await menge.fill('1');
+  await menge.press('Escape');
+  await expect(menge).toHaveValue('750');
+  await gericht.getByLabel('Einheit von Hackfleisch').selectOption('kg');
+  await menge.fill('1');
+  const nochmal = page.waitForResponse(
+    (antwort) =>
+      antwort.url().includes('/gericht-zutaten/') && antwort.request().method() === 'PATCH'
+  );
+  await menge.press('Enter');
+  expect((await nochmal).ok()).toBe(true);
+  await expect(menge).toBeFocused();
+  await page.reload();
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await expect.poll(() => zeilenMenge(gericht, 'Hackfleisch')).toBe('1 kg');
 });
