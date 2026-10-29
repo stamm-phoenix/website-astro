@@ -99,8 +99,9 @@
         const bleibt = kontext.ansicht.tage.some((t) =>
           t.mahlzeiten.some((m) => m.einplanungen.some((e) => e.id === id))
         );
-        if (bleibt || !uebergabe.has(id)) return;
-        uebergabe.delete(id);
+        // Not taken in the same update: the page was left (the draft was given up) or the dish
+        // went (it is shown to copy); a later visit starts from what is saved
+        if (!uebergabe.delete(id) || bleibt) return;
         meldeVerloren(kontext, text);
       });
     };
