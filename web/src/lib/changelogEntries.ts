@@ -12,6 +12,14 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-29-05-essensplanung-mengen',
+    date: '2026-10-29',
+    title: 'Essensplanung: Mengen für jede Mahlzeit',
+    changes: [
+      'Unter jedem eingeplanten Gericht klappst du „Mengen“ auf und siehst jede Zutat für die Leute, die bei dieser Mahlzeit mitessen: nach Gruppe, Ernährung und Unverträglichkeiten gerechnet. Im gedruckten Plan stehen die Mengen immer dabei.',
+    ],
+  },
+  {
     id: '2026-10-29-04-essensplanung-teilnehmende',
     date: '2026-10-29',
     title: 'Essensplanung: Teilnehmende und Esser je Mahlzeit',

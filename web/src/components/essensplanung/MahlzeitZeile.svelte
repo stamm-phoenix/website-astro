@@ -8,6 +8,8 @@
   import { mahlzeitStand } from '../../../../api/lib/essen-planung-model';
   import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
   import type { PlanKontext } from './planKontext';
+  import EinplanungMengen from './EinplanungMengen.svelte';
+  import { esserRechner } from '../../lib/essensplanungRechnung';
 
   /**
    * One meal: name and time are saved when the field is left or Enter is pressed. While a field
@@ -32,6 +34,7 @@
       .filter(Boolean)
   );
   const gerichte = $derived(new Map(kontext.ansicht.gerichte.map((g) => [g.id, g.name])));
+  const esser = $derived(esserRechner(kontext.ansicht));
 
   let name = $state('');
   let uhrzeit = $state('');
@@ -311,6 +314,7 @@
                   >
                 </span>
               {/if}
+              <EinplanungMengen {kontext} {mahlzeit} {einplanung} {name} {esser} />
             </li>
           {/each}
         </ol>
