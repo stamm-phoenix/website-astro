@@ -20,6 +20,8 @@ import {
 const MIN_DAY_SPACE = 70;
 const OPEN = 'offen';
 const TEXT: [number, number, number] = [30, 30, 30];
+/** Line height of the kitchen list in mm. */
+const KITCHEN_LINE = 4.5;
 
 export async function downloadEinteilungPdf(pdf: EinteilungBild, fileName: string): Promise<void> {
   const { doc, autoTable } = await loadPdf();
@@ -60,18 +62,33 @@ export async function downloadEinteilungPdf(pdf: EinteilungBild, fileName: strin
       });
       y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
     }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...BRAND);
-    doc.text('Küche:', MARGIN, y);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...(day.kitchen.length > 0 ? TEXT : GREY));
-    const kitchen = doc.splitTextToSize(
+    doc.setFontSize(9);
+    const kitchen: string[] = doc.splitTextToSize(
       day.kitchen.length > 0 ? day.kitchen.join(', ') : 'Niemand',
       PAGE_WIDTH - 2 * MARGIN - 14
     );
-    doc.text(kitchen, MARGIN + 14, y);
-    y += 4.5 * kitchen.length + 8;
+    // A long kitchen list goes on below the table, page by page, above the footer
+    for (let start = 0; start < kitchen.length;) {
+      const room = Math.floor((PAGE_HEIGHT - FOOTER_SPACE - y) / KITCHEN_LINE);
+      if (room < 1) {
+        doc.addPage();
+        y = 18;
+        continue;
+      }
+      const part = kitchen.slice(start, start + room);
+      if (start === 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...BRAND);
+        doc.text('Küche:', MARGIN, y);
+        doc.setFont('helvetica', 'normal');
+      }
+      doc.setTextColor(...(day.kitchen.length > 0 ? TEXT : GREY));
+      doc.text(part, MARGIN + 14, y);
+      y += KITCHEN_LINE * part.length;
+      start += part.length;
+    }
+    y += 8;
   }
   drawPageFooters(doc);
   saveFile(doc.output('blob'), fileName);
