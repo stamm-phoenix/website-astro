@@ -117,6 +117,7 @@ export interface Database {
   'essen.gericht_zutat': EssenGerichtZutatTable;
   'essen.gericht_zutat_unvertraeglichkeit': EssenGerichtZutatUnvertraeglichkeitTable;
   'essen.einplanung': EssenEinplanungTable;
+  'essen.einplanung_verbrauch': EssenEinplanungVerbrauchTable;
   'essen.planung_gruppe': EssenPlanungGruppeTable;
   'essen.teilnehmende': EssenTeilnehmendeTable;
   'essen.teilnehmende_unvertraeglichkeit': EssenTeilnehmendeUnvertraeglichkeitTable;
@@ -1124,6 +1125,19 @@ export interface EssenEinplanungTable {
   faktor: number;
   zustaendig_mitglied_id: number | null;
   zustaendig_text: Generated<string>;
+  status: Generated<EinplanungStatus>;
+}
+
+export type EinplanungStatus = 'offen' | 'gekocht' | 'ausgelassen';
+
+/** What a cooked dish used, per ingredient and unit. */
+export interface EssenEinplanungVerbrauchTable {
+  id: Generated<number>;
+  einplanung_id: number;
+  planung_zutat_id: number;
+  /** decimal(12, 3), at least 0. */
+  menge: number;
+  einheit: GerichtEinheit;
 }
 
 export interface EssenPlanungGruppeTable {

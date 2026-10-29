@@ -11,7 +11,7 @@
   /**
    * The plan as a calendar: the days next to each other, the meals of a day below each other in
    * their order, the planned dishes as cards like appointments. A card opens the dialog of the
-   * planned dish; days and meals are changed in the list.
+   * planned dish; days and meals are changed and dishes ticked off in the list.
    */
 
   interface Props {
@@ -19,8 +19,10 @@
     bearbeiten: boolean;
     /** Opens the dialog of planned dishes. */
     oneinplanen: (auftrag: Auftrag) => void;
+    /** Opens ticking off the planned dish (or what a cooked one used), which is in the list. */
+    onabhaken: (einplanungId: number) => void;
   }
-  let { kontext, bearbeiten, oneinplanen }: Props = $props();
+  let { kontext, bearbeiten, oneinplanen, onabhaken }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
 
   const ALLE = { fuerAlles: true, fuerVegetarisch: true, fuerVegan: true, ohne: [], nur: [] };
@@ -85,6 +87,14 @@
                               ? ` · ${faktorText(einplanung.faktor)}`
                               : ''}{einplanung.zustaendig ? ` · ${einplanung.zustaendig}` : ''}
                           </span>
+                          {#if einplanung.status !== 'offen'}
+                            <span
+                              class="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold {einplanung.status ===
+                              'gekocht'
+                                ? 'bg-success-soft text-success'
+                                : 'bg-neutral-100 text-neutral-700'}">{einplanung.status}</span
+                            >
+                          {/if}
                         {/snippet}
                         {#if bearbeiten}
                           <button
@@ -98,12 +108,29 @@
                                 einplanungId: einplanung.id,
                               })}>{@render karte()}</button
                           >
+                          <button
+                            type="button"
+                            class="min-h-11 text-sm font-semibold text-link underline"
+                            aria-label="{kennung} {name} abhaken"
+                            onclick={() => onabhaken(einplanung.id)}
+                            >{einplanung.status === 'gekocht'
+                              ? 'Verbrauch ändern'
+                              : 'Abhaken'}</button
+                          >
                         {:else}
                           <div
                             class="rounded-md border-l-4 border-brand-800 bg-brand-50 px-2 py-1.5"
                           >
                             {@render karte()}
                           </div>
+                          {#if einplanung.status === 'gekocht'}
+                            <button
+                              type="button"
+                              class="min-h-11 text-sm font-semibold text-link underline"
+                              aria-label="Verbrauch von {kennung} {name} ansehen"
+                              onclick={() => onabhaken(einplanung.id)}>Verbrauch ansehen</button
+                            >
+                          {/if}
                         {/if}
                       </li>
                     {/each}
