@@ -146,7 +146,9 @@ export async function ladeGerichte(
           ) x)`.as('allergen_ids'),
         sql<number>`(select count(*) from essen.gericht_zutat gz where gz.planung_zutat_id = pz.id)
           + (select count(*) from essen.bestand b where b.planung_zutat_id = pz.id)
-          + (select count(*) from essen.zusatzbedarf zb where zb.planung_zutat_id = pz.id)`.as(
+          + (select count(*) from essen.zusatzbedarf zb where zb.planung_zutat_id = pz.id)
+          + (select count(*) from essen.einkauf_posten ep where ep.planung_zutat_id = pz.id)
+          + (select count(*) from essen.einkauf_regel er where er.planung_zutat_id = pz.id)`.as(
           'zeilen'
         ),
         'pz.geschaeft_id',
@@ -394,7 +396,7 @@ export async function planungZutatAendern(
 }
 
 async function pruefeEinheitenart(trx: Db, planungZutatId: number, art: EssenEinheitenart) {
-  const [zeilen, bestand, zusatzbedarf] = await Promise.all([
+  const [zeilen, bestand, zusatzbedarf, eingekauft] = await Promise.all([
     trx
       .selectFrom('essen.gericht_zutat')
       .select('einheit')
@@ -411,11 +413,26 @@ async function pruefeEinheitenart(trx: Db, planungZutatId: number, art: EssenEin
       .select('einheit')
       .where('planung_zutat_id', '=', planungZutatId)
       .execute(),
+    trx
+      .selectFrom('essen.einkauf_regel')
+      .select('einheit')
+      .where('planung_zutat_id', '=', planungZutatId)
+      .unionAll(
+        trx
+          .selectFrom('essen.einkauf_posten')
+          .select('einheit')
+          .where('planung_zutat_id', '=', planungZutatId)
+      )
+      .execute(),
   ]);
-  if ([...zeilen, ...bestand, ...zusatzbedarf].some((zeile) => !einheitPasst(art, zeile.einheit))) {
+  if (
+    [...zeilen, ...bestand, ...zusatzbedarf, ...eingekauft].some(
+      (zeile) => !einheitPasst(art, zeile.einheit)
+    )
+  ) {
     throw new ValidationError({
       einheitenart:
-        'Gerichte, Bestand oder Zusatzbedarf nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.',
+        'Gerichte, Bestand, Zusatzbedarf oder Einkäufe nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.',
     });
   }
 }
@@ -439,7 +456,7 @@ export async function planungZutatLoeschen(
     } catch (error: unknown) {
       if (getSqlErrorNumber(error) !== 547) throw error;
       throw new ValidationError({
-        name: 'Gerichte, Bestand oder Zusatzbedarf nutzen diese Zutat noch. Entferne sie zuerst dort.',
+        name: 'Gerichte, Bestand, Zusatzbedarf oder Einkäufe nutzen diese Zutat noch. Entferne sie zuerst dort.',
       });
     }
     return { result: undefined, details: { name: zutat.name ?? zutat.z_name } };

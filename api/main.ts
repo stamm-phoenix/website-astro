@@ -169,6 +169,14 @@ import {
 } from './endpoints/essensplanung-einkauf';
 import { EssensplanungEinplanungStatus } from './endpoints/essensplanung-kochen';
 import {
+  EssensplanungEinkaeufe,
+  EssensplanungEinkauf,
+  EssensplanungEinkaufAbhaken,
+  EssensplanungEinkaufPosten,
+  EssensplanungEinkaufRegel,
+  EssensplanungEinkaufVerschieben,
+} from './endpoints/essensplanung-einkaeufe';
+import {
   EditorCollection,
   EditorItem,
   EditorReview,
@@ -1495,6 +1503,48 @@ app.http('essensplanungEinplanungStatus', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/einplanungen/{id}/status',
   handler: EssensplanungEinplanungStatus,
+});
+
+app.http('essensplanungEinkaeufe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe',
+  handler: EssensplanungEinkaeufe,
+});
+
+app.http('essensplanungEinkauf', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe/{id}',
+  handler: EssensplanungEinkauf,
+});
+
+app.http('essensplanungEinkaufAbhaken', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe/{id}/posten',
+  handler: EssensplanungEinkaufAbhaken,
+});
+
+app.http('essensplanungEinkaufRegel', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe/{id}/regeln',
+  handler: EssensplanungEinkaufRegel,
+});
+
+app.http('essensplanungEinkaufVerschieben', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe/{id}/verschieben',
+  handler: EssensplanungEinkaufVerschieben,
+});
+
+app.http('essensplanungEinkaufPosten', {
+  methods: ['DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkauf-posten/{id}',
+  handler: EssensplanungEinkaufPosten,
 });
 
 // Essensplanung: the Steuerung for the teams Admin and Vorstand (docs/essensplanung.md).

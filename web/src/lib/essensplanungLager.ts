@@ -9,10 +9,11 @@ import type {
 import type { GerichtEinheit } from '../../../api/lib/essen-gerichte-model';
 import type { EinkaufPosten, PlanungZutat } from './types';
 import type { EinplanungStatus, Verbrauch } from '../../../api/lib/essen-kochen-model';
+import type { EinkaufHaken } from '../../../api/lib/essen-einkaeufe-model';
 
 /**
  * The stock of a Planung during the Aktion (`docs/essensplanung.md`, Lager): what was there
- * before, less what the cooked dishes used. What is bought comes in with the Einkäufe.
+ * before, plus what was ticked off while shopping, less what the cooked dishes used.
  */
 
 /** A planned dish as the stock needs it: whether it was cooked, and what it used then. */
@@ -24,13 +25,23 @@ export interface LagerEinplanung {
 export interface LagerStand {
   tage: { mahlzeiten: { einplanungen: LagerEinplanung[] }[] }[];
   bestand: Pick<EinkaufPosten, 'planungZutatId' | 'menge' | 'einheit'>[];
+  /** Shopping trips; what was ticked off on them is in stock. */
+  einkaeufe?: {
+    posten: (Pick<EinkaufHaken, 'planungZutatId' | 'erhalten' | 'einheit'> & {
+      ersatz?: string;
+    })[];
+  }[];
 }
 
-/** One ingredient in one unit: there before, used, and there now (below 0: more used than had). */
+/**
+ * One ingredient in one unit: there before, bought, used, and there now (below 0: more used than
+ * had).
+ */
 export interface LagerPosten {
   planungZutatId: number;
   einheit: BasisEinheit;
   anfang: number;
+  erhalten: number;
   verbraucht: number;
   jetzt: number;
 }
@@ -49,12 +60,18 @@ export function lager(stand: LagerStand): LagerPosten[] {
     const key = schluessel(id, einheit);
     const vorhanden = posten.get(key);
     if (vorhanden) return vorhanden;
-    const neu = { planungZutatId: id, einheit, anfang: 0, verbraucht: 0, jetzt: 0 };
+    const neu = { planungZutatId: id, einheit, anfang: 0, erhalten: 0, verbraucht: 0, jetzt: 0 };
     posten.set(key, neu);
     return neu;
   };
   for (const summe of summiere(stand.bestand)) {
     eintrag(summe.planungZutatId, summe.einheit).anfang += summe.menge;
+  }
+  const gekauft = (stand.einkaeufe ?? [])
+    .flatMap((einkauf) => einkauf.posten)
+    .map((p) => ({ planungZutatId: p.planungZutatId, menge: p.erhalten, einheit: p.einheit }));
+  for (const summe of summiere(gekauft)) {
+    eintrag(summe.planungZutatId, summe.einheit).erhalten += summe.menge;
   }
   const verbrauch = stand.tage
     .flatMap((tag) => tag.mahlzeiten.flatMap((mahlzeit) => mahlzeit.einplanungen))
@@ -63,7 +80,7 @@ export function lager(stand: LagerStand): LagerPosten[] {
   for (const summe of summiere(verbrauch)) {
     eintrag(summe.planungZutatId, summe.einheit).verbraucht += summe.menge;
   }
-  for (const p of posten.values()) p.jetzt = p.anfang - p.verbraucht;
+  for (const p of posten.values()) p.jetzt = p.anfang + p.erhalten - p.verbraucht;
   return [...posten.values()];
 }
 
@@ -94,27 +111,44 @@ export function nurOffene<S extends RechnungsStand>(stand: S): S {
 export interface LagerZeile {
   planungZutatId: number;
   name: string;
+  /** What was bought instead, „→ Pepsi Cola“; empty for none. */
+  ersatz: string;
   anfang: string;
+  erhalten: string;
   verbraucht: string;
   jetzt: string;
   /** Nothing left of it. */
   leer: boolean;
 }
 
-/** The stock by name, with what was there, what was used and what is left. */
+/** What was bought instead of an ingredient, „→ Pepsi Cola“; empty for nothing. */
+export function ersatzText(stand: Pick<LagerStand, 'einkaeufe'>, planungZutatId: number): string {
+  const namen = new Set(
+    (stand.einkaeufe ?? [])
+      .flatMap((einkauf) => einkauf.posten)
+      .filter((p) => p.planungZutatId === planungZutatId)
+      .map((p) => p.ersatz ?? '')
+      .filter(Boolean)
+  );
+  return namen.size ? `→ ${[...namen].join(', ')}` : '';
+}
+
+/** The stock by name, with what was there, bought, used and what is left. */
 export function lagerZeilen(stand: LagerStand & { zutaten: PlanungZutat[] }): LagerZeile[] {
   const zutaten = new Map(stand.zutaten.map((zutat) => [zutat.id, zutat]));
   return lager(stand)
     .flatMap((p) => {
       const zutat = zutaten.get(p.planungZutatId);
-      if (!zutat || (p.anfang <= 0 && p.verbraucht <= 0)) return [];
+      if (!zutat || (p.anfang <= 0 && p.erhalten <= 0 && p.verbraucht <= 0)) return [];
       const text = (menge: number) =>
         kochMenge(Math.max(menge, 0), p.einheit, zutat.abtropfgewicht);
       return [
         {
           planungZutatId: p.planungZutatId,
           name: zutat.name,
+          ersatz: ersatzText(stand, p.planungZutatId),
           anfang: text(p.anfang),
+          erhalten: text(p.erhalten),
           verbraucht: text(p.verbraucht),
           jetzt: text(p.jetzt),
           leer: p.jetzt <= 1e-9,

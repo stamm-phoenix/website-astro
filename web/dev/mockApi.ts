@@ -78,6 +78,14 @@ import * as essenGerichte from './mock-data/essensplanung-gerichte';
 import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
 import * as essenEinkauf from './mock-data/essensplanung-einkauf';
 import * as essenKochen from './mock-data/essensplanung-kochen';
+import * as essenEinkaeufe from './mock-data/essensplanung-einkaeufe';
+import {
+  readHakenEtag,
+  validateEinkauf,
+  validateHaken,
+  validateRegel,
+  validateVerschieben,
+} from '../../api/lib/essen-einkaeufe-validation';
 import { validateAbhaken } from '../../api/lib/essen-kochen-validation';
 import {
   validateGeschaeft,
@@ -1538,6 +1546,44 @@ for (const art of ['bestand', 'zusatzbedarf'] as const) {
     return essenAendern(req, (z) => essenEinkauf.postenAendern(z, art, id, input, req.json?.etag));
   });
 }
+
+route('POST', '/api/essensplanung/planung/einkaeufe', (req) => {
+  const input = validateEinkauf(req.json);
+  return essenAendern(req, (z) => essenEinkaeufe.einkaufAnlegen(z, input), 201);
+});
+
+route(['PATCH', 'DELETE'], '/api/essensplanung/planung/einkaeufe/:id', (req) => {
+  const id = Number(req.params.id);
+  if (req.method === 'DELETE')
+    return essenAendern(req, (z) =>
+      essenEinkaeufe.einkaufAendern(z, id, null, req.headers['if-match'])
+    );
+  const input = validateEinkauf(req.json);
+  return essenAendern(req, (z) => essenEinkaeufe.einkaufAendern(z, id, input, req.json?.etag));
+});
+
+route('PUT', '/api/essensplanung/planung/einkaeufe/:id/posten', (req) => {
+  const input = validateHaken(req.json);
+  return essenAendern(req, (z) =>
+    essenEinkaeufe.postenAbhaken(z, Number(req.params.id), input, readHakenEtag(req.json ?? null))
+  );
+});
+
+route('PUT', '/api/essensplanung/planung/einkaeufe/:id/regeln', (req) => {
+  const input = validateRegel(req.json);
+  return essenAendern(req, (z) => essenEinkaeufe.regelSetzen(z, Number(req.params.id), input));
+});
+
+route('POST', '/api/essensplanung/planung/einkaeufe/:id/verschieben', (req) => {
+  const input = validateVerschieben(req.json);
+  return essenAendern(req, (z) => essenEinkaeufe.verschieben(z, Number(req.params.id), input));
+});
+
+route('DELETE', '/api/essensplanung/planung/einkauf-posten/:id', (req) =>
+  essenAendern(req, (z) =>
+    essenEinkaeufe.postenAufheben(z, Number(req.params.id), req.headers['if-match'])
+  )
+);
 
 route('POST', '/api/intern/nikolaus/bookings/:id/message', (req) =>
   bookingById(req.params.id) ? noContent() : notFound()

@@ -16,6 +16,7 @@ import {
 } from './essensplanungDruck';
 import { postenMenge, type EinkaufsGeschaeft } from './essensplanungEinkauf';
 import type { LagerZeile } from './essensplanungLager';
+import type { EinkaufListe } from './essensplanungEinkaeufe';
 import { zahlText } from './essensplanungTeilnehmende';
 import {
   BRAND,
@@ -310,7 +311,52 @@ export async function downloadEinkaufslistePdf(
   saveFile(doc.output('blob'), essenDateiName('Einkaufsliste', ansicht));
 }
 
-/** The stock: what was there, what the cooked dishes used and what is left. */
+/** The list of one shopping trip by category, with a box to tick per thing. */
+export async function downloadEinkaufPdf(
+  ansicht: PlanungAnsicht,
+  liste: EinkaufListe,
+  info: string
+): Promise<void> {
+  const { doc, autoTable } = await loadPdf();
+  const y = drawTitle(doc, liste.einkauf.name, [...untertitel(ansicht), info]) + 2;
+  if (!liste.kategorien.length) text(doc, 'Nichts zu kaufen.', y);
+  else {
+    const body = liste.kategorien.flatMap((kategorie) => [
+      [{ content: kategorie.name, colSpan: 3, styles: { fontStyle: 'bold' as const } }],
+      ...kategorie.posten.map((posten) => [
+        posten.haken ? 'x' : '',
+        postenMenge(posten),
+        posten.haken?.ersatz ? `${posten.name} → ${posten.haken.ersatz}` : posten.name,
+      ]),
+    ]);
+    autoTable(doc, {
+      ...TABLE_STYLES,
+      startY: y,
+      margin: { left: MARGIN, right: MARGIN, bottom: FOOTER_SPACE },
+      body,
+      alternateRowStyles: {},
+      columnStyles: {
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 32, fontStyle: 'bold' },
+      },
+      didDrawCell: (data: CellHookData) => {
+        if (data.section !== 'body' || data.column.index !== 0 || data.cell.colSpan > 1) return;
+        doc.setDrawColor(...GREY);
+        doc.setLineWidth(0.3);
+        doc.rect(
+          data.cell.x + 1.5,
+          data.cell.y + (data.cell.height - KAESTCHEN) / 2,
+          KAESTCHEN,
+          KAESTCHEN
+        );
+      },
+    });
+  }
+  drawPageFooters(doc);
+  saveFile(doc.output('blob'), essenDateiName(liste.einkauf.name, ansicht));
+}
+
+/** The stock: what was there, what was bought, what the cooked dishes used and what is left. */
 export async function downloadLagerPdf(
   ansicht: PlanungAnsicht,
   zeilen: LagerZeile[]
@@ -323,12 +369,19 @@ export async function downloadLagerPdf(
       ...TABLE_STYLES,
       startY: y,
       margin: { left: MARGIN, right: MARGIN, bottom: FOOTER_SPACE },
-      head: [['Zutat', 'Vorher', 'Verbraucht', 'Übrig']],
-      body: zeilen.map((zeile) => [zeile.name, zeile.anfang, zeile.verbraucht, zeile.jetzt]),
+      head: [['Zutat', 'Vorher', 'Erhalten', 'Verbraucht', 'Übrig']],
+      body: zeilen.map((zeile) => [
+        zeile.ersatz ? `${zeile.name} ${zeile.ersatz}` : zeile.name,
+        zeile.anfang,
+        zeile.erhalten,
+        zeile.verbraucht,
+        zeile.jetzt,
+      ]),
       columnStyles: {
         1: { halign: 'right' },
         2: { halign: 'right' },
-        3: { halign: 'right', fontStyle: 'bold' },
+        3: { halign: 'right' },
+        4: { halign: 'right', fontStyle: 'bold' },
       },
     });
   drawPageFooters(doc);

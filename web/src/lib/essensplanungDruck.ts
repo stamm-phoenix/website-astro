@@ -4,6 +4,7 @@ import { datumKurz } from './essensplanung';
 import { ernaehrung, fuerText } from './essensplanungGerichte';
 import { einplanungKennung } from './essensplanungEinplanung';
 import { esserRechner, kochMenge, zeilenMenge } from './essensplanungRechnung';
+import { ersatzText } from './essensplanungLager';
 import { ERNAEHRUNG_TEXT, zahlText, zeitraumText } from './essensplanungTeilnehmende';
 import { parseProtokollMarkdown, type MdBlock, type MdInline } from './protokollMarkdown';
 import type {
@@ -49,7 +50,8 @@ export interface DruckEinplanung {
 
 /** The amounts of a planned dish at its meal, as `EinplanungMengen.svelte` shows them. */
 export function einplanungZeilen(
-  ansicht: Pick<PlanungAnsicht, 'gerichte' | 'zutaten'>,
+  ansicht: Pick<PlanungAnsicht, 'gerichte' | 'zutaten'> &
+    Partial<Pick<PlanungAnsicht, 'einkaeufe'>>,
   mahlzeit: PlanungMahlzeit,
   einplanung: Einplanung,
   esser: ReturnType<typeof esserRechner>,
@@ -68,8 +70,10 @@ export function einplanungZeilen(
       const zutat = zutaten.get(zeile.planungZutatId);
       const wer = zeile.fest ? 0 : esser(mahlzeit, zeile);
       const menge = gericht ? zeilenMenge(zeile, gericht.personen, wer, einplanung.faktor) : null;
+      // What was bought instead, „→ Pepsi Cola“
+      const ersatz = ersatzText(ansicht, zeile.planungZutatId);
       return {
-        name: zutat?.name ?? 'Zutat',
+        name: `${zutat?.name ?? 'Zutat'}${ersatz ? ` ${ersatz}` : ''}`,
         menge:
           menge === null || zeile.einheit === null
             ? 'nach Gefühl'

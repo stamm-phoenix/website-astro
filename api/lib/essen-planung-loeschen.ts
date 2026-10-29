@@ -23,6 +23,9 @@ export async function deletePlanung(trx: Db, planungId: number): Promise<boolean
       eb.selectFrom('essen.planung_gruppe').select('id').where('planung_id', '=', planungId)
     )
     .execute();
+  // Shopping trips point to the shops, what was ticked off and the rules to the ingredients,
+  // without a cascade; deleting the trips takes the rest along
+  await trx.deleteFrom('essen.einkauf').where('planung_id', '=', planungId).execute();
   // Stock and extra needs point to the ingredients, the ingredients to the shops, both without
   // a cascade
   await trx.deleteFrom('essen.bestand').where('planung_id', '=', planungId).execute();

@@ -149,7 +149,13 @@ export async function geschaeftAendern(
 export async function geschaeftLoeschen(zugang: Zugang, id: number, etag: string): Promise<void> {
   await aendere(zugang, 'geschaeft-geloescht', async (trx) => {
     const geschaeft = await geschaeftDerPlanung(trx, zugang, id);
-    // The ingredients first (no second cascade path); a conflict below takes this back too
+    // The ingredients and the shopping trips first (no second cascade path); a conflict below
+    // takes this back too; a trip of this shop then covers every shop
+    await trx
+      .updateTable('essen.einkauf')
+      .set({ geschaeft_id: null })
+      .where('geschaeft_id', '=', id)
+      .execute();
     await trx
       .updateTable('essen.planung_zutat')
       .set({ geschaeft_id: null })

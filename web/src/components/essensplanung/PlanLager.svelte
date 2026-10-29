@@ -28,10 +28,6 @@
       }}
     />
   </div>
-  <p class="text-sm text-neutral-700">
-    Bestand vor der Aktion minus das, was abgehakte Gerichte verbraucht haben. Was übrig ist, zieht
-    die Einkaufsliste ab.
-  </p>
   {#if zeilen.length}
     <div class="overflow-x-auto">
       <table class="w-full text-left text-sm">
@@ -39,17 +35,21 @@
           <tr class="border-b border-neutral-300">
             <th scope="col" class="py-1 pr-3">Zutat</th>
             <th scope="col" class="py-1 pr-3 text-right">Vorher</th>
+            <th scope="col" class="py-1 pr-3 text-right">Erhalten</th>
             <th scope="col" class="py-1 pr-3 text-right">Verbraucht</th>
             <th scope="col" class="py-1 text-right">Übrig</th>
           </tr>
         </thead>
         <tbody>
-          {#each zeilen as zeile (zeile.planungZutatId + zeile.anfang + zeile.verbraucht)}
+          {#each zeilen as zeile, index (index)}
             <tr class="border-b border-neutral-200">
               <th scope="row" class="py-1 pr-3 font-semibold [overflow-wrap:anywhere]"
-                >{zeile.name}</th
+                >{zeile.name}{#if zeile.ersatz}<span class="block font-normal text-neutral-700"
+                    >{zeile.ersatz}</span
+                  >{/if}</th
               >
               <td class="py-1 pr-3 text-right tabular-nums">{zeile.anfang}</td>
+              <td class="py-1 pr-3 text-right tabular-nums">{zeile.erhalten}</td>
               <td class="py-1 pr-3 text-right tabular-nums">{zeile.verbraucht}</td>
               <td
                 class="py-1 text-right font-semibold tabular-nums {zeile.leer

@@ -88,8 +88,8 @@ function stand() {
 
 test('the stock is what was there less what the cooked dishes used', () => {
   assert.deepEqual(lager(stand()), [
-    { planungZutatId: 1, einheit: 'g', anfang: 1000, verbraucht: 500, jetzt: 500 },
-    { planungZutatId: 2, einheit: 'g', anfang: 0, verbraucht: 0, jetzt: 0 },
+    { planungZutatId: 1, einheit: 'g', anfang: 1000, erhalten: 0, verbraucht: 500, jetzt: 500 },
+    { planungZutatId: 2, einheit: 'g', anfang: 0, erhalten: 0, verbraucht: 0, jetzt: 0 },
   ]);
 });
 
@@ -120,7 +120,9 @@ test('the stock reads by name what was there, used and left', () => {
     {
       planungZutatId: 1,
       name: 'Nudeln',
+      ersatz: '',
       anfang: '1 kg',
+      erhalten: '0 g',
       verbraucht: '500 g',
       jetzt: '500 g',
       leer: false,

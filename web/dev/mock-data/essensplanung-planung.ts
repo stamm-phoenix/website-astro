@@ -26,6 +26,7 @@ import type {
 } from '../../../api/lib/essen-planung-model';
 import type { Gericht } from '../../../api/lib/essen-gerichte-model';
 import type { EinplanungStatus, Verbrauch } from '../../../api/lib/essen-kochen-model';
+import type { Einkauf } from '../../../api/lib/essen-einkaeufe-model';
 import type { EssenPlanungUebersicht } from '../../src/lib/types';
 import type { MockPlanungZutat } from './essensplanung-gerichte';
 import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilnehmende-model';
@@ -102,6 +103,7 @@ export interface MockPlanung {
   geschaefte: Geschaeft[];
   bestand: EinkaufPosten[];
   zusatzbedarf: ZusatzPosten[];
+  einkaeufe: Einkauf[];
 }
 
 let nextId = 1;
@@ -174,6 +176,7 @@ function erstelle(
     geschaefte: [],
     bestand: [],
     zusatzbedarf: [],
+    einkaeufe: [],
   };
   const tage = daysBetween(input.ersterTag, input.letzterTag) + 1;
   for (let index = 0; index < tage; index++) {
@@ -308,6 +311,7 @@ export function ansichtVon(
     geschaefte: planung.geschaefte.slice().sort((a, b) => a.position - b.position),
     bestand: planung.bestand,
     zusatzbedarf: planung.zusatzbedarf,
+    einkaeufe: planung.einkaeufe.slice().sort((a, b) => a.position - b.position || a.id - b.id),
     ...gerichteAnsicht(planung),
   };
 }
