@@ -53,6 +53,9 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await anleitung.pressSequentially('würzen');
   await chili.getByLabel('Werkzeuge (optional)').fill('Großer Topf');
   await chili.getByLabel('Werkzeuge (optional)').press('Enter');
+  await chili.getByRole('button', { name: 'Link hinzufügen' }).click();
+  await chili.getByLabel('Titel (optional)').fill('Originalrezept');
+  await chili.getByLabel('Adresse', { exact: true }).fill('https://example.org/chili');
   await chili.getByRole('button', { name: 'Gericht speichern' }).click();
   await expect(page.getByText('Chili gespeichert.').first()).toBeVisible();
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
@@ -78,6 +81,8 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await page.emulateMedia({ media: 'print' });
   await expect(page.getByText('Pudding', { exact: true })).toBeHidden();
   await expect(chili.locator('strong:visible', { hasText: 'würzen' })).toHaveCount(1);
+  // Paper has no links: the address shows after the title
+  await expect(chili.getByText('(https://example.org/chili)')).toBeVisible();
   await page.emulateMedia({ media: 'screen' });
   await expectNoHorizontalOverflow(page);
   await anderes.context().close();
@@ -177,6 +182,8 @@ test('a dish deleted by someone else shows the unsaved input', async ({ page, br
   await expect(page.getByText('Waffeln angelegt.').first()).toBeVisible();
   const waffeln = page.locator('li', { has: page.getByText('Waffeln', { exact: true }) }).first();
   await waffeln.getByLabel('Notiz (optional)').fill('Eisen vorheizen');
+  // A tool typed but not yet added counts as input too
+  await waffeln.getByLabel('Werkzeuge (optional)').fill('Waffeleisen');
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
@@ -188,7 +195,7 @@ test('a dish deleted by someone else shows the unsaved input', async ({ page, br
   await expect(
     page
       .getByText(
-        '„Waffeln“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: Notiz: Eisen vorheizen'
+        '„Waffeln“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: Notiz: Eisen vorheizen · Werkzeuge: Waffeleisen'
       )
       .first()
   ).toBeVisible({ timeout: 15_000 });
