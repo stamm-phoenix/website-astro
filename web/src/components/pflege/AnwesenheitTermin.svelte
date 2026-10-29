@@ -12,7 +12,7 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import FormField from './FormField.svelte';
-  import PdfDownloadButton from './PdfDownloadButton.svelte';
+  import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';
   import StatusNotice from './StatusNotice.svelte';
 
   interface Props {
@@ -406,8 +406,8 @@
           </h2>
           {#if !termin.cancelled && ownStufe.length > 0}
             <PdfDownloadButton
-              label="Liste zum Ausfüllen (PDF)"
-              create={async () =>
+              text="Liste zum Ausfüllen (PDF)"
+              download={async () =>
                 (await import('../../lib/anwesenheitPdf')).downloadAnwesenheitListe(
                   stufe,
                   termin.date,

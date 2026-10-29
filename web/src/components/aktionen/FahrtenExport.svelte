@@ -1,6 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
-  import PdfHerunterladen from './PdfHerunterladen.svelte';
+  import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';
   import { fahrtenRows } from '../../lib/fahrtenCsv';
   import type { FahrtPlan } from '../../lib/fahrtenPlan';
   import { sammelCsv } from '../../lib/sammelExport';
@@ -32,9 +32,9 @@
   }
 </script>
 
-<PdfHerunterladen
-  create={downloadPdf}
+<PdfDownloadButton
+  download={downloadPdf}
   errorText="Das PDF der Fahrten konnte nicht erstellt werden. Lade die Seite neu und versuch es noch einmal."
-  {onresult}
+  onresult={(kind, message) => onresult({ message, kind: kind === 'error' ? 'error' : 'success' })}
 />
 <ActionButton onclick={downloadCsv}>Als CSV</ActionButton>

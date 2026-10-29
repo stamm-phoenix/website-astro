@@ -36,7 +36,7 @@
   import AktionZuschussSchalter from './AktionZuschussSchalter.svelte';
   import AktionArtSchalter from './AktionArtSchalter.svelte';
   import TeilnehmendeFilter from './aktionen/TeilnehmendeFilter.svelte';
-  import PdfHerunterladen from './aktionen/PdfHerunterladen.svelte';
+  import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
 
   const STATUS_TONE: Record<PersonStatus, StatusTone> = {
     confirmed: 'success',
@@ -349,8 +349,8 @@
               {visible.length}
               {visible.length === 1 ? 'Person' : 'Personen'} angezeigt
             </p>
-            <PdfHerunterladen
-              create={() => downloadPdf(event.title, formatEventRange(event))}
+            <PdfDownloadButton
+              download={() => downloadPdf(event.title, formatEventRange(event))}
               disabled={visible.length === 0}
               errorText="Das PDF der Teilnehmenden konnte nicht erstellt werden. Lade die Seite neu und versuch es noch einmal."
             />

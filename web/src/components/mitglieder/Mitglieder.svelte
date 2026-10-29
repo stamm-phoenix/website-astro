@@ -4,7 +4,7 @@
   import LoadState from '../ui/LoadState.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
-  import PdfDownloadButton from '../pflege/PdfDownloadButton.svelte';
+  import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';
   import MitgliedDetails from './MitgliedDetails.svelte';
   import { ageAt, formatDate, formatName } from '../../lib/campflowFields';
   import { todayIso } from '../../lib/format';
@@ -193,7 +193,7 @@
           </p>
         {:else}
           <PdfDownloadButton
-            create={async () =>
+            download={async () =>
               (await import('../../lib/mitgliederPdf')).downloadMitgliederPdf({
                 persons: list,
                 columns: data.columns,
