@@ -18,7 +18,10 @@ test('a pasted recipe becomes lines after checking the preview', async ({ page }
   const karte = await gericht(page, 'Spaghetti Napoli', '8');
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Spaghetti Napoli' });
-  await expect(dialog.getByText(/bitte keine Namen oder Kontaktdaten/)).toBeVisible();
+  // No explaining text in the dialog; the rule for the text is behind the (i) of the field
+  await expect(dialog.getByText(/Die KI liest die Zutaten/)).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Erklärung zu Rezept' }).click();
+  await expect(dialog.getByText(/Bitte keine Namen oder Kontaktdaten einfügen/)).toBeVisible();
   await dialog
     .getByLabel('Rezept', { exact: true })
     .fill(

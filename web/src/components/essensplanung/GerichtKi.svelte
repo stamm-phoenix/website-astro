@@ -44,10 +44,16 @@
   /** Indexes of hints whose proposal was dropped, because others changed the line meanwhile. */
   let veraltet = $state<number[]>([]);
   let rezeptOffen = $state(false);
+  /** A proposal of this card is being saved; checking again waits for it. */
+  let uebernimmt = $state(false);
+  /** Counts the checks: a take-over only acts on the hints of the check it came from. */
+  let pruefNummer = 0;
   /** The people of the dish changed since the check: its amounts no longer fit. */
   const personenGeaendert = $derived(pruefung !== null && pruefung.personen !== gericht.personen);
 
   async function pruefen(): Promise<void> {
+    if (uebernimmt || kontext.busy) return;
+    pruefNummer++;
     prueft = true;
     fehler = null;
     pruefung = null;
@@ -81,6 +87,8 @@
       return;
     }
     const gesendet = { ...zeileBody(zeile), ...hinweis.aenderung, etag: hinweis.zeile.etag };
+    const vonPruefung = pruefNummer;
+    const hinweise = pruefung?.hinweise ?? [];
     // An amount is for the people that were checked: a change of them meanwhile is a conflict
     const body =
       hinweis.aenderung.menge !== undefined && pruefung
@@ -88,24 +96,31 @@
         : gesendet;
     /** The line as this write left it, from the answer of the PATCH itself. */
     let geschrieben: GerichtZutat | undefined;
-    const ok = await kontext.aendern(
-      async () => {
-        const ansicht = await kontext.api.senden<PlanungAnsicht>(
-          'PATCH',
-          `/gericht-zutaten/${zeile.id}`,
-          body
-        );
-        geschrieben = ansicht.gerichte.flatMap((g) => g.zutaten).find((z) => z.id === zeile.id);
-        return ansicht;
-      },
-      `Vorschlag für ${nameVon(hinweis) ?? 'die Zutat'} übernommen.`
-    );
-    if (!ok) return;
+    uebernimmt = true;
+    let ok: boolean;
+    try {
+      ok = await kontext.aendern(
+        async () => {
+          const ansicht = await kontext.api.senden<PlanungAnsicht>(
+            'PATCH',
+            `/gericht-zutaten/${zeile.id}`,
+            body
+          );
+          geschrieben = ansicht.gerichte.flatMap((g) => g.zutaten).find((z) => z.id === zeile.id);
+          return ansicht;
+        },
+        `Vorschlag für ${nameVon(hinweis) ?? 'die Zutat'} übernommen.`
+      );
+    } finally {
+      uebernimmt = false;
+    }
+    // A newer check meanwhile has hints of its own: this result is not about them
+    if (!ok || vonPruefung !== pruefNummer) return;
     uebernommen = [...uebernommen, index];
     // Further hints on the same line build on this write only. If the answer already shows a
     // change of others, they would overwrite it: their proposals are dropped instead.
     const eigene = geschrieben && gleicheZeile(geschrieben, gesendet);
-    for (const [weiterer, andere] of (pruefung?.hinweise ?? []).entries()) {
+    for (const [weiterer, andere] of hinweise.entries()) {
       if (weiterer === index || andere.zeile?.id !== zeile.id) continue;
       if (eigene) andere.zeile.etag = geschrieben!.etag;
       else if (andere.aenderung) {
@@ -138,7 +153,7 @@
   <div class="flex flex-wrap gap-2">
     <ActionButton
       type="button"
-      disabled={!bearbeiten || prueft || !gericht.zutaten.length}
+      disabled={!bearbeiten || prueft || uebernimmt || kontext.busy || !gericht.zutaten.length}
       onclick={() => void pruefen()}>{prueft ? 'KI prüft …' : 'Gericht prüfen (KI)'}</ActionButton
     >
     <ActionButton
@@ -165,7 +180,7 @@
           </p>
           <ActionButton
             type="button"
-            disabled={!bearbeiten || prueft}
+            disabled={!bearbeiten || prueft || uebernimmt || kontext.busy}
             onclick={() => void pruefen()}>Gericht neu prüfen</ActionButton
           >
         </div>

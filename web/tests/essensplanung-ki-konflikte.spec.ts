@@ -223,3 +223,37 @@ test('maintenance keeps the recipe being read; taking over waits until it ends',
   await expect(page.getByText('Eine Zutat übernommen.').first()).toBeVisible();
   await expect.poll(() => zeilenMenge(karte, 'Zwiebeln')).toBe('500 g');
 });
+
+test('checking again waits while a proposal is saved', async ({ page }) => {
+  await anlegen(page, 'E2E KI Übernahme läuft');
+  const karte = await gericht(page, 'Chili', '10');
+  await karte.getByRole('button', { name: 'Mehr Angaben …' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Zutat für Chili' });
+  await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
+  await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
+  await dialog.getByLabel('Menge', { exact: true }).fill('500');
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect.poll(() => zeilenMenge(karte, 'Hackfleisch')).toBe('500 g');
+  await karte.getByRole('button', { name: 'Gericht prüfen (KI)' }).click();
+  const hinweise = karte.getByRole('status').filter({ hasText: 'KI-Hinweise zu Chili' });
+  await expect(hinweise.getByText('Die Menge wirkt für 10 Personen knapp.')).toBeVisible();
+
+  // The answer to saving the proposal is slow
+  let freigeben!: () => void;
+  const frei = new Promise<void>((resolve) => (freigeben = resolve));
+  await page.route('**/api/essensplanung/planung/gericht-zutaten/*', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    await frei;
+    await route.continue();
+  });
+  await hinweise
+    .getByRole('button', { name: 'Vorschlag für Hackfleisch übernehmen: 1.000 g' })
+    .click();
+  // A new check now could get the old take-over marked on its own hints
+  await expect(karte.getByRole('button', { name: 'Gericht prüfen (KI)' })).toBeDisabled();
+  freigeben();
+  await expect(page.getByText('Vorschlag für Hackfleisch übernommen.').first()).toBeVisible();
+  await expect(hinweise.getByText('Übernommen.')).toHaveCount(1);
+  await expect(karte.getByRole('button', { name: 'Gericht prüfen (KI)' })).toBeEnabled();
+  await page.unroute('**/api/essensplanung/planung/gericht-zutaten/*');
+});

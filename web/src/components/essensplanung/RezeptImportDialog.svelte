@@ -350,11 +350,6 @@
   {#if !rezept || schritt === 'text'}
     <form class="min-h-0 space-y-4 overflow-y-auto px-5 py-4" onsubmit={erkennen}>
       <fieldset class="min-w-0 space-y-4" disabled={liest}>
-        <p class="text-sm text-neutral-700">
-          Die KI liest die Zutaten aus dem Text und ordnet sie der Zutatenliste zu. Du prüfst sie
-          danach, erst dann wird etwas übernommen. Der Text geht dafür an Azure OpenAI (in der EU);
-          bitte keine Namen oder Kontaktdaten einfügen.
-        </p>
         {#if !bearbeiten}
           <p class="text-sm text-warning" role="status">
             Die Essensplanung wird gerade gewartet. Dein Text und die Vorschau bleiben; erkennen und
@@ -362,7 +357,12 @@
           </p>
         {/if}
         {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
-        <FormField id="rezept-text" label="Rezept" error={textFehler}>
+        <FormField
+          id="rezept-text"
+          label="Rezept"
+          error={textFehler}
+          info="Bitte keine Namen oder Kontaktdaten einfügen. Der Text geht zum Erkennen an Azure OpenAI (in der EU); übernommen wird erst, was du in der Vorschau bestätigst."
+        >
           {#snippet children(attrs)}
             <textarea
               {...attrs}
