@@ -37,6 +37,6 @@ test('the Einteilung downloads as a PDF, also as an unsaved draft', async ({ pag
   const content = await readFile(await pdf.path());
   expect(content.subarray(0, 5).toString()).toBe('%PDF-');
   await expect(
-    page.getByText('PDF exportiert. Die Einteilung ist noch nicht gespeichert.')
+    page.getByText('PDF heruntergeladen. Die Einteilung ist noch nicht gespeichert.')
   ).toBeVisible();
 });

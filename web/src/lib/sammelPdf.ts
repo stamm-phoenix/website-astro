@@ -162,6 +162,7 @@ export function ausgabelistePdf(input: AusgabelisteInput): PdfReport {
         alignRight: [2],
         // A wide empty column to tick off or sign
         widths: { 0: 40, 2: 22, 3: 24, 4: 30 },
+        handwriting: { rowHeight: 10 },
       },
     ],
     fileName: pdfFileName('Ausgabeliste', input.campaignTitle),

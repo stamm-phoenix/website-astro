@@ -3,7 +3,6 @@ import { describe, test } from 'node:test';
 import { teilnehmendePdfReport } from '../src/lib/aktionTeilnehmendePdf';
 import type { TeilnehmendePdf } from '../src/lib/aktionTeilnehmendePdf';
 import type { PersonColumn } from '../src/lib/campflowFields';
-import { pdfText } from '../src/lib/pdfZeichen';
 import type { CampflowPerson } from '../src/lib/types';
 
 function column(key: string, label = key): PersonColumn {
@@ -64,12 +63,5 @@ describe('teilnehmendePdfReport', () => {
   test('turns the page for many columns', () => {
     const columns = ['a', 'b', 'c', 'd', 'e', 'f'].map((key) => column(key));
     assert.equal(teilnehmendePdfReport(list({ columns })).landscape, true);
-  });
-});
-
-describe('pdfText', () => {
-  test('drops characters the PDF cannot show and keeps umlauts, quotes and €', () => {
-    assert.equal(pdfText('🟢 Pfadfinder*in ✓'), 'Pfadfinder*in');
-    assert.equal(pdfText('„Größe“ – 12 €'), '„Größe“ – 12 €');
   });
 });

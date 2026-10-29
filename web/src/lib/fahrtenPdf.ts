@@ -5,7 +5,7 @@ import type { FahrtPerson, FahrtPlan } from './fahrtenPlan';
 import { pdfFileName } from './pdfBasis';
 import { downloadReportPdf } from './pdfTabelle';
 import type { PdfReport, PdfSection } from './pdfTabelle';
-import { pdfText } from './pdfZeichen';
+import { pdfText } from './pdfText';
 
 export interface FahrtenPdf {
   title: string;

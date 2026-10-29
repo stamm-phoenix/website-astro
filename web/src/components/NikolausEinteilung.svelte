@@ -366,7 +366,7 @@
    * with one table per day.
    */
   async function exportEinteilung(kind: 'bild' | 'pdf'): Promise<void> {
-    const what = kind === 'bild' ? 'Bild' : 'PDF';
+    const message = kind === 'bild' ? 'Bild exportiert.' : 'PDF heruntergeladen.';
     if (
       dirty &&
       !(await confirmAction({
@@ -411,10 +411,10 @@
       if (done) {
         editor.state.notice = dirty
           ? {
-              text: `${what} exportiert. Die Einteilung ist noch nicht gespeichert.`,
+              text: `${message} Die Einteilung ist noch nicht gespeichert.`,
               kind: 'warning',
             }
-          : { text: `${what} exportiert.`, kind: 'success' };
+          : { text: message, kind: 'success' };
       } else if (editor.state.notice?.text === EXPORT_ERROR[kind]) {
         editor.state.notice = null;
       }

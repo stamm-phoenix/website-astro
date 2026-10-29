@@ -15,6 +15,7 @@ import {
   hexToRgb,
   loadPdf,
 } from './pdfBasis';
+import { pdfText } from './pdfText';
 
 /** Room a day needs below its heading before it moves to the next page. */
 const MIN_DAY_SPACE = 70;
@@ -34,7 +35,7 @@ export async function downloadEinteilungPdf(pdf: EinteilungBild, fileName: strin
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
     doc.setTextColor(...BRAND);
-    doc.text(day.label, MARGIN, y + 4);
+    doc.text(pdfText(day.label), MARGIN, y + 4);
     y += 7;
     if (day.teams.length > 0) {
       const roles = day.teams[0].posts.map((post) => post.role);
@@ -51,6 +52,7 @@ export async function downloadEinteilungPdf(pdf: EinteilungBild, fileName: strin
         alternateRowStyles: { fillColor: [247, 248, 250] },
         columnStyles: { 0: { cellWidth: 26, fontStyle: 'bold', textColor: BRAND } },
         didParseCell: (cell) => {
+          cell.cell.text = cell.cell.text.map(pdfText);
           const team = day.teams[cell.column.index - 1];
           if (!team) return;
           if (cell.section === 'head') cell.cell.styles.fillColor = hexToRgb(team.color);
@@ -65,7 +67,7 @@ export async function downloadEinteilungPdf(pdf: EinteilungBild, fileName: strin
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     const kitchen: string[] = doc.splitTextToSize(
-      day.kitchen.length > 0 ? day.kitchen.join(', ') : 'Niemand',
+      day.kitchen.length > 0 ? pdfText(day.kitchen.join(', ')) : 'Niemand',
       PAGE_WIDTH - 2 * MARGIN - 14
     );
     // A long kitchen list goes on below the table, page by page, above the footer
