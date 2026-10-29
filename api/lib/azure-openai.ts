@@ -3,7 +3,8 @@ import { getCredential } from './token';
 /**
  * Requests to a model deployment on Azure OpenAI with structured outputs (strict JSON schema),
  * shared by the receipt check (`beleg-check.ts`), the date detection of the minutes
- * (`protokoll-termin.ts`) and task proposals (`protokoll-aufgaben.ts`). With
+ * (`protokoll-termin.ts`), task proposals (`protokoll-aufgaben.ts`) and the AI of the
+ * Essensplanung (`essen-ki.ts`). With
  * `AZURE_OPENAI_API_KEY` the key is used, otherwise the app registration (Entra ID). See
  * docs/belege-ki-pruefung.md for the setup.
  */
@@ -20,10 +21,47 @@ export interface AzureOpenAiDeployment {
 }
 
 export class AzureOpenAiError extends Error {
-  constructor(message: string) {
+  /** HTTP status of the deployment, when it answered with an error. */
+  readonly status?: number;
+  /** Seconds to wait before asking again, from `Retry-After` of a 429 or 503. */
+  readonly retryAfterSeconds?: number;
+  /** The request ran out of time. */
+  readonly timedOut: boolean;
+
+  constructor(
+    message: string,
+    details: { status?: number; retryAfterSeconds?: number; timedOut?: boolean } = {}
+  ) {
     super(message);
     this.name = 'AzureOpenAiError';
+    this.status = details.status;
+    this.retryAfterSeconds = details.retryAfterSeconds;
+    this.timedOut = details.timedOut ?? false;
   }
+}
+
+const TIMED_OUT = (): AzureOpenAiError =>
+  new AzureOpenAiError('Azure OpenAI request timed out', { timedOut: true });
+
+/**
+ * Seconds from `retry-after-ms` or `retry-after` (seconds or an HTTP date); undefined without a
+ * usable value. Capped at an hour, so a strange header never shows a strange wait.
+ */
+export function readRetryAfter(headers: Headers, now = Date.now()): number | undefined {
+  const ms = Number(headers.get('retry-after-ms'));
+  let seconds: number | undefined;
+  if (headers.get('retry-after-ms') && Number.isFinite(ms) && ms >= 0) seconds = ms / 1000;
+  else {
+    const value = headers.get('retry-after')?.trim();
+    if (!value) return undefined;
+    if (/^\d+(\.\d+)?$/.test(value)) seconds = Number(value);
+    else {
+      const date = Date.parse(value);
+      if (Number.isNaN(date)) return undefined;
+      seconds = Math.max(0, (date - now) / 1000);
+    }
+  }
+  return Math.min(Math.ceil(seconds), 3600);
 }
 
 export interface StructuredRequest {
@@ -80,7 +118,7 @@ export async function requestStructuredOutput(
   const deadline = new Promise<never>((_resolve, reject) => {
     timeout = setTimeout(() => {
       controller.abort();
-      reject(new AzureOpenAiError('Azure OpenAI request timed out'));
+      reject(TIMED_OUT());
     }, request.timeoutMs);
   });
   try {
@@ -101,7 +139,7 @@ async function performStructuredRequest(
   let response: Response;
   try {
     const headers = await authHeaders();
-    if (signal.aborted) throw new AzureOpenAiError('Azure OpenAI request timed out');
+    if (signal.aborted) throw TIMED_OUT();
     response = await fetch(`${deployment.endpoint}/openai/v1/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
@@ -121,13 +159,14 @@ async function performStructuredRequest(
     });
   } catch (error: unknown) {
     if (error instanceof AzureOpenAiError) throw error;
-    throw new AzureOpenAiError(
-      signal.aborted ? 'Azure OpenAI request timed out' : 'Azure OpenAI unreachable'
-    );
+    throw signal.aborted ? TIMED_OUT() : new AzureOpenAiError('Azure OpenAI unreachable');
   }
   // 429: the quota of the deployment is used up
   if (!response.ok) {
-    throw new AzureOpenAiError(`Azure OpenAI request failed: ${response.status}`);
+    throw new AzureOpenAiError(`Azure OpenAI request failed: ${response.status}`, {
+      status: response.status,
+      retryAfterSeconds: readRetryAfter(response.headers),
+    });
   }
   let content: unknown;
   try {

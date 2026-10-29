@@ -4,6 +4,7 @@
   import FormField from '../pflege/FormField.svelte';
   import TagInput from '../pflege/TagInput.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
+  import GerichtKi from './GerichtKi.svelte';
   import ProtokollText from '../protokolle/ProtokollText.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -251,6 +252,8 @@
       {/if}
     </div>
   </div>
+
+  {#if bearbeiten}<GerichtKi {kontext} {katalog} {gericht} {zutaten} />{/if}
 
   {#if warnungen.length}
     <ul class="space-y-1 border-l-4 border-warning py-1 pl-3 text-sm text-warning" role="status">

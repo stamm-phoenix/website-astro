@@ -1,0 +1,382 @@
+<script lang="ts">
+  import ModalDialog from '../ui/ModalDialog.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import VorschlagFeld from '../ui/VorschlagFeld.svelte';
+  import FormField from '../pflege/FormField.svelte';
+  import { ApiError } from '../../lib/api';
+  import { confirmAction } from '../../lib/confirm';
+  import {
+    getippteZutat,
+    leseMenge,
+    mengeFeld,
+    zutatVorschlaege,
+    zutatWahl,
+    type ZutatWahl,
+  } from '../../lib/essensplanungGerichte';
+  import { kiFehlerText, type KiRezept, type KiRezeptZeile } from '../../lib/essensplanungKi';
+  import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
+  import type { EssenKatalog, Gericht, GerichtEinheit } from '../../lib/types';
+  import type { Vorschlag } from '../../lib/vorschlaege';
+  import type { PlanKontext } from './planKontext';
+
+  /**
+   * „Rezept einfügen“: the AI reads the ingredients of a pasted recipe and maps them onto the
+   * lists. Nothing is saved before the member has checked the preview; unknown ingredients are
+   * marked and left out until one of the lists is chosen. The chosen lines are added in one
+   * change (`…/zutaten/sammel`).
+   */
+
+  interface Props {
+    kontext: PlanKontext;
+    katalog: EssenKatalog;
+    gericht: Gericht;
+    open: boolean;
+    onclose: () => void;
+  }
+  let { kontext, katalog, gericht, open, onclose }: Props = $props();
+  const ansicht = $derived(kontext.ansicht);
+
+  interface Zeile {
+    an: boolean;
+    original: string;
+    zutatText: string;
+    auswahl: ZutatWahl | null;
+    menge: string;
+    einheit: GerichtEinheit;
+    hinweis: string;
+    fuerAlles: boolean;
+    fuerVegetarisch: boolean;
+    fuerVegan: boolean;
+    fehler: Record<string, string>;
+  }
+
+  let text = $state('');
+  let liest = $state(false);
+  let speichert = $state(false);
+  let fehler = $state<string | null>(null);
+  let textFehler = $state<string | undefined>(undefined);
+  let rezept = $state<{ rezeptPersonen: number | null; personen: number } | null>(null);
+  let zeilen = $state<Zeile[]>([]);
+
+  const vorschlaege = $derived(zutatVorschlaege(katalog, ansicht.zutaten));
+
+  function zutatVon(auswahl: ZutatWahl | null) {
+    if (!auswahl) return undefined;
+    return auswahl.art === 'planung'
+      ? ansicht.zutaten.find((z) => z.id === auswahl.id)
+      : katalog.zutaten.find((z) => z.id === auswahl.id);
+  }
+
+  function einheitenartVon(auswahl: ZutatWahl | null) {
+    return zutatVon(auswahl)?.einheitenart ?? null;
+  }
+
+  function einheitenVon(zeile: Zeile): readonly GerichtEinheit[] {
+    const art = einheitenartVon(zeile.auswahl);
+    return art ? EINHEITEN_JE_ART[art] : [];
+  }
+
+  function zeileVon(ki: KiRezeptZeile): Zeile {
+    const key = ki.zutat
+      ? 'zutatId' in ki.zutat
+        ? `z:${ki.zutat.zutatId}`
+        : `p:${ki.zutat.planungZutatId}`
+      : null;
+    const vorschlag = key ? vorschlaege.find((option) => option.key === key) : undefined;
+    const zeile: Zeile = {
+      an: Boolean(vorschlag),
+      original: ki.original,
+      zutatText: vorschlag?.value ?? ki.name,
+      auswahl: vorschlag ? zutatWahl(vorschlag) : null,
+      menge: mengeFeld(ki.menge),
+      einheit: ki.einheit ?? 'g',
+      hinweis: ki.hinweis,
+      fuerAlles: ki.fuerAlles,
+      fuerVegetarisch: ki.fuerVegetarisch,
+      fuerVegan: ki.fuerVegan,
+      fehler: {},
+    };
+    passendeEinheit(zeile);
+    return zeile;
+  }
+
+  function passendeEinheit(zeile: Zeile): void {
+    const einheiten = einheitenVon(zeile);
+    if (einheiten.length && !einheiten.includes(zeile.einheit)) zeile.einheit = einheiten[0];
+  }
+
+  async function erkennen(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    if (liest) return;
+    fehler = null;
+    textFehler = text.trim() ? undefined : 'Bitte ein Rezept einfügen.';
+    if (textFehler) return;
+    liest = true;
+    try {
+      const antwort = await kontext.api.senden<KiRezept>(
+        'POST',
+        `/gerichte/${gericht.id}/ki/rezept`,
+        { text }
+      );
+      rezept = { rezeptPersonen: antwort.rezeptPersonen, personen: antwort.personen };
+      zeilen = antwort.zeilen.map(zeileVon);
+      if (!zeilen.length) fehler = 'Die KI hat in dem Text keine Zutaten gefunden.';
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.fields?.text) textFehler = error.fields.text;
+      else fehler = kiFehlerText(error);
+    } finally {
+      liest = false;
+    }
+  }
+
+  function waehle(zeile: Zeile, option: Vorschlag): void {
+    zeile.auswahl = zutatWahl(option);
+    zeile.zutatText = option.value;
+    zeile.an = true;
+    zeile.fehler = {};
+    // Meat only for those who eat everything, as the recipe import does
+    const zutat = zutatVon(zeile.auswahl);
+    zeile.fuerAlles = true;
+    zeile.fuerVegetarisch = zutat?.vegetarisch !== false;
+    zeile.fuerVegan = zutat?.vegan !== false;
+    passendeEinheit(zeile);
+  }
+
+  function getippt(zeile: Zeile, eingabe: string): void {
+    const treffer = getippteZutat(vorschlaege, eingabe);
+    if (treffer) waehle(zeile, treffer);
+    else {
+      zeile.auswahl = null;
+      zeile.an = false;
+    }
+  }
+
+  const gewaehlt = $derived(zeilen.filter((zeile) => zeile.an && zeile.auswahl));
+
+  async function uebernehmen(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    if (speichert || !gewaehlt.length) return;
+    fehler = null;
+    for (const zeile of zeilen) zeile.fehler = {};
+    const gesendet = gewaehlt;
+    const body = gesendet.map((zeile) => {
+      const menge = leseMenge(zeile.menge);
+      if (Number.isNaN(menge))
+        zeile.fehler.menge = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
+      return {
+        ...(zeile.auswahl!.art === 'planung'
+          ? { planungZutatId: zeile.auswahl!.id }
+          : { zutatId: zeile.auswahl!.id }),
+        menge,
+        einheit: menge === null ? null : zeile.einheit,
+        fuerAlles: zeile.fuerAlles,
+        fuerVegetarisch: zeile.fuerVegetarisch,
+        fuerVegan: zeile.fuerVegan,
+        hinweis: zeile.hinweis,
+      };
+    });
+    if (gesendet.some((zeile) => Object.keys(zeile.fehler).length)) return;
+    speichert = true;
+    try {
+      const ok = await kontext.aendern(
+        async () => {
+          try {
+            return await kontext.api.senden('POST', `/gerichte/${gericht.id}/zutaten/sammel`, {
+              zeilen: body,
+            });
+          } catch (error: unknown) {
+            if (error instanceof ApiError && error.fields) {
+              for (const [feld, meldung] of Object.entries(error.fields)) {
+                const treffer = /^zeilen\.(\d+)\.(\w+)$/.exec(feld);
+                const zeile = treffer ? gesendet[Number(treffer[1])] : undefined;
+                if (zeile) zeile.fehler[treffer![2]] = meldung;
+              }
+            }
+            throw error;
+          }
+        },
+        `${gesendet.length === 1 ? 'Eine Zutat' : `${gesendet.length} Zutaten`} übernommen.`
+      );
+      if (ok) {
+        zeilen = [];
+        onclose();
+      } else if (!zeilen.some((zeile) => Object.keys(zeile.fehler).length)) {
+        fehler = kontext.fehler;
+      }
+    } finally {
+      speichert = false;
+    }
+  }
+
+  async function schliessen(): Promise<void> {
+    if (speichert) return;
+    if (
+      (text.trim() || zeilen.length) &&
+      !(await confirmAction({
+        title: 'Rezept verwerfen?',
+        message: 'Die erkannten Zutaten werden nicht übernommen.',
+        confirmLabel: 'Verwerfen',
+      }))
+    )
+      return;
+    onclose();
+  }
+</script>
+
+<ModalDialog
+  {open}
+  title="Rezept für {gericht.name}"
+  closeDisabled={speichert}
+  onclose={() => void schliessen()}
+>
+  {#if !rezept}
+    <form class="min-h-0 space-y-4 overflow-y-auto px-5 py-4" onsubmit={erkennen}>
+      <fieldset class="min-w-0 space-y-4" disabled={liest}>
+        <p class="text-sm text-neutral-700">
+          Die KI liest die Zutaten aus dem Text und ordnet sie der Zutatenliste zu. Du prüfst sie
+          danach, erst dann wird etwas übernommen. Der Text geht dafür an Azure OpenAI (in der EU);
+          bitte keine Namen oder Kontaktdaten einfügen.
+        </p>
+        {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
+        <FormField id="rezept-text" label="Rezept" error={textFehler}>
+          {#snippet children(attrs)}
+            <textarea
+              {...attrs}
+              class="form-input min-h-48"
+              maxlength="10000"
+              placeholder="z. B. 500 g Spaghetti, 2 EL Olivenöl, 1 Zwiebel …"
+              bind:value={text}></textarea>
+          {/snippet}
+        </FormField>
+        <div class="flex flex-wrap justify-end gap-2">
+          <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
+          <ActionButton type="submit" variant="primary"
+            >{liest ? 'KI liest das Rezept …' : 'Zutaten erkennen'}</ActionButton
+          >
+        </div>
+      </fieldset>
+    </form>
+  {:else}
+    <form class="min-h-0 space-y-4 overflow-y-auto px-5 py-4" onsubmit={uebernehmen}>
+      <fieldset class="min-w-0 space-y-4" disabled={speichert}>
+        <p class="text-sm text-neutral-700" role="status">
+          Von der KI erkannt und ungeprüft.
+          {#if rezept.rezeptPersonen && rezept.rezeptPersonen !== rezept.personen}
+            Die Mengen sind von {rezept.rezeptPersonen} auf {rezept.personen} Personen umgerechnet.
+          {:else if !rezept.rezeptPersonen}
+            Das Rezept nennt keine Personenzahl: Die Mengen stehen wie im Rezept, bitte für
+            {rezept.personen} Personen anpassen.
+          {/if}
+          Zutaten, die nicht in der Liste stehen, sind markiert und erst nach einer Wahl dabei.
+        </p>
+        {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
+        <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
+          {#each zeilen as zeile, index (index)}
+            {@const einheiten = einheitenVon(zeile)}
+            <li class="space-y-2 py-3" data-testid="rezept-zeile">
+              <div class="flex items-start gap-3">
+                <input
+                  id="rezept-{index}-an"
+                  type="checkbox"
+                  class="mt-1 size-5"
+                  aria-label="{zeile.original} übernehmen"
+                  disabled={!zeile.auswahl}
+                  bind:checked={zeile.an}
+                />
+                <label
+                  for="rezept-{index}-an"
+                  class="min-w-0 text-sm text-neutral-700 [overflow-wrap:anywhere]"
+                >
+                  Rezept: {zeile.original}
+                  {#if zeile.auswahl && !(zeile.fuerVegetarisch && zeile.fuerVegan)}
+                    <span>({zeile.fuerVegetarisch ? 'nicht für vegan' : 'nur für mit allem'})</span>
+                  {/if}
+                  {#if !zeile.auswahl}
+                    <span class="font-semibold text-warning"
+                      >– nicht in der Liste, bitte wählen</span
+                    >
+                  {/if}
+                </label>
+              </div>
+              <div class="grid gap-2 sm:grid-cols-[minmax(0,2fr)_6rem_7rem_minmax(0,1.5fr)]">
+                <div>
+                  <label class="sr-only" for="rezept-{index}-zutat"
+                    >Zutat für {zeile.original}</label
+                  >
+                  <VorschlagFeld
+                    id="rezept-{index}-zutat"
+                    options={vorschlaege}
+                    bind:value={zeile.zutatText}
+                    listLabel="Zutaten"
+                    pickFirstOnEnter
+                    onpick={(option) => waehle(zeile, option)}
+                    onedit={(eingabe) => getippt(zeile, eingabe)}
+                    autocomplete="off"
+                    aria-invalid={zeile.fehler.zutat ? 'true' : undefined}
+                  />
+                  {#if zeile.fehler.zutat}<p class="text-sm text-danger">
+                      {zeile.fehler.zutat}
+                    </p>{/if}
+                </div>
+                <div>
+                  <label class="sr-only" for="rezept-{index}-menge"
+                    >Menge für {zeile.original}</label
+                  >
+                  <input
+                    id="rezept-{index}-menge"
+                    class="form-input"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    placeholder="Menge"
+                    bind:value={zeile.menge}
+                  />
+                  {#if zeile.fehler.menge}<p class="text-sm text-danger">
+                      {zeile.fehler.menge}
+                    </p>{/if}
+                </div>
+                <div>
+                  <label class="sr-only" for="rezept-{index}-einheit"
+                    >Einheit für {zeile.original}</label
+                  >
+                  <select
+                    id="rezept-{index}-einheit"
+                    class="form-input"
+                    bind:value={zeile.einheit}
+                    disabled={!einheiten.length || !zeile.menge.trim()}
+                  >
+                    {#each einheiten as wert (wert)}
+                      <option value={wert}>{einheitText(wert)}</option>
+                    {/each}
+                  </select>
+                  {#if zeile.fehler.einheit}<p class="text-sm text-danger">
+                      {zeile.fehler.einheit}
+                    </p>{/if}
+                </div>
+                <div>
+                  <label class="sr-only" for="rezept-{index}-hinweis"
+                    >Hinweis für {zeile.original}</label
+                  >
+                  <input
+                    id="rezept-{index}-hinweis"
+                    class="form-input"
+                    maxlength="100"
+                    placeholder="Hinweis"
+                    bind:value={zeile.hinweis}
+                  />
+                </div>
+              </div>
+            </li>
+          {/each}
+        </ul>
+        <div class="flex flex-wrap justify-end gap-2">
+          <ActionButton type="button" onclick={() => (rezept = null)}>Zurück zum Text</ActionButton>
+          <ActionButton type="submit" variant="primary" disabled={!gewaehlt.length || kontext.busy}
+            >{gewaehlt.length === 1
+              ? 'Eine Zutat übernehmen'
+              : `${gewaehlt.length} Zutaten übernehmen`}</ActionButton
+          >
+        </div>
+      </fieldset>
+    </form>
+  {/if}
+</ModalDialog>

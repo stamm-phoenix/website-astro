@@ -6,6 +6,7 @@
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import ZeileUnvertraeglichkeiten from './ZeileUnvertraeglichkeiten.svelte';
   import FormField from '../pflege/FormField.svelte';
+  import KiUmrechnung from './KiUmrechnung.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -530,6 +531,18 @@
           />
         {/snippet}
       </FormField>
+      {#if gewaehlt && einheitenart === 'masse' && !eigene}
+        <KiUmrechnung
+          {kontext}
+          {katalog}
+          zutat={gewaehlt}
+          onuebernehmen={(wert) => {
+            menge = mengeFeld(wert);
+            einheit = 'g';
+            geaendert = true;
+          }}
+        />
+      {/if}
       <div class="flex items-center gap-1">
         <label class="flex min-h-11 items-center gap-3">
           <input type="checkbox" bind:checked={fest} disabled={!menge.trim()} />

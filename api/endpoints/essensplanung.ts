@@ -59,13 +59,15 @@ import {
   gerichtAendern,
   gerichtAnlegen,
   gerichtLoeschen,
-  gerichtZutatAendern,
-  gerichtZutatAnlegen,
-  gerichtZutatLoeschen,
   ladeKatalog,
   planungZutatAendern,
   planungZutatLoeschen,
 } from '../lib/essen-gerichte';
+import {
+  gerichtZutatAendern,
+  gerichtZutatAnlegen,
+  gerichtZutatLoeschen,
+} from '../lib/essen-gericht-zeilen';
 import {
   validateGericht,
   validateGerichtZutat,
