@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
@@ -126,6 +127,23 @@ test('the conversion migration is the one built from the CSV file', () => {
   const built = buildUmrechnungSql(resolve(MIGRATIONS, 'seed/essensplanung'));
   const stored = readFileSync(resolve(MIGRATIONS, '0057_essensplanung_umrechnung.sql'), 'utf8');
   assert.equal(stored, built, 'run `bun scripts/essensplanung-umrechnung.ts` in api/');
+});
+
+test('the conversion takes no heaped spoon', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'umrechnung-'));
+  const seed = resolve(MIGRATIONS, 'seed/essensplanung');
+  writeFileSync(join(dir, 'zutaten.csv'), readFileSync(join(seed, 'zutaten.csv')));
+  const zuordnung = (row: string) =>
+    writeFileSync(
+      join(dir, 'umrechnung_zuordnung.csv'),
+      `zutat,gramm_pro_tl,gramm_pro_el,gramm_pro_stueck,quelle\n${row}\n`
+    );
+  zuordnung('Pfeffer,6,,,"loeffel: Pfeffer schwarz, gemahlen 6/19 gehäuft"');
+  assert.throws(() => buildUmrechnungSql(dir), /heaped/);
+  zuordnung('Zimt,,16,,"TL: stueck Zimt 2; EL: loeffel Zimt 16 gehäuft"');
+  assert.throws(() => buildUmrechnungSql(dir), /heaped/);
+  zuordnung('Zimt,2,,,"TL: stueck Zimt 2; EL: loeffel Zimt 16 gehäuft"');
+  assert.match(buildUmrechnungSql(dir), /N'Zimt', 2, NULL, NULL/);
 });
 
 test('the CSV reader handles quotes, commas and empty fields', () => {

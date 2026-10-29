@@ -169,6 +169,14 @@ export function buildUmrechnungSql(seedDir: string): string {
   );
   const values = read('umrechnung_zuordnung.csv').map((row) => {
     if (!masse.has(row.zutat)) throw new Error(`„${row.zutat}“ is no food measured by weight`);
+    // The helper converts level spoons: a value from a heaped source must stay empty
+    for (const teil of row.quelle.split(';').map((part) => part.trim())) {
+      if (!teil.includes('gehäuft')) continue;
+      const tl = teil.startsWith('TL:') || teil.startsWith('loeffel:');
+      const el = teil.startsWith('EL:') || teil.startsWith('loeffel:');
+      if ((tl && row.gramm_pro_tl) || (el && row.gramm_pro_el))
+        throw new Error(`„${row.zutat}“ takes a heaped spoon: ${teil}`);
+    }
     return `  (${[text(row.zutat), gramm(row.gramm_pro_tl), gramm(row.gramm_pro_el), gramm(row.gramm_pro_stueck)].join(', ')})`;
   });
   return `-- Umrechnungshilfe der Essensplanung (#452): Gramm pro TL, EL und Stück aus der

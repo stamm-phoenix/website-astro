@@ -342,6 +342,9 @@ test('spoons and pieces are converted to grams from the list', async ({ page }) 
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Zutat', { exact: true }).fill('Butter');
   await dialog.getByRole('option', { name: 'Butter', exact: true }).click();
+  // The measure shown is the one calculated with
+  await expect(dialog.getByLabel('Maß zum Umrechnen')).toHaveValue('tl');
+  await expect(dialog.getByText('≈ 5 g')).toBeVisible();
   await dialog.getByLabel('Anzahl zum Umrechnen').fill('2');
   await dialog.getByLabel('Maß zum Umrechnen').selectOption({ label: 'EL' });
   await expect(dialog.getByText('≈ 30 g')).toBeVisible();
@@ -353,8 +356,13 @@ test('spoons and pieces are converted to grams from the list', async ({ page }) 
 
   // Pieces of onions; nothing to convert for milk, which is measured in ml
   await kuchen.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await dialog.getByLabel('Zutat', { exact: true }).fill('Butter');
+  await dialog.getByRole('option', { name: 'Butter', exact: true }).click();
+  await dialog.getByLabel('Maß zum Umrechnen').selectOption({ label: 'EL' });
   await dialog.getByLabel('Zutat', { exact: true }).fill('Zwiebeln');
   await dialog.getByRole('option', { name: 'Zwiebeln', exact: true }).click();
+  // Onions only have pieces: the measure follows
+  await expect(dialog.getByLabel('Maß zum Umrechnen')).toHaveValue('stueck');
   await dialog.getByLabel('Anzahl zum Umrechnen').fill('3');
   await expect(dialog.getByText('≈ 249 g')).toBeVisible();
   await dialog.getByLabel('Zutat', { exact: true }).fill('H-Milch');
