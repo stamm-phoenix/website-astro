@@ -11,6 +11,7 @@ import {
   AufgabenDecision,
 } from './endpoints/intern-pflege-aufgaben';
 import { app } from '@azure/functions';
+import './endpoints/ics-routes';
 import { AbstimmungAbstimmen, AbstimmungAnsehen } from './endpoints/abstimmungen';
 import {
   AbstimmungEinladung,
@@ -46,8 +47,6 @@ import GetVorstandEndpoint from './endpoints/vorstand';
 import GetLeitendeEndpoint from './endpoints/leitende';
 import { GetLeitendeImage } from './endpoints/image';
 import GetAktionenEndpoint from './endpoints/aktionen';
-import GetAktionenIcsEndpoint from './endpoints/aktionen-ics';
-import GetLeitendeIcsEndpoint from './endpoints/leitende-ics';
 import { GetBlog, GetBlogPost, GetBlogImage } from './endpoints/blog';
 import GetDownloadFilesEndpoint from './endpoints/download-files';
 import GetDownloadFileImageEndpoint from './endpoints/download-file-image';
@@ -276,20 +275,6 @@ app.http('aktionen', {
   methods: ['GET'],
   authLevel: 'anonymous',
   handler: GetAktionenEndpoint,
-});
-
-app.http('aktionenIcs', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'aktionen.ics',
-  handler: GetAktionenIcsEndpoint,
-});
-
-app.http('leitendeIcs', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'leitende.ics',
-  handler: GetLeitendeIcsEndpoint,
 });
 
 app.http('image', {
