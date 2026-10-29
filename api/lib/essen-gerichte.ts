@@ -25,6 +25,8 @@ import {
   MAX_PLANUNG_ZUTATEN,
   MAX_ZEILEN_PRO_GERICHT,
   einheitPasst,
+  gerichtSperre,
+  gerichtStand,
   zutatSperre,
 } from './essen-gerichte-model';
 import type {
@@ -543,7 +545,7 @@ export async function gerichtAnlegen(zugang: Zugang, input: GerichtInput): Promi
 async function gerichtDerPlanung(trx: Db, zugang: Zugang, id: number) {
   const gericht = await trx
     .selectFrom('essen.gericht')
-    .select(['id', 'name'])
+    .select(['id', 'name', 'version'])
     .where('id', '=', id)
     .where('planung_id', '=', zugang.planungId)
     .executeTakeFirst();
@@ -588,14 +590,26 @@ export async function gerichtAendern(
   );
 }
 
-/** Deletes a dish with its lines. */
+/** Deletes a dish with its lines; `etag` is its `gerichtStand`, covering the lines too. */
 export async function gerichtLoeschen(zugang: Zugang, id: number, etag: string): Promise<void> {
   await aendere(zugang, 'gericht-geloescht', async (trx) => {
+    // No line changes meanwhile; they take the same lock
+    await lockResource(trx, gerichtSperre(id));
     const gericht = await gerichtDerPlanung(trx, zugang, id);
+    const zeilen = await trx
+      .selectFrom('essen.gericht_zutat')
+      .select('version')
+      .where('gericht_id', '=', id)
+      .execute();
+    const stand = gerichtStand({
+      etag: toVersion(gericht.version),
+      zutaten: zeilen.map((zeile) => ({ etag: toVersion(zeile.version) })),
+    });
+    if (stand !== etag.trim()) throw new VersionConflictError();
     const result = await trx
       .deleteFrom('essen.gericht')
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', gericht.version)
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     return { result: undefined, details: { name: gericht.name } };
@@ -694,6 +708,7 @@ export async function gerichtZutatAnlegen(
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutat-neu', async (trx) => {
     const gericht = await gerichtDerPlanung(trx, zugang, gerichtId);
+    await lockResource(trx, gerichtSperre(gerichtId));
     const anzahl = await trx
       .selectFrom('essen.gericht_zutat')
       .select((eb) => eb.fn.countAll<number>().as('count'))
@@ -742,6 +757,7 @@ export async function gerichtZutatAendern(
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutat-geaendert', async (trx) => {
     const zeile = await zeileDerPlanung(trx, zugang, id);
+    await lockResource(trx, gerichtSperre(zeile.gericht_id));
     const zutat = await zutatFuerZeile(trx, zugang, input.zutat);
     pruefeEinheit(zutat, input);
     const result = await trx
@@ -767,6 +783,7 @@ export async function gerichtZutatLoeschen(
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutat-geloescht', async (trx) => {
     const zeile = await zeileDerPlanung(trx, zugang, id);
+    await lockResource(trx, gerichtSperre(zeile.gericht_id));
     const name = await trx
       .selectFrom('essen.gericht_zutat as gz')
       .innerJoin('essen.planung_zutat as pz', 'pz.id', 'gz.planung_zutat_id')

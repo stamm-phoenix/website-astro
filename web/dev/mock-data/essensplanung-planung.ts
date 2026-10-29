@@ -26,7 +26,6 @@ import type { EssenPlanungUebersicht } from '../../src/lib/types';
 import type { MockPlanungZutat } from './essensplanung-gerichte';
 import { essenKatalogStand } from './essensplanung';
 import { gerichteAnsicht } from './essensplanung-gerichte';
-import { newEtag } from './util';
 
 /** Opens the demo Planung as its owner. */
 export const DEMO_TOKEN = 'demoDemoDemoDemoDemoDemoDemoDemoDemoDemoDem';
@@ -81,8 +80,11 @@ export function neuesMockToken(): string {
   return randomBytes(32).toString('base64url');
 }
 
+let etagZaehler = 0;
+
+/** Growing like the rowversions of the database, which `gerichtStand` compares. */
 function etag(): string {
-  return newEtag('essen-planung');
+  return `"${(++etagZaehler).toString(16).padStart(16, '0')}"`;
 }
 
 /** A new id and version for the dishes of the mock (`essensplanung-gerichte.ts`). */
