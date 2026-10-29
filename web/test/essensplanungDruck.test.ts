@@ -149,6 +149,7 @@ test('the plan lists each meal with its dishes, portions and amounts', () => {
   );
   const mittag = tage[0].mahlzeiten[1];
   assert.equal(mittag.titel, '1_2 Mittagessen, 12:30 Uhr');
+  assert.equal(mittag.gerichte[0].kennung, '1_2_1');
   assert.equal(mittag.gerichte[0].name, 'Chili');
   assert.equal(mittag.gerichte[0].portionen, 10);
   assert.equal(mittag.gerichte[0].zustaendig, 'Kim');

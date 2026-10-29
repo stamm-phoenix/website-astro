@@ -200,88 +200,51 @@
       </h3>
       <PdfKnopf {kontext} label="Esser je Mahlzeit als PDF" erstellen={esserPdf} />
     </div>
-    <!-- Phones: one entry per meal; wider screens and print: the table -->
-    <ul class="space-y-3 sm:hidden print:hidden" aria-labelledby="esser-heading">
-      {#each ansicht.tage as tag (tag.id)}
-        <li>
-          <h4 class="font-semibold text-brand-900">Tag {tag.nummer} · {datumKurz(tag.datum)}</h4>
-          <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
-            {#each tag.mahlzeiten as mahlzeit (mahlzeit.id)}
-              {@const zahl = esser.get(mahlzeit.id)}
-              <li class="py-2 text-sm" data-esser={mahlzeit.kennung}>
-                <p class="[overflow-wrap:anywhere]">
-                  <span class="font-mono font-semibold text-brand-900">{mahlzeit.kennung}</span>
-                  {mahlzeit.name}
-                </p>
-                {#if mahlzeit.ohneGruppen.length}
-                  <p class="text-neutral-700">
-                    ohne {mahlzeit.ohneGruppen.map((id) => gruppenName.get(id)).join(', ')}
-                  </p>
-                {/if}
-                <p class="tabular-nums">
-                  <span data-zahl>{zahl?.personen ?? 0}</span> Personen ·
-                  <span data-zahl>{zahlText(zahl?.gewichtet ?? 0)}</span> Portionen
-                </p>
-                <p class="text-neutral-700 tabular-nums">
-                  mit allem <span data-zahl>{zahl?.je.alles.personen ?? 0}</span> · vegetarisch
-                  <span data-zahl>{zahl?.je.vegetarisch.personen ?? 0}</span> · vegan
-                  <span data-zahl>{zahl?.je.vegan.personen ?? 0}</span>
-                </p>
-              </li>
-            {/each}
-          </ul>
-        </li>
-      {/each}
-    </ul>
-    <div class="hidden sm:block print:block">
-      <table class="w-full text-left text-sm" aria-labelledby="esser-heading">
-        <thead>
-          <tr class="border-b border-neutral-300">
-            <th scope="col" class="py-2 pr-3">Mahlzeit</th>
-            <th scope="col" class="py-2 pr-3 text-right">Personen</th>
-            <th scope="col" class="py-2 pr-3 text-right">Portionen</th>
-            <th scope="col" class="py-2 pr-3 text-right">mit allem</th>
-            <th scope="col" class="py-2 pr-3 text-right">vegetarisch</th>
-            <th scope="col" class="py-2 text-right">vegan</th>
-          </tr>
-        </thead>
+    {#if ansicht.tage.length > 1}
+      <p class="text-sm text-neutral-700 sm:hidden print:hidden">
+        Weitere Tage siehst du, wenn du seitlich wischst.
+      </p>
+    {/if}
+    <!-- A calendar: the days next to each other, their meals below each other -->
+    <div class="overflow-x-auto pb-2">
+      <ol class="flex gap-3" aria-labelledby="esser-heading">
         {#each ansicht.tage as tag (tag.id)}
-          <tbody>
-            <tr>
-              <th scope="rowgroup" colspan="6" class="pt-3 pb-1 font-semibold text-brand-900">
-                Tag {tag.nummer} · {datumKurz(tag.datum)}
-              </th>
-            </tr>
-            {#each tag.mahlzeiten as mahlzeit (mahlzeit.id)}
-              {@const zahl = esser.get(mahlzeit.id)}
-              <tr class="border-b border-neutral-200" data-esser={mahlzeit.kennung}>
-                <th scope="row" class="py-1.5 pr-3 font-normal">
-                  <span class="font-mono font-semibold text-brand-900">{mahlzeit.kennung}</span>
-                  {mahlzeit.name}
+          <li class="w-44 shrink-0 space-y-2 sm:w-auto sm:min-w-40 sm:flex-1">
+            <h4 class="text-sm font-semibold text-brand-900">
+              Tag {tag.nummer}
+              <span class="block font-normal text-neutral-700">{datumKurz(tag.datum)}</span>
+            </h4>
+            <ul class="space-y-2">
+              {#each tag.mahlzeiten as mahlzeit (mahlzeit.id)}
+                {@const zahl = esser.get(mahlzeit.id)}
+                <li
+                  class="rounded-lg border border-neutral-200 bg-white p-2 text-sm"
+                  data-esser={mahlzeit.kennung}
+                >
+                  <p class="[overflow-wrap:anywhere]">
+                    <span class="font-mono font-semibold text-brand-900">{mahlzeit.kennung}</span>
+                    {mahlzeit.name}
+                  </p>
                   {#if mahlzeit.ohneGruppen.length}
-                    <span class="block text-neutral-700"
-                      >ohne {mahlzeit.ohneGruppen.map((id) => gruppenName.get(id)).join(', ')}</span
-                    >
+                    <p class="text-neutral-700">
+                      ohne {mahlzeit.ohneGruppen.map((id) => gruppenName.get(id)).join(', ')}
+                    </p>
                   {/if}
-                </th>
-                <td data-zahl class="py-1.5 pr-3 text-right tabular-nums">{zahl?.personen ?? 0}</td>
-                <td data-zahl class="py-1.5 pr-3 text-right tabular-nums"
-                  >{zahlText(zahl?.gewichtet ?? 0)}</td
-                >
-                <td data-zahl class="py-1.5 pr-3 text-right tabular-nums"
-                  >{zahl?.je.alles.personen ?? 0}</td
-                >
-                <td data-zahl class="py-1.5 pr-3 text-right tabular-nums"
-                  >{zahl?.je.vegetarisch.personen ?? 0}</td
-                >
-                <td data-zahl class="py-1.5 text-right tabular-nums"
-                  >{zahl?.je.vegan.personen ?? 0}</td
-                >
-              </tr>
-            {/each}
-          </tbody>
+                  <p class="text-lg font-bold text-neutral-900 tabular-nums">
+                    <span data-zahl>{zahl?.personen ?? 0}</span>
+                    <span class="text-sm font-normal">Personen</span>
+                  </p>
+                  <p class="text-neutral-700 tabular-nums">
+                    mit allem <span data-zahl>{zahl?.je.alles.personen ?? 0}</span> · vegetarisch
+                    <span data-zahl>{zahl?.je.vegetarisch.personen ?? 0}</span> · vegan
+                    <span data-zahl>{zahl?.je.vegan.personen ?? 0}</span>
+                  </p>
+                </li>
+              {/each}
+            </ul>
+          </li>
         {/each}
-      </table>
+      </ol>
     </div>
   </section>
 

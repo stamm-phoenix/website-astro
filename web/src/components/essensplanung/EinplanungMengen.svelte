@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import type { esserRechner } from '../../lib/essensplanungRechnung';
   import { zahlText } from '../../lib/essensplanungTeilnehmende';
   import { einplanungZeilen } from '../../lib/essensplanungDruck';
@@ -51,9 +52,9 @@
 <div class="basis-full">
   <details class="print:hidden">
     <summary
-      class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-link"
+      class="flex min-h-11 cursor-pointer list-none items-center gap-1 py-2 text-sm font-semibold text-link [&::-webkit-details-marker]:hidden"
       aria-label="Mengen für {zahlText(portionen)} Portionen von {name}"
-      >Mengen für {zahlText(portionen)} Portionen</summary
+      >Mengen für {zahlText(portionen)} Portionen<AufklappPfeil class="text-link" /></summary
     >
     {@render liste()}
   </details>

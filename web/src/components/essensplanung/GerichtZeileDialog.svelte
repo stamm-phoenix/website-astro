@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import { untrack } from 'svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -564,11 +565,14 @@
       </fieldset>
 
       <details>
-        <summary class="flex min-h-11 cursor-pointer items-center font-semibold text-brand-900">
+        <summary
+          class="flex min-h-11 cursor-pointer list-none items-center gap-2 font-semibold text-brand-900 [&::-webkit-details-marker]:hidden"
+        >
           Unverträglichkeiten
           {#if Object.values(unvertraeglich).some(Boolean)}
             ({Object.values(unvertraeglich).filter(Boolean).length})
           {/if}
+          <AufklappPfeil />
         </summary>
         {#if felder.nur || felder.ohne}<p class="text-sm text-danger">
             {felder.nur ?? felder.ohne}

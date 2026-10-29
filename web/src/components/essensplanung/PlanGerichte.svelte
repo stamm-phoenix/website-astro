@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import { tick, untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -153,7 +154,7 @@
             ontoggle={(event) => umschalten(gericht.id, event.currentTarget.open)}
           >
             <summary
-              class="flex min-h-11 cursor-pointer flex-wrap items-baseline gap-x-3 px-4 py-3 print:list-none"
+              class="flex min-h-11 cursor-pointer list-none flex-wrap items-baseline gap-x-3 px-4 py-3 [&::-webkit-details-marker]:hidden"
             >
               <span class="font-serif text-lg font-bold text-brand-900 [overflow-wrap:anywhere]"
                 >{gericht.name}</span
@@ -161,6 +162,7 @@
               <span class="text-sm text-neutral-700"
                 >{gericht.zutaten.length} Zutaten · für {gericht.personen} Personen</span
               >
+              <AufklappPfeil class="ml-auto self-center" />
             </summary>
             <div class="px-4 pb-4">
               <GerichtKarte

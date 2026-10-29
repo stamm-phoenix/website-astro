@@ -9,7 +9,7 @@
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { ernaehrung, fuerText, zeileBody } from '../../lib/essensplanungGerichte';
-  import { faktorText, plaetzeVon } from '../../lib/essensplanungEinplanung';
+  import { einplanungKennung, faktorText, plaetzeVon } from '../../lib/essensplanungEinplanung';
   import { allergeneText } from '../../lib/essensplanungDruck';
   import {
     gerichtStand,
@@ -234,7 +234,11 @@
           Eingeplant:
           {plaetze
             .map(({ mahlzeit, einplanung }) =>
-              [mahlzeit.kennung, mahlzeit.name, faktorText(einplanung.faktor)]
+              [
+                einplanungKennung(mahlzeit, einplanung.id),
+                mahlzeit.name,
+                faktorText(einplanung.faktor),
+              ]
                 .filter(Boolean)
                 .join(' ')
             )

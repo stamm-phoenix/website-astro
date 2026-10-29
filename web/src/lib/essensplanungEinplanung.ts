@@ -52,6 +52,15 @@ export function plaetzeVon(ansicht: PlanungAnsicht, gerichtId: number): Platz[] 
   );
 }
 
+/** Shown ID of a planned dish `<Tag>_<Mahlzeit>_<Gericht>`, e.g. `3_2_2`; follows the order. */
+export function einplanungKennung(
+  mahlzeit: Pick<PlanungMahlzeit, 'kennung' | 'einplanungen'>,
+  einplanungId: number
+): string {
+  const index = mahlzeit.einplanungen.findIndex((e) => e.id === einplanungId);
+  return `${mahlzeit.kennung}_${index + 1}`;
+}
+
 /** Finds a planned dish with its meal. */
 export function platzVon(ansicht: PlanungAnsicht, einplanungId: number): Platz | undefined {
   for (const tag of ansicht.tage) {
