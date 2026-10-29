@@ -176,21 +176,26 @@
   );
 
   function waehle(option: Vorschlag): void {
+    nimm(option);
+    zutatText = option.value;
+  }
+
+  function nimm(option: Vorschlag): void {
     const [art, id] = (option.key ?? '').split(':');
     auswahl = { art: art === 'p' ? 'planung' : 'zentral', id: Number(id) };
-    zutatText = option.value;
     eigene = null;
     geaendert = true;
     // An explicit choice: a unit that fits it, e.g. kg instead of ml after picking flour
     passendeEinheit();
   }
 
+  /** A typed name of the list counts as chosen; the text stays as typed (Ol is not Öl). */
   function getippt(text: string): void {
     geaendert = true;
     const treffer = vorschlaege.find(
-      (option) => option.value.localeCompare(text.trim(), 'de', { sensitivity: 'base' }) === 0
+      (option) => option.value.localeCompare(text.trim(), 'de', { sensitivity: 'accent' }) === 0
     );
-    if (treffer) waehle(treffer);
+    if (treffer) nimm(treffer);
     else auswahl = null;
   }
 
@@ -299,8 +304,7 @@
       zeile ? `${zutatText} geändert.` : `${zutatText} hinzugefügt.`
     );
     if (ok) {
-      geaendert = false;
-      onclose();
+      zu();
       return;
     }
     if (!Object.keys(felder).length) fehler = kontext.fehler;
@@ -312,10 +316,18 @@
     if (jetzt && abgelehnt instanceof ApiError && abgelehnt.status === 409) zeileEtag = jetzt.etag;
   }
 
+  /** Closed on purpose (saved or discarded), not taken away by a deletion of others. */
+  let geschlossen = false;
+  function zu(): void {
+    geschlossen = true;
+    geaendert = false;
+    onclose();
+  }
+
   // The dish or the line is deleted by someone else while the dialog is open: the dialog goes,
   // so the input is shown to copy
   $effect(() => () => {
-    if (!geaendert) return;
+    if (geschlossen || !geaendert) return;
     const eingabe = [
       zutatText.trim(),
       menge.trim() && `${menge.trim()} ${einheitText(einheit)}`,
@@ -339,8 +351,7 @@
       }))
     )
       return;
-    geaendert = false;
-    onclose();
+    zu();
   }
 </script>
 
@@ -366,6 +377,7 @@
             bind:value={zutatText}
             listLabel="Zutaten"
             placeholder="z. B. Spaghetti"
+            pickFirstOnEnter
             onpick={waehle}
             onedit={getippt}
             autocomplete="off"

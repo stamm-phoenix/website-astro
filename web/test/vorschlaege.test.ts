@@ -40,3 +40,24 @@ test('the match is marked in the original spelling', () => {
   assert.deepEqual(trefferTeile('Sommerlager', ''), [{ text: 'Sommerlager', hit: false }]);
   assert.deepEqual(trefferTeile('Sommerlager', 'fest'), [{ text: 'Sommerlager', hit: false }]);
 });
+
+test('the best fitting suggestions come first, headings kept together', () => {
+  const zutaten = [
+    { value: 'Vollmilch', gruppe: 'In dieser Planung' },
+    { value: 'Öl', gruppe: 'In dieser Planung' },
+    { value: 'Karfiol', gruppe: 'Zutatenliste' },
+    { value: 'Oliven', gruppe: 'Zutatenliste' },
+    { value: 'Olivenöl', gruppe: 'Zutatenliste' },
+    { value: 'Rote Oliven', gruppe: 'Zutatenliste' },
+  ];
+  assert.deepEqual(
+    filterVorschlaege(zutaten, 'ol', 8).matches.map((v) => v.value),
+    ['Oliven', 'Olivenöl', 'Rote Oliven', 'Karfiol', 'Vollmilch']
+  );
+  // Without typed text the order stays as given
+  assert.deepEqual(
+    filterVorschlaege(zutaten, '', 2).matches.map((v) => v.value),
+    ['Vollmilch', 'Öl']
+  );
+  assert.deepEqual(values('sommer'), ['Sommerlager', 'Sommerfest']);
+});

@@ -95,6 +95,8 @@
     return list;
   });
   const expanded = $derived(open && matches.length > 0 && !disabled);
+  /** Enter would take the first suggestion, which is then marked like a highlighted one. */
+  const enterNimmtErsten = $derived(pickFirstOnEnter && active < 0 && value.trim() !== '');
   const showLoading = $derived(open && !disabled && loading && matches.length === 0);
   const announcement = $derived.by(() => {
     if (!focused || !open || disabled) return '';
@@ -319,7 +321,7 @@
                 aria-selected={active === index}
                 tabindex="-1"
                 class="flex min-h-11 w-full items-center break-words px-3 py-2 text-left hover:bg-neutral-100"
-                class:bg-neutral-100={active === index}
+                class:bg-neutral-100={active === index || (index === 0 && enterNimmtErsten)}
                 onclick={() => pick(option)}
                 ><span
                   >{#each trefferTeile(option.label ?? option.value, value) as part, partIndex (partIndex)}{#if part.hit}<mark
