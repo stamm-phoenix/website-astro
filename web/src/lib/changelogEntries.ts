@@ -14,7 +14,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-10-29-07-vorschlaege',
     date: '2026-10-29',
-    title: 'Vorschläge beim Tippen',
+    title: 'Passendere Vorschläge beim Tippen',
     changes: [
       'Die Vorschläge unter einem Eingabefeld zeigen zuerst, was am besten passt: den ganzen Namen, dann was so anfängt.',
       'Essensplanung: Bei einer Zutat bleibt dein getippter Text stehen („Ol“ wird nicht mehr zu „Öl“), und Enter übernimmt den ersten Vorschlag.',
