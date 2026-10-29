@@ -1,13 +1,15 @@
-import { expect, test } from 'bun:test';
+import assert from 'node:assert/strict';
+import test from 'node:test';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * The browser runs the Svelte components and the modules of `src/lib`, which import values from
  * `api/lib` (models, rules). zod must not get into that graph: it would ship to every visitor.
  * Type-only imports are erased and do not count. Build-time modules (`src/lib/content`) are exempt.
  */
-const SRC = resolve(import.meta.dir, '../src');
+const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
 const IMPORT = /(?:^|\n)\s*(import|export)\s+(type\s+)?(?:[^;'"]*?\sfrom\s+)?['"]([^'"]+)['"]/g;
 
 function files(dir: string): string[] {
@@ -49,5 +51,5 @@ test('the code of the browser never imports zod', () => {
     }
   };
   for (const root of roots) visit(root, []);
-  expect(offenders).toEqual([]);
+  assert.deepEqual(offenders, []);
 });

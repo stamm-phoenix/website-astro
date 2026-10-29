@@ -29,9 +29,9 @@ export function validateGerichtZutat(input: unknown): GerichtZutatInput {
  * `eigene`: a new or changed ingredient of the Planung's own with all fields; otherwise the
  * differences of a central ingredient (null: as in the central list).
  */
-export function validatePlanungZutat(input: unknown, { eigene }: { eigene: boolean }) {
-  if (!eigene) {
-    return parseWith(planungZutatAbweichungSchema, input) satisfies PlanungZutatInput;
-  }
-  return parseWith(planungZutatEigeneSchema, input) satisfies PlanungZutatInput;
+export function validatePlanungZutat(
+  input: unknown,
+  { eigene }: { eigene: boolean }
+): PlanungZutatInput {
+  return parseWith(eigene ? planungZutatEigeneSchema : planungZutatAbweichungSchema, input);
 }
