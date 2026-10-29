@@ -52,12 +52,13 @@ export const EssensplanungGeschaeft = planungHandler(async (request) => {
   return ok(await ladeAnsicht(zugang));
 });
 
-/** PUT `{ geschaeftId }` (null: none): where an ingredient of the Planung is bought. */
+/** PUT `{ geschaeftId, etag }` (null: none; the version of the ingredient): where it is bought. */
 export const EssensplanungZutatGeschaeft = planungHandler(async (request) => {
   if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
-  const geschaeftId = validateZutatGeschaeft(await readJsonBody(request));
-  await zutatGeschaeftSetzen(zugang, readId(request), geschaeftId);
+  const body = await readJsonBody(request);
+  const geschaeftId = validateZutatGeschaeft(body);
+  await zutatGeschaeftSetzen(zugang, readId(request), geschaeftId, readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
 });
 

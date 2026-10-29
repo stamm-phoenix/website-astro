@@ -9,7 +9,12 @@ import {
 } from '../src/lib/essensplanung.ts';
 import { fuerText, leseMenge, mengeFeld } from '../src/lib/essensplanungGerichte.ts';
 import { mengeText } from '../../api/lib/essen-gerichte-model.ts';
-import { leseFaktor, mahlzeitStand, tagStand } from '../../api/lib/essen-planung-model.ts';
+import {
+  AENDERUNG_TEXTE,
+  leseFaktor,
+  mahlzeitStand,
+  tagStand,
+} from '../../api/lib/essen-planung-model.ts';
 import { faktorFeld, faktorText } from '../src/lib/essensplanungEinplanung.ts';
 
 const TOKEN = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJ01234-_';
@@ -150,5 +155,21 @@ test('planned dishes read with factor, place and the delete versions', () => {
   assert.equal(
     tagStand({ id: 1, etag: '"0000000000000009"', datum: '', nummer: 1, mahlzeiten: [mahlzeit] }),
     '"0000000000000009"'
+  );
+});
+
+test('every kind of change has its own text, a chosen shop is named', () => {
+  const text = (aktion: string, details: Record<string, unknown> = { name: 'Salz' }) =>
+    aenderungText({ seq: 4, at: '', wer: 'Kim', aktion, details });
+  for (const aktion of Object.keys(AENDERUNG_TEXTE))
+    assert.doesNotMatch(text(aktion), /etwas geändert/, aktion);
+  assert.notEqual(text('bestand-neu'), text('bestand-geloescht'));
+  assert.equal(
+    text('zutat-geschaeft', { name: 'Salz', geschaeft: 'Metro' }),
+    'Kim hat ein Geschäft gewählt: Salz bei Metro'
+  );
+  assert.equal(
+    text('zutat-geschaeft', { name: 'Salz', geschaeft: null }),
+    'Kim hat ein Geschäft entfernt: Salz'
   );
 });

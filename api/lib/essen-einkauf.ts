@@ -163,11 +163,15 @@ export async function geschaeftLoeschen(zugang: Zugang, id: number, etag: string
   });
 }
 
-/** Sets where an ingredient of the Planung is bought; null: at no shop. */
+/**
+ * Sets where an ingredient of the Planung is bought; null: at no shop. Only on the version of
+ * the ingredient the choice was made on, so the choice of someone else is not overwritten.
+ */
 export async function zutatGeschaeftSetzen(
   zugang: Zugang,
   planungZutatId: number,
-  geschaeftId: number | null
+  geschaeftId: number | null,
+  etag: string
 ): Promise<void> {
   await aendere(zugang, 'zutat-geschaeft', async (trx) => {
     const zutat = await zutatDerPlanung(trx, zugang, planungZutatId);
@@ -177,11 +181,13 @@ export async function zutatGeschaeftSetzen(
         : await geschaeftDerPlanung(trx, zugang, geschaeftId).catch(() => {
             throw new ValidationError({ geschaeftId: 'Dieses Geschäft gibt es nicht mehr.' });
           });
-    await trx
+    const result = await trx
       .updateTable('essen.planung_zutat')
       .set({ geschaeft_id: geschaeftId })
       .where('id', '=', planungZutatId)
-      .execute();
+      .where('version', '=', requireVersion(etag))
+      .executeTakeFirst();
+    if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     return {
       result: undefined,
       details: { name: zutat.name ?? zutat.z_name, geschaeft: geschaeft?.name ?? null },

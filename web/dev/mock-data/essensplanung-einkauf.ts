@@ -68,9 +68,15 @@ export function geschaeftAendern(
   });
 }
 
-export function zutatGeschaeft(z: MockZugang, planungZutatId: number, geschaeftId: number | null) {
+export function zutatGeschaeft(
+  z: MockZugang,
+  planungZutatId: number,
+  geschaeftId: number | null,
+  etag: unknown
+) {
   const zutat = z.planung.zutaten.find((entry) => entry.id === planungZutatId);
   if (!zutat) throw nichtGefunden();
+  if (etag !== zutat.etag) throw konflikt();
   const geschaeft =
     geschaeftId === null ? null : z.planung.geschaefte.find((g) => g.id === geschaeftId);
   if (geschaeft === undefined) throw feld('geschaeftId', 'Dieses Geschäft gibt es nicht mehr.');

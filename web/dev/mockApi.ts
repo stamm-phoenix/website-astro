@@ -1510,7 +1510,7 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/geschaefte/:id', (req) =>
 route('PUT', '/api/essensplanung/planung/zutaten/:id/geschaeft', (req) => {
   const geschaeftId = validateZutatGeschaeft(req.json);
   return essenAendern(req, (z) =>
-    essenEinkauf.zutatGeschaeft(z, Number(req.params.id), geschaeftId)
+    essenEinkauf.zutatGeschaeft(z, Number(req.params.id), geschaeftId, req.json?.etag)
   );
 });
 

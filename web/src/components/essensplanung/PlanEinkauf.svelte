@@ -61,8 +61,11 @@
   async function geschaeftSetzen(planungZutatId: number, wert: string, name: string) {
     const geschaeftId = wert ? Number(wert) : null;
     const geschaeft = ansicht.geschaefte.find((g) => g.id === geschaeftId);
+    // On the version the choice was made on: the choice of someone else meanwhile is a conflict
+    const etag = zutaten.get(planungZutatId)?.etag;
     await kontext.aendern(
-      () => kontext.api.senden('PUT', `/zutaten/${planungZutatId}/geschaeft`, { geschaeftId }),
+      () =>
+        kontext.api.senden('PUT', `/zutaten/${planungZutatId}/geschaeft`, { geschaeftId, etag }),
       geschaeft ? `${name} kaufst du bei ${geschaeft.name}.` : `${name} hat kein Geschäft mehr.`
     );
   }

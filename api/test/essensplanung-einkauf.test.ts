@@ -79,12 +79,23 @@ dbTest('shops are named once per Planung and ingredients are bought at one', asy
       'PUT',
       `planung/zutaten/${salzDerPlanung.id}/geschaeft`,
       token,
-      { geschaeftId: metro.id },
+      { geschaeftId: metro.id, etag: salzDerPlanung.etag },
       salzDerPlanung.id
     )
   );
   assert.equal(zugeordnet.zutaten.find((z) => z.id === salzDerPlanung.id)!.geschaeftId, metro.id);
   assert.equal(zugeordnet.aenderungen[0].aktion, 'zutat-geschaeft');
+  // Someone choosing on the old version does not overwrite it
+  const veraltet = await senden(
+    t,
+    einkauf.EssensplanungZutatGeschaeft,
+    'PUT',
+    `planung/zutaten/${salzDerPlanung.id}/geschaeft`,
+    token,
+    { geschaeftId: baecker.id, etag: salzDerPlanung.etag },
+    salzDerPlanung.id
+  );
+  assert.equal(veraltet.status, 409);
 
   // Renaming keeps it; deleting the shop leaves the salt without one
   const umbenannt = json<PlanungAnsicht>(
@@ -136,7 +147,7 @@ dbTest('shops are named once per Planung and ingredients are bought at one', asy
     'PUT',
     `planung/zutaten/${salzDerPlanung.id}/geschaeft`,
     token,
-    { geschaeftId: metro.id },
+    { geschaeftId: metro.id, etag: ohne.zutaten.find((z) => z.id === salzDerPlanung.id)!.etag },
     salzDerPlanung.id
   );
   assert.equal(fremd.status, 400);
