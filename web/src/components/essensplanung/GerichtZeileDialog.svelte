@@ -1,10 +1,10 @@
 <script lang="ts">
-  import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import { untrack } from 'svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
+  import ZeileUnvertraeglichkeiten from './ZeileUnvertraeglichkeiten.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -202,13 +202,6 @@
     if (treffer) nimm(treffer);
     else auswahl = null;
   }
-
-  /** Chosen intolerances deleted in the Steuerung meanwhile; they are removed here. */
-  const verschwunden = $derived(
-    Object.entries(unvertraeglich)
-      .filter(([id, art]) => art && !katalog.unvertraeglichkeiten.some((u) => u.id === Number(id)))
-      .map(([id]) => Number(id))
-  );
 
   const ohneTreffer = $derived(!auswahl && zutatText.trim().length > 1 && !eigene);
 
@@ -564,46 +557,7 @@
         </div>
       </fieldset>
 
-      <details>
-        <summary
-          class="flex min-h-11 cursor-pointer list-none items-center gap-2 font-semibold text-brand-900 [&::-webkit-details-marker]:hidden"
-        >
-          Unverträglichkeiten
-          {#if Object.values(unvertraeglich).some(Boolean)}
-            ({Object.values(unvertraeglich).filter(Boolean).length})
-          {/if}
-          <AufklappPfeil />
-        </summary>
-        {#if felder.nur || felder.ohne}<p class="text-sm text-danger">
-            {felder.nur ?? felder.ohne}
-          </p>{/if}
-        <ul class="mt-2 space-y-2">
-          {#each katalog.unvertraeglichkeiten as u (u.id)}
-            <li class="flex items-center justify-between gap-3">
-              <label for="zeile-u-{u.id}" class="min-w-0">{u.name}</label>
-              <select
-                id="zeile-u-{u.id}"
-                class="form-input w-40"
-                bind:value={
-                  () => unvertraeglich[u.id] ?? '', (wert) => (unvertraeglich[u.id] = wert)
-                }
-              >
-                <option value="">für alle</option>
-                <option value="ohne">nicht dafür</option>
-                <option value="nur">nur dafür (Ersatz)</option>
-              </select>
-            </li>
-          {/each}
-          {#each verschwunden as id (id)}
-            <li class="flex items-center justify-between gap-3">
-              <span class="min-w-0 text-danger">Gelöscht: nicht mehr in der Liste</span>
-              <ActionButton type="button" onclick={() => delete unvertraeglich[id]}
-                >Entfernen</ActionButton
-              >
-            </li>
-          {/each}
-        </ul>
-      </details>
+      <ZeileUnvertraeglichkeiten {katalog} bind:unvertraeglich fehler={felder.nur ?? felder.ohne} />
 
       <div class="flex flex-wrap justify-end gap-2 pt-2">
         <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
