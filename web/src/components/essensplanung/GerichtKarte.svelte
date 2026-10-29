@@ -9,19 +9,18 @@
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import { ernaehrung, fuerText, zeileBody } from '../../lib/essensplanungGerichte';
   import { plaetzeVon } from '../../lib/essensplanungEinplanung';
-  import { allergeneText } from '../../lib/essensplanungDruck';
   import {
+    einheitText,
     gerichtStand,
     gerichtWarnungen,
-    mengeText,
   } from '../../../../api/lib/essen-gerichte-model';
-  import type { EssenKatalog, Gericht, GerichtLink, GerichtZutat } from '../../lib/types';
+  import type { EssenKatalog, Gericht, GerichtLink } from '../../lib/types';
   import GerichtPlaetze from './GerichtPlaetze.svelte';
-  import GerichtZeileDialog from './GerichtZeileDialog.svelte';
+  import { angefangen, leereZeile } from './NeueZutatZeile.svelte';
+  import GerichtZutatenListe from './GerichtZutatenListe.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
-  import type { PlanKontext } from './planKontext';
+  import { gespeichert, meldeVerloren, type PlanKontext } from './planKontext';
 
   /**
    * One dish: its lines with warnings, and (for those who edit) its fields as a draft that the
@@ -78,7 +77,9 @@
   let felder = $state<Record<string, string>>({});
   /** A tool name typed but not yet added. */
   let werkzeugEntwurf = $state('');
-  const entwurf = $derived(!gleich(kopf, basis) || werkzeugEntwurf.trim() !== '');
+  /** Whether the fields hold input; a function too, as a derived read when the card goes may be stale. */
+  const offen = (): boolean => !gleich(kopf, basis) || werkzeugEntwurf.trim() !== '';
+  const entwurf = $derived(offen());
   $effect(() => {
     const neu = kopfVon(gericht);
     untrack(() => {
@@ -89,20 +90,32 @@
     });
   });
   $effect(() => guardUnsavedChanges(() => entwurf));
+  /** The new row of ingredients; kept here, so a read-only phase does not lose it. */
+  let neueZeile = $state(leereZeile());
+  $effect(() => guardUnsavedChanges(() => angefangen(neueZeile)));
 
   /** Set when this page deletes the dish itself, which needs no word about lost input. */
   let selbstGeloescht = false;
   // Someone else deleted the dish: the card goes, so the unsaved fields are shown to copy
   $effect(() => () => {
-    if (selbstGeloescht || !entwurf) return;
+    if (selbstGeloescht || (!offen() && !angefangen(neueZeile))) return;
+    const neu = neueZeile;
     const eingaben = (Object.keys(kopf) as (keyof Kopf)[])
       .filter((feld) => !gleich(kopf[feld], basis[feld]))
       .map((feld) => `${FELD_NAMEN[feld]}: ${textVon(kopf[feld])}`)
       .concat(werkzeugEntwurf.trim() ? [`${FELD_NAMEN.werkzeuge}: ${werkzeugEntwurf.trim()}`] : [])
+      .concat(
+        angefangen(neu)
+          ? [
+              `Neue Zutat: ${[neu.name.trim(), neu.menge.trim() && `${neu.menge.trim()} ${einheitText(neu.einheit)}`, neu.hinweis.trim()].filter(Boolean).join(', ')}`,
+            ]
+          : []
+      )
       .join(' · ');
-    const text = `„${gericht.name}“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: ${eingaben}`;
-    // After the update that removes the card, which would not show a change made during it
-    setTimeout(() => kontext.hinweis(text, 'error'));
+    meldeVerloren(
+      kontext,
+      `„${gericht.name}“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: ${eingaben}`
+    );
   });
 
   const FELD_NAMEN: Record<keyof Kopf, string> = {
@@ -170,6 +183,8 @@
   }
 
   async function loeschen(): Promise<void> {
+    // A row left with this click saves first, so the version asked about includes it
+    await gespeichert();
     // The dish as asked about: a change of others during the question is a conflict
     const { id, name } = gericht;
     const etag = gerichtStand(
@@ -193,38 +208,8 @@
     if (!ok) selbstGeloescht = false;
   }
 
-  async function verschiebe(zeile: GerichtZutat, position: number): Promise<void> {
-    await kontext.aendern(() =>
-      kontext.api.senden('PATCH', `/gericht-zutaten/${zeile.id}`, { ...zeileBody(zeile), position })
-    );
-  }
-
-  async function zeileLoeschen(zeile: GerichtZutat): Promise<void> {
-    const name = zutaten.get(zeile.planungZutatId)?.name ?? 'Zutat';
-    if (
-      !(await confirmAction({
-        title: `${name} entfernen?`,
-        message: `Die Zeile wird aus „${gericht.name}“ entfernt.`,
-        confirmLabel: 'Entfernen',
-      }))
-    )
-      return;
-    await kontext.aendern(
-      () => kontext.api.senden('DELETE', `/gericht-zutaten/${zeile.id}`, undefined, zeile.etag),
-      `${name} entfernt.`
-    );
-  }
-
-  let dialog = $state<{ zeile: GerichtZutat | null } | null>(null);
-
-  function allergene(zeile: GerichtZutat): string {
-    return allergeneText(zeile, zutaten.get(zeile.planungZutatId), unvertraeglichkeiten);
-  }
-
   /** Where the dish is planned. */
   const plaetze = $derived(plaetzeVon(ansicht, gericht.id));
-
-  const namen = (ids: number[]) => ids.map((id) => unvertraeglichkeiten.get(id) ?? '?').join(', ');
 </script>
 
 <div class="space-y-5">
@@ -263,79 +248,15 @@
     </ul>
   {/if}
 
-  <section aria-labelledby="gericht-{gericht.id}-zutaten" class="space-y-2">
-    <h4 id="gericht-{gericht.id}-zutaten" class="font-semibold text-brand-900">Zutaten</h4>
-    {#if gericht.zutaten.length}
-      <ol class="divide-y divide-neutral-200 border-y border-neutral-200">
-        {#each gericht.zutaten as zeile, index (zeile.id)}
-          {@const zutat = zutaten.get(zeile.planungZutatId)}
-          {@const enthalten = allergene(zeile)}
-          <li class="flex flex-wrap items-start justify-between gap-2 py-2">
-            <div class="min-w-0 space-y-0.5">
-              <p class="text-neutral-900 [overflow-wrap:anywhere]">
-                {#if zeile.menge !== null}
-                  <span class="font-semibold tabular-nums"
-                    >{mengeText(zeile.menge, zeile.einheit, zutat?.abtropfgewicht)}</span
-                  >
-                {/if}
-                {zutat?.name ?? 'Zutat'}
-                {#if zeile.hinweis}<span class="text-neutral-700">({zeile.hinweis})</span>{/if}
-              </p>
-              <p class="flex flex-wrap gap-x-3 text-sm text-neutral-700">
-                {#if zeile.fest}<span>feste Menge</span>{/if}
-                {#if fuerText(zeile)}<span>{fuerText(zeile)}</span>{/if}
-                {#if zeile.nur.length}<span>nur bei {namen(zeile.nur)}</span>{/if}
-                {#if zeile.ohne.length}<span>nicht bei {namen(zeile.ohne)}</span>{/if}
-                {#if enthalten}<span>enthält {enthalten}</span>{/if}
-                {#if zutat && ernaehrung(zutat) === 'nicht vegetarisch'}<span
-                    >nicht vegetarisch</span
-                  >{/if}
-              </p>
-            </div>
-            {#if bearbeiten}
-              <div class="flex flex-wrap gap-1 print:hidden">
-                <ActionButton
-                  type="button"
-                  aria-label="{zutat?.name} nach oben"
-                  disabled={kontext.busy || index === 0}
-                  onclick={() => void verschiebe(zeile, index)}>↑</ActionButton
-                >
-                <ActionButton
-                  type="button"
-                  aria-label="{zutat?.name} nach unten"
-                  disabled={kontext.busy || index === gericht.zutaten.length - 1}
-                  onclick={() => void verschiebe(zeile, index + 2)}>↓</ActionButton
-                >
-                <ActionButton
-                  type="button"
-                  aria-label="{zutat?.name} ändern"
-                  disabled={!katalog}
-                  onclick={() => (dialog = { zeile })}>Ändern</ActionButton
-                >
-                <ActionButton
-                  type="button"
-                  variant="danger"
-                  aria-label="{zutat?.name} entfernen"
-                  disabled={kontext.busy}
-                  onclick={() => void zeileLoeschen(zeile)}>Entfernen</ActionButton
-                >
-              </div>
-            {/if}
-          </li>
-        {/each}
-      </ol>
-    {:else}
-      <p class="text-sm text-neutral-700">Noch keine Zutaten.</p>
-    {/if}
-    {#if bearbeiten}
-      <ActionButton
-        type="button"
-        class="print:hidden"
-        disabled={!katalog}
-        onclick={() => (dialog = { zeile: null })}>Zutat hinzufügen</ActionButton
-      >
-    {/if}
-  </section>
+  <GerichtZutatenListe
+    {kontext}
+    {katalog}
+    {gericht}
+    {bearbeiten}
+    {zutaten}
+    {unvertraeglichkeiten}
+    bind:neueZeile
+  />
 
   {#if bearbeiten}
     <form class="space-y-4 print:hidden" onsubmit={speichern}>
@@ -491,14 +412,3 @@
     {/if}
   </div>
 </div>
-
-{#if katalog && dialog}
-  <GerichtZeileDialog
-    {kontext}
-    {katalog}
-    {gericht}
-    zeile={dialog.zeile}
-    open={dialog !== null}
-    onclose={() => (dialog = null)}
-  />
-{/if}

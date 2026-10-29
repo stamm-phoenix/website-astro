@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import type { Download, Page } from '@playwright/test';
+import type { Download, Locator, Page } from '@playwright/test';
 import { expect, expectNoHorizontalOverflow } from './fixtures';
 
 /** Creates a Planung over the start page and the confirmation link the mock shows. */
@@ -48,4 +48,13 @@ export async function pdfLaden(
     seiten: pdf.numPages,
     breiteste,
   };
+}
+
+/** Amount and unit of a line of a dish as its row shows them while editing, „1,5 kg“. */
+export async function zeilenMenge(bereich: Locator, name: string): Promise<string> {
+  const menge = await bereich.getByLabel(`Menge von ${name}`, { exact: true }).inputValue();
+  const einheit = await bereich
+    .getByLabel(`Einheit von ${name}`, { exact: true })
+    .evaluate((feld) => (feld as HTMLSelectElement).selectedOptions[0]?.textContent ?? '');
+  return menge ? `${menge} ${einheit.trim()}` : '';
 }
