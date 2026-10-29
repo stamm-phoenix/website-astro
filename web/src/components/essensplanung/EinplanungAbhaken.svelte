@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import { ApiError } from '../../lib/api';
   import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { leseMenge, mengeFeld } from '../../lib/essensplanungGerichte';
@@ -37,6 +38,12 @@
     menge: string;
     verwendet: boolean;
   }
+
+  const STATUS_TEXT: Record<EinplanungStatus, string> = {
+    offen: 'offen',
+    gekocht: 'gekocht',
+    ausgelassen: 'ausgelassen',
+  };
 
   let offen = $state(false);
   let zeilen = $state<Zeile[]>([]);
@@ -91,13 +98,20 @@
       }
     }
     speichert = true;
+    let konflikt = false;
     const ok = await kontext.aendern(
-      () =>
-        kontext.api.senden('PUT', `/einplanungen/${einplanung.id}/status`, {
-          etag,
-          status,
-          verbrauch,
-        }),
+      async () => {
+        try {
+          return await kontext.api.senden('PUT', `/einplanungen/${einplanung.id}/status`, {
+            etag,
+            status,
+            verbrauch,
+          });
+        } catch (error: unknown) {
+          konflikt = error instanceof ApiError && error.status === 409;
+          throw error;
+        }
+      },
       status === 'gekocht'
         ? `${name} ist als gekocht abgehakt.`
         : status === 'ausgelassen'
@@ -107,6 +121,12 @@
     speichert = false;
     if (!ok) {
       fehler = kontext.fehler;
+      // The input stays; saving again takes it over the state named here, loaded meanwhile
+      if (konflikt) {
+        etag = einplanung.etag;
+        fehler =
+          `${fehler ?? ''} Jetzt gespeichert: ${STATUS_TEXT[einplanung.status]}. Nochmal speichern übernimmt deine Eingaben.`.trim();
+      }
       return;
     }
     geaendert = false;

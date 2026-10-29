@@ -155,7 +155,7 @@ export function planungZutatAendern(z: MockZugang, id: number, body: unknown, if
   if (art && nutzungen(z.planung, id).some((zeile) => !einheitPasst(art, zeile.einheit)))
     throw feld(
       'einheitenart',
-      'Gerichte, Bestand oder Zusatzbedarf nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.'
+      'Gerichte, Bestand, Zusatzbedarf oder abgehakter Verbrauch nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.'
     );
   aendere(z, 'zutat-geaendert', { name: input.name ?? zentral?.name }, () => {
     Object.assign(

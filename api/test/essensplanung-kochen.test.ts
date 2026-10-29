@@ -105,6 +105,21 @@ dbTest('planned dishes are ticked off as cooked with what they used, or left out
     .where('einplanung_id', '=', geplant.id)
     .execute();
   assert.equal(verbraucht.length, 1);
+  // What was cooked measures the ingredient too, also without stock
+  await getDb().deleteFrom('essen.bestand').where('planung_zutat_id', '=', zutat.id).execute();
+  const ohneBestand = json<PlanungAnsicht>(
+    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+  ).zutaten.find((z) => z.id === zutat.id)!;
+  const art = await call(t, endpoints.EssensplanungZutat, 'PATCH', `planung/zutaten/${zutat.id}`, {
+    token,
+    params: { id: String(zutat.id) },
+    body: { etag: ohneBestand.etag, kategorieId: null, einheitenart: 'stueck' },
+  });
+  assert.equal(art.status, 400);
+  assert.match(
+    json<{ fields: Record<string, string> }>(art).fields.einheitenart,
+    /abgehakter Verbrauch/
+  );
   const stand = json<PlanungAnsicht>(
     await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
   );
