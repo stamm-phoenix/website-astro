@@ -27,6 +27,7 @@ import type {
   ProtokollRevisionReason,
   ProtokollSaveResponse,
   ProtokollSperre,
+  Vorbelegung,
 } from './protokoll-editor-model';
 import { SPERRE_SECONDS, neuerInhalt, offeneAufgabenPunkt } from './protokoll-editor-model';
 import type {
@@ -281,16 +282,17 @@ export async function getEditorLive(
 
 /**
  * New minutes with the standard agenda, after the item „Offene Aufgaben“ with the open tasks
- * from earlier minutes (if there are any); returns the ID.
+ * from earlier minutes (if there are any) and prefilled from other modules; returns the ID.
  */
 export async function createEditorProtokoll(
   input: ProtokollEditorCreateInput,
   kopf: Partial<ProtokollKopf>,
   actor: string,
-  offen: OffeneAufgabeQuelle[] = []
+  offen: OffeneAufgabeQuelle[] = [],
+  vorbelegung: Partial<Vorbelegung> = {}
 ): Promise<number> {
   const nextId = (): string => randomUUID().slice(0, 8);
-  const inhalt = neuerInhalt(nextId, kopf);
+  const inhalt = neuerInhalt(nextId, kopf, vorbelegung);
   const offenePunkt = offeneAufgabenPunkt(nextId(), offen);
   if (offenePunkt) inhalt.punkte.unshift(offenePunkt);
   const { id } = await getDb()

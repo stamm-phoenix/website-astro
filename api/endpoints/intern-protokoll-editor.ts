@@ -47,8 +47,10 @@ import type {
   PersonOption,
   ProtokollEditorPersonen,
   ProtokollPerson,
+  Vorbelegung,
 } from '../lib/protokoll-editor-model';
 import { MAX_SITZUNGSLEITUNG, PERSON_GRUPPEN } from '../lib/protokoll-editor-model';
+import { vorbelegungFuer } from '../lib/protokoll-vorbelegung';
 import {
   AblageNotConfiguredError,
   VersandUncertainError,
@@ -335,16 +337,26 @@ async function offeneAufgaben(): Promise<OffeneAufgabeQuelle[]> {
   }
 }
 
+/** Data of other modules for new minutes; without it the texts start empty. */
+async function vorbelegung(date: string): Promise<Vorbelegung> {
+  try {
+    return await vorbelegungFuer(date);
+  } catch {
+    return { texte: {}, naechsteSitzung: { uhrzeit: '', ort: '' } };
+  }
+}
+
 /**
  * POST: new minutes with the standard agenda after the open tasks from earlier minutes, the
  * Vorstand and the writer preset, and the start of the meeting if the browser sent it.
  */
 export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, principal) => {
   const input = validateProtokollEditorCreate(await readJsonBody(request));
-  const [person, sitzungsleitung, offen] = await Promise.all([
+  const [person, sitzungsleitung, offen, vorlage] = await Promise.all([
     editorPerson(principal),
     vorstand(),
     offeneAufgaben(),
+    vorbelegung(input.date),
   ]);
   const id = await createEditorProtokoll(
     input,
@@ -354,7 +366,8 @@ export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, 
       beginn: input.beginn,
     },
     principal.userDetails,
-    offen
+    offen,
+    vorlage
   );
   return ok({ id }, 201);
 });

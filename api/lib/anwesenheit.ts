@@ -70,9 +70,15 @@ export async function anonymizeExpired(now: Date = new Date()): Promise<number> 
 
 // --- Reading ---
 
-/** All Termine with the number of children who were there or excused, newest first. */
-export async function getMeetingSummaries(): Promise<AnwesenheitMeeting[]> {
-  const rows = await getDb()
+/**
+ * All Termine with the number of children who were there or excused, newest first; `range`
+ * (`YYYY-MM-DD`, both ends included) limits them to a period.
+ */
+export async function getMeetingSummaries(range?: {
+  from: string;
+  to: string;
+}): Promise<AnwesenheitMeeting[]> {
+  let query = getDb()
     .selectFrom('gruppenstunde.meeting as m')
     .leftJoin('gruppenstunde.attendance as a', 'a.meeting_id', 'm.id')
     .select([
@@ -86,8 +92,9 @@ export async function getMeetingSummaries(): Promise<AnwesenheitMeeting[]> {
     ])
     .groupBy(['m.id', 'm.stufe', 'm.date', 'm.notes', 'm.cancelled'])
     .orderBy('m.date', 'desc')
-    .orderBy('m.stufe')
-    .execute();
+    .orderBy('m.stufe');
+  if (range) query = query.where('m.date', '>=', range.from).where('m.date', '<=', range.to);
+  const rows = await query.execute();
   return rows.map((row) => ({
     stufe: row.stufe,
     date: toDateString(row.date),
