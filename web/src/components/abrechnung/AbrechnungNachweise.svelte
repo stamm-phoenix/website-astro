@@ -5,8 +5,10 @@
   import { isIch } from '../../lib/ichStore.svelte';
   import { fetchCampflowBelegBild } from '../../lib/campflowBelegBild';
   import CampflowBelegBild from '../CampflowBelegBild.svelte';
-  import { downloadNachweisePdf, pdfFileName } from '../../lib/abrechnungPdf';
-  import type { PdfBeleg, PdfTable } from '../../lib/abrechnungPdf';
+  import { downloadNachweisePdf } from '../../lib/abrechnungPdf';
+  import type { PdfBeleg } from '../../lib/abrechnungPdf';
+  import { pdfFileName } from '../../lib/pdfBasis';
+  import type { PdfTable } from '../../lib/pdfTabelle';
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
   import { geaenderteBetraege } from '../../lib/abrechnungRechnung';
   import type { Leihgebuehren, NachweisZeile } from '../../lib/abrechnungRechnung';

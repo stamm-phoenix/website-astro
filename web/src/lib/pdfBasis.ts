@@ -1,4 +1,5 @@
-// Basics of the PDFs made in the browser: the colours, the DIN A4 page, the title and the footer.
+// Basics of the PDFs made in the browser: the colours, the DIN A4 page, the title, the footer and
+// the file name.
 // jsPDF is loaded only when a PDF is created, so it does not weigh on the page itself.
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn } from 'jspdf-autotable';
@@ -35,7 +36,7 @@ export function drawTitle(doc: JsPdf, title: string, lines: string[]): number {
   doc.setTextColor(...GREY);
   let y = 25;
   for (const line of lines) {
-    const wrapped = doc.splitTextToSize(line, PAGE_WIDTH - 2 * MARGIN);
+    const wrapped = doc.splitTextToSize(line, doc.internal.pageSize.getWidth() - 2 * MARGIN);
     doc.text(wrapped, MARGIN, y);
     y += 5 * wrapped.length;
   }
@@ -50,13 +51,15 @@ export function drawPageFooters(doc: JsPdf): void {
     timeZone: 'Europe/Berlin',
   }).format(new Date());
   const pages = doc.getNumberOfPages();
+  const width = doc.internal.pageSize.getWidth();
+  const height = doc.internal.pageSize.getHeight();
   for (let page = 1; page <= pages; page++) {
     doc.setPage(page);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...GREY);
-    doc.text(`DPSG Stamm Phoenix · erstellt am ${created}`, MARGIN, PAGE_HEIGHT - 8);
-    doc.text(`Seite ${page} von ${pages}`, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 8, {
+    doc.text(`DPSG Stamm Phoenix · erstellt am ${created}`, MARGIN, height - 8);
+    doc.text(`Seite ${page} von ${pages}`, width - MARGIN, height - 8, {
       align: 'right',
     });
   }
@@ -82,4 +85,9 @@ export function dateiName(fallback: string, ...parts: string[]): string {
     .replace(/\s+/g, ' ')
     .trim();
   return `${name || fallback}.pdf`;
+}
+
+/** A file name from its parts, without the characters Windows does not allow. */
+export function pdfFileName(...parts: string[]): string {
+  return dateiName('Stamm Phoenix', ...parts);
 }
