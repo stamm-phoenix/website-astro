@@ -720,6 +720,20 @@ test('a row saves before it moves, keeps decimal amounts and warns about changes
   await expect(gericht.getByRole('alert')).toHaveCount(0);
   await expect(menge).toHaveValue('600');
 
+  // Typed, then a tap on a button of another row: one tap moves that row and saves this one
+  await page.route('**/api/essensplanung/planung/gericht-zutaten/*', async (route) => {
+    await new Promise((done) => setTimeout(done, 1000));
+    await route.continue();
+  });
+  await menge.fill('650');
+  await gericht.getByRole('button', { name: 'Zwiebeln nach unten' }).click();
+  await expect(gericht.locator('ol > li').last()).toContainText('Zwiebeln', { timeout: 15_000 });
+  await expect(page.getByText('Hackfleisch gespeichert.').first()).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.unroute('**/api/essensplanung/planung/gericht-zutaten/*');
+  await expect(menge).toHaveValue('650');
+
   // „1.5“ is saved once and then counts as saved, though shown as „1,5“ elsewhere
   await menge.fill('1.5');
   await menge.press('Enter');

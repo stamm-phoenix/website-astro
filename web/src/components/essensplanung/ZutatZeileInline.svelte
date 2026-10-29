@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { nachDemTippen } from '../../lib/nachDemTippen';
   import {
     ernaehrung,
     fuerText,
@@ -279,12 +280,15 @@
     });
   });
 
-  /** Leaving the row saves; moving between its own fields does not. */
+  /**
+   * Leaving the row saves; moving between its own fields does not. A tap elsewhere gets its
+   * click first, as the save blocks the buttons of the page while it runs.
+   */
   function verlassen(event: FocusEvent): void {
     const zeileElement = event.currentTarget as HTMLElement;
     if (event.relatedTarget instanceof Node && zeileElement.contains(event.relatedTarget)) return;
     fokus = false;
-    void speichern();
+    nachDemTippen(() => void speichern());
   }
 
   function taste(event: KeyboardEvent): void {
