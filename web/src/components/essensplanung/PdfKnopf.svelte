@@ -3,7 +3,10 @@
   import { errorMessage } from '../../lib/api';
   import type { PlanKontext } from './planKontext';
 
-  /** Builds a PDF of a view and downloads it; says while it works and when it fails. */
+  /**
+   * Builds a PDF of a view and downloads it; says while it works and when it fails. Waits while
+   * a change is saved, so the PDF never shows the state before it.
+   */
 
   interface Props {
     kontext: PlanKontext;
@@ -42,6 +45,6 @@
   class="print:hidden"
   aria-label={ariaLabel}
   aria-busy={laeuft}
-  disabled={disabled || laeuft}
+  disabled={disabled || laeuft || kontext.busy}
   onclick={() => void klick()}>{laeuft ? 'PDF wird erstellt …' : label}</ActionButton
 >

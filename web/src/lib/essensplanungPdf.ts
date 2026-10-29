@@ -241,7 +241,7 @@ export async function downloadEsserPdf(
       ...TABLE_STYLES,
       startY: y,
       margin: { left: MARGIN, right: MARGIN, bottom: FOOTER_SPACE },
-      head: [['Gruppe', 'Anzahl', 'Ernährung', 'Unverträglichkeiten', 'Wann']],
+      head: [['Gruppe', 'Anzahl', 'Ernährung', 'Unverträglichkeiten', 'Wann', 'Hinweis']],
       body: zeilen,
       columnStyles: { 1: { halign: 'right' } },
     });

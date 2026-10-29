@@ -22,7 +22,7 @@ export async function anlegen(page: Page, name: string): Promise<void> {
 export async function pdfLaden(
   page: Page,
   klick: () => Promise<void>
-): Promise<{ name: string; text: string; seiten: number }> {
+): Promise<{ name: string; text: string; seiten: number; breiteste: number }> {
   const download: Promise<Download> = page.waitForEvent('download');
   await klick();
   const datei = await download;
@@ -32,9 +32,20 @@ export async function pdfLaden(
     verbosity: 0,
   }).promise;
   const teile: string[] = [];
+  /** The right end of the widest text run in mm, to see that nothing runs off the page. */
+  let breiteste = 0;
   for (let nummer = 1; nummer <= pdf.numPages; nummer++) {
     const inhalt = await (await pdf.getPage(nummer)).getTextContent();
-    for (const item of inhalt.items) if ('str' in item) teile.push(item.str);
+    for (const item of inhalt.items) {
+      if (!('str' in item)) continue;
+      teile.push(item.str);
+      breiteste = Math.max(breiteste, ((item.transform[4] + item.width) * 25.4) / 72);
+    }
   }
-  return { name: datei.suggestedFilename(), text: teile.join('\n'), seiten: pdf.numPages };
+  return {
+    name: datei.suggestedFilename(),
+    text: teile.join('\n'),
+    seiten: pdf.numPages,
+    breiteste,
+  };
 }

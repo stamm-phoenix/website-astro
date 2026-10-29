@@ -275,7 +275,7 @@ export function esserKalender(ansicht: PlanungAnsicht): {
   };
 }
 
-/** The rows of participants: group, number, diet, intolerances and when they are there. */
+/** The rows of participants: group, number, diet, intolerances, when they are there, note. */
 export function teilnehmendeZeilen(
   ansicht: PlanungAnsicht,
   namen: Map<number, string>
@@ -287,5 +287,6 @@ export function teilnehmendeZeilen(
     ERNAEHRUNG_TEXT[zeile.ernaehrung],
     unvertraeglichkeitenText(zeile.unvertraeglichkeiten, namen),
     zeitraumText(ansicht, zeile) || 'die ganze Zeit',
+    zeile.hinweis,
   ]);
 }

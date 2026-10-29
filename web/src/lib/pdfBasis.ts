@@ -42,18 +42,21 @@ export async function loadPdf(orientation: 'portrait' | 'landscape' = 'portrait'
   };
 }
 
-/** The title and the lines below it; returns where the content starts. */
+/** The title, wrapped when long, and the lines below it; returns where the content starts. */
 export function drawTitle(doc: JsPdf, title: string, lines: string[]): number {
+  const width = doc.internal.pageSize.getWidth() - 2 * MARGIN;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(...BRAND);
-  doc.text(title, MARGIN, 18);
+  const titel: string[] = doc.splitTextToSize(title, width);
+  doc.text(titel, MARGIN, 18);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(...GREY);
-  let y = 25;
+  // One title line keeps the subtitle where it always was
+  let y = 25 + (titel.length - 1) * 7;
   for (const line of lines) {
-    const wrapped = doc.splitTextToSize(line, doc.internal.pageSize.getWidth() - 2 * MARGIN);
+    const wrapped = doc.splitTextToSize(line, width);
     doc.text(wrapped, MARGIN, y);
     y += 5 * wrapped.length;
   }

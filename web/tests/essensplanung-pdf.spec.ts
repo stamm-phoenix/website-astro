@@ -37,6 +37,15 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
   expect(karte.text).toContain('500 g');
   expect(karte.text).toContain('nach Gefühl');
   expect(karte.text).toContain('ins Wasser');
+  // A long name wraps on the card instead of running off the page
+  const lang = `Nudeln ${'mit sehr viel Soße '.repeat(6).trim()} Ende`;
+  await page.getByLabel('Neues Gericht').fill(lang);
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText(`${lang} angelegt.`).first()).toBeVisible();
+  const langeKarte = await pdfLaden(page, () =>
+    page.getByRole('button', { name: `Rezeptkarte als PDF: ${lang}` }).click()
+  );
+  expect(langeKarte.breiteste).toBeLessThanOrEqual(210 - 14 + 0.5);
   const alle = await pdfLaden(page, () =>
     page.getByRole('button', { name: 'Alle Rezeptkarten als PDF' }).click()
   );
@@ -46,6 +55,7 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
   await page.getByRole('button', { name: 'Teilnehmende hinzufügen' }).click();
   await dialog.getByLabel('Gruppe', { exact: true }).selectOption({ label: 'Pfadi' });
   await dialog.getByLabel('Anzahl').fill('8');
+  await dialog.getByLabel('Hinweis (optional)').fill('kommen mit dem Zug');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(dialog).toBeHidden();
   const esser = await pdfLaden(page, () =>
@@ -55,6 +65,7 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
   expect(esser.text).toContain('Tag 1');
   expect(esser.text).toContain('8 Personen');
   expect(esser.text).toContain('Pfadi');
+  expect(esser.text).toContain('kommen mit dem Zug');
 
   await page.getByRole('tab', { name: 'Plan' }).click();
   await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();

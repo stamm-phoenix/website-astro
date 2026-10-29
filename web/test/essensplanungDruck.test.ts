@@ -114,7 +114,7 @@ const ansicht = {
       unvertraeglichkeiten: [7],
       vonMahlzeitId: 21,
       bisMahlzeitId: null,
-      hinweis: '',
+      hinweis: 'reisen mit dem Zug an',
     },
   ],
   gerichte: [
@@ -193,10 +193,10 @@ test('the eaters read as a calendar with the days across', () => {
   assert.equal(kalender.zeilen[1][0]?.personen, 10);
 });
 
-test('participants name their group, diet, intolerances and when they are there', () => {
+test('participants name their group, diet, intolerances, when they are there and the note', () => {
   assert.deepEqual(teilnehmendeZeilen(ansicht, namen), [
-    ['Pfadi', '10', 'mit allem', '', 'die ganze Zeit'],
-    ['Rover', '2', 'vegan', 'Gluten', 'ab 2_1 Frühstück'],
+    ['Pfadi', '10', 'mit allem', '', 'die ganze Zeit', ''],
+    ['Rover', '2', 'vegan', 'Gluten', 'ab 2_1 Frühstück', 'reisen mit dem Zug an'],
   ]);
 });
 
