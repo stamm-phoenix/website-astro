@@ -8,6 +8,7 @@
   import MahlzeitZeile from './MahlzeitZeile.svelte';
   import EinplanungDialog from './EinplanungDialog.svelte';
   import MahlzeitGruppenDialog from './MahlzeitGruppenDialog.svelte';
+  import PdfKnopf from './PdfKnopf.svelte';
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
   import { tagStand } from '../../../../api/lib/essen-planung-model';
   import type { PlanKontext } from './planKontext';
@@ -46,6 +47,17 @@
     if (sichtbar && brauchtNamen && ansicht.katalogStand !== geladen)
       untrack(() => void namenLaden());
   });
+
+  /** The plan as PDF; the names of the intolerances first, when lines need them. */
+  async function planPdf(): Promise<void> {
+    let namen = unvertraeglichkeiten;
+    if (brauchtNamen && !namen.size) {
+      const katalog = await kontext.api.katalog();
+      namen = new Map(katalog.unvertraeglichkeiten.map((u) => [u.id, u.name]));
+    }
+    const { downloadPlanPdf } = await import('../../lib/essensplanungPdf');
+    await downloadPlanPdf(ansicht, namen);
+  }
   const bearbeiten = $derived(ansicht.zugang !== 'lesen' && !ansicht.wartung);
 
   /** The open dialog of planned dishes; it stays when its meal goes, so no input is lost. */
@@ -142,7 +154,10 @@
 </script>
 
 <section aria-labelledby="plan-heading" class="space-y-6">
-  <h3 id="plan-heading" class="sr-only">Tage und Mahlzeiten</h3>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h3 id="plan-heading" class="sr-only">Tage und Mahlzeiten</h3>
+    <PdfKnopf {kontext} label="Plan als PDF" erstellen={planPdf} />
+  </div>
   {#if ansicht.tage.length === 0}
     <p class="text-neutral-700">Die Planung hat noch keine Tage.</p>
   {/if}

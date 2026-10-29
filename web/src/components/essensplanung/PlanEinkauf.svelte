@@ -9,6 +9,7 @@
   import type { PostenArt } from '../../../../api/lib/essen-einkauf-model';
   import type { EinkaufPosten, EssenKatalog, Geschaeft } from '../../lib/types';
   import GeschaeftDialog from './GeschaeftDialog.svelte';
+  import PdfKnopf from './PdfKnopf.svelte';
   import PostenDialog from './PostenDialog.svelte';
   import type { PlanKontext } from './planKontext';
 
@@ -164,9 +165,16 @@
       <h3 id="einkaufsliste-heading" class="font-serif text-lg font-bold text-brand-900">
         Einkaufsliste
       </h3>
-      <ActionButton type="button" class="print:hidden" onclick={() => window.print()}
-        >Einkaufsliste drucken</ActionButton
-      >
+      <!-- Only with the list, so each thing stands under its category -->
+      <PdfKnopf
+        {kontext}
+        label="Einkaufsliste als PDF"
+        disabled={!katalog}
+        erstellen={async () => {
+          const { downloadEinkaufslistePdf } = await import('../../lib/essensplanungPdf');
+          await downloadEinkaufslistePdf(ansicht, liste);
+        }}
+      />
     </div>
     {#if katalogFehler}
       <p class="text-sm text-danger print:hidden" role="alert">

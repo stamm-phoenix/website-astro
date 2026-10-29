@@ -1,16 +1,17 @@
 <script lang="ts">
-  import { onMount, tick, untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import ActionButton from '../ui/ActionButton.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError, errorMessage } from '../../lib/api';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import type { EssenKatalog, PlanungAnsicht } from '../../lib/types';
+  import type { EssenKatalog, Gericht, PlanungAnsicht } from '../../lib/types';
   import GerichtKarte from './GerichtKarte.svelte';
+  import PdfKnopf from './PdfKnopf.svelte';
   import PlanZutaten from './PlanZutaten.svelte';
   import type { PlanKontext } from './planKontext';
 
-  /** The dishes of a Planung and the ingredients they use; one dish prints as a recipe card. */
+  /** The dishes of a Planung and the ingredients they use; dishes download as recipe cards. */
 
   interface Props {
     kontext: PlanKontext;
@@ -73,22 +74,18 @@
     document.getElementById(`gericht-${id}`)?.scrollIntoView({ block: 'start' });
   }
 
-  /** The dish printed as a recipe card; null prints the area as it is. */
-  let druck = $state<number | null>(null);
-
-  async function drucken(id: number): Promise<void> {
-    druck = id;
-    offen.add(id);
-    await tick();
-    window.print();
+  /** Recipe cards as PDF; only with the central list, so they name all allergens. */
+  async function rezeptkarten(gerichte: Gericht[], dateiName: string): Promise<void> {
+    if (!katalog) return;
+    const namen = new Map(katalog.unvertraeglichkeiten.map((u) => [u.id, u.name]));
+    const { downloadRezeptkartenPdf } = await import('../../lib/essensplanungPdf');
+    await downloadRezeptkartenPdf(ansicht, gerichte, namen, dateiName);
   }
-  onMount(() => {
-    const fertig = (): void => {
-      druck = null;
-    };
-    window.addEventListener('afterprint', fertig);
-    return () => window.removeEventListener('afterprint', fertig);
-  });
+
+  async function alleRezeptkarten(): Promise<void> {
+    const { essenDateiName } = await import('../../lib/essensplanungPdf');
+    await rezeptkarten(ansicht.gerichte, essenDateiName('Rezeptkarten', ansicht));
+  }
 
   function umschalten(id: number, auf: boolean): void {
     if (auf) offen.add(id);
@@ -142,14 +139,15 @@
   {/if}
 
   {#if ansicht.gerichte.length}
+    <PdfKnopf
+      {kontext}
+      label="Alle Rezeptkarten als PDF"
+      disabled={!katalog}
+      erstellen={alleRezeptkarten}
+    />
     <ul class="space-y-3">
       {#each ansicht.gerichte as gericht (gericht.id)}
-        <li
-          id="gericht-{gericht.id}"
-          class="surface scroll-mt-24 {druck !== null && druck !== gericht.id
-            ? 'print:hidden'
-            : ''}"
-        >
+        <li id="gericht-{gericht.id}" class="surface scroll-mt-24">
           <details
             open={offen.has(gericht.id)}
             ontoggle={(event) => umschalten(gericht.id, event.currentTarget.open)}
@@ -171,7 +169,13 @@
                 {gericht}
                 {bearbeiten}
                 sichtbar={sichtbar && offen.has(gericht.id)}
-                ondrucken={() => void drucken(gericht.id)}
+                onpdf={async () => {
+                  const { dateiName } = await import('../../lib/pdfBasis');
+                  await rezeptkarten(
+                    [gericht],
+                    dateiName('Rezeptkarte', 'Rezeptkarte', gericht.name)
+                  );
+                }}
               />
             </div>
           </details>
@@ -183,8 +187,6 @@
   {/if}
 
   {#if ansicht.zutaten.length}
-    <div class={druck !== null ? 'print:hidden' : ''}>
-      <PlanZutaten {kontext} {katalog} {bearbeiten} />
-    </div>
+    <PlanZutaten {kontext} {katalog} {bearbeiten} />
   {/if}
 </div>

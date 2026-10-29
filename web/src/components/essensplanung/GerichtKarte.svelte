@@ -10,6 +10,7 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { ernaehrung, fuerText, zeileBody } from '../../lib/essensplanungGerichte';
   import { faktorText, plaetzeVon } from '../../lib/essensplanungEinplanung';
+  import { allergeneText } from '../../lib/essensplanungDruck';
   import {
     gerichtStand,
     gerichtWarnungen,
@@ -17,6 +18,7 @@
   } from '../../../../api/lib/essen-gerichte-model';
   import type { EssenKatalog, Gericht, GerichtLink, GerichtZutat } from '../../lib/types';
   import GerichtZeileDialog from './GerichtZeileDialog.svelte';
+  import PdfKnopf from './PdfKnopf.svelte';
   import type { PlanKontext } from './planKontext';
 
   /**
@@ -31,9 +33,10 @@
     bearbeiten: boolean;
     /** True while the card is open in the shown tab. */
     sichtbar: boolean;
-    ondrucken: () => void;
+    /** Downloads the recipe card of the dish. */
+    onpdf: () => Promise<void>;
   }
-  let { kontext, katalog, gericht, bearbeiten, sichtbar, ondrucken }: Props = $props();
+  let { kontext, katalog, gericht, bearbeiten, sichtbar, onpdf }: Props = $props();
 
   /** The editor loads once the card is first shown and then stays, keeping its state. */
   let editorGeladen = $state(false);
@@ -213,12 +216,7 @@
   let dialog = $state<{ zeile: GerichtZutat | null } | null>(null);
 
   function allergene(zeile: GerichtZutat): string {
-    const zutat = zutaten.get(zeile.planungZutatId);
-    const ids = (zutat?.allergene ?? []).filter((id) => !zeile.ohne.includes(id));
-    const bekannt = ids.flatMap((id) => unvertraeglichkeiten.get(id) ?? []);
-    // Without the list the names are unknown: never as if there were none
-    if (bekannt.length < ids.length) bekannt.push('Allergene (Namen nicht geladen)');
-    return bekannt.join(', ');
+    return allergeneText(zeile, zutaten.get(zeile.planungZutatId), unvertraeglichkeiten);
   }
 
   /** Where the dish is planned. */
@@ -248,9 +246,13 @@
     </div>
     <div class="flex flex-wrap gap-2 print:hidden">
       <!-- Only with the list, so the card names all allergens -->
-      <ActionButton type="button" disabled={!katalog} onclick={ondrucken}
-        >Rezeptkarte drucken</ActionButton
-      >
+      <PdfKnopf
+        {kontext}
+        label="Rezeptkarte als PDF"
+        ariaLabel="Rezeptkarte als PDF: {gericht.name}"
+        disabled={!katalog}
+        erstellen={onpdf}
+      />
       {#if bearbeiten}
         <ActionButton
           type="button"
