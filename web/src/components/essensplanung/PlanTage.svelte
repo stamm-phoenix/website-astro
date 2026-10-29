@@ -18,10 +18,15 @@
 
   let neuerTag = $state('');
   let neueMahlzeit = $state<Record<number, string>>({});
-  // A day or a meal typed but not added asks before leaving the page
+  /** Dates picked for existing days and not saved yet, e.g. after a failed save. */
+  let neuesDatum = $state<Record<number, string>>({});
+  // A day, a meal or a date typed but not saved asks before leaving the page
   $effect(() =>
     guardUnsavedChanges(
-      () => neuerTag !== '' || Object.values(neueMahlzeit).some((name) => name.trim() !== '')
+      () =>
+        neuerTag !== '' ||
+        Object.values(neueMahlzeit).some((name) => name.trim() !== '') ||
+        Object.keys(neuesDatum).length > 0
     )
   );
 
@@ -50,11 +55,17 @@
   }
 
   async function tagVerschieben(tag: PlanungTag, datum: string): Promise<void> {
-    if (!datum || datum === tag.datum) return;
-    await kontext.aendern(
+    if (!datum || datum === tag.datum) {
+      delete neuesDatum[tag.id];
+      return;
+    }
+    neuesDatum[tag.id] = datum;
+    const ok = await kontext.aendern(
       () => kontext.api.senden('PATCH', `/tage/${tag.id}`, { etag: tag.etag, datum }),
       `Tag ${tag.nummer} liegt jetzt am ${datumKurz(datum)}.`
     );
+    // A failed save keeps the picked date in the field until it is saved or set back
+    if (ok && neuesDatum[tag.id] === datum) delete neuesDatum[tag.id];
   }
 
   async function tagLoeschen(tag: PlanungTag): Promise<void> {
@@ -109,7 +120,7 @@
                 id="tag-datum-{tag.id}"
                 type="date"
                 class="form-input w-auto"
-                value={tag.datum}
+                value={neuesDatum[tag.id] ?? tag.datum}
                 disabled={kontext.busy}
                 onchange={(event) => void tagVerschieben(tag, event.currentTarget.value)}
               />
