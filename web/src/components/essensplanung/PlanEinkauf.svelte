@@ -3,12 +3,13 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { errorMessage } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
-  import { einkaufsliste } from '../../lib/essensplanungEinkauf';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { einkaufsliste, postenMenge } from '../../lib/essensplanungEinkauf';
   import { kochMenge } from '../../lib/essensplanungRechnung';
-  import { mengeText } from '../../../../api/lib/essen-gerichte-model';
   import type { PostenArt } from '../../../../api/lib/essen-einkauf-model';
-  import type { EinkaufPosten, EssenKatalog, Geschaeft } from '../../lib/types';
+  import type { EssenKatalog, Geschaeft, ZusatzPosten } from '../../lib/types';
   import GeschaeftDialog from './GeschaeftDialog.svelte';
+  import NeuerZusatz from './NeuerZusatz.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
   import PostenDialog from './PostenDialog.svelte';
   import type { PlanKontext } from './planKontext';
@@ -51,12 +52,20 @@
   const liste = $derived(einkaufsliste(ansicht, kategorien));
   const zutaten = $derived(new Map(ansicht.zutaten.map((z) => [z.id, z])));
 
+  /** What is typed under „Noch etwas besorgen“, kept while the page is read-only for a while. */
+  let neuerZusatz = $state('');
+  $effect(() => guardUnsavedChanges(() => neuerZusatz.trim() !== ''));
+
   let geschaeftDialog = $state<number | null | undefined>(undefined);
   let postenDialog = $state<{ art: PostenArt; id: number | null } | null>(null);
 
-  function postenText(posten: EinkaufPosten): string {
+  /** „2 kg Salz“; extra needs without an amount by name only, „Kochhandschuhe“. */
+  function postenText(posten: ZusatzPosten): string {
     const zutat = zutaten.get(posten.planungZutatId);
-    return `${kochMenge(posten.menge, posten.einheit, zutat?.abtropfgewicht)} ${zutat?.name ?? 'Zutat'}`;
+    const name = zutat?.name ?? 'Zutat';
+    return posten.menge === null || posten.einheit === null
+      ? name
+      : `${kochMenge(posten.menge, posten.einheit, zutat?.abtropfgewicht)} ${name}`;
   }
 
   async function geschaeftSetzen(feld: HTMLSelectElement, planungZutatId: number, name: string) {
@@ -92,7 +101,7 @@
     );
   }
 
-  async function postenLoeschen(art: PostenArt, posten: EinkaufPosten): Promise<void> {
+  async function postenLoeschen(art: PostenArt, posten: ZusatzPosten): Promise<void> {
     const text = postenText(posten);
     if (
       !(await confirmAction({
@@ -118,7 +127,7 @@
   }
 </script>
 
-{#snippet postenListe(art: PostenArt, titel: string, eintraege: EinkaufPosten[], leer: string)}
+{#snippet postenListe(art: PostenArt, titel: string, eintraege: ZusatzPosten[], leer: string)}
   <section aria-labelledby="{art}-heading" class="space-y-3 print:hidden">
     <h3 id="{art}-heading" class="font-serif text-lg font-bold text-brand-900">{titel}</h3>
     {#if eintraege.length}
@@ -200,10 +209,7 @@
               {#each kategorie.posten as posten (`${posten.planungZutatId}:${posten.einheit}`)}
                 <li class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5">
                   <p class="min-w-0 [overflow-wrap:anywhere]">
-                    <span class="font-semibold tabular-nums"
-                      >{mengeText(posten.menge, posten.einheit, posten.abtropfgewicht) ??
-                        'nach Gefühl'}</span
-                    >
+                    <span class="font-semibold tabular-nums">{postenMenge(posten)}</span>
                     {posten.name}
                   </p>
                   {#if bearbeiten && ansicht.geschaefte.length}
@@ -234,6 +240,9 @@
     {:else}
       <p class="text-neutral-700">Noch nichts zu kaufen.</p>
     {/each}
+    {#if bearbeiten}
+      <NeuerZusatz {kontext} {katalog} bind:text={neuerZusatz} />
+    {/if}
   </section>
 
   {@render postenListe(

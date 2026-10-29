@@ -28,7 +28,7 @@ import type { Gericht } from '../../../api/lib/essen-gerichte-model';
 import type { EssenPlanungUebersicht } from '../../src/lib/types';
 import type { MockPlanungZutat } from './essensplanung-gerichte';
 import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilnehmende-model';
-import type { EinkaufPosten, Geschaeft } from '../../../api/lib/essen-einkauf-model';
+import type { EinkaufPosten, Geschaeft, ZusatzPosten } from '../../../api/lib/essen-einkauf-model';
 import { essenKatalogStand } from './essensplanung';
 import {
   gruppenAusVorlage,
@@ -98,7 +98,7 @@ export interface MockPlanung {
   teilnehmende: Teilnehmende[];
   geschaefte: Geschaeft[];
   bestand: EinkaufPosten[];
-  zusatzbedarf: EinkaufPosten[];
+  zusatzbedarf: ZusatzPosten[];
 }
 
 let nextId = 1;

@@ -9,6 +9,7 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
     getippteZutat,
+    gewaehlteZutat,
     leseMenge,
     mengeFeld,
     zutatVorschlaege,
@@ -16,6 +17,7 @@
     type ZutatWahl,
   } from '../../lib/essensplanungGerichte';
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
+  import { ALLE_EINHEITEN } from '../../lib/essensplanungEinkauf';
   import { MENGE_FEHLER } from '../../../../api/lib/essen-einkauf-model';
   import type { PostenArt } from '../../../../api/lib/essen-einkauf-model';
   import type { EssenEinheitenart, EssenKatalog, GerichtEinheit } from '../../lib/types';
@@ -25,6 +27,7 @@
   /**
    * Adds or changes an entry of the stock (what is there before the Aktion) or of the extra needs
    * (what is needed without a dish): an ingredient of the list or the Planung, amount and unit.
+   * Extra needs also take a name of their own and go without an amount („Kochhandschuhe“).
    */
 
   interface Props {
@@ -81,21 +84,22 @@
       ? (ansicht.zutaten.find((z) => z.id === posten.planungZutatId)?.name ?? '')
       : '';
     menge = posten ? mengeFeld(posten.menge) : '';
-    einheit = posten?.einheit ?? 'g';
+    // Without a saved unit (an entry without an amount), the first that fits the ingredient
+    einheit = posten?.einheit ?? einheiten[0] ?? (art === 'zusatzbedarf' ? 'stueck' : 'g');
     hinweis = posten?.hinweis ?? '';
   }
 
   const vorschlaege = $derived(
     katalog ? zutatVorschlaege(katalog, ansicht.zutaten, { nurLebensmittel: false }) : []
   );
-  const einheitenart = $derived.by((): EssenEinheitenart | null => {
-    if (!auswahl) return null;
-    const id = auswahl.id;
-    return auswahl.art === 'planung'
-      ? (ansicht.zutaten.find((z) => z.id === id)?.einheitenart ?? null)
-      : (katalog?.zutaten.find((z) => z.id === id)?.einheitenart ?? null);
-  });
-  const einheiten = $derived(einheitenart ? EINHEITEN_JE_ART[einheitenart] : []);
+  const einheitenart = $derived<EssenEinheitenart | null>(
+    gewaehlteZutat(auswahl, ansicht.zutaten, katalog)?.einheitenart ?? null
+  );
+  /** Extra needs: a name not in the list is a thing of its own, measured as chosen here. */
+  const frei = $derived(art === 'zusatzbedarf');
+  const einheiten = $derived(
+    einheitenart ? EINHEITEN_JE_ART[einheitenart] : frei ? ALLE_EINHEITEN : []
+  );
   const ohneTreffer = $derived(zutatText.trim() !== '' && !auswahl);
 
   function waehle(option: Vorschlag): void {
@@ -134,14 +138,23 @@
     felder = {};
     fehler = null;
     const zahl = leseMenge(menge);
-    if (!auswahl) felder.zutat = 'Bitte eine Zutat aus der Liste wählen.';
-    if (zahl === null || Number.isNaN(zahl) || zahl <= 0) felder.menge = MENGE_FEHLER;
+    const name = zutatText.trim();
+    if (!auswahl && !(frei && name))
+      felder.zutat = frei
+        ? 'Bitte eintragen, was gebraucht wird.'
+        : 'Bitte eine Zutat aus der Liste wählen.';
+    if (Number.isNaN(zahl) || (zahl !== null && zahl <= 0) || (zahl === null && !frei))
+      felder.menge = MENGE_FEHLER;
     if (Object.keys(felder).length) return;
     let abgelehnt: unknown = null;
     const body = {
-      ...(auswahl!.art === 'planung' ? { planungZutatId: auswahl!.id } : { zutatId: auswahl!.id }),
+      ...(auswahl
+        ? auswahl.art === 'planung'
+          ? { planungZutatId: auswahl.id }
+          : { zutatId: auswahl.id }
+        : { name }),
       menge: zahl,
-      einheit,
+      einheit: zahl === null ? null : einheit,
       hinweis,
     };
     const pfad = art === 'bestand' ? '/bestand' : '/zusatzbedarf';
@@ -204,8 +217,8 @@
             options={vorschlaege}
             bind:value={zutatText}
             listLabel="Zutaten"
-            placeholder={art === 'bestand' ? 'z. B. Salz' : 'z. B. Spülmittel'}
-            pickFirstOnEnter
+            placeholder={art === 'bestand' ? 'z. B. Salz' : 'z. B. Spülmittel oder Kochhandschuhe'}
+            pickFirstOnEnter={!frei}
             onpick={waehle}
             onedit={getippt}
             autocomplete="off"
@@ -221,14 +234,14 @@
         </p>
       {:else if !katalog}
         <p class="text-sm text-neutral-700">Die Liste wird geladen …</p>
-      {:else if ohneTreffer}
+      {:else if ohneTreffer && !frei}
         <p class="text-sm text-neutral-700">
           „{zutatText.trim()}“ steht nicht in der Liste. Lege sie unter Gerichte als eigene Zutat
           dieser Planung an.
         </p>
       {/if}
       <div class="grid grid-cols-2 gap-3">
-        <FormField id="posten-menge" label="Menge" error={felder.menge}>
+        <FormField id="posten-menge" label="Menge" optional={frei} error={felder.menge}>
           {#snippet children(attrs)}
             <input
               {...attrs}
@@ -242,7 +255,12 @@
         </FormField>
         <FormField id="posten-einheit" label="Einheit" error={felder.einheit}>
           {#snippet children(attrs)}
-            <select {...attrs} class="form-input" bind:value={einheit}>
+            <select
+              {...attrs}
+              class="form-input"
+              bind:value={einheit}
+              disabled={frei && !menge.trim()}
+            >
               {#each einheiten.length ? einheiten : [einheit] as wert (wert)}
                 <option value={wert}>{einheitText(wert)}</option>
               {/each}

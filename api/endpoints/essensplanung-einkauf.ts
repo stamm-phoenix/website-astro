@@ -62,12 +62,15 @@ export const EssensplanungZutatGeschaeft = planungHandler(async (request) => {
   return ok(await ladeAnsicht(zugang));
 });
 
-/** POST `{ zutatId | planungZutatId, menge, einheit, hinweis }` to stock or extra needs. */
+/**
+ * POST `{ zutatId | planungZutatId | name, menge, einheit, hinweis }` to stock or extra needs (a
+ * name and no amount only there).
+ */
 function postenListe(art: PostenArt) {
   return planungHandler(async (request: HttpRequest) => {
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const zugang = await zugangVon(request);
-    await postenAnlegen(zugang, art, validatePosten(await readJsonBody(request)));
+    await postenAnlegen(zugang, art, validatePosten(await readJsonBody(request), art));
     return ok(await ladeAnsicht(zugang), 201);
   });
 }
@@ -83,7 +86,7 @@ function posten(art: PostenArt) {
     }
     if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
-    await postenAendern(zugang, art, id, validatePosten(body), readEtag(body, request));
+    await postenAendern(zugang, art, id, validatePosten(body, art), readEtag(body, request));
     return ok(await ladeAnsicht(zugang));
   });
 }
