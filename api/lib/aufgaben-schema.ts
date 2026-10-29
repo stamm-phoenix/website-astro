@@ -14,20 +14,18 @@ const MAX_DAYS_BEFORE = 366;
 const DAYS_BEFORE_MESSAGE = `Der Abstand zum Aktionsdatum muss zwischen −${MAX_DAYS_BEFORE} und ${MAX_DAYS_BEFORE} Tagen liegen.`;
 const ITEMS_MESSAGE = `Bitte 1 bis ${MAX_TEMPLATE_ITEMS} Aufgaben angeben.`;
 
-/** Trimmed text of at most `max` characters; an optional field defaults to an empty string. */
-export function boundedText(max: number, required: false): z.ZodDefault<z.ZodString>;
-export function boundedText(max: number, required: true): z.ZodString;
-export function boundedText(
-  max: number,
-  required: boolean
-): z.ZodString | z.ZodDefault<z.ZodString>;
-export function boundedText(
-  max: number,
-  required: boolean
-): z.ZodString | z.ZodDefault<z.ZodString> {
+/**
+ * Trimmed text of at most `max` characters; an optional field defaults to an empty string, and a
+ * missing required field reports its range like an empty one.
+ */
+export function boundedText(max: number, required = false): z.ZodType<string> {
   const message = `Bitte ${required ? '1 bis ' : 'höchstens '}${max} Zeichen angeben.`;
   const text = z.string({ error: 'Bitte Text angeben.' }).trim().max(max, { error: message });
-  return required ? text.min(1, { error: message }) : text.default('');
+  if (!required) return text.default('');
+  return z.preprocess(
+    (value) => (value === undefined ? '' : value),
+    text.min(1, { error: message })
+  );
 }
 
 /** Positive integer reference; numeric strings are not accepted. */

@@ -25,16 +25,20 @@ const templateSchema = taskTemplateInputSchema.transform((template) => ({
   items: template.items.map(dedupePeople),
 }));
 
-/** Errors of the people picker show at the assignee field. */
-const taskField: FieldOf = ([first]) => {
-  if (first === 'assignees') return 'assignee';
+/** An entry that is no object is a fault of the whole form, anything else of its own field. */
+const taskField: FieldOf = (path) => {
+  const [first, index] = path;
+  if (first === 'assignees')
+    return typeof index === 'number' && path.length === 2 ? 'form' : 'assignee';
   return typeof first === 'string' ? first : 'form';
 };
 /** Errors of a checklist item show at its own field, the offset and the list itself at `items`. */
 const templateField: FieldOf = (path) => {
-  const [first, , field] = path;
+  const [first, index, field] = path;
   if (first !== 'items') return taskField(path);
-  if (field === 'assignees') return 'assignee';
+  if (typeof index !== 'number') return 'items';
+  if (path.length === 2) return 'form';
+  if (field === 'assignees') return path.length === 4 ? 'form' : 'assignee';
   return typeof field === 'string' && field !== 'daysBefore' ? field : 'items';
 };
 

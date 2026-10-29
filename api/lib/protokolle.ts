@@ -5,7 +5,6 @@
  * leaders and to members with the label „Protokollempfang“, whose addresses come from CampFlow.
  */
 import { createHash } from 'node:crypto';
-import { z } from 'zod';
 import type { CampflowPerson } from './campflow';
 import { campflowGetAll } from './campflow';
 import { CONFIG } from './config';
@@ -15,6 +14,10 @@ import { ValidationError } from './validation/errors';
 import type { ProtokollTermin } from './protokoll-termin';
 import { isTerminStale, parseProtokollTermin } from './protokoll-termin';
 import { protokollContentVersion } from './protokoll-content-version';
+
+import { parseDelivery } from './protokoll-delivery';
+
+export { parseDelivery };
 
 /** Values of the workflow status; files without one are shown as `Archiv`. */
 export const PROTOKOLL_STATUSES = ['Entwurf', 'Review', 'Freigegeben', 'Verschickt'] as const;
@@ -126,32 +129,6 @@ function toStatus(value: string | undefined): ProtokollStatus {
   return (PROTOKOLL_STATUSES as readonly string[]).includes(value ?? '')
     ? (value as ProtokollStatus)
     : 'Archiv';
-}
-
-const unknownDelivery = (): ProtokollDelivery => ({
-  state: 'attempted',
-  recipients: 0,
-  at: '',
-  by: '',
-});
-
-const deliverySchema = z
-  .object({
-    state: z.enum(['attempted', 'sent']).catch('attempted'),
-    recipients: z.number().catch(0),
-    at: z.string().catch(''),
-    by: z.string().catch(''),
-  })
-  .catch(unknownDelivery);
-
-/** Reads the stored mailing state; unreadable values count as an unknown attempt. */
-export function parseDelivery(value: string | undefined): ProtokollDelivery | null {
-  if (!value) return null;
-  try {
-    return deliverySchema.parse(JSON.parse(value));
-  } catch {
-    return unknownDelivery();
-  }
 }
 
 /** Whether a drive item is a supported protocol file directly in the folder of the minutes. */

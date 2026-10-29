@@ -143,3 +143,14 @@ test('the attendance shown on deletion is passed on unchanged', () => {
     );
   }
 });
+
+test('a cancelled Gruppenstunde accepts every integer count but no infinite one', () => {
+  assert.equal(
+    validateCancelled({ cancelled: true, etag: null, entries: 2 ** 60 }).entries,
+    2 ** 60
+  );
+  assert.deepEqual(
+    fields(() => validateCancelled({ cancelled: true, etag: null, entries: Infinity })),
+    { entries: 'Die Zahl der Einträge ist ungültig.' }
+  );
+});

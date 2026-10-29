@@ -72,7 +72,7 @@ const cancelledSchema = lenientObject({
     (value) => value ?? 0,
     z
       .number({ error: ENTRIES_INVALID })
-      .int({ error: ENTRIES_INVALID })
+      .refine(Number.isInteger, { error: ENTRIES_INVALID })
       .min(0, { error: ENTRIES_INVALID })
   ),
 });

@@ -58,5 +58,8 @@ export const routeGeometrySchema = z.object({
   coordinates: z.array(z.unknown()),
 });
 
+/** Any JS number, as the former `typeof` check accepted it (zod's `z.number()` refuses `Infinity`). */
+const anyNumber = z.custom<number>((value) => typeof value === 'number');
+
 /** `[lon, lat]` of a point on the route; an altitude after it is ignored. */
-export const routePointSchema = z.tuple([z.number(), z.number()], z.unknown());
+export const routePointSchema = z.tuple([anyNumber, anyNumber], z.unknown());

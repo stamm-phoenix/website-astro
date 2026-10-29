@@ -282,3 +282,21 @@ test('copyright notices need a list and keep only distinct plain texts', () => {
     ['A & B', '©1 X']
   );
 });
+
+test('a route point keeps every number the old typeof check accepted, infinite ones too', () => {
+  const path = parseRoutePath({
+    features: [
+      feature(
+        'RoutePath',
+        line([
+          [Infinity, 3],
+          [4, 5],
+        ])
+      ),
+    ],
+  });
+  assert.deepEqual(path, [
+    [3, Infinity],
+    [5, 4],
+  ]);
+});
