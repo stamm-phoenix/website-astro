@@ -314,3 +314,56 @@ test('a thing without an amount ticked off on a trip leaves the whole shopping l
   assert.ok(gesamt().includes('Nudeln'));
   assert.ok(liste(s, a).some((p) => p.startsWith('1.2 kg Nudeln ✓0 g')));
 });
+
+test('a thing moved to a trip of fewer meals brings all it needs there', () => {
+  // A covers meals 1 and 2, B only meal 1: moved from A to B, B buys for both meals
+  const a = einkauf({ bisMahlzeitId: 2 });
+  const b = einkauf({ bisMahlzeitId: 1 });
+  const s = stand([a, b]);
+  s.tage[0].mahlzeiten = s.tage[0].mahlzeiten.slice(0, 2);
+  s.gerichte[0].zutaten = [zeile(1, 4, 1, 'stueck')];
+  assert.deepEqual(liste(s, a), ['2 stueck Brötchen']);
+  a.regeln = [{ planungZutatId: 4, art: 'ohne', menge: null, einheit: null }];
+  b.regeln = [{ planungZutatId: 4, art: 'mit', menge: null, einheit: null }];
+  assert.deepEqual(liste(s, a), []);
+  assert.deepEqual(liste(s, b), ['2 stueck Brötchen (mit)']);
+});
+
+test('a thing without an amount keeps its key when ticked off', () => {
+  const a = einkauf();
+  const s = stand([a]);
+  s.zusatzbedarf = [
+    { id: 1, etag: '"01"', planungZutatId: 4, menge: null, einheit: null, hinweis: '' },
+  ];
+  const key = () =>
+    einkaufListen(s, new Map())
+      .get(a.id)!
+      .kategorien.flatMap((k) => k.posten)
+      .find((p) => p.planungZutatId === 4)!.key;
+  assert.equal(key(), '4:');
+  a.posten = [{ ...haken(4, 0, 'stueck'), etag: '"02"' }];
+  assert.equal(key(), '4:');
+});
+
+test('a tick covers only what was put on the list before it', () => {
+  // Gloves ticked off on a finished trip; later they are needed again
+  const fertig = einkauf({ abgeschlossen: true });
+  const nach = einkauf();
+  const s = stand([fertig, nach]);
+  s.gerichte = [];
+  s.zusatzbedarf = [
+    { id: 1, etag: '"05"', planungZutatId: 4, menge: null, einheit: null, hinweis: '' },
+  ];
+  fertig.posten = [{ ...haken(4, 0, 'stueck'), etag: '"07"' }];
+  const gesamt = () =>
+    einkaufsliste(s, new Map()).flatMap((g) =>
+      g.kategorien.flatMap((k) => k.posten.map((p) => p.name))
+    );
+  assert.deepEqual(gesamt(), []);
+  assert.deepEqual(liste(s, nach), []);
+  s.zusatzbedarf = [
+    { id: 2, etag: '"09"', planungZutatId: 4, menge: null, einheit: null, hinweis: '' },
+  ];
+  assert.deepEqual(gesamt(), ['Brötchen']);
+  assert.deepEqual(liste(s, nach), ['Brötchen']);
+});

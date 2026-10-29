@@ -27,6 +27,8 @@
   const einkauf = $derived(liste.einkauf);
 
   let ansichtArt = $state<'zu' | 'liste' | 'live' | 'aendern'>('zu');
+  /** The change form, once opened, stays until saved or cancelled, so its draft is kept. */
+  let formular = $state(false);
 
   const info = $derived.by(() => {
     const geschaeft = ansicht.geschaefte.find((g) => g.id === einkauf.geschaeftId)?.name;
@@ -122,8 +124,10 @@
       <ActionButton
         type="button"
         aria-label="{einkauf.name} ändern"
-        onclick={() => (ansichtArt = ansichtArt === 'aendern' ? 'zu' : 'aendern')}
-        >Ändern</ActionButton
+        onclick={() => {
+          formular = true;
+          ansichtArt = ansichtArt === 'aendern' ? 'zu' : 'aendern';
+        }}>Ändern</ActionButton
       >
       <ActionButton
         type="button"
@@ -141,9 +145,20 @@
       >
     {/if}
   </div>
-  {#if ansichtArt === 'aendern'}
-    <EinkaufForm {kontext} {einkauf} gesperrt={!bearbeiten} onfertig={() => (ansichtArt = 'zu')} />
-  {:else if ansichtArt === 'live'}
+  {#if formular}
+    <div hidden={ansichtArt !== 'aendern'}>
+      <EinkaufForm
+        {kontext}
+        {einkauf}
+        gesperrt={!bearbeiten}
+        onfertig={() => {
+          formular = false;
+          ansichtArt = 'zu';
+        }}
+      />
+    </div>
+  {/if}
+  {#if ansichtArt === 'live'}
     <EinkaufLive {kontext} {liste} gesperrt={!bearbeiten} />
   {:else if ansichtArt === 'liste'}
     <div class="space-y-2">

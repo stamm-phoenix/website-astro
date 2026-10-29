@@ -272,3 +272,59 @@ test('a trip being added keeps its draft through maintenance', async ({ page }) 
   await form.getByRole('button', { name: 'Einkauf anlegen' }).click();
   await expect(page.getByText('Metro Freitag angelegt.').first()).toBeVisible();
 });
+
+test('a thing without an amount keeps what is typed when someone else ticks it off', async ({
+  page,
+  browser,
+}) => {
+  test.slow();
+  await anlegen(page, 'E2E Einkäufe ohne Menge');
+  await page.getByRole('tab', { name: 'Einkauf' }).click();
+  const feld = page.getByLabel('Noch etwas besorgen');
+  await feld.fill('Kochhandschuhe');
+  await feld.press('Enter');
+  await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
+  await einkaufAnlegen(page, 'Baumarkt', 0);
+  const hier = karte(page, 'Baumarkt');
+  await hier.getByRole('button', { name: 'Baumarkt: Einkaufen' }).click();
+  await hier.getByRole('button', { name: 'Kochhandschuhe', exact: true }).click();
+  const ersatz = hier.getByLabel('Ersatz für Kochhandschuhe');
+  await ersatz.fill('Grillhandschuhe');
+
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Einkauf' }).click();
+  const dort = karte(anderes, 'Baumarkt');
+  await dort.getByRole('button', { name: 'Baumarkt: Einkaufen' }).click();
+  await dort.getByRole('button', { name: 'Kochhandschuhe', exact: true }).click();
+  await dort.getByRole('button', { name: 'Abhaken' }).click();
+  await expect(dort.getByRole('status')).toHaveText('1 von 1 abgehakt');
+
+  // The tick of the other one arrives; the open row and what is typed stay
+  await expect(hier.getByRole('status')).toHaveText('1 von 1 abgehakt', { timeout: 15_000 });
+  await expect(ersatz).toHaveValue('Grillhandschuhe');
+  await hier.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(hier.getByText(/hat das inzwischen abgehakt/)).toBeVisible();
+  await hier.getByRole('button', { name: 'Trotzdem speichern' }).click();
+  await expect(hier).toContainText('→ Grillhandschuhe');
+  await anderes.context().close();
+});
+
+test('a change of a trip keeps its draft while the list is looked at', async ({ page }) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Entwurf');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag ändern' }).click();
+  const form = page.getByRole('form', { name: 'Montag ändern' });
+  await form.getByLabel('Name des Einkaufs').fill('Montag früh');
+  await form.getByLabel('Datum').fill('2027-08-02');
+  await montag.getByRole('button', { name: 'Liste von Montag' }).click();
+  await expect(page.getByRole('list', { name: 'Montag: Teigware' })).toBeVisible();
+  await expect(form).toBeHidden();
+  await montag.getByRole('button', { name: 'Montag ändern' }).click();
+  await expect(form.getByLabel('Name des Einkaufs')).toHaveValue('Montag früh');
+  await expect(form.getByLabel('Datum')).toHaveValue('2027-08-02');
+  await form.getByRole('button', { name: 'Speichern' }).click();
+  await expect(page.getByText('Montag früh gespeichert.').first()).toBeVisible();
+});

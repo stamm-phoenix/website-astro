@@ -7,6 +7,7 @@ import type {
 import { bedarf, einkaufsMenge, inBasis, ohneMenge, summiere } from './essensplanungRechnung';
 import type { BasisEinheit, RechnungsMahlzeit, RechnungsStand } from './essensplanungRechnung';
 import { lager, nurOffene } from './essensplanungLager';
+import { erledigtOhneMenge } from './essensplanungEinkauf';
 import type { LagerEinplanung, LagerStand } from './essensplanungLager';
 import type { EinkaufPosten, Geschaeft, GerichtEinheit, PlanungZutat, ZusatzPosten } from './types';
 
@@ -108,6 +109,17 @@ export function einkaufListen(
   const imLager = new Map(
     lager(stand).map((p) => [schluessel(p.planungZutatId, p.einheit), p.jetzt])
   );
+  /** All that is needed: a thing put on a trip by hand („mit“) brings all of its needs. */
+  const noetigAlle = new Map(
+    summiere([...bedarfe, ...zusatz]).map((s) => [schluessel(s.planungZutatId, s.einheit), s])
+  );
+  const gefuehl = ohneMenge(offen);
+  /** Ingredients needed without an amount; ticked off, they keep the key without a unit. */
+  const ohne = new Set([
+    ...gefuehl,
+    ...stand.zusatzbedarf.filter((p) => p.menge === null).map((p) => p.planungZutatId),
+  ]);
+  const mitMenge = new Set([...noetigAlle.values()].map((s) => s.planungZutatId));
   /** What earlier trips still buy, per ingredient and base unit. */
   const unterwegs = new Map<string, number>();
   const ergebnis = new Map<number, EinkaufListe>();
@@ -181,11 +193,19 @@ export function einkaufListen(
     );
     const hakenJe = new Map(
       einkauf.posten.map((h) => [
-        schluessel(h.planungZutatId, inBasis(h.erhalten, h.einheit).einheit),
+        // A thing without an amount keeps its place when ticked off, also for others at once
+        ohne.has(h.planungZutatId) && !mitMenge.has(h.planungZutatId)
+          ? `${h.planungZutatId}:`
+          : schluessel(h.planungZutatId, inBasis(h.erhalten, h.einheit).einheit),
         h,
       ])
     );
-    const keys = new Set([...noetig.keys(), ...fest.keys()]);
+    const mit = new Set(einkauf.regeln.filter((r) => r.art === 'mit').map((r) => r.planungZutatId));
+    const keys = new Set([
+      ...noetig.keys(),
+      ...fest.keys(),
+      ...[...noetigAlle.keys()].filter((key) => mit.has(Number(key.split(':')[0]))),
+    ]);
     for (const key of keys) {
       const [idText, basisText] = key.split(':');
       const id = Number(idText);
@@ -202,7 +222,10 @@ export function einkaufListen(
       else if (nimmt(einkauf, id))
         geplant = Math.max(
           0,
-          (noetig.get(key)?.menge ?? 0) - vorhanden - (unterwegs.get(key) ?? 0)
+          // Moved here by hand: all it needs, whatever meals this trip covers
+          ((regel?.art === 'mit' ? noetigAlle : noetig).get(key)?.menge ?? 0) -
+            vorhanden -
+            (unterwegs.get(key) ?? 0)
         );
       geplant = geplant > REST ? gekauft(geplant, basis) : 0;
       // A finished trip bought only what was ticked off; that is in stock
@@ -228,23 +251,22 @@ export function einkaufListen(
   }
 
   // Without an amount: on the first open trip that takes it, unless it is on a list with an
-  // amount, ticked off somewhere or in stock
+  // amount, ticked off since it was put on the list, or in stock
   const gelistet = new Set(
-    [...posten.values()].flatMap((liste) => [...liste.values()].map((p) => p.planungZutatId))
+    [...posten.values()].flatMap((liste) =>
+      [...liste.values()].filter((p) => !p.key.endsWith(':')).map((p) => p.planungZutatId)
+    )
   );
+  const erledigt = erledigtOhneMenge(stand);
   const vorraetig = new Set(
     [...imLager].filter(([, menge]) => menge > 1e-9).map(([key]) => Number(key.split(':')[0]))
   );
-  const gefuehl = ohneMenge(offen);
-  const ohne = new Set([
-    ...gefuehl,
-    ...stand.zusatzbedarf.filter((p) => p.menge === null).map((p) => p.planungZutatId),
-  ]);
   for (const id of ohne) {
     // As on the shopping list: stock covers what dishes need by eye, not what was put on it
-    if (gelistet.has(id) || (gefuehl.has(id) && vorraetig.has(id))) continue;
+    if (gelistet.has(id) || erledigt.has(id) || (gefuehl.has(id) && vorraetig.has(id))) continue;
     const einkauf = reihe.find((e) => !e.abgeschlossen && nimmt(e, id));
-    if (einkauf)
+    // A trip where it is ticked off already shows it there
+    if (einkauf && !posten.get(einkauf.id)?.has(`${id}:`))
       eintrag(einkauf, id, `${id}:`, { menge: null, einheit: null, nachGefuehl: gefuehl.has(id) });
   }
 

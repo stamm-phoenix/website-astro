@@ -52,6 +52,29 @@ const REST = 1e-6;
 
 const VERGLEICH = new Intl.Collator('de');
 
+/**
+ * Ingredients without an amount that were ticked off on a trip after they were last put on the
+ * list: a tick covers what was needed when it was made. Versions (rowversions) grow with every
+ * change across the database, so a row of extra needs newer than the tick is a new need.
+ */
+export function erledigtOhneMenge(stand: {
+  einkaeufe?: { posten: { planungZutatId: number; etag?: string }[] }[];
+  zusatzbedarf: Pick<ZusatzPosten, 'planungZutatId' | 'menge' | 'etag'>[];
+}): Set<number> {
+  const neuester = new Map<number, string>();
+  for (const p of stand.zusatzbedarf) {
+    if (p.menge !== null) continue;
+    if (p.etag > (neuester.get(p.planungZutatId) ?? '')) neuester.set(p.planungZutatId, p.etag);
+  }
+  const erledigt = new Set<number>();
+  for (const haken of (stand.einkaeufe ?? []).flatMap((e) => e.posten)) {
+    const bedarf = neuester.get(haken.planungZutatId);
+    if (bedarf === undefined || haken.etag === undefined || haken.etag > bedarf)
+      erledigt.add(haken.planungZutatId);
+  }
+  return erledigt;
+}
+
 export function einkaufsliste(
   alles: RechnungsStand &
     LagerStand & {
@@ -108,10 +131,8 @@ export function einkaufsliste(
     ...gefuehl,
     ...stand.zusatzbedarf.filter((posten) => posten.menge === null).map((p) => p.planungZutatId),
   ];
-  // Ticked off on a trip (with or without what was bought): it is there, like on the trips
-  const abgehakt = new Set(
-    (alles.einkaeufe ?? []).flatMap((e) => e.posten.map((p) => p.planungZutatId))
-  );
+  // Ticked off on a trip after it was put on the list: it is there, like on the trips
+  const abgehakt = erledigtOhneMenge(alles);
   for (const id of new Set(ohne)) {
     const zutat = zutaten.get(id);
     // What a dish needs „nach Gefühl“ is covered by stock; what was put on the list is bought
