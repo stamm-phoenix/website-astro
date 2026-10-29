@@ -141,6 +141,7 @@ import {
   staffDownloads,
 } from './mock-data/content';
 import type { MockAktion } from './mock-data/content';
+import { stufeFeed } from './mock-data/aktionenFeeds';
 import type { StufeSlug } from '../../api/lib/anwesenheit-model';
 import {
   addAnwesenheitGuest,
@@ -504,6 +505,22 @@ route(
     body: buildIcs(publicAktionen(), 'DPSG Stamm Phoenix - Aktionen'),
     headers: { 'Content-Disposition': 'attachment; filename="aktionen.ics"' },
   }),
+  true
+);
+route(
+  'GET',
+  '/api/aktionen/:stufe.ics',
+  (req) => {
+    const feed = stufeFeed(req.params.stufe);
+    if (!feed) return notFound('Diese Stufe gibt es nicht.');
+    return {
+      kind: 'raw',
+      status: 200,
+      contentType: 'text/calendar; charset=utf-8',
+      body: feed.body,
+      headers: { 'Content-Disposition': `attachment; filename="${feed.fileName}"` },
+    };
+  },
   true
 );
 route(
