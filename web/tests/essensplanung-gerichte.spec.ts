@@ -39,10 +39,12 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await dialog.getByLabel('Kategorie', { exact: true }).selectOption({ label: 'Gewürz' });
   await dialog.getByLabel('Gemessen in', { exact: true }).selectOption({ label: 'Gewicht (g/kg)' });
   await dialog.getByLabel('Ernährung', { exact: true }).selectOption('vegan');
+  await dialog.getByRole('checkbox', { name: 'Sellerie' }).check();
   await dialog.getByLabel('Hinweis (optional)').fill('nach Geschmack');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(chili.getByText('Omas Chiligewürz')).toBeVisible();
   await expect(chili.getByText('(nach Geschmack)')).toBeVisible();
+  await expect(chili.getByText('enthält Sellerie')).toBeVisible();
   await expect(chili.getByText(/Für vegetarisch Essende/)).toHaveCount(0);
 
   // Instructions and tools; the other window sees them

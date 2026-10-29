@@ -57,6 +57,8 @@
     kategorieId: number | null;
     einheitenart: EssenEinheitenart | null;
     ernaehrung: '' | 'vegan' | 'vegetarisch' | 'fleisch';
+    /** What it contains, unlike the intolerances below, which say for whom the line is. */
+    allergene: number[];
   } | null>(null);
   let geaendert = $state(false);
 
@@ -199,6 +201,7 @@
               einheitenart: neu.einheitenart,
               vegetarisch: neu.ernaehrung === '' ? null : neu.ernaehrung !== 'fleisch',
               vegan: neu.ernaehrung === '' ? null : neu.ernaehrung === 'vegan',
+              allergene: neu.allergene,
             }
           );
           id = antwort.id;
@@ -325,7 +328,8 @@
           <button
             type="button"
             class="min-h-11 font-semibold text-link underline"
-            onclick={() => (eigene = { kategorieId: null, einheitenart: null, ernaehrung: '' })}
+            onclick={() =>
+              (eigene = { kategorieId: null, einheitenart: null, ernaehrung: '', allergene: [] })}
             >Als eigene Zutat dieser Planung anlegen</button
           >
         </p>
@@ -363,6 +367,18 @@
               </select>
             {/snippet}
           </FormField>
+          <fieldset>
+            <legend class="form-label">Enthält</legend>
+            {#if felder.allergene}<p class="text-sm text-danger">{felder.allergene}</p>{/if}
+            <div class="grid gap-x-4 sm:grid-cols-2">
+              {#each katalog.unvertraeglichkeiten as u (u.id)}
+                <label class="flex min-h-11 items-center gap-2">
+                  <input type="checkbox" value={u.id} bind:group={eigene!.allergene} />
+                  {u.name}
+                </label>
+              {/each}
+            </div>
+          </fieldset>
         </fieldset>
       {/if}
 
