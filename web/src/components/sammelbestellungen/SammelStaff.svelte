@@ -273,6 +273,7 @@
         </dl>
         <SammelOrderList
           bind:filters={orderFilters}
+          campaignTitle={view.campaign.title}
           {orders}
           {prices}
           {availability}
@@ -310,7 +311,14 @@
             >
           </div>
         {/if}
-        <SammelCombinedList bind:exportShop {orders} {prices} {pricesLoading} {linePrice} />
+        <SammelCombinedList
+          campaignTitle={view.campaign.title}
+          bind:exportShop
+          {orders}
+          {prices}
+          {pricesLoading}
+          {linePrice}
+        />
       {/snippet}
     </LoadState>
   </div>{/if}
