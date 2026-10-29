@@ -22,7 +22,8 @@ export function leseMenge(text: string): number | null {
  * be told from a change of others.
  */
 export function gespeicherteMenge(menge: number | null): number | null {
-  return menge === null ? null : Math.round(menge * 1000) / 1000 || 0.001;
+  // 0 and less stay, so the server refuses them instead of saving 0,001
+  return menge === null || menge <= 0 ? menge : Math.round(menge * 1000) / 1000 || 0.001;
 }
 
 export function gespeicherterText(text: string): string {

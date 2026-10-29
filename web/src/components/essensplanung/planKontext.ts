@@ -38,10 +38,10 @@ export function meldeVerloren(kontext: PlanKontext, text: string): void {
   verloren.push(text);
 }
 
-const speichernd = new Set<Promise<unknown>>();
+const speichernd = new Set<Promise<boolean>>();
 
-/** Notes a save a row started on its own, e.g. when it was left. */
-export function merkeSpeichern(lauf: Promise<unknown>): void {
+/** Notes a save a row started on its own, e.g. when it was left; it says whether it worked. */
+export function merkeSpeichern(lauf: Promise<boolean>): void {
   speichernd.add(lauf);
   void lauf.finally(() => speichernd.delete(lauf));
 }
@@ -49,8 +49,14 @@ export function merkeSpeichern(lauf: Promise<unknown>): void {
 /**
  * Waits for the saves rows started on their own, including one that waits for the click just
  * made, so an action reads the state with what was typed (a PDF, the version to delete).
+ * Whether all of them worked; a failed one keeps its input and shows its error in the row.
  */
-export async function gespeichert(): Promise<void> {
+export async function gespeichert(): Promise<boolean> {
   await new Promise((done) => setTimeout(done));
-  while (speichernd.size) await Promise.allSettled([...speichernd]);
+  let alle = true;
+  while (speichernd.size) {
+    const ergebnisse = await Promise.allSettled([...speichernd]);
+    if (ergebnisse.some((e) => e.status === 'rejected' || !e.value)) alle = false;
+  }
+  return alle;
 }
