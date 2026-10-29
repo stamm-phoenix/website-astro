@@ -1,4 +1,4 @@
-import { bedarf, einkaufsMenge, summiere } from './essensplanungRechnung';
+import { bedarf, einkaufsMenge, ohneMenge, summiere } from './essensplanungRechnung';
 import type { RechnungsStand } from './essensplanungRechnung';
 import type { EinkaufPosten, Geschaeft, GerichtEinheit, PlanungZutat } from './types';
 
@@ -7,13 +7,13 @@ import type { EinkaufPosten, Geschaeft, GerichtEinheit, PlanungZutat } from './t
  * and the extra needs take, less the stock, by shop and category, rounded up only at the end.
  */
 
-/** One thing to buy. */
+/** One thing to buy; without amount and unit when the dishes give none („nach Gefühl“). */
 export interface EinkaufsPosten {
   planungZutatId: number;
   name: string;
   abtropfgewicht: boolean;
-  menge: number;
-  einheit: GerichtEinheit;
+  menge: number | null;
+  einheit: GerichtEinheit | null;
 }
 
 export interface EinkaufsKategorie {
@@ -50,11 +50,9 @@ export function einkaufsliste(
     ])
   );
   const geschaefte = new Map<number | null, Map<string, EinkaufsPosten[]>>();
-  for (const summe of summiere([...bedarf(stand), ...stand.zusatzbedarf])) {
-    const rest = summe.menge - (vorhanden.get(`${summe.planungZutatId}:${summe.einheit}`) ?? 0);
-    if (rest <= REST) continue;
-    const zutat = zutaten.get(summe.planungZutatId);
-    if (!zutat) continue;
+  const gelistet = new Set<number>();
+  const hinzu = (zutat: PlanungZutat, menge: Pick<EinkaufsPosten, 'menge' | 'einheit'>): void => {
+    gelistet.add(zutat.id);
     const geschaeftId = stand.geschaefte.some((g) => g.id === zutat.geschaeftId)
       ? zutat.geschaeftId
       : null;
@@ -67,9 +65,21 @@ export function einkaufsliste(
         planungZutatId: zutat.id,
         name: zutat.name,
         abtropfgewicht: zutat.abtropfgewicht,
-        ...einkaufsMenge(rest, summe.einheit),
+        ...menge,
       },
     ]);
+  };
+  for (const summe of summiere([...bedarf(stand), ...stand.zusatzbedarf])) {
+    const rest = summe.menge - (vorhanden.get(`${summe.planungZutatId}:${summe.einheit}`) ?? 0);
+    const zutat = zutaten.get(summe.planungZutatId);
+    if (rest > REST && zutat) hinzu(zutat, einkaufsMenge(rest, summe.einheit));
+  }
+  // Without an amount: on the list unless it is listed with one or there is some in stock
+  const imBestand = new Set(stand.bestand.map((posten) => posten.planungZutatId));
+  for (const id of ohneMenge(stand)) {
+    const zutat = zutaten.get(id);
+    if (zutat && !gelistet.has(id) && !imBestand.has(id))
+      hinzu(zutat, { menge: null, einheit: null });
   }
   const ordnen = (jeKategorie: Map<string, EinkaufsPosten[]>): EinkaufsKategorie[] =>
     [...jeKategorie]

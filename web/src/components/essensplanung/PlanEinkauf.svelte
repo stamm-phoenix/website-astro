@@ -58,16 +58,21 @@
     return `${kochMenge(posten.menge, posten.einheit, zutat?.abtropfgewicht)} ${zutat?.name ?? 'Zutat'}`;
   }
 
-  async function geschaeftSetzen(planungZutatId: number, wert: string, name: string) {
-    const geschaeftId = wert ? Number(wert) : null;
+  async function geschaeftSetzen(feld: HTMLSelectElement, planungZutatId: number, name: string) {
+    const geschaeftId = feld.value ? Number(feld.value) : null;
     const geschaeft = ansicht.geschaefte.find((g) => g.id === geschaeftId);
     // On the version the choice was made on: the choice of someone else meanwhile is a conflict
     const etag = zutaten.get(planungZutatId)?.etag;
-    await kontext.aendern(
+    const ok = await kontext.aendern(
       () =>
         kontext.api.senden('PUT', `/zutaten/${planungZutatId}/geschaeft`, { geschaeftId, etag }),
       geschaeft ? `${name} kaufst du bei ${geschaeft.name}.` : `${name} hat kein Geschäft mehr.`
     );
+    // Not saved: the field shows the saved shop again, so the choice can be sent once more
+    if (!ok) {
+      const gespeichert = zutaten.get(planungZutatId)?.geschaeftId;
+      feld.value = ansicht.geschaefte.some((g) => g.id === gespeichert) ? String(gespeichert) : '';
+    }
   }
 
   async function geschaeftLoeschen(geschaeft: Geschaeft): Promise<void> {
@@ -188,7 +193,8 @@
                 <li class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5">
                   <p class="min-w-0 [overflow-wrap:anywhere]">
                     <span class="font-semibold tabular-nums"
-                      >{mengeText(posten.menge, posten.einheit, posten.abtropfgewicht)}</span
+                      >{mengeText(posten.menge, posten.einheit, posten.abtropfgewicht) ??
+                        'nach Gefühl'}</span
                     >
                     {posten.name}
                   </p>
@@ -200,8 +206,8 @@
                       value={String(gruppe.geschaeft?.id ?? '')}
                       onchange={(event) =>
                         void geschaeftSetzen(
+                          event.currentTarget,
                           posten.planungZutatId,
-                          event.currentTarget.value,
                           posten.name
                         )}
                     >

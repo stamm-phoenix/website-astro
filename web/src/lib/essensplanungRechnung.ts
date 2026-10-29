@@ -160,6 +160,25 @@ export function bedarf(stand: RechnungsStand): Bedarf[] {
   return ergebnis;
 }
 
+/**
+ * Ingredients of planned dishes that someone eats but whose line has no amount (salt and pepper
+ * „nach Gefühl“): they are bought, just without a number.
+ */
+export function ohneMenge(stand: RechnungsStand): Set<number> {
+  const esser = esserRechner(stand);
+  const gerichte = new Map(stand.gerichte.map((gericht) => [gericht.id, gericht]));
+  const ergebnis = new Set<number>();
+  for (const mahlzeit of stand.tage.flatMap((tag) => tag.mahlzeiten)) {
+    for (const einplanung of mahlzeit.einplanungen) {
+      for (const zeile of gerichte.get(einplanung.gerichtId)?.zutaten ?? []) {
+        if (zeile.menge !== null && zeile.einheit !== null) continue;
+        if (esser(mahlzeit, zeile) > 0) ergebnis.add(zeile.planungZutatId);
+      }
+    }
+  }
+  return ergebnis;
+}
+
 /** The sum of one ingredient in one unit. */
 export interface Summe {
   planungZutatId: number;

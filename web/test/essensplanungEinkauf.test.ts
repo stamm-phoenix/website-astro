@@ -143,3 +143,57 @@ test('the shopping list is need plus extra needs less stock, by shop and categor
     },
   ]);
 });
+
+test('ingredients without an amount are bought „nach Gefühl“ unless listed or in stock', () => {
+  const ohne = (id: number, planungZutatId: number) => ({
+    ...zeile(id, planungZutatId, 0, 'g'),
+    menge: null,
+    einheit: null,
+  });
+  const liste = einkaufsliste(
+    {
+      tage: [
+        {
+          mahlzeiten: [
+            { id: 1, ohneGruppen: [], einplanungen: [{ id: 11, gerichtId: 100, faktor: 1 }] },
+          ],
+        },
+      ],
+      gruppen: [{ id: 1, faktor: 1 }],
+      teilnehmende: [
+        {
+          gruppeId: 1,
+          ernaehrung: 'alles',
+          anzahl: 4,
+          unvertraeglichkeiten: [],
+          vonMahlzeitId: null,
+          bisMahlzeitId: null,
+        },
+      ],
+      gerichte: [
+        {
+          id: 100,
+          personen: 4,
+          // Pepper only to taste; salt to taste but in stock; pasta also with an amount
+          zutaten: [ohne(1, 1), ohne(2, 2), ohne(3, 3), zeile(4, 3, 400, 'g')],
+        },
+      ],
+      zutaten: [
+        zutat(1, 'Pfeffer', 6, null),
+        zutat(2, 'Salz', 6, null),
+        zutat(3, 'Nudeln', 6, null),
+      ],
+      geschaefte: [],
+      bestand: [{ id: 1, etag: '', planungZutatId: 2, menge: 1, einheit: 'kg', hinweis: '' }],
+      zusatzbedarf: [],
+    },
+    new Map([[6, 'Gewürz']])
+  );
+  assert.deepEqual(
+    liste[0].kategorien[0].posten.map((p) => [p.name, p.menge, p.einheit]),
+    [
+      ['Nudeln', 400, 'g'],
+      ['Pfeffer', null, null],
+    ]
+  );
+});

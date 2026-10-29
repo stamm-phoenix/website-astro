@@ -73,7 +73,14 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await dialog.getByLabel('Name', { exact: true }).fill('Metro');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(dialog).toBeHidden();
-  await page.getByLabel('Geschäft für Nudeln (Spaghetti)').selectOption({ label: 'Metro' });
+  // A failed save shows the saved shop again, and the same choice can be sent once more
+  const wahl = page.getByLabel('Geschäft für Nudeln (Spaghetti)');
+  await page.route('**/api/essensplanung/planung/zutaten/*/geschaeft', (route) => route.abort());
+  await wahl.selectOption({ label: 'Metro' });
+  await expect(wahl).toHaveValue('');
+  await expect(ohne).toContainText('1,5 kg Nudeln (Spaghetti)');
+  await page.unroute('**/api/essensplanung/planung/zutaten/*/geschaeft');
+  await wahl.selectOption({ label: 'Metro' });
   await expect(page.getByRole('list', { name: 'Metro: Teigware' })).toContainText(
     '1,5 kg Nudeln (Spaghetti)'
   );
