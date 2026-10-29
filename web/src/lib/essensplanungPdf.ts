@@ -10,6 +10,7 @@ import {
   anleitungAbsaetze,
   esserKalender,
   kochplan,
+  rezeptWarnungen,
   rezeptZeilen,
   teilnehmendeZeilen,
   type DruckZeile,
@@ -21,6 +22,7 @@ import {
   FOOTER_SPACE,
   GREY,
   MARGIN,
+  RED,
   dateiName,
   drawPageFooters,
   drawTitle,
@@ -84,10 +86,16 @@ function ueberschrift(doc: JsPdf, text: string, y: number, groesse: number): num
 }
 
 /** Grey text, wrapped; returns where the next line starts. */
-function text(doc: JsPdf, inhalt: string, y: number, einzug = 0): number {
+function text(
+  doc: JsPdf,
+  inhalt: string,
+  y: number,
+  einzug = 0,
+  farbe: [number, number, number] = GREY
+): number {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setTextColor(...GREY);
+  doc.setTextColor(...farbe);
   const zeilen = doc.splitTextToSize(
     inhalt,
     doc.internal.pageSize.getWidth() - 2 * MARGIN - einzug
@@ -160,6 +168,9 @@ export async function downloadRezeptkartenPdf(
     if (index > 0) doc.addPage();
     let y =
       drawTitle(doc, gericht.name, [`Für ${gericht.personen} Personen · ${ansicht.name}`]) + 2;
+    // The warnings of the card, e.g. milk on a line for vegans
+    for (const warnung of rezeptWarnungen(gericht, ansicht.zutaten))
+      y = text(doc, warnung, y, 0, RED);
     y = ueberschrift(doc, 'Zutaten', y, 11);
     const zeilen = rezeptZeilen(gericht, ansicht.zutaten, namen);
     y = zeilen.length
