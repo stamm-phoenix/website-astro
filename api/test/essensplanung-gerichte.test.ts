@@ -106,6 +106,10 @@ dbTest('dishes get lines from the central list in the unit of the ingredient', a
     einheit: 'stueck',
   });
   assert.equal(alufolie.status, 400);
+  // An intolerance deleted meanwhile shows at the field of the intolerances
+  const verschwunden = await zeileHinzufuegen(t, token, id, { zutatId: hack, ohne: [999_999] });
+  assert.equal(verschwunden.status, 400);
+  assert.ok(json<{ fields: { ohne: string } }>(verschwunden).fields.ohne);
   // Without an amount, at the top, and not for gluten
   const ansicht = json<PlanungAnsicht>(
     await zeileHinzufuegen(t, token, id, {

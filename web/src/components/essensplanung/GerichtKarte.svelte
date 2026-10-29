@@ -160,19 +160,22 @@
   }
 
   async function loeschen(): Promise<void> {
+    // The dish as asked about: a change of others during the question is a conflict
+    const { id, name, etag } = gericht;
     if (
       !(await confirmAction({
-        title: `„${gericht.name}“ löschen?`,
+        title: `„${name}“ löschen?`,
         message: `Das Gericht wird mit allen ${gericht.zutaten.length} Zutaten gelöscht.`,
         confirmLabel: 'Gericht löschen',
       }))
     )
       return;
     selbstGeloescht = true;
-    await kontext.aendern(
-      () => kontext.api.senden('DELETE', `/gerichte/${gericht.id}`, undefined, gericht.etag),
-      `${gericht.name} gelöscht.`
+    const ok = await kontext.aendern(
+      () => kontext.api.senden('DELETE', `/gerichte/${id}`, undefined, etag),
+      `${name} gelöscht.`
     );
+    if (!ok) selbstGeloescht = false;
   }
 
   async function verschiebe(zeile: GerichtZutat, position: number): Promise<void> {
