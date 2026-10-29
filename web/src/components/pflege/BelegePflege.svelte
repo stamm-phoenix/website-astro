@@ -1,6 +1,12 @@
 <script lang="ts">
   import StaffPageHead from '../StaffPageHead.svelte';
-  import { validateBeleg, decisionMessage, zahlungOf, type BelegForm } from '../../lib/belegForm';
+  import {
+    belegChanged,
+    validateBeleg,
+    decisionMessage,
+    zahlungOf,
+    type BelegForm,
+  } from '../../lib/belegForm';
   import { zuordnungStand } from '../../lib/belegZuordnung';
   import { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import BelegFields from './BelegFields.svelte';
@@ -9,6 +15,7 @@
   import BelegAnsicht from './BelegAnsicht.svelte';
   import BelegCampflowDialog from './BelegCampflowDialog.svelte';
   import BelegUebersicht from './BelegUebersicht.svelte';
+  import BelegePdfButton from './BelegePdfButton.svelte';
 
   import FilterTabs from '../ui/FilterTabs.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
@@ -446,23 +453,6 @@
     }
   }
 
-  /** Whether the form differs from the stored receipt in a field the API saves. */
-  function belegChanged(current: BelegForm, stored: StaffBeleg): boolean {
-    return (
-      current.art !== stored.art ||
-      current.shop !== stored.shop ||
-      current.date !== stored.date ||
-      parseEuroToCent(current.amount) !== stored.amountCent ||
-      current.paidBy !== stored.paidBy ||
-      current.payout !== stored.payout ||
-      current.kostenstelle !== stored.kostenstelle ||
-      current.kategorie !== stored.kategorie ||
-      current.note !== stored.note ||
-      current.reviewNote !== stored.reviewNote ||
-      current.etag !== stored.etag
-    );
-  }
-
   async function remove(): Promise<void> {
     const current = form;
     if (!current?.id || photo.photoBusy) return;
@@ -483,6 +473,12 @@
       >Beleg einreichen</ActionButton
     >
     <a href="/leitendenbereich/eigenbeleg" class="btn-secondary">Eigenbeleg erstellen</a>
+    <BelegePdfButton
+      eintraege={visible}
+      filter={{ quelle, stand, costUnitId, categoryId, search, onlyMine }}
+      {kostenstellen}
+      disabled={!store.data && !campflowStore.data}
+    />
     <ReloadAction
       disabled={reloading}
       aria-busy={reloading}

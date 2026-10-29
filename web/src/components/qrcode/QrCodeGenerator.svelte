@@ -5,6 +5,7 @@
   import Panel from '../ui/Panel.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
+  import QrCodePdf from './QrCodePdf.svelte';
   import { saveFile } from '../../lib/api';
   import {
     QR_ECKEN,
@@ -289,6 +290,7 @@
     >
       {busy ? 'Bild wird erstellt …' : 'Als Bild herunterladen'}
     </ActionButton>
+    <QrCodePdf matrix={result.matrix} {optionen} {logo} />
     <p class="mt-3 text-xs text-neutral-700">Vor dem Drucken mit dem Handy testen.</p>
   </Panel>
 </div>

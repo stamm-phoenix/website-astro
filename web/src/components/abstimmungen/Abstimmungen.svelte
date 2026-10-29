@@ -9,7 +9,8 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import AbstimmungDialog from './AbstimmungDialog.svelte';
   import { formatDateTime } from '../../lib/format';
-  import { abstimmungHref, abstimmungenStore, antwortenText } from '../../lib/abstimmungen';
+  import { abstimmungHref, abstimmungenStore } from '../../lib/abstimmungen';
+  import { antwortenText } from '../../lib/abstimmungZahlen';
 
   /** Abstimmungen (`docs/abstimmungen.md`): the list, newest first, and creating a new one. */
 

@@ -125,20 +125,3 @@ export function terminText(date: string, time = ''): string {
   const clock = /^\d{2}:\d{2}$/.test(time) ? `, ${time} Uhr` : '';
   return `${weekday}, ${day}.${month}.${year}${clock}`;
 }
-
-/** IDs of the options with the most votes; none while nobody chose anything. */
-export function spitzenreiter(ergebnis: Pick<AbstimmungErgebnis, 'optionen'>): Set<number> {
-  const most = Math.max(0, ...ergebnis.optionen.map((option) => option.stimmen));
-  if (most === 0) return new Set();
-  return new Set(ergebnis.optionen.filter((o) => o.stimmen === most).map((o) => o.id));
-}
-
-/** „1 Antwort“, „3 Antworten“. */
-export function antwortenText(count: number): string {
-  return count === 1 ? '1 Antwort' : `${count} Antworten`;
-}
-
-/** „1 Stimme“, „3 Stimmen“. */
-export function stimmenText(count: number): string {
-  return count === 1 ? '1 Stimme' : `${count} Stimmen`;
-}

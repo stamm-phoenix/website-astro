@@ -1,6 +1,6 @@
 import { parseEuroToCent } from './belege';
 import { todayIso, formatDateTime } from './format';
-import type { BelegArt, BelegCampflow, BelegCheck, BelegStatus } from './types';
+import type { BelegArt, BelegCampflow, BelegCheck, BelegStatus, StaffBeleg } from './types';
 export interface BelegForm {
   id: string | null;
   etag: string;
@@ -141,5 +141,22 @@ export function matchingKostenstelle<T extends { name: string; archived: boolean
   const name = aktion.trim().toLocaleLowerCase('de');
   return kostenstellen.find(
     (k) => (archived || !k.archived) && k.name.trim().toLocaleLowerCase('de') === name
+  );
+}
+
+/** Whether the form differs from the stored receipt in a field the API saves. */
+export function belegChanged(current: BelegForm, stored: StaffBeleg): boolean {
+  return (
+    current.art !== stored.art ||
+    current.shop !== stored.shop ||
+    current.date !== stored.date ||
+    parseEuroToCent(current.amount) !== stored.amountCent ||
+    current.paidBy !== stored.paidBy ||
+    current.payout !== stored.payout ||
+    current.kostenstelle !== stored.kostenstelle ||
+    current.kategorie !== stored.kategorie ||
+    current.note !== stored.note ||
+    current.reviewNote !== stored.reviewNote ||
+    current.etag !== stored.etag
   );
 }

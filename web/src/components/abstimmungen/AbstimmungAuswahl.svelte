@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { AbstimmungOption } from '../../lib/abstimmungen';
-  import { stimmenText } from '../../lib/abstimmungen';
+  import { stimmenText } from '../../lib/abstimmungZahlen';
 
   interface Props {
     /** Unique on the page; names the group of inputs. */

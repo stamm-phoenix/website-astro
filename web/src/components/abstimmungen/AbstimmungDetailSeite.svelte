@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { navigate } from 'astro:transitions/client';
   import ActionButton from '../ui/ActionButton.svelte';
+  import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
@@ -255,6 +256,15 @@
                 >{abstimmung.geschlossen ? 'Wieder öffnen' : 'Abstimmung beenden'}</ActionButton
               >
             {/if}
+            <PdfDownloadButton
+              download={async () =>
+                (await import('../../lib/abstimmungPdf')).downloadAbstimmungPdf(abstimmung)}
+              errorText="Das PDF des Ergebnisses konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal."
+              onresult={(kind, text) => {
+                messageKind = kind;
+                message = text;
+              }}
+            />
             <ReloadAction
               disabled={store.loading}
               aria-busy={store.loading}
