@@ -437,7 +437,7 @@
 
 <svelte:window {onkeydown} />
 
-<div bind:this={view} class="map-view {large ? 'is-large' : ''} print:hidden">
+<div bind:this={view} class="map-view {large ? 'is-large' : ''}">
   <div class="map-area scroll-mt-28" bind:this={mapArea}>
     <div
       bind:this={container}
@@ -730,16 +730,6 @@
   .map-view {
     display: grid;
     gap: 1rem;
-  }
-  /* Printed is the list; the component's own display would win over print:hidden */
-  @media print {
-    .map-view,
-    .map-view.is-large {
-      display: none;
-    }
-    :global(body.dispo-map-large) {
-      overflow: visible;
-    }
   }
   .map-area {
     position: relative;

@@ -36,7 +36,7 @@
 
 <section
   aria-labelledby="dispo-team-{route.team}"
-  class="team-column border-t-4 print:mb-6 print:break-inside-auto"
+  class="border-t-4"
   style:border-top-color={color}
 >
   <div class="border-b border-neutral-200 py-3">
@@ -85,7 +85,7 @@
         {/if}
       {/each}
     </ol>
-    <p class="flex flex-wrap gap-x-4 py-3 text-sm print:hidden">
+    <p class="flex flex-wrap gap-x-4 py-3 text-sm">
       {#each mapsLinks(ids, base, stopsById) as link, part (link)}
         <a
           class="font-semibold text-link underline"
@@ -111,11 +111,3 @@
     </p>
   {/if}
 </section>
-
-<style>
-  @media print {
-    :global(.team-column) + .team-column {
-      break-before: page;
-    }
-  }
-</style>

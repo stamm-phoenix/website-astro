@@ -5,9 +5,6 @@
   import type { Snippet } from 'svelte';
   interface Props {
     recalculateDisabled?: boolean;
-    /** Offers „Drucken“; off where the page brings its own export through `children`. */
-    printable?: boolean;
-    printDisabled?: boolean;
     loading: boolean;
     loadedAt?: number | null;
     saveDisabled: boolean;
@@ -19,13 +16,11 @@
     onreload: () => void;
     onsave: () => void;
     class?: string;
-    /** Further actions, shown before „Neu laden“. */
+    /** Further actions such as the exports, shown before „Neu laden“. */
     children?: Snippet;
   }
   let {
     recalculateDisabled = false,
-    printable = true,
-    printDisabled = false,
     loading,
     loadedAt = null,
     saveDisabled,
@@ -55,14 +50,6 @@
       <p>{paragraph}</p>
     {/each}
   </InfoHint>
-  {#if printable}
-    <ActionButton
-      variant="secondary"
-      type="button"
-      disabled={printDisabled}
-      onclick={() => window.print()}>Drucken</ActionButton
-    >
-  {/if}
   {@render children?.()}
   <ReloadAction type="button" {loadedAt} disabled={loading} onclick={onreload}
     >{loading ? 'Lädt …' : 'Neu laden'}</ReloadAction

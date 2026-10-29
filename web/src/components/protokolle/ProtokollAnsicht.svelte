@@ -19,7 +19,7 @@
 
   /**
    * The minutes as they read: in the editor's preview, while reading along, in the
-   * presentation window and in print. Shows nothing that can be edited.
+   * presentation window. Shows nothing that can be edited.
    */
   interface Props {
     title: string;
@@ -560,31 +560,6 @@
     }
     .is-gross .punkt-titel {
       font-size: 1.4rem;
-    }
-  }
-
-  @media print {
-    .protokoll-ansicht {
-      gap: 1.25rem;
-      font-size: 11pt;
-    }
-    .kopf,
-    .naechste {
-      border-color: #999;
-      background: none;
-    }
-    .punkt.is-changed {
-      background: none;
-    }
-    .punkt.is-active {
-      box-shadow: none;
-    }
-    .punkt-titel,
-    .abschnitt-titel {
-      break-after: avoid;
-    }
-    .liste tr {
-      break-inside: avoid;
     }
   }
 </style>
