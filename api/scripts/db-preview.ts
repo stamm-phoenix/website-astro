@@ -67,6 +67,7 @@ import {
   seedPreviewPlans,
   seedPreviewQuestions,
 } from '../lib/db-preview';
+import { seedPreviewEssensplanungEinkauf } from '../lib/db-preview-essen-einkauf';
 import { setDeploymentValue } from '../lib/preview-deployment';
 import { createTestData, createTestHelpers } from './nikolaus-testdata';
 
@@ -169,6 +170,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewEssensplanungGerichte();
       await seedPreviewEssensplanungEinplanung();
       await seedPreviewEssensplanungTeilnehmende();
+      await seedPreviewEssensplanungEinkauf();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();

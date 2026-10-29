@@ -7,6 +7,7 @@
   import PlanTage from './PlanTage.svelte';
   import PlanGerichte from './PlanGerichte.svelte';
   import PlanTeilnehmende from './PlanTeilnehmende.svelte';
+  import PlanEinkauf from './PlanEinkauf.svelte';
   import PlanMitglieder from './PlanMitglieder.svelte';
   import PlanEinstellungen from './PlanEinstellungen.svelte';
   import PlanAenderungen from './PlanAenderungen.svelte';
@@ -32,15 +33,16 @@
   let busy = $state(false);
   let meldung = $state<string | null>(null);
   let meldungArt = $state<'success' | 'error'>('success');
-  let bereich = $state<'plan' | 'gerichte' | 'teilnehmende' | 'mitglieder' | 'einstellungen'>(
-    'plan'
-  );
+  let bereich = $state<
+    'plan' | 'gerichte' | 'teilnehmende' | 'einkauf' | 'mitglieder' | 'einstellungen'
+  >('plan');
   let offline = $state(false);
 
   const bereiche = $derived([
     { id: 'plan', label: 'Plan' },
     { id: 'gerichte', label: 'Gerichte' },
     { id: 'teilnehmende', label: 'Teilnehmende' },
+    { id: 'einkauf', label: 'Einkauf' },
     ...(ansicht && ansicht.zugang !== 'lesen' ? [{ id: 'mitglieder', label: 'Mitglieder' }] : []),
     ...(ansicht && ansicht.zugang !== 'lesen'
       ? [{ id: 'einstellungen', label: 'Einstellungen' }]
@@ -322,6 +324,14 @@
       hidden={bereich !== 'teilnehmende'}
     >
       <PlanTeilnehmende {kontext} sichtbar={bereich === 'teilnehmende'} />
+    </div>
+    <div
+      role="tabpanel"
+      id="bereich-panel-einkauf"
+      aria-labelledby="bereich-einkauf"
+      hidden={bereich !== 'einkauf'}
+    >
+      <PlanEinkauf {kontext} sichtbar={bereich === 'einkauf'} />
     </div>
     {#if ansicht.zugang !== 'lesen'}
       <div

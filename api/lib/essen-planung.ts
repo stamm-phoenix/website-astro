@@ -46,6 +46,7 @@ import { deletePlanung } from './essen-planung-loeschen';
 import { ladeGerichte, ladeKatalogStand } from './essen-gerichte';
 import { ladeEinplanungen } from './essen-einplanung';
 import { ladeTeilnehmende } from './essen-teilnehmende';
+import { ladeEinkauf } from './essen-einkauf';
 import { pruefeAnwesenheit, verschiebeGrenzen } from './essen-teilnehmende-grenzen';
 import { ValidationError } from './validation/errors';
 
@@ -148,37 +149,47 @@ const AENDERUNGEN_ANZEIGEN = 30;
 /** The view of a Planung for the given access. */
 export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<PlanungAnsicht> {
   const { seq, stand, stored, katalogStand } = await standUndEinstellungen(zugang, db);
-  const [planung, mitglieder, tage, mahlzeiten, aenderungen, gerichte, einplanungen, teilnehmende] =
-    await Promise.all([
-      db
-        .selectFrom('essen.planung')
-        .selectAll()
-        .where('id', '=', zugang.planungId)
-        .executeTakeFirst(),
-      db
-        .selectFrom('essen.mitglied')
-        .selectAll()
-        .where('planung_id', '=', zugang.planungId)
-        .orderBy('id')
-        .execute(),
-      db.selectFrom('essen.tag').selectAll().where('planung_id', '=', zugang.planungId).execute(),
-      db
-        .selectFrom('essen.mahlzeit as m')
-        .innerJoin('essen.tag as t', 't.id', 'm.tag_id')
-        .select(['m.id', 'm.version', 'm.tag_id', 'm.position', 'm.name', 'm.uhrzeit'])
-        .where('t.planung_id', '=', zugang.planungId)
-        .execute(),
-      db
-        .selectFrom('essen.aenderung')
-        .selectAll()
-        .where('planung_id', '=', zugang.planungId)
-        .orderBy('seq', 'desc')
-        .top(AENDERUNGEN_ANZEIGEN)
-        .execute(),
-      ladeGerichte(db, zugang.planungId),
-      ladeEinplanungen(db, zugang.planungId),
-      ladeTeilnehmende(db, zugang.planungId),
-    ]);
+  const [
+    planung,
+    mitglieder,
+    tage,
+    mahlzeiten,
+    aenderungen,
+    gerichte,
+    einplanungen,
+    teilnehmende,
+    einkauf,
+  ] = await Promise.all([
+    db
+      .selectFrom('essen.planung')
+      .selectAll()
+      .where('id', '=', zugang.planungId)
+      .executeTakeFirst(),
+    db
+      .selectFrom('essen.mitglied')
+      .selectAll()
+      .where('planung_id', '=', zugang.planungId)
+      .orderBy('id')
+      .execute(),
+    db.selectFrom('essen.tag').selectAll().where('planung_id', '=', zugang.planungId).execute(),
+    db
+      .selectFrom('essen.mahlzeit as m')
+      .innerJoin('essen.tag as t', 't.id', 'm.tag_id')
+      .select(['m.id', 'm.version', 'm.tag_id', 'm.position', 'm.name', 'm.uhrzeit'])
+      .where('t.planung_id', '=', zugang.planungId)
+      .execute(),
+    db
+      .selectFrom('essen.aenderung')
+      .selectAll()
+      .where('planung_id', '=', zugang.planungId)
+      .orderBy('seq', 'desc')
+      .top(AENDERUNGEN_ANZEIGEN)
+      .execute(),
+    ladeGerichte(db, zugang.planungId),
+    ladeEinplanungen(db, zugang.planungId),
+    ladeTeilnehmende(db, zugang.planungId),
+    ladeEinkauf(db, zugang.planungId),
+  ]);
   if (!planung) throw LINK_UNGUELTIG();
 
   const verwalten = darfMitgliederVerwalten(zugang.zugang, planung.mitglieder_verwalten);
@@ -243,6 +254,9 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
     gerichte: gerichte.gerichte,
     gruppen: teilnehmende.gruppen,
     teilnehmende: teilnehmende.teilnehmende,
+    geschaefte: einkauf.geschaefte,
+    bestand: einkauf.bestand,
+    zusatzbedarf: einkauf.zusatzbedarf,
   };
 }
 

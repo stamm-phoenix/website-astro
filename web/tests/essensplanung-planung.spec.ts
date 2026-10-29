@@ -378,6 +378,8 @@ test('a replaced link keeps the input; drafts ask before leaving; arrow keys swi
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Teilnehmende' })).toBeFocused();
   await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Einkauf' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Mitglieder' })).toBeFocused();
   await expect(page.getByRole('tab', { name: 'Mitglieder' })).toHaveAttribute(
     'aria-selected',

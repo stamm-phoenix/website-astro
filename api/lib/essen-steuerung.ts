@@ -427,10 +427,22 @@ async function pruefeGenutzteEinheiten(
     .where('pz.einheitenart', 'is', null)
     .where('gz.einheit', 'is not', null)
     .execute();
-  if (zeilen.some((zeile) => !einheitPasst(art, zeile.einheit))) {
+  // Stock and extra needs of the Planungen measure it too
+  const posten = await Promise.all(
+    (['essen.bestand', 'essen.zusatzbedarf'] as const).map((tabelle) =>
+      trx
+        .selectFrom(`${tabelle} as p`)
+        .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
+        .select('p.einheit')
+        .where('pz.zutat_id', '=', zutatId)
+        .where('pz.einheitenart', 'is', null)
+        .execute()
+    )
+  );
+  if ([...zeilen, ...posten.flat()].some((zeile) => !einheitPasst(art, zeile.einheit))) {
     throw new ValidationError({
       einheitenart:
-        'Gerichte in Planungen messen diese Zutat in der bisherigen Einheit. Sie bleibt, wie sie ist.',
+        'Planungen messen diese Zutat in der bisherigen Einheit. Sie bleibt, wie sie ist.',
     });
   }
 }

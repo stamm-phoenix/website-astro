@@ -170,24 +170,39 @@ const AENDERUNGEN: Record<string, string> = {
   'teilnehmende-neu': 'hat Teilnehmende hinzugefügt',
   'teilnehmende-geaendert': 'hat Teilnehmende geändert',
   'teilnehmende-geloescht': 'hat Teilnehmende entfernt',
+  'geschaeft-neu': 'hat ein Geschäft angelegt',
+  'geschaeft-geaendert': 'hat ein Geschäft geändert',
+  'geschaeft-geloescht': 'hat ein Geschäft gelöscht',
+  'zutat-geschaeft': 'hat ein Geschäft gewählt',
+  'bestand-neu': 'hat Bestand eingetragen',
+  'bestand-geaendert': 'hat Bestand geändert',
+  'bestand-geloescht': 'hat Bestand entfernt',
+  'zusatzbedarf-neu': 'hat Zusatzbedarf eingetragen',
+  'zusatzbedarf-geaendert': 'hat Zusatzbedarf geändert',
+  'zusatzbedarf-geloescht': 'hat Zusatzbedarf entfernt',
 };
 
 /** „Kim hat eine Mahlzeit geändert: Brunch (1.8.)“. */
 export function aenderungText(aenderung: PlanungAenderung): string {
   const wer = aenderung.wer || 'Jemand';
-  const { name, datum, gericht, mahlzeit, verschoben, anzahl, gruppe, isst } = aenderung.details;
+  const { name, datum, gericht, mahlzeit, verschoben, anzahl, gruppe, isst, geschaeft } =
+    aenderung.details;
   const gruppen = aenderung.aktion === 'mahlzeit-gruppen';
+  const laden = aenderung.aktion === 'zutat-geschaeft';
   const was = gruppen
     ? isst === true
       ? 'lässt eine Gruppe mitessen'
       : 'nimmt eine Gruppe aus einer Mahlzeit'
-    : verschoben === true
-      ? 'hat ein Gericht verschoben'
-      : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
+    : laden && geschaeft === null
+      ? 'hat ein Geschäft entfernt'
+      : verschoben === true
+        ? 'hat ein Gericht verschoben'
+        : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
   const ziel = [
     gruppen && typeof gruppe === 'string' ? `${gruppe} bei` : '',
     typeof anzahl === 'number' ? String(anzahl) : '',
     typeof name === 'string' ? name : '',
+    laden && typeof geschaeft === 'string' ? `bei ${geschaeft}` : '',
     typeof mahlzeit === 'string' ? `bei ${mahlzeit}` : '',
     typeof datum === 'string' ? `(${datumKurz(datum)})` : '',
     typeof gericht === 'string' ? `in „${gericht}“` : '',

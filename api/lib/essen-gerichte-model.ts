@@ -72,8 +72,10 @@ export interface PlanungZutat {
   allergene: number[];
   /** Which fields of a central ingredient differ in this Planung. */
   abweichend: { kategorie: boolean; einheitenart: boolean };
-  /** How many lines of dishes use it; a used ingredient cannot be deleted. */
+  /** How many lines of dishes, stock and extra needs use it; a used one cannot be deleted. */
   zeilen: number;
+  /** The shop it is bought at; null: none yet. */
+  geschaeftId: number | null;
 }
 
 export interface GerichtLink {

@@ -198,6 +198,13 @@ Gerechnet wird im Browser aus dem vollständigen Stand der Planung. Das Modul li
   - Ausgelassenes geht nicht vom Lager ab. Danach fällt der Bedarf dieser Einplanung weg.
 - **Anfangsbestand:** Wird im Lager eingetragen (Zutat, Menge) und mit der Einkaufsliste verrechnet. Beispiel: Spaghetti im Lager werden nicht neu gekauft.
 
+Umgesetzt (PR 5c), Bereich „Einkauf“ (`PlanEinkauf.svelte`):
+
+- **Einkaufsliste** (`web/src/lib/essensplanungEinkauf.ts`): Bedarf aller Einplanungen (`bedarf`) plus Zusatzbedarf, je Zutat und Einheitenart summiert, minus Bestand; was übrig bleibt, wird erst jetzt aufgerundet bzw. in kg/l angezeigt (`einkaufsMenge`). Zutaten, die nur ohne Menge in eingeplanten Gerichten stehen und mitgegessen werden (Pfeffer „nach Gefühl“), kommen ohne Zahl als „nach Gefühl“ dazu, außer es gibt sie schon mit Menge auf der Liste oder im Bestand (`ohneMenge`). Gruppiert nach Geschäft (in der Reihenfolge der Geschäfte, „Ohne Geschäft“ zuletzt) und Kategorie der Zutat. An jedem Posten wählt man das Geschäft der Zutat. „Einkaufsliste drucken“ druckt nur die Liste.
+- **Geschäfte** gehören zur Planung (`essen.geschaeft`, Name eindeutig, höchstens 30); eine Zutat der Planung hat höchstens ein Geschäft (`planung_zutat.geschaeft_id`). Ein gelöschtes Geschäft lässt seine Zutaten ohne Geschäft.
+- **Bestand** und **Zusatzbedarf** sind Einträge mit Zutat (aus der Liste oder der Planung, auch Nicht-Lebensmittel wie Spülmittel), Menge, Einheit passend zur Einheitenart und Hinweis (`essen.bestand`, `essen.zusatzbedarf`, je höchstens 500). Eine Zutat, die Bestand oder Zusatzbedarf nutzt, lässt sich nicht löschen und behält ihre Einheitenart, wie bei Gerichten.
+- Was gekocht oder ausgelassen ist, Einkäufe und das Lager mit „erhalten“ und „verbraucht“ kommen mit PR 6; bis dahin zählt die Einkaufsliste alle Einplanungen.
+
 ## Packliste
 
 - Sie entsteht aus den Werkzeugen aller eingeplanten Gerichte. Gleiche Namen werden zusammengefasst, mit den Gerichten und Mahlzeiten, die sie brauchen.
@@ -225,7 +232,7 @@ So sicher gegen Konflikte wie der Protokoll-Editor, ohne Neuladen, aber ohne ech
 
 ## Datenmodell (Schema `essen`, Azure SQL)
 
-Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`), Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`) Gerichte mit den Zutaten der Planung (`0055_essensplanung_gerichte.sql`), Einplanungen (`0056`) und Teilnehmende (`0058_essensplanung_teilnehmende.sql`); Typen in `api/lib/db-schema.ts`.
+Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`), Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`) Gerichte mit den Zutaten der Planung (`0055_essensplanung_gerichte.sql`), Einplanungen (`0056`) und Teilnehmende (`0058_essensplanung_teilnehmende.sql`) sowie Geschäfte, Bestand und Zusatzbedarf (`0059_essensplanung_einkaufsliste.sql`); Typen in `api/lib/db-schema.ts`.
 
 | Tabelle | Inhalt |
 | --- | --- |
@@ -240,14 +247,14 @@ Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach.
 | `planung_gruppe` | Gruppen der Planung: `position`, `name` (eindeutig je Planung), `faktor` |
 | `teilnehmende`, `teilnehmende_unvertraeglichkeit` | Zeilen: `gruppe_id` (ohne Kaskade), `ernaehrung` (`alles`/`vegetarisch`/`vegan`), `anzahl`, `von_mahlzeit_id` und `bis_mahlzeit_id` (ohne Fremdschlüssel, `NULL`: erste bzw. letzte Mahlzeit), `hinweis` |
 | `mahlzeit_ohne_gruppe` | Gruppen, die an einer Mahlzeit nicht mitessen (Mahlzeit mit Kaskade, Gruppe ohne) |
-| `geschaeft` | Geschäfte der Planung |
+| `geschaeft` | Geschäfte der Planung: `position`, `name` (eindeutig je Planung) |
 | `planung_zutat`, `planung_zutat_unvertraeglichkeit` | jede in der Planung genutzte Zutat: `zutat_id` (zentral) mit den Abweichungen `kategorie_id` und `einheitenart` (`NULL`: wie in der Liste), oder eine eigene mit `name`, `kategorie_id`, `einheitenart`, `vegetarisch`, `vegan` und Allergenen; später das Geschäft |
 | `gericht` | `name` (eindeutig je Planung), `personen`, `anleitung`, `notiz`, `links` und `werkzeuge` (JSON, nur mit dem Gericht bearbeitet) |
 | `gericht_zutat`, `gericht_zutat_unvertraeglichkeit` | Zeilen: `position`, `planung_zutat_id`, `menge` und `einheit` (beide `NULL` ohne Menge), `fest`, `fuer_alles`/`fuer_vegetarisch`/`fuer_vegan`, `hinweis`; Unverträglichkeiten mit `nur` = 0 („nicht für“) oder 1 („nur für“) |
 | `einplanung` | Gericht an Mahlzeit: `mahlzeit_id` (mit Kaskade), `gericht_id` (ohne Kaskade, das Löschen des Gerichts entfernt sie zuerst), `position`, `faktor`, `zustaendig_mitglied_id` oder `zustaendig_text`; später der Status offen/gekocht/ausgelassen |
 | `einplanung_verbrauch` | tatsächlicher Verbrauch je Zutat (PR 6) |
 | `einkauf`, `einkauf_posten` | Einkäufe, verschobene oder feste Posten, erhaltene Menge, Ersatz, abgehakt von/um |
-| `zusatzbedarf`, `bestand` | spontane Dinge, Anfangsbestand |
+| `zusatzbedarf`, `bestand` | spontane Dinge, Anfangsbestand: `planung_zutat_id` (ohne Kaskade), `menge`, `einheit`, `hinweis` |
 | `packliste_eintrag` | Werkzeuge und eigene Einträge mit Zuständigen und „gepackt“ |
 
 Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen einer Planung löscht alles kaskadierend; nur die Zeilen der Gerichte zeigen ohne Kaskade auf die Zutaten der Planung (SQL Server erlaubt keine zwei Kaskadenwege), deshalb löscht `deletePlanung` zuerst die Gerichte.
@@ -264,7 +271,7 @@ Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen eine
   - Umgesetzt sind bisher Plan (Tage und Mahlzeiten), Gerichte (mit den Zutaten der Planung), Teilnehmende, Mitglieder & Freigabe, Änderungen und Einstellungen. Weitere Seiten: `/essensplanung/bestaetigen#a=…` (Anlegen bestätigen) und `/essensplanung/beitreten#b=…`.
 - **API** (`api/endpoints/essensplanung.ts`, Logik in `api/lib/essen-planung.ts`, reine Regeln in `api/lib/essen-planung-model.ts`):
   - ohne Token mit ALTCHA: `POST essensplanung/anlegen`, `POST essensplanung/meine`; mit Anfrage- bzw. Beitrittstoken: `anlegen/bestaetigen`, `beitritt/ansehen`, `beitritt`.
-  - mit Header `x-essensplanung-token`: `planung` (GET/PATCH/DELETE), `planung/stand?seit=`, `planung/ich`, `planung/links`, `planung/mitglieder[/{id}[/link]]`, `planung/tage[/{id}]`, `planung/mahlzeiten[/{id}]`, `planung/katalog` (zentrale Listen), `planung/zutaten[/{id}]` (Zutaten der Planung), `planung/gerichte[/{id}[/zutaten]]`, `planung/gericht-zutaten/{id}`, `planung/einplanungen[/{id}]` (Logik in `api/lib/essen-einplanung.ts`), `planung/gruppen[/{id}]`, `planung/teilnehmende[/{id}]`, `PUT planung/mahlzeiten/{id}/gruppen` mit `{ gruppeId, isst }` (Logik in `api/lib/essen-teilnehmende.ts`). Logik der Gerichte in `api/lib/essen-gerichte.ts`, Prüfungen in `essen-gerichte-validation.ts`, Typen, Einheiten und Warnungen (auch für die Seite) in `essen-gerichte-model.ts`.
+  - mit Header `x-essensplanung-token`: `planung` (GET/PATCH/DELETE), `planung/stand?seit=`, `planung/ich`, `planung/links`, `planung/mitglieder[/{id}[/link]]`, `planung/tage[/{id}]`, `planung/mahlzeiten[/{id}]`, `planung/katalog` (zentrale Listen), `planung/zutaten[/{id}]` (Zutaten der Planung), `planung/gerichte[/{id}[/zutaten]]`, `planung/gericht-zutaten/{id}`, `planung/einplanungen[/{id}]` (Logik in `api/lib/essen-einplanung.ts`), `planung/gruppen[/{id}]`, `planung/teilnehmende[/{id}]`, `PUT planung/mahlzeiten/{id}/gruppen` mit `{ gruppeId, isst }` (Logik in `api/lib/essen-teilnehmende.ts`), `planung/geschaefte[/{id}]`, `PUT planung/zutaten/{id}/geschaeft` mit `{ geschaeftId, etag }` (Version der Zutat), `planung/bestand[/{id}]`, `planung/zusatzbedarf[/{id}]` (Endpunkte in `api/endpoints/essensplanung-einkauf.ts`, Logik in `api/lib/essen-einkauf.ts`; gemeinsamer Handler in `api/lib/essen-planung-http.ts`). Logik der Gerichte in `api/lib/essen-gerichte.ts`, Prüfungen in `essen-gerichte-validation.ts`, Typen, Einheiten und Warnungen (auch für die Seite) in `essen-gerichte-model.ts`.
   - `ladeZugang` löst das Token zu Mitglied oder Lese-Link auf; `aendere()` prüft Recht und Wartungsmodus, zählt `aenderung_seq` in derselben Transaktion hoch (das serialisiert auch gleichzeitige Änderungen) und schreibt `essen.aenderung`. Der Lese-Link darf nur `GET`.
   - Konflikte auf Tag oder Mahlzeit (`rowversion`) und `404` antworten mit der aktuellen Ansicht. Die Planung selbst hat keine Version, weil jede Änderung ihre Zeile berührt; Name und Einstellungen gewinnen zuletzt.
 - **Gleichzeitig planen:** Die App fragt alle 2,5 s `planung/stand?seit=<stand>`; nur wenn sich etwas geändert hat, kommt die volle Ansicht zurück. Der Stand besteht aus Änderungszähler, Version der Einstellungen und `katalogStand` (neueste Version und Anzahl der zentralen Zutaten, Kategorien und Unverträglichkeiten); ändert sich der Katalogstand, lädt der Bereich Gerichte die zentralen Listen neu.
@@ -326,6 +333,8 @@ Die vollständige, fortgeschriebene Liste steht in #452.
 - PR 4 ist geteilt: 4a Gerichte, 4b Einplanung, 4c Umrechnungshilfe.
 - Umrechnungshilfe nur für Lebensmittel in g/kg und nur mit eindeutig zugeordneten, gestrichen gemessenen Werten: Werte aus der Tabelle „TL gehäuft / EL“ zählen nicht; widersprechen sich die Tabellen um mehr als die Hälfte oder wiegt ein EL weniger als zwei TL, bleibt der Wert leer (lieber kein Wert als ein falscher) (PR 4c).
 - PR 5 ist geteilt: 5a Teilnehmende, 5b Berechnung, 5c Einkaufsliste.
+- Bestand und Zusatzbedarf verweisen auf Zutaten der Planung (auch Nicht-Lebensmittel), damit Kategorie und Geschäft wie bei Gerichten gelten; das Geschäft hängt an der Zutat, nicht am Posten (PR 5c).
+- Die Einkaufsliste zieht den Bestand je Zutat und Einheitenart ab; eine Zutat mit Bestand in g und Bedarf in Stück wird nicht verrechnet (keine Umrechnung zwischen Einheitenarten) (PR 5c).
 - Gruppen je Mahlzeit werden als Ausnahme gespeichert („ohne Gruppe“), damit neue Gruppen und neue Mahlzeiten ohne weiteres mitessen (PR 5a).
 - Die Grenzen „ab“/„bis“ haben keinen Fremdschlüssel; beim Löschen von Mahlzeiten rücken sie nach, statt die Zeile zu löschen oder auf die ganze Planung zu erweitern (PR 5a).
 - Kopieren einer Einplanung legt eine neue an (gleiche Angaben, andere Mahlzeit); Ändern kann die Mahlzeit wechseln, nicht das Gericht (PR 4b).
