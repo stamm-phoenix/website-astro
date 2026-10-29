@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { ApiError } from '../../lib/api';
   import AufklappPfeil from '../ui/AufklappPfeil.svelte';
@@ -10,7 +11,12 @@
   import { einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { EinplanungStatus, Verbrauch } from '../../../../api/lib/essen-kochen-model';
   import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
-  import { meldeVerloren } from './planKontext';
+  import {
+    abhakenEmpfaenger as empfaenger,
+    abhakenUebergabe as uebergabe,
+    meldeVerloren,
+  } from './planKontext';
+  import type { AbhakenEntwurf } from './planKontext';
   import type { PlanKontext } from './planKontext';
 
   /**
@@ -56,25 +62,48 @@
   let etag = '';
   $effect(() => guardUnsavedChanges(() => geaendert));
 
-  // Someone else removed the planned dish: the part goes, so the unsaved amounts are shown to copy
-  $effect(() => () => {
-    if (!geaendert) return;
-    const id = einplanung.id;
-    const eingabe = zeilen
-      .map((z) =>
-        z.verwendet
-          ? `${z.name} ${z.menge.trim()} ${einheitText(z.einheit)}`
-          : `${z.name} nicht verwendet`
-      )
-      .join(', ');
-    const text = `„${name}“ bei ${kennung} wurde gerade entfernt (dein Verbrauch: ${eingabe}).`;
-    // Checked after the update: the part also goes when the page closes
-    setTimeout(() => {
-      const da = kontext.ansicht.tage.some((t) =>
-        t.mahlzeiten.some((m) => m.einplanungen.some((e) => e.id === id))
-      );
-      if (!da) meldeVerloren(kontext, text);
-    });
+  // A part that goes with typed amounts hands them on: moved to another meal, the part there takes
+  // them; removed by someone else, they are shown to copy
+  function uebernehmen(entwurf: AbhakenEntwurf): void {
+    zeilen = entwurf.zeilen as Zeile[];
+    etag = entwurf.etag;
+    geaendert = true;
+    offen = true;
+  }
+  $effect(() => {
+    if (teil !== 'abhaken') return;
+    const id = untrack(() => einplanung.id);
+    const da = uebergabe.get(id);
+    if (da) {
+      uebergabe.delete(id);
+      uebernehmen(da);
+    }
+    empfaenger.set(id, uebernehmen);
+    return () => {
+      if (empfaenger.get(id) === uebernehmen) empfaenger.delete(id);
+      if (!geaendert) return;
+      const entwurf = { zeilen: $state.snapshot(zeilen), etag };
+      const neu = empfaenger.get(id);
+      if (neu) neu(entwurf);
+      else uebergabe.set(id, entwurf);
+      const eingabe = zeilen
+        .map((z) =>
+          z.verwendet
+            ? `${z.name} ${z.menge.trim()} ${einheitText(z.einheit)}`
+            : `${z.name} nicht verwendet`
+        )
+        .join(', ');
+      const text = `„${name}“ bei ${kennung} wurde gerade entfernt (dein Verbrauch: ${eingabe}).`;
+      // Checked after the update: the part also goes when the page closes
+      setTimeout(() => {
+        const bleibt = kontext.ansicht.tage.some((t) =>
+          t.mahlzeiten.some((m) => m.einplanungen.some((e) => e.id === id))
+        );
+        if (bleibt || !uebergabe.has(id)) return;
+        uebergabe.delete(id);
+        meldeVerloren(kontext, text);
+      });
+    };
   });
 
   /** The rows as saved when cooked, else as planned at this meal. */
@@ -189,27 +218,29 @@
           <ul class="space-y-1" aria-label="Verbrauch von {name} bei {kennung}">
             {#each zeilen as zeile, index (`${zeile.planungZutatId}:${zeile.einheit}`)}
               <li class="flex flex-wrap items-center gap-2">
-                <label class="flex min-h-11 items-center gap-2">
+                <label class="flex min-h-11 min-w-11 items-center justify-center gap-2">
                   <input
                     type="checkbox"
                     class="h-5 w-5"
-                    disabled={!bearbeiten}
+                    disabled={speichert || !bearbeiten}
                     bind:checked={zeilen[index].verwendet}
                     onchange={() => (geaendert = true)}
                   />
                   <span class="sr-only">{zeile.name} bei {kennung} verwendet</span>
                 </label>
                 <span class="min-w-0 flex-1 basis-32 [overflow-wrap:anywhere]">{zeile.name}</span>
-                <input
-                  class="form-input w-24 tabular-nums"
-                  inputmode="decimal"
-                  autocomplete="off"
-                  aria-label="Verbrauch von {zeile.name} bei {kennung}"
-                  disabled={!zeile.verwendet || speichert || !bearbeiten}
-                  bind:value={zeilen[index].menge}
-                  oninput={() => (geaendert = true)}
-                />
-                <span class="w-20 text-sm">{einheitText(zeile.einheit)}</span>
+                <span class="flex items-center gap-2">
+                  <input
+                    class="form-input w-24 tabular-nums"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    aria-label="Verbrauch von {zeile.name} bei {kennung}"
+                    disabled={!zeile.verwendet || speichert || !bearbeiten}
+                    bind:value={zeilen[index].menge}
+                    oninput={() => (geaendert = true)}
+                  />
+                  <span class="text-sm">{einheitText(zeile.einheit)}</span>
+                </span>
               </li>
             {/each}
           </ul>

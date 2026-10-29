@@ -38,6 +38,22 @@ export function meldeVerloren(kontext: PlanKontext, text: string): void {
   verloren.push(text);
 }
 
+/** Unsaved amounts to tick off a planned dish whose part went, e.g. moved to another meal. */
+export interface AbhakenEntwurf {
+  zeilen: {
+    planungZutatId: number;
+    name: string;
+    einheit: string;
+    menge: string;
+    verwendet: boolean;
+  }[];
+  etag: string;
+}
+/** Drafts handed on by planned dish, for the part that comes after the old one went. */
+export const abhakenUebergabe = new Map<number, AbhakenEntwurf>();
+/** The parts to tick off on the page by planned dish, for a hand-over when the new one came first. */
+export const abhakenEmpfaenger = new Map<number, (entwurf: AbhakenEntwurf) => void>();
+
 const speichernd = new Set<Promise<boolean>>();
 /** Counts the noted saves that failed, also those done before `gespeichert` looked. */
 let fehlgeschlagen = 0;
