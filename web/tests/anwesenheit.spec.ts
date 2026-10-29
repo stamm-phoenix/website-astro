@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import { suggestedDate } from '../src/lib/anwesenheit';
@@ -765,4 +766,16 @@ test('a revisit on a later day records attendance for one Termin while the Termi
   // Restore the demo state for the following tests of this worker
   await anna.abwesend.click();
   await expect(anna.abwesend).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('the children of the Stufe download as a list to fill in by hand', async ({ page }) => {
+  await page.goto('/leitendenbereich/anwesenheit');
+  const date = await page.getByLabel('Datum', { exact: true }).inputValue();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Liste zum Ausfüllen (PDF)', exact: true }).click();
+  const pdf = await download;
+  expect(pdf.suggestedFilename()).toBe(`Anwesenheitsliste Woelflinge ${date}.pdf`);
+  const content = await readFile(await pdf.path());
+  expect(content.subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('PDF heruntergeladen.')).toBeVisible();
 });

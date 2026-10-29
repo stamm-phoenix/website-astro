@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import { attendanceSnapshot } from '../../api/lib/anwesenheit-model';
 import type { AnwesenheitTermin, AnwesenheitOverview } from '../src/lib/types';
@@ -330,4 +331,16 @@ test('a meeting deleted before opening its details leaves the history immediatel
   await expect(
     page.getByRole('button', { name: 'Gruppenstunde löschen', exact: true })
   ).toHaveCount(0);
+});
+
+test('the statistics of the Stufe download as a PDF', async ({ page }) => {
+  await page.goto('/leitendenbereich/anwesenheit');
+  await page.getByRole('button', { name: 'Verlauf & Statistik', exact: true }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  const pdf = await download;
+  expect(pdf.suggestedFilename()).toMatch(/^Anwesenheit Woelflinge \d{4}(-\d{4})?\.pdf$/);
+  const content = await readFile(await pdf.path());
+  expect(content.subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('PDF heruntergeladen.')).toBeVisible();
 });
