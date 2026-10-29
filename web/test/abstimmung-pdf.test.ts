@@ -78,12 +78,13 @@ describe('abstimmungPdfReport', () => {
     assert.equal(report.landscape, false);
   });
 
-  test('an anonymous Abstimmung shows who answered, not what, also for its organizer', () => {
+  test('an anonymous Abstimmung shows who answered, not what and not the open invitations, also for its organizer', () => {
     const report = abstimmungPdfReport(abstimmung({ sichtbarkeit: 'anonym' }));
     assert.deepEqual(
       report.sections.map((s) => s.heading),
-      ['Ergebnis · 3 Antworten', 'Abgestimmt', 'Nicht abgestimmt · 2']
+      ['Ergebnis · 3 Antworten', 'Abgestimmt']
     );
+    assert.ok(report.sections.every((s) => !s.lines?.some((line) => line.includes('@'))));
     assert.deepEqual(report.sections[1].lines, ['Anna, Ben, Cem']);
     assert.ok(report.notes?.some((note) => note.startsWith('Anonyme Abstimmung')));
   });
