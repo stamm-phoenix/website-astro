@@ -218,7 +218,7 @@
               {#each tag.mahlzeiten as mahlzeit (mahlzeit.id)}
                 {@const zahl = esser.get(mahlzeit.id)}
                 <li
-                  class="rounded-lg border border-neutral-200 bg-white p-2 text-sm"
+                  class="rounded-lg border border-neutral-200 bg-surface p-2 text-sm"
                   data-esser={mahlzeit.kennung}
                 >
                   <p class="[overflow-wrap:anywhere]">
