@@ -211,7 +211,8 @@
     );
   }
 
-  async function zeileLoeschen(zeile: GerichtZutat): Promise<void> {
+  /** Asks and removes a line; whether it was removed. */
+  async function zeileLoeschen(zeile: GerichtZutat): Promise<boolean> {
     const name = zutaten.get(zeile.planungZutatId)?.name ?? 'Zutat';
     if (
       !(await confirmAction({
@@ -220,8 +221,8 @@
         confirmLabel: 'Entfernen',
       }))
     )
-      return;
-    await kontext.aendern(
+      return false;
+    return kontext.aendern(
       () => kontext.api.senden('DELETE', `/gericht-zutaten/${zeile.id}`, undefined, zeile.etag),
       `${name} entfernt.`
     );
@@ -287,7 +288,7 @@
             position={index + 1}
             onaendern={() => (dialog = { zeile, vorgabe: null })}
             onverschiebe={(position) => void verschiebe(zeile, position)}
-            onloeschen={() => void zeileLoeschen(zeile)}
+            onloeschen={() => zeileLoeschen(zeile)}
           />
         {/each}
       </ol>

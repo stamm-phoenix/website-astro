@@ -37,7 +37,8 @@
     katalogDa: boolean;
     onaendern: () => void;
     onverschiebe: (position: number) => void;
-    onloeschen: () => void;
+    /** Asks and removes the line; whether it was removed. */
+    onloeschen: () => Promise<boolean>;
     /** Position of the line in its dish, from 1. */
     position: number;
   }
@@ -76,6 +77,8 @@
   let basis = $state({ menge: '', einheit: 'g' as GerichtEinheit, hinweis: '' });
   /** Typed but not saved yet, or saving; changes of others then leave the fields alone. */
   let entwurf = $state(false);
+  /** Someone else changed the line under the input: only Enter saves it over theirs. */
+  let konflikt = $state(false);
 
   function uebernehme(current: GerichtZutat): void {
     basis = {
@@ -87,6 +90,7 @@
     einheit = basis.einheit;
     hinweis = basis.hinweis;
     fehler = null;
+    konflikt = false;
   }
 
   const geaendert = $derived(
@@ -107,10 +111,13 @@
   /** The save that runs; a further one waits for it and then starts from its result. */
   let lauf: Promise<boolean> | null = null;
 
-  /** Saves typed changes; whether the row is saved afterwards. */
-  async function speichern(): Promise<boolean> {
+  /**
+   * Saves typed changes; whether the row is saved afterwards. `bewusst` is Enter, the only way to
+   * save over a change of others the row warned about.
+   */
+  async function speichern(bewusst = false): Promise<boolean> {
     while (lauf) await lauf;
-    lauf = speichernJetzt();
+    lauf = speichernJetzt(bewusst);
     try {
       return await lauf;
     } finally {
@@ -118,7 +125,10 @@
     }
   }
 
-  async function speichernJetzt(): Promise<boolean> {
+  async function speichernJetzt(bewusst: boolean): Promise<boolean> {
+    // The warning stands until Enter or Escape; leaving the row does not overwrite theirs
+    if (konflikt && !bewusst) return false;
+    konflikt = false;
     fehler = null;
     if (!geaendert) {
       // A change of others that came in while the row had focus shows now
@@ -141,7 +151,8 @@
         einheit: zeile.einheit ?? basis.einheit,
         hinweis: zeile.hinweis,
       };
-      fehler = `Jemand anderes hat ${name} gerade geändert (jetzt ${mengeText(zeile.menge, zeile.einheit) ?? 'nach Gefühl'}). Deine Eingabe steht noch in der Zeile; drücke Enter, um sie zu speichern.`;
+      konflikt = true;
+      fehler = `Jemand anderes hat ${name} gerade geändert (jetzt ${mengeText(zeile.menge, zeile.einheit) ?? 'nach Gefühl'}${zeile.hinweis ? `, ${zeile.hinweis}` : ''}). Deine Eingabe steht noch in der Zeile: Enter speichert sie trotzdem, Escape verwirft sie.`;
       return false;
     }
     entwurf = true;
@@ -192,7 +203,8 @@
   async function entfernen(): Promise<void> {
     if (geaendert && !(await speichern())) return;
     selbstEntfernt = true;
-    onloeschen();
+    // Kept off only when the line went: after „Abbrechen“ the row guards its input again
+    if (!(await onloeschen())) selbstEntfernt = false;
   }
 
   // Someone else removed the line: the row goes, so the unsaved input is shown to copy
@@ -225,7 +237,7 @@
   function taste(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
       event.preventDefault();
-      void speichern();
+      void speichern(true);
     } else if (event.key === 'Escape' && geaendert) {
       event.stopPropagation();
       uebernehme(zeile);

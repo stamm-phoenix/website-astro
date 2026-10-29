@@ -571,3 +571,61 @@ test('typed input survives a slow save, removing and a read-only phase', async (
   await expect(page.getByText('Hackfleisch entfernt.').first()).toBeVisible();
   await expect(menge).toHaveCount(0);
 });
+
+test('a change of others is only saved over with Enter; a cancelled removal still guards', async ({
+  page,
+  browser,
+}) => {
+  test.slow();
+  await anlegen(page, 'E2E Zeilen Konflikt');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Gulasch');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
+  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
+  const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
+  await zutat.pressSequentially('Hackfl');
+  await zutat.press('Enter');
+  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
+  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+  const menge = gericht.getByLabel('Menge von Hackfleisch');
+  await expect(menge).toHaveValue('500');
+
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Gulasch', { exact: true }).click();
+  const andereMenge = anderes.getByLabel('Menge von Hackfleisch');
+
+  // Typed while others save: Enter warns, leaving the row keeps theirs, a second Enter saves
+  await menge.fill('600');
+  await andereMenge.fill('750');
+  const fremd = anderes.waitForResponse(
+    (antwort) =>
+      antwort.url().includes('/gericht-zutaten/') && antwort.request().method() === 'PATCH'
+  );
+  await andereMenge.press('Enter');
+  expect((await fremd).ok()).toBe(true);
+  await page.waitForTimeout(5_000);
+  await menge.press('Enter');
+  await expect(gericht.getByRole('alert')).toContainText('Jemand anderes hat Hackfleisch');
+  await page.getByRole('heading', { name: 'E2E Zeilen Konflikt' }).click();
+  await page.waitForTimeout(2_000);
+  await anderes.reload();
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Gulasch', { exact: true }).click();
+  await expect(andereMenge).toHaveValue('750');
+  await expect(menge).toHaveValue('600');
+  await menge.press('Enter');
+  await expect(andereMenge).toHaveValue('600', { timeout: 15_000 });
+
+  // After „Abbrechen“ the row guards its input again when others remove it
+  await gericht.getByRole('button', { name: 'Hackfleisch entfernen' }).click();
+  await answerConfirm(page, 'Hackfleisch entfernen?', 'Abbrechen');
+  await menge.fill('1200');
+  await anderes.getByRole('button', { name: 'Hackfleisch entfernen' }).click();
+  await answerConfirm(anderes, 'Hackfleisch entfernen?', 'Entfernen');
+  await expect(
+    page.getByText(/Hackfleisch wurde gerade entfernt \(deine Eingabe: 1200 g/).first()
+  ).toBeVisible({ timeout: 20_000 });
+});
