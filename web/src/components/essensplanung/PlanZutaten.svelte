@@ -66,8 +66,21 @@
     auswahl?.zutatId ? katalog?.zutaten.find((z) => z.id === auswahl!.zutatId) : undefined
   );
 
+  /** True while saving; the form is disabled meanwhile. */
+  let speichert = $state(false);
+
   async function speichern(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    if (speichert) return;
+    speichert = true;
+    try {
+      await speichereFormular();
+    } finally {
+      speichert = false;
+    }
+  }
+
+  async function speichereFormular(): Promise<void> {
     const zutat = auswahl;
     if (!zutat) return;
     felder = {};
@@ -194,77 +207,81 @@
       oninput={() => (geaendert = true)}
       onchange={() => (geaendert = true)}
     >
-      {#if auswahl.zutatId === null}
-        <FormField id="pz-name" label="Name" error={felder.name}>
+      <!-- Disabled while saving, so nothing typed meanwhile gets lost -->
+      <fieldset class="min-w-0 space-y-4" disabled={speichert}>
+        {#if auswahl.zutatId === null}
+          <FormField id="pz-name" label="Name" error={felder.name}>
+            {#snippet children(attrs)}
+              <input {...attrs} class="form-input" maxlength="150" bind:value={form.name} />
+            {/snippet}
+          </FormField>
+        {:else}
+          <p class="text-sm text-neutral-700">
+            Die Änderungen gelten nur in dieser Planung; die Zutatenliste bleibt, wie sie ist.
+          </p>
+        {/if}
+        <FormField id="pz-kategorie" label="Kategorie" error={felder.kategorieId}>
           {#snippet children(attrs)}
-            <input {...attrs} class="form-input" maxlength="150" bind:value={form.name} />
-          {/snippet}
-        </FormField>
-      {:else}
-        <p class="text-sm text-neutral-700">
-          Die Änderungen gelten nur in dieser Planung; die Zutatenliste bleibt, wie sie ist.
-        </p>
-      {/if}
-      <FormField id="pz-kategorie" label="Kategorie" error={felder.kategorieId}>
-        {#snippet children(attrs)}
-          <select {...attrs} class="form-input" bind:value={form.kategorieId}>
-            {#if zentrale}
-              <option value={null}>wie in der Liste ({kategorien.get(zentrale.kategorieId)})</option
-              >
-            {:else}
-              <option value={null}>Bitte wählen</option>
-            {/if}
-            {#each katalog.kategorien as kategorie (kategorie.id)}
-              <option value={kategorie.id}>{kategorie.name}</option>
-            {/each}
-          </select>
-        {/snippet}
-      </FormField>
-      <FormField id="pz-einheitenart" label="Gemessen in" error={felder.einheitenart}>
-        {#snippet children(attrs)}
-          <select {...attrs} class="form-input" bind:value={form.einheitenart}>
-            {#if zentrale}
-              <option value={null}
-                >wie in der Liste ({EINHEITENART_LABELS[zentrale.einheitenart]})</option
-              >
-            {:else}
-              <option value={null}>Bitte wählen</option>
-            {/if}
-            {#each Object.entries(EINHEITENART_LABELS) as [art, label] (art)}
-              <option value={art}>{label}</option>
-            {/each}
-          </select>
-        {/snippet}
-      </FormField>
-      {#if auswahl.zutatId === null}
-        <FormField id="pz-ernaehrung" label="Ernährung">
-          {#snippet children(attrs)}
-            <select {...attrs} class="form-input" bind:value={form.ernaehrung}>
-              <option value="">Weiß ich nicht</option>
-              <option value="vegan">vegan</option>
-              <option value="vegetarisch">vegetarisch</option>
-              <option value="fleisch">mit Fleisch oder Fisch</option>
+            <select {...attrs} class="form-input" bind:value={form.kategorieId}>
+              {#if zentrale}
+                <option value={null}
+                  >wie in der Liste ({kategorien.get(zentrale.kategorieId)})</option
+                >
+              {:else}
+                <option value={null}>Bitte wählen</option>
+              {/if}
+              {#each katalog.kategorien as kategorie (kategorie.id)}
+                <option value={kategorie.id}>{kategorie.name}</option>
+              {/each}
             </select>
           {/snippet}
         </FormField>
-        <fieldset>
-          <legend class="form-label">Enthält</legend>
-          <div class="grid gap-x-4 sm:grid-cols-2">
-            {#each katalog.unvertraeglichkeiten as u (u.id)}
-              <label class="flex min-h-11 items-center gap-2">
-                <input type="checkbox" value={u.id} bind:group={form.allergene} />
-                {u.name}
-              </label>
-            {/each}
-          </div>
-        </fieldset>
-      {/if}
-      <div class="flex flex-wrap justify-end gap-2 pt-2">
-        <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
-        <ActionButton type="submit" variant="primary" disabled={kontext.busy}
-          >Speichern</ActionButton
-        >
-      </div>
+        <FormField id="pz-einheitenart" label="Gemessen in" error={felder.einheitenart}>
+          {#snippet children(attrs)}
+            <select {...attrs} class="form-input" bind:value={form.einheitenart}>
+              {#if zentrale}
+                <option value={null}
+                  >wie in der Liste ({EINHEITENART_LABELS[zentrale.einheitenart]})</option
+                >
+              {:else}
+                <option value={null}>Bitte wählen</option>
+              {/if}
+              {#each Object.entries(EINHEITENART_LABELS) as [art, label] (art)}
+                <option value={art}>{label}</option>
+              {/each}
+            </select>
+          {/snippet}
+        </FormField>
+        {#if auswahl.zutatId === null}
+          <FormField id="pz-ernaehrung" label="Ernährung">
+            {#snippet children(attrs)}
+              <select {...attrs} class="form-input" bind:value={form.ernaehrung}>
+                <option value="">Weiß ich nicht</option>
+                <option value="vegan">vegan</option>
+                <option value="vegetarisch">vegetarisch</option>
+                <option value="fleisch">mit Fleisch oder Fisch</option>
+              </select>
+            {/snippet}
+          </FormField>
+          <fieldset>
+            <legend class="form-label">Enthält</legend>
+            <div class="grid gap-x-4 sm:grid-cols-2">
+              {#each katalog.unvertraeglichkeiten as u (u.id)}
+                <label class="flex min-h-11 items-center gap-2">
+                  <input type="checkbox" value={u.id} bind:group={form.allergene} />
+                  {u.name}
+                </label>
+              {/each}
+            </div>
+          </fieldset>
+        {/if}
+        <div class="flex flex-wrap justify-end gap-2 pt-2">
+          <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
+          <ActionButton type="submit" variant="primary" disabled={kontext.busy}
+            >Speichern</ActionButton
+          >
+        </div>
+      </fieldset>
     </form>
   </ModalDialog>
 {/if}

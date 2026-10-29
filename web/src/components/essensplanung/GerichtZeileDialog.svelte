@@ -136,8 +136,21 @@
 
   const ohneTreffer = $derived(!auswahl && zutatText.trim().length > 1 && !eigene);
 
+  /** True while saving; the form is disabled meanwhile. */
+  let speichert = $state(false);
+
   async function speichern(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    if (speichert) return;
+    speichert = true;
+    try {
+      await speichereFormular();
+    } finally {
+      speichert = false;
+    }
+  }
+
+  async function speichereFormular(): Promise<void> {
     felder = {};
     const zahl = leseMenge(menge);
     if (Number.isNaN(zahl)) felder.menge = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
@@ -251,171 +264,176 @@
     onsubmit={speichern}
     oninput={() => (geaendert = true)}
   >
-    <FormField id="zeile-zutat" label="Zutat" error={felder.zutat}>
-      {#snippet children(attrs)}
-        <VorschlagFeld
-          {...attrs}
-          options={vorschlaege}
-          bind:value={zutatText}
-          listLabel="Zutaten"
-          placeholder="z. B. Spaghetti"
-          onpick={waehle}
-          onedit={getippt}
-          autocomplete="off"
-        />
-      {/snippet}
-    </FormField>
-    {#if ohneTreffer}
-      <p class="text-sm text-neutral-700">
-        „{zutatText.trim()}“ steht nicht in der Liste.
-        <button
-          type="button"
-          class="min-h-11 font-semibold text-link underline"
-          onclick={() => (eigene = { kategorieId: null, einheitenart: null, ernaehrung: '' })}
-          >Als eigene Zutat dieser Planung anlegen</button
-        >
-      </p>
-    {/if}
-    {#if eigene}
-      <fieldset class="space-y-3 border-l-2 border-neutral-300 pl-3">
-        <legend class="form-label">Eigene Zutat „{zutatText.trim()}“</legend>
-        <FormField id="eigene-kategorie" label="Kategorie" error={felder.kategorie}>
-          {#snippet children(attrs)}
-            <select {...attrs} class="form-input" bind:value={eigene!.kategorieId}>
-              <option value={null}>Bitte wählen</option>
-              {#each katalog.kategorien as kategorie (kategorie.id)}
-                <option value={kategorie.id}>{kategorie.name}</option>
-              {/each}
-            </select>
-          {/snippet}
-        </FormField>
-        <FormField id="eigene-einheitenart" label="Gemessen in" error={felder.einheitenart}>
-          {#snippet children(attrs)}
-            <select {...attrs} class="form-input" bind:value={eigene!.einheitenart}>
-              <option value={null}>Bitte wählen</option>
-              {#each Object.entries(EINHEITENART_LABELS) as [art, label] (art)}
-                <option value={art}>{label}</option>
-              {/each}
-            </select>
-          {/snippet}
-        </FormField>
-        <FormField id="eigene-ernaehrung" label="Ernährung">
-          {#snippet children(attrs)}
-            <select {...attrs} class="form-input" bind:value={eigene!.ernaehrung}>
-              <option value="">Weiß ich nicht</option>
-              <option value="vegan">vegan</option>
-              <option value="vegetarisch">vegetarisch</option>
-              <option value="fleisch">mit Fleisch oder Fisch</option>
-            </select>
-          {/snippet}
-        </FormField>
-      </fieldset>
-    {/if}
+    <!-- Disabled while saving, so nothing typed meanwhile gets lost -->
+    <fieldset class="min-w-0 space-y-4" disabled={speichert}>
+      <FormField id="zeile-zutat" label="Zutat" error={felder.zutat}>
+        {#snippet children(attrs)}
+          <VorschlagFeld
+            {...attrs}
+            options={vorschlaege}
+            bind:value={zutatText}
+            listLabel="Zutaten"
+            placeholder="z. B. Spaghetti"
+            onpick={waehle}
+            onedit={getippt}
+            autocomplete="off"
+          />
+        {/snippet}
+      </FormField>
+      {#if ohneTreffer}
+        <p class="text-sm text-neutral-700">
+          „{zutatText.trim()}“ steht nicht in der Liste.
+          <button
+            type="button"
+            class="min-h-11 font-semibold text-link underline"
+            onclick={() => (eigene = { kategorieId: null, einheitenart: null, ernaehrung: '' })}
+            >Als eigene Zutat dieser Planung anlegen</button
+          >
+        </p>
+      {/if}
+      {#if eigene}
+        <fieldset class="space-y-3 border-l-2 border-neutral-300 pl-3">
+          <legend class="form-label">Eigene Zutat „{zutatText.trim()}“</legend>
+          <FormField id="eigene-kategorie" label="Kategorie" error={felder.kategorie}>
+            {#snippet children(attrs)}
+              <select {...attrs} class="form-input" bind:value={eigene!.kategorieId}>
+                <option value={null}>Bitte wählen</option>
+                {#each katalog.kategorien as kategorie (kategorie.id)}
+                  <option value={kategorie.id}>{kategorie.name}</option>
+                {/each}
+              </select>
+            {/snippet}
+          </FormField>
+          <FormField id="eigene-einheitenart" label="Gemessen in" error={felder.einheitenart}>
+            {#snippet children(attrs)}
+              <select {...attrs} class="form-input" bind:value={eigene!.einheitenart}>
+                <option value={null}>Bitte wählen</option>
+                {#each Object.entries(EINHEITENART_LABELS) as [art, label] (art)}
+                  <option value={art}>{label}</option>
+                {/each}
+              </select>
+            {/snippet}
+          </FormField>
+          <FormField id="eigene-ernaehrung" label="Ernährung">
+            {#snippet children(attrs)}
+              <select {...attrs} class="form-input" bind:value={eigene!.ernaehrung}>
+                <option value="">Weiß ich nicht</option>
+                <option value="vegan">vegan</option>
+                <option value="vegetarisch">vegetarisch</option>
+                <option value="fleisch">mit Fleisch oder Fisch</option>
+              </select>
+            {/snippet}
+          </FormField>
+        </fieldset>
+      {/if}
 
-    <div class="grid grid-cols-2 gap-3">
-      <FormField
-        id="zeile-menge"
-        label="Menge"
-        error={felder.menge}
-        info="Leer lassen für Zutaten nach Augenmaß, z. B. Pfeffer."
-      >
+      <div class="grid grid-cols-2 gap-3">
+        <FormField
+          id="zeile-menge"
+          label="Menge"
+          error={felder.menge}
+          info="Leer lassen für Zutaten nach Augenmaß, z. B. Pfeffer."
+        >
+          {#snippet children(attrs)}
+            <input
+              {...attrs}
+              class="form-input"
+              inputmode="decimal"
+              autocomplete="off"
+              placeholder="z. B. 1,5"
+              bind:value={menge}
+            />
+          {/snippet}
+        </FormField>
+        <FormField id="zeile-einheit" label="Einheit" error={felder.einheit}>
+          {#snippet children(attrs)}
+            <select
+              {...attrs}
+              class="form-input"
+              bind:value={einheit}
+              disabled={!einheiten.length || !menge.trim()}
+            >
+              {#each einheiten as wert (wert)}
+                <option value={wert}>{EINHEIT_TEXT[wert]}</option>
+              {/each}
+            </select>
+          {/snippet}
+        </FormField>
+      </div>
+      <FormField id="zeile-hinweis" label="Hinweis" optional error={felder.hinweis}>
         {#snippet children(attrs)}
           <input
             {...attrs}
             class="form-input"
-            inputmode="decimal"
-            autocomplete="off"
-            placeholder="z. B. 1,5"
-            bind:value={menge}
+            maxlength="100"
+            placeholder="z. B. eine Prise"
+            bind:value={hinweis}
           />
         {/snippet}
       </FormField>
-      <FormField id="zeile-einheit" label="Einheit" error={felder.einheit}>
-        {#snippet children(attrs)}
-          <select
-            {...attrs}
-            class="form-input"
-            bind:value={einheit}
-            disabled={!einheiten.length || !menge.trim()}
-          >
-            {#each einheiten as wert (wert)}
-              <option value={wert}>{EINHEIT_TEXT[wert]}</option>
-            {/each}
-          </select>
-        {/snippet}
-      </FormField>
-    </div>
-    <FormField id="zeile-hinweis" label="Hinweis" optional error={felder.hinweis}>
-      {#snippet children(attrs)}
-        <input
-          {...attrs}
-          class="form-input"
-          maxlength="100"
-          placeholder="z. B. eine Prise"
-          bind:value={hinweis}
+      <div class="flex items-center gap-1">
+        <label class="flex min-h-11 items-center gap-3">
+          <input type="checkbox" bind:checked={fest} disabled={!menge.trim()} />
+          <span>Feste Menge</span>
+        </label>
+        <InfoHint
+          label="Feste Menge"
+          text="Die Menge gilt für das ganze Gericht und wächst nicht mit den Personen, z. B. 150 g Vanillepaste für den ganzen Pudding."
         />
-      {/snippet}
-    </FormField>
-    <div class="flex items-center gap-1">
-      <label class="flex min-h-11 items-center gap-3">
-        <input type="checkbox" bind:checked={fest} disabled={!menge.trim()} />
-        <span>Feste Menge</span>
-      </label>
-      <InfoHint
-        label="Feste Menge"
-        text="Die Menge gilt für das ganze Gericht und wächst nicht mit den Personen, z. B. 150 g Vanillepaste für den ganzen Pudding."
-      />
-    </div>
+      </div>
 
-    <fieldset class="space-y-1">
-      <legend class="form-label">Für wen</legend>
-      {#if felder.fuer}<p class="text-sm text-danger">{felder.fuer}</p>{/if}
-      <div class="flex flex-wrap gap-x-5">
-        <label class="flex min-h-11 items-center gap-2">
-          <input type="checkbox" bind:checked={fuerAlles} /> mit allem
-        </label>
-        <label class="flex min-h-11 items-center gap-2">
-          <input type="checkbox" bind:checked={fuerVegetarisch} /> vegetarisch
-        </label>
-        <label class="flex min-h-11 items-center gap-2">
-          <input type="checkbox" bind:checked={fuerVegan} /> vegan
-        </label>
+      <fieldset class="space-y-1">
+        <legend class="form-label">Für wen</legend>
+        {#if felder.fuer}<p class="text-sm text-danger">{felder.fuer}</p>{/if}
+        <div class="flex flex-wrap gap-x-5">
+          <label class="flex min-h-11 items-center gap-2">
+            <input type="checkbox" bind:checked={fuerAlles} /> mit allem
+          </label>
+          <label class="flex min-h-11 items-center gap-2">
+            <input type="checkbox" bind:checked={fuerVegetarisch} /> vegetarisch
+          </label>
+          <label class="flex min-h-11 items-center gap-2">
+            <input type="checkbox" bind:checked={fuerVegan} /> vegan
+          </label>
+        </div>
+      </fieldset>
+
+      <details>
+        <summary class="flex min-h-11 cursor-pointer items-center font-semibold text-brand-900">
+          Unverträglichkeiten
+          {#if Object.values(unvertraeglich).some(Boolean)}
+            ({Object.values(unvertraeglich).filter(Boolean).length})
+          {/if}
+        </summary>
+        {#if felder.nur || felder.ohne}<p class="text-sm text-danger">
+            {felder.nur ?? felder.ohne}
+          </p>{/if}
+        <ul class="mt-2 space-y-2">
+          {#each katalog.unvertraeglichkeiten as u (u.id)}
+            <li class="flex items-center justify-between gap-3">
+              <label for="zeile-u-{u.id}" class="min-w-0">{u.name}</label>
+              <select
+                id="zeile-u-{u.id}"
+                class="form-input w-40"
+                bind:value={
+                  () => unvertraeglich[u.id] ?? '', (wert) => (unvertraeglich[u.id] = wert)
+                }
+              >
+                <option value="">für alle</option>
+                <option value="ohne">nicht dafür</option>
+                <option value="nur">nur dafür (Ersatz)</option>
+              </select>
+            </li>
+          {/each}
+        </ul>
+      </details>
+
+      <div class="flex flex-wrap justify-end gap-2 pt-2">
+        <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
+        <ActionButton type="submit" variant="primary" disabled={kontext.busy}>
+          {zeile ? 'Speichern' : 'Hinzufügen'}
+        </ActionButton>
       </div>
     </fieldset>
-
-    <details>
-      <summary class="flex min-h-11 cursor-pointer items-center font-semibold text-brand-900">
-        Unverträglichkeiten
-        {#if Object.values(unvertraeglich).some(Boolean)}
-          ({Object.values(unvertraeglich).filter(Boolean).length})
-        {/if}
-      </summary>
-      {#if felder.nur || felder.ohne}<p class="text-sm text-danger">
-          {felder.nur ?? felder.ohne}
-        </p>{/if}
-      <ul class="mt-2 space-y-2">
-        {#each katalog.unvertraeglichkeiten as u (u.id)}
-          <li class="flex items-center justify-between gap-3">
-            <label for="zeile-u-{u.id}" class="min-w-0">{u.name}</label>
-            <select
-              id="zeile-u-{u.id}"
-              class="form-input w-40"
-              bind:value={() => unvertraeglich[u.id] ?? '', (wert) => (unvertraeglich[u.id] = wert)}
-            >
-              <option value="">für alle</option>
-              <option value="ohne">nicht dafür</option>
-              <option value="nur">nur dafür (Ersatz)</option>
-            </select>
-          </li>
-        {/each}
-      </ul>
-    </details>
-
-    <div class="flex flex-wrap justify-end gap-2 pt-2">
-      <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
-      <ActionButton type="submit" variant="primary" disabled={kontext.busy}>
-        {zeile ? 'Speichern' : 'Hinzufügen'}
-      </ActionButton>
-    </div>
   </form>
 </ModalDialog>

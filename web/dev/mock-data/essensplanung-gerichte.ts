@@ -166,7 +166,10 @@ function zutatFuerZeile(z: MockZugang, zutat: GerichtZutatInput['zutat']): Planu
   if ('planungZutatId' in zutat) {
     const vorhanden = z.planung.zutaten.find((entry) => entry.id === zutat.planungZutatId);
     if (!vorhanden) throw feld('zutat', 'Bitte eine Zutat wählen.');
-    return wirksam(z.planung, vorhanden);
+    const wirksame = wirksam(z.planung, vorhanden);
+    if (!wirksame.lebensmittel)
+      throw feld('zutat', `${wirksame.name} ist kein Lebensmittel und gehört in kein Gericht.`);
+    return wirksame;
   }
   const zentral = essenKatalog().zutaten.find((entry) => entry.id === zutat.zutatId);
   if (!zentral) throw feld('zutat', 'Bitte eine Zutat wählen.');
