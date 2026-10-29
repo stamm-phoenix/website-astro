@@ -6,6 +6,8 @@
   import {
     ernaehrung,
     fuerText,
+    gespeicherteMenge,
+    gespeicherterText,
     gleicheZeile,
     leseMenge,
     mengeFeld,
@@ -104,7 +106,7 @@
   function anders(): boolean {
     return (
       leseMenge(menge) !== leseMenge(basis.menge) ||
-      hinweis.trim() !== basis.hinweis ||
+      gespeicherterText(hinweis) !== basis.hinweis ||
       (menge.trim() !== '' && einheit !== basis.einheit)
     );
   }
@@ -183,10 +185,10 @@
     const etag = zeile.etag;
     const body = {
       ...geprueft,
-      menge: zahl,
+      menge: gespeicherteMenge(zahl),
       einheit: zahl === null ? null : gesendet.einheit,
       fest: zahl !== null && geprueft.fest,
-      hinweis: gesendet.hinweis,
+      hinweis: gespeicherterText(gesendet.hinweis),
     };
     const ok = await kontext.aendern(() => {
       const current = zeile;

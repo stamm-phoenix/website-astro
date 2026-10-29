@@ -162,6 +162,17 @@
     zutatFeld?.focus();
   }
 
+  /**
+   * Enter in the name adds the line once an ingredient is chosen, also without an amount. When
+   * the field takes a suggestion with this Enter, it says so by `preventDefault`.
+   */
+  function namenTaste(event: KeyboardEvent): void {
+    if (event.key !== 'Enter') return;
+    queueMicrotask(() => {
+      if (!event.defaultPrevented && auswahl) void hinzufuegen();
+    });
+  }
+
   function taste(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -190,6 +201,7 @@
       disabled={speichert}
       onpick={waehle}
       onedit={getippt}
+      onkeydown={namenTaste}
     />
     <label class="sr-only" for="gericht-{gericht.id}-neu-menge">Menge der neuen Zutat</label>
     <input

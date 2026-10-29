@@ -857,3 +857,53 @@ test('a fixed amount set by others is a conflict; PDF and deleting wait for the 
   await answerConfirm(page, '„Gulasch“ löschen?', 'Gericht löschen');
   await expect(page.getByText('Gulasch gelöscht.').first()).toBeVisible();
 });
+
+test('Enter in the name adds a chosen ingredient; saved text and amounts are not a conflict', async ({
+  page,
+}) => {
+  test.slow();
+  await anlegen(page, 'E2E Zeilen Enter');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Gulasch');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
+  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
+
+  // The first Enter takes the suggestion, the second adds the line without an amount
+  const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
+  await zutat.pressSequentially('Hackfl');
+  await zutat.press('Enter');
+  await expect(zutat).toHaveValue('Hackfleisch');
+  await expect(gericht.getByLabel('Menge von Hackfleisch')).toHaveCount(0);
+  await zutat.press('Enter');
+  await expect(gericht.getByLabel('Menge von Hackfleisch')).toHaveValue('');
+  await expect(gericht.getByLabel('Menge von Hackfleisch')).toHaveCount(1);
+  await expect(zutat).toHaveValue('');
+  await expect(zutat).toBeFocused();
+
+  // Saved as the server keeps it (single spaces, three decimals): typing on is no conflict
+  const menge = gericht.getByLabel('Menge von Hackfleisch');
+  await page.route('**/api/essensplanung/planung/gericht-zutaten/*', async (route) => {
+    await new Promise((done) => setTimeout(done, 1500));
+    await route.continue();
+  });
+  await gericht.getByLabel('Hinweis zu Hackfleisch').fill('mit  Schale');
+  await menge.fill('0,7505');
+  await menge.press('Enter');
+  await menge.fill('800');
+  await expect(page.getByText('Hackfleisch gespeichert.').first()).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(gericht.getByRole('alert')).toHaveCount(0);
+  await page.getByRole('heading', { name: 'E2E Zeilen Enter' }).click();
+  await expect(page.getByText('Hackfleisch gespeichert.').first()).toBeVisible({
+    timeout: 10_000,
+  });
+  await page.unrouteAll({ behavior: 'wait' });
+  await expect(gericht.getByRole('alert')).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByText('Gulasch', { exact: true }).click();
+  await expect(menge).toHaveValue('800');
+  await expect(gericht.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('mit Schale');
+});

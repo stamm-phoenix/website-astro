@@ -16,6 +16,19 @@ export function leseMenge(text: string): number | null {
   return /^\d+([.,]\d+)?$/.test(value) ? Number(value.replace(',', '.')) : Number.NaN;
 }
 
+/**
+ * An amount and a note as the server stores them (`essen-gerichte-schema.ts`): the amount to
+ * three decimals, the note trimmed with single spaces. Sent like this, the answer of a save can
+ * be told from a change of others.
+ */
+export function gespeicherteMenge(menge: number | null): number | null {
+  return menge === null ? null : Math.round(menge * 1000) / 1000 || 0.001;
+}
+
+export function gespeicherterText(text: string): string {
+  return text.trim().replace(/\s+/g, ' ');
+}
+
 /** An amount for an input field, „1,5“. */
 export function mengeFeld(menge: number | null): string {
   return menge === null ? '' : String(menge).replace('.', ',');
