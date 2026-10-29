@@ -8,20 +8,18 @@
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import { zeileBody } from '../../lib/essensplanungGerichte';
   import { plaetzeVon } from '../../lib/essensplanungEinplanung';
   import {
     einheitText,
     gerichtStand,
     gerichtWarnungen,
   } from '../../../../api/lib/essen-gerichte-model';
-  import type { EssenKatalog, Gericht, GerichtLink, GerichtZutat } from '../../lib/types';
+  import type { EssenKatalog, Gericht, GerichtLink } from '../../lib/types';
   import GerichtPlaetze from './GerichtPlaetze.svelte';
-  import NeueZutatZeile, { angefangen, leereZeile } from './NeueZutatZeile.svelte';
-  import ZutatZeileInline from './ZutatZeileInline.svelte';
-  import GerichtZeileDialog, { type ZeilenVorgabe } from './GerichtZeileDialog.svelte';
+  import { angefangen, leereZeile } from './NeueZutatZeile.svelte';
+  import GerichtZutatenListe from './GerichtZutatenListe.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
-  import { meldeVerloren, type PlanKontext } from './planKontext';
+  import { gespeichert, meldeVerloren, type PlanKontext } from './planKontext';
 
   /**
    * One dish: its lines with warnings, and (for those who edit) its fields as a draft that the
@@ -78,7 +76,9 @@
   let felder = $state<Record<string, string>>({});
   /** A tool name typed but not yet added. */
   let werkzeugEntwurf = $state('');
-  const entwurf = $derived(!gleich(kopf, basis) || werkzeugEntwurf.trim() !== '');
+  /** Whether the fields hold input; a function too, as a derived read when the card goes may be stale. */
+  const offen = (): boolean => !gleich(kopf, basis) || werkzeugEntwurf.trim() !== '';
+  const entwurf = $derived(offen());
   $effect(() => {
     const neu = kopfVon(gericht);
     untrack(() => {
@@ -97,7 +97,7 @@
   let selbstGeloescht = false;
   // Someone else deleted the dish: the card goes, so the unsaved fields are shown to copy
   $effect(() => () => {
-    if (selbstGeloescht || (!entwurf && !angefangen(neueZeile))) return;
+    if (selbstGeloescht || (!offen() && !angefangen(neueZeile))) return;
     const neu = neueZeile;
     const eingaben = (Object.keys(kopf) as (keyof Kopf)[])
       .filter((feld) => !gleich(kopf[feld], basis[feld]))
@@ -182,6 +182,8 @@
   }
 
   async function loeschen(): Promise<void> {
+    // A row left with this click saves first, so the version asked about includes it
+    await gespeichert();
     // The dish as asked about: a change of others during the question is a conflict
     const { id, name } = gericht;
     const etag = gerichtStand(
@@ -204,34 +206,6 @@
     );
     if (!ok) selbstGeloescht = false;
   }
-
-  async function verschiebe(zeile: GerichtZutat, position: number): Promise<void> {
-    await kontext.aendern(() =>
-      kontext.api.senden('PATCH', `/gericht-zutaten/${zeile.id}`, { ...zeileBody(zeile), position })
-    );
-  }
-
-  /** Asks and removes a line; whether it was removed. */
-  async function zeileLoeschen(zeile: GerichtZutat): Promise<boolean> {
-    const name = zutaten.get(zeile.planungZutatId)?.name ?? 'Zutat';
-    if (
-      !(await confirmAction({
-        title: `${name} entfernen?`,
-        message: `Die Zeile wird aus „${gericht.name}“ entfernt.`,
-        confirmLabel: 'Entfernen',
-      }))
-    )
-      return false;
-    return kontext.aendern(
-      () => kontext.api.senden('DELETE', `/gericht-zutaten/${zeile.id}`, undefined, zeile.etag),
-      `${name} entfernt.`
-    );
-  }
-
-  let dialog = $state<{
-    zeile: GerichtZutat | null;
-    vorgabe: ZeilenVorgabe | null;
-  } | null>(null);
 
   /** Where the dish is planned. */
   const plaetze = $derived(plaetzeVon(ansicht, gericht.id));
@@ -271,40 +245,15 @@
     </ul>
   {/if}
 
-  <section aria-labelledby="gericht-{gericht.id}-zutaten" class="space-y-2">
-    <h4 id="gericht-{gericht.id}-zutaten" class="font-semibold text-brand-900">Zutaten</h4>
-    {#if gericht.zutaten.length}
-      <ol class="divide-y divide-neutral-200 border-y border-neutral-200">
-        {#each gericht.zutaten as zeile, index (zeile.id)}
-          <ZutatZeileInline
-            {kontext}
-            {zeile}
-            zutat={zutaten.get(zeile.planungZutatId)}
-            {bearbeiten}
-            erste={index === 0}
-            letzte={index === gericht.zutaten.length - 1}
-            namen={unvertraeglichkeiten}
-            katalogDa={katalog !== null}
-            position={index + 1}
-            onaendern={() => (dialog = { zeile, vorgabe: null })}
-            onverschiebe={(position) => void verschiebe(zeile, position)}
-            onloeschen={() => zeileLoeschen(zeile)}
-          />
-        {/each}
-      </ol>
-    {:else}
-      <p class="text-sm text-neutral-700">Noch keine Zutaten.</p>
-    {/if}
-    {#if bearbeiten && katalog}
-      <NeueZutatZeile
-        {kontext}
-        {katalog}
-        {gericht}
-        bind:eingabe={neueZeile}
-        onmehr={(vorgabe) => (dialog = { zeile: null, vorgabe })}
-      />
-    {/if}
-  </section>
+  <GerichtZutatenListe
+    {kontext}
+    {katalog}
+    {gericht}
+    {bearbeiten}
+    {zutaten}
+    {unvertraeglichkeiten}
+    bind:neueZeile
+  />
 
   {#if bearbeiten}
     <form class="space-y-4 print:hidden" onsubmit={speichern}>
@@ -460,15 +409,3 @@
     {/if}
   </div>
 </div>
-
-{#if katalog && dialog}
-  <GerichtZeileDialog
-    {kontext}
-    {katalog}
-    {gericht}
-    zeile={dialog.zeile}
-    vorgabe={dialog.vorgabe}
-    open={dialog !== null}
-    onclose={() => (dialog = null)}
-  />
-{/if}

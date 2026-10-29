@@ -6,9 +6,11 @@
   import {
     ernaehrung,
     fuerText,
+    gleicheZeile,
     leseMenge,
     mengeFeld,
     zeileBody,
+    type ZeilenInhalt,
   } from '../../lib/essensplanungGerichte';
   import { allergeneText, unvertraeglichkeitenText } from '../../lib/essensplanungDruck';
   import {
@@ -17,7 +19,7 @@
     mengeText,
   } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit, GerichtZutat, PlanungZutat } from '../../lib/types';
-  import { meldeVerloren, type PlanKontext } from './planKontext';
+  import { meldeVerloren, merkeSpeichern, type PlanKontext } from './planKontext';
 
   /**
    * One line of a dish. Amount, unit and note are edited right in the row, like in a sheet, and
@@ -74,20 +76,20 @@
   let hinweis = $state('');
   let fokus = $state(false);
   let fehler = $state<string | null>(null);
-  /** The saved values the input started from. */
-  let basis = $state({ zutat: 0, menge: '', einheit: 'g' as GerichtEinheit, hinweis: '' });
+  /** The saved line the input started from, and its values as the fields show them. */
+  let basis = $state({
+    stand: untrack(() => zeileBody(zeile)) as ZeilenInhalt,
+    menge: '',
+    einheit: 'g' as GerichtEinheit,
+    hinweis: '',
+  });
   /** Typed but not saved yet, or saving; changes of others then leave the fields alone. */
   let entwurf = $state(false);
   /** Someone else changed the line under the input: only Enter saves it over theirs. */
   let konflikt = $state(false);
 
   function uebernehme(current: GerichtZutat): void {
-    basis = {
-      zutat: current.planungZutatId,
-      menge: mengeFeld(current.menge),
-      einheit: current.einheit ?? einheiten[0] ?? 'g',
-      hinweis: current.hinweis,
-    };
+    basis = basisVon(current, einheiten[0] ?? 'g');
     menge = basis.menge;
     einheit = basis.einheit;
     hinweis = basis.hinweis;
@@ -95,12 +97,18 @@
     konflikt = false;
   }
 
-  // Amounts compare as numbers: „1.5“ typed is saved and shown as „1,5“
-  const geaendert = $derived(
-    leseMenge(menge) !== leseMenge(basis.menge) ||
+  /**
+   * Whether the fields differ from the saved line. Amounts compare as numbers: „1.5“ typed is
+   * saved and shown as „1,5“. A function too, as a derived read when the row goes may be stale.
+   */
+  function anders(): boolean {
+    return (
+      leseMenge(menge) !== leseMenge(basis.menge) ||
       hinweis.trim() !== basis.hinweis ||
       (menge.trim() !== '' && einheit !== basis.einheit)
-  );
+    );
+  }
+  const geaendert = $derived(anders());
   $effect(() => guardUnsavedChanges(() => entwurf || geaendert));
 
   // Follow the saved state unless the user is in the row or has unsaved input
@@ -131,7 +139,7 @@
   /** The saved state of a line as the row compares to it. */
   function basisVon(current: GerichtZutat, einheitSonst: GerichtEinheit): typeof basis {
     return {
-      zutat: current.planungZutatId,
+      stand: zeileBody(current),
       menge: mengeFeld(current.menge),
       einheit: current.einheit ?? einheitSonst,
       hinweis: current.hinweis,
@@ -142,19 +150,6 @@
   function warne(andereZutat: boolean): void {
     konflikt = true;
     fehler = `Jemand anderes hat ${andereZutat ? `die Zutat gerade zu ${name}` : `${name} gerade`} geändert (jetzt ${mengeText(zeile.menge, zeile.einheit) ?? 'nach Gefühl'}${zeile.hinweis ? `, ${zeile.hinweis}` : ''}). Deine Eingabe steht noch in der Zeile: Enter speichert sie trotzdem, Escape verwirft sie.`;
-  }
-
-  /** Whether the line holds these values of the row (ingredient, amount, unit, note). */
-  function hat(
-    current: GerichtZutat,
-    werte: { zutat: number; menge: number | null; einheit: GerichtEinheit; hinweis: string }
-  ): boolean {
-    return (
-      current.planungZutatId === werte.zutat &&
-      current.menge === werte.menge &&
-      (werte.menge === null || current.einheit === werte.einheit) &&
-      current.hinweis === werte.hinweis
-    );
   }
 
   async function speichernJetzt(bewusst: boolean): Promise<boolean> {
@@ -172,40 +167,32 @@
       fehler = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
       return false;
     }
-    // Someone else saved this line meanwhile: keep the input and let the person decide
-    // The ingredient counts too: an amount typed for sugar must not go to salt unasked
-    const andereZutat = zeile.planungZutatId !== basis.zutat;
-    if (
-      andereZutat ||
-      mengeFeld(zeile.menge) !== basis.menge ||
-      (zeile.einheit ?? basis.einheit) !== basis.einheit ||
-      zeile.hinweis !== basis.hinweis
-    ) {
+    // Someone else saved this line meanwhile: keep the input and let the person decide. Every
+    // part counts: an amount typed for sugar must not go to salt, nor become fixed, unasked
+    const geprueft = basis.stand;
+    if (!gleicheZeile(zeile, geprueft)) {
       basis = basisVon(zeile, basis.einheit);
-      warne(andereZutat);
+      warne(zeile.planungZutatId !== geprueft.planungZutatId);
       return false;
     }
     entwurf = true;
     const gesendet = { menge: menge.trim(), einheit, hinweis: hinweis.trim() };
-    // What was checked above. Changes wait in a queue: when it is the turn of this one, the
-    // newer version is taken only if the line still holds these values (e.g. moved meanwhile);
-    // a change of others makes it send the checked version, which the server refuses
-    const geprueft = {
-      zutat: basis.zutat,
-      menge: leseMenge(basis.menge),
-      einheit: basis.einheit,
-      hinweis: basis.hinweis,
-    };
+    // Changes wait in a queue: when it is the turn of this one, the newer version is taken only
+    // if the line still says what was checked (e.g. only moved meanwhile); a change of others
+    // makes it send the checked version, which the server refuses
     const etag = zeile.etag;
+    const body = {
+      ...geprueft,
+      menge: zahl,
+      einheit: zahl === null ? null : gesendet.einheit,
+      fest: zahl !== null && geprueft.fest,
+      hinweis: gesendet.hinweis,
+    };
     const ok = await kontext.aendern(() => {
       const current = zeile;
       return kontext.api.senden('PATCH', `/gericht-zutaten/${current.id}`, {
-        ...zeileBody(current),
-        etag: hat(current, geprueft) ? current.etag : etag,
-        menge: zahl,
-        einheit: zahl === null ? null : gesendet.einheit,
-        fest: zahl !== null && current.fest,
-        hinweis: gesendet.hinweis,
+        ...body,
+        etag: gleicheZeile(current, geprueft) ? current.etag : etag,
       });
     }, `${name} gespeichert.`);
     entwurf = false;
@@ -216,21 +203,16 @@
         hinweis.trim() !== gesendet.hinweis ||
         einheit !== gesendet.einheit;
       // The answer is read after the save and may already hold a change of others
-      const eigenerStand = hat(zeile, {
-        zutat: geprueft.zutat,
-        menge: zahl,
-        einheit: gesendet.einheit,
-        hinweis: gesendet.hinweis,
-      });
+      const eigenerStand = gleicheZeile(zeile, body);
       if (!weitergetippt && (!fokus || !eigenerStand)) uebernehme(zeile);
       else {
         basis = basisVon(zeile, gesendet.einheit);
-        if (!eigenerStand) warne(zeile.planungZutatId !== geprueft.zutat);
+        if (!eigenerStand) warne(zeile.planungZutatId !== geprueft.planungZutatId);
       }
-    } else if (!hat(zeile, geprueft)) {
+    } else if (!gleicheZeile(zeile, geprueft)) {
       // Refused because others changed the line meanwhile: the same choice as above
       basis = basisVon(zeile, gesendet.einheit);
-      warne(zeile.planungZutatId !== geprueft.zutat);
+      warne(zeile.planungZutatId !== geprueft.planungZutatId);
     } else fehler = kontext.fehler;
     return ok;
   }
@@ -263,7 +245,7 @@
 
   // Someone else removed the line: the row goes, so the unsaved input is shown to copy
   $effect(() => () => {
-    if (selbstEntfernt || !geaendert) return;
+    if (selbstEntfernt || !anders()) return;
     const id = zeile.id;
     const eingabe = [
       menge.trim() ? `${menge.trim()} ${einheitText(einheit, zutat?.abtropfgewicht)}` : '',
@@ -288,7 +270,7 @@
     const zeileElement = event.currentTarget as HTMLElement;
     if (event.relatedTarget instanceof Node && zeileElement.contains(event.relatedTarget)) return;
     fokus = false;
-    nachDemTippen(() => void speichern());
+    nachDemTippen(() => merkeSpeichern(speichern()));
   }
 
   function taste(event: KeyboardEvent): void {

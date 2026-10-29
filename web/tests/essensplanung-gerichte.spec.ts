@@ -807,3 +807,53 @@ test('on a touch screen one tap outside saves the row and still does what it tap
   await page.getByText('Gulasch', { exact: true }).click();
   await expect(menge).toHaveValue('800');
 });
+
+test('a fixed amount set by others is a conflict; PDF and deleting wait for the row', async ({
+  page,
+  browser,
+}) => {
+  test.slow();
+  await anlegen(page, 'E2E Zeilen Fest');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Gulasch');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
+  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
+  const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
+  await zutat.pressSequentially('Hackfl');
+  await zutat.press('Enter');
+  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
+  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+  const menge = gericht.getByLabel('Menge von Hackfleisch');
+  await expect(menge).toHaveValue('500');
+
+  // Others make the amount fixed while it is typed: the row warns instead of saving
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Gulasch', { exact: true }).click();
+  await menge.fill('600');
+  await anderes.getByRole('button', { name: 'Hackfleisch ändern' }).click();
+  const dialog = anderes.getByRole('dialog');
+  await dialog.getByLabel('Feste Menge').check();
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(gericht.getByText('feste Menge')).toBeVisible({ timeout: 15_000 });
+  await menge.press('Enter');
+  await expect(gericht.getByRole('alert')).toContainText('Jemand anderes hat Hackfleisch');
+  await menge.press('Escape');
+  await expect(menge).toHaveValue('500');
+
+  // The PDF right after typing shows what was typed
+  await menge.fill('650');
+  const karte = await pdfLaden(page, () =>
+    gericht.getByRole('button', { name: 'Rezeptkarte als PDF: Gulasch' }).click()
+  );
+  expect(karte.text).toContain('650 g');
+
+  // Deleting the dish right after typing asks with the saved version: no conflict of its own
+  await menge.fill('700');
+  await gericht.getByRole('button', { name: 'Gericht löschen' }).click();
+  await answerConfirm(page, '„Gulasch“ löschen?', 'Gericht löschen');
+  await expect(page.getByText('Gulasch gelöscht.').first()).toBeVisible();
+});

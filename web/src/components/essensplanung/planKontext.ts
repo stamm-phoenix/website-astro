@@ -37,3 +37,20 @@ export function meldeVerloren(kontext: PlanKontext, text: string): void {
     });
   verloren.push(text);
 }
+
+const speichernd = new Set<Promise<unknown>>();
+
+/** Notes a save a row started on its own, e.g. when it was left. */
+export function merkeSpeichern(lauf: Promise<unknown>): void {
+  speichernd.add(lauf);
+  void lauf.finally(() => speichernd.delete(lauf));
+}
+
+/**
+ * Waits for the saves rows started on their own, including one that waits for the click just
+ * made, so an action reads the state with what was typed (a PDF, the version to delete).
+ */
+export async function gespeichert(): Promise<void> {
+  await new Promise((done) => setTimeout(done));
+  while (speichernd.size) await Promise.allSettled([...speichernd]);
+}

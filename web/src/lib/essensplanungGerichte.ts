@@ -38,6 +38,26 @@ export function zeileBody(zeile: GerichtZutat) {
   };
 }
 
+/** What a line says, without its version: what `zeileBody` sends. */
+export type ZeilenInhalt = Omit<ReturnType<typeof zeileBody>, 'etag'>;
+
+/** Whether two states of a line say the same, apart from version and position. */
+export function gleicheZeile(a: ZeilenInhalt, b: ZeilenInhalt): boolean {
+  const liste = (ids: number[]): string => [...ids].sort((x, y) => x - y).join(',');
+  return (
+    a.planungZutatId === b.planungZutatId &&
+    a.menge === b.menge &&
+    (a.menge === null || a.einheit === b.einheit) &&
+    a.fest === b.fest &&
+    a.fuerAlles === b.fuerAlles &&
+    a.fuerVegetarisch === b.fuerVegetarisch &&
+    a.fuerVegan === b.fuerVegan &&
+    liste(a.ohne) === liste(b.ohne) &&
+    liste(a.nur) === liste(b.nur) &&
+    a.hinweis === b.hinweis
+  );
+}
+
 /** Keys of the suggestions: `p:<id>` for ingredients of the Planung, `z:<id>` for the list. */
 export function zutatVorschlaege(
   katalog: EssenKatalog,
