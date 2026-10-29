@@ -201,11 +201,11 @@
 
   function allergene(zeile: GerichtZutat): string {
     const zutat = zutaten.get(zeile.planungZutatId);
-    return (zutat?.allergene ?? [])
-      .filter((id) => !zeile.ohne.includes(id))
-      .map((id) => unvertraeglichkeiten.get(id) ?? '')
-      .filter(Boolean)
-      .join(', ');
+    const ids = (zutat?.allergene ?? []).filter((id) => !zeile.ohne.includes(id));
+    const bekannt = ids.flatMap((id) => unvertraeglichkeiten.get(id) ?? []);
+    // Without the list the names are unknown: never as if there were none
+    if (bekannt.length < ids.length) bekannt.push('Allergene (Namen nicht geladen)');
+    return bekannt.join(', ');
   }
 
   const namen = (ids: number[]) => ids.map((id) => unvertraeglichkeiten.get(id) ?? '?').join(', ');
@@ -215,7 +215,10 @@
   <div class="flex flex-wrap items-center justify-between gap-2">
     <p class="text-neutral-700">Mengen für {gericht.personen} Personen</p>
     <div class="flex flex-wrap gap-2 print:hidden">
-      <ActionButton type="button" onclick={ondrucken}>Rezeptkarte drucken</ActionButton>
+      <!-- Only with the list, so the card names all allergens -->
+      <ActionButton type="button" disabled={!katalog} onclick={ondrucken}
+        >Rezeptkarte drucken</ActionButton
+      >
       {#if bearbeiten}
         <ActionButton
           type="button"
