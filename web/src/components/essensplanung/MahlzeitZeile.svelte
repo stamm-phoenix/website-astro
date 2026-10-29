@@ -26,8 +26,19 @@
     oneinplanen: (auftrag: Auftrag) => void;
     /** Opens the dialog of the groups that eat at the meal. */
     ongruppen: (mahlzeitId: number) => void;
+    /** Names of the intolerances, for the amounts; empty while not loaded. */
+    unvertraeglichkeiten: Map<number, string>;
   }
-  let { kontext, mahlzeit, bearbeiten, erste, letzte, oneinplanen, ongruppen }: Props = $props();
+  let {
+    kontext,
+    mahlzeit,
+    bearbeiten,
+    erste,
+    letzte,
+    oneinplanen,
+    ongruppen,
+    unvertraeglichkeiten,
+  }: Props = $props();
   const ohne = $derived(
     mahlzeit.ohneGruppen
       .map((id) => kontext.ansicht.gruppen.find((g) => g.id === id)?.name ?? '')
@@ -314,7 +325,14 @@
                   >
                 </span>
               {/if}
-              <EinplanungMengen {kontext} {mahlzeit} {einplanung} {name} {esser} />
+              <EinplanungMengen
+                {kontext}
+                {mahlzeit}
+                {einplanung}
+                {name}
+                {esser}
+                {unvertraeglichkeiten}
+              />
             </li>
           {/each}
         </ol>

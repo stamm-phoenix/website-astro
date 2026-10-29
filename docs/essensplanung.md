@@ -173,7 +173,7 @@ Gerechnet wird im Browser aus dem vollständigen Stand der Planung. Das Modul li
 
 **Summieren und Runden:** Für die Einkaufsliste werden die Mengen je Zutat in der Basiseinheit summiert (`summiere`, getrennt nach Einheitenart). Angezeigt wird ab 1.000 g in kg und ab 1.000 ml in l. Stück, Packung und Bund werden erst **nach dem Summieren** aufgerundet (`einkaufsMenge`). Das Sheet rundet pro Gericht. Wir runden pro Liste, das erzeugt weniger Überschuss.
 
-**Im Plan (PR 5b):** Unter jedem eingeplanten Gericht klappt „Mengen für N Portionen“ die Zutaten mit der Menge für diese Mahlzeit auf (`EinplanungMengen.svelte`, `kochMenge`: ab 1.000 g in kg, nichts aufgerundet). N sind die gewichteten Esser der Mahlzeit; eine Zeile für weniger (z. B. nur mit allem) nennt ihre Portionen dazu, eine feste Menge heißt „feste Menge“, eine Zeile ohne Menge „nach Gefühl“. Im Druck stehen die Mengen immer da, so ist der gedruckte Plan die Liste der Küche.
+**Im Plan (PR 5b):** Unter jedem eingeplanten Gericht klappt „Mengen für N Portionen“ die Zutaten mit der Menge für diese Mahlzeit auf (`EinplanungMengen.svelte`, `kochMenge`: ab 1.000 g in kg, nichts aufgerundet). N sind die gewichteten Esser der Mahlzeit; jede Zeile nennt wie die Karte des Gerichts, für wen sie ist („nur mit allem“, „nur bei Gluten“, „nicht bei Gluten“, „feste Menge“), und ihre Portionen, wenn es weniger sind; eine Zeile ohne Menge heißt „nach Gefühl“. Die Namen der Unverträglichkeiten lädt der Plan nur, wenn eine Zeile sie braucht. Im Druck stehen die Mengen immer da, so ist der gedruckte Plan die Liste der Küche.
 
 ## Einkaufsliste, Einkäufe, Lager
 

@@ -305,7 +305,7 @@
       aria-labelledby="bereich-plan"
       hidden={bereich !== 'plan'}
     >
-      <PlanTage {kontext} />
+      <PlanTage {kontext} sichtbar={bereich === 'plan'} />
     </div>
     <div
       role="tabpanel"
