@@ -807,9 +807,22 @@ dbTest('new minutes prefill Stufenberichte and the next meeting from other modul
     .values({
       title: 'Davor',
       meeting_date: '2026-09-30',
+      status: 'freigegeben',
       content: JSON.stringify(
         neuerInhalt(() => 'x', {}, { naechsteSitzung: { uhrzeit: '19:30', ort: 'Pfarrheim' } })
       ),
+      created_by: ANNA,
+      updated_by: ANNA,
+    })
+    .execute();
+
+  // a newer draft is no reference for the period
+  await db
+    .insertInto('protokoll.protokoll')
+    .values({
+      title: 'Entwurf',
+      meeting_date: '2026-10-13',
+      content: JSON.stringify(neuerInhalt(() => 'y')),
       created_by: ANNA,
       updated_by: ANNA,
     })

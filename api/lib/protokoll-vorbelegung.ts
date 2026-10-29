@@ -150,7 +150,11 @@ export function zeitfenster(
   };
 }
 
-/** The minutes with the latest meeting before `date`. */
+/**
+ * The approved minutes (freigegeben or verschickt) with the latest meeting before `date`. Drafts
+ * and minutes in review do not count: an unfinished or test draft would otherwise move the
+ * start of the period to its date and leave the Stufenberichte empty.
+ */
 async function previousMinutes(
   date: string
 ): Promise<{ date: string; content: string } | undefined> {
@@ -158,6 +162,7 @@ async function previousMinutes(
     .selectFrom('protokoll.protokoll')
     .select(['meeting_date', 'content'])
     .where('meeting_date', '<', date)
+    .where('status', 'in', ['freigegeben', 'verschickt'])
     .orderBy('meeting_date', 'desc')
     .orderBy('id', 'desc')
     .top(1)
