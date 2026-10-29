@@ -413,14 +413,6 @@ const ZUTAT_FIELDS: Record<keyof ZutatInput, string> = {
  * A new kind of unit must fit the amounts of the dishes that inherit it; Planungen with their own
  * kind for the ingredient keep it. Holds the ingredient's lock, so no such line is saved meanwhile.
  */
-/** Tables of the Planungen with an amount of an ingredient of the Planung in a unit. */
-const EINHEIT_QUELLEN = [
-  'essen.bestand',
-  'essen.zusatzbedarf',
-  'essen.einkauf_posten',
-  'essen.einkauf_regel',
-] as const;
-
 async function pruefeGenutzteEinheiten(
   trx: Transaction<Database>,
   zutatId: number,
@@ -435,19 +427,44 @@ async function pruefeGenutzteEinheiten(
     .where('pz.einheitenart', 'is', null)
     .where('gz.einheit', 'is not', null)
     .execute();
-  // Stock, extra needs and the shopping trips of the Planungen measure it too
-  const posten = await Promise.all(
-    EINHEIT_QUELLEN.map((tabelle) =>
-      trx
-        // All of them have `planung_zutat_id` and `einheit`; typed as one for the query builder
-        .selectFrom(`${tabelle} as p` as 'essen.bestand as p')
-        .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
-        .select('p.einheit')
-        .where('pz.zutat_id', '=', zutatId)
-        .where('pz.einheitenart', 'is', null)
-        .execute()
-    )
-  );
+  // Stock, extra needs, what was cooked and the shopping trips of the Planungen measure it too
+  const posten = await Promise.all([
+    trx
+      .selectFrom('essen.bestand as p')
+      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
+      .select('p.einheit')
+      .where('pz.zutat_id', '=', zutatId)
+      .where('pz.einheitenart', 'is', null)
+      .execute(),
+    trx
+      .selectFrom('essen.zusatzbedarf as p')
+      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
+      .select('p.einheit')
+      .where('pz.zutat_id', '=', zutatId)
+      .where('pz.einheitenart', 'is', null)
+      .execute(),
+    trx
+      .selectFrom('essen.einplanung_verbrauch as p')
+      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
+      .select('p.einheit')
+      .where('pz.zutat_id', '=', zutatId)
+      .where('pz.einheitenart', 'is', null)
+      .execute(),
+    trx
+      .selectFrom('essen.einkauf_posten as p')
+      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
+      .select('p.einheit')
+      .where('pz.zutat_id', '=', zutatId)
+      .where('pz.einheitenart', 'is', null)
+      .execute(),
+    trx
+      .selectFrom('essen.einkauf_regel as p')
+      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
+      .select('p.einheit')
+      .where('pz.zutat_id', '=', zutatId)
+      .where('pz.einheitenart', 'is', null)
+      .execute(),
+  ]);
   if ([...zeilen, ...posten.flat()].some((zeile) => !einheitPasst(art, zeile.einheit))) {
     throw new ValidationError({
       einheitenart:

@@ -148,7 +148,8 @@ export async function ladeGerichte(
           + (select count(*) from essen.bestand b where b.planung_zutat_id = pz.id)
           + (select count(*) from essen.zusatzbedarf zb where zb.planung_zutat_id = pz.id)
           + (select count(*) from essen.einkauf_posten ep where ep.planung_zutat_id = pz.id)
-          + (select count(*) from essen.einkauf_regel er where er.planung_zutat_id = pz.id)`.as(
+          + (select count(*) from essen.einkauf_regel er where er.planung_zutat_id = pz.id)
+          + (select count(*) from essen.einplanung_verbrauch ev where ev.planung_zutat_id = pz.id)`.as(
           'zeilen'
         ),
         'pz.geschaeft_id',
@@ -396,7 +397,7 @@ export async function planungZutatAendern(
 }
 
 async function pruefeEinheitenart(trx: Db, planungZutatId: number, art: EssenEinheitenart) {
-  const [zeilen, bestand, zusatzbedarf, eingekauft] = await Promise.all([
+  const [zeilen, bestand, zusatzbedarf, eingekauft, verbrauch] = await Promise.all([
     trx
       .selectFrom('essen.gericht_zutat')
       .select('einheit')
@@ -424,15 +425,20 @@ async function pruefeEinheitenart(trx: Db, planungZutatId: number, art: EssenEin
           .where('planung_zutat_id', '=', planungZutatId)
       )
       .execute(),
+    trx
+      .selectFrom('essen.einplanung_verbrauch')
+      .select('einheit')
+      .where('planung_zutat_id', '=', planungZutatId)
+      .execute(),
   ]);
   if (
-    [...zeilen, ...bestand, ...zusatzbedarf, ...eingekauft].some(
+    [...zeilen, ...bestand, ...zusatzbedarf, ...eingekauft, ...verbrauch].some(
       (zeile) => !einheitPasst(art, zeile.einheit)
     )
   ) {
     throw new ValidationError({
       einheitenart:
-        'Gerichte, Bestand, Zusatzbedarf oder Einkäufe nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.',
+        'Gerichte, Bestand, Zusatzbedarf, Einkäufe oder abgehakter Verbrauch nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.',
     });
   }
 }

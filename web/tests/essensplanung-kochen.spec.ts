@@ -159,3 +159,50 @@ test('amounts typed to tick off a dish stay through maintenance', async ({ page 
   await expect(verbrauch).toHaveValue('0,3');
   await page.unroute('**/api/essensplanung/planung/stand?*');
 });
+
+test('ticking off after someone else did keeps the amounts and saves them on the second try', async ({
+  page,
+  browser,
+}) => {
+  await anlegen(page, 'E2E Kochen Konflikt');
+  const dialog = page.getByRole('dialog');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Nudeln');
+  await page.getByLabel('Personen', { exact: true }).fill('4');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Nudeln angelegt.').first()).toBeVisible();
+  const nudeln = page.locator('li', { has: page.getByText('Nudeln', { exact: true }) }).first();
+  const zutat = nudeln.getByLabel('Neue Zutat für Nudeln');
+  await zutat.pressSequentially('Nudeln (Spag');
+  await zutat.press('Enter');
+  await nudeln.getByLabel('Menge der neuen Zutat').fill('500');
+  await nudeln.getByLabel('Menge der neuen Zutat').press('Enter');
+  await expect(nudeln.getByLabel('Menge von Nudeln (Spaghetti)')).toHaveValue('500');
+  await page.getByRole('tab', { name: 'Plan' }).click();
+  await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
+  await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Nudeln' });
+  await dialog.getByRole('button', { name: 'Einplanen' }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  const verbrauch = page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_2_1');
+  await verbrauch.fill('0,3');
+
+  // Someone else leaves it out meanwhile
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  await anderes.getByRole('button', { name: 'Ausgelassen' }).click();
+  await expect(anderes.getByText('Nudeln ist als ausgelassen abgehakt.').first()).toBeVisible();
+  await anderes.context().close();
+
+  await page.getByRole('button', { name: 'Gekocht', exact: true }).click();
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Jetzt gespeichert: ausgelassen.' })
+  ).toBeVisible();
+  await expect(verbrauch).toHaveValue('0,3');
+  await page.getByRole('button', { name: 'Gekocht', exact: true }).click();
+  await expect(page.getByText('Nudeln ist als gekocht abgehakt.').first()).toBeVisible();
+  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  await expect(verbrauch).toHaveValue('0,3');
+});
