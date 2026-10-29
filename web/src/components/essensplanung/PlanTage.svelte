@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import FilterTabs from '../ui/FilterTabs.svelte';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { datumKurz } from '../../lib/essensplanung';
@@ -176,16 +177,16 @@
 <section aria-labelledby="plan-heading" class="space-y-6">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h3 id="plan-heading" class="sr-only">Tage und Mahlzeiten</h3>
-    <div class="flex gap-1" role="group" aria-label="Darstellung">
-      {#each [['liste', 'Liste'], ['kalender', 'Kalender']] as const as [art, label] (art)}
-        <ActionButton
-          type="button"
-          variant={darstellung === art ? 'primary' : 'secondary'}
-          aria-pressed={darstellung === art}
-          onclick={() => zeige(art)}>{label}</ActionButton
-        >
-      {/each}
-    </div>
+    <FilterTabs
+      label="Darstellung"
+      variant="segmented"
+      options={[
+        { value: 'liste', label: 'Liste' },
+        { value: 'kalender', label: 'Kalender' },
+      ]}
+      value={darstellung}
+      onselect={zeige}
+    />
     <PdfKnopf {kontext} label="Plan als PDF" erstellen={planPdf} />
   </div>
   {#if ansicht.tage.length === 0}
