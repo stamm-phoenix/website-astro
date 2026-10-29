@@ -96,6 +96,28 @@
     else fehler = kontext.fehler;
   }
 
+  /**
+   * Takes back „not on this trip“; a trip it was moved to gives it back too, so both are worked
+   * out again.
+   */
+  async function zurueckholen(zutat: { planungZutatId: number; name: string }): Promise<void> {
+    const ziele = ansicht.einkaeufe.filter(
+      (e) =>
+        e.id !== einkauf.id &&
+        e.regeln.some((r) => r.planungZutatId === zutat.planungZutatId && r.art === 'mit')
+    );
+    for (const ziel of ziele) {
+      const ok = await kontext.aendern(() =>
+        kontext.api.senden('PUT', `/einkaeufe/${ziel.id}/regeln`, {
+          planungZutatId: zutat.planungZutatId,
+          art: null,
+        })
+      );
+      if (!ok) return;
+    }
+    await regel(zutat, null);
+  }
+
   /** „3 l → Pepsi Cola“ for what was ticked off. */
   function erhalten(posten: EinkaufListenPosten): string {
     const h = posten.haken!;
@@ -218,7 +240,7 @@
               type="button"
               disabled={kontext.busy}
               aria-label="{zutat.name} zurück in {einkauf.name}"
-              onclick={() => void regel(zutat, null)}>Zurückholen</ActionButton
+              onclick={() => void zurueckholen(zutat)}>Zurückholen</ActionButton
             >
           {/if}
         </li>

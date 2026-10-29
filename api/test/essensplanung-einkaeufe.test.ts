@@ -4,6 +4,9 @@ import * as einkauf from '../endpoints/essensplanung-einkauf';
 import * as einkaeufe from '../endpoints/essensplanung-einkaeufe';
 import * as endpoints from '../endpoints/essensplanung';
 import { getDb } from '../lib/db';
+import { listZutaten, updateZutat } from '../lib/essen-steuerung';
+import type { ZutatInput } from '../lib/essen-validation';
+import { ValidationError } from '../lib/validation/errors';
 import { seedPreviewEssensplanungEinkauf } from '../lib/db-preview-essen-einkauf';
 import { seedPreviewEssensplanungEinkaeufe } from '../lib/db-preview-essen-einkaeufe';
 import {
@@ -382,4 +385,55 @@ dbTest('the preview gets invented shopping trips once', async () => {
     .execute();
   assert.equal(posten.length, 1);
   assert.equal(regeln.length, 2);
+});
+
+dbTest('the Steuerung keeps the kind of unit of an ingredient ticked off on a trip', async (t) => {
+  const mails = captureMails(t);
+  const { token } = await anlegen(t, mails);
+  const zentral = (await listZutaten()).find((z) => z.name === 'Zimt')!;
+  // Only in a dish without an amount, so nothing else measures it
+  const gericht = json<{ id: number }>(
+    await senden(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', token, {
+      body: { name: 'Milchreis', personen: 10 },
+    })
+  ).id;
+  const zeile = await senden(
+    t,
+    endpoints.EssensplanungGerichtZutaten,
+    'POST',
+    'planung/gerichte/zutaten',
+    token,
+    { id: gericht, body: { zutatId: zentral.id } }
+  );
+  assert.equal(zeile.status, 201, JSON.stringify(zeile.jsonBody));
+  const mitZeile = json<PlanungAnsicht>(
+    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+  );
+  const zutat = mitZeile.zutaten.find((z) => z.zutatId === zentral.id)!.id;
+  const id = json<PlanungAnsicht>(
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name: 'Montag' },
+    })
+  ).einkaeufe[0].id;
+  const haken = await senden(
+    t,
+    einkaeufe.EssensplanungEinkaufAbhaken,
+    'PUT',
+    'planung/einkaeufe/posten',
+    token,
+    {
+      id,
+      body: { etag: null, planungZutatId: zutat, einheit: 'g', erhalten: 50 },
+    }
+  );
+  assert.equal(haken.status, 200, JSON.stringify(haken.jsonBody));
+  const input = Object.fromEntries(
+    Object.entries(zentral).filter(
+      ([key]) => !['id', 'etag', 'geaendertAm', 'geaendertVon'].includes(key)
+    )
+  ) as unknown as ZutatInput;
+  await assert.rejects(
+    updateZutat(String(zentral.id), { ...input, einheitenart: 'stueck' }, zentral.etag, 'test'),
+    (error: unknown) => error instanceof ValidationError && error.fields.einheitenart !== undefined
+  );
 });

@@ -11,8 +11,10 @@
   interface Props {
     kontext: PlanKontext;
     liste: EinkaufListe;
+    /** Read-only for a while (maintenance). */
+    gesperrt?: boolean;
   }
-  let { kontext, liste }: Props = $props();
+  let { kontext, liste, gesperrt = false }: Props = $props();
 
   /** The thing whose amount is open. */
   let offen = $state<string | null>(null);
@@ -32,6 +34,7 @@
             {kontext}
             einkaufId={liste.einkauf.id}
             {posten}
+            {gesperrt}
             offen={offen === posten.key}
             onoeffnen={(auf) => (offen = auf ? posten.key : null)}
           />

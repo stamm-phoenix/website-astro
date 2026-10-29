@@ -39,11 +39,15 @@
   {:else}
     <p class="text-neutral-700">Noch keine Einkäufe.</p>
   {/if}
-  {#if bearbeiten}
-    {#if anlegen}
-      <EinkaufForm {kontext} einkauf={null} onfertig={() => (anlegen = false)} />
-    {:else}
-      <ActionButton type="button" onclick={() => (anlegen = true)}>Einkauf anlegen</ActionButton>
-    {/if}
+  <!-- A started form stays while the page is read-only for a while, so the draft is kept -->
+  {#if anlegen}
+    <EinkaufForm
+      {kontext}
+      einkauf={null}
+      gesperrt={!bearbeiten}
+      onfertig={() => (anlegen = false)}
+    />
+  {:else if bearbeiten}
+    <ActionButton type="button" onclick={() => (anlegen = true)}>Einkauf anlegen</ActionButton>
   {/if}
 </section>

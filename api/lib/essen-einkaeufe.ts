@@ -1,8 +1,11 @@
 import { sql } from 'kysely';
+import type { Transaction } from 'kysely';
+import type { Database } from './db-schema';
 import type { Db } from './db';
 import {
   RecordNotFoundError,
   VersionConflictError,
+  lockResource,
   requireVersion,
   toDateString,
   toVersion,
@@ -17,7 +20,7 @@ import type {
   VerschiebenInput,
 } from './essen-einkaeufe-model';
 import { MAX_EINKAEUFE, MAX_EINKAUF_EINTRAEGE, einkaufStand } from './essen-einkaeufe-model';
-import { EINHEITEN_JE_ART, einheitPasst } from './essen-gerichte-model';
+import { EINHEITEN_JE_ART, einheitPasst, zutatSperre } from './essen-gerichte-model';
 import type { GerichtEinheit } from './essen-gerichte-model';
 import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
@@ -228,17 +231,25 @@ function gleicheArt(a: GerichtEinheit, b: GerichtEinheit): boolean {
 
 /** The ingredient of the Planung, in a unit that fits it. */
 async function zutatMitEinheit(
-  trx: Db,
+  trx: Transaction<Database>,
   zugang: Zugang,
   planungZutatId: number,
   einheit: GerichtEinheit | null,
   feld: string
 ) {
-  const zutat = await zutatDerPlanung(trx, zugang, planungZutatId).catch(() => {
-    throw new ValidationError({
-      planungZutatId: 'Diese Zutat gibt es nicht mehr. Bitte lade die Seite neu.',
+  const lesen = () =>
+    zutatDerPlanung(trx, zugang, planungZutatId).catch(() => {
+      throw new ValidationError({
+        planungZutatId: 'Diese Zutat gibt es nicht mehr. Bitte lade die Seite neu.',
+      });
     });
-  });
+  let zutat = await lesen();
+  // The kind of unit inherited from the central list: the Steuerung changes it only under this
+  // lock, so it is read again once the lock is held
+  if (zutat.zutat_id !== null && zutat.einheitenart === null) {
+    await lockResource(trx, zutatSperre(zutat.zutat_id));
+    zutat = await lesen();
+  }
   const art = zutat.einheitenart ?? zutat.z_einheitenart;
   const name = zutat.name ?? zutat.z_name ?? 'Die Zutat';
   if (!art || !einheitPasst(art, einheit))

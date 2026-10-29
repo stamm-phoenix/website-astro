@@ -92,7 +92,7 @@
     </p>
   </div>
   <div class="flex flex-wrap gap-2">
-    {#if bearbeiten && !einkauf.abgeschlossen}
+    {#if (bearbeiten && !einkauf.abgeschlossen) || ansichtArt === 'live'}
       <ActionButton
         type="button"
         variant={ansichtArt === 'live' ? 'secondary' : 'primary'}
@@ -142,9 +142,9 @@
     {/if}
   </div>
   {#if ansichtArt === 'aendern'}
-    <EinkaufForm {kontext} {einkauf} onfertig={() => (ansichtArt = 'zu')} />
+    <EinkaufForm {kontext} {einkauf} gesperrt={!bearbeiten} onfertig={() => (ansichtArt = 'zu')} />
   {:else if ansichtArt === 'live'}
-    <EinkaufLive {kontext} {liste} />
+    <EinkaufLive {kontext} {liste} gesperrt={!bearbeiten} />
   {:else if ansichtArt === 'liste'}
     <div class="space-y-2">
       <EinkaufListeAnsicht {kontext} {liste} {bearbeiten} />

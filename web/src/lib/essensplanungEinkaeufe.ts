@@ -113,11 +113,23 @@ export function einkaufListen(
   const ergebnis = new Map<number, EinkaufListe>();
   const reihe = einkaufsReihenfolge(stand.einkaeufe);
 
+  /**
+   * Per ingredient the place in the order of the last open trip it was put on by hand („mit“,
+   * e.g. moved there): trips before it without a rule of their own leave it to that trip.
+   */
+  const reserviert = new Map<number, number>();
+  reihe.forEach((einkauf, index) => {
+    if (einkauf.abgeschlossen) return;
+    for (const regel of einkauf.regeln)
+      if (regel.art === 'mit') reserviert.set(regel.planungZutatId, index);
+  });
+
   /** Whether trip `einkauf` takes ingredient `id` by its shop and its rules. */
   const nimmt = (einkauf: Einkauf, id: number): boolean => {
     const regel = einkauf.regeln.find((r) => r.planungZutatId === id)?.art;
     if (regel === 'ohne') return false;
     if (regel === 'mit' || regel === 'fest') return true;
+    if ((reserviert.get(id) ?? -1) > reihe.indexOf(einkauf)) return false;
     const geschaeft = zutaten.get(id)?.geschaeftId ?? null;
     return (
       einkauf.geschaeftId === null ||
@@ -229,7 +241,8 @@ export function einkaufListen(
     ...stand.zusatzbedarf.filter((p) => p.menge === null).map((p) => p.planungZutatId),
   ]);
   for (const id of ohne) {
-    if (gelistet.has(id) || vorraetig.has(id)) continue;
+    // As on the shopping list: stock covers what dishes need by eye, not what was put on it
+    if (gelistet.has(id) || (gefuehl.has(id) && vorraetig.has(id))) continue;
     const einkauf = reihe.find((e) => !e.abgeschlossen && nimmt(e, id));
     if (einkauf)
       eintrag(einkauf, id, `${id}:`, { menge: null, einheit: null, nachGefuehl: gefuehl.has(id) });

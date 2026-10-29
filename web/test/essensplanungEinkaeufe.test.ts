@@ -276,3 +276,41 @@ test('pieces are rounded up, and the next trip counts what is really bought', ()
   assert.deepEqual(liste(s, a), ['3 stueck Brötchen']);
   assert.deepEqual(liste(s, b), ['5 stueck Brötchen']);
 });
+
+test('a thing moved past a trip in between stays with the trip it was moved to', () => {
+  const a = einkauf();
+  const b = einkauf();
+  const c = einkauf();
+  const s = stand([a, b, c]);
+  s.gerichte[0].zutaten = [];
+  s.zusatzbedarf = [{ id: 1, etag: '', planungZutatId: 1, menge: 1, einheit: 'kg', hinweis: '' }];
+  // Moved from A to C: „ohne“ on A, „mit“ on C; B has no rule of its own
+  a.regeln = [{ planungZutatId: 1, art: 'ohne', menge: null, einheit: null }];
+  c.regeln = [{ planungZutatId: 1, art: 'mit', menge: null, einheit: null }];
+  assert.deepEqual(liste(s, a), []);
+  assert.deepEqual(liste(s, b), []);
+  assert.deepEqual(liste(s, c), ['1 kg Nudeln (mit)']);
+  // A finished target no longer holds it
+  c.abgeschlossen = true;
+  assert.deepEqual(liste(s, b), ['1 kg Nudeln']);
+});
+
+test('a thing without an amount ticked off on a trip leaves the whole shopping list too', () => {
+  const a = einkauf();
+  const s = stand([a]);
+  s.zusatzbedarf = [
+    { id: 1, etag: '', planungZutatId: 4, menge: null, einheit: null, hinweis: '' },
+  ];
+  const gesamt = () =>
+    einkaufsliste(s, new Map()).flatMap((g) =>
+      g.kategorien.flatMap((k) => k.posten.map((p) => p.name))
+    );
+  assert.ok(gesamt().includes('Brötchen'));
+  a.posten = [haken(4, 0, 'stueck')];
+  assert.ok(liste(s, a).includes('Brötchen ✓0 stueck'));
+  assert.ok(!gesamt().includes('Brötchen'));
+  // Pasta with an amount but nothing bought stays on both lists
+  a.posten = [haken(4, 0, 'stueck'), haken(1, 0, 'g')];
+  assert.ok(gesamt().includes('Nudeln'));
+  assert.ok(liste(s, a).some((p) => p.startsWith('1.2 kg Nudeln ✓0 g')));
+});

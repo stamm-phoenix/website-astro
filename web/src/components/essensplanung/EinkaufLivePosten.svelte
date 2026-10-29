@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import { ApiError } from '../../lib/api';
   import { leseMenge, mengeFeld } from '../../lib/essensplanungGerichte';
   import { kochMenge } from '../../lib/essensplanungRechnung';
   import { postenMenge } from '../../lib/essensplanungEinkauf';
@@ -17,11 +19,13 @@
     kontext: PlanKontext;
     einkaufId: number;
     posten: EinkaufListenPosten;
+    /** Read-only for a while (maintenance): what is typed stays, saving waits. */
+    gesperrt?: boolean;
     /** Whether this thing's amount is open; only one at a time. */
     offen: boolean;
     onoeffnen: (offen: boolean) => void;
   }
-  let { kontext, einkaufId, posten, offen, onoeffnen }: Props = $props();
+  let { kontext, einkaufId, posten, gesperrt = false, offen, onoeffnen }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
 
   const einheiten = $derived.by((): readonly GerichtEinheit[] => {
@@ -36,44 +40,82 @@
   let speichert = $state(false);
   /** The version of what was ticked off when the amount was opened; null for none. */
   let etag: string | null = null;
+  /**
+   * Someone else ticked it off, changed it or took it back meanwhile: what they did, shown with
+   * the input kept; saving again takes the input over it.
+   */
+  let konflikt = $state<string | null>(null);
+
+  /** Whether the fields were filled for the open amount. */
+  let gefuellt = false;
+  // Opened before this row was drawn again (e.g. its category came with the central lists)
+  $effect(() => {
+    if (offen && !gefuellt) untrack(fuellen);
+    if (!offen) gefuellt = false;
+  });
 
   function oeffnen(): void {
     if (offen) {
       onoeffnen(false);
       return;
     }
+    fuellen();
+    onoeffnen(true);
+  }
+
+  function fuellen(): void {
+    gefuellt = true;
     const h = posten.haken;
     menge = h ? (h.erhalten > 0 ? mengeFeld(h.erhalten) : '') : mengeFeld(posten.menge);
     einheit = h?.einheit ?? posten.einheit ?? einheiten[0] ?? 'stueck';
     ersatz = h?.ersatz ?? '';
     etag = h?.etag ?? null;
     fehler = null;
-    onoeffnen(true);
+    konflikt = null;
   }
 
   async function abhaken(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (speichert) return;
+    if (speichert || gesperrt) return;
     const zahl = menge.trim() ? leseMenge(menge) : 0;
     if (zahl === null || Number.isNaN(zahl) || zahl < 0) {
       fehler = 'Bitte eine Menge wie 2,5 eintragen oder das Feld leer lassen.';
       return;
     }
     speichert = true;
-    const ok = await kontext.aendern(
-      () =>
-        kontext.api.senden('PUT', `/einkaeufe/${einkaufId}/posten`, {
+    let abgelehnt: unknown = null;
+    const ok = await kontext.aendern(async () => {
+      try {
+        return await kontext.api.senden('PUT', `/einkaeufe/${einkaufId}/posten`, {
           etag,
           planungZutatId: posten.planungZutatId,
           einheit,
           erhalten: zahl,
           ersatz,
-        }),
-      `${posten.name} abgehakt.`
-    );
+        });
+      } catch (error: unknown) {
+        abgelehnt = error;
+        throw error;
+      }
+    }, `${posten.name} abgehakt.`);
     speichert = false;
-    if (ok) onoeffnen(false);
-    else fehler = kontext.fehler;
+    if (ok) {
+      konflikt = null;
+      onoeffnen(false);
+      return;
+    }
+    if (abgelehnt instanceof ApiError && abgelehnt.status === 409) {
+      // The page shows the current state now; saving again goes on that version
+      await tick();
+      const h = posten.haken;
+      etag = h?.etag ?? null;
+      konflikt = h
+        ? `${h.von || 'Jemand'} hat das inzwischen abgehakt${hakenText(h) ? `: ${hakenText(h)}` : ''}. Deine Eingabe ist noch da; „Trotzdem speichern“ ersetzt es.`
+        : 'Das Häkchen wurde inzwischen aufgehoben. Deine Eingabe ist noch da; „Trotzdem speichern“ hakt es wieder ab.';
+      fehler = null;
+      return;
+    }
+    fehler = kontext.fehler;
   }
 
   async function aufheben(): Promise<void> {
@@ -87,12 +129,11 @@
   }
 
   /** „3 l → Pepsi Cola“. */
-  const erhalten = $derived.by(() => {
-    const h = posten.haken;
-    if (!h) return '';
+  function hakenText(h: NonNullable<EinkaufListenPosten['haken']>): string {
     const text = h.erhalten > 0 ? kochMenge(h.erhalten, h.einheit, posten.abtropfgewicht) : '';
     return [text, h.ersatz ? `→ ${h.ersatz}` : ''].filter(Boolean).join(' ');
-  });
+  }
+  const erhalten = $derived(posten.haken ? hakenText(posten.haken) : '');
 </script>
 
 <li class="py-1">
@@ -154,14 +195,20 @@
         placeholder="Ersatz, z. B. Pepsi Cola"
         bind:value={ersatz}
       />
+      {#if konflikt}<p class="text-sm text-warning" role="alert">{konflikt}</p>{/if}
       {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
       <div class="flex flex-wrap gap-2">
-        <ActionButton type="submit" variant="primary" disabled={speichert || kontext.busy}
-          >{posten.haken ? 'Speichern' : 'Abhaken'}</ActionButton
+        <ActionButton
+          type="submit"
+          variant="primary"
+          disabled={speichert || gesperrt || kontext.busy}
+          >{konflikt ? 'Trotzdem speichern' : posten.haken ? 'Speichern' : 'Abhaken'}</ActionButton
         >
         {#if posten.haken}
-          <ActionButton type="button" disabled={kontext.busy} onclick={() => void aufheben()}
-            >Häkchen aufheben</ActionButton
+          <ActionButton
+            type="button"
+            disabled={gesperrt || kontext.busy}
+            onclick={() => void aufheben()}>Häkchen aufheben</ActionButton
           >
         {/if}
         <ActionButton type="button" onclick={() => onoeffnen(false)}>Abbrechen</ActionButton>

@@ -108,10 +108,14 @@ export function einkaufsliste(
     ...gefuehl,
     ...stand.zusatzbedarf.filter((posten) => posten.menge === null).map((p) => p.planungZutatId),
   ];
+  // Ticked off on a trip (with or without what was bought): it is there, like on the trips
+  const abgehakt = new Set(
+    (alles.einkaeufe ?? []).flatMap((e) => e.posten.map((p) => p.planungZutatId))
+  );
   for (const id of new Set(ohne)) {
     const zutat = zutaten.get(id);
     // What a dish needs „nach Gefühl“ is covered by stock; what was put on the list is bought
-    if (zutat && !gelistet.has(id) && !(gefuehl.has(id) && imBestand.has(id)))
+    if (zutat && !gelistet.has(id) && !abgehakt.has(id) && !(gefuehl.has(id) && imBestand.has(id)))
       hinzu(zutat, { menge: null, einheit: null, nachGefuehl: gefuehl.has(id) });
   }
   const ordnen = (jeKategorie: Map<string, EinkaufsPosten[]>): EinkaufsKategorie[] =>

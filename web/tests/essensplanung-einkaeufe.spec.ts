@@ -195,3 +195,80 @@ test('things move to another trip or get a fixed amount by hand', async ({ page 
     '1 kg Nudeln (Spaghetti)'
   );
 });
+
+test('ticking off what someone else just ticked off keeps the input until saved again', async ({
+  page,
+  browser,
+}) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Konflikt');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  await menge.fill('1,8');
+
+  // Meanwhile someone else ticks it off
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Einkauf' }).click();
+  const dort = karte(anderes, 'Montag');
+  await dort.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await dort.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  await dort.getByRole('button', { name: 'Abhaken' }).click();
+  await expect(dort.getByRole('status')).toHaveText('1 von 1 abgehakt');
+
+  // The first save is a conflict that names it; the input stays and is saved on request
+  await montag.getByRole('button', { name: 'Abhaken' }).click();
+  await expect(montag.getByText(/hat das inzwischen abgehakt: 2 kg/)).toBeVisible();
+  await expect(menge).toHaveValue('1,8');
+  await montag.getByRole('button', { name: 'Trotzdem speichern' }).click();
+  await expect(montag).toContainText('1,8 kg');
+  await expect(dort).toContainText('1,8 kg', { timeout: 15_000 });
+
+  // Taken back by the other one meanwhile: saving again ticks it off again
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti) (abgehakt)' }).click();
+  await menge.fill('1,5');
+  await dort.getByRole('button', { name: 'Nudeln (Spaghetti) (abgehakt)' }).click();
+  await dort.getByRole('button', { name: 'Häkchen aufheben' }).click();
+  await expect(dort.getByRole('status')).toHaveText('0 von 1 abgehakt');
+  await montag.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(montag.getByText(/inzwischen aufgehoben/)).toBeVisible();
+  await expect(menge).toHaveValue('1,5');
+  await montag.getByRole('button', { name: 'Trotzdem speichern' }).click();
+  await expect(montag.getByRole('status')).toHaveText('1 von 1 abgehakt');
+  await expect(montag).toContainText('1,5 kg');
+  await anderes.context().close();
+});
+
+test('a trip being added keeps its draft through maintenance', async ({ page }) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Wartung');
+  await page.getByRole('button', { name: 'Einkauf anlegen' }).click();
+  const form = page.getByRole('form', { name: 'Neuer Einkauf' });
+  const name = form.getByLabel('Name des Einkaufs');
+  await name.fill('Metro Freitag');
+  const wartung = async (an: boolean): Promise<void> => {
+    await page.unroute('**/api/essensplanung/planung/stand?*');
+    await page.route('**/api/essensplanung/planung/stand?*', async (route) => {
+      const url = route
+        .request()
+        .url()
+        .replace(/seit=[^&]*/, 'seit=0');
+      const antwort = await route.fetch({ url });
+      const json = await antwort.json();
+      if (json.ansicht) json.ansicht.wartung = an;
+      await route.fulfill({ response: antwort, json });
+    });
+  };
+  await wartung(true);
+  await expect(name).toBeDisabled({ timeout: 15_000 });
+  await expect(name).toHaveValue('Metro Freitag');
+  await expect(form.getByRole('button', { name: 'Einkauf anlegen' })).toBeDisabled();
+  await wartung(false);
+  await expect(name).toBeEnabled({ timeout: 15_000 });
+  await page.unroute('**/api/essensplanung/planung/stand?*');
+  await form.getByRole('button', { name: 'Einkauf anlegen' }).click();
+  await expect(page.getByText('Metro Freitag angelegt.').first()).toBeVisible();
+});

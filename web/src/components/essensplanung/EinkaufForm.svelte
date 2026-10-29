@@ -14,8 +14,10 @@
     /** The trip to change; null adds one. */
     einkauf: Einkauf | null;
     onfertig: () => void;
+    /** Read-only for a while (maintenance): the fields keep what is typed, saving waits. */
+    gesperrt?: boolean;
   }
-  let { kontext, einkauf, onfertig }: Props = $props();
+  let { kontext, einkauf, onfertig, gesperrt = false }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
   const prefix = $derived(`einkauf-${einkauf?.id ?? 'neu'}`);
 
@@ -47,7 +49,7 @@
 
   async function speichern(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (speichert) return;
+    if (speichert || gesperrt) return;
     felder = {};
     fehler = null;
     if (!name.trim()) {
@@ -96,7 +98,7 @@
   onsubmit={speichern}
   oninput={() => (geaendert = true)}
 >
-  <div class="grid gap-3 sm:grid-cols-2">
+  <fieldset class="grid gap-3 sm:grid-cols-2" disabled={gesperrt}>
     <FormField id="{prefix}-name" label="Name des Einkaufs" error={felder.name}>
       {#snippet children(attrs)}
         <input
@@ -139,10 +141,10 @@
         </select>
       {/snippet}
     </FormField>
-  </div>
+  </fieldset>
   {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
   <div class="flex flex-wrap gap-2">
-    <ActionButton type="submit" variant="primary" disabled={speichert || kontext.busy}
+    <ActionButton type="submit" variant="primary" disabled={speichert || gesperrt || kontext.busy}
       >{einkauf ? 'Speichern' : 'Einkauf anlegen'}</ActionButton
     >
     <ActionButton
