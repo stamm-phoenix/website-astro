@@ -109,3 +109,53 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await page.getByRole('tab', { name: 'Einkauf' }).click();
   await expect(page.getByText('Noch nichts zu kaufen.')).toBeVisible();
 });
+
+test('amounts typed to tick off a dish stay through maintenance', async ({ page }) => {
+  await anlegen(page, 'E2E Kochen Wartung');
+  const dialog = page.getByRole('dialog');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Nudeln');
+  await page.getByLabel('Personen', { exact: true }).fill('4');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Nudeln angelegt.').first()).toBeVisible();
+  const nudeln = page.locator('li', { has: page.getByText('Nudeln', { exact: true }) }).first();
+  const zutat = nudeln.getByLabel('Neue Zutat für Nudeln');
+  await zutat.pressSequentially('Nudeln (Spag');
+  await zutat.press('Enter');
+  await nudeln.getByLabel('Menge der neuen Zutat').fill('500');
+  await nudeln.getByLabel('Menge der neuen Zutat').press('Enter');
+  await expect(nudeln.getByLabel('Menge von Nudeln (Spaghetti)')).toHaveValue('500');
+  await page.getByRole('tab', { name: 'Plan' }).click();
+  await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
+  await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Nudeln' });
+  await dialog.getByRole('button', { name: 'Einplanen' }).click();
+  await expect(dialog).toBeHidden();
+
+  const wartung = async (an: boolean): Promise<void> => {
+    await page.unroute('**/api/essensplanung/planung/stand?*');
+    await page.route('**/api/essensplanung/planung/stand?*', async (route) => {
+      const url = route
+        .request()
+        .url()
+        .replace(/seit=[^&]*/, 'seit=0');
+      const antwort = await route.fetch({ url });
+      const json = await antwort.json();
+      if (json.ansicht) json.ansicht.wartung = an;
+      await route.fulfill({ response: antwort, json });
+    });
+  };
+  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  const verbrauch = page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_2_1');
+  await verbrauch.fill('0,3');
+  await wartung(true);
+  await expect(page.getByRole('button', { name: 'Gekocht', exact: true })).toBeDisabled({
+    timeout: 15_000,
+  });
+  await expect(verbrauch).toHaveValue('0,3');
+  await wartung(false);
+  await expect(page.getByRole('button', { name: 'Gekocht', exact: true })).toBeEnabled({
+    timeout: 15_000,
+  });
+  await expect(verbrauch).toHaveValue('0,3');
+  await page.unroute('**/api/essensplanung/planung/stand?*');
+});
