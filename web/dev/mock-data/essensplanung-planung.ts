@@ -31,6 +31,7 @@ import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilneh
 import { essenKatalogStand } from './essensplanung';
 import {
   gruppenAusVorlage,
+  pruefeAnwesenheit,
   sortiereTeilnehmende,
   verschiebeGrenzen,
 } from './essensplanung-teilnehmende';
@@ -566,7 +567,14 @@ export function tagAendern(
   }
   aendere(z, datum ? 'tag-geaendert' : 'tag-geloescht', { datum: datum ?? tag.datum }, () => {
     if (datum) {
+      const vorher = tag.datum;
       tag.datum = datum;
+      try {
+        pruefeAnwesenheit(z.planung);
+      } catch (error: unknown) {
+        tag.datum = vorher;
+        throw error;
+      }
       tag.etag = etag();
     } else {
       verschiebeGrenzen(
@@ -637,10 +645,21 @@ export function mahlzeitAendern(
     return;
   }
   aendere(z, 'mahlzeit-geaendert', { name: input.name, datum: tag.datum }, () => {
+    if (input.position !== undefined) {
+      const vorher = new Map(
+        tag.mahlzeiten.map((m) => [m, { position: m.position, etag: m.etag }])
+      );
+      sortiere(tag, mahlzeit, input.position);
+      try {
+        pruefeAnwesenheit(z.planung);
+      } catch (error: unknown) {
+        for (const [m, alt] of vorher) Object.assign(m, alt);
+        throw error;
+      }
+    }
     mahlzeit.name = input.name;
     mahlzeit.uhrzeit = input.uhrzeit;
     mahlzeit.etag = etag();
-    if (input.position !== undefined) sortiere(tag, mahlzeit, input.position);
   });
 }
 

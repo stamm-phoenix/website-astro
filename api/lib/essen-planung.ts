@@ -45,7 +45,8 @@ import { darfPlanungAnlegen } from './essen-validation';
 import { deletePlanung } from './essen-planung-loeschen';
 import { ladeGerichte, ladeKatalogStand } from './essen-gerichte';
 import { ladeEinplanungen } from './essen-einplanung';
-import { ladeTeilnehmende, verschiebeGrenzen } from './essen-teilnehmende';
+import { ladeTeilnehmende } from './essen-teilnehmende';
+import { pruefeAnwesenheit, verschiebeGrenzen } from './essen-teilnehmende-grenzen';
 import { ValidationError } from './validation/errors';
 
 /**
@@ -1002,6 +1003,7 @@ export async function tagVerschieben(
       .where('version', '=', requireVersion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
+    await pruefeAnwesenheit(trx, zugang.planungId);
     return { result: undefined, details: { datum, vorher: toDateString(tag.datum) } };
   });
 }
@@ -1125,8 +1127,10 @@ export async function mahlzeitAendern(
       .where('version', '=', requireVersion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
-    if (input.position !== undefined)
+    if (input.position !== undefined) {
       await sortiere(trx, mahlzeit.tag_id, mahlzeitId, input.position);
+      await pruefeAnwesenheit(trx, zugang.planungId);
+    }
     return {
       result: undefined,
       details: {

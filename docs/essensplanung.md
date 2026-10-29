@@ -149,7 +149,8 @@ Umgesetzt (PR 5a):
 - Eine neue Planung bekommt die Gruppen aus `vorlage_gruppen` der Steuerung; Planungen von vor der Migration `0058` bekommen sie dort. Gruppen haben einen eindeutigen Namen (bis 50 Zeichen) und einen Faktor von 0,01 bis 5; höchstens 20 je Planung. Eine Gruppe mit Teilnehmenden lässt sich nicht löschen.
 - Eine Zeile hat Gruppe, Ernährung, Unverträglichkeiten, Anzahl (1 bis 2000), optional „ab“ und „bis“ Mahlzeit (leer: erste bzw. letzte) und einen Hinweis; höchstens 300 Zeilen je Planung.
 - „Wer isst mit?“ an jeder Mahlzeit schaltet Gruppen ab (`mahlzeit_ohne_gruppe`), die Mahlzeit zeigt dann „ohne …“.
-- Wird eine Mahlzeit oder ein Tag gelöscht, an dem eine Zeile beginnt oder endet, rückt die Grenze auf die nächste verbleibende Mahlzeit (Beginn) bzw. die vorige (Ende). Gibt es keine mehr, bleibt die gelöschte Mahlzeit stehen und die Zeile isst nirgends mit; der Dialog zeigt sie als „Gelöscht“.
+- Wird eine Mahlzeit oder ein Tag gelöscht, an dem eine Zeile beginnt oder endet, rückt die Grenze auf die nächste verbleibende Mahlzeit (Beginn) bzw. die vorige (Ende). Gibt es keine mehr, bleibt die gelöschte Mahlzeit stehen und die Zeile isst nirgends mit; der Dialog zeigt sie als „Gelöscht“. Liegt der ganze Aufenthalt auf gelöschten Mahlzeiten, bleiben ebenfalls die gelöschten stehen (`api/lib/essen-teilnehmende-grenzen.ts`).
+- Verschieben einer Mahlzeit oder eines Tages wird abgelehnt, wenn danach bei einer Zeile das Ende vor dem Beginn läge (`pruefeAnwesenheit`, Feld `anwesenheit`); die Seite nennt Gruppe und Anzahl.
 - Die Tabelle „Esser je Mahlzeit“ rechnet `esserJeMahlzeit` (`api/lib/essen-teilnehmende-model.ts`): Personen, Portionen (Personen × Faktor der Gruppe) und Personen je Ernährung. Die Berechnung der Mengen nutzt dieselbe Funktion (PR 5b).
 
 ## Berechnung

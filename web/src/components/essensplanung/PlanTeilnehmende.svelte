@@ -33,6 +33,8 @@
     try {
       katalog = await kontext.api.katalog();
     } catch (error: unknown) {
+      // Not loaded: the next view or the button tries again
+      geladen = null;
       katalogFehler = errorMessage(error, 'Die Liste der Unverträglichkeiten fehlt.');
     }
   }
@@ -315,6 +317,8 @@
 <TeilnehmendeDialog
   {kontext}
   {katalog}
+  {katalogFehler}
+  onkatalog={() => void katalogLaden()}
   zeileId={zeileDialog}
   onclose={() => (zeileDialog = undefined)}
 />

@@ -20,11 +20,15 @@
   interface Props {
     kontext: PlanKontext;
     katalog: EssenKatalog | null;
+    /** Why the list of intolerances did not load. */
+    katalogFehler: string | null;
+    /** Loads the list again. */
+    onkatalog: () => void;
     /** The row to change; null adds one; undefined: closed. */
     zeileId: number | null | undefined;
     onclose: () => void;
   }
-  let { kontext, katalog, zeileId, onclose }: Props = $props();
+  let { kontext, katalog, katalogFehler, onkatalog, zeileId, onclose }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
 
   let gruppeId = $state<number | null>(null);
@@ -211,6 +215,13 @@
               </label>
             {/each}
           </div>
+        {:else if katalogFehler}
+          <p class="text-sm text-danger" role="alert">
+            {katalogFehler}
+            <button type="button" class="min-h-11 font-semibold underline" onclick={onkatalog}
+              >Noch einmal versuchen</button
+            >
+          </p>
         {:else}
           <p class="text-sm text-neutral-700">Die Liste wird geladen …</p>
         {/if}

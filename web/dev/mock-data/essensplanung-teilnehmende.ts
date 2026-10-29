@@ -199,3 +199,21 @@ export function verschiebeGrenzen(planung: MockPlanung, weg: number[]): void {
     Object.assign(zeile, { vonMahlzeitId: von, bisMahlzeitId: bis, etag: neuesEtag() });
   }
 }
+
+/** Like `pruefeAnwesenheit`: after reordering, no row may end before it starts. */
+export function pruefeAnwesenheit(planung: MockPlanung): void {
+  const ids = reihe(planung);
+  const verdreht = planung.teilnehmende.find((zeile) => {
+    if (zeile.vonMahlzeitId === null || zeile.bisMahlzeitId === null) return false;
+    const von = ids.indexOf(zeile.vonMahlzeitId);
+    const bis = ids.indexOf(zeile.bisMahlzeitId);
+    return von >= 0 && bis >= 0 && von > bis;
+  });
+  if (verdreht) {
+    const name = planung.gruppen.find((g) => g.id === verdreht.gruppeId)?.name ?? '';
+    throw feld(
+      'anwesenheit',
+      `Dann wären ${verdreht.anzahl} ${name} erst nach ihrem Ende da. Ändere zuerst unter Teilnehmende, ab und bis wann sie mitessen.`
+    );
+  }
+}

@@ -10,6 +10,8 @@ async function esser(page: Page, kennung: string): Promise<string[]> {
 }
 
 test('groups and participants give the eaters per meal', async ({ page }) => {
+  // Many steps with two reloads: more than the usual time
+  test.slow();
   await anlegen(page, 'E2E Teilnehmende');
   await page.getByRole('tab', { name: 'Teilnehmende' }).click();
   const dialog = page.getByRole('dialog');
@@ -58,7 +60,24 @@ test('groups and participants give the eaters per meal', async ({ page }) => {
   await page.reload();
   await page.getByRole('tab', { name: 'Teilnehmende' }).click();
   await expect(pfadis).toContainText('Unverträglichkeiten: 1 (Liste nicht geladen)');
+  // The dialog says so too and loads the list again on request
+  await pfadis.getByRole('button', { name: '4 Pfadi vegetarisch ändern' }).click();
+  await expect(dialog.getByRole('alert')).toBeVisible();
   await page.unroute('**/api/essensplanung/planung/katalog');
+  await dialog.getByRole('button', { name: 'Noch einmal versuchen' }).click();
+  await expect(dialog.getByLabel('Gluten')).toBeChecked();
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(dialog).toBeHidden();
+
+  // Moving day 1 behind day 2 would end the Pfadis before they start: refused, and said why
+  await page.getByRole('tab', { name: 'Plan' }).click();
+  await page.getByLabel('Datum von Tag 1').fill('2027-08-03');
+  await expect(
+    page.getByText('Dann wären 4 Pfadi erst nach ihrem Ende da.', { exact: false }).first()
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: /^Tag 1 · So\., 1\.8\./ })).toBeVisible();
+  await page.getByRole('tab', { name: 'Teilnehmende' }).click();
 
   expect(await esser(page, '1_1')).toEqual(['10', '7', '10', '0', '0']);
   expect(await esser(page, '1_2')).toEqual(['14', '11', '10', '4', '0']);

@@ -129,11 +129,14 @@
       if (error instanceof ApiError && error.code === 'LINK_UNGUELTIG') ungueltig = true;
       if (!ungueltig && error instanceof ApiError && [404, 409].includes(error.status))
         await laden();
+      // A move that would let participants end before they start says which ones
+      const anwesenheit = error instanceof ApiError ? error.fields?.anwesenheit : undefined;
       hinweis(
-        errorMessage(
-          error,
-          'Das hat nicht geklappt. Prüfe deine Internetverbindung und versuche es noch einmal.'
-        ),
+        anwesenheit ??
+          errorMessage(
+            error,
+            'Das hat nicht geklappt. Prüfe deine Internetverbindung und versuche es noch einmal.'
+          ),
         'error'
       );
       return false;
