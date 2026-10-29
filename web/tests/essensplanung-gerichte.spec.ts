@@ -506,3 +506,68 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
     timeout: 20_000,
   });
 });
+
+test('typed input survives a slow save, removing and a read-only phase', async ({ page }) => {
+  test.slow();
+  await anlegen(page, 'E2E Zeilen sicher');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Gulasch');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
+  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
+  const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
+  await zutat.pressSequentially('Hackfl');
+  await zutat.press('Enter');
+  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
+  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+  const menge = gericht.getByLabel('Menge von Hackfleisch');
+  await expect(menge).toHaveValue('500');
+
+  // Typed on while a save runs: the later input is saved after it, not reset by its answer
+  await page.route('**/api/essensplanung/planung/gericht-zutaten/*', async (route) => {
+    await new Promise((done) => setTimeout(done, 1500));
+    await route.continue();
+  });
+  await menge.fill('750');
+  await menge.press('Enter');
+  await menge.fill('900');
+  await page.getByRole('heading', { name: 'E2E Zeilen sicher' }).click();
+  await expect(menge).toHaveValue('900');
+  await page.waitForTimeout(4000);
+  await page.unroute('**/api/essensplanung/planung/gericht-zutaten/*');
+  await expect(gericht.getByRole('alert')).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByText('Gulasch', { exact: true }).click();
+  await expect(menge).toHaveValue('900');
+
+  // A read-only phase, e.g. maintenance, keeps a started new line
+  const wartung = async (an: boolean): Promise<void> => {
+    await page.unroute('**/api/essensplanung/planung/stand?*');
+    await page.route('**/api/essensplanung/planung/stand?*', async (route) => {
+      const url = route
+        .request()
+        .url()
+        .replace(/seit=[^&]*/, 'seit=0');
+      const antwort = await route.fetch({ url });
+      const json = await antwort.json();
+      if (json.ansicht) json.ansicht.wartung = an;
+      await route.fulfill({ response: antwort, json });
+    });
+  };
+  await zutat.pressSequentially('Zwieb');
+  await gericht.getByLabel('Hinweis zur neuen Zutat').fill('rot');
+  await wartung(true);
+  await expect(zutat).toHaveCount(0, { timeout: 15_000 });
+  await wartung(false);
+  await expect(zutat).toHaveValue('Zwieb', { timeout: 15_000 });
+  await expect(gericht.getByLabel('Hinweis zur neuen Zutat')).toHaveValue('rot');
+  await page.unroute('**/api/essensplanung/planung/stand?*');
+
+  // Removing right after typing removes without a conflict of its own save
+  await menge.fill('1000');
+  await gericht.getByRole('button', { name: 'Hackfleisch entfernen' }).click();
+  await answerConfirm(page, 'Hackfleisch entfernen?', 'Entfernen');
+  await expect(page.getByText('Hackfleisch entfernt.').first()).toBeVisible();
+  await expect(menge).toHaveCount(0);
+});

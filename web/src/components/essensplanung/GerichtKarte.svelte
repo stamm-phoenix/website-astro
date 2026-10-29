@@ -10,10 +10,14 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { zeileBody } from '../../lib/essensplanungGerichte';
   import { plaetzeVon } from '../../lib/essensplanungEinplanung';
-  import { gerichtStand, gerichtWarnungen } from '../../../../api/lib/essen-gerichte-model';
+  import {
+    einheitText,
+    gerichtStand,
+    gerichtWarnungen,
+  } from '../../../../api/lib/essen-gerichte-model';
   import type { EssenKatalog, Gericht, GerichtLink, GerichtZutat } from '../../lib/types';
   import GerichtPlaetze from './GerichtPlaetze.svelte';
-  import NeueZutatZeile from './NeueZutatZeile.svelte';
+  import NeueZutatZeile, { angefangen, leereZeile } from './NeueZutatZeile.svelte';
   import ZutatZeileInline from './ZutatZeileInline.svelte';
   import GerichtZeileDialog, { type ZeilenVorgabe } from './GerichtZeileDialog.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
@@ -85,16 +89,27 @@
     });
   });
   $effect(() => guardUnsavedChanges(() => entwurf));
+  /** The new row of ingredients; kept here, so a read-only phase does not lose it. */
+  let neueZeile = $state(leereZeile());
+  $effect(() => guardUnsavedChanges(() => angefangen(neueZeile)));
 
   /** Set when this page deletes the dish itself, which needs no word about lost input. */
   let selbstGeloescht = false;
   // Someone else deleted the dish: the card goes, so the unsaved fields are shown to copy
   $effect(() => () => {
-    if (selbstGeloescht || !entwurf) return;
+    if (selbstGeloescht || (!entwurf && !angefangen(neueZeile))) return;
+    const neu = neueZeile;
     const eingaben = (Object.keys(kopf) as (keyof Kopf)[])
       .filter((feld) => !gleich(kopf[feld], basis[feld]))
       .map((feld) => `${FELD_NAMEN[feld]}: ${textVon(kopf[feld])}`)
       .concat(werkzeugEntwurf.trim() ? [`${FELD_NAMEN.werkzeuge}: ${werkzeugEntwurf.trim()}`] : [])
+      .concat(
+        angefangen(neu)
+          ? [
+              `Neue Zutat: ${[neu.name.trim(), neu.menge.trim() && `${neu.menge.trim()} ${einheitText(neu.einheit)}`, neu.hinweis.trim()].filter(Boolean).join(', ')}`,
+            ]
+          : []
+      )
       .join(' · ');
     meldeVerloren(
       kontext,
@@ -284,6 +299,7 @@
         {kontext}
         {katalog}
         {gericht}
+        bind:eingabe={neueZeile}
         onmehr={(vorgabe) => (dialog = { zeile: null, vorgabe })}
       />
     {/if}

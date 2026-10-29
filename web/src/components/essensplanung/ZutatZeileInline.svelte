@@ -104,8 +104,21 @@
     });
   });
 
+  /** The save that runs; a further one waits for it and then starts from its result. */
+  let lauf: Promise<boolean> | null = null;
+
   /** Saves typed changes; whether the row is saved afterwards. */
   async function speichern(): Promise<boolean> {
+    while (lauf) await lauf;
+    lauf = speichernJetzt();
+    try {
+      return await lauf;
+    } finally {
+      lauf = null;
+    }
+  }
+
+  async function speichernJetzt(): Promise<boolean> {
     fehler = null;
     if (!geaendert) {
       // A change of others that came in while the row had focus shows now
@@ -134,23 +147,29 @@
     entwurf = true;
     // Taken now with the version checked above: changes wait in a queue, and a version that
     // comes in meanwhile must make this one a conflict instead of overwriting it
+    const gesendet = { menge: menge.trim(), einheit, hinweis: hinweis.trim() };
     const body = {
       ...zeileBody(zeile),
       menge: zahl,
       einheit: zahl === null ? null : einheit,
       fest: zahl !== null && zeile.fest,
-      hinweis: hinweis.trim(),
+      hinweis: gesendet.hinweis,
     };
     const ok = await kontext.aendern(() =>
       kontext.api.senden('PATCH', `/gericht-zutaten/${zeile.id}`, body)
     );
     entwurf = false;
     if (ok) {
-      if (!fokus) uebernehme(zeile);
+      // Typed on while it saved: that input stays and counts as changed against the saved state
+      const weitergetippt =
+        menge.trim() !== gesendet.menge ||
+        hinweis.trim() !== gesendet.hinweis ||
+        einheit !== gesendet.einheit;
+      if (!fokus && !weitergetippt) uebernehme(zeile);
       else
         basis = {
           menge: mengeFeld(zeile.menge),
-          einheit: zeile.einheit ?? einheit,
+          einheit: zeile.einheit ?? gesendet.einheit,
           hinweis: zeile.hinweis,
         };
     } else fehler = kontext.fehler;
@@ -165,6 +184,17 @@
 
   /** Set when this page removes the line itself, which needs no word about lost input. */
   let selbstEntfernt = false;
+
+  /**
+   * Typed changes are saved first, so removing asks with the saved version and moving the focus
+   * to the question starts no save of its own.
+   */
+  async function entfernen(): Promise<void> {
+    if (geaendert && !(await speichern())) return;
+    selbstEntfernt = true;
+    onloeschen();
+  }
+
   // Someone else removed the line: the row goes, so the unsaved input is shown to copy
   $effect(() => () => {
     if (selbstEntfernt || !geaendert) return;
@@ -269,10 +299,7 @@
           variant="danger"
           aria-label="{name} entfernen"
           disabled={kontext.busy}
-          onclick={() => {
-            selbstEntfernt = true;
-            onloeschen();
-          }}>✕</ActionButton
+          onclick={() => void entfernen()}>✕</ActionButton
         >
       </div>
     </div>

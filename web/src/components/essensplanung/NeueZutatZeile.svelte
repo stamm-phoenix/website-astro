@@ -1,8 +1,30 @@
+<script lang="ts" module>
+  import type { GerichtEinheit as Einheit } from '../../lib/types';
+
+  /**
+   * What is typed in the new row. Kept by the card, so it outlives the row while the page is
+   * read-only for a while, e.g. in maintenance.
+   */
+  export interface NeueZeile {
+    name: string;
+    menge: string;
+    einheit: Einheit;
+    hinweis: string;
+  }
+
+  export function leereZeile(): NeueZeile {
+    return { name: '', menge: '', einheit: 'g', hinweis: '' };
+  }
+
+  export function angefangen(zeile: NeueZeile): boolean {
+    return zeile.name.trim() !== '' || zeile.menge.trim() !== '' || zeile.hinweis.trim() !== '';
+  }
+</script>
+
 <script lang="ts">
   import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
-  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
     getippteZutat,
     leseMenge,
@@ -13,7 +35,7 @@
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { EssenKatalog, Gericht, GerichtEinheit } from '../../lib/types';
   import type { Vorschlag } from '../../lib/vorschlaege';
-  import { meldeVerloren, type PlanKontext } from './planKontext';
+  import type { PlanKontext } from './planKontext';
   import type { ZeilenVorgabe } from './GerichtZeileDialog.svelte';
 
   /**
@@ -26,23 +48,26 @@
     kontext: PlanKontext;
     katalog: EssenKatalog;
     gericht: Gericht;
+    /** What is typed; the card keeps it and guards it against leaving the page. */
+    eingabe: NeueZeile;
     /** Opens the dialog for a new line with what was typed. */
     onmehr: (vorgabe: ZeilenVorgabe) => void;
   }
-  let { kontext, katalog, gericht, onmehr }: Props = $props();
+  let { kontext, katalog, gericht, eingabe = $bindable(), onmehr }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
 
-  let zutatText = $state('');
-  let auswahl = $state<ZutatWahl | null>(null);
-  let menge = $state('');
-  let einheit = $state<GerichtEinheit>('g');
-  let hinweis = $state('');
   let fehler = $state<string | null>(null);
   let speichert = $state(false);
   let zutatFeld = $state<HTMLInputElement | null>(null);
 
   const vorschlaege = $derived(zutatVorschlaege(katalog, ansicht.zutaten));
-  const einheiten = $derived.by((): readonly GerichtEinheit[] => {
+  // A name typed before the row went away counts as chosen again
+  let auswahl = $state<ZutatWahl | null>(null);
+  $effect.pre(() => {
+    const treffer = eingabe.name ? getippteZutat(vorschlaege, eingabe.name) : undefined;
+    if (treffer && !auswahl) auswahl = zutatWahl(treffer);
+  });
+  const passend = $derived.by((): readonly GerichtEinheit[] => {
     if (!auswahl) return [];
     const id = auswahl.id;
     const art =
@@ -51,41 +76,28 @@
         : katalog.zutaten.find((z) => z.id === id)?.einheitenart;
     return art ? EINHEITEN_JE_ART[art] : [];
   });
-  // The unit follows the chosen ingredient, e.g. g for flour, Stück for eggs
-  $effect(() => {
-    if (einheiten.length && !einheiten.includes(einheit)) einheit = einheiten[0];
-  });
-  const ohneTreffer = $derived(!auswahl && zutatText.trim().length > 1);
-  const angefangen = $derived(
-    zutatText.trim() !== '' || menge.trim() !== '' || hinweis.trim() !== ''
+  /** A unit no longer fitting stays choosable, so a typed amount does not change its meaning. */
+  const einheiten = $derived(
+    passend.length && eingabe.menge.trim() && !passend.includes(eingabe.einheit)
+      ? [...passend, eingabe.einheit]
+      : passend
   );
-  $effect(() => guardUnsavedChanges(() => angefangen));
-  // Someone else deleted the dish: the row goes, so the unsaved input is shown to copy
-  $effect(() => () => {
-    if (!angefangen) return;
-    const id = gericht.id;
-    const eingabe = [
-      zutatText.trim(),
-      menge.trim() ? `${menge.trim()} ${einheitText(einheit)}` : '',
-      hinweis.trim(),
-    ]
-      .filter(Boolean)
-      .join(', ');
-    const text = `Neue Zeile für „${gericht.name}“: ${eingabe}.`;
-    // Checked after the update, as during it the view may still be the old one
-    setTimeout(() => {
-      if (!kontext.ansicht.gerichte.some((g) => g.id === id)) meldeVerloren(kontext, text);
-    });
+  const unpassend = $derived(passend.length > 0 && !passend.includes(eingabe.einheit));
+  // Without an amount the unit follows the ingredient, e.g. g for flour, Stück for eggs
+  $effect(() => {
+    if (!eingabe.menge.trim() && unpassend) eingabe.einheit = passend[0];
   });
-
+  const ohneTreffer = $derived(!auswahl && eingabe.name.trim().length > 1);
+  /** Picking an ingredient picks a fitting unit, as nothing typed is reinterpreted by it. */
   function nimm(option: Vorschlag): void {
     auswahl = zutatWahl(option);
     fehler = null;
+    if (passend.length && !passend.includes(eingabe.einheit)) eingabe.einheit = passend[0];
   }
 
   function waehle(option: Vorschlag): void {
+    eingabe.name = option.value;
     nimm(option);
-    zutatText = option.value;
   }
 
   /** A typed name of the list counts as chosen; the text stays as typed. */
@@ -98,10 +110,10 @@
   async function hinzufuegen(): Promise<void> {
     if (speichert) return;
     fehler = null;
-    const zahl = leseMenge(menge);
+    const zahl = leseMenge(eingabe.menge);
     if (!auswahl) {
-      fehler = zutatText.trim()
-        ? `„${zutatText.trim()}“ steht nicht in der Liste. Lege sie über „Mehr Angaben …“ als eigene Zutat an.`
+      fehler = eingabe.name.trim()
+        ? `„${eingabe.name.trim()}“ steht nicht in der Liste. Lege sie über „Mehr Angaben …“ als eigene Zutat an.`
         : 'Bitte eine Zutat aus der Liste wählen.';
       return;
     }
@@ -109,8 +121,13 @@
       fehler = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
       return;
     }
+    if (zahl !== null && unpassend) {
+      fehler = `${einheitText(eingabe.einheit)} passt nicht mehr zu ${eingabe.name.trim()}. Bitte wähle eine andere Einheit.`;
+      return;
+    }
     const ziel = auswahl;
-    const name = zutatText.trim();
+    const name = eingabe.name.trim();
+    const { einheit, hinweis } = eingabe;
     speichert = true;
     const ok = await kontext.aendern(
       () =>
@@ -134,10 +151,8 @@
       return;
     }
     // The next line starts right away, as in a sheet
-    zutatText = '';
+    eingabe = leereZeile();
     auswahl = null;
-    menge = '';
-    hinweis = '';
     // The field is enabled again only after the update
     await tick();
     zutatFeld?.focus();
@@ -163,7 +178,7 @@
       id="gericht-{gericht.id}-neu-zutat"
       wrapperClass="col-span-3 sm:col-span-1"
       options={vorschlaege}
-      bind:value={zutatText}
+      bind:value={eingabe.name}
       bind:input={zutatFeld}
       listLabel="Zutaten"
       placeholder="Neue Zutat, z. B. Nudeln"
@@ -179,14 +194,14 @@
       inputmode="decimal"
       placeholder="Menge"
       disabled={speichert}
-      bind:value={menge}
+      bind:value={eingabe.menge}
       onkeydown={taste}
     />
     <label class="sr-only" for="gericht-{gericht.id}-neu-einheit">Einheit der neuen Zutat</label>
     <select
       id="gericht-{gericht.id}-neu-einheit"
       class="form-input"
-      bind:value={einheit}
+      bind:value={eingabe.einheit}
       disabled={speichert || !einheiten.length}
       onkeydown={taste}
     >
@@ -201,7 +216,7 @@
       maxlength="100"
       placeholder="Hinweis"
       disabled={speichert}
-      bind:value={hinweis}
+      bind:value={eingabe.hinweis}
       onkeydown={taste}
     />
     <div class="col-span-3 flex flex-wrap gap-1 sm:col-span-1">
@@ -217,15 +232,13 @@
         disabled={speichert}
         onclick={() => {
           const vorgabe = {
-            name: zutatText.trim(),
-            menge: menge.trim(),
-            einheit: einheiten.length ? einheit : null,
-            hinweis: hinweis.trim(),
+            name: eingabe.name.trim(),
+            menge: eingabe.menge.trim(),
+            einheit: einheiten.length ? eingabe.einheit : null,
+            hinweis: eingabe.hinweis.trim(),
           };
-          zutatText = '';
+          eingabe = leereZeile();
           auswahl = null;
-          menge = '';
-          hinweis = '';
           onmehr(vorgabe);
         }}>Mehr Angaben …</ActionButton
       >
@@ -235,8 +248,8 @@
     <p class="text-sm text-danger" role="alert">{fehler}</p>
   {:else if ohneTreffer}
     <p class="text-sm text-neutral-700">
-      „{zutatText.trim()}“ steht nicht in der Liste. Über „Mehr Angaben …“ legst du sie als eigene
-      Zutat an.
+      „{eingabe.name.trim()}“ steht nicht in der Liste. Über „Mehr Angaben …“ legst du sie als
+      eigene Zutat an.
     </p>
   {/if}
 </div>
