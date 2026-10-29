@@ -23,8 +23,20 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
   await dialog.getByLabel('vegan', { exact: true }).uncheck();
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(chili.getByText('400 g')).toBeVisible();
+  // Two lines of oil: 40 ml in the pot, 40 ml for a gluten-free pot of its own
+  for (const art of ['nicht dafür', 'nur dafür (Ersatz)']) {
+    await chili.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+    await dialog.getByLabel('Zutat', { exact: true }).fill('Sonnenblumen');
+    await dialog.getByRole('option', { name: 'Sonnenblumenöl' }).click();
+    await dialog.getByLabel('Menge', { exact: true }).fill('40');
+    await dialog.getByLabel('Einheit', { exact: true }).selectOption('ml');
+    await dialog.getByText('Unverträglichkeiten').click();
+    await dialog.getByLabel('Gluten', { exact: true }).selectOption({ label: art });
+    await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+    await expect(dialog).toBeHidden();
+  }
 
-  // 10 Pfadis with everything, 5 vegetarian Rover (factor 1,2)
+  // 10 Pfadis with everything, 5 vegetarian Rover (factor 1,2) who cannot eat gluten
   await page.getByRole('tab', { name: 'Teilnehmende' }).click();
   for (const [gruppe, anzahl, ernaehrung] of [
     ['Pfadi', '10', 'alles'],
@@ -34,6 +46,7 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
     await dialog.getByLabel('Gruppe', { exact: true }).selectOption({ label: gruppe });
     await dialog.getByLabel('Anzahl').fill(anzahl);
     await dialog.getByLabel('Ernährung').selectOption(ernaehrung);
+    if (gruppe === 'Rover') await dialog.getByLabel('Gluten').check();
     await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
     await expect(dialog).toBeHidden();
   }
@@ -46,7 +59,10 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
   await expect(page.getByText('Chili eingeplant.').first()).toBeVisible();
   await page.locator('summary', { hasText: 'Mengen für 16 Portionen' }).first().click();
   const mengen = page.getByRole('list', { name: 'Mengen für Chili bei 1_2' }).first();
-  await expect(mengen).toContainText('1 kg Hackfleisch · für 10 Portionen');
+  await expect(mengen).toContainText('1 kg Hackfleisch · nur mit allem · für 10 Portionen');
+  // The two lines of oil read apart: 40 ml ÷ 4 × 10, and 40 ml ÷ 4 × 6 for the Rover
+  await expect(mengen).toContainText('100 ml Sonnenblumenöl · nicht bei Gluten · für 10 Portionen');
+  await expect(mengen).toContainText('60 ml Sonnenblumenöl · nur bei Gluten · für 6 Portionen');
   await expectNoHorizontalOverflow(page);
 
   // Half of it at dinner

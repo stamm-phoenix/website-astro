@@ -2,6 +2,7 @@
   import { kochMenge, zeilenMenge } from '../../lib/essensplanungRechnung';
   import type { esserRechner } from '../../lib/essensplanungRechnung';
   import { zahlText } from '../../lib/essensplanungTeilnehmende';
+  import { fuerText } from '../../lib/essensplanungGerichte';
   import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
   import type { PlanKontext } from './planKontext';
 
@@ -17,8 +18,16 @@
     /** Name of the dish, for the labels. */
     name: string;
     esser: ReturnType<typeof esserRechner>;
+    /** Names of the intolerances; empty while not loaded. */
+    unvertraeglichkeiten: Map<number, string>;
   }
-  let { kontext, mahlzeit, einplanung, name, esser }: Props = $props();
+  let { kontext, mahlzeit, einplanung, name, esser, unvertraeglichkeiten }: Props = $props();
+
+  /** „Gluten, Ei“; a name not loaded says so, so a line never reads as if for everyone. */
+  const namen = (ids: number[]) =>
+    ids
+      .map((id) => unvertraeglichkeiten.get(id) ?? 'Unverträglichkeit (Name nicht geladen)')
+      .join(', ');
 
   const ALLE = { fuerAlles: true, fuerVegetarisch: true, fuerVegan: true, ohne: [], nur: [] };
 
@@ -31,7 +40,7 @@
     id: number;
     name: string;
     menge: string;
-    /** Only when the line is for fewer than everybody, or fixed. */
+    /** For whom the line is (diet, intolerances), its portions when fewer, or fixed. */
     fuer: string;
     hinweis: string;
   }
@@ -48,11 +57,16 @@
           menge === null || zeile.einheit === null
             ? 'nach Gefühl'
             : kochMenge(menge, zeile.einheit, zutat?.abtropfgewicht),
-        fuer: zeile.fest
-          ? 'feste Menge'
-          : Math.abs(wer - portionen) > 0.005
-            ? `für ${zahlText(wer)} Portionen`
-            : '',
+        // Like the card of the dish, so two lines of one ingredient read apart
+        fuer: [
+          zeile.fest ? 'feste Menge' : '',
+          fuerText(zeile) ?? '',
+          zeile.nur.length ? `nur bei ${namen(zeile.nur)}` : '',
+          zeile.ohne.length ? `nicht bei ${namen(zeile.ohne)}` : '',
+          !zeile.fest && Math.abs(wer - portionen) > 0.005 ? `für ${zahlText(wer)} Portionen` : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
         hinweis: zeile.hinweis,
       };
     })

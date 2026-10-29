@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -15,9 +16,36 @@
 
   interface Props {
     kontext: PlanKontext;
+    /** Whether the area is shown; the central lists load only then. */
+    sichtbar: boolean;
   }
-  let { kontext }: Props = $props();
+  let { kontext, sichtbar }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
+
+  /**
+   * The names of the intolerances, for the amounts of lines „nur bei …“ or „nicht bei …“;
+   * loaded only when a dish has such a line.
+   */
+  let unvertraeglichkeiten = $state(new Map<number, string>());
+  const brauchtNamen = $derived(
+    ansicht.gerichte.some((g) => g.zutaten.some((z) => z.ohne.length || z.nur.length))
+  );
+  /** The `katalogStand` the names were loaded for. */
+  let geladen: string | null = null;
+  async function namenLaden(): Promise<void> {
+    geladen = ansicht.katalogStand;
+    try {
+      const katalog = await kontext.api.katalog();
+      unvertraeglichkeiten = new Map(katalog.unvertraeglichkeiten.map((u) => [u.id, u.name]));
+    } catch {
+      // The amounts then say that the names are missing; the next view tries again
+      geladen = null;
+    }
+  }
+  $effect(() => {
+    if (sichtbar && brauchtNamen && ansicht.katalogStand !== geladen)
+      untrack(() => void namenLaden());
+  });
   const bearbeiten = $derived(ansicht.zugang !== 'lesen' && !ansicht.wartung);
 
   /** The open dialog of planned dishes; it stays when its meal goes, so no input is lost. */
@@ -157,6 +185,7 @@
               letzte={index === tag.mahlzeiten.length - 1}
               oneinplanen={(neu) => (auftrag = neu)}
               ongruppen={(id) => (gruppenMahlzeit = id)}
+              {unvertraeglichkeiten}
             />
           {:else}
             <li class="py-2 text-sm text-neutral-700">Noch keine Mahlzeiten.</li>
