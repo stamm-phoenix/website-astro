@@ -24,9 +24,17 @@
     katalog: EssenKatalog | null;
     gericht: Gericht;
     bearbeiten: boolean;
+    /** True while the card is open in the shown tab. */
+    sichtbar: boolean;
     ondrucken: () => void;
   }
-  let { kontext, katalog, gericht, bearbeiten, ondrucken }: Props = $props();
+  let { kontext, katalog, gericht, bearbeiten, sichtbar, ondrucken }: Props = $props();
+
+  /** The editor loads once the card is first shown and then stays, keeping its state. */
+  let editorGeladen = $state(false);
+  $effect(() => {
+    if (sichtbar) editorGeladen = true;
+  });
   const ansicht = $derived(kontext.ansicht);
   const zutaten = $derived(new Map(ansicht.zutaten.map((zutat) => [zutat.id, zutat])));
   const unvertraeglichkeiten = $derived(
@@ -315,15 +323,17 @@
         error={felder.anleitung}
       >
         {#snippet children(attrs)}
-          <LazyTextEditor
-            id={attrs.id}
-            labelledBy="{attrs.id}-label"
-            describedBy={attrs['aria-describedby']}
-            invalid={attrs['aria-invalid'] === 'true'}
-            placeholder="z. B. Zwiebeln anbraten, dann …"
-            maxLength={20_000}
-            bind:value={kopf.anleitung}
-          />
+          {#if editorGeladen}
+            <LazyTextEditor
+              id={attrs.id}
+              labelledBy="{attrs.id}-label"
+              describedBy={attrs['aria-describedby']}
+              invalid={attrs['aria-invalid'] === 'true'}
+              placeholder="z. B. Zwiebeln anbraten, dann …"
+              maxLength={20_000}
+              bind:value={kopf.anleitung}
+            />
+          {/if}
         {/snippet}
       </FormField>
       <FormField

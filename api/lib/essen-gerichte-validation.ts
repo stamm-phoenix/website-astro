@@ -106,8 +106,8 @@ export function validateGericht(input: unknown, { neu }: { neu: boolean }): Geri
     if (!Array.isArray(value.werkzeuge) || value.werkzeuge.length > MAX_WERKZEUGE) {
       errors.werkzeuge = `Höchstens ${MAX_WERKZEUGE} Werkzeuge.`;
     } else {
-      value.werkzeuge.forEach((item: unknown, index) => {
-        const name = readLine(item, 100, errors, `werkzeuge.${index}`);
+      value.werkzeuge.forEach((item: unknown) => {
+        const name = readLine(item, 100, errors, 'werkzeuge');
         if (name && !werkzeuge.some((w) => w.toLowerCase() === name.toLowerCase()))
           werkzeuge.push(name);
       });

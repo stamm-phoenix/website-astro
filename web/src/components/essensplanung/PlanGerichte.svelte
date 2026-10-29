@@ -14,8 +14,10 @@
 
   interface Props {
     kontext: PlanKontext;
+    /** False while another tab is shown. */
+    sichtbar: boolean;
   }
-  let { kontext }: Props = $props();
+  let { kontext, sichtbar }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
   const bearbeiten = $derived(ansicht.zugang !== 'lesen' && !ansicht.wartung);
 
@@ -168,6 +170,7 @@
                 {katalog}
                 {gericht}
                 {bearbeiten}
+                sichtbar={sichtbar && offen.has(gericht.id)}
                 ondrucken={() => void drucken(gericht.id)}
               />
             </div>

@@ -223,6 +223,14 @@ dbTest('the dish itself changes with its version; tools and links are checked', 
     }
   );
   assert.equal(ungueltig.status, 400);
+  // A too long tool name shows at the field of the tools
+  const zuLang = await call(t, endpoints.EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
+    token,
+    params: { id: String(id) },
+    body: { etag, werkzeuge: ['x'.repeat(101)] },
+  });
+  assert.equal(zuLang.status, 400);
+  assert.ok(json<{ fields: { werkzeuge: string } }>(zuLang).fields.werkzeuge);
   const gespeichert = json<PlanungAnsicht>(
     await call(t, endpoints.EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
       token,
