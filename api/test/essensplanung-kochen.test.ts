@@ -80,6 +80,23 @@ dbTest('planned dishes are ticked off as cooked with what they used, or left out
     verbrauch: [{ planungZutatId: fremd.id, menge: 1, einheit: 'kg' }],
   });
   assert.equal(falsch.status, 400);
+  // Salt is measured by weight; pieces would leave the kilogram in stock untouched
+  const stueck = await abhaken(t, token, geplant.id, {
+    etag: nachher.etag,
+    status: 'gekocht',
+    verbrauch: [{ planungZutatId: zutat.id, menge: 1, einheit: 'stueck' }],
+  });
+  assert.equal(stueck.status, 400);
+  assert.match(json<{ fields: Record<string, string> }>(stueck).fields.verbrauch, /Salz/);
+  const unveraendert = await getDb()
+    .selectFrom('essen.einplanung_verbrauch')
+    .select(['menge', 'einheit'])
+    .where('einplanung_id', '=', geplant.id)
+    .execute();
+  assert.deepEqual(
+    unveraendert.map((v) => ({ menge: Number(v.menge), einheit: v.einheit })),
+    [{ menge: 0.2, einheit: 'kg' }]
+  );
 
   // Left out: nothing used any more
   const ausgelassen = json<PlanungAnsicht>(

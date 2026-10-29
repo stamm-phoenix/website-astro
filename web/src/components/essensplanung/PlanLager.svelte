@@ -1,5 +1,6 @@
 <script lang="ts">
   import { lagerZeilen } from '../../lib/essensplanungLager';
+  import InfoHint from '../ui/InfoHint.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
   import type { PlanKontext } from './planKontext';
 
@@ -18,7 +19,10 @@
 
 <section aria-labelledby="lager-heading" class="space-y-3">
   <div class="flex flex-wrap items-center justify-between gap-2">
-    <h3 id="lager-heading" class="font-serif text-lg font-bold text-brand-900">Lager</h3>
+    <div class="flex items-center gap-1">
+      <h3 id="lager-heading" class="font-serif text-lg font-bold text-brand-900">Lager</h3>
+      <InfoHint label="Lager" text="Was übrig ist, zieht die Einkaufsliste ab." />
+    </div>
     <PdfKnopf
       {kontext}
       label="Lager als PDF"

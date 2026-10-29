@@ -2,6 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { ApiError } from '../../lib/api';
   import AufklappPfeil from '../ui/AufklappPfeil.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { leseMenge, mengeFeld } from '../../lib/essensplanungGerichte';
   import { geplanterVerbrauch } from '../../lib/essensplanungLager';
@@ -9,6 +10,7 @@
   import { einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { EinplanungStatus, Verbrauch } from '../../../../api/lib/essen-kochen-model';
   import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
+  import { meldeVerloren } from './planKontext';
   import type { PlanKontext } from './planKontext';
 
   /**
@@ -52,7 +54,28 @@
   let speichert = $state(false);
   /** The version the rows were filled from; saving on it finds changes of others meanwhile. */
   let etag = '';
-  $effect(() => guardUnsavedChanges(() => offen && geaendert));
+  $effect(() => guardUnsavedChanges(() => geaendert));
+
+  // Someone else removed the planned dish: the part goes, so the unsaved amounts are shown to copy
+  $effect(() => () => {
+    if (!geaendert) return;
+    const id = einplanung.id;
+    const eingabe = zeilen
+      .map((z) =>
+        z.verwendet
+          ? `${z.name} ${z.menge.trim()} ${einheitText(z.einheit)}`
+          : `${z.name} nicht verwendet`
+      )
+      .join(', ');
+    const text = `„${name}“ bei ${kennung} wurde gerade entfernt (dein Verbrauch: ${eingabe}).`;
+    // Checked after the update: the part also goes when the page closes
+    setTimeout(() => {
+      const da = kontext.ansicht.tage.some((t) =>
+        t.mahlzeiten.some((m) => m.einplanungen.some((e) => e.id === id))
+      );
+      if (!da) meldeVerloren(kontext, text);
+    });
+  });
 
   /** The rows as saved when cooked, else as planned at this meal. */
   function fuelle(): void {
@@ -76,7 +99,8 @@
 
   function umschalten(event: Event): void {
     offen = (event.currentTarget as HTMLDetailsElement).open;
-    if (offen) fuelle();
+    // Typed amounts stay when folded away and opened again
+    if (offen && !geaendert) fuelle();
   }
 
   async function setzen(status: EinplanungStatus): Promise<void> {
@@ -143,7 +167,7 @@
   >
 {/if}
 <!-- Typed amounts stay through a read-only phase, e.g. maintenance, locked until it ends -->
-{#if teil === 'abhaken' && (bearbeiten || (offen && geaendert))}
+{#if teil === 'abhaken' && (bearbeiten || geaendert)}
   <details class="basis-full print:hidden" open={offen} ontoggle={umschalten}>
     <summary
       class="flex min-h-11 cursor-pointer list-none items-center gap-1 py-2 text-sm font-semibold text-link [&::-webkit-details-marker]:hidden"
@@ -155,9 +179,13 @@
     {#if offen}
       <div class="space-y-2 pb-2">
         {#if zeilen.length}
-          <p class="text-sm text-neutral-700">
-            Was wurde tatsächlich verbraucht? Vorgeschlagen ist die geplante Menge.
-          </p>
+          <div class="flex items-center gap-1 text-sm font-semibold">
+            Verbrauch
+            <InfoHint
+              label="Verbrauch von {name}"
+              text="Vorgeschlagen ist die geplante Menge, bis du etwas änderst."
+            />
+          </div>
           <ul class="space-y-1" aria-label="Verbrauch von {name} bei {kennung}">
             {#each zeilen as zeile, index (`${zeile.planungZutatId}:${zeile.einheit}`)}
               <li class="flex flex-wrap items-center gap-2">
@@ -209,6 +237,11 @@
               type="button"
               disabled={speichert || kontext.busy || !bearbeiten}
               onclick={() => void setzen('offen')}>Wieder offen</ActionButton
+            >
+          {/if}
+          {#if geaendert}
+            <ActionButton type="button" disabled={speichert} onclick={fuelle}
+              >Eingaben verwerfen</ActionButton
             >
           {/if}
         </div>

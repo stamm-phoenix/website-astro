@@ -1,9 +1,12 @@
-import type { Db } from './db';
+import type { Transaction } from 'kysely';
+import type { Database } from './db-schema';
 import { VersionConflictError, requireVersion, toDateString } from './db';
 import { einplanungDerPlanung, mahlzeitDerPlanung } from './essen-einplanung';
+import { einheitPasst, einheitText } from './essen-gerichte-model';
 import type { AbhakenInput, Verbrauch } from './essen-kochen-model';
 import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
+import { zutatDerPlanungFuer } from './essen-planung-zutat';
 import { ValidationError } from './validation/errors';
 
 /**
@@ -11,20 +14,37 @@ import { ValidationError } from './validation/errors';
  * with what was really used, or left out. The stock of the Planung follows from it.
  */
 
-/** Every ingredient used must be one of this Planung. */
-async function pruefeZutaten(trx: Db, planungId: number, verbrauch: Verbrauch[]): Promise<void> {
-  const ids = [...new Set(verbrauch.map((eintrag) => eintrag.planungZutatId))];
-  if (!ids.length) return;
-  const gefunden = await trx
-    .selectFrom('essen.planung_zutat')
-    .select('id')
-    .where('planung_id', '=', planungId)
-    .where('id', 'in', ids)
-    .execute();
-  if (gefunden.length !== ids.length) {
-    throw new ValidationError({
-      verbrauch: 'Eine der Zutaten gibt es nicht mehr. Bitte lade die Seite neu.',
-    });
+/** Every ingredient used must be one of this Planung, measured in its kind of unit. */
+async function pruefeZutaten(
+  trx: Transaction<Database>,
+  zugang: Zugang,
+  verbrauch: Verbrauch[]
+): Promise<void> {
+  const ids = [...new Set(verbrauch.map((eintrag) => eintrag.planungZutatId))].sort(
+    (a, b) => a - b
+  );
+  for (const id of ids) {
+    // Takes the lock of an inherited kind of unit, like the other amounts of the Planung
+    const zutat = await zutatDerPlanungFuer(
+      trx,
+      zugang,
+      { planungZutatId: id },
+      { lebensmittel: false }
+    ).catch(() => null);
+    if (!zutat) {
+      throw new ValidationError({
+        verbrauch: 'Eine der Zutaten gibt es nicht mehr. Bitte lade die Seite neu.',
+      });
+    }
+    const falsch = verbrauch.find(
+      (eintrag) =>
+        eintrag.planungZutatId === id && !einheitPasst(zutat.einheitenart, eintrag.einheit)
+    );
+    if (falsch) {
+      throw new ValidationError({
+        verbrauch: `${zutat.name} wird nicht in ${einheitText(falsch.einheit)} gemessen. Bitte lade die Seite neu.`,
+      });
+    }
   }
 }
 
@@ -41,7 +61,7 @@ export async function einplanungAbhaken(
   await aendere(zugang, 'einplanung-abgehakt', async (trx) => {
     const einplanung = await einplanungDerPlanung(trx, zugang, id);
     const mahlzeit = await mahlzeitDerPlanung(trx, zugang, einplanung.mahlzeit_id);
-    await pruefeZutaten(trx, zugang.planungId, input.verbrauch);
+    await pruefeZutaten(trx, zugang, input.verbrauch);
     const result = await trx
       .updateTable('essen.einplanung')
       .set({ status: input.status })
