@@ -110,7 +110,8 @@ export function abstimmungPdfReport(abstimmung: AbstimmungDetail): PdfReport {
     });
   }
   const offen = (abstimmung.teilnahmen ?? []).filter((t) => !t.geantwortet);
-  if (einsicht !== 'anzahl' && offen.length > 0) {
+  // The invitations are only the organizer's to see; an anonymous result is meant to be shared
+  if (einsicht === 'alles' && offen.length > 0) {
     sections.push({
       heading: `Nicht abgestimmt · ${offen.length}`,
       lines: [offen.map((t) => t.name || t.email).join(', ')],

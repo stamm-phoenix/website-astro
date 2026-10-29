@@ -2,6 +2,7 @@
 // below, or a sheet of small codes to cut out and stick on.
 import { BRAND, GREY, PAGE_HEIGHT, PAGE_WIDTH, loadPdf } from './pdfBasis';
 import { saveFile } from './api';
+import { pdfText } from './pdfText';
 
 export type QrPdfArt = 'aushang' | 'aufkleber';
 
@@ -75,7 +76,7 @@ export interface QrPdf {
 
 export async function downloadQrPdf(pdf: QrPdf): Promise<void> {
   const { doc } = await loadPdf();
-  const beschriftung = pdf.beschriftung.trim();
+  const beschriftung = pdfText(pdf.beschriftung.trim());
   const center = PAGE_WIDTH / 2;
   if (pdf.art === 'aushang') {
     doc.setFont('helvetica', 'bold');
@@ -85,7 +86,7 @@ export async function downloadQrPdf(pdf: QrPdf): Promise<void> {
       : [];
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(14);
-    const link = qrLinkText(pdf.text);
+    const link = pdfText(qrLinkText(pdf.text));
     const linkZeilen: string[] = link ? doc.splitTextToSize(link, PAGE_WIDTH - 40).slice(0, 3) : [];
     let y = qrAushangOben(textZeilen.length, linkZeilen.length);
     doc.addImage(pdf.bild, 'PNG', center - POSTER_CODE / 2, y, POSTER_CODE, POSTER_CODE);

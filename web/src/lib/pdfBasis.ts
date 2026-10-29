@@ -41,13 +41,21 @@ export function drawTitle(doc: JsPdf, title: string, lines: string[]): number {
   doc.setFontSize(10);
   doc.setTextColor(...GREY);
   let y = 25 + 7 * (titleLines.length - 1);
+  const bottom = doc.internal.pageSize.getHeight() - FOOTER_SPACE;
   for (const line of lines) {
-    const wrapped = doc.splitTextToSize(
+    const wrapped: string[] = doc.splitTextToSize(
       pdfText(line),
       doc.internal.pageSize.getWidth() - 2 * MARGIN
     );
-    doc.text(wrapped, MARGIN, y);
-    y += 5 * wrapped.length;
+    // A long note, e.g. the description of an Abstimmung, goes on on the next page
+    for (const part of wrapped) {
+      if (y > bottom) {
+        doc.addPage();
+        y = 18;
+      }
+      doc.text(part, MARGIN, y);
+      y += 5;
+    }
   }
   return y;
 }

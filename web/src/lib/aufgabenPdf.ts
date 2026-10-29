@@ -11,6 +11,7 @@ import {
   loadPdf,
   pdfFileName,
 } from './pdfBasis';
+import { pdfText } from './pdfText';
 import { downloadReportPdf } from './pdfTabelle';
 import type { PdfReport, PdfSection } from './pdfTabelle';
 import type { Task, TaskProject, TaskTemplate } from './types';
@@ -164,6 +165,9 @@ export async function downloadVorlagePdf(
     columnStyles: Object.fromEntries(
       Object.entries(table.widths ?? {}).map(([index, width]) => [index, { cellWidth: width }])
     ),
+    didParseCell: (cell) => {
+      cell.cell.text = cell.cell.text.map(pdfText);
+    },
     // An empty box to tick off in front of every task
     didDrawCell: (cell) => {
       if (cell.section !== 'body' || cell.column.index !== 0) return;
