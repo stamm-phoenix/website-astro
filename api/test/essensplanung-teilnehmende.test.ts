@@ -399,3 +399,48 @@ dbTest(
     assert.equal(wieder, vorher);
   }
 );
+
+dbTest(
+  'deleting the only meal of a stay leaves the row eating nowhere, still editable',
+  async (t) => {
+    const mails = captureMails(t);
+    const { token, ansicht } = await anlegen(t, mails);
+    const mittag = ansicht.tage[0].mahlzeiten[1];
+    const gruppe = ansicht.gruppen[0];
+    const zeile = {
+      gruppeId: gruppe.id,
+      ernaehrung: 'alles',
+      anzahl: 4,
+      vonMahlzeitId: mittag.id,
+      bisMahlzeitId: mittag.id,
+    };
+    await teilnehmendeNeu(t, token, zeile);
+    const ohne = json<PlanungAnsicht>(
+      await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${mittag.id}`, {
+        token,
+        params: { id: String(mittag.id) },
+        ifMatch: mahlzeitStand(mittag),
+      })
+    );
+    // No end before the start: the gone lunch stays as both limits
+    const [gespeichert] = ohne.teilnehmende;
+    assert.equal(gespeichert.vonMahlzeitId, mittag.id);
+    assert.equal(gespeichert.bisMahlzeitId, mittag.id);
+    assert.ok([...esserJeMahlzeit(ohne).values()].every((esser) => esser.personen === 0));
+    const geaendert = await call(
+      t,
+      endpoints.EssensplanungTeilnehmende,
+      'PATCH',
+      `planung/teilnehmende/${gespeichert.id}`,
+      {
+        token,
+        params: { id: String(gespeichert.id) },
+        body: { ...zeile, anzahl: 5, hinweis: 'nur zum Mittag', etag: gespeichert.etag },
+      }
+    );
+    assert.equal(geaendert.status, 200);
+    const nachher = json<PlanungAnsicht>(geaendert);
+    assert.equal(nachher.teilnehmende[0].anzahl, 5);
+    assert.ok([...esserJeMahlzeit(nachher).values()].every((esser) => esser.personen === 0));
+  }
+);

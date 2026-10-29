@@ -444,6 +444,12 @@ export async function verschiebeGrenzen(trx: Db, planungId: number, weg: number[
     if (bis !== null && weg.includes(bis)) {
       bis = reihe.slice(0, reihe.indexOf(bis)).reverse().find(bleibt) ?? bis;
     }
+    // The whole stay went (e.g. only the lunch that is deleted): keep the gone limits, so the row
+    // eats nowhere and says so, instead of an end before the start
+    if (von !== null && bis !== null && reihe.indexOf(von) > reihe.indexOf(bis)) {
+      von = zeile.von_mahlzeit_id;
+      bis = zeile.bis_mahlzeit_id;
+    }
     await trx
       .updateTable('essen.teilnehmende')
       .set({ von_mahlzeit_id: von, bis_mahlzeit_id: bis })

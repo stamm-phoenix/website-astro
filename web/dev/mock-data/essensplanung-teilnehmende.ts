@@ -180,16 +180,22 @@ export function verschiebeGrenzen(planung: MockPlanung, weg: number[]): void {
   const ids = reihe(planung);
   const bleibt = (id: number) => !weg.includes(id);
   for (const zeile of planung.teilnehmende) {
-    if (zeile.vonMahlzeitId !== null && weg.includes(zeile.vonMahlzeitId)) {
-      zeile.vonMahlzeitId =
-        ids.slice(ids.indexOf(zeile.vonMahlzeitId) + 1).find(bleibt) ?? zeile.vonMahlzeitId;
-      zeile.etag = neuesEtag();
+    let von = zeile.vonMahlzeitId;
+    let bis = zeile.bisMahlzeitId;
+    const vonWeg = von !== null && weg.includes(von);
+    const bisWeg = bis !== null && weg.includes(bis);
+    if (!vonWeg && !bisWeg) continue;
+    if (von !== null && vonWeg) {
+      von = ids.slice(ids.indexOf(von) + 1).find(bleibt) ?? von;
     }
-    if (zeile.bisMahlzeitId !== null && weg.includes(zeile.bisMahlzeitId)) {
-      zeile.bisMahlzeitId =
-        ids.slice(0, ids.indexOf(zeile.bisMahlzeitId)).reverse().find(bleibt) ??
-        zeile.bisMahlzeitId;
-      zeile.etag = neuesEtag();
+    if (bis !== null && bisWeg) {
+      bis = ids.slice(0, ids.indexOf(bis)).reverse().find(bleibt) ?? bis;
     }
+    // The whole stay went: keep the gone limits, like the API
+    if (von !== null && bis !== null && ids.indexOf(von) > ids.indexOf(bis)) {
+      von = zeile.vonMahlzeitId;
+      bis = zeile.bisMahlzeitId;
+    }
+    Object.assign(zeile, { vonMahlzeitId: von, bisMahlzeitId: bis, etag: neuesEtag() });
   }
 }
