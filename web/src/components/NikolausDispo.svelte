@@ -9,7 +9,7 @@
   import { createPlanEditor } from '../lib/planEditor.svelte';
   import LoadState from './ui/LoadState.svelte';
   import { tick, untrack } from 'svelte';
-  import { sendApi } from '../lib/api';
+  import { errorMessage, sendApi } from '../lib/api';
   import { confirmAction } from '../lib/confirm';
   import { dateToLocalParts } from '../lib/nikolausConfig';
   import type { NikolausConfig } from '../lib/nikolausConfig';
@@ -32,6 +32,7 @@
   import type { DispoMapTeam } from '../lib/nikolausDispoMap';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import InfoHint from './ui/InfoHint.svelte';
+  import ActionButton from './ui/ActionButton.svelte';
 
   interface Props {
     /** Settings baked into the page; refreshed from the API. */
@@ -291,6 +292,52 @@
     dirty = true;
   }
 
+  let exporting = $state(false);
+  const PDF_ERROR = 'Das PDF konnte nicht erstellt werden. Bitte noch einmal versuchen.';
+
+  /** The Dispo of the day as shown, as a PDF with one page per team. */
+  async function exportPdf(): Promise<void> {
+    if (!plan || !data) return;
+    if (
+      dirty &&
+      !(await confirmAction({
+        title: 'Ungespeicherten Stand exportieren?',
+        message:
+          'Die Dispo ist noch nicht gespeichert. Das PDF zeigt den Entwurf, wie er gerade hier steht.',
+        confirmLabel: 'Trotzdem exportieren',
+        tone: 'neutral',
+      }))
+    ) {
+      return;
+    }
+    exporting = true;
+    try {
+      const { dispoPdfTeams, downloadDispoPdf } = await import('../lib/nikolausDispoPdf');
+      await downloadDispoPdf({
+        dayLabel: formatShortDate(date),
+        draft: dirty,
+        estimated: data.travelSource !== 'route',
+        teams: dispoPdfTeams({
+          data,
+          plan,
+          baseName: base.name,
+          km: (team) => {
+            const mapTeam = mapTeams.find((t) => t.name === team);
+            return mapTeam ? teamKmLabel(mapTeam) : null;
+          },
+        }),
+        fileName: `nikolaus-dispo-${date}.pdf`,
+      });
+      editor.state.notice = dirty
+        ? { text: 'PDF exportiert. Die Dispo ist noch nicht gespeichert.', kind: 'warning' }
+        : { text: 'PDF exportiert.', kind: 'success' };
+    } catch (error) {
+      editor.state.notice = { text: errorMessage(error, PDF_ERROR), kind: 'error' };
+    } finally {
+      exporting = false;
+    }
+  }
+
   async function save(): Promise<void> {
     if (!plan || !data) return;
     const entries = plan.routes.flatMap((route) =>
@@ -320,7 +367,7 @@
   }
 </script>
 
-<StaffPageHead href="/leitendenbereich/nikolaus-dispo" printable>
+<StaffPageHead href="/leitendenbereich/nikolaus-dispo">
   {#snippet actions()}
     <PlanToolbar
       loadedAt={nikolausDispoStore.loadedAt}
@@ -336,14 +383,21 @@
       onreload={reload}
       onsave={save}
       recalculateDisabled={!data || calculating}
-      printDisabled={!data}
       {calculating}
       class="items-center"
-    />
+    >
+      <ActionButton
+        variant="secondary"
+        type="button"
+        disabled={!plan || exporting}
+        onclick={() => void exportPdf()}
+        >{exporting ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
+      >
+    </PlanToolbar>
   {/snippet}
 </StaffPageHead>
 <div class="space-y-6">
-  <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
+  <div class="flex flex-wrap items-center justify-between gap-3">
     <FilterTabs
       label="Tag wählen"
       options={dates.map((date) => ({ value: date, label: formatShortDate(date) }))}
@@ -364,11 +418,10 @@
   </div>
 
   <!-- Takes room only while a notice is shown; the live region stays for screen readers -->
-  <div class="mb-0! has-[p]:mb-6! print:hidden">
+  <div class="mb-0! has-[p]:mb-6!">
     <StatusNotice
       message={editor.state.notice?.text ?? null}
       kind={editor.state.notice?.kind}
-      class="print:hidden"
       popup
     />
   </div>
@@ -388,14 +441,7 @@
     {/snippet}
     {#snippet children(data)}
       {#if plan}
-        <h2 class="hidden font-serif text-2xl font-semibold text-brand-900 print:block">
-          Nikolaus-Dispo {formatShortDate(date)}
-        </h2>
-
-        <section
-          aria-labelledby="dispo-summary-heading"
-          class="text-sm text-neutral-800 print:hidden"
-        >
+        <section aria-labelledby="dispo-summary-heading" class="text-sm text-neutral-800">
           <h2 id="dispo-summary-heading" class="sr-only">Überblick</h2>
           <p>
             <strong>{data.stops.length}</strong>
@@ -443,7 +489,7 @@
         {#if changes.length > 0}
           <section
             aria-labelledby="dispo-changes-heading"
-            class="border-l-4 border-warning py-1 pl-4 text-sm text-neutral-900 print:hidden"
+            class="border-l-4 border-warning py-1 pl-4 text-sm text-neutral-900"
           >
             <h2 id="dispo-changes-heading" class="font-semibold text-warning">
               Änderungen seit dem letzten Speichern
@@ -472,41 +518,37 @@
               onlist={(id) => void showInList(id)}
             />
           {:else}
-            <div class="print:hidden">
-              <NikolausDispoMap routes={mapRoutes} {base} />
+            <NikolausDispoMap routes={mapRoutes} {base} />
+
+            <div
+              class="grid gap-x-8 gap-y-10 md:grid-cols-2 {data.teams.length >= 3
+                ? 'xl:grid-cols-3'
+                : ''} {data.teams.length >= 4 ? '2xl:grid-cols-4' : ''}"
+            >
+              {#each plan.routes as route (route.team)}
+                {@const ids = assignment[route.team] ?? []}
+                <DispoTeamColumn
+                  {route}
+                  {ids}
+                  {data}
+                  color={teamColor.get(route.team)}
+                  {base}
+                  {fixed}
+                  {dirty}
+                  {date}
+                  onteam={changeTeam}
+                  onpin={toggleFixed}
+                  onmap={(id) => void showOnMap(id)}
+                  km={teamKmLabel(
+                    mapTeams.find((team) => team.name === route.team) ?? {
+                      km: null,
+                      kmAlongRoads: false,
+                    }
+                  )}
+                />
+              {/each}
             </div>
           {/if}
-
-          <!-- The list stays for printing while the map is shown -->
-          <div
-            class="{view === 'karte' ? 'hidden' : 'grid'} gap-x-8 gap-y-10 md:grid-cols-2 {data
-              .teams.length >= 3
-              ? 'xl:grid-cols-3'
-              : ''} {data.teams.length >= 4 ? '2xl:grid-cols-4' : ''} print:block"
-          >
-            {#each plan.routes as route (route.team)}
-              {@const ids = assignment[route.team] ?? []}
-              <DispoTeamColumn
-                {route}
-                {ids}
-                {data}
-                color={teamColor.get(route.team)}
-                {base}
-                {fixed}
-                {dirty}
-                {date}
-                onteam={changeTeam}
-                onpin={toggleFixed}
-                onmap={(id) => void showOnMap(id)}
-                km={teamKmLabel(
-                  mapTeams.find((team) => team.name === route.team) ?? {
-                    km: null,
-                    kmAlongRoads: false,
-                  }
-                )}
-              />
-            {/each}
-          </div>
         {/if}
       {/if}
     {/snippet}

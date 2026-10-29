@@ -1447,11 +1447,6 @@
 {/if}
 
 <style>
-  @media print {
-    .leiste {
-      display: none;
-    }
-  }
   .leiste {
     position: relative;
     z-index: 20;

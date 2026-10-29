@@ -120,7 +120,7 @@
         </p>
       {/if}
 
-      <div class="mt-2 flex flex-wrap items-center gap-2 print:hidden">
+      <div class="mt-2 flex flex-wrap items-center gap-2">
         {#if !visited}
           <label class="sr-only" for={selectId}>Team für Familie {booking.familyName}</label>
           <select
@@ -159,10 +159,5 @@
   }
   :global(.stop-card.is-flashing) {
     background: var(--color-field);
-  }
-  @media print {
-    .stop-card {
-      break-inside: avoid;
-    }
   }
 </style>

@@ -1,4 +1,5 @@
-import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+import { readFile } from 'node:fs/promises';
+import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
 
 test('the map view shows the visits and drives and leads to the list', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-dispo');
@@ -43,9 +44,7 @@ test('the map view shows the visits and drives and leads to the list', async ({ 
   await expectNoHorizontalOverflow(page);
 });
 
-test('choosing a visit on the map keeps its details open, and printing shows the list', async ({
-  page,
-}) => {
+test('choosing a visit on the map keeps its details open', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
   const map = page.locator('.dispo-map-main.leaflet-container');
   const marker = map.locator('.leaflet-marker-icon').last();
@@ -54,10 +53,23 @@ test('choosing a visit on the map keeps its details open, and printing shows the
   // The marker is not drawn anew, so its details stay open
   await expect(map.locator('.leaflet-tooltip .dispo-tip-title')).toBeVisible();
   await expect(marker.locator('.dispo-marker')).toHaveClass(/is-selected/);
+});
 
-  await page.emulateMedia({ media: 'print' });
-  await expect(page.locator('.map-view')).toBeHidden();
-  await expect(page.locator('.stop-card').first()).toBeVisible();
+test('the Dispo downloads as a PDF, also as an unsaved draft', async ({ page }) => {
+  await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
+  await page.getByRole('button', { name: 'Neu berechnen', exact: true }).click();
+  await expect(page.getByText('Neu berechnet – noch nicht gespeichert.')).toBeVisible();
+
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  await answerConfirm(page, 'Ungespeicherten Stand exportieren?', 'Trotzdem exportieren');
+  const pdf = await download;
+  expect(pdf.suggestedFilename()).toMatch(/^nikolaus-dispo-\d{4}-\d{2}-\d{2}\.pdf$/);
+  const content = await readFile(await pdf.path());
+  expect(content.subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(
+    page.getByText('PDF exportiert. Die Dispo ist noch nicht gespeichert.')
+  ).toBeVisible();
 });
 
 test('choosing a visit in the panel keeps the map in view', async ({ page }) => {
