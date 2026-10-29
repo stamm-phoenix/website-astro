@@ -94,6 +94,8 @@ export interface PlanungAnsicht {
   wartung: boolean;
   /** The latest changes, newest first. */
   aenderungen: PlanungAenderung[];
+  /** Version of the central lists; a new one means the page loads them again. */
+  katalogStand: string;
   /** Ingredients used in the Planung, by name. */
   zutaten: PlanungZutat[];
   /** Dishes by name, with their lines in order. */

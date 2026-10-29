@@ -2,6 +2,7 @@
  * Steuerung of the Essensplanung in the mock API, with the real start data from
  * `api/migrations/seed/essensplanung` (the kitchen sheet of the Bezirkslager).
  */
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { readCsv } from '../../../api/lib/essen-startdaten';
 import type { EssenKatalog } from '../../../api/lib/essen-gerichte-model';
@@ -191,6 +192,11 @@ export function essenKatalog(): EssenKatalog {
         grammProStueck: zutat.grammProStueck,
       })),
   };
+}
+
+/** A version of the central lists, so open Planungen see changes of the Steuerung. */
+export function essenKatalogStand(): string {
+  return createHash('sha256').update(JSON.stringify(essenKatalog())).digest('hex').slice(0, 12);
 }
 
 /** The current settings, for the mock API of the Planungen. */

@@ -437,6 +437,8 @@ export interface PlanungAnsicht {
   loeschtAm: string | null;
   wartung: boolean;
   aenderungen: PlanungAenderung[];
+  /** Version of the central lists; a new one loads them again. */
+  katalogStand: string;
   zutaten: PlanungZutat[];
   gerichte: Gericht[];
 }

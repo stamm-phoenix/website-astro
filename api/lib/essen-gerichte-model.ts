@@ -119,6 +119,14 @@ export function einheitPasst(art: EssenEinheitenart, einheit: GerichtEinheit | n
   return einheit === null || EINHEITEN_JE_ART[art].includes(einheit);
 }
 
+/**
+ * Lock of a central ingredient: saving a line that measures it in its inherited kind of unit and
+ * changing that kind in the Steuerung run one after the other.
+ */
+export function zutatSperre(zutatId: number): string {
+  return `essen-zutat:${zutatId}`;
+}
+
 export interface GerichtWarnung {
   /** The line it is about; missing for the dish as a whole. */
   zeileId?: number;
@@ -158,7 +166,7 @@ export function gerichtWarnungen(
   }
   // Replacement lines („nur für …“) feed only some people
   const fuerAlle = gericht.zutaten.filter((zeile) => zeile.nur.length === 0);
-  if (fuerAlle.length) {
+  if (gericht.zutaten.length) {
     for (const form of FORMEN) {
       if (!fuerAlle.some((zeile) => zeile[form.feld])) {
         warnungen.push({ text: `Für ${form.label} gibt es in diesem Gericht keine Zutat.` });

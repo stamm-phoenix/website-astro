@@ -1,4 +1,7 @@
 import { sql } from 'kysely';
+import type { Transaction } from 'kysely';
+import type { Database } from './db-schema';
+import { einheitPasst, zutatSperre } from './essen-gerichte-model';
 import type { Db } from './db';
 import {
   RecordNotFoundError,
@@ -6,6 +9,7 @@ import {
   getDb,
   getSqlErrorNumber,
   inTransaction,
+  lockResource,
   parseId,
   requireVersion,
   toDateString,
@@ -13,6 +17,7 @@ import {
 } from './db';
 import type {
   EssenAuditEntry,
+  EssenEinheitenart,
   EssenEinstellungen,
   EssenKategorie,
   EssenPlanungUebersicht,
@@ -404,6 +409,32 @@ const ZUTAT_FIELDS: Record<keyof ZutatInput, string> = {
   allergene: 'allergene',
 };
 
+/**
+ * A new kind of unit must fit the amounts of the dishes that inherit it; Planungen with their own
+ * kind for the ingredient keep it. Holds the ingredient's lock, so no such line is saved meanwhile.
+ */
+async function pruefeGenutzteEinheiten(
+  trx: Transaction<Database>,
+  zutatId: number,
+  art: EssenEinheitenart
+): Promise<void> {
+  await lockResource(trx, zutatSperre(zutatId));
+  const zeilen = await trx
+    .selectFrom('essen.gericht_zutat as gz')
+    .innerJoin('essen.planung_zutat as pz', 'pz.id', 'gz.planung_zutat_id')
+    .select('gz.einheit')
+    .where('pz.zutat_id', '=', zutatId)
+    .where('pz.einheitenart', 'is', null)
+    .where('gz.einheit', 'is not', null)
+    .execute();
+  if (zeilen.some((zeile) => !einheitPasst(art, zeile.einheit))) {
+    throw new ValidationError({
+      einheitenart:
+        'Gerichte in Planungen messen diese Zutat in der bisherigen Einheit. Sie bleibt, wie sie ist.',
+    });
+  }
+}
+
 /** Saves an ingredient if it still has the version `etag`. */
 export async function updateZutat(
   id: string,
@@ -416,6 +447,9 @@ export async function updateZutat(
     inTransaction(async (trx) => {
       await checkReferences(trx, input);
       const before = (await listZutaten(trx)).find((zutat) => zutat.id === numericId);
+      if (before && before.einheitenart !== input.einheitenart) {
+        await pruefeGenutzteEinheiten(trx, numericId, input.einheitenart);
+      }
       const result = await trx
         .updateTable('essen.zutat')
         .set({ ...zutatColumns(input, actor), geaendert_am: sql<Date>`SYSUTCDATETIME()` })

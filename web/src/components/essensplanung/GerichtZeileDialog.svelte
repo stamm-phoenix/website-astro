@@ -6,6 +6,7 @@
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError } from '../../lib/api';
+  import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { EINHEITENART_LABELS } from '../../lib/essensplanungSteuerung';
   import { leseMenge, mengeFeld, zutatVorschlaege } from '../../lib/essensplanungGerichte';
@@ -64,7 +65,11 @@
     if (open) untrack(fuelle);
   });
 
+  /** The version of the line when the dialog opened. */
+  let zeileEtag = '';
+
   function fuelle(): void {
+    zeileEtag = zeile?.etag ?? '';
     felder = {};
     eigene = null;
     geaendert = false;
@@ -188,16 +193,15 @@
         .map(([id]) => Number(id)),
       hinweis,
     };
-    const aktuelleZeile = zeile
-      ? ansicht.gerichte.flatMap((g) => g.zutaten).find((z) => z.id === zeile!.id)
-      : null;
+    // A line opened for a change is saved with the version the form started from: a change of
+    // others meanwhile is a conflict, a deletion stays one (never a new line)
     const ok = await kontext.aendern(
       async () => {
         try {
-          return aktuelleZeile
-            ? await kontext.api.senden('PATCH', `/gericht-zutaten/${aktuelleZeile.id}`, {
+          return zeile
+            ? await kontext.api.senden('PATCH', `/gericht-zutaten/${zeile.id}`, {
                 ...body,
-                etag: aktuelleZeile.etag,
+                etag: zeileEtag,
               })
             : await kontext.api.senden('POST', `/gerichte/${gericht.id}/zutaten`, body);
         } catch (error: unknown) {
@@ -210,11 +214,38 @@
     if (ok) {
       geaendert = false;
       onclose();
+      return;
     }
+    // The page told about the conflict; saving again takes the input over what is saved now
+    const jetzt = zeile
+      ? ansicht.gerichte.flatMap((g) => g.zutaten).find((z) => z.id === zeile!.id)
+      : null;
+    if (jetzt) zeileEtag = jetzt.etag;
+  }
+
+  /** Closing with unsaved input asks first; not while saving. */
+  async function schliessen(): Promise<void> {
+    if (kontext.busy) return;
+    if (
+      geaendert &&
+      !(await confirmAction({
+        title: 'Änderungen verwerfen?',
+        message: 'Deine Eingaben an dieser Zutat sind noch nicht gespeichert.',
+        confirmLabel: 'Verwerfen',
+      }))
+    )
+      return;
+    geaendert = false;
+    onclose();
   }
 </script>
 
-<ModalDialog {open} title={zeile ? 'Zutat ändern' : `Zutat für ${gericht.name}`} {onclose}>
+<ModalDialog
+  {open}
+  title={zeile ? 'Zutat ändern' : `Zutat für ${gericht.name}`}
+  closeDisabled={kontext.busy}
+  onclose={() => void schliessen()}
+>
   <form
     class="min-h-0 space-y-4 overflow-y-auto px-5 py-4"
     onsubmit={speichern}
@@ -381,7 +412,7 @@
     </details>
 
     <div class="flex flex-wrap justify-end gap-2 pt-2">
-      <ActionButton type="button" onclick={onclose}>Abbrechen</ActionButton>
+      <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
       <ActionButton type="submit" variant="primary" disabled={kontext.busy}>
         {zeile ? 'Speichern' : 'Hinzufügen'}
       </ActionButton>

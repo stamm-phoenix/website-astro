@@ -4,6 +4,13 @@ import { HttpRequest } from '@azure/functions';
 import * as endpoints from '../endpoints/essensplanung';
 import { EssensplanungListeEintragEndpoint } from '../endpoints/intern-essensplanung-steuerung';
 import { getDb, toVersion } from '../lib/db';
+import {
+  seedPreviewEssensplanungGerichte,
+  seedPreviewEssensplanungPlanung,
+} from '../lib/db-preview';
+import { loadEssenSteuerung, updateZutat } from '../lib/essen-steuerung';
+import type { ZutatInput } from '../lib/essen-validation';
+import { ValidationError } from '../lib/pflege-validation';
 import type { EssenKatalog } from '../lib/essen-gerichte-model';
 import { gerichtWarnungen } from '../lib/essen-gerichte-model';
 import { planungLoeschen, ladeZugang } from '../lib/essen-planung';
@@ -410,3 +417,79 @@ dbTest('the read-only link sees dishes but changes nothing', async (t) => {
   });
   assert.equal(verboten.status, 403);
 });
+
+dbTest('previews get one invented dish in the invented Planung', async () => {
+  await seedPreviewEssensplanungPlanung(new Date('2027-05-01T10:00:00Z'));
+  await seedPreviewEssensplanungGerichte();
+  await seedPreviewEssensplanungGerichte();
+  const gerichte = await getDb()
+    .selectFrom('essen.gericht as g')
+    .innerJoin('essen.planung as p', 'p.id', 'g.planung_id')
+    .select(['g.id', 'g.name'])
+    .where('p.name', '=', 'Sommerlager (Test)')
+    .execute();
+  assert.deepEqual(
+    gerichte.map((g) => g.name),
+    ['Chili sin Carne (Test)']
+  );
+  const zeilen = await getDb()
+    .selectFrom('essen.gericht_zutat')
+    .select(['menge', 'einheit'])
+    .where('gericht_id', '=', gerichte[0].id)
+    .orderBy('position')
+    .execute();
+  assert.deepEqual(
+    zeilen.map((z) => [z.menge === null ? null : Number(z.menge), z.einheit]),
+    [
+      [2, 'kg'],
+      [null, null],
+    ]
+  );
+});
+
+dbTest(
+  'the Steuerung keeps a kind of unit that dishes measure in; open pages see changes',
+  async (t) => {
+    const mails = captureMails(t);
+    const { token, ansicht } = await anlegen(t, mails);
+    const milch = await zentraleZutat('H-Milch');
+    const { id } = await gerichtMitId(t, token, { name: 'Kakao', personen: 10 });
+    await zeileHinzufuegen(t, token, id, { zutatId: milch, menge: 200, einheit: 'ml' });
+    const steuerung = await loadEssenSteuerung();
+    const zentral = steuerung.zutaten.find((z) => z.id === milch)!;
+    const { etag } = zentral;
+    const input: ZutatInput = {
+      name: zentral.name,
+      kategorieId: zentral.kategorieId,
+      einheitenart: zentral.einheitenart,
+      abtropfgewicht: zentral.abtropfgewicht,
+      lebensmittel: zentral.lebensmittel,
+      vegetarisch: zentral.vegetarisch,
+      vegan: zentral.vegan,
+      merkmaleGeprueft: zentral.merkmaleGeprueft,
+      hinweis: zentral.hinweis,
+      grammProTl: zentral.grammProTl,
+      grammProEl: zentral.grammProEl,
+      grammProStueck: zentral.grammProStueck,
+      allergene: zentral.allergene,
+    };
+    await assert.rejects(
+      updateZutat(String(milch), { ...input, einheitenart: 'packung' }, etag, 'admin'),
+      (error: unknown) => error instanceof ValidationError && Boolean(error.fields.einheitenart)
+    );
+
+    // A change of the central lists changes the state the open pages poll
+    const vorher = json<PlanungAnsicht>(
+      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    );
+    await updateZutat(String(milch), { ...input, hinweis: 'neu geprüft' }, etag, 'admin');
+    const stand = json<{ stand: string; ansicht?: PlanungAnsicht }>(
+      await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
+        token,
+        query: `?seit=${encodeURIComponent(vorher.stand)}`,
+      })
+    );
+    assert.notEqual(stand.stand, vorher.stand);
+    assert.notEqual(stand.ansicht!.katalogStand, ansicht.katalogStand);
+  }
+);
