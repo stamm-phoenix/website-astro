@@ -37,7 +37,11 @@
   let geaendert = $state(false);
   $effect(() => guardUnsavedChanges(() => auswahl !== null && geaendert));
 
+  /** The version of the ingredient when the dialog opened. */
+  let formEtag = '';
+
   function oeffne(zutat: PlanungZutat): void {
+    formEtag = zutat.etag;
     felder = {};
     geaendert = false;
     const zentral = zutat.zutatId !== null;
@@ -64,13 +68,15 @@
 
   async function speichern(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const zutat = untrack(() => ansicht.zutaten.find((z) => z.id === auswahl?.id));
+    const zutat = auswahl;
     if (!zutat) return;
     felder = {};
     const eigene = zutat.zutatId === null;
+    // The version the form was opened with: a change of others meanwhile is a conflict
+    const etag = formEtag;
     const body = eigene
       ? {
-          etag: zutat.etag,
+          etag,
           name: form.name,
           kategorieId: form.kategorieId,
           einheitenart: form.einheitenart,
@@ -78,7 +84,7 @@
           vegan: form.ernaehrung === '' ? null : form.ernaehrung === 'vegan',
           allergene: form.allergene,
         }
-      : { etag: zutat.etag, kategorieId: form.kategorieId, einheitenart: form.einheitenart };
+      : { etag, kategorieId: form.kategorieId, einheitenart: form.einheitenart };
     const ok = await kontext.aendern(async () => {
       try {
         return await kontext.api.senden('PATCH', `/zutaten/${zutat.id}`, body);
@@ -90,7 +96,27 @@
     if (ok) {
       geaendert = false;
       auswahl = null;
+      return;
     }
+    // The page told about the conflict; saving again takes the input over what is saved now
+    const jetzt = untrack(() => ansicht.zutaten.find((z) => z.id === zutat.id));
+    if (jetzt) formEtag = jetzt.etag;
+  }
+
+  /** Closing with unsaved input asks first; not while saving. */
+  async function schliessen(): Promise<void> {
+    if (kontext.busy) return;
+    if (
+      geaendert &&
+      !(await confirmAction({
+        title: 'Änderungen verwerfen?',
+        message: 'Deine Eingaben an dieser Zutat sind noch nicht gespeichert.',
+        confirmLabel: 'Verwerfen',
+      }))
+    )
+      return;
+    geaendert = false;
+    auswahl = null;
   }
 
   async function loeschen(zutat: PlanungZutat): Promise<void> {
@@ -156,7 +182,12 @@
 </details>
 
 {#if katalog && auswahl}
-  <ModalDialog open title={auswahl.name} onclose={() => (auswahl = null)}>
+  <ModalDialog
+    open
+    title={auswahl.name}
+    closeDisabled={kontext.busy}
+    onclose={() => void schliessen()}
+  >
     <form
       class="min-h-0 space-y-4 overflow-y-auto px-5 py-4"
       onsubmit={speichern}
@@ -229,7 +260,7 @@
         </fieldset>
       {/if}
       <div class="flex flex-wrap justify-end gap-2 pt-2">
-        <ActionButton type="button" onclick={() => (auswahl = null)}>Abbrechen</ActionButton>
+        <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
         <ActionButton type="submit" variant="primary" disabled={kontext.busy}
           >Speichern</ActionButton
         >

@@ -182,7 +182,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:35';
+const SEEDED_KEY = 'preview:seeded:36';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -1714,6 +1714,89 @@ export async function seedPreviewEssensplanungPlanung(now: Date = new Date()): P
     .execute();
   // The invented address is no address of the Stamm, so the Steuerung's release does not apply
   await anfrageBestaetigen(token, { freigabePruefen: false });
+}
+
+/**
+ * An invented dish in the invented Planung: a central ingredient with an amount, one of the
+ * Planung's own without, tools and instructions. Only while the Planung has no dish yet.
+ */
+export async function seedPreviewEssensplanungGerichte(): Promise<void> {
+  const db = getDb();
+  const planung = await db
+    .selectFrom('essen.planung')
+    .select('id')
+    .where('name', '=', 'Sommerlager (Test)')
+    .executeTakeFirst();
+  if (!planung) return;
+  const vorhanden = await db
+    .selectFrom('essen.gericht')
+    .select('id')
+    .where('planung_id', '=', planung.id)
+    .top(1)
+    .executeTakeFirst();
+  if (vorhanden) return;
+  const zentral = await db
+    .selectFrom('essen.zutat')
+    .select('id')
+    .where('name', '=', 'Kidneybohnen')
+    .executeTakeFirst();
+  const kategorie = await db
+    .selectFrom('essen.kategorie')
+    .select('id')
+    .top(1)
+    .executeTakeFirstOrThrow();
+  await db.transaction().execute(async (trx) => {
+    const { id: gericht } = await trx
+      .insertInto('essen.gericht')
+      .values({
+        planung_id: planung.id,
+        name: 'Chili sin Carne (Test)',
+        personen: 20,
+        anleitung: 'Zwiebeln anbraten, Bohnen und Gewürze dazu, eine Stunde köcheln lassen.',
+        werkzeuge: JSON.stringify(['Großer Topf (Test)', 'Kochlöffel']),
+      })
+      .output('inserted.id')
+      .executeTakeFirstOrThrow();
+    const { id: gewuerz } = await trx
+      .insertInto('essen.planung_zutat')
+      .values({
+        planung_id: planung.id,
+        name: 'Gewürzmischung (Test)',
+        kategorie_id: kategorie.id,
+        einheitenart: 'masse',
+        vegetarisch: true,
+        vegan: true,
+      })
+      .output('inserted.id')
+      .executeTakeFirstOrThrow();
+    const zeilen: {
+      planung_zutat_id: number;
+      menge: number | null;
+      einheit: 'kg' | null;
+      hinweis: string;
+    }[] = [{ planung_zutat_id: gewuerz, menge: null, einheit: null, hinweis: 'nach Geschmack' }];
+    if (zentral) {
+      const { id: bohnen } = await trx
+        .insertInto('essen.planung_zutat')
+        .values({ planung_id: planung.id, zutat_id: zentral.id })
+        .output('inserted.id')
+        .executeTakeFirstOrThrow();
+      zeilen.unshift({ planung_zutat_id: bohnen, menge: 2, einheit: 'kg', hinweis: '' });
+    }
+    await trx
+      .insertInto('essen.gericht_zutat')
+      .values(
+        zeilen.map((zeile, index) => ({
+          ...zeile,
+          gericht_id: gericht,
+          position: index + 1,
+          fuer_alles: true,
+          fuer_vegetarisch: true,
+          fuer_vegan: true,
+        }))
+      )
+      .execute();
+  });
 }
 
 /** Invented entries in the log of the Essensplanung-Steuerung; the settings stay as migrated. */

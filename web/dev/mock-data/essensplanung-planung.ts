@@ -24,6 +24,7 @@ import type {
 import type { Gericht } from '../../../api/lib/essen-gerichte-model';
 import type { EssenPlanungUebersicht } from '../../src/lib/types';
 import type { MockPlanungZutat } from './essensplanung-gerichte';
+import { essenKatalogStand } from './essensplanung';
 import { gerichteAnsicht } from './essensplanung-gerichte';
 import { newEtag } from './util';
 
@@ -213,7 +214,8 @@ export function ansichtVon(
     etag: planung.etag,
     name: planung.name,
     seq: planung.seq,
-    stand: `${planung.seq}.${wartung ? 1 : 0}.${monate}`,
+    stand: `${planung.seq}.${wartung ? 1 : 0}.${monate}.${essenKatalogStand()}`,
+    katalogStand: essenKatalogStand(),
     zugang,
     ichId: mitglied?.id ?? null,
     darfVerwalten: verwalten,

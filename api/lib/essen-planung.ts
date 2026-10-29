@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
+import type { Transaction } from 'kysely';
 import type { Db } from './db';
+import type { Database } from './db-schema';
 import {
   RecordNotFoundError,
   VersionConflictError,
@@ -40,7 +42,7 @@ import {
 import { loadEssenEinstellungen } from './essen-steuerung';
 import { darfPlanungAnlegen } from './essen-validation';
 import { deletePlanung } from './essen-planung-loeschen';
-import { ladeGerichte } from './essen-gerichte';
+import { ladeGerichte, ladeKatalogStand } from './essen-gerichte';
 import { ValidationError } from './pflege-validation';
 
 /**
@@ -141,7 +143,7 @@ const AENDERUNGEN_ANZEIGEN = 30;
 
 /** The view of a Planung for the given access. */
 export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<PlanungAnsicht> {
-  const { seq, stand, stored } = await standUndEinstellungen(zugang, db);
+  const { seq, stand, stored, katalogStand } = await standUndEinstellungen(zugang, db);
   const [planung, mitglieder, tage, mahlzeiten, aenderungen, gerichte] = await Promise.all([
     db
       .selectFrom('essen.planung')
@@ -227,6 +229,7 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
       aktion: row.aktion,
       details: JSON.parse(row.details) as Record<string, unknown>,
     })),
+    katalogStand,
     zutaten: gerichte.zutaten,
     gerichte: gerichte.gerichte,
   };
@@ -243,17 +246,23 @@ export async function ladeStand(zugang: Zugang, db: Db = getDb()): Promise<strin
  * the view again instead of keeping a mix of old and new rows.
  */
 async function standUndEinstellungen(zugang: Zugang, db: Db) {
-  const [row, stored] = await Promise.all([
+  const [row, stored, katalogStand] = await Promise.all([
     db
       .selectFrom('essen.planung')
       .select('aenderung_seq')
       .where('id', '=', zugang.planungId)
       .executeTakeFirst(),
     loadEssenEinstellungen(db),
+    ladeKatalogStand(db),
   ]);
   if (!row) throw LINK_UNGUELTIG();
   const seq = Number(row.aenderung_seq);
-  return { seq, stand: `${seq}.${stored.etag.replace(/\W/g, '')}`, stored };
+  return {
+    seq,
+    stand: `${seq}.${stored.etag.replace(/\W/g, '')}.${katalogStand}`,
+    stored,
+    katalogStand,
+  };
 }
 
 interface AendernOptionen {
@@ -269,7 +278,10 @@ export async function aendere<T>(
   zugang: Zugang,
   aktion: string,
   /** Gets the access as checked in the transaction, with the member's current role. */
-  work: (trx: Db, aktuell: Zugang) => Promise<{ result: T; details: Record<string, unknown> }>,
+  work: (
+    trx: Transaction<Database>,
+    aktuell: Zugang
+  ) => Promise<{ result: T; details: Record<string, unknown> }>,
   { recht = 'bearbeiten' }: AendernOptionen = {}
 ): Promise<T> {
   if (!darfBearbeiten(zugang.zugang)) throw NUR_LESEN();

@@ -1,10 +1,14 @@
+import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
+import type { Transaction } from 'kysely';
 import type { Db } from './db';
+import type { Database } from './db-schema';
 import {
   RecordNotFoundError,
   VersionConflictError,
   getDb,
   getSqlErrorNumber,
+  lockResource,
   requireVersion,
   toVersion,
 } from './db';
@@ -21,6 +25,7 @@ import {
   MAX_PLANUNG_ZUTATEN,
   MAX_ZEILEN_PRO_GERICHT,
   einheitPasst,
+  zutatSperre,
 } from './essen-gerichte-model';
 import type {
   GerichtInput,
@@ -81,6 +86,27 @@ export async function ladeKatalog(db: Db = getDb()): Promise<EssenKatalog> {
       grammProStueck: zutat.grammProStueck,
     })),
   };
+}
+
+/**
+ * A short version of the central lists (ingredients, categories, intolerances): newest row
+ * version and number of rows of each, so changes and deletions in the Steuerung reach open
+ * Planungen with the next poll.
+ */
+export async function ladeKatalogStand(db: Db): Promise<string> {
+  const row = await sql<{ stand: string }>`
+    select concat(
+      (select count_big(*) from essen.zutat), '-',
+      (select convert(varchar(18), max(version), 2) from essen.zutat), '-',
+      (select count_big(*) from essen.kategorie), '-',
+      (select convert(varchar(18), max(version), 2) from essen.kategorie), '-',
+      (select count_big(*) from essen.unvertraeglichkeit), '-',
+      (select convert(varchar(18), max(version), 2) from essen.unvertraeglichkeit)
+    ) as stand`.execute(db);
+  return createHash('sha256')
+    .update(row.rows[0]?.stand ?? '')
+    .digest('hex')
+    .slice(0, 12);
 }
 
 /** The ingredients and dishes of a Planung, for its view. */
@@ -424,19 +450,24 @@ export async function planungZutatLoeschen(
  * becomes an ingredient of the Planung. Things that are not food belong to no dish.
  */
 async function zutatFuerZeile(
-  trx: Db,
+  trx: Transaction<Database>,
   zugang: Zugang,
   zutat: GerichtZutatInput['zutat']
 ): Promise<{ id: number; name: string; einheitenart: EssenEinheitenart }> {
   if ('planungZutatId' in zutat) {
     const row = await zutatDerPlanung(trx, zugang, zutat.planungZutatId).catch(() => null);
     if (!row) throw new ValidationError({ zutat: 'Bitte eine Zutat wählen.' });
+    // The kind of unit inherited from the central list stays until the line is saved
+    if (row.zutat_id !== null && row.einheitenart === null) {
+      await lockResource(trx, zutatSperre(row.zutat_id));
+    }
     return {
       id: row.id,
       name: (row.name ?? row.z_name)!,
       einheitenart: (row.einheitenart ?? row.z_einheitenart)!,
     };
   }
+  await lockResource(trx, zutatSperre(zutat.zutatId));
   const zentral = await trx
     .selectFrom('essen.zutat')
     .select(['id', 'name', 'einheitenart', 'lebensmittel'])

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import ActionButton from '../ui/ActionButton.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -31,7 +31,11 @@
       katalogFehler = errorMessage(error, 'Die Zutatenliste konnte nicht geladen werden.');
     }
   }
-  onMount(() => void katalogLaden());
+  // Again when the Steuerung changed the lists, e.g. a corrected allergen or a new ingredient
+  $effect(() => {
+    void ansicht.katalogStand;
+    untrack(() => void katalogLaden());
+  });
 
   let name = $state('');
   let personen = $state('10');

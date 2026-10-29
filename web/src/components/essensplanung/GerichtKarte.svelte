@@ -52,6 +52,8 @@
 
   /** The saved fields the form started from and the input. */
   let basis = $state<Kopf>(kopfVon(untrack(() => gericht)));
+  /** The version of the saved fields the form started from. */
+  let basisEtag = untrack(() => gericht.etag);
   let kopf = $state<Kopf>(kopfVon(untrack(() => gericht)));
   let felder = $state<Record<string, string>>({});
   const entwurf = $derived(!gleich(kopf, basis));
@@ -60,6 +62,7 @@
     untrack(() => {
       if (entwurf) return;
       basis = neu;
+      basisEtag = gericht.etag;
       kopf = kopfVon(gericht);
     });
   });
@@ -72,7 +75,8 @@
     const geaenderteFelder = (Object.keys(kopf) as (keyof Kopf)[]).filter(
       (feld) => !gleich(kopf[feld], basis[feld])
     );
-    const body: Record<string, unknown> = { etag: gericht.etag };
+    // With the version the form started from: a change of others meanwhile is a conflict
+    const body: Record<string, unknown> = { etag: basisEtag };
     for (const feld of geaenderteFelder) {
       body[feld] =
         feld === 'personen'
@@ -101,6 +105,7 @@
       if (!weiter && (ok || unberuehrt)) kopf = { ...kopf, [feld]: aktuell[feld] };
     }
     basis = aktuell;
+    basisEtag = gericht.etag;
   }
 
   async function loeschen(): Promise<void> {

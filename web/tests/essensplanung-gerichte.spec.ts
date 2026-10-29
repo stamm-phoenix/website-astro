@@ -105,3 +105,55 @@ test('the read-only link shows dishes without editing', async ({ page, browser }
   await expect(leser.getByLabel('Neues Gericht')).toHaveCount(0);
   await leser.context().close();
 });
+
+test('an open line keeps its version, a deleted one is not added again; closing asks', async ({
+  page,
+  browser,
+}) => {
+  await anlegen(page, 'E2E Zeilenkonflikt');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Kakao');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Kakao angelegt.').first()).toBeVisible();
+  const kakao = page.locator('li', { has: page.getByText('Kakao', { exact: true }) }).first();
+  await kakao.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Zutat', { exact: true }).fill('H-Milch');
+  await dialog.getByRole('option', { name: 'H-Milch', exact: true }).click();
+  await dialog.getByLabel('Menge', { exact: true }).fill('200');
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(kakao.getByText('200 ml')).toBeVisible();
+
+  // Closing with unsaved input asks first
+  await kakao.getByRole('button', { name: 'H-Milch ändern' }).click();
+  await dialog.getByLabel('Menge', { exact: true }).fill('250');
+  await page.keyboard.press('Escape');
+  const frage = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await expect(frage).toBeVisible();
+  await frage.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('250');
+
+  // Someone else changes the line meanwhile: saving the old form is a conflict
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Kakao', { exact: true }).click();
+  await anderes.getByRole('button', { name: 'H-Milch ändern' }).click();
+  await anderes.getByRole('dialog').getByLabel('Hinweis (optional)').fill('warm');
+  await anderes.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click();
+  await expect(anderes.getByText('(warm)')).toBeVisible();
+  await expect(kakao.getByText('(warm)')).toBeVisible({ timeout: 15_000 });
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
+  await expect(kakao.getByText('(warm)')).toBeVisible();
+  await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('250');
+
+  // The line is deleted meanwhile: saving does not add it again
+  await anderes.getByRole('button', { name: 'H-Milch entfernen' }).click();
+  await answerConfirm(anderes, 'H-Milch entfernen?', 'Entfernen');
+  await expect(kakao.getByText('Noch keine Zutaten.')).toBeVisible({ timeout: 15_000 });
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog).toBeVisible();
+  await expect(kakao.getByText('Noch keine Zutaten.')).toBeVisible();
+  await anderes.context().close();
+});
