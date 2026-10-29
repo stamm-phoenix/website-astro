@@ -132,6 +132,24 @@ function addDays(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
+/**
+ * The periods the sources reach back and ahead of the meeting on `date`. Gruppenstunden go back
+ * to the previous minutes but at most `VORBELEGUNG_RUECK_TAGE`; Aktionen go back to the previous
+ * minutes however long ago they were (the limit only applies without previous minutes), so a
+ * camp in between is not forgotten.
+ */
+export function zeitfenster(
+  date: string,
+  vorherDate: string | undefined
+): { gruppenstunden: string; aktionen: string; bis: string } {
+  const fruehestens = addDays(date, -VORBELEGUNG_RUECK_TAGE);
+  return {
+    gruppenstunden: vorherDate && vorherDate > fruehestens ? vorherDate : fruehestens,
+    aktionen: vorherDate ?? fruehestens,
+    bis: addDays(date, VORBELEGUNG_VOR_TAGE),
+  };
+}
+
 /** The minutes with the latest meeting before `date`. */
 async function previousMinutes(
   date: string
@@ -149,22 +167,23 @@ async function previousMinutes(
 /** What new minutes for the meeting on `date` start with; a failing source adds nothing. */
 export async function vorbelegungFuer(date: string): Promise<Vorbelegung> {
   const vorher = await previousMinutes(date).catch(() => undefined);
-  const fruehestens = addDays(date, -VORBELEGUNG_RUECK_TAGE);
-  const nach = vorher && vorher.date > fruehestens ? vorher.date : fruehestens;
+  const fenster = zeitfenster(date, vorher?.date);
   const [gruppenstunden, aktionen] = await Promise.allSettled([
-    getMeetingSummaries({ from: nach, to: date }),
+    getMeetingSummaries({ from: fenster.gruppenstunden, to: date }),
     getAktionen(),
   ]);
   const texte: Record<string, string> = {
     ...(aktionen.status === 'fulfilled'
       ? aktionenTexte(aktionen.value, {
-          nach,
+          nach: fenster.aktionen,
           date,
-          bis: addDays(date, VORBELEGUNG_VOR_TAGE),
+          bis: fenster.bis,
         })
       : {}),
     ...(gruppenstunden.status === 'fulfilled'
-      ? stufenberichte(gruppenstunden.value.filter((meeting) => meeting.date > nach))
+      ? stufenberichte(
+          gruppenstunden.value.filter((meeting) => meeting.date > fenster.gruppenstunden)
+        )
       : {}),
   };
   return {
