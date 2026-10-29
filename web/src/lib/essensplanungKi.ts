@@ -1,9 +1,9 @@
 import { errorMessage } from './api';
 import { EINHEITEN_JE_ART, einheitText, mengeText } from '../../../api/lib/essen-gerichte-model';
 import type { EssenEinheitenart } from '../../../api/lib/essen-validation';
-import type { GerichtEinheit } from './types';
+import type { GerichtEinheit, PlanungZutat } from './types';
 import { leseMenge, mengeFeld } from './essensplanungGerichte';
-import type { KiAenderung } from '../../../api/lib/essen-ki-model';
+import type { KiAenderung, KiZutatWahl } from '../../../api/lib/essen-ki-model';
 
 export type {
   KiAenderung,
@@ -97,4 +97,19 @@ export function skaliereMenge(text: string, faktor: number, einheit: GerichtEinh
   const menge = leseMenge(text);
   if (menge === null || Number.isNaN(menge)) return text;
   return mengeFeld(runde(menge * faktor, einheit));
+}
+
+/**
+ * The key of the suggestion (`zutatVorschlaege`) a recipe line maps to. A central ingredient
+ * that has become one of the Planung meanwhile (someone used it first) is that one, `p:<id>`
+ * with its kind of unit, as the list offers it only there.
+ */
+export function vorschlagKey(
+  zutat: KiZutatWahl | null,
+  zutaten: readonly Pick<PlanungZutat, 'id' | 'zutatId'>[]
+): string | null {
+  if (!zutat) return null;
+  if ('planungZutatId' in zutat) return `p:${zutat.planungZutatId}`;
+  const inPlanung = zutaten.find((eintrag) => eintrag.zutatId === zutat.zutatId);
+  return inPlanung ? `p:${inPlanung.id}` : `z:${zutat.zutatId}`;
 }

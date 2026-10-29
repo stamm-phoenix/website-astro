@@ -234,10 +234,19 @@ export function gerichtZutatenSammeln(
   // One change in the log, as the API writes it
   z.planung.aenderungen.splice(0, inputs.length);
   z.planung.seq = vorher.seq;
+  const nachId = new Map(gerichteAnsicht(z.planung).zutaten.map((zutat) => [zutat.id, zutat]));
   aendere(
     z,
     'gericht-zutaten-neu',
-    { gericht: gericht.name, anzahl: inputs.length },
+    {
+      gericht: gericht.name,
+      anzahl: inputs.length,
+      // The names of the lines just added, as the API logs them
+      namen: gericht.zutaten
+        .slice(-inputs.length)
+        .map((zeile) => nachId.get(zeile.planungZutatId)?.name ?? '')
+        .slice(0, 10),
+    },
     () => undefined
   );
 }

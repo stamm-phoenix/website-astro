@@ -19,6 +19,7 @@
     kiFehlerText,
     mengeFuerZutat,
     skaliereMenge,
+    vorschlagKey,
     type KiRezept,
     type KiRezeptZeile,
   } from '../../lib/essensplanungKi';
@@ -129,11 +130,7 @@
   }
 
   function zeileVon(ki: KiRezeptZeile): Zeile {
-    const key = ki.zutat
-      ? 'zutatId' in ki.zutat
-        ? `z:${ki.zutat.zutatId}`
-        : `p:${ki.zutat.planungZutatId}`
-      : null;
+    const key = vorschlagKey(ki.zutat, ansicht.zutaten);
     const vorschlag = key ? vorschlaege.find((option) => option.key === key) : undefined;
     const zeile: Zeile = {
       an: Boolean(vorschlag),

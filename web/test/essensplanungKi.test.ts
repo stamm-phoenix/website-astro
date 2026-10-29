@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mengeFuerZutat, skaliereMenge } from '../src/lib/essensplanungKi.ts';
+import { mengeFuerZutat, skaliereMenge, vorschlagKey } from '../src/lib/essensplanungKi.ts';
 
 test('a recipe line chosen for an ingredient in g converts pieces or asks for the amount', () => {
   const sechs = { menge: '6', einheit: 'stueck' as const, hinweis: 'reif' };
@@ -43,4 +43,16 @@ test('amounts of the preview are scaled to other people', () => {
   assert.equal(skaliereMenge('1,25', 2, 'kg'), '2,5');
   assert.equal(skaliereMenge('', 2, 'g'), '');
   assert.equal(skaliereMenge('viel', 2, 'g'), 'viel');
+});
+
+test('a central ingredient that became one of the Planung meanwhile maps to that one', () => {
+  const zutaten = [
+    { id: 7, zutatId: 42 },
+    { id: 8, zutatId: null },
+  ];
+  // Someone used onions (42) in another dish while the recipe was read
+  assert.equal(vorschlagKey({ zutatId: 42 }, zutaten), 'p:7');
+  assert.equal(vorschlagKey({ zutatId: 43 }, zutaten), 'z:43');
+  assert.equal(vorschlagKey({ planungZutatId: 8 }, zutaten), 'p:8');
+  assert.equal(vorschlagKey(null, zutaten), null);
 });

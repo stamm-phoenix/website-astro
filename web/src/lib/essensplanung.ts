@@ -185,6 +185,8 @@ const AENDERUNGEN: Record<string, string> = {
 /** „Kim hat eine Mahlzeit geändert: Brunch (1.8.)“. */
 export function aenderungText(aenderung: PlanungAenderung): string {
   const wer = aenderung.wer || 'Jemand';
+  if (aenderung.aktion === 'gericht-zutaten-neu')
+    return zutatenHinzugefuegt(wer, aenderung.details);
   const { name, datum, gericht, mahlzeit, verschoben, anzahl, gruppe, isst, geschaeft } =
     aenderung.details;
   const gruppen = aenderung.aktion === 'mahlzeit-gruppen';
@@ -212,4 +214,16 @@ export function aenderungText(aenderung: PlanungAenderung): string {
   return ziel && aenderung.aktion !== 'mitglied-beigetreten'
     ? `${wer} ${was}: ${ziel}`
     : `${wer} ${was}`;
+}
+
+/** „Kim hat 3 Zutaten in „Chili“ hinzugefügt: Zwiebeln, Hackfleisch, Salz“ (names up to five). */
+function zutatenHinzugefuegt(wer: string, details: Record<string, unknown>): string {
+  const anzahl = typeof details.anzahl === 'number' ? details.anzahl : 0;
+  const gericht = typeof details.gericht === 'string' ? ` in „${details.gericht}“` : '';
+  const namen = Array.isArray(details.namen)
+    ? details.namen.filter((name): name is string => typeof name === 'string')
+    : [];
+  const was = anzahl === 1 ? 'eine Zutat' : anzahl > 1 ? `${anzahl} Zutaten` : 'Zutaten';
+  const liste = namen.length && anzahl <= 5 ? `: ${namen.join(', ')}` : '';
+  return `${wer} hat ${was}${gericht} hinzugefügt${liste}`;
 }

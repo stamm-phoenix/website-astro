@@ -139,3 +139,45 @@ test('an error of the whole take-over is named in the dialog', async ({ page }) 
   );
   await expect(dialog.getByTestId('rezept-zeile')).toHaveCount(2);
 });
+
+test('an ingredient first used meanwhile is still recognised from the list', async ({ page }) => {
+  await anlegen(page, 'E2E KI Erste Verwendung');
+  const karte = await gericht(page, 'Suppe', '4');
+  await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Rezept für Suppe' });
+  await dialog.getByLabel('Rezept', { exact: true }).fill('500 g Zwiebeln');
+
+  // The recognition answers for the central list; before the answer arrives, someone uses
+  // onions for the first time, so they become an ingredient of the Planung
+  const url = new URL(page.url());
+  const headers = {
+    'x-essensplanung-token': new URLSearchParams(url.hash.slice(1)).get('t')!,
+  };
+  const base = `${url.origin}/api/essensplanung/planung`;
+  let freigeben!: () => void;
+  const frei = new Promise<void>((resolve) => (freigeben = resolve));
+  await page.route('**/api/essensplanung/planung/gerichte/*/ki/rezept', async (route) => {
+    const antwort = await route.fetch();
+    await frei;
+    await route.fulfill({ response: antwort });
+  });
+  await dialog.getByRole('button', { name: 'Zutaten erkennen' }).click();
+  const katalog = await (await page.request.get(`${base}/katalog`, { headers })).json();
+  const zwiebeln = katalog.zutaten.find((z: { name: string }) => z.name === 'Zwiebeln');
+  const ansicht = await (await page.request.get(base, { headers })).json();
+  const suppe = ansicht.gerichte.find((g: { name: string }) => g.name === 'Suppe');
+  const neu = await page.request.post(`${base}/gerichte/${suppe.id}/zutaten`, {
+    headers,
+    data: { zutatId: zwiebeln.id, menge: 1, einheit: 'kg' },
+  });
+  expect(neu.ok()).toBe(true);
+  await expect(karte.getByLabel('Menge von Zwiebeln', { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
+  freigeben();
+
+  await expect(dialog.getByLabel('Zutat für 500 g Zwiebeln')).toHaveValue('Zwiebeln');
+  await expect(dialog.getByText('nicht in der Liste, bitte wählen')).toHaveCount(0);
+  await expect(dialog.getByRole('checkbox', { name: '500 g Zwiebeln übernehmen' })).toBeChecked();
+  await expect(dialog.getByLabel('Einheit für 500 g Zwiebeln')).toHaveValue('g');
+});
