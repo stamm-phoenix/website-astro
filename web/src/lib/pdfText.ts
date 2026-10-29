@@ -17,14 +17,15 @@ export function pdfText(value: string): string {
   return value
     .split('\n')
     .map((line) =>
-      [...line]
+      // Tabs and other spaces (e.g. a narrow no-break space) stay a gap between the words
+      [...line.replace(/[\t\p{Zs}]/gu, ' ')]
         .map((char) => {
           if (printable(char)) return char;
           const base = char.normalize('NFD').replace(/\p{M}/gu, '');
           return [...base].every(printable) ? base : '';
         })
         .join('')
-        .replace(/[ \t]+/g, ' ')
+        .replace(/ +/g, ' ')
         .trim()
     )
     .join('\n');
