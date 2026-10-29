@@ -3,6 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { errorMessage } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { einkaufsliste, postenMenge } from '../../lib/essensplanungEinkauf';
   import { kochMenge } from '../../lib/essensplanungRechnung';
   import type { PostenArt } from '../../../../api/lib/essen-einkauf-model';
@@ -50,6 +51,10 @@
   const kategorien = $derived(new Map((katalog?.kategorien ?? []).map((k) => [k.id, k.name])));
   const liste = $derived(einkaufsliste(ansicht, kategorien));
   const zutaten = $derived(new Map(ansicht.zutaten.map((z) => [z.id, z])));
+
+  /** What is typed under „Noch etwas besorgen“, kept while the page is read-only for a while. */
+  let neuerZusatz = $state('');
+  $effect(() => guardUnsavedChanges(() => neuerZusatz.trim() !== ''));
 
   let geschaeftDialog = $state<number | null | undefined>(undefined);
   let postenDialog = $state<{ art: PostenArt; id: number | null } | null>(null);
@@ -236,7 +241,7 @@
       <p class="text-neutral-700">Noch nichts zu kaufen.</p>
     {/each}
     {#if bearbeiten}
-      <NeuerZusatz {kontext} {katalog} />
+      <NeuerZusatz {kontext} {katalog} bind:text={neuerZusatz} />
     {/if}
   </section>
 

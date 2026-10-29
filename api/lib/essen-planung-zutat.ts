@@ -114,6 +114,29 @@ function artVon(einheit: GerichtEinheit): EssenEinheitenart {
   )!;
 }
 
+/** The category of things of their own on the shopping list. */
+const SONSTIGES = 'Sonstiges';
+
+/**
+ * The id of the category „Sonstiges“. The Steuerung may rename or delete it; then it is added
+ * again, under a lock so two Planungen at the same moment add it once.
+ */
+async function sonstigesKategorie(trx: Transaction<Database>): Promise<number> {
+  const finde = () =>
+    trx.selectFrom('essen.kategorie').select('id').where('name', '=', SONSTIGES).executeTakeFirst();
+  const vorhanden = await finde();
+  if (vorhanden) return vorhanden.id;
+  await lockResource(trx, 'essen-kategorie-sonstiges');
+  const inzwischen = await finde();
+  if (inzwischen) return inzwischen.id;
+  const neu = await trx
+    .insertInto('essen.kategorie')
+    .values({ name: SONSTIGES })
+    .output('inserted.id')
+    .executeTakeFirstOrThrow();
+  return neu.id;
+}
+
 /**
  * What a typed name on the shopping list stands for: the ingredient of the list or of the Planung
  * of that name, else a new thing of the Planung that is no food, in the category „Sonstiges“ and
@@ -149,19 +172,14 @@ export async function sonstigesDerPlanung(
       zutat: `Eine Planung hat höchstens ${MAX_PLANUNG_ZUTATEN} Zutaten.`,
     });
   }
-  const kategorie = await trx
-    .selectFrom('essen.kategorie')
-    .select('id')
-    .where('name', '=', 'Sonstiges')
-    .executeTakeFirst();
-  if (!kategorie) throw new Error('Die Kategorie „Sonstiges“ fehlt.');
+  const kategorieId = await sonstigesKategorie(trx);
   const einheitenart = einheit === null ? 'stueck' : artVon(einheit);
   const { id } = await trx
     .insertInto('essen.planung_zutat')
     .values({
       planung_id: zugang.planungId,
       name,
-      kategorie_id: kategorie.id,
+      kategorie_id: kategorieId,
       einheitenart,
       lebensmittel: false,
     })
