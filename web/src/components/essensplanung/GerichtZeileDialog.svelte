@@ -151,6 +151,13 @@
     else auswahl = null;
   }
 
+  /** Chosen intolerances deleted in the Steuerung meanwhile; they are removed here. */
+  const verschwunden = $derived(
+    Object.entries(unvertraeglich)
+      .filter(([id, art]) => art && !katalog.unvertraeglichkeiten.some((u) => u.id === Number(id)))
+      .map(([id]) => Number(id))
+  );
+
   const ohneTreffer = $derived(!auswahl && zutatText.trim().length > 1 && !eigene);
 
   /** True while saving; the form is disabled meanwhile. */
@@ -465,6 +472,14 @@
                 <option value="ohne">nicht dafür</option>
                 <option value="nur">nur dafür (Ersatz)</option>
               </select>
+            </li>
+          {/each}
+          {#each verschwunden as id (id)}
+            <li class="flex items-center justify-between gap-3">
+              <span class="min-w-0 text-danger">Gelöscht: nicht mehr in der Liste</span>
+              <ActionButton type="button" onclick={() => delete unvertraeglich[id]}
+                >Entfernen</ActionButton
+              >
             </li>
           {/each}
         </ul>

@@ -286,3 +286,31 @@ test('without the central list the card does not hide allergens', async ({ page 
   await expect(reis.getByText('enthält Allergene (Namen nicht geladen)')).toBeVisible();
   await expect(reis.getByRole('button', { name: 'Rezeptkarte drucken' })).toBeDisabled();
 });
+
+test('a dish changed during the delete question is not deleted', async ({ page, browser }) => {
+  await anlegen(page, 'E2E Löschkonflikt');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Suppe');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Suppe angelegt.').first()).toBeVisible();
+  const suppe = page.locator('li[id^="gericht-"]').first();
+  await suppe.getByRole('button', { name: 'Gericht löschen' }).click();
+  await expect(page.getByRole('dialog', { name: '„Suppe“ löschen?' })).toBeVisible();
+
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Suppe', { exact: true }).click();
+  await anderes
+    .locator('li[id^="gericht-"]')
+    .getByLabel('Name', { exact: true })
+    .fill('Kürbissuppe');
+  await anderes.getByRole('button', { name: 'Gericht speichern' }).click();
+  await expect(anderes.getByText('Kürbissuppe gespeichert.').first()).toBeVisible();
+  await expect(suppe.getByText('Kürbissuppe', { exact: true })).toBeAttached({ timeout: 15_000 });
+
+  await answerConfirm(page, '„Suppe“ löschen?', 'Gericht löschen');
+  await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
+  await expect(suppe.getByText('Kürbissuppe', { exact: true })).toBeVisible();
+  await anderes.context().close();
+});

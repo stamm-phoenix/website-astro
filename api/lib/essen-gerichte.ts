@@ -250,7 +250,9 @@ async function zaehle(trx: Db, table: 'essen.planung_zutat' | 'essen.gericht', p
 async function pruefeVerweise(
   trx: Db,
   kategorieId: number | null,
-  unvertraeglichkeiten: number[]
+  unvertraeglichkeiten: number[],
+  /** The field that shows an unknown intolerance. */
+  feld = 'allergene'
 ): Promise<void> {
   if (kategorieId !== null) {
     const kategorie = await trx
@@ -267,7 +269,7 @@ async function pruefeVerweise(
       .where('id', 'in', unvertraeglichkeiten)
       .execute();
     if (gefunden.length !== unvertraeglichkeiten.length) {
-      throw new ValidationError({ allergene: 'Bitte aus der Liste wählen.' });
+      throw new ValidationError({ [feld]: 'Bitte aus der Liste wählen.' });
     }
   }
 }
@@ -634,7 +636,7 @@ async function sortiereZeilen(
 }
 
 async function setzeUnvertraeglichkeiten(trx: Db, zeileId: number, input: GerichtZutatInput) {
-  await pruefeVerweise(trx, null, [...input.ohne, ...input.nur]);
+  await pruefeVerweise(trx, null, [...input.ohne, ...input.nur], 'ohne');
   await trx
     .deleteFrom('essen.gericht_zutat_unvertraeglichkeit')
     .where('gericht_zutat_id', '=', zeileId)
