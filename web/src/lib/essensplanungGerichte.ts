@@ -114,6 +114,21 @@ export function zutatWahl(option: Vorschlag): ZutatWahl {
   return { art: art === 'p' ? 'planung' : 'zentral', id: Number(id) };
 }
 
+/**
+ * The chosen ingredient as it applies in this Planung: one of the list counts as the Planung's
+ * once someone took it over, with the Planung's kind of unit (as the API resolves it).
+ */
+export function gewaehlteZutat(
+  auswahl: ZutatWahl | null,
+  zutaten: readonly PlanungZutat[],
+  katalog: EssenKatalog
+): PlanungZutat | EssenKatalog['zutaten'][number] | undefined {
+  if (!auswahl) return undefined;
+  const id = auswahl.id;
+  if (auswahl.art === 'planung') return zutaten.find((z) => z.id === id);
+  return zutaten.find((z) => z.zutatId === id) ?? katalog.zutaten.find((z) => z.id === id);
+}
+
 /** The suggestion whose name was typed, ignoring case but not umlauts (Ol is not Öl). */
 export function getippteZutat(vorschlaege: Vorschlag[], text: string): Vorschlag | undefined {
   const name = text.trim();

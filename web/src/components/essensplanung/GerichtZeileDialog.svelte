@@ -14,8 +14,9 @@
   import { untrack } from 'svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import InfoHint from '../ui/InfoHint.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
+  import GrammRechner from './GrammRechner.svelte';
   import ZeileUnvertraeglichkeiten from './ZeileUnvertraeglichkeiten.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError } from '../../lib/api';
@@ -24,6 +25,7 @@
   import { EINHEITENART_LABELS } from '../../lib/essensplanungSteuerung';
   import {
     getippteZutat,
+    gewaehlteZutat,
     leseMenge,
     mengeFeld,
     zutatVorschlaege,
@@ -97,8 +99,7 @@
     zeileEtag = zeile?.etag ?? '';
     felder = {};
     fehler = null;
-    anzahl = '1';
-    mass = '';
+    geoeffnet++;
     eigene = null;
     geaendert = false;
     const z = zeile;
@@ -137,49 +138,22 @@
   const vorschlaege = $derived(zutatVorschlaege(katalog, ansicht.zutaten));
 
   /** The chosen ingredient, as it applies in this Planung. */
-  const gewaehlt = $derived.by(() => {
-    if (!auswahl) return undefined;
-    const id = auswahl.id;
-    if (auswahl.art === 'planung') return ansicht.zutaten.find((z) => z.id === id);
-    return katalog.zutaten.find((z) => z.id === id);
-  });
+  const gewaehlt = $derived(gewaehlteZutat(auswahl, ansicht.zutaten, katalog));
   /** The kind of unit of the chosen ingredient. */
   const einheitenart = $derived<EssenEinheitenart | null>(
     eigene ? eigene.einheitenart : (gewaehlt?.einheitenart ?? null)
   );
   const einheiten = $derived(einheitenart ? EINHEITEN_JE_ART[einheitenart] : []);
 
-  /** Grams per TL, EL or piece of a central ingredient measured by weight, from the list. */
-  const umrechnung = $derived.by((): { mass: string; label: string; gramm: number }[] => {
-    if (einheitenart !== 'masse' || !gewaehlt) return [];
+  /** The central ingredient behind the choice, for converting TL, EL or pieces into grams. */
+  const zentral = $derived.by(() => {
+    if (einheitenart !== 'masse' || !gewaehlt) return undefined;
     const zentralId = 'zutatId' in gewaehlt ? gewaehlt.zutatId : gewaehlt.id;
-    const zentral = katalog.zutaten.find((z) => z.id === zentralId);
-    if (!zentral) return [];
-    return [
-      { mass: 'tl', label: 'TL', gramm: zentral.grammProTl },
-      { mass: 'el', label: 'EL', gramm: zentral.grammProEl },
-      { mass: 'stueck', label: 'Stück', gramm: zentral.grammProStueck },
-    ].filter(
-      (entry): entry is { mass: string; label: string; gramm: number } => entry.gramm !== null
-    );
+    return katalog.zutaten.find((z) => z.id === zentralId);
   });
-  let anzahl = $state('1');
-  let mass = $state('');
-  const gramm = $derived.by(() => {
-    const zahl = leseMenge(anzahl);
-    const eintrag = umrechnung.find((entry) => entry.mass === mass);
-    if (!eintrag || zahl === null || Number.isNaN(zahl)) return null;
-    // Whole grams, a tenth below 10 g (spices)
-    const roh = zahl * eintrag.gramm;
-    return roh < 10 ? Math.round(roh * 10) / 10 : Math.round(roh);
-  });
-  // The measure shown is the one calculated with: the first one when the chosen is not offered
-  $effect(() => {
-    if (umrechnung.length && !umrechnung.some((entry) => entry.mass === mass))
-      mass = umrechnung[0].mass;
-  });
-  function uebernehmen(): void {
-    if (gramm === null || gramm <= 0) return;
+  /** Opening again starts the conversion afresh. */
+  let geoeffnet = $state(0);
+  function uebernehmen(gramm: number): void {
     menge = mengeFeld(gramm);
     einheit = 'g';
     geaendert = true;
@@ -503,40 +477,8 @@
           {/snippet}
         </FormField>
       </div>
-      {#if umrechnung.length}
-        <fieldset class="space-y-2 rounded-md border border-neutral-200 p-3">
-          <legend class="flex items-center gap-1 px-1 text-sm font-semibold text-neutral-900">
-            In Gramm umrechnen
-            <InfoHint
-              label="In Gramm umrechnen"
-              text="Anhaltswerte aus der Umrechnungstabelle der Zutatenliste, gestrichen gemessen. Übernehmen trägt das Ergebnis als Menge in g ein."
-            />
-          </legend>
-          <div class="flex flex-wrap items-center gap-2">
-            <label class="sr-only" for="umrechnen-anzahl">Anzahl zum Umrechnen</label>
-            <input
-              id="umrechnen-anzahl"
-              class="form-input w-20"
-              inputmode="decimal"
-              autocomplete="off"
-              bind:value={anzahl}
-            />
-            <label class="sr-only" for="umrechnen-mass">Maß zum Umrechnen</label>
-            <select id="umrechnen-mass" class="form-input w-auto" bind:value={mass}>
-              {#each umrechnung as eintrag (eintrag.mass)}
-                <option value={eintrag.mass}>{eintrag.label}</option>
-              {/each}
-            </select>
-            <span class="tabular-nums" aria-live="polite"
-              >{gramm === null ? '' : `≈ ${mengeFeld(gramm)} g`}</span
-            >
-            <ActionButton
-              type="button"
-              disabled={gramm === null || gramm <= 0}
-              onclick={uebernehmen}>Übernehmen</ActionButton
-            >
-          </div>
-        </fieldset>
+      {#if zentral}
+        {#key geoeffnet}<GrammRechner {zentral} onuebernehmen={uebernehmen} />{/key}
       {/if}
       <FormField id="zeile-hinweis" label="Hinweis" optional error={felder.hinweis}>
         {#snippet children(attrs)}
