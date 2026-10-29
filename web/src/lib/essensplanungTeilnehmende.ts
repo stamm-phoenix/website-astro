@@ -24,9 +24,17 @@ export function mahlzeitText(ansicht: PlanungAnsicht, mahlzeitId: number): strin
   return '';
 }
 
-/** „ab 1_2 Mittagessen bis 2_1 Frühstück“; empty for the whole Planung. */
+/** Shown when a limit is a deleted meal: the row then counts at no meal (`anwesend`). */
+export const GRENZE_GELOESCHT = 'isst bei keiner Mahlzeit mit, weil ihre Mahlzeit gelöscht ist';
+
+/**
+ * „ab 1_2 Mittagessen bis 2_1 Frühstück“; empty for the whole Planung; `GRENZE_GELOESCHT` when
+ * a limit is not in the plan any more.
+ */
 export function zeitraumText(ansicht: PlanungAnsicht, zeile: Teilnehmende): string {
   const von = zeile.vonMahlzeitId === null ? '' : mahlzeitText(ansicht, zeile.vonMahlzeitId);
   const bis = zeile.bisMahlzeitId === null ? '' : mahlzeitText(ansicht, zeile.bisMahlzeitId);
+  if ((zeile.vonMahlzeitId !== null && !von) || (zeile.bisMahlzeitId !== null && !bis))
+    return GRENZE_GELOESCHT;
   return [von && `ab ${von}`, bis && `bis ${bis}`].filter(Boolean).join(' ');
 }

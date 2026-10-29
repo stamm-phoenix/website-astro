@@ -302,3 +302,100 @@ dbTest('the preview gets invented participants once', async () => {
     .execute();
   assert.equal(zeilen.length, 4);
 });
+
+dbTest(
+  'a row whose limit is gone can still change; group changes count for deleting',
+  async (t) => {
+    const mails = captureMails(t);
+    const { token, ansicht } = await anlegen(t, mails);
+    const erste = ansicht.tage[0].mahlzeiten[0];
+    const gruppe = ansicht.gruppen[0];
+    const zeile = { gruppeId: gruppe.id, ernaehrung: 'alles', anzahl: 3, bisMahlzeitId: erste.id };
+    await teilnehmendeNeu(t, token, zeile);
+    // The end meal goes and has none before it: the row keeps it and eats nowhere
+    await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${erste.id}`, {
+      token,
+      params: { id: String(erste.id) },
+      ifMatch: mahlzeitStand(erste),
+    });
+    const ohne = json<PlanungAnsicht>(
+      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    );
+    const [gespeichert] = ohne.teilnehmende;
+    assert.equal(gespeichert.bisMahlzeitId, erste.id);
+    const geaendert = await call(
+      t,
+      endpoints.EssensplanungTeilnehmende,
+      'PATCH',
+      `planung/teilnehmende/${gespeichert.id}`,
+      {
+        token,
+        params: { id: String(gespeichert.id) },
+        body: { ...zeile, hinweis: 'reisen früher ab', etag: gespeichert.etag },
+      }
+    );
+    assert.equal(geaendert.status, 200);
+    const nachher = json<PlanungAnsicht>(geaendert);
+    assert.equal(nachher.teilnehmende[0].hinweis, 'reisen früher ab');
+    assert.ok([...esserJeMahlzeit(nachher).values()].every((esser) => esser.personen === 0));
+    // A new limit must still be in the plan
+    const weg = await call(
+      t,
+      endpoints.EssensplanungTeilnehmende,
+      'PATCH',
+      `planung/teilnehmende/${gespeichert.id}`,
+      {
+        token,
+        params: { id: String(gespeichert.id) },
+        body: { ...zeile, vonMahlzeitId: erste.id, etag: nachher.teilnehmende[0].etag },
+      }
+    );
+    assert.equal(weg.status, 400);
+
+    // Leaving a group out while someone asks about deleting the meal: the delete is a conflict
+    const mahlzeit = nachher.tage[0].mahlzeiten[0];
+    const stand = mahlzeitStand(mahlzeit);
+    const tag = tagStand(nachher.tage[0]);
+    const setzen = (isst: boolean) =>
+      call(
+        t,
+        endpoints.EssensplanungMahlzeitGruppe,
+        'PUT',
+        `planung/mahlzeiten/${mahlzeit.id}/gruppen`,
+        {
+          token,
+          params: { id: String(mahlzeit.id) },
+          body: { gruppeId: gruppe.id, isst },
+        }
+      );
+    await setzen(false);
+    const alt = await call(
+      t,
+      endpoints.EssensplanungMahlzeit,
+      'DELETE',
+      `planung/mahlzeiten/${mahlzeit.id}`,
+      {
+        token,
+        params: { id: String(mahlzeit.id) },
+        ifMatch: stand,
+      }
+    );
+    assert.equal(alt.status, 409);
+    const tagAlt = await call(
+      t,
+      endpoints.EssensplanungTag,
+      'DELETE',
+      `planung/tage/${nachher.tage[0].id}`,
+      {
+        token,
+        params: { id: String(nachher.tage[0].id) },
+        ifMatch: tag,
+      }
+    );
+    assert.equal(tagAlt.status, 409);
+    // Setting the same again changes nothing, not even the version
+    const vorher = mahlzeitStand(json<PlanungAnsicht>(await setzen(false)).tage[0].mahlzeiten[0]);
+    const wieder = mahlzeitStand(json<PlanungAnsicht>(await setzen(false)).tage[0].mahlzeiten[0]);
+    assert.equal(wieder, vorher);
+  }
+);

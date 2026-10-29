@@ -198,7 +198,16 @@ export async function gruppeLoeschen(zugang: Zugang, id: number, etag: string): 
 // Participants
 // ---------------------------------------------------------------------------------------------
 
-async function pruefeVerweise(trx: Db, zugang: Zugang, input: TeilnehmendeInput) {
+/**
+ * Checks group, limits and intolerances. A limit kept from before (`bisher`) may point to a meal
+ * that is gone, as `verschiebeGrenzen` leaves it, so the row can still be changed otherwise.
+ */
+async function pruefeVerweise(
+  trx: Db,
+  zugang: Zugang,
+  input: TeilnehmendeInput,
+  bisher?: { von: number | null; bis: number | null }
+) {
   const gruppe = await trx
     .selectFrom('essen.planung_gruppe')
     .select('name')
@@ -218,9 +227,9 @@ async function pruefeVerweise(trx: Db, zugang: Zugang, input: TeilnehmendeInput)
     const ort = (id: number | null) => gefunden.find((row) => row.id === id);
     const von = ort(input.vonMahlzeitId);
     const bis = ort(input.bisMahlzeitId);
-    if (input.vonMahlzeitId !== null && !von)
+    if (input.vonMahlzeitId !== null && !von && input.vonMahlzeitId !== bisher?.von)
       throw new ValidationError({ vonMahlzeitId: 'Diese Mahlzeit gibt es nicht mehr.' });
-    if (input.bisMahlzeitId !== null && !bis)
+    if (input.bisMahlzeitId !== null && !bis && input.bisMahlzeitId !== bisher?.bis)
       throw new ValidationError({ bisMahlzeitId: 'Diese Mahlzeit gibt es nicht mehr.' });
     if (von && bis) {
       const reihe = (row: typeof von) =>
@@ -293,11 +302,12 @@ export async function teilnehmendeAnlegen(zugang: Zugang, input: TeilnehmendeInp
 async function teilnehmendeDerPlanung(trx: Db, zugang: Zugang, id: number) {
   const zeile = await trx
     .selectFrom('essen.teilnehmende')
-    .select('id')
+    .select(['id', 'von_mahlzeit_id', 'bis_mahlzeit_id'])
     .where('id', '=', id)
     .where('planung_id', '=', zugang.planungId)
     .executeTakeFirst();
   if (!zeile) throw new RecordNotFoundError();
+  return zeile;
 }
 
 export async function teilnehmendeAendern(
@@ -307,8 +317,11 @@ export async function teilnehmendeAendern(
   etag: string
 ): Promise<void> {
   await aendere(zugang, 'teilnehmende-geaendert', async (trx) => {
-    await teilnehmendeDerPlanung(trx, zugang, id);
-    const gruppe = await pruefeVerweise(trx, zugang, input);
+    const bisher = await teilnehmendeDerPlanung(trx, zugang, id);
+    const gruppe = await pruefeVerweise(trx, zugang, input, {
+      von: bisher.von_mahlzeit_id,
+      bis: bisher.bis_mahlzeit_id,
+    });
     const result = await trx
       .updateTable('essen.teilnehmende')
       .set(werte(input))
@@ -365,15 +378,23 @@ export async function mahlzeitGruppeSetzen(
       .executeTakeFirst();
     if (!mahlzeit) throw new RecordNotFoundError();
     const gruppe = await gruppeDerPlanung(trx, zugang, gruppeId);
-    await trx
+    const geloescht = await trx
       .deleteFrom('essen.mahlzeit_ohne_gruppe')
       .where('mahlzeit_id', '=', mahlzeitId)
       .where('gruppe_id', '=', gruppeId)
-      .execute();
+      .executeTakeFirst();
     if (!isst) {
       await trx
         .insertInto('essen.mahlzeit_ohne_gruppe')
         .values({ mahlzeit_id: mahlzeitId, gruppe_id: gruppeId })
+        .execute();
+    }
+    // A real change gives the meal a new version, so deleting it with the old one is a conflict
+    if (isst === Number(geloescht.numDeletedRows) > 0) {
+      await trx
+        .updateTable('essen.mahlzeit')
+        .set((eb) => ({ name: eb.ref('name') }))
+        .where('id', '=', mahlzeitId)
         .execute();
     }
     return {

@@ -164,17 +164,29 @@ const AENDERUNGEN: Record<string, string> = {
   'einplanung-neu': 'hat ein Gericht eingeplant',
   'einplanung-geaendert': 'hat eine Einplanung geändert',
   'einplanung-geloescht': 'hat ein Gericht aus einer Mahlzeit genommen',
+  'gruppe-neu': 'hat eine Gruppe angelegt',
+  'gruppe-geaendert': 'hat eine Gruppe geändert',
+  'gruppe-geloescht': 'hat eine Gruppe gelöscht',
+  'teilnehmende-neu': 'hat Teilnehmende hinzugefügt',
+  'teilnehmende-geaendert': 'hat Teilnehmende geändert',
+  'teilnehmende-geloescht': 'hat Teilnehmende entfernt',
 };
 
 /** „Kim hat eine Mahlzeit geändert: Brunch (1.8.)“. */
 export function aenderungText(aenderung: PlanungAenderung): string {
   const wer = aenderung.wer || 'Jemand';
-  const { name, datum, gericht, mahlzeit, verschoben } = aenderung.details;
-  const was =
-    verschoben === true
+  const { name, datum, gericht, mahlzeit, verschoben, anzahl, gruppe, isst } = aenderung.details;
+  const gruppen = aenderung.aktion === 'mahlzeit-gruppen';
+  const was = gruppen
+    ? isst === true
+      ? 'lässt eine Gruppe mitessen'
+      : 'nimmt eine Gruppe aus einer Mahlzeit'
+    : verschoben === true
       ? 'hat ein Gericht verschoben'
       : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
   const ziel = [
+    gruppen && typeof gruppe === 'string' ? `${gruppe} bei` : '',
+    typeof anzahl === 'number' ? String(anzahl) : '',
     typeof name === 'string' ? name : '',
     typeof mahlzeit === 'string' ? `bei ${mahlzeit}` : '',
     typeof datum === 'string' ? `(${datumKurz(datum)})` : '',

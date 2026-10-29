@@ -53,6 +53,27 @@ test('changes read as a sentence with name and day', () => {
   );
 });
 
+test('changes of participants and groups at a meal read apart', () => {
+  const text = (aktion: string, details: Record<string, unknown>) =>
+    aenderungText({ seq: 3, at: '', wer: 'Kim', aktion, details });
+  assert.equal(
+    text('teilnehmende-neu', { name: 'Wö', anzahl: 10 }),
+    'Kim hat Teilnehmende hinzugefügt: 10 Wö'
+  );
+  assert.equal(
+    text('teilnehmende-geloescht', { name: 'Wö', anzahl: 10 }),
+    'Kim hat Teilnehmende entfernt: 10 Wö'
+  );
+  assert.equal(
+    text('mahlzeit-gruppen', { name: 'Frühstück', datum: '2027-08-01', gruppe: 'Wö', isst: false }),
+    'Kim nimmt eine Gruppe aus einer Mahlzeit: Wö bei Frühstück (So., 1.8.2027)'
+  );
+  assert.equal(
+    text('mahlzeit-gruppen', { name: 'Frühstück', datum: '2027-08-01', gruppe: 'Wö', isst: true }),
+    'Kim lässt eine Gruppe mitessen: Wö bei Frühstück (So., 1.8.2027)'
+  );
+});
+
 test('amounts accept a comma and stay empty without a number', () => {
   assert.equal(leseMenge('1,5'), 1.5);
   assert.equal(leseMenge(' 200 '), 200);

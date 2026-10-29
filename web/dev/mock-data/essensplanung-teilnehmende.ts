@@ -102,16 +102,19 @@ export function gruppeAendern(
   });
 }
 
-function pruefe(z: MockZugang, input: TeilnehmendeInput): void {
+function pruefe(z: MockZugang, input: TeilnehmendeInput, bisher?: Teilnehmende): void {
   if (!z.planung.gruppen.some((g) => g.id === input.gruppeId))
     throw feld('gruppeId', 'Bitte eine Gruppe wählen.');
   const ids = reihe(z.planung);
   const index = (id: number | null) => (id === null ? null : ids.indexOf(id));
   const von = index(input.vonMahlzeitId);
   const bis = index(input.bisMahlzeitId);
-  if (von === -1) throw feld('vonMahlzeitId', 'Diese Mahlzeit gibt es nicht mehr.');
-  if (bis === -1) throw feld('bisMahlzeitId', 'Diese Mahlzeit gibt es nicht mehr.');
-  if (von !== null && bis !== null && von > bis) throw feld('bisMahlzeitId', 'Bis liegt vor Von.');
+  if (von === -1 && input.vonMahlzeitId !== bisher?.vonMahlzeitId)
+    throw feld('vonMahlzeitId', 'Diese Mahlzeit gibt es nicht mehr.');
+  if (bis === -1 && input.bisMahlzeitId !== bisher?.bisMahlzeitId)
+    throw feld('bisMahlzeitId', 'Diese Mahlzeit gibt es nicht mehr.');
+  if (von !== null && bis !== null && von >= 0 && bis >= 0 && von > bis)
+    throw feld('bisMahlzeitId', 'Bis liegt vor Von.');
   const bekannt = new Set(essenKatalog().unvertraeglichkeiten.map((u) => u.id));
   if (input.unvertraeglichkeiten.some((id) => !bekannt.has(id)))
     throw feld('unvertraeglichkeiten', 'Bitte aus der Liste wählen.');
@@ -144,7 +147,7 @@ export function teilnehmendeAendern(
     });
     return;
   }
-  pruefe(z, input);
+  pruefe(z, input, zeile);
   if (zeile.etag !== ifMatch) throw konflikt();
   const name = gruppeVon(z, input.gruppeId).name;
   aendere(z, 'teilnehmende-geaendert', { name, anzahl: input.anzahl }, () => {
@@ -164,8 +167,11 @@ export function mahlzeitGruppe(
   const gruppe = gruppeVon(z, gruppeId);
   const details = { name: mahlzeit.name, datum: tag.datum, gruppe: gruppe.name, isst };
   aendere(z, 'mahlzeit-gruppen', details, () => {
+    if (isst !== mahlzeit.ohneGruppen.includes(gruppeId)) return;
     mahlzeit.ohneGruppen = mahlzeit.ohneGruppen.filter((g) => g !== gruppeId);
     if (!isst) mahlzeit.ohneGruppen.push(gruppeId);
+    // A real change gives the meal a new version, like the API
+    mahlzeit.etag = neuesEtag();
   });
 }
 

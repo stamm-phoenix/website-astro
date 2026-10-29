@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { zahlText, zeitraumText } from '../src/lib/essensplanungTeilnehmende.ts';
+import { GRENZE_GELOESCHT, zahlText, zeitraumText } from '../src/lib/essensplanungTeilnehmende.ts';
 import {
   esserJeMahlzeit,
   gruppenFaktorGueltig,
@@ -72,6 +72,9 @@ test('the stay reads from and until meals', () => {
   assert.equal(text(2, null), 'ab 1_2 Mittagessen');
   assert.equal(text(null, 3), 'bis 2_1 Frühstück');
   assert.equal(text(1, 3), 'ab 1_1 Frühstück bis 2_1 Frühstück');
+  // A deleted start or end: the row counts nowhere, and says so
+  assert.equal(text(99, 3), GRENZE_GELOESCHT);
+  assert.equal(text(1, 99), GRENZE_GELOESCHT);
 });
 
 test('group factors take a comma and two decimals', () => {
