@@ -103,8 +103,9 @@ test('extra needs may name a thing of their own and go without an amount', () =>
   );
   assert.deepEqual(
     fields(() => validatePosten({ name: 'x'.repeat(151) }, 'zusatzbedarf')),
+    // A name of its own is typed in the field of the ingredient
     {
-      name: 'Höchstens 150 Zeichen.',
+      zutat: 'Höchstens 150 Zeichen.',
     }
   );
 });

@@ -101,7 +101,7 @@ export function einkaufsliste(
       hinzu(zutat, { ...einkaufsMenge(rest, summe.einheit), nachGefuehl: false });
   }
   // Without an amount (from dishes, or extra needs like „Kochhandschuhe“): on the list unless it
-  // is listed with one or there is some in stock
+  // is listed with one; from dishes also unless there is some in stock now
   const imBestand = new Set([...vorhanden.keys()].map((key) => Number(key.split(':')[0])));
   const gefuehl = new Set(ohneMenge(stand));
   const ohne = [
@@ -110,7 +110,8 @@ export function einkaufsliste(
   ];
   for (const id of new Set(ohne)) {
     const zutat = zutaten.get(id);
-    if (zutat && !gelistet.has(id) && !imBestand.has(id))
+    // What a dish needs „nach Gefühl“ is covered by stock; what was put on the list is bought
+    if (zutat && !gelistet.has(id) && !(gefuehl.has(id) && imBestand.has(id)))
       hinzu(zutat, { menge: null, einheit: null, nachGefuehl: gefuehl.has(id) });
   }
   const ordnen = (jeKategorie: Map<string, EinkaufsPosten[]>): EinkaufsKategorie[] =>
