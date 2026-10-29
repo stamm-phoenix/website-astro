@@ -4,6 +4,7 @@
   import LoadState from '../ui/LoadState.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
+  import PdfDownloadButton from '../pflege/PdfDownloadButton.svelte';
   import MitgliedDetails from './MitgliedDetails.svelte';
   import { ageAt, formatDate, formatName } from '../../lib/campflowFields';
   import { todayIso } from '../../lib/format';
@@ -191,6 +192,16 @@
                 : 'In dieser Gruppe ist niemand.'}
           </p>
         {:else}
+          <PdfDownloadButton
+            create={async () =>
+              (await import('../../lib/mitgliederPdf')).downloadMitgliederPdf({
+                persons: list,
+                columns: data.columns,
+                ansicht,
+                search,
+                today,
+              })}
+          />
           <ul
             class="divide-y divide-neutral-200 border-y border-neutral-200"
             aria-label="Mitglieder"
