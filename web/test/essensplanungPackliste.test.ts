@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { aenderungText } from '../src/lib/essensplanung.ts';
+import { packlisteSchluessel } from '../../api/lib/essen-packliste-model.ts';
 import {
   entwurfNachSpeichern,
   entwurfOffen,
@@ -284,4 +285,43 @@ test('a draft whose row is gone stays unsaved and is named to copy', () => {
       { key: 'w:alt', meldung: null },
     ]
   );
+});
+
+test('an entry of its own named like a planned tool is one row, in either order', () => {
+  const eigen = eintrag({
+    id: 9,
+    name: 'kochlöffel ',
+    gepackt: true,
+    zustaendig: 'Rover',
+  });
+  // Added first, then a dish with the tool was planned
+  const zeilen = packliste(ansicht([eigen]));
+  const loeffel = zeilen.filter((zeile) => packlisteSchluessel(zeile.name) === 'kochlöffel');
+  assert.deepEqual(
+    loeffel.map((zeile) => [
+      zeile.key,
+      zeile.werkzeug,
+      zeile.gepackt,
+      zeile.zustaendig,
+      fuerText(zeile),
+    ]),
+    [['e:9', null, true, 'Rover', 'Chili (1_2_1, 2_2_1)']]
+  );
+  assert.equal(loeffel[0].eintrag, eigen);
+  // The tool was set first (its dish then left the plan), the entry came later: the entry wins
+  const werkzeug = eintrag({
+    id: 7,
+    werkzeug: 'kochlöffel',
+    name: 'Kochlöffel',
+    zustaendig: 'Kim',
+  });
+  const beide = packliste(ansicht([werkzeug, eigen]));
+  assert.deepEqual(
+    beide
+      .filter((zeile) => packlisteSchluessel(zeile.name) === 'kochlöffel')
+      .map((zeile) => [zeile.key, zeile.gepackt, zeile.zustaendig]),
+    [['e:9', true, 'Rover']]
+  );
+  assert.equal(beide.length, 3);
+  assert.equal(packlisteDruck(beide).filter((z) => /kochlöffel/i.test(z.name)).length, 1);
 });

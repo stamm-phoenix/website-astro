@@ -75,23 +75,40 @@ export function packliste(
     zustaendigId: eintrag?.zustaendigId ?? null,
     zustaendig: eintrag?.zustaendig ?? '',
   });
-  const zeilen: PackZeile[] = [
-    ...[...werkzeuge].map(([key, werkzeug]) => ({
-      key: `w:${key}`,
-      werkzeug: key,
-      name: werkzeug.name,
-      ...zustand(gespeichert.get(key) ?? null),
-      gerichte: [...werkzeug.gerichte.values()],
-    })),
-    ...ansicht.packliste
+  // An entry of its own named like a tool of a dish planned later is that tool: one row, with
+  // the state of the entry and the dishes of the tool; it stays removable as an entry
+  const eigene = new Map(
+    ansicht.packliste
       .filter((eintrag) => eintrag.werkzeug === null)
-      .map((eintrag) => ({
-        key: `e:${eintrag.id}`,
-        werkzeug: null,
-        name: eintrag.name,
-        ...zustand(eintrag),
-        gerichte: [],
-      })),
+      .map((eintrag) => [packlisteSchluessel(eintrag.name), eintrag])
+  );
+  const zeilen: PackZeile[] = [
+    ...[...werkzeuge].map(([key, werkzeug]): PackZeile => {
+      const eigen = eigene.get(key);
+      eigene.delete(key);
+      return eigen
+        ? {
+            key: `e:${eigen.id}`,
+            werkzeug: null,
+            name: eigen.name,
+            ...zustand(eigen),
+            gerichte: [...werkzeug.gerichte.values()],
+          }
+        : {
+            key: `w:${key}`,
+            werkzeug: key,
+            name: werkzeug.name,
+            ...zustand(gespeichert.get(key) ?? null),
+            gerichte: [...werkzeug.gerichte.values()],
+          };
+    }),
+    ...[...eigene.values()].map((eintrag) => ({
+      key: `e:${eintrag.id}`,
+      werkzeug: null,
+      name: eintrag.name,
+      ...zustand(eintrag),
+      gerichte: [],
+    })),
   ];
   return zeilen.sort((a, b) => VERGLEICH.compare(a.name, b.name));
 }

@@ -1,6 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import { anlegen, pdfLaden } from './essensplanung-helpers';
-import { gerichteMitWerkzeugen } from './essensplanung-packliste-helpers';
+import { gerichteMitWerkzeugen, senden } from './essensplanung-packliste-helpers';
 
 test('the packing list merges the tools of planned dishes; packing goes in the row', async ({
   page,
@@ -203,4 +203,46 @@ test('names that differ in signs have their own box; a typed name that failed is
   await expect(page.getByLabel('Wer packt Grill-Zange ein?')).toHaveValue('text');
   await page.getByRole('link', { name: 'Impressum' }).first().click();
   await expect(page).toHaveURL(/impressum/, { timeout: 15_000 });
+});
+
+test('an entry of its own that a dish planned later needs stays one row with its state', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E Packliste eigen und Werkzeug');
+  await page.getByRole('tab', { name: 'Packliste' }).click();
+  const neu = page.getByLabel('Noch etwas einpacken');
+  await neu.fill('Gaskocher');
+  await neu.press('Enter');
+  await page.getByLabel('Wer packt Gaskocher ein?').selectOption({ label: 'Anderer Name …' });
+  const name = page.getByRole('textbox', { name: 'Wer packt Gaskocher ein?' });
+  await name.fill('Rover');
+  await name.press('Enter');
+  await expect(page.getByText('Rover packt Gaskocher ein.').first()).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Gaskocher' }).check();
+  await expect(page.getByText('Gaskocher ist eingepackt.').first()).toBeVisible();
+
+  // Then a dish that needs a gas stove is planned
+  const { id: gerichtId } = await senden<{ id: number }>(page, 'POST', '/gerichte', {
+    name: 'Grillen',
+    personen: 10,
+    werkzeuge: ['gaskocher'],
+  });
+  const ansicht = await senden(page, 'GET', '');
+  await senden(page, 'POST', '/einplanungen', {
+    mahlzeitId: ansicht.tage[0].mahlzeiten[1].id,
+    gerichtId,
+  });
+
+  const liste = page.getByRole('list', { name: 'Packliste' });
+  const zeile = liste.getByRole('listitem').filter({ hasText: /gaskocher/i });
+  await expect(zeile).toContainText('für Grillen (1_2_1)', { timeout: 15_000 });
+  await expect(zeile).toHaveCount(1);
+  await expect(page.getByRole('checkbox', { name: 'Gaskocher' })).toBeChecked();
+  await expect(
+    page.getByLabel('Wer packt Gaskocher ein?').locator('option[value="text"]')
+  ).toHaveText('Rover');
+  const pdf = await pdfLaden(page, () =>
+    page.getByRole('button', { name: 'Packliste als PDF' }).click()
+  );
+  expect(pdf.text.match(/gaskocher/gi)).toHaveLength(1);
 });
