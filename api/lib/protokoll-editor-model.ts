@@ -409,66 +409,27 @@ export function mergeOffeneAufgaben(
   return [...kept, ...added].slice(0, MAX_OFFENE_AUFGABEN);
 }
 
-/** A Gruppenstunde as the Stufenbericht uses it: only counts and the text, never a name. */
-export interface BerichtGruppenstunde {
-  stufe: string;
-  date: string;
-  members: number;
-  excused: number;
-  guests: number;
-  notes: string;
-  cancelled: boolean;
-}
-
-/** Longest note of one Gruppenstunde in a Stufenbericht. */
-const MAX_BERICHT_NOTIZ = 500;
-
-/** „3“ → „3 Kinder“, „1“ → „ein Kind“. */
-function kinder(count: number): string {
-  return count === 1 ? 'ein Kind' : `${count} Kinder`;
-}
-
 /**
- * The Stufenberichte of new minutes from the Anwesenheit: for each Stufe a list of its
- * Gruppenstunden (oldest first) with the number of children and what the group did. Names of
- * children and guests are never copied. A Stufe without a Gruppenstunde has no entry. Each text
- * is a draft the writer can change.
+ * Data of other modules that new minutes start with. `texte` maps the title of an agenda item
+ * or sub-item („Wölflinge“, „Planung“) to its text; `naechsteSitzung` presets the time and place
+ * of the next meeting (not the date, which only the writer knows).
  */
-export function stufenberichte(meetings: BerichtGruppenstunde[]): Record<string, string> {
-  const berichte: Record<string, string> = {};
-  const sorted = [...meetings].sort((a, b) => a.date.localeCompare(b.date));
-  for (const meeting of sorted) {
-    const [, month, day] = meeting.date.split('-');
-    let line = `- ${day}.${month}.: `;
-    if (meeting.cancelled) {
-      line += 'fiel aus';
-    } else {
-      const extras = [
-        meeting.excused > 0 ? `${meeting.excused} entschuldigt` : '',
-        meeting.guests > 0
-          ? `${meeting.guests === 1 ? 'ein Gast' : `${meeting.guests} Gäste`}`
-          : '',
-      ].filter(Boolean);
-      line += kinder(meeting.members) + (extras.length ? ` (${extras.join(', ')})` : '');
-      const notes = einzeilig(meeting.notes, MAX_BERICHT_NOTIZ);
-      if (notes) line += `. ${notes}`;
-    }
-    berichte[meeting.stufe] = `${berichte[meeting.stufe] ?? ''}${line}\n`;
-  }
-  for (const [stufe, text] of Object.entries(berichte))
-    berichte[stufe] = text.trimEnd().slice(0, MAX_TEXT);
-  return berichte;
+export interface Vorbelegung {
+  texte: Record<string, string>;
+  naechsteSitzung: Pick<ProtokollNaechsteSitzung, 'uhrzeit' | 'ort'>;
 }
 
 /**
- * Content of new minutes with the standard agenda; `nextId` creates unique IDs. `berichte`
- * (see `stufenberichte`) prefills the sub-items of the Stufenberichte with the same title.
+ * Content of new minutes with the standard agenda; `nextId` creates unique IDs. `vorbelegung`
+ * (see `protokoll-vorbelegung.ts`) fills items and sub-items with the same title.
  */
 export function neuerInhalt(
   nextId: () => string,
   kopf: Partial<ProtokollKopf> = {},
-  berichte: Record<string, string> = {}
+  vorbelegung: Partial<Vorbelegung> = {}
 ): ProtokollInhalt {
+  const texte = vorbelegung.texte ?? {};
+  const text = (titel: string): string => (Object.hasOwn(texte, titel) ? texte[titel] : '');
   return {
     kopf: {
       sitzungsleitung: [],
@@ -481,12 +442,13 @@ export function neuerInhalt(
     },
     punkte: STANDARD_PUNKTE.map((punkt) => ({
       ...neuerPunkt(nextId(), punkt.titel),
+      text: text(punkt.titel),
       unterpunkte: punkt.unterpunkte.map((titel) => ({
         ...neuerPunkt(nextId(), titel),
-        text: Object.hasOwn(berichte, titel) ? berichte[titel] : '',
+        text: text(titel),
       })),
     })),
-    naechsteSitzung: { datum: '', uhrzeit: '', ort: '' },
+    naechsteSitzung: { datum: '', uhrzeit: '', ort: '', ...vorbelegung.naechsteSitzung },
   };
 }
 

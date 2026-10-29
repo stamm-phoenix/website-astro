@@ -32,7 +32,6 @@ import {
   NotEditableError,
   SperreError,
   createEditorProtokoll,
-  stufenberichteFuer,
   deleteEditorProtokoll,
   getEditorLive,
   getEditorOverview,
@@ -48,8 +47,10 @@ import type {
   PersonOption,
   ProtokollEditorPersonen,
   ProtokollPerson,
+  Vorbelegung,
 } from '../lib/protokoll-editor-model';
 import { MAX_SITZUNGSLEITUNG, PERSON_GRUPPEN } from '../lib/protokoll-editor-model';
+import { vorbelegungFuer } from '../lib/protokoll-vorbelegung';
 import {
   AblageNotConfiguredError,
   VersandUncertainError,
@@ -336,12 +337,12 @@ async function offeneAufgaben(): Promise<OffeneAufgabeQuelle[]> {
   }
 }
 
-/** The Stufenberichte from the Anwesenheit; without them the sub-items start empty. */
-async function berichte(date: string): Promise<Record<string, string>> {
+/** Data of other modules for new minutes; without it the texts start empty. */
+async function vorbelegung(date: string): Promise<Vorbelegung> {
   try {
-    return await stufenberichteFuer(date);
+    return await vorbelegungFuer(date);
   } catch {
-    return {};
+    return { texte: {}, naechsteSitzung: { uhrzeit: '', ort: '' } };
   }
 }
 
@@ -351,11 +352,11 @@ async function berichte(date: string): Promise<Record<string, string>> {
  */
 export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, principal) => {
   const input = validateProtokollEditorCreate(await readJsonBody(request));
-  const [person, sitzungsleitung, offen, stufen] = await Promise.all([
+  const [person, sitzungsleitung, offen, vorlage] = await Promise.all([
     editorPerson(principal),
     vorstand(),
     offeneAufgaben(),
-    berichte(input.date),
+    vorbelegung(input.date),
   ]);
   const id = await createEditorProtokoll(
     input,
@@ -366,7 +367,7 @@ export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, 
     },
     principal.userDetails,
     offen,
-    stufen
+    vorlage
   );
   return ok({ id }, 201);
 });

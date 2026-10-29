@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'kysely';
 import type { Selectable } from 'kysely';
-import { getMeetingSummaries } from './anwesenheit';
 import { CONFIG } from './config';
 import {
   RecordNotFoundError,
@@ -28,13 +27,9 @@ import type {
   ProtokollRevisionReason,
   ProtokollSaveResponse,
   ProtokollSperre,
+  Vorbelegung,
 } from './protokoll-editor-model';
-import {
-  SPERRE_SECONDS,
-  neuerInhalt,
-  offeneAufgabenPunkt,
-  stufenberichte,
-} from './protokoll-editor-model';
+import { SPERRE_SECONDS, neuerInhalt, offeneAufgabenPunkt } from './protokoll-editor-model';
 import type {
   ProtokollEditorCreateInput,
   ProtokollEditorSaveInput,
@@ -51,8 +46,6 @@ import { validateProtokollInhalt } from './validation/protokoll-inhalt';
 
 /** Minutes between the revisions kept while saving. */
 export const REVISION_MINUTES = 5;
-/** Longest period of Gruppenstunden a Stufenbericht reaches back when there are no earlier minutes. */
-export const BERICHT_MAX_TAGE = 60;
 
 /** Who acts: login and the name shown to the others. */
 export interface EditorPerson {
@@ -288,39 +281,18 @@ export async function getEditorLive(
 }
 
 /**
- * The Stufenberichte for minutes of `date`: the Gruppenstunden since the meeting of the
- * previous minutes (at most `BERICHT_MAX_TAGE` days) up to `date`, without names.
- */
-export async function stufenberichteFuer(date: string): Promise<Record<string, string>> {
-  const earliest = new Date(`${date}T00:00:00Z`);
-  earliest.setUTCDate(earliest.getUTCDate() - BERICHT_MAX_TAGE);
-  const earliestDate = earliest.toISOString().slice(0, 10);
-  const previous = await getDb()
-    .selectFrom('protokoll.protokoll')
-    .select(sql<Date | string | null>`MAX(meeting_date)`.as('date'))
-    .where('meeting_date', '<', date)
-    .executeTakeFirst();
-  const after = previous?.date ? toDateString(previous.date) : '';
-  const meetings = await getMeetingSummaries({
-    from: after > earliestDate ? after : earliestDate,
-    to: date,
-  });
-  return stufenberichte(meetings.filter((meeting) => meeting.date > after));
-}
-
-/**
  * New minutes with the standard agenda, after the item „Offene Aufgaben“ with the open tasks
- * from earlier minutes (if there are any); returns the ID.
+ * from earlier minutes (if there are any) and prefilled from other modules; returns the ID.
  */
 export async function createEditorProtokoll(
   input: ProtokollEditorCreateInput,
   kopf: Partial<ProtokollKopf>,
   actor: string,
   offen: OffeneAufgabeQuelle[] = [],
-  berichte: Record<string, string> = {}
+  vorbelegung: Partial<Vorbelegung> = {}
 ): Promise<number> {
   const nextId = (): string => randomUUID().slice(0, 8);
-  const inhalt = neuerInhalt(nextId, kopf, berichte);
+  const inhalt = neuerInhalt(nextId, kopf, vorbelegung);
   const offenePunkt = offeneAufgabenPunkt(nextId(), offen);
   if (offenePunkt) inhalt.punkte.unshift(offenePunkt);
   const { id } = await getDb()
