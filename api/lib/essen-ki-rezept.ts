@@ -22,6 +22,8 @@ export interface RezeptKandidat {
   grammProTl: number | null;
   grammProEl: number | null;
   grammProStueck: number | null;
+  /** Amounts are drained weight (tins, jars): a filled weight does not count. */
+  abtropfgewicht: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export function rezeptKandidaten(
           grammProTl: liste?.grammProTl ?? null,
           grammProEl: liste?.grammProEl ?? null,
           grammProStueck: liste?.grammProStueck ?? null,
+          abtropfgewicht: zutat.abtropfgewicht,
         };
       }),
     ...katalog.zutaten
@@ -63,6 +66,7 @@ export function rezeptKandidaten(
         grammProTl: zutat.grammProTl,
         grammProEl: zutat.grammProEl,
         grammProStueck: zutat.grammProStueck,
+        abtropfgewicht: zutat.abtropfgewicht,
       })),
   ];
 }
@@ -118,6 +122,16 @@ function inhaltVon(zeile: {
   if (zeile.inhaltMenge && zeile.inhaltEinheit)
     return { menge: zeile.inhaltMenge, einheit: zeile.inhaltEinheit };
   const treffer = INHALT_KLAMMER.exec(zeile.original) ?? INHALT_HINWEIS.exec(zeile.hinweis);
+  if (!treffer) return null;
+  const menge = Number(treffer[1].replace(',', '.'));
+  return menge > 0 ? { menge, einheit: treffer[2].toLowerCase() as Inhalt['einheit'] } : null;
+}
+
+const ABGETROPFT = /(?:abtropfgewicht|abgetropft)\s*:?\s*(?:ca\.\s*)?(\d+(?:[.,]\d+)?)\s*(g|kg)\b/i;
+
+/** A drained weight the recipe names expressly („Abtropfgewicht 240 g“, „abgetropft 240 g“). */
+function abgetropftVon(zeile: { original: string; hinweis: string }): Inhalt | null {
+  const treffer = ABGETROPFT.exec(zeile.original) ?? ABGETROPFT.exec(zeile.hinweis);
   if (!treffer) return null;
   const menge = Number(treffer[1].replace(',', '.'));
   return menge > 0 ? { menge, einheit: treffer[2].toLowerCase() as Inhalt['einheit'] } : null;
@@ -218,7 +232,28 @@ export function leseKiRezept(
     const zeile = eintrag.data;
     const kandidat =
       (zeile.key === null ? undefined : nachKey.get(zeile.key)) ?? nachName(kandidaten, zeile.name);
-    const menge = umgerechnet(zeile.menge, zeile.einheit, kandidat, inhaltVon(zeile));
+    const inhalt = inhaltVon(zeile);
+    const abgetropft = abgetropftVon(zeile);
+    // Tins of an ingredient counted by drained weight: the filled weight („Dose (400 g)“) is
+    // not the amount; only an express drained weight is, else the amount must be typed
+    const zaehltInhalt =
+      (zeile.einheit === 'packung' || zeile.einheit === 'stueck') &&
+      kandidat !== undefined &&
+      !einheitPasst(kandidat.einheitenart, zeile.einheit);
+    const ohneAbtropfgewicht =
+      zaehltInhalt && kandidat.abtropfgewicht && inhalt !== null && abgetropft === null;
+    const menge = ohneAbtropfgewicht
+      ? null
+      : umgerechnet(
+          zeile.menge,
+          zeile.einheit,
+          kandidat,
+          kandidat?.abtropfgewicht ? abgetropft : (abgetropft ?? inhalt)
+        );
+    const angabe =
+      ohneAbtropfgewicht && zeile.menge !== null && zeile.einheit !== null
+        ? `${ZAHL.format(zeile.menge)} ${REZEPT_EINHEIT_TEXT[zeile.einheit]} à ${ZAHL.format(inhalt.menge)} ${inhalt.einheit}, Abtropfgewicht eintragen`
+        : null;
     zeilen.push({
       original: zeile.original || zeile.name,
       name: zeile.name,
@@ -226,7 +261,12 @@ export function leseKiRezept(
       menge: menge ? runde(Math.min(menge.menge * faktor, MAX_MENGE), menge.einheit) : null,
       einheit: menge?.einheit ?? null,
       // What does not fit the ingredient stays as the recipe wrote it
-      hinweis: menge ? zeile.hinweis : alsHinweis(zeile.menge, zeile.einheit, zeile.hinweis),
+      hinweis: angabe
+        ? [angabe, zeile.hinweis].filter(Boolean).join(', ').slice(0, 100)
+        : menge
+          ? zeile.hinweis
+          : alsHinweis(zeile.menge, zeile.einheit, zeile.hinweis),
+      mengeFehlt: Boolean(angabe),
       fuerAlles: true,
       // Meat for those who eat everything only; unknown properties leave the line for all
       fuerVegetarisch: kandidat?.vegetarisch !== false,

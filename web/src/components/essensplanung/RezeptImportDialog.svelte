@@ -37,10 +37,12 @@
     kontext: PlanKontext;
     katalog: EssenKatalog;
     gericht: Gericht;
+    /** False during maintenance: text and preview stay, reading and taking over wait. */
+    bearbeiten: boolean;
     open: boolean;
     onclose: () => void;
   }
-  let { kontext, katalog, gericht, open, onclose }: Props = $props();
+  let { kontext, katalog, gericht, bearbeiten, open, onclose }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
 
   interface Zeile {
@@ -111,6 +113,13 @@
       fehler: {},
     };
     passendeEinheit(zeile);
+    // E.g. a tin's filled weight for an ingredient by drained weight: the amount is asked
+    if (ki.mengeFehlt && zeile.auswahl) {
+      zeile.an = false;
+      zeile.fehler.menge = `Bitte die Menge in ${einheitenVon(zeile)
+        .map((e) => einheitText(e))
+        .join(' oder ')} eintragen und die Zeile wieder anhaken.`;
+    }
     return zeile;
   }
 
@@ -121,7 +130,7 @@
 
   async function erkennen(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (liest) return;
+    if (liest || !bearbeiten) return;
     fehler = null;
     textFehler = text.trim() ? undefined : 'Bitte ein Rezept einfügen.';
     if (textFehler) return;
@@ -200,7 +209,7 @@
 
   async function uebernehmen(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (speichert || !gewaehlt.length) return;
+    if (speichert || !bearbeiten || !gewaehlt.length) return;
     fehler = null;
     for (const zeile of zeilen) zeile.fehler = {};
     const gesendet = gewaehlt;
@@ -291,6 +300,12 @@
           danach, erst dann wird etwas übernommen. Der Text geht dafür an Azure OpenAI (in der EU);
           bitte keine Namen oder Kontaktdaten einfügen.
         </p>
+        {#if !bearbeiten}
+          <p class="text-sm text-warning" role="status">
+            Die Essensplanung wird gerade gewartet. Dein Text und die Vorschau bleiben; erkennen und
+            übernehmen geht danach wieder.
+          </p>
+        {/if}
         {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
         <FormField id="rezept-text" label="Rezept" error={textFehler}>
           {#snippet children(attrs)}
@@ -304,7 +319,7 @@
         </FormField>
         <div class="flex flex-wrap justify-end gap-2">
           <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
-          <ActionButton type="submit" variant="primary"
+          <ActionButton type="submit" variant="primary" disabled={!bearbeiten}
             >{liest ? 'KI liest das Rezept …' : 'Zutaten erkennen'}</ActionButton
           >
         </div>
@@ -323,6 +338,12 @@
           {/if}
           Zutaten, die nicht in der Liste stehen, sind markiert und erst nach einer Wahl dabei.
         </p>
+        {#if !bearbeiten}
+          <p class="text-sm text-warning" role="status">
+            Die Essensplanung wird gerade gewartet. Dein Text und die Vorschau bleiben; erkennen und
+            übernehmen geht danach wieder.
+          </p>
+        {/if}
         {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
         {#if personenNeu}
           <ActionButton type="button" onclick={umrechnen}
@@ -429,7 +450,10 @@
         </ul>
         <div class="flex flex-wrap justify-end gap-2">
           <ActionButton type="button" onclick={() => (rezept = null)}>Zurück zum Text</ActionButton>
-          <ActionButton type="submit" variant="primary" disabled={!gewaehlt.length || kontext.busy}
+          <ActionButton
+            type="submit"
+            variant="primary"
+            disabled={!bearbeiten || !gewaehlt.length || kontext.busy}
             >{gewaehlt.length === 1
               ? 'Eine Zutat übernehmen'
               : `${gewaehlt.length} Zutaten übernehmen`}</ActionButton

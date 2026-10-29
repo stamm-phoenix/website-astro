@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import { gerichtZutatenSammeln } from '../lib/essen-gericht-zeilen';
+import { gerichtZutatenSammeln, readPersonen } from '../lib/essen-gericht-zeilen';
 import { validateGerichtZutat } from '../lib/essen-gerichte-validation';
 import type { GerichtZutatInput } from '../lib/essen-gerichte-validation';
 import { MAX_ZEILEN_PRO_GERICHT } from '../lib/essen-gerichte-model';
@@ -123,11 +123,7 @@ export const EssensplanungGerichtZutatenSammel = planungHandler(async (request: 
   const id = readId(request);
   const body = await readJsonBody(request);
   const zeilen = validateZeilen(body);
-  // The people the amounts were scaled for; a recipe sends it, so a change meanwhile is a conflict
-  const personen =
-    typeof body?.personen === 'number' && Number.isInteger(body.personen) && body.personen > 0
-      ? body.personen
-      : undefined;
-  await gerichtZutatenSammeln(zugang, id, zeilen, personen);
+  // The people the amounts were scaled for: a change meanwhile is a conflict
+  await gerichtZutatenSammeln(zugang, id, zeilen, readPersonen(body));
   return ok(await ladeAnsicht(zugang), 201);
 });

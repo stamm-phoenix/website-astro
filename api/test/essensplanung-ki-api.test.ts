@@ -125,7 +125,7 @@ dbTest('the AI is only for members who edit, outside the maintenance mode', asyn
 
   const ok = await pruefen(token);
   assert.equal(ok.status, 200, JSON.stringify(ok.jsonBody));
-  assert.deepEqual(json<KiPruefung>(ok), { hinweise: [] });
+  assert.deepEqual(json<KiPruefung>(ok), { hinweise: [], personen: 10 });
   assert.equal(aufrufe, 1);
 });
 
@@ -216,4 +216,50 @@ dbTest('recipe lines scaled for other people than the dish has now are refused',
     { token, params: { id: String(id) }, body: { zeilen, personen: 20 } }
   );
   assert.equal(neu.status, 201, JSON.stringify(neu.jsonBody));
+});
+
+dbTest('a proposed amount is refused once the people of the dish changed', async (t) => {
+  const mails = captureMails(t);
+  const { token } = await anlegen(t, mails);
+  const id = await gericht(t, token);
+  const zwiebeln = await zentraleZutat('Zwiebeln');
+  const angelegt = await call(
+    t,
+    endpoints.EssensplanungGerichtZutaten,
+    'POST',
+    `planung/gerichte/${id}/zutaten`,
+    { token, params: { id: String(id) }, body: { zutatId: zwiebeln, menge: 500, einheit: 'g' } }
+  );
+  assert.equal(angelegt.status, 201, JSON.stringify(angelegt.jsonBody));
+  const vorher = json<PlanungAnsicht>(angelegt).gerichte.find((g) => g.id === id)!;
+  const zeile = vorher.zutaten[0];
+  // The dish is checked for 10 people; then someone changes them to 20
+  const geaendert = await call(
+    t,
+    endpoints.EssensplanungGericht,
+    'PATCH',
+    `planung/gerichte/${id}`,
+    {
+      token,
+      params: { id: String(id) },
+      body: { etag: vorher.etag, personen: 20 },
+    }
+  );
+  assert.equal(geaendert.status, 200, JSON.stringify(geaendert.jsonBody));
+  const zeileAendern = (body: Record<string, unknown>) =>
+    call(t, endpoints.EssensplanungGerichtZutat, 'PATCH', `planung/gericht-zutaten/${zeile.id}`, {
+      token,
+      params: { id: String(zeile.id) },
+      body: { planungZutatId: zeile.planungZutatId, einheit: 'g', etag: zeile.etag, ...body },
+    });
+  const vorschlag = await zeileAendern({ menge: 1000, personen: 10 });
+  assert.equal(vorschlag.status, 409, JSON.stringify(vorschlag.jsonBody));
+  assert.equal(json<{ code: string }>(vorschlag).code, 'PERSONEN_GEAENDERT');
+  // A change of the line without people works as before
+  const normal = await zeileAendern({ menge: 700 });
+  assert.equal(normal.status, 200, JSON.stringify(normal.jsonBody));
+  assert.equal(
+    json<PlanungAnsicht>(normal).gerichte.find((g) => g.id === id)!.zutaten[0].menge,
+    700
+  );
 });

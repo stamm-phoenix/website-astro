@@ -28,8 +28,13 @@
     katalog: EssenKatalog | null;
     gericht: Gericht;
     zutaten: ReadonlyMap<number, PlanungZutat>;
+    /**
+     * False while the Planung cannot be changed (maintenance): the component stays with what
+     * was typed, only its actions wait.
+     */
+    bearbeiten: boolean;
   }
-  let { kontext, katalog, gericht, zutaten }: Props = $props();
+  let { kontext, katalog, gericht, zutaten, bearbeiten }: Props = $props();
 
   let pruefung = $state<KiPruefung | null>(null);
   let prueft = $state(false);
@@ -39,6 +44,8 @@
   /** Indexes of hints whose proposal was dropped, because others changed the line meanwhile. */
   let veraltet = $state<number[]>([]);
   let rezeptOffen = $state(false);
+  /** The people of the dish changed since the check: its amounts no longer fit. */
+  const personenGeaendert = $derived(pruefung !== null && pruefung.personen !== gericht.personen);
 
   async function pruefen(): Promise<void> {
     prueft = true;
@@ -74,6 +81,11 @@
       return;
     }
     const gesendet = { ...zeileBody(zeile), ...hinweis.aenderung, etag: hinweis.zeile.etag };
+    // An amount is for the people that were checked: a change of them meanwhile is a conflict
+    const body =
+      hinweis.aenderung.menge !== undefined && pruefung
+        ? { ...gesendet, personen: pruefung.personen }
+        : gesendet;
     /** The line as this write left it, from the answer of the PATCH itself. */
     let geschrieben: GerichtZutat | undefined;
     const ok = await kontext.aendern(
@@ -81,7 +93,7 @@
         const ansicht = await kontext.api.senden<PlanungAnsicht>(
           'PATCH',
           `/gericht-zutaten/${zeile.id}`,
-          gesendet
+          body
         );
         geschrieben = ansicht.gerichte.flatMap((g) => g.zutaten).find((z) => z.id === zeile.id);
         return ansicht;
@@ -126,11 +138,13 @@
   <div class="flex flex-wrap gap-2">
     <ActionButton
       type="button"
-      disabled={prueft || !gericht.zutaten.length}
+      disabled={!bearbeiten || prueft || !gericht.zutaten.length}
       onclick={() => void pruefen()}>{prueft ? 'KI prüft …' : 'Gericht prüfen (KI)'}</ActionButton
     >
-    <ActionButton type="button" disabled={!katalog} onclick={() => (rezeptOffen = true)}
-      >Rezept einfügen (KI)</ActionButton
+    <ActionButton
+      type="button"
+      disabled={!bearbeiten || !katalog}
+      onclick={() => (rezeptOffen = true)}>Rezept einfügen (KI)</ActionButton
     >
   </div>
   {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
@@ -143,6 +157,19 @@
       <p class="text-sm text-neutral-700">
         Von der KI erzeugt und ungeprüft. Entscheide selbst, was davon stimmt.
       </p>
+      {#if personenGeaendert}
+        <div class="flex flex-wrap items-center gap-2">
+          <p class="text-sm text-warning">
+            Die Personenzahl des Gerichts hat sich seit der Prüfung geändert; vorgeschlagene Mengen
+            gelten nicht mehr.
+          </p>
+          <ActionButton
+            type="button"
+            disabled={!bearbeiten || prueft}
+            onclick={() => void pruefen()}>Gericht neu prüfen</ActionButton
+          >
+        </div>
+      {/if}
       {#if pruefung.hinweise.length}
         <ul class="divide-y divide-neutral-200">
           {#each pruefung.hinweise as hinweis, index (index)}
@@ -163,13 +190,13 @@
                   prüfen.
                 </p>
               {/if}
-              {#if hinweis.aenderung && name}
+              {#if hinweis.aenderung && name && !(personenGeaendert && hinweis.aenderung.menge !== undefined && !uebernommen.includes(index))}
                 {#if uebernommen.includes(index)}
                   <p class="text-sm text-success">Übernommen.</p>
                 {:else}
                   <ActionButton
                     type="button"
-                    disabled={kontext.busy}
+                    disabled={!bearbeiten || kontext.busy}
                     aria-label="Vorschlag für {name} übernehmen: {aenderungText(hinweis.aenderung)}"
                     onclick={() => void uebernehmen(index, hinweis)}
                     >Übernehmen: {aenderungText(
@@ -194,6 +221,7 @@
     {kontext}
     {katalog}
     {gericht}
+    {bearbeiten}
     open={rezeptOffen}
     onclose={() => (rezeptOffen = false)}
   />

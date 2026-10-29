@@ -45,7 +45,10 @@ const KATALOG: EssenKatalog = {
     katalogZutat(4, 'Zwiebel', { grammProStueck: 80 }),
     katalogZutat(5, 'Hackfleisch (Rind)', { vegetarisch: false, vegan: false }),
     katalogZutat(6, 'Salz'),
-    katalogZutat(8, 'Tomaten (stückig)'),
+    // As in the start data: chopped tomatoes and kidney beans count by drained weight
+    katalogZutat(8, 'Tomaten (stückig)', { abtropfgewicht: true }),
+    katalogZutat(11, 'Tomaten (passiert)'),
+    katalogZutat(12, 'Kidneybohnen', { abtropfgewicht: true }),
     katalogZutat(10, 'Sahne', { einheitenart: 'volumen' }),
     katalogZutat(9, 'Spülmittel', { lebensmittel: false, einheitenart: 'volumen' }),
   ],
@@ -163,7 +166,7 @@ function hinweis(extra: Record<string, unknown>) {
 test('the check sends a strict schema and the dish without personal data', async (t) => {
   const gesendet = modell(t, { hinweise: [] });
   const pruefung = await pruefeGericht(GERICHT, [SPAGHETTI, HACK], KATALOG);
-  assert.deepEqual(pruefung, { hinweise: [] });
+  assert.deepEqual(pruefung, { hinweise: [], personen: 10 });
   const body = gesendet[0].body;
   const format = body.response_format as { json_schema: { strict: boolean; name: string } };
   assert.equal(format.json_schema.strict, true);
@@ -393,52 +396,108 @@ test('Retry-After is read as seconds, milliseconds or a date, and capped', () =>
 });
 
 test('a tin with its weight in brackets counts by that weight, scaled', async (t) => {
-  const zeile = {
-    original: '1 Dose gehackte Tomaten (400 g)',
-    name: 'gehackte Tomaten',
-    key: 'z8',
+  const zeile = (original: string, name: string, key: string, hinweis = '') => ({
+    original,
+    name,
+    key,
     menge: 1,
     einheit: 'packung',
-    hinweis: 'gehackt, 400 g',
-  };
+    hinweis,
+    inhaltMenge: null,
+    inhaltEinheit: null,
+  });
   modell(t, {
     rezeptPersonen: 4,
     zeilen: [
-      // As the deployment answered: the weight only in the line and the note
-      { ...zeile, inhaltMenge: null, inhaltEinheit: null },
+      zeile('1 Packung passierte Tomaten (500 g)', 'passierte Tomaten', 'z11'),
       // As the prompt now asks for it
-      { ...zeile, inhaltMenge: 400, inhaltEinheit: 'g' },
       {
-        original: '1 Becher (200 ml) Sahne',
-        name: 'Sahne',
-        key: 'z10',
-        menge: 1,
-        einheit: 'packung',
-        hinweis: '',
-        inhaltMenge: null,
-        inhaltEinheit: null,
+        ...zeile('1 Packung passierte Tomaten', 'passierte Tomaten', 'z11'),
+        inhaltMenge: 500,
+        inhaltEinheit: 'g',
       },
+      zeile('1 Becher (200 ml) Sahne', 'Sahne', 'z10'),
       // A weight does not fit an ingredient measured by volume
-      {
-        original: '1 Becher Sahne (200 g)',
-        name: 'Sahne',
-        key: 'z10',
-        menge: 1,
-        einheit: 'packung',
-        hinweis: '',
-        inhaltMenge: null,
-        inhaltEinheit: null,
-      },
+      zeile('1 Becher Sahne (200 g)', 'Sahne', 'z10'),
     ],
   });
   const rezept = await liesRezept('…', 8, [], KATALOG);
   assert.deepEqual(
     rezept.zeilen.map(({ zutat, menge, einheit }) => ({ zutat, menge, einheit })),
     [
-      { zutat: { zutatId: 8 }, menge: 800, einheit: 'g' },
-      { zutat: { zutatId: 8 }, menge: 800, einheit: 'g' },
+      { zutat: { zutatId: 11 }, menge: 1000, einheit: 'g' },
+      { zutat: { zutatId: 11 }, menge: 1000, einheit: 'g' },
       { zutat: { zutatId: 10 }, menge: 400, einheit: 'ml' },
       { zutat: { zutatId: 10 }, menge: null, einheit: null },
+    ]
+  );
+});
+
+test('for ingredients by drained weight only an express drained weight counts', async (t) => {
+  const zeile = (original: string, name: string, key: string, hinweis = '') => ({
+    original,
+    name,
+    key,
+    menge: 1,
+    einheit: 'packung',
+    hinweis,
+    inhaltMenge: null,
+    inhaltEinheit: null,
+  });
+  modell(t, {
+    rezeptPersonen: 4,
+    zeilen: [
+      zeile('1 Dose Kidneybohnen (400 g)', 'Kidneybohnen', 'z12'),
+      {
+        ...zeile('1 Dose Kidneybohnen (400 g)', 'Kidneybohnen', 'z12'),
+        inhaltMenge: 400,
+        inhaltEinheit: 'g',
+      },
+      zeile('1 Dose Kidneybohnen (Abtropfgewicht 240 g)', 'Kidneybohnen', 'z12'),
+      zeile('1 Dose Kidneybohnen', 'Kidneybohnen', 'z12', 'abgetropft 240 g'),
+      // The line of the test with the model: chopped tomatoes count by drained weight, too
+      zeile('1 Dose gehackte Tomaten (400 g)', 'gehackte Tomaten', 'z8', 'gehackt, 400 g'),
+    ],
+  });
+  const rezept = await liesRezept('…', 8, [], KATALOG);
+  assert.deepEqual(
+    rezept.zeilen.map(({ zutat, menge, einheit, hinweis, mengeFehlt }) => ({
+      zutat,
+      menge,
+      einheit,
+      hinweis,
+      mengeFehlt,
+    })),
+    [
+      {
+        zutat: { zutatId: 12 },
+        menge: null,
+        einheit: null,
+        hinweis: '1 Packung à 400 g, Abtropfgewicht eintragen',
+        mengeFehlt: true,
+      },
+      {
+        zutat: { zutatId: 12 },
+        menge: null,
+        einheit: null,
+        hinweis: '1 Packung à 400 g, Abtropfgewicht eintragen',
+        mengeFehlt: true,
+      },
+      { zutat: { zutatId: 12 }, menge: 480, einheit: 'g', hinweis: '', mengeFehlt: false },
+      {
+        zutat: { zutatId: 12 },
+        menge: 480,
+        einheit: 'g',
+        hinweis: 'abgetropft 240 g',
+        mengeFehlt: false,
+      },
+      {
+        zutat: { zutatId: 8 },
+        menge: null,
+        einheit: null,
+        hinweis: '1 Packung à 400 g, Abtropfgewicht eintragen, gehackt, 400 g',
+        mengeFehlt: true,
+      },
     ]
   );
 });

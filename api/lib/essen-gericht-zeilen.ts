@@ -157,6 +157,28 @@ export function personenGeaendert(personen: number): PlanungError {
 }
 
 /**
+ * The people a change was worked out for (`personen` of the body), e.g. amounts of a recipe or
+ * of a hint of the AI; undefined when not sent.
+ */
+export function readPersonen(body: Record<string, unknown> | null): number | undefined {
+  const personen = body?.personen;
+  return typeof personen === 'number' && Number.isInteger(personen) && personen > 0
+    ? personen
+    : undefined;
+}
+
+/** Refuses a change worked out for `personen` when the dish has another number by now. */
+async function pruefePersonen(trx: Db, gerichtId: number, personen: number | undefined) {
+  if (personen === undefined) return;
+  const gericht = await trx
+    .selectFrom('essen.gericht')
+    .select('personen')
+    .where('id', '=', gerichtId)
+    .executeTakeFirstOrThrow();
+  if (gericht.personen !== personen) throw personenGeaendert(gericht.personen);
+}
+
+/**
  * Adds several lines at the end of a dish in one change, e.g. those read from a recipe: all or
  * none. An error of a line names its field as `zeilen.<index>.<field>`. With `personen`, the
  * amounts were scaled for that many people: if the dish has another number by now, nothing is
@@ -172,8 +194,7 @@ export async function gerichtZutatenSammeln(
     const gericht = await gerichtDerPlanung(trx, zugang, gerichtId);
     await lockResource(trx, gerichtSperre(gerichtId));
     // Read after the Planung is locked by `aendere`, so a change of the people cannot slip in
-    if (personen !== undefined && gericht.personen !== personen)
-      throw personenGeaendert(gericht.personen);
+    await pruefePersonen(trx, gericht.id, personen);
     const anzahl = await pruefeAnzahl(trx, gerichtId, inputs.length);
     const namen: string[] = [];
     for (const [index, input] of inputs.entries()) {
@@ -212,11 +233,14 @@ export async function gerichtZutatAendern(
   zugang: Zugang,
   id: number,
   input: GerichtZutatInput & { position?: number },
-  etag: string
+  etag: string,
+  /** With it (a proposal of the AI), the dish must still have these people. */
+  personen?: number
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutat-geaendert', async (trx) => {
     const zeile = await zeileDerPlanung(trx, zugang, id);
     await lockResource(trx, gerichtSperre(zeile.gericht_id));
+    await pruefePersonen(trx, zeile.gericht_id, personen);
     const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: true });
     pruefeEinheit(zutat, input);
     const result = await trx

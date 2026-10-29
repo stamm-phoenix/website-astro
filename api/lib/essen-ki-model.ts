@@ -41,6 +41,8 @@ export interface KiHinweis {
 
 export interface KiPruefung {
   hinweise: KiHinweis[];
+  /** The people of the dish that was checked; taking over an amount sends them back. */
+  personen: number;
 }
 
 /** Units the model may read from a recipe; TL, EL and pinches are converted or kept as a note. */
@@ -74,6 +76,8 @@ export interface KiRezeptZeile {
   fuerAlles: boolean;
   fuerVegetarisch: boolean;
   fuerVegan: boolean;
+  /** The amount must be typed: e.g. a tin's filled weight for an ingredient by drained weight. */
+  mengeFehlt: boolean;
 }
 
 export interface KiRezept {
@@ -241,7 +245,7 @@ export function leseKiPruefung(
       ...(aenderung ? { aenderung } : {}),
     });
   }
-  return { hinweise };
+  return { hinweise, personen: gericht.personen };
 }
 
 const umrechnungSchema = z.object({

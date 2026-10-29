@@ -1437,7 +1437,10 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/gericht-zutaten/:id', (re
       essenGerichte.gerichtZutatAendern(z, id, null, req.headers['if-match'])
     );
   const input = { ...validateGerichtZutat(req.json), position: readPosition(req.json?.position) };
-  return essenAendern(req, (z) => essenGerichte.gerichtZutatAendern(z, id, input, req.json?.etag));
+  return essenAendern(req, (z) => {
+    essenKi.pruefePersonenDerZeile(z, id, req.json?.personen);
+    essenGerichte.gerichtZutatAendern(z, id, input, req.json?.etag);
+  });
 });
 
 route('POST', '/api/essensplanung/planung/gerichte/:id/zutaten/sammel', (req) => {

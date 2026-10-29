@@ -238,7 +238,14 @@
     </div>
   </div>
 
-  {#if bearbeiten}<GerichtKi {kontext} {katalog} {gericht} {zutaten} />{/if}
+  <!-- Stays during maintenance, so a recipe being read is not lost; its actions wait -->
+  {#if ansicht.zugang !== 'lesen'}<GerichtKi
+      {kontext}
+      {katalog}
+      {gericht}
+      {zutaten}
+      {bearbeiten}
+    />{/if}
 
   {#if warnungen.length}
     <ul class="space-y-1 border-l-4 border-warning py-1 pl-3 text-sm text-warning" role="status">

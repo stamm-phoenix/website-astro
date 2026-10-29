@@ -177,6 +177,22 @@ export function kiUmrechnung(
   return leseKiUmrechnung({ gramm: GRAMM[mass], begruendung: 'Beispielwert der Demo-KI.' }, mass);
 }
 
+/** Refuses amounts worked out for other people than the dish has now, like the API. */
+export function pruefePersonen(gericht: { personen: number }, personen: number | undefined): void {
+  if (personen !== undefined && gericht.personen !== personen)
+    throw new MockPlanungFehler(
+      409,
+      'PERSONEN_GEAENDERT',
+      `Die Personenzahl des Gerichts wurde inzwischen auf ${gericht.personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
+    );
+}
+
+/** A line changed with `personen` (a proposal of the AI): the dish must still have them. */
+export function pruefePersonenDerZeile(z: MockZugang, zeileId: number, personen: unknown): void {
+  const gericht = z.planung.gerichte.find((g) => g.zutaten.some((zeile) => zeile.id === zeileId));
+  if (gericht && typeof personen === 'number') pruefePersonen(gericht, personen);
+}
+
 /** Adds lines at the end of a dish in one change, all or none, like the API; `personen` as there. */
 export function gerichtZutatenSammeln(
   z: MockZugang,
@@ -186,12 +202,7 @@ export function gerichtZutatenSammeln(
 ): void {
   const gericht = z.planung.gerichte.find((entry) => entry.id === gerichtId);
   if (!gericht) throw new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');
-  if (personen !== undefined && gericht.personen !== personen)
-    throw new MockPlanungFehler(
-      409,
-      'PERSONEN_GEAENDERT',
-      `Die Personenzahl des Gerichts wurde inzwischen auf ${gericht.personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
-    );
+  pruefePersonen(gericht, personen);
   if (gericht.zutaten.length + inputs.length > MAX_ZEILEN_PRO_GERICHT)
     throw new MockPlanungFehler(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
       zeilen: `Ein Gericht hat höchstens ${MAX_ZEILEN_PRO_GERICHT} Zutaten.`,

@@ -145,3 +145,81 @@ test('a proposal is not saved over a change of others', async ({ page }) => {
   ).toHaveCount(0);
   await expect(karte.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('von nebenan');
 });
+
+test('a proposed amount is not taken over once the people of the dish changed', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E KI Personen Prüfen');
+  const karte = await gericht(page, 'Chili', '10');
+  await karte.getByRole('button', { name: 'Mehr Angaben …' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Zutat für Chili' });
+  await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
+  await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
+  await dialog.getByLabel('Menge', { exact: true }).fill('500');
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect.poll(() => zeilenMenge(karte, 'Hackfleisch')).toBe('500 g');
+  await karte.getByRole('button', { name: 'Gericht prüfen (KI)' }).click();
+  const hinweise = karte.getByRole('status').filter({ hasText: 'KI-Hinweise zu Chili' });
+  await expect(hinweise.getByText('Die Menge wirkt für 10 Personen knapp.')).toBeVisible();
+
+  // Someone else doubles the people; this page has not heard of it yet
+  await page.route('**/api/essensplanung/planung/stand?*', (route) =>
+    route.fulfill({ json: { stand: new URL(route.request().url()).searchParams.get('seit') } })
+  );
+  const andere = api(page);
+  const chili = (await andere.ansicht()).gerichte.find((g: { name: string }) => g.name === 'Chili');
+  expect(
+    (await andere.patch(`/gerichte/${chili.id}`, { etag: chili.etag, personen: 20 })).ok()
+  ).toBe(true);
+  await hinweise
+    .getByRole('button', { name: 'Vorschlag für Hackfleisch übernehmen: 1.000 g' })
+    .click();
+  await expect(page.getByText(/inzwischen auf 20 geändert/).first()).toBeVisible();
+  await expect.poll(() => zeilenMenge(karte, 'Hackfleisch')).toBe('500 g');
+  await expect(hinweise.getByText(/seit der Prüfung geändert/)).toBeVisible();
+  await expect(
+    hinweise.getByRole('button', { name: 'Vorschlag für Hackfleisch übernehmen: 1.000 g' })
+  ).toHaveCount(0);
+  await page.unroute('**/api/essensplanung/planung/stand?*');
+  await hinweise.getByRole('button', { name: 'Gericht neu prüfen' }).click();
+  await expect(hinweise.getByText('Die Menge wirkt für 20 Personen knapp.')).toBeVisible();
+  await expect(hinweise.getByText(/seit der Prüfung geändert/)).toHaveCount(0);
+});
+
+test('maintenance keeps the recipe being read; taking over waits until it ends', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E KI Wartung');
+  const karte = await gericht(page, 'Suppe', '4');
+  await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Rezept für Suppe' });
+  await dialog.getByLabel('Rezept', { exact: true }).fill('500 g Zwiebeln');
+  await dialog.getByRole('button', { name: 'Zutaten erkennen' }).click();
+  await expect(dialog.getByLabel('Menge für 500 g Zwiebeln')).toHaveValue('500');
+
+  const wartung = async (an: boolean): Promise<void> => {
+    await page.unroute('**/api/essensplanung/planung/stand?*');
+    await page.route('**/api/essensplanung/planung/stand?*', async (route) => {
+      const url = route
+        .request()
+        .url()
+        .replace(/seit=[^&]*/, 'seit=0');
+      const antwort = await route.fetch({ url });
+      const json = await antwort.json();
+      if (json.ansicht) json.ansicht.wartung = an;
+      await route.fulfill({ response: antwort, json });
+    });
+  };
+  await wartung(true);
+  await expect(dialog.getByText(/wird gerade gewartet/)).toBeVisible({ timeout: 15_000 });
+  await expect(dialog.getByLabel('Menge für 500 g Zwiebeln')).toHaveValue('500');
+  await expect(dialog.getByRole('button', { name: 'Eine Zutat übernehmen' })).toBeDisabled();
+  await wartung(false);
+  await expect(dialog.getByRole('button', { name: 'Eine Zutat übernehmen' })).toBeEnabled({
+    timeout: 15_000,
+  });
+  await page.unroute('**/api/essensplanung/planung/stand?*');
+  await dialog.getByRole('button', { name: 'Eine Zutat übernehmen' }).click();
+  await expect(page.getByText('Eine Zutat übernommen.').first()).toBeVisible();
+  await expect.poll(() => zeilenMenge(karte, 'Zwiebeln')).toBe('500 g');
+});
