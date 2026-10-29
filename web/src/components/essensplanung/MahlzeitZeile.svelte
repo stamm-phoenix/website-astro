@@ -242,7 +242,8 @@
               {#if faktorText(einplanung.faktor)}<span class="text-sm tabular-nums"
                   >{faktorText(einplanung.faktor)}</span
                 >{/if}
-              {#if einplanung.zustaendig}<span class="text-sm text-neutral-700"
+              {#if einplanung.zustaendig}<span
+                  class="min-w-0 text-sm text-neutral-700 [overflow-wrap:anywhere]"
                   >{einplanung.zustaendig}</span
                 >{/if}
               {#if bearbeiten}

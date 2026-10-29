@@ -151,6 +151,9 @@
     get token() {
       return token ?? '';
     },
+    get fehler() {
+      return meldungArt === 'error' ? meldung : null;
+    },
     aendern,
     hinweis,
     zeige,

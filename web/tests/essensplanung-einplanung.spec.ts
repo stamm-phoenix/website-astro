@@ -110,6 +110,27 @@ test('a meal or dish deleted keeps what others planned meanwhile', async ({ page
   await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
   await expect(page.getByRole('list', { name: 'Gerichte bei 1_2' })).toContainText('Suppe');
 
+  // A changes the planned soup in the dialog while B changes it: the dialog says so itself
+  const suppe = page.getByRole('list', { name: 'Gerichte bei 1_2' });
+  await suppe.getByRole('button', { name: 'Suppe bei 1_2 ändern' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Faktor', { exact: true }).fill('0,1234');
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog.getByText(/Bitte eine Zahl größer als 0/)).toBeVisible();
+  const andereListe = anderes.getByRole('list', { name: 'Gerichte bei 1_2' });
+  await andereListe.getByRole('button', { name: 'Suppe bei 1_2 ändern' }).click();
+  await anderes.getByRole('dialog').getByLabel('Faktor', { exact: true }).fill('2');
+  await anderes.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click();
+  await expect(andereListe.getByText('×2')).toBeVisible();
+  await expect(suppe.getByText('×2')).toBeVisible({ timeout: 15_000 });
+  await dialog.getByLabel('Faktor', { exact: true }).fill('0,5');
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog.getByRole('alert')).toContainText(/Jemand anderes hat das gerade geändert/);
+  await expect(suppe.getByText('×2')).toBeVisible();
+  // Saving again takes the input over the saved state
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(suppe.getByText('×0,5')).toBeVisible();
+
   // Deleting the dish takes it off its meal
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByRole('button', { name: 'Gericht löschen' }).click();
@@ -132,6 +153,13 @@ test('the read-only link shows the planned dishes without changing them', async 
   await dialog.getByLabel('Zuständig (optional)').selectOption({ label: 'Kim Küche' });
   await dialog.getByRole('button', { name: 'Einplanen' }).click();
   await expect(page.getByText('Brotzeit eingeplant.').first()).toBeVisible();
+  // A long name without spaces wraps instead of widening the plan
+  await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
+  await dialog.getByLabel('Zuständig (optional)').selectOption({ label: 'Jemand anderes …' });
+  await dialog.getByLabel('Name', { exact: true }).fill('K'.repeat(100));
+  await dialog.getByRole('button', { name: 'Einplanen' }).click();
+  await expect(page.getByRole('list', { name: 'Gerichte bei 1_2' })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
   await page.getByRole('tab', { name: 'Mitglieder' }).click();
   await page.getByRole('button', { name: 'Link erzeugen', exact: true }).nth(1).click();
   // The personal link and then the new read-only link
@@ -150,5 +178,6 @@ test('the read-only link shows the planned dishes without changing them', async 
   await expect(fruehstueck).toContainText('Kim Küche');
   await expect(leser.getByRole('button', { name: /Gericht einplanen/ })).toHaveCount(0);
   await expect(fruehstueck.getByRole('button')).toHaveCount(0);
+  await expectNoHorizontalOverflow(leser);
   await leser.context().close();
 });
