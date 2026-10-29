@@ -122,7 +122,8 @@
     >{einplanung.status === 'gekocht' ? 'gekocht' : 'ausgelassen'}</span
   >
 {/if}
-{#if teil === 'abhaken' && bearbeiten}
+<!-- Typed amounts stay through a read-only phase, e.g. maintenance, locked until it ends -->
+{#if teil === 'abhaken' && (bearbeiten || (offen && geaendert))}
   <details class="basis-full print:hidden" open={offen} ontoggle={umschalten}>
     <summary
       class="flex min-h-11 cursor-pointer list-none items-center gap-1 py-2 text-sm font-semibold text-link [&::-webkit-details-marker]:hidden"
@@ -144,6 +145,7 @@
                   <input
                     type="checkbox"
                     class="h-5 w-5"
+                    disabled={!bearbeiten}
                     bind:checked={zeilen[index].verwendet}
                     onchange={() => (geaendert = true)}
                   />
@@ -155,7 +157,7 @@
                   inputmode="decimal"
                   autocomplete="off"
                   aria-label="Verbrauch von {zeile.name} bei {kennung}"
-                  disabled={!zeile.verwendet || speichert}
+                  disabled={!zeile.verwendet || speichert || !bearbeiten}
                   bind:value={zeilen[index].menge}
                   oninput={() => (geaendert = true)}
                 />
@@ -171,21 +173,21 @@
           <ActionButton
             type="button"
             variant="primary"
-            disabled={speichert || kontext.busy}
+            disabled={speichert || kontext.busy || !bearbeiten}
             onclick={() => void setzen('gekocht')}
             >{einplanung.status === 'gekocht' ? 'Verbrauch speichern' : 'Gekocht'}</ActionButton
           >
           {#if einplanung.status !== 'ausgelassen'}
             <ActionButton
               type="button"
-              disabled={speichert || kontext.busy}
+              disabled={speichert || kontext.busy || !bearbeiten}
               onclick={() => void setzen('ausgelassen')}>Ausgelassen</ActionButton
             >
           {/if}
           {#if einplanung.status !== 'offen'}
             <ActionButton
               type="button"
-              disabled={speichert || kontext.busy}
+              disabled={speichert || kontext.busy || !bearbeiten}
               onclick={() => void setzen('offen')}>Wieder offen</ActionButton
             >
           {/if}
