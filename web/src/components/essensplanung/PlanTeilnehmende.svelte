@@ -202,7 +202,7 @@
       <PdfKnopf {kontext} label="Esser je Mahlzeit als PDF" erstellen={esserPdf} />
     </div>
     <QuerScroll
-      label="Esser je Mahlzeit"
+      label="Kalender der Esser"
       hinweis="Weitere Tage siehst du, wenn du seitlich wischst oder scrollst."
     >
       <ol class="flex gap-3" aria-labelledby="esser-heading">

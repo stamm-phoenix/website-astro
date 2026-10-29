@@ -15,18 +15,21 @@
   let { label, hinweis, children }: Props = $props();
 
   let bereich = $state<HTMLDivElement | null>(null);
+  /** As wide as the content, so a day added later changes its size too. */
+  let inhalt = $state<HTMLDivElement | null>(null);
   let breiter = $state(false);
 
   $effect(() => {
     const element = bereich;
-    if (!element) return;
+    const innen = inhalt;
+    if (!element || !innen) return;
     const messen = (): void => {
       breiter = element.scrollWidth > element.clientWidth + 1;
     };
     messen();
     const beobachter = new ResizeObserver(messen);
     beobachter.observe(element);
-    for (const kind of element.children) beobachter.observe(kind);
+    beobachter.observe(innen);
     return () => beobachter.disconnect();
   });
 </script>
@@ -43,5 +46,7 @@
   aria-label={label}
   tabindex={breiter ? 0 : undefined}
 >
-  {@render children()}
+  <div bind:this={inhalt} class="w-max min-w-full">
+    {@render children()}
+  </div>
 </div>
