@@ -37,6 +37,7 @@ import type {
 import { validatePlanungZutat } from './essen-gerichte-validation';
 import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
+import { sortiere as sortiereEinplanungen } from './essen-einplanung';
 import { listKategorien, listUnvertraeglichkeiten, listZutaten } from './essen-steuerung';
 import type { EssenEinheitenart } from './essen-validation';
 import { COLLATOR } from './essen-validation';
@@ -606,7 +607,7 @@ export async function gerichtLoeschen(zugang: Zugang, id: number, etag: string):
       .execute();
     const einplanungen = await trx
       .selectFrom('essen.einplanung')
-      .select('version')
+      .select(['version', 'mahlzeit_id'])
       .where('gericht_id', '=', id)
       .execute();
     const stand = gerichtStand(
@@ -619,6 +620,10 @@ export async function gerichtLoeschen(zugang: Zugang, id: number, etag: string):
     if (stand !== etag.trim()) throw new VersionConflictError();
     // Its places in the plan go with it; they point to the dish without a cascade
     await trx.deleteFrom('essen.einplanung').where('gericht_id', '=', id).execute();
+    // The dishes after it in those meals move up
+    for (const mahlzeitId of new Set(einplanungen.map((einplanung) => einplanung.mahlzeit_id))) {
+      await sortiereEinplanungen(trx, mahlzeitId, null);
+    }
     const result = await trx
       .deleteFrom('essen.gericht')
       .where('id', '=', id)

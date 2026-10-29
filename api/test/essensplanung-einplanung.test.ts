@@ -229,3 +229,69 @@ dbTest('the preview plans its test dish once', async () => {
     .execute();
   assert.equal(geplant.length, 1);
 });
+
+dbTest('a member without access stays responsible; deleting a dish closes the gap', async (t) => {
+  const mails = captureMails(t);
+  const { token, ansicht } = await anlegen(t, mails);
+  const [a, b, c] = [
+    await gericht(t, token, 'A'),
+    await gericht(t, token, 'B'),
+    await gericht(t, token, 'C'),
+  ];
+  const mahlzeit = ansicht.tage[0].mahlzeiten[0];
+  const { id: ben } = await getDb()
+    .insertInto('essen.mitglied')
+    .values({ planung_id: ansicht.id, name: 'Ben Bezirk', rolle: 'bearbeiten' })
+    .output('inserted.id')
+    .executeTakeFirstOrThrow();
+  await einplanen(t, token, { mahlzeitId: mahlzeit.id, gerichtId: a });
+  await einplanen(t, token, { mahlzeitId: mahlzeit.id, gerichtId: b });
+  const drei = json<PlanungAnsicht>(
+    await einplanen(t, token, { mahlzeitId: mahlzeit.id, gerichtId: c, zustaendigId: ben })
+  );
+
+  // Ben loses access: C can still be changed and moved, but Ben is not chosen anew
+  await getDb()
+    .updateTable('essen.mitglied')
+    .set({ entzogen_am: new Date() })
+    .where('id', '=', ben)
+    .execute();
+  const cGeplant = drei.tage[0].mahlzeiten[0].einplanungen[2];
+  assert.equal(cGeplant.zustaendig, 'Ben Bezirk');
+  const geaendert = await aendern(t, token, cGeplant.id, {
+    etag: cGeplant.etag,
+    mahlzeitId: mahlzeit.id,
+    gerichtId: c,
+    faktor: 2,
+    zustaendigId: ben,
+  });
+  assert.equal(geaendert.status, 200, JSON.stringify(geaendert.jsonBody));
+  const neu = await einplanen(t, token, {
+    mahlzeitId: mahlzeit.id,
+    gerichtId: a,
+    zustaendigId: ben,
+  });
+  assert.equal(neu.status, 400);
+
+  // Deleting B: C moves up to 2
+  const vorher = json<PlanungAnsicht>(geaendert);
+  const bDaten = vorher.gerichte.find((g) => g.id === b)!;
+  const bPlaetze = vorher.tage[0].mahlzeiten[0].einplanungen.filter((e) => e.gerichtId === b);
+  const ohneB = json<PlanungAnsicht>(
+    await call(t, endpoints.EssensplanungGericht, 'DELETE', `planung/gerichte/${b}`, {
+      token,
+      params: { id: String(b) },
+      ifMatch: gerichtStand(
+        bDaten,
+        bPlaetze.map((e) => e.etag)
+      ),
+    })
+  );
+  assert.deepEqual(
+    ohneB.tage[0].mahlzeiten[0].einplanungen.map((e) => [e.gerichtId, e.position]),
+    [
+      [a, 1],
+      [c, 2],
+    ]
+  );
+});

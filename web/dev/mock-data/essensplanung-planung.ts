@@ -634,7 +634,7 @@ function sortiereEinplanungen(
   mahlzeit.einplanungen = rest;
 }
 
-function pruefeEinplanung(z: MockZugang, input: EinplanungInput) {
+function pruefeEinplanung(z: MockZugang, input: EinplanungInput, bisher: number | null = null) {
   const ziel = z.planung.tage
     .flatMap((tag) => tag.mahlzeiten.map((mahlzeit) => ({ tag, mahlzeit })))
     .find(({ mahlzeit }) => mahlzeit.id === input.mahlzeitId);
@@ -643,6 +643,7 @@ function pruefeEinplanung(z: MockZugang, input: EinplanungInput) {
   if (!gericht) throw feld('gerichtId', 'Dieses Gericht gibt es nicht mehr.');
   if (
     input.zustaendigId !== null &&
+    input.zustaendigId !== bisher &&
     !z.planung.mitglieder.some((m) => m.id === input.zustaendigId && !m.entzogen)
   )
     throw feld('zustaendigId', 'Bitte aus der Liste wählen.');
@@ -697,7 +698,11 @@ export function einplanungAendern(
     });
     return;
   }
-  const { tag, mahlzeit } = pruefeEinplanung(z, { ...input, gerichtId: einplanung.gerichtId });
+  const { tag, mahlzeit } = pruefeEinplanung(
+    z,
+    { ...input, gerichtId: einplanung.gerichtId },
+    einplanung.zustaendigId
+  );
   const verschoben = mahlzeit !== quelle.mahlzeit;
   if (verschoben) platz(mahlzeit);
   if (einplanung.etag !== ifMatch) throw konflikt();

@@ -79,9 +79,17 @@ async function gerichtName(trx: Db, zugang: Zugang, gerichtId: number): Promise<
   return gericht.name;
 }
 
-/** Who is responsible: a member of this Planung who still has access, or a free name. */
-async function pruefeZustaendig(trx: Db, zugang: Zugang, input: EinplanungInput): Promise<void> {
-  if (input.zustaendigId === null) return;
+/**
+ * Who is responsible: a member of this Planung who still has access, or a free name. One who
+ * is `bisher` responsible stays allowed after losing access, so the dish can still be changed.
+ */
+async function pruefeZustaendig(
+  trx: Db,
+  zugang: Zugang,
+  input: EinplanungInput,
+  bisher: number | null = null
+): Promise<void> {
+  if (input.zustaendigId === null || input.zustaendigId === bisher) return;
   const mitglied = await trx
     .selectFrom('essen.mitglied')
     .select('id')
@@ -106,7 +114,7 @@ async function pruefePlatz(trx: Db, mahlzeitId: number): Promise<void> {
 }
 
 /** Moves `einplanungId` to `position` in its meal; without both it only closes gaps. */
-async function sortiere(
+export async function sortiere(
   trx: Db,
   mahlzeitId: number,
   einplanungId: number | null,
@@ -176,7 +184,7 @@ async function einplanungDerPlanung(trx: Db, zugang: Zugang, id: number) {
   const einplanung = await trx
     .selectFrom('essen.einplanung as e')
     .innerJoin('essen.gericht as g', 'g.id', 'e.gericht_id')
-    .select(['e.id', 'e.mahlzeit_id', 'e.gericht_id', 'g.name'])
+    .select(['e.id', 'e.mahlzeit_id', 'e.gericht_id', 'e.zustaendig_mitglied_id', 'g.name'])
     .where('e.id', '=', id)
     .where('g.planung_id', '=', zugang.planungId)
     .executeTakeFirst();
@@ -198,7 +206,7 @@ export async function einplanungAendern(
   await aendere(zugang, 'einplanung-geaendert', async (trx) => {
     const einplanung = await einplanungDerPlanung(trx, zugang, id);
     const mahlzeit = await mahlzeitDerPlanung(trx, zugang, input.mahlzeitId);
-    await pruefeZustaendig(trx, zugang, input);
+    await pruefeZustaendig(trx, zugang, input, einplanung.zustaendig_mitglied_id);
     const verschoben = mahlzeit.id !== einplanung.mahlzeit_id;
     if (verschoben) await pruefePlatz(trx, mahlzeit.id);
     const result = await trx
