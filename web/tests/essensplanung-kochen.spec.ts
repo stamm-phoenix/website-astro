@@ -1,4 +1,4 @@
-import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
 import { anlegen, pdfLaden } from './essensplanung-helpers';
 
 test('dishes are ticked off as cooked or left out; the stock and the list follow', async ({
@@ -158,6 +158,16 @@ test('amounts typed to tick off a dish stay through maintenance', async ({ page 
   });
   await expect(verbrauch).toHaveValue('0,3');
   await page.unroute('**/api/essensplanung/planung/stand?*');
+
+  // Folding it away and opening it again keeps the amounts; discarding takes the planned ones
+  const abhaken = page.getByLabel('Nudeln bei 1_2_1 abhaken');
+  await abhaken.click();
+  await expect(verbrauch).toBeHidden();
+  await abhaken.click();
+  await expect(verbrauch).toHaveValue('0,3');
+  await page.getByRole('button', { name: 'Eingaben verwerfen' }).click();
+  await expect(verbrauch).not.toHaveValue('0,3');
+  await expect(page.getByRole('button', { name: 'Eingaben verwerfen' })).toBeHidden();
 });
 
 test('ticking off after someone else did keeps the amounts and saves them on the second try', async ({
@@ -205,4 +215,20 @@ test('ticking off after someone else did keeps the amounts and saves them on the
   await expect(page.getByText('Nudeln ist als gekocht abgehakt.').first()).toBeVisible();
   await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
   await expect(verbrauch).toHaveValue('0,3');
+
+  // Typed amounts of a dish someone else takes off the meal are shown to copy
+  await verbrauch.fill('0,4');
+  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  const zweites = await (await browser.newContext()).newPage();
+  await zweites.goto(page.url());
+  await zweites
+    .getByRole('list', { name: 'Gerichte bei 1_2' })
+    .getByRole('button', { name: 'Nudeln aus 1_2 entfernen' })
+    .click();
+  await answerConfirm(zweites, 'Nudeln aus 1_2 nehmen?', 'Entfernen');
+  await expect(zweites.getByRole('list', { name: 'Gerichte bei 1_2' })).toHaveCount(0);
+  await zweites.context().close();
+  await expect(page.getByText(/dein Verbrauch: Nudeln \(Spaghetti\) 0,4 g\)/).first()).toBeVisible({
+    timeout: 15_000,
+  });
 });

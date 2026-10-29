@@ -1,7 +1,9 @@
 /**
  * Ticking off planned dishes in the mock API, like `api/lib/essen-kochen.ts`.
  */
+import { einheitPasst, einheitText } from '../../../api/lib/essen-gerichte-model';
 import type { AbhakenInput } from '../../../api/lib/essen-kochen-model';
+import { zutatFuer } from './essensplanung-gerichte';
 import type { MockZugang } from './essensplanung-planung';
 import { aendere, feld, konflikt, neuesEtag, nichtGefunden } from './essensplanung-planung';
 
@@ -17,10 +19,16 @@ export function einplanungAbhaken(
     .find(({ mahlzeit }) => mahlzeit.einplanungen.some((e) => e.id === id));
   if (!ort) throw nichtGefunden();
   const einplanung = ort.mahlzeit.einplanungen.find((e) => e.id === id)!;
-  if (
-    input.verbrauch.some((v) => !z.planung.zutaten.some((zutat) => zutat.id === v.planungZutatId))
-  )
-    throw feld('verbrauch', 'Eine der Zutaten gibt es nicht mehr. Bitte lade die Seite neu.');
+  for (const v of input.verbrauch) {
+    if (!z.planung.zutaten.some((zutat) => zutat.id === v.planungZutatId))
+      throw feld('verbrauch', 'Eine der Zutaten gibt es nicht mehr. Bitte lade die Seite neu.');
+    const zutat = zutatFuer(z, { planungZutatId: v.planungZutatId }, { lebensmittel: false });
+    if (!einheitPasst(zutat.einheitenart, v.einheit))
+      throw feld(
+        'verbrauch',
+        `${zutat.name} wird nicht in ${einheitText(v.einheit)} gemessen. Bitte lade die Seite neu.`
+      );
+  }
   if (einplanung.etag !== ifMatch) throw konflikt();
   const gericht = z.planung.gerichte.find((g) => g.id === einplanung.gerichtId)!;
   const details = {
