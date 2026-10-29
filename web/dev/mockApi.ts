@@ -139,7 +139,7 @@ import {
   staffDownloads,
 } from './mock-data/content';
 import type { MockAktion } from './mock-data/content';
-import { aktionInStufeFeed, isStufeKey, STUFE_KEYS } from '../../api/lib/aktion-stufen';
+import { stufeFeed } from './mock-data/aktionenFeeds';
 import type { StufeSlug } from '../../api/lib/anwesenheit-model';
 import {
   addAnwesenheitGuest,
@@ -509,17 +509,14 @@ route(
   'GET',
   '/api/aktionen/:stufe.ics',
   (req) => {
-    const stufe = req.params.stufe;
-    if (!isStufeKey(stufe)) return notFound('Diese Stufe gibt es nicht.');
+    const feed = stufeFeed(req.params.stufe);
+    if (!feed) return notFound('Diese Stufe gibt es nicht.');
     return {
       kind: 'raw',
       status: 200,
       contentType: 'text/calendar; charset=utf-8',
-      body: buildIcs(
-        publicAktionen().filter((a) => aktionInStufeFeed(a, stufe)),
-        `DPSG Stamm Phoenix - ${STUFE_KEYS[stufe]}`
-      ),
-      headers: { 'Content-Disposition': `attachment; filename="aktionen-${stufe}.ics"` },
+      body: feed.body,
+      headers: { 'Content-Disposition': `attachment; filename="${feed.fileName}"` },
     };
   },
   true
