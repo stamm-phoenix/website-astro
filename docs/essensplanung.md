@@ -122,7 +122,7 @@ Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite e
   - Allergene stehen an der Zeile („enthält Gluten“), solange sie nicht ausgenommen sind. Eine Warnung „Zöliakie, aber Gluten nicht ausgenommen“ kommt mit den Teilnehmenden (PR 5), vorher wäre sie bei jeder Zeile mit Gluten.
 - **Zutaten der Planung:** Eine zentrale Zutat wird mit ihrer ersten Zeile zur Zutat der Planung (`planung_zutat`). Dort lassen sich Kategorie und Einheitenart nur für diese Planung ändern (die Einheitenart nur, solange keine Zeile eine Menge in der alten Einheit hat). Eigene Zutaten (Name, Kategorie, Einheitenart, Ernährung, Allergene) legt man im Dialog der Zeile an, wenn der Name nicht in der Liste steht; einen Namen aus der Liste nimmt man aus der Liste. Genutzte Zutaten lassen sich nicht löschen, auch nicht zentral in der Steuerung. Die Steuerung ändert die Einheitenart einer zentralen Zutat nur, solange keine Planung sie mit einer Menge in der bisherigen Einheit erbt; eine Sperre je Zutat (`zutatSperre`) ordnet das gegen gleichzeitig gespeicherte Zeilen.
 - Nicht-Lebensmittel gehören in kein Gericht.
-- **Rezeptkarte:** „Rezeptkarte drucken“ druckt nur dieses Gericht mit Zutaten, Anleitung, Werkzeugen, Links und Notiz.
+- **Rezeptkarte:** „Rezeptkarte als PDF“ lädt dieses Gericht mit Zutaten, Anleitung, Werkzeugen, Links und Notiz herunter, „Alle Rezeptkarten als PDF“ alle Gerichte, eins je Seite.
 - Die Anleitung schreibt man im gemeinsamen Editor (`LazyTextEditor`, Markdown); angezeigt wird sie wie Protokolltext (`ProtokollText`, als Svelte-Elemente, nie als HTML).
 - Löscht jemand anderes ein Gericht, in dem du gerade ungespeicherte Eingaben hast, zeigt die Seite sie zum Kopieren an (wie bei gelöschten Mahlzeiten).
 
@@ -132,7 +132,7 @@ Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite e
 - **Faktor:** Standard 1, z. B. 0,5, wenn nur die Hälfte Nachtisch isst; größer 0 und bis 20, drei Nachkommastellen. Feste Mengen ignorieren ihn.
 - **Zuständig:** ein Mitglied der Planung mit Zugang oder ein freier Name, höchstens eins von beiden. Der Lese-Link sieht den Namen, aber keine Mitgliederliste.
 - Ein Gericht lässt sich zwischen Mahlzeiten verschieben („Ändern“ mit anderer Mahlzeit) und kopieren (legt eine neue Einplanung mit denselben Angaben an); innerhalb der Mahlzeit mit ↑/↓ sortieren.
-- Die Plan-Ansicht zeigt unter jeder Mahlzeit ihre Gerichte mit Faktor und Zuständigen, auch im Druck; die Karte eines Gerichts zeigt, wo es eingeplant ist.
+- Die Plan-Ansicht zeigt unter jeder Mahlzeit ihre Gerichte mit Faktor und Zuständigen, auch im PDF; die Karte eines Gerichts zeigt, wo es eingeplant ist.
 - Löschen: Ein gelöschtes Gericht verschwindet aus allen Mahlzeiten; eine gelöschte Mahlzeit (oder ihr Tag) nimmt ihre Einplanungen mit, die Gerichte bleiben.
 
 ## Teilnehmende
@@ -173,7 +173,16 @@ Gerechnet wird im Browser aus dem vollständigen Stand der Planung. Das Modul li
 
 **Summieren und Runden:** Für die Einkaufsliste werden die Mengen je Zutat in der Basiseinheit summiert (`summiere`, getrennt nach Einheitenart). Angezeigt wird ab 1.000 g in kg und ab 1.000 ml in l. Stück, Packung und Bund werden erst **nach dem Summieren** aufgerundet (`einkaufsMenge`). Das Sheet rundet pro Gericht. Wir runden pro Liste, das erzeugt weniger Überschuss.
 
-**Im Plan (PR 5b):** Unter jedem eingeplanten Gericht klappt „Mengen für N Portionen“ die Zutaten mit der Menge für diese Mahlzeit auf (`EinplanungMengen.svelte`, `kochMenge`: ab 1.000 g in kg, nichts aufgerundet). N sind die gewichteten Esser der Mahlzeit mal dem Faktor der Einplanung (bei 0,5 also die Hälfte); jede Zeile nennt wie die Karte des Gerichts, für wen sie ist („nur mit allem“, „nur bei Gluten“, „nicht bei Gluten“, „feste Menge“), und ihre Portionen, wenn es weniger sind; eine Zeile ohne Menge heißt „nach Gefühl“. Die Namen der Unverträglichkeiten lädt der Plan nur, wenn eine Zeile sie braucht. Im Druck stehen die Mengen immer da, so ist der gedruckte Plan die Liste der Küche.
+**Im Plan (PR 5b):** Unter jedem eingeplanten Gericht klappt „Mengen für N Portionen“ die Zutaten mit der Menge für diese Mahlzeit auf (`EinplanungMengen.svelte`, `kochMenge`: ab 1.000 g in kg, nichts aufgerundet). N sind die gewichteten Esser der Mahlzeit mal dem Faktor der Einplanung (bei 0,5 also die Hälfte); jede Zeile nennt wie die Karte des Gerichts, für wen sie ist („nur mit allem“, „nur bei Gluten“, „nicht bei Gluten“, „feste Menge“), und ihre Portionen, wenn es weniger sind; eine Zeile ohne Menge heißt „nach Gefühl“. Die Namen der Unverträglichkeiten lädt der Plan nur, wenn eine Zeile sie braucht. Im PDF des Plans stehen die Mengen immer da, so ist es die Liste der Küche.
+
+## PDF
+
+Ausdrucke sind PDFs, die die Seite selbst baut (jsPDF, erst beim Klick geladen), statt den Druckdialog des Browsers. Die Zeilen kommen aus `web/src/lib/essensplanungDruck.ts` (dieselben Texte wie auf dem Bildschirm, ohne jsPDF und mit Tests), das Layout aus `web/src/lib/essensplanungPdf.ts`; Gemeinsames mit der Abrechnung liegt in `web/src/lib/pdfBasis.ts`. Der Knopf (`PdfKnopf.svelte`) zeigt „PDF wird erstellt …“ und eine Meldung, wenn es nicht klappt.
+
+- **Plan als PDF:** jeder Tag und jede Mahlzeit mit Uhrzeit, ausgelassenen Gruppen und den eingeplanten Gerichten mit Portionen, Zuständigen und den Mengen dieser Mahlzeit (wie „Mengen für N Portionen“).
+- **Rezeptkarte als PDF / Alle Rezeptkarten als PDF:** je Gericht eine Seite mit den Zutaten für die Personen des Gerichts (mit „für wen“, Allergenen und „nicht vegetarisch“ wie auf der Karte), Anleitung (Markdown als Absätze und Punkte, Links mit Adresse), Werkzeugen, Links und Notiz. Nur mit der zentralen Liste, damit alle Allergene genannt sind.
+- **Esser je Mahlzeit als PDF:** quer, die Tage nebeneinander (höchstens sieben je Tabelle), die Mahlzeiten eines Tages untereinander mit Personen, vegetarisch und vegan; darunter die Teilnehmenden mit Gruppe, Anzahl, Ernährung, Unverträglichkeiten und Zeitraum. Portionen stehen nicht darin, sie sind nur für die Mengen da.
+- **Einkaufsliste als PDF:** je Geschäft die Kategorien mit Menge und Zutat und einem Kästchen zum Abhaken.
 
 ## Einkaufsliste, Einkäufe, Lager
 
@@ -200,7 +209,7 @@ Gerechnet wird im Browser aus dem vollständigen Stand der Planung. Das Modul li
 
 Umgesetzt (PR 5c), Bereich „Einkauf“ (`PlanEinkauf.svelte`):
 
-- **Einkaufsliste** (`web/src/lib/essensplanungEinkauf.ts`): Bedarf aller Einplanungen (`bedarf`) plus Zusatzbedarf, je Zutat und Einheitenart summiert, minus Bestand; was übrig bleibt, wird erst jetzt aufgerundet bzw. in kg/l angezeigt (`einkaufsMenge`). Zutaten, die nur ohne Menge in eingeplanten Gerichten stehen und mitgegessen werden (Pfeffer „nach Gefühl“), kommen ohne Zahl als „nach Gefühl“ dazu, außer es gibt sie schon mit Menge auf der Liste oder im Bestand (`ohneMenge`). Gruppiert nach Geschäft (in der Reihenfolge der Geschäfte, „Ohne Geschäft“ zuletzt) und Kategorie der Zutat. An jedem Posten wählt man das Geschäft der Zutat. „Einkaufsliste drucken“ druckt nur die Liste.
+- **Einkaufsliste** (`web/src/lib/essensplanungEinkauf.ts`): Bedarf aller Einplanungen (`bedarf`) plus Zusatzbedarf, je Zutat und Einheitenart summiert, minus Bestand; was übrig bleibt, wird erst jetzt aufgerundet bzw. in kg/l angezeigt (`einkaufsMenge`). Zutaten, die nur ohne Menge in eingeplanten Gerichten stehen und mitgegessen werden (Pfeffer „nach Gefühl“), kommen ohne Zahl als „nach Gefühl“ dazu, außer es gibt sie schon mit Menge auf der Liste oder im Bestand (`ohneMenge`). Gruppiert nach Geschäft (in der Reihenfolge der Geschäfte, „Ohne Geschäft“ zuletzt) und Kategorie der Zutat. An jedem Posten wählt man das Geschäft der Zutat. „Einkaufsliste als PDF“ lädt die Liste mit einem Kästchen zum Abhaken je Posten herunter.
 - **Geschäfte** gehören zur Planung (`essen.geschaeft`, Name eindeutig, höchstens 30); eine Zutat der Planung hat höchstens ein Geschäft (`planung_zutat.geschaeft_id`). Ein gelöschtes Geschäft lässt seine Zutaten ohne Geschäft.
 - **Bestand** und **Zusatzbedarf** sind Einträge mit Zutat (aus der Liste oder der Planung, auch Nicht-Lebensmittel wie Spülmittel), Menge, Einheit passend zur Einheitenart und Hinweis (`essen.bestand`, `essen.zusatzbedarf`, je höchstens 500). Eine Zutat, die Bestand oder Zusatzbedarf nutzt, lässt sich nicht löschen und behält ihre Einheitenart, wie bei Gerichten.
 - Was gekocht oder ausgelassen ist, Einkäufe und das Lager mit „erhalten“ und „verbraucht“ kommen mit PR 6; bis dahin zählt die Einkaufsliste alle Einplanungen.
@@ -327,7 +336,7 @@ Die vollständige, fortgeschriebene Liste steht in #452.
 - „Meine Planungen“ verschickt neue Links, die alten werden ungültig (nur Hashes gespeichert).
 - Die Steuerung erreichen nur Admins/Vorstände, die auch die Rolle `team_leitende` haben.
 - Aufbewahrung hängt am letzten Tag der Planung, Warnmail 14 Tage vorher.
-- Jede Ansicht ist druckbar (`@media print`).
+- Jede Ansicht gibt es als PDF zum Herunterladen statt über den Druckdialog des Browsers (siehe „PDF“).
 - Werkzeuge und Links stehen als JSON am Gericht statt in eigenen Tabellen (PR 4).
 - Gericht-Zeilen werden als Ganzes mit ihrer Version gespeichert; der Kopf des Gerichts nur mit den geänderten Feldern und seiner Version (PR 4).
 - PR 4 ist geteilt: 4a Gerichte, 4b Einplanung, 4c Umrechnungshilfe.

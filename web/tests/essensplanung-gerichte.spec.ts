@@ -1,5 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import { anlegen } from './essensplanung-helpers';
+import { anlegen, pdfLaden } from './essensplanung-helpers';
 
 test('dishes get ingredients from the list, warnings and a recipe card', async ({
   page,
@@ -80,20 +80,15 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await answerConfirm(page, 'Hackfleisch entfernen?', 'Entfernen');
   await expect(chili.getByText('1,5 kg')).toHaveCount(0);
 
-  // The recipe card prints alone
-  await page.getByLabel('Neues Gericht').fill('Pudding');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Pudding angelegt.').first()).toBeVisible();
-  await page.evaluate(() => (window.print = () => undefined));
-  await chili.getByRole('button', { name: 'Rezeptkarte drucken' }).click();
-  await page.emulateMedia({ media: 'print' });
-  await expect(page.getByText('Pudding', { exact: true })).toBeHidden();
-  await expect(page.locator('body > header')).toBeHidden();
-  await expect(page.locator('body > footer')).toBeHidden();
-  await expect(chili.locator('strong:visible', { hasText: 'würzen' })).toHaveCount(1);
-  // Paper has no links: the address shows after the title
-  await expect(chili.getByText('(https://example.org/chili)')).toBeVisible();
-  await page.emulateMedia({ media: 'screen' });
+  // The recipe card downloads as PDF with the instructions; paper has no links, so the
+  // address follows the title
+  const karte = await pdfLaden(page, () =>
+    chili.getByRole('button', { name: 'Rezeptkarte als PDF: Chili' }).click()
+  );
+  expect(karte.name).toBe('Rezeptkarte Chili.pdf');
+  expect(karte.text).toContain('würzen');
+  expect(karte.text).toContain('https://example.org/chili');
+  expect(karte.text).toContain('Omas Chiligewürz');
   await expectNoHorizontalOverflow(page);
   await anderes.context().close();
 });
@@ -286,7 +281,7 @@ test('without the central list the card does not hide allergens', async ({ page 
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByText('Milchreis', { exact: true }).click();
   await expect(reis.getByText('enthält Allergene (Namen nicht geladen)')).toBeVisible();
-  await expect(reis.getByRole('button', { name: 'Rezeptkarte drucken' })).toBeDisabled();
+  await expect(reis.getByRole('button', { name: 'Rezeptkarte als PDF: Milchreis' })).toBeDisabled();
 });
 
 test('a dish changed during the delete question is not deleted', async ({ page, browser }) => {

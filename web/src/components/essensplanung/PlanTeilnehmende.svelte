@@ -8,6 +8,7 @@
   import { esserJeMahlzeit } from '../../../../api/lib/essen-teilnehmende-model';
   import type { EssenKatalog, PlanungGruppe, Teilnehmende } from '../../lib/types';
   import GruppeDialog from './GruppeDialog.svelte';
+  import PdfKnopf from './PdfKnopf.svelte';
   import TeilnehmendeDialog from './TeilnehmendeDialog.svelte';
   import type { PlanKontext } from './planKontext';
 
@@ -44,6 +45,14 @@
   const unvertraeglichkeit = $derived(
     new Map((katalog?.unvertraeglichkeiten ?? []).map((u) => [u.id, u.name]))
   );
+
+  /** The eaters and the participants as PDF; the names of the intolerances first. */
+  async function esserPdf(): Promise<void> {
+    const liste = katalog ?? (await kontext.api.katalog());
+    const namen = new Map(liste.unvertraeglichkeiten.map((u) => [u.id, u.name]));
+    const { downloadEsserPdf } = await import('../../lib/essensplanungPdf');
+    await downloadEsserPdf(ansicht, namen);
+  }
 
   const esser = $derived(esserJeMahlzeit(ansicht));
   const gruppenName = $derived(new Map(ansicht.gruppen.map((g) => [g.id, g.name])));
@@ -185,9 +194,12 @@
   </section>
 
   <section aria-labelledby="esser-heading" class="space-y-3">
-    <h3 id="esser-heading" class="font-serif text-lg font-bold text-brand-900">
-      Esser je Mahlzeit
-    </h3>
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h3 id="esser-heading" class="font-serif text-lg font-bold text-brand-900">
+        Esser je Mahlzeit
+      </h3>
+      <PdfKnopf {kontext} label="Esser je Mahlzeit als PDF" erstellen={esserPdf} />
+    </div>
     <!-- Phones: one entry per meal; wider screens and print: the table -->
     <ul class="space-y-3 sm:hidden print:hidden" aria-labelledby="esser-heading">
       {#each ansicht.tage as tag (tag.id)}

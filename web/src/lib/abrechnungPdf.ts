@@ -4,6 +4,20 @@
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn } from 'jspdf-autotable';
 import { saveFile } from './api';
+import {
+  BRAND,
+  FOOTER_SPACE,
+  GREY,
+  MARGIN,
+  PAGE_HEIGHT,
+  PAGE_WIDTH,
+  RED,
+  dateiName,
+  drawPageFooters,
+  drawTitle,
+  loadPdf,
+  today,
+} from './pdfBasis';
 import { formatEuro } from './format';
 import type { LeihgebuehrPosition } from './abrechnungRechnung';
 import type { Vorstand } from './types';
@@ -52,45 +66,14 @@ export interface PdfDeckblatt {
   kalkulation: string;
 }
 
-const BRAND: [number, number, number] = [0, 48, 86]; // DPSG blue #003056
-const RED: [number, number, number] = [129, 10, 26]; // DPSG red #810a1a
-const GREY: [number, number, number] = [90, 90, 90];
-const MARGIN = 14;
-const PAGE_WIDTH = 210;
-const PAGE_HEIGHT = 297;
-const FOOTER_SPACE = 16;
 /** Long edge of receipt images in the PDF; enough for print, keeps the file small. */
 const RECEIPT_MAX_PIXELS = 2000;
 /** The Playwright API exports at most three pages at the same time. */
 const RECEIPT_CONCURRENCY = 3;
 
-const today = (): string =>
-  new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeZone: 'Europe/Berlin' }).format(
-    new Date()
-  );
-
-/** Characters Windows does not allow in file names. */
+/** A file name of the Abrechnung, without characters Windows does not allow. */
 export function pdfFileName(...parts: string[]): string {
-  const name = parts
-    .join(' ')
-    .replace(/[\\/:*?"<>|]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return `${name || 'Abrechnung'}.pdf`;
-}
-
-async function loadPdf(): Promise<{
-  doc: JsPdf;
-  autoTable: typeof AutoTableFn;
-}> {
-  const [{ jsPDF }, { autoTable }] = await Promise.all([
-    import('jspdf'),
-    import('jspdf-autotable'),
-  ]);
-  return {
-    doc: new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true }),
-    autoTable,
-  };
+  return dateiName('Abrechnung', ...parts);
 }
 
 interface PdfImage {
@@ -145,23 +128,6 @@ function drawImage(
   return { width, height };
 }
 
-function drawTitle(doc: JsPdf, title: string, lines: string[]): number {
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(...BRAND);
-  doc.text(title, MARGIN, 18);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...GREY);
-  let y = 25;
-  for (const line of lines) {
-    const wrapped = doc.splitTextToSize(line, PAGE_WIDTH - 2 * MARGIN);
-    doc.text(wrapped, MARGIN, y);
-    y += 5 * wrapped.length;
-  }
-  return y;
-}
-
 function drawTable(
   doc: JsPdf,
   autoTable: typeof AutoTableFn,
@@ -184,26 +150,6 @@ function drawTable(
       if (alignRight.has(data.column.index)) data.cell.styles.halign = 'right';
     },
   });
-}
-
-/** Page numbers and the creation date on every page. */
-function drawPageFooters(doc: JsPdf): void {
-  const created = new Intl.DateTimeFormat('de-DE', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'Europe/Berlin',
-  }).format(new Date());
-  const pages = doc.getNumberOfPages();
-  for (let page = 1; page <= pages; page++) {
-    doc.setPage(page);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...GREY);
-    doc.text(`DPSG Stamm Phoenix · erstellt am ${created}`, MARGIN, PAGE_HEIGHT - 8);
-    doc.text(`Seite ${page} von ${pages}`, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 8, {
-      align: 'right',
-    });
-  }
 }
 
 /** A list as a table, e.g. the Teilnehmende or the Einzelnachweise. */
