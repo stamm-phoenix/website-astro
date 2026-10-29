@@ -9,6 +9,7 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
     getippteZutat,
+    gewaehlteZutat,
     leseMenge,
     mengeFeld,
     zutatVorschlaege,
@@ -90,13 +91,9 @@
   const vorschlaege = $derived(
     katalog ? zutatVorschlaege(katalog, ansicht.zutaten, { nurLebensmittel: false }) : []
   );
-  const einheitenart = $derived.by((): EssenEinheitenart | null => {
-    if (!auswahl) return null;
-    const id = auswahl.id;
-    return auswahl.art === 'planung'
-      ? (ansicht.zutaten.find((z) => z.id === id)?.einheitenart ?? null)
-      : (katalog?.zutaten.find((z) => z.id === id)?.einheitenart ?? null);
-  });
+  const einheitenart = $derived<EssenEinheitenart | null>(
+    gewaehlteZutat(auswahl, ansicht.zutaten, katalog)?.einheitenart ?? null
+  );
   /** Extra needs: a name not in the list is a thing of its own, measured as chosen here. */
   const frei = $derived(art === 'zusatzbedarf');
   const einheiten = $derived(
