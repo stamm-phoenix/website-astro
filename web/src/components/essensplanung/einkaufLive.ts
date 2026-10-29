@@ -34,16 +34,32 @@ export const offeneZeile = new Map<number, string>();
 
 let schutz: (() => void) | null = null;
 
+/**
+ * Drops all kept input once the page of the Planung is really left (the navigation went ahead,
+ * after „Änderungen verwerfen“); a navigation that was cancelled keeps it.
+ */
+function seiteVerlassen(): void {
+  entwuerfe.clear();
+  offeneZeile.clear();
+  aufraeumen();
+}
+
+function aufraeumen(): void {
+  if (!schutz) return;
+  schutz();
+  schutz = null;
+  document.removeEventListener('astro:before-swap', seiteVerlassen);
+}
+
 /** Keeps unsaved input; leaving the page asks first while there is any. */
 export function merkeEntwurf(key: string, entwurf: LiveEntwurf): void {
   entwuerfe.set(key, entwurf);
-  schutz ??= guardUnsavedChanges(() => entwuerfe.size > 0);
+  if (schutz) return;
+  schutz = guardUnsavedChanges(() => entwuerfe.size > 0);
+  document.addEventListener('astro:before-swap', seiteVerlassen);
 }
 
 export function vergissEntwurf(key: string): void {
   entwuerfe.delete(key);
-  if (!entwuerfe.size && schutz) {
-    schutz();
-    schutz = null;
-  }
+  if (!entwuerfe.size) aufraeumen();
 }

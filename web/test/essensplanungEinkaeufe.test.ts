@@ -405,3 +405,25 @@ test('on paper a ticked off thing shows what was bought, also after finishing', 
   a.abgeschlossen = true;
   assert.deepEqual(zeilen(), [{ abgehakt: true, menge: '800 g', name: 'Nudeln → Vollkornnudeln' }]);
 });
+
+test('pepper by eye bought and used up is needed again', () => {
+  // 50 g pepper bought on a finished trip and all used by the first, cooked meal; the others
+  // still need pepper by eye
+  const fertig = einkauf({ abgeschlossen: true, posten: [haken(3, 50, 'g')] });
+  const nach = einkauf();
+  const s = stand([fertig, nach]);
+  s.tage[0].mahlzeiten[0].einplanungen[0].status = 'gekocht';
+  s.tage[0].mahlzeiten[0].einplanungen[0].verbrauch = [
+    { planungZutatId: 3, menge: 50, einheit: 'g' },
+  ];
+  const gesamt = () =>
+    einkaufsliste(s, new Map()).flatMap((g) =>
+      g.kategorien.flatMap((k) => k.posten.map((p) => p.name))
+    );
+  assert.ok(gesamt().includes('Pfeffer'));
+  assert.ok(liste(s, nach).includes('Pfeffer'));
+  // Ticked off without an amount, it counts as bought
+  fertig.posten = [haken(3, 0, 'g')];
+  assert.ok(!gesamt().includes('Pfeffer'));
+  assert.ok(!liste(s, nach).includes('Pfeffer'));
+});

@@ -467,3 +467,60 @@ test('what is typed in the live mode stays while the trip shows its list', async
   await montag.getByRole('button', { name: 'Abhaken' }).click();
   await expect(montag).toContainText('800 g → Vollkornnudeln');
 });
+
+test('leaving the planning after discarding live input asks no more on other pages', async ({
+  page,
+}) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Verwerfen');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  await montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)').fill('800');
+  await page.getByRole('link', { name: 'Impressum' }).click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
+  await expect(page).toHaveURL(/\/impressum/);
+  // Back to the planning and away again without the browser loading anew: no question
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'E2E Einkäufe Verwerfen' })).toBeVisible();
+  await page.getByRole('link', { name: 'Impressum' }).click();
+  await expect(page).toHaveURL(/\/impressum/);
+  await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).toHaveCount(0);
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'E2E Einkäufe Verwerfen' })).toBeVisible();
+  await page.getByRole('link', { name: 'Impressum' }).click();
+  await expect(page).toHaveURL(/\/impressum/);
+  await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).toHaveCount(0);
+});
+
+test('what is typed while ticking off is saved stays as a new change', async ({ page }) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Weitertippen');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  const ersatz = montag.getByLabel('Ersatz für Nudeln (Spaghetti)');
+  await menge.fill('800');
+  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
+  // The answer takes a moment; meanwhile something else is typed
+  let freigeben: () => void = () => undefined;
+  const warten = new Promise<void>((done) => (freigeben = done));
+  await page.route('**/api/essensplanung/planung/einkaeufe/*/posten', async (route) => {
+    await warten;
+    await route.continue();
+  });
+  await montag.getByRole('button', { name: 'Abhaken' }).click();
+  await menge.fill('900');
+  await ersatz.fill('Vollkornnudeln');
+  freigeben();
+  await expect(montag.getByRole('status')).toHaveText('1 von 1 abgehakt');
+  await expect(menge).toHaveValue('900');
+  await expect(ersatz).toHaveValue('Vollkornnudeln');
+  await page.unroute('**/api/essensplanung/planung/einkaeufe/*/posten');
+  await montag.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(menge).toBeHidden();
+  await expect(montag).toContainText('900 g → Vollkornnudeln');
+});

@@ -142,6 +142,8 @@
       return;
     }
     speichert = true;
+    /** What is sent; typed on while it is saved, the newer input stays. */
+    const gesendet = { menge, einheit, ersatz };
     let abgelehnt: unknown = null;
     const ok = await kontext.aendern(async () => {
       try {
@@ -160,7 +162,14 @@
     speichert = false;
     if (ok) {
       konflikt = null;
-      abbrechen();
+      if (menge === gesendet.menge && einheit === gesendet.einheit && ersatz === gesendet.ersatz) {
+        abbrechen();
+        return;
+      }
+      // Saved, but typed on meanwhile: that stays open and unsaved, on the version just saved
+      await tick();
+      etag = posten.haken?.etag ?? null;
+      fehler = null;
       return;
     }
     if (abgelehnt instanceof ApiError && abgelehnt.status === 409) {
