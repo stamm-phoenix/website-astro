@@ -21,6 +21,7 @@ function booking(id: string, extra: Partial<StaffNikolausBooking> = {}): StaffNi
     addressNotes: '',
     notes: '',
     internalTags: [],
+    location: { lat: 48.05, lon: 10.88 },
     ...extra,
   } as unknown as StaffNikolausBooking;
 }
@@ -36,7 +37,8 @@ const data: StaffNikolausDispoData = {
   maxVisitMinutes: 45,
   stops: [
     booking('1', { phone: '0170 123', hidingPlace: 'Garage', internalTags: ['Hund'] }),
-    booking('2', { childrenCount: 1, withKrampus: true }),
+    booking('2', { childrenCount: 1, withKrampus: true, location: null }),
+    booking('3', { location: { lat: 48.1, lon: 10.9, approximate: true } }),
   ],
   travel: [],
   travelSource: 'route',
@@ -89,7 +91,24 @@ const plan: DispoPlan = {
         },
       ],
     },
-    { team: 'B', departure: null, returnTime: null, driveMinutes: 0, cost: 0, stops: [] },
+    {
+      team: 'B',
+      departure: null,
+      returnTime: null,
+      driveMinutes: 0,
+      cost: 0,
+      stops: [
+        {
+          id: '3',
+          arrival: 17 * 60,
+          start: 17 * 60,
+          end: 17 * 60 + 10,
+          driveMinutes: 5,
+          lateInSlot: 0,
+          lateAfterSlot: 0,
+        },
+      ],
+    },
   ],
 };
 
@@ -104,8 +123,8 @@ describe('dispoPdfTeams', () => {
       'Abfahrt Pfarrheim 16:50 · zurück ca. 18:10 · Fahrzeit 24 Min · Strecke ca. 12 km',
       'Nikolaus: Eva',
     ]);
-    assert.deepEqual(teams[1].lines, ['0 Termine · 0 Kinder']);
-    assert.deepEqual(teams[1].stops, []);
+    assert.deepEqual(teams[1].lines, ['1 Termin · 2 Kinder']);
+    assert.deepEqual(teams[1].stops[0].notes, ['Nur der Ort wurde gefunden – Fahrzeit ungenau']);
   });
 
   test('lists the visits with warnings before the hints', () => {
@@ -126,7 +145,10 @@ describe('dispoPdfTeams', () => {
 
     assert.equal(second.number, 2);
     assert.equal(second.children, '1 Kind · ca. 10 Min · mit Krampus · Anfahrt 10 Min');
-    assert.deepEqual(second.notes, ['5 Min nach Ende des gebuchten Termins']);
+    assert.deepEqual(second.notes, [
+      '5 Min nach Ende des gebuchten Termins',
+      'Adresse nicht auf der Karte gefunden – Fahrzeit nur geschätzt',
+    ]);
     assert.equal(second.late, true);
   });
 });

@@ -88,6 +88,11 @@ export function dispoPdfTeams({ data, plan, baseName, km }: DispoPdfInput): Disp
       } else if (planned.lateInSlot >= NOTABLE_LATE_IN_SLOT) {
         notes.push(`${Math.round(planned.lateInSlot)} Min nach Beginn des gebuchten Termins`);
       }
+      if (!booking.location) {
+        notes.push('Adresse nicht auf der Karte gefunden – Fahrzeit nur geschätzt');
+      } else if (booking.location.approximate) {
+        notes.push('Nur der Ort wurde gefunden – Fahrzeit ungenau');
+      }
       if (booking.hidingPlace) notes.push(`Versteck: ${booking.hidingPlace}`);
       if (booking.addressNotes) notes.push(`Adresse: ${booking.addressNotes}`);
       if (booking.notes) notes.push(`Bemerkungen: ${booking.notes}`);
