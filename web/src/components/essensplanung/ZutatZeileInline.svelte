@@ -94,8 +94,9 @@
     konflikt = false;
   }
 
+  // Amounts compare as numbers: „1.5“ typed is saved and shown as „1,5“
   const geaendert = $derived(
-    menge.trim() !== basis.menge ||
+    leseMenge(menge) !== leseMenge(basis.menge) ||
       hinweis.trim() !== basis.hinweis ||
       (menge.trim() !== '' && einheit !== basis.einheit)
   );
@@ -126,6 +127,35 @@
     }
   }
 
+  /** The saved state of a line as the row compares to it. */
+  function basisVon(current: GerichtZutat, einheitSonst: GerichtEinheit): typeof basis {
+    return {
+      zutat: current.planungZutatId,
+      menge: mengeFeld(current.menge),
+      einheit: current.einheit ?? einheitSonst,
+      hinweis: current.hinweis,
+    };
+  }
+
+  /** Someone else changed the line under the typed input; the input stays for Enter or Escape. */
+  function warne(andereZutat: boolean): void {
+    konflikt = true;
+    fehler = `Jemand anderes hat ${andereZutat ? `die Zutat gerade zu ${name}` : `${name} gerade`} geändert (jetzt ${mengeText(zeile.menge, zeile.einheit) ?? 'nach Gefühl'}${zeile.hinweis ? `, ${zeile.hinweis}` : ''}). Deine Eingabe steht noch in der Zeile: Enter speichert sie trotzdem, Escape verwirft sie.`;
+  }
+
+  /** Whether the line holds these values of the row (ingredient, amount, unit, note). */
+  function hat(
+    current: GerichtZutat,
+    werte: { zutat: number; menge: number | null; einheit: GerichtEinheit; hinweis: string }
+  ): boolean {
+    return (
+      current.planungZutatId === werte.zutat &&
+      current.menge === werte.menge &&
+      (werte.menge === null || current.einheit === werte.einheit) &&
+      current.hinweis === werte.hinweis
+    );
+  }
+
   async function speichernJetzt(bewusst: boolean): Promise<boolean> {
     // The warning stands until Enter or Escape; leaving the row does not overwrite theirs
     if (konflikt && !bewusst) return false;
@@ -150,31 +180,33 @@
       (zeile.einheit ?? basis.einheit) !== basis.einheit ||
       zeile.hinweis !== basis.hinweis
     ) {
-      basis = {
-        zutat: zeile.planungZutatId,
-        menge: mengeFeld(zeile.menge),
-        einheit: zeile.einheit ?? basis.einheit,
-        hinweis: zeile.hinweis,
-      };
-      konflikt = true;
-      fehler = `Jemand anderes hat ${andereZutat ? `die Zutat gerade zu ${name}` : `${name} gerade`} geändert (jetzt ${mengeText(zeile.menge, zeile.einheit) ?? 'nach Gefühl'}${zeile.hinweis ? `, ${zeile.hinweis}` : ''}). Deine Eingabe steht noch in der Zeile: Enter speichert sie trotzdem, Escape verwirft sie.`;
+      basis = basisVon(zeile, basis.einheit);
+      warne(andereZutat);
       return false;
     }
     entwurf = true;
-    // Taken now with the version checked above: changes wait in a queue, and a version that
-    // comes in meanwhile must make this one a conflict instead of overwriting it
     const gesendet = { menge: menge.trim(), einheit, hinweis: hinweis.trim() };
-    const body = {
-      ...zeileBody(zeile),
-      menge: zahl,
-      einheit: zahl === null ? null : einheit,
-      fest: zahl !== null && zeile.fest,
-      hinweis: gesendet.hinweis,
+    // What was checked above. Changes wait in a queue: when it is the turn of this one, the
+    // newer version is taken only if the line still holds these values (e.g. moved meanwhile);
+    // a change of others makes it send the checked version, which the server refuses
+    const geprueft = {
+      zutat: basis.zutat,
+      menge: leseMenge(basis.menge),
+      einheit: basis.einheit,
+      hinweis: basis.hinweis,
     };
-    const ok = await kontext.aendern(
-      () => kontext.api.senden('PATCH', `/gericht-zutaten/${zeile.id}`, body),
-      `${name} gespeichert.`
-    );
+    const etag = zeile.etag;
+    const ok = await kontext.aendern(() => {
+      const current = zeile;
+      return kontext.api.senden('PATCH', `/gericht-zutaten/${current.id}`, {
+        ...zeileBody(current),
+        etag: hat(current, geprueft) ? current.etag : etag,
+        menge: zahl,
+        einheit: zahl === null ? null : gesendet.einheit,
+        fest: zahl !== null && current.fest,
+        hinweis: gesendet.hinweis,
+      });
+    }, `${name} gespeichert.`);
     entwurf = false;
     if (ok) {
       // Typed on while it saved: that input stays and counts as changed against the saved state
@@ -182,16 +214,30 @@
         menge.trim() !== gesendet.menge ||
         hinweis.trim() !== gesendet.hinweis ||
         einheit !== gesendet.einheit;
-      if (!fokus && !weitergetippt) uebernehme(zeile);
-      else
-        basis = {
-          zutat: zeile.planungZutatId,
-          menge: mengeFeld(zeile.menge),
-          einheit: zeile.einheit ?? gesendet.einheit,
-          hinweis: zeile.hinweis,
-        };
+      // The answer is read after the save and may already hold a change of others
+      const eigenerStand = hat(zeile, {
+        zutat: geprueft.zutat,
+        menge: zahl,
+        einheit: gesendet.einheit,
+        hinweis: gesendet.hinweis,
+      });
+      if (!weitergetippt && (!fokus || !eigenerStand)) uebernehme(zeile);
+      else {
+        basis = basisVon(zeile, gesendet.einheit);
+        if (!eigenerStand) warne(zeile.planungZutatId !== geprueft.zutat);
+      }
+    } else if (!hat(zeile, geprueft)) {
+      // Refused because others changed the line meanwhile: the same choice as above
+      basis = basisVon(zeile, gesendet.einheit);
+      warne(zeile.planungZutatId !== geprueft.zutat);
     } else fehler = kontext.fehler;
     return ok;
+  }
+
+  /** Typed changes are saved first, so the move goes with the saved version. */
+  async function verschiebe(neu: number): Promise<void> {
+    if (geaendert && !(await speichern())) return;
+    onverschiebe(neu);
   }
 
   /** The dialog starts from what the row shows, so typed changes are saved first. */
@@ -299,13 +345,13 @@
           type="button"
           aria-label="{name} nach oben"
           disabled={kontext.busy || erste}
-          onclick={() => onverschiebe(position - 1)}>↑</ActionButton
+          onclick={() => void verschiebe(position - 1)}>↑</ActionButton
         >
         <ActionButton
           type="button"
           aria-label="{name} nach unten"
           disabled={kontext.busy || letzte}
-          onclick={() => onverschiebe(position + 1)}>↓</ActionButton
+          onclick={() => void verschiebe(position + 1)}>↓</ActionButton
         >
         <ActionButton
           type="button"

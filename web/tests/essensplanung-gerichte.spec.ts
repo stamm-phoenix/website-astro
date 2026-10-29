@@ -676,3 +676,78 @@ test('an amount typed for one ingredient does not go to another one others chose
   await anderes.getByText('Eintopf', { exact: true }).click();
   await expect(anderes.getByLabel('Menge von Zwiebeln')).not.toHaveValue('600');
 });
+
+test('a row saves before it moves, keeps decimal amounts and warns about changes in the answer', async ({
+  page,
+}) => {
+  test.slow();
+  await anlegen(page, 'E2E Zeilen Reihenfolge');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Gulasch');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
+  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
+  const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
+  for (const [name, menge] of [
+    ['Hackfl', '500'],
+    ['Zwiebeln', '3'],
+  ]) {
+    await zutat.pressSequentially(name);
+    await zutat.press('Enter');
+    await gericht.getByLabel('Menge der neuen Zutat').fill(menge);
+    await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+    await expect(zutat).toHaveValue('');
+  }
+  const menge = gericht.getByLabel('Menge von Hackfleisch');
+  const patches: string[] = [];
+  page.on('request', (anfrage) => {
+    if (anfrage.method() === 'PATCH' && anfrage.url().includes('/gericht-zutaten/'))
+      patches.push(anfrage.postData() ?? '');
+  });
+
+  // Typed, then moved: the amount is saved first, the move goes after it without a conflict
+  await page.route('**/api/essensplanung/planung/gericht-zutaten/*', async (route) => {
+    await new Promise((done) => setTimeout(done, 1000));
+    await route.continue();
+  });
+  await menge.fill('600');
+  await gericht.getByRole('button', { name: 'Hackfleisch nach unten' }).click();
+  await page.getByRole('heading', { name: 'E2E Zeilen Reihenfolge' }).click();
+  await expect(gericht.locator('ol > li').last()).toContainText('Hackfleisch', {
+    timeout: 15_000,
+  });
+  await page.unroute('**/api/essensplanung/planung/gericht-zutaten/*');
+  await expect(gericht.getByRole('alert')).toHaveCount(0);
+  await expect(menge).toHaveValue('600');
+
+  // „1.5“ is saved once and then counts as saved, though shown as „1,5“ elsewhere
+  await menge.fill('1.5');
+  await menge.press('Enter');
+  await expect(page.getByText('Hackfleisch gespeichert.').first()).toBeVisible();
+  const anzahl = patches.length;
+  await menge.press('Enter');
+  await page.waitForTimeout(1000);
+  expect(patches.length).toBe(anzahl);
+
+  // The answer of a save already holds a change of others: typed input is not saved over it
+  await page.route('**/api/essensplanung/planung/gericht-zutaten/*', async (route) => {
+    await new Promise((done) => setTimeout(done, 1500));
+    const antwort = await route.fetch();
+    const json = await antwort.json();
+    const ansicht = json.ansicht ?? json;
+    for (const g of ansicht.gerichte) for (const z of g.zutaten) if (z.menge === 750) z.menge = 900;
+    await route.fulfill({ response: antwort, json });
+  });
+  await menge.fill('750');
+  await menge.press('Enter');
+  await menge.fill('800');
+  await expect(gericht.getByRole('alert')).toContainText('Jemand anderes hat Hackfleisch', {
+    timeout: 10_000,
+  });
+  await page.unroute('**/api/essensplanung/planung/gericht-zutaten/*');
+  const vorher = patches.length;
+  await page.getByRole('heading', { name: 'E2E Zeilen Reihenfolge' }).click();
+  await page.waitForTimeout(1500);
+  expect(patches.length).toBe(vorher);
+  await expect(menge).toHaveValue('800');
+});
