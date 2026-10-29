@@ -1,0 +1,118 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import Heading from '../../components/Heading.astro';
+import TextLink from '../../components/TextLink.astro';
+import { GROUP_EMOJIS, GROUP_LABELS, type GroupKey } from '../../lib/events';
+
+const origin = (Astro.site ?? new URL('https://www.stamm-phoenix.de')).host;
+
+const FEEDS = [
+  { key: 'alle', label: 'Alle Termine', path: 'aktionen.ics' },
+  ...(Object.keys(GROUP_LABELS) as GroupKey[]).map((key) => ({
+    key,
+    label: `${GROUP_EMOJIS[key]} ${GROUP_LABELS[key]}`,
+    path: `aktionen/${key}.ics`,
+  })),
+].map((feed) => ({
+  ...feed,
+  subscribe: `webcal://${origin}/api/${feed.path}`,
+  url: `https://${origin}/api/${feed.path}`,
+}));
+
+const APPS = [
+  {
+    name: 'iPhone und iPad',
+    steps: [
+      'Tippe oben bei deiner Stufe auf „Abonnieren“.',
+      'Bestätige mit „Abonnieren“. Die Termine erscheinen in der Kalender-App.',
+    ],
+  },
+  {
+    name: 'Android und Google Kalender',
+    steps: [
+      'Öffne calendar.google.com am Computer und klicke links neben „Weitere Kalender“ auf das Plus.',
+      'Wähle „Per URL“, füge den Link deiner Stufe ein und klicke auf „Kalender hinzufügen“.',
+      'Der Kalender erscheint danach auch in der Google-Kalender-App auf dem Handy.',
+    ],
+  },
+  {
+    name: 'Outlook',
+    steps: [
+      'Wähle „Kalender hinzufügen“ und dann „Aus dem Internet abonnieren“.',
+      'Füge den Link deiner Stufe ein und bestätige mit „Importieren“.',
+    ],
+  },
+  {
+    name: 'Thunderbird',
+    steps: [
+      'Wähle im Kalender „Neuer Kalender“, dann „Im Netzwerk“.',
+      'Füge den Link deiner Stufe ein und bestätige mit „Weiter“.',
+    ],
+  },
+];
+---
+
+<BaseLayout
+  title="Kalender abonnieren | Stamm Phoenix"
+  description="Die Termine deiner Stufe automatisch im eigenen Kalender."
+>
+  <Header slot="header" />
+
+  <PageHeader
+    title="Kalender abonnieren"
+    description="Die Termine deiner Stufe erscheinen automatisch im eigenen Kalender, auch neue und geänderte."
+  >
+    <p class="text-sm">
+      <TextLink href="/aktionen/" variant="back">
+        Zurück zum Kalender
+      </TextLink>
+    </p>
+  </PageHeader>
+
+  <section class="mt-4" aria-labelledby="feeds-heading">
+    <Heading level={2} variant="card" id="feeds-heading">
+      Dein Kalender
+    </Heading>
+    <ul class="mt-3 divide-y divide-neutral-200 border-y border-neutral-200">
+      {FEEDS.map((feed) => (
+        <li class="flex flex-wrap items-center gap-x-6 gap-y-1 py-3">
+          <span class="min-w-40 font-semibold text-brand-900">{feed.label}</span>
+          <TextLink href={feed.subscribe} class="inline-flex min-h-11 items-center">
+            Abonnieren
+            <span class="sr-only"> ({feed.label})</span>
+          </TextLink>
+          <code class="break-all text-sm text-neutral-800">{feed.url}</code>
+        </li>
+      ))}
+    </ul>
+    <p class="mt-3 text-sm text-neutral-800">
+      In den Kalendern deiner Stufe stehen auch Termine, die für alle gedacht sind. Termine nur für
+      Leitende sind nicht dabei.
+    </p>
+  </section>
+
+  <section class="mt-8" aria-labelledby="apps-heading">
+    <Heading level={2} variant="card" id="apps-heading">
+      So geht’s in deiner App
+    </Heading>
+    <div class="mt-3 divide-y divide-neutral-200 border-y border-neutral-200">
+      {APPS.map((app) => (
+        <details class="py-3">
+          <summary class="flex min-h-11 cursor-pointer items-center font-semibold text-brand-900">
+            {app.name}
+          </summary>
+          <ol class="mt-2 list-decimal space-y-1 pl-6 text-neutral-800">
+            {app.steps.map((step) => (
+              <li>{step}</li>
+            ))}
+          </ol>
+        </details>
+      ))}
+    </div>
+  </section>
+
+  <Footer slot="footer" />
+</BaseLayout>

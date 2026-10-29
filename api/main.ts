@@ -47,6 +47,7 @@ import GetLeitendeEndpoint from './endpoints/leitende';
 import { GetLeitendeImage } from './endpoints/image';
 import GetAktionenEndpoint from './endpoints/aktionen';
 import GetAktionenIcsEndpoint from './endpoints/aktionen-ics';
+import GetAktionenStufeIcsEndpoint from './endpoints/aktionen-stufe-ics';
 import GetLeitendeIcsEndpoint from './endpoints/leitende-ics';
 import { GetBlog, GetBlogPost, GetBlogImage } from './endpoints/blog';
 import GetDownloadFilesEndpoint from './endpoints/download-files';
@@ -283,6 +284,13 @@ app.http('aktionenIcs', {
   authLevel: 'anonymous',
   route: 'aktionen.ics',
   handler: GetAktionenIcsEndpoint,
+});
+
+app.http('aktionenStufeIcs', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'aktionen/{stufe}.ics',
+  handler: GetAktionenStufeIcsEndpoint,
 });
 
 app.http('leitendeIcs', {

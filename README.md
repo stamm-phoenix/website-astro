@@ -270,7 +270,7 @@ Internal area for leaders, only reachable with a Microsoft account of the Stamm 
 
 Gruppenstunden, Leitende, Aktionen (public calendar) and Belege were SharePoint lists; they live in Azure SQL now and were taken over on the first access after their deploy ([docs/azure-sql.md](docs/azure-sql.md)). Photos of Leitende and Belege are files in Blob Storage.
 
-- Aktionen: entries with a CampFlow event show the CampFlow title, dates and link; each event belongs to at most one entry. Entries only for `Leitende` appear only in `leitende.ics`. Existing entries can be linked in the module. New Stufen are added with a migration (`content.aktion_stufe_option`).
+- Aktionen: entries with a CampFlow event show the CampFlow title, dates and link; each event belongs to at most one entry. Entries only for `Leitende` appear only in `leitende.ics`. The Stufe feeds `/api/aktionen/<woelflinge|jupfis|pfadis|rover>.ics` (page `/aktionen/kalender-abo`) hold the entries that list the Stufe plus entries without any Stufe (`api/lib/aktion-stufen.ts`). Existing entries can be linked in the module. New Stufen are added with a migration (`content.aktion_stufe_option`).
 - Belege hold personal and financial data: only the Kasse (team „Kasse“) and the uploader see a receipt; the website checks this before serving it. Deleted photos can be restored for 7 days (soft delete of the storage account).
 - Saving sends the item's `etag`; if someone else changed the item in the meantime, the API answers `409 CONFLICT` instead of overwriting. Every change is logged with the acting user (`[pflege] …` in the Functions logs).
 

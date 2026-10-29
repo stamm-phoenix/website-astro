@@ -1,3 +1,5 @@
+import { STUFE_KEYS } from '../../../api/lib/aktion-stufen';
+
 export const GROUP_EMOJIS = {
   woelflinge: '🟠',
   jupfis: '🔵',
@@ -27,12 +29,9 @@ export const GROUP_AGE_RANGES: Record<GroupKey, string> = {
  * in URL query parameters where lowercase is conventional, and "jupfis"/"pfadis"
  * are shorter abbreviations matching the established E2E test expectations.
  */
-export const stufeToFilterKey: Record<string, GroupKey> = {
-  Wölflinge: 'woelflinge',
-  Jungpfadfinder: 'jupfis',
-  Pfadfinder: 'pfadis',
-  Rover: 'rover',
-};
+export const stufeToFilterKey: Record<string, GroupKey> = Object.fromEntries(
+  Object.entries(STUFE_KEYS).map(([key, stufe]) => [stufe, key as GroupKey])
+);
 
 /**
  * Converts an array of API stufe names to their corresponding filter keys.
