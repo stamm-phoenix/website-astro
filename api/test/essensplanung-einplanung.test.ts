@@ -79,6 +79,18 @@ dbTest('dishes are planned at meals with factor and who is responsible', async (
   await falsch({ faktor: 0 }, 'faktor');
   await falsch({ faktor: 21 }, 'faktor');
   await falsch({ faktor: 'zwei' }, 'faktor');
+  await falsch({ faktor: 0.0000000001 }, 'faktor');
+  await falsch({ faktor: 0.0005 }, 'faktor');
+  assert.equal(
+    (
+      await einplanen(t, token, {
+        mahlzeitId: ansicht.tage[1].mahlzeiten[0].id,
+        gerichtId: chili,
+        faktor: 0.001,
+      })
+    ).status,
+    201
+  );
   await falsch({ zustaendigId: ich.id, zustaendigText: 'Kim' }, 'zustaendigText');
   await falsch({ zustaendigId: 999_999 }, 'zustaendigId');
   await falsch({ mahlzeitId: 999_999 }, 'mahlzeitId');

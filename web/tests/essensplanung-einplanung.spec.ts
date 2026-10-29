@@ -35,7 +35,7 @@ test('dishes are planned, ordered, copied, moved and taken off meals', async ({
   await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Pudding' });
   await dialog.getByLabel('Faktor', { exact: true }).fill('0');
   await dialog.getByRole('button', { name: 'Einplanen' }).click();
-  await expect(dialog.getByText(/Bitte eine Zahl größer als 0/)).toBeVisible();
+  await expect(dialog.getByText(/Bitte eine Zahl von 0,001 bis/)).toBeVisible();
   await dialog.getByLabel('Faktor', { exact: true }).fill('0,5');
   await dialog.getByLabel('Zuständig (optional)').selectOption({ label: 'Jemand anderes …' });
   await dialog.getByLabel('Name', { exact: true }).fill('Küchenteam');
@@ -116,7 +116,7 @@ test('a meal or dish deleted keeps what others planned meanwhile', async ({ page
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Faktor', { exact: true }).fill('0,1234');
   await dialog.getByRole('button', { name: 'Speichern' }).click();
-  await expect(dialog.getByText(/Bitte eine Zahl größer als 0/)).toBeVisible();
+  await expect(dialog.getByText(/Bitte eine Zahl von 0,001 bis/)).toBeVisible();
   const andereListe = anderes.getByRole('list', { name: 'Gerichte bei 1_2' });
   await andereListe.getByRole('button', { name: 'Suppe bei 1_2 ändern' }).click();
   await anderes.getByRole('dialog').getByLabel('Faktor', { exact: true }).fill('2');
