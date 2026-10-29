@@ -155,7 +155,7 @@ Umgesetzt (PR 5a):
 
 ## Berechnung
 
-Gerechnet wird im Browser aus dem vollständigen Stand der Planung. Das Modul liegt unter `web/src/lib/essensplanung/rechnung.ts` und hat Unit-Tests in `web/test/`, die **gegen Werte aus dem Sheet geprüft** werden.
+Gerechnet wird im Browser aus dem vollständigen Stand der Planung. Das Modul liegt unter `web/src/lib/essensplanungRechnung.ts` und hat Unit-Tests in `web/test/essensplanungRechnung.test.ts`, die **gegen Werte aus dem Sheet geprüft** werden: alle 683 Zeilen von `web/test/fixtures/essensplanung-bezirkslager/` (Abweichung < 0,01) und die gewichteten Esser jeder Mahlzeit.
 
 **Esser** einer Zutatenzeile Z in der Einplanung E an der Mahlzeit M:
 
@@ -171,7 +171,9 @@ Gerechnet wird im Browser aus dem vollständigen Stand der Planung. Das Modul li
 - Brot 80 g p. P. × 35,5 gewichtete Esser = 2.840 g.
 - H-Milch 200 ml × 31,2 (ohne Vegane) = 6.240 ml.
 
-**Summieren und Runden:** Für die Einkaufsliste werden die Mengen je Zutat in der Basiseinheit summiert. Angezeigt wird ab 1.000 g in kg und ab 1.000 ml in l. Stück, Packung und Bund werden erst **nach dem Summieren** aufgerundet. Das Sheet rundet pro Gericht. Wir runden pro Liste, das erzeugt weniger Überschuss.
+**Summieren und Runden:** Für die Einkaufsliste werden die Mengen je Zutat in der Basiseinheit summiert (`summiere`, getrennt nach Einheitenart). Angezeigt wird ab 1.000 g in kg und ab 1.000 ml in l. Stück, Packung und Bund werden erst **nach dem Summieren** aufgerundet (`einkaufsMenge`). Das Sheet rundet pro Gericht. Wir runden pro Liste, das erzeugt weniger Überschuss.
+
+**Im Plan (PR 5b):** Unter jedem eingeplanten Gericht klappt „Mengen für N Portionen“ die Zutaten mit der Menge für diese Mahlzeit auf (`EinplanungMengen.svelte`, `kochMenge`: ab 1.000 g in kg, nichts aufgerundet). N sind die gewichteten Esser der Mahlzeit; eine Zeile für weniger (z. B. nur mit allem) nennt ihre Portionen dazu, eine feste Menge heißt „feste Menge“, eine Zeile ohne Menge „nach Gefühl“. Im Druck stehen die Mengen immer da, so ist der gedruckte Plan die Liste der Küche.
 
 ## Einkaufsliste, Einkäufe, Lager
 
