@@ -280,6 +280,59 @@ test('an amount of 0 is refused; a PDF waits for a failed save and is not made',
   expect(heruntergeladen).toBe(false);
   await expect(menge).toHaveValue('750');
   await page.unrouteAll({ behavior: 'wait' });
+
+  // An amount refused right away in the row stops the PDF too
+  await menge.fill('abc');
+  await gericht.getByRole('button', { name: 'Rezeptkarte als PDF: Gulasch' }).click();
+  await expect(gericht.getByRole('alert')).toBeVisible();
+  await expect(page.getByText(/das PDF wurde nicht erstellt/).first()).toBeVisible();
+  expect(heruntergeladen).toBe(false);
+});
+
+test('a conflict is settled with buttons, without Enter or Escape', async ({ page, browser }) => {
+  test.slow();
+  await anlegen(page, 'E2E Zeilen Knöpfe');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Gulasch');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
+  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
+  const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
+  await zutat.pressSequentially('Hackfl');
+  await zutat.press('Enter');
+  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
+  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+  const menge = gericht.getByLabel('Menge von Hackfleisch');
+  await expect(menge).toHaveValue('500');
+
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Gulasch', { exact: true }).click();
+  const andereMenge = anderes.getByLabel('Menge von Hackfleisch');
+  /** Others save `wert` while the row holds `eigene`, then the row tries to save. */
+  const konflikt = async (eigene: string, wert: string) => {
+    await menge.fill(eigene);
+    await andereMenge.fill(wert);
+    await andereMenge.press('Enter');
+    await expect(andereMenge).toHaveValue(wert);
+    await page.waitForTimeout(4_000);
+    await page.getByRole('heading', { name: 'E2E Zeilen Knöpfe' }).click();
+    await expect(gericht.getByRole('alert')).toContainText('Jemand anderes hat Hackfleisch');
+  };
+
+  // „Verwerfen“ takes theirs
+  await konflikt('600', '750');
+  await gericht.getByRole('button', { name: 'Hackfleisch: Eingabe verwerfen' }).click();
+  await expect(menge).toHaveValue('750');
+  await expect(gericht.getByRole('alert')).toHaveCount(0);
+
+  // „Trotzdem speichern“ saves over theirs
+  await konflikt('900', '800');
+  await gericht.getByRole('button', { name: 'Hackfleisch: trotzdem speichern' }).click();
+  await expect(gericht.getByRole('alert')).toHaveCount(0);
+  await expect(andereMenge).toHaveValue('900', { timeout: 15_000 });
+  await anderes.context().close();
 });
 
 test('a new row follows an ingredient of the list that others take over and measure anew', async ({

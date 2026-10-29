@@ -151,7 +151,7 @@
   /** Someone else changed the line under the typed input; the input stays for Enter or Escape. */
   function warne(andereZutat: boolean): void {
     konflikt = true;
-    fehler = `Jemand anderes hat ${andereZutat ? `die Zutat gerade zu ${name}` : `${name} gerade`} geändert (jetzt ${mengeText(zeile.menge, zeile.einheit) ?? 'nach Gefühl'}${zeile.hinweis ? `, ${zeile.hinweis}` : ''}). Deine Eingabe steht noch in der Zeile: Enter speichert sie trotzdem, Escape verwirft sie.`;
+    fehler = `Jemand anderes hat ${andereZutat ? `die Zutat gerade zu ${name}` : `${name} gerade`} geändert (jetzt ${mengeText(zeile.menge, zeile.einheit) ?? 'nach Gefühl'}${zeile.hinweis ? `, ${zeile.hinweis}` : ''}). Deine Eingabe steht noch in der Zeile: „Trotzdem speichern“ (Enter) speichert sie, „Verwerfen“ (Escape) nimmt den neuen Stand.`;
   }
 
   async function speichernJetzt(bewusst: boolean): Promise<boolean> {
@@ -357,6 +357,20 @@
       </div>
     </div>
     {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
+    {#if konflikt}
+      <div class="flex flex-wrap gap-2">
+        <ActionButton
+          type="button"
+          aria-label="{name}: trotzdem speichern"
+          onclick={() => void speichern(true)}>Trotzdem speichern</ActionButton
+        >
+        <ActionButton
+          type="button"
+          aria-label="{name}: Eingabe verwerfen"
+          onclick={() => uebernehme(zeile)}>Verwerfen</ActionButton
+        >
+      </div>
+    {/if}
   {:else}
     <p class="text-neutral-900 [overflow-wrap:anywhere]">
       {#if zeile.menge !== null}
