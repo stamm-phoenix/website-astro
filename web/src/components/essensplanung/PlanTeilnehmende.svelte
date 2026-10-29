@@ -61,9 +61,14 @@
   let zeileDialog = $state<number | null | undefined>(undefined);
 
   function zeileText(zeile: Teilnehmende): string {
-    const ohne = zeile.unvertraeglichkeiten
+    const namen = zeile.unvertraeglichkeiten
       .map((id) => unvertraeglichkeit.get(id) ?? '')
       .filter(Boolean);
+    // While the list loads or failed, the row still says that it has intolerances
+    const offen = zeile.unvertraeglichkeiten.length - namen.length;
+    const ohne = offen
+      ? [...namen, `${offen}${namen.length ? ' weitere' : ''} (Liste nicht geladen)`]
+      : namen;
     return [
       ERNAEHRUNG_TEXT[zeile.ernaehrung],
       ohne.length ? `Unverträglichkeiten: ${ohne.join(', ')}` : '',
@@ -181,7 +186,40 @@
     <h3 id="esser-heading" class="font-serif text-lg font-bold text-brand-900">
       Esser je Mahlzeit
     </h3>
-    <div class="overflow-x-auto">
+    <!-- Phones: one entry per meal; wider screens and print: the table -->
+    <ul class="space-y-3 sm:hidden print:hidden" aria-labelledby="esser-heading">
+      {#each ansicht.tage as tag (tag.id)}
+        <li>
+          <h4 class="font-semibold text-brand-900">Tag {tag.nummer} · {datumKurz(tag.datum)}</h4>
+          <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
+            {#each tag.mahlzeiten as mahlzeit (mahlzeit.id)}
+              {@const zahl = esser.get(mahlzeit.id)}
+              <li class="py-2 text-sm" data-esser={mahlzeit.kennung}>
+                <p class="[overflow-wrap:anywhere]">
+                  <span class="font-mono font-semibold text-brand-900">{mahlzeit.kennung}</span>
+                  {mahlzeit.name}
+                </p>
+                {#if mahlzeit.ohneGruppen.length}
+                  <p class="text-neutral-700">
+                    ohne {mahlzeit.ohneGruppen.map((id) => gruppenName.get(id)).join(', ')}
+                  </p>
+                {/if}
+                <p class="tabular-nums">
+                  <span data-zahl>{zahl?.personen ?? 0}</span> Personen ·
+                  <span data-zahl>{zahlText(zahl?.gewichtet ?? 0)}</span> Portionen
+                </p>
+                <p class="text-neutral-700 tabular-nums">
+                  mit allem <span data-zahl>{zahl?.je.alles.personen ?? 0}</span> · vegetarisch
+                  <span data-zahl>{zahl?.je.vegetarisch.personen ?? 0}</span> · vegan
+                  <span data-zahl>{zahl?.je.vegan.personen ?? 0}</span>
+                </p>
+              </li>
+            {/each}
+          </ul>
+        </li>
+      {/each}
+    </ul>
+    <div class="hidden sm:block print:block">
       <table class="w-full text-left text-sm" aria-labelledby="esser-heading">
         <thead>
           <tr class="border-b border-neutral-300">
@@ -202,7 +240,7 @@
             </tr>
             {#each tag.mahlzeiten as mahlzeit (mahlzeit.id)}
               {@const zahl = esser.get(mahlzeit.id)}
-              <tr class="border-b border-neutral-200">
+              <tr class="border-b border-neutral-200" data-esser={mahlzeit.kennung}>
                 <th scope="row" class="py-1.5 pr-3 font-normal">
                   <span class="font-mono font-semibold text-brand-900">{mahlzeit.kennung}</span>
                   {mahlzeit.name}
@@ -212,14 +250,19 @@
                     >
                   {/if}
                 </th>
-                <td class="py-1.5 pr-3 text-right tabular-nums">{zahl?.personen ?? 0}</td>
-                <td class="py-1.5 pr-3 text-right tabular-nums">{zahlText(zahl?.gewichtet ?? 0)}</td
+                <td data-zahl class="py-1.5 pr-3 text-right tabular-nums">{zahl?.personen ?? 0}</td>
+                <td data-zahl class="py-1.5 pr-3 text-right tabular-nums"
+                  >{zahlText(zahl?.gewichtet ?? 0)}</td
                 >
-                <td class="py-1.5 pr-3 text-right tabular-nums">{zahl?.je.alles.personen ?? 0}</td>
-                <td class="py-1.5 pr-3 text-right tabular-nums"
+                <td data-zahl class="py-1.5 pr-3 text-right tabular-nums"
+                  >{zahl?.je.alles.personen ?? 0}</td
+                >
+                <td data-zahl class="py-1.5 pr-3 text-right tabular-nums"
                   >{zahl?.je.vegetarisch.personen ?? 0}</td
                 >
-                <td class="py-1.5 text-right tabular-nums">{zahl?.je.vegan.personen ?? 0}</td>
+                <td data-zahl class="py-1.5 text-right tabular-nums"
+                  >{zahl?.je.vegan.personen ?? 0}</td
+                >
               </tr>
             {/each}
           </tbody>

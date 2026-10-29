@@ -4,11 +4,9 @@ import { anlegen } from './essensplanung-helpers';
 
 /** The numbers of a meal in the table „Esser je Mahlzeit“: persons, portions, by diet. */
 async function esser(page: Page, kennung: string): Promise<string[]> {
-  const zeile = page
-    .getByRole('table', { name: 'Esser je Mahlzeit' })
-    .getByRole('row')
-    .filter({ has: page.getByRole('rowheader', { name: new RegExp(`^${kennung} `) }) });
-  return zeile.getByRole('cell').allInnerTexts();
+  // The table on wide screens, a list per meal on phones; both mark the numbers
+  const zeile = page.locator(`[data-esser="${kennung}"]`).filter({ visible: true });
+  return zeile.locator('[data-zahl]').allInnerTexts();
 }
 
 test('groups and participants give the eaters per meal', async ({ page }) => {
@@ -54,6 +52,13 @@ test('groups and participants give the eaters per meal', async ({ page }) => {
     'vegetarisch · Unverträglichkeiten: Gluten · ab 1_2 Mittagessen bis 2_4 Abendessen'
   );
   await expect(page.getByText('Insgesamt 14 Personen')).toBeVisible();
+
+  // Without the central list the row still says that it has an intolerance
+  await page.route('**/api/essensplanung/planung/katalog', (route) => route.abort());
+  await page.reload();
+  await page.getByRole('tab', { name: 'Teilnehmende' }).click();
+  await expect(pfadis).toContainText('Unverträglichkeiten: 1 (Liste nicht geladen)');
+  await page.unroute('**/api/essensplanung/planung/katalog');
 
   expect(await esser(page, '1_1')).toEqual(['10', '7', '10', '0', '0']);
   expect(await esser(page, '1_2')).toEqual(['14', '11', '10', '4', '0']);

@@ -233,7 +233,13 @@
           {/snippet}
         </FormField>
       </div>
-      <FormField id="teilnehmende-hinweis" label="Hinweis" optional error={felder.hinweis}>
+      <FormField
+        id="teilnehmende-hinweis"
+        label="Hinweis"
+        optional
+        error={felder.hinweis}
+        info="Keine Namen oder Gesundheitsangaben einzelner Personen: Den Hinweis sehen alle mit einem Link zur Planung."
+      >
         {#snippet children(attrs)}
           <input {...attrs} class="form-input" maxlength="200" bind:value={hinweis} />
         {/snippet}
