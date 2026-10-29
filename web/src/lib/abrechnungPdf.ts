@@ -12,7 +12,6 @@ import {
   PAGE_HEIGHT,
   PAGE_WIDTH,
   RED,
-  dateiName,
   drawPageFooters,
   drawTitle,
   loadPdf,
@@ -21,22 +20,8 @@ import {
 import { formatEuro } from './format';
 import type { LeihgebuehrPosition } from './abrechnungRechnung';
 import type { Vorstand } from './types';
-
-export interface PdfTable {
-  /** Big heading on the first page, e.g. „Teilnehmende“. */
-  title: string;
-  /** Second line, e.g. the Aktion and its dates. */
-  subtitle: string;
-  /** Short notes below the subtitle, e.g. the active filter. */
-  notes?: string[];
-  columns: string[];
-  rows: string[][];
-  /** Rows below the table, e.g. sums. */
-  foot?: string[][];
-  /** Column indexes to align right (amounts, numbers). */
-  alignRight?: number[];
-  fileName: string;
-}
+import { drawTable } from './pdfTabelle';
+import type { PdfTable } from './pdfTabelle';
 
 /** A receipt to print on its own page below its booking. */
 export interface PdfBeleg {
@@ -70,11 +55,6 @@ export interface PdfDeckblatt {
 const RECEIPT_MAX_PIXELS = 2000;
 /** The Playwright API exports at most three pages at the same time. */
 const RECEIPT_CONCURRENCY = 3;
-
-/** A file name of the Abrechnung, without characters Windows does not allow. */
-export function pdfFileName(...parts: string[]): string {
-  return dateiName('Abrechnung', ...parts);
-}
 
 interface PdfImage {
   data: string;
@@ -126,39 +106,6 @@ function drawImage(
   const height = image.height * scale;
   doc.addImage(image.data, format, x, y, width, height, undefined, 'FAST');
   return { width, height };
-}
-
-function drawTable(
-  doc: JsPdf,
-  autoTable: typeof AutoTableFn,
-  table: PdfTable,
-  startY: number
-): void {
-  const alignRight = new Set(table.alignRight ?? []);
-  autoTable(doc, {
-    startY,
-    margin: { left: MARGIN, right: MARGIN, bottom: FOOTER_SPACE },
-    head: [table.columns],
-    body: table.rows,
-    foot: table.foot,
-    showFoot: 'lastPage',
-    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
-    headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
-    footStyles: { fillColor: [235, 238, 242], textColor: BRAND, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [247, 248, 250] },
-    didParseCell: (data) => {
-      if (alignRight.has(data.column.index)) data.cell.styles.halign = 'right';
-    },
-  });
-}
-
-/** A list as a table, e.g. the Teilnehmende or the Einzelnachweise. */
-export async function downloadTablePdf(table: PdfTable): Promise<void> {
-  const { doc, autoTable } = await loadPdf();
-  const y = drawTitle(doc, table.title, [table.subtitle, ...(table.notes ?? [])]);
-  drawTable(doc, autoTable, table, y + 2);
-  drawPageFooters(doc);
-  saveFile(doc.output('blob'), table.fileName);
 }
 
 interface LoadedBeleg {

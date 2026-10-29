@@ -5,7 +5,8 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { zeitplanFreitext, zeitplanZeilen } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
-  import { downloadKurzbeschreibungPdf, pdfFileName } from '../../lib/abrechnungPdf';
+  import { downloadKurzbeschreibungPdf } from '../../lib/abrechnungPdf';
+  import { pdfFileName } from '../../lib/pdfBasis';
   import { errorMessage } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { formatEventRange } from '../../lib/campflowFields';

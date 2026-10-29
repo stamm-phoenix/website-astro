@@ -8,7 +8,8 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
-  import { downloadEigenbelegPdf, pdfFileName } from '../../lib/abrechnungPdf';
+  import { downloadEigenbelegPdf } from '../../lib/abrechnungPdf';
+  import { pdfFileName } from '../../lib/pdfBasis';
   import { parseEuroToCent } from '../../lib/belege';
   import { formatEuro, todayIso } from '../../lib/format';
   import { confirmAction } from '../../lib/confirm';
