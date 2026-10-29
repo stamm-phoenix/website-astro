@@ -9,6 +9,7 @@ import {
   MAX_GERICHTE,
   MAX_ZEILEN_PRO_GERICHT,
   einheitPasst,
+  gerichtStand,
 } from '../../../api/lib/essen-gerichte-model';
 import type {
   GerichtInput,
@@ -230,7 +231,7 @@ export function gerichtAendern(
   ifMatch: unknown
 ): void {
   const gericht = gerichtVon(z, id);
-  if (gericht.etag !== ifMatch) throw konflikt();
+  if ((input ? gericht.etag : gerichtStand(gericht)) !== ifMatch) throw konflikt();
   if (!input) {
     aendere(z, 'gericht-geloescht', { name: gericht.name }, () => {
       z.planung.gerichte.splice(z.planung.gerichte.indexOf(gericht), 1);

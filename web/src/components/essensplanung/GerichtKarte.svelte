@@ -9,7 +9,11 @@
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { ernaehrung, fuerText, zeileBody } from '../../lib/essensplanungGerichte';
-  import { gerichtWarnungen, mengeText } from '../../../../api/lib/essen-gerichte-model';
+  import {
+    gerichtStand,
+    gerichtWarnungen,
+    mengeText,
+  } from '../../../../api/lib/essen-gerichte-model';
   import type { EssenKatalog, Gericht, GerichtLink, GerichtZutat } from '../../lib/types';
   import GerichtZeileDialog from './GerichtZeileDialog.svelte';
   import type { PlanKontext } from './planKontext';
@@ -161,7 +165,8 @@
 
   async function loeschen(): Promise<void> {
     // The dish as asked about: a change of others during the question is a conflict
-    const { id, name, etag } = gericht;
+    const { id, name } = gericht;
+    const etag = gerichtStand(gericht);
     if (
       !(await confirmAction({
         title: `„${name}“ löschen?`,

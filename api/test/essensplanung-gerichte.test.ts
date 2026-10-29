@@ -12,7 +12,7 @@ import { loadEssenSteuerung, updateZutat } from '../lib/essen-steuerung';
 import type { ZutatInput } from '../lib/essen-validation';
 import { ValidationError } from '../lib/pflege-validation';
 import type { EssenKatalog } from '../lib/essen-gerichte-model';
-import { gerichtWarnungen } from '../lib/essen-gerichte-model';
+import { gerichtStand, gerichtWarnungen } from '../lib/essen-gerichte-model';
 import { planungLoeschen, ladeZugang } from '../lib/essen-planung';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { dbTest } from './fixtures/database';
@@ -275,17 +275,15 @@ dbTest('the dish itself changes with its version; tools and links are checked', 
   const vorLoeschen = json<PlanungAnsicht>(
     await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
   );
-  const geloescht = await call(
-    t,
-    endpoints.EssensplanungGericht,
-    'DELETE',
-    `planung/gerichte/${id}`,
-    {
+  const loesche = (ifMatch: string) =>
+    call(t, endpoints.EssensplanungGericht, 'DELETE', `planung/gerichte/${id}`, {
       token,
       params: { id: String(id) },
-      ifMatch: vorLoeschen.gerichte[0].etag,
-    }
-  );
+      ifMatch,
+    });
+  // The version of the dish alone misses the line added after it
+  assert.equal((await loesche(vorLoeschen.gerichte[0].etag)).status, 409);
+  const geloescht = await loesche(gerichtStand(vorLoeschen.gerichte[0]));
   assert.equal(geloescht.status, 200);
   assert.equal(json<PlanungAnsicht>(geloescht).gerichte.length, 0);
 });

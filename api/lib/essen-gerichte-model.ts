@@ -127,6 +127,22 @@ export function zutatSperre(zutatId: number): string {
   return `essen-zutat:${zutatId}`;
 }
 
+/** The lock that serializes changes of the lines of a dish against deleting it. */
+export function gerichtSperre(gerichtId: number): string {
+  return `essen-gericht:${gerichtId}`;
+}
+
+/**
+ * The version a dish is deleted with: the newest of the dish and its lines. Versions grow with
+ * every change, so a changed or added line makes it newer and deleting with the old one fails.
+ */
+export function gerichtStand(gericht: { etag: string; zutaten: { etag: string }[] }): string {
+  return gericht.zutaten.reduce(
+    (neueste, zeile) => (zeile.etag > neueste ? zeile.etag : neueste),
+    gericht.etag
+  );
+}
+
 export interface GerichtWarnung {
   /** The line it is about; missing for the dish as a whole. */
   zeileId?: number;

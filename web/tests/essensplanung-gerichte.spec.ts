@@ -312,5 +312,19 @@ test('a dish changed during the delete question is not deleted', async ({ page, 
   await answerConfirm(page, '„Suppe“ löschen?', 'Gericht löschen');
   await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
   await expect(suppe.getByText('Kürbissuppe', { exact: true })).toBeVisible();
+
+  // A line added during the question counts as a change too
+  await suppe.getByRole('button', { name: 'Gericht löschen' }).click();
+  await expect(page.getByRole('dialog', { name: '„Kürbissuppe“ löschen?' })).toBeVisible();
+  await anderes.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  const dialog = anderes.getByRole('dialog');
+  await dialog.getByLabel('Zutat', { exact: true }).fill('H-Milch');
+  await dialog.getByRole('option', { name: 'H-Milch', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(anderes.getByText('H-Milch').first()).toBeVisible();
+  await expect(suppe.getByText('1 Zutaten', { exact: false })).toBeAttached({ timeout: 15_000 });
+  await answerConfirm(page, '„Kürbissuppe“ löschen?', 'Gericht löschen');
+  await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
+  await expect(suppe.getByText('Kürbissuppe', { exact: true })).toBeVisible();
   await anderes.context().close();
 });
