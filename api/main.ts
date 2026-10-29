@@ -152,6 +152,11 @@ import {
   EssensplanungGerichtZutat,
   EssensplanungEinplanungen,
   EssensplanungEinplanung,
+  EssensplanungGruppen,
+  EssensplanungGruppe,
+  EssensplanungTeilnehmendeListe,
+  EssensplanungTeilnehmende,
+  EssensplanungMahlzeitGruppe,
 } from './endpoints/essensplanung';
 import {
   EditorCollection,
@@ -1382,6 +1387,41 @@ app.http('essensplanungEinplanungen', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/einplanungen',
   handler: EssensplanungEinplanungen,
+});
+
+app.http('essensplanungGruppen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gruppen',
+  handler: EssensplanungGruppen,
+});
+
+app.http('essensplanungGruppe', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gruppen/{id}',
+  handler: EssensplanungGruppe,
+});
+
+app.http('essensplanungTeilnehmendeListe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/teilnehmende',
+  handler: EssensplanungTeilnehmendeListe,
+});
+
+app.http('essensplanungTeilnehmende', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/teilnehmende/{id}',
+  handler: EssensplanungTeilnehmende,
+});
+
+app.http('essensplanungMahlzeitGruppe', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mahlzeiten/{id}/gruppen',
+  handler: EssensplanungMahlzeitGruppe,
 });
 
 app.http('essensplanungEinplanung', {

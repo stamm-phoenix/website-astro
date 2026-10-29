@@ -1,4 +1,5 @@
 import type { Gericht, PlanungZutat } from './essen-gerichte-model';
+import type { PlanungGruppe, Teilnehmende } from './essen-teilnehmende-model';
 import type { FieldErrors } from './pflege-validation';
 import { ValidationError } from './pflege-validation';
 
@@ -66,6 +67,8 @@ export interface PlanungMahlzeit {
   /** `HH:MM` or null. */
   uhrzeit: string | null;
   einplanungen: Einplanung[];
+  /** Groups that do not eat at this meal; empty: all eat. */
+  ohneGruppen: number[];
 }
 
 export interface PlanungTag {
@@ -119,6 +122,10 @@ export interface PlanungAnsicht {
   zutaten: PlanungZutat[];
   /** Dishes by name, with their lines in order. */
   gerichte: Gericht[];
+  /** Groups in their order. */
+  gruppen: PlanungGruppe[];
+  /** Rows of participants, by group and diet. */
+  teilnehmende: Teilnehmende[];
 }
 
 /** Whether `zugang` may change the plan (days, meals, later dishes). */
@@ -157,6 +164,7 @@ export function nummeriereTage(
           einplanungen: [...mahlzeit.einplanungen].sort(
             (a, b) => a.position - b.position || a.id - b.id
           ),
+          ohneGruppen: [...mahlzeit.ohneGruppen].sort((a, b) => a - b),
         })),
     }));
 }
@@ -497,4 +505,11 @@ export const AENDERUNG_TEXTE: Record<string, string> = {
   'einplanung-neu': 'Gericht eingeplant',
   'einplanung-geaendert': 'Einplanung geändert',
   'einplanung-geloescht': 'Gericht aus Mahlzeit entfernt',
+  'gruppe-neu': 'Gruppe angelegt',
+  'gruppe-geaendert': 'Gruppe geändert',
+  'gruppe-geloescht': 'Gruppe gelöscht',
+  'teilnehmende-neu': 'Teilnehmende hinzugefügt',
+  'teilnehmende-geaendert': 'Teilnehmende geändert',
+  'teilnehmende-geloescht': 'Teilnehmende entfernt',
+  'mahlzeit-gruppen': 'Gruppen einer Mahlzeit geändert',
 };

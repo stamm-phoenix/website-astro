@@ -117,6 +117,10 @@ export interface Database {
   'essen.gericht_zutat': EssenGerichtZutatTable;
   'essen.gericht_zutat_unvertraeglichkeit': EssenGerichtZutatUnvertraeglichkeitTable;
   'essen.einplanung': EssenEinplanungTable;
+  'essen.planung_gruppe': EssenPlanungGruppeTable;
+  'essen.teilnehmende': EssenTeilnehmendeTable;
+  'essen.teilnehmende_unvertraeglichkeit': EssenTeilnehmendeUnvertraeglichkeitTable;
+  'essen.mahlzeit_ohne_gruppe': EssenMahlzeitOhneGruppeTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -1113,6 +1117,38 @@ export interface EssenEinplanungTable {
   faktor: number;
   zustaendig_mitglied_id: number | null;
   zustaendig_text: Generated<string>;
+}
+
+export interface EssenPlanungGruppeTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  position: number;
+  name: string;
+  /** decimal(4, 2). */
+  faktor: number;
+}
+
+export interface EssenTeilnehmendeTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  gruppe_id: number;
+  ernaehrung: 'alles' | 'vegetarisch' | 'vegan';
+  anzahl: number;
+  von_mahlzeit_id: number | null;
+  bis_mahlzeit_id: number | null;
+  hinweis: Generated<string>;
+}
+
+export interface EssenTeilnehmendeUnvertraeglichkeitTable {
+  teilnehmende_id: number;
+  unvertraeglichkeit_id: number;
+}
+
+export interface EssenMahlzeitOhneGruppeTable {
+  mahlzeit_id: number;
+  gruppe_id: number;
 }
 
 export interface EssenAenderungTable {

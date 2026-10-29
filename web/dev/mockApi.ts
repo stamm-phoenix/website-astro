@@ -75,6 +75,8 @@ import type { EssenListe, EssenMockResult } from './mock-data/essensplanung';
 import { essenAudit, essenEinstellungen, essenKatalog } from './mock-data/essensplanung';
 import * as essenPlanung from './mock-data/essensplanung-planung';
 import * as essenGerichte from './mock-data/essensplanung-gerichte';
+import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
+import { validateGruppe, validateTeilnehmende } from '../../api/lib/essen-teilnehmende-model';
 import {
   validateGericht,
   validateGerichtZutat,
@@ -1206,7 +1208,13 @@ route('POST', '/api/essensplanung/anlegen', (req) => {
 route('POST', '/api/essensplanung/anlegen/bestaetigen', (req) => {
   try {
     return json(
-      { token: essenPlanung.bestaetige(req.json?.token, essenEinstellungen().vorlageMahlzeiten) },
+      {
+        token: essenPlanung.bestaetige(
+          req.json?.token,
+          essenEinstellungen().vorlageMahlzeiten,
+          essenEinstellungen().vorlageGruppen
+        ),
+      },
       201
     );
   } catch (caught) {
@@ -1426,6 +1434,55 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/einplanungen/:id', (req) 
   const input = validateEinplanung(req.json);
   return essenAendern(req, (z) =>
     essenPlanung.einplanungAendern(z, id, input, req.json?.etag, readPosition(req.json?.position))
+  );
+});
+
+route('POST', '/api/essensplanung/planung/gruppen', (req) => {
+  const input = validateGruppe(req.json);
+  return essenAendern(req, (z) => essenTeilnehmende.gruppeAnlegen(z, input), 201);
+});
+
+route(['PATCH', 'DELETE'], '/api/essensplanung/planung/gruppen/:id', (req) => {
+  const id = Number(req.params.id);
+  if (req.method === 'DELETE')
+    return essenAendern(req, (z) =>
+      essenTeilnehmende.gruppeAendern(z, id, null, req.headers['if-match'])
+    );
+  const input = validateGruppe(req.json);
+  return essenAendern(req, (z) => essenTeilnehmende.gruppeAendern(z, id, input, req.json?.etag));
+});
+
+route('POST', '/api/essensplanung/planung/teilnehmende', (req) => {
+  const input = validateTeilnehmende(req.json);
+  return essenAendern(req, (z) => essenTeilnehmende.teilnehmendeAnlegen(z, input), 201);
+});
+
+route(['PATCH', 'DELETE'], '/api/essensplanung/planung/teilnehmende/:id', (req) => {
+  const id = Number(req.params.id);
+  if (req.method === 'DELETE')
+    return essenAendern(req, (z) =>
+      essenTeilnehmende.teilnehmendeAendern(z, id, null, req.headers['if-match'])
+    );
+  const input = validateTeilnehmende(req.json);
+  return essenAendern(req, (z) =>
+    essenTeilnehmende.teilnehmendeAendern(z, id, input, req.json?.etag)
+  );
+});
+
+route('PUT', '/api/essensplanung/planung/mahlzeiten/:id/gruppen', (req) => {
+  const gruppeId = req.json?.gruppeId;
+  if (
+    typeof gruppeId !== 'number' ||
+    !Number.isInteger(gruppeId) ||
+    gruppeId <= 0 ||
+    typeof req.json?.isst !== 'boolean'
+  )
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
+      gruppeId: 'Bitte eine Gruppe wählen.',
+    });
+  const isst = req.json.isst;
+  return essenAendern(req, (z) =>
+    essenTeilnehmende.mahlzeitGruppe(z, Number(req.params.id), gruppeId, isst)
   );
 });
 

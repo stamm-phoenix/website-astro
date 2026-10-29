@@ -6,6 +6,7 @@
   import type { PlanungTag } from '../../lib/types';
   import MahlzeitZeile from './MahlzeitZeile.svelte';
   import EinplanungDialog from './EinplanungDialog.svelte';
+  import MahlzeitGruppenDialog from './MahlzeitGruppenDialog.svelte';
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
   import { tagStand } from '../../../../api/lib/essen-planung-model';
   import type { PlanKontext } from './planKontext';
@@ -21,6 +22,8 @@
 
   /** The open dialog of planned dishes; it stays when its meal goes, so no input is lost. */
   let auftrag = $state<Auftrag | null>(null);
+  /** The meal whose groups are open in a dialog. */
+  let gruppenMahlzeit = $state<number | null>(null);
 
   let neuerTag = $state('');
   let neueMahlzeit = $state<Record<number, string>>({});
@@ -153,6 +156,7 @@
               erste={index === 0}
               letzte={index === tag.mahlzeiten.length - 1}
               oneinplanen={(neu) => (auftrag = neu)}
+              ongruppen={(id) => (gruppenMahlzeit = id)}
             />
           {:else}
             <li class="py-2 text-sm text-neutral-700">Noch keine Mahlzeiten.</li>
@@ -200,3 +204,8 @@
 </section>
 
 <EinplanungDialog {kontext} {auftrag} onclose={() => (auftrag = null)} />
+<MahlzeitGruppenDialog
+  {kontext}
+  mahlzeitId={gruppenMahlzeit}
+  onclose={() => (gruppenMahlzeit = null)}
+/>

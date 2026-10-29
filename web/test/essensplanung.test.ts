@@ -123,6 +123,7 @@ test('planned dishes read with factor, place and the delete versions', () => {
     name: 'Frühstück',
     uhrzeit: null,
     einplanungen: [einplanung('"0000000000000005"')],
+    ohneGruppen: [],
   };
   assert.equal(mahlzeitStand(mahlzeit), '"0000000000000005"');
   assert.equal(

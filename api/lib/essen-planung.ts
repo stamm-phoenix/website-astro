@@ -45,6 +45,7 @@ import { darfPlanungAnlegen } from './essen-validation';
 import { deletePlanung } from './essen-planung-loeschen';
 import { ladeGerichte, ladeKatalogStand } from './essen-gerichte';
 import { ladeEinplanungen } from './essen-einplanung';
+import { ladeTeilnehmende, verschiebeGrenzen } from './essen-teilnehmende';
 import { ValidationError } from './pflege-validation';
 
 /**
@@ -146,7 +147,7 @@ const AENDERUNGEN_ANZEIGEN = 30;
 /** The view of a Planung for the given access. */
 export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<PlanungAnsicht> {
   const { seq, stand, stored, katalogStand } = await standUndEinstellungen(zugang, db);
-  const [planung, mitglieder, tage, mahlzeiten, aenderungen, gerichte, einplanungen] =
+  const [planung, mitglieder, tage, mahlzeiten, aenderungen, gerichte, einplanungen, teilnehmende] =
     await Promise.all([
       db
         .selectFrom('essen.planung')
@@ -175,6 +176,7 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
         .execute(),
       ladeGerichte(db, zugang.planungId),
       ladeEinplanungen(db, zugang.planungId),
+      ladeTeilnehmende(db, zugang.planungId),
     ]);
   if (!planung) throw LINK_UNGUELTIG();
 
@@ -194,6 +196,7 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
       name: mahlzeit.name,
       uhrzeit: mahlzeit.uhrzeit,
       einplanungen: einplanungen.get(mahlzeit.id) ?? [],
+      ohneGruppen: teilnehmende.ohneGruppen.get(mahlzeit.id) ?? [],
     }))
   );
   const letzterTag = nummerierteTage.at(-1)?.datum;
@@ -237,6 +240,8 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
     katalogStand,
     zutaten: gerichte.zutaten,
     gerichte: gerichte.gerichte,
+    gruppen: teilnehmende.gruppen,
+    teilnehmende: teilnehmende.teilnehmende,
   };
 }
 
@@ -444,6 +449,19 @@ export async function anfrageBestaetigen(
       })
       .output('inserted.id')
       .executeTakeFirstOrThrow();
+    if (einstellungen.vorlageGruppen.length) {
+      await trx
+        .insertInto('essen.planung_gruppe')
+        .values(
+          einstellungen.vorlageGruppen.map((gruppe, index) => ({
+            planung_id: planung.id,
+            position: index + 1,
+            name: gruppe.name,
+            faktor: gruppe.faktor,
+          }))
+        )
+        .execute();
+    }
     const erster = toDateString(anfrage.erster_tag);
     const anzahl = Math.min(daysBetween(erster, toDateString(anfrage.letzter_tag)) + 1, MAX_TAGE);
     for (let index = 0; index < anzahl; index++) {
@@ -995,7 +1013,7 @@ export async function tagLoeschen(zugang: Zugang, tagId: number, etag: string): 
     const teile = await trx
       .selectFrom('essen.mahlzeit as m')
       .leftJoin('essen.einplanung as e', 'e.mahlzeit_id', 'm.id')
-      .select(['m.version as mahlzeit', 'e.version as einplanung'])
+      .select(['m.id as mahlzeit_id', 'm.version as mahlzeit', 'e.version as einplanung'])
       .where('m.tag_id', '=', tagId)
       .execute();
     const stand = neuesteVersion([
@@ -1006,6 +1024,9 @@ export async function tagLoeschen(zugang: Zugang, tagId: number, etag: string): 
       ]),
     ]);
     if (stand !== etag.trim()) throw new VersionConflictError();
+    await verschiebeGrenzen(trx, zugang.planungId, [
+      ...new Set(teile.map((teil) => teil.mahlzeit_id)),
+    ]);
     const result = await trx
       .deleteFrom('essen.tag')
       .where('id', '=', tagId)
@@ -1135,6 +1156,7 @@ export async function mahlzeitLoeschen(
       ...einplanungen.map((einplanung) => toVersion(einplanung.version)),
     ]);
     if (stand !== etag.trim()) throw new VersionConflictError();
+    await verschiebeGrenzen(trx, zugang.planungId, [mahlzeitId]);
     const result = await trx
       .deleteFrom('essen.mahlzeit')
       .where('id', '=', mahlzeitId)

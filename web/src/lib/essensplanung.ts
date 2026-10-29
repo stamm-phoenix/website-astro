@@ -39,7 +39,7 @@ export function planungApi(token: string) {
     katalog: (signal?: AbortSignal) =>
       fetchApi<EssenKatalog>('/essensplanung/planung/katalog', signal, headers),
     senden: <T = PlanungAnsicht>(
-      method: 'POST' | 'PATCH' | 'DELETE',
+      method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
       path: string,
       body?: unknown,
       etag?: string

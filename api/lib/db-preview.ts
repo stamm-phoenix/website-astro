@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { CONFIG } from './config';
 import { lockResource } from './db';
+import { loadEssenEinstellungen } from './essen-steuerung';
 import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
 import sharp from 'sharp';
@@ -182,7 +183,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:37';
+const SEEDED_KEY = 'preview:seeded:38';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -1983,4 +1984,102 @@ export async function seedPreviewEssensplanungEinplanung(): Promise<void> {
       zustaendig_text: 'Küchenteam (Test)',
     })
     .execute();
+}
+
+/** Invented participants for the invented Planung, unless it has some. */
+export async function seedPreviewEssensplanungTeilnehmende(): Promise<void> {
+  const db = getDb();
+  const planung = await db
+    .selectFrom('essen.planung')
+    .select('id')
+    .where('name', '=', 'Sommerlager (Test)')
+    .executeTakeFirst();
+  if (!planung) return;
+  const vorhanden = await db
+    .selectFrom('essen.teilnehmende')
+    .select('id')
+    .where('planung_id', '=', planung.id)
+    .top(1)
+    .executeTakeFirst();
+  if (vorhanden) return;
+  const ladeGruppen = () =>
+    db
+      .selectFrom('essen.planung_gruppe')
+      .select(['id', 'name'])
+      .where('planung_id', '=', planung.id)
+      .orderBy('position')
+      .execute();
+  let gruppen = await ladeGruppen();
+  if (!gruppen.length) {
+    // Seeded after migration 0058, so without the groups of the template yet
+    const { einstellungen } = await loadEssenEinstellungen(db);
+    if (einstellungen.vorlageGruppen.length) {
+      await db
+        .insertInto('essen.planung_gruppe')
+        .values(
+          einstellungen.vorlageGruppen.map((gruppe, index) => ({
+            planung_id: planung.id,
+            position: index + 1,
+            name: gruppe.name,
+            faktor: gruppe.faktor,
+          }))
+        )
+        .execute();
+    }
+    gruppen = await ladeGruppen();
+  }
+  if (gruppen.length < 2) return;
+  const mahlzeiten = await db
+    .selectFrom('essen.mahlzeit as m')
+    .innerJoin('essen.tag as t', 't.id', 'm.tag_id')
+    .select('m.id')
+    .where('t.planung_id', '=', planung.id)
+    .orderBy('t.datum')
+    .orderBy('m.position')
+    .execute();
+  const gluten = await db
+    .selectFrom('essen.unvertraeglichkeit')
+    .select('id')
+    .where('schluessel', '=', 'gluten')
+    .executeTakeFirst();
+  const [erste, zweite] = gruppen;
+  const letzte = gruppen.at(-1)!;
+  await db.transaction().execute(async (trx) => {
+    const zeilen = [
+      { gruppe_id: erste.id, ernaehrung: 'alles' as const, anzahl: 12, hinweis: '' },
+      { gruppe_id: erste.id, ernaehrung: 'vegetarisch' as const, anzahl: 4, hinweis: '' },
+      {
+        gruppe_id: zweite.id,
+        ernaehrung: 'vegan' as const,
+        anzahl: 2,
+        hinweis: 'reisen früher ab (Test)',
+        bis_mahlzeit_id: mahlzeiten[Math.min(5, mahlzeiten.length - 1)]?.id ?? null,
+      },
+      { gruppe_id: letzte.id, ernaehrung: 'alles' as const, anzahl: 6, hinweis: '' },
+    ];
+    for (const zeile of zeilen) {
+      const { id } = await trx
+        .insertInto('essen.teilnehmende')
+        .values({ planung_id: planung.id, von_mahlzeit_id: null, bis_mahlzeit_id: null, ...zeile })
+        .output('inserted.id')
+        .executeTakeFirstOrThrow();
+      if (zeile.ernaehrung === 'vegetarisch' && gluten) {
+        await trx
+          .insertInto('essen.teilnehmende_unvertraeglichkeit')
+          .values({ teilnehmende_id: id, unvertraeglichkeit_id: gluten.id })
+          .execute();
+      }
+    }
+    // The first breakfast is only for the leaders' group (setting up)
+    if (mahlzeiten[0]) {
+      await trx
+        .insertInto('essen.mahlzeit_ohne_gruppe')
+        .values(
+          gruppen
+            .filter((gruppe) => gruppe.id !== letzte.id)
+            .map((gruppe) => ({ mahlzeit_id: mahlzeiten[0].id, gruppe_id: gruppe.id }))
+        )
+        .execute();
+    }
+  });
 }
