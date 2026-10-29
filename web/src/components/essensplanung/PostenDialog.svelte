@@ -7,7 +7,14 @@
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import { leseMenge, mengeFeld, zutatVorschlaege } from '../../lib/essensplanungGerichte';
+  import {
+    getippteZutat,
+    leseMenge,
+    mengeFeld,
+    zutatVorschlaege,
+    zutatWahl,
+    type ZutatWahl,
+  } from '../../lib/essensplanungGerichte';
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import { MENGE_FEHLER } from '../../../../api/lib/essen-einkauf-model';
   import type { PostenArt } from '../../../../api/lib/essen-einkauf-model';
@@ -23,12 +30,16 @@
   interface Props {
     kontext: PlanKontext;
     katalog: EssenKatalog | null;
+    /** Why the lists could not be loaded; null while they load or once they are there. */
+    katalogFehler: string | null;
+    /** Loads the lists again, keeping the input. */
+    onkatalog: () => void;
     art: PostenArt;
     /** The entry to change; null adds one; undefined: closed. */
     postenId: number | null | undefined;
     onclose: () => void;
   }
-  let { kontext, katalog, art, postenId, onclose }: Props = $props();
+  let { kontext, katalog, katalogFehler, onkatalog, art, postenId, onclose }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
   const liste = $derived(art === 'bestand' ? ansicht.bestand : ansicht.zusatzbedarf);
   const titel = $derived(
@@ -41,8 +52,7 @@
         : 'Zusatzbedarf ändern'
   );
 
-  type Auswahl = { art: 'zentral' | 'planung'; id: number };
-  let auswahl = $state<Auswahl | null>(null);
+  let auswahl = $state<ZutatWahl | null>(null);
   let zutatText = $state('');
   let menge = $state('');
   let einheit = $state<GerichtEinheit>('g');
@@ -89,19 +99,21 @@
   const ohneTreffer = $derived(zutatText.trim() !== '' && !auswahl);
 
   function waehle(option: Vorschlag): void {
-    const [teil, id] = (option.key ?? '').split(':');
-    auswahl = { art: teil === 'p' ? 'planung' : 'zentral', id: Number(id) };
+    nimm(option);
     zutatText = option.value;
+  }
+
+  function nimm(option: Vorschlag): void {
+    auswahl = zutatWahl(option);
     geaendert = true;
     if (einheiten.length && !einheiten.includes(einheit)) einheit = einheiten[0];
   }
 
+  /** A typed name of the list counts as chosen; the text stays as typed (Ol is not Öl). */
   function getippt(text: string): void {
     geaendert = true;
-    const treffer = vorschlaege.find(
-      (option) => option.value.localeCompare(text.trim(), 'de', { sensitivity: 'base' }) === 0
-    );
-    if (treffer) waehle(treffer);
+    const treffer = getippteZutat(vorschlaege, text);
+    if (treffer) nimm(treffer);
     else auswahl = null;
   }
 
@@ -193,13 +205,21 @@
             bind:value={zutatText}
             listLabel="Zutaten"
             placeholder={art === 'bestand' ? 'z. B. Salz' : 'z. B. Spülmittel'}
+            pickFirstOnEnter
             onpick={waehle}
             onedit={getippt}
             autocomplete="off"
           />
         {/snippet}
       </FormField>
-      {#if !katalog}
+      {#if !katalog && katalogFehler}
+        <p class="text-sm text-danger" role="alert">
+          {katalogFehler}
+          <button type="button" class="min-h-11 font-semibold underline" onclick={onkatalog}
+            >Noch einmal versuchen</button
+          >
+        </p>
+      {:else if !katalog}
         <p class="text-sm text-neutral-700">Die Liste wird geladen …</p>
       {:else if ohneTreffer}
         <p class="text-sm text-neutral-700">
