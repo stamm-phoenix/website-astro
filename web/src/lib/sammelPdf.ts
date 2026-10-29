@@ -142,6 +142,21 @@ export function ausgabelistePdf(input: AusgabelisteInput): PdfReport {
     ];
   });
   const open = orders.filter((order) => !order.paid).length;
+  // Orders without an amount yet are counted, never added as 0 €
+  const unknown = orders.filter((order) => order.totalCents === null).length;
+  const unknownOpen = orders.filter((order) => !order.paid && order.totalCents === null).length;
+  const totalText =
+    unknown > 0 && unknown === orders.length
+      ? 'ohne Betrag'
+      : [formatEuro(totalCents), unknown > 0 ? `+ ${unknown} ohne Betrag` : '']
+          .filter(Boolean)
+          .join('\n');
+  const openText = [
+    openCents ? `${formatEuro(openCents)} offen` : '',
+    unknownOpen ? `${unknownOpen} ohne Betrag offen` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
   return {
     title: `Ausgabeliste – ${input.campaignTitle}`,
     subtitle: `${orders.length} ${orders.length === 1 ? 'Bestellung' : 'Bestellungen'} · ${pieces} Stück · ${open} unbezahlt`,
@@ -154,8 +169,8 @@ export function ausgabelistePdf(input: AusgabelisteInput): PdfReport {
           [
             `${orders.length} ${orders.length === 1 ? 'Bestellung' : 'Bestellungen'}`,
             `${pieces} Stück`,
-            formatEuro(totalCents),
-            openCents ? `${formatEuro(openCents)} offen` : '',
+            totalText,
+            openText,
             '',
           ],
         ],
