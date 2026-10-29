@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { expect, test } from './fixtures';
 
 test('a leader creates an Abstimmung, invites, and a guest votes over the shared link', async ({
@@ -522,4 +523,16 @@ test('a refused answer in the Leitendenbereich says why', async ({ page }) => {
   );
   await page.getByRole('button', { name: 'Antwort speichern' }).click();
   await expect(page.getByText(voll, { exact: true }).first()).toBeVisible();
+});
+
+test('the result of an Abstimmung downloads as a PDF', async ({ page }) => {
+  await page.request.post('/api/__mock/abstimmungen/reset');
+  await page.goto('/leitendenbereich/abstimmungen');
+  await page.getByRole('link', { name: /Termin für die Weihnachtsfeier/ }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  const pdf = await download;
+  expect(pdf.suggestedFilename()).toBe('Abstimmung Termin fuer die Weihnachtsfeier.pdf');
+  expect((await readFile(await pdf.path())).subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('PDF heruntergeladen.').first()).toBeVisible();
 });

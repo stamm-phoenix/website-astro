@@ -414,6 +414,31 @@ test('a QR code is styled and downloaded as PNG', async ({ page }) => {
   await expect(download).toBeDisabled();
 });
 
+test('a QR code downloads as a PDF Aushang and as stickers', async ({ page }) => {
+  await page.goto('/leitendenbereich/qr-code');
+  await page.getByLabel('Link oder Text').fill('https://stamm-phoenix.de/');
+  await page.getByLabel('Text unter dem Code (optional)').fill('Zur Anmeldung');
+  const button = page.getByRole('button', { name: 'PDF herunterladen', exact: true });
+  const aushang = page.waitForEvent('download');
+  await button.click();
+  const aushangPdf = await aushang;
+  expect(aushangPdf.suggestedFilename()).toBe('QR-Code stamm-phoenix.de Aushang.pdf');
+  expect((await readFile(await aushangPdf.path())).subarray(0, 5).toString()).toBe('%PDF-');
+
+  await page
+    .getByRole('group', { name: 'PDF zum Drucken' })
+    .getByRole('button', { name: 'Aufkleber', exact: true })
+    .click();
+  const aufkleber = page.waitForEvent('download');
+  await button.click();
+  const aufkleberPdf = await aufkleber;
+  expect(aufkleberPdf.suggestedFilename()).toBe('QR-Code stamm-phoenix.de Aufkleber.pdf');
+  const content = (await readFile(await aufkleberPdf.path())).toString('latin1');
+  expect(content.startsWith('%PDF-')).toBe(true);
+  // One image for all stickers
+  expect(content.match(/\/Subtype \/Image/g)?.length).toBe(1);
+});
+
 test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
   await page.goto('/leitendenbereich');
   await page

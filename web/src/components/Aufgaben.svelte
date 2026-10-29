@@ -13,6 +13,7 @@
   import { matchesTaskFilters, pendingTask, sortTasks } from '../lib/aufgabenView';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import ActionButton from './ui/ActionButton.svelte';
+  import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import AufgabenFilter from './AufgabenFilter.svelte';
@@ -121,6 +122,18 @@
         disabled={busy || !data.projects.length || !data.templates.length}
         >Checkliste aus Vorlage</ActionButton
       >
+      <PdfDownloadButton
+        download={async () =>
+          (await import('../lib/aufgabenPdf')).downloadAufgabenPdf({
+            tasks: visible,
+            projects: data.projects,
+            users: aufgabenStore.users,
+            status: statusFilter,
+            project: projectFilter,
+            ownOnly,
+          })}
+        errorText="Das PDF der Aufgaben konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal."
+      />
     {/if}
   {/snippet}
 </StaffPageHead>
