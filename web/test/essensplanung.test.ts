@@ -146,6 +146,8 @@ test('planned dishes read with factor, place and the delete versions', () => {
     faktor: 1,
     zustaendigId: null,
     zustaendig: '',
+    status: 'offen' as const,
+    verbrauch: [],
   });
   const mahlzeit = {
     id: 1,
@@ -177,6 +179,14 @@ test('every kind of change has its own text, a chosen shop is named', () => {
   assert.equal(
     text('zutat-geschaeft', { name: 'Salz', geschaeft: null }),
     'Kim hat ein Geschäft entfernt: Salz'
+  );
+  assert.match(
+    text('einplanung-abgehakt', { name: 'Chili', status: 'gekocht' }),
+    /^Kim hat ein Gericht als gekocht abgehakt: Chili/
+  );
+  assert.match(
+    text('einplanung-abgehakt', { name: 'Chili', status: 'offen' }),
+    /^Kim hat ein Gericht wieder offen gesetzt: Chili/
   );
 });
 

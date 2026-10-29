@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import { confirmAction } from '../../lib/confirm';
@@ -67,6 +67,19 @@
     } catch {
       // Without storage the choice holds until the page is left
     }
+  }
+
+  /** Ticking off happens in the list: the calendar opens it there at the planned dish. */
+  async function abhaken(einplanungId: number): Promise<void> {
+    zeige('liste');
+    await tick();
+    const teil = document.querySelector<HTMLDetailsElement>(
+      `details[data-abhaken="${einplanungId}"]`
+    );
+    if (!teil) return;
+    teil.open = true;
+    teil.scrollIntoView({ block: 'center' });
+    teil.querySelector('summary')?.focus();
   }
 
   /** The plan as PDF; the names of the intolerances first, when lines need them. */
@@ -192,7 +205,12 @@
   {#if ansicht.tage.length === 0}
     <p class="text-neutral-700">Die Planung hat noch keine Tage.</p>
   {:else if darstellung === 'kalender'}
-    <PlanKalender {kontext} {bearbeiten} oneinplanen={(neu) => (auftrag = neu)} />
+    <PlanKalender
+      {kontext}
+      {bearbeiten}
+      oneinplanen={(neu) => (auftrag = neu)}
+      onabhaken={abhaken}
+    />
   {/if}
   <ol class="space-y-6" hidden={darstellung === 'kalender'}>
     {#each ansicht.tage as tag (tag.id)}

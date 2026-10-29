@@ -10,12 +10,36 @@ import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
 import type { Einplanung, EinplanungInput } from './essen-planung-model';
 import { MAX_EINPLANUNGEN_PRO_MAHLZEIT } from './essen-planung-model';
+import type { Verbrauch } from './essen-kochen-model';
 import { ValidationError } from './validation/errors';
 
 /**
  * Dishes planned at the meals of a Planung (`docs/essensplanung.md`, Einplanung). Every change
  * runs in `aendere`, which locks the Planung, so the checks here hold until the end.
  */
+
+/** What the cooked dishes of a Planung used, by planned dish. */
+export async function ladeVerbrauch(db: Db, planungId: number): Promise<Map<number, Verbrauch[]>> {
+  const rows = await db
+    .selectFrom('essen.einplanung_verbrauch as v')
+    .innerJoin('essen.einplanung as e', 'e.id', 'v.einplanung_id')
+    .innerJoin('essen.gericht as g', 'g.id', 'e.gericht_id')
+    .select(['v.einplanung_id', 'v.planung_zutat_id', 'v.menge', 'v.einheit'])
+    .where('g.planung_id', '=', planungId)
+    .orderBy('v.id')
+    .execute();
+  const jeEinplanung = new Map<number, Verbrauch[]>();
+  for (const row of rows) {
+    const liste = jeEinplanung.get(row.einplanung_id) ?? [];
+    liste.push({
+      planungZutatId: row.planung_zutat_id,
+      menge: Number(row.menge),
+      einheit: row.einheit,
+    });
+    jeEinplanung.set(row.einplanung_id, liste);
+  }
+  return jeEinplanung;
+}
 
 /** The planned dishes of a Planung by meal, in their order. */
 export async function ladeEinplanungen(
@@ -35,10 +59,14 @@ export async function ladeEinplanungen(
       'e.faktor',
       'e.zustaendig_mitglied_id',
       'e.zustaendig_text',
+      'e.status',
       'm.name as mitglied_name',
     ])
     .where('g.planung_id', '=', planungId)
     .execute();
+  // Read after the versions: a save in between leaves an old version with new amounts, which a
+  // save on it refuses, never new versions with old amounts
+  const verbrauch = await ladeVerbrauch(db, planungId);
   const jeMahlzeit = new Map<number, Einplanung[]>();
   for (const row of rows) {
     const liste = jeMahlzeit.get(row.mahlzeit_id) ?? [];
@@ -50,13 +78,15 @@ export async function ladeEinplanungen(
       faktor: Number(row.faktor),
       zustaendigId: row.zustaendig_mitglied_id,
       zustaendig: row.mitglied_name ?? row.zustaendig_text,
+      status: row.status,
+      verbrauch: verbrauch.get(row.id) ?? [],
     });
     jeMahlzeit.set(row.mahlzeit_id, liste);
   }
   return jeMahlzeit;
 }
 
-async function mahlzeitDerPlanung(trx: Db, zugang: Zugang, mahlzeitId: number) {
+export async function mahlzeitDerPlanung(trx: Db, zugang: Zugang, mahlzeitId: number) {
   const mahlzeit = await trx
     .selectFrom('essen.mahlzeit as m')
     .innerJoin('essen.tag as t', 't.id', 'm.tag_id')
@@ -180,7 +210,7 @@ export async function einplanen(
   });
 }
 
-async function einplanungDerPlanung(trx: Db, zugang: Zugang, id: number) {
+export async function einplanungDerPlanung(trx: Db, zugang: Zugang, id: number) {
   const einplanung = await trx
     .selectFrom('essen.einplanung as e')
     .innerJoin('essen.gericht as g', 'g.id', 'e.gericht_id')

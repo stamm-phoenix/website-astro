@@ -55,12 +55,18 @@ const konflikt = () =>
 const nichtGefunden = () =>
   new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');
 
-/** The lines of dishes, stock and extra needs that use an ingredient, with their unit. */
+/**
+ * The lines of dishes, stock, extra needs and what cooked dishes used that use an ingredient,
+ * with their unit.
+ */
 function nutzungen(planung: MockPlanung, id: number): { einheit: GerichtZutat['einheit'] }[] {
   return [
     ...planung.gerichte.flatMap((g) => g.zutaten),
     ...planung.bestand,
     ...planung.zusatzbedarf,
+    ...planung.tage
+      .flatMap((t) => t.mahlzeiten.flatMap((m) => m.einplanungen))
+      .flatMap((e) => e.verbrauch),
   ].filter((nutzung) => nutzung.planungZutatId === id);
 }
 
@@ -149,7 +155,7 @@ export function planungZutatAendern(z: MockZugang, id: number, body: unknown, if
   if (art && nutzungen(z.planung, id).some((zeile) => !einheitPasst(art, zeile.einheit)))
     throw feld(
       'einheitenart',
-      'Gerichte, Bestand oder Zusatzbedarf nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.'
+      'Gerichte, Bestand, Zusatzbedarf oder abgehakter Verbrauch nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.'
     );
   aendere(z, 'zutat-geaendert', { name: input.name ?? zentral?.name }, () => {
     Object.assign(
