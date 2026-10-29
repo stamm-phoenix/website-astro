@@ -15,6 +15,7 @@
     PlanungZutat,
   } from '../../lib/types';
   import RezeptImportDialog from './RezeptImportDialog.svelte';
+  import { gespeichert } from './planKontext';
   import type { PlanKontext } from './planKontext';
 
   /**
@@ -57,6 +58,13 @@
     prueft = true;
     fehler = null;
     pruefung = null;
+    // A line left with the click saves after it; the check reads what is saved
+    if (!(await gespeichert())) {
+      fehler =
+        'Eine Änderung an einer Zutat ist noch nicht gespeichert. Prüfe das Gericht, wenn sie gespeichert ist.';
+      prueft = false;
+      return;
+    }
     try {
       pruefung = await kontext.api.senden<KiPruefung>('POST', `/gerichte/${gericht.id}/ki/pruefen`);
       uebernommen = [];

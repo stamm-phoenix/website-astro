@@ -257,3 +257,35 @@ test('checking again waits while a proposal is saved', async ({ page }) => {
   await expect(karte.getByRole('button', { name: 'Gericht prüfen (KI)' })).toBeEnabled();
   await page.unroute('**/api/essensplanung/planung/gericht-zutaten/*');
 });
+
+test('checking a dish waits for a line saved by the click', async ({ page }) => {
+  await anlegen(page, 'E2E KI Warten');
+  const karte = await gericht(page, 'Chili', '10');
+  await karte.getByRole('button', { name: 'Mehr Angaben …' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Zutat für Chili' });
+  await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
+  await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
+  await dialog.getByLabel('Menge', { exact: true }).fill('500');
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect.poll(() => zeilenMenge(karte, 'Hackfleisch')).toBe('500 g');
+
+  // The line saves slowly; the check must only be asked once it is saved
+  let gespeichert = false;
+  let geprueftVorher = false;
+  await page.route('**/api/essensplanung/planung/gericht-zutaten/*', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    await new Promise((fertig) => setTimeout(fertig, 1500));
+    const antwort = await route.fetch();
+    gespeichert = true;
+    await route.fulfill({ response: antwort });
+  });
+  await page.route('**/api/essensplanung/planung/gerichte/*/ki/pruefen', async (route) => {
+    if (!gespeichert) geprueftVorher = true;
+    await route.fallback();
+  });
+  await karte.getByLabel('Menge von Hackfleisch').fill('1000');
+  await karte.getByRole('button', { name: 'Gericht prüfen (KI)' }).click();
+  await expect(karte.getByRole('status').filter({ hasText: 'KI-Hinweise zu Chili' })).toBeVisible();
+  expect(gespeichert).toBe(true);
+  expect(geprueftVorher).toBe(false);
+});
