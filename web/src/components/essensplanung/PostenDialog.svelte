@@ -84,7 +84,8 @@
       ? (ansicht.zutaten.find((z) => z.id === posten.planungZutatId)?.name ?? '')
       : '';
     menge = posten ? mengeFeld(posten.menge) : '';
-    einheit = posten?.einheit ?? (art === 'zusatzbedarf' ? 'stueck' : 'g');
+    // Without a saved unit (an entry without an amount), the first that fits the ingredient
+    einheit = posten?.einheit ?? einheiten[0] ?? (art === 'zusatzbedarf' ? 'stueck' : 'g');
     hinweis = posten?.hinweis ?? '';
   }
 

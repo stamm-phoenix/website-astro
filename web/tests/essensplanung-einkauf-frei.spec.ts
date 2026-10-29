@@ -58,6 +58,17 @@ test('anything goes on the shopping list by name, without the list and an amount
   await expect(dialog).toBeHidden();
   await expect(sonstiges).toContainText('2 Stück Kochhandschuhe');
 
+  // An ingredient of the list put on without an amount gets an amount in its own unit later
+  await feld.fill('Salz');
+  await feld.press('Enter');
+  await expect(page.getByText('Salz steht auf der Einkaufsliste.').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Salz ändern', exact: true }).click();
+  await dialog.getByLabel('Menge (optional)').fill('500');
+  await expect(dialog.getByLabel('Einheit', { exact: true })).toHaveValue('g');
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('list', { name: 'Zusatzbedarf' })).toContainText('500 g Salz');
+
   // The dialog takes a name of its own too, without an amount
   await page.getByRole('button', { name: 'Zusatzbedarf eintragen' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Grillanzünder');
