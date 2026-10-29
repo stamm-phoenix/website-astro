@@ -238,6 +238,12 @@ test('names that differ in signs have their own box; a typed name that failed is
   await name.fill('Rover');
   await name.press('Enter');
   await expect(page.getByText(/Das hat nicht geklappt/).first()).toBeVisible();
+  // Leaving the field tries once more; the filter is chosen after that try
+  const versuch = page.waitForEvent('requestfailed', (request) =>
+    request.url().includes('/packliste/werkzeug')
+  );
+  await name.blur();
+  await versuch;
   await page.getByRole('button', { name: 'Gepackt', exact: true }).click();
   await expect(liste.getByRole('listitem')).toHaveCount(1);
   await page.getByRole('button', { name: 'Alle', exact: true }).click();
@@ -257,4 +263,65 @@ test('names that differ in signs have their own box; a typed name that failed is
   await expect(page.getByLabel('Wer packt Grill-Zange ein?')).toHaveValue('text');
   await page.getByRole('link', { name: 'Impressum' }).first().click();
   await expect(page).toHaveURL(/impressum/);
+});
+
+test('a free name typed over a change of someone else asks before it saves', async ({
+  page,
+  browser,
+}) => {
+  await anlegen(page, 'E2E Packliste Name zu zweit');
+  await gerichteMitWerkzeugen(page);
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Packliste' }).click();
+
+  // This page types a name, the other one chooses a member meanwhile
+  await page.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Anderer Name …' });
+  const name = page.getByRole('textbox', { name: 'Wer packt Kochlöffel ein?' });
+  await name.fill('Rover');
+  await anderes.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Kim Küche' });
+  await expect(anderes.getByText('Kim Küche packt Kochlöffel ein.').first()).toBeVisible();
+  await page.getByText('Letzte Änderungen').click();
+  await expect(page.getByText(/zuständig gemacht: Kochlöffel/)).toBeVisible({ timeout: 15_000 });
+
+  // Saving names the new state and keeps the name; Enter again saves it on purpose
+  await name.press('Enter');
+  await expect(page.getByRole('alert').filter({ hasText: 'jetzt: Kim Küche' })).toBeVisible();
+  await expect(name).toHaveValue('Rover');
+  await name.press('Enter');
+  await expect(page.getByText('Rover packt Kochlöffel ein.').first()).toBeVisible();
+  await expect(anderes.getByLabel('Wer packt Kochlöffel ein?')).toHaveValue('text', {
+    timeout: 15_000,
+  });
+  await anderes.context().close();
+});
+
+test('a save that ends late keeps a name typed on in the row shown anew', async ({ page }) => {
+  await anlegen(page, 'E2E Packliste spät');
+  await gerichteMitWerkzeugen(page);
+  let freigeben = (): void => undefined;
+  const gehalten = new Promise<void>((done) => (freigeben = done));
+  await page.route('**/api/essensplanung/planung/packliste/werkzeug', async (route) => {
+    await gehalten;
+    await route.continue();
+  });
+  await page.getByLabel('Wer packt Pürierstab ein?').selectOption({ label: 'Anderer Name …' });
+  const name = page.getByRole('textbox', { name: 'Wer packt Pürierstab ein?' });
+  await name.fill('Rover');
+  await name.press('Enter');
+
+  // The row goes and comes back while saving; the name is typed on there
+  await page.getByRole('button', { name: 'Gepackt', exact: true }).click();
+  await expect(name).toHaveCount(0);
+  await page.getByRole('button', { name: 'Alle', exact: true }).click();
+  await expect(name).toHaveValue('Rover');
+  await name.fill('Rover und Wö');
+  freigeben();
+  await expect(page.getByText('Rover packt Pürierstab ein.').first()).toBeVisible();
+  await expect(name).toHaveValue('Rover und Wö');
+
+  await page.unroute('**/api/essensplanung/planung/packliste/werkzeug');
+  await name.press('Enter');
+  await expect(page.getByText('Rover und Wö packt Pürierstab ein.').first()).toBeVisible();
+  await expect(page.getByLabel('Wer packt Pürierstab ein?')).toHaveValue('text');
 });

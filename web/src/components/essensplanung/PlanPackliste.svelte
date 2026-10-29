@@ -2,10 +2,12 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
+    entwurfNachSpeichern,
     entwurfOffen,
     gefiltert,
     packliste,
     packlisteDruck,
+    type PackEntwurf,
     type PackFilter,
   } from '../../lib/essensplanungPackliste';
   import NeuerPackEintrag from './NeuerPackEintrag.svelte';
@@ -30,16 +32,42 @@
    * Free names typed at rows, by row key. Kept here, so a filter that hides a row or the switch
    * to read-only (maintenance) does not drop what is typed; leaving asks while one is unsaved.
    */
-  let entwuerfe = $state<Record<string, string>>({});
+  let entwuerfe = $state<Record<string, PackEntwurf>>({});
   /** The name typed under the list, kept while the field is hidden (maintenance). */
   let neuerName = $state('');
   $effect(() =>
     guardUnsavedChanges(() => neuerName.trim() !== '' || entwurfOffen(entwuerfe, zeilen))
   );
-  function entwurfSetzen(key: string, text: string | null): void {
-    if (text === null) {
+  function entwurfSetzen(key: string, entwurf: PackEntwurf | null): void {
+    if (entwurf === null) {
       entwuerfe = Object.fromEntries(Object.entries(entwuerfe).filter(([k]) => k !== key));
-    } else entwuerfe = { ...entwuerfe, [key]: text };
+    } else entwuerfe = { ...entwuerfe, [key]: entwurf };
+  }
+  /** The version a row has now, after the view the last change brought. */
+  function etagJetzt(key: string): string | null {
+    return zeilen.find((zeile) => zeile.key === key)?.eintrag?.etag ?? null;
+  }
+  /**
+   * What a row does with its draft. Kept here by row key: a save may end after its row was
+   * hidden and shown anew, and must not take what was typed there meanwhile.
+   */
+  function entwurfAktionen(key: string) {
+    const aendern = (felder: Partial<PackEntwurf>) => {
+      const entwurf = entwuerfe[key];
+      if (entwurf) entwurfSetzen(key, { ...entwurf, ...felder });
+    };
+    return {
+      oeffnen: (text: string, etag: string | null) =>
+        entwurfSetzen(key, { text, etag, gesendet: null, konflikt: false }),
+      tippen: (text: string) => aendern({ text }),
+      verwerfen: () => entwurfSetzen(key, null),
+      sendet: (text: string) => aendern({ gesendet: text }),
+      gesichert: (gesendet: string) =>
+        entwurfSetzen(key, entwurfNachSpeichern(entwuerfe[key], gesendet, etagJetzt(key))),
+      // After a conflict the page shows the new state; Enter then saves over it on purpose
+      gescheitert: (konflikt: boolean) =>
+        aendern(konflikt ? { gesendet: null, konflikt, etag: etagJetzt(key) } : { gesendet: null }),
+    };
   }
   let filter = $state<PackFilter>('alle');
   const sichtbar = $derived(gefiltert(zeilen, filter, ansicht.ichId));
@@ -89,7 +117,7 @@
             {zeile}
             {bearbeiten}
             entwurf={entwuerfe[zeile.key] ?? null}
-            onentwurf={(text) => entwurfSetzen(zeile.key, text)}
+            aktionen={entwurfAktionen(zeile.key)}
           />
         {/each}
       </ul>

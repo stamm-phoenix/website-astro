@@ -166,13 +166,42 @@ export function freiName(text: string): string {
 }
 
 /**
+ * A free name typed at a row. It keeps the version of the row it was typed on, so saving it over
+ * a change of someone else is a conflict; `gesendet` is the text of a save still running.
+ */
+export interface PackEntwurf {
+  text: string;
+  /** The version of the row when the field was opened; null while nothing is stored. */
+  etag: string | null;
+  gesendet: string | null;
+  /** Someone else changed the row meanwhile; only Enter saves over it now. */
+  konflikt: boolean;
+}
+
+/**
  * Whether a free name typed at a row differs from what is saved there, also while it is saved or
  * after saving failed. `entwuerfe` are the open fields by row key.
  */
-export function entwurfOffen(entwuerfe: Record<string, string>, zeilen: PackZeile[]): boolean {
+export function entwurfOffen(
+  entwuerfe: Record<string, Pick<PackEntwurf, 'text'>>,
+  zeilen: PackZeile[]
+): boolean {
   return zeilen.some((zeile) => {
     const entwurf = entwuerfe[zeile.key];
     if (entwurf === undefined) return false;
-    return freiName(entwurf) !== (zeile.zustaendigId === null ? zeile.zustaendig : '');
+    return freiName(entwurf.text) !== (zeile.zustaendigId === null ? zeile.zustaendig : '');
   });
+}
+
+/**
+ * The draft after its save `gesendet` went through: gone when it still is that text; typed on
+ * meanwhile (e.g. in the row shown anew after a filter), it stays on the version now saved.
+ */
+export function entwurfNachSpeichern(
+  entwurf: PackEntwurf | undefined,
+  gesendet: string,
+  etagJetzt: string | null
+): PackEntwurf | null {
+  if (!entwurf || freiName(entwurf.text) === gesendet) return null;
+  return { ...entwurf, etag: etagJetzt, gesendet: null, konflikt: false };
 }

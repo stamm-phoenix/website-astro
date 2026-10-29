@@ -8,6 +8,7 @@
     fuerText,
     packId,
     zustaendigWahl,
+    type PackEntwurf,
     type PackZeile,
   } from '../../lib/essensplanungPackliste';
   import type { PlanKontext } from './planKontext';
@@ -23,10 +24,18 @@
     zeile: PackZeile;
     bearbeiten: boolean;
     /** A free name being typed; the field shows instead of the choice. null: none. */
-    entwurf: string | null;
-    onentwurf: (text: string | null) => void;
+    entwurf: PackEntwurf | null;
+    /** Changes the draft, which the list keeps by row key. */
+    aktionen: {
+      oeffnen: (text: string, etag: string | null) => void;
+      tippen: (text: string) => void;
+      verwerfen: () => void;
+      sendet: (text: string) => void;
+      gesichert: (gesendet: string) => void;
+      gescheitert: (konflikt: boolean) => void;
+    };
   }
-  let { kontext, zeile, bearbeiten, entwurf, onentwurf }: Props = $props();
+  let { kontext, zeile, bearbeiten, entwurf, aktionen }: Props = $props();
 
   let speichert = $state(false);
   let textFeld = $state<HTMLInputElement | null>(null);
@@ -83,7 +92,10 @@
   async function waehlen(feld: HTMLSelectElement): Promise<void> {
     const wert = feld.value;
     if (wert === 'neu') {
-      onentwurf(zeile.zustaendigId === null ? zeile.zustaendig : '');
+      aktionen.oeffnen(
+        zeile.zustaendigId === null ? zeile.zustaendig : '',
+        zeile.eintrag?.etag ?? null
+      );
       feld.value = auswahl;
       await tick();
       textFeld?.focus();
@@ -98,20 +110,48 @@
     if (!ok) feld.value = auswahl;
   }
 
-  /** Saves the typed name when it changed; Escape leaves it as it was. */
-  async function textSpeichern(): Promise<void> {
-    if (entwurf === null || speichert) return;
-    const text = freiName(entwurf);
-    if (zeile.zustaendigId === null && text === zeile.zustaendig) {
-      onentwurf(null);
+  /**
+   * Saves the typed name when it changed, on the version it was typed on; Escape leaves it as it
+   * was. After a conflict only Enter (`bewusst`) saves it over the new state.
+   */
+  async function textSpeichern(bewusst: boolean): Promise<void> {
+    if (entwurf === null || entwurf.gesendet !== null) return;
+    if (entwurf.konflikt && !bewusst) return;
+    const text = freiName(entwurf.text);
+    if (!entwurf.konflikt && zeile.zustaendigId === null && text === zeile.zustaendig) {
+      aktionen.verwerfen();
       return;
     }
-    const ok = await senden(
-      { zustaendigId: null, zustaendigText: text },
-      text ? `${text} packt ${zeile.name} ein.` : `Für ${zeile.name} ist niemand mehr zuständig.`
+    const { eintrag, werkzeug, name } = zeile;
+    const etag = entwurf.etag;
+    let konflikt = false;
+    let feldFehler: string | undefined;
+    aktionen.sendet(text);
+    const ok = await kontext.aendern(
+      async () => {
+        const felder = { zustaendigId: null, zustaendigText: text };
+        try {
+          return werkzeug === null
+            ? await kontext.api.senden('PATCH', `/packliste/${eintrag!.id}`, { ...felder, etag })
+            : await kontext.api.senden('PUT', '/packliste/werkzeug', {
+                ...felder,
+                werkzeug: name,
+                etag,
+              });
+        } catch (error: unknown) {
+          if (error instanceof ApiError) {
+            konflikt = error.status === 409;
+            if (error.fields) feldFehler = Object.values(error.fields)[0];
+          }
+          throw error;
+        }
+      },
+      text ? `${text} packt ${name} ein.` : `Für ${name} ist niemand mehr zuständig.`
     );
+    if (!ok && feldFehler) kontext.hinweis(`${name}: ${feldFehler}`, 'error');
     // Not saved: the field keeps the name, so it can be sent once more
-    if (ok) onentwurf(null);
+    if (ok) aktionen.gesichert(text);
+    else aktionen.gescheitert(konflikt);
   }
 
   async function entfernen(): Promise<void> {
@@ -177,20 +217,21 @@
       {#if entwurf !== null}
         <input
           bind:this={textFeld}
-          value={entwurf}
-          oninput={(event) => onentwurf(event.currentTarget.value)}
+          value={entwurf.text}
+          oninput={(event) => aktionen.tippen(event.currentTarget.value)}
           class="form-input min-h-11 w-40 py-1 text-sm"
           aria-label="Wer packt {zeile.name} ein?"
           placeholder="Name, z. B. Rover"
           maxlength="100"
-          disabled={speichert}
+          aria-invalid={entwurf.konflikt ? 'true' : undefined}
+          aria-describedby={entwurf.konflikt ? `${id}-konflikt` : undefined}
           onkeydown={(event) => {
             if (event.key === 'Enter') {
               event.preventDefault();
-              void textSpeichern();
-            } else if (event.key === 'Escape') onentwurf(null);
+              void textSpeichern(true);
+            } else if (event.key === 'Escape') aktionen.verwerfen();
           }}
-          onblur={() => void textSpeichern()}
+          onblur={() => void textSpeichern(false)}
         />
       {:else}
         <select
@@ -220,5 +261,11 @@
         >
       {/if}
     </div>
+    {#if entwurf?.konflikt}
+      <p id="{id}-konflikt" class="basis-full text-sm text-danger" role="alert">
+        Jemand anderes hat gerade geändert, wer {zeile.name} einpackt (jetzt: {zeile.zustaendig ||
+          'niemand'}). Enter speichert deinen Namen trotzdem, Escape verwirft ihn.
+      </p>
+    {/if}
   {/if}
 </li>

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { aenderungText } from '../src/lib/essensplanung.ts';
 import {
+  entwurfNachSpeichern,
   entwurfOffen,
   fuerText,
   gefiltert,
@@ -222,7 +223,23 @@ test('a typed free name is unsaved until the row shows it', () => {
   );
   assert.equal(entwurfOffen({}, zeilen), false);
   // Opened without typing, or typed as saved
-  assert.equal(entwurfOffen({ 'w:kochlöffel': ' Rover ', 'w:pürierstab': '' }, zeilen), false);
-  assert.equal(entwurfOffen({ 'w:kochlöffel': 'Rover und Wö' }, zeilen), true);
-  assert.equal(entwurfOffen({ 'w:pürierstab': 'Kim' }, zeilen), true);
+  assert.equal(
+    entwurfOffen({ 'w:kochlöffel': { text: ' Rover ' }, 'w:pürierstab': { text: '' } }, zeilen),
+    false
+  );
+  assert.equal(entwurfOffen({ 'w:kochlöffel': { text: 'Rover und Wö' } }, zeilen), true);
+  assert.equal(entwurfOffen({ 'w:pürierstab': { text: 'Kim' } }, zeilen), true);
+});
+
+test('a save that went through takes its draft only while it is still the text sent', () => {
+  const entwurf = { text: ' Rover ', etag: '"1"', gesendet: 'Rover', konflikt: false };
+  assert.equal(entwurfNachSpeichern(entwurf, 'Rover', '"2"'), null);
+  assert.equal(entwurfNachSpeichern(undefined, 'Rover', '"2"'), null);
+  // Typed on while it was saved: the text stays, on the version now saved
+  assert.deepEqual(entwurfNachSpeichern({ ...entwurf, text: 'Rover und Wö' }, 'Rover', '"2"'), {
+    text: 'Rover und Wö',
+    etag: '"2"',
+    gesendet: null,
+    konflikt: false,
+  });
 });
