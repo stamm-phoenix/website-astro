@@ -6,10 +6,14 @@
   import { SAMMEL_SHOPS, getSammelShop, sammelAvailabilityLabel } from '../../lib/sammelShops';
   import { sammelReceipt } from '../../lib/sammelExport';
   import type { SammelOrderFilters } from '../../lib/sammelStaffView';
-  import { money, download, isFinished } from '../../lib/sammelStaffView';
+  import { ORDER_FILTERS, money, download, filterOrders } from '../../lib/sammelStaffView';
+  import StatusNotice from '../pflege/StatusNotice.svelte';
+  import { errorMessage } from '../../lib/api';
+  import type { Notice } from '../../lib/status';
   import type { SammelBestellung } from '../../lib/types';
   interface Props {
     filters: SammelOrderFilters;
+    campaignTitle: string;
     orders: SammelBestellung[];
     prices: Record<string, number | null>;
     availability: Record<string, string | undefined>;
@@ -25,6 +29,7 @@
   }
   let {
     filters = $bindable(),
+    campaignTitle,
     orders,
     prices,
     availability,
@@ -40,25 +45,30 @@
   }: Props = $props();
   /** Availability values worth a line; an unknown availability says nothing. */
   const KNOWN_AVAILABILITY = ['available', 'unavailable', 'preorder'];
-  const ORDER_FILTERS = [
-    { key: 'submitted', label: 'Eingereicht' },
-    { key: 'unpriced', label: 'Ohne Gesamtbetrag' },
-    { key: 'unpaid', label: 'Unbezahlt' },
-    { key: 'undelivered', label: 'Nicht ausgeliefert' },
-  ] as const;
-  const filtered = $derived(
-    orders.filter(
-      (order) =>
-        (filters.showFinished || !isFinished(order)) &&
-        `${order.name} ${order.email}`
-          .toLowerCase()
-          .includes(filters.search.trim().toLowerCase()) &&
-        (!filters.activeFilters.submitted || order.status === 'Eingereicht') &&
-        (!filters.activeFilters.unpriced || order.totalCents === null) &&
-        (!filters.activeFilters.unpaid || !order.paid) &&
-        (!filters.activeFilters.undelivered || !order.delivered)
-    )
-  );
+  const filtered = $derived(filterOrders(orders, filters));
+  let pdfBusy = $state(false);
+  let pdfNotice = $state<Notice | null>(null);
+
+  /** The shown orders as a list to hand them out and tick them off. */
+  async function exportPdf(): Promise<void> {
+    pdfBusy = true;
+    pdfNotice = null;
+    try {
+      const { downloadAusgabeliste } = await import('../../lib/sammelPdf');
+      await downloadAusgabeliste({ campaignTitle, orders: filtered, filters });
+      pdfNotice = { text: 'Ausgabeliste heruntergeladen.', kind: 'success' };
+    } catch (error) {
+      pdfNotice = {
+        text: errorMessage(
+          error,
+          'Die Ausgabeliste konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal.'
+        ),
+        kind: 'error',
+      };
+    } finally {
+      pdfBusy = false;
+    }
+  }
   /** Clears filters.search and active filters and reveals completed orders. */
   function showAllOrders(): void {
     filters.search = '';
@@ -122,7 +132,20 @@
         ])}
       disabled={!orders.length}>Einzelbestellungen herunterladen (CSV)</ActionButton
     >
+    <ActionButton
+      variant="secondary"
+      type="button"
+      disabled={pdfBusy || !filtered.some((order) => order.status !== 'Storniert')}
+      onclick={() => void exportPdf()}
+      >{pdfBusy ? 'Erstellt PDF …' : 'Ausgabeliste herunterladen (PDF)'}</ActionButton
+    >
   </div>
+  <StatusNotice
+    message={pdfNotice?.text ?? null}
+    kind={pdfNotice?.kind}
+    class="mt-3 empty:hidden"
+    popup
+  />
   <label for="order-search" class="form-label mt-4">Nach Name oder E-Mail suchen</label><input
     id="order-search"
     class="form-input max-w-md"

@@ -4,15 +4,55 @@
   import { SAMMEL_SHOPS, getSammelShop, type SammelShop } from '../../lib/sammelShops';
   import { aggregateSammelItems, sammelReceipt } from '../../lib/sammelExport';
   import { money, download } from '../../lib/sammelStaffView';
+  import StatusNotice from '../pflege/StatusNotice.svelte';
+  import { errorMessage } from '../../lib/api';
+  import type { Notice } from '../../lib/status';
   import type { SammelBestellung } from '../../lib/types';
   interface Props {
+    campaignTitle: string;
     exportShop: SammelShop | 'all';
     orders: SammelBestellung[];
     prices: Record<string, number | null>;
     pricesLoading: boolean;
     linePrice: (reference: string, quantity?: number) => string;
   }
-  let { exportShop = $bindable(), orders, prices, pricesLoading, linePrice }: Props = $props();
+  let {
+    campaignTitle,
+    exportShop = $bindable(),
+    orders,
+    prices,
+    pricesLoading,
+    linePrice,
+  }: Props = $props();
+  let pdfBusy = $state(false);
+  let pdfNotice = $state<Notice | null>(null);
+
+  /** The order list of the chosen shop as a PDF, one section per shop. */
+  async function exportPdf(): Promise<void> {
+    pdfBusy = true;
+    pdfNotice = null;
+    try {
+      const { downloadBestellliste } = await import('../../lib/sammelPdf');
+      await downloadBestellliste({
+        campaignTitle,
+        shop: exportShop,
+        items: combined,
+        prices,
+        linePrice,
+      });
+      pdfNotice = { text: 'Bestellliste heruntergeladen.', kind: 'success' };
+    } catch (error) {
+      pdfNotice = {
+        text: errorMessage(
+          error,
+          'Die Bestellliste konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal.'
+        ),
+        kind: 'error',
+      };
+    } finally {
+      pdfBusy = false;
+    }
+  }
   const combined = $derived(aggregateSammelItems(orders));
   const receipt = $derived(sammelReceipt(combined, prices));
   const exportItems = $derived(
@@ -87,8 +127,21 @@
         disabled={!exportItems.length || pricesLoading}
         onclick={downloadReceipt}>Bestellliste herunterladen (CSV)</ActionButton
       >
+      <ActionButton
+        variant="secondary"
+        type="button"
+        disabled={!exportItems.length || pricesLoading || pdfBusy}
+        onclick={() => void exportPdf()}
+        >{pdfBusy ? 'Erstellt PDF …' : 'Bestellliste herunterladen (PDF)'}</ActionButton
+      >
     </div>
   </div>
+  <StatusNotice
+    message={pdfNotice?.text ?? null}
+    kind={pdfNotice?.kind}
+    class="mt-3 empty:hidden"
+    popup
+  />
   <div class="mt-4">
     <p id="combined-scroll-hint" class="mb-2 text-sm text-neutral-700 lg:hidden">
       Wische in der Tabelle seitlich, um Variante, Anzahl und Preise zu sehen.

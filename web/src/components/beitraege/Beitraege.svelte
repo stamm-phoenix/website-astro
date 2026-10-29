@@ -112,12 +112,18 @@
     {/snippet}
     {#snippet children(data: BeitraegeData)}
       {#if view === 'alle'}
-        <BeitraegeListe fees={data.fees} title="Alle Beiträge" onback={() => open(null)} />
+        <BeitraegeListe
+          fees={data.fees}
+          title="Alle Beiträge"
+          loadedAt={data.loadedAt}
+          onback={() => open(null)}
+        />
       {:else if view && sammlung(data)}
         {@const batch = sammlung(data)!}
         <BeitraegeListe
           fees={data.fees.filter((fee) => fee.batchId === batch.id)}
           title={batch.name}
+          loadedAt={data.loadedAt}
           onback={() => open(null)}
         />
       {:else}
@@ -126,7 +132,12 @@
             Diese Sammlung gibt es in CampFlow nicht mehr. Wähle unten eine andere.
           </p>
         {/if}
-        <BeitraegeSammlungen batches={data.batches} fees={data.fees} onopen={open} />
+        <BeitraegeSammlungen
+          batches={data.batches}
+          fees={data.fees}
+          loadedAt={data.loadedAt}
+          onopen={open}
+        />
       {/if}
     {/snippet}
   </LoadState>

@@ -1,4 +1,8 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
+  import StatusNotice from '../pflege/StatusNotice.svelte';
+  import { errorMessage } from '../../lib/api';
+  import type { Notice } from '../../lib/status';
   import { formatEuro } from '../../lib/format';
   import { isErledigt, sammlungStand, sammlungZahlen } from '../../lib/beitraege';
   import type { Beitrag, BeitragSammlung } from '../../lib/types';
@@ -7,10 +11,12 @@
     batches: BeitragSammlung[];
     /** All Beiträge, to count the paid and cancelled ones per Sammlung. */
     fees: Beitrag[];
+    /** When the Beiträge were read from CampFlow. */
+    loadedAt: string;
     /** Opens a Sammlung by its ID, or all Beiträge with `alle`. */
     onopen: (view: string) => void;
   }
-  let { batches, fees, onopen }: Props = $props();
+  let { batches, fees, loadedAt, onopen }: Props = $props();
 
   const zahlen = $derived(
     new Map(
@@ -31,6 +37,30 @@
       .filter((batch) => !query || batch.name.toLowerCase().includes(query));
   });
 
+  let pdfBusy = $state(false);
+  let pdfNotice = $state<Notice | null>(null);
+
+  /** The Sammlungen as shown, with how far each one is paid. */
+  async function exportPdf(): Promise<void> {
+    pdfBusy = true;
+    pdfNotice = null;
+    try {
+      const { downloadSammlungen } = await import('../../lib/beitraegePdf');
+      await downloadSammlungen({ batches: visible, fees, search, hideDone, loadedAt });
+      pdfNotice = { text: 'PDF heruntergeladen.', kind: 'success' };
+    } catch (error) {
+      pdfNotice = {
+        text: errorMessage(
+          error,
+          'Das PDF der Sammlungen konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal.'
+        ),
+        kind: 'error',
+      };
+    } finally {
+      pdfBusy = false;
+    }
+  }
+
   /** Follows the link without reloading the page; a new tab still gets the real link. */
   function follow(event: MouseEvent, view: string): void {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
@@ -49,10 +79,20 @@
     >
       Sammlungen ({batches.length})
     </h2>
-    <a href="?ansicht=alle" class="btn-secondary" onclick={(event) => follow(event, 'alle')}
-      >Alle Beiträge einzeln ansehen</a
-    >
+    <div class="flex flex-wrap gap-3">
+      <a href="?ansicht=alle" class="btn-secondary" onclick={(event) => follow(event, 'alle')}
+        >Alle Beiträge einzeln ansehen</a
+      >
+      <ActionButton
+        variant="secondary"
+        type="button"
+        disabled={pdfBusy || visible.length === 0}
+        onclick={() => void exportPdf()}
+        >{pdfBusy ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
+      >
+    </div>
   </div>
+  <StatusNotice message={pdfNotice?.text ?? null} kind={pdfNotice?.kind} popup />
   <div class="flex flex-wrap items-end gap-x-6 gap-y-2">
     <label class="block w-full text-sm sm:w-72">
       <span class="font-semibold text-neutral-700">Suche</span>
