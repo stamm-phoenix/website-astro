@@ -132,6 +132,8 @@ test('an incomplete or old link explains how to get a new one', async ({ page })
 });
 
 test('input survives changes of others and saves in turn', async ({ page, browser }) => {
+  // Two windows and five rounds of polling: about 25 s alone, more on a busy runner
+  test.slow();
   await anlegen(page, 'E2E Entwurf');
   const link = page.url();
   const anderes = await (await browser.newContext()).newPage();

@@ -318,7 +318,7 @@
       aria-labelledby="bereich-teilnehmende"
       hidden={bereich !== 'teilnehmende'}
     >
-      <PlanTeilnehmende {kontext} />
+      <PlanTeilnehmende {kontext} sichtbar={bereich === 'teilnehmende'} />
     </div>
     {#if ansicht.zugang !== 'lesen'}
       <div

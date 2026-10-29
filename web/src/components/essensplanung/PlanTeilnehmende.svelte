@@ -15,16 +15,21 @@
 
   interface Props {
     kontext: PlanKontext;
+    /** Whether the area is shown; the central lists load only then. */
+    sichtbar: boolean;
   }
-  let { kontext }: Props = $props();
+  let { kontext, sichtbar }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
   const bearbeiten = $derived(ansicht.zugang !== 'lesen' && !ansicht.wartung);
 
   /** The central lists, for the names of the intolerances. */
   let katalog = $state<EssenKatalog | null>(null);
   let katalogFehler = $state<string | null>(null);
+  /** The `katalogStand` the lists were loaded for. */
+  let geladen: string | null = null;
   async function katalogLaden(): Promise<void> {
     katalogFehler = null;
+    geladen = ansicht.katalogStand;
     try {
       katalog = await kontext.api.katalog();
     } catch (error: unknown) {
@@ -32,8 +37,7 @@
     }
   }
   $effect(() => {
-    void ansicht.katalogStand;
-    untrack(() => void katalogLaden());
+    if (sichtbar && ansicht.katalogStand !== geladen) untrack(() => void katalogLaden());
   });
   const unvertraeglichkeit = $derived(
     new Map((katalog?.unvertraeglichkeiten ?? []).map((u) => [u.id, u.name]))
