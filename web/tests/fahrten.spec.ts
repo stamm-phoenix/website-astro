@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { test, expect, answerConfirm } from './fixtures';
 import type { Page } from '@playwright/test';
 import { formatName, personStatus } from '../src/lib/campflowFields';
@@ -84,4 +85,15 @@ test('the Fahrten plan seats everyone once and keeps changes in the link', async
   await page.getByRole('button', { name: 'Änderungen verwerfen' }).click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
   await expect(hinColumn).toHaveValue('col_plaetze_hin');
+});
+
+test('the Fahrten plan downloads as a PDF', async ({ page }) => {
+  await page.goto(`/leitendenbereich/aktionen/fahrten?id=${EVENT}`);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  const pdf = await download;
+  expect(pdf.suggestedFilename()).toMatch(/^Fahrten .+\.pdf$/);
+  const content = await readFile(await pdf.path());
+  expect(content.subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('PDF heruntergeladen.')).toBeVisible();
 });
