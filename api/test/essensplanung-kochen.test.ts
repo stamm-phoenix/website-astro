@@ -4,6 +4,7 @@ import * as einkauf from '../endpoints/essensplanung-einkauf';
 import * as endpoints from '../endpoints/essensplanung';
 import * as kochen from '../endpoints/essensplanung-kochen';
 import { getDb } from '../lib/db';
+import { gerichtStand } from '../lib/essen-gerichte-model';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { dbTest } from './fixtures/database';
 import { anlegen, call, captureMails, json } from './fixtures/essensplanung';
@@ -116,7 +117,15 @@ dbTest('planned dishes are ticked off as cooked with what they used, or left out
     {
       token,
       params: { id: String(gericht) },
-      ifMatch: zuLoeschen.etag,
+      // The dish with its planned places, as the page sends it
+      ifMatch: gerichtStand(
+        zuLoeschen,
+        stand.tage.flatMap((tag) =>
+          tag.mahlzeiten.flatMap((m) =>
+            m.einplanungen.filter((e) => e.gerichtId === gericht).map((e) => e.etag)
+          )
+        )
+      ),
     }
   );
   assert.equal(geloescht.status, 200, JSON.stringify(geloescht.jsonBody));
