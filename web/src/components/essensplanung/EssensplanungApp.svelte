@@ -192,7 +192,8 @@
         } catch (error: unknown) {
           if (error instanceof ApiError && error.code === 'LINK_UNGUELTIG') ungueltig = true;
           wait = Math.min(wait * 2, POLL_MAX_MS);
-          offline = !(error instanceof ApiError);
+          // No connection or a server error: either way the page shows no changes of others now
+          offline = !(error instanceof ApiError && error.code === 'LINK_UNGUELTIG');
         }
       }
       if (!ungueltig) timer = setTimeout(() => void poll(), wait);
@@ -254,8 +255,8 @@
     {/if}
     {#if offline}
       <p class="text-sm text-neutral-700 print:hidden" role="status">
-        Keine Verbindung. Die Seite versucht es weiter; Änderungen anderer siehst du, sobald die
-        Verbindung zurück ist.
+        Der Abgleich klappt gerade nicht. Die Seite versucht es weiter; Änderungen anderer siehst
+        du, sobald er wieder klappt.
       </p>
     {/if}
 

@@ -435,3 +435,36 @@ test('a replaced link keeps the input; drafts ask before leaving; arrow keys swi
   await expect(page.getByLabel('Neue Mahlzeit an Tag 1')).toHaveValue('Nachtsnack');
   await ben.context().close();
 });
+
+test('a failing sync is shown; a failed day move stays and asks before leaving', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E Abgleich');
+
+  // Server errors of the sync show a hint until it works again
+  await page.route('**/api/essensplanung/planung/stand*', (route) =>
+    route.fulfill({ status: 500, json: { error: 'Kaputt' } })
+  );
+  await expect(page.getByText('Der Abgleich klappt gerade nicht.', { exact: false })).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.unroute('**/api/essensplanung/planung/stand*');
+  await expect(page.getByText('Der Abgleich klappt gerade nicht.', { exact: false })).toHaveCount(
+    0,
+    { timeout: 40_000 }
+  );
+
+  // A day move that fails keeps the picked date, and leaving asks first
+  await page.route('**/api/essensplanung/planung/tage/*', (route) =>
+    route.request().method() === 'PATCH'
+      ? route.fulfill({ status: 500, json: { error: 'Kaputt' } })
+      : route.continue()
+  );
+  await page.getByLabel('Datum von Tag 1').fill('2027-07-30');
+  await expect(page.getByLabel('Datum von Tag 1')).toHaveValue('2027-07-30');
+  await page.getByRole('link', { name: 'Impressum' }).first().click();
+  const frage = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await expect(frage).toBeVisible();
+  await frage.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await expect(page.getByLabel('Datum von Tag 1')).toHaveValue('2027-07-30');
+});
