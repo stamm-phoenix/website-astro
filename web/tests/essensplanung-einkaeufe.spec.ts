@@ -423,3 +423,20 @@ test('what is typed for a thing stays while another one is open, refused amounts
   ).toBeVisible();
   await expect(fest).toHaveValue('1000001');
 });
+
+test('leaving the page with something typed in the live mode asks first', async ({ page }) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Verlassen');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  await menge.fill('800');
+  await montag.getByLabel('Ersatz für Nudeln (Spaghetti)').fill('Vollkornnudeln');
+  await page.getByRole('link', { name: 'Impressum' }).click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
+  await expect(page).toHaveURL(/\/essensplanung\/planung/);
+  await expect(menge).toHaveValue('800');
+  await expect(montag.getByLabel('Ersatz für Nudeln (Spaghetti)')).toHaveValue('Vollkornnudeln');
+});

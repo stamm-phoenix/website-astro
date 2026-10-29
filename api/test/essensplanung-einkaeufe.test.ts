@@ -599,3 +599,39 @@ dbTest('deleting the trip a thing was moved to brings it back', async (t) => {
     ['ohne']
   );
 });
+
+dbTest('nothing is moved to a trip where it is ticked off already', async (t) => {
+  const { token, zutat } = await planung(t);
+  await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+    body: { name: 'Montag' },
+  });
+  const [a, b] = json<PlanungAnsicht>(
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name: 'Mittwoch' },
+    })
+  ).einkaeufe;
+  // 200 g of 1 kg bought on Wednesday, 800 g still open on Monday
+  await senden(t, einkaeufe.EssensplanungEinkaufAbhaken, 'PUT', 'planung/einkaeufe/posten', token, {
+    id: b.id,
+    body: { etag: null, planungZutatId: zutat, einheit: 'g', erhalten: 200 },
+  });
+  const antwort = await senden(
+    t,
+    einkaeufe.EssensplanungEinkaufVerschieben,
+    'POST',
+    'planung/einkaeufe/verschieben',
+    token,
+    { id: a.id, body: { planungZutatId: zutat, nachEinkaufId: b.id } }
+  );
+  assert.equal(antwort.status, 400, JSON.stringify(antwort.jsonBody));
+  assert.equal(
+    json<{ fields: Record<string, string> }>(antwort).fields.nachEinkaufId,
+    'In diesem Einkauf ist das schon abgehakt. Bitte wähle einen anderen.'
+  );
+  const regeln = await getDb()
+    .selectFrom('essen.einkauf_regel')
+    .select('id')
+    .where('planung_zutat_id', '=', zutat)
+    .execute();
+  assert.deepEqual(regeln, []);
+});

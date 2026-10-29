@@ -442,6 +442,17 @@ export async function verschieben(
       throw new ValidationError({
         nachEinkaufId: 'Dieser Einkauf ist schon abgeschlossen. Bitte wähle einen anderen.',
       });
+    // Something ticked off there would count as what is moved, though it is missing
+    const abgehakt = await trx
+      .selectFrom('essen.einkauf_posten')
+      .select('id')
+      .where('einkauf_id', '=', input.nachEinkaufId)
+      .where('planung_zutat_id', '=', input.planungZutatId)
+      .executeTakeFirst();
+    if (abgehakt)
+      throw new ValidationError({
+        nachEinkaufId: 'In diesem Einkauf ist das schon abgehakt. Bitte wähle einen anderen.',
+      });
     const { name } = await zutatMitEinheit(trx, zugang, input.planungZutatId, null, 'einheit');
     const regel = { planungZutatId: input.planungZutatId, menge: null, einheit: null };
     await schreibeRegel(trx, vonEinkaufId, { ...regel, art: 'ohne' });

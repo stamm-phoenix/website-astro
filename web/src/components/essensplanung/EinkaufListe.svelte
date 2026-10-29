@@ -24,6 +24,10 @@
   const ansicht = $derived(kontext.ansicht);
   const einkauf = $derived(liste.einkauf);
   const andere = $derived(ansicht.einkaeufe.filter((e) => e.id !== einkauf.id && !e.abgeschlossen));
+  /** Trips a thing can move to: open ones where it is not ticked off yet. */
+  function ziele(posten: Pick<EinkaufListenPosten, 'planungZutatId'>) {
+    return andere.filter((e) => !e.posten.some((p) => p.planungZutatId === posten.planungZutatId));
+  }
   const aendern = $derived(bearbeiten && !einkauf.abgeschlossen);
 
   /** The open adjustment: its key and what is typed there. */
@@ -45,14 +49,14 @@
     }
     offen = posten.key;
     fehler = null;
-    ziel = andere[0] ? String(andere[0].id) : '';
+    ziel = ziele(posten)[0] ? String(ziele(posten)[0].id) : '';
     const regel = einkauf.regeln.find((r) => r.planungZutatId === posten.planungZutatId);
     feste = mengeFeld(regel?.menge ?? posten.menge);
     festeEinheit = regel?.einheit ?? posten.einheit ?? einheiten(posten)[0] ?? 'g';
   }
 
   async function verschieben(posten: EinkaufListenPosten): Promise<void> {
-    const nach = andere.find((e) => String(e.id) === ziel);
+    const nach = ziele(posten).find((e) => String(e.id) === ziel);
     if (!nach) return;
     const ok = await kontext.aendern(
       () =>
@@ -166,14 +170,14 @@
           {/if}
           {#if offen === posten.key}
             <div class="basis-full space-y-2 pb-2">
-              {#if andere.length}
+              {#if ziele(posten).length}
                 <div class="flex flex-wrap items-center gap-2">
                   <select
                     class="form-input min-h-11 w-auto"
                     aria-label="Einkauf für {posten.name}"
                     bind:value={ziel}
                   >
-                    {#each andere as e (e.id)}
+                    {#each ziele(posten) as e (e.id)}
                       <option value={String(e.id)}>{e.name}</option>
                     {/each}
                   </select>

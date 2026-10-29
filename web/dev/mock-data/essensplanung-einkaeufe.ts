@@ -182,6 +182,11 @@ export function verschieben(z: MockZugang, vonEinkaufId: number, input: Verschie
       'nachEinkaufId',
       'Dieser Einkauf ist schon abgeschlossen. Bitte wähle einen anderen.'
     );
+  if (nach.posten.some((p) => p.planungZutatId === input.planungZutatId))
+    throw feld(
+      'nachEinkaufId',
+      'In diesem Einkauf ist das schon abgehakt. Bitte wähle einen anderen.'
+    );
   const zutat = zutatMitEinheit(z, input.planungZutatId, null);
   const regel = { planungZutatId: input.planungZutatId, menge: null, einheit: null };
   aendere(z, 'einkauf-verschoben', { name: zutat.name, einkauf: von.name, nach: nach.name }, () => {

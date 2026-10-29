@@ -8,6 +8,7 @@
   import type { EinkaufListenPosten } from '../../lib/essensplanungEinkaeufe';
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { meldeVerloren, type PlanKontext } from './planKontext';
   import { lebendig, sichtbar } from './einkaufLive';
 
@@ -48,7 +49,9 @@
   let konflikt = $state<string | null>(null);
 
   /** Something was typed into the open amount and is not saved. */
-  let geaendert = false;
+  let geaendert = $state(false);
+  // Leaving the page asks first, also after a failed save
+  $effect(() => guardUnsavedChanges(() => geaendert));
 
   // A row with unsaved input that falls off the list (someone ticked its needs off on another
   // trip) names the input, unless it comes back drawn again at once
