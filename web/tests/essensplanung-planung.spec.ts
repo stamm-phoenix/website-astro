@@ -468,3 +468,20 @@ test('a failing sync is shown; a failed day move stays and asks before leaving',
   await frage.getByRole('button', { name: 'Weiter bearbeiten' }).click();
   await expect(page.getByLabel('Datum von Tag 1')).toHaveValue('2027-07-30');
 });
+
+test('a meal deleted by someone else shows the unsaved input', async ({ page, browser }) => {
+  await anlegen(page, 'E2E Gelöscht');
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await page.getByLabel('Name von 1_2').fill('Brunch für alle');
+  await anderes.getByRole('button', { name: 'Mittagessen löschen' }).first().click();
+  await answerConfirm(anderes, '1_2 Mittagessen löschen?', 'Mahlzeit löschen');
+  await expect(anderes.getByText('Mittagessen gelöscht.').first()).toBeVisible();
+  await page.bringToFront();
+  await expect(
+    page
+      .getByText('1_2 wurde gerade gelöscht. Deine Eingabe „Brunch für alle“', { exact: false })
+      .first()
+  ).toBeVisible({ timeout: 15_000 });
+  await anderes.context().close();
+});

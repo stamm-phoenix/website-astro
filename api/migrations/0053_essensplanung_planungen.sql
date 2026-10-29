@@ -56,7 +56,6 @@ CREATE TABLE essen.mitglied (
   -- SHA-256 des persönlichen Tokens (hex); NULL, sobald der Zugang entzogen ist.
   token_hash       char(64)       NULL,
   erstellt_am      datetime2(0)   NOT NULL CONSTRAINT df_essen_mitglied_erstellt_am DEFAULT SYSUTCDATETIME(),
-  zuletzt_da_am    datetime2(0)   NULL,
   -- Letzte Mail mit einem Link an dieses Mitglied (Wartezeit für „Meine Planungen“).
   link_gesendet_am datetime2(0)   NULL,
   -- Der Name bleibt für Zuständigkeiten und Änderungen stehen.

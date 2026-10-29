@@ -1018,7 +1018,6 @@ export interface EssenMitgliedTable {
   rolle: 'besitzer' | 'bearbeiten';
   token_hash: string | null;
   erstellt_am: Generated<Date>;
-  zuletzt_da_am: Date | null;
   link_gesendet_am: Date | null;
   entzogen_am: Date | null;
   /** The deletion date the owner was warned about (retention). */
