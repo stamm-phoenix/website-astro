@@ -473,7 +473,7 @@ export async function gerichtAnlegen(zugang: Zugang, input: GerichtInput): Promi
 export async function gerichtDerPlanung(trx: Db, zugang: Zugang, id: number) {
   const gericht = await trx
     .selectFrom('essen.gericht')
-    .select(['id', 'name', 'version'])
+    .select(['id', 'name', 'version', 'personen'])
     .where('id', '=', id)
     .where('planung_id', '=', zugang.planungId)
     .executeTakeFirst();

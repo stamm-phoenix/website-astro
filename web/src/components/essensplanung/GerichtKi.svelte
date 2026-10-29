@@ -7,7 +7,13 @@
     type KiHinweis,
     type KiPruefung,
   } from '../../lib/essensplanungKi';
-  import type { EssenKatalog, Gericht, PlanungZutat } from '../../lib/types';
+  import type {
+    EssenKatalog,
+    Gericht,
+    GerichtZutat,
+    PlanungAnsicht,
+    PlanungZutat,
+  } from '../../lib/types';
   import RezeptImportDialog from './RezeptImportDialog.svelte';
   import type { PlanKontext } from './planKontext';
 
@@ -30,6 +36,8 @@
   let fehler = $state<string | null>(null);
   /** Indexes of the hints whose change was taken over. */
   let uebernommen = $state<number[]>([]);
+  /** Indexes of hints whose proposal was dropped, because others changed the line meanwhile. */
+  let veraltet = $state<number[]>([]);
   let rezeptOffen = $state(false);
 
   async function pruefen(): Promise<void> {
@@ -39,6 +47,7 @@
     try {
       pruefung = await kontext.api.senden<KiPruefung>('POST', `/gerichte/${gericht.id}/ki/pruefen`);
       uebernommen = [];
+      veraltet = [];
     } catch (error: unknown) {
       fehler = kiFehlerText(error);
     } finally {
@@ -64,21 +73,51 @@
       fehler = 'Diese Zutat gibt es nicht mehr. Lass das Gericht noch einmal prüfen.';
       return;
     }
+    const gesendet = { ...zeileBody(zeile), ...hinweis.aenderung, etag: hinweis.zeile.etag };
+    /** The line as this write left it, from the answer of the PATCH itself. */
+    let geschrieben: GerichtZutat | undefined;
     const ok = await kontext.aendern(
-      () =>
-        kontext.api.senden('PATCH', `/gericht-zutaten/${zeile.id}`, {
-          ...zeileBody(zeile),
-          ...hinweis.aenderung,
-          etag: hinweis.zeile!.etag,
-        }),
+      async () => {
+        const ansicht = await kontext.api.senden<PlanungAnsicht>(
+          'PATCH',
+          `/gericht-zutaten/${zeile.id}`,
+          gesendet
+        );
+        geschrieben = ansicht.gerichte.flatMap((g) => g.zutaten).find((z) => z.id === zeile.id);
+        return ansicht;
+      },
       `Vorschlag für ${nameVon(hinweis) ?? 'die Zutat'} übernommen.`
     );
     if (!ok) return;
     uebernommen = [...uebernommen, index];
-    // Further hints on the same line build on the change just saved
-    const neu = gericht.zutaten.find((eintrag) => eintrag.id === zeile.id);
-    for (const andere of pruefung?.hinweise ?? [])
-      if (neu && andere.zeile?.id === zeile.id) andere.zeile.etag = neu.etag;
+    // Further hints on the same line build on this write only. If the answer already shows a
+    // change of others, they would overwrite it: their proposals are dropped instead.
+    const eigene = geschrieben && gleicheZeile(geschrieben, gesendet);
+    for (const [weiterer, andere] of (pruefung?.hinweise ?? []).entries()) {
+      if (weiterer === index || andere.zeile?.id !== zeile.id) continue;
+      if (eigene) andere.zeile.etag = geschrieben!.etag;
+      else if (andere.aenderung) {
+        andere.aenderung = undefined;
+        veraltet = [...veraltet, weiterer];
+      }
+    }
+  }
+
+  /** Whether `zeile` holds exactly the fields that were sent. */
+  function gleicheZeile(zeile: GerichtZutat, body: ReturnType<typeof zeileBody>): boolean {
+    const felder = [
+      'planungZutatId',
+      'menge',
+      'einheit',
+      'fest',
+      'fuerAlles',
+      'fuerVegetarisch',
+      'fuerVegan',
+      'ohne',
+      'nur',
+      'hinweis',
+    ] as const;
+    return felder.every((feld) => JSON.stringify(zeile[feld]) === JSON.stringify(body[feld]));
   }
 </script>
 
@@ -116,6 +155,12 @@
               {#if hinweis.vorschlag}
                 <p class="text-sm text-neutral-700 [overflow-wrap:anywhere]">
                   Vorschlag: {hinweis.vorschlag}
+                </p>
+              {/if}
+              {#if veraltet.includes(index)}
+                <p class="text-sm text-warning">
+                  Die Zutat wurde inzwischen auch anderweitig geändert. Lass das Gericht noch einmal
+                  prüfen.
                 </p>
               {/if}
               {#if hinweis.aenderung && name}

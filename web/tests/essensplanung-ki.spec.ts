@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import { anlegen } from './essensplanung-helpers';
+import { anlegen, zeilenMenge } from './essensplanung-helpers';
 
 /** The AI at dishes with the demo AI of the mock API (`dev/mock-data/essensplanung-ki.ts`). */
 
@@ -40,6 +40,13 @@ test('a pasted recipe becomes lines after checking the preview', async ({ page }
   const frucht = zeilen.filter({ hasText: '3 Stück Drachenfrucht' });
   await expect(frucht.getByText('nicht in der Liste, bitte wählen')).toBeVisible();
   await expect(frucht.getByRole('checkbox')).toBeDisabled();
+  // Chosen for an ingredient in g without a weight per piece: never „6 g“, the amount is asked
+  await dialog.getByLabel('Zutat für 3 Stück Drachenfrucht').fill('Zucker (weiß)');
+  await dialog.getByRole('option', { name: 'Zucker (weiß)' }).click();
+  await expect(dialog.getByLabel('Menge für 3 Stück Drachenfrucht')).toHaveValue('');
+  await expect(dialog.getByLabel('Hinweis für 3 Stück Drachenfrucht')).toHaveValue('6 Stück');
+  await expect(frucht.getByRole('checkbox')).not.toBeChecked();
+  await expect(frucht.getByText(/Bitte die Menge in g oder kg eintragen/)).toBeVisible();
   await expect(dialog.getByRole('button', { name: '4 Zutaten übernehmen' })).toBeVisible();
   // A line can be left out
   await dialog.getByRole('checkbox', { name: '1 Prise Salz übernehmen' }).uncheck();
@@ -49,24 +56,24 @@ test('a pasted recipe becomes lines after checking the preview', async ({ page }
 
   await expect(page.getByText('3 Zutaten übernommen.').first()).toBeVisible();
   await expect(dialog).toHaveCount(0);
-  await expect(karte.getByText('1.000 g')).toBeVisible();
-  await expect(karte.getByText('60 ml')).toBeVisible();
-  await expect(karte.getByText('300 g')).toBeVisible();
-  await expect(karte.getByText('Salz', { exact: true })).toHaveCount(0);
-  await expect(karte.getByText('Drachenfrucht')).toHaveCount(0);
+  await expect.poll(() => zeilenMenge(karte, 'Nudeln (Spaghetti)')).toBe('1000 g');
+  await expect.poll(() => zeilenMenge(karte, 'Olivenöl')).toBe('60 ml');
+  await expect.poll(() => zeilenMenge(karte, 'Zwiebeln')).toBe('300 g');
+  await expect(karte.getByLabel('Menge von Salz', { exact: true })).toHaveCount(0);
+  await expect(karte.getByLabel('Menge von Zucker (weiß)', { exact: true })).toHaveCount(0);
 });
 
 test('checking a dish lists hints, and a proposal is taken over with a click', async ({ page }) => {
   await anlegen(page, 'E2E KI Prüfen');
   const karte = await gericht(page, 'Chili', '10');
   await expect(karte.getByRole('button', { name: 'Gericht prüfen (KI)' })).toBeDisabled();
-  await karte.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await karte.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const dialog = page.getByRole('dialog', { name: 'Zutat für Chili' });
   await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
   await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('500');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(karte.getByText('500 g')).toBeVisible();
+  await expect.poll(() => zeilenMenge(karte, 'Hackfleisch')).toBe('500 g');
 
   await karte.getByRole('button', { name: 'Gericht prüfen (KI)' }).click();
   const hinweise = karte.getByRole('status').filter({ hasText: 'KI-Hinweise zu Chili' });
@@ -79,7 +86,7 @@ test('checking a dish lists hints, and a proposal is taken over with a click', a
     .getByRole('button', { name: 'Vorschlag für Hackfleisch übernehmen: 1.000 g' })
     .click();
   await expect(page.getByText('Vorschlag für Hackfleisch übernommen.').first()).toBeVisible();
-  await expect(karte.getByText('1.000 g')).toBeVisible();
+  await expect.poll(() => zeilenMenge(karte, 'Hackfleisch')).toBe('1000 g');
   await hinweise
     .getByRole('button', {
       name: 'Vorschlag für Hackfleisch übernehmen: nicht für vegetarisch, nicht für vegan',
@@ -92,12 +99,12 @@ test('checking a dish lists hints, and a proposal is taken over with a click', a
 
   // A busy deployment: the page says so with the wait, and everything else keeps working
   const suppe = await gericht(page, 'Suppe KI-Fehler', '10');
-  await suppe.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await suppe.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const zweiter = page.getByRole('dialog', { name: 'Zutat für Suppe KI-Fehler' });
   await zweiter.getByLabel('Zutat', { exact: true }).fill('Zwiebeln');
   await zweiter.getByRole('option', { name: 'Zwiebeln', exact: true }).click();
   await zweiter.getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(suppe.getByText('Zwiebeln', { exact: true })).toBeVisible();
+  await expect(suppe.getByLabel('Menge von Zwiebeln', { exact: true })).toBeVisible();
   await suppe.getByRole('button', { name: 'Gericht prüfen (KI)' }).click();
   await expect(
     suppe.getByRole('alert').filter({ hasText: 'KI gerade nicht verfügbar' })
@@ -112,7 +119,7 @@ test('grams without a value in the list are estimated by the AI, marked as such'
 }) => {
   await anlegen(page, 'E2E KI Umrechnen');
   const karte = await gericht(page, 'Pudding', '10');
-  await karte.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await karte.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const dialog = page.getByRole('dialog', { name: 'Zutat für Pudding' });
   // Salt has TL and EL in the list, but no weight per piece
   await dialog.getByLabel('Zutat', { exact: true }).fill('Salz');
@@ -134,5 +141,5 @@ test('grams without a value in the list are estimated by the AI, marked as such'
   await expectNoHorizontalOverflow(page);
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(karte.getByText('36 g', { exact: true })).toBeVisible();
+  await expect.poll(() => zeilenMenge(karte, 'Zucker (weiß)')).toBe('36 g');
 });

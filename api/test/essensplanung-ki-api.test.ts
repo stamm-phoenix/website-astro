@@ -172,3 +172,48 @@ dbTest('grams are estimated only for food measured by weight', async (t) => {
   );
   assert.equal((await schaetzen({ zutatId: 1, mass: 'tasse' })).status, 400);
 });
+
+dbTest('recipe lines scaled for other people than the dish has now are refused', async (t) => {
+  const mails = captureMails(t);
+  const { token } = await anlegen(t, mails);
+  const id = await gericht(t, token);
+  const zwiebeln = await zentraleZutat('Zwiebeln');
+  const ansicht = json<PlanungAnsicht>(
+    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+  );
+  // Someone changes the people while the preview is open
+  const geaendert = await call(
+    t,
+    endpoints.EssensplanungGericht,
+    'PATCH',
+    `planung/gerichte/${id}`,
+    {
+      token,
+      params: { id: String(id) },
+      body: { etag: ansicht.gerichte.find((g) => g.id === id)!.etag, personen: 20 },
+    }
+  );
+  assert.equal(geaendert.status, 200, JSON.stringify(geaendert.jsonBody));
+  const zeilen = [{ zutatId: zwiebeln, menge: 500, einheit: 'g' }];
+  const alt = await call(
+    t,
+    ki.EssensplanungGerichtZutatenSammel,
+    'POST',
+    `planung/gerichte/${id}/zutaten/sammel`,
+    { token, params: { id: String(id) }, body: { zeilen, personen: 10 } }
+  );
+  assert.equal(alt.status, 409, JSON.stringify(alt.jsonBody));
+  assert.equal(json<{ code: string }>(alt).code, 'PERSONEN_GEAENDERT');
+  const danach = json<PlanungAnsicht>(
+    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+  );
+  assert.equal(danach.gerichte.find((g) => g.id === id)!.zutaten.length, 0);
+  const neu = await call(
+    t,
+    ki.EssensplanungGerichtZutatenSammel,
+    'POST',
+    `planung/gerichte/${id}/zutaten/sammel`,
+    { token, params: { id: String(id) }, body: { zeilen, personen: 20 } }
+  );
+  assert.equal(neu.status, 201, JSON.stringify(neu.jsonBody));
+});

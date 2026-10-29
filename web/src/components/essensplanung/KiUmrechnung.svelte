@@ -45,11 +45,18 @@
   let schaetzt = $state(false);
   let fehler = $state<string | null>(null);
 
-  // Another ingredient starts afresh
+  /** The chosen ingredient: ids of the Planung and of the list may be the same number. */
+  const auswahl = $derived(`${'zutatId' in zutat ? 'p' : 'z'}:${zutat.id}`);
+  /** Counts the questions; an answer belongs to the newest one only. */
+  let anfrage = 0;
+
+  // Another ingredient starts afresh, and an answer still on its way is for the old one
   $effect(() => {
-    void zutat.id;
+    void auswahl;
+    anfrage++;
     schaetzung = null;
     fehler = null;
+    schaetzt = false;
   });
   $effect(() => {
     if (fehlend.length && !fehlend.some((eintrag) => eintrag.mass === mass)) mass = fehlend[0].mass;
@@ -66,18 +73,23 @@
   });
 
   async function schaetzen(): Promise<void> {
+    const nummer = ++anfrage;
+    const fuer = auswahl;
+    /** Whether the answer still belongs to what is shown: same ingredient, newest question. */
+    const aktuell = () => nummer === anfrage && fuer === auswahl;
     schaetzt = true;
     fehler = null;
     schaetzung = null;
     try {
-      schaetzung = await kontext.api.senden<KiUmrechnung>('POST', '/ki/umrechnung', {
+      const antwort = await kontext.api.senden<KiUmrechnung>('POST', '/ki/umrechnung', {
         ...('zutatId' in zutat ? { planungZutatId: zutat.id } : { zutatId: zutat.id }),
         mass,
       });
+      if (aktuell()) schaetzung = antwort;
     } catch (error: unknown) {
-      fehler = kiFehlerText(error);
+      if (aktuell()) fehler = kiFehlerText(error);
     } finally {
-      schaetzt = false;
+      if (aktuell()) schaetzt = false;
     }
   }
 </script>

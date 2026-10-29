@@ -116,11 +116,18 @@ function validateZeilen(body: Record<string, unknown> | null): GerichtZutatInput
   return inputs as GerichtZutatInput[];
 }
 
-/** POST `{ zeilen: [line, …] }`: adds lines at the end of a dish in one change, all or none. */
+/** POST `{ zeilen: [line, …], personen? }`: adds lines at the end of a dish in one change, all or none. */
 export const EssensplanungGerichtZutatenSammel = planungHandler(async (request: HttpRequest) => {
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const id = readId(request);
-  await gerichtZutatenSammeln(zugang, id, validateZeilen(await readJsonBody(request)));
+  const body = await readJsonBody(request);
+  const zeilen = validateZeilen(body);
+  // The people the amounts were scaled for; a recipe sends it, so a change meanwhile is a conflict
+  const personen =
+    typeof body?.personen === 'number' && Number.isInteger(body.personen) && body.personen > 0
+      ? body.personen
+      : undefined;
+  await gerichtZutatenSammeln(zugang, id, zeilen, personen);
   return ok(await ladeAnsicht(zugang), 201);
 });

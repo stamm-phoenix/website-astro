@@ -163,7 +163,7 @@ const PRUEFEN_PROMPT = `Du prüfst ein Gericht für die Essensplanung eines Zelt
 - Passen die Häkchen "fuer" (alles, vegetarisch, vegan) zu den Merkmalen der Zutat (z. B. Fleisch nur für "alles"), und gibt es für jede Ernährungsform etwas zu essen?
 - Passen "nichtFuer"/"nurFuer" zu den enthaltenen Allergenen (z. B. Weizennudeln sollten nicht für Gluten gelten)?
 - Fehlt eine wichtige Zutat für dieses Gericht?
-Gib nur echte Auffälligkeiten als Hinweise zurück, höchstens 10, ohne Lob; ist alles stimmig, eine leere Liste. "art" ordnet den Hinweis ein. "zeile" ist die Nummer der betroffenen Zeile ("nr"), sonst null. "text" beschreibt das Problem in einem deutschen Satz, "vorschlag" die Lösung in einem kurzen Satz. Schlägst du für eine Zeile eine konkrete neue Menge vor, setze "menge" und "einheit" (g, kg, ml, l, stueck, packung, bund, passend zur Einheitenart der Zutat); schlägst du andere Häkchen vor, setze "fuerAlles", "fuerVegetarisch", "fuerVegan"; sonst jeweils null. Ändere nie die Zutat selbst. ${DATEN}`;
+Gib nur echte Auffälligkeiten als Hinweise zurück, höchstens 10, ohne Lob; ist alles stimmig, eine leere Liste. "art" ordnet den Hinweis ein. "zeile" ist die Nummer der betroffenen Zeile ("nr"), sonst null. "text" beschreibt das Problem in einem deutschen Satz, "vorschlag" die Lösung in einem kurzen Satz. Schreibe beide in den Worten der Oberfläche: Zutaten beim Namen statt Zeilennummern, für wen eine Zeile ist als "für alle, die alles essen", "vegetarisch" oder "vegan", Unverträglichkeiten als "nicht bei Gluten" bzw. "nur bei Gluten", dazu "feste Menge". Nenne nie Feldnamen der Daten wie fuer, nichtFuer, nurFuer, fuerAlles, fuerVegetarisch, fuerVegan, fest, nr oder einheitenart. Schlägst du für eine Zeile eine konkrete neue Menge vor, setze "menge" und "einheit" (g, kg, ml, l, stueck, packung, bund, passend zur Einheitenart der Zutat); schlägst du andere Häkchen vor, setze "fuerAlles", "fuerVegetarisch", "fuerVegan"; sonst jeweils null. Ändere nie die Zutat selbst. ${DATEN}`;
 
 /** The dish as the model sees it: names, amounts and properties, nothing about people. */
 function gerichtFuerModell(
@@ -247,7 +247,16 @@ const REZEPT_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['original', 'name', 'key', 'menge', 'einheit', 'hinweis'],
+        required: [
+          'original',
+          'name',
+          'key',
+          'menge',
+          'einheit',
+          'hinweis',
+          'inhaltMenge',
+          'inhaltEinheit',
+        ],
         properties: {
           original: { type: 'string' },
           name: { type: 'string' },
@@ -255,13 +264,15 @@ const REZEPT_SCHEMA = {
           menge: ZAHL_ODER_NULL,
           einheit: enumOderNull(KI_REZEPT_EINHEITEN),
           hinweis: { type: 'string' },
+          inhaltMenge: ZAHL_ODER_NULL,
+          inhaltEinheit: enumOderNull(['g', 'kg', 'ml', 'l']),
         },
       },
     },
   },
 };
 
-const REZEPT_PROMPT = `Lies die Zutaten aus einem eingefügten Rezept für die Essensplanung eines Zeltlagers. "rezeptPersonen" ist die Personen- oder Portionenzahl, für die das Rezept geschrieben ist, sonst null. Für jede Zutat eine Zeile, höchstens 60, in der Reihenfolge des Rezepts; keine Arbeitsschritte, keine Geräte, kein Wasser aus der Leitung. "original" ist die Zeile wörtlich aus dem Rezept (höchstens 200 Zeichen), "name" der Name der Zutat ohne Menge. "key" ist der Schlüssel der passenden Zutat aus "liste" (gleiche Zutat, auch bei anderer Schreibweise oder Einzahl/Mehrzahl, z. B. "Zwiebeln" zu "Zwiebel"); passt keine eindeutig, null – rate nicht. Mengen nicht umrechnen und nicht skalieren: "menge" als Zahl wie im Rezept (Brüche wie ½ als 0.5), "einheit" eine von g, kg, ml, l, stueck, packung, bund, tl, el, prise (Esslöffel = el, Teelöffel = tl, Dose oder Becher = packung); ohne Mengenangabe ("nach Geschmack") beide null. "hinweis" ist eine kurze Ergänzung aus dem Rezept wie "gehackt" oder "nach Geschmack", höchstens 100 Zeichen, sonst leer. ${DATEN}`;
+const REZEPT_PROMPT = `Lies die Zutaten aus einem eingefügten Rezept für die Essensplanung eines Zeltlagers. "rezeptPersonen" ist die Personen- oder Portionenzahl, für die das Rezept geschrieben ist, sonst null. Für jede Zutat eine Zeile, höchstens 60, in der Reihenfolge des Rezepts; keine Arbeitsschritte, keine Geräte, kein Wasser aus der Leitung. "original" ist die Zeile wörtlich aus dem Rezept (höchstens 200 Zeichen), "name" der Name der Zutat ohne Menge. "key" ist der Schlüssel der passenden Zutat aus "liste" (gleiche Zutat, auch bei anderer Schreibweise oder Einzahl/Mehrzahl, z. B. "Zwiebeln" zu "Zwiebel"); passt keine eindeutig, null – rate nicht. Mengen nicht umrechnen und nicht skalieren: "menge" als Zahl wie im Rezept (Brüche wie ½ als 0.5), "einheit" eine von g, kg, ml, l, stueck, packung, bund, tl, el, prise (Esslöffel = el, Teelöffel = tl, Dose oder Becher = packung); ohne Mengenangabe ("nach Geschmack") beide null. Nennt die Zeile zusätzlich, wie viel eine Dose, ein Becher, eine Packung oder ein Stück wiegt oder enthält (z. B. "1 Dose gehackte Tomaten (400 g)", "1 Becher (200 g) Sahne"), steht das als "inhaltMenge" und "inhaltEinheit" (g, kg, ml, l) für eine Einheit, also 400 und g; sonst beide null. "hinweis" ist eine kurze Ergänzung aus dem Rezept wie "gehackt" oder "nach Geschmack", höchstens 100 Zeichen, sonst leer. ${DATEN}`;
 
 /**
  * The lines of a pasted recipe, mapped onto the lists and scaled to the dish's people. Nothing

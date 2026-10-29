@@ -1460,7 +1460,8 @@ route('POST', '/api/essensplanung/planung/gerichte/:id/zutaten/sammel', (req) =>
   if (Object.keys(fields).length)
     return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', fields);
   const id = Number(req.params.id);
-  return essenAendern(req, (z) => essenKi.gerichtZutatenSammeln(z, id, inputs), 201);
+  const personen = typeof req.json?.personen === 'number' ? req.json.personen : undefined;
+  return essenAendern(req, (z) => essenKi.gerichtZutatenSammeln(z, id, inputs, personen), 201);
 });
 
 /** A question to the demo AI; „KI-Fehler“ answers 429 with Retry-After like a busy deployment. */

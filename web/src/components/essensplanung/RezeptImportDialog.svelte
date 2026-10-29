@@ -5,6 +5,7 @@
   import FormField from '../pflege/FormField.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
     getippteZutat,
     leseMenge,
@@ -13,7 +14,13 @@
     zutatWahl,
     type ZutatWahl,
   } from '../../lib/essensplanungGerichte';
-  import { kiFehlerText, type KiRezept, type KiRezeptZeile } from '../../lib/essensplanungKi';
+  import {
+    kiFehlerText,
+    mengeFuerZutat,
+    skaliereMenge,
+    type KiRezept,
+    type KiRezeptZeile,
+  } from '../../lib/essensplanungKi';
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { EssenKatalog, Gericht, GerichtEinheit } from '../../lib/types';
   import type { Vorschlag } from '../../lib/vorschlaege';
@@ -57,6 +64,13 @@
   let textFehler = $state<string | undefined>(undefined);
   let rezept = $state<{ rezeptPersonen: number | null; personen: number } | null>(null);
   let zeilen = $state<Zeile[]>([]);
+  /** The people of the dish now, when it changed after the amounts were scaled. */
+  let personenNeu = $state<number | null>(null);
+  /** Set once the lines are taken over; nothing is left to lose then. */
+  let fertig = $state(false);
+  $effect(() =>
+    guardUnsavedChanges(() => open && !fertig && (text.trim() !== '' || zeilen.length > 0))
+  );
 
   const vorschlaege = $derived(zutatVorschlaege(katalog, ansicht.zutaten));
 
@@ -119,6 +133,7 @@
         { text }
       );
       rezept = { rezeptPersonen: antwort.rezeptPersonen, personen: antwort.personen };
+      personenNeu = null;
       zeilen = antwort.zeilen.map(zeileVon);
       if (!zeilen.length) fehler = 'Die KI hat in dem Text keine Zutaten gefunden.';
     } catch (error: unknown) {
@@ -130,7 +145,13 @@
   }
 
   function waehle(zeile: Zeile, option: Vorschlag): void {
-    zeile.auswahl = zutatWahl(option);
+    const wahl = zutatWahl(option);
+    // Picking and typing the same name both land here; the second must not undo the first
+    if (zeile.auswahl?.art === wahl.art && zeile.auswahl.id === wahl.id) {
+      zeile.zutatText = option.value;
+      return;
+    }
+    zeile.auswahl = wahl;
     zeile.zutatText = option.value;
     zeile.an = true;
     zeile.fehler = {};
@@ -139,7 +160,31 @@
     zeile.fuerAlles = true;
     zeile.fuerVegetarisch = zutat?.vegetarisch !== false;
     zeile.fuerVegan = zutat?.vegan !== false;
-    passendeEinheit(zeile);
+    if (!zutat) return;
+    // Another kind of unit: pieces become grams with the list's weight, else the amount is asked
+    const zentral = katalog.zutaten.find(
+      (z) => z.id === ('zutatId' in zutat ? zutat.zutatId : zutat.id)
+    );
+    const neu = mengeFuerZutat(zeile, zutat.einheitenart, zentral?.grammProStueck ?? null);
+    zeile.menge = neu.menge;
+    zeile.einheit = neu.einheit;
+    zeile.hinweis = neu.hinweis;
+    if (neu.neuEintragen) {
+      zeile.an = false;
+      zeile.fehler.menge = `Bitte die Menge in ${einheitenVon(zeile)
+        .map((e) => einheitText(e))
+        .join(' oder ')} eintragen und die Zeile wieder anhaken.`;
+    }
+  }
+
+  /** Scales the amounts to the people the dish has now, after someone changed them. */
+  function umrechnen(): void {
+    if (!rezept || !personenNeu) return;
+    const faktor = personenNeu / rezept.personen;
+    for (const zeile of zeilen) zeile.menge = skaliereMenge(zeile.menge, faktor, zeile.einheit);
+    rezept.personen = personenNeu;
+    personenNeu = null;
+    fehler = null;
   }
 
   function getippt(zeile: Zeile, eingabe: string): void {
@@ -177,14 +222,19 @@
     });
     if (gesendet.some((zeile) => Object.keys(zeile.fehler).length)) return;
     speichert = true;
+    let personenKonflikt = false;
     try {
       const ok = await kontext.aendern(
         async () => {
           try {
+            // With the people the amounts are scaled for: a change meanwhile is a conflict
             return await kontext.api.senden('POST', `/gerichte/${gericht.id}/zutaten/sammel`, {
               zeilen: body,
+              personen: rezept!.personen,
             });
           } catch (error: unknown) {
+            if (error instanceof ApiError && error.code === 'PERSONEN_GEAENDERT')
+              personenKonflikt = true;
             if (error instanceof ApiError && error.fields) {
               for (const [feld, meldung] of Object.entries(error.fields)) {
                 const treffer = /^zeilen\.(\d+)\.(\w+)$/.exec(feld);
@@ -198,11 +248,15 @@
         `${gesendet.length === 1 ? 'Eine Zutat' : `${gesendet.length} Zutaten`} übernommen.`
       );
       if (ok) {
+        fertig = true;
         zeilen = [];
         onclose();
       } else if (!zeilen.some((zeile) => Object.keys(zeile.fehler).length)) {
         fehler = kontext.fehler;
       }
+      // The page loaded the dish again: the preview stays and offers to scale to its people
+      if (personenKonflikt && rezept && gericht.personen !== rezept.personen)
+        personenNeu = gericht.personen;
     } finally {
       speichert = false;
     }
@@ -270,6 +324,11 @@
           Zutaten, die nicht in der Liste stehen, sind markiert und erst nach einer Wahl dabei.
         </p>
         {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
+        {#if personenNeu}
+          <ActionButton type="button" onclick={umrechnen}
+            >Mengen auf {personenNeu} Personen umrechnen</ActionButton
+          >
+        {/if}
         <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
           {#each zeilen as zeile, index (index)}
             {@const einheiten = einheitenVon(zeile)}

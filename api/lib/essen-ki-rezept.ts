@@ -88,7 +88,40 @@ const rezeptZeileSchema = z.object({
     z.enum(KI_REZEPT_EINHEITEN).nullable()
   ),
   hinweis: kiText(100),
+  inhaltMenge: kiZahl.optional(),
+  inhaltEinheit: z.preprocess(
+    (value) => (['g', 'kg', 'ml', 'l'].includes(value as string) ? value : null),
+    z.enum(['g', 'kg', 'ml', 'l']).nullable()
+  ),
 });
+
+/** What a tin, cup, pack or piece holds, by weight or volume, e.g. „Dose (400 g)“. */
+interface Inhalt {
+  menge: number;
+  einheit: 'g' | 'kg' | 'ml' | 'l';
+}
+
+const INHALT_KLAMMER = /\((?:[^()]*?\s)?(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\s*\)/i;
+const INHALT_HINWEIS = /(?:^|[\s,(])(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b/i;
+
+/**
+ * The content of one tin, pack or piece the line names besides its count: what the model read,
+ * else a weight or volume in brackets of the recipe line („1 Dose Tomaten (400 g)“) or in the
+ * note („gehackt, 400 g“).
+ */
+function inhaltVon(zeile: {
+  original: string;
+  hinweis: string;
+  inhaltMenge?: number | null;
+  inhaltEinheit: Inhalt['einheit'] | null;
+}): Inhalt | null {
+  if (zeile.inhaltMenge && zeile.inhaltEinheit)
+    return { menge: zeile.inhaltMenge, einheit: zeile.inhaltEinheit };
+  const treffer = INHALT_KLAMMER.exec(zeile.original) ?? INHALT_HINWEIS.exec(zeile.hinweis);
+  if (!treffer) return null;
+  const menge = Number(treffer[1].replace(',', '.'));
+  return menge > 0 ? { menge, einheit: treffer[2].toLowerCase() as Inhalt['einheit'] } : null;
+}
 
 const ZAHL = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 });
 const REZEPT_EINHEIT_TEXT: Record<KiRezeptEinheit, string> = {
@@ -125,9 +158,18 @@ function alsHinweis(
 function umgerechnet(
   menge: number | null,
   einheit: KiRezeptEinheit | null,
-  kandidat: RezeptKandidat | undefined
+  kandidat: RezeptKandidat | undefined,
+  inhalt: Inhalt | null = null
 ): { menge: number; einheit: GerichtEinheit } | null {
   if (menge === null || einheit === null || einheit === 'prise') return null;
+  // „1 Dose (400 g)“: tins, packs and pieces count by what they hold, if that fits the ingredient
+  if (
+    inhalt &&
+    (einheit === 'packung' || einheit === 'stueck') &&
+    (!kandidat || !einheitPasst(kandidat.einheitenart, einheit)) &&
+    (!kandidat || einheitPasst(kandidat.einheitenart, inhalt.einheit))
+  )
+    return { menge: menge * inhalt.menge, einheit: inhalt.einheit };
   if (!kandidat) {
     return einheit === 'tl' || einheit === 'el' ? null : { menge, einheit };
   }
@@ -176,7 +218,7 @@ export function leseKiRezept(
     const zeile = eintrag.data;
     const kandidat =
       (zeile.key === null ? undefined : nachKey.get(zeile.key)) ?? nachName(kandidaten, zeile.name);
-    const menge = umgerechnet(zeile.menge, zeile.einheit, kandidat);
+    const menge = umgerechnet(zeile.menge, zeile.einheit, kandidat, inhaltVon(zeile));
     zeilen.push({
       original: zeile.original || zeile.name,
       name: zeile.name,

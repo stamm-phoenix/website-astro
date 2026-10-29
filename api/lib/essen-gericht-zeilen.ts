@@ -7,7 +7,7 @@ import { MAX_ZEILEN_PRO_GERICHT, einheitPasst, gerichtSperre } from './essen-ger
 import type { GerichtZutatInput } from './essen-gerichte-validation';
 import { gerichtDerPlanung, pruefeVerweise } from './essen-gerichte';
 import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import { PlanungError, aendere } from './essen-planung';
 import { zutatDerPlanungFuer } from './essen-planung-zutat';
 import type { EssenEinheitenart } from './essen-validation';
 import { ValidationError } from './validation/errors';
@@ -147,18 +147,33 @@ export async function gerichtZutatAnlegen(
   });
 }
 
+/** The amounts were scaled for another number of people than the dish has now. */
+export function personenGeaendert(personen: number): PlanungError {
+  return new PlanungError(
+    409,
+    'PERSONEN_GEAENDERT',
+    `Die Personenzahl des Gerichts wurde inzwischen auf ${personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
+  );
+}
+
 /**
  * Adds several lines at the end of a dish in one change, e.g. those read from a recipe: all or
- * none. An error of a line names its field as `zeilen.<index>.<field>`.
+ * none. An error of a line names its field as `zeilen.<index>.<field>`. With `personen`, the
+ * amounts were scaled for that many people: if the dish has another number by now, nothing is
+ * added (409 `PERSONEN_GEAENDERT`).
  */
 export async function gerichtZutatenSammeln(
   zugang: Zugang,
   gerichtId: number,
-  inputs: GerichtZutatInput[]
+  inputs: GerichtZutatInput[],
+  personen?: number
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutaten-neu', async (trx) => {
     const gericht = await gerichtDerPlanung(trx, zugang, gerichtId);
     await lockResource(trx, gerichtSperre(gerichtId));
+    // Read after the Planung is locked by `aendere`, so a change of the people cannot slip in
+    if (personen !== undefined && gericht.personen !== personen)
+      throw personenGeaendert(gericht.personen);
     const anzahl = await pruefeAnzahl(trx, gerichtId, inputs.length);
     const namen: string[] = [];
     for (const [index, input] of inputs.entries()) {

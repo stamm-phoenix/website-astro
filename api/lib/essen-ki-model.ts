@@ -185,6 +185,28 @@ function aenderungFuer(
   return Object.keys(aenderung).length ? aenderung : undefined;
 }
 
+/** Field names of the data the model sees, and how the page says them. */
+const FELDNAMEN: [RegExp, string][] = [
+  [/\bnichtFuer\b/g, 'nicht bei'],
+  [/\bnurFuer\b/g, 'nur bei'],
+  [/\bfuerAlles\b/g, 'für alle, die alles essen'],
+  [/\bfuerVegetarisch\b/g, 'vegetarisch'],
+  [/\bfuerVegan\b/g, 'vegan'],
+  [/\beinheitenart\b/g, 'Einheit'],
+  [/\benthaelt\b/g, 'enthält'],
+];
+/** Internal ids that say nothing to a person; a text with them is left out. */
+const INTERN = /\b(?:planungZutatId|zutatId|gerichtId|etag)\b/;
+
+/**
+ * A hint's text in the words of the page: field names the model may echo are replaced; null for
+ * a text with internal ids.
+ */
+export function oberflaechenText(text: string): string | null {
+  if (INTERN.test(text)) return null;
+  return FELDNAMEN.reduce((ergebnis, [muster, wort]) => ergebnis.replace(muster, wort), text);
+}
+
 /**
  * Reads the hints of the model on `gericht`: entries that do not fit are left out, a line number
  * outside the dish counts for the whole dish, and a proposed change only stays when it fits the
@@ -203,6 +225,9 @@ export function leseKiPruefung(
     const eintrag = hinweisSchema.safeParse(value);
     if (!eintrag.success) continue;
     const hinweis = eintrag.data;
+    const text = oberflaechenText(hinweis.text);
+    const vorschlag = oberflaechenText(hinweis.vorschlag);
+    if (text === null || vorschlag === null) continue;
     const zeile =
       hinweis.zeile !== null && hinweis.zeile >= 1 ? gericht.zutaten[hinweis.zeile - 1] : undefined;
     const aenderung = zeile
@@ -211,8 +236,8 @@ export function leseKiPruefung(
     hinweise.push({
       art: hinweis.art,
       ...(zeile ? { zeile: { id: zeile.id, etag: zeile.etag } } : {}),
-      text: hinweis.text,
-      vorschlag: hinweis.vorschlag,
+      text,
+      vorschlag,
       ...(aenderung ? { aenderung } : {}),
     });
   }

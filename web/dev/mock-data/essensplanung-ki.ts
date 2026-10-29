@@ -177,14 +177,21 @@ export function kiUmrechnung(
   return leseKiUmrechnung({ gramm: GRAMM[mass], begruendung: 'Beispielwert der Demo-KI.' }, mass);
 }
 
-/** Adds lines at the end of a dish in one change, all or none, like the API. */
+/** Adds lines at the end of a dish in one change, all or none, like the API; `personen` as there. */
 export function gerichtZutatenSammeln(
   z: MockZugang,
   gerichtId: number,
-  inputs: GerichtZutatInput[]
+  inputs: GerichtZutatInput[],
+  personen?: number
 ): void {
   const gericht = z.planung.gerichte.find((entry) => entry.id === gerichtId);
   if (!gericht) throw new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');
+  if (personen !== undefined && gericht.personen !== personen)
+    throw new MockPlanungFehler(
+      409,
+      'PERSONEN_GEAENDERT',
+      `Die Personenzahl des Gerichts wurde inzwischen auf ${gericht.personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
+    );
   if (gericht.zutaten.length + inputs.length > MAX_ZEILEN_PRO_GERICHT)
     throw new MockPlanungFehler(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
       zeilen: `Ein Gericht hat höchstens ${MAX_ZEILEN_PRO_GERICHT} Zutaten.`,

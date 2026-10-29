@@ -45,6 +45,8 @@ const KATALOG: EssenKatalog = {
     katalogZutat(4, 'Zwiebel', { grammProStueck: 80 }),
     katalogZutat(5, 'Hackfleisch (Rind)', { vegetarisch: false, vegan: false }),
     katalogZutat(6, 'Salz'),
+    katalogZutat(8, 'Tomaten (stückig)'),
+    katalogZutat(10, 'Sahne', { einheitenart: 'volumen' }),
     katalogZutat(9, 'Spülmittel', { lebensmittel: false, einheitenart: 'volumen' }),
   ],
 };
@@ -388,4 +390,72 @@ test('Retry-After is read as seconds, milliseconds or a date, and capped', () =>
   assert.equal(readRetryAfter(headers({ 'retry-after': '999999' }), now), 3600);
   assert.equal(readRetryAfter(headers({ 'retry-after': 'bald' }), now), undefined);
   assert.equal(readRetryAfter(headers({}), now), undefined);
+});
+
+test('a tin with its weight in brackets counts by that weight, scaled', async (t) => {
+  const zeile = {
+    original: '1 Dose gehackte Tomaten (400 g)',
+    name: 'gehackte Tomaten',
+    key: 'z8',
+    menge: 1,
+    einheit: 'packung',
+    hinweis: 'gehackt, 400 g',
+  };
+  modell(t, {
+    rezeptPersonen: 4,
+    zeilen: [
+      // As the deployment answered: the weight only in the line and the note
+      { ...zeile, inhaltMenge: null, inhaltEinheit: null },
+      // As the prompt now asks for it
+      { ...zeile, inhaltMenge: 400, inhaltEinheit: 'g' },
+      {
+        original: '1 Becher (200 ml) Sahne',
+        name: 'Sahne',
+        key: 'z10',
+        menge: 1,
+        einheit: 'packung',
+        hinweis: '',
+        inhaltMenge: null,
+        inhaltEinheit: null,
+      },
+      // A weight does not fit an ingredient measured by volume
+      {
+        original: '1 Becher Sahne (200 g)',
+        name: 'Sahne',
+        key: 'z10',
+        menge: 1,
+        einheit: 'packung',
+        hinweis: '',
+        inhaltMenge: null,
+        inhaltEinheit: null,
+      },
+    ],
+  });
+  const rezept = await liesRezept('…', 8, [], KATALOG);
+  assert.deepEqual(
+    rezept.zeilen.map(({ zutat, menge, einheit }) => ({ zutat, menge, einheit })),
+    [
+      { zutat: { zutatId: 8 }, menge: 800, einheit: 'g' },
+      { zutat: { zutatId: 8 }, menge: 800, einheit: 'g' },
+      { zutat: { zutatId: 10 }, menge: 400, einheit: 'ml' },
+      { zutat: { zutatId: 10 }, menge: null, einheit: null },
+    ]
+  );
+});
+
+test('hints use the words of the page, never the field names of the data', async (t) => {
+  modell(t, {
+    hinweise: [
+      hinweis({
+        art: 'unvertraeglichkeit',
+        zeile: 1,
+        text: 'Spaghetti enthalten Gluten.',
+        vorschlag: 'Setze bei „nichtFuer“ Gluten, und fuerVegan bleibt.',
+      }),
+      hinweis({ text: 'Zeile mit planungZutatId 11 prüfen.' }),
+    ],
+  });
+  const { hinweise } = await pruefeGericht(GERICHT, [SPAGHETTI, HACK], KATALOG);
+  assert.equal(hinweise.length, 1);
+  assert.equal(hinweise[0].vorschlag, 'Setze bei „nicht bei“ Gluten, und vegan bleibt.');
 });
