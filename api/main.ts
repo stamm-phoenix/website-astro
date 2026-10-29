@@ -173,6 +173,12 @@ import {
   EssensplanungPackWerkzeug,
 } from './endpoints/essensplanung-packliste';
 import {
+  EssensplanungGerichtZutatenSammel,
+  EssensplanungKiPruefen,
+  EssensplanungKiRezept,
+  EssensplanungKiUmrechnung,
+} from './endpoints/essensplanung-ki';
+import {
   EditorCollection,
   EditorItem,
   EditorReview,
@@ -1380,6 +1386,34 @@ app.http('essensplanungGerichtZutat', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/gericht-zutaten/{id}',
   handler: EssensplanungGerichtZutat,
+});
+
+app.http('essensplanungGerichtZutatenSammel', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}/zutaten/sammel',
+  handler: EssensplanungGerichtZutatenSammel,
+});
+
+app.http('essensplanungKiPruefen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}/ki/pruefen',
+  handler: EssensplanungKiPruefen,
+});
+
+app.http('essensplanungKiRezept', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}/ki/rezept',
+  handler: EssensplanungKiRezept,
+});
+
+app.http('essensplanungKiUmrechnung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/ki/umrechnung',
+  handler: EssensplanungKiUmrechnung,
 });
 
 app.http('essensplanungEinplanungen', {

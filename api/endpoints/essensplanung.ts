@@ -59,13 +59,16 @@ import {
   gerichtAendern,
   gerichtAnlegen,
   gerichtLoeschen,
-  gerichtZutatAendern,
-  gerichtZutatAnlegen,
-  gerichtZutatLoeschen,
   ladeKatalog,
   planungZutatAendern,
   planungZutatLoeschen,
 } from '../lib/essen-gerichte';
+import {
+  gerichtZutatAendern,
+  gerichtZutatAnlegen,
+  gerichtZutatLoeschen,
+  readPersonen,
+} from '../lib/essen-gericht-zeilen';
 import {
   validateGericht,
   validateGerichtZutat,
@@ -462,7 +465,10 @@ export const EssensplanungGerichtZutaten = planungHandler(async (request) => {
   return ok(await ladeAnsicht(zugang), 201);
 });
 
-/** PATCH `{ etag, …the whole line, position? }`: changes or moves a line. DELETE (If-Match). */
+/**
+ * PATCH `{ etag, …the whole line, position?, personen? }`: changes or moves a line; `personen`
+ * (a proposal of the AI) must still be the dish's. DELETE (If-Match).
+ */
 export const EssensplanungGerichtZutat = planungHandler(async (request) => {
   const zugang = await zugangVon(request);
   const id = readId(request);
@@ -476,7 +482,8 @@ export const EssensplanungGerichtZutat = planungHandler(async (request) => {
     zugang,
     id,
     { ...validateGerichtZutat(body), position: readPosition(body?.position) },
-    readEtag(body, request)
+    readEtag(body, request),
+    readPersonen(body)
   );
   return ok(await ladeAnsicht(zugang));
 });

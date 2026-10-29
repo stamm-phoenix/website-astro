@@ -200,3 +200,22 @@ test('a typed name of the list is that ingredient, umlauts count', () => {
   assert.deepEqual(zutatWahl(getippteZutat(vorschlaege, 'oliven')!), { art: 'zentral', id: 3 });
   assert.deepEqual(zutatWahl(vorschlaege[0]), { art: 'planung', id: 7 });
 });
+
+test('lines taken over from a recipe read as added ingredients', () => {
+  const text = (details: Record<string, unknown>) =>
+    aenderungText({ seq: 4, at: '', wer: 'Kim', aktion: 'gericht-zutaten-neu', details });
+  assert.equal(
+    text({ gericht: 'Chili', anzahl: 1, namen: ['Zwiebeln'] }),
+    'Kim hat eine Zutat in „Chili“ hinzugefügt: Zwiebeln'
+  );
+  assert.equal(
+    text({ gericht: 'Chili', anzahl: 3, namen: ['Zwiebeln', 'Hackfleisch', 'Salz'] }),
+    'Kim hat 3 Zutaten in „Chili“ hinzugefügt: Zwiebeln, Hackfleisch, Salz'
+  );
+  // Many lines: only the number
+  assert.equal(
+    text({ gericht: 'Chili', anzahl: 12, namen: ['Zwiebeln', 'Hackfleisch'] }),
+    'Kim hat 12 Zutaten in „Chili“ hinzugefügt'
+  );
+  assert.equal(text({ gericht: 'Chili', anzahl: 2 }), 'Kim hat 2 Zutaten in „Chili“ hinzugefügt');
+});

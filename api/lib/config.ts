@@ -196,6 +196,16 @@ export interface ApiConfig {
   essensplanung: {
     /** Mailbox the confirmations, invitations and links are sent from. */
     sender: string;
+    /**
+     * Azure OpenAI model for checking dishes, reading recipes and estimating grams (key shared
+     * with the receipt check). No daily limit: the quota of the deployment answers with 429,
+     * which the page shows as „KI gerade nicht verfügbar“. Empty endpoint or deployment: off.
+     */
+    ki: {
+      endpoint: string;
+      deployment: string;
+      reasoningEffort?: 'low' | 'medium' | 'high';
+    };
   };
   /** Abstimmungen and Terminfindung (`docs/abstimmungen.md`). */
   abstimmungen: {
@@ -423,6 +433,12 @@ export const CONFIG: ApiConfig = {
   },
   essensplanung: {
     sender: 'kontakt@stamm-phoenix.de',
+    // The deployment of the receipt check (Data Zone Standard, EU); the questions are short
+    ki: {
+      endpoint: AZURE_OPENAI.endpoint,
+      deployment: 'gpt-6.1-sol-datazone',
+      reasoningEffort: 'low',
+    },
   },
   abstimmungen: {
     sender: 'kontakt@stamm-phoenix.de',
