@@ -121,6 +121,9 @@ export interface Database {
   'essen.teilnehmende': EssenTeilnehmendeTable;
   'essen.teilnehmende_unvertraeglichkeit': EssenTeilnehmendeUnvertraeglichkeitTable;
   'essen.mahlzeit_ohne_gruppe': EssenMahlzeitOhneGruppeTable;
+  'essen.geschaeft': EssenGeschaeftTable;
+  'essen.bestand': EssenPostenTable;
+  'essen.zusatzbedarf': EssenPostenTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -1063,6 +1066,8 @@ export interface EssenPlanungZutatTable {
   einheitenart: EssenEinheitenart | null;
   vegetarisch: boolean | null;
   vegan: boolean | null;
+  /** Where it is bought; null: no shop yet. */
+  geschaeft_id: Generated<number | null>;
 }
 
 export interface EssenPlanungZutatUnvertraeglichkeitTable {
@@ -1149,6 +1154,26 @@ export interface EssenTeilnehmendeUnvertraeglichkeitTable {
 export interface EssenMahlzeitOhneGruppeTable {
   mahlzeit_id: number;
   gruppe_id: number;
+}
+
+export interface EssenGeschaeftTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  position: number;
+  name: string;
+}
+
+/** `essen.bestand` and `essen.zusatzbedarf`: an amount of an ingredient of the Planung. */
+export interface EssenPostenTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  planung_zutat_id: number;
+  /** decimal(12, 3). */
+  menge: number;
+  einheit: GerichtEinheit;
+  hinweis: Generated<string>;
 }
 
 export interface EssenAenderungTable {

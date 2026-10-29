@@ -31,6 +31,7 @@ export interface MockPlanungZutat {
   vegetarisch: boolean | null;
   vegan: boolean | null;
   allergene: number[];
+  geschaeftId: number | null;
 }
 
 const collator = new Intl.Collator('de', { sensitivity: 'base', numeric: true });
@@ -45,6 +46,15 @@ const konflikt = () =>
   new MockPlanungFehler(409, 'CONFLICT', 'Jemand anderes hat das gerade geändert.');
 const nichtGefunden = () =>
   new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');
+
+/** The lines of dishes, stock and extra needs that use an ingredient, with their unit. */
+function nutzungen(planung: MockPlanung, id: number): { einheit: GerichtZutat['einheit'] }[] {
+  return [
+    ...planung.gerichte.flatMap((g) => g.zutaten),
+    ...planung.bestand,
+    ...planung.zusatzbedarf,
+  ].filter((nutzung) => nutzung.planungZutatId === id);
+}
 
 function wirksam(planung: MockPlanung, zutat: MockPlanungZutat): PlanungZutat {
   const zentral = zutat.zutatId
@@ -66,8 +76,8 @@ function wirksam(planung: MockPlanung, zutat: MockPlanungZutat): PlanungZutat {
       kategorie: Boolean(zentral) && zutat.kategorieId !== null,
       einheitenart: Boolean(zentral) && zutat.einheitenart !== null,
     },
-    zeilen: planung.gerichte.flatMap((g) => g.zutaten).filter((z) => z.planungZutatId === zutat.id)
-      .length,
+    zeilen: nutzungen(planung, zutat.id).length,
+    geschaeftId: zutat.geschaeftId,
   };
 }
 
@@ -114,6 +124,7 @@ export function eigeneZutatAnlegen(z: MockZugang, input: PlanungZutatInput): num
       vegetarisch: input.vegetarisch ?? null,
       vegan: input.vegan ?? null,
       allergene: input.allergene ?? [],
+      geschaeftId: null,
     });
   });
   return id;
@@ -127,13 +138,10 @@ export function planungZutatAendern(z: MockZugang, id: number, body: unknown, if
     ? essenKatalog().zutaten.find((entry) => entry.id === zutat.zutatId)
     : undefined;
   const art = input.einheitenart ?? zentral?.einheitenart;
-  const zeilen = z.planung.gerichte
-    .flatMap((g) => g.zutaten)
-    .filter((l) => l.planungZutatId === id);
-  if (art && zeilen.some((zeile) => !einheitPasst(art, zeile.einheit)))
+  if (art && nutzungen(z.planung, id).some((zeile) => !einheitPasst(art, zeile.einheit)))
     throw feld(
       'einheitenart',
-      'Gerichte nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Zeilen.'
+      'Gerichte, Bestand oder Zusatzbedarf nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.'
     );
   aendere(z, 'zutat-geaendert', { name: input.name ?? zentral?.name }, () => {
     Object.assign(
@@ -156,25 +164,33 @@ export function planungZutatAendern(z: MockZugang, id: number, body: unknown, if
 export function planungZutatLoeschen(z: MockZugang, id: number, ifMatch: unknown) {
   const zutat = zutatVon(z, id);
   if (zutat.etag !== ifMatch) throw konflikt();
-  if (z.planung.gerichte.some((g) => g.zutaten.some((l) => l.planungZutatId === id)))
-    throw feld('name', 'Gerichte nutzen diese Zutat noch. Entferne sie zuerst dort.');
+  if (nutzungen(z.planung, id).length)
+    throw feld(
+      'name',
+      'Gerichte, Bestand oder Zusatzbedarf nutzen diese Zutat noch. Entferne sie zuerst dort.'
+    );
   aendere(z, 'zutat-geloescht', { name: wirksam(z.planung, zutat).name }, () => {
     z.planung.zutaten.splice(z.planung.zutaten.indexOf(zutat), 1);
   });
 }
 
-function zutatFuerZeile(z: MockZugang, zutat: GerichtZutatInput['zutat']): PlanungZutat {
+/** Like `zutatDerPlanungFuer`: dishes take only food, stock and extra needs anything. */
+export function zutatFuer(
+  z: MockZugang,
+  zutat: GerichtZutatInput['zutat'],
+  { lebensmittel }: { lebensmittel: boolean }
+): PlanungZutat {
   if ('planungZutatId' in zutat) {
     const vorhanden = z.planung.zutaten.find((entry) => entry.id === zutat.planungZutatId);
     if (!vorhanden) throw feld('zutat', 'Bitte eine Zutat wählen.');
     const wirksame = wirksam(z.planung, vorhanden);
-    if (!wirksame.lebensmittel)
+    if (lebensmittel && !wirksame.lebensmittel)
       throw feld('zutat', `${wirksame.name} ist kein Lebensmittel und gehört in kein Gericht.`);
     return wirksame;
   }
   const zentral = essenKatalog().zutaten.find((entry) => entry.id === zutat.zutatId);
   if (!zentral) throw feld('zutat', 'Bitte eine Zutat wählen.');
-  if (!zentral.lebensmittel)
+  if (lebensmittel && !zentral.lebensmittel)
     throw feld('zutat', `${zentral.name} ist kein Lebensmittel und gehört in kein Gericht.`);
   let eintrag = z.planung.zutaten.find((entry) => entry.zutatId === zentral.id);
   if (!eintrag) {
@@ -188,6 +204,7 @@ function zutatFuerZeile(z: MockZugang, zutat: GerichtZutatInput['zutat']): Planu
       vegetarisch: null,
       vegan: null,
       allergene: [],
+      geschaeftId: null,
     };
     z.planung.zutaten.push(eintrag);
   }
@@ -306,7 +323,7 @@ export function gerichtZutatAnlegen(
   const gericht = gerichtVon(z, gerichtId);
   if (gericht.zutaten.length >= MAX_ZEILEN_PRO_GERICHT)
     throw feld('zutat', `Ein Gericht hat höchstens ${MAX_ZEILEN_PRO_GERICHT} Zutaten.`);
-  const zutat = zutatFuerZeile(z, input.zutat);
+  const zutat = zutatFuer(z, input.zutat, { lebensmittel: true });
   const werte = zeileAus(input, zutat);
   aendere(z, 'gericht-zutat-neu', { name: zutat.name, gericht: gericht.name }, () => {
     const zeile: GerichtZutat = {
@@ -339,7 +356,7 @@ export function gerichtZutatAendern(
     });
     return;
   }
-  const zutat = zutatFuerZeile(z, input.zutat);
+  const zutat = zutatFuer(z, input.zutat, { lebensmittel: true });
   const werte = zeileAus(input, zutat);
   aendere(z, 'gericht-zutat-geaendert', { name: zutat.name, gericht: gericht.name }, () => {
     Object.assign(zeile, werte, { etag: neuesEtag() });

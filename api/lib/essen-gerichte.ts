@@ -1,8 +1,6 @@
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
-import type { Transaction } from 'kysely';
 import type { Db } from './db';
-import type { Database } from './db-schema';
 import {
   RecordNotFoundError,
   VersionConflictError,
@@ -27,7 +25,6 @@ import {
   einheitPasst,
   gerichtSperre,
   gerichtStand,
-  zutatSperre,
 } from './essen-gerichte-model';
 import type {
   GerichtInput,
@@ -42,6 +39,7 @@ import { listKategorien, listUnvertraeglichkeiten, listZutaten } from './essen-s
 import type { EssenEinheitenart } from './essen-validation';
 import { COLLATOR } from './essen-validation';
 import { ValidationError } from './validation/errors';
+import { zutatDerPlanung, zutatDerPlanungFuer } from './essen-planung-zutat';
 
 /**
  * Dishes of a Planung and the ingredients they use (`docs/essensplanung.md`, „Gerichte“). Every
@@ -145,9 +143,12 @@ export async function ladeGerichte(
             select pzu.unvertraeglichkeit_id from essen.planung_zutat_unvertraeglichkeit pzu
               where pzu.planung_zutat_id = pz.id
           ) x)`.as('allergen_ids'),
-        sql<number>`(select count(*) from essen.gericht_zutat gz where gz.planung_zutat_id = pz.id)`.as(
+        sql<number>`(select count(*) from essen.gericht_zutat gz where gz.planung_zutat_id = pz.id)
+          + (select count(*) from essen.bestand b where b.planung_zutat_id = pz.id)
+          + (select count(*) from essen.zusatzbedarf zb where zb.planung_zutat_id = pz.id)`.as(
           'zeilen'
         ),
+        'pz.geschaeft_id',
       ])
       .where('pz.planung_id', '=', planungId)
       .execute(),
@@ -216,6 +217,7 @@ export async function ladeGerichte(
             einheitenart: zentral && row.einheitenart !== null,
           },
           zeilen: Number(row.zeilen),
+          geschaeftId: row.geschaeft_id,
         };
       })
       .sort((a, b) => COLLATOR.compare(a.name, b.name)),
@@ -347,26 +349,6 @@ export async function eigeneZutatAnlegen(
   );
 }
 
-async function zutatDerPlanung(trx: Db, zugang: Zugang, id: number) {
-  const zutat = await trx
-    .selectFrom('essen.planung_zutat as pz')
-    .leftJoin('essen.zutat as z', 'z.id', 'pz.zutat_id')
-    .select([
-      'pz.id',
-      'pz.zutat_id',
-      'pz.name',
-      'pz.einheitenart',
-      'z.name as z_name',
-      'z.einheitenart as z_einheitenart',
-      'z.lebensmittel as z_lebensmittel',
-    ])
-    .where('pz.id', '=', id)
-    .where('pz.planung_id', '=', zugang.planungId)
-    .executeTakeFirst();
-  if (!zutat) throw new RecordNotFoundError();
-  return zutat;
-}
-
 /**
  * Changes an ingredient of the Planung: all fields of one of its own, or the differences of a
  * central one. The kind of unit stays while lines use the ingredient with an amount.
@@ -411,16 +393,28 @@ export async function planungZutatAendern(
 }
 
 async function pruefeEinheitenart(trx: Db, planungZutatId: number, art: EssenEinheitenart) {
-  const zeilen = await trx
-    .selectFrom('essen.gericht_zutat')
-    .select('einheit')
-    .where('planung_zutat_id', '=', planungZutatId)
-    .where('einheit', 'is not', null)
-    .execute();
-  if (zeilen.some((zeile) => !einheitPasst(art, zeile.einheit))) {
+  const [zeilen, bestand, zusatzbedarf] = await Promise.all([
+    trx
+      .selectFrom('essen.gericht_zutat')
+      .select('einheit')
+      .where('planung_zutat_id', '=', planungZutatId)
+      .where('einheit', 'is not', null)
+      .execute(),
+    trx
+      .selectFrom('essen.bestand')
+      .select('einheit')
+      .where('planung_zutat_id', '=', planungZutatId)
+      .execute(),
+    trx
+      .selectFrom('essen.zusatzbedarf')
+      .select('einheit')
+      .where('planung_zutat_id', '=', planungZutatId)
+      .execute(),
+  ]);
+  if ([...zeilen, ...bestand, ...zusatzbedarf].some((zeile) => !einheitPasst(art, zeile.einheit))) {
     throw new ValidationError({
       einheitenart:
-        'Gerichte nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Zeilen.',
+        'Gerichte, Bestand oder Zusatzbedarf nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.',
     });
   }
 }
@@ -444,72 +438,11 @@ export async function planungZutatLoeschen(
     } catch (error: unknown) {
       if (getSqlErrorNumber(error) !== 547) throw error;
       throw new ValidationError({
-        name: 'Gerichte nutzen diese Zutat noch. Entferne sie zuerst dort.',
+        name: 'Gerichte, Bestand oder Zusatzbedarf nutzen diese Zutat noch. Entferne sie zuerst dort.',
       });
     }
     return { result: undefined, details: { name: zutat.name ?? zutat.z_name } };
   });
-}
-
-const keinLebensmittel = (name: string) =>
-  new ValidationError({ zutat: `${name} ist kein Lebensmittel und gehört in kein Gericht.` });
-
-/**
- * The ingredient of the Planung a line uses: one of its own, or a central one, which then
- * becomes an ingredient of the Planung. Things that are not food belong to no dish.
- */
-async function zutatFuerZeile(
-  trx: Transaction<Database>,
-  zugang: Zugang,
-  zutat: GerichtZutatInput['zutat']
-): Promise<{ id: number; name: string; einheitenart: EssenEinheitenart }> {
-  if ('planungZutatId' in zutat) {
-    const row = await zutatDerPlanung(trx, zugang, zutat.planungZutatId).catch(() => null);
-    if (!row) throw new ValidationError({ zutat: 'Bitte eine Zutat wählen.' });
-    // The Steuerung may have marked a central ingredient as not food since it was first used
-    if (row.zutat_id !== null && !row.z_lebensmittel) throw keinLebensmittel(row.z_name ?? '');
-    // The kind of unit inherited from the central list stays until the line is saved
-    if (row.zutat_id !== null && row.einheitenart === null) {
-      await lockResource(trx, zutatSperre(row.zutat_id));
-    }
-    return {
-      id: row.id,
-      name: (row.name ?? row.z_name)!,
-      einheitenart: (row.einheitenart ?? row.z_einheitenart)!,
-    };
-  }
-  await lockResource(trx, zutatSperre(zutat.zutatId));
-  const zentral = await trx
-    .selectFrom('essen.zutat')
-    .select(['id', 'name', 'einheitenart', 'lebensmittel'])
-    .where('id', '=', zutat.zutatId)
-    .executeTakeFirst();
-  if (!zentral) throw new ValidationError({ zutat: 'Bitte eine Zutat wählen.' });
-  if (!zentral.lebensmittel) throw keinLebensmittel(zentral.name);
-  const vorhanden = await trx
-    .selectFrom('essen.planung_zutat')
-    .select(['id', 'einheitenart'])
-    .where('planung_id', '=', zugang.planungId)
-    .where('zutat_id', '=', zentral.id)
-    .executeTakeFirst();
-  if (vorhanden) {
-    return {
-      id: vorhanden.id,
-      name: zentral.name,
-      einheitenart: vorhanden.einheitenart ?? zentral.einheitenart,
-    };
-  }
-  if ((await zaehle(trx, 'essen.planung_zutat', zugang.planungId)) >= MAX_PLANUNG_ZUTATEN) {
-    throw new ValidationError({
-      zutat: `Eine Planung hat höchstens ${MAX_PLANUNG_ZUTATEN} Zutaten.`,
-    });
-  }
-  const { id } = await trx
-    .insertInto('essen.planung_zutat')
-    .values({ planung_id: zugang.planungId, zutat_id: zentral.id })
-    .output('inserted.id')
-    .executeTakeFirstOrThrow();
-  return { id, name: zentral.name, einheitenart: zentral.einheitenart };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -737,7 +670,7 @@ export async function gerichtZutatAnlegen(
         zutat: `Ein Gericht hat höchstens ${MAX_ZEILEN_PRO_GERICHT} Zutaten.`,
       });
     }
-    const zutat = await zutatFuerZeile(trx, zugang, input.zutat);
+    const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: true });
     pruefeEinheit(zutat, input);
     const { id } = await trx
       .insertInto('essen.gericht_zutat')
@@ -776,7 +709,7 @@ export async function gerichtZutatAendern(
   await aendere(zugang, 'gericht-zutat-geaendert', async (trx) => {
     const zeile = await zeileDerPlanung(trx, zugang, id);
     await lockResource(trx, gerichtSperre(zeile.gericht_id));
-    const zutat = await zutatFuerZeile(trx, zugang, input.zutat);
+    const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: true });
     pruefeEinheit(zutat, input);
     const result = await trx
       .updateTable('essen.gericht_zutat')

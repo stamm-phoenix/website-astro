@@ -1,5 +1,6 @@
 import type { Gericht, PlanungZutat } from './essen-gerichte-model';
 import type { z } from 'zod';
+import type { EinkaufPosten, Geschaeft } from './essen-einkauf-model';
 import type { PlanungGruppe, Teilnehmende } from './essen-teilnehmende-model';
 import { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor } from './essen-planung-faktor';
 import { MAX_TAGE, addDays, daysBetween, loeschDatum, readDatum } from './essen-planung-datum';
@@ -134,6 +135,12 @@ export interface PlanungAnsicht {
   gruppen: PlanungGruppe[];
   /** Rows of participants, by group and diet. */
   teilnehmende: Teilnehmende[];
+  /** Shops in their order. */
+  geschaefte: Geschaeft[];
+  /** What is there before the Aktion. */
+  bestand: EinkaufPosten[];
+  /** What is needed without a dish. */
+  zusatzbedarf: EinkaufPosten[];
 }
 
 /** Whether `zugang` may change the plan (days, meals, later dishes). */
@@ -252,4 +259,14 @@ export const AENDERUNG_TEXTE: Record<string, string> = {
   'teilnehmende-geaendert': 'Teilnehmende geändert',
   'teilnehmende-geloescht': 'Teilnehmende entfernt',
   'mahlzeit-gruppen': 'Gruppen einer Mahlzeit geändert',
+  'geschaeft-neu': 'Geschäft angelegt',
+  'geschaeft-geaendert': 'Geschäft geändert',
+  'geschaeft-geloescht': 'Geschäft gelöscht',
+  'zutat-geschaeft': 'Geschäft einer Zutat geändert',
+  'bestand-neu': 'Bestand eingetragen',
+  'bestand-geaendert': 'Bestand geändert',
+  'bestand-geloescht': 'Bestand entfernt',
+  'zusatzbedarf-neu': 'Zusatzbedarf eingetragen',
+  'zusatzbedarf-geaendert': 'Zusatzbedarf geändert',
+  'zusatzbedarf-geloescht': 'Zusatzbedarf entfernt',
 };

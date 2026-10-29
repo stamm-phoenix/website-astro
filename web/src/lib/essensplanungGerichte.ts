@@ -39,12 +39,17 @@ export function zeileBody(zeile: GerichtZutat) {
 }
 
 /** Keys of the suggestions: `p:<id>` for ingredients of the Planung, `z:<id>` for the list. */
-export function zutatVorschlaege(katalog: EssenKatalog, zutaten: PlanungZutat[]): Vorschlag[] {
+export function zutatVorschlaege(
+  katalog: EssenKatalog,
+  zutaten: PlanungZutat[],
+  /** Dishes take only food; stock and extra needs take dish soap too. */
+  { nurLebensmittel = true }: { nurLebensmittel?: boolean } = {}
+): Vorschlag[] {
   const kategorie = new Map(katalog.kategorien.map((k) => [k.id, k.name]));
   const genutzt = new Set(zutaten.map((z) => z.zutatId).filter((id) => id !== null));
   return [
     ...zutaten
-      .filter((zutat) => zutat.lebensmittel)
+      .filter((zutat) => zutat.lebensmittel || !nurLebensmittel)
       .map((zutat) => ({
         key: `p:${zutat.id}`,
         value: zutat.name,
@@ -53,7 +58,7 @@ export function zutatVorschlaege(katalog: EssenKatalog, zutaten: PlanungZutat[])
         search: kategorie.get(zutat.kategorieId),
       })),
     ...katalog.zutaten
-      .filter((zutat) => zutat.lebensmittel && !genutzt.has(zutat.id))
+      .filter((zutat) => (zutat.lebensmittel || !nurLebensmittel) && !genutzt.has(zutat.id))
       .map((zutat) => ({
         key: `z:${zutat.id}`,
         value: zutat.name,

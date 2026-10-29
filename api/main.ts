@@ -159,6 +159,15 @@ import {
   EssensplanungMahlzeitGruppe,
 } from './endpoints/essensplanung';
 import {
+  EssensplanungBestand,
+  EssensplanungBestandListe,
+  EssensplanungGeschaeft,
+  EssensplanungGeschaefte,
+  EssensplanungZusatzbedarf,
+  EssensplanungZusatzbedarfListe,
+  EssensplanungZutatGeschaeft,
+} from './endpoints/essensplanung-einkauf';
+import {
   EditorCollection,
   EditorItem,
   EditorReview,
@@ -1401,6 +1410,55 @@ app.http('essensplanungGruppe', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/gruppen/{id}',
   handler: EssensplanungGruppe,
+});
+
+app.http('essensplanungGeschaefte', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/geschaefte',
+  handler: EssensplanungGeschaefte,
+});
+
+app.http('essensplanungGeschaeft', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/geschaefte/{id}',
+  handler: EssensplanungGeschaeft,
+});
+
+app.http('essensplanungZutatGeschaeft', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zutaten/{id}/geschaeft',
+  handler: EssensplanungZutatGeschaeft,
+});
+
+app.http('essensplanungBestandListe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/bestand',
+  handler: EssensplanungBestandListe,
+});
+
+app.http('essensplanungBestand', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/bestand/{id}',
+  handler: EssensplanungBestand,
+});
+
+app.http('essensplanungZusatzbedarfListe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zusatzbedarf',
+  handler: EssensplanungZusatzbedarfListe,
+});
+
+app.http('essensplanungZusatzbedarf', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zusatzbedarf/{id}',
+  handler: EssensplanungZusatzbedarf,
 });
 
 app.http('essensplanungTeilnehmendeListe', {
