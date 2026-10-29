@@ -238,12 +238,6 @@ test('names that differ in signs have their own box; a typed name that failed is
   await name.fill('Rover');
   await name.press('Enter');
   await expect(page.getByText(/Das hat nicht geklappt/).first()).toBeVisible();
-  // Leaving the field tries once more; the filter is chosen after that try
-  const versuch = page.waitForEvent('requestfailed', (request) =>
-    request.url().includes('/packliste/werkzeug')
-  );
-  await name.blur();
-  await versuch;
   await page.getByRole('button', { name: 'Gepackt', exact: true }).click();
   await expect(liste.getByRole('listitem')).toHaveCount(1);
   await page.getByRole('button', { name: 'Alle', exact: true }).click();

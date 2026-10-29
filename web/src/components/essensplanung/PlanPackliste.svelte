@@ -57,6 +57,7 @@
       if (entwurf) entwurfSetzen(key, { ...entwurf, ...felder });
     };
     return {
+      lesen: () => entwuerfe[key],
       oeffnen: (text: string, etag: string | null) =>
         entwurfSetzen(key, { text, etag, gesendet: null, konflikt: false }),
       tippen: (text: string) => aendern({ text }),

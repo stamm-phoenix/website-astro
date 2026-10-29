@@ -2,6 +2,7 @@
   import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { ApiError } from '../../lib/api';
+  import { nachDemTippen } from '../../lib/nachDemTippen';
   import { confirmAction } from '../../lib/confirm';
   import {
     freiName,
@@ -27,6 +28,8 @@
     entwurf: PackEntwurf | null;
     /** Changes the draft, which the list keeps by row key. */
     aktionen: {
+      /** The current draft, also for a save that ends after this row was hidden. */
+      lesen: () => PackEntwurf | undefined;
       oeffnen: (text: string, etag: string | null) => void;
       tippen: (text: string) => void;
       verwerfen: () => void;
@@ -115,7 +118,8 @@
    * was. After a conflict only Enter (`bewusst`) saves it over the new state.
    */
   async function textSpeichern(bewusst: boolean): Promise<void> {
-    if (entwurf === null || entwurf.gesendet !== null) return;
+    const entwurf = aktionen.lesen();
+    if (!entwurf || entwurf.gesendet !== null) return;
     if (entwurf.konflikt && !bewusst) return;
     const text = freiName(entwurf.text);
     if (!entwurf.konflikt && zeile.zustaendigId === null && text === zeile.zustaendig) {
@@ -231,7 +235,7 @@
               void textSpeichern(true);
             } else if (event.key === 'Escape') aktionen.verwerfen();
           }}
-          onblur={() => void textSpeichern(false)}
+          onblur={() => nachDemTippen(() => void textSpeichern(false))}
         />
       {:else}
         <select
