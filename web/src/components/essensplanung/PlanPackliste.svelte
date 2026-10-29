@@ -1,6 +1,8 @@
 <script lang="ts">
   import FilterTabs from '../ui/FilterTabs.svelte';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
+    entwurfOffen,
     gefiltert,
     packliste,
     packlisteDruck,
@@ -24,6 +26,17 @@
   const bearbeiten = $derived(ansicht.zugang !== 'lesen' && !ansicht.wartung);
 
   const zeilen = $derived(packliste(ansicht));
+  /**
+   * Free names typed at rows, by row key. Kept here, so a filter that hides a row or the switch
+   * to read-only (maintenance) does not drop what is typed; leaving asks while one is unsaved.
+   */
+  let entwuerfe = $state<Record<string, string>>({});
+  $effect(() => guardUnsavedChanges(() => entwurfOffen(entwuerfe, zeilen)));
+  function entwurfSetzen(key: string, text: string | null): void {
+    if (text === null) {
+      entwuerfe = Object.fromEntries(Object.entries(entwuerfe).filter(([k]) => k !== key));
+    } else entwuerfe = { ...entwuerfe, [key]: text };
+  }
   let filter = $state<PackFilter>('alle');
   const sichtbar = $derived(gefiltert(zeilen, filter, ansicht.ichId));
   const filterOptionen = $derived([
@@ -67,7 +80,13 @@
     {#if sichtbar.length}
       <ul class="divide-y divide-neutral-200 border-y border-neutral-200" aria-label="Packliste">
         {#each sichtbar as zeile (zeile.key)}
-          <PackZeile {kontext} {zeile} {bearbeiten} />
+          <PackZeile
+            {kontext}
+            {zeile}
+            {bearbeiten}
+            entwurf={entwuerfe[zeile.key] ?? null}
+            onentwurf={(text) => entwurfSetzen(zeile.key, text)}
+          />
         {/each}
       </ul>
     {:else}

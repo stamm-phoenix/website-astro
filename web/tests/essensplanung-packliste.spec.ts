@@ -25,13 +25,16 @@ async function senden<T = Ansicht>(
 }
 
 /** Dishes with tools, planned at lunch on both days; the waffles are not planned. */
-async function gerichteMitWerkzeugen(page: Page): Promise<void> {
+const GERICHTE: [string, string[]][] = [
+  ['Chili', ['Großer Topf', 'Kochlöffel']],
+  ['Suppe', [' großer  TOPF', 'Pürierstab']],
+  ['Waffeln', ['Waffeleisen']],
+];
+
+/** Creates the dishes; Chili at lunch on both days and Suppe on the first, the rest unplanned. */
+async function gerichteMitWerkzeugen(page: Page, gerichte = GERICHTE): Promise<void> {
   const ids: Record<string, number> = {};
-  for (const [name, werkzeuge] of [
-    ['Chili', ['Großer Topf', 'Kochlöffel']],
-    ['Suppe', [' großer  TOPF', 'Pürierstab']],
-    ['Waffeln', ['Waffeleisen']],
-  ] as const) {
+  for (const [name, werkzeuge] of gerichte) {
     ids[name] = (
       await senden<{ id: number }>(page, 'POST', '/gerichte', {
         name,
@@ -177,4 +180,49 @@ test('two people pack at once; the read-only link shows the list without changin
   await expect(leser.getByLabel('Noch etwas einpacken')).toHaveCount(0);
   await expect(leser.getByRole('button', { name: 'Packliste als PDF' })).toBeVisible();
   await leser.context().close();
+});
+
+test('names that differ in signs have their own box; a typed name that failed is kept', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E Packliste Zeichen');
+  await gerichteMitWerkzeugen(page, [
+    ['Chili', ['Grill-Zange']],
+    ['Suppe', ['Grill Zange']],
+  ]);
+  const liste = page.getByRole('list', { name: 'Packliste' });
+  await expect(liste.getByRole('listitem')).toHaveCount(2);
+
+  // The label of the one row ticks its own box
+  await liste.getByText('Grill Zange', { exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: 'Grill Zange', exact: true })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Grill-Zange', exact: true })).not.toBeChecked();
+  await expect(page.getByText('Grill Zange ist eingepackt.').first()).toBeVisible();
+
+  // A free name whose save failed stays, also when a filter hides its row for a while
+  await page.route('**/api/essensplanung/planung/packliste/werkzeug', (route) => route.abort());
+  await page.getByLabel('Wer packt Grill-Zange ein?').selectOption({ label: 'Anderer Name …' });
+  const name = page.getByRole('textbox', { name: 'Wer packt Grill-Zange ein?' });
+  await name.fill('Rover');
+  await name.press('Enter');
+  await expect(page.getByText(/Das hat nicht geklappt/).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Gepackt', exact: true }).click();
+  await expect(liste.getByRole('listitem')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Alle', exact: true }).click();
+  await expect(name).toHaveValue('Rover');
+
+  // Leaving asks first
+  await page.getByRole('link', { name: 'Impressum' }).first().click();
+  const frage = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await expect(frage).toBeVisible();
+  await frage.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await expect(name).toHaveValue('Rover');
+
+  // Saved, it asks no more
+  await page.unroute('**/api/essensplanung/planung/packliste/werkzeug');
+  await name.press('Enter');
+  await expect(page.getByText('Rover packt Grill-Zange ein.').first()).toBeVisible();
+  await expect(page.getByLabel('Wer packt Grill-Zange ein?')).toHaveValue('text');
+  await page.getByRole('link', { name: 'Impressum' }).first().click();
+  await expect(page).toHaveURL(/impressum/);
 });

@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { aenderungText } from '../src/lib/essensplanung.ts';
 import {
+  entwurfOffen,
   fuerText,
   gefiltert,
   packliste,
+  packId,
   packlisteDruck,
+  zustaendigWahl,
 } from '../src/lib/essensplanungPackliste.ts';
 import type { Gericht, PacklisteEintrag, PlanungAnsicht } from '../src/lib/types.ts';
 
@@ -177,4 +180,49 @@ test('changes of the packing list say what happened', () => {
     text('packliste-neu', { name: 'Gaskocher' }),
     'Kim hat etwas auf die Packliste gesetzt: Gaskocher'
   );
+});
+
+test('rows whose names differ only in signs get their own ids', () => {
+  const zeilen = packliste({
+    ...ansicht(),
+    gerichte: [gericht(1, 'Chili', ['Grill-Zange']), gericht(2, 'Suppe', ['Grill Zange'])],
+  });
+  assert.deepEqual(
+    zeilen.map((zeile) => zeile.key),
+    ['w:grill zange', 'w:grill-zange']
+  );
+  const ids = zeilen.map((zeile) => packId(zeile.key));
+  assert.notEqual(ids[0], ids[1]);
+  // Usable as one token of aria-describedby
+  for (const id of ids) assert.doesNotMatch(id, /\s/);
+});
+
+test('the member responsible stays a choice after losing access, also when the view lacks them', () => {
+  const mitglieder = [
+    { id: 1, name: 'Kim', entzogen: false },
+    { id: 2, name: 'Ben', entzogen: true },
+  ];
+  assert.deepEqual(zustaendigWahl(mitglieder, { zustaendigId: null, zustaendig: '' }), [
+    { id: 1, name: 'Kim' },
+  ]);
+  assert.deepEqual(zustaendigWahl(mitglieder, { zustaendigId: 2, zustaendig: 'Ben' }), [
+    { id: 1, name: 'Kim' },
+    { id: 2, name: 'Ben' },
+  ]);
+  // Those who do not manage the members get no removed ones in the view
+  assert.deepEqual(zustaendigWahl([mitglieder[0]], { zustaendigId: 2, zustaendig: 'Ben' }), [
+    { id: 1, name: 'Kim' },
+    { id: 2, name: 'Ben' },
+  ]);
+});
+
+test('a typed free name is unsaved until the row shows it', () => {
+  const zeilen = packliste(
+    ansicht([eintrag({ id: 7, werkzeug: 'kochlöffel', name: 'Kochlöffel', zustaendig: 'Rover' })])
+  );
+  assert.equal(entwurfOffen({}, zeilen), false);
+  // Opened without typing, or typed as saved
+  assert.equal(entwurfOffen({ 'w:kochlöffel': ' Rover ', 'w:pürierstab': '' }, zeilen), false);
+  assert.equal(entwurfOffen({ 'w:kochlöffel': 'Rover und Wö' }, zeilen), true);
+  assert.equal(entwurfOffen({ 'w:pürierstab': 'Kim' }, zeilen), true);
 });

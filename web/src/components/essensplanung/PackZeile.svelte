@@ -3,32 +3,38 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
-  import { fuerText, type PackZeile } from '../../lib/essensplanungPackliste';
+  import {
+    freiName,
+    fuerText,
+    packId,
+    zustaendigWahl,
+    type PackZeile,
+  } from '../../lib/essensplanungPackliste';
   import type { PlanKontext } from './planKontext';
 
   /**
    * One thing on the packing list. The box packs it, the choice next to it says who packs it;
-   * both save at once, on the version the row was shown with.
+   * both save at once, on the version the row was shown with. A free name being typed lives in
+   * the list (`entwurf`), so it survives a filter that hides the row or a switch to read-only.
    */
 
   interface Props {
     kontext: PlanKontext;
     zeile: PackZeile;
     bearbeiten: boolean;
+    /** A free name being typed; the field shows instead of the choice. null: none. */
+    entwurf: string | null;
+    onentwurf: (text: string | null) => void;
   }
-  let { kontext, zeile, bearbeiten }: Props = $props();
+  let { kontext, zeile, bearbeiten, entwurf, onentwurf }: Props = $props();
 
   let speichert = $state(false);
-  /** A free name is being typed; the field shows instead of the choice. */
-  let freitext = $state<string | null>(null);
   let textFeld = $state<HTMLInputElement | null>(null);
 
-  const id = $derived(`pack-${zeile.key.replace(/\W/g, '-')}`);
+  const id = $derived(packId(zeile.key));
   const fuer = $derived(fuerText(zeile));
   /** Members to choose; one without access only while responsible. */
-  const mitglieder = $derived(
-    kontext.ansicht.mitglieder.filter((m) => !m.entzogen || m.id === zeile.zustaendigId)
-  );
+  const mitglieder = $derived(zustaendigWahl(kontext.ansicht.mitglieder, zeile));
   const auswahl = $derived(
     zeile.zustaendigId !== null ? `m:${zeile.zustaendigId}` : zeile.zustaendig ? 'text' : ''
   );
@@ -77,7 +83,7 @@
   async function waehlen(feld: HTMLSelectElement): Promise<void> {
     const wert = feld.value;
     if (wert === 'neu') {
-      freitext = zeile.zustaendigId === null ? zeile.zustaendig : '';
+      onentwurf(zeile.zustaendigId === null ? zeile.zustaendig : '');
       feld.value = auswahl;
       await tick();
       textFeld?.focus();
@@ -94,10 +100,10 @@
 
   /** Saves the typed name when it changed; Escape leaves it as it was. */
   async function textSpeichern(): Promise<void> {
-    if (freitext === null || speichert) return;
-    const text = freitext.trim().replace(/\s+/g, ' ');
+    if (entwurf === null || speichert) return;
+    const text = freiName(entwurf);
     if (zeile.zustaendigId === null && text === zeile.zustaendig) {
-      freitext = null;
+      onentwurf(null);
       return;
     }
     const ok = await senden(
@@ -105,7 +111,7 @@
       text ? `${text} packt ${zeile.name} ein.` : `Für ${zeile.name} ist niemand mehr zuständig.`
     );
     // Not saved: the field keeps the name, so it can be sent once more
-    if (ok) freitext = null;
+    if (ok) onentwurf(null);
   }
 
   async function entfernen(): Promise<void> {
@@ -162,10 +168,11 @@
   </div>
   {#if bearbeiten}
     <div class="flex flex-wrap items-center gap-1">
-      {#if freitext !== null}
+      {#if entwurf !== null}
         <input
           bind:this={textFeld}
-          bind:value={freitext}
+          value={entwurf}
+          oninput={(event) => onentwurf(event.currentTarget.value)}
           class="form-input min-h-11 w-40 py-1 text-sm"
           aria-label="Wer packt {zeile.name} ein?"
           placeholder="Name, z. B. Rover"
@@ -175,7 +182,7 @@
             if (event.key === 'Enter') {
               event.preventDefault();
               void textSpeichern();
-            } else if (event.key === 'Escape') freitext = null;
+            } else if (event.key === 'Escape') onentwurf(null);
           }}
           onblur={() => void textSpeichern()}
         />

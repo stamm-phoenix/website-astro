@@ -1,6 +1,6 @@
 import { packlisteSchluessel } from '../../../api/lib/essen-packliste-model';
 import { einplanungKennung } from './essensplanungEinplanung';
-import type { PacklisteEintrag, PlanungAnsicht } from './types';
+import type { PacklisteEintrag, PlanungAnsicht, PlanungMitglied } from './types';
 
 /**
  * The packing list of a Planung (`docs/essensplanung.md`, Packliste): the tools of all planned
@@ -133,4 +133,46 @@ export function packlisteDruck(zeilen: PackZeile[]): PackDruckZeile[] {
     fuer: fuerText(zeile),
     zustaendig: zeile.zustaendig,
   }));
+}
+
+/**
+ * The id of a row's elements. Encodes the whole key, so „Grill-Zange“ and „Grill Zange“, two
+ * rows of the list, never share a box and its label.
+ */
+export function packId(key: string): string {
+  return `pack-${encodeURIComponent(key)}`;
+}
+
+/**
+ * The members to choose who packs a thing: those with access, and the one responsible now even
+ * without access. Others with a read link or the role „bearbeiten“ do not get removed members in
+ * the view, so that one is named from the row.
+ */
+export function zustaendigWahl(
+  mitglieder: Pick<PlanungMitglied, 'id' | 'name' | 'entzogen'>[],
+  zeile: Pick<PackZeile, 'zustaendigId' | 'zustaendig'>
+): { id: number; name: string }[] {
+  const wahl = mitglieder
+    .filter((m) => !m.entzogen || m.id === zeile.zustaendigId)
+    .map(({ id, name }) => ({ id, name }));
+  if (zeile.zustaendigId !== null && !wahl.some((m) => m.id === zeile.zustaendigId))
+    wahl.push({ id: zeile.zustaendigId, name: zeile.zustaendig || 'Mitglied ohne Zugang' });
+  return wahl;
+}
+
+/** A free name as it is saved: trimmed, inner whitespace collapsed. */
+export function freiName(text: string): string {
+  return text.trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Whether a free name typed at a row differs from what is saved there, also while it is saved or
+ * after saving failed. `entwuerfe` are the open fields by row key.
+ */
+export function entwurfOffen(entwuerfe: Record<string, string>, zeilen: PackZeile[]): boolean {
+  return zeilen.some((zeile) => {
+    const entwurf = entwuerfe[zeile.key];
+    if (entwurf === undefined) return false;
+    return freiName(entwurf) !== (zeile.zustaendigId === null ? zeile.zustaendig : '');
+  });
 }
