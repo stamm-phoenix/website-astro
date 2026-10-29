@@ -69,18 +69,20 @@ test('anything goes on the shopping list by name, without the list and an amount
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('list', { name: 'Zusatzbedarf' })).toContainText('500 g Salz');
 
-  // The dialog takes a name of its own too, without an amount
+  // The dialog takes a name of its own too, without an amount; Enter takes no suggestion
   await page.getByRole('button', { name: 'Zusatzbedarf eintragen' }).click();
-  await dialog.getByLabel('Zutat', { exact: true }).fill('Grillanzünder');
-  await dialog.getByRole('button', { name: 'Eintragen' }).click();
+  const name = dialog.getByLabel('Zutat', { exact: true });
+  await name.pressSequentially('Grill');
+  await name.press('Enter');
   await expect(dialog).toBeHidden();
-  await expect(sonstiges).toContainText('Grillanzünder');
+  await expect(sonstiges).toContainText('Grill');
+  await expect(sonstiges).not.toContainText('Grillkohle');
 
   // The PDF lists them like the page
   const pdf = await pdfLaden(page, () =>
     page.getByRole('button', { name: 'Einkaufsliste als PDF' }).click()
   );
-  expect(pdf.text).toContain('Grillanzünder');
+  expect(pdf.text).toContain('Grill');
   expect(pdf.text).not.toContain('nach Gefühl');
 
   // What is no food is not offered for dishes
@@ -94,7 +96,7 @@ test('anything goes on the shopping list by name, without the list and an amount
 
   // Removing it takes it off the list
   await page.getByRole('tab', { name: 'Einkauf' }).click();
-  await page.getByRole('button', { name: 'Grillanzünder entfernen' }).click();
-  await answerConfirm(page, 'Grillanzünder entfernen?', 'Entfernen');
-  await expect(sonstiges).not.toContainText('Grillanzünder');
+  await page.getByRole('button', { name: 'Grill entfernen' }).click();
+  await answerConfirm(page, 'Grill entfernen?', 'Entfernen');
+  await expect(sonstiges).not.toContainText('Grill');
 });

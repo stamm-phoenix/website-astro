@@ -218,7 +218,7 @@
             bind:value={zutatText}
             listLabel="Zutaten"
             placeholder={art === 'bestand' ? 'z. B. Salz' : 'z. B. Spülmittel oder Kochhandschuhe'}
-            pickFirstOnEnter
+            pickFirstOnEnter={!frei}
             onpick={waehle}
             onedit={getippt}
             autocomplete="off"

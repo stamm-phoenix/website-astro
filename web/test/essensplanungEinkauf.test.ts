@@ -230,3 +230,25 @@ test('extra needs without an amount are on the list by name only', () => {
     ]
   );
 });
+
+test('what is put on the list without an amount stays there even with some in stock', () => {
+  const liste = einkaufsliste(
+    {
+      tage: [],
+      gruppen: [],
+      teilnehmende: [],
+      gerichte: [],
+      zutaten: [zutat(2, 'Spülmittel', 9, null)],
+      geschaefte: [],
+      bestand: [{ id: 1, etag: '', planungZutatId: 2, menge: 1, einheit: 'stueck', hinweis: '' }],
+      zusatzbedarf: [
+        { id: 2, etag: '', planungZutatId: 2, menge: null, einheit: null, hinweis: '' },
+      ],
+    },
+    new Map([[9, 'Sonstiges']])
+  );
+  assert.deepEqual(
+    liste.flatMap((g) => g.kategorien.flatMap((k) => k.posten.map((p) => [p.name, p.menge]))),
+    [['Spülmittel', null]]
+  );
+});
