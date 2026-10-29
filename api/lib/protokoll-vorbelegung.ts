@@ -17,8 +17,8 @@ import type { Vorbelegung } from './protokoll-editor-model';
 export const VORBELEGUNG_RUECK_TAGE = 60;
 export const VORBELEGUNG_VOR_TAGE = 90;
 const MAX_AKTIONEN = 15;
-/** Longest note of one Gruppenstunde in a Stufenbericht. */
-const MAX_BERICHT_NOTIZ = 500;
+/** Longest note of a Gruppenstunde in the Anwesenheit (`notes` is `nvarchar(2000)`), copied whole. */
+const MAX_BERICHT_NOTIZ = 2000;
 const MAX_ORT = 200;
 
 /** A Gruppenstunde as the Stufenbericht uses it: only counts and the text, never a name. */
@@ -32,9 +32,23 @@ export interface BerichtGruppenstunde {
   cancelled: boolean;
 }
 
+/**
+ * Text from another module as plain text in Markdown minutes: characters that would format are
+ * escaped, so „Teilnehmer*innen“ stays as typed. Does not shorten or change line breaks.
+ */
+export function plain(text: string): string {
+  return text.replace(/[\\`*_[\]<>~|]/g, '\\$&');
+}
+
 /** „3“ → „3 Kinder“, „1“ → „ein Kind“. */
 function kinder(count: number): string {
   return count === 1 ? 'ein Kind' : `${count} Kinder`;
+}
+
+/** Cuts a text over `MAX_TEXT` at the last whole line, so no line is cut in the middle. */
+function shorten(text: string): string {
+  if (text.length <= MAX_TEXT) return text;
+  return text.slice(0, text.lastIndexOf('\n', MAX_TEXT));
 }
 
 /**
@@ -56,12 +70,12 @@ export function stufenberichte(meetings: BerichtGruppenstunde[]): Record<string,
       ].filter(Boolean);
       line += kinder(meeting.members) + (extras.length ? ` (${extras.join(', ')})` : '');
       const notes = einzeilig(meeting.notes, MAX_BERICHT_NOTIZ);
-      if (notes) line += `. ${notes}`;
+      if (notes) line += `. ${plain(notes)}`;
     }
     berichte[meeting.stufe] = `${berichte[meeting.stufe] ?? ''}${line}\n`;
   }
   for (const [stufe, text] of Object.entries(berichte)) {
-    berichte[stufe] = text.trimEnd().slice(0, MAX_TEXT);
+    berichte[stufe] = shorten(text.trimEnd());
   }
   return berichte;
 }
@@ -78,8 +92,8 @@ function aktionZeile(aktion: Aktion): string {
     start: aktion.start,
     ende: aktion.end,
   });
-  const stufen = aktion.stufen.length ? ` (${aktion.stufen.join(', ')})` : '';
-  return `- ${zeitraum ? `${zeitraum}: ` : ''}${einzeilig(aktion.title)}${stufen}`;
+  const stufen = aktion.stufen.length ? ` (${plain(aktion.stufen.join(', '))})` : '';
+  return `- ${zeitraum ? `${zeitraum}: ` : ''}${plain(einzeilig(aktion.title))}${stufen}`;
 }
 
 /**
@@ -116,7 +130,8 @@ export function naechsteSitzungAus(content: string): Vorbelegung['naechsteSitzun
   try {
     const next = (JSON.parse(content) as { naechsteSitzung?: Record<string, unknown> })
       .naechsteSitzung;
-    const uhrzeit = typeof next?.uhrzeit === 'string' && /^\d\d:\d\d$/.test(next.uhrzeit);
+    const uhrzeit =
+      typeof next?.uhrzeit === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(next.uhrzeit);
     return {
       uhrzeit: uhrzeit ? (next?.uhrzeit as string) : '',
       ort: typeof next?.ort === 'string' ? einzeilig(next.ort, MAX_ORT) : '',

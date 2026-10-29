@@ -5,6 +5,7 @@ import { neuerInhalt } from '../lib/protokoll-editor-model';
 import {
   aktionenTexte,
   naechsteSitzungAus,
+  plain,
   stufenberichte,
   zeitfenster,
 } from '../lib/protokoll-vorbelegung';
@@ -106,4 +107,35 @@ test('Gruppenstunden reach back at most 60 days, Aktionen back to the previous m
     aktionen: '2026-08-30',
     bis: '2027-01-27',
   });
+});
+
+test('a long note is copied whole and Markdown characters in copied text stay as typed', () => {
+  const note = `${'Wir haben gebaut. '.repeat(40)}Ende mit Teilnehmer*innen und Helfer_innen.`;
+  assert.ok(note.length > 600);
+  const bericht = stufenberichte([stunde({ notes: note })])['Wölflinge'];
+  assert.ok(bericht.endsWith('Teilnehmer\\*innen und Helfer\\_innen.'));
+  assert.equal(
+    plain('a*b_c [d] <e> `f` g~h|i\\j'),
+    'a\\*b\\_c \\[d\\] \\<e\\> \\`f\\` g\\~h\\|i\\\\j'
+  );
+  const texte = aktionenTexte([aktion({ title: 'Sommer*lager', start: '2026-11-01' })], {
+    nach: '2026-09-30',
+    date: '2026-10-14',
+    bis: '2027-01-12',
+  });
+  assert.equal(texte['Planung'], 'Anstehende Aktionen:\n- 01.11.2026: Sommer\\*lager');
+});
+
+test('a Stufenbericht over the limit is cut after the last whole line', () => {
+  const meetings = Array.from({ length: 12 }, (_, i) =>
+    stunde({ date: `2026-09-${String(i + 10).padStart(2, '0')}`, notes: 'x'.repeat(2000) })
+  );
+  const bericht = stufenberichte(meetings)['Wölflinge'];
+  assert.ok(bericht.length <= 20_000);
+  assert.ok(bericht.split('\n').every((line) => line.endsWith('x')));
+});
+
+test('an impossible time of the previous minutes is not copied', () => {
+  const content = JSON.stringify({ naechsteSitzung: { uhrzeit: '99:99', ort: 'Pfarrheim' } });
+  assert.deepEqual(naechsteSitzungAus(content), { uhrzeit: '', ort: 'Pfarrheim' });
 });
