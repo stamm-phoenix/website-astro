@@ -135,6 +135,7 @@ Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite e
 - Ein Gericht lässt sich zwischen Mahlzeiten verschieben („Ändern“ mit anderer Mahlzeit) und kopieren (legt eine neue Einplanung mit denselben Angaben an); innerhalb der Mahlzeit mit ↑/↓ sortieren.
 - Die Plan-Ansicht zeigt unter jeder Mahlzeit ihre Gerichte mit Faktor und Zuständigen, auch im PDF; die Karte eines Gerichts zeigt, wo es eingeplant ist.
 - Jedes eingeplante Gericht hat eine ID `Tag_Mahlzeit_Gericht`, z. B. ist der Salat als zweites Gericht beim Mittagessen (zweite Mahlzeit) am dritten Tag `3_2_2` (`einplanungKennung`); sie folgt der Reihenfolge und steht im Plan, auf der Gerichtskarte und im PDF.
+- **Kalender:** Im Plan schaltet „Liste | Kalender“ die Darstellung um; der Browser merkt sich die Wahl (`localStorage`, `essensplanung:darstellung`). Der Kalender (`PlanKalender.svelte`) zeigt die Tage als Spalten, die Mahlzeiten als Zeilen und die eingeplanten Gerichte als Karten mit ID, Portionen, Faktor und Zuständigen; eine Karte öffnet den Dialog zum Ändern, „+ Gericht“ plant ein. Tage und Mahlzeiten ändert man in der Liste.
 - Löschen: Ein gelöschtes Gericht verschwindet aus allen Mahlzeiten; eine gelöschte Mahlzeit (oder ihr Tag) nimmt ihre Einplanungen mit, die Gerichte bleiben.
 
 ## Teilnehmende
