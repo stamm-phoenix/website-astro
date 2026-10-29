@@ -32,6 +32,7 @@ import {
   NotEditableError,
   SperreError,
   createEditorProtokoll,
+  stufenberichteFuer,
   deleteEditorProtokoll,
   getEditorLive,
   getEditorOverview,
@@ -335,16 +336,26 @@ async function offeneAufgaben(): Promise<OffeneAufgabeQuelle[]> {
   }
 }
 
+/** The Stufenberichte from the Anwesenheit; without them the sub-items start empty. */
+async function berichte(date: string): Promise<Record<string, string>> {
+  try {
+    return await stufenberichteFuer(date);
+  } catch {
+    return {};
+  }
+}
+
 /**
  * POST: new minutes with the standard agenda after the open tasks from earlier minutes, the
  * Vorstand and the writer preset, and the start of the meeting if the browser sent it.
  */
 export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, principal) => {
   const input = validateProtokollEditorCreate(await readJsonBody(request));
-  const [person, sitzungsleitung, offen] = await Promise.all([
+  const [person, sitzungsleitung, offen, stufen] = await Promise.all([
     editorPerson(principal),
     vorstand(),
     offeneAufgaben(),
+    berichte(input.date),
   ]);
   const id = await createEditorProtokoll(
     input,
@@ -354,7 +365,8 @@ export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, 
       beginn: input.beginn,
     },
     principal.userDetails,
-    offen
+    offen,
+    stufen
   );
   return ok({ id }, 201);
 });
