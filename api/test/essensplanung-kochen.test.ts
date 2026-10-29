@@ -172,3 +172,69 @@ dbTest('planned dishes are ticked off as cooked with what they used, or left out
     0
   );
 });
+
+dbTest('two Planungen tick off the same central ingredients at once', async (t) => {
+  const mails = captureMails(t);
+  const zentral = async (name: string) =>
+    (
+      await getDb()
+        .selectFrom('essen.zutat')
+        .select('id')
+        .where('name', '=', name)
+        .executeTakeFirstOrThrow()
+    ).id;
+  const salz = await zentral('Salz');
+  const pfeffer = await zentral('Pfeffer');
+
+  /** A Planung with a planned dish that took the two ingredients over in the given order. */
+  async function planung(reihenfolge: number[]) {
+    const { token, ansicht } = await anlegen(t, mails);
+    const gericht = json<{ id: number }>(
+      await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+        token,
+        body: { name: 'Suppe', personen: 10 },
+      })
+    ).id;
+    await call(t, endpoints.EssensplanungEinplanungen, 'POST', 'planung/einplanungen', {
+      token,
+      body: { mahlzeitId: ansicht.tage[0].mahlzeiten[1].id, gerichtId: gericht },
+    });
+    let stand: PlanungAnsicht | undefined;
+    for (const zutatId of reihenfolge) {
+      stand = json<PlanungAnsicht>(
+        await call(t, einkauf.EssensplanungBestandListe, 'POST', 'planung/bestand', {
+          token,
+          body: { zutatId, menge: 1, einheit: 'kg', hinweis: '' },
+        })
+      );
+    }
+    const einplanung = stand!.tage[0].mahlzeiten[1].einplanungen[0];
+    const verbrauch = stand!.zutaten.map((z) => ({
+      planungZutatId: z.id,
+      menge: 0.1,
+      einheit: 'kg',
+    }));
+    return { token, einplanung, verbrauch };
+  }
+  const a = await planung([salz, pfeffer]);
+  const b = await planung([pfeffer, salz]);
+  for (let runde = 0; runde < 3; runde++) {
+    const status = runde % 2 ? 'ausgelassen' : 'gekocht';
+    const [ra, rb] = await Promise.all(
+      [a, b].map((p) =>
+        abhaken(t, p.token, p.einplanung.id, {
+          etag: p.einplanung.etag,
+          status,
+          verbrauch: p.verbrauch,
+        })
+      )
+    );
+    for (const [p, r] of [
+      [a, ra],
+      [b, rb],
+    ] as const) {
+      assert.equal(r.status, 200, JSON.stringify(r.jsonBody));
+      p.einplanung = json<PlanungAnsicht>(r).tage[0].mahlzeiten[1].einplanungen[0];
+    }
+  }
+});
