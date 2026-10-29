@@ -1,0 +1,175 @@
+import type { EssenEinheitenart } from './essen-validation';
+
+/**
+ * Dishes of a Planung and the ingredients they use: types, units and the warnings the page shows.
+ * Without imports, so the website uses it too; the checks of the input are in
+ * `essen-gerichte-validation.ts` (`docs/essensplanung.md`, „Gerichte“).
+ */
+
+export type GerichtEinheit = 'g' | 'kg' | 'ml' | 'l' | 'stueck' | 'packung' | 'bund';
+
+/** The units a line may use; nothing is ever converted between kinds of unit. */
+export const EINHEITEN_JE_ART: Record<EssenEinheitenart, readonly GerichtEinheit[]> = {
+  masse: ['g', 'kg'],
+  volumen: ['ml', 'l'],
+  stueck: ['stueck'],
+  packung: ['packung'],
+  bund: ['bund'],
+};
+
+export const EINHEIT_TEXT: Record<GerichtEinheit, string> = {
+  g: 'g',
+  kg: 'kg',
+  ml: 'ml',
+  l: 'l',
+  stueck: 'Stück',
+  packung: 'Packung',
+  bund: 'Bund',
+};
+
+export const MAX_GERICHTE = 300;
+export const MAX_ZEILEN_PRO_GERICHT = 60;
+export const MAX_PLANUNG_ZUTATEN = 1000;
+export const MAX_WERKZEUGE = 30;
+export const MAX_LINKS = 10;
+
+/** An ingredient of the central list as a Planung picks it. */
+export interface KatalogZutat {
+  id: number;
+  name: string;
+  kategorieId: number;
+  einheitenart: EssenEinheitenart;
+  abtropfgewicht: boolean;
+  lebensmittel: boolean;
+  vegetarisch: boolean | null;
+  vegan: boolean | null;
+  allergene: number[];
+  grammProTl: number | null;
+  grammProEl: number | null;
+  grammProStueck: number | null;
+}
+
+/** The central lists a Planung picks from; they change only in the Steuerung. */
+export interface EssenKatalog {
+  kategorien: { id: number; name: string }[];
+  unvertraeglichkeiten: { id: number; name: string; schluessel: string | null }[];
+  zutaten: KatalogZutat[];
+}
+
+/** An ingredient used in a Planung with what applies there. */
+export interface PlanungZutat {
+  id: number;
+  etag: string;
+  /** The central ingredient; null for one of the Planung's own. */
+  zutatId: number | null;
+  name: string;
+  kategorieId: number;
+  einheitenart: EssenEinheitenart;
+  abtropfgewicht: boolean;
+  lebensmittel: boolean;
+  vegetarisch: boolean | null;
+  vegan: boolean | null;
+  allergene: number[];
+  /** Which fields of a central ingredient differ in this Planung. */
+  abweichend: { kategorie: boolean; einheitenart: boolean };
+  /** How many lines of dishes use it; a used ingredient cannot be deleted. */
+  zeilen: number;
+}
+
+export interface GerichtLink {
+  titel: string;
+  url: string;
+}
+
+export interface GerichtZutat {
+  id: number;
+  etag: string;
+  position: number;
+  planungZutatId: number;
+  /** null: without an amount, e.g. spices by eye. */
+  menge: number | null;
+  einheit: GerichtEinheit | null;
+  /** The amount is for the whole dish and scales neither with the eaters nor the factor. */
+  fest: boolean;
+  fuerAlles: boolean;
+  fuerVegetarisch: boolean;
+  fuerVegan: boolean;
+  /** IDs of `essen.unvertraeglichkeit`: „nicht für …“. */
+  ohne: number[];
+  /** A replacement line „nur für …“. */
+  nur: number[];
+  hinweis: string;
+}
+
+export interface Gericht {
+  id: number;
+  etag: string;
+  name: string;
+  /** The amounts of the lines are for this many people. */
+  personen: number;
+  anleitung: string;
+  notiz: string;
+  links: GerichtLink[];
+  werkzeuge: string[];
+  zutaten: GerichtZutat[];
+}
+
+/** Whether `einheit` fits an ingredient of `art`, e.g. kg for mass. */
+export function einheitPasst(art: EssenEinheitenart, einheit: GerichtEinheit | null): boolean {
+  return einheit === null || EINHEITEN_JE_ART[art].includes(einheit);
+}
+
+export interface GerichtWarnung {
+  /** The line it is about; missing for the dish as a whole. */
+  zeileId?: number;
+  text: string;
+}
+
+const FORMEN = [
+  { feld: 'fuerAlles', label: 'alle, die alles essen' },
+  { feld: 'fuerVegetarisch', label: 'vegetarisch Essende' },
+  { feld: 'fuerVegan', label: 'vegan Essende' },
+] as const;
+
+/**
+ * Warnings from the properties of the ingredients, before asking the AI: a line for vegetarians
+ * with meat, and a diet that gets no line of the dish at all. Allergens are shown on the lines;
+ * whether anyone is affected depends on the participants.
+ */
+export function gerichtWarnungen(
+  gericht: Gericht,
+  zutaten: ReadonlyMap<number, PlanungZutat>
+): GerichtWarnung[] {
+  const warnungen: GerichtWarnung[] = [];
+  for (const zeile of gericht.zutaten) {
+    const zutat = zutaten.get(zeile.planungZutatId);
+    if (!zutat) continue;
+    if (zeile.fuerVegetarisch && zutat.vegetarisch === false) {
+      warnungen.push({
+        zeileId: zeile.id,
+        text: `${zutat.name} ist nicht vegetarisch, die Zeile gilt aber für vegetarisch Essende.`,
+      });
+    } else if (zeile.fuerVegan && zutat.vegan === false) {
+      warnungen.push({
+        zeileId: zeile.id,
+        text: `${zutat.name} ist nicht vegan, die Zeile gilt aber für vegan Essende.`,
+      });
+    }
+  }
+  // Replacement lines („nur für …“) feed only some people
+  const fuerAlle = gericht.zutaten.filter((zeile) => zeile.nur.length === 0);
+  if (fuerAlle.length) {
+    for (const form of FORMEN) {
+      if (!fuerAlle.some((zeile) => zeile[form.feld])) {
+        warnungen.push({ text: `Für ${form.label} gibt es in diesem Gericht keine Zutat.` });
+      }
+    }
+  }
+  return warnungen;
+}
+
+/** The amount of a line as shown, e.g. „1,5 kg“; null without an amount. */
+export function mengeText(menge: number | null, einheit: GerichtEinheit | null): string | null {
+  if (menge === null || einheit === null) return null;
+  return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 }).format(menge)} ${EINHEIT_TEXT[einheit]}`;
+}

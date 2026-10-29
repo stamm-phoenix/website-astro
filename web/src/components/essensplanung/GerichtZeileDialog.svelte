@@ -1,0 +1,390 @@
+<script lang="ts">
+  import { untrack } from 'svelte';
+  import ModalDialog from '../ui/ModalDialog.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
+  import VorschlagFeld from '../ui/VorschlagFeld.svelte';
+  import FormField from '../pflege/FormField.svelte';
+  import { ApiError } from '../../lib/api';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { EINHEITENART_LABELS } from '../../lib/essensplanungSteuerung';
+  import { leseMenge, mengeFeld, zutatVorschlaege } from '../../lib/essensplanungGerichte';
+  import { EINHEITEN_JE_ART, EINHEIT_TEXT } from '../../../../api/lib/essen-gerichte-model';
+  import type {
+    EssenEinheitenart,
+    EssenKatalog,
+    Gericht,
+    GerichtEinheit,
+    GerichtZutat,
+    PlanungAnsicht,
+  } from '../../lib/types';
+  import type { Vorschlag } from '../../lib/vorschlaege';
+  import type { PlanKontext } from './planKontext';
+
+  /**
+   * Adds or changes a line of a dish: the ingredient from the list or the Planung (or a new one
+   * of the Planung's own), amount and unit, for whom it is, and the intolerances.
+   */
+
+  interface Props {
+    kontext: PlanKontext;
+    katalog: EssenKatalog;
+    gericht: Gericht;
+    /** The line to change; null adds a new one. */
+    zeile: GerichtZutat | null;
+    open: boolean;
+    onclose: () => void;
+  }
+  let { kontext, katalog, gericht, zeile, open, onclose }: Props = $props();
+  const ansicht = $derived(kontext.ansicht);
+
+  type Auswahl = { art: 'zentral' | 'planung'; id: number };
+  let auswahl = $state<Auswahl | null>(null);
+  let zutatText = $state('');
+  let menge = $state('');
+  let einheit = $state<GerichtEinheit>('g');
+  let hinweis = $state('');
+  let fest = $state(false);
+  let fuerAlles = $state(true);
+  let fuerVegetarisch = $state(true);
+  let fuerVegan = $state(true);
+  /** Per intolerance: '' for everyone, 'ohne' (not for) or 'nur' (only for). */
+  let unvertraeglich = $state<Record<number, '' | 'ohne' | 'nur'>>({});
+  let felder = $state<Record<string, string>>({});
+  /** A new ingredient of the Planung's own, for a name that is not in the list. */
+  let eigene = $state<{
+    kategorieId: number | null;
+    einheitenart: EssenEinheitenart | null;
+    ernaehrung: '' | 'vegan' | 'vegetarisch' | 'fleisch';
+  } | null>(null);
+  let geaendert = $state(false);
+
+  /** Fills the form whenever the dialog opens; later changes of others leave it alone. */
+  $effect(() => {
+    if (open) untrack(fuelle);
+  });
+
+  function fuelle(): void {
+    felder = {};
+    eigene = null;
+    geaendert = false;
+    const z = zeile;
+    if (z) {
+      const zutat = ansicht.zutaten.find((entry) => entry.id === z.planungZutatId);
+      auswahl = { art: 'planung', id: z.planungZutatId };
+      zutatText = zutat?.name ?? '';
+      menge = mengeFeld(z.menge);
+      einheit = z.einheit ?? 'g';
+      hinweis = z.hinweis;
+      fest = z.fest;
+      fuerAlles = z.fuerAlles;
+      fuerVegetarisch = z.fuerVegetarisch;
+      fuerVegan = z.fuerVegan;
+      unvertraeglich = Object.fromEntries([
+        ...z.ohne.map((id) => [id, 'ohne'] as const),
+        ...z.nur.map((id) => [id, 'nur'] as const),
+      ]);
+    } else {
+      auswahl = null;
+      zutatText = '';
+      menge = '';
+      hinweis = '';
+      fest = false;
+      fuerAlles = fuerVegetarisch = fuerVegan = true;
+      unvertraeglich = {};
+    }
+  }
+  $effect(() => guardUnsavedChanges(() => open && geaendert));
+
+  const vorschlaege = $derived(zutatVorschlaege(katalog, ansicht.zutaten));
+
+  /** The kind of unit of the chosen ingredient, as it applies in this Planung. */
+  const einheitenart = $derived.by((): EssenEinheitenart | null => {
+    if (eigene) return eigene.einheitenart;
+    if (!auswahl) return null;
+    if (auswahl.art === 'planung')
+      return ansicht.zutaten.find((z) => z.id === auswahl!.id)?.einheitenart ?? null;
+    return katalog.zutaten.find((z) => z.id === auswahl!.id)?.einheitenart ?? null;
+  });
+  const einheiten = $derived(einheitenart ? EINHEITEN_JE_ART[einheitenart] : []);
+  // A unit that fits the ingredient, e.g. kg instead of ml after picking flour
+  $effect(() => {
+    if (einheiten.length && !einheiten.includes(einheit)) einheit = einheiten[0];
+  });
+
+  function waehle(option: Vorschlag): void {
+    const [art, id] = (option.key ?? '').split(':');
+    auswahl = { art: art === 'p' ? 'planung' : 'zentral', id: Number(id) };
+    zutatText = option.value;
+    eigene = null;
+    geaendert = true;
+  }
+
+  function getippt(text: string): void {
+    geaendert = true;
+    const treffer = vorschlaege.find(
+      (option) => option.value.localeCompare(text.trim(), 'de', { sensitivity: 'base' }) === 0
+    );
+    if (treffer) waehle(treffer);
+    else auswahl = null;
+  }
+
+  const ohneTreffer = $derived(!auswahl && zutatText.trim().length > 1 && !eigene);
+
+  async function speichern(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    felder = {};
+    const zahl = leseMenge(menge);
+    if (Number.isNaN(zahl)) felder.menge = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
+    if (!auswahl && !eigene) felder.zutat = 'Bitte eine Zutat aus der Liste wählen.';
+    if (eigene && !eigene.kategorieId) felder.kategorie = 'Bitte eine Kategorie wählen.';
+    if (eigene && !eigene.einheitenart)
+      felder.einheitenart = 'Bitte wählen, worin sie gemessen wird.';
+    if (Object.keys(felder).length) return;
+
+    let ziel = auswahl;
+    if (eigene) {
+      const neu = eigene;
+      let id = 0;
+      const angelegt = await kontext.aendern(async () => {
+        try {
+          const antwort = await kontext.api.senden<{ id: number; ansicht: PlanungAnsicht }>(
+            'POST',
+            '/zutaten',
+            {
+              name: zutatText.trim(),
+              kategorieId: neu.kategorieId,
+              einheitenart: neu.einheitenart,
+              vegetarisch: neu.ernaehrung === '' ? null : neu.ernaehrung !== 'fleisch',
+              vegan: neu.ernaehrung === '' ? null : neu.ernaehrung === 'vegan',
+            }
+          );
+          id = antwort.id;
+          return antwort;
+        } catch (error: unknown) {
+          if (error instanceof ApiError && error.fields)
+            felder = { zutat: error.fields.name ?? '' };
+          throw error;
+        }
+      });
+      if (!angelegt) return;
+      ziel = { art: 'planung', id };
+      auswahl = ziel;
+      eigene = null;
+    }
+    const body = {
+      ...(ziel!.art === 'planung' ? { planungZutatId: ziel!.id } : { zutatId: ziel!.id }),
+      menge: zahl,
+      einheit: zahl === null ? null : einheit,
+      fest: zahl !== null && fest,
+      fuerAlles,
+      fuerVegetarisch,
+      fuerVegan,
+      ohne: Object.entries(unvertraeglich)
+        .filter(([, art]) => art === 'ohne')
+        .map(([id]) => Number(id)),
+      nur: Object.entries(unvertraeglich)
+        .filter(([, art]) => art === 'nur')
+        .map(([id]) => Number(id)),
+      hinweis,
+    };
+    const aktuelleZeile = zeile
+      ? ansicht.gerichte.flatMap((g) => g.zutaten).find((z) => z.id === zeile!.id)
+      : null;
+    const ok = await kontext.aendern(
+      async () => {
+        try {
+          return aktuelleZeile
+            ? await kontext.api.senden('PATCH', `/gericht-zutaten/${aktuelleZeile.id}`, {
+                ...body,
+                etag: aktuelleZeile.etag,
+              })
+            : await kontext.api.senden('POST', `/gerichte/${gericht.id}/zutaten`, body);
+        } catch (error: unknown) {
+          if (error instanceof ApiError && error.fields) felder = error.fields;
+          throw error;
+        }
+      },
+      zeile ? `${zutatText} geändert.` : `${zutatText} hinzugefügt.`
+    );
+    if (ok) {
+      geaendert = false;
+      onclose();
+    }
+  }
+</script>
+
+<ModalDialog {open} title={zeile ? 'Zutat ändern' : `Zutat für ${gericht.name}`} {onclose}>
+  <form
+    class="min-h-0 space-y-4 overflow-y-auto px-5 py-4"
+    onsubmit={speichern}
+    oninput={() => (geaendert = true)}
+  >
+    <FormField id="zeile-zutat" label="Zutat" error={felder.zutat}>
+      {#snippet children(attrs)}
+        <VorschlagFeld
+          {...attrs}
+          options={vorschlaege}
+          bind:value={zutatText}
+          listLabel="Zutaten"
+          placeholder="z. B. Spaghetti"
+          onpick={waehle}
+          onedit={getippt}
+          autocomplete="off"
+        />
+      {/snippet}
+    </FormField>
+    {#if ohneTreffer}
+      <p class="text-sm text-neutral-700">
+        „{zutatText.trim()}“ steht nicht in der Liste.
+        <button
+          type="button"
+          class="min-h-11 font-semibold text-link underline"
+          onclick={() => (eigene = { kategorieId: null, einheitenart: null, ernaehrung: '' })}
+          >Als eigene Zutat dieser Planung anlegen</button
+        >
+      </p>
+    {/if}
+    {#if eigene}
+      <fieldset class="space-y-3 border-l-2 border-neutral-300 pl-3">
+        <legend class="form-label">Eigene Zutat „{zutatText.trim()}“</legend>
+        <FormField id="eigene-kategorie" label="Kategorie" error={felder.kategorie}>
+          {#snippet children(attrs)}
+            <select {...attrs} class="form-input" bind:value={eigene!.kategorieId}>
+              <option value={null}>Bitte wählen</option>
+              {#each katalog.kategorien as kategorie (kategorie.id)}
+                <option value={kategorie.id}>{kategorie.name}</option>
+              {/each}
+            </select>
+          {/snippet}
+        </FormField>
+        <FormField id="eigene-einheitenart" label="Gemessen in" error={felder.einheitenart}>
+          {#snippet children(attrs)}
+            <select {...attrs} class="form-input" bind:value={eigene!.einheitenart}>
+              <option value={null}>Bitte wählen</option>
+              {#each Object.entries(EINHEITENART_LABELS) as [art, label] (art)}
+                <option value={art}>{label}</option>
+              {/each}
+            </select>
+          {/snippet}
+        </FormField>
+        <FormField id="eigene-ernaehrung" label="Ernährung">
+          {#snippet children(attrs)}
+            <select {...attrs} class="form-input" bind:value={eigene!.ernaehrung}>
+              <option value="">Weiß ich nicht</option>
+              <option value="vegan">vegan</option>
+              <option value="vegetarisch">vegetarisch</option>
+              <option value="fleisch">mit Fleisch oder Fisch</option>
+            </select>
+          {/snippet}
+        </FormField>
+      </fieldset>
+    {/if}
+
+    <div class="grid grid-cols-2 gap-3">
+      <FormField
+        id="zeile-menge"
+        label="Menge"
+        error={felder.menge}
+        info="Leer lassen für Zutaten nach Augenmaß, z. B. Pfeffer."
+      >
+        {#snippet children(attrs)}
+          <input
+            {...attrs}
+            class="form-input"
+            inputmode="decimal"
+            autocomplete="off"
+            placeholder="z. B. 1,5"
+            bind:value={menge}
+          />
+        {/snippet}
+      </FormField>
+      <FormField id="zeile-einheit" label="Einheit" error={felder.einheit}>
+        {#snippet children(attrs)}
+          <select
+            {...attrs}
+            class="form-input"
+            bind:value={einheit}
+            disabled={!einheiten.length || !menge.trim()}
+          >
+            {#each einheiten as wert (wert)}
+              <option value={wert}>{EINHEIT_TEXT[wert]}</option>
+            {/each}
+          </select>
+        {/snippet}
+      </FormField>
+    </div>
+    <FormField id="zeile-hinweis" label="Hinweis" optional error={felder.hinweis}>
+      {#snippet children(attrs)}
+        <input
+          {...attrs}
+          class="form-input"
+          maxlength="100"
+          placeholder="z. B. eine Prise"
+          bind:value={hinweis}
+        />
+      {/snippet}
+    </FormField>
+    <div class="flex items-center gap-1">
+      <label class="flex min-h-11 items-center gap-3">
+        <input type="checkbox" bind:checked={fest} disabled={!menge.trim()} />
+        <span>Feste Menge</span>
+      </label>
+      <InfoHint
+        label="Feste Menge"
+        text="Die Menge gilt für das ganze Gericht und wächst nicht mit den Personen, z. B. 150 g Vanillepaste für den ganzen Pudding."
+      />
+    </div>
+
+    <fieldset class="space-y-1">
+      <legend class="form-label">Für wen</legend>
+      {#if felder.fuer}<p class="text-sm text-danger">{felder.fuer}</p>{/if}
+      <div class="flex flex-wrap gap-x-5">
+        <label class="flex min-h-11 items-center gap-2">
+          <input type="checkbox" bind:checked={fuerAlles} /> mit allem
+        </label>
+        <label class="flex min-h-11 items-center gap-2">
+          <input type="checkbox" bind:checked={fuerVegetarisch} /> vegetarisch
+        </label>
+        <label class="flex min-h-11 items-center gap-2">
+          <input type="checkbox" bind:checked={fuerVegan} /> vegan
+        </label>
+      </div>
+    </fieldset>
+
+    <details>
+      <summary class="flex min-h-11 cursor-pointer items-center font-semibold text-brand-900">
+        Unverträglichkeiten
+        {#if Object.values(unvertraeglich).some(Boolean)}
+          ({Object.values(unvertraeglich).filter(Boolean).length})
+        {/if}
+      </summary>
+      {#if felder.nur || felder.ohne}<p class="text-sm text-danger">
+          {felder.nur ?? felder.ohne}
+        </p>{/if}
+      <ul class="mt-2 space-y-2">
+        {#each katalog.unvertraeglichkeiten as u (u.id)}
+          <li class="flex items-center justify-between gap-3">
+            <label for="zeile-u-{u.id}" class="min-w-0">{u.name}</label>
+            <select
+              id="zeile-u-{u.id}"
+              class="form-input w-40"
+              bind:value={() => unvertraeglich[u.id] ?? '', (wert) => (unvertraeglich[u.id] = wert)}
+            >
+              <option value="">für alle</option>
+              <option value="ohne">nicht dafür</option>
+              <option value="nur">nur dafür (Ersatz)</option>
+            </select>
+          </li>
+        {/each}
+      </ul>
+    </details>
+
+    <div class="flex flex-wrap justify-end gap-2 pt-2">
+      <ActionButton type="button" onclick={onclose}>Abbrechen</ActionButton>
+      <ActionButton type="submit" variant="primary" disabled={kontext.busy}>
+        {zeile ? 'Speichern' : 'Hinzufügen'}
+      </ActionButton>
+    </div>
+  </form>
+</ModalDialog>

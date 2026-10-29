@@ -1,5 +1,5 @@
 import { fetchApi, sendApi } from './api';
-import type { PlanungAenderung, PlanungAnsicht } from './types';
+import type { EssenKatalog, PlanungAenderung, PlanungAnsicht } from './types';
 
 /**
  * Pages of the Essensplanung (`docs/essensplanung.md`): no login, the link of a Planung carries a
@@ -36,6 +36,8 @@ export function planungApi(token: string) {
         signal,
         headers
       ),
+    katalog: (signal?: AbortSignal) =>
+      fetchApi<EssenKatalog>('/essensplanung/planung/katalog', signal, headers),
     senden: <T = PlanungAnsicht>(
       method: 'POST' | 'PATCH' | 'DELETE',
       path: string,
@@ -150,16 +152,26 @@ const AENDERUNGEN: Record<string, string> = {
   'link-beitritt': 'hat den Link zum Beitreten geändert',
   'link-lesen': 'hat den Link zum Ansehen geändert',
   'name-geaendert': 'hat den eigenen Namen geändert',
+  'gericht-neu': 'hat ein Gericht angelegt',
+  'gericht-geaendert': 'hat ein Gericht geändert',
+  'gericht-geloescht': 'hat ein Gericht gelöscht',
+  'gericht-zutat-neu': 'hat eine Zutat hinzugefügt',
+  'gericht-zutat-geaendert': 'hat eine Zutat geändert',
+  'gericht-zutat-geloescht': 'hat eine Zutat entfernt',
+  'zutat-neu': 'hat eine eigene Zutat angelegt',
+  'zutat-geaendert': 'hat eine Zutat der Planung geändert',
+  'zutat-geloescht': 'hat eine Zutat der Planung gelöscht',
 };
 
 /** „Kim hat eine Mahlzeit geändert: Brunch (1.8.)“. */
 export function aenderungText(aenderung: PlanungAenderung): string {
   const wer = aenderung.wer || 'Jemand';
   const was = AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert';
-  const { name, datum } = aenderung.details;
+  const { name, datum, gericht } = aenderung.details;
   const ziel = [
     typeof name === 'string' ? name : '',
     typeof datum === 'string' ? `(${datumKurz(datum)})` : '',
+    typeof gericht === 'string' ? `in „${gericht}“` : '',
   ]
     .filter(Boolean)
     .join(' ');

@@ -1,3 +1,4 @@
+import type { Gericht, PlanungZutat } from '../../../api/lib/essen-gerichte-model';
 import type { NikolausBookingDetails, NikolausSettings } from './nikolausConfig';
 import type { EinteilungDay, HelperRole as NikolausHelperRole } from './nikolausEinteilung';
 
@@ -436,7 +437,19 @@ export interface PlanungAnsicht {
   loeschtAm: string | null;
   wartung: boolean;
   aenderungen: PlanungAenderung[];
+  zutaten: PlanungZutat[];
+  gerichte: Gericht[];
 }
+
+export type {
+  EssenKatalog,
+  Gericht,
+  GerichtEinheit,
+  GerichtLink,
+  GerichtZutat,
+  KatalogZutat,
+  PlanungZutat,
+} from '../../../api/lib/essen-gerichte-model';
 
 /** Status of the Nikolausdienst for every page of the Leitendenbereich. */
 export interface StaffNikolausStatus {

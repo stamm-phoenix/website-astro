@@ -21,7 +21,10 @@ import type {
   PlanungRolle,
   PlanungZugang,
 } from '../../../api/lib/essen-planung-model';
+import type { Gericht } from '../../../api/lib/essen-gerichte-model';
 import type { EssenPlanungUebersicht } from '../../src/lib/types';
+import type { MockPlanungZutat } from './essensplanung-gerichte';
+import { gerichteAnsicht } from './essensplanung-gerichte';
 import { newEtag } from './util';
 
 /** Opens the demo Planung as its owner. */
@@ -52,7 +55,7 @@ interface MockTag {
   mahlzeiten: MockMahlzeit[];
 }
 
-interface MockPlanung {
+export interface MockPlanung {
   id: number;
   etag: string;
   name: string;
@@ -65,6 +68,8 @@ interface MockPlanung {
   aenderungen: PlanungAnsicht['aenderungen'];
   erstellt: string;
   geaendert: string;
+  zutaten: MockPlanungZutat[];
+  gerichte: Gericht[];
 }
 
 let nextId = 1;
@@ -78,6 +83,13 @@ export function neuesMockToken(): string {
 function etag(): string {
   return newEtag('essen-planung');
 }
+
+/** A new id and version for the dishes of the mock (`essensplanung-gerichte.ts`). */
+export function neueId(): number {
+  return nextId++;
+}
+
+export const neuesEtag = etag;
 
 const VORLAGE = ['Frühstück', 'Mittagessen', 'Kaffee & Kuchen', 'Abendessen', 'Mitternachtssnack'];
 
@@ -111,6 +123,8 @@ function erstelle(input: AnlegenInput, token: string, vorlage: string[]): MockPl
     aenderungen: [],
     erstellt: now,
     geaendert: now,
+    zutaten: [],
+    gerichte: [],
   };
   const tage = daysBetween(input.ersterTag, input.letzterTag) + 1;
   for (let index = 0; index < tage; index++) {
@@ -220,6 +234,7 @@ export function ansichtVon(
     loeschtAm: loeschDatum(letzter ?? planung.erstellt.slice(0, 10), monate),
     wartung,
     aenderungen: planung.aenderungen.slice(0, 30),
+    ...gerichteAnsicht(planung),
   };
 }
 

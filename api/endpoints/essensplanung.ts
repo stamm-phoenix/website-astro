@@ -45,6 +45,23 @@ import {
   validatePlanungEinstellungen,
   validateTag,
 } from '../lib/essen-planung-model';
+import {
+  eigeneZutatAnlegen,
+  gerichtAendern,
+  gerichtAnlegen,
+  gerichtLoeschen,
+  gerichtZutatAendern,
+  gerichtZutatAnlegen,
+  gerichtZutatLoeschen,
+  ladeKatalog,
+  planungZutatAendern,
+  planungZutatLoeschen,
+} from '../lib/essen-gerichte';
+import {
+  validateGericht,
+  validateGerichtZutat,
+  validatePlanungZutat,
+} from '../lib/essen-gerichte-validation';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
 import { ValidationError } from '../lib/pflege-validation';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
@@ -451,6 +468,99 @@ export const EssensplanungMahlzeit = planungHandler(async (request) => {
     zugang,
     id,
     { ...validateMahlzeit(body), position: readPosition(body?.position) },
+    readEtag(body, request)
+  );
+  return ok(await ladeAnsicht(zugang));
+});
+
+/** GET: the central lists (categories, allergens, ingredients) the dishes pick from. */
+export const EssensplanungKatalog = planungHandler(async (request) => {
+  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
+  await zugangVon(request);
+  return ok(await ladeKatalog());
+});
+
+/** POST `{ name, kategorieId, einheitenart, vegetarisch?, vegan?, allergene? }`: an own ingredient. */
+export const EssensplanungZutaten = planungHandler(async (request) => {
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  const id = await eigeneZutatAnlegen(
+    zugang,
+    validatePlanungZutat(await readJsonBody(request), { eigene: true })
+  );
+  return ok({ id, ansicht: await ladeAnsicht(zugang) }, 201);
+});
+
+/**
+ * PATCH `{ etag, … }`: all fields of an own ingredient, or `{ kategorieId, einheitenart }` as the
+ * differences of a central one (null: as in the list). DELETE (If-Match): only while unused.
+ */
+export const EssensplanungZutat = planungHandler(async (request) => {
+  const zugang = await zugangVon(request);
+  const id = readId(request);
+  if (request.method === 'DELETE') {
+    await planungZutatLoeschen(zugang, id, readEtag(null, request));
+    return ok(await ladeAnsicht(zugang));
+  }
+  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+  const body = await readJsonBody(request);
+  await planungZutatAendern(zugang, id, body, readEtag(body, request));
+  return ok(await ladeAnsicht(zugang));
+});
+
+/** POST `{ name, personen, … }`: adds a dish; answers with its id and the view. */
+export const EssensplanungGerichte = planungHandler(async (request) => {
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  const id = await gerichtAnlegen(
+    zugang,
+    validateGericht(await readJsonBody(request), { neu: true })
+  );
+  return ok({ id, ansicht: await ladeAnsicht(zugang) }, 201);
+});
+
+/** PATCH `{ etag, …changed fields }`: changes a dish. DELETE (If-Match): with its lines. */
+export const EssensplanungGericht = planungHandler(async (request) => {
+  const zugang = await zugangVon(request);
+  const id = readId(request);
+  if (request.method === 'DELETE') {
+    await gerichtLoeschen(zugang, id, readEtag(null, request));
+    return ok(await ladeAnsicht(zugang));
+  }
+  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+  const body = await readJsonBody(request);
+  await gerichtAendern(zugang, id, validateGericht(body, { neu: false }), readEtag(body, request));
+  return ok(await ladeAnsicht(zugang));
+});
+
+/** POST `{ zutatId | planungZutatId, menge, einheit, …, position? }`: adds a line to a dish. */
+export const EssensplanungGerichtZutaten = planungHandler(async (request) => {
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  const body = await readJsonBody(request);
+  await gerichtZutatAnlegen(
+    zugang,
+    readId(request),
+    validateGerichtZutat(body),
+    readPosition(body?.position)
+  );
+  return ok(await ladeAnsicht(zugang), 201);
+});
+
+/** PATCH `{ etag, …the whole line, position? }`: changes or moves a line. DELETE (If-Match). */
+export const EssensplanungGerichtZutat = planungHandler(async (request) => {
+  const zugang = await zugangVon(request);
+  const id = readId(request);
+  if (request.method === 'DELETE') {
+    await gerichtZutatLoeschen(zugang, id, readEtag(null, request));
+    return ok(await ladeAnsicht(zugang));
+  }
+  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+  const body = await readJsonBody(request);
+  await gerichtZutatAendern(
+    zugang,
+    id,
+    { ...validateGerichtZutat(body), position: readPosition(body?.position) },
     readEtag(body, request)
   );
   return ok(await ladeAnsicht(zugang));

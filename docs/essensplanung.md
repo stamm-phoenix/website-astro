@@ -115,10 +115,13 @@ Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite e
   - Häkchen **mit allem / vegetarisch / vegan**. Hackfleisch gilt nur für „mit allem“, Soja-Hack für vegetarisch und vegan.
   - Dazu je Unverträglichkeit „nicht für …“.
   - Eine Ersatzzeile kann „nur für …“ sein, z. B. glutenfreie Nudeln nur für Zöliakie.
-- **Warnungen**, die die Seite aus den Merkmalen der Zutat ableitet, bevor man die KI fragt:
-  - Hackfleisch ist für vegetarisch angehakt.
-  - Jemand bekommt an einer Mahlzeit von einem Gericht keine einzige Zeile.
-  - Eine Zutat enthält Gluten und ist für Zöliakie nicht ausgenommen.
+- **Warnungen**, die die Seite aus den Merkmalen der Zutat ableitet, bevor man die KI fragt (`gerichtWarnungen` in `api/lib/essen-gerichte-model.ts`):
+  - Hackfleisch ist für vegetarisch angehakt (ebenso nicht Veganes für vegan).
+  - Eine Ernährungsform bekommt von einem Gericht keine einzige Zeile (Ersatzzeilen „nur für …“ zählen dabei nicht). Ob das an einer Mahlzeit jemanden trifft, hängt an den Teilnehmenden (PR 5).
+  - Allergene stehen an der Zeile („enthält Gluten“), solange sie nicht ausgenommen sind. Eine Warnung „Zöliakie, aber Gluten nicht ausgenommen“ kommt mit den Teilnehmenden (PR 5), vorher wäre sie bei jeder Zeile mit Gluten.
+- **Zutaten der Planung:** Eine zentrale Zutat wird mit ihrer ersten Zeile zur Zutat der Planung (`planung_zutat`). Dort lassen sich Kategorie und Einheitenart nur für diese Planung ändern (die Einheitenart nur, solange keine Zeile eine Menge in der alten Einheit hat). Eigene Zutaten (Name, Kategorie, Einheitenart, Ernährung, Allergene) legt man im Dialog der Zeile an, wenn der Name nicht in der Liste steht; einen Namen aus der Liste nimmt man aus der Liste. Genutzte Zutaten lassen sich nicht löschen, auch nicht zentral in der Steuerung.
+- Nicht-Lebensmittel gehören in kein Gericht.
+- **Rezeptkarte:** „Rezeptkarte drucken“ druckt nur dieses Gericht mit Zutaten, Anleitung, Werkzeugen, Links und Notiz.
 
 ## Einplanung
 
@@ -206,7 +209,7 @@ So sicher gegen Konflikte wie der Protokoll-Editor, ohne Neuladen, aber ohne ech
 
 ## Datenmodell (Schema `essen`, Azure SQL)
 
-Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`) und Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`); Typen in `api/lib/db-schema.ts`.
+Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`), Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`) und Gerichte mit den Zutaten der Planung (`0055_essensplanung_gerichte.sql`); Typen in `api/lib/db-schema.ts`.
 
 | Tabelle | Inhalt |
 | --- | --- |
@@ -220,14 +223,15 @@ Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach.
 | `tag`, `mahlzeit`, `mahlzeit_gruppe` | Tage, Slots (Position, Name, Uhrzeit optional), zugelassene Gruppen |
 | `gruppe`, `teilnehmende`, `teilnehmende_unvertraeglichkeit` | Teilnehmende mit Anwesenheit von/bis Mahlzeit |
 | `geschaeft` | Geschäfte der Planung |
-| `planung_zutat` | jede in der Planung genutzte Zutat: Verweis auf die zentrale Zutat (oder keiner bei eigenen), Abweichungen, Geschäft |
-| `gericht`, `gericht_zutat`, `gericht_zutat_unvertraeglichkeit`, `gericht_werkzeug` | Rezepte |
+| `planung_zutat`, `planung_zutat_unvertraeglichkeit` | jede in der Planung genutzte Zutat: `zutat_id` (zentral) mit den Abweichungen `kategorie_id` und `einheitenart` (`NULL`: wie in der Liste), oder eine eigene mit `name`, `kategorie_id`, `einheitenart`, `vegetarisch`, `vegan` und Allergenen; später das Geschäft |
+| `gericht` | `name` (eindeutig je Planung), `personen`, `anleitung`, `notiz`, `links` und `werkzeuge` (JSON, nur mit dem Gericht bearbeitet) |
+| `gericht_zutat`, `gericht_zutat_unvertraeglichkeit` | Zeilen: `position`, `planung_zutat_id`, `menge` und `einheit` (beide `NULL` ohne Menge), `fest`, `fuer_alles`/`fuer_vegetarisch`/`fuer_vegan`, `hinweis`; Unverträglichkeiten mit `nur` = 0 („nicht für“) oder 1 („nur für“) |
 | `einplanung`, `einplanung_verbrauch` | Gericht an Mahlzeit, Status offen/gekocht/ausgelassen, tatsächlicher Verbrauch je Zutat |
 | `einkauf`, `einkauf_posten` | Einkäufe, verschobene oder feste Posten, erhaltene Menge, Ersatz, abgehakt von/um |
 | `zusatzbedarf`, `bestand` | spontane Dinge, Anfangsbestand |
 | `packliste_eintrag` | Werkzeuge und eigene Einträge mit Zuständigen und „gepackt“ |
 
-Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen einer Planung löscht alles kaskadierend.
+Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen einer Planung löscht alles kaskadierend; nur die Zeilen der Gerichte zeigen ohne Kaskade auf die Zutaten der Planung (SQL Server erlaubt keine zwei Kaskadenwege), deshalb löscht `deletePlanung` zuerst die Gerichte.
 
 ## Seiten und Endpunkte
 
@@ -238,10 +242,10 @@ Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen eine
     - Gerichte, Teilnehmende, Einkaufsliste, Einkäufe (mit Live-Modus), Lager, Packliste,
     - Mitglieder & Freigabe, Einstellungen.
   - Die Texte sind neutral für Externe gehalten („Stamm Phoenix stellt das Werkzeug bereit“).
-  - Umgesetzt sind bisher Plan (Tage und Mahlzeiten), Mitglieder & Freigabe, Änderungen und Einstellungen. Weitere Seiten: `/essensplanung/bestaetigen#a=…` (Anlegen bestätigen) und `/essensplanung/beitreten#b=…`.
+  - Umgesetzt sind bisher Plan (Tage und Mahlzeiten), Gerichte (mit den Zutaten der Planung), Mitglieder & Freigabe, Änderungen und Einstellungen. Weitere Seiten: `/essensplanung/bestaetigen#a=…` (Anlegen bestätigen) und `/essensplanung/beitreten#b=…`.
 - **API** (`api/endpoints/essensplanung.ts`, Logik in `api/lib/essen-planung.ts`, reine Regeln in `api/lib/essen-planung-model.ts`):
   - ohne Token mit ALTCHA: `POST essensplanung/anlegen`, `POST essensplanung/meine`; mit Anfrage- bzw. Beitrittstoken: `anlegen/bestaetigen`, `beitritt/ansehen`, `beitritt`.
-  - mit Header `x-essensplanung-token`: `planung` (GET/PATCH/DELETE), `planung/stand?seit=`, `planung/ich`, `planung/links`, `planung/mitglieder[/{id}[/link]]`, `planung/tage[/{id}]`, `planung/mahlzeiten[/{id}]`.
+  - mit Header `x-essensplanung-token`: `planung` (GET/PATCH/DELETE), `planung/stand?seit=`, `planung/ich`, `planung/links`, `planung/mitglieder[/{id}[/link]]`, `planung/tage[/{id}]`, `planung/mahlzeiten[/{id}]`, `planung/katalog` (zentrale Listen), `planung/zutaten[/{id}]` (Zutaten der Planung), `planung/gerichte[/{id}[/zutaten]]`, `planung/gericht-zutaten/{id}`. Logik der Gerichte in `api/lib/essen-gerichte.ts`, Prüfungen in `essen-gerichte-validation.ts`, Typen, Einheiten und Warnungen (auch für die Seite) in `essen-gerichte-model.ts`.
   - `ladeZugang` löst das Token zu Mitglied oder Lese-Link auf; `aendere()` prüft Recht und Wartungsmodus, zählt `aenderung_seq` in derselben Transaktion hoch (das serialisiert auch gleichzeitige Änderungen) und schreibt `essen.aenderung`. Der Lese-Link darf nur `GET`.
   - Konflikte auf Tag oder Mahlzeit (`rowversion`) und `404` antworten mit der aktuellen Ansicht. Die Planung selbst hat keine Version, weil jede Änderung ihre Zeile berührt; Name und Einstellungen gewinnen zuletzt.
 - **Gleichzeitig planen:** Die App fragt alle 2,5 s `planung/stand?seit=<seq>`; nur wenn sich etwas geändert hat, kommt die volle Ansicht zurück. `ladeAnsicht` liest den Zähler vor den Daten, damit eine Ansicht nie einen neueren Zähler als ihre Daten trägt.
@@ -297,3 +301,6 @@ Die vollständige, fortgeschriebene Liste steht in #452.
 - Die Steuerung erreichen nur Admins/Vorstände, die auch die Rolle `team_leitende` haben.
 - Aufbewahrung hängt am letzten Tag der Planung, Warnmail 14 Tage vorher.
 - Jede Ansicht ist druckbar (`@media print`).
+- Werkzeuge und Links stehen als JSON am Gericht statt in eigenen Tabellen (PR 4).
+- Gericht-Zeilen werden als Ganzes mit ihrer Version gespeichert; der Kopf des Gerichts nur mit den geänderten Feldern und seiner Version (PR 4).
+- PR 4 ist geteilt: Gerichte zuerst, Einplanung und Umrechnungshilfe danach.

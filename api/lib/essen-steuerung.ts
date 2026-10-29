@@ -451,12 +451,22 @@ export async function deleteZutat(id: string, etag: string, actor: string): Prom
       .select('name')
       .where('id', '=', numericId)
       .executeTakeFirst();
-    const result = await trx
-      .deleteFrom('essen.zutat')
-      .where('id', '=', numericId)
-      .where('version', '=', requireVersion(etag))
-      .executeTakeFirst();
-    if (Number(result.numDeletedRows) === 0) await notChanged(trx, 'essen.zutat', numericId);
+    // Planungen that use the ingredient keep it: the foreign key refuses the deletion
+    let deleted: bigint;
+    try {
+      const result = await trx
+        .deleteFrom('essen.zutat')
+        .where('id', '=', numericId)
+        .where('version', '=', requireVersion(etag))
+        .executeTakeFirst();
+      deleted = result.numDeletedRows;
+    } catch (error: unknown) {
+      if (getSqlErrorNumber(error) !== 547) throw error;
+      throw new ValidationError({
+        name: 'Planungen nutzen diese Zutat. Sie bleibt in der Liste; ändern geht.',
+      });
+    }
+    if (Number(deleted) === 0) await notChanged(trx, 'essen.zutat', numericId);
     await audit(trx, actor, 'zutat-geloescht', { id: numericId, name: row?.name ?? '' });
   });
 }
@@ -598,14 +608,21 @@ export async function deleteUnvertraeglichkeit(
         name: 'Die 14 Hauptallergene der EU bleiben in der Liste; umbenennen geht.',
       });
     }
-    const result = await trx
-      .deleteFrom('essen.unvertraeglichkeit')
-      .where('id', '=', numericId)
-      .where('version', '=', requireVersion(etag))
-      .executeTakeFirst();
-    if (Number(result.numDeletedRows) === 0) {
-      await notChanged(trx, 'essen.unvertraeglichkeit', numericId);
+    let deleted: bigint;
+    try {
+      const result = await trx
+        .deleteFrom('essen.unvertraeglichkeit')
+        .where('id', '=', numericId)
+        .where('version', '=', requireVersion(etag))
+        .executeTakeFirst();
+      deleted = result.numDeletedRows;
+    } catch (error: unknown) {
+      if (getSqlErrorNumber(error) !== 547) throw error;
+      throw new ValidationError({
+        name: 'Gerichte oder Zutaten von Planungen nutzen diese Unverträglichkeit. Sie bleibt in der Liste.',
+      });
     }
+    if (Number(deleted) === 0) await notChanged(trx, 'essen.unvertraeglichkeit', numericId);
     await audit(trx, actor, 'unvertraeglichkeit-geloescht', {
       id: numericId,
       name: row?.name ?? '',

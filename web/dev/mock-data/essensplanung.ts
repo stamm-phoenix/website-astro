@@ -4,6 +4,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { readCsv } from '../../../api/lib/essen-startdaten';
+import type { EssenKatalog } from '../../../api/lib/essen-gerichte-model';
 import type { EssenEinstellungen, ZutatInput } from '../../../api/lib/essen-validation';
 import type {
   EssenAuditEntry,
@@ -160,6 +161,35 @@ export function essenSteuerungView(): StaffEssenSteuerung {
     zutaten: sorted(structuredClone(s.zutaten)),
     planungen: planungenUebersicht(s.einstellungen.aufbewahrungMonate),
     log: structuredClone(s.log),
+  };
+}
+
+/** The central lists the dishes of a Planung pick from. */
+export function essenKatalog(): EssenKatalog {
+  const s = current();
+  return {
+    kategorien: s.kategorien.map(({ id, name }) => ({ id, name })),
+    unvertraeglichkeiten: s.unvertraeglichkeiten.map(({ id, name, schluessel }) => ({
+      id,
+      name,
+      schluessel,
+    })),
+    zutaten: [...s.zutaten]
+      .sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }))
+      .map((zutat) => ({
+        id: zutat.id,
+        name: zutat.name,
+        kategorieId: zutat.kategorieId,
+        einheitenart: zutat.einheitenart,
+        abtropfgewicht: zutat.abtropfgewicht,
+        lebensmittel: zutat.lebensmittel,
+        vegetarisch: zutat.vegetarisch,
+        vegan: zutat.vegan,
+        allergene: [...zutat.allergene],
+        grammProTl: zutat.grammProTl,
+        grammProEl: zutat.grammProEl,
+        grammProStueck: zutat.grammProStueck,
+      })),
   };
 }
 

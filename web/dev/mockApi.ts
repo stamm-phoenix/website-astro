@@ -72,8 +72,14 @@ import {
   saveEssenEinstellungen,
 } from './mock-data/essensplanung';
 import type { EssenListe, EssenMockResult } from './mock-data/essensplanung';
-import { essenAudit, essenEinstellungen } from './mock-data/essensplanung';
+import { essenAudit, essenEinstellungen, essenKatalog } from './mock-data/essensplanung';
 import * as essenPlanung from './mock-data/essensplanung-planung';
+import * as essenGerichte from './mock-data/essensplanung-gerichte';
+import {
+  validateGericht,
+  validateGerichtZutat,
+  validatePlanungZutat,
+} from '../../api/lib/essen-gerichte-validation';
 import {
   readPosition,
   validateAnlegen,
@@ -1339,6 +1345,66 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/mahlzeiten/:id', (req) =>
     );
   const input = { ...validateMahlzeit(req.json), position: readPosition(req.json?.position) };
   return essenAendern(req, (z) => essenPlanung.mahlzeitAendern(z, id, input, req.json?.etag));
+});
+
+route('GET', '/api/essensplanung/planung/katalog', (req) => {
+  try {
+    essenZugang(req);
+    return json(essenKatalog());
+  } catch (caught) {
+    return essenFehler(caught);
+  }
+});
+
+route('POST', '/api/essensplanung/planung/zutaten', (req) => {
+  const input = validatePlanungZutat(req.json, { eigene: true });
+  return essenAendern(req, (z) => ({ id: essenGerichte.eigeneZutatAnlegen(z, input) }), 201);
+});
+
+route(['PATCH', 'DELETE'], '/api/essensplanung/planung/zutaten/:id', (req) => {
+  const id = Number(req.params.id);
+  if (req.method === 'DELETE')
+    return essenAendern(req, (z) =>
+      essenGerichte.planungZutatLoeschen(z, id, req.headers['if-match'])
+    );
+  return essenAendern(req, (z) =>
+    essenGerichte.planungZutatAendern(z, id, req.json, req.json?.etag)
+  );
+});
+
+route('POST', '/api/essensplanung/planung/gerichte', (req) => {
+  const input = validateGericht(req.json, { neu: true });
+  return essenAendern(req, (z) => ({ id: essenGerichte.gerichtAnlegen(z, input) }), 201);
+});
+
+route(['PATCH', 'DELETE'], '/api/essensplanung/planung/gerichte/:id', (req) => {
+  const id = Number(req.params.id);
+  if (req.method === 'DELETE')
+    return essenAendern(req, (z) =>
+      essenGerichte.gerichtAendern(z, id, null, req.headers['if-match'])
+    );
+  const input = validateGericht(req.json, { neu: false });
+  return essenAendern(req, (z) => essenGerichte.gerichtAendern(z, id, input, req.json?.etag));
+});
+
+route('POST', '/api/essensplanung/planung/gerichte/:id/zutaten', (req) => {
+  const input = validateGerichtZutat(req.json);
+  const id = Number(req.params.id);
+  return essenAendern(
+    req,
+    (z) => essenGerichte.gerichtZutatAnlegen(z, id, input, readPosition(req.json?.position)),
+    201
+  );
+});
+
+route(['PATCH', 'DELETE'], '/api/essensplanung/planung/gericht-zutaten/:id', (req) => {
+  const id = Number(req.params.id);
+  if (req.method === 'DELETE')
+    return essenAendern(req, (z) =>
+      essenGerichte.gerichtZutatAendern(z, id, null, req.headers['if-match'])
+    );
+  const input = { ...validateGerichtZutat(req.json), position: readPosition(req.json?.position) };
+  return essenAendern(req, (z) => essenGerichte.gerichtZutatAendern(z, id, input, req.json?.etag));
 });
 
 route('POST', '/api/intern/nikolaus/bookings/:id/message', (req) =>

@@ -1,21 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import type { Page } from '@playwright/test';
-
-/** Creates a Planung over the start page and the confirmation link the mock shows. */
-async function anlegen(page: Page, name: string): Promise<void> {
-  await page.goto('/essensplanung');
-  await expect(page.getByRole('heading', { name: 'Neue Planung anlegen' })).toBeVisible();
-  await expectNoHorizontalOverflow(page);
-  await page.getByLabel('Name der Planung').fill(name);
-  await page.getByLabel('Erster Tag').fill('2027-08-01');
-  await page.getByLabel('Letzter Tag').fill('2027-08-02');
-  await page.getByLabel('Dein Name').fill('Kim Küche');
-  await page.getByLabel('Deine Mailadresse', { exact: true }).first().fill('kim@stamm-phoenix.de');
-  await page.getByRole('button', { name: 'Link zum Anlegen schicken' }).click();
-  await expect(page.getByRole('status').getByText(/Fast geschafft/)).toBeVisible();
-  await page.getByRole('link', { name: 'Planung bestätigen' }).click();
-  await expect(page.getByRole('heading', { name })).toBeVisible();
-}
+import { anlegen } from './essensplanung-helpers';
 
 test('a Planung is created, its meals are edited and others see the changes', async ({
   page,
@@ -387,6 +371,8 @@ test('a replaced link keeps the input; drafts ask before leaving; arrow keys swi
 
   // Arrow keys move between the areas
   await page.getByRole('tab', { name: 'Plan' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Gerichte' })).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Mitglieder' })).toBeFocused();
   await expect(page.getByRole('tab', { name: 'Mitglieder' })).toHaveAttribute(

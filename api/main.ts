@@ -143,6 +143,13 @@ import {
   EssensplanungStand,
   EssensplanungTag,
   EssensplanungTage,
+  EssensplanungKatalog,
+  EssensplanungZutaten,
+  EssensplanungZutat,
+  EssensplanungGerichte,
+  EssensplanungGericht,
+  EssensplanungGerichtZutaten,
+  EssensplanungGerichtZutat,
 } from './endpoints/essensplanung';
 import {
   EditorCollection,
@@ -1317,6 +1324,55 @@ app.http('essensplanungMahlzeit', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/mahlzeiten/{id}',
   handler: EssensplanungMahlzeit,
+});
+
+app.http('essensplanungKatalog', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/katalog',
+  handler: EssensplanungKatalog,
+});
+
+app.http('essensplanungZutaten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zutaten',
+  handler: EssensplanungZutaten,
+});
+
+app.http('essensplanungZutat', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zutaten/{id}',
+  handler: EssensplanungZutat,
+});
+
+app.http('essensplanungGerichte', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte',
+  handler: EssensplanungGerichte,
+});
+
+app.http('essensplanungGericht', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}',
+  handler: EssensplanungGericht,
+});
+
+app.http('essensplanungGerichtZutaten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}/zutaten',
+  handler: EssensplanungGerichtZutaten,
+});
+
+app.http('essensplanungGerichtZutat', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gericht-zutaten/{id}',
+  handler: EssensplanungGerichtZutat,
 });
 
 // Essensplanung: the Steuerung for the teams Admin and Vorstand (docs/essensplanung.md).
