@@ -21,9 +21,17 @@ export interface VorschlagTreffer {
 
 const fold = (text: string): string => text.toLocaleLowerCase('de');
 
+/** How well a shown text fits the typed text: the whole text, its start, a word's start, inside. */
+function rang(text: string, search: string): number {
+  if (text === search) return 0;
+  if (text.startsWith(search)) return 1;
+  return text.split(/[\s\-/(),]+/).some((wort) => wort.startsWith(search)) ? 2 : 3;
+}
+
 /**
  * Suggestions containing the typed text anywhere, ignoring case; all of them for empty text.
- * Repeated keys are offered once.
+ * The best fitting come first (the whole name, then its start), headings together, so the
+ * first suggestion is the one meant. Repeated keys are offered once.
  */
 export function filterVorschlaege(
   options: readonly Vorschlag[],
@@ -41,6 +49,23 @@ export function filterVorschlaege(
       !search || fold(`${option.label ?? option.value} ${option.search ?? ''}`).includes(search)
     );
   });
+  if (search) {
+    const rangVon = new Map(all.map((o) => [o, rang(fold(o.label ?? o.value), search)]));
+    // A heading goes where its best suggestion goes; within it the order is kept otherwise
+    const gruppen = new Map<string, number>();
+    for (const o of all) {
+      const g = o.gruppe ?? '';
+      gruppen.set(g, Math.min(gruppen.get(g) ?? 3, rangVon.get(o)!));
+    }
+    const reihe = [...gruppen.keys()];
+    const gruppe = (o: Vorschlag): string => o.gruppe ?? '';
+    all.sort(
+      (a, b) =>
+        gruppen.get(gruppe(a))! - gruppen.get(gruppe(b))! ||
+        reihe.indexOf(gruppe(a)) - reihe.indexOf(gruppe(b)) ||
+        rangVon.get(a)! - rangVon.get(b)!
+    );
+  }
   return { matches: all.slice(0, max), total: all.length };
 }
 
