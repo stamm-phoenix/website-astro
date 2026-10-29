@@ -118,6 +118,10 @@
     );
     // With the version the form started from: a change of others meanwhile is a conflict
     const body: Record<string, unknown> = { etag: basisEtag };
+    // Empty links are left out; the form index of each sent one, for the errors coming back
+    const linkIndex = kopf.links.flatMap((link, index) =>
+      link.url.trim() || link.titel.trim() ? [index] : []
+    );
     for (const feld of geaenderteFelder) {
       body[feld] =
         feld === 'personen'
@@ -125,7 +129,7 @@
             ? personen
             : kopf.personen
           : feld === 'links'
-            ? kopf.links.filter((link) => link.url.trim() || link.titel.trim())
+            ? linkIndex.map((index) => kopf.links[index])
             : kopf[feld];
     }
     const gesendet = $state.snapshot(kopf);
@@ -133,7 +137,13 @@
       try {
         return await kontext.api.senden('PATCH', `/gerichte/${gericht.id}`, body);
       } catch (error: unknown) {
-        if (error instanceof ApiError && error.fields) felder = error.fields;
+        if (error instanceof ApiError && error.fields)
+          felder = Object.fromEntries(
+            Object.entries(error.fields).map(([feld, text]) => [
+              feld.replace(/^links\.(\d+)\./, (_, i) => `links.${linkIndex[Number(i)] ?? i}.`),
+              text,
+            ])
+          );
         throw error;
       }
     }, `${kopf.name} gespeichert.`);
