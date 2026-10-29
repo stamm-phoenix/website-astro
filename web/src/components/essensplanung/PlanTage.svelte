@@ -9,6 +9,7 @@
   import EinplanungDialog from './EinplanungDialog.svelte';
   import MahlzeitGruppenDialog from './MahlzeitGruppenDialog.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
+  import PlanKalender from './PlanKalender.svelte';
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
   import { tagStand } from '../../../../api/lib/essen-planung-model';
   import type { PlanKontext } from './planKontext';
@@ -47,6 +48,25 @@
     if (sichtbar && brauchtNamen && ansicht.katalogStand !== geladen)
       untrack(() => void namenLaden());
   });
+
+  /** List or calendar; each viewer's choice is remembered in this browser. */
+  const DARSTELLUNG_KEY = 'essensplanung:darstellung';
+  let darstellung = $state<'liste' | 'kalender'>(gemerkteDarstellung());
+  function gemerkteDarstellung(): 'liste' | 'kalender' {
+    try {
+      return localStorage.getItem(DARSTELLUNG_KEY) === 'kalender' ? 'kalender' : 'liste';
+    } catch {
+      return 'liste';
+    }
+  }
+  function zeige(art: 'liste' | 'kalender'): void {
+    darstellung = art;
+    try {
+      localStorage.setItem(DARSTELLUNG_KEY, art);
+    } catch {
+      // Without storage the choice holds until the page is left
+    }
+  }
 
   /** The plan as PDF; the names of the intolerances first, when lines need them. */
   async function planPdf(): Promise<void> {
@@ -156,12 +176,24 @@
 <section aria-labelledby="plan-heading" class="space-y-6">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h3 id="plan-heading" class="sr-only">Tage und Mahlzeiten</h3>
+    <div class="flex gap-1" role="group" aria-label="Darstellung">
+      {#each [['liste', 'Liste'], ['kalender', 'Kalender']] as const as [art, label] (art)}
+        <ActionButton
+          type="button"
+          variant={darstellung === art ? 'primary' : 'secondary'}
+          aria-pressed={darstellung === art}
+          onclick={() => zeige(art)}>{label}</ActionButton
+        >
+      {/each}
+    </div>
     <PdfKnopf {kontext} label="Plan als PDF" erstellen={planPdf} />
   </div>
   {#if ansicht.tage.length === 0}
     <p class="text-neutral-700">Die Planung hat noch keine Tage.</p>
+  {:else if darstellung === 'kalender'}
+    <PlanKalender {kontext} {bearbeiten} oneinplanen={(neu) => (auftrag = neu)} />
   {/if}
-  <ol class="space-y-6">
+  <ol class="space-y-6" hidden={darstellung === 'kalender'}>
     {#each ansicht.tage as tag (tag.id)}
       <li class="surface p-4 md:p-5" aria-labelledby="tag-{tag.id}">
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -234,7 +266,7 @@
     {/each}
   </ol>
 
-  {#if bearbeiten}
+  {#if bearbeiten && darstellung === 'liste'}
     <form class="flex flex-wrap items-end gap-2 print:hidden" onsubmit={tagHinzufuegen}>
       <div>
         <label class="form-label" for="neuer-tag">Weiterer Tag</label>
