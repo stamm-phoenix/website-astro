@@ -86,6 +86,8 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await chili.getByRole('button', { name: 'Rezeptkarte drucken' }).click();
   await page.emulateMedia({ media: 'print' });
   await expect(page.getByText('Pudding', { exact: true })).toBeHidden();
+  await expect(page.locator('body > header')).toBeHidden();
+  await expect(page.locator('body > footer')).toBeHidden();
   await expect(chili.locator('strong:visible', { hasText: 'würzen' })).toHaveCount(1);
   // Paper has no links: the address shows after the title
   await expect(chili.getByText('(https://example.org/chili)')).toBeVisible();
@@ -261,4 +263,26 @@ test('drained weight is marked; a typed unit stays when others change the ingred
   await expect(dialog).toBeVisible();
   await expect(eintopf.getByText(/1,5/)).toHaveCount(0);
   await anderes.context().close();
+});
+
+test('without the central list the card does not hide allergens', async ({ page }) => {
+  await anlegen(page, 'E2E Allergene');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Milchreis');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Milchreis angelegt.').first()).toBeVisible();
+  const reis = page.locator('li', { has: page.getByText('Milchreis', { exact: true }) }).first();
+  await reis.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Zutat', { exact: true }).fill('H-Milch');
+  await dialog.getByRole('option', { name: 'H-Milch', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(reis.getByText(/enthält Milch/)).toBeVisible();
+
+  await page.route('**/api/essensplanung/planung/katalog', (route) => route.abort());
+  await page.reload();
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByText('Milchreis', { exact: true }).click();
+  await expect(reis.getByText('enthält Allergene (Namen nicht geladen)')).toBeVisible();
+  await expect(reis.getByRole('button', { name: 'Rezeptkarte drucken' })).toBeDisabled();
 });

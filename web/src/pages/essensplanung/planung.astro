@@ -12,8 +12,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   description="Eine Essensplanung ansehen und bearbeiten."
 >
   <Header slot="header" />
-  <PageHeader title="Essensplanung" />
-  <div class="mt-8">
+  <div class="print:hidden">
+    <PageHeader title="Essensplanung" />
+  </div>
+  <div class="essensplanung-seite mt-8 print:mt-0">
     <EssensplanungApp client:only="svelte" />
     <noscript>
       <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
@@ -23,3 +25,13 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   </div>
   <Footer slot="footer" />
 </BaseLayout>
+
+<style is:global>
+  /* On paper only the Planung or the recipe card, without the site around it */
+  @media print {
+    body:has(.essensplanung-seite) > header,
+    body:has(.essensplanung-seite) > footer {
+      display: none;
+    }
+  }
+</style>
