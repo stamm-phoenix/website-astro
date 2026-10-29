@@ -152,6 +152,7 @@
     }
     speichert = true;
     let konflikt = false;
+    let felder: string | null = null;
     const ok = await kontext.aendern(
       async () => {
         try {
@@ -162,6 +163,9 @@
           });
         } catch (error: unknown) {
           konflikt = error instanceof ApiError && error.status === 409;
+          // What exactly was refused, e.g. an amount too big or an ingredient gone meanwhile
+          if (error instanceof ApiError && error.fields)
+            felder = Object.values(error.fields).join(' ');
           throw error;
         }
       },
@@ -173,7 +177,7 @@
     );
     speichert = false;
     if (!ok) {
-      fehler = kontext.fehler;
+      fehler = felder ?? kontext.fehler;
       // The input stays; saving again takes it over the state named here, loaded meanwhile
       if (konflikt) {
         etag = einplanung.etag;
