@@ -6,6 +6,7 @@ import {
   validateHaken,
   validateRegel,
   validateVerschieben,
+  validateZurueckholen,
 } from '../lib/essen-einkaeufe-validation';
 import { ValidationError } from '../lib/validation/errors';
 
@@ -143,4 +144,12 @@ test('the version of something ticked off is read only when it is one', () => {
   assert.equal(readHakenEtag({ etag: null }), null);
   assert.equal(readHakenEtag({ etag: 'kaputt' }), null);
   assert.equal(readHakenEtag(null), null);
+});
+
+test('taking back names the ingredient', () => {
+  assert.deepEqual(validateZurueckholen({ planungZutatId: 3, x: 1 }), { planungZutatId: 3 });
+  assert.deepEqual(
+    fields(() => validateZurueckholen({ planungZutatId: 'a' })),
+    { planungZutatId: 'Diese Zutat gibt es nicht.' }
+  );
 });

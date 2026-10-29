@@ -285,4 +285,5 @@ export const AENDERUNG_TEXTE: Record<string, string> = {
   'einkauf-aufgehoben': 'Häkchen beim Einkaufen aufgehoben',
   'einkauf-regel': 'Posten eines Einkaufs geändert',
   'einkauf-verschoben': 'Posten in anderen Einkauf verschoben',
+  'einkauf-zurueckgeholt': 'Posten in Einkauf zurückgeholt',
 };

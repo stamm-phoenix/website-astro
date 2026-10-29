@@ -6,6 +6,7 @@ import type {
   HakenInput,
   RegelInput,
   VerschiebenInput,
+  ZurueckholenInput,
 } from '../../../api/lib/essen-einkaeufe-model';
 import {
   MAX_EINKAEUFE,
@@ -170,5 +171,20 @@ export function verschieben(z: MockZugang, vonEinkaufId: number, input: Verschie
   aendere(z, 'einkauf-verschoben', { name: zutat.name, einkauf: von.name, nach: nach.name }, () => {
     schreibeRegel(z, vonEinkaufId, { ...regel, art: 'ohne' });
     schreibeRegel(z, input.nachEinkaufId, { ...regel, art: 'mit' });
+  });
+}
+
+/** Takes back „not on this trip“ with the „mit“ of the trip it was moved to, in one change. */
+export function zurueckholen(z: MockZugang, einkaufId: number, input: ZurueckholenInput): void {
+  const einkauf = einkaufVon(z, einkaufId);
+  const zutat = zutatMitEinheit(z, input.planungZutatId, null);
+  const ist = (art: 'ohne' | 'mit') => (r: { planungZutatId: number; art: string }) =>
+    r.planungZutatId === input.planungZutatId && r.art === art;
+  if (!einkauf.regeln.some(ist('ohne')))
+    throw feld('planungZutatId', `${zutat.name} ist in diesem Einkauf nicht herausgenommen.`);
+  aendere(z, 'einkauf-zurueckgeholt', { name: zutat.name, einkauf: einkauf.name }, () => {
+    einkauf.regeln = einkauf.regeln.filter((r) => !ist('ohne')(r));
+    for (const anderer of z.planung.einkaeufe)
+      anderer.regeln = anderer.regeln.filter((r) => !ist('mit')(r));
   });
 }

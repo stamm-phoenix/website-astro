@@ -8,12 +8,14 @@ import type {
   HakenInput,
   RegelInput,
   VerschiebenInput,
+  ZurueckholenInput,
 } from './essen-einkaeufe-model';
 import {
   einkaufSchema,
   hakenSchema,
   regelSchema,
   verschiebenSchema,
+  zurueckholenSchema,
 } from './essen-einkaeufe-schema';
 import { parseWith } from './validation/zod';
 
@@ -31,6 +33,10 @@ export function validateRegel(input: unknown): RegelInput {
 
 export function validateVerschieben(input: unknown): VerschiebenInput {
   return parseWith(verschiebenSchema, input);
+}
+
+export function validateZurueckholen(input: unknown): ZurueckholenInput {
+  return parseWith(zurueckholenSchema, input);
 }
 
 /** The version of the thing ticked off before, or null when it is ticked off for the first time. */

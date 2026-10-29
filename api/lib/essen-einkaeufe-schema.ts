@@ -11,6 +11,7 @@ import type {
   HakenInput,
   RegelInput,
   VerschiebenInput,
+  ZurueckholenInput,
 } from './essen-einkaeufe-model';
 import { EINHEITEN_JE_ART } from './essen-gerichte-model';
 import type { GerichtEinheit } from './essen-gerichte-model';
@@ -128,3 +129,7 @@ export const verschiebenSchema = lenientObject({
       error: 'Bitte einen Einkauf wählen.',
     }),
 }).transform((value): VerschiebenInput => value);
+
+export const zurueckholenSchema = lenientObject({
+  planungZutatId: zutatId,
+}).transform((value): ZurueckholenInput => value);

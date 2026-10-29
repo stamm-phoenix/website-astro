@@ -437,3 +437,68 @@ dbTest('the Steuerung keeps the kind of unit of an ingredient ticked off on a tr
     (error: unknown) => error instanceof ValidationError && error.fields.einheitenart !== undefined
   );
 });
+
+dbTest('taking back undoes a move in one change, or changes nothing', async (t) => {
+  const { token, zutat } = await planung(t);
+  await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+    body: { name: 'Montag' },
+  });
+  const [a, b] = json<PlanungAnsicht>(
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name: 'Mittwoch' },
+    })
+  ).einkaeufe;
+  const zurueck = (id: number, body: object) =>
+    senden(
+      t,
+      einkaeufe.EssensplanungEinkaufZurueckholen,
+      'POST',
+      'planung/einkaeufe/zurueckholen',
+      token,
+      {
+        id,
+        body,
+      }
+    );
+  await senden(
+    t,
+    einkaeufe.EssensplanungEinkaufVerschieben,
+    'POST',
+    'planung/einkaeufe/verschieben',
+    token,
+    {
+      id: a.id,
+      body: { planungZutatId: zutat, nachEinkaufId: b.id },
+    }
+  );
+  const regeln = async () =>
+    (
+      await getDb()
+        .selectFrom('essen.einkauf_regel')
+        .select(['einkauf_id', 'art'])
+        .where('planung_zutat_id', '=', zutat)
+        .orderBy('einkauf_id')
+        .execute()
+    ).map((r) => `${r.einkauf_id}:${r.art}`);
+  const vorher = await regeln();
+  assert.deepEqual(vorher, [`${a.id}:ohne`, `${b.id}:mit`]);
+
+  // Not taken off on the target: refused, nothing changes
+  const falsch = await zurueck(b.id, { planungZutatId: zutat });
+  assert.equal(falsch.status, 400, JSON.stringify(falsch.jsonBody));
+  assert.deepEqual(await regeln(), vorher);
+  const kaputt = await zurueck(a.id, { planungZutatId: 'x' });
+  assert.equal(kaputt.status, 400);
+  assert.deepEqual(await regeln(), vorher);
+
+  // Taken back: both rules go in one change
+  const ok = await zurueck(a.id, { planungZutatId: zutat });
+  assert.equal(ok.status, 200, JSON.stringify(ok.jsonBody));
+  const ansicht = json<PlanungAnsicht>(ok);
+  assert.deepEqual(await regeln(), []);
+  assert.deepEqual(
+    ansicht.einkaeufe.map((e) => e.regeln),
+    [[], []]
+  );
+  assert.equal(ansicht.aenderungen[0].aktion, 'einkauf-zurueckgeholt');
+});

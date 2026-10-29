@@ -6,6 +6,7 @@ import {
   postenAufheben,
   regelSetzen,
   verschieben,
+  zurueckholen,
 } from '../lib/essen-einkaeufe';
 import {
   readHakenEtag,
@@ -13,6 +14,7 @@ import {
   validateHaken,
   validateRegel,
   validateVerschieben,
+  validateZurueckholen,
 } from '../lib/essen-einkaeufe-validation';
 import { ladeAnsicht } from '../lib/essen-planung';
 import {
@@ -80,6 +82,14 @@ export const EssensplanungEinkaufVerschieben = planungHandler(async (request) =>
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await verschieben(zugang, readId(request), validateVerschieben(await readJsonBody(request)));
+  return ok(await ladeAnsicht(zugang));
+});
+
+/** POST `{ planungZutatId }`: takes back „not on this trip“ and the „mit“ of the other trip. */
+export const EssensplanungEinkaufZurueckholen = planungHandler(async (request) => {
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  await zurueckholen(zugang, readId(request), validateZurueckholen(await readJsonBody(request)));
   return ok(await ladeAnsicht(zugang));
 });
 

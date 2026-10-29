@@ -85,6 +85,7 @@ import {
   validateHaken,
   validateRegel,
   validateVerschieben,
+  validateZurueckholen,
 } from '../../api/lib/essen-einkaeufe-validation';
 import { validateAbhaken } from '../../api/lib/essen-kochen-validation';
 import {
@@ -1594,6 +1595,11 @@ route('PUT', '/api/essensplanung/planung/einkaeufe/:id/regeln', (req) => {
 route('POST', '/api/essensplanung/planung/einkaeufe/:id/verschieben', (req) => {
   const input = validateVerschieben(req.json);
   return essenAendern(req, (z) => essenEinkaeufe.verschieben(z, Number(req.params.id), input));
+});
+
+route('POST', '/api/essensplanung/planung/einkaeufe/:id/zurueckholen', (req) => {
+  const input = validateZurueckholen(req.json);
+  return essenAendern(req, (z) => essenEinkaeufe.zurueckholen(z, Number(req.params.id), input));
 });
 
 route('DELETE', '/api/essensplanung/planung/einkauf-posten/:id', (req) =>

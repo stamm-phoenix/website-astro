@@ -188,6 +188,7 @@ const AENDERUNGEN: Record<string, string> = {
   'einkauf-aufgehoben': 'hat ein Häkchen beim Einkaufen aufgehoben',
   'einkauf-regel': 'hat einen Posten eines Einkaufs angepasst',
   'einkauf-verschoben': 'hat einen Posten in einen anderen Einkauf verschoben',
+  'einkauf-zurueckgeholt': 'hat einen Posten in einen Einkauf zurückgeholt',
 };
 
 /** What ticking off a planned dish did, by its new status. */

@@ -18,6 +18,7 @@ import type {
   HakenInput,
   RegelInput,
   VerschiebenInput,
+  ZurueckholenInput,
 } from './essen-einkaeufe-model';
 import { MAX_EINKAEUFE, MAX_EINKAUF_EINTRAEGE, einkaufStand } from './essen-einkaeufe-model';
 import { EINHEITEN_JE_ART, einheitPasst, zutatSperre } from './essen-gerichte-model';
@@ -421,5 +422,41 @@ export async function verschieben(
       result: undefined,
       details: { name, einkauf: von.name, nach: nach.name },
     };
+  });
+}
+
+/**
+ * Takes back „not on this trip“ in one change: the rule here goes, and so does the „mit“ of the
+ * trip it was moved to, so both work it out again. Nothing changes when it is not taken off here.
+ */
+export async function zurueckholen(
+  zugang: Zugang,
+  einkaufId: number,
+  input: ZurueckholenInput
+): Promise<void> {
+  await aendere(zugang, 'einkauf-zurueckgeholt', async (trx) => {
+    const einkauf = await einkaufDerPlanung(trx, zugang, einkaufId);
+    const { name } = await zutatMitEinheit(trx, zugang, input.planungZutatId, null, 'einheit');
+    const regel = await trx
+      .selectFrom('essen.einkauf_regel')
+      .select('id')
+      .where('einkauf_id', '=', einkaufId)
+      .where('planung_zutat_id', '=', input.planungZutatId)
+      .where('art', '=', 'ohne')
+      .executeTakeFirst();
+    if (!regel)
+      throw new ValidationError({
+        planungZutatId: `${name} ist in diesem Einkauf nicht herausgenommen.`,
+      });
+    await trx.deleteFrom('essen.einkauf_regel').where('id', '=', regel.id).execute();
+    await trx
+      .deleteFrom('essen.einkauf_regel')
+      .where('planung_zutat_id', '=', input.planungZutatId)
+      .where('art', '=', 'mit')
+      .where('einkauf_id', 'in', (eb) =>
+        eb.selectFrom('essen.einkauf').select('id').where('planung_id', '=', zugang.planungId)
+      )
+      .execute();
+    return { result: undefined, details: { name, einkauf: einkauf.name } };
   });
 }

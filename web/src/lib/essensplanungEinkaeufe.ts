@@ -191,15 +191,19 @@ export function einkaufListen(
         return [[schluessel(r.planungZutatId, basis.einheit), basis] as const];
       })
     );
-    const hakenJe = new Map(
-      einkauf.posten.map((h) => [
-        // A thing without an amount keeps its place when ticked off, also for others at once
-        ohne.has(h.planungZutatId) && !mitMenge.has(h.planungZutatId)
-          ? `${h.planungZutatId}:`
-          : schluessel(h.planungZutatId, inBasis(h.erhalten, h.einheit).einheit),
-        h,
-      ])
-    );
+    /** The key of a fixed amount on this trip, by ingredient. */
+    const festKey = new Map([...fest.keys()].map((key) => [Number(key.split(':')[0]), key]));
+    /** Where a tick stands on the list of this trip. */
+    const hakenKey = (h: EinkaufHaken): string => {
+      const id = h.planungZutatId;
+      // A fixed amount on this trip is what was ticked off
+      const festerKey = festKey.get(id);
+      if (festerKey) return festerKey;
+      // A thing without an amount keeps its place when ticked off, also for others at once
+      if (ohne.has(id) && !mitMenge.has(id)) return `${id}:`;
+      return schluessel(id, inBasis(h.erhalten, h.einheit).einheit);
+    };
+    const hakenJe = new Map(einkauf.posten.map((h) => [hakenKey(h), h]));
     const mit = new Set(einkauf.regeln.filter((r) => r.art === 'mit').map((r) => r.planungZutatId));
     const keys = new Set([
       ...noetig.keys(),

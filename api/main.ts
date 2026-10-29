@@ -174,6 +174,7 @@ import {
   EssensplanungEinkaufPosten,
   EssensplanungEinkaufRegel,
   EssensplanungEinkaufVerschieben,
+  EssensplanungEinkaufZurueckholen,
 } from './endpoints/essensplanung-einkaeufe';
 import {
   EditorCollection,
@@ -1523,6 +1524,13 @@ app.http('essensplanungEinkaufVerschieben', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/einkaeufe/{id}/verschieben',
   handler: EssensplanungEinkaufVerschieben,
+});
+
+app.http('essensplanungEinkaufZurueckholen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe/{id}/zurueckholen',
+  handler: EssensplanungEinkaufZurueckholen,
 });
 
 app.http('essensplanungEinkaufPosten', {

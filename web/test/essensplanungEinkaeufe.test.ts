@@ -367,3 +367,19 @@ test('a tick covers only what was put on the list before it', () => {
   assert.deepEqual(gesamt(), ['Brötchen']);
   assert.deepEqual(liste(s, nach), ['Brötchen']);
 });
+
+test('a thing without an amount with a fixed amount is one row when ticked off', () => {
+  const a = einkauf();
+  const s = stand([a]);
+  s.gerichte = [];
+  s.zusatzbedarf = [
+    { id: 1, etag: '"01"', planungZutatId: 4, menge: null, einheit: null, hinweis: '' },
+  ];
+  a.regeln = [{ planungZutatId: 4, art: 'fest', menge: 2, einheit: 'stueck' }];
+  assert.deepEqual(liste(s, a), ['2 stueck Brötchen (fest)']);
+  a.posten = [{ ...haken(4, 2, 'stueck'), etag: '"02"' }];
+  assert.deepEqual(liste(s, a), ['2 stueck Brötchen ✓2 stueck (fest)']);
+  const info = einkaufListen(s, new Map()).get(a.id)!;
+  assert.equal(info.anzahl, 1);
+  assert.equal(info.abgehakt, 1);
+});

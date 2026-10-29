@@ -101,21 +101,15 @@
    * out again.
    */
   async function zurueckholen(zutat: { planungZutatId: number; name: string }): Promise<void> {
-    const ziele = ansicht.einkaeufe.filter(
-      (e) =>
-        e.id !== einkauf.id &&
-        e.regeln.some((r) => r.planungZutatId === zutat.planungZutatId && r.art === 'mit')
-    );
-    for (const ziel of ziele) {
-      const ok = await kontext.aendern(() =>
-        kontext.api.senden('PUT', `/einkaeufe/${ziel.id}/regeln`, {
+    fehler = null;
+    const ok = await kontext.aendern(
+      () =>
+        kontext.api.senden('POST', `/einkaeufe/${einkauf.id}/zurueckholen`, {
           planungZutatId: zutat.planungZutatId,
-          art: null,
-        })
-      );
-      if (!ok) return;
-    }
-    await regel(zutat, null);
+        }),
+      `${zutat.name} wird wieder berechnet.`
+    );
+    if (!ok) fehler = kontext.fehler;
   }
 
   /** „3 l → Pepsi Cola“ for what was ticked off. */

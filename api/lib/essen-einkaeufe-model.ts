@@ -89,6 +89,11 @@ export interface VerschiebenInput {
   nachEinkaufId: number;
 }
 
+/** Takes back „not on this trip“, with the „mit“ of the trip it was moved to. */
+export interface ZurueckholenInput {
+  planungZutatId: number;
+}
+
 /** The version a trip is deleted with: of the trip and everything ticked off on it. */
 export function einkaufStand(einkauf: { etag: string; posten: { etag: string }[] }): string {
   return [einkauf.etag, ...einkauf.posten.map((p) => p.etag)].reduce(
