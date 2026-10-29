@@ -1,5 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-import { anlegen } from './essensplanung-helpers';
+import { anlegen, zeilenMenge } from './essensplanung-helpers';
 
 test('a planned dish shows its amounts for the people who eat at the meal', async ({ page }) => {
   // Many steps through three areas: more than the usual time
@@ -14,7 +14,7 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText('Chili angelegt.').first()).toBeVisible();
   const chili = page.locator('li', { has: page.getByText('Chili', { exact: true }) }).first();
-  await chili.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await chili.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
   await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('400');
@@ -22,10 +22,10 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
   await dialog.getByLabel('vegetarisch', { exact: true }).uncheck();
   await dialog.getByLabel('vegan', { exact: true }).uncheck();
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(chili.getByText('400 g')).toBeVisible();
+  await expect.poll(() => zeilenMenge(chili, 'Hackfleisch')).toBe('400 g');
   // Two lines of oil: 40 ml in the pot, 40 ml for a gluten-free pot of its own
   for (const art of ['nicht dafür', 'nur dafür (Ersatz)']) {
-    await chili.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+    await chili.getByRole('button', { name: 'Mehr Angaben …' }).click();
     await dialog.getByLabel('Zutat', { exact: true }).fill('Sonnenblumen');
     await dialog.getByRole('option', { name: 'Sonnenblumenöl' }).click();
     await dialog.getByLabel('Menge', { exact: true }).fill('40');
