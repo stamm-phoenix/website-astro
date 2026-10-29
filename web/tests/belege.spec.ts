@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 
@@ -568,4 +569,16 @@ test('income is submitted as a PDF without asking how it was paid', async ({ pag
   const opened = page.getByRole('dialog', { name: 'Beleg von Spende Bäckerei Huber' });
   await expect(opened.getByRole('radio', { name: 'Einnahme', exact: true })).toBeChecked();
   await expect(opened.getByRole('link', { name: 'PDF herunterladen' })).toBeVisible();
+});
+
+test('the listed receipts download as a PDF', async ({ page }) => {
+  await page.goto('/leitendenbereich/belege');
+  const button = page.getByRole('button', { name: 'PDF herunterladen', exact: true });
+  await expect(button).toBeEnabled();
+  const download = page.waitForEvent('download');
+  await button.click();
+  const pdf = await download;
+  expect(pdf.suggestedFilename()).toMatch(/^Belege \d{4}-\d{2}-\d{2}\.pdf$/);
+  expect((await readFile(await pdf.path())).subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('PDF heruntergeladen.')).toBeVisible();
 });

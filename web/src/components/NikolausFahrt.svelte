@@ -2,10 +2,11 @@
   import { HELP_CONTACTS } from '../lib/helpContacts';
   import type { Notice } from '../lib/status';
   import { NIKOLAUS_NOTABLE_DELAY_MINUTES } from '../lib/nikolausConfig';
-  import { mergeStops, formatTime } from '../lib/nikolausFahrtView';
+  import { mergeStops, formatTime, readStoredTeam, storeTeam } from '../lib/nikolausFahrtView';
   import { navigationLink } from '../lib/nikolausMaps';
   import FahrtStop from './nikolaus/FahrtStop.svelte';
   import FahrtOfflinePanel from './nikolaus/FahrtOfflinePanel.svelte';
+  import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
 
   import LoadState from './ui/LoadState.svelte';
@@ -32,7 +33,6 @@
 
   /** How often the route is reloaded, to see changes of the Dispo and of the team mates. */
   const REFRESH_MS = 60_000;
-  const TEAM_STORAGE_KEY = 'nikolaus-fahrt-team';
 
   interface Props {
     /** Settings baked into the page; refreshed from the API when online. */
@@ -83,22 +83,6 @@
     if (!next?.plannedArrival || local.date !== date) return 0;
     return timeToMinutes(local.time) - timeToMinutes(next.plannedArrival);
   });
-
-  function readStoredTeam(): string | null {
-    try {
-      return localStorage.getItem(TEAM_STORAGE_KEY);
-    } catch {
-      return null;
-    }
-  }
-
-  function storeTeam(name: string): void {
-    try {
-      localStorage.setItem(TEAM_STORAGE_KEY, name);
-    } catch {
-      // Only a convenience: the team has to be chosen again next time
-    }
-  }
 
   function updateUrl(): void {
     const url = new URL(window.location.href);
@@ -186,6 +170,18 @@
       window.removeEventListener('online', onOnline);
     };
   });
+
+  async function createPdf(): Promise<void> {
+    if (!data || !team) return;
+    const [shown, shownTeam, shownStops, shownDate] = [data, team, stops, date];
+    const stand = offline && lastSync ? ` · Stand ${formatTime(lastSync)} Uhr` : '';
+    const { downloadFahrtPdf, fahrtPdfTeam } = await import('../lib/nikolausFahrtPdf');
+    await downloadFahrtPdf(
+      fahrtPdfTeam(shown, shownTeam, shownStops),
+      `Nikolaus-Route ${formatShortDate(shownDate)}${stand}`,
+      `nikolaus-route-${shownDate}-team-${shownTeam.replace(/[^\w-]+/g, '-')}.pdf`
+    );
+  }
 
   $effect(() => {
     if (!snapshot) return;
@@ -354,6 +350,15 @@
               <p class="mt-1 text-sm text-neutral-800">
                 {members.map((member) => `${member.role}: ${member.name}`).join(' · ')}
               </p>
+            {/if}
+            {#if stops.length > 0}
+              <PdfDownloadButton
+                class="mt-2"
+                download={createPdf}
+                {offline}
+                errorText="Das PDF der Route konnte nicht erstellt werden. Versuch es noch einmal; die Route hier bleibt nutzbar."
+                onresult={(kind, text) => (notice = { kind, text })}
+              />
             {/if}
             {#if stops.length > 0}
               <p class="mt-2 text-sm font-semibold tabular-nums text-neutral-900">

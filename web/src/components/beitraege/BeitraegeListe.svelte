@@ -1,5 +1,9 @@
 <script lang="ts">
   import FilterTabs from '../ui/FilterTabs.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import StatusNotice from '../pflege/StatusNotice.svelte';
+  import { errorMessage } from '../../lib/api';
+  import type { Notice } from '../../lib/status';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import CopyCode from '../ui/CopyCode.svelte';
   import { formatDate } from '../../lib/campflowFields';
@@ -18,9 +22,11 @@
   interface Props {
     fees: Beitrag[];
     title: string;
+    /** When the Beiträge were read from CampFlow. */
+    loadedAt: string;
     onback: () => void;
   }
-  let { fees, title, onback }: Props = $props();
+  let { fees, title, loadedAt, onback }: Props = $props();
 
   /** Rows shown at first and added per click, so a phone stays quick with hundreds of them. */
   const PAGE = 100;
@@ -52,6 +58,38 @@
     shown = PAGE;
   });
 
+  let pdfBusy = $state(false);
+  let pdfNotice = $state<Notice | null>(null);
+
+  /** The Beiträge as filtered, with all rows and not only the ones shown so far. */
+  async function exportPdf(): Promise<void> {
+    pdfBusy = true;
+    pdfNotice = null;
+    try {
+      const shown = {
+        title,
+        fees: visible,
+        filter,
+        kostenstelle: units.find((unit) => unit.id === kostenstelle)?.name ?? '',
+        search,
+        loadedAt,
+      };
+      const { downloadBeitraegeListe } = await import('../../lib/beitraegePdf');
+      await downloadBeitraegeListe(shown);
+      pdfNotice = { text: 'PDF heruntergeladen.', kind: 'success' };
+    } catch (error) {
+      pdfNotice = {
+        text: errorMessage(
+          error,
+          'Das PDF der Beiträge konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal.'
+        ),
+        kind: 'error',
+      };
+    } finally {
+      pdfBusy = false;
+    }
+  }
+
   function back(event: MouseEvent): void {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
       return;
@@ -66,9 +104,19 @@
     class="inline-flex min-h-11 items-center text-sm text-link underline underline-offset-4"
     onclick={back}>← Alle Sammlungen</a
   >
-  <h2 id="beitraege-liste" tabindex="-1" class="outline-none font-serif text-2xl text-brand-900">
-    {title}
-  </h2>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h2 id="beitraege-liste" tabindex="-1" class="outline-none font-serif text-2xl text-brand-900">
+      {title}
+    </h2>
+    <ActionButton
+      variant="secondary"
+      type="button"
+      disabled={pdfBusy || visible.length === 0}
+      onclick={() => void exportPdf()}
+      >{pdfBusy ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
+    >
+  </div>
+  <StatusNotice message={pdfNotice?.text ?? null} kind={pdfNotice?.kind} popup />
 
   <div class="flex flex-wrap items-end gap-x-6 gap-y-3">
     <label class="block w-full text-sm sm:w-72">

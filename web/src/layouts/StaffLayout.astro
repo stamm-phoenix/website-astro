@@ -23,8 +23,6 @@ interface Props {
    * `none` leaves it to the content.
    */
   header?: 'page' | 'sr-only' | 'none';
-  /** Hide header, breadcrumb and footer when printing, so only the content is on paper. */
-  printable?: boolean;
   /** Only the content, for views shown in a window of their own. */
   bare?: boolean;
   /** Less space below the intro, for modules whose content must start high up on a phone. */
@@ -33,13 +31,7 @@ interface Props {
   offlineNotice?: boolean;
 }
 
-const {
-  header = 'page',
-  printable = false,
-  bare = false,
-  compact = false,
-  offlineNotice = true,
-} = Astro.props;
+const { header = 'page', bare = false, compact = false, offlineNotice = true } = Astro.props;
 const page = staffPage(Astro.url.pathname);
 const heading = page.heading ?? page.title;
 const breadcrumbs = staffBreadcrumbs(page);
@@ -110,10 +102,7 @@ const title =
         </div>
       )}
       {!bare && back && (
-        <nav
-          aria-label="Zurück"
-          class:list={['-mt-4 mb-2 md:-mt-6', { 'print:hidden': printable }]}
-        >
+        <nav aria-label="Zurück" class="-mt-4 mb-2 md:-mt-6">
           <a
             href={back.href}
             data-astro-reload={back.reload}
@@ -137,16 +126,14 @@ const title =
       )}
 
       {header === 'page' && (
-        <div class:list={{ 'print:hidden': printable }}>
-          <PageHeader title={heading} hasActions={Astro.slots.has('actions')} tight>
-            {intro && !page.introOpen && (
-              <StaffIntro slot="beside-title" {heading} {intro} client:load />
-            )}
-            {intro && page.introOpen && <StaffIntro {heading} {intro} open />}
-            <slot name="header" />
-            <slot name="actions" slot="actions" />
-          </PageHeader>
-        </div>
+        <PageHeader title={heading} hasActions={Astro.slots.has('actions')} tight>
+          {intro && !page.introOpen && (
+            <StaffIntro slot="beside-title" {heading} {intro} client:load />
+          )}
+          {intro && page.introOpen && <StaffIntro {heading} {intro} open />}
+          <slot name="header" />
+          <slot name="actions" slot="actions" />
+        </PageHeader>
       )}
       {header === 'sr-only' && <h1 class="sr-only">{heading}</h1>}
 
@@ -155,7 +142,6 @@ const title =
         class:list={{
           'mt-4': header === 'page' && !compact,
           'mt-2': (header === 'page' && compact) || (header === 'sr-only' && !bare),
-          'staff-printable print:mt-0': printable,
         }}
       >
         <slot />
@@ -195,15 +181,6 @@ const title =
   window.addEventListener('offline', showOfflineNotice);
   document.addEventListener('astro:page-load', showOfflineNotice);
 </script>
-
-<style is:global>
-  @media print {
-    body:has(.staff-printable) > header,
-    body:has(.staff-printable) > footer {
-      display: none;
-    }
-  }
-</style>
 
 <style>
   :global(html:has(#staff-content)) {

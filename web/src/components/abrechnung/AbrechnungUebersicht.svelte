@@ -21,7 +21,8 @@
     BilanzZeile,
     NachweisZeile,
   } from '../../lib/abrechnungRechnung';
-  import { downloadDeckblattPdf, pdfFileName } from '../../lib/abrechnungPdf';
+  import { downloadDeckblattPdf } from '../../lib/abrechnungPdf';
+  import { pdfFileName } from '../../lib/pdfBasis';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import StatusNotice from '../pflege/StatusNotice.svelte';
 

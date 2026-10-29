@@ -19,11 +19,13 @@
     /** Bookings that need attention, e.g. in an overbooked slot. */
     problems?: Record<string, BookingProblem>;
     onselect: (booking: StaffNikolausBooking) => void;
+    /** Told the bookings the list shows and its active filters in words, e.g. for the PDF. */
+    onshown?: (shown: { bookings: StaffNikolausBooking[]; filters: string[] }) => void;
   }
 
   type SortKey = 'slot' | 'name' | 'city' | 'children' | 'status';
 
-  let { bookings, dates, problems = {}, onselect }: Props = $props();
+  let { bookings, dates, problems = {}, onselect, onshown }: Props = $props();
 
   let day = $state('alle');
   let statuses = $state<NikolausBookingStatus[]>([...ACTIVE_STATUSES]);
@@ -33,15 +35,30 @@
   const problemCount = $derived(Object.keys(problems).length);
   let sortKey = $state<SortKey>('slot');
   let sortAsc = $state(true);
+  const allStatuses = $derived(
+    statuses.length === STATUS_ORDER.length &&
+      STATUS_ORDER.every((status) => statuses.includes(status))
+  );
   const activeFilters = $derived(
     Number(search.trim() !== '') +
       Number(day !== 'alle') +
       Number(krampus !== 'alle') +
       Number(onlyProblems) +
-      Number(
-        statuses.length !== STATUS_ORDER.length ||
-          !STATUS_ORDER.every((status) => statuses.includes(status))
-      )
+      Number(!allStatuses)
+  );
+  /** The active filters in words, in the summary and in the PDF. */
+  const filterWords = $derived(
+    [
+      search.trim() ? `Suche „${search.trim()}“` : '',
+      day !== 'alle' ? formatShortDate(day) : '',
+      krampus !== 'alle' ? (krampus === 'ja' ? 'Mit Krampus' : 'Ohne Krampus') : '',
+      onlyProblems ? 'Nur mit Problemen' : '',
+      allStatuses
+        ? ''
+        : STATUS_ORDER.filter((status) => statuses.includes(status))
+            .map((status) => STATUS_LABEL[status])
+            .join(', ') || 'Kein Status',
+    ].filter(Boolean)
   );
 
   function resetFilters(): void {
@@ -103,6 +120,10 @@
 
   const childrenTotal = $derived(visible.reduce((sum, b) => sum + b.childrenCount, 0));
 
+  $effect(() => {
+    onshown?.({ bookings: visible, filters: filterWords });
+  });
+
   function toggleStatus(status: NikolausBookingStatus): void {
     statuses = statuses.includes(status)
       ? statuses.filter((s) => s !== status)
@@ -154,7 +175,7 @@
     <details class="border-y border-neutral-200 py-2">
       <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-brand-900"
         >Filter ({activeFilters} aktiv){activeFilters
-          ? `: ${[search.trim() ? 'Suche' : '', day !== 'alle' ? formatShortDate(day) : '', krampus !== 'alle' ? (krampus === 'ja' ? 'Mit Krampus' : 'Ohne Krampus') : '', onlyProblems ? 'Nur mit Hinweisen' : '', statuses.length !== STATUS_ORDER.length ? statuses.map((status) => STATUS_LABEL[status]).join(', ') : ''].filter(Boolean).join(' · ')}`
+          ? `: ${filterWords.join(' · ')}`
           : ''}</summary
       >
       <div class="grid gap-4 py-3 md:grid-cols-2 lg:grid-cols-[auto_auto_1fr] lg:items-end">

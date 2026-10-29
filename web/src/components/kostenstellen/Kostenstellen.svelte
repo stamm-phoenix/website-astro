@@ -3,6 +3,10 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import StatusNotice from '../pflege/StatusNotice.svelte';
+  import { errorMessage } from '../../lib/api';
+  import type { Notice } from '../../lib/status';
   import KostenstellenZahlen from './KostenstellenZahlen.svelte';
   import { kostenstellenStore } from '../../lib/pflegeStore.svelte';
   import {
@@ -57,6 +61,32 @@
         .map((k) => imJahrGesehen(k, jahr)),
       sortierung
     );
+  }
+
+  let pdfBusy = $state(false);
+  let pdfNotice = $state<Notice | null>(null);
+
+  /** The Kostenstellen as shown, with their Kategorien. */
+  async function exportPdf(liste: KostenstelleStatistik[], loadedAt: string): Promise<void> {
+    pdfBusy = true;
+    pdfNotice = null;
+    try {
+      // The filters as they were on the click, also if one changes while the PDF loads
+      const shown = { kostenstellen: liste, ansicht, jahr, suche, sortierung, loadedAt };
+      const { downloadKostenstellen } = await import('../../lib/kostenstellenPdf');
+      await downloadKostenstellen(shown);
+      pdfNotice = { text: 'PDF heruntergeladen.', kind: 'success' };
+    } catch (error) {
+      pdfNotice = {
+        text: errorMessage(
+          error,
+          'Das PDF der Kostenstellen konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal.'
+        ),
+        kind: 'error',
+      };
+    } finally {
+      pdfBusy = false;
+    }
   }
 
   function tabs(data: KostenstellenData) {
@@ -116,14 +146,24 @@
       {@const liste = sichtbar(data)}
       {@const summe = gesamt(liste)}
       <section aria-labelledby="kostenstellen-gesamt" class="surface-muted space-y-2 p-4">
-        <h2 id="kostenstellen-gesamt" class="font-semibold text-brand-900">
-          Summe aus {liste.length}
-          {liste.length === 1 ? 'Kostenstelle' : 'Kostenstellen'}{jahr !== null
-            ? ` in ${jahr}`
-            : ''}
-        </h2>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="kostenstellen-gesamt" class="font-semibold text-brand-900">
+            Summe aus {liste.length}
+            {liste.length === 1 ? 'Kostenstelle' : 'Kostenstellen'}{jahr !== null
+              ? ` in ${jahr}`
+              : ''}
+          </h2>
+          <ActionButton
+            variant="secondary"
+            type="button"
+            disabled={pdfBusy || liste.length === 0}
+            onclick={() => void exportPdf(liste, data.loadedAt)}
+            >{pdfBusy ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
+          >
+        </div>
         <KostenstellenZahlen summen={summe} gross />
       </section>
+      <StatusNotice message={pdfNotice?.text ?? null} kind={pdfNotice?.kind} popup />
 
       <div class="space-y-3">
         <FilterTabs

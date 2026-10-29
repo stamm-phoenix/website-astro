@@ -12,6 +12,7 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import FormField from './FormField.svelte';
+  import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';
   import StatusNotice from './StatusNotice.svelte';
 
   interface Props {
@@ -399,9 +400,21 @@
   {#snippet children(termin)}
     <section aria-labelledby="anwesenheit-termin" class="space-y-6" aria-busy={loading}>
       <div>
-        <h2 id="anwesenheit-termin" class="font-serif text-2xl text-brand-900">
-          {stufe} am {formatDate(termin.date)}
-        </h2>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="anwesenheit-termin" class="font-serif text-2xl text-brand-900">
+            {stufe} am {formatDate(termin.date)}
+          </h2>
+          {#if !termin.cancelled && ownStufe.length > 0}
+            <PdfDownloadButton
+              text="Liste zum Ausfüllen (PDF)"
+              download={async () => {
+                const [shownStufe, shownDate, children] = [stufe, termin.date, ownStufe];
+                const { downloadAnwesenheitListe } = await import('../../lib/anwesenheitPdf');
+                await downloadAnwesenheitListe(shownStufe, shownDate, children);
+              }}
+            />
+          {/if}
+        </div>
         {#if termin.editable}
           <p class="mt-1 text-sm text-neutral-700">Jede Auswahl wird sofort gespeichert.</p>
         {/if}

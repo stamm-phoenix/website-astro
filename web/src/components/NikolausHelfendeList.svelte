@@ -5,14 +5,15 @@
   import { ApiError, errorMessage, sendApi } from '../lib/api';
   import { isIch } from '../lib/ichStore.svelte';
   import { formatShortDate } from '../lib/nikolausAdmin';
-  import { HELPER_ROLES, KITCHEN } from '../lib/nikolausEinteilung';
+  import { HELPER_ROLES } from '../lib/nikolausEinteilung';
   import type { HelperRole } from '../lib/nikolausEinteilung';
   import type { StaffNikolausHelfendeData, StaffNikolausHelper } from '../lib/types';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import TagInput from './pflege/TagInput.svelte';
-  import InfoHint from './ui/InfoHint.svelte';
+  import HelfendeCoverage from './nikolaus/HelfendeCoverage.svelte';
+  import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
   import type { RescueField } from '../lib/geretteteEingaben';
 
   interface Props {
@@ -61,18 +62,6 @@
   let conflict = $state(false);
   let fieldErrors = $state<Record<string, string>>({});
   let notice = $state<Notice | null>(null);
-
-  /** Volunteers per day and post compared with what is needed (one per team). */
-  const coverage = $derived(
-    data.days.map((day) => ({
-      date: day.date,
-      teams: day.teams.length,
-      counts: HELPER_ROLES.map((role) => ({
-        role,
-        count: data.persons.filter((p) => (p.availability[day.date] ?? []).includes(role)).length,
-      })),
-    }))
-  );
 
   function openNew(): void {
     form = {
@@ -176,6 +165,15 @@
       busy = false;
     }
   }
+  async function createPdf(): Promise<void> {
+    const shown = data;
+    const { downloadHelfendePdf } = await import('../lib/nikolausHelfendePdf');
+    await downloadHelfendePdf(
+      shown,
+      `nikolaus-helfende-${new Date().toLocaleDateString('sv-SE')}.pdf`
+    );
+  }
+
   async function reloadCurrent(): Promise<boolean> {
     if (!form?.id || busy) return false;
     const id = form.id;
@@ -206,7 +204,17 @@
       {data.persons.length}
       {data.persons.length === 1 ? 'Person' : 'Personen'} eingetragen.
     </p>
-    <ActionButton variant="primary" type="button" onclick={openNew}>Person hinzufügen</ActionButton>
+    <div class="flex flex-wrap gap-3">
+      <PdfDownloadButton
+        download={createPdf}
+        disabled={data.persons.length === 0}
+        errorText="Das PDF der Helfenden konnte nicht erstellt werden. Versuch es noch einmal."
+        onresult={(kind, text) => (notice = { kind, text })}
+      />
+      <ActionButton variant="primary" type="button" onclick={openNew}
+        >Person hinzufügen</ActionButton
+      >
+    </div>
   </div>
 
   <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
@@ -294,52 +302,7 @@
     </div>
   {/if}
 
-  <section aria-labelledby="helfende-coverage-heading" class="border-t border-neutral-200 pt-6">
-    <h2
-      id="helfende-coverage-heading"
-      class="inline font-serif text-xl font-semibold text-brand-900"
-    >
-      Meldungen pro Tag und Posten
-    </h2>
-    <InfoHint
-      label="Meldungen pro Tag und Posten"
-      text="Gebraucht wird pro Team eine Person pro Posten. Wer sich für mehrere Posten meldet, zählt bei jedem mit."
-      class="ml-1"
-    />
-    <div class="mt-3 overflow-x-auto">
-      <table class="w-full min-w-[32rem] text-left text-sm">
-        <thead class="border-b-2 border-neutral-300 text-neutral-700">
-          <tr>
-            <th scope="col" class="py-2 pr-4 font-semibold">Tag</th>
-            {#each HELPER_ROLES as role (role)}
-              <th scope="col" class="py-2 pr-4 font-semibold">{role}</th>
-            {/each}
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-neutral-200">
-          {#each coverage as day (day.date)}
-            <tr>
-              <th scope="row" class="py-2 pr-4 font-semibold"
-                >{formatShortDate(day.date)}
-                <span class="font-normal text-neutral-700"
-                  >({day.teams} {day.teams === 1 ? 'Team' : 'Teams'})</span
-                ></th
-              >
-              {#each day.counts as entry (entry.role)}
-                <td
-                  class="py-2 pr-4 tabular-nums {entry.role !== KITCHEN && entry.count < day.teams
-                    ? 'font-semibold text-danger'
-                    : ''}"
-                >
-                  {entry.count}{entry.role !== KITCHEN ? ` / ${day.teams}` : ''}
-                </td>
-              {/each}
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  </section>
+  <HelfendeCoverage {data} />
 </div>
 
 <EditDialog

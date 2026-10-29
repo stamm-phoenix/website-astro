@@ -1,4 +1,23 @@
+import { readFile } from 'node:fs/promises';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+
+test('the Sammlungen and a filtered list of Beiträge download as PDFs', async ({ page }) => {
+  await page.goto('/leitendenbereich/beitraege');
+  let download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  let pdf = await download;
+  expect(pdf.suggestedFilename()).toBe('Beitraege Sammlungen.pdf');
+  expect((await readFile(await pdf.path())).subarray(0, 5).toString()).toBe('%PDF-');
+
+  await page.goto('/leitendenbereich/beitraege?ansicht=alle');
+  await page.getByRole('button', { name: /Noch offen/ }).click();
+  download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  pdf = await download;
+  expect(pdf.suggestedFilename()).toBe('Beitraege.pdf');
+  expect((await readFile(await pdf.path())).subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('PDF heruntergeladen.').first()).toBeVisible();
+});
 
 test('the Beiträge show who has paid for an Aktion, read-only', async ({ page }) => {
   await page.goto('/leitendenbereich/beitraege');

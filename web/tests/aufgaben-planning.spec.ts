@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { prepareTaskTest } from './aufgaben-helpers';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import { taskStatus, taskFilters, taskPage } from './aufgaben-helpers';
@@ -329,4 +330,22 @@ test('new project ideas are reviewed with the task and created only with explici
   await expect(
     page.getByRole('dialog').getByRole('checkbox', { name: /^Neues Projekt/ })
   ).toHaveCount(0);
+});
+
+test('the task list and a Vorlage as checklist download as PDFs', async ({ page }) => {
+  await taskPage(page);
+  const list = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  const listPdf = await list;
+  expect(listPdf.suggestedFilename()).toMatch(/^Aufgaben \d{4}-\d{2}-\d{2}\.pdf$/);
+  expect((await readFile(await listPdf.path())).subarray(0, 5).toString()).toBe('%PDF-');
+
+  await page.goto('/leitendenbereich/aufgaben/vorlagen');
+  const checklist = page.waitForEvent('download');
+  await page
+    .getByRole('button', { name: 'PDF herunterladen: Checkliste Lager vorbereiten' })
+    .click();
+  const checklistPdf = await checklist;
+  expect(checklistPdf.suggestedFilename()).toBe('Checkliste Lager vorbereiten.pdf');
+  expect((await readFile(await checklistPdf.path())).subarray(0, 5).toString()).toBe('%PDF-');
 });

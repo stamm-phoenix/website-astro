@@ -3,13 +3,8 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import AbstimmungMatrix from './AbstimmungMatrix.svelte';
   import type { AbstimmungErgebnis } from '../../lib/abstimmungen';
-  import {
-    MIN_ANTWORTEN_FUER_ZAHLEN,
-    antwortenText,
-    sichtbarkeitHinweis,
-    spitzenreiter,
-    stimmenText,
-  } from '../../lib/abstimmungen';
+  import { MIN_ANTWORTEN_FUER_ZAHLEN, sichtbarkeitHinweis } from '../../lib/abstimmungen';
+  import { antwortenText, spitzenreiter, stimmenText } from '../../lib/abstimmungZahlen';
 
   interface Props {
     /** Unique on the page; used for the heading. */

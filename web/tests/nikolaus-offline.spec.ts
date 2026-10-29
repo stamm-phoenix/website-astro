@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import type { Page } from '@playwright/test';
 import type { StaffNikolausFahrtData } from '../src/lib/types';
@@ -358,4 +359,26 @@ test('a saved day added after the baked settings still restores offline', async 
     page.getByRole('group', { name: 'Tag wählen' }).getByRole('button', { name: /7\.12\./ })
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(page).toHaveURL(/tag=2026-12-07/);
+});
+
+test('the route downloads as a PDF online and says why it cannot offline', async ({
+  page,
+  context,
+}) => {
+  await page.goto(URL);
+  await expect(page.getByRole('heading', { name: /^Team A · / })).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  const pdf = await download;
+  expect(pdf.suggestedFilename()).toBe('nikolaus-route-2026-12-05-team-A.pdf');
+  const content = await readFile(await pdf.path());
+  expect(content.subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('PDF heruntergeladen.', { exact: true }).first()).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: /^Team A · / })).toBeVisible();
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  await expect(page.getByText(/Das PDF geht nur mit Internetverbindung/).first()).toBeVisible();
+  await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
 });

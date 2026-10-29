@@ -6,16 +6,12 @@
   interface Props {
     href: string;
     actions?: Snippet;
-    printable?: boolean;
   }
-  let { href, actions, printable = false }: Props = $props();
+  let { href, actions }: Props = $props();
   const page = $derived(staffPage(href));
 </script>
 
-<header
-  class:print-hidden={printable}
-  class="ui-pagehead mb-4 flex flex-wrap items-end gap-x-8 gap-y-4 pb-4"
->
+<header class="ui-pagehead mb-4 flex flex-wrap items-end gap-x-8 gap-y-4 pb-4">
   <div class="min-w-0 max-w-3xl flex-1 basis-96">
     <div class="flex items-start gap-2">
       <h1
@@ -40,11 +36,3 @@
       {@render actions()}
     </div>{/if}
 </header>
-
-<style>
-  @media print {
-    .print-hidden {
-      display: none;
-    }
-  }
-</style>

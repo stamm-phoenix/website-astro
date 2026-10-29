@@ -70,7 +70,7 @@
     options={VIEWS.map((option) => ({ value: option.key, label: option.label }))}
     value={view}
     onselect={selectView}
-    class="border-b border-neutral-200 print:hidden"
+    class="border-b border-neutral-200"
   />
 
   {#if view === 'stufen'}

@@ -1,4 +1,24 @@
+import { readFile } from 'node:fs/promises';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+
+test('the Bestellliste and the Ausgabeliste download as PDFs', async ({ page }) => {
+  await page.goto('/leitendenbereich/sammelbestellungen/101');
+  const list = page.getByRole('button', { name: 'Bestellliste herunterladen (PDF)' });
+  await expect(list).toBeEnabled();
+  let download = page.waitForEvent('download');
+  await list.click();
+  let pdf = await download;
+  expect(pdf.suggestedFilename()).toMatch(/^Bestellliste .+\.pdf$/);
+  expect((await readFile(await pdf.path())).subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('Bestellliste heruntergeladen.').first()).toBeVisible();
+
+  download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Ausgabeliste herunterladen (PDF)' }).click();
+  pdf = await download;
+  expect(pdf.suggestedFilename()).toMatch(/^Ausgabeliste .+\.pdf$/);
+  expect((await readFile(await pdf.path())).subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('Ausgabeliste heruntergeladen.').first()).toBeVisible();
+});
 
 test('a personal order link is requested with the proof of work, also twice in a row', async ({
   page,

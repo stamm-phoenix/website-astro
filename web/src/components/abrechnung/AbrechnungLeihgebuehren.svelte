@@ -2,7 +2,8 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
-  import { downloadLeihgebuehrenPdf, pdfFileName } from '../../lib/abrechnungPdf';
+  import { downloadLeihgebuehrenPdf } from '../../lib/abrechnungPdf';
+  import { pdfFileName } from '../../lib/pdfBasis';
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
   import {
     LEIHGEBUEHREN_KATEGORIE,

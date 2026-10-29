@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
   import ActionButton from './ui/ActionButton.svelte';
+  import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
   import Toast from './ui/Toast.svelte';
   import AufgabenNavigation from './AufgabenNavigation.svelte';
   const data = $derived(aufgabenStore.data);
@@ -39,9 +40,19 @@
           <h2 class="text-lg font-semibold">{template.title}</h2>
           <p>{template.items.length} {template.items.length === 1 ? 'Aufgabe' : 'Aufgaben'}</p>
         </div>
-        <ActionButton type="button" variant="secondary" onclick={() => edit(template)}
-          >Vorlage bearbeiten</ActionButton
-        >
+        <div class="flex flex-wrap gap-2">
+          <ActionButton type="button" variant="secondary" onclick={() => edit(template)}
+            >Vorlage bearbeiten</ActionButton
+          >
+          <PdfDownloadButton
+            label="PDF herunterladen: Checkliste {template.title}"
+            download={async () => {
+              const users = aufgabenStore.users;
+              await (await import('../lib/aufgabenPdf')).downloadVorlagePdf(template, users);
+            }}
+            errorText="Das PDF der Checkliste konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal."
+          />
+        </div>
       </li>
     {:else}<li class="py-4">Noch keine Vorlagen.</li>{/each}
   </ul>

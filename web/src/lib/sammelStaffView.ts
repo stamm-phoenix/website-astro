@@ -20,3 +20,27 @@ export interface SammelOrderFilters {
   showFinished: boolean;
   activeFilters: { submitted: boolean; unpriced: boolean; unpaid: boolean; undelivered: boolean };
 }
+
+export const ORDER_FILTERS = [
+  { key: 'submitted', label: 'Eingereicht' },
+  { key: 'unpriced', label: 'Ohne Gesamtbetrag' },
+  { key: 'unpaid', label: 'Unbezahlt' },
+  { key: 'undelivered', label: 'Nicht ausgeliefert' },
+] as const;
+
+/** The orders the list shows with the search and the filters. */
+export function filterOrders(
+  orders: SammelBestellung[],
+  filters: SammelOrderFilters
+): SammelBestellung[] {
+  const search = filters.search.trim().toLowerCase();
+  return orders.filter(
+    (order) =>
+      (filters.showFinished || !isFinished(order)) &&
+      `${order.name} ${order.email}`.toLowerCase().includes(search) &&
+      (!filters.activeFilters.submitted || order.status === 'Eingereicht') &&
+      (!filters.activeFilters.unpriced || order.totalCents === null) &&
+      (!filters.activeFilters.unpaid || !order.paid) &&
+      (!filters.activeFilters.undelivered || !order.delivered)
+  );
+}

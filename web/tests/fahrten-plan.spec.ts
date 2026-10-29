@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 import {
   KEINE_ANPASSUNGEN,
-  fahrtenRows,
   planFahrt,
   withDriver,
   withMove,
   withRemoved,
 } from '../src/lib/fahrtenPlan';
 import type { FahrtPerson } from '../src/lib/fahrtenPlan';
+import { fahrtenRows } from '../src/lib/fahrtenCsv';
 
 const LEITENDE = 'Leitende / Ehemalige / Externe';
 

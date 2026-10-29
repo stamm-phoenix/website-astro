@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { test, expect } from './fixtures';
 
 test('booking filters start collapsed, count changes and reset the list', async ({ page }) => {
@@ -46,4 +47,21 @@ test('on a phone the day overview can expand without pushing bookings off the in
   await expect(overview.getByText('Bestätigt', { exact: true }).first()).toBeVisible();
   await expect(overview.getByText('Frei', { exact: true }).first()).toBeVisible();
   await expect(overview.getByText('Kinder', { exact: true }).first()).toBeVisible();
+});
+
+test('the filtered bookings download as a PDF', async ({ page }) => {
+  await page.goto('/leitendenbereich/nikolaus?ansicht=liste');
+  const filters = page
+    .locator('details')
+    .filter({ has: page.locator('summary').filter({ hasText: /^Filter \(/ }) });
+  await filters.locator('summary').click();
+  await filters.getByRole('combobox', { name: 'Krampus', exact: true }).selectOption('ja');
+  await expect(filters.locator('summary')).toContainText('Mit Krampus');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  const pdf = await download;
+  expect(pdf.suggestedFilename()).toMatch(/^nikolaus-anmeldungen-\d{4}-\d{2}-\d{2}\.pdf$/);
+  const content = await readFile(await pdf.path());
+  expect(content.subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('PDF heruntergeladen.', { exact: true })).toBeVisible();
 });

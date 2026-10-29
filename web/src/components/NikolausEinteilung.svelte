@@ -354,24 +354,31 @@
     }, 'Einteilung gespeichert.');
   }
 
-  let exporting = $state(false);
-  const EXPORT_ERROR = 'Das Bild konnte nicht erstellt werden. Bitte noch einmal versuchen.';
+  /** The export running, if any. */
+  let exporting = $state<'bild' | 'pdf' | null>(null);
+  const EXPORT_ERROR = {
+    bild: 'Das Bild konnte nicht erstellt werden. Bitte noch einmal versuchen.',
+    pdf: 'Das PDF konnte nicht erstellt werden. Bitte noch einmal versuchen.',
+  };
 
-  /** Exports the Einteilung as shown as a compact PNG, e.g. for a messenger group. */
-  async function exportImage(): Promise<void> {
+  /**
+   * Exports the Einteilung as shown: as a compact PNG, e.g. for a messenger group, or as a PDF
+   * with one table per day.
+   */
+  async function exportEinteilung(kind: 'bild' | 'pdf'): Promise<void> {
+    const message = kind === 'bild' ? 'Bild exportiert.' : 'PDF heruntergeladen.';
     if (
       dirty &&
       !(await confirmAction({
         title: 'Ungespeicherten Stand exportieren?',
-        message:
-          'Die Einteilung ist noch nicht gespeichert. Das Bild zeigt den Entwurf, wie er gerade hier steht.',
+        message: `Die Einteilung ist noch nicht gespeichert. ${kind === 'bild' ? 'Das Bild' : 'Das PDF'} zeigt den Entwurf, wie er gerade hier steht.`,
         confirmLabel: 'Trotzdem exportieren',
         tone: 'neutral',
       }))
     ) {
       return;
     }
-    exporting = true;
+    exporting = kind;
     try {
       const now = new Date();
       const stand = now.toLocaleString('de-DE', {
@@ -381,9 +388,9 @@
         hour: '2-digit',
         minute: '2-digit',
       });
-      const blob = await renderEinteilungBild({
+      const bild = {
         title: 'Nikolaus-Einteilung',
-        subtitle: `Stand ${stand} Uhr`,
+        subtitle: `Stand ${stand} Uhr${dirty ? ' · Entwurf, nicht gespeichert' : ''}`,
         days: buildEinteilungBild(
           plannedDays,
           result.assignments,
@@ -391,23 +398,33 @@
           (team) => teamColor.get(team) ?? '#5f6b7a',
           formatShortDate
         ),
-      });
-      const day = now.toLocaleDateString('sv-SE');
-      const done = await shareOrSaveImage(blob, `nikolaus-einteilung-${day}.png`, saveFile);
+      };
+      const fileName = `nikolaus-einteilung-${now.toLocaleDateString('sv-SE')}`;
+      let done = true;
+      if (kind === 'pdf') {
+        const { downloadEinteilungPdf } = await import('../lib/nikolausEinteilungPdf');
+        await downloadEinteilungPdf(bild, `${fileName}.pdf`);
+      } else {
+        const blob = await renderEinteilungBild(bild);
+        done = await shareOrSaveImage(blob, `${fileName}.png`, saveFile);
+      }
       if (done) {
         editor.state.notice = dirty
-          ? { text: 'Bild exportiert. Die Einteilung ist noch nicht gespeichert.', kind: 'warning' }
-          : { text: 'Bild exportiert.', kind: 'success' };
-      } else if (editor.state.notice?.text === EXPORT_ERROR) {
+          ? {
+              text: `${message} Die Einteilung ist noch nicht gespeichert.`,
+              kind: 'warning',
+            }
+          : { text: message, kind: 'success' };
+      } else if (editor.state.notice?.text === EXPORT_ERROR[kind]) {
         editor.state.notice = null;
       }
     } catch (error) {
       editor.state.notice = {
-        text: errorMessage(error, EXPORT_ERROR),
+        text: errorMessage(error, EXPORT_ERROR[kind]),
         kind: 'error',
       };
     } finally {
-      exporting = false;
+      exporting = null;
     }
   }
 
@@ -425,7 +442,7 @@
 </script>
 
 <div class="space-y-6">
-  <div class="flex flex-wrap items-center justify-end gap-3 print:hidden">
+  <div class="flex flex-wrap items-center justify-end gap-3">
     <PlanToolbar
       loading={einteilungStore.loading}
       saveDisabled={!dirty || editor.state.saving || editor.state.conflict || tryingMore}
@@ -437,22 +454,25 @@
       onrecalculate={recalculate}
       onreload={reload}
       onsave={save}
-      printable={false}
     >
       <ActionButton
         variant="secondary"
         type="button"
-        disabled={exporting || data.persons.length === 0}
-        onclick={exportImage}>{exporting ? 'Exportiert …' : 'Bild exportieren'}</ActionButton
+        disabled={exporting !== null || data.persons.length === 0}
+        onclick={() => exportEinteilung('pdf')}
+        >{exporting === 'pdf' ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
+      >
+      <ActionButton
+        variant="secondary"
+        type="button"
+        disabled={exporting !== null || data.persons.length === 0}
+        onclick={() => exportEinteilung('bild')}
+        >{exporting === 'bild' ? 'Exportiert …' : 'Bild exportieren'}</ActionButton
       >
     </PlanToolbar>
   </div>
 
-  <StatusNotice
-    message={editor.state.notice?.text ?? null}
-    kind={editor.state.notice?.kind}
-    class="print:hidden"
-  />
+  <StatusNotice message={editor.state.notice?.text ?? null} kind={editor.state.notice?.kind} />
 
   {#if data.persons.length === 0}
     <p class="surface p-6 text-sm text-neutral-800">Noch keine Helfenden eingetragen.</p>
@@ -468,7 +488,7 @@
           {formatShortDate(day.date)}
         </h2>
 
-        <div class="surface-muted space-y-3 p-4 text-sm print:hidden">
+        <div class="surface-muted space-y-3 p-4 text-sm">
           <p class="text-neutral-800">
             {#if cap.ready === 0}
               Kein Team kann losfahren – dafür braucht es {REQUIRED_ROLES.join(' und ')}.
@@ -529,7 +549,7 @@
           <p class="border-l-4 border-warning py-1 pl-3 text-sm text-warning">
             Dispo für diesen Tag noch nicht gespeichert – Merkmale der Familien zählen noch nicht.
             <a
-              class="font-semibold underline print:hidden"
+              class="font-semibold underline"
               href="/leitendenbereich/nikolaus-dispo?tag={day.date}">Zur Dispo</a
             >
           </p>
@@ -560,7 +580,7 @@
               >
                 Team {team}
               </h3>
-              <p class="pt-1 print:hidden">
+              <p class="pt-1">
                 {#if ready.has(`${day.date}|${team}`)}
                   <StatusLabel tone="success" label="Kann losfahren" />
                 {:else}
@@ -582,10 +602,7 @@
                       <label class="font-semibold text-brand-900" for={selectId}>{role}</label>
                     </dt>
                     <dd class="mt-1">
-                      <span class="hidden print:inline"
-                        >{current ? name(current.personId) : '— offen —'}</span
-                      >
-                      <div class="flex flex-col items-stretch gap-2 print:hidden">
+                      <div class="flex flex-col items-stretch gap-2">
                         <select
                           id={selectId}
                           class="form-input mt-0! min-w-0 flex-1 py-1.5 {current
@@ -637,7 +654,7 @@
               </ul>
             {/if}
           </section>
-          <section class="text-sm print:hidden" aria-labelledby="idle-{day.date}">
+          <section class="text-sm" aria-labelledby="idle-{day.date}">
             <h3 id="idle-{day.date}" class="font-semibold text-brand-900">
               Reserve (ohne Aufgabe) <span class="font-normal text-neutral-700"
                 >({idle.length})</span
@@ -661,10 +678,7 @@
     {/each}
 
     {#if workload.length > 0}
-      <section
-        aria-labelledby="workload-heading"
-        class="border-t border-neutral-200 pt-6 text-sm print:hidden"
-      >
+      <section aria-labelledby="workload-heading" class="border-t border-neutral-200 pt-6 text-sm">
         <h2 id="workload-heading" class="font-serif text-xl font-semibold text-brand-900">
           Einsätze pro Person (Tage in einem Team)
         </h2>

@@ -7,7 +7,8 @@
   import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
   import { loadPlzOrte, plzOrteStore } from '../../lib/plzOrte.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
-  import { downloadTablePdf, pdfFileName } from '../../lib/abrechnungPdf';
+  import { pdfFileName } from '../../lib/pdfBasis';
+  import { downloadTablePdf } from '../../lib/pdfTabelle';
   import { zuschussGrund } from '../../lib/abrechnungRechnung';
   import { formatEventRange } from '../../lib/campflowFields';
   import {

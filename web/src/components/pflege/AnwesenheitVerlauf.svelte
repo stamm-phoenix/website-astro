@@ -7,6 +7,7 @@
   import type { AnwesenheitMeeting, AnwesenheitTermin } from '../../lib/types';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
+  import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';
   import AnwesenheitDiagramm from './AnwesenheitDiagramm.svelte';
   import StatusNotice from './StatusNotice.svelte';
 
@@ -189,14 +190,26 @@
 <StatusNotice {message} kind={messageKind} popup />
 
 <section aria-labelledby="anwesenheit-verlauf" class="space-y-6">
-  <h2
-    id="anwesenheit-verlauf"
-    class="font-serif text-2xl text-brand-900"
-    tabindex="-1"
-    bind:this={heading}
-  >
-    {stufe}: Verlauf & Statistik
-  </h2>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h2
+      id="anwesenheit-verlauf"
+      class="font-serif text-2xl text-brand-900"
+      tabindex="-1"
+      bind:this={heading}
+    >
+      {stufe}: Verlauf & Statistik
+    </h2>
+    {#if rows.length > 0}
+      <PdfDownloadButton
+        download={async () => {
+          const [shownStufe, shown] = [stufe, meetings];
+          await (
+            await import('../../lib/anwesenheitPdf')
+          ).downloadAnwesenheitReport(shownStufe, shown);
+        }}
+      />
+    {/if}
+  </div>
   {#if rows.length === 0}
     <p class="text-sm text-neutral-700">Für diese Stufe ist noch nichts erfasst.</p>
   {:else}

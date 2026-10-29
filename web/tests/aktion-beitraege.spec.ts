@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { test, expect } from './fixtures';
 import { formatName, personStatus } from '../src/lib/campflowFields';
 import type { AktionBeitraegeData, CampflowEventDetail } from '../src/lib/types';
@@ -137,4 +138,16 @@ test('a failed reload keeps the Beiträge shown and says which state they are', 
     'Angezeigt wird der Stand von'
   );
   await expect(page.getByText('Beitrag offen', { exact: true })).toBeVisible();
+});
+
+test('the participant list downloads as a PDF', async ({ page }) => {
+  await page.goto(PAGE);
+  await expect(page.getByTestId('aktion-beitraege-stand')).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  const pdf = await download;
+  expect(pdf.suggestedFilename()).toMatch(/^Teilnehmende .+\.pdf$/);
+  const content = await readFile(await pdf.path());
+  expect(content.subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText('PDF heruntergeladen.')).toBeVisible();
 });
