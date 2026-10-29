@@ -16,6 +16,7 @@ import {
 } from '../lib/db-preview';
 import { einkaufStand } from '../lib/essen-einkaeufe-model';
 import { ladeZugang, planungLoeschen } from '../lib/essen-planung';
+import { mahlzeitStand, tagStand } from '../lib/essen-planung-model';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { dbTest } from './fixtures/database';
 import { anlegen, call, captureMails, json } from './fixtures/essensplanung';
@@ -634,4 +635,63 @@ dbTest('nothing is moved to a trip where it is ticked off already', async (t) =>
     .where('planung_zutat_id', '=', zutat)
     .execute();
   assert.deepEqual(regeln, []);
+});
+
+dbTest('a trip whose last meal or day was deleted can still be finished and opened', async (t) => {
+  const mails = captureMails(t);
+  const { token, ansicht } = await anlegen(t, mails);
+  const mittag = ansicht.tage[0].mahlzeiten[1];
+  const tag2 = ansicht.tage[1];
+  await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+    body: { name: 'Montag', bisMahlzeitId: mittag.id },
+  });
+  await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+    body: { name: 'Dienstag', bisMahlzeitId: tag2.mahlzeiten[0].id },
+  });
+  await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${mittag.id}`, {
+    token,
+    params: { id: String(mittag.id) },
+    ifMatch: mahlzeitStand(mittag),
+  });
+  const stand = json<PlanungAnsicht>(
+    await call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${tag2.id}`, {
+      token,
+      params: { id: String(tag2.id) },
+      ifMatch: tagStand(tag2),
+    })
+  );
+  for (const name of ['Montag', 'Dienstag']) {
+    let einkauf = stand.einkaeufe.find((e) => e.name === name)!;
+    for (const abgeschlossen of [true, false]) {
+      // The page sends the trip as it is, with the deleted meal
+      const antwort = await senden(
+        t,
+        einkaeufe.EssensplanungEinkauf,
+        'PATCH',
+        'planung/einkaeufe',
+        token,
+        {
+          id: einkauf.id,
+          body: { ...einkauf, abgeschlossen },
+        }
+      );
+      assert.equal(antwort.status, 200, JSON.stringify(antwort.jsonBody));
+      einkauf = json<PlanungAnsicht>(antwort).einkaeufe.find((e) => e.name === name)!;
+      assert.equal(einkauf.abgeschlossen, abgeschlossen);
+      assert.equal(einkauf.bisMahlzeitId, null);
+    }
+    // A meal that does not exist, newly chosen, is still refused
+    const falsch = await senden(
+      t,
+      einkaeufe.EssensplanungEinkauf,
+      'PATCH',
+      'planung/einkaeufe',
+      token,
+      {
+        id: einkauf.id,
+        body: { ...einkauf, bisMahlzeitId: mittag.id },
+      }
+    );
+    assert.equal(falsch.status, 400);
+  }
 });

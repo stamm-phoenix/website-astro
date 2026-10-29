@@ -25,14 +25,22 @@ function einkaufVon(z: MockZugang, id: number) {
   return einkauf;
 }
 
-function pruefeBezug(z: MockZugang, input: EinkaufInput): void {
+/** Like the API: a deleted meal sent back unchanged (`gespeichert`) covers all meals again. */
+function pruefeBezug(
+  z: MockZugang,
+  input: EinkaufInput,
+  gespeichert: number | null = null
+): EinkaufInput {
   if (input.geschaeftId !== null && !z.planung.geschaefte.some((g) => g.id === input.geschaeftId))
     throw feld('geschaeftId', 'Dieses Geschäft gibt es nicht mehr.');
   if (
     input.bisMahlzeitId !== null &&
     !z.planung.tage.some((t) => t.mahlzeiten.some((m) => m.id === input.bisMahlzeitId))
-  )
+  ) {
+    if (input.bisMahlzeitId === gespeichert) return { ...input, bisMahlzeitId: null };
     throw feld('bisMahlzeitId', 'Diese Mahlzeit gibt es nicht mehr.');
+  }
+  return input;
 }
 
 export function einkaufAnlegen(z: MockZugang, input: EinkaufInput): void {
@@ -77,7 +85,7 @@ export function einkaufAendern(
     });
     return;
   }
-  pruefeBezug(z, input);
+  const geprueft = pruefeBezug(z, input, einkauf.bisMahlzeitId);
   if (einkauf.etag !== ifMatch) throw konflikt();
   const details = {
     name: input.name,
@@ -86,7 +94,7 @@ export function einkaufAendern(
       : {}),
   };
   aendere(z, 'einkauf-geaendert', details, () => {
-    Object.assign(einkauf, input, { etag: neuesEtag() });
+    Object.assign(einkauf, geprueft, { etag: neuesEtag() });
   });
 }
 

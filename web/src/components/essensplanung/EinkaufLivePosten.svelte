@@ -8,9 +8,8 @@
   import type { EinkaufListenPosten } from '../../lib/essensplanungEinkaeufe';
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
-  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { meldeVerloren, type PlanKontext } from './planKontext';
-  import { lebendig, sichtbar } from './einkaufLive';
+  import { entwuerfe, lebendig, merkeEntwurf, sichtbar, vergissEntwurf } from './einkaufLive';
 
   /**
    * One thing in the live mode of a shopping trip: a tap opens the amount (the planned one unless
@@ -50,8 +49,24 @@
 
   /** Something was typed into the open amount and is not saved. */
   let geaendert = $state(false);
-  // Leaving the page asks first, also after a failed save
-  $effect(() => guardUnsavedChanges(() => geaendert));
+  /** Where the unsaved input is kept while the trip shows its list or form. */
+  const entwurfKey = untrack(() => `${einkaufId}:${posten.planungZutatId}`);
+  // Input kept from before the trip showed its list or form
+  const frueher = entwuerfe.get(entwurfKey);
+  if (frueher) {
+    menge = frueher.menge;
+    einheit = frueher.einheit;
+    ersatz = frueher.ersatz;
+    etag = frueher.etag;
+    konflikt = frueher.konflikt;
+    geaendert = true;
+  }
+  // Kept outside the row, so switching the view keeps it; leaving the page asks first, also after
+  // a failed save
+  $effect(() => {
+    if (geaendert) merkeEntwurf(entwurfKey, { menge, einheit, ersatz, etag, konflikt });
+    else vergissEntwurf(entwurfKey);
+  });
 
   // A row with unsaved input that falls off the list (someone ticked its needs off on another
   // trip) names the input, unless it comes back drawn again at once
@@ -74,13 +89,16 @@
       const text = `${name} steht in diesem Einkauf nicht mehr auf der Liste, jemand hat es anderswo abgehakt${eingabe ? ` (deine Eingabe: ${eingabe})` : ''}.`;
       setTimeout(() => {
         // Still in the live mode of this trip, and not drawn again
-        if (lebendig.has(einkaufId) && !sichtbar.has(id)) meldeVerloren(kontext, text);
+        if (lebendig.has(einkaufId) && !sichtbar.has(id)) {
+          vergissEntwurf(id);
+          meldeVerloren(kontext, text);
+        }
       });
     };
   });
 
   /** Whether the fields were filled for the open amount. */
-  let gefuellt = false;
+  let gefuellt = frueher !== undefined;
   // Opened before this row was drawn again (e.g. its category came with the central lists)
   $effect(() => {
     if (offen && !gefuellt) untrack(fuellen);

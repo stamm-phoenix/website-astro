@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { EinkaufListe } from '../../lib/essensplanungEinkaeufe';
   import EinkaufLivePosten from './EinkaufLivePosten.svelte';
-  import { liveOffen } from './einkaufLive';
+  import { untrack } from 'svelte';
+  import { liveOffen, offeneZeile } from './einkaufLive';
   import type { PlanKontext } from './planKontext';
 
   /**
@@ -19,8 +20,13 @@
 
   $effect(() => liveOffen(liste.einkauf.id));
 
-  /** The thing whose amount is open. */
-  let offen = $state<string | null>(null);
+  /** The thing whose amount is open; kept when the trip shows its list or form meanwhile. */
+  let offen = $state<string | null>(untrack(() => offeneZeile.get(liste.einkauf.id) ?? null));
+  $effect(() => {
+    const id = liste.einkauf.id;
+    if (offen === null) offeneZeile.delete(id);
+    else offeneZeile.set(id, offen);
+  });
 </script>
 
 <div class="space-y-4">

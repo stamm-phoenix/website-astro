@@ -108,7 +108,16 @@ async function einkaufDerPlanung(trx: Db, zugang: Zugang, id: number) {
 }
 
 /** The shop and the meal a trip names must be of this Planung. */
-async function pruefeBezug(trx: Db, zugang: Zugang, input: EinkaufInput): Promise<void> {
+/**
+ * Checks the shop and the meal; returns the input as stored. A meal deleted since it was saved
+ * (`gespeichert`) and sent back unchanged covers all meals again, as it does on the page.
+ */
+async function pruefeBezug(
+  trx: Db,
+  zugang: Zugang,
+  input: EinkaufInput,
+  gespeichert: number | null = null
+): Promise<EinkaufInput> {
   if (input.geschaeftId !== null) {
     const geschaeft = await trx
       .selectFrom('essen.geschaeft')
@@ -127,9 +136,12 @@ async function pruefeBezug(trx: Db, zugang: Zugang, input: EinkaufInput): Promis
       .where('m.id', '=', input.bisMahlzeitId)
       .where('t.planung_id', '=', zugang.planungId)
       .executeTakeFirst();
-    if (!mahlzeit)
+    if (!mahlzeit) {
+      if (input.bisMahlzeitId === gespeichert) return { ...input, bisMahlzeitId: null };
       throw new ValidationError({ bisMahlzeitId: 'Diese Mahlzeit gibt es nicht mehr.' });
+    }
   }
+  return input;
 }
 
 function werte(input: EinkaufInput) {
@@ -175,13 +187,13 @@ export async function einkaufAendern(
     await einkaufDerPlanung(trx, zugang, id);
     const vorher = await trx
       .selectFrom('essen.einkauf')
-      .select('abgeschlossen')
+      .select(['abgeschlossen', 'bis_mahlzeit_id'])
       .where('id', '=', id)
       .executeTakeFirstOrThrow();
-    await pruefeBezug(trx, zugang, input);
+    const geprueft = await pruefeBezug(trx, zugang, input, vorher.bis_mahlzeit_id);
     const result = await trx
       .updateTable('essen.einkauf')
-      .set(werte(input))
+      .set(werte(geprueft))
       .where('id', '=', id)
       .where('version', '=', requireVersion(etag))
       .executeTakeFirst();

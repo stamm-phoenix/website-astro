@@ -440,3 +440,30 @@ test('leaving the page with something typed in the live mode asks first', async 
   await expect(menge).toHaveValue('800');
   await expect(montag.getByLabel('Ersatz für Nudeln (Spaghetti)')).toHaveValue('Vollkornnudeln');
 });
+
+test('what is typed in the live mode stays while the trip shows its list', async ({ page }) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Ansicht');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  await menge.fill('800');
+  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
+  await montag.getByLabel('Ersatz für Nudeln (Spaghetti)').fill('Vollkornnudeln');
+  for (const ansicht of ['Liste von Montag', 'Montag ändern']) {
+    await montag.getByRole('button', { name: ansicht }).click();
+    await expect(menge).toBeHidden();
+    await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+    await expect(menge).toHaveValue('800');
+    await expect(montag.getByLabel('Einheit von Nudeln (Spaghetti)')).toHaveValue('g');
+    await expect(montag.getByLabel('Ersatz für Nudeln (Spaghetti)')).toHaveValue('Vollkornnudeln');
+  }
+  // „Fertig“ too, and the kept input is saved like typed
+  await montag.getByRole('button', { name: 'Montag: Einkaufen beenden' }).click();
+  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await expect(menge).toHaveValue('800');
+  await montag.getByRole('button', { name: 'Abhaken' }).click();
+  await expect(montag).toContainText('800 g → Vollkornnudeln');
+});
