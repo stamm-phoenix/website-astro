@@ -1,10 +1,15 @@
 /**
  * Shops, stock and extra needs of the Planungen in the mock API, like `api/lib/essen-einkauf.ts`.
  */
-import type { GeschaeftInput, PostenArt, PostenInput } from '../../../api/lib/essen-einkauf-model';
+import type {
+  GeschaeftInput,
+  PostenArt,
+  PostenInput,
+  ZusatzPosten,
+} from '../../../api/lib/essen-einkauf-model';
 import { MAX_GESCHAEFTE, MAX_POSTEN } from '../../../api/lib/essen-einkauf-model';
 import { einheitPasst } from '../../../api/lib/essen-gerichte-model';
-import { zutatFuer } from './essensplanung-gerichte';
+import { sonstigesFuer, zutatFuer } from './essensplanung-gerichte';
 import type { MockZugang } from './essensplanung-planung';
 import { aendere, feld, konflikt, neueId, neuesEtag, nichtGefunden } from './essensplanung-planung';
 
@@ -86,8 +91,14 @@ export function zutatGeschaeft(
   });
 }
 
+/** Stock or extra needs; the stock is validated with an amount, so one row type serves both. */
+const listeVon = (z: MockZugang, art: PostenArt): ZusatzPosten[] => z.planung[art];
+
 function postenZutat(z: MockZugang, input: PostenInput) {
-  const zutat = zutatFuer(z, input.zutat, { lebensmittel: false });
+  const zutat =
+    'name' in input.zutat
+      ? sonstigesFuer(z, input.zutat.name, input.einheit)
+      : zutatFuer(z, input.zutat, { lebensmittel: false });
   if (!einheitPasst(zutat.einheitenart, input.einheit))
     throw feld(
       'einheit',
@@ -97,10 +108,11 @@ function postenZutat(z: MockZugang, input: PostenInput) {
 }
 
 export function postenAnlegen(z: MockZugang, art: PostenArt, input: PostenInput): void {
-  if (z.planung[art].length >= MAX_POSTEN) throw feld('zutat', `Höchstens ${MAX_POSTEN} Einträge.`);
+  if (listeVon(z, art).length >= MAX_POSTEN)
+    throw feld('zutat', `Höchstens ${MAX_POSTEN} Einträge.`);
   const zutat = postenZutat(z, input);
   aendere(z, `${art}-neu`, { name: zutat.name }, () => {
-    z.planung[art].push({
+    listeVon(z, art).push({
       id: neueId(),
       etag: neuesEtag(),
       planungZutatId: zutat.id,
@@ -119,7 +131,7 @@ export function postenAendern(
   input: PostenInput | null,
   ifMatch: unknown
 ): void {
-  const posten = z.planung[art].find((p) => p.id === id);
+  const posten = listeVon(z, art).find((p) => p.id === id);
   if (!posten) throw nichtGefunden();
   if (!input) {
     if (posten.etag !== ifMatch) throw konflikt();
@@ -129,7 +141,7 @@ export function postenAendern(
       { lebensmittel: false }
     ).name;
     aendere(z, `${art}-geloescht`, { name }, () => {
-      z.planung[art].splice(z.planung[art].indexOf(posten), 1);
+      listeVon(z, art).splice(listeVon(z, art).indexOf(posten), 1);
     });
     return;
   }

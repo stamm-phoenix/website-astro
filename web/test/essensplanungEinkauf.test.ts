@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { einkaufsliste } from '../src/lib/essensplanungEinkauf.ts';
+import { einkaufsliste, postenMenge } from '../src/lib/essensplanungEinkauf.ts';
 import type { PlanungZutat } from '../src/lib/types.ts';
 
 const zutat = (
@@ -107,6 +107,7 @@ test('the shopping list is need plus extra needs less stock, by shop and categor
               abtropfgewicht: false,
               menge: 5,
               einheit: 'stueck',
+              nachGefuehl: false,
             },
           ],
         },
@@ -119,6 +120,7 @@ test('the shopping list is need plus extra needs less stock, by shop and categor
               abtropfgewicht: false,
               menge: 1.25,
               einheit: 'kg',
+              nachGefuehl: false,
             },
           ],
         },
@@ -136,6 +138,7 @@ test('the shopping list is need plus extra needs less stock, by shop and categor
               abtropfgewicht: false,
               menge: 2,
               einheit: 'stueck',
+              nachGefuehl: false,
             },
           ],
         },
@@ -195,5 +198,57 @@ test('ingredients without an amount are bought „nach Gefühl“ unless listed 
       ['Nudeln', 400, 'g'],
       ['Pfeffer', null, null],
     ]
+  );
+  assert.equal(postenMenge(liste[0].kategorien[0].posten[1]), 'nach Gefühl');
+});
+
+test('extra needs without an amount are on the list by name only', () => {
+  const liste = einkaufsliste(
+    {
+      tage: [],
+      gruppen: [],
+      teilnehmende: [],
+      gerichte: [],
+      zutaten: [zutat(1, 'Kochhandschuhe', 9, null), zutat(2, 'Spülmittel', 9, null)],
+      geschaefte: [],
+      bestand: [],
+      // Gloves without an amount; dish soap once with and once without, so with
+      zusatzbedarf: [
+        { id: 1, etag: '', planungZutatId: 1, menge: null, einheit: null, hinweis: '' },
+        { id: 2, etag: '', planungZutatId: 2, menge: null, einheit: null, hinweis: '' },
+        { id: 3, etag: '', planungZutatId: 2, menge: 2, einheit: 'stueck', hinweis: '' },
+      ],
+    },
+    new Map([[9, 'Sonstiges']])
+  );
+  const posten = liste[0].kategorien[0].posten;
+  assert.deepEqual(
+    posten.map((p) => [p.name, postenMenge(p)]),
+    [
+      ['Kochhandschuhe', ''],
+      ['Spülmittel', '2 Stück'],
+    ]
+  );
+});
+
+test('what is put on the list without an amount stays there even with some in stock', () => {
+  const liste = einkaufsliste(
+    {
+      tage: [],
+      gruppen: [],
+      teilnehmende: [],
+      gerichte: [],
+      zutaten: [zutat(2, 'Spülmittel', 9, null)],
+      geschaefte: [],
+      bestand: [{ id: 1, etag: '', planungZutatId: 2, menge: 1, einheit: 'stueck', hinweis: '' }],
+      zusatzbedarf: [
+        { id: 2, etag: '', planungZutatId: 2, menge: null, einheit: null, hinweis: '' },
+      ],
+    },
+    new Map([[9, 'Sonstiges']])
+  );
+  assert.deepEqual(
+    liste.flatMap((g) => g.kategorien.flatMap((k) => k.posten.map((p) => [p.name, p.menge]))),
+    [['Spülmittel', null]]
   );
 });

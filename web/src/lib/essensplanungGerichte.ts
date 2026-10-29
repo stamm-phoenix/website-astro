@@ -121,12 +121,12 @@ export function zutatWahl(option: Vorschlag): ZutatWahl {
 export function gewaehlteZutat(
   auswahl: ZutatWahl | null,
   zutaten: readonly PlanungZutat[],
-  katalog: EssenKatalog
+  katalog: EssenKatalog | null
 ): PlanungZutat | EssenKatalog['zutaten'][number] | undefined {
   if (!auswahl) return undefined;
   const id = auswahl.id;
   if (auswahl.art === 'planung') return zutaten.find((z) => z.id === id);
-  return zutaten.find((z) => z.zutatId === id) ?? katalog.zutaten.find((z) => z.id === id);
+  return zutaten.find((z) => z.zutatId === id) ?? katalog?.zutaten.find((z) => z.id === id);
 }
 
 /** The suggestion whose name was typed, ignoring case but not umlauts (Ol is not Öl). */

@@ -57,10 +57,11 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await page.getByRole('button', { name: 'Zusatzbedarf eintragen' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Spülmittel');
   await dialog.getByRole('option', { name: 'Spülmittel', exact: true }).click();
-  await dialog.getByLabel('Menge', { exact: true }).fill('0');
+  // For extra needs the amount is optional, but 0 is none
+  await dialog.getByLabel('Menge (optional)').fill('0');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog.getByText('Bitte eine Menge größer 0 eintragen')).toBeVisible();
-  await dialog.getByLabel('Menge', { exact: true }).fill('2,5');
+  await dialog.getByLabel('Menge (optional)').fill('2,5');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
   // Pieces are rounded up for buying

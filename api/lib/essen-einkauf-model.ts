@@ -30,14 +30,25 @@ export interface EinkaufPosten {
   hinweis: string;
 }
 
+/** What is needed without a dish; the amount is optional, e.g. for „Kochhandschuhe“. */
+export interface ZusatzPosten extends Omit<EinkaufPosten, 'menge' | 'einheit'> {
+  menge: number | null;
+  einheit: GerichtEinheit | null;
+}
+
 export interface GeschaeftInput {
   name: string;
 }
 
 export interface PostenInput {
-  zutat: { zutatId: number } | { planungZutatId: number };
-  menge: number;
-  einheit: GerichtEinheit;
+  /**
+   * An ingredient of the list or of the Planung; for extra needs also a name of its own, which
+   * becomes an ingredient of the Planung that is no food (category „Sonstiges“).
+   */
+  zutat: { zutatId: number } | { planungZutatId: number } | { name: string };
+  /** Only extra needs go without an amount; then without a unit too. */
+  menge: number | null;
+  einheit: GerichtEinheit | null;
   hinweis: string;
 }
 

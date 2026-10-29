@@ -3,9 +3,15 @@
  * `api/lib/essen-gerichte.ts`.
  */
 import type { EssenEinheitenart } from '../../../api/lib/essen-validation';
-import type { Gericht, GerichtZutat, PlanungZutat } from '../../../api/lib/essen-gerichte-model';
+import type {
+  Gericht,
+  GerichtEinheit,
+  GerichtZutat,
+  PlanungZutat,
+} from '../../../api/lib/essen-gerichte-model';
 import type { PlanungAnsicht } from '../../../api/lib/essen-planung-model';
 import {
+  EINHEITEN_JE_ART,
   MAX_GERICHTE,
   MAX_ZEILEN_PRO_GERICHT,
   einheitPasst,
@@ -17,7 +23,7 @@ import type {
   PlanungZutatInput,
 } from '../../../api/lib/essen-gerichte-validation';
 import { validatePlanungZutat } from '../../../api/lib/essen-gerichte-validation';
-import { essenKatalog } from './essensplanung';
+import { createEssenEintrag, essenKatalog } from './essensplanung';
 import type { MockPlanung, MockZugang } from './essensplanung-planung';
 import { MockPlanungFehler, aendere, neueId, neuesEtag } from './essensplanung-planung';
 
@@ -32,6 +38,8 @@ export interface MockPlanungZutat {
   vegan: boolean | null;
   allergene: number[];
   geschaeftId: number | null;
+  /** Only own ones; false for what came onto the shopping list by name. */
+  lebensmittel?: boolean;
 }
 
 const collator = new Intl.Collator('de', { sensitivity: 'base', numeric: true });
@@ -68,7 +76,7 @@ function wirksam(planung: MockPlanung, zutat: MockPlanungZutat): PlanungZutat {
     kategorieId: zutat.kategorieId ?? zentral?.kategorieId ?? 0,
     einheitenart: zutat.einheitenart ?? zentral?.einheitenart ?? 'masse',
     abtropfgewicht: zentral?.abtropfgewicht ?? false,
-    lebensmittel: zentral?.lebensmittel ?? true,
+    lebensmittel: zentral?.lebensmittel ?? zutat.lebensmittel ?? true,
     vegetarisch: zentral ? zentral.vegetarisch : zutat.vegetarisch,
     vegan: zentral ? zentral.vegan : zutat.vegan,
     allergene: zentral ? [...zentral.allergene] : [...zutat.allergene],
@@ -208,6 +216,49 @@ export function zutatFuer(
     };
     z.planung.zutaten.push(eintrag);
   }
+  return wirksam(z.planung, eintrag);
+}
+
+/** „Sonstiges“, added again when the Steuerung renamed or deleted it, like the API. */
+function sonstigesKategorie(): number {
+  const vorhanden = essenKatalog().kategorien.find((k) => k.name === 'Sonstiges');
+  if (vorhanden) return vorhanden.id;
+  const neu = createEssenEintrag('kategorien', 'Sonstiges');
+  return typeof neu === 'object' && 'ok' in neu && neu.id !== undefined ? neu.id : 1;
+}
+
+/** Like `sonstigesDerPlanung`: a typed name on the shopping list. */
+export function sonstigesFuer(
+  z: MockZugang,
+  name: string,
+  einheit: GerichtEinheit | null
+): PlanungZutat {
+  const zentral = essenKatalog().zutaten.find((entry) => collator.compare(entry.name, name) === 0);
+  if (zentral) return zutatFuer(z, { zutatId: zentral.id }, { lebensmittel: false });
+  const eigene = z.planung.zutaten.find(
+    (entry) => entry.name && collator.compare(entry.name, name) === 0
+  );
+  if (eigene) return wirksam(z.planung, eigene);
+  const einheitenart =
+    einheit === null
+      ? 'stueck'
+      : (Object.keys(EINHEITEN_JE_ART) as EssenEinheitenart[]).find((art) =>
+          EINHEITEN_JE_ART[art].includes(einheit)
+        )!;
+  const eintrag: MockPlanungZutat = {
+    id: neueId(),
+    etag: neuesEtag(),
+    zutatId: null,
+    name,
+    kategorieId: sonstigesKategorie(),
+    einheitenart,
+    vegetarisch: null,
+    vegan: null,
+    allergene: [],
+    geschaeftId: null,
+    lebensmittel: false,
+  };
+  z.planung.zutaten.push(eintrag);
   return wirksam(z.planung, eintrag);
 }
 

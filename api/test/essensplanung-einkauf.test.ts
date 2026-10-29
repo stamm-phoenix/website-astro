@@ -301,3 +301,101 @@ dbTest('the preview gets invented shops, stock and extra needs once', async () =
     .execute();
   assert.equal(ohneGeschaeft.length, 0);
 });
+
+dbTest('extra needs take a name of their own and go without an amount', async (t) => {
+  const mails = captureMails(t);
+  const { token } = await anlegen(t, mails);
+  const zusatzNeu = (body: object) =>
+    senden(t, einkauf.EssensplanungZusatzbedarfListe, 'POST', 'planung/zusatzbedarf', token, body);
+
+  // A name not in the list becomes a thing of the Planung that is no food, without an amount
+  const ansicht = json<PlanungAnsicht>(await zusatzNeu({ name: 'Kochhandschuhe' }));
+  const handschuhe = ansicht.zutaten.find((z) => z.name === 'Kochhandschuhe')!;
+  assert.equal(handschuhe.zutatId, null);
+  assert.equal(handschuhe.lebensmittel, false);
+  assert.equal(handschuhe.einheitenart, 'stueck');
+  assert.deepEqual(
+    ansicht.zusatzbedarf.map(({ planungZutatId, menge, einheit }) => ({
+      planungZutatId,
+      menge,
+      einheit,
+    })),
+    [{ planungZutatId: handschuhe.id, menge: null, einheit: null }]
+  );
+
+  // The same name again takes that thing; a name of the list takes the ingredient of the list,
+  // and a typed unit tells how a new thing is measured
+  const wieder = json<PlanungAnsicht>(
+    await zusatzNeu({ name: 'kochhandschuhe', menge: 2, einheit: 'stueck' })
+  );
+  assert.equal(wieder.zutaten.filter((z) => z.name === 'Kochhandschuhe').length, 1);
+  const salz = await zentral('Salz');
+  const mitSalz = json<PlanungAnsicht>(await zusatzNeu({ name: 'Salz', menge: 1, einheit: 'kg' }));
+  assert.ok(mitSalz.zutaten.some((z) => z.zutatId === salz));
+  const mitSaft = json<PlanungAnsicht>(
+    await zusatzNeu({ name: 'Grillsoße', menge: 2, einheit: 'l' })
+  );
+  assert.equal(mitSaft.zutaten.find((z) => z.name === 'Grillsoße')?.einheitenart, 'volumen');
+
+  // The stock keeps needing an ingredient and an amount
+  const bestand = await senden(
+    t,
+    einkauf.EssensplanungBestandListe,
+    'POST',
+    'planung/bestand',
+    token,
+    {
+      name: 'Kochhandschuhe',
+    }
+  );
+  assert.equal(bestand.status, 400);
+
+  // What is no food goes into no dish
+  const gericht = json<{ id: number }>(
+    await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+      token,
+      body: { name: 'Chili', personen: 10 },
+    })
+  );
+  const zeile = await call(
+    t,
+    endpoints.EssensplanungGerichtZutaten,
+    'POST',
+    `planung/gerichte/${gericht.id}/zutaten`,
+    {
+      token,
+      params: { id: String(gericht.id) },
+      body: {
+        planungZutatId: handschuhe.id,
+        menge: null,
+        einheit: null,
+        fest: false,
+        fuerAlles: true,
+        fuerVegetarisch: true,
+        fuerVegan: true,
+        ohne: [],
+        nur: [],
+        hinweis: '',
+      },
+    }
+  );
+  assert.equal(zeile.status, 400);
+  assert.deepEqual(json<{ fields: Record<string, string> }>(zeile).fields, {
+    zutat: 'Kochhandschuhe ist kein Lebensmittel und gehört in kein Gericht.',
+  });
+
+  // With „Sonstiges“ renamed in the Steuerung, a new thing brings the category back
+  await getDb()
+    .updateTable('essen.kategorie')
+    .set({ name: 'Weitere Artikel' })
+    .where('name', '=', 'Sonstiges')
+    .execute();
+  const mitBesen = json<PlanungAnsicht>(await zusatzNeu({ name: 'Besen' }));
+  const besen = mitBesen.zutaten.find((z) => z.name === 'Besen')!;
+  const kategorie = await getDb()
+    .selectFrom('essen.kategorie')
+    .select('name')
+    .where('id', '=', besen.kategorieId)
+    .executeTakeFirstOrThrow();
+  assert.equal(kategorie.name, 'Sonstiges');
+});
