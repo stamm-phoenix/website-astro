@@ -197,7 +197,12 @@
 {/if}
 <!-- Typed amounts stay through a read-only phase, e.g. maintenance, locked until it ends -->
 {#if teil === 'abhaken' && (bearbeiten || geaendert)}
-  <details class="basis-full print:hidden" open={offen} ontoggle={umschalten}>
+  <details
+    class="basis-full print:hidden"
+    data-abhaken={einplanung.id}
+    open={offen}
+    ontoggle={umschalten}
+  >
     <summary
       class="flex min-h-11 cursor-pointer list-none items-center gap-1 py-2 text-sm font-semibold text-link [&::-webkit-details-marker]:hidden"
       aria-label="{name} bei {kennung} abhaken"

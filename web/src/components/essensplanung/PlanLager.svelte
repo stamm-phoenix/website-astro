@@ -44,7 +44,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each zeilen as zeile (zeile.planungZutatId + zeile.anfang + zeile.verbraucht)}
+          {#each zeilen as zeile (`${zeile.planungZutatId}:${zeile.anfang}:${zeile.verbraucht}`)}
             <tr class="border-b border-neutral-200">
               <th scope="row" class="py-1 pr-3 font-semibold [overflow-wrap:anywhere]"
                 >{zeile.name}</th

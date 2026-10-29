@@ -62,6 +62,14 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await expect(mittag.getByText('gekocht', { exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
+  // The calendar shows it too and leads to ticking off in the list
+  await page.getByRole('button', { name: 'Kalender' }).click();
+  const kalender = page.locator('[data-kalender="1_2"]');
+  await expect(kalender.getByText('gekocht', { exact: true })).toBeVisible();
+  await kalender.getByRole('button', { name: '1_2_1 Nudeln abhaken' }).click();
+  await expect(page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_2_1')).toHaveValue('0,8');
+  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+
   // Others see it; the stock has 700 g left, so 300 g of the second lunch are bought
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
