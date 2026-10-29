@@ -1,5 +1,5 @@
 import { esserJeMahlzeit } from '../../../api/lib/essen-teilnehmende-model';
-import { mengeText } from '../../../api/lib/essen-gerichte-model';
+import { gerichtWarnungen, mengeText } from '../../../api/lib/essen-gerichte-model';
 import { datumKurz } from './essensplanung';
 import { ernaehrung, fuerText } from './essensplanungGerichte';
 import { esserRechner, kochMenge, zeilenMenge } from './essensplanungRechnung';
@@ -163,6 +163,11 @@ export function rezeptZeilen(
       hinweis: zeile.hinweis,
     };
   });
+}
+
+/** The warnings of a dish as the card shows them, e.g. an ingredient that does not fit a diet. */
+export function rezeptWarnungen(gericht: Gericht, zutaten: PlanungZutat[]): string[] {
+  return gerichtWarnungen(gericht, new Map(zutaten.map((z) => [z.id, z]))).map((w) => w.text);
 }
 
 /** A paragraph of a text with Markdown, flattened for paper. */

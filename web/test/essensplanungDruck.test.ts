@@ -4,6 +4,7 @@ import {
   anleitungAbsaetze,
   esserKalender,
   kochplan,
+  rezeptWarnungen,
   rezeptZeilen,
   teilnehmendeZeilen,
 } from '../src/lib/essensplanungDruck.ts';
@@ -214,4 +215,17 @@ test('instructions in Markdown become headings, paragraphs and list items', () =
     ]
   );
   assert.deepEqual(anleitungAbsaetze('  '), []);
+});
+
+test('a recipe card keeps the warnings of the card', () => {
+  const gericht = {
+    ...ansicht.gerichte[0],
+    zutaten: [zeile(9, 1, 400, { fuerVegetarisch: true, fuerVegan: false })],
+  };
+  const warnungen = rezeptWarnungen(gericht, ansicht.zutaten);
+  assert.ok(
+    warnungen.some((text) => text.includes('Hackfleisch')),
+    warnungen.join(' | ')
+  );
+  assert.deepEqual(rezeptWarnungen(ansicht.gerichte[0], ansicht.zutaten), []);
 });
