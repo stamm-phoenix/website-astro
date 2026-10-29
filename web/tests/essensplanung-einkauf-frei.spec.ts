@@ -20,6 +20,27 @@ test('anything goes on the shopping list by name, without the list and an amount
   await expect(sonstiges).not.toContainText('nach Gefühl');
   await expect(page.getByRole('list', { name: 'Zusatzbedarf' })).toContainText('Kochhandschuhe');
 
+  // A read-only phase, e.g. maintenance, keeps what was typed
+  const wartung = async (an: boolean): Promise<void> => {
+    await page.unroute('**/api/essensplanung/planung/stand?*');
+    await page.route('**/api/essensplanung/planung/stand?*', async (route) => {
+      const url = route
+        .request()
+        .url()
+        .replace(/seit=[^&]*/, 'seit=0');
+      const antwort = await route.fetch({ url });
+      const json = await antwort.json();
+      if (json.ansicht) json.ansicht.wartung = an;
+      await route.fulfill({ response: antwort, json });
+    });
+  };
+  await feld.fill('Kehrblech');
+  await wartung(true);
+  await expect(feld).toHaveCount(0, { timeout: 15_000 });
+  await wartung(false);
+  await expect(feld).toHaveValue('Kehrblech', { timeout: 15_000 });
+  await page.unroute('**/api/essensplanung/planung/stand?*');
+
   // A name of the list takes that ingredient
   await feld.fill('Spülmittel');
   await feld.press('Enter');

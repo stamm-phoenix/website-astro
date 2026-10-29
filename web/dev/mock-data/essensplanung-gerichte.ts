@@ -23,7 +23,7 @@ import type {
   PlanungZutatInput,
 } from '../../../api/lib/essen-gerichte-validation';
 import { validatePlanungZutat } from '../../../api/lib/essen-gerichte-validation';
-import { essenKatalog } from './essensplanung';
+import { createEssenEintrag, essenKatalog } from './essensplanung';
 import type { MockPlanung, MockZugang } from './essensplanung-planung';
 import { MockPlanungFehler, aendere, neueId, neuesEtag } from './essensplanung-planung';
 
@@ -225,6 +225,14 @@ export function zutatFuer(
   return wirksam(z.planung, eintrag);
 }
 
+/** „Sonstiges“, added again when the Steuerung renamed or deleted it, like the API. */
+function sonstigesKategorie(): number {
+  const vorhanden = essenKatalog().kategorien.find((k) => k.name === 'Sonstiges');
+  if (vorhanden) return vorhanden.id;
+  const neu = createEssenEintrag('kategorien', 'Sonstiges');
+  return typeof neu === 'object' && 'ok' in neu && neu.id !== undefined ? neu.id : 1;
+}
+
 /** Like `sonstigesDerPlanung`: a typed name on the shopping list. */
 export function sonstigesFuer(
   z: MockZugang,
@@ -248,7 +256,7 @@ export function sonstigesFuer(
     etag: neuesEtag(),
     zutatId: null,
     name,
-    kategorieId: essenKatalog().kategorien.find((k) => k.name === 'Sonstiges')?.id ?? 1,
+    kategorieId: sonstigesKategorie(),
     einheitenart,
     vegetarisch: null,
     vegan: null,

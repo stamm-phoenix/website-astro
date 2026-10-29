@@ -383,4 +383,19 @@ dbTest('extra needs take a name of their own and go without an amount', async (t
   assert.deepEqual(json<{ fields: Record<string, string> }>(zeile).fields, {
     zutat: 'Kochhandschuhe ist kein Lebensmittel und gehört in kein Gericht.',
   });
+
+  // With „Sonstiges“ renamed in the Steuerung, a new thing brings the category back
+  await getDb()
+    .updateTable('essen.kategorie')
+    .set({ name: 'Weitere Artikel' })
+    .where('name', '=', 'Sonstiges')
+    .execute();
+  const mitBesen = json<PlanungAnsicht>(await zusatzNeu({ name: 'Besen' }));
+  const besen = mitBesen.zutaten.find((z) => z.name === 'Besen')!;
+  const kategorie = await getDb()
+    .selectFrom('essen.kategorie')
+    .select('name')
+    .where('id', '=', besen.kategorieId)
+    .executeTakeFirstOrThrow();
+  assert.equal(kategorie.name, 'Sonstiges');
 });

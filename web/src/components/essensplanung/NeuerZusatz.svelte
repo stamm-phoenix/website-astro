@@ -2,7 +2,6 @@
   import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
-  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { getippteZutat, zutatVorschlaege, zutatWahl } from '../../lib/essensplanungGerichte';
   import type { EssenKatalog } from '../../lib/types';
   import type { Vorschlag } from '../../lib/vorschlaege';
@@ -18,14 +17,14 @@
     kontext: PlanKontext;
     /** The central list for the suggestions; without it only the names of the Planung. */
     katalog: EssenKatalog | null;
+    /** What is typed; kept and guarded by the list, so it outlives a read-only phase. */
+    text: string;
   }
-  let { kontext, katalog }: Props = $props();
+  let { kontext, katalog, text = $bindable() }: Props = $props();
 
-  let text = $state('');
   let fehler = $state<string | null>(null);
   let speichert = $state(false);
   let feld = $state<HTMLInputElement | null>(null);
-  $effect(() => guardUnsavedChanges(() => text.trim() !== ''));
 
   const vorschlaege = $derived(
     zutatVorschlaege(
