@@ -35,8 +35,8 @@
   import CampflowPersonDetails from './CampflowPersonDetails.svelte';
   import AktionZuschussSchalter from './AktionZuschussSchalter.svelte';
   import AktionArtSchalter from './AktionArtSchalter.svelte';
-
-  const STATUS_ORDER: PersonStatus[] = ['confirmed', 'registered', 'cancelled'];
+  import TeilnehmendeFilter from './aktionen/TeilnehmendeFilter.svelte';
+  import PdfHerunterladen from './aktionen/PdfHerunterladen.svelte';
 
   const STATUS_TONE: Record<PersonStatus, StatusTone> = {
     confirmed: 'success',
@@ -159,10 +159,18 @@
     }
   }
 
-  function toggleStatus(status: PersonStatus): void {
-    statuses = statuses.includes(status)
-      ? statuses.filter((s) => s !== status)
-      : [...statuses, status];
+  async function downloadPdf(title: string, range: string): Promise<void> {
+    const { downloadTeilnehmendePdf } = await import('../lib/aktionTeilnehmendePdf');
+    await downloadTeilnehmendePdf({
+      title,
+      range,
+      columns: shownColumns,
+      persons: visible,
+      statuses,
+      search,
+      sortLabel: (available.find((c) => c.key === sortKey) ?? available[0])?.label ?? 'Name',
+      sortAsc,
+    });
   }
 
   function sortBy(key: string): void {
@@ -327,73 +335,26 @@
             Teilnehmende
           </h2>
 
-          <form
-            class="relative z-30 grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end"
-            role="search"
-            aria-label="Teilnehmende filtern"
-            onsubmit={(e) => e.preventDefault()}
-          >
-            <label class="block text-sm">
-              <span class="form-label">Suche</span>
-              <input type="search" bind:value={search} placeholder="Suchen …" class="form-input" />
-            </label>
+          <TeilnehmendeFilter
+            bind:search
+            bind:statuses
+            {available}
+            {shownColumns}
+            ontogglecolumn={toggleColumn}
+            onresetcolumns={resetColumns}
+          />
 
-            <fieldset class="text-sm">
-              <legend class="form-label">Status</legend>
-              <div class="mt-1 flex flex-wrap gap-x-5">
-                {#each STATUS_ORDER as status (status)}
-                  <button
-                    type="button"
-                    aria-pressed={statuses.includes(status)}
-                    onclick={() => toggleStatus(status)}
-                    class="py-2 font-semibold decoration-2 underline-offset-[6px] {statuses.includes(
-                      status
-                    )
-                      ? 'underline text-brand-900'
-                      : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
-                  >
-                    {PERSON_STATUS_LABEL[status]}
-                  </button>
-                {/each}
-              </div>
-            </fieldset>
-
-            <details class="relative text-sm">
-              <summary class="btn-secondary cursor-pointer list-none tabular-nums">
-                Spalten ({shownColumns.length}/{available.length})
-              </summary>
-              <div
-                class="absolute right-0 z-20 mt-2 max-h-80 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-surface p-3 shadow-lift"
-              >
-                <ul class="space-y-1">
-                  {#each available as column (column.key)}
-                    <li>
-                      <label class="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={shownColumns.some((c) => c.key === column.key)}
-                          onchange={() => toggleColumn(column.key)}
-                        />
-                        <span>{column.label}</span>
-                      </label>
-                    </li>
-                  {/each}
-                </ul>
-                <button
-                  type="button"
-                  class="mt-3 border-t border-neutral-200 pt-2 text-sm font-semibold text-brand-800 underline"
-                  onclick={resetColumns}
-                >
-                  Standardauswahl
-                </button>
-              </div>
-            </details>
-          </form>
-
-          <p class="text-sm text-neutral-700" aria-live="polite">
-            {visible.length}
-            {visible.length === 1 ? 'Person' : 'Personen'} angezeigt
-          </p>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="text-sm text-neutral-700" aria-live="polite">
+              {visible.length}
+              {visible.length === 1 ? 'Person' : 'Personen'} angezeigt
+            </p>
+            <PdfHerunterladen
+              create={() => downloadPdf(event.title, formatEventRange(event))}
+              disabled={visible.length === 0}
+              errorText="Das PDF der Teilnehmenden konnte nicht erstellt werden. Lade die Seite neu und versuch es noch einmal."
+            />
+          </div>
 
           {#if beitraege.error && !beitraege.loading}
             <div role="alert" class="surface-muted space-y-2 p-4 text-sm">

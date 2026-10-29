@@ -7,6 +7,7 @@
   import Toast from './ui/Toast.svelte';
   import ModalDialog from './ui/ModalDialog.svelte';
   import InfoHint from './ui/InfoHint.svelte';
+  import FahrtenExport from './aktionen/FahrtenExport.svelte';
   import {
     campflowDetailStore,
     campflowEventsStore,
@@ -22,7 +23,6 @@
     FAHRT_LABEL,
     KEINE_ANPASSUNGEN,
     fahrtPersonen,
-    fahrtenRows,
     freiePlaetze,
     guessSeatColumn,
     planFahrt,
@@ -33,7 +33,6 @@
     writeAnpassungen,
   } from '../lib/fahrtenPlan';
   import type { Auto, Fahrt, FahrtAnpassungen, FahrtPerson } from '../lib/fahrtenPlan';
-  import { sammelCsv } from '../lib/sammelExport';
   import { GROUP_CONFIG, STUFE_TO_KEY } from '../lib/types';
   import { confirmAction } from '../lib/confirm';
   import { isIchCampflow } from '../lib/ichStore.svelte';
@@ -139,19 +138,6 @@
         kind: 'error',
       };
     }
-  }
-
-  function downloadCsv(title: string): void {
-    const url = URL.createObjectURL(
-      new Blob([sammelCsv(fahrtenRows([plans.hin, plans.rueck]))], {
-        type: 'text/csv;charset=utf-8',
-      })
-    );
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `fahrten-${title.replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase()}.csv`;
-    anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function groupColor(gruppe: string): string {
@@ -313,7 +299,12 @@
               </InfoHint>
             </div>
             <div class="flex flex-wrap gap-2">
-              <ActionButton onclick={() => downloadCsv(event.title)}>Als CSV</ActionButton>
+              <FahrtenExport
+                title={event.title}
+                range={formatEventRange(event)}
+                plans={[plans.hin, plans.rueck]}
+                onresult={(result) => (toast = result)}
+              />
               <ActionButton onclick={copyLink}>Link kopieren</ActionButton>
               {#if changed}
                 <ActionButton variant="danger" onclick={reset}>Änderungen verwerfen</ActionButton>

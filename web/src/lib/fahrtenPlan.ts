@@ -1,4 +1,4 @@
-import { formatName, personStatus } from './campflowFields';
+import { formatName, formatValue, personStatus } from './campflowFields';
 import { mapGroupToStufe } from './campflowGroups';
 import type { CampflowColumn, CampflowPerson } from './types';
 
@@ -15,6 +15,8 @@ export interface FahrtPerson {
   nachname: string;
   gruppe: string;
   plaetze: Record<Fahrt, number>;
+  /** Phone numbers from the registration, e.g. „0176 123 (Mama)“. */
+  telefon?: string;
 }
 
 export interface Auto {
@@ -107,6 +109,7 @@ export function fahrtPersonen(
           hin: parseSeats(columnValue(person, hin)),
           rueck: parseSeats(columnValue(person, rueck)),
         },
+        telefon: formatValue(person.phone_numbers, 'phone_numbers'),
       };
     });
 }
@@ -399,26 +402,4 @@ export function writeAnpassungen(
     if (values.length > 0) params.set(param(name, fahrt), values.join(','));
     else params.delete(param(name, fahrt));
   }
-}
-
-/** Rows for the CSV export of both directions. */
-export function fahrtenRows(plans: FahrtPlan[]): string[][] {
-  const rows = [['Fahrt', 'Rolle', 'Name', 'Gruppe', 'Fährt bei', 'Plätze']];
-  for (const plan of plans) {
-    const fahrt = FAHRT_LABEL[plan.fahrt];
-    for (const auto of plan.autos) {
-      const fahrer = auto.fahrer.name;
-      rows.push([fahrt, 'Fahrer*in', fahrer, auto.fahrer.gruppe, fahrer, String(auto.plaetze)]);
-      for (const person of auto.mitfahrende) {
-        rows.push([fahrt, 'Mitfahrend', person.name, person.gruppe, fahrer, '']);
-      }
-    }
-    for (const person of plan.ohnePlatz) {
-      rows.push([fahrt, 'Ohne Platz', person.name, person.gruppe, '', '']);
-    }
-    for (const person of plan.entfernt) {
-      rows.push([fahrt, 'Nicht eingeplant', person.name, person.gruppe, '', '']);
-    }
-  }
-  return rows;
 }
