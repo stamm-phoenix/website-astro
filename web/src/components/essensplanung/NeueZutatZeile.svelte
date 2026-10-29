@@ -27,6 +27,7 @@
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import {
     getippteZutat,
+    gewaehlteZutat,
     leseMenge,
     zutatVorschlaege,
     zutatWahl,
@@ -67,13 +68,7 @@
     const treffer = eingabe.name ? getippteZutat(vorschlaege, eingabe.name) : undefined;
     if (treffer && !auswahl) auswahl = zutatWahl(treffer);
   });
-  const gewaehlt = $derived.by(() => {
-    if (!auswahl) return undefined;
-    const id = auswahl.id;
-    return auswahl.art === 'planung'
-      ? ansicht.zutaten.find((z) => z.id === id)
-      : katalog.zutaten.find((z) => z.id === id);
-  });
+  const gewaehlt = $derived(gewaehlteZutat(auswahl, ansicht.zutaten, katalog));
   const passend = $derived.by((): readonly GerichtEinheit[] => {
     const art = gewaehlt?.einheitenart;
     return art ? EINHEITEN_JE_ART[art] : [];
