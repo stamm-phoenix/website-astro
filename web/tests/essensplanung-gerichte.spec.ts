@@ -53,9 +53,15 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await anleitung.pressSequentially('würzen');
   await chili.getByLabel('Werkzeuge (optional)').fill('Großer Topf');
   await chili.getByLabel('Werkzeuge (optional)').press('Enter');
+  // An empty link is left out; the missing address shows at its own line
   await chili.getByRole('button', { name: 'Link hinzufügen' }).click();
-  await chili.getByLabel('Titel (optional)').fill('Originalrezept');
-  await chili.getByLabel('Adresse', { exact: true }).fill('https://example.org/chili');
+  await chili.getByRole('button', { name: 'Link hinzufügen' }).click();
+  await chili.getByLabel('Titel (optional)').nth(1).fill('Originalrezept');
+  await chili.getByRole('button', { name: 'Gericht speichern' }).click();
+  const adressen = chili.getByLabel('Adresse', { exact: true });
+  await expect(adressen.nth(1)).toHaveAttribute('aria-invalid', 'true');
+  await expect(adressen.nth(0)).not.toHaveAttribute('aria-invalid', 'true');
+  await adressen.nth(1).fill('https://example.org/chili');
   await chili.getByRole('button', { name: 'Gericht speichern' }).click();
   await expect(page.getByText('Chili gespeichert.').first()).toBeVisible();
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();

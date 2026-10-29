@@ -54,6 +54,11 @@ test('changes read as a sentence with name and day', () => {
 test('amounts accept a comma and stay empty without a number', () => {
   assert.equal(leseMenge('1,5'), 1.5);
   assert.equal(leseMenge(' 200 '), 200);
+  assert.equal(leseMenge('1.500'), 1500);
+  assert.equal(leseMenge('1.500,5'), 1500.5);
+  assert.equal(leseMenge('1.5'), 1.5);
+  assert.equal(leseMenge('0.250'), 0.25);
+  assert.ok(Number.isNaN(leseMenge('1.50.0')));
   assert.equal(leseMenge(''), null);
   assert.ok(Number.isNaN(leseMenge('zwei')));
   assert.equal(mengeFeld(1.5), '1,5');

@@ -3,11 +3,17 @@ import type { Vorschlag } from './vorschlaege';
 
 /** Helpers of the area „Gerichte“ of a Planung (`docs/essensplanung.md`). */
 
-/** A typed amount like „1,5“ or „200“; null for an empty field, NaN for anything else. */
+/**
+ * A typed amount like „1,5“, „200“ or „1.500“ (German thousands, as the recipe card shows them);
+ * null for an empty field, NaN for anything else.
+ */
 export function leseMenge(text: string): number | null {
-  const value = text.trim().replace(/\s/g, '').replace(',', '.');
+  const value = text.trim().replace(/\s/g, '');
   if (!value) return null;
-  return /^\d+(\.\d+)?$/.test(value) ? Number(value) : Number.NaN;
+  if (/^[1-9]\d{0,2}(\.\d{3})+(,\d+)?$/.test(value))
+    return Number(value.replace(/\./g, '').replace(',', '.'));
+  // A point that cannot be thousands, e.g. 1.5, is a decimal point
+  return /^\d+([.,]\d+)?$/.test(value) ? Number(value.replace(',', '.')) : Number.NaN;
 }
 
 /** An amount for an input field, „1,5“. */
