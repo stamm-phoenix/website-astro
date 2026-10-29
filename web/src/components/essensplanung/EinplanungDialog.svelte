@@ -9,7 +9,11 @@
   import { datumKurz } from '../../lib/essensplanung';
   import { faktorFeld, platzVon } from '../../lib/essensplanungEinplanung';
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
-  import { leseFaktor, MAX_FAKTOR } from '../../../../api/lib/essen-planung-model';
+  import {
+    FAKTOR_FEHLER,
+    faktorGueltig,
+    leseFaktor,
+  } from '../../../../api/lib/essen-planung-model';
   import type { PlanKontext } from './planKontext';
 
   /**
@@ -116,9 +120,8 @@
     felder = {};
     fehler = null;
     const zahl = leseFaktor(faktor);
-    // As the API checks it: three decimals at most
-    if (!(zahl > 0 && zahl <= MAX_FAKTOR) || Math.abs(Math.round(zahl * 1000) - zahl * 1000) > 1e-6)
-      felder.faktor = `Bitte eine Zahl größer als 0 und bis ${MAX_FAKTOR} eintragen, z. B. 0,5.`;
+    // As the API checks it
+    if (!faktorGueltig(zahl)) felder.faktor = FAKTOR_FEHLER;
     if (gerichtId === null) felder.gerichtId = 'Bitte ein Gericht wählen.';
     if (mahlzeitId === null) felder.mahlzeitId = 'Bitte eine Mahlzeit wählen.';
     if (Object.keys(felder).length) return;

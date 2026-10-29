@@ -423,6 +423,17 @@ export interface EinplanungInput {
   zustaendigText: string;
 }
 
+export const FAKTOR_FEHLER = `Bitte eine Zahl von 0,001 bis ${MAX_FAKTOR} eintragen, z. B. 0,5.`;
+
+/** A factor as stored: from 0.001 to `MAX_FAKTOR`, three decimals at most (`decimal(6, 3)`). */
+export function faktorGueltig(faktor: number): boolean {
+  return (
+    faktor >= 0.001 &&
+    faktor <= MAX_FAKTOR &&
+    Math.abs(Math.round(faktor * 1000) - faktor * 1000) < 1e-6
+  );
+}
+
 /** The factor as typed („0,5“) or sent (0.5); NaN for anything else. */
 export function leseFaktor(value: unknown): number {
   if (typeof value === 'number') return value;
@@ -441,12 +452,7 @@ export function validateEinplanung(input: unknown): EinplanungInput {
   const gerichtId = id(value.gerichtId);
   if (gerichtId === null) errors.gerichtId = 'Bitte ein Gericht wählen.';
   const faktor = value.faktor === undefined ? 1 : leseFaktor(value.faktor);
-  // Three decimals at most, as stored
-  if (
-    !(faktor > 0 && faktor <= MAX_FAKTOR) ||
-    Math.abs(Math.round(faktor * 1000) - faktor * 1000) > 1e-6
-  )
-    errors.faktor = `Bitte eine Zahl größer als 0 und bis ${MAX_FAKTOR} eintragen, z. B. 0,5.`;
+  if (!faktorGueltig(faktor)) errors.faktor = FAKTOR_FEHLER;
   const zustaendigId = value.zustaendigId === null ? null : id(value.zustaendigId);
   if (value.zustaendigId !== undefined && value.zustaendigId !== null && zustaendigId === null)
     errors.zustaendigId = 'Bitte aus der Liste wählen.';
