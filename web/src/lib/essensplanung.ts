@@ -161,15 +161,22 @@ const AENDERUNGEN: Record<string, string> = {
   'zutat-neu': 'hat eine eigene Zutat angelegt',
   'zutat-geaendert': 'hat eine Zutat der Planung geändert',
   'zutat-geloescht': 'hat eine Zutat der Planung gelöscht',
+  'einplanung-neu': 'hat ein Gericht eingeplant',
+  'einplanung-geaendert': 'hat eine Einplanung geändert',
+  'einplanung-geloescht': 'hat ein Gericht aus einer Mahlzeit genommen',
 };
 
 /** „Kim hat eine Mahlzeit geändert: Brunch (1.8.)“. */
 export function aenderungText(aenderung: PlanungAenderung): string {
   const wer = aenderung.wer || 'Jemand';
-  const was = AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert';
-  const { name, datum, gericht } = aenderung.details;
+  const { name, datum, gericht, mahlzeit, verschoben } = aenderung.details;
+  const was =
+    verschoben === true
+      ? 'hat ein Gericht verschoben'
+      : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
   const ziel = [
     typeof name === 'string' ? name : '',
+    typeof mahlzeit === 'string' ? `bei ${mahlzeit}` : '',
     typeof datum === 'string' ? `(${datumKurz(datum)})` : '',
     typeof gericht === 'string' ? `in „${gericht}“` : '',
   ]

@@ -62,6 +62,7 @@
     auswahl = zutat;
   }
 
+  const NUR_HIER = 'Gilt nur in dieser Planung; die Zutatenliste bleibt, wie sie ist.';
   const zentrale = $derived(
     auswahl?.zutatId ? katalog?.zutaten.find((z) => z.id === auswahl!.zutatId) : undefined
   );
@@ -215,12 +216,13 @@
               <input {...attrs} class="form-input" maxlength="150" bind:value={form.name} />
             {/snippet}
           </FormField>
-        {:else}
-          <p class="text-sm text-neutral-700">
-            Die Änderungen gelten nur in dieser Planung; die Zutatenliste bleibt, wie sie ist.
-          </p>
         {/if}
-        <FormField id="pz-kategorie" label="Kategorie" error={felder.kategorieId}>
+        <FormField
+          id="pz-kategorie"
+          label="Kategorie"
+          error={felder.kategorieId}
+          info={zentrale ? NUR_HIER : undefined}
+        >
           {#snippet children(attrs)}
             <select {...attrs} class="form-input" bind:value={form.kategorieId}>
               {#if zentrale}
@@ -236,7 +238,12 @@
             </select>
           {/snippet}
         </FormField>
-        <FormField id="pz-einheitenart" label="Gemessen in" error={felder.einheitenart}>
+        <FormField
+          id="pz-einheitenart"
+          label="Gemessen in"
+          error={felder.einheitenart}
+          info={zentrale ? NUR_HIER : undefined}
+        >
           {#snippet children(attrs)}
             <select {...attrs} class="form-input" bind:value={form.einheitenart}>
               {#if zentrale}

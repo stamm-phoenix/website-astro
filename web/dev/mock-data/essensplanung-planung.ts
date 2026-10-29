@@ -10,11 +10,14 @@ import {
   darfMitgliederVerwalten,
   daysBetween,
   loeschDatum,
+  MAX_EINPLANUNGEN_PRO_MAHLZEIT,
+  neuesteVersion,
   nummeriereTage,
 } from '../../../api/lib/essen-planung-model';
 import type {
   AnlegenInput,
   EinladungInput,
+  EinplanungInput,
   MahlzeitInput,
   PlanungAnsicht,
   PlanungEinstellungenInput,
@@ -40,12 +43,23 @@ interface MockMitglied {
   entzogen: boolean;
 }
 
+export interface MockEinplanung {
+  id: number;
+  etag: string;
+  gerichtId: number;
+  position: number;
+  faktor: number;
+  zustaendigId: number | null;
+  zustaendigText: string;
+}
+
 interface MockMahlzeit {
   id: number;
   etag: string;
   position: number;
   name: string;
   uhrzeit: string | null;
+  einplanungen: MockEinplanung[];
 }
 
 interface MockTag {
@@ -107,6 +121,7 @@ function neuerTag(datum: string, vorlage: string[]): MockTag {
       position: index + 1,
       name,
       uhrzeit: null,
+      einplanungen: [],
     })),
   };
 }
@@ -208,7 +223,19 @@ export function ansichtVon(
   const verwalten = darfMitgliederVerwalten(zugang, planung.mitgliederVerwalten);
   const tage = nummeriereTage(
     planung.tage.map(({ id, etag: tagEtag, datum }) => ({ id, etag: tagEtag, datum })),
-    planung.tage.flatMap((tag) => tag.mahlzeiten.map((m) => ({ ...m, tagId: tag.id })))
+    planung.tage.flatMap((tag) =>
+      tag.mahlzeiten.map((m) => ({
+        ...m,
+        tagId: tag.id,
+        einplanungen: m.einplanungen.map(({ zustaendigText, ...e }) => ({
+          ...e,
+          zustaendig:
+            e.zustaendigId === null
+              ? zustaendigText
+              : (planung.mitglieder.find((x) => x.id === e.zustaendigId)?.name ?? ''),
+        })),
+      }))
+    )
   );
   const letzter = tage.at(-1)?.datum;
   return {
@@ -500,7 +527,11 @@ export function tagAendern(
   ifMatch: unknown
 ): void {
   const tag = tagVon(z, id);
-  if (tag.etag !== ifMatch) throw konflikt();
+  // Deleting covers the meals and their dishes, like `tagStand`
+  const stand = datum
+    ? tag.etag
+    : neuesteVersion([tag.etag, ...tag.mahlzeiten.map(mahlzeitStandVon)]);
+  if (stand !== ifMatch) throw konflikt();
   if (datum && z.planung.tage.some((t) => t.datum === datum && t.id !== id)) {
     throw feld('datum', 'Diesen Tag gibt es in der Planung schon.');
   }
@@ -531,7 +562,13 @@ export function mahlzeitHinzufuegen(
 ): void {
   const tag = tagVon(z, tagId);
   aendere(z, 'mahlzeit-neu', { name: input.name, datum: tag.datum }, () => {
-    const mahlzeit = { id: nextId++, etag: etag(), position: tag.mahlzeiten.length + 1, ...input };
+    const mahlzeit = {
+      id: nextId++,
+      etag: etag(),
+      position: tag.mahlzeiten.length + 1,
+      ...input,
+      einplanungen: [],
+    };
     tag.mahlzeiten.push(mahlzeit);
     if (position !== undefined) sortiere(tag, mahlzeit, position);
   });
@@ -552,7 +589,7 @@ export function mahlzeitAendern(
   ifMatch: unknown
 ): void {
   const { tag, mahlzeit } = mahlzeitVon(z, id);
-  if (mahlzeit.etag !== ifMatch) throw konflikt();
+  if ((input ? mahlzeit.etag : mahlzeitStandVon(mahlzeit)) !== ifMatch) throw konflikt();
   if (!input) {
     aendere(z, 'mahlzeit-geloescht', { name: mahlzeit.name, datum: tag.datum }, () => {
       tag.mahlzeiten.splice(tag.mahlzeiten.indexOf(mahlzeit), 1);
@@ -567,6 +604,122 @@ export function mahlzeitAendern(
     mahlzeit.uhrzeit = input.uhrzeit;
     mahlzeit.etag = etag();
     if (input.position !== undefined) sortiere(tag, mahlzeit, input.position);
+  });
+}
+
+function mahlzeitStandVon(mahlzeit: MockMahlzeit): string {
+  return neuesteVersion([mahlzeit.etag, ...mahlzeit.einplanungen.map((e) => e.etag)]);
+}
+
+function sortiereEinplanungen(
+  mahlzeit: MockMahlzeit,
+  einplanung?: MockEinplanung,
+  position?: number
+) {
+  const rest = mahlzeit.einplanungen
+    .filter((e) => e !== einplanung)
+    .sort((a, b) => a.position - b.position);
+  if (einplanung)
+    rest.splice(
+      Math.min(Math.max((position ?? rest.length + 1) - 1, 0), rest.length),
+      0,
+      einplanung
+    );
+  rest.forEach((e, index) => {
+    if (e.position !== index + 1) {
+      e.position = index + 1;
+      e.etag = etag();
+    }
+  });
+  mahlzeit.einplanungen = rest;
+}
+
+function pruefeEinplanung(z: MockZugang, input: EinplanungInput) {
+  const ziel = z.planung.tage
+    .flatMap((tag) => tag.mahlzeiten.map((mahlzeit) => ({ tag, mahlzeit })))
+    .find(({ mahlzeit }) => mahlzeit.id === input.mahlzeitId);
+  if (!ziel) throw feld('mahlzeitId', 'Diese Mahlzeit gibt es nicht mehr.');
+  const gericht = z.planung.gerichte.find((g) => g.id === input.gerichtId);
+  if (!gericht) throw feld('gerichtId', 'Dieses Gericht gibt es nicht mehr.');
+  if (
+    input.zustaendigId !== null &&
+    !z.planung.mitglieder.some((m) => m.id === input.zustaendigId && !m.entzogen)
+  )
+    throw feld('zustaendigId', 'Bitte aus der Liste wählen.');
+  return { ...ziel, gericht };
+}
+
+function platz(mahlzeit: MockMahlzeit): void {
+  if (mahlzeit.einplanungen.length >= MAX_EINPLANUNGEN_PRO_MAHLZEIT)
+    throw feld('mahlzeitId', `Höchstens ${MAX_EINPLANUNGEN_PRO_MAHLZEIT} Gerichte pro Mahlzeit.`);
+}
+
+/** Plans a dish at a meal, like `essen-einplanung.ts`. */
+export function einplanen(z: MockZugang, input: EinplanungInput, position?: number): void {
+  const { tag, mahlzeit, gericht } = pruefeEinplanung(z, input);
+  platz(mahlzeit);
+  const details = { name: gericht.name, mahlzeit: mahlzeit.name, datum: tag.datum };
+  aendere(z, 'einplanung-neu', details, () => {
+    const einplanung: MockEinplanung = {
+      id: nextId++,
+      etag: etag(),
+      gerichtId: gericht.id,
+      position: mahlzeit.einplanungen.length + 1,
+      faktor: input.faktor,
+      zustaendigId: input.zustaendigId,
+      zustaendigText: input.zustaendigId === null ? input.zustaendigText : '',
+    };
+    mahlzeit.einplanungen.push(einplanung);
+    sortiereEinplanungen(mahlzeit, einplanung, position);
+  });
+}
+
+/** Changes, moves (`input`) or deletes (null) a planned dish. */
+export function einplanungAendern(
+  z: MockZugang,
+  id: number,
+  input: EinplanungInput | null,
+  ifMatch: unknown,
+  position?: number
+): void {
+  const quelle = z.planung.tage
+    .flatMap((tag) => tag.mahlzeiten.map((mahlzeit) => ({ tag, mahlzeit })))
+    .find(({ mahlzeit }) => mahlzeit.einplanungen.some((e) => e.id === id));
+  if (!quelle) throw nichtGefunden();
+  const einplanung = quelle.mahlzeit.einplanungen.find((e) => e.id === id)!;
+  const gericht = z.planung.gerichte.find((g) => g.id === einplanung.gerichtId)!;
+  if (!input) {
+    if (einplanung.etag !== ifMatch) throw konflikt();
+    const details = { name: gericht.name, mahlzeit: quelle.mahlzeit.name, datum: quelle.tag.datum };
+    aendere(z, 'einplanung-geloescht', details, () => {
+      quelle.mahlzeit.einplanungen.splice(quelle.mahlzeit.einplanungen.indexOf(einplanung), 1);
+      sortiereEinplanungen(quelle.mahlzeit);
+    });
+    return;
+  }
+  const { tag, mahlzeit } = pruefeEinplanung(z, { ...input, gerichtId: einplanung.gerichtId });
+  const verschoben = mahlzeit !== quelle.mahlzeit;
+  if (verschoben) platz(mahlzeit);
+  if (einplanung.etag !== ifMatch) throw konflikt();
+  const details = {
+    name: gericht.name,
+    mahlzeit: mahlzeit.name,
+    datum: tag.datum,
+    ...(verschoben ? { verschoben: true } : {}),
+  };
+  aendere(z, 'einplanung-geaendert', details, () => {
+    Object.assign(einplanung, {
+      etag: etag(),
+      faktor: input.faktor,
+      zustaendigId: input.zustaendigId,
+      zustaendigText: input.zustaendigId === null ? input.zustaendigText : '',
+    });
+    if (verschoben) {
+      quelle.mahlzeit.einplanungen.splice(quelle.mahlzeit.einplanungen.indexOf(einplanung), 1);
+      sortiereEinplanungen(quelle.mahlzeit);
+      mahlzeit.einplanungen.push(einplanung);
+      sortiereEinplanungen(mahlzeit, einplanung, position);
+    } else if (position !== undefined) sortiereEinplanungen(mahlzeit, einplanung, position);
   });
 }
 

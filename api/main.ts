@@ -150,6 +150,8 @@ import {
   EssensplanungGericht,
   EssensplanungGerichtZutaten,
   EssensplanungGerichtZutat,
+  EssensplanungEinplanungen,
+  EssensplanungEinplanung,
 } from './endpoints/essensplanung';
 import {
   EditorCollection,
@@ -1373,6 +1375,20 @@ app.http('essensplanungGerichtZutat', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/gericht-zutaten/{id}',
   handler: EssensplanungGerichtZutat,
+});
+
+app.http('essensplanungEinplanungen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einplanungen',
+  handler: EssensplanungEinplanungen,
+});
+
+app.http('essensplanungEinplanung', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einplanungen/{id}',
+  handler: EssensplanungEinplanung,
 });
 
 // Essensplanung: the Steuerung for the teams Admin and Vorstand (docs/essensplanung.md).

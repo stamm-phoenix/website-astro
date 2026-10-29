@@ -43,8 +43,10 @@ import {
   validateMahlzeit,
   validateMitgliedName,
   validatePlanungEinstellungen,
+  validateEinplanung,
   validateTag,
 } from '../lib/essen-planung-model';
+import { einplanen, einplanungAendern, einplanungLoeschen } from '../lib/essen-einplanung';
 import {
   eigeneZutatAnlegen,
   gerichtAendern,
@@ -562,6 +564,38 @@ export const EssensplanungGerichtZutat = planungHandler(async (request) => {
     id,
     { ...validateGerichtZutat(body), position: readPosition(body?.position) },
     readEtag(body, request)
+  );
+  return ok(await ladeAnsicht(zugang));
+});
+
+/** POST `{ mahlzeitId, gerichtId, faktor, zustaendigId, zustaendigText, position? }`: plans a dish. */
+export const EssensplanungEinplanungen = planungHandler(async (request) => {
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  const body = await readJsonBody(request);
+  await einplanen(zugang, validateEinplanung(body), readPosition(body?.position));
+  return ok(await ladeAnsicht(zugang), 201);
+});
+
+/**
+ * PATCH `{ etag, mahlzeitId, gerichtId, faktor, zustaendigId, zustaendigText, position? }`:
+ * changes or moves a planned dish. DELETE (If-Match): takes it off the meal.
+ */
+export const EssensplanungEinplanung = planungHandler(async (request) => {
+  const zugang = await zugangVon(request);
+  const id = readId(request);
+  if (request.method === 'DELETE') {
+    await einplanungLoeschen(zugang, id, readEtag(null, request));
+    return ok(await ladeAnsicht(zugang));
+  }
+  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+  const body = await readJsonBody(request);
+  await einplanungAendern(
+    zugang,
+    id,
+    validateEinplanung(body),
+    readEtag(body, request),
+    readPosition(body?.position)
   );
   return ok(await ladeAnsicht(zugang));
 });

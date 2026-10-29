@@ -1,4 +1,5 @@
 import type { Gericht, PlanungZutat } from '../../../api/lib/essen-gerichte-model';
+import type { Einplanung } from '../../../api/lib/essen-planung-model';
 import type { NikolausBookingDetails, NikolausSettings } from './nikolausConfig';
 import type { EinteilungDay, HelperRole as NikolausHelperRole } from './nikolausEinteilung';
 
@@ -401,7 +402,11 @@ export interface PlanungMahlzeit {
   kennung: string;
   name: string;
   uhrzeit: string | null;
+  /** The dishes planned at the meal, in their order. */
+  einplanungen: Einplanung[];
 }
+
+export type { Einplanung } from '../../../api/lib/essen-planung-model';
 
 export interface PlanungTag {
   id: number;

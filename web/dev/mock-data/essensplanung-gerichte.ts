@@ -231,10 +231,24 @@ export function gerichtAendern(
   ifMatch: unknown
 ): void {
   const gericht = gerichtVon(z, id);
-  if ((input ? gericht.etag : gerichtStand(gericht)) !== ifMatch) throw konflikt();
+  const mahlzeiten = z.planung.tage.flatMap((tag) => tag.mahlzeiten);
+  const plaetze = mahlzeiten.flatMap((m) => m.einplanungen.filter((e) => e.gerichtId === id));
+  const stand = input
+    ? gericht.etag
+    : gerichtStand(
+        gericht,
+        plaetze.map((e) => e.etag)
+      );
+  if (stand !== ifMatch) throw konflikt();
   if (!input) {
     aendere(z, 'gericht-geloescht', { name: gericht.name }, () => {
       z.planung.gerichte.splice(z.planung.gerichte.indexOf(gericht), 1);
+      // Its places in the plan go with it
+      for (const mahlzeit of mahlzeiten) {
+        mahlzeit.einplanungen = mahlzeit.einplanungen
+          .filter((e) => e.gerichtId !== id)
+          .map((e, index) => ({ ...e, position: index + 1 }));
+      }
     });
     return;
   }

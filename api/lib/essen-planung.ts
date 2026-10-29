@@ -37,12 +37,14 @@ import {
   darfBearbeiten,
   darfMitgliederVerwalten,
   loeschDatum,
+  neuesteVersion,
   nummeriereTage,
 } from './essen-planung-model';
 import { loadEssenEinstellungen } from './essen-steuerung';
 import { darfPlanungAnlegen } from './essen-validation';
 import { deletePlanung } from './essen-planung-loeschen';
 import { ladeGerichte, ladeKatalogStand } from './essen-gerichte';
+import { ladeEinplanungen } from './essen-einplanung';
 import { ValidationError } from './pflege-validation';
 
 /**
@@ -144,34 +146,36 @@ const AENDERUNGEN_ANZEIGEN = 30;
 /** The view of a Planung for the given access. */
 export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<PlanungAnsicht> {
   const { seq, stand, stored, katalogStand } = await standUndEinstellungen(zugang, db);
-  const [planung, mitglieder, tage, mahlzeiten, aenderungen, gerichte] = await Promise.all([
-    db
-      .selectFrom('essen.planung')
-      .selectAll()
-      .where('id', '=', zugang.planungId)
-      .executeTakeFirst(),
-    db
-      .selectFrom('essen.mitglied')
-      .selectAll()
-      .where('planung_id', '=', zugang.planungId)
-      .orderBy('id')
-      .execute(),
-    db.selectFrom('essen.tag').selectAll().where('planung_id', '=', zugang.planungId).execute(),
-    db
-      .selectFrom('essen.mahlzeit as m')
-      .innerJoin('essen.tag as t', 't.id', 'm.tag_id')
-      .select(['m.id', 'm.version', 'm.tag_id', 'm.position', 'm.name', 'm.uhrzeit'])
-      .where('t.planung_id', '=', zugang.planungId)
-      .execute(),
-    db
-      .selectFrom('essen.aenderung')
-      .selectAll()
-      .where('planung_id', '=', zugang.planungId)
-      .orderBy('seq', 'desc')
-      .top(AENDERUNGEN_ANZEIGEN)
-      .execute(),
-    ladeGerichte(db, zugang.planungId),
-  ]);
+  const [planung, mitglieder, tage, mahlzeiten, aenderungen, gerichte, einplanungen] =
+    await Promise.all([
+      db
+        .selectFrom('essen.planung')
+        .selectAll()
+        .where('id', '=', zugang.planungId)
+        .executeTakeFirst(),
+      db
+        .selectFrom('essen.mitglied')
+        .selectAll()
+        .where('planung_id', '=', zugang.planungId)
+        .orderBy('id')
+        .execute(),
+      db.selectFrom('essen.tag').selectAll().where('planung_id', '=', zugang.planungId).execute(),
+      db
+        .selectFrom('essen.mahlzeit as m')
+        .innerJoin('essen.tag as t', 't.id', 'm.tag_id')
+        .select(['m.id', 'm.version', 'm.tag_id', 'm.position', 'm.name', 'm.uhrzeit'])
+        .where('t.planung_id', '=', zugang.planungId)
+        .execute(),
+      db
+        .selectFrom('essen.aenderung')
+        .selectAll()
+        .where('planung_id', '=', zugang.planungId)
+        .orderBy('seq', 'desc')
+        .top(AENDERUNGEN_ANZEIGEN)
+        .execute(),
+      ladeGerichte(db, zugang.planungId),
+      ladeEinplanungen(db, zugang.planungId),
+    ]);
   if (!planung) throw LINK_UNGUELTIG();
 
   const verwalten = darfMitgliederVerwalten(zugang.zugang, planung.mitglieder_verwalten);
@@ -189,6 +193,7 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
       position: mahlzeit.position,
       name: mahlzeit.name,
       uhrzeit: mahlzeit.uhrzeit,
+      einplanungen: einplanungen.get(mahlzeit.id) ?? [],
     }))
   );
   const letzterTag = nummerierteTage.at(-1)?.datum;
@@ -986,10 +991,25 @@ export async function tagVerschieben(
 export async function tagLoeschen(zugang: Zugang, tagId: number, etag: string): Promise<void> {
   await aendere(zugang, 'tag-geloescht', async (trx) => {
     const tag = await tagDerPlanung(trx, zugang, tagId);
+    // `etag` is the `tagStand`: a meal or a planned dish changed meanwhile is a conflict
+    const teile = await trx
+      .selectFrom('essen.mahlzeit as m')
+      .leftJoin('essen.einplanung as e', 'e.mahlzeit_id', 'm.id')
+      .select(['m.version as mahlzeit', 'e.version as einplanung'])
+      .where('m.tag_id', '=', tagId)
+      .execute();
+    const stand = neuesteVersion([
+      toVersion(tag.version),
+      ...teile.flatMap((teil) => [
+        toVersion(teil.mahlzeit),
+        ...(teil.einplanung ? [toVersion(teil.einplanung)] : []),
+      ]),
+    ]);
+    if (stand !== etag.trim()) throw new VersionConflictError();
     const result = await trx
       .deleteFrom('essen.tag')
       .where('id', '=', tagId)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', tag.version)
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     return { result: undefined, details: { datum: toDateString(tag.datum) } };
@@ -1061,7 +1081,7 @@ async function mahlzeitDerPlanung(trx: Db, zugang: Zugang, mahlzeitId: number) {
   const mahlzeit = await trx
     .selectFrom('essen.mahlzeit as m')
     .innerJoin('essen.tag as t', 't.id', 'm.tag_id')
-    .select(['m.id', 'm.tag_id', 'm.name', 't.datum'])
+    .select(['m.id', 'm.version', 'm.tag_id', 'm.name', 't.datum'])
     .where('m.id', '=', mahlzeitId)
     .where('t.planung_id', '=', zugang.planungId)
     .executeTakeFirst();
@@ -1104,10 +1124,21 @@ export async function mahlzeitLoeschen(
 ): Promise<void> {
   await aendere(zugang, 'mahlzeit-geloescht', async (trx) => {
     const mahlzeit = await mahlzeitDerPlanung(trx, zugang, mahlzeitId);
+    // `etag` is the `mahlzeitStand`: a dish planned or changed meanwhile is a conflict
+    const einplanungen = await trx
+      .selectFrom('essen.einplanung')
+      .select('version')
+      .where('mahlzeit_id', '=', mahlzeitId)
+      .execute();
+    const stand = neuesteVersion([
+      toVersion(mahlzeit.version),
+      ...einplanungen.map((einplanung) => toVersion(einplanung.version)),
+    ]);
+    if (stand !== etag.trim()) throw new VersionConflictError();
     const result = await trx
       .deleteFrom('essen.mahlzeit')
       .where('id', '=', mahlzeitId)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', mahlzeit.version)
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     // Close the gap in the order

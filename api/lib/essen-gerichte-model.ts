@@ -133,12 +133,16 @@ export function gerichtSperre(gerichtId: number): string {
 }
 
 /**
- * The version a dish is deleted with: the newest of the dish and its lines. Versions grow with
- * every change, so a changed or added line makes it newer and deleting with the old one fails.
+ * The version a dish is deleted with: the newest of the dish, its lines and `weitere` (where it
+ * is planned at meals). Versions grow with every change, so a changed or added line makes it
+ * newer and deleting with the old one fails.
  */
-export function gerichtStand(gericht: { etag: string; zutaten: { etag: string }[] }): string {
-  return gericht.zutaten.reduce(
-    (neueste, zeile) => (zeile.etag > neueste ? zeile.etag : neueste),
+export function gerichtStand(
+  gericht: { etag: string; zutaten: { etag: string }[] },
+  weitere: string[] = []
+): string {
+  return [...gericht.zutaten.map((zeile) => zeile.etag), ...weitere].reduce(
+    (neueste, etag) => (etag > neueste ? etag : neueste),
     gericht.etag
   );
 }

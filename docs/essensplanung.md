@@ -127,10 +127,12 @@ Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite e
 
 ## Einplanung
 
-- Ein Gericht kommt an eine Mahlzeit, mit Position innerhalb der Mahlzeit.
-- **Faktor:** Standard 1, z. B. 0,5, wenn nur die Hälfte Nachtisch isst.
-- **Zuständig:** ein Mitglied der Planung oder Freitext.
-- Ein Gericht lässt sich zwischen Mahlzeiten verschieben und kopieren.
+- Ein Gericht kommt an eine Mahlzeit, mit Position innerhalb der Mahlzeit (höchstens 10 je Mahlzeit, z. B. Haupt- und Nachspeise). Dasselbe Gericht darf an mehreren Mahlzeiten stehen.
+- **Faktor:** Standard 1, z. B. 0,5, wenn nur die Hälfte Nachtisch isst; größer 0 und bis 20, drei Nachkommastellen. Feste Mengen ignorieren ihn.
+- **Zuständig:** ein Mitglied der Planung mit Zugang oder ein freier Name, höchstens eins von beiden. Der Lese-Link sieht den Namen, aber keine Mitgliederliste.
+- Ein Gericht lässt sich zwischen Mahlzeiten verschieben („Ändern“ mit anderer Mahlzeit) und kopieren (legt eine neue Einplanung mit denselben Angaben an); innerhalb der Mahlzeit mit ↑/↓ sortieren.
+- Die Plan-Ansicht zeigt unter jeder Mahlzeit ihre Gerichte mit Faktor und Zuständigen, auch im Druck; die Karte eines Gerichts zeigt, wo es eingeplant ist.
+- Löschen: Ein gelöschtes Gericht verschwindet aus allen Mahlzeiten; eine gelöschte Mahlzeit (oder ihr Tag) nimmt ihre Einplanungen mit, die Gerichte bleiben.
 
 ## Teilnehmende
 
@@ -228,7 +230,8 @@ Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach.
 | `planung_zutat`, `planung_zutat_unvertraeglichkeit` | jede in der Planung genutzte Zutat: `zutat_id` (zentral) mit den Abweichungen `kategorie_id` und `einheitenart` (`NULL`: wie in der Liste), oder eine eigene mit `name`, `kategorie_id`, `einheitenart`, `vegetarisch`, `vegan` und Allergenen; später das Geschäft |
 | `gericht` | `name` (eindeutig je Planung), `personen`, `anleitung`, `notiz`, `links` und `werkzeuge` (JSON, nur mit dem Gericht bearbeitet) |
 | `gericht_zutat`, `gericht_zutat_unvertraeglichkeit` | Zeilen: `position`, `planung_zutat_id`, `menge` und `einheit` (beide `NULL` ohne Menge), `fest`, `fuer_alles`/`fuer_vegetarisch`/`fuer_vegan`, `hinweis`; Unverträglichkeiten mit `nur` = 0 („nicht für“) oder 1 („nur für“) |
-| `einplanung`, `einplanung_verbrauch` | Gericht an Mahlzeit, Status offen/gekocht/ausgelassen, tatsächlicher Verbrauch je Zutat |
+| `einplanung` | Gericht an Mahlzeit: `mahlzeit_id` (mit Kaskade), `gericht_id` (ohne Kaskade, das Löschen des Gerichts entfernt sie zuerst), `position`, `faktor`, `zustaendig_mitglied_id` oder `zustaendig_text`; später der Status offen/gekocht/ausgelassen |
+| `einplanung_verbrauch` | tatsächlicher Verbrauch je Zutat (PR 6) |
 | `einkauf`, `einkauf_posten` | Einkäufe, verschobene oder feste Posten, erhaltene Menge, Ersatz, abgehakt von/um |
 | `zusatzbedarf`, `bestand` | spontane Dinge, Anfangsbestand |
 | `packliste_eintrag` | Werkzeuge und eigene Einträge mit Zuständigen und „gepackt“ |
@@ -247,11 +250,11 @@ Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen eine
   - Umgesetzt sind bisher Plan (Tage und Mahlzeiten), Gerichte (mit den Zutaten der Planung), Mitglieder & Freigabe, Änderungen und Einstellungen. Weitere Seiten: `/essensplanung/bestaetigen#a=…` (Anlegen bestätigen) und `/essensplanung/beitreten#b=…`.
 - **API** (`api/endpoints/essensplanung.ts`, Logik in `api/lib/essen-planung.ts`, reine Regeln in `api/lib/essen-planung-model.ts`):
   - ohne Token mit ALTCHA: `POST essensplanung/anlegen`, `POST essensplanung/meine`; mit Anfrage- bzw. Beitrittstoken: `anlegen/bestaetigen`, `beitritt/ansehen`, `beitritt`.
-  - mit Header `x-essensplanung-token`: `planung` (GET/PATCH/DELETE), `planung/stand?seit=`, `planung/ich`, `planung/links`, `planung/mitglieder[/{id}[/link]]`, `planung/tage[/{id}]`, `planung/mahlzeiten[/{id}]`, `planung/katalog` (zentrale Listen), `planung/zutaten[/{id}]` (Zutaten der Planung), `planung/gerichte[/{id}[/zutaten]]`, `planung/gericht-zutaten/{id}`. Logik der Gerichte in `api/lib/essen-gerichte.ts`, Prüfungen in `essen-gerichte-validation.ts`, Typen, Einheiten und Warnungen (auch für die Seite) in `essen-gerichte-model.ts`.
+  - mit Header `x-essensplanung-token`: `planung` (GET/PATCH/DELETE), `planung/stand?seit=`, `planung/ich`, `planung/links`, `planung/mitglieder[/{id}[/link]]`, `planung/tage[/{id}]`, `planung/mahlzeiten[/{id}]`, `planung/katalog` (zentrale Listen), `planung/zutaten[/{id}]` (Zutaten der Planung), `planung/gerichte[/{id}[/zutaten]]`, `planung/gericht-zutaten/{id}`, `planung/einplanungen[/{id}]` (Logik in `api/lib/essen-einplanung.ts`). Logik der Gerichte in `api/lib/essen-gerichte.ts`, Prüfungen in `essen-gerichte-validation.ts`, Typen, Einheiten und Warnungen (auch für die Seite) in `essen-gerichte-model.ts`.
   - `ladeZugang` löst das Token zu Mitglied oder Lese-Link auf; `aendere()` prüft Recht und Wartungsmodus, zählt `aenderung_seq` in derselben Transaktion hoch (das serialisiert auch gleichzeitige Änderungen) und schreibt `essen.aenderung`. Der Lese-Link darf nur `GET`.
   - Konflikte auf Tag oder Mahlzeit (`rowversion`) und `404` antworten mit der aktuellen Ansicht. Die Planung selbst hat keine Version, weil jede Änderung ihre Zeile berührt; Name und Einstellungen gewinnen zuletzt.
 - **Gleichzeitig planen:** Die App fragt alle 2,5 s `planung/stand?seit=<stand>`; nur wenn sich etwas geändert hat, kommt die volle Ansicht zurück. Der Stand besteht aus Änderungszähler, Version der Einstellungen und `katalogStand` (neueste Version und Anzahl der zentralen Zutaten, Kategorien und Unverträglichkeiten); ändert sich der Katalogstand, lädt der Bereich Gerichte die zentralen Listen neu.
-  - Formulare (Zeile, Zutat der Planung, Kopf des Gerichts) speichern mit der Version, mit der sie geöffnet wurden; hat jemand anderes inzwischen gespeichert, gibt es einen Konflikt, die Eingabe bleibt, und erneutes Speichern übernimmt sie. Dialoge mit ungespeicherten Eingaben fragen vor dem Schließen. Ein Gericht wird mit `gerichtStand` gelöscht, der neuesten Version von Gericht und Zeilen; eine Sperre je Gericht (`gerichtSperre`) ordnet das gegen gleichzeitig gespeicherte Zeilen, so dass eine während der Rückfrage geänderte oder ergänzte Zeile einen Konflikt gibt. `ladeAnsicht` liest den Zähler vor den Daten, damit eine Ansicht nie einen neueren Zähler als ihre Daten trägt.
+  - Formulare (Zeile, Zutat der Planung, Kopf des Gerichts) speichern mit der Version, mit der sie geöffnet wurden; hat jemand anderes inzwischen gespeichert, gibt es einen Konflikt, die Eingabe bleibt, und erneutes Speichern übernimmt sie. Dialoge mit ungespeicherten Eingaben fragen vor dem Schließen. Was beim Löschen anderes mitnimmt, wird mit der neuesten Version des Ganzen gelöscht: ein Gericht mit `gerichtStand` (Gericht, Zeilen, Einplanungen), eine Mahlzeit mit `mahlzeitStand` (Mahlzeit, Einplanungen), ein Tag mit `tagStand` (Tag, Mahlzeiten, Einplanungen). So gibt eine während der Rückfrage geänderte oder ergänzte Zeile oder Einplanung einen Konflikt; die Prüfung läuft in `aendere()`, das die Planung sperrt (dazu `gerichtSperre` je Gericht). `ladeAnsicht` liest den Zähler vor den Daten, damit eine Ansicht nie einen neueren Zähler als ihre Daten trägt.
   - Ein Feld, in dem jemand tippt oder das ungespeicherte Eingaben hat, wird nicht überschrieben. Gespeichert werden nur die geänderten Felder; hat jemand anderes dasselbe Feld inzwischen geändert, bleibt die Eingabe stehen und die Seite sagt es.
   - Änderungen laufen nacheinander (`aendern` in `EssensplanungApp.svelte`); ein Feld, das während einer laufenden Speicherung verlassen wird, wird danach gespeichert.
   - Die Bereiche (Plan, Mitglieder, Einstellungen) bleiben beim Wechseln erhalten, ungespeicherte Einstellungen auch.
@@ -306,4 +309,5 @@ Die vollständige, fortgeschriebene Liste steht in #452.
 - Jede Ansicht ist druckbar (`@media print`).
 - Werkzeuge und Links stehen als JSON am Gericht statt in eigenen Tabellen (PR 4).
 - Gericht-Zeilen werden als Ganzes mit ihrer Version gespeichert; der Kopf des Gerichts nur mit den geänderten Feldern und seiner Version (PR 4).
-- PR 4 ist geteilt: Gerichte zuerst, Einplanung und Umrechnungshilfe danach.
+- PR 4 ist geteilt: 4a Gerichte, 4b Einplanung, 4c Umrechnungshilfe.
+- Kopieren einer Einplanung legt eine neue an (gleiche Angaben, andere Mahlzeit); Ändern kann die Mahlzeit wechseln, nicht das Gericht (PR 4b).

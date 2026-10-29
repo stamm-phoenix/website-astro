@@ -12,7 +12,12 @@ import { raeumeAuf } from '../lib/essen-aufbewahrung';
 import { essenMail } from '../lib/essen-mails';
 import { PlanungError, einladen, ladeZugang, planungLoeschen } from '../lib/essen-planung';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
-import { loeschDatum, MAX_MAHLZEITEN_PRO_TAG } from '../lib/essen-planung-model';
+import {
+  loeschDatum,
+  mahlzeitStand,
+  MAX_MAHLZEITEN_PRO_TAG,
+  tagStand,
+} from '../lib/essen-planung-model';
 import { loadEssenEinstellungen } from '../lib/essen-steuerung';
 import type { EssenSteuerungView } from '../lib/essen-validation';
 import { validateEssenEinstellungen } from '../lib/essen-validation';
@@ -199,7 +204,7 @@ dbTest('days and meals change with versions; the shown IDs follow the order', as
     await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${weg.id}`, {
       token,
       params: { id: String(weg.id) },
-      ifMatch: weg.etag,
+      ifMatch: mahlzeitStand(weg),
     })
   );
   assert.deepEqual(
@@ -210,7 +215,7 @@ dbTest('days and meals change with versions; the shown IDs follow the order', as
     await call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${tag.id}`, {
       token,
       params: { id: String(tag.id) },
-      ifMatch: ohne.tage[0].etag,
+      ifMatch: tagStand(ohne.tage[0]),
     })
   );
   assert.equal(ohneTag.tage[0].datum, '2027-08-01');
@@ -566,7 +571,7 @@ dbTest('the maintenance mode stops changes but not reading', async (t) => {
   const gesperrt = await call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${tag.id}`, {
     token,
     params: { id: String(tag.id) },
-    ifMatch: tag.etag,
+    ifMatch: tagStand(tag),
   });
   assert.equal(gesperrt.status, 503);
   // Deleting the whole Planung is a change too
@@ -713,7 +718,7 @@ dbTest('a Planung without days shows the deletion from the day it was created', 
   const { token, ansicht } = await anlegen(t, mails);
   let aktuell = ansicht;
   for (const tag of ansicht.tage) {
-    const etag = aktuell.tage.find((eintrag) => eintrag.id === tag.id)!.etag;
+    const etag = tagStand(aktuell.tage.find((eintrag) => eintrag.id === tag.id)!);
     aktuell = json<PlanungAnsicht>(
       await call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${tag.id}`, {
         token,
@@ -766,7 +771,7 @@ dbTest('a day from the largest template still takes a replacement meal', async (
   await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${weg.id}`, {
     token,
     params: { id: String(weg.id) },
-    ifMatch: weg.etag,
+    ifMatch: mahlzeitStand(weg),
   });
   const ersatz = await call(t, endpoints.EssensplanungMahlzeiten, 'POST', 'planung/mahlzeiten', {
     token,
