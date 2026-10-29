@@ -81,18 +81,28 @@
     // A name typed in this row and left with this tap saves first: the tick then goes on the
     // version its answer brought, not into a conflict with it. A failed name keeps its draft
     // and notice; the tick is saved on the version now shown.
+    let nameFehlt: string | null = null;
     if (entwurf !== null) {
       speichert = true;
       const name = aktionen.speichern(false);
       merkeSpeichern(name);
-      await name;
+      if (!(await name)) nameFehlt = entwurf?.text.trim() || null;
     }
-    const ok = await senden(
-      { gepackt },
-      gepackt ? `${zeile.name} ist eingepackt.` : `${zeile.name} ist wieder offen.`
-    );
+    const erfolg = gepackt ? `${zeile.name} ist eingepackt.` : `${zeile.name} ist wieder offen.`;
+    const vorher = zeile.eintrag?.etag ?? null;
+    const freigeben = aktionen.sperren();
+    // `senden` never throws: a failed save shows its message and says false
+    const ok = await senden({ gepackt }, erfolg);
     // Not saved: the box shows the saved state again
     if (!ok) feld.checked = zeile.gepackt;
+    else aktionen.eigeneAenderung(vorher);
+    freigeben(nameFehlt === null);
+    // The tick's success must not hide that the name typed here is still unsaved
+    if (ok && nameFehlt)
+      kontext.hinweis(
+        `${erfolg} Der Name „${nameFehlt}“ ist aber noch nicht gespeichert; er steht noch in der Zeile, Enter versucht es noch einmal.`,
+        'error'
+      );
   }
 
   async function waehlen(feld: HTMLSelectElement): Promise<void> {
@@ -183,7 +193,7 @@
       </p>
     {/if}
     {#if !bearbeiten && zeile.zustaendig}
-      <p class="text-sm text-neutral-700">Zuständig: {zeile.zustaendig}</p>
+      <p class="text-sm text-neutral-700 [overflow-wrap:anywhere]">Zuständig: {zeile.zustaendig}</p>
     {/if}
   </div>
   {#if bearbeiten}
@@ -236,7 +246,11 @@
       {/if}
     </div>
     {#if entwurf?.konflikt}
-      <p id="{id}-konflikt" class="basis-full text-sm text-danger" role="alert">
+      <p
+        id="{id}-konflikt"
+        class="basis-full text-sm text-danger [overflow-wrap:anywhere]"
+        role="alert"
+      >
         Jemand anderes hat gerade geändert, wer {zeile.name} einpackt (jetzt: {zeile.zustaendig ||
           'niemand'}). Enter speichert deinen Namen trotzdem, „Name verwerfen“ nimmt den
         gespeicherten.

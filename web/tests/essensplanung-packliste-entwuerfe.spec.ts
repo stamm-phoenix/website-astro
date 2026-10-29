@@ -1,4 +1,4 @@
-import { test, expect, answerConfirm } from './fixtures';
+import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
 import { anlegen, pdfLaden } from './essensplanung-helpers';
 import { gerichteMitWerkzeugen, senden } from './essensplanung-packliste-helpers';
 
@@ -249,4 +249,43 @@ test('a name in conflict is dropped with a button on the phone', async ({ page, 
   await expect(name).toHaveCount(0);
   await expect(page.getByLabel('Wer packt Kochlöffel ein?')).toHaveValue(/^m:/);
   await expect(page.getByRole('alert').filter({ hasText: 'jetzt: Kim Küche' })).toHaveCount(0);
+});
+
+test('a tick saved while its name failed says the name is not saved', async ({ page }) => {
+  await anlegen(page, 'E2E Packliste Haken ohne Name');
+  await gerichteMitWerkzeugen(page);
+  let anfragen = 0;
+  await page.route('**/api/essensplanung/planung/packliste/werkzeug', (route) =>
+    ++anfragen === 1
+      ? route.fulfill({ status: 500, json: { error: 'SERVER', message: 'Serverfehler' } })
+      : route.continue()
+  );
+  await page.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Anderer Name …' });
+  const name = page.getByRole('textbox', { name: 'Wer packt Kochlöffel ein?' });
+  await name.fill('Rover');
+  await page.getByRole('checkbox', { name: 'Kochlöffel' }).click();
+  await expect(
+    page.getByText(/Kochlöffel ist eingepackt\. Der Name „Rover“ ist aber noch nicht gespeichert/)
+  ).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Kochlöffel' })).toBeChecked();
+  await expect(name).toHaveValue('Rover');
+  await page.unroute('**/api/essensplanung/planung/packliste/werkzeug');
+
+  // A long name of who packs it wraps on a phone, also when the list is only shown
+  await name.fill('W'.repeat(100));
+  await name.press('Enter');
+  await expect(page.getByLabel('Wer packt Kochlöffel ein?')).toHaveValue('text');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/essensplanung/planung/stand?*', async (route) => {
+    const url = route
+      .request()
+      .url()
+      .replace(/seit=[^&]*/, 'seit=0');
+    const antwort = await route.fetch({ url });
+    const json = await antwort.json();
+    if (json.ansicht) json.ansicht.wartung = true;
+    await route.fulfill({ response: antwort, json });
+  });
+  await expect(page.getByText(`Zuständig: ${'W'.repeat(100)}`)).toBeVisible({ timeout: 15_000 });
+  await expectNoHorizontalOverflow(page);
 });

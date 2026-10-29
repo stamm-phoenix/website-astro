@@ -21,6 +21,18 @@ export interface EntwurfAktionen {
   tippen(text: string): void;
   verwerfen(): void;
   /**
+   * This page saved another field of the row (the tick) on version `vorher`: a draft typed on
+   * that version moves to the one now shown, so saving it again is no conflict with that own
+   * change. A draft on an older version keeps it, so changes of others still conflict.
+   */
+  eigeneAenderung(vorher: string | null): void;
+  /**
+   * Holds back saves of the name while another field of the row is saved (the tick), so a save
+   * started meanwhile goes on the version that change brings. The returned function ends it; with
+   * false, waiting saves give up like after a failed save, and the draft stays.
+   */
+  sperren(): (ok: boolean) => void;
+  /**
    * Saves the typed name when it changed, on the version it was typed on; after a conflict only
    * on purpose (`bewusst`, Enter). With a save of the row running, it waits for it and then
    * saves what was typed on meanwhile. Says whether the name is saved: also when nothing changed;
@@ -132,6 +144,20 @@ export function packEntwuerfe(kontextVon: () => PlanKontext, zeilen: () => PackZ
         setzen(key, { text, name, etag, gesendet: null, konflikt: false }),
       tippen: (text) => aendern(key, { text }),
       verwerfen: () => setzen(key, null),
+      sperren: () => {
+        let los: (ok: boolean) => void = () => undefined;
+        const lauf = new Promise<boolean>((done) => (los = done));
+        laeufe[key] = lauf;
+        return (ok) => {
+          if (laeufe[key] === lauf) delete laeufe[key];
+          los(ok);
+        };
+      },
+      eigeneAenderung: (vorher) => {
+        const entwurf = entwuerfe[key];
+        if (entwurf && !entwurf.konflikt && entwurf.etag === vorher)
+          aendern(key, { etag: zeileVon(key)?.eintrag?.etag ?? null });
+      },
       speichern: (bewusst) => speichern(key, bewusst),
     }),
   };
