@@ -95,7 +95,7 @@
   <details class="print:hidden">
     <summary
       class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-link"
-      aria-label="Mengen von {name} für {zahlText(portionen)} Portionen"
+      aria-label="Mengen für {zahlText(portionen)} Portionen von {name}"
       >Mengen für {zahlText(portionen)} Portionen</summary
     >
     {@render liste()}
