@@ -280,6 +280,8 @@
     if (gesendet.some((zeile) => Object.keys(zeile.fehler).length)) return;
     speichert = true;
     let personenKonflikt = false;
+    /** Field errors of the request that belong to no line. */
+    const allgemein: string[] = [];
     try {
       const ok = await kontext.aendern(
         async () => {
@@ -297,6 +299,8 @@
                 const treffer = /^zeilen\.(\d+)\.(\w+)$/.exec(feld);
                 const zeile = treffer ? gesendet[Number(treffer[1])] : undefined;
                 if (zeile) zeile.fehler[treffer![2]] = meldung;
+                // Not about one line, e.g. too many lines for the dish
+                else allgemein.push(meldung);
               }
             }
             throw error;
@@ -308,6 +312,8 @@
         fertig = true;
         zeilen = [];
         onclose();
+      } else if (allgemein.length) {
+        fehler = `${allgemein.join(' ')} Es wurde nichts übernommen. Bitte wähle Zutaten ab und übernimm noch einmal.`;
       } else if (!zeilen.some((zeile) => Object.keys(zeile.fehler).length)) {
         fehler = kontext.fehler;
       }

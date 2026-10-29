@@ -49,6 +49,7 @@ const KATALOG: EssenKatalog = {
     katalogZutat(8, 'Tomaten (stückig)', { abtropfgewicht: true }),
     katalogZutat(11, 'Tomaten (passiert)'),
     katalogZutat(12, 'Kidneybohnen', { abtropfgewicht: true }),
+    katalogZutat(13, 'Tomatenmark'),
     katalogZutat(10, 'Sahne', { einheitenart: 'volumen' }),
     katalogZutat(9, 'Spülmittel', { lebensmittel: false, einheitenart: 'volumen' }),
   ],
@@ -257,7 +258,7 @@ test('a recipe is mapped onto the lists, converted and scaled to the dish', asyn
         einheit: 'g',
         hinweis: '',
       },
-      // An invented key and an unknown name: marked for the member
+      // An invented key and an unknown name: marked for the member; tomato paste has no grams
       {
         original: '1 Prise Muskat',
         name: 'Muskat',
@@ -310,7 +311,13 @@ test('a recipe is mapped onto the lists, converted and scaled to the dish', asyn
     { zutat: { zutatId: 4 }, menge: 400, einheit: 'g', hinweis: 'gehackt', fuerVegetarisch: true },
     { zutat: { zutatId: 5 }, menge: 1250, einheit: 'g', hinweis: '', fuerVegetarisch: false },
     { zutat: null, menge: null, einheit: null, hinweis: '1 Prise', fuerVegetarisch: true },
-    { zutat: null, menge: null, einheit: null, hinweis: '2 EL', fuerVegetarisch: true },
+    {
+      zutat: { zutatId: 13 },
+      menge: null,
+      einheit: null,
+      hinweis: '5 EL (Rezept: 2 EL für 4 Personen)',
+      fuerVegetarisch: true,
+    },
     // Not offered, so not mapped either
     { zutat: null, menge: null, einheit: null, hinweis: '', fuerVegetarisch: true },
   ]);
@@ -517,4 +524,54 @@ test('hints use the words of the page, never the field names of the data', async
   const { hinweise } = await pruefeGericht(GERICHT, [SPAGHETTI, HACK], KATALOG);
   assert.equal(hinweise.length, 1);
   assert.equal(hinweise[0].vorschlag, 'Setze bei „nicht bei“ Gluten, und vegan bleibt.');
+});
+
+test('an amount that cannot be converted is asked for, scaled in the note', async (t) => {
+  modell(t, {
+    rezeptPersonen: 4,
+    zeilen: [
+      {
+        original: '2 EL Tomatenmark',
+        name: 'Tomatenmark',
+        key: 'z13',
+        menge: 2,
+        einheit: 'el',
+        hinweis: '',
+        inhaltMenge: null,
+        inhaltEinheit: null,
+      },
+      {
+        original: '1 Prise Salz',
+        name: 'Salz',
+        key: 'z6',
+        menge: 1,
+        einheit: 'prise',
+        hinweis: '',
+        inhaltMenge: null,
+        inhaltEinheit: null,
+      },
+    ],
+  });
+  const rezept = await liesRezept('…', 8, [], KATALOG);
+  assert.deepEqual(
+    rezept.zeilen.map(({ zutat, menge, einheit, hinweis, mengeFehlt }) => ({
+      zutat,
+      menge,
+      einheit,
+      hinweis,
+      mengeFehlt,
+    })),
+    [
+      // Never saved as „nach Gefühl“ with the recipe's 2 EL for 4 people
+      {
+        zutat: { zutatId: 13 },
+        menge: null,
+        einheit: null,
+        hinweis: '4 EL (Rezept: 2 EL für 4 Personen)',
+        mengeFehlt: true,
+      },
+      // A pinch stays a pinch, by eye
+      { zutat: { zutatId: 6 }, menge: null, einheit: null, hinweis: '1 Prise', mengeFehlt: false },
+    ]
+  );
 });

@@ -113,3 +113,29 @@ test('the checkbox of a preview row has a touch area of at least 44 px', async (
   await box.getByText('Rezept: 1 Prise Salz').click();
   await expect(dialog.getByRole('checkbox', { name: '1 Prise Salz übernehmen' })).not.toBeChecked();
 });
+
+test('an error of the whole take-over is named in the dialog', async ({ page }) => {
+  await anlegen(page, 'E2E KI Zu viele');
+  const karte = await gericht(page, 'Buffet', '4');
+  await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Rezept für Buffet' });
+  await dialog.getByLabel('Rezept', { exact: true }).fill(REZEPT);
+  await dialog.getByRole('button', { name: 'Zutaten erkennen' }).click();
+  // As the API answers when the dish would get more than 60 lines
+  await page.route('**/api/essensplanung/planung/gerichte/*/zutaten/sammel', (route) =>
+    route.fulfill({
+      status: 400,
+      json: {
+        error: 'INVALID',
+        code: 'INVALID',
+        message: 'Die Eingaben sind unvollständig oder ungültig.',
+        fields: { zutat: 'Ein Gericht hat höchstens 60 Zutaten.' },
+      },
+    })
+  );
+  await dialog.getByRole('button', { name: '2 Zutaten übernehmen' }).click();
+  await expect(dialog.getByRole('alert')).toHaveText(
+    'Ein Gericht hat höchstens 60 Zutaten. Es wurde nichts übernommen. Bitte wähle Zutaten ab und übernimm noch einmal.'
+  );
+  await expect(dialog.getByTestId('rezept-zeile')).toHaveCount(2);
+});

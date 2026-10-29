@@ -200,6 +200,18 @@ function umgerechnet(
   return null;
 }
 
+/** „4 EL (Rezept: 2 EL für 4 Personen)“, or „2 EL“ when nothing was scaled. */
+function skalierteAngabe(
+  menge: number,
+  einheit: KiRezeptEinheit,
+  faktor: number,
+  rezeptPersonen: number | null
+): string {
+  const text = (wert: number) => `${ZAHL.format(wert)} ${REZEPT_EINHEIT_TEXT[einheit]}`;
+  if (faktor === 1 || !rezeptPersonen) return text(menge);
+  return `${text(Math.round(menge * faktor * 10) / 10)} (Rezept: ${text(menge)} für ${rezeptPersonen} Personen)`;
+}
+
 /** Finds the ingredient by its name, ignoring case but not umlauts. */
 function nachName(kandidaten: readonly RezeptKandidat[], name: string): RezeptKandidat | undefined {
   return kandidaten.find(
@@ -250,10 +262,20 @@ export function leseKiRezept(
           kandidat,
           kandidat?.abtropfgewicht ? abgetropft : (abgetropft ?? inhalt)
         );
+    // An amount that cannot be converted („2 EL“ without grams) is asked for, not dropped: the
+    // note names it scaled to the dish's people, with what the recipe said
+    const unumrechenbar =
+      !ohneAbtropfgewicht &&
+      menge === null &&
+      zeile.menge !== null &&
+      zeile.einheit !== null &&
+      zeile.einheit !== 'prise';
     const angabe =
       ohneAbtropfgewicht && zeile.menge !== null && zeile.einheit !== null
         ? `${ZAHL.format(zeile.menge)} ${REZEPT_EINHEIT_TEXT[zeile.einheit]} à ${ZAHL.format(inhalt.menge)} ${inhalt.einheit}, Abtropfgewicht eintragen`
-        : null;
+        : unumrechenbar
+          ? skalierteAngabe(zeile.menge!, zeile.einheit!, faktor, rezeptPersonen)
+          : null;
     zeilen.push({
       original: zeile.original || zeile.name,
       name: zeile.name,
