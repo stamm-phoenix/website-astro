@@ -303,7 +303,8 @@ test('a thing without an amount keeps what is typed when someone else ticks it o
   // The tick of the other one arrives; the open row and what is typed stay
   await expect(hier.getByRole('status')).toHaveText('1 von 1 abgehakt', { timeout: 15_000 });
   await expect(ersatz).toHaveValue('Grillhandschuhe');
-  await hier.getByRole('button', { name: 'Speichern', exact: true }).click();
+  // The button still says what it did when opened; saving shows the conflict
+  await hier.getByRole('button', { name: 'Abhaken' }).click();
   await expect(hier.getByText(/hat das inzwischen abgehakt/)).toBeVisible();
   await hier.getByRole('button', { name: 'Trotzdem speichern' }).click();
   await expect(hier).toContainText('→ Grillhandschuhe');

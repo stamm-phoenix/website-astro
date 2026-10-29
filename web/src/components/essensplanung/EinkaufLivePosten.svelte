@@ -40,7 +40,7 @@
   let fehler = $state<string | null>(null);
   let speichert = $state(false);
   /** The version of what was ticked off when the amount was opened; null for none. */
-  let etag: string | null = null;
+  let etag = $state<string | null>(null);
   /**
    * Someone else ticked it off, changed it or took it back meanwhile: what they did, shown with
    * the input kept; saving again takes the input over it.
@@ -235,11 +235,12 @@
       {#if konflikt}<p class="text-sm text-warning" role="alert">{konflikt}</p>{/if}
       {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
       <div class="flex flex-wrap gap-2">
+        <!-- As when opened: a tick of someone else meanwhile shows up only as a conflict -->
         <ActionButton
           type="submit"
           variant="primary"
           disabled={speichert || gesperrt || kontext.busy}
-          >{konflikt ? 'Trotzdem speichern' : posten.haken ? 'Speichern' : 'Abhaken'}</ActionButton
+          >{konflikt ? 'Trotzdem speichern' : etag !== null ? 'Speichern' : 'Abhaken'}</ActionButton
         >
         {#if posten.haken}
           <ActionButton
