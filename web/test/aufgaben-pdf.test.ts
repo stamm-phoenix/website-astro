@@ -118,4 +118,16 @@ describe('vorlageChecklistReport', () => {
     ]);
     assert.equal(table.widths?.[0], 8);
   });
+
+  test('keeps the whole description, also its last instruction', () => {
+    const description = `${'Zelte zählen, Heringe prüfen und Gestänge bündeln. '.repeat(8)}Zuletzt die Plane trocknen.`;
+    const report = vorlageChecklistReport({
+      id: 2,
+      etag: 'e',
+      title: 'Abbau',
+      items: [{ title: 'Zelte', description, assignee: '', daysBefore: 0 }],
+    });
+    assert.ok(description.length > 240);
+    assert.equal(report.sections[0].rows?.[0][1], `Zelte\n${description}`);
+  });
 });

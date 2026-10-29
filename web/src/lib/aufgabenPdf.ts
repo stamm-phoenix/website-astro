@@ -51,7 +51,8 @@ function frist(task: Task, today: string): string {
 
 function aufgabe(title: string, description: string): string {
   const text = description.trim();
-  return text ? `${title}\n${text.length > 240 ? `${text.slice(0, 239)}…` : text}` : title;
+  // The whole description: on a checklist the last instruction may be the important one
+  return text ? `${title}\n${text}` : title;
 }
 
 const anzahl = (n: number): string => (n === 1 ? '1 Aufgabe' : `${n} Aufgaben`);

@@ -53,6 +53,8 @@ export interface PdfReport {
 const MIN_SECTION_SPACE = 40;
 /** Line height of the lines of a section in mm. */
 const LINE_HEIGHT = 4.5;
+/** Line height of a section heading in mm. */
+const HEADING_LINE = 5.5;
 
 export function drawTable(
   doc: JsPdf,
@@ -124,8 +126,9 @@ export async function downloadReportPdf(report: PdfReport): Promise<void> {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
       doc.setTextColor(...BRAND);
-      doc.text(pdfText(section.heading), MARGIN, y + 4);
-      y += 8;
+      const heading: string[] = doc.splitTextToSize(pdfText(section.heading), width - 2 * MARGIN);
+      doc.text(heading, MARGIN, y + 4);
+      y += 8 + HEADING_LINE * (heading.length - 1);
     }
     if (section.lines?.length) {
       doc.setFont('helvetica', 'normal');
