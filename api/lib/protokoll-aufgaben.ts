@@ -1,14 +1,22 @@
+import { z } from 'zod';
 import { checkedTaskAssignee, taskCandidates } from './task-directory-matching';
 import type { TaskDirectoryUser } from './task-directory-types';
 import { berlinDay } from './calendar-day';
 import { CONFIG } from './config';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 import { protokollToText } from './protokoll-text';
-import { isValidDate, ValidationError } from './pflege-validation';
+import { isValidDate } from './calendar-date';
+import { ValidationError } from './validation/errors';
 import type { ExtractedTask } from './aufgaben';
 import { taskText, validateTask } from './aufgaben-validation';
 
 const MAX_TEXT = 24000;
+/** The answer of the model: only the list is required; its entries are read one by one. */
+const answerSchema = z.object({ tasks: z.array(z.unknown()) });
+/** An entry needs a quote of 4 to 500 characters; the other fields are checked by `validateTask`. */
+const entrySchema = z.looseObject({
+  quote: z.string().refine((quote) => quote.trim().length >= 4 && quote.length <= 500),
+});
 const takeExtraction = dailyLimit(() => CONFIG.protokolle.aufgaben.maxExtractionsPerDay);
 /** Check deployment availability and the configured daily extraction limit. */
 export function isTaskExtractionConfigured(): boolean {
@@ -23,22 +31,17 @@ export function parseTaskSuggestions(
   text: string,
   users: readonly TaskDirectoryUser[] = []
 ): ExtractedTask[] {
-  if (!raw || typeof raw !== 'object' || !Array.isArray((raw as { tasks?: unknown }).tasks))
-    throw new Error('Invalid task answer');
+  const answer = answerSchema.safeParse(raw);
+  if (!answer.success) throw new Error('Invalid task answer');
   const normalize = (s: string): string =>
     s.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('de');
   const source = normalize(text);
   const result: ExtractedTask[] = [];
-  for (const value of (raw as { tasks: unknown[] }).tasks.slice(0, 30)) {
-    if (!value || typeof value !== 'object') continue;
-    const item = value as Record<string, unknown>;
-    if (
-      typeof item.quote !== 'string' ||
-      item.quote.trim().length < 4 ||
-      item.quote.length > 500 ||
-      !source.includes(normalize(item.quote))
-    )
-      continue;
+  for (const value of answer.data.tasks.slice(0, 30)) {
+    const entry = entrySchema.safeParse(value);
+    if (!entry.success) continue;
+    const item = entry.data;
+    if (!source.includes(normalize(item.quote))) continue;
     try {
       const input = validateTask({
         ...item,

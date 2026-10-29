@@ -2,10 +2,12 @@ import {
   ABSTIMMUNG_SICHTBARKEITEN,
   abstimmungEinsicht,
   abstimmungErgebnis,
+} from '../../../api/lib/abstimmung-model';
+import {
   validateAbstimmung,
   validateAbstimmungName,
   validateAntwort,
-} from '../../../api/lib/abstimmung-model';
+} from '../../../api/lib/abstimmung-schema';
 import type {
   AbstimmungAnsicht,
   AbstimmungDetail,
@@ -14,7 +16,7 @@ import type {
   AbstimmungSichtbarkeit,
   AbstimmungUebersicht,
 } from '../../../api/lib/abstimmung-model';
-import { ValidationError } from '../../../api/lib/pflege-validation';
+import { ValidationError } from '../../../api/lib/validation/errors';
 
 /**
  * Abstimmungen of the mock API, kept in memory like `api/lib/abstimmungen.ts` keeps them in

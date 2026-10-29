@@ -14,11 +14,9 @@ import {
 } from '../endpoints/intern-protokoll-editor';
 import { seedPreviewProtokollEditor } from '../lib/db-preview';
 import * as leitendeList from '../lib/leitende-list';
-import {
-  ValidationError,
-  validateProtokollEditorCreate,
-  validateProtokollInhalt,
-} from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
+import { validateProtokollEditorCreate } from '../lib/validation/protokoll-editor';
+import { validateProtokollInhalt } from '../lib/validation/protokoll-inhalt';
 import { getEditorOverview, saveEditorProtokoll, takeSperre } from '../lib/protokoll-editor';
 import type {
   ProtokollEditorDetail,

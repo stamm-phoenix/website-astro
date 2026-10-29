@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { CONFIG } from './config';
 import { getDb } from './db';
 import { localDateTimeToDate } from './nikolaus-config';
+import { editorNextSchema, wordFieldsSchema } from './leitendenrunde-termin-schema';
 import { parseProtokollTermin } from './protokoll-termin';
 import { loadProtokoll } from './protokoll-source';
 import type { ProtokollFields } from './protokolle';
@@ -25,18 +26,7 @@ export interface Sitzung {
   url: string;
 }
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const APPROVED_WORD = ['Freigegeben', 'Verschickt'];
-
-function isDate(value: unknown): value is string {
-  if (typeof value !== 'string' || !DATE.test(value)) return false;
-  return new Date(`${value}T00:00:00Z`).toISOString().startsWith(value);
-}
-
-function text(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.replace(/\s+/g, ' ').trim() : null;
-}
 
 /** The field „Nächste Leitendenrunde“ of editor minutes; `null` if there is no valid date. */
 export function editorSitzung(id: number, content: string): Sitzung | null {
@@ -46,13 +36,14 @@ export function editorSitzung(id: number, content: string): Sitzung | null {
   } catch {
     return null;
   }
-  const next = (parsed as { naechsteSitzung?: Record<string, unknown> } | null)?.naechsteSitzung;
-  if (!next || !isDate(next.datum)) return null;
+  const next = editorNextSchema.safeParse(parsed);
+  if (!next.success) return null;
+  const { datum, uhrzeit, ort } = next.data.naechsteSitzung;
   return {
     ref: `editor:${id}`,
-    date: next.datum,
-    time: typeof next.uhrzeit === 'string' && TIME.test(next.uhrzeit) ? next.uhrzeit : null,
-    place: text(next.ort),
+    date: datum,
+    time: uhrzeit,
+    place: ort,
     url: `${CONFIG.leitendenrundeReminders.siteUrl}/leitendenbereich/protokolle/protokoll?id=${id}`,
   };
 }
@@ -108,6 +99,18 @@ export function reminderStage(sitzung: Sitzung, now: Date): number | null {
   return current;
 }
 
+/** The stored workflow fields of Word minutes, or `null` if they are no JSON object. */
+function readWordFields(json: string): ProtokollFields | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  const fields = wordFieldsSchema.safeParse(parsed);
+  return fields.success ? fields.data : null;
+}
+
 /** The meeting the reminders are about, or `null` if there is none. */
 export async function currentSitzung(): Promise<Sitzung | null> {
   const db = getDb();
@@ -137,12 +140,8 @@ export async function currentSitzung(): Promise<Sitzung | null> {
       sitzung: editorSitzung(editor.id, editor.content),
     });
   for (const row of word) {
-    let fields: ProtokollFields;
-    try {
-      fields = JSON.parse(row.fields) as ProtokollFields;
-    } catch {
-      continue;
-    }
+    const fields = readWordFields(row.fields);
+    if (!fields) continue;
     if (!APPROVED_WORD.includes(fields.Status ?? '')) continue;
     const at = Date.parse(fields.FreigegebenAm ?? '');
     if (Number.isNaN(at)) continue;

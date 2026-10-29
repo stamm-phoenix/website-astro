@@ -1,14 +1,14 @@
 import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
+import { ValidationError } from '../../api/lib/validation/errors';
 import {
-  ValidationError,
   validateStaffFavorites,
   validateChangelogSeen,
   validateStaffRecentVisit,
-  validatePerson,
   validateStaffSettings,
-} from '../../api/lib/pflege-validation';
+} from '../../api/lib/validation/staff';
+import { validatePerson } from '../../api/lib/validation/person';
 /**
  * Local mock of the Azure Functions API and the Static Web Apps auth endpoints, so every page
  * renders with realistic test data without a backend: `MOCK_API=1 bun run dev`.
@@ -76,7 +76,7 @@ import { essenAudit, essenEinstellungen, essenKatalog } from './mock-data/essens
 import * as essenPlanung from './mock-data/essensplanung-planung';
 import * as essenGerichte from './mock-data/essensplanung-gerichte';
 import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
-import { validateGruppe, validateTeilnehmende } from '../../api/lib/essen-teilnehmende-model';
+import { validateGruppe, validateTeilnehmende } from '../../api/lib/essen-teilnehmende-validation';
 import {
   validateGericht,
   validateGerichtZutat,
@@ -93,7 +93,7 @@ import {
   validateMitgliedName,
   validatePlanungEinstellungen,
   validateTag,
-} from '../../api/lib/essen-planung-model';
+} from '../../api/lib/essen-planung-validation';
 import {
   validateEssenEinstellungen,
   validateListName,

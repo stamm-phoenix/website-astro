@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { z } from 'zod';
 import { requestAzureMaps, isAzureMapsConfigured } from './azure-maps';
 import { CONFIG } from './config';
 import type { NikolausCoordinates } from './nikolaus-config';
@@ -43,47 +44,53 @@ const cache = createGeocodingCache({
   log: (event) => console.info(JSON.stringify({ scope: 'nikolaus_geocoding', ...event })),
 });
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+/** Text that is there and not blank, trimmed. */
+const optionalText = z
+  .unknown()
+  .optional()
+  .transform((value) => (typeof value === 'string' && value.trim() ? value.trim() : undefined));
 
-function optionalText(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-}
+/** One result: a position on Earth, the type and, if known, postal code and house number. */
+const featureSchema = z
+  .object({
+    geometry: z.object({
+      // GeoJSON order, there may be an altitude after it
+      coordinates: z.tuple(
+        [z.number().min(-180).max(180), z.number().min(-90).max(90)],
+        z.unknown()
+      ),
+    }),
+    properties: z.object({
+      type: z.string().catch(''),
+      address: z
+        .object({ postalCode: optionalText, streetNumber: optionalText })
+        .catch({ postalCode: undefined, streetNumber: undefined }),
+    }),
+  })
+  .transform(
+    ({
+      geometry: {
+        coordinates: [lon, lat],
+      },
+      properties,
+    }): GeocodingFeature => ({
+      lat,
+      lon,
+      type: properties.type,
+      postalCode: properties.address.postalCode,
+      streetNumber: properties.address.streetNumber,
+    })
+  );
+
+const geocodingResponseSchema = z.object({ features: z.array(z.unknown()) });
 
 /** Reads the GeoJSON answer; results without valid coordinates are left out. */
 export function parseGeocodingFeatures(value: unknown): GeocodingFeature[] {
-  if (!isRecord(value) || !Array.isArray(value.features)) {
-    throw new Error('Invalid geocoding response');
-  }
-  return value.features.flatMap((feature: unknown): GeocodingFeature[] => {
-    if (!isRecord(feature) || !isRecord(feature.geometry) || !isRecord(feature.properties)) {
-      return [];
-    }
-    const coordinates = feature.geometry.coordinates;
-    if (!Array.isArray(coordinates)) return [];
-    const [lon, lat] = coordinates as unknown[];
-    if (
-      typeof lat !== 'number' ||
-      typeof lon !== 'number' ||
-      !Number.isFinite(lat) ||
-      !Number.isFinite(lon) ||
-      Math.abs(lat) > 90 ||
-      Math.abs(lon) > 180
-    ) {
-      return [];
-    }
-    const { type, address } = feature.properties;
-    const parts = isRecord(address) ? address : {};
-    return [
-      {
-        lat,
-        lon,
-        type: typeof type === 'string' ? type : '',
-        postalCode: optionalText(parts.postalCode),
-        streetNumber: optionalText(parts.streetNumber),
-      },
-    ];
+  const response = geocodingResponseSchema.safeParse(value);
+  if (!response.success) throw new Error('Invalid geocoding response');
+  return response.data.features.flatMap((feature) => {
+    const parsed = featureSchema.safeParse(feature);
+    return parsed.success ? [parsed.data] : [];
   });
 }
 

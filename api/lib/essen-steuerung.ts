@@ -30,8 +30,8 @@ import type {
 import { COLLATOR, readGruppen, readStrings } from './essen-validation';
 import { deletePlanung } from './essen-planung-loeschen';
 import { loeschDatum } from './essen-planung-model';
-import type { FieldErrors } from './pflege-validation';
-import { ValidationError } from './pflege-validation';
+import type { FieldErrors } from './validation/errors';
+import { ValidationError } from './validation/errors';
 
 /**
  * The Steuerung of the Essensplanung (`docs/essensplanung.md`): switches, templates for new

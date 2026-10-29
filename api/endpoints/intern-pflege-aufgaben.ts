@@ -32,7 +32,8 @@ import {
   readIfMatch,
   readJsonBody,
 } from '../lib/pflege-api';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
+import { validateTaskDecision, validateTaskDone } from '../lib/validation/aufgaben-request';
 import { withErrorHandling, errorResponse } from '../lib/response-utils';
 import { isTaskExtractionConfigured } from '../lib/protokoll-aufgaben';
 import { getTaskDirectoryUsers, TaskDirectoryConfigurationError } from '../lib/task-directory';
@@ -94,10 +95,9 @@ export const AufgabeItemEndpoint = pflegeHandler(
     if (request.method === 'DELETE') await deleteTask(id, readIfMatch(request));
     else if (request.method === 'PUT') {
       const body = await readJsonBody(request);
-      if (typeof body?.done !== 'boolean')
-        throw new ValidationError({ done: 'Bitte den Erledigt-Status angeben.' });
+      const done = validateTaskDone(body);
       return ok(
-        await updateTask(id, validateTask(body), body.done, readEtag(body), principal.userDetails)
+        await updateTask(id, validateTask(body), done, readEtag(body), principal.userDetails)
       );
     } else return METHOD_NOT_ALLOWED;
     return NO_CONTENT;
@@ -174,12 +174,10 @@ export const AufgabenDecisionEndpoint = pflegeHandler(
     const task = await getTask(id);
     if (!task) return NOT_FOUND;
     const body = await readJsonBody(request);
-    if (body?.action !== 'annehmen' && body?.action !== 'ablehnen')
-      throw new ValidationError({ form: 'Unbekannte Entscheidung.' });
-    const accept = body.action === 'annehmen';
+    const accept = validateTaskDecision(body) === 'annehmen';
     const newProjectTitle =
-      accept && body.newProjectTitle !== undefined
-        ? taskText(body.newProjectTitle, 'newProjectTitle', 200, true)
+      accept && body?.newProjectTitle !== undefined
+        ? taskText(body?.newProjectTitle, 'newProjectTitle', 200, true)
         : '';
     if (newProjectTitle && !task.suggestedProjectTitle)
       throw new ValidationError({

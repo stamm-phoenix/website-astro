@@ -10,7 +10,7 @@ import {
 } from '../lib/db-preview';
 import { loadEssenSteuerung, updateZutat } from '../lib/essen-steuerung';
 import type { ZutatInput } from '../lib/essen-validation';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import type { EssenKatalog } from '../lib/essen-gerichte-model';
 import { gerichtStand, gerichtWarnungen } from '../lib/essen-gerichte-model';
 import { planungLoeschen, ladeZugang } from '../lib/essen-planung';

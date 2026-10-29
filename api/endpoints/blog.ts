@@ -10,7 +10,7 @@ import {
   getReadingMinutes,
   renderBlogContent,
 } from '../lib/blog-list';
-import type { BlogImage } from '../lib/pflege-validation';
+import type { BlogImage } from '../lib/validation/blog';
 import { serveBlogImage } from '../lib/blog-images';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 

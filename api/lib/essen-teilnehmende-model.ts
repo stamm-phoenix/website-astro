@@ -1,9 +1,7 @@
-import type { FieldErrors } from './pflege-validation';
-import { ValidationError } from './pflege-validation';
-
 /**
  * Groups and participants of a Planung and who eats at which meal, without database access, so
- * the page and the mock API use the same rules (`docs/essensplanung.md`, Teilnehmende).
+ * the page and the mock API use the same rules (`docs/essensplanung.md`, Teilnehmende). The
+ * checks of the forms are in `essen-teilnehmende-validation.ts`; this file stays free of zod.
  */
 
 export type Ernaehrung = 'alles' | 'vegetarisch' | 'vegan';
@@ -36,18 +34,6 @@ export interface Teilnehmende {
   hinweis: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function fail(errors: FieldErrors): void {
-  if (Object.keys(errors).length) throw new ValidationError(errors);
-}
-
-function readId(value: unknown): number | null {
-  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
-}
-
 /** A group factor as typed („0,7“) or sent (0.7); NaN for anything else. */
 export function leseGruppenFaktor(value: unknown): number {
   const text = typeof value === 'number' ? String(value) : typeof value === 'string' ? value : '';
@@ -67,18 +53,6 @@ export interface GruppeInput {
   faktor: number;
 }
 
-export function validateGruppe(input: unknown): GruppeInput {
-  const value = isRecord(input) ? input : {};
-  const errors: FieldErrors = {};
-  const name = typeof value.name === 'string' ? value.name.trim().replace(/\s+/g, ' ') : '';
-  if (!name) errors.name = 'Bitte einen Namen eintragen.';
-  else if (name.length > 50) errors.name = 'Höchstens 50 Zeichen.';
-  const faktor = leseGruppenFaktor(value.faktor);
-  if (!gruppenFaktorGueltig(faktor)) errors.faktor = GRUPPEN_FAKTOR_FEHLER;
-  fail(errors);
-  return { name, faktor };
-}
-
 export interface TeilnehmendeInput {
   gruppeId: number;
   ernaehrung: Ernaehrung;
@@ -87,51 +61,6 @@ export interface TeilnehmendeInput {
   vonMahlzeitId: number | null;
   bisMahlzeitId: number | null;
   hinweis: string;
-}
-
-export function validateTeilnehmende(input: unknown): TeilnehmendeInput {
-  const value = isRecord(input) ? input : {};
-  const errors: FieldErrors = {};
-  const gruppeId = readId(value.gruppeId);
-  if (gruppeId === null) errors.gruppeId = 'Bitte eine Gruppe wählen.';
-  const ernaehrung = ERNAEHRUNGEN.find((e) => e === value.ernaehrung);
-  if (!ernaehrung) errors.ernaehrung = 'Bitte eine Ernährung wählen.';
-  const anzahl = typeof value.anzahl === 'string' ? Number(value.anzahl.trim()) : value.anzahl;
-  if (typeof anzahl !== 'number' || !Number.isInteger(anzahl) || anzahl < 1 || anzahl > 2000)
-    errors.anzahl = 'Bitte eine Anzahl von 1 bis 2000 eintragen.';
-  let unvertraeglichkeiten: number[] = [];
-  if (value.unvertraeglichkeiten !== undefined) {
-    if (
-      !Array.isArray(value.unvertraeglichkeiten) ||
-      value.unvertraeglichkeiten.length > 30 ||
-      value.unvertraeglichkeiten.some((id) => readId(id) === null)
-    )
-      errors.unvertraeglichkeiten = 'Bitte aus der Liste wählen.';
-    else
-      unvertraeglichkeiten = [...new Set(value.unvertraeglichkeiten as number[])].sort(
-        (a, b) => a - b
-      );
-  }
-  const grenze = (raw: unknown, field: string): number | null => {
-    if (raw === null || raw === undefined) return null;
-    const id = readId(raw);
-    if (id === null) errors[field] = 'Bitte eine Mahlzeit wählen.';
-    return id;
-  };
-  const vonMahlzeitId = grenze(value.vonMahlzeitId, 'vonMahlzeitId');
-  const bisMahlzeitId = grenze(value.bisMahlzeitId, 'bisMahlzeitId');
-  const hinweis = typeof value.hinweis === 'string' ? value.hinweis.trim() : '';
-  if (hinweis.length > 200) errors.hinweis = 'Höchstens 200 Zeichen.';
-  fail(errors);
-  return {
-    gruppeId: gruppeId!,
-    ernaehrung: ernaehrung!,
-    anzahl: anzahl as number,
-    unvertraeglichkeiten,
-    vonMahlzeitId,
-    bisMahlzeitId,
-    hinweis,
-  };
 }
 
 /** The meals of a Planung in their order (days by date, meals by position). */

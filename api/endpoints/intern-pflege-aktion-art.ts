@@ -3,7 +3,7 @@ import { getAktionArt, setKeineAktion } from '../lib/aktion-art';
 import { CAMPFLOW_EVENT_ID_PATTERN, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
-import { validateKeineAktion } from '../lib/pflege-validation';
+import { validateKeineAktion } from '../lib/validation/aktion-art';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 /**

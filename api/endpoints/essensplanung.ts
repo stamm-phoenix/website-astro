@@ -45,7 +45,7 @@ import {
   validatePlanungEinstellungen,
   validateEinplanung,
   validateTag,
-} from '../lib/essen-planung-model';
+} from '../lib/essen-planung-validation';
 import { einplanen, einplanungAendern, einplanungLoeschen } from '../lib/essen-einplanung';
 import {
   gruppeAendern,
@@ -56,7 +56,7 @@ import {
   teilnehmendeAnlegen,
   teilnehmendeLoeschen,
 } from '../lib/essen-teilnehmende';
-import { validateGruppe, validateTeilnehmende } from '../lib/essen-teilnehmende-model';
+import { validateGruppe, validateTeilnehmende } from '../lib/essen-teilnehmende-validation';
 import {
   eigeneZutatAnlegen,
   gerichtAendern,
@@ -74,8 +74,14 @@ import {
   validateGerichtZutat,
   validatePlanungZutat,
 } from '../lib/essen-gerichte-validation';
+import {
+  readEtag as parseEtag,
+  readGemeinsamerLink,
+  readRolle,
+  readTagId,
+} from '../lib/essen-planung-request';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import { isPreviewDeployment } from '../lib/staff-auth';
@@ -225,12 +231,7 @@ function readId(request: HttpRequest): number {
 }
 
 function readEtag(body: Record<string, unknown> | null, request: HttpRequest): string {
-  const etag =
-    (typeof body?.etag === 'string' && body.etag) || request.headers.get('if-match') || '';
-  if (!/^(?:W\/)?"[^"\r\n]+"$/.test(etag)) {
-    throw new ValidationError({ etag: 'Die Version fehlt. Bitte lade die Seite neu.' });
-  }
-  return etag;
+  return parseEtag(body, request.headers.get('if-match'));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -354,13 +355,8 @@ export const EssensplanungLinks = planungHandler(async (request) => {
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
-  const art = body?.art === 'lesen' ? 'lesen' : body?.art === 'beitritt' ? 'beitritt' : undefined;
-  if (!art || typeof body?.an !== 'boolean') {
-    throw new ValidationError({
-      art: 'Bitte angeben, welcher Link erzeugt oder abgeschaltet wird.',
-    });
-  }
-  await gemeinsamerLink(zugang, art, body.an);
+  const { art, an } = readGemeinsamerLink(body);
+  await gemeinsamerLink(zugang, art, an);
   return ok(await ladeAnsicht(zugang));
 });
 
@@ -402,13 +398,7 @@ export const EssensplanungMitglied = planungHandler(async (request) => {
   }
   if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
-  const rolle =
-    body?.rolle === 'besitzer'
-      ? 'besitzer'
-      : body?.rolle === 'bearbeiten'
-        ? 'bearbeiten'
-        : undefined;
-  if (!rolle) throw new ValidationError({ rolle: 'Bitte eine Rolle wählen.' });
+  const rolle = readRolle(body);
   await mitgliedAendern(zugang, id, { rolle }, readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
 });
@@ -461,7 +451,7 @@ export const EssensplanungMahlzeiten = planungHandler(async (request) => {
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
-  const tagId = typeof body?.tagId === 'number' && Number.isInteger(body.tagId) ? body.tagId : 0;
+  const tagId = readTagId(body);
   await mahlzeitHinzufuegen(zugang, tagId, validateMahlzeit(body), readPosition(body?.position));
   return ok(await ladeAnsicht(zugang), 201);
 });

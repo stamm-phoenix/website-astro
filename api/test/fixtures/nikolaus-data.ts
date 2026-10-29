@@ -5,7 +5,7 @@ import { getDb } from '../../lib/db';
 import { createHelper } from '../../lib/nikolaus-helfende-list';
 import type { NikolausBooking } from '../../lib/nikolaus-bookings';
 import { getBooking, hashToken, slotColumns } from '../../lib/nikolaus-bookings';
-import type { HelperInput } from '../../lib/pflege-validation';
+import type { HelperInput } from '../../lib/validation/nikolaus-helfende';
 
 export const FAMILY = {
   familyName: 'Testfamilie',

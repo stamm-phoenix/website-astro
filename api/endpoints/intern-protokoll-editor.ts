@@ -15,11 +15,14 @@ import {
   readJsonBody,
 } from '../lib/pflege-api';
 import {
-  ValidationError,
+  validateProtokollEditorAufgabe,
   validateProtokollEditorCreate,
+  validateProtokollEditorReview,
   validateProtokollEditorSave,
   validateProtokollSperre,
-} from '../lib/pflege-validation';
+} from '../lib/validation/protokoll-editor';
+import { ValidationError } from '../lib/validation/errors';
+import { validateProtokollVersand } from '../lib/validation/protokolle';
 import {
   getProtokollEditorAufgaben,
   setOffeneAufgabeErledigt,
@@ -283,18 +286,16 @@ export const EditorAufgabeEndpoint = pflegeHandler(
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
     const body = await readJsonBody(request);
-    if (typeof body?.erledigt !== 'boolean') {
-      throw new ValidationError({ erledigt: 'Bitte angeben, ob die Aufgabe erledigt ist.' });
-    }
+    const erledigt = validateProtokollEditorAufgabe(body);
     const etag = await setOffeneAufgabeErledigt(
       id,
-      body.erledigt,
+      erledigt,
       readEtag(body),
       principal.userDetails
     );
     if (etag === undefined) return NOT_FOUND;
     context.log(
-      `[pflege] ${principal.userDetails} PUT ${AREA} Aufgabe ${id} (${body.erledigt ? 'erledigt' : 'offen'})`
+      `[pflege] ${principal.userDetails} PUT ${AREA} Aufgabe ${id} (${erledigt ? 'erledigt' : 'offen'})`
     );
     return ok({ etag });
   },
@@ -430,18 +431,15 @@ export async function GetEditorPdfEndpoint(request: HttpRequest): Promise<HttpRe
 export const EditorReviewEndpoint = editorHandler(async (id, request, context, principal) => {
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
-  const action = body?.action;
+  const { action, token, ownConfirmed, note } = validateProtokollEditorReview(body);
   const etag = readEtag(body);
-  const token = typeof body?.token === 'string' && TOKEN.test(body.token) ? body.token : null;
   let result: HttpResponseInit;
   if (action === 'review') {
     await submitEditorReview(id, { etag, token }, principal.userDetails);
     result = ok({});
   } else if (action === 'approve') {
-    const ownConfirmed = body?.ownConfirmed === true;
     result = ok(await approveEditorProtokoll(id, { etag, token, ownConfirmed }, principal));
-  } else if (action === 'reject') {
-    const note = typeof body?.note === 'string' ? body.note : '';
+  } else {
     const rejected = await rejectEditorReview(id, { etag, note });
     let mailSent = false;
     if (CONFIG.protokolle.sender && rejected.createdBy.includes('@')) {
@@ -460,8 +458,6 @@ export const EditorReviewEndpoint = editorHandler(async (id, request, context, p
       }
     }
     result = ok({ mailSent });
-  } else {
-    throw new ValidationError({ form: 'Unbekannte Aktion.' });
   }
   context.log(`[pflege] ${principal.userDetails} POST ${AREA} ${id} (${action})`);
   return result;
@@ -480,11 +476,7 @@ export const EditorVersandEndpoint = pflegeHandler(
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
     const body = await readJsonBody(request);
-    const action = body?.action;
-    if (action !== 'preview' && action !== 'send') {
-      throw new ValidationError({ form: 'Unbekannte Aktion.' });
-    }
-    const retry = body?.retry === true;
+    const { action, retry } = validateProtokollVersand(body);
 
     return withEditorErrors(async () => {
       const quelle = await loadEditorVersand(id, retry);

@@ -20,7 +20,8 @@ import {
 } from '../lib/aufgaben';
 import { CONFIG } from '../lib/config';
 import * as leitendeList from '../lib/leitende-list';
-import { ValidationError, validateProtokollInhalt } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
+import { validateProtokollInhalt } from '../lib/validation/protokoll-inhalt';
 import type {
   ProtokollEditorAufgaben,
   ProtokollEditorDetail,

@@ -9,7 +9,7 @@ import {
   requireVersion,
   toVersion,
 } from './db';
-import type { QuestionAndAnswerInput } from './pflege-validation';
+import type { QuestionAndAnswerInput } from './validation/content';
 
 /**
  * Questions and answers in Azure SQL (`content.faq`, migration `0003_blog_faq.sql`).

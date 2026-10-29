@@ -40,15 +40,15 @@ import {
   readIfMatch,
   readJsonBody,
 } from '../lib/pflege-api';
+import { ValidationError } from '../lib/validation/errors';
+import { isValidDate } from '../lib/calendar-date';
 import {
-  ValidationError,
-  isValidDate,
   validateCancelled,
   validateChildStatus,
   validateGuestName,
   validateMeetingNotes,
   validateMeetingDeletion,
-} from '../lib/pflege-validation';
+} from '../lib/validation/nikolaus-besuch';
 import { withErrorHandling } from '../lib/response-utils';
 import { getClaim, isStaffError, requireStaff } from '../lib/staff-auth';
 

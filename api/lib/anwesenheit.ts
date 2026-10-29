@@ -29,8 +29,9 @@ import type { Database } from './db-schema';
 import type { Leitende } from './leitende-list';
 import { dateToLocalParts } from './nikolaus-config';
 import { toStufenMember } from './nikolaus-stufen';
-import type { CancelledInput } from './pflege-validation';
-import { STUFEN, ValidationError } from './pflege-validation';
+import type { CancelledInput } from './validation/nikolaus-besuch';
+import { STUFEN } from './validation/constants';
+import { ValidationError } from './validation/errors';
 
 export function stufeFromSlug(slug: string | undefined): AnwesenheitStufeName | undefined {
   return slug !== undefined && isStufeSlug(slug) ? STUFE_SLUGS[slug] : undefined;

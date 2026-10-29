@@ -1,7 +1,17 @@
 import type { HttpResponseInit } from '@azure/functions';
 import { CONFIG } from './config';
 import { EnvironmentVariable, getEnvironment } from './environment';
+import {
+  belegUploadedSchema,
+  categoryListSchema,
+  errorDetailSchema,
+  kostenstelleSchema,
+  kostenstellenListSchema,
+} from './playwright-api-schema';
+import type { CampflowSphere, KostenstelleWithCategories } from './playwright-api-schema';
 import { errorResponse } from './response-utils';
+
+export type { CampflowSphere } from './playwright-api-schema';
 
 /** Stays below the HTTP limit of the Functions; an export takes about five seconds. */
 const REQUEST_TIMEOUT_MS = 40_000;
@@ -53,10 +63,8 @@ export class PlaywrightApiError extends Error {
 /** The `error` text of a failed response of the Playwright API, if it sent one. */
 async function errorDetail(response: Response): Promise<string> {
   try {
-    const body: unknown = await response.json();
-    const error =
-      body && typeof body === 'object' ? (body as Record<string, unknown>).error : undefined;
-    return typeof error === 'string' ? error.slice(0, 500) : '';
+    const body = errorDetailSchema.safeParse(await response.json());
+    return body.success ? body.data.error : '';
   } catch {
     return '';
   }
@@ -122,34 +130,11 @@ function request<T>(
   );
 }
 
-export type CampflowSphere = 'ideal' | 'purpose' | 'assets' | 'business';
-
-interface KostenstelleWithCategories extends Omit<Kostenstelle, 'categories'> {
-  categories: { name: string; sphere: CampflowSphere }[];
-}
-
 /** Validate upstream mappings before relying on them for a financial write. */
 function readKostenstelle(value: unknown): KostenstelleWithCategories {
-  if (!value || typeof value !== 'object') throw new PlaywrightApiError(502, 'Invalid cost centre');
-  const unit = value as Record<string, unknown>;
-  if (
-    typeof unit.id !== 'string' ||
-    !unit.id.startsWith('cun_') ||
-    typeof unit.name !== 'string' ||
-    !unit.name.trim() ||
-    typeof unit.archived !== 'boolean' ||
-    !Array.isArray(unit.categories) ||
-    !unit.categories.every((category: unknown) => {
-      if (!category || typeof category !== 'object') return false;
-      const item = category as Record<string, unknown>;
-      return (
-        typeof item.name === 'string' &&
-        ['ideal', 'purpose', 'assets', 'business'].includes(String(item.sphere))
-      );
-    })
-  )
-    throw new PlaywrightApiError(502, 'Invalid cost centre');
-  return unit as unknown as KostenstelleWithCategories;
+  const result = kostenstelleSchema.safeParse(value);
+  if (!result.success) throw new PlaywrightApiError(502, 'Invalid cost centre');
+  return result.data;
 }
 
 /**
@@ -173,12 +158,11 @@ export async function ensureCampflowExpenseAssignment(
   const sameName = sameCampflowName;
   const find = async (): Promise<KostenstelleWithCategories | undefined> => {
     const response = await request<unknown>('/campflow/kostenstellen', {}, { signal });
-    const data =
-      response && typeof response === 'object'
-        ? (response as Record<string, unknown>).data
-        : undefined;
-    if (!Array.isArray(data)) throw new PlaywrightApiError(502, 'Invalid cost centre list');
-    const matches = data.map(readKostenstelle).filter((unit) => sameName(unit.name, costunitName));
+    const list = kostenstellenListSchema.safeParse(response);
+    if (!list.success) throw new PlaywrightApiError(502, 'Invalid cost centre list');
+    const matches = list.data.data
+      .map(readKostenstelle)
+      .filter((unit) => sameName(unit.name, costunitName));
     // An archived one of the same name only counts if there is no other
     return matches.find((unit) => !unit.archived) ?? matches[0];
   };
@@ -315,15 +299,7 @@ export async function getKostenstellen({
     id,
     name,
     archived: archived === true,
-    categories: (Array.isArray(categories) ? categories : [])
-      .filter(
-        (category: unknown): category is { id: string; name: string } =>
-          !!category &&
-          typeof category === 'object' &&
-          typeof (category as Record<string, unknown>).id === 'string' &&
-          typeof (category as Record<string, unknown>).name === 'string'
-      )
-      .map((category) => ({ id: category.id, name: category.name })),
+    categories: categoryListSchema.parse(categories),
   }));
 }
 
@@ -388,19 +364,9 @@ export async function uploadCampflowBeleg(
       signal: options.signal,
     }
   );
-  const data = (response && typeof response === 'object' ? response : {}) as Record<
-    string,
-    unknown
-  >;
-  if (typeof data.number !== 'string' || !data.number || typeof data.created !== 'boolean') {
-    throw new PlaywrightApiError(502, 'Invalid receipt upload response');
-  }
-  return {
-    created: data.created,
-    number: data.number,
-    receiptId: typeof data.receiptId === 'string' ? data.receiptId : '',
-    expenseId: typeof data.expenseId === 'string' ? data.expenseId : '',
-  };
+  const uploaded = belegUploadedSchema.safeParse(response);
+  if (!uploaded.success) throw new PlaywrightApiError(502, 'Invalid receipt upload response');
+  return uploaded.data;
 }
 
 /** Maps errors of the Playwright API to API responses; other errors are rethrown. */

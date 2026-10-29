@@ -6,7 +6,7 @@ import type { BlogImage } from './types';
  * Helpers for blog posts. The content is stored as canonical HTML: a few formatting tags,
  * `<a href>` with http(s)/mailto links and `<img data-bild="…">` placeholders for the images
  * attached to the post. The API checks it again (`sanitizeBlogHtml` in
- * `api/lib/pflege-validation.ts`) and replaces the placeholders with complete image tags.
+ * `api/lib/validation/rich-text.ts`) and replaces the placeholders with complete image tags.
  */
 
 /** File name of an image attached to a blog post, as created by the upload. */

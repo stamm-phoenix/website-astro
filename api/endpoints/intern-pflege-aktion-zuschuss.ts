@@ -3,7 +3,7 @@ import { setZuschussfaehig } from '../lib/aktion-zuschuss';
 import { CAMPFLOW_EVENT_ID_PATTERN, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
-import { validateAktionZuschuss } from '../lib/pflege-validation';
+import { validateAktionZuschuss } from '../lib/validation/aktion-art';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 /**

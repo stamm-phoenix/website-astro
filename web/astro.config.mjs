@@ -1,4 +1,5 @@
 // @ts-check
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
@@ -69,6 +70,10 @@ export default defineConfig({
         ? `node_modules/.vite-mock${process.env.VITE_CACHE_SUFFIX ?? ''}`
         : undefined,
     plugins: [tailwindcss()],
+    resolve: {
+      // The demo API loads the validators of api/lib, which import zod; the CI installs only web/.
+      alias: { zod: fileURLToPath(new URL('./node_modules/zod', import.meta.url)) },
+    },
   },
   prefetch: {
     prefetchAll: true,

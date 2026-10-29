@@ -1,5 +1,5 @@
 import type { HttpRequest, InvocationContext } from '@azure/functions';
-import { validateAbstimmung } from '../lib/abstimmung-model';
+import { validateAbstimmung } from '../lib/abstimmung-schema';
 import { ABSTIMMUNG_MAIL_TIMEOUT_MS, abstimmungMail } from '../lib/abstimmung-mails';
 import {
   AbstimmungClosedError,
@@ -37,7 +37,7 @@ import {
   readJsonBody,
 } from '../lib/pflege-api';
 import type { PflegeHandler } from '../lib/pflege-api';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import { eigeneAdresse, mitEigenerAdresse } from '../lib/personen';
 import {
   audienceVersion,

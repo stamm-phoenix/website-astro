@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateBookingTags, validateHelper, ValidationError } from '../lib/pflege-validation';
+import { validateBookingTags, validateHelper } from '../lib/validation/nikolaus-helfende';
+import { ValidationError } from '../lib/validation/errors';
 
 function fieldError(action: () => unknown, field: string): string {
   try {

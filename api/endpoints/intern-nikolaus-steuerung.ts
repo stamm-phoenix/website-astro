@@ -1,4 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { z } from 'zod';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 import {
@@ -14,7 +15,7 @@ import {
   deleteNikolausData,
   getCleanupStatus,
 } from '../lib/nikolaus-cleanup';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import {
   METHOD_NOT_ALLOWED,
   NO_STORE_HEADERS,
@@ -84,8 +85,10 @@ export const NikolausSteuerungSave = pflegeHandler(
   }
 );
 
+const scopeSchema = z.enum(['bookings', 'helpers']);
+
 function readScope(value: unknown): CleanupScope | undefined {
-  return value === 'bookings' || value === 'helpers' ? value : undefined;
+  return scopeSchema.safeParse(value).data;
 }
 
 /** POST: deletes all bookings or all helpers; the typed confirmation must match. */

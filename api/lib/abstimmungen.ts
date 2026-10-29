@@ -19,14 +19,14 @@ import {
 } from './db';
 import type { Db } from './db';
 import type { Database } from './db-schema';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import {
   ABSTIMMUNG_SICHTBARKEITEN,
   MAX_ABSTIMMUNG_TEILNAHMEN,
   abstimmungEinsicht,
   abstimmungErgebnis,
-  validateAntwort,
 } from './abstimmung-model';
+import { validateAntwort } from './abstimmung-schema';
 import type {
   AbstimmungAnsicht,
   AbstimmungDetail,

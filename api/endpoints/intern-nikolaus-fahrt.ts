@@ -9,7 +9,7 @@ import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, getDispoVisitVersion, setDispoVisited } from '../lib/nikolaus-dispo-list';
 import { confirmedOfDay, getTeamMembers, readDate, readDateParam } from '../lib/nikolaus-day';
 import { NO_STORE_HEADERS, toLocation } from '../lib/nikolaus-api';
-import { validateDispoVisit } from '../lib/pflege-validation';
+import { validateDispoVisit } from '../lib/validation/nikolaus-dispo';
 import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
 import { NikolausStateConflictError } from '../lib/nikolaus-state';
 import { withErrorHandling } from '../lib/response-utils';

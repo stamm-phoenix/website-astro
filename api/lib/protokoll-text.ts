@@ -1,7 +1,7 @@
 import { Worker } from 'node:worker_threads';
 import { join } from 'node:path';
 import { docxToText } from './docx-text';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 
 export const MAX_PROTOKOLL_BYTES = 2 * 1024 * 1024;
 const MAX_CHARACTERS = 200_000;

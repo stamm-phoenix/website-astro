@@ -1,5 +1,6 @@
 import { sql } from 'kysely';
 import { getDb, inTransaction, lockResource } from './db';
+import { storedModulesSchema } from './validation/staff';
 
 /**
  * Favorites of the Leitendenbereich (`organisation.staff_favorites`, migration
@@ -18,10 +19,7 @@ export async function getStaffFavorites(userId: string): Promise<string[] | null
 }
 
 function parseModules(json: string): string[] {
-  const modules: unknown = JSON.parse(json);
-  return Array.isArray(modules)
-    ? modules.filter((module): module is string => typeof module === 'string')
-    : [];
+  return storedModulesSchema.parse(JSON.parse(json));
 }
 
 /**

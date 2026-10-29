@@ -15,8 +15,8 @@ import {
   toVersion,
 } from './db';
 import type { AktionTable, Database } from './db-schema';
-import type { AktionInput } from './pflege-validation';
-import { LEITENDE_STUFE, STUFEN } from './pflege-validation';
+import type { AktionInput } from './validation/content';
+import { LEITENDE_STUFE, STUFEN } from './validation/constants';
 
 /**
  * The calendar entries in Azure SQL (`content.aktion` with their Stufen in

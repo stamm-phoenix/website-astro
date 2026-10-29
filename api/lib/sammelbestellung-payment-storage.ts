@@ -1,168 +1,150 @@
+import { z } from 'zod';
 import type {
-  SammelPaymentActor,
   SammelPaymentEvent,
   SammelPaymentRecord,
   SammelPaymentOperation,
 } from './sammelbestellung-payment-model';
 
-function record(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new Error('Invalid object');
-  return value as Record<string, unknown>;
+/**
+ * Stored payment records are read strictly: a corrupt or future record is rejected with the
+ * message of the first broken field, instead of allowing another external write.
+ */
+const object = <S extends z.ZodRawShape>(shape: S) => z.object(shape, { error: 'Invalid object' });
+
+function text(max = 2000, optional = false) {
+  return z
+    .string({ error: 'Invalid text' })
+    .refine((value) => optional || value.trim() !== '', { error: 'Invalid text' })
+    .refine((value) => value.length <= max, { error: 'Invalid text' });
 }
-function text(value: unknown, max = 2000, optional = false): string {
-  if (typeof value !== 'string' || (!optional && !value.trim()) || value.length > max)
-    throw new Error('Invalid text');
-  return value;
+
+const timestamp = text(40).refine((value) => Number.isFinite(Date.parse(value)), {
+  error: 'Invalid timestamp',
+});
+
+function identifier(pattern: RegExp) {
+  return text(255).refine((value) => pattern.test(value), { error: 'Invalid identifier' });
 }
-function timestamp(value: unknown): string {
-  const result = text(value, 40);
-  if (!Number.isFinite(Date.parse(result))) throw new Error('Invalid timestamp');
-  return result;
-}
-function identifier(value: unknown, pattern: RegExp): string {
-  const result = text(value, 255);
-  if (!pattern.test(result)) throw new Error('Invalid identifier');
-  return result;
-}
-function actor(value: unknown): SammelPaymentActor {
-  const row = record(value);
-  return { id: text(row.id, 255), name: text(row.name, 255) };
-}
-function operation(value: unknown): SammelPaymentOperation {
-  const row = record(value);
-  const snapshot = record(row.snapshot);
-  const expense =
-    snapshot.attachedExpense === undefined ? undefined : record(snapshot.attachedExpense);
-  if (
-    !Number.isSafeInteger(snapshot.amount) ||
-    Number(snapshot.amount) <= 0 ||
-    Number(snapshot.amount) > 10_000_000
+
+const PERSON_ID = /^per_[A-Za-z0-9]+$/;
+const SHA256 = /^[a-f0-9]{64}$/;
+const UUID = /^[a-f0-9-]{36}$/;
+
+const actorSchema = object({ id: text(255), name: text(255) });
+
+const snapshotSchema = object({
+  personId: identifier(PERSON_ID),
+  amount: z
+    .number({ error: 'Invalid amount' })
+    .refine((amount) => Number.isSafeInteger(amount) && amount > 0 && amount <= 10_000_000, {
+      error: 'Invalid amount',
+    }),
+  description: text(200),
+  orderId: identifier(/^\d+$/),
+  campaignId: identifier(/^\d+$/),
+  revision: identifier(SHA256),
+  attachedExpense: object({ costunitName: text(200), categoryName: text(200) }).optional(),
+}).transform(({ attachedExpense, ...snapshot }) => ({
+  ...snapshot,
+  ...(attachedExpense ? { attachedExpense } : {}),
+}));
+
+const STATES = ['prepared', 'attempted', 'uncertain', 'created'] as const;
+
+const operationSchema: z.ZodType<SammelPaymentOperation> = object({
+  key: identifier(UUID),
+  hash: identifier(SHA256),
+  snapshot: snapshotSchema,
+  state: z.enum(STATES, { error: 'Invalid state' }),
+  startedAt: timestamp,
+  attemptedAt: timestamp.nullable(),
+  contribution: object({ id: identifier(/^fee_[A-Za-z0-9]+$/), reference: text(100) }).nullable(),
+  errorCategory: text(100).nullable(),
+}).superRefine((operation, context) => {
+  const fail = (error: string) => context.addIssue({ code: 'custom', message: error });
+  if ((operation.state === 'created') !== (operation.contribution !== null)) fail('Invalid result');
+  else if (operation.state === 'prepared' && operation.attemptedAt !== null)
+    fail('Invalid attempt');
+  else if (
+    (operation.state === 'attempted' || operation.state === 'uncertain') &&
+    !operation.attemptedAt
   )
-    throw new Error('Invalid amount');
-  if (!['prepared', 'attempted', 'uncertain', 'created'].includes(String(row.state)))
-    throw new Error('Invalid state');
-  const contribution = row.contribution === null ? null : record(row.contribution);
-  if ((row.state === 'created') !== (contribution !== null)) throw new Error('Invalid result');
-  const attemptedAt = row.attemptedAt === null ? null : timestamp(row.attemptedAt);
-  if (row.state === 'prepared' && attemptedAt !== null) throw new Error('Invalid attempt');
-  if (['attempted', 'uncertain'].includes(String(row.state)) && !attemptedAt)
-    throw new Error('Missing attempt');
-  return {
-    key: identifier(row.key, /^[a-f0-9-]{36}$/),
-    hash: identifier(row.hash, /^[a-f0-9]{64}$/),
-    snapshot: {
-      personId: identifier(snapshot.personId, /^per_[A-Za-z0-9]+$/),
-      amount: Number(snapshot.amount),
-      description: text(snapshot.description, 200),
-      orderId: identifier(snapshot.orderId, /^\d+$/),
-      campaignId: identifier(snapshot.campaignId, /^\d+$/),
-      revision: identifier(snapshot.revision, /^[a-f0-9]{64}$/),
-      ...(expense
-        ? {
-            attachedExpense: {
-              costunitName: text(expense.costunitName, 200),
-              categoryName: text(expense.categoryName, 200),
-            },
-          }
-        : {}),
-    },
-    state: row.state as SammelPaymentOperation['state'],
-    startedAt: timestamp(row.startedAt),
-    attemptedAt,
-    contribution: contribution
-      ? {
-          id: identifier(contribution.id, /^fee_[A-Za-z0-9]+$/),
-          reference: text(contribution.reference, 100),
-        }
-      : null,
-    errorCategory: row.errorCategory === null ? null : text(row.errorCategory, 100),
-  };
+    fail('Missing attempt');
+});
+
+const personSchema = object({
+  id: identifier(PERSON_ID),
+  name: text(200),
+  emails: z.array(text(254), { error: 'Invalid person' }).max(20, { error: 'Invalid person' }),
+  matchesEmail: z.boolean({ error: 'Invalid person' }),
+});
+
+const recordSchema: z.ZodType<SammelPaymentRecord> = object({
+  version: z.literal(1, { error: 'Unsupported payment schema' }),
+  assignment: object({
+    person: personSchema,
+    reason: text(1000, true),
+    confirmedBy: actorSchema,
+    confirmedAt: timestamp,
+  }),
+  operation: operationSchema.nullable(),
+  dispatch: object({
+    method: z.literal('campflow_dashboard', { error: 'Invalid dispatch' }),
+    confirmedAt: timestamp,
+    actor: actorSchema,
+  }).nullable(),
+  settlement: object({
+    source: z.literal('manual', { error: 'Invalid settlement' }),
+    paid: z.boolean({ error: 'Invalid settlement' }),
+    markedAt: timestamp,
+    actor: actorSchema,
+  }).nullable(),
+}).superRefine((record, context) => {
+  const fail = (error: string) => context.addIssue({ code: 'custom', message: error });
+  if (record.operation && record.operation.snapshot.personId !== record.assignment.person.id)
+    fail('Person changed');
+  const created = record.operation?.state === 'created';
+  if (record.dispatch && !created) fail('Invalid dispatch');
+  if (record.settlement && !created) fail('Invalid settlement');
+});
+
+/** Throws a plain `Error` with the message of the first broken field. */
+function readStored<S extends z.ZodType>(schema: S, value: unknown, message: string): z.output<S> {
+  const result = schema.safeParse(value);
+  if (!result.success) throw new Error(result.error.issues[0]?.message ?? message);
+  return result.data;
 }
 
 /** Rejects corrupt or future records instead of allowing another external write. */
 export function parseSammelPayment(value: unknown): SammelPaymentRecord {
-  const row = record(value);
-  if (row.version !== 1) throw new Error('Unsupported payment schema');
-  const assignment = record(row.assignment);
-  const selected = record(assignment.person);
-  if (
-    !Array.isArray(selected.emails) ||
-    selected.emails.length > 20 ||
-    typeof selected.matchesEmail !== 'boolean'
-  )
-    throw new Error('Invalid person');
-  const person = {
-    id: identifier(selected.id, /^per_[A-Za-z0-9]+$/),
-    name: text(selected.name, 200),
-    emails: selected.emails.map((value) => text(value, 254)),
-    matchesEmail: selected.matchesEmail,
-  };
-  const op = row.operation === null ? null : operation(row.operation);
-  if (op && op.snapshot.personId !== person.id) throw new Error('Person changed');
-  const dispatch = row.dispatch === null ? null : record(row.dispatch);
-  const settlement = row.settlement === null ? null : record(row.settlement);
-  if (dispatch && (dispatch.method !== 'campflow_dashboard' || op?.state !== 'created'))
-    throw new Error('Invalid dispatch');
-  if (
-    settlement &&
-    (settlement.source !== 'manual' ||
-      typeof settlement.paid !== 'boolean' ||
-      op?.state !== 'created')
-  )
-    throw new Error('Invalid settlement');
-  return {
-    version: 1,
-    assignment: {
-      person,
-      reason: text(assignment.reason, 1000, true),
-      confirmedBy: actor(assignment.confirmedBy),
-      confirmedAt: timestamp(assignment.confirmedAt),
-    },
-    operation: op,
-    dispatch: dispatch
-      ? {
-          method: 'campflow_dashboard',
-          confirmedAt: timestamp(dispatch.confirmedAt),
-          actor: actor(dispatch.actor),
-        }
-      : null,
-    settlement: settlement
-      ? {
-          source: 'manual',
-          paid: settlement.paid === true,
-          markedAt: timestamp(settlement.markedAt),
-          actor: actor(settlement.actor),
-        }
-      : null,
-  };
+  return readStored(recordSchema, value, 'Invalid payment record');
 }
+
+const eventSchema: z.ZodType<SammelPaymentEvent> = object({
+  at: timestamp,
+  actor: actorSchema,
+  action: z.enum(
+    [
+      'assigned',
+      'prepared',
+      'attempted',
+      'created',
+      'uncertain',
+      'adopted',
+      'dispatched',
+      'settled',
+    ],
+    { error: 'Invalid audit action' }
+  ),
+  operationKey: identifier(UUID).nullable(),
+  evidence: text(1000, true),
+});
 
 /** Audit entries are kept in order and never silently dropped. */
 export function parseSammelPaymentEvents(value: unknown): SammelPaymentEvent[] {
-  if (!Array.isArray(value)) throw new Error('Invalid audit history');
-  return value.map((value) => {
-    const row = record(value);
-    if (
-      ![
-        'assigned',
-        'prepared',
-        'attempted',
-        'created',
-        'uncertain',
-        'adopted',
-        'dispatched',
-        'settled',
-      ].includes(String(row.action))
-    )
-      throw new Error('Invalid audit action');
-    return {
-      at: timestamp(row.at),
-      actor: actor(row.actor),
-      action: row.action as SammelPaymentEvent['action'],
-      operationKey:
-        row.operationKey === null ? null : identifier(row.operationKey, /^[a-f0-9-]{36}$/),
-      evidence: text(row.evidence, 1000, true),
-    };
-  });
+  return readStored(
+    z.array(eventSchema, { error: 'Invalid audit history' }),
+    value,
+    'Invalid audit history'
+  );
 }

@@ -39,7 +39,7 @@ import {
   sammelBillingPreview,
   sammelPaymentView,
 } from '../lib/sammelbestellung-payments';
-import { validateSammelPaymentInput } from '../lib/pflege-validation';
+import { validateSammelPaymentInput } from '../lib/validation/sammel-payment';
 import type {
   SammelPaymentView,
   SammelPaymentPreview,

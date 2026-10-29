@@ -41,7 +41,7 @@ import { sortiere as sortiereEinplanungen } from './essen-einplanung';
 import { listKategorien, listUnvertraeglichkeiten, listZutaten } from './essen-steuerung';
 import type { EssenEinheitenart } from './essen-validation';
 import { COLLATOR } from './essen-validation';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 
 /**
  * Dishes of a Planung and the ingredients they use (`docs/essensplanung.md`, „Gerichte“). Every

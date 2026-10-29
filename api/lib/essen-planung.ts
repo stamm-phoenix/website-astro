@@ -46,7 +46,7 @@ import { deletePlanung } from './essen-planung-loeschen';
 import { ladeGerichte, ladeKatalogStand } from './essen-gerichte';
 import { ladeEinplanungen } from './essen-einplanung';
 import { ladeTeilnehmende, verschiebeGrenzen } from './essen-teilnehmende';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 
 /**
  * Planungen of the Essensplanung (`docs/essensplanung.md`): access by link, the view a page

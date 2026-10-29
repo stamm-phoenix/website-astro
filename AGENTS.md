@@ -114,6 +114,10 @@ const { title, description } = Astro.props;
 - Define shared types in `web/src/lib/types.ts`
 - Custom errors extend `Error` class (see `ApiError` in api.ts)
 
+### File size
+
+Keep files small. Split a file by domain before it passes about 400 lines, and never extend a file that is far above that: put new code into a new module named after its domain, and when you change a part of an oversized file, move that part out. Test files are split by topic. Do not make one module the single import point of many domains (the former `pflege-validation.ts` had 1,500 lines and 89 importers); import from the module that owns the symbol. Brief delegated workers on this rule.
+
 ### Naming Conventions
 
 | Type             | Convention        | Example                                   |
@@ -242,7 +246,7 @@ Pages under `web/src/pages/leitendenbereich/` and API routes under `/api/intern/
 
 The Leitendenbereich can be installed on the home screen: `StaffLayout.astro` links `web/public/leitendenbereich.webmanifest`. Only the explicitly saved Nikolaus route uses a service worker for its static shell (#382); other pages use only the browser's HTTP cache. Never cache API or authentication responses; details and platform limits in `docs/leitendenbereich-app.md`.
 
-Write endpoints for the edit modules (the `content` and `organisation` tables, the Downloads) live under `/api/intern/pflege/*` and are wrapped in `pflegeHandler` (`api/lib/pflege-api.ts`), which checks the login, maps SharePoint errors (412 → `409 CONFLICT`) and logs the acting user. Validate input in `api/lib/pflege-validation.ts`; forms in `web/src/components/pflege/` use `FormField`, `EditDialog` and `sendApi`. When testing against the production database, name test data "TEST – bitte löschen" and delete it again right away — they hold production data.
+Write endpoints for the edit modules (the `content` and `organisation` tables, the Downloads) live under `/api/intern/pflege/*` and are wrapped in `pflegeHandler` (`api/lib/pflege-api.ts`), which checks the login, maps SharePoint errors (412 → `409 CONFLICT`) and logs the acting user. Validate input with zod schemas, one module per domain in `api/lib/validation/` (`content`, `blog`, `beleg`, `nikolaus-*`, `protokoll-*`, `staff`, …; the Aufgaben in `api/lib/aufgaben-validation.ts`, other modules next to their code, e.g. `abstimmung-schema.ts`). `parseWith` and the shared schemas (`labeledText`, `choice`, `choices`, `lenientObject`) are in `api/lib/validation/zod.ts`; they turn zod issues into the `ValidationError` field errors (`validation/errors.ts`) the forms show next to their inputs. Give every constraint and type a German `error` message, so zod's English text never reaches a user, and give a new validator a test for its field keys and messages (`api/test/validation-*.test.ts`). Parse untyped data from outside (CampFlow, Azure Maps, stored JSON) the same way, but keep the old leniency (`.catch`, `.default`, skip bad entries). Types that the web frontend shares with the API are inferred from the schema (`aufgaben-schema.ts`) or checked against it (`z.ZodType<ProtokollInhalt>`) and imported with `import type` only: zod must never reach the browser bundle, so files that the web runs (`kontakt-validation.ts`, `nikolaus-validation.ts`, `abrechnung-session.ts`, `staff-settings-model.ts`, `*-model.ts`) stay free of zod, and a model never re-exports a validator. In zod 4 a key typed `z.unknown()` is required; write `.optional()` where it may be missing. forms in `web/src/components/pflege/` use `FormField`, `EditDialog` and `sendApi`. When testing against the production database, name test data "TEST – bitte löschen" and delete it again right away — they hold production data.
 
 ## Baked Content
 

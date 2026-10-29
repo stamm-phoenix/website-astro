@@ -33,8 +33,9 @@ import type {
   ProtokollEditorCreateInput,
   ProtokollEditorSaveInput,
   ProtokollSperreInput,
-} from './pflege-validation';
-import { ValidationError, validateProtokollInhalt } from './pflege-validation';
+} from './validation/protokoll-editor';
+import { ValidationError } from './validation/errors';
+import { validateProtokollInhalt } from './validation/protokoll-inhalt';
 
 /**
  * Minutes written on the website (#277, `docs/protokoll-editor.md`). One tab writes and holds

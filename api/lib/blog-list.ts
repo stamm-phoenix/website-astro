@@ -12,8 +12,9 @@ import {
   toVersion,
 } from './db';
 import type { Db } from './db';
-import type { BlogImage, BlogPostInput } from './pflege-validation';
-import { MAX_BLOG_IMAGES, escapeAttribute, sanitizeBlogHtml } from './pflege-validation';
+import type { BlogImage, BlogPostInput } from './validation/blog';
+import { MAX_BLOG_IMAGES } from './validation/blog';
+import { escapeAttribute, sanitizeBlogHtml } from './validation/rich-text';
 
 /**
  * Blog posts in Azure SQL (`content.blog_post`, `content.blog_image`, migration

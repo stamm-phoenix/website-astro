@@ -212,3 +212,37 @@ export function einheitText(einheit: GerichtEinheit, abtropfgewicht = false): st
     ? `${EINHEIT_TEXT[einheit]} (ATG)`
     : EINHEIT_TEXT[einheit];
 }
+
+/** The fields of a dish; on a change only those sent. */
+export interface GerichtInput {
+  name?: string;
+  personen?: number;
+  anleitung?: string;
+  notiz?: string;
+  links?: GerichtLink[];
+  werkzeuge?: string[];
+}
+
+/** A line of a dish; the ingredient is a central one or one of the Planung. */
+export interface GerichtZutatInput {
+  zutat: { zutatId: number } | { planungZutatId: number };
+  menge: number | null;
+  einheit: GerichtEinheit | null;
+  fest: boolean;
+  fuerAlles: boolean;
+  fuerVegetarisch: boolean;
+  fuerVegan: boolean;
+  ohne: number[];
+  nur: number[];
+  hinweis: string;
+}
+
+/** Fields of an ingredient of the Planung's own, or the differences of a central one. */
+export interface PlanungZutatInput {
+  name?: string;
+  kategorieId: number | null;
+  einheitenart: EssenEinheitenart | null;
+  vegetarisch?: boolean | null;
+  vegan?: boolean | null;
+  allergene?: number[];
+}

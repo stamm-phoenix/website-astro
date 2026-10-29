@@ -17,7 +17,7 @@ import type {
   TeilnehmendeInput,
 } from './essen-teilnehmende-model';
 import { MAX_GRUPPEN, MAX_TEILNEHMENDE } from './essen-teilnehmende-model';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 
 /**
  * Groups and participants of a Planung and the groups that skip a meal

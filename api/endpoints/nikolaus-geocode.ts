@@ -1,14 +1,15 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { z } from 'zod';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { NIKOLAUS_MAX_LENGTH, isValidNikolausPostalCode } from '../lib/nikolaus-validation';
 import { geocodeAddress } from '../lib/geocoding';
 import { readJsonBody, withNikolausWriteHandling } from '../lib/nikolaus-api';
 import { errorResponse } from '../lib/response-utils';
 
+/** The trimmed text, or `null` if it is no text, empty or too long. */
 function readText(value: unknown, maxLength: number): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed.length <= maxLength ? trimmed : null;
+  const text = z.string().trim().min(1).max(maxLength).safeParse(value);
+  return text.success ? text.data : null;
 }
 
 /** Locates an address for the map in the booking form via OpenStreetMap. */

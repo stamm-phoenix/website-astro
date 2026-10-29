@@ -1,5 +1,5 @@
 import { requireProtokollSqlWrite } from './protokoll-cutover';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import { createHash } from 'node:crypto';
 import { CONFIG } from './config';
 import { getDb, inTransaction, lockResource, VersionConflictError } from './db';

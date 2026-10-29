@@ -1,7 +1,18 @@
 import type { Gericht, PlanungZutat } from './essen-gerichte-model';
+import type { z } from 'zod';
 import type { PlanungGruppe, Teilnehmende } from './essen-teilnehmende-model';
-import type { FieldErrors } from './pflege-validation';
-import { ValidationError } from './pflege-validation';
+import { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor } from './essen-planung-faktor';
+import { MAX_TAGE, addDays, daysBetween, loeschDatum, readDatum } from './essen-planung-datum';
+import type {
+  anlegenSchema,
+  beitrittSchema,
+  einladungSchema,
+  mahlzeitSchema,
+  planungEinstellungenSchema,
+} from './essen-planung-schema';
+
+export { MAX_TAGE, addDays, daysBetween, loeschDatum, readDatum };
+export { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor };
 
 /**
  * Types, rules and checks of a Planung of the Essensplanung without database access, so the
@@ -13,14 +24,11 @@ export type PlanungRolle = 'besitzer' | 'bearbeiten';
 /** What the link in the request allows: a member's own link or the shared read-only link. */
 export type PlanungZugang = PlanungRolle | 'lesen';
 
-/** At most this many days per Planung; a camp of two weeks with buffer. */
-export const MAX_TAGE = 60;
 /** Also the limit of the template, so a day from the template can always take a replacement. */
 export const MAX_MAHLZEITEN_PRO_TAG = 20;
 export const MAX_MITGLIEDER = 50;
 /** Dishes per meal, e.g. main course, dessert and a replacement. */
 export const MAX_EINPLANUNGEN_PRO_MAHLZEIT = 10;
-export const MAX_FAKTOR = 20;
 
 /** Unconfirmed requests to create a Planung expire after this time. */
 export const ANFRAGE_GUELTIG_MS = 24 * 60 * 60_000;
@@ -169,240 +177,16 @@ export function nummeriereTage(
     }));
 }
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
+export type AnlegenInput = z.output<typeof anlegenSchema>;
 
-/** A valid calendar date `YYYY-MM-DD`, or undefined. */
-export function readDatum(value: unknown): string | undefined {
-  if (typeof value !== 'string' || !DATE.test(value)) return undefined;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
-    ? value
-    : undefined;
-}
+export type BeitrittInput = z.output<typeof beitrittSchema>;
 
-export function addDays(datum: string, days: number): string {
-  const date = new Date(`${datum}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-export function daysBetween(from: string, to: string): number {
-  return Math.round(
-    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / (24 * 60 * 60_000)
-  );
-}
-
-/** The day a Planung is deleted: its last day plus the retention in months. */
-export function loeschDatum(letzterTag: string, monate: number): string {
-  const date = new Date(`${letzterTag}T00:00:00Z`);
-  const day = date.getUTCDate();
-  date.setUTCDate(1);
-  date.setUTCMonth(date.getUTCMonth() + monate);
-  // The 31st becomes the last day of a shorter month
-  const last = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
-  date.setUTCDate(Math.min(day, last));
-  return date.toISOString().slice(0, 10);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function readText(
-  value: unknown,
-  max: number,
-  errors: FieldErrors,
-  field: string,
-  message = 'Bitte ausfüllen.'
-): string {
-  const text = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
-  if (!text) errors[field] = message;
-  else if (text.length > max) errors[field] = `Höchstens ${max} Zeichen.`;
-  return text;
-}
-
-const EMAIL = /^[^\s@]+@([a-z0-9-]+\.)+[a-z]{2,}$/;
-
-function readEmail(
-  value: unknown,
-  errors: FieldErrors,
-  field: string,
-  required: boolean
-): string | null {
-  const email = typeof value === 'string' ? value.trim().toLowerCase() : '';
-  if (!email) {
-    if (required) errors[field] = 'Bitte eine Mailadresse eintragen.';
-    return null;
-  }
-  if (email.length > 254 || !EMAIL.test(email)) {
-    errors[field] = 'Bitte eine gültige Mailadresse eintragen, z. B. name@beispiel.de.';
-  }
-  return email;
-}
-
-function fail(errors: FieldErrors): void {
-  if (Object.keys(errors).length) throw new ValidationError(errors);
-}
-
-export interface AnlegenInput {
-  email: string;
-  name: string;
-  planungName: string;
-  ersterTag: string;
-  letzterTag: string;
-}
-
-export function validateAnlegen(input: unknown): AnlegenInput {
-  const value = isRecord(input) ? input : {};
-  const errors: FieldErrors = {};
-  const email = readEmail(value.email, errors, 'email', true) ?? '';
-  const name = readText(value.name, 100, errors, 'name', 'Bitte deinen Namen eintragen.');
-  const planungName = readText(
-    value.planungName,
-    150,
-    errors,
-    'planungName',
-    'Bitte einen Namen für die Planung eintragen, z. B. „Sommerlager 2027“.'
-  );
-  const ersterTag = readDatum(value.ersterTag);
-  const letzterTag = readDatum(value.letzterTag);
-  if (!ersterTag) errors.ersterTag = 'Bitte den ersten Tag wählen.';
-  if (!letzterTag) errors.letzterTag = 'Bitte den letzten Tag wählen.';
-  if (ersterTag && letzterTag) {
-    const tage = daysBetween(ersterTag, letzterTag) + 1;
-    if (tage < 1) errors.letzterTag = 'Der letzte Tag liegt vor dem ersten.';
-    else if (tage > MAX_TAGE) errors.letzterTag = `Höchstens ${MAX_TAGE} Tage.`;
-  }
-  fail(errors);
-  return { email, name, planungName, ersterTag: ersterTag!, letzterTag: letzterTag! };
-}
-
-export function validateMitgliedName(input: unknown): string {
-  const errors: FieldErrors = {};
-  const name = readText(
-    isRecord(input) ? input.name : undefined,
-    100,
-    errors,
-    'name',
-    'Bitte einen Namen eintragen.'
-  );
-  fail(errors);
-  return name;
-}
-
-export interface BeitrittInput {
-  name: string;
-  email: string | null;
-}
-
-export function validateBeitritt(input: unknown): BeitrittInput {
-  const value = isRecord(input) ? input : {};
-  const errors: FieldErrors = {};
-  const name = readText(value.name, 100, errors, 'name', 'Bitte deinen Namen eintragen.');
-  const email = readEmail(value.email, errors, 'email', false);
-  fail(errors);
-  return { name, email };
-}
-
-export interface EinladungInput {
-  name: string;
-  email: string;
-  rolle: PlanungRolle;
-}
-
-export function validateEinladung(input: unknown): EinladungInput {
-  const value = isRecord(input) ? input : {};
-  const errors: FieldErrors = {};
-  const name = readText(value.name, 100, errors, 'name', 'Bitte einen Namen eintragen.');
-  const email = readEmail(value.email, errors, 'email', true) ?? '';
-  const rolle = value.rolle === 'besitzer' ? 'besitzer' : 'bearbeiten';
-  fail(errors);
-  return { name, email, rolle };
-}
-
-export function validateEmail(input: unknown): string {
-  const errors: FieldErrors = {};
-  const email = readEmail(isRecord(input) ? input.email : undefined, errors, 'email', true) ?? '';
-  fail(errors);
-  return email;
-}
+export type EinladungInput = z.output<typeof einladungSchema>;
 
 /** The fields of the Planung someone changed, each with the value the form started from. */
-export interface PlanungEinstellungenInput {
-  /** `vorher` is missing when the client sent none; then the field is simply set. */
-  name?: { neu: string; vorher?: string };
-  mitgliederVerwalten?: { neu: boolean; vorher?: boolean };
-}
+export type PlanungEinstellungenInput = z.output<typeof planungEinstellungenSchema>;
 
-/**
- * Only the changed fields are sent, with what the form showed before: a field changed by someone
- * else meanwhile is a conflict, fields left alone keep what others saved.
- */
-export function validatePlanungEinstellungen(input: unknown): PlanungEinstellungenInput {
-  const value = isRecord(input) ? input : {};
-  const vorher = isRecord(value.vorher) ? value.vorher : {};
-  const errors: FieldErrors = {};
-  const result: PlanungEinstellungenInput = {};
-  if (value.name !== undefined) {
-    const name = readText(value.name, 150, errors, 'name', 'Bitte einen Namen eintragen.');
-    result.name = {
-      neu: name,
-      ...(typeof vorher.name === 'string' ? { vorher: vorher.name } : {}),
-    };
-  }
-  if (value.mitgliederVerwalten !== undefined) {
-    if (typeof value.mitgliederVerwalten !== 'boolean') {
-      errors.mitgliederVerwalten = 'Bitte ja oder nein wählen.';
-    } else {
-      result.mitgliederVerwalten = {
-        neu: value.mitgliederVerwalten,
-        ...(typeof vorher.mitgliederVerwalten === 'boolean'
-          ? { vorher: vorher.mitgliederVerwalten }
-          : {}),
-      };
-    }
-  }
-  if (!result.name && !result.mitgliederVerwalten && !Object.keys(errors).length) {
-    errors.name = 'Es gibt nichts zu speichern.';
-  }
-  fail(errors);
-  return result;
-}
-
-export function validateTag(input: unknown): string {
-  const errors: FieldErrors = {};
-  const datum = readDatum(isRecord(input) ? input.datum : undefined);
-  if (!datum) errors.datum = 'Bitte ein Datum wählen.';
-  fail(errors);
-  return datum!;
-}
-
-export interface MahlzeitInput {
-  name: string;
-  uhrzeit: string | null;
-}
-
-const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-export function validateMahlzeit(input: unknown): MahlzeitInput {
-  const value = isRecord(input) ? input : {};
-  const errors: FieldErrors = {};
-  const name = readText(value.name, 50, errors, 'name', 'Bitte einen Namen eintragen.');
-  let uhrzeit: string | null = null;
-  if (typeof value.uhrzeit === 'string' && value.uhrzeit.trim()) {
-    uhrzeit = value.uhrzeit.trim().slice(0, 5);
-    if (!TIME.test(uhrzeit)) errors.uhrzeit = 'Bitte eine Uhrzeit wie 12:30 eintragen.';
-  }
-  fail(errors);
-  return { name, uhrzeit };
-}
-
-/** A position (1-based) for moving a meal within its day, or undefined. */
-export function readPosition(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 100
-    ? value
-    : undefined;
-}
+export type MahlzeitInput = z.output<typeof mahlzeitSchema>;
 
 /**
  * The newest of some versions (rowversions grow with every change). A whole that is deleted
@@ -429,50 +213,6 @@ export interface EinplanungInput {
   faktor: number;
   zustaendigId: number | null;
   zustaendigText: string;
-}
-
-export const FAKTOR_FEHLER = `Bitte eine Zahl von 0,001 bis ${MAX_FAKTOR} eintragen, z. B. 0,5.`;
-
-/** A factor as stored: from 0.001 to `MAX_FAKTOR`, three decimals at most (`decimal(6, 3)`). */
-export function faktorGueltig(faktor: number): boolean {
-  return (
-    faktor >= 0.001 &&
-    faktor <= MAX_FAKTOR &&
-    Math.abs(Math.round(faktor * 1000) - faktor * 1000) < 1e-6
-  );
-}
-
-/** The factor as typed („0,5“) or sent (0.5); NaN for anything else. */
-export function leseFaktor(value: unknown): number {
-  if (typeof value === 'number') return value;
-  if (typeof value !== 'string') return Number.NaN;
-  const text = value.trim().replace(',', '.');
-  return /^\d+(\.\d+)?$/.test(text) ? Number(text) : Number.NaN;
-}
-
-export function validateEinplanung(input: unknown): EinplanungInput {
-  const value = isRecord(input) ? input : {};
-  const errors: FieldErrors = {};
-  const id = (raw: unknown) =>
-    typeof raw === 'number' && Number.isInteger(raw) && raw > 0 ? raw : null;
-  const mahlzeitId = id(value.mahlzeitId);
-  if (mahlzeitId === null) errors.mahlzeitId = 'Bitte eine Mahlzeit wählen.';
-  const gerichtId = id(value.gerichtId);
-  if (gerichtId === null) errors.gerichtId = 'Bitte ein Gericht wählen.';
-  const faktor = value.faktor === undefined ? 1 : leseFaktor(value.faktor);
-  if (!faktorGueltig(faktor)) errors.faktor = FAKTOR_FEHLER;
-  const zustaendigId = value.zustaendigId === null ? null : id(value.zustaendigId);
-  if (value.zustaendigId !== undefined && value.zustaendigId !== null && zustaendigId === null)
-    errors.zustaendigId = 'Bitte aus der Liste wählen.';
-  const zustaendigText =
-    typeof value.zustaendigText === 'string'
-      ? value.zustaendigText.trim().replace(/\s+/g, ' ')
-      : '';
-  if (zustaendigText.length > 100) errors.zustaendigText = 'Höchstens 100 Zeichen.';
-  if (zustaendigId !== null && zustaendigText)
-    errors.zustaendigText = 'Entweder ein Mitglied oder einen Namen.';
-  fail(errors);
-  return { mahlzeitId: mahlzeitId!, gerichtId: gerichtId!, faktor, zustaendigId, zustaendigText };
 }
 
 /** Shown text of a change, e.g. „Mahlzeit 3_1 umbenannt: Frühstück“. */

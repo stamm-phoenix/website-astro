@@ -1,5 +1,6 @@
 import { sql } from 'kysely';
 import { getDb, inTransaction, lockResource } from './db';
+import { storedModulesSchema } from './validation/staff';
 
 /**
  * Recently used areas of the Leitendenbereich (`organisation.staff_recent`, migration
@@ -22,10 +23,7 @@ export async function getStaffRecent(userId: string): Promise<string[]> {
 
 function parseModules(json: string): string[] {
   try {
-    const modules: unknown = JSON.parse(json);
-    return Array.isArray(modules)
-      ? modules.filter((module): module is string => typeof module === 'string')
-      : [];
+    return storedModulesSchema.parse(JSON.parse(json));
   } catch {
     return [];
   }

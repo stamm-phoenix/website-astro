@@ -1,5 +1,5 @@
 import { pflegeHandler, ok, NOT_FOUND, readJsonBody } from '../lib/pflege-api';
-import { validateSammelPaymentInput } from '../lib/pflege-validation';
+import { validateSammelPaymentInput } from '../lib/validation/sammel-payment';
 import { CampflowError } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { errorResponse } from '../lib/response-utils';
