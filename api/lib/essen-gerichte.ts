@@ -353,6 +353,7 @@ async function zutatDerPlanung(trx: Db, zugang: Zugang, id: number) {
       'pz.einheitenart',
       'z.name as z_name',
       'z.einheitenart as z_einheitenart',
+      'z.lebensmittel as z_lebensmittel',
     ])
     .where('pz.id', '=', id)
     .where('pz.planung_id', '=', zugang.planungId)
@@ -445,6 +446,9 @@ export async function planungZutatLoeschen(
   });
 }
 
+const keinLebensmittel = (name: string) =>
+  new ValidationError({ zutat: `${name} ist kein Lebensmittel und gehört in kein Gericht.` });
+
 /**
  * The ingredient of the Planung a line uses: one of its own, or a central one, which then
  * becomes an ingredient of the Planung. Things that are not food belong to no dish.
@@ -457,6 +461,8 @@ async function zutatFuerZeile(
   if ('planungZutatId' in zutat) {
     const row = await zutatDerPlanung(trx, zugang, zutat.planungZutatId).catch(() => null);
     if (!row) throw new ValidationError({ zutat: 'Bitte eine Zutat wählen.' });
+    // The Steuerung may have marked a central ingredient as not food since it was first used
+    if (row.zutat_id !== null && !row.z_lebensmittel) throw keinLebensmittel(row.z_name ?? '');
     // The kind of unit inherited from the central list stays until the line is saved
     if (row.zutat_id !== null && row.einheitenart === null) {
       await lockResource(trx, zutatSperre(row.zutat_id));
@@ -474,11 +480,7 @@ async function zutatFuerZeile(
     .where('id', '=', zutat.zutatId)
     .executeTakeFirst();
   if (!zentral) throw new ValidationError({ zutat: 'Bitte eine Zutat wählen.' });
-  if (!zentral.lebensmittel) {
-    throw new ValidationError({
-      zutat: `${zentral.name} ist kein Lebensmittel und gehört in kein Gericht.`,
-    });
-  }
+  if (!zentral.lebensmittel) throw keinLebensmittel(zentral.name);
   const vorhanden = await trx
     .selectFrom('essen.planung_zutat')
     .select(['id', 'einheitenart'])

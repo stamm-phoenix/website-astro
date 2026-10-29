@@ -493,3 +493,24 @@ dbTest(
     assert.notEqual(stand.ansicht!.katalogStand, ansicht.katalogStand);
   }
 );
+
+dbTest('an ingredient marked as not food meanwhile takes no more lines', async (t) => {
+  const mails = captureMails(t);
+  const { token } = await anlegen(t, mails);
+  const milch = await zentraleZutat('H-Milch');
+  const { id } = await gerichtMitId(t, token, { name: 'Milchreis', personen: 4 });
+  const ansicht = json<PlanungAnsicht>(
+    await zeileHinzufuegen(t, token, id, { zutatId: milch, menge: 1, einheit: 'l' })
+  );
+  const planungZutat = ansicht.zutaten.find((z) => z.zutatId === milch)!;
+  await getDb()
+    .updateTable('essen.zutat')
+    .set({ lebensmittel: false, vegetarisch: null, vegan: null })
+    .where('id', '=', milch)
+    .execute();
+  for (const body of [{ planungZutatId: planungZutat.id }, { zutatId: milch }]) {
+    const antwort = await zeileHinzufuegen(t, token, id, { ...body, menge: 1, einheit: 'l' });
+    assert.equal(antwort.status, 400);
+    assert.match(json<{ fields: { zutat: string } }>(antwort).fields.zutat, /kein Lebensmittel/);
+  }
+});

@@ -121,8 +121,15 @@ test('an open line keeps its version, a deleted one is not added again; closing 
   await dialog.getByLabel('Zutat', { exact: true }).fill('H-Milch');
   await dialog.getByRole('option', { name: 'H-Milch', exact: true }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('200');
+  // While saving the fields are locked, so nothing typed meanwhile gets lost
+  await page.route('**/api/essensplanung/planung/gerichte/*/zutaten', async (route) => {
+    await new Promise((done) => setTimeout(done, 1500));
+    await route.continue();
+  });
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(dialog.getByLabel('Menge', { exact: true })).toBeDisabled();
   await expect(kakao.getByText('200 ml')).toBeVisible();
+  await page.unroute('**/api/essensplanung/planung/gerichte/*/zutaten');
 
   // Closing with unsaved input asks first
   await kakao.getByRole('button', { name: 'H-Milch ändern' }).click();
