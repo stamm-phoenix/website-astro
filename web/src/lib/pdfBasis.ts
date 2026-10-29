@@ -3,6 +3,7 @@
 // jsPDF is loaded only when a PDF is created, so it does not weigh on the page itself.
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn } from 'jspdf-autotable';
+import { pdfText } from './pdfText';
 
 export const BRAND: [number, number, number] = [0, 48, 86]; // DPSG blue #003056
 export const RED: [number, number, number] = [129, 10, 26]; // DPSG red #810a1a
@@ -30,13 +31,16 @@ export function drawTitle(doc: JsPdf, title: string, lines: string[]): number {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(...BRAND);
-  doc.text(title, MARGIN, 18);
+  doc.text(pdfText(title), MARGIN, 18);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(...GREY);
   let y = 25;
   for (const line of lines) {
-    const wrapped = doc.splitTextToSize(line, doc.internal.pageSize.getWidth() - 2 * MARGIN);
+    const wrapped = doc.splitTextToSize(
+      pdfText(line),
+      doc.internal.pageSize.getWidth() - 2 * MARGIN
+    );
     doc.text(wrapped, MARGIN, y);
     y += 5 * wrapped.length;
   }

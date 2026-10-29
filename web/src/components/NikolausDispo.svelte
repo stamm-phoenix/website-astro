@@ -329,8 +329,8 @@
         fileName: `nikolaus-dispo-${date}.pdf`,
       });
       editor.state.notice = dirty
-        ? { text: 'PDF exportiert. Die Dispo ist noch nicht gespeichert.', kind: 'warning' }
-        : { text: 'PDF exportiert.', kind: 'success' };
+        ? { text: 'PDF heruntergeladen. Die Dispo ist noch nicht gespeichert.', kind: 'warning' }
+        : { text: 'PDF heruntergeladen.', kind: 'success' };
     } catch (error) {
       editor.state.notice = { text: errorMessage(error, PDF_ERROR), kind: 'error' };
     } finally {

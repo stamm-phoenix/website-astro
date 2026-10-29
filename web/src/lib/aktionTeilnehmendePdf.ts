@@ -5,7 +5,7 @@ import type { PersonColumn, PersonStatus } from './campflowFields';
 import { pdfFileName } from './pdfBasis';
 import { downloadReportPdf } from './pdfTabelle';
 import type { PdfReport } from './pdfTabelle';
-import { pdfText } from './pdfZeichen';
+import { pdfText } from './pdfText';
 import type { CampflowPerson } from './types';
 
 export interface TeilnehmendePdf {

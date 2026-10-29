@@ -16,6 +16,7 @@ import {
   hexToRgb,
   loadPdf,
 } from './pdfBasis';
+import { pdfText } from './pdfText';
 import type { StaffNikolausDispoData } from './types';
 
 /** Minutes after the start of the slot from which the PDF mentions the delay, as the page does. */
@@ -172,6 +173,7 @@ export async function downloadDispoPdf(pdf: DispoPdf): Promise<void> {
         3: { cellWidth: 32 },
       },
       didParseCell: (cell) => {
+        cell.cell.text = cell.cell.text.map(pdfText);
         if (cell.section !== 'body') return;
         const stop = team.stops[cell.row.index];
         if (cell.column.index === 1) cell.cell.styles.fontStyle = 'bold';

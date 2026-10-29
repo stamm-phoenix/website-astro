@@ -155,12 +155,14 @@ export function anwesenheitListe(
         rows: names.map((name, index) => [String(index + 1), name, '', '']),
         alignRight: [0],
         widths: { 0: 12, 2: 18, 3: 26 },
+        handwriting: { rowHeight: 8 },
       },
       {
         heading: 'Gäste',
         columns: ['Name'],
-        // Two empty lines, so a name fits in by hand
-        rows: Array.from({ length: GUEST_ROWS }, () => [' \n ']),
+        rows: Array.from({ length: GUEST_ROWS }, () => ['']),
+        // Room for a name written by hand
+        handwriting: { rowHeight: 10 },
       },
     ],
     fileName: pdfFileName('Anwesenheitsliste', pdfText(stufe), date),

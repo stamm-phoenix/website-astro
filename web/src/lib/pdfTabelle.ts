@@ -4,31 +4,31 @@ import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn } from 'jspdf-autotable';
 import { saveFile } from './api';
 import { BRAND, FOOTER_SPACE, GREY, MARGIN, drawPageFooters, drawTitle, loadPdf } from './pdfBasis';
+import { pdfText } from './pdfText';
 
-export interface PdfTable {
-  /** Big heading on the first page, e.g. „Teilnehmende“. */
-  title: string;
-  /** Second line, e.g. the Aktion and its dates. */
-  subtitle: string;
-  /** Short notes below the subtitle, e.g. the active filter. */
-  notes?: string[];
+/** The columns and rows of one table. */
+export interface PdfTableBody {
   columns: string[];
   rows: string[][];
   /** Rows below the table, e.g. sums. */
   foot?: string[][];
   /** Column indexes to align right (amounts, numbers). */
   alignRight?: number[];
-  fileName: string;
-}
-
-/** The columns and rows of one table; the rest of `PdfTable` describes the page. */
-export interface PdfTableBody {
-  columns: string[];
-  rows: string[][];
-  foot?: string[][];
-  alignRight?: number[];
   /** Fixed widths in mm per column index, e.g. a narrow column to tick off. */
   widths?: Record<number, number>;
+  /** For lists filled in by hand: lines around every cell and rows of at least this many mm. */
+  handwriting?: { rowHeight: number };
+}
+
+/** One table on its own, e.g. the Teilnehmende. */
+export interface PdfTable extends PdfTableBody {
+  /** Big heading on the first page, e.g. „Teilnehmende“. */
+  title: string;
+  /** Second line, e.g. the Aktion and its dates. */
+  subtitle: string;
+  /** Short notes below the subtitle, e.g. the active filter. */
+  notes?: string[];
+  fileName: string;
 }
 
 export interface PdfSection extends Partial<PdfTableBody> {
@@ -66,14 +66,23 @@ export function drawTable(
     body: table.rows,
     foot: table.foot,
     showFoot: 'lastPage',
-    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
-    headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
-    footStyles: { fillColor: [235, 238, 242], textColor: BRAND, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [247, 248, 250] },
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 1.5,
+      overflow: 'linebreak',
+      ...(table.handwriting
+        ? { minCellHeight: table.handwriting.rowHeight, lineWidth: 0.2, lineColor: [150, 150, 150] }
+        : {}),
+    },
+    headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold', minCellHeight: 0 },
+    footStyles: { fillColor: [235, 238, 242], textColor: BRAND, fontStyle: 'bold', minCellHeight: 0 },
+    alternateRowStyles: { fillColor: table.handwriting ? 255 : [247, 248, 250] },
     columnStyles: Object.fromEntries(
       Object.entries(table.widths ?? {}).map(([index, width]) => [index, { cellWidth: width }])
     ),
     didParseCell: (data) => {
+      data.cell.text = data.cell.text.map(pdfText);
       if (alignRight.has(data.column.index)) data.cell.styles.halign = 'right';
     },
   });
@@ -108,7 +117,7 @@ export async function downloadReportPdf(report: PdfReport): Promise<void> {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
       doc.setTextColor(...BRAND);
-      doc.text(section.heading, MARGIN, y + 4);
+      doc.text(pdfText(section.heading), MARGIN, y + 4);
       y += 8;
     }
     if (section.lines?.length) {
@@ -116,7 +125,7 @@ export async function downloadReportPdf(report: PdfReport): Promise<void> {
       doc.setFontSize(9);
       doc.setTextColor(...GREY);
       for (const line of section.lines) {
-        const wrapped = doc.splitTextToSize(line, width - 2 * MARGIN);
+        const wrapped = doc.splitTextToSize(pdfText(line), width - 2 * MARGIN);
         doc.text(wrapped, MARGIN, y);
         y += 4.5 * wrapped.length;
       }
