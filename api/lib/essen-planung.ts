@@ -76,7 +76,7 @@ export const LINK_UNGUELTIG = () =>
     'Dieser Link gilt nicht (mehr). Vielleicht wurde er durch einen neuen ersetzt oder der Zugang entzogen. Neue Links bekommst du auf der Seite „Essensplanung“ unter „Meine Planungen“.'
   );
 
-const NUR_LESEN = () =>
+export const NUR_LESEN = () =>
   new PlanungError(403, 'NUR_LESEN', 'Mit diesem Link kannst du die Planung nur ansehen.');
 
 const NICHT_ERLAUBT = () =>
@@ -86,7 +86,7 @@ const NICHT_ERLAUBT = () =>
     'Das dürfen nur die Besitzer:innen der Planung (oder, wenn sie es erlauben, alle Bearbeitenden).'
   );
 
-const WARTUNG = () =>
+export const WARTUNG = () =>
   new PlanungError(
     503,
     'MAINTENANCE',

@@ -77,6 +77,7 @@ import * as essenPlanung from './mock-data/essensplanung-planung';
 import * as essenGerichte from './mock-data/essensplanung-gerichte';
 import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
 import * as essenEinkauf from './mock-data/essensplanung-einkauf';
+import * as essenKi from './mock-data/essensplanung-ki';
 import * as essenKochen from './mock-data/essensplanung-kochen';
 import { validateAbhaken } from '../../api/lib/essen-kochen-validation';
 import {
@@ -1438,7 +1439,86 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/gericht-zutaten/:id', (re
       essenGerichte.gerichtZutatAendern(z, id, null, req.headers['if-match'])
     );
   const input = { ...validateGerichtZutat(req.json), position: readPosition(req.json?.position) };
-  return essenAendern(req, (z) => essenGerichte.gerichtZutatAendern(z, id, input, req.json?.etag));
+  return essenAendern(req, (z) => {
+    essenKi.pruefePersonenDerZeile(z, id, req.json?.personen);
+    essenGerichte.gerichtZutatAendern(z, id, input, req.json?.etag);
+  });
+});
+
+route('POST', '/api/essensplanung/planung/gerichte/:id/zutaten/sammel', (req) => {
+  const zeilen = Array.isArray(req.json?.zeilen) ? req.json.zeilen : [];
+  if (!zeilen.length)
+    return error(400, 'INVALID', 'Bitte mindestens eine Zutat auswählen.', {
+      zeilen: 'Bitte mindestens eine Zutat auswählen.',
+    });
+  const fields: Record<string, string> = {};
+  const inputs = zeilen.flatMap((zeile, index) => {
+    try {
+      return [validateGerichtZutat(zeile)];
+    } catch (caught) {
+      if (!(caught instanceof ValidationError)) throw caught;
+      for (const [feld, text] of Object.entries(caught.fields))
+        fields[`zeilen.${index}.${feld}`] = text;
+      return [];
+    }
+  });
+  if (Object.keys(fields).length)
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', fields);
+  const id = Number(req.params.id);
+  const personen = typeof req.json?.personen === 'number' ? req.json.personen : undefined;
+  return essenAendern(req, (z) => essenKi.gerichtZutatenSammeln(z, id, inputs, personen), 201);
+});
+
+/** A question to the demo AI; „KI-Fehler“ answers 429 with Retry-After like a busy deployment. */
+function essenKiFrage(
+  req: MockRequest,
+  frage: (z: essenPlanung.MockZugang, wartung: boolean) => unknown
+) {
+  try {
+    return json(frage(essenZugang(req), essenEinstellungen().wartung));
+  } catch (caught) {
+    if (!(caught instanceof essenKi.MockKiBesetzt)) return essenFehler(caught);
+    return {
+      kind: 'raw',
+      status: 429,
+      contentType: 'application/json',
+      headers: { 'Retry-After': String(caught.retryAfter) },
+      body: JSON.stringify({
+        error: 'KI_NICHT_VERFUEGBAR',
+        code: 'KI_NICHT_VERFUEGBAR',
+        message: caught.message,
+        retryAfter: caught.retryAfter,
+      }),
+    } satisfies MockResult;
+  }
+}
+
+route('POST', '/api/essensplanung/planung/gerichte/:id/ki/pruefen', (req) =>
+  essenKiFrage(req, (z, wartung) => essenKi.kiPruefen(z, Number(req.params.id), wartung))
+);
+
+route('POST', '/api/essensplanung/planung/gerichte/:id/ki/rezept', (req) => {
+  const text = str(req.json?.text).trim();
+  if (!text)
+    return error(400, 'INVALID', 'Bitte ein Rezept einfügen.', {
+      text: 'Bitte ein Rezept einfügen.',
+    });
+  return essenKiFrage(req, (z, wartung) =>
+    essenKi.kiRezept(z, Number(req.params.id), text, wartung)
+  );
+});
+
+route('POST', '/api/essensplanung/planung/ki/umrechnung', (req) => {
+  const zutatId = Number(req.json?.zutatId);
+  const planungZutatId = Number(req.json?.planungZutatId);
+  const mass = ['tl', 'el', 'stueck'].find((entry) => entry === req.json?.mass) as
+    'tl' | 'el' | 'stueck' | undefined;
+  if (!mass)
+    return error(400, 'INVALID', 'Bitte TL, EL oder Stück wählen.', {
+      mass: 'Bitte TL, EL oder Stück wählen.',
+    });
+  const wahl = zutatId > 0 ? { zutatId } : { planungZutatId };
+  return essenKiFrage(req, (z, wartung) => essenKi.kiUmrechnung(z, wahl, mass, wartung));
 });
 
 route('POST', '/api/essensplanung/planung/einplanungen', (req) => {
