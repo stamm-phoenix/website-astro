@@ -66,7 +66,9 @@
   let basisEtag = untrack(() => gericht.etag);
   let kopf = $state<Kopf>(kopfVon(untrack(() => gericht)));
   let felder = $state<Record<string, string>>({});
-  const entwurf = $derived(!gleich(kopf, basis));
+  /** A tool name typed but not yet added. */
+  let werkzeugEntwurf = $state('');
+  const entwurf = $derived(!gleich(kopf, basis) || werkzeugEntwurf.trim() !== '');
   $effect(() => {
     const neu = kopfVon(gericht);
     untrack(() => {
@@ -86,6 +88,7 @@
     const eingaben = (Object.keys(kopf) as (keyof Kopf)[])
       .filter((feld) => !gleich(kopf[feld], basis[feld]))
       .map((feld) => `${FELD_NAMEN[feld]}: ${textVon(kopf[feld])}`)
+      .concat(werkzeugEntwurf.trim() ? [`${FELD_NAMEN.werkzeuge}: ${werkzeugEntwurf.trim()}`] : [])
       .join(' · ');
     const text = `„${gericht.name}“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: ${eingaben}`;
     // After the update that removes the card, which would not show a change made during it
@@ -348,6 +351,7 @@
             tags={kopf.werkzeuge}
             placeholder="z. B. Pürierstab"
             onchange={(werkzeuge) => (kopf.werkzeuge = werkzeuge)}
+            ondraftchange={(text) => (werkzeugEntwurf = text)}
           />
         {/snippet}
       </FormField>
@@ -434,6 +438,8 @@
                 target="_blank"
                 rel="noopener noreferrer">{link.titel || link.url}</a
               >
+              <!-- Paper has no links: the address is printed after the title -->
+              {#if link.titel}<span class="hidden print:inline">({link.url})</span>{/if}
             </li>
           {/each}
         </ul>
