@@ -45,7 +45,7 @@ import {
   validatePlanungEinstellungen,
   validateEinplanung,
   validateTag,
-} from '../lib/essen-planung-model';
+} from '../lib/essen-planung-validation';
 import { einplanen, einplanungAendern, einplanungLoeschen } from '../lib/essen-einplanung';
 import {
   eigeneZutatAnlegen,

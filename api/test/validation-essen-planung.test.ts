@@ -6,7 +6,7 @@ import {
   validateEinladung,
   validateEmail,
   validateMitgliedName,
-} from '../lib/essen-planung-model';
+} from '../lib/essen-planung-validation';
 import { fields } from './fixtures/essen-fields';
 
 const ANLEGEN = {

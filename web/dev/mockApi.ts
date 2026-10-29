@@ -91,7 +91,7 @@ import {
   validateMitgliedName,
   validatePlanungEinstellungen,
   validateTag,
-} from '../../api/lib/essen-planung-model';
+} from '../../api/lib/essen-planung-validation';
 import {
   validateEssenEinstellungen,
   validateListName,

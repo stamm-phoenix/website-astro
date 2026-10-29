@@ -2,19 +2,13 @@ import type { Gericht, PlanungZutat } from './essen-gerichte-model';
 import type { z } from 'zod';
 import { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor } from './essen-planung-faktor';
 import { MAX_TAGE, addDays, daysBetween, loeschDatum, readDatum } from './essen-planung-datum';
-import {
+import type {
   anlegenSchema,
   beitrittSchema,
   einladungSchema,
-  einplanungSchema,
-  emailSchema,
   mahlzeitSchema,
-  mitgliedNameSchema,
   planungEinstellungenSchema,
-  positionSchema,
-  tagSchema,
 } from './essen-planung-schema';
-import { parseWith } from './validation/zod';
 
 export { MAX_TAGE, addDays, daysBetween, loeschDatum, readDatum };
 export { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor };
@@ -177,52 +171,14 @@ export function nummeriereTage(
 
 export type AnlegenInput = z.output<typeof anlegenSchema>;
 
-export function validateAnlegen(input: unknown): AnlegenInput {
-  return parseWith(anlegenSchema, input);
-}
-
-export function validateMitgliedName(input: unknown): string {
-  return parseWith(mitgliedNameSchema, input).name;
-}
-
 export type BeitrittInput = z.output<typeof beitrittSchema>;
 
-export function validateBeitritt(input: unknown): BeitrittInput {
-  return parseWith(beitrittSchema, input);
-}
-
 export type EinladungInput = z.output<typeof einladungSchema>;
-
-export function validateEinladung(input: unknown): EinladungInput {
-  return parseWith(einladungSchema, input);
-}
-
-export function validateEmail(input: unknown): string {
-  return parseWith(emailSchema, input).email;
-}
 
 /** The fields of the Planung someone changed, each with the value the form started from. */
 export type PlanungEinstellungenInput = z.output<typeof planungEinstellungenSchema>;
 
-export function validatePlanungEinstellungen(input: unknown): PlanungEinstellungenInput {
-  return parseWith(planungEinstellungenSchema, input);
-}
-
-export function validateTag(input: unknown): string {
-  return parseWith(tagSchema, input).datum;
-}
-
 export type MahlzeitInput = z.output<typeof mahlzeitSchema>;
-
-export function validateMahlzeit(input: unknown): MahlzeitInput {
-  return parseWith(mahlzeitSchema, input);
-}
-
-/** A position (1-based) for moving a meal within its day, or undefined. */
-export function readPosition(value: unknown): number | undefined {
-  const position = positionSchema.safeParse(value);
-  return position.success ? position.data : undefined;
-}
 
 /**
  * The newest of some versions (rowversions grow with every change). A whole that is deleted
@@ -249,10 +205,6 @@ export interface EinplanungInput {
   faktor: number;
   zustaendigId: number | null;
   zustaendigText: string;
-}
-
-export function validateEinplanung(input: unknown): EinplanungInput {
-  return parseWith(einplanungSchema, input);
 }
 
 /** Shown text of a change, e.g. „Mahlzeit 3_1 umbenannt: Frühstück“. */

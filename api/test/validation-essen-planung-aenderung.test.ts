@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readDatum } from '../lib/essen-planung-model';
 import {
-  readDatum,
   readPosition,
   validateMahlzeit,
   validatePlanungEinstellungen,
   validateTag,
-} from '../lib/essen-planung-model';
+} from '../lib/essen-planung-validation';
 import { fields } from './fixtures/essen-fields';
 
 const NAME_FEHLT = 'Bitte einen Namen eintragen.';
