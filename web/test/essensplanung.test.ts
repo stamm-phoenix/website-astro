@@ -59,6 +59,8 @@ test('amounts accept a comma and stay empty without a number', () => {
   assert.equal(mengeFeld(1.5), '1,5');
   assert.equal(mengeText(1500, 'g'), '1.500 g');
   assert.equal(mengeText(null, null), null);
+  assert.equal(mengeText(2, 'kg', true), '2 kg (ATG)');
+  assert.equal(mengeText(3, 'stueck', true), '3 Stück');
 });
 
 test('a line names for whom it is only when not for everyone', () => {

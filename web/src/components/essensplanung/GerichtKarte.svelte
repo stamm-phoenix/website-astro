@@ -234,7 +234,7 @@
               <p class="text-neutral-900 [overflow-wrap:anywhere]">
                 {#if zeile.menge !== null}
                   <span class="font-semibold tabular-nums"
-                    >{mengeText(zeile.menge, zeile.einheit)}</span
+                    >{mengeText(zeile.menge, zeile.einheit, zutat?.abtropfgewicht)}</span
                   >
                 {/if}
                 {zutat?.name ?? 'Zutat'}

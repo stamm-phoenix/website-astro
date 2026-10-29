@@ -194,3 +194,58 @@ test('a dish deleted by someone else shows the unsaved input', async ({ page, br
   ).toBeVisible({ timeout: 15_000 });
   await anderes.context().close();
 });
+
+test('drained weight is marked; a typed unit stays when others change the ingredient', async ({
+  page,
+  browser,
+}) => {
+  await anlegen(page, 'E2E Einheiten');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Eintopf');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Eintopf angelegt.').first()).toBeVisible();
+  const eintopf = page.locator('li', { has: page.getByText('Eintopf', { exact: true }) }).first();
+  const dialog = page.getByRole('dialog');
+
+  // Tins are weighed drained
+  await eintopf.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await dialog.getByLabel('Zutat', { exact: true }).fill('Kidneyb');
+  await dialog.getByRole('option', { name: 'Kidneybohnen' }).click();
+  await dialog.getByLabel('Menge', { exact: true }).fill('2');
+  await dialog.getByLabel('Einheit', { exact: true }).selectOption('kg');
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(eintopf.getByText('2 kg (ATG)')).toBeVisible();
+
+  // An own ingredient without an amount
+  await eintopf.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await dialog.getByLabel('Zutat', { exact: true }).fill('Hausbrühe');
+  await dialog.getByRole('button', { name: 'Als eigene Zutat dieser Planung anlegen' }).click();
+  await dialog.getByLabel('Kategorie', { exact: true }).selectOption({ label: 'Gewürz' });
+  await dialog.getByLabel('Gemessen in', { exact: true }).selectOption({ label: 'Volumen (ml/l)' });
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(eintopf.getByText('Hausbrühe')).toBeVisible();
+
+  // A types 1,5 l while B measures the ingredient in packs: the unit is not turned into packs
+  await eintopf.getByRole('button', { name: 'Hausbrühe ändern' }).click();
+  await dialog.getByLabel('Menge', { exact: true }).fill('1,5');
+  await dialog.getByLabel('Einheit', { exact: true }).selectOption('l');
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText(/Zutaten dieser Planung/).click();
+  await anderes.getByRole('button', { name: 'Hausbrühe ändern' }).click();
+  await anderes
+    .getByRole('dialog')
+    .getByLabel('Gemessen in', { exact: true })
+    .selectOption({ label: 'Packung' });
+  await anderes.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click();
+  await expect(anderes.getByText('Hausbrühe gespeichert.').first()).toBeVisible();
+  await expect(dialog.getByText(/inzwischen auf „Packung“ umgestellt/)).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(dialog.getByLabel('Einheit', { exact: true })).toHaveValue('l');
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog).toBeVisible();
+  await expect(eintopf.getByText(/1,5/)).toHaveCount(0);
+  await anderes.context().close();
+});

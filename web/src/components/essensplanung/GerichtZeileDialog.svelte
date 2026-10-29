@@ -10,7 +10,7 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { EINHEITENART_LABELS } from '../../lib/essensplanungSteuerung';
   import { leseMenge, mengeFeld, zutatVorschlaege } from '../../lib/essensplanungGerichte';
-  import { EINHEITEN_JE_ART, EINHEIT_TEXT } from '../../../../api/lib/essen-gerichte-model';
+  import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type {
     EssenEinheitenart,
     EssenKatalog,
@@ -103,19 +103,34 @@
 
   const vorschlaege = $derived(zutatVorschlaege(katalog, ansicht.zutaten));
 
-  /** The kind of unit of the chosen ingredient, as it applies in this Planung. */
-  const einheitenart = $derived.by((): EssenEinheitenart | null => {
-    if (eigene) return eigene.einheitenart;
-    if (!auswahl) return null;
-    if (auswahl.art === 'planung')
-      return ansicht.zutaten.find((z) => z.id === auswahl!.id)?.einheitenart ?? null;
-    return katalog.zutaten.find((z) => z.id === auswahl!.id)?.einheitenart ?? null;
+  /** The chosen ingredient, as it applies in this Planung. */
+  const gewaehlt = $derived.by(() => {
+    if (!auswahl) return undefined;
+    const id = auswahl.id;
+    if (auswahl.art === 'planung') return ansicht.zutaten.find((z) => z.id === id);
+    return katalog.zutaten.find((z) => z.id === id);
   });
+  /** The kind of unit of the chosen ingredient. */
+  const einheitenart = $derived<EssenEinheitenart | null>(
+    eigene ? eigene.einheitenart : (gewaehlt?.einheitenart ?? null)
+  );
   const einheiten = $derived(einheitenart ? EINHEITEN_JE_ART[einheitenart] : []);
-  // A unit that fits the ingredient, e.g. kg instead of ml after picking flour
-  $effect(() => {
+  const passendeEinheit = (): void => {
     if (einheiten.length && !einheiten.includes(einheit)) einheit = einheiten[0];
+  };
+  // Without an amount the unit follows the ingredient. A typed amount keeps its unit when
+  // others change the ingredient meanwhile; the field then asks for a fix
+  $effect(() => {
+    if (!menge.trim()) passendeEinheit();
   });
+  // The kind of unit of a new own ingredient is always chosen here
+  $effect(() => {
+    if (eigene?.einheitenart) untrack(passendeEinheit);
+  });
+  /** The typed unit no longer fits the ingredient, changed by others meanwhile. */
+  const einheitPasstNicht = $derived(
+    menge.trim() !== '' && einheiten.length > 0 && !einheiten.includes(einheit)
+  );
 
   function waehle(option: Vorschlag): void {
     const [art, id] = (option.key ?? '').split(':');
@@ -123,6 +138,8 @@
     zutatText = option.value;
     eigene = null;
     geaendert = true;
+    // An explicit choice: a unit that fits it, e.g. kg instead of ml after picking flour
+    passendeEinheit();
   }
 
   function getippt(text: string): void {
@@ -242,7 +259,7 @@
     if (!geaendert) return;
     const eingabe = [
       zutatText.trim(),
-      menge.trim() && `${menge.trim()} ${EINHEIT_TEXT[einheit]}`,
+      menge.trim() && `${menge.trim()} ${einheitText(einheit)}`,
       hinweis.trim(),
     ]
       .filter(Boolean)
@@ -360,7 +377,14 @@
             />
           {/snippet}
         </FormField>
-        <FormField id="zeile-einheit" label="Einheit" error={felder.einheit}>
+        <FormField
+          id="zeile-einheit"
+          label="Einheit"
+          error={felder.einheit ??
+            (einheitPasstNicht && einheitenart
+              ? `Die Zutat ist inzwischen auf „${EINHEITENART_LABELS[einheitenart]}“ umgestellt. Bitte die Einheit wählen.`
+              : undefined)}
+        >
           {#snippet children(attrs)}
             <select
               {...attrs}
@@ -368,8 +392,11 @@
               bind:value={einheit}
               disabled={!einheiten.length || !menge.trim()}
             >
+              {#if einheitPasstNicht}
+                <option value={einheit} disabled>{einheitText(einheit)}</option>
+              {/if}
               {#each einheiten as wert (wert)}
-                <option value={wert}>{EINHEIT_TEXT[wert]}</option>
+                <option value={wert}>{einheitText(wert, gewaehlt?.abtropfgewicht)}</option>
               {/each}
             </select>
           {/snippet}

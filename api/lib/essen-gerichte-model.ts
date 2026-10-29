@@ -177,7 +177,18 @@ export function gerichtWarnungen(
 }
 
 /** The amount of a line as shown, e.g. „1,5 kg“; null without an amount. */
-export function mengeText(menge: number | null, einheit: GerichtEinheit | null): string | null {
+export function mengeText(
+  menge: number | null,
+  einheit: GerichtEinheit | null,
+  abtropfgewicht = false
+): string | null {
   if (menge === null || einheit === null) return null;
-  return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 }).format(menge)} ${EINHEIT_TEXT[einheit]}`;
+  return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 }).format(menge)} ${einheitText(einheit, abtropfgewicht)}`;
+}
+
+/** The unit as shown, e.g. „kg (ATG)“ for the drained weight of tins and jars. */
+export function einheitText(einheit: GerichtEinheit, abtropfgewicht = false): string {
+  return abtropfgewicht && (einheit === 'g' || einheit === 'kg')
+    ? `${EINHEIT_TEXT[einheit]} (ATG)`
+    : EINHEIT_TEXT[einheit];
 }
