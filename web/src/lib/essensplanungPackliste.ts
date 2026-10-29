@@ -136,11 +136,15 @@ export function packlisteDruck(zeilen: PackZeile[]): PackDruckZeile[] {
 }
 
 /**
- * The id of a row's elements. Encodes the whole key, so „Grill-Zange“ and „Grill Zange“, two
- * rows of the list, never share a box and its label.
+ * The id of a row's elements: the UTF-16 code units of the key in hex. Never throws, also for a
+ * lone surrogate a name may have from elsewhere, and loses nothing, so „Grill-Zange“ and
+ * „Grill Zange“, two rows of the list, never share a box and its label.
  */
 export function packId(key: string): string {
-  return `pack-${encodeURIComponent(key)}`;
+  let hex = '';
+  for (let index = 0; index < key.length; index++)
+    hex += key.charCodeAt(index).toString(16).padStart(4, '0');
+  return `pack-${hex}`;
 }
 
 /**

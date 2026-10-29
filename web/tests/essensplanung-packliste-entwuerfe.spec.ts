@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, answerConfirm } from './fixtures';
 import { anlegen, pdfLaden } from './essensplanung-helpers';
 import { gerichteMitWerkzeugen, senden } from './essensplanung-packliste-helpers';
 
@@ -164,4 +164,24 @@ test('a name typed at a tool no dish needs any more is named to copy', async ({
       .getByRole('listitem')
       .filter({ hasText: 'Pürierstab' })
   ).toHaveCount(0);
+});
+
+test('an entry whose free name was just typed is removed right away', async ({ page }) => {
+  await anlegen(page, 'E2E Packliste entfernen');
+  await page.getByRole('tab', { name: 'Packliste' }).click();
+  const neu = page.getByLabel('Noch etwas einpacken');
+  await neu.fill('Gaskocher');
+  await neu.press('Enter');
+  const liste = page.getByRole('list', { name: 'Packliste' });
+  await expect(liste.getByRole('listitem').filter({ hasText: 'Gaskocher' })).toHaveCount(1);
+
+  // The name is saved on leaving the field with the tap on „Entfernen“, then the entry goes
+  await page.getByLabel('Wer packt Gaskocher ein?').selectOption({ label: 'Anderer Name …' });
+  await page.getByRole('textbox', { name: 'Wer packt Gaskocher ein?' }).fill('Rover');
+  await page.getByRole('button', { name: 'Gaskocher entfernen' }).click();
+  await answerConfirm(page, 'Gaskocher von der Packliste nehmen?', 'Entfernen');
+  await expect(
+    page.getByText('Gaskocher steht nicht mehr auf der Packliste.').first()
+  ).toBeVisible();
+  await expect(liste.getByRole('listitem').filter({ hasText: 'Gaskocher' })).toHaveCount(0);
 });

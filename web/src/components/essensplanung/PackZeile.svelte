@@ -12,7 +12,7 @@
     type PackZeile,
   } from '../../lib/essensplanungPackliste';
   import type { EntwurfAktionen } from './packEntwuerfe.svelte';
-  import { merkeSpeichern, type PlanKontext } from './planKontext';
+  import { gespeichert, merkeSpeichern, type PlanKontext } from './planKontext';
 
   /**
    * One thing on the packing list. The box packs it, the choice next to it says who packs it;
@@ -109,10 +109,21 @@
   }
 
   async function entfernen(): Promise<void> {
-    const eintrag = zeile.eintrag!;
+    // A name left with this click saves first, so the version below includes it
+    if (!(await gespeichert())) {
+      kontext.hinweis(
+        `Eine Änderung an ${zeile.name} ist noch nicht gespeichert, der Eintrag wurde nicht entfernt. Speichere sie in der Zeile und versuche es noch einmal.`,
+        'error'
+      );
+      return;
+    }
+    // The entry as asked about: a change of others during the question is a conflict
+    const eintrag = zeile.eintrag;
+    const name = zeile.name;
+    if (!eintrag) return;
     if (
       !(await confirmAction({
-        title: `${zeile.name} von der Packliste nehmen?`,
+        title: `${name} von der Packliste nehmen?`,
         message: 'Der Eintrag verschwindet für alle.',
         confirmLabel: 'Entfernen',
       }))
@@ -120,7 +131,7 @@
       return;
     await kontext.aendern(
       () => kontext.api.senden('DELETE', `/packliste/${eintrag.id}`, undefined, eintrag.etag),
-      `${zeile.name} steht nicht mehr auf der Packliste.`
+      `${name} steht nicht mehr auf der Packliste.`
     );
   }
 </script>

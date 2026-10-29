@@ -199,6 +199,13 @@ test('rows whose names differ only in signs get their own ids', () => {
   for (const id of ids) assert.doesNotMatch(id, /\s/);
 });
 
+test('a name with a lone surrogate gets an id too, distinct from its neighbours', () => {
+  assert.equal(packId('w:a\ud800'), 'pack-0077003a0061d800');
+  assert.notEqual(packId('w:\ud800'), packId('w:\ud801'));
+  assert.notEqual(packId('w:\ud83d\ude00'), packId('w:\ud83d'));
+  assert.match(packId('e:12'), /^pack-[0-9a-f]+$/);
+});
+
 test('the member responsible stays a choice after losing access, also when the view lacks them', () => {
   const mitglieder = [
     { id: 1, name: 'Kim', entzogen: false },
