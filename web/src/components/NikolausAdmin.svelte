@@ -107,12 +107,13 @@
             bookings: (data?.bookings ?? []).filter(isActiveBooking),
             filters: [ACTIVE_STATUSES.map((status) => STATUS_LABEL[status]).join(', ')],
           };
-    const { downloadAnmeldungenPdf } = await import('../lib/nikolausAnmeldungenPdf');
-    await downloadAnmeldungenPdf({
+    const pdf = {
       ...shown,
       problems,
       fileName: `nikolaus-anmeldungen-${new Date().toLocaleDateString('sv-SE')}.pdf`,
-    });
+    };
+    const { downloadAnmeldungenPdf } = await import('../lib/nikolausAnmeldungenPdf');
+    await downloadAnmeldungenPdf(pdf);
   }
 
   const loadedAtText = $derived(

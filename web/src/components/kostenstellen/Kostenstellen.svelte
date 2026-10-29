@@ -71,15 +71,10 @@
     pdfBusy = true;
     pdfNotice = null;
     try {
+      // The filters as they were on the click, also if one changes while the PDF loads
+      const shown = { kostenstellen: liste, ansicht, jahr, suche, sortierung, loadedAt };
       const { downloadKostenstellen } = await import('../../lib/kostenstellenPdf');
-      await downloadKostenstellen({
-        kostenstellen: liste,
-        ansicht,
-        jahr,
-        suche,
-        sortierung,
-        loadedAt,
-      });
+      await downloadKostenstellen(shown);
       pdfNotice = { text: 'PDF heruntergeladen.', kind: 'success' };
     } catch (error) {
       pdfNotice = {

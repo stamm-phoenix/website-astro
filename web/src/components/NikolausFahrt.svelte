@@ -173,12 +173,13 @@
 
   async function createPdf(): Promise<void> {
     if (!data || !team) return;
-    const { downloadFahrtPdf, fahrtPdfTeam } = await import('../lib/nikolausFahrtPdf');
+    const [shown, shownTeam, shownStops, shownDate] = [data, team, stops, date];
     const stand = offline && lastSync ? ` · Stand ${formatTime(lastSync)} Uhr` : '';
+    const { downloadFahrtPdf, fahrtPdfTeam } = await import('../lib/nikolausFahrtPdf');
     await downloadFahrtPdf(
-      fahrtPdfTeam(data, team, stops),
-      `Nikolaus-Route ${formatShortDate(date)}${stand}`,
-      `nikolaus-route-${date}-team-${team.replace(/[^\w-]+/g, '-')}.pdf`
+      fahrtPdfTeam(shown, shownTeam, shownStops),
+      `Nikolaus-Route ${formatShortDate(shownDate)}${stand}`,
+      `nikolaus-route-${shownDate}-team-${shownTeam.replace(/[^\w-]+/g, '-')}.pdf`
     );
   }
 

@@ -45,8 +45,9 @@
     pdfBusy = true;
     pdfNotice = null;
     try {
+      const shown = { batches: visible, fees, search, hideDone, loadedAt };
       const { downloadSammlungen } = await import('../../lib/beitraegePdf');
-      await downloadSammlungen({ batches: visible, fees, search, hideDone, loadedAt });
+      await downloadSammlungen(shown);
       pdfNotice = { text: 'PDF heruntergeladen.', kind: 'success' };
     } catch (error) {
       pdfNotice = {

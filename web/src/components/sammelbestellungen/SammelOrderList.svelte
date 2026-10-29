@@ -54,8 +54,9 @@
     pdfBusy = true;
     pdfNotice = null;
     try {
+      const shown = { campaignTitle, orders: filtered, filters };
       const { downloadAusgabeliste } = await import('../../lib/sammelPdf');
-      await downloadAusgabeliste({ campaignTitle, orders: filtered, filters });
+      await downloadAusgabeliste(shown);
       pdfNotice = { text: 'Ausgabeliste heruntergeladen.', kind: 'success' };
     } catch (error) {
       pdfNotice = {

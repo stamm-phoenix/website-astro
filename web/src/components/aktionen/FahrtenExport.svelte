@@ -27,8 +27,9 @@
   }
 
   async function downloadPdf(): Promise<void> {
+    const shown = { title, range, plans };
     const { downloadFahrtenPdf } = await import('../../lib/fahrtenPdf');
-    await downloadFahrtenPdf({ title, range, plans });
+    await downloadFahrtenPdf(shown);
   }
 </script>
 

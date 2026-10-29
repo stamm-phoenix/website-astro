@@ -123,15 +123,17 @@
         >Checkliste aus Vorlage</ActionButton
       >
       <PdfDownloadButton
-        download={async () =>
-          (await import('../lib/aufgabenPdf')).downloadAufgabenPdf({
+        download={async () => {
+          const shown = {
             tasks: visible,
             projects: data.projects,
             users: aufgabenStore.users,
             status: statusFilter,
             project: projectFilter,
             ownOnly,
-          })}
+          };
+          await (await import('../lib/aufgabenPdf')).downloadAufgabenPdf(shown);
+        }}
         errorText="Das PDF der Aufgaben konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal."
       />
     {/if}

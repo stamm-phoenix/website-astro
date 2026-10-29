@@ -46,11 +46,10 @@
           >
           <PdfDownloadButton
             label="PDF herunterladen: Checkliste {template.title}"
-            download={async () =>
-              (await import('../lib/aufgabenPdf')).downloadVorlagePdf(
-                template,
-                aufgabenStore.users
-              )}
+            download={async () => {
+              const users = aufgabenStore.users;
+              await (await import('../lib/aufgabenPdf')).downloadVorlagePdf(template, users);
+            }}
             errorText="Das PDF der Checkliste konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal."
           />
         </div>

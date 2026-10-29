@@ -160,8 +160,7 @@
   }
 
   async function downloadPdf(title: string, range: string): Promise<void> {
-    const { downloadTeilnehmendePdf } = await import('../lib/aktionTeilnehmendePdf');
-    await downloadTeilnehmendePdf({
+    const shown = {
       title,
       range,
       columns: shownColumns,
@@ -170,7 +169,9 @@
       search,
       sortLabel: (available.find((c) => c.key === sortKey) ?? available[0])?.label ?? 'Name',
       sortAsc,
-    });
+    };
+    const { downloadTeilnehmendePdf } = await import('../lib/aktionTeilnehmendePdf');
+    await downloadTeilnehmendePdf(shown);
   }
 
   function sortBy(key: string): void {

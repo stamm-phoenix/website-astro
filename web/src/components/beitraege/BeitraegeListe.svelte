@@ -66,15 +66,16 @@
     pdfBusy = true;
     pdfNotice = null;
     try {
-      const { downloadBeitraegeListe } = await import('../../lib/beitraegePdf');
-      await downloadBeitraegeListe({
+      const shown = {
         title,
         fees: visible,
         filter,
         kostenstelle: units.find((unit) => unit.id === kostenstelle)?.name ?? '',
         search,
         loadedAt,
-      });
+      };
+      const { downloadBeitraegeListe } = await import('../../lib/beitraegePdf');
+      await downloadBeitraegeListe(shown);
       pdfNotice = { text: 'PDF heruntergeladen.', kind: 'success' };
     } catch (error) {
       pdfNotice = {

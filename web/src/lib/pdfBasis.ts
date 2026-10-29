@@ -31,11 +31,16 @@ export function drawTitle(doc: JsPdf, title: string, lines: string[]): number {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(...BRAND);
-  doc.text(pdfText(title), MARGIN, 18);
+  // A long title, e.g. the question of an Abstimmung, wraps instead of running off the page
+  const titleLines: string[] = doc.splitTextToSize(
+    pdfText(title),
+    doc.internal.pageSize.getWidth() - 2 * MARGIN
+  );
+  doc.text(titleLines, MARGIN, 18);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(...GREY);
-  let y = 25;
+  let y = 25 + 7 * (titleLines.length - 1);
   for (const line of lines) {
     const wrapped = doc.splitTextToSize(
       pdfText(line),

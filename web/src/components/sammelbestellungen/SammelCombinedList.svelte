@@ -32,14 +32,9 @@
     pdfBusy = true;
     pdfNotice = null;
     try {
+      const shown = { campaignTitle, shop: exportShop, items: combined, prices, linePrice };
       const { downloadBestellliste } = await import('../../lib/sammelPdf');
-      await downloadBestellliste({
-        campaignTitle,
-        shop: exportShop,
-        items: combined,
-        prices,
-        linePrice,
-      });
+      await downloadBestellliste(shown);
       pdfNotice = { text: 'Bestellliste heruntergeladen.', kind: 'success' };
     } catch (error) {
       pdfNotice = {

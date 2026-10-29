@@ -407,12 +407,11 @@
           {#if !termin.cancelled && ownStufe.length > 0}
             <PdfDownloadButton
               text="Liste zum Ausfüllen (PDF)"
-              download={async () =>
-                (await import('../../lib/anwesenheitPdf')).downloadAnwesenheitListe(
-                  stufe,
-                  termin.date,
-                  ownStufe
-                )}
+              download={async () => {
+                const [shownStufe, shownDate, children] = [stufe, termin.date, ownStufe];
+                const { downloadAnwesenheitListe } = await import('../../lib/anwesenheitPdf');
+                await downloadAnwesenheitListe(shownStufe, shownDate, children);
+              }}
             />
           {/if}
         </div>
