@@ -9,7 +9,14 @@
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { EINHEITENART_LABELS } from '../../lib/essensplanungSteuerung';
-  import { leseMenge, mengeFeld, zutatVorschlaege } from '../../lib/essensplanungGerichte';
+  import {
+    getippteZutat,
+    leseMenge,
+    mengeFeld,
+    zutatVorschlaege,
+    zutatWahl,
+    type ZutatWahl,
+  } from '../../lib/essensplanungGerichte';
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type {
     EssenEinheitenart,
@@ -39,8 +46,7 @@
   let { kontext, katalog, gericht, zeile, open, onclose }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
 
-  type Auswahl = { art: 'zentral' | 'planung'; id: number };
-  let auswahl = $state<Auswahl | null>(null);
+  let auswahl = $state<ZutatWahl | null>(null);
   let zutatText = $state('');
   let menge = $state('');
   let einheit = $state<GerichtEinheit>('g');
@@ -176,21 +182,23 @@
   );
 
   function waehle(option: Vorschlag): void {
-    const [art, id] = (option.key ?? '').split(':');
-    auswahl = { art: art === 'p' ? 'planung' : 'zentral', id: Number(id) };
+    nimm(option);
     zutatText = option.value;
+  }
+
+  function nimm(option: Vorschlag): void {
+    auswahl = zutatWahl(option);
     eigene = null;
     geaendert = true;
     // An explicit choice: a unit that fits it, e.g. kg instead of ml after picking flour
     passendeEinheit();
   }
 
+  /** A typed name of the list counts as chosen; the text stays as typed. */
   function getippt(text: string): void {
     geaendert = true;
-    const treffer = vorschlaege.find(
-      (option) => option.value.localeCompare(text.trim(), 'de', { sensitivity: 'base' }) === 0
-    );
-    if (treffer) waehle(treffer);
+    const treffer = getippteZutat(vorschlaege, text);
+    if (treffer) nimm(treffer);
     else auswahl = null;
   }
 
@@ -299,8 +307,7 @@
       zeile ? `${zutatText} geändert.` : `${zutatText} hinzugefügt.`
     );
     if (ok) {
-      geaendert = false;
-      onclose();
+      zu();
       return;
     }
     if (!Object.keys(felder).length) fehler = kontext.fehler;
@@ -312,10 +319,18 @@
     if (jetzt && abgelehnt instanceof ApiError && abgelehnt.status === 409) zeileEtag = jetzt.etag;
   }
 
+  /** Closed on purpose (saved or discarded), not taken away by a deletion of others. */
+  let geschlossen = false;
+  function zu(): void {
+    geschlossen = true;
+    geaendert = false;
+    onclose();
+  }
+
   // The dish or the line is deleted by someone else while the dialog is open: the dialog goes,
   // so the input is shown to copy
   $effect(() => () => {
-    if (!geaendert) return;
+    if (geschlossen || !geaendert) return;
     const eingabe = [
       zutatText.trim(),
       menge.trim() && `${menge.trim()} ${einheitText(einheit)}`,
@@ -339,8 +354,7 @@
       }))
     )
       return;
-    geaendert = false;
-    onclose();
+    zu();
   }
 </script>
 
@@ -366,6 +380,7 @@
             bind:value={zutatText}
             listLabel="Zutaten"
             placeholder="z. B. Spaghetti"
+            pickFirstOnEnter
             onpick={waehle}
             onedit={getippt}
             autocomplete="off"

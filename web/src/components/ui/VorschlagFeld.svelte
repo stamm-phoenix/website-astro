@@ -95,6 +95,10 @@
     return list;
   });
   const expanded = $derived(open && matches.length > 0 && !disabled);
+  /** The highlighted suggestion, or the first one that Enter would take; -1 for none. */
+  const markiert = $derived(
+    active >= 0 ? active : pickFirstOnEnter && value.trim() !== '' ? 0 : -1
+  );
   const showLoading = $derived(open && !disabled && loading && matches.length === 0);
   const announcement = $derived.by(() => {
     if (!focused || !open || disabled) return '';
@@ -281,7 +285,7 @@
     aria-autocomplete="list"
     aria-expanded={expanded}
     aria-controls="{id}-options"
-    aria-activedescendant={expanded && active >= 0 ? `${id}-option-${active}` : undefined}
+    aria-activedescendant={expanded && markiert >= 0 ? `${id}-option-${markiert}` : undefined}
     {disabled}
     oninput={(event) => {
       onedit?.(event.currentTarget.value);
@@ -316,10 +320,10 @@
                 type="button"
                 role="option"
                 id="{id}-option-{index}"
-                aria-selected={active === index}
+                aria-selected={markiert === index}
                 tabindex="-1"
                 class="flex min-h-11 w-full items-center break-words px-3 py-2 text-left hover:bg-neutral-100"
-                class:bg-neutral-100={active === index}
+                class:bg-neutral-100={markiert === index}
                 onclick={() => pick(option)}
                 ><span
                   >{#each trefferTeile(option.label ?? option.value, value) as part, partIndex (partIndex)}{#if part.hit}<mark

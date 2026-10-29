@@ -369,3 +369,31 @@ test('spoons and pieces are converted to grams from the list', async ({ page }) 
   await dialog.getByRole('option', { name: 'H-Milch', exact: true }).click();
   await expect(dialog.getByLabel('Anzahl zum Umrechnen')).toHaveCount(0);
 });
+
+test('typed text stays as typed, Enter takes the first suggestion; discarding says nothing', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E Vorschläge');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Salat');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Salat angelegt.').first()).toBeVisible();
+  const salat = page.locator('li', { has: page.getByText('Salat', { exact: true }) }).first();
+  const dialog = page.getByRole('dialog');
+  // „Ol“ is not „Öl“: the text stays, and Enter takes the best suggestion
+  await salat.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  const feld = dialog.getByLabel('Zutat', { exact: true });
+  await feld.pressSequentially('Ol');
+  await expect(feld).toHaveValue('Ol');
+  await expect(dialog.getByRole('option').first()).toHaveText('Oliven');
+  await feld.press('Enter');
+  await expect(feld).toHaveValue('Oliven');
+  await expect(dialog).toBeVisible();
+
+  // Discarding the new line closes without a message about a deleted dish
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Verwerfen');
+  await expect(dialog).toHaveCount(0);
+  await page.waitForTimeout(500);
+  await expect(page.getByText(/das Gericht wurde gelöscht/)).toHaveCount(0);
+});

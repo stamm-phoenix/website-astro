@@ -7,7 +7,13 @@ import {
   planungUrl,
   tokenAusHash,
 } from '../src/lib/essensplanung.ts';
-import { fuerText, leseMenge, mengeFeld } from '../src/lib/essensplanungGerichte.ts';
+import {
+  fuerText,
+  getippteZutat,
+  leseMenge,
+  mengeFeld,
+  zutatWahl,
+} from '../src/lib/essensplanungGerichte.ts';
 import { mengeText } from '../../api/lib/essen-gerichte-model.ts';
 import {
   AENDERUNG_TEXTE,
@@ -172,4 +178,15 @@ test('every kind of change has its own text, a chosen shop is named', () => {
     text('zutat-geschaeft', { name: 'Salz', geschaeft: null }),
     'Kim hat ein Geschäft entfernt: Salz'
   );
+});
+
+test('a typed name of the list is that ingredient, umlauts count', () => {
+  const vorschlaege = [
+    { key: 'p:7', value: 'Öl' },
+    { key: 'z:3', value: 'Oliven' },
+  ];
+  assert.equal(getippteZutat(vorschlaege, 'Ol'), undefined);
+  assert.equal(getippteZutat(vorschlaege, ' öl ')?.key, 'p:7');
+  assert.deepEqual(zutatWahl(getippteZutat(vorschlaege, 'oliven')!), { art: 'zentral', id: 3 });
+  assert.deepEqual(zutatWahl(vorschlaege[0]), { art: 'planung', id: 7 });
 });

@@ -68,6 +68,26 @@ export function zutatVorschlaege(
   ];
 }
 
+/** An ingredient chosen for a line: from the central list or of the Planung. */
+export interface ZutatWahl {
+  art: 'zentral' | 'planung';
+  id: number;
+}
+
+/** The ingredient a suggestion of `zutatVorschlaege` stands for. */
+export function zutatWahl(option: Vorschlag): ZutatWahl {
+  const [art, id] = (option.key ?? '').split(':');
+  return { art: art === 'p' ? 'planung' : 'zentral', id: Number(id) };
+}
+
+/** The suggestion whose name was typed, ignoring case but not umlauts (Ol is not Öl). */
+export function getippteZutat(vorschlaege: Vorschlag[], text: string): Vorschlag | undefined {
+  const name = text.trim();
+  return vorschlaege.find(
+    (option) => option.value.localeCompare(name, 'de', { sensitivity: 'accent' }) === 0
+  );
+}
+
 /** „vegan“, „vegetarisch“, „nicht vegetarisch“ or null while unknown. */
 export function ernaehrung(zutat: Pick<PlanungZutat, 'vegetarisch' | 'vegan'>): string | null {
   if (zutat.vegan) return 'vegan';
