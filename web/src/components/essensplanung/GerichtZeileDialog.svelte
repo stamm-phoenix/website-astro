@@ -141,11 +141,16 @@
   let mass = $state('');
   const gramm = $derived.by(() => {
     const zahl = leseMenge(anzahl);
-    const eintrag = umrechnung.find((entry) => entry.mass === mass) ?? umrechnung[0];
+    const eintrag = umrechnung.find((entry) => entry.mass === mass);
     if (!eintrag || zahl === null || Number.isNaN(zahl)) return null;
     // Whole grams, a tenth below 10 g (spices)
     const roh = zahl * eintrag.gramm;
     return roh < 10 ? Math.round(roh * 10) / 10 : Math.round(roh);
+  });
+  // The measure shown is the one calculated with: the first one when the chosen is not offered
+  $effect(() => {
+    if (umrechnung.length && !umrechnung.some((entry) => entry.mass === mass))
+      mass = umrechnung[0].mass;
   });
   function uebernehmen(): void {
     if (gramm === null || gramm <= 0) return;

@@ -311,5 +311,5 @@ Die vollständige, fortgeschriebene Liste steht in #452.
 - Werkzeuge und Links stehen als JSON am Gericht statt in eigenen Tabellen (PR 4).
 - Gericht-Zeilen werden als Ganzes mit ihrer Version gespeichert; der Kopf des Gerichts nur mit den geänderten Feldern und seiner Version (PR 4).
 - PR 4 ist geteilt: 4a Gerichte, 4b Einplanung, 4c Umrechnungshilfe.
-- Umrechnungshilfe nur für Lebensmittel in g/kg und nur mit eindeutig zugeordneten, gestrichen gemessenen Werten: Mischen die Tabellen gehäufte und gestrichene Löffel, widersprechen sie sich um mehr als die Hälfte oder wiegt ein EL weniger als zwei TL, bleibt der Wert leer (lieber kein Wert als ein falscher) (PR 4c).
+- Umrechnungshilfe nur für Lebensmittel in g/kg und nur mit eindeutig zugeordneten, gestrichen gemessenen Werten: Werte aus der Tabelle „TL gehäuft / EL“ zählen nicht; widersprechen sich die Tabellen um mehr als die Hälfte oder wiegt ein EL weniger als zwei TL, bleibt der Wert leer (lieber kein Wert als ein falscher) (PR 4c).
 - Kopieren einer Einplanung legt eine neue an (gleiche Angaben, andere Mahlzeit); Ändern kann die Mahlzeit wechseln, nicht das Gericht (PR 4b).

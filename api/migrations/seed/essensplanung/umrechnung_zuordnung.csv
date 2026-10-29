@@ -1,68 +1,51 @@
-zutat,gramm_pro_tl,gramm_pro_el,gramm_pro_stueck
-Aprikosen,,,50
-Basilikum (getrocknet),2,6,
-Birnen,,,207
-Brokkoli,,,347
-Butter,5,15,
-Cashewnüsse,,,1.5
-Cayennepfeffer,5,15,
-Champignons,,,21
-Cornflakes,,3,
-Currypulver,1,4,
-Dillspitzen,2,5,
-Frischkäse,,25,
-Honigmelone,,,869
-Karotten,,,70
-Kartoffeln (festkochend),,,90
-Kartoffeln (mehlig),,,90
-Kartoffeln (vw festkochend),,,90
-Kartoffeln B-Ware,,,90
-Kartoffelstärke,,10,
-Kiwi,,,75
-Knoblauchpulver,6,18,
-Knollensellerie,,,652
-Kokosflocken,2,7,
-Kolrabi,,,265
-Kreuzkümmel (gemalen),3,12,
-Kurkuma,3,,
-Lauch,,,157
-Majoran,1,4,
-Mandelblättchen,,15,
-Mandeln,,,1
-"Mandeln (gemalen, blanchiert)",5,10,
-Marmelade,,20,
-Mehl (Weizen),,15,
-Mittelscharfer Senf,10,,
-Muskat,4,13,
-Oregano,1,3,
-Paniermehl,,12,
-Paprika,,,155
-Paprikapulver (edelsüß),7,18,
-Paprikapulver (geräuchert),7,18,
-Paprikapulver (scharf),7,18,
-Pfeffer,6,19,
-Pfirsich,,,128
-Pflaumen,,,52
-Preiselbeermarmelade,,20,
-Puddingpulver (Schoko),3,10,
-Puddingpulver (Vanille),3,10,
-Puderzucker,5,10,
-Reis (Basmati),,15,
-Reis (Langkorn),,15,
-Reis (Risotto),,15,
-Rosinen,,15,
-Rote Beete,,,135
-Salz,5,15,
-Schalotten,,,20
-Semmelbrösel,,12,
-Senf (mittelscharf),10,,
-Sesamsamen,3,7,
-Sonnenblumenkerne,,10,
-Speisestärke,5,15,
-Süßer Senf,10,,
-Süßkartoffeln,,,310
-Thymian,3,6,
-Tomaten,,,99
-Tymian,3,6,
-Zimt,2,,
-Zwiebeln,,,83
+zutat,gramm_pro_tl,gramm_pro_el,gramm_pro_stueck,quelle
+Aprikosen,,,50,stueck: Aprikosen 1 Stück (Obst) 50
+Birnen,,,207,stueck: Birnen 1 Stück (Obst) 207 (gewählt; essbar: Birne 1 mittelgroße 206)
+Brokkoli,,,347,stueck: Brokkoli 1 Stück (Gemüse) 347
+Butter,5,15,,loeffel: Butter 5/15; stueck-Tabelle hat 4/12
+Cashewnüsse,,,1.5,stueck: Cashewkern / Cahewnuss 1 Stück 1.5
+Champignons,,,21,stueck: Champignons 1 Stück (Gemüse) 21
+Cornflakes,,3,,EL: stueck Cornflakes 1 Esslöffel 3
+Currypulver,1,4,,TL: stueck Curry 1 Teelöffel 1; EL: stueck Curry 1 Esslöffel 4
+Frischkäse,,25,,loeffel: Frischkäse 13/25; stueck-Tabelle hat EL 30
+Honigmelone,,,869,stueck: Honigmelone 1 Stück 869
+Karotten,,,70,stueck: Karotten 1 Stück (Gemüse) 70 (gewählt; essbar: Möhre / Karotte 62)
+Kartoffeln (festkochend),,,90,stueck: Kartoffeln 1 Stück (Gemüse) 90
+Kartoffeln (mehlig),,,90,stueck: Kartoffeln 1 Stück (Gemüse) 90
+Kartoffeln (vw festkochend),,,90,stueck: Kartoffeln 1 Stück (Gemüse) 90
+Kartoffeln B-Ware,,,90,stueck: Kartoffeln 1 Stück (Gemüse) 90
+Kartoffelstärke,,10,,TL: loeffel Kartoffelstärke 3 gehäuft (kein gestrichener Wert); EL: stueck Mehl / Stärkemehl 1 Esslöffel 10
+Kiwi,,,75,stueck: Kiwi 1 Stück (Obst) 75
+Knollensellerie,,,652,stueck: Knollensellerie 1 Stück (Gemüse) 652
+Kolrabi,,,265,stueck: Kohlrabi 1 Stück (Gemüse) 265
+Kurkuma,3,,,"TL: stueck z.B. Kurkuma, Kardamon, Anis 1 Teelöffel 3; EL: loeffel Kurkuma, gemahlen 15 gehäuft (kein gestrichener Wert)"
+Lauch,,,157,stueck: Porree 1 Stück (Gemüse) 157
+Mandelblättchen,,15,,loeffel: Mandelblättchen 8/15
+Mandeln,,,1,stueck: Mandel (ganz) 1 Stück 1
+"Mandeln (gemalen, blanchiert)",5,10,,loeffel: gemahlene Mandeln 5/10
+Marmelade,,20,,EL: stueck Marmelade 1 Esslöffel 20
+Mehl (Weizen),,15,,loeffel: Mehl 10/15
+Mittelscharfer Senf,10,,,TL: stueck Senf 1 Teelöffel 10
+Paniermehl,,12,,EL: stueck Semmelmehl/ Paniermehl 1 Esslöffel 12
+Paprika,,,155,stueck: Paprika 1 Stück (Gemüse) 155
+Pfirsich,,,128,stueck: Pfirsiche 1 Stück (Obst) 128 (gewählt; essbar: Pfirsich klein/mittel/groß 75/100/130)
+Pflaumen,,,52,stueck: Pflaumen 1 Stück (Obst) 52
+Preiselbeermarmelade,,20,,EL: stueck Marmelade 1 Esslöffel 20
+Puderzucker,5,10,,loeffel: Puderzucker 5/10
+Reis (Basmati),,15,,TL: loeffel Basmatireis 4 gehäuft (kein gestrichener Wert); EL: stueck Reis 1 Esslöffel 15
+Reis (Langkorn),,15,,EL: stueck Reis 1 Esslöffel 15
+Reis (Risotto),,15,,EL: stueck Reis 1 Esslöffel 15
+Rosinen,,15,,EL: stueck Rosinen 1 Esslöffel 15
+Rote Beete,,,135,stueck: Rote Beete 1 Stück (Gemüse) 135 (gewählt; essbar-Tabelle hat 1 Stück 35)
+Salz,5,15,,TL: stueck Salz 1 Teelöffel 5; EL: stueck Salz 1 Esslöffel 15
+Schalotten,,,20,stueck: Schalotte 1 Stück 20
+Semmelbrösel,,12,,EL: stueck Semmelmehl/ Paniermehl 1 Esslöffel 12
+Senf (mittelscharf),10,,,TL: stueck Senf 1 Teelöffel 10
+Sesamsamen,3,7,,TL: stueck Sesam 1 Teelöffel 3; EL: stueck Sesam 1 Esslöffel 7
+Sonnenblumenkerne,,10,,"TL: loeffel Sonnenblumenkerne, ganz 3 gehäuft (kein gestrichener Wert); EL: stueck Sonnenblumenkerne 1 Esslöffel 10"
+Speisestärke,5,15,,loeffel: Speisestärke 5/15
+Süßer Senf,10,,,TL: stueck Senf 1 Teelöffel 10
+Süßkartoffeln,,,310,stueck: Süßkartoffel (mittelgroß) 1 Stück 310
+Tomaten,,,99,"stueck: Tomaten 1 Stück (Gemüse) 99 (gewählt; essbar: Strauchtomate 110, Fleischtomate 200)"
+Zimt,2,,,"TL: stueck Zimt 1 Teelöffel 2; EL: loeffel Zimt, gemahlen 16 gehäuft (kein gestrichener Wert)"
+Zwiebeln,,,83,stueck: Speisezwiebel 1 Stück (Gemüse) 83 (gewählt; essbar: Haushaltszwiebel 83/82)
