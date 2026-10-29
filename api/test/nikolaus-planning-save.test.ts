@@ -16,8 +16,8 @@ import {
 import { deleteHelper, getHelper, getHelpers, updateHelper } from '../lib/nikolaus-helfende-list';
 import { deleteBooking } from '../lib/nikolaus-bookings';
 import { NikolausStateConflictError } from '../lib/nikolaus-state';
-import { ValidationError } from '../lib/pflege-validation';
-import type { DispoLoadedCheckOff } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
+import type { DispoLoadedCheckOff } from '../lib/validation/nikolaus-dispo';
 import { dbTest } from './fixtures/database';
 import { insertBooking, insertHelper } from './fixtures/nikolaus-data';
 

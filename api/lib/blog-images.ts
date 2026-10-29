@@ -1,7 +1,7 @@
 import type { HttpResponseInit } from '@azure/functions';
 import { deleteBlobs, getBlob, putBlob } from './blob-storage';
 import { getImageWidths } from './blog-list';
-import type { BlogImage } from './pflege-validation';
+import type { BlogImage } from './validation/blog';
 
 /**
  * The files of blog images in Blob Storage: `blog/<post>/<file>/<width>.webp`, one per width of

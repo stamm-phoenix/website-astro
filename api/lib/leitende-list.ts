@@ -13,8 +13,8 @@ import {
   toVersion,
 } from './db';
 import type { Database, LeitendeTable } from './db-schema';
-import type { LeitendeInput } from './pflege-validation';
-import { sortTeams } from './pflege-validation';
+import type { LeitendeInput } from './validation/content';
+import { sortTeams } from './validation/constants';
 import {
   newPhotoFileName,
   photoBlobName,

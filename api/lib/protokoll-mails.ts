@@ -2,7 +2,7 @@ import { HELP_CONTACTS } from './help-contacts';
 import { CONFIG } from './config';
 import type { MailAttachment } from './mail';
 import { escapeHtml, MAX_MAIL_ATTACHMENT_BYTES, sendBlindCopyMail, sendMail } from './mail';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import { mailButton, mailLayout } from './mail-template';
 import { formatGermanDate } from './protokolle';
 

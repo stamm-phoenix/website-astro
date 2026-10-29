@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { CONFIG } from '../lib/config';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import type { ProtokollTermin, TerminContext } from '../lib/protokoll-termin';
 import {
   MAX_TERMIN_TEXT_CHARS,

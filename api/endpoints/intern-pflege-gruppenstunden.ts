@@ -7,7 +7,8 @@ import {
   updateGruppenstunde,
 } from '../lib/gruppenstunden-list';
 import { getLeitende } from '../lib/leitende-list';
-import { STUFEN, WEEKDAYS, validateGruppenstunde } from '../lib/pflege-validation';
+import { STUFEN, WEEKDAYS } from '../lib/validation/constants';
+import { validateGruppenstunde } from '../lib/validation/content';
 import {
   METHOD_NOT_ALLOWED,
   NOT_FOUND,

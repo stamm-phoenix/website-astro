@@ -1,7 +1,7 @@
 import { assertProtokollSize } from './protokoll-text';
 import type { HttpResponseInit } from '@azure/functions';
 import { berlinDay } from './calendar-day';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import { CONFLICT, ok } from './pflege-api';
 import { errorResponse } from './response-utils';
 import { detectProtokollTasks, isTaskExtractionConfigured } from './protokoll-aufgaben';

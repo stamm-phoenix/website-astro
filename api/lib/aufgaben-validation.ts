@@ -1,88 +1,66 @@
+import { z } from 'zod';
 import { taskPeople } from './aufgaben-zuordnung';
-import { isValidDate, ValidationError } from './pflege-validation';
-import type { TaskInput, TemplateItem, TaskPerson } from './aufgaben-model';
+import {
+  boundedText,
+  optionalTaskDateSchema,
+  taskDateSchema,
+  taskIdSchema,
+  taskInputSchema,
+  taskTemplateInputSchema,
+} from './aufgaben-schema';
+import type { TaskInput, TemplateItem } from './aufgaben-schema';
+import { parseWith } from './validation/zod';
+import type { FieldOf } from './validation/zod';
 
-/** Require a JSON object before reading form fields. */
-function object(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new ValidationError({ form: 'Bitte die Felder ausfüllen.' });
-  return value as Record<string, unknown>;
+/** Name the person once per identity before writing JSON. */
+function dedupePeople<T extends Pick<TaskInput, 'assignees'>>(entry: T): T {
+  return entry.assignees
+    ? { ...entry, assignees: taskPeople({ assignee: '', assignees: entry.assignees }) }
+    : entry;
 }
+
+const taskSchema = taskInputSchema.transform(dedupePeople);
+const templateSchema = taskTemplateInputSchema.transform((template) => ({
+  ...template,
+  items: template.items.map(dedupePeople),
+}));
+
+/** An entry that is no object is a fault of the whole form, anything else of its own field. */
+const taskField: FieldOf = (path) => {
+  const [first, index] = path;
+  if (first === 'assignees')
+    return typeof index === 'number' && path.length === 2 ? 'form' : 'assignee';
+  return typeof first === 'string' ? first : 'form';
+};
+/** Errors of a checklist item show at its own field, the offset and the list itself at `items`. */
+const templateField: FieldOf = (path) => {
+  const [first, index, field] = path;
+  if (first !== 'items') return taskField(path);
+  if (typeof index !== 'number') return 'items';
+  if (path.length === 2) return 'form';
+  if (field === 'assignees') return path.length === 4 ? 'form' : 'assignee';
+  return typeof field === 'string' && field !== 'daysBefore' ? field : 'items';
+};
+
 /** Trim and validate a bounded text field, allowing empty optional values. */
 export function taskText(value: unknown, field: string, max: number, required = false): string {
-  if (value !== undefined && typeof value !== 'string')
-    throw new ValidationError({ [field]: 'Bitte Text angeben.' });
-  const text = typeof value === 'string' ? value.trim() : '';
-  if ((required && !text) || text.length > max)
-    throw new ValidationError({
-      [field]: `Bitte ${required ? '1 bis ' : 'höchstens '}${max} Zeichen angeben.`,
-    });
-  return text;
+  const row = parseWith(z.object({ [field]: boundedText(max, required) }), { [field]: value });
+  return row[field];
 }
 /** Validate a calendar date supported by SQL, or normalize an optional empty date to null. */
 export function taskDate(value: unknown, required = false): string | null {
-  if (!required && (value === null || value === undefined || value === '')) return null;
-  if (typeof value !== 'string' || !isValidDate(value) || value.startsWith('0000-'))
-    throw new ValidationError({ dueDate: 'Bitte ein gültiges Datum angeben.' });
-  return value;
+  const dueDate = required ? taskDateSchema : optionalTaskDateSchema;
+  return parseWith(z.object({ dueDate }), { dueDate: value }).dueDate;
 }
 /** Require a positive integer reference; numeric strings are not accepted. */
 export function taskId(value: unknown, field = 'projectId'): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 999999999)
-    throw new ValidationError({ [field]: 'Bitte einen gültigen Eintrag auswählen.' });
-  return value;
-}
-/** Bound multi-person assignments and reject malformed identities before writing JSON. */
-function people(value: unknown): TaskPerson[] {
-  if (!Array.isArray(value) || value.length > 20)
-    throw new ValidationError({ assignee: 'Bitte höchstens 20 Personen auswählen.' });
-  const assignees = value.map((entry) => {
-    const person = object(entry);
-    const name = taskText(person.name, 'assignee', 200, true);
-    const login = taskText(person.login, 'assignee', 254);
-    if (login && !/^[^\s@]+@[^\s@]+$/.test(login))
-      throw new ValidationError({ assignee: 'Bitte einen gültigen Login auswählen.' });
-    return { name, login };
-  });
-  return taskPeople({ assignee: '', assignees });
+  return parseWith(z.object({ [field]: taskIdSchema }), { [field]: value })[field];
 }
 /** Validate editable task fields, excluding state and source metadata. */
 export function validateTask(value: unknown): TaskInput {
-  const body = object(value);
-  return {
-    title: taskText(body.title, 'title', 200, true),
-    description: taskText(body.description, 'description', 2000),
-    assignee: taskText(body.assignee, 'assignee', 254),
-    ...(body.assignees !== undefined ? { assignees: people(body.assignees) } : {}),
-    dueDate: taskDate(body.dueDate),
-    projectId:
-      body.projectId === null || body.projectId === undefined ? null : taskId(body.projectId),
-  };
+  return parseWith(taskSchema, value, taskField);
 }
 /** Validate up to 50 checklist items with integer offsets of at most one year. */
 export function validateTemplate(value: unknown): { title: string; items: TemplateItem[] } {
-  const body = object(value);
-  if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 50)
-    throw new ValidationError({ items: 'Bitte 1 bis 50 Aufgaben angeben.' });
-  return {
-    title: taskText(body.title, 'title', 200, true),
-    items: body.items.map((value) => {
-      const item = object(value);
-      if (
-        typeof item.daysBefore !== 'number' ||
-        !Number.isInteger(item.daysBefore) ||
-        Math.abs(item.daysBefore) > 366
-      )
-        throw new ValidationError({
-          items: 'Der Abstand zum Aktionsdatum muss zwischen −366 und 366 Tagen liegen.',
-        });
-      return {
-        title: taskText(item.title, 'title', 200, true),
-        description: taskText(item.description, 'description', 2000),
-        assignee: taskText(item.assignee, 'assignee', 254),
-        ...(item.assignees !== undefined ? { assignees: people(item.assignees) } : {}),
-        daysBefore: item.daysBefore,
-      };
-    }),
-  };
+  return parseWith(templateSchema, value, templateField);
 }

@@ -23,10 +23,10 @@ import {
   PROBLEM_LABELS,
   PROBLEM_MAX_LENGTH,
   PROBLEM_VERDICTS,
-  cleanIssueTitle,
   redactForForwarding,
 } from './problemmeldung-model';
-import type { ProblemLabel, ProblemVerdict, StaffProblemMeldung } from './problemmeldung-model';
+import type { StaffProblemMeldung } from './problemmeldung-model';
+import { problemAssessmentSchema } from './problemmeldung-schema';
 
 const MAX_PART = 1500;
 
@@ -88,42 +88,23 @@ export function problemModelInput(meldung: StaffProblemMeldung): string {
   });
 }
 
-function text(value: unknown, max: number): string | null {
-  if (typeof value !== 'string') return null;
-  const clean = redactForForwarding(value).trim().slice(0, max);
-  return clean || null;
-}
-
 /**
  * Checks the answer of the model against the schema it was asked for and builds the issue
  * text from it. Anything unexpected is an error, so no half-valid answer is stored.
  */
 export function parseProblemAssessment(value: unknown): ProblemAssessment {
-  const answer = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-  const verdict = PROBLEM_VERDICTS.find((entry) => entry === answer.verdict);
-  const label = PROBLEM_LABELS.find((entry) => entry.id === answer.label)?.id;
-  const reason = text(answer.reason, 500);
-  const title = cleanIssueTitle(answer.title);
-  const summary = text(answer.summary, MAX_PART);
-  const steps = text(answer.steps, MAX_PART);
-  const expected = text(answer.expected, MAX_PART);
-  const actual = text(answer.actual, MAX_PART);
-  if (!verdict || !label || !reason || !title || !summary || !steps || !expected || !actual) {
+  const parsed = problemAssessmentSchema.safeParse(value);
+  if (!parsed.success) {
     throw new AzureOpenAiError('The answer of the model does not match the schema');
   }
+  const { verdict, reason, title, summary, steps, expected, actual, label } = parsed.data;
   const body = [
     `## Zusammenfassung\n\n${summary}`,
     `## Schritte zur Reproduktion\n\n${steps}`,
     `## Erwartetes Verhalten\n\n${expected}`,
     `## Tatsächliches Verhalten\n\n${actual}`,
   ].join('\n\n');
-  return {
-    verdict: verdict as ProblemVerdict,
-    reason,
-    title,
-    body: body.slice(0, PROBLEM_MAX_LENGTH.body),
-    label: label as ProblemLabel,
-  };
+  return { verdict, reason, title, body: body.slice(0, PROBLEM_MAX_LENGTH.body), label };
 }
 
 const withinDailyLimit = dailyLimit(() => CONFIG.problemmeldung.ai.maxPerDay);

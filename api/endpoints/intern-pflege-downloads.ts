@@ -11,13 +11,13 @@ import {
   stageUploadPart,
 } from '../lib/downloads';
 import { requireVersion as parseVersion } from '../lib/db';
-import { isJpeg } from '../lib/jpeg';
+import { ValidationError } from '../lib/validation/errors';
 import {
-  MAX_PHOTO_BYTES,
-  MAX_UPLOAD_BYTES,
   UPLOAD_PART_BYTES,
-  checkFileName,
-} from '../lib/pflege-validation';
+  validateDownloadRename,
+  validateUploadComplete,
+  validateUploadStart,
+} from '../lib/validation/downloads';
 import {
   METHOD_NOT_ALLOWED,
   NOT_FOUND,
@@ -46,8 +46,15 @@ function invalid(field: string, message: string): HttpResponseInit {
   };
 }
 
-function readFileName(body: Record<string, unknown> | null): string {
-  return typeof body?.fileName === 'string' ? body.fileName.trim() : '';
+/** The first problem of the request, as the upload dialog shows one message at a time. */
+function firstProblem<T>(read: () => T): { value: T } | { response: HttpResponseInit } {
+  try {
+    return { value: read() };
+  } catch (error: unknown) {
+    const [first] = error instanceof ValidationError ? Object.entries(error.fields) : [];
+    if (!first) throw error;
+    return { response: invalid(first[0], first[1]) };
+  }
 }
 
 /** GET: all download files. */
@@ -79,15 +86,10 @@ export const DownloadUploadStartEndpoint = pflegeHandler(
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
 
     const body = await readJsonBody(request);
-    const fileName = readFileName(body);
-    const nameError = checkFileName(fileName);
-    if (nameError) return invalid('fileName', nameError);
-
-    const size = body?.size;
-    if (typeof size !== 'number' || size <= 0 || size > MAX_UPLOAD_BYTES) {
-      return invalid('size', 'Die Datei ist leer oder größer als 250 MB.');
-    }
-    if (body?.replace !== true && (await downloadNameExists(fileName))) return FILE_EXISTS;
+    const parsed = firstProblem(() => validateUploadStart(body));
+    if ('response' in parsed) return parsed.response;
+    const { fileName, replace } = parsed.value;
+    if (!replace && (await downloadNameExists(fileName))) return FILE_EXISTS;
 
     return ok({ uploadId: newDownloadKey(), partSize: UPLOAD_PART_BYTES });
   },
@@ -127,24 +129,12 @@ export const DownloadUploadCompleteEndpoint = pflegeHandler(
     if (!isDownloadKey(key)) return NOT_FOUND;
 
     const body = await readJsonBody(request);
-    const fileName = readFileName(body);
-    const nameError = checkFileName(fileName);
-    if (nameError) return invalid('fileName', nameError);
-    const size = body?.size;
-    if (typeof size !== 'number' || !Number.isInteger(size) || size <= 0) {
-      return invalid('size', 'Die Größe der Datei fehlt. Lade sie noch einmal hoch.');
-    }
-
-    let preview: Uint8Array | undefined;
-    if (typeof body?.preview === 'string' && body.preview) {
-      preview = Buffer.from(body.preview, 'base64');
-      if (preview.length > MAX_PHOTO_BYTES || !isJpeg(preview)) {
-        return invalid('preview', 'Das Vorschaubild ist kein JPEG oder größer als 2 MB.');
-      }
-    }
+    const parsed = firstProblem(() => validateUploadComplete(body));
+    if ('response' in parsed) return parsed.response;
+    const { fileName, size, replace, preview } = parsed.value;
 
     const result = await completeUpload(
-      { key, fileName, size, replace: body?.replace === true, preview },
+      { key, fileName, size, replace, preview },
       principal.userDetails
     );
     if (result.status === 'exists') return FILE_EXISTS;
@@ -169,9 +159,9 @@ export const DownloadItemEndpoint = pflegeHandler(
     }
 
     const body = await readJsonBody(request);
-    const fileName = readFileName(body);
-    const nameError = checkFileName(fileName);
-    if (nameError) return invalid('fileName', nameError);
+    const named = firstProblem(() => validateDownloadRename(body));
+    if ('response' in named) return named.response;
+    const fileName = named.value;
     const version = parseVersion(requireVersion(readEtag(body)));
     if (!(await renameDownload(id, fileName, version, principal.userDetails))) return FILE_EXISTS;
     return NO_CONTENT;

@@ -1,4 +1,5 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { z } from 'zod';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import type { NikolausSettings } from '../lib/nikolaus-config';
 import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
@@ -19,12 +20,19 @@ import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-
 import { NO_STORE_HEADERS, toLocation, toStaffBooking } from '../lib/nikolaus-api';
 import { getRoutePath, getTravelMatrix } from '../lib/travel-times';
 import { confirmedOfDay, getTeamMembers, readDate, readDateParam } from '../lib/nikolaus-day';
-import { validateDispoSave } from '../lib/pflege-validation';
+import { validateDispoSave } from '../lib/validation/nikolaus-dispo';
 import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 /** Upper limit of stops per request, far above a real evening. */
 const MAX_ROUTE_STOPS = 200;
+
+/** The booking IDs per team in route order; only the teams of the day are accepted. */
+function routesSchema(teams: string[]) {
+  return z
+    .record(z.string(), z.array(z.string()).max(MAX_ROUTE_STOPS))
+    .refine((routes) => Object.keys(routes).every((team) => teams.includes(team)));
+}
 
 /** Only the fields the Dispo page needs; the rest of a row stays on the server. */
 function toClientRow(row: DispoRow) {
@@ -144,29 +152,19 @@ export async function GetInternNikolausDispoRoutesEndpoint(
   if (!date) return NOT_FOUND;
 
   const body = await readJsonBody(request);
-  const routes = body?.routes;
   const teams = getNikolausTeams(date, config).map((team) => team.name);
-  const valid =
-    routes !== null &&
-    typeof routes === 'object' &&
-    !Array.isArray(routes) &&
-    Object.entries(routes).every(
-      ([team, ids]) =>
-        teams.includes(team) &&
-        Array.isArray(ids) &&
-        ids.length <= MAX_ROUTE_STOPS &&
-        ids.every((id) => typeof id === 'string')
-    );
-  if (!valid) {
+  const parsed = routesSchema(teams).safeParse(body?.routes);
+  if (!parsed.success) {
     return errorResponse(400, 'INVALID', 'Die Routen sind ungültig.');
   }
+  const routes = parsed.data;
 
   const locations = new Map(
     confirmedOfDay(await getAllBookings(), date).map((b) => [b.id, toLocation(b)])
   );
   const { base } = config.area;
   const entries = await Promise.all(
-    Object.entries(routes as Record<string, string[]>).map(async ([team, ids]) => {
+    Object.entries(routes).map(async ([team, ids]) => {
       const stops = ids.flatMap((id) => {
         const location = locations.get(id);
         return location ? [{ lat: location.lat, lon: location.lon }] : [];

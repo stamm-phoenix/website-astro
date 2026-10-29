@@ -5,7 +5,7 @@ import type { CampflowPerson } from './campflow';
 import { getDb, inTransaction, lockResource, parseId } from './db';
 import { InvalidSammelDataError, sammelUrl } from './sammelbestellung-list';
 import { email } from './sammelbestellung-validation';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import { sendSammelInvitationMail } from './sammelbestellung-mails';
 import type { SammelAktion } from './sammelbestellung-model';
 

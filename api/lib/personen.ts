@@ -19,7 +19,7 @@ import type {
   PersonenUebersicht,
 } from './personen-model';
 import { sameName } from './personen-model';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import { getTaskDirectoryUsers } from './task-directory';
 
 /**

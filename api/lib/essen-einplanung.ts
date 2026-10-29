@@ -10,7 +10,7 @@ import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
 import type { Einplanung, EinplanungInput } from './essen-planung-model';
 import { MAX_EINPLANUNGEN_PRO_MAHLZEIT } from './essen-planung-model';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 
 /**
  * Dishes planned at the meals of a Planung (`docs/essensplanung.md`, Einplanung). Every change

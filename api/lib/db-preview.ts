@@ -15,7 +15,7 @@ import {
   updateBlogPost,
 } from './blog-list';
 import { neuerInhalt } from './protokoll-editor-model';
-import { validateAbstimmung } from './abstimmung-model';
+import { validateAbstimmung } from './abstimmung-schema';
 import { createAbstimmung, queueAbstimmungEinladungen, voteAsStaff } from './abstimmungen';
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
 import { createGruppenstunde, getStaffGruppenstunden } from './gruppenstunden-list';
@@ -25,16 +25,15 @@ import { createBeleg, getBelege } from './beleg-list';
 import { nextContentId } from './content-ids';
 import { completeUpload, listDownloads, newDownloadKey, stageUploadPart } from './downloads';
 import { getDb, inTransaction } from './db';
+import { LEITENDE_STUFE, STUFEN } from './validation/constants';
 import {
-  LEITENDE_STUFE,
-  STUFEN,
   validateAktion,
-  validateBeleg,
-  validateBlogPost,
   validateGruppenstunde,
   validateLeitende,
   validateQuestionAndAnswer,
-} from './pflege-validation';
+} from './validation/content';
+import { validateBeleg } from './validation/beleg';
+import { validateBlogPost } from './validation/blog';
 import type { Database } from './db-schema';
 import { getAllBookings } from './nikolaus-bookings';
 import { toLocation } from './nikolaus-api';

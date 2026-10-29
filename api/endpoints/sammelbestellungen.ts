@@ -4,7 +4,7 @@ import { readJsonBody, NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { VersionConflictError } from '../lib/db';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import { isSammelOpen, canEditSammelOrder } from '../lib/sammelbestellung-model';
 import {
   getSammelCampaign,
@@ -17,6 +17,7 @@ import {
   InvalidSammelDataError,
 } from '../lib/sammelbestellung-list';
 import { email, text, validateSammelItems } from '../lib/sammelbestellung-validation';
+import { isSammelEtag } from '../lib/validation/sammel-input';
 import { getSammelProduct, sammelProductReference } from '../lib/sammelbestellung-product-resolver';
 import { getSammelStammProdukt } from '../lib/sammelbestellung-stamm';
 import { reserveSammelLinkRequest } from '../lib/sammelbestellung-link-quota';
@@ -74,7 +75,7 @@ export function sammelHandler(
 
 /** Requires a concrete quoted ETag and reports stale versions without writing. */
 export function requireSammelVersion(value: unknown, actual: string): HttpResponseInit | undefined {
-  if (typeof value !== 'string' || !/^(?:W\/)?"[^"\r\n]+"$/.test(value)) {
+  if (!isSammelEtag(value)) {
     return errorResponse(400, 'VERSION_REQUIRED', 'Die Version fehlt. Bitte neu laden.');
   }
   return value === actual ? undefined : CONFLICT;

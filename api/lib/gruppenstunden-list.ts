@@ -10,7 +10,7 @@ import {
   toVersion,
 } from './db';
 import type { GruppenstundeTable } from './db-schema';
-import type { GruppenstundeInput } from './pflege-validation';
+import type { GruppenstundeInput } from './validation/content';
 
 /**
  * The Gruppenstunden in Azure SQL (`content.gruppenstunde`, migration

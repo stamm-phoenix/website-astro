@@ -10,7 +10,7 @@ import {
   toDateString,
 } from './db';
 import { getLeitende } from './leitende-list';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import { SperreError, editorResource, parseInhalt, readSperre, toSperre } from './protokoll-editor';
 import type { PdfVorstand } from './protokoll-editor-pdf';
 import { createProtokollPdf, protokollPdfFileName } from './protokoll-editor-pdf';

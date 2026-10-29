@@ -12,7 +12,8 @@ import {
   getStaffAktionen,
   resetCampflowEventCache,
 } from '../lib/aktionen-list';
-import { validateAktion, ValidationError } from '../lib/pflege-validation';
+import { validateAktion } from '../lib/validation/content';
+import { ValidationError } from '../lib/validation/errors';
 import { dbTest } from './fixtures/database';
 
 const PRINCIPAL = {

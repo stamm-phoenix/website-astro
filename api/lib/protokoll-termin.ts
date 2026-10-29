@@ -9,23 +9,26 @@ import type { AzureOpenAiDeployment } from './azure-openai';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 import { CONFIG } from './config';
 import { protokollToText } from './protokoll-text';
-import { ValidationError } from './pflege-validation';
+import {
+  MAX_PLACE_LENGTH,
+  TERMIN_DECISIONS,
+  TERMIN_EXTRACTIONS,
+  confirmedTerminSchema,
+  modelAnswerSchema,
+  storedTerminSchema,
+} from './protokoll-termin-schema';
+import { ValidationError } from './validation/errors';
+import { isValidDate } from './calendar-date';
+import { parseWith } from './validation/zod';
 
-export const TERMIN_EXTRACTIONS = [
-  'gefunden',
-  'unklar',
-  'nicht gefunden',
-  'fehler',
-  'nicht eingerichtet',
-  'nicht ausgefuehrt',
-] as const;
+export { MAX_PLACE_LENGTH, TERMIN_DECISIONS, TERMIN_EXTRACTIONS };
+
 export type TerminExtraction = (typeof TERMIN_EXTRACTIONS)[number];
 
-export const TERMIN_DECISIONS = ['offen', 'bestaetigt', 'abgelehnt'] as const;
 export type TerminDecision = (typeof TERMIN_DECISIONS)[number];
 
-export type TerminAction = 'erkennen' | 'bestaetigen' | 'ablehnen';
-export const TERMIN_ACTIONS: TerminAction[] = ['erkennen', 'bestaetigen', 'ablehnen'];
+export const TERMIN_ACTIONS = ['erkennen', 'bestaetigen', 'ablehnen'] as const;
+export type TerminAction = (typeof TERMIN_ACTIONS)[number];
 
 export interface TerminSuggestion {
   /** `YYYY-MM-DD` */
@@ -63,8 +66,6 @@ export interface ProtokollTermin {
 export const MAX_TERMIN_TEXT_CHARS = 12_000;
 /** Of those, from the start of the minutes; the rest is from the end. */
 const HEAD_CHARS = 4_000;
-const MAX_QUOTE_LENGTH = 300;
-export const MAX_PLACE_LENGTH = 120;
 /** A suggestion further ahead than this is no next meeting but some other date. */
 const MAX_DAYS_AHEAD = 366;
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -90,38 +91,6 @@ export class TerminVersionConflictError extends Error {
 
 // --- Stored value -------------------------------------------------------------------------
 
-function isCalendarDate(value: unknown): value is string {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
-}
-
-/** `H:MM` or `HH:MM` within a day as `HH:MM`, otherwise null. */
-function toTime(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
-  if (!match) return null;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) return null;
-  return `${String(hours).padStart(2, '0')}:${match[2]}`;
-}
-
-/** Trimmed text on one line, cut to `max`, or null if empty. */
-function toText(value: unknown, max: number): string | null {
-  if (typeof value !== 'string') return null;
-  const text = value.replace(/\s+/g, ' ').trim();
-  return text ? text.slice(0, max) : null;
-}
-
-function oneOf<T extends string>(values: readonly T[], value: unknown, fallback: T): T {
-  return (values as readonly unknown[]).includes(value) ? (value as T) : fallback;
-}
-
-function readString(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
 /**
  * Reads the stored value. Unreadable JSON yields null (no suggestion yet, a leader can start
  * the detection again); single unreadable fields fall back to the safe value, and a
@@ -135,44 +104,8 @@ export function parseProtokollTermin(value: string | undefined): ProtokollTermin
   } catch {
     return null;
   }
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-  const stored = parsed as Record<string, unknown>;
-  const suggestion = (
-    stored.suggestion !== null && typeof stored.suggestion === 'object' ? stored.suggestion : {}
-  ) as Record<string, unknown>;
-  const rawConfirmed = (
-    stored.confirmed !== null && typeof stored.confirmed === 'object' ? stored.confirmed : {}
-  ) as Record<string, unknown>;
-  const confirmed: ConfirmedTermin | null = isCalendarDate(rawConfirmed.date)
-    ? {
-        date: rawConfirmed.date,
-        time: toTime(rawConfirmed.time),
-        place: toText(rawConfirmed.place, MAX_PLACE_LENGTH),
-      }
-    : null;
-  let decision = oneOf(TERMIN_DECISIONS, stored.decision, 'offen');
-  if (decision === 'bestaetigt' && !confirmed) decision = 'offen';
-
-  return {
-    sourceVersion: readString(stored.sourceVersion),
-    extraction: oneOf(TERMIN_EXTRACTIONS, stored.extraction, 'fehler'),
-    suggestion: {
-      date: isCalendarDate(suggestion.date) ? suggestion.date : null,
-      time: toTime(suggestion.time),
-      place: toText(suggestion.place, MAX_PLACE_LENGTH),
-      quote: toText(suggestion.quote, MAX_QUOTE_LENGTH),
-    },
-    decision,
-    confirmed: decision === 'bestaetigt' ? confirmed : null,
-    decidedBy: readString(stored.decidedBy),
-    decidedAt: toTimestamp(stored.decidedAt),
-    extractedAt: toTimestamp(stored.extractedAt),
-  };
-}
-
-function toTimestamp(value: unknown): string {
-  const timestamp = readString(value);
-  return Number.isFinite(Date.parse(timestamp)) ? timestamp : '';
+  const termin = storedTerminSchema.safeParse(parsed);
+  return termin.success ? termin.data : null;
 }
 
 export function serializeProtokollTermin(termin: ProtokollTermin): string {
@@ -211,23 +144,6 @@ export function terminWithoutSuggestion(
 
 // --- Answer of the model ------------------------------------------------------------------
 
-function addDays(isoDate: string, days: number): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-/** For comparing a quote with the text: one line, lower case, plain quotes and dashes. */
-function normalizeForSearch(text: string): string {
-  return text
-    .normalize('NFKC')
-    .replace(/[„“”‚‘’«»"']/g, '"')
-    .replace(/[‐‑‒–—]/g, '-')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLocaleLowerCase('de');
-}
-
 /**
  * Turns the model's answer into a suggestion; nothing of it is trusted blindly. Dates that are
  * no calendar date, not after the session or more than a year ahead are dropped, and so are
@@ -238,35 +154,15 @@ export function toTerminSuggestion(
   raw: unknown,
   context: { sessionDate: string; text: string }
 ): { extraction: 'gefunden' | 'unklar' | 'nicht gefunden'; suggestion: TerminSuggestion } {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new TerminExtractionError('Unexpected answer of the model');
+  const parsed = modelAnswerSchema(context, MAX_DAYS_AHEAD).safeParse(raw);
+  if (!parsed.success) throw new TerminExtractionError('Unexpected answer of the model');
+  const answer = parsed.data;
+  if (answer.status === 'nicht gefunden') {
+    return { extraction: answer.status, suggestion: { ...EMPTY_SUGGESTION } };
   }
-  const answer = raw as Record<string, unknown>;
-  const status = oneOf(['gefunden', 'unklar', 'nicht gefunden'] as const, answer.status, 'unklar');
-  if (status === 'nicht gefunden') {
-    return { extraction: status, suggestion: { ...EMPTY_SUGGESTION } };
-  }
-
-  const date =
-    isCalendarDate(answer.date) &&
-    answer.date > context.sessionDate &&
-    answer.date <= addDays(context.sessionDate, MAX_DAYS_AHEAD)
-      ? answer.date
-      : null;
-  const quote = toText(answer.quote, MAX_QUOTE_LENGTH);
-  const verifiedQuote =
-    quote &&
-    quote.length >= 4 &&
-    normalizeForSearch(context.text).includes(normalizeForSearch(quote))
-      ? quote
-      : null;
-  const suggestion: TerminSuggestion = {
-    date,
-    time: toTime(answer.time),
-    place: toText(answer.place, MAX_PLACE_LENGTH),
-    quote: verifiedQuote,
-  };
-  const found = status === 'gefunden' && date !== null && verifiedQuote !== null;
+  const { date, time, place, quote } = answer;
+  const suggestion: TerminSuggestion = { date, time, place, quote };
+  const found = answer.status === 'gefunden' && date !== null && quote !== null;
   return { extraction: found ? 'gefunden' : 'unklar', suggestion };
 }
 
@@ -359,7 +255,7 @@ export async function detectProtokollTermin(
   if (!isTerminExtractionConfigured(deployment)) {
     return terminWithoutSuggestion('nicht eingerichtet', options.sourceVersion, now);
   }
-  if (!isCalendarDate(options.sessionDate)) {
+  if (!isValidDate(options.sessionDate)) {
     throw new TerminExtractionError('The file name has no session date');
   }
   const text = await protokollToText(docx, options.fileName ?? 'protokoll.docx');
@@ -432,28 +328,7 @@ export function readConfirmedTermin(
   input: { date?: unknown; time?: unknown; place?: unknown },
   sessionDate: string
 ): ConfirmedTermin {
-  const errors: Record<string, string> = {};
-  const date = typeof input.date === 'string' ? input.date.trim() : '';
-  if (!isCalendarDate(date)) {
-    errors.date = 'Bitte ein gültiges Datum angeben.';
-  } else if (sessionDate && date < sessionDate) {
-    errors.date = 'Der nächste Termin kann nicht vor der Sitzung liegen.';
-  }
-  const rawTime = typeof input.time === 'string' ? input.time.trim() : '';
-  const time = rawTime ? toTime(rawTime) : null;
-  if (rawTime && !time) errors.time = 'Bitte die Uhrzeit als HH:MM angeben.';
-  if (input.time !== undefined && input.time !== null && typeof input.time !== 'string') {
-    errors.time = 'Bitte die Uhrzeit als HH:MM angeben.';
-  }
-  const rawPlace = typeof input.place === 'string' ? input.place.replace(/\s+/g, ' ').trim() : '';
-  if (input.place !== undefined && input.place !== null && typeof input.place !== 'string') {
-    errors.place = 'Bitte den Ort als Text angeben.';
-  }
-  if (rawPlace.length > MAX_PLACE_LENGTH) {
-    errors.place = `Bitte höchstens ${MAX_PLACE_LENGTH} Zeichen angeben.`;
-  }
-  if (Object.keys(errors).length > 0) throw new ValidationError(errors);
-  return { date, time, place: rawPlace || null };
+  return parseWith(confirmedTerminSchema(sessionDate), input);
 }
 
 /**

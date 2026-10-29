@@ -6,7 +6,7 @@ import { isStaffError, requireStaff } from './staff-auth';
 import { NO_STORE_HEADERS, nikolausMaintenanceResponse, readJsonBody } from './nikolaus-api';
 import { errorResponse, withErrorHandling } from './response-utils';
 import { getGraphStatus } from './sharepoint-data-access';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import { NikolausStateConflictError } from './nikolaus-state';
 import { NikolausMaintenanceError } from './nikolaus-write-gate';
 import { getNikolausSettings } from './nikolaus-settings';

@@ -1,5 +1,8 @@
 {
   "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "paths": { "zod": ["./node_modules/zod"] }
+  },
   "include": [".astro/types.d.ts", "**/*"],
   "exclude": ["dist", "test-results", "playwright-report"]
 }

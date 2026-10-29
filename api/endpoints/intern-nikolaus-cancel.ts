@@ -6,7 +6,8 @@ import { findNikolausSlot } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { getPublicStatus } from '../lib/nikolaus-api';
 import { sendStaffCancellationMail } from '../lib/nikolaus-mails';
-import { ValidationError, sanitizeRichTextWithLength } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
+import { sanitizeRichTextWithLength } from '../lib/validation/rich-text';
 import {
   CONFLICT,
   METHOD_NOT_ALLOWED,

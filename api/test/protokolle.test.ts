@@ -27,7 +27,7 @@ import {
   protokollTransition,
   toStaffProtokoll,
 } from '../lib/protokolle';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import {
   AUTHOR,
   REVIEWER,

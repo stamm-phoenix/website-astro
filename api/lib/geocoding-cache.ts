@@ -1,4 +1,7 @@
+import { z } from 'zod';
 import type { GeocodeResult } from './geocoding';
+import { readRequestBudget } from './request-budget';
+import type { RequestBudget } from './request-budget';
 
 interface CachedLookup {
   key: string;
@@ -19,35 +22,13 @@ export const LEGACY_GEOCODING_STATE_KEY = 'geocoding:nominatim';
 /** Requests to Azure Maps in the current UTC hour and day, shared by all instances. */
 export const GEOCODING_BUDGET_KEY = 'geocoding:azure-maps:budget';
 
-interface GeocodingBudget {
-  hour: number;
-  hourCount: number;
-  day: number;
-  dayCount: number;
-}
+type GeocodingBudget = RequestBudget;
 
 /** A damaged budget must not silently reset to zero, so it admits nothing until repaired. */
 export function parseGeocodingBudget(value: unknown | undefined, now: number): GeocodingBudget {
-  const hour = Math.floor(now / 3_600_000);
-  const day = Math.floor(now / 86_400_000);
-  if (value === undefined) return { hour, hourCount: 0, day, dayCount: 0 };
-  if (
-    !isRecord(value) ||
-    !['hour', 'hourCount', 'day', 'dayCount'].every(
-      (field) => Number.isSafeInteger(value[field]) && Number(value[field]) >= 0
-    ) ||
-    // A request that waited for the lock across the hour must not reset the newer window
-    Number(value.hour) > hour ||
-    Number(value.day) > day
-  ) {
-    throw new Error('Invalid geocoding budget');
-  }
-  return {
-    hour,
-    day,
-    hourCount: value.hour === hour ? Number(value.hourCount) : 0,
-    dayCount: value.day === day ? Number(value.dayCount) : 0,
-  };
+  const budget = readRequestBudget(value, now);
+  if (!budget) throw new Error('Invalid geocoding budget');
+  return budget;
 }
 
 /**
@@ -102,40 +83,43 @@ export interface GeocodingCacheLookup {
 const CACHE_TTL_MS = 24 * 60 * 60_000;
 const MAX_CACHE_ENTRIES = 100;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const within = (limit: number) => z.number().min(-limit).max(limit);
+
+/** A found address has a precision and a position on Earth; a failure must not be stored. */
+const geocodeResultSchema = z.discriminatedUnion('found', [
+  z.object({ found: z.literal(false), unavailable: z.undefined().optional() }),
+  z.object({
+    found: z.literal(true),
+    precision: z.enum(['address', 'street', 'area']),
+    lat: within(90),
+    lon: within(180),
+  }),
+]);
+
+const cachedLookupSchema = z.object({
+  key: z.string(),
+  expires: z.number(),
+  result: geocodeResultSchema,
+});
+
+const storedCacheSchema = z.object({ version: z.literal(2), entries: z.array(z.unknown()) });
 
 function isGeocodeResult(value: unknown): value is GeocodeResult {
-  if (!isRecord(value) || typeof value.found !== 'boolean') return false;
-  if (!value.found) return value.unavailable === undefined;
-  return (
-    ['address', 'street', 'area'].includes(String(value.precision)) &&
-    typeof value.lat === 'number' &&
-    Number.isFinite(value.lat) &&
-    Math.abs(value.lat) <= 90 &&
-    typeof value.lon === 'number' &&
-    Number.isFinite(value.lon) &&
-    Math.abs(value.lon) <= 180
-  );
+  return geocodeResultSchema.safeParse(value).success;
 }
 
 function isCachedLookup(value: unknown): value is CachedLookup {
-  return (
-    isRecord(value) &&
-    typeof value.key === 'string' &&
-    typeof value.expires === 'number' &&
-    Number.isFinite(value.expires) &&
-    isGeocodeResult(value.result)
-  );
+  return cachedLookupSchema.safeParse(value).success;
 }
 
 /** A damaged record only costs a few lookups again, so it starts over empty. */
 export function parseGeocodingCache(value: unknown | undefined): GeocodingCache {
-  if (!isRecord(value) || value.version !== 2 || !Array.isArray(value.entries)) {
-    return { version: 2, entries: [] };
-  }
-  return { version: 2, entries: value.entries.filter(isCachedLookup).slice(-MAX_CACHE_ENTRIES) };
+  const stored = storedCacheSchema.safeParse(value);
+  if (!stored.success) return { version: 2, entries: [] };
+  return {
+    version: 2,
+    entries: stored.data.entries.filter(isCachedLookup).slice(-MAX_CACHE_ENTRIES),
+  };
 }
 
 /**

@@ -19,14 +19,14 @@ import {
   serveBlogImage,
   storeBlogImageFiles,
 } from '../lib/blog-images';
-import type { BlogImage } from '../lib/pflege-validation';
+import type { BlogImage } from '../lib/validation/blog';
 import {
   MAX_BLOG_IMAGE_BYTES,
   MAX_BLOG_IMAGE_SIDE,
   MAX_BLOG_IMAGES,
   validateBlogImages,
   validateBlogPost,
-} from '../lib/pflege-validation';
+} from '../lib/validation/blog';
 import {
   METHOD_NOT_ALLOWED,
   NOT_FOUND,

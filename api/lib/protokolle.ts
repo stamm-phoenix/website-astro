@@ -10,10 +10,14 @@ import { campflowGetAll } from './campflow';
 import { CONFIG } from './config';
 import type { ClientPrincipal } from './staff-auth';
 import { email } from './sammelbestellung-validation';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import type { ProtokollTermin } from './protokoll-termin';
 import { isTerminStale, parseProtokollTermin } from './protokoll-termin';
 import { protokollContentVersion } from './protokoll-content-version';
+
+import { parseDelivery } from './protokoll-delivery';
+
+export { parseDelivery };
 
 /** Values of the workflow status; files without one are shown as `Archiv`. */
 export const PROTOKOLL_STATUSES = ['Entwurf', 'Review', 'Freigegeben', 'Verschickt'] as const;
@@ -125,22 +129,6 @@ function toStatus(value: string | undefined): ProtokollStatus {
   return (PROTOKOLL_STATUSES as readonly string[]).includes(value ?? '')
     ? (value as ProtokollStatus)
     : 'Archiv';
-}
-
-/** Reads the stored mailing state; unreadable values count as an unknown attempt. */
-export function parseDelivery(value: string | undefined): ProtokollDelivery | null {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value) as Partial<ProtokollDelivery>;
-    return {
-      state: parsed.state === 'sent' ? 'sent' : 'attempted',
-      recipients: typeof parsed.recipients === 'number' ? parsed.recipients : 0,
-      at: typeof parsed.at === 'string' ? parsed.at : '',
-      by: typeof parsed.by === 'string' ? parsed.by : '',
-    };
-  } catch {
-    return { state: 'attempted', recipients: 0, at: '', by: '' };
-  }
 }
 
 /** Whether a drive item is a supported protocol file directly in the folder of the minutes. */

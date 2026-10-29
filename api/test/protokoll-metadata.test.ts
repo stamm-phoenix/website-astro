@@ -1,6 +1,6 @@
 import * as database from '../lib/db';
 import { activateProtokolle } from '../lib/protokoll-cutover';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import assert from 'node:assert/strict';
 import { dbTest } from './fixtures/database';
 import { getDb, VersionConflictError } from '../lib/db';

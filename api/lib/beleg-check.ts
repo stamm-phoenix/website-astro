@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
+import { z } from 'zod';
 import { CONFIG } from './config';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
+import { lenientObject } from './validation/zod';
 
 /**
  * Preliminary check of receipt photos with an image model on Azure OpenAI: is it a receipt,
@@ -48,7 +50,7 @@ export interface BelegCheck {
 
 /** Degrees clockwise a photo must be turned for its text to read upright. */
 export type BelegRotation = 0 | 90 | 180 | 270;
-const ROTATIONS: readonly BelegRotation[] = [0, 90, 180, 270];
+const ROTATIONS = [0, 90, 180, 270] as const satisfies readonly BelegRotation[];
 
 export class BelegCheckError extends Error {
   constructor(message: string) {
@@ -116,54 +118,60 @@ const RESPONSE_SCHEMA = {
   },
 };
 
-function readText(value: unknown, max: number): string | null {
-  if (typeof value !== 'string') return null;
-  const text = value.trim().replace(/\s+/g, ' ');
-  return text ? text.slice(0, max) : null;
-}
+/** A text of the model: collapsed, cut to `max` characters; anything but a text is null. */
+const shortText = (max: number) =>
+  z
+    .string()
+    .transform((value) => value.trim().replace(/\s+/g, ' ').slice(0, max) || null)
+    .catch(null);
 
-function readTexts(value: unknown, maxLength: number, maxCount: number): string[] {
-  return (Array.isArray(value) ? value : [])
-    .map((entry) => readText(entry, maxLength))
-    .filter((entry): entry is string => entry !== null)
-    .slice(0, maxCount);
-}
+/** A list of texts without the empty ones; anything but a list is empty. */
+const shortTexts = (maxLength: number, maxCount: number) =>
+  z
+    .array(shortText(maxLength))
+    .transform((entries) => entries.filter((entry) => entry !== null).slice(0, maxCount))
+    .catch([]);
 
-function readRotation(value: unknown): BelegRotation {
-  return ROTATIONS.find((rotation) => rotation === value) ?? 0;
-}
+/** What the model answers; every field falls back to the safe default instead of failing. */
+const answerSchema = lenientObject({
+  isReceipt: z.boolean().catch(false),
+  complete: z.boolean().catch(false),
+  readable: z.boolean().catch(false),
+  issues: shortTexts(MAX_ISSUE_LENGTH, MAX_ISSUES),
+  restrictedItems: shortTexts(MAX_ITEM_LENGTH, MAX_RESTRICTED_ITEMS),
+  shop: shortText(100),
+  date: shortText(10),
+  amount: z
+    .number()
+    .gt(0)
+    .max(10_000)
+    .transform((amount) => Math.round(amount * 100))
+    .nullable()
+    .catch(null),
+});
+
+const rotationSchema = lenientObject({ rotation: z.literal(ROTATIONS).catch(0) });
 
 /** Turns the model's answer into a checked result; anything unexpected is dropped. */
 export function toBelegCheck(raw: unknown, now = new Date()): BelegCheck {
   if (raw === null || typeof raw !== 'object') {
     throw new BelegCheckError('Unexpected answer of the model');
   }
-  const answer = raw as Record<string, unknown>;
-  const isReceipt = answer.isReceipt === true;
-  const complete = isReceipt && answer.complete === true;
-  const readable = isReceipt && answer.readable === true;
-  const issues = readTexts(answer.issues, MAX_ISSUE_LENGTH, MAX_ISSUES);
-  const restrictedItems = isReceipt
-    ? readTexts(answer.restrictedItems, MAX_ITEM_LENGTH, MAX_RESTRICTED_ITEMS)
-    : [];
-
-  const date = readText(answer.date, 10);
-  const amount = answer.amount;
-  const amountCent =
-    typeof amount === 'number' && Number.isFinite(amount) && amount > 0 && amount <= 10_000
-      ? Math.round(amount * 100)
-      : null;
+  const answer = answerSchema.parse(raw);
+  const isReceipt = answer.isReceipt;
+  const complete = isReceipt && answer.complete;
+  const readable = isReceipt && answer.readable;
 
   return {
     ok: isReceipt && complete && readable,
     isReceipt,
     complete,
     readable,
-    issues,
-    restrictedItems,
-    shop: readText(answer.shop, 100),
-    date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
-    amountCent,
+    issues: answer.issues,
+    restrictedItems: isReceipt ? answer.restrictedItems : [],
+    shop: answer.shop,
+    date: answer.date && /^\d{4}-\d{2}-\d{2}$/.test(answer.date) ? answer.date : null,
+    amountCent: answer.amount,
     checkedAt: now.toISOString(),
   };
 }
@@ -280,29 +288,33 @@ export async function checkBelegRotation(jpeg: Uint8Array): Promise<BelegRotatio
   if (answer === null || typeof answer !== 'object') {
     throw new BelegCheckError('Unexpected answer of the model');
   }
-  return readRotation((answer as Record<string, unknown>).rotation);
+  return rotationSchema.parse(answer).rotation;
 }
+
+/** Strings of a stored list; other entries are dropped. */
+const storedStrings = z
+  .array(z.unknown())
+  .transform((entries) => entries.filter((entry): entry is string => typeof entry === 'string'));
+
+const storedSchema = z.object({
+  ok: z.boolean(),
+  isReceipt: z.boolean().catch(false),
+  complete: z.boolean().catch(false),
+  readable: z.boolean().catch(false),
+  issues: storedStrings,
+  restrictedItems: storedStrings.catch([]),
+  shop: z.string().nullable().catch(null),
+  date: z.string().nullable().catch(null),
+  amountCent: z.number().nullable().catch(null),
+  checkedAt: z.string().catch(''),
+});
 
 /** Parses a stored check; invalid or missing values yield null. */
 export function parseStoredBelegCheck(value: string | undefined): BelegCheck | null {
   if (!value) return null;
   try {
-    const parsed = JSON.parse(value) as Partial<BelegCheck>;
-    if (typeof parsed?.ok !== 'boolean' || !Array.isArray(parsed.issues)) return null;
-    return {
-      ok: parsed.ok,
-      isReceipt: parsed.isReceipt === true,
-      complete: parsed.complete === true,
-      readable: parsed.readable === true,
-      issues: parsed.issues.filter((issue): issue is string => typeof issue === 'string'),
-      restrictedItems: Array.isArray(parsed.restrictedItems)
-        ? parsed.restrictedItems.filter((item): item is string => typeof item === 'string')
-        : [],
-      shop: typeof parsed.shop === 'string' ? parsed.shop : null,
-      date: typeof parsed.date === 'string' ? parsed.date : null,
-      amountCent: typeof parsed.amountCent === 'number' ? parsed.amountCent : null,
-      checkedAt: typeof parsed.checkedAt === 'string' ? parsed.checkedAt : '',
-    };
+    const parsed = storedSchema.safeParse(JSON.parse(value));
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }

@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { validateAbstimmungName } from '../lib/abstimmung-model';
+import { validateAbstimmungName } from '../lib/abstimmung-schema';
 import {
   AbstimmungClosedError,
   getAbstimmungAnsicht,
@@ -9,7 +9,7 @@ import {
 } from '../lib/abstimmungen';
 import { RecordNotFoundError } from '../lib/db';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 /**

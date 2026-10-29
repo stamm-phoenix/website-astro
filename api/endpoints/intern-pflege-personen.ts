@@ -11,7 +11,7 @@ import {
   readJsonBody,
   requireVersion,
 } from '../lib/pflege-api';
-import { validatePerson } from '../lib/pflege-validation';
+import { validatePerson } from '../lib/validation/person';
 import { withErrorHandling } from '../lib/response-utils';
 import { createPerson, deletePerson, getPersonenUebersicht, updatePerson } from '../lib/personen';
 

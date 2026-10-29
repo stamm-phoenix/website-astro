@@ -14,7 +14,7 @@ import {
 import type { Db } from './db';
 import type { HelperRole } from './nikolaus-einteilung';
 import { HELPER_ROLES } from './nikolaus-einteilung';
-import type { HelperInput } from './pflege-validation';
+import type { HelperInput } from './validation/nikolaus-helfende';
 
 /** A helper of the Nikolausdienst. */
 export interface Helper extends HelperInput {

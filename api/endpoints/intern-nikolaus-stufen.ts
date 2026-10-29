@@ -10,7 +10,8 @@ import {
 } from '../lib/nikolaus-bookings';
 import { getHelper, getHelpers, updateHelperStufen } from '../lib/nikolaus-helfende-list';
 import { buildSuggestions, getStufenMembers, hasTag, withTag } from '../lib/nikolaus-stufen';
-import { ValidationError, validateStufenDecision } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
+import { validateStufenDecision } from '../lib/validation/nikolaus-helfende';
 import {
   METHOD_NOT_ALLOWED,
   NOT_FOUND,

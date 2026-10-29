@@ -1,5 +1,5 @@
 import { getSammelShop, sammelShopUrl, isSammelProductUrl } from './sammelbestellung-shops';
-import { ValidationError } from './pflege-validation';
+import { ValidationError } from './validation/errors';
 import type { SammelProductInfo, SammelAvailability } from './sammelbestellung-model';
 
 interface CachedProduct {

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { dailyLimit } from './azure-openai';
 import { requestAzureMaps, requestAzureMapsImage } from './azure-maps';
 import { CONFIG } from './config';
@@ -56,6 +57,24 @@ type MapArea = NikolausCoordinates | 'off' | 'error';
 let area: { value: Promise<MapArea>; expires: number } | undefined;
 const attributions = new Map<string, { value: Promise<string[]>; expires: number }>();
 
+/** A tile number as it stands in the path: digits only, no sign, no fraction. */
+const tileNumber = z
+  .string()
+  .regex(/^\d{1,7}$/)
+  .transform(Number);
+
+const tileAddressSchema = z
+  .object({
+    style: z.enum(['hell', 'dunkel']),
+    z: tileNumber,
+    x: tileNumber,
+    y: z
+      .string()
+      .transform((row) => row.replace(/\.png$/, ''))
+      .pipe(tileNumber),
+  })
+  .refine(({ z: zoom, x, y }) => x < 2 ** zoom && y < 2 ** zoom);
+
 /** Reads `<style>/<z>/<x>/<y>` (the `y` may end in `.png`); null if it is no valid tile. */
 export function parseTileAddress(
   style: string | undefined,
@@ -63,15 +82,8 @@ export function parseTileAddress(
   x: string | undefined,
   y: string | undefined
 ): TileAddress | null {
-  if (!isTileStyle(style)) return null;
-  const numbers = [z, x, y?.replace(/\.png$/, '')].map((part) =>
-    part !== undefined && /^\d{1,7}$/.test(part) ? Number(part) : NaN
-  );
-  const [zoom, column, row] = numbers;
-  if (numbers.some((n) => !Number.isInteger(n)) || zoom > CONFIG.mapTiles.maxZoom) return null;
-  const size = 2 ** zoom;
-  if (column >= size || row >= size) return null;
-  return { style, z: zoom, x: column, y: row };
+  const address = tileAddressSchema.safeParse({ style, z, x, y });
+  return address.success && address.data.z <= CONFIG.mapTiles.maxZoom ? address.data : null;
 }
 
 export function isTileStyle(value: string | undefined): value is TileStyle {
@@ -187,11 +199,13 @@ function visibleText(html: string): string {
     .join('');
 }
 
+const attributionResponseSchema = z.object({ copyrights: z.array(z.unknown()) });
+
 /** The text of the notices, without their links: `<a …>&copy;2026 TomTom</a>` → `©2026 TomTom`. */
 export function parseAttribution(value: unknown): string[] {
-  const copyrights = (value as { copyrights?: unknown } | null)?.copyrights;
-  if (!Array.isArray(copyrights)) throw new Error('Azure Maps returned no attribution');
-  return copyrights
+  const response = attributionResponseSchema.safeParse(value);
+  if (!response.success) throw new Error('Azure Maps returned no attribution');
+  return response.data.copyrights
     .filter((text): text is string => typeof text === 'string')
     .map((text) =>
       visibleText(text)

@@ -1,5 +1,5 @@
 import { deflateSync } from 'node:zlib';
-import { ValidationError } from '../lib/pflege-validation';
+import { ValidationError } from '../lib/validation/errors';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { protokollToText, assertProtokollSize, MAX_PROTOKOLL_BYTES } from '../lib/protokoll-text';
