@@ -12,6 +12,7 @@ Neues öffentliches Modul **„Essensplanung“**. Ein Küchenteam plant damit f
 | **Tag** | Ein Tag der Planung mit Datum. Tag 1 ist der erste Tag. |
 | **Mahlzeit** | Ein Essens-Slot an einem Tag. Standard: Frühstück, Mittagessen, Kaffee & Kuchen, Abendessen, Mitternachtssnack. Pro Tag frei hinzufügen, umbenennen, löschen und umsortieren. |
 | **Mahlzeit-ID** | Angezeigte Bezeichnung `<Tag>_<Slot>`, z. B. `3_1` = erster Slot am dritten Tag. Sie beschreibt **die Position** und wird immer aus der aktuellen Reihenfolge berechnet. Intern hat jede Mahlzeit eine feste UUID, deshalb wandern Einplanungen beim Umsortieren korrekt mit. |
+| **Gericht-ID** | `<Tag>_<Slot>_<Gericht>`, z. B. `3_2_2` = zweites Gericht beim zweiten Slot am dritten Tag. Wie die Mahlzeit-ID aus der aktuellen Reihenfolge berechnet. |
 | **Gericht** | Ein Rezept, das zur Planung gehört: Zutaten für eine Referenz-Personenzahl, Werkzeuge, Anleitung, Links. Ein Gericht ist kein Teil einer Mahlzeit. |
 | **Einplanung** | Ein Gericht an einer Mahlzeit, mit Faktor und zuständiger Person. Ein Gericht kann an mehreren Mahlzeiten stehen (Standardfrühstück), eine Mahlzeit kann mehrere Gerichte haben (Hauptspeise und Nachtisch). |
 | **Zutat** | Eintrag der **zentralen Zutatenliste**. Enthält auch Nicht-Lebensmittel wie Spülmittel. In Gerichten darf nur stehen, was in der Liste steht oder als Abweichung in der Planung angelegt ist. |
@@ -133,6 +134,7 @@ Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite e
 - **Zuständig:** ein Mitglied der Planung mit Zugang oder ein freier Name, höchstens eins von beiden. Der Lese-Link sieht den Namen, aber keine Mitgliederliste.
 - Ein Gericht lässt sich zwischen Mahlzeiten verschieben („Ändern“ mit anderer Mahlzeit) und kopieren (legt eine neue Einplanung mit denselben Angaben an); innerhalb der Mahlzeit mit ↑/↓ sortieren.
 - Die Plan-Ansicht zeigt unter jeder Mahlzeit ihre Gerichte mit Faktor und Zuständigen, auch im PDF; die Karte eines Gerichts zeigt, wo es eingeplant ist.
+- Jedes eingeplante Gericht hat eine ID `Tag_Mahlzeit_Gericht`, z. B. ist der Salat als zweites Gericht beim Mittagessen (zweite Mahlzeit) am dritten Tag `3_2_2` (`einplanungKennung`); sie folgt der Reihenfolge und steht im Plan, auf der Gerichtskarte und im PDF.
 - Löschen: Ein gelöschtes Gericht verschwindet aus allen Mahlzeiten; eine gelöschte Mahlzeit (oder ihr Tag) nimmt ihre Einplanungen mit, die Gerichte bleiben.
 
 ## Teilnehmende
@@ -148,10 +150,10 @@ Umgesetzt (PR 5a):
 
 - Eine neue Planung bekommt die Gruppen aus `vorlage_gruppen` der Steuerung; Planungen von vor der Migration `0058` bekommen sie dort. Gruppen haben einen eindeutigen Namen (bis 50 Zeichen) und einen Faktor von 0,01 bis 5; höchstens 20 je Planung. Eine Gruppe mit Teilnehmenden lässt sich nicht löschen.
 - Eine Zeile hat Gruppe, Ernährung, Unverträglichkeiten, Anzahl (1 bis 2000), optional „ab“ und „bis“ Mahlzeit (leer: erste bzw. letzte) und einen Hinweis; höchstens 300 Zeilen je Planung.
-- „Wer isst mit?“ an jeder Mahlzeit schaltet Gruppen ab (`mahlzeit_ohne_gruppe`), die Mahlzeit zeigt dann „ohne …“.
+- „Wer isst mit?“ steht an jeder Mahlzeit mit der Antwort („alle“ oder „alle außer Wö“); „Ändern“ schaltet Gruppen ab (`mahlzeit_ohne_gruppe`).
 - Wird eine Mahlzeit oder ein Tag gelöscht, an dem eine Zeile beginnt oder endet, rückt die Grenze auf die nächste verbleibende Mahlzeit (Beginn) bzw. die vorige (Ende). Gibt es keine mehr, bleibt die gelöschte Mahlzeit stehen und die Zeile isst nirgends mit; der Dialog zeigt sie als „Gelöscht“. Liegt der ganze Aufenthalt auf gelöschten Mahlzeiten, bleiben ebenfalls die gelöschten stehen (`api/lib/essen-teilnehmende-grenzen.ts`).
 - Verschieben einer Mahlzeit oder eines Tages wird abgelehnt, wenn danach bei einer Zeile das Ende vor dem Beginn läge (`pruefeAnwesenheit`, Feld `anwesenheit`); die Seite nennt Gruppe und Anzahl.
-- Die Tabelle „Esser je Mahlzeit“ rechnet `esserJeMahlzeit` (`api/lib/essen-teilnehmende-model.ts`): Personen, Portionen (Personen × Faktor der Gruppe) und Personen je Ernährung. Die Berechnung der Mengen nutzt dieselbe Funktion (PR 5b).
+- „Esser je Mahlzeit“ ist ein Kalender: die Tage nebeneinander, ihre Mahlzeiten als Karten mit Personen und Personen je Ernährung (auf dem Handy seitlich zu wischen). Portionen stehen nicht darin, sie sind nur für die Mengen da. Gerechnet wird mit `esserJeMahlzeit` (`api/lib/essen-teilnehmende-model.ts`), das auch die Mengen nutzt (PR 5b).
 
 ## Berechnung
 
