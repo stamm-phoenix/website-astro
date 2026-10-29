@@ -2,21 +2,23 @@
   import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { ApiError } from '../../lib/api';
-  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type { PlanKontext } from './planKontext';
 
-  /** One field under the packing list for what else has to go along; Enter puts it on the list. */
+  /**
+   * One field under the packing list for what else has to go along; Enter puts it on the list.
+   * The typed name belongs to the list (`text`), which also guards it, so it survives this field
+   * being hidden, e.g. while the maintenance mode is on.
+   */
 
   interface Props {
     kontext: PlanKontext;
+    text: string;
   }
-  let { kontext }: Props = $props();
+  let { kontext, text = $bindable() }: Props = $props();
 
-  let text = $state('');
   let fehler = $state<string | null>(null);
   let speichert = $state(false);
   let feld = $state<HTMLInputElement | null>(null);
-  $effect(() => guardUnsavedChanges(() => text.trim() !== ''));
 
   async function hinzufuegen(): Promise<void> {
     const name = text.trim().replace(/\s+/g, ' ');

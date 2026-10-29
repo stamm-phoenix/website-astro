@@ -193,6 +193,38 @@ test('names that differ in signs have their own box; a typed name that failed is
   const liste = page.getByRole('list', { name: 'Packliste' });
   await expect(liste.getByRole('listitem')).toHaveCount(2);
 
+  // A name typed below the list survives the maintenance mode, which hides the field
+  const neu = page.getByLabel('Noch etwas einpacken');
+  const wartung = async (an: boolean): Promise<void> => {
+    await page.unroute('**/api/essensplanung/planung/stand?*');
+    await page.route('**/api/essensplanung/planung/stand?*', async (route) => {
+      const url = route
+        .request()
+        .url()
+        .replace(/seit=[^&]*/, 'seit=0');
+      const antwort = await route.fetch({ url });
+      const json = await antwort.json();
+      if (json.ansicht) json.ansicht.wartung = an;
+      await route.fulfill({ response: antwort, json });
+    });
+  };
+  await neu.fill('Gaskocher');
+  await wartung(true);
+  await expect(neu).toHaveCount(0, { timeout: 15_000 });
+  await wartung(false);
+  await expect(neu).toHaveValue('Gaskocher', { timeout: 15_000 });
+  await page.unroute('**/api/essensplanung/planung/stand?*');
+  await neu.fill('');
+
+  // Box and name are one target of at least 44 px on a phone
+  await page.setViewportSize({ width: 390, height: 844 });
+  const flaeche = await liste
+    .locator('label', { has: page.getByRole('checkbox', { name: 'Grill Zange', exact: true }) })
+    .boundingBox();
+  expect(flaeche!.height).toBeGreaterThanOrEqual(44);
+  expect(flaeche!.width).toBeGreaterThanOrEqual(44);
+  await expectNoHorizontalOverflow(page);
+
   // The label of the one row ticks its own box
   await liste.getByText('Grill Zange', { exact: true }).click();
   await expect(page.getByRole('checkbox', { name: 'Grill Zange', exact: true })).toBeChecked();

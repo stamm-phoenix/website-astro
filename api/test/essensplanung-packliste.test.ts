@@ -309,3 +309,26 @@ dbTest('the preview gets an invented packing list once', async () => {
   assert.ok(eintraege.some((e) => e.werkzeug === null && e.name === 'Gaskocher (Test)'));
   assert.ok(eintraege.length <= 2);
 });
+
+dbTest('a tool whose merged name is longer than its name is packed and assigned', async (t) => {
+  const mails = captureMails(t);
+  const { token, ansicht } = await anlegen(t, mails);
+  // Lower case makes „İ“ two characters: 101 in the merged name
+  const name = 'A'.repeat(99) + 'İ';
+  const gerichtId = await gericht(t, token, 'Langes Werkzeug', [name]);
+  await einplanen(t, token, ansicht.tage[0].mahlzeiten[0].id, gerichtId);
+  const gepackt = await werkzeug(t, token, { werkzeug: name, etag: null, gepackt: true });
+  assert.equal(gepackt.status, 200, JSON.stringify(gepackt.jsonBody));
+  const [eintrag] = json<PlanungAnsicht>(gepackt).packliste;
+  assert.equal(eintrag.werkzeug?.length, 101);
+  const zustaendig = await werkzeug(t, token, {
+    werkzeug: name,
+    etag: eintrag.etag,
+    zustaendigText: 'Rover',
+  });
+  assert.equal(zustaendig.status, 200, JSON.stringify(zustaendig.jsonBody));
+  assert.deepEqual(
+    json<PlanungAnsicht>(zustaendig).packliste.map((e) => [e.name, e.gepackt, e.zustaendig]),
+    [[name, true, 'Rover']]
+  );
+});

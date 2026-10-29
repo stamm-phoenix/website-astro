@@ -9,6 +9,11 @@
 export const MAX_PACKLISTE = 300;
 /** Length of a name, as of a tool of a dish. */
 export const MAX_PACK_NAME = 100;
+/**
+ * Length of a merged name (`packliste_eintrag.werkzeug`): lower case may lengthen a character
+ * („İ“ becomes „i̇“, two UTF-16 units), never by more than one unit per character.
+ */
+export const MAX_PACK_SCHLUESSEL = 2 * MAX_PACK_NAME;
 
 /** A stored entry: the state of a tool of the dishes, or a thing of its own. */
 export interface PacklisteEintrag {

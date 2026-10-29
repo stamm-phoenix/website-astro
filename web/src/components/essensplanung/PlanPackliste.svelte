@@ -31,7 +31,11 @@
    * to read-only (maintenance) does not drop what is typed; leaving asks while one is unsaved.
    */
   let entwuerfe = $state<Record<string, string>>({});
-  $effect(() => guardUnsavedChanges(() => entwurfOffen(entwuerfe, zeilen)));
+  /** The name typed under the list, kept while the field is hidden (maintenance). */
+  let neuerName = $state('');
+  $effect(() =>
+    guardUnsavedChanges(() => neuerName.trim() !== '' || entwurfOffen(entwuerfe, zeilen))
+  );
   function entwurfSetzen(key: string, text: string | null): void {
     if (text === null) {
       entwuerfe = Object.fromEntries(Object.entries(entwuerfe).filter(([k]) => k !== key));
@@ -104,6 +108,6 @@
     </p>
   {/if}
   {#if bearbeiten}
-    <NeuerPackEintrag {kontext} />
+    <NeuerPackEintrag {kontext} bind:text={neuerName} />
   {/if}
 </section>

@@ -254,7 +254,7 @@ So sicher gegen Konflikte wie der Protokoll-Editor, ohne Neuladen, aber ohne ech
 
 ## Datenmodell (Schema `essen`, Azure SQL)
 
-Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`), Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`) Gerichte mit den Zutaten der Planung (`0055_essensplanung_gerichte.sql`), Einplanungen (`0056`) und Teilnehmende (`0058_essensplanung_teilnehmende.sql`) sowie Geschäfte, Bestand und Zusatzbedarf (`0059_essensplanung_einkaufsliste.sql`) und die Packliste (`0062_essensplanung_packliste.sql`); Typen in `api/lib/db-schema.ts`.
+Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`), Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`) Gerichte mit den Zutaten der Planung (`0055_essensplanung_gerichte.sql`), Einplanungen (`0056`) und Teilnehmende (`0058_essensplanung_teilnehmende.sql`) sowie Geschäfte, Bestand und Zusatzbedarf (`0059_essensplanung_einkaufsliste.sql`) und die Packliste (`0062_essensplanung_packliste.sql`, `0065_essensplanung_packliste_schluessel.sql`); Typen in `api/lib/db-schema.ts`.
 
 | Tabelle | Inhalt |
 | --- | --- |
@@ -277,7 +277,7 @@ Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach.
 | `einplanung_verbrauch` | tatsächlicher Verbrauch je Zutat (PR 6) |
 | `einkauf`, `einkauf_posten` | Einkäufe, verschobene oder feste Posten, erhaltene Menge, Ersatz, abgehakt von/um |
 | `zusatzbedarf`, `bestand` | spontane Dinge, Anfangsbestand: `planung_zutat_id` (ohne Kaskade), `menge`, `einheit`, `hinweis` |
-| `packliste_eintrag` | gespeicherter Zustand eines Werkzeugs (`werkzeug`: zusammengefasster Name, eindeutig je Planung) oder ein eigener Eintrag (`werkzeug` `NULL`): `name`, `gepackt`, `zustaendig_mitglied_id` (ohne Kaskade, `deletePlanung` löscht die Einträge zuerst) oder `zustaendig_text` |
+| `packliste_eintrag` | gespeicherter Zustand eines Werkzeugs (`werkzeug`: zusammengefasster Name bis 200 Zeichen, weil Kleinschreibung Zeichen verlängern kann, binär verglichen, eindeutig je Planung) oder ein eigener Eintrag (`werkzeug` `NULL`): `name`, `gepackt`, `zustaendig_mitglied_id` (ohne Kaskade, `deletePlanung` löscht die Einträge zuerst) oder `zustaendig_text` |
 
 Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen einer Planung löscht alles kaskadierend; nur die Zeilen der Gerichte zeigen ohne Kaskade auf die Zutaten der Planung (SQL Server erlaubt keine zwei Kaskadenwege), deshalb löscht `deletePlanung` zuerst die Gerichte.
 

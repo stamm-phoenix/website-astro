@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { packlisteSchluessel } from '../lib/essen-packliste-model';
+import {
+  MAX_PACK_NAME,
+  MAX_PACK_SCHLUESSEL,
+  packlisteSchluessel,
+} from '../lib/essen-packliste-model';
 import {
   validatePackAenderung,
   validatePackEintrag,
@@ -12,6 +16,17 @@ test('tools are merged by their trimmed name in lower case', () => {
   assert.equal(packlisteSchluessel('  Großer   Topf '), 'großer topf');
   assert.equal(packlisteSchluessel('GROSSER TOPF'), 'grosser topf');
   assert.equal(packlisteSchluessel('Pürierstab'), packlisteSchluessel('pürierstab'));
+});
+
+test('a merged name may outgrow its name but fits the stored column', () => {
+  const name = 'A'.repeat(99) + 'İ';
+  assert.equal(validateWerkzeugAenderung({ werkzeug: name, gepackt: true }).werkzeug, name);
+  assert.equal(name.length, MAX_PACK_NAME);
+  const schluessel = packlisteSchluessel(name);
+  assert.equal(schluessel.length, 101);
+  assert.ok(schluessel.length <= MAX_PACK_SCHLUESSEL);
+  // Every character of the longest name at its longest still fits
+  assert.ok(packlisteSchluessel('İ'.repeat(MAX_PACK_NAME)).length <= MAX_PACK_SCHLUESSEL);
 });
 
 test('an entry of its own needs a name and at most one who packs it', () => {

@@ -132,39 +132,45 @@
 </script>
 
 <li class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5">
-  <div class="flex min-w-0 flex-1 basis-56 items-start gap-3">
+  <div class="min-w-0 flex-1 basis-56">
     {#if bearbeiten}
-      <input
-        type="checkbox"
-        id="{id}-gepackt"
-        class="mt-3 size-5 shrink-0"
-        checked={zeile.gepackt}
-        disabled={speichert}
-        aria-describedby={fuer ? `${id}-fuer` : undefined}
-        onchange={(event) => void packen(event.currentTarget)}
-      />
-    {/if}
-    <div class="min-w-0 py-2">
-      {#if bearbeiten}
-        <label
-          for="{id}-gepackt"
-          class="cursor-pointer font-semibold [overflow-wrap:anywhere] {zeile.gepackt
-            ? 'text-neutral-700 line-through'
-            : ''}">{zeile.name}</label
-        >
-      {:else}
-        <span class="font-semibold [overflow-wrap:anywhere]">{zeile.name}</span>
-      {/if}
-      <span class="text-sm {zeile.gepackt ? 'text-success' : 'text-neutral-700'}"
-        >· {zeile.gepackt ? 'gepackt' : 'noch einpacken'}</span
+      <!-- Box and name are one label: a target of at least 44 px for the finger -->
+      <label
+        for="{id}-gepackt"
+        class="inline-flex min-h-11 min-w-11 cursor-pointer items-center gap-3 pr-1 align-middle"
       >
-      {#if fuer}
-        <p id="{id}-fuer" class="text-sm text-neutral-700 [overflow-wrap:anywhere]">für {fuer}</p>
-      {/if}
-      {#if !bearbeiten && zeile.zustaendig}
-        <p class="text-sm text-neutral-700">Zuständig: {zeile.zustaendig}</p>
-      {/if}
-    </div>
+        <input
+          type="checkbox"
+          id="{id}-gepackt"
+          class="size-5 shrink-0"
+          checked={zeile.gepackt}
+          disabled={speichert}
+          aria-describedby={fuer ? `${id}-fuer` : undefined}
+          onchange={(event) => void packen(event.currentTarget)}
+        />
+        <span
+          class="font-semibold [overflow-wrap:anywhere] {zeile.gepackt
+            ? 'text-neutral-700 line-through'
+            : ''}">{zeile.name}</span
+        >
+      </label>
+    {:else}
+      <span class="font-semibold [overflow-wrap:anywhere]">{zeile.name}</span>
+    {/if}
+    <span class="text-sm {zeile.gepackt ? 'text-success' : 'text-neutral-700'}"
+      >· {zeile.gepackt ? 'gepackt' : 'noch einpacken'}</span
+    >
+    {#if fuer}
+      <p
+        id="{id}-fuer"
+        class="text-sm text-neutral-700 [overflow-wrap:anywhere] {bearbeiten ? 'pl-8' : ''}"
+      >
+        für {fuer}
+      </p>
+    {/if}
+    {#if !bearbeiten && zeile.zustaendig}
+      <p class="text-sm text-neutral-700">Zuständig: {zeile.zustaendig}</p>
+    {/if}
   </div>
   {#if bearbeiten}
     <div class="flex flex-wrap items-center gap-1">
