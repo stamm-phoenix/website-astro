@@ -6,6 +6,9 @@ import type { Db } from './db';
  */
 export async function deletePlanung(trx: Db, planungId: number): Promise<boolean> {
   await trx.deleteFrom('essen.anlage_anfrage').where('planung_id', '=', planungId).execute();
+  // The lines of the dishes point to the ingredients of the Planung without a cascade, so the
+  // dishes (and with them the lines) go first
+  await trx.deleteFrom('essen.gericht').where('planung_id', '=', planungId).execute();
   const result = await trx
     .deleteFrom('essen.planung')
     .where('id', '=', planungId)

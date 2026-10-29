@@ -40,6 +40,7 @@ import {
 import { loadEssenEinstellungen } from './essen-steuerung';
 import { darfPlanungAnlegen } from './essen-validation';
 import { deletePlanung } from './essen-planung-loeschen';
+import { ladeGerichte } from './essen-gerichte';
 import { ValidationError } from './pflege-validation';
 
 /**
@@ -141,7 +142,7 @@ const AENDERUNGEN_ANZEIGEN = 30;
 /** The view of a Planung for the given access. */
 export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<PlanungAnsicht> {
   const { seq, stand, stored } = await standUndEinstellungen(zugang, db);
-  const [planung, mitglieder, tage, mahlzeiten, aenderungen] = await Promise.all([
+  const [planung, mitglieder, tage, mahlzeiten, aenderungen, gerichte] = await Promise.all([
     db
       .selectFrom('essen.planung')
       .selectAll()
@@ -167,6 +168,7 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
       .orderBy('seq', 'desc')
       .top(AENDERUNGEN_ANZEIGEN)
       .execute(),
+    ladeGerichte(db, zugang.planungId),
   ]);
   if (!planung) throw LINK_UNGUELTIG();
 
@@ -225,6 +227,8 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
       aktion: row.aktion,
       details: JSON.parse(row.details) as Record<string, unknown>,
     })),
+    zutaten: gerichte.zutaten,
+    gerichte: gerichte.gerichte,
   };
 }
 

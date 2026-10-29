@@ -1,3 +1,4 @@
+import type { Gericht, PlanungZutat } from './essen-gerichte-model';
 import type { FieldErrors } from './pflege-validation';
 import { ValidationError } from './pflege-validation';
 
@@ -93,6 +94,10 @@ export interface PlanungAnsicht {
   wartung: boolean;
   /** The latest changes, newest first. */
   aenderungen: PlanungAenderung[];
+  /** Ingredients used in the Planung, by name. */
+  zutaten: PlanungZutat[];
+  /** Dishes by name, with their lines in order. */
+  gerichte: Gericht[];
 }
 
 /** Whether `zugang` may change the plan (days, meals, later dishes). */
@@ -385,4 +390,13 @@ export const AENDERUNG_TEXTE: Record<string, string> = {
   'link-beitritt': 'Link zum Beitreten geändert',
   'link-lesen': 'Link zum Ansehen geändert',
   'name-geaendert': 'Eigenen Namen geändert',
+  'gericht-neu': 'Gericht angelegt',
+  'gericht-geaendert': 'Gericht geändert',
+  'gericht-geloescht': 'Gericht gelöscht',
+  'gericht-zutat-neu': 'Zutat zu Gericht hinzugefügt',
+  'gericht-zutat-geaendert': 'Zutat in Gericht geändert',
+  'gericht-zutat-geloescht': 'Zutat aus Gericht entfernt',
+  'zutat-neu': 'Eigene Zutat angelegt',
+  'zutat-geaendert': 'Zutat der Planung geändert',
+  'zutat-geloescht': 'Zutat der Planung gelöscht',
 };

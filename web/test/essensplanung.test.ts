@@ -7,6 +7,8 @@ import {
   planungUrl,
   tokenAusHash,
 } from '../src/lib/essensplanung.ts';
+import { fuerText, leseMenge, mengeFeld } from '../src/lib/essensplanungGerichte.ts';
+import { mengeText } from '../../api/lib/essen-gerichte-model.ts';
 
 const TOKEN = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJ01234-_';
 
@@ -47,4 +49,34 @@ test('changes read as a sentence with name and day', () => {
     }),
     'Jemand ist beigetreten'
   );
+});
+
+test('amounts accept a comma and stay empty without a number', () => {
+  assert.equal(leseMenge('1,5'), 1.5);
+  assert.equal(leseMenge(' 200 '), 200);
+  assert.equal(leseMenge(''), null);
+  assert.ok(Number.isNaN(leseMenge('zwei')));
+  assert.equal(mengeFeld(1.5), '1,5');
+  assert.equal(mengeText(1500, 'g'), '1.500 g');
+  assert.equal(mengeText(null, null), null);
+});
+
+test('a line names for whom it is only when not for everyone', () => {
+  const zeile = {
+    id: 1,
+    etag: '',
+    position: 1,
+    planungZutatId: 1,
+    menge: null,
+    einheit: null,
+    fest: false,
+    fuerAlles: true,
+    fuerVegetarisch: true,
+    fuerVegan: true,
+    ohne: [],
+    nur: [],
+    hinweis: '',
+  };
+  assert.equal(fuerText(zeile), null);
+  assert.equal(fuerText({ ...zeile, fuerAlles: false }), 'nur vegetarisch, vegan');
 });

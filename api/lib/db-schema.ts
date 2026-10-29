@@ -1,5 +1,6 @@
 import type { ColumnType, Generated } from 'kysely';
 import type { EssenEinheitenart } from './essen-validation';
+import type { GerichtEinheit } from './essen-gerichte-model';
 import type { AnwesenheitStufeName } from './anwesenheit-model';
 import type { SammelShop } from './sammelbestellung-shops';
 import type { SammelStatus } from './sammelbestellung-model';
@@ -110,6 +111,11 @@ export interface Database {
   'essen.tag': EssenTagTable;
   'essen.mahlzeit': EssenMahlzeitTable;
   'essen.aenderung': EssenAenderungTable;
+  'essen.planung_zutat': EssenPlanungZutatTable;
+  'essen.planung_zutat_unvertraeglichkeit': EssenPlanungZutatUnvertraeglichkeitTable;
+  'essen.gericht': EssenGerichtTable;
+  'essen.gericht_zutat': EssenGerichtZutatTable;
+  'essen.gericht_zutat_unvertraeglichkeit': EssenGerichtZutatUnvertraeglichkeitTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -1039,6 +1045,61 @@ export interface EssenMahlzeitTable {
   name: string;
   /** `HH:MM`. */
   uhrzeit: string | null;
+}
+
+export interface EssenPlanungZutatTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  /** null: an ingredient of the Planung's own. */
+  zutat_id: number | null;
+  name: string | null;
+  kategorie_id: number | null;
+  einheitenart: EssenEinheitenart | null;
+  vegetarisch: boolean | null;
+  vegan: boolean | null;
+}
+
+export interface EssenPlanungZutatUnvertraeglichkeitTable {
+  planung_zutat_id: number;
+  unvertraeglichkeit_id: number;
+}
+
+export interface EssenGerichtTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  name: string;
+  personen: number;
+  anleitung: Generated<string>;
+  notiz: Generated<string>;
+  /** JSON array of `{ titel, url }`. */
+  links: Generated<string>;
+  /** JSON array of names. */
+  werkzeuge: Generated<string>;
+}
+
+export interface EssenGerichtZutatTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  gericht_id: number;
+  position: number;
+  planung_zutat_id: number;
+  /** decimal(12, 3); null without an amount. */
+  menge: number | null;
+  einheit: GerichtEinheit | null;
+  fest: Generated<boolean>;
+  fuer_alles: boolean;
+  fuer_vegetarisch: boolean;
+  fuer_vegan: boolean;
+  hinweis: Generated<string>;
+}
+
+export interface EssenGerichtZutatUnvertraeglichkeitTable {
+  gericht_zutat_id: number;
+  unvertraeglichkeit_id: number;
+  /** false: „nicht für …“, true: „nur für …“. */
+  nur: boolean;
 }
 
 export interface EssenAenderungTable {

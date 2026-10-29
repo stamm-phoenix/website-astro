@@ -1,0 +1,754 @@
+import { sql } from 'kysely';
+import type { Db } from './db';
+import {
+  RecordNotFoundError,
+  VersionConflictError,
+  getDb,
+  getSqlErrorNumber,
+  requireVersion,
+  toVersion,
+} from './db';
+import type {
+  EssenKatalog,
+  Gericht,
+  GerichtEinheit,
+  GerichtLink,
+  GerichtZutat,
+  PlanungZutat,
+} from './essen-gerichte-model';
+import {
+  MAX_GERICHTE,
+  MAX_PLANUNG_ZUTATEN,
+  MAX_ZEILEN_PRO_GERICHT,
+  einheitPasst,
+} from './essen-gerichte-model';
+import type {
+  GerichtInput,
+  GerichtZutatInput,
+  PlanungZutatInput,
+} from './essen-gerichte-validation';
+import { validatePlanungZutat } from './essen-gerichte-validation';
+import type { Zugang } from './essen-planung';
+import { aendere } from './essen-planung';
+import { listKategorien, listUnvertraeglichkeiten, listZutaten } from './essen-steuerung';
+import type { EssenEinheitenart } from './essen-validation';
+import { COLLATOR } from './essen-validation';
+import { ValidationError } from './pflege-validation';
+
+/**
+ * Dishes of a Planung and the ingredients they use (`docs/essensplanung.md`, „Gerichte“). Every
+ * change runs through `aendere()`, so it counts as a change of the Planung and reaches the other
+ * open pages.
+ */
+
+const UNIQUE_VIOLATION = new Set([2601, 2627]);
+
+function parseArray(value: string): unknown[] {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The central lists a Planung picks ingredients from. */
+export async function ladeKatalog(db: Db = getDb()): Promise<EssenKatalog> {
+  const [kategorien, unvertraeglichkeiten, zutaten] = await Promise.all([
+    listKategorien(db),
+    listUnvertraeglichkeiten(db),
+    listZutaten(db),
+  ]);
+  return {
+    kategorien: kategorien.map(({ id, name }) => ({ id, name })),
+    unvertraeglichkeiten: unvertraeglichkeiten.map(({ id, name, schluessel }) => ({
+      id,
+      name,
+      schluessel,
+    })),
+    zutaten: zutaten.map((zutat) => ({
+      id: zutat.id,
+      name: zutat.name,
+      kategorieId: zutat.kategorieId,
+      einheitenart: zutat.einheitenart,
+      abtropfgewicht: zutat.abtropfgewicht,
+      lebensmittel: zutat.lebensmittel,
+      vegetarisch: zutat.vegetarisch,
+      vegan: zutat.vegan,
+      allergene: zutat.allergene,
+      grammProTl: zutat.grammProTl,
+      grammProEl: zutat.grammProEl,
+      grammProStueck: zutat.grammProStueck,
+    })),
+  };
+}
+
+/** The ingredients and dishes of a Planung, for its view. */
+export async function ladeGerichte(
+  db: Db,
+  planungId: number
+): Promise<{ zutaten: PlanungZutat[]; gerichte: Gericht[] }> {
+  const [zutaten, gerichte, zeilen, zeilenUnvertraeglichkeiten] = await Promise.all([
+    db
+      .selectFrom('essen.planung_zutat as pz')
+      .leftJoin('essen.zutat as z', 'z.id', 'pz.zutat_id')
+      .select([
+        'pz.id',
+        'pz.version',
+        'pz.zutat_id',
+        'pz.name',
+        'pz.kategorie_id',
+        'pz.einheitenart',
+        'pz.vegetarisch',
+        'pz.vegan',
+        'z.name as z_name',
+        'z.kategorie_id as z_kategorie_id',
+        'z.einheitenart as z_einheitenart',
+        'z.abtropfgewicht as z_abtropfgewicht',
+        'z.lebensmittel as z_lebensmittel',
+        'z.vegetarisch as z_vegetarisch',
+        'z.vegan as z_vegan',
+        sql<string | null>`(select string_agg(cast(x.unvertraeglichkeit_id as varchar(12)), ',')
+          from (
+            select zu.unvertraeglichkeit_id from essen.zutat_unvertraeglichkeit zu
+              where zu.zutat_id = pz.zutat_id
+            union all
+            select pzu.unvertraeglichkeit_id from essen.planung_zutat_unvertraeglichkeit pzu
+              where pzu.planung_zutat_id = pz.id
+          ) x)`.as('allergen_ids'),
+        sql<number>`(select count(*) from essen.gericht_zutat gz where gz.planung_zutat_id = pz.id)`.as(
+          'zeilen'
+        ),
+      ])
+      .where('pz.planung_id', '=', planungId)
+      .execute(),
+    db.selectFrom('essen.gericht').selectAll().where('planung_id', '=', planungId).execute(),
+    db
+      .selectFrom('essen.gericht_zutat as gz')
+      .innerJoin('essen.gericht as g', 'g.id', 'gz.gericht_id')
+      .selectAll('gz')
+      .where('g.planung_id', '=', planungId)
+      .execute(),
+    db
+      .selectFrom('essen.gericht_zutat_unvertraeglichkeit as gzu')
+      .innerJoin('essen.gericht_zutat as gz', 'gz.id', 'gzu.gericht_zutat_id')
+      .innerJoin('essen.gericht as g', 'g.id', 'gz.gericht_id')
+      .select(['gzu.gericht_zutat_id', 'gzu.unvertraeglichkeit_id', 'gzu.nur'])
+      .where('g.planung_id', '=', planungId)
+      .execute(),
+  ]);
+  const unvertraeglich = new Map<number, { ohne: number[]; nur: number[] }>();
+  for (const row of zeilenUnvertraeglichkeiten) {
+    const entry = unvertraeglich.get(row.gericht_zutat_id) ?? { ohne: [], nur: [] };
+    (row.nur ? entry.nur : entry.ohne).push(row.unvertraeglichkeit_id);
+    unvertraeglich.set(row.gericht_zutat_id, entry);
+  }
+  const zeilenJeGericht = new Map<number, GerichtZutat[]>();
+  for (const zeile of zeilen) {
+    const liste = zeilenJeGericht.get(zeile.gericht_id) ?? [];
+    const { ohne = [], nur = [] } = unvertraeglich.get(zeile.id) ?? {};
+    liste.push({
+      id: zeile.id,
+      etag: toVersion(zeile.version),
+      position: zeile.position,
+      planungZutatId: zeile.planung_zutat_id,
+      menge: zeile.menge === null ? null : Number(zeile.menge),
+      einheit: zeile.einheit,
+      fest: zeile.fest,
+      fuerAlles: zeile.fuer_alles,
+      fuerVegetarisch: zeile.fuer_vegetarisch,
+      fuerVegan: zeile.fuer_vegan,
+      ohne: ohne.sort((a, b) => a - b),
+      nur: nur.sort((a, b) => a - b),
+      hinweis: zeile.hinweis,
+    });
+    zeilenJeGericht.set(zeile.gericht_id, liste);
+  }
+  return {
+    zutaten: zutaten
+      .map((row): PlanungZutat => {
+        const zentral = row.zutat_id !== null;
+        return {
+          id: row.id,
+          etag: toVersion(row.version),
+          zutatId: row.zutat_id,
+          name: (zentral ? row.z_name : row.name) ?? '',
+          kategorieId: (row.kategorie_id ?? row.z_kategorie_id)!,
+          einheitenart: (row.einheitenart ?? row.z_einheitenart)!,
+          abtropfgewicht: zentral ? Boolean(row.z_abtropfgewicht) : false,
+          lebensmittel: zentral ? Boolean(row.z_lebensmittel) : true,
+          vegetarisch: zentral ? row.z_vegetarisch : row.vegetarisch,
+          vegan: zentral ? row.z_vegan : row.vegan,
+          allergene: row.allergen_ids
+            ? [...new Set(row.allergen_ids.split(',').map(Number))].sort((a, b) => a - b)
+            : [],
+          abweichend: {
+            kategorie: zentral && row.kategorie_id !== null,
+            einheitenart: zentral && row.einheitenart !== null,
+          },
+          zeilen: Number(row.zeilen),
+        };
+      })
+      .sort((a, b) => COLLATOR.compare(a.name, b.name)),
+    gerichte: gerichte
+      .map((row): Gericht => ({
+        id: row.id,
+        etag: toVersion(row.version),
+        name: row.name,
+        personen: row.personen,
+        anleitung: row.anleitung,
+        notiz: row.notiz,
+        links: parseArray(row.links) as GerichtLink[],
+        werkzeuge: parseArray(row.werkzeuge) as string[],
+        zutaten: (zeilenJeGericht.get(row.id) ?? []).sort(
+          (a, b) => a.position - b.position || a.id - b.id
+        ),
+      }))
+      .sort((a, b) => COLLATOR.compare(a.name, b.name)),
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Ingredients of the Planung
+// ---------------------------------------------------------------------------------------------
+
+async function zaehle(trx: Db, table: 'essen.planung_zutat' | 'essen.gericht', planungId: number) {
+  const row = await trx
+    .selectFrom(table)
+    .select((eb) => eb.fn.countAll<number>().as('count'))
+    .where('planung_id', '=', planungId)
+    .executeTakeFirstOrThrow();
+  return Number(row.count);
+}
+
+async function pruefeVerweise(
+  trx: Db,
+  kategorieId: number | null,
+  unvertraeglichkeiten: number[]
+): Promise<void> {
+  if (kategorieId !== null) {
+    const kategorie = await trx
+      .selectFrom('essen.kategorie')
+      .select('id')
+      .where('id', '=', kategorieId)
+      .executeTakeFirst();
+    if (!kategorie) throw new ValidationError({ kategorieId: 'Bitte eine Kategorie wählen.' });
+  }
+  if (unvertraeglichkeiten.length) {
+    const gefunden = await trx
+      .selectFrom('essen.unvertraeglichkeit')
+      .select('id')
+      .where('id', 'in', unvertraeglichkeiten)
+      .execute();
+    if (gefunden.length !== unvertraeglichkeiten.length) {
+      throw new ValidationError({ allergene: 'Bitte aus der Liste wählen.' });
+    }
+  }
+}
+
+async function eindeutig<T>(field: string, message: string, work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error: unknown) {
+    if (UNIQUE_VIOLATION.has(getSqlErrorNumber(error) ?? 0)) {
+      throw new ValidationError({ [field]: message });
+    }
+    throw error;
+  }
+}
+
+const EIGENE_ZUTAT_GIBT_ES =
+  'Diese Zutat gibt es schon. Wähle sie in der Liste aus, statt sie neu anzulegen.';
+
+async function pruefeEigenenNamen(trx: Db, name: string): Promise<void> {
+  const zentral = await trx
+    .selectFrom('essen.zutat')
+    .select('id')
+    .where('name', '=', name)
+    .executeTakeFirst();
+  if (zentral) throw new ValidationError({ name: EIGENE_ZUTAT_GIBT_ES });
+}
+
+async function setzeAllergene(trx: Db, planungZutatId: number, allergene: number[]) {
+  await trx
+    .deleteFrom('essen.planung_zutat_unvertraeglichkeit')
+    .where('planung_zutat_id', '=', planungZutatId)
+    .execute();
+  if (allergene.length) {
+    await trx
+      .insertInto('essen.planung_zutat_unvertraeglichkeit')
+      .values(
+        allergene.map((id) => ({ planung_zutat_id: planungZutatId, unvertraeglichkeit_id: id }))
+      )
+      .execute();
+  }
+}
+
+/** Adds an ingredient of the Planung's own; returns its id. */
+export async function eigeneZutatAnlegen(
+  zugang: Zugang,
+  input: PlanungZutatInput
+): Promise<number> {
+  return eindeutig('name', EIGENE_ZUTAT_GIBT_ES, () =>
+    aendere(zugang, 'zutat-neu', async (trx) => {
+      if ((await zaehle(trx, 'essen.planung_zutat', zugang.planungId)) >= MAX_PLANUNG_ZUTATEN) {
+        throw new ValidationError({
+          name: `Eine Planung hat höchstens ${MAX_PLANUNG_ZUTATEN} Zutaten.`,
+        });
+      }
+      await pruefeEigenenNamen(trx, input.name!);
+      await pruefeVerweise(trx, input.kategorieId, input.allergene ?? []);
+      const { id } = await trx
+        .insertInto('essen.planung_zutat')
+        .values({
+          planung_id: zugang.planungId,
+          name: input.name!,
+          kategorie_id: input.kategorieId,
+          einheitenart: input.einheitenart,
+          vegetarisch: input.vegetarisch ?? null,
+          vegan: input.vegan ?? null,
+        })
+        .output('inserted.id')
+        .executeTakeFirstOrThrow();
+      await setzeAllergene(trx, id, input.allergene ?? []);
+      return { result: id, details: { name: input.name } };
+    })
+  );
+}
+
+async function zutatDerPlanung(trx: Db, zugang: Zugang, id: number) {
+  const zutat = await trx
+    .selectFrom('essen.planung_zutat as pz')
+    .leftJoin('essen.zutat as z', 'z.id', 'pz.zutat_id')
+    .select([
+      'pz.id',
+      'pz.zutat_id',
+      'pz.name',
+      'pz.einheitenart',
+      'z.name as z_name',
+      'z.einheitenart as z_einheitenart',
+    ])
+    .where('pz.id', '=', id)
+    .where('pz.planung_id', '=', zugang.planungId)
+    .executeTakeFirst();
+  if (!zutat) throw new RecordNotFoundError();
+  return zutat;
+}
+
+/**
+ * Changes an ingredient of the Planung: all fields of one of its own, or the differences of a
+ * central one. The kind of unit stays while lines use the ingredient with an amount.
+ */
+export async function planungZutatAendern(
+  zugang: Zugang,
+  id: number,
+  body: unknown,
+  etag: string
+): Promise<void> {
+  await eindeutig('name', EIGENE_ZUTAT_GIBT_ES, () =>
+    aendere(zugang, 'zutat-geaendert', async (trx) => {
+      const zutat = await zutatDerPlanung(trx, zugang, id);
+      const eigene = zutat.zutat_id === null;
+      const input: PlanungZutatInput = validatePlanungZutat(body, { eigene });
+      const vorher = (zutat.einheitenart ?? zutat.z_einheitenart)!;
+      const nachher = (input.einheitenart ?? zutat.z_einheitenart)!;
+      if (nachher !== vorher) await pruefeEinheitenart(trx, id, nachher);
+      if (eigene && input.name !== zutat.name) await pruefeEigenenNamen(trx, input.name!);
+      await pruefeVerweise(trx, input.kategorieId, input.allergene ?? []);
+      const result = await trx
+        .updateTable('essen.planung_zutat')
+        .set(
+          eigene
+            ? {
+                name: input.name!,
+                kategorie_id: input.kategorieId,
+                einheitenart: input.einheitenart,
+                vegetarisch: input.vegetarisch ?? null,
+                vegan: input.vegan ?? null,
+              }
+            : { kategorie_id: input.kategorieId, einheitenart: input.einheitenart }
+        )
+        .where('id', '=', id)
+        .where('version', '=', requireVersion(etag))
+        .executeTakeFirst();
+      if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
+      if (eigene) await setzeAllergene(trx, id, input.allergene ?? []);
+      return { result: undefined, details: { name: input.name ?? zutat.z_name } };
+    })
+  );
+}
+
+async function pruefeEinheitenart(trx: Db, planungZutatId: number, art: EssenEinheitenart) {
+  const zeilen = await trx
+    .selectFrom('essen.gericht_zutat')
+    .select('einheit')
+    .where('planung_zutat_id', '=', planungZutatId)
+    .where('einheit', 'is not', null)
+    .execute();
+  if (zeilen.some((zeile) => !einheitPasst(art, zeile.einheit))) {
+    throw new ValidationError({
+      einheitenart:
+        'Gerichte nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Zeilen.',
+    });
+  }
+}
+
+/** Deletes an ingredient of the Planung that no line uses. */
+export async function planungZutatLoeschen(
+  zugang: Zugang,
+  id: number,
+  etag: string
+): Promise<void> {
+  await aendere(zugang, 'zutat-geloescht', async (trx) => {
+    const zutat = await zutatDerPlanung(trx, zugang, id);
+    // The foreign key decides, so a line added at the same moment cannot slip past a check
+    try {
+      const result = await trx
+        .deleteFrom('essen.planung_zutat')
+        .where('id', '=', id)
+        .where('version', '=', requireVersion(etag))
+        .executeTakeFirst();
+      if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
+    } catch (error: unknown) {
+      if (getSqlErrorNumber(error) !== 547) throw error;
+      throw new ValidationError({
+        name: 'Gerichte nutzen diese Zutat noch. Entferne sie zuerst dort.',
+      });
+    }
+    return { result: undefined, details: { name: zutat.name ?? zutat.z_name } };
+  });
+}
+
+/**
+ * The ingredient of the Planung a line uses: one of its own, or a central one, which then
+ * becomes an ingredient of the Planung. Things that are not food belong to no dish.
+ */
+async function zutatFuerZeile(
+  trx: Db,
+  zugang: Zugang,
+  zutat: GerichtZutatInput['zutat']
+): Promise<{ id: number; name: string; einheitenart: EssenEinheitenart }> {
+  if ('planungZutatId' in zutat) {
+    const row = await zutatDerPlanung(trx, zugang, zutat.planungZutatId).catch(() => null);
+    if (!row) throw new ValidationError({ zutat: 'Bitte eine Zutat wählen.' });
+    return {
+      id: row.id,
+      name: (row.name ?? row.z_name)!,
+      einheitenart: (row.einheitenart ?? row.z_einheitenart)!,
+    };
+  }
+  const zentral = await trx
+    .selectFrom('essen.zutat')
+    .select(['id', 'name', 'einheitenart', 'lebensmittel'])
+    .where('id', '=', zutat.zutatId)
+    .executeTakeFirst();
+  if (!zentral) throw new ValidationError({ zutat: 'Bitte eine Zutat wählen.' });
+  if (!zentral.lebensmittel) {
+    throw new ValidationError({
+      zutat: `${zentral.name} ist kein Lebensmittel und gehört in kein Gericht.`,
+    });
+  }
+  const vorhanden = await trx
+    .selectFrom('essen.planung_zutat')
+    .select(['id', 'einheitenart'])
+    .where('planung_id', '=', zugang.planungId)
+    .where('zutat_id', '=', zentral.id)
+    .executeTakeFirst();
+  if (vorhanden) {
+    return {
+      id: vorhanden.id,
+      name: zentral.name,
+      einheitenart: vorhanden.einheitenart ?? zentral.einheitenart,
+    };
+  }
+  if ((await zaehle(trx, 'essen.planung_zutat', zugang.planungId)) >= MAX_PLANUNG_ZUTATEN) {
+    throw new ValidationError({
+      zutat: `Eine Planung hat höchstens ${MAX_PLANUNG_ZUTATEN} Zutaten.`,
+    });
+  }
+  const { id } = await trx
+    .insertInto('essen.planung_zutat')
+    .values({ planung_id: zugang.planungId, zutat_id: zentral.id })
+    .output('inserted.id')
+    .executeTakeFirstOrThrow();
+  return { id, name: zentral.name, einheitenart: zentral.einheitenart };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Dishes
+// ---------------------------------------------------------------------------------------------
+
+const GERICHT_GIBT_ES = 'Ein Gericht mit diesem Namen gibt es in dieser Planung schon.';
+
+/** Adds a dish; returns its id. */
+export async function gerichtAnlegen(zugang: Zugang, input: GerichtInput): Promise<number> {
+  return eindeutig('name', GERICHT_GIBT_ES, () =>
+    aendere(zugang, 'gericht-neu', async (trx) => {
+      if ((await zaehle(trx, 'essen.gericht', zugang.planungId)) >= MAX_GERICHTE) {
+        throw new ValidationError({ name: `Eine Planung hat höchstens ${MAX_GERICHTE} Gerichte.` });
+      }
+      const { id } = await trx
+        .insertInto('essen.gericht')
+        .values({
+          planung_id: zugang.planungId,
+          name: input.name!,
+          personen: input.personen!,
+          ...(input.anleitung !== undefined ? { anleitung: input.anleitung } : {}),
+          ...(input.notiz !== undefined ? { notiz: input.notiz } : {}),
+          ...(input.links !== undefined ? { links: JSON.stringify(input.links) } : {}),
+          ...(input.werkzeuge !== undefined ? { werkzeuge: JSON.stringify(input.werkzeuge) } : {}),
+        })
+        .output('inserted.id')
+        .executeTakeFirstOrThrow();
+      return { result: id, details: { name: input.name } };
+    })
+  );
+}
+
+async function gerichtDerPlanung(trx: Db, zugang: Zugang, id: number) {
+  const gericht = await trx
+    .selectFrom('essen.gericht')
+    .select(['id', 'name'])
+    .where('id', '=', id)
+    .where('planung_id', '=', zugang.planungId)
+    .executeTakeFirst();
+  if (!gericht) throw new RecordNotFoundError();
+  return gericht;
+}
+
+/** Changes the fields sent; the version covers name, people, text, links and tools. */
+export async function gerichtAendern(
+  zugang: Zugang,
+  id: number,
+  input: GerichtInput,
+  etag: string
+): Promise<void> {
+  await eindeutig('name', GERICHT_GIBT_ES, () =>
+    aendere(zugang, 'gericht-geaendert', async (trx) => {
+      const gericht = await gerichtDerPlanung(trx, zugang, id);
+      const result = await trx
+        .updateTable('essen.gericht')
+        .set({
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.personen !== undefined ? { personen: input.personen } : {}),
+          ...(input.anleitung !== undefined ? { anleitung: input.anleitung } : {}),
+          ...(input.notiz !== undefined ? { notiz: input.notiz } : {}),
+          ...(input.links !== undefined ? { links: JSON.stringify(input.links) } : {}),
+          ...(input.werkzeuge !== undefined ? { werkzeuge: JSON.stringify(input.werkzeuge) } : {}),
+        })
+        .where('id', '=', id)
+        .where('version', '=', requireVersion(etag))
+        .executeTakeFirst();
+      if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
+      return {
+        result: undefined,
+        details: {
+          name: input.name ?? gericht.name,
+          ...(input.name !== undefined && input.name !== gericht.name
+            ? { vorher: gericht.name }
+            : {}),
+        },
+      };
+    })
+  );
+}
+
+/** Deletes a dish with its lines. */
+export async function gerichtLoeschen(zugang: Zugang, id: number, etag: string): Promise<void> {
+  await aendere(zugang, 'gericht-geloescht', async (trx) => {
+    const gericht = await gerichtDerPlanung(trx, zugang, id);
+    const result = await trx
+      .deleteFrom('essen.gericht')
+      .where('id', '=', id)
+      .where('version', '=', requireVersion(etag))
+      .executeTakeFirst();
+    if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
+    return { result: undefined, details: { name: gericht.name } };
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Lines of a dish
+// ---------------------------------------------------------------------------------------------
+
+/** Moves line `zeileId` to `position`; without both it only closes gaps in the order. */
+async function sortiereZeilen(
+  trx: Db,
+  gerichtId: number,
+  zeileId: number | null,
+  position?: number
+): Promise<void> {
+  const zeilen = await trx
+    .selectFrom('essen.gericht_zutat')
+    .select(['id', 'position'])
+    .where('gericht_id', '=', gerichtId)
+    .orderBy('position')
+    .orderBy('id')
+    .execute();
+  const ids = zeilen.map((zeile) => zeile.id).filter((id) => id !== zeileId);
+  if (zeileId !== null && position !== undefined) {
+    ids.splice(Math.min(Math.max(position - 1, 0), ids.length), 0, zeileId);
+  }
+  for (const [index, id] of ids.entries()) {
+    if (zeilen.find((zeile) => zeile.id === id)?.position !== index + 1) {
+      await trx
+        .updateTable('essen.gericht_zutat')
+        .set({ position: index + 1 })
+        .where('id', '=', id)
+        .execute();
+    }
+  }
+}
+
+async function setzeUnvertraeglichkeiten(trx: Db, zeileId: number, input: GerichtZutatInput) {
+  await pruefeVerweise(trx, null, [...input.ohne, ...input.nur]);
+  await trx
+    .deleteFrom('essen.gericht_zutat_unvertraeglichkeit')
+    .where('gericht_zutat_id', '=', zeileId)
+    .execute();
+  const rows = [
+    ...input.ohne.map((id) => ({
+      gericht_zutat_id: zeileId,
+      unvertraeglichkeit_id: id,
+      nur: false,
+    })),
+    ...input.nur.map((id) => ({ gericht_zutat_id: zeileId, unvertraeglichkeit_id: id, nur: true })),
+  ];
+  if (rows.length)
+    await trx.insertInto('essen.gericht_zutat_unvertraeglichkeit').values(rows).execute();
+}
+
+function zeilenWerte(input: GerichtZutatInput, planungZutatId: number) {
+  return {
+    planung_zutat_id: planungZutatId,
+    menge: input.menge,
+    einheit: input.einheit as GerichtEinheit | null,
+    fest: input.fest,
+    fuer_alles: input.fuerAlles,
+    fuer_vegetarisch: input.fuerVegetarisch,
+    fuer_vegan: input.fuerVegan,
+    hinweis: input.hinweis,
+  };
+}
+
+function pruefeEinheit(
+  zutat: { name: string; einheitenart: EssenEinheitenart },
+  input: GerichtZutatInput
+) {
+  if (!einheitPasst(zutat.einheitenart, input.einheit)) {
+    throw new ValidationError({
+      einheit: `${zutat.name} wird in ${EINHEITENART_TEXT[zutat.einheitenart]} gemessen.`,
+    });
+  }
+}
+
+const EINHEITENART_TEXT: Record<EssenEinheitenart, string> = {
+  masse: 'g oder kg',
+  volumen: 'ml oder l',
+  stueck: 'Stück',
+  packung: 'Packungen',
+  bund: 'Bund',
+};
+
+/** Adds a line to a dish, at the end or at `position`. */
+export async function gerichtZutatAnlegen(
+  zugang: Zugang,
+  gerichtId: number,
+  input: GerichtZutatInput,
+  position?: number
+): Promise<void> {
+  await aendere(zugang, 'gericht-zutat-neu', async (trx) => {
+    const gericht = await gerichtDerPlanung(trx, zugang, gerichtId);
+    const anzahl = await trx
+      .selectFrom('essen.gericht_zutat')
+      .select((eb) => eb.fn.countAll<number>().as('count'))
+      .where('gericht_id', '=', gerichtId)
+      .executeTakeFirstOrThrow();
+    if (Number(anzahl.count) >= MAX_ZEILEN_PRO_GERICHT) {
+      throw new ValidationError({
+        zutat: `Ein Gericht hat höchstens ${MAX_ZEILEN_PRO_GERICHT} Zutaten.`,
+      });
+    }
+    const zutat = await zutatFuerZeile(trx, zugang, input.zutat);
+    pruefeEinheit(zutat, input);
+    const { id } = await trx
+      .insertInto('essen.gericht_zutat')
+      .values({
+        gericht_id: gerichtId,
+        position: Number(anzahl.count) + 1,
+        ...zeilenWerte(input, zutat.id),
+      })
+      .output('inserted.id')
+      .executeTakeFirstOrThrow();
+    await setzeUnvertraeglichkeiten(trx, id, input);
+    if (position !== undefined) await sortiereZeilen(trx, gerichtId, id, position);
+    return { result: undefined, details: { name: zutat.name, gericht: gericht.name } };
+  });
+}
+
+async function zeileDerPlanung(trx: Db, zugang: Zugang, id: number) {
+  const zeile = await trx
+    .selectFrom('essen.gericht_zutat as gz')
+    .innerJoin('essen.gericht as g', 'g.id', 'gz.gericht_id')
+    .select(['gz.id', 'gz.gericht_id', 'g.name as gericht'])
+    .where('gz.id', '=', id)
+    .where('g.planung_id', '=', zugang.planungId)
+    .executeTakeFirst();
+  if (!zeile) throw new RecordNotFoundError();
+  return zeile;
+}
+
+/** Changes a line, optionally moving it to `position`. */
+export async function gerichtZutatAendern(
+  zugang: Zugang,
+  id: number,
+  input: GerichtZutatInput & { position?: number },
+  etag: string
+): Promise<void> {
+  await aendere(zugang, 'gericht-zutat-geaendert', async (trx) => {
+    const zeile = await zeileDerPlanung(trx, zugang, id);
+    const zutat = await zutatFuerZeile(trx, zugang, input.zutat);
+    pruefeEinheit(zutat, input);
+    const result = await trx
+      .updateTable('essen.gericht_zutat')
+      .set(zeilenWerte(input, zutat.id))
+      .where('id', '=', id)
+      .where('version', '=', requireVersion(etag))
+      .executeTakeFirst();
+    if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
+    await setzeUnvertraeglichkeiten(trx, id, input);
+    if (input.position !== undefined) {
+      await sortiereZeilen(trx, zeile.gericht_id, id, input.position);
+    }
+    return { result: undefined, details: { name: zutat.name, gericht: zeile.gericht } };
+  });
+}
+
+/** Deletes a line; the ones after it move up. */
+export async function gerichtZutatLoeschen(
+  zugang: Zugang,
+  id: number,
+  etag: string
+): Promise<void> {
+  await aendere(zugang, 'gericht-zutat-geloescht', async (trx) => {
+    const zeile = await zeileDerPlanung(trx, zugang, id);
+    const name = await trx
+      .selectFrom('essen.gericht_zutat as gz')
+      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'gz.planung_zutat_id')
+      .leftJoin('essen.zutat as z', 'z.id', 'pz.zutat_id')
+      .select(['pz.name', 'z.name as z_name'])
+      .where('gz.id', '=', id)
+      .executeTakeFirst();
+    const result = await trx
+      .deleteFrom('essen.gericht_zutat')
+      .where('id', '=', id)
+      .where('version', '=', requireVersion(etag))
+      .executeTakeFirst();
+    if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
+    await sortiereZeilen(trx, zeile.gericht_id, null);
+    return {
+      result: undefined,
+      details: { name: name?.name ?? name?.z_name ?? '', gericht: zeile.gericht },
+    };
+  });
+}
