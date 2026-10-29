@@ -19,6 +19,7 @@
   import GrammRechner from './GrammRechner.svelte';
   import ZeileUnvertraeglichkeiten from './ZeileUnvertraeglichkeiten.svelte';
   import FormField from '../pflege/FormField.svelte';
+  import KiUmrechnung from './KiUmrechnung.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -479,6 +480,14 @@
       </div>
       {#if zentral}
         {#key geoeffnet}<GrammRechner {zentral} onuebernehmen={uebernehmen} />{/key}
+      {/if}
+      {#if gewaehlt && einheitenart === 'masse' && !eigene}
+        {#key geoeffnet}<KiUmrechnung
+            {kontext}
+            {katalog}
+            zutat={gewaehlt}
+            onuebernehmen={uebernehmen}
+          />{/key}
       {/if}
       <FormField id="zeile-hinweis" label="Hinweis" optional error={felder.hinweis}>
         {#snippet children(attrs)}
