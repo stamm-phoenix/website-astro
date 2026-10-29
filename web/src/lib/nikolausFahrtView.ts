@@ -14,3 +14,22 @@ export function mergeStops(
   });
 }
 export { formatClock as formatTime } from './format';
+
+const TEAM_STORAGE_KEY = 'nikolaus-fahrt-team';
+
+/** The team chosen last time on this device. */
+export function readStoredTeam(): string | null {
+  try {
+    return localStorage.getItem(TEAM_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function storeTeam(name: string): void {
+  try {
+    localStorage.setItem(TEAM_STORAGE_KEY, name);
+  } catch {
+    // Only a convenience: the team has to be chosen again next time
+  }
+}

@@ -5,6 +5,8 @@ import { minutesToTime } from './nikolausDispo';
 import type { DispoPlan } from './nikolausDispo';
 import { tagConflicts } from './nikolausDispoPlan';
 import { slotLabel } from './nikolausMaps';
+import type { jsPDF as JsPdf } from 'jspdf';
+import type { autoTable as AutoTableFn } from 'jspdf-autotable';
 import {
   BRAND,
   FOOTER_SPACE,
@@ -21,6 +23,8 @@ import type { StaffNikolausDispoData } from './types';
 
 /** Minutes after the start of the slot from which the PDF mentions the delay, as the page does. */
 const NOTABLE_LATE_IN_SLOT = 10;
+/** Text of a visit already ticked off. */
+const DONE_TEXT: [number, number, number] = [125, 125, 125];
 
 export interface DispoPdfStop {
   number: number;
@@ -34,6 +38,8 @@ export interface DispoPdfStop {
   notes: string[];
   /** Arrives after the end of the booked slot. */
   late: boolean;
+  /** Already visited: the row is printed in grey. */
+  done?: boolean;
 }
 
 export interface DispoPdfTeam {
@@ -130,6 +136,55 @@ export interface DispoPdf {
   fileName: string;
 }
 
+/** One page of a team: colour bar, title, lines and the route as a table. */
+export function drawDispoTeamPage(
+  doc: JsPdf,
+  autoTable: typeof AutoTableFn,
+  team: DispoPdfTeam,
+  heading: string
+): void {
+  doc.setFillColor(...hexToRgb(team.color));
+  doc.rect(0, 0, PAGE_WIDTH, 6, 'F');
+  const y = drawTitle(doc, `Team ${team.name}`, [heading, ...team.lines]);
+  if (team.stops.length === 0) {
+    doc.setFontSize(10);
+    doc.text('Keine Termine.', MARGIN, y + 4);
+    return;
+  }
+  autoTable(doc, {
+    startY: y + 2,
+    margin: { left: MARGIN, right: MARGIN, bottom: FOOTER_SPACE },
+    head: [['Nr.', 'Zeit', 'Familie', 'Besuch', 'Hinweise']],
+    body: team.stops.map((stop) => [
+      String(stop.number),
+      `${stop.time}\nGebucht ${stop.slot}`,
+      [stop.family, stop.address, stop.phone ? `Tel. ${stop.phone}` : '']
+        .filter(Boolean)
+        .join('\n'),
+      stop.children,
+      stop.notes.join('\n'),
+    ]),
+    rowPageBreak: 'avoid',
+    styles: { font: 'helvetica', fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+    headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [247, 248, 250] },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
+      1: { cellWidth: 24 },
+      2: { cellWidth: 52 },
+      3: { cellWidth: 32 },
+    },
+    didParseCell: (cell) => {
+      cell.cell.text = cell.cell.text.map(pdfText);
+      if (cell.section !== 'body') return;
+      const stop = team.stops[cell.row.index];
+      if (cell.column.index === 1) cell.cell.styles.fontStyle = 'bold';
+      if (stop.done) cell.cell.styles.textColor = DONE_TEXT;
+      else if (cell.column.index === 1 && stop.late) cell.cell.styles.textColor = RED;
+    },
+  });
+}
+
 export async function downloadDispoPdf(pdf: DispoPdf): Promise<void> {
   const { doc, autoTable } = await loadPdf();
   const heading = [
@@ -141,45 +196,7 @@ export async function downloadDispoPdf(pdf: DispoPdf): Promise<void> {
     .join(' · ');
   pdf.teams.forEach((team, index) => {
     if (index > 0) doc.addPage();
-    doc.setFillColor(...hexToRgb(team.color));
-    doc.rect(0, 0, PAGE_WIDTH, 6, 'F');
-    const y = drawTitle(doc, `Team ${team.name}`, [heading, ...team.lines]);
-    if (team.stops.length === 0) {
-      doc.setFontSize(10);
-      doc.text('Keine Termine.', MARGIN, y + 4);
-      return;
-    }
-    autoTable(doc, {
-      startY: y + 2,
-      margin: { left: MARGIN, right: MARGIN, bottom: FOOTER_SPACE },
-      head: [['Nr.', 'Zeit', 'Familie', 'Besuch', 'Hinweise']],
-      body: team.stops.map((stop) => [
-        String(stop.number),
-        `${stop.time}\nGebucht ${stop.slot}`,
-        [stop.family, stop.address, stop.phone ? `Tel. ${stop.phone}` : '']
-          .filter(Boolean)
-          .join('\n'),
-        stop.children,
-        stop.notes.join('\n'),
-      ]),
-      rowPageBreak: 'avoid',
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-      headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [247, 248, 250] },
-      columnStyles: {
-        0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
-        1: { cellWidth: 24 },
-        2: { cellWidth: 52 },
-        3: { cellWidth: 32 },
-      },
-      didParseCell: (cell) => {
-        cell.cell.text = cell.cell.text.map(pdfText);
-        if (cell.section !== 'body') return;
-        const stop = team.stops[cell.row.index];
-        if (cell.column.index === 1) cell.cell.styles.fontStyle = 'bold';
-        if (cell.column.index === 1 && stop.late) cell.cell.styles.textColor = RED;
-      },
-    });
+    drawDispoTeamPage(doc, autoTable, team, heading);
   });
   drawPageFooters(doc);
   saveFile(doc.output('blob'), pdf.fileName);
