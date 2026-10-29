@@ -54,13 +54,43 @@ test('a save that ends late keeps a name typed on in the row shown anew', async 
   await expect(name).toHaveValue('Rover');
   await name.fill('Rover und Wö');
   freigeben();
-  await expect(page.getByText('Rover packt Pürierstab ein.').first()).toBeVisible();
-  await expect(name).toHaveValue('Rover und Wö');
-
-  await page.unroute('**/api/essensplanung/planung/packliste/werkzeug');
-  await name.press('Enter');
+  // Leaving the field while it was saved saves what was typed on, right after the first answer
   await expect(page.getByText('Rover und Wö packt Pürierstab ein.').first()).toBeVisible();
   await expect(page.getByLabel('Wer packt Pürierstab ein?')).toHaveValue('text');
+  await expect(
+    page.getByLabel('Wer packt Pürierstab ein?').locator('option[value="text"]')
+  ).toHaveText('Rover und Wö');
+});
+
+test('a name typed on and left while it is saved is saved after it', async ({ page, browser }) => {
+  await anlegen(page, 'E2E Packliste nachspeichern');
+  await gerichteMitWerkzeugen(page);
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Packliste' }).click();
+  let freigeben = (): void => undefined;
+  const gehalten = new Promise<void>((done) => (freigeben = done));
+  await page.route('**/api/essensplanung/planung/packliste/werkzeug', async (route) => {
+    await gehalten;
+    await route.continue();
+  });
+
+  // Enter saves „Rover“; meanwhile the name goes on and the field is left
+  await page.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Anderer Name …' });
+  const name = page.getByRole('textbox', { name: 'Wer packt Kochlöffel ein?' });
+  await name.fill('Rover');
+  await name.press('Enter');
+  await name.fill('Rover und Wö');
+  await name.blur();
+  freigeben();
+  await expect(page.getByText('Rover und Wö packt Kochlöffel ein.').first()).toBeVisible();
+  await expect(page.getByLabel('Wer packt Kochlöffel ein?')).toHaveValue('text');
+
+  // The other one sees the name typed last
+  await expect(
+    anderes.getByLabel('Wer packt Kochlöffel ein?').locator('option[value="text"]')
+  ).toHaveText('Rover und Wö', { timeout: 15_000 });
+  await anderes.context().close();
 });
 
 test('a typed name is saved before its PDF; a failed save stops the PDF', async ({ page }) => {

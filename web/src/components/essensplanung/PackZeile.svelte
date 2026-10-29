@@ -5,13 +5,13 @@
   import { nachDemTippen } from '../../lib/nachDemTippen';
   import { confirmAction } from '../../lib/confirm';
   import {
-    freiName,
     fuerText,
     packId,
     zustaendigWahl,
     type PackEntwurf,
     type PackZeile,
   } from '../../lib/essensplanungPackliste';
+  import type { EntwurfAktionen } from './packEntwuerfe.svelte';
   import { merkeSpeichern, type PlanKontext } from './planKontext';
 
   /**
@@ -26,17 +26,8 @@
     bearbeiten: boolean;
     /** A free name being typed; the field shows instead of the choice. null: none. */
     entwurf: PackEntwurf | null;
-    /** Changes the draft, which the list keeps by row key. */
-    aktionen: {
-      /** The current draft, also for a save that ends after this row was hidden. */
-      lesen: () => PackEntwurf | undefined;
-      oeffnen: (text: string, etag: string | null, name: string) => void;
-      tippen: (text: string) => void;
-      verwerfen: () => void;
-      sendet: (text: string) => void;
-      gesichert: (gesendet: string) => void;
-      gescheitert: (konflikt: boolean) => void;
-    };
+    /** Changes and saves the draft, which the list keeps by row key. */
+    aktionen: EntwurfAktionen;
   }
   let { kontext, zeile, bearbeiten, entwurf, aktionen }: Props = $props();
 
@@ -117,54 +108,6 @@
     if (!ok) feld.value = auswahl;
   }
 
-  /**
-   * Saves the typed name when it changed, on the version it was typed on; Escape leaves it as it
-   * was. After a conflict only Enter (`bewusst`) saves it over the new state. Says whether the
-   * name is saved: also when nothing changed or a save of it is running (that one is noted on its
-   * own); not after an error or with a conflict left open.
-   */
-  async function textSpeichern(bewusst: boolean): Promise<boolean> {
-    const entwurf = aktionen.lesen();
-    if (!entwurf || entwurf.gesendet !== null) return true;
-    if (entwurf.konflikt && !bewusst) return false;
-    const text = freiName(entwurf.text);
-    if (!entwurf.konflikt && zeile.zustaendigId === null && text === zeile.zustaendig) {
-      aktionen.verwerfen();
-      return true;
-    }
-    const { eintrag, werkzeug, name } = zeile;
-    const etag = entwurf.etag;
-    let konflikt = false;
-    let feldFehler: string | undefined;
-    aktionen.sendet(text);
-    const ok = await kontext.aendern(
-      async () => {
-        const felder = { zustaendigId: null, zustaendigText: text };
-        try {
-          return werkzeug === null
-            ? await kontext.api.senden('PATCH', `/packliste/${eintrag!.id}`, { ...felder, etag })
-            : await kontext.api.senden('PUT', '/packliste/werkzeug', {
-                ...felder,
-                werkzeug: name,
-                etag,
-              });
-        } catch (error: unknown) {
-          if (error instanceof ApiError) {
-            konflikt = error.status === 409;
-            if (error.fields) feldFehler = Object.values(error.fields)[0];
-          }
-          throw error;
-        }
-      },
-      text ? `${text} packt ${name} ein.` : `Für ${name} ist niemand mehr zuständig.`
-    );
-    if (!ok && feldFehler) kontext.hinweis(`${name}: ${feldFehler}`, 'error');
-    // Not saved: the field keeps the name, so it can be sent once more
-    if (ok) aktionen.gesichert(text);
-    else aktionen.gescheitert(konflikt);
-    return ok;
-  }
-
   async function entfernen(): Promise<void> {
     const eintrag = zeile.eintrag!;
     if (
@@ -239,10 +182,10 @@
           onkeydown={(event) => {
             if (event.key === 'Enter') {
               event.preventDefault();
-              merkeSpeichern(textSpeichern(true));
+              merkeSpeichern(aktionen.speichern(true));
             } else if (event.key === 'Escape') aktionen.verwerfen();
           }}
-          onblur={() => nachDemTippen(() => merkeSpeichern(textSpeichern(false)))}
+          onblur={() => nachDemTippen(() => merkeSpeichern(aktionen.speichern(false)))}
         />
       {:else}
         <select

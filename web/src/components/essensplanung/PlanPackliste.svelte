@@ -3,19 +3,16 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
-    entwurfNachSpeichern,
-    entwurfOffen,
-    entwuerfeOhneZeile,
     gefiltert,
     packliste,
     packlisteDruck,
-    type PackEntwurf,
     type PackFilter,
   } from '../../lib/essensplanungPackliste';
   import NeuerPackEintrag from './NeuerPackEintrag.svelte';
   import PackZeile from './PackZeile.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
-  import { meldeVerloren, type PlanKontext } from './planKontext';
+  import { packEntwuerfe } from './packEntwuerfe.svelte';
+  import type { PlanKontext } from './planKontext';
 
   /**
    * The packing list of a Planung: the tools of all planned dishes and the entries of its own,
@@ -34,60 +31,19 @@
    * Free names typed at rows, by row key. Kept here, so a filter that hides a row or the switch
    * to read-only (maintenance) does not drop what is typed; leaving asks while one is unsaved.
    */
-  let entwuerfe = $state<Record<string, PackEntwurf>>({});
+  const entwuerfe = packEntwuerfe(
+    () => kontext,
+    () => zeilen
+  );
   /** The name typed under the list, kept while the field is hidden (maintenance). */
   let neuerName = $state('');
-  $effect(() =>
-    guardUnsavedChanges(() => neuerName.trim() !== '' || entwurfOffen(entwuerfe, zeilen))
-  );
-  function entwurfSetzen(key: string, entwurf: PackEntwurf | null): void {
-    if (entwurf === null) {
-      entwuerfe = Object.fromEntries(Object.entries(entwuerfe).filter(([k]) => k !== key));
-    } else entwuerfe = { ...entwuerfe, [key]: entwurf };
-  }
+  $effect(() => guardUnsavedChanges(() => neuerName.trim() !== '' || entwuerfe.offen()));
   // A row gone with a draft, e.g. as someone else took the last dish with its tool out of the
   // plan: what was typed is named to copy, then the draft goes
   $effect(() => {
-    const weg = entwuerfeOhneZeile(
-      untrack(() => entwuerfe),
-      zeilen
-    );
-    if (!weg.length) return;
-    untrack(() => {
-      for (const { key, meldung } of weg) {
-        if (meldung) meldeVerloren(kontext, meldung);
-        entwurfSetzen(key, null);
-      }
-    });
+    void zeilen;
+    untrack(() => entwuerfe.abgleichen());
   });
-  /** The version a row has now, after the view the last change brought. */
-  function etagJetzt(key: string): string | null {
-    return zeilen.find((zeile) => zeile.key === key)?.eintrag?.etag ?? null;
-  }
-  /**
-   * What a row does with its draft. Kept here by row key: a save may end after its row was
-   * hidden and shown anew, and must not take what was typed there meanwhile.
-   */
-  function entwurfAktionen(key: string) {
-    const aendern = (felder: Partial<PackEntwurf>) => {
-      const entwurf = entwuerfe[key];
-      if (entwurf) entwurfSetzen(key, { ...entwurf, ...felder });
-    };
-    return {
-      // A row gone meanwhile saves nothing; its draft is named to copy instead
-      lesen: () => (zeilen.some((zeile) => zeile.key === key) ? entwuerfe[key] : undefined),
-      oeffnen: (text: string, etag: string | null, name: string) =>
-        entwurfSetzen(key, { text, name, etag, gesendet: null, konflikt: false }),
-      tippen: (text: string) => aendern({ text }),
-      verwerfen: () => entwurfSetzen(key, null),
-      sendet: (text: string) => aendern({ gesendet: text }),
-      gesichert: (gesendet: string) =>
-        entwurfSetzen(key, entwurfNachSpeichern(entwuerfe[key], gesendet, etagJetzt(key))),
-      // After a conflict the page shows the new state; Enter then saves over it on purpose
-      gescheitert: (konflikt: boolean) =>
-        aendern(konflikt ? { gesendet: null, konflikt, etag: etagJetzt(key) } : { gesendet: null }),
-    };
-  }
   let filter = $state<PackFilter>('alle');
   const sichtbar = $derived(gefiltert(zeilen, filter, ansicht.ichId));
   const filterOptionen = $derived([
@@ -135,8 +91,8 @@
             {kontext}
             {zeile}
             {bearbeiten}
-            entwurf={entwuerfe[zeile.key] ?? null}
-            aktionen={entwurfAktionen(zeile.key)}
+            entwurf={entwuerfe.von(zeile.key)}
+            aktionen={entwuerfe.aktionen(zeile.key)}
           />
         {/each}
       </ul>
