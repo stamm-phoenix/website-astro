@@ -3,7 +3,6 @@
 // rows come from `essensplanungDruck.ts`; this file only lays them out.
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn, CellHookData } from 'jspdf-autotable';
-import { mengeText } from '../../../api/lib/essen-gerichte-model';
 import { saveFile } from './api';
 import { datumKurz } from './essensplanung';
 import {
@@ -15,7 +14,7 @@ import {
   teilnehmendeZeilen,
   type DruckZeile,
 } from './essensplanungDruck';
-import type { EinkaufsGeschaeft } from './essensplanungEinkauf';
+import { postenMenge, type EinkaufsGeschaeft } from './essensplanungEinkauf';
 import { zahlText } from './essensplanungTeilnehmende';
 import {
   BRAND,
@@ -282,11 +281,7 @@ export async function downloadEinkaufslistePdf(
     y = ueberschrift(doc, gruppe.geschaeft?.name ?? 'Ohne Geschäft', y + 2, 13);
     const body = gruppe.kategorien.flatMap((kategorie) => [
       [{ content: kategorie.name, colSpan: 3, styles: { fontStyle: 'bold' as const } }],
-      ...kategorie.posten.map((posten) => [
-        '',
-        mengeText(posten.menge, posten.einheit, posten.abtropfgewicht) ?? 'nach Gefühl',
-        posten.name,
-      ]),
+      ...kategorie.posten.map((posten) => ['', postenMenge(posten), posten.name]),
     ]);
     autoTable(doc, {
       ...TABLE_STYLES,

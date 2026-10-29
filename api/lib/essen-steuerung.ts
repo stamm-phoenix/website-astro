@@ -428,17 +428,22 @@ async function pruefeGenutzteEinheiten(
     .where('gz.einheit', 'is not', null)
     .execute();
   // Stock and extra needs of the Planungen measure it too
-  const posten = await Promise.all(
-    (['essen.bestand', 'essen.zusatzbedarf'] as const).map((tabelle) =>
-      trx
-        .selectFrom(`${tabelle} as p`)
-        .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
-        .select('p.einheit')
-        .where('pz.zutat_id', '=', zutatId)
-        .where('pz.einheitenart', 'is', null)
-        .execute()
-    )
-  );
+  const posten = await Promise.all([
+    trx
+      .selectFrom('essen.bestand as p')
+      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
+      .select('p.einheit')
+      .where('pz.zutat_id', '=', zutatId)
+      .where('pz.einheitenart', 'is', null)
+      .execute(),
+    trx
+      .selectFrom('essen.zusatzbedarf as p')
+      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
+      .select('p.einheit')
+      .where('pz.zutat_id', '=', zutatId)
+      .where('pz.einheitenart', 'is', null)
+      .execute(),
+  ]);
   if ([...zeilen, ...posten.flat()].some((zeile) => !einheitPasst(art, zeile.einheit))) {
     throw new ValidationError({
       einheitenart:

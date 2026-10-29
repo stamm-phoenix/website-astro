@@ -1,7 +1,11 @@
 import type { Gericht, PlanungZutat } from '../../../api/lib/essen-gerichte-model';
 import type { Einplanung } from '../../../api/lib/essen-planung-model';
 import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilnehmende-model';
-import type { EinkaufPosten, Geschaeft } from '../../../api/lib/essen-einkauf-model';
+import type {
+  EinkaufPosten,
+  Geschaeft,
+  ZusatzPosten,
+} from '../../../api/lib/essen-einkauf-model';
 import type { NikolausBookingDetails, NikolausSettings } from './nikolausConfig';
 import type { EinteilungDay, HelperRole as NikolausHelperRole } from './nikolausEinteilung';
 
@@ -454,10 +458,14 @@ export interface PlanungAnsicht {
   teilnehmende: Teilnehmende[];
   geschaefte: Geschaeft[];
   bestand: EinkaufPosten[];
-  zusatzbedarf: EinkaufPosten[];
+  zusatzbedarf: ZusatzPosten[];
 }
 
-export type { EinkaufPosten, Geschaeft } from '../../../api/lib/essen-einkauf-model';
+export type {
+  EinkaufPosten,
+  Geschaeft,
+  ZusatzPosten,
+} from '../../../api/lib/essen-einkauf-model';
 
 export type {
   Ernaehrung,
