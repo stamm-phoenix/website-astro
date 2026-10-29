@@ -71,6 +71,9 @@ function initialState(): MockState {
     name,
   }));
   const merkmale = new Map(seed('zutaten_merkmale.csv').map((row) => [row.name, row]));
+  // As migration 0057 fills them
+  const umrechnung = new Map(seed('umrechnung_zuordnung.csv').map((row) => [row.zutat, row]));
+  const gramm = (value: string | undefined): number | null => (value ? Number(value) : null);
   const bit = (value: string | undefined): boolean | null =>
     value === 'true' ? true : value === 'false' ? false : null;
   const zutaten = seed('zutaten.csv').map((row, index): EssenZutat => {
@@ -88,9 +91,9 @@ function initialState(): MockState {
       vegan: food ? bit(merkmal?.vegan) : null,
       merkmaleGeprueft: false,
       hinweis: merkmal?.hinweis ?? '',
-      grammProTl: null,
-      grammProEl: null,
-      grammProStueck: null,
+      grammProTl: gramm(umrechnung.get(row.name)?.gramm_pro_tl),
+      grammProEl: gramm(umrechnung.get(row.name)?.gramm_pro_el),
+      grammProStueck: gramm(umrechnung.get(row.name)?.gramm_pro_stueck),
       allergene: (merkmal?.allergene ?? '')
         .split(';')
         .filter(Boolean)

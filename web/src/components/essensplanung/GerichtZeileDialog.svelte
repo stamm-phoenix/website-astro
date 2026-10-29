@@ -76,6 +76,8 @@
     zeileEtag = zeile?.etag ?? '';
     felder = {};
     fehler = null;
+    anzahl = '1';
+    mass = '';
     eigene = null;
     geaendert = false;
     const z = zeile;
@@ -120,6 +122,37 @@
     eigene ? eigene.einheitenart : (gewaehlt?.einheitenart ?? null)
   );
   const einheiten = $derived(einheitenart ? EINHEITEN_JE_ART[einheitenart] : []);
+
+  /** Grams per TL, EL or piece of a central ingredient measured by weight, from the list. */
+  const umrechnung = $derived.by((): { mass: string; label: string; gramm: number }[] => {
+    if (einheitenart !== 'masse' || !gewaehlt) return [];
+    const zentralId = 'zutatId' in gewaehlt ? gewaehlt.zutatId : gewaehlt.id;
+    const zentral = katalog.zutaten.find((z) => z.id === zentralId);
+    if (!zentral) return [];
+    return [
+      { mass: 'tl', label: 'TL', gramm: zentral.grammProTl },
+      { mass: 'el', label: 'EL', gramm: zentral.grammProEl },
+      { mass: 'stueck', label: 'Stück', gramm: zentral.grammProStueck },
+    ].filter(
+      (entry): entry is { mass: string; label: string; gramm: number } => entry.gramm !== null
+    );
+  });
+  let anzahl = $state('1');
+  let mass = $state('');
+  const gramm = $derived.by(() => {
+    const zahl = leseMenge(anzahl);
+    const eintrag = umrechnung.find((entry) => entry.mass === mass) ?? umrechnung[0];
+    if (!eintrag || zahl === null || Number.isNaN(zahl)) return null;
+    // Whole grams, a tenth below 10 g (spices)
+    const roh = zahl * eintrag.gramm;
+    return roh < 10 ? Math.round(roh * 10) / 10 : Math.round(roh);
+  });
+  function uebernehmen(): void {
+    if (gramm === null || gramm <= 0) return;
+    menge = mengeFeld(gramm);
+    einheit = 'g';
+    geaendert = true;
+  }
   const passendeEinheit = (): void => {
     if (einheiten.length && !einheiten.includes(einheit)) einheit = einheiten[0];
   };
@@ -437,6 +470,41 @@
           {/snippet}
         </FormField>
       </div>
+      {#if umrechnung.length}
+        <fieldset class="space-y-2 rounded-md border border-neutral-200 p-3">
+          <legend class="flex items-center gap-1 px-1 text-sm font-semibold text-neutral-900">
+            In Gramm umrechnen
+            <InfoHint
+              label="In Gramm umrechnen"
+              text="Anhaltswerte aus der Umrechnungstabelle der Zutatenliste, gestrichen gemessen. Übernehmen trägt das Ergebnis als Menge in g ein."
+            />
+          </legend>
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="sr-only" for="umrechnen-anzahl">Anzahl zum Umrechnen</label>
+            <input
+              id="umrechnen-anzahl"
+              class="form-input w-20"
+              inputmode="decimal"
+              autocomplete="off"
+              bind:value={anzahl}
+            />
+            <label class="sr-only" for="umrechnen-mass">Maß zum Umrechnen</label>
+            <select id="umrechnen-mass" class="form-input w-auto" bind:value={mass}>
+              {#each umrechnung as eintrag (eintrag.mass)}
+                <option value={eintrag.mass}>{eintrag.label}</option>
+              {/each}
+            </select>
+            <span class="tabular-nums" aria-live="polite"
+              >{gramm === null ? '' : `≈ ${mengeFeld(gramm)} g`}</span
+            >
+            <ActionButton
+              type="button"
+              disabled={gramm === null || gramm <= 0}
+              onclick={uebernehmen}>Übernehmen</ActionButton
+            >
+          </div>
+        </fieldset>
+      {/if}
       <FormField id="zeile-hinweis" label="Hinweis" optional error={felder.hinweis}>
         {#snippet children(attrs)}
           <input
