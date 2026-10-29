@@ -114,3 +114,30 @@ test('groups and participants give the eaters per meal', async ({ page }) => {
   await answerConfirm(page, '6 Pfadi entfernen?', 'Entfernen');
   await expect(page.getByText('Insgesamt 10 Personen')).toBeVisible();
 });
+
+test('the calendar of eaters says when more days are to the side and can be scrolled by keyboard', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E Esser Kalender');
+  // Days are added in the plan; the calendar notices that it got wider
+  await page.getByRole('button', { name: 'Tag danach hinzufügen' }).click();
+  await expect(page.getByText(/Tag .* hinzugefügt\./).first()).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('tab', { name: 'Teilnehmende' }).click();
+  const bereich = page.getByRole('region', { name: 'Kalender der Esser' });
+  await expect(
+    page.getByText('Weitere Tage siehst du, wenn du seitlich wischst oder scrollst.')
+  ).toBeVisible();
+  await expect(bereich).toHaveAttribute('tabindex', '0');
+  await bereich.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => bereich.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  await expectNoHorizontalOverflow(page);
+
+  // Wide enough for all days: no hint, nothing to reach by keyboard
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await expect(
+    page.getByText('Weitere Tage siehst du, wenn du seitlich wischst oder scrollst.')
+  ).toHaveCount(0);
+  await expect(bereich).not.toHaveAttribute('tabindex', '0');
+});
