@@ -3,6 +3,8 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import FormField from '../pflege/FormField.svelte';
   import TagInput from '../pflege/TagInput.svelte';
+  import LazyTextEditor from '../ui/LazyTextEditor.svelte';
+  import ProtokollText from '../protokolle/ProtokollText.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -68,6 +70,34 @@
   });
   $effect(() => guardUnsavedChanges(() => entwurf));
 
+  /** Set when this page deletes the dish itself, which needs no word about lost input. */
+  let selbstGeloescht = false;
+  // Someone else deleted the dish: the card goes, so the unsaved fields are shown to copy
+  $effect(() => () => {
+    if (selbstGeloescht || !entwurf) return;
+    const eingaben = (Object.keys(kopf) as (keyof Kopf)[])
+      .filter((feld) => !gleich(kopf[feld], basis[feld]))
+      .map((feld) => `${FELD_NAMEN[feld]}: ${textVon(kopf[feld])}`)
+      .join(' · ');
+    const text = `„${gericht.name}“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: ${eingaben}`;
+    // After the update that removes the card, which would not show a change made during it
+    setTimeout(() => kontext.hinweis(text, 'error'));
+  });
+
+  const FELD_NAMEN: Record<keyof Kopf, string> = {
+    name: 'Name',
+    personen: 'Personen',
+    anleitung: 'Anleitung',
+    notiz: 'Notiz',
+    werkzeuge: 'Werkzeuge',
+    links: 'Links',
+  };
+
+  function textVon(wert: Kopf[keyof Kopf]): string {
+    if (typeof wert === 'string') return wert;
+    return wert.map((eintrag) => (typeof eintrag === 'string' ? eintrag : eintrag.url)).join(', ');
+  }
+
   async function speichern(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     felder = {};
@@ -117,6 +147,7 @@
       }))
     )
       return;
+    selbstGeloescht = true;
     await kontext.aendern(
       () => kontext.api.senden('DELETE', `/gerichte/${gericht.id}`, undefined, gericht.etag),
       `${gericht.name} gelöscht.`
@@ -279,15 +310,20 @@
       <FormField
         id="gericht-{gericht.id}-anleitung"
         label="Anleitung"
+        labelAs="span"
         optional
         error={felder.anleitung}
       >
         {#snippet children(attrs)}
-          <textarea
-            {...attrs}
-            class="form-input min-h-32"
+          <LazyTextEditor
+            id={attrs.id}
+            labelledBy="{attrs.id}-label"
+            describedBy={attrs['aria-describedby']}
+            invalid={attrs['aria-invalid'] === 'true'}
             placeholder="z. B. Zwiebeln anbraten, dann …"
-            bind:value={kopf.anleitung}></textarea>
+            maxLength={20_000}
+            bind:value={kopf.anleitung}
+          />
         {/snippet}
       </FormField>
       <FormField
@@ -365,7 +401,9 @@
     {#if gericht.anleitung}
       <div>
         <h4 class="font-semibold text-brand-900">Anleitung</h4>
-        <p class="whitespace-pre-line [overflow-wrap:anywhere]">{gericht.anleitung}</p>
+        <div class="[overflow-wrap:anywhere]">
+          <ProtokollText text={gericht.anleitung} headingLevel={5} />
+        </div>
       </div>
     {/if}
     {#if gericht.werkzeuge.length}

@@ -122,6 +122,8 @@ Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite e
 - **Zutaten der Planung:** Eine zentrale Zutat wird mit ihrer ersten Zeile zur Zutat der Planung (`planung_zutat`). Dort lassen sich Kategorie und Einheitenart nur für diese Planung ändern (die Einheitenart nur, solange keine Zeile eine Menge in der alten Einheit hat). Eigene Zutaten (Name, Kategorie, Einheitenart, Ernährung, Allergene) legt man im Dialog der Zeile an, wenn der Name nicht in der Liste steht; einen Namen aus der Liste nimmt man aus der Liste. Genutzte Zutaten lassen sich nicht löschen, auch nicht zentral in der Steuerung. Die Steuerung ändert die Einheitenart einer zentralen Zutat nur, solange keine Planung sie mit einer Menge in der bisherigen Einheit erbt; eine Sperre je Zutat (`zutatSperre`) ordnet das gegen gleichzeitig gespeicherte Zeilen.
 - Nicht-Lebensmittel gehören in kein Gericht.
 - **Rezeptkarte:** „Rezeptkarte drucken“ druckt nur dieses Gericht mit Zutaten, Anleitung, Werkzeugen, Links und Notiz.
+- Die Anleitung schreibt man im gemeinsamen Editor (`LazyTextEditor`, Markdown); angezeigt wird sie wie Protokolltext (`ProtokollText`, als Svelte-Elemente, nie als HTML).
+- Löscht jemand anderes ein Gericht, in dem du gerade ungespeicherte Eingaben hast, zeigt die Seite sie zum Kopieren an (wie bei gelöschten Mahlzeiten).
 
 ## Einplanung
 

@@ -46,14 +46,18 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await expect(chili.getByText(/Für vegetarisch Essende/)).toHaveCount(0);
 
   // Instructions and tools; the other window sees them
-  await chili.getByLabel('Anleitung (optional)').fill('Hack anbraten, würzen.');
+  // Formatted text: bold appears bold on the recipe card
+  const anleitung = chili.getByLabel('Anleitung (optional)');
+  await anleitung.fill('Hack anbraten, ');
+  await anleitung.press('ControlOrMeta+b');
+  await anleitung.pressSequentially('würzen');
   await chili.getByLabel('Werkzeuge (optional)').fill('Großer Topf');
   await chili.getByLabel('Werkzeuge (optional)').press('Enter');
   await chili.getByRole('button', { name: 'Gericht speichern' }).click();
   await expect(page.getByText('Chili gespeichert.').first()).toBeVisible();
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
   await anderes.getByText('Chili', { exact: true }).click();
-  await expect(anderes.getByLabel('Anleitung (optional)')).toHaveValue('Hack anbraten, würzen.', {
+  await expect(anderes.getByLabel('Anleitung (optional)')).toContainText('Hack anbraten', {
     timeout: 15_000,
   });
   await expect(anderes.getByText('Omas Chiligewürz').first()).toBeVisible();
@@ -73,7 +77,7 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await chili.getByRole('button', { name: 'Rezeptkarte drucken' }).click();
   await page.emulateMedia({ media: 'print' });
   await expect(page.getByText('Pudding', { exact: true })).toBeHidden();
-  await expect(chili.getByText('Hack anbraten, würzen.')).toBeVisible();
+  await expect(chili.locator('strong:visible', { hasText: 'würzen' })).toHaveCount(1);
   await page.emulateMedia({ media: 'screen' });
   await expectNoHorizontalOverflow(page);
   await anderes.context().close();
@@ -162,5 +166,31 @@ test('an open line keeps its version, a deleted one is not added again; closing 
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog).toBeVisible();
   await expect(kakao.getByText('Noch keine Zutaten.')).toBeVisible();
+  await anderes.context().close();
+});
+
+test('a dish deleted by someone else shows the unsaved input', async ({ page, browser }) => {
+  await anlegen(page, 'E2E Gericht weg');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Waffeln');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Waffeln angelegt.').first()).toBeVisible();
+  const waffeln = page.locator('li', { has: page.getByText('Waffeln', { exact: true }) }).first();
+  await waffeln.getByLabel('Notiz (optional)').fill('Eisen vorheizen');
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Waffeln', { exact: true }).click();
+  await anderes.getByRole('button', { name: 'Gericht löschen' }).click();
+  await answerConfirm(anderes, '„Waffeln“ löschen?', 'Gericht löschen');
+  await expect(anderes.getByText('Waffeln gelöscht.').first()).toBeVisible();
+  await page.bringToFront();
+  await expect(
+    page
+      .getByText(
+        '„Waffeln“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: Notiz: Eisen vorheizen'
+      )
+      .first()
+  ).toBeVisible({ timeout: 15_000 });
   await anderes.context().close();
 });
