@@ -86,6 +86,7 @@ import {
   validateBeitritt,
   validateEinladung,
   validateEmail,
+  validateEinplanung,
   validateMahlzeit,
   validateMitgliedName,
   validatePlanungEinstellungen,
@@ -1405,6 +1406,27 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/gericht-zutaten/:id', (re
     );
   const input = { ...validateGerichtZutat(req.json), position: readPosition(req.json?.position) };
   return essenAendern(req, (z) => essenGerichte.gerichtZutatAendern(z, id, input, req.json?.etag));
+});
+
+route('POST', '/api/essensplanung/planung/einplanungen', (req) => {
+  const input = validateEinplanung(req.json);
+  return essenAendern(
+    req,
+    (z) => essenPlanung.einplanen(z, input, readPosition(req.json?.position)),
+    201
+  );
+});
+
+route(['PATCH', 'DELETE'], '/api/essensplanung/planung/einplanungen/:id', (req) => {
+  const id = Number(req.params.id);
+  if (req.method === 'DELETE')
+    return essenAendern(req, (z) =>
+      essenPlanung.einplanungAendern(z, id, null, req.headers['if-match'])
+    );
+  const input = validateEinplanung(req.json);
+  return essenAendern(req, (z) =>
+    essenPlanung.einplanungAendern(z, id, input, req.json?.etag, readPosition(req.json?.position))
+  );
 });
 
 route('POST', '/api/intern/nikolaus/bookings/:id/message', (req) =>

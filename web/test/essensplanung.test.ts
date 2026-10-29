@@ -9,6 +9,8 @@ import {
 } from '../src/lib/essensplanung.ts';
 import { fuerText, leseMenge, mengeFeld } from '../src/lib/essensplanungGerichte.ts';
 import { mengeText } from '../../api/lib/essen-gerichte-model.ts';
+import { leseFaktor, mahlzeitStand, tagStand } from '../../api/lib/essen-planung-model.ts';
+import { faktorFeld, faktorText } from '../src/lib/essensplanungEinplanung.ts';
 
 const TOKEN = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJ01234-_';
 
@@ -86,4 +88,45 @@ test('a line names for whom it is only when not for everyone', () => {
   };
   assert.equal(fuerText(zeile), null);
   assert.equal(fuerText({ ...zeile, fuerAlles: false }), 'nur vegetarisch, vegan');
+});
+
+test('planned dishes read with factor, place and the delete versions', () => {
+  assert.equal(faktorText(1), '');
+  assert.equal(faktorText(0.5), '×0,5');
+  assert.equal(faktorFeld(1.25), '1,25');
+  assert.equal(leseFaktor('0,5'), 0.5);
+  assert.ok(Number.isNaN(leseFaktor('halb')));
+  assert.equal(
+    aenderungText({
+      seq: 3,
+      at: '',
+      wer: 'Kim',
+      aktion: 'einplanung-geaendert',
+      details: { name: 'Chili', mahlzeit: 'Abendessen', datum: '2027-08-01', verschoben: true },
+    }),
+    'Kim hat ein Gericht verschoben: Chili bei Abendessen (So., 1.8.2027)'
+  );
+  const einplanung = (etag: string) => ({
+    id: 1,
+    etag,
+    gerichtId: 1,
+    position: 1,
+    faktor: 1,
+    zustaendigId: null,
+    zustaendig: '',
+  });
+  const mahlzeit = {
+    id: 1,
+    etag: '"0000000000000002"',
+    position: 1,
+    kennung: '1_1',
+    name: 'Frühstück',
+    uhrzeit: null,
+    einplanungen: [einplanung('"0000000000000005"')],
+  };
+  assert.equal(mahlzeitStand(mahlzeit), '"0000000000000005"');
+  assert.equal(
+    tagStand({ id: 1, etag: '"0000000000000009"', datum: '', nummer: 1, mahlzeiten: [mahlzeit] }),
+    '"0000000000000009"'
+  );
 });

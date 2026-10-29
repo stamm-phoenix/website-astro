@@ -116,6 +116,7 @@ export interface Database {
   'essen.gericht': EssenGerichtTable;
   'essen.gericht_zutat': EssenGerichtZutatTable;
   'essen.gericht_zutat_unvertraeglichkeit': EssenGerichtZutatUnvertraeglichkeitTable;
+  'essen.einplanung': EssenEinplanungTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -1100,6 +1101,18 @@ export interface EssenGerichtZutatUnvertraeglichkeitTable {
   unvertraeglichkeit_id: number;
   /** false: „nicht für …“, true: „nur für …“. */
   nur: boolean;
+}
+
+export interface EssenEinplanungTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  mahlzeit_id: number;
+  gericht_id: number;
+  position: number;
+  /** decimal(6, 3). */
+  faktor: number;
+  zustaendig_mitglied_id: number | null;
+  zustaendig_text: Generated<string>;
 }
 
 export interface EssenAenderungTable {

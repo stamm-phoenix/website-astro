@@ -9,6 +9,7 @@
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { ernaehrung, fuerText, zeileBody } from '../../lib/essensplanungGerichte';
+  import { faktorText, plaetzeVon } from '../../lib/essensplanungEinplanung';
   import {
     gerichtStand,
     gerichtWarnungen,
@@ -166,11 +167,15 @@
   async function loeschen(): Promise<void> {
     // The dish as asked about: a change of others during the question is a conflict
     const { id, name } = gericht;
-    const etag = gerichtStand(gericht);
+    const etag = gerichtStand(
+      gericht,
+      plaetze.map((platz) => platz.einplanung.etag)
+    );
+    const anzahl = plaetze.length;
     if (
       !(await confirmAction({
         title: `„${name}“ löschen?`,
-        message: `Das Gericht wird mit allen ${gericht.zutaten.length} Zutaten gelöscht.`,
+        message: `Das Gericht wird mit allen ${gericht.zutaten.length} Zutaten gelöscht${anzahl ? ` und aus ${anzahl === 1 ? 'seiner Mahlzeit' : `${anzahl} Mahlzeiten`} genommen` : ''}.`,
         confirmLabel: 'Gericht löschen',
       }))
     )
@@ -216,12 +221,31 @@
     return bekannt.join(', ');
   }
 
+  /** Where the dish is planned. */
+  const plaetze = $derived(plaetzeVon(ansicht, gericht.id));
+
   const namen = (ids: number[]) => ids.map((id) => unvertraeglichkeiten.get(id) ?? '?').join(', ');
 </script>
 
 <div class="space-y-5">
   <div class="flex flex-wrap items-center justify-between gap-2">
-    <p class="text-neutral-700">Mengen für {gericht.personen} Personen</p>
+    <div class="space-y-1">
+      <p class="text-neutral-700">Mengen für {gericht.personen} Personen</p>
+      <p class="text-sm text-neutral-700">
+        {#if plaetze.length}
+          Eingeplant:
+          {plaetze
+            .map(({ mahlzeit, einplanung }) =>
+              [mahlzeit.kennung, mahlzeit.name, faktorText(einplanung.faktor)]
+                .filter(Boolean)
+                .join(' ')
+            )
+            .join(', ')}
+        {:else}
+          Noch nicht eingeplant.
+        {/if}
+      </p>
+    </div>
     <div class="flex flex-wrap gap-2 print:hidden">
       <!-- Only with the list, so the card names all allergens -->
       <ActionButton type="button" disabled={!katalog} onclick={ondrucken}

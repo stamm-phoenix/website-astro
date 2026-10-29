@@ -5,6 +5,9 @@
   import { datumKurz } from '../../lib/essensplanung';
   import type { PlanungTag } from '../../lib/types';
   import MahlzeitZeile from './MahlzeitZeile.svelte';
+  import EinplanungDialog from './EinplanungDialog.svelte';
+  import type { Auftrag } from '../../lib/essensplanungEinplanung';
+  import { tagStand } from '../../../../api/lib/essen-planung-model';
   import type { PlanKontext } from './planKontext';
 
   /** Days and meals of a Planung; shown IDs like `3_1` follow the order. */
@@ -15,6 +18,9 @@
   let { kontext }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
   const bearbeiten = $derived(ansicht.zugang !== 'lesen' && !ansicht.wartung);
+
+  /** The open dialog of planned dishes; it stays when its meal goes, so no input is lost. */
+  let auftrag = $state<Auftrag | null>(null);
 
   let neuerTag = $state('');
   let neueMahlzeit = $state<Record<number, string>>({});
@@ -69,16 +75,20 @@
   }
 
   async function tagLoeschen(tag: PlanungTag): Promise<void> {
+    // The day as asked about, with its meals and dishes: a change of others is a conflict
+    const { id } = tag;
+    const stand = tagStand(tag);
+    const gerichte = tag.mahlzeiten.reduce((summe, m) => summe + m.einplanungen.length, 0);
     if (
       !(await confirmAction({
         title: `Tag ${tag.nummer} löschen?`,
-        message: `${datumKurz(tag.datum)} mit allen ${tag.mahlzeiten.length} Mahlzeiten wird gelöscht. Die Nummern der folgenden Tage rücken nach.`,
+        message: `${datumKurz(tag.datum)} mit allen ${tag.mahlzeiten.length} Mahlzeiten${gerichte ? ` und ${gerichte === 1 ? 'dem eingeplanten Gericht' : `${gerichte} eingeplanten Gerichten`}` : ''} wird gelöscht. Die Nummern der folgenden Tage rücken nach.`,
         confirmLabel: 'Tag löschen',
       }))
     )
       return;
     await kontext.aendern(
-      () => kontext.api.senden('DELETE', `/tage/${tag.id}`, undefined, tag.etag),
+      () => kontext.api.senden('DELETE', `/tage/${id}`, undefined, stand),
       'Tag gelöscht.'
     );
   }
@@ -142,6 +152,7 @@
               {bearbeiten}
               erste={index === 0}
               letzte={index === tag.mahlzeiten.length - 1}
+              oneinplanen={(neu) => (auftrag = neu)}
             />
           {:else}
             <li class="py-2 text-sm text-neutral-700">Noch keine Mahlzeiten.</li>
@@ -187,3 +198,5 @@
     </form>
   {/if}
 </section>
+
+<EinplanungDialog {kontext} {auftrag} onclose={() => (auftrag = null)} />

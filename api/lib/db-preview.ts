@@ -182,7 +182,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:36';
+const SEEDED_KEY = 'preview:seeded:37';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -1941,4 +1941,46 @@ export async function seedPreviewProblemmeldungen(now: Date = new Date()): Promi
       })
       .execute();
   }
+}
+
+/** Plans the test dish at the first lunch of the invented Planung, unless it is planned. */
+export async function seedPreviewEssensplanungEinplanung(): Promise<void> {
+  const db = getDb();
+  const gericht = await db
+    .selectFrom('essen.gericht as g')
+    .innerJoin('essen.planung as p', 'p.id', 'g.planung_id')
+    .select(['g.id', 'g.planung_id'])
+    .where('p.name', '=', 'Sommerlager (Test)')
+    .where('g.name', '=', 'Chili sin Carne (Test)')
+    .executeTakeFirst();
+  if (!gericht) return;
+  const geplant = await db
+    .selectFrom('essen.einplanung')
+    .select('id')
+    .where('gericht_id', '=', gericht.id)
+    .top(1)
+    .executeTakeFirst();
+  if (geplant) return;
+  const mahlzeit = await db
+    .selectFrom('essen.mahlzeit as m')
+    .innerJoin('essen.tag as t', 't.id', 'm.tag_id')
+    .select('m.id')
+    .where('t.planung_id', '=', gericht.planung_id)
+    .orderBy('t.datum')
+    .orderBy(sql`CASE WHEN m.name = N'Mittagessen' THEN 0 ELSE 1 END`)
+    .orderBy('m.position')
+    .top(1)
+    .executeTakeFirst();
+  if (!mahlzeit) return;
+  await db
+    .insertInto('essen.einplanung')
+    .values({
+      mahlzeit_id: mahlzeit.id,
+      gericht_id: gericht.id,
+      position: 1,
+      faktor: 1,
+      zustaendig_mitglied_id: null,
+      zustaendig_text: 'Küchenteam (Test)',
+    })
+    .execute();
 }

@@ -590,7 +590,10 @@ export async function gerichtAendern(
   );
 }
 
-/** Deletes a dish with its lines; `etag` is its `gerichtStand`, covering the lines too. */
+/**
+ * Deletes a dish with its lines and where it is planned; `etag` is its `gerichtStand`, covering
+ * those too.
+ */
 export async function gerichtLoeschen(zugang: Zugang, id: number, etag: string): Promise<void> {
   await aendere(zugang, 'gericht-geloescht', async (trx) => {
     // No line changes meanwhile; they take the same lock
@@ -601,11 +604,21 @@ export async function gerichtLoeschen(zugang: Zugang, id: number, etag: string):
       .select('version')
       .where('gericht_id', '=', id)
       .execute();
-    const stand = gerichtStand({
-      etag: toVersion(gericht.version),
-      zutaten: zeilen.map((zeile) => ({ etag: toVersion(zeile.version) })),
-    });
+    const einplanungen = await trx
+      .selectFrom('essen.einplanung')
+      .select('version')
+      .where('gericht_id', '=', id)
+      .execute();
+    const stand = gerichtStand(
+      {
+        etag: toVersion(gericht.version),
+        zutaten: zeilen.map((zeile) => ({ etag: toVersion(zeile.version) })),
+      },
+      einplanungen.map((einplanung) => toVersion(einplanung.version))
+    );
     if (stand !== etag.trim()) throw new VersionConflictError();
+    // Its places in the plan go with it; they point to the dish without a cascade
+    await trx.deleteFrom('essen.einplanung').where('gericht_id', '=', id).execute();
     const result = await trx
       .deleteFrom('essen.gericht')
       .where('id', '=', id)

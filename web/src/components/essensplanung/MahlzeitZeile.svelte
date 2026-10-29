@@ -3,7 +3,10 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import type { PlanungMahlzeit } from '../../lib/types';
+  import { einplanungBody, faktorText } from '../../lib/essensplanungEinplanung';
+  import type { Auftrag } from '../../lib/essensplanungEinplanung';
+  import { mahlzeitStand } from '../../../../api/lib/essen-planung-model';
+  import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
   import type { PlanKontext } from './planKontext';
 
   /**
@@ -17,8 +20,11 @@
     bearbeiten: boolean;
     erste: boolean;
     letzte: boolean;
+    /** Opens the dialog of planned dishes. */
+    oneinplanen: (auftrag: Auftrag) => void;
   }
-  let { kontext, mahlzeit, bearbeiten, erste, letzte }: Props = $props();
+  let { kontext, mahlzeit, bearbeiten, erste, letzte, oneinplanen }: Props = $props();
+  const gerichte = $derived(new Map(kontext.ansicht.gerichte.map((g) => [g.id, g.name])));
 
   let name = $state('');
   let uhrzeit = $state('');
@@ -114,18 +120,48 @@
   }
 
   async function loeschen(): Promise<void> {
+    // The meal as asked about, with its dishes: a change of others meanwhile is a conflict
+    const { id, name: alterName, kennung } = mahlzeit;
+    const stand = mahlzeitStand(mahlzeit);
+    const anzahl = mahlzeit.einplanungen.length;
     if (
       !(await confirmAction({
-        title: `${mahlzeit.kennung} ${mahlzeit.name} löschen?`,
-        message: 'Die Mahlzeit wird gelöscht; die Nummern der folgenden Mahlzeiten rücken nach.',
+        title: `${kennung} ${alterName} löschen?`,
+        message: `Die Mahlzeit wird ${anzahl === 1 ? 'mit ihrem eingeplanten Gericht ' : anzahl ? `mit ihren ${anzahl} eingeplanten Gerichten ` : ''}gelöscht; die Nummern der folgenden Mahlzeiten rücken nach. Die Gerichte selbst bleiben.`,
         confirmLabel: 'Mahlzeit löschen',
       }))
     )
       return;
     selbstGeloescht = true;
+    const ok = await kontext.aendern(
+      () => kontext.api.senden('DELETE', `/mahlzeiten/${id}`, undefined, stand),
+      `${alterName} gelöscht.`
+    );
+    if (!ok) selbstGeloescht = false;
+  }
+
+  async function verschiebe(einplanung: Einplanung, position: number): Promise<void> {
+    await kontext.aendern(() =>
+      kontext.api.senden('PATCH', `/einplanungen/${einplanung.id}`, {
+        ...einplanungBody(einplanung, mahlzeit.id),
+        position,
+      })
+    );
+  }
+
+  async function entfernen(einplanung: Einplanung, name: string): Promise<void> {
+    const { id, etag } = einplanung;
+    if (
+      !(await confirmAction({
+        title: `${name} aus ${mahlzeit.kennung} nehmen?`,
+        message: 'Das Gericht bleibt in der Planung und lässt sich wieder einplanen.',
+        confirmLabel: 'Entfernen',
+      }))
+    )
+      return;
     await kontext.aendern(
-      () => kontext.api.senden('DELETE', `/mahlzeiten/${mahlzeit.id}`, undefined, mahlzeit.etag),
-      `${mahlzeit.name} gelöscht.`
+      () => kontext.api.senden('DELETE', `/einplanungen/${id}`, undefined, etag),
+      `${name} aus ${mahlzeit.name} genommen.`
     );
   }
 
@@ -192,5 +228,80 @@
   {:else}
     <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{mahlzeit.name}</span>
     {#if mahlzeit.uhrzeit}<span class="text-sm text-neutral-700">{mahlzeit.uhrzeit} Uhr</span>{/if}
+  {/if}
+  {#if mahlzeit.einplanungen.length || (bearbeiten && gerichte.size)}
+    <div class="basis-full space-y-1 pl-14">
+      {#if mahlzeit.einplanungen.length}
+        <ol class="space-y-1" aria-label="Gerichte bei {mahlzeit.kennung}">
+          {#each mahlzeit.einplanungen as einplanung, index (einplanung.id)}
+            {@const name = gerichte.get(einplanung.gerichtId) ?? 'Gericht'}
+            <li class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span class="min-w-0 font-semibold text-neutral-900 [overflow-wrap:anywhere]"
+                >{name}</span
+              >
+              {#if faktorText(einplanung.faktor)}<span class="text-sm tabular-nums"
+                  >{faktorText(einplanung.faktor)}</span
+                >{/if}
+              {#if einplanung.zustaendig}<span class="text-sm text-neutral-700"
+                  >{einplanung.zustaendig}</span
+                >{/if}
+              {#if bearbeiten}
+                <span class="flex flex-wrap gap-1 print:hidden">
+                  <ActionButton
+                    type="button"
+                    disabled={index === 0 || kontext.busy}
+                    aria-label="{name} bei {mahlzeit.kennung} nach oben"
+                    onclick={() => void verschiebe(einplanung, einplanung.position - 1)}
+                    >↑</ActionButton
+                  >
+                  <ActionButton
+                    type="button"
+                    disabled={index === mahlzeit.einplanungen.length - 1 || kontext.busy}
+                    aria-label="{name} bei {mahlzeit.kennung} nach unten"
+                    onclick={() => void verschiebe(einplanung, einplanung.position + 1)}
+                    >↓</ActionButton
+                  >
+                  <ActionButton
+                    type="button"
+                    aria-label="{name} bei {mahlzeit.kennung} ändern"
+                    onclick={() =>
+                      oneinplanen({
+                        modus: 'aendern',
+                        mahlzeitId: mahlzeit.id,
+                        einplanungId: einplanung.id,
+                      })}>Ändern</ActionButton
+                  >
+                  <ActionButton
+                    type="button"
+                    aria-label="{name} bei {mahlzeit.kennung} kopieren"
+                    onclick={() =>
+                      oneinplanen({
+                        modus: 'kopieren',
+                        mahlzeitId: mahlzeit.id,
+                        einplanungId: einplanung.id,
+                      })}>Kopieren</ActionButton
+                  >
+                  <ActionButton
+                    type="button"
+                    variant="danger"
+                    disabled={kontext.busy}
+                    aria-label="{name} aus {mahlzeit.kennung} entfernen"
+                    onclick={() => void entfernen(einplanung, name)}>Entfernen</ActionButton
+                  >
+                </span>
+              {/if}
+            </li>
+          {/each}
+        </ol>
+      {/if}
+      {#if bearbeiten && gerichte.size}
+        <button
+          type="button"
+          class="min-h-11 text-sm font-semibold text-link underline print:hidden"
+          onclick={() => oneinplanen({ modus: 'neu', mahlzeitId: mahlzeit.id, einplanungId: null })}
+          >Gericht einplanen<span class="sr-only"> bei {mahlzeit.kennung}</span></button
+        >
+      {/if}
+    </div>
   {/if}
 </li>

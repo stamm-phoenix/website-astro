@@ -6,8 +6,14 @@ import type { Db } from './db';
  */
 export async function deletePlanung(trx: Db, planungId: number): Promise<boolean> {
   await trx.deleteFrom('essen.anlage_anfrage').where('planung_id', '=', planungId).execute();
-  // The lines of the dishes point to the ingredients of the Planung without a cascade, so the
-  // dishes (and with them the lines) go first
+  // The dishes in the plan and the lines of the dishes point to the dishes, the members and the
+  // ingredients of the Planung without a cascade, so they go first
+  await trx
+    .deleteFrom('essen.einplanung')
+    .where('gericht_id', 'in', (eb) =>
+      eb.selectFrom('essen.gericht').select('id').where('planung_id', '=', planungId)
+    )
+    .execute();
   await trx.deleteFrom('essen.gericht').where('planung_id', '=', planungId).execute();
   const result = await trx
     .deleteFrom('essen.planung')
