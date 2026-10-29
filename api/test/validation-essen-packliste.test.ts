@@ -82,6 +82,13 @@ test('a change keeps only the fields that were sent', () => {
     fields(() => validatePackAenderung({ etag: '"1"' })),
     { gepackt: 'Es gibt nichts zu speichern.' }
   );
+  // A body that is no object names the same in German, not an inner field
+  for (const body of [null, [], 'x']) {
+    assert.deepEqual(
+      fields(() => validatePackAenderung(body)),
+      { gepackt: 'Es gibt nichts zu speichern.' }
+    );
+  }
   assert.deepEqual(
     fields(() => validatePackAenderung({ gepackt: 'ja' })),
     { gepackt: 'Bitte ankreuzen oder nicht.' }

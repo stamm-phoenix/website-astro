@@ -66,7 +66,11 @@ function mitZustaendig(value: unknown): boolean {
 /** The fields of an entry that were sent: packed, who packs it, or both. */
 export const packAenderungSchema = z
   .preprocess(
-    (value) => (isRecord(value) ? { ...value, mitZustaendig: mitZustaendig(value) } : {}),
+    // No object at all (bad JSON, null, a list) sends nothing, which is named in German
+    (value) =>
+      isRecord(value)
+        ? { ...value, mitZustaendig: mitZustaendig(value) }
+        : { mitZustaendig: false },
     z.object({
       gepackt,
       zustaendigId,
