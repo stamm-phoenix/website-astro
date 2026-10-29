@@ -167,6 +167,13 @@ test('amounts typed to tick off a dish stay through maintenance', async ({ page 
   await expect(verbrauch).toHaveValue('0,3');
   await page.unroute('**/api/essensplanung/planung/stand?*');
 
+  // An amount refused by the server names why, and the input stays
+  await verbrauch.fill('2000000');
+  await page.getByRole('button', { name: 'Gekocht', exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Die Menge ist zu groß.' })).toBeVisible();
+  await expect(verbrauch).toHaveValue('2000000');
+  await verbrauch.fill('0,3');
+
   // Folding it away and opening it again keeps the amounts; discarding takes the planned ones
   const abhaken = page.getByLabel('Nudeln bei 1_2_1 abhaken');
   await abhaken.click();

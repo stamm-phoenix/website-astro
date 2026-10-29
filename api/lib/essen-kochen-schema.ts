@@ -12,9 +12,13 @@ import { lenientObject } from './validation/zod';
 
 const EINHEITEN = Object.values(EINHEITEN_JE_ART).flat() as [GerichtEinheit, ...GerichtEinheit[]];
 const VERBRAUCH_FEHLER = 'Bitte eine Menge ab 0 eintragen, z. B. 2,5.';
+const ZUTAT_FEHLER = 'Diese Zutat gibt es nicht. Bitte lade die Seite neu.';
 
 const eintrag = lenientObject({
-  planungZutatId: z.number().int().positive({ error: 'Diese Zutat gibt es nicht.' }),
+  planungZutatId: z
+    .number({ error: ZUTAT_FEHLER })
+    .int({ error: ZUTAT_FEHLER })
+    .positive({ error: ZUTAT_FEHLER }),
   menge: z
     .number({ error: VERBRAUCH_FEHLER })
     .refine((value) => Number.isFinite(value) && value >= 0, { error: VERBRAUCH_FEHLER })

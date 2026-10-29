@@ -70,7 +70,10 @@ test('wrong status, amounts and units are refused', () => {
     falsch({ planungZutatId: 1, menge: 2, einheit: 'dose' }),
     'Bitte eine Einheit wählen.'
   );
-  assert.equal(falsch({ planungZutatId: 0, menge: 2, einheit: 'g' }), 'Diese Zutat gibt es nicht.');
+  assert.equal(
+    falsch({ planungZutatId: 0, menge: 2, einheit: 'g' }),
+    'Diese Zutat gibt es nicht. Bitte lade die Seite neu.'
+  );
   assert.equal(
     fields(() =>
       validateAbhaken({
@@ -84,4 +87,16 @@ test('wrong status, amounts and units are refused', () => {
     ).verbrauch,
     'Höchstens 200 Zutaten.'
   );
+});
+
+test('an ingredient id that is missing, text or broken is named in German', () => {
+  for (const planungZutatId of [undefined, '3', 1.5, 0]) {
+    const fehler = fields(() =>
+      validateAbhaken({
+        status: 'gekocht',
+        verbrauch: [{ planungZutatId, menge: 1, einheit: 'kg' }],
+      })
+    );
+    assert.equal(fehler.verbrauch, 'Diese Zutat gibt es nicht. Bitte lade die Seite neu.');
+  }
 });
