@@ -537,3 +537,65 @@ dbTest('nothing is moved to a finished trip', async (t) => {
     .execute();
   assert.deepEqual(regeln, []);
 });
+
+dbTest('deleting the trip a thing was moved to brings it back', async (t) => {
+  const { token, zutat } = await planung(t);
+  await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+    body: { name: 'Montag' },
+  });
+  const [a, b] = json<PlanungAnsicht>(
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name: 'Mittwoch' },
+    })
+  ).einkaeufe;
+  const verschoben = json<PlanungAnsicht>(
+    await senden(
+      t,
+      einkaeufe.EssensplanungEinkaufVerschieben,
+      'POST',
+      'planung/einkaeufe/verschieben',
+      token,
+      { id: a.id, body: { planungZutatId: zutat, nachEinkaufId: b.id } }
+    )
+  );
+  const ziel = verschoben.einkaeufe.find((e) => e.id === b.id)!;
+  const geloescht = await senden(
+    t,
+    einkaeufe.EssensplanungEinkauf,
+    'DELETE',
+    'planung/einkaeufe',
+    token,
+    {
+      id: b.id,
+      ifMatch: einkaufStand(ziel),
+    }
+  );
+  assert.equal(geloescht.status, 200, JSON.stringify(geloescht.jsonBody));
+  assert.deepEqual(json<PlanungAnsicht>(geloescht).einkaeufe[0].regeln, []);
+
+  // A thing left out on purpose, with no target, stays left out
+  await senden(t, einkaeufe.EssensplanungEinkaufRegel, 'PUT', 'planung/einkaeufe/regeln', token, {
+    id: a.id,
+    body: { planungZutatId: zutat, art: 'ohne' },
+  });
+  const neu = json<PlanungAnsicht>(
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name: 'Freitag' },
+    })
+  ).einkaeufe.find((e) => e.name === 'Freitag')!;
+  const weg = await senden(
+    t,
+    einkaeufe.EssensplanungEinkauf,
+    'DELETE',
+    'planung/einkaeufe',
+    token,
+    {
+      id: neu.id,
+      ifMatch: einkaufStand(neu),
+    }
+  );
+  assert.deepEqual(
+    json<PlanungAnsicht>(weg).einkaeufe[0].regeln.map((r) => r.art),
+    ['ohne']
+  );
+});

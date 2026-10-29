@@ -63,6 +63,17 @@ export function einkaufAendern(
     if (einkaufStand(einkauf) !== ifMatch) throw konflikt();
     aendere(z, 'einkauf-geloescht', { name: einkauf.name }, () => {
       z.planung.einkaeufe.splice(z.planung.einkaeufe.indexOf(einkauf), 1);
+      // Things moved here go back, unless another trip still has them moved to it
+      const mit = (e: typeof einkauf, zutat: number) =>
+        e.regeln.some((r) => r.art === 'mit' && r.planungZutatId === zutat);
+      const zurueck = einkauf.regeln
+        .filter((r) => r.art === 'mit')
+        .map((r) => r.planungZutatId)
+        .filter((zutat) => !z.planung.einkaeufe.some((e) => mit(e, zutat)));
+      for (const anderer of z.planung.einkaeufe)
+        anderer.regeln = anderer.regeln.filter(
+          (r) => r.art !== 'ohne' || !zurueck.includes(r.planungZutatId)
+        );
     });
     return;
   }

@@ -215,6 +215,29 @@ export async function einkaufLoeschen(zugang: Zugang, id: number, etag: string):
       posten: posten.map((p) => ({ etag: toVersion(p.version) })),
     });
     if (stand !== etag.trim()) throw new VersionConflictError();
+    // Things moved here go back: their „ohne“ on other trips goes too, unless another trip still
+    // has them moved to it; a „nicht in diesem Einkauf“ without a target stays
+    const regeln = await trx
+      .selectFrom('essen.einkauf_regel as r')
+      .innerJoin('essen.einkauf as e', 'e.id', 'r.einkauf_id')
+      .select(['r.einkauf_id', 'r.planung_zutat_id'])
+      .where('e.planung_id', '=', zugang.planungId)
+      .where('r.art', '=', 'mit')
+      .execute();
+    const hierher = regeln.filter((r) => r.einkauf_id === id).map((r) => r.planung_zutat_id);
+    const zurueck = hierher.filter(
+      (zutat) => !regeln.some((r) => r.einkauf_id !== id && r.planung_zutat_id === zutat)
+    );
+    if (zurueck.length) {
+      await trx
+        .deleteFrom('essen.einkauf_regel')
+        .where('art', '=', 'ohne')
+        .where('planung_zutat_id', 'in', zurueck)
+        .where('einkauf_id', 'in', (eb) =>
+          eb.selectFrom('essen.einkauf').select('id').where('planung_id', '=', zugang.planungId)
+        )
+        .execute();
+    }
     const result = await trx
       .deleteFrom('essen.einkauf')
       .where('id', '=', id)

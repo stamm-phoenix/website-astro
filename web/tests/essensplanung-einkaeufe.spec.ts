@@ -362,7 +362,10 @@ test('a thing that falls off the list while being ticked off names what was type
   await dort.getByRole('button', { name: 'Nudeln (Spaghetti) (abgehakt)' }).click();
   await dort.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)').fill('2');
   await dort.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(dort).toContainText('2 kg');
+  await expect(anderes.getByText('Nudeln (Spaghetti) abgehakt.').first()).toBeVisible();
+  await expect(dort.getByRole('button', { name: 'Nudeln (Spaghetti) (abgehakt)' })).toContainText(
+    /2 kg Nudeln \(Spaghetti\)\s*2 kg/
+  );
   await anderes.context().close();
 
   await expect(
@@ -372,4 +375,51 @@ test('a thing that falls off the list while being ticked off names what was type
       )
       .first()
   ).toBeVisible({ timeout: 15_000 });
+});
+
+test('what is typed for a thing stays while another one is open, refused amounts are named', async ({
+  page,
+}) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Entwürfe');
+  const feld = page.getByLabel('Noch etwas besorgen');
+  await feld.fill('Kochhandschuhe');
+  await feld.press('Enter');
+  await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  await menge.fill('800');
+  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
+  await montag.getByLabel('Ersatz für Nudeln (Spaghetti)').fill('Vollkornnudeln');
+  await montag.getByRole('button', { name: 'Kochhandschuhe', exact: true }).click();
+  await expect(menge).toBeHidden();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  await expect(menge).toHaveValue('800');
+  await expect(montag.getByLabel('Ersatz für Nudeln (Spaghetti)')).toHaveValue('Vollkornnudeln');
+
+  // Too much: the row says so and keeps the input
+  await menge.fill('1000001');
+  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('kg');
+  await montag.getByRole('button', { name: 'Abhaken' }).click();
+  await expect(
+    montag.getByRole('alert').filter({ hasText: 'Die Menge ist zu groß.' })
+  ).toBeVisible();
+  await expect(menge).toHaveValue('1000001');
+  await montag.getByRole('button', { name: 'Abbrechen' }).click();
+
+  // A fixed amount too large is named in the row too
+  await montag.getByRole('button', { name: 'Montag: Einkaufen beenden' }).click();
+  await montag.getByRole('button', { name: 'Liste von Montag' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti) in Montag anpassen' }).click();
+  const fest = montag.getByLabel('Feste Menge von Nudeln (Spaghetti)');
+  await fest.fill('1000001');
+  await montag.getByLabel('Einheit der festen Menge von Nudeln (Spaghetti)').selectOption('kg');
+  await montag.getByRole('button', { name: 'Feste Menge' }).click();
+  await expect(
+    montag.getByRole('alert').filter({ hasText: 'Die Menge ist zu groß.' })
+  ).toBeVisible();
+  await expect(fest).toHaveValue('1000001');
 });

@@ -19,7 +19,10 @@
     kontext: PlanKontext;
     liste: EinkaufListe;
     bearbeiten: boolean;
-    /** Names of the categories, for the PDF. */
+    /**
+     * Whether the names of the categories are there: the PDF and the live mode wait for them, so
+     * no row moves to its category while something is typed into it.
+     */
     katalogGeladen: boolean;
   }
   let { kontext, liste, bearbeiten, katalogGeladen }: Props = $props();
@@ -99,6 +102,7 @@
         type="button"
         variant={ansichtArt === 'live' ? 'secondary' : 'primary'}
         aria-pressed={ansichtArt === 'live'}
+        disabled={ansichtArt !== 'live' && !katalogGeladen}
         aria-label="{einkauf.name}: {ansichtArt === 'live' ? 'Einkaufen beenden' : 'Einkaufen'}"
         onclick={() => (ansichtArt = ansichtArt === 'live' ? 'zu' : 'live')}
         >{ansichtArt === 'live' ? 'Fertig' : 'Einkaufen'}</ActionButton

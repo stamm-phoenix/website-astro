@@ -59,7 +59,7 @@
     return () => {
       sichtbar.set(id, (sichtbar.get(id) ?? 1) - 1);
       if (!sichtbar.get(id)) sichtbar.delete(id);
-      if (!untrack(() => offen) || !geaendert) return;
+      if (!geaendert) return;
       const eingabe = [
         untrack(() => menge).trim()
           ? `${untrack(() => menge)} ${einheitText(untrack(() => einheit))}`
@@ -81,7 +81,6 @@
   // Opened before this row was drawn again (e.g. its category came with the central lists)
   $effect(() => {
     if (offen && !gefuellt) untrack(fuellen);
-    if (!offen) gefuellt = false;
   });
 
   function oeffnen(): void {
@@ -89,8 +88,16 @@
       onoeffnen(false);
       return;
     }
-    fuellen();
+    // What was typed stays until it is saved or cancelled, also when another thing was open
+    if (!geaendert) fuellen();
     onoeffnen(true);
+  }
+
+  /** Closes the amount and drops what was typed. */
+  function abbrechen(): void {
+    geaendert = false;
+    gefuellt = false;
+    onoeffnen(false);
   }
 
   function fuellen(): void {
@@ -131,9 +138,8 @@
     }, `${posten.name} abgehakt.`);
     speichert = false;
     if (ok) {
-      geaendert = false;
       konflikt = null;
-      onoeffnen(false);
+      abbrechen();
       return;
     }
     if (abgelehnt instanceof ApiError && abgelehnt.status === 409) {
@@ -147,7 +153,14 @@
       fehler = null;
       return;
     }
-    fehler = kontext.fehler;
+    // A field the server refused is named at the input, which keeps what was typed
+    const felder = abgelehnt instanceof ApiError ? abgelehnt.fields : undefined;
+    fehler =
+      felder?.erhalten ??
+      felder?.einheit ??
+      felder?.ersatz ??
+      felder?.planungZutatId ??
+      kontext.fehler;
   }
 
   async function aufheben(): Promise<void> {
@@ -157,7 +170,7 @@
       () => kontext.api.senden('DELETE', `/einkauf-posten/${h.id}`, undefined, h.etag),
       `${posten.name} ist wieder offen.`
     );
-    if (ok) onoeffnen(false);
+    if (ok) abbrechen();
   }
 
   /** „3 l → Pepsi Cola“. */
@@ -249,7 +262,7 @@
             onclick={() => void aufheben()}>Häkchen aufheben</ActionButton
           >
         {/if}
-        <ActionButton type="button" onclick={() => onoeffnen(false)}>Abbrechen</ActionButton>
+        <ActionButton type="button" onclick={abbrechen}>Abbrechen</ActionButton>
       </div>
     </form>
   {/if}

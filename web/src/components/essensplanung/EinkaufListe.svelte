@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import { ApiError } from '../../lib/api';
   import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import { leseMenge, mengeFeld } from '../../lib/essensplanungGerichte';
   import { kochMenge } from '../../lib/essensplanungRechnung';
@@ -78,14 +79,20 @@
         return;
       }
     }
+    let abgelehnt: unknown = null;
     const ok = await kontext.aendern(
       () =>
-        kontext.api.senden('PUT', `/einkaeufe/${einkauf.id}/regeln`, {
-          planungZutatId: posten.planungZutatId,
-          art,
-          menge,
-          einheit: art === 'fest' ? festeEinheit : null,
-        }),
+        kontext.api
+          .senden('PUT', `/einkaeufe/${einkauf.id}/regeln`, {
+            planungZutatId: posten.planungZutatId,
+            art,
+            menge,
+            einheit: art === 'fest' ? festeEinheit : null,
+          })
+          .catch((error: unknown) => {
+            abgelehnt = error;
+            throw error;
+          }),
       art === 'fest'
         ? `${posten.name}: feste Menge gespeichert.`
         : art === 'ohne'
@@ -93,7 +100,11 @@
           : `${posten.name} wird wieder berechnet.`
     );
     if (ok) offen = null;
-    else fehler = kontext.fehler;
+    else {
+      // A field the server refused is named in the row, which keeps what was typed
+      const felder = abgelehnt instanceof ApiError ? abgelehnt.fields : undefined;
+      fehler = felder?.menge ?? felder?.einheit ?? felder?.planungZutatId ?? kontext.fehler;
+    }
   }
 
   /**
