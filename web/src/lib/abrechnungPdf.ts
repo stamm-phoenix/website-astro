@@ -1,9 +1,13 @@
 // PDF exports of the Abrechnung: lists, the receipts for printing, the Deckblatt, the
 // Materialleihgebühren, Eigenbelege and the Kurzbeschreibung for the KJR. jsPDF is loaded only
-// when a PDF is created, so it does not weigh on the page itself. All PDFs are DIN A4 portrait.
+// when a PDF is created (`pdfBasis.ts`), so it does not weigh on the page itself. All PDFs are
+// DIN A4 portrait.
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn } from 'jspdf-autotable';
 import { saveFile } from './api';
+import { formatEuro } from './format';
+import type { LeihgebuehrPosition } from './abrechnungRechnung';
+import type { Vorstand } from './types';
 import {
   BRAND,
   FOOTER_SPACE,
@@ -17,9 +21,6 @@ import {
   loadPdf,
   today,
 } from './pdfBasis';
-import { formatEuro } from './format';
-import type { LeihgebuehrPosition } from './abrechnungRechnung';
-import type { Vorstand } from './types';
 import { drawTable } from './pdfTabelle';
 import type { PdfTable } from './pdfTabelle';
 

@@ -122,9 +122,25 @@ describe('ausgabelistePdf', () => {
       ['Person a', '1 × Halstuch', 'ohne Betrag', 'Nein', ''],
       ['Person b', '2 × Kluft · M', '90,00 €', 'Ja', 'ausgeliefert'],
     ]);
-    assert.deepEqual(table.foot, [['2 Bestellungen', '3 Stück', '90,00 €', '', '']]);
+    // The order without an amount is counted, not added as 0 €
+    assert.deepEqual(table.foot, [
+      ['2 Bestellungen', '3 Stück', '90,00 €\n+ 1 ohne Betrag', '1 ohne Betrag offen', ''],
+    ]);
     assert.equal(report.subtitle, '2 Bestellungen · 3 Stück · 1 unbezahlt');
     assert.deepEqual(report.notes, ['1 stornierte Bestellung ist nicht enthalten.']);
+  });
+
+  test('says „ohne Betrag“ when no order has an amount yet', () => {
+    const report = plain(
+      ausgabelistePdf({
+        campaignTitle: 'Kluft 2026',
+        orders: [order('a', { totalCents: null }), order('b', { totalCents: null, paid: true })],
+        filters,
+      })
+    );
+    assert.deepEqual(report.sections[0].foot, [
+      ['2 Bestellungen', '2 Stück', 'ohne Betrag', '1 ohne Betrag offen', ''],
+    ]);
   });
 
   test('names the active search and filters', () => {
