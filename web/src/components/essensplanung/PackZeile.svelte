@@ -78,6 +78,15 @@
 
   async function packen(feld: HTMLInputElement): Promise<void> {
     const gepackt = feld.checked;
+    // A name typed in this row and left with this tap saves first: the tick then goes on the
+    // version its answer brought, not into a conflict with it. A failed name keeps its draft
+    // and notice; the tick is saved on the version now shown.
+    if (entwurf !== null) {
+      speichert = true;
+      const name = aktionen.speichern(false);
+      merkeSpeichern(name);
+      await name;
+    }
     const ok = await senden(
       { gepackt },
       gepackt ? `${zeile.name} ist eingepackt.` : `${zeile.name} ist wieder offen.`
@@ -229,8 +238,17 @@
     {#if entwurf?.konflikt}
       <p id="{id}-konflikt" class="basis-full text-sm text-danger" role="alert">
         Jemand anderes hat gerade geändert, wer {zeile.name} einpackt (jetzt: {zeile.zustaendig ||
-          'niemand'}). Enter speichert deinen Namen trotzdem, Escape verwirft ihn.
+          'niemand'}). Enter speichert deinen Namen trotzdem, „Name verwerfen“ nimmt den
+        gespeicherten.
       </p>
+      <!-- Keeps the focus in the field, so leaving it does not try to save first -->
+      <ActionButton
+        type="button"
+        class="min-h-11 min-w-11"
+        aria-label="Name für {zeile.name} verwerfen"
+        onpointerdown={(event) => event.preventDefault()}
+        onclick={() => aktionen.verwerfen()}>Name verwerfen</ActionButton
+      >
     {/if}
   {/if}
 </li>
