@@ -41,15 +41,12 @@
   label="Plan als Kalender"
   hinweis="Weitere Tage siehst du, wenn du seitlich wischst oder scrollst."
 >
-  <table class="w-full table-fixed border-separate border-spacing-2 text-left text-sm">
+  <table class="border-separate border-spacing-2 text-left text-sm">
     <caption class="sr-only">Plan als Kalender</caption>
-    <colgroup>
-      {#each ansicht.tage as tag (tag.id)}<col class="w-44" />{/each}
-    </colgroup>
     <thead>
       <tr>
         {#each ansicht.tage as tag (tag.id)}
-          <th scope="col" class="align-bottom font-semibold text-brand-900">
+          <th scope="col" class="w-44 min-w-44 align-bottom font-semibold text-brand-900">
             Tag {tag.nummer}
             <span class="block font-normal text-neutral-700">{datumKurz(tag.datum)}</span>
           </th>
@@ -61,7 +58,7 @@
         <tr>
           {#each ansicht.tage as tag (tag.id)}
             {@const mahlzeit = tag.mahlzeiten[zeile]}
-            <td class="align-top">
+            <td class="w-44 min-w-44 max-w-44 align-top">
               {#if mahlzeit}
                 <div
                   class="h-full space-y-1.5 rounded-lg border border-neutral-200 bg-surface p-2"

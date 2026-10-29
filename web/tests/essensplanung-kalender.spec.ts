@@ -19,6 +19,9 @@ test('the plan shows as a calendar with the dishes as cards', async ({ page }) =
   const kalender = page.getByRole('table', { name: 'Plan als Kalender' });
   await expect(kalender.getByRole('columnheader')).toHaveCount(2);
   await expect(page.locator('[data-kalender="2_5"]')).toBeVisible();
+  // A day is a column of its own width, not the whole width of the page
+  const breite = (await kalender.getByRole('columnheader').first().boundingBox())?.width ?? 0;
+  expect(breite).toBeLessThan(260);
   await expectNoHorizontalOverflow(page);
 
   // A dish planned from the calendar shows there as a card with its ID
