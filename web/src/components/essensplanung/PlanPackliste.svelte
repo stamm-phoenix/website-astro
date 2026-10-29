@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
     entwurfNachSpeichern,
     entwurfOffen,
+    entwuerfeOhneZeile,
     gefiltert,
     packliste,
     packlisteDruck,
@@ -13,7 +15,7 @@
   import NeuerPackEintrag from './NeuerPackEintrag.svelte';
   import PackZeile from './PackZeile.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
-  import type { PlanKontext } from './planKontext';
+  import { meldeVerloren, type PlanKontext } from './planKontext';
 
   /**
    * The packing list of a Planung: the tools of all planned dishes and the entries of its own,
@@ -43,6 +45,21 @@
       entwuerfe = Object.fromEntries(Object.entries(entwuerfe).filter(([k]) => k !== key));
     } else entwuerfe = { ...entwuerfe, [key]: entwurf };
   }
+  // A row gone with a draft, e.g. as someone else took the last dish with its tool out of the
+  // plan: what was typed is named to copy, then the draft goes
+  $effect(() => {
+    const weg = entwuerfeOhneZeile(
+      untrack(() => entwuerfe),
+      zeilen
+    );
+    if (!weg.length) return;
+    untrack(() => {
+      for (const { key, meldung } of weg) {
+        if (meldung) meldeVerloren(kontext, meldung);
+        entwurfSetzen(key, null);
+      }
+    });
+  });
   /** The version a row has now, after the view the last change brought. */
   function etagJetzt(key: string): string | null {
     return zeilen.find((zeile) => zeile.key === key)?.eintrag?.etag ?? null;
@@ -57,9 +74,10 @@
       if (entwurf) entwurfSetzen(key, { ...entwurf, ...felder });
     };
     return {
-      lesen: () => entwuerfe[key],
-      oeffnen: (text: string, etag: string | null) =>
-        entwurfSetzen(key, { text, etag, gesendet: null, konflikt: false }),
+      // A row gone meanwhile saves nothing; its draft is named to copy instead
+      lesen: () => (zeilen.some((zeile) => zeile.key === key) ? entwuerfe[key] : undefined),
+      oeffnen: (text: string, etag: string | null, name: string) =>
+        entwurfSetzen(key, { text, name, etag, gesendet: null, konflikt: false }),
       tippen: (text: string) => aendern({ text }),
       verwerfen: () => entwurfSetzen(key, null),
       sendet: (text: string) => aendern({ gesendet: text }),

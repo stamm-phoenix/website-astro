@@ -4,6 +4,7 @@ import { aenderungText } from '../src/lib/essensplanung.ts';
 import {
   entwurfNachSpeichern,
   entwurfOffen,
+  entwuerfeOhneZeile,
   fuerText,
   gefiltert,
   packliste,
@@ -232,14 +233,48 @@ test('a typed free name is unsaved until the row shows it', () => {
 });
 
 test('a save that went through takes its draft only while it is still the text sent', () => {
-  const entwurf = { text: ' Rover ', etag: '"1"', gesendet: 'Rover', konflikt: false };
+  const entwurf = {
+    text: ' Rover ',
+    name: 'Kochlöffel',
+    etag: '"1"',
+    gesendet: 'Rover',
+    konflikt: false,
+  };
   assert.equal(entwurfNachSpeichern(entwurf, 'Rover', '"2"'), null);
   assert.equal(entwurfNachSpeichern(undefined, 'Rover', '"2"'), null);
   // Typed on while it was saved: the text stays, on the version now saved
   assert.deepEqual(entwurfNachSpeichern({ ...entwurf, text: 'Rover und Wö' }, 'Rover', '"2"'), {
     text: 'Rover und Wö',
+    name: 'Kochlöffel',
     etag: '"2"',
     gesendet: null,
     konflikt: false,
   });
+});
+
+test('a draft whose row is gone stays unsaved and is named to copy', () => {
+  const zeilen = packliste(ansicht());
+  // The waffle iron is on no planned dish: its typed name is not saved anywhere
+  assert.equal(entwurfOffen({ 'w:waffeleisen': { text: 'Tante Erna' } }, zeilen), true);
+  assert.equal(entwurfOffen({ 'w:waffeleisen': { text: '  ' } }, zeilen), false);
+  assert.deepEqual(
+    entwuerfeOhneZeile(
+      {
+        'w:waffeleisen': { text: ' Tante  Erna ', name: 'Waffeleisen' },
+        'e:99': { text: 'Ben', name: 'Küchenzelt' },
+        'w:kochlöffel': { text: 'Rover', name: 'Kochlöffel' },
+        'w:alt': { text: '', name: 'Alt' },
+      },
+      zeilen
+    ),
+    [
+      {
+        key: 'w:waffeleisen',
+        meldung:
+          'Zuständig für Waffeleisen: „Tante Erna“ – das Werkzeug wird nicht mehr gebraucht.',
+      },
+      { key: 'e:99', meldung: 'Zuständig für Küchenzelt: „Ben“ – der Eintrag wurde entfernt.' },
+      { key: 'w:alt', meldung: null },
+    ]
+  );
 });

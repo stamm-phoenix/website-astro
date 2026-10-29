@@ -171,6 +171,8 @@ export function freiName(text: string): string {
  */
 export interface PackEntwurf {
   text: string;
+  /** The name of the thing, to name the draft when its row goes. */
+  name: string;
   /** The version of the row when the field was opened; null while nothing is stored. */
   etag: string | null;
   gesendet: string | null;
@@ -186,9 +188,10 @@ export function entwurfOffen(
   entwuerfe: Record<string, Pick<PackEntwurf, 'text'>>,
   zeilen: PackZeile[]
 ): boolean {
-  return zeilen.some((zeile) => {
-    const entwurf = entwuerfe[zeile.key];
-    if (entwurf === undefined) return false;
+  return Object.entries(entwuerfe).some(([key, entwurf]) => {
+    const zeile = zeilen.find((z) => z.key === key);
+    // A row gone meanwhile: the name is lost unless someone copies it (`entwuerfeOhneZeile`)
+    if (!zeile) return freiName(entwurf.text) !== '';
     return freiName(entwurf.text) !== (zeile.zustaendigId === null ? zeile.zustaendig : '');
   });
 }
@@ -204,4 +207,27 @@ export function entwurfNachSpeichern(
 ): PackEntwurf | null {
   if (!entwurf || freiName(entwurf.text) === gesendet) return null;
   return { ...entwurf, etag: etagJetzt, gesendet: null, konflikt: false };
+}
+
+/**
+ * Drafts whose row is gone, e.g. as someone else took the last dish with the tool out of the
+ * plan; with the text to copy for those with something typed.
+ */
+export function entwuerfeOhneZeile(
+  entwuerfe: Record<string, Pick<PackEntwurf, 'text' | 'name'>>,
+  zeilen: Pick<PackZeile, 'key'>[]
+): { key: string; meldung: string | null }[] {
+  const da = new Set(zeilen.map((zeile) => zeile.key));
+  return Object.entries(entwuerfe)
+    .filter(([key]) => !da.has(key))
+    .map(([key, entwurf]) => {
+      const text = freiName(entwurf.text);
+      const grund = key.startsWith('w:')
+        ? 'das Werkzeug wird nicht mehr gebraucht'
+        : 'der Eintrag wurde entfernt';
+      return {
+        key,
+        meldung: text ? `Zuständig für ${entwurf.name}: „${text}“ – ${grund}.` : null,
+      };
+    });
 }

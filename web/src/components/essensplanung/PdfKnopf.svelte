@@ -28,7 +28,7 @@
       // A row left with this click saves first, so the PDF shows what was typed
       if (!(await gespeichert())) {
         kontext.hinweis(
-          'Eine Änderung an einer Zutat ist noch nicht gespeichert, das PDF wurde nicht erstellt. Speichere sie in der Zeile und versuche es noch einmal.',
+          'Eine Änderung ist noch nicht gespeichert, das PDF wurde nicht erstellt. Speichere sie in der Zeile und versuche es noch einmal.',
           'error'
         );
         return;

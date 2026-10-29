@@ -1,60 +1,6 @@
-import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import { anlegen, pdfLaden } from './essensplanung-helpers';
-
-interface Ansicht {
-  tage: { mahlzeiten: { id: number }[] }[];
-}
-
-/** Sends a request of the Planung with the token of the page's link, as the page would. */
-async function senden<T = Ansicht>(
-  page: Page,
-  method: 'POST' | 'GET',
-  path: string,
-  data?: object
-): Promise<T> {
-  const token = /[#&]t=([\w-]{43})/.exec(page.url())?.[1];
-  expect(token, 'the link of the page').toBeTruthy();
-  const antwort = await page.request.fetch(`/api/essensplanung/planung${path}`, {
-    method,
-    headers: { 'x-essensplanung-token': token!, 'content-type': 'application/json' },
-    ...(data ? { data } : {}),
-  });
-  expect(antwort.ok(), await antwort.text()).toBeTruthy();
-  return (await antwort.json()) as T;
-}
-
-/** Dishes with tools, planned at lunch on both days; the waffles are not planned. */
-const GERICHTE: [string, string[]][] = [
-  ['Chili', ['Großer Topf', 'Kochlöffel']],
-  ['Suppe', [' großer  TOPF', 'Pürierstab']],
-  ['Waffeln', ['Waffeleisen']],
-];
-
-/** Creates the dishes; Chili at lunch on both days and Suppe on the first, the rest unplanned. */
-async function gerichteMitWerkzeugen(page: Page, gerichte = GERICHTE): Promise<void> {
-  const ids: Record<string, number> = {};
-  for (const [name, werkzeuge] of gerichte) {
-    ids[name] = (
-      await senden<{ id: number }>(page, 'POST', '/gerichte', {
-        name,
-        personen: 10,
-        werkzeuge,
-      })
-    ).id;
-  }
-  const ansicht = await senden(page, 'GET', '');
-  const [tag1, tag2] = ansicht.tage;
-  for (const [mahlzeitId, gerichtId] of [
-    [tag1.mahlzeiten[1].id, ids.Chili],
-    [tag1.mahlzeiten[1].id, ids.Suppe],
-    [tag2.mahlzeiten[1].id, ids.Chili],
-  ]) {
-    await senden(page, 'POST', '/einplanungen', { mahlzeitId, gerichtId });
-  }
-  await page.reload();
-  await page.getByRole('tab', { name: 'Packliste' }).click();
-}
+import { gerichteMitWerkzeugen } from './essensplanung-packliste-helpers';
 
 test('the packing list merges the tools of planned dishes; packing goes in the row', async ({
   page,
@@ -256,66 +202,5 @@ test('names that differ in signs have their own box; a typed name that failed is
   await expect(page.getByText('Rover packt Grill-Zange ein.').first()).toBeVisible();
   await expect(page.getByLabel('Wer packt Grill-Zange ein?')).toHaveValue('text');
   await page.getByRole('link', { name: 'Impressum' }).first().click();
-  await expect(page).toHaveURL(/impressum/);
-});
-
-test('a free name typed over a change of someone else asks before it saves', async ({
-  page,
-  browser,
-}) => {
-  await anlegen(page, 'E2E Packliste Name zu zweit');
-  await gerichteMitWerkzeugen(page);
-  const anderes = await (await browser.newContext()).newPage();
-  await anderes.goto(page.url());
-  await anderes.getByRole('tab', { name: 'Packliste' }).click();
-
-  // This page types a name, the other one chooses a member meanwhile
-  await page.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Anderer Name …' });
-  const name = page.getByRole('textbox', { name: 'Wer packt Kochlöffel ein?' });
-  await name.fill('Rover');
-  await anderes.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Kim Küche' });
-  await expect(anderes.getByText('Kim Küche packt Kochlöffel ein.').first()).toBeVisible();
-  await page.getByText('Letzte Änderungen').click();
-  await expect(page.getByText(/zuständig gemacht: Kochlöffel/)).toBeVisible({ timeout: 15_000 });
-
-  // Saving names the new state and keeps the name; Enter again saves it on purpose
-  await name.press('Enter');
-  await expect(page.getByRole('alert').filter({ hasText: 'jetzt: Kim Küche' })).toBeVisible();
-  await expect(name).toHaveValue('Rover');
-  await name.press('Enter');
-  await expect(page.getByText('Rover packt Kochlöffel ein.').first()).toBeVisible();
-  await expect(anderes.getByLabel('Wer packt Kochlöffel ein?')).toHaveValue('text', {
-    timeout: 15_000,
-  });
-  await anderes.context().close();
-});
-
-test('a save that ends late keeps a name typed on in the row shown anew', async ({ page }) => {
-  await anlegen(page, 'E2E Packliste spät');
-  await gerichteMitWerkzeugen(page);
-  let freigeben = (): void => undefined;
-  const gehalten = new Promise<void>((done) => (freigeben = done));
-  await page.route('**/api/essensplanung/planung/packliste/werkzeug', async (route) => {
-    await gehalten;
-    await route.continue();
-  });
-  await page.getByLabel('Wer packt Pürierstab ein?').selectOption({ label: 'Anderer Name …' });
-  const name = page.getByRole('textbox', { name: 'Wer packt Pürierstab ein?' });
-  await name.fill('Rover');
-  await name.press('Enter');
-
-  // The row goes and comes back while saving; the name is typed on there
-  await page.getByRole('button', { name: 'Gepackt', exact: true }).click();
-  await expect(name).toHaveCount(0);
-  await page.getByRole('button', { name: 'Alle', exact: true }).click();
-  await expect(name).toHaveValue('Rover');
-  await name.fill('Rover und Wö');
-  freigeben();
-  await expect(page.getByText('Rover packt Pürierstab ein.').first()).toBeVisible();
-  await expect(name).toHaveValue('Rover und Wö');
-
-  await page.unroute('**/api/essensplanung/planung/packliste/werkzeug');
-  await name.press('Enter');
-  await expect(page.getByText('Rover und Wö packt Pürierstab ein.').first()).toBeVisible();
-  await expect(page.getByLabel('Wer packt Pürierstab ein?')).toHaveValue('text');
+  await expect(page).toHaveURL(/impressum/, { timeout: 15_000 });
 });

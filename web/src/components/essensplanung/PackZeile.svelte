@@ -12,7 +12,7 @@
     type PackEntwurf,
     type PackZeile,
   } from '../../lib/essensplanungPackliste';
-  import type { PlanKontext } from './planKontext';
+  import { merkeSpeichern, type PlanKontext } from './planKontext';
 
   /**
    * One thing on the packing list. The box packs it, the choice next to it says who packs it;
@@ -30,7 +30,7 @@
     aktionen: {
       /** The current draft, also for a save that ends after this row was hidden. */
       lesen: () => PackEntwurf | undefined;
-      oeffnen: (text: string, etag: string | null) => void;
+      oeffnen: (text: string, etag: string | null, name: string) => void;
       tippen: (text: string) => void;
       verwerfen: () => void;
       sendet: (text: string) => void;
@@ -60,7 +60,8 @@
     /** A message of the server about a field, e.g. a member who has no access any more. */
     let feldFehler: string | undefined;
     speichert = true;
-    const ok = await kontext.aendern(async () => {
+    // Noted, so a PDF asked for meanwhile waits for it
+    const lauf = kontext.aendern(async () => {
       try {
         return werkzeug === null
           ? await kontext.api.senden('PATCH', `/packliste/${eintrag!.id}`, {
@@ -77,6 +78,8 @@
         throw error;
       }
     }, erfolg);
+    merkeSpeichern(lauf);
+    const ok = await lauf;
     speichert = false;
     if (!ok && feldFehler) kontext.hinweis(`${name}: ${feldFehler}`, 'error');
     return ok;
@@ -97,7 +100,8 @@
     if (wert === 'neu') {
       aktionen.oeffnen(
         zeile.zustaendigId === null ? zeile.zustaendig : '',
-        zeile.eintrag?.etag ?? null
+        zeile.eintrag?.etag ?? null,
+        zeile.name
       );
       feld.value = auswahl;
       await tick();
@@ -115,16 +119,18 @@
 
   /**
    * Saves the typed name when it changed, on the version it was typed on; Escape leaves it as it
-   * was. After a conflict only Enter (`bewusst`) saves it over the new state.
+   * was. After a conflict only Enter (`bewusst`) saves it over the new state. Says whether the
+   * name is saved: also when nothing changed or a save of it is running (that one is noted on its
+   * own); not after an error or with a conflict left open.
    */
-  async function textSpeichern(bewusst: boolean): Promise<void> {
+  async function textSpeichern(bewusst: boolean): Promise<boolean> {
     const entwurf = aktionen.lesen();
-    if (!entwurf || entwurf.gesendet !== null) return;
-    if (entwurf.konflikt && !bewusst) return;
+    if (!entwurf || entwurf.gesendet !== null) return true;
+    if (entwurf.konflikt && !bewusst) return false;
     const text = freiName(entwurf.text);
     if (!entwurf.konflikt && zeile.zustaendigId === null && text === zeile.zustaendig) {
       aktionen.verwerfen();
-      return;
+      return true;
     }
     const { eintrag, werkzeug, name } = zeile;
     const etag = entwurf.etag;
@@ -156,6 +162,7 @@
     // Not saved: the field keeps the name, so it can be sent once more
     if (ok) aktionen.gesichert(text);
     else aktionen.gescheitert(konflikt);
+    return ok;
   }
 
   async function entfernen(): Promise<void> {
@@ -232,10 +239,10 @@
           onkeydown={(event) => {
             if (event.key === 'Enter') {
               event.preventDefault();
-              void textSpeichern(true);
+              merkeSpeichern(textSpeichern(true));
             } else if (event.key === 'Escape') aktionen.verwerfen();
           }}
-          onblur={() => nachDemTippen(() => void textSpeichern(false))}
+          onblur={() => nachDemTippen(() => merkeSpeichern(textSpeichern(false)))}
         />
       {:else}
         <select
