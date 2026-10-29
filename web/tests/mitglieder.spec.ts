@@ -102,6 +102,10 @@ test('fields whose names could not be loaded are left out instead of showing the
 
 test('the members of the chosen group download as a PDF', async ({ page }) => {
   await page.goto('/leitendenbereich/mitglieder');
+  // The group filter is a list on phones and buttons on wide screens, both shown once loaded
+  await expect(
+    page.getByRole('list', { name: 'Mitglieder' }).getByRole('listitem').first()
+  ).toBeVisible();
   await gruppe(page, /Wölfling/);
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();

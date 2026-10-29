@@ -13,7 +13,7 @@
   import StatusNotice from './pflege/StatusNotice.svelte';
   import TagInput from './pflege/TagInput.svelte';
   import HelfendeCoverage from './nikolaus/HelfendeCoverage.svelte';
-  import PdfButton from './nikolaus/PdfButton.svelte';
+  import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
   import type { RescueField } from '../lib/geretteteEingaben';
 
   interface Props {
@@ -204,11 +204,11 @@
       {data.persons.length === 1 ? 'Person' : 'Personen'} eingetragen.
     </p>
     <div class="flex flex-wrap gap-3">
-      <PdfButton
-        create={createPdf}
+      <PdfDownloadButton
+        download={createPdf}
         disabled={data.persons.length === 0}
         errorText="Das PDF der Helfenden konnte nicht erstellt werden. Versuch es noch einmal."
-        onresult={(result) => (notice = result)}
+        onresult={(kind, text) => (notice = { kind, text })}
       />
       <ActionButton variant="primary" type="button" onclick={openNew}
         >Person hinzufügen</ActionButton

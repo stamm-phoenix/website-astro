@@ -24,7 +24,7 @@
   import NikolausAdminList from './NikolausAdminList.svelte';
   import NikolausAdminMatrix from './NikolausAdminMatrix.svelte';
   import AdminDayOverview from './nikolaus/AdminDayOverview.svelte';
-  import PdfButton from './nikolaus/PdfButton.svelte';
+  import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
   import NikolausAdminDetails from './NikolausAdminDetails.svelte';
   import NikolausMessageDialog from './NikolausMessageDialog.svelte';
   import NikolausRescheduleDialog from './NikolausRescheduleDialog.svelte';
@@ -226,11 +226,11 @@
           >
             {nikolausAdminStore.loading ? 'Lädt …' : 'Neu laden'}
           </ReloadAction>
-          <PdfButton
-            create={createPdf}
+          <PdfDownloadButton
+            download={createPdf}
             disabled={view === 'liste' && listShown.bookings.length === 0}
             errorText="Das PDF der Anmeldungen konnte nicht erstellt werden. Versuch es noch einmal."
-            onresult={(result) => (notice = result)}
+            onresult={(kind, text) => (notice = { kind, text })}
           />
         </div>
       </div>
