@@ -5,15 +5,15 @@
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
-  import { onMount, untrack } from 'svelte';
+  import { untrack } from 'svelte';
   import {
     fetchNikolausOverview,
     nikolausAdminStore,
     replaceNikolausBooking,
   } from '../lib/nikolausAdminStore.svelte';
   import {
-    countFreePlaces,
-    formatShortDate,
+    ACTIVE_STATUSES,
+    STATUS_LABEL,
     formatSlotKey,
     getBookingProblems,
     getOrphanedBookings,
@@ -23,6 +23,8 @@
   import type { NikolausMoveRequest, StaffNikolausBooking } from '../lib/types';
   import NikolausAdminList from './NikolausAdminList.svelte';
   import NikolausAdminMatrix from './NikolausAdminMatrix.svelte';
+  import AdminDayOverview from './nikolaus/AdminDayOverview.svelte';
+  import PdfButton from './nikolaus/PdfButton.svelte';
   import NikolausAdminDetails from './NikolausAdminDetails.svelte';
   import NikolausMessageDialog from './NikolausMessageDialog.svelte';
   import NikolausRescheduleDialog from './NikolausRescheduleDialog.svelte';
@@ -37,10 +39,6 @@
   ];
 
   let view = $state<View>('liste');
-  let overviewOpen = $state(false);
-  onMount(() => {
-    overviewOpen = window.matchMedia('(min-width: 640px)').matches;
-  });
   let selected = $state<StaffNikolausBooking | null>(null);
   /** Booking whose family is being written to. */
   let messageTo = $state<StaffNikolausBooking | null>(null);
@@ -68,25 +66,6 @@
   const data = $derived(nikolausAdminStore.data);
   const dates = $derived(data ? [...new Set(data.slots.map((s) => s.date))].sort() : []);
 
-  const stats = $derived(
-    dates.map((date) => {
-      const slots = data?.slots.filter((s) => s.date === date) ?? [];
-      const bookings = data?.bookings.filter((b) => b.slotKey.startsWith(date)) ?? [];
-      const active = bookings.filter(isActiveBooking);
-      const capacity = slots.reduce((sum, s) => sum + s.capacity, 0);
-      return {
-        date,
-        confirmed: bookings.filter((b) => b.status === 'confirmed').length,
-        pending: bookings.filter((b) => b.status === 'pending').length,
-        children: active.reduce((sum, b) => sum + b.childrenCount, 0),
-        // Counted per slot, so an overbooked slot cannot hide free places elsewhere
-        free: countFreePlaces(slots, bookings),
-        capacity,
-        overbooked: getOverbookedSlots(slots, bookings).length,
-      };
-    })
-  );
-
   /** Active bookings whose slot is not part of the current configuration. */
   const orphaned = $derived(data ? getOrphanedBookings(data.slots, data.bookings) : []);
   /** Slots with more active bookings than teams, e.g. after the number of teams was reduced. */
@@ -112,6 +91,28 @@
     const url = new URL(window.location.href);
     url.searchParams.set('ansicht', next);
     history.replaceState(history.state, '', url);
+  }
+
+  /** What the list shows with its filters; the matrix shows all active bookings. */
+  let listShown = $state<{ bookings: StaffNikolausBooking[]; filters: string[] }>({
+    bookings: [],
+    filters: [],
+  });
+
+  async function createPdf(): Promise<void> {
+    const shown =
+      view === 'liste'
+        ? listShown
+        : {
+            bookings: (data?.bookings ?? []).filter(isActiveBooking),
+            filters: [ACTIVE_STATUSES.map((status) => STATUS_LABEL[status]).join(', ')],
+          };
+    const { downloadAnmeldungenPdf } = await import('../lib/nikolausAnmeldungenPdf');
+    await downloadAnmeldungenPdf({
+      ...shown,
+      problems,
+      fileName: `nikolaus-anmeldungen-${new Date().toLocaleDateString('sv-SE')}.pdf`,
+    });
   }
 
   const loadedAtText = $derived(
@@ -164,88 +165,7 @@
   {/snippet}
   {#snippet children(data)}
     <div class="space-y-6">
-      <details bind:open={overviewOpen} class="space-y-3">
-        <summary class="min-h-11 cursor-pointer py-2 text-brand-900">
-          <h2 id="nikolaus-stats-heading" class="inline font-serif text-lg">
-            Überblick über die Tage
-          </h2>
-        </summary>
-        <section aria-labelledby="nikolaus-stats-heading">
-          <!-- Below sm each day is a row of four labelled values instead of five columns. -->
-          <div class="sm:overflow-x-auto">
-            <table class="w-full text-sm max-sm:block sm:min-w-[32rem]">
-              <thead class="max-sm:sr-only">
-                <tr class="border-b-2 border-neutral-300 text-left text-neutral-700">
-                  <th scope="col" class="py-2 pr-4 font-semibold">Tag</th>
-                  <th scope="col" class="py-2 pr-4 text-right font-semibold">Bestätigt</th>
-                  <th scope="col" class="py-2 pr-4 text-right font-semibold">Ausstehend</th>
-                  <th scope="col" class="py-2 pr-4 text-right font-semibold">Frei</th>
-                  <th scope="col" class="py-2 text-right font-semibold">Kinder</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-neutral-200 max-sm:block">
-                {#each stats as day (day.date)}
-                  <tr class="max-sm:grid max-sm:grid-cols-4 max-sm:gap-x-2 max-sm:py-3">
-                    <th
-                      scope="row"
-                      class="py-3 pr-4 text-left align-top max-sm:col-span-4 max-sm:p-0"
-                    >
-                      <span class="block font-serif text-lg font-semibold text-brand-900">
-                        {formatShortDate(day.date)}
-                      </span>
-                      {#if day.overbooked > 0}
-                        <span class="block text-sm font-semibold text-danger">
-                          <span aria-hidden="true">⚠</span>
-                          {day.overbooked}
-                          {day.overbooked === 1 ? 'Termin überbucht' : 'Termine überbucht'}
-                        </span>
-                      {/if}
-                    </th>
-                    <td
-                      class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-success max-sm:mt-1 max-sm:p-0 max-sm:text-left"
-                    >
-                      <span
-                        class="block text-xs font-semibold text-neutral-700 sm:hidden"
-                        aria-hidden="true">Bestätigt</span
-                      >
-                      {day.confirmed}
-                    </td>
-                    <td
-                      class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-warning max-sm:mt-1 max-sm:p-0 max-sm:text-left"
-                    >
-                      <span
-                        class="block text-xs font-semibold text-neutral-700 sm:hidden"
-                        aria-hidden="true">Ausstehend</span
-                      >
-                      {day.pending}
-                    </td>
-                    <td
-                      class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-brand-900 max-sm:mt-1 max-sm:p-0 max-sm:text-left"
-                    >
-                      <span
-                        class="block text-xs font-semibold text-neutral-700 sm:hidden"
-                        aria-hidden="true">Frei</span
-                      >
-                      {day.free}<span class="text-sm font-normal text-neutral-700"
-                        >/{day.capacity}</span
-                      >
-                    </td>
-                    <td
-                      class="py-3 text-right align-top text-xl font-semibold tabular-nums text-brand-900 max-sm:mt-1 max-sm:p-0 max-sm:text-left"
-                    >
-                      <span
-                        class="block text-xs font-semibold text-neutral-700 sm:hidden"
-                        aria-hidden="true">Kinder</span
-                      >
-                      {day.children}
-                    </td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </details>
+      <AdminDayOverview slots={data.slots} bookings={data.bookings} {dates} />
 
       <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
 
@@ -306,6 +226,12 @@
           >
             {nikolausAdminStore.loading ? 'Lädt …' : 'Neu laden'}
           </ReloadAction>
+          <PdfButton
+            create={createPdf}
+            disabled={view === 'liste' && listShown.bookings.length === 0}
+            errorText="Das PDF der Anmeldungen konnte nicht erstellt werden. Versuch es noch einmal."
+            onresult={(result) => (notice = result)}
+          />
         </div>
       </div>
 
@@ -323,6 +249,7 @@
           {dates}
           {problems}
           onselect={(booking) => (selected = booking)}
+          onshown={(shown) => (listShown = shown)}
         />
       {/if}
     </div>
