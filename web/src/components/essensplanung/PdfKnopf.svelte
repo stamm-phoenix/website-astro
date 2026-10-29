@@ -1,7 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import { errorMessage } from '../../lib/api';
-  import type { PlanKontext } from './planKontext';
+  import { gespeichert, type PlanKontext } from './planKontext';
 
   /**
    * Builds a PDF of a view and downloads it; says while it works and when it fails. Waits while
@@ -25,6 +25,14 @@
     if (laeuft) return;
     laeuft = true;
     try {
+      // A row left with this click saves first, so the PDF shows what was typed
+      if (!(await gespeichert())) {
+        kontext.hinweis(
+          'Eine Änderung an einer Zutat ist noch nicht gespeichert, das PDF wurde nicht erstellt. Speichere sie in der Zeile und versuche es noch einmal.',
+          'error'
+        );
+        return;
+      }
       await erstellen();
     } catch (error: unknown) {
       kontext.hinweis(

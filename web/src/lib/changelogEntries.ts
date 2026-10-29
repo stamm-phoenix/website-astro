@@ -22,6 +22,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-29-14-essensplanung-zeilen',
+    date: '2026-10-29',
+    title: 'Essensplanung: Zutaten wie in einer Tabelle',
+    changes: [
+      'Menge, Einheit und Hinweis einer Zutat änderst du direkt in der Zeile; gespeichert wird, wenn du die Zeile verlässt oder Enter drückst.',
+      'Neue Zutaten tippst du in die leere Zeile unter dem Gericht. Enter fügt sie hinzu, und du kannst gleich die nächste eintragen. Für wen eine Zutat ist und Unverträglichkeiten stehen weiter unter „Mehr Angaben …“ und „Ändern“.',
+    ],
+  },
+  {
     id: '2026-10-29-13-pdf-exporte',
     date: '2026-10-29',
     title: 'Viele Listen jetzt als PDF',

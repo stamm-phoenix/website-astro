@@ -14,14 +14,14 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText('Nudeln angelegt.').first()).toBeVisible();
   const nudeln = page.locator('li', { has: page.getByText('Nudeln', { exact: true }) }).first();
-  await nudeln.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await nudeln.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Nudeln (Spag');
   await dialog.getByRole('option', { name: 'Nudeln (Spaghetti)' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('500');
   await dialog.getByLabel('Einheit', { exact: true }).selectOption('g');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(dialog).toBeHidden();
-  await nudeln.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await nudeln.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Salz');
   await dialog.getByRole('option', { name: 'Salz', exact: true }).click();
   await dialog.getByLabel('Hinweis (optional)').fill('ins Wasser');

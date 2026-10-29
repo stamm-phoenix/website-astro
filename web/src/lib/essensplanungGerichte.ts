@@ -16,6 +16,20 @@ export function leseMenge(text: string): number | null {
   return /^\d+([.,]\d+)?$/.test(value) ? Number(value.replace(',', '.')) : Number.NaN;
 }
 
+/**
+ * An amount and a note as the server stores them (`essen-gerichte-schema.ts`): the amount to
+ * three decimals, the note trimmed with single spaces. Sent like this, the answer of a save can
+ * be told from a change of others.
+ */
+export function gespeicherteMenge(menge: number | null): number | null {
+  // 0 and less stay, so the server refuses them instead of saving 0,001
+  return menge === null || menge <= 0 ? menge : Math.round(menge * 1000) / 1000 || 0.001;
+}
+
+export function gespeicherterText(text: string): string {
+  return text.trim().replace(/\s+/g, ' ');
+}
+
 /** An amount for an input field, „1,5“. */
 export function mengeFeld(menge: number | null): string {
   return menge === null ? '' : String(menge).replace('.', ',');
@@ -36,6 +50,26 @@ export function zeileBody(zeile: GerichtZutat) {
     nur: zeile.nur,
     hinweis: zeile.hinweis,
   };
+}
+
+/** What a line says, without its version: what `zeileBody` sends. */
+export type ZeilenInhalt = Omit<ReturnType<typeof zeileBody>, 'etag'>;
+
+/** Whether two states of a line say the same, apart from version and position. */
+export function gleicheZeile(a: ZeilenInhalt, b: ZeilenInhalt): boolean {
+  const liste = (ids: number[]): string => [...ids].sort((x, y) => x - y).join(',');
+  return (
+    a.planungZutatId === b.planungZutatId &&
+    a.menge === b.menge &&
+    (a.menge === null || a.einheit === b.einheit) &&
+    a.fest === b.fest &&
+    a.fuerAlles === b.fuerAlles &&
+    a.fuerVegetarisch === b.fuerVegetarisch &&
+    a.fuerVegan === b.fuerVegan &&
+    liste(a.ohne) === liste(b.ohne) &&
+    liste(a.nur) === liste(b.nur) &&
+    a.hinweis === b.hinweis
+  );
 }
 
 /** Keys of the suggestions: `p:<id>` for ingredients of the Planung, `z:<id>` for the list. */
@@ -78,6 +112,21 @@ export interface ZutatWahl {
 export function zutatWahl(option: Vorschlag): ZutatWahl {
   const [art, id] = (option.key ?? '').split(':');
   return { art: art === 'p' ? 'planung' : 'zentral', id: Number(id) };
+}
+
+/**
+ * The chosen ingredient as it applies in this Planung: one of the list counts as the Planung's
+ * once someone took it over, with the Planung's kind of unit (as the API resolves it).
+ */
+export function gewaehlteZutat(
+  auswahl: ZutatWahl | null,
+  zutaten: readonly PlanungZutat[],
+  katalog: EssenKatalog
+): PlanungZutat | EssenKatalog['zutaten'][number] | undefined {
+  if (!auswahl) return undefined;
+  const id = auswahl.id;
+  if (auswahl.art === 'planung') return zutaten.find((z) => z.id === id);
+  return zutaten.find((z) => z.zutatId === id) ?? katalog.zutaten.find((z) => z.id === id);
 }
 
 /** The suggestion whose name was typed, ignoring case but not umlauts (Ol is not Öl). */
