@@ -1,4 +1,5 @@
 <script lang="ts">
+  import QuerScroll from '../ui/QuerScroll.svelte';
   import { datumKurz } from '../../lib/essensplanung';
   import { einplanungKennung, faktorText } from '../../lib/essensplanungEinplanung';
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
@@ -36,12 +37,10 @@
   }
 </script>
 
-{#if ansicht.tage.length > 1}
-  <p class="text-sm text-neutral-700 sm:hidden">
-    Weitere Tage siehst du, wenn du seitlich wischst.
-  </p>
-{/if}
-<div class="overflow-x-auto pb-2">
+<QuerScroll
+  label="Plan als Kalender"
+  hinweis="Weitere Tage siehst du, wenn du seitlich wischst oder scrollst."
+>
   <table class="w-full table-fixed border-separate border-spacing-2 text-left text-sm">
     <caption class="sr-only">Plan als Kalender</caption>
     <colgroup>
@@ -130,4 +129,4 @@
       {/each}
     </tbody>
   </table>
-</div>
+</QuerScroll>
