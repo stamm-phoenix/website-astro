@@ -201,8 +201,12 @@
     </h2>
     {#if rows.length > 0}
       <PdfDownloadButton
-        download={async () =>
-          (await import('../../lib/anwesenheitPdf')).downloadAnwesenheitReport(stufe, meetings)}
+        download={async () => {
+          const [shownStufe, shown] = [stufe, meetings];
+          await (
+            await import('../../lib/anwesenheitPdf')
+          ).downloadAnwesenheitReport(shownStufe, shown);
+        }}
       />
     {/if}
   </div>

@@ -14,11 +14,13 @@
 
   async function download(): Promise<void> {
     const unit = kostenstellen.find((k) => k.id === filter.costUnitId);
-    const { downloadBelegePdf } = await import('../../lib/belegePdf');
-    await downloadBelegePdf(eintraege, filter, {
+    const [shown, shownFilter] = [eintraege, { ...filter }];
+    const names = {
       kostenstelle: unit?.name,
       kategorie: unit?.categories.find((c) => c.id === filter.categoryId)?.name,
-    });
+    };
+    const { downloadBelegePdf } = await import('../../lib/belegePdf');
+    await downloadBelegePdf(shown, shownFilter, names);
   }
 </script>
 

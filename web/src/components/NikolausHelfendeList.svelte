@@ -166,9 +166,10 @@
     }
   }
   async function createPdf(): Promise<void> {
+    const shown = data;
     const { downloadHelfendePdf } = await import('../lib/nikolausHelfendePdf');
     await downloadHelfendePdf(
-      data,
+      shown,
       `nikolaus-helfende-${new Date().toLocaleDateString('sv-SE')}.pdf`
     );
   }

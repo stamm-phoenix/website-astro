@@ -193,14 +193,10 @@
           </p>
         {:else}
           <PdfDownloadButton
-            download={async () =>
-              (await import('../../lib/mitgliederPdf')).downloadMitgliederPdf({
-                persons: list,
-                columns: data.columns,
-                ansicht,
-                search,
-                today,
-              })}
+            download={async () => {
+              const shown = { persons: list, columns: data.columns, ansicht, search, today };
+              await (await import('../../lib/mitgliederPdf')).downloadMitgliederPdf(shown);
+            }}
           />
           <ul
             class="divide-y divide-neutral-200 border-y border-neutral-200"

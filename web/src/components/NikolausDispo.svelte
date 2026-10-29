@@ -311,24 +311,24 @@
       return;
     }
     exporting = true;
+    // The plan as it is on the click, also if someone changes it while the PDF loads
+    const shown = { data, plan, date, draft: dirty, baseName: base.name };
+    const km = new Map(mapTeams.map((team) => [team.name, teamKmLabel(team)]));
     try {
       const { dispoPdfTeams, downloadDispoPdf } = await import('../lib/nikolausDispoPdf');
       await downloadDispoPdf({
-        dayLabel: formatShortDate(date),
-        draft: dirty,
-        estimated: data.travelSource !== 'route',
+        dayLabel: formatShortDate(shown.date),
+        draft: shown.draft,
+        estimated: shown.data.travelSource !== 'route',
         teams: dispoPdfTeams({
-          data,
-          plan,
-          baseName: base.name,
-          km: (team) => {
-            const mapTeam = mapTeams.find((t) => t.name === team);
-            return mapTeam ? teamKmLabel(mapTeam) : null;
-          },
+          data: shown.data,
+          plan: shown.plan,
+          baseName: shown.baseName,
+          km: (team) => km.get(team) ?? null,
         }),
-        fileName: `nikolaus-dispo-${date}.pdf`,
+        fileName: `nikolaus-dispo-${shown.date}.pdf`,
       });
-      editor.state.notice = dirty
+      editor.state.notice = shown.draft
         ? { text: 'PDF heruntergeladen. Die Dispo ist noch nicht gespeichert.', kind: 'warning' }
         : { text: 'PDF heruntergeladen.', kind: 'success' };
     } catch (error) {

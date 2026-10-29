@@ -51,6 +51,8 @@ export interface PdfReport {
 
 /** Room a section needs below its heading before it moves to the next page. */
 const MIN_SECTION_SPACE = 40;
+/** Line height of the lines of a section in mm. */
+const LINE_HEIGHT = 4.5;
 
 export function drawTable(
   doc: JsPdf,
@@ -76,7 +78,12 @@ export function drawTable(
         : {}),
     },
     headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold', minCellHeight: 0 },
-    footStyles: { fillColor: [235, 238, 242], textColor: BRAND, fontStyle: 'bold', minCellHeight: 0 },
+    footStyles: {
+      fillColor: [235, 238, 242],
+      textColor: BRAND,
+      fontStyle: 'bold',
+      minCellHeight: 0,
+    },
     alternateRowStyles: { fillColor: table.handwriting ? 255 : [247, 248, 250] },
     columnStyles: Object.fromEntries(
       Object.entries(table.widths ?? {}).map(([index, width]) => [index, { cellWidth: width }])
@@ -124,10 +131,17 @@ export async function downloadReportPdf(report: PdfReport): Promise<void> {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(...GREY);
+      // Long lines, e.g. the names of many voters, go on on the next page above the footer
       for (const line of section.lines) {
-        const wrapped = doc.splitTextToSize(pdfText(line), width - 2 * MARGIN);
-        doc.text(wrapped, MARGIN, y);
-        y += 4.5 * wrapped.length;
+        const wrapped: string[] = doc.splitTextToSize(pdfText(line), width - 2 * MARGIN);
+        for (const part of wrapped) {
+          if (y > height - FOOTER_SPACE) {
+            doc.addPage();
+            y = 18;
+          }
+          doc.text(part, MARGIN, y);
+          y += LINE_HEIGHT;
+        }
       }
       y += 1;
     }

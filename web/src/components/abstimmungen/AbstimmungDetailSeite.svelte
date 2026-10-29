@@ -257,8 +257,10 @@
               >
             {/if}
             <PdfDownloadButton
-              download={async () =>
-                (await import('../../lib/abstimmungPdf')).downloadAbstimmungPdf(abstimmung)}
+              download={async () => {
+                const shown = abstimmung;
+                await (await import('../../lib/abstimmungPdf')).downloadAbstimmungPdf(shown);
+              }}
               errorText="Das PDF des Ergebnisses konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal."
               onresult={(kind, text) => {
                 messageKind = kind;
