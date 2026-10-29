@@ -331,6 +331,8 @@ test('a conflict is settled with buttons, without Enter or Escape', async ({ pag
   await konflikt('900', '800');
   await gericht.getByRole('button', { name: 'Hackfleisch: trotzdem speichern' }).click();
   await expect(gericht.getByRole('alert')).toHaveCount(0);
+  // A row with focus keeps its own state; once left, it shows the saved one
+  await anderes.getByRole('heading', { name: 'E2E Zeilen Knöpfe' }).click();
   await expect(andereMenge).toHaveValue('900', { timeout: 15_000 });
   await anderes.context().close();
 });
