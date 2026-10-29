@@ -160,6 +160,7 @@ async function previousMinutes(
     .where('meeting_date', '<', date)
     .orderBy('meeting_date', 'desc')
     .orderBy('id', 'desc')
+    .top(1)
     .executeTakeFirst();
   return row ? { date: toDateString(row.meeting_date), content: row.content } : undefined;
 }
