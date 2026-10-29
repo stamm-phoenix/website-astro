@@ -36,4 +36,4 @@ Die Merkmale vegan, vegetarisch und Allergene stehen nicht im Sheet; die Vorschl
 
 Das Geschäft aus dem Sheet (fast immer Metro) wird **nicht** übernommen, weil es Geschäfte nur pro Planung gibt.
 
-Die Namen in `umrechnung_loeffel.csv` und `stueckgewichte.csv` (`zutat_text`) passen nicht immer zu `zutaten.csv` (z. B. „Apfel“ und „Äpfel“). Die Zuordnung (und damit die Felder Gramm pro TL, EL und Stück der Zutaten) macht PR 4 mit der Umrechnungshilfe; bis dahin sind die Felder leer und in der Steuerung von Hand pflegbar.
+Die Namen in `umrechnung_loeffel.csv` und `stueckgewichte.csv` (`zutat_text`) passen nicht immer zu `zutaten.csv` (z. B. „Apfel“ und „Äpfel“). Die Zuordnung steht in `umrechnung_zuordnung.csv` (Spalten `zutat` = Name aus `zutaten.csv`, `gramm_pro_tl`, `gramm_pro_el`, `gramm_pro_stueck`; leer = kein Wert). Sie ist von Hand geprüft: nur Lebensmittel in g/kg, dieselbe Zutat in derselben Form, gestrichene Löffel; widersprüchliche Werte der beiden Tabellen bleiben leer. `bun scripts/essensplanung-umrechnung.ts` (in `api/`) erzeugt daraus `0057_essensplanung_umrechnung.sql`, die nur leere Felder füllt; Korrekturen danach laufen über die Steuerung.

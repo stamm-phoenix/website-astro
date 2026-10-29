@@ -148,3 +148,41 @@ JOIN essen.zutat AS z ON z.name = v.zutat
 JOIN essen.unvertraeglichkeit AS u ON u.schluessel = v.schluessel;
 `;
 }
+
+function gramm(value: string): string {
+  if (value === '') return 'NULL';
+  if (!/^\d+(\.\d{1,2})?$/.test(value) || Number(value) <= 0)
+    throw new Error(`Expected grams like 15 or 1.5 instead of „${value}“`);
+  return value;
+}
+
+/**
+ * The SQL of the migration that fills the conversion helper (grams per TL, EL and piece) from
+ * `umrechnung_zuordnung.csv`. Fields the Steuerung has filled meanwhile stay.
+ */
+export function buildUmrechnungSql(seedDir: string): string {
+  const read = (file: string) => readCsv(readFileSync(join(seedDir, file), 'utf8'));
+  const masse = new Set(
+    read('zutaten.csv')
+      .filter((zutat) => zutat.einheitenart === 'masse' && zutat.lebensmittel === 'true')
+      .map((zutat) => zutat.name)
+  );
+  const values = read('umrechnung_zuordnung.csv').map((row) => {
+    if (!masse.has(row.zutat)) throw new Error(`„${row.zutat}“ is no food measured by weight`);
+    return `  (${[text(row.zutat), gramm(row.gramm_pro_tl), gramm(row.gramm_pro_el), gramm(row.gramm_pro_stueck)].join(', ')})`;
+  });
+  return `-- Umrechnungshilfe der Essensplanung (#452): Gramm pro TL, EL und Stück aus der
+-- Umrechnungstabelle des Küchen-Sheets, den Zutaten zugeordnet. Erzeugt von
+-- api/scripts/essensplanung-umrechnung.ts aus api/migrations/seed/essensplanung, nicht von Hand
+-- ändern. Was die Steuerung schon eingetragen hat, bleibt.
+
+UPDATE z SET
+  gramm_pro_tl = COALESCE(z.gramm_pro_tl, v.tl),
+  gramm_pro_el = COALESCE(z.gramm_pro_el, v.el),
+  gramm_pro_stueck = COALESCE(z.gramm_pro_stueck, v.stueck)
+FROM essen.zutat AS z
+JOIN (VALUES
+${values.join(',\n')}
+) AS v (name, tl, el, stueck) ON v.name = z.name;
+`;
+}

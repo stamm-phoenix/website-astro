@@ -111,6 +111,7 @@ Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite e
   - **Ohne Menge** bei Gewürzen nach Augenmaß („Pfeffer“, „eine Prise“).
   - **Feste Menge**: Die Zeile skaliert nicht mit den Essern und nicht mit dem Faktor der Einplanung, die Menge ist die Gesamtmenge für jede Einplanung des Gerichts. Beispiele aus dem Sheet: 150 g Vanillepaste im Pudding für alle, 10 glutenfreie Müsliriegel im Lunchpaket, und beim Lagercafé („70 L Teig“, 30 kg Mehl) sind alle Zeilen fest. Fest und skalierend lassen sich in einem Gericht mischen.
   - **In der Datenbank wird nie zwischen Einheitenarten umgerechnet.** Milch steht fest in ml/l. Eine Umrechnungshilfe in der Oberfläche schlägt Werte vor, z. B. EL/TL → g aus den Startdaten, für schwierige Fälle per KI.
+  - **Umrechnungshilfe (PR 4c):** Im Dialog einer Zeile mit einer zentralen Zutat, die in g/kg gemessen wird und Werte hat, steht „In Gramm umrechnen“: Anzahl, Maß (TL, EL, Stück) und das Ergebnis; „Übernehmen“ trägt es als Menge in g ein. Unter 10 g auf eine Nachkommastelle, sonst auf ganze Gramm gerundet. Die Werte sind Anhaltspunkte (gestrichen gemessen) und in der Steuerung pflegbar.
 - **Für wen gilt eine Zeile:**
   - Häkchen **mit allem / vegetarisch / vegan**. Hackfleisch gilt nur für „mit allem“, Soja-Hack für vegetarisch und vegan.
   - Dazu je Unverträglichkeit „nicht für …“.
@@ -266,7 +267,7 @@ Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen eine
 
 Aus dem Sheet „2026 – Küche Bezirkslager“ (die Datei selbst liegt nicht im Repo):
 
-- **`api/migrations/seed/essensplanung/`:** zentrale Zutatenliste (392 Lebensmittel, 41 Nicht-Lebensmittel), 28 Kategorien, Vorlagen für Gruppen und Mahlzeiten, Umrechnung TL/EL in Gramm, Stückgewichte und die Metro-Artikel des Lagers mit Packung und Preis. Spalten und Herkunft: [README](../api/migrations/seed/essensplanung/README.md). `zutaten_merkmale.csv` enthält die Vorschläge für vegetarisch, vegan und Allergene. Aus den Dateien erzeugt `bun scripts/essensplanung-startdaten.ts` (in `api/`) die Migration `0050_essensplanung_startdaten.sql`; ein Test prüft, dass beide zusammenpassen.
+- **`api/migrations/seed/essensplanung/`:** zentrale Zutatenliste (392 Lebensmittel, 41 Nicht-Lebensmittel), 28 Kategorien, Vorlagen für Gruppen und Mahlzeiten, Umrechnung TL/EL in Gramm, Stückgewichte und die Metro-Artikel des Lagers mit Packung und Preis. Spalten und Herkunft: [README](../api/migrations/seed/essensplanung/README.md). `zutaten_merkmale.csv` enthält die Vorschläge für vegetarisch, vegan und Allergene. Aus den Dateien erzeugt `bun scripts/essensplanung-startdaten.ts` (in `api/`) die Migration `0050_essensplanung_startdaten.sql`; ein Test prüft, dass beide zusammenpassen. `umrechnung_zuordnung.csv` ordnet die Umrechnungstabellen den Zutaten zu; `bun scripts/essensplanung-umrechnung.ts` erzeugt daraus `0057_essensplanung_umrechnung.sql`, die nur leere Felder füllt.
 - **`web/test/fixtures/essensplanung-bezirkslager/`:** das ganze Lager (Tagesplan mit Anwesenden je Mahlzeit, 683 Zutatenzeilen mit den Ergebnissen des Sheets, Bestand, Zusätzliches) als Testdaten für die Berechnung. Siehe [README](../web/test/fixtures/essensplanung-bezirkslager/README.md).
 
 ## Was wir aus dem Sheet gelernt haben
@@ -310,4 +311,5 @@ Die vollständige, fortgeschriebene Liste steht in #452.
 - Werkzeuge und Links stehen als JSON am Gericht statt in eigenen Tabellen (PR 4).
 - Gericht-Zeilen werden als Ganzes mit ihrer Version gespeichert; der Kopf des Gerichts nur mit den geänderten Feldern und seiner Version (PR 4).
 - PR 4 ist geteilt: 4a Gerichte, 4b Einplanung, 4c Umrechnungshilfe.
+- Umrechnungshilfe nur für Lebensmittel in g/kg und nur mit eindeutig zugeordneten, gestrichen gemessenen Werten: Mischen die Tabellen gehäufte und gestrichene Löffel, widersprechen sie sich um mehr als die Hälfte oder wiegt ein EL weniger als zwei TL, bleibt der Wert leer (lieber kein Wert als ein falscher) (PR 4c).
 - Kopieren einer Einplanung legt eine neue an (gleiche Angaben, andere Mahlzeit); Ändern kann die Mahlzeit wechseln, nicht das Gericht (PR 4b).

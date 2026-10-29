@@ -13,7 +13,7 @@ import {
 } from '../endpoints/intern-essensplanung-steuerung';
 import { getDb } from '../lib/db';
 import { seedPreviewEssensplanung } from '../lib/db-preview';
-import { buildStartdatenSql, readCsv } from '../lib/essen-startdaten';
+import { buildStartdatenSql, buildUmrechnungSql, readCsv } from '../lib/essen-startdaten';
 import type { EssenEinstellungen, EssenSteuerungView, EssenZutat } from '../lib/essen-validation';
 import {
   darfPlanungAnlegen,
@@ -120,6 +120,12 @@ test('the start data migration is the one built from the CSV files', () => {
   const built = buildStartdatenSql(resolve(MIGRATIONS, 'seed/essensplanung'));
   const stored = readFileSync(resolve(MIGRATIONS, '0050_essensplanung_startdaten.sql'), 'utf8');
   assert.equal(stored, built, 'run `bun scripts/essensplanung-startdaten.ts` in api/');
+});
+
+test('the conversion migration is the one built from the CSV file', () => {
+  const built = buildUmrechnungSql(resolve(MIGRATIONS, 'seed/essensplanung'));
+  const stored = readFileSync(resolve(MIGRATIONS, '0057_essensplanung_umrechnung.sql'), 'utf8');
+  assert.equal(stored, built, 'run `bun scripts/essensplanung-umrechnung.ts` in api/');
 });
 
 test('the CSV reader handles quotes, commas and empty fields', () => {
@@ -231,6 +237,21 @@ dbTest('the migration brings the start data from the kitchen sheet', async (t) =
   assert.equal(byName('Spülmittel').lebensmittel, false);
   assert.equal(byName('Spülmittel').vegan, null);
   assert.equal(byName('Kidneybohnen').abtropfgewicht, true);
+  // The conversion helper from the sheet's table
+  assert.deepEqual(
+    [byName('Butter').grammProTl, byName('Butter').grammProEl, byName('Butter').grammProStueck],
+    [5, 15, null]
+  );
+  assert.equal(byName('Zwiebeln').grammProStueck, 83);
+  assert.equal(byName('Cashewnüsse').grammProStueck, 1.5);
+  const zuordnung = readCsv(
+    readFileSync(resolve(MIGRATIONS, 'seed/essensplanung/umrechnung_zuordnung.csv'), 'utf8')
+  );
+  for (const row of zuordnung) {
+    const zutat = byName(row.zutat);
+    assert.equal(zutat.grammProTl, row.gramm_pro_tl ? Number(row.gramm_pro_tl) : null, row.zutat);
+    assert.equal(zutat.grammProEl, row.gramm_pro_el ? Number(row.gramm_pro_el) : null, row.zutat);
+  }
 });
 
 dbTest('previews get an invented log once, before anyone changed something', async () => {

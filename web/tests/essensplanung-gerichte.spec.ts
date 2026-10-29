@@ -330,3 +330,34 @@ test('a dish changed during the delete question is not deleted', async ({ page, 
   await expect(suppe.getByText('Kürbissuppe', { exact: true })).toBeVisible();
   await anderes.context().close();
 });
+
+test('spoons and pieces are converted to grams from the list', async ({ page }) => {
+  await anlegen(page, 'E2E Umrechnung');
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await page.getByLabel('Neues Gericht').fill('Rührkuchen');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Rührkuchen angelegt.').first()).toBeVisible();
+  const kuchen = page.locator('li', { has: page.getByText('Rührkuchen', { exact: true }) }).first();
+  await kuchen.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Zutat', { exact: true }).fill('Butter');
+  await dialog.getByRole('option', { name: 'Butter', exact: true }).click();
+  await dialog.getByLabel('Anzahl zum Umrechnen').fill('2');
+  await dialog.getByLabel('Maß zum Umrechnen').selectOption({ label: 'EL' });
+  await expect(dialog.getByText('≈ 30 g')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('30');
+  await expect(dialog.getByLabel('Einheit', { exact: true })).toHaveValue('g');
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(kuchen.getByText('30 g')).toBeVisible();
+
+  // Pieces of onions; nothing to convert for milk, which is measured in ml
+  await kuchen.getByRole('button', { name: 'Zutat hinzufügen' }).click();
+  await dialog.getByLabel('Zutat', { exact: true }).fill('Zwiebeln');
+  await dialog.getByRole('option', { name: 'Zwiebeln', exact: true }).click();
+  await dialog.getByLabel('Anzahl zum Umrechnen').fill('3');
+  await expect(dialog.getByText('≈ 249 g')).toBeVisible();
+  await dialog.getByLabel('Zutat', { exact: true }).fill('H-Milch');
+  await dialog.getByRole('option', { name: 'H-Milch', exact: true }).click();
+  await expect(dialog.getByLabel('Anzahl zum Umrechnen')).toHaveCount(0);
+});
