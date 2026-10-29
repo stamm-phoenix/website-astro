@@ -15,9 +15,9 @@
   import GerichtPlaetze from './GerichtPlaetze.svelte';
   import NeueZutatZeile from './NeueZutatZeile.svelte';
   import ZutatZeileInline from './ZutatZeileInline.svelte';
-  import GerichtZeileDialog from './GerichtZeileDialog.svelte';
+  import GerichtZeileDialog, { type ZeilenVorgabe } from './GerichtZeileDialog.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
-  import type { PlanKontext } from './planKontext';
+  import { meldeVerloren, type PlanKontext } from './planKontext';
 
   /**
    * One dish: its lines with warnings, and (for those who edit) its fields as a draft that the
@@ -96,9 +96,10 @@
       .map((feld) => `${FELD_NAMEN[feld]}: ${textVon(kopf[feld])}`)
       .concat(werkzeugEntwurf.trim() ? [`${FELD_NAMEN.werkzeuge}: ${werkzeugEntwurf.trim()}`] : [])
       .join(' · ');
-    const text = `„${gericht.name}“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: ${eingaben}`;
-    // After the update that removes the card, which would not show a change made during it
-    setTimeout(() => kontext.hinweis(text, 'error'));
+    meldeVerloren(
+      kontext,
+      `„${gericht.name}“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: ${eingaben}`
+    );
   });
 
   const FELD_NAMEN: Record<keyof Kopf, string> = {
@@ -213,7 +214,7 @@
 
   let dialog = $state<{
     zeile: GerichtZutat | null;
-    vorgabe: { name: string; menge: string; hinweis: string } | null;
+    vorgabe: ZeilenVorgabe | null;
   } | null>(null);
 
   /** Where the dish is planned. */

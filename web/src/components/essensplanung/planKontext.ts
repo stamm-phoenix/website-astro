@@ -22,3 +22,18 @@ export interface PlanKontext {
   hinweis(text: string | null, art?: 'success' | 'error'): void;
   zeige(ansicht: PlanungAnsicht): void;
 }
+
+let verloren: string[] = [];
+
+/**
+ * Names input that went with a part someone else deleted, so it can be copied. Parts that go in
+ * the same update share one notice, shown after it, as a change during it would not show.
+ */
+export function meldeVerloren(kontext: PlanKontext, text: string): void {
+  if (!verloren.length)
+    setTimeout(() => {
+      kontext.hinweis(verloren.join(' '), 'error');
+      verloren = [];
+    });
+  verloren.push(text);
+}

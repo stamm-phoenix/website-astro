@@ -1,3 +1,15 @@
+<script lang="ts" module>
+  import type { GerichtEinheit as Einheit } from '../../lib/types';
+
+  /** What was typed in the row of a new line, taken over into the dialog. */
+  export interface ZeilenVorgabe {
+    name: string;
+    menge: string;
+    einheit: Einheit | null;
+    hinweis: string;
+  }
+</script>
+
 <script lang="ts">
   import { untrack } from 'svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
@@ -42,7 +54,7 @@
     /** The line to change; null adds a new one. */
     zeile: GerichtZutat | null;
     /** What was typed in the row of a new line, taken over into the dialog. */
-    vorgabe?: { name: string; menge: string; hinweis: string } | null;
+    vorgabe?: ZeilenVorgabe | null;
     open: boolean;
     onclose: () => void;
   }
@@ -109,6 +121,7 @@
       auswahl = null;
       zutatText = vorgabe?.name ?? '';
       menge = vorgabe?.menge ?? '';
+      einheit = vorgabe?.einheit ?? 'g';
       hinweis = vorgabe?.hinweis ?? '';
       const treffer = zutatText ? getippteZutat(vorschlaege, zutatText) : undefined;
       if (treffer) auswahl = zutatWahl(treffer);

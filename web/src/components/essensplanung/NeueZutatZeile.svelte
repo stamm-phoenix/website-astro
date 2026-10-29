@@ -13,7 +13,8 @@
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { EssenKatalog, Gericht, GerichtEinheit } from '../../lib/types';
   import type { Vorschlag } from '../../lib/vorschlaege';
-  import type { PlanKontext } from './planKontext';
+  import { meldeVerloren, type PlanKontext } from './planKontext';
+  import type { ZeilenVorgabe } from './GerichtZeileDialog.svelte';
 
   /**
    * The empty row at the end of a dish: ingredient, amount, unit and note typed in one go, like a
@@ -26,7 +27,7 @@
     katalog: EssenKatalog;
     gericht: Gericht;
     /** Opens the dialog for a new line with what was typed. */
-    onmehr: (vorgabe: { name: string; menge: string; hinweis: string }) => void;
+    onmehr: (vorgabe: ZeilenVorgabe) => void;
   }
   let { kontext, katalog, gericht, onmehr }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
@@ -59,6 +60,23 @@
     zutatText.trim() !== '' || menge.trim() !== '' || hinweis.trim() !== ''
   );
   $effect(() => guardUnsavedChanges(() => angefangen));
+  // Someone else deleted the dish: the row goes, so the unsaved input is shown to copy
+  $effect(() => () => {
+    if (!angefangen) return;
+    const id = gericht.id;
+    const eingabe = [
+      zutatText.trim(),
+      menge.trim() ? `${menge.trim()} ${einheitText(einheit)}` : '',
+      hinweis.trim(),
+    ]
+      .filter(Boolean)
+      .join(', ');
+    const text = `Neue Zeile für „${gericht.name}“: ${eingabe}.`;
+    // Checked after the update, as during it the view may still be the old one
+    setTimeout(() => {
+      if (!kontext.ansicht.gerichte.some((g) => g.id === id)) meldeVerloren(kontext, text);
+    });
+  });
 
   function nimm(option: Vorschlag): void {
     auswahl = zutatWahl(option);
@@ -180,7 +198,7 @@
     <input
       id="gericht-{gericht.id}-neu-hinweis"
       class="form-input"
-      maxlength="200"
+      maxlength="100"
       placeholder="Hinweis"
       disabled={speichert}
       bind:value={hinweis}
@@ -198,7 +216,12 @@
         type="button"
         disabled={speichert}
         onclick={() => {
-          const vorgabe = { name: zutatText.trim(), menge: menge.trim(), hinweis: hinweis.trim() };
+          const vorgabe = {
+            name: zutatText.trim(),
+            menge: menge.trim(),
+            einheit: einheiten.length ? einheit : null,
+            hinweis: hinweis.trim(),
+          };
           zutatText = '';
           auswahl = null;
           menge = '';

@@ -16,7 +16,7 @@
     mengeText,
   } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit, GerichtZutat, PlanungZutat } from '../../lib/types';
-  import type { PlanKontext } from './planKontext';
+  import { meldeVerloren, type PlanKontext } from './planKontext';
 
   /**
    * One line of a dish. Amount, unit and note are edited right in the row, like in a sheet, and
@@ -104,13 +104,18 @@
     });
   });
 
-  async function speichern(): Promise<void> {
+  /** Saves typed changes; whether the row is saved afterwards. */
+  async function speichern(): Promise<boolean> {
     fehler = null;
-    if (!geaendert) return;
+    if (!geaendert) {
+      // A change of others that came in while the row had focus shows now
+      if (!fokus && !entwurf) uebernehme(zeile);
+      return true;
+    }
     const zahl = leseMenge(menge);
     if (Number.isNaN(zahl)) {
       fehler = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
-      return;
+      return false;
     }
     // Someone else saved this line meanwhile: keep the input and let the person decide
     if (
@@ -124,17 +129,20 @@
         hinweis: zeile.hinweis,
       };
       fehler = `Jemand anderes hat ${name} gerade geändert (jetzt ${mengeText(zeile.menge, zeile.einheit) ?? 'nach Gefühl'}). Deine Eingabe steht noch in der Zeile; drücke Enter, um sie zu speichern.`;
-      return;
+      return false;
     }
     entwurf = true;
+    // Taken now with the version checked above: changes wait in a queue, and a version that
+    // comes in meanwhile must make this one a conflict instead of overwriting it
+    const body = {
+      ...zeileBody(zeile),
+      menge: zahl,
+      einheit: zahl === null ? null : einheit,
+      fest: zahl !== null && zeile.fest,
+      hinweis: hinweis.trim(),
+    };
     const ok = await kontext.aendern(() =>
-      kontext.api.senden('PATCH', `/gericht-zutaten/${zeile.id}`, {
-        ...zeileBody(zeile),
-        menge: zahl,
-        einheit: zahl === null ? null : einheit,
-        fest: zahl !== null && zeile.fest,
-        hinweis: hinweis.trim(),
-      })
+      kontext.api.senden('PATCH', `/gericht-zutaten/${zeile.id}`, body)
     );
     entwurf = false;
     if (ok) {
@@ -146,7 +154,35 @@
           hinweis: zeile.hinweis,
         };
     } else fehler = kontext.fehler;
+    return ok;
   }
+
+  /** The dialog starts from what the row shows, so typed changes are saved first. */
+  async function aendern(): Promise<void> {
+    if (geaendert && !(await speichern())) return;
+    onaendern();
+  }
+
+  /** Set when this page removes the line itself, which needs no word about lost input. */
+  let selbstEntfernt = false;
+  // Someone else removed the line: the row goes, so the unsaved input is shown to copy
+  $effect(() => () => {
+    if (selbstEntfernt || !geaendert) return;
+    const id = zeile.id;
+    const eingabe = [
+      menge.trim() ? `${menge.trim()} ${einheitText(einheit, zutat?.abtropfgewicht)}` : '',
+      hinweis.trim(),
+    ]
+      .filter(Boolean)
+      .join(', ');
+    const text = `${name} wurde gerade entfernt (deine Eingabe: ${eingabe}).`;
+    // Checked after the update: the row also goes when the page closes, and during the update
+    // the view may still be the old one
+    setTimeout(() => {
+      if (!kontext.ansicht.gerichte.some((g) => g.zutaten.some((z) => z.id === id)))
+        meldeVerloren(kontext, text);
+    });
+  });
 
   /** Leaving the row saves; moving between its own fields does not. */
   function verlassen(event: FocusEvent): void {
@@ -204,7 +240,7 @@
       <input
         id="zeile-{zeile.id}-hinweis"
         class="form-input"
-        maxlength="200"
+        maxlength="100"
         placeholder="Hinweis"
         bind:value={hinweis}
         onkeydown={taste}
@@ -226,14 +262,17 @@
           type="button"
           aria-label="{name} ändern"
           disabled={!katalogDa}
-          onclick={onaendern}>Ändern</ActionButton
+          onclick={() => void aendern()}>Ändern</ActionButton
         >
         <ActionButton
           type="button"
           variant="danger"
           aria-label="{name} entfernen"
           disabled={kontext.busy}
-          onclick={onloeschen}>✕</ActionButton
+          onclick={() => {
+            selbstEntfernt = true;
+            onloeschen();
+          }}>✕</ActionButton
         >
       </div>
     </div>

@@ -393,7 +393,11 @@ test('typed text stays as typed, Enter takes the first suggestion; discarding sa
   await expect(page.getByText(/das Gericht wurde gelöscht/)).toHaveCount(0);
 });
 
-test('lines are typed and changed right in the rows, like in a sheet', async ({ page }) => {
+test('lines are typed and changed right in the rows, like in a sheet', async ({
+  page,
+  browser,
+}) => {
+  test.slow();
   await anlegen(page, 'E2E Zeilen');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Nudeln mit Soße');
@@ -454,4 +458,51 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({ 
   await page.reload();
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await expect.poll(() => zeilenMenge(gericht, 'Hackfleisch')).toBe('1 kg');
+  await page.getByText('Nudeln mit Soße', { exact: true }).click();
+  await expect(menge).toBeVisible();
+
+  // „Mehr Angaben …“ takes what was typed, the unit too
+  await zutat.pressSequentially('Tomatenm');
+  await zutat.press('Enter');
+  await gericht.getByLabel('Menge der neuen Zutat').fill('2');
+  await gericht.getByLabel('Einheit der neuen Zutat').selectOption('kg');
+  await gericht.getByRole('button', { name: 'Mehr Angaben …' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('2');
+  await expect(dialog.getByLabel('Einheit', { exact: true })).toHaveValue('kg');
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Verwerfen');
+
+  // „Ändern“ saves what the row shows first, so the dialog starts from it
+  await menge.fill('900');
+  await gericht.getByRole('button', { name: 'Hackfleisch ändern' }).click();
+  await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('900');
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(dialog).toHaveCount(0);
+
+  // A change of others that comes while the row has focus shows once the row is left
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Nudeln mit Soße', { exact: true }).click();
+  await menge.focus();
+  await anderes.getByLabel('Hinweis zu Hackfleisch').fill('vom Metzger');
+  await anderes.getByLabel('Hinweis zu Hackfleisch').press('Enter');
+  await expect(anderes.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('vom Metzger');
+  await page.waitForTimeout(5_000);
+  await expect(gericht.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('gemischt');
+  await page.getByRole('heading', { name: 'E2E Zeilen' }).click();
+  await expect(gericht.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('vom Metzger', {
+    timeout: 15_000,
+  });
+
+  // Others remove a line with unsaved input: the input is named to copy
+  await menge.fill('1200');
+  await anderes.getByRole('button', { name: 'Hackfleisch entfernen' }).click();
+  await answerConfirm(anderes, 'Hackfleisch entfernen?', 'Entfernen');
+  await expect(
+    page.getByText(/Hackfleisch wurde gerade entfernt \(deine Eingabe: 1200 kg/).first()
+  ).toBeVisible({
+    timeout: 20_000,
+  });
 });
