@@ -328,3 +328,47 @@ test('a change of a trip keeps its draft while the list is looked at', async ({ 
   await form.getByRole('button', { name: 'Speichern' }).click();
   await expect(page.getByText('Montag früh gespeichert.').first()).toBeVisible();
 });
+
+test('a thing that falls off the list while being ticked off names what was typed', async ({
+  page,
+  browser,
+}) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe verloren');
+  await einkaufAnlegen(page, 'Montag', 0);
+  await einkaufAnlegen(page, 'Mittwoch', 0);
+  const mittwoch = karte(page, 'Mittwoch');
+  // Wednesday buys nothing yet: everything is on Monday. Monday is finished with less, so the
+  // rest is on Wednesday
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  await montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)').fill('1');
+  await montag.getByRole('button', { name: 'Abhaken' }).click();
+  await expect(montag.getByRole('status')).toHaveText('1 von 1 abgehakt');
+  await mittwoch.getByRole('button', { name: 'Mittwoch: Einkaufen' }).click();
+  await mittwoch.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  await mittwoch.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)').fill('800');
+  await mittwoch.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
+  await mittwoch.getByLabel('Ersatz für Nudeln (Spaghetti)').fill('Vollkornnudeln');
+
+  // Someone else changes Monday to all of it: Wednesday needs nothing more
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Einkauf' }).click();
+  const dort = karte(anderes, 'Montag');
+  await dort.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await dort.getByRole('button', { name: 'Nudeln (Spaghetti) (abgehakt)' }).click();
+  await dort.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)').fill('2');
+  await dort.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dort).toContainText('2 kg');
+  await anderes.context().close();
+
+  await expect(
+    page
+      .getByText(
+        'Nudeln (Spaghetti) steht in diesem Einkauf nicht mehr auf der Liste, jemand hat es anderswo abgehakt (deine Eingabe: 800 g → Vollkornnudeln).'
+      )
+      .first()
+  ).toBeVisible({ timeout: 15_000 });
+});

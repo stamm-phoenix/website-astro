@@ -4,10 +4,17 @@ import type {
   EinkaufHaken,
   EinkaufRegelArt,
 } from '../../../api/lib/essen-einkaeufe-model';
-import { bedarf, einkaufsMenge, inBasis, ohneMenge, summiere } from './essensplanungRechnung';
+import {
+  bedarf,
+  einkaufsMenge,
+  inBasis,
+  kochMenge,
+  ohneMenge,
+  summiere,
+} from './essensplanungRechnung';
 import type { BasisEinheit, RechnungsMahlzeit, RechnungsStand } from './essensplanungRechnung';
 import { lager, nurOffene } from './essensplanungLager';
-import { erledigtOhneMenge } from './essensplanungEinkauf';
+import { erledigtOhneMenge, postenMenge } from './essensplanungEinkauf';
 import type { LagerEinplanung, LagerStand } from './essensplanungLager';
 import type { EinkaufPosten, Geschaeft, GerichtEinheit, PlanungZutat, ZusatzPosten } from './types';
 
@@ -302,4 +309,23 @@ export function einkaufListen(
     });
   }
   return ergebnis;
+}
+
+/** A thing of a trip on paper: open ones with what is planned, ticked off ones with what was bought. */
+export function einkaufDruckZeile(posten: EinkaufListenPosten): {
+  abgehakt: boolean;
+  menge: string;
+  name: string;
+} {
+  const h = posten.haken;
+  if (!h) return { abgehakt: false, menge: postenMenge(posten), name: posten.name };
+  return {
+    abgehakt: true,
+    // Bought nothing of a thing without an amount: as before, without a number
+    menge:
+      h.erhalten > 0
+        ? kochMenge(h.erhalten, h.einheit, posten.abtropfgewicht)
+        : postenMenge(posten),
+    name: h.ersatz ? `${posten.name} → ${h.ersatz}` : posten.name,
+  };
 }

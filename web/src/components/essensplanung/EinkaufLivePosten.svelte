@@ -8,7 +8,8 @@
   import type { EinkaufListenPosten } from '../../lib/essensplanungEinkaeufe';
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
-  import type { PlanKontext } from './planKontext';
+  import { meldeVerloren, type PlanKontext } from './planKontext';
+  import { lebendig, sichtbar } from './einkaufLive';
 
   /**
    * One thing in the live mode of a shopping trip: a tap opens the amount (the planned one unless
@@ -46,6 +47,35 @@
    */
   let konflikt = $state<string | null>(null);
 
+  /** Something was typed into the open amount and is not saved. */
+  let geaendert = false;
+
+  // A row with unsaved input that falls off the list (someone ticked its needs off on another
+  // trip) names the input, unless it comes back drawn again at once
+  $effect(() => {
+    const id = `${einkaufId}:${posten.planungZutatId}`;
+    const name = posten.name;
+    sichtbar.set(id, (sichtbar.get(id) ?? 0) + 1);
+    return () => {
+      sichtbar.set(id, (sichtbar.get(id) ?? 1) - 1);
+      if (!sichtbar.get(id)) sichtbar.delete(id);
+      if (!untrack(() => offen) || !geaendert) return;
+      const eingabe = [
+        untrack(() => menge).trim()
+          ? `${untrack(() => menge)} ${einheitText(untrack(() => einheit))}`
+          : '',
+        untrack(() => ersatz).trim() ? `→ ${untrack(() => ersatz)}` : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const text = `${name} steht in diesem Einkauf nicht mehr auf der Liste, jemand hat es anderswo abgehakt${eingabe ? ` (deine Eingabe: ${eingabe})` : ''}.`;
+      setTimeout(() => {
+        // Still in the live mode of this trip, and not drawn again
+        if (lebendig.has(einkaufId) && !sichtbar.has(id)) meldeVerloren(kontext, text);
+      });
+    };
+  });
+
   /** Whether the fields were filled for the open amount. */
   let gefuellt = false;
   // Opened before this row was drawn again (e.g. its category came with the central lists)
@@ -65,6 +95,7 @@
 
   function fuellen(): void {
     gefuellt = true;
+    geaendert = false;
     const h = posten.haken;
     menge = h ? (h.erhalten > 0 ? mengeFeld(h.erhalten) : '') : mengeFeld(posten.menge);
     einheit = h?.einheit ?? posten.einheit ?? einheiten[0] ?? 'stueck';
@@ -100,6 +131,7 @@
     }, `${posten.name} abgehakt.`);
     speichert = false;
     if (ok) {
+      geaendert = false;
       konflikt = null;
       onoeffnen(false);
       return;
@@ -164,7 +196,12 @@
     </span>
   </button>
   {#if offen}
-    <form class="space-y-2 px-2 pb-3" onsubmit={abhaken} aria-label="{posten.name} abhaken">
+    <form
+      class="space-y-2 px-2 pb-3"
+      onsubmit={abhaken}
+      oninput={() => (geaendert = true)}
+      aria-label="{posten.name} abhaken"
+    >
       <div class="flex flex-wrap items-center gap-2">
         <input
           class="form-input w-28 text-lg tabular-nums"

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Einkauf, EinkaufHaken } from '../../api/lib/essen-einkaeufe-model.ts';
 import {
+  einkaufDruckZeile,
   einkaufListen,
   einkaufsReihenfolge,
   type EinkaufsStand,
@@ -382,4 +383,25 @@ test('a thing without an amount with a fixed amount is one row when ticked off',
   const info = einkaufListen(s, new Map()).get(a.id)!;
   assert.equal(info.anzahl, 1);
   assert.equal(info.abgehakt, 1);
+});
+
+test('on paper a ticked off thing shows what was bought, also after finishing', () => {
+  const a = einkauf({ bisMahlzeitId: 3 });
+  const s = stand([a]);
+  const zeilen = () =>
+    einkaufListen(s, new Map())
+      .get(a.id)!
+      .kategorien.flatMap((k) => k.posten.map(einkaufDruckZeile));
+  assert.deepEqual(zeilen(), [
+    { abgehakt: false, menge: '1,2 kg', name: 'Nudeln' },
+    { abgehakt: false, menge: 'nach Gefühl', name: 'Pfeffer' },
+  ]);
+  a.posten = [haken(1, 800, 'g', 'Vollkornnudeln')];
+  assert.deepEqual(zeilen()[0], {
+    abgehakt: true,
+    menge: '800 g',
+    name: 'Nudeln → Vollkornnudeln',
+  });
+  a.abgeschlossen = true;
+  assert.deepEqual(zeilen(), [{ abgehakt: true, menge: '800 g', name: 'Nudeln → Vollkornnudeln' }]);
 });

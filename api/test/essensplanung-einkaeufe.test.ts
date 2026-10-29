@@ -502,3 +502,38 @@ dbTest('taking back undoes a move in one change, or changes nothing', async (t) 
   );
   assert.equal(ansicht.aenderungen[0].aktion, 'einkauf-zurueckgeholt');
 });
+
+dbTest('nothing is moved to a finished trip', async (t) => {
+  const { token, zutat } = await planung(t);
+  await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+    body: { name: 'Montag' },
+  });
+  const [a, b] = json<PlanungAnsicht>(
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name: 'Mittwoch' },
+    })
+  ).einkaeufe;
+  await senden(t, einkaeufe.EssensplanungEinkauf, 'PATCH', 'planung/einkaeufe', token, {
+    id: b.id,
+    body: { ...b, abgeschlossen: true },
+  });
+  const antwort = await senden(
+    t,
+    einkaeufe.EssensplanungEinkaufVerschieben,
+    'POST',
+    'planung/einkaeufe/verschieben',
+    token,
+    { id: a.id, body: { planungZutatId: zutat, nachEinkaufId: b.id } }
+  );
+  assert.equal(antwort.status, 400, JSON.stringify(antwort.jsonBody));
+  assert.equal(
+    json<{ fields: Record<string, string> }>(antwort).fields.nachEinkaufId,
+    'Dieser Einkauf ist schon abgeschlossen. Bitte wähle einen anderen.'
+  );
+  const regeln = await getDb()
+    .selectFrom('essen.einkauf_regel')
+    .select('id')
+    .where('planung_zutat_id', '=', zutat)
+    .execute();
+  assert.deepEqual(regeln, []);
+});

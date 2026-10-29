@@ -166,6 +166,11 @@ export function verschieben(z: MockZugang, vonEinkaufId: number, input: Verschie
     throw feld('nachEinkaufId', 'Bitte einen anderen Einkauf wählen.');
   const nach = z.planung.einkaeufe.find((e) => e.id === input.nachEinkaufId);
   if (!nach) throw feld('nachEinkaufId', 'Diesen Einkauf gibt es nicht mehr.');
+  if (nach.abgeschlossen)
+    throw feld(
+      'nachEinkaufId',
+      'Dieser Einkauf ist schon abgeschlossen. Bitte wähle einen anderen.'
+    );
   const zutat = zutatMitEinheit(z, input.planungZutatId, null);
   const regel = { planungZutatId: input.planungZutatId, menge: null, einheit: null };
   aendere(z, 'einkauf-verschoben', { name: zutat.name, einkauf: von.name, nach: nach.name }, () => {

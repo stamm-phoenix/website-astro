@@ -16,7 +16,7 @@ import {
 } from './essensplanungDruck';
 import { postenMenge, type EinkaufsGeschaeft } from './essensplanungEinkauf';
 import type { LagerZeile } from './essensplanungLager';
-import type { EinkaufListe } from './essensplanungEinkaeufe';
+import { einkaufDruckZeile, type EinkaufListe } from './essensplanungEinkaeufe';
 import { zahlText } from './essensplanungTeilnehmende';
 import {
   BRAND,
@@ -323,11 +323,10 @@ export async function downloadEinkaufPdf(
   else {
     const body = liste.kategorien.flatMap((kategorie) => [
       [{ content: kategorie.name, colSpan: 3, styles: { fontStyle: 'bold' as const } }],
-      ...kategorie.posten.map((posten) => [
-        posten.haken ? 'x' : '',
-        postenMenge(posten),
-        posten.haken?.ersatz ? `${posten.name} → ${posten.haken.ersatz}` : posten.name,
-      ]),
+      ...kategorie.posten.map((posten) => {
+        const zeile = einkaufDruckZeile(posten);
+        return [zeile.abgehakt ? 'x' : '', zeile.menge, zeile.name];
+      }),
     ]);
     autoTable(doc, {
       ...TABLE_STYLES,

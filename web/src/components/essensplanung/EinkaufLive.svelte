@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { EinkaufListe } from '../../lib/essensplanungEinkaeufe';
   import EinkaufLivePosten from './EinkaufLivePosten.svelte';
+  import { liveOffen } from './einkaufLive';
   import type { PlanKontext } from './planKontext';
 
   /**
@@ -15,6 +16,8 @@
     gesperrt?: boolean;
   }
   let { kontext, liste, gesperrt = false }: Props = $props();
+
+  $effect(() => liveOffen(liste.einkauf.id));
 
   /** The thing whose amount is open. */
   let offen = $state<string | null>(null);

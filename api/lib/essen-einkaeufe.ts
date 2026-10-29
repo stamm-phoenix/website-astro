@@ -99,7 +99,7 @@ export async function ladeEinkaeufe(db: Db, planungId: number): Promise<Einkauf[
 async function einkaufDerPlanung(trx: Db, zugang: Zugang, id: number) {
   const einkauf = await trx
     .selectFrom('essen.einkauf')
-    .select(['id', 'version', 'name'])
+    .select(['id', 'version', 'name', 'abgeschlossen'])
     .where('id', '=', id)
     .where('planung_id', '=', zugang.planungId)
     .executeTakeFirst();
@@ -414,6 +414,11 @@ export async function verschieben(
     const nach = await einkaufDerPlanung(trx, zugang, input.nachEinkaufId).catch(() => {
       throw new ValidationError({ nachEinkaufId: 'Diesen Einkauf gibt es nicht mehr.' });
     });
+    // A finished trip buys nothing more: the thing would be on no list
+    if (nach.abgeschlossen)
+      throw new ValidationError({
+        nachEinkaufId: 'Dieser Einkauf ist schon abgeschlossen. Bitte wähle einen anderen.',
+      });
     const { name } = await zutatMitEinheit(trx, zugang, input.planungZutatId, null, 'einheit');
     const regel = { planungZutatId: input.planungZutatId, menge: null, einheit: null };
     await schreibeRegel(trx, vonEinkaufId, { ...regel, art: 'ohne' });
