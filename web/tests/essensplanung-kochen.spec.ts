@@ -70,6 +70,23 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await expect(page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_2_1')).toHaveValue('0,8');
   await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
 
+  // Through the read link what was used can be looked at, not changed
+  await page.getByRole('tab', { name: 'Mitglieder' }).click();
+  await page.getByRole('button', { name: 'Link erzeugen', exact: true }).nth(1).click();
+  const links = page
+    .locator('.copy-code .font-mono')
+    .filter({ hasText: '/essensplanung/planung#t=' });
+  await expect(links).toHaveCount(2);
+  const leser = await (await browser.newContext()).newPage();
+  await leser.goto((await links.last().textContent())!.trim());
+  await leser.getByLabel('Verbrauch von Nudeln bei 1_2_1 ansehen').click();
+  const gelesen = leser.getByRole('list', { name: 'Verbrauch von Nudeln bei 1_2_1' });
+  await expect(gelesen).toContainText(/Nudeln \(Spaghetti\)\s*0,8 kg/);
+  await expect(gelesen.getByRole('textbox')).toHaveCount(0);
+  await expect(leser.getByRole('button', { name: 'Verbrauch speichern' })).toHaveCount(0);
+  await leser.context().close();
+  await page.getByRole('tab', { name: 'Plan' }).click();
+
   // Others see it; the stock has 700 g left, so 300 g of the second lunch are bought
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());

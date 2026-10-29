@@ -58,6 +58,15 @@
   let fehler = $state<string | null>(null);
   let geaendert = $state(false);
   let speichert = $state(false);
+  /** Only looking at what a cooked dish used, e.g. through the read link. */
+  const ansehen = $derived(!bearbeiten && !geaendert);
+  const gespeichert = $derived.by(() => {
+    const namen = new Map(ansicht.zutaten.map((z) => [z.id, z.name]));
+    return einplanung.verbrauch.map((v) => ({
+      ...v,
+      name: namen.get(v.planungZutatId) ?? 'Zutat',
+    }));
+  });
   /** The version the rows were filled from; saving on it finds changes of others meanwhile. */
   let etag = '';
   $effect(() => guardUnsavedChanges(() => geaendert));
@@ -200,8 +209,9 @@
     >{einplanung.status === 'gekocht' ? 'gekocht' : 'ausgelassen'}</span
   >
 {/if}
-<!-- Typed amounts stay through a read-only phase, e.g. maintenance, locked until it ends -->
-{#if teil === 'abhaken' && (bearbeiten || geaendert)}
+<!-- Typed amounts stay through a read-only phase, e.g. maintenance, locked until it ends; what a
+     cooked dish used can always be looked at -->
+{#if teil === 'abhaken' && (bearbeiten || geaendert || einplanung.status === 'gekocht')}
   <details
     class="basis-full print:hidden"
     data-abhaken={einplanung.id}
@@ -210,12 +220,31 @@
   >
     <summary
       class="flex min-h-11 cursor-pointer list-none items-center gap-1 py-2 text-sm font-semibold text-link [&::-webkit-details-marker]:hidden"
-      aria-label="{name} bei {kennung} abhaken"
-      >{einplanung.status === 'gekocht' ? 'Verbrauch ändern' : 'Abhaken'}<AufklappPfeil
-        class="text-link"
-      /></summary
+      aria-label={ansehen
+        ? `Verbrauch von ${name} bei ${kennung} ansehen`
+        : `${name} bei ${kennung} abhaken`}
+      >{ansehen
+        ? 'Verbrauch ansehen'
+        : einplanung.status === 'gekocht'
+          ? 'Verbrauch ändern'
+          : 'Abhaken'}<AufklappPfeil class="text-link" /></summary
     >
-    {#if offen}
+    {#if offen && ansehen}
+      <ul class="space-y-1 pb-2 text-sm" aria-label="Verbrauch von {name} bei {kennung}">
+        {#each gespeichert as v (`${v.planungZutatId}:${v.einheit}`)}
+          <li class="flex flex-wrap gap-2">
+            <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{v.name}</span>
+            <span class="tabular-nums"
+              >{v.menge > 0
+                ? `${mengeFeld(v.menge)} ${einheitText(v.einheit)}`
+                : 'nicht verwendet'}</span
+            >
+          </li>
+        {:else}
+          <li class="text-neutral-700">Das Gericht hat keine Zutaten mit Menge.</li>
+        {/each}
+      </ul>
+    {:else if offen}
       <div class="space-y-2 pb-2">
         {#if zeilen.length}
           <div class="flex items-center gap-1 text-sm font-semibold">
