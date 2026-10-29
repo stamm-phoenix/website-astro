@@ -1,12 +1,12 @@
 import type { Transaction } from 'kysely';
 import type { Database } from './db-schema';
-import { VersionConflictError, requireVersion, toDateString } from './db';
+import { VersionConflictError, lockResource, requireVersion, toDateString } from './db';
 import { einplanungDerPlanung, mahlzeitDerPlanung } from './essen-einplanung';
-import { einheitPasst, einheitText } from './essen-gerichte-model';
+import { einheitPasst, einheitText, zutatSperre } from './essen-gerichte-model';
 import type { AbhakenInput, Verbrauch } from './essen-kochen-model';
 import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
-import { zutatDerPlanungFuer } from './essen-planung-zutat';
+import { zutatDerPlanung } from './essen-planung-zutat';
 import { ValidationError } from './validation/errors';
 
 /**
@@ -20,29 +20,36 @@ async function pruefeZutaten(
   zugang: Zugang,
   verbrauch: Verbrauch[]
 ): Promise<void> {
-  const ids = [...new Set(verbrauch.map((eintrag) => eintrag.planungZutatId))].sort(
-    (a, b) => a - b
-  );
+  const ids = [...new Set(verbrauch.map((eintrag) => eintrag.planungZutatId))];
+  if (!ids.length) return;
+  const zeilen = await trx
+    .selectFrom('essen.planung_zutat')
+    .select(['id', 'zutat_id', 'einheitenart'])
+    .where('planung_id', '=', zugang.planungId)
+    .where('id', 'in', ids)
+    .execute();
+  if (zeilen.length !== ids.length) {
+    throw new ValidationError({
+      verbrauch: 'Eine der Zutaten gibt es nicht mehr. Bitte lade die Seite neu.',
+    });
+  }
+  // An inherited kind of unit is locked like the other amounts of a Planung do it, in the order
+  // of the central ingredients, so two Planungen never wait for each other
+  const zentral = [
+    ...new Set(
+      zeilen.flatMap((z) => (z.zutat_id !== null && z.einheitenart === null ? [z.zutat_id] : []))
+    ),
+  ].sort((x, y) => x - y);
+  for (const zutatId of zentral) await lockResource(trx, zutatSperre(zutatId));
   for (const id of ids) {
-    // Takes the lock of an inherited kind of unit, like the other amounts of the Planung
-    const zutat = await zutatDerPlanungFuer(
-      trx,
-      zugang,
-      { planungZutatId: id },
-      { lebensmittel: false }
-    ).catch(() => null);
-    if (!zutat) {
-      throw new ValidationError({
-        verbrauch: 'Eine der Zutaten gibt es nicht mehr. Bitte lade die Seite neu.',
-      });
-    }
+    const zutat = await zutatDerPlanung(trx, zugang, id);
+    const art = (zutat.einheitenart ?? zutat.z_einheitenart)!;
     const falsch = verbrauch.find(
-      (eintrag) =>
-        eintrag.planungZutatId === id && !einheitPasst(zutat.einheitenart, eintrag.einheit)
+      (eintrag) => eintrag.planungZutatId === id && !einheitPasst(art, eintrag.einheit)
     );
     if (falsch) {
       throw new ValidationError({
-        verbrauch: `${zutat.name} wird nicht in ${einheitText(falsch.einheit)} gemessen. Bitte lade die Seite neu.`,
+        verbrauch: `${zutat.name ?? zutat.z_name} wird nicht in ${einheitText(falsch.einheit)} gemessen. Bitte lade die Seite neu.`,
       });
     }
   }
