@@ -281,6 +281,8 @@
 <PostenDialog
   {kontext}
   {katalog}
+  {katalogFehler}
+  onkatalog={() => void katalogLaden()}
   art={postenDialog?.art ?? 'bestand'}
   postenId={postenDialog?.id}
   onclose={() => (postenDialog = null)}

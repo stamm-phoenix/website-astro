@@ -96,3 +96,28 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await answerConfirm(page, '500 g Nudeln (Spaghetti) entfernen?', 'Entfernen');
   await expect(ohne).toContainText('2 kg Nudeln (Spaghetti)');
 });
+
+test('the stock dialog retries a failed list and keeps typed text', async ({ page }) => {
+  await anlegen(page, 'E2E Bestand Liste');
+  const dialog = page.getByRole('dialog');
+  // The list fails first: the open dialog offers to load it again, keeping the input
+  await page.route('**/api/essensplanung/planung/katalog', (route) => route.abort());
+  await page.getByRole('tab', { name: 'Einkauf' }).click();
+  await page.getByRole('button', { name: 'Bestand eintragen' }).click();
+  await dialog.getByLabel('Menge', { exact: true }).fill('3');
+  await expect(dialog.getByRole('alert')).toContainText('Noch einmal versuchen');
+  await page.unroute('**/api/essensplanung/planung/katalog');
+  await dialog.getByRole('button', { name: 'Noch einmal versuchen' }).click();
+  await expect(dialog.getByText('Die Liste wird geladen …')).toHaveCount(0);
+  await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('3');
+
+  // „Ol“ is not „Öl“; Enter takes the best suggestion
+  const feld = dialog.getByLabel('Zutat', { exact: true });
+  await feld.pressSequentially('Ol');
+  await expect(feld).toHaveValue('Ol');
+  await feld.press('Enter');
+  await expect(feld).toHaveValue('Oliven');
+  await dialog.getByRole('button', { name: 'Eintragen' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('3 g (ATG) Oliven', { exact: true })).toBeVisible();
+});
