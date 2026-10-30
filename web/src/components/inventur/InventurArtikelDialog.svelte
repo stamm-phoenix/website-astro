@@ -94,8 +94,13 @@
   function addZeile(): void {
     form.varianten.push({ key: nextKey++, id: null, bezeichnung: '', bestand: 0 });
   }
-  function removeZeile(key: number): void {
+  /** Removes a row; the focus moves on to the neighbouring row or the add button. */
+  async function removeZeile(key: number): Promise<void> {
+    const index = form.varianten.findIndex((z) => z.key === key);
     form.varianten = form.varianten.filter((z) => z.key !== key);
+    await tick();
+    const next = form.varianten[Math.min(index, form.varianten.length - 1)];
+    document.getElementById(next ? `inv-zeile-${next.key}` : 'inv-zeile-neu')?.focus();
   }
 
   function validate(f: Form): Record<string, string> {
@@ -130,7 +135,13 @@
     if (dialog.invalid(problems)) {
       await tick();
       const first = Object.keys(FEHLER_ID).find((field) => problems[field]);
-      if (first) document.getElementById(`${FEHLER_ID[first]}`)?.focus();
+      if (first) {
+        const ziel =
+          first === 'varianten' && mitVarianten
+            ? `inv-zeile-${form.varianten[0]?.key}`
+            : FEHLER_ID[first];
+        document.getElementById(ziel)?.focus();
+      }
       return;
     }
     const current = form;
@@ -225,7 +236,7 @@
         {#each form.varianten as zeile, index (zeile.key)}
           <div class="grid grid-cols-[1fr_6rem_auto] items-center gap-2">
             <input
-              id={index === 0 ? 'inv-varianten' : undefined}
+              id={`inv-zeile-${zeile.key}`}
               class="form-input"
               maxlength="100"
               placeholder={variantenName?.singular ?? 'Variante'}
@@ -255,7 +266,7 @@
         {#if errors.varianten}
           <p class="text-sm text-danger" role="alert">{errors.varianten}</p>
         {/if}
-        <ActionButton variant="secondary" type="button" onclick={addZeile}
+        <ActionButton id="inv-zeile-neu" variant="secondary" type="button" onclick={addZeile}
           >{variantenName?.hinzufuegen ?? 'Variante hinzufügen'}</ActionButton
         >
       </div>

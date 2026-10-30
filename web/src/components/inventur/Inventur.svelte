@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -67,6 +67,9 @@
   async function done(text: string): Promise<void> {
     bearbeiten = null;
     zaehlen = null;
+    // The same text again must show again, so the notice is cleared first
+    message = null;
+    await tick();
     message = text;
     await inventurPflege.load({ force: true });
   }
