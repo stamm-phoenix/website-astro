@@ -48,9 +48,12 @@
   });
 
   async function loeschen(): Promise<void> {
+    // The trip as it is seen now: something ticked off while the question is open is a conflict
+    const { id, name } = einkauf;
+    const stand = einkaufStand(einkauf);
     if (
       !(await confirmAction({
-        title: `${einkauf.name} löschen?`,
+        title: `${name} löschen?`,
         message: liste.abgehakt
           ? 'Was in diesem Einkauf abgehakt ist, kommt dann nicht mehr ins Lager.'
           : 'Seine Posten verteilen sich dann auf die anderen Einkäufe.',
@@ -59,24 +62,25 @@
     )
       return;
     await kontext.aendern(
-      () =>
-        kontext.api.senden('DELETE', `/einkaeufe/${einkauf.id}`, undefined, einkaufStand(einkauf)),
-      `${einkauf.name} gelöscht.`
+      () => kontext.api.senden('DELETE', `/einkaeufe/${id}`, undefined, stand),
+      `${name} gelöscht.`
     );
   }
 
   async function abschliessen(abgeschlossen: boolean): Promise<void> {
+    // On the version seen when clicked, not one that arrives while a change before still runs
+    const { id, name } = einkauf;
+    const body = {
+      etag: einkauf.etag,
+      name: einkauf.name,
+      datum: einkauf.datum,
+      geschaeftId: einkauf.geschaeftId,
+      bisMahlzeitId: einkauf.bisMahlzeitId,
+      abgeschlossen,
+    };
     const ok = await kontext.aendern(
-      () =>
-        kontext.api.senden('PATCH', `/einkaeufe/${einkauf.id}`, {
-          etag: einkauf.etag,
-          name: einkauf.name,
-          datum: einkauf.datum,
-          geschaeftId: einkauf.geschaeftId,
-          bisMahlzeitId: einkauf.bisMahlzeitId,
-          abgeschlossen,
-        }),
-      abgeschlossen ? `${einkauf.name} abgeschlossen.` : `${einkauf.name} ist wieder offen.`
+      () => kontext.api.senden('PATCH', `/einkaeufe/${id}`, body),
+      abgeschlossen ? `${name} abgeschlossen.` : `${name} ist wieder offen.`
     );
     if (ok && abgeschlossen) ansichtArt = 'zu';
   }

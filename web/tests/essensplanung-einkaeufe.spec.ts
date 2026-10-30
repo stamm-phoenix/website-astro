@@ -554,3 +554,62 @@ test('a fixed amount typed and not saved stays while another thing is adjusted',
     '1,5 kg Nudeln (Spaghetti) · feste Menge'
   );
 });
+
+test('deleting a trip after someone ticked something off meanwhile is a conflict', async ({
+  page,
+  browser,
+}) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Löschen');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await expect(montag).toContainText('1 Posten · 0 von 1 abgehakt');
+  await montag.getByRole('button', { name: 'Montag löschen' }).click();
+  const frage = page.getByRole('dialog', { name: 'Montag löschen?' });
+  await expect(frage).toBeVisible();
+
+  // While the question is open, someone else ticks off on Monday
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Einkauf' }).click();
+  const dort = karte(anderes, 'Montag');
+  await dort.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await dort.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  await dort.getByRole('button', { name: 'Abhaken' }).click();
+  await expect(dort.getByRole('status')).toHaveText('1 von 1 abgehakt');
+  await anderes.context().close();
+  await expect(montag).toContainText('1 von 1 abgehakt', { timeout: 15_000 });
+
+  // Deleting with what was seen when asking: a conflict, the trip stays
+  await answerConfirm(page, 'Montag löschen?', 'Löschen');
+  await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
+  await expect(montag).toContainText('1 von 1 abgehakt');
+});
+
+test('a fixed amount typed on while the one before is saved stays', async ({ page }) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe feste Menge tippen');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Liste von Montag' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti) in Montag anpassen' }).click();
+  const fest = montag.getByLabel('Feste Menge von Nudeln (Spaghetti)');
+  await fest.fill('1500');
+  await montag.getByLabel('Einheit der festen Menge von Nudeln (Spaghetti)').selectOption('g');
+  let freigeben: () => void = () => undefined;
+  const warten = new Promise<void>((done) => (freigeben = done));
+  await page.route('**/api/essensplanung/planung/einkaeufe/*/regeln', async (route) => {
+    await warten;
+    await route.continue();
+  });
+  await montag.getByRole('button', { name: 'Feste Menge' }).click();
+  await fest.fill('1800');
+  freigeben();
+  const liste = page.getByRole('list', { name: 'Montag: Teigware' });
+  await expect(liste).toContainText('1,5 kg Nudeln (Spaghetti) · feste Menge');
+  await expect(fest).toHaveValue('1800');
+  await page.unroute('**/api/essensplanung/planung/einkaeufe/*/regeln');
+  await montag.getByRole('button', { name: 'Feste Menge' }).click();
+  await expect(liste).toContainText('1,8 kg Nudeln (Spaghetti) · feste Menge');
+  await expect(fest).toBeHidden();
+});

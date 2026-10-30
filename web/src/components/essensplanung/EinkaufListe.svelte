@@ -102,16 +102,20 @@
         return;
       }
     }
+    // What is sent, read now; typed on while it is saved, the newer amount stays
+    const gesendet = { menge: feste, einheit: festeEinheit };
+    const body = {
+      planungZutatId: posten.planungZutatId,
+      art,
+      menge,
+      einheit: art === 'fest' ? gesendet.einheit : null,
+    };
+    const einkaufId = einkauf.id;
     let abgelehnt: unknown = null;
     const ok = await kontext.aendern(
       () =>
         kontext.api
-          .senden('PUT', `/einkaeufe/${einkauf.id}/regeln`, {
-            planungZutatId: posten.planungZutatId,
-            art,
-            menge,
-            einheit: art === 'fest' ? festeEinheit : null,
-          })
+          .senden('PUT', `/einkaeufe/${einkaufId}/regeln`, body)
           .catch((error: unknown) => {
             abgelehnt = error;
             throw error;
@@ -123,6 +127,12 @@
           : `${posten.name} wird wieder berechnet.`
     );
     if (ok) {
+      if (art === 'fest' && (feste !== gesendet.menge || festeEinheit !== gesendet.einheit)) {
+        // Saved, but typed on meanwhile: that stays open and unsaved
+        festStart = gesendet;
+        merkeFest(festKey(posten), { menge: feste, einheit: festeEinheit });
+        return;
+      }
       // Saved or decided otherwise: the typed fixed amount is done with
       vergissFest(festKey(posten));
       offen = null;
