@@ -3,7 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import ReloadAction from '../ui/ReloadAction.svelte';
+  import ReloadButton from '../pflege/ReloadButton.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { inventurPflege } from '../../lib/inventurStore.svelte';
@@ -98,9 +98,7 @@
       />
     </div>
     <div class="flex flex-wrap gap-2">
-      <ReloadAction type="button" disabled={store.loading} onclick={() => void reload()}
-        >Neu laden</ReloadAction
-      >
+      <ReloadButton resource={inventurPflege} />
       <ActionButton
         variant="primary"
         type="button"

@@ -28,7 +28,7 @@ const varianten = z
   .array(
     z.object(
       {
-        id: varianteId.nullable().catch(null),
+        id: varianteId.nullable().default(null),
         bezeichnung: labeledText('die Größe oder das Motiv', 100),
         bestand,
       },

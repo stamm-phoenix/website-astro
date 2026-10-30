@@ -148,3 +148,22 @@ test('invalid variants in a count report German messages', () => {
     assert.match(messages[0], /Größe oder ein Motiv ist ungültig/);
   }
 });
+
+test('an invalid variant ID is refused instead of becoming a new variant', () => {
+  for (const id of ['7', 0, 1.5]) {
+    const messages = messagesOf(() =>
+      validateInventarArtikel({
+        ...artikel,
+        varianten: [{ id, bezeichnung: '', bestand: 1 }],
+      })
+    );
+    assert.equal(messages.length, 1);
+    assert.match(messages[0], /Größe oder ein Motiv ist ungültig/);
+  }
+  // A missing ID is a new variant
+  assert.equal(
+    validateInventarArtikel({ ...artikel, varianten: [{ bezeichnung: '', bestand: 1 }] })
+      .varianten[0].id,
+    null
+  );
+});
