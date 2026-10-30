@@ -235,8 +235,8 @@ test('a name in conflict is dropped with a button on the phone', async ({ page, 
   await anderes.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Kim Küche' });
   await expect(anderes.getByText('Kim Küche packt Kochlöffel ein.').first()).toBeVisible();
   await anderes.context().close();
-  await page.getByText('Letzte Änderungen').click();
-  await expect(page.getByText(/zuständig gemacht: Kochlöffel/)).toBeVisible({ timeout: 15_000 });
+  // Waits for the poll without leaving the field (that would save and conflict on its own)
+  await expect(page.getByText(/zuständig gemacht: Kochlöffel/)).toBeAttached({ timeout: 15_000 });
   await name.press('Enter');
   await expect(page.getByRole('alert').filter({ hasText: 'jetzt: Kim Küche' })).toBeVisible();
 
@@ -288,4 +288,41 @@ test('a tick saved while its name failed says the name is not saved', async ({ p
   });
   await expect(page.getByText(`Zuständig: ${'W'.repeat(100)}`)).toBeVisible({ timeout: 15_000 });
   await expectNoHorizontalOverflow(page);
+});
+
+test('a name whose save runs cannot be dropped meanwhile', async ({ page, browser }) => {
+  await anlegen(page, 'E2E Packliste nicht verwerfen');
+  await gerichteMitWerkzeugen(page);
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Packliste' }).click();
+
+  // A conflict: the other one chose a member while this page typed a name
+  await page.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Anderer Name …' });
+  const name = page.getByRole('textbox', { name: 'Wer packt Kochlöffel ein?' });
+  await name.fill('Rover');
+  await anderes.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Kim Küche' });
+  await expect(anderes.getByText('Kim Küche packt Kochlöffel ein.').first()).toBeVisible();
+  await anderes.context().close();
+  // Waits for the poll without leaving the field (that would save and conflict on its own)
+  await expect(page.getByText(/zuständig gemacht: Kochlöffel/)).toBeAttached({ timeout: 15_000 });
+  await name.press('Enter');
+  await expect(page.getByRole('alert').filter({ hasText: 'jetzt: Kim Küche' })).toBeVisible();
+
+  // Enter saves over it; while that runs, neither the button nor Escape takes the name back
+  let freigeben = (): void => undefined;
+  const gehalten = new Promise<void>((done) => (freigeben = done));
+  await page.route('**/api/essensplanung/planung/packliste/werkzeug', async (route) => {
+    await gehalten;
+    await route.continue();
+  });
+  await name.press('Enter');
+  await expect(page.getByRole('button', { name: 'Name für Kochlöffel verwerfen' })).toBeDisabled();
+  await name.press('Escape');
+  await expect(name).toHaveValue('Rover');
+  freigeben();
+  await expect(page.getByText('Rover packt Kochlöffel ein.').first()).toBeVisible();
+  await expect(page.getByLabel('Wer packt Kochlöffel ein?').locator('option:checked')).toHaveText(
+    'Rover'
+  );
 });

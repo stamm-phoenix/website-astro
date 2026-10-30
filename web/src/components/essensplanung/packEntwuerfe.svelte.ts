@@ -19,6 +19,7 @@ import { meldeVerloren, type PlanKontext } from './planKontext';
 export interface EntwurfAktionen {
   oeffnen(text: string, etag: string | null, name: string): void;
   tippen(text: string): void;
+  /** Drops the draft; not while its save runs, as that request saves it anyway. */
   verwerfen(): void;
   /**
    * This page saved another field of the row (the tick) on version `vorher`: a draft typed on
@@ -147,7 +148,10 @@ export function packEntwuerfe(kontextVon: () => PlanKontext, zeilen: () => PackZ
       oeffnen: (text, etag, name) =>
         setzen(key, { text, start: text, name, etag, gesendet: null, konflikt: false }),
       tippen: (text) => aendern(key, { text }),
-      verwerfen: () => setzen(key, null),
+      // While its save runs the name cannot be taken back: that request saves it anyway
+      verwerfen: () => {
+        if (entwuerfe[key]?.gesendet == null) setzen(key, null);
+      },
       sperren: () => {
         let los: (ok: boolean) => void = () => undefined;
         const lauf = new Promise<boolean>((done) => (los = done));

@@ -268,6 +268,7 @@
         type="button"
         class="min-h-11 min-w-11"
         aria-label="Name für {zeile.name} verwerfen"
+        disabled={entwurf.gesendet !== null}
         onpointerdown={(event) => event.preventDefault()}
         onclick={() => aktionen.verwerfen()}>Name verwerfen</ActionButton
       >
