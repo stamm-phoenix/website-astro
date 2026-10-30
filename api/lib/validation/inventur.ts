@@ -9,6 +9,14 @@ import {
 import type { InventarArtikelInput, InventarZaehlungInput } from '../inventur-model';
 import { choice, isRecord, labeledText, parseWith } from './zod';
 
+const VARIANTE_UNGUELTIG = 'Eine Größe oder ein Motiv ist ungültig. Bitte neu laden.';
+
+/** The ID of an existing variant: a positive whole number. */
+const varianteId = z
+  .number({ error: VARIANTE_UNGUELTIG })
+  .int({ error: VARIANTE_UNGUELTIG })
+  .positive({ error: VARIANTE_UNGUELTIG });
+
 /** A stock: a whole number from 0, so „-3“ and „2,5“ are refused. */
 const bestand = z
   .number({ error: 'Bitte für jeden Bestand eine Zahl eintragen.' })
@@ -18,11 +26,14 @@ const bestand = z
 
 const varianten = z
   .array(
-    z.object({
-      id: z.number().int().positive().nullable().catch(null),
-      bezeichnung: labeledText('die Größe oder das Motiv', 100),
-      bestand,
-    }),
+    z.object(
+      {
+        id: varianteId.nullable().catch(null),
+        bezeichnung: labeledText('die Größe oder das Motiv', 100),
+        bestand,
+      },
+      { error: VARIANTE_UNGUELTIG }
+    ),
     { error: 'Bitte mindestens einen Bestand angeben.' }
   )
   .min(1, { error: 'Bitte mindestens einen Bestand angeben.' })
@@ -32,6 +43,9 @@ const varianten = z
   .superRefine((list, ctx) => {
     if (list.length > 1 && list.some((v) => !v.bezeichnung))
       ctx.addIssue({ code: 'custom', message: 'Bitte jede Größe oder jedes Motiv benennen.' });
+    const ids = list.flatMap((v) => (v.id === null ? [] : [v.id]));
+    if (new Set(ids).size !== ids.length)
+      ctx.addIssue({ code: 'custom', message: VARIANTE_UNGUELTIG });
     const names = list.map((v) => v.bezeichnung.toLocaleLowerCase('de'));
     if (new Set(names).size !== names.length)
       ctx.addIssue({
@@ -59,12 +73,9 @@ export function validateInventarArtikel(body: unknown): InventarArtikelInput {
 
 const zaehlungSchema = z.object({
   varianten: z
-    .array(
-      z.object({ id: z.number({ error: 'Die Variante ist ungültig.' }).int().positive(), bestand }),
-      {
-        error: 'Bitte den gezählten Bestand angeben.',
-      }
-    )
+    .array(z.object({ id: varianteId, bestand }, { error: VARIANTE_UNGUELTIG }), {
+      error: 'Bitte den gezählten Bestand angeben.',
+    })
     .min(1, { error: 'Bitte den gezählten Bestand angeben.' })
     .max(INVENTAR_MAX_VARIANTEN, { error: 'Es sind zu viele Einträge.' }),
 });

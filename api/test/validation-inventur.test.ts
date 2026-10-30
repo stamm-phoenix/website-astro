@@ -107,3 +107,44 @@ test('a count needs a valid stock for every entry', () => {
     ['varianten']
   );
 });
+
+function messagesOf(work: () => unknown): string[] {
+  try {
+    work();
+  } catch (error: unknown) {
+    if (error instanceof ValidationError) return Object.values(error.fields);
+    throw error;
+  }
+  return [];
+}
+
+test('an existing variant may appear only once', () => {
+  const doppelt = {
+    ...artikel,
+    varianten: [
+      { id: 7, bezeichnung: 'S', bestand: 1 },
+      { id: 7, bezeichnung: 'M', bestand: 2 },
+    ],
+  };
+  assert.deepEqual(
+    fieldsOf(() => validateInventarArtikel(doppelt)),
+    ['varianten']
+  );
+  // New variants have no ID yet
+  const neu = {
+    ...artikel,
+    varianten: [
+      { id: null, bezeichnung: 'S', bestand: 1 },
+      { id: null, bezeichnung: 'M', bestand: 2 },
+    ],
+  };
+  assert.equal(validateInventarArtikel(neu).varianten.length, 2);
+});
+
+test('invalid variants in a count report German messages', () => {
+  for (const eintrag of [{ id: 0, bestand: 1 }, { id: 1.5, bestand: 1 }, null]) {
+    const messages = messagesOf(() => validateInventarZaehlung({ varianten: [eintrag] }));
+    assert.equal(messages.length, 1);
+    assert.match(messages[0], /Größe oder ein Motiv ist ungültig/);
+  }
+});

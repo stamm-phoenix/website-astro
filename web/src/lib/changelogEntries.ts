@@ -20,7 +20,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: 'In der Inventur erfasst du Pullis, Aufnäher, Zelte und anderes Lagermaterial mit Bestand, Lagerort und Zustand. Bei Pullis und Aufnähern trägst du den Bestand je Größe oder Motiv ein.',
         href: '/leitendenbereich/inventur',
       },
-      'Du findest Material mit der Suche und filterst nach Kategorie, Lagerort und Zustand. Reparaturbedarf und fehlende Teile stehen direkt in der Liste, bei Zelten auch das Zubehör.',
+      'Du findest Material mit der Suche und filterst nach Kategorie, Lagerort und Zustand. Reparaturbedarf sowie fehlende oder beschädigte Teile stehen direkt in der Liste, bei Zelten auch das Zubehör.',
       'Mit „Zählen“ gibst du den gezählten Bestand ein; die Liste zeigt, wann und von wem zuletzt gezählt wurde. Das klappt auch direkt im Lager mit dem Handy.',
     ],
   },

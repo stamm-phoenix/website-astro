@@ -135,7 +135,7 @@
           {#each INVENTAR_ZUSTAENDE as zustand (zustand)}
             <option value={zustand}>{ZUSTAND_LABELS[zustand]}</option>
           {/each}
-          <option value="fehlt">Teile fehlen</option>
+          <option value="fehlt">Teile fehlen oder defekt</option>
         </select>
       </div>
     </div>
@@ -202,7 +202,7 @@
                 />
               {/if}
               {#if artikel.fehlend}
-                <StatusLabel label="Teile fehlen" tone="warning" dot />
+                <StatusLabel label="Teile fehlen oder defekt" tone="warning" dot />
               {/if}
             </div>
             {#if artikel.fehlend}
