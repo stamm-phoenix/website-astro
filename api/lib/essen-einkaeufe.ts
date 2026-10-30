@@ -510,7 +510,7 @@ export async function zurueckholen(
     const { name } = await zutatMitEinheit(trx, zugang, input.planungZutatId, null, 'einheit');
     const regel = await trx
       .selectFrom('essen.einkauf_regel')
-      .select('id')
+      .select(['id', 'verschoben_nach'])
       .where('einkauf_id', '=', einkaufId)
       .where('planung_zutat_id', '=', input.planungZutatId)
       .where('art', '=', 'ohne')
@@ -520,24 +520,34 @@ export async function zurueckholen(
         planungZutatId: `${name} ist in diesem Einkauf nicht herausgenommen.`,
       });
     await trx.deleteFrom('essen.einkauf_regel').where('id', '=', regel.id).execute();
-    const ziele = await trx
-      .selectFrom('essen.einkauf_regel as r')
-      .innerJoin('essen.einkauf as e', 'e.id', 'r.einkauf_id')
-      .select(['r.id', 'r.einkauf_id'])
-      .where('r.planung_zutat_id', '=', input.planungZutatId)
-      .where('r.art', '=', 'mit')
-      .where('e.planung_id', '=', zugang.planungId)
-      .execute();
-    if (ziele.length)
-      await trx
-        .deleteFrom('essen.einkauf_regel')
-        .where(
-          'id',
-          'in',
-          ziele.map((z) => z.id)
-        )
-        .execute();
-    await neueVersion(trx, [einkaufId, ...ziele.map((z) => z.einkauf_id)]);
+    // Only the trip it was moved to gives it back, unless another move still points there; a
+    // „nicht in diesem Einkauf“ set by hand takes nothing from other trips
+    const ziel = regel.verschoben_nach;
+    const weitere =
+      ziel === null
+        ? []
+        : await trx
+            .selectFrom('essen.einkauf_regel')
+            .select('id')
+            .where('planung_zutat_id', '=', input.planungZutatId)
+            .where('art', '=', 'ohne')
+            .where('verschoben_nach', '=', ziel)
+            .execute();
+    const zielRegel =
+      ziel === null || weitere.length
+        ? undefined
+        : await trx
+            .selectFrom('essen.einkauf_regel as r')
+            .innerJoin('essen.einkauf as e', 'e.id', 'r.einkauf_id')
+            .select(['r.id', 'r.einkauf_id'])
+            .where('r.einkauf_id', '=', ziel)
+            .where('r.planung_zutat_id', '=', input.planungZutatId)
+            .where('r.art', '=', 'mit')
+            .where('e.planung_id', '=', zugang.planungId)
+            .executeTakeFirst();
+    if (zielRegel)
+      await trx.deleteFrom('essen.einkauf_regel').where('id', '=', zielRegel.id).execute();
+    await neueVersion(trx, [einkaufId, ...(zielRegel ? [zielRegel.einkauf_id] : [])]);
     return { result: undefined, details: { name, einkauf: einkauf.name } };
   });
 }

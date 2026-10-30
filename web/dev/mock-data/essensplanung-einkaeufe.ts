@@ -212,17 +212,28 @@ export function verschieben(z: MockZugang, vonEinkaufId: number, input: Verschie
 export function zurueckholen(z: MockZugang, einkaufId: number, input: ZurueckholenInput): void {
   const einkauf = einkaufVon(z, einkaufId);
   const zutat = zutatMitEinheit(z, input.planungZutatId, null);
-  const ist = (art: 'ohne' | 'mit') => (r: { planungZutatId: number; art: string }) =>
-    r.planungZutatId === input.planungZutatId && r.art === art;
-  if (!einkauf.regeln.some(ist('ohne')))
+  const regel = einkauf.regeln.find(
+    (r) => r.planungZutatId === input.planungZutatId && r.art === 'ohne'
+  );
+  if (!regel)
     throw feld('planungZutatId', `${zutat.name} ist in diesem Einkauf nicht herausgenommen.`);
   aendere(z, 'einkauf-zurueckgeholt', { name: zutat.name, einkauf: einkauf.name }, () => {
-    einkauf.regeln = einkauf.regeln.filter((r) => !ist('ohne')(r));
+    einkauf.regeln = einkauf.regeln.filter((r) => r !== regel);
     einkauf.etag = neuesEtag();
-    for (const anderer of z.planung.einkaeufe)
-      if (anderer.regeln.some(ist('mit'))) {
-        anderer.regeln = anderer.regeln.filter((r) => !ist('mit')(r));
-        anderer.etag = neuesEtag();
-      }
+    // Only the trip it was moved to gives it back, unless another move still points there
+    const ziel = regel.verschobenNach;
+    if (ziel === undefined) return;
+    const weitere = z.planung.einkaeufe.some((e) =>
+      e.regeln.some(
+        (r) =>
+          r.planungZutatId === input.planungZutatId && r.art === 'ohne' && r.verschobenNach === ziel
+      )
+    );
+    const zielEinkauf = z.planung.einkaeufe.find((e) => e.id === ziel);
+    if (weitere || !zielEinkauf) return;
+    zielEinkauf.regeln = zielEinkauf.regeln.filter(
+      (r) => r.planungZutatId !== input.planungZutatId || r.art !== 'mit'
+    );
+    zielEinkauf.etag = neuesEtag();
   });
 }

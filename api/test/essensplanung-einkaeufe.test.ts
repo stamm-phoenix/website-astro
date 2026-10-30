@@ -778,3 +778,61 @@ dbTest('deleting a move target keeps a thing left out by hand elsewhere', async 
     ]
   );
 });
+
+dbTest('taking back a thing left out by hand keeps a move elsewhere', async (t) => {
+  const { token, zutat } = await planung(t);
+  for (const name of ['A', 'B'])
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name },
+    });
+  const [a, b, c] = json<PlanungAnsicht>(
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name: 'C' },
+    })
+  ).einkaeufe;
+  await senden(t, einkaeufe.EssensplanungEinkaufRegel, 'PUT', 'planung/einkaeufe/regeln', token, {
+    id: a.id,
+    body: { planungZutatId: zutat, art: 'ohne' },
+  });
+  await senden(
+    t,
+    einkaeufe.EssensplanungEinkaufVerschieben,
+    'POST',
+    'planung/einkaeufe/verschieben',
+    token,
+    {
+      id: b.id,
+      body: { planungZutatId: zutat, nachEinkaufId: c.id },
+    }
+  );
+  const zurueck = await senden(
+    t,
+    einkaeufe.EssensplanungEinkaufZurueckholen,
+    'POST',
+    'planung/einkaeufe/zurueckholen',
+    token,
+    { id: a.id, body: { planungZutatId: zutat } }
+  );
+  assert.equal(zurueck.status, 200, JSON.stringify(zurueck.jsonBody));
+  assert.deepEqual(
+    json<PlanungAnsicht>(zurueck).einkaeufe.map((e) => [e.name, e.regeln.map((r) => r.art)]),
+    [
+      ['A', []],
+      ['B', ['ohne']],
+      ['C', ['mit']],
+    ]
+  );
+  // Taking it back in B undoes the move
+  const rueck = await senden(
+    t,
+    einkaeufe.EssensplanungEinkaufZurueckholen,
+    'POST',
+    'planung/einkaeufe/zurueckholen',
+    token,
+    { id: b.id, body: { planungZutatId: zutat } }
+  );
+  assert.deepEqual(
+    json<PlanungAnsicht>(rueck).einkaeufe.map((e) => e.regeln.length),
+    [0, 0, 0]
+  );
+});
