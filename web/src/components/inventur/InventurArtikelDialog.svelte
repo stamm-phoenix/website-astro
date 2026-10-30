@@ -242,6 +242,7 @@
               placeholder={variantenName?.singular ?? 'Variante'}
               aria-label={`${variantenName?.singular ?? 'Variante'} ${index + 1}`}
               aria-invalid={errors.varianten ? 'true' : undefined}
+              aria-describedby={errors.varianten ? 'inv-varianten-fehler' : undefined}
               bind:value={zeile.bezeichnung}
             />
             <input
@@ -252,6 +253,7 @@
               step="1"
               aria-label={`Bestand ${zeile.bezeichnung.trim() || index + 1}`}
               aria-invalid={errors.varianten ? 'true' : undefined}
+              aria-describedby={errors.varianten ? 'inv-varianten-fehler' : undefined}
               bind:value={zeile.bestand}
             />
             <ActionButton
@@ -264,7 +266,9 @@
           </div>
         {/each}
         {#if errors.varianten}
-          <p class="text-sm text-danger" role="alert">{errors.varianten}</p>
+          <p id="inv-varianten-fehler" class="text-sm text-danger" role="alert">
+            {errors.varianten}
+          </p>
         {/if}
         <ActionButton id="inv-zeile-neu" variant="secondary" type="button" onclick={addZeile}
           >{variantenName?.hinzufuegen ?? 'Variante hinzufügen'}</ActionButton

@@ -108,12 +108,13 @@
           min="0"
           step="1"
           aria-invalid={fehler ? 'true' : undefined}
+          aria-describedby={fehler ? 'zaehlen-fehler' : undefined}
           bind:value={zeile.bestand}
         />
       </div>
     {/each}
     {#if fehler}
-      <p class="text-sm text-danger" role="alert">{fehler}</p>
+      <p id="zaehlen-fehler" class="text-sm text-danger" role="alert">{fehler}</p>
     {/if}
   </fieldset>
 </EditDialog>
