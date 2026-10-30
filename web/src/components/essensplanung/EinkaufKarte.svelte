@@ -8,7 +8,15 @@
   import EinkaufListeAnsicht from './EinkaufListe.svelte';
   import EinkaufLive from './EinkaufLive.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
-  import type { PlanKontext } from './planKontext';
+  import { meldeVerloren, type PlanKontext } from './planKontext';
+  import {
+    entwuerfe,
+    festeEntwuerfe,
+    offeneZeile,
+    vergissEntwurf,
+    vergissFest,
+  } from './einkaufLive';
+  import { einheitText } from '../../../../api/lib/essen-gerichte-model';
 
   /**
    * One shopping trip: what it covers, how far it is, and its list, to change by hand or to shop
@@ -30,6 +38,40 @@
   const einkauf = $derived(liste.einkauf);
 
   let ansichtArt = $state<'zu' | 'liste' | 'live' | 'aendern'>('zu');
+
+  // Someone else deleted the trip: unsaved input of its rows (live mode, fixed amounts) is shown
+  // to copy and dropped, so it does not ask on leaving the page for something no longer there
+  $effect(() => () => {
+    const { id, name } = einkauf;
+    setTimeout(() => {
+      if (kontext.ansicht.einkaeufe.some((e) => e.id === id)) return;
+      const zutat = (key: string) =>
+        kontext.ansicht.zutaten.find((z) => `${id}:${z.id}` === key)?.name ?? 'Zutat';
+      for (const [key, e] of [...entwuerfe]) {
+        if (!key.startsWith(`${id}:`)) continue;
+        const eingabe = [
+          e.menge.trim() ? `${e.menge.trim()} ${einheitText(e.einheit)}` : '',
+          e.ersatz.trim() ? `→ ${e.ersatz.trim()}` : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        meldeVerloren(
+          kontext,
+          `Den Einkauf „${name}“ hat jemand gelöscht (deine Eingabe für ${zutat(key)}: ${eingabe}).`
+        );
+        vergissEntwurf(key);
+      }
+      for (const [key, e] of [...festeEntwuerfe]) {
+        if (!key.startsWith(`${id}:`)) continue;
+        meldeVerloren(
+          kontext,
+          `Den Einkauf „${name}“ hat jemand gelöscht (deine feste Menge für ${zutat(key)}: ${e.menge.trim()} ${einheitText(e.einheit)}).`
+        );
+        vergissFest(key);
+      }
+      offeneZeile.delete(id);
+    });
+  });
   /** The change form, once opened, stays until saved or cancelled, so its draft is kept. */
   let formular = $state(false);
 

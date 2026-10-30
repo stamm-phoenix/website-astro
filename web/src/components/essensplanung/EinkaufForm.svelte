@@ -5,7 +5,7 @@
   import { datumKurz } from '../../lib/essensplanung';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type { Einkauf } from '../../../../api/lib/essen-einkaeufe-model';
-  import type { PlanKontext } from './planKontext';
+  import { meldeVerloren, type PlanKontext } from './planKontext';
 
   /** Adds a shopping trip or changes one, in place under the list of trips. */
 
@@ -37,6 +37,31 @@
   let geaendert = $state(false);
   let speichert = $state(false);
   $effect(() => guardUnsavedChanges(() => geaendert));
+
+  /** False once this form is gone: a late answer then changes nothing around it. */
+  let aktiv = true;
+  // Someone else deleted the trip: the form goes with its card, so the unsaved input is shown to
+  // copy; not after it was saved or cancelled
+  $effect(() => () => {
+    aktiv = false;
+    if (!einkauf || !geaendert) return;
+    const id = einkauf.id;
+    const geschaeftName = ansicht.geschaefte.find((g) => String(g.id) === geschaeft)?.name;
+    const mahlzeit = mahlzeiten.find((m) => String(m.id) === bis)?.text;
+    const eingabe = [
+      name.trim(),
+      datum ? datumKurz(datum) : '',
+      geschaeftName ?? 'alle Geschäfte',
+      mahlzeit ? `bis ${mahlzeit}` : 'alle Mahlzeiten',
+    ]
+      .filter(Boolean)
+      .join(', ');
+    const text = `Den Einkauf „${einkauf.name}“ hat jemand gelöscht (deine Eingabe: ${eingabe}).`;
+    // Checked after the update: the form also goes when the page closes
+    setTimeout(() => {
+      if (!kontext.ansicht.einkaeufe.some((e) => e.id === id)) meldeVerloren(kontext, text);
+    });
+  });
 
   const mahlzeiten = $derived(
     ansicht.tage.flatMap((tag) =>
@@ -80,6 +105,7 @@
       einkauf ? `${name.trim()} gespeichert.` : `${name.trim()} angelegt.`
     );
     speichert = false;
+    if (!aktiv) return;
     if (ok) {
       geaendert = false;
       onfertig();
@@ -149,6 +175,7 @@
     >
     <ActionButton
       type="button"
+      disabled={speichert}
       onclick={() => {
         geaendert = false;
         onfertig();

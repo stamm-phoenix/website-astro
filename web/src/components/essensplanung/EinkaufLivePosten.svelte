@@ -9,7 +9,14 @@
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
   import { meldeVerloren, type PlanKontext } from './planKontext';
-  import { entwuerfe, lebendig, merkeEntwurf, sichtbar, vergissEntwurf } from './einkaufLive';
+  import {
+    entwuerfe,
+    lebendig,
+    merkeEntwurf,
+    offeneZeile,
+    sichtbar,
+    vergissEntwurf,
+  } from './einkaufLive';
 
   /**
    * One thing in the live mode of a shopping trip: a tap opens the amount (the planned one unless
@@ -99,6 +106,11 @@
 
   /** Whether the fields were filled for the open amount. */
   let gefuellt = frueher !== undefined;
+  /** False once this row is gone (another view): a late answer then leaves it alone. */
+  let aktiv = true;
+  $effect(() => () => {
+    aktiv = false;
+  });
   // Opened before this row was drawn again (e.g. its category came with the central lists)
   $effect(() => {
     if (offen && !gefuellt) untrack(fuellen);
@@ -144,16 +156,16 @@
     speichert = true;
     /** What is sent; typed on while it is saved, the newer input stays. */
     const gesendet = { menge, einheit, ersatz };
+    // Everything read now: the answer may come when this row is gone (another view)
+    const einkauf = einkaufId;
+    const zutatId = posten.planungZutatId;
+    const key = entwurfKey;
+    const zeile = posten.key;
+    const body = { etag, planungZutatId: zutatId, einheit, erhalten: zahl, ersatz };
     let abgelehnt: unknown = null;
     const ok = await kontext.aendern(async () => {
       try {
-        return await kontext.api.senden('PUT', `/einkaeufe/${einkaufId}/posten`, {
-          etag,
-          planungZutatId: posten.planungZutatId,
-          einheit,
-          erhalten: zahl,
-          ersatz,
-        });
+        return await kontext.api.senden('PUT', `/einkaeufe/${einkauf}/posten`, body);
       } catch (error: unknown) {
         abgelehnt = error;
         throw error;
@@ -161,6 +173,25 @@
     }, `${posten.name} abgehakt.`);
     speichert = false;
     if (ok) {
+      // The kept input is settled here, not by the row, which may be gone: saved as it is, it
+      // goes; typed on meanwhile, it stays on the version just saved
+      const kept = entwuerfe.get(key);
+      if (
+        !kept ||
+        (kept.menge === gesendet.menge &&
+          kept.einheit === gesendet.einheit &&
+          kept.ersatz === gesendet.ersatz)
+      ) {
+        vergissEntwurf(key);
+        if (!aktiv && offeneZeile.get(einkauf) === zeile) offeneZeile.delete(einkauf);
+      } else {
+        const neu =
+          kontext.ansicht.einkaeufe
+            .find((e) => e.id === einkauf)
+            ?.posten.find((p) => p.planungZutatId === zutatId)?.etag ?? null;
+        merkeEntwurf(key, { ...kept, etag: neu, konflikt: null });
+      }
+      if (!aktiv) return;
       konflikt = null;
       if (menge === gesendet.menge && einheit === gesendet.einheit && ersatz === gesendet.ersatz) {
         abbrechen();

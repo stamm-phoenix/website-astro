@@ -657,3 +657,81 @@ test('a trip being changed cannot be typed into while it is saved', async ({ pag
   await expect(page.getByText('Montag früh gespeichert.').first()).toBeVisible();
   await page.unroute('**/api/essensplanung/planung/einkaeufe/*');
 });
+
+test('a trip being added cannot be cancelled while it is saved', async ({ page }) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Abbrechen');
+  await page.getByRole('button', { name: 'Einkauf anlegen' }).click();
+  const form = page.getByRole('form', { name: 'Neuer Einkauf' });
+  await form.getByLabel('Name des Einkaufs').fill('Montag');
+  let freigeben: () => void = () => undefined;
+  const warten = new Promise<void>((done) => (freigeben = done));
+  await page.route('**/api/essensplanung/planung/einkaeufe', async (route) => {
+    await warten;
+    await route.continue();
+  });
+  await form.getByRole('button', { name: 'Einkauf anlegen' }).click();
+  await expect(form.getByRole('button', { name: 'Abbrechen' })).toBeDisabled();
+  freigeben();
+  await expect(page.getByText('Montag angelegt.').first()).toBeVisible();
+  await page.unroute('**/api/essensplanung/planung/einkaeufe');
+  // A new form opens and stays open
+  await page.getByRole('button', { name: 'Einkauf anlegen' }).click();
+  await expect(page.getByRole('form', { name: 'Neuer Einkauf' })).toBeVisible();
+});
+
+test('changes of a trip someone else deletes are named to copy', async ({ page, browser }) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe gelöscht');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag ändern' }).click();
+  const form = page.getByRole('form', { name: 'Montag ändern' });
+  await form.getByLabel('Name des Einkaufs').fill('Montag früh');
+
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Einkauf' }).click();
+  await karte(anderes, 'Montag').getByRole('button', { name: 'Montag löschen' }).click();
+  await answerConfirm(anderes, 'Montag löschen?', 'Löschen');
+  await expect(anderes.getByText('Montag gelöscht.').first()).toBeVisible();
+  await anderes.context().close();
+
+  await expect(
+    page
+      .getByText(
+        'Den Einkauf „Montag“ hat jemand gelöscht (deine Eingabe: Montag früh, alle Geschäfte, alle Mahlzeiten).'
+      )
+      .first()
+  ).toBeVisible({ timeout: 15_000 });
+});
+
+test('a tick saved after leaving the live mode leaves no draft behind', async ({ page }) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe später fertig');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
+  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  await menge.fill('800');
+  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
+  let freigeben: () => void = () => undefined;
+  const warten = new Promise<void>((done) => (freigeben = done));
+  await page.route('**/api/essensplanung/planung/einkaeufe/*/posten', async (route) => {
+    await warten;
+    await route.continue();
+  });
+  await montag.getByRole('button', { name: 'Abhaken' }).click();
+  await montag.getByRole('button', { name: 'Liste von Montag' }).click();
+  freigeben();
+  await expect(montag).toContainText('1 von 1 abgehakt');
+  await page.unroute('**/api/essensplanung/planung/einkaeufe/*/posten');
+  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
+  await expect(montag.getByRole('status')).toHaveText('1 von 1 abgehakt');
+  await expect(menge).toBeHidden();
+  // Nothing unsaved: leaving asks nothing
+  await page.getByRole('link', { name: 'Impressum' }).click();
+  await expect(page).toHaveURL(/\/impressum/);
+  await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).toHaveCount(0);
+});
