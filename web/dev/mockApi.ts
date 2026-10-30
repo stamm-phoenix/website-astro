@@ -9,6 +9,19 @@ import {
   validateStaffSettings,
 } from '../../api/lib/validation/staff';
 import { validatePerson } from '../../api/lib/validation/person';
+import {
+  validateInventarArtikel,
+  validateInventarZaehlung,
+} from '../../api/lib/validation/inventur';
+import {
+  addInventarArtikel,
+  deleteInventarArtikel,
+  inventurListe,
+  resetInventur,
+  updateInventarArtikel,
+  zaehleInventarArtikel,
+} from './mock-data/inventur';
+import type { Ergebnis as InventurErgebnis } from './mock-data/inventur';
 /**
  * Local mock of the Azure Functions API and the Static Web Apps auth endpoints, so every page
  * renders with realistic test data without a backend: `MOCK_API=1 bun run dev`.
@@ -3028,6 +3041,45 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/personen/:id', (req) => {
   }
   return result ? noContent() : notFound();
 });
+
+route(['GET', 'POST'], '/api/intern/pflege/inventur', (req) => {
+  if (req.method === 'GET') return json(inventurListe());
+  return json({ id: addInventarArtikel(validateInventarArtikel(req.json)) }, 201);
+});
+
+route('POST', '/api/__mock/inventur/reset', () => {
+  resetInventur();
+  return noContent();
+});
+
+const inventurErgebnis = (result: InventurErgebnis): MockResult =>
+  result === 'missing'
+    ? notFound()
+    : result === 'conflict'
+      ? error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.')
+      : noContent();
+
+route('POST', '/api/intern/pflege/inventur/:id/zaehlung', (req) =>
+  inventurErgebnis(
+    zaehleInventarArtikel(
+      Number(req.params.id),
+      validateInventarZaehlung(req.json),
+      str(req.json?.etag)
+    )
+  )
+);
+
+route(['PATCH', 'DELETE'], '/api/intern/pflege/inventur/:id', (req) =>
+  inventurErgebnis(
+    req.method === 'DELETE'
+      ? deleteInventarArtikel(Number(req.params.id), str(req.headers['if-match']))
+      : updateInventarArtikel(
+          Number(req.params.id),
+          validateInventarArtikel(req.json),
+          str(req.json?.etag)
+        )
+  )
+);
 
 /** Projects and open tasks of the mock module Aufgaben, as `getProtokollEditorAufgaben`. */
 function editorAufgaben(): ProtokollEditorAufgaben {

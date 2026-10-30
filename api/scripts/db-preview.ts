@@ -69,6 +69,7 @@ import {
 } from '../lib/db-preview';
 import { seedPreviewEssensplanungEinkauf } from '../lib/db-preview-essen-einkauf';
 import { seedPreviewEssensplanungPackliste } from '../lib/db-preview-essen-packliste';
+import { seedPreviewInventur } from '../lib/db-preview-inventur';
 import { seedPreviewEssensplanungKochen } from '../lib/db-preview-essen-kochen';
 import { seedPreviewEssensplanungEinkaeufe } from '../lib/db-preview-essen-einkaeufe';
 import { setDeploymentValue } from '../lib/preview-deployment';
@@ -177,6 +178,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewEssensplanungKochen();
       await seedPreviewEssensplanungEinkaeufe();
       await seedPreviewEssensplanungPackliste();
+      await seedPreviewInventur();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();
