@@ -77,6 +77,7 @@ export async function ladeEinkaeufe(db: Db, planungId: number): Promise<Einkauf[
       art: row.art,
       menge: row.menge === null ? null : Number(row.menge),
       einheit: row.einheit,
+      ...(row.verschoben_nach !== null ? { verschobenNach: row.verschoben_nach } : {}),
     });
     regelnJe.set(row.einkauf_id, liste);
   }
@@ -227,28 +228,26 @@ export async function einkaufLoeschen(zugang: Zugang, id: number, etag: string):
       posten: posten.map((p) => ({ etag: toVersion(p.version) })),
     });
     if (stand !== etag.trim()) throw new VersionConflictError();
-    // Things moved here go back: their „ohne“ on other trips goes too, unless another trip still
-    // has them moved to it; a „nicht in diesem Einkauf“ without a target stays
-    const regeln = await trx
+    // Things moved here go back: the „ohne“ the move left on their source goes too, also where
+    // it is taken back to; a „nicht in diesem Einkauf“ set by hand stays
+    const zurueck = await trx
       .selectFrom('essen.einkauf_regel as r')
       .innerJoin('essen.einkauf as e', 'e.id', 'r.einkauf_id')
-      .select(['r.einkauf_id', 'r.planung_zutat_id'])
+      .select(['r.id', 'r.einkauf_id'])
       .where('e.planung_id', '=', zugang.planungId)
-      .where('r.art', '=', 'mit')
+      .where('r.art', '=', 'ohne')
+      .where('r.verschoben_nach', '=', id)
       .execute();
-    const hierher = regeln.filter((r) => r.einkauf_id === id).map((r) => r.planung_zutat_id);
-    const zurueck = hierher.filter(
-      (zutat) => !regeln.some((r) => r.einkauf_id !== id && r.planung_zutat_id === zutat)
-    );
     if (zurueck.length) {
       await trx
         .deleteFrom('essen.einkauf_regel')
-        .where('art', '=', 'ohne')
-        .where('planung_zutat_id', 'in', zurueck)
-        .where('einkauf_id', 'in', (eb) =>
-          eb.selectFrom('essen.einkauf').select('id').where('planung_id', '=', zugang.planungId)
+        .where(
+          'id',
+          'in',
+          zurueck.map((r) => r.id)
         )
         .execute();
+      await neueVersion(trx, [...new Set(zurueck.map((r) => r.einkauf_id))]);
     }
     const result = await trx
       .deleteFrom('essen.einkauf')
@@ -397,7 +396,13 @@ async function neueVersion(trx: Db, einkaufIds: number[]): Promise<void> {
     .execute();
 }
 
-async function schreibeRegel(trx: Db, einkaufId: number, input: RegelInput): Promise<void> {
+async function schreibeRegel(
+  trx: Db,
+  einkaufId: number,
+  input: RegelInput,
+  /** For an `ohne` left by moving: the trip it was moved to. */
+  verschobenNach: number | null = null
+): Promise<void> {
   await neueVersion(trx, [einkaufId]);
   await trx
     .deleteFrom('essen.einkauf_regel')
@@ -420,6 +425,7 @@ async function schreibeRegel(trx: Db, einkaufId: number, input: RegelInput): Pro
       art: input.art,
       menge: input.menge,
       einheit: input.einheit,
+      verschoben_nach: verschobenNach,
     })
     .execute();
 }
@@ -481,7 +487,7 @@ export async function verschieben(
       });
     const { name } = await zutatMitEinheit(trx, zugang, input.planungZutatId, null, 'einheit');
     const regel = { planungZutatId: input.planungZutatId, menge: null, einheit: null };
-    await schreibeRegel(trx, vonEinkaufId, { ...regel, art: 'ohne' });
+    await schreibeRegel(trx, vonEinkaufId, { ...regel, art: 'ohne' }, input.nachEinkaufId);
     await schreibeRegel(trx, input.nachEinkaufId, { ...regel, art: 'mit' });
     return {
       result: undefined,

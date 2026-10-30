@@ -1240,6 +1240,8 @@ export interface EssenEinkaufRegelTable {
   /** decimal(12, 3); only with `fest`. */
   menge: number | null;
   einheit: GerichtEinheit | null;
+  /** For an `ohne` made by moving: the trip it was moved to (`0066`, no foreign key). */
+  verschoben_nach: Generated<number | null>;
 }
 
 export interface EssenAenderungTable {

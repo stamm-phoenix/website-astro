@@ -730,3 +730,51 @@ dbTest('a rule saved after the delete was asked makes the delete a conflict', as
     [['fest', 1.5]]
   );
 });
+
+dbTest('deleting a move target keeps a thing left out by hand elsewhere', async (t) => {
+  const { token, zutat } = await planung(t);
+  for (const name of ['A', 'B'])
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name },
+    });
+  const [a, b, c] = json<PlanungAnsicht>(
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name: 'C' },
+    })
+  ).einkaeufe;
+  await senden(t, einkaeufe.EssensplanungEinkaufRegel, 'PUT', 'planung/einkaeufe/regeln', token, {
+    id: a.id,
+    body: { planungZutatId: zutat, art: 'ohne' },
+  });
+  const verschoben = json<PlanungAnsicht>(
+    await senden(
+      t,
+      einkaeufe.EssensplanungEinkaufVerschieben,
+      'POST',
+      'planung/einkaeufe/verschieben',
+      token,
+      { id: b.id, body: { planungZutatId: zutat, nachEinkaufId: c.id } }
+    )
+  );
+  const ziel = verschoben.einkaeufe.find((e) => e.id === c.id)!;
+  const geloescht = await senden(
+    t,
+    einkaeufe.EssensplanungEinkauf,
+    'DELETE',
+    'planung/einkaeufe',
+    token,
+    {
+      id: c.id,
+      ifMatch: einkaufStand(ziel),
+    }
+  );
+  assert.equal(geloescht.status, 200, JSON.stringify(geloescht.jsonBody));
+  const nachher = json<PlanungAnsicht>(geloescht).einkaeufe;
+  assert.deepEqual(
+    nachher.map((e) => [e.name, e.regeln.map((r) => r.art)]),
+    [
+      ['A', ['ohne']],
+      ['B', []],
+    ]
+  );
+});

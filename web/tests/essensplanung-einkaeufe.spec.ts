@@ -586,13 +586,25 @@ test('deleting a trip after someone ticked something off meanwhile is a conflict
   await expect(montag).toContainText('1 von 1 abgehakt');
 });
 
-test('a fixed amount typed on while the one before is saved stays', async ({ page }) => {
+test('while a fixed amount is saved its row waits, each amount stays with its thing', async ({
+  page,
+}) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe feste Menge tippen');
+  await nudelnPlanen(page, 'E2E Einkäufe feste Menge sperren');
+  const feld = page.getByLabel('Noch etwas besorgen');
+  await feld.fill('Kochhandschuhe');
+  await feld.press('Enter');
+  await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
   await einkaufAnlegen(page, 'Montag', 0);
   const montag = karte(page, 'Montag');
   await montag.getByRole('button', { name: 'Liste von Montag' }).click();
-  await montag.getByRole('button', { name: 'Nudeln (Spaghetti) in Montag anpassen' }).click();
+  const nudelnAnpassen = montag.getByRole('button', {
+    name: 'Nudeln (Spaghetti) in Montag anpassen',
+  });
+  const handschuheAnpassen = montag.getByRole('button', {
+    name: 'Kochhandschuhe in Montag anpassen',
+  });
+  await nudelnAnpassen.click();
   const fest = montag.getByLabel('Feste Menge von Nudeln (Spaghetti)');
   await fest.fill('1500');
   await montag.getByLabel('Einheit der festen Menge von Nudeln (Spaghetti)').selectOption('g');
@@ -603,13 +615,45 @@ test('a fixed amount typed on while the one before is saved stays', async ({ pag
     await route.continue();
   });
   await montag.getByRole('button', { name: 'Feste Menge' }).click();
-  await fest.fill('1800');
+  // While it is saved, neither the amount nor another thing can be changed
+  await expect(fest).toBeDisabled();
+  await expect(handschuheAnpassen).toBeDisabled();
   freigeben();
   const liste = page.getByRole('list', { name: 'Montag: Teigware' });
   await expect(liste).toContainText('1,5 kg Nudeln (Spaghetti) · feste Menge');
-  await expect(fest).toHaveValue('1800');
   await page.unroute('**/api/essensplanung/planung/einkaeufe/*/regeln');
-  await montag.getByRole('button', { name: 'Feste Menge' }).click();
-  await expect(liste).toContainText('1,8 kg Nudeln (Spaghetti) · feste Menge');
-  await expect(fest).toBeHidden();
+  // Gloves get 2 typed, not saved; Pasta keeps its saved amount
+  await handschuheAnpassen.click();
+  const handschuhe = montag.getByLabel('Feste Menge von Kochhandschuhe');
+  await handschuhe.fill('2');
+  await nudelnAnpassen.click();
+  await expect(fest).toHaveValue('1500');
+  await expect(montag.getByLabel('Einheit der festen Menge von Nudeln (Spaghetti)')).toHaveValue(
+    'g'
+  );
+  await handschuheAnpassen.click();
+  await expect(handschuhe).toHaveValue('2');
+});
+
+test('a trip being changed cannot be typed into while it is saved', async ({ page }) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe Formular sperren');
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Montag ändern' }).click();
+  const form = page.getByRole('form', { name: 'Montag ändern' });
+  const name = form.getByLabel('Name des Einkaufs');
+  await name.fill('Montag früh');
+  let freigeben: () => void = () => undefined;
+  const warten = new Promise<void>((done) => (freigeben = done));
+  await page.route('**/api/essensplanung/planung/einkaeufe/*', async (route) => {
+    if (route.request().method() === 'PATCH') await warten;
+    await route.continue();
+  });
+  await form.getByRole('button', { name: 'Speichern' }).click();
+  await expect(name).toBeDisabled();
+  await expect(form.getByLabel('Datum')).toBeDisabled();
+  freigeben();
+  await expect(page.getByText('Montag früh gespeichert.').first()).toBeVisible();
+  await page.unroute('**/api/essensplanung/planung/einkaeufe/*');
 });

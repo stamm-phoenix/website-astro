@@ -37,6 +37,19 @@
   let feste = $state('');
   let festeEinheit = $state<GerichtEinheit>('g');
   let fehler = $state<string | null>(null);
+  /**
+   * A change of this list is being saved: its fields and the other rows wait, so what is typed
+   * and the answer always belong to the same thing.
+   */
+  let speichert = $state(false);
+  async function gesperrt<T>(work: () => Promise<T>): Promise<T> {
+    speichert = true;
+    try {
+      return await work();
+    } finally {
+      speichert = false;
+    }
+  }
 
   function einheiten(posten: EinkaufListenPosten): readonly GerichtEinheit[] {
     const art = ansicht.zutaten.find((z) => z.id === posten.planungZutatId)?.einheitenart;
@@ -77,13 +90,16 @@
   async function verschieben(posten: EinkaufListenPosten): Promise<void> {
     const nach = ziele(posten).find((e) => String(e.id) === ziel);
     if (!nach) return;
-    const ok = await kontext.aendern(
-      () =>
-        kontext.api.senden('POST', `/einkaeufe/${einkauf.id}/verschieben`, {
-          planungZutatId: posten.planungZutatId,
-          nachEinkaufId: nach.id,
-        }),
-      `${posten.name} kaufst du jetzt bei „${nach.name}“.`
+    const einkaufId = einkauf.id;
+    const ok = await gesperrt(() =>
+      kontext.aendern(
+        () =>
+          kontext.api.senden('POST', `/einkaeufe/${einkaufId}/verschieben`, {
+            planungZutatId: posten.planungZutatId,
+            nachEinkaufId: nach.id,
+          }),
+        `${posten.name} kaufst du jetzt bei „${nach.name}“.`
+      )
     );
     if (ok) offen = null;
     else fehler = kontext.fehler;
@@ -102,40 +118,37 @@
         return;
       }
     }
-    // What is sent, read now; typed on while it is saved, the newer amount stays
-    const gesendet = { menge: feste, einheit: festeEinheit };
+    // Everything read now: the row waits while it is saved, and the answer belongs to this thing
     const body = {
       planungZutatId: posten.planungZutatId,
       art,
       menge,
-      einheit: art === 'fest' ? gesendet.einheit : null,
+      einheit: art === 'fest' ? festeEinheit : null,
     };
     const einkaufId = einkauf.id;
+    const key = festKey(posten);
+    const zeile = offen;
     let abgelehnt: unknown = null;
-    const ok = await kontext.aendern(
-      () =>
-        kontext.api
-          .senden('PUT', `/einkaeufe/${einkaufId}/regeln`, body)
-          .catch((error: unknown) => {
-            abgelehnt = error;
-            throw error;
-          }),
-      art === 'fest'
-        ? `${posten.name}: feste Menge gespeichert.`
-        : art === 'ohne'
-          ? `${posten.name} ist nicht mehr in diesem Einkauf.`
-          : `${posten.name} wird wieder berechnet.`
+    const ok = await gesperrt(() =>
+      kontext.aendern(
+        () =>
+          kontext.api
+            .senden('PUT', `/einkaeufe/${einkaufId}/regeln`, body)
+            .catch((error: unknown) => {
+              abgelehnt = error;
+              throw error;
+            }),
+        art === 'fest'
+          ? `${posten.name}: feste Menge gespeichert.`
+          : art === 'ohne'
+            ? `${posten.name} ist nicht mehr in diesem Einkauf.`
+            : `${posten.name} wird wieder berechnet.`
+      )
     );
     if (ok) {
-      if (art === 'fest' && (feste !== gesendet.menge || festeEinheit !== gesendet.einheit)) {
-        // Saved, but typed on meanwhile: that stays open and unsaved
-        festStart = gesendet;
-        merkeFest(festKey(posten), { menge: feste, einheit: festeEinheit });
-        return;
-      }
-      // Saved or decided otherwise: the typed fixed amount is done with
-      vergissFest(festKey(posten));
-      offen = null;
+      // Saved or decided otherwise: the typed fixed amount of this thing is done with
+      vergissFest(key);
+      if (offen === zeile) offen = null;
     } else {
       // A field the server refused is named in the row, which keeps what was typed
       const felder = abgelehnt instanceof ApiError ? abgelehnt.fields : undefined;
@@ -149,12 +162,15 @@
    */
   async function zurueckholen(zutat: { planungZutatId: number; name: string }): Promise<void> {
     fehler = null;
-    const ok = await kontext.aendern(
-      () =>
-        kontext.api.senden('POST', `/einkaeufe/${einkauf.id}/zurueckholen`, {
-          planungZutatId: zutat.planungZutatId,
-        }),
-      `${zutat.name} wird wieder berechnet.`
+    const einkaufId = einkauf.id;
+    const ok = await gesperrt(() =>
+      kontext.aendern(
+        () =>
+          kontext.api.senden('POST', `/einkaeufe/${einkaufId}/zurueckholen`, {
+            planungZutatId: zutat.planungZutatId,
+          }),
+        `${zutat.name} wird wieder berechnet.`
+      )
     );
     if (!ok) fehler = kontext.fehler;
   }
@@ -197,11 +213,12 @@
               class="flex min-h-11 items-center gap-1 text-sm font-semibold text-link print:hidden"
               aria-expanded={offen === posten.key}
               aria-label="{posten.name} in {einkauf.name} anpassen"
+              disabled={speichert}
               onclick={() => oeffnen(posten)}>Anpassen<AufklappPfeil class="text-link" /></button
             >
           {/if}
           {#if offen === posten.key}
-            <div class="basis-full space-y-2 pb-2">
+            <fieldset class="basis-full space-y-2 pb-2" disabled={speichert}>
               {#if ziele(posten).length}
                 <div class="flex flex-wrap items-center gap-2">
                   <select
@@ -262,7 +279,7 @@
                 {/if}
               </div>
               {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
-            </div>
+            </fieldset>
           {/if}
         </li>
       {/each}

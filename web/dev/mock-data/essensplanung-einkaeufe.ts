@@ -71,17 +71,14 @@ export function einkaufAendern(
     if (einkaufStand(einkauf) !== ifMatch) throw konflikt();
     aendere(z, 'einkauf-geloescht', { name: einkauf.name }, () => {
       z.planung.einkaeufe.splice(z.planung.einkaeufe.indexOf(einkauf), 1);
-      // Things moved here go back, unless another trip still has them moved to it
-      const mit = (e: typeof einkauf, zutat: number) =>
-        e.regeln.some((r) => r.art === 'mit' && r.planungZutatId === zutat);
-      const zurueck = einkauf.regeln
-        .filter((r) => r.art === 'mit')
-        .map((r) => r.planungZutatId)
-        .filter((zutat) => !z.planung.einkaeufe.some((e) => mit(e, zutat)));
+      // Things moved here go back: only the „ohne“ the move left, not one set by hand
       for (const anderer of z.planung.einkaeufe)
-        anderer.regeln = anderer.regeln.filter(
-          (r) => r.art !== 'ohne' || !zurueck.includes(r.planungZutatId)
-        );
+        if (anderer.regeln.some((r) => r.art === 'ohne' && r.verschobenNach === id)) {
+          anderer.regeln = anderer.regeln.filter(
+            (r) => r.art !== 'ohne' || r.verschobenNach !== id
+          );
+          anderer.etag = neuesEtag();
+        }
     });
     return;
   }
@@ -157,7 +154,12 @@ export function postenAufheben(z: MockZugang, id: number, ifMatch: unknown): voi
   });
 }
 
-function schreibeRegel(z: MockZugang, einkaufId: number, input: RegelInput): void {
+function schreibeRegel(
+  z: MockZugang,
+  einkaufId: number,
+  input: RegelInput,
+  verschobenNach: number | null = null
+): void {
   const einkauf = einkaufVon(z, einkaufId);
   // A new version, so deleting with the one seen before is a conflict (like the API)
   einkauf.etag = neuesEtag();
@@ -170,6 +172,7 @@ function schreibeRegel(z: MockZugang, einkaufId: number, input: RegelInput): voi
     art: input.art,
     menge: input.menge,
     einheit: input.einheit,
+    ...(verschobenNach !== null ? { verschobenNach } : {}),
   });
 }
 
@@ -200,7 +203,7 @@ export function verschieben(z: MockZugang, vonEinkaufId: number, input: Verschie
   const zutat = zutatMitEinheit(z, input.planungZutatId, null);
   const regel = { planungZutatId: input.planungZutatId, menge: null, einheit: null };
   aendere(z, 'einkauf-verschoben', { name: zutat.name, einkauf: von.name, nach: nach.name }, () => {
-    schreibeRegel(z, vonEinkaufId, { ...regel, art: 'ohne' });
+    schreibeRegel(z, vonEinkaufId, { ...regel, art: 'ohne' }, input.nachEinkaufId);
     schreibeRegel(z, input.nachEinkaufId, { ...regel, art: 'mit' });
   });
 }

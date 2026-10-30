@@ -25,6 +25,8 @@ export interface EinkaufRegel {
   /** Only with `fest`. */
   menge: number | null;
   einheit: GerichtEinheit | null;
+  /** An `ohne` made by moving names the trip it was moved to; absent when set by hand. */
+  verschobenNach?: number;
 }
 
 /** A thing ticked off while shopping, with what was really bought. */

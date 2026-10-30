@@ -98,7 +98,7 @@
   onsubmit={speichern}
   oninput={() => (geaendert = true)}
 >
-  <fieldset class="grid gap-3 sm:grid-cols-2" disabled={gesperrt}>
+  <fieldset class="grid gap-3 sm:grid-cols-2" disabled={gesperrt || speichert}>
     <FormField id="{prefix}-name" label="Name des Einkaufs" error={felder.name}>
       {#snippet children(attrs)}
         <input
