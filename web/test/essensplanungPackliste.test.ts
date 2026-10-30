@@ -245,6 +245,7 @@ test('a typed free name is unsaved until the row shows it', () => {
 test('a save that went through takes its draft only while it is still the text sent', () => {
   const entwurf = {
     text: ' Rover ',
+    start: '',
     name: 'Kochlöffel',
     etag: '"1"',
     gesendet: 'Rover',
@@ -252,9 +253,11 @@ test('a save that went through takes its draft only while it is still the text s
   };
   assert.equal(entwurfNachSpeichern(entwurf, 'Rover', '"2"'), null);
   assert.equal(entwurfNachSpeichern(undefined, 'Rover', '"2"'), null);
-  // Typed on while it was saved: the text stays, on the version now saved
+  // Typed on while it was saved: the text stays, on the version now saved, which it now starts
+  // from (so typing back to it saves nothing, typing to the old start saves)
   assert.deepEqual(entwurfNachSpeichern({ ...entwurf, text: 'Rover und Wö' }, 'Rover', '"2"'), {
     text: 'Rover und Wö',
+    start: 'Rover',
     name: 'Kochlöffel',
     etag: '"2"',
     gesendet: null,

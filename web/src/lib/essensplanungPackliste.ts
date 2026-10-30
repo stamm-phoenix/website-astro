@@ -192,6 +192,11 @@ export function freiName(text: string): string {
  */
 export interface PackEntwurf {
   text: string;
+  /**
+   * The text the field started from (the saved free name, empty for a member or nobody). A field
+   * left as it started saves nothing, so opening it under a member does not take them away.
+   */
+  start: string;
   /** The name of the thing, to name the draft when its row goes. */
   name: string;
   /** The version of the row when the field was opened; null while nothing is stored. */
@@ -227,7 +232,7 @@ export function entwurfNachSpeichern(
   etagJetzt: string | null
 ): PackEntwurf | null {
   if (!entwurf || freiName(entwurf.text) === gesendet) return null;
-  return { ...entwurf, etag: etagJetzt, gesendet: null, konflikt: false };
+  return { ...entwurf, start: gesendet, etag: etagJetzt, gesendet: null, konflikt: false };
 }
 
 /**

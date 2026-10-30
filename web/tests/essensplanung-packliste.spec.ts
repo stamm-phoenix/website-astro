@@ -245,4 +245,47 @@ test('an entry of its own that a dish planned later needs stays one row with its
     page.getByRole('button', { name: 'Packliste als PDF' }).click()
   );
   expect(pdf.text.match(/gaskocher/gi)).toHaveLength(1);
+
+  // Removing the entry takes only its own state; the tool stays for the dish
+  await page.getByRole('button', { name: 'Gaskocher entfernen' }).click();
+  const frage = page.getByRole('dialog', { name: 'Eigene Angaben zu Gaskocher entfernen?' });
+  await expect(frage).toContainText(
+    'Deine Angaben zu Gaskocher (zuständig, gepackt) werden entfernt. Gaskocher bleibt auf der Packliste, weil Gerichte es brauchen.'
+  );
+  await frage.getByRole('button', { name: 'Entfernen', exact: true }).click();
+  await expect(
+    page
+      .getByText(
+        'Eigene Angaben zu Gaskocher entfernt; es bleibt für die Gerichte auf der Packliste.'
+      )
+      .first()
+  ).toBeVisible();
+  await expect(zeile).toHaveCount(1);
+  await expect(zeile).toContainText('für Grillen (1_2_1)');
+  await expect(page.getByRole('checkbox', { name: 'gaskocher' })).not.toBeChecked();
+});
+
+test('opening a free name under a member and leaving it empty keeps the member', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E Packliste Mitglied bleibt');
+  await gerichteMitWerkzeugen(page);
+  const wer = page.getByLabel('Wer packt Kochlöffel ein?');
+  await wer.selectOption({ label: 'Kim Küche' });
+  await expect(page.getByText('Kim Küche packt Kochlöffel ein.').first()).toBeVisible();
+
+  let gesendet = 0;
+  page.on('request', (request) => {
+    if (request.url().includes('/packliste/') && request.method() !== 'GET') gesendet++;
+  });
+  await wer.selectOption({ label: 'Anderer Name …' });
+  const name = page.getByRole('textbox', { name: 'Wer packt Kochlöffel ein?' });
+  await expect(name).toHaveValue('');
+  await name.blur();
+  await expect(name).toHaveCount(0);
+  await expect(page.getByLabel('Wer packt Kochlöffel ein?')).toHaveValue(/^m:/);
+  await expect(page.getByLabel('Wer packt Kochlöffel ein?').locator('option:checked')).toHaveText(
+    'Kim Küche'
+  );
+  expect(gesendet).toBe(0);
 });

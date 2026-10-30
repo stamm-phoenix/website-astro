@@ -67,7 +67,11 @@ export function packEntwuerfe(kontextVon: () => PlanKontext, zeilen: () => PackZ
     if (!zeile || !entwurf) return true;
     if (entwurf.konflikt && !bewusst) return false;
     const text = freiName(entwurf.text);
-    if (!entwurf.konflikt && zeile.zustaendigId === null && text === zeile.zustaendig) {
+    // Left as it started (also opened under a member and nothing typed), or as saved: no write
+    const unveraendert =
+      text === freiName(entwurf.start) ||
+      (zeile.zustaendigId === null && text === zeile.zustaendig);
+    if (!entwurf.konflikt && unveraendert) {
       setzen(key, null);
       return true;
     }
@@ -141,7 +145,7 @@ export function packEntwuerfe(kontextVon: () => PlanKontext, zeilen: () => PackZ
     },
     aktionen: (key: string): EntwurfAktionen => ({
       oeffnen: (text, etag, name) =>
-        setzen(key, { text, name, etag, gesendet: null, konflikt: false }),
+        setzen(key, { text, start: text, name, etag, gesendet: null, konflikt: false }),
       tippen: (text) => aendern(key, { text }),
       verwerfen: () => setzen(key, null),
       sperren: () => {

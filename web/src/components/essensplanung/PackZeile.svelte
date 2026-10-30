@@ -140,17 +140,25 @@
     const eintrag = zeile.eintrag;
     const name = zeile.name;
     if (!eintrag) return;
+    // An entry that planned dishes need as a tool too: only its own state goes, the tool stays
+    const bleibt = zeile.gerichte.length > 0;
     if (
       !(await confirmAction({
-        title: `${name} von der Packliste nehmen?`,
-        message: 'Der Eintrag verschwindet für alle.',
+        title: bleibt
+          ? `Eigene Angaben zu ${name} entfernen?`
+          : `${name} von der Packliste nehmen?`,
+        message: bleibt
+          ? `Deine Angaben zu ${name} (zuständig, gepackt) werden entfernt. ${name} bleibt auf der Packliste, weil Gerichte es brauchen.`
+          : 'Der Eintrag verschwindet für alle.',
         confirmLabel: 'Entfernen',
       }))
     )
       return;
     await kontext.aendern(
       () => kontext.api.senden('DELETE', `/packliste/${eintrag.id}`, undefined, eintrag.etag),
-      `${name} steht nicht mehr auf der Packliste.`
+      bleibt
+        ? `Eigene Angaben zu ${name} entfernt; es bleibt für die Gerichte auf der Packliste.`
+        : `${name} steht nicht mehr auf der Packliste.`
     );
   }
 </script>
