@@ -181,6 +181,14 @@ const AENDERUNGEN: Record<string, string> = {
   'zusatzbedarf-neu': 'hat Zusatzbedarf eingetragen',
   'zusatzbedarf-geaendert': 'hat Zusatzbedarf geändert',
   'zusatzbedarf-geloescht': 'hat Zusatzbedarf entfernt',
+  'einkauf-neu': 'hat einen Einkauf angelegt',
+  'einkauf-geaendert': 'hat einen Einkauf geändert',
+  'einkauf-geloescht': 'hat einen Einkauf gelöscht',
+  'einkauf-abgehakt': 'hat beim Einkaufen abgehakt',
+  'einkauf-aufgehoben': 'hat ein Häkchen beim Einkaufen aufgehoben',
+  'einkauf-regel': 'hat einen Posten eines Einkaufs angepasst',
+  'einkauf-verschoben': 'hat einen Posten in einen anderen Einkauf verschoben',
+  'einkauf-zurueckgeholt': 'hat einen Posten in einen Einkauf zurückgeholt',
   'packliste-neu': 'hat etwas auf die Packliste gesetzt',
   'packliste-geaendert': 'hat die Packliste geändert',
   'packliste-geloescht': 'hat etwas von der Packliste genommen',
@@ -207,8 +215,20 @@ export function aenderungText(aenderung: PlanungAenderung): string {
   const wer = aenderung.wer || 'Jemand';
   if (aenderung.aktion === 'gericht-zutaten-neu')
     return zutatenHinzugefuegt(wer, aenderung.details);
-  const { name, datum, gericht, mahlzeit, verschoben, anzahl, gruppe, isst, geschaeft, status } =
-    aenderung.details;
+  const {
+    name,
+    datum,
+    gericht,
+    mahlzeit,
+    verschoben,
+    anzahl,
+    gruppe,
+    isst,
+    geschaeft,
+    status,
+    einkauf,
+    abgeschlossen,
+  } = aenderung.details;
   const gruppen = aenderung.aktion === 'mahlzeit-gruppen';
   const laden = aenderung.aktion === 'zutat-geschaeft';
   const was = gruppen
@@ -223,7 +243,11 @@ export function aenderungText(aenderung: PlanungAenderung): string {
           ? 'hat ein Gericht verschoben'
           : aenderung.aktion === 'einplanung-abgehakt' && typeof status === 'string'
             ? (ABGEHAKT[status] ?? AENDERUNGEN[aenderung.aktion])
-            : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
+            : aenderung.aktion === 'einkauf-geaendert' && typeof abgeschlossen === 'boolean'
+              ? abgeschlossen
+                ? 'hat einen Einkauf abgeschlossen'
+                : 'hat einen Einkauf wieder geöffnet'
+              : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
   const ziel = [
     gruppen && typeof gruppe === 'string' ? `${gruppe} bei` : '',
     typeof anzahl === 'number' ? String(anzahl) : '',
@@ -232,6 +256,7 @@ export function aenderungText(aenderung: PlanungAenderung): string {
     typeof mahlzeit === 'string' ? `bei ${mahlzeit}` : '',
     typeof datum === 'string' ? `(${datumKurz(datum)})` : '',
     typeof gericht === 'string' ? `in „${gericht}“` : '',
+    typeof einkauf === 'string' ? `in „${einkauf}“` : '',
   ]
     .filter(Boolean)
     .join(' ');

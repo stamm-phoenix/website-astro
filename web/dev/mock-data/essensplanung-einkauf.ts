@@ -60,6 +60,10 @@ export function geschaeftAendern(
       for (const zutat of z.planung.zutaten)
         if (zutat.geschaeftId === id)
           Object.assign(zutat, { geschaeftId: null, etag: neuesEtag() });
+      // A shopping trip of the shop then covers every shop
+      for (const einkauf of z.planung.einkaeufe)
+        if (einkauf.geschaeftId === id)
+          Object.assign(einkauf, { geschaeftId: null, etag: neuesEtag() });
       z.planung.geschaefte.splice(z.planung.geschaefte.indexOf(geschaeft), 1);
     });
     return;

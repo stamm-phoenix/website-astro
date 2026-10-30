@@ -96,7 +96,7 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   );
   const lager = anderes.getByRole('table');
   await expect(lager.getByRole('row', { name: /Nudeln \(Spaghetti\)/ })).toContainText(
-    /1,5 kg\s*800 g\s*700 g/
+    /1,5 kg\s*0 g\s*800 g\s*700 g/
   );
   const pdf = await pdfLaden(anderes, () =>
     anderes.getByRole('button', { name: 'Lager als PDF' }).click()
@@ -122,7 +122,7 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await expect(page.getByText('Nudeln ist als gekocht abgehakt.').first()).toBeVisible();
   await page.getByRole('tab', { name: 'Einkauf' }).click();
   await expect(page.getByRole('table').getByRole('row', { name: /Nudeln/ })).toContainText(
-    /1,5 kg\s*0 g\s*1,5 kg/
+    /1,5 kg\s*0 g\s*0 g\s*1,5 kg/
   );
 
   // Open again: it is needed again, and the stock covers it

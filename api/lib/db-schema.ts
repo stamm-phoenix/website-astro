@@ -125,6 +125,9 @@ export interface Database {
   'essen.geschaeft': EssenGeschaeftTable;
   'essen.bestand': EssenPostenTable;
   'essen.zusatzbedarf': EssenZusatzbedarfTable;
+  'essen.einkauf': EssenEinkaufTable;
+  'essen.einkauf_posten': EssenEinkaufPostenTable;
+  'essen.einkauf_regel': EssenEinkaufRegelTable;
   'essen.packliste_eintrag': EssenPacklisteEintragTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
@@ -1211,6 +1214,48 @@ export interface EssenZusatzbedarfTable extends Omit<EssenPostenTable, 'menge' |
   /** decimal(12, 3); null with `einheit` null. */
   menge: number | null;
   einheit: GerichtEinheit | null;
+}
+
+/** `essen.einkauf`: a shopping trip of a Planung (`0064`). */
+export interface EssenEinkaufTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  position: number;
+  name: string;
+  datum: SqlDate | null;
+  /** null: every shop. */
+  geschaeft_id: number | null;
+  /** Without a foreign key; null or a deleted meal: all meals. */
+  bis_mahlzeit_id: number | null;
+  abgeschlossen: Generated<boolean>;
+}
+
+/** `essen.einkauf_posten`: what was ticked off on a shopping trip. */
+export interface EssenEinkaufPostenTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  einkauf_id: number;
+  planung_zutat_id: number;
+  einheit: GerichtEinheit;
+  /** decimal(12, 3), at least 0. */
+  erhalten: number;
+  ersatz: Generated<string>;
+  abgehakt_von_mitglied_id: number | null;
+  abgehakt_am: Generated<Date>;
+}
+
+/** `essen.einkauf_regel`: a hand-made rule for an ingredient on a shopping trip. */
+export interface EssenEinkaufRegelTable {
+  id: Generated<number>;
+  einkauf_id: number;
+  planung_zutat_id: number;
+  art: 'ohne' | 'mit' | 'fest';
+  /** decimal(12, 3); only with `fest`. */
+  menge: number | null;
+  einheit: GerichtEinheit | null;
+  /** For an `ohne` made by moving: the trip it was moved to (`0066`, no foreign key). */
+  verschoben_nach: Generated<number | null>;
 }
 
 export interface EssenAenderungTable {

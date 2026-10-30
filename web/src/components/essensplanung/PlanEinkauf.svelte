@@ -11,6 +11,7 @@
   import GeschaeftDialog from './GeschaeftDialog.svelte';
   import NeuerZusatz from './NeuerZusatz.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
+  import PlanEinkaeufe from './PlanEinkaeufe.svelte';
   import PlanLager from './PlanLager.svelte';
   import PostenDialog from './PostenDialog.svelte';
   import type { PlanKontext } from './planKontext';
@@ -245,6 +246,8 @@
       <NeuerZusatz {kontext} {katalog} bind:text={neuerZusatz} />
     {/if}
   </section>
+
+  <PlanEinkaeufe {kontext} {kategorien} katalogGeladen={!!katalog} />
 
   {@render postenListe(
     'zusatzbedarf',

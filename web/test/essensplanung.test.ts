@@ -188,6 +188,15 @@ test('every kind of change has its own text, a chosen shop is named', () => {
     text('einplanung-abgehakt', { name: 'Chili', status: 'offen' }),
     /^Kim hat ein Gericht wieder offen gesetzt: Chili/
   );
+  assert.equal(
+    text('einkauf-abgehakt', { name: 'Cola', einkauf: 'Metro' }),
+    'Kim hat beim Einkaufen abgehakt: Cola in „Metro“'
+  );
+  assert.equal(
+    text('einkauf-geaendert', { name: 'Metro', abgeschlossen: true }),
+    'Kim hat einen Einkauf abgeschlossen: Metro'
+  );
+  assert.notEqual(text('einkauf-regel'), text('einkauf-verschoben'));
 });
 
 test('a typed name of the list is that ingredient, umlauts count', () => {

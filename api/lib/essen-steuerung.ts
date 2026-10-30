@@ -427,7 +427,7 @@ async function pruefeGenutzteEinheiten(
     .where('pz.einheitenart', 'is', null)
     .where('gz.einheit', 'is not', null)
     .execute();
-  // Stock, extra needs and what was cooked in the Planungen measure it too
+  // Stock, extra needs, what was cooked and the shopping trips of the Planungen measure it too
   const posten = await Promise.all([
     trx
       .selectFrom('essen.bestand as p')
@@ -445,6 +445,20 @@ async function pruefeGenutzteEinheiten(
       .execute(),
     trx
       .selectFrom('essen.einplanung_verbrauch as p')
+      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
+      .select('p.einheit')
+      .where('pz.zutat_id', '=', zutatId)
+      .where('pz.einheitenart', 'is', null)
+      .execute(),
+    trx
+      .selectFrom('essen.einkauf_posten as p')
+      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
+      .select('p.einheit')
+      .where('pz.zutat_id', '=', zutatId)
+      .where('pz.einheitenart', 'is', null)
+      .execute(),
+    trx
+      .selectFrom('essen.einkauf_regel as p')
       .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
       .select('p.einheit')
       .where('pz.zutat_id', '=', zutatId)

@@ -56,8 +56,8 @@ const nichtGefunden = () =>
   new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');
 
 /**
- * The lines of dishes, stock, extra needs and what cooked dishes used that use an ingredient,
- * with their unit.
+ * The lines of dishes, stock, extra needs, what cooked dishes used and the shopping trips that use
+ * an ingredient, with their unit.
  */
 function nutzungen(planung: MockPlanung, id: number): { einheit: GerichtZutat['einheit'] }[] {
   return [
@@ -67,6 +67,7 @@ function nutzungen(planung: MockPlanung, id: number): { einheit: GerichtZutat['e
     ...planung.tage
       .flatMap((t) => t.mahlzeiten.flatMap((m) => m.einplanungen))
       .flatMap((e) => e.verbrauch),
+    ...planung.einkaeufe.flatMap((e) => [...e.posten, ...e.regeln]),
   ].filter((nutzung) => nutzung.planungZutatId === id);
 }
 
@@ -155,7 +156,7 @@ export function planungZutatAendern(z: MockZugang, id: number, body: unknown, if
   if (art && nutzungen(z.planung, id).some((zeile) => !einheitPasst(art, zeile.einheit)))
     throw feld(
       'einheitenart',
-      'Gerichte, Bestand, Zusatzbedarf oder abgehakter Verbrauch nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.'
+      'Gerichte, Bestand, Zusatzbedarf, Einkäufe oder abgehakter Verbrauch nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.'
     );
   aendere(z, 'zutat-geaendert', { name: input.name ?? zentral?.name }, () => {
     Object.assign(
@@ -181,7 +182,7 @@ export function planungZutatLoeschen(z: MockZugang, id: number, ifMatch: unknown
   if (nutzungen(z.planung, id).length)
     throw feld(
       'name',
-      'Gerichte, Bestand oder Zusatzbedarf nutzen diese Zutat noch. Entferne sie zuerst dort.'
+      'Gerichte, Bestand, Zusatzbedarf oder Einkäufe nutzen diese Zutat noch. Entferne sie zuerst dort.'
     );
   aendere(z, 'zutat-geloescht', { name: wirksam(z.planung, zutat).name }, () => {
     z.planung.zutaten.splice(z.planung.zutaten.indexOf(zutat), 1);
