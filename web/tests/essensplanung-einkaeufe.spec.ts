@@ -524,3 +524,33 @@ test('what is typed while ticking off is saved stays as a new change', async ({ 
   await expect(menge).toBeHidden();
   await expect(montag).toContainText('900 g → Vollkornnudeln');
 });
+
+test('a fixed amount typed and not saved stays while another thing is adjusted', async ({
+  page,
+}) => {
+  test.slow();
+  await nudelnPlanen(page, 'E2E Einkäufe feste Menge');
+  const feld = page.getByLabel('Noch etwas besorgen');
+  await feld.fill('Kochhandschuhe');
+  await feld.press('Enter');
+  await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
+  await einkaufAnlegen(page, 'Montag', 0);
+  const montag = karte(page, 'Montag');
+  await montag.getByRole('button', { name: 'Liste von Montag' }).click();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti) in Montag anpassen' }).click();
+  const fest = montag.getByLabel('Feste Menge von Nudeln (Spaghetti)');
+  await expect(fest).toHaveValue('2');
+  await fest.fill('1500');
+  await montag.getByLabel('Einheit der festen Menge von Nudeln (Spaghetti)').selectOption('g');
+  await montag.getByRole('button', { name: 'Kochhandschuhe in Montag anpassen' }).click();
+  await expect(fest).toBeHidden();
+  await montag.getByRole('button', { name: 'Nudeln (Spaghetti) in Montag anpassen' }).click();
+  await expect(fest).toHaveValue('1500');
+  await expect(montag.getByLabel('Einheit der festen Menge von Nudeln (Spaghetti)')).toHaveValue(
+    'g'
+  );
+  await montag.getByRole('button', { name: 'Feste Menge' }).click();
+  await expect(page.getByRole('list', { name: 'Montag: Teigware' })).toContainText(
+    '1,5 kg Nudeln (Spaghetti) · feste Menge'
+  );
+});

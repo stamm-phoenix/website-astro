@@ -695,3 +695,38 @@ dbTest('a trip whose last meal or day was deleted can still be finished and open
     assert.equal(falsch.status, 400);
   }
 });
+
+dbTest('a rule saved after the delete was asked makes the delete a conflict', async (t) => {
+  const { token, zutat } = await planung(t);
+  const [a] = json<PlanungAnsicht>(
+    await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
+      body: { name: 'Montag' },
+    })
+  ).einkaeufe;
+  const stand = einkaufStand(a);
+  await senden(t, einkaeufe.EssensplanungEinkaufRegel, 'PUT', 'planung/einkaeufe/regeln', token, {
+    id: a.id,
+    body: { planungZutatId: zutat, art: 'fest', menge: 1.5, einheit: 'kg' },
+  });
+  const weg = await senden(
+    t,
+    einkaeufe.EssensplanungEinkauf,
+    'DELETE',
+    'planung/einkaeufe',
+    token,
+    {
+      id: a.id,
+      ifMatch: stand,
+    }
+  );
+  assert.equal(weg.status, 409, JSON.stringify(weg.jsonBody));
+  const regeln = await getDb()
+    .selectFrom('essen.einkauf_regel')
+    .select(['art', 'menge'])
+    .where('einkauf_id', '=', a.id)
+    .execute();
+  assert.deepEqual(
+    regeln.map((r) => [r.art, Number(r.menge)]),
+    [['fest', 1.5]]
+  );
+});

@@ -159,6 +159,8 @@ export function postenAufheben(z: MockZugang, id: number, ifMatch: unknown): voi
 
 function schreibeRegel(z: MockZugang, einkaufId: number, input: RegelInput): void {
   const einkauf = einkaufVon(z, einkaufId);
+  // A new version, so deleting with the one seen before is a conflict (like the API)
+  einkauf.etag = neuesEtag();
   einkauf.regeln = einkauf.regeln.filter((r) => r.planungZutatId !== input.planungZutatId);
   if (input.art === null) return;
   if (einkauf.regeln.length >= MAX_EINKAUF_EINTRAEGE)
@@ -213,7 +215,11 @@ export function zurueckholen(z: MockZugang, einkaufId: number, input: Zurueckhol
     throw feld('planungZutatId', `${zutat.name} ist in diesem Einkauf nicht herausgenommen.`);
   aendere(z, 'einkauf-zurueckgeholt', { name: zutat.name, einkauf: einkauf.name }, () => {
     einkauf.regeln = einkauf.regeln.filter((r) => !ist('ohne')(r));
+    einkauf.etag = neuesEtag();
     for (const anderer of z.planung.einkaeufe)
-      anderer.regeln = anderer.regeln.filter((r) => !ist('mit')(r));
+      if (anderer.regeln.some(ist('mit'))) {
+        anderer.regeln = anderer.regeln.filter((r) => !ist('mit')(r));
+        anderer.etag = neuesEtag();
+      }
   });
 }

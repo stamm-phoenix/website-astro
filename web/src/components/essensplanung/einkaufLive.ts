@@ -32,7 +32,17 @@ export const entwuerfe = new Map<string, LiveEntwurf>();
 /** The row whose amount is open, by trip, so it opens again when coming back. */
 export const offeneZeile = new Map<number, string>();
 
+/** An unsaved fixed amount in the list of a trip, by `<einkaufId>:<planungZutatId>`. */
+export interface FestEntwurf {
+  menge: string;
+  einheit: GerichtEinheit;
+}
+
+export const festeEntwuerfe = new Map<string, FestEntwurf>();
+
 let schutz: (() => void) | null = null;
+
+const ungespeichert = (): boolean => entwuerfe.size > 0 || festeEntwuerfe.size > 0;
 
 /**
  * Drops all kept input once the page of the Planung is really left (the navigation went ahead,
@@ -40,26 +50,43 @@ let schutz: (() => void) | null = null;
  */
 function seiteVerlassen(): void {
   entwuerfe.clear();
+  festeEntwuerfe.clear();
   offeneZeile.clear();
   aufraeumen();
 }
 
 function aufraeumen(): void {
-  if (!schutz) return;
+  if (!schutz || ungespeichert()) return;
   schutz();
   schutz = null;
   document.removeEventListener('astro:before-swap', seiteVerlassen);
 }
 
-/** Keeps unsaved input; leaving the page asks first while there is any. */
+/** Leaving the page asks first while there is unsaved input. */
+function schuetzen(): void {
+  if (schutz) return;
+  schutz = guardUnsavedChanges(ungespeichert);
+  document.addEventListener('astro:before-swap', seiteVerlassen);
+}
+
+/** Keeps unsaved input of the live mode. */
 export function merkeEntwurf(key: string, entwurf: LiveEntwurf): void {
   entwuerfe.set(key, entwurf);
-  if (schutz) return;
-  schutz = guardUnsavedChanges(() => entwuerfe.size > 0);
-  document.addEventListener('astro:before-swap', seiteVerlassen);
+  schuetzen();
 }
 
 export function vergissEntwurf(key: string): void {
   entwuerfe.delete(key);
-  if (!entwuerfe.size) aufraeumen();
+  aufraeumen();
+}
+
+/** Keeps an unsaved fixed amount, also when another thing is opened meanwhile. */
+export function merkeFest(key: string, entwurf: FestEntwurf): void {
+  festeEntwuerfe.set(key, entwurf);
+  schuetzen();
+}
+
+export function vergissFest(key: string): void {
+  festeEntwuerfe.delete(key);
+  aufraeumen();
 }

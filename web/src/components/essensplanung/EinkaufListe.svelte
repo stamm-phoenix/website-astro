@@ -9,6 +9,7 @@
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
   import type { PlanKontext } from './planKontext';
+  import { festeEntwuerfe, merkeFest, vergissFest } from './einkaufLive';
 
   /**
    * The list of one shopping trip by category; while editing, a thing can be moved to another
@@ -51,8 +52,26 @@
     fehler = null;
     ziel = ziele(posten)[0] ? String(ziele(posten)[0].id) : '';
     const regel = einkauf.regeln.find((r) => r.planungZutatId === posten.planungZutatId);
-    feste = mengeFeld(regel?.menge ?? posten.menge);
-    festeEinheit = regel?.einheit ?? posten.einheit ?? einheiten(posten)[0] ?? 'g';
+    festStart = {
+      menge: mengeFeld(regel?.menge ?? posten.menge),
+      einheit: regel?.einheit ?? posten.einheit ?? einheiten(posten)[0] ?? 'g',
+    };
+    // An amount typed before and not saved comes back
+    const entwurf = festeEntwuerfe.get(festKey(posten));
+    feste = entwurf?.menge ?? festStart.menge;
+    festeEinheit = entwurf?.einheit ?? festStart.einheit;
+  }
+
+  /** The fixed amount the open row started with. */
+  let festStart = { menge: '', einheit: 'g' as GerichtEinheit };
+  const festKey = (posten: Pick<EinkaufListenPosten, 'planungZutatId'>) =>
+    `${einkauf.id}:${posten.planungZutatId}`;
+
+  /** Keeps a fixed amount typed and not saved, so it survives opening another thing. */
+  function festGetippt(posten: EinkaufListenPosten): void {
+    if (feste === festStart.menge && festeEinheit === festStart.einheit)
+      vergissFest(festKey(posten));
+    else merkeFest(festKey(posten), { menge: feste, einheit: festeEinheit });
   }
 
   async function verschieben(posten: EinkaufListenPosten): Promise<void> {
@@ -103,8 +122,11 @@
           ? `${posten.name} ist nicht mehr in diesem Einkauf.`
           : `${posten.name} wird wieder berechnet.`
     );
-    if (ok) offen = null;
-    else {
+    if (ok) {
+      // Saved or decided otherwise: the typed fixed amount is done with
+      vergissFest(festKey(posten));
+      offen = null;
+    } else {
       // A field the server refused is named in the row, which keeps what was typed
       const felder = abgelehnt instanceof ApiError ? abgelehnt.fields : undefined;
       fehler = felder?.menge ?? felder?.einheit ?? felder?.planungZutatId ?? kontext.fehler;
@@ -196,11 +218,13 @@
                     autocomplete="off"
                     aria-label="Feste Menge von {posten.name}"
                     bind:value={feste}
+                    oninput={() => festGetippt(posten)}
                   />
                   <select
                     class="form-input min-h-11 w-auto"
                     aria-label="Einheit der festen Menge von {posten.name}"
                     bind:value={festeEinheit}
+                    onchange={() => festGetippt(posten)}
                   >
                     {#each einheiten(posten) as e (e)}
                       <option value={e}>{einheitText(e)}</option>

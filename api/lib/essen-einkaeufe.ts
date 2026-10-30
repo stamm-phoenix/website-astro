@@ -384,7 +384,21 @@ export async function postenAufheben(zugang: Zugang, id: number, etag: string): 
 }
 
 /** Sets or replaces the rule of one ingredient on one trip, inside a running change. */
+/**
+ * Gives trips a new version when their rules change, so deleting one with the version seen
+ * before (`einkaufStand`) is a conflict instead of taking a new rule along.
+ */
+async function neueVersion(trx: Db, einkaufIds: number[]): Promise<void> {
+  if (!einkaufIds.length) return;
+  await trx
+    .updateTable('essen.einkauf')
+    .set({ name: sql<string>`name` })
+    .where('id', 'in', einkaufIds)
+    .execute();
+}
+
 async function schreibeRegel(trx: Db, einkaufId: number, input: RegelInput): Promise<void> {
+  await neueVersion(trx, [einkaufId]);
   await trx
     .deleteFrom('essen.einkauf_regel')
     .where('einkauf_id', '=', einkaufId)
@@ -500,14 +514,24 @@ export async function zurueckholen(
         planungZutatId: `${name} ist in diesem Einkauf nicht herausgenommen.`,
       });
     await trx.deleteFrom('essen.einkauf_regel').where('id', '=', regel.id).execute();
-    await trx
-      .deleteFrom('essen.einkauf_regel')
-      .where('planung_zutat_id', '=', input.planungZutatId)
-      .where('art', '=', 'mit')
-      .where('einkauf_id', 'in', (eb) =>
-        eb.selectFrom('essen.einkauf').select('id').where('planung_id', '=', zugang.planungId)
-      )
+    const ziele = await trx
+      .selectFrom('essen.einkauf_regel as r')
+      .innerJoin('essen.einkauf as e', 'e.id', 'r.einkauf_id')
+      .select(['r.id', 'r.einkauf_id'])
+      .where('r.planung_zutat_id', '=', input.planungZutatId)
+      .where('r.art', '=', 'mit')
+      .where('e.planung_id', '=', zugang.planungId)
       .execute();
+    if (ziele.length)
+      await trx
+        .deleteFrom('essen.einkauf_regel')
+        .where(
+          'id',
+          'in',
+          ziele.map((z) => z.id)
+        )
+        .execute();
+    await neueVersion(trx, [einkaufId, ...ziele.map((z) => z.einkauf_id)]);
     return { result: undefined, details: { name, einkauf: einkauf.name } };
   });
 }
