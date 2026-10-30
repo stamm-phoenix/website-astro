@@ -72,6 +72,10 @@
     await tick();
     message = text;
     await inventurPflege.load({ force: true });
+    // A deleted article takes the focus with it; the search field is the next stop
+    await tick();
+    const aktiv = document.activeElement;
+    if (!aktiv || aktiv === document.body) document.getElementById('inventur-suche')?.focus();
   }
 
   function gezaehltText(artikel: InventarArtikel): string {
