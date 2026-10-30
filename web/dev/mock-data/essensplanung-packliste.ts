@@ -121,6 +121,9 @@ export function werkzeugSetzen(
   const key = packlisteSchluessel(aenderung.werkzeug);
   const name = eingeplanteWerkzeuge(z).get(key);
   if (!name) throw feld('werkzeug', 'Kein eingeplantes Gericht braucht dieses Werkzeug mehr.');
+  // An entry of its own with this name is the row shown for the tool (see the API)
+  if (z.planung.packliste.some((e) => e.werkzeug === null && packlisteSchluessel(e.name) === key))
+    throw konflikt();
   const vorhanden = z.planung.packliste.find((e) => e.werkzeug === key);
   const { set, details } = werte(z, aenderung, vorhanden?.zustaendigId ?? null);
   if ((vorhanden?.etag ?? null) !== etag) throw konflikt();

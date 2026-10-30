@@ -235,6 +235,17 @@ export async function werkzeugSetzen(
         werkzeug: 'Kein eingeplantes Gericht braucht dieses Werkzeug mehr.',
       });
     }
+    // An entry of its own with this name is the row the page shows for the tool: a request for
+    // the tool comes from a page that did not see it yet, which then loads the current state
+    const eigene = await trx
+      .selectFrom('essen.packliste_eintrag')
+      .select('name')
+      .where('planung_id', '=', zugang.planungId)
+      .where('werkzeug', 'is', null)
+      .execute();
+    if (eigene.some((eintrag) => packlisteSchluessel(eintrag.name) === schluessel)) {
+      throw new VersionConflictError();
+    }
     const vorhanden = await trx
       .selectFrom('essen.packliste_eintrag')
       .select(['id', 'name', 'zustaendig_mitglied_id'])

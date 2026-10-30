@@ -332,3 +332,31 @@ dbTest('a tool whose merged name is longer than its name is packed and assigned'
     [[name, true, 'Rover']]
   );
 });
+
+dbTest(
+  'a tool named like an entry of its own is that entry: setting the tool is a conflict',
+  async (t) => {
+    const mails = captureMails(t);
+    const { token, ansicht } = await anlegen(t, mails);
+    assert.equal((await neu(t, token, { name: 'Gaskocher' })).status, 201);
+    // A dish with the tool is planned later; a page that has not seen the entry sets the tool
+    const gerichtId = await gericht(t, token, 'Grillen', ['gaskocher']);
+    await einplanen(t, token, ansicht.tage[0].mahlzeiten[0].id, gerichtId);
+    const veraltet = await werkzeug(t, token, { werkzeug: 'gaskocher', etag: null, gepackt: true });
+    assert.equal(veraltet.status, 409);
+    assert.deepEqual(
+      json<{ ansicht: PlanungAnsicht }>(veraltet).ansicht.packliste.map((e) => [
+        e.werkzeug,
+        e.name,
+      ]),
+      [[null, 'Gaskocher']]
+    );
+    const zeilen = await getDb()
+      .selectFrom('essen.packliste_eintrag')
+      .select('werkzeug')
+      .where('planung_id', '=', ansicht.id)
+      .where('werkzeug', 'is not', null)
+      .execute();
+    assert.equal(zeilen.length, 0);
+  }
+);
