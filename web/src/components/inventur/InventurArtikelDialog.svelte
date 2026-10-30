@@ -79,11 +79,17 @@
       (error instanceof ApiError && error.fields?.etag) || dialogMessage(error, fallback)
   );
   const errors = $derived(dialog.state.fields);
-  const busy = $derived(dialog.state.busy);
+  /** The current version is being loaded; the input stays locked until it is replaced. */
+  let reloading = $state(false);
+  const busy = $derived(dialog.state.busy || reloading);
 
   const variantenName = $derived(VARIANTEN_NAMEN[form.kategorie]);
   /** Sizes and motifs only for clothes and patches; an article that has several keeps them. */
-  const mitVarianten = $derived(!!variantenName || form.varianten.length > 1);
+  const mitVarianten = $derived(
+    !!variantenName ||
+      form.varianten.length > 1 ||
+      form.varianten.some((v) => v.bezeichnung.trim() !== '')
+  );
 
   function addZeile(): void {
     form.varianten.push({ key: nextKey++, id: null, bezeichnung: '', bestand: 0 });
@@ -159,7 +165,13 @@
   /** After a conflict: replaces the input with the current version of the article. */
   async function reloadCurrent(): Promise<boolean> {
     if (!form.id) return false;
-    const fresh = await onreload(form.id);
+    reloading = true;
+    let fresh: InventarArtikel | null;
+    try {
+      fresh = await onreload(form.id);
+    } finally {
+      reloading = false;
+    }
     if (!fresh) {
       await ondone('Der Artikel wurde inzwischen gelöscht.');
       return false;

@@ -30,7 +30,9 @@
     (error, fallback) =>
       (error instanceof ApiError && error.fields?.etag) || dialogMessage(error, fallback)
   );
-  const busy = $derived(dialog.state.busy);
+  /** The current version is being loaded; the input stays locked until it is replaced. */
+  let reloading = $state(false);
+  const busy = $derived(dialog.state.busy || reloading);
   const fehler = $derived(dialog.state.fields.varianten);
 
   async function save(): Promise<void> {
@@ -59,7 +61,13 @@
 
   /** After a conflict: shows the current stock of the article. */
   async function reloadCurrent(): Promise<boolean> {
-    const fresh = await onreload(current.id);
+    reloading = true;
+    let fresh: InventarArtikel | null;
+    try {
+      fresh = await onreload(current.id);
+    } finally {
+      reloading = false;
+    }
     if (!fresh) {
       await ondone('Der Artikel wurde inzwischen gelöscht.');
       return false;
