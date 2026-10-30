@@ -125,6 +125,7 @@ export interface Database {
   'essen.geschaeft': EssenGeschaeftTable;
   'essen.bestand': EssenPostenTable;
   'essen.zusatzbedarf': EssenZusatzbedarfTable;
+  'essen.packliste_eintrag': EssenPacklisteEintragTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -1190,6 +1191,19 @@ export interface EssenPostenTable {
   menge: number;
   einheit: GerichtEinheit;
   hinweis: Generated<string>;
+}
+
+/** A thing to pack: a tool of the planned dishes with its state, or an entry of its own. */
+export interface EssenPacklisteEintragTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  /** The normalized name of a tool of the dishes; null for an entry of its own. */
+  werkzeug: string | null;
+  name: string;
+  gepackt: Generated<boolean>;
+  zustaendig_mitglied_id: number | null;
+  zustaendig_text: Generated<string>;
 }
 
 /** `essen.zusatzbedarf`: like the stock, but an amount is optional („Kochhandschuhe“). */

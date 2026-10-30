@@ -77,6 +77,7 @@ import * as essenPlanung from './mock-data/essensplanung-planung';
 import * as essenGerichte from './mock-data/essensplanung-gerichte';
 import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
 import * as essenEinkauf from './mock-data/essensplanung-einkauf';
+import * as essenPackliste from './mock-data/essensplanung-packliste';
 import * as essenKi from './mock-data/essensplanung-ki';
 import * as essenKochen from './mock-data/essensplanung-kochen';
 import { validateAbhaken } from '../../api/lib/essen-kochen-validation';
@@ -85,6 +86,11 @@ import {
   validatePosten,
   validateZutatGeschaeft,
 } from '../../api/lib/essen-einkauf-validation';
+import {
+  validatePackAenderung,
+  validatePackEintrag,
+  validateWerkzeugAenderung,
+} from '../../api/lib/essen-packliste-validation';
 import { validateGruppe, validateTeilnehmende } from '../../api/lib/essen-teilnehmende-validation';
 import {
   validateGericht,
@@ -1635,6 +1641,27 @@ for (const art of ['bestand', 'zusatzbedarf'] as const) {
     return essenAendern(req, (z) => essenEinkauf.postenAendern(z, art, id, input, req.json?.etag));
   });
 }
+
+route('POST', '/api/essensplanung/planung/packliste', (req) => {
+  const input = validatePackEintrag(req.json);
+  return essenAendern(req, (z) => essenPackliste.packEintragAnlegen(z, input), 201);
+});
+
+route('PUT', '/api/essensplanung/planung/packliste/werkzeug', (req) => {
+  const input = validateWerkzeugAenderung(req.json);
+  const etag = typeof req.json?.etag === 'string' ? req.json.etag : null;
+  return essenAendern(req, (z) => essenPackliste.werkzeugSetzen(z, input, etag));
+});
+
+route(['PATCH', 'DELETE'], '/api/essensplanung/planung/packliste/:id', (req) => {
+  const id = Number(req.params.id);
+  if (req.method === 'DELETE')
+    return essenAendern(req, (z) =>
+      essenPackliste.packEintragAendern(z, id, null, req.headers['if-match'])
+    );
+  const input = validatePackAenderung(req.json);
+  return essenAendern(req, (z) => essenPackliste.packEintragAendern(z, id, input, req.json?.etag));
+});
 
 route('POST', '/api/intern/nikolaus/bookings/:id/message', (req) =>
   bookingById(req.params.id) ? noContent() : notFound()

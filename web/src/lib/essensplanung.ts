@@ -181,7 +181,19 @@ const AENDERUNGEN: Record<string, string> = {
   'zusatzbedarf-neu': 'hat Zusatzbedarf eingetragen',
   'zusatzbedarf-geaendert': 'hat Zusatzbedarf geändert',
   'zusatzbedarf-geloescht': 'hat Zusatzbedarf entfernt',
+  'packliste-neu': 'hat etwas auf die Packliste gesetzt',
+  'packliste-geaendert': 'hat die Packliste geändert',
+  'packliste-geloescht': 'hat etwas von der Packliste genommen',
 };
+
+/** What a change of the packing list did: packed, unpacked, or who packs it. */
+function packText(details: Record<string, unknown>): string {
+  if (details.gepackt === true) return 'hat eingepackt';
+  if (details.gepackt === false) return 'hat wieder ausgepackt';
+  if (details.zustaendig === '') return 'hat eine Zuständigkeit entfernt';
+  if (typeof details.zustaendig === 'string') return `hat ${details.zustaendig} zuständig gemacht`;
+  return AENDERUNGEN['packliste-geaendert'];
+}
 
 /** What ticking off a planned dish did, by its new status. */
 const ABGEHAKT: Record<string, string> = {
@@ -205,11 +217,13 @@ export function aenderungText(aenderung: PlanungAenderung): string {
       : 'nimmt eine Gruppe aus einer Mahlzeit'
     : laden && geschaeft === null
       ? 'hat ein Geschäft entfernt'
-      : verschoben === true
-        ? 'hat ein Gericht verschoben'
-        : aenderung.aktion === 'einplanung-abgehakt' && typeof status === 'string'
-          ? (ABGEHAKT[status] ?? AENDERUNGEN[aenderung.aktion])
-          : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
+      : aenderung.aktion === 'packliste-geaendert'
+        ? packText(aenderung.details)
+        : verschoben === true
+          ? 'hat ein Gericht verschoben'
+          : aenderung.aktion === 'einplanung-abgehakt' && typeof status === 'string'
+            ? (ABGEHAKT[status] ?? AENDERUNGEN[aenderung.aktion])
+            : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
   const ziel = [
     gruppen && typeof gruppe === 'string' ? `${gruppe} bei` : '',
     typeof anzahl === 'number' ? String(anzahl) : '',

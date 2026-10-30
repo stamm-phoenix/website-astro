@@ -1,6 +1,7 @@
 // PDFs of a Planung, built in the browser instead of printing the page (`docs/essensplanung.md`,
-// PDF): the plan for the kitchen, recipe cards, the eaters per meal and the shopping list. The
-// rows come from `essensplanungDruck.ts`; this file only lays them out.
+// PDF): the plan for the kitchen, recipe cards, the eaters per meal, the shopping list and the
+// packing list. The rows come from `essensplanungDruck.ts` and `essensplanungPackliste.ts`; this
+// file only lays them out.
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn, CellHookData } from 'jspdf-autotable';
 import { saveFile } from './api';
@@ -16,6 +17,7 @@ import {
 } from './essensplanungDruck';
 import { postenMenge, type EinkaufsGeschaeft } from './essensplanungEinkauf';
 import type { LagerZeile } from './essensplanungLager';
+import type { PackDruckZeile } from './essensplanungPackliste';
 import { zahlText } from './essensplanungTeilnehmende';
 import {
   BRAND,
@@ -333,4 +335,38 @@ export async function downloadLagerPdf(
     });
   drawPageFooters(doc);
   saveFile(doc.output('blob'), essenDateiName('Lager', ansicht));
+}
+
+/** The packing list: a box per thing, crossed when it is packed, with its dishes and packer. */
+export async function downloadPacklistePdf(
+  ansicht: PlanungAnsicht,
+  zeilen: PackDruckZeile[]
+): Promise<void> {
+  const { doc, autoTable } = await loadPdf();
+  const y = drawTitle(doc, 'Packliste', untertitel(ansicht)) + 2;
+  if (!zeilen.length) text(doc, 'Noch nichts einzupacken.', y);
+  else
+    autoTable(doc, {
+      ...TABLE_STYLES,
+      startY: y,
+      margin: { left: MARGIN, right: MARGIN, bottom: FOOTER_SPACE },
+      head: [['', 'Was', 'Für', 'Zuständig']],
+      body: zeilen.map((zeile) => ['', zeile.name, zeile.fuer, zeile.zustaendig]),
+      columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 55, fontStyle: 'bold' } },
+      didDrawCell: (data: CellHookData) => {
+        if (data.section !== 'body' || data.column.index !== 0) return;
+        const x = data.cell.x + 1.5;
+        const top = data.cell.y + (data.cell.height - KAESTCHEN) / 2;
+        doc.setDrawColor(...GREY);
+        doc.setLineWidth(0.3);
+        doc.rect(x, top, KAESTCHEN, KAESTCHEN);
+        // What is packed already is crossed
+        if (zeilen[data.row.index]?.gepackt) {
+          doc.line(x, top, x + KAESTCHEN, top + KAESTCHEN);
+          doc.line(x, top + KAESTCHEN, x + KAESTCHEN, top);
+        }
+      },
+    });
+  drawPageFooters(doc);
+  saveFile(doc.output('blob'), essenDateiName('Packliste', ansicht));
 }
