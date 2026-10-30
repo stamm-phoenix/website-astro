@@ -12,7 +12,7 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-10-29-19-essensplanung-einkaeufe',
+    id: '2026-10-29-20-essensplanung-einkaeufe',
     date: '2026-10-29',
     title: 'Essensplanung: Einkäufe und Einkaufen mit dem Handy',
     changes: [
@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Mit „Anpassen“ verschiebst du einen Posten in einen anderen Einkauf, nimmst ihn heraus oder legst eine feste Menge fest.',
       'Mit „Einkaufen“ hakst du im Laden auf dem Handy ab, was im Wagen ist. Du trägst die Menge ein, die du wirklich bekommen hast, und bei Bedarf ein Ersatzprodukt. Fehlt etwas, steht der Rest im nächsten Einkauf. Mehrere können gleichzeitig einkaufen und sehen die Häkchen der anderen.',
       'Was du beim Einkaufen abhakst, steht im Lager in der neuen Spalte „Erhalten“; ein Ersatzprodukt siehst du im Lager und bei den Mengen des Gerichts. Jeden Einkauf gibt es auch als PDF mit Kästchen zum Abhaken.',
+    ],
+  },
+  {
+    id: '2026-10-29-19-essensplanung-packliste',
+    date: '2026-10-29',
+    title: 'Essensplanung: Packliste',
+    changes: [
+      'Im neuen Bereich Packliste stehen von selbst alle Werkzeuge eurer eingeplanten Gerichte, gleiche nur einmal, mit den Gerichten und Mahlzeiten, die sie brauchen, z. B. „Großer Topf: Chili (3_2_1)“.',
+      'Unten trägst du ein, was sonst noch mit muss, etwa den Gaskocher. An jeder Zeile wählst du, wer es einpackt, und hakst ab, was gepackt ist; das wird sofort gespeichert und alle sehen es.',
+      'Mit „Packliste als PDF“ lädst du die Liste mit einem Kästchen je Zeile herunter.',
     ],
   },
   {

@@ -31,6 +31,7 @@ import type { EssenPlanungUebersicht } from '../../src/lib/types';
 import type { MockPlanungZutat } from './essensplanung-gerichte';
 import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilnehmende-model';
 import type { EinkaufPosten, Geschaeft, ZusatzPosten } from '../../../api/lib/essen-einkauf-model';
+import type { MockPackEintrag } from './essensplanung-packliste';
 import { essenKatalogStand } from './essensplanung';
 import {
   gruppenAusVorlage,
@@ -104,6 +105,7 @@ export interface MockPlanung {
   bestand: EinkaufPosten[];
   zusatzbedarf: ZusatzPosten[];
   einkaeufe: Einkauf[];
+  packliste: MockPackEintrag[];
 }
 
 let nextId = 1;
@@ -177,6 +179,7 @@ function erstelle(
     bestand: [],
     zusatzbedarf: [],
     einkaeufe: [],
+    packliste: [],
   };
   const tage = daysBetween(input.ersterTag, input.letzterTag) + 1;
   for (let index = 0; index < tage; index++) {
@@ -312,6 +315,13 @@ export function ansichtVon(
     bestand: planung.bestand,
     zusatzbedarf: planung.zusatzbedarf,
     einkaeufe: planung.einkaeufe.slice().sort((a, b) => a.position - b.position || a.id - b.id),
+    packliste: planung.packliste.map(({ zustaendigText, ...eintrag }) => ({
+      ...eintrag,
+      zustaendig:
+        eintrag.zustaendigId === null
+          ? zustaendigText
+          : (planung.mitglieder.find((m) => m.id === eintrag.zustaendigId)?.name ?? ''),
+    })),
     ...gerichteAnsicht(planung),
   };
 }

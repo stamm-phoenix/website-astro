@@ -2,6 +2,7 @@ import type { Gericht, PlanungZutat } from './essen-gerichte-model';
 import type { z } from 'zod';
 import type { EinkaufPosten, ZusatzPosten, Geschaeft } from './essen-einkauf-model';
 import type { Einkauf } from './essen-einkaeufe-model';
+import type { PacklisteEintrag } from './essen-packliste-model';
 import type { EinplanungStatus, Verbrauch } from './essen-kochen-model';
 import type { PlanungGruppe, Teilnehmende } from './essen-teilnehmende-model';
 import { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor } from './essen-planung-faktor';
@@ -149,6 +150,8 @@ export interface PlanungAnsicht {
   zusatzbedarf: ZusatzPosten[];
   /** Shopping trips in their order, with what was ticked off and the rules set by hand. */
   einkaeufe: Einkauf[];
+  /** Stored states of tools and entries of its own of the packing list, in the order added. */
+  packliste: PacklisteEintrag[];
 }
 
 /** Whether `zugang` may change the plan (days, meals, later dishes). */
@@ -286,4 +289,7 @@ export const AENDERUNG_TEXTE: Record<string, string> = {
   'einkauf-regel': 'Posten eines Einkaufs geändert',
   'einkauf-verschoben': 'Posten in anderen Einkauf verschoben',
   'einkauf-zurueckgeholt': 'Posten in Einkauf zurückgeholt',
+  'packliste-neu': 'Auf die Packliste gesetzt',
+  'packliste-geaendert': 'Packliste geändert',
+  'packliste-geloescht': 'Von der Packliste genommen',
 };

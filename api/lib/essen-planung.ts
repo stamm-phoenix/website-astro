@@ -48,6 +48,7 @@ import { ladeEinplanungen } from './essen-einplanung';
 import { ladeTeilnehmende } from './essen-teilnehmende';
 import { ladeEinkauf } from './essen-einkauf';
 import { ladeEinkaeufe } from './essen-einkaeufe';
+import { ladePackliste } from './essen-packliste';
 import { pruefeAnwesenheit, verschiebeGrenzen } from './essen-teilnehmende-grenzen';
 import { ValidationError } from './validation/errors';
 
@@ -161,6 +162,7 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
     teilnehmende,
     einkauf,
     einkaeufe,
+    packliste,
   ] = await Promise.all([
     db
       .selectFrom('essen.planung')
@@ -192,6 +194,7 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
     ladeTeilnehmende(db, zugang.planungId),
     ladeEinkauf(db, zugang.planungId),
     ladeEinkaeufe(db, zugang.planungId),
+    ladePackliste(db, zugang.planungId),
   ]);
   if (!planung) throw LINK_UNGUELTIG();
 
@@ -261,6 +264,7 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
     bestand: einkauf.bestand,
     zusatzbedarf: einkauf.zusatzbedarf,
     einkaeufe,
+    packliste,
   };
 }
 
