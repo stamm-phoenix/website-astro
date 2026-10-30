@@ -248,6 +248,27 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M4 3v8a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M6 13v8M6 3v5M17 21V3c-2 1-3 4-3 7h3',
   },
   {
+    href: '/leitendenbereich/inventur',
+    title: 'Inventur',
+    description:
+      'Pullis, Aufnäher, Zelte und anderes Material mit Bestand, Lagerort und Zustand erfassen und zählen.',
+    intro:
+      'Bei Kleidung und Aufnähern hat jede Größe oder jedes Motiv einen eigenen Bestand. „Zählen“ speichert den gezählten Bestand mit Datum und deinem Namen.',
+    keywords: [
+      'material',
+      'lager',
+      'bestand',
+      'zelt',
+      'kohte',
+      'pulli',
+      'aufnäher',
+      'zählen',
+      'reparatur',
+      'verleih',
+    ],
+    icon: 'M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5',
+  },
+  {
     href: '/leitendenbereich/kostenstellen',
     title: 'Kostenstellen',
     wrap: 'Kosten|stellen',
@@ -436,7 +457,8 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
       'abrechnung',
       'beitraege',
       'kostenstellen',
-      'sammelbestellungen'
+      'sammelbestellungen',
+      'inventur'
     ),
   },
   {

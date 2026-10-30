@@ -2,6 +2,7 @@ import type { ColumnType, Generated } from 'kysely';
 import type { EssenEinheitenart } from './essen-validation';
 import type { GerichtEinheit } from './essen-gerichte-model';
 import type { AnwesenheitStufeName } from './anwesenheit-model';
+import type { InventarArtikelTable, InventarVarianteTable } from './db-schema-inventur';
 import type { SammelShop } from './sammelbestellung-shops';
 import type { SammelStatus } from './sammelbestellung-model';
 import type { SammelPaymentEvent, SammelPaymentOperation } from './sammelbestellung-payment-model';
@@ -77,6 +78,8 @@ export interface Database {
   'protokoll.revision': EditorRevisionTable;
   'protokoll.erinnerung': LeitendenrundeErinnerungTable;
   'organisation.person': PersonTable;
+  'organisation.inventar_artikel': InventarArtikelTable;
+  'organisation.inventar_variante': InventarVarianteTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
   'organisation.aktion_keine_aktion': AktionKeineAktionTable;
   'organisation.staff_changelog_seen': StaffChangelogSeenTable;

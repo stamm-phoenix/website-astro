@@ -118,6 +118,8 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM organisation.staff_favorites;
     DELETE FROM organisation.staff_settings;
     DELETE FROM organisation.person;
+    DELETE FROM organisation.inventar_variante;
+    DELETE FROM organisation.inventar_artikel;
     DELETE FROM content.instagram_token;
     DELETE FROM gruppenstunde.attendance;
     DELETE FROM gruppenstunde.meeting;

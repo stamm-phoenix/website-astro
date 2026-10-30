@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../layouts/StaffLayout.astro';
+import Inventur from '../../components/inventur/Inventur.svelte';
+---
+
+<StaffLayout>
+  <Inventur client:only="svelte" />
+</StaffLayout>

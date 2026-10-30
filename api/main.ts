@@ -54,6 +54,11 @@ import GetDownloadFileEndpoint from './endpoints/download-file';
 import GetQuestionsAndAnswersEndpoint from './endpoints/qa';
 import { QuestionsCollection, QuestionItem } from './endpoints/intern-pflege-qa';
 import { PersonItem, PersonenCollection } from './endpoints/intern-pflege-personen';
+import {
+  InventurCollection,
+  InventurItem,
+  InventurZaehlung,
+} from './endpoints/intern-pflege-inventur';
 import { Ich } from './endpoints/intern-ich';
 import { StaffFavorites } from './endpoints/intern-favoriten';
 import { StaffChangelog } from './endpoints/intern-neuigkeiten';
@@ -804,6 +809,27 @@ app.http('internPflegePerson', {
   authLevel: 'anonymous',
   route: 'intern/pflege/personen/{id}',
   handler: PersonItem,
+});
+
+app.http('internPflegeInventur', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/inventur',
+  handler: InventurCollection,
+});
+
+app.http('internPflegeInventurArtikel', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/inventur/{id}',
+  handler: InventurItem,
+});
+
+app.http('internPflegeInventurZaehlung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/inventur/{id}/zaehlung',
+  handler: InventurZaehlung,
 });
 
 app.http('internIch', {
