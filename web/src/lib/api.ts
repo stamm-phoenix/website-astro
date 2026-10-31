@@ -1,38 +1,15 @@
 import { bakedUrl } from './bakedImages';
 import { ELEMENT_NODE, SAFE_URL, TEXT_NODE, parseHtml } from './html';
-import { PERMISSION_HELP, TECHNIK_HELP } from './helpContacts';
+import { TECHNIK_HELP } from './helpContacts';
+import { ApiError } from './apiError';
+import { API_BASE, request } from './apiRequest';
+import { TIMEOUT_MS } from './apiTimeout';
 
-const API_BASE = '/api';
+export { ApiError, SESSION_EXPIRED_MESSAGE } from './apiError';
+export { getLastApiFailure, type ApiFailure } from './apiRequest';
 
-interface ApiErrorDetails {
-  code?: string;
-  /** Validation messages per form field, if the API rejected the input. */
-  fields?: Record<string, string>;
-  /** The server sent no usable message, e.g. a crash (5xx) or an unknown status. */
-  unexplained?: boolean;
-}
-
-export class ApiError extends Error {
-  readonly code?: string;
-  readonly fields?: Record<string, string>;
-  readonly unexplained: boolean;
-
-  constructor(
-    public status: number,
-    message: string,
-    { code, fields, unexplained = false }: ApiErrorDetails = {}
-  ) {
-    super(message);
-    this.name = 'ApiError';
-    this.code = code;
-    this.fields = fields;
-    this.unexplained = unexplained;
-  }
-}
-
-/** Shown for every request whose login has expired; dialogs offer to log in again next to it. */
-export const SESSION_EXPIRED_MESSAGE =
-  'Deine Anmeldung ist abgelaufen. Deine Eingaben sind noch da.';
+/** A JSON body above this many characters is an upload and gets the time limit of a file. */
+const LARGE_JSON = 256 * 1024;
 
 /** Login in a new tab; the page it returns to asks to close that tab and save again. */
 export const RELOGIN_URL =
@@ -69,95 +46,33 @@ export function errorMessage(error: unknown, fallback: string): string {
   return error.unexplained ? `${fallback} ${TECHNIK_HELP}` : error.message;
 }
 
-/**
- * Sends an uncached request and returns the successful response. Errors are thrown as `ApiError`.
- * Internal requests do not follow redirects: the platform redirects them to the Microsoft login
- * once the login has expired, and following that would fail like a lost connection.
- */
-async function request(endpoint: string, init: RequestInit = {}): Promise<Response> {
-  const internal = endpoint.startsWith('/intern/');
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}${endpoint}`, {
-      ...init,
-      cache: 'no-store',
-      ...(internal ? { redirect: 'manual' } : {}),
-    });
-  } catch (error: unknown) {
-    recordFailure(endpoint, 0, 'NETWORK', null);
-    throw error;
-  }
-  if (internal && response.type === 'opaqueredirect') {
-    recordFailure(endpoint, 401, '', response);
-    throw new ApiError(401, SESSION_EXPIRED_MESSAGE);
-  }
-  if (!response.ok) {
-    const error = await toApiError(response, internal);
-    recordFailure(endpoint, response.status, error.code ?? '', response);
-    throw error;
-  }
-  return response;
-}
-
-/**
- * The last failed request: what „Problem melden“ adds to a report (`problemMelden.ts`). Only
- * status, code, route without query and a correlation number of the response, never a message
- * or content.
- */
-export interface ApiFailure {
-  status: number;
-  code: string;
-  route: string;
-  correlationId: string;
-  at: number;
-}
-
-let lastFailure: ApiFailure | null = null;
-
-function recordFailure(
-  endpoint: string,
-  status: number,
-  code: string,
-  response: Response | null
-): void {
-  // A failing report must not replace the problem it is about
-  if (endpoint.startsWith('/problemmeldung')) return;
-  lastFailure = {
-    status,
-    code,
-    route: `${API_BASE}${endpoint.split('?')[0]}`,
-    // The ID of the request at Cloudflare or Azure, if one answered
-    correlationId:
-      response?.headers.get('x-ms-request-id') ??
-      response?.headers.get('x-request-id') ??
-      response?.headers.get('cf-ray') ??
-      '',
-    at: Date.now(),
-  };
-}
-
-/** The failed request of the last ten minutes, if any; older ones no longer explain the page. */
-export function getLastApiFailure(maxAgeMs = 600_000): ApiFailure | null {
-  return lastFailure && Date.now() - lastFailure.at <= maxAgeMs ? lastFailure : null;
-}
-
 /** Fetch uncached JSON; `headers` e.g. for a token that must stay out of the URL. */
 export async function fetchApi<T>(
   endpoint: string,
   signal?: AbortSignal,
   headers?: Record<string, string>
 ): Promise<T> {
-  return (await request(endpoint, { signal, headers })).json();
+  return request(endpoint, { signal, headers }, TIMEOUT_MS.read, (response) => response.json());
 }
 
 /** Post JSON and return the JSON answer. */
-export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
-  const response = await request(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return response.json();
+export async function postApi<T>(
+  endpoint: string,
+  body: unknown,
+  { signal, saves = true }: { signal?: AbortSignal; saves?: boolean } = {}
+): Promise<T> {
+  return request(
+    endpoint,
+    {
+      method: 'POST',
+      signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+    TIMEOUT_MS.write,
+    (response) => response.json(),
+    saves
+  );
 }
 
 /**
@@ -175,6 +90,7 @@ export async function sendApi<T = undefined>(
   options: { etag?: string; signal?: AbortSignal; headers?: Record<string, string> } = {}
 ): Promise<T> {
   const isBinary = body instanceof Blob;
+  const json = body === undefined || isBinary ? undefined : JSON.stringify(body);
   const headers: Record<string, string> = { ...options.headers };
   if (body !== undefined) {
     headers['Content-Type'] = isBinary
@@ -182,13 +98,18 @@ export async function sendApi<T = undefined>(
       : 'application/json';
   }
   if (options.etag) headers['If-Match'] = options.etag;
-  const response = await request(endpoint, {
-    method,
-    signal: options.signal,
-    headers,
-    body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
-  });
-  return (response.status === 204 ? undefined : await response.json()) as T;
+  return request(
+    endpoint,
+    {
+      method,
+      signal: options.signal,
+      headers,
+      body: isBinary ? body : json,
+    },
+    // Photos and PDFs of a Beleg travel as Base64 in JSON
+    isBinary || (json?.length ?? 0) > LARGE_JSON ? TIMEOUT_MS.file : TIMEOUT_MS.write,
+    async (response) => (response.status === 204 ? undefined : await response.json()) as T
+  );
 }
 
 export interface ApiFile {
@@ -199,18 +120,26 @@ export interface ApiFile {
 }
 
 /** Loads a file, e.g. an image; errors are thrown as `ApiError` like for JSON endpoints. */
-export async function fetchFile(endpoint: string): Promise<ApiFile> {
-  return toApiFile(await request(endpoint));
+export async function fetchFile(endpoint: string, signal?: AbortSignal): Promise<ApiFile> {
+  return request(endpoint, { signal }, TIMEOUT_MS.file, toApiFile);
 }
 
 /** Sends JSON and receives a file, e.g. a document generated from the sent data. */
-export async function postForFile(endpoint: string, body: unknown): Promise<ApiFile> {
-  return toApiFile(
-    await request(endpoint, {
+export async function postForFile(
+  endpoint: string,
+  body: unknown,
+  signal?: AbortSignal
+): Promise<ApiFile> {
+  return request(
+    endpoint,
+    {
       method: 'POST',
+      signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    })
+    },
+    TIMEOUT_MS.file,
+    toApiFile
   );
 }
 
@@ -259,47 +188,6 @@ export function saveFile(blob: Blob, fileName: string): void {
   anchor.download = asciiFileName(fileName);
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-/**
- * Builds an ApiError, using `code` and `message` from a JSON error body when available. A 401 of
- * an internal request means the login expired, whatever the body says.
- */
-async function toApiError(response: Response, internal: boolean): Promise<ApiError> {
-  const { status } = response;
-  if (internal && status === 401) return new ApiError(401, SESSION_EXPIRED_MESSAGE);
-  try {
-    const body: unknown = await response.json();
-    if (body && typeof body === 'object') {
-      const { code, message, fields } = body as {
-        code?: unknown;
-        message?: unknown;
-        fields?: unknown;
-      };
-      // A server error without a code is an unhandled crash with a technical message
-      if (typeof message === 'string' && (status < 500 || typeof code === 'string')) {
-        return new ApiError(status, message, {
-          code: typeof code === 'string' ? code : undefined,
-          fields:
-            fields && typeof fields === 'object' ? (fields as Record<string, string>) : undefined,
-        });
-      }
-    }
-  } catch {
-    // Not a JSON body, fall back to the status text
-  }
-  if (status === 403) {
-    return new ApiError(403, `Du hast für diese Aktion keine Berechtigung. ${PERMISSION_HELP}`);
-  }
-  if (status === 409 || status === 412) {
-    return new ApiError(
-      status,
-      'Die Daten wurden inzwischen geändert. Bitte lade die aktuelle Fassung.'
-    );
-  }
-  return new ApiError(status, 'Die Anfrage konnte nicht verarbeitet werden.', {
-    unexplained: true,
-  });
 }
 
 /** FAQ answer as stored: the formatting plus links; mirrors `validateQuestionAndAnswer`. */
