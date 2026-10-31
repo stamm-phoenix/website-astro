@@ -178,11 +178,17 @@
     }
   }
 
-  /** After a change by someone else: the newest version, so „Speichern“ works again. */
+  /**
+   * After a change by someone else: the newest version, so „Speichern“ works again. A field the
+   * person did not touch takes the new saved value, so saving again keeps the other change.
+   */
   async function refreshRenaming(): Promise<void> {
     await downloadsPflege.load({ force: true });
     const fresh = store.data?.find((candidate) => candidate.id === renaming?.file.id);
-    if (renaming && fresh) renaming.file = fresh;
+    if (!renaming || !fresh) return;
+    if (renaming.name === renaming.file.fileName) renaming.name = fresh.fileName;
+    if (renaming.category === renaming.file.category) renaming.category = fresh.category;
+    renaming.file = fresh;
   }
 
   async function remove(file: StaffDownload): Promise<void> {
