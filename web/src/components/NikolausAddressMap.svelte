@@ -79,7 +79,9 @@
     const current = ++requestId;
     const timer = setTimeout(async () => {
       try {
-        const answer = await postApi<NikolausGeocodeResult>('/nikolaus/geocode', address);
+        const answer = await postApi<NikolausGeocodeResult>('/nikolaus/geocode', address, {
+          saves: false,
+        });
         if (current === requestId) lookedUp = answer;
       } catch {
         if (current === requestId) lookedUp = { found: false, unavailable: true };

@@ -96,7 +96,11 @@
     }
 
     try {
-      const loaded = await postApi<NikolausBookingInfo>('/nikolaus/manage/lookup', { token });
+      const loaded = await postApi<NikolausBookingInfo>(
+        '/nikolaus/manage/lookup',
+        { token },
+        { saves: false }
+      );
       if (generation === loadGeneration) booking = loaded;
     } catch (error: unknown) {
       if (generation !== loadGeneration) return;
@@ -181,7 +185,11 @@
   async function refreshBooking(): Promise<void> {
     const generation = loadGeneration;
     try {
-      const refreshed = await postApi<NikolausBookingInfo>('/nikolaus/manage/lookup', { token });
+      const refreshed = await postApi<NikolausBookingInfo>(
+        '/nikolaus/manage/lookup',
+        { token },
+        { saves: false }
+      );
       if (generation === loadGeneration) booking = refreshed;
     } catch {
       // Keep the current state, the error message is shown anyway

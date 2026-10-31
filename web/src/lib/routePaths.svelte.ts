@@ -34,7 +34,8 @@ export function createRoutePaths(
       try {
         const { paths } = await postApi<{ paths: Record<string, [number, number][] | null> }>(
           `/intern/nikolaus/dispo/routes?date=${encodeURIComponent(day)}`,
-          { routes: Object.fromEntries(missing) }
+          { routes: Object.fromEntries(missing) },
+          { saves: false }
         );
         const next = { ...routePaths };
         for (const [team, ids] of missing) {

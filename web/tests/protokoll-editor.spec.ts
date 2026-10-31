@@ -235,10 +235,11 @@ test('the presentation recovers when its first load fails', async ({ page, brows
   // A reader on another device: no writing tab in its browser, only the server
   const readerContext = await browser.newContext({ baseURL });
   const reader = await readerContext.newPage();
-  let failed = false;
+  // The first request and its automatic second try both fail
+  let failures = 0;
   await readerContext.route(/\/api\/intern\/protokoll-editor\/\d+$/, async (route) => {
-    if (failed) return route.continue();
-    failed = true;
+    if (failures >= 2) return route.continue();
+    failures++;
     await route.abort();
   });
   await reader.goto(url.replace(/&bearbeiten=1$/, '').replace('/protokoll?', '/praesentation?'));
