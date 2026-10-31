@@ -14,7 +14,7 @@ export const READ_TIMEOUT_MESSAGE =
   'Der Server hat nicht rechtzeitig geantwortet. Prüfe deine Internetverbindung und versuche es erneut.';
 
 export const WRITE_TIMEOUT_MESSAGE =
-  'Der Server hat nicht rechtzeitig geantwortet. Vielleicht wurde deine Änderung trotzdem gespeichert: Lade die Seite neu und prüfe es, bevor du sie noch einmal sendest.';
+  'Der Server hat nicht rechtzeitig geantwortet. Vielleicht wurde deine Änderung trotzdem gespeichert. Lass diese Seite offen, damit deine Eingaben nicht verloren gehen, und prüfe in einem neuen Tab, ob sie angekommen ist, bevor du sie noch einmal sendest.';
 
 export interface Deadline {
   signal: AbortSignal;
