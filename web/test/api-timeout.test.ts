@@ -101,3 +101,29 @@ test('a read that breaks while the body arrives is sent once more', async () => 
   assert.deepEqual(await fetchApi('/events'), { ok: true });
   assert.equal(calls, 2);
 });
+
+test('an error status whose body arrives late keeps its status and is not retried', async () => {
+  globalThis.fetch = (async () => {
+    calls++;
+    const body = new ReadableStream({
+      start(controller) {
+        setTimeout(() => {
+          controller.enqueue(
+            new TextEncoder().encode(
+              '{"code":"VALIDATION","message":"Ungültig","fields":{"titel":"Fehlt"}}'
+            )
+          );
+          controller.close();
+        }, 60);
+      },
+    });
+    return new Response(body, { status: 400 });
+  }) as typeof fetch;
+  await assert.rejects(fetchApi('/events'), (error: unknown) => {
+    assert.ok(error instanceof ApiError);
+    assert.equal(error.status, 400);
+    assert.deepEqual(error.fields, { titel: 'Fehlt' });
+    return true;
+  });
+  assert.equal(calls, 1);
+});

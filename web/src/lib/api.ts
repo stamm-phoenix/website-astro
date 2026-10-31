@@ -1,7 +1,13 @@
 import { bakedUrl } from './bakedImages';
 import { ELEMENT_NODE, SAFE_URL, TEXT_NODE, parseHtml } from './html';
 import { PERMISSION_HELP, TECHNIK_HELP } from './helpContacts';
-import { READ_TIMEOUT_MESSAGE, TIMEOUT_MS, WRITE_TIMEOUT_MESSAGE, deadline } from './apiTimeout';
+import {
+  READ_TIMEOUT_MESSAGE,
+  TIMEOUT_MS,
+  WRITE_TIMEOUT_MESSAGE,
+  deadline,
+  type Deadline,
+} from './apiTimeout';
 
 const API_BASE = '/api';
 
@@ -94,8 +100,7 @@ async function request<T>(
   for (let attempt = 0; ; attempt++) {
     const limit = deadline(timeoutMs, init.signal ?? undefined);
     try {
-      const response = await send(endpoint, { ...init, signal: limit.signal });
-      limit.headersReceived();
+      const response = await send(endpoint, { ...init, signal: limit.signal }, limit);
       return await consume(response);
     } catch (error: unknown) {
       const lost = limit.timedOut() || (error instanceof TypeError && !init.signal?.aborted);
@@ -113,7 +118,8 @@ async function request<T>(
   }
 }
 
-async function send(endpoint: string, init: RequestInit): Promise<Response> {
+/** One attempt; the time limit ends with the headers of any answer, also an error status. */
+async function send(endpoint: string, init: RequestInit, limit: Deadline): Promise<Response> {
   const internal = endpoint.startsWith('/intern/');
   let response: Response;
   try {
@@ -126,6 +132,7 @@ async function send(endpoint: string, init: RequestInit): Promise<Response> {
     if (!init.signal?.aborted) recordFailure(endpoint, 0, 'NETWORK', null);
     throw error;
   }
+  limit.headersReceived();
   if (internal && response.type === 'opaqueredirect') {
     recordFailure(endpoint, 401, '', response);
     throw new ApiError(401, SESSION_EXPIRED_MESSAGE);
