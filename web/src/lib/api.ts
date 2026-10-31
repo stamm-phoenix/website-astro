@@ -85,7 +85,8 @@ export function errorMessage(error: unknown, fallback: string): string {
  * `TIMEOUT`; `init.signal` aborts it earlier and rethrows the `AbortError`. A read (GET) is sent
  * once more after a timeout or a lost connection; a write never is, because it may have been
  * saved, and its message tells the user to check first. A `?refresh=true` read gets the longer
- * `TIMEOUT_MS.reload` and is never repeated.
+ * `TIMEOUT_MS.reload` and is never repeated; a `/ki/` evaluation gets `TIMEOUT_MS.evaluation` and
+ * the message of a read, because it saves nothing.
  *
  * `consume` reads the answer (`json()`, `blob()`). It runs inside the same attempt: the time
  * limit ends with the headers, but the caller's abort and the retry of a read also cover a
@@ -100,8 +101,11 @@ async function request<T>(
   const read = (init.method ?? 'GET') === 'GET';
   // A reload from CampFlow runs several slow requests on the server; repeating it starts them again
   const reload = /[?&]refresh=true\b/.test(endpoint);
+  // An evaluation by the language model (`/ki/`) takes long on the server and saves nothing
+  const evaluation = endpoint.includes('/ki/');
+  const limitMs = reload ? TIMEOUT_MS.reload : evaluation ? TIMEOUT_MS.evaluation : timeoutMs;
   for (let attempt = 0; ; attempt++) {
-    const limit = deadline(reload ? TIMEOUT_MS.reload : timeoutMs, init.signal ?? undefined);
+    const limit = deadline(limitMs, init.signal ?? undefined);
     try {
       const response = await send(endpoint, { ...init, signal: limit.signal }, limit);
       return await consume(response);
@@ -110,7 +114,7 @@ async function request<T>(
       if (read && !reload && attempt === 0 && lost) continue;
       if (limit.timedOut()) {
         recordFailure(endpoint, 0, 'TIMEOUT', null);
-        throw new ApiError(0, read ? READ_TIMEOUT_MESSAGE : WRITE_TIMEOUT_MESSAGE, {
+        throw new ApiError(0, read || evaluation ? READ_TIMEOUT_MESSAGE : WRITE_TIMEOUT_MESSAGE, {
           code: 'TIMEOUT',
         });
       }
@@ -355,7 +359,9 @@ async function toApiError(response: Response, internal: boolean): Promise<ApiErr
         });
       }
     }
-  } catch {
+  } catch (error: unknown) {
+    // The caller gave up while the error body arrived: that is no API error
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
     // Not a JSON body, fall back to the status text
   }
   if (status === 403) {

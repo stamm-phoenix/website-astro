@@ -3,7 +3,13 @@ import { afterEach, beforeEach, test } from 'node:test';
 import { ApiError, fetchApi, sendApi } from '../src/lib/api';
 import { READ_TIMEOUT_MESSAGE, TIMEOUT_MS, WRITE_TIMEOUT_MESSAGE } from '../src/lib/apiTimeout';
 
-const limits = TIMEOUT_MS as { read: number; write: number; reload: number; file: number };
+const limits = TIMEOUT_MS as {
+  read: number;
+  write: number;
+  reload: number;
+  evaluation: number;
+  file: number;
+};
 const originalFetch = globalThis.fetch;
 const originalLimits = { ...limits };
 let calls = 0;
@@ -24,6 +30,7 @@ beforeEach(() => {
   calls = 0;
   limits.read = limits.write = 20;
   limits.reload = 200;
+  limits.evaluation = 200;
 });
 
 afterEach(() => {
@@ -144,4 +151,35 @@ test('a reload that gets no answer fails after its own limit without a second tr
   hang();
   await assert.rejects(fetchApi('/intern/mitglieder?refresh=true'), { code: 'TIMEOUT' });
   assert.equal(calls, 1);
+});
+
+test('a language model evaluation may exceed the write limit and times out like a read', async () => {
+  globalThis.fetch = (async () => {
+    calls++;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    return new Response('{"ok":true}');
+  }) as typeof fetch;
+  assert.deepEqual(await sendApi('POST', '/essensplanung/planung/gerichte/1/ki/rezept', {}), {
+    ok: true,
+  });
+  limits.evaluation = 20;
+  hang();
+  await assert.rejects(sendApi('POST', '/essensplanung/planung/ki/umrechnung', {}), {
+    message: READ_TIMEOUT_MESSAGE,
+  });
+});
+
+test('aborting while an error body arrives stays an abort and is not an API error', async () => {
+  globalThis.fetch = ((_url: string, init: RequestInit) => {
+    const body = new ReadableStream({
+      start(controller) {
+        init.signal?.addEventListener('abort', () => controller.error(init.signal?.reason));
+      },
+    });
+    return Promise.resolve(new Response(body, { status: 500 }));
+  }) as typeof fetch;
+  const controller = new AbortController();
+  const result = fetchApi('/events', controller.signal);
+  setTimeout(() => controller.abort(), 5);
+  await assert.rejects(result, (error: unknown) => !(error instanceof ApiError));
 });

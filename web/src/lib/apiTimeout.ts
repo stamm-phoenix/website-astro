@@ -8,6 +8,8 @@ export const TIMEOUT_MS = {
   write: 60_000,
   /** Reading afresh from CampFlow (`?refresh=true`), which pages through its data. */
   reload: 120_000,
+  /** Evaluations by the language model, which the server allows about a minute plus preparation. */
+  evaluation: 150_000,
   /** Files and uploads, which are larger. */
   file: 120_000,
 } as const;
