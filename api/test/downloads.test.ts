@@ -5,7 +5,7 @@ import { HttpRequest, InvocationContext } from '@azure/functions';
 import sharp from 'sharp';
 import * as blobStorage from '../lib/blob-storage';
 import { getDb } from '../lib/db';
-import { seedPreviewDownloads } from '../lib/db-preview';
+import { seedPreviewDownloads } from '../lib/db-preview-downloads';
 import { deleteOrphanedDownloadFiles, listDownloads } from '../lib/downloads';
 import { UPLOAD_PART_BYTES } from '../lib/validation/downloads';
 import { GetDownloadFilesEndpoint } from '../endpoints/download-files';
