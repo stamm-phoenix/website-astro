@@ -154,7 +154,7 @@
     renameError = null;
     try {
       await sendApi('PATCH', `/intern/pflege/downloads/${encodeURIComponent(renaming.file.id)}`, {
-        fileName: name,
+        ...(nameNew ? { fileName: name } : {}),
         category,
         etag: renaming.file.etag,
       });

@@ -192,6 +192,12 @@ test('renaming a file checks the name and then the version before the database',
   assert.deepEqual(long.fields, { category: 'Das Thema darf höchstens 50 Zeichen lang sein.' });
 });
 
+test('a topic alone is saved without checking the name, which may be an old one', () => {
+  const result = validateDownloadRename({ category: 'Lager' });
+  assert.equal(result.fileName, undefined);
+  assert.equal(result.category, 'Lager');
+});
+
 test('the topic of a renamed file is trimmed, and empty or missing keeps the current one', () => {
   const read = (category: unknown) => validateDownloadRename({ fileName: 'neu.pdf', category });
   assert.deepEqual(read('  Lager   Info '), { fileName: 'neu.pdf', category: 'Lager Info' });

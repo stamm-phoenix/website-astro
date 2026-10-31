@@ -86,7 +86,16 @@ const categorySchema = z.preprocess(
     .transform((value) => value || undefined)
 );
 
-const renameSchema = z.object({ fileName: uploadFileName, category: categorySchema });
+/**
+ * A name is only checked when it is sent: a file taken over from SharePoint may have a name that
+ * is not allowed for new ones, and changing its topic must still work.
+ */
+const renameSchema = z
+  .object({ fileName: z.optional(uploadFileName), category: categorySchema })
+  .refine((value) => value.fileName !== undefined || value.category !== undefined, {
+    error: NAME_MISSING,
+    path: ['fileName'],
+  });
 
 function asBody(body: Record<string, unknown> | null): Record<string, unknown> {
   return body ?? {};

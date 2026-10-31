@@ -365,11 +365,11 @@ async function noRowWritten(id: string): Promise<never> {
 
 /**
  * Renames a download and sets its topic, only in the loaded version; false if another download
- * has that name. Without `category` the topic stays.
+ * has that name. What is left out stays.
  */
 export async function renameDownload(
   id: string,
-  fileName: string,
+  fileName: string | undefined,
   category: string | undefined,
   version: Buffer,
   actor: string
@@ -379,8 +379,7 @@ export async function renameDownload(
     const result = await getDb()
       .updateTable('content.download')
       .set({
-        file_name: fileName,
-        mime_type: downloadMimeType(fileName),
+        ...(fileName ? { file_name: fileName, mime_type: downloadMimeType(fileName) } : {}),
         ...(category ? { category } : {}),
         updated_at: new Date().toISOString(),
         updated_by: actor,
