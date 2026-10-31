@@ -83,6 +83,7 @@ export function createResource<T, P = void>(
     loadedAt: null,
   });
   let latest = 0;
+  let running: AbortController | null = null;
   let pending: { url: string; promise: Promise<void>; revision: number } | null = null;
   /** Counts `invalidate` calls; the shown data is current while it matches `loadedRevision`. */
   let revision = 0;
@@ -99,11 +100,14 @@ export function createResource<T, P = void>(
 
     const id = ++latest;
     const started = revision;
+    // The request of a replaced load is cancelled, not only ignored
+    running?.abort();
+    const controller = (running = new AbortController());
     state.loading = true;
     state.error = null;
     const promise = (async () => {
       try {
-        const data = await fetchApi<T>(url);
+        const data = await fetchApi<T>(url, controller.signal);
         if (id === latest) {
           state.data = data;
           state.loadedAt = Date.now();
@@ -117,6 +121,7 @@ export function createResource<T, P = void>(
       // A replaced load settles together with the newer one, so callers see its result
       if (id !== latest) return pending?.promise;
       pending = null;
+      running = null;
       state.loading = false;
     })();
     pending = { url, promise, revision: started };

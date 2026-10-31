@@ -12,6 +12,15 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-31-01-zeitlimit',
+    date: '2026-10-31',
+    title: 'Hängende Anfragen brechen jetzt ab',
+    changes: [
+      'Antwortet der Server nicht, wartet die Seite nicht mehr endlos: Nach einiger Zeit erscheint eine Meldung, und du kannst es erneut versuchen. Beim Laden von Daten versucht die Seite es vorher einmal von selbst noch einmal.',
+      'Beim Speichern steht in der Meldung, dass du erst prüfen sollst, ob deine Änderung angekommen ist, bevor du sie noch einmal sendest.',
+    ],
+  },
+  {
     id: '2026-10-30-01-inventur',
     date: '2026-10-30',
     title: 'Neu: Inventur für das Stammesmaterial',

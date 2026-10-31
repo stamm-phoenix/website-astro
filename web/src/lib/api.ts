@@ -1,6 +1,7 @@
 import { bakedUrl } from './bakedImages';
 import { ELEMENT_NODE, SAFE_URL, TEXT_NODE, parseHtml } from './html';
 import { PERMISSION_HELP, TECHNIK_HELP } from './helpContacts';
+import { READ_TIMEOUT_MESSAGE, TIMEOUT_MS, WRITE_TIMEOUT_MESSAGE, deadline } from './apiTimeout';
 
 const API_BASE = '/api';
 
@@ -73,8 +74,39 @@ export function errorMessage(error: unknown, fallback: string): string {
  * Sends an uncached request and returns the successful response. Errors are thrown as `ApiError`.
  * Internal requests do not follow redirects: the platform redirects them to the Microsoft login
  * once the login has expired, and following that would fail like a lost connection.
+ *
+ * A request without an answer within `timeoutMs` (until the headers arrive) fails with code
+ * `TIMEOUT`; `init.signal` aborts it earlier and rethrows the `AbortError`. A read (GET) is sent
+ * once more after a timeout or a lost connection; a write never is, because it may have been
+ * saved, and its message tells the user to check first.
  */
-async function request(endpoint: string, init: RequestInit = {}): Promise<Response> {
+async function request(
+  endpoint: string,
+  init: RequestInit = {},
+  timeoutMs: number = TIMEOUT_MS.read
+): Promise<Response> {
+  const read = (init.method ?? 'GET') === 'GET';
+  for (let attempt = 0; ; attempt++) {
+    const limit = deadline(timeoutMs, init.signal ?? undefined);
+    try {
+      return await send(endpoint, { ...init, signal: limit.signal });
+    } catch (error: unknown) {
+      const lost = !(error instanceof ApiError) && !init.signal?.aborted;
+      if (read && attempt === 0 && lost) continue;
+      if (limit.timedOut()) {
+        recordFailure(endpoint, 0, 'TIMEOUT', null);
+        throw new ApiError(0, read ? READ_TIMEOUT_MESSAGE : WRITE_TIMEOUT_MESSAGE, {
+          code: 'TIMEOUT',
+        });
+      }
+      throw error;
+    } finally {
+      limit.clear();
+    }
+  }
+}
+
+async function send(endpoint: string, init: RequestInit): Promise<Response> {
   const internal = endpoint.startsWith('/intern/');
   let response: Response;
   try {
@@ -84,7 +116,7 @@ async function request(endpoint: string, init: RequestInit = {}): Promise<Respon
       ...(internal ? { redirect: 'manual' } : {}),
     });
   } catch (error: unknown) {
-    recordFailure(endpoint, 0, 'NETWORK', null);
+    if (!init.signal?.aborted) recordFailure(endpoint, 0, 'NETWORK', null);
     throw error;
   }
   if (internal && response.type === 'opaqueredirect') {
@@ -151,12 +183,21 @@ export async function fetchApi<T>(
 }
 
 /** Post JSON and return the JSON answer. */
-export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
-  const response = await request(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+export async function postApi<T>(
+  endpoint: string,
+  body: unknown,
+  signal?: AbortSignal
+): Promise<T> {
+  const response = await request(
+    endpoint,
+    {
+      method: 'POST',
+      signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+    TIMEOUT_MS.write
+  );
   return response.json();
 }
 
@@ -182,12 +223,16 @@ export async function sendApi<T = undefined>(
       : 'application/json';
   }
   if (options.etag) headers['If-Match'] = options.etag;
-  const response = await request(endpoint, {
-    method,
-    signal: options.signal,
-    headers,
-    body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
-  });
+  const response = await request(
+    endpoint,
+    {
+      method,
+      signal: options.signal,
+      headers,
+      body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
+    },
+    isBinary ? TIMEOUT_MS.file : TIMEOUT_MS.write
+  );
   return (response.status === 204 ? undefined : await response.json()) as T;
 }
 
@@ -199,18 +244,27 @@ export interface ApiFile {
 }
 
 /** Loads a file, e.g. an image; errors are thrown as `ApiError` like for JSON endpoints. */
-export async function fetchFile(endpoint: string): Promise<ApiFile> {
-  return toApiFile(await request(endpoint));
+export async function fetchFile(endpoint: string, signal?: AbortSignal): Promise<ApiFile> {
+  return toApiFile(await request(endpoint, { signal }, TIMEOUT_MS.file));
 }
 
 /** Sends JSON and receives a file, e.g. a document generated from the sent data. */
-export async function postForFile(endpoint: string, body: unknown): Promise<ApiFile> {
+export async function postForFile(
+  endpoint: string,
+  body: unknown,
+  signal?: AbortSignal
+): Promise<ApiFile> {
   return toApiFile(
-    await request(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    await request(
+      endpoint,
+      {
+        method: 'POST',
+        signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+      TIMEOUT_MS.file
+    )
   );
 }
 
