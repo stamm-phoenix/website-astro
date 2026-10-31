@@ -351,7 +351,7 @@
           {/if}
           <span class="min-w-0 flex-1 basis-48">
             <span class="block font-semibold break-words text-brand-900">{file.fileName}</span>
-            <span class="block text-sm text-neutral-700">
+            <span class="block text-sm text-neutral-700 [overflow-wrap:anywhere]">
               {file.category} · {formatFileSize(file.size)} · {formatDay(file.lastModifiedAt)} · {file.lastModifiedBy}
             </span>
           </span>
