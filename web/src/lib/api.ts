@@ -79,19 +79,26 @@ export function errorMessage(error: unknown, fallback: string): string {
  * `TIMEOUT`; `init.signal` aborts it earlier and rethrows the `AbortError`. A read (GET) is sent
  * once more after a timeout or a lost connection; a write never is, because it may have been
  * saved, and its message tells the user to check first.
+ *
+ * `consume` reads the answer (`json()`, `blob()`). It runs inside the same attempt: the time
+ * limit ends with the headers, but the caller's abort and the retry of a read also cover a
+ * connection that breaks while the body is still arriving.
  */
-async function request(
+async function request<T>(
   endpoint: string,
-  init: RequestInit = {},
-  timeoutMs: number = TIMEOUT_MS.read
-): Promise<Response> {
+  init: RequestInit,
+  timeoutMs: number,
+  consume: (response: Response) => Promise<T>
+): Promise<T> {
   const read = (init.method ?? 'GET') === 'GET';
   for (let attempt = 0; ; attempt++) {
     const limit = deadline(timeoutMs, init.signal ?? undefined);
     try {
-      return await send(endpoint, { ...init, signal: limit.signal });
+      const response = await send(endpoint, { ...init, signal: limit.signal });
+      limit.headersReceived();
+      return await consume(response);
     } catch (error: unknown) {
-      const lost = !(error instanceof ApiError) && !init.signal?.aborted;
+      const lost = limit.timedOut() || (error instanceof TypeError && !init.signal?.aborted);
       if (read && attempt === 0 && lost) continue;
       if (limit.timedOut()) {
         recordFailure(endpoint, 0, 'TIMEOUT', null);
@@ -179,7 +186,7 @@ export async function fetchApi<T>(
   signal?: AbortSignal,
   headers?: Record<string, string>
 ): Promise<T> {
-  return (await request(endpoint, { signal, headers })).json();
+  return request(endpoint, { signal, headers }, TIMEOUT_MS.read, (response) => response.json());
 }
 
 /** Post JSON and return the JSON answer. */
@@ -188,7 +195,7 @@ export async function postApi<T>(
   body: unknown,
   signal?: AbortSignal
 ): Promise<T> {
-  const response = await request(
+  return request(
     endpoint,
     {
       method: 'POST',
@@ -196,9 +203,9 @@ export async function postApi<T>(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     },
-    TIMEOUT_MS.write
+    TIMEOUT_MS.write,
+    (response) => response.json()
   );
-  return response.json();
 }
 
 /**
@@ -223,7 +230,7 @@ export async function sendApi<T = undefined>(
       : 'application/json';
   }
   if (options.etag) headers['If-Match'] = options.etag;
-  const response = await request(
+  return request(
     endpoint,
     {
       method,
@@ -231,9 +238,9 @@ export async function sendApi<T = undefined>(
       headers,
       body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
     },
-    isBinary ? TIMEOUT_MS.file : TIMEOUT_MS.write
+    isBinary ? TIMEOUT_MS.file : TIMEOUT_MS.write,
+    async (response) => (response.status === 204 ? undefined : await response.json()) as T
   );
-  return (response.status === 204 ? undefined : await response.json()) as T;
 }
 
 export interface ApiFile {
@@ -245,7 +252,7 @@ export interface ApiFile {
 
 /** Loads a file, e.g. an image; errors are thrown as `ApiError` like for JSON endpoints. */
 export async function fetchFile(endpoint: string, signal?: AbortSignal): Promise<ApiFile> {
-  return toApiFile(await request(endpoint, { signal }, TIMEOUT_MS.file));
+  return request(endpoint, { signal }, TIMEOUT_MS.file, toApiFile);
 }
 
 /** Sends JSON and receives a file, e.g. a document generated from the sent data. */
@@ -254,17 +261,16 @@ export async function postForFile(
   body: unknown,
   signal?: AbortSignal
 ): Promise<ApiFile> {
-  return toApiFile(
-    await request(
-      endpoint,
-      {
-        method: 'POST',
-        signal,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      },
-      TIMEOUT_MS.file
-    )
+  return request(
+    endpoint,
+    {
+      method: 'POST',
+      signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+    TIMEOUT_MS.file,
+    toApiFile
   );
 }
 

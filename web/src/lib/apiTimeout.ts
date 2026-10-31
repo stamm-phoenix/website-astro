@@ -20,7 +20,9 @@ export interface Deadline {
   signal: AbortSignal;
   /** True once the time limit, not the caller, ended the request. */
   timedOut(): boolean;
-  /** Stops the timer after the request has settled. */
+  /** Ends the time limit once the answer begins; the caller's abort still reaches the request. */
+  headersReceived(): void;
+  /** Stops the timer and the forwarding of the caller's abort after the request has settled. */
   clear(): void;
 }
 
@@ -38,6 +40,7 @@ export function deadline(ms: number, signal?: AbortSignal): Deadline {
   return {
     signal: controller.signal,
     timedOut: () => expired,
+    headersReceived: () => clearTimeout(timer),
     clear: () => {
       clearTimeout(timer);
       signal?.removeEventListener('abort', onCallerAbort);

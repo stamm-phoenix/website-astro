@@ -69,3 +69,35 @@ test('a lost connection is retried once for reads', async () => {
   assert.deepEqual(await fetchApi('/events'), { ok: true });
   assert.equal(calls, 2);
 });
+
+test('aborting after the headers arrived still aborts the body read', async () => {
+  globalThis.fetch = ((_url: string, init: RequestInit) => {
+    calls++;
+    const body = new ReadableStream({
+      start(controller) {
+        init.signal?.addEventListener('abort', () => controller.error(init.signal?.reason));
+      },
+    });
+    return Promise.resolve(new Response(body));
+  }) as typeof fetch;
+  const controller = new AbortController();
+  const result = fetchApi('/events', controller.signal);
+  setTimeout(() => controller.abort(), 5);
+  await assert.rejects(result, (error: unknown) => !(error instanceof ApiError));
+  assert.equal(calls, 1);
+});
+
+test('a read that breaks while the body arrives is sent once more', async () => {
+  globalThis.fetch = (async () => {
+    calls++;
+    if (calls > 1) return new Response('{"ok":true}');
+    const body = new ReadableStream({
+      start(controller) {
+        controller.error(new TypeError('network error'));
+      },
+    });
+    return new Response(body);
+  }) as typeof fetch;
+  assert.deepEqual(await fetchApi('/events'), { ok: true });
+  assert.equal(calls, 2);
+});
