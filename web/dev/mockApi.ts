@@ -3884,8 +3884,9 @@ route('POST', '/api/intern/pflege/downloads/upload/:id', (req) => {
     Object.assign(existing, values);
     return json({ id: existing.id }, 201);
   }
+  const category = 'Allgemein';
   const id = `01MOCKUP${req.params.id}`;
-  downloads.push({ id, createdAt: now, createdBy: PRINCIPAL.userDetails, ...values });
+  downloads.push({ id, createdAt: now, createdBy: PRINCIPAL.userDetails, category, ...values });
   return json({ id }, 201);
 });
 
@@ -3904,6 +3905,8 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/downloads/:id', (req) => {
   if (fileName && downloads.some((d, i) => i !== index && sameName(d.fileName, fileName)))
     return error(409, 'EXISTS', 'Eine Datei mit diesem Namen gibt es bereits.');
   if (fileName) downloads[index].fileName = fileName;
+  const category = str(req.json?.category).trim();
+  if (category) downloads[index].category = category;
   downloads[index].lastModifiedAt = new Date(MOCK_NOW).toISOString();
   return noContent();
 });

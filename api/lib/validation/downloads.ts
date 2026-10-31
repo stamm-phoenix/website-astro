@@ -77,7 +77,16 @@ const completeSchema = z.object({
   replace: replaceFlag,
 });
 
-const renameSchema = z.object({ fileName: uploadFileName });
+/** Topic of a file; left out or empty keeps the current one. */
+const categorySchema = z.preprocess(
+  (value) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : ''),
+  z
+    .string()
+    .max(50, { error: 'Das Thema darf höchstens 50 Zeichen lang sein.' })
+    .transform((value) => value || undefined)
+);
+
+const renameSchema = z.object({ fileName: uploadFileName, category: categorySchema });
 
 function asBody(body: Record<string, unknown> | null): Record<string, unknown> {
   return body ?? {};
@@ -97,7 +106,9 @@ export function validateUploadComplete(
   return parseWith(completeSchema, asBody(body));
 }
 
-/** The new name of a file. */
-export function validateDownloadRename(body: Record<string, unknown> | null): string {
-  return parseWith(renameSchema, asBody(body)).fileName;
+/** The new name of a file and, if sent, its topic. */
+export function validateDownloadRename(
+  body: Record<string, unknown> | null
+): z.output<typeof renameSchema> {
+  return parseWith(renameSchema, asBody(body));
 }

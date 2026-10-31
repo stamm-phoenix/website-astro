@@ -9,6 +9,7 @@
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { makeDownloadPreview } from '../../lib/downloadPreview';
+  import { downloadCategories, DEFAULT_DOWNLOAD_CATEGORY } from '../../lib/downloadsFilter';
   import { downloadsPflege } from '../../lib/pflegeStore.svelte';
   import { formatFileSize, getDownloadPreviewUrl } from '../../lib/downloadsStore.svelte';
   import type { StaffDownload } from '../../lib/types';
@@ -36,13 +37,15 @@
   let dragging = $state(false);
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'error'>('success');
-  let renaming = $state<{ file: StaffDownload; name: string } | null>(null);
+  let renaming = $state<{ file: StaffDownload; name: string; category: string } | null>(null);
   let renameError = $state<string | null>(null);
   let busy = $state(false);
 
   const files = $derived(
     [...(store.data ?? [])].sort((a, b) => b.lastModifiedAt.localeCompare(a.lastModifiedAt))
   );
+
+  const categories = $derived(downloadCategories(store.data ?? []));
 
   $effect(() => {
     untrack(() => downloadsPflege.load());
@@ -134,14 +137,16 @@
   }
 
   function startRename(file: StaffDownload): void {
-    renaming = { file, name: file.fileName };
+    renaming = { file, name: file.fileName, category: file.category };
     renameError = null;
   }
 
   async function saveRename(): Promise<void> {
     if (!renaming) return;
     const name = renamedDownloadFileName(renaming.name, renaming.file.fileName);
-    if (name === renaming.file.fileName) {
+    const category = renaming.category.trim() || DEFAULT_DOWNLOAD_CATEGORY;
+    const nameNew = name !== renaming.file.fileName;
+    if (!nameNew && category === renaming.file.category) {
       renaming = null;
       return;
     }
@@ -150,9 +155,10 @@
     try {
       await sendApi('PATCH', `/intern/pflege/downloads/${encodeURIComponent(renaming.file.id)}`, {
         fileName: name,
+        category,
         etag: renaming.file.etag,
       });
-      message = `Umbenannt in ${name}.`;
+      message = nameNew ? `Umbenannt in ${name}.` : `Thema von ${name} geändert.`;
       messageKind = 'success';
       renaming = null;
       await downloadsPflege.load({ force: true });
@@ -160,12 +166,12 @@
       if (error instanceof ApiError && error.code === 'CONFLICT') {
         await refreshRenaming();
         renameError =
-          'Jemand anderes hat die Datei inzwischen geändert, sie wurde nicht umbenannt. Dein neuer Name ist noch da. Tippe noch einmal auf „Speichern“.';
+          'Jemand anderes hat die Datei inzwischen geändert, deine Änderung wurde nicht gespeichert. Deine Eingabe ist noch da. Tippe noch einmal auf „Speichern“.';
         return;
       }
       renameError = errorMessage(
         error,
-        'Die Datei wurde nicht umbenannt. Dein neuer Name ist noch da. Tippe noch einmal auf „Speichern“.'
+        'Die Änderung wurde nicht gespeichert. Deine Eingabe ist noch da. Tippe noch einmal auf „Speichern“.'
       );
     } finally {
       busy = false;
@@ -339,12 +345,12 @@
           <span class="min-w-0 flex-1 basis-48">
             <span class="block font-semibold break-words text-brand-900">{file.fileName}</span>
             <span class="block text-sm text-neutral-700">
-              {formatFileSize(file.size)} · {formatDay(file.lastModifiedAt)} · {file.lastModifiedBy}
+              {file.category} · {formatFileSize(file.size)} · {formatDay(file.lastModifiedAt)} · {file.lastModifiedBy}
             </span>
           </span>
           <span class="flex flex-wrap gap-2">
             <ActionButton variant="secondary" type="button" onclick={() => startRename(file)}>
-              Umbenennen<span class="sr-only"> ({file.fileName})</span>
+              Bearbeiten<span class="sr-only"> ({file.fileName})</span>
             </ActionButton>
             <ActionButton
               variant="danger"
@@ -371,7 +377,7 @@
 
 <EditDialog
   open={renaming !== null}
-  title="Datei umbenennen"
+  title="Datei bearbeiten"
   {busy}
   error={renameError}
   onsubmit={saveRename}
@@ -393,6 +399,25 @@
           placeholder="Anmeldung-Sommerlager.pdf"
           bind:value={renaming!.name}
         />
+      {/snippet}
+    </FormField>
+    <FormField
+      id="dl-category"
+      label="Thema"
+      info="Besucher:innen filtern die Downloads nach dem Thema. Wähle ein vorhandenes oder schreibe ein neues."
+    >
+      {#snippet children(attrs)}
+        <input
+          {...attrs}
+          class="form-input"
+          maxlength="50"
+          list="dl-categories"
+          placeholder={DEFAULT_DOWNLOAD_CATEGORY}
+          bind:value={renaming!.category}
+        />
+        <datalist id="dl-categories">
+          {#each categories as name (name)}<option value={name}></option>{/each}
+        </datalist>
       {/snippet}
     </FormField>
   {/if}

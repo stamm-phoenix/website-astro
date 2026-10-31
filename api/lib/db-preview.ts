@@ -1195,18 +1195,29 @@ export function testPdf(text: string): Buffer {
 }
 
 /** Invented downloads, two with a preview (matched by file name). */
-const PREVIEW_DOWNLOADS: { fileName: string; text: string; preview?: [string, string] }[] = [
+const PREVIEW_DOWNLOADS: {
+  fileName: string;
+  text: string;
+  category: string;
+  preview?: [string, string];
+}[] = [
   {
     fileName: 'Packliste Sommerlager (Testdaten).pdf',
     text: 'Packliste Sommerlager - Testdaten der Preview',
+    category: 'Lager',
     preview: ['#ffffff', '#c9d6e3'],
   },
   {
     fileName: 'Anmeldung Stammeswochenende (Testdaten).pdf',
     text: 'Anmeldung Stammeswochenende - Testdaten der Preview',
+    category: 'Anmeldung',
     preview: ['#ffffff', '#e3d3c9'],
   },
-  { fileName: 'Liederliste (Testdaten).txt', text: 'Liederliste - Testdaten der Preview' },
+  {
+    fileName: 'Liederliste (Testdaten).txt',
+    text: 'Liederliste - Testdaten der Preview',
+    category: 'Allgemein',
+  },
 ];
 
 export async function seedPreviewDownloads(): Promise<void> {
@@ -1220,7 +1231,14 @@ export async function seedPreviewDownloads(): Promise<void> {
     await stageUploadPart(key, 0, bytes);
     const preview = file.preview && (await testPicture(420, 594, ...file.preview));
     const result = await completeUpload(
-      { key, fileName: file.fileName, size: bytes.length, replace: false, preview },
+      {
+        key,
+        fileName: file.fileName,
+        size: bytes.length,
+        replace: false,
+        preview,
+        category: file.category,
+      },
       PREVIEW_ACTOR
     );
     if (result.status !== 'saved')

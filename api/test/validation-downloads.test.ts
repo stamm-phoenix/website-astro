@@ -8,7 +8,11 @@ import {
 } from '../endpoints/intern-pflege-downloads';
 import { newDownloadKey } from '../lib/downloads';
 import { MAX_UPLOAD_BYTES } from '../lib/validation/constants';
-import { UPLOAD_PART_BYTES, checkFileName } from '../lib/validation/downloads';
+import {
+  UPLOAD_PART_BYTES,
+  checkFileName,
+  validateDownloadRename,
+} from '../lib/validation/downloads';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -182,4 +186,16 @@ test('renaming a file checks the name and then the version before the database',
   assert.deepEqual((await rejected(rename({ etag: '"1"' }))).fields, { fileName: NAME_ERROR });
   const versionless = await rejected(rename({ fileName: ' neu.pdf ' }));
   assert.deepEqual(Object.keys(versionless.fields), ['etag']);
+  const long = await rejected(
+    rename({ fileName: 'neu.pdf', category: 'x'.repeat(51), etag: '"1"' })
+  );
+  assert.deepEqual(long.fields, { category: 'Das Thema darf höchstens 50 Zeichen lang sein.' });
+});
+
+test('the topic of a renamed file is trimmed, and empty or missing keeps the current one', () => {
+  const read = (category: unknown) => validateDownloadRename({ fileName: 'neu.pdf', category });
+  assert.deepEqual(read('  Lager   Info '), { fileName: 'neu.pdf', category: 'Lager Info' });
+  for (const empty of [undefined, null, '', '   ']) {
+    assert.equal(read(empty).category, undefined);
+  }
 });

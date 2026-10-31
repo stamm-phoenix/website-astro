@@ -71,6 +71,7 @@ export const DownloadsCollectionEndpoint = pflegeHandler('downloads', async (req
       lastModifiedAt: file.lastModifiedAt,
       lastModifiedBy: file.lastModifiedBy,
       hasPreview: file.hasPreview,
+      category: file.category,
       etag: file.etag,
     }))
   );
@@ -144,7 +145,7 @@ export const DownloadUploadCompleteEndpoint = pflegeHandler(
 );
 
 /**
- * PATCH: rename a file (`etag` in the body); DELETE: delete it with its previews (`If-Match`).
+ * PATCH: rename a file and set its topic (`etag` in the body); DELETE: delete it with its previews (`If-Match`).
  * Both only in the loaded version, so a file replaced in the meantime is never hit.
  */
 export const DownloadItemEndpoint = pflegeHandler(
@@ -161,9 +162,10 @@ export const DownloadItemEndpoint = pflegeHandler(
     const body = await readJsonBody(request);
     const named = firstProblem(() => validateDownloadRename(body));
     if ('response' in named) return named.response;
-    const fileName = named.value;
+    const { fileName, category } = named.value;
     const version = parseVersion(requireVersion(readEtag(body)));
-    if (!(await renameDownload(id, fileName, version, principal.userDetails))) return FILE_EXISTS;
+    if (!(await renameDownload(id, fileName, category, version, principal.userDetails)))
+      return FILE_EXISTS;
     return NO_CONTENT;
   }
 );

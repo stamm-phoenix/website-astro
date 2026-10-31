@@ -374,6 +374,27 @@ dbTest('an upload with missing or wrong parts is not saved', async (t) => {
   assert.equal(badPreview.status, 400);
 });
 
+dbTest('a download gets a topic that renaming and replacing keep', async (t) => {
+  const storage = await setup(t);
+  const { context } = storage;
+  const created = await upload(storage, 'Thema.pdf', Buffer.from('a'));
+  const id = (created.jsonBody as { id: string }).id;
+  const topic = async (): Promise<string | undefined> =>
+    (await listDownloads()).find((file) => file.id === id)?.category;
+  const patch = async (body: Record<string, unknown>): Promise<number | undefined> => {
+    const etag = (await listDownloads()).find((file) => file.id === id)!.etag;
+    return (await DownloadItem(request('PATCH', { id }, { etag, ...body }), context)).status;
+  };
+  assert.equal(await topic(), 'Allgemein');
+  assert.equal(await patch({ fileName: 'Thema.pdf', category: ' Anmeldung ' }), 204);
+  assert.equal(await topic(), 'Anmeldung');
+  // No topic sent: the file is only renamed
+  assert.equal(await patch({ fileName: 'Thema neu.pdf' }), 204);
+  assert.equal(await topic(), 'Anmeldung');
+  await upload(storage, 'Thema neu.pdf', Buffer.from('b'), { replace: true });
+  assert.equal(await topic(), 'Anmeldung');
+});
+
 dbTest('files are renamed and deleted with their previews', async (t) => {
   const storage = await setup(t);
   const { context, blobs } = storage;

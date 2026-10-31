@@ -251,7 +251,9 @@ Die Migration `0027_downloads.sql` legt `content.download` an; die Dateien liege
 unter `downloads/<Schlüssel>/datei`, daneben `vorschau-klein.jpg` und `vorschau-gross.jpg`
 (`api/lib/downloads.ts`). Jede hochgeladene Fassung bekommt einen neuen zufälligen Schlüssel;
 die alte Fassung wird erst gelöscht, wenn die Zeile auf die neue zeigt. Verwaiste Dateien
-entfernt die nächste Änderung wie bei den Leitenden.
+entfernt die nächste Änderung wie bei den Leitenden. Das Thema (`category`, Migration
+`0068_download_kategorie.sql`) ist frei gewählter Text, `Allgemein` ohne eigenes; die öffentliche
+Seite filtert danach und sucht im Dateinamen. Ersetzen einer Datei behält das Thema.
 
 - **Hochladen:** Der Browser schickt die Datei in Teilen von 4 MB über die API
   (`/api/intern/pflege/downloads/upload…`), die sie als Blöcke im Blob Storage ablegt und beim

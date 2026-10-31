@@ -42,6 +42,7 @@ export interface StoredDownload {
   size: number;
   mimeType: string;
   hasPreview: boolean;
+  category: string;
   createdAt: string;
   createdBy: string;
   lastModifiedAt: string;
@@ -92,6 +93,7 @@ interface DownloadRow {
   size: string | number;
   mime_type: string;
   has_preview: boolean;
+  category: string;
   created_at: Date;
   created_by: string;
   updated_at: Date;
@@ -106,6 +108,7 @@ function toDownload(row: DownloadRow): StoredDownload {
     size: Number(row.size),
     mimeType: row.mime_type,
     hasPreview: row.has_preview,
+    category: row.category,
     createdAt: row.created_at.toISOString(),
     createdBy: row.created_by,
     lastModifiedAt: row.updated_at.toISOString(),
@@ -121,6 +124,7 @@ const COLUMNS = [
   'size',
   'mime_type',
   'has_preview',
+  'category',
   'created_at',
   'created_by',
   'updated_at',
@@ -260,6 +264,8 @@ export interface CompleteInput {
   replace: boolean;
   /** A picture of the first page or the image itself, as made by the browser. */
   preview?: Uint8Array;
+  /** Topic of a new download; a replaced one keeps its topic. */
+  category?: string;
 }
 
 /**
@@ -325,7 +331,13 @@ export async function completeUpload(input: CompleteInput, actor: string): Promi
       const id = newDownloadKey();
       await trx
         .insertInto('content.download')
-        .values({ id, ...values, created_at: now, created_by: actor })
+        .values({
+          id,
+          ...values,
+          ...(input.category ? { category: input.category } : {}),
+          created_at: now,
+          created_by: actor,
+        })
         .execute();
       return { status: 'saved' as const, id };
     });
@@ -352,11 +364,13 @@ async function noRowWritten(id: string): Promise<never> {
 }
 
 /**
- * Renames a download, only in the loaded version; false if another download has that name.
+ * Renames a download and sets its topic, only in the loaded version; false if another download
+ * has that name. Without `category` the topic stays.
  */
 export async function renameDownload(
   id: string,
   fileName: string,
+  category: string | undefined,
   version: Buffer,
   actor: string
 ): Promise<boolean> {
@@ -367,6 +381,7 @@ export async function renameDownload(
       .set({
         file_name: fileName,
         mime_type: downloadMimeType(fileName),
+        ...(category ? { category } : {}),
         updated_at: new Date().toISOString(),
         updated_by: actor,
       })
