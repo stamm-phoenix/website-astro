@@ -55,7 +55,11 @@
 
   async function load(): Promise<void> {
     try {
-      progress = await postApi<NikolausVisitProgress>('/nikolaus/manage/progress', { token });
+      progress = await postApi<NikolausVisitProgress>(
+        '/nikolaus/manage/progress',
+        { token },
+        { saves: false }
+      );
     } catch {
       // Keep the last state; the next refresh tries again
     }

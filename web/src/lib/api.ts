@@ -11,6 +11,9 @@ import {
 
 const API_BASE = '/api';
 
+/** A JSON body above this many characters is an upload and gets the time limit of a file. */
+const LARGE_JSON = 256 * 1024;
+
 interface ApiErrorDetails {
   code?: string;
   /** Validation messages per form field, if the API rejected the input. */
@@ -86,7 +89,8 @@ export function errorMessage(error: unknown, fallback: string): string {
  * once more after a timeout or a lost connection; a write never is, because it may have been
  * saved, and its message tells the user to check first. A `?refresh=true` read gets the longer
  * `TIMEOUT_MS.reload` and is never repeated; a `/ki/` evaluation gets `TIMEOUT_MS.evaluation` and
- * the message of a read, because it saves nothing.
+ * the message of a read, because it saves nothing. Other POSTs that only look something up pass
+ * `saves: false` for the same message. The message of a write tells the user to check first.
  *
  * `consume` reads the answer (`json()`, `blob()`). It runs inside the same attempt: the time
  * limit ends with the headers, but the caller's abort and the retry of a read also cover a
@@ -96,7 +100,8 @@ async function request<T>(
   endpoint: string,
   init: RequestInit,
   timeoutMs: number,
-  consume: (response: Response) => Promise<T>
+  consume: (response: Response) => Promise<T>,
+  saves: boolean = (init.method ?? 'GET') !== 'GET'
 ): Promise<T> {
   const read = (init.method ?? 'GET') === 'GET';
   // A reload from CampFlow runs several slow requests on the server; repeating it starts them again
@@ -104,6 +109,7 @@ async function request<T>(
   // An evaluation by the language model (`/ki/`) takes long on the server and saves nothing
   const evaluation = endpoint.includes('/ki/');
   const limitMs = reload ? TIMEOUT_MS.reload : evaluation ? TIMEOUT_MS.evaluation : timeoutMs;
+  const mayHaveSaved = saves && !evaluation;
   for (let attempt = 0; ; attempt++) {
     const limit = deadline(limitMs, init.signal ?? undefined);
     try {
@@ -114,7 +120,7 @@ async function request<T>(
       if (read && !reload && attempt === 0 && lost) continue;
       if (limit.timedOut()) {
         recordFailure(endpoint, 0, 'TIMEOUT', null);
-        throw new ApiError(0, read || evaluation ? READ_TIMEOUT_MESSAGE : WRITE_TIMEOUT_MESSAGE, {
+        throw new ApiError(0, mayHaveSaved ? WRITE_TIMEOUT_MESSAGE : READ_TIMEOUT_MESSAGE, {
           code: 'TIMEOUT',
         });
       }
@@ -207,7 +213,7 @@ export async function fetchApi<T>(
 export async function postApi<T>(
   endpoint: string,
   body: unknown,
-  signal?: AbortSignal
+  { signal, saves = true }: { signal?: AbortSignal; saves?: boolean } = {}
 ): Promise<T> {
   return request(
     endpoint,
@@ -218,7 +224,8 @@ export async function postApi<T>(
       body: JSON.stringify(body),
     },
     TIMEOUT_MS.write,
-    (response) => response.json()
+    (response) => response.json(),
+    saves
   );
 }
 
@@ -237,6 +244,7 @@ export async function sendApi<T = undefined>(
   options: { etag?: string; signal?: AbortSignal; headers?: Record<string, string> } = {}
 ): Promise<T> {
   const isBinary = body instanceof Blob;
+  const json = body === undefined || isBinary ? undefined : JSON.stringify(body);
   const headers: Record<string, string> = { ...options.headers };
   if (body !== undefined) {
     headers['Content-Type'] = isBinary
@@ -250,9 +258,10 @@ export async function sendApi<T = undefined>(
       method,
       signal: options.signal,
       headers,
-      body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
+      body: isBinary ? body : json,
     },
-    isBinary ? TIMEOUT_MS.file : TIMEOUT_MS.write,
+    // Photos and PDFs of a Beleg travel as Base64 in JSON
+    isBinary || (json?.length ?? 0) > LARGE_JSON ? TIMEOUT_MS.file : TIMEOUT_MS.write,
     async (response) => (response.status === 204 ? undefined : await response.json()) as T
   );
 }

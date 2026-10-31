@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
-import { ApiError, fetchApi, sendApi } from '../src/lib/api';
+import { ApiError, fetchApi, postApi, sendApi } from '../src/lib/api';
 import { READ_TIMEOUT_MESSAGE, TIMEOUT_MS, WRITE_TIMEOUT_MESSAGE } from '../src/lib/apiTimeout';
 
 const limits = TIMEOUT_MS as {
@@ -182,4 +182,29 @@ test('aborting while an error body arrives stays an abort and is not an API erro
   const result = fetchApi('/events', controller.signal);
   setTimeout(() => controller.abort(), 5);
   await assert.rejects(result, (error: unknown) => !(error instanceof ApiError));
+});
+
+test('a lookup sent by POST that saves nothing times out with the message of a read', async () => {
+  hang();
+  await assert.rejects(postApi('/nikolaus/manage/lookup', {}, { saves: false }), {
+    message: READ_TIMEOUT_MESSAGE,
+  });
+  await assert.rejects(postApi('/kontakt', {}), { message: WRITE_TIMEOUT_MESSAGE });
+});
+
+test('a large JSON upload gets the longer limit of a file', async () => {
+  limits.file = 200;
+  globalThis.fetch = ((_url: string, init: RequestInit) =>
+    new Promise((resolve, reject) => {
+      const timer = setTimeout(() => resolve(new Response('{"ok":true}')), 60);
+      init.signal?.addEventListener('abort', () => {
+        clearTimeout(timer);
+        reject(init.signal?.reason);
+      });
+    })) as typeof fetch;
+  const photo = 'x'.repeat(300 * 1024);
+  assert.deepEqual(await sendApi('POST', '/intern/pflege/belege', { photo }), { ok: true });
+  await assert.rejects(sendApi('POST', '/intern/pflege/belege', { name: 'klein' }), {
+    code: 'TIMEOUT',
+  });
 });

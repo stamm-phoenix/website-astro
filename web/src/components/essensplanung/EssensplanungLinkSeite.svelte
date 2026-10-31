@@ -72,7 +72,11 @@
   async function ansehen(value: string): Promise<void> {
     try {
       planungName = (
-        await postApi<{ name: string }>('/essensplanung/beitritt/ansehen', { token: value })
+        await postApi<{ name: string }>(
+          '/essensplanung/beitritt/ansehen',
+          { token: value },
+          { saves: false }
+        )
       ).name;
     } catch (error: unknown) {
       fehler = errorMessage(error, 'Der Link konnte nicht geprüft werden. Lade die Seite neu.');
