@@ -84,7 +84,8 @@ export function errorMessage(error: unknown, fallback: string): string {
  * A request without an answer within `timeoutMs` (until the headers arrive) fails with code
  * `TIMEOUT`; `init.signal` aborts it earlier and rethrows the `AbortError`. A read (GET) is sent
  * once more after a timeout or a lost connection; a write never is, because it may have been
- * saved, and its message tells the user to check first.
+ * saved, and its message tells the user to check first. A `?refresh=true` read gets the longer
+ * `TIMEOUT_MS.reload` and is never repeated.
  *
  * `consume` reads the answer (`json()`, `blob()`). It runs inside the same attempt: the time
  * limit ends with the headers, but the caller's abort and the retry of a read also cover a
@@ -97,14 +98,16 @@ async function request<T>(
   consume: (response: Response) => Promise<T>
 ): Promise<T> {
   const read = (init.method ?? 'GET') === 'GET';
+  // A reload from CampFlow runs several slow requests on the server; repeating it starts them again
+  const reload = /[?&]refresh=true\b/.test(endpoint);
   for (let attempt = 0; ; attempt++) {
-    const limit = deadline(timeoutMs, init.signal ?? undefined);
+    const limit = deadline(reload ? TIMEOUT_MS.reload : timeoutMs, init.signal ?? undefined);
     try {
       const response = await send(endpoint, { ...init, signal: limit.signal }, limit);
       return await consume(response);
     } catch (error: unknown) {
       const lost = limit.timedOut() || (error instanceof TypeError && !init.signal?.aborted);
-      if (read && attempt === 0 && lost) continue;
+      if (read && !reload && attempt === 0 && lost) continue;
       if (limit.timedOut()) {
         recordFailure(endpoint, 0, 'TIMEOUT', null);
         throw new ApiError(0, read ? READ_TIMEOUT_MESSAGE : WRITE_TIMEOUT_MESSAGE, {

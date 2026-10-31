@@ -6,6 +6,8 @@ export const TIMEOUT_MS = {
   read: 30_000,
   /** Writing JSON. */
   write: 60_000,
+  /** Reading afresh from CampFlow (`?refresh=true`), which pages through its data. */
+  reload: 120_000,
   /** Files and uploads, which are larger. */
   file: 120_000,
 } as const;

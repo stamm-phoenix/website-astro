@@ -3,7 +3,7 @@ import { afterEach, beforeEach, test } from 'node:test';
 import { ApiError, fetchApi, sendApi } from '../src/lib/api';
 import { READ_TIMEOUT_MESSAGE, TIMEOUT_MS, WRITE_TIMEOUT_MESSAGE } from '../src/lib/apiTimeout';
 
-const limits = TIMEOUT_MS as { read: number; write: number; file: number };
+const limits = TIMEOUT_MS as { read: number; write: number; reload: number; file: number };
 const originalFetch = globalThis.fetch;
 const originalLimits = { ...limits };
 let calls = 0;
@@ -23,6 +23,7 @@ function hang(): void {
 beforeEach(() => {
   calls = 0;
   limits.read = limits.write = 20;
+  limits.reload = 200;
 });
 
 afterEach(() => {
@@ -125,5 +126,22 @@ test('an error status whose body arrives late keeps its status and is not retrie
     assert.deepEqual(error.fields, { titel: 'Fehlt' });
     return true;
   });
+  assert.equal(calls, 1);
+});
+
+test('a reload from CampFlow may take longer than a read and is not repeated', async () => {
+  globalThis.fetch = (async () => {
+    calls++;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    return new Response('{"ok":true}');
+  }) as typeof fetch;
+  assert.deepEqual(await fetchApi('/intern/mitglieder?refresh=true'), { ok: true });
+  assert.equal(calls, 1);
+});
+
+test('a reload that gets no answer fails after its own limit without a second try', async () => {
+  limits.reload = 30;
+  hang();
+  await assert.rejects(fetchApi('/intern/mitglieder?refresh=true'), { code: 'TIMEOUT' });
   assert.equal(calls, 1);
 });
