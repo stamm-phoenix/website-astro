@@ -15,6 +15,7 @@
   import type { StaffDownload } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
+  import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import StatusNotice from './StatusNotice.svelte';
 
   interface Upload {
@@ -413,17 +414,14 @@
       info="Besucher:innen filtern die Downloads nach dem Thema. Wähle ein vorhandenes oder schreibe ein neues."
     >
       {#snippet children(attrs)}
-        <input
+        <VorschlagFeld
           {...attrs}
-          class="form-input"
-          maxlength="50"
-          list="dl-categories"
+          maxlength={50}
           placeholder={DEFAULT_DOWNLOAD_CATEGORY}
+          options={categories.map((value) => ({ value }))}
+          listLabel="Thema auswählen"
           bind:value={renaming!.category}
         />
-        <datalist id="dl-categories">
-          {#each categories as name (name)}<option value={name}></option>{/each}
-        </datalist>
       {/snippet}
     </FormField>
   {/if}
