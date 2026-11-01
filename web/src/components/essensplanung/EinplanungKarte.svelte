@@ -110,7 +110,17 @@
     if (ziel.matches('input:not([type="checkbox"]), textarea, select')) return;
     if (event.key === 'Delete') {
       event.preventDefault();
-      if (await nimmHeraus(kontext, mahlzeit, einplanung)) void fokussiere(einplanung.id);
+      // The focus goes to the next dish of the meal, else the previous one, else the meal
+      const andere = mahlzeit.einplanungen.filter((e) => e.id !== einplanung.id);
+      const index = mahlzeit.einplanungen.findIndex((e) => e.id === einplanung.id);
+      const naechste = andere[Math.min(index, andere.length - 1)];
+      if (await nimmHeraus(kontext, mahlzeit, einplanung)) {
+        if (naechste) void fokussiere(naechste.id);
+        else {
+          await tick();
+          document.querySelector<HTMLElement>(`[data-kalender="${mahlzeit.kennung}"]`)?.focus();
+        }
+      }
       return;
     }
     const richtung = event.altKey ? RICHTUNG[event.key] : undefined;

@@ -71,7 +71,11 @@
     schaetzt = false;
   });
   $effect(() => {
-    if (fehlend.length && !fehlend.some((eintrag) => eintrag.mass === mass)) mass = fehlend[0].mass;
+    // A count of a measure not offered here would count the first one: it starts again at 1
+    if (fehlend.length && !fehlend.some((eintrag) => eintrag.mass === mass)) {
+      mass = fehlend[0].mass;
+      anzahl = '1';
+    }
   });
 
   const label = (wert: KiMass) => MASSE.find((eintrag) => eintrag.mass === wert)?.label ?? '';

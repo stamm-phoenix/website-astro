@@ -46,9 +46,13 @@
     return roh < 10 ? Math.round(roh * 10) / 10 : Math.round(roh);
   });
   // The measure shown is the one calculated with: the first one when the chosen is not offered
+  // A count of another measure (3 TL with no value for TL) would be taken as that many of the
+  // first one: the count starts again at 1
   $effect(() => {
-    if (umrechnung.length && !umrechnung.some((entry) => entry.mass === mass))
+    if (umrechnung.length && !umrechnung.some((entry) => entry.mass === mass)) {
       mass = umrechnung[0].mass;
+      anzahl = '1';
+    }
   });
 </script>
 
