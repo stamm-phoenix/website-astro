@@ -129,6 +129,7 @@ import {
   validateNeuesGericht,
   validateGerichtZutat,
   validatePlanungZutat,
+  readPersonenSetzen,
 } from '../../api/lib/essen-gerichte-validation';
 import {
   readPosition,
@@ -1515,7 +1516,18 @@ route('POST', '/api/essensplanung/planung/gerichte/:id/zutaten/sammel', (req) =>
     typeof req.json?.personen === 'number' || req.json?.personen === null
       ? (req.json.personen as number | null)
       : undefined;
-  return essenAendern(req, (z) => essenKi.gerichtZutatenSammeln(z, id, inputs, personen), 201);
+  let personenSetzen: number | undefined;
+  try {
+    personenSetzen = readPersonenSetzen(req.json);
+  } catch (caught) {
+    if (!(caught instanceof ValidationError)) throw caught;
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', caught.fields);
+  }
+  return essenAendern(
+    req,
+    (z) => essenKi.gerichtZutatenSammeln(z, id, inputs, personen, personenSetzen),
+    201
+  );
 });
 
 /** A question to the demo AI; „KI-Fehler“ answers 429 with Retry-After like a busy deployment. */

@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateGericht, validateNeuesGericht } from '../lib/essen-gerichte-validation';
+import {
+  readPersonenSetzen,
+  validateGericht,
+  validateNeuesGericht,
+} from '../lib/essen-gerichte-validation';
 import type { GerichtInput } from '../lib/essen-gerichte-validation';
 import { fields } from './fixtures/essen-fields';
 
@@ -283,4 +287,26 @@ test('Gericht: a new dish planned at a meal right away', () => {
       zustaendigText: 'Entweder ein Mitglied oder einen Namen.',
     }
   );
+});
+
+test('Gericht: a recipe may set the people, only with the number the page expects', () => {
+  assert.equal(readPersonenSetzen({ zeilen: [] }), undefined);
+  assert.equal(readPersonenSetzen({ personenSetzen: null, personen: 4 }), undefined);
+  assert.equal(readPersonenSetzen({ personenSetzen: 4, personen: null }), 4);
+  assert.equal(readPersonenSetzen({ personenSetzen: 2000, personen: 10 }), 2000);
+  for (const personenSetzen of [0, -1, 1.5, 2001, '4', true]) {
+    assert.deepEqual(
+      fields(() => readPersonenSetzen({ personenSetzen, personen: null })),
+      { personenSetzen: 'Bitte eine ganze Zahl von 1 bis 2000 eintragen.' },
+      String(personenSetzen)
+    );
+  }
+  for (const personen of [undefined, 0, 'x']) {
+    assert.deepEqual(
+      fields(() => readPersonenSetzen({ personenSetzen: 4, personen })),
+      {
+        personenSetzen: 'Die Personenzahl lässt sich nur zusammen mit dem bisherigen Stand setzen.',
+      }
+    );
+  }
 });

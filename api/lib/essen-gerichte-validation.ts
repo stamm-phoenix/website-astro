@@ -62,3 +62,27 @@ export function validatePlanungZutat(
 ): PlanungZutatInput {
   return parseWith(eigene ? planungZutatEigeneSchema : planungZutatAbweichungSchema, input);
 }
+
+const PERSONEN_SETZEN_UNGUELTIG = 'Bitte eine ganze Zahl von 1 bis 2000 eintragen.';
+
+/**
+ * The number of people a batch of lines sets for the dish in the same change (`personenSetzen`,
+ * e.g. the people a recipe names for a dish without any yet); undefined when not sent. It needs
+ * `personen`, the number the page expects the dish to have now (null for none), so it never
+ * overwrites one set meanwhile.
+ */
+export function readPersonenSetzen(body: Record<string, unknown> | null): number | undefined {
+  const wert = body?.personenSetzen;
+  if (wert === undefined || wert === null) return undefined;
+  if (typeof wert !== 'number' || !Number.isInteger(wert) || wert < 1 || wert > 2000)
+    throw new ValidationError({ personenSetzen: PERSONEN_SETZEN_UNGUELTIG });
+  const erwartet = body?.personen;
+  const gesendet =
+    erwartet === null ||
+    (typeof erwartet === 'number' && Number.isInteger(erwartet) && erwartet > 0);
+  if (!gesendet)
+    throw new ValidationError({
+      personenSetzen: 'Die Personenzahl lässt sich nur zusammen mit dem bisherigen Stand setzen.',
+    });
+  return wert;
+}

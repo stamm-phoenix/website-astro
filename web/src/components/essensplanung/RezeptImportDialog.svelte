@@ -262,16 +262,6 @@
     fehler = null;
   }
 
-  /** After taking over: a dish still without people gets the number of the recipe. */
-  async function personenSetzen(personen: number): Promise<void> {
-    const jetzt = kontext.ansicht.gerichte.find((g) => g.id === gericht.id);
-    if (!jetzt || jetzt.personen !== null) return;
-    await kontext.aendern(
-      () => kontext.api.senden('PATCH', `/gerichte/${jetzt.id}`, { etag: jetzt.etag, personen }),
-      `Zutaten übernommen, ${jetzt.name} ist jetzt für ${personen} Personen.`
-    );
-  }
-
   function getippt(zeile: Zeile, eingabe: string): void {
     const treffer = getippteZutat(vorschlaege, eingabe);
     if (treffer) waehle(zeile, treffer);
@@ -310,6 +300,11 @@
     if (gesendet.some((zeile) => Object.keys(zeile.fehler).length)) return;
     speichert = true;
     let personenKonflikt = false;
+    // A dish still without people takes the number of the recipe in the same change
+    const personenSetzen =
+      rezept?.personen === null && personenUebernehmen && rezept.rezeptPersonen
+        ? rezept.rezeptPersonen
+        : undefined;
     /** Field errors of the request that belong to no line. */
     const allgemein: string[] = [];
     try {
@@ -320,6 +315,7 @@
             return await kontext.api.senden('POST', `/gerichte/${gericht.id}/zutaten/sammel`, {
               zeilen: body,
               personen: rezept!.personen,
+              ...(personenSetzen !== undefined ? { personenSetzen } : {}),
             });
           } catch (error: unknown) {
             if (error instanceof ApiError && error.code === 'PERSONEN_GEAENDERT')
@@ -336,15 +332,12 @@
             throw error;
           }
         },
-        `${gesendet.length === 1 ? 'Eine Zutat' : `${gesendet.length} Zutaten`} übernommen.`
+        `${gesendet.length === 1 ? 'Eine Zutat' : `${gesendet.length} Zutaten`} übernommen${personenSetzen !== undefined ? `, ${gericht.name} ist jetzt für ${personenSetzen} Personen` : ''}.`
       );
       if (ok) {
         fertig = true;
         zeilen = [];
-        const zahl =
-          rezept?.personen === null && personenUebernehmen ? rezept.rezeptPersonen : null;
         onclose();
-        if (zahl) await personenSetzen(zahl);
       } else if (allgemein.length) {
         fehler = `${allgemein.join(' ')} Es wurde nichts übernommen. Bitte wähle Zutaten ab und übernimm noch einmal.`;
       } else if (!zeilen.some((zeile) => Object.keys(zeile.fehler).length)) {

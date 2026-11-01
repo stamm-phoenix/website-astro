@@ -218,6 +218,79 @@ dbTest('recipe lines scaled for other people than the dish has now are refused',
   assert.equal(neu.status, 201, JSON.stringify(neu.jsonBody));
 });
 
+dbTest('a recipe sets the people of a dish without any together with its lines', async (t) => {
+  const mails = captureMails(t);
+  const { token } = await anlegen(t, mails);
+  const zwiebeln = await zentraleZutat('Zwiebeln');
+  const zeilen = [{ zutatId: zwiebeln, menge: 400, einheit: 'g' }];
+  const ohnePersonen = async (name: string): Promise<number> => {
+    const antwort = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+      token,
+      body: { name },
+    });
+    assert.equal(antwort.status, 201, JSON.stringify(antwort.jsonBody));
+    return json<{ id: number }>(antwort).id;
+  };
+  const stand = async () =>
+    json<PlanungAnsicht>(
+      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    );
+  const senden = (id: number, body: Record<string, unknown>) =>
+    call(t, ki.EssensplanungGerichtZutatenSammel, 'POST', `planung/gerichte/${id}/zutaten/sammel`, {
+      token,
+      params: { id: String(id) },
+      body,
+    });
+
+  // Someone sets 20 people while the preview of a recipe for 4 is open: nothing is taken over
+  const chili = await ohnePersonen('Chili');
+  const geaendert = await call(
+    t,
+    endpoints.EssensplanungGericht,
+    'PATCH',
+    `planung/gerichte/${chili}`,
+    {
+      token,
+      params: { id: String(chili) },
+      body: { etag: (await stand()).gerichte.find((g) => g.id === chili)!.etag, personen: 20 },
+    }
+  );
+  assert.equal(geaendert.status, 200, JSON.stringify(geaendert.jsonBody));
+  const konflikt = await senden(chili, { zeilen, personen: null, personenSetzen: 4 });
+  assert.equal(konflikt.status, 409, JSON.stringify(konflikt.jsonBody));
+  assert.equal(json<{ code: string }>(konflikt).code, 'PERSONEN_GEAENDERT');
+  const nachKonflikt = (await stand()).gerichte.find((g) => g.id === chili)!;
+  assert.equal(nachKonflikt.personen, 20);
+  assert.equal(nachKonflikt.zutaten.length, 0);
+
+  // A bad line keeps the dish without people: all or none
+  const suppe = await ohnePersonen('Suppe');
+  const fehler = await senden(suppe, {
+    zeilen: [...zeilen, { zutatId: zwiebeln, menge: -1, einheit: 'g' }],
+    personen: null,
+    personenSetzen: 4,
+  });
+  assert.equal(fehler.status, 400, JSON.stringify(fehler.jsonBody));
+  const nachFehler = (await stand()).gerichte.find((g) => g.id === suppe)!;
+  assert.equal(nachFehler.personen, null);
+  assert.equal(nachFehler.zutaten.length, 0);
+
+  // Without the people the page expects, the number is not set
+  const ohneStand = await senden(suppe, { zeilen, personenSetzen: 4 });
+  assert.equal(ohneStand.status, 400, JSON.stringify(ohneStand.jsonBody));
+  assert.ok(json<{ fields: Record<string, string> }>(ohneStand).fields.personenSetzen);
+
+  // Lines and people in one change
+  const ok = await senden(suppe, { zeilen, personen: null, personenSetzen: 4 });
+  assert.equal(ok.status, 201, JSON.stringify(ok.jsonBody));
+  const ansicht = json<PlanungAnsicht>(ok);
+  const gesetzt = ansicht.gerichte.find((g) => g.id === suppe)!;
+  assert.equal(gesetzt.personen, 4);
+  assert.equal(gesetzt.zutaten.length, 1);
+  assert.equal(ansicht.aenderungen[0].aktion, 'gericht-zutaten-neu');
+  assert.equal(ansicht.aenderungen[0].details.personen, 4);
+});
+
 dbTest('a proposed amount is refused once the people of the dish changed', async (t) => {
   const mails = captureMails(t);
   const { token } = await anlegen(t, mails);

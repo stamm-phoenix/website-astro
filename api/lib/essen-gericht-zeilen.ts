@@ -165,19 +165,28 @@ async function pruefePersonen(trx: Db, gerichtId: number, personen: number | nul
  * Adds several lines at the end of a dish in one change, e.g. those read from a recipe: all or
  * none. An error of a line names its field as `zeilen.<index>.<field>`. With `personen`, the
  * amounts were scaled for that many people: if the dish has another number by now, nothing is
- * added (409 `PERSONEN_GEAENDERT`).
+ * added (409 `PERSONEN_GEAENDERT`). With `personenSetzen` the dish gets that number in the same
+ * change, so lines and people are saved together or not at all.
  */
 export async function gerichtZutatenSammeln(
   zugang: Zugang,
   gerichtId: number,
   inputs: GerichtZutatInput[],
-  personen?: number | null
+  personen?: number | null,
+  /** Sets the people of the dish in the same change, after `personen` was checked. */
+  personenSetzen?: number
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutaten-neu', async (trx) => {
     const gericht = await gerichtDerPlanung(trx, zugang, gerichtId);
     await lockResource(trx, gerichtSperre(gerichtId));
     // Read after the Planung is locked by `aendere`, so a change of the people cannot slip in
     await pruefePersonen(trx, gericht.id, personen);
+    if (personenSetzen !== undefined)
+      await trx
+        .updateTable('essen.gericht')
+        .set({ personen: personenSetzen })
+        .where('id', '=', gericht.id)
+        .execute();
     const anzahl = await pruefeAnzahl(trx, gerichtId, inputs.length);
     const namen: string[] = [];
     for (const [index, input] of inputs.entries()) {
@@ -194,7 +203,12 @@ export async function gerichtZutatenSammeln(
     }
     return {
       result: undefined,
-      details: { gericht: gericht.name, anzahl: namen.length, namen: namen.slice(0, 10) },
+      details: {
+        gericht: gericht.name,
+        anzahl: namen.length,
+        namen: namen.slice(0, 10),
+        ...(personenSetzen !== undefined ? { personen: personenSetzen } : {}),
+      },
     };
   });
 }

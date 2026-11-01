@@ -18,7 +18,7 @@ import { leseKiRezept, rezeptKandidaten } from '../../../api/lib/essen-ki-rezept
 import { essenKatalog } from './essensplanung';
 import { gerichteAnsicht, gerichtZutatAnlegen } from './essensplanung-gerichte';
 import type { MockZugang } from './essensplanung-planung';
-import { MockPlanungFehler, aendere } from './essensplanung-planung';
+import { MockPlanungFehler, aendere, neuesEtag } from './essensplanung-planung';
 
 /** The deployment is busy; the mock answers 429 with this `Retry-After`. */
 export class MockKiBesetzt extends Error {
@@ -215,7 +215,8 @@ export function gerichtZutatenSammeln(
   z: MockZugang,
   gerichtId: number,
   inputs: GerichtZutatInput[],
-  personen?: number | null
+  personen?: number | null,
+  personenSetzen?: number
 ): void {
   const gericht = z.planung.gerichte.find((entry) => entry.id === gerichtId);
   if (!gericht) throw new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');
@@ -263,7 +264,13 @@ export function gerichtZutatenSammeln(
         .slice(-inputs.length)
         .map((zeile) => nachId.get(zeile.planungZutatId)?.name ?? '')
         .slice(0, 10),
+      ...(personenSetzen !== undefined ? { personen: personenSetzen } : {}),
     },
-    () => undefined
+    () => {
+      // The people of the recipe go in the same change as its lines
+      if (personenSetzen === undefined) return;
+      gericht.personen = personenSetzen;
+      gericht.etag = neuesEtag();
+    }
   );
 }

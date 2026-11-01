@@ -181,3 +181,73 @@ test('an ingredient first used meanwhile is still recognised from the list', asy
   await expect(dialog.getByRole('checkbox', { name: '500 g Zwiebeln übernehmen' })).toBeChecked();
   await expect(dialog.getByLabel('Einheit für 500 g Zwiebeln')).toHaveValue('g');
 });
+
+test('a recipe sets the people of a dish without any in the same save, never half of it', async ({
+  page,
+  browser,
+}) => {
+  await anlegen(page, 'E2E KI Personen');
+  const karte = await gericht(page, 'Suppe', '');
+  await expect(karte.getByText('Personenzahl fehlt').first()).toBeVisible();
+  await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Rezept für Suppe' });
+  await dialog.getByLabel('Rezept', { exact: true }).fill(`Für 4 Personen\n${REZEPT}`);
+  await dialog.getByRole('button', { name: 'Zutaten erkennen' }).click();
+  // The amounts stay as written; the number of the recipe is offered for the dish
+  await expect(dialog.getByLabel('Menge für 500 g Zwiebeln')).toHaveValue('500');
+  const uebernehmen = dialog.getByRole('checkbox', {
+    name: 'Personenzahl 4 für das Gericht übernehmen',
+  });
+  await expect(uebernehmen).toBeChecked();
+  await dialog.getByRole('checkbox', { name: '1 Prise Salz übernehmen' }).uncheck();
+
+  // A failed save takes over neither the line nor the people
+  await page.route('**/api/essensplanung/planung/gerichte/*/zutaten/sammel', (route) =>
+    route.fulfill({ status: 500, json: { error: 'Kaputt' } })
+  );
+  await dialog.getByRole('button', { name: 'Eine Zutat übernehmen' }).click();
+  await expect(dialog.getByRole('alert').first()).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await page.unroute('**/api/essensplanung/planung/gerichte/*/zutaten/sammel');
+  await expect(karte.getByText('Personenzahl fehlt').first()).toBeAttached();
+  await expect(karte.getByLabel('Menge von Zwiebeln', { exact: true })).toHaveCount(0);
+
+  // Someone sets 20 people meanwhile: nothing is taken over, the preview offers to scale
+  const anderes = await (await browser.newContext()).newPage();
+  await anderes.goto(page.url());
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByText('Suppe', { exact: true }).click();
+  await anderes
+    .locator('li', { has: anderes.getByText('Suppe', { exact: true }) })
+    .first()
+    .getByLabel('Personen', { exact: true })
+    .fill('20');
+  await anderes.getByRole('button', { name: 'Gericht speichern' }).click();
+  await expect(anderes.getByText('Suppe gespeichert.').first()).toBeVisible();
+  await anderes.context().close();
+  await page.bringToFront();
+  await dialog.getByRole('button', { name: 'Eine Zutat übernehmen' }).click();
+  await expect(
+    dialog.getByRole('button', { name: 'Mengen auf 20 Personen umrechnen' })
+  ).toBeVisible();
+  await expect(karte.getByLabel('Menge von Zwiebeln', { exact: true })).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Mengen auf 20 Personen umrechnen' }).click();
+  await expect(dialog.getByLabel('Menge für 500 g Zwiebeln')).toHaveValue('2500');
+  await dialog.getByRole('button', { name: 'Eine Zutat übernehmen' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(karte.getByLabel('Menge von Zwiebeln', { exact: true })).toHaveValue('2500');
+  await expect(karte.getByText('Mengen für 20 Personen')).toBeVisible();
+
+  // Without anyone changing it, the recipe sets the people with its lines
+  const zweite = await gericht(page, 'Eintopf', '');
+  await zweite.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
+  const zweiterDialog = page.getByRole('dialog', { name: 'Rezept für Eintopf' });
+  await zweiterDialog.getByLabel('Rezept', { exact: true }).fill(`Für 4 Personen\n${REZEPT}`);
+  await zweiterDialog.getByRole('button', { name: 'Zutaten erkennen' }).click();
+  await zweiterDialog.getByRole('checkbox', { name: '1 Prise Salz übernehmen' }).uncheck();
+  await zweiterDialog.getByRole('button', { name: 'Eine Zutat übernehmen' }).click();
+  await expect(
+    page.getByText('Eine Zutat übernommen, Eintopf ist jetzt für 4 Personen.').first()
+  ).toBeVisible();
+  await expect(zweite.getByText('Mengen für 4 Personen')).toBeVisible();
+});
