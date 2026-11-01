@@ -8,7 +8,7 @@
   import { confirmAction } from '../../lib/confirm';
   import { euro } from '../../lib/essensplanungBelege';
   import { todayIso } from '../../lib/format';
-  import type { PlanungBeleg } from '../../lib/types';
+  import type { PlanungAnsicht, PlanungBeleg } from '../../lib/types';
   import {
     entwurfLeer,
     neuerEntwurf,
@@ -108,9 +108,18 @@
     speichert = true;
     const etag = entwuerfe[beleg.id]?.basis ?? beleg.etag;
     const id = beleg.id;
+    /** The version this save brought, read from the answer: the row may be gone meanwhile. */
+    let neu: string | null = null;
     const lauf = kontext.aendern(async () => {
       try {
-        return await kontext.api.senden('PATCH', `/belege/${id}`, { ...felder, etag });
+        const antwort = await kontext.api.senden<PlanungAnsicht | { ansicht: PlanungAnsicht }>(
+          'PATCH',
+          `/belege/${id}`,
+          { ...felder, etag }
+        );
+        const ansicht = 'ansicht' in antwort ? antwort.ansicht : antwort;
+        neu = ansicht.belege.find((b) => b.id === id)?.etag ?? null;
+        return antwort;
       } catch (error: unknown) {
         if (error instanceof ApiError && error.fields) felderFehler = error.fields;
         if (error instanceof ApiError && [404, 409, 412].includes(error.status)) konflikt = true;
@@ -124,9 +133,10 @@
       // The row shows the answer only after the update
       await tick();
       // Typed on meanwhile: that goes on the version this save brought
-      const eigen = entwuerfe[beleg.id];
+      const eigen = entwuerfe[id];
       if (eigen)
-        eigen.basis = Object.keys(eigen.felder).length || eigen.name !== null ? beleg.etag : null;
+        eigen.basis =
+          Object.keys(eigen.felder).length || eigen.name !== null ? (neu ?? beleg.etag) : null;
     }
     // Fields left during the save follow now; after a failure they stay drafts
     const naechste = [...wartend];

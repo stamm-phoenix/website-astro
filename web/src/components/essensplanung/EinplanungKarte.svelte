@@ -159,7 +159,7 @@
         <button
           type="button"
           data-gericht-name
-          class="text-left font-semibold text-neutral-900 hover:text-link hover:underline {einplanung.status ===
+          class="text-left font-semibold any-pointer-coarse:min-h-11 text-neutral-900 hover:text-link hover:underline {einplanung.status ===
           'ausgelassen'
             ? 'line-through'
             : ''}"
