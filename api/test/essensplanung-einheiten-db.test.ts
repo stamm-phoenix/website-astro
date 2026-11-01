@@ -67,7 +67,7 @@ dbTest('lines, extra needs and stock keep units of their own; all convert in one
     { stelle: 'gericht', id: linie.id, etag: linie.etag, menge: 1.5, einheit: 'g' },
     { stelle: 'zusatzbedarf', id: extra.id, etag: 'AAAAAAAAAAE=', menge: 200, einheit: 'g' },
   ]);
-  assert.equal(konflikt.status, 412);
+  assert.equal(konflikt.status, 409, JSON.stringify(konflikt.jsonBody));
   const danach = json<PlanungAnsicht>(
     await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
   );

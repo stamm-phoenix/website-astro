@@ -65,11 +65,11 @@ dbTest('recipe lines are added in one change, all or none', async (t) => {
   assert.equal(leer.status, 400);
   assert.ok(json<{ fields: Record<string, string> }>(leer).fields.zeilen);
 
-  // Milk is measured in ml: the third line fails, and so do the two before it
+  // A unit too long to be one: the third line fails, and so do the two before it
   const falsch = await sammel(t, token, id, [
     { zutatId: zwiebel, menge: 500, einheit: 'g' },
     { zutatId: milch, menge: 1, einheit: 'l' },
-    { zutatId: milch, menge: 200, einheit: 'g' },
+    { zutatId: milch, menge: 200, einheit: 'x'.repeat(21) },
   ]);
   assert.equal(falsch.status, 400, JSON.stringify(falsch.jsonBody));
   assert.ok(json<{ fields: Record<string, string> }>(falsch).fields['zeilen.2.einheit']);

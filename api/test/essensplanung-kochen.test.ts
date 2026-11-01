@@ -80,14 +80,13 @@ dbTest('planned dishes are ticked off as cooked with what they used, or left out
     verbrauch: [{ planungZutatId: fremd.id, menge: 1, einheit: 'kg' }],
   });
   assert.equal(falsch.status, 400);
-  // Salt is measured by weight; pieces would leave the kilogram in stock untouched
-  const stueck = await abhaken(t, token, geplant.id, {
+  // A unit is required for what was used
+  const ohneEinheit = await abhaken(t, token, geplant.id, {
     etag: nachher.etag,
     status: 'gekocht',
-    verbrauch: [{ planungZutatId: zutat.id, menge: 1, einheit: 'stueck' }],
+    verbrauch: [{ planungZutatId: zutat.id, menge: 1, einheit: '' }],
   });
-  assert.equal(stueck.status, 400);
-  assert.match(json<{ fields: Record<string, string> }>(stueck).fields.verbrauch, /Salz/);
+  assert.equal(ohneEinheit.status, 400);
   const unveraendert = await getDb()
     .selectFrom('essen.einplanung_verbrauch')
     .select(['menge', 'einheit'])

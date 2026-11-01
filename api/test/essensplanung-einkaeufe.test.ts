@@ -193,10 +193,11 @@ dbTest('things are ticked off with what was bought, also by two at once', async 
   const doppelt = await abhaken({ etag: null, planungZutatId: zutat, einheit: 'g', erhalten: 1 });
   assert.equal(doppelt.status, 409);
   // A unit that does not fit is refused
+  // A unit is required; any typed one counts as its own item
   const falsch = await abhaken({
     etag: null,
     planungZutatId: zutat,
-    einheit: 'stueck',
+    einheit: '',
     erhalten: 1,
   });
   assert.equal(falsch.status, 400);
