@@ -213,6 +213,43 @@ dbTest('deleting a Planung deletes its receipts, then their photos after the com
   assert.deepEqual(notiert, []);
 });
 
+dbTest('files left by a failed cleanup go with the Planung, even without photos', async (t) => {
+  const mails = captureMails(t);
+  const blobs = speicher(t);
+  t.mock.method(console, 'warn', () => undefined);
+  const { token, ansicht } = await anlegen(t, mails);
+  const angelegt = json<PlanungAnsicht>(
+    await neu(t, token, { ...BELEG, bezahltVonText: 'Ben', photo: await foto() })
+  );
+  const ordner = `essen-belege/${ansicht.id}/`;
+  const imOrdner = () => [...blobs.keys()].filter((name) => name.startsWith(ordner)).length;
+  // Deleting the last photo cannot reach Blob Storage: the receipt goes, its file stays
+  const loeschen = t.mock.method(blobStorage, 'deleteBlob', async () => {
+    throw new Error('Blob Storage nicht erreichbar');
+  });
+  const beleg = angelegt.belege[0];
+  const weg = await call(t, belege.EssensplanungBeleg, 'DELETE', 'planung/belege', {
+    token,
+    params: { id: String(beleg.id) },
+    ifMatch: beleg.etag,
+  });
+  assert.equal(weg.status, 200);
+  assert.equal(imOrdner(), 1);
+  // Blob Storage is back; deleting the Planung takes the left file along
+  loeschen.mock.restore();
+  t.mock.method(blobStorage, 'deleteBlob', async (name: string) => {
+    blobs.delete(name);
+  });
+  await planungLoeschen(await ladeZugang(token));
+  assert.equal(imOrdner(), 0);
+  const vermerke = await getDb()
+    .selectFrom('essen.beleg_ordner')
+    .select('planung_id')
+    .where('planung_id', '=', ansicht.id)
+    .execute();
+  assert.deepEqual(vermerke, []);
+});
+
 dbTest('photos that could not be deleted with the Planung go in the next cleanup', async (t) => {
   const mails = captureMails(t);
   const blobs = speicher(t);

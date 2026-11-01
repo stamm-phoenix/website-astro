@@ -115,3 +115,64 @@ test('a payer typed while someone else changed it saves only after the conflict'
     timeout: 15_000,
   });
 });
+
+test('after a failed save a change of someone else still is a conflict', async ({ page }) => {
+  test.setTimeout(90_000);
+  await anlegen(page, 'E2E Belege Fehler dann Konflikt');
+  await page.getByRole('tab', { name: 'Belege' }).click();
+  await page.getByRole('button', { name: 'Ohne Foto eintragen' }).click();
+  const neu = page.getByRole('region', { name: 'Neuer Beleg' });
+  await neu.getByLabel('Betrag in €').fill('5,00');
+  await neu.getByLabel('Händler oder was').fill('Rewe');
+  await neu.getByRole('button', { name: 'Beleg speichern' }).click();
+  await expect(page.getByText('Beleg gespeichert.').first()).toBeVisible();
+
+  // A's change fails at the server once
+  const zeile = page.getByTestId('belege-tabelle').locator('tbody tr').first();
+  const haendler = zeile.getByRole('textbox', { name: /^Händler oder was/ });
+  await page.route(
+    /\/api\/essensplanung\/planung\/belege\/\d+$/,
+    (route) =>
+      route.request().method() === 'PATCH'
+        ? route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ code: 'SERVER', message: 'Serverfehler (Test).' }),
+          })
+        : route.continue(),
+    { times: 1 }
+  );
+  await haendler.fill('Aldi');
+  await haendler.press('Enter');
+  await expect(page.getByText('Serverfehler (Test).').first()).toBeVisible();
+  await expect(haendler).toHaveValue('Aldi');
+
+  // B changes the shop meanwhile; A's page hears of it
+  const token = /[#&]t=([^&]+)/.exec(page.url())![1];
+  const headers = { 'x-essensplanung-token': token };
+  const ansicht = await (await page.request.get('/api/essensplanung/planung', { headers })).json();
+  const beleg = ansicht.belege[0];
+  const antwort = await page.request.patch(`/api/essensplanung/planung/belege/${beleg.id}`, {
+    headers,
+    data: { etag: beleg.etag, haendler: 'Lidl' },
+  });
+  expect(antwort.status()).toBe(200);
+  await page.waitForTimeout(4000);
+
+  // Saving again is a conflict, not a silent overwrite of B's change; the input stays
+  await haendler.press('Enter');
+  await expect(page.getByText(/Jemand anderes hat/).first()).toBeVisible({ timeout: 15_000 });
+  await expect(haendler).toHaveValue('Aldi');
+  // Only a further, deliberate Enter saves over it
+  await haendler.press('Enter');
+  await expect(page.getByText('Beleg gespeichert.').first()).toBeVisible({ timeout: 15_000 });
+  await page.reload();
+  await page.getByRole('tab', { name: 'Belege' }).click();
+  await expect(
+    page
+      .getByTestId('belege-tabelle')
+      .locator('tbody tr')
+      .first()
+      .getByRole('textbox', { name: /^Händler oder was/ })
+  ).toHaveValue('Aldi');
+});

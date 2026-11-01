@@ -103,6 +103,8 @@
   /** Saves fields of this row; field messages of the server stay at the field. */
   async function senden(felder: Record<string, unknown>, erfolg: string): Promise<boolean> {
     let felderFehler: Record<string, string> = {};
+    /** Someone else changed or deleted the receipt; the page shows the current state. */
+    let konflikt = false;
     speichert = true;
     const etag = entwuerfe[beleg.id]?.basis ?? beleg.etag;
     const id = beleg.id;
@@ -111,6 +113,7 @@
         return await kontext.api.senden('PATCH', `/belege/${id}`, { ...felder, etag });
       } catch (error: unknown) {
         if (error instanceof ApiError && error.fields) felderFehler = error.fields;
+        if (error instanceof ApiError && [404, 409, 412].includes(error.status)) konflikt = true;
         throw error;
       }
     }, erfolg);
@@ -134,8 +137,11 @@
       })();
     if (!ok) {
       const eigen = eigener();
-      // Saving again goes on the version now shown
-      eigen.basis = null;
+      // After a conflict the page shows the current state, and saving again goes on it, on
+      // purpose. Any other failure (no connection, server, a rejected value) keeps the version
+      // typing began with, so a change of someone else meanwhile still is a conflict.
+      const offen = Object.keys(eigen.felder).length > 0 || eigen.name !== null;
+      eigen.basis = konflikt || !offen ? null : etag;
       if (felderFehler.betragCent) eigen.fehler.betrag = felderFehler.betragCent;
       if (felderFehler.datum) eigen.fehler.datum = felderFehler.datum;
       if (felderFehler.haendler) eigen.fehler.haendler = felderFehler.haendler;

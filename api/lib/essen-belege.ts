@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import type { Db } from './db';
 import {
   RecordNotFoundError,
@@ -155,6 +156,20 @@ async function aufraeumen(planungId: number): Promise<void> {
   });
 }
 
+/**
+ * Notes that the Planung has a photo folder, before a photo is written into it: whatever is left
+ * there, also by a cleanup that failed, goes with the Planung (`belegeDerPlanungLoeschen`).
+ */
+async function ordnerVermerken(planungId: number): Promise<void> {
+  await sql`
+    INSERT INTO essen.beleg_ordner (planung_id)
+    SELECT ${planungId}
+    WHERE NOT EXISTS (
+      SELECT 1 FROM essen.beleg_ordner WITH (UPDLOCK, HOLDLOCK) WHERE planung_id = ${planungId}
+    )
+  `.execute(getDb());
+}
+
 /** Adds a receipt, with its photo stored first. */
 export async function belegAnlegen(
   zugang: Zugang,
@@ -163,6 +178,7 @@ export async function belegAnlegen(
 ): Promise<void> {
   // A read-only link stores no file at all
   if (!darfBearbeiten(zugang.zugang)) throw NUR_LESEN();
+  if (fotos) await ordnerVermerken(zugang.planungId);
   const foto = fotos ? await speichereBelegFoto(zugang.planungId, fotos) : null;
   try {
     await aendere(zugang, 'beleg-neu', async (trx, aktuell) => {
@@ -293,6 +309,7 @@ export async function belegFotoSetzen(
   etag: string
 ): Promise<void> {
   if (!darfBearbeiten(zugang.zugang)) throw NUR_LESEN();
+  if (fotos) await ordnerVermerken(zugang.planungId);
   const neu = fotos ? await speichereBelegFoto(zugang.planungId, fotos) : null;
   let alt: string | null = null;
   try {
@@ -343,18 +360,25 @@ export async function belegFotoLesen(
 }
 
 /**
- * Deletes the receipts of a Planung inside its deleting transaction and notes its photo folder
- * for `belegOrdnerAufraeumen`, which deletes it after the commit: Blob Storage cannot roll back,
- * so no photo goes before the Planung is surely gone. Without receipts nothing is noted.
+ * Deletes the receipts of a Planung inside its deleting transaction and, if the Planung ever had
+ * a photo, notes its folder for `belegOrdnerAufraeumen`, which deletes it after the commit: Blob
+ * Storage cannot roll back, so no file goes before the Planung is surely gone, and files left by
+ * a failed cleanup go too. Without a photo ever, nothing is asked of Blob Storage.
  */
 export async function belegeDerPlanungLoeschen(trx: Db, planungId: number): Promise<void> {
-  const belege = await trx
-    .selectFrom('essen.beleg')
-    .select('foto')
+  const ordner = await trx
+    .selectFrom('essen.beleg_ordner')
+    .select('planung_id')
     .where('planung_id', '=', planungId)
-    .execute();
-  if (!belege.length) return;
-  if (belege.some((beleg) => beleg.foto)) {
+    .executeTakeFirst();
+  const mitFoto = await trx
+    .selectFrom('essen.beleg')
+    .select('id')
+    .where('planung_id', '=', planungId)
+    .where('foto', 'is not', null)
+    .top(1)
+    .executeTakeFirst();
+  if (ordner || mitFoto) {
     await trx.insertInto('essen.beleg_ordner_loeschen').values({ planung_id: planungId }).execute();
   }
   await trx.deleteFrom('essen.beleg').where('planung_id', '=', planungId).execute();

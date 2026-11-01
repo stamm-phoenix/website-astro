@@ -134,6 +134,7 @@ export interface Database {
   'essen.packliste_eintrag': EssenPacklisteEintragTable;
   'essen.beleg': EssenBelegTable;
   'essen.beleg_ordner_loeschen': EssenBelegOrdnerLoeschenTable;
+  'essen.beleg_ordner': EssenBelegOrdnerTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -1219,6 +1220,12 @@ export interface EssenPacklisteEintragTable {
 
 /** `essen.beleg_ordner_loeschen`: photo folders of deleted Planungen still to clean up (`0072`). */
 export interface EssenBelegOrdnerLoeschenTable {
+  planung_id: number;
+  angelegt_am: Generated<Date>;
+}
+
+/** `essen.beleg_ordner`: Planungen that ever stored a receipt photo (`0073`). */
+export interface EssenBelegOrdnerTable {
   planung_id: number;
   angelegt_am: Generated<Date>;
 }

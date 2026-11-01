@@ -67,4 +67,6 @@ export async function seedPreviewEssensplanungBelege(): Promise<void> {
       },
     ])
     .execute();
+  // The note of a photo folder, as after a photo; the folder of the preview stays empty
+  await db.insertInto('essen.beleg_ordner').values({ planung_id: planung.id }).execute();
 }
