@@ -9,6 +9,8 @@
   } from '../lib/downloadsStore.svelte';
   import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
   import { withBaked } from '../lib/storeView';
+  import { downloadCategories, filterDownloads } from '../lib/downloadsFilter';
+  import FilterTabs from './ui/FilterTabs.svelte';
   import type { DownloadFile } from '../lib/types';
 
   interface Props {
@@ -22,6 +24,19 @@
   const view = $derived(withBaked(downloadsStore, initial));
 
   let loadedImages = $state<Set<string>>(new Set());
+  let search = $state('');
+  /** `''`: all topics. */
+  let category = $state('');
+
+  const categories = $derived(downloadCategories(view.data ?? []));
+  // A topic that no file has any more (list refreshed) shows everything again
+  const activeCategory = $derived(categories.includes(category) ? category : '');
+  const shown = $derived(filterDownloads(view.data ?? [], search, activeCategory));
+
+  function resetFilter(): void {
+    search = '';
+    category = '';
+  }
 
   $effect(() => {
     untrack(() => {
@@ -85,97 +100,138 @@
     </p>
   </div>
 {:else if view.data && view.data.length > 0}
-  <!-- One ruled list like a table of contents: preview, name and details, download -->
-  <ul class="divide-y divide-neutral-200 border-y border-neutral-200" data-testid="downloads-grid">
-    {#each view.data as file (file.id)}
-      <li>
-        <article
-          class="flex flex-wrap items-center gap-x-5 gap-y-3 py-4 sm:flex-nowrap"
-          aria-labelledby="download-{file.id}-heading"
-        >
-          <a
-            href={getDownloadFileUrl(file.id)}
-            class="relative block aspect-[210/297] w-14 shrink-0 overflow-hidden rounded-sm border border-neutral-200 bg-neutral-100 sm:w-16"
-            download={file.fileName}
-            aria-label="Vorschau von {file.fileName}"
+  <div class="mb-4 space-y-3">
+    <div>
+      <label for="downloads-search" class="mb-1 block text-sm font-semibold text-brand-900"
+        >Datei suchen</label
+      >
+      <input
+        id="downloads-search"
+        type="search"
+        class="form-input w-full sm:max-w-sm"
+        placeholder="z. B. Packliste"
+        autocomplete="off"
+        bind:value={search}
+      />
+    </div>
+    {#if categories.length > 1}
+      <FilterTabs
+        label="Thema"
+        options={[
+          { value: '', label: 'Alle' },
+          ...categories.map((name) => ({ value: name, label: name })),
+        ]}
+        value={activeCategory}
+        onselect={(value) => (category = value)}
+      />
+    {/if}
+    <p class="sr-only" role="status" aria-live="polite">
+      {shown.length === 1 ? '1 Datei' : `${shown.length} Dateien`}
+    </p>
+  </div>
+  {#if shown.length === 0}
+    <div class="border-y border-neutral-200 py-6" data-testid="downloads-grid">
+      <p class="text-neutral-700">Keine Datei gefunden.</p>
+      <button type="button" class="btn-secondary mt-3" onclick={resetFilter}>
+        Suche und Thema zurücksetzen
+      </button>
+    </div>
+  {:else}
+    <!-- One ruled list like a table of contents: preview, name and details, download -->
+    <ul
+      class="divide-y divide-neutral-200 border-y border-neutral-200"
+      data-testid="downloads-grid"
+    >
+      {#each shown as file (file.id)}
+        <li>
+          <article
+            class="flex flex-wrap items-center gap-x-5 gap-y-3 py-4 sm:flex-nowrap"
+            aria-labelledby="download-{file.id}-heading"
           >
-            {#if file.hasPreview}
-              <img
-                src={getDownloadPreviewUrl(file.id, 'small')}
-                alt=""
-                aria-hidden="true"
-                class="preview-image preview-image-low absolute inset-0 h-full w-full object-cover"
-                class:preview-image-hidden={isHighResLoaded(file.id)}
-                loading="lazy"
-                decoding="async"
-              />
-              <img
-                src={getDownloadPreviewUrl(file.id, 'large')}
-                alt=""
-                aria-hidden="true"
-                class="preview-image preview-image-high absolute inset-0 h-full w-full object-cover"
-                class:preview-image-loaded={isHighResLoaded(file.id)}
-                loading="lazy"
-                decoding="async"
-                onload={() => handleHighResLoad(file.id)}
-              />
-            {:else}
-              <span
-                aria-hidden="true"
-                class="absolute inset-0 flex items-center justify-center text-xs font-semibold text-neutral-700"
-              >
-                {getFileExtension(file.fileName) || 'Datei'}
-              </span>
-            {/if}
-          </a>
-
-          <div class="min-w-0 flex-1 basis-48">
-            <h3
-              id="download-{file.id}-heading"
-              class="font-semibold leading-snug break-words text-brand-900"
-              title={file.fileName}
+            <a
+              href={getDownloadFileUrl(file.id)}
+              class="relative block aspect-[210/297] w-14 shrink-0 overflow-hidden rounded-sm border border-neutral-200 bg-neutral-100 sm:w-16"
+              download={file.fileName}
+              aria-label="Vorschau von {file.fileName}"
             >
-              {file.fileName}
-            </h3>
-            <p class="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
-              {#if getFileExtension(file.fileName)}
-                <span>{getFileExtension(file.fileName)}</span>
-                <span aria-hidden="true">·</span>
+              {#if file.hasPreview}
+                <img
+                  src={getDownloadPreviewUrl(file.id, 'small')}
+                  alt=""
+                  aria-hidden="true"
+                  class="preview-image preview-image-low absolute inset-0 h-full w-full object-cover"
+                  class:preview-image-hidden={isHighResLoaded(file.id)}
+                  loading="lazy"
+                  decoding="async"
+                />
+                <img
+                  src={getDownloadPreviewUrl(file.id, 'large')}
+                  alt=""
+                  aria-hidden="true"
+                  class="preview-image preview-image-high absolute inset-0 h-full w-full object-cover"
+                  class:preview-image-loaded={isHighResLoaded(file.id)}
+                  loading="lazy"
+                  decoding="async"
+                  onload={() => handleHighResLoad(file.id)}
+                />
+              {:else}
+                <span
+                  aria-hidden="true"
+                  class="absolute inset-0 flex items-center justify-center text-xs font-semibold text-neutral-700"
+                >
+                  {getFileExtension(file.fileName) || 'Datei'}
+                </span>
               {/if}
-              <span class="tabular-nums">{formatFileSize(file.size)}</span>
-              <span aria-hidden="true">·</span>
-              <span class="tabular-nums">
-                <span class="sr-only">Stand:</span>
-                {formatDate(file.lastModifiedAt)}
-              </span>
-            </p>
-          </div>
+            </a>
 
-          <a
-            href={getDownloadFileUrl(file.id)}
-            download={file.fileName}
-            class="download-button btn-secondary ml-[4.75rem] no-underline sm:ml-0"
-          >
-            <svg
-              class="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
+            <div class="min-w-0 flex-1 basis-48">
+              <h3
+                id="download-{file.id}-heading"
+                class="font-semibold leading-snug break-words text-brand-900"
+                title={file.fileName}
+              >
+                {file.fileName}
+              </h3>
+              <p class="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
+                {#if getFileExtension(file.fileName)}
+                  <span>{getFileExtension(file.fileName)}</span>
+                  <span aria-hidden="true">·</span>
+                {/if}
+                <span class="tabular-nums">{formatFileSize(file.size)}</span>
+                <span aria-hidden="true">·</span>
+                <span class="tabular-nums">
+                  <span class="sr-only">Stand:</span>
+                  {formatDate(file.lastModifiedAt)}
+                </span>
+              </p>
+            </div>
+
+            <a
+              href={getDownloadFileUrl(file.id)}
+              download={file.fileName}
+              class="download-button btn-secondary ml-[4.75rem] no-underline sm:ml-0"
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-              />
-            </svg>
-            Herunterladen<span class="sr-only">: {file.fileName}</span>
-          </a>
-        </article>
-      </li>
-    {/each}
-  </ul>
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              Herunterladen<span class="sr-only">: {file.fileName}</span>
+            </a>
+          </article>
+        </li>
+      {/each}
+    </ul>
+  {/if}
 {:else}
   <p
     id="no-downloads-heading"

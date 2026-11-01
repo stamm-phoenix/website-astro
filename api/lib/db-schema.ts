@@ -455,6 +455,8 @@ export interface DownloadTable {
   size: ColumnType<string | number, number, number>;
   mime_type: string;
   has_preview: Generated<boolean>;
+  /** Topic the public page filters by; `Allgemein` without an own one. */
+  category: Generated<string>;
   created_at: ColumnType<Date, string | undefined, string>;
   created_by: Generated<string>;
   updated_at: ColumnType<Date, string | undefined, string>;

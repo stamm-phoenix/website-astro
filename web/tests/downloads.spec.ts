@@ -96,8 +96,8 @@ test('renaming a PDF with punctuation keeps its extension unless a supported one
     `${marker()} Anmeldung 20.10.2026`,
     `${marker()} Explizit.PDF`,
   ]) {
-    await page.getByRole('button', { name: `Umbenennen (${name})`, exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: 'Datei umbenennen' });
+    await page.getByRole('button', { name: `Bearbeiten (${name})`, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Datei bearbeiten' });
     await dialog.getByLabel('Dateiname', { exact: true }).fill(entered);
     await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(dialog).toBeHidden();

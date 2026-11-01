@@ -407,7 +407,8 @@ function download(
   mimeType: string,
   daysAgo: number,
   by: string,
-  hasPreview: boolean
+  hasPreview: boolean,
+  category = 'Allgemein'
 ): MockDownload {
   const created = isoFromNow(-daysAgo - 30);
   return {
@@ -420,6 +421,7 @@ function download(
     lastModifiedAt: isoFromNow(-daysAgo),
     lastModifiedBy: by,
     hasPreview,
+    category,
   };
 }
 
@@ -431,7 +433,8 @@ export const downloads: MockDownload[] = [
     'application/pdf',
     40,
     'Katharina Huber',
-    true
+    true,
+    'Anmeldung'
   ),
   download(
     '01MOCKPACKLISTE',
@@ -440,7 +443,8 @@ export const downloads: MockDownload[] = [
     'application/pdf',
     3,
     'Theresa Lechner',
-    true
+    true,
+    'Lager'
   ),
   download(
     '01MOCKEINVERST',
@@ -449,7 +453,8 @@ export const downloads: MockDownload[] = [
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     120,
     'Maximilian Gruber',
-    true
+    true,
+    'Anmeldung'
   ),
   download(
     '01MOCKGESUND',
@@ -458,7 +463,8 @@ export const downloads: MockDownload[] = [
     'application/pdf',
     200,
     'Katharina Huber',
-    true
+    true,
+    'Anmeldung'
   ),
   download(
     '01MOCKBEITRAG',
@@ -467,7 +473,8 @@ export const downloads: MockDownload[] = [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     300,
     'Magdalena Strasser',
-    true
+    true,
+    'Anmeldung'
   ),
   download(
     '01MOCKKLUFT',
@@ -476,7 +483,8 @@ export const downloads: MockDownload[] = [
     'image/jpeg',
     15,
     'Anna-Lena Schwaiger',
-    true
+    true,
+    'Allgemein'
   ),
   download(
     '01MOCKLIEDER',
@@ -496,6 +504,7 @@ export function publicDownloads(): DownloadFile[] {
     size: d.size,
     mimeType: d.mimeType,
     hasPreview: d.hasPreview,
+    category: d.category,
     createdAt: d.createdAt,
     lastModifiedAt: d.lastModifiedAt,
   }));
@@ -510,6 +519,7 @@ export function staffDownloads(): StaffDownload[] {
     lastModifiedAt: d.lastModifiedAt,
     lastModifiedBy: d.lastModifiedBy,
     hasPreview: d.hasPreview,
+    category: d.category,
     etag: `"${Date.parse(d.lastModifiedAt).toString(16).padStart(16, '0')}"`,
   }));
 }

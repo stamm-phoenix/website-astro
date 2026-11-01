@@ -57,6 +57,8 @@ export interface DownloadFile {
   mimeType: string;
   /** There are preview images (`/api/downloads/<id>/image/<size>`). */
   hasPreview: boolean;
+  /** Topic the list is filtered by. */
+  category: string;
   createdAt: string;
   lastModifiedAt: string;
 }
@@ -860,6 +862,7 @@ export interface StaffDownload {
   lastModifiedAt: string;
   lastModifiedBy: string;
   hasPreview: boolean;
+  category: string;
   /** Version for renaming and deleting. */
   etag: string;
 }

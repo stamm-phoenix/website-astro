@@ -126,7 +126,9 @@
     padding-block: 0.5rem;
     color: var(--color-neutral-700);
     font-size: 0.875rem;
-    white-space: nowrap;
+    /* A long label wraps instead of running off a narrow screen. */
+    max-width: 100%;
+    overflow-wrap: anywhere;
     box-shadow: inset 0 -2px 0 transparent;
   }
   .filter-tab[aria-pressed='true'] {

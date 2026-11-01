@@ -62,11 +62,11 @@ import {
   seedPreviewAktionen,
   seedPreviewBelege,
   seedPreviewBelegeCampflow,
-  seedPreviewDownloads,
   seedPreviewBlog,
   seedPreviewPlans,
   seedPreviewQuestions,
 } from '../lib/db-preview';
+import { seedPreviewDownloads } from '../lib/db-preview-downloads';
 import { seedPreviewEssensplanungEinkauf } from '../lib/db-preview-essen-einkauf';
 import { seedPreviewEssensplanungPackliste } from '../lib/db-preview-essen-packliste';
 import { seedPreviewInventur } from '../lib/db-preview-inventur';

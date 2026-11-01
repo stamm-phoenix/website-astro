@@ -8,6 +8,7 @@ interface DownloadFileData {
   size: number;
   mimeType: string;
   hasPreview: boolean;
+  category: string;
   createdAt: string;
   lastModifiedAt: string;
 }
@@ -23,6 +24,7 @@ export async function GetDownloadFilesEndpoint(): Promise<HttpResponseInit> {
       size: file.size,
       mimeType: file.mimeType,
       hasPreview: file.hasPreview,
+      category: file.category,
       createdAt: file.createdAt,
       lastModifiedAt: file.lastModifiedAt,
     })),

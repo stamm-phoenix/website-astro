@@ -77,7 +77,25 @@ const completeSchema = z.object({
   replace: replaceFlag,
 });
 
-const renameSchema = z.object({ fileName: uploadFileName });
+/** Topic of a file; left out or empty keeps the current one. */
+const categorySchema = z.preprocess(
+  (value) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : ''),
+  z
+    .string()
+    .max(50, { error: 'Das Thema darf höchstens 50 Zeichen lang sein.' })
+    .transform((value) => value || undefined)
+);
+
+/**
+ * A name is only checked when it is sent: a file taken over from SharePoint may have a name that
+ * is not allowed for new ones, and changing its topic must still work.
+ */
+const renameSchema = z
+  .object({ fileName: z.optional(uploadFileName), category: categorySchema })
+  .refine((value) => value.fileName !== undefined || value.category !== undefined, {
+    error: NAME_MISSING,
+    path: ['fileName'],
+  });
 
 function asBody(body: Record<string, unknown> | null): Record<string, unknown> {
   return body ?? {};
@@ -97,7 +115,9 @@ export function validateUploadComplete(
   return parseWith(completeSchema, asBody(body));
 }
 
-/** The new name of a file. */
-export function validateDownloadRename(body: Record<string, unknown> | null): string {
-  return parseWith(renameSchema, asBody(body)).fileName;
+/** The new name of a file and, if sent, its topic. */
+export function validateDownloadRename(
+  body: Record<string, unknown> | null
+): z.output<typeof renameSchema> {
+  return parseWith(renameSchema, asBody(body));
 }
