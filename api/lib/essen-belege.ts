@@ -343,17 +343,49 @@ export async function belegFotoLesen(
 }
 
 /**
- * Deletes the photos of a Planung before its rows go, inside the deleting transaction: if Blob
- * Storage fails, the Planung stays and the next attempt tries again. Without receipts nothing
- * is asked of Blob Storage.
+ * Deletes the receipts of a Planung inside its deleting transaction and notes its photo folder
+ * for `belegOrdnerAufraeumen`, which deletes it after the commit: Blob Storage cannot roll back,
+ * so no photo goes before the Planung is surely gone. Without receipts nothing is noted.
  */
 export async function belegeDerPlanungLoeschen(trx: Db, planungId: number): Promise<void> {
   const belege = await trx
     .selectFrom('essen.beleg')
-    .select((eb) => eb.fn.countAll<number>().as('anzahl'))
+    .select('foto')
     .where('planung_id', '=', planungId)
-    .executeTakeFirstOrThrow();
-  if (Number(belege.anzahl) === 0) return;
-  await loescheBelegFotosDerPlanung(planungId);
+    .execute();
+  if (!belege.length) return;
+  if (belege.some((beleg) => beleg.foto)) {
+    await trx.insertInto('essen.beleg_ordner_loeschen').values({ planung_id: planungId }).execute();
+  }
   await trx.deleteFrom('essen.beleg').where('planung_id', '=', planungId).execute();
+}
+
+/**
+ * Deletes the noted photo folders of deleted Planungen, each note only after its folder is gone.
+ * Runs after every deletion of a Planung and in the daily retention; a failure is logged and
+ * tried again next time. Without notes nothing is asked of Blob Storage. Returns how many folders
+ * were deleted.
+ */
+export async function belegOrdnerAufraeumen(db: Db = getDb()): Promise<number> {
+  let geloescht = 0;
+  try {
+    const offen = await db.selectFrom('essen.beleg_ordner_loeschen').select('planung_id').execute();
+    for (const { planung_id: planungId } of offen) {
+      await loescheBelegFotosDerPlanung(planungId);
+      await db
+        .deleteFrom('essen.beleg_ordner_loeschen')
+        .where('planung_id', '=', planungId)
+        .execute();
+      geloescht++;
+    }
+  } catch (error: unknown) {
+    console.warn(
+      JSON.stringify({
+        scope: 'essen-beleg-fotos',
+        warning: 'Photo folders of deleted Planungen could not be deleted; tried again later',
+        error: error instanceof Error ? error.message : String(error),
+      })
+    );
+  }
+  return geloescht;
 }

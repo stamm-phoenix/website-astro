@@ -12,8 +12,12 @@
     gefilterteBelege,
     type BelegFilter,
   } from '../../lib/essensplanungBelege';
+  import { untrack } from 'svelte';
+  import { confirmAction } from '../../lib/confirm';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type { PlanungBeleg } from '../../lib/types';
-  import type { PlanKontext } from './planKontext';
+  import { entwurfOffen, entwurfText, type BelegEntwuerfe } from './belegEntwuerfe';
+  import { meldeVerloren, type PlanKontext } from './planKontext';
 
   /**
    * The receipts of a Planung: who paid what, what is paid back, and their photos. They stay in
@@ -57,7 +61,56 @@
     },
   ] as { value: BelegFilter; label: string; count: number }[]);
 
-  function oeffnen(ohneFoto: boolean, belegId: number | null = null): void {
+  /** The open form, to switch its kind or ask before it goes. */
+  let formular = $state<ReturnType<typeof BelegErfassen> | null>(null);
+  /** Unsaved input of the rows, kept while a filter hides them or editing is locked. */
+  const entwuerfe = $state<BelegEntwuerfe>({});
+
+  $effect(() =>
+    guardUnsavedChanges(() => Object.values(entwuerfe).some((entwurf) => entwurfOffen(entwurf)))
+  );
+  // A receipt someone else deleted takes its draft along; what was typed is named to copy
+  $effect(() => {
+    const ids = new Set(ansicht.belege.map((beleg) => beleg.id));
+    untrack(() => {
+      for (const [id, entwurf] of Object.entries(entwuerfe)) {
+        if (ids.has(Number(id))) continue;
+        if (entwurfOffen(entwurf))
+          meldeVerloren(
+            kontext,
+            `Ein Beleg wurde inzwischen gelöscht; deine Eingabe dazu: ${entwurfText(entwurf)}.`
+          );
+        delete entwuerfe[Number(id)];
+      }
+    });
+  });
+
+  /**
+   * Opens the form for a new receipt (with or without photo) or the photo of one. A new receipt
+   * already open only switches its kind and keeps what is typed; another form with unsaved input
+   * asks first.
+   */
+  async function oeffnen(ohneFoto: boolean, belegId: number | null = null): Promise<void> {
+    if (erfassen && formular) {
+      if (belegId === null && erfassen.belegId === null) {
+        if (ohneFoto) {
+          if (await formular.zuOhneFoto()) erfassen = { ...erfassen, ohneFoto };
+        } else {
+          formular.zuFoto();
+          erfassen = { ...erfassen, ohneFoto };
+        }
+        return;
+      }
+      if (
+        formular.ungespeichert() &&
+        !(await confirmAction({
+          title: 'Eingaben verwerfen?',
+          message: 'Was du im offenen Beleg eingetragen oder fotografiert hast, geht verloren.',
+          confirmLabel: 'Verwerfen',
+        }))
+      )
+        return;
+    }
     erfassen = { ohneFoto, belegId, nr: ++zaehler };
   }
 
@@ -72,12 +125,12 @@
         variant="primary"
         class="min-h-9 any-pointer-coarse:min-h-11"
         disabled={erfassen !== null && erfassen.belegId === null && !erfassen.ohneFoto}
-        onclick={() => oeffnen(false)}>Beleg mit Foto</ActionButton
+        onclick={() => void oeffnen(false)}>Beleg mit Foto</ActionButton
       >
       <ActionButton
         class="min-h-9 any-pointer-coarse:min-h-11"
         disabled={erfassen !== null && erfassen.belegId === null && erfassen.ohneFoto}
-        onclick={() => oeffnen(true)}>Ohne Foto eintragen</ActionButton
+        onclick={() => void oeffnen(true)}>Ohne Foto eintragen</ActionButton
       >
     {/if}
     <PdfKnopf
@@ -96,9 +149,11 @@
     />
   </div>
 
-  {#if erfassen && bearbeiten && (erfassen.belegId === null || fotoBeleg)}
+  <!-- Stays during maintenance, locked, so nothing typed or photographed gets lost -->
+  {#if erfassen && ansicht.zugang !== 'lesen' && (erfassen.belegId === null || fotoBeleg)}
     {#key erfassen.nr}
       <BelegErfassen
+        bind:this={formular}
         {kontext}
         beleg={fotoBeleg}
         ohneFoto={erfassen.ohneFoto}
@@ -156,7 +211,8 @@
                       {kontext}
                       {beleg}
                       {bearbeiten}
-                      onfoto={() => oeffnen(false, beleg.id)}
+                      {entwuerfe}
+                      onfoto={() => void oeffnen(false, beleg.id)}
                       onansehen={() => (ansehenId = beleg.id)}
                     />
                   {/each}

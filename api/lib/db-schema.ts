@@ -133,6 +133,7 @@ export interface Database {
   'essen.einkauf_regel': EssenEinkaufRegelTable;
   'essen.packliste_eintrag': EssenPacklisteEintragTable;
   'essen.beleg': EssenBelegTable;
+  'essen.beleg_ordner_loeschen': EssenBelegOrdnerLoeschenTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -1213,6 +1214,12 @@ export interface EssenPacklisteEintragTable {
   gepackt: Generated<boolean>;
   zustaendig_mitglied_id: number | null;
   zustaendig_text: Generated<string>;
+}
+
+/** `essen.beleg_ordner_loeschen`: photo folders of deleted Planungen still to clean up (`0071`). */
+export interface EssenBelegOrdnerLoeschenTable {
+  planung_id: number;
+  angelegt_am: Generated<Date>;
 }
 
 /** `essen.beleg`: a receipt of a Planung, who paid it and whether it was paid back (`0071`). */

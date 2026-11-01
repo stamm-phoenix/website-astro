@@ -24,7 +24,7 @@
     ontext?: (text: string) => void;
     onescape?: () => void;
     /** „Jemand anderes …“ was chosen or its name is typed. */
-    ontextwahl?: () => void;
+    ontextwahl?: (text: string) => void;
   }
   let {
     id,
@@ -49,7 +49,7 @@
   async function gewaehlt(wert: string): Promise<void> {
     wahl = wert;
     if (wert === 'text') {
-      ontextwahl?.();
+      ontextwahl?.(text);
       await tick();
       textFeld?.focus();
       return;
@@ -95,7 +95,7 @@
           ontext?.(text);
         } else if (event.key === 'Escape') onescape?.();
       }}
-      oninput={() => ontextwahl?.()}
+      oninput={(event) => ontextwahl?.(event.currentTarget.value)}
       onblur={() => ontext?.(text)}
     />
   {/if}

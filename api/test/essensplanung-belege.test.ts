@@ -9,6 +9,7 @@ import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
 import { seedPreviewEssensplanungBelege } from '../lib/db-preview-essen-belege';
 import { seedPreviewEssensplanung, seedPreviewEssensplanungPlanung } from '../lib/db-preview';
+import { raeumeAuf } from '../lib/essen-aufbewahrung';
 import { ladeZugang, planungLoeschen } from '../lib/essen-planung';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { overrideConfig } from './fixtures/config';
@@ -192,7 +193,7 @@ dbTest('the check answers without a model and refuses the read-only link', async
   assert.equal((await pruefen(token, Buffer.from('kein Foto'))).status, 400);
 });
 
-dbTest('deleting a Planung deletes its receipts and their photos first', async (t) => {
+dbTest('deleting a Planung deletes its receipts, then their photos after the commit', async (t) => {
   const mails = captureMails(t);
   const blobs = speicher(t);
   const { token, ansicht } = await anlegen(t, mails);
@@ -208,6 +209,42 @@ dbTest('deleting a Planung deletes its receipts and their photos first', async (
     .where('planung_id', '=', ansicht.id)
     .execute();
   assert.equal(rest.length, 0);
+  const notiert = await getDb().selectFrom('essen.beleg_ordner_loeschen').selectAll().execute();
+  assert.deepEqual(notiert, []);
+});
+
+dbTest('photos that could not be deleted with the Planung go in the next cleanup', async (t) => {
+  const mails = captureMails(t);
+  const blobs = speicher(t);
+  t.mock.method(console, 'warn', () => undefined);
+  const { token, ansicht } = await anlegen(t, mails);
+  await neu(t, token, { ...BELEG, bezahltVonText: 'Ben', photo: await foto() });
+  // Blob Storage fails: the Planung is gone anyway, its folder is noted
+  const loeschen = t.mock.method(blobStorage, 'deleteBlob', async () => {
+    throw new Error('Blob Storage nicht erreichbar');
+  });
+  await planungLoeschen(await ladeZugang(token));
+  assert.equal(
+    (await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })).status,
+    404
+  );
+  assert.equal([...blobs.keys()].filter((name) => name.includes(`/${ansicht.id}/`)).length, 1);
+  const notiert = () =>
+    getDb()
+      .selectFrom('essen.beleg_ordner_loeschen')
+      .select('planung_id')
+      .where('planung_id', '=', ansicht.id)
+      .execute();
+  assert.equal((await notiert()).length, 1);
+  // The retention tries again and succeeds
+  loeschen.mock.restore();
+  t.mock.method(blobStorage, 'deleteBlob', async (name: string) => {
+    blobs.delete(name);
+  });
+  const ergebnis = await raeumeAuf(new Date('2026-11-01T03:00:00Z'));
+  assert.ok(ergebnis.fotoOrdnerGeloescht >= 1);
+  assert.equal([...blobs.keys()].filter((name) => name.includes(`/${ansicht.id}/`)).length, 0);
+  assert.equal((await notiert()).length, 0);
 });
 
 dbTest('the preview gets invented receipts once', async () => {

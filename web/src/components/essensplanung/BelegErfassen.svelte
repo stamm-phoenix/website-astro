@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import BelegAiCheck from '../pflege/BelegAiCheck.svelte';
   import BelegFotoEntwurf from '../pflege/BelegFotoEntwurf.svelte';
@@ -82,32 +82,49 @@
       fields.betragCent = 'Bitte einen Betrag größer als 0 € angeben, z. B. 12,34.';
     if (!form.date) fields.datum = 'Bitte ein gültiges Datum angeben.';
     if (wahl === 'text' && !name.trim()) fields.bezahltVonText = 'Bitte angeben, wer bezahlt hat.';
-    if (mitFoto && photo.draft && !photo.draft.result)
+    if (mitFoto && photo.zuschnitt)
+      fields.photo = 'Bitte erst „Zuschneiden fertig“ oder „Abbrechen“ wählen.';
+    else if (mitFoto && photo.draft && !photo.draft.result)
       fields.photo = 'Das Foto wird noch verarbeitet.';
     return fields;
+  }
+
+  /** Set at once on a click, before anything is awaited, so a second click saves nothing twice. */
+  let laeuft = false;
+
+  /** Runs one save at a time; the buttons stay locked until it is over. */
+  async function exklusiv(work: () => Promise<void>): Promise<void> {
+    if (laeuft) return;
+    laeuft = true;
+    dialog.state.busy = true;
+    try {
+      await work();
+    } finally {
+      laeuft = false;
+      dialog.state.busy = false;
+    }
   }
 
   /** Runs a save; field messages of the server show at their fields. */
   async function senden(work: () => Promise<PlanungAnsicht>, erfolg: string): Promise<boolean> {
     let felder: Record<string, string> = {};
-    dialog.state.busy = true;
-    try {
-      const ok = await kontext.aendern(async () => {
-        try {
-          return await work();
-        } catch (error: unknown) {
-          if (error instanceof ApiError && error.fields) felder = error.fields;
-          throw error;
-        }
-      }, erfolg);
-      dialog.state.fields = felder;
-      return ok;
-    } finally {
-      dialog.state.busy = false;
-    }
+    const ok = await kontext.aendern(async () => {
+      try {
+        return await work();
+      } catch (error: unknown) {
+        if (error instanceof ApiError && error.fields) felder = error.fields;
+        throw error;
+      }
+    }, erfolg);
+    dialog.state.fields = felder;
+    return ok;
   }
 
-  async function speichern(): Promise<void> {
+  function speichern(): Promise<void> {
+    return exklusiv(speichernJetzt);
+  }
+
+  async function speichernJetzt(): Promise<void> {
     if (dialog.invalid(felderPruefen())) return;
     // The check may still turn the photo upright; the saved photo is the final one
     await photo.fertig();
@@ -137,8 +154,12 @@
     onfertig();
   }
 
-  async function fotoSpeichern(): Promise<void> {
-    if (!beleg || !photo.draft?.result) return;
+  function fotoSpeichern(): Promise<void> {
+    return exklusiv(fotoSpeichernJetzt);
+  }
+
+  async function fotoSpeichernJetzt(): Promise<void> {
+    if (!beleg || !photo.draft?.result || photo.zuschnitt) return;
     await photo.fertig();
     const payload = await photo.photoPayload(photo.draft);
     const id = beleg.id;
@@ -163,11 +184,41 @@
       }))
     )
       return;
-    const ok = await senden(
-      () => kontext.api.senden('DELETE', `/belege/${id}/foto`, undefined, etag),
-      'Foto entfernt.'
-    );
-    if (ok) onfertig();
+    await exklusiv(async () => {
+      const ok = await senden(
+        () => kontext.api.senden('DELETE', `/belege/${id}/foto`, undefined, etag),
+        'Foto entfernt.'
+      );
+      if (ok) onfertig();
+    });
+  }
+
+  /** Whether something typed or photographed would get lost. */
+  export function ungespeichert(): boolean {
+    return geaendert;
+  }
+
+  /** Adds a photo to the receipt being typed in and opens the camera or file choice. */
+  export async function zuFoto(): Promise<void> {
+    mitFoto = true;
+    await tick();
+    dateiFeld?.click();
+  }
+
+  /** Goes on without the photo, after asking if one is chosen; false if it stays. */
+  export async function zuOhneFoto(): Promise<boolean> {
+    if (
+      photo.draft &&
+      !(await confirmAction({
+        title: 'Foto verwerfen?',
+        message: 'Die eingetragenen Angaben bleiben, nur das Foto geht.',
+        confirmLabel: 'Foto verwerfen',
+      }))
+    )
+      return false;
+    photo.reset();
+    mitFoto = false;
+    return true;
   }
 
   const titel = $derived(
@@ -209,10 +260,7 @@
             <ActionButton
               class="min-h-9 any-pointer-coarse:min-h-11"
               disabled={busy}
-              onclick={() => {
-                photo.reset();
-                mitFoto = false;
-              }}>Ohne Foto</ActionButton
+              onclick={() => void zuOhneFoto()}>Ohne Foto</ActionButton
             >
           {/if}
         </div>
@@ -314,14 +362,14 @@
             type="submit"
             variant="primary"
             class="min-h-9 any-pointer-coarse:min-h-11"
-            disabled={busy || photo.photoBusy || !bearbeiten}
+            disabled={busy || photo.photoBusy || !!photo.zuschnitt || !bearbeiten}
             >{dialog.state.busy ? 'Wird gespeichert …' : 'Beleg speichern'}</ActionButton
           >
           {#if !mitFoto}
             <ActionButton
               class="min-h-9 any-pointer-coarse:min-h-11"
               disabled={busy}
-              onclick={() => (mitFoto = true)}>Foto hinzufügen</ActionButton
+              onclick={() => void zuFoto()}>Foto hinzufügen</ActionButton
             >
           {/if}
           <ActionButton

@@ -8,6 +8,13 @@
   import { euro } from '../../lib/essensplanungBelege';
   import { todayIso } from '../../lib/format';
   import type { PlanungBeleg } from '../../lib/types';
+  import {
+    entwurfLeer,
+    neuerEntwurf,
+    type BelegEntwuerfe,
+    type BelegFeld,
+    type BelegZeilenEntwurf,
+  } from './belegEntwuerfe';
   import { gespeichert, merkeSpeichern, type PlanKontext } from './planKontext';
 
   /**
@@ -16,25 +23,37 @@
    * on the version the row had when typing began. A failed save keeps what was typed.
    */
 
-  type Feld = 'datum' | 'haendler' | 'notiz' | 'betrag';
+  type Feld = BelegFeld;
 
   interface Props {
     kontext: PlanKontext;
     beleg: PlanungBeleg;
     bearbeiten: boolean;
+    /** Unsaved input of all rows, kept by the list (`belegEntwuerfe.ts`). */
+    entwuerfe: BelegEntwuerfe;
     onfoto: () => void;
     onansehen: () => void;
   }
-  let { kontext, beleg, bearbeiten, onfoto, onansehen }: Props = $props();
+  let { kontext, beleg, bearbeiten, entwuerfe, onfoto, onansehen }: Props = $props();
 
-  /** Typed values not saved yet, with the version they started from. */
-  let entwurf = $state<Partial<Record<Feld, string>>>({});
-  let basis = $state<string | null>(null);
-  let fehler = $state<Partial<Record<Feld | 'bezahlt', string>>>({});
   let speichert = $state(false);
   let wahl = $state('');
   let name = $state('');
-  let nameOffen = $state(false);
+
+  const entwurf = $derived<BelegZeilenEntwurf | undefined>(entwuerfe[beleg.id]);
+  const fehler = $derived(entwurf?.fehler ?? {});
+
+  /** The draft of this row, made on the first input (only in handlers, never while rendering). */
+  function eigener(): BelegZeilenEntwurf {
+    entwuerfe[beleg.id] ??= neuerEntwurf();
+    return entwuerfe[beleg.id];
+  }
+
+  /** Drops the draft once nothing is typed and no message is left. */
+  function aufraeumen(): void {
+    const aktuell = entwuerfe[beleg.id];
+    if (aktuell && entwurfLeer(aktuell)) delete entwuerfe[beleg.id];
+  }
 
   const gespeicherterWert = (feld: Feld): string =>
     feld === 'betrag'
@@ -44,34 +63,48 @@
         : feld === 'haendler'
           ? beleg.haendler
           : beleg.notiz;
-  const wert = (feld: Feld): string => entwurf[feld] ?? gespeicherterWert(feld);
+  const wert = (feld: Feld): string => entwurf?.felder[feld] ?? gespeicherterWert(feld);
 
   // The choice follows the saved payer unless a free name is being typed
   $effect(() => {
-    if (nameOffen) return;
+    const getippt = entwurf?.name ?? null;
+    if (getippt !== null) {
+      wahl = 'text';
+      name = getippt;
+      return;
+    }
     wahl = beleg.bezahltVonId !== null ? `m:${beleg.bezahltVonId}` : 'text';
     name = beleg.bezahltVonText;
   });
 
   function tippen(feld: Feld, text: string): void {
-    if (basis === null) basis = beleg.etag;
-    entwurf[feld] = text;
+    const eigen = eigener();
+    if (eigen.basis === null) eigen.basis = beleg.etag;
+    eigen.felder[feld] = text;
   }
 
   function zuruecksetzen(feld: Feld): void {
-    delete entwurf[feld];
-    delete fehler[feld];
-    if (!Object.keys(entwurf).length) basis = null;
+    const eigen = entwuerfe[beleg.id];
+    if (!eigen) return;
+    delete eigen.felder[feld];
+    delete eigen.fehler[feld];
+    if (!Object.keys(eigen.felder).length && eigen.name === null) eigen.basis = null;
+    aufraeumen();
+  }
+
+  function setzeFehler(feld: Feld | 'bezahlt', text: string): void {
+    eigener().fehler[feld] = text;
   }
 
   /** Saves fields of this row; field messages of the server stay at the field. */
   async function senden(felder: Record<string, unknown>, erfolg: string): Promise<boolean> {
     let felderFehler: Record<string, string> = {};
     speichert = true;
-    const etag = basis ?? beleg.etag;
+    const etag = entwuerfe[beleg.id]?.basis ?? beleg.etag;
+    const id = beleg.id;
     const lauf = kontext.aendern(async () => {
       try {
-        return await kontext.api.senden('PATCH', `/belege/${beleg.id}`, { ...felder, etag });
+        return await kontext.api.senden('PATCH', `/belege/${id}`, { ...felder, etag });
       } catch (error: unknown) {
         if (error instanceof ApiError && error.fields) felderFehler = error.fields;
         throw error;
@@ -81,20 +114,21 @@
     const ok = await lauf;
     speichert = false;
     if (!ok) {
+      const eigen = eigener();
       // Saving again goes on the version now shown
-      basis = null;
-      if (felderFehler.betragCent) fehler.betrag = felderFehler.betragCent;
-      if (felderFehler.datum) fehler.datum = felderFehler.datum;
-      if (felderFehler.haendler) fehler.haendler = felderFehler.haendler;
-      if (felderFehler.notiz) fehler.notiz = felderFehler.notiz;
+      eigen.basis = null;
+      if (felderFehler.betragCent) eigen.fehler.betrag = felderFehler.betragCent;
+      if (felderFehler.datum) eigen.fehler.datum = felderFehler.datum;
+      if (felderFehler.haendler) eigen.fehler.haendler = felderFehler.haendler;
+      if (felderFehler.notiz) eigen.fehler.notiz = felderFehler.notiz;
       if (felderFehler.bezahltVonId || felderFehler.bezahltVonText)
-        fehler.bezahlt = felderFehler.bezahltVonId ?? felderFehler.bezahltVonText;
+        eigen.fehler.bezahlt = felderFehler.bezahltVonId ?? felderFehler.bezahltVonText;
     }
     return ok;
   }
 
   async function feldSpeichern(feld: Feld): Promise<void> {
-    const text = entwurf[feld];
+    const text = entwuerfe[beleg.id]?.felder[feld];
     if (text === undefined || speichert) return;
     if (text === gespeicherterWert(feld)) {
       zuruecksetzen(feld);
@@ -104,21 +138,21 @@
     if (feld === 'betrag') {
       const cent = parseEuroToCent(text);
       if (cent === null) {
-        fehler.betrag = 'Bitte einen Betrag größer als 0 € angeben, z. B. 12,34.';
+        setzeFehler('betrag', 'Bitte einen Betrag größer als 0 € angeben, z. B. 12,34.');
         return;
       }
       felder = { betragCent: cent };
     } else if (feld === 'datum') {
       if (!text) {
-        fehler.datum = 'Bitte ein gültiges Datum angeben.';
+        setzeFehler('datum', 'Bitte ein gültiges Datum angeben.');
         return;
       }
       felder = { datum: text };
     } else felder = { [feld]: text };
-    delete fehler[feld];
+    delete eigener().fehler[feld];
     if (await senden(felder, 'Beleg gespeichert.')) {
       // Only what was sent; typing on meanwhile stays a draft
-      if (entwurf[feld] === text) zuruecksetzen(feld);
+      if (entwuerfe[beleg.id]?.felder[feld] === text) zuruecksetzen(feld);
     }
   }
 
@@ -131,26 +165,36 @@
     }
   }
 
+  function nameVerwerfen(): void {
+    const eigen = entwuerfe[beleg.id];
+    if (eigen) {
+      eigen.name = null;
+      delete eigen.fehler.bezahlt;
+      aufraeumen();
+    }
+    wahl = beleg.bezahltVonId !== null ? `m:${beleg.bezahltVonId}` : 'text';
+    name = beleg.bezahltVonText;
+  }
+
   async function bezahltSpeichern(mitglied: number | null, text: string): Promise<void> {
-    delete fehler.bezahlt;
+    if (entwuerfe[beleg.id]) delete entwuerfe[beleg.id].fehler.bezahlt;
     if (mitglied === null && !text.trim()) {
-      fehler.bezahlt = 'Bitte angeben, wer bezahlt hat.';
+      setzeFehler('bezahlt', 'Bitte angeben, wer bezahlt hat.');
       return;
     }
     if (
       mitglied === beleg.bezahltVonId &&
       (mitglied !== null || text.trim() === beleg.bezahltVonText)
     ) {
-      nameOffen = false;
+      nameVerwerfen();
       return;
     }
-    if (
-      await senden(
-        { bezahltVonId: mitglied, bezahltVonText: mitglied === null ? text : '' },
-        'Beleg gespeichert.'
-      )
-    )
-      nameOffen = false;
+    const ok = await senden(
+      { bezahltVonId: mitglied, bezahltVonText: mitglied === null ? text : '' },
+      'Beleg gespeichert.'
+    );
+    // A name typed on meanwhile stays a draft
+    if (ok && (mitglied !== null || entwuerfe[beleg.id]?.name === text)) nameVerwerfen();
   }
 
   async function erstatten(feld: HTMLInputElement): Promise<void> {
@@ -225,13 +269,9 @@
         disabled={speichert}
         invalid={!!fehler.bezahlt}
         onwahl={(neu) => void bezahltSpeichern(Number(neu.slice(2)), '')}
-        ontextwahl={() => (nameOffen = true)}
+        ontextwahl={(text) => (eigener().name = text)}
         ontext={(text) => void bezahltSpeichern(null, text)}
-        onescape={() => {
-          nameOffen = false;
-          wahl = beleg.bezahltVonId !== null ? `m:${beleg.bezahltVonId}` : 'text';
-          name = beleg.bezahltVonText;
-        }}
+        onescape={nameVerwerfen}
       />
       {#if fehler.bezahlt}<span class="text-xs text-danger">{fehler.bezahlt}</span>{/if}
     </td>

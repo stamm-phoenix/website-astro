@@ -49,7 +49,7 @@ import { ladeTeilnehmende } from './essen-teilnehmende';
 import { ladeEinkauf } from './essen-einkauf';
 import { ladeEinkaeufe } from './essen-einkaeufe';
 import { ladePackliste } from './essen-packliste';
-import { ladeBelege } from './essen-belege';
+import { belegOrdnerAufraeumen, ladeBelege } from './essen-belege';
 import { pruefeAnwesenheit, verschiebeGrenzen } from './essen-teilnehmende-grenzen';
 import { ValidationError } from './validation/errors';
 
@@ -957,6 +957,8 @@ export async function planungLoeschen(zugang: Zugang): Promise<void> {
     if (!mitglied || mitglied.entzogen_am || mitglied.rolle !== 'besitzer') throw NICHT_ERLAUBT();
     await deletePlanung(trx, zugang.planungId);
   });
+  // Photos only after the commit; what fails is tried again later
+  await belegOrdnerAufraeumen();
 }
 
 async function tagDerPlanung(trx: Db, zugang: Zugang, tagId: number) {

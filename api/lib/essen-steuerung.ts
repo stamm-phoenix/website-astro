@@ -24,6 +24,7 @@ import type {
 } from './essen-validation';
 import { COLLATOR, readGruppen, readStrings } from './essen-validation';
 import { deletePlanung } from './essen-planung-loeschen';
+import { belegOrdnerAufraeumen } from './essen-belege';
 import { loeschDatum } from './essen-planung-model';
 import type { FieldErrors } from './validation/errors';
 import { ValidationError } from './validation/errors';
@@ -247,6 +248,8 @@ export async function deletePlanungSteuerung(
     await deletePlanung(trx, numericId);
     await audit(trx, actor, 'planung-geloescht', { id: numericId, name: row.name });
   });
+  // Photos only after the commit; what fails is tried again later
+  await belegOrdnerAufraeumen();
 }
 
 // ---------------------------------------------------------------------------------------------
