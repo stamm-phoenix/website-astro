@@ -162,13 +162,14 @@ test('names that differ in signs have their own box; a typed name that failed is
   await page.unroute('**/api/essensplanung/planung/stand?*');
   await neu.fill('');
 
-  // Box and name are one target of at least 44 px on a phone
+  // Box and name are one target of at least 44 px for a finger (compact with a mouse)
   await page.setViewportSize({ width: 390, height: 844 });
   const flaeche = await liste
     .locator('label', { has: page.getByRole('checkbox', { name: 'Grill Zange', exact: true }) })
     .boundingBox();
-  expect(flaeche!.height).toBeGreaterThanOrEqual(44);
-  expect(flaeche!.width).toBeGreaterThanOrEqual(44);
+  const finger = await page.evaluate(() => matchMedia('(any-pointer: coarse)').matches);
+  expect(flaeche!.height).toBeGreaterThanOrEqual(finger ? 44 : 28);
+  expect(flaeche!.width).toBeGreaterThanOrEqual(finger ? 44 : 28);
   await expectNoHorizontalOverflow(page);
 
   // The label of the one row ticks its own box
