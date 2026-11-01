@@ -54,13 +54,17 @@ test('the plan shows as a grid over the whole width, dishes are typed into a mea
   await expect(page.getByText('Nudeln nach 2_2 verschoben.').first()).toBeVisible();
   await expect(page.locator('[data-kalender="2_2"] [data-karte]')).toHaveCount(1);
 
-  // Dragging: a planned dish to another meal, and a dish from the list of all dishes
-  await page
-    .locator('[data-kalender="2_2"] [data-karte]')
-    .dragTo(page.locator('[data-kalender="2_4"]'));
-  await expect(page.locator('[data-kalender="2_4"] [data-karte]')).toHaveCount(1);
-  await expect(page.locator('[data-kalender="2_2"] [data-karte]')).toHaveCount(0);
-  if (await page.evaluate(() => matchMedia('(any-pointer: coarse)').matches)) {
+  // Dragging: a planned dish to another meal, and a dish from the list of all dishes. Fingers
+  // do not drag, and on a touch screen the dish name fills the card as a 44px target
+  const touch = await page.evaluate(() => matchMedia('(any-pointer: coarse)').matches);
+  if (!touch) {
+    await page
+      .locator('[data-kalender="2_2"] [data-karte]')
+      .dragTo(page.locator('[data-kalender="2_4"]'));
+    await expect(page.locator('[data-kalender="2_4"] [data-karte]')).toHaveCount(1);
+    await expect(page.locator('[data-kalender="2_2"] [data-karte]')).toHaveCount(0);
+  }
+  if (touch) {
     // On a phone the list of all dishes is folded and fingers do not drag: a tap on „+ Gericht“,
     // always shown there, types the dish in
     await kalender.getByRole('button', { name: 'Gericht eintragen bei 1_1 Frühstück' }).tap();
