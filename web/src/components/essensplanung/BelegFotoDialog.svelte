@@ -21,7 +21,8 @@
 
   $effect(() => {
     const aktuell = beleg;
-    const art = original ? 'original' : 'bild';
+    // A photo replaced meanwhile may have no original any more
+    const art = original && aktuell?.original ? 'original' : 'bild';
     url = null;
     fehler = null;
     if (!aktuell) return;

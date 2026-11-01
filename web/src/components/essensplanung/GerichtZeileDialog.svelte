@@ -171,7 +171,8 @@
   });
   // The kind of unit of a new own ingredient is always chosen here
   $effect(() => {
-    if (eigene?.einheitenart) untrack(passendeEinheit);
+    // A typed amount keeps its unit: nothing is converted
+    if (eigene?.einheitenart && !untrack(() => menge.trim())) untrack(passendeEinheit);
   });
   /** TL, EL or pieces typed: the conversion into grams starts with them. */
   const umrechnenVon = $derived.by(() => {
