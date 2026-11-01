@@ -427,3 +427,28 @@ test('pepper by eye bought and used up is needed again', () => {
   assert.ok(!gesamt().includes('Pfeffer'));
   assert.ok(!liste(s, nach).includes('Pfeffer'));
 });
+
+test('a fixed amount takes only the tick of its base unit; one in Bund stays a thing of its own', () => {
+  const a = einkauf({ bisMahlzeitId: 3 });
+  const s = stand([a]);
+  a.posten = [
+    { ...haken(1, 100, 'g'), id: 901 },
+    { ...haken(1, 1, 'bund', 'glatt'), id: 902 },
+  ];
+  a.regeln = [{ planungZutatId: 1, art: 'fest', menge: 200, einheit: 'g' }];
+  assert.deepEqual(liste(s, a), ['200 g Nudeln ✓100 g (fest)', 'Nudeln ✓1 bund (fest)', 'Pfeffer']);
+  const info = einkaufListen(s, new Map()).get(a.id)!;
+  assert.equal(info.anzahl, 3);
+  assert.equal(info.abgehakt, 2);
+  // The tick in Bund is shown and changed in Bund
+  const bund = info.kategorien.flatMap((k) => k.posten).find((p) => p.haken?.id === 902)!;
+  assert.equal(bund.einheit, 'bund');
+  // On paper both ticks are there
+  assert.deepEqual(
+    info.kategorien.flatMap((k) => k.posten.map(einkaufDruckZeile)).filter((z) => z.abgehakt),
+    [
+      { abgehakt: true, menge: '100 g', name: 'Nudeln' },
+      { abgehakt: true, menge: '1 Bund', name: 'Nudeln → glatt' },
+    ]
+  );
+});

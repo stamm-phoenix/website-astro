@@ -201,17 +201,21 @@ export function einkaufListen(
     );
     /** The key of a fixed amount on this trip, by ingredient. */
     const festKey = new Map([...fest.keys()].map((key) => [Number(key.split(':')[0]), key]));
-    /** Where a tick stands on the list of this trip. */
-    const hakenKey = (h: EinkaufHaken): string => {
+    /**
+     * Where a tick stands on the list of this trip: under its ingredient and base unit, so ticks
+     * in g and in Bund stay two things; a fixed amount in that base is the one ticked off.
+     */
+    const hakenKey = (h: EinkaufHaken, vergeben: ReadonlyMap<string, EinkaufHaken>): string => {
       const id = h.planungZutatId;
-      // A fixed amount on this trip is what was ticked off
-      const festerKey = festKey.get(id);
-      if (festerKey) return festerKey;
+      const eigener = schluessel(id, inBasis(h.erhalten, h.einheit).einheit);
+      if (festKey.get(id) === eigener) return eigener;
       // A thing without an amount keeps its place when ticked off, also for others at once
-      if (ohne.has(id) && !mitMenge.has(id)) return `${id}:`;
-      return schluessel(id, inBasis(h.erhalten, h.einheit).einheit);
+      if (!festKey.has(id) && ohne.has(id) && !mitMenge.has(id) && !vergeben.has(`${id}:`))
+        return `${id}:`;
+      return eigener;
     };
-    const hakenJe = new Map(einkauf.posten.map((h) => [hakenKey(h), h]));
+    const hakenJe = new Map<string, EinkaufHaken>();
+    for (const h of einkauf.posten) hakenJe.set(hakenKey(h, hakenJe), h);
     const mit = new Set(einkauf.regeln.filter((r) => r.art === 'mit').map((r) => r.planungZutatId));
     const keys = new Set([
       ...noetig.keys(),
@@ -253,9 +257,10 @@ export function einkaufListen(
       const vorhanden = liste?.get(key);
       if (vorhanden) vorhanden.haken = haken;
       else {
+        // Only ticked off: in the unit it was bought in, so it can be changed in that unit
         const neu = eintrag(einkauf, haken.planungZutatId, key, {
           menge: null,
-          einheit: null,
+          einheit: key.endsWith(':') ? null : haken.einheit,
           nachGefuehl: false,
         });
         if (neu) neu.haken = haken;
