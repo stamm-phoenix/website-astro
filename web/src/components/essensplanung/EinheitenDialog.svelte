@@ -209,7 +209,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-neutral-200">
-            {#each zeilen as zeile (`${zeile.stelle}:${zeile.id}`)}
+            {#each zeilen as zeile (`${zeile.stelle}:${zeile.id}:${zeile.von}`)}
               <tr data-testid="einheiten-zeile">
                 <td class="py-1 pr-3 [overflow-wrap:anywhere]">{zeile.wo}</td>
                 <td class="py-1 pr-3 whitespace-nowrap tabular-nums">{zeile.vorher}</td>

@@ -74,9 +74,12 @@
   });
 
   /** Ticks off „gekocht“ with the planned amounts, or sets it open again. */
-  function haken(event: Event): void {
-    const an = (event.currentTarget as HTMLInputElement).checked;
-    void setzeStatus(kontext, mahlzeit, einplanung, an ? 'gekocht' : 'offen', esser);
+  async function haken(event: Event): Promise<void> {
+    const feld = event.currentTarget as HTMLInputElement;
+    const an = feld.checked;
+    const ok = await setzeStatus(kontext, mahlzeit, einplanung, an ? 'gekocht' : 'offen', esser);
+    // A failed save leaves the box as it is saved, not as it was clicked
+    if (!ok) feld.checked = einplanung.status === 'gekocht';
   }
 
   /** Puts the focus back on the dish after it moved, where it is drawn anew. */
