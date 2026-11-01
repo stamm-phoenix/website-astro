@@ -319,7 +319,9 @@ test('the skip link keeps the Planung on reload; a name typed while saving stays
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await page.getByLabel('Dein Name in dieser Planung').fill('Kim Backt');
   await expect(page.getByText('Dein Name ist gespeichert.').first()).toBeVisible();
-  await expect(page.getByText('Kim Kocht (du)')).toBeVisible();
+  await expect(
+    page.getByRole('tabpanel', { name: 'Mitglieder' }).getByText('Kim Kocht (du)')
+  ).toBeVisible();
   await expect(page.getByLabel('Dein Name in dieser Planung')).toHaveValue('Kim Backt');
 });
 
