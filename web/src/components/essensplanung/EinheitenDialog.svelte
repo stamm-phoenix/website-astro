@@ -104,7 +104,7 @@
   let speichert = $state(false);
   async function uebernehmen(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (speichert || fehlt || !neu.length) return;
+    if (speichert || fehlt || !neu.length || kontext.ansicht.wartung) return;
     fehler = null;
     speichert = true;
     const ok = await kontext.aendern(
@@ -163,7 +163,10 @@
           class="form-input w-32"
           invalid={!ziel}
         />
-        <ActionButton type="button" disabled={fragt} onclick={() => void vorschlagHolen()}
+        <ActionButton
+          type="button"
+          disabled={fragt || kontext.ansicht.wartung}
+          onclick={() => void vorschlagHolen()}
           >{fragt
             ? 'KI überlegt …'
             : ki
@@ -237,7 +240,7 @@
         <ActionButton
           type="submit"
           variant="primary"
-          disabled={!ziel || fehlt || !neu.length || kontext.busy}
+          disabled={!ziel || fehlt || !neu.length || kontext.busy || kontext.ansicht.wartung}
           >{neu.length === 1
             ? 'Eine Menge umrechnen'
             : `${neu.length} Mengen umrechnen`}</ActionButton

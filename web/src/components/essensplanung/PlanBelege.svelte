@@ -50,6 +50,12 @@
       ? (ansicht.belege.find((b) => b.id === erfassen!.belegId) ?? null)
       : null
   );
+  // The receipt as last seen: deleted by someone else meanwhile, its form stays with the photo
+  let letzterFotoBeleg = $state<PlanungBeleg | null>(null);
+  $effect(() => {
+    if (fotoBeleg) letzterFotoBeleg = fotoBeleg;
+    else if (erfassen?.belegId == null) letzterFotoBeleg = null;
+  });
   const ansehen = $derived<PlanungBeleg | null>(
     ansicht.belege.find((b) => b.id === ansehenId && b.foto) ?? null
   );
@@ -156,12 +162,13 @@
   </div>
 
   <!-- Stays during maintenance, locked, so nothing typed or photographed gets lost -->
-  {#if erfassen && ansicht.zugang !== 'lesen' && (erfassen.belegId === null || fotoBeleg)}
+  {#if erfassen && ansicht.zugang !== 'lesen' && (erfassen.belegId === null || fotoBeleg || letzterFotoBeleg?.id === erfassen.belegId)}
     {#key erfassen.nr}
       <BelegErfassen
         bind:this={formular}
         {kontext}
-        beleg={fotoBeleg}
+        beleg={fotoBeleg ?? (erfassen.belegId !== null ? letzterFotoBeleg : null)}
+        geloescht={erfassen.belegId !== null && !fotoBeleg}
         ohneFoto={erfassen.ohneFoto}
         sofortWaehlen
         onfertig={() => (erfassen = null)}

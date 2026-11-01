@@ -28,6 +28,8 @@
     ohneFoto?: boolean;
     /** Opens the camera or file choice right away, saving a tap. */
     sofortWaehlen?: boolean;
+    /** The receipt was deleted by someone else: the photo stays to copy, nothing is saved. */
+    geloescht?: boolean;
     onfertig: () => void;
   }
   let {
@@ -35,6 +37,7 @@
     beleg = null,
     ohneFoto = false,
     sofortWaehlen = false,
+    geloescht = false,
     onfertig,
   }: Props = $props();
 
@@ -193,7 +196,7 @@
   }
 
   async function fotoSpeichernJetzt(): Promise<void> {
-    if (!beleg || !photo.draft?.result || photo.zuschnitt) return;
+    if (!beleg || geloescht || !photo.draft?.result || photo.zuschnitt) return;
     await photo.fertig();
     const payload = await photo.photoPayload(photo.draft);
     const id = beleg.id;
@@ -426,11 +429,18 @@
           Stand. Dein Foto ist noch da; „Trotzdem …“ ersetzt den aktuellen Stand.
         </p>
       {/if}
+      {#if geloescht}
+        <p class="text-sm text-danger" role="alert">
+          Jemand anderes hat diesen Beleg gerade gelöscht. Dein neues Foto ist nicht gespeichert;
+          „Abbrechen“ verwirft es.
+        </p>
+      {/if}
       <div class="flex flex-wrap gap-2">
         <ActionButton
           variant="primary"
           class="min-h-9 any-pointer-coarse:min-h-11"
-          disabled={busy ||
+          disabled={geloescht ||
+            busy ||
             photo.photoBusy ||
             !photo.draft?.result ||
             !!photo.zuschnitt ||
@@ -442,7 +452,7 @@
           <ActionButton
             variant="danger"
             class="min-h-9 any-pointer-coarse:min-h-11"
-            disabled={busy || !bearbeiten}
+            disabled={geloescht || busy || !bearbeiten}
             onclick={() => void fotoEntfernen()}
             >{konflikt ? 'Trotzdem entfernen' : 'Foto entfernen'}</ActionButton
           >

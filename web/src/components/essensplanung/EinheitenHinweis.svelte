@@ -41,6 +41,7 @@
             type="button"
             class="!px-2 !py-0.5 text-sm any-pointer-coarse:min-h-11"
             aria-label="{zutat.name} steht in {einheiten}: vereinheitlichen"
+            disabled={ansicht.wartung}
             onclick={() => (offen = zutat.id)}
             >{zutat.name} <span class="text-neutral-700">({einheiten})</span> · vereinheitlichen</ActionButton
           >

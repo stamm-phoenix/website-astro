@@ -223,7 +223,8 @@
     </form>
   {/if}
 
-  {#if bearbeiten}<EinheitenHinweis {kontext} />{/if}
+  <!-- Stays during maintenance, locked, so an open conversion keeps what is typed -->
+  {#if ansicht.zugang !== 'lesen'}<EinheitenHinweis {kontext} />{/if}
 
   {#if ansicht.gerichte.length}
     <PdfKnopf
