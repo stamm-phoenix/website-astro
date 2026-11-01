@@ -53,18 +53,22 @@ export async function packSenden(
 }
 
 /**
- * Packs a row or opens it again. A free name typed in the row (`entwurf`) saves first: the tick
- * then goes on the version its answer brought, not into a conflict with it. A failed name keeps
- * its draft and notice; the tick is saved on the version now shown. `zeileJetzt` reads the row
- * as shown after the name's save. Says whether the tick is saved.
+ * Saves a field of a row that may have a free name typed in it (`entwurf`), also one whose save
+ * is still running (e.g. left by switching to the matrix). That name saves first, or its running
+ * save is waited for: the change then goes on the version its answer brought, not into a
+ * conflict with this page's own save; changes of others still conflict. A failed name keeps its
+ * draft and notice; the change is saved on the version now shown. `zeileJetzt` reads the row as
+ * shown after the name's save; `erfolg` names the change for it. While the change saves, later
+ * saves of the name wait for it. Says whether the change is saved and whether the name failed.
  */
-export async function packAbhaken(
+export async function packAendern(
   kontext: PlanKontext,
   zeileJetzt: () => PackZeile,
-  gepackt: boolean,
+  felder: (zeile: PackZeile) => PackFelder | null,
+  erfolg: (zeile: PackZeile) => string,
   entwurf: PackEntwurf | null,
   aktionen: EntwurfAktionen
-): Promise<boolean> {
+): Promise<{ ok: boolean; nameFehlt: string | null }> {
   let nameFehlt: string | null = null;
   if (entwurf !== null) {
     const name = aktionen.speichern(false);
@@ -72,16 +76,39 @@ export async function packAbhaken(
     if (!(await name)) nameFehlt = entwurf.text.trim() || null;
   }
   const zeile = zeileJetzt();
-  const erfolg = gepackt ? `${zeile.name} ist eingepackt.` : `${zeile.name} ist wieder offen.`;
+  const aenderung = felder(zeile);
+  // Nothing left to change on the version now shown
+  if (aenderung === null) return { ok: true, nameFehlt };
   const vorher = zeile.eintrag?.etag ?? null;
   const freigeben = aktionen.sperren();
-  const ok = await packSenden(kontext, zeile, { gepackt }, erfolg);
+  const ok = await packSenden(kontext, zeile, aenderung, erfolg(zeile));
   if (ok) aktionen.eigeneAenderung(vorher);
   freigeben(nameFehlt === null);
+  return { ok, nameFehlt };
+}
+
+/** Packs a row or opens it again (`packAendern`). Says whether the tick is saved. */
+export async function packAbhaken(
+  kontext: PlanKontext,
+  zeileJetzt: () => PackZeile,
+  gepackt: boolean,
+  entwurf: PackEntwurf | null,
+  aktionen: EntwurfAktionen
+): Promise<boolean> {
+  const erfolg = (zeile: PackZeile) =>
+    gepackt ? `${zeile.name} ist eingepackt.` : `${zeile.name} ist wieder offen.`;
+  const { ok, nameFehlt } = await packAendern(
+    kontext,
+    zeileJetzt,
+    () => ({ gepackt }),
+    erfolg,
+    entwurf,
+    aktionen
+  );
   // The tick's success must not hide that the name typed here is still unsaved
   if (ok && nameFehlt)
     kontext.hinweis(
-      `${erfolg} Der Name „${nameFehlt}“ ist aber noch nicht gespeichert; er steht noch in der Zeile, Enter versucht es noch einmal.`,
+      `${erfolg(zeileJetzt())} Der Name „${nameFehlt}“ ist aber noch nicht gespeichert; er steht noch in der Zeile, Enter versucht es noch einmal.`,
       'error'
     );
   return ok;

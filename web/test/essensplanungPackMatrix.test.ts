@@ -32,16 +32,16 @@ test('the columns are the members with access, the free names by name, then nobo
     ]
   );
   assert.deepEqual(
-    spalten.map((s) => [s.key, s.name, s.zustaendigId, s.zustaendigText, s.ich]),
+    spalten.map((s) => [s.key, s.name, s.zustaendigId, s.zustaendigText, s.ich, s.ohneZugang]),
     [
-      ['m:1', 'Kim', 1, '', true],
+      ['m:1', 'Kim', 1, '', true, false],
       // Without access, but still packs something
-      ['m:3', 'Jo', 3, '', false],
-      // A member the view lacks, named from the row
-      ['m:9', 'Weg', 9, '', false],
-      ['t:Bezirk', 'Bezirk', null, 'Bezirk', false],
-      ['t:Rover', 'Rover', null, 'Rover', false],
-      [NIEMAND, 'Niemand', null, '', false],
+      ['m:3', 'Jo', 3, '', false, true],
+      // A member the view lacks (removed, for those who do not manage members): without access
+      ['m:9', 'Weg', 9, '', false, true],
+      ['t:Bezirk', 'Bezirk', null, 'Bezirk', false, false],
+      ['t:Rover', 'Rover', null, 'Rover', false, false],
+      [NIEMAND, 'Niemand', null, '', false, false],
     ]
   );
 });

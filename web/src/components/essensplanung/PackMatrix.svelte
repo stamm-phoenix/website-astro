@@ -12,7 +12,7 @@
     type PackZelle,
   } from '../../lib/essensplanungPackMatrix';
   import type { packEntwuerfe } from './packEntwuerfe.svelte';
-  import { packAbhaken, packSenden, zustaendigErfolg } from './packSpeichern';
+  import { packAbhaken, packAendern, zustaendigErfolg } from './packSpeichern';
   import type { PlanKontext } from './planKontext';
 
   /**
@@ -35,10 +35,6 @@
 
   const spalten = $derived(packSpalten(kontext.ansicht.mitglieder, zeilen));
   const gepacktGesamt = $derived(zeilen.filter((zeile) => zeile.gepackt).length);
-  /** Members without access can keep what they pack, but get nothing new. */
-  const entzogen = $derived(
-    new Set(kontext.ansicht.mitglieder.filter((m) => m.entzogen).map((m) => `m:${m.id}`))
-  );
   /** Rows whose change is being saved; a click there waits. */
   const laeuft = new SvelteSet<string>();
 
@@ -116,25 +112,34 @@
   }
 
   async function zuweisen(zeile: PackZeile, spalte: PackSpalte): Promise<void> {
-    if (laeuft.has(zeile.key) || waehlbar(zeile, spalte) === false) return;
+    if (laeuft.has(zeile.key) || !waehlbar(zeile, spalte)) return;
     // The cell of who packs it takes it back
     const ziel = spalteVon(zeile) === spalte.key ? spalten.find((s) => s.key === NIEMAND)! : spalte;
-    if (ziel.key === spalteVon(zeile)) return;
+    if (ziel.key === spalteVon(zeile) && !entwuerfe.von(zeile.key)) return;
     laeuft.add(zeile.key);
-    const ok = await packSenden(
+    // A free name typed at the row in the list, maybe still saving, goes first: the choice then
+    // goes on the version its answer brought and replaces it
+    const { ok } = await packAendern(
       kontext,
-      zeile,
-      { zustaendigId: ziel.zustaendigId, zustaendigText: ziel.zustaendigText },
-      zustaendigErfolg(ziel.key === NIEMAND ? '' : ziel.name, zeile.name)
+      () => zeileVon(zeile),
+      (jetzt) =>
+        spalteVon(jetzt) === ziel.key
+          ? null
+          : { zustaendigId: ziel.zustaendigId, zustaendigText: ziel.zustaendigText },
+      (jetzt) => zustaendigErfolg(ziel.key === NIEMAND ? '' : ziel.name, jetzt.name),
+      entwuerfe.von(zeile.key),
+      entwuerfe.aktionen(zeile.key)
     );
     laeuft.delete(zeile.key);
-    // The choice here replaces a free name typed at the row in the list
     if (ok) entwuerfe.aktionen(zeile.key).verwerfen();
   }
 
-  /** Whether a cell can be chosen: not for a member without access who does not pack it. */
+  /**
+   * Whether a cell can be chosen: a member without access (also one the view lacks) keeps what
+   * they pack and can be taken off it, but gets nothing new.
+   */
   function waehlbar(zeile: PackZeile, spalte: PackSpalte): boolean {
-    return !entzogen.has(spalte.key) || spalteVon(zeile) === spalte.key;
+    return !spalte.ohneZugang || spalteVon(zeile) === spalte.key;
   }
 
   function summe(spalte: PackSpalte): string {
@@ -210,7 +215,7 @@
           >
             {spalte.name}
             {#if spalte.ich}<span class="font-normal">(du)</span>{/if}
-            {#if entzogen.has(spalte.key)}<span class="block text-xs font-normal text-neutral-700"
+            {#if spalte.ohneZugang}<span class="block text-xs font-normal text-neutral-700"
                 >ohne Zugang</span
               >{/if}
             <span class="block text-xs font-normal text-neutral-700 tabular-nums"

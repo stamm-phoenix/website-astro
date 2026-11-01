@@ -147,3 +147,83 @@ test('the matrix shows who packs what; cells assign and pack with the keyboard',
   await expect(lesend.getByRole('checkbox')).toHaveCount(0);
   await leser.context().close();
 });
+
+test('a choice in the matrix waits for the name still saving from the list', async ({ page }) => {
+  await anlegen(page, 'E2E Packliste Matrix wartet');
+  await gerichteMitWerkzeugen(page);
+  // The name's save answers late
+  const gesendet: (string | null)[] = [];
+  await page.route('**/api/essensplanung/planung/packliste/werkzeug', async (route) => {
+    const body = route.request().postDataJSON() as { etag: string | null };
+    gesendet.push(body.etag);
+    if (gesendet.length === 1) await new Promise((done) => setTimeout(done, 1500));
+    await route.continue();
+  });
+  await page.getByLabel('Wer packt Pürierstab ein?').selectOption({ label: 'Anderer Name …' });
+  await page.getByRole('textbox', { name: 'Wer packt Pürierstab ein?' }).fill('Rover');
+  // Leaving the field for the matrix saves the name; the choice there comes before its answer
+  await page.getByRole('button', { name: 'Matrix', exact: true }).click();
+  const matrix = page.getByRole('grid', { name: 'Packliste als Matrix' });
+  const kim = matrix.getByRole('button', { name: 'Kim Küche packt Pürierstab ein' });
+  await kim.click();
+  await expect(page.getByText('Kim Küche packt Pürierstab ein.').first()).toBeVisible();
+  await expect(kim).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText(/Jemand anderes hat/)).toHaveCount(0);
+  // The choice went on the version the name's save brought
+  expect(gesendet).toHaveLength(2);
+  expect(gesendet[0]).toBeNull();
+  expect(gesendet[1]).not.toBeNull();
+  await page.getByRole('button', { name: 'Liste', exact: true }).click();
+  await expect(page.getByLabel('Wer packt Pürierstab ein?')).toHaveValue(/^m:/);
+});
+
+test('a member without access keeps what they pack, but gets nothing new', async ({
+  page,
+  browser,
+}) => {
+  await anlegen(page, 'E2E Packliste Matrix ohne Zugang');
+  const { ansicht } = await senden<{
+    ansicht: { mitglieder: { id: number; name: string; etag: string }[] };
+  }>(page, 'POST', '/mitglieder', {
+    name: 'Alex Rover',
+    email: 'alex@example.org',
+    rolle: 'bearbeiten',
+  });
+  const { vorschauLink } = await senden<{ vorschauLink: string }>(page, 'POST', '/mitglieder', {
+    name: 'Jo Jupfi',
+    email: 'jo@example.org',
+    rolle: 'bearbeiten',
+  });
+  const alex = ansicht.mitglieder.find((m) => m.name === 'Alex Rover')!;
+  await senden(page, 'POST', '/packliste', { name: 'Gaskocher', zustaendigId: alex.id });
+  await senden(page, 'POST', '/packliste', { name: 'Spülmittel' });
+  await senden(page, 'DELETE', `/mitglieder/${alex.id}`, undefined, alex.etag);
+
+  // Jo does not manage the members: the view lacks Alex, the matrix names them from the row
+  const jo = await (await browser.newContext()).newPage();
+  await jo.goto(vorschauLink);
+  await jo.getByRole('tab', { name: 'Packliste' }).click();
+  await jo.getByRole('button', { name: 'Matrix', exact: true }).click();
+  const matrix = jo.getByRole('grid', { name: 'Packliste als Matrix' });
+  await expect(matrix.getByRole('columnheader', { name: /Alex Rover/ })).toContainText(
+    'ohne Zugang'
+  );
+  const neu = matrix.getByRole('button', { name: 'Alex Rover packt Spülmittel ein' });
+  await expect(neu).toHaveAttribute('aria-disabled', 'true');
+  let anfragen = 0;
+  await jo.route('**/api/essensplanung/planung/packliste/**', async (route) => {
+    anfragen++;
+    await route.continue();
+  });
+  // Playwright waits for aria-disabled elements; a click still reaches it
+  await neu.click({ force: true });
+  await expect(neu).toHaveAttribute('aria-pressed', 'false');
+  expect(anfragen).toBe(0);
+  // Taking them off what they pack works; then the column goes
+  const alt = matrix.getByRole('button', { name: 'Alex Rover packt Gaskocher ein' });
+  await expect(alt).toHaveAttribute('aria-pressed', 'true');
+  await alt.click();
+  await expect(jo.getByText('Für Gaskocher ist niemand mehr zuständig.').first()).toBeVisible();
+  await expect(matrix.getByRole('columnheader', { name: /Alex Rover/ })).toHaveCount(0);
+  await jo.context().close();
+});

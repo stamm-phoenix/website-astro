@@ -15,6 +15,11 @@ export interface PackSpalte {
   zustaendigId: number | null;
   zustaendigText: string;
   ich: boolean;
+  /**
+   * A member without access: removed, or missing from the view (those who do not manage the
+   * members do not get removed ones). They keep what they pack, but get nothing new.
+   */
+  ohneZugang: boolean;
 }
 
 export const NIEMAND = 'niemand';
@@ -44,6 +49,7 @@ export function packSpalten(
       zustaendigId: m.id,
       zustaendigText: '',
       ich: m.ich,
+      ohneZugang: m.entzogen,
     }));
   const da = new Set(spalten.map((s) => s.key));
   const frei = new Map<string, PackSpalte>();
@@ -59,16 +65,31 @@ export function packSpalten(
         zustaendigId: zeile.zustaendigId,
         zustaendigText: '',
         ich: false,
+        ohneZugang: true,
       });
     } else if (!frei.has(key)) {
       const name = freiName(zeile.zustaendig);
-      frei.set(key, { key, name, zustaendigId: null, zustaendigText: name, ich: false });
+      frei.set(key, {
+        key,
+        name,
+        zustaendigId: null,
+        zustaendigText: name,
+        ich: false,
+        ohneZugang: false,
+      });
     }
   }
   return [
     ...spalten,
     ...[...frei.values()].sort((a, b) => VERGLEICH.compare(a.name, b.name)),
-    { key: NIEMAND, name: 'Niemand', zustaendigId: null, zustaendigText: '', ich: false },
+    {
+      key: NIEMAND,
+      name: 'Niemand',
+      zustaendigId: null,
+      zustaendigText: '',
+      ich: false,
+      ohneZugang: false,
+    },
   ];
 }
 
