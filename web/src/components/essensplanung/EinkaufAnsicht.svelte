@@ -86,8 +86,9 @@
     const { id, name } = einkauf;
     setTimeout(() => {
       if (kontext.ansicht.einkaeufe.some((e) => e.id === id)) return;
+      // Keys are `<einkaufId>:<planungZutatId>` with the base unit after it in the live mode
       const zutat = (key: string) =>
-        kontext.ansicht.zutaten.find((z) => `${id}:${z.id}` === key)?.name ?? 'Zutat';
+        kontext.ansicht.zutaten.find((z) => z.id === Number(key.split(':')[1]))?.name ?? 'Zutat';
       for (const [key, e] of [...entwuerfe]) {
         if (!key.startsWith(`${id}:`)) continue;
         const eingabe = [

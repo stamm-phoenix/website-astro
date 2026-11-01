@@ -13,6 +13,7 @@
   import {
     EINHEITEN_JE_ART,
     einheitText,
+    einheitSchluessel,
     einheitenGleicherBasis,
   } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
@@ -43,6 +44,8 @@
     onoeffnen: (offen: boolean) => void;
     /** The dishes it is for, shown with „Für welche Gerichte“. */
     herkunft?: Herkunft;
+    /** The ingredient stands twice on the list (g and Bund): the labels name the unit. */
+    zweifach?: boolean;
   }
   let {
     kontext,
@@ -52,8 +55,13 @@
     offen,
     onoeffnen,
     herkunft,
+    zweifach = false,
   }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
+  /** How the controls of this thing are named. */
+  const bezeichnung = $derived(
+    zweifach && posten.einheit ? `${posten.name} (${einheitText(posten.einheit)})` : posten.name
+  );
 
   const einheiten = $derived.by((): readonly GerichtEinheit[] => {
     // A thing with an amount is bought in its unit (g or kg, or its own like „Dose“)
@@ -78,7 +86,9 @@
   /** Something was typed into the open amount and is not saved. */
   let geaendert = $state(false);
   /** Where the unsaved input is kept while the trip shows its list or form. */
-  const entwurfKey = untrack(() => `${einkaufId}:${posten.planungZutatId}`);
+  // By the key of the thing (ingredient and base unit): the same ingredient may stand twice, in g
+  // and in Bund, each with input of its own
+  const entwurfKey = untrack(() => `${einkaufId}:${posten.key}`);
   // Input kept from before the trip showed its list or form
   const frueher = entwuerfe.get(entwurfKey);
   if (frueher) {
@@ -99,7 +109,7 @@
   // A row with unsaved input that falls off the list (someone ticked its needs off on another
   // trip) names the input, unless it comes back drawn again at once
   $effect(() => {
-    const id = `${einkaufId}:${posten.planungZutatId}`;
+    const id = entwurfKey;
     const name = posten.name;
     sichtbar.set(id, (sichtbar.get(id) ?? 0) + 1);
     return () => {
@@ -230,7 +240,11 @@
         const neu =
           kontext.ansicht.einkaeufe
             .find((e) => e.id === einkauf)
-            ?.posten.find((p) => p.planungZutatId === zutatId)?.etag ?? null;
+            ?.posten.find(
+              (p) =>
+                p.planungZutatId === zutatId &&
+                einheitSchluessel(p.einheit) === einheitSchluessel(gesendet.einheit)
+            )?.etag ?? null;
         merkeEntwurf(key, { ...kept, etag: neu, konflikt: null });
       }
       if (!aktiv) return;
@@ -294,7 +308,7 @@
     type="button"
     role="checkbox"
     aria-checked={!!posten.haken}
-    aria-label="{posten.name} abhaken"
+    aria-label="{bezeichnung} abhaken"
     data-live-haken
     disabled={gesperrt}
     class="flex size-8 shrink-0 items-center justify-center rounded any-pointer-coarse:size-11"
@@ -323,7 +337,7 @@
     type="button"
     class="flex min-h-8 shrink-0 items-center gap-1 rounded px-2 text-sm font-semibold text-link any-pointer-coarse:min-h-11 md:hidden"
     aria-expanded={offen}
-    aria-label="{posten.name}: Menge und Ersatz"
+    aria-label="{bezeichnung}: Menge und Ersatz"
     onclick={oeffnen}
     ><span aria-hidden="true">Menge</span><AufklappPfeil
       class="text-link transition-transform {offen ? 'rotate-180' : ''}"
@@ -338,20 +352,20 @@
       void speichern();
     }}
     oninput={() => (geaendert = true)}
-    aria-label="{posten.name} abhaken"
+    aria-label="{bezeichnung} abhaken"
   >
     <span class="flex items-center gap-1">
       <input
         class="{FELD} w-20 text-right tabular-nums"
         inputmode="decimal"
         autocomplete="off"
-        aria-label="Erhaltene Menge von {posten.name}"
+        aria-label="Erhaltene Menge von {bezeichnung}"
         placeholder="–"
         bind:value={menge}
         onkeydown={taste}
       />
       {#if einheiten.length > 1}
-        <select class="{FELD} w-24" aria-label="Einheit von {posten.name}" bind:value={einheit}>
+        <select class="{FELD} w-24" aria-label="Einheit von {bezeichnung}" bind:value={einheit}>
           {#each einheiten as e (e)}
             <option value={e}>{einheitText(e)}</option>
           {/each}
@@ -364,7 +378,7 @@
       class="{FELD} flex-1 md:w-44 md:flex-none"
       maxlength="100"
       autocomplete="off"
-      aria-label="Ersatz für {posten.name}"
+      aria-label="Ersatz für {bezeichnung}"
       placeholder="Ersatz"
       bind:value={ersatz}
       onkeydown={taste}

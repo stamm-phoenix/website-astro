@@ -23,6 +23,12 @@
 
   $effect(() => liveOffen(liste.einkauf.id));
 
+  /** Ingredients that stand twice (g and Bund), whose rows then name their unit. */
+  const zweifach = $derived.by(() => {
+    const ids = liste.kategorien.flatMap((k) => k.posten.map((p) => p.planungZutatId));
+    return new Set(ids.filter((id, index) => ids.indexOf(id) !== index));
+  });
+
   /** The thing whose amount is open on a phone; kept when the trip shows its list meanwhile. */
   let offen = $state<string | null>(untrack(() => offeneZeile.get(liste.einkauf.id) ?? null));
   $effect(() => {
@@ -49,6 +55,7 @@
             {posten}
             {gesperrt}
             herkunft={herkunft(posten)}
+            zweifach={zweifach.has(posten.planungZutatId)}
             offen={offen === posten.key}
             onoeffnen={(auf) => (offen = auf ? posten.key : offen === posten.key ? null : offen)}
           />
