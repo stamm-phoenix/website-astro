@@ -39,6 +39,11 @@
 
   /** The cell that has the tab stop (roving tabindex), as row and day index. */
   let aktiv = $state({ zeile: 0, spalte: 0 });
+  /** The tab stop on a cell that exists, also after others removed a day or a meal. */
+  const tabStopp = $derived({
+    zeile: Math.max(0, Math.min(zeilen.length - 1, aktiv.zeile)),
+    spalte: Math.max(0, Math.min(ansicht.tage.length - 1, aktiv.spalte)),
+  });
   const eingaben: Record<string, SlotEingabe> = $state({});
 
   let bereich = $state<HTMLDivElement | null>(null);
@@ -158,7 +163,7 @@
             role="gridcell"
             data-zelle="{z}:{s}"
             data-kalender={mahlzeit?.kennung}
-            tabindex={aktiv.zeile === z && aktiv.spalte === s ? 0 : -1}
+            tabindex={tabStopp.zeile === z && tabStopp.spalte === s ? 0 : -1}
             aria-label={mahlzeit
               ? `${mahlzeit.kennung} ${mahlzeit.name}, ${mahlzeit.einplanungen.length} ${mahlzeit.einplanungen.length === 1 ? 'Gericht' : 'Gerichte'}`
               : `Tag ${tag.nummer}: keine Mahlzeit ${zeile.name}`}

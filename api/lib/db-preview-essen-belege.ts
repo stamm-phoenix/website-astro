@@ -68,5 +68,12 @@ export async function seedPreviewEssensplanungBelege(): Promise<void> {
     ])
     .execute();
   // The note of a photo folder, as after a photo; the folder of the preview stays empty
-  await db.insertInto('essen.beleg_ordner').values({ planung_id: planung.id }).execute();
+  // Kept after all receipts were deleted, so it may exist already
+  const vermerk = await db
+    .selectFrom('essen.beleg_ordner')
+    .select('planung_id')
+    .where('planung_id', '=', planung.id)
+    .executeTakeFirst();
+  if (!vermerk)
+    await db.insertInto('essen.beleg_ordner').values({ planung_id: planung.id }).execute();
 }
