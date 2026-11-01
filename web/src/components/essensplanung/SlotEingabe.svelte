@@ -1,15 +1,16 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
-  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type { PlanungMahlzeit } from '../../lib/types';
   import { tippeEin } from './planAktionen';
+  import { setzeEntwurf, slotEntwuerfe } from './slotEntwuerfe.svelte';
   import type { PlanKontext } from './planKontext';
 
   /**
    * Typing a dish into a meal: a name of an existing dish plans it there, a new name creates the
    * dish there; optionally who is responsible. Enter adds it and keeps the field open for the
-   * next, Escape closes it.
+   * next, Escape closes it. The input is a draft of the meal (`slotEntwuerfe`), shared by list and
+   * calendar, so switching between them or a read-only phase keeps it.
    */
 
   interface Props {
@@ -19,15 +20,28 @@
     knopfKlasse?: string;
     /** After closing, e.g. to put the focus back on the cell of the calendar. */
     onschliessen?: () => void;
+    /** Where it is shown, so list and calendar have fields of their own ids. */
+    variante: 'liste' | 'kalender';
+    /** Read only for now (maintenance, read link): a draft stays visible, nothing is sent. */
+    gesperrt?: boolean;
   }
-  let { kontext, mahlzeit, knopfKlasse = '', onschliessen }: Props = $props();
+  let {
+    kontext,
+    mahlzeit,
+    knopfKlasse = '',
+    onschliessen,
+    variante,
+    gesperrt = false,
+  }: Props = $props();
 
-  let offen = $state(false);
-  let name = $state('');
-  let zustaendig = $state('');
+  const entwurf = $derived(slotEntwuerfe[mahlzeit.id]);
+  const offen = $derived(entwurf?.offen ?? false);
+  const name = $derived(entwurf?.name ?? '');
+  const zustaendig = $derived(entwurf?.zustaendig ?? '');
+  const setze = (teil: Parameters<typeof setzeEntwurf>[2]): void =>
+    setzeEntwurf(mahlzeit.id, `${mahlzeit.kennung} ${mahlzeit.name}`, teil);
   let feld = $state<HTMLInputElement | null>(null);
   let form = $state<HTMLFormElement | null>(null);
-  $effect(() => guardUnsavedChanges(() => name.trim() !== ''));
 
   const gerichte = $derived(
     kontext.ansicht.gerichte.map((g) => ({ value: g.name, key: String(g.id) }))
@@ -38,26 +52,23 @@
 
   /** Opens the fields, with the first typed letter if the cell got it. */
   export async function oeffne(text = ''): Promise<void> {
-    offen = true;
-    if (text) name = text;
+    setze(text ? { offen: true, name: text } : { offen: true });
     await tick();
     feld?.focus();
   }
 
   function schliessen(): void {
-    offen = false;
-    name = '';
-    zustaendig = '';
+    setze({ offen: false, name: '', zustaendig: '' });
     onschliessen?.();
   }
 
   async function eintragen(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const gesendet = name;
-    if (!gesendet.trim() || kontext.busy) return;
+    if (!gesendet.trim() || kontext.busy || gesperrt) return;
     if (await tippeEin(kontext, mahlzeit, gesendet, zustaendig)) {
       // What was typed meanwhile stays; the next dish goes in the same field
-      if (name === gesendet) name = '';
+      if (name === gesendet) setze({ name: '' });
       await tick();
       feld?.focus();
     }
@@ -67,10 +78,7 @@
   function verlassen(event: FocusEvent): void {
     const nach = event.relatedTarget as Node | null;
     if (nach && form?.contains(nach)) return;
-    if (!name.trim() && !zustaendig.trim()) {
-      offen = false;
-      zustaendig = '';
-    }
+    if (!name.trim() && !zustaendig.trim()) setze({ offen: false, name: '', zustaendig: '' });
   }
 </script>
 
@@ -89,32 +97,32 @@
     }}
   >
     <VorschlagFeld
-      id="slot-{mahlzeit.id}-gericht"
+      id="slot-{variante}-{mahlzeit.id}-gericht"
       class="form-input mt-0 min-h-0 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
       options={gerichte}
       listLabel="Gerichte der Planung"
       maxlength={150}
       placeholder="Gericht"
       aria-label="Gericht bei {mahlzeit.kennung} {mahlzeit.name}"
-      bind:value={name}
+      bind:value={() => name, (wert) => setze({ name: wert })}
       bind:input={feld}
     />
     <VorschlagFeld
-      id="slot-{mahlzeit.id}-zustaendig"
+      id="slot-{variante}-{mahlzeit.id}-zustaendig"
       class="form-input mt-0 min-h-0 px-2 py-1 text-xs any-pointer-coarse:min-h-11"
       options={mitglieder}
       listLabel="Mitglieder"
       maxlength={100}
       placeholder="Zuständig (optional)"
       aria-label="Zuständig für das Gericht bei {mahlzeit.kennung}"
-      bind:value={zustaendig}
+      bind:value={() => zustaendig, (wert) => setze({ zustaendig: wert })}
     />
     <!-- Enter in either field adds; a visible button for touch -->
     <div class="flex gap-1">
       <button
         type="submit"
         class="btn-primary min-h-0 px-2 py-0.5 text-xs any-pointer-coarse:min-h-11"
-        disabled={!name.trim() || kontext.busy}>Eintragen</button
+        disabled={!name.trim() || kontext.busy || gesperrt}>Eintragen</button
       >
       <button
         type="button"

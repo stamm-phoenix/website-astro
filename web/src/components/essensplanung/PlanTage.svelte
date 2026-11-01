@@ -17,7 +17,8 @@
   import PlanKalender from './PlanKalender.svelte';
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
   import { tagStand } from '../../../../api/lib/essen-planung-model';
-  import type { PlanKontext } from './planKontext';
+  import { meldeVerloren, type PlanKontext } from './planKontext';
+  import { getippt, slotEntwuerfe } from './slotEntwuerfe.svelte';
 
   /**
    * Days and meals of a Planung as a list (a table per day) or a calendar, next to the list of
@@ -112,9 +113,27 @@
       () =>
         neuerTag !== '' ||
         Object.values(neueMahlzeit).some((name) => name.trim() !== '') ||
-        Object.keys(neuesDatum).length > 0
+        Object.keys(neuesDatum).length > 0 ||
+        Object.values(slotEntwuerfe).some(getippt)
     )
   );
+
+  // A dish typed into a meal someone else deleted: the draft goes, and is named to copy
+  $effect(() => {
+    const da = new Set(ansicht.tage.flatMap((tag) => tag.mahlzeiten.map((m) => m.id)));
+    untrack(() => {
+      for (const [id, entwurf] of Object.entries(slotEntwuerfe)) {
+        if (da.has(Number(id))) continue;
+        delete slotEntwuerfe[Number(id)];
+        if (!getippt(entwurf)) continue;
+        const eingabe = [entwurf.name.trim(), entwurf.zustaendig.trim()].filter(Boolean).join(', ');
+        meldeVerloren(
+          kontext,
+          `${entwurf.mahlzeit} wurde gerade gelöscht. Dein Gericht „${eingabe}“ war noch nicht eingetragen.`
+        );
+      }
+    });
+  });
 
   function vorschlagNeuerTag(): string {
     const letzter = ansicht.tage.at(-1)?.datum;

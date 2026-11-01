@@ -26,7 +26,7 @@ test('the plan shows as a grid over the whole width, dishes are typed into a mea
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('[data-kalender="1_2"]')).toBeFocused();
   await page.keyboard.type('Nudeln');
-  await expect(page.getByLabel('Gericht bei 1_2 Mittagessen')).toHaveValue('Nudeln');
+  await expect(kalender.getByLabel('Gericht bei 1_2 Mittagessen')).toHaveValue('Nudeln');
   await page.keyboard.press('Enter');
   await expect(page.getByText('Nudeln angelegt und bei 1_2 eingeplant.').first()).toBeVisible();
   const karte = page.locator('[data-kalender="1_2"] [data-karte]');
@@ -34,8 +34,8 @@ test('the plan shows as a grid over the whole width, dishes are typed into a mea
   await expect(karte).toContainText('Portionen');
   await expect(karte).toContainText('noch ohne Zutaten');
   // The same name again plans the existing dish, with who is responsible
-  await page.getByLabel('Gericht bei 1_2 Mittagessen').fill('nudeln');
-  await page.getByLabel('Zuständig für das Gericht bei 1_2').fill('Kim Küche');
+  await kalender.getByLabel('Gericht bei 1_2 Mittagessen').fill('nudeln');
+  await kalender.getByLabel('Zuständig für das Gericht bei 1_2').fill('Kim Küche');
   await page.keyboard.press('Enter');
   await expect(page.getByText('Nudeln bei 1_2 eingeplant.').first()).toBeVisible();
   await expect(karte).toHaveCount(2);
@@ -87,4 +87,49 @@ test('the plan shows as a grid over the whole width, dishes are typed into a mea
   await page.getByRole('button', { name: 'Liste' }).click();
   await expect(page.getByRole('grid', { name: 'Plan als Kalender' })).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Gerichte bei 1_2' })).toContainText('Nudeln');
+});
+
+test('a dish typed into a meal stays when switching views, after a failed save and on leaving', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E Kalender Entwurf');
+  await page.getByRole('button', { name: 'Kalender' }).click();
+  const kalender = page.getByRole('grid', { name: 'Plan als Kalender' });
+  const liste = page.locator('[data-mahlzeit="1_2"]');
+
+  // Typed in the calendar, the draft is there in the list and back in the calendar
+  await page.locator('[data-kalender="1_2"]').focus();
+  await page.keyboard.press('Enter');
+  await kalender.getByLabel('Gericht bei 1_2 Mittagessen').fill('Grillgemüse');
+  await kalender.getByLabel('Zuständig für das Gericht bei 1_2').fill('Rover');
+  await page.getByRole('button', { name: 'Liste' }).click();
+  await expect(liste.getByLabel('Gericht bei 1_2 Mittagessen')).toHaveValue('Grillgemüse');
+  await expect(liste.getByLabel('Zuständig für das Gericht bei 1_2')).toHaveValue('Rover');
+  await page.getByRole('button', { name: 'Kalender' }).click();
+  await expect(kalender.getByLabel('Gericht bei 1_2 Mittagessen')).toHaveValue('Grillgemüse');
+
+  // A failed save keeps it, also through switching
+  await page.route('**/api/essensplanung/planung/gerichte', (route) =>
+    route.request().method() === 'POST'
+      ? route.fulfill({ status: 500, json: { error: 'Kaputt' } })
+      : route.continue()
+  );
+  await kalender.getByLabel('Gericht bei 1_2 Mittagessen').press('Enter');
+  await expect(page.getByText(/Das hat nicht geklappt|Kaputt/).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Liste' }).click();
+  await page.getByRole('button', { name: 'Kalender' }).click();
+  await expect(kalender.getByLabel('Gericht bei 1_2 Mittagessen')).toHaveValue('Grillgemüse');
+  await expect(kalender.getByLabel('Zuständig für das Gericht bei 1_2')).toHaveValue('Rover');
+
+  // Leaving the page asks first
+  await page.getByRole('link', { name: 'Impressum' }).first().click();
+  const frage = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await expect(frage).toBeVisible();
+  await frage.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+
+  // Saved once it works again
+  await page.unroute('**/api/essensplanung/planung/gerichte');
+  await kalender.getByLabel('Gericht bei 1_2 Mittagessen').press('Enter');
+  await expect(page.locator('[data-kalender="1_2"] [data-karte]')).toContainText('Grillgemüse');
+  await expect(page.locator('[data-kalender="1_2"] [data-karte]')).toContainText('Rover');
 });

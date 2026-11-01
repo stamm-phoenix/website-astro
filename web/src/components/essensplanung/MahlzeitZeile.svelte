@@ -9,6 +9,7 @@
   import type { PlanKontext } from './planKontext';
   import EinplanungKarte from './EinplanungKarte.svelte';
   import SlotEingabe from './SlotEingabe.svelte';
+  import { getippt, slotEntwuerfe } from './slotEntwuerfe.svelte';
   import { SYMBOL } from './planAktionen';
   import { ablegen, ueber, verlassen, ziehen } from './planZiehen.svelte';
 
@@ -244,8 +245,11 @@
     {#if markiert && ziehen.ziel?.index === mahlzeit.einplanungen.length}
       <div class="h-0.5 rounded bg-brand-800" aria-hidden="true"></div>
     {/if}
-    {#if bearbeiten}
-      <div class="max-w-md print:hidden"><SlotEingabe {kontext} {mahlzeit} /></div>
+    <!-- A draft typed before a read-only phase (maintenance) stays visible, locked -->
+    {#if bearbeiten || getippt(slotEntwuerfe[mahlzeit.id])}
+      <div class="max-w-md print:hidden">
+        <SlotEingabe {kontext} {mahlzeit} variante="liste" gesperrt={!bearbeiten} />
+      </div>
     {:else if !mahlzeit.einplanungen.length}
       <p class="px-1 text-xs text-neutral-700">Noch kein Gericht.</p>
     {/if}

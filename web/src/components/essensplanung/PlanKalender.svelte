@@ -7,6 +7,7 @@
   import type { PlanungMahlzeit } from '../../lib/types';
   import EinplanungKarte from './EinplanungKarte.svelte';
   import SlotEingabe from './SlotEingabe.svelte';
+  import { getippt, slotEntwuerfe } from './slotEntwuerfe.svelte';
   import { ablegen, ueber, verlassen, ziehen } from './planZiehen.svelte';
   import type { PlanKontext } from './planKontext';
 
@@ -196,12 +197,14 @@
               {#if markiert && ziehen.ziel?.index === mahlzeit.einplanungen.length}
                 <div class="h-0.5 rounded bg-brand-800" aria-hidden="true"></div>
               {/if}
-              {#if bearbeiten}
+              {#if bearbeiten || getippt(slotEntwuerfe[mahlzeit.id])}
                 <div class="mt-auto">
                   <SlotEingabe
+                    gesperrt={!bearbeiten}
                     bind:this={eingaben[mahlzeit.id]}
                     {kontext}
                     {mahlzeit}
+                    variante="kalender"
                     knopfKlasse="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 any-pointer-coarse:opacity-100"
                     onschliessen={() => void gehe(z, s)}
                   />
