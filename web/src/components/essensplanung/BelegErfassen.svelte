@@ -105,19 +105,37 @@
     }
   }
 
+  /**
+   * Someone else changed the receipt since this form opened: the photo stays, and only a
+   * confirmed „Trotzdem …“ saves over the current version.
+   */
+  let konflikt = $state(false);
+
   /** Runs a save; field messages of the server show at their fields. */
   async function senden(work: () => Promise<PlanungAnsicht>, erfolg: string): Promise<boolean> {
     let felder: Record<string, string> = {};
+    let fremd = false;
     const ok = await kontext.aendern(async () => {
       try {
         return await work();
       } catch (error: unknown) {
         if (error instanceof ApiError && error.fields) felder = error.fields;
+        if (error instanceof ApiError && [404, 409, 412].includes(error.status)) fremd = true;
         throw error;
       }
     }, erfolg);
     dialog.state.fields = felder;
+    if (fremd) konflikt = true;
     return ok;
+  }
+
+  /** The version to save on: the one the form opened with, or after a confirmed conflict the current one. */
+  function version(): string {
+    if (konflikt && beleg) {
+      form.etag = beleg.etag;
+      konflikt = false;
+    }
+    return form.etag;
   }
 
   function speichern(): Promise<void> {
@@ -163,8 +181,9 @@
     await photo.fertig();
     const payload = await photo.photoPayload(photo.draft);
     const id = beleg.id;
+    const etag = version();
     const ok = await senden(
-      () => kontext.api.senden('PUT', `/belege/${id}/foto`, { etag: beleg!.etag, ...payload }),
+      () => kontext.api.senden('PUT', `/belege/${id}/foto`, { etag, ...payload }),
       'Foto gespeichert.'
     );
     if (ok) {
@@ -175,7 +194,7 @@
 
   async function fotoEntfernen(): Promise<void> {
     if (!beleg) return;
-    const { id, etag } = beleg;
+    const id = beleg.id;
     if (
       !(await confirmAction({
         title: 'Foto des Belegs entfernen?',
@@ -185,6 +204,7 @@
     )
       return;
     await exklusiv(async () => {
+      const etag = version();
       const ok = await senden(
         () => kontext.api.senden('DELETE', `/belege/${id}/foto`, undefined, etag),
         'Foto entfernt.'
@@ -384,6 +404,12 @@
         </fieldset>
       </form>
     {:else}
+      {#if konflikt}
+        <p class="text-sm text-warning" role="alert">
+          Jemand anderes hat diesen Beleg inzwischen geändert, die Tabelle zeigt jetzt den aktuellen
+          Stand. Dein Foto ist noch da; „Trotzdem …“ ersetzt den aktuellen Stand.
+        </p>
+      {/if}
       <div class="flex flex-wrap gap-2">
         <ActionButton
           variant="primary"
@@ -393,14 +419,16 @@
             !photo.draft?.result ||
             !!photo.zuschnitt ||
             !bearbeiten}
-          onclick={() => void fotoSpeichern()}>Foto speichern</ActionButton
+          onclick={() => void fotoSpeichern()}
+          >{konflikt ? 'Trotzdem speichern' : 'Foto speichern'}</ActionButton
         >
         {#if beleg.foto}
           <ActionButton
             variant="danger"
             class="min-h-9 any-pointer-coarse:min-h-11"
             disabled={busy || !bearbeiten}
-            onclick={() => void fotoEntfernen()}>Foto entfernen</ActionButton
+            onclick={() => void fotoEntfernen()}
+            >{konflikt ? 'Trotzdem entfernen' : 'Foto entfernen'}</ActionButton
           >
         {/if}
         <ActionButton class="min-h-9 any-pointer-coarse:min-h-11" disabled={busy} onclick={onfertig}
