@@ -1,14 +1,12 @@
 import type { Db } from './db';
 import { RecordNotFoundError, getDb } from './db';
-import { ladeEinkauf } from './essen-einkauf';
 import type { EinheitenVorkommen, KiEinheiten } from './essen-einheiten-model';
 import { einheitenVorkommen, vorkommendeEinheiten } from './essen-einheiten-model';
 import { einheitText } from './essen-gerichte-model';
-import { ladeGerichte } from './essen-gerichte';
 import { DATEN, frage, pruefeKiZugang } from './essen-ki';
 import { leseKiEinheiten } from './essen-ki-einheiten-antwort';
 import type { Zugang } from './essen-planung';
-import { PlanungError } from './essen-planung';
+import { PlanungError, ladeAnsicht } from './essen-planung';
 import type { EssenEinheitenart } from './essen-validation';
 
 /**
@@ -86,13 +84,11 @@ export async function einheitenVorschlagen(
   db: Db = getDb()
 ): Promise<KiEinheiten> {
   await pruefeKiZugang(zugang, db);
-  const [{ zutaten, gerichte }, { bestand, zusatzbedarf }] = await Promise.all([
-    ladeGerichte(db, zugang.planungId),
-    ladeEinkauf(db, zugang.planungId),
-  ]);
-  const zutat = zutaten.find((eintrag) => eintrag.id === planungZutatId);
+  // The whole view: what was cooked and bought counts too
+  const ansicht = await ladeAnsicht(zugang, db);
+  const zutat = ansicht.zutaten.find((eintrag) => eintrag.id === planungZutatId);
   if (!zutat) throw new RecordNotFoundError();
-  const vorkommen = einheitenVorkommen({ gerichte, bestand, zusatzbedarf }, planungZutatId);
+  const vorkommen = einheitenVorkommen(ansicht, planungZutatId);
   if (vorkommendeEinheiten(vorkommen).length < 2)
     throw new PlanungError(
       400,

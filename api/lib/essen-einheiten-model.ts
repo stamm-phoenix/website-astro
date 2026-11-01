@@ -1,22 +1,40 @@
 import type { EinkaufPosten, ZusatzPosten } from './essen-einkauf-model';
+import type { Einkauf } from './essen-einkaeufe-model';
 import type { Gericht, GerichtEinheit } from './essen-gerichte-model';
 import { einheitBasis, einheitSchluessel } from './essen-gerichte-model';
+import type { EinplanungStatus, Verbrauch } from './essen-kochen-model';
 
 /**
  * Units of one ingredient brought into line (`docs/essensplanung.md`, „Einheiten“): where an
  * ingredient of a Planung is measured in different base units (dishes in Bund, extra needs in g),
  * the page offers to convert the amounts into one unit. The AI proposes the unit and the factors;
- * the page shows the result and saves only what the member confirms. Without imports of zod, so
- * the website uses it too.
+ * the page shows the result and saves only what the member confirms. Every amount the stock is
+ * worked out from converts with them (what was cooked, bought or set fixed on a trip), so the
+ * shopping list stays right. Without imports of zod, so the website uses it too.
  */
 
-/** Where an amount of an ingredient stands. */
-export type EinheitenStelle = 'gericht' | 'zusatzbedarf' | 'bestand';
+/**
+ * Where an amount of an ingredient stands: a line of a dish, extra needs, stock, what a cooked
+ * dish used (`id` is the planned dish), what was bought on a trip (`id` is the thing ticked off)
+ * or a fixed amount on a trip (`id` is the trip).
+ */
+export type EinheitenStelle =
+  'gericht' | 'zusatzbedarf' | 'bestand' | 'verbrauch' | 'erhalten' | 'fest';
+
+export const EINHEITEN_STELLEN: readonly EinheitenStelle[] = [
+  'gericht',
+  'zusatzbedarf',
+  'bestand',
+  'verbrauch',
+  'erhalten',
+  'fest',
+];
 
 /** One amount of an ingredient, as it is converted. */
 export interface EinheitenVorkommen {
   stelle: EinheitenStelle;
   id: number;
+  /** The version it is saved with: of the line, the planned dish or the trip. */
   etag: string;
   menge: number;
   einheit: GerichtEinheit;
@@ -26,51 +44,115 @@ export interface EinheitenVorkommen {
   personen: number | null;
 }
 
-/** The parts of a Planung that hold amounts. */
+/** The parts of a Planung that hold amounts; dishes cooked and trips are optional. */
 export interface EinheitenStand {
-  gerichte: Pick<Gericht, 'name' | 'personen' | 'zutaten'>[];
+  gerichte: Pick<Gericht, 'id' | 'name' | 'personen' | 'zutaten'>[];
   zusatzbedarf: Pick<ZusatzPosten, 'id' | 'etag' | 'planungZutatId' | 'menge' | 'einheit'>[];
   bestand: Pick<EinkaufPosten, 'id' | 'etag' | 'planungZutatId' | 'menge' | 'einheit'>[];
+  tage?: {
+    mahlzeiten: {
+      einplanungen: {
+        id: number;
+        etag: string;
+        gerichtId: number;
+        status?: EinplanungStatus;
+        verbrauch?: Verbrauch[];
+      }[];
+    }[];
+  }[];
+  einkaeufe?: (Pick<Einkauf, 'id' | 'etag' | 'name' | 'regeln'> & {
+    posten: Pick<
+      Einkauf['posten'][number],
+      'id' | 'etag' | 'planungZutatId' | 'einheit' | 'erhalten'
+    >[];
+  })[];
 }
 
-/** Most amounts converted at once: every line, extra need and stock of one ingredient. */
-export const MAX_EINHEITEN_ZEILEN = 2000;
+/** Most amounts converted at once: every amount of one ingredient. */
+export const MAX_EINHEITEN_ZEILEN = 4000;
 
-const STELLE_TEXT: Record<Exclude<EinheitenStelle, 'gericht'>, string> = {
-  zusatzbedarf: 'Zusatzbedarf',
-  bestand: 'Bestand',
-};
+const STELLE_TEXT = { zusatzbedarf: 'Zusatzbedarf', bestand: 'Bestand' } as const;
 
-/** Every amount of `planungZutatId`: lines of dishes, extra needs and stock with an amount. */
+/**
+ * Every amount of `planungZutatId`: lines of dishes, extra needs and stock with an amount, what
+ * cooked dishes used and what trips bought (both above 0), and fixed amounts on trips.
+ */
 export function einheitenVorkommen(
   stand: EinheitenStand,
   planungZutatId: number
 ): EinheitenVorkommen[] {
   const ergebnis: EinheitenVorkommen[] = [];
+  const hinzu = (eintrag: Omit<EinheitenVorkommen, 'personen'>, personen: number | null = null) =>
+    ergebnis.push({ ...eintrag, personen });
   for (const gericht of stand.gerichte)
     for (const zeile of gericht.zutaten)
       if (zeile.planungZutatId === planungZutatId && zeile.menge !== null && zeile.einheit)
-        ergebnis.push({
-          stelle: 'gericht',
-          id: zeile.id,
-          etag: zeile.etag,
-          menge: zeile.menge,
-          einheit: zeile.einheit,
-          wo: gericht.name,
-          personen: zeile.fest ? null : gericht.personen,
-        });
+        hinzu(
+          {
+            stelle: 'gericht',
+            id: zeile.id,
+            etag: zeile.etag,
+            menge: zeile.menge,
+            einheit: zeile.einheit,
+            wo: gericht.name,
+          },
+          zeile.fest ? null : gericht.personen
+        );
   for (const stelle of ['zusatzbedarf', 'bestand'] as const)
     for (const posten of stand[stelle])
       if (posten.planungZutatId === planungZutatId && posten.menge !== null && posten.einheit)
-        ergebnis.push({
+        hinzu({
           stelle,
           id: posten.id,
           etag: posten.etag,
           menge: posten.menge,
           einheit: posten.einheit,
           wo: STELLE_TEXT[stelle],
-          personen: null,
         });
+  const gerichtName = new Map(stand.gerichte.map((g) => [g.id, g.name]));
+  for (const einplanung of (stand.tage ?? []).flatMap((tag) =>
+    tag.mahlzeiten.flatMap((mahlzeit) => mahlzeit.einplanungen)
+  )) {
+    if (einplanung.status !== 'gekocht') continue;
+    for (const v of einplanung.verbrauch ?? [])
+      if (v.planungZutatId === planungZutatId && v.menge > 0)
+        hinzu({
+          stelle: 'verbrauch',
+          id: einplanung.id,
+          etag: einplanung.etag,
+          menge: v.menge,
+          einheit: v.einheit,
+          wo: `${gerichtName.get(einplanung.gerichtId) ?? 'Gericht'} (gekocht)`,
+        });
+  }
+  for (const einkauf of stand.einkaeufe ?? []) {
+    for (const haken of einkauf.posten)
+      if (haken.planungZutatId === planungZutatId && haken.erhalten > 0)
+        hinzu({
+          stelle: 'erhalten',
+          id: haken.id,
+          etag: haken.etag,
+          menge: haken.erhalten,
+          einheit: haken.einheit,
+          wo: `Einkauf ${einkauf.name} (gekauft)`,
+        });
+    for (const regel of einkauf.regeln)
+      if (
+        regel.planungZutatId === planungZutatId &&
+        regel.art === 'fest' &&
+        regel.menge !== null &&
+        regel.menge > 0 &&
+        regel.einheit
+      )
+        hinzu({
+          stelle: 'fest',
+          id: einkauf.id,
+          etag: einkauf.etag,
+          menge: regel.menge,
+          einheit: regel.einheit,
+          wo: `Einkauf ${einkauf.name} (feste Menge)`,
+        });
+  }
   return ergebnis;
 }
 
@@ -79,21 +161,22 @@ export function einheitenVorkommen(
  * units as first written; these are offered to be brought into line.
  */
 export function uneinheitlicheZutaten(stand: EinheitenStand): Map<number, GerichtEinheit[]> {
-  const je = new Map<number, Map<string, GerichtEinheit>>();
-  const merke = (id: number, einheit: GerichtEinheit | null, menge: number | null) => {
-    if (!einheit || menge === null) return;
-    const einheiten = je.get(id) ?? new Map<string, GerichtEinheit>();
-    je.set(id, einheiten);
-    const basis = einheitSchluessel(einheit);
-    if (!einheiten.has(basis)) einheiten.set(basis, einheitBasis(einheit).einheit);
-  };
-  for (const gericht of stand.gerichte)
-    for (const zeile of gericht.zutaten) merke(zeile.planungZutatId, zeile.einheit, zeile.menge);
-  for (const posten of [...stand.zusatzbedarf, ...stand.bestand])
-    merke(posten.planungZutatId, posten.einheit, posten.menge);
-  return new Map(
-    [...je].filter(([, einheiten]) => einheiten.size > 1).map(([id, e]) => [id, [...e.values()]])
-  );
+  const ids = new Set<number>([
+    ...stand.gerichte.flatMap((g) => g.zutaten.map((zeile) => zeile.planungZutatId)),
+    ...stand.zusatzbedarf.map((p) => p.planungZutatId),
+    ...stand.bestand.map((p) => p.planungZutatId),
+    ...(stand.einkaeufe ?? []).flatMap((e) => e.posten.map((p) => p.planungZutatId)),
+  ]);
+  const ergebnis = new Map<number, GerichtEinheit[]>();
+  for (const id of ids) {
+    const einheiten = new Map<string, GerichtEinheit>();
+    for (const eintrag of einheitenVorkommen(stand, id)) {
+      const basis = einheitSchluessel(eintrag.einheit);
+      if (!einheiten.has(basis)) einheiten.set(basis, einheitBasis(eintrag.einheit).einheit);
+    }
+    if (einheiten.size > 1) ergebnis.set(id, [...einheiten.values()]);
+  }
+  return ergebnis;
 }
 
 /** The units of `vorkommen`, each once (upper and lower case alike), as written first. */
@@ -133,11 +216,15 @@ export interface KiEinheiten {
   faktoren: { einheit: GerichtEinheit; faktor: number | null }[];
 }
 
-/** An amount converted, as the page sends it to be saved with the version it saw. */
+/**
+ * An amount converted, as the page sends it to be saved with the version it saw. `von` is the
+ * unit it had, which tells the entries of a cooked dish apart.
+ */
 export interface EinheitenZeileInput {
   stelle: EinheitenStelle;
   id: number;
   etag: string;
   menge: number;
   einheit: GerichtEinheit;
+  von: GerichtEinheit;
 }

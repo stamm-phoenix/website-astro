@@ -4,13 +4,13 @@
  * `zeilen.<index>.<field>`.
  */
 import { z } from 'zod';
-import { MAX_EINHEITEN_ZEILEN } from './essen-einheiten-model';
+import { EINHEITEN_STELLEN, MAX_EINHEITEN_ZEILEN } from './essen-einheiten-model';
 import type { EinheitenStelle, EinheitenZeileInput } from './essen-einheiten-model';
 import { einheitPflicht } from './essen-einheit-schema';
 import { MAX_MENGE } from './essen-einkauf-model';
 import { lenientObject, parseWith } from './validation/zod';
 
-const STELLEN = ['gericht', 'zusatzbedarf', 'bestand'] as const satisfies EinheitenStelle[];
+const STELLEN = EINHEITEN_STELLEN as [EinheitenStelle, ...EinheitenStelle[]];
 const NEU_LADEN = 'Diese Menge gibt es nicht mehr. Bitte lade die Seite neu.';
 const MENGE_FEHLER = 'Bitte eine Menge größer als 0 eintragen, z. B. 2,5.';
 
@@ -25,6 +25,8 @@ const zeileSchema = lenientObject({
     // As stored (decimal(12, 3)); a tiny amount stays a little
     .transform((value) => Math.round(value * 1000) / 1000 || 0.001),
   einheit: einheitPflicht,
+  // The unit it had, which tells the entries of a cooked dish apart
+  von: einheitPflicht,
 }).transform((value): EinheitenZeileInput => value);
 
 export const einheitenSchema = lenientObject({

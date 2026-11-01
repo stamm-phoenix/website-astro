@@ -60,9 +60,16 @@ test('the unit field takes any short text and refuses long ones', () => {
 });
 
 test('converted amounts are checked per line', () => {
-  const zeile = { stelle: 'gericht', id: 3, etag: 'AAAAAAAAB9E=', menge: 1.23456, einheit: 'Bund' };
+  const zeile = {
+    stelle: 'gericht',
+    id: 3,
+    etag: 'AAAAAAAAB9E=',
+    menge: 1.23456,
+    einheit: 'Bund',
+    von: 'g',
+  };
   assert.deepEqual(validateEinheiten({ zeilen: [zeile] }), [
-    { ...zeile, menge: 1.235, einheit: 'bund' },
+    { ...zeile, menge: 1.235, einheit: 'bund', von: 'g' },
   ]);
   assert.throws(
     () => validateEinheiten({ zeilen: [{ ...zeile, menge: 0, einheit: '' }] }),
@@ -82,6 +89,7 @@ test('converted amounts are checked per line', () => {
 const STAND: EinheitenStand = {
   gerichte: [
     {
+      id: 9,
       name: 'Kräuterquark',
       personen: 10,
       zutaten: [

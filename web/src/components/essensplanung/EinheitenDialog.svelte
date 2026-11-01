@@ -111,6 +111,7 @@
             etag: z.etag,
             menge: z.menge,
             einheit: z.einheit,
+            von: z.von,
           })),
         }),
       `${zutat.name} steht jetzt in ${einheitText(ziel)}.`

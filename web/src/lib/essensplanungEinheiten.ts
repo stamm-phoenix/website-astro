@@ -78,6 +78,8 @@ export interface VorschauZeile {
   etag: string;
   wo: string;
   vorher: string;
+  /** The unit it has now. */
+  von: GerichtEinheit;
   /** null while the factor of its unit is missing. */
   nachher: string | null;
   menge: number | null;
@@ -103,6 +105,7 @@ export function vorschau(
       etag: eintrag.etag,
       wo: eintrag.wo,
       vorher: mengeText(eintrag.menge, eintrag.einheit) ?? '',
+      von: eintrag.einheit,
       nachher: menge === null ? null : mengeText(menge, ziel),
       menge,
       einheit: ziel,

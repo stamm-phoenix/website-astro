@@ -67,7 +67,7 @@ const stand = {
         {
           id: 1,
           ohneGruppen: [],
-          einplanungen: [{ id: 11, gerichtId: 100, faktor: 1, status: 'offen' as const }],
+          einplanungen: [{ id: 11, etag: 'e11', gerichtId: 100, faktor: 1, status: 'offen' as const }],
         },
       ],
     },
