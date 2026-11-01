@@ -1216,7 +1216,7 @@ export interface EssenPacklisteEintragTable {
   zustaendig_text: Generated<string>;
 }
 
-/** `essen.beleg_ordner_loeschen`: photo folders of deleted Planungen still to clean up (`0071`). */
+/** `essen.beleg_ordner_loeschen`: photo folders of deleted Planungen still to clean up (`0072`). */
 export interface EssenBelegOrdnerLoeschenTable {
   planung_id: number;
   angelegt_am: Generated<Date>;
