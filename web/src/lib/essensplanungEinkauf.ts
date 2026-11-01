@@ -58,12 +58,15 @@ const VERGLEICH = new Intl.Collator('de');
 /**
  * Ingredients without an amount that were ticked off on a trip after they were last put on the
  * list: a tick covers what was needed when it was made. Versions (rowversions) grow with every
- * change across the database, so a row of extra needs newer than the tick is a new need. For
+ * change across the database, so a row of extra needs newer than the tick (its `stand`, the state
+ * of the database when it was ticked off) is a new need. For
  * what only dishes need by eye, a tick with an amount counts through the stock (bought and used
  * up, it is needed again); only a tick without one, which the stock cannot show, covers it.
  */
 export function erledigtOhneMenge(stand: {
-  einkaeufe?: { posten: { planungZutatId: number; etag?: string; erhalten?: number }[] }[];
+  einkaeufe?: {
+    posten: { planungZutatId: number; etag?: string; stand?: string; erhalten?: number }[];
+  }[];
   zusatzbedarf: Pick<ZusatzPosten, 'planungZutatId' | 'menge' | 'etag'>[];
 }): Set<number> {
   const neuester = new Map<number, string>();
@@ -74,10 +77,10 @@ export function erledigtOhneMenge(stand: {
   const erledigt = new Set<number>();
   for (const haken of (stand.einkaeufe ?? []).flatMap((e) => e.posten)) {
     const bedarf = neuester.get(haken.planungZutatId);
+    // When it was ticked off; bringing units into line gives it a new version, not a new tick
+    const abgehakt = haken.stand ?? haken.etag;
     const erledigtHaken =
-      bedarf === undefined
-        ? !(haken.erhalten ?? 0)
-        : haken.etag === undefined || haken.etag > bedarf;
+      bedarf === undefined ? !(haken.erhalten ?? 0) : abgehakt === undefined || abgehakt > bedarf;
     if (erledigtHaken) erledigt.add(haken.planungZutatId);
   }
   return erledigt;

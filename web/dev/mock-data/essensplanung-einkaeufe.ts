@@ -127,11 +127,14 @@ export function postenAbhaken(
     ...(input.ersatz ? { ersatz: input.ersatz } : {}),
   };
   aendere(z, 'einkauf-abgehakt', details, () => {
+    const etag = neuesEtag();
     const werte = {
       ...input,
-      etag: neuesEtag(),
+      etag,
       von: z.mitglied?.name ?? '',
       am: new Date().toISOString(),
+      // Changes only when ticked off, not when its unit is brought into line
+      stand: etag,
     };
     if (vorhanden) Object.assign(vorhanden, werte);
     else einkauf.posten.push({ id: neueId(), ...werte });

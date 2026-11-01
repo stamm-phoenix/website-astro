@@ -242,5 +242,82 @@ dbTest(
       neu.einkaeufe[0].posten.map((p) => [p.erhalten, p.einheit, p.ersatz]),
       [[7, 'bund', 'glatt']]
     );
+    // When it was ticked off stays (the newer of the two ticks), only the version is new
+    const [zusammen] = neu.einkaeufe[0].posten;
+    const staende = stand.einkaeufe[0].posten.map((p) => p.stand!).sort();
+    assert.equal(zusammen.stand, staende.at(-1));
+    assert.notEqual(zusammen.stand, zusammen.etag);
+  }
+);
+
+dbTest(
+  'a need without an amount put on the list after a tick stays after converting',
+  async (t) => {
+    const mails = captureMails(t);
+    const { token } = await anlegen(t, mails);
+    const petersilie = (
+      await getDb()
+        .selectFrom('essen.zutat')
+        .select('id')
+        .where('name', '=', 'TK-Petersilie')
+        .executeTakeFirstOrThrow()
+    ).id;
+    // 20 g needed and bought
+    let ansicht = json<PlanungAnsicht>(
+      await call(t, einkauf.EssensplanungZusatzbedarfListe, 'POST', 'planung/zusatzbedarf', {
+        token,
+        body: { zutatId: petersilie, menge: 20, einheit: 'g' },
+      })
+    );
+    const id = ansicht.zusatzbedarf[0].planungZutatId;
+    const einkaufId = json<PlanungAnsicht>(
+      await call(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', {
+        token,
+        body: { name: 'Montag' },
+      })
+    ).einkaeufe[0].id;
+    await call(t, einkaeufe.EssensplanungEinkaufAbhaken, 'PUT', 'planung/einkaeufe/posten', {
+      token,
+      params: { id: String(einkaufId) },
+      body: { etag: null, planungZutatId: id, einheit: 'g', erhalten: 20, ersatz: '' },
+    });
+    // Then put on the list again without an amount
+    ansicht = json<PlanungAnsicht>(
+      await call(t, einkauf.EssensplanungZusatzbedarfListe, 'POST', 'planung/zusatzbedarf', {
+        token,
+        body: { zutatId: petersilie, menge: null, einheit: null },
+      })
+    );
+    const ohneMenge = ansicht.zusatzbedarf.find((p) => p.menge === null)!;
+    const [haken] = ansicht.einkaeufe[0].posten;
+    assert.ok(haken.stand! < ohneMenge.etag);
+
+    const ok = await call(
+      t,
+      EssensplanungZutatEinheiten,
+      'PUT',
+      `planung/zutaten/${id}/einheiten`,
+      {
+        token,
+        params: { id: String(id) },
+        body: {
+          zeilen: [
+            {
+              stelle: 'erhalten',
+              id: haken.id,
+              etag: haken.etag,
+              menge: 1,
+              einheit: 'bund',
+              von: 'g',
+            },
+          ],
+        },
+      }
+    );
+    assert.equal(ok.status, 200, JSON.stringify(ok.jsonBody));
+    const [neu] = json<PlanungAnsicht>(ok).einkaeufe[0].posten;
+    // A new version, but still ticked off before the need: the need stays on the list
+    assert.ok(neu.etag > ohneMenge.etag);
+    assert.equal(neu.stand, haken.stand);
   }
 );

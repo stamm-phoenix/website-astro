@@ -149,3 +149,38 @@ test('stock, what was used and what is needed convert together; 2 Bund are still
     ['2 Bund']
   );
 });
+
+test('extra needs without an amount put on the list after a tick stay after converting it', () => {
+  // 20 g bought (ticked at „03“), then put on the list again without an amount („05“)
+  const s = {
+    ...stand(),
+    gerichte: [],
+    bestand: [],
+    zusatzbedarf: [
+      { id: 7, etag: '"05"', planungZutatId: 1, menge: null, einheit: null, hinweis: '' },
+    ],
+    einkaeufe: [
+      {
+        posten: [
+          {
+            id: 9,
+            etag: '"03"',
+            stand: '"03"',
+            planungZutatId: 1,
+            einheit: 'g',
+            erhalten: 20,
+            ersatz: '',
+          },
+        ],
+      },
+    ],
+  };
+  const namen = () =>
+    einkaufsliste(s, new Map([[1, 'Tiefkühl']])).flatMap((g) =>
+      g.kategorien.flatMap((k) => k.posten.map((p) => `${postenMenge(p)} ${p.name}`.trim()))
+    );
+  assert.deepEqual(namen(), ['TK-Petersilie']);
+  // Brought into Bund: the tick gets a new version („07“), but was not ticked off again
+  Object.assign(s.einkaeufe[0].posten[0], { etag: '"07"', einheit: 'Bund', erhalten: 1 });
+  assert.deepEqual(namen(), ['TK-Petersilie']);
+});

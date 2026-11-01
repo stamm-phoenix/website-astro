@@ -51,6 +51,7 @@ const KATALOG: EssenKatalog = {
     katalogZutat(12, 'Kidneybohnen', { abtropfgewicht: true }),
     katalogZutat(13, 'Tomatenmark'),
     katalogZutat(10, 'Sahne', { einheitenart: 'volumen' }),
+    katalogZutat(14, 'Brot (Laib)', { einheitenart: 'stueck', grammProStueck: 750 }),
     katalogZutat(9, 'Spülmittel', { lebensmittel: false, einheitenart: 'volumen' }),
   ],
 };
@@ -328,6 +329,40 @@ test('a recipe is mapped onto the lists, converted and scaled to the dish', asyn
       null,
       null,
       null,
+    ]
+  );
+});
+
+test('slices of an ingredient counted in pieces stay slices, never whole loaves', async (t) => {
+  const zeile = (original: string, einheitRezept: string, extra: object = {}) => ({
+    original,
+    name: 'Brot',
+    key: 'z14',
+    menge: 2,
+    einheit: 'stueck',
+    einheitRezept,
+    hinweis: '',
+    inhaltMenge: null,
+    inhaltEinheit: null,
+    ...extra,
+  });
+  modell(t, {
+    rezeptPersonen: 4,
+    zeilen: [
+      zeile('2 Scheiben Brot', 'Scheiben'),
+      // A piece the recipe calls a piece is one of the list
+      zeile('2 Brote', 'Stück'),
+      // A content in g does not fit an ingredient counted in pieces: still slices
+      zeile('2 Scheiben Brot (je 50 g)', 'Scheibe', { inhaltMenge: 50, inhaltEinheit: 'g' }),
+    ],
+  });
+  const rezept = await liesRezept('…', 8, [], KATALOG);
+  assert.deepEqual(
+    rezept.zeilen.map(({ menge, einheit, rezeptMenge }) => ({ menge, einheit, rezeptMenge })),
+    [
+      { menge: 4, einheit: 'Scheibe', rezeptMenge: null },
+      { menge: 4, einheit: 'stueck', rezeptMenge: null },
+      { menge: 4, einheit: 'Scheibe', rezeptMenge: null },
     ]
   );
 });

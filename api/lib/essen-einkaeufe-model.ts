@@ -43,6 +43,12 @@ export interface EinkaufHaken {
   von: string;
   /** ISO time. */
   am: string;
+  /**
+   * The state of the database when it was ticked off, compared like versions; unlike `etag` it
+   * does not change when its unit is brought into line. Tells whether a thing without an amount
+   * was put on the list again afterwards. Missing in older answers: then the version counts.
+   */
+  stand?: string;
 }
 
 export interface Einkauf {

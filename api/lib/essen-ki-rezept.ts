@@ -203,23 +203,27 @@ function alsHinweis(
 /**
  * Amount and unit in the ingredient's kind of unit, where the lists know how to get there: TL and
  * EL by weight or volume, pieces by weight, tins by what they hold. null when there is no safe
- * way; the line then keeps the recipe's unit.
+ * way; the line then keeps the recipe's unit. `eigenesMass` is set when the recipe names a measure
+ * of its own for a piece or pack („Scheibe“, „Zehe“, „Dose“): that is no „Stück“ or „Packung“ of
+ * the list (2 slices are not 2 loaves), so only an express content converts it.
  */
 function umgerechnet(
   menge: number | null,
   einheit: KiRezeptEinheit | null,
   kandidat: RezeptKandidat | undefined,
-  inhalt: Inhalt | null = null
+  inhalt: Inhalt | null = null,
+  eigenesMass = false
 ): { menge: number; einheit: GerichtEinheit } | null {
   if (menge === null || einheit === null || einheit === 'prise') return null;
   // „1 Dose (400 g)“: tins, packs and pieces count by what they hold, if that fits the ingredient
   if (
     inhalt &&
     (einheit === 'packung' || einheit === 'stueck') &&
-    (!kandidat || !passt(kandidat.einheitenart, einheit)) &&
+    (!kandidat || eigenesMass || !passt(kandidat.einheitenart, einheit)) &&
     (!kandidat || passt(kandidat.einheitenart, inhalt.einheit))
   )
     return { menge: menge * inhalt.menge, einheit: inhalt.einheit };
+  if (eigenesMass) return null;
   if (!kandidat) {
     return einheit === 'tl' || einheit === 'el' ? null : { menge, einheit };
   }
@@ -278,10 +282,17 @@ export function leseKiRezept(
     const abgetropft = abgetropftVon(zeile);
     // Tins of an ingredient counted by drained weight: the filled weight („Dose (400 g)“) is
     // not the amount; only an express drained weight is, else the tins are counted
+    const eigene = rezeptEinheit(zeile.einheit, zeile.einheitRezept);
+    // The recipe names a measure of its own for a piece or pack („2 Scheiben“, „1 Zehe“): no
+    // „Stück“ of the list, which may mean a whole loaf or bulb
+    const eigenesMass =
+      (zeile.einheit === 'packung' || zeile.einheit === 'stueck') &&
+      eigene !== null &&
+      !istBekannteEinheit(eigene);
     const zaehltInhalt =
       (zeile.einheit === 'packung' || zeile.einheit === 'stueck') &&
       kandidat !== undefined &&
-      !passt(kandidat.einheitenart, zeile.einheit);
+      (eigenesMass || !passt(kandidat.einheitenart, zeile.einheit));
     const ohneAbtropfgewicht =
       zaehltInhalt && kandidat.abtropfgewicht && inhalt !== null && abgetropft === null;
     const umgerechnetMenge = ohneAbtropfgewicht
@@ -290,9 +301,9 @@ export function leseKiRezept(
           zeile.menge,
           zeile.einheit,
           kandidat,
-          kandidat?.abtropfgewicht ? abgetropft : (abgetropft ?? inhalt)
+          kandidat?.abtropfgewicht ? abgetropft : (abgetropft ?? inhalt),
+          eigenesMass
         );
-    const eigene = rezeptEinheit(zeile.einheit, zeile.einheitRezept);
     const rezeptMenge =
       zeile.menge !== null && eigene ? { menge: zeile.menge, einheit: eigene } : null;
     // Never given up: without a safe conversion the line keeps the recipe's unit

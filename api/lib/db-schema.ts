@@ -1285,6 +1285,8 @@ export interface EssenEinkaufPostenTable {
   ersatz: Generated<string>;
   abgehakt_von_mitglied_id: number | null;
   abgehakt_am: Generated<Date>;
+  /** binary(8): @@DBTS when ticked off (`0074`); null only for rows of before. */
+  abgehakt_stand: Buffer | null;
 }
 
 /** `essen.einkauf_regel`: a hand-made rule for an ingredient on a shopping trip. */

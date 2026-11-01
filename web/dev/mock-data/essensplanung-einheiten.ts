@@ -172,6 +172,9 @@ export function einheitenUebernehmen(
         gleicher.erhalten = rund(gleicher.erhalten + p.erhalten);
         gleicher.ersatz = [...new Set([gleicher.ersatz, p.ersatz].filter(Boolean))].join(', ');
         gleicher.etag = neuesEtag();
+        // The newest tick of those merged counts as when it was ticked off
+        if ((p.stand ?? p.etag) > (gleicher.stand ?? gleicher.etag))
+          gleicher.stand = p.stand ?? p.etag;
       }
       if (behalten.length !== einkauf.posten.length) einkauf.posten = behalten;
       for (const p of einkauf.posten)

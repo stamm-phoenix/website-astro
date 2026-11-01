@@ -65,6 +65,7 @@ export async function ladeEinkaeufe(db: Db, planungId: number): Promise<Einkauf[
       ersatz: row.ersatz,
       von: row.von ?? '',
       am: row.abgehakt_am.toISOString(),
+      stand: toVersion(row.abgehakt_stand ?? row.version),
     });
     postenJe.set(row.einkauf_id, liste);
   }
@@ -304,6 +305,8 @@ export async function postenAbhaken(
       erhalten: input.erhalten,
       ersatz: input.ersatz,
       abgehakt_von_mitglied_id: aktuell.mitgliedId,
+      // The state of the database now: needs put on the list later are newer
+      abgehakt_stand: sql<Buffer>`CAST(@@DBTS AS binary(8))`,
     };
     if (etag === null) {
       if (vorhanden.length) throw new VersionConflictError();

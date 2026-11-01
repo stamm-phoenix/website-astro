@@ -186,7 +186,7 @@ async function erhaltenUmrechnen(
   for (const einkaufId of einkaeufe) {
     const alle = await trx
       .selectFrom('essen.einkauf_posten')
-      .select(['id', 'einheit', 'erhalten', 'ersatz'])
+      .select(['id', 'version', 'einheit', 'erhalten', 'ersatz', 'abgehakt_stand'])
       .where('einkauf_id', '=', einkaufId)
       .where('planung_zutat_id', '=', planungZutatId)
       .orderBy('id')
@@ -209,6 +209,11 @@ async function erhaltenUmrechnen(
       const ersatz = [...new Set(gruppe.map((row) => row.ersatz).filter(Boolean))]
         .join(', ')
         .slice(0, 100);
+      // When it was ticked off stays as it was (the newest tick of those merged), so needs put
+      // on the list later are not taken for done because of the new version
+      const stand = gruppe
+        .map((row) => Buffer.from(row.abgehakt_stand ?? row.version))
+        .reduce((neuester, s) => (Buffer.compare(s, neuester) > 0 ? s : neuester));
       if (weitere.length)
         await trx
           .deleteFrom('essen.einkauf_posten')
@@ -225,6 +230,7 @@ async function erhaltenUmrechnen(
             einheit: neu.get(erster.id)?.einheit ?? erster.einheit,
             erhalten: menge,
             ersatz,
+            abgehakt_stand: stand,
           })
           .where('id', '=', erster.id)
           .execute();
