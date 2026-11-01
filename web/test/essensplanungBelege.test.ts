@@ -120,6 +120,15 @@ test('a member without access is offered only while they paid', () => {
     bezahltVonWahl(alle, 2).map((m) => m.id),
     [1, 2]
   );
+  // A payer missing from the view (no access, seen without managing members) stays choosable
+  const fehlend = bezahltVonWahl([mitglied(1, false)], 7, 'Kim');
+  assert.deepEqual(
+    fehlend.map((m) => [m.id, m.name, m.entzogen]),
+    [
+      [1, 'M1', false],
+      [7, 'Kim', true],
+    ]
+  );
 });
 
 test('the change log names receipts paid back', () => {

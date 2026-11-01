@@ -16,6 +16,8 @@
     text: string;
     /** The member who paid so far, choosable even without access. */
     bisher?: number | null;
+    /** Their name as the receipt gives it, for a member missing from the view. */
+    bisherName?: string;
     disabled?: boolean;
     invalid?: boolean;
     /** Accessible name, e.g. in a table row. */
@@ -32,6 +34,7 @@
     wahl = $bindable(),
     text = $bindable(),
     bisher = null,
+    bisherName = '',
     disabled = false,
     invalid = false,
     label,
@@ -43,7 +46,9 @@
 
   let textFeld = $state<HTMLInputElement | null>(null);
   const auswahl = $derived(
-    [...bezahltVonWahl(mitglieder, bisher)].sort((a, b) => Number(b.ich) - Number(a.ich))
+    [...bezahltVonWahl(mitglieder, bisher, bisherName)].sort(
+      (a, b) => Number(b.ich) - Number(a.ich)
+    )
   );
 
   async function gewaehlt(wert: string): Promise<void> {

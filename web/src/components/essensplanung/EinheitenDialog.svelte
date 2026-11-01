@@ -42,6 +42,8 @@
   let kiFehler = $state<string | null>(null);
   let fehler = $state<string | null>(null);
   let geaendert = $state(false);
+  /** Counts what is typed, so a proposal that arrives later does not replace it. */
+  let eingaben = 0;
   $effect(() => guardUnsavedChanges(() => geaendert));
 
   const key = (einheit: string) => einheit.toLocaleLowerCase('de');
@@ -76,11 +78,14 @@
   async function vorschlagHolen(): Promise<void> {
     fragt = true;
     kiFehler = null;
+    const stand = eingaben;
     try {
       const antwort = await kontext.api.senden<KiEinheiten>('POST', '/ki/einheiten', {
         planungZutatId: zutat.id,
       });
       ki = antwort;
+      // Typed meanwhile: the own unit and factors stay, the proposal is only shown
+      if (eingaben !== stand) return;
       ziel = antwort.ziel;
       faktoren = Object.fromEntries(
         antwort.faktoren.map((f) => [key(f.einheit), f.faktor === null ? '' : mengeFeld(f.faktor)])
@@ -142,7 +147,10 @@
   <form
     class="min-h-0 space-y-3 overflow-y-auto px-5 py-4 text-sm"
     onsubmit={uebernehmen}
-    oninput={() => (geaendert = true)}
+    oninput={() => {
+      geaendert = true;
+      eingaben += 1;
+    }}
   >
     <fieldset class="min-w-0 space-y-3" disabled={speichert}>
       <div class="flex flex-wrap items-center gap-2">

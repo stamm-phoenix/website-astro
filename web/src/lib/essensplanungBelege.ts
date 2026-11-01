@@ -88,9 +88,24 @@ export function belegStatistik(belege: PlanungBeleg[]): BelegStatistik {
 /** Members who can be chosen as payer; one without access only while they paid this one. */
 export function bezahltVonWahl(
   mitglieder: PlanungMitglied[],
-  bisher: number | null = null
+  bisher: number | null = null,
+  bisherName = ''
 ): PlanungMitglied[] {
-  return mitglieder.filter((mitglied) => !mitglied.entzogen || mitglied.id === bisher);
+  const wahl = mitglieder.filter((mitglied) => !mitglied.entzogen || mitglied.id === bisher);
+  // Without managing members, a member without access is missing from the view: the one who
+  // paid this receipt stays choosable under the name the receipt gives
+  if (bisher !== null && !wahl.some((mitglied) => mitglied.id === bisher)) {
+    wahl.push({
+      id: bisher,
+      etag: '',
+      name: bisherName || 'Mitglied',
+      rolle: 'bearbeiten',
+      email: null,
+      entzogen: true,
+      ich: false,
+    });
+  }
+  return wahl;
 }
 
 /** A row of the table of the PDF. */

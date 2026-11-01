@@ -284,6 +284,7 @@
         label="Bezahlt von, Beleg vom {formatIsoDate(beleg.datum)}"
         mitglieder={kontext.ansicht.mitglieder}
         bisher={beleg.bezahltVonId}
+        bisherName={beleg.bezahltVon}
         bind:wahl
         bind:text={name}
         disabled={speichert}
