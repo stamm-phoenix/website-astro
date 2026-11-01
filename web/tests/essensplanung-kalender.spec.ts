@@ -15,9 +15,14 @@ test('the plan shows as a grid over the whole width, dishes are typed into a mea
   await expect(kalender.getByRole('columnheader')).toHaveCount(3);
   await expect(kalender.getByRole('rowheader', { name: 'Mittagessen' })).toBeVisible();
   await expect(page.locator('[data-kalender="2_5"]')).toBeVisible();
-  // Two days share the width next to the list of dishes
+  // On a wide screen two days share the width next to the list of dishes; on a phone a day keeps
+  // room for its cards and the plan scrolls sideways, saying so
   const breite = (await kalender.getByRole('columnheader').nth(1).boundingBox())?.width ?? 0;
-  expect(breite).toBeGreaterThan(300);
+  if ((page.viewportSize()?.width ?? 0) >= 1024) expect(breite).toBeGreaterThan(300);
+  else {
+    expect(breite).toBeGreaterThanOrEqual(200);
+    await expect(page.getByText('Weitere Tage siehst du, wenn du seitlich wischst')).toBeVisible();
+  }
   await expectNoHorizontalOverflow(page);
 
   // Arrow keys move between the cells; typing starts a dish, Enter creates and plans it
@@ -55,10 +60,19 @@ test('the plan shows as a grid over the whole width, dishes are typed into a mea
     .dragTo(page.locator('[data-kalender="2_4"]'));
   await expect(page.locator('[data-kalender="2_4"] [data-karte]')).toHaveCount(1);
   await expect(page.locator('[data-kalender="2_2"] [data-karte]')).toHaveCount(0);
-  await page
-    .getByRole('list', { name: 'Alle Gerichte' })
-    .getByText('Nudeln')
-    .dragTo(page.locator('[data-kalender="1_1"]'));
+  if (await page.evaluate(() => matchMedia('(any-pointer: coarse)').matches)) {
+    // On a phone the list of all dishes is folded and fingers do not drag: a tap on „+ Gericht“,
+    // always shown there, types the dish in
+    await kalender.getByRole('button', { name: 'Gericht eintragen bei 1_1 Frühstück' }).tap();
+    await kalender.getByLabel('Gericht bei 1_1 Frühstück').fill('Nudeln');
+    await kalender.getByLabel('Gericht bei 1_1 Frühstück').press('Enter');
+    await expect(page.getByText('Nudeln bei 1_1 eingeplant.').first()).toBeVisible();
+  } else {
+    await page
+      .getByRole('list', { name: 'Alle Gerichte' })
+      .getByText('Nudeln')
+      .dragTo(page.locator('[data-kalender="1_1"]'));
+  }
   await expect(page.locator('[data-kalender="1_1"] [data-karte]')).toHaveCount(1);
 
   // The checkbox ticks off „gekocht“ in one click

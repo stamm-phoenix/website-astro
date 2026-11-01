@@ -74,6 +74,8 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await zutat.press('Enter');
   await gericht.getByLabel('Menge der neuen Zutat').fill('2');
   await gericht.getByLabel('Einheit der neuen Zutat').fill('kg');
+  // The suggestions of the unit close first; on a phone they lie over the button below
+  await gericht.getByLabel('Einheit der neuen Zutat').press('Escape');
   await gericht.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('2');
