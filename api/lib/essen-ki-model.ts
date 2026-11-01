@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import type { EssenEinheitenart } from './essen-validation';
 import type { Gericht, GerichtEinheit, GerichtZutat, PlanungZutat } from './essen-gerichte-model';
-import { EINHEITEN_JE_ART, einheitPasst } from './essen-gerichte-model';
+import { EINHEITEN_JE_ART, einheitSchluessel, istBekannteEinheit } from './essen-gerichte-model';
+import type { EssenEinheitenart } from './essen-validation';
 
 /**
  * What the AI of the Essensplanung answers and how its answers are read (`docs/essensplanung.md`,
@@ -41,11 +41,17 @@ export interface KiHinweis {
 
 export interface KiPruefung {
   hinweise: KiHinweis[];
-  /** The people of the dish that was checked; taking over an amount sends them back. */
-  personen: number;
+  /**
+   * The people of the dish that was checked (null: none yet); taking over an amount sends them
+   * back.
+   */
+  personen: number | null;
 }
 
-/** Units the model may read from a recipe; TL, EL and pinches are converted or kept as a note. */
+/**
+ * Units the model may read from a recipe; TL, EL and pieces are converted where the lists know
+ * how, else kept as the recipe's own unit. A pinch stays by eye.
+ */
 export const KI_REZEPT_EINHEITEN = [
   'g',
   'kg',
@@ -76,15 +82,18 @@ export interface KiRezeptZeile {
   fuerAlles: boolean;
   fuerVegetarisch: boolean;
   fuerVegan: boolean;
-  /** The amount must be typed: e.g. a tin's filled weight for an ingredient by drained weight. */
-  mengeFehlt: boolean;
+  /**
+   * The amount in the recipe's own unit („20 EL“), scaled, when `menge` was converted into the
+   * unit of the list; the preview offers to keep it instead.
+   */
+  rezeptMenge: { menge: number; einheit: GerichtEinheit } | null;
 }
 
 export interface KiRezept {
   /** For how many the recipe was written, if it says so. */
   rezeptPersonen: number | null;
-  /** The people of the dish the amounts were scaled to. */
-  personen: number;
+  /** The people of the dish the amounts were scaled to; null: the dish has none, amounts as written. */
+  personen: number | null;
   zeilen: KiRezeptZeile[];
 }
 
@@ -145,12 +154,7 @@ const hinweisSchema = z.object({
   vorschlag: kiText(MAX_TEXT),
   menge: kiZahl,
   einheit: z.preprocess(
-    (value) =>
-      Object.values(EINHEITEN_JE_ART)
-        .flat()
-        .includes(value as GerichtEinheit)
-        ? value
-        : null,
+    (value) => (typeof value === 'string' && istBekannteEinheit(value) ? value : null),
     z.custom<GerichtEinheit>().nullable()
   ),
   fuerAlles: flag,
@@ -158,16 +162,29 @@ const hinweisSchema = z.object({
   fuerVegan: flag,
 });
 
-/** The change a hint proposes for `zeile`, if it fits the ingredient and changes anything. */
+/** Whether a proposed unit fits: the line's base unit, or for a line without one the ingredient's. */
+function einheitBleibt(
+  einheit: GerichtEinheit,
+  zeile: GerichtZutat,
+  art: EssenEinheitenart | undefined
+): boolean {
+  if (zeile.einheit) return einheitSchluessel(einheit) === einheitSchluessel(zeile.einheit);
+  return art !== undefined && EINHEITEN_JE_ART[art].some((bekannt) => bekannt === einheit);
+}
+
+/** The change a hint proposes for `zeile`, if it changes anything and keeps its base unit. */
 function aenderungFuer(
   hinweis: z.infer<typeof hinweisSchema>,
   zeile: GerichtZutat,
-  art: EssenEinheitenart | undefined
+  art: EssenEinheitenart | undefined,
+  /** False for a scaling line of a dish without people: there is nothing to scale against. */
+  mengeErlaubt = true
 ): KiAenderung | undefined {
   const aenderung: KiAenderung = {};
-  if (hinweis.menge !== null && art) {
+  if (hinweis.menge !== null && mengeErlaubt) {
     const einheit = hinweis.einheit ?? zeile.einheit;
-    if (einheit && einheitPasst(art, einheit)) {
+    // A new amount stays in the base unit of the line: 500 ml of pasta is no proposal
+    if (einheit && einheitBleibt(einheit, zeile, art)) {
       const menge = Math.round(hinweis.menge * 1000) / 1000 || 0.001;
       if (menge !== zeile.menge || einheit !== zeile.einheit) {
         aenderung.menge = menge;
@@ -213,8 +230,8 @@ export function oberflaechenText(text: string): string | null {
 
 /**
  * Reads the hints of the model on `gericht`: entries that do not fit are left out, a line number
- * outside the dish counts for the whole dish, and a proposed change only stays when it fits the
- * ingredient's unit and leaves the line for at least one diet.
+ * outside the dish counts for the whole dish, and a proposed change only stays when it keeps the
+ * base unit of the line and leaves it for at least one diet.
  */
 export function leseKiPruefung(
   raw: unknown,
@@ -235,7 +252,12 @@ export function leseKiPruefung(
     const zeile =
       hinweis.zeile !== null && hinweis.zeile >= 1 ? gericht.zutaten[hinweis.zeile - 1] : undefined;
     const aenderung = zeile
-      ? aenderungFuer(hinweis, zeile, zutaten.get(zeile.planungZutatId)?.einheitenart)
+      ? aenderungFuer(
+          hinweis,
+          zeile,
+          zutaten.get(zeile.planungZutatId)?.einheitenart,
+          gericht.personen !== null || zeile.fest
+        )
       : undefined;
     hinweise.push({
       art: hinweis.art,

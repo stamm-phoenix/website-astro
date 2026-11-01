@@ -53,9 +53,7 @@ test('an entry of stock or extra needs picks an ingredient, an amount and a unit
     }
   );
   assert.deepEqual(
-    fields(() =>
-      validatePosten({ menge: 0, einheit: 'Liter', hinweis: 'y'.repeat(201) }, 'bestand')
-    ),
+    fields(() => validatePosten({ menge: 0, einheit: '', hinweis: 'y'.repeat(201) }, 'bestand')),
     {
       zutat: 'Bitte eine Zutat wählen.',
       menge: 'Bitte eine Menge größer 0 eintragen, z. B. 2,5.',

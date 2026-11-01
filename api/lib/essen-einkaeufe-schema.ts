@@ -13,12 +13,9 @@ import type {
   VerschiebenInput,
   ZurueckholenInput,
 } from './essen-einkaeufe-model';
-import { EINHEITEN_JE_ART } from './essen-gerichte-model';
-import type { GerichtEinheit } from './essen-gerichte-model';
+import { einheitFeld, einheitPflicht } from './essen-einheit-schema';
 import { readDatum } from './essen-planung-datum';
 import { lenientObject } from './validation/zod';
-
-const EINHEITEN = Object.values(EINHEITEN_JE_ART).flat() as [GerichtEinheit, ...GerichtEinheit[]];
 
 /** Runs a check even when fields of the same form are invalid, so every field reports. */
 const ALWAYS = (): boolean => true;
@@ -78,7 +75,7 @@ function menge(error: string) {
 
 export const hakenSchema = lenientObject({
   planungZutatId: zutatId,
-  einheit: z.enum(EINHEITEN, { error: 'Bitte eine Einheit wählen.' }),
+  einheit: einheitPflicht,
   erhalten: z.preprocess((value) => value ?? 0, menge(ERHALTEN_FEHLER)),
   ersatz: zeile(100),
 }).transform((value): HakenInput => value);
@@ -99,10 +96,7 @@ export const regelSchema = lenientObject({
     (value) => (value === undefined || value === '' ? null : value),
     menge(FEST_FEHLER).nullable()
   ),
-  einheit: z.preprocess(
-    (value) => (value === undefined || value === '' ? null : value),
-    z.enum(EINHEITEN, { error: 'Bitte eine Einheit wählen.' }).nullable()
-  ),
+  einheit: einheitFeld,
 })
   .refine((value) => value.art !== 'fest' || value.menge !== null, {
     error: FEST_FEHLER,

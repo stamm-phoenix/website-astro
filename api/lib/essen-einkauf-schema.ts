@@ -5,11 +5,8 @@
 import { z } from 'zod';
 import { MAX_MENGE, MENGE_FEHLER } from './essen-einkauf-model';
 import type { PostenArt, PostenInput } from './essen-einkauf-model';
-import { EINHEITEN_JE_ART } from './essen-gerichte-model';
-import type { GerichtEinheit } from './essen-gerichte-model';
+import { einheitFeld } from './essen-einheit-schema';
 import { lenientObject } from './validation/zod';
-
-const EINHEITEN = Object.values(EINHEITEN_JE_ART).flat() as [GerichtEinheit, ...GerichtEinheit[]];
 
 /** Runs a check even when fields of the same form are invalid, so every field reports. */
 const ALWAYS = (): boolean => true;
@@ -51,10 +48,7 @@ export function postenSchema(art: PostenArt) {
     planungZutatId: id,
     name: zeile(150),
     menge,
-    einheit: z.preprocess(
-      (value) => (value === undefined || value === '' ? null : value),
-      z.enum(EINHEITEN, { error: 'Bitte eine Einheit wählen.' }).nullable()
-    ),
+    einheit: einheitFeld,
     hinweis: zeile(200),
   })
     .refine(

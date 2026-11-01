@@ -10,6 +10,7 @@ import {
   anleitungAbsaetze,
   esserKalender,
   kochplan,
+  personenText,
   rezeptWarnungen,
   rezeptZeilen,
   teilnehmendeZeilen,
@@ -169,8 +170,7 @@ export async function downloadRezeptkartenPdf(
   const { doc, autoTable } = await loadPdf();
   gerichte.forEach((gericht, index) => {
     if (index > 0) doc.addPage();
-    let y =
-      drawTitle(doc, gericht.name, [`Für ${gericht.personen} Personen · ${ansicht.name}`]) + 2;
+    let y = drawTitle(doc, gericht.name, [`${personenText(gericht)} · ${ansicht.name}`]) + 2;
     // The warnings of the card, e.g. milk on a line for vegans
     for (const warnung of rezeptWarnungen(gericht, ansicht.zutaten))
       y = text(doc, warnung, y, 0, RED);

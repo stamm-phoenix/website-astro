@@ -2,38 +2,26 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mengeFuerZutat, skaliereMenge, vorschlagKey } from '../src/lib/essensplanungKi.ts';
 
-test('a recipe line chosen for an ingredient in g converts pieces or asks for the amount', () => {
-  const sechs = { menge: '6', einheit: 'stueck' as const, hinweis: 'reif' };
-  // With a weight per piece: 6 × 80 g
+test('a recipe line chosen for an ingredient keeps its unit, or converts pieces into grams', () => {
+  const sechs = { menge: '6', einheit: 'stueck' };
+  // With a weight per piece: 6 × 80 g, the pieces stay to take instead
   assert.deepEqual(mengeFuerZutat(sechs, 'masse', 80), {
     menge: '480',
     einheit: 'g',
-    hinweis: 'reif',
-    neuEintragen: false,
+    alternative: sechs,
   });
-  // Without one, never 6 g: the amount is emptied and the recipe's amount kept as a note
-  assert.deepEqual(mengeFuerZutat(sechs, 'masse', null), {
+  // Without one, never 6 g: the pieces stay pieces
+  assert.deepEqual(mengeFuerZutat(sechs, 'masse', null), { ...sechs, alternative: null });
+  assert.deepEqual(mengeFuerZutat({ menge: '3', einheit: 'Bund' }, 'masse', null), {
+    menge: '3',
+    einheit: 'Bund',
+    alternative: null,
+  });
+  // Without an amount the unit follows the ingredient
+  assert.deepEqual(mengeFuerZutat({ menge: '', einheit: 'stueck' }, 'masse', null), {
     menge: '',
     einheit: 'g',
-    hinweis: '6 Stück, reif',
-    neuEintragen: true,
-  });
-  assert.deepEqual(mengeFuerZutat({ menge: '2', einheit: 'g', hinweis: '' }, 'volumen', null), {
-    menge: '',
-    einheit: 'ml',
-    hinweis: '2 g',
-    neuEintragen: true,
-  });
-  // A fitting unit and an empty amount stay as they are
-  assert.equal(
-    mengeFuerZutat({ menge: '1,5', einheit: 'kg', hinweis: '' }, 'masse', 80).menge,
-    '1,5'
-  );
-  assert.deepEqual(mengeFuerZutat({ menge: '', einheit: 'stueck', hinweis: '' }, 'masse', null), {
-    menge: '',
-    einheit: 'g',
-    hinweis: '',
-    neuEintragen: false,
+    alternative: null,
   });
 });
 

@@ -132,6 +132,9 @@ export interface Database {
   'essen.einkauf_posten': EssenEinkaufPostenTable;
   'essen.einkauf_regel': EssenEinkaufRegelTable;
   'essen.packliste_eintrag': EssenPacklisteEintragTable;
+  'essen.beleg': EssenBelegTable;
+  'essen.beleg_ordner_loeschen': EssenBelegOrdnerLoeschenTable;
+  'essen.beleg_ordner': EssenBelegOrdnerTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -1092,7 +1095,8 @@ export interface EssenGerichtTable {
   version: ReadOnly<Buffer>;
   planung_id: number;
   name: string;
-  personen: number;
+  /** `NULL`: no reference number of people yet (`0069`). */
+  personen: number | null;
   anleitung: Generated<string>;
   notiz: Generated<string>;
   /** JSON array of `{ titel, url }`. */
@@ -1214,6 +1218,39 @@ export interface EssenPacklisteEintragTable {
   zustaendig_text: Generated<string>;
 }
 
+/** `essen.beleg_ordner_loeschen`: photo folders of deleted Planungen still to clean up (`0072`). */
+export interface EssenBelegOrdnerLoeschenTable {
+  planung_id: number;
+  angelegt_am: Generated<Date>;
+}
+
+/** `essen.beleg_ordner`: Planungen that ever stored a receipt photo (`0073`). */
+export interface EssenBelegOrdnerTable {
+  planung_id: number;
+  angelegt_am: Generated<Date>;
+}
+
+/** `essen.beleg`: a receipt of a Planung, who paid it and whether it was paid back (`0071`). */
+export interface EssenBelegTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  datum: SqlDate;
+  betrag_cent: number;
+  haendler: Generated<string>;
+  notiz: Generated<string>;
+  /** A member, or null with a free name in `bezahlt_von_text`. */
+  bezahlt_von_mitglied_id: number | null;
+  bezahlt_von_text: Generated<string>;
+  erstattet: Generated<boolean>;
+  erstattet_am: Date | null;
+  erstattet_von_mitglied_id: number | null;
+  /** File name in `essen-belege/<planung_id>/`; null without a photo. */
+  foto: string | null;
+  angelegt_von_mitglied_id: number | null;
+  angelegt_am: Generated<Date>;
+}
+
 /** `essen.zusatzbedarf`: like the stock, but an amount is optional („Kochhandschuhe“). */
 export interface EssenZusatzbedarfTable extends Omit<EssenPostenTable, 'menge' | 'einheit'> {
   /** decimal(12, 3); null with `einheit` null. */
@@ -1248,6 +1285,8 @@ export interface EssenEinkaufPostenTable {
   ersatz: Generated<string>;
   abgehakt_von_mitglied_id: number | null;
   abgehakt_am: Generated<Date>;
+  /** binary(8): @@DBTS when ticked off (`0074`); null only for rows of before. */
+  abgehakt_stand: Buffer | null;
 }
 
 /** `essen.einkauf_regel`: a hand-made rule for an ingredient on a shopping trip. */

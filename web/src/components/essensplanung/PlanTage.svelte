@@ -1,7 +1,11 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
+  import { esserRechner } from '../../lib/essensplanungRechnung';
+  import GerichteLeiste from './GerichteLeiste.svelte';
+  import { aufklappen } from './EinplanungKarte.svelte';
+  import { KNOPF, SYMBOL } from './planAktionen';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { datumKurz } from '../../lib/essensplanung';
@@ -13,9 +17,13 @@
   import PlanKalender from './PlanKalender.svelte';
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
   import { tagStand } from '../../../../api/lib/essen-planung-model';
-  import type { PlanKontext } from './planKontext';
+  import { meldeVerloren, type PlanKontext } from './planKontext';
+  import { getippt, slotEntwuerfe } from './slotEntwuerfe.svelte';
 
-  /** Days and meals of a Planung; shown IDs like `3_1` follow the order. */
+  /**
+   * Days and meals of a Planung as a list (a table per day) or a calendar, next to the list of
+   * all dishes to drag in; shown IDs like `3_1` follow the order.
+   */
 
   interface Props {
     kontext: PlanKontext;
@@ -69,17 +77,13 @@
     }
   }
 
-  /** Ticking off happens in the list: the calendar opens it there at the planned dish. */
-  async function abhaken(einplanungId: number): Promise<void> {
+  const esser = $derived(esserRechner(ansicht));
+
+  /** Amounts and what a dish used are in the list: the calendar unfolds it there. */
+  async function mengen(einplanungId: number): Promise<void> {
     zeige('liste');
     await tick();
-    const teil = document.querySelector<HTMLDetailsElement>(
-      `details[data-abhaken="${einplanungId}"]`
-    );
-    if (!teil) return;
-    teil.open = true;
-    teil.scrollIntoView({ block: 'center' });
-    teil.querySelector('summary')?.focus();
+    aufklappen.id = einplanungId;
   }
 
   /** The plan as PDF; the names of the intolerances first, when lines need them. */
@@ -109,9 +113,33 @@
       () =>
         neuerTag !== '' ||
         Object.values(neueMahlzeit).some((name) => name.trim() !== '') ||
-        Object.keys(neuesDatum).length > 0
+        Object.keys(neuesDatum).length > 0 ||
+        Object.values(slotEntwuerfe).some(getippt)
     )
   );
+
+  // The drafts live as long as the page of this Planung: leaving it (after „Änderungen
+  // verwerfen“) drops them, so they come back neither here nor in another Planung
+  onDestroy(() => {
+    for (const id of Object.keys(slotEntwuerfe)) delete slotEntwuerfe[Number(id)];
+  });
+
+  // A dish typed into a meal someone else deleted: the draft goes, and is named to copy
+  $effect(() => {
+    const da = new Set(ansicht.tage.flatMap((tag) => tag.mahlzeiten.map((m) => m.id)));
+    untrack(() => {
+      for (const [id, entwurf] of Object.entries(slotEntwuerfe)) {
+        if (da.has(Number(id))) continue;
+        delete slotEntwuerfe[Number(id)];
+        if (!getippt(entwurf)) continue;
+        const eingabe = [entwurf.name.trim(), entwurf.zustaendig.trim()].filter(Boolean).join(', ');
+        meldeVerloren(
+          kontext,
+          `${entwurf.mahlzeit} wurde gerade gelöscht. Dein Gericht „${eingabe}“ war noch nicht eingetragen.`
+        );
+      }
+    });
+  });
 
   function vorschlagNeuerTag(): string {
     const letzter = ansicht.tage.at(-1)?.datum;
@@ -187,8 +215,8 @@
   }
 </script>
 
-<section aria-labelledby="plan-heading" class="space-y-6">
-  <div class="flex flex-wrap items-center justify-between gap-3">
+<section aria-labelledby="plan-heading" class="space-y-3">
+  <div class="flex flex-wrap items-center justify-between gap-2">
     <h3 id="plan-heading" class="sr-only">Tage und Mahlzeiten</h3>
     <FilterTabs
       label="Darstellung"
@@ -202,100 +230,134 @@
     />
     <PdfKnopf {kontext} label="Plan als PDF" erstellen={planPdf} />
   </div>
-  {#if ansicht.tage.length === 0}
-    <p class="text-neutral-700">Die Planung hat noch keine Tage.</p>
-  {:else if darstellung === 'kalender'}
-    <PlanKalender
-      {kontext}
-      {bearbeiten}
-      oneinplanen={(neu) => (auftrag = neu)}
-      onabhaken={abhaken}
-    />
-  {/if}
-  <ol class="space-y-6" hidden={darstellung === 'kalender'}>
-    {#each ansicht.tage as tag (tag.id)}
-      <li class="surface p-4 md:p-5" aria-labelledby="tag-{tag.id}">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h4 id="tag-{tag.id}" class="font-serif text-lg font-bold text-brand-900">
-            Tag {tag.nummer}
-            <span class="font-sans text-base font-normal">· {datumKurz(tag.datum)}</span>
-          </h4>
-          {#if bearbeiten}
-            <div class="flex flex-wrap items-center gap-2 print:hidden">
-              <label class="sr-only" for="tag-datum-{tag.id}">Datum von Tag {tag.nummer}</label>
-              <input
-                id="tag-datum-{tag.id}"
-                type="date"
-                class="form-input w-auto"
-                value={neuesDatum[tag.id] ?? tag.datum}
-                disabled={kontext.busy}
-                onchange={(event) => void tagVerschieben(tag, event.currentTarget.value)}
-              />
-              <ActionButton
-                type="button"
-                variant="danger"
-                disabled={kontext.busy}
-                aria-label="Tag {tag.nummer} löschen"
-                onclick={() => void tagLoeschen(tag)}>Löschen</ActionButton
-              >
-            </div>
-          {/if}
-        </div>
-        <ul class="mt-3 divide-y divide-neutral-200 border-y border-neutral-200">
-          {#each tag.mahlzeiten as mahlzeit, index (mahlzeit.id)}
-            <MahlzeitZeile
-              {kontext}
-              {mahlzeit}
-              {bearbeiten}
-              erste={index === 0}
-              letzte={index === tag.mahlzeiten.length - 1}
-              oneinplanen={(neu) => (auftrag = neu)}
-              ongruppen={(id) => (gruppenMahlzeit = id)}
-              {unvertraeglichkeiten}
-            />
-          {:else}
-            <li class="py-2 text-sm text-neutral-700">Noch keine Mahlzeiten.</li>
-          {/each}
-        </ul>
-        {#if bearbeiten}
-          <form
-            class="mt-3 flex flex-wrap items-end gap-2 print:hidden"
-            onsubmit={(event) => void mahlzeitHinzufuegen(event, tag)}
-          >
-            <div class="min-w-0 flex-1">
-              <label class="form-label" for="neue-mahlzeit-{tag.id}"
-                >Neue Mahlzeit an Tag {tag.nummer}</label
-              >
-              <input
-                id="neue-mahlzeit-{tag.id}"
-                class="form-input"
-                maxlength="50"
-                placeholder="z. B. Nachtwanderungs-Snack"
-                bind:value={neueMahlzeit[tag.id]}
-              />
-            </div>
-            <ActionButton
-              type="submit"
-              disabled={kontext.busy || !(neueMahlzeit[tag.id] ?? '').trim()}
-              >Hinzufügen</ActionButton
+  <div class="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-[minmax(0,1fr)_15rem]">
+    <div class="min-w-0 space-y-3 lg:order-first">
+      {#if ansicht.tage.length === 0}
+        <p class="text-neutral-700">Die Planung hat noch keine Tage.</p>
+      {:else if darstellung === 'kalender'}
+        <PlanKalender
+          {kontext}
+          {bearbeiten}
+          {esser}
+          oneinplanen={(neu) => (auftrag = neu)}
+          onmengen={mengen}
+        />
+      {/if}
+      <ol class="space-y-3" hidden={darstellung === 'kalender'}>
+        {#each ansicht.tage as tag (tag.id)}
+          <li class="surface overflow-hidden" aria-labelledby="tag-{tag.id}">
+            <div
+              class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-neutral-300 bg-neutral-100 px-2 py-1"
             >
-          </form>
-        {/if}
-      </li>
-    {/each}
-  </ol>
+              <h4 id="tag-{tag.id}" class="font-semibold text-brand-900">
+                Tag {tag.nummer}
+                <span class="font-normal text-neutral-700">· {datumKurz(tag.datum)}</span>
+              </h4>
+              {#if bearbeiten}
+                <span class="ml-auto flex items-center gap-1 print:hidden">
+                  <label class="sr-only" for="tag-datum-{tag.id}">Datum von Tag {tag.nummer}</label>
+                  <input
+                    id="tag-datum-{tag.id}"
+                    type="date"
+                    class="form-input mt-0 min-h-0 w-auto px-1.5 py-0.5 text-xs any-pointer-coarse:min-h-11"
+                    value={neuesDatum[tag.id] ?? tag.datum}
+                    disabled={kontext.busy}
+                    onchange={(event) => void tagVerschieben(tag, event.currentTarget.value)}
+                  />
+                  <button
+                    type="button"
+                    class="{SYMBOL} hover:text-danger"
+                    disabled={kontext.busy}
+                    title="Tag löschen"
+                    aria-label="Tag {tag.nummer} löschen"
+                    onclick={() => void tagLoeschen(tag)}
+                    ><svg
+                      viewBox="0 0 24 24"
+                      class="size-4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                      ><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg
+                    ></button
+                  >
+                </span>
+              {/if}
+            </div>
+            <!-- Column titles on wide screens; on phones each meal stacks its parts -->
+            <div
+              class="hidden grid-cols-[3rem_minmax(8rem,13rem)_minmax(0,1fr)_minmax(6rem,9rem)_auto] gap-x-2 border-b border-neutral-200 px-2 py-0.5 text-xs text-neutral-700 md:grid"
+              aria-hidden="true"
+            >
+              <span>ID</span><span>Mahlzeit</span><span>Gerichte</span><span>Wer isst mit</span
+              ><span class="w-[5.5rem]"></span>
+            </div>
+            <ul class="divide-y divide-neutral-200">
+              {#each tag.mahlzeiten as mahlzeit, index (mahlzeit.id)}
+                <MahlzeitZeile
+                  {kontext}
+                  {mahlzeit}
+                  {bearbeiten}
+                  {esser}
+                  erste={index === 0}
+                  letzte={index === tag.mahlzeiten.length - 1}
+                  oneinplanen={(neu) => (auftrag = neu)}
+                  ongruppen={(id) => (gruppenMahlzeit = id)}
+                  {unvertraeglichkeiten}
+                />
+              {:else}
+                <li class="px-2 py-1.5 text-sm text-neutral-700">Noch keine Mahlzeiten.</li>
+              {/each}
+            </ul>
+            {#if bearbeiten}
+              <form
+                class="flex items-center gap-2 border-t border-neutral-200 bg-neutral-50 px-2 py-1 print:hidden"
+                onsubmit={(event) => void mahlzeitHinzufuegen(event, tag)}
+              >
+                <label class="sr-only" for="neue-mahlzeit-{tag.id}"
+                  >Neue Mahlzeit an Tag {tag.nummer}</label
+                >
+                <input
+                  id="neue-mahlzeit-{tag.id}"
+                  class="form-input mt-0 min-h-0 max-w-xs px-2 py-0.5 text-sm any-pointer-coarse:min-h-11"
+                  maxlength="50"
+                  placeholder="Neue Mahlzeit, z. B. Nachtwanderungs-Snack"
+                  bind:value={neueMahlzeit[tag.id]}
+                />
+                <button
+                  type="submit"
+                  class={KNOPF}
+                  disabled={kontext.busy || !(neueMahlzeit[tag.id] ?? '').trim()}
+                  >Mahlzeit hinzufügen</button
+                >
+              </form>
+            {/if}
+          </li>
+        {/each}
+      </ol>
 
-  {#if bearbeiten && darstellung === 'liste'}
-    <form class="flex flex-wrap items-end gap-2 print:hidden" onsubmit={tagHinzufuegen}>
-      <div>
-        <label class="form-label" for="neuer-tag">Weiterer Tag</label>
-        <input id="neuer-tag" type="date" class="form-input" bind:value={neuerTag} />
-      </div>
-      <ActionButton type="submit" disabled={kontext.busy || (!neuerTag && !ansicht.tage.length)}>
-        {neuerTag ? 'Tag hinzufügen' : 'Tag danach hinzufügen'}
-      </ActionButton>
-    </form>
-  {/if}
+      {#if bearbeiten && darstellung === 'liste'}
+        <form class="flex flex-wrap items-end gap-2 print:hidden" onsubmit={tagHinzufuegen}>
+          <div>
+            <label class="form-label" for="neuer-tag">Weiterer Tag</label>
+            <input id="neuer-tag" type="date" class="form-input" bind:value={neuerTag} />
+          </div>
+          <ActionButton
+            type="submit"
+            disabled={kontext.busy || (!neuerTag && !ansicht.tage.length)}
+          >
+            {neuerTag ? 'Tag hinzufügen' : 'Tag danach hinzufügen'}
+          </ActionButton>
+        </form>
+      {/if}
+    </div>
+    <!-- Only while the plan is shown: the list is for dragging into it -->
+    {#if sichtbar}
+      <aside class="lg:sticky lg:top-4" aria-label="Alle Gerichte">
+        <GerichteLeiste {kontext} {bearbeiten} />
+      </aside>
+    {/if}
+  </div>
 </section>
 
 <EinplanungDialog {kontext} {auftrag} onclose={() => (auftrag = null)} />

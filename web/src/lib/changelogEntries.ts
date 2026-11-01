@@ -12,6 +12,20 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-01-01-essensplanung-praxistest',
+    date: '2026-11-01',
+    title: 'Essensplanung: schneller planen nach dem ersten Praxistest',
+    changes: [
+      'Die Planung nutzt jetzt die ganze Breite des Bildschirms und zeigt mehr auf einmal, mit kleineren Feldern und Knöpfen und mehr Bedienung per Tastatur.',
+      'Im Plan trägst du ein Gericht direkt in eine Mahlzeit ein, erst einmal nur mit Namen und auf Wunsch mit der zuständigen Person. Die Personenzahl kannst du später ergänzen. Gerichte ziehst du mit der Maus in eine andere Mahlzeit oder aus der Liste aller Gerichte in den Plan, ein Klick auf den Namen öffnet das Gericht zum Bearbeiten.',
+      'Gekochtes hakst du mit einem Kästchen ab. Der Kalender zeigt die Mahlzeiten links und hat Hilfslinien, die Tage in der Liste sind übersichtliche Tabellen. Uhrzeiten an Mahlzeiten gibt es nicht mehr.',
+      'Für Zutaten kannst du jede Einheit eintragen, auch eigene wie „Bund“, „Dose“ oder „EL“. Beim Rezept-Einfügen bleibt eine Menge, die sich nicht sicher umrechnen lässt, in der Einheit des Rezepts stehen. Steht eine Zutat in mehreren Einheiten, schlägt dir die Seite vor, sie zu vereinheitlichen.',
+      'Ein Einkauf öffnet sich in einer eigenen Ansicht. Beim Einkaufen trägst du Menge und Ersatz direkt in der Zeile ein, auf dem Handy über „Menge“. Mit „Für welche Gerichte“ siehst du bei jeder Zutat, wofür sie gebraucht wird.',
+      'In der Packliste wählst du beim Eintragen gleich, wer etwas einpackt. Neu ist die Matrix mit allen Personen nebeneinander, in der du mit einem Klick zuweist und abhakst.',
+      'Im neuen Bereich „Belege“ fotografierst du Kassenzettel oder trägst sie von Hand ein, hältst fest, wer bezahlt hat, und hakst ab, was erstattet ist. Eine Übersicht zeigt, wem noch wie viel zusteht, und „Belege als PDF“ gibt dir alles samt Fotos zum Abrechnen. Die Belege bleiben in der Essensplanung.',
+    ],
+  },
+  {
     id: '2026-10-31-02-downloads-themen',
     date: '2026-10-31',
     title: 'Downloads haben Themen',

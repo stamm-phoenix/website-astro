@@ -11,10 +11,9 @@ import type {
 } from '../../../api/lib/essen-gerichte-model';
 import type { PlanungAnsicht } from '../../../api/lib/essen-planung-model';
 import {
-  EINHEITEN_JE_ART,
   MAX_GERICHTE,
   MAX_ZEILEN_PRO_GERICHT,
-  einheitPasst,
+  einheitenartVon,
   gerichtStand,
 } from '../../../api/lib/essen-gerichte-model';
 import type {
@@ -26,6 +25,8 @@ import { validatePlanungZutat } from '../../../api/lib/essen-gerichte-validation
 import { createEssenEintrag, essenKatalog } from './essensplanung';
 import type { MockPlanung, MockZugang } from './essensplanung-planung';
 import { MockPlanungFehler, aendere, neueId, neuesEtag } from './essensplanung-planung';
+import { einplanungVorbereiten } from './essensplanung-einplanung';
+import type { EinplanungInput } from '../../../api/lib/essen-planung-model';
 
 export interface MockPlanungZutat {
   id: number;
@@ -152,12 +153,6 @@ export function planungZutatAendern(z: MockZugang, id: number, body: unknown, if
   const zentral = zutat.zutatId
     ? essenKatalog().zutaten.find((entry) => entry.id === zutat.zutatId)
     : undefined;
-  const art = input.einheitenart ?? zentral?.einheitenart;
-  if (art && nutzungen(z.planung, id).some((zeile) => !einheitPasst(art, zeile.einheit)))
-    throw feld(
-      'einheitenart',
-      'Gerichte, Bestand, Zusatzbedarf, Einkäufe oder abgehakter Verbrauch nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.'
-    );
   aendere(z, 'zutat-geaendert', { name: input.name ?? zentral?.name }, () => {
     Object.assign(
       zutat,
@@ -246,12 +241,7 @@ export function sonstigesFuer(
     (entry) => entry.name && collator.compare(entry.name, name) === 0
   );
   if (eigene) return wirksam(z.planung, eigene);
-  const einheitenart =
-    einheit === null
-      ? 'stueck'
-      : (Object.keys(EINHEITEN_JE_ART) as EssenEinheitenart[]).find((art) =>
-          EINHEITEN_JE_ART[art].includes(einheit)
-        )!;
+  const einheitenart = einheit === null ? 'stueck' : (einheitenartVon(einheit) ?? 'stueck');
   const eintrag: MockPlanungZutat = {
     id: neueId(),
     etag: neuesEtag(),
@@ -277,24 +267,31 @@ function gerichtVon(z: MockZugang, id: number): Gericht {
 
 const GIBT_ES = 'Ein Gericht mit diesem Namen gibt es in dieser Planung schon.';
 
-export function gerichtAnlegen(z: MockZugang, input: GerichtInput): number {
+/** Adds a dish, with `einplanung` planned at that meal in the same change, like the API. */
+export function gerichtAnlegen(
+  z: MockZugang,
+  input: GerichtInput,
+  einplanung?: Omit<EinplanungInput, 'gerichtId'>
+): number {
   if (z.planung.gerichte.length >= MAX_GERICHTE)
     throw feld('name', `Eine Planung hat höchstens ${MAX_GERICHTE} Gerichte.`);
   if (z.planung.gerichte.some((g) => collator.compare(g.name, input.name!) === 0))
     throw feld('name', GIBT_ES);
+  const platz = einplanung ? einplanungVorbereiten(z, einplanung) : undefined;
   const id = neueId();
-  aendere(z, 'gericht-neu', { name: input.name }, () => {
+  aendere(z, 'gericht-neu', { name: input.name, ...platz?.details }, () => {
     z.planung.gerichte.push({
       id,
       etag: neuesEtag(),
       name: input.name!,
-      personen: input.personen!,
+      personen: input.personen ?? null,
       anleitung: input.anleitung ?? '',
       notiz: input.notiz ?? '',
       links: input.links ?? [],
       werkzeuge: input.werkzeuge ?? [],
       zutaten: [],
     });
+    platz?.einfuegen(id);
   });
   return id;
 }
@@ -356,8 +353,6 @@ function nummeriere(gericht: Gericht, zeile?: GerichtZutat, position?: number): 
 }
 
 function zeileAus(input: GerichtZutatInput, zutat: PlanungZutat) {
-  if (!einheitPasst(zutat.einheitenart, input.einheit))
-    throw feld('einheit', `${zutat.name} wird in einer anderen Einheit gemessen.`);
   return {
     planungZutatId: zutat.id,
     menge: input.menge,

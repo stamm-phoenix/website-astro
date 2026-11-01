@@ -181,6 +181,33 @@ function werte(input: EinplanungInput) {
   };
 }
 
+/**
+ * Inserts a planned dish in a running change, e.g. with a dish created in the same one: checks
+ * the meal, who is responsible and the room, then sorts it to `position` (default: the end).
+ */
+export async function fuegeEinplanungEin(
+  trx: Db,
+  zugang: Zugang,
+  input: EinplanungInput,
+  position?: number
+): Promise<{ mahlzeit: string; datum: string }> {
+  const mahlzeit = await mahlzeitDerPlanung(trx, zugang, input.mahlzeitId);
+  await pruefeZustaendig(trx, zugang, input);
+  await pruefePlatz(trx, mahlzeit.id);
+  const neu = await trx
+    .insertInto('essen.einplanung')
+    .values({
+      mahlzeit_id: mahlzeit.id,
+      gericht_id: input.gerichtId,
+      position: 32_000,
+      ...werte(input),
+    })
+    .output('inserted.id')
+    .executeTakeFirstOrThrow();
+  await sortiere(trx, mahlzeit.id, neu.id, position);
+  return { mahlzeit: mahlzeit.name, datum: toDateString(mahlzeit.datum) };
+}
+
 /** Plans a dish at a meal, at the end or at `position`; also how a planned dish is copied. */
 export async function einplanen(
   zugang: Zugang,
@@ -188,25 +215,9 @@ export async function einplanen(
   position?: number
 ): Promise<void> {
   await aendere(zugang, 'einplanung-neu', async (trx) => {
-    const mahlzeit = await mahlzeitDerPlanung(trx, zugang, input.mahlzeitId);
     const name = await gerichtName(trx, zugang, input.gerichtId);
-    await pruefeZustaendig(trx, zugang, input);
-    await pruefePlatz(trx, mahlzeit.id);
-    const neu = await trx
-      .insertInto('essen.einplanung')
-      .values({
-        mahlzeit_id: mahlzeit.id,
-        gericht_id: input.gerichtId,
-        position: 32_000,
-        ...werte(input),
-      })
-      .output('inserted.id')
-      .executeTakeFirstOrThrow();
-    await sortiere(trx, mahlzeit.id, neu.id, position);
-    return {
-      result: undefined,
-      details: { name, mahlzeit: mahlzeit.name, datum: toDateString(mahlzeit.datum) },
-    };
+    const platz = await fuegeEinplanungEin(trx, zugang, input, position);
+    return { result: undefined, details: { name, ...platz } };
   });
 }
 

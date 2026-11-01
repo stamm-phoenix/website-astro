@@ -1,5 +1,11 @@
 import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
-import { anlegen, pdfLaden } from './essensplanung-helpers';
+import {
+  anlegen,
+  aufklappen,
+  einplanen,
+  pdfLaden,
+  verbrauchOeffnen,
+} from './essensplanung-helpers';
 
 test('dishes are ticked off as cooked or left out; the stock and the list follow', async ({
   page,
@@ -31,12 +37,7 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await expect(dialog).toBeHidden();
 
   await page.getByRole('tab', { name: 'Plan' }).click();
-  for (const mahlzeit of ['1_2', '2_2']) {
-    await page.getByRole('button', { name: `Gericht einplanen bei ${mahlzeit}` }).click();
-    await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Nudeln' });
-    await dialog.getByRole('button', { name: 'Einplanen' }).click();
-    await expect(dialog).toBeHidden();
-  }
+  for (const mahlzeit of ['1_2', '2_2']) await einplanen(page, mahlzeit, 'Nudeln');
 
   // 1,5 kg in stock: 2 × 1 kg needed, 500 g to buy
   await page.getByRole('tab', { name: 'Einkauf' }).click();
@@ -44,15 +45,15 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await dialog.getByLabel('Zutat', { exact: true }).fill('Nudeln (Spag');
   await dialog.getByRole('option', { name: 'Nudeln (Spaghetti)' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('1,5');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('kg');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('kg');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
-  const liste = page.getByRole('list', { name: 'Ohne Geschäft: Teigware' });
+  const liste = page.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' });
   await expect(liste).toContainText('500 g Nudeln (Spaghetti)');
 
   // The first lunch is cooked, but only 800 g were used
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
   const verbrauch = page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_2_1');
   await expect(verbrauch).toHaveValue('1');
   await verbrauch.fill('0,8');
@@ -62,13 +63,14 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await expect(mittag.getByText('gekocht', { exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
-  // The calendar shows it too and leads to ticking off in the list
+  // The calendar shows it too and leads to what it used in the list
   await page.getByRole('button', { name: 'Kalender' }).click();
   const kalender = page.locator('[data-kalender="1_2"]');
   await expect(kalender.getByText('gekocht', { exact: true })).toBeVisible();
-  await kalender.getByRole('button', { name: '1_2_1 Nudeln abhaken' }).click();
+  await kalender.getByRole('button', { name: 'Mehr zu 1_2_1 Nudeln' }).click();
+  await kalender.getByRole('button', { name: 'Mengen und Verbrauch' }).click();
+  await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
   await expect(page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_2_1')).toHaveValue('0,8');
-  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
 
   // Through the read link what was used can be looked at, not changed
   await page.getByRole('tab', { name: 'Mitglieder' }).click();
@@ -79,7 +81,7 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await expect(links).toHaveCount(2);
   const leser = await (await browser.newContext()).newPage();
   await leser.goto((await links.last().textContent())!.trim());
-  await leser.getByLabel('Verbrauch von Nudeln bei 1_2_1 ansehen').click();
+  await verbrauchOeffnen(leser, '1_2_1', 'Nudeln');
   const gelesen = leser.getByRole('list', { name: 'Verbrauch von Nudeln bei 1_2_1' });
   await expect(gelesen).toContainText(/Nudeln \(Spaghetti\)\s*0,8 kg/);
   await expect(gelesen.getByRole('textbox')).toHaveCount(0);
@@ -91,10 +93,10 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Einkauf' }).click();
-  await expect(anderes.getByRole('list', { name: 'Ohne Geschäft: Teigware' })).toContainText(
+  await expect(anderes.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' })).toContainText(
     '300 g Nudeln (Spaghetti)'
   );
-  const lager = anderes.getByRole('table');
+  const lager = anderes.getByRole('table', { name: 'Lager' });
   await expect(lager.getByRole('row', { name: /Nudeln \(Spaghetti\)/ })).toContainText(
     /1,5 kg\s*0 g\s*800 g\s*700 g/
   );
@@ -105,8 +107,11 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await anderes.context().close();
 
   // The second lunch is left out: nothing more to buy, the stock stays
-  await page.getByLabel('Nudeln bei 2_2_1 abhaken').click();
-  await page.getByRole('button', { name: 'Ausgelassen' }).click();
+  await verbrauchOeffnen(page, '2_2_1', 'Nudeln');
+  await page
+    .getByRole('list', { name: 'Gerichte bei 2_2' })
+    .getByRole('button', { name: 'Ausgelassen', exact: true })
+    .click();
   await expect(page.getByText('Nudeln ist als ausgelassen abgehakt.').first()).toBeVisible();
   await expect(
     page.getByRole('list', { name: 'Gerichte bei 2_2' }).getByText('ausgelassen', { exact: true })
@@ -116,19 +121,19 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
 
   // Not used at all: the first lunch used nothing, so the stock is full again
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
   await page.getByLabel('Nudeln (Spaghetti) bei 1_2_1 verwendet').uncheck();
   await page.getByRole('button', { name: 'Verbrauch speichern' }).click();
   await expect(page.getByText('Nudeln ist als gekocht abgehakt.').first()).toBeVisible();
   await page.getByRole('tab', { name: 'Einkauf' }).click();
-  await expect(page.getByRole('table').getByRole('row', { name: /Nudeln/ })).toContainText(
+  await expect(page.getByRole('table', { name: 'Lager' }).getByRole('row', { name: /Nudeln/ })).toContainText(
     /1,5 kg\s*0 g\s*0 g\s*1,5 kg/
   );
 
   // Open again: it is needed again, and the stock covers it
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
-  await page.getByRole('button', { name: 'Wieder offen' }).click();
+  await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
+  await mittag.getByRole('button', { name: 'Wieder offen', exact: true }).click();
   await expect(page.getByText('Nudeln ist wieder offen.').first()).toBeVisible();
   await expect(mittag.getByText('gekocht', { exact: true })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Einkauf' }).click();
@@ -137,7 +142,6 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
 
 test('amounts typed to tick off a dish stay through maintenance', async ({ page }) => {
   await anlegen(page, 'E2E Kochen Wartung');
-  const dialog = page.getByRole('dialog');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Nudeln');
   await page.getByLabel('Personen', { exact: true }).fill('4');
@@ -151,10 +155,7 @@ test('amounts typed to tick off a dish stay through maintenance', async ({ page 
   await nudeln.getByLabel('Menge der neuen Zutat').press('Enter');
   await expect(nudeln.getByLabel('Menge von Nudeln (Spaghetti)')).toHaveValue('500');
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
-  await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Nudeln' });
-  await dialog.getByRole('button', { name: 'Einplanen' }).click();
-  await expect(dialog).toBeHidden();
+  await einplanen(page, '1_2', 'Nudeln');
 
   const wartung = async (an: boolean): Promise<void> => {
     await page.unroute('**/api/essensplanung/planung/stand?*');
@@ -169,7 +170,7 @@ test('amounts typed to tick off a dish stay through maintenance', async ({ page 
       await route.fulfill({ response: antwort, json });
     });
   };
-  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
   const verbrauch = page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_2_1');
   await verbrauch.fill('0,3');
   await wartung(true);
@@ -192,7 +193,7 @@ test('amounts typed to tick off a dish stay through maintenance', async ({ page 
   await verbrauch.fill('0,3');
 
   // Folding it away and opening it again keeps the amounts; discarding takes the planned ones
-  const abhaken = page.getByLabel('Nudeln bei 1_2_1 abhaken');
+  const abhaken = page.getByLabel(/^Verbrauch von Nudeln bei 1_2_1 (eintragen|ändern)$/);
   await abhaken.click();
   await expect(verbrauch).toBeHidden();
   await abhaken.click();
@@ -210,7 +211,7 @@ test('amounts typed to tick off a dish stay through maintenance', async ({ page 
   await expect(page).toHaveURL(/impressum/);
   // Back within the page's router, which keeps the scripts loaded
   await page.goBack();
-  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
   await expect(verbrauch).toHaveValue(geplant);
 });
 
@@ -219,7 +220,6 @@ test('ticking off after someone else did keeps the amounts and saves them on the
   browser,
 }) => {
   await anlegen(page, 'E2E Kochen Konflikt');
-  const dialog = page.getByRole('dialog');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Nudeln');
   await page.getByLabel('Personen', { exact: true }).fill('4');
@@ -233,20 +233,17 @@ test('ticking off after someone else did keeps the amounts and saves them on the
   await nudeln.getByLabel('Menge der neuen Zutat').press('Enter');
   await expect(nudeln.getByLabel('Menge von Nudeln (Spaghetti)')).toHaveValue('500');
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
-  await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Nudeln' });
-  await dialog.getByRole('button', { name: 'Einplanen' }).click();
-  await expect(dialog).toBeHidden();
+  await einplanen(page, '1_2', 'Nudeln');
 
-  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
   const verbrauch = page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_2_1');
   await verbrauch.fill('0,3');
 
   // Someone else leaves it out meanwhile
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
-  await anderes.getByLabel('Nudeln bei 1_2_1 abhaken').click();
-  await anderes.getByRole('button', { name: 'Ausgelassen' }).click();
+  await verbrauchOeffnen(anderes, '1_2_1', 'Nudeln');
+  await anderes.getByRole('button', { name: 'Ausgelassen', exact: true }).click();
   await expect(anderes.getByText('Nudeln ist als ausgelassen abgehakt.').first()).toBeVisible();
   await anderes.context().close();
 
@@ -257,17 +254,15 @@ test('ticking off after someone else did keeps the amounts and saves them on the
   await expect(verbrauch).toHaveValue('0,3');
   await page.getByRole('button', { name: 'Gekocht', exact: true }).click();
   await expect(page.getByText('Nudeln ist als gekocht abgehakt.').first()).toBeVisible();
-  await page.getByLabel('Nudeln bei 1_2_1 abhaken').click();
+  await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
   await expect(verbrauch).toHaveValue('0,3');
 
   // Typed amounts move along when someone else moves the dish to another meal
   await verbrauch.fill('0,4');
   const zweites = await (await browser.newContext()).newPage();
   await zweites.goto(page.url());
-  await zweites
-    .getByRole('list', { name: 'Gerichte bei 1_2' })
-    .getByRole('button', { name: 'Nudeln bei 1_2 ändern' })
-    .click();
+  await aufklappen(zweites, '1_2_1', 'Nudeln');
+  await zweites.getByRole('button', { name: 'Nudeln bei 1_2_1 ändern' }).click();
   await zweites
     .getByRole('dialog')
     .getByLabel('Mahlzeit', { exact: true })
@@ -278,12 +273,12 @@ test('ticking off after someone else did keeps the amounts and saves them on the
   await expect(verschoben).toHaveValue('0,4', { timeout: 15_000 });
 
   // Typed amounts of a dish someone else takes off the meal are shown to copy
-  await zweites
-    .getByRole('list', { name: 'Gerichte bei 1_4' })
-    .getByRole('button', { name: 'Nudeln aus 1_4 entfernen' })
-    .click();
+  await aufklappen(zweites, '1_4_1', 'Nudeln');
+  await zweites.getByRole('button', { name: 'Nudeln aus 1_4_1 entfernen' }).click();
   await answerConfirm(zweites, 'Nudeln aus 1_4 nehmen?', 'Entfernen');
-  await expect(zweites.getByRole('list', { name: 'Gerichte bei 1_4' })).toHaveCount(0);
+  await expect(
+    zweites.getByRole('list', { name: 'Gerichte bei 1_4' }).getByRole('listitem')
+  ).toHaveCount(0);
   await zweites.context().close();
   await expect(page.getByText(/dein Verbrauch: Nudeln \(Spaghetti\) 0,4 g\)/).first()).toBeVisible({
     timeout: 15_000,

@@ -5,12 +5,8 @@
  */
 import { z } from 'zod';
 import type { EssenEinheitenart } from './essen-validation';
-import {
-  EINHEITEN_JE_ART,
-  MAX_LINKS,
-  MAX_WERKZEUGE,
-  type GerichtEinheit,
-} from './essen-gerichte-model';
+import { EINHEITEN_JE_ART, MAX_LINKS, MAX_WERKZEUGE } from './essen-gerichte-model';
+import { einheitFeld } from './essen-einheit-schema';
 import type { FieldOf } from './validation/zod';
 import { lenientObject } from './validation/zod';
 
@@ -20,7 +16,6 @@ const ALWAYS = (): boolean => true;
 const MAX_MENGE = 1_000_000;
 const MAX_IDS = 30;
 
-const EINHEITEN = Object.values(EINHEITEN_JE_ART).flat() as [GerichtEinheit, ...GerichtEinheit[]];
 const ARTEN = Object.keys(EINHEITEN_JE_ART) as [EssenEinheitenart, ...EssenEinheitenart[]];
 
 const LISTE = 'Bitte aus der Liste wählen.';
@@ -124,11 +119,16 @@ const name = line(150).refine((value) => value !== '', {
 
 const PERSONEN_UNGUELTIG = 'Bitte eine ganze Zahl ab 1 eintragen.';
 
-const personen = z
-  .number({ error: PERSONEN_UNGUELTIG })
-  .refine(Number.isInteger, { error: PERSONEN_UNGUELTIG })
-  .refine((value) => value >= 1, { error: PERSONEN_UNGUELTIG })
-  .refine((value) => value <= 2000, { error: 'Höchstens 2000 Personen.' });
+/** The people the amounts are for; empty (`null` or `''`) is none yet. */
+const personen = z.preprocess(
+  (value) => (value === '' ? null : value),
+  z
+    .number({ error: PERSONEN_UNGUELTIG })
+    .refine(Number.isInteger, { error: PERSONEN_UNGUELTIG })
+    .refine((value) => value >= 1, { error: PERSONEN_UNGUELTIG })
+    .refine((value) => value <= 2000, { error: 'Höchstens 2000 Personen.' })
+    .nullable()
+);
 
 const anleitung = block(20_000, 'Höchstens 20.000 Zeichen.');
 const notiz = block(1000, 'Höchstens 1000 Zeichen.');
@@ -138,10 +138,10 @@ function withoutUndefined<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined)) as T;
 }
 
-/** A new dish: name and number of people are needed. */
+/** A new dish: only the name is needed; without people the amounts wait. */
 export const gerichtNeuSchema = lenientObject({
   name,
-  personen,
+  personen: personen.optional().transform((value) => value ?? null),
   anleitung: anleitung.optional(),
   notiz: notiz.optional(),
   links: links.optional(),
@@ -179,11 +179,8 @@ const menge = z.preprocess(
     .nullable()
 );
 
-/** The unit; an unknown one is `null` and reported with the amount. */
-const einheit = z.preprocess(
-  (value) => (EINHEITEN.some((unit) => unit === value) ? value : null),
-  z.enum(EINHEITEN).nullable()
-);
+/** The unit, known or typed; a missing one is `null` and reported with the amount. */
+const einheit = einheitFeld;
 
 /** Whether the flag is not `false`: the line applies unless it says otherwise. */
 const unlessFalse = z.preprocess((value) => value !== false, z.boolean());

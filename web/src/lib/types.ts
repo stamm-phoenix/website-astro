@@ -4,6 +4,7 @@ import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilneh
 import type { EinkaufPosten, Geschaeft, ZusatzPosten } from '../../../api/lib/essen-einkauf-model';
 import type { Einkauf } from '../../../api/lib/essen-einkaeufe-model';
 import type { PacklisteEintrag } from '../../../api/lib/essen-packliste-model';
+import type { PlanungBeleg } from '../../../api/lib/essen-belege-model';
 import type { NikolausBookingDetails, NikolausSettings } from './nikolausConfig';
 import type { EinteilungDay, HelperRole as NikolausHelperRole } from './nikolausEinteilung';
 
@@ -407,7 +408,6 @@ export interface PlanungMahlzeit {
   /** Shown ID `<Tag>_<Slot>`, e.g. `3_1`. */
   kennung: string;
   name: string;
-  uhrzeit: string | null;
   /** The dishes planned at the meal, in their order. */
   einplanungen: Einplanung[];
   /** Groups that do not eat at this meal; empty: all eat. */
@@ -463,10 +463,13 @@ export interface PlanungAnsicht {
   einkaeufe: Einkauf[];
   /** Stored states of tools and entries of its own of the packing list. */
   packliste: PacklisteEintrag[];
+  /** Receipts, newest day first. */
+  belege: PlanungBeleg[];
 }
 
 export type { EinkaufPosten, Geschaeft, ZusatzPosten } from '../../../api/lib/essen-einkauf-model';
 export type { PacklisteEintrag } from '../../../api/lib/essen-packliste-model';
+export type { PlanungBeleg } from '../../../api/lib/essen-belege-model';
 
 export type {
   Ernaehrung,

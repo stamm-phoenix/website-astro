@@ -139,7 +139,15 @@ const vorstand = await getVorstandContent();
           </li>
           <li>
             ob du den Plan einer Essensplanung als Liste oder als Kalender siehst (dauerhaft, bis du
-            die Darstellung wechselst oder den Speicher löschst).
+            die Darstellung wechselst oder den Speicher löschst),
+          </li>
+          <li>
+            ob du die Packliste einer Essensplanung als Liste oder als Matrix siehst (dauerhaft, bis
+            du die Darstellung wechselst oder den Speicher löschst),
+          </li>
+          <li>
+            ob die Einkaufslisten einer Essensplanung zeigen, für welche Gerichte etwas gekauft wird
+            (dauerhaft, bis du es umschaltest oder den Speicher löschst).
           </li>
         </ul>
         <Text class="mt-3">
@@ -232,15 +240,26 @@ const vorstand = await getVorstandContent();
           sehen alle, die einen Link zur Planung haben, auch der Link zum Ansehen.
         </Text>
         <Text class="mt-3">
-          Wer mitplanen darf, kann eine KI fragen: ein Gericht prüfen lassen, ein Rezept einfügen
-          oder das Gewicht eines Löffels oder Stücks schätzen lassen. Dafür gehen das Gericht (Name,
-          Personenzahl, Zutaten mit Mengen, Ernährung, Unverträglichkeiten und Hinweisen der
-          Zeilen), der eingefügte Rezepttext oder der Name der Zutat an Azure OpenAI von Microsoft.
-          Die Bereitstellung verarbeitet die Anfragen nur in der EU (Datenzonenstandard). Namen und
-          Adressen der Mitplanenden, Anleitung und Notiz gehen nicht dorthin; in einen Rezepttext
-          gehören keine Namen oder Kontaktdaten. Microsoft verwendet die Anfragen nicht zum
-          Training, kann sie zur Missbrauchserkennung aber bis zu 30 Tage speichern. Die KI ändert
-          nichts selbst: Übernommen wird nur, was du bestätigst.
+          Wer mitplanen darf, kann eine KI fragen: ein Gericht prüfen lassen, ein Rezept einfügen,
+          das Gewicht eines Löffels oder Stücks schätzen lassen oder die Einheiten einer Zutat
+          vereinheitlichen. Dafür gehen das Gericht (Name, Personenzahl, Zutaten mit Mengen,
+          Ernährung, Unverträglichkeiten und Hinweisen der Zeilen), der eingefügte Rezepttext, der
+          Name der Zutat oder ihre Mengen mit Einheit und den Namen der Gerichte an Azure OpenAI von
+          Microsoft. Die Bereitstellung verarbeitet die Anfragen nur in der EU (Datenzonenstandard).
+          Namen und Adressen der Mitplanenden, Anleitung und Notiz gehen nicht dorthin; in einen
+          Rezepttext gehören keine Namen oder Kontaktdaten. Microsoft verwendet die Anfragen nicht
+          zum Training, kann sie zur Missbrauchserkennung aber bis zu 30 Tage speichern. Die KI
+          ändert nichts selbst: Übernommen wird nur, was du bestätigst.
+        </Text>
+        <Text class="mt-3">
+          Unter „Belege“ tragen Mitplanende Ausgaben ein: Datum, Betrag, Händler, Notiz, wer bezahlt
+          hat (ein Mitglied oder ein freier Name) und ob es erstattet ist, auf Wunsch mit einem Foto
+          oder PDF des Belegs. Fotos liegen nicht öffentlich in unserem Speicher bei Microsoft Azure
+          in Deutschland und sind nur über die Links der Planung abrufbar. Ein neues Foto kann vor
+          dem Speichern automatisch gelesen werden; dafür geht nur das Foto an Azure OpenAI (wie
+          oben, nur in der EU), das Ergebnis wird nicht gespeichert. Die Belege sehen alle mit einem
+          Link zur Planung; sie gehen nirgendwohin weiter. Mit der Planung löschen wir auch die
+          Belege und Fotos.
         </Text>
         <Text class="mt-3">
           Die Angaben liegen in unserer Datenbank bei Microsoft Azure in Deutschland; die Mails

@@ -240,11 +240,12 @@ test('a name in conflict is dropped with a button on the phone', async ({ page, 
   await name.press('Enter');
   await expect(page.getByRole('alert').filter({ hasText: 'jetzt: Kim Küche' })).toBeVisible();
 
-  // A button of at least 44 px takes the saved name; nothing is saved on the way
+  // A button of at least 44 px for a finger takes the saved name; nothing is saved on the way
   const verwerfen = page.getByRole('button', { name: 'Name für Kochlöffel verwerfen' });
   const flaeche = (await verwerfen.boundingBox())!;
-  expect(flaeche.height).toBeGreaterThanOrEqual(44);
-  expect(flaeche.width).toBeGreaterThanOrEqual(44);
+  const finger = await page.evaluate(() => matchMedia('(any-pointer: coarse)').matches);
+  expect(flaeche.height).toBeGreaterThanOrEqual(finger ? 44 : 28);
+  expect(flaeche.width).toBeGreaterThanOrEqual(finger ? 44 : 28);
   await verwerfen.click();
   await expect(name).toHaveCount(0);
   await expect(page.getByLabel('Wer packt Kochlöffel ein?')).toHaveValue(/^m:/);

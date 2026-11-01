@@ -5,6 +5,7 @@
   import TagInput from '../pflege/TagInput.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import GerichtKi from './GerichtKi.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   import ProtokollText from '../protokolle/ProtokollText.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -61,7 +62,7 @@
   }
   const kopfVon = (g: Gericht): Kopf => ({
     name: g.name,
-    personen: String(g.personen),
+    personen: g.personen === null ? '' : String(g.personen),
     anleitung: g.anleitung,
     notiz: g.notiz,
     werkzeuge: [...g.werkzeuge],
@@ -148,9 +149,11 @@
     for (const feld of geaenderteFelder) {
       body[feld] =
         feld === 'personen'
-          ? Number.isInteger(personen)
-            ? personen
-            : kopf.personen
+          ? kopf.personen.trim() === ''
+            ? null
+            : Number.isInteger(personen)
+              ? personen
+              : kopf.personen
           : feld === 'links'
             ? linkIndex.map((index) => kopf.links[index])
             : kopf[feld];
@@ -215,7 +218,17 @@
 <div class="space-y-5">
   <div class="flex flex-wrap items-center justify-between gap-2">
     <div class="space-y-1">
-      <p class="text-neutral-700">Mengen für {gericht.personen} Personen</p>
+      {#if gericht.personen === null}
+        <p class="flex items-center gap-1 font-semibold text-warning">
+          Personenzahl fehlt
+          <InfoHint
+            label="Personenzahl fehlt"
+            text="Mengen, die mit den Essern wachsen, zählen erst mit einer Personenzahl. Feste Mengen zählen schon."
+          />
+        </p>
+      {:else}
+        <p class="text-neutral-700">Mengen für {gericht.personen} Personen</p>
+      {/if}
       <GerichtPlaetze {plaetze} />
     </div>
     <div class="flex flex-wrap gap-2 print:hidden">
@@ -277,7 +290,7 @@
           id="gericht-{gericht.id}-personen"
           label="Personen"
           error={felder.personen}
-          info="Für so viele Personen gelten die Mengen der Zutaten."
+          info="Für so viele Personen gelten die Mengen der Zutaten. Ohne Zahl zählen nur feste Mengen."
         >
           {#snippet children(attrs)}
             <input {...attrs} class="form-input" inputmode="numeric" bind:value={kopf.personen} />

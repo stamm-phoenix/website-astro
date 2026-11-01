@@ -20,8 +20,9 @@
   import type { PlanKontext } from './planKontext';
 
   /**
-   * Ticks off a planned dish after its meal: cooked, with what it really used (as planned unless
-   * changed, unticked for not used), or left out. Shows the status also on paper.
+   * Ticks off a planned dish with what it really used (as planned unless changed, unticked for
+   * not used), or looks at what a cooked one used. The quick tick „gekocht“ with the planned
+   * amounts is the checkbox of the planned dish (`EinplanungKarte.svelte`).
    */
 
   interface Props {
@@ -32,10 +33,10 @@
     name: string;
     esser: ReturnType<typeof esserRechner>;
     bearbeiten: boolean;
-    /** The status next to the name, or the part to tick off below the dish. */
-    teil: 'status' | 'abhaken';
+    /** Typed amounts came over from where the dish was before; the part around opens. */
+    onuebernommen?: () => void;
   }
-  let { kontext, mahlzeit, einplanung, name, esser, bearbeiten, teil }: Props = $props();
+  let { kontext, mahlzeit, einplanung, name, esser, bearbeiten, onuebernommen }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
   const kennung = $derived(`${mahlzeit.kennung}_${einplanung.position}`);
 
@@ -78,9 +79,9 @@
     etag = entwurf.etag;
     geaendert = true;
     offen = true;
+    onuebernommen?.();
   }
   $effect(() => {
-    if (teil !== 'abhaken') return;
     const id = untrack(() => einplanung.id);
     const da = uebergabe.get(id);
     if (da) {
@@ -201,17 +202,9 @@
   }
 </script>
 
-{#if teil === 'status' && einplanung.status !== 'offen'}
-  <span
-    class="rounded-full px-2 py-0.5 text-sm font-semibold {einplanung.status === 'gekocht'
-      ? 'bg-success-soft text-success'
-      : 'bg-neutral-100 text-neutral-700'}"
-    >{einplanung.status === 'gekocht' ? 'gekocht' : 'ausgelassen'}</span
-  >
-{/if}
 <!-- Typed amounts stay through a read-only phase, e.g. maintenance, locked until it ends; what a
      cooked dish used can always be looked at -->
-{#if teil === 'abhaken' && (bearbeiten || geaendert || einplanung.status === 'gekocht')}
+{#if bearbeiten || geaendert || einplanung.status === 'gekocht'}
   <details
     class="basis-full print:hidden"
     data-abhaken={einplanung.id}
@@ -219,15 +212,15 @@
     ontoggle={umschalten}
   >
     <summary
-      class="flex min-h-11 cursor-pointer list-none items-center gap-1 py-2 text-sm font-semibold text-link [&::-webkit-details-marker]:hidden"
+      class="flex cursor-pointer list-none items-center gap-1 py-1 any-pointer-coarse:min-h-11 text-sm font-semibold text-link [&::-webkit-details-marker]:hidden"
       aria-label={ansehen
         ? `Verbrauch von ${name} bei ${kennung} ansehen`
-        : `${name} bei ${kennung} abhaken`}
+        : `Verbrauch von ${name} bei ${kennung} eintragen`}
       >{ansehen
         ? 'Verbrauch ansehen'
         : einplanung.status === 'gekocht'
           ? 'Verbrauch ändern'
-          : 'Abhaken'}<AufklappPfeil class="text-link" /></summary
+          : 'Verbrauch eintragen'}<AufklappPfeil class="text-link" /></summary
     >
     {#if offen && ansehen}
       <ul class="space-y-1 pb-2 text-sm" aria-label="Verbrauch von {name} bei {kennung}">

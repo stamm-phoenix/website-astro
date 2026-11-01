@@ -26,7 +26,7 @@ test('a Planung is created, its meals are edited and others see the changes', as
   await expect(page.getByLabel('Name von 1_1')).toHaveValue('Mittagessen');
 
   await page.getByLabel('Neue Mahlzeit an Tag 2').fill('Abschlussgrillen');
-  await page.getByRole('button', { name: 'Hinzufügen', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Mahlzeit hinzufügen' }).last().click();
   await expect(page.getByLabel('Name von 2_6')).toHaveValue('Abschlussgrillen');
 
   await page.getByRole('button', { name: 'Tag danach hinzufügen' }).click();
@@ -247,7 +247,7 @@ test('saving the name keeps a setting someone else changed; long links fit', asy
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByText('Einstellungen gespeichert.').first()).toBeVisible();
   await expect(
-    page.getByRole('heading', { name: 'E2E Einstellungen neu', level: 2 })
+    page.getByRole('heading', { name: 'E2E Einstellungen neu', level: 1 })
   ).toBeVisible();
   await expect(
     page.getByRole('checkbox', { name: /Alle dürfen Mitglieder verwalten/ })
@@ -295,7 +295,7 @@ test('unsaved meals ask before leaving; typing while saving the settings keeps t
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await page.getByLabel('Name der Planung').fill('E2E Verlassen zwei');
   await expect(page.getByText('Einstellungen gespeichert.').first()).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'E2E Verlassen eins', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'E2E Verlassen eins', level: 1 })).toBeVisible();
   await expect(page.getByLabel('Name der Planung')).toHaveValue('E2E Verlassen zwei');
 });
 
@@ -307,7 +307,7 @@ test('the skip link keeps the Planung on reload; a name typed while saving stays
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/#main$/);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'E2E Sprung', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'E2E Sprung', level: 1 })).toBeVisible();
   await expect(page.getByLabel('Name von 1_1')).toHaveValue('Frühstück');
 
   await page.getByRole('tab', { name: 'Mitglieder' }).click();
@@ -319,14 +319,16 @@ test('the skip link keeps the Planung on reload; a name typed while saving stays
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await page.getByLabel('Dein Name in dieser Planung').fill('Kim Backt');
   await expect(page.getByText('Dein Name ist gespeichert.').first()).toBeVisible();
-  await expect(page.getByText('Kim Kocht (du)')).toBeVisible();
+  await expect(
+    page.getByRole('tabpanel', { name: 'Mitglieder' }).getByText('Kim Kocht (du)')
+  ).toBeVisible();
   await expect(page.getByLabel('Dein Name in dieser Planung')).toHaveValue('Kim Backt');
 });
 
 test('typing on while a meal or an invitation is saved keeps the next input', async ({ page }) => {
   await anlegen(page, 'E2E Weiter');
 
-  // The name is saved while the time has focus; a second name afterwards is no conflict
+  // The name is saved while the next meal has focus; a second name afterwards is no conflict
   let ersteMahlzeit = true;
   await page.route('**/api/essensplanung/planung/mahlzeiten/*', async (route) => {
     if (ersteMahlzeit && route.request().method() === 'PATCH') {
@@ -340,7 +342,7 @@ test('typing on while a meal or an invitation is saved keeps the next input', as
       response.url().includes('/planung/mahlzeiten/') && response.request().method() === 'PATCH'
   );
   await page.getByLabel('Name von 1_1').fill('Brunch');
-  await page.getByLabel('Uhrzeit von 1_1').focus();
+  await page.getByLabel('Name von 1_2').focus();
   await gespeichert;
   await page.getByLabel('Name von 1_1').fill('Spätes Frühstück');
   await page.getByLabel('Name von 1_1').press('Enter');
@@ -381,6 +383,8 @@ test('a replaced link keeps the input; drafts ask before leaving; arrow keys swi
   await expect(page.getByRole('tab', { name: 'Einkauf' })).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Packliste' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Belege' })).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Mitglieder' })).toBeFocused();
   await expect(page.getByRole('tab', { name: 'Mitglieder' })).toHaveAttribute(

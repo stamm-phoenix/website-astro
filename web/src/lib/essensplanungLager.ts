@@ -1,4 +1,11 @@
-import { inBasis, kochMenge, summiere, zeilenMenge } from './essensplanungRechnung';
+import { einheitSchluessel } from '../../../api/lib/essen-gerichte-model';
+import {
+  inBasis,
+  kochMenge,
+  mengenSchluessel,
+  summiere,
+  zeilenMenge,
+} from './essensplanungRechnung';
 import type {
   BasisEinheit,
   RechnungsGericht,
@@ -46,7 +53,7 @@ export interface LagerPosten {
   jetzt: number;
 }
 
-const schluessel = (id: number, einheit: BasisEinheit) => `${id}:${einheit}`;
+const schluessel = mengenSchluessel;
 
 /** Whether a planned dish still counts towards what is needed. */
 export function offen(einplanung: LagerEinplanung): boolean {
@@ -200,5 +207,8 @@ export function gleicheMenge(
 ): boolean {
   const x = inBasis(a.menge, a.einheit);
   const y = inBasis(b.menge, b.einheit);
-  return x.einheit === y.einheit && Math.abs(x.menge - y.menge) < 1e-6;
+  return (
+    einheitSchluessel(x.einheit) === einheitSchluessel(y.einheit) &&
+    Math.abs(x.menge - y.menge) < 1e-6
+  );
 }

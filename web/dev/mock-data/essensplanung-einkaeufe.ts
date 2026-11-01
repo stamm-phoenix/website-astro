@@ -13,7 +13,7 @@ import {
   MAX_EINKAUF_EINTRAEGE,
   einkaufStand,
 } from '../../../api/lib/essen-einkaeufe-model';
-import { EINHEITEN_JE_ART, einheitPasst } from '../../../api/lib/essen-gerichte-model';
+import { einheitSchluessel } from '../../../api/lib/essen-gerichte-model';
 import type { GerichtEinheit } from '../../../api/lib/essen-gerichte-model';
 import { zutatFuer } from './essensplanung-gerichte';
 import type { MockZugang } from './essensplanung-planung';
@@ -95,16 +95,15 @@ export function einkaufAendern(
   });
 }
 
-function gleicheArt(a: GerichtEinheit, b: GerichtEinheit): boolean {
-  return Object.values(EINHEITEN_JE_ART).some((liste) => liste.includes(a) && liste.includes(b));
+function gleicheBasis(a: GerichtEinheit, b: GerichtEinheit): boolean {
+  return einheitSchluessel(a) === einheitSchluessel(b);
 }
 
-function zutatMitEinheit(z: MockZugang, planungZutatId: number, einheit: GerichtEinheit | null) {
+/** The ingredient of the Planung; any unit fits it, as in the API. */
+function zutatDerEinkaeufe(z: MockZugang, planungZutatId: number) {
   if (!z.planung.zutaten.some((zutat) => zutat.id === planungZutatId))
     throw feld('planungZutatId', 'Diese Zutat gibt es nicht mehr. Bitte lade die Seite neu.');
   const zutat = zutatFuer(z, { planungZutatId }, { lebensmittel: false });
-  if (!einheitPasst(zutat.einheitenart, einheit))
-    throw feld('einheit', `${zutat.name} wird in einer anderen Einheit gemessen.`);
   return zutat;
 }
 
@@ -115,9 +114,9 @@ export function postenAbhaken(
   etag: string | null
 ): void {
   const einkauf = einkaufVon(z, einkaufId);
-  const zutat = zutatMitEinheit(z, input.planungZutatId, input.einheit);
+  const zutat = zutatDerEinkaeufe(z, input.planungZutatId);
   const vorhanden = einkauf.posten.find(
-    (p) => p.planungZutatId === input.planungZutatId && gleicheArt(p.einheit, input.einheit)
+    (p) => p.planungZutatId === input.planungZutatId && gleicheBasis(p.einheit, input.einheit)
   );
   if (etag === null ? vorhanden : vorhanden?.etag !== etag) throw konflikt();
   if (!vorhanden && einkauf.posten.length >= MAX_EINKAUF_EINTRAEGE)
@@ -128,11 +127,14 @@ export function postenAbhaken(
     ...(input.ersatz ? { ersatz: input.ersatz } : {}),
   };
   aendere(z, 'einkauf-abgehakt', details, () => {
+    const etag = neuesEtag();
     const werte = {
       ...input,
-      etag: neuesEtag(),
+      etag,
       von: z.mitglied?.name ?? '',
       am: new Date().toISOString(),
+      // Changes only when ticked off, not when its unit is brought into line
+      stand: etag,
     };
     if (vorhanden) Object.assign(vorhanden, werte);
     else einkauf.posten.push({ id: neueId(), ...werte });
@@ -178,7 +180,7 @@ function schreibeRegel(
 
 export function regelSetzen(z: MockZugang, einkaufId: number, input: RegelInput): void {
   const einkauf = einkaufVon(z, einkaufId);
-  const zutat = zutatMitEinheit(z, input.planungZutatId, input.einheit);
+  const zutat = zutatDerEinkaeufe(z, input.planungZutatId);
   aendere(z, 'einkauf-regel', { name: zutat.name, einkauf: einkauf.name, regel: input.art }, () =>
     schreibeRegel(z, einkaufId, input)
   );
@@ -200,7 +202,7 @@ export function verschieben(z: MockZugang, vonEinkaufId: number, input: Verschie
       'nachEinkaufId',
       'In diesem Einkauf ist das schon abgehakt. Bitte wähle einen anderen.'
     );
-  const zutat = zutatMitEinheit(z, input.planungZutatId, null);
+  const zutat = zutatDerEinkaeufe(z, input.planungZutatId);
   const regel = { planungZutatId: input.planungZutatId, menge: null, einheit: null };
   aendere(z, 'einkauf-verschoben', { name: zutat.name, einkauf: von.name, nach: nach.name }, () => {
     schreibeRegel(z, vonEinkaufId, { ...regel, art: 'ohne' }, input.nachEinkaufId);
@@ -211,7 +213,7 @@ export function verschieben(z: MockZugang, vonEinkaufId: number, input: Verschie
 /** Takes back „not on this trip“ with the „mit“ of the trip it was moved to, in one change. */
 export function zurueckholen(z: MockZugang, einkaufId: number, input: ZurueckholenInput): void {
   const einkauf = einkaufVon(z, einkaufId);
-  const zutat = zutatMitEinheit(z, input.planungZutatId, null);
+  const zutat = zutatDerEinkaeufe(z, input.planungZutatId);
   const regel = einkauf.regeln.find(
     (r) => r.planungZutatId === input.planungZutatId && r.art === 'ohne'
   );

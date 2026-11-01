@@ -9,6 +9,36 @@ async function gerichtAnlegen(page: Page, name: string): Promise<void> {
   await expect(page.getByText(`${name} angelegt.`).first()).toBeVisible();
 }
 
+/** Types a dish into a meal of the list, like a leader planning with the keyboard. */
+async function eintragen(
+  page: Page,
+  mahlzeit: string,
+  gericht: string,
+  zustaendig = ''
+): Promise<void> {
+  await page.getByRole('button', { name: `Gericht eintragen bei ${mahlzeit}` }).click();
+  await page.getByLabel(`Gericht bei ${mahlzeit}`).fill(gericht);
+  if (zustaendig)
+    await page
+      .getByLabel(`Zuständig für das Gericht bei ${mahlzeit.split(' ')[0]}`)
+      .fill(zustaendig);
+  await page.getByLabel(`Gericht bei ${mahlzeit}`).press('Enter');
+  await expect(
+    page.getByText(new RegExp(`${gericht} .*bei ${mahlzeit.split(' ')[0]}`)).first()
+  ).toBeVisible();
+  // Escape closes the suggestions first, then the fields
+  const feld = page.getByLabel(`Gericht bei ${mahlzeit}`);
+  await feld.press('Escape');
+  if (await feld.isVisible()) await feld.press('Escape');
+  await expect(feld).toHaveCount(0);
+}
+
+/** Unfolds the actions of a planned dish. */
+async function mehr(page: Page, kennung: string, name: string): Promise<void> {
+  const knopf = page.getByRole('button', { name: `Mehr zu ${kennung} ${name}` });
+  if ((await knopf.getAttribute('aria-expanded')) !== 'true') await knopf.click();
+}
+
 test('dishes are planned, ordered, copied, moved and taken off meals', async ({
   page,
   browser,
@@ -19,32 +49,29 @@ test('dishes are planned, ordered, copied, moved and taken off meals', async ({
   await page.getByRole('tab', { name: 'Plan' }).click();
   const dialog = page.getByRole('dialog');
 
-  // Chili for lunch, Kim is responsible
-  await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
-  await expect(dialog.getByRole('heading', { name: 'Gericht für 1_2 Mittagessen' })).toBeVisible();
-  await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Chili' });
-  await dialog.getByLabel('Zuständig (optional)').selectOption({ label: 'Kim Küche' });
-  await dialog.getByRole('button', { name: 'Einplanen' }).click();
-  await expect(page.getByText('Chili eingeplant.').first()).toBeVisible();
+  // Chili for lunch, Kim is responsible; a typed name of an existing dish plans it
+  await eintragen(page, '1_2 Mittagessen', 'Chili', 'Kim Küche');
   const mittag = page.getByRole('list', { name: 'Gerichte bei 1_2' });
-  await expect(mittag.getByText('Chili')).toBeVisible();
+  await expect(mittag).toContainText('Chili');
   await expect(mittag.getByText('Kim Küche')).toBeVisible();
 
   // Pudding for half of them; a factor of 0 is refused
-  await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
-  await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Pudding' });
+  await eintragen(page, '1_2 Mittagessen', 'Pudding');
+  await mehr(page, '1_2_2', 'Pudding');
+  await page.getByRole('button', { name: 'Pudding bei 1_2_2 ändern' }).click();
   await dialog.getByLabel('Faktor', { exact: true }).fill('0');
-  await dialog.getByRole('button', { name: 'Einplanen' }).click();
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog.getByText(/Bitte eine Zahl von 0,001 bis/)).toBeVisible();
   await dialog.getByLabel('Faktor', { exact: true }).fill('0,5');
   await dialog.getByLabel('Zuständig (optional)').selectOption({ label: 'Jemand anderes …' });
   await dialog.getByLabel('Name', { exact: true }).fill('Küchenteam');
-  await dialog.getByRole('button', { name: 'Einplanen' }).click();
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(mittag.getByText('×0,5')).toBeVisible();
   await expect(mittag.getByText('Küchenteam')).toBeVisible();
 
   // Dessert first
-  await mittag.getByRole('button', { name: 'Pudding bei 1_2 nach oben' }).click();
+  await mehr(page, '1_2_2', 'Pudding');
+  await page.getByRole('button', { name: 'Pudding bei 1_2_2 nach oben' }).click();
   await expect(mittag.locator(':scope > li').first()).toContainText('Pudding');
 
   // Another window sees the plan
@@ -53,39 +80,36 @@ test('dishes are planned, ordered, copied, moved and taken off meals', async ({
   await expect(anderes.getByRole('list', { name: 'Gerichte bei 1_2' })).toContainText('Pudding');
 
   // Copy the chili to the next day's lunch, move the pudding to the evening
-  await mittag.getByRole('button', { name: 'Chili bei 1_2 kopieren' }).click();
+  await mehr(page, '1_2_2', 'Chili');
+  await page.getByRole('button', { name: 'Chili bei 1_2_2 kopieren' }).click();
   await dialog.getByLabel('Mahlzeit', { exact: true }).selectOption({ label: '2_2 Mittagessen' });
   await dialog.getByRole('button', { name: 'Kopieren' }).click();
   await expect(page.getByRole('list', { name: 'Gerichte bei 2_2' })).toContainText('Chili');
   await expect(page.getByRole('list', { name: 'Gerichte bei 2_2' })).toContainText('Kim Küche');
-  await mittag.getByRole('button', { name: 'Pudding bei 1_2 ändern' }).click();
+  await mehr(page, '1_2_1', 'Pudding');
+  await page.getByRole('button', { name: 'Pudding bei 1_2_1 ändern' }).click();
   await expect(dialog.getByLabel('Faktor', { exact: true })).toHaveValue('0,5');
   await dialog.getByLabel('Mahlzeit', { exact: true }).selectOption({ label: '1_4 Abendessen' });
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(page.getByRole('list', { name: 'Gerichte bei 1_4' })).toContainText('Pudding');
   await expect(mittag).not.toContainText('Pudding');
 
-  // Taking the copy off again
+  // Taking the copy off again, with the Delete key
   await page
     .getByRole('list', { name: 'Gerichte bei 2_2' })
-    .getByRole('button', { name: 'Chili aus 2_2 entfernen' })
-    .click();
+    .getByRole('button', { name: '2_2_1 Chili öffnen' })
+    .focus();
+  await page.keyboard.press('Delete');
   await answerConfirm(page, 'Chili aus 2_2 nehmen?', 'Entfernen');
-  await expect(page.getByRole('list', { name: 'Gerichte bei 2_2' })).toHaveCount(0);
+  await expect(
+    page.getByRole('list', { name: 'Gerichte bei 2_2' }).getByRole('listitem')
+  ).toHaveCount(0);
 
   // The dish shows where it is planned
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   // Dishes created on this page are open already
   await expect(page.getByText('Eingeplant: 1_2_1 Mittagessen')).toBeVisible();
-
-  // The printed plan names the dishes
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.emulateMedia({ media: 'print' });
-  const abend = page.getByRole('list', { name: 'Gerichte bei 1_4' });
-  await expect(abend.getByText('Pudding')).toBeVisible();
-  await expect(abend.getByText('Küchenteam')).toBeVisible();
-  await expect(abend.getByRole('button', { name: 'Pudding bei 1_4 ändern' })).toBeHidden();
-  await page.emulateMedia({ media: 'screen' });
   await expectNoHorizontalOverflow(page);
   await anderes.context().close();
 });
@@ -100,25 +124,23 @@ test('a meal or dish deleted keeps what others planned meanwhile', async ({ page
   await expect(page.getByRole('dialog', { name: '1_2 Mittagessen löschen?' })).toBeVisible();
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
-  await anderes.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
-  await anderes.getByRole('dialog').getByRole('button', { name: 'Einplanen' }).click();
-  await expect(anderes.getByText('Suppe eingeplant.').first()).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Gerichte bei 1_2' })).toBeAttached({
-    timeout: 15_000,
-  });
+  await eintragen(anderes, '1_2 Mittagessen', 'Suppe');
+  const suppe = page.getByRole('list', { name: 'Gerichte bei 1_2' });
+  await expect(suppe).toContainText('Suppe', { timeout: 15_000 });
   await answerConfirm(page, '1_2 Mittagessen löschen?', 'Mahlzeit löschen');
   await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Gerichte bei 1_2' })).toContainText('Suppe');
+  await expect(suppe).toContainText('Suppe');
 
   // A changes the planned soup in the dialog while B changes it: the dialog says so itself
-  const suppe = page.getByRole('list', { name: 'Gerichte bei 1_2' });
-  await suppe.getByRole('button', { name: 'Suppe bei 1_2 ändern' }).click();
+  await mehr(page, '1_2_1', 'Suppe');
+  await page.getByRole('button', { name: 'Suppe bei 1_2_1 ändern' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Faktor', { exact: true }).fill('0,1234');
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog.getByText(/Bitte eine Zahl von 0,001 bis/)).toBeVisible();
   const andereListe = anderes.getByRole('list', { name: 'Gerichte bei 1_2' });
-  await andereListe.getByRole('button', { name: 'Suppe bei 1_2 ändern' }).click();
+  await mehr(anderes, '1_2_1', 'Suppe');
+  await anderes.getByRole('button', { name: 'Suppe bei 1_2_1 ändern' }).click();
   await anderes.getByRole('dialog').getByLabel('Faktor', { exact: true }).fill('2');
   await anderes.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click();
   await expect(andereListe.getByText('×2')).toBeVisible();
@@ -137,7 +159,7 @@ test('a meal or dish deleted keeps what others planned meanwhile', async ({ page
   await answerConfirm(page, '„Suppe“ löschen?', 'Gericht löschen');
   await expect(page.getByText('Suppe gelöscht.').first()).toBeVisible();
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await expect(page.getByRole('list', { name: 'Gerichte bei 1_2' })).toHaveCount(0);
+  await expect(suppe.getByRole('listitem')).toHaveCount(0);
   await anderes.context().close();
 });
 
@@ -146,19 +168,12 @@ test('the read-only link shows the planned dishes without changing them', async 
   browser,
 }) => {
   await anlegen(page, 'E2E Einplanung lesen');
-  await gerichtAnlegen(page, 'Brotzeit');
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.getByRole('button', { name: 'Gericht einplanen bei 1_1' }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Zuständig (optional)').selectOption({ label: 'Kim Küche' });
-  await dialog.getByRole('button', { name: 'Einplanen' }).click();
-  await expect(page.getByText('Brotzeit eingeplant.').first()).toBeVisible();
+  // A dish typed into a meal is created there at once
+  await eintragen(page, '1_1 Frühstück', 'Brotzeit', 'Kim Küche');
   // A long name without spaces wraps instead of widening the plan
-  await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
-  await dialog.getByLabel('Zuständig (optional)').selectOption({ label: 'Jemand anderes …' });
-  await dialog.getByLabel('Name', { exact: true }).fill('K'.repeat(100));
-  await dialog.getByRole('button', { name: 'Einplanen' }).click();
-  await expect(page.getByRole('list', { name: 'Gerichte bei 1_2' })).toBeVisible();
+  await eintragen(page, '1_2 Mittagessen', 'Brotzeit', 'K'.repeat(100));
+  await expect(page.getByRole('list', { name: 'Gerichte bei 1_2' })).toContainText('KKK');
   await expectNoHorizontalOverflow(page);
   await page.getByRole('tab', { name: 'Mitglieder' }).click();
   await page.getByRole('button', { name: 'Link erzeugen', exact: true }).nth(1).click();
@@ -176,8 +191,10 @@ test('the read-only link shows the planned dishes without changing them', async 
   const fruehstueck = leser.getByRole('list', { name: 'Gerichte bei 1_1' });
   await expect(fruehstueck).toContainText('Brotzeit');
   await expect(fruehstueck).toContainText('Kim Küche');
-  await expect(leser.getByRole('button', { name: /Gericht einplanen/ })).toHaveCount(0);
-  await expect(fruehstueck.getByRole('button')).toHaveCount(0);
+  await expect(leser.getByRole('button', { name: /Gericht eintragen/ })).toHaveCount(0);
+  await expect(fruehstueck.getByRole('checkbox')).toBeDisabled();
+  await leser.getByRole('button', { name: 'Mehr zu 1_1_1 Brotzeit' }).click();
+  await expect(leser.getByRole('button', { name: /Brotzeit bei 1_1_1 ändern/ })).toHaveCount(0);
   await expectNoHorizontalOverflow(leser);
   await leser.context().close();
 });

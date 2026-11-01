@@ -4,8 +4,10 @@
     check: BelegCheck | null;
     warnings?: string[];
     isNew?: boolean;
+    /** Texts for receipts the Kasse checks; the Essensplanung keeps its receipts to itself. */
+    kasse?: boolean;
   }
-  let { check, warnings = [], isNew = false }: Props = $props();
+  let { check, warnings = [], isNew = false, kasse = true }: Props = $props();
   const needsCheck = $derived(warnings.length > 0 || !check?.ok || !!check?.restrictedItems.length);
 </script>
 
@@ -38,18 +40,23 @@
     {/if}
     {#if check?.ok && warnings.length}
       <p>
-        Die automatische Prüfung konnte die Angaben lesen. Kannst du sie auch lesen, reich ihn so
-        ein.
+        {kasse
+          ? 'Die automatische Prüfung konnte die Angaben lesen. Kannst du sie auch lesen, reich ihn so ein.'
+          : 'Die automatische Prüfung konnte die Angaben lesen. Kannst du sie auch lesen, speichere ihn so.'}
       </p>
     {:else if isNew && needsCheck}
-      <p>Einreichen geht trotzdem.</p>
+      <p>{kasse ? 'Einreichen geht trotzdem.' : 'Speichern geht trotzdem.'}</p>
     {/if}
     {#if check?.restrictedItems.length}
-      <p class="font-semibold">Diese Positionen prüft die Kasse:</p>
+      <p class="font-semibold">
+        {kasse ? 'Diese Positionen prüft die Kasse:' : 'Nicht jugendfreie Positionen:'}
+      </p>
       <ul class="list-disc pl-4">
         {#each check.restrictedItems as item, index (index)}<li>{item}</li>{/each}
       </ul>
-      {#if isNew}<p>Trag nur den erlaubten Betrag ein und erkläre das in der Bemerkung.</p>{/if}
+      {#if isNew && kasse}
+        <p>Trag nur den erlaubten Betrag ein und erkläre das in der Bemerkung.</p>
+      {/if}
     {/if}
   </div>
 {/if}

@@ -9,6 +9,7 @@
   import PlanTeilnehmende from './PlanTeilnehmende.svelte';
   import PlanEinkauf from './PlanEinkauf.svelte';
   import PlanPackliste from './PlanPackliste.svelte';
+  import PlanBelege from './PlanBelege.svelte';
   import PlanMitglieder from './PlanMitglieder.svelte';
   import PlanEinstellungen from './PlanEinstellungen.svelte';
   import PlanAenderungen from './PlanAenderungen.svelte';
@@ -35,9 +36,18 @@
   let meldung = $state<string | null>(null);
   let meldungArt = $state<'success' | 'error'>('success');
   let bereich = $state<
-    'plan' | 'gerichte' | 'teilnehmende' | 'einkauf' | 'packliste' | 'mitglieder' | 'einstellungen'
+    | 'plan'
+    | 'gerichte'
+    | 'teilnehmende'
+    | 'einkauf'
+    | 'packliste'
+    | 'belege'
+    | 'mitglieder'
+    | 'einstellungen'
   >('plan');
   let offline = $state(false);
+  /** The dish to open in the area of the dishes; `n` counts, so the same one opens again. */
+  let zielGericht = $state<{ id: number; n: number } | null>(null);
 
   const bereiche = $derived([
     { id: 'plan', label: 'Plan' },
@@ -45,6 +55,7 @@
     { id: 'teilnehmende', label: 'Teilnehmende' },
     { id: 'einkauf', label: 'Einkauf' },
     { id: 'packliste', label: 'Packliste' },
+    { id: 'belege', label: 'Belege' },
     ...(ansicht && ansicht.zugang !== 'lesen' ? [{ id: 'mitglieder', label: 'Mitglieder' }] : []),
     ...(ansicht && ansicht.zugang !== 'lesen'
       ? [{ id: 'einstellungen', label: 'Einstellungen' }]
@@ -168,6 +179,10 @@
     aendern,
     hinweis,
     zeige,
+    oeffneGericht(id: number) {
+      bereich = 'gerichte';
+      zielGericht = { id, n: (zielGericht?.n ?? 0) + 1 };
+    },
   };
 
   onMount(() => {
@@ -243,11 +258,11 @@
 {:else if !ansicht}
   <p role="status" class="text-neutral-700">Die Planung wird geladen …</p>
 {:else}
-  <div class="space-y-6">
-    <div class="space-y-1">
-      <h2 class="font-serif text-2xl font-bold text-brand-900 [overflow-wrap:anywhere]">
+  <div class="space-y-4">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h1 class="font-serif text-xl font-bold text-brand-900 [overflow-wrap:anywhere]">
         {ansicht.name}
-      </h2>
+      </h1>
       <p class="text-sm text-neutral-700">
         {#if ansicht.tage.length}
           {datumLang(ansicht.tage[0].datum)} bis {datumLang(ansicht.tage.at(-1)!.datum)} ·
@@ -284,7 +299,7 @@
       <div
         role="tablist"
         aria-label="Bereiche der Planung"
-        class="flex flex-wrap gap-2 print:hidden"
+        class="flex flex-wrap gap-x-1 border-b border-neutral-200 print:hidden"
       >
         {#each bereiche as eintrag (eintrag.id)}
           <button
@@ -294,7 +309,10 @@
             aria-selected={bereich === eintrag.id}
             aria-controls="bereich-panel-{eintrag.id}"
             tabindex={bereich === eintrag.id ? 0 : -1}
-            class={bereich === eintrag.id ? 'btn-primary' : 'btn-secondary'}
+            class="-mb-px border-b-2 px-3 py-1.5 text-sm font-semibold any-pointer-coarse:min-h-11 {bereich ===
+            eintrag.id
+              ? 'border-brand-900 text-brand-900'
+              : 'border-transparent text-neutral-700 hover:border-neutral-400 hover:text-brand-900'}"
             onclick={() => (bereich = eintrag.id)}
             onkeydown={bereichTaste}>{eintrag.label}</button
           >
@@ -317,7 +335,7 @@
       aria-labelledby="bereich-gerichte"
       hidden={bereich !== 'gerichte'}
     >
-      <PlanGerichte {kontext} sichtbar={bereich === 'gerichte'} />
+      <PlanGerichte {kontext} sichtbar={bereich === 'gerichte'} ziel={zielGericht} />
     </div>
     <div
       role="tabpanel"
@@ -342,6 +360,14 @@
       hidden={bereich !== 'packliste'}
     >
       <PlanPackliste {kontext} />
+    </div>
+    <div
+      role="tabpanel"
+      id="bereich-panel-belege"
+      aria-labelledby="bereich-belege"
+      hidden={bereich !== 'belege'}
+    >
+      <PlanBelege {kontext} angezeigt={bereich === 'belege'} />
     </div>
     {#if ansicht.zugang !== 'lesen'}
       <div

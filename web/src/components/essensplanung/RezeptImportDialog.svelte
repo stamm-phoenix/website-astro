@@ -19,11 +19,15 @@
     kiFehlerText,
     mengeFuerZutat,
     skaliereMenge,
+    vorschauText,
     vorschlagKey,
+    type VorschauMenge,
     type KiRezept,
     type KiRezeptZeile,
   } from '../../lib/essensplanungKi';
-  import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
+  import { EINHEITEN_JE_ART } from '../../../../api/lib/essen-gerichte-model';
+  import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
+  import EinheitFeld from './EinheitFeld.svelte';
   import type { EssenKatalog, Gericht, GerichtEinheit } from '../../lib/types';
   import type { Vorschlag } from '../../lib/vorschlaege';
   import type { PlanKontext } from './planKontext';
@@ -58,6 +62,8 @@
     fuerAlles: boolean;
     fuerVegetarisch: boolean;
     fuerVegan: boolean;
+    /** The other way to give the amount: the recipe's („20 EL“) or the converted one. */
+    alternative: VorschauMenge | null;
     fehler: Record<string, string>;
   }
 
@@ -66,10 +72,16 @@
   let speichert = $state(false);
   let fehler = $state<string | null>(null);
   let textFehler = $state<string | undefined>(undefined);
-  let rezept = $state<{ rezeptPersonen: number | null; personen: number } | null>(null);
+  /** `personen`: what the amounts are for; null while the dish has no number (as written). */
+  let rezept = $state<{ rezeptPersonen: number | null; personen: number | null } | null>(null);
   let zeilen = $state<Zeile[]>([]);
-  /** The people of the dish now, when it changed after the amounts were scaled. */
-  let personenNeu = $state<number | null>(null);
+  /**
+   * The people of the dish now, when they changed after the amounts were scaled (null: taken
+   * away); undefined while nothing changed.
+   */
+  let personenNeu = $state<number | null | undefined>(undefined);
+  /** A dish without people takes the number the recipe names, unless unticked. */
+  let personenUebernehmen = $state(true);
   /** Set once the lines are taken over; nothing is left to lose then. */
   let fertig = $state(false);
   /** Set when the member closes on purpose, discarding the input. */
@@ -124,7 +136,7 @@
     return zutatVon(auswahl)?.einheitenart ?? null;
   }
 
-  function einheitenVon(zeile: Zeile): readonly GerichtEinheit[] {
+  function einheitenVon(zeile: Zeile): readonly string[] {
     const art = einheitenartVon(zeile.auswahl);
     return art ? EINHEITEN_JE_ART[art] : [];
   }
@@ -143,22 +155,24 @@
       fuerAlles: ki.fuerAlles,
       fuerVegetarisch: ki.fuerVegetarisch,
       fuerVegan: ki.fuerVegan,
+      alternative: ki.rezeptMenge
+        ? { menge: mengeFeld(ki.rezeptMenge.menge), einheit: ki.rezeptMenge.einheit }
+        : null,
       fehler: {},
     };
-    passendeEinheit(zeile);
-    // E.g. a tin's filled weight for an ingredient by drained weight: the amount is asked
-    if (ki.mengeFehlt && zeile.auswahl) {
-      zeile.an = false;
-      zeile.fehler.menge = `Bitte die Menge in ${einheitenVon(zeile)
-        .map((e) => einheitText(e))
-        .join(' oder ')} eintragen und die Zeile wieder anhaken.`;
-    }
+    // Without an amount the unit follows the ingredient; an amount keeps the recipe's unit
+    const einheiten = einheitenVon(zeile);
+    if (!ki.einheit && einheiten.length) zeile.einheit = einheiten[0];
     return zeile;
   }
 
-  function passendeEinheit(zeile: Zeile): void {
-    const einheiten = einheitenVon(zeile);
-    if (einheiten.length && !einheiten.includes(zeile.einheit)) zeile.einheit = einheiten[0];
+  /** Takes the other way to give the amount, e.g. the recipe's 20 EL instead of 300 g. */
+  function tausche(zeile: Zeile): void {
+    if (!zeile.alternative) return;
+    const vorher = { menge: zeile.menge, einheit: zeile.einheit };
+    zeile.menge = zeile.alternative.menge;
+    zeile.einheit = zeile.alternative.einheit;
+    zeile.alternative = vorher;
   }
 
   async function erkennen(event: SubmitEvent): Promise<void> {
@@ -184,7 +198,8 @@
         { text }
       );
       rezept = { rezeptPersonen: antwort.rezeptPersonen, personen: antwort.personen };
-      personenNeu = null;
+      personenNeu = undefined;
+      personenUebernehmen = true;
       zeilen = antwort.zeilen.map(zeileVon);
       ursprung = zeilen.map(schnappschuss);
       erkannt = text;
@@ -215,29 +230,35 @@
     zeile.fuerVegetarisch = zutat?.vegetarisch !== false;
     zeile.fuerVegan = zutat?.vegan !== false;
     if (!zutat) return;
-    // Another kind of unit: pieces become grams with the list's weight, else the amount is asked
+    // Pieces become grams with the list's weight; any other unit stays, as it may
     const zentral = katalog.zutaten.find(
       (z) => z.id === ('zutatId' in zutat ? zutat.zutatId : zutat.id)
     );
     const neu = mengeFuerZutat(zeile, zutat.einheitenart, zentral?.grammProStueck ?? null);
     zeile.menge = neu.menge;
     zeile.einheit = neu.einheit;
-    zeile.hinweis = neu.hinweis;
-    if (neu.neuEintragen) {
-      zeile.an = false;
-      zeile.fehler.menge = `Bitte die Menge in ${einheitenVon(zeile)
-        .map((e) => einheitText(e))
-        .join(' oder ')} eintragen und die Zeile wieder anhaken.`;
-    }
+    zeile.alternative = neu.alternative ?? zeile.alternative;
   }
 
   /** Scales the amounts to the people the dish has now, after someone changed them. */
   function umrechnen(): void {
-    if (!rezept || !personenNeu) return;
-    const faktor = personenNeu / rezept.personen;
-    for (const zeile of zeilen) zeile.menge = skaliereMenge(zeile.menge, faktor, zeile.einheit);
+    if (!rezept || personenNeu === undefined) return;
+    // Without people the amounts are as written, i.e. for the people of the recipe if it says
+    const basis = (personen: number | null) => personen ?? rezept!.rezeptPersonen;
+    const von = basis(rezept.personen);
+    const nach = basis(personenNeu);
+    const faktor = von && nach ? nach / von : 1;
+    for (const zeile of zeilen) {
+      zeile.menge = skaliereMenge(zeile.menge, faktor, zeile.einheit);
+      if (zeile.alternative)
+        zeile.alternative.menge = skaliereMenge(
+          zeile.alternative.menge,
+          faktor,
+          zeile.alternative.einheit
+        );
+    }
     rezept.personen = personenNeu;
-    personenNeu = null;
+    personenNeu = undefined;
     fehler = null;
   }
 
@@ -262,6 +283,8 @@
       const menge = leseMenge(zeile.menge);
       if (Number.isNaN(menge))
         zeile.fehler.menge = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
+      else if (menge !== null && !zeile.einheit)
+        zeile.fehler.einheit = 'Bitte eine Einheit eintragen, z. B. g oder Bund.';
       return {
         ...(zeile.auswahl!.art === 'planung'
           ? { planungZutatId: zeile.auswahl!.id }
@@ -277,6 +300,11 @@
     if (gesendet.some((zeile) => Object.keys(zeile.fehler).length)) return;
     speichert = true;
     let personenKonflikt = false;
+    // A dish still without people takes the number of the recipe in the same change
+    const personenSetzen =
+      rezept?.personen === null && personenUebernehmen && rezept.rezeptPersonen
+        ? rezept.rezeptPersonen
+        : undefined;
     /** Field errors of the request that belong to no line. */
     const allgemein: string[] = [];
     try {
@@ -287,6 +315,7 @@
             return await kontext.api.senden('POST', `/gerichte/${gericht.id}/zutaten/sammel`, {
               zeilen: body,
               personen: rezept!.personen,
+              ...(personenSetzen !== undefined ? { personenSetzen } : {}),
             });
           } catch (error: unknown) {
             if (error instanceof ApiError && error.code === 'PERSONEN_GEAENDERT')
@@ -303,7 +332,7 @@
             throw error;
           }
         },
-        `${gesendet.length === 1 ? 'Eine Zutat' : `${gesendet.length} Zutaten`} übernommen.`
+        `${gesendet.length === 1 ? 'Eine Zutat' : `${gesendet.length} Zutaten`} übernommen${personenSetzen !== undefined ? `, ${gericht.name} ist jetzt für ${personenSetzen} Personen` : ''}.`
       );
       if (ok) {
         fertig = true;
@@ -388,7 +417,11 @@
       <fieldset class="min-w-0 space-y-4" disabled={speichert}>
         <p class="text-sm text-neutral-700" role="status">
           Von der KI erkannt und ungeprüft.
-          {#if rezept.rezeptPersonen && rezept.rezeptPersonen !== rezept.personen}
+          {#if rezept.personen === null}
+            Die Mengen stehen wie im Rezept{rezept.rezeptPersonen
+              ? ` für ${rezept.rezeptPersonen} Personen`
+              : ''}.
+          {:else if rezept.rezeptPersonen && rezept.rezeptPersonen !== rezept.personen}
             Die Mengen sind von {rezept.rezeptPersonen} auf {rezept.personen} Personen umgerechnet.
           {:else if !rezept.rezeptPersonen}
             Das Rezept nennt keine Personenzahl: Die Mengen stehen wie im Rezept, bitte für
@@ -403,14 +436,21 @@
           </p>
         {/if}
         {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
-        {#if personenNeu}
+        {#if rezept.personen === null && rezept.rezeptPersonen && personenNeu === undefined}
+          <label class="flex items-center gap-2 text-sm any-pointer-coarse:min-h-11">
+            <input type="checkbox" class="h-5 w-5" bind:checked={personenUebernehmen} />
+            Personenzahl {rezept.rezeptPersonen} für das Gericht übernehmen
+          </label>
+        {/if}
+        {#if personenNeu !== undefined}
           <ActionButton type="button" onclick={umrechnen}
-            >Mengen auf {personenNeu} Personen umrechnen</ActionButton
+            >{personenNeu === null
+              ? 'Mengen wie im Rezept übernehmen'
+              : `Mengen auf ${personenNeu} Personen umrechnen`}</ActionButton
           >
         {/if}
         <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
           {#each zeilen as zeile, index (index)}
-            {@const einheiten = einheitenVon(zeile)}
             <li class="space-y-2 py-3" data-testid="rezept-zeile">
               <!-- The whole row is the touch area of the checkbox, at least 44 px high -->
               <label
@@ -477,19 +517,28 @@
                   <label class="sr-only" for="rezept-{index}-einheit"
                     >Einheit für {zeile.original}</label
                   >
-                  <select
+                  <EinheitFeld
                     id="rezept-{index}-einheit"
-                    class="form-input"
-                    bind:value={zeile.einheit}
-                    disabled={!einheiten.length || !zeile.menge.trim()}
-                  >
-                    {#each einheiten as wert (wert)}
-                      <option value={wert}>{einheitText(wert)}</option>
-                    {/each}
-                  </select>
+                    bind:einheit={zeile.einheit}
+                    art={einheitenartVon(zeile.auswahl)}
+                    eigene={eigeneEinheiten(ansicht)}
+                    invalid={Boolean(zeile.fehler.einheit)}
+                    disabled={!zeile.menge.trim()}
+                  />
                   {#if zeile.fehler.einheit}<p class="text-sm text-danger">
                       {zeile.fehler.einheit}
                     </p>{/if}
+                  {#if zeile.alternative}
+                    <ActionButton
+                      type="button"
+                      class="mt-1"
+                      aria-label="Für {zeile.original} stattdessen {vorschauText(
+                        zeile.alternative
+                      )} übernehmen"
+                      onclick={() => tausche(zeile)}
+                      >⇄ {vorschauText(zeile.alternative)}</ActionButton
+                    >
+                  {/if}
                 </div>
                 <div>
                   <label class="sr-only" for="rezept-{index}-hinweis"

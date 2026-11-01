@@ -6,10 +6,17 @@
   import { kochMenge } from '../../lib/essensplanungRechnung';
   import type { EinkaufListe, EinkaufListenPosten } from '../../lib/essensplanungEinkaeufe';
   import { postenMenge } from '../../lib/essensplanungEinkauf';
-  import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
+  import {
+    EINHEITEN_JE_ART,
+    einheitText,
+    einheitenGleicherBasis,
+  } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
   import type { PlanKontext } from './planKontext';
   import { festeEntwuerfe, merkeFest, vergissFest } from './einkaufLive';
+  import type { PostenHerkunft as Herkunft } from '../../lib/essensplanungHerkunft';
+  import PostenHerkunft from './PostenHerkunft.svelte';
+  import { FELD, KNOPF, herkunftAnzeige } from './einkaufHerkunft.svelte';
 
   /**
    * The list of one shopping trip by category; while editing, a thing can be moved to another
@@ -20,8 +27,10 @@
     kontext: PlanKontext;
     liste: EinkaufListe;
     bearbeiten: boolean;
+    /** The dishes a thing is for. */
+    herkunft: (posten: EinkaufListenPosten) => Herkunft | undefined;
   }
-  let { kontext, liste, bearbeiten }: Props = $props();
+  let { kontext, liste, bearbeiten, herkunft }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
   const einkauf = $derived(liste.einkauf);
   const andere = $derived(ansicht.einkaeufe.filter((e) => e.id !== einkauf.id && !e.abgeschlossen));
@@ -52,6 +61,8 @@
   }
 
   function einheiten(posten: EinkaufListenPosten): readonly GerichtEinheit[] {
+    // A thing with an amount is bought in its unit (g or kg, or its own like „Dose“)
+    if (posten.einheit) return einheitenGleicherBasis(posten.einheit);
     const art = ansicht.zutaten.find((z) => z.id === posten.planungZutatId)?.einheitenart;
     return art ? EINHEITEN_JE_ART[art] : [];
   }
@@ -184,15 +195,16 @@
 </script>
 
 {#each liste.kategorien as kategorie (kategorie.name)}
-  <div>
-    <h5 class="text-sm font-semibold text-neutral-700">{kategorie.name}</h5>
-    <ul
-      class="divide-y divide-neutral-200 border-y border-neutral-200"
-      aria-label="{einkauf.name}: {kategorie.name}"
+  <section>
+    <h4
+      class="border-b border-neutral-300 bg-neutral-100 px-2 py-0.5 text-xs font-bold tracking-wide text-neutral-700 uppercase"
     >
+      {kategorie.name}
+    </h4>
+    <ul class="divide-y divide-neutral-200" aria-label="{einkauf.name}: {kategorie.name}">
       {#each kategorie.posten as posten (posten.key)}
-        <li class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5">
-          <p class="min-w-0 [overflow-wrap:anywhere]">
+        <li class="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1 text-sm">
+          <p class="min-w-0 flex-1 [overflow-wrap:anywhere]">
             {#if posten.haken}
               <span class="text-success" aria-hidden="true">✓</span>
               <span class="line-through">{postenMenge(posten)} {posten.name}</span>
@@ -202,27 +214,37 @@
               <span class="font-semibold tabular-nums">{postenMenge(posten)}</span>
               {posten.name}
             {/if}
-            {#if posten.regel === 'fest'}<span class="text-sm text-neutral-700">· feste Menge</span>
-            {:else if posten.regel === 'mit'}<span class="text-sm text-neutral-700"
+            {#if posten.regel === 'fest'}<span class="text-xs text-neutral-700">· feste Menge</span>
+            {:else if posten.regel === 'mit'}<span class="text-xs text-neutral-700"
                 >· hierher verschoben</span
               >{/if}
+            {#if herkunftAnzeige.an}<PostenHerkunft
+                herkunft={herkunft(posten)}
+                name={posten.name}
+              />{/if}
           </p>
           {#if aendern && !posten.haken}
             <button
               type="button"
-              class="flex min-h-11 items-center gap-1 text-sm font-semibold text-link print:hidden"
+              class="flex min-h-8 items-center gap-1 rounded px-1 text-sm font-semibold text-link any-pointer-coarse:min-h-11 print:hidden"
               aria-expanded={offen === posten.key}
               aria-label="{posten.name} in {einkauf.name} anpassen"
               disabled={speichert}
-              onclick={() => oeffnen(posten)}>Anpassen<AufklappPfeil class="text-link" /></button
+              onclick={() => oeffnen(posten)}
+              >Anpassen<AufklappPfeil
+                class="text-link {offen === posten.key ? 'rotate-180' : ''}"
+              /></button
             >
           {/if}
           {#if offen === posten.key}
-            <fieldset class="basis-full space-y-2 pb-2" disabled={speichert}>
+            <fieldset
+              class="flex basis-full flex-wrap items-center gap-x-4 gap-y-2 border-t border-dashed border-neutral-300 pt-1 pb-1"
+              disabled={speichert}
+            >
               {#if ziele(posten).length}
-                <div class="flex flex-wrap items-center gap-2">
+                <span class="flex items-center gap-1">
                   <select
-                    class="form-input min-h-11 w-auto"
+                    class="{FELD} w-auto"
                     aria-label="Einkauf für {posten.name}"
                     bind:value={ziel}
                   >
@@ -232,23 +254,29 @@
                   </select>
                   <ActionButton
                     type="button"
+                    class={KNOPF}
                     disabled={kontext.busy}
                     onclick={() => void verschieben(posten)}>Verschieben</ActionButton
                   >
-                </div>
+                </span>
               {/if}
               {#if einheiten(posten).length}
-                <div class="flex flex-wrap items-center gap-2">
+                <span class="flex items-center gap-1">
                   <input
-                    class="form-input w-24 tabular-nums"
+                    class="{FELD} w-20 text-right tabular-nums"
                     inputmode="decimal"
                     autocomplete="off"
                     aria-label="Feste Menge von {posten.name}"
                     bind:value={feste}
                     oninput={() => festGetippt(posten)}
+                    onkeydown={(event) => {
+                      if (event.key !== 'Enter') return;
+                      event.preventDefault();
+                      void regel(posten, 'fest');
+                    }}
                   />
                   <select
-                    class="form-input min-h-11 w-auto"
+                    class="{FELD} w-auto"
                     aria-label="Einheit der festen Menge von {posten.name}"
                     bind:value={festeEinheit}
                     onchange={() => festGetippt(posten)}
@@ -259,45 +287,53 @@
                   </select>
                   <ActionButton
                     type="button"
+                    class={KNOPF}
                     disabled={kontext.busy}
                     onclick={() => void regel(posten, 'fest')}>Feste Menge</ActionButton
                   >
-                </div>
+                </span>
               {/if}
-              <div class="flex flex-wrap gap-2">
+              <span class="flex flex-wrap gap-1">
                 <ActionButton
                   type="button"
+                  class={KNOPF}
                   disabled={kontext.busy}
                   onclick={() => void regel(posten, 'ohne')}>Nicht in diesem Einkauf</ActionButton
                 >
                 {#if posten.regel}
                   <ActionButton
                     type="button"
+                    class={KNOPF}
                     disabled={kontext.busy}
                     onclick={() => void regel(posten, null)}>Wieder berechnen</ActionButton
                   >
                 {/if}
-              </div>
-              {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
+              </span>
+              {#if fehler}<p class="basis-full text-sm text-danger" role="alert">{fehler}</p>{/if}
             </fieldset>
           {/if}
         </li>
       {/each}
     </ul>
-  </div>
+  </section>
 {:else}
   <p class="text-neutral-700">Nichts zu kaufen.</p>
 {/each}
 {#if liste.ohne.length}
-  <div class="space-y-1">
-    <h5 class="text-sm font-semibold text-neutral-700">Nicht in diesem Einkauf</h5>
-    <ul class="flex flex-wrap gap-2" aria-label="Nicht in {einkauf.name}">
+  <section class="space-y-1">
+    <h4
+      class="border-b border-neutral-300 bg-neutral-100 px-2 py-0.5 text-xs font-bold tracking-wide text-neutral-700 uppercase"
+    >
+      Nicht in diesem Einkauf
+    </h4>
+    <ul class="flex flex-wrap gap-x-4 gap-y-1 px-2 text-sm" aria-label="Nicht in {einkauf.name}">
       {#each liste.ohne as zutat (zutat.planungZutatId)}
         <li class="flex items-center gap-1">
           <span>{zutat.name}</span>
           {#if aendern}
             <ActionButton
               type="button"
+              class={KNOPF}
               disabled={kontext.busy}
               aria-label="{zutat.name} zurück in {einkauf.name}"
               onclick={() => void zurueckholen(zutat)}>Zurückholen</ActionButton
@@ -306,5 +342,5 @@
         </li>
       {/each}
     </ul>
-  </div>
+  </section>
 {/if}
