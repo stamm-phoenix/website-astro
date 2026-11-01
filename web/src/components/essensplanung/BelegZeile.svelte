@@ -30,12 +30,14 @@
     kontext: PlanKontext;
     beleg: PlanungBeleg;
     bearbeiten: boolean;
+    /** Whether the preview of the photo loads; not while the area was never shown. */
+    fotos?: boolean;
     /** Unsaved input of all rows, kept by the list (`belegEntwuerfe.ts`). */
     entwuerfe: BelegEntwuerfe;
     onfoto: () => void;
     onansehen: () => void;
   }
-  let { kontext, beleg, bearbeiten, entwuerfe, onfoto, onansehen }: Props = $props();
+  let { kontext, beleg, bearbeiten, fotos = true, entwuerfe, onfoto, onansehen }: Props = $props();
 
   let speichert = $state(false);
   /** Fields left while a save of this row ran; they save right after it. */
@@ -355,8 +357,10 @@
     <td class="{zelle} [overflow-wrap:anywhere]">{beleg.notiz}</td>
   {/if}
   <td class={zelle}>
-    {#if beleg.foto}
+    {#if beleg.foto && fotos}
       <BelegVorschau {kontext} {beleg} onoeffnen={onansehen} />
+    {:else if beleg.foto}
+      <span class="text-xs text-neutral-700">Foto</span>
     {:else if bearbeiten}
       <ActionButton
         class="min-h-8 px-2 py-0.5 text-xs any-pointer-coarse:min-h-11"

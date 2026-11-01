@@ -367,7 +367,7 @@
       aria-labelledby="bereich-belege"
       hidden={bereich !== 'belege'}
     >
-      <PlanBelege {kontext} />
+      <PlanBelege {kontext} sichtbar={bereich === 'belege'} />
     </div>
     {#if ansicht.zugang !== 'lesen'}
       <div

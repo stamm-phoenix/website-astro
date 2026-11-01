@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import { esserRechner } from '../../lib/essensplanungRechnung';
@@ -117,6 +117,12 @@
         Object.values(slotEntwuerfe).some(getippt)
     )
   );
+
+  // The drafts live as long as the page of this Planung: leaving it (after „Änderungen
+  // verwerfen“) drops them, so they come back neither here nor in another Planung
+  onDestroy(() => {
+    for (const id of Object.keys(slotEntwuerfe)) delete slotEntwuerfe[Number(id)];
+  });
 
   // A dish typed into a meal someone else deleted: the draft goes, and is named to copy
   $effect(() => {

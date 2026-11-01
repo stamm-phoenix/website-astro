@@ -26,8 +26,14 @@
 
   interface Props {
     kontext: PlanKontext;
+    /** Whether the area is shown; photos load only once it was. */
+    sichtbar?: boolean;
   }
-  let { kontext }: Props = $props();
+  let { kontext, sichtbar = true }: Props = $props();
+  let gezeigt = $state(false);
+  $effect(() => {
+    if (sichtbar) gezeigt = true;
+  });
   const ansicht = $derived(kontext.ansicht);
   const bearbeiten = $derived(ansicht.zugang !== 'lesen' && !ansicht.wartung);
 
@@ -212,6 +218,7 @@
                       {beleg}
                       {bearbeiten}
                       {entwuerfe}
+                      fotos={gezeigt}
                       onfoto={() => void oeffnen(false, beleg.id)}
                       onansehen={() => (ansehenId = beleg.id)}
                     />
