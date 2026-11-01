@@ -79,8 +79,10 @@ export function erledigtOhneMenge(stand: {
     const bedarf = neuester.get(haken.planungZutatId);
     // When it was ticked off; bringing units into line gives it a new version, not a new tick
     const abgehakt = haken.stand ?? haken.etag;
+    // The state is the database's newest version at the tick: a need of exactly that version
+    // was written before it
     const erledigtHaken =
-      bedarf === undefined ? !(haken.erhalten ?? 0) : abgehakt === undefined || abgehakt > bedarf;
+      bedarf === undefined ? !(haken.erhalten ?? 0) : abgehakt === undefined || abgehakt >= bedarf;
     if (erledigtHaken) erledigt.add(haken.planungZutatId);
   }
   return erledigt;
