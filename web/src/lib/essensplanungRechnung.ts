@@ -49,7 +49,8 @@ export interface RechnungsMahlzeit {
 
 export interface RechnungsGericht {
   id: number;
-  personen: number;
+  /** null: no number of people yet; lines that scale cannot be worked out. */
+  personen: number | null;
   zutaten: (ZeileMenge & Pick<GerichtZutat, 'id' | 'planungZutatId'>)[];
 }
 
@@ -99,17 +100,29 @@ export function esserRechner(stand: Pick<RechnungsStand, 'tage' | 'gruppen' | 't
 
 /**
  * The amount of a line in its own unit: a fixed amount as it is, otherwise per person of the
- * dish times the eaters and the factor of the planned dish. null without an amount.
+ * dish times the eaters and the factor of the planned dish. null without an amount, and for a
+ * line that scales while the dish has no number of people yet.
  */
 export function zeilenMenge(
   zeile: Pick<ZeileMenge, 'menge' | 'fest'>,
-  personen: number,
+  personen: number | null,
   esser: number,
   faktor: number
 ): number | null {
   if (zeile.menge === null) return null;
   if (zeile.fest) return zeile.menge;
+  if (personen === null) return null;
   return personen > 0 ? (zeile.menge / personen) * esser * faktor : 0;
+}
+
+/**
+ * Whether a dish has amounts that wait for its number of people: lines with an amount that
+ * scale with the eaters. Those count nowhere until the number is set; fixed amounts do.
+ */
+export function personenFehlen(
+  gericht: Pick<RechnungsGericht, 'personen'> & { zutaten: Pick<ZeileMenge, 'menge' | 'fest'>[] }
+): boolean {
+  return gericht.personen === null && gericht.zutaten.some((z) => !z.fest && z.menge !== null);
 }
 
 /** An amount in the unit it is summed in. */
@@ -174,8 +187,8 @@ export interface OhneMengeZeile {
 }
 
 /**
- * Every line without an amount („nach Gefühl“) of every planned dish that someone eats, in the
- * order of the plan.
+ * Every line without an amount („nach Gefühl“, or scaling in a dish without people) of every
+ * planned dish that someone eats, in the order of the plan.
  */
 export function ohneMengeZeilen(stand: RechnungsStand): OhneMengeZeile[] {
   const esser = esserRechner(stand);
@@ -183,8 +196,11 @@ export function ohneMengeZeilen(stand: RechnungsStand): OhneMengeZeile[] {
   const ergebnis: OhneMengeZeile[] = [];
   for (const mahlzeit of stand.tage.flatMap((tag) => tag.mahlzeiten)) {
     for (const einplanung of mahlzeit.einplanungen) {
-      for (const zeile of gerichte.get(einplanung.gerichtId)?.zutaten ?? []) {
-        if (zeile.menge !== null && zeile.einheit !== null) continue;
+      const gericht = gerichte.get(einplanung.gerichtId);
+      for (const zeile of gericht?.zutaten ?? []) {
+        // Without people a line that scales has no amount yet either
+        const offen = !zeile.fest && gericht?.personen === null;
+        if (zeile.menge !== null && zeile.einheit !== null && !offen) continue;
         if (esser(mahlzeit, zeile) > 0)
           ergebnis.push({
             mahlzeitId: mahlzeit.id,
@@ -200,7 +216,8 @@ export function ohneMengeZeilen(stand: RechnungsStand): OhneMengeZeile[] {
 
 /**
  * Ingredients of planned dishes that someone eats but whose line has no amount (salt and pepper
- * „nach Gefühl“): they are bought, just without a number.
+ * „nach Gefühl“) or whose amount cannot be scaled yet (the dish has no number of people): they
+ * are bought, just without a number.
  */
 export function ohneMenge(stand: RechnungsStand): Set<number> {
   return new Set(ohneMengeZeilen(stand).map((zeile) => zeile.planungZutatId));

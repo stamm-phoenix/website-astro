@@ -1,20 +1,21 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import ActionButton from '../ui/ActionButton.svelte';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import { einplanungBody, faktorText } from '../../lib/essensplanungEinplanung';
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
   import { mahlzeitStand } from '../../../../api/lib/essen-planung-model';
-  import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
+  import type { PlanungMahlzeit } from '../../lib/types';
+  import type { esserRechner } from '../../lib/essensplanungRechnung';
   import type { PlanKontext } from './planKontext';
-  import EinplanungAbhaken from './EinplanungAbhaken.svelte';
-  import EinplanungMengen from './EinplanungMengen.svelte';
-  import { esserRechner } from '../../lib/essensplanungRechnung';
+  import EinplanungKarte from './EinplanungKarte.svelte';
+  import SlotEingabe from './SlotEingabe.svelte';
+  import { SYMBOL } from './planAktionen';
+  import { ablegen, ueber, verlassen, ziehen } from './planZiehen.svelte';
 
   /**
-   * One meal: name and time are saved when the field is left or Enter is pressed. While a field
-   * has focus, changes of others do not overwrite the input.
+   * One meal of a day in the list, as a row: ID, name (saved when the field is left or Enter is
+   * pressed; changes of others do not overwrite typing), the planned dishes with a field to type
+   * the next, who eats, and sorting and deleting as small symbols.
    */
 
   interface Props {
@@ -23,6 +24,7 @@
     bearbeiten: boolean;
     erste: boolean;
     letzte: boolean;
+    esser: ReturnType<typeof esserRechner>;
     /** Opens the dialog of planned dishes. */
     oneinplanen: (auftrag: Auftrag) => void;
     /** Opens the dialog of the groups that eat at the meal. */
@@ -36,6 +38,7 @@
     bearbeiten,
     erste,
     letzte,
+    esser,
     oneinplanen,
     ongruppen,
     unvertraeglichkeiten,
@@ -45,28 +48,23 @@
       .map((id) => kontext.ansicht.gruppen.find((g) => g.id === id)?.name ?? '')
       .filter(Boolean)
   );
-  const gerichte = $derived(new Map(kontext.ansicht.gerichte.map((g) => [g.id, g.name])));
-  const esser = $derived(esserRechner(kontext.ansicht));
+  const markiert = $derived(ziehen.ziel?.mahlzeitId === mahlzeit.id);
 
   let name = $state('');
-  let uhrzeit = $state('');
   let fokus = $state(false);
-  /** The saved values the input started from, with their version. */
-  let basis = $state({ name: '', uhrzeit: '', etag: '' });
-  /** Typed but not saved yet; changes of others then leave the fields alone. */
+  /** The saved name the input started from, with its version. */
+  let basis = $state({ name: '', etag: '' });
+  /** Typed but not saved yet; changes of others then leave the field alone. */
   let entwurf = $state(false);
 
   function uebernehme(current: PlanungMahlzeit): void {
-    basis = { name: current.name, uhrzeit: current.uhrzeit ?? '', etag: current.etag };
+    basis = { name: current.name, etag: current.etag };
     name = basis.name;
-    uhrzeit = basis.uhrzeit;
   }
 
   /** Typed, kept after a failed save or a conflict, or still saving. */
   function ungespeichert(): boolean {
-    return (
-      entwurf || (name.trim() || basis.name) !== basis.name || uhrzeit.trim() !== basis.uhrzeit
-    );
+    return entwurf || (name.trim() || basis.name) !== basis.name;
   }
   // Asks before leaving the page
   $effect(() => guardUnsavedChanges(ungespeichert));
@@ -76,10 +74,7 @@
   // Someone else deleted the meal or its day: the row goes, so the input is shown to copy
   $effect(() => () => {
     if (selbstGeloescht || !ungespeichert()) return;
-    const eingabe = [name.trim(), uhrzeit.trim() && `${uhrzeit.trim()} Uhr`]
-      .filter(Boolean)
-      .join(', ');
-    const text = `${mahlzeit.kennung} wurde gerade gelöscht. Deine Eingabe „${eingabe}“ war noch nicht gespeichert.`;
+    const text = `${mahlzeit.kennung} wurde gerade gelöscht. Deine Eingabe „${name.trim()}“ war noch nicht gespeichert.`;
     // After the update that removes the row, which would not show a change made during it
     setTimeout(() => kontext.hinweis(text, 'error'));
   });
@@ -94,27 +89,18 @@
 
   async function speichern(position?: number): Promise<void> {
     const neuerName = name.trim() || basis.name;
-    const neueUhrzeit = uhrzeit.trim();
     const nameNeu = neuerName !== basis.name;
-    const uhrzeitNeu = neueUhrzeit !== basis.uhrzeit;
-    if (position === undefined && !nameNeu && !uhrzeitNeu) {
+    if (position === undefined && !nameNeu) {
       entwurf = false;
       uebernehme(mahlzeit);
       return;
     }
-    // Someone else saved the same field meanwhile: keep the input and let the person decide
-    if (
-      (nameNeu && mahlzeit.name !== basis.name) ||
-      (uhrzeitNeu && (mahlzeit.uhrzeit ?? '') !== basis.uhrzeit)
-    ) {
-      basis = {
-        name: mahlzeit.name,
-        uhrzeit: mahlzeit.uhrzeit ?? '',
-        etag: mahlzeit.etag,
-      };
+    // Someone else saved the name meanwhile: keep the input and let the person decide
+    if (nameNeu && mahlzeit.name !== basis.name) {
+      basis = { name: mahlzeit.name, etag: mahlzeit.etag };
       entwurf = true;
       kontext.hinweis(
-        `Jemand anderes hat ${mahlzeit.kennung} gerade geändert (jetzt „${mahlzeit.name}“${mahlzeit.uhrzeit ? `, ${mahlzeit.uhrzeit} Uhr` : ''}). Deine Eingabe steht noch im Feld; verlasse es noch einmal, um sie zu speichern.`,
+        `Jemand anderes hat ${mahlzeit.kennung} gerade geändert (jetzt „${mahlzeit.name}“). Deine Eingabe steht noch im Feld; verlasse es noch einmal, um sie zu speichern.`,
         'error'
       );
       return;
@@ -122,22 +108,19 @@
     entwurf = true;
     const ok = await kontext.aendern(() =>
       kontext.api.senden('PATCH', `/mahlzeiten/${mahlzeit.id}`, {
-        // Fields left alone take what others saved meanwhile
         etag: mahlzeit.etag,
         name: nameNeu ? neuerName : mahlzeit.name,
-        uhrzeit: (uhrzeitNeu ? neueUhrzeit : (mahlzeit.uhrzeit ?? '')) || null,
         ...(position !== undefined ? { position } : {}),
       })
     );
     if (ok) {
       entwurf = false;
-      // The saved state is the new start even while a field has focus again; what was typed
+      // The saved state is the new start even while the field has focus again; what was typed
       // since stays in the field and counts as a change of its own
-      if (fokus)
-        basis = { name: mahlzeit.name, uhrzeit: mahlzeit.uhrzeit ?? '', etag: mahlzeit.etag };
+      if (fokus) basis = { name: mahlzeit.name, etag: mahlzeit.etag };
       else uebernehme(mahlzeit);
     } else {
-      basis = { name: mahlzeit.name, uhrzeit: mahlzeit.uhrzeit ?? '', etag: mahlzeit.etag };
+      basis = { name: mahlzeit.name, etag: mahlzeit.etag };
     }
   }
 
@@ -161,49 +144,24 @@
     );
     if (!ok) selbstGeloescht = false;
   }
-
-  async function verschiebe(einplanung: Einplanung, position: number): Promise<void> {
-    await kontext.aendern(() =>
-      kontext.api.senden('PATCH', `/einplanungen/${einplanung.id}`, {
-        ...einplanungBody(einplanung, mahlzeit.id),
-        position,
-      })
-    );
-  }
-
-  async function entfernen(einplanung: Einplanung, name: string): Promise<void> {
-    const { id, etag } = einplanung;
-    if (
-      !(await confirmAction({
-        title: `${name} aus ${mahlzeit.kennung} nehmen?`,
-        message: 'Das Gericht bleibt in der Planung und lässt sich wieder einplanen.',
-        confirmLabel: 'Entfernen',
-      }))
-    )
-      return;
-    await kontext.aendern(
-      () => kontext.api.senden('DELETE', `/einplanungen/${id}`, undefined, etag),
-      `${name} aus ${mahlzeit.name} genommen.`
-    );
-  }
-
-  function enter(event: KeyboardEvent): void {
-    if (event.key === 'Enter') (event.currentTarget as HTMLInputElement).blur();
-  }
 </script>
 
-<li class="flex flex-wrap items-center gap-2 py-2">
+<li
+  class="grid grid-cols-[3rem_minmax(0,1fr)_auto] gap-x-2 gap-y-1 px-2 py-1.5 md:grid-cols-[3rem_minmax(8rem,13rem)_minmax(0,1fr)_minmax(6rem,9rem)_auto] md:items-start {markiert
+    ? 'bg-brand-100'
+    : ''}"
+  data-mahlzeit={mahlzeit.kennung}
+>
   <span
-    class="w-12 shrink-0 font-mono text-sm font-semibold text-brand-900"
+    class="pt-1 font-mono text-xs font-semibold text-brand-900"
     title="Mahlzeit-ID: Tag_Mahlzeit">{mahlzeit.kennung}</span
   >
   {#if bearbeiten}
-    <span class="hidden min-w-0 flex-1 print:inline">{name}</span>
-    {#if uhrzeit}<span class="hidden text-sm print:inline">{uhrzeit} Uhr</span>{/if}
+    <span class="hidden print:inline">{name}</span>
     <label class="sr-only" for="mahlzeit-name-{mahlzeit.id}">Name von {mahlzeit.kennung}</label>
     <input
       id="mahlzeit-name-{mahlzeit.id}"
-      class="form-input min-w-0 flex-1 print:hidden"
+      class="form-input mt-0 min-h-0 border-b border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold text-brand-900 hover:border-neutral-300 focus:bg-[var(--color-field)] any-pointer-coarse:min-h-11 print:hidden"
       maxlength="50"
       bind:value={name}
       onfocus={() => (fokus = true)}
@@ -211,167 +169,103 @@
         fokus = false;
         void speichern();
       }}
-      onkeydown={enter}
-    />
-    <label class="sr-only" for="mahlzeit-zeit-{mahlzeit.id}">Uhrzeit von {mahlzeit.kennung}</label>
-    <input
-      id="mahlzeit-zeit-{mahlzeit.id}"
-      type="time"
-      class="form-input w-28 print:hidden"
-      bind:value={uhrzeit}
-      onfocus={() => (fokus = true)}
-      onblur={() => {
-        fokus = false;
-        void speichern();
+      onkeydown={(event) => {
+        if (event.key === 'Enter') event.currentTarget.blur();
       }}
-      onkeydown={enter}
     />
-    <span class="flex gap-1 print:hidden">
-      <ActionButton
-        type="button"
-        disabled={erste || kontext.busy}
-        aria-label="{mahlzeit.name} nach oben"
-        onclick={() => void speichern(mahlzeit.position - 1)}>↑</ActionButton
-      >
-      <ActionButton
-        type="button"
-        disabled={letzte || kontext.busy}
-        aria-label="{mahlzeit.name} nach unten"
-        onclick={() => void speichern(mahlzeit.position + 1)}>↓</ActionButton
-      >
-      <ActionButton
-        type="button"
-        variant="danger"
-        disabled={kontext.busy}
-        aria-label="{mahlzeit.name} löschen"
-        onclick={() => void loeschen()}>✕</ActionButton
-      >
-    </span>
   {:else}
-    <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{mahlzeit.name}</span>
-    {#if mahlzeit.uhrzeit}<span class="text-sm text-neutral-700">{mahlzeit.uhrzeit} Uhr</span>{/if}
+    <span class="pt-0.5 font-semibold text-brand-900 [overflow-wrap:anywhere]">{mahlzeit.name}</span
+    >
   {/if}
-  {#if kontext.ansicht.gruppen.length}
-    <div class="flex basis-full flex-wrap items-center gap-x-3 pl-14 text-sm">
-      <span class="text-neutral-700"
-        >Wer isst mit: <span class="text-neutral-900"
-          >{ohne.length ? `alle außer ${ohne.join(', ')}` : 'alle'}</span
-        ></span
+  <!-- Sorting and deleting: small symbols at the end of the row -->
+  <span class="flex justify-end gap-0.5 md:order-last print:hidden">
+    {#if bearbeiten}
+      <button
+        type="button"
+        class={SYMBOL}
+        disabled={erste || kontext.busy}
+        title="Nach oben"
+        aria-label="{mahlzeit.name} nach oben"
+        onclick={() => void speichern(mahlzeit.position - 1)}>↑</button
       >
-      {#if bearbeiten}
-        <button
-          type="button"
-          class="min-h-11 font-semibold text-link underline print:hidden"
-          aria-label="Wer isst mit bei {mahlzeit.kennung} ändern"
-          onclick={() => ongruppen(mahlzeit.id)}>Ändern</button
-        >
-      {/if}
-    </div>
-  {/if}
-  {#if mahlzeit.einplanungen.length || (bearbeiten && gerichte.size)}
-    <div class="basis-full space-y-1 pl-14">
-      {#if mahlzeit.einplanungen.length}
-        <ol class="space-y-1" aria-label="Gerichte bei {mahlzeit.kennung}">
-          {#each mahlzeit.einplanungen as einplanung, index (einplanung.id)}
-            {@const name = gerichte.get(einplanung.gerichtId) ?? 'Gericht'}
-            <li class="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span
-                class="font-mono text-sm font-semibold text-brand-900"
-                title="Gericht-ID: Tag_Mahlzeit_Gericht">{mahlzeit.kennung}_{index + 1}</span
-              >
-              <span class="min-w-0 font-semibold text-neutral-900 [overflow-wrap:anywhere]"
-                >{name}</span
-              >
-              {#if faktorText(einplanung.faktor)}<span class="text-sm tabular-nums"
-                  >{faktorText(einplanung.faktor)}</span
-                >{/if}
-              {#if einplanung.zustaendig}<span
-                  class="min-w-0 text-sm text-neutral-700 [overflow-wrap:anywhere]"
-                  >{einplanung.zustaendig}</span
-                >{/if}
-              <EinplanungAbhaken
-                {kontext}
-                {mahlzeit}
-                {einplanung}
-                {name}
-                {esser}
-                {bearbeiten}
-                teil="status"
-              />
-              {#if bearbeiten}
-                <span class="flex flex-wrap gap-1 print:hidden">
-                  <ActionButton
-                    type="button"
-                    disabled={index === 0 || kontext.busy}
-                    aria-label="{name} bei {mahlzeit.kennung} nach oben"
-                    onclick={() => void verschiebe(einplanung, einplanung.position - 1)}
-                    >↑</ActionButton
-                  >
-                  <ActionButton
-                    type="button"
-                    disabled={index === mahlzeit.einplanungen.length - 1 || kontext.busy}
-                    aria-label="{name} bei {mahlzeit.kennung} nach unten"
-                    onclick={() => void verschiebe(einplanung, einplanung.position + 1)}
-                    >↓</ActionButton
-                  >
-                  <ActionButton
-                    type="button"
-                    aria-label="{name} bei {mahlzeit.kennung} ändern"
-                    onclick={() =>
-                      oneinplanen({
-                        modus: 'aendern',
-                        mahlzeitId: mahlzeit.id,
-                        einplanungId: einplanung.id,
-                      })}>Ändern</ActionButton
-                  >
-                  <ActionButton
-                    type="button"
-                    aria-label="{name} bei {mahlzeit.kennung} kopieren"
-                    onclick={() =>
-                      oneinplanen({
-                        modus: 'kopieren',
-                        mahlzeitId: mahlzeit.id,
-                        einplanungId: einplanung.id,
-                      })}>Kopieren</ActionButton
-                  >
-                  <ActionButton
-                    type="button"
-                    variant="danger"
-                    disabled={kontext.busy}
-                    aria-label="{name} aus {mahlzeit.kennung} entfernen"
-                    onclick={() => void entfernen(einplanung, name)}>Entfernen</ActionButton
-                  >
-                </span>
-              {/if}
-              <EinplanungMengen
-                {kontext}
-                {mahlzeit}
-                {einplanung}
-                {name}
-                {esser}
-                {unvertraeglichkeiten}
-              />
-              <EinplanungAbhaken
-                {kontext}
-                {mahlzeit}
-                {einplanung}
-                {name}
-                {esser}
-                {bearbeiten}
-                teil="abhaken"
-              />
-            </li>
-          {/each}
-        </ol>
-      {/if}
-      {#if bearbeiten && gerichte.size}
-        <button
-          type="button"
-          class="min-h-11 text-sm font-semibold text-link underline print:hidden"
-          onclick={() => oneinplanen({ modus: 'neu', mahlzeitId: mahlzeit.id, einplanungId: null })}
-          >Gericht einplanen<span class="sr-only"> bei {mahlzeit.kennung}</span></button
-        >
-      {/if}
-    </div>
-  {/if}
+      <button
+        type="button"
+        class={SYMBOL}
+        disabled={letzte || kontext.busy}
+        title="Nach unten"
+        aria-label="{mahlzeit.name} nach unten"
+        onclick={() => void speichern(mahlzeit.position + 1)}>↓</button
+      >
+      <button
+        type="button"
+        class="{SYMBOL} hover:text-danger"
+        disabled={kontext.busy}
+        title="Mahlzeit löschen"
+        aria-label="{mahlzeit.name} löschen"
+        onclick={() => void loeschen()}
+        ><svg
+          viewBox="0 0 24 24"
+          class="size-4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg
+        ></button
+      >
+    {/if}
+  </span>
+  <!-- The dishes; the whole cell takes a dragged dish -->
+  <!-- svelte-ignore a11y_no_static_element_interactions (dropping; the keyboard types dishes in) -->
+  <div
+    class="col-span-3 min-w-0 space-y-1 md:col-span-1"
+    ondragover={bearbeiten ? (event) => ueber(event, mahlzeit) : undefined}
+    ondragleave={(event) => verlassen(event, mahlzeit)}
+    ondrop={bearbeiten ? (event) => void ablegen(event, kontext, mahlzeit) : undefined}
+  >
+    <ol class="space-y-1" aria-label="Gerichte bei {mahlzeit.kennung}">
+      {#each mahlzeit.einplanungen as einplanung, index (einplanung.id)}
+        <li>
+          {#if markiert && ziehen.ziel?.index === index}
+            <div class="mb-1 h-0.5 rounded bg-brand-800" aria-hidden="true"></div>
+          {/if}
+          <EinplanungKarte
+            {kontext}
+            {mahlzeit}
+            {einplanung}
+            {esser}
+            {bearbeiten}
+            variante="liste"
+            {unvertraeglichkeiten}
+            {oneinplanen}
+          />
+        </li>
+      {/each}
+    </ol>
+    {#if markiert && ziehen.ziel?.index === mahlzeit.einplanungen.length}
+      <div class="h-0.5 rounded bg-brand-800" aria-hidden="true"></div>
+    {/if}
+    {#if bearbeiten}
+      <div class="max-w-md print:hidden"><SlotEingabe {kontext} {mahlzeit} /></div>
+    {:else if !mahlzeit.einplanungen.length}
+      <p class="px-1 text-xs text-neutral-700">Noch kein Gericht.</p>
+    {/if}
+  </div>
+  <div class="col-span-3 flex items-baseline gap-1 text-xs md:col-span-1 md:pt-1">
+    <span class="text-neutral-700 md:sr-only">Wer isst mit:</span>
+    {#if bearbeiten && kontext.ansicht.gruppen.length}
+      <button
+        type="button"
+        class="rounded-sm px-1 text-left text-neutral-900 hover:bg-neutral-100 hover:underline any-pointer-coarse:min-h-11 print:hidden"
+        title="Wer isst mit ändern"
+        aria-label="Wer isst mit bei {mahlzeit.kennung}: {ohne.length
+          ? `alle außer ${ohne.join(', ')}`
+          : 'alle'}, ändern"
+        onclick={() => ongruppen(mahlzeit.id)}
+        >{ohne.length ? `alle außer ${ohne.join(', ')}` : 'alle'}
+        <span aria-hidden="true">✎</span></button
+      >
+    {:else}
+      <span class="text-neutral-900">{ohne.length ? `alle außer ${ohne.join(', ')}` : 'alle'}</span>
+    {/if}
+  </div>
 </li>

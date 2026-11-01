@@ -119,11 +119,16 @@ const name = line(150).refine((value) => value !== '', {
 
 const PERSONEN_UNGUELTIG = 'Bitte eine ganze Zahl ab 1 eintragen.';
 
-const personen = z
-  .number({ error: PERSONEN_UNGUELTIG })
-  .refine(Number.isInteger, { error: PERSONEN_UNGUELTIG })
-  .refine((value) => value >= 1, { error: PERSONEN_UNGUELTIG })
-  .refine((value) => value <= 2000, { error: 'Höchstens 2000 Personen.' });
+/** The people the amounts are for; empty (`null` or `''`) is none yet. */
+const personen = z.preprocess(
+  (value) => (value === '' ? null : value),
+  z
+    .number({ error: PERSONEN_UNGUELTIG })
+    .refine(Number.isInteger, { error: PERSONEN_UNGUELTIG })
+    .refine((value) => value >= 1, { error: PERSONEN_UNGUELTIG })
+    .refine((value) => value <= 2000, { error: 'Höchstens 2000 Personen.' })
+    .nullable()
+);
 
 const anleitung = block(20_000, 'Höchstens 20.000 Zeichen.');
 const notiz = block(1000, 'Höchstens 1000 Zeichen.');
@@ -133,10 +138,10 @@ function withoutUndefined<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined)) as T;
 }
 
-/** A new dish: name and number of people are needed. */
+/** A new dish: only the name is needed; without people the amounts wait. */
 export const gerichtNeuSchema = lenientObject({
   name,
-  personen,
+  personen: personen.optional().transform((value) => value ?? null),
   anleitung: anleitung.optional(),
   notiz: notiz.optional(),
   links: links.optional(),

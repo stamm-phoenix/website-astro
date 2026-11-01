@@ -4,7 +4,8 @@ import { RecordNotFoundError, VersionConflictError, lockResource, requireVersion
 import type { Database } from './db-schema';
 import { MAX_ZEILEN_PRO_GERICHT, gerichtSperre } from './essen-gerichte-model';
 import type { GerichtZutatInput } from './essen-gerichte-validation';
-import { gerichtDerPlanung, pruefeVerweise } from './essen-gerichte';
+import { gerichtDerPlanung } from './essen-gericht';
+import { pruefeVerweise } from './essen-gerichte';
 import type { Zugang } from './essen-planung';
 import { PlanungError, aendere } from './essen-planung';
 import { zutatDerPlanungFuer } from './essen-planung-zutat';
@@ -126,27 +127,31 @@ export async function gerichtZutatAnlegen(
 }
 
 /** The amounts were scaled for another number of people than the dish has now. */
-export function personenGeaendert(personen: number): PlanungError {
+export function personenGeaendert(personen: number | null): PlanungError {
   return new PlanungError(
     409,
     'PERSONEN_GEAENDERT',
-    `Die Personenzahl des Gerichts wurde inzwischen auf ${personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
+    personen === null
+      ? 'Die Personenzahl des Gerichts wurde inzwischen entfernt. Die Mengen sind für eine Personenzahl gerechnet; bitte prüfen und noch einmal übernehmen.'
+      : `Die Personenzahl des Gerichts wurde inzwischen auf ${personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
   );
 }
 
 /**
  * The people a change was worked out for (`personen` of the body), e.g. amounts of a recipe or
- * of a hint of the AI; undefined when not sent.
+ * of a hint of the AI; null when it was worked out for a dish without people, undefined when not
+ * sent.
  */
-export function readPersonen(body: Record<string, unknown> | null): number | undefined {
+export function readPersonen(body: Record<string, unknown> | null): number | null | undefined {
   const personen = body?.personen;
+  if (personen === null && body && 'personen' in body) return null;
   return typeof personen === 'number' && Number.isInteger(personen) && personen > 0
     ? personen
     : undefined;
 }
 
 /** Refuses a change worked out for `personen` when the dish has another number by now. */
-async function pruefePersonen(trx: Db, gerichtId: number, personen: number | undefined) {
+async function pruefePersonen(trx: Db, gerichtId: number, personen: number | null | undefined) {
   if (personen === undefined) return;
   const gericht = await trx
     .selectFrom('essen.gericht')
@@ -166,7 +171,7 @@ export async function gerichtZutatenSammeln(
   zugang: Zugang,
   gerichtId: number,
   inputs: GerichtZutatInput[],
-  personen?: number
+  personen?: number | null
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutaten-neu', async (trx) => {
     const gericht = await gerichtDerPlanung(trx, zugang, gerichtId);
@@ -213,7 +218,7 @@ export async function gerichtZutatAendern(
   input: GerichtZutatInput & { position?: number },
   etag: string,
   /** With it (a proposal of the AI), the dish must still have these people. */
-  personen?: number
+  personen?: number | null
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutat-geaendert', async (trx) => {
     const zeile = await zeileDerPlanung(trx, zugang, id);

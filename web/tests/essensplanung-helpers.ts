@@ -15,7 +15,53 @@ export async function anlegen(page: Page, name: string): Promise<void> {
   await page.getByRole('button', { name: 'Link zum Anlegen schicken' }).click();
   await expect(page.getByRole('status').getByText(/Fast geschafft/)).toBeVisible();
   await page.getByRole('link', { name: 'Planung bestätigen' }).click();
-  await expect(page.getByRole('heading', { name })).toBeVisible();
+  // The first load of the page compiles it in the dev server
+  await expect(page.getByRole('heading', { name })).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * Plans a dish at a meal by typing its name into the meal (`kennung` like `1_2`): an existing
+ * dish is planned, a new name creates it there. Closes the fields again.
+ */
+export async function einplanen(
+  page: Page,
+  kennung: string,
+  gericht: string,
+  zustaendig = ''
+): Promise<void> {
+  await page
+    .getByRole('button', { name: new RegExp(`^Gericht eintragen bei ${kennung} `) })
+    .first()
+    .click();
+  const feld = page.getByLabel(new RegExp(`^Gericht bei ${kennung} `)).filter({ visible: true });
+  await feld.fill(gericht);
+  if (zustaendig)
+    await page
+      .getByLabel(`Zuständig für das Gericht bei ${kennung}`)
+      .filter({ visible: true })
+      .fill(zustaendig);
+  await feld.press('Enter');
+  await expect(page.getByText(new RegExp(`bei ${kennung} eingeplant\\.`)).first()).toBeVisible();
+  // Escape closes the suggestions first, then the fields
+  await feld.press('Escape');
+  if (await feld.isVisible()) await feld.press('Escape');
+  await expect(feld).toHaveCount(0);
+}
+
+/** Unfolds a planned dish (`kennung` like `1_2_1`): its actions, amounts and what it used. */
+export async function aufklappen(page: Page, kennung: string, name: string): Promise<void> {
+  const knopf = page.getByRole('button', { name: `Mehr zu ${kennung} ${name}` });
+  if ((await knopf.getAttribute('aria-expanded')) !== 'true') await knopf.click();
+}
+
+/** Opens the amounts a planned dish used, to tick it off with other amounts or change them. */
+export async function verbrauchOeffnen(page: Page, kennung: string, name: string): Promise<void> {
+  await aufklappen(page, kennung, name);
+  const teil = page.getByLabel(
+    new RegExp(`^Verbrauch von ${name} bei ${kennung} (eintragen|ändern|ansehen)$`)
+  );
+  if (!(await teil.evaluate((summary) => (summary.parentElement as HTMLDetailsElement).open)))
+    await teil.click();
 }
 
 /** Downloads the PDF a button builds; its file name and its text, one line per text run. */

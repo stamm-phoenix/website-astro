@@ -81,8 +81,6 @@ export interface PlanungMahlzeit {
   /** Shown ID `<Tag>_<Slot>`, e.g. `3_1`; follows the current order. */
   kennung: string;
   name: string;
-  /** `HH:MM` or null. */
-  uhrzeit: string | null;
   einplanungen: Einplanung[];
   /** Groups that do not eat at this meal; empty: all eat. */
   ohneGruppen: number[];
@@ -187,7 +185,6 @@ export function nummeriereTage(
           id: mahlzeit.id,
           etag: mahlzeit.etag,
           name: mahlzeit.name,
-          uhrzeit: mahlzeit.uhrzeit,
           position: mahlzeit.position,
           kennung: `${index + 1}_${slot + 1}`,
           einplanungen: [...mahlzeit.einplanungen].sort(

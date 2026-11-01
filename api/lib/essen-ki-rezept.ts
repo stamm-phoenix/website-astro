@@ -254,13 +254,14 @@ function nachName(kandidaten: readonly RezeptKandidat[], name: string): RezeptKa
 export function leseKiRezept(
   raw: unknown,
   kandidaten: readonly RezeptKandidat[],
-  personen: number
+  personen: number | null
 ): KiRezept {
   const antwort = rezeptSchema.safeParse(raw);
   if (!antwort.success) throw new Error('Invalid answer of the recipe');
   const nachKey = new Map(kandidaten.map((kandidat) => [kandidat.key, kandidat]));
   const { rezeptPersonen } = antwort.data;
-  const faktor = rezeptPersonen ? personen / rezeptPersonen : 1;
+  // A dish without people takes the amounts as written; the page offers the recipe's number
+  const faktor = rezeptPersonen && personen ? personen / rezeptPersonen : 1;
   const skaliert = (menge: { menge: number; einheit: GerichtEinheit }) => ({
     menge: runde(Math.min(menge.menge * faktor, MAX_MENGE), menge.einheit),
     einheit: menge.einheit,

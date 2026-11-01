@@ -63,7 +63,10 @@ export function kiPruefen(z: MockZugang, gerichtId: number, wartung: boolean): K
     fuerVegan: null,
   };
   const hinweise: unknown[] = [];
-  const erste = gericht.zutaten.findIndex((zeile) => zeile.menge !== null);
+  // Without people there is nothing to scale against: no amount is proposed, like the API
+  const erste = gericht.zutaten.findIndex(
+    (zeile) => zeile.menge !== null && (gericht.personen !== null || zeile.fest)
+  );
   if (erste >= 0) {
     const zeile = gericht.zutaten[erste];
     hinweise.push({
@@ -186,19 +189,25 @@ export function kiUmrechnung(
 }
 
 /** Refuses amounts worked out for other people than the dish has now, like the API. */
-export function pruefePersonen(gericht: { personen: number }, personen: number | undefined): void {
+export function pruefePersonen(
+  gericht: { personen: number | null },
+  personen: number | null | undefined
+): void {
   if (personen !== undefined && gericht.personen !== personen)
     throw new MockPlanungFehler(
       409,
       'PERSONEN_GEAENDERT',
-      `Die Personenzahl des Gerichts wurde inzwischen auf ${gericht.personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
+      gericht.personen === null
+        ? 'Die Personenzahl des Gerichts wurde inzwischen entfernt. Die Mengen sind für eine Personenzahl gerechnet; bitte prüfen und noch einmal übernehmen.'
+        : `Die Personenzahl des Gerichts wurde inzwischen auf ${gericht.personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
     );
 }
 
 /** A line changed with `personen` (a proposal of the AI): the dish must still have them. */
 export function pruefePersonenDerZeile(z: MockZugang, zeileId: number, personen: unknown): void {
   const gericht = z.planung.gerichte.find((g) => g.zutaten.some((zeile) => zeile.id === zeileId));
-  if (gericht && typeof personen === 'number') pruefePersonen(gericht, personen);
+  if (gericht && (typeof personen === 'number' || personen === null))
+    pruefePersonen(gericht, personen);
 }
 
 /** Adds lines at the end of a dish in one change, all or none, like the API; `personen` as there. */
@@ -206,7 +215,7 @@ export function gerichtZutatenSammeln(
   z: MockZugang,
   gerichtId: number,
   inputs: GerichtZutatInput[],
-  personen?: number
+  personen?: number | null
 ): void {
   const gericht = z.planung.gerichte.find((entry) => entry.id === gerichtId);
   if (!gericht) throw new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');

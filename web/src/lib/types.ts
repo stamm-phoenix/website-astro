@@ -408,7 +408,6 @@ export interface PlanungMahlzeit {
   /** Shown ID `<Tag>_<Slot>`, e.g. `3_1`. */
   kennung: string;
   name: string;
-  uhrzeit: string | null;
   /** The dishes planned at the meal, in their order. */
   einplanungen: Einplanung[];
   /** Groups that do not eat at this meal; empty: all eat. */

@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import { anlegen, pdfLaden } from './essensplanung-helpers';
+import { anlegen, pdfLaden, aufklappen, einplanen } from './essensplanung-helpers';
 
 /** Pasta for 4 (500 g), eaten by 8 at lunch on both days: 1 kg each. */
 async function nudelnPlanen(page: Page, name: string): Promise<void> {
@@ -27,12 +27,7 @@ async function nudelnPlanen(page: Page, name: string): Promise<void> {
   await expect(dialog).toBeHidden();
 
   await page.getByRole('tab', { name: 'Plan' }).click();
-  for (const mahlzeit of ['1_2', '2_2']) {
-    await page.getByRole('button', { name: `Gericht einplanen bei ${mahlzeit}` }).click();
-    await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Nudeln' });
-    await dialog.getByRole('button', { name: 'Einplanen' }).click();
-    await expect(dialog).toBeHidden();
-  }
+  for (const mahlzeit of ['1_2', '2_2']) await einplanen(page, mahlzeit, 'Nudeln');
   await page.getByRole('tab', { name: 'Einkauf' }).click();
 }
 
@@ -147,7 +142,7 @@ test('two shop at once in the live mode; a rest goes to the next trip and into t
   );
   // The dish names the replacement
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.getByLabel('Mengen für 8 Portionen von Nudeln').first().click();
+  await aufklappen(page, '1_2_1', 'Nudeln');
   await expect(page.getByRole('list', { name: 'Mengen für Nudeln bei 1_2' })).toContainText(
     'Nudeln (Spaghetti) → Vollkornnudeln'
   );

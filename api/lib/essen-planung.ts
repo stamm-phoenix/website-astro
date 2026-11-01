@@ -181,7 +181,7 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
     db
       .selectFrom('essen.mahlzeit as m')
       .innerJoin('essen.tag as t', 't.id', 'm.tag_id')
-      .select(['m.id', 'm.version', 'm.tag_id', 'm.position', 'm.name', 'm.uhrzeit'])
+      .select(['m.id', 'm.version', 'm.tag_id', 'm.position', 'm.name'])
       .where('t.planung_id', '=', zugang.planungId)
       .execute(),
     db
@@ -215,7 +215,6 @@ export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<Pla
       tagId: mahlzeit.tag_id,
       position: mahlzeit.position,
       name: mahlzeit.name,
-      uhrzeit: mahlzeit.uhrzeit,
       einplanungen: einplanungen.get(mahlzeit.id) ?? [],
       ohneGruppen: teilnehmende.ohneGruppen.get(mahlzeit.id) ?? [],
     }))
@@ -1119,7 +1118,6 @@ export async function mahlzeitHinzufuegen(
         tag_id: tagId,
         position: Number(anzahl.count) + 1,
         name: input.name,
-        uhrzeit: input.uhrzeit,
       })
       .output('inserted.id')
       .executeTakeFirstOrThrow();
@@ -1150,7 +1148,7 @@ export async function mahlzeitAendern(
     const mahlzeit = await mahlzeitDerPlanung(trx, zugang, mahlzeitId);
     const result = await trx
       .updateTable('essen.mahlzeit')
-      .set({ name: input.name, uhrzeit: input.uhrzeit })
+      .set({ name: input.name })
       .where('id', '=', mahlzeitId)
       .where('version', '=', requireVersion(etag))
       .executeTakeFirst();

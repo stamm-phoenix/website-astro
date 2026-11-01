@@ -3,7 +3,7 @@ import { gerichtWarnungen, mengeText } from '../../../api/lib/essen-gerichte-mod
 import { datumKurz } from './essensplanung';
 import { ernaehrung, fuerText } from './essensplanungGerichte';
 import { einplanungKennung } from './essensplanungEinplanung';
-import { esserRechner, kochMenge, zeilenMenge } from './essensplanungRechnung';
+import { esserRechner, kochMenge, personenFehlen, zeilenMenge } from './essensplanungRechnung';
 import { ersatzText } from './essensplanungLager';
 import { ERNAEHRUNG_TEXT, zahlText, zeitraumText } from './essensplanungTeilnehmende';
 import { parseProtokollMarkdown, type MdBlock, type MdInline } from './protokollMarkdown';
@@ -45,6 +45,8 @@ export interface DruckEinplanung {
   /** Everybody who eats at the meal, weighted, times the factor of the planned dish. */
   portionen: number;
   zustaendig: string;
+  /** Lines scale, but the dish has no number of people yet: their amounts are missing. */
+  personenFehlen: boolean;
   zeilen: DruckZeile[];
 }
 
@@ -66,6 +68,7 @@ export function einplanungZeilen(
     name: `${gericht?.name ?? 'Gericht'}${einplanung.status && einplanung.status !== 'offen' ? ` (${einplanung.status})` : ''}`,
     portionen,
     zustaendig: einplanung.zustaendig,
+    personenFehlen: gericht ? personenFehlen(gericht) : false,
     zeilen: (gericht?.zutaten ?? []).map((zeile) => {
       const zutat = zutaten.get(zeile.planungZutatId);
       const wer = zeile.fest ? 0 : esser(mahlzeit, zeile);
@@ -75,9 +78,11 @@ export function einplanungZeilen(
       return {
         name: `${zutat?.name ?? 'Zutat'}${ersatz ? ` ${ersatz}` : ''}`,
         menge:
-          menge === null || zeile.einheit === null
-            ? 'nach Gefühl'
-            : kochMenge(menge, zeile.einheit, zutat?.abtropfgewicht),
+          zeile.menge !== null && menge === null
+            ? 'Personenzahl fehlt'
+            : menge === null || zeile.einheit === null
+              ? 'nach Gefühl'
+              : kochMenge(menge, zeile.einheit, zutat?.abtropfgewicht),
         // Like the card of the dish, so two lines of one ingredient read apart
         fuer: [
           zeile.fest ? 'feste Menge' : '',
@@ -97,7 +102,7 @@ export function einplanungZeilen(
 }
 
 export interface DruckMahlzeit {
-  /** „1_2 Mittagessen, 12:30 Uhr“. */
+  /** „1_2 Mittagessen“. */
   titel: string;
   /** „ohne Wölflinge“ or empty. */
   ohne: string;
@@ -110,9 +115,14 @@ export interface DruckTag {
   mahlzeiten: DruckMahlzeit[];
 }
 
-/** The meal as titled on paper: ID, name and time. */
+/** „Für 10 Personen“, or that the number is still missing; on the card and in the PDF. */
+export function personenText(gericht: { personen: number | null }): string {
+  return gericht.personen === null ? 'Personenzahl fehlt' : `Für ${gericht.personen} Personen`;
+}
+
+/** The meal as titled on paper: ID and name. */
 function mahlzeitTitel(mahlzeit: PlanungMahlzeit): string {
-  return `${mahlzeit.kennung} ${mahlzeit.name}${mahlzeit.uhrzeit ? `, ${mahlzeit.uhrzeit} Uhr` : ''}`;
+  return `${mahlzeit.kennung} ${mahlzeit.name}`;
 }
 
 /** The plan for the kitchen: every day and meal with the planned dishes and their amounts. */

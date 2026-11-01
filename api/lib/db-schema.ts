@@ -1094,7 +1094,8 @@ export interface EssenGerichtTable {
   version: ReadOnly<Buffer>;
   planung_id: number;
   name: string;
-  personen: number;
+  /** `NULL`: no reference number of people yet (`0069`). */
+  personen: number | null;
   anleitung: Generated<string>;
   notiz: Generated<string>;
   /** JSON array of `{ titel, url }`. */

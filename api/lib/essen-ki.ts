@@ -157,7 +157,7 @@ const PRUEFEN_SCHEMA = {
   },
 };
 
-const PRUEFEN_PROMPT = `Du prüfst ein Gericht für die Essensplanung eines Zeltlagers der Pfadfinder. Die Mengen gelten für die angegebene Personenzahl, außer bei Zeilen mit "fest" (Gesamtmenge, unabhängig von der Personenzahl). Prüfe:
+const PRUEFEN_PROMPT = `Du prüfst ein Gericht für die Essensplanung eines Zeltlagers der Pfadfinder. Die Mengen gelten für die angegebene Personenzahl, außer bei Zeilen mit "fest" (Gesamtmenge, unabhängig von der Personenzahl). Ist "personen" null, hat das Gericht noch keine Personenzahl: Dann bewerte keine Mengen und schlage keine neuen vor. Prüfe:
 - Sind die Mengen für die Personenzahl plausibel (zu viel, zu wenig, vertauschte Einheit wie kg statt g)?
 - Gibt es Tippfehler im Namen des Gerichts oder in Hinweisen?
 - Passen die Häkchen "fuer" (alles, vegetarisch, vegan) zu den Merkmalen der Zutat (z. B. Fleisch nur für "alles"), und gibt es für jede Ernährungsform etwas zu essen?
@@ -294,7 +294,7 @@ export async function rezeptLesen(
 /** Reading the recipe itself, without database. */
 export function liesRezept(
   text: string,
-  personen: number,
+  personen: number | null,
   zutaten: readonly PlanungZutat[],
   katalog: EssenKatalog
 ): Promise<KiRezept> {

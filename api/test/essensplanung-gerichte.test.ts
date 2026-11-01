@@ -507,3 +507,49 @@ dbTest('an ingredient marked as not food meanwhile takes no more lines', async (
     assert.match(json<{ fields: { zutat: string } }>(antwort).fields.zutat, /kein Lebensmittel/);
   }
 });
+
+dbTest('a dish typed into a meal is created without people and planned there', async (t) => {
+  const mails = captureMails(t);
+  const { token, ansicht } = await anlegen(t, mails);
+  const mahlzeit = ansicht.tage[0].mahlzeiten[1];
+  const { id, ansicht: neu } = await gerichtMitId(t, token, {
+    name: 'Nudeln mit Soße',
+    mahlzeitId: mahlzeit.id,
+    zustaendigText: 'Küchenteam',
+  });
+  const gericht = neu.gerichte.find((g) => g.id === id)!;
+  assert.equal(gericht.personen, null);
+  assert.deepEqual(
+    neu.tage[0].mahlzeiten[1].einplanungen.map((e) => [e.gerichtId, e.zustaendig, e.faktor]),
+    [[id, 'Küchenteam', 1]]
+  );
+  // One change: the dish with its place
+  assert.equal(neu.aenderungen[0].aktion, 'gericht-neu');
+  assert.equal(neu.aenderungen[0].details.mahlzeit, mahlzeit.name);
+
+  // A meal that is gone creates nothing, not even the dish
+  const weg = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+    token,
+    body: { name: 'Salat', mahlzeitId: 999_999 },
+  });
+  assert.equal(weg.status, 400);
+  assert.deepEqual(json<{ fields: Record<string, string> }>(weg).fields, {
+    mahlzeitId: 'Diese Mahlzeit gibt es nicht mehr.',
+  });
+  const danach = json<PlanungAnsicht>(
+    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+  );
+  assert.equal(danach.gerichte.length, 1);
+
+  // People can be set and taken away again
+  const patch = (body: Record<string, unknown>) =>
+    call(t, endpoints.EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
+      token,
+      params: { id: String(id) },
+      body,
+    });
+  const mit = json<PlanungAnsicht>(await patch({ etag: gericht.etag, personen: 8 }));
+  assert.equal(mit.gerichte[0].personen, 8);
+  const ohne = json<PlanungAnsicht>(await patch({ etag: mit.gerichte[0].etag, personen: null }));
+  assert.equal(ohne.gerichte[0].personen, null);
+});

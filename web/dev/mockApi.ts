@@ -88,6 +88,7 @@ import type { EssenListe, EssenMockResult } from './mock-data/essensplanung';
 import { essenAudit, essenEinstellungen, essenKatalog } from './mock-data/essensplanung';
 import * as essenPlanung from './mock-data/essensplanung-planung';
 import * as essenGerichte from './mock-data/essensplanung-gerichte';
+import * as essenEinplanung from './mock-data/essensplanung-einplanung';
 import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
 import * as essenEinkauf from './mock-data/essensplanung-einkauf';
 import * as essenPackliste from './mock-data/essensplanung-packliste';
@@ -102,6 +103,7 @@ import * as essenEinheiten from './mock-data/essensplanung-einheiten';
 import { validateEinheiten } from '../../api/lib/essen-einheiten-schema';
 import * as essenKochen from './mock-data/essensplanung-kochen';
 import * as essenEinkaeufe from './mock-data/essensplanung-einkaeufe';
+import { fuelleDemoPlanung } from './mock-data/essensplanung-demo';
 import {
   readHakenEtag,
   validateEinkauf,
@@ -124,6 +126,7 @@ import {
 import { validateGruppe, validateTeilnehmende } from '../../api/lib/essen-teilnehmende-validation';
 import {
   validateGericht,
+  validateNeuesGericht,
   validateGerichtZutat,
   validatePlanungZutat,
 } from '../../api/lib/essen-gerichte-validation';
@@ -328,6 +331,9 @@ interface Route {
   /** Images and files are answered without artificial delay. */
   instant?: boolean;
 }
+
+// The demo Planung gets its dishes, plan and participants once
+fuelleDemoPlanung();
 
 const routes: Route[] = [];
 
@@ -1444,8 +1450,12 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/zutaten/:id', (req) => {
 });
 
 route('POST', '/api/essensplanung/planung/gerichte', (req) => {
-  const input = validateGericht(req.json, { neu: true });
-  return essenAendern(req, (z) => ({ id: essenGerichte.gerichtAnlegen(z, input) }), 201);
+  const { gericht, einplanung } = validateNeuesGericht(req.json);
+  return essenAendern(
+    req,
+    (z) => ({ id: essenGerichte.gerichtAnlegen(z, gericht, einplanung) }),
+    201
+  );
 });
 
 route(['PATCH', 'DELETE'], '/api/essensplanung/planung/gerichte/:id', (req) => {
@@ -1501,7 +1511,10 @@ route('POST', '/api/essensplanung/planung/gerichte/:id/zutaten/sammel', (req) =>
   if (Object.keys(fields).length)
     return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', fields);
   const id = Number(req.params.id);
-  const personen = typeof req.json?.personen === 'number' ? req.json.personen : undefined;
+  const personen =
+    typeof req.json?.personen === 'number' || req.json?.personen === null
+      ? (req.json.personen as number | null)
+      : undefined;
   return essenAendern(req, (z) => essenKi.gerichtZutatenSammeln(z, id, inputs, personen), 201);
 });
 
@@ -1561,7 +1574,7 @@ route('POST', '/api/essensplanung/planung/einplanungen', (req) => {
   const input = validateEinplanung(req.json);
   return essenAendern(
     req,
-    (z) => essenPlanung.einplanen(z, input, readPosition(req.json?.position)),
+    (z) => essenEinplanung.einplanen(z, input, readPosition(req.json?.position)),
     201
   );
 });
@@ -1570,11 +1583,17 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/einplanungen/:id', (req) 
   const id = Number(req.params.id);
   if (req.method === 'DELETE')
     return essenAendern(req, (z) =>
-      essenPlanung.einplanungAendern(z, id, null, req.headers['if-match'])
+      essenEinplanung.einplanungAendern(z, id, null, req.headers['if-match'])
     );
   const input = validateEinplanung(req.json);
   return essenAendern(req, (z) =>
-    essenPlanung.einplanungAendern(z, id, input, req.json?.etag, readPosition(req.json?.position))
+    essenEinplanung.einplanungAendern(
+      z,
+      id,
+      input,
+      req.json?.etag,
+      readPosition(req.json?.position)
+    )
   );
 });
 

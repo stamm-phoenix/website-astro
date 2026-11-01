@@ -1,5 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import { anlegen } from './essensplanung-helpers';
+import { anlegen, einplanen } from './essensplanung-helpers';
 
 test('the shopping list sums the dishes and extra needs, less the stock, by shop', async ({
   page,
@@ -32,12 +32,7 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await expect(dialog).toBeHidden();
 
   await page.getByRole('tab', { name: 'Plan' }).click();
-  for (const mahlzeit of ['1_2', '2_2']) {
-    await page.getByRole('button', { name: `Gericht einplanen bei ${mahlzeit}` }).click();
-    await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Nudeln' });
-    await dialog.getByRole('button', { name: 'Einplanen' }).click();
-    await expect(dialog).toBeHidden();
-  }
+  for (const mahlzeit of ['1_2', '2_2']) await einplanen(page, mahlzeit, 'Nudeln');
 
   // 2 × 1 kg pasta, without a shop yet
   await page.getByRole('tab', { name: 'Einkauf' }).click();

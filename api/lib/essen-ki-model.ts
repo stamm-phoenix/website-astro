@@ -41,8 +41,11 @@ export interface KiHinweis {
 
 export interface KiPruefung {
   hinweise: KiHinweis[];
-  /** The people of the dish that was checked; taking over an amount sends them back. */
-  personen: number;
+  /**
+   * The people of the dish that was checked (null: none yet); taking over an amount sends them
+   * back.
+   */
+  personen: number | null;
 }
 
 /**
@@ -89,8 +92,8 @@ export interface KiRezeptZeile {
 export interface KiRezept {
   /** For how many the recipe was written, if it says so. */
   rezeptPersonen: number | null;
-  /** The people of the dish the amounts were scaled to. */
-  personen: number;
+  /** The people of the dish the amounts were scaled to; null: the dish has none, amounts as written. */
+  personen: number | null;
   zeilen: KiRezeptZeile[];
 }
 
@@ -173,10 +176,12 @@ function einheitBleibt(
 function aenderungFuer(
   hinweis: z.infer<typeof hinweisSchema>,
   zeile: GerichtZutat,
-  art: EssenEinheitenart | undefined
+  art: EssenEinheitenart | undefined,
+  /** False for a scaling line of a dish without people: there is nothing to scale against. */
+  mengeErlaubt = true
 ): KiAenderung | undefined {
   const aenderung: KiAenderung = {};
-  if (hinweis.menge !== null) {
+  if (hinweis.menge !== null && mengeErlaubt) {
     const einheit = hinweis.einheit ?? zeile.einheit;
     // A new amount stays in the base unit of the line: 500 ml of pasta is no proposal
     if (einheit && einheitBleibt(einheit, zeile, art)) {
@@ -247,7 +252,12 @@ export function leseKiPruefung(
     const zeile =
       hinweis.zeile !== null && hinweis.zeile >= 1 ? gericht.zutaten[hinweis.zeile - 1] : undefined;
     const aenderung = zeile
-      ? aenderungFuer(hinweis, zeile, zutaten.get(zeile.planungZutatId)?.einheitenart)
+      ? aenderungFuer(
+          hinweis,
+          zeile,
+          zutaten.get(zeile.planungZutatId)?.einheitenart,
+          gericht.personen !== null || zeile.fest
+        )
       : undefined;
     hinweise.push({
       art: hinweis.art,

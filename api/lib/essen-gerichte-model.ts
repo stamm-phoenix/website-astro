@@ -228,8 +228,11 @@ export interface Gericht {
   id: number;
   etag: string;
   name: string;
-  /** The amounts of the lines are for this many people. */
-  personen: number;
+  /**
+   * The amounts of the lines are for this many people; null while the dish is only a name in the
+   * plan, then lines that scale with the eaters cannot be worked out (`docs/essensplanung.md`).
+   */
+  personen: number | null;
   anleitung: string;
   notiz: string;
   links: GerichtLink[];
@@ -335,7 +338,8 @@ export function einheitText(einheit: GerichtEinheit, abtropfgewicht = false): st
 /** The fields of a dish; on a change only those sent. */
 export interface GerichtInput {
   name?: string;
-  personen?: number;
+  /** null: no number of people (yet). */
+  personen?: number | null;
   anleitung?: string;
   notiz?: string;
   links?: GerichtLink[];

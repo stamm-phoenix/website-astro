@@ -376,6 +376,33 @@ test("the recipe's word for a tin or a clove is kept where nothing converts it",
   );
 });
 
+test('without people a recipe keeps its amounts and a check proposes none', async (t) => {
+  modell(t, {
+    rezeptPersonen: 4,
+    zeilen: [
+      {
+        original: '400 g Spaghetti',
+        name: 'Spaghetti',
+        key: 'p11',
+        menge: 400,
+        einheit: 'g',
+        hinweis: '',
+      },
+    ],
+  });
+  const rezept = await liesRezept('Spaghetti für 4 …', null, [SPAGHETTI], KATALOG);
+  assert.equal(rezept.rezeptPersonen, 4);
+  assert.equal(rezept.personen, null);
+  assert.equal(rezept.zeilen[0].menge, 400);
+
+  modell(t, {
+    hinweise: [hinweis({ zeile: 1, text: '100 kg Spaghetti sind viel.', menge: 1, einheit: 'kg' })],
+  });
+  const pruefung = await pruefeGericht({ ...GERICHT, personen: null }, [SPAGHETTI, HACK], KATALOG);
+  assert.equal(pruefung.personen, null);
+  assert.equal(pruefung.hinweise[0].aenderung, undefined);
+});
+
 test('an implausible estimate of grams is no estimate', async (t) => {
   modell(t, { gramm: 400, begruendung: 'Ein Esslöffel Zucker.' });
   assert.deepEqual(await schaetzeUmrechnung('Zucker', 'el'), {

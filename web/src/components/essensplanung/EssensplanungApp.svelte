@@ -46,6 +46,8 @@
     | 'einstellungen'
   >('plan');
   let offline = $state(false);
+  /** The dish to open in the area of the dishes; `n` counts, so the same one opens again. */
+  let zielGericht = $state<{ id: number; n: number } | null>(null);
 
   const bereiche = $derived([
     { id: 'plan', label: 'Plan' },
@@ -177,6 +179,10 @@
     aendern,
     hinweis,
     zeige,
+    oeffneGericht(id: number) {
+      bereich = 'gerichte';
+      zielGericht = { id, n: (zielGericht?.n ?? 0) + 1 };
+    },
   };
 
   onMount(() => {
@@ -329,7 +335,7 @@
       aria-labelledby="bereich-gerichte"
       hidden={bereich !== 'gerichte'}
     >
-      <PlanGerichte {kontext} sichtbar={bereich === 'gerichte'} />
+      <PlanGerichte {kontext} sichtbar={bereich === 'gerichte'} ziel={zielGericht} />
     </div>
     <div
       role="tabpanel"

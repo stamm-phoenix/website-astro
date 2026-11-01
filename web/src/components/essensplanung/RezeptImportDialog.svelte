@@ -72,10 +72,16 @@
   let speichert = $state(false);
   let fehler = $state<string | null>(null);
   let textFehler = $state<string | undefined>(undefined);
-  let rezept = $state<{ rezeptPersonen: number | null; personen: number } | null>(null);
+  /** `personen`: what the amounts are for; null while the dish has no number (as written). */
+  let rezept = $state<{ rezeptPersonen: number | null; personen: number | null } | null>(null);
   let zeilen = $state<Zeile[]>([]);
-  /** The people of the dish now, when it changed after the amounts were scaled. */
-  let personenNeu = $state<number | null>(null);
+  /**
+   * The people of the dish now, when they changed after the amounts were scaled (null: taken
+   * away); undefined while nothing changed.
+   */
+  let personenNeu = $state<number | null | undefined>(undefined);
+  /** A dish without people takes the number the recipe names, unless unticked. */
+  let personenUebernehmen = $state(true);
   /** Set once the lines are taken over; nothing is left to lose then. */
   let fertig = $state(false);
   /** Set when the member closes on purpose, discarding the input. */
@@ -192,7 +198,8 @@
         { text }
       );
       rezept = { rezeptPersonen: antwort.rezeptPersonen, personen: antwort.personen };
-      personenNeu = null;
+      personenNeu = undefined;
+      personenUebernehmen = true;
       zeilen = antwort.zeilen.map(zeileVon);
       ursprung = zeilen.map(schnappschuss);
       erkannt = text;
@@ -235,8 +242,12 @@
 
   /** Scales the amounts to the people the dish has now, after someone changed them. */
   function umrechnen(): void {
-    if (!rezept || !personenNeu) return;
-    const faktor = personenNeu / rezept.personen;
+    if (!rezept || personenNeu === undefined) return;
+    // Without people the amounts are as written, i.e. for the people of the recipe if it says
+    const basis = (personen: number | null) => personen ?? rezept!.rezeptPersonen;
+    const von = basis(rezept.personen);
+    const nach = basis(personenNeu);
+    const faktor = von && nach ? nach / von : 1;
     for (const zeile of zeilen) {
       zeile.menge = skaliereMenge(zeile.menge, faktor, zeile.einheit);
       if (zeile.alternative)
@@ -247,8 +258,18 @@
         );
     }
     rezept.personen = personenNeu;
-    personenNeu = null;
+    personenNeu = undefined;
     fehler = null;
+  }
+
+  /** After taking over: a dish still without people gets the number of the recipe. */
+  async function personenSetzen(personen: number): Promise<void> {
+    const jetzt = kontext.ansicht.gerichte.find((g) => g.id === gericht.id);
+    if (!jetzt || jetzt.personen !== null) return;
+    await kontext.aendern(
+      () => kontext.api.senden('PATCH', `/gerichte/${jetzt.id}`, { etag: jetzt.etag, personen }),
+      `Zutaten übernommen, ${jetzt.name} ist jetzt für ${personen} Personen.`
+    );
   }
 
   function getippt(zeile: Zeile, eingabe: string): void {
@@ -320,7 +341,10 @@
       if (ok) {
         fertig = true;
         zeilen = [];
+        const zahl =
+          rezept?.personen === null && personenUebernehmen ? rezept.rezeptPersonen : null;
         onclose();
+        if (zahl) await personenSetzen(zahl);
       } else if (allgemein.length) {
         fehler = `${allgemein.join(' ')} Es wurde nichts übernommen. Bitte wähle Zutaten ab und übernimm noch einmal.`;
       } else if (!zeilen.some((zeile) => Object.keys(zeile.fehler).length)) {
@@ -400,7 +424,11 @@
       <fieldset class="min-w-0 space-y-4" disabled={speichert}>
         <p class="text-sm text-neutral-700" role="status">
           Von der KI erkannt und ungeprüft.
-          {#if rezept.rezeptPersonen && rezept.rezeptPersonen !== rezept.personen}
+          {#if rezept.personen === null}
+            Die Mengen stehen wie im Rezept{rezept.rezeptPersonen
+              ? ` für ${rezept.rezeptPersonen} Personen`
+              : ''}.
+          {:else if rezept.rezeptPersonen && rezept.rezeptPersonen !== rezept.personen}
             Die Mengen sind von {rezept.rezeptPersonen} auf {rezept.personen} Personen umgerechnet.
           {:else if !rezept.rezeptPersonen}
             Das Rezept nennt keine Personenzahl: Die Mengen stehen wie im Rezept, bitte für
@@ -415,9 +443,17 @@
           </p>
         {/if}
         {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
-        {#if personenNeu}
+        {#if rezept.personen === null && rezept.rezeptPersonen && personenNeu === undefined}
+          <label class="flex items-center gap-2 text-sm any-pointer-coarse:min-h-11">
+            <input type="checkbox" class="h-5 w-5" bind:checked={personenUebernehmen} />
+            Personenzahl {rezept.rezeptPersonen} für das Gericht übernehmen
+          </label>
+        {/if}
+        {#if personenNeu !== undefined}
           <ActionButton type="button" onclick={umrechnen}
-            >Mengen auf {personenNeu} Personen umrechnen</ActionButton
+            >{personenNeu === null
+              ? 'Mengen wie im Rezept übernehmen'
+              : `Mengen auf ${personenNeu} Personen umrechnen`}</ActionButton
           >
         {/if}
         <ul class="divide-y divide-neutral-200 border-y border-neutral-200">

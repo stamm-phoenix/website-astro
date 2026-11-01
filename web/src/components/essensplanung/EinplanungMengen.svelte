@@ -1,5 +1,4 @@
 <script lang="ts">
-  import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import type { esserRechner } from '../../lib/essensplanungRechnung';
   import { zahlText } from '../../lib/essensplanungTeilnehmende';
   import { einplanungZeilen } from '../../lib/essensplanungDruck';
@@ -7,8 +6,8 @@
   import type { PlanKontext } from './planKontext';
 
   /**
-   * The amounts of a planned dish at its meal, scaled to who eats there. Folded on the screen,
-   * always on paper, so the printed plan is the kitchen's list.
+   * The amounts of a planned dish at its meal, scaled to who eats there; shown where the planned
+   * dish is unfolded in the list.
    */
 
   interface Props {
@@ -49,17 +48,12 @@
   {/if}
 {/snippet}
 
-<div class="basis-full">
-  <details class="print:hidden">
-    <summary
-      class="flex min-h-11 cursor-pointer list-none items-center gap-1 py-2 text-sm font-semibold text-link [&::-webkit-details-marker]:hidden"
-      aria-label="Mengen für {zahlText(portionen)} Portionen von {name}"
-      >Mengen für {zahlText(portionen)} Portionen<AufklappPfeil class="text-link" /></summary
-    >
-    {@render liste()}
-  </details>
-  <div class="hidden print:block">
-    <p class="text-sm font-semibold">Mengen für {zahlText(portionen)} Portionen</p>
-    {@render liste()}
-  </div>
+<!-- The PDF of the plan prints the same lines (einplanungZeilen) -->
+<div class="space-y-1">
+  <p class="text-sm font-semibold">
+    Mengen für {zahlText(portionen)} Portionen
+    {#if mengen.personenFehlen}<span class="font-normal text-warning">· Personenzahl fehlt</span
+      >{/if}
+  </p>
+  {@render liste()}
 </div>

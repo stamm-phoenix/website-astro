@@ -11,10 +11,8 @@ import { isRecord, lenientObject } from './validation/zod';
 const ALWAYS = (): boolean => true;
 
 const EMAIL = /^[^\s@]+@([a-z0-9-]+\.)+[a-z]{2,}$/;
-const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const MAIL_INVALID = 'Bitte eine gültige Mailadresse eintragen, z. B. name@beispiel.de.';
-const TIME_INVALID = 'Bitte eine Uhrzeit wie 12:30 eintragen.';
 
 /** A trimmed text of 1 to `max` characters; anything but a string counts as empty. */
 function text(max: number, missing: string) {
@@ -105,13 +103,9 @@ export const emailSchema = lenientObject({ email });
 
 export const tagSchema = lenientObject({ datum: datum('Bitte ein Datum wählen.') });
 
+/** A meal; a time (`uhrzeit`) sent by an older page is ignored, the plan has none any more. */
 export const mahlzeitSchema = lenientObject({
   name: text(50, 'Bitte einen Namen eintragen.'),
-  // Empty or no text is no time; only the first five characters count
-  uhrzeit: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() ? value.trim().slice(0, 5) : null),
-    z.string({ error: TIME_INVALID }).regex(TIME, { error: TIME_INVALID }).nullable()
-  ),
 });
 
 /**
@@ -166,10 +160,8 @@ export const positionSchema = z
 const positiveId = (message: string) =>
   z.number({ error: message }).refine((id) => Number.isInteger(id) && id > 0, { error: message });
 
-/** A dish at a meal, or moved or copied to one. */
-export const einplanungSchema = lenientObject({
+const einplanungFelder = {
   mahlzeitId: positiveId('Bitte eine Mahlzeit wählen.'),
-  gerichtId: positiveId('Bitte ein Gericht wählen.'),
   faktor: z.preprocess(
     (value) => (value === undefined ? 1 : leseFaktor(value)),
     z.number({ error: FAKTOR_FEHLER }).refine(faktorGueltig, { error: FAKTOR_FEHLER })
@@ -182,16 +174,30 @@ export const einplanungSchema = lenientObject({
     (value) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : ''),
     z.string()
   ),
-}).superRefine(
-  ({ zustaendigId, zustaendigText }, ctx) => {
-    // A member and a free name exclude each other; that message wins over the length.
-    const message =
-      zustaendigId != null && zustaendigText
-        ? 'Entweder ein Mitglied oder einen Namen.'
-        : zustaendigText.length > 100
-          ? 'Höchstens 100 Zeichen.'
-          : undefined;
-    if (message) ctx.addIssue({ code: 'custom', path: ['zustaendigText'], message });
-  },
+};
+
+/** A member and a free name exclude each other; that message wins over the length. */
+function zustaendigPruefen(
+  { zustaendigId, zustaendigText }: { zustaendigId: number | null; zustaendigText: string },
+  ctx: z.RefinementCtx
+): void {
+  const message =
+    zustaendigId != null && zustaendigText
+      ? 'Entweder ein Mitglied oder einen Namen.'
+      : zustaendigText.length > 100
+        ? 'Höchstens 100 Zeichen.'
+        : undefined;
+  if (message) ctx.addIssue({ code: 'custom', path: ['zustaendigText'], message });
+}
+
+/** A dish at a meal, or moved or copied to one. */
+export const einplanungSchema = lenientObject({
+  ...einplanungFelder,
+  gerichtId: positiveId('Bitte ein Gericht wählen.'),
+}).superRefine(zustaendigPruefen, { when: ALWAYS });
+
+/** Where a dish created in the plan goes: its meal, factor and who is responsible. */
+export const gerichtEinplanungSchema = lenientObject(einplanungFelder).superRefine(
+  zustaendigPruefen,
   { when: ALWAYS }
 );

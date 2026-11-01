@@ -1,5 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-import { anlegen, zeilenMenge } from './essensplanung-helpers';
+import { anlegen, aufklappen, einplanen, zeilenMenge } from './essensplanung-helpers';
 
 test('a planned dish shows its amounts for the people who eat at the meal', async ({ page }) => {
   // Many steps through three areas: more than the usual time
@@ -53,11 +53,9 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
 
   // At lunch: 16 portions, the mince for the 10 who eat meat: 400 g ÷ 4 × 10 = 1 kg
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
-  await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Chili' });
-  await dialog.getByRole('button', { name: 'Einplanen' }).click();
-  await expect(page.getByText('Chili eingeplant.').first()).toBeVisible();
-  await page.locator('summary', { hasText: 'Mengen für 16 Portionen' }).first().click();
+  await einplanen(page, '1_2', 'Chili');
+  await expect(page.getByRole('list', { name: 'Gerichte bei 1_2' })).toContainText('16 Portionen');
+  await aufklappen(page, '1_2_1', 'Chili');
   const mengen = page.getByRole('list', { name: 'Mengen für Chili bei 1_2' }).first();
   await expect(mengen).toContainText('1 kg Hackfleisch · nur mit allem · für 10 Portionen');
   // The two lines of oil read apart: 40 ml ÷ 4 × 10, and 40 ml ÷ 4 × 6 for the Rover
@@ -66,13 +64,14 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
   await expectNoHorizontalOverflow(page);
 
   // Half of it at dinner
-  await page.getByRole('button', { name: 'Gericht einplanen bei 1_4' }).click();
-  await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Chili' });
+  await einplanen(page, '1_4', 'Chili');
+  await aufklappen(page, '1_4_1', 'Chili');
+  await page.getByRole('button', { name: 'Chili bei 1_4_1 ändern' }).click();
   await dialog.getByLabel('Faktor', { exact: true }).fill('0,5');
-  await dialog.getByRole('button', { name: 'Einplanen' }).click();
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog).toBeHidden();
   // The portions follow the factor too: 16 × 0,5
-  await page.locator('summary', { hasText: 'Mengen für 8 Portionen' }).click();
+  await expect(page.getByText('Mengen für 8 Portionen')).toBeVisible();
   const abend = page.getByRole('list', { name: 'Mengen für Chili bei 1_4' }).first();
   await expect(abend).toContainText('500 g Hackfleisch · nur mit allem · für 5 Portionen');
   await expect(abend).toContainText('30 ml Sonnenblumenöl · nur bei Gluten · für 3 Portionen');

@@ -26,7 +26,7 @@ test('a Planung is created, its meals are edited and others see the changes', as
   await expect(page.getByLabel('Name von 1_1')).toHaveValue('Mittagessen');
 
   await page.getByLabel('Neue Mahlzeit an Tag 2').fill('Abschlussgrillen');
-  await page.getByRole('button', { name: 'Hinzufügen', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Mahlzeit hinzufügen' }).last().click();
   await expect(page.getByLabel('Name von 2_6')).toHaveValue('Abschlussgrillen');
 
   await page.getByRole('button', { name: 'Tag danach hinzufügen' }).click();
@@ -328,7 +328,7 @@ test('the skip link keeps the Planung on reload; a name typed while saving stays
 test('typing on while a meal or an invitation is saved keeps the next input', async ({ page }) => {
   await anlegen(page, 'E2E Weiter');
 
-  // The name is saved while the time has focus; a second name afterwards is no conflict
+  // The name is saved while the next meal has focus; a second name afterwards is no conflict
   let ersteMahlzeit = true;
   await page.route('**/api/essensplanung/planung/mahlzeiten/*', async (route) => {
     if (ersteMahlzeit && route.request().method() === 'PATCH') {
@@ -342,7 +342,7 @@ test('typing on while a meal or an invitation is saved keeps the next input', as
       response.url().includes('/planung/mahlzeiten/') && response.request().method() === 'PATCH'
   );
   await page.getByLabel('Name von 1_1').fill('Brunch');
-  await page.getByLabel('Uhrzeit von 1_1').focus();
+  await page.getByLabel('Name von 1_2').focus();
   await gespeichert;
   await page.getByLabel('Name von 1_1').fill('Spätes Frühstück');
   await page.getByLabel('Name von 1_1').press('Enter');

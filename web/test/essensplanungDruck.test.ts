@@ -4,6 +4,7 @@ import {
   anleitungAbsaetze,
   esserKalender,
   kochplan,
+  personenText,
   rezeptWarnungen,
   rezeptZeilen,
   teilnehmendeZeilen,
@@ -50,7 +51,6 @@ const mahlzeit = (id: number, kennung: string, name: string, einplanungen = [] a
   position: 1,
   kennung,
   name,
-  uhrzeit: null as string | null,
   einplanungen,
   ohneGruppen: [] as number[],
 });
@@ -78,6 +78,7 @@ const ansicht = {
               zustaendig: 'Kim',
             },
           ]),
+          // A time an older page saved is no longer shown
           uhrzeit: '12:30',
         },
       ],
@@ -149,7 +150,7 @@ test('the plan lists each meal with its dishes, portions and amounts', () => {
     ['Tag 1 · So., 1.8.2027', 'Tag 2 · Mo., 2.8.2027']
   );
   const mittag = tage[0].mahlzeiten[1];
-  assert.equal(mittag.titel, '1_2 Mittagessen, 12:30 Uhr');
+  assert.equal(mittag.titel, '1_2 Mittagessen');
   assert.equal(mittag.gerichte[0].kennung, '1_2_1');
   assert.equal(mittag.gerichte[0].name, 'Chili');
   assert.equal(mittag.gerichte[0].portionen, 10);
@@ -159,6 +160,28 @@ test('the plan lists each meal with its dishes, portions and amounts', () => {
     { menge: 'nach Gefühl', name: 'Salz', fuer: '', hinweis: 'zum Schluss' },
   ]);
   assert.equal(tage[1].mahlzeiten[0].ohne, 'ohne Pfadi');
+  assert.equal(mittag.gerichte[0].personenFehlen, false);
+});
+
+test('a dish without people says so for the lines that scale; fixed amounts count', () => {
+  const ohne = {
+    ...ansicht,
+    gerichte: [
+      {
+        ...ansicht.gerichte[0],
+        personen: null,
+        zutaten: [...ansicht.gerichte[0].zutaten, zeile(3, 2, 5, { fest: true })],
+      },
+    ],
+  } as unknown as PlanungAnsicht;
+  const gericht = kochplan(ohne, namen)[0].mahlzeiten[1].gerichte[0];
+  assert.equal(gericht.personenFehlen, true);
+  assert.deepEqual(
+    gericht.zeilen.map((z) => z.menge),
+    ['Personenzahl fehlt', 'nach Gefühl', '5 g']
+  );
+  assert.equal(personenText(ohne.gerichte[0]), 'Personenzahl fehlt');
+  assert.equal(personenText(ansicht.gerichte[0]), 'Für 4 Personen');
 });
 
 test('a recipe card names what a line contains and for whom it is', () => {
