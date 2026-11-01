@@ -44,7 +44,7 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await dialog.getByLabel('Zutat', { exact: true }).fill('Nudeln (Spag');
   await dialog.getByRole('option', { name: 'Nudeln (Spaghetti)' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('1,5');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('kg');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('kg');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
   const liste = page.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' });

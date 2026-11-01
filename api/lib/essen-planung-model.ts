@@ -292,6 +292,7 @@ export const AENDERUNG_TEXTE: Record<string, string> = {
   'einkauf-regel': 'Posten eines Einkaufs geändert',
   'einkauf-verschoben': 'Posten in anderen Einkauf verschoben',
   'einkauf-zurueckgeholt': 'Posten in Einkauf zurückgeholt',
+  'einheiten-vereinheitlicht': 'Einheiten einer Zutat vereinheitlicht',
   'packliste-neu': 'Auf die Packliste gesetzt',
   'packliste-geaendert': 'Packliste geändert',
   'packliste-geloescht': 'Von der Packliste genommen',

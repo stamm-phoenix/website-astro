@@ -1,5 +1,9 @@
 import { anwesend, mahlzeitenReihenfolge } from '../../../api/lib/essen-teilnehmende-model';
-import { einheitText } from '../../../api/lib/essen-gerichte-model';
+import {
+  einheitBasis,
+  einheitSchluessel,
+  einheitText,
+} from '../../../api/lib/essen-gerichte-model';
 import type { GerichtEinheit, GerichtZutat } from '../../../api/lib/essen-gerichte-model';
 import type { Ernaehrung, PlanungGruppe, Teilnehmende } from './types';
 
@@ -9,18 +13,19 @@ import type { Ernaehrung, PlanungGruppe, Teilnehmende } from './types';
  * (`test/essensplanungRechnung.test.ts`).
  */
 
-/** The units amounts are summed in; kg and l are counted in g and ml. */
-export type BasisEinheit = 'g' | 'ml' | 'stueck' | 'packung' | 'bund';
+/**
+ * The units amounts are summed in: kg and l are counted in g and ml, every other unit (also one
+ * of one's own, „Dose“) in itself.
+ */
+export type BasisEinheit = GerichtEinheit;
 
-const BASIS: Record<GerichtEinheit, { einheit: BasisEinheit; mal: number }> = {
-  g: { einheit: 'g', mal: 1 },
-  kg: { einheit: 'g', mal: 1000 },
-  ml: { einheit: 'ml', mal: 1 },
-  l: { einheit: 'ml', mal: 1000 },
-  stueck: { einheit: 'stueck', mal: 1 },
-  packung: { einheit: 'packung', mal: 1 },
-  bund: { einheit: 'bund', mal: 1 },
-};
+/**
+ * The key of an ingredient in a base unit, as sums, stock and lists are matched: upper and lower
+ * case of a unit of one's own are the same („Dose“, „dose“).
+ */
+export function mengenSchluessel(planungZutatId: number, einheit: GerichtEinheit): string {
+  return `${planungZutatId}:${einheitSchluessel(einheit)}`;
+}
 
 /** What decides who eats a line. */
 export type ZeileFuer = Pick<
@@ -112,7 +117,7 @@ export function inBasis(
   menge: number,
   einheit: GerichtEinheit
 ): { menge: number; einheit: BasisEinheit } {
-  const basis = BASIS[einheit];
+  const basis = einheitBasis(einheit);
   return { menge: menge * basis.mal, einheit: basis.einheit };
 }
 
@@ -209,14 +214,15 @@ export interface Summe {
 }
 
 /**
- * Sums the needs per ingredient and unit. An ingredient measured in different kinds of unit (a
- * tin in pieces and in grams) keeps one sum per kind; nothing is converted between them.
+ * Sums the needs per ingredient and base unit. An ingredient measured in different base units (a
+ * tin in pieces and in grams, herbs in Bund and in g) keeps one sum per base; nothing is converted
+ * between them. A unit of one's own is summed under its first spelling.
  */
 export function summiere(liste: Pick<Bedarf, 'planungZutatId' | 'menge' | 'einheit'>[]): Summe[] {
   const summen = new Map<string, Summe>();
   for (const eintrag of liste) {
     const basis = inBasis(eintrag.menge, eintrag.einheit);
-    const schluessel = `${eintrag.planungZutatId}:${basis.einheit}`;
+    const schluessel = mengenSchluessel(eintrag.planungZutatId, basis.einheit);
     const summe = summen.get(schluessel);
     if (summe) summe.menge += basis.menge;
     else summen.set(schluessel, { planungZutatId: eintrag.planungZutatId, ...basis });
@@ -225,7 +231,8 @@ export function summiere(liste: Pick<Bedarf, 'planungZutatId' | 'menge' | 'einhe
 }
 
 /**
- * A sum as bought: from 1000 g in kg and from 1000 ml in l, pieces, packs and bunches rounded up.
+ * A sum as bought: from 1000 g in kg and from 1000 ml in l, every other unit (pieces, packs,
+ * bunches, „Dose“) rounded up to whole ones.
  * Rounding comes after summing, so the list buys less surplus than rounding per dish.
  */
 export function einkaufsMenge(

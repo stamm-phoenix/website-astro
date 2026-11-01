@@ -10,7 +10,11 @@
   import { kochMenge } from '../../lib/essensplanungRechnung';
   import { postenMenge } from '../../lib/essensplanungEinkauf';
   import type { EinkaufListenPosten } from '../../lib/essensplanungEinkaeufe';
-  import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
+  import {
+    EINHEITEN_JE_ART,
+    einheitText,
+    einheitenGleicherBasis,
+  } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
   import { meldeVerloren, type PlanKontext } from './planKontext';
   import {
@@ -52,6 +56,8 @@
   const ansicht = $derived(kontext.ansicht);
 
   const einheiten = $derived.by((): readonly GerichtEinheit[] => {
+    // A thing with an amount is bought in its unit (g or kg, or its own like „Dose“)
+    if (posten.einheit) return einheitenGleicherBasis(posten.einheit);
     const art = ansicht.zutaten.find((z) => z.id === posten.planungZutatId)?.einheitenart;
     return art ? EINHEITEN_JE_ART[art] : [];
   });

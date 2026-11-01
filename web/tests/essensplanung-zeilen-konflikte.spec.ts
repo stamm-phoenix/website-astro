@@ -75,9 +75,7 @@ test('an amount typed for one ingredient does not go to another one others chose
   const zutat = gericht.getByLabel('Neue Zutat für Eintopf');
   await zutat.pressSequentially('Kidneyb');
   await zutat.press('Enter');
-  await expect(gericht.getByLabel('Einheit der neuen Zutat').locator('option').first()).toHaveText(
-    'g (ATG)'
-  );
+  await expect(gericht.getByLabel('Einheit der neuen Zutat')).toHaveValue('g (ATG)');
   await gericht.getByLabel('Menge der neuen Zutat').fill('500');
   await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
   await expect(page.getByText('Kidneybohnen hinzugefügt.').first()).toBeVisible();
@@ -357,7 +355,7 @@ test('a new row follows an ingredient of the list that others take over and meas
   await zutat.press('Enter');
   await gericht.getByLabel('Menge der neuen Zutat').fill('1,5');
   const einheit = gericht.getByLabel('Einheit der neuen Zutat');
-  await einheit.selectOption('l');
+  await einheit.fill('l');
 
   // B adds it without an amount and measures it in packs for this Planung
   const anderes = await (await browser.newContext()).newPage();
@@ -382,18 +380,15 @@ test('a new row follows an ingredient of the list that others take over and meas
   await anderes.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click();
   await expect(anderes.getByText('Ahornsirup gespeichert.').first()).toBeVisible();
 
-  // A's row now offers packs; the typed litres stay until changed
-  await expect(einheit.locator('option', { hasText: 'Packung' })).toHaveCount(1, {
-    timeout: 15_000,
-  });
+  // A's row keeps the typed litres, as any unit fits; it adds to the ingredient B measures anew
+  await expect(gericht.getByLabel('Menge von Ahornsirup')).toBeVisible({ timeout: 15_000 });
   await expect(einheit).toHaveValue('l');
-  await einheit.selectOption({ label: 'Packung' });
   await einheit.press('Enter');
-  await expect(gericht.getByLabel('Einheit von Ahornsirup').nth(1)).toHaveValue('packung');
+  await expect(gericht.getByLabel('Einheit von Ahornsirup').nth(1)).toHaveValue('l');
   await page.reload();
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByText('Pfannkuchen', { exact: true }).click();
   await expect(page.getByLabel('Menge von Ahornsirup').nth(1)).toHaveValue('1,5');
-  await expect(page.getByLabel('Einheit von Ahornsirup').nth(1)).toHaveValue('packung');
+  await expect(page.getByLabel('Einheit von Ahornsirup').nth(1)).toHaveValue('l');
   await anderes.context().close();
 });

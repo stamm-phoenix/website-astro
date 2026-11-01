@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import { leseMenge, mengeFeld } from '../../lib/essensplanungGerichte';
@@ -17,9 +18,11 @@
     katalog: EssenKatalog;
     /** The chosen ingredient: of the Planung (with `zutatId`) or of the central list. */
     zutat: PlanungZutat | KatalogZutat;
+    /** The amount the line has in TL, EL or pieces, to start with. */
+    vorgabe?: { anzahl: string; mass: KiMass };
     onuebernehmen: (gramm: number) => void;
   }
-  let { kontext, katalog, zutat, onuebernehmen }: Props = $props();
+  let { kontext, katalog, zutat, vorgabe, onuebernehmen }: Props = $props();
 
   const MASSE: {
     mass: KiMass;
@@ -39,8 +42,17 @@
     return MASSE.filter((eintrag) => !zentral || zentral[eintrag.feld] === null);
   });
 
-  let anzahl = $state('1');
-  let mass = $state<KiMass>('el');
+  let anzahl = $state(untrack(() => vorgabe?.anzahl ?? '1'));
+  let mass = $state<KiMass>(untrack(() => vorgabe?.mass ?? 'el'));
+  // The line typed in TL, EL or pieces: the estimate follows it
+  $effect(() => {
+    const von = vorgabe;
+    if (!von) return;
+    untrack(() => {
+      anzahl = von.anzahl;
+      mass = von.mass;
+    });
+  });
   let schaetzung = $state<KiUmrechnung | null>(null);
   let schaetzt = $state(false);
   let fehler = $state<string | null>(null);

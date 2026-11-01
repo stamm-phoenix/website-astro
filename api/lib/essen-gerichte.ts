@@ -20,7 +20,6 @@ import type {
 import {
   MAX_GERICHTE,
   MAX_PLANUNG_ZUTATEN,
-  einheitPasst,
   gerichtSperre,
   gerichtStand,
 } from './essen-gerichte-model';
@@ -30,7 +29,6 @@ import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
 import { sortiere as sortiereEinplanungen } from './essen-einplanung';
 import { listKategorien, listUnvertraeglichkeiten, listZutaten } from './essen-steuerung';
-import type { EssenEinheitenart } from './essen-validation';
 import { COLLATOR } from './essen-validation';
 import { ValidationError } from './validation/errors';
 import { zutatDerPlanung } from './essen-planung-zutat';
@@ -362,9 +360,6 @@ export async function planungZutatAendern(
       const zutat = await zutatDerPlanung(trx, zugang, id);
       const eigene = zutat.zutat_id === null;
       const input: PlanungZutatInput = validatePlanungZutat(body, { eigene });
-      const vorher = (zutat.einheitenart ?? zutat.z_einheitenart)!;
-      const nachher = (input.einheitenart ?? zutat.z_einheitenart)!;
-      if (nachher !== vorher) await pruefeEinheitenart(trx, id, nachher);
       if (eigene && input.name !== zutat.name) await pruefeEigenenNamen(trx, input.name!);
       await pruefeVerweise(trx, input.kategorieId, input.allergene ?? []);
       const result = await trx
@@ -388,53 +383,6 @@ export async function planungZutatAendern(
       return { result: undefined, details: { name: input.name ?? zutat.z_name } };
     })
   );
-}
-
-async function pruefeEinheitenart(trx: Db, planungZutatId: number, art: EssenEinheitenart) {
-  const [zeilen, bestand, zusatzbedarf, eingekauft, verbrauch] = await Promise.all([
-    trx
-      .selectFrom('essen.gericht_zutat')
-      .select('einheit')
-      .where('planung_zutat_id', '=', planungZutatId)
-      .where('einheit', 'is not', null)
-      .execute(),
-    trx
-      .selectFrom('essen.bestand')
-      .select('einheit')
-      .where('planung_zutat_id', '=', planungZutatId)
-      .execute(),
-    trx
-      .selectFrom('essen.zusatzbedarf')
-      .select('einheit')
-      .where('planung_zutat_id', '=', planungZutatId)
-      .execute(),
-    trx
-      .selectFrom('essen.einkauf_regel')
-      .select('einheit')
-      .where('planung_zutat_id', '=', planungZutatId)
-      .unionAll(
-        trx
-          .selectFrom('essen.einkauf_posten')
-          .select('einheit')
-          .where('planung_zutat_id', '=', planungZutatId)
-      )
-      .execute(),
-    trx
-      .selectFrom('essen.einplanung_verbrauch')
-      .select('einheit')
-      .where('planung_zutat_id', '=', planungZutatId)
-      .execute(),
-  ]);
-  if (
-    [...zeilen, ...bestand, ...zusatzbedarf, ...eingekauft, ...verbrauch].some(
-      (zeile) => !einheitPasst(art, zeile.einheit)
-    )
-  ) {
-    throw new ValidationError({
-      einheitenart:
-        'Gerichte, Bestand, Zusatzbedarf, Einkäufe oder abgehakter Verbrauch nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.',
-    });
-  }
 }
 
 /** Deletes an ingredient of the Planung that no line uses. */

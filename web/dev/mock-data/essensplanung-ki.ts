@@ -110,6 +110,12 @@ const EINHEIT: Record<string, string> = {
   packung: 'packung',
   pck: 'packung',
   bund: 'bund',
+  dose: 'packung',
+  dosen: 'packung',
+  becher: 'packung',
+  glas: 'packung',
+  zehe: 'stueck',
+  zehen: 'stueck',
 };
 
 /**
@@ -137,7 +143,7 @@ export function kiRezept(
       continue;
     }
     const teile =
-      /^(\d+(?:[.,]\d+)?)?\s*(g|kg|ml|l|EL|TL|Stück|Prise|Packung|Pck\.?|Bund)?\.?\s+(.+)$/i.exec(
+      /^(\d+(?:[.,]\d+)?)?\s*(g|kg|ml|l|EL|TL|Stück|Prise|Packung|Pck\.?|Bund|Dosen?|Becher|Glas|Zehen?)?\.?\s+(.+)$/i.exec(
         zeile
       );
     const name = (teile?.[3] ?? zeile).trim();
@@ -152,6 +158,8 @@ export function kiRezept(
       key: kandidat?.key ?? null,
       menge: teile?.[1] ? Number(teile[1].replace(',', '.')) : null,
       einheit: teile?.[1] ? (einheit ?? 'stueck') : null,
+      // The word of the recipe, as the model gives it
+      einheitRezept: teile?.[2] ?? '',
       hinweis: '',
     });
   }

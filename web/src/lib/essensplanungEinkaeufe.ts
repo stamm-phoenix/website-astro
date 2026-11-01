@@ -9,6 +9,7 @@ import {
   einkaufsMenge,
   inBasis,
   kochMenge,
+  mengenSchluessel,
   ohneMenge,
   summiere,
 } from './essensplanungRechnung';
@@ -82,7 +83,7 @@ export function einkaufsReihenfolge<E extends Pick<Einkauf, 'id' | 'datum' | 'po
   );
 }
 
-const schluessel = (id: number, einheit: BasisEinheit) => `${id}:${einheit}`;
+const schluessel = mengenSchluessel;
 
 /** An amount as bought, in its base unit: pieces, packs and bunches rounded up. */
 function gekauft(menge: number, einheit: BasisEinheit): number {
@@ -218,9 +219,10 @@ export function einkaufListen(
       ...[...noetigAlle.keys()].filter((key) => mit.has(Number(key.split(':')[0]))),
     ]);
     for (const key of keys) {
-      const [idText, basisText] = key.split(':');
-      const id = Number(idText);
-      const basis = basisText as BasisEinheit;
+      const id = Number(key.split(':')[0]);
+      // The base unit as first written („Dose“), for what is shown
+      const basis: BasisEinheit = (noetig.get(key) ?? noetigAlle.get(key) ?? fest.get(key))!
+        .einheit;
       const regel = einkauf.regeln.find((r) => r.planungZutatId === id);
       const haken = hakenJe.get(key) ?? null;
       // What was planned for something ticked off: without what was bought for it here

@@ -311,16 +311,69 @@ test('a recipe is mapped onto the lists, converted and scaled to the dish', asyn
     { zutat: { zutatId: 4 }, menge: 400, einheit: 'g', hinweis: 'gehackt', fuerVegetarisch: true },
     { zutat: { zutatId: 5 }, menge: 1250, einheit: 'g', hinweis: '', fuerVegetarisch: false },
     { zutat: null, menge: null, einheit: null, hinweis: '1 Prise', fuerVegetarisch: true },
-    {
-      zutat: { zutatId: 13 },
-      menge: null,
-      einheit: null,
-      hinweis: '5 EL (Rezept: 2 EL für 4 Personen)',
-      fuerVegetarisch: true,
-    },
+    // No grams per EL: the recipe's unit stays, scaled, never a note
+    { zutat: { zutatId: 13 }, menge: 5, einheit: 'EL', hinweis: '', fuerVegetarisch: true },
     // Not offered, so not mapped either
     { zutat: null, menge: null, einheit: null, hinweis: '', fuerVegetarisch: true },
   ]);
+  // A converted amount keeps the recipe's to take instead
+  assert.deepEqual(
+    rezept.zeilen.map((zeile) => zeile.rezeptMenge),
+    [
+      null,
+      { menge: 5, einheit: 'EL' },
+      { menge: 2.5, einheit: 'TL' },
+      { menge: 5, einheit: 'stueck' },
+      null,
+      null,
+      null,
+      null,
+    ]
+  );
+});
+
+test("the recipe's word for a tin or a clove is kept where nothing converts it", async (t) => {
+  modell(t, {
+    rezeptPersonen: 4,
+    zeilen: [
+      {
+        original: '3 Bund TK-Petersilie',
+        name: 'Petersilie',
+        key: 'z6',
+        menge: 3,
+        einheit: 'bund',
+        einheitRezept: 'Bund',
+        hinweis: '',
+        inhaltMenge: null,
+        inhaltEinheit: null,
+      },
+      {
+        original: '2 Zehen Knoblauch',
+        name: 'Knoblauch',
+        key: 'z13',
+        menge: 2,
+        einheit: 'stueck',
+        einheitRezept: 'Zehen',
+        hinweis: 'gepresst',
+        inhaltMenge: null,
+        inhaltEinheit: null,
+      },
+    ],
+  });
+  const rezept = await liesRezept('…', 8, [], KATALOG);
+  assert.deepEqual(
+    rezept.zeilen.map(({ menge, einheit, hinweis, rezeptMenge }) => ({
+      menge,
+      einheit,
+      hinweis,
+      rezeptMenge,
+    })),
+    [
+      // Salt is measured in g here, yet the bunches stay bunches
+      { menge: 6, einheit: 'bund', hinweis: '', rezeptMenge: null },
+      { menge: 4, einheit: 'Zehe', hinweis: 'gepresst', rezeptMenge: null },
+    ]
+  );
 });
 
 test('an implausible estimate of grams is no estimate', async (t) => {
@@ -435,7 +488,8 @@ test('a tin with its weight in brackets counts by that weight, scaled', async (t
       { zutat: { zutatId: 11 }, menge: 1000, einheit: 'g' },
       { zutat: { zutatId: 11 }, menge: 1000, einheit: 'g' },
       { zutat: { zutatId: 10 }, menge: 400, einheit: 'ml' },
-      { zutat: { zutatId: 10 }, menge: null, einheit: null },
+      // Counted in cups, as the recipe says
+      { zutat: { zutatId: 10 }, menge: 2, einheit: 'packung' },
     ]
   );
 });
@@ -468,43 +522,19 @@ test('for ingredients by drained weight only an express drained weight counts', 
   });
   const rezept = await liesRezept('…', 8, [], KATALOG);
   assert.deepEqual(
-    rezept.zeilen.map(({ zutat, menge, einheit, hinweis, mengeFehlt }) => ({
+    rezept.zeilen.map(({ zutat, menge, einheit, hinweis }) => ({
       zutat,
       menge,
       einheit,
       hinweis,
-      mengeFehlt,
     })),
     [
-      {
-        zutat: { zutatId: 12 },
-        menge: null,
-        einheit: null,
-        hinweis: '1 Packung à 400 g, Abtropfgewicht eintragen',
-        mengeFehlt: true,
-      },
-      {
-        zutat: { zutatId: 12 },
-        menge: null,
-        einheit: null,
-        hinweis: '1 Packung à 400 g, Abtropfgewicht eintragen',
-        mengeFehlt: true,
-      },
-      { zutat: { zutatId: 12 }, menge: 480, einheit: 'g', hinweis: '', mengeFehlt: false },
-      {
-        zutat: { zutatId: 12 },
-        menge: 480,
-        einheit: 'g',
-        hinweis: 'abgetropft 240 g',
-        mengeFehlt: false,
-      },
-      {
-        zutat: { zutatId: 8 },
-        menge: null,
-        einheit: null,
-        hinweis: '1 Packung à 400 g, Abtropfgewicht eintragen, gehackt, 400 g',
-        mengeFehlt: true,
-      },
+      // The filled weight is no drained weight: the tins are counted, with what one holds
+      { zutat: { zutatId: 12 }, menge: 2, einheit: 'packung', hinweis: 'à 400 g' },
+      { zutat: { zutatId: 12 }, menge: 2, einheit: 'packung', hinweis: 'à 400 g' },
+      { zutat: { zutatId: 12 }, menge: 480, einheit: 'g', hinweis: '' },
+      { zutat: { zutatId: 12 }, menge: 480, einheit: 'g', hinweis: 'abgetropft 240 g' },
+      { zutat: { zutatId: 8 }, menge: 2, einheit: 'packung', hinweis: 'gehackt, 400 g' },
     ]
   );
 });
@@ -526,7 +556,7 @@ test('hints use the words of the page, never the field names of the data', async
   assert.equal(hinweise[0].vorschlag, 'Setze bei „nicht bei“ Gluten, und vegan bleibt.');
 });
 
-test('an amount that cannot be converted is asked for, scaled in the note', async (t) => {
+test("an amount that cannot be converted keeps the recipe's unit, scaled", async (t) => {
   modell(t, {
     rezeptPersonen: 4,
     zeilen: [
@@ -554,24 +584,12 @@ test('an amount that cannot be converted is asked for, scaled in the note', asyn
   });
   const rezept = await liesRezept('…', 8, [], KATALOG);
   assert.deepEqual(
-    rezept.zeilen.map(({ zutat, menge, einheit, hinweis, mengeFehlt }) => ({
-      zutat,
-      menge,
-      einheit,
-      hinweis,
-      mengeFehlt,
-    })),
+    rezept.zeilen.map(({ zutat, menge, einheit, hinweis }) => ({ zutat, menge, einheit, hinweis })),
     [
-      // Never saved as „nach Gefühl“ with the recipe's 2 EL for 4 people
-      {
-        zutat: { zutatId: 13 },
-        menge: null,
-        einheit: null,
-        hinweis: '4 EL (Rezept: 2 EL für 4 Personen)',
-        mengeFehlt: true,
-      },
+      // Never saved as „nach Gefühl“ nor as a note: 2 EL for 4 people are 4 EL for 8
+      { zutat: { zutatId: 13 }, menge: 4, einheit: 'EL', hinweis: '' },
       // A pinch stays a pinch, by eye
-      { zutat: { zutatId: 6 }, menge: null, einheit: null, hinweis: '1 Prise', mengeFehlt: false },
+      { zutat: { zutatId: 6 }, menge: null, einheit: null, hinweis: '1 Prise' },
     ]
   );
 });

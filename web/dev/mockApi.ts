@@ -98,6 +98,8 @@ import {
   validateBelegAenderung,
 } from '../../api/lib/essen-belege-validation';
 import * as essenKi from './mock-data/essensplanung-ki';
+import * as essenEinheiten from './mock-data/essensplanung-einheiten';
+import { validateEinheiten } from '../../api/lib/essen-einheiten-schema';
 import * as essenKochen from './mock-data/essensplanung-kochen';
 import * as essenEinkaeufe from './mock-data/essensplanung-einkaeufe';
 import {
@@ -1645,6 +1647,22 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/geschaefte/:id', (req) =>
     );
   const input = validateGeschaeft(req.json);
   return essenAendern(req, (z) => essenEinkauf.geschaeftAendern(z, id, input, req.json?.etag));
+});
+
+route('PUT', '/api/essensplanung/planung/zutaten/:id/einheiten', (req) => {
+  const zeilen = validateEinheiten(req.json);
+  return essenAendern(req, (z) =>
+    essenEinheiten.einheitenUebernehmen(z, Number(req.params.id), zeilen)
+  );
+});
+
+route('POST', '/api/essensplanung/planung/ki/einheiten', (req) => {
+  const id = Number(req.json?.planungZutatId);
+  if (!Number.isInteger(id) || id <= 0)
+    return error(400, 'INVALID', 'Bitte eine Zutat wählen.', {
+      planungZutatId: 'Bitte eine Zutat wählen.',
+    });
+  return essenKiFrage(req, (z, wartung) => essenEinheiten.kiEinheiten(z, id, wartung));
 });
 
 route('PUT', '/api/essensplanung/planung/zutaten/:id/geschaeft', (req) => {

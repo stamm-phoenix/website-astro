@@ -81,7 +81,7 @@ test('ticking off keeps what was bought, rounded as stored, and a replacement', 
   );
   assert.deepEqual(
     fields(() =>
-      validateHaken({ planungZutatId: 0, einheit: 'dose', erhalten: -1, ersatz: 'x'.repeat(101) })
+      validateHaken({ planungZutatId: 0, einheit: '', erhalten: -1, ersatz: 'x'.repeat(101) })
     ),
     {
       planungZutatId: 'Diese Zutat gibt es nicht.',

@@ -197,6 +197,7 @@ const AENDERUNGEN: Record<string, string> = {
   'einkauf-regel': 'hat einen Posten eines Einkaufs angepasst',
   'einkauf-verschoben': 'hat einen Posten in einen anderen Einkauf verschoben',
   'einkauf-zurueckgeholt': 'hat einen Posten in einen Einkauf zurückgeholt',
+  'einheiten-vereinheitlicht': 'hat die Einheiten einer Zutat vereinheitlicht',
   'packliste-neu': 'hat etwas auf die Packliste gesetzt',
   'packliste-geaendert': 'hat die Packliste geändert',
   'packliste-geloescht': 'hat etwas von der Packliste genommen',

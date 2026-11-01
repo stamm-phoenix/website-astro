@@ -53,7 +53,7 @@ test('anything goes on the shopping list by name, without the list and an amount
   await expect(dialog.getByLabel('Zutat', { exact: true })).toHaveValue('Kochhandschuhe');
   // A thing of its own typed without an amount is counted in pieces
   await dialog.getByLabel('Menge (optional)').fill('2');
-  await expect(dialog.getByLabel('Einheit', { exact: true })).toHaveValue('stueck');
+  await expect(dialog.getByLabel('Einheit', { exact: true })).toHaveValue('Stück');
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog).toBeHidden();
   await expect(sonstiges).toContainText('2 Stück Kochhandschuhe');

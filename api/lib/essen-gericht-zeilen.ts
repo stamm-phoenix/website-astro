@@ -2,14 +2,12 @@ import type { Transaction } from 'kysely';
 import type { Db } from './db';
 import { RecordNotFoundError, VersionConflictError, lockResource, requireVersion } from './db';
 import type { Database } from './db-schema';
-import type { GerichtEinheit } from './essen-gerichte-model';
-import { MAX_ZEILEN_PRO_GERICHT, einheitPasst, gerichtSperre } from './essen-gerichte-model';
+import { MAX_ZEILEN_PRO_GERICHT, gerichtSperre } from './essen-gerichte-model';
 import type { GerichtZutatInput } from './essen-gerichte-validation';
 import { gerichtDerPlanung, pruefeVerweise } from './essen-gerichte';
 import type { Zugang } from './essen-planung';
 import { PlanungError, aendere } from './essen-planung';
 import { zutatDerPlanungFuer } from './essen-planung-zutat';
-import type { EssenEinheitenart } from './essen-validation';
 import { ValidationError } from './validation/errors';
 
 /**
@@ -68,7 +66,7 @@ function zeilenWerte(input: GerichtZutatInput, planungZutatId: number) {
   return {
     planung_zutat_id: planungZutatId,
     menge: input.menge,
-    einheit: input.einheit as GerichtEinheit | null,
+    einheit: input.einheit,
     fest: input.fest,
     fuer_alles: input.fuerAlles,
     fuer_vegetarisch: input.fuerVegetarisch,
@@ -76,25 +74,6 @@ function zeilenWerte(input: GerichtZutatInput, planungZutatId: number) {
     hinweis: input.hinweis,
   };
 }
-
-function pruefeEinheit(
-  zutat: { name: string; einheitenart: EssenEinheitenart },
-  input: GerichtZutatInput
-) {
-  if (!einheitPasst(zutat.einheitenart, input.einheit)) {
-    throw new ValidationError({
-      einheit: `${zutat.name} wird in ${EINHEITENART_TEXT[zutat.einheitenart]} gemessen.`,
-    });
-  }
-}
-
-const EINHEITENART_TEXT: Record<EssenEinheitenart, string> = {
-  masse: 'g oder kg',
-  volumen: 'ml oder l',
-  stueck: 'Stück',
-  packung: 'Packungen',
-  bund: 'Bund',
-};
 
 /** The number of lines of a dish; refuses `neu` more beyond the limit. */
 async function pruefeAnzahl(trx: Db, gerichtId: number, neu: number): Promise<number> {
@@ -120,7 +99,6 @@ async function fuegeZeileEin(
   position: number
 ): Promise<{ id: number; name: string }> {
   const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: true });
-  pruefeEinheit(zutat, input);
   const { id } = await trx
     .insertInto('essen.gericht_zutat')
     .values({ gericht_id: gerichtId, position, ...zeilenWerte(input, zutat.id) })
@@ -242,7 +220,6 @@ export async function gerichtZutatAendern(
     await lockResource(trx, gerichtSperre(zeile.gericht_id));
     await pruefePersonen(trx, zeile.gericht_id, personen);
     const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: true });
-    pruefeEinheit(zutat, input);
     const result = await trx
       .updateTable('essen.gericht_zutat')
       .set(zeilenWerte(input, zutat.id))

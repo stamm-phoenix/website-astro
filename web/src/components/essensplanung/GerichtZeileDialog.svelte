@@ -34,6 +34,8 @@
     type ZutatWahl,
   } from '../../lib/essensplanungGerichte';
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
+  import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
+  import EinheitFeld from './EinheitFeld.svelte';
   import type {
     EssenEinheitenart,
     EssenKatalog,
@@ -144,7 +146,7 @@
   const einheitenart = $derived<EssenEinheitenart | null>(
     eigene ? eigene.einheitenart : (gewaehlt?.einheitenart ?? null)
   );
-  const einheiten = $derived(einheitenart ? EINHEITEN_JE_ART[einheitenart] : []);
+  const einheiten = $derived<readonly string[]>(einheitenart ? EINHEITEN_JE_ART[einheitenart] : []);
 
   /** The central ingredient behind the choice, for converting TL, EL or pieces into grams. */
   const zentral = $derived.by(() => {
@@ -162,8 +164,8 @@
   const passendeEinheit = (): void => {
     if (einheiten.length && !einheiten.includes(einheit)) einheit = einheiten[0];
   };
-  // Without an amount the unit follows the ingredient. A typed amount keeps its unit when
-  // others change the ingredient meanwhile; the field then asks for a fix
+  // Without an amount the unit follows the ingredient; a typed amount keeps its unit, also when
+  // others change the ingredient meanwhile, as any unit fits
   $effect(() => {
     if (!menge.trim()) passendeEinheit();
   });
@@ -171,10 +173,11 @@
   $effect(() => {
     if (eigene?.einheitenart) untrack(passendeEinheit);
   });
-  /** The typed unit no longer fits the ingredient, changed by others meanwhile. */
-  const einheitPasstNicht = $derived(
-    menge.trim() !== '' && einheiten.length > 0 && !einheiten.includes(einheit)
-  );
+  /** TL, EL or pieces typed: the conversion into grams starts with them. */
+  const umrechnenVon = $derived.by(() => {
+    const mass = ({ TL: 'tl', EL: 'el', stueck: 'stueck' } as const)[einheit];
+    return mass && menge.trim() ? { anzahl: menge.trim(), mass } : undefined;
+  });
 
   function waehle(option: Vorschlag): void {
     nimm(option);
@@ -185,8 +188,9 @@
     auswahl = zutatWahl(option);
     eigene = null;
     geaendert = true;
-    // An explicit choice: a unit that fits it, e.g. kg instead of ml after picking flour
-    passendeEinheit();
+    // An explicit choice: its unit, e.g. kg instead of ml after picking flour, unless an amount is
+    // typed already
+    if (!menge.trim()) passendeEinheit();
   }
 
   /** A typed name of the list counts as chosen; the text stays as typed. */
@@ -218,6 +222,8 @@
     fehler = null;
     const zahl = leseMenge(menge);
     if (Number.isNaN(zahl)) felder.menge = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
+    if (zahl !== null && !einheit)
+      felder.einheit = 'Bitte eine Einheit eintragen, z. B. g oder Bund.';
     if (!auswahl && !eigene) felder.zutat = 'Bitte eine Zutat aus der Liste wählen.';
     if (eigene && !eigene.kategorieId) felder.kategorie = 'Bitte eine Kategorie wählen.';
     if (eigene && !eigene.einheitenart)
@@ -453,39 +459,33 @@
             />
           {/snippet}
         </FormField>
-        <FormField
-          id="zeile-einheit"
-          label="Einheit"
-          error={felder.einheit ??
-            (einheitPasstNicht && einheitenart
-              ? `Die Zutat ist inzwischen auf „${EINHEITENART_LABELS[einheitenart]}“ umgestellt. Bitte die Einheit wählen.`
-              : undefined)}
-        >
+        <FormField id="zeile-einheit" label="Einheit" error={felder.einheit}>
           {#snippet children(attrs)}
-            <select
-              {...attrs}
-              class="form-input"
-              bind:value={einheit}
-              disabled={!einheiten.length || !menge.trim()}
-            >
-              {#if einheitPasstNicht}
-                <option value={einheit} disabled>{einheitText(einheit)}</option>
-              {/if}
-              {#each einheiten as wert (wert)}
-                <option value={wert}>{einheitText(wert, gewaehlt?.abtropfgewicht)}</option>
-              {/each}
-            </select>
+            <EinheitFeld
+              id={attrs.id}
+              bind:einheit
+              art={einheitenart}
+              eigene={eigeneEinheiten(ansicht)}
+              abtropfgewicht={gewaehlt?.abtropfgewicht}
+              invalid={Boolean(felder.einheit)}
+              disabled={!menge.trim()}
+            />
           {/snippet}
         </FormField>
       </div>
       {#if zentral}
-        {#key geoeffnet}<GrammRechner {zentral} onuebernehmen={uebernehmen} />{/key}
+        {#key geoeffnet}<GrammRechner
+            {zentral}
+            vorgabe={umrechnenVon}
+            onuebernehmen={uebernehmen}
+          />{/key}
       {/if}
       {#if gewaehlt && einheitenart === 'masse' && !eigene}
         {#key geoeffnet}<KiUmrechnung
             {kontext}
             {katalog}
             zutat={gewaehlt}
+            vorgabe={umrechnenVon}
             onuebernehmen={uebernehmen}
           />{/key}
       {/if}

@@ -194,10 +194,12 @@ import {
 } from './endpoints/essensplanung-belege';
 import {
   EssensplanungGerichtZutatenSammel,
+  EssensplanungKiEinheiten,
   EssensplanungKiPruefen,
   EssensplanungKiRezept,
   EssensplanungKiUmrechnung,
 } from './endpoints/essensplanung-ki';
+import { EssensplanungZutatEinheiten } from './endpoints/essensplanung-einheiten';
 import {
   EditorCollection,
   EditorItem,
@@ -1455,6 +1457,20 @@ app.http('essensplanungKiUmrechnung', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/ki/umrechnung',
   handler: EssensplanungKiUmrechnung,
+});
+
+app.http('essensplanungKiEinheiten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/ki/einheiten',
+  handler: EssensplanungKiEinheiten,
+});
+
+app.http('essensplanungZutatEinheiten', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zutaten/{id}/einheiten',
+  handler: EssensplanungZutatEinheiten,
 });
 
 app.http('essensplanungEinplanungen', {

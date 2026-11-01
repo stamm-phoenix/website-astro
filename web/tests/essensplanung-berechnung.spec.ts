@@ -18,7 +18,7 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
   await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
   await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('400');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('g');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('g');
   await dialog.getByLabel('vegetarisch', { exact: true }).uncheck();
   await dialog.getByLabel('vegan', { exact: true }).uncheck();
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
@@ -29,7 +29,7 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
     await dialog.getByLabel('Zutat', { exact: true }).fill('Sonnenblumen');
     await dialog.getByRole('option', { name: 'Sonnenblumenöl' }).click();
     await dialog.getByLabel('Menge', { exact: true }).fill('40');
-    await dialog.getByLabel('Einheit', { exact: true }).selectOption('ml');
+    await dialog.getByLabel('Einheit', { exact: true }).fill('ml');
     await dialog.getByText('Unverträglichkeiten').click();
     await dialog.getByLabel('Gluten', { exact: true }).selectOption({ label: art });
     await dialog.getByRole('button', { name: 'Hinzufügen' }).click();

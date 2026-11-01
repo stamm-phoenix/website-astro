@@ -6,10 +6,18 @@ import type { EssenEinheitenart } from './essen-validation';
  * `essen-gerichte-validation.ts` (`docs/essensplanung.md`, „Gerichte“).
  */
 
-export type GerichtEinheit = 'g' | 'kg' | 'ml' | 'l' | 'stueck' | 'packung' | 'bund';
+/** The units the page knows and converts within: kg to g and l to ml. */
+export type BekannteEinheit = 'g' | 'kg' | 'ml' | 'l' | 'stueck' | 'packung' | 'bund';
 
-/** The units a line may use; nothing is ever converted between kinds of unit. */
-export const EINHEITEN_JE_ART: Record<EssenEinheitenart, readonly GerichtEinheit[]> = {
+/**
+ * The unit of a line: a known one (`BekannteEinheit`) or one typed by the user, e.g. „Dose“ or
+ * „EL“, as `normalisiereEinheit` stores it. Any line may use any unit, whatever the kind of unit
+ * of its ingredient; that kind only orders the suggestions and starts new lines.
+ */
+export type GerichtEinheit = string;
+
+/** The known units per kind of unit, in the order they are suggested. */
+export const EINHEITEN_JE_ART: Record<EssenEinheitenart, readonly BekannteEinheit[]> = {
   masse: ['g', 'kg'],
   volumen: ['ml', 'l'],
   stueck: ['stueck'],
@@ -17,7 +25,10 @@ export const EINHEITEN_JE_ART: Record<EssenEinheitenart, readonly GerichtEinheit
   bund: ['bund'],
 };
 
-export const EINHEIT_TEXT: Record<GerichtEinheit, string> = {
+export const BEKANNTE_EINHEITEN: readonly BekannteEinheit[] =
+  Object.values(EINHEITEN_JE_ART).flat();
+
+export const EINHEIT_TEXT: Record<BekannteEinheit, string> = {
   g: 'g',
   kg: 'kg',
   ml: 'ml',
@@ -26,6 +37,116 @@ export const EINHEIT_TEXT: Record<GerichtEinheit, string> = {
   packung: 'Packung',
   bund: 'Bund',
 };
+
+/** Longest unit of one's own, e.g. „Messerspitze“. */
+export const MAX_EINHEIT = 20;
+
+/** Units of one's own that kitchens use, suggested after the known ones; spelled like this. */
+export const HAUSHALTS_EINHEITEN = [
+  'EL',
+  'TL',
+  'Prise',
+  'Dose',
+  'Glas',
+  'Becher',
+  'Flasche',
+  'Tüte',
+  'Päckchen',
+  'Zehe',
+  'Scheibe',
+  'Kopf',
+  'Tasse',
+  'Msp.',
+] as const;
+
+/** Other spellings, in lower case, of the known units and the kitchen units. */
+const SCHREIBWEISEN: Record<string, string> = {
+  gr: 'g',
+  'gr.': 'g',
+  gramm: 'g',
+  kilo: 'kg',
+  kilogramm: 'kg',
+  milliliter: 'ml',
+  liter: 'l',
+  ltr: 'l',
+  'ltr.': 'l',
+  stk: 'stueck',
+  'stk.': 'stueck',
+  'st.': 'stueck',
+  packungen: 'packung',
+  pck: 'packung',
+  'pck.': 'packung',
+  pkg: 'packung',
+  'pkg.': 'packung',
+  'bd.': 'bund',
+  esslöffel: 'EL',
+  teelöffel: 'TL',
+  prisen: 'Prise',
+  dosen: 'Dose',
+  gläser: 'Glas',
+  flaschen: 'Flasche',
+  tüten: 'Tüte',
+  zehen: 'Zehe',
+  scheiben: 'Scheibe',
+  köpfe: 'Kopf',
+  tassen: 'Tasse',
+  msp: 'Msp.',
+  messerspitze: 'Msp.',
+};
+
+export function istBekannteEinheit(einheit: string | null | undefined): einheit is BekannteEinheit {
+  return BEKANNTE_EINHEITEN.some((bekannt) => bekannt === einheit);
+}
+
+/**
+ * A typed unit as it is stored: trimmed, a known unit as its key („Stück“ → `stueck`, „kg (ATG)“
+ * → `kg`), a kitchen unit in its usual spelling („el“ → „EL“, „Dosen“ → „Dose“), anything else as
+ * typed. null for empty text; a text longer than `MAX_EINHEIT` is the caller's to refuse.
+ */
+export function normalisiereEinheit(text: string): GerichtEinheit | null {
+  const einheit = text
+    .replace(/\s*\(ATG\)\s*$/i, '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  if (!einheit) return null;
+  const klein = einheit.toLocaleLowerCase('de');
+  const bekannt = BEKANNTE_EINHEITEN.find(
+    (key) => key === klein || EINHEIT_TEXT[key].toLocaleLowerCase('de') === klein
+  );
+  if (bekannt) return bekannt;
+  const haushalt = HAUSHALTS_EINHEITEN.find((e) => e.toLocaleLowerCase('de') === klein);
+  return haushalt ?? SCHREIBWEISEN[klein] ?? einheit;
+}
+
+/**
+ * The unit an amount is summed in, and the factor into it: kg in g, l in ml, every other unit in
+ * itself. A unit of one's own is a base of its own, so „3 Bund“ and „200 g“ stay apart.
+ */
+export function einheitBasis(einheit: GerichtEinheit): { einheit: GerichtEinheit; mal: number } {
+  if (einheit === 'kg') return { einheit: 'g', mal: 1000 };
+  if (einheit === 'l') return { einheit: 'ml', mal: 1000 };
+  return { einheit, mal: 1 };
+}
+
+/** The base of a unit as amounts are compared and summed; upper and lower case are the same. */
+export function einheitSchluessel(einheit: GerichtEinheit): string {
+  return einheitBasis(einheit).einheit.toLocaleLowerCase('de');
+}
+
+/** The kind of unit a known unit belongs to; null for one of one's own. */
+export function einheitenartVon(einheit: GerichtEinheit): EssenEinheitenart | null {
+  return (
+    (Object.keys(EINHEITEN_JE_ART) as EssenEinheitenart[]).find((art) =>
+      EINHEITEN_JE_ART[art].some((bekannt) => bekannt === einheit)
+    ) ?? null
+  );
+}
+
+/** The units an amount in `einheit` can also be given in: g and kg, ml and l, else just it. */
+export function einheitenGleicherBasis(einheit: GerichtEinheit): GerichtEinheit[] {
+  const art = einheitenartVon(einheit);
+  return art ? [...EINHEITEN_JE_ART[art]] : [einheit];
+}
 
 export const MAX_GERICHTE = 300;
 export const MAX_ZEILEN_PRO_GERICHT = 60;
@@ -116,14 +237,9 @@ export interface Gericht {
   zutaten: GerichtZutat[];
 }
 
-/** Whether `einheit` fits an ingredient of `art`, e.g. kg for mass. */
-export function einheitPasst(art: EssenEinheitenart, einheit: GerichtEinheit | null): boolean {
-  return einheit === null || EINHEITEN_JE_ART[art].includes(einheit);
-}
-
 /**
- * Lock of a central ingredient: saving a line that measures it in its inherited kind of unit and
- * changing that kind in the Steuerung run one after the other.
+ * Lock of a central ingredient, so two lines that add it to the same Planung at once add it
+ * once.
  */
 export function zutatSperre(zutatId: number): string {
   return `essen-zutat:${zutatId}`;
@@ -210,6 +326,7 @@ export function mengeText(
 
 /** The unit as shown, e.g. „kg (ATG)“ for the drained weight of tins and jars. */
 export function einheitText(einheit: GerichtEinheit, abtropfgewicht = false): string {
+  if (!istBekannteEinheit(einheit)) return einheit;
   return abtropfgewicht && (einheit === 'g' || einheit === 'kg')
     ? `${EINHEIT_TEXT[einheit]} (ATG)`
     : EINHEIT_TEXT[einheit];

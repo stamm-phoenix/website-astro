@@ -240,15 +240,16 @@ const vorstand = await getVorstandContent();
           sehen alle, die einen Link zur Planung haben, auch der Link zum Ansehen.
         </Text>
         <Text class="mt-3">
-          Wer mitplanen darf, kann eine KI fragen: ein Gericht prüfen lassen, ein Rezept einfügen
-          oder das Gewicht eines Löffels oder Stücks schätzen lassen. Dafür gehen das Gericht (Name,
-          Personenzahl, Zutaten mit Mengen, Ernährung, Unverträglichkeiten und Hinweisen der
-          Zeilen), der eingefügte Rezepttext oder der Name der Zutat an Azure OpenAI von Microsoft.
-          Die Bereitstellung verarbeitet die Anfragen nur in der EU (Datenzonenstandard). Namen und
-          Adressen der Mitplanenden, Anleitung und Notiz gehen nicht dorthin; in einen Rezepttext
-          gehören keine Namen oder Kontaktdaten. Microsoft verwendet die Anfragen nicht zum
-          Training, kann sie zur Missbrauchserkennung aber bis zu 30 Tage speichern. Die KI ändert
-          nichts selbst: Übernommen wird nur, was du bestätigst.
+          Wer mitplanen darf, kann eine KI fragen: ein Gericht prüfen lassen, ein Rezept einfügen,
+          das Gewicht eines Löffels oder Stücks schätzen lassen oder die Einheiten einer Zutat
+          vereinheitlichen. Dafür gehen das Gericht (Name, Personenzahl, Zutaten mit Mengen,
+          Ernährung, Unverträglichkeiten und Hinweisen der Zeilen), der eingefügte Rezepttext, der
+          Name der Zutat oder ihre Mengen mit Einheit und den Namen der Gerichte an Azure OpenAI von
+          Microsoft. Die Bereitstellung verarbeitet die Anfragen nur in der EU (Datenzonenstandard).
+          Namen und Adressen der Mitplanenden, Anleitung und Notiz gehen nicht dorthin; in einen
+          Rezepttext gehören keine Namen oder Kontaktdaten. Microsoft verwendet die Anfragen nicht
+          zum Training, kann sie zur Missbrauchserkennung aber bis zu 30 Tage speichern. Die KI
+          ändert nichts selbst: Übernommen wird nur, was du bestätigst.
         </Text>
         <Text class="mt-3">
           Unter „Belege“ tragen Mitplanende Ausgaben ein: Datum, Betrag, Händler, Notiz, wer bezahlt

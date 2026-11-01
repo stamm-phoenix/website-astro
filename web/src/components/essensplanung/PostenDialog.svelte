@@ -16,8 +16,9 @@
     zutatWahl,
     type ZutatWahl,
   } from '../../lib/essensplanungGerichte';
-  import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
-  import { ALLE_EINHEITEN } from '../../lib/essensplanungEinkauf';
+  import { EINHEITEN_JE_ART } from '../../../../api/lib/essen-gerichte-model';
+  import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
+  import EinheitFeld from './EinheitFeld.svelte';
   import { MENGE_FEHLER } from '../../../../api/lib/essen-einkauf-model';
   import type { PostenArt } from '../../../../api/lib/essen-einkauf-model';
   import type { EssenEinheitenart, EssenKatalog, GerichtEinheit } from '../../lib/types';
@@ -97,9 +98,8 @@
   );
   /** Extra needs: a name not in the list is a thing of its own, measured as chosen here. */
   const frei = $derived(art === 'zusatzbedarf');
-  const einheiten = $derived(
-    einheitenart ? EINHEITEN_JE_ART[einheitenart] : frei ? ALLE_EINHEITEN : []
-  );
+  /** The units of the chosen ingredient; any other unit may be typed. */
+  const einheiten = $derived<readonly string[]>(einheitenart ? EINHEITEN_JE_ART[einheitenart] : []);
   const ohneTreffer = $derived(zutatText.trim() !== '' && !auswahl);
 
   function waehle(option: Vorschlag): void {
@@ -110,7 +110,8 @@
   function nimm(option: Vorschlag): void {
     auswahl = zutatWahl(option);
     geaendert = true;
-    if (einheiten.length && !einheiten.includes(einheit)) einheit = einheiten[0];
+    // Its unit, unless an amount is typed already
+    if (!menge.trim() && einheiten.length && !einheiten.includes(einheit)) einheit = einheiten[0];
   }
 
   /** A typed name of the list counts as chosen; the text stays as typed (Ol is not Öl). */
@@ -145,6 +146,8 @@
         : 'Bitte eine Zutat aus der Liste wählen.';
     if (Number.isNaN(zahl) || (zahl !== null && zahl <= 0) || (zahl === null && !frei))
       felder.menge = MENGE_FEHLER;
+    if (zahl !== null && !einheit)
+      felder.einheit = 'Bitte eine Einheit eintragen, z. B. g oder Bund.';
     if (Object.keys(felder).length) return;
     let abgelehnt: unknown = null;
     const body = {
@@ -255,16 +258,14 @@
         </FormField>
         <FormField id="posten-einheit" label="Einheit" error={felder.einheit}>
           {#snippet children(attrs)}
-            <select
-              {...attrs}
-              class="form-input"
-              bind:value={einheit}
+            <EinheitFeld
+              id={attrs.id}
+              bind:einheit
+              art={einheitenart}
+              eigene={eigeneEinheiten(ansicht)}
+              invalid={Boolean(felder.einheit)}
               disabled={frei && !menge.trim()}
-            >
-              {#each einheiten.length ? einheiten : [einheit] as wert (wert)}
-                <option value={wert}>{einheitText(wert)}</option>
-              {/each}
-            </select>
+            />
           {/snippet}
         </FormField>
       </div>

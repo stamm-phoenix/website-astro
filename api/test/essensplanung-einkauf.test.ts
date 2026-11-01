@@ -161,11 +161,7 @@ dbTest('stock and extra needs take any ingredient in its unit', async (t) => {
   const bestandNeu = (body: object) =>
     senden(t, einkauf.EssensplanungBestandListe, 'POST', 'planung/bestand', token, body);
 
-  // Salt is weighed; the unit and the amount must fit
-  const falsch = await bestandNeu({ zutatId: salz, menge: 2, einheit: 'stueck' });
-  assert.deepEqual(json<{ fields: Record<string, string> }>(falsch).fields, {
-    einheit: 'Salz wird in g oder kg gemessen.',
-  });
+  // An amount needs an ingredient; any unit fits it
   assert.deepEqual(
     json<{ fields: Record<string, string> }>(await bestandNeu({ einheit: 'g' })).fields,
     {
@@ -194,21 +190,8 @@ dbTest('stock and extra needs take any ingredient in its unit', async (t) => {
   );
   assert.equal(zusatz.aenderungen[0].aktion, 'zusatzbedarf-neu');
 
-  // An ingredient in use cannot change its kind of unit nor go
+  // An ingredient in use cannot go
   const salzDerPlanung = zusatz.zutaten.find((z) => z.zutatId === salz)!;
-  const art = await call(
-    t,
-    endpoints.EssensplanungZutat,
-    'PATCH',
-    `planung/zutaten/${salzDerPlanung.id}`,
-    {
-      token,
-      params: { id: String(salzDerPlanung.id) },
-      body: { etag: salzDerPlanung.etag, kategorieId: null, einheitenart: 'stueck' },
-    }
-  );
-  assert.equal(art.status, 400);
-  assert.match(json<{ fields: Record<string, string> }>(art).fields.einheitenart, /Bestand/);
   const weg = await call(
     t,
     endpoints.EssensplanungZutat,

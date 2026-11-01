@@ -53,8 +53,6 @@ export async function pdfLaden(
 /** Amount and unit of a line of a dish as its row shows them while editing, „1,5 kg“. */
 export async function zeilenMenge(bereich: Locator, name: string): Promise<string> {
   const menge = await bereich.getByLabel(`Menge von ${name}`, { exact: true }).inputValue();
-  const einheit = await bereich
-    .getByLabel(`Einheit von ${name}`, { exact: true })
-    .evaluate((feld) => (feld as HTMLSelectElement).selectedOptions[0]?.textContent ?? '');
+  const einheit = await bereich.getByLabel(`Einheit von ${name}`, { exact: true }).inputValue();
   return menge ? `${menge} ${einheit.trim()}` : '';
 }

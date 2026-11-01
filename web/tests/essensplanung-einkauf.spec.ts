@@ -20,7 +20,7 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await dialog.getByLabel('Zutat', { exact: true }).fill('Nudeln (Spag');
   await dialog.getByRole('option', { name: 'Nudeln (Spaghetti)' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('500');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('g');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('g');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(dialog).toBeHidden();
 
@@ -49,7 +49,7 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await dialog.getByLabel('Zutat', { exact: true }).fill('Nudeln (Spag');
   await dialog.getByRole('option', { name: 'Nudeln (Spaghetti)' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('0,5');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('kg');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('kg');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
   await expect(ohne).toContainText('1,5 kg Nudeln (Spaghetti)');

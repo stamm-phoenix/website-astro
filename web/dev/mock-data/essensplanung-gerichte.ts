@@ -11,10 +11,9 @@ import type {
 } from '../../../api/lib/essen-gerichte-model';
 import type { PlanungAnsicht } from '../../../api/lib/essen-planung-model';
 import {
-  EINHEITEN_JE_ART,
   MAX_GERICHTE,
   MAX_ZEILEN_PRO_GERICHT,
-  einheitPasst,
+  einheitenartVon,
   gerichtStand,
 } from '../../../api/lib/essen-gerichte-model';
 import type {
@@ -152,12 +151,6 @@ export function planungZutatAendern(z: MockZugang, id: number, body: unknown, if
   const zentral = zutat.zutatId
     ? essenKatalog().zutaten.find((entry) => entry.id === zutat.zutatId)
     : undefined;
-  const art = input.einheitenart ?? zentral?.einheitenart;
-  if (art && nutzungen(z.planung, id).some((zeile) => !einheitPasst(art, zeile.einheit)))
-    throw feld(
-      'einheitenart',
-      'Gerichte, Bestand, Zusatzbedarf, Einkäufe oder abgehakter Verbrauch nutzen die Zutat noch mit einer Menge in der bisherigen Einheit. Ändere zuerst diese Einträge.'
-    );
   aendere(z, 'zutat-geaendert', { name: input.name ?? zentral?.name }, () => {
     Object.assign(
       zutat,
@@ -246,12 +239,7 @@ export function sonstigesFuer(
     (entry) => entry.name && collator.compare(entry.name, name) === 0
   );
   if (eigene) return wirksam(z.planung, eigene);
-  const einheitenart =
-    einheit === null
-      ? 'stueck'
-      : (Object.keys(EINHEITEN_JE_ART) as EssenEinheitenart[]).find((art) =>
-          EINHEITEN_JE_ART[art].includes(einheit)
-        )!;
+  const einheitenart = einheit === null ? 'stueck' : (einheitenartVon(einheit) ?? 'stueck');
   const eintrag: MockPlanungZutat = {
     id: neueId(),
     etag: neuesEtag(),
@@ -356,8 +344,6 @@ function nummeriere(gericht: Gericht, zeile?: GerichtZutat, position?: number): 
 }
 
 function zeileAus(input: GerichtZutatInput, zutat: PlanungZutat) {
-  if (!einheitPasst(zutat.einheitenart, input.einheit))
-    throw feld('einheit', `${zutat.name} wird in einer anderen Einheit gemessen.`);
   return {
     planungZutatId: zutat.id,
     menge: input.menge,

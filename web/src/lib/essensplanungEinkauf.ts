@@ -1,5 +1,11 @@
-import { EINHEITEN_JE_ART, mengeText } from '../../../api/lib/essen-gerichte-model';
-import { bedarf, einkaufsMenge, ohneMenge, summiere } from './essensplanungRechnung';
+import { mengeText } from '../../../api/lib/essen-gerichte-model';
+import {
+  bedarf,
+  einkaufsMenge,
+  mengenSchluessel,
+  ohneMenge,
+  summiere,
+} from './essensplanungRechnung';
 import type { RechnungsStand } from './essensplanungRechnung';
 import { nurOffene, vorraetig } from './essensplanungLager';
 import type { LagerStand } from './essensplanungLager';
@@ -43,9 +49,6 @@ export interface EinkaufsGeschaeft {
   geschaeft: Geschaeft | null;
   kategorien: EinkaufsKategorie[];
 }
-
-/** Every unit, for a thing of its own on the list, which can be measured in any. */
-export const ALLE_EINHEITEN = Object.values(EINHEITEN_JE_ART).flat();
 
 /** Below this nothing is left to buy, so rounding noise does not buy a whole piece. */
 const REST = 1e-6;
@@ -123,7 +126,8 @@ export function einkaufsliste(
     (posten): posten is EinkaufPosten => posten.menge !== null && posten.einheit !== null
   );
   for (const summe of summiere([...bedarf(stand), ...mitMenge])) {
-    const rest = summe.menge - (vorhanden.get(`${summe.planungZutatId}:${summe.einheit}`) ?? 0);
+    const rest =
+      summe.menge - (vorhanden.get(mengenSchluessel(summe.planungZutatId, summe.einheit)) ?? 0);
     const zutat = zutaten.get(summe.planungZutatId);
     if (rest > REST && zutat)
       hinzu(zutat, { ...einkaufsMenge(rest, summe.einheit), nachGefuehl: false });

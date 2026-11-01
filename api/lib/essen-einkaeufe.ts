@@ -5,7 +5,6 @@ import type { Db } from './db';
 import {
   RecordNotFoundError,
   VersionConflictError,
-  lockResource,
   requireVersion,
   toDateString,
   toVersion,
@@ -21,7 +20,7 @@ import type {
   ZurueckholenInput,
 } from './essen-einkaeufe-model';
 import { MAX_EINKAEUFE, MAX_EINKAUF_EINTRAEGE, einkaufStand } from './essen-einkaeufe-model';
-import { EINHEITEN_JE_ART, einheitPasst, zutatSperre } from './essen-gerichte-model';
+import { einheitSchluessel } from './essen-gerichte-model';
 import type { GerichtEinheit } from './essen-gerichte-model';
 import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
@@ -259,42 +258,28 @@ export async function einkaufLoeschen(zugang: Zugang, id: number, etag: string):
   });
 }
 
-/** The units that are summed together: g with kg, ml with l, the counted ones alone. */
-function gleicheArt(a: GerichtEinheit, b: GerichtEinheit): boolean {
-  return Object.values(EINHEITEN_JE_ART).some((liste) => liste.includes(a) && liste.includes(b));
+/** The units that are summed together: g with kg, ml with l, every other unit alone. */
+function gleicheBasis(a: GerichtEinheit, b: GerichtEinheit): boolean {
+  return einheitSchluessel(a) === einheitSchluessel(b);
 }
 
-/** The ingredient of the Planung, in a unit that fits it. */
-async function zutatMitEinheit(
+/** The ingredient of the Planung, with the name the log shows; any unit fits it. */
+async function zutatDerEinkaeufe(
   trx: Transaction<Database>,
   zugang: Zugang,
-  planungZutatId: number,
-  einheit: GerichtEinheit | null,
-  feld: string
-) {
-  const lesen = () =>
-    zutatDerPlanung(trx, zugang, planungZutatId).catch(() => {
-      throw new ValidationError({
-        planungZutatId: 'Diese Zutat gibt es nicht mehr. Bitte lade die Seite neu.',
-      });
+  planungZutatId: number
+): Promise<{ name: string }> {
+  const zutat = await zutatDerPlanung(trx, zugang, planungZutatId).catch(() => {
+    throw new ValidationError({
+      planungZutatId: 'Diese Zutat gibt es nicht mehr. Bitte lade die Seite neu.',
     });
-  let zutat = await lesen();
-  // The kind of unit inherited from the central list: the Steuerung changes it only under this
-  // lock, so it is read again once the lock is held
-  if (zutat.zutat_id !== null && zutat.einheitenart === null) {
-    await lockResource(trx, zutatSperre(zutat.zutat_id));
-    zutat = await lesen();
-  }
-  const art = zutat.einheitenart ?? zutat.z_einheitenart;
-  const name = zutat.name ?? zutat.z_name ?? 'Die Zutat';
-  if (!art || !einheitPasst(art, einheit))
-    throw new ValidationError({ [feld]: `${name} wird in einer anderen Einheit gemessen.` });
-  return { name };
+  });
+  return { name: zutat.name ?? zutat.z_name ?? 'Die Zutat' };
 }
 
 /**
  * Ticks off a thing on a trip with what was bought, or changes what was ticked off. `etag` is
- * the version of the thing ticked off before (in the same kind of unit), null for none: when
+ * the version of the thing ticked off before (in the same base unit), null for none: when
  * someone else ticked it off meanwhile, or took it back, it is a conflict.
  */
 export async function postenAbhaken(
@@ -305,13 +290,7 @@ export async function postenAbhaken(
 ): Promise<void> {
   await aendere(zugang, 'einkauf-abgehakt', async (trx, aktuell) => {
     const einkauf = await einkaufDerPlanung(trx, zugang, einkaufId);
-    const { name } = await zutatMitEinheit(
-      trx,
-      zugang,
-      input.planungZutatId,
-      input.einheit,
-      'einheit'
-    );
+    const { name } = await zutatDerEinkaeufe(trx, zugang, input.planungZutatId);
     const vorhanden = (
       await trx
         .selectFrom('essen.einkauf_posten')
@@ -319,7 +298,7 @@ export async function postenAbhaken(
         .where('einkauf_id', '=', einkaufId)
         .where('planung_zutat_id', '=', input.planungZutatId)
         .execute()
-    ).filter((row) => gleicheArt(row.einheit, input.einheit));
+    ).filter((row) => gleicheBasis(row.einheit, input.einheit));
     const werte = {
       einheit: input.einheit,
       erhalten: input.erhalten,
@@ -441,13 +420,7 @@ export async function regelSetzen(
 ): Promise<void> {
   await aendere(zugang, 'einkauf-regel', async (trx) => {
     const einkauf = await einkaufDerPlanung(trx, zugang, einkaufId);
-    const { name } = await zutatMitEinheit(
-      trx,
-      zugang,
-      input.planungZutatId,
-      input.einheit,
-      'einheit'
-    );
+    const { name } = await zutatDerEinkaeufe(trx, zugang, input.planungZutatId);
     await schreibeRegel(trx, einkaufId, input);
     return {
       result: undefined,
@@ -485,7 +458,7 @@ export async function verschieben(
       throw new ValidationError({
         nachEinkaufId: 'In diesem Einkauf ist das schon abgehakt. Bitte wähle einen anderen.',
       });
-    const { name } = await zutatMitEinheit(trx, zugang, input.planungZutatId, null, 'einheit');
+    const { name } = await zutatDerEinkaeufe(trx, zugang, input.planungZutatId);
     const regel = { planungZutatId: input.planungZutatId, menge: null, einheit: null };
     await schreibeRegel(trx, vonEinkaufId, { ...regel, art: 'ohne' }, input.nachEinkaufId);
     await schreibeRegel(trx, input.nachEinkaufId, { ...regel, art: 'mit' });
@@ -507,7 +480,7 @@ export async function zurueckholen(
 ): Promise<void> {
   await aendere(zugang, 'einkauf-zurueckgeholt', async (trx) => {
     const einkauf = await einkaufDerPlanung(trx, zugang, einkaufId);
-    const { name } = await zutatMitEinheit(trx, zugang, input.planungZutatId, null, 'einheit');
+    const { name } = await zutatDerEinkaeufe(trx, zugang, input.planungZutatId);
     const regel = await trx
       .selectFrom('essen.einkauf_regel')
       .select(['id', 'verschoben_nach'])

@@ -20,6 +20,8 @@
     einheitText,
     mengeText,
   } from '../../../../api/lib/essen-gerichte-model';
+  import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
+  import EinheitFeld from './EinheitFeld.svelte';
   import type { GerichtEinheit, GerichtZutat, PlanungZutat } from '../../lib/types';
   import { meldeVerloren, merkeSpeichern, type PlanKontext } from './planKontext';
 
@@ -64,14 +66,8 @@
 
   const name = $derived(zutat?.name ?? 'Zutat');
   const enthalten = $derived(allergeneText(zeile, zutat, namen));
-  const einheiten = $derived.by((): readonly GerichtEinheit[] => {
-    const art = zutat?.einheitenart;
-    const passend = art ? EINHEITEN_JE_ART[art] : [];
-    // A unit saved before the kind of unit changed stays choosable, so nothing jumps
-    return zeile.einheit && !passend.includes(zeile.einheit)
-      ? [...passend, zeile.einheit]
-      : passend;
-  });
+  /** The unit a line without an amount starts with: the first of its ingredient. */
+  const ersteEinheit = $derived(zutat ? EINHEITEN_JE_ART[zutat.einheitenart][0] : 'g');
 
   let menge = $state('');
   let einheit = $state<GerichtEinheit>('g');
@@ -91,7 +87,7 @@
   let konflikt = $state(false);
 
   function uebernehme(current: GerichtZutat): void {
-    basis = basisVon(current, einheiten[0] ?? 'g');
+    basis = basisVon(current, ersteEinheit);
     menge = basis.menge;
     einheit = basis.einheit;
     hinweis = basis.hinweis;
@@ -167,6 +163,10 @@
     const zahl = leseMenge(menge);
     if (Number.isNaN(zahl)) {
       fehler = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
+      return false;
+    }
+    if (zahl !== null && !einheit) {
+      fehler = 'Bitte eine Einheit eintragen, z. B. g oder Bund.';
       return false;
     }
     // Someone else saved this line meanwhile: keep the input and let the person decide. Every
@@ -308,17 +308,14 @@
         onkeydown={taste}
       />
       <label class="sr-only" for="zeile-{zeile.id}-einheit">Einheit von {name}</label>
-      <select
+      <EinheitFeld
         id="zeile-{zeile.id}-einheit"
-        class="form-input"
-        bind:value={einheit}
-        disabled={!einheiten.length}
+        bind:einheit
+        art={zutat?.einheitenart ?? null}
+        eigene={eigeneEinheiten(kontext.ansicht)}
+        abtropfgewicht={zutat?.abtropfgewicht}
         onkeydown={taste}
-      >
-        {#each einheiten as wert (wert)}
-          <option value={wert}>{einheitText(wert, zutat?.abtropfgewicht)}</option>
-        {/each}
-      </select>
+      />
       <label class="sr-only" for="zeile-{zeile.id}-hinweis">Hinweis zu {name}</label>
       <input
         id="zeile-{zeile.id}-hinweis"

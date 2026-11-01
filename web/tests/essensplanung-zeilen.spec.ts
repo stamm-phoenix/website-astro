@@ -54,7 +54,7 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await menge.fill('1');
   await menge.press('Escape');
   await expect(menge).toHaveValue('750');
-  await gericht.getByLabel('Einheit von Hackfleisch').selectOption('kg');
+  await gericht.getByLabel('Einheit von Hackfleisch').fill('kg');
   await menge.fill('1');
   const nochmal = page.waitForResponse(
     (antwort) =>
@@ -73,7 +73,7 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await zutat.pressSequentially('Tomatenm');
   await zutat.press('Enter');
   await gericht.getByLabel('Menge der neuen Zutat').fill('2');
-  await gericht.getByLabel('Einheit der neuen Zutat').selectOption('kg');
+  await gericht.getByLabel('Einheit der neuen Zutat').fill('kg');
   await gericht.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('2');

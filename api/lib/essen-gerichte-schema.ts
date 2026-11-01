@@ -5,12 +5,8 @@
  */
 import { z } from 'zod';
 import type { EssenEinheitenart } from './essen-validation';
-import {
-  EINHEITEN_JE_ART,
-  MAX_LINKS,
-  MAX_WERKZEUGE,
-  type GerichtEinheit,
-} from './essen-gerichte-model';
+import { EINHEITEN_JE_ART, MAX_LINKS, MAX_WERKZEUGE } from './essen-gerichte-model';
+import { einheitFeld } from './essen-einheit-schema';
 import type { FieldOf } from './validation/zod';
 import { lenientObject } from './validation/zod';
 
@@ -20,7 +16,6 @@ const ALWAYS = (): boolean => true;
 const MAX_MENGE = 1_000_000;
 const MAX_IDS = 30;
 
-const EINHEITEN = Object.values(EINHEITEN_JE_ART).flat() as [GerichtEinheit, ...GerichtEinheit[]];
 const ARTEN = Object.keys(EINHEITEN_JE_ART) as [EssenEinheitenart, ...EssenEinheitenart[]];
 
 const LISTE = 'Bitte aus der Liste wählen.';
@@ -179,11 +174,8 @@ const menge = z.preprocess(
     .nullable()
 );
 
-/** The unit; an unknown one is `null` and reported with the amount. */
-const einheit = z.preprocess(
-  (value) => (EINHEITEN.some((unit) => unit === value) ? value : null),
-  z.enum(EINHEITEN).nullable()
-);
+/** The unit, known or typed; a missing one is `null` and reported with the amount. */
+const einheit = einheitFeld;
 
 /** Whether the flag is not `false`: the line applies unless it says otherwise. */
 const unlessFalse = z.preprocess((value) => value !== false, z.boolean());

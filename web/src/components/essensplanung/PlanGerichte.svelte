@@ -10,6 +10,7 @@
   import GerichtKarte from './GerichtKarte.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
   import PlanZutaten from './PlanZutaten.svelte';
+  import EinheitenHinweis from './EinheitenHinweis.svelte';
   import type { PlanKontext } from './planKontext';
 
   /** The dishes of a Planung and the ingredients they use; dishes download as recipe cards. */
@@ -138,6 +139,8 @@
       <ActionButton type="submit" variant="primary" disabled={kontext.busy}>Anlegen</ActionButton>
     </form>
   {/if}
+
+  {#if bearbeiten}<EinheitenHinweis {kontext} />{/if}
 
   {#if ansicht.gerichte.length}
     <PdfKnopf

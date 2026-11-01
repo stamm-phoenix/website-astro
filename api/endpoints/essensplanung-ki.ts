@@ -9,6 +9,7 @@ import {
   rezeptLesen,
   umrechnungSchaetzen,
 } from '../lib/essen-ki';
+import { einheitenVorschlagen } from '../lib/essen-ki-einheiten';
 import { KI_MASSE, MAX_REZEPT_TEXT } from '../lib/essen-ki-model';
 import type { KiMass } from '../lib/essen-ki-model';
 import { ladeAnsicht } from '../lib/essen-planung';
@@ -90,6 +91,17 @@ export const EssensplanungKiUmrechnung = planungHandler(async (request) => {
   if (!mass) throw new ValidationError({ mass: 'Bitte TL, EL oder Stück wählen.' });
   const wahl = zutatId !== null ? { zutatId } : { planungZutatId: planungZutatId! };
   return kiAntwort(() => umrechnungSchaetzen(zugang, wahl, mass as KiMass));
+});
+
+/** POST `{ planungZutatId }`: a common unit and factors for the amounts of one ingredient. */
+export const EssensplanungKiEinheiten = planungHandler(async (request) => {
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  const body = await readJsonBody(request);
+  const id = body?.planungZutatId;
+  if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0)
+    throw new ValidationError({ planungZutatId: 'Bitte eine Zutat wählen.' });
+  return kiAntwort(() => einheitenVorschlagen(zugang, id));
 });
 
 /** The lines of a batch; an error of a line names its field as `zeilen.<index>.<field>`. */

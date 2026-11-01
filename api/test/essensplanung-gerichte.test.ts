@@ -10,7 +10,6 @@ import {
 } from '../lib/db-preview';
 import { loadEssenSteuerung, updateZutat } from '../lib/essen-steuerung';
 import type { ZutatInput } from '../lib/essen-validation';
-import { ValidationError } from '../lib/validation/errors';
 import type { EssenKatalog } from '../lib/essen-gerichte-model';
 import { gerichtStand, gerichtWarnungen } from '../lib/essen-gerichte-model';
 import { planungLoeschen, ladeZugang } from '../lib/essen-planung';
@@ -95,10 +94,14 @@ dbTest('dishes get lines from the central list in the unit of the ingredient', a
     ).status,
     201
   );
-  // Milk is measured in ml or l, never in grams
-  const falsch = await zeileHinzufuegen(t, token, id, { zutatId: milch, menge: 200, einheit: 'g' });
+  // Any unit fits, but not an endless one
+  const falsch = await zeileHinzufuegen(t, token, id, {
+    zutatId: milch,
+    menge: 2,
+    einheit: 'x'.repeat(21),
+  });
   assert.equal(falsch.status, 400);
-  assert.match(json<{ fields: { einheit: string } }>(falsch).fields.einheit, /ml oder l/);
+  assert.match(json<{ fields: { einheit: string } }>(falsch).fields.einheit, /20 Zeichen/);
   // Things that are not food belong to no dish
   const alufolie = await zeileHinzufuegen(t, token, id, {
     zutatId: await zentraleZutat('Alufolie'),
@@ -343,18 +346,6 @@ dbTest('own ingredients and differences stay in their Planung', async (t) => {
     }
   );
   assert.equal(nichtLoeschbar.status, 400);
-  const andereArt = await call(
-    t,
-    endpoints.EssensplanungZutat,
-    'PATCH',
-    `planung/zutaten/${milchDerPlanung.id}`,
-    {
-      token,
-      params: { id: String(milchDerPlanung.id) },
-      body: { etag: milchDerPlanung.etag, kategorieId: null, einheitenart: 'packung' },
-    }
-  );
-  assert.equal(andereArt.status, 400);
   const andereKategorie = json<PlanungAnsicht>(
     await call(t, endpoints.EssensplanungZutat, 'PATCH', `planung/zutaten/${milchDerPlanung.id}`, {
       token,
@@ -457,52 +448,44 @@ dbTest('previews get one invented dish in the invented Planung', async () => {
   );
 });
 
-dbTest(
-  'the Steuerung keeps a kind of unit that dishes measure in; open pages see changes',
-  async (t) => {
-    const mails = captureMails(t);
-    const { token, ansicht } = await anlegen(t, mails);
-    const milch = await zentraleZutat('H-Milch');
-    const { id } = await gerichtMitId(t, token, { name: 'Kakao', personen: 10 });
-    await zeileHinzufuegen(t, token, id, { zutatId: milch, menge: 200, einheit: 'ml' });
-    const steuerung = await loadEssenSteuerung();
-    const zentral = steuerung.zutaten.find((z) => z.id === milch)!;
-    const { etag } = zentral;
-    const input: ZutatInput = {
-      name: zentral.name,
-      kategorieId: zentral.kategorieId,
-      einheitenart: zentral.einheitenart,
-      abtropfgewicht: zentral.abtropfgewicht,
-      lebensmittel: zentral.lebensmittel,
-      vegetarisch: zentral.vegetarisch,
-      vegan: zentral.vegan,
-      merkmaleGeprueft: zentral.merkmaleGeprueft,
-      hinweis: zentral.hinweis,
-      grammProTl: zentral.grammProTl,
-      grammProEl: zentral.grammProEl,
-      grammProStueck: zentral.grammProStueck,
-      allergene: zentral.allergene,
-    };
-    await assert.rejects(
-      updateZutat(String(milch), { ...input, einheitenart: 'packung' }, etag, 'admin'),
-      (error: unknown) => error instanceof ValidationError && Boolean(error.fields.einheitenart)
-    );
-
-    // A change of the central lists changes the state the open pages poll
-    const vorher = json<PlanungAnsicht>(
-      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
-    );
-    await updateZutat(String(milch), { ...input, hinweis: 'neu geprüft' }, etag, 'admin');
-    const stand = json<{ stand: string; ansicht?: PlanungAnsicht }>(
-      await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
-        token,
-        query: `?seit=${encodeURIComponent(vorher.stand)}`,
-      })
-    );
-    assert.notEqual(stand.stand, vorher.stand);
-    assert.notEqual(stand.ansicht!.katalogStand, ansicht.katalogStand);
-  }
-);
+dbTest('open pages see changes of the central lists', async (t) => {
+  const mails = captureMails(t);
+  const { token, ansicht } = await anlegen(t, mails);
+  const milch = await zentraleZutat('H-Milch');
+  const { id } = await gerichtMitId(t, token, { name: 'Kakao', personen: 10 });
+  await zeileHinzufuegen(t, token, id, { zutatId: milch, menge: 200, einheit: 'ml' });
+  const steuerung = await loadEssenSteuerung();
+  const zentral = steuerung.zutaten.find((z) => z.id === milch)!;
+  const { etag } = zentral;
+  const input: ZutatInput = {
+    name: zentral.name,
+    kategorieId: zentral.kategorieId,
+    einheitenart: zentral.einheitenart,
+    abtropfgewicht: zentral.abtropfgewicht,
+    lebensmittel: zentral.lebensmittel,
+    vegetarisch: zentral.vegetarisch,
+    vegan: zentral.vegan,
+    merkmaleGeprueft: zentral.merkmaleGeprueft,
+    hinweis: zentral.hinweis,
+    grammProTl: zentral.grammProTl,
+    grammProEl: zentral.grammProEl,
+    grammProStueck: zentral.grammProStueck,
+    allergene: zentral.allergene,
+  };
+  // A change of the central lists changes the state the open pages poll
+  const vorher = json<PlanungAnsicht>(
+    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+  );
+  await updateZutat(String(milch), { ...input, hinweis: 'neu geprüft' }, etag, 'admin');
+  const stand = json<{ stand: string; ansicht?: PlanungAnsicht }>(
+    await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
+      token,
+      query: `?seit=${encodeURIComponent(vorher.stand)}`,
+    })
+  );
+  assert.notEqual(stand.stand, vorher.stand);
+  assert.notEqual(stand.ansicht!.katalogStand, ansicht.katalogStand);
+});
 
 dbTest('an ingredient marked as not food meanwhile takes no more lines', async (t) => {
   const mails = captureMails(t);

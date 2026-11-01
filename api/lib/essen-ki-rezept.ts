@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import type { EssenEinheitenart } from './essen-validation';
 import type { EssenKatalog, GerichtEinheit, PlanungZutat } from './essen-gerichte-model';
-import { MAX_ZEILEN_PRO_GERICHT, einheitPasst } from './essen-gerichte-model';
+import {
+  EINHEITEN_JE_ART,
+  MAX_EINHEIT,
+  MAX_ZEILEN_PRO_GERICHT,
+  einheitSchluessel,
+  istBekannteEinheit,
+  normalisiereEinheit,
+} from './essen-gerichte-model';
 import type { KiRezept, KiRezeptEinheit, KiRezeptZeile, KiZutatWahl } from './essen-ki-model';
 import { KI_REZEPT_EINHEITEN, MAX_MENGE, kiText, kiZahl, runde } from './essen-ki-model';
 
@@ -91,6 +98,8 @@ const rezeptZeileSchema = z.object({
     (value) => (KI_REZEPT_EINHEITEN.some((unit) => unit === value) ? value : null),
     z.enum(KI_REZEPT_EINHEITEN).nullable()
   ),
+  /** The unit word as the recipe writes it, e.g. „Dose“ or „Zehe“; empty for none. */
+  einheitRezept: kiText(40).optional(),
   hinweis: kiText(100),
   inhaltMenge: kiZahl.optional(),
   inhaltEinheit: z.preprocess(
@@ -153,7 +162,30 @@ const REZEPT_EINHEIT_TEXT: Record<KiRezeptEinheit, string> = {
 /** Millilitres of a level TL and EL, for ingredients measured by volume. */
 const ML_PRO = { tl: 5, el: 15 } as const;
 
-/** A note with the amount as the recipe wrote it, when it does not fit the ingredient. */
+/** Whether a unit is one of the ingredient's kind of unit, e.g. kg for mass. */
+function passt(art: EssenEinheitenart, einheit: string): boolean {
+  return EINHEITEN_JE_ART[art].some((bekannt) => bekannt === einheit);
+}
+
+/**
+ * The recipe's unit as a unit of a line: a known one as it is, TL and EL as „TL“ and „EL“, and
+ * for tins, cups or cloves the word of the recipe („Dose“, „Zehe“). null for none and for a
+ * pinch, which stays by eye.
+ */
+function rezeptEinheit(einheit: KiRezeptEinheit | null, wort: string | undefined) {
+  if (einheit === null || einheit === 'prise') return null;
+  const eigene = wort ? normalisiereEinheit(wort) : null;
+  if (
+    eigene &&
+    eigene.length <= MAX_EINHEIT &&
+    !istBekannteEinheit(eigene) &&
+    ['packung', 'stueck', 'tl', 'el'].includes(einheit)
+  )
+    return eigene;
+  return normalisiereEinheit(REZEPT_EINHEIT_TEXT[einheit]);
+}
+
+/** A note with the amount as the recipe wrote it, for a pinch or an amount without a unit. */
 function alsHinweis(
   menge: number | null,
   einheit: KiRezeptEinheit | null,
@@ -168,7 +200,11 @@ function alsHinweis(
   return [angabe, hinweis].filter(Boolean).join(', ').slice(0, 100);
 }
 
-/** Amount and unit for the ingredient's kind of unit, converting TL, EL and pieces if known. */
+/**
+ * Amount and unit in the ingredient's kind of unit, where the lists know how to get there: TL and
+ * EL by weight or volume, pieces by weight, tins by what they hold. null when there is no safe
+ * way; the line then keeps the recipe's unit.
+ */
 function umgerechnet(
   menge: number | null,
   einheit: KiRezeptEinheit | null,
@@ -180,8 +216,8 @@ function umgerechnet(
   if (
     inhalt &&
     (einheit === 'packung' || einheit === 'stueck') &&
-    (!kandidat || !einheitPasst(kandidat.einheitenart, einheit)) &&
-    (!kandidat || einheitPasst(kandidat.einheitenart, inhalt.einheit))
+    (!kandidat || !passt(kandidat.einheitenart, einheit)) &&
+    (!kandidat || passt(kandidat.einheitenart, inhalt.einheit))
   )
     return { menge: menge * inhalt.menge, einheit: inhalt.einheit };
   if (!kandidat) {
@@ -189,7 +225,7 @@ function umgerechnet(
   }
   const art = kandidat.einheitenart;
   if (einheit !== 'tl' && einheit !== 'el') {
-    if (einheitPasst(art, einheit)) return { menge, einheit };
+    if (passt(art, einheit)) return { menge, einheit };
     if (art === 'masse' && einheit === 'stueck' && kandidat.grammProStueck !== null)
       return { menge: menge * kandidat.grammProStueck, einheit: 'g' };
     return null;
@@ -198,18 +234,6 @@ function umgerechnet(
   const gramm = einheit === 'tl' ? kandidat.grammProTl : kandidat.grammProEl;
   if (art === 'masse' && gramm !== null) return { menge: menge * gramm, einheit: 'g' };
   return null;
-}
-
-/** „4 EL (Rezept: 2 EL für 4 Personen)“, or „2 EL“ when nothing was scaled. */
-function skalierteAngabe(
-  menge: number,
-  einheit: KiRezeptEinheit,
-  faktor: number,
-  rezeptPersonen: number | null
-): string {
-  const text = (wert: number) => `${ZAHL.format(wert)} ${REZEPT_EINHEIT_TEXT[einheit]}`;
-  if (faktor === 1 || !rezeptPersonen) return text(menge);
-  return `${text(Math.round(menge * faktor * 10) / 10)} (Rezept: ${text(menge)} für ${rezeptPersonen} Personen)`;
 }
 
 /** Finds the ingredient by its name, ignoring case but not umlauts. */
@@ -224,7 +248,8 @@ function nachName(kandidaten: readonly RezeptKandidat[], name: string): RezeptKa
  * the model's choice if it names one of `kandidaten`, else the same name, else none (the page
  * marks it). Amounts are converted into the ingredient's unit where the lists know how (TL and
  * EL by weight or volume, pieces by weight) and scaled from the recipe's people to `personen`;
- * what cannot be converted stays as a note.
+ * the recipe's own amount stays as `rezeptMenge` to keep instead. What cannot be converted keeps
+ * the recipe's unit („3 Bund“); only a pinch stays a note, by eye.
  */
 export function leseKiRezept(
   raw: unknown,
@@ -236,6 +261,10 @@ export function leseKiRezept(
   const nachKey = new Map(kandidaten.map((kandidat) => [kandidat.key, kandidat]));
   const { rezeptPersonen } = antwort.data;
   const faktor = rezeptPersonen ? personen / rezeptPersonen : 1;
+  const skaliert = (menge: { menge: number; einheit: GerichtEinheit }) => ({
+    menge: runde(Math.min(menge.menge * faktor, MAX_MENGE), menge.einheit),
+    einheit: menge.einheit,
+  });
   const zeilen: KiRezeptZeile[] = [];
   for (const value of antwort.data.zeilen) {
     if (zeilen.length >= MAX_ZEILEN_PRO_GERICHT) break;
@@ -247,14 +276,14 @@ export function leseKiRezept(
     const inhalt = inhaltVon(zeile);
     const abgetropft = abgetropftVon(zeile);
     // Tins of an ingredient counted by drained weight: the filled weight („Dose (400 g)“) is
-    // not the amount; only an express drained weight is, else the amount must be typed
+    // not the amount; only an express drained weight is, else the tins are counted
     const zaehltInhalt =
       (zeile.einheit === 'packung' || zeile.einheit === 'stueck') &&
       kandidat !== undefined &&
-      !einheitPasst(kandidat.einheitenart, zeile.einheit);
+      !passt(kandidat.einheitenart, zeile.einheit);
     const ohneAbtropfgewicht =
       zaehltInhalt && kandidat.abtropfgewicht && inhalt !== null && abgetropft === null;
-    const menge = ohneAbtropfgewicht
+    const umgerechnetMenge = ohneAbtropfgewicht
       ? null
       : umgerechnet(
           zeile.menge,
@@ -262,33 +291,30 @@ export function leseKiRezept(
           kandidat,
           kandidat?.abtropfgewicht ? abgetropft : (abgetropft ?? inhalt)
         );
-    // An amount that cannot be converted („2 EL“ without grams) is asked for, not dropped: the
-    // note names it scaled to the dish's people, with what the recipe said
-    const unumrechenbar =
-      !ohneAbtropfgewicht &&
-      menge === null &&
-      zeile.menge !== null &&
-      zeile.einheit !== null &&
-      zeile.einheit !== 'prise';
-    const angabe =
-      ohneAbtropfgewicht && zeile.menge !== null && zeile.einheit !== null
-        ? `${ZAHL.format(zeile.menge)} ${REZEPT_EINHEIT_TEXT[zeile.einheit]} à ${ZAHL.format(inhalt.menge)} ${inhalt.einheit}, Abtropfgewicht eintragen`
-        : unumrechenbar
-          ? skalierteAngabe(zeile.menge!, zeile.einheit!, faktor, rezeptPersonen)
-          : null;
+    const eigene = rezeptEinheit(zeile.einheit, zeile.einheitRezept);
+    const rezeptMenge =
+      zeile.menge !== null && eigene ? { menge: zeile.menge, einheit: eigene } : null;
+    // Never given up: without a safe conversion the line keeps the recipe's unit
+    const menge = umgerechnetMenge ?? rezeptMenge;
+    const anders =
+      umgerechnetMenge !== null &&
+      rezeptMenge !== null &&
+      einheitSchluessel(umgerechnetMenge.einheit) !== einheitSchluessel(rezeptMenge.einheit);
+    // What one tin holds stays readable next to the count of tins
+    const fuellung =
+      ohneAbtropfgewicht && !INHALT_HINWEIS.test(zeile.hinweis)
+        ? `à ${ZAHL.format(inhalt.menge)} ${inhalt.einheit}`
+        : '';
     zeilen.push({
       original: zeile.original || zeile.name,
       name: zeile.name,
       zutat: kandidat?.wahl ?? null,
-      menge: menge ? runde(Math.min(menge.menge * faktor, MAX_MENGE), menge.einheit) : null,
+      menge: menge ? skaliert(menge).menge : null,
       einheit: menge?.einheit ?? null,
-      // What does not fit the ingredient stays as the recipe wrote it
-      hinweis: angabe
-        ? [angabe, zeile.hinweis].filter(Boolean).join(', ').slice(0, 100)
-        : menge
-          ? zeile.hinweis
-          : alsHinweis(zeile.menge, zeile.einheit, zeile.hinweis),
-      mengeFehlt: Boolean(angabe),
+      hinweis: menge
+        ? [fuellung, zeile.hinweis].filter(Boolean).join(', ').slice(0, 100)
+        : alsHinweis(zeile.menge, zeile.einheit, zeile.hinweis),
+      rezeptMenge: anders ? skaliert(rezeptMenge) : null,
       fuerAlles: true,
       // Meat for those who eat everything only; unknown properties leave the line for all
       fuerVegetarisch: kandidat?.vegetarisch !== false,

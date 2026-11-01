@@ -19,11 +19,15 @@
     kiFehlerText,
     mengeFuerZutat,
     skaliereMenge,
+    vorschauText,
     vorschlagKey,
+    type VorschauMenge,
     type KiRezept,
     type KiRezeptZeile,
   } from '../../lib/essensplanungKi';
-  import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
+  import { EINHEITEN_JE_ART } from '../../../../api/lib/essen-gerichte-model';
+  import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
+  import EinheitFeld from './EinheitFeld.svelte';
   import type { EssenKatalog, Gericht, GerichtEinheit } from '../../lib/types';
   import type { Vorschlag } from '../../lib/vorschlaege';
   import type { PlanKontext } from './planKontext';
@@ -58,6 +62,8 @@
     fuerAlles: boolean;
     fuerVegetarisch: boolean;
     fuerVegan: boolean;
+    /** The other way to give the amount: the recipe's („20 EL“) or the converted one. */
+    alternative: VorschauMenge | null;
     fehler: Record<string, string>;
   }
 
@@ -124,7 +130,7 @@
     return zutatVon(auswahl)?.einheitenart ?? null;
   }
 
-  function einheitenVon(zeile: Zeile): readonly GerichtEinheit[] {
+  function einheitenVon(zeile: Zeile): readonly string[] {
     const art = einheitenartVon(zeile.auswahl);
     return art ? EINHEITEN_JE_ART[art] : [];
   }
@@ -143,22 +149,24 @@
       fuerAlles: ki.fuerAlles,
       fuerVegetarisch: ki.fuerVegetarisch,
       fuerVegan: ki.fuerVegan,
+      alternative: ki.rezeptMenge
+        ? { menge: mengeFeld(ki.rezeptMenge.menge), einheit: ki.rezeptMenge.einheit }
+        : null,
       fehler: {},
     };
-    passendeEinheit(zeile);
-    // E.g. a tin's filled weight for an ingredient by drained weight: the amount is asked
-    if (ki.mengeFehlt && zeile.auswahl) {
-      zeile.an = false;
-      zeile.fehler.menge = `Bitte die Menge in ${einheitenVon(zeile)
-        .map((e) => einheitText(e))
-        .join(' oder ')} eintragen und die Zeile wieder anhaken.`;
-    }
+    // Without an amount the unit follows the ingredient; an amount keeps the recipe's unit
+    const einheiten = einheitenVon(zeile);
+    if (!ki.einheit && einheiten.length) zeile.einheit = einheiten[0];
     return zeile;
   }
 
-  function passendeEinheit(zeile: Zeile): void {
-    const einheiten = einheitenVon(zeile);
-    if (einheiten.length && !einheiten.includes(zeile.einheit)) zeile.einheit = einheiten[0];
+  /** Takes the other way to give the amount, e.g. the recipe's 20 EL instead of 300 g. */
+  function tausche(zeile: Zeile): void {
+    if (!zeile.alternative) return;
+    const vorher = { menge: zeile.menge, einheit: zeile.einheit };
+    zeile.menge = zeile.alternative.menge;
+    zeile.einheit = zeile.alternative.einheit;
+    zeile.alternative = vorher;
   }
 
   async function erkennen(event: SubmitEvent): Promise<void> {
@@ -215,27 +223,29 @@
     zeile.fuerVegetarisch = zutat?.vegetarisch !== false;
     zeile.fuerVegan = zutat?.vegan !== false;
     if (!zutat) return;
-    // Another kind of unit: pieces become grams with the list's weight, else the amount is asked
+    // Pieces become grams with the list's weight; any other unit stays, as it may
     const zentral = katalog.zutaten.find(
       (z) => z.id === ('zutatId' in zutat ? zutat.zutatId : zutat.id)
     );
     const neu = mengeFuerZutat(zeile, zutat.einheitenart, zentral?.grammProStueck ?? null);
     zeile.menge = neu.menge;
     zeile.einheit = neu.einheit;
-    zeile.hinweis = neu.hinweis;
-    if (neu.neuEintragen) {
-      zeile.an = false;
-      zeile.fehler.menge = `Bitte die Menge in ${einheitenVon(zeile)
-        .map((e) => einheitText(e))
-        .join(' oder ')} eintragen und die Zeile wieder anhaken.`;
-    }
+    zeile.alternative = neu.alternative ?? zeile.alternative;
   }
 
   /** Scales the amounts to the people the dish has now, after someone changed them. */
   function umrechnen(): void {
     if (!rezept || !personenNeu) return;
     const faktor = personenNeu / rezept.personen;
-    for (const zeile of zeilen) zeile.menge = skaliereMenge(zeile.menge, faktor, zeile.einheit);
+    for (const zeile of zeilen) {
+      zeile.menge = skaliereMenge(zeile.menge, faktor, zeile.einheit);
+      if (zeile.alternative)
+        zeile.alternative.menge = skaliereMenge(
+          zeile.alternative.menge,
+          faktor,
+          zeile.alternative.einheit
+        );
+    }
     rezept.personen = personenNeu;
     personenNeu = null;
     fehler = null;
@@ -262,6 +272,8 @@
       const menge = leseMenge(zeile.menge);
       if (Number.isNaN(menge))
         zeile.fehler.menge = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
+      else if (menge !== null && !zeile.einheit)
+        zeile.fehler.einheit = 'Bitte eine Einheit eintragen, z. B. g oder Bund.';
       return {
         ...(zeile.auswahl!.art === 'planung'
           ? { planungZutatId: zeile.auswahl!.id }
@@ -410,7 +422,6 @@
         {/if}
         <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
           {#each zeilen as zeile, index (index)}
-            {@const einheiten = einheitenVon(zeile)}
             <li class="space-y-2 py-3" data-testid="rezept-zeile">
               <!-- The whole row is the touch area of the checkbox, at least 44 px high -->
               <label
@@ -477,19 +488,28 @@
                   <label class="sr-only" for="rezept-{index}-einheit"
                     >Einheit für {zeile.original}</label
                   >
-                  <select
+                  <EinheitFeld
                     id="rezept-{index}-einheit"
-                    class="form-input"
-                    bind:value={zeile.einheit}
-                    disabled={!einheiten.length || !zeile.menge.trim()}
-                  >
-                    {#each einheiten as wert (wert)}
-                      <option value={wert}>{einheitText(wert)}</option>
-                    {/each}
-                  </select>
+                    bind:einheit={zeile.einheit}
+                    art={einheitenartVon(zeile.auswahl)}
+                    eigene={eigeneEinheiten(ansicht)}
+                    invalid={Boolean(zeile.fehler.einheit)}
+                    disabled={!zeile.menge.trim()}
+                  />
                   {#if zeile.fehler.einheit}<p class="text-sm text-danger">
                       {zeile.fehler.einheit}
                     </p>{/if}
+                  {#if zeile.alternative}
+                    <ActionButton
+                      type="button"
+                      class="mt-1"
+                      aria-label="Für {zeile.original} stattdessen {vorschauText(
+                        zeile.alternative
+                      )} übernehmen"
+                      onclick={() => tausche(zeile)}
+                      >⇄ {vorschauText(zeile.alternative)}</ActionButton
+                    >
+                  {/if}
                 </div>
                 <div>
                   <label class="sr-only" for="rezept-{index}-hinweis"
