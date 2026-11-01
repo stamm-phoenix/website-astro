@@ -81,6 +81,10 @@
     event.preventDefault();
     felder = {};
     const gesendet = name;
+    // What was sent; fields typed on during the save keep their new input
+    const gesendetPersonen = personen;
+    const gesendetZustaendig = zustaendig;
+    const gesendetMahlzeit = mahlzeitId;
     let id = 0;
     const ok = await kontext.aendern(async () => {
       try {
@@ -89,9 +93,13 @@
           '/gerichte',
           {
             name: gesendet,
-            personen: personen.trim() === '' ? null : Number(personen) || personen,
-            ...(mahlzeitId
-              ? { mahlzeitId: Number(mahlzeitId), ...zustaendigAus(zustaendig, ansicht.mitglieder) }
+            personen:
+              gesendetPersonen.trim() === '' ? null : Number(gesendetPersonen) || gesendetPersonen,
+            ...(gesendetMahlzeit
+              ? {
+                  mahlzeitId: Number(gesendetMahlzeit),
+                  ...zustaendigAus(gesendetZustaendig, ansicht.mitglieder),
+                }
               : {}),
           }
         );
@@ -104,8 +112,8 @@
     }, `${gesendet.trim()} angelegt.`);
     if (!ok) return;
     if (name === gesendet) name = '';
-    personen = '';
-    zustaendig = '';
+    if (personen === gesendetPersonen) personen = '';
+    if (zustaendig === gesendetZustaendig) zustaendig = '';
     offen.add(id);
     await tick();
     document.getElementById(`gericht-${id}`)?.scrollIntoView({ block: 'start' });
