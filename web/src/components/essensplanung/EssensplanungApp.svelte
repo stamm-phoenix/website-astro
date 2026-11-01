@@ -294,7 +294,7 @@
             aria-selected={bereich === eintrag.id}
             aria-controls="bereich-panel-{eintrag.id}"
             tabindex={bereich === eintrag.id ? 0 : -1}
-            class="-mb-px min-h-11 border-b-2 px-3 py-1.5 text-sm font-semibold md:min-h-0 {bereich ===
+            class="-mb-px border-b-2 px-3 py-1.5 text-sm font-semibold any-pointer-coarse:min-h-11 {bereich ===
             eintrag.id
               ? 'border-brand-900 text-brand-900'
               : 'border-transparent text-neutral-700 hover:border-neutral-400 hover:text-brand-900'}"

@@ -247,7 +247,7 @@ test('saving the name keeps a setting someone else changed; long links fit', asy
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByText('Einstellungen gespeichert.').first()).toBeVisible();
   await expect(
-    page.getByRole('heading', { name: 'E2E Einstellungen neu', level: 2 })
+    page.getByRole('heading', { name: 'E2E Einstellungen neu', level: 1 })
   ).toBeVisible();
   await expect(
     page.getByRole('checkbox', { name: /Alle dürfen Mitglieder verwalten/ })
@@ -295,7 +295,7 @@ test('unsaved meals ask before leaving; typing while saving the settings keeps t
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await page.getByLabel('Name der Planung').fill('E2E Verlassen zwei');
   await expect(page.getByText('Einstellungen gespeichert.').first()).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'E2E Verlassen eins', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'E2E Verlassen eins', level: 1 })).toBeVisible();
   await expect(page.getByLabel('Name der Planung')).toHaveValue('E2E Verlassen zwei');
 });
 
@@ -307,7 +307,7 @@ test('the skip link keeps the Planung on reload; a name typed while saving stays
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/#main$/);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'E2E Sprung', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'E2E Sprung', level: 1 })).toBeVisible();
   await expect(page.getByLabel('Name von 1_1')).toHaveValue('Frühstück');
 
   await page.getByRole('tab', { name: 'Mitglieder' }).click();
