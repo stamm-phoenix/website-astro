@@ -1,6 +1,10 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import AufklappPfeil from '../ui/AufklappPfeil.svelte';
+  import type { PostenHerkunft as Herkunft } from '../../lib/essensplanungHerkunft';
+  import PostenHerkunft from './PostenHerkunft.svelte';
+  import { FELD, KNOPF, herkunftAnzeige } from './einkaufHerkunft.svelte';
   import { ApiError } from '../../lib/api';
   import { leseMenge, mengeFeld } from '../../lib/essensplanungGerichte';
   import { kochMenge } from '../../lib/essensplanungRechnung';
@@ -19,8 +23,9 @@
   } from './einkaufLive';
 
   /**
-   * One thing in the live mode of a shopping trip: a tap opens the amount (the planned one unless
-   * changed) and a replacement, „Abhaken“ saves it. Ticked off things can be changed or taken back.
+   * One thing in the live mode of a shopping trip: the box ticks it off with the amount of the
+   * fields (the planned one unless changed) or takes the tick back. Amount and replacement stand
+   * in the row on wide screens and open with „Menge“ on phones; Enter in a field saves.
    */
 
   interface Props {
@@ -32,8 +37,18 @@
     /** Whether this thing's amount is open; only one at a time. */
     offen: boolean;
     onoeffnen: (offen: boolean) => void;
+    /** The dishes it is for, shown with „Für welche Gerichte“. */
+    herkunft?: Herkunft;
   }
-  let { kontext, einkaufId, posten, gesperrt = false, offen, onoeffnen }: Props = $props();
+  let {
+    kontext,
+    einkaufId,
+    posten,
+    gesperrt = false,
+    offen,
+    onoeffnen,
+    herkunft,
+  }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
 
   const einheiten = $derived.by((): readonly GerichtEinheit[] => {
@@ -104,38 +119,29 @@
     };
   });
 
-  /** Whether the fields were filled for the open amount. */
-  let gefuellt = frueher !== undefined;
   /** False once this row is gone (another view): a late answer then leaves it alone. */
   let aktiv = true;
   $effect(() => () => {
     aktiv = false;
   });
-  // Opened before this row was drawn again (e.g. its category came with the central lists)
+  // Nothing typed: the fields show the thing as it is now, planned or ticked off, also when
+  // someone else changes it; from the first key on they keep what is typed
   $effect(() => {
-    if (offen && !gefuellt) untrack(fuellen);
+    void [posten.haken, posten.menge, posten.einheit, einheiten];
+    if (!geaendert) untrack(fuellen);
   });
 
   function oeffnen(): void {
-    if (offen) {
-      onoeffnen(false);
-      return;
-    }
-    // What was typed stays until it is saved or cancelled, also when another thing was open
-    if (!geaendert) fuellen();
-    onoeffnen(true);
+    onoeffnen(!offen);
   }
 
-  /** Closes the amount and drops what was typed. */
+  /** Drops what was typed and closes the amount; the fields show the saved state again. */
   function abbrechen(): void {
     geaendert = false;
-    gefuellt = false;
     onoeffnen(false);
   }
 
   function fuellen(): void {
-    gefuellt = true;
-    geaendert = false;
     const h = posten.haken;
     menge = h ? (h.erhalten > 0 ? mengeFeld(h.erhalten) : '') : mengeFeld(posten.menge);
     einheit = h?.einheit ?? posten.einheit ?? einheiten[0] ?? 'stueck';
@@ -145,12 +151,42 @@
     konflikt = null;
   }
 
-  async function abhaken(event: SubmitEvent): Promise<void> {
+  /** The box: open things are ticked off with what the fields say, ticked off ones reopened. */
+  function haken(): void {
+    if (speichert || gesperrt || kontext.busy) return;
+    if (posten.haken && !geaendert) void aufheben();
+    else void speichern();
+  }
+
+  /** Arrow keys go from box to box, as in a table. */
+  function pfeil(event: KeyboardEvent): void {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    const boxen = [
+      ...((event.currentTarget as HTMLElement)
+        .closest('[data-live-liste]')
+        ?.querySelectorAll<HTMLElement>('[data-live-haken]') ?? []),
+    ];
+    const index = boxen.indexOf(event.currentTarget as HTMLElement);
+    const ziel = boxen[index + (event.key === 'ArrowDown' ? 1 : -1)];
+    if (!ziel) return;
     event.preventDefault();
+    ziel.focus();
+  }
+
+  /** Enter in a field saves, like ticking off. */
+  function taste(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' || !(event.target instanceof HTMLInputElement)) return;
+    event.preventDefault();
+    void speichern();
+  }
+
+  async function speichern(): Promise<void> {
     if (speichert || gesperrt) return;
     const zahl = menge.trim() ? leseMenge(menge) : 0;
     if (zahl === null || Number.isNaN(zahl) || zahl < 0) {
       fehler = 'Bitte eine Menge wie 2,5 eintragen oder das Feld leer lassen.';
+      geaendert = true;
+      onoeffnen(true);
       return;
     }
     speichert = true;
@@ -212,6 +248,9 @@
         ? `${h.von || 'Jemand'} hat das inzwischen abgehakt${hakenText(h) ? `: ${hakenText(h)}` : ''}. Deine Eingabe ist noch da; „Trotzdem speichern“ ersetzt es.`
         : 'Das Häkchen wurde inzwischen aufgehoben. Deine Eingabe ist noch da; „Trotzdem speichern“ hakt es wieder ab.';
       fehler = null;
+      // Kept and shown, also when only the box was clicked
+      geaendert = true;
+      onoeffnen(true);
       return;
     }
     // A field the server refused is named at the input, which keeps what was typed
@@ -222,6 +261,8 @@
       felder?.ersatz ??
       felder?.planungZutatId ??
       kontext.fehler;
+    geaendert = true;
+    onoeffnen(true);
   }
 
   async function aufheben(): Promise<void> {
@@ -242,89 +283,108 @@
   const erhalten = $derived(posten.haken ? hakenText(posten.haken) : '');
 </script>
 
-<li class="py-1">
+<li class="flex flex-wrap items-center gap-x-2 gap-y-1 py-1 md:flex-nowrap">
   <button
     type="button"
-    class="flex min-h-14 w-full items-center gap-3 rounded px-2 text-left text-lg"
-    aria-expanded={offen}
-    aria-label="{posten.name}{posten.haken ? ' (abgehakt)' : ''}"
-    onclick={oeffnen}
+    role="checkbox"
+    aria-checked={!!posten.haken}
+    aria-label="{posten.name} abhaken"
+    data-live-haken
+    disabled={gesperrt}
+    class="flex size-8 shrink-0 items-center justify-center rounded any-pointer-coarse:size-11"
+    onclick={haken}
+    onkeydown={pfeil}
   >
     <span
-      class="flex h-7 w-7 shrink-0 items-center justify-center rounded border-2 {posten.haken
+      class="flex size-6 items-center justify-center rounded border-2 text-base font-bold {posten.haken
         ? 'border-success bg-success-soft text-success'
-        : 'border-neutral-500'}"
+        : 'border-neutral-500 bg-surface'} {speichert ? 'opacity-50' : ''}"
       aria-hidden="true">{posten.haken ? '✓' : ''}</span
     >
-    <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">
-      {#if posten.haken}
-        <span class="text-neutral-700 line-through">{postenMenge(posten)} {posten.name}</span>
-        {#if erhalten}<span class="block font-semibold">{erhalten}</span>{/if}
-        {#if posten.haken.von}<span class="block text-sm text-neutral-700"
-            >von {posten.haken.von}</span
-          >{/if}
+  </button>
+  <div class="min-w-0 flex-1 [overflow-wrap:anywhere]">
+    {#if posten.haken}
+      <span class="text-neutral-700 line-through">{postenMenge(posten)} {posten.name}</span>
+      {#if erhalten}<span class="font-semibold">{erhalten}</span>{/if}
+      {#if posten.haken.von}<span class="text-xs text-neutral-700">· {posten.haken.von}</span>{/if}
+    {:else}
+      <span class="font-semibold tabular-nums">{postenMenge(posten)}</span>
+      {posten.name}
+    {/if}
+    {#if herkunftAnzeige.an}<PostenHerkunft {herkunft} name={posten.name} />{/if}
+  </div>
+  <button
+    type="button"
+    class="flex min-h-8 shrink-0 items-center gap-1 rounded px-2 text-sm font-semibold text-link any-pointer-coarse:min-h-11 md:hidden"
+    aria-expanded={offen}
+    aria-label="{posten.name}: Menge und Ersatz"
+    onclick={oeffnen}
+    ><span aria-hidden="true">Menge</span><AufklappPfeil
+      class="text-link transition-transform {offen ? 'rotate-180' : ''}"
+    /></button
+  >
+  <form
+    class="{offen
+      ? 'flex'
+      : 'hidden'} basis-full flex-wrap items-center gap-2 pb-2 pl-12 md:flex md:basis-auto md:flex-nowrap md:pb-0 md:pl-0"
+    onsubmit={(event) => {
+      event.preventDefault();
+      void speichern();
+    }}
+    oninput={() => (geaendert = true)}
+    aria-label="{posten.name} abhaken"
+  >
+    <span class="flex items-center gap-1">
+      <input
+        class="{FELD} w-20 text-right tabular-nums"
+        inputmode="decimal"
+        autocomplete="off"
+        aria-label="Erhaltene Menge von {posten.name}"
+        placeholder="–"
+        bind:value={menge}
+        onkeydown={taste}
+      />
+      {#if einheiten.length > 1}
+        <select class="{FELD} w-24" aria-label="Einheit von {posten.name}" bind:value={einheit}>
+          {#each einheiten as e (e)}
+            <option value={e}>{einheitText(e)}</option>
+          {/each}
+        </select>
       {:else}
-        <span class="font-semibold tabular-nums">{postenMenge(posten)}</span>
-        {posten.name}
+        <span class="w-24 px-2 text-sm">{einheitText(einheit)}</span>
       {/if}
     </span>
-  </button>
-  {#if offen}
-    <form
-      class="space-y-2 px-2 pb-3"
-      onsubmit={abhaken}
-      oninput={() => (geaendert = true)}
-      aria-label="{posten.name} abhaken"
-    >
-      <div class="flex flex-wrap items-center gap-2">
-        <input
-          class="form-input w-28 text-lg tabular-nums"
-          inputmode="decimal"
-          autocomplete="off"
-          aria-label="Erhaltene Menge von {posten.name}"
-          bind:value={menge}
-        />
-        {#if einheiten.length > 1}
-          <select
-            class="form-input min-h-11 w-auto"
-            aria-label="Einheit von {posten.name}"
-            bind:value={einheit}
-          >
-            {#each einheiten as e (e)}
-              <option value={e}>{einheitText(e)}</option>
-            {/each}
-          </select>
-        {:else}
-          <span>{einheitText(einheit)}</span>
-        {/if}
-      </div>
-      <input
-        class="form-input"
-        maxlength="100"
-        autocomplete="off"
-        aria-label="Ersatz für {posten.name}"
-        placeholder="Ersatz, z. B. Pepsi Cola"
-        bind:value={ersatz}
-      />
-      {#if konflikt}<p class="text-sm text-warning" role="alert">{konflikt}</p>{/if}
-      {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
-      <div class="flex flex-wrap gap-2">
-        <!-- As when opened: a tick of someone else meanwhile shows up only as a conflict -->
+    <input
+      class="{FELD} flex-1 md:w-44 md:flex-none"
+      maxlength="100"
+      autocomplete="off"
+      aria-label="Ersatz für {posten.name}"
+      placeholder="Ersatz"
+      bind:value={ersatz}
+      onkeydown={taste}
+    />
+    {#if offen || geaendert || konflikt}
+      <span class="flex flex-wrap gap-1 {geaendert || konflikt ? '' : 'md:hidden'}">
+        <!-- As when the typing started: a tick of someone else meanwhile is a conflict -->
         <ActionButton
           type="submit"
           variant="primary"
+          class={KNOPF}
           disabled={speichert || gesperrt || kontext.busy}
           >{konflikt ? 'Trotzdem speichern' : etag !== null ? 'Speichern' : 'Abhaken'}</ActionButton
         >
         {#if posten.haken}
           <ActionButton
             type="button"
+            class="{KNOPF} md:hidden"
             disabled={gesperrt || kontext.busy}
             onclick={() => void aufheben()}>Häkchen aufheben</ActionButton
           >
         {/if}
-        <ActionButton type="button" onclick={abbrechen}>Abbrechen</ActionButton>
-      </div>
-    </form>
-  {/if}
+        <ActionButton type="button" class={KNOPF} onclick={abbrechen}>Abbrechen</ActionButton>
+      </span>
+    {/if}
+  </form>
+  {#if konflikt}<p class="basis-full pl-12 text-sm text-warning" role="alert">{konflikt}</p>{/if}
+  {#if fehler}<p class="basis-full pl-12 text-sm text-danger" role="alert">{fehler}</p>{/if}
 </li>

@@ -80,7 +80,7 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
   expect(plan.text).toContain('1 kg');
 
   await page.getByRole('tab', { name: 'Einkauf' }).click();
-  await expect(page.getByRole('list', { name: 'Ohne Geschäft: Teigware' })).toContainText(
+  await expect(page.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' })).toContainText(
     '1 kg Nudeln (Spaghetti)'
   );
   const liste = await pdfLaden(page, () =>

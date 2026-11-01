@@ -1,13 +1,14 @@
 <script lang="ts">
-  import type { EinkaufListe } from '../../lib/essensplanungEinkaeufe';
+  import type { EinkaufListe, EinkaufListenPosten } from '../../lib/essensplanungEinkaeufe';
+  import type { PostenHerkunft } from '../../lib/essensplanungHerkunft';
   import EinkaufLivePosten from './EinkaufLivePosten.svelte';
   import { untrack } from 'svelte';
   import { liveOffen, offeneZeile } from './einkaufLive';
   import type { PlanKontext } from './planKontext';
 
   /**
-   * The live mode of a shopping trip: large rows by category, one tick each. The page asks for
-   * changes every few seconds, so several people can shop the same list at once.
+   * The live mode of a shopping trip: one row with a box per thing, by category. The page asks
+   * for changes every few seconds, so several people can shop the same list at once.
    */
 
   interface Props {
@@ -15,12 +16,14 @@
     liste: EinkaufListe;
     /** Read-only for a while (maintenance). */
     gesperrt?: boolean;
+    /** The dishes a thing is for. */
+    herkunft: (posten: EinkaufListenPosten) => PostenHerkunft | undefined;
   }
-  let { kontext, liste, gesperrt = false }: Props = $props();
+  let { kontext, liste, gesperrt = false, herkunft }: Props = $props();
 
   $effect(() => liveOffen(liste.einkauf.id));
 
-  /** The thing whose amount is open; kept when the trip shows its list or form meanwhile. */
+  /** The thing whose amount is open on a phone; kept when the trip shows its list meanwhile. */
   let offen = $state<string | null>(untrack(() => offeneZeile.get(liste.einkauf.id) ?? null));
   $effect(() => {
     const id = liste.einkauf.id;
@@ -29,23 +32,25 @@
   });
 </script>
 
-<div class="space-y-4">
-  <p class="text-lg font-semibold" role="status" aria-live="polite">
-    {liste.abgehakt} von {liste.anzahl} abgehakt
-  </p>
-  <p class="text-sm text-neutral-700">Häkchen werden sofort gespeichert.</p>
+<div class="max-w-5xl space-y-3" data-live-liste>
+  <p class="text-xs text-neutral-700">Häkchen werden sofort gespeichert.</p>
   {#each liste.kategorien as kategorie (kategorie.name)}
-    <section class="space-y-1" aria-label="{liste.einkauf.name}: {kategorie.name}">
-      <h5 class="font-semibold text-neutral-700">{kategorie.name}</h5>
-      <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
+    <section aria-label="{liste.einkauf.name}: {kategorie.name}">
+      <h4
+        class="border-b border-neutral-300 bg-neutral-100 px-2 py-0.5 text-xs font-bold tracking-wide text-neutral-700 uppercase"
+      >
+        {kategorie.name}
+      </h4>
+      <ul class="divide-y divide-neutral-200">
         {#each kategorie.posten as posten (posten.key)}
           <EinkaufLivePosten
             {kontext}
             einkaufId={liste.einkauf.id}
             {posten}
             {gesperrt}
+            herkunft={herkunft(posten)}
             offen={offen === posten.key}
-            onoeffnen={(auf) => (offen = auf ? posten.key : null)}
+            onoeffnen={(auf) => (offen = auf ? posten.key : offen === posten.key ? null : offen)}
           />
         {/each}
       </ul>

@@ -16,8 +16,17 @@
     ariaLabel?: string;
     disabled?: boolean;
     erstellen: () => Promise<void>;
+    /** E.g. a smaller button in a dense toolbar. */
+    class?: string;
   }
-  let { kontext, label, ariaLabel, disabled = false, erstellen }: Props = $props();
+  let {
+    kontext,
+    label,
+    ariaLabel,
+    disabled = false,
+    erstellen,
+    class: className = '',
+  }: Props = $props();
 
   let laeuft = $state(false);
 
@@ -50,7 +59,7 @@
 
 <ActionButton
   type="button"
-  class="print:hidden"
+  class="print:hidden {className}"
   aria-label={ariaLabel}
   aria-busy={laeuft}
   disabled={disabled || laeuft || kontext.busy}

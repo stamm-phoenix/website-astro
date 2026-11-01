@@ -47,7 +47,7 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await dialog.getByLabel('Einheit', { exact: true }).selectOption('kg');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
-  const liste = page.getByRole('list', { name: 'Ohne Geschäft: Teigware' });
+  const liste = page.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' });
   await expect(liste).toContainText('500 g Nudeln (Spaghetti)');
 
   // The first lunch is cooked, but only 800 g were used
@@ -91,10 +91,10 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Einkauf' }).click();
-  await expect(anderes.getByRole('list', { name: 'Ohne Geschäft: Teigware' })).toContainText(
+  await expect(anderes.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' })).toContainText(
     '300 g Nudeln (Spaghetti)'
   );
-  const lager = anderes.getByRole('table');
+  const lager = anderes.getByRole('table', { name: 'Lager' });
   await expect(lager.getByRole('row', { name: /Nudeln \(Spaghetti\)/ })).toContainText(
     /1,5 kg\s*0 g\s*800 g\s*700 g/
   );
@@ -121,7 +121,7 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await page.getByRole('button', { name: 'Verbrauch speichern' }).click();
   await expect(page.getByText('Nudeln ist als gekocht abgehakt.').first()).toBeVisible();
   await page.getByRole('tab', { name: 'Einkauf' }).click();
-  await expect(page.getByRole('table').getByRole('row', { name: /Nudeln/ })).toContainText(
+  await expect(page.getByRole('table', { name: 'Lager' }).getByRole('row', { name: /Nudeln/ })).toContainText(
     /1,5 kg\s*0 g\s*0 g\s*1,5 kg/
   );
 

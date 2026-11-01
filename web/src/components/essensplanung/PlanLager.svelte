@@ -34,7 +34,7 @@
   </div>
   {#if zeilen.length}
     <div class="overflow-x-auto">
-      <table class="w-full text-left text-sm">
+      <table class="w-full text-left text-sm" aria-label="Lager">
         <thead>
           <tr class="border-b border-neutral-300">
             <th scope="col" class="py-1 pr-3">Zutat</th>

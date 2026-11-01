@@ -160,23 +160,45 @@ export function bedarf(stand: RechnungsStand): Bedarf[] {
   return ergebnis;
 }
 
+/** A line without an amount of a planned dish that someone eats at its meal. */
+export interface OhneMengeZeile {
+  mahlzeitId: number;
+  einplanungId: number;
+  gerichtId: number;
+  planungZutatId: number;
+}
+
+/**
+ * Every line without an amount („nach Gefühl“) of every planned dish that someone eats, in the
+ * order of the plan.
+ */
+export function ohneMengeZeilen(stand: RechnungsStand): OhneMengeZeile[] {
+  const esser = esserRechner(stand);
+  const gerichte = new Map(stand.gerichte.map((gericht) => [gericht.id, gericht]));
+  const ergebnis: OhneMengeZeile[] = [];
+  for (const mahlzeit of stand.tage.flatMap((tag) => tag.mahlzeiten)) {
+    for (const einplanung of mahlzeit.einplanungen) {
+      for (const zeile of gerichte.get(einplanung.gerichtId)?.zutaten ?? []) {
+        if (zeile.menge !== null && zeile.einheit !== null) continue;
+        if (esser(mahlzeit, zeile) > 0)
+          ergebnis.push({
+            mahlzeitId: mahlzeit.id,
+            einplanungId: einplanung.id,
+            gerichtId: einplanung.gerichtId,
+            planungZutatId: zeile.planungZutatId,
+          });
+      }
+    }
+  }
+  return ergebnis;
+}
+
 /**
  * Ingredients of planned dishes that someone eats but whose line has no amount (salt and pepper
  * „nach Gefühl“): they are bought, just without a number.
  */
 export function ohneMenge(stand: RechnungsStand): Set<number> {
-  const esser = esserRechner(stand);
-  const gerichte = new Map(stand.gerichte.map((gericht) => [gericht.id, gericht]));
-  const ergebnis = new Set<number>();
-  for (const mahlzeit of stand.tage.flatMap((tag) => tag.mahlzeiten)) {
-    for (const einplanung of mahlzeit.einplanungen) {
-      for (const zeile of gerichte.get(einplanung.gerichtId)?.zutaten ?? []) {
-        if (zeile.menge !== null && zeile.einheit !== null) continue;
-        if (esser(mahlzeit, zeile) > 0) ergebnis.add(zeile.planungZutatId);
-      }
-    }
-  }
-  return ergebnis;
+  return new Set(ohneMengeZeilen(stand).map((zeile) => zeile.planungZutatId));
 }
 
 /** The sum of one ingredient in one unit. */

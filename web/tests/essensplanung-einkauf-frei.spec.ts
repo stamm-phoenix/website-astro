@@ -15,7 +15,7 @@ test('anything goes on the shopping list by name, without the list and an amount
   await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
   await expect(feld).toHaveValue('');
   await expect(feld).toBeFocused();
-  const sonstiges = page.getByRole('list', { name: 'Ohne Geschäft: Sonstiges' });
+  const sonstiges = page.getByRole('rowgroup', { name: 'Ohne Geschäft: Sonstiges' });
   await expect(sonstiges).toContainText('Kochhandschuhe');
   await expect(sonstiges).not.toContainText('nach Gefühl');
   await expect(page.getByRole('list', { name: 'Zusatzbedarf' })).toContainText('Kochhandschuhe');
@@ -44,7 +44,7 @@ test('anything goes on the shopping list by name, without the list and an amount
   // A name of the list takes that ingredient
   await feld.fill('Spülmittel');
   await feld.press('Enter');
-  await expect(page.getByRole('list', { name: 'Ohne Geschäft: Reinigung/Hygiene' })).toContainText(
+  await expect(page.getByRole('rowgroup', { name: 'Ohne Geschäft: Reinigung/Hygiene' })).toContainText(
     'Spülmittel'
   );
 

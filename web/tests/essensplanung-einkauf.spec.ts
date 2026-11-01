@@ -41,7 +41,7 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
 
   // 2 × 1 kg pasta, without a shop yet
   await page.getByRole('tab', { name: 'Einkauf' }).click();
-  const ohne = page.getByRole('list', { name: 'Ohne Geschäft: Teigware' });
+  const ohne = page.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' });
   await expect(ohne).toContainText('2 kg Nudeln (Spaghetti)');
 
   // 500 g are in stock, dish soap is needed on top
@@ -65,9 +65,9 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
   // Pieces are rounded up for buying
-  await expect(page.getByRole('list', { name: 'Ohne Geschäft: Reinigung/Hygiene' })).toContainText(
-    '3 Stück Spülmittel'
-  );
+  await expect(
+    page.getByRole('rowgroup', { name: 'Ohne Geschäft: Reinigung/Hygiene' })
+  ).toContainText('3 Stück Spülmittel');
 
   // A shop, and the pasta is bought there
   await page.getByRole('button', { name: 'Geschäft hinzufügen' }).click();
@@ -82,7 +82,7 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await expect(ohne).toContainText('1,5 kg Nudeln (Spaghetti)');
   await page.unroute('**/api/essensplanung/planung/zutaten/*/geschaeft');
   await wahl.selectOption({ label: 'Metro' });
-  await expect(page.getByRole('list', { name: 'Metro: Teigware' })).toContainText(
+  await expect(page.getByRole('rowgroup', { name: 'Metro: Teigware' })).toContainText(
     '1,5 kg Nudeln (Spaghetti)'
   );
   await expectNoHorizontalOverflow(page);
@@ -120,5 +120,5 @@ test('the stock dialog retries a failed list and keeps typed text', async ({ pag
   await expect(feld).toHaveValue('Oliven');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByText('3 g (ATG) Oliven', { exact: true })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Bestand' })).toContainText(/3 g \(ATG\)\s*Oliven/);
 });
