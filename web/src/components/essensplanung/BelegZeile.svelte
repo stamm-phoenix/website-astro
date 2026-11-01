@@ -270,7 +270,7 @@
     aria-label="{label}, Beleg vom {formatIsoDate(beleg.datum)}"
     placeholder={label}
     aria-invalid={fehler[feld] ? 'true' : undefined}
-    title={fehler[feld]}
+    aria-describedby={fehler[feld] ? `beleg-${beleg.id}-${feld}-fehler` : undefined}
     maxlength={typ === 'text' ? max : undefined}
     max={typ === 'date' ? todayIso() : undefined}
     inputmode={feld === 'betrag' ? 'decimal' : undefined}
@@ -279,6 +279,11 @@
     onkeydown={(event) => taste(event, feld)}
     onblur={() => void feldSpeichern(feld)}
   />
+  {#if fehler[feld]}
+    <span id="beleg-{beleg.id}-{feld}-fehler" class="mt-0.5 block text-xs text-danger"
+      >{fehler[feld]}</span
+    >
+  {/if}
 {/snippet}
 
 <!-- On a phone each receipt is a small card of two columns; the header row is hidden -->
