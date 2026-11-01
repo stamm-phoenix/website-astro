@@ -1,7 +1,6 @@
 ---
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
-import PageHeader from '../../components/PageHeader.astro';
 import EssensplanungApp from '../../components/essensplanung/EssensplanungApp.svelte';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 ---
@@ -12,10 +11,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   description="Eine Essensplanung ansehen und bearbeiten."
 >
   <Header slot="header" />
-  <div class="print:hidden">
-    <PageHeader title="Essensplanung" />
-  </div>
-  <div class="essensplanung-seite mt-8 print:mt-0">
+  <div class="essensplanung-seite">
     <EssensplanungApp client:only="svelte" />
     <noscript>
       <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
@@ -27,6 +23,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 </BaseLayout>
 
 <style is:global>
+  /* A working tool: the Planung uses the whole width of the screen instead of the site's column */
+  main:has(.essensplanung-seite) {
+    max-width: none;
+    padding-top: 1rem;
+    padding-bottom: 1.5rem;
+  }
+  @media (min-width: 64rem) {
+    main:has(.essensplanung-seite) {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
   /* On paper only the Planung or the recipe card, without the site around it */
   @media print {
     body:has(.essensplanung-seite) > header,

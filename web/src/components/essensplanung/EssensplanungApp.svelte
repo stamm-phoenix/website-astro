@@ -243,11 +243,11 @@
 {:else if !ansicht}
   <p role="status" class="text-neutral-700">Die Planung wird geladen …</p>
 {:else}
-  <div class="space-y-6">
-    <div class="space-y-1">
-      <h2 class="font-serif text-2xl font-bold text-brand-900 [overflow-wrap:anywhere]">
+  <div class="space-y-4">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h1 class="font-serif text-xl font-bold text-brand-900 [overflow-wrap:anywhere]">
         {ansicht.name}
-      </h2>
+      </h1>
       <p class="text-sm text-neutral-700">
         {#if ansicht.tage.length}
           {datumLang(ansicht.tage[0].datum)} bis {datumLang(ansicht.tage.at(-1)!.datum)} ·
@@ -284,7 +284,7 @@
       <div
         role="tablist"
         aria-label="Bereiche der Planung"
-        class="flex flex-wrap gap-2 print:hidden"
+        class="flex flex-wrap gap-x-1 border-b border-neutral-200 print:hidden"
       >
         {#each bereiche as eintrag (eintrag.id)}
           <button
@@ -294,7 +294,10 @@
             aria-selected={bereich === eintrag.id}
             aria-controls="bereich-panel-{eintrag.id}"
             tabindex={bereich === eintrag.id ? 0 : -1}
-            class={bereich === eintrag.id ? 'btn-primary' : 'btn-secondary'}
+            class="-mb-px min-h-11 border-b-2 px-3 py-1.5 text-sm font-semibold md:min-h-0 {bereich ===
+            eintrag.id
+              ? 'border-brand-900 text-brand-900'
+              : 'border-transparent text-neutral-700 hover:border-neutral-400 hover:text-brand-900'}"
             onclick={() => (bereich = eintrag.id)}
             onkeydown={bereichTaste}>{eintrag.label}</button
           >
