@@ -97,3 +97,43 @@ test('switching the kind keeps what is typed; drafts of rows survive the filter'
       })
   ).toHaveValue('abc');
 });
+
+test('nothing typed while a slow save runs gets lost', async ({ page }) => {
+  await anlegen(page, 'E2E Belege langsam');
+  await page.getByRole('tab', { name: 'Belege' }).click();
+  // Every change of a receipt answers late
+  await page.route(/\/api\/essensplanung\/planung\/belege(\/\d+)?$/, async (route) => {
+    if (['POST', 'PATCH'].includes(route.request().method()))
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+
+  // The new receipt: its fields are locked while it is sent, so what is saved is what was typed
+  await page.getByRole('button', { name: 'Ohne Foto eintragen' }).click();
+  const betragNeu = neu(page).getByLabel('Betrag in €');
+  await betragNeu.fill('10,00');
+  await neu(page).getByRole('button', { name: 'Beleg speichern' }).click();
+  await expect(betragNeu).toBeDisabled();
+  await expect(page.getByText('Beleg gespeichert.').first()).toBeVisible({ timeout: 10_000 });
+  const zeile = page.getByTestId('belege-tabelle').locator('tbody tr').first();
+  await expect(zeile.getByRole('textbox', { name: /^Betrag in €/ })).toHaveValue('10,00');
+
+  // In the row: a field left while another one saves is saved right after it
+  const haendler = zeile.getByRole('textbox', { name: /^Händler oder was/ });
+  const notiz = zeile.getByRole('textbox', { name: /^Notiz/ });
+  await haendler.fill('Bäcker');
+  await haendler.press('Enter');
+  await notiz.fill('Brötchen');
+  await notiz.press('Tab');
+  await expect(notiz).toHaveValue('Brötchen');
+  // Both saved one after the other: after a reload the row shows them
+  await expect(page.getByText('Beleg gespeichert.').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(3500);
+  await page.reload();
+  await page.getByRole('tab', { name: 'Belege' }).click();
+  const neuGeladen = page.getByTestId('belege-tabelle').locator('tbody tr').first();
+  await expect(neuGeladen.getByRole('textbox', { name: /^Händler oder was/ })).toHaveValue(
+    'Bäcker'
+  );
+  await expect(neuGeladen.getByRole('textbox', { name: /^Notiz/ })).toHaveValue('Brötchen');
+});

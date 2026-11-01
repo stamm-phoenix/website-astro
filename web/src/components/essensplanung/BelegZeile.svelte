@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import BelegVorschau from './BelegVorschau.svelte';
   import BezahltVonFeld from './BezahltVonFeld.svelte';
@@ -37,6 +38,9 @@
   let { kontext, beleg, bearbeiten, entwuerfe, onfoto, onansehen }: Props = $props();
 
   let speichert = $state(false);
+  /** Fields left while a save of this row ran; they save right after it. */
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- a queue, never rendered
+  const wartend = new Set<Feld>();
   let wahl = $state('');
   let name = $state('');
 
@@ -113,6 +117,20 @@
     merkeSpeichern(lauf);
     const ok = await lauf;
     speichert = false;
+    if (ok) {
+      // The row shows the answer only after the update
+      await tick();
+      // Typed on meanwhile: that goes on the version this save brought
+      const eigen = entwuerfe[beleg.id];
+      if (eigen) eigen.basis = Object.keys(eigen.felder).length ? beleg.etag : null;
+    }
+    // Fields left during the save follow now; after a failure they stay drafts
+    const naechste = [...wartend];
+    wartend.clear();
+    if (ok && naechste.length)
+      void (async () => {
+        for (const weiter of naechste) await feldSpeichern(weiter);
+      })();
     if (!ok) {
       const eigen = eigener();
       // Saving again goes on the version now shown
@@ -129,7 +147,11 @@
 
   async function feldSpeichern(feld: Feld): Promise<void> {
     const text = entwuerfe[beleg.id]?.felder[feld];
-    if (text === undefined || speichert) return;
+    if (text === undefined) return;
+    if (speichert) {
+      wartend.add(feld);
+      return;
+    }
     if (text === gespeicherterWert(feld)) {
       zuruecksetzen(feld);
       return;
@@ -150,10 +172,9 @@
       felder = { datum: text };
     } else felder = { [feld]: text };
     delete eigener().fehler[feld];
-    if (await senden(felder, 'Beleg gespeichert.')) {
-      // Only what was sent; typing on meanwhile stays a draft
-      if (entwuerfe[beleg.id]?.felder[feld] === text) zuruecksetzen(feld);
-    }
+    const ok = await senden(felder, 'Beleg gespeichert.');
+    // Only what was sent; typing on meanwhile stays a draft
+    if (ok && entwuerfe[beleg.id]?.felder[feld] === text) zuruecksetzen(feld);
   }
 
   function taste(event: KeyboardEvent, feld: Feld): void {
@@ -239,7 +260,6 @@
     max={typ === 'date' ? todayIso() : undefined}
     inputmode={feld === 'betrag' ? 'decimal' : undefined}
     value={wert(feld)}
-    disabled={speichert}
     oninput={(event) => tippen(feld, event.currentTarget.value)}
     onkeydown={(event) => taste(event, feld)}
     onblur={() => void feldSpeichern(feld)}

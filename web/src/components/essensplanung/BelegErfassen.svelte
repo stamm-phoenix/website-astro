@@ -286,98 +286,102 @@
           void speichern();
         }}
       >
-        <label class="block text-sm">
-          <span class="form-label">Datum</span>
-          <input
-            type="date"
-            class="form-input mt-0.5 min-h-9 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
-            bind:value={form.date}
-            max={todayIso()}
-            required
-            aria-invalid={fehler.datum ? 'true' : undefined}
-          />
-          {#if fehler.datum}<span class="text-xs text-danger">{fehler.datum}</span>{/if}
-        </label>
-        <label class="block text-sm">
-          <span class="form-label">Betrag in €</span>
-          <input
-            type="text"
-            inputmode="decimal"
-            class="form-input mt-0.5 min-h-9 px-2 py-1 text-right text-sm any-pointer-coarse:min-h-11"
-            placeholder="12,34"
-            bind:value={form.amount}
-            aria-invalid={fehler.betragCent ? 'true' : undefined}
-          />
-          {#if fehler.betragCent}<span class="text-xs text-danger">{fehler.betragCent}</span>{/if}
-        </label>
-        <label class="block text-sm">
-          <span class="form-label">Händler oder was</span>
-          <input
-            type="text"
-            maxlength="100"
-            class="form-input mt-0.5 min-h-9 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
-            placeholder="z. B. Rewe, Gas für den Kocher"
-            bind:value={form.shop}
-            aria-invalid={fehler.haendler ? 'true' : undefined}
-          />
-          {#if fehler.haendler}<span class="text-xs text-danger">{fehler.haendler}</span>{/if}
-        </label>
-        <div class="text-sm">
-          <label class="form-label" for="beleg-neu-bezahlt">Bezahlt von</label>
-          <div class="mt-0.5">
-            <BezahltVonFeld
-              id="beleg-neu-bezahlt"
-              mitglieder={kontext.ansicht.mitglieder}
-              bind:wahl
-              bind:text={name}
-              invalid={!!(fehler.bezahltVonText || fehler.bezahltVonId)}
+        <!-- Locked while saving: what is sent is what was typed, nothing typed meanwhile gets lost -->
+        <fieldset class="contents" disabled={dialog.state.busy}>
+          <label class="block text-sm">
+            <span class="form-label">Datum</span>
+            <input
+              type="date"
+              class="form-input mt-0.5 min-h-9 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
+              bind:value={form.date}
+              max={todayIso()}
+              required
+              aria-invalid={fehler.datum ? 'true' : undefined}
             />
-          </div>
-          {#if fehler.bezahltVonText || fehler.bezahltVonId}
-            <span class="text-xs text-danger">{fehler.bezahltVonText ?? fehler.bezahltVonId}</span>
-          {/if}
-        </div>
-        <label class="block text-sm">
-          <span class="form-label">Notiz</span>
-          <input
-            type="text"
-            maxlength="500"
-            class="form-input mt-0.5 min-h-9 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
-            bind:value={notiz}
-            aria-invalid={fehler.notiz ? 'true' : undefined}
-          />
-        </label>
-        <div
-          class="flex flex-wrap items-center gap-x-4 gap-y-2 {mitFoto
-            ? ''
-            : 'sm:col-span-2 lg:col-span-5'}"
-        >
-          <label
-            class="inline-flex cursor-pointer items-center gap-2 text-sm any-pointer-coarse:min-h-11"
-          >
-            <input type="checkbox" class="size-4" bind:checked={erstattet} />
-            Schon erstattet
+            {#if fehler.datum}<span class="text-xs text-danger">{fehler.datum}</span>{/if}
           </label>
-          <ActionButton
-            type="submit"
-            variant="primary"
-            class="min-h-9 any-pointer-coarse:min-h-11"
-            disabled={busy || photo.photoBusy || !!photo.zuschnitt || !bearbeiten}
-            >{dialog.state.busy ? 'Wird gespeichert …' : 'Beleg speichern'}</ActionButton
+          <label class="block text-sm">
+            <span class="form-label">Betrag in €</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              class="form-input mt-0.5 min-h-9 px-2 py-1 text-right text-sm any-pointer-coarse:min-h-11"
+              placeholder="12,34"
+              bind:value={form.amount}
+              aria-invalid={fehler.betragCent ? 'true' : undefined}
+            />
+            {#if fehler.betragCent}<span class="text-xs text-danger">{fehler.betragCent}</span>{/if}
+          </label>
+          <label class="block text-sm">
+            <span class="form-label">Händler oder was</span>
+            <input
+              type="text"
+              maxlength="100"
+              class="form-input mt-0.5 min-h-9 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
+              placeholder="z. B. Rewe, Gas für den Kocher"
+              bind:value={form.shop}
+              aria-invalid={fehler.haendler ? 'true' : undefined}
+            />
+            {#if fehler.haendler}<span class="text-xs text-danger">{fehler.haendler}</span>{/if}
+          </label>
+          <div class="text-sm">
+            <label class="form-label" for="beleg-neu-bezahlt">Bezahlt von</label>
+            <div class="mt-0.5">
+              <BezahltVonFeld
+                id="beleg-neu-bezahlt"
+                mitglieder={kontext.ansicht.mitglieder}
+                bind:wahl
+                bind:text={name}
+                invalid={!!(fehler.bezahltVonText || fehler.bezahltVonId)}
+              />
+            </div>
+            {#if fehler.bezahltVonText || fehler.bezahltVonId}
+              <span class="text-xs text-danger">{fehler.bezahltVonText ?? fehler.bezahltVonId}</span
+              >
+            {/if}
+          </div>
+          <label class="block text-sm">
+            <span class="form-label">Notiz</span>
+            <input
+              type="text"
+              maxlength="500"
+              class="form-input mt-0.5 min-h-9 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
+              bind:value={notiz}
+              aria-invalid={fehler.notiz ? 'true' : undefined}
+            />
+          </label>
+          <div
+            class="flex flex-wrap items-center gap-x-4 gap-y-2 {mitFoto
+              ? ''
+              : 'sm:col-span-2 lg:col-span-5'}"
           >
-          {#if !mitFoto}
+            <label
+              class="inline-flex cursor-pointer items-center gap-2 text-sm any-pointer-coarse:min-h-11"
+            >
+              <input type="checkbox" class="size-4" bind:checked={erstattet} />
+              Schon erstattet
+            </label>
+            <ActionButton
+              type="submit"
+              variant="primary"
+              class="min-h-9 any-pointer-coarse:min-h-11"
+              disabled={busy || photo.photoBusy || !!photo.zuschnitt || !bearbeiten}
+              >{dialog.state.busy ? 'Wird gespeichert …' : 'Beleg speichern'}</ActionButton
+            >
+            {#if !mitFoto}
+              <ActionButton
+                class="min-h-9 any-pointer-coarse:min-h-11"
+                disabled={busy}
+                onclick={() => void zuFoto()}>Foto hinzufügen</ActionButton
+              >
+            {/if}
             <ActionButton
               class="min-h-9 any-pointer-coarse:min-h-11"
               disabled={busy}
-              onclick={() => void zuFoto()}>Foto hinzufügen</ActionButton
+              onclick={onfertig}>Abbrechen</ActionButton
             >
-          {/if}
-          <ActionButton
-            class="min-h-9 any-pointer-coarse:min-h-11"
-            disabled={busy}
-            onclick={onfertig}>Abbrechen</ActionButton
-          >
-        </div>
+          </div>
+        </fieldset>
       </form>
     {:else}
       <div class="flex flex-wrap gap-2">
