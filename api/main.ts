@@ -187,6 +187,12 @@ import {
   EssensplanungPackWerkzeug,
 } from './endpoints/essensplanung-packliste';
 import {
+  EssensplanungBeleg,
+  EssensplanungBelegFoto,
+  EssensplanungBelegPruefung,
+  EssensplanungBelege,
+} from './endpoints/essensplanung-belege';
+import {
   EssensplanungGerichtZutatenSammel,
   EssensplanungKiPruefen,
   EssensplanungKiRezept,
@@ -1540,6 +1546,34 @@ app.http('essensplanungPackEintrag', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/packliste/{id}',
   handler: EssensplanungPackEintrag,
+});
+
+app.http('essensplanungBelege', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege',
+  handler: EssensplanungBelege,
+});
+
+app.http('essensplanungBelegPruefung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege/pruefung',
+  handler: EssensplanungBelegPruefung,
+});
+
+app.http('essensplanungBeleg', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege/{id}',
+  handler: EssensplanungBeleg,
+});
+
+app.http('essensplanungBelegFoto', {
+  methods: ['GET', 'PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege/{id}/foto',
+  handler: EssensplanungBelegFoto,
 });
 
 app.http('essensplanungTeilnehmendeListe', {

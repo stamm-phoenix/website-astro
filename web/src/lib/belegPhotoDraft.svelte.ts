@@ -58,11 +58,19 @@ function isEdited(draft: Draft): boolean {
 /** Share of the receipt's long edge left around a found receipt, so no letter at its edge is cut. */
 const RAND = 0.02;
 
+/** What the photo draft reads and prefills of a form; the Belege form has more. */
+export type BelegFotoForm = Pick<BelegForm, 'id' | 'etag' | 'shop' | 'date' | 'amount' | 'aiCheck'>;
+
 interface Options {
-  form: () => BelegForm | null;
+  form: () => BelegFotoForm | null;
   dialog: ReturnType<typeof createDialogForm>;
   notice: (message: string | null) => void;
   applyPhoto: (saved: StaffBeleg) => void;
+  /**
+   * Where a new photo is checked, and with which headers; the Belege of the Leitendenbereich
+   * by default. The Essensplanung checks with the token of its link.
+   */
+  pruefung?: { url: string; headers?: Record<string, string> };
 }
 interface BelegPhotoDraft {
   readonly photoBusy: boolean;
@@ -89,6 +97,7 @@ interface BelegPhotoDraft {
 }
 export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
   const dialog = options.dialog;
+  const pruefung = options.pruefung ?? { url: '/intern/pflege/belege/pruefung' };
   let photoBusy = $state(false);
   let draft = $state.raw<Draft | null>(null);
   let zuschnitt = $state.raw<Zuschnitt | null>(null);
@@ -494,8 +503,9 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
         try {
           const drehung = await sendApi<{ available: boolean; rotation: 0 | 90 | 180 | 270 }>(
             'POST',
-            '/intern/pflege/belege/pruefung?nur=drehung',
-            blob
+            `${pruefung.url}?nur=drehung`,
+            blob,
+            { headers: pruefung.headers }
           );
           if (generation !== photoGeneration) return;
           if (!drehung.available) return;
@@ -514,8 +524,9 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       }
       const result = await sendApi<{ available: boolean; check: BelegCheck | null }>(
         'POST',
-        '/intern/pflege/belege/pruefung',
-        blob
+        pruefung.url,
+        blob,
+        { headers: pruefung.headers }
       );
       if (generation !== photoGeneration || options.form() !== form || form.id) return;
       const check = result.check;

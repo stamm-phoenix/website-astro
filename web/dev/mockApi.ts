@@ -91,6 +91,12 @@ import * as essenGerichte from './mock-data/essensplanung-gerichte';
 import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
 import * as essenEinkauf from './mock-data/essensplanung-einkauf';
 import * as essenPackliste from './mock-data/essensplanung-packliste';
+import * as essenBelege from './mock-data/essensplanung-belege';
+import {
+  readBelegFotoArt,
+  validateBeleg,
+  validateBelegAenderung,
+} from '../../api/lib/essen-belege-validation';
 import * as essenKi from './mock-data/essensplanung-ki';
 import * as essenKochen from './mock-data/essensplanung-kochen';
 import * as essenEinkaeufe from './mock-data/essensplanung-einkaeufe';
@@ -1727,6 +1733,69 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/packliste/:id', (req) => 
   const input = validatePackAenderung(req.json);
   return essenAendern(req, (z) => essenPackliste.packEintragAendern(z, id, input, req.json?.etag));
 });
+
+// Belege of a Planung (docs/essensplanung.md, Belege)
+route('POST', '/api/essensplanung/planung/belege', (req) => {
+  const input = validateBeleg(req.json);
+  return essenAendern(
+    req,
+    (z) => essenBelege.belegAnlegen(z, input, essenBelege.fotosAus(req.json)),
+    201
+  );
+});
+
+route('POST', '/api/essensplanung/planung/belege/pruefung', (req) => {
+  try {
+    const zugang = essenZugang(req);
+    if (zugang.zugang === 'lesen')
+      return error(403, 'NUR_LESEN', 'Mit diesem Link kannst du die Planung nur ansehen.');
+  } catch (caught) {
+    return essenFehler(caught);
+  }
+  if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
+    return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
+  return json(essenBelege.demoPruefung(req.query.get('nur') === 'drehung'));
+});
+
+route(['PATCH', 'DELETE'], '/api/essensplanung/planung/belege/:id', (req) => {
+  const id = Number(req.params.id);
+  if (req.method === 'DELETE')
+    return essenAendern(req, (z) => essenBelege.belegAendern(z, id, null, req.headers['if-match']));
+  const input = validateBelegAenderung(req.json);
+  return essenAendern(req, (z) => essenBelege.belegAendern(z, id, input, req.json?.etag));
+});
+
+route(
+  ['GET', 'PUT', 'DELETE'],
+  '/api/essensplanung/planung/belege/:id/foto',
+  (req) => {
+    const id = Number(req.params.id);
+    if (req.method === 'GET') {
+      try {
+        const datei = essenBelege.belegFoto(
+          essenZugang(req),
+          id,
+          readBelegFotoArt(req.query.get('art'))
+        );
+        if (!datei) return notFound('Zu diesem Beleg gibt es kein Foto mehr.');
+        return { kind: 'raw', status: 200, contentType: datei.typ, body: datei.bytes };
+      } catch (caught) {
+        return essenFehler(caught);
+      }
+    }
+    if (req.method === 'DELETE')
+      return essenAendern(req, (z) =>
+        essenBelege.belegFotoSetzen(z, id, null, req.headers['if-match'])
+      );
+    return essenAendern(req, (z) => {
+      const datei = essenBelege.fotosAus(req.json);
+      if (!datei)
+        throw new ValidationError({ photo: 'Bitte ein Foto oder PDF des Belegs wählen.' });
+      essenBelege.belegFotoSetzen(z, id, datei, req.json?.etag);
+    });
+  },
+  true
+);
 
 route('POST', '/api/intern/nikolaus/bookings/:id/message', (req) =>
   bookingById(req.params.id) ? noContent() : notFound()

@@ -132,6 +132,7 @@ export interface Database {
   'essen.einkauf_posten': EssenEinkaufPostenTable;
   'essen.einkauf_regel': EssenEinkaufRegelTable;
   'essen.packliste_eintrag': EssenPacklisteEintragTable;
+  'essen.beleg': EssenBelegTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -1212,6 +1213,27 @@ export interface EssenPacklisteEintragTable {
   gepackt: Generated<boolean>;
   zustaendig_mitglied_id: number | null;
   zustaendig_text: Generated<string>;
+}
+
+/** `essen.beleg`: a receipt of a Planung, who paid it and whether it was paid back (`0071`). */
+export interface EssenBelegTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  datum: SqlDate;
+  betrag_cent: number;
+  haendler: Generated<string>;
+  notiz: Generated<string>;
+  /** A member, or null with a free name in `bezahlt_von_text`. */
+  bezahlt_von_mitglied_id: number | null;
+  bezahlt_von_text: Generated<string>;
+  erstattet: Generated<boolean>;
+  erstattet_am: Date | null;
+  erstattet_von_mitglied_id: number | null;
+  /** File name in `essen-belege/<planung_id>/`; null without a photo. */
+  foto: string | null;
+  angelegt_von_mitglied_id: number | null;
+  angelegt_am: Generated<Date>;
 }
 
 /** `essen.zusatzbedarf`: like the stock, but an amount is optional („Kochhandschuhe“). */

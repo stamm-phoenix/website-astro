@@ -1,4 +1,4 @@
-import { fetchApi, sendApi } from './api';
+import { fetchApi, fetchFile, sendApi } from './api';
 import type { EssenKatalog, PlanungAenderung, PlanungAnsicht } from './types';
 
 /**
@@ -44,6 +44,14 @@ export function planungApi(token: string) {
       body?: unknown,
       etag?: string
     ) => sendApi<T>(method, `/essensplanung/planung${path}`, body, { headers, etag }),
+    /** A picture of a receipt (`vorschau`, `bild`, `original`) or its file (`datei`). */
+    belegFoto: (
+      id: number,
+      art: 'vorschau' | 'bild' | 'original' | 'datei',
+      signal?: AbortSignal
+    ) => fetchFile(`/essensplanung/planung/belege/${id}/foto?art=${art}`, signal, headers),
+    /** Where a new photo of a receipt is checked, for `createBelegPhotoDraft`. */
+    belegPruefung: { url: '/essensplanung/planung/belege/pruefung', headers },
   };
 }
 
@@ -192,6 +200,10 @@ const AENDERUNGEN: Record<string, string> = {
   'packliste-neu': 'hat etwas auf die Packliste gesetzt',
   'packliste-geaendert': 'hat die Packliste geändert',
   'packliste-geloescht': 'hat etwas von der Packliste genommen',
+  'beleg-neu': 'hat einen Beleg eingetragen',
+  'beleg-geaendert': 'hat einen Beleg geändert',
+  'beleg-foto': 'hat das Foto eines Belegs geändert',
+  'beleg-geloescht': 'hat einen Beleg gelöscht',
 };
 
 /** What a change of the packing list did: packed, unpacked, or who packs it. */
@@ -247,7 +259,12 @@ export function aenderungText(aenderung: PlanungAenderung): string {
               ? abgeschlossen
                 ? 'hat einen Einkauf abgeschlossen'
                 : 'hat einen Einkauf wieder geöffnet'
-              : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
+              : aenderung.aktion === 'beleg-geaendert' &&
+                  typeof aenderung.details.erstattet === 'boolean'
+                ? aenderung.details.erstattet
+                  ? 'hat einen Beleg als erstattet markiert'
+                  : 'hat „erstattet“ bei einem Beleg aufgehoben'
+                : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
   const ziel = [
     gruppen && typeof gruppe === 'string' ? `${gruppe} bei` : '',
     typeof anzahl === 'number' ? String(anzahl) : '',

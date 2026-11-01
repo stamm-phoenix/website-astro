@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import type { EinkaufPosten, ZusatzPosten, Geschaeft } from './essen-einkauf-model';
 import type { Einkauf } from './essen-einkaeufe-model';
 import type { PacklisteEintrag } from './essen-packliste-model';
+import type { PlanungBeleg } from './essen-belege-model';
 import type { EinplanungStatus, Verbrauch } from './essen-kochen-model';
 import type { PlanungGruppe, Teilnehmende } from './essen-teilnehmende-model';
 import { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor } from './essen-planung-faktor';
@@ -152,6 +153,8 @@ export interface PlanungAnsicht {
   einkaeufe: Einkauf[];
   /** Stored states of tools and entries of its own of the packing list, in the order added. */
   packliste: PacklisteEintrag[];
+  /** Receipts, newest day first (`essen-belege.ts`). */
+  belege: PlanungBeleg[];
 }
 
 /** Whether `zugang` may change the plan (days, meals, later dishes). */
@@ -292,4 +295,8 @@ export const AENDERUNG_TEXTE: Record<string, string> = {
   'packliste-neu': 'Auf die Packliste gesetzt',
   'packliste-geaendert': 'Packliste geändert',
   'packliste-geloescht': 'Von der Packliste genommen',
+  'beleg-neu': 'Beleg eingetragen',
+  'beleg-geaendert': 'Beleg geändert',
+  'beleg-foto': 'Foto eines Belegs geändert',
+  'beleg-geloescht': 'Beleg gelöscht',
 };

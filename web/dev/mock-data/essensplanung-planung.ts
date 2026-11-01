@@ -33,6 +33,7 @@ import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilneh
 import type { EinkaufPosten, Geschaeft, ZusatzPosten } from '../../../api/lib/essen-einkauf-model';
 import type { MockPackEintrag } from './essensplanung-packliste';
 import { essenKatalogStand } from './essensplanung';
+import { belegeAnsicht } from './essensplanung-belege';
 import {
   gruppenAusVorlage,
   pruefeAnwesenheit,
@@ -322,6 +323,7 @@ export function ansichtVon(
           ? zustaendigText
           : (planung.mitglieder.find((m) => m.id === eintrag.zustaendigId)?.name ?? ''),
     })),
+    belege: belegeAnsicht(planung),
     ...gerichteAnsicht(planung),
   };
 }

@@ -9,6 +9,7 @@
   import PlanTeilnehmende from './PlanTeilnehmende.svelte';
   import PlanEinkauf from './PlanEinkauf.svelte';
   import PlanPackliste from './PlanPackliste.svelte';
+  import PlanBelege from './PlanBelege.svelte';
   import PlanMitglieder from './PlanMitglieder.svelte';
   import PlanEinstellungen from './PlanEinstellungen.svelte';
   import PlanAenderungen from './PlanAenderungen.svelte';
@@ -35,7 +36,14 @@
   let meldung = $state<string | null>(null);
   let meldungArt = $state<'success' | 'error'>('success');
   let bereich = $state<
-    'plan' | 'gerichte' | 'teilnehmende' | 'einkauf' | 'packliste' | 'mitglieder' | 'einstellungen'
+    | 'plan'
+    | 'gerichte'
+    | 'teilnehmende'
+    | 'einkauf'
+    | 'packliste'
+    | 'belege'
+    | 'mitglieder'
+    | 'einstellungen'
   >('plan');
   let offline = $state(false);
 
@@ -45,6 +53,7 @@
     { id: 'teilnehmende', label: 'Teilnehmende' },
     { id: 'einkauf', label: 'Einkauf' },
     { id: 'packliste', label: 'Packliste' },
+    { id: 'belege', label: 'Belege' },
     ...(ansicht && ansicht.zugang !== 'lesen' ? [{ id: 'mitglieder', label: 'Mitglieder' }] : []),
     ...(ansicht && ansicht.zugang !== 'lesen'
       ? [{ id: 'einstellungen', label: 'Einstellungen' }]
@@ -345,6 +354,14 @@
       hidden={bereich !== 'packliste'}
     >
       <PlanPackliste {kontext} />
+    </div>
+    <div
+      role="tabpanel"
+      id="bereich-panel-belege"
+      aria-labelledby="bereich-belege"
+      hidden={bereich !== 'belege'}
+    >
+      <PlanBelege {kontext} />
     </div>
     {#if ansicht.zugang !== 'lesen'}
       <div
