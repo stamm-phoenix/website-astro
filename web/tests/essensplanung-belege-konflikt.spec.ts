@@ -72,3 +72,46 @@ test('a photo replaced by someone else meanwhile is not overwritten without aski
   await expect(page.getByText('Foto gespeichert.').first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByAltText('Vorschau des Fotos')).toHaveCount(0);
 });
+
+test('a payer typed while someone else changed it saves only after the conflict', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await anlegen(page, 'E2E Belege Zahlerkonflikt');
+  await page.getByRole('tab', { name: 'Belege' }).click();
+  await page.getByRole('button', { name: 'Ohne Foto eintragen' }).click();
+  const neu = page.getByRole('region', { name: 'Neuer Beleg' });
+  await neu.getByLabel('Betrag in €').fill('5,00');
+  await neu.getByRole('button', { name: 'Beleg speichern' }).click();
+  await expect(page.getByText('Beleg gespeichert.').first()).toBeVisible();
+
+  // A starts typing someone else as payer, without leaving the field
+  const zeile = (seite: Page) => seite.getByTestId('belege-tabelle').locator('tbody tr').first();
+  await zeile(page)
+    .getByRole('combobox', { name: /^Bezahlt von/ })
+    .selectOption('text');
+  const nameA = zeile(page).getByRole('textbox', { name: /^Bezahlt von.*: Name$/ });
+  await nameA.fill('Oma Inge');
+
+  // B sets another payer meanwhile; B sends directly, so A's field keeps its focus
+  const token = /[#&]t=([^&]+)/.exec(page.url())![1];
+  const headers = { 'x-essensplanung-token': token };
+  const ansicht = await (await page.request.get('/api/essensplanung/planung', { headers })).json();
+  const beleg = ansicht.belege[0];
+  const antwort = await page.request.patch(`/api/essensplanung/planung/belege/${beleg.id}`, {
+    headers,
+    data: { etag: beleg.etag, bezahltVonId: null, bezahltVonText: 'Ben' },
+  });
+  expect(antwort.status()).toBe(200);
+
+  // A's page hears of it; saving the typed name is a conflict, and the name stays
+  await page.waitForTimeout(4000);
+  await nameA.press('Enter');
+  await expect(page.getByText(/Jemand anderes hat/).first()).toBeVisible({ timeout: 15_000 });
+  await expect(nameA).toHaveValue('Oma Inge');
+  // Saving again goes on the version now shown
+  await nameA.press('Enter');
+  await expect(page.getByTestId('belege-statistik')).toContainText('Oma Inge', {
+    timeout: 15_000,
+  });
+});

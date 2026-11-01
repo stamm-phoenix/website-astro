@@ -122,7 +122,8 @@
       await tick();
       // Typed on meanwhile: that goes on the version this save brought
       const eigen = entwuerfe[beleg.id];
-      if (eigen) eigen.basis = Object.keys(eigen.felder).length ? beleg.etag : null;
+      if (eigen)
+        eigen.basis = Object.keys(eigen.felder).length || eigen.name !== null ? beleg.etag : null;
     }
     // Fields left during the save follow now; after a failure they stay drafts
     const naechste = [...wartend];
@@ -186,11 +187,19 @@
     }
   }
 
+  /** A free name for „Bezahlt von“ is typed; it saves on the version the row had then. */
+  function nameTippen(text: string): void {
+    const eigen = eigener();
+    if (eigen.basis === null) eigen.basis = beleg.etag;
+    eigen.name = text;
+  }
+
   function nameVerwerfen(): void {
     const eigen = entwuerfe[beleg.id];
     if (eigen) {
       eigen.name = null;
       delete eigen.fehler.bezahlt;
+      if (!Object.keys(eigen.felder).length) eigen.basis = null;
       aufraeumen();
     }
     wahl = beleg.bezahltVonId !== null ? `m:${beleg.bezahltVonId}` : 'text';
@@ -290,7 +299,7 @@
         disabled={speichert}
         invalid={!!fehler.bezahlt}
         onwahl={(neu) => void bezahltSpeichern(Number(neu.slice(2)), '')}
-        ontextwahl={(text) => (eigener().name = text)}
+        ontextwahl={nameTippen}
         ontext={(text) => void bezahltSpeichern(null, text)}
         onescape={nameVerwerfen}
       />
