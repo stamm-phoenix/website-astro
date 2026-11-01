@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick, untrack } from 'svelte';
+  import { onDestroy, onMount, tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import BelegAiCheck from '../pflege/BelegAiCheck.svelte';
   import BelegFotoEntwurf from '../pflege/BelegFotoEntwurf.svelte';
@@ -37,6 +37,13 @@
     sofortWaehlen = false,
     onfertig,
   }: Props = $props();
+
+  // A late answer of a form already replaced by another must not close the new one
+  let offen = true;
+  onDestroy(() => (offen = false));
+  function fertig(): void {
+    if (offen) onfertig();
+  }
   let dateiFeld = $state<HTMLInputElement | null>(null);
   onMount(() => {
     if (sofortWaehlen && !ohneFoto) dateiFeld?.click();
@@ -169,7 +176,7 @@
     form.aiCheck = null;
     notiz = '';
     erstattet = false;
-    onfertig();
+    fertig();
   }
 
   function fotoSpeichern(): Promise<void> {
@@ -188,7 +195,7 @@
     );
     if (ok) {
       photo.reset();
-      onfertig();
+      fertig();
     }
   }
 
@@ -209,7 +216,7 @@
         () => kontext.api.senden('DELETE', `/belege/${id}/foto`, undefined, etag),
         'Foto entfernt.'
       );
-      if (ok) onfertig();
+      if (ok) fertig();
     });
   }
 

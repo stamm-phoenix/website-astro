@@ -56,9 +56,9 @@ export async function tippeEin(
   name: string,
   zustaendig: string
 ): Promise<boolean> {
-  const vorhanden = gerichtNamens(kontext.ansicht.gerichte, name);
-  if (vorhanden) return planeEin(kontext, mahlzeit, vorhanden.id, { zustaendig });
   const neu = name.trim().replace(/\s+/g, ' ');
+  const vorhanden = gerichtNamens(kontext.ansicht.gerichte, neu);
+  if (vorhanden) return planeEin(kontext, mahlzeit, vorhanden.id, { zustaendig });
   return kontext.aendern(
     () =>
       kontext.api.senden('POST', '/gerichte', {
