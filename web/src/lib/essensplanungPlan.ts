@@ -32,9 +32,8 @@ export function kalenderZeilen(tage: Pick<PlanungTag, 'id' | 'mahlzeiten'>[]): K
       const nummer = (gezaehlt.get(name) ?? 0) + 1;
       gezaehlt.set(name, nummer);
       const key = `${name}\u0000${nummer}`;
-      let index = zeilen.findIndex((zeile) => zeile.key === key);
-      // A row that sits above where this day already is would cross: then a new one
-      if (index >= 0 && index <= vorher) index = -1;
+      // A row below where this day already is; one above would cross, then a new one
+      let index = zeilen.findIndex((zeile, i) => i > vorher && zeile.key === key);
       if (index < 0) {
         index = vorher + 1;
         zeilen.splice(index, 0, { key, name: mahlzeit.name, mahlzeiten: new Map() });

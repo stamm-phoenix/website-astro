@@ -66,6 +66,23 @@ test('the rows of the calendar follow the names of the meals, in the order of th
   );
 });
 
+test('a meal in another order on later days reuses the row below', () => {
+  const anders = [
+    tag(1, [mahlzeit(11, 'Frühstück'), mahlzeit(12, 'Abendessen')]),
+    tag(2, [mahlzeit(21, 'Abendessen'), mahlzeit(22, 'Frühstück', [201])]),
+    tag(3, [mahlzeit(31, 'Abendessen'), mahlzeit(32, 'Frühstück')]),
+  ];
+  assert.deepEqual(
+    kalenderZeilen(anders).map((z) => [z.name, [...z.mahlzeiten.values()].map((m) => m.id)]),
+    [
+      ['Frühstück', [11]],
+      ['Abendessen', [12, 21, 31]],
+      ['Frühstück', [22, 32]],
+    ]
+  );
+  assert.deepEqual(pick(nachbarPlatz(anders, 22, 201, 'rechts')), [32, 1]);
+});
+
 test('Alt and an arrow key move a dish within its meal, to the next meal or the next day', () => {
   // Down within lunch, then to the packed lunch
   assert.deepEqual(pick(nachbarPlatz(tage, 22, 202, 'runter')), [22, 2]);

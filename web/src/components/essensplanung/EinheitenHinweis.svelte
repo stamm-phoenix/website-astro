@@ -23,7 +23,9 @@
     })
   );
   let offen = $state<number | null>(null);
-  const gewaehlt = $derived(zutaten.find((eintrag) => eintrag.zutat.id === offen)?.zutat);
+  // From all ingredients, not only those in several units: an open dialog stays when someone
+  // else brings the units into line meanwhile
+  const gewaehlt = $derived(ansicht.zutaten.find((zutat) => zutat.id === offen));
 </script>
 
 {#if zutaten.length}
