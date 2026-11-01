@@ -48,13 +48,17 @@
     };
   });
 
+  /** A failed download, shown also while the photo is shown. */
+  let downloadFehler = $state<string | null>(null);
+
   async function herunterladen(): Promise<void> {
     if (!beleg) return;
+    downloadFehler = null;
     try {
       const datei = await kontext.api.belegFoto(beleg.id, 'datei');
       saveFile(datei.blob, datei.fileName ?? (beleg.foto === 'pdf' ? 'Beleg.pdf' : 'Beleg.jpg'));
     } catch (error: unknown) {
-      fehler = errorMessage(
+      downloadFehler = errorMessage(
         error,
         'Die Datei konnte nicht geladen werden. Versuche es noch einmal.'
       );
@@ -69,6 +73,7 @@
   dismissOnBackdrop
   onclose={() => {
     original = false;
+    downloadFehler = null;
     onclose();
   }}
 >
@@ -86,6 +91,9 @@
         <p class="text-sm text-danger" role="alert">{fehler}</p>
       {:else}
         <p role="status" class="text-sm text-neutral-700">Wird geladen …</p>
+      {/if}
+      {#if downloadFehler}
+        <p class="text-sm text-danger" role="alert">{downloadFehler}</p>
       {/if}
       <div class="flex flex-wrap gap-2">
         <ActionButton onclick={() => void herunterladen()}
