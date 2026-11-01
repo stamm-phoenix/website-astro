@@ -257,9 +257,9 @@
         type="button"
         class="rounded-sm px-1 text-left text-neutral-900 hover:bg-neutral-100 hover:underline any-pointer-coarse:min-h-11 print:hidden"
         title="Wer isst mit ändern"
-        aria-label="Wer isst mit bei {mahlzeit.kennung}: {ohne.length
+        aria-label="Wer isst mit bei {mahlzeit.kennung} ändern: {ohne.length
           ? `alle außer ${ohne.join(', ')}`
-          : 'alle'}, ändern"
+          : 'alle'}"
         onclick={() => ongruppen(mahlzeit.id)}
         >{ohne.length ? `alle außer ${ohne.join(', ')}` : 'alle'}
         <span aria-hidden="true">✎</span></button
