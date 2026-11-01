@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import { anlegen, pdfLaden, aufklappen, einplanen } from './essensplanung-helpers';
+import { anlegen, pdfLaden, aufklappen, einplanen, liveFeld } from './essensplanung-helpers';
 
 /** Pasta for 4 (500 g), eaten by 8 at lunch on both days: 1 kg each. */
 async function nudelnPlanen(page: Page, name: string): Promise<void> {
@@ -109,10 +109,10 @@ test('two shop at once in the live mode; a rest goes to the next trip and into t
 
   // Only 800 g, and wholegrain instead: typed in the row, Enter ticks it off
   await oeffnen(page, 'Montag');
-  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await expect(menge).toHaveValue('1');
   await menge.fill('0,8');
-  const ersatz = montag.getByLabel('Ersatz für Nudeln (Spaghetti)');
+  const ersatz = await liveFeld(montag, 'Ersatz für Nudeln (Spaghetti)');
   await ersatz.fill('Vollkornnudeln');
   await ersatz.press('Enter');
   await expect(montag.getByRole('status')).toHaveText('1 von 1 abgehakt');
@@ -236,7 +236,7 @@ test('ticking off what someone else just ticked off keeps the input until saved 
   await nudelnPlanen(page, 'E2E Einkäufe Konflikt');
   await einkaufAnlegen(page, 'Montag', 0);
   const montag = await oeffnen(page, 'Montag');
-  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await menge.fill('1,8');
 
   // Meanwhile someone else ticks it off
@@ -256,7 +256,7 @@ test('ticking off what someone else just ticked off keeps the input until saved 
   await expect(dort).toContainText('1,8 kg', { timeout: 15_000 });
 
   // Taken back by the other one meanwhile: saving again ticks it off again
-  await menge.fill('1,5');
+  await (await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)')).fill('1,5');
   await box(dort, 'Nudeln (Spaghetti)').click();
   await expect(dort.getByRole('status')).toHaveText('0 von 1 abgehakt');
   await montag.getByRole('button', { name: 'Speichern', exact: true }).click();
@@ -312,7 +312,7 @@ test('a thing without an amount keeps what is typed when someone else ticks it o
   await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
   await einkaufAnlegen(page, 'Baumarkt', 0);
   const hier = await oeffnen(page, 'Baumarkt');
-  const ersatz = hier.getByLabel('Ersatz für Kochhandschuhe');
+  const ersatz = await liveFeld(hier, 'Ersatz für Kochhandschuhe');
   await ersatz.fill('Grillhandschuhe');
 
   const anderes = await (await browser.newContext()).newPage();
@@ -365,20 +365,20 @@ test('a thing that falls off the list while being ticked off names what was type
   // Wednesday buys nothing yet: everything is on Monday. Monday is ticked off with less, so the
   // rest is on Wednesday
   const montag = await oeffnen(page, 'Montag');
-  await montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)').fill('1');
+  await (await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)')).fill('1');
   await montag.getByRole('button', { name: 'Abhaken' }).click();
   await expect(montag.getByRole('status')).toHaveText('1 von 1 abgehakt');
   const mittwoch = await oeffnen(page, 'Mittwoch');
-  await mittwoch.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)').fill('800');
-  await mittwoch.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
-  await mittwoch.getByLabel('Ersatz für Nudeln (Spaghetti)').fill('Vollkornnudeln');
+  await (await liveFeld(mittwoch, 'Erhaltene Menge von Nudeln (Spaghetti)')).fill('800');
+  await (await liveFeld(mittwoch, 'Einheit von Nudeln (Spaghetti)')).selectOption('g');
+  await (await liveFeld(mittwoch, 'Ersatz für Nudeln (Spaghetti)')).fill('Vollkornnudeln');
 
   // Someone else changes Monday to all of it: Wednesday needs nothing more
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Einkauf' }).click();
   const dort = await oeffnen(anderes, 'Montag');
-  await dort.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)').fill('2');
+  await (await liveFeld(dort, 'Erhaltene Menge von Nudeln (Spaghetti)')).fill('2');
   await dort.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(anderes.getByText('Nudeln (Spaghetti) abgehakt.').first()).toBeVisible();
   await expect(dort).toContainText(/2 kg Nudeln \(Spaghetti\)\s*2 kg/);
@@ -404,10 +404,10 @@ test('what is typed for a thing stays while another one is ticked off, refused a
   await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
   await einkaufAnlegen(page, 'Montag', 0);
   const montag = await oeffnen(page, 'Montag');
-  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await menge.fill('800');
-  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
-  await montag.getByLabel('Ersatz für Nudeln (Spaghetti)').fill('Vollkornnudeln');
+  await (await liveFeld(montag, 'Einheit von Nudeln (Spaghetti)')).selectOption('g');
+  await (await liveFeld(montag, 'Ersatz für Nudeln (Spaghetti)')).fill('Vollkornnudeln');
   // Ticking off another thing keeps it
   await box(montag, 'Kochhandschuhe').click();
   await expect(montag.getByRole('status')).toHaveText('1 von 2 abgehakt');
@@ -416,7 +416,7 @@ test('what is typed for a thing stays while another one is ticked off, refused a
 
   // Too much: the row says so and keeps the input
   await menge.fill('1000001');
-  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('kg');
+  await (await liveFeld(montag, 'Einheit von Nudeln (Spaghetti)')).selectOption('kg');
   await montag.getByRole('button', { name: 'Abhaken' }).click();
   await expect(
     montag.getByRole('alert').filter({ hasText: 'Die Menge ist zu groß.' })
@@ -469,9 +469,9 @@ test('leaving the page with something typed in the live mode asks first', async 
   await nudelnPlanen(page, 'E2E Einkäufe Verlassen');
   await einkaufAnlegen(page, 'Montag', 0);
   const montag = await oeffnen(page, 'Montag');
-  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await menge.fill('800');
-  await montag.getByLabel('Ersatz für Nudeln (Spaghetti)').fill('Vollkornnudeln');
+  await (await liveFeld(montag, 'Ersatz für Nudeln (Spaghetti)')).fill('Vollkornnudeln');
   await page.getByRole('link', { name: 'Impressum' }).click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
   await expect(page).toHaveURL(/\/essensplanung\/planung/);
@@ -486,10 +486,10 @@ test('what is typed in the live mode stays while the trip shows its list or is l
   await nudelnPlanen(page, 'E2E Einkäufe Ansicht');
   await einkaufAnlegen(page, 'Montag', 0);
   const montag = await oeffnen(page, 'Montag');
-  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await menge.fill('800');
-  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
-  await montag.getByLabel('Ersatz für Nudeln (Spaghetti)').fill('Vollkornnudeln');
+  await (await liveFeld(montag, 'Einheit von Nudeln (Spaghetti)')).selectOption('g');
+  await (await liveFeld(montag, 'Ersatz für Nudeln (Spaghetti)')).fill('Vollkornnudeln');
   const pruefen = async (): Promise<void> => {
     await expect(menge).toHaveValue('800');
     await expect(montag.getByLabel('Einheit von Nudeln (Spaghetti)')).toHaveValue('g');
@@ -519,7 +519,7 @@ test('leaving the planning after discarding live input asks no more on other pag
   await nudelnPlanen(page, 'E2E Einkäufe Verwerfen');
   await einkaufAnlegen(page, 'Montag', 0);
   const montag = await oeffnen(page, 'Montag');
-  await montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)').fill('800');
+  await (await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)')).fill('800');
   await page.getByRole('link', { name: 'Impressum' }).click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
   await expect(page).toHaveURL(/\/impressum/);
@@ -541,10 +541,10 @@ test('what is typed while ticking off is saved stays as a new change', async ({ 
   await nudelnPlanen(page, 'E2E Einkäufe Weitertippen');
   await einkaufAnlegen(page, 'Montag', 0);
   const montag = await oeffnen(page, 'Montag');
-  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
-  const ersatz = montag.getByLabel('Ersatz für Nudeln (Spaghetti)');
+  const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
+  const ersatz = await liveFeld(montag, 'Ersatz für Nudeln (Spaghetti)');
   await menge.fill('800');
-  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
+  await (await liveFeld(montag, 'Einheit von Nudeln (Spaghetti)')).selectOption('g');
   // The answer takes a moment; meanwhile something else is typed
   let freigeben: () => void = () => undefined;
   const warten = new Promise<void>((done) => (freigeben = done));
@@ -750,9 +750,9 @@ test('a tick saved after leaving the live mode leaves no draft behind', async ({
   await nudelnPlanen(page, 'E2E Einkäufe später fertig');
   await einkaufAnlegen(page, 'Montag', 0);
   const montag = await oeffnen(page, 'Montag');
-  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await menge.fill('800');
-  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
+  await (await liveFeld(montag, 'Einheit von Nudeln (Spaghetti)')).selectOption('g');
   let freigeben: () => void = () => undefined;
   const warten = new Promise<void>((done) => (freigeben = done));
   await page.route('**/api/essensplanung/planung/einkaeufe/*/posten', async (route) => {

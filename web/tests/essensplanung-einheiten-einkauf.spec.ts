@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { anlegen } from './essensplanung-helpers';
+import { anlegen, liveFeld } from './essensplanung-helpers';
 
 test('one ingredient in g and in Bund keeps typed input per thing while shopping', async ({
   page,
@@ -37,10 +37,10 @@ test('one ingredient in g and in Bund keeps typed input per thing while shopping
   const gramm = montag.getByRole('listitem').filter({
     has: page.getByLabel('Erhaltene Menge von TK-Petersilie (g)'),
   });
-  await bund.getByLabel('Erhaltene Menge von TK-Petersilie (Bund)').fill('4');
-  await bund.getByLabel('Ersatz für TK-Petersilie (Bund)').fill('glatt');
-  await gramm.getByLabel('Erhaltene Menge von TK-Petersilie (g)').fill('250');
-  await gramm.getByLabel('Ersatz für TK-Petersilie (g)').fill('tiefgekühlt');
+  await (await liveFeld(bund, 'Erhaltene Menge von TK-Petersilie (Bund)')).fill('4');
+  await (await liveFeld(bund, 'Ersatz für TK-Petersilie (Bund)')).fill('glatt');
+  await (await liveFeld(gramm, 'Erhaltene Menge von TK-Petersilie (g)')).fill('250');
+  await (await liveFeld(gramm, 'Ersatz für TK-Petersilie (g)')).fill('tiefgekühlt');
 
   // To the list and back: both inputs are still there, each at its thing
   await montag.getByRole('button', { name: 'Liste anpassen' }).click();

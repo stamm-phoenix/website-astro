@@ -147,6 +147,9 @@
     if (!geaendert) untrack(fuellen);
   });
 
+  /** Shown on a phone: opened, or with unsaved input or a conflict, which never hide. */
+  const aufgeklappt = $derived(offen || geaendert || konflikt !== null);
+
   function oeffnen(): void {
     onoeffnen(!offen);
   }
@@ -333,18 +336,21 @@
     {/if}
     {#if herkunftAnzeige.an}<PostenHerkunft {herkunft} name={posten.name} />{/if}
   </div>
-  <button
-    type="button"
-    class="flex min-h-8 shrink-0 items-center gap-1 rounded px-2 text-sm font-semibold text-link any-pointer-coarse:min-h-11 md:hidden"
-    aria-expanded={offen}
-    aria-label="{bezeichnung}: Menge und Ersatz"
-    onclick={oeffnen}
-    ><span aria-hidden="true">Menge</span><AufklappPfeil
-      class="text-link transition-transform {offen ? 'rotate-180' : ''}"
-    /></button
-  >
+  <!-- Unsaved input or a conflict stays open, with „Abbrechen“ to close it -->
+  {#if !geaendert && konflikt === null}
+    <button
+      type="button"
+      class="flex min-h-8 shrink-0 items-center gap-1 rounded px-2 text-sm font-semibold text-link any-pointer-coarse:min-h-11 md:hidden"
+      aria-expanded={offen}
+      aria-label="{bezeichnung}: Menge und Ersatz"
+      onclick={oeffnen}
+      ><span aria-hidden="true">Menge</span><AufklappPfeil
+        class="text-link transition-transform {offen ? 'rotate-180' : ''}"
+      /></button
+    >
+  {/if}
   <form
-    class="{offen
+    class="{aufgeklappt
       ? 'flex'
       : 'hidden'} basis-full flex-wrap items-center gap-2 pb-2 pl-12 md:flex md:basis-auto md:flex-nowrap md:pb-0 md:pl-0"
     onsubmit={(event) => {
@@ -383,7 +389,7 @@
       bind:value={ersatz}
       onkeydown={taste}
     />
-    {#if offen || geaendert || konflikt}
+    {#if aufgeklappt}
       <span class="flex flex-wrap gap-1 {geaendert || konflikt ? '' : 'md:hidden'}">
         <!-- As when the typing started: a tick of someone else meanwhile is a conflict -->
         <ActionButton

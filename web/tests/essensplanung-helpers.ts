@@ -102,3 +102,18 @@ export async function zeilenMenge(bereich: Locator, name: string): Promise<strin
   const einheit = await bereich.getByLabel(`Einheit von ${name}`, { exact: true }).inputValue();
   return menge ? `${menge} ${einheit.trim()}` : '';
 }
+
+/**
+ * A field of a thing in the live mode of a shopping trip („Erhaltene Menge von …“, „Einheit
+ * von …“, „Ersatz für …“). On a phone the fields sit behind „Menge“ of the row, which is
+ * opened first when they are hidden.
+ */
+export async function liveFeld(bereich: Locator, label: string): Promise<Locator> {
+  const feld = bereich.getByLabel(label, { exact: true });
+  if (!(await feld.isVisible())) {
+    const name = label.replace(/^(Erhaltene Menge von|Einheit von|Ersatz für) /, '');
+    await bereich.getByRole('button', { name: `${name}: Menge und Ersatz`, exact: true }).click();
+  }
+  await expect(feld).toBeVisible();
+  return feld;
+}
