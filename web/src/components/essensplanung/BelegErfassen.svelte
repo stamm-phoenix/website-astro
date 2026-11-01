@@ -76,9 +76,18 @@
   const busy = $derived(dialog.state.busy || kontext.busy);
   const bearbeiten = $derived(kontext.ansicht.zugang !== 'lesen' && !kontext.ansicht.wartung);
 
+  // What a new receipt starts with: unchanged defaults are nothing to lose
+  const anfang = untrack(() => ({ datum: form.date, wahl }));
   const geaendert = $derived(
     photo.draft !== null ||
-      (!beleg && (form.shop.trim() !== '' || form.amount.trim() !== '' || notiz.trim() !== ''))
+      (!beleg &&
+        (form.shop.trim() !== '' ||
+          form.amount.trim() !== '' ||
+          notiz.trim() !== '' ||
+          form.date !== anfang.datum ||
+          wahl !== anfang.wahl ||
+          name.trim() !== '' ||
+          erstattet))
   );
   $effect(() => guardUnsavedChanges(() => geaendert));
   $effect(() => () => photo.reset());
