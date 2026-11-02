@@ -91,6 +91,7 @@
       disabled={speichert}
       onpick={(option) => void hinzufuegen(option)}
       onkeydown={taste}
+      class="form-input mt-0"
     />
     <ActionButton
       type="button"

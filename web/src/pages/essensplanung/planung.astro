@@ -35,6 +35,54 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       padding-right: 1.5rem;
     }
   }
+  /*
+   * One height for buttons and fields with a mouse: 32 px, as dense as the lists of the Planung.
+   * On touch screens they keep 44 px for a finger. Unlayered, so it wins over the utilities;
+   * the repeated classes outweigh the scoped styles of the shared components.
+   */
+  @media not (any-pointer: coarse) {
+    .essensplanung-seite :is(.btn-primary, .btn-secondary, .btn-danger, .btn-danger-filled) {
+      min-height: 2rem;
+      padding-block: 0.25rem;
+      padding-inline: 0.75rem;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+    .essensplanung-seite :is(input.form-input, select.form-input) {
+      min-height: 2rem;
+      padding-block: 0.25rem;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+    .essensplanung-seite .filter-tab.filter-tab {
+      min-height: 2rem;
+      padding-block: 0.25rem;
+    }
+    .essensplanung-seite.essensplanung-seite .segments.segments {
+      padding: 0.125rem;
+    }
+    .essensplanung-seite.essensplanung-seite .segments .filter-tab.filter-tab {
+      min-height: 1.75rem;
+      padding-block: 0.125rem;
+    }
+    .essensplanung-seite .tool.tool {
+      min-width: 2rem;
+      min-height: 2rem;
+    }
+    .essensplanung-seite .copy-code.copy-code.copy-code {
+      min-height: 2rem;
+      padding-block: 0.25rem;
+    }
+    /* The (i) next to a label does not make the label line taller than its neighbours */
+    .essensplanung-seite .info-hint-button.info-hint-button {
+      width: 2rem;
+      height: 2rem;
+      margin-block: -0.375rem;
+    }
+    .essensplanung-seite .form-field:has(> .info-hint) {
+      line-height: 1.25rem;
+    }
+  }
   /* On paper only the Planung or the recipe card, without the site around it */
   @media print {
     body:has(.essensplanung-seite) > header,

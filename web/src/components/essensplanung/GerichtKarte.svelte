@@ -282,6 +282,7 @@
                   id={attrs.id}
                   tags={kopf.werkzeuge}
                   placeholder="z. B. Pürierstab"
+                  kompakt
                   onchange={(werkzeuge) => (kopf.werkzeuge = werkzeuge)}
                   ondraftchange={(text) => (werkzeugEntwurf = text)}
                 />

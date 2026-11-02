@@ -51,7 +51,7 @@
 
 <button
   type="button"
-  class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-neutral-300 bg-neutral-100 hover:border-brand-900 any-pointer-coarse:size-11"
+  class="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-neutral-300 bg-neutral-100 hover:border-brand-900 any-pointer-coarse:size-11"
   aria-label="{beleg.foto === 'pdf' ? 'PDF' : 'Foto'} des Belegs ansehen"
   title={beleg.foto === 'pdf' ? 'PDF ansehen' : 'Foto ansehen'}
   onclick={onoeffnen}

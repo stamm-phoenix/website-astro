@@ -135,12 +135,12 @@
     {#if bearbeiten}
       <ActionButton
         variant="primary"
-        class="min-h-9 any-pointer-coarse:min-h-11"
+        class="min-h-8 any-pointer-coarse:min-h-11"
         disabled={erfassen !== null && erfassen.belegId === null && !erfassen.ohneFoto}
         onclick={() => void oeffnen(false)}>Beleg mit Foto</ActionButton
       >
       <ActionButton
-        class="min-h-9 any-pointer-coarse:min-h-11"
+        class="min-h-8 any-pointer-coarse:min-h-11"
         disabled={erfassen !== null && erfassen.belegId === null && erfassen.ohneFoto}
         onclick={() => void oeffnen(true)}>Ohne Foto eintragen</ActionButton
       >

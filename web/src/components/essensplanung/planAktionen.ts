@@ -13,12 +13,11 @@ import type { PlanKontext } from './planKontext';
  */
 
 /** A small button of the plan: dense with a mouse, 44 px where a finger taps. */
-export const KNOPF =
-  'inline-flex items-center justify-center gap-1 rounded-sm border border-neutral-300 bg-surface px-2 py-0.5 text-xs font-semibold text-brand-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60 any-pointer-coarse:min-h-11 any-pointer-coarse:px-3';
+export const KNOPF = 'btn-secondary';
 
 /** An icon button of the plan, e.g. to sort or delete a meal. */
 export const SYMBOL =
-  'inline-flex size-7 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-brand-900 disabled:cursor-not-allowed disabled:opacity-40 any-pointer-coarse:size-11';
+  'inline-flex size-8 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-brand-900 disabled:cursor-not-allowed disabled:opacity-40 any-pointer-coarse:size-11';
 
 /** The name of a planned dish. */
 export function gerichtName(ansicht: PlanungAnsicht, einplanung: Einplanung): string {

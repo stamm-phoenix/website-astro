@@ -71,7 +71,7 @@
           >
           <button
             type="button"
-            class="flex size-6 shrink-0 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-link any-pointer-coarse:size-11"
+            class="flex size-8 shrink-0 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-link any-pointer-coarse:size-11"
             title="Gericht öffnen"
             aria-label="{gericht.name} öffnen"
             onclick={() => kontext.oeffneGericht(gericht.id)}

@@ -196,7 +196,7 @@
     </div>
     <button
       type="button"
-      class="flex size-6 shrink-0 items-center justify-center rounded-sm hover:bg-neutral-200 any-pointer-coarse:size-11"
+      class="flex size-8 shrink-0 items-center justify-center rounded-sm hover:bg-neutral-200 any-pointer-coarse:size-11"
       aria-expanded={offen}
       aria-label="Mehr zu {kennung} {name}"
       title="Mehr"
@@ -264,7 +264,7 @@
         >
         <button
           type="button"
-          class="{KNOPF} text-danger"
+          class="btn-danger"
           disabled={kontext.busy}
           aria-label="{name} aus {kennung} entfernen"
           onclick={() => void nimmHeraus(kontext, mahlzeit, einplanung)}>Entfernen</button

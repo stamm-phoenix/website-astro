@@ -32,6 +32,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Bei einer Zutat im Gericht trägst du direkt das Geschäft ein, auch ein neues.',
       'Ein Gericht ohne Personenzahl rechnet mit festen Mengen: 2 Stück Brot sind 2 Stück je Einplanung, ohne „Personenzahl fehlt“.',
       'Auf der Packliste kann ein Gegenstand mehreren Personen gehören, etwa eine Kochschürze für alle. Jede Person hakt ihren eigenen ab.',
+      'Am Computer sind alle Knöpfe und Eingabefelder der Planung gleich hoch und kompakt, auf dem Handy bleiben sie groß genug für den Finger.',
     ],
   },
   {

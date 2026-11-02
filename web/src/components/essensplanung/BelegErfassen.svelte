@@ -278,7 +278,7 @@
         <BelegFotoEntwurf {photo} {busy} />
         <div class="flex flex-wrap gap-2">
           <label
-            class="btn-secondary min-h-9 cursor-pointer any-pointer-coarse:min-h-11"
+            class="btn-secondary min-h-8 cursor-pointer any-pointer-coarse:min-h-11"
             class:opacity-60={photo.photoBusy}
           >
             {photo.photoBusy
@@ -297,7 +297,7 @@
           </label>
           {#if !beleg}
             <ActionButton
-              class="min-h-9 any-pointer-coarse:min-h-11"
+              class="min-h-8 any-pointer-coarse:min-h-11"
               disabled={busy}
               onclick={() => void zuOhneFoto()}>Ohne Foto</ActionButton
             >
@@ -331,7 +331,7 @@
             <span class="form-label">Datum</span>
             <input
               type="date"
-              class="form-input mt-0.5 min-h-9 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
+              class="form-input mt-0.5 min-h-8 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
               bind:value={form.date}
               max={todayIso()}
               required
@@ -344,7 +344,7 @@
             <input
               type="text"
               inputmode="decimal"
-              class="form-input mt-0.5 min-h-9 px-2 py-1 text-right text-sm any-pointer-coarse:min-h-11"
+              class="form-input mt-0.5 min-h-8 px-2 py-1 text-right text-sm any-pointer-coarse:min-h-11"
               placeholder="12,34"
               bind:value={form.amount}
               aria-invalid={fehler.betragCent ? 'true' : undefined}
@@ -356,7 +356,7 @@
             <input
               type="text"
               maxlength="100"
-              class="form-input mt-0.5 min-h-9 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
+              class="form-input mt-0.5 min-h-8 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
               placeholder="z. B. Rewe, Gas für den Kocher"
               bind:value={form.shop}
               aria-invalid={fehler.haendler ? 'true' : undefined}
@@ -384,7 +384,7 @@
             <input
               type="text"
               maxlength="500"
-              class="form-input mt-0.5 min-h-9 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
+              class="form-input mt-0.5 min-h-8 px-2 py-1 text-sm any-pointer-coarse:min-h-11"
               bind:value={notiz}
               aria-invalid={fehler.notiz ? 'true' : undefined}
             />
@@ -403,19 +403,19 @@
             <ActionButton
               type="submit"
               variant="primary"
-              class="min-h-9 any-pointer-coarse:min-h-11"
+              class="min-h-8 any-pointer-coarse:min-h-11"
               disabled={busy || photo.photoBusy || !!photo.zuschnitt || !bearbeiten}
               >{dialog.state.busy ? 'Wird gespeichert …' : 'Beleg speichern'}</ActionButton
             >
             {#if !mitFoto}
               <ActionButton
-                class="min-h-9 any-pointer-coarse:min-h-11"
+                class="min-h-8 any-pointer-coarse:min-h-11"
                 disabled={busy}
                 onclick={() => void zuFoto()}>Foto hinzufügen</ActionButton
               >
             {/if}
             <ActionButton
-              class="min-h-9 any-pointer-coarse:min-h-11"
+              class="min-h-8 any-pointer-coarse:min-h-11"
               disabled={busy}
               onclick={onfertig}>Abbrechen</ActionButton
             >
@@ -438,7 +438,7 @@
       <div class="flex flex-wrap gap-2">
         <ActionButton
           variant="primary"
-          class="min-h-9 any-pointer-coarse:min-h-11"
+          class="min-h-8 any-pointer-coarse:min-h-11"
           disabled={geloescht ||
             busy ||
             photo.photoBusy ||
@@ -451,13 +451,13 @@
         {#if beleg.foto}
           <ActionButton
             variant="danger"
-            class="min-h-9 any-pointer-coarse:min-h-11"
+            class="min-h-8 any-pointer-coarse:min-h-11"
             disabled={geloescht || busy || !bearbeiten}
             onclick={() => void fotoEntfernen()}
             >{konflikt ? 'Trotzdem entfernen' : 'Foto entfernen'}</ActionButton
           >
         {/if}
-        <ActionButton class="min-h-9 any-pointer-coarse:min-h-11" disabled={busy} onclick={onfertig}
+        <ActionButton class="min-h-8 any-pointer-coarse:min-h-11" disabled={busy} onclick={onfertig}
           >Abbrechen</ActionButton
         >
       </div>
