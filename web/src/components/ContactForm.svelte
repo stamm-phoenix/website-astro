@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import AltchaWidget from './AltchaWidget.svelte';
   import FormField from './pflege/FormField.svelte';
   import ActionButton from './ui/ActionButton.svelte';
@@ -6,6 +7,7 @@
   import { KONTAKT_MAX_LENGTH, KONTAKT_TOPICS, validateKontaktMessage } from '../lib/kontaktConfig';
   import type { KontaktField } from '../lib/kontaktConfig';
   import type { KontaktSent } from '../lib/types';
+  import { guardUnsavedChanges } from '../lib/unsavedChanges';
 
   const ID = 'kontakt';
   const FIELD_ORDER: KontaktField[] = ['name', 'email', 'topic', 'message'];
@@ -14,9 +16,10 @@
   let email = $state('');
   /** Links like `/kontakt?thema=gruppenstunden` preselect the topic; the island only runs in the browser. */
   const presetTopic = new URLSearchParams(window.location.search).get('thema');
-  let topic = $state(
-    KONTAKT_TOPICS.some((option) => option.id === presetTopic) ? presetTopic! : ''
-  );
+  const initialTopic = KONTAKT_TOPICS.some((option) => option.id === presetTopic)
+    ? presetTopic!
+    : '';
+  let topic = $state(initialTopic);
   let message = $state('');
   let website = $state('');
 
@@ -27,6 +30,14 @@
   /** Whether the receipt mail went out; the message has arrived either way. */
   let receiptSent = $state(true);
 
+  const hasUnsentInput = $derived(
+    !sentTo && ([name, email, message].some((value) => value.length > 0) || topic !== initialTopic)
+  );
+
+  $effect(() => {
+    if (hasUnsentInput) return guardUnsavedChanges(() => hasUnsentInput);
+  });
+
   let altchaWidget = $state<AltchaWidget | null>(null);
 
   /** Clears the edited field's error and the form-wide error. */
@@ -36,7 +47,8 @@
   }
 
   /** Focuses the first invalid field in display order, if its element exists. */
-  function focusFirstError(): void {
+  async function focusFirstError(): Promise<void> {
+    await tick();
     const field = FIELD_ORDER.find((key) => errors[key]);
     if (field) document.getElementById(`${ID}-${field}`)?.focus();
   }
@@ -53,7 +65,7 @@
     const validation = validateKontaktMessage({ name, email, topic, message });
     errors = validation.errors;
     if (!validation.message) {
-      focusFirstError();
+      await focusFirstError();
       return;
     }
 
@@ -76,7 +88,7 @@
     } catch (err: unknown) {
       if (err instanceof ApiError && err.fields) {
         errors = err.fields as Partial<Record<KontaktField, string>>;
-        focusFirstError();
+        await focusFirstError();
       }
       formError =
         err instanceof ApiError && err.code

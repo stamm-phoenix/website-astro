@@ -1,0 +1,11 @@
+/* File inputs remain keyboard reachable; show their focus on the visible upload label. */
+label:has(input[type='file']:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+/* Contain scrolling on the actual scroll region, including nested dialog form bodies. */
+dialog,
+dialog .overflow-y-auto {
+  overscroll-behavior: contain;
+}
