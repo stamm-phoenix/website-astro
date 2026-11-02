@@ -15,17 +15,50 @@ test('keeps a temporary notice without changing regular meeting details', () => 
   assert.deepEqual(result.exception, exception);
   assert.equal(result.time, '18 Uhr');
 });
-test('rejects impossible dates, reversed ranges and blank messages with German field errors', () => {
-  for (const patch of [{ startDate: '2026-02-30' }, { endDate: '2026-11-01' }, { message: ' ' }]) {
+test('assigns German server errors to the corresponding exception inputs', () => {
+  const cases = [
+    {
+      patch: { startDate: '2026-02-30' },
+      fields: { exceptionStartDate: 'Bitte ein gültiges Datum angeben.' },
+    },
+    {
+      patch: { endDate: '2026-11-01' },
+      fields: { exceptionEndDate: 'Das Ende darf nicht vor dem Beginn liegen.' },
+    },
+    { patch: { message: ' ' }, fields: { exceptionMessage: 'Bitte eine Nachricht angeben.' } },
+    {
+      patch: { location: 'x'.repeat(121) },
+      fields: { exceptionLocation: 'den anderen Treffpunkt darf höchstens 120 Zeichen lang sein.' },
+    },
+    {
+      patch: { time: 'x'.repeat(61) },
+      fields: { exceptionTime: 'die andere Uhrzeit darf höchstens 60 Zeichen lang sein.' },
+    },
+  ];
+  for (const { patch, fields } of cases) {
     assert.throws(
       () =>
         validateGruppenstunde({ ...regular, exception: { ...exception, ...patch } }, ['Wölflinge']),
-      (error: unknown) =>
-        error instanceof ValidationError &&
-        !!error.fields.exception &&
-        !error.fields.exception.includes('Invalid')
+      (error: unknown) => {
+        assert.ok(error instanceof ValidationError);
+        assert.deepEqual(error.fields, fields);
+        return true;
+      }
     );
   }
+});
+test('keeps whole-object and regular field errors on their original keys', () => {
+  assert.throws(
+    () => validateGruppenstunde({ ...regular, location: '', exception: false }, ['Wölflinge']),
+    (error: unknown) => {
+      assert.ok(error instanceof ValidationError);
+      assert.deepEqual(error.fields, {
+        location: 'Bitte den Ort angeben.',
+        exception: 'Bitte eine gültige Änderung angeben.',
+      });
+      return true;
+    }
+  );
 });
 test('accepts removal and old clients without an exception', () => {
   assert.equal(

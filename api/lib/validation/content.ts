@@ -128,7 +128,18 @@ function gruppenstundeSchema(stufen: string[]) {
 }
 
 export function validateGruppenstunde(body: unknown, stufen: string[]): GruppenstundeInput {
-  return parseWith(gruppenstundeSchema(stufen), body);
+  const exceptionFields: Record<string, string> = {
+    startDate: 'exceptionStartDate',
+    endDate: 'exceptionEndDate',
+    message: 'exceptionMessage',
+    location: 'exceptionLocation',
+    time: 'exceptionTime',
+  };
+  return parseWith(gruppenstundeSchema(stufen), body, ([field, child]) => {
+    if (field === 'exception' && typeof child === 'string')
+      return exceptionFields[child] ?? 'exception';
+    return typeof field === 'string' ? field : 'form';
+  });
 }
 
 // --- Aktionen (public calendar) ---
