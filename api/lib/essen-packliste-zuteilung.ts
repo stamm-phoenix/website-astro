@@ -65,12 +65,14 @@ async function personenVon(trx: Db, eintragId: number) {
  */
 export async function eintragNachfuehren(
   trx: Db,
-  eintrag: { id: number; gepackt: boolean }
+  eintrag: { id: number; gepackt: boolean },
+  /** Persons were added or taken off: the entry gets a new version even with the same state. */
+  personenGeaendert = false
 ): Promise<void> {
   const personen = await personenVon(trx, eintrag.id);
-  if (!personen.length) return;
-  const alle = personen.every((person) => person.gepackt);
-  if (alle !== eintrag.gepackt) {
+  const alle = personen.length ? personen.every((person) => person.gepackt) : eintrag.gepackt;
+  // A new version keeps a tick of the whole entry shown before from packing persons added since
+  if (alle !== eintrag.gepackt || personenGeaendert) {
     await trx
       .updateTable('essen.packliste_eintrag')
       .set({ gepackt: alle })
@@ -156,7 +158,7 @@ export async function personenAendern(
       .values({ eintrag_id: eintrag.id, ...person, gepackt: start })
       .execute();
   }
-  if (reihe.length || entfernt.length) await eintragNachfuehren(trx, eintrag);
+  if (reihe.length || entfernt.length) await eintragNachfuehren(trx, eintrag, true);
   return {
     hinzu: [
       ...neueMitglieder.map((id) => mitglieder.find((m) => m.id === id)?.name ?? ''),

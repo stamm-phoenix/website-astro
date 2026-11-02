@@ -129,7 +129,8 @@
       Noch nichts einzupacken. Werkzeuge der eingeplanten Gerichte stehen hier von selbst.
     </p>
   {/if}
-  {#if bearbeiten}
+  <!-- Also during maintenance: the name and an open choice of persons stay until it ends -->
+  {#if ansicht.zugang !== 'lesen'}
     <NeuerPackEintrag {kontext} bind:text={neuerName} bind:wer={neuerWer} />
   {/if}
 </section>

@@ -321,3 +321,62 @@ dbTest(
     assert.equal(neu.stand, haken.stand);
   }
 );
+
+dbTest('a tick converted into the base of a tick of 0 becomes one with it', async (t) => {
+  const mails = captureMails(t);
+  const { token } = await anlegen(t, mails);
+  const petersilie = (
+    await getDb()
+      .selectFrom('essen.zutat')
+      .select('id')
+      .where('name', '=', 'TK-Petersilie')
+      .executeTakeFirstOrThrow()
+  ).id;
+  const ansicht = json<PlanungAnsicht>(
+    await call(t, einkauf.EssensplanungZusatzbedarfListe, 'POST', 'planung/zusatzbedarf', {
+      token,
+      body: { zutatId: petersilie, menge: 1, einheit: 'bund' },
+    })
+  );
+  const id = ansicht.zusatzbedarf[0].planungZutatId;
+  const einkaufId = json<PlanungAnsicht>(
+    await call(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', {
+      token,
+      body: { name: 'Montag' },
+    })
+  ).einkaeufe[0].id;
+  // 1 Bund bought, then 0 g (nothing got) in the same trip
+  const abhaken = (einheit: string, erhalten: number) =>
+    call(t, einkaeufe.EssensplanungEinkaufAbhaken, 'PUT', 'planung/einkaeufe/posten', {
+      token,
+      params: { id: String(einkaufId) },
+      body: { etag: null, planungZutatId: id, einheit, erhalten, ersatz: '' },
+    });
+  await abhaken('bund', 1);
+  const beide = json<PlanungAnsicht>(await abhaken('g', 0)).einkaeufe[0].posten;
+  assert.equal(beide.length, 2);
+  const bund = beide.find((p) => p.einheit === 'bund')!;
+
+  // Only the Bund is offered for converting; 0,02 kg and 0 g are one tick afterwards
+  const ok = await call(t, EssensplanungZutatEinheiten, 'PUT', `planung/zutaten/${id}/einheiten`, {
+    token,
+    params: { id: String(id) },
+    body: {
+      zeilen: [
+        {
+          stelle: 'erhalten',
+          id: bund.id,
+          etag: bund.etag,
+          menge: 0.02,
+          einheit: 'kg',
+          von: 'bund',
+        },
+      ],
+    },
+  });
+  assert.equal(ok.status, 200, JSON.stringify(ok.jsonBody));
+  assert.deepEqual(
+    json<PlanungAnsicht>(ok).einkaeufe[0].posten.map((p) => [p.erhalten, p.einheit]),
+    [[0.02, 'kg']]
+  );
+});

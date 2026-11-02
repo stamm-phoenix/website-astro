@@ -3,6 +3,7 @@ import type { Transaction } from 'kysely';
 import type { Database } from './db-schema';
 import { VersionConflictError, requireVersion } from './db';
 import type { EinheitenZeileInput } from './essen-einheiten-model';
+import { einheitBasis, einheitSchluessel } from './essen-gerichte-model';
 import type { EinplanungStatus } from './essen-kochen-model';
 import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
@@ -200,11 +201,23 @@ async function erhaltenUmrechnen(
         .executeTakeFirst();
       if (!gesehen) throw new VersionConflictError();
     }
-    const gruppen = gruppiere(alle, (row) => schluessel(neu.get(row.id)?.einheit ?? row.einheit));
+    // One tick per base unit, as ticking keeps it (`gleicheBasis`): 0,02 kg and 0 g are one, also
+    // with a tick of 0 that was not offered for converting
+    const einheitVon = (row: (typeof alle)[number]) => neu.get(row.id)?.einheit ?? row.einheit;
+    const gruppen = gruppiere(alle, (row) => einheitSchluessel(einheitVon(row)));
     for (const gruppe of gruppen.values()) {
-      const [erster, ...weitere] = gruppe;
+      // The converted tick stays and gives the unit; the others are added in it
+      const erster = gruppe.find((row) => neu.has(row.id)) ?? gruppe[0];
+      const weitere = gruppe.filter((row) => row !== erster);
+      const ziel = einheitBasis(einheitVon(erster)).mal;
       const menge = rund(
-        gruppe.reduce((summe, row) => summe + (neu.get(row.id)?.menge ?? Number(row.erhalten)), 0)
+        gruppe.reduce(
+          (summe, row) =>
+            summe +
+            ((neu.get(row.id)?.menge ?? Number(row.erhalten)) * einheitBasis(einheitVon(row)).mal) /
+              ziel,
+          0
+        )
       );
       const ersatz = [...new Set(gruppe.map((row) => row.ersatz).filter(Boolean))]
         .join(', ')

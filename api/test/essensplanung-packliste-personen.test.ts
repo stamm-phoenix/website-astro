@@ -80,10 +80,24 @@ dbTest('one thing for several persons: each packs their own share', async (t) =>
     [false, false, false]
   );
 
+  // A tick of the whole shown before someone was added is a conflict, so they stay to pack
+  const nochBen = json<PlanungAnsicht>(await aendern(t, token, schuerze.id, { mitglieder: [ben] }));
+  assert.equal(
+    (await aendern(t, token, schuerze.id, { etag: offen.packliste[0].etag, gepackt: true })).status,
+    409
+  );
+  const benAnteilNeu = await getDb()
+    .selectFrom('essen.packliste_zuteilung')
+    .select('gepackt')
+    .where('eintrag_id', '=', schuerze.id)
+    .where('mitglied_id', '=', ben)
+    .executeTakeFirstOrThrow();
+  assert.equal(benAnteilNeu.gepackt, false);
+
   // Taking everyone off keeps the state of the whole; a share of another Planung is not found
   const niemand = json<PlanungAnsicht>(
     await aendern(t, token, schuerze.id, {
-      weg: offen.packliste[0].zuteilungen.map((z) => z.id),
+      weg: nochBen.packliste[0].zuteilungen.map((z) => z.id),
     })
   );
   assert.deepEqual(niemand.packliste[0].zuteilungen, []);

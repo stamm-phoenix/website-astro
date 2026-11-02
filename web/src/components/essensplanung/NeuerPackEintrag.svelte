@@ -43,7 +43,7 @@
 
   async function hinzufuegen(): Promise<void> {
     const name = freiName(text);
-    if (speichert || !name) return;
+    if (speichert || !name || kontext.ansicht.wartung) return;
     fehler = null;
     speichert = true;
     /** What the server said about a field, e.g. that the name is on the list already. */
@@ -113,7 +113,7 @@
     type="button"
     variant="primary"
     class="min-h-8 px-3 py-1 text-xs whitespace-nowrap any-pointer-coarse:min-h-11"
-    disabled={speichert || !text.trim()}
+    disabled={speichert || !text.trim() || kontext.ansicht.wartung}
     onclick={() => void hinzufuegen()}>Auf die Packliste</ActionButton
   >
   {#if fehler}

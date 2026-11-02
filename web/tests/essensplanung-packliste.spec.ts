@@ -138,7 +138,7 @@ test('names that differ in signs have their own box; a choice not saved is asked
   const liste = page.getByRole('list', { name: 'Packliste' });
   await expect(liste.getByRole('listitem')).toHaveCount(2);
 
-  // A name typed below the list survives the maintenance mode, which hides the field
+  // A name and an open choice of persons survive the maintenance mode, which only locks adding
   const neu = page.getByLabel('Noch etwas einpacken');
   const wartung = async (an: boolean): Promise<void> => {
     await page.unroute('**/api/essensplanung/planung/stand?*');
@@ -154,11 +154,24 @@ test('names that differ in signs have their own box; a choice not saved is asked
     });
   };
   await neu.fill('Gaskocher');
+  await page.getByRole('button', { name: /^Wer packt\?/ }).click();
+  const wer = page.getByRole('dialog', { name: 'Wer packt Gaskocher ein?' });
+  const ich = wer.getByRole('group', { name: 'Mitglieder' }).getByRole('checkbox').first();
+  await ich.check();
+  await wer.getByLabel('Anderer Name').fill('Rover');
   await wartung(true);
-  await expect(neu).toHaveCount(0, { timeout: 15_000 });
+  const aufDieListe = page.getByRole('button', { name: 'Auf die Packliste' });
+  await expect(aufDieListe).toBeDisabled({ timeout: 15_000 });
+  await expect(ich).toBeChecked();
+  await expect(wer.getByLabel('Anderer Name')).toHaveValue('Rover');
   await wartung(false);
-  await expect(neu).toHaveValue('Gaskocher', { timeout: 15_000 });
+  await expect(aufDieListe).toBeEnabled({ timeout: 15_000 });
+  await expect(neu).toHaveValue('Gaskocher');
   await page.unroute('**/api/essensplanung/planung/stand?*');
+  await wer.getByLabel('Anderer Name').fill('');
+  await ich.uncheck();
+  await wer.getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(wer).toBeHidden();
   await neu.fill('');
 
   // Box and name are one target of at least 44 px for a finger (compact with a mouse)
