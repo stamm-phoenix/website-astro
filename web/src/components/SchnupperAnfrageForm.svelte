@@ -136,7 +136,10 @@
       formError =
         err instanceof ApiError && err.code
           ? err.message
-          : 'Deine Anfrage wurde nicht gesendet. Deine Eingaben sind noch da. Bitte versuch es später noch einmal oder schreib uns an kontakt@stamm-phoenix.de.';
+          : err instanceof ApiError
+            ? 'Deine Anfrage wurde nicht gesendet. Deine Eingaben sind noch da. Bitte versuch es später noch einmal oder schreib uns an kontakt@stamm-phoenix.de.'
+            : // The connection broke: the request may have been saved before the answer was lost
+              'Die Verbindung ist abgebrochen, deshalb wissen wir nicht, ob deine Anfrage angekommen ist. Deine Eingaben sind noch da. Schau in ein paar Minuten in dein Postfach: Kommt keine Bestätigung, schick die Anfrage noch einmal.';
     } finally {
       sending = false;
       // Each solved challenge is accepted only once.
@@ -165,7 +168,8 @@
   </div>
 {:else}
   <form class="space-y-5" novalidate onsubmit={submit} aria-describedby="{ID}-privacy">
-    <div class="grid gap-5 md:grid-cols-2">
+    <!-- Locked while sending, so what is sent is what is shown -->
+    <fieldset class="grid min-w-0 gap-5 md:grid-cols-2" disabled={sending}>
       <FormField id="{ID}-alter" label="Alter des Kindes" error={errors.alter}>
         {#snippet children(field)}
           <input
@@ -310,7 +314,7 @@
             class="form-input"></textarea>
         {/snippet}
       </FormField>
-    </div>
+    </fieldset>
 
     <!-- Honeypot for bots, hidden from humans and assistive technology -->
     <div class="hp" aria-hidden="true">

@@ -184,6 +184,11 @@
               <p class="text-sm text-danger" role="status">
                 Die letzte E-Mail an {anfrage.name} wurde nicht gesendet. Schreib bitte selbst an {anfrage.email}.
               </p>
+            {:else if anfrage.antwortMail === null && anfrage.status !== 'offen'}
+              <p class="text-sm text-danger" role="status">
+                Ob die letzte E-Mail an {anfrage.name} angekommen ist, ist unklar. Schreib bitte selbst
+                an {anfrage.email}.
+              </p>
             {/if}
             <p class="text-sm text-neutral-700">Eingegangen am {eingangText(anfrage.createdAt)}</p>
           </div>
