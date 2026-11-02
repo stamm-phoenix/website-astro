@@ -3,13 +3,13 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { errorMessage } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
-  import { datumKurz } from '../../lib/essensplanung';
   import { ERNAEHRUNG_TEXT, zahlText, zeitraumText } from '../../lib/essensplanungTeilnehmende';
   import { esserJeMahlzeit } from '../../../../api/lib/essen-teilnehmende-model';
   import type { EssenKatalog, PlanungGruppe, Teilnehmende } from '../../lib/types';
   import GruppeDialog from './GruppeDialog.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
   import QuerScroll from '../ui/QuerScroll.svelte';
+  import EsserKalender from './EsserKalender.svelte';
   import TeilnehmendeDialog from './TeilnehmendeDialog.svelte';
   import type { PlanKontext } from './planKontext';
 
@@ -205,44 +205,7 @@
       label="Kalender der Esser"
       hinweis="Weitere Tage siehst du, wenn du seitlich wischst oder scrollst."
     >
-      <ol class="flex gap-3" aria-labelledby="esser-heading">
-        {#each ansicht.tage as tag (tag.id)}
-          <li class="w-44 shrink-0 space-y-2 sm:w-auto sm:min-w-40 sm:flex-1">
-            <h4 class="text-sm font-semibold text-brand-900">
-              Tag {tag.nummer}
-              <span class="block font-normal text-neutral-700">{datumKurz(tag.datum)}</span>
-            </h4>
-            <ul class="space-y-2">
-              {#each tag.mahlzeiten as mahlzeit (mahlzeit.id)}
-                {@const zahl = esser.get(mahlzeit.id)}
-                <li
-                  class="rounded-lg border border-neutral-200 bg-surface p-2 text-sm"
-                  data-esser={mahlzeit.kennung}
-                >
-                  <p class="[overflow-wrap:anywhere]">
-                    <span class="font-mono font-semibold text-brand-900">{mahlzeit.kennung}</span>
-                    {mahlzeit.name}
-                  </p>
-                  {#if mahlzeit.ohneGruppen.length}
-                    <p class="text-neutral-700">
-                      ohne {mahlzeit.ohneGruppen.map((id) => gruppenName.get(id)).join(', ')}
-                    </p>
-                  {/if}
-                  <p class="text-lg font-bold text-neutral-900 tabular-nums">
-                    <span data-zahl>{zahl?.personen ?? 0}</span>
-                    <span class="text-sm font-normal">Personen</span>
-                  </p>
-                  <p class="text-neutral-700 tabular-nums">
-                    mit allem <span data-zahl>{zahl?.je.alles.personen ?? 0}</span> · vegetarisch
-                    <span data-zahl>{zahl?.je.vegetarisch.personen ?? 0}</span> · vegan
-                    <span data-zahl>{zahl?.je.vegan.personen ?? 0}</span>
-                  </p>
-                </li>
-              {/each}
-            </ul>
-          </li>
-        {/each}
-      </ol>
+      <EsserKalender {ansicht} {esser} {gruppenName} />
     </QuerScroll>
   </section>
 

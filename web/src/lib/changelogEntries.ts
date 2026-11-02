@@ -25,6 +25,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Im neuen Bereich „Belege“ fotografierst du Kassenzettel oder trägst sie von Hand ein, hältst fest, wer bezahlt hat, und hakst ab, was erstattet ist. Eine Übersicht zeigt, wem noch wie viel zusteht, und „Belege als PDF“ gibt dir alles samt Fotos zum Abrechnen. Die Belege bleiben in der Essensplanung.',
       'Ein geöffnetes Gericht zeigt oben alle Angaben zum Gericht und darunter klar abgesetzt die Zutaten. Die letzten Änderungen stehen jetzt aufgeklappt im Bereich „Einstellungen“.',
       'Das Lager hat einen eigenen Bereich neben dem Einkauf.',
+      '„Esser je Mahlzeit“ ist jetzt eine Tabelle wie der Kalender im Plan.',
     ],
   },
   {

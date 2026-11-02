@@ -172,7 +172,7 @@ Umgesetzt (PR 5a):
 - „Wer isst mit?“ steht an jeder Mahlzeit mit der Antwort („alle“ oder „alle außer Wö“); „Ändern“ schaltet Gruppen ab (`mahlzeit_ohne_gruppe`).
 - Wird eine Mahlzeit oder ein Tag gelöscht, an dem eine Zeile beginnt oder endet, rückt die Grenze auf die nächste verbleibende Mahlzeit (Beginn) bzw. die vorige (Ende). Gibt es keine mehr, bleibt die gelöschte Mahlzeit stehen und die Zeile isst nirgends mit; der Dialog zeigt sie als „Gelöscht“. Liegt der ganze Aufenthalt auf gelöschten Mahlzeiten, bleiben ebenfalls die gelöschten stehen (`api/lib/essen-teilnehmende-grenzen.ts`).
 - Verschieben einer Mahlzeit oder eines Tages wird abgelehnt, wenn danach bei einer Zeile das Ende vor dem Beginn läge (`pruefeAnwesenheit`, Feld `anwesenheit`); die Seite nennt Gruppe und Anzahl.
-- „Esser je Mahlzeit“ ist ein Kalender: die Tage nebeneinander, ihre Mahlzeiten als Karten mit Personen und Personen je Ernährung (auf dem Handy seitlich zu wischen). Portionen stehen nicht darin, sie sind nur für die Mengen da. Gerechnet wird mit `esserJeMahlzeit` (`api/lib/essen-teilnehmende-model.ts`), das auch die Mengen nutzt (PR 5b).
+- „Esser je Mahlzeit“ ist eine Tabelle wie der Kalender im Plan (`EsserKalender.svelte`): die Tage als Spalten, die Mahlzeiten als Zeilen mit festem Namen links, je Zelle Personen und Personen je Ernährung; eine Mahlzeit, die es an einem Tag nicht gibt, ist schraffiert (auf dem Handy seitlich zu wischen). Portionen stehen nicht darin, sie sind nur für die Mengen da. Gerechnet wird mit `esserJeMahlzeit` (`api/lib/essen-teilnehmende-model.ts`), das auch die Mengen nutzt (PR 5b).
 
 ## Berechnung
 
