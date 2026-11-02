@@ -37,6 +37,8 @@
   let ziel = $state(untrack(() => einheiten[0] ?? 'g'));
   /** What one of each unit is in the target unit, as typed, by the unit in lower case. */
   let faktoren = $state<Record<string, string>>({});
+  /** The target unit the factors were typed for; another target converts them where certain. */
+  let faktorenZiel = $state(untrack(() => ziel));
   let ki = $state<KiEinheiten | null>(null);
   let fragt = $state(false);
   let kiFehler = $state<string | null>(null);
@@ -52,8 +54,25 @@
   function faktor(einheit: string): number | null {
     const sicher = ziel ? sichererFaktor(einheit, ziel) : null;
     if (sicher !== null) return sicher;
-    const zahl = leseMenge(faktoren[key(einheit)] ?? '');
+    const zahl = leseMenge(anzeige(einheit));
     return zahl !== null && !Number.isNaN(zahl) && zahl > 0 ? zahl : null;
+  }
+
+  /** A factor as shown for the current target: 20 (g) becomes 0,02 for kg, else empty. */
+  function anzeige(einheit: string): string {
+    const text = faktoren[key(einheit)] ?? '';
+    if (key(faktorenZiel) === key(ziel)) return text;
+    const um = faktorenZiel && ziel ? sichererFaktor(faktorenZiel, ziel) : null;
+    const zahl = leseMenge(text);
+    return um !== null && zahl !== null && !Number.isNaN(zahl) ? mengeFeld(zahl * um) : '';
+  }
+
+  function eintragen(einheit: string, text: string): void {
+    if (key(faktorenZiel) !== key(ziel)) {
+      faktoren = Object.fromEntries(Object.keys(faktoren).map((k) => [k, anzeige(k)]));
+      faktorenZiel = ziel;
+    }
+    faktoren[key(einheit)] = text;
   }
 
   const zeilen = $derived(
@@ -87,6 +106,7 @@
       // Typed meanwhile: the own unit and factors stay, the proposal is only shown
       if (eingaben !== stand) return;
       ziel = antwort.ziel;
+      faktorenZiel = antwort.ziel;
       faktoren = Object.fromEntries(
         antwort.faktoren.map((f) => [key(f.einheit), f.faktor === null ? '' : mengeFeld(f.faktor)])
       );
@@ -202,7 +222,8 @@
                 aria-label="So viel {einheitText(ziel || '?')} ist 1 {einheitText(einheit)}"
                 aria-invalid={faktor(einheit) === null ? 'true' : undefined}
                 placeholder="?"
-                bind:value={faktoren[key(einheit)]}
+                value={anzeige(einheit)}
+                oninput={(event) => eintragen(einheit, event.currentTarget.value)}
               />
             {/if}
             <span>{ziel ? einheitText(ziel) : ''}</span>

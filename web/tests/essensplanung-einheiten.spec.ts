@@ -51,6 +51,14 @@ test('a line takes a unit of its own, and units of one ingredient are brought in
   await expect(dialog.getByLabel('Alles in')).toHaveValue('Bund');
   const zeilen = dialog.getByTestId('einheiten-zeile');
   await expect(zeilen.filter({ hasText: 'Kartoffelsuppe' })).toContainText('→ 10 Bund');
+  // Another unit converts the factors where that is certain, and never keeps them as they were
+  const alles = dialog.getByLabel('Alles in');
+  await alles.fill('g');
+  await dialog.getByLabel('So viel g ist 1 Bund').fill('20');
+  await alles.fill('kg');
+  await expect(dialog.getByLabel('So viel kg ist 1 Bund')).toHaveValue('0,02');
+  await alles.fill('Bund');
+  await expect(dialog.getByLabel('So viel Bund ist 1 g')).toHaveValue('');
   // The factor can be changed before taking it over
   await dialog.getByLabel('So viel Bund ist 1 g').fill('0,1');
   await expect(zeilen.filter({ hasText: 'Kartoffelsuppe' })).toContainText('→ 20 Bund');
