@@ -150,6 +150,13 @@
     void loadChangelogSeen({ maxAge: CHANGELOG_SEEN_MAX_AGE_MS });
     // Whether Nikolaus modules may appear in the bar; the Steuerung refreshes it on a change
     void fetchNikolausStatus();
+    // Keep the modal boundary aligned with Tailwind's rem-based sidebar breakpoint.
+    const wide = window.matchMedia('(min-width: 80rem)');
+    const closeForSidebar = (): void => {
+      if (open && wide.matches) hide(false);
+    };
+    wide.addEventListener('change', closeForSidebar);
+    return () => wide.removeEventListener('change', closeForSidebar);
   });
 
   // The start page loads the favorites itself (StaffDashboard); elsewhere the bar needs them
@@ -493,12 +500,7 @@
   />
 </div>
 
-<svelte:window
-  {onkeydown}
-  onresize={() => {
-    if (open && window.innerWidth >= 1280) hide(false);
-  }}
-/>
+<svelte:window {onkeydown} />
 <svelte:document {onfocusin} />
 
 <!-- The result of a change to the favorites, wherever it was made -->

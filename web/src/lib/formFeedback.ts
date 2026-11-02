@@ -15,8 +15,12 @@ export function observeFormFeedback(
       const fields = [
         ...form.querySelectorAll<HTMLElement>('[aria-invalid="true"], [data-form-error="true"]'),
       ].filter((field) => !field.closest('[inert], [hidden]') && field.getClientRects().length > 0);
-      if (fields.length !== lastCount || awaitingErrors) announce(fields.length);
-      lastCount = fields.length;
+      // Several choices can share one correction, e.g. selecting at least one scout group.
+      const count = new Set(
+        fields.map((field) => field.closest('[data-form-error-group]') ?? field)
+      ).size;
+      if (count !== lastCount || awaitingErrors) announce(count);
+      lastCount = count;
       if (awaitingErrors && fields.length > 0) {
         awaitingErrors = false;
         fields[0].focus({ preventScroll: true });

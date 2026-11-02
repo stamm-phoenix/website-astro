@@ -409,6 +409,7 @@
       {/if}
 
       <fieldset
+        data-form-error-group
         aria-describedby={[
           leitendeOnly ? 'aktion-stufen-hint' : '',
           errors.stufen ? 'aktion-stufen-error' : '',
