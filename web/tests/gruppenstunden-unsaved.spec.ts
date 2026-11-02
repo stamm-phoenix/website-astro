@@ -1,6 +1,8 @@
 import { test, expect } from './fixtures';
 
-test('reloaded notice remains dirty after toggling its fields off and on', async ({ page }) => {
+test('reloaded notice protects unsaved edits and resets when original values return', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/api/intern/pflege/gruppenstunden', async (route) => {
     const response = await route.fetch();
@@ -14,13 +16,17 @@ test('reloaded notice remains dirty after toggling its fields off and on', async
     };
     await route.fulfill({ response, json: data });
   });
-  await page.route('**/api/intern/pflege/gruppenstunden/*', (route) =>
+  await page.route('**/api/intern/pflege/gruppenstunden/*/hinweis', (route) =>
     route.fulfill({ status: 409, json: { code: 'CONFLICT', message: 'Inzwischen geändert.' } })
   );
-  await page.goto('/leitendenbereich/gruppenstunden');
-  await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Gruppenstunde Wölflinge bearbeiten' });
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.goto('/leitendenbereich/gruppenstunden-hinweise');
+  await page
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('heading', { name: 'Wölflinge', exact: true }) })
+    .getByRole('button', { name: 'Hinweis bearbeiten', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Hinweis für Wölflinge bearbeiten' });
+  await dialog.getByRole('button', { name: 'Hinweis veröffentlichen', exact: true }).click();
   await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Aktuelle Fassung laden?', exact: true })
@@ -32,8 +38,6 @@ test('reloaded notice remains dirty after toggling its fields off and on', async
   const message = dialog.getByLabel('Hinweis', { exact: true });
   await expect(message).toHaveValue('Ursprünglicher Hinweis');
   await message.fill('Geänderter Hinweis');
-  await dialog.getByLabel('Abweichung anzeigen', { exact: true }).uncheck();
-  await dialog.getByLabel('Abweichung anzeigen', { exact: true }).check();
   await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: 'Änderungen verwerfen?', exact: true });
   await expect(confirm).toBeVisible();

@@ -1,3 +1,4 @@
+import { validateGruppenstundenHinweis } from '../lib/validation/gruppenstunden-exception';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateGruppenstunde } from '../lib/validation/content';
@@ -66,4 +67,12 @@ test('accepts removal and old clients without an exception', () => {
     null
   );
   assert.equal(validateGruppenstunde(regular, ['Wölflinge']).exception, undefined);
+});
+
+test('notice-only updates require an explicit notice or removal and need no regular fields', () => {
+  assert.deepEqual(validateGruppenstundenHinweis({ exception }), { exception });
+  assert.deepEqual(validateGruppenstundenHinweis({ exception: null }), { exception: null });
+  for (const body of [{}, { exception: { ...exception, startDate: '2026-02-30' } }]) {
+    assert.throws(() => validateGruppenstundenHinweis(body), ValidationError);
+  }
 });

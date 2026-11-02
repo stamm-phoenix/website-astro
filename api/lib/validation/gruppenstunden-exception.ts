@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { labeledText } from './zod';
+import { labeledText, lenientObject, parseWith } from './zod';
 import type { GruppenstundenException } from '../gruppenstunden-exception-model';
 
 const date = z.string({ error: 'Bitte ein gültiges Datum angeben.' }).refine(
@@ -36,4 +36,27 @@ export function readGruppenstundenException(value: string | null): Gruppenstunde
   } catch {
     return null;
   }
+}
+
+/** Field keys shared by the regular and notice-only forms. */
+export function gruppenstundenField([field, child]: readonly PropertyKey[]): string {
+  const fields: Record<string, string> = {
+    startDate: 'exceptionStartDate',
+    endDate: 'exceptionEndDate',
+    message: 'exceptionMessage',
+    location: 'exceptionLocation',
+    time: 'exceptionTime',
+  };
+  if (field === 'exception' && typeof child === 'string') return fields[child] ?? 'exception';
+  return typeof field === 'string' ? field : 'form';
+}
+
+export function validateGruppenstundenHinweis(body: unknown): {
+  exception: GruppenstundenException | null;
+} {
+  return parseWith(
+    lenientObject({ exception: gruppenstundenExceptionSchema.nullable() }),
+    body,
+    gruppenstundenField
+  );
 }

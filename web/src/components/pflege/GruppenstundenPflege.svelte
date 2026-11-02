@@ -9,13 +9,11 @@
   import { gruppenstundenPflege } from '../../lib/pflegeStore.svelte';
   import { GROUP_CONFIG, STUFE_ORDER, STUFE_TO_KEY } from '../../lib/types';
   import type { StaffGruppenstunde } from '../../lib/types';
-  import type { GruppenstundenException } from '../../../../api/lib/gruppenstunden-exception-model';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
   import LeaderAvatar from '../LeaderAvatar.svelte';
-  import GruppenstundenAusnahme from './GruppenstundenAusnahme.svelte';
 
   interface Form {
     id: string | null;
@@ -29,16 +27,11 @@
     description: string;
     /** Original time text if it could not be split into start and end. */
     legacyTime: string;
-    exception: GruppenstundenException | null;
   }
 
   const store = gruppenstundenPflege.state;
 
   let form = $state<Form | null>(null);
-  let initialException = $state('null');
-  const exceptionDirty = $derived(
-    form !== null && JSON.stringify(form.exception) !== initialException
-  );
   const dialog = createDialogForm();
   const errors = $derived(dialog.state.fields);
   const busy = $derived(dialog.state.busy);
@@ -92,7 +85,6 @@
       location: item.location,
       description: item.description,
       legacyTime: time ? '' : item.time,
-      exception: item.exception ?? null,
     };
     openDialog();
   }
@@ -109,13 +101,11 @@
       location: '',
       description: '',
       legacyTime: '',
-      exception: null,
     };
     openDialog();
   }
 
   function openDialog(): void {
-    initialException = JSON.stringify(form?.exception ?? null);
     dialog.reset();
   }
 
@@ -144,18 +134,6 @@
     if (!f.start || !f.end) result.time = 'Bitte Beginn und Ende angeben.';
     else if (f.end <= f.start) result.time = 'Das Ende muss nach dem Beginn liegen.';
     if (!f.location.trim()) result.location = 'Bitte einen Ort angeben.';
-    if (f.exception) {
-      if (!f.exception.startDate) result.exceptionStartDate = 'Bitte ein Anfangsdatum angeben.';
-      if (!f.exception.endDate) result.exceptionEndDate = 'Bitte ein Enddatum angeben.';
-      if (
-        f.exception.startDate &&
-        f.exception.endDate &&
-        f.exception.endDate < f.exception.startDate
-      ) {
-        result.exceptionEndDate = 'Das Enddatum muss am Anfangsdatum oder danach liegen.';
-      }
-      if (!f.exception.message.trim()) result.exceptionMessage = 'Bitte einen Hinweis angeben.';
-    }
     return result;
   }
 
@@ -172,7 +150,6 @@
       ageRange: form.ageRange,
       location: form.location,
       description: form.description,
-      exception: form.exception,
     };
     await dialog.run(async () => {
       if (current.id) await sendApi('PATCH', `/intern/pflege/gruppenstunden/${current.id}`, body);
@@ -199,6 +176,7 @@
 
 <StaffPageHead href="/leitendenbereich/gruppenstunden">
   {#snippet actions()}
+    <a href="/leitendenbereich/gruppenstunden-hinweise" class="btn-secondary">Hinweise verwalten</a>
     {#if store.data && freeStufen.length > 0}
       <ActionButton variant="primary" type="button" onclick={create}
         >Neue Gruppenstunde</ActionButton
@@ -295,7 +273,6 @@
   rescueKey={form ? `gruppenstunde:${form.id ?? 'neu'}` : undefined}
   rescueVersion={form?.etag}
   {busy}
-  dirty={exceptionDirty}
   error={dialog.state.error}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}
   onsubmit={save}
@@ -398,11 +375,5 @@
         {/snippet}
       </FormField>
     </div>
-    <GruppenstundenAusnahme
-      exception={form.exception}
-      resetKey={`${form.id ?? 'neu'}:${form.etag}`}
-      {errors}
-      onchange={(exception) => (form!.exception = exception)}
-    />
   {/if}
 </EditDialog>

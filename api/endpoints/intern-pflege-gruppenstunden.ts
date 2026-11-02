@@ -1,3 +1,4 @@
+import { validateGruppenstundenHinweis } from '../lib/validation/gruppenstunden-exception';
 import type { HttpRequest } from '@azure/functions';
 import { parseId } from '../lib/db';
 import {
@@ -5,6 +6,7 @@ import {
   deleteGruppenstunde,
   getStaffGruppenstunden,
   updateGruppenstunde,
+  updateGruppenstundenHinweis,
 } from '../lib/gruppenstunden-list';
 import { getLeitende } from '../lib/leitende-list';
 import { STUFEN, WEEKDAYS } from '../lib/validation/constants';
@@ -71,3 +73,22 @@ export const GruppenstundeItemEndpoint = pflegeHandler(
 
 export const GruppenstundenCollection = withErrorHandling(GruppenstundenCollectionEndpoint);
 export const GruppenstundeItem = withErrorHandling(GruppenstundeItemEndpoint);
+
+export const GruppenstundenHinweisEndpoint = pflegeHandler(
+  'gruppenstunden',
+  async (request: HttpRequest, _context, principal) => {
+    const id = parseId(request.params.id ?? '');
+    if (id === undefined) return NOT_FOUND;
+    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+    const body = await readJsonBody(request);
+    const { exception } = validateGruppenstundenHinweis(body);
+    await updateGruppenstundenHinweis(
+      id,
+      exception,
+      requireVersion(readEtag(body)),
+      principal.userDetails
+    );
+    return NO_CONTENT;
+  }
+);
+export const GruppenstundenHinweis = withErrorHandling(GruppenstundenHinweisEndpoint);

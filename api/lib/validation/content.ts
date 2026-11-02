@@ -1,4 +1,4 @@
-import { gruppenstundenExceptionSchema } from './gruppenstunden-exception';
+import { gruppenstundenExceptionSchema, gruppenstundenField } from './gruppenstunden-exception';
 import type { GruppenstundenException } from '../gruppenstunden-exception-model';
 /**
  * Validation of the public content the staff edits: FAQ, Gruppenstunden, the calendar (Aktionen)
@@ -128,18 +128,7 @@ function gruppenstundeSchema(stufen: string[]) {
 }
 
 export function validateGruppenstunde(body: unknown, stufen: string[]): GruppenstundeInput {
-  const exceptionFields: Record<string, string> = {
-    startDate: 'exceptionStartDate',
-    endDate: 'exceptionEndDate',
-    message: 'exceptionMessage',
-    location: 'exceptionLocation',
-    time: 'exceptionTime',
-  };
-  return parseWith(gruppenstundeSchema(stufen), body, ([field, child]) => {
-    if (field === 'exception' && typeof child === 'string')
-      return exceptionFields[child] ?? 'exception';
-    return typeof field === 'string' ? field : 'form';
-  });
+  return parseWith(gruppenstundeSchema(stufen), body, gruppenstundenField);
 }
 
 // --- Aktionen (public calendar) ---

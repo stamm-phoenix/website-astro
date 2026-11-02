@@ -141,3 +141,23 @@ export async function deleteGruppenstunde(id: number, etag: string): Promise<voi
     .executeTakeFirst();
   if (Number(result.numDeletedRows) === 0) await notChanged(id);
 }
+
+/** Changes only the public notice, preserving all regular meeting details. */
+export async function updateGruppenstundenHinweis(
+  id: number,
+  exception: GruppenstundenException | null,
+  etag: string,
+  actor: string
+): Promise<void> {
+  const result = await getDb()
+    .updateTable('content.gruppenstunde')
+    .set({
+      exception_json: exception === null ? null : JSON.stringify(exception),
+      updated_by: actor,
+      updated_at: sql<Date>`SYSUTCDATETIME()`,
+    })
+    .where('id', '=', id)
+    .where('version', '=', requireVersion(etag))
+    .executeTakeFirst();
+  if (Number(result.numUpdatedRows) === 0) await notChanged(id);
+}

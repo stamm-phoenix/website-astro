@@ -1,5 +1,8 @@
 import type { MockRequest, MockResult } from './mockApi';
-import { readGruppenstundenException } from '../../api/lib/validation/gruppenstunden-exception';
+import {
+  readGruppenstundenException,
+  validateGruppenstundenHinweis,
+} from '../../api/lib/validation/gruppenstunden-exception';
 import {
   gruppenstunden,
   publicGruppenstunden,
@@ -25,6 +28,16 @@ export function registerGruppenstundenRoutes(
     handler: (req: MockRequest) => MockResult
   ) => void
 ): void {
+  route('PATCH', '/api/intern/pflege/gruppenstunden/:id/hinweis', (req) => {
+    const g = gruppenstunden.find((item) => item.id === req.params.id);
+    if (!g) return notFound();
+    const body = req.json ?? {};
+    if (body.etag !== g.etag)
+      return json({ code: 'CONFLICT', message: 'Der Hinweis wurde inzwischen geändert.' }, 409);
+    g.exception = validateGruppenstundenHinweis(body).exception;
+    g.etag = newEtag(`gs-${g.id}`);
+    return noContent();
+  });
   route('GET', '/api/gruppenstunden', () => json(publicGruppenstunden()));
   route(['GET', 'POST'], '/api/intern/pflege/gruppenstunden', (req) => {
     if (req.method === 'GET')

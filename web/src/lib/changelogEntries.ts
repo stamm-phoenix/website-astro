@@ -14,11 +14,11 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-11-02-02-gruppenstunden-ausnahmen',
     date: '2026-11-02',
-    title: 'Abweichungen bei Gruppenstunden',
+    title: 'Gruppenstunden-Hinweise',
     changes: [
       {
-        text: 'Bei einer Gruppenstunde kannst du für einen Zeitraum einen Hinweis, einen anderen Ort und eine andere Uhrzeit eintragen. Die Website zeigt die Abweichung automatisch an den passenden Tagen.',
-        href: '/leitendenbereich/gruppenstunden',
+        text: 'Im Bereich Gruppenstunden-Hinweise kannst du je Stufe einen befristeten Hinweis mit anderem Ort oder anderer Uhrzeit veröffentlichen und entfernen. Auf der Website erscheint er an den eingetragenen Tagen.',
+        href: '/leitendenbereich/gruppenstunden-hinweise',
       },
     ],
   },

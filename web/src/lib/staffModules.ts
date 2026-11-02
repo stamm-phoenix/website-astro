@@ -302,6 +302,14 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
   },
   {
+    href: '/leitendenbereich/gruppenstunden-hinweise',
+    title: 'Gruppenstunden-Hinweise',
+    description: 'Hinweise, abweichende Orte und Uhrzeiten für Gruppenstunden veröffentlichen.',
+    wrap: 'Gruppenstunden-|Hinweise',
+    keywords: ['gruppenstunde', 'hinweis', 'abweichung', 'ort', 'uhrzeit', 'website'],
+    icon: 'M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  },
+  {
     href: '/leitendenbereich/leitende',
     title: 'Leitende & Teams',
     description: 'Leitende, Fotos und Teams (Stufen, Vorstand) verwalten.',
@@ -467,6 +475,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
     title: 'Website pflegen',
     modules: byPath(
       'gruppenstunden',
+      'gruppenstunden-hinweise',
       'leitende',
       'blog',
       'downloads',

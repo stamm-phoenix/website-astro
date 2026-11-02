@@ -5,6 +5,7 @@ import {
   getStaffGruppenstunden,
   getGruppenstunden,
   updateGruppenstunde,
+  updateGruppenstundenHinweis,
 } from '../lib/gruppenstunden-list';
 import { VersionConflictError } from '../lib/db';
 
@@ -47,3 +48,21 @@ dbTest(
     assert.equal(removed.time, '18 Uhr');
   }
 );
+
+dbTest('notice-only writes preserve meeting details and enforce the loaded version', async () => {
+  const id = Number(await createGruppenstunde(regular, 'test'));
+  const before = (await getStaffGruppenstunden()).find((item) => Number(item.id) === id)!;
+  await updateGruppenstundenHinweis(id, exception, before.etag, 'test');
+  const saved = (await getStaffGruppenstunden()).find((item) => Number(item.id) === id)!;
+  assert.deepEqual(saved.exception, exception);
+  for (const key of ['stufe', 'weekday', 'time', 'location', 'description', 'ageRange'] as const)
+    assert.equal(saved[key], regular[key]);
+  await assert.rejects(
+    updateGruppenstundenHinweis(id, null, before.etag, 'test'),
+    VersionConflictError
+  );
+  await updateGruppenstundenHinweis(id, null, saved.etag, 'test');
+  const removed = (await getStaffGruppenstunden()).find((item) => Number(item.id) === id)!;
+  assert.equal(removed.exception, null);
+  assert.equal(removed.time, regular.time);
+});
