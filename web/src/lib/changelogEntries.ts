@@ -31,6 +31,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Teilnehmende und Gruppen stehen dichter und lassen sich auch als Matrix anzeigen.',
       'Bei einer Zutat im Gericht trägst du direkt das Geschäft ein, auch ein neues.',
       'Ein Gericht ohne Personenzahl rechnet mit festen Mengen: 2 Stück Brot sind 2 Stück je Einplanung, ohne „Personenzahl fehlt“.',
+      'Auf der Packliste kann ein Gegenstand mehreren Personen gehören, etwa eine Kochschürze für alle. Jede Person hakt ihren eigenen ab.',
     ],
   },
   {
