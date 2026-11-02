@@ -176,6 +176,7 @@
 
 <StaffPageHead href="/leitendenbereich/gruppenstunden">
   {#snippet actions()}
+    <a href="/leitendenbereich/gruppenstunden-hinweise" class="btn-secondary">Hinweise verwalten</a>
     {#if store.data && freeStufen.length > 0}
       <ActionButton variant="primary" type="button" onclick={create}
         >Neue Gruppenstunde</ActionButton

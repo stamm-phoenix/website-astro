@@ -1,3 +1,5 @@
+import type { GruppenstundenException } from './gruppenstunden-exception-model';
+import { readGruppenstundenException } from './validation/gruppenstunden-exception';
 import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 import { nextContentId } from './content-ids';
@@ -18,6 +20,7 @@ import type { GruppenstundeInput } from './validation/content';
  */
 
 export interface Gruppenstunde {
+  exception: GruppenstundenException | null;
   id: string;
   stufe: string;
   weekday: string;
@@ -35,6 +38,7 @@ function toGruppenstunde(row: Selectable<GruppenstundeTable>): StaffGruppenstund
   return {
     id: String(row.id),
     etag: toVersion(row.version),
+    exception: readGruppenstundenException(row.exception_json),
     stufe: row.stufe,
     weekday: row.weekday,
     time: row.meeting_time,
@@ -45,6 +49,7 @@ function toGruppenstunde(row: Selectable<GruppenstundeTable>): StaffGruppenstund
 }
 
 function toColumns(input: GruppenstundeInput): {
+  exception_json?: string | null;
   stufe: string;
   weekday: string;
   meeting_time: string;
@@ -53,6 +58,9 @@ function toColumns(input: GruppenstundeInput): {
   description: string;
 } {
   return {
+    ...(input.exception !== undefined
+      ? { exception_json: input.exception === null ? null : JSON.stringify(input.exception) }
+      : {}),
     stufe: input.stufe,
     weekday: input.weekday,
     meeting_time: input.time,
@@ -75,6 +83,7 @@ export async function getStaffGruppenstunden(): Promise<StaffGruppenstunde[]> {
 export async function getGruppenstunden(): Promise<Gruppenstunde[]> {
   return (await getStaffGruppenstunden()).map((item) => ({
     id: item.id,
+    exception: item.exception,
     stufe: item.stufe,
     weekday: item.weekday,
     time: item.time,
@@ -131,4 +140,24 @@ export async function deleteGruppenstunde(id: number, etag: string): Promise<voi
     .where('version', '=', requireVersion(etag))
     .executeTakeFirst();
   if (Number(result.numDeletedRows) === 0) await notChanged(id);
+}
+
+/** Changes only the public notice, preserving all regular meeting details. */
+export async function updateGruppenstundenHinweis(
+  id: number,
+  exception: GruppenstundenException | null,
+  etag: string,
+  actor: string
+): Promise<void> {
+  const result = await getDb()
+    .updateTable('content.gruppenstunde')
+    .set({
+      exception_json: exception === null ? null : JSON.stringify(exception),
+      updated_by: actor,
+      updated_at: sql<Date>`SYSUTCDATETIME()`,
+    })
+    .where('id', '=', id)
+    .where('version', '=', requireVersion(etag))
+    .executeTakeFirst();
+  if (Number(result.numUpdatedRows) === 0) await notChanged(id);
 }

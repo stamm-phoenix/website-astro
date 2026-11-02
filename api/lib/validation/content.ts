@@ -1,3 +1,5 @@
+import { gruppenstundenExceptionSchema, gruppenstundenField } from './gruppenstunden-exception';
+import type { GruppenstundenException } from '../gruppenstunden-exception-model';
 /**
  * Validation of the public content the staff edits: FAQ, Gruppenstunden, the calendar (Aktionen)
  * and the Leitende. Formatted text is sanitized here, the schemas check the rest.
@@ -104,6 +106,7 @@ export function validateQuestionAndAnswer(body: unknown): QuestionAndAnswerInput
 // --- Gruppenstunden ---
 
 export interface GruppenstundeInput {
+  exception?: GruppenstundenException | null;
   stufe: string;
   weekday: string;
   time: string;
@@ -114,6 +117,7 @@ export interface GruppenstundeInput {
 
 function gruppenstundeSchema(stufen: string[]) {
   return lenientObject({
+    exception: gruppenstundenExceptionSchema.nullable().optional(),
     stufe: choiceOf('die Stufe', stufen),
     weekday: labeledText('den Wochentag', 30, true),
     time: labeledText('die Uhrzeit', 60, true),
@@ -124,7 +128,7 @@ function gruppenstundeSchema(stufen: string[]) {
 }
 
 export function validateGruppenstunde(body: unknown, stufen: string[]): GruppenstundeInput {
-  return parseWith(gruppenstundeSchema(stufen), body);
+  return parseWith(gruppenstundeSchema(stufen), body, gruppenstundenField);
 }
 
 // --- Aktionen (public calendar) ---

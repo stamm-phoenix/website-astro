@@ -5,6 +5,7 @@
   import { STUFE_TO_KEY, GROUP_CONFIG } from '../lib/types';
   import { stufeToFilterKey } from '../lib/events';
   import type { GroupKey, Gruppenstunde } from '../lib/types';
+  import type { GruppenstundenException } from '../../../api/lib/gruppenstunden-exception-model';
   import LeaderAvatar from './LeaderAvatar.svelte';
   import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
   import { withBaked } from '../lib/storeView';
@@ -20,11 +21,17 @@
   const view = $derived(withBaked(gruppenstundenStore, initial));
 
   let expandedGruppe = $state<string | null>(null);
+  let today = $state(berlinDate());
 
   $effect(() => {
     untrack(() => {
       fetchGruppenstunden();
     });
+  });
+
+  $effect(() => {
+    const timer = setInterval(() => (today = berlinDate()), 60_000);
+    return () => clearInterval(timer);
   });
 
   function getGroupKey(stufe: string): GroupKey {
@@ -43,9 +50,20 @@
   function hasExpandableContent(gruppe: Gruppenstunde): boolean {
     return gruppe.leitende?.length > 0 || !!gruppe.description;
   }
+
+  function berlinDate(): string {
+    return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+  }
+
+  function currentException(gruppe: Gruppenstunde): GruppenstundenException | null {
+    const exception = gruppe.exception;
+    return exception && exception.startDate <= today && today <= exception.endDate
+      ? exception
+      : null;
+  }
 </script>
 
-<div class="grid items-start gap-6 md:grid-cols-2">
+<div class="grid min-w-0 items-start gap-6 md:grid-cols-2">
   {#if view.loading}
     <div role="status" aria-live="polite" class="sr-only">Gruppenstunden werden geladen...</div>
     {#each [1, 2, 3, 4] as i (i)}
@@ -80,10 +98,11 @@
   {:else}
     {#each view.data ?? [] as gruppe (gruppe.id)}
       {@const config = getConfig(gruppe)}
+      {@const exception = currentException(gruppe)}
       {@const isExpanded = expandedGruppe === gruppe.id}
       {@const hasDetails = hasExpandableContent(gruppe)}
       <article
-        class="gruppe-card surface border-l-4 p-5"
+        class="gruppe-card surface min-w-0 border-l-4 p-5"
         style="border-left-color: {config.color};"
         aria-labelledby="gruppe-{gruppe.id}-heading"
       >
@@ -144,6 +163,24 @@
             </span>
           {/if}
         </h2>
+
+        {#if exception}
+          <div
+            class="mt-4 rounded-md border border-warning bg-warning-soft px-4 py-3 text-warning [overflow-wrap:anywhere]"
+            role="note"
+          >
+            <p class="font-semibold">{exception.message}</p>
+            {#if exception.location || exception.time}
+              <p class="mt-1 text-sm">
+                {#if exception.location}Ort: {exception.location}{/if}
+                {#if exception.location && exception.time}
+                  ·
+                {/if}
+                {#if exception.time}Zeit: {exception.time}{/if}
+              </p>
+            {/if}
+          </div>
+        {/if}
 
         <dl class="facts mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-neutral-900">
           <dt class="text-neutral-700">Gruppenstunde</dt>
