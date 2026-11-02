@@ -28,6 +28,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       '„Esser je Mahlzeit“ ist jetzt eine Tabelle wie der Kalender im Plan.',
       'Alle Bereiche liegen auf Karten, die Lilie im Hintergrund stört das Lesen nicht mehr.',
       'Am Computer bleiben Name der Planung und die Reiter beim Scrollen oben stehen.',
+      'Teilnehmende und Gruppen stehen dichter und lassen sich auch als Matrix anzeigen.',
     ],
   },
   {
