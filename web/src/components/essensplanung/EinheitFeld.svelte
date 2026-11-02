@@ -24,6 +24,10 @@
     invalid?: boolean;
     class?: string;
     wrapperClass?: string;
+    /** The id of the text describing the field, e.g. its error. */
+    describedby?: string;
+    /** A unit was typed or picked (not set from outside). */
+    onedit?: () => void;
     onkeydown?: (event: KeyboardEvent) => void;
   }
   let {
@@ -36,6 +40,8 @@
     invalid = false,
     class: className = 'form-input',
     wrapperClass = '',
+    describedby,
+    onedit,
     onkeydown,
   }: Props = $props();
 
@@ -82,10 +88,12 @@
   spellcheck="false"
   {disabled}
   aria-invalid={invalid ? 'true' : undefined}
+  aria-describedby={describedby}
   onfocus={() => (getippt = false)}
   onedit={(neu) => {
     getippt = true;
     einheit = normalisiereEinheit(neu) ?? '';
+    onedit?.();
   }}
   onkeydown={taste}
 />

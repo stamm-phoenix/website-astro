@@ -439,6 +439,8 @@
               abtropfgewicht={gewaehlt?.abtropfgewicht}
               invalid={Boolean(felder.einheit)}
               disabled={!menge.trim()}
+              describedby={attrs['aria-describedby']}
+              onedit={() => (geaendert = true)}
             />
           {/snippet}
         </FormField>

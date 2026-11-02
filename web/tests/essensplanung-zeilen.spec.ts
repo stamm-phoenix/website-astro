@@ -87,7 +87,11 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await menge.fill('900');
   await gericht.getByRole('button', { name: 'Hackfleisch ändern' }).click();
   await expect(dialog.getByLabel('Menge', { exact: true })).toHaveValue('900');
+  // Only a unit picked from the suggestions is a change too, which is asked about
+  await dialog.getByLabel('Einheit', { exact: true }).click();
+  await dialog.getByRole('option', { name: 'kg', exact: true }).click();
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Verwerfen');
   await expect(dialog).toHaveCount(0);
 
   // A change of others that comes while the row has focus shows once the row is left

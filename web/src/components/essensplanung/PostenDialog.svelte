@@ -265,6 +265,8 @@
               eigene={eigeneEinheiten(ansicht)}
               invalid={Boolean(felder.einheit)}
               disabled={frei && !menge.trim()}
+              describedby={attrs['aria-describedby']}
+              onedit={() => (geaendert = true)}
             />
           {/snippet}
         </FormField>
