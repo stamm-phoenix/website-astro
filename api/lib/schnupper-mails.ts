@@ -75,12 +75,16 @@ export function schnupperStammMail(anfrage: StaffSchnupperAnfrage, siteUrl: stri
   };
 }
 
-/** Receipt to the family: the request arrived and is open. */
+/**
+ * Receipt to the family: the request arrived and is open. It goes out without anyone checking
+ * the request, so it holds no text of the form (name, first name, message): otherwise anyone
+ * could send their own text to any address through it. The age is a checked number.
+ */
 export function schnupperEingangMail(anfrage: StaffSchnupperAnfrage): Mail {
   const html = mailLayout(`
     <h1 style="font-size:20px;color:#003056;margin:0 0 16px;">Deine Anfrage ist bei uns angekommen</h1>
-    <p>Hallo ${escapeHtml(anfrage.name)},</p>
-    <p>danke für deine Anfrage für eine ${escapeHtml(wofuer(anfrage))}.</p>
+    <p>Hallo,</p>
+    <p>danke für deine Anfrage für eine Schnupperstunde (${anfrage.alter} Jahre).</p>
     <p><strong>Stand: offen.</strong> Unsere Leitenden schauen nach einem passenden Termin. Du bekommst
       eine zweite E-Mail, sobald der Termin feststeht. Da wir alle ehrenamtlich dabei sind, kann das
       ein paar Tage dauern.</p>

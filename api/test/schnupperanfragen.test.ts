@@ -159,6 +159,8 @@ dbTest('a request is stored, the Stamm is told and the family gets a receipt', a
   assert.match(sent[0].subject, /Schnupperanfrage: 8 Jahre – Erika Muster/);
   assert.match(sent[0].html, /\/leitendenbereich\/schnupperanfragen/);
   assert.match(sent[1].html, /Stand: offen/);
+  // The receipt goes out unchecked, so it carries no text of the form
+  assert.doesNotMatch(sent[1].html, /Erika|Mia/);
 });
 
 dbTest('a honeypot or invalid input stores nothing', async (t) => {
