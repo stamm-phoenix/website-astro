@@ -51,7 +51,7 @@ test('on a wide screen the sidebar leads to every module and finds one by typing
   await expect(
     page
       .getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' })
-      .getByRole('link', { name: 'Gruppenstunden' })
+      .getByRole('link', { name: 'Gruppenstunden', exact: true })
   ).toHaveAttribute('aria-current', 'page');
 });
 
