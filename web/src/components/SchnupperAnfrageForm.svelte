@@ -177,8 +177,14 @@
             step="1"
             placeholder="z. B. 8"
             required
-            bind:value={() => alter, (value) => (alter = value == null ? '' : String(value))}
-            oninput={onAlter}
+            bind:value={
+              () => alter,
+              (value) => {
+                // After the new value is taken, so the suggestion uses it
+                alter = value == null ? '' : String(value);
+                onAlter();
+              }
+            }
             class="form-input"
           />
         {/snippet}

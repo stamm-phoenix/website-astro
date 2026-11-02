@@ -96,7 +96,12 @@
       await ondone(null, 'Die Anfrage wurde inzwischen gelöscht.');
       return false;
     }
+    // The dialog asked before: the current version replaces the input
     current = fresh;
+    datum = fresh.termin?.datum ?? '';
+    zeit = fresh.termin?.zeit ?? '';
+    ort = fresh.termin?.ort ?? '';
+    antwort = '';
     dialog.reset();
     return true;
   }

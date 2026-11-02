@@ -13,6 +13,11 @@ import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
 import * as mail from '../lib/mail';
 import type { SchnupperAntwortErgebnis, StaffSchnupperAnfrage } from '../lib/schnupper-model';
+import {
+  cancelSchnupperAnfrage,
+  confirmSchnupperAnfrage,
+  markSchnupperMail,
+} from '../lib/schnupperanfragen';
 import { solvedAltcha, useAltcha } from './fixtures/altcha';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';
@@ -288,4 +293,30 @@ dbTest('opening the module deletes requests past their retention', async (t) => 
     (await list(context)).map((item) => item.name),
     ['Frisch Muster']
   );
+});
+
+dbTest('the mail of an outdated answer never changes the flag of a newer one', async (t) => {
+  await clear();
+  const { context } = setup(t);
+  await submit(context);
+  const offen = await only(context);
+  const bestaetigt = await confirmSchnupperAnfrage(
+    offen.id,
+    { datum: DATUM, zeit: '17:30', ort: '', antwort: '' },
+    offen.etag,
+    'anna@example.test'
+  );
+  // Another leader cancels while the confirmation mail is still on its way
+  const abgesagt = await cancelSchnupperAnfrage(
+    offen.id,
+    { antwort: '' },
+    bestaetigt.etag,
+    'ben@example.test'
+  );
+  const neu = await markSchnupperMail(offen.id, abgesagt.etag, false);
+  assert.equal(neu?.antwortMail, false);
+  const spaet = await markSchnupperMail(offen.id, bestaetigt.etag, true);
+  assert.equal(spaet?.status, 'abgesagt');
+  assert.equal(spaet?.antwortMail, false);
+  assert.equal((await only(context)).antwortMail, false);
 });

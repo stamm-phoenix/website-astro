@@ -52,9 +52,10 @@ async function deliver(
     context.error('Sending the Schnupper answer failed', error);
     mailSent = false;
   }
-  // Recording the flag changes the version, so the answer carries the one after it
+  // Recording the flag changes the version, so the answer carries the one after it. A newer
+  // answer of another leader keeps its own flag.
   try {
-    const current = await markSchnupperMail(anfrage.id, mailSent);
+    const current = await markSchnupperMail(anfrage.id, anfrage.etag, mailSent);
     if (current) return { anfrage: current, mailSent };
   } catch (error: unknown) {
     context.error('Recording the Schnupper mail state failed', error);
