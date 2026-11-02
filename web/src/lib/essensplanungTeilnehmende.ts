@@ -38,3 +38,28 @@ export function zeitraumText(ansicht: PlanungAnsicht, zeile: Teilnehmende): stri
     return GRENZE_GELOESCHT;
   return [von && `ab ${von}`, bis && `bis ${bis}`].filter(Boolean).join(' ');
 }
+
+/** The diets in the order of the columns of the matrices. */
+export const ERNAEHRUNGEN: readonly Ernaehrung[] = ['alles', 'vegetarisch', 'vegan'];
+
+/** The persons of rows by diet. */
+export function jeErnaehrung(zeilen: readonly Teilnehmende[]): Record<Ernaehrung, number> {
+  const summe: Record<Ernaehrung, number> = { alles: 0, vegetarisch: 0, vegan: 0 };
+  for (const zeile of zeilen) summe[zeile.ernaehrung] += zeile.anzahl;
+  return summe;
+}
+
+/**
+ * The names of a row's intolerances; while their list is missing, the row still says that it
+ * has some („1 (Liste nicht geladen)“).
+ */
+export function unvertraeglichkeitenNamen(
+  zeile: Teilnehmende,
+  namen: ReadonlyMap<number, string>
+): string[] {
+  const bekannt = zeile.unvertraeglichkeiten.map((id) => namen.get(id) ?? '').filter(Boolean);
+  const offen = zeile.unvertraeglichkeiten.length - bekannt.length;
+  return offen
+    ? [...bekannt, `${offen}${bekannt.length ? ' weitere' : ''} (Liste nicht geladen)`]
+    : bekannt;
+}

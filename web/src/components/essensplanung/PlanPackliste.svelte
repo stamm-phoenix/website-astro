@@ -9,6 +9,7 @@
     type PackFilter,
   } from '../../lib/essensplanungPackliste';
   import NeuerPackEintrag from './NeuerPackEintrag.svelte';
+  import { DARSTELLUNGEN, darstellungMerken } from './darstellungMerken.svelte';
   import PackMatrix from './PackMatrix.svelte';
   import PackZeile from './PackZeile.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
@@ -46,23 +47,7 @@
   let neuerWerText = $state('');
 
   /** List or matrix; each viewer's choice is remembered in this browser. */
-  const DARSTELLUNG_KEY = 'essensplanung:packliste-darstellung';
-  let darstellung = $state<'liste' | 'matrix'>(gemerkteDarstellung());
-  function gemerkteDarstellung(): 'liste' | 'matrix' {
-    try {
-      return localStorage.getItem(DARSTELLUNG_KEY) === 'matrix' ? 'matrix' : 'liste';
-    } catch {
-      return 'liste';
-    }
-  }
-  function zeige(art: 'liste' | 'matrix'): void {
-    darstellung = art;
-    try {
-      localStorage.setItem(DARSTELLUNG_KEY, art);
-    } catch {
-      // Without storage the choice holds until the page is left
-    }
-  }
+  const darstellung = darstellungMerken('essensplanung:packliste-darstellung');
   $effect(() => guardUnsavedChanges(() => neuerName.trim() !== '' || entwuerfe.offen()));
   // A row gone with a draft, e.g. as someone else took the last dish with its tool out of the
   // plan: what was typed is named to copy, then the draft goes
@@ -94,12 +79,9 @@
     <FilterTabs
       label="Darstellung der Packliste"
       variant="segmented"
-      options={[
-        { value: 'liste', label: 'Liste' },
-        { value: 'matrix', label: 'Matrix' },
-      ]}
-      value={darstellung}
-      onselect={zeige}
+      options={DARSTELLUNGEN}
+      value={darstellung.art}
+      onselect={darstellung.zeige}
     />
     {#if zeilen.length}
       <FilterTabs
@@ -132,7 +114,7 @@
             ? 'Noch nichts eingepackt.'
             : 'Für dich ist nichts eingetragen.'}
       </p>
-    {:else if darstellung === 'matrix'}
+    {:else if darstellung.art === 'matrix'}
       <PackMatrix {kontext} {zeilen} {sichtbar} {bearbeiten} {entwuerfe} />
     {:else}
       <div

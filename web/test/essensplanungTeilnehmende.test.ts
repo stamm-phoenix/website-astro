@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { GRENZE_GELOESCHT, zahlText, zeitraumText } from '../src/lib/essensplanungTeilnehmende.ts';
+import {
+  GRENZE_GELOESCHT,
+  jeErnaehrung,
+  unvertraeglichkeitenNamen,
+  zahlText,
+  zeitraumText,
+} from '../src/lib/essensplanungTeilnehmende.ts';
 import {
   esserJeMahlzeit,
   gruppenFaktorGueltig,
@@ -84,4 +90,30 @@ test('group factors take a comma and two decimals', () => {
   assert.ok(!gruppenFaktorGueltig(0.005));
   assert.ok(!gruppenFaktorGueltig(5.01));
   assert.equal(zahlText(1.2), '1,2');
+});
+
+test('rows sum up by diet and name their intolerances while the list is missing', () => {
+  const voll = (ernaehrung: 'alles' | 'vegetarisch' | 'vegan', anzahl: number) => ({
+    ...zeile(10, ernaehrung, anzahl),
+    id: 1,
+    etag: '',
+    unvertraeglichkeiten: [1, 2],
+    hinweis: '',
+  });
+  assert.deepEqual(jeErnaehrung([voll('alles', 3), voll('vegan', 2), voll('alles', 4)]), {
+    alles: 7,
+    vegetarisch: 0,
+    vegan: 2,
+  });
+  const row = voll('alles', 1);
+  const beide = new Map([
+    [1, 'Gluten'],
+    [2, 'Nüsse'],
+  ]);
+  assert.deepEqual(unvertraeglichkeitenNamen(row, beide), ['Gluten', 'Nüsse']);
+  assert.deepEqual(unvertraeglichkeitenNamen(row, new Map([[1, 'Gluten']])), [
+    'Gluten',
+    '1 weitere (Liste nicht geladen)',
+  ]);
+  assert.deepEqual(unvertraeglichkeitenNamen(row, new Map()), ['2 (Liste nicht geladen)']);
 });
