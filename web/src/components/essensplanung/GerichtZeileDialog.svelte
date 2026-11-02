@@ -23,7 +23,6 @@
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import { EINHEITENART_LABELS } from '../../lib/essensplanungSteuerung';
   import {
     getippteZutat,
     gewaehlteZutat,
@@ -36,6 +35,12 @@
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
   import EinheitFeld from './EinheitFeld.svelte';
+  import EigeneZutatFelder, {
+    eigeneBody,
+    neueEigene,
+    type EigeneZutat,
+  } from './EigeneZutatFelder.svelte';
+  import ZeileGeschaeftFeld from './ZeileGeschaeftFeld.svelte';
   import type {
     EssenEinheitenart,
     EssenKatalog,
@@ -49,7 +54,8 @@
 
   /**
    * Adds or changes a line of a dish: the ingredient from the list or the Planung (or a new one
-   * of the Planung's own), amount and unit, for whom it is, and the intolerances.
+   * of the Planung's own), amount and unit, for whom it is, the intolerances and the shop of the
+   * ingredient.
    */
 
   interface Props {
@@ -81,14 +87,9 @@
   /** Why the last save failed, shown in the dialog, which covers the page's notice. */
   let fehler = $state<string | null>(null);
   /** A new ingredient of the Planung's own, for a name that is not in the list. */
-  let eigene = $state<{
-    kategorieId: number | null;
-    einheitenart: EssenEinheitenart | null;
-    ernaehrung: '' | 'vegan' | 'vegetarisch' | 'fleisch';
-    /** What it contains, unlike the intolerances below, which say for whom the line is. */
-    allergene: number[];
-  } | null>(null);
+  let eigene = $state<EigeneZutat | null>(null);
   let geaendert = $state(false);
+  let geschaeftFeld = $state<ZeileGeschaeftFeld>();
 
   /** Fills the form whenever the dialog opens; later changes of others leave it alone. */
   $effect(() => {
@@ -202,6 +203,9 @@
     else auswahl = null;
   }
 
+  /** The chosen ingredient once it is in the Planung, with its shop. */
+  const planungZutat = $derived(gewaehlt && 'geschaeftId' in gewaehlt ? gewaehlt : undefined);
+
   const ohneTreffer = $derived(!auswahl && zutatText.trim().length > 1 && !eigene);
 
   /** True while saving; the form is disabled meanwhile. */
@@ -240,14 +244,7 @@
           const antwort = await kontext.api.senden<{ id: number; ansicht: PlanungAnsicht }>(
             'POST',
             '/zutaten',
-            {
-              name: zutatText.trim(),
-              kategorieId: neu.kategorieId,
-              einheitenart: neu.einheitenart,
-              vegetarisch: neu.ernaehrung === '' ? null : neu.ernaehrung !== 'fleisch',
-              vegan: neu.ernaehrung === '' ? null : neu.ernaehrung === 'vegan',
-              allergene: neu.allergene,
-            }
+            eigeneBody(zutatText.trim(), neu)
           );
           id = antwort.id;
           return antwort;
@@ -264,6 +261,15 @@
       ziel = { art: 'planung', id };
       auswahl = ziel;
       eigene = null;
+    }
+    // The shop before the line, so a failure there leaves the line unsaved; a new one of the
+    // central list is in the Planung only with its line
+    const vorher = await geschaeftFeld?.vorDerZeile(
+      ziel!.art === 'planung' ? ziel!.id : ansicht.zutaten.find((z) => z.zutatId === ziel!.id)?.id
+    );
+    if (vorher && !vorher.ok) {
+      if (!vorher.feld) fehler = kontext.fehler;
+      return;
     }
     let abgelehnt: unknown = null;
     const body = {
@@ -302,6 +308,10 @@
       zeile ? `${zutatText} geändert.` : `${zutatText} hinzugefügt.`
     );
     if (ok) {
+      const neu = ansicht.zutaten.find((z) => ziel!.art === 'zentral' && z.zutatId === ziel!.id);
+      // The line is saved: the dialog closes also when the shop fails, the page says why
+      if (neu && geschaeftFeld?.nachDerZeile())
+        await geschaeftFeld.setzen(neu.id, `${zutatText} hinzugefügt.`);
       zu();
       return;
     }
@@ -388,58 +398,17 @@
           <button
             type="button"
             class="min-h-11 font-semibold text-link underline"
-            onclick={() =>
-              (eigene = { kategorieId: null, einheitenart: null, ernaehrung: '', allergene: [] })}
-            >Als eigene Zutat dieser Planung anlegen</button
+            onclick={() => (eigene = neueEigene())}>Als eigene Zutat dieser Planung anlegen</button
           >
         </p>
       {/if}
       {#if eigene}
-        <fieldset class="space-y-3 border-l-2 border-neutral-300 pl-3">
-          <legend class="form-label">Eigene Zutat „{zutatText.trim()}“</legend>
-          <FormField id="eigene-kategorie" label="Kategorie" error={felder.kategorie}>
-            {#snippet children(attrs)}
-              <select {...attrs} class="form-input" bind:value={eigene!.kategorieId}>
-                <option value={null}>Bitte wählen</option>
-                {#each katalog.kategorien as kategorie (kategorie.id)}
-                  <option value={kategorie.id}>{kategorie.name}</option>
-                {/each}
-              </select>
-            {/snippet}
-          </FormField>
-          <FormField id="eigene-einheitenart" label="Gemessen in" error={felder.einheitenart}>
-            {#snippet children(attrs)}
-              <select {...attrs} class="form-input" bind:value={eigene!.einheitenart}>
-                <option value={null}>Bitte wählen</option>
-                {#each Object.entries(EINHEITENART_LABELS) as [art, label] (art)}
-                  <option value={art}>{label}</option>
-                {/each}
-              </select>
-            {/snippet}
-          </FormField>
-          <FormField id="eigene-ernaehrung" label="Ernährung">
-            {#snippet children(attrs)}
-              <select {...attrs} class="form-input" bind:value={eigene!.ernaehrung}>
-                <option value="">Weiß ich nicht</option>
-                <option value="vegan">vegan</option>
-                <option value="vegetarisch">vegetarisch</option>
-                <option value="fleisch">mit Fleisch oder Fisch</option>
-              </select>
-            {/snippet}
-          </FormField>
-          <fieldset>
-            <legend class="form-label">Enthält</legend>
-            {#if felder.allergene}<p class="text-sm text-danger">{felder.allergene}</p>{/if}
-            <div class="grid gap-x-4 sm:grid-cols-2">
-              {#each katalog.unvertraeglichkeiten as u (u.id)}
-                <label class="flex min-h-11 items-center gap-2">
-                  <input type="checkbox" value={u.id} bind:group={eigene!.allergene} />
-                  {u.name}
-                </label>
-              {/each}
-            </div>
-          </fieldset>
-        </fieldset>
+        <EigeneZutatFelder
+          {katalog}
+          name={zutatText.trim()}
+          {felder}
+          bind:eigene={() => eigene!, (wert) => (eigene = wert)}
+        />
       {/if}
 
       <div class="grid grid-cols-2 gap-3">
@@ -529,6 +498,13 @@
       </fieldset>
 
       <ZeileUnvertraeglichkeiten {katalog} bind:unvertraeglich fehler={felder.nur ?? felder.ohne} />
+
+      {#key geoeffnet}<ZeileGeschaeftFeld
+          bind:this={geschaeftFeld}
+          {kontext}
+          zutat={planungZutat}
+          onedit={() => (geaendert = true)}
+        />{/key}
 
       <div class="flex flex-wrap justify-end gap-2 pt-2">
         <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
