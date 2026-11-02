@@ -505,8 +505,10 @@ jobs:
         run: .github/scripts/entra-preview-redirect.sh remove "${{ github.event.pull_request.number }}"
 
   deploy-task-worker:
-    # Only after a deploy of the website that was not skipped as outdated
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TASK_REMINDER_FUNCTION_APP != '' && needs.deploy.outputs.deployed == 'true'
+    # Explicit status check: prepare-preview is a skipped ancestor on main.
+    # Only after a successful website deployment that was not skipped as outdated.
+    if: >-
+      !cancelled() && needs.deploy.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.TASK_REMINDER_FUNCTION_APP != '' && needs.deploy.outputs.deployed == 'true'
     needs: [deploy]
     name: Deploy Azure task timer
     runs-on: ubuntu-24.04
