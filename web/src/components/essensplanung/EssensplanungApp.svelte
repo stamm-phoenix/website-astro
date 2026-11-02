@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { kopfLeiste } from './kopfLeiste';
   import { onMount, tick } from 'svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { ApiError, errorMessage } from '../../lib/api';
@@ -262,66 +263,71 @@
   <p role="status" class="text-neutral-700">Die Planung wird geladen …</p>
 {:else}
   <div class="space-y-4">
-    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <h1 class="font-serif text-xl font-bold text-brand-900 [overflow-wrap:anywhere]">
-        {ansicht.name}
-      </h1>
-      <p class="text-sm text-neutral-700">
-        {#if ansicht.tage.length}
-          {datumLang(ansicht.tage[0].datum)} bis {datumLang(ansicht.tage.at(-1)!.datum)} ·
-        {/if}
-        {ansicht.zugang === 'lesen'
-          ? 'Nur ansehen'
-          : ansicht.zugang === 'besitzer'
-            ? 'Du bist Besitzer:in'
-            : 'Du planst mit'}
-      </p>
-    </div>
-
-    {#if ungueltig}
-      <!-- A Planung already open keeps its fields, so nothing typed gets lost -->
-      <StatusNotice message={LINK_ERSETZT} kind="error" />
-    {/if}
-    {#if ansicht.wartung}
-      <p class="border-l-4 border-warning py-2 pl-3 text-sm text-warning" role="status">
-        Die Essensplanung wird gerade gewartet. Du kannst alles ansehen, aber nichts ändern.
-      </p>
-    {/if}
-    {#if offline}
-      <p class="text-sm text-neutral-700 print:hidden" role="status">
-        Der Abgleich klappt gerade nicht. Die Seite versucht es weiter; Änderungen anderer siehst
-        du, sobald er wieder klappt.
-      </p>
-    {/if}
-
-    <div class="print:hidden">
-      <StatusNotice message={meldung} kind={meldungArt} popup />
-    </div>
-
-    {#if bereiche.length > 1}
-      <div
-        role="tablist"
-        aria-label="Bereiche der Planung"
-        class="flex flex-wrap gap-x-1 border-b border-neutral-200 print:hidden"
-      >
-        {#each bereiche as eintrag (eintrag.id)}
-          <button
-            type="button"
-            role="tab"
-            id="bereich-{eintrag.id}"
-            aria-selected={bereich === eintrag.id}
-            aria-controls="bereich-panel-{eintrag.id}"
-            tabindex={bereich === eintrag.id ? 0 : -1}
-            class="-mb-px border-b-2 px-3 py-1.5 text-sm font-semibold any-pointer-coarse:min-h-11 {bereich ===
-            eintrag.id
-              ? 'border-brand-900 text-brand-900'
-              : 'border-transparent text-neutral-700 hover:border-neutral-400 hover:text-brand-900'}"
-            onclick={() => (bereich = eintrag.id)}
-            onkeydown={bereichTaste}>{eintrag.label}</button
-          >
-        {/each}
+    <div
+      use:kopfLeiste
+      class="kopf space-y-4 lg:sticky lg:-mx-4 lg:px-4 lg:pt-2 lg:top-[var(--kopf-oben,0px)] lg:z-30 print:static"
+    >
+      <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 class="font-serif text-xl font-bold text-brand-900 [overflow-wrap:anywhere]">
+          {ansicht.name}
+        </h1>
+        <p class="text-sm text-neutral-700">
+          {#if ansicht.tage.length}
+            {datumLang(ansicht.tage[0].datum)} bis {datumLang(ansicht.tage.at(-1)!.datum)} ·
+          {/if}
+          {ansicht.zugang === 'lesen'
+            ? 'Nur ansehen'
+            : ansicht.zugang === 'besitzer'
+              ? 'Du bist Besitzer:in'
+              : 'Du planst mit'}
+        </p>
       </div>
-    {/if}
+
+      {#if ungueltig}
+        <!-- A Planung already open keeps its fields, so nothing typed gets lost -->
+        <StatusNotice message={LINK_ERSETZT} kind="error" />
+      {/if}
+      {#if ansicht.wartung}
+        <p class="border-l-4 border-warning py-2 pl-3 text-sm text-warning" role="status">
+          Die Essensplanung wird gerade gewartet. Du kannst alles ansehen, aber nichts ändern.
+        </p>
+      {/if}
+      {#if offline}
+        <p class="text-sm text-neutral-700 print:hidden" role="status">
+          Der Abgleich klappt gerade nicht. Die Seite versucht es weiter; Änderungen anderer siehst
+          du, sobald er wieder klappt.
+        </p>
+      {/if}
+
+      <div class="print:hidden">
+        <StatusNotice message={meldung} kind={meldungArt} popup />
+      </div>
+
+      {#if bereiche.length > 1}
+        <div
+          role="tablist"
+          aria-label="Bereiche der Planung"
+          class="flex flex-wrap gap-x-1 border-b border-neutral-200 print:hidden"
+        >
+          {#each bereiche as eintrag (eintrag.id)}
+            <button
+              type="button"
+              role="tab"
+              id="bereich-{eintrag.id}"
+              aria-selected={bereich === eintrag.id}
+              aria-controls="bereich-panel-{eintrag.id}"
+              tabindex={bereich === eintrag.id ? 0 : -1}
+              class="-mb-px border-b-2 px-3 py-1.5 text-sm font-semibold any-pointer-coarse:min-h-11 {bereich ===
+              eintrag.id
+                ? 'border-brand-900 text-brand-900'
+                : 'border-transparent text-neutral-700 hover:border-neutral-400 hover:text-brand-900'}"
+              onclick={() => (bereich = eintrag.id)}
+              onkeydown={bereichTaste}>{eintrag.label}</button
+            >
+          {/each}
+        </div>
+      {/if}
+    </div>
 
     <!-- All areas stay mounted, so switching keeps what is typed in another one -->
     <div
@@ -403,3 +409,9 @@
     {/if}
   </div>
 {/if}
+
+<style>
+  .kopf {
+    background: var(--color-neutral-50);
+  }
+</style>

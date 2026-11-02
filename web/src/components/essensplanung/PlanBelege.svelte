@@ -129,7 +129,7 @@
   const kopf = 'px-1.5 py-1 font-semibold';
 </script>
 
-<section aria-labelledby="belege-heading" class="space-y-3">
+<section aria-labelledby="belege-heading" class="surface space-y-3 p-4">
   <div class="flex flex-wrap items-center gap-2">
     <h2 id="belege-heading" class="mr-auto font-serif text-lg font-bold text-brand-900">Belege</h2>
     {#if bearbeiten}

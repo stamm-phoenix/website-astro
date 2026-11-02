@@ -33,7 +33,7 @@
   }
 </script>
 
-<section aria-labelledby="geschaefte-heading" class="space-y-1 print:hidden">
+<section aria-labelledby="geschaefte-heading" class="surface space-y-1 p-4 print:hidden">
   <div class="flex flex-wrap items-center justify-between gap-2">
     <h3 id="geschaefte-heading" class="font-serif text-lg font-bold text-brand-900">Geschäfte</h3>
     {#if bearbeiten}

@@ -62,7 +62,7 @@
   }
 </script>
 
-<section aria-labelledby="{art}-heading" class="space-y-1 print:hidden">
+<section aria-labelledby="{art}-heading" class="surface space-y-1 p-4 print:hidden">
   <div class="flex flex-wrap items-center justify-between gap-2">
     <h3 id="{art}-heading" class="font-serif text-lg font-bold text-brand-900">{titel}</h3>
     {#if bearbeiten}

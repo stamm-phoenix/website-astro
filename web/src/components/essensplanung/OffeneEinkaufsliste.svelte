@@ -58,7 +58,7 @@
   }
 </script>
 
-<section aria-labelledby="einkaufsliste-heading" class="space-y-2">
+<section aria-labelledby="einkaufsliste-heading" class="surface space-y-2 p-4">
   <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
     <h3 id="einkaufsliste-heading" class="font-serif text-lg font-bold text-brand-900">
       Einkaufsliste

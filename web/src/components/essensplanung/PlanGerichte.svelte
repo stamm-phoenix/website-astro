@@ -235,7 +235,7 @@
     />
     <ul class="space-y-3">
       {#each ansicht.gerichte as gericht (gericht.id)}
-        <li id="gericht-{gericht.id}" class="surface scroll-mt-24">
+        <li id="gericht-{gericht.id}" class="surface scroll-mt-24 lg:scroll-mt-0">
           <details
             open={offen.has(gericht.id)}
             ontoggle={(event) => umschalten(gericht.id, event.currentTarget.open)}

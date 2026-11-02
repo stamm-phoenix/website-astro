@@ -10,7 +10,7 @@
   let { aenderungen }: Props = $props();
 </script>
 
-<details open class="print:hidden">
+<details open class="surface p-4 print:hidden">
   <summary
     class="flex min-h-11 cursor-pointer list-none items-center gap-2 font-semibold text-brand-900 [&::-webkit-details-marker]:hidden"
   >

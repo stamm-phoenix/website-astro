@@ -48,7 +48,7 @@
 </script>
 
 <div class="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start">
-  <section aria-labelledby="lager-heading" class="space-y-3">
+  <section aria-labelledby="lager-heading" class="surface space-y-3 p-4">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-1">
         <h3 id="lager-heading" class="font-serif text-lg font-bold text-brand-900">Lager</h3>

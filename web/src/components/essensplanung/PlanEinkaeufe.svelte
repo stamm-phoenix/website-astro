@@ -25,7 +25,7 @@
   let anlegen = $state(false);
 </script>
 
-<section aria-labelledby="einkaeufe-heading" class="space-y-1">
+<section aria-labelledby="einkaeufe-heading" class="surface space-y-1 p-4">
   <div class="flex flex-wrap items-center justify-between gap-2">
     <h3 id="einkaeufe-heading" class="font-serif text-lg font-bold text-brand-900">Einkäufe</h3>
     {#if bearbeiten && !anlegen}

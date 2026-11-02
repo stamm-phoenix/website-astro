@@ -353,7 +353,10 @@
     </div>
     <!-- Only while the plan is shown: the list is for dragging into it -->
     {#if sichtbar}
-      <aside class="lg:sticky lg:top-4" aria-label="Alle Gerichte">
+      <aside
+        class="lg:sticky lg:top-[calc(var(--essen-kopf-unten,0px)+1rem)] lg:max-h-[calc(100dvh-var(--essen-kopf-unten,0px)-2rem)] lg:overflow-y-auto"
+        aria-label="Alle Gerichte"
+      >
         <GerichteLeiste {kontext} {bearbeiten} />
       </aside>
     {/if}

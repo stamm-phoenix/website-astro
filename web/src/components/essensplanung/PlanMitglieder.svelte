@@ -162,7 +162,7 @@
 </script>
 
 <div class="space-y-8">
-  <section aria-labelledby="mitglieder-heading" class="space-y-3">
+  <section aria-labelledby="mitglieder-heading" class="surface space-y-3 p-5">
     <h3 id="mitglieder-heading" class="font-serif text-xl font-bold text-brand-900">Mitglieder</h3>
     <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
       {#each aktiv as mitglied (mitglied.id)}
@@ -223,7 +223,7 @@
   </section>
 
   {#if ansicht.ichId !== null}
-    <section aria-labelledby="ich-heading" class="space-y-3 print:hidden">
+    <section aria-labelledby="ich-heading" class="surface space-y-3 p-5 print:hidden">
       <h3 id="ich-heading" class="font-serif text-xl font-bold text-brand-900">Du</h3>
       <form class="flex flex-wrap items-end gap-2" onsubmit={namenSpeichern}>
         <div class="min-w-0 flex-1">
@@ -278,7 +278,7 @@
       </form>
     </section>
 
-    <section aria-labelledby="links-heading" class="space-y-4 print:hidden">
+    <section aria-labelledby="links-heading" class="surface space-y-4 p-5 print:hidden">
       <h3 id="links-heading" class="font-serif text-xl font-bold text-brand-900">
         Gemeinsame Links
       </h3>

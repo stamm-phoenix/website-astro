@@ -119,7 +119,7 @@
       >
     </form>
 
-    <section aria-labelledby="loeschen-heading" class="max-w-xl space-y-2">
+    <section aria-labelledby="loeschen-heading" class="surface max-w-xl space-y-2 p-5">
       <h3 id="loeschen-heading" class="font-serif text-xl font-bold text-brand-900">
         Planung löschen
       </h3>
