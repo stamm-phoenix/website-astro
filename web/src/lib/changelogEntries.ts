@@ -30,6 +30,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Am Computer bleiben Name der Planung und die Reiter beim Scrollen oben stehen.',
       'Teilnehmende und Gruppen stehen dichter und lassen sich auch als Matrix anzeigen.',
       'Bei einer Zutat im Gericht trägst du direkt das Geschäft ein, auch ein neues.',
+      'Ein Gericht ohne Personenzahl rechnet mit festen Mengen: 2 Stück Brot sind 2 Stück je Einplanung, ohne „Personenzahl fehlt“.',
     ],
   },
   {
