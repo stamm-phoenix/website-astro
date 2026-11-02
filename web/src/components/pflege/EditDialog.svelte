@@ -4,6 +4,7 @@
   import EditDialogFooter from './EditDialogFooter.svelte';
   import { onDestroy, tick, setContext, untrack, type Snippet } from 'svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { beginFormFeedback } from '../../lib/formFeedback';
   import { confirmAction } from '../../lib/confirm';
   import NichtEingesetzt from './NichtEingesetzt.svelte';
   import {
@@ -171,6 +172,11 @@
     if (rescueConflict || openingVersion !== previous) return;
     openingVersion = saved;
     opening = JSON.stringify([openingVersion, openingVersion ? [] : openingValues]);
+  }
+
+  /** Additional save/transfer actions use the same error guidance as the submit button. */
+  export function beginValidation(): void {
+    if (form && open && !busy) beginFormFeedback(form);
   }
   setRescueContext({
     warning: () => rescueWarning,

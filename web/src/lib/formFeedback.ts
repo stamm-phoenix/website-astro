@@ -1,3 +1,10 @@
+const VALIDATION_ATTEMPT = 'form-feedback-attempt';
+
+/** Starts feedback for a validating action that does not submit the form itself. */
+export function beginFormFeedback(form: HTMLFormElement): void {
+  form.dispatchEvent(new Event(VALIDATION_ATTEMPT));
+}
+
 /** Announces invalid fields after an attempted save and focuses the first correction. */
 export function observeFormFeedback(
   form: HTMLFormElement,
@@ -42,8 +49,10 @@ export function observeFormFeedback(
     attributeFilter: ['aria-invalid', 'data-form-error', 'inert'],
   });
   form.addEventListener('submit', submitted);
+  form.addEventListener(VALIDATION_ATTEMPT, submitted);
   return () => {
     form.removeEventListener('submit', submitted);
+    form.removeEventListener(VALIDATION_ATTEMPT, submitted);
     observer.disconnect();
     cancelAnimationFrame(frame);
   };

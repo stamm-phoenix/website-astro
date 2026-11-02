@@ -25,10 +25,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: 'Neuigkeiten bleiben ungelesen, bis du sie ausdrücklich als gelesen markierst.',
         href: '/leitendenbereich/neuigkeiten',
       },
-      'Beim Speichern oder Einreichen führen dich markierte Fehler direkt zur ersten betroffenen Angabe. Fehlt ein Belegfoto, wird die Dateiauswahl sichtbar hervorgehoben. Eine fehlende Stufenauswahl zählt dabei als eine Angabe. Schlägt das Anlegen einer Aktion fehl, nennt die Fehlermeldung die passende Schaltfläche zum erneuten Anlegen.',
+      'Beim Speichern oder Einreichen führen dich markierte Fehler direkt zur ersten betroffenen Angabe. Das gilt bei Belegen auch beim Annehmen, Ablehnen, erneuten Einreichen und Übertragen nach CampFlow. Fehlt ein Belegfoto, wird die Dateiauswahl sichtbar hervorgehoben. Eine fehlende Stufenauswahl zählt dabei als eine Angabe. Schlägt das Anlegen einer Aktion fehl, nennt die Fehlermeldung die passende Schaltfläche zum erneuten Anlegen.',
       'Das Menü lässt sich mit der Tastatur und mit Vorlesefunktionen leichter bedienen und passt sich auch bei größer oder kleiner eingestellter Schrift zuverlässig an. Konnten Favoriten nicht gespeichert werden, kannst du das direkt im geöffneten Menü erneut versuchen. Weitere Schaltflächen sind auf dem Handy größer.',
       {
-        text: 'Bei Belegen siehst du deutlicher, wenn ein Teil der Liste nicht geladen werden konnte.',
+        text: 'Bei Belegen siehst du deutlicher, wenn ein Teil der Liste nicht geladen werden konnte. Die Meldung sagt dir, welche Belege du erneut laden kannst.',
         href: '/leitendenbereich/belege',
       },
     ],

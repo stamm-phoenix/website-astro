@@ -275,6 +275,7 @@
     }
     const previousStatus = form.status;
     if (decision) form.status = decision;
+    editDialog?.beginValidation();
     if (dialog.invalid(formErrors(form, !!photo.draft?.result))) {
       form.status = previousStatus;
       return;
@@ -371,6 +372,7 @@
     // A stored photo opened without changes has nothing to save
     photo.clearDraft();
     const locked = current.campflow?.state === 'Gestartet';
+    editDialog?.beginValidation();
     if (dialog.invalid(formErrors(current, false, !locked))) return;
     const { id, shop } = current;
     await dialog.run(async () => {
