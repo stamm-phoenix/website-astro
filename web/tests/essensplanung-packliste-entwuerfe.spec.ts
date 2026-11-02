@@ -18,8 +18,8 @@ test('a free name typed over a change of someone else asks before it saves', asy
   await name.fill('Rover');
   await anderes.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Kim Küche' });
   await expect(anderes.getByText('Kim Küche packt Kochlöffel ein.').first()).toBeVisible();
-  await page.getByText('Letzte Änderungen').click();
-  await expect(page.getByText(/zuständig gemacht: Kochlöffel/)).toBeVisible({ timeout: 15_000 });
+  // The change of the other page has arrived (the list of changes sits in the settings)
+  await expect(page.getByText(/zuständig gemacht: Kochlöffel/)).toBeAttached({ timeout: 15_000 });
 
   // Saving names the new state and keeps the name; Enter again saves it on purpose
   await name.press('Enter');

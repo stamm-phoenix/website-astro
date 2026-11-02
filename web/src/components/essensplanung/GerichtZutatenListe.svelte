@@ -64,7 +64,7 @@
 </script>
 
 <section aria-labelledby="gericht-{gericht.id}-zutaten" class="space-y-2">
-  <h4 id="gericht-{gericht.id}-zutaten" class="font-semibold text-brand-900">Zutaten</h4>
+  <h4 id="gericht-{gericht.id}-zutaten" class="text-lg font-semibold text-brand-900">Zutaten</h4>
   {#if gericht.zutaten.length}
     <ol class="divide-y divide-neutral-200 border-y border-neutral-200">
       {#each gericht.zutaten as zeile, index (zeile.id)}

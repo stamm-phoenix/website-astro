@@ -384,10 +384,11 @@
         aria-labelledby="bereich-einstellungen"
         hidden={bereich !== 'einstellungen'}
       >
-        <PlanEinstellungen {kontext} />
+        <div class="space-y-6">
+          <PlanEinstellungen {kontext} />
+          <PlanAenderungen aenderungen={ansicht.aenderungen} />
+        </div>
       </div>
     {/if}
-
-    <PlanAenderungen aenderungen={ansicht.aenderungen} />
   </div>
 {/if}

@@ -35,7 +35,7 @@ test('a Planung is created, its meals are edited and others see the changes', as
   await answerConfirm(page, 'Tag 3 löschen?', 'Tag löschen');
   await expect(page.getByRole('heading', { name: /^Tag 3 ·/ })).toHaveCount(0);
 
-  await page.getByText('Letzte Änderungen').click();
+  await page.getByRole('tab', { name: 'Einstellungen' }).click();
   await expect(
     page.getByText(/Kim Küche hat eine Mahlzeit geändert: Brunch/).first()
   ).toBeVisible();

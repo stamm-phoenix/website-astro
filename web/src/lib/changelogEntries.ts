@@ -23,6 +23,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Ein Einkauf öffnet sich in einer eigenen Ansicht. Beim Einkaufen trägst du Menge und Ersatz direkt in der Zeile ein, auf dem Handy über „Menge“. Mit „Für welche Gerichte“ siehst du bei jeder Zutat, wofür sie gebraucht wird.',
       'In der Packliste wählst du beim Eintragen gleich, wer etwas einpackt. Neu ist die Matrix mit allen Personen nebeneinander, in der du mit einem Klick zuweist und abhakst.',
       'Im neuen Bereich „Belege“ fotografierst du Kassenzettel oder trägst sie von Hand ein, hältst fest, wer bezahlt hat, und hakst ab, was erstattet ist. Eine Übersicht zeigt, wem noch wie viel zusteht, und „Belege als PDF“ gibt dir alles samt Fotos zum Abrechnen. Die Belege bleiben in der Essensplanung.',
+      'Ein geöffnetes Gericht zeigt oben alle Angaben zum Gericht und darunter klar abgesetzt die Zutaten. Die letzten Änderungen stehen jetzt aufgeklappt im Bereich „Einstellungen“.',
     ],
   },
   {
