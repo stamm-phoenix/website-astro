@@ -1,5 +1,6 @@
 import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
+import { readGruppenstundenException } from '../../api/lib/validation/gruppenstunden-exception';
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
 import { ValidationError } from '../../api/lib/validation/errors';
 import {
@@ -3323,6 +3324,7 @@ route(['GET', 'POST'], '/api/intern/pflege/gruppenstunden', (req) => {
     ageRange: str(body.ageRange),
     location: str(body.location),
     description: str(body.description),
+    exception: readGruppenstundenException(JSON.stringify(body.exception) ?? null),
   });
   return json({ id }, 201);
 });
@@ -3343,6 +3345,10 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/gruppenstunden/:id', (req) => {
     ageRange: str(body.ageRange, g.ageRange),
     location: str(body.location, g.location),
     description: str(body.description, g.description),
+    exception:
+      body.exception === undefined
+        ? (g.exception ?? null)
+        : readGruppenstundenException(JSON.stringify(body.exception) ?? null),
     etag: newEtag(`gs-${g.id}`),
   });
   return noContent();

@@ -261,6 +261,7 @@ export function publicGruppenstunden(): Gruppenstunde[] {
     ageRange: g.ageRange,
     description: g.description,
     leitende: leitendeOf(g.stufe),
+    exception: g.exception ?? null,
   }));
 }
 

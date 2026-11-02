@@ -12,6 +12,17 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-02-02-gruppenstunden-ausnahmen',
+    date: '2026-11-02',
+    title: 'Abweichungen bei Gruppenstunden',
+    changes: [
+      {
+        text: 'Bei einer Gruppenstunde kannst du für einen Zeitraum einen Hinweis, einen anderen Ort und eine andere Uhrzeit eintragen. Die Website zeigt die Abweichung automatisch an den passenden Tagen.',
+        href: '/leitendenbereich/gruppenstunden',
+      },
+    ],
+  },
+  {
     id: '2026-11-02-01-tastaturbedienung',
     date: '2026-11-02',
     title: 'Dateien mit der Tastatur auswählen',

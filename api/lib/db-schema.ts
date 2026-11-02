@@ -294,6 +294,7 @@ export interface BlogImageTable {
 }
 
 export interface GruppenstundeTable {
+  exception_json: Generated<string | null>;
   /** Taken over from SharePoint or assigned by `nextContentId`. */
   id: number;
   version: ReadOnly<Buffer>;
