@@ -273,12 +273,26 @@ jobs:
     steps:
       - name: All shards passed
         run: test "${{ needs.browser-tests.result }}" = success
+  prepare-preview:
+    needs: [build]
+    if: github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot'
+    uses: ./.github/workflows/prepare-preview.yml
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: read
+
   deploy:
-    needs: [build, browser-tests]
+    needs: [build, browser-tests, prepare-preview]
     # PRs from forks get neither secrets nor OIDC tokens; skip them explicitly instead of
     # running their code up to a failing Azure login. PRs opened by bots (Dependabot) get no
     # preview either; Close Pull Request still runs for them and removes any leftovers.
-    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot')
+    # The preview job is skipped on main; require every check explicitly before deploying.
+    if: >-
+      always() && !cancelled() && needs.build.result == 'success' &&
+      needs.browser-tests.result == 'success' &&
+      (github.event_name != 'pull_request' ||
+      (needs.prepare-preview.result == 'success' && needs.prepare-preview.outputs.prepared == 'true'))
     runs-on: ubuntu-24.04
     name: Deploy
     concurrency:
@@ -370,18 +384,12 @@ jobs:
         if: steps.current.outputs.deploy == 'true' && github.event_name == 'push'
         working-directory: api
         run: bun scripts/protokoll-migrate.ts --check
-      - name: Azure login (preview database)
+      - name: Download preview database configuration
         if: steps.current.outputs.deploy == 'true' && github.event_name == 'pull_request'
-        uses: azure/login@v2
+        uses: actions/download-artifact@v4
         with:
-          client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
-          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
-          allow-no-subscriptions: true
-      - name: Prepare preview database
-        if: steps.current.outputs.deploy == 'true' && github.event_name == 'pull_request'
-        working-directory: api
-        # Creates, migrates and seeds website-pr-<number> and points this deployment at it
-        run: bun scripts/db-preview.ts create "${{ github.event.pull_request.number }}" --write-deployment
+          name: preview-deployment
+          path: api/lib
       # A playwright-api PR named in the description (playwright-api#12) lends its preview to
       # this one, so both can be tried together; otherwise, or while its preview does not
       # answer, the preview uses the production Playwright API. Never fails the deploy.
