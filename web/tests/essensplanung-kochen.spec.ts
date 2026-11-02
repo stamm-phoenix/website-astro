@@ -40,7 +40,7 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   for (const mahlzeit of ['1_2', '2_2']) await einplanen(page, mahlzeit, 'Nudeln');
 
   // 1,5 kg in stock: 2 × 1 kg needed, 500 g to buy
-  await page.getByRole('tab', { name: 'Einkauf' }).click();
+  await page.getByRole('tab', { name: 'Lager' }).click();
   await page.getByRole('button', { name: 'Bestand eintragen' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Nudeln (Spag');
   await dialog.getByRole('option', { name: 'Nudeln (Spaghetti)' }).click();
@@ -48,6 +48,7 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
   await dialog.getByLabel('Einheit', { exact: true }).fill('kg');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
+  await page.getByRole('tab', { name: 'Einkauf' }).click();
   const liste = page.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' });
   await expect(liste).toContainText('500 g Nudeln (Spaghetti)');
 

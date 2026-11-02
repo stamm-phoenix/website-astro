@@ -362,7 +362,7 @@
       aria-labelledby="bereich-lager"
       hidden={bereich !== 'lager'}
     >
-      <PlanLager {kontext} />
+      <PlanLager {kontext} sichtbar={bereich === 'lager'} />
     </div>
     <div
       role="tabpanel"

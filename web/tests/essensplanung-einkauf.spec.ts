@@ -40,6 +40,7 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await expect(ohne).toContainText('2 kg Nudeln (Spaghetti)');
 
   // 500 g are in stock, dish soap is needed on top
+  await page.getByRole('tab', { name: 'Lager' }).click();
   await page.getByRole('button', { name: 'Bestand eintragen' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Nudeln (Spag');
   await dialog.getByRole('option', { name: 'Nudeln (Spaghetti)' }).click();
@@ -47,6 +48,7 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await dialog.getByLabel('Einheit', { exact: true }).fill('kg');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
+  await page.getByRole('tab', { name: 'Einkauf' }).click();
   await expect(ohne).toContainText('1,5 kg Nudeln (Spaghetti)');
 
   await page.getByRole('button', { name: 'Zusatzbedarf eintragen' }).click();
@@ -88,8 +90,10 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await expect(ohne).toContainText('1,5 kg Nudeln (Spaghetti)');
 
   // Taking the stock away buys all of it again
+  await page.getByRole('tab', { name: 'Lager' }).click();
   await page.getByRole('button', { name: '500 g Nudeln (Spaghetti) entfernen' }).click();
   await answerConfirm(page, '500 g Nudeln (Spaghetti) entfernen?', 'Entfernen');
+  await page.getByRole('tab', { name: 'Einkauf' }).click();
   await expect(ohne).toContainText('2 kg Nudeln (Spaghetti)');
 });
 
@@ -98,7 +102,7 @@ test('the stock dialog retries a failed list and keeps typed text', async ({ pag
   const dialog = page.getByRole('dialog');
   // The list fails first: the open dialog offers to load it again, keeping the input
   await page.route('**/api/essensplanung/planung/katalog', (route) => route.abort());
-  await page.getByRole('tab', { name: 'Einkauf' }).click();
+  await page.getByRole('tab', { name: 'Lager' }).click();
   await page.getByRole('button', { name: 'Bestand eintragen' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('3');
   await expect(dialog.getByRole('alert')).toContainText('Noch einmal versuchen');

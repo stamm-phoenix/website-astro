@@ -11,11 +11,10 @@
   import PlanGeschaefte from './PlanGeschaefte.svelte';
   import PostenDialog from './PostenDialog.svelte';
   import PostenListe from './PostenListe.svelte';
-  import type { PostenArt } from '../../../../api/lib/essen-einkauf-model';
   import type { PlanKontext } from './planKontext';
 
   /**
-   * The area „Einkauf“: the open shopping list, the trips, extra needs, stock and shops side by
+   * The area „Einkauf“: the open shopping list, the trips, extra needs and shops side by
    * side on wide screens. A trip opens in a view of its own in place of all that; the browser's
    * back button leads back.
    */
@@ -63,7 +62,8 @@
   $effect(() => guardUnsavedChanges(() => neuerZusatz.trim() !== ''));
 
   let geschaeftDialog = $state<number | null | undefined>(undefined);
-  let postenDialog = $state<{ art: PostenArt; id: number | null } | null>(null);
+  /** The extra need in the dialog; null adds one, undefined: closed. */
+  let postenDialog = $state<number | null | undefined>(undefined);
 
   // ---------------------------------------------------------------------------------------------
   // The trip shown on its own
@@ -144,22 +144,14 @@
       <div class="order-1 xl:order-none">
         <PlanEinkaeufe {kontext} listen={reihe} katalogGeladen={!!katalog} onoeffnen={oeffnen} />
       </div>
-      <div class="order-3 grid gap-6 sm:grid-cols-2 xl:order-none xl:grid-cols-1 2xl:grid-cols-2">
+      <div class="order-3 xl:order-none">
         <PostenListe
           {kontext}
           art="zusatzbedarf"
           titel="Zusatzbedarf"
           eintraege={ansicht.zusatzbedarf}
           leer="Noch kein Zusatzbedarf."
-          onbearbeiten={(id) => (postenDialog = { art: 'zusatzbedarf', id })}
-        />
-        <PostenListe
-          {kontext}
-          art="bestand"
-          titel="Bestand"
-          eintraege={ansicht.bestand}
-          leer="Noch kein Bestand."
-          onbearbeiten={(id) => (postenDialog = { art: 'bestand', id })}
+          onbearbeiten={(id) => (postenDialog = id)}
         />
       </div>
       <div class="order-5 xl:order-none">
@@ -192,7 +184,7 @@
   {katalog}
   {katalogFehler}
   onkatalog={() => void katalogLaden()}
-  art={postenDialog?.art ?? 'bestand'}
-  postenId={postenDialog?.id}
-  onclose={() => (postenDialog = null)}
+  art="zusatzbedarf"
+  postenId={postenDialog}
+  onclose={() => (postenDialog = undefined)}
 />
