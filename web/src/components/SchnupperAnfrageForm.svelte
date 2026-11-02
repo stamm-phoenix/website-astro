@@ -100,13 +100,14 @@
         errors = err.fields as Partial<Record<SchnupperField, string>>;
         await focusFirstError();
       }
-      formError =
-        err instanceof ApiError && err.code
+      // No answer (broken connection or timeout): the request may have been saved anyway, and
+      // families cannot look it up, only in their mailbox
+      const unklar = !(err instanceof ApiError) || err.code === 'TIMEOUT';
+      formError = unklar
+        ? 'Wir haben keine Antwort bekommen, deshalb wissen wir nicht, ob deine Anfrage angekommen ist. Deine Eingaben sind noch da. Schau in ein paar Minuten in dein Postfach und im Spam-Ordner nach: Kommt keine Bestätigung, schick die Anfrage noch einmal oder schreib uns an kontakt@stamm-phoenix.de.'
+        : err.code
           ? err.message
-          : err instanceof ApiError
-            ? 'Deine Anfrage wurde nicht gesendet. Deine Eingaben sind noch da. Bitte versuch es später noch einmal oder schreib uns an kontakt@stamm-phoenix.de.'
-            : // The connection broke: the request may have been saved before the answer was lost
-              'Die Verbindung ist abgebrochen, deshalb wissen wir nicht, ob deine Anfrage angekommen ist. Deine Eingaben sind noch da. Schau in ein paar Minuten in dein Postfach: Kommt keine Bestätigung, schick die Anfrage noch einmal.';
+          : 'Deine Anfrage wurde nicht gesendet. Deine Eingaben sind noch da. Bitte versuch es später noch einmal oder schreib uns an kontakt@stamm-phoenix.de.';
     } finally {
       sending = false;
       // Each solved challenge is accepted only once.
