@@ -9,7 +9,6 @@
   import OffeneEinkaufsliste from './OffeneEinkaufsliste.svelte';
   import PlanEinkaeufe from './PlanEinkaeufe.svelte';
   import PlanGeschaefte from './PlanGeschaefte.svelte';
-  import PlanLager from './PlanLager.svelte';
   import PostenDialog from './PostenDialog.svelte';
   import PostenListe from './PostenListe.svelte';
   import type { PostenArt } from '../../../../api/lib/essen-einkauf-model';
@@ -162,9 +161,6 @@
           leer="Noch kein Bestand."
           onbearbeiten={(id) => (postenDialog = { art: 'bestand', id })}
         />
-      </div>
-      <div class="order-4 xl:order-none">
-        <PlanLager {kontext} />
       </div>
       <div class="order-5 xl:order-none">
         <PlanGeschaefte {kontext} onbearbeiten={(id) => (geschaeftDialog = id)} />

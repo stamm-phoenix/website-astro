@@ -9,6 +9,7 @@
   import PlanTeilnehmende from './PlanTeilnehmende.svelte';
   import PlanEinkauf from './PlanEinkauf.svelte';
   import PlanPackliste from './PlanPackliste.svelte';
+  import PlanLager from './PlanLager.svelte';
   import PlanBelege from './PlanBelege.svelte';
   import PlanMitglieder from './PlanMitglieder.svelte';
   import PlanEinstellungen from './PlanEinstellungen.svelte';
@@ -40,6 +41,7 @@
     | 'gerichte'
     | 'teilnehmende'
     | 'einkauf'
+    | 'lager'
     | 'packliste'
     | 'belege'
     | 'mitglieder'
@@ -54,6 +56,7 @@
     { id: 'gerichte', label: 'Gerichte' },
     { id: 'teilnehmende', label: 'Teilnehmende' },
     { id: 'einkauf', label: 'Einkauf' },
+    { id: 'lager', label: 'Lager' },
     { id: 'packliste', label: 'Packliste' },
     { id: 'belege', label: 'Belege' },
     ...(ansicht && ansicht.zugang !== 'lesen' ? [{ id: 'mitglieder', label: 'Mitglieder' }] : []),
@@ -352,6 +355,14 @@
       hidden={bereich !== 'einkauf'}
     >
       <PlanEinkauf {kontext} sichtbar={bereich === 'einkauf'} />
+    </div>
+    <div
+      role="tabpanel"
+      id="bereich-panel-lager"
+      aria-labelledby="bereich-lager"
+      hidden={bereich !== 'lager'}
+    >
+      <PlanLager {kontext} />
     </div>
     <div
       role="tabpanel"

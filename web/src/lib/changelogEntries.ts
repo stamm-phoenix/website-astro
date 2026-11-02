@@ -24,6 +24,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'In der Packliste wählst du beim Eintragen gleich, wer etwas einpackt. Neu ist die Matrix mit allen Personen nebeneinander, in der du mit einem Klick zuweist und abhakst.',
       'Im neuen Bereich „Belege“ fotografierst du Kassenzettel oder trägst sie von Hand ein, hältst fest, wer bezahlt hat, und hakst ab, was erstattet ist. Eine Übersicht zeigt, wem noch wie viel zusteht, und „Belege als PDF“ gibt dir alles samt Fotos zum Abrechnen. Die Belege bleiben in der Essensplanung.',
       'Ein geöffnetes Gericht zeigt oben alle Angaben zum Gericht und darunter klar abgesetzt die Zutaten. Die letzten Änderungen stehen jetzt aufgeklappt im Bereich „Einstellungen“.',
+      'Das Lager hat einen eigenen Bereich neben dem Einkauf.',
     ],
   },
   {

@@ -75,11 +75,13 @@ test('two shop at once in the live mode; a rest goes to the next trip and into t
     '1,2 kg Nudeln (Spaghetti)'
   );
   await uebersicht(page);
+  await page.getByRole('tab', { name: 'Lager' }).click();
   const lager = page.getByRole('table', { name: 'Lager' });
   await expect(lager.getByRole('row', { name: /Nudeln \(Spaghetti\)/ })).toContainText(
     /→ Vollkornnudeln\s*0 g\s*800 g\s*0 g\s*800 g/
   );
   // The open shopping list is what is needed less the stock now
+  await page.getByRole('tab', { name: 'Einkauf' }).click();
   await expect(page.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' })).toContainText(
     /1,2 kg\s*Nudeln \(Spaghetti\)/
   );
