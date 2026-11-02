@@ -63,7 +63,7 @@
   }
 </script>
 
-<div class="grid items-start gap-6 md:grid-cols-2">
+<div class="grid min-w-0 items-start gap-6 md:grid-cols-2">
   {#if view.loading}
     <div role="status" aria-live="polite" class="sr-only">Gruppenstunden werden geladen...</div>
     {#each [1, 2, 3, 4] as i (i)}
@@ -102,7 +102,7 @@
       {@const isExpanded = expandedGruppe === gruppe.id}
       {@const hasDetails = hasExpandableContent(gruppe)}
       <article
-        class="gruppe-card surface border-l-4 p-5"
+        class="gruppe-card surface min-w-0 border-l-4 p-5"
         style="border-left-color: {config.color};"
         aria-labelledby="gruppe-{gruppe.id}-heading"
       >
@@ -166,7 +166,7 @@
 
         {#if exception}
           <div
-            class="mt-4 rounded-md border border-warning bg-warning-soft px-4 py-3 text-warning"
+            class="mt-4 rounded-md border border-warning bg-warning-soft px-4 py-3 text-warning [overflow-wrap:anywhere]"
             role="note"
           >
             <p class="font-semibold">{exception.message}</p>

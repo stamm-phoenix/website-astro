@@ -28,6 +28,16 @@
   let baseline = $state('');
   const dirty = $derived(form !== null && JSON.stringify(form.exception) !== baseline);
   let message = $state<string | null>(null);
+  let today = $state(berlinDate());
+
+  function berlinDate(): string {
+    return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+  }
+
+  $effect(() => {
+    const timer = setInterval(() => (today = berlinDate()), 60_000);
+    return () => clearInterval(timer);
+  });
 
   const items = $derived(
     [...(store.data?.items ?? [])].sort(
@@ -57,6 +67,11 @@
   async function reloadCurrent(): Promise<boolean> {
     const id = form?.item.id;
     await gruppenstundenPflege.load({ force: true });
+    if (store.error) {
+      dialog.state.error =
+        'Der aktuelle Hinweis konnte nicht geladen werden. Deine Eingaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Aktuelle Fassung laden“.';
+      return false;
+    }
     const fresh = store.data?.items.find((item) => item.id === id);
     if (!fresh) {
       form = null;
@@ -118,9 +133,6 @@
     tone: 'success' | 'warning' | 'danger' | 'neutral';
   } {
     if (!exception) return { label: 'Kein Hinweis', tone: 'neutral' };
-    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(
-      new Date()
-    );
     if (exception.endDate < today) return { label: 'Abgelaufen', tone: 'neutral' };
     if (exception.startDate > today) return { label: 'Geplant', tone: 'warning' };
     return { label: 'Aktuell', tone: 'success' };

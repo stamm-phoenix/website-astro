@@ -4,7 +4,10 @@ test('reloaded notice protects unsaved edits and resets when original values ret
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  let failReload = false;
   await page.route('**/api/intern/pflege/gruppenstunden', async (route) => {
+    if (failReload)
+      return route.fulfill({ status: 500, json: { message: 'Abruf fehlgeschlagen.' } });
     const response = await route.fetch();
     const data = await response.json();
     data.items.find((item: { stufe: string }) => item.stufe === 'Wölflinge').exception = {
@@ -26,7 +29,22 @@ test('reloaded notice protects unsaved edits and resets when original values ret
     .getByRole('button', { name: 'Hinweis bearbeiten', exact: true })
     .click();
   const dialog = page.getByRole('dialog', { name: 'Hinweis für Wölflinge bearbeiten' });
+  await dialog.getByLabel('Hinweis', { exact: true }).fill('Ungespeicherter Entwurf');
   await dialog.getByRole('button', { name: 'Hinweis veröffentlichen', exact: true }).click();
+  failReload = true;
+  await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Aktuelle Fassung laden?', exact: true })
+    .getByRole('button', { name: 'Neu laden', exact: true })
+    .click();
+  await expect(dialog.getByLabel('Hinweis', { exact: true })).toHaveValue(
+    'Ungespeicherter Entwurf'
+  );
+  await expect(dialog.getByRole('alert')).toContainText('nicht geladen');
+  await expect(
+    dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true })
+  ).toBeVisible();
+  failReload = false;
   await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Aktuelle Fassung laden?', exact: true })
