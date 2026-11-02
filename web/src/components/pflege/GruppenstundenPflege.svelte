@@ -35,6 +35,10 @@
   const store = gruppenstundenPflege.state;
 
   let form = $state<Form | null>(null);
+  let initialException = $state('null');
+  const exceptionDirty = $derived(
+    form !== null && JSON.stringify(form.exception) !== initialException
+  );
   const dialog = createDialogForm();
   const errors = $derived(dialog.state.fields);
   const busy = $derived(dialog.state.busy);
@@ -111,6 +115,7 @@
   }
 
   function openDialog(): void {
+    initialException = JSON.stringify(form?.exception ?? null);
     dialog.reset();
   }
 
@@ -290,6 +295,7 @@
   rescueKey={form ? `gruppenstunde:${form.id ?? 'neu'}` : undefined}
   rescueVersion={form?.etag}
   {busy}
+  dirty={exceptionDirty}
   error={dialog.state.error}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}
   onsubmit={save}

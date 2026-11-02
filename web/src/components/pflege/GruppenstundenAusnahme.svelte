@@ -49,8 +49,8 @@
   {#if errors.exception}
     <p class="text-sm text-danger" role="alert">{errors.exception}</p>
   {/if}
-  {#if enabled}
-    <div class="mt-3 grid gap-4 sm:grid-cols-2">
+  <div hidden={!enabled}>
+    <fieldset disabled={!enabled} class="mt-3 grid gap-4 sm:grid-cols-2">
       <FormField id="gs-exception-start" label="Von" error={errors.exceptionStartDate}>
         {#snippet children(attrs)}
           <input
@@ -142,6 +142,6 @@
           />
         {/snippet}
       </FormField>
-    </div>
-  {/if}
+    </fieldset>
+  </div>
 </fieldset>

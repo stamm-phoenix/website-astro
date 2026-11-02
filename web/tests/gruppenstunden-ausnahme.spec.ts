@@ -27,6 +27,7 @@ test('temporary notice can be saved, displayed publicly and removed', async ({ p
   expect((await enterSave).postDataJSON().exception.message).toBe('Neuer Hinweis per Enter');
   await expect(dialog).toBeHidden();
   await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
   const rescued = {
     startDate: '2020-02-02',
     endDate: '2099-11-30',
