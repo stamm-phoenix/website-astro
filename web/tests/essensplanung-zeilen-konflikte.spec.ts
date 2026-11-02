@@ -201,6 +201,8 @@ test('a fixed amount set by others is a conflict; PDF and deleting wait for the 
   await anlegen(page, 'E2E Zeilen Fest');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Gulasch');
+  // With a Personenzahl, so a row can be made fixed on its own
+  await page.getByLabel('Personen', { exact: true }).fill('10');
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
   const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
