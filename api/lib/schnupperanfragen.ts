@@ -200,10 +200,15 @@ export function cancelSchnupperAnfrage(
 
 /**
  * Notes whether the answer mail reached the family. Not conditional: it runs right after the
- * answer and only records what happened to it.
+ * answer and only records what happened to it. Returns the request in its new version, or
+ * `undefined` if it was deleted meanwhile.
  */
-export async function markSchnupperMail(id: number, sent: boolean): Promise<void> {
+export async function markSchnupperMail(
+  id: number,
+  sent: boolean
+): Promise<StaffSchnupperAnfrage | undefined> {
   await getDb().updateTable(TABLE).set({ antwort_mail: sent }).where('id', '=', id).execute();
+  return getSchnupperAnfrage(id);
 }
 
 /** Deletes a request that still has the version `etag`. */
