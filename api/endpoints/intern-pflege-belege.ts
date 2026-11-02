@@ -4,7 +4,7 @@ import { hasTeam, isPreviewDeployment } from '../lib/staff-auth';
 import { parseId } from '../lib/db';
 import type { BelegInput } from '../lib/validation/beleg';
 import { validateBeleg } from '../lib/validation/beleg';
-import { checkPhoto, isPhotos, readPhotos } from '../lib/validation/beleg-upload';
+import { isPhotos, readPhotos } from '../lib/validation/beleg-upload';
 import {
   METHOD_NOT_ALLOWED,
   NO_CONTENT,
@@ -26,13 +26,8 @@ import {
 import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
 import type { BelegCheck } from '../lib/beleg-check';
-import {
-  BelegCheckLimitError,
-  checkBelegPhoto,
-  checkBelegRotation,
-  isBelegCheckConfigured,
-} from '../lib/beleg-check';
-import type { StaffBeleg } from '../lib/beleg-list';
+import { checkBelegPhoto, isBelegCheckConfigured } from '../lib/beleg-check';
+import type { BelegPhotos, StaffBeleg } from '../lib/beleg-list';
 import {
   createBeleg,
   deleteBeleg,
@@ -130,23 +125,28 @@ export function todayInBerlin(now = new Date()): string {
 
 /** Runs the preliminary check; a failing check never blocks storing the receipt. */
 async function runCheck(
-  bytes: Uint8Array,
+  pages: Uint8Array[],
   context: InvocationContext
 ): Promise<BelegCheck | undefined> {
   try {
-    return await checkBelegPhoto(bytes);
+    return await checkBelegPhoto(pages);
   } catch (error: unknown) {
     context.warn('[belege] KI-Prüfung fehlgeschlagen', error);
     return undefined;
   }
 }
 
-/** The check of a new photo, if a model is configured; never blocks storing the receipt. */
+/**
+ * The check of a new photo, or of the pages of a PDF, if a model is configured; never blocks
+ * storing the receipt.
+ */
 function startCheck(
-  bytes: Uint8Array,
+  photos: BelegPhotos,
   context: InvocationContext
 ): Promise<BelegCheck | undefined> | undefined {
-  return isBelegCheckConfigured() ? runCheck(bytes, context) : undefined;
+  return isBelegCheckConfigured()
+    ? runCheck([photos.photo, ...(photos.pages ?? [])], context)
+    : undefined;
 }
 
 /**
@@ -185,7 +185,7 @@ export const BelegeCollectionEndpoint = pflegeHandler(
     if (!isPhotos(photos)) return photos;
 
     // The model takes a few seconds; let it work while the photo is stored
-    const check = startCheck(photos.photo, context);
+    const check = startCheck(photos, context);
     const id = await createBeleg(input, principal.userDetails, photos, check);
     await beforeDeadline(
       notifyKasse(input, false, principal, request, context, deadline),
@@ -418,49 +418,8 @@ export const BelegPhotoEndpoint = pflegeHandler(
     const photos = readPhotos(await readJsonBody(request));
     if (!isPhotos(photos)) return photos;
 
-    const check = startCheck(photos.photo, context);
+    const check = startCheck(photos, context);
     return ok(await setBelegPhoto(id, photos, etag, check, principal.userDetails));
-  }
-);
-
-/**
- * POST: checks the JPEG in the body before it is submitted, to show problems right away and
- * prefill the form. With `?nur=drehung` it answers only how to turn the photo upright
- * (`rotation`), which the form does before the check. `available` is false without a model.
- */
-export const BelegPruefungEndpoint = pflegeHandler(
-  'belege-pruefung',
-  async (request: HttpRequest) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-    const onlyRotation = request.query.get('nur') === 'drehung';
-    if (!isBelegCheckConfigured()) {
-      return ok(
-        onlyRotation ? { available: false, rotation: 0 } : { available: false, check: null }
-      );
-    }
-
-    const bytes = new Uint8Array(await request.arrayBuffer());
-    const invalidPhoto = checkPhoto(bytes);
-    if (invalidPhoto) return invalidPhoto;
-    try {
-      if (onlyRotation) {
-        return ok({ available: true, rotation: (await checkBelegRotation(bytes)) ?? 0 });
-      }
-      return ok({ available: true, check: await checkBelegPhoto(bytes) });
-    } catch (error: unknown) {
-      if (error instanceof BelegCheckLimitError) {
-        return errorResponse(
-          429,
-          'CHECK_LIMIT',
-          'Die KI-Prüfung hat ihr Tageslimit erreicht. Du kannst den Beleg trotzdem einreichen.'
-        );
-      }
-      return errorResponse(
-        502,
-        'CHECK_UNAVAILABLE',
-        'Die KI-Prüfung ist gerade nicht erreichbar. Du kannst den Beleg trotzdem einreichen.'
-      );
-    }
   }
 );
 
@@ -542,6 +501,5 @@ export const BelegeCollection = withErrorHandling(BelegeCollectionEndpoint);
 export const BelegRolle = withErrorHandling(BelegRolleEndpoint);
 export const BelegItem = withErrorHandling(BelegItemEndpoint);
 export const BelegPhoto = withErrorHandling(BelegPhotoEndpoint);
-export const BelegPruefung = withErrorHandling(BelegPruefungEndpoint);
 export const BelegCampflow = withErrorHandling(BelegCampflowEndpoint);
 export const BelegeCampflow = withErrorHandling(BelegeCampflowEndpoint);

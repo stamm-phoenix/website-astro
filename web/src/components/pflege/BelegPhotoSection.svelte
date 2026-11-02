@@ -4,7 +4,8 @@
   import BelegFotoPruefung from './BelegFotoPruefung.svelte';
   import BelegAiCheck from './BelegAiCheck.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
-  import { photoUrl, formatTimestamp, type BelegForm } from '../../lib/belegForm';
+  import BelegPdfSeiten from './BelegPdfSeiten.svelte';
+  import { pdfPath, photoUrl, formatTimestamp, type BelegForm } from '../../lib/belegForm';
   import type { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   interface Props {
     form: BelegForm;
@@ -13,6 +14,8 @@
     errors: Record<string, string>;
   }
   let { form, photo, busy, errors }: Props = $props();
+  /** A picture of the photo or of a page of the PDF, as wide as the dialog. */
+  const SEITE = 'h-auto w-full rounded-md border border-neutral-200 bg-neutral-100';
 </script>
 
 <section aria-labelledby="bl-photo-label" class="space-y-2">
@@ -26,7 +29,10 @@
       Ein normales Foto geht auch: Beleg flach hinlegen, gut beleuchten, alle Ränder im Bild, am
       besten auf dunklem Untergrund.
     </p>
-    <p>Rechnungen, die du als PDF bekommen hast, lädst du direkt als PDF hoch (höchstens 5 MB).</p>
+    <p>
+      Rechnungen, die du als PDF bekommen hast, lädst du direkt als PDF hoch, mit allen Seiten
+      (höchstens 5 MB).
+    </p>
   </InfoHint>
   {#if form.id && form.hasImage && !photo.draft}
     <a href={photoUrl(form)} target="_blank" rel="noopener" class="block">
@@ -35,10 +41,13 @@
         alt="{form.isPdf ? 'Erste Seite des PDFs' : 'Foto des Belegs'} von {form.shop}"
         width="600"
         height="800"
-        class="max-h-96 w-auto rounded-md border border-neutral-200 bg-neutral-100 object-contain"
+        class={SEITE}
       />
       <span class="mt-1 block text-xs text-link underline">In voller Größe öffnen</span>
     </a>
+    {#if form.isPdf}
+      <BelegPdfSeiten path={pdfPath(form)} class={SEITE} />
+    {/if}
   {/if}
   <BelegFotoEntwurf {photo} {busy} />
   {#if photo.draft}

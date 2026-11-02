@@ -13,7 +13,7 @@ import { getDb } from './db';
  * The check of a receipt photo in the Essensplanung (`docs/essensplanung.md`, Belege): the same
  * question as in the Belege of the Leitendenbereich (`beleg-check.ts`: is it a receipt, complete,
  * readable; shop, day and amount to prefill), asked of the deployment of the Essensplanung, so it
- * never uses up the daily limit of the Kasse. Only the photo goes to the model, nothing is stored.
+ * never uses up the daily limit of the Kasse. Only the photo, or the pages of a PDF, go to the model; nothing is stored.
  */
 
 /** The check thinks like the one of the Belege; the Essensplanung's own questions are shorter. */
@@ -48,19 +48,23 @@ export type BelegPruefungAntwort =
   | { available: true; rotation: BelegRotation };
 
 /**
- * Checks a JPEG (the endpoint checked it) or, with `nurDrehung`, only asks how to turn it
- * upright. Without a deployment it answers `available: false` and the form goes on without.
+ * Checks a JPEG, or the pages of a PDF as JPEGs (the endpoint checked them), or, with
+ * `nurDrehung`, only asks how to turn the photo upright. Without a deployment it answers
+ * `available: false` and the form goes on without.
  */
 export async function belegPruefen(
   zugang: Zugang,
-  jpeg: Uint8Array,
+  seiten: readonly Uint8Array[],
   nurDrehung: boolean
 ): Promise<BelegPruefungAntwort> {
   if (!darfBearbeiten(zugang.zugang)) throw NUR_LESEN();
   if ((await loadEssenEinstellungen(getDb())).einstellungen.wartung) throw WARTUNG();
   if (!isKiConfigured()) return { available: false, check: null, rotation: 0 };
   if (nurDrehung) {
-    return { available: true, rotation: await frage(() => frageBelegDrehung(deployment(), jpeg)) };
+    return {
+      available: true,
+      rotation: await frage(() => frageBelegDrehung(deployment(), seiten[0])),
+    };
   }
-  return { available: true, check: await frage(() => frageBelegPruefung(deployment(), jpeg)) };
+  return { available: true, check: await frage(() => frageBelegPruefung(deployment(), seiten)) };
 }

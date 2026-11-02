@@ -17,6 +17,11 @@ export type BelegArt = (typeof BELEG_ARTEN)[number];
 export const MAX_BELEG_PHOTO_BYTES = 4 * 1024 * 1024;
 /** A receipt as PDF, e.g. an invoice by mail; with its page and in base64 the request stays small. */
 export const MAX_BELEG_PDF_BYTES = 5 * 1024 * 1024;
+/**
+ * Pages of a PDF the check reads: the first ones and the last, where the total of a long invoice
+ * usually is. More pictures would make the check slow and expensive.
+ */
+export const MAX_BELEG_CHECK_PAGES = 5;
 /** Shorter photos are too small to read a receipt. */
 export const MIN_BELEG_PHOTO_EDGE = 800;
 /** Kostenstelle and Kategorie; CampFlow's own names are far shorter. */

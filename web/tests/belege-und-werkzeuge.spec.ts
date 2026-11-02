@@ -91,20 +91,21 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   await expect(page.getByText('Bitte begründen, warum der Beleg abgelehnt wird.')).toBeVisible();
   await page.getByLabel('Bemerkung der Kasse').fill('Bitte die Rückseite mit dem Betrag ergänzen.');
   await page.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  // On small screens the page message may be scrolled away and repeated in a popup
   await expect(
-    page.getByText(/abgelehnt\. leitung@example\.test hat die Begründung/)
+    page.getByText(/abgelehnt\. leitung@example\.test hat die Begründung/).first()
   ).toBeVisible();
   await expect(card).toContainText('Abgelehnt');
   await openFilters(page);
   await page.getByLabel('Stand').selectOption({ label: 'Abgelehnt' });
   await card.click();
   await page.getByRole('button', { name: 'Erneut einreichen', exact: true }).click();
-  await expect(page.getByText(`Beleg von ${shop} erneut eingereicht.`)).toBeVisible();
+  await expect(page.getByText(`Beleg von ${shop} erneut eingereicht.`).first()).toBeVisible();
   await openFilters(page);
   await page.getByLabel('Stand').selectOption({ label: 'Eingereicht' });
   await card.click();
   await page.getByRole('button', { name: 'Annehmen', exact: true }).click();
-  await expect(page.getByText(new RegExp(`Beleg von ${shop} angenommen`))).toBeVisible();
+  await expect(page.getByText(new RegExp(`Beleg von ${shop} angenommen`)).first()).toBeVisible();
   await openFilters(page);
   await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
   await expect(card).toBeVisible();

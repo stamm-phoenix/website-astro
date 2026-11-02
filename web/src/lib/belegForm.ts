@@ -74,6 +74,11 @@ export function photoUrl(beleg: { id: string | null; etag: string }, variant = '
   return `/api/intern/pflege/belege/${beleg.id}/foto?v=${encodeURIComponent(beleg.etag)}${variant}`;
 }
 
+/** The stored PDF of a receipt, for `fetchFile`, to draw its further pages. */
+export function pdfPath(beleg: { id: string | null; etag: string }): string {
+  return photoUrl(beleg, '&download=1').replace(/^\/api/, '');
+}
+
 export function formatTimestamp(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '' : formatDateTime(date);
