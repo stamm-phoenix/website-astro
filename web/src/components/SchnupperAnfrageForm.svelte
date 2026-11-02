@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import AltchaWidget from './AltchaWidget.svelte';
   import FormField from './pflege/FormField.svelte';
   import ActionButton from './ui/ActionButton.svelte';
@@ -15,12 +15,22 @@
   } from '../lib/schnupper';
   import type { SchnupperField, SchnupperSent, SchnupperStufe } from '../lib/schnupper';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
+  import { fetchGruppenstunden, gruppenstundenStore } from '../lib/gruppenstundenStore.svelte';
+  import { withBaked } from '../lib/storeView';
+  import type { Gruppenstunde } from '../lib/types';
 
   interface Props {
-    /** Baked Gruppenstunden, to show when the chosen Stufe meets. */
-    gruppenstunden?: { stufe: string; weekday: string; time: string; location: string }[];
+    /** Baked Gruppenstunden, to show when the chosen Stufe meets; refreshed in the browser. */
+    gruppenstunden?: Gruppenstunde[] | null;
   }
-  let { gruppenstunden = [] }: Props = $props();
+  let { gruppenstunden = null }: Props = $props();
+
+  const stunden = $derived(withBaked(gruppenstundenStore, gruppenstunden).data ?? []);
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+
+  $effect(() => {
+    untrack(() => void fetchGruppenstunden());
+  });
 
   const ID = 'schnupper';
   const FIELD_ORDER: SchnupperField[] = [
@@ -66,7 +76,7 @@
 
   const stundeText = $derived(
     stufe && stufe !== 'unklar'
-      ? gruppenstundeText(gruppenstunden, SCHNUPPER_STUFE_LABELS[stufe])
+      ? gruppenstundeText(stunden, SCHNUPPER_STUFE_LABELS[stufe], today)
       : null
   );
 
