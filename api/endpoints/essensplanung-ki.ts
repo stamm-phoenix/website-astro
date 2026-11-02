@@ -1,6 +1,6 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import { gerichtZutatenSammeln, readPersonen } from '../lib/essen-gericht-zeilen';
-import { validateGerichtZutat } from '../lib/essen-gerichte-validation';
+import { readPersonenSetzen, validateGerichtZutat } from '../lib/essen-gerichte-validation';
 import type { GerichtZutatInput } from '../lib/essen-gerichte-validation';
 import { MAX_ZEILEN_PRO_GERICHT } from '../lib/essen-gerichte-model';
 import {
@@ -9,6 +9,7 @@ import {
   rezeptLesen,
   umrechnungSchaetzen,
 } from '../lib/essen-ki';
+import { einheitenVorschlagen } from '../lib/essen-ki-einheiten';
 import { KI_MASSE, MAX_REZEPT_TEXT } from '../lib/essen-ki-model';
 import type { KiMass } from '../lib/essen-ki-model';
 import { ladeAnsicht } from '../lib/essen-planung';
@@ -92,6 +93,17 @@ export const EssensplanungKiUmrechnung = planungHandler(async (request) => {
   return kiAntwort(() => umrechnungSchaetzen(zugang, wahl, mass as KiMass));
 });
 
+/** POST `{ planungZutatId }`: a common unit and factors for the amounts of one ingredient. */
+export const EssensplanungKiEinheiten = planungHandler(async (request) => {
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  const body = await readJsonBody(request);
+  const id = body?.planungZutatId;
+  if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0)
+    throw new ValidationError({ planungZutatId: 'Bitte eine Zutat wählen.' });
+  return kiAntwort(() => einheitenVorschlagen(zugang, id));
+});
+
 /** The lines of a batch; an error of a line names its field as `zeilen.<index>.<field>`. */
 function validateZeilen(body: Record<string, unknown> | null): GerichtZutatInput[] {
   const zeilen = body?.zeilen;
@@ -116,14 +128,18 @@ function validateZeilen(body: Record<string, unknown> | null): GerichtZutatInput
   return inputs as GerichtZutatInput[];
 }
 
-/** POST `{ zeilen: [line, …], personen? }`: adds lines at the end of a dish in one change, all or none. */
+/**
+ * POST `{ zeilen: [line, …], personen?, personenSetzen? }`: adds lines at the end of a dish in one
+ * change, all or none; `personenSetzen` sets the people of the dish in the same change.
+ */
 export const EssensplanungGerichtZutatenSammel = planungHandler(async (request: HttpRequest) => {
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const id = readId(request);
   const body = await readJsonBody(request);
   const zeilen = validateZeilen(body);
+  const personenSetzen = readPersonenSetzen(body);
   // The people the amounts were scaled for: a change meanwhile is a conflict
-  await gerichtZutatenSammeln(zugang, id, zeilen, readPersonen(body));
+  await gerichtZutatenSammeln(zugang, id, zeilen, readPersonen(body), personenSetzen);
   return ok(await ladeAnsicht(zugang), 201);
 });

@@ -120,8 +120,13 @@ export interface ApiFile {
 }
 
 /** Loads a file, e.g. an image; errors are thrown as `ApiError` like for JSON endpoints. */
-export async function fetchFile(endpoint: string, signal?: AbortSignal): Promise<ApiFile> {
-  return request(endpoint, { signal }, TIMEOUT_MS.file, toApiFile);
+export async function fetchFile(
+  endpoint: string,
+  signal?: AbortSignal,
+  /** More request headers, e.g. the token of a link. */
+  headers?: Record<string, string>
+): Promise<ApiFile> {
+  return request(endpoint, headers ? { signal, headers } : { signal }, TIMEOUT_MS.file, toApiFile);
 }
 
 /** Sends JSON and receives a file, e.g. a document generated from the sent data. */

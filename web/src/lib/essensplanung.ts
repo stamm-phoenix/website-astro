@@ -1,4 +1,4 @@
-import { fetchApi, sendApi } from './api';
+import { fetchApi, fetchFile, sendApi } from './api';
 import type { EssenKatalog, PlanungAenderung, PlanungAnsicht } from './types';
 
 /**
@@ -44,6 +44,14 @@ export function planungApi(token: string) {
       body?: unknown,
       etag?: string
     ) => sendApi<T>(method, `/essensplanung/planung${path}`, body, { headers, etag }),
+    /** A picture of a receipt (`vorschau`, `bild`, `original`) or its file (`datei`). */
+    belegFoto: (
+      id: number,
+      art: 'vorschau' | 'bild' | 'original' | 'datei',
+      signal?: AbortSignal
+    ) => fetchFile(`/essensplanung/planung/belege/${id}/foto?art=${art}`, signal, headers),
+    /** Where a new photo of a receipt is checked, for `createBelegPhotoDraft`. */
+    belegPruefung: { url: '/essensplanung/planung/belege/pruefung', headers },
   };
 }
 
@@ -189,15 +197,35 @@ const AENDERUNGEN: Record<string, string> = {
   'einkauf-regel': 'hat einen Posten eines Einkaufs angepasst',
   'einkauf-verschoben': 'hat einen Posten in einen anderen Einkauf verschoben',
   'einkauf-zurueckgeholt': 'hat einen Posten in einen Einkauf zurückgeholt',
+  'einheiten-vereinheitlicht': 'hat die Einheiten einer Zutat vereinheitlicht',
   'packliste-neu': 'hat etwas auf die Packliste gesetzt',
   'packliste-geaendert': 'hat die Packliste geändert',
   'packliste-geloescht': 'hat etwas von der Packliste genommen',
+  'beleg-neu': 'hat einen Beleg eingetragen',
+  'beleg-geaendert': 'hat einen Beleg geändert',
+  'beleg-foto': 'hat das Foto eines Belegs geändert',
+  'beleg-geloescht': 'hat einen Beleg gelöscht',
 };
 
-/** What a change of the packing list did: packed, unpacked, or who packs it. */
-function packText(details: Record<string, unknown>): string {
-  if (details.gepackt === true) return 'hat eingepackt';
-  if (details.gepackt === false) return 'hat wieder ausgepackt';
+/** Names of a log entry's details, e.g. who was made responsible. */
+function namenListe(wert: unknown): string {
+  return Array.isArray(wert)
+    ? wert.filter((name): name is string => typeof name === 'string').join(', ')
+    : '';
+}
+
+/** What a change of the packing list did: packed (for someone), unpacked, or who packs it. */
+function packText(details: Record<string, unknown>, wer: string): string {
+  const fuer = typeof details.fuer === 'string' && details.fuer !== wer ? details.fuer : '';
+  if (details.gepackt === true) return fuer ? `hat für ${fuer} eingepackt` : 'hat eingepackt';
+  if (details.gepackt === false)
+    return fuer ? `hat für ${fuer} wieder ausgepackt` : 'hat wieder ausgepackt';
+  const hinzu = namenListe(details.hinzu);
+  const weg = namenListe(details.weg);
+  if (hinzu && weg) return 'hat geändert, wer einpackt';
+  if (hinzu) return `hat ${hinzu} zuständig gemacht`;
+  if (weg) return `hat ${weg} als zuständig entfernt`;
+  // Log entries from before several persons could pack a thing
   if (details.zustaendig === '') return 'hat eine Zuständigkeit entfernt';
   if (typeof details.zustaendig === 'string') return `hat ${details.zustaendig} zuständig gemacht`;
   return AENDERUNGEN['packliste-geaendert'];
@@ -238,7 +266,7 @@ export function aenderungText(aenderung: PlanungAenderung): string {
     : laden && geschaeft === null
       ? 'hat ein Geschäft entfernt'
       : aenderung.aktion === 'packliste-geaendert'
-        ? packText(aenderung.details)
+        ? packText(aenderung.details, wer)
         : verschoben === true
           ? 'hat ein Gericht verschoben'
           : aenderung.aktion === 'einplanung-abgehakt' && typeof status === 'string'
@@ -247,7 +275,12 @@ export function aenderungText(aenderung: PlanungAenderung): string {
               ? abgeschlossen
                 ? 'hat einen Einkauf abgeschlossen'
                 : 'hat einen Einkauf wieder geöffnet'
-              : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
+              : aenderung.aktion === 'beleg-geaendert' &&
+                  typeof aenderung.details.erstattet === 'boolean'
+                ? aenderung.details.erstattet
+                  ? 'hat einen Beleg als erstattet markiert'
+                  : 'hat „erstattet“ bei einem Beleg aufgehoben'
+                : (AENDERUNGEN[aenderung.aktion] ?? 'hat etwas geändert');
   const ziel = [
     gruppen && typeof gruppe === 'string' ? `${gruppe} bei` : '',
     typeof anzahl === 'number' ? String(anzahl) : '',

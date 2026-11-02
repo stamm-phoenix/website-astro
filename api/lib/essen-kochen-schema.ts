@@ -4,13 +4,11 @@
  */
 import { z } from 'zod';
 import { MAX_MENGE } from './essen-einkauf-model';
-import { EINHEITEN_JE_ART } from './essen-gerichte-model';
-import type { GerichtEinheit } from './essen-gerichte-model';
+import { einheitPflicht } from './essen-einheit-schema';
 import { EINPLANUNG_STATUS, MAX_VERBRAUCH } from './essen-kochen-model';
 import type { EinplanungStatus, Verbrauch } from './essen-kochen-model';
 import { lenientObject } from './validation/zod';
 
-const EINHEITEN = Object.values(EINHEITEN_JE_ART).flat() as [GerichtEinheit, ...GerichtEinheit[]];
 const VERBRAUCH_FEHLER = 'Bitte eine Menge ab 0 eintragen, z. B. 2,5.';
 const ZUTAT_FEHLER = 'Diese Zutat gibt es nicht. Bitte lade die Seite neu.';
 
@@ -25,7 +23,7 @@ const eintrag = lenientObject({
     .refine((value) => value <= MAX_MENGE, { error: 'Die Menge ist zu groß.' })
     // As stored (decimal(12, 3)); a tiny amount stays a little, not „not used“
     .transform((value) => (value === 0 ? 0 : Math.round(value * 1000) / 1000 || 0.001)),
-  einheit: z.enum(EINHEITEN, { error: 'Bitte eine Einheit wählen.' }),
+  einheit: einheitPflicht,
 });
 
 export const abhakenSchema = lenientObject({
@@ -40,14 +38,15 @@ export const abhakenSchema = lenientObject({
   ),
 }).transform((value) => ({
   status: value.status,
-  // Only a cooked dish used something; the same ingredient and unit twice is summed
+  // Only a cooked dish used something; the same ingredient and unit twice is summed (upper and
+  // lower case are the same unit, as the database compares them)
   verbrauch: value.status === 'gekocht' ? zusammen(value.verbrauch) : [],
 }));
 
 function zusammen(liste: Verbrauch[]): Verbrauch[] {
   const summen = new Map<string, Verbrauch>();
   for (const eintrag of liste) {
-    const schluessel = `${eintrag.planungZutatId}:${eintrag.einheit}`;
+    const schluessel = `${eintrag.planungZutatId}:${eintrag.einheit.toLocaleLowerCase('de')}`;
     const summe = summen.get(schluessel);
     if (summe) summe.menge = Math.round((summe.menge + eintrag.menge) * 1000) / 1000;
     else summen.set(schluessel, { ...eintrag });

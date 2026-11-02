@@ -43,27 +43,33 @@ test('a pasted recipe becomes lines after checking the preview', async ({ page }
   const frucht = zeilen.filter({ hasText: '3 Stück Drachenfrucht' });
   await expect(frucht.getByText('nicht in der Liste, bitte wählen')).toBeVisible();
   await expect(frucht.getByRole('checkbox')).toBeDisabled();
-  // Chosen for an ingredient in g without a weight per piece: never „6 g“, the amount is asked
+  // Converted into ml; the recipe's own amount can be taken instead, and back
+  const olivenoel = 'Für 2 EL Olivenöl stattdessen';
+  await dialog.getByRole('button', { name: `${olivenoel} 4 EL übernehmen` }).click();
+  await expect(dialog.getByLabel('Menge für 2 EL Olivenöl')).toHaveValue('4');
+  await expect(dialog.getByLabel('Einheit für 2 EL Olivenöl')).toHaveValue('EL');
+  await expect(dialog.getByRole('button', { name: `${olivenoel} 60 ml übernehmen` })).toBeVisible();
+  // Chosen for an ingredient in g without a weight per piece: never „6 g“, the pieces stay
   await dialog.getByLabel('Zutat für 3 Stück Drachenfrucht').fill('Zucker (weiß)');
   await dialog.getByRole('option', { name: 'Zucker (weiß)' }).click();
-  await expect(dialog.getByLabel('Menge für 3 Stück Drachenfrucht')).toHaveValue('');
-  await expect(dialog.getByLabel('Hinweis für 3 Stück Drachenfrucht')).toHaveValue('6 Stück');
-  await expect(frucht.getByRole('checkbox')).not.toBeChecked();
-  await expect(frucht.getByText(/Bitte die Menge in g oder kg eintragen/)).toBeVisible();
-  await expect(dialog.getByRole('button', { name: '4 Zutaten übernehmen' })).toBeVisible();
+  await expect(dialog.getByLabel('Menge für 3 Stück Drachenfrucht')).toHaveValue('6');
+  await expect(dialog.getByLabel('Einheit für 3 Stück Drachenfrucht')).toHaveValue('Stück');
+  await expect(dialog.getByLabel('Hinweis für 3 Stück Drachenfrucht')).toHaveValue('');
+  await expect(frucht.getByRole('checkbox')).toBeChecked();
+  await expect(dialog.getByRole('button', { name: '5 Zutaten übernehmen' })).toBeVisible();
   // A line can be left out
   await dialog.getByRole('checkbox', { name: '1 Prise Salz übernehmen' }).uncheck();
   await dialog.getByLabel('Menge für 2 Zwiebeln').fill('300');
   await expectNoHorizontalOverflow(page);
-  await dialog.getByRole('button', { name: '3 Zutaten übernehmen' }).click();
+  await dialog.getByRole('button', { name: '4 Zutaten übernehmen' }).click();
 
-  await expect(page.getByText('3 Zutaten übernommen.').first()).toBeVisible();
+  await expect(page.getByText('4 Zutaten übernommen.').first()).toBeVisible();
   await expect(dialog).toHaveCount(0);
   await expect.poll(() => zeilenMenge(karte, 'Nudeln (Spaghetti)')).toBe('1000 g');
-  await expect.poll(() => zeilenMenge(karte, 'Olivenöl')).toBe('60 ml');
+  await expect.poll(() => zeilenMenge(karte, 'Olivenöl')).toBe('4 EL');
   await expect.poll(() => zeilenMenge(karte, 'Zwiebeln')).toBe('300 g');
   await expect(karte.getByLabel('Menge von Salz', { exact: true })).toHaveCount(0);
-  await expect(karte.getByLabel('Menge von Zucker (weiß)', { exact: true })).toHaveCount(0);
+  await expect.poll(() => zeilenMenge(karte, 'Zucker (weiß)')).toBe('6 Stück');
 });
 
 test('checking a dish lists hints, and a proposal is taken over with a click', async ({ page }) => {

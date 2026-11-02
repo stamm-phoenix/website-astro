@@ -94,16 +94,22 @@ test('Zeile: an invalid amount or unit', () => {
     assert.deepEqual(zeileFehler({ menge }), { menge: MENGE_UNGUELTIG }, String(menge));
   }
   assert.deepEqual(zeileFehler({ menge: 1_000_001 }), { menge: 'Die Menge ist zu groß.' });
-  for (const einheit of [undefined, null, 5, '', 'tonne', 'Kg']) {
+  for (const einheit of [undefined, null, 5, '', '   ']) {
     assert.deepEqual(zeileFehler({ einheit }), { einheit: 'Bitte eine Einheit wählen.' });
   }
-  assert.deepEqual(zeileFehler({ menge: 0, einheit: 'x' }), {
+  assert.deepEqual(zeileFehler({ menge: 0, einheit: '' }), {
     menge: MENGE_UNGUELTIG,
     einheit: 'Bitte eine Einheit wählen.',
   });
   for (const einheit of ['g', 'kg', 'ml', 'l', 'stueck', 'packung', 'bund']) {
     assert.equal(validateGerichtZutat(zeile({ einheit })).einheit, einheit);
   }
+  // Any unit of one's own; known ones in another spelling become their key
+  assert.equal(validateGerichtZutat(zeile({ einheit: ' Dose ' })).einheit, 'Dose');
+  assert.equal(validateGerichtZutat(zeile({ einheit: 'Kg' })).einheit, 'kg');
+  assert.deepEqual(zeileFehler({ einheit: 'x'.repeat(21) }), {
+    einheit: 'Die Einheit darf höchstens 20 Zeichen lang sein.',
+  });
 });
 
 test('Zeile: a line applies to at least one way of eating', () => {

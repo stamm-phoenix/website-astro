@@ -41,7 +41,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   bind:this={bereich}
-  class="overflow-x-auto pb-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+  class="relative overflow-x-auto pb-2 focus-visible:outline-2 focus-visible:outline-offset-2"
   role="region"
   aria-label={label}
   tabindex={breiter ? 0 : undefined}

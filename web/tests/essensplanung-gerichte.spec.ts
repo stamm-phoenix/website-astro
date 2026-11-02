@@ -22,7 +22,7 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
   await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('1,5');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('kg');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('kg');
   await dialog.getByLabel('vegetarisch', { exact: true }).uncheck();
   await dialog.getByLabel('vegan', { exact: true }).uncheck();
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
@@ -207,7 +207,7 @@ test('a dish deleted by someone else shows the unsaved input', async ({ page, br
   await anderes.context().close();
 });
 
-test('drained weight is marked; a typed unit stays when others change the ingredient', async ({
+test('drained weight is marked; a typed unit is saved when others change the ingredient', async ({
   page,
   browser,
 }) => {
@@ -224,7 +224,7 @@ test('drained weight is marked; a typed unit stays when others change the ingred
   await dialog.getByLabel('Zutat', { exact: true }).fill('Kidneyb');
   await dialog.getByRole('option', { name: 'Kidneybohnen' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('2');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('kg');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('kg');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect.poll(() => zeilenMenge(eintopf, 'Kidneybohnen')).toBe('2 kg (ATG)');
 
@@ -237,10 +237,10 @@ test('drained weight is marked; a typed unit stays when others change the ingred
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(eintopf.getByText('Hausbrühe')).toBeVisible();
 
-  // A types 1,5 l while B measures the ingredient in packs: the unit is not turned into packs
+  // A types 1,5 l while B measures the ingredient in packs: the line keeps its own unit
   await eintopf.getByRole('button', { name: 'Hausbrühe ändern' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('1,5');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('l');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('l');
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
@@ -252,13 +252,10 @@ test('drained weight is marked; a typed unit stays when others change the ingred
     .selectOption({ label: 'Packung' });
   await anderes.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click();
   await expect(anderes.getByText('Hausbrühe gespeichert.').first()).toBeVisible();
-  await expect(dialog.getByText(/inzwischen auf „Packung“ umgestellt/)).toBeVisible({
-    timeout: 15_000,
-  });
   await expect(dialog.getByLabel('Einheit', { exact: true })).toHaveValue('l');
   await dialog.getByRole('button', { name: 'Speichern' }).click();
-  await expect(dialog).toBeVisible();
-  await expect(eintopf.getByText(/1,5/)).toHaveCount(0);
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => zeilenMenge(eintopf, 'Hausbrühe')).toBe('1,5 l');
   await anderes.context().close();
 });
 

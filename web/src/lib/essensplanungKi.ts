@@ -52,44 +52,43 @@ function runde(menge: number, einheit: GerichtEinheit): number {
   return Math.max(0.1, menge < 10 ? Math.round(menge * 10) / 10 : Math.round(menge));
 }
 
-/** A line of the recipe preview as typed: amount as text, unit and note. */
+/** An amount of the recipe preview as typed: amount as text and unit. */
 export interface VorschauMenge {
   menge: string;
   einheit: GerichtEinheit;
-  hinweis: string;
 }
 
 /**
- * Amount and unit of a preview line once an ingredient of `art` is chosen for it: kept when the
- * unit fits, pieces converted into grams with the weight per piece of the list; otherwise the
- * amount is emptied, the recipe's amount goes into the note and `neuEintragen` says the amount
- * must be typed again (never „6 Stück“ silently becoming 6 g).
+ * Amount and unit of a preview line once an ingredient of `art` is chosen for it. Without an
+ * amount the unit follows the ingredient; pieces of an ingredient in g become grams with the
+ * weight per piece of the list, the pieces stay as `alternative`; any other unit is kept as it
+ * is, as a line may have a unit of its own („6 Stück“ never silently becomes 6 g).
  */
 export function mengeFuerZutat(
   zeile: VorschauMenge,
   art: EssenEinheitenart,
   grammProStueck: number | null
-): VorschauMenge & { neuEintragen: boolean } {
-  const einheiten = EINHEITEN_JE_ART[art];
-  const passt = einheiten.includes(zeile.einheit);
+): VorschauMenge & { alternative: VorschauMenge | null } {
+  const einheiten: readonly string[] = EINHEITEN_JE_ART[art];
   const menge = leseMenge(zeile.menge);
   if (menge === null || Number.isNaN(menge))
-    return { ...zeile, einheit: passt ? zeile.einheit : einheiten[0], neuEintragen: false };
-  if (passt) return { ...zeile, neuEintragen: false };
-  if (art === 'masse' && zeile.einheit === 'stueck' && grammProStueck !== null)
     return {
       ...zeile,
+      einheit: einheiten.includes(zeile.einheit) ? zeile.einheit : einheiten[0],
+      alternative: null,
+    };
+  if (art === 'masse' && zeile.einheit === 'stueck' && grammProStueck !== null)
+    return {
       menge: mengeFeld(runde(menge * grammProStueck, 'g')),
       einheit: 'g',
-      neuEintragen: false,
+      alternative: { menge: zeile.menge, einheit: zeile.einheit },
     };
-  const angabe = `${mengeFeld(menge)} ${einheitText(zeile.einheit)}`;
-  return {
-    menge: '',
-    einheit: einheiten[0],
-    hinweis: [angabe, zeile.hinweis].filter(Boolean).join(', ').slice(0, 100),
-    neuEintragen: true,
-  };
+  return { ...zeile, alternative: null };
+}
+
+/** „20 EL“ as the preview offers an amount to take instead. */
+export function vorschauText(menge: VorschauMenge): string {
+  return `${menge.menge} ${einheitText(menge.einheit)}`;
 }
 
 /** An amount typed in the preview, scaled by `faktor` (other people); text that is no number stays. */

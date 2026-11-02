@@ -61,7 +61,7 @@
   }
   const kopfVon = (g: Gericht): Kopf => ({
     name: g.name,
-    personen: String(g.personen),
+    personen: g.personen === null ? '' : String(g.personen),
     anleitung: g.anleitung,
     notiz: g.notiz,
     werkzeuge: [...g.werkzeuge],
@@ -148,9 +148,11 @@
     for (const feld of geaenderteFelder) {
       body[feld] =
         feld === 'personen'
-          ? Number.isInteger(personen)
-            ? personen
-            : kopf.personen
+          ? kopf.personen.trim() === ''
+            ? null
+            : Number.isInteger(personen)
+              ? personen
+              : kopf.personen
           : feld === 'links'
             ? linkIndex.map((index) => kopf.links[index])
             : kopf[feld];
@@ -212,210 +214,238 @@
   const plaetze = $derived(plaetzeVon(ansicht, gericht.id));
 </script>
 
-<div class="space-y-5">
-  <div class="flex flex-wrap items-center justify-between gap-2">
-    <div class="space-y-1">
-      <p class="text-neutral-700">Mengen für {gericht.personen} Personen</p>
-      <GerichtPlaetze {plaetze} />
-    </div>
-    <div class="flex flex-wrap gap-2 print:hidden">
-      <!-- Only with the list, so the card names all allergens -->
-      <PdfKnopf
-        {kontext}
-        label="Rezeptkarte als PDF"
-        ariaLabel="Rezeptkarte als PDF: {gericht.name}"
-        disabled={!katalog}
-        erstellen={onpdf}
-      />
-      {#if bearbeiten}
-        <ActionButton
-          type="button"
-          variant="danger"
-          disabled={kontext.busy}
-          onclick={() => void loeschen()}>Gericht löschen</ActionButton
-        >
-      {/if}
-    </div>
-  </div>
-
-  <!-- Stays during maintenance, so a recipe being read is not lost; its actions wait -->
-  {#if ansicht.zugang !== 'lesen'}<GerichtKi
-      {kontext}
-      {katalog}
-      {gericht}
-      {zutaten}
-      {bearbeiten}
-    />{/if}
-
-  {#if warnungen.length}
-    <ul class="space-y-1 border-l-4 border-warning py-1 pl-3 text-sm text-warning" role="status">
-      {#each warnungen as warnung, index (index)}
-        <li>{warnung.text}</li>
-      {/each}
-    </ul>
-  {/if}
-
-  <GerichtZutatenListe
-    {kontext}
-    {katalog}
-    {gericht}
-    {bearbeiten}
-    {zutaten}
-    {unvertraeglichkeiten}
-    bind:neueZeile
-  />
-
-  {#if bearbeiten}
-    <form class="space-y-4 print:hidden" onsubmit={speichern}>
-      <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
-        <FormField id="gericht-{gericht.id}-name" label="Name" error={felder.name}>
-          {#snippet children(attrs)}
-            <input {...attrs} class="form-input" maxlength="150" bind:value={kopf.name} />
-          {/snippet}
-        </FormField>
-        <FormField
-          id="gericht-{gericht.id}-personen"
-          label="Personen"
-          error={felder.personen}
-          info="Für so viele Personen gelten die Mengen der Zutaten."
-        >
-          {#snippet children(attrs)}
-            <input {...attrs} class="form-input" inputmode="numeric" bind:value={kopf.personen} />
-          {/snippet}
-        </FormField>
+<div class="space-y-4">
+  <!-- Everything about the dish itself on top, the ingredients clearly apart below -->
+  <section class="surface-muted space-y-3 rounded-md p-3" aria-label="Angaben zu {gericht.name}">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="space-y-1">
+        <p class="text-neutral-700">
+          {gericht.personen === null ? 'Feste Mengen' : `Mengen für ${gericht.personen} Personen`}
+        </p>
+        <GerichtPlaetze {plaetze} />
       </div>
-      <FormField
-        id="gericht-{gericht.id}-anleitung"
-        label="Anleitung"
-        labelAs="span"
-        optional
-        error={felder.anleitung}
-      >
-        {#snippet children(attrs)}
-          {#if editorGeladen}
-            <LazyTextEditor
-              id={attrs.id}
-              labelledBy="{attrs.id}-label"
-              describedBy={attrs['aria-describedby']}
-              invalid={attrs['aria-invalid'] === 'true'}
-              placeholder="z. B. Zwiebeln anbraten, dann …"
-              maxLength={20_000}
-              bind:value={kopf.anleitung}
-            />
-          {/if}
-        {/snippet}
-      </FormField>
-      <FormField
-        id="gericht-{gericht.id}-werkzeuge"
-        label="Werkzeuge"
-        optional
-        error={felder.werkzeuge}
-      >
-        {#snippet children(attrs)}
-          <TagInput
-            id={attrs.id}
-            tags={kopf.werkzeuge}
-            placeholder="z. B. Pürierstab"
-            onchange={(werkzeuge) => (kopf.werkzeuge = werkzeuge)}
-            ondraftchange={(text) => (werkzeugEntwurf = text)}
-          />
-        {/snippet}
-      </FormField>
-      <fieldset class="space-y-2">
-        <legend class="form-label">Links</legend>
-        {#each kopf.links as link, index (index)}
-          <div class="flex flex-wrap items-end gap-2">
+      <div class="flex flex-wrap gap-2 print:hidden">
+        <!-- Only with the list, so the card names all allergens -->
+        <PdfKnopf
+          {kontext}
+          label="Rezeptkarte als PDF"
+          ariaLabel="Rezeptkarte als PDF: {gericht.name}"
+          disabled={!katalog}
+          erstellen={onpdf}
+        />
+        {#if bearbeiten}
+          <ActionButton
+            type="button"
+            variant="danger"
+            disabled={kontext.busy}
+            onclick={() => void loeschen()}>Gericht löschen</ActionButton
+          >
+        {/if}
+      </div>
+    </div>
+
+    {#if bearbeiten}
+      <form class="space-y-3 print:hidden" onsubmit={speichern}>
+        <div class="grid gap-x-6 gap-y-3 lg:grid-cols-2">
+          <div class="space-y-3">
+            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+              <FormField id="gericht-{gericht.id}-name" label="Name" error={felder.name}>
+                {#snippet children(attrs)}
+                  <input {...attrs} class="form-input" maxlength="150" bind:value={kopf.name} />
+                {/snippet}
+              </FormField>
+              <FormField
+                id="gericht-{gericht.id}-personen"
+                label="Personen"
+                error={felder.personen}
+                info="Für so viele Personen gelten die Mengen und wachsen mit den Essern. Leer gelten sie fest für jede Einplanung, z. B. 2 Brote fürs Frühstück."
+              >
+                {#snippet children(attrs)}
+                  <input
+                    {...attrs}
+                    class="form-input"
+                    inputmode="numeric"
+                    placeholder="leer: feste Mengen"
+                    bind:value={kopf.personen}
+                  />
+                {/snippet}
+              </FormField>
+            </div>
             <FormField
-              id="gericht-{gericht.id}-link-{index}-titel"
-              label="Titel"
+              id="gericht-{gericht.id}-werkzeuge"
+              label="Werkzeuge"
               optional
-              class="min-w-0 flex-1"
-              error={felder[`links.${index}.titel`]}
+              error={felder.werkzeuge}
             >
               {#snippet children(attrs)}
-                <input {...attrs} class="form-input" maxlength="100" bind:value={link.titel} />
-              {/snippet}
-            </FormField>
-            <FormField
-              id="gericht-{gericht.id}-link-{index}-url"
-              label="Adresse"
-              class="min-w-0 flex-[2]"
-              error={felder[`links.${index}.url`]}
-            >
-              {#snippet children(attrs)}
-                <input
-                  {...attrs}
-                  class="form-input"
-                  type="url"
-                  placeholder="https://"
-                  bind:value={link.url}
+                <TagInput
+                  id={attrs.id}
+                  tags={kopf.werkzeuge}
+                  placeholder="z. B. Pürierstab"
+                  kompakt
+                  onchange={(werkzeuge) => (kopf.werkzeuge = werkzeuge)}
+                  ondraftchange={(text) => (werkzeugEntwurf = text)}
                 />
               {/snippet}
             </FormField>
-            <ActionButton
-              type="button"
-              aria-label="Link {index + 1} entfernen"
-              onclick={() => kopf.links.splice(index, 1)}>Entfernen</ActionButton
-            >
-          </div>
-        {/each}
-        <ActionButton
-          type="button"
-          disabled={kopf.links.length >= 10}
-          onclick={() => kopf.links.push({ titel: '', url: '' })}>Link hinzufügen</ActionButton
-        >
-      </fieldset>
-      <FormField id="gericht-{gericht.id}-notiz" label="Notiz" optional error={felder.notiz}>
-        {#snippet children(attrs)}
-          <textarea {...attrs} class="form-input min-h-20" bind:value={kopf.notiz}></textarea>
-        {/snippet}
-      </FormField>
-      <ActionButton type="submit" variant="primary" disabled={kontext.busy || !entwurf}
-        >Gericht speichern</ActionButton
-      >
-    </form>
-  {/if}
-
-  <!-- Read-only and for the recipe card -->
-  <div class={bearbeiten ? 'hidden space-y-3 print:block' : 'space-y-3'}>
-    {#if gericht.anleitung}
-      <div>
-        <h4 class="font-semibold text-brand-900">Anleitung</h4>
-        <div class="[overflow-wrap:anywhere]">
-          <ProtokollText text={gericht.anleitung} headingLevel={5} />
-        </div>
-      </div>
-    {/if}
-    {#if gericht.werkzeuge.length}
-      <div>
-        <h4 class="font-semibold text-brand-900">Werkzeuge</h4>
-        <p>{gericht.werkzeuge.join(', ')}</p>
-      </div>
-    {/if}
-    {#if gericht.links.length}
-      <div>
-        <h4 class="font-semibold text-brand-900">Links</h4>
-        <ul>
-          {#each gericht.links as link, index (index)}
-            <li class="[overflow-wrap:anywhere]">
-              <a
-                class="text-link underline"
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer">{link.titel || link.url}</a
+            <fieldset class="space-y-2">
+              <legend class="form-label">Links</legend>
+              {#each kopf.links as link, index (index)}
+                <div class="flex flex-wrap items-end gap-2">
+                  <FormField
+                    id="gericht-{gericht.id}-link-{index}-titel"
+                    label="Titel"
+                    optional
+                    class="min-w-0 flex-1"
+                    error={felder[`links.${index}.titel`]}
+                  >
+                    {#snippet children(attrs)}
+                      <input
+                        {...attrs}
+                        class="form-input"
+                        maxlength="100"
+                        bind:value={link.titel}
+                      />
+                    {/snippet}
+                  </FormField>
+                  <FormField
+                    id="gericht-{gericht.id}-link-{index}-url"
+                    label="Adresse"
+                    class="min-w-0 flex-[2]"
+                    error={felder[`links.${index}.url`]}
+                  >
+                    {#snippet children(attrs)}
+                      <input
+                        {...attrs}
+                        class="form-input"
+                        type="url"
+                        placeholder="https://"
+                        bind:value={link.url}
+                      />
+                    {/snippet}
+                  </FormField>
+                  <ActionButton
+                    type="button"
+                    aria-label="Link {index + 1} entfernen"
+                    onclick={() => kopf.links.splice(index, 1)}>Entfernen</ActionButton
+                  >
+                </div>
+              {/each}
+              <ActionButton
+                type="button"
+                disabled={kopf.links.length >= 10}
+                onclick={() => kopf.links.push({ titel: '', url: '' })}
+                >Link hinzufügen</ActionButton
               >
-              <!-- Paper has no links: the address is printed after the title -->
-              {#if link.titel}<span class="hidden print:inline">({link.url})</span>{/if}
-            </li>
-          {/each}
-        </ul>
-      </div>
+            </fieldset>
+            <FormField id="gericht-{gericht.id}-notiz" label="Notiz" optional error={felder.notiz}>
+              {#snippet children(attrs)}
+                <textarea {...attrs} class="form-input min-h-20" bind:value={kopf.notiz}></textarea>
+              {/snippet}
+            </FormField>
+          </div>
+          <div>
+            <FormField
+              id="gericht-{gericht.id}-anleitung"
+              label="Anleitung"
+              labelAs="span"
+              optional
+              error={felder.anleitung}
+            >
+              {#snippet children(attrs)}
+                {#if editorGeladen}
+                  <LazyTextEditor
+                    id={attrs.id}
+                    labelledBy="{attrs.id}-label"
+                    describedBy={attrs['aria-describedby']}
+                    invalid={attrs['aria-invalid'] === 'true'}
+                    placeholder="z. B. Zwiebeln anbraten, dann …"
+                    maxLength={20_000}
+                    bind:value={kopf.anleitung}
+                  />
+                {/if}
+              {/snippet}
+            </FormField>
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <ActionButton type="submit" variant="primary" disabled={kontext.busy || !entwurf}
+            >Gericht speichern</ActionButton
+          >
+        </div>
+      </form>
     {/if}
-    {#if gericht.notiz}
-      <div>
-        <h4 class="font-semibold text-brand-900">Notiz</h4>
-        <p class="whitespace-pre-line [overflow-wrap:anywhere]">{gericht.notiz}</p>
-      </div>
+
+    <!-- Read-only and for the recipe card -->
+    <div class={bearbeiten ? 'hidden space-y-3 print:block' : 'space-y-3'}>
+      {#if gericht.anleitung}
+        <div>
+          <h4 class="font-semibold text-brand-900">Anleitung</h4>
+          <div class="[overflow-wrap:anywhere]">
+            <ProtokollText text={gericht.anleitung} headingLevel={5} />
+          </div>
+        </div>
+      {/if}
+      {#if gericht.werkzeuge.length}
+        <div>
+          <h4 class="font-semibold text-brand-900">Werkzeuge</h4>
+          <p>{gericht.werkzeuge.join(', ')}</p>
+        </div>
+      {/if}
+      {#if gericht.links.length}
+        <div>
+          <h4 class="font-semibold text-brand-900">Links</h4>
+          <ul>
+            {#each gericht.links as link, index (index)}
+              <li class="[overflow-wrap:anywhere]">
+                <a
+                  class="text-link underline"
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer">{link.titel || link.url}</a
+                >
+                <!-- Paper has no links: the address is printed after the title -->
+                {#if link.titel}<span class="hidden print:inline">({link.url})</span>{/if}
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
+      {#if gericht.notiz}
+        <div>
+          <h4 class="font-semibold text-brand-900">Notiz</h4>
+          <p class="whitespace-pre-line [overflow-wrap:anywhere]">{gericht.notiz}</p>
+        </div>
+      {/if}
+    </div>
+  </section>
+
+  <section class="space-y-3 border-t-2 border-neutral-300 pt-4">
+    <GerichtZutatenListe
+      {kontext}
+      {katalog}
+      {gericht}
+      {bearbeiten}
+      {zutaten}
+      {unvertraeglichkeiten}
+      bind:neueZeile
+    />
+
+    {#if warnungen.length}
+      <ul class="space-y-1 border-l-4 border-warning py-1 pl-3 text-sm text-warning" role="status">
+        {#each warnungen as warnung, index (index)}
+          <li>{warnung.text}</li>
+        {/each}
+      </ul>
     {/if}
-  </div>
+
+    <!-- Stays during maintenance, so a recipe being read is not lost; its actions wait -->
+    {#if ansicht.zugang !== 'lesen'}<GerichtKi
+        {kontext}
+        {katalog}
+        {gericht}
+        {zutaten}
+        {bearbeiten}
+      />{/if}
+  </section>
 </div>

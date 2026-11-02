@@ -66,10 +66,7 @@ test('wrong status, amounts and units are refused', () => {
     falsch({ planungZutatId: 1, menge: 2_000_000, einheit: 'g' }),
     'Die Menge ist zu groß.'
   );
-  assert.equal(
-    falsch({ planungZutatId: 1, menge: 2, einheit: 'dose' }),
-    'Bitte eine Einheit wählen.'
-  );
+  assert.equal(falsch({ planungZutatId: 1, menge: 2, einheit: '' }), 'Bitte eine Einheit wählen.');
   assert.equal(
     falsch({ planungZutatId: 0, menge: 2, einheit: 'g' }),
     'Diese Zutat gibt es nicht. Bitte lade die Seite neu.'

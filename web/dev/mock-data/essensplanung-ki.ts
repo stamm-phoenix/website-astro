@@ -18,7 +18,7 @@ import { leseKiRezept, rezeptKandidaten } from '../../../api/lib/essen-ki-rezept
 import { essenKatalog } from './essensplanung';
 import { gerichteAnsicht, gerichtZutatAnlegen } from './essensplanung-gerichte';
 import type { MockZugang } from './essensplanung-planung';
-import { MockPlanungFehler, aendere } from './essensplanung-planung';
+import { MockPlanungFehler, aendere, neuesEtag } from './essensplanung-planung';
 
 /** The deployment is busy; the mock answers 429 with this `Retry-After`. */
 export class MockKiBesetzt extends Error {
@@ -63,6 +63,7 @@ export function kiPruefen(z: MockZugang, gerichtId: number, wartung: boolean): K
     fuerVegan: null,
   };
   const hinweise: unknown[] = [];
+  // Without people the amounts are fixed totals, which can be proposed like the API does
   const erste = gericht.zutaten.findIndex((zeile) => zeile.menge !== null);
   if (erste >= 0) {
     const zeile = gericht.zutaten[erste];
@@ -70,7 +71,10 @@ export function kiPruefen(z: MockZugang, gerichtId: number, wartung: boolean): K
       ...leer,
       art: 'menge',
       zeile: erste + 1,
-      text: `Die Menge wirkt für ${gericht.personen} Personen knapp.`,
+      text:
+        gericht.personen === null
+          ? 'Die Menge wirkt knapp.'
+          : `Die Menge wirkt für ${gericht.personen} Personen knapp.`,
       vorschlag: 'Etwa doppelt so viel einplanen.',
       menge: zeile.menge! * 2,
       einheit: zeile.einheit,
@@ -110,6 +114,12 @@ const EINHEIT: Record<string, string> = {
   packung: 'packung',
   pck: 'packung',
   bund: 'bund',
+  dose: 'packung',
+  dosen: 'packung',
+  becher: 'packung',
+  glas: 'packung',
+  zehe: 'stueck',
+  zehen: 'stueck',
 };
 
 /**
@@ -137,7 +147,7 @@ export function kiRezept(
       continue;
     }
     const teile =
-      /^(\d+(?:[.,]\d+)?)?\s*(g|kg|ml|l|EL|TL|Stück|Prise|Packung|Pck\.?|Bund)?\.?\s+(.+)$/i.exec(
+      /^(\d+(?:[.,]\d+)?)?\s*(g|kg|ml|l|EL|TL|Stück|Prise|Packung|Pck\.?|Bund|Dosen?|Becher|Glas|Zehen?)?\.?\s+(.+)$/i.exec(
         zeile
       );
     const name = (teile?.[3] ?? zeile).trim();
@@ -152,6 +162,8 @@ export function kiRezept(
       key: kandidat?.key ?? null,
       menge: teile?.[1] ? Number(teile[1].replace(',', '.')) : null,
       einheit: teile?.[1] ? (einheit ?? 'stueck') : null,
+      // The word of the recipe, as the model gives it
+      einheitRezept: teile?.[2] ?? '',
       hinweis: '',
     });
   }
@@ -178,19 +190,25 @@ export function kiUmrechnung(
 }
 
 /** Refuses amounts worked out for other people than the dish has now, like the API. */
-export function pruefePersonen(gericht: { personen: number }, personen: number | undefined): void {
+export function pruefePersonen(
+  gericht: { personen: number | null },
+  personen: number | null | undefined
+): void {
   if (personen !== undefined && gericht.personen !== personen)
     throw new MockPlanungFehler(
       409,
       'PERSONEN_GEAENDERT',
-      `Die Personenzahl des Gerichts wurde inzwischen auf ${gericht.personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
+      gericht.personen === null
+        ? 'Die Personenzahl des Gerichts wurde inzwischen entfernt. Die Mengen sind für eine Personenzahl gerechnet; bitte prüfen und noch einmal übernehmen.'
+        : `Die Personenzahl des Gerichts wurde inzwischen auf ${gericht.personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
     );
 }
 
 /** A line changed with `personen` (a proposal of the AI): the dish must still have them. */
 export function pruefePersonenDerZeile(z: MockZugang, zeileId: number, personen: unknown): void {
   const gericht = z.planung.gerichte.find((g) => g.zutaten.some((zeile) => zeile.id === zeileId));
-  if (gericht && typeof personen === 'number') pruefePersonen(gericht, personen);
+  if (gericht && (typeof personen === 'number' || personen === null))
+    pruefePersonen(gericht, personen);
 }
 
 /** Adds lines at the end of a dish in one change, all or none, like the API; `personen` as there. */
@@ -198,7 +216,8 @@ export function gerichtZutatenSammeln(
   z: MockZugang,
   gerichtId: number,
   inputs: GerichtZutatInput[],
-  personen?: number
+  personen?: number | null,
+  personenSetzen?: number
 ): void {
   const gericht = z.planung.gerichte.find((entry) => entry.id === gerichtId);
   if (!gericht) throw new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');
@@ -246,7 +265,13 @@ export function gerichtZutatenSammeln(
         .slice(-inputs.length)
         .map((zeile) => nachId.get(zeile.planungZutatId)?.name ?? '')
         .slice(0, 10),
+      ...(personenSetzen !== undefined ? { personen: personenSetzen } : {}),
     },
-    () => undefined
+    () => {
+      // The people of the recipe go in the same change as its lines
+      if (personenSetzen === undefined) return;
+      gericht.personen = personenSetzen;
+      gericht.etag = neuesEtag();
+    }
   );
 }

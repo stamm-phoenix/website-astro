@@ -1,7 +1,4 @@
 import { sql } from 'kysely';
-import type { Transaction } from 'kysely';
-import type { Database } from './db-schema';
-import { einheitPasst, zutatSperre } from './essen-gerichte-model';
 import type { Db } from './db';
 import {
   RecordNotFoundError,
@@ -9,7 +6,6 @@ import {
   getDb,
   getSqlErrorNumber,
   inTransaction,
-  lockResource,
   parseId,
   requireVersion,
   toDateString,
@@ -17,7 +13,6 @@ import {
 } from './db';
 import type {
   EssenAuditEntry,
-  EssenEinheitenart,
   EssenEinstellungen,
   EssenKategorie,
   EssenPlanungUebersicht,
@@ -29,6 +24,7 @@ import type {
 } from './essen-validation';
 import { COLLATOR, readGruppen, readStrings } from './essen-validation';
 import { deletePlanung } from './essen-planung-loeschen';
+import { belegOrdnerAufraeumen } from './essen-belege';
 import { loeschDatum } from './essen-planung-model';
 import type { FieldErrors } from './validation/errors';
 import { ValidationError } from './validation/errors';
@@ -252,6 +248,8 @@ export async function deletePlanungSteuerung(
     await deletePlanung(trx, numericId);
     await audit(trx, actor, 'planung-geloescht', { id: numericId, name: row.name });
   });
+  // Photos only after the commit; what fails is tried again later
+  await belegOrdnerAufraeumen();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -409,70 +407,6 @@ const ZUTAT_FIELDS: Record<keyof ZutatInput, string> = {
   allergene: 'allergene',
 };
 
-/**
- * A new kind of unit must fit the amounts of the dishes that inherit it; Planungen with their own
- * kind for the ingredient keep it. Holds the ingredient's lock, so no such line is saved meanwhile.
- */
-async function pruefeGenutzteEinheiten(
-  trx: Transaction<Database>,
-  zutatId: number,
-  art: EssenEinheitenart
-): Promise<void> {
-  await lockResource(trx, zutatSperre(zutatId));
-  const zeilen = await trx
-    .selectFrom('essen.gericht_zutat as gz')
-    .innerJoin('essen.planung_zutat as pz', 'pz.id', 'gz.planung_zutat_id')
-    .select('gz.einheit')
-    .where('pz.zutat_id', '=', zutatId)
-    .where('pz.einheitenart', 'is', null)
-    .where('gz.einheit', 'is not', null)
-    .execute();
-  // Stock, extra needs, what was cooked and the shopping trips of the Planungen measure it too
-  const posten = await Promise.all([
-    trx
-      .selectFrom('essen.bestand as p')
-      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
-      .select('p.einheit')
-      .where('pz.zutat_id', '=', zutatId)
-      .where('pz.einheitenart', 'is', null)
-      .execute(),
-    trx
-      .selectFrom('essen.zusatzbedarf as p')
-      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
-      .select('p.einheit')
-      .where('pz.zutat_id', '=', zutatId)
-      .where('pz.einheitenart', 'is', null)
-      .execute(),
-    trx
-      .selectFrom('essen.einplanung_verbrauch as p')
-      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
-      .select('p.einheit')
-      .where('pz.zutat_id', '=', zutatId)
-      .where('pz.einheitenart', 'is', null)
-      .execute(),
-    trx
-      .selectFrom('essen.einkauf_posten as p')
-      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
-      .select('p.einheit')
-      .where('pz.zutat_id', '=', zutatId)
-      .where('pz.einheitenart', 'is', null)
-      .execute(),
-    trx
-      .selectFrom('essen.einkauf_regel as p')
-      .innerJoin('essen.planung_zutat as pz', 'pz.id', 'p.planung_zutat_id')
-      .select('p.einheit')
-      .where('pz.zutat_id', '=', zutatId)
-      .where('pz.einheitenart', 'is', null)
-      .execute(),
-  ]);
-  if ([...zeilen, ...posten.flat()].some((zeile) => !einheitPasst(art, zeile.einheit))) {
-    throw new ValidationError({
-      einheitenart:
-        'Planungen messen diese Zutat in der bisherigen Einheit. Sie bleibt, wie sie ist.',
-    });
-  }
-}
-
 /** Saves an ingredient if it still has the version `etag`. */
 export async function updateZutat(
   id: string,
@@ -485,9 +419,6 @@ export async function updateZutat(
     inTransaction(async (trx) => {
       await checkReferences(trx, input);
       const before = (await listZutaten(trx)).find((zutat) => zutat.id === numericId);
-      if (before && before.einheitenart !== input.einheitenart) {
-        await pruefeGenutzteEinheiten(trx, numericId, input.einheitenart);
-      }
       const result = await trx
         .updateTable('essen.zutat')
         .set({ ...zutatColumns(input, actor), geaendert_am: sql<Date>`SYSUTCDATETIME()` })

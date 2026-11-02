@@ -132,6 +132,10 @@ export interface Database {
   'essen.einkauf_posten': EssenEinkaufPostenTable;
   'essen.einkauf_regel': EssenEinkaufRegelTable;
   'essen.packliste_eintrag': EssenPacklisteEintragTable;
+  'essen.packliste_zuteilung': EssenPacklisteZuteilungTable;
+  'essen.beleg': EssenBelegTable;
+  'essen.beleg_ordner_loeschen': EssenBelegOrdnerLoeschenTable;
+  'essen.beleg_ordner': EssenBelegOrdnerTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -1093,7 +1097,8 @@ export interface EssenGerichtTable {
   version: ReadOnly<Buffer>;
   planung_id: number;
   name: string;
-  personen: number;
+  /** `NULL`: no reference number of people yet (`0075`). */
+  personen: number | null;
   anleitung: Generated<string>;
   notiz: Generated<string>;
   /** JSON array of `{ titel, url }`. */
@@ -1210,9 +1215,57 @@ export interface EssenPacklisteEintragTable {
   /** The normalized name of a tool of the dishes; null for an entry of its own. */
   werkzeug: string | null;
   name: string;
+  /** The whole entry: its one box, or with persons assigned whether all of them packed. */
   gepackt: Generated<boolean>;
-  zustaendig_mitglied_id: number | null;
+  /** Not read any more since `0076` (`essen.packliste_zuteilung`); dropped later. */
+  zustaendig_mitglied_id: Generated<number | null>;
+  /** Not read any more since `0076`; dropped later. */
   zustaendig_text: Generated<string>;
+}
+
+/** `essen.packliste_zuteilung` (`0076`): a person who packs an entry, with their own box. */
+export interface EssenPacklisteZuteilungTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  eintrag_id: number;
+  /** A member of the Planung, or null for a free name. */
+  mitglied_id: number | null;
+  /** The free name; empty for a member. */
+  name: Generated<string>;
+  gepackt: Generated<boolean>;
+}
+
+/** `essen.beleg_ordner_loeschen`: photo folders of deleted Planungen still to clean up (`0072`). */
+export interface EssenBelegOrdnerLoeschenTable {
+  planung_id: number;
+  angelegt_am: Generated<Date>;
+}
+
+/** `essen.beleg_ordner`: Planungen that ever stored a receipt photo (`0073`). */
+export interface EssenBelegOrdnerTable {
+  planung_id: number;
+  angelegt_am: Generated<Date>;
+}
+
+/** `essen.beleg`: a receipt of a Planung, who paid it and whether it was paid back (`0071`). */
+export interface EssenBelegTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  planung_id: number;
+  datum: SqlDate;
+  betrag_cent: number;
+  haendler: Generated<string>;
+  notiz: Generated<string>;
+  /** A member, or null with a free name in `bezahlt_von_text`. */
+  bezahlt_von_mitglied_id: number | null;
+  bezahlt_von_text: Generated<string>;
+  erstattet: Generated<boolean>;
+  erstattet_am: Date | null;
+  erstattet_von_mitglied_id: number | null;
+  /** File name in `essen-belege/<planung_id>/`; null without a photo. */
+  foto: string | null;
+  angelegt_von_mitglied_id: number | null;
+  angelegt_am: Generated<Date>;
 }
 
 /** `essen.zusatzbedarf`: like the stock, but an amount is optional („Kochhandschuhe“). */
@@ -1249,6 +1302,8 @@ export interface EssenEinkaufPostenTable {
   ersatz: Generated<string>;
   abgehakt_von_mitglied_id: number | null;
   abgehakt_am: Generated<Date>;
+  /** binary(8): @@DBTS when ticked off (`0074`); null only for rows of before. */
+  abgehakt_stand: Buffer | null;
 }
 
 /** `essen.einkauf_regel`: a hand-made rule for an ingredient on a shopping trip. */

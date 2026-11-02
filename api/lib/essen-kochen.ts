@@ -1,12 +1,10 @@
 import type { Transaction } from 'kysely';
 import type { Database } from './db-schema';
-import { VersionConflictError, lockResource, requireVersion, toDateString } from './db';
+import { VersionConflictError, requireVersion, toDateString } from './db';
 import { einplanungDerPlanung, mahlzeitDerPlanung } from './essen-einplanung';
-import { einheitPasst, einheitText, zutatSperre } from './essen-gerichte-model';
 import type { AbhakenInput, Verbrauch } from './essen-kochen-model';
 import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
-import { zutatDerPlanung } from './essen-planung-zutat';
 import { ValidationError } from './validation/errors';
 
 /**
@@ -14,7 +12,7 @@ import { ValidationError } from './validation/errors';
  * with what was really used, or left out. The stock of the Planung follows from it.
  */
 
-/** Every ingredient used must be one of this Planung, measured in its kind of unit. */
+/** Every ingredient used must be one of this Planung; any unit fits it. */
 async function pruefeZutaten(
   trx: Transaction<Database>,
   zugang: Zugang,
@@ -24,7 +22,7 @@ async function pruefeZutaten(
   if (!ids.length) return;
   const zeilen = await trx
     .selectFrom('essen.planung_zutat')
-    .select(['id', 'zutat_id', 'einheitenart'])
+    .select('id')
     .where('planung_id', '=', zugang.planungId)
     .where('id', 'in', ids)
     .execute();
@@ -32,26 +30,6 @@ async function pruefeZutaten(
     throw new ValidationError({
       verbrauch: 'Eine der Zutaten gibt es nicht mehr. Bitte lade die Seite neu.',
     });
-  }
-  // An inherited kind of unit is locked like the other amounts of a Planung do it, in the order
-  // of the central ingredients, so two Planungen never wait for each other
-  const zentral = [
-    ...new Set(
-      zeilen.flatMap((z) => (z.zutat_id !== null && z.einheitenart === null ? [z.zutat_id] : []))
-    ),
-  ].sort((x, y) => x - y);
-  for (const zutatId of zentral) await lockResource(trx, zutatSperre(zutatId));
-  for (const id of ids) {
-    const zutat = await zutatDerPlanung(trx, zugang, id);
-    const art = (zutat.einheitenart ?? zutat.z_einheitenart)!;
-    const falsch = verbrauch.find(
-      (eintrag) => eintrag.planungZutatId === id && !einheitPasst(art, eintrag.einheit)
-    );
-    if (falsch) {
-      throw new ValidationError({
-        verbrauch: `${zutat.name ?? zutat.z_name} wird nicht in ${einheitText(falsch.einheit)} gemessen. Bitte lade die Seite neu.`,
-      });
-    }
   }
 }
 

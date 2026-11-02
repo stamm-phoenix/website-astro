@@ -14,7 +14,10 @@ export function liveOffen(einkaufId: number): () => void {
   };
 }
 
-/** Rows of the live mode on screen (`<einkaufId>:<planungZutatId>`), counted. */
+/**
+ * Rows of the live mode on screen by `<einkaufId>:<key>`, the key of the thing on the list
+ * (`<planungZutatId>:<Basiseinheit>`, or `<planungZutatId>:` without an amount), counted.
+ */
 export const sichtbar = new Map<string, number>();
 
 /** Unsaved input of a row of the live mode, kept while the trip shows its list or form. */
@@ -26,13 +29,19 @@ export interface LiveEntwurf {
   konflikt: string | null;
 }
 
-/** Unsaved input by `<einkaufId>:<planungZutatId>`, also of rows not on screen now. */
+/**
+ * Unsaved input by `<einkaufId>:<key>` as for `sichtbar`, also of rows not on screen now: the same
+ * ingredient in g and in Bund keeps two.
+ */
 export const entwuerfe = new Map<string, LiveEntwurf>();
 
 /** The row whose amount is open, by trip, so it opens again when coming back. */
 export const offeneZeile = new Map<number, string>();
 
-/** An unsaved fixed amount in the list of a trip, by `<einkaufId>:<planungZutatId>`. */
+/**
+ * An unsaved fixed amount in the list of a trip, by `<einkaufId>:<planungZutatId>`: a trip has one
+ * fixed amount per ingredient, whatever unit its things stand in.
+ */
 export interface FestEntwurf {
   menge: string;
   einheit: GerichtEinheit;

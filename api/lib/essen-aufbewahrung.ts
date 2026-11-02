@@ -4,6 +4,7 @@ import { getDb, toDateString } from './db';
 import { essenMail, loeschwarnungMail } from './essen-mails';
 import { addDays, LOESCHWARNUNG_TAGE, loeschDatum } from './essen-planung-model';
 import { deletePlanung } from './essen-planung-loeschen';
+import { belegOrdnerAufraeumen } from './essen-belege';
 import { loadEssenEinstellungen } from './essen-steuerung';
 
 /**
@@ -17,6 +18,8 @@ export interface AufbewahrungErgebnis {
   gewarnt: number;
   anfragenGeloescht: number;
   mailFehler: number;
+  /** Photo folders of deleted Planungen removed from Blob Storage. */
+  fotoOrdnerGeloescht: number;
 }
 
 /** The day a Planung is deleted, from its last day (or the day it was created without days). */
@@ -45,6 +48,7 @@ export async function raeumeAuf(
     gewarnt: 0,
     anfragenGeloescht: 0,
     mailFehler: 0,
+    fotoOrdnerGeloescht: 0,
   };
 
   const anfragen = await db
@@ -116,5 +120,7 @@ export async function raeumeAuf(
     }
     if (gewarnt) ergebnis.gewarnt++;
   }
+  // The photos of deleted Planungen, also those a deletion before could not remove
+  ergebnis.fotoOrdnerGeloescht = await belegOrdnerAufraeumen(db);
   return ergebnis;
 }

@@ -89,12 +89,22 @@ import type { EssenListe, EssenMockResult } from './mock-data/essensplanung';
 import { essenAudit, essenEinstellungen, essenKatalog } from './mock-data/essensplanung';
 import * as essenPlanung from './mock-data/essensplanung-planung';
 import * as essenGerichte from './mock-data/essensplanung-gerichte';
+import * as essenEinplanung from './mock-data/essensplanung-einplanung';
 import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
 import * as essenEinkauf from './mock-data/essensplanung-einkauf';
 import * as essenPackliste from './mock-data/essensplanung-packliste';
+import * as essenBelege from './mock-data/essensplanung-belege';
+import {
+  readBelegFotoArt,
+  validateBeleg,
+  validateBelegAenderung,
+} from '../../api/lib/essen-belege-validation';
 import * as essenKi from './mock-data/essensplanung-ki';
+import * as essenEinheiten from './mock-data/essensplanung-einheiten';
+import { validateEinheiten } from '../../api/lib/essen-einheiten-schema';
 import * as essenKochen from './mock-data/essensplanung-kochen';
 import * as essenEinkaeufe from './mock-data/essensplanung-einkaeufe';
+import { fuelleDemoPlanung } from './mock-data/essensplanung-demo';
 import {
   readHakenEtag,
   validateEinkauf,
@@ -113,12 +123,15 @@ import {
   validatePackAenderung,
   validatePackEintrag,
   validateWerkzeugAenderung,
+  validateZuteilungAenderung,
 } from '../../api/lib/essen-packliste-validation';
 import { validateGruppe, validateTeilnehmende } from '../../api/lib/essen-teilnehmende-validation';
 import {
   validateGericht,
+  validateNeuesGericht,
   validateGerichtZutat,
   validatePlanungZutat,
+  readPersonenSetzen,
 } from '../../api/lib/essen-gerichte-validation';
 import {
   readPosition,
@@ -316,6 +329,9 @@ interface Route {
   /** Images and files are answered without artificial delay. */
   instant?: boolean;
 }
+
+// The demo Planung gets its dishes, plan and participants once
+fuelleDemoPlanung();
 
 const routes: Route[] = [];
 
@@ -1431,8 +1447,12 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/zutaten/:id', (req) => {
 });
 
 route('POST', '/api/essensplanung/planung/gerichte', (req) => {
-  const input = validateGericht(req.json, { neu: true });
-  return essenAendern(req, (z) => ({ id: essenGerichte.gerichtAnlegen(z, input) }), 201);
+  const { gericht, einplanung } = validateNeuesGericht(req.json);
+  return essenAendern(
+    req,
+    (z) => ({ id: essenGerichte.gerichtAnlegen(z, gericht, einplanung) }),
+    201
+  );
 });
 
 route(['PATCH', 'DELETE'], '/api/essensplanung/planung/gerichte/:id', (req) => {
@@ -1488,8 +1508,22 @@ route('POST', '/api/essensplanung/planung/gerichte/:id/zutaten/sammel', (req) =>
   if (Object.keys(fields).length)
     return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', fields);
   const id = Number(req.params.id);
-  const personen = typeof req.json?.personen === 'number' ? req.json.personen : undefined;
-  return essenAendern(req, (z) => essenKi.gerichtZutatenSammeln(z, id, inputs, personen), 201);
+  const personen =
+    typeof req.json?.personen === 'number' || req.json?.personen === null
+      ? (req.json.personen as number | null)
+      : undefined;
+  let personenSetzen: number | undefined;
+  try {
+    personenSetzen = readPersonenSetzen(req.json);
+  } catch (caught) {
+    if (!(caught instanceof ValidationError)) throw caught;
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', caught.fields);
+  }
+  return essenAendern(
+    req,
+    (z) => essenKi.gerichtZutatenSammeln(z, id, inputs, personen, personenSetzen),
+    201
+  );
 });
 
 /** A question to the demo AI; „KI-Fehler“ answers 429 with Retry-After like a busy deployment. */
@@ -1548,7 +1582,7 @@ route('POST', '/api/essensplanung/planung/einplanungen', (req) => {
   const input = validateEinplanung(req.json);
   return essenAendern(
     req,
-    (z) => essenPlanung.einplanen(z, input, readPosition(req.json?.position)),
+    (z) => essenEinplanung.einplanen(z, input, readPosition(req.json?.position)),
     201
   );
 });
@@ -1557,11 +1591,17 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/einplanungen/:id', (req) 
   const id = Number(req.params.id);
   if (req.method === 'DELETE')
     return essenAendern(req, (z) =>
-      essenPlanung.einplanungAendern(z, id, null, req.headers['if-match'])
+      essenEinplanung.einplanungAendern(z, id, null, req.headers['if-match'])
     );
   const input = validateEinplanung(req.json);
   return essenAendern(req, (z) =>
-    essenPlanung.einplanungAendern(z, id, input, req.json?.etag, readPosition(req.json?.position))
+    essenEinplanung.einplanungAendern(
+      z,
+      id,
+      input,
+      req.json?.etag,
+      readPosition(req.json?.position)
+    )
   );
 });
 
@@ -1634,6 +1674,22 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/geschaefte/:id', (req) =>
     );
   const input = validateGeschaeft(req.json);
   return essenAendern(req, (z) => essenEinkauf.geschaeftAendern(z, id, input, req.json?.etag));
+});
+
+route('PUT', '/api/essensplanung/planung/zutaten/:id/einheiten', (req) => {
+  const zeilen = validateEinheiten(req.json);
+  return essenAendern(req, (z) =>
+    essenEinheiten.einheitenUebernehmen(z, Number(req.params.id), zeilen)
+  );
+});
+
+route('POST', '/api/essensplanung/planung/ki/einheiten', (req) => {
+  const id = Number(req.json?.planungZutatId);
+  if (!Number.isInteger(id) || id <= 0)
+    return error(400, 'INVALID', 'Bitte eine Zutat wählen.', {
+      planungZutatId: 'Bitte eine Zutat wählen.',
+    });
+  return essenKiFrage(req, (z, wartung) => essenEinheiten.kiEinheiten(z, id, wartung));
 });
 
 route('PUT', '/api/essensplanung/planung/zutaten/:id/geschaeft', (req) => {
@@ -1713,6 +1769,13 @@ route('PUT', '/api/essensplanung/planung/packliste/werkzeug', (req) => {
   return essenAendern(req, (z) => essenPackliste.werkzeugSetzen(z, input, etag));
 });
 
+route('PATCH', '/api/essensplanung/planung/packliste/zuteilung/:id', (req) => {
+  const { gepackt } = validateZuteilungAenderung(req.json);
+  return essenAendern(req, (z) =>
+    essenPackliste.zuteilungAbhaken(z, Number(req.params.id), gepackt, req.json?.etag)
+  );
+});
+
 route(['PATCH', 'DELETE'], '/api/essensplanung/planung/packliste/:id', (req) => {
   const id = Number(req.params.id);
   if (req.method === 'DELETE')
@@ -1722,6 +1785,69 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/packliste/:id', (req) => 
   const input = validatePackAenderung(req.json);
   return essenAendern(req, (z) => essenPackliste.packEintragAendern(z, id, input, req.json?.etag));
 });
+
+// Belege of a Planung (docs/essensplanung.md, Belege)
+route('POST', '/api/essensplanung/planung/belege', (req) => {
+  const input = validateBeleg(req.json);
+  return essenAendern(
+    req,
+    (z) => essenBelege.belegAnlegen(z, input, essenBelege.fotosAus(req.json)),
+    201
+  );
+});
+
+route('POST', '/api/essensplanung/planung/belege/pruefung', (req) => {
+  try {
+    const zugang = essenZugang(req);
+    if (zugang.zugang === 'lesen')
+      return error(403, 'NUR_LESEN', 'Mit diesem Link kannst du die Planung nur ansehen.');
+  } catch (caught) {
+    return essenFehler(caught);
+  }
+  if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
+    return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
+  return json(essenBelege.demoPruefung(req.query.get('nur') === 'drehung'));
+});
+
+route(['PATCH', 'DELETE'], '/api/essensplanung/planung/belege/:id', (req) => {
+  const id = Number(req.params.id);
+  if (req.method === 'DELETE')
+    return essenAendern(req, (z) => essenBelege.belegAendern(z, id, null, req.headers['if-match']));
+  const input = validateBelegAenderung(req.json);
+  return essenAendern(req, (z) => essenBelege.belegAendern(z, id, input, req.json?.etag));
+});
+
+route(
+  ['GET', 'PUT', 'DELETE'],
+  '/api/essensplanung/planung/belege/:id/foto',
+  (req) => {
+    const id = Number(req.params.id);
+    if (req.method === 'GET') {
+      try {
+        const datei = essenBelege.belegFoto(
+          essenZugang(req),
+          id,
+          readBelegFotoArt(req.query.get('art'))
+        );
+        if (!datei) return notFound('Zu diesem Beleg gibt es kein Foto mehr.');
+        return { kind: 'raw', status: 200, contentType: datei.typ, body: datei.bytes };
+      } catch (caught) {
+        return essenFehler(caught);
+      }
+    }
+    if (req.method === 'DELETE')
+      return essenAendern(req, (z) =>
+        essenBelege.belegFotoSetzen(z, id, null, req.headers['if-match'])
+      );
+    return essenAendern(req, (z) => {
+      const datei = essenBelege.fotosAus(req.json);
+      if (!datei)
+        throw new ValidationError({ photo: 'Bitte ein Foto oder PDF des Belegs wählen.' });
+      essenBelege.belegFotoSetzen(z, id, datei, req.json?.etag);
+    });
+  },
+  true
+);
 
 route('POST', '/api/intern/nikolaus/bookings/:id/message', (req) =>
   bookingById(req.params.id) ? noContent() : notFound()

@@ -149,8 +149,8 @@ dbTest('days and meals change with versions; the shown IDs follow the order', as
     )
   );
   assert.deepEqual(
-    geaendert.tage[0].mahlzeiten.slice(0, 2).map((m) => `${m.kennung} ${m.name} ${m.uhrzeit}`),
-    ['1_1 Mittagessen null', '1_2 Brunch 10:30']
+    geaendert.tage[0].mahlzeiten.slice(0, 2).map((m) => `${m.kennung} ${m.name}`),
+    ['1_1 Mittagessen', '1_2 Brunch']
   );
   assert.equal(geaendert.aenderungen[0].aktion, 'mahlzeit-geaendert');
   assert.equal(geaendert.aenderungen[0].wer, BESITZERIN.name);

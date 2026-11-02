@@ -45,6 +45,11 @@
      * first (a submit), since a button's handler runs before the deferred `oncommit`.
      */
     commitAfterTap?: boolean;
+    /**
+     * The text the suggestions are filtered by, when it is not the value: a unit field shows all
+     * units until something is typed.
+     */
+    filter?: string;
     /** Classes of the element around field and list, e.g. to size it in a flex row. */
     wrapperClass?: string;
   }
@@ -66,6 +71,7 @@
     onkeydown,
     commitAfterTap = false,
     wrapperClass = '',
+    filter,
     class: className = 'form-input',
     disabled,
     ...rest
@@ -80,7 +86,7 @@
   /** Height left between the field and the bottom of the visible screen (keyboard). */
   let maxHeight = $state<number | null>(null);
 
-  const result = $derived(filterVorschlaege(options, value, maxResults));
+  const result = $derived(filterVorschlaege(options, filter ?? value, maxResults));
   const matches = $derived(result.matches);
   const more = $derived(result.total - matches.length);
   /** Matches by heading, in the order the options came in. */
@@ -326,7 +332,7 @@
                 class:bg-neutral-100={markiert === index}
                 onclick={() => pick(option)}
                 ><span
-                  >{#each trefferTeile(option.label ?? option.value, value) as part, partIndex (partIndex)}{#if part.hit}<mark
+                  >{#each trefferTeile(option.label ?? option.value, filter ?? value) as part, partIndex (partIndex)}{#if part.hit}<mark
                         class="treffer">{part.text}</mark
                       >{:else}{part.text}{/if}{/each}</span
                 ></button

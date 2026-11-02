@@ -185,13 +185,22 @@ import {
   EssensplanungPackEintrag,
   EssensplanungPackliste,
   EssensplanungPackWerkzeug,
+  EssensplanungPackZuteilung,
 } from './endpoints/essensplanung-packliste';
 import {
+  EssensplanungBeleg,
+  EssensplanungBelegFoto,
+  EssensplanungBelegPruefung,
+  EssensplanungBelege,
+} from './endpoints/essensplanung-belege';
+import {
   EssensplanungGerichtZutatenSammel,
+  EssensplanungKiEinheiten,
   EssensplanungKiPruefen,
   EssensplanungKiRezept,
   EssensplanungKiUmrechnung,
 } from './endpoints/essensplanung-ki';
+import { EssensplanungZutatEinheiten } from './endpoints/essensplanung-einheiten';
 import {
   EditorCollection,
   EditorItem,
@@ -1459,6 +1468,20 @@ app.http('essensplanungKiUmrechnung', {
   handler: EssensplanungKiUmrechnung,
 });
 
+app.http('essensplanungKiEinheiten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/ki/einheiten',
+  handler: EssensplanungKiEinheiten,
+});
+
+app.http('essensplanungZutatEinheiten', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zutaten/{id}/einheiten',
+  handler: EssensplanungZutatEinheiten,
+});
+
 app.http('essensplanungEinplanungen', {
   methods: ['POST'],
   authLevel: 'anonymous',
@@ -1543,11 +1566,46 @@ app.http('essensplanungPackWerkzeug', {
   handler: EssensplanungPackWerkzeug,
 });
 
+app.http('essensplanungPackZuteilung', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/packliste/zuteilung/{id}',
+  handler: EssensplanungPackZuteilung,
+});
+
 app.http('essensplanungPackEintrag', {
   methods: ['PATCH', 'DELETE'],
   authLevel: 'anonymous',
   route: 'essensplanung/planung/packliste/{id}',
   handler: EssensplanungPackEintrag,
+});
+
+app.http('essensplanungBelege', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege',
+  handler: EssensplanungBelege,
+});
+
+app.http('essensplanungBelegPruefung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege/pruefung',
+  handler: EssensplanungBelegPruefung,
+});
+
+app.http('essensplanungBeleg', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege/{id}',
+  handler: EssensplanungBeleg,
+});
+
+app.http('essensplanungBelegFoto', {
+  methods: ['GET', 'PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege/{id}/foto',
+  handler: EssensplanungBelegFoto,
 });
 
 app.http('essensplanungTeilnehmendeListe', {

@@ -54,11 +54,9 @@ import {
   teilnehmendeLoeschen,
 } from '../lib/essen-teilnehmende';
 import { validateGruppe, validateTeilnehmende } from '../lib/essen-teilnehmende-validation';
+import { gerichtAendern, gerichtAnlegen, gerichtLoeschen } from '../lib/essen-gericht';
 import {
   eigeneZutatAnlegen,
-  gerichtAendern,
-  gerichtAnlegen,
-  gerichtLoeschen,
   ladeKatalog,
   planungZutatAendern,
   planungZutatLoeschen,
@@ -71,6 +69,7 @@ import {
 } from '../lib/essen-gericht-zeilen';
 import {
   validateGericht,
+  validateNeuesGericht,
   validateGerichtZutat,
   validatePlanungZutat,
 } from '../lib/essen-gerichte-validation';
@@ -426,14 +425,16 @@ export const EssensplanungZutat = planungHandler(async (request) => {
   return ok(await ladeAnsicht(zugang));
 });
 
-/** POST `{ name, personen, … }`: adds a dish; answers with its id and the view. */
+/**
+ * POST `{ name, personen?, …, mahlzeitId?, faktor?, zustaendigId?, zustaendigText? }`: adds a
+ * dish, with `mahlzeitId` planned at that meal in the same change; answers with its id and the
+ * view.
+ */
 export const EssensplanungGerichte = planungHandler(async (request) => {
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
-  const id = await gerichtAnlegen(
-    zugang,
-    validateGericht(await readJsonBody(request), { neu: true })
-  );
+  const { gericht, einplanung } = validateNeuesGericht(await readJsonBody(request));
+  const id = await gerichtAnlegen(zugang, gericht, einplanung);
   return ok({ id, ansicht: await ladeAnsicht(zugang) }, 201);
 });
 

@@ -158,7 +158,7 @@
   }
 </script>
 
-<details>
+<details class="surface p-4">
   <summary
     class="flex min-h-11 cursor-pointer list-none items-center gap-2 font-semibold text-brand-900 [&::-webkit-details-marker]:hidden"
   >

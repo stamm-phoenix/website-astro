@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { kopfLeiste } from './kopfLeiste';
   import { onMount, tick } from 'svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { ApiError, errorMessage } from '../../lib/api';
@@ -9,6 +10,8 @@
   import PlanTeilnehmende from './PlanTeilnehmende.svelte';
   import PlanEinkauf from './PlanEinkauf.svelte';
   import PlanPackliste from './PlanPackliste.svelte';
+  import PlanLager from './PlanLager.svelte';
+  import PlanBelege from './PlanBelege.svelte';
   import PlanMitglieder from './PlanMitglieder.svelte';
   import PlanEinstellungen from './PlanEinstellungen.svelte';
   import PlanAenderungen from './PlanAenderungen.svelte';
@@ -35,16 +38,28 @@
   let meldung = $state<string | null>(null);
   let meldungArt = $state<'success' | 'error'>('success');
   let bereich = $state<
-    'plan' | 'gerichte' | 'teilnehmende' | 'einkauf' | 'packliste' | 'mitglieder' | 'einstellungen'
+    | 'plan'
+    | 'gerichte'
+    | 'teilnehmende'
+    | 'einkauf'
+    | 'lager'
+    | 'packliste'
+    | 'belege'
+    | 'mitglieder'
+    | 'einstellungen'
   >('plan');
   let offline = $state(false);
+  /** The dish to open in the area of the dishes; `n` counts, so the same one opens again. */
+  let zielGericht = $state<{ id: number; n: number } | null>(null);
 
   const bereiche = $derived([
     { id: 'plan', label: 'Plan' },
     { id: 'gerichte', label: 'Gerichte' },
     { id: 'teilnehmende', label: 'Teilnehmende' },
     { id: 'einkauf', label: 'Einkauf' },
+    { id: 'lager', label: 'Lager' },
     { id: 'packliste', label: 'Packliste' },
+    { id: 'belege', label: 'Belege' },
     ...(ansicht && ansicht.zugang !== 'lesen' ? [{ id: 'mitglieder', label: 'Mitglieder' }] : []),
     ...(ansicht && ansicht.zugang !== 'lesen'
       ? [{ id: 'einstellungen', label: 'Einstellungen' }]
@@ -168,6 +183,10 @@
     aendern,
     hinweis,
     zeige,
+    oeffneGericht(id: number) {
+      bereich = 'gerichte';
+      zielGericht = { id, n: (zielGericht?.n ?? 0) + 1 };
+    },
   };
 
   onMount(() => {
@@ -243,64 +262,72 @@
 {:else if !ansicht}
   <p role="status" class="text-neutral-700">Die Planung wird geladen …</p>
 {:else}
-  <div class="space-y-6">
-    <div class="space-y-1">
-      <h2 class="font-serif text-2xl font-bold text-brand-900 [overflow-wrap:anywhere]">
-        {ansicht.name}
-      </h2>
-      <p class="text-sm text-neutral-700">
-        {#if ansicht.tage.length}
-          {datumLang(ansicht.tage[0].datum)} bis {datumLang(ansicht.tage.at(-1)!.datum)} ·
-        {/if}
-        {ansicht.zugang === 'lesen'
-          ? 'Nur ansehen'
-          : ansicht.zugang === 'besitzer'
-            ? 'Du bist Besitzer:in'
-            : 'Du planst mit'}
-      </p>
-    </div>
-
-    {#if ungueltig}
-      <!-- A Planung already open keeps its fields, so nothing typed gets lost -->
-      <StatusNotice message={LINK_ERSETZT} kind="error" />
-    {/if}
-    {#if ansicht.wartung}
-      <p class="border-l-4 border-warning py-2 pl-3 text-sm text-warning" role="status">
-        Die Essensplanung wird gerade gewartet. Du kannst alles ansehen, aber nichts ändern.
-      </p>
-    {/if}
-    {#if offline}
-      <p class="text-sm text-neutral-700 print:hidden" role="status">
-        Der Abgleich klappt gerade nicht. Die Seite versucht es weiter; Änderungen anderer siehst
-        du, sobald er wieder klappt.
-      </p>
-    {/if}
-
-    <div class="print:hidden">
-      <StatusNotice message={meldung} kind={meldungArt} popup />
-    </div>
-
-    {#if bereiche.length > 1}
-      <div
-        role="tablist"
-        aria-label="Bereiche der Planung"
-        class="flex flex-wrap gap-2 print:hidden"
-      >
-        {#each bereiche as eintrag (eintrag.id)}
-          <button
-            type="button"
-            role="tab"
-            id="bereich-{eintrag.id}"
-            aria-selected={bereich === eintrag.id}
-            aria-controls="bereich-panel-{eintrag.id}"
-            tabindex={bereich === eintrag.id ? 0 : -1}
-            class={bereich === eintrag.id ? 'btn-primary' : 'btn-secondary'}
-            onclick={() => (bereich = eintrag.id)}
-            onkeydown={bereichTaste}>{eintrag.label}</button
-          >
-        {/each}
+  <div class="space-y-4">
+    <div
+      use:kopfLeiste
+      class="kopf space-y-4 lg:sticky lg:-mx-4 lg:px-4 lg:pt-2 lg:top-[var(--kopf-oben,0px)] lg:z-30 print:static"
+    >
+      <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 class="font-serif text-xl font-bold text-brand-900 [overflow-wrap:anywhere]">
+          {ansicht.name}
+        </h1>
+        <p class="text-sm text-neutral-700">
+          {#if ansicht.tage.length}
+            {datumLang(ansicht.tage[0].datum)} bis {datumLang(ansicht.tage.at(-1)!.datum)} ·
+          {/if}
+          {ansicht.zugang === 'lesen'
+            ? 'Nur ansehen'
+            : ansicht.zugang === 'besitzer'
+              ? 'Du bist Besitzer:in'
+              : 'Du planst mit'}
+        </p>
       </div>
-    {/if}
+
+      {#if ungueltig}
+        <!-- A Planung already open keeps its fields, so nothing typed gets lost -->
+        <StatusNotice message={LINK_ERSETZT} kind="error" />
+      {/if}
+      {#if ansicht.wartung}
+        <p class="border-l-4 border-warning py-2 pl-3 text-sm text-warning" role="status">
+          Die Essensplanung wird gerade gewartet. Du kannst alles ansehen, aber nichts ändern.
+        </p>
+      {/if}
+      {#if offline}
+        <p class="text-sm text-neutral-700 print:hidden" role="status">
+          Der Abgleich klappt gerade nicht. Die Seite versucht es weiter; Änderungen anderer siehst
+          du, sobald er wieder klappt.
+        </p>
+      {/if}
+
+      <div class="print:hidden">
+        <StatusNotice message={meldung} kind={meldungArt} popup />
+      </div>
+
+      {#if bereiche.length > 1}
+        <div
+          role="tablist"
+          aria-label="Bereiche der Planung"
+          class="flex flex-wrap gap-x-1 border-b border-neutral-200 print:hidden"
+        >
+          {#each bereiche as eintrag (eintrag.id)}
+            <button
+              type="button"
+              role="tab"
+              id="bereich-{eintrag.id}"
+              aria-selected={bereich === eintrag.id}
+              aria-controls="bereich-panel-{eintrag.id}"
+              tabindex={bereich === eintrag.id ? 0 : -1}
+              class="-mb-px border-b-2 px-3 py-1.5 text-sm font-semibold any-pointer-coarse:min-h-11 {bereich ===
+              eintrag.id
+                ? 'border-brand-900 text-brand-900'
+                : 'border-transparent text-neutral-700 hover:border-neutral-400 hover:text-brand-900'}"
+              onclick={() => (bereich = eintrag.id)}
+              onkeydown={bereichTaste}>{eintrag.label}</button
+            >
+          {/each}
+        </div>
+      {/if}
+    </div>
 
     <!-- All areas stay mounted, so switching keeps what is typed in another one -->
     <div
@@ -317,7 +344,7 @@
       aria-labelledby="bereich-gerichte"
       hidden={bereich !== 'gerichte'}
     >
-      <PlanGerichte {kontext} sichtbar={bereich === 'gerichte'} />
+      <PlanGerichte {kontext} sichtbar={bereich === 'gerichte'} ziel={zielGericht} />
     </div>
     <div
       role="tabpanel"
@@ -337,11 +364,27 @@
     </div>
     <div
       role="tabpanel"
+      id="bereich-panel-lager"
+      aria-labelledby="bereich-lager"
+      hidden={bereich !== 'lager'}
+    >
+      <PlanLager {kontext} sichtbar={bereich === 'lager'} />
+    </div>
+    <div
+      role="tabpanel"
       id="bereich-panel-packliste"
       aria-labelledby="bereich-packliste"
       hidden={bereich !== 'packliste'}
     >
       <PlanPackliste {kontext} />
+    </div>
+    <div
+      role="tabpanel"
+      id="bereich-panel-belege"
+      aria-labelledby="bereich-belege"
+      hidden={bereich !== 'belege'}
+    >
+      <PlanBelege {kontext} angezeigt={bereich === 'belege'} />
     </div>
     {#if ansicht.zugang !== 'lesen'}
       <div
@@ -358,10 +401,17 @@
         aria-labelledby="bereich-einstellungen"
         hidden={bereich !== 'einstellungen'}
       >
-        <PlanEinstellungen {kontext} />
+        <div class="space-y-6">
+          <PlanEinstellungen {kontext} />
+          <PlanAenderungen aenderungen={ansicht.aenderungen} />
+        </div>
       </div>
     {/if}
-
-    <PlanAenderungen aenderungen={ansicht.aenderungen} />
   </div>
 {/if}
+
+<style>
+  .kopf {
+    background: var(--color-neutral-50);
+  }
+</style>

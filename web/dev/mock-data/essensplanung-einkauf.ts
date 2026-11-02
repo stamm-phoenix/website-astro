@@ -8,20 +8,11 @@ import type {
   ZusatzPosten,
 } from '../../../api/lib/essen-einkauf-model';
 import { MAX_GESCHAEFTE, MAX_POSTEN } from '../../../api/lib/essen-einkauf-model';
-import { einheitPasst } from '../../../api/lib/essen-gerichte-model';
 import { sonstigesFuer, zutatFuer } from './essensplanung-gerichte';
 import type { MockZugang } from './essensplanung-planung';
 import { aendere, feld, konflikt, neueId, neuesEtag, nichtGefunden } from './essensplanung-planung';
 
 const gleich = (a: string, b: string) => a.localeCompare(b, 'de', { sensitivity: 'base' }) === 0;
-
-const EINHEITENART_TEXT = {
-  masse: 'g oder kg',
-  volumen: 'ml oder l',
-  stueck: 'Stück',
-  packung: 'Packungen',
-  bund: 'Bund',
-} as const;
 
 function geschaeftVon(z: MockZugang, id: number) {
   const geschaeft = z.planung.geschaefte.find((g) => g.id === id);
@@ -103,11 +94,6 @@ function postenZutat(z: MockZugang, input: PostenInput) {
     'name' in input.zutat
       ? sonstigesFuer(z, input.zutat.name, input.einheit)
       : zutatFuer(z, input.zutat, { lebensmittel: false });
-  if (!einheitPasst(zutat.einheitenart, input.einheit))
-    throw feld(
-      'einheit',
-      `${zutat.name} wird in ${EINHEITENART_TEXT[zutat.einheitenart]} gemessen.`
-    );
   return zutat;
 }
 

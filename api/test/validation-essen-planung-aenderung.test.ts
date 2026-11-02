@@ -124,29 +124,11 @@ test('Datum: reads a calendar date or nothing', () => {
   assert.equal(readDatum(20270724), undefined);
 });
 
-test('Mahlzeit: name and optional time', () => {
-  assert.deepEqual(validateMahlzeit({ name: ' Mittag   essen ' }), {
-    name: 'Mittag essen',
-    uhrzeit: null,
-  });
+test('Mahlzeit: a name; a time of an older page is ignored', () => {
+  assert.deepEqual(validateMahlzeit({ name: ' Mittag   essen ' }), { name: 'Mittag essen' });
   assert.deepEqual(validateMahlzeit({ name: 'x'.repeat(50) }).name.length, 50);
-  for (const uhrzeit of [undefined, null, '', '   ', 12, true, {}]) {
-    assert.equal(validateMahlzeit({ name: 'A', uhrzeit }).uhrzeit, null);
-  }
-  assert.equal(validateMahlzeit({ name: 'A', uhrzeit: '12:30' }).uhrzeit, '12:30');
-  assert.equal(validateMahlzeit({ name: 'A', uhrzeit: ' 07:05 ' }).uhrzeit, '07:05');
-  assert.equal(validateMahlzeit({ name: 'A', uhrzeit: '00:00' }).uhrzeit, '00:00');
-  assert.equal(validateMahlzeit({ name: 'A', uhrzeit: '23:59' }).uhrzeit, '23:59');
-  // Only the first five characters count
-  assert.equal(validateMahlzeit({ name: 'A', uhrzeit: '12:30:45' }).uhrzeit, '12:30');
-  assert.equal(validateMahlzeit({ name: 'A', uhrzeit: '12:30xyz' }).uhrzeit, '12:30');
-  for (const uhrzeit of ['24:00', '12:60', '7:30', '1230', 'abc', '12-30', '12:3', '99:99']) {
-    assert.deepEqual(
-      fields(() => validateMahlzeit({ name: 'A', uhrzeit })),
-      {
-        uhrzeit: 'Bitte eine Uhrzeit wie 12:30 eintragen.',
-      }
-    );
+  for (const uhrzeit of [undefined, null, '', '12:30', '99:99', 12, {}]) {
+    assert.deepEqual(validateMahlzeit({ name: 'A', uhrzeit }), { name: 'A' });
   }
 });
 
@@ -165,10 +147,7 @@ test('Mahlzeit: name errors', () => {
   );
   assert.deepEqual(
     fields(() => validateMahlzeit({ name: '', uhrzeit: 'x' })),
-    {
-      name: NAME_FEHLT,
-      uhrzeit: 'Bitte eine Uhrzeit wie 12:30 eintragen.',
-    }
+    { name: NAME_FEHLT }
   );
 });
 

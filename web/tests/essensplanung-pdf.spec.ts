@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { anlegen, pdfLaden } from './essensplanung-helpers';
+import { anlegen, einplanen, pdfLaden } from './essensplanung-helpers';
 
 test('plan, recipe cards, eaters and shopping list download as PDF', async ({ page }) => {
   // Many steps through four areas: more than the usual time
@@ -18,7 +18,7 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
   await dialog.getByLabel('Zutat', { exact: true }).fill('Nudeln (Spag');
   await dialog.getByRole('option', { name: 'Nudeln (Spaghetti)' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('500');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('g');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('g');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(dialog).toBeHidden();
   await nudeln.getByRole('button', { name: 'Mehr Angaben …' }).click();
@@ -68,10 +68,7 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
   expect(esser.text).toContain('kommen mit dem Zug');
 
   await page.getByRole('tab', { name: 'Plan' }).click();
-  await page.getByRole('button', { name: 'Gericht einplanen bei 1_2' }).click();
-  await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Nudeln' });
-  await dialog.getByRole('button', { name: 'Einplanen' }).click();
-  await expect(dialog).toBeHidden();
+  await einplanen(page, '1_2', 'Nudeln');
   const plan = await pdfLaden(page, () =>
     page.getByRole('button', { name: 'Plan als PDF' }).click()
   );
@@ -80,7 +77,7 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
   expect(plan.text).toContain('1 kg');
 
   await page.getByRole('tab', { name: 'Einkauf' }).click();
-  await expect(page.getByRole('list', { name: 'Ohne Geschäft: Teigware' })).toContainText(
+  await expect(page.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' })).toContainText(
     '1 kg Nudeln (Spaghetti)'
   );
   const liste = await pdfLaden(page, () =>

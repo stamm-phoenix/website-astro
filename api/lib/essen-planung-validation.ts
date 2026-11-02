@@ -9,6 +9,7 @@ import {
   einladungSchema,
   einplanungSchema,
   emailSchema,
+  gerichtEinplanungSchema,
   mahlzeitSchema,
   mitgliedNameSchema,
   planungEinstellungenSchema,
@@ -65,4 +66,16 @@ export function readPosition(value: unknown): number | undefined {
 
 export function validateEinplanung(input: unknown): EinplanungInput {
   return parseWith(einplanungSchema, input);
+}
+
+/**
+ * The meal a new dish is planned at right away (`mahlzeitId` with factor and who is
+ * responsible), or undefined when the body names none.
+ */
+export function validateGerichtEinplanung(
+  input: unknown
+): Omit<EinplanungInput, 'gerichtId'> | undefined {
+  const mahlzeitId = (input as { mahlzeitId?: unknown } | null)?.mahlzeitId;
+  if (mahlzeitId === undefined || mahlzeitId === null) return undefined;
+  return parseWith(gerichtEinplanungSchema, input);
 }

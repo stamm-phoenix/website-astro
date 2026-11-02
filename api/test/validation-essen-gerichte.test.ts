@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateGericht } from '../lib/essen-gerichte-validation';
+import {
+  readPersonenSetzen,
+  validateGericht,
+  validateNeuesGericht,
+} from '../lib/essen-gerichte-validation';
 import type { GerichtInput } from '../lib/essen-gerichte-validation';
 import { fields } from './fixtures/essen-fields';
 
@@ -47,14 +51,23 @@ test('Gericht: a new dish with name and people', () => {
   );
 });
 
-test('Gericht: a new dish needs name and people, whatever the input is', () => {
-  const expected = { name: NAME_FEHLT, personen: PERSONEN_UNGUELTIG };
-  const inputs = [undefined, null, 'x', 5, [], {}, { name: '   ' }, { name: 4, personen: '4' }];
-  for (const input of [...inputs, { name: null, personen: null }]) {
+test('Gericht: a new dish needs a name, whatever the input is', () => {
+  const inputs = [undefined, null, 'x', 5, [], {}, { name: '   ' }, { name: null, personen: null }];
+  for (const input of inputs) {
     assert.deepEqual(
       fields(() => neu(input)),
-      expected
+      { name: NAME_FEHLT }
     );
+  }
+  assert.deepEqual(
+    fields(() => neu({ name: 4, personen: '4' })),
+    { name: NAME_FEHLT, personen: PERSONEN_UNGUELTIG }
+  );
+});
+
+test('Gericht: a new dish may have no people yet', () => {
+  for (const personen of [undefined, null, '']) {
+    assert.deepEqual(neu({ name: 'Chili', personen }), { name: 'Chili', personen: null });
   }
 });
 
@@ -69,7 +82,7 @@ test('Gericht: the name has at most 150 characters', () => {
 
 test('Gericht: the number of people is a whole number from 1 to 2000', () => {
   assert.deepEqual(neu({ name: 'A', personen: 1 }), { name: 'A', personen: 1 });
-  for (const personen of [0, -3, 1.5, '5', true, NaN, Infinity, {}, [4], null]) {
+  for (const personen of [0, -3, 1.5, '5', true, NaN, Infinity, {}, [4]]) {
     assert.deepEqual(neuFehler({ personen }), { personen: PERSONEN_UNGUELTIG }, String(personen));
   }
   assert.deepEqual(neuFehler({ personen: 2001 }), { personen: 'Höchstens 2000 Personen.' });
@@ -202,6 +215,9 @@ test('Gericht: a change sends only the fields that changed', () => {
     anleitung: '',
   });
   assert.deepEqual(aendern({ name: undefined, personen: 3, unbekannt: true }), { personen: 3 });
+  // Empty takes the number of people away again
+  assert.deepEqual(aendern({ personen: null }), { personen: null });
+  assert.deepEqual(aendern({ personen: '' }), { personen: null });
 });
 
 test('Gericht: a change that sends a field checks it', () => {
@@ -209,7 +225,6 @@ test('Gericht: a change that sends a field checks it', () => {
   assert.deepEqual(aendernFehler({ name: null }), { name: NAME_FEHLT });
   assert.deepEqual(aendernFehler({ name: 'a'.repeat(151) }), { name: 'Höchstens 150 Zeichen.' });
   assert.deepEqual(aendernFehler({ personen: 0 }), { personen: PERSONEN_UNGUELTIG });
-  assert.deepEqual(aendernFehler({ personen: null }), { personen: PERSONEN_UNGUELTIG });
   assert.deepEqual(aendernFehler({ personen: 2001 }), { personen: 'Höchstens 2000 Personen.' });
   assert.deepEqual(aendernFehler({ links: [{ url: 'x' }], personen: 5 }), {
     'links.0.url': ADRESSE,
@@ -248,4 +263,50 @@ test('Gericht: a new dish with several faults reports every field', () => {
       werkzeuge: 'Höchstens 100 Zeichen.',
     }
   );
+});
+
+test('Gericht: a new dish planned at a meal right away', () => {
+  assert.deepEqual(validateNeuesGericht({ name: 'Chili' }), {
+    gericht: { name: 'Chili', personen: null },
+    einplanung: undefined,
+  });
+  assert.deepEqual(
+    validateNeuesGericht({ name: 'Chili', mahlzeitId: 7, zustaendigText: ' Kim  K ' }),
+    {
+      gericht: { name: 'Chili', personen: null },
+      einplanung: { mahlzeitId: 7, faktor: 1, zustaendigId: null, zustaendigText: 'Kim K' },
+    }
+  );
+  assert.deepEqual(
+    fields(() =>
+      validateNeuesGericht({ name: '', mahlzeitId: 'x', zustaendigId: 3, zustaendigText: 'A' })
+    ),
+    {
+      name: NAME_FEHLT,
+      mahlzeitId: 'Bitte eine Mahlzeit wählen.',
+      zustaendigText: 'Entweder ein Mitglied oder einen Namen.',
+    }
+  );
+});
+
+test('Gericht: a recipe may set the people, only with the number the page expects', () => {
+  assert.equal(readPersonenSetzen({ zeilen: [] }), undefined);
+  assert.equal(readPersonenSetzen({ personenSetzen: null, personen: 4 }), undefined);
+  assert.equal(readPersonenSetzen({ personenSetzen: 4, personen: null }), 4);
+  assert.equal(readPersonenSetzen({ personenSetzen: 2000, personen: 10 }), 2000);
+  for (const personenSetzen of [0, -1, 1.5, 2001, '4', true]) {
+    assert.deepEqual(
+      fields(() => readPersonenSetzen({ personenSetzen, personen: null })),
+      { personenSetzen: 'Bitte eine ganze Zahl von 1 bis 2000 eintragen.' },
+      String(personenSetzen)
+    );
+  }
+  for (const personen of [undefined, 0, 'x']) {
+    assert.deepEqual(
+      fields(() => readPersonenSetzen({ personenSetzen: 4, personen })),
+      {
+        personenSetzen: 'Die Personenzahl lässt sich nur zusammen mit dem bisherigen Stand setzen.',
+      }
+    );
+  }
 });

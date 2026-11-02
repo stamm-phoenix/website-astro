@@ -2,14 +2,13 @@ import type { Transaction } from 'kysely';
 import type { Db } from './db';
 import { RecordNotFoundError, VersionConflictError, lockResource, requireVersion } from './db';
 import type { Database } from './db-schema';
-import type { GerichtEinheit } from './essen-gerichte-model';
-import { MAX_ZEILEN_PRO_GERICHT, einheitPasst, gerichtSperre } from './essen-gerichte-model';
+import { MAX_ZEILEN_PRO_GERICHT, gerichtSperre } from './essen-gerichte-model';
 import type { GerichtZutatInput } from './essen-gerichte-validation';
-import { gerichtDerPlanung, pruefeVerweise } from './essen-gerichte';
+import { gerichtDerPlanung } from './essen-gericht';
+import { pruefeVerweise } from './essen-gerichte';
 import type { Zugang } from './essen-planung';
 import { PlanungError, aendere } from './essen-planung';
 import { zutatDerPlanungFuer } from './essen-planung-zutat';
-import type { EssenEinheitenart } from './essen-validation';
 import { ValidationError } from './validation/errors';
 
 /**
@@ -68,7 +67,7 @@ function zeilenWerte(input: GerichtZutatInput, planungZutatId: number) {
   return {
     planung_zutat_id: planungZutatId,
     menge: input.menge,
-    einheit: input.einheit as GerichtEinheit | null,
+    einheit: input.einheit,
     fest: input.fest,
     fuer_alles: input.fuerAlles,
     fuer_vegetarisch: input.fuerVegetarisch,
@@ -76,25 +75,6 @@ function zeilenWerte(input: GerichtZutatInput, planungZutatId: number) {
     hinweis: input.hinweis,
   };
 }
-
-function pruefeEinheit(
-  zutat: { name: string; einheitenart: EssenEinheitenart },
-  input: GerichtZutatInput
-) {
-  if (!einheitPasst(zutat.einheitenart, input.einheit)) {
-    throw new ValidationError({
-      einheit: `${zutat.name} wird in ${EINHEITENART_TEXT[zutat.einheitenart]} gemessen.`,
-    });
-  }
-}
-
-const EINHEITENART_TEXT: Record<EssenEinheitenart, string> = {
-  masse: 'g oder kg',
-  volumen: 'ml oder l',
-  stueck: 'Stück',
-  packung: 'Packungen',
-  bund: 'Bund',
-};
 
 /** The number of lines of a dish; refuses `neu` more beyond the limit. */
 async function pruefeAnzahl(trx: Db, gerichtId: number, neu: number): Promise<number> {
@@ -120,7 +100,6 @@ async function fuegeZeileEin(
   position: number
 ): Promise<{ id: number; name: string }> {
   const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: true });
-  pruefeEinheit(zutat, input);
   const { id } = await trx
     .insertInto('essen.gericht_zutat')
     .values({ gericht_id: gerichtId, position, ...zeilenWerte(input, zutat.id) })
@@ -148,27 +127,31 @@ export async function gerichtZutatAnlegen(
 }
 
 /** The amounts were scaled for another number of people than the dish has now. */
-export function personenGeaendert(personen: number): PlanungError {
+export function personenGeaendert(personen: number | null): PlanungError {
   return new PlanungError(
     409,
     'PERSONEN_GEAENDERT',
-    `Die Personenzahl des Gerichts wurde inzwischen auf ${personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
+    personen === null
+      ? 'Die Personenzahl des Gerichts wurde inzwischen entfernt. Die Mengen sind für eine Personenzahl gerechnet; bitte prüfen und noch einmal übernehmen.'
+      : `Die Personenzahl des Gerichts wurde inzwischen auf ${personen} geändert. Die Mengen sind für die alte Zahl gerechnet; bitte umrechnen und noch einmal übernehmen.`
   );
 }
 
 /**
  * The people a change was worked out for (`personen` of the body), e.g. amounts of a recipe or
- * of a hint of the AI; undefined when not sent.
+ * of a hint of the AI; null when it was worked out for a dish without people, undefined when not
+ * sent.
  */
-export function readPersonen(body: Record<string, unknown> | null): number | undefined {
+export function readPersonen(body: Record<string, unknown> | null): number | null | undefined {
   const personen = body?.personen;
+  if (personen === null && body && 'personen' in body) return null;
   return typeof personen === 'number' && Number.isInteger(personen) && personen > 0
     ? personen
     : undefined;
 }
 
 /** Refuses a change worked out for `personen` when the dish has another number by now. */
-async function pruefePersonen(trx: Db, gerichtId: number, personen: number | undefined) {
+async function pruefePersonen(trx: Db, gerichtId: number, personen: number | null | undefined) {
   if (personen === undefined) return;
   const gericht = await trx
     .selectFrom('essen.gericht')
@@ -182,19 +165,28 @@ async function pruefePersonen(trx: Db, gerichtId: number, personen: number | und
  * Adds several lines at the end of a dish in one change, e.g. those read from a recipe: all or
  * none. An error of a line names its field as `zeilen.<index>.<field>`. With `personen`, the
  * amounts were scaled for that many people: if the dish has another number by now, nothing is
- * added (409 `PERSONEN_GEAENDERT`).
+ * added (409 `PERSONEN_GEAENDERT`). With `personenSetzen` the dish gets that number in the same
+ * change, so lines and people are saved together or not at all.
  */
 export async function gerichtZutatenSammeln(
   zugang: Zugang,
   gerichtId: number,
   inputs: GerichtZutatInput[],
-  personen?: number
+  personen?: number | null,
+  /** Sets the people of the dish in the same change, after `personen` was checked. */
+  personenSetzen?: number
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutaten-neu', async (trx) => {
     const gericht = await gerichtDerPlanung(trx, zugang, gerichtId);
     await lockResource(trx, gerichtSperre(gerichtId));
     // Read after the Planung is locked by `aendere`, so a change of the people cannot slip in
     await pruefePersonen(trx, gericht.id, personen);
+    if (personenSetzen !== undefined)
+      await trx
+        .updateTable('essen.gericht')
+        .set({ personen: personenSetzen })
+        .where('id', '=', gericht.id)
+        .execute();
     const anzahl = await pruefeAnzahl(trx, gerichtId, inputs.length);
     const namen: string[] = [];
     for (const [index, input] of inputs.entries()) {
@@ -211,7 +203,12 @@ export async function gerichtZutatenSammeln(
     }
     return {
       result: undefined,
-      details: { gericht: gericht.name, anzahl: namen.length, namen: namen.slice(0, 10) },
+      details: {
+        gericht: gericht.name,
+        anzahl: namen.length,
+        namen: namen.slice(0, 10),
+        ...(personenSetzen !== undefined ? { personen: personenSetzen } : {}),
+      },
     };
   });
 }
@@ -235,14 +232,13 @@ export async function gerichtZutatAendern(
   input: GerichtZutatInput & { position?: number },
   etag: string,
   /** With it (a proposal of the AI), the dish must still have these people. */
-  personen?: number
+  personen?: number | null
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutat-geaendert', async (trx) => {
     const zeile = await zeileDerPlanung(trx, zugang, id);
     await lockResource(trx, gerichtSperre(zeile.gericht_id));
     await pruefePersonen(trx, zeile.gericht_id, personen);
     const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: true });
-    pruefeEinheit(zutat, input);
     const result = await trx
       .updateTable('essen.gericht_zutat')
       .set(zeilenWerte(input, zutat.id))

@@ -1,137 +1,55 @@
 <script lang="ts">
-  import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import { ApiError } from '../../lib/api';
-  import { nachDemTippen } from '../../lib/nachDemTippen';
   import { confirmAction } from '../../lib/confirm';
-  import {
-    fuerText,
-    packId,
-    zustaendigWahl,
-    type PackEntwurf,
-    type PackZeile,
-  } from '../../lib/essensplanungPackliste';
-  import type { EntwurfAktionen } from './packEntwuerfe.svelte';
-  import { gespeichert, merkeSpeichern, type PlanKontext } from './planKontext';
+  import { fuerText, packId, personenText, type PackZeile } from '../../lib/essensplanungPackliste';
+  import type { PackZuteilung } from '../../lib/types';
+  import { anteilAbhaken, packAbhaken } from './packSpeichern';
+  import { gespeichert, type PlanKontext } from './planKontext';
 
   /**
-   * One thing on the packing list. The box packs it, the choice next to it says who packs it;
-   * both save at once, on the version the row was shown with. A free name being typed lives in
-   * the list (`entwurf`), so it survives a filter that hides the row or a switch to read-only.
+   * One thing on the packing list. With at most one person the box packs it; with several, each
+   * has their own box next to their name, and the thing is packed when all of them packed. The
+   * button opens the choice of who packs it (`PackWerDialog.svelte`). Ticks save at once.
    */
 
   interface Props {
     kontext: PlanKontext;
     zeile: PackZeile;
     bearbeiten: boolean;
-    /** A free name being typed; the field shows instead of the choice. null: none. */
-    entwurf: PackEntwurf | null;
-    /** Changes and saves the draft, which the list keeps by row key. */
-    aktionen: EntwurfAktionen;
+    /** Opens the choice of who packs this row. */
+    onwer: (zeile: PackZeile) => void;
   }
-  let { kontext, zeile, bearbeiten, entwurf, aktionen }: Props = $props();
+  let { kontext, zeile, bearbeiten, onwer }: Props = $props();
 
   let speichert = $state(false);
-  let textFeld = $state<HTMLInputElement | null>(null);
 
   const id = $derived(packId(zeile.key));
   const fuer = $derived(fuerText(zeile));
-  /** Members to choose; one without access only while responsible. */
-  const mitglieder = $derived(zustaendigWahl(kontext.ansicht.mitglieder, zeile));
-  const auswahl = $derived(
-    zeile.zustaendigId !== null ? `m:${zeile.zustaendigId}` : zeile.zustaendig ? 'text' : ''
-  );
-
-  /** Saves a change of this row: of its stored row, or the first one of a tool. */
-  async function senden(
-    felder: { gepackt?: boolean; zustaendigId?: number | null; zustaendigText?: string },
-    erfolg: string
-  ): Promise<boolean> {
-    const { eintrag, werkzeug, name } = zeile;
-    /** A message of the server about a field, e.g. a member who has no access any more. */
-    let feldFehler: string | undefined;
-    speichert = true;
-    // Noted, so a PDF asked for meanwhile waits for it
-    const lauf = kontext.aendern(async () => {
-      try {
-        return werkzeug === null
-          ? await kontext.api.senden('PATCH', `/packliste/${eintrag!.id}`, {
-              ...felder,
-              etag: eintrag!.etag,
-            })
-          : await kontext.api.senden('PUT', '/packliste/werkzeug', {
-              ...felder,
-              werkzeug: name,
-              etag: eintrag?.etag ?? null,
-            });
-      } catch (error: unknown) {
-        if (error instanceof ApiError && error.fields) feldFehler = Object.values(error.fields)[0];
-        throw error;
-      }
-    }, erfolg);
-    merkeSpeichern(lauf);
-    const ok = await lauf;
-    speichert = false;
-    if (!ok && feldFehler) kontext.hinweis(`${name}: ${feldFehler}`, 'error');
-    return ok;
-  }
+  const mehrere = $derived(zeile.personen.length > 1);
+  const wer = $derived(personenText(zeile));
+  const gepacktAnzahl = $derived(zeile.personen.filter((p) => p.gepackt).length);
 
   async function packen(feld: HTMLInputElement): Promise<void> {
-    const gepackt = feld.checked;
-    // A name typed in this row and left with this tap saves first: the tick then goes on the
-    // version its answer brought, not into a conflict with it. A failed name keeps its draft
-    // and notice; the tick is saved on the version now shown.
-    let nameFehlt: string | null = null;
-    if (entwurf !== null) {
-      speichert = true;
-      const name = aktionen.speichern(false);
-      merkeSpeichern(name);
-      if (!(await name)) nameFehlt = entwurf?.text.trim() || null;
-    }
-    const erfolg = gepackt ? `${zeile.name} ist eingepackt.` : `${zeile.name} ist wieder offen.`;
-    const vorher = zeile.eintrag?.etag ?? null;
-    const freigeben = aktionen.sperren();
-    // `senden` never throws: a failed save shows its message and says false
-    const ok = await senden({ gepackt }, erfolg);
+    speichert = true;
+    const ok = await packAbhaken(kontext, zeile, feld.checked);
+    speichert = false;
     // Not saved: the box shows the saved state again
     if (!ok) feld.checked = zeile.gepackt;
-    else aktionen.eigeneAenderung(vorher);
-    freigeben(nameFehlt === null);
-    // The tick's success must not hide that the name typed here is still unsaved
-    if (ok && nameFehlt)
-      kontext.hinweis(
-        `${erfolg} Der Name „${nameFehlt}“ ist aber noch nicht gespeichert; er steht noch in der Zeile, Enter versucht es noch einmal.`,
-        'error'
-      );
   }
 
-  async function waehlen(feld: HTMLSelectElement): Promise<void> {
-    const wert = feld.value;
-    if (wert === 'neu') {
-      aktionen.oeffnen(
-        zeile.zustaendigId === null ? zeile.zustaendig : '',
-        zeile.eintrag?.etag ?? null,
-        zeile.name
-      );
-      feld.value = auswahl;
-      await tick();
-      textFeld?.focus();
-      return;
-    }
-    const mitglied = wert.startsWith('m:') ? Number(wert.slice(2)) : null;
-    const name = mitglieder.find((m) => m.id === mitglied)?.name;
-    const ok = await senden(
-      { zustaendigId: mitglied, zustaendigText: '' },
-      name ? `${name} packt ${zeile.name} ein.` : `Für ${zeile.name} ist niemand mehr zuständig.`
-    );
-    if (!ok) feld.value = auswahl;
+  async function anteilPacken(person: PackZuteilung, feld: HTMLInputElement): Promise<void> {
+    speichert = true;
+    const ok = await anteilAbhaken(kontext, zeile, person, feld.checked);
+    speichert = false;
+    if (!ok)
+      feld.checked = zeile.personen.find((p) => p.id === person.id)?.gepackt ?? person.gepackt;
   }
 
   async function entfernen(): Promise<void> {
-    // A name left with this click saves first, so the version below includes it
+    // A change saving right now goes first, so the version below includes it
     if (!(await gespeichert())) {
       kontext.hinweis(
-        `Eine Änderung an ${zeile.name} ist noch nicht gespeichert, der Eintrag wurde nicht entfernt. Speichere sie in der Zeile und versuche es noch einmal.`,
+        `Eine Änderung an ${zeile.name} ist noch nicht gespeichert, der Eintrag wurde nicht entfernt. Versuche es noch einmal.`,
         'error'
       );
       return;
@@ -163,18 +81,23 @@
   }
 </script>
 
-<li class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5">
+<!-- Columns as in the head of the list (`PlanPackliste.svelte`): what · who packs it · removing -->
+<li
+  class="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 py-0.5 md:grid md:grid-cols-[minmax(0,1fr)_14rem_8rem] {zeile.gepackt
+    ? 'bg-success-soft'
+    : ''}"
+>
   <div class="min-w-0 flex-1 basis-56">
-    {#if bearbeiten}
-      <!-- Box and name are one label: a target of at least 44 px for the finger -->
+    {#if bearbeiten && !mehrere}
+      <!-- Box and name are one label: a target of at least 44 px for the finger on the phone -->
       <label
         for="{id}-gepackt"
-        class="inline-flex min-h-11 min-w-11 cursor-pointer items-center gap-3 pr-1 align-middle"
+        class="inline-flex min-h-8 any-pointer-coarse:min-h-11 min-w-8 any-pointer-coarse:min-w-11 cursor-pointer items-center gap-2 pr-1 align-middle"
       >
         <input
           type="checkbox"
           id="{id}-gepackt"
-          class="size-5 shrink-0"
+          class="size-4 shrink-0 any-pointer-coarse:size-5"
           checked={zeile.gepackt}
           disabled={speichert}
           aria-describedby={fuer ? `${id}-fuer` : undefined}
@@ -186,92 +109,92 @@
             : ''}">{zeile.name}</span
         >
       </label>
+      {#if zeile.gepackt}<span class="text-xs font-semibold text-success">gepackt</span>{/if}
     {:else}
-      <span class="font-semibold [overflow-wrap:anywhere]">{zeile.name}</span>
+      <span
+        class="inline-flex min-h-8 items-center font-semibold [overflow-wrap:anywhere] {bearbeiten &&
+        zeile.gepackt
+          ? 'text-neutral-700 line-through'
+          : ''}">{zeile.name}</span
+      >
+      <span class="text-xs {zeile.gepackt ? 'font-semibold text-success' : 'text-neutral-700'}"
+        >· {zeile.gepackt
+          ? 'gepackt'
+          : mehrere
+            ? `${gepacktAnzahl} von ${zeile.personen.length} gepackt`
+            : 'noch einpacken'}</span
+      >
     {/if}
-    <span class="text-sm {zeile.gepackt ? 'text-success' : 'text-neutral-700'}"
-      >· {zeile.gepackt ? 'gepackt' : 'noch einpacken'}</span
-    >
     {#if fuer}
-      <p
+      <span
         id="{id}-fuer"
-        class="text-sm text-neutral-700 [overflow-wrap:anywhere] {bearbeiten ? 'pl-8' : ''}"
+        class="block text-xs text-neutral-700 [overflow-wrap:anywhere] md:ml-2 md:inline {bearbeiten &&
+        !mehrere
+          ? 'pl-7 md:pl-0'
+          : ''}"
       >
         für {fuer}
-      </p>
+      </span>
     {/if}
-    {#if !bearbeiten && zeile.zustaendig}
-      <p class="text-sm text-neutral-700 [overflow-wrap:anywhere]">Zuständig: {zeile.zustaendig}</p>
+    {#if mehrere}
+      <ul class="flex flex-wrap gap-x-3" aria-label="Wer hat {zeile.name} gepackt?">
+        {#each zeile.personen as person (person.id)}
+          <li>
+            {#if bearbeiten}
+              <label
+                class="inline-flex min-h-8 any-pointer-coarse:min-h-11 cursor-pointer items-center gap-1.5 pr-1 text-sm [overflow-wrap:anywhere]"
+              >
+                <input
+                  type="checkbox"
+                  class="size-4 shrink-0 any-pointer-coarse:size-5"
+                  checked={person.gepackt}
+                  disabled={speichert}
+                  aria-label="{person.name} hat {zeile.name} gepackt"
+                  onchange={(event) => void anteilPacken(person, event.currentTarget)}
+                />
+                <span class={person.gepackt ? 'text-neutral-700 line-through' : ''}
+                  >{person.name}</span
+                >
+              </label>
+            {:else}
+              <span class="text-sm [overflow-wrap:anywhere]"
+                >{person.name}:
+                <span class={person.gepackt ? 'font-semibold text-success' : 'text-neutral-700'}
+                  >{person.gepackt ? 'gepackt' : 'offen'}</span
+                ></span
+              >
+            {/if}
+          </li>
+        {/each}
+      </ul>
     {/if}
   </div>
-  {#if bearbeiten}
-    <div class="flex flex-wrap items-center gap-1">
-      {#if entwurf !== null}
-        <input
-          bind:this={textFeld}
-          value={entwurf.text}
-          oninput={(event) => aktionen.tippen(event.currentTarget.value)}
-          class="form-input min-h-11 w-40 py-1 text-sm"
-          aria-label="Wer packt {zeile.name} ein?"
-          placeholder="Name, z. B. Rover"
-          maxlength="100"
-          aria-invalid={entwurf.konflikt ? 'true' : undefined}
-          aria-describedby={entwurf.konflikt ? `${id}-konflikt` : undefined}
-          onkeydown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              merkeSpeichern(aktionen.speichern(true));
-            } else if (event.key === 'Escape') aktionen.verwerfen();
-          }}
-          onblur={() => nachDemTippen(() => merkeSpeichern(aktionen.speichern(false)))}
-        />
-      {:else}
-        <select
-          class="form-input min-h-11 w-auto max-w-48 py-1 text-sm"
-          aria-label="Wer packt {zeile.name} ein?"
-          value={auswahl}
-          disabled={speichert}
-          onchange={(event) => void waehlen(event.currentTarget)}
-        >
-          <option value="">Niemand zuständig</option>
-          {#each mitglieder as mitglied (mitglied.id)}
-            <option value="m:{mitglied.id}">{mitglied.name}</option>
-          {/each}
-          {#if zeile.zustaendigId === null && zeile.zustaendig}
-            <option value="text">{zeile.zustaendig}</option>
-          {/if}
-          <option value="neu">Anderer Name …</option>
-        </select>
+  {#if !bearbeiten}
+    <p class="basis-full text-sm [overflow-wrap:anywhere] md:basis-auto">
+      {#if zeile.personen.length === 1}
+        <span class="text-neutral-700 md:sr-only">Zuständig:</span>
+        {wer}
       {/if}
+    </p>
+  {:else}
+    <ActionButton
+      type="button"
+      class="min-h-8 max-w-full justify-start truncate px-2 py-0.5 text-left text-sm any-pointer-coarse:min-h-11 md:w-full"
+      aria-label="Wer packt {zeile.name} ein? {wer || 'Niemand zuständig'}"
+      disabled={speichert}
+      onclick={() => onwer(zeile)}>{wer || 'Niemand zuständig'}</ActionButton
+    >
+    <div class="md:text-right">
       {#if zeile.werkzeug === null}
         <ActionButton
           type="button"
           variant="danger"
+          class="min-h-8 px-2 py-0.5 text-xs any-pointer-coarse:min-h-11"
           disabled={speichert || kontext.busy}
           aria-label="{zeile.name} entfernen"
           onclick={() => void entfernen()}>Entfernen</ActionButton
         >
       {/if}
     </div>
-    {#if entwurf?.konflikt}
-      <p
-        id="{id}-konflikt"
-        class="basis-full text-sm text-danger [overflow-wrap:anywhere]"
-        role="alert"
-      >
-        Jemand anderes hat gerade geändert, wer {zeile.name} einpackt (jetzt: {zeile.zustaendig ||
-          'niemand'}). Enter speichert deinen Namen trotzdem, „Name verwerfen“ nimmt den
-        gespeicherten.
-      </p>
-      <!-- Keeps the focus in the field, so leaving it does not try to save first -->
-      <ActionButton
-        type="button"
-        class="min-h-11 min-w-11"
-        aria-label="Name für {zeile.name} verwerfen"
-        disabled={entwurf.gesendet !== null}
-        onpointerdown={(event) => event.preventDefault()}
-        onclick={() => aktionen.verwerfen()}>Name verwerfen</ActionButton
-      >
-    {/if}
   {/if}
 </li>

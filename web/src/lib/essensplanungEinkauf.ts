@@ -1,5 +1,11 @@
-import { EINHEITEN_JE_ART, mengeText } from '../../../api/lib/essen-gerichte-model';
-import { bedarf, einkaufsMenge, ohneMenge, summiere } from './essensplanungRechnung';
+import { mengeText } from '../../../api/lib/essen-gerichte-model';
+import {
+  bedarf,
+  einkaufsMenge,
+  mengenSchluessel,
+  ohneMenge,
+  summiere,
+} from './essensplanungRechnung';
 import type { RechnungsStand } from './essensplanungRechnung';
 import { nurOffene, vorraetig } from './essensplanungLager';
 import type { LagerStand } from './essensplanungLager';
@@ -44,9 +50,6 @@ export interface EinkaufsGeschaeft {
   kategorien: EinkaufsKategorie[];
 }
 
-/** Every unit, for a thing of its own on the list, which can be measured in any. */
-export const ALLE_EINHEITEN = Object.values(EINHEITEN_JE_ART).flat();
-
 /** Below this nothing is left to buy, so rounding noise does not buy a whole piece. */
 const REST = 1e-6;
 
@@ -55,12 +58,15 @@ const VERGLEICH = new Intl.Collator('de');
 /**
  * Ingredients without an amount that were ticked off on a trip after they were last put on the
  * list: a tick covers what was needed when it was made. Versions (rowversions) grow with every
- * change across the database, so a row of extra needs newer than the tick is a new need. For
+ * change across the database, so a row of extra needs newer than the tick (its `stand`, the state
+ * of the database when it was ticked off) is a new need. For
  * what only dishes need by eye, a tick with an amount counts through the stock (bought and used
  * up, it is needed again); only a tick without one, which the stock cannot show, covers it.
  */
 export function erledigtOhneMenge(stand: {
-  einkaeufe?: { posten: { planungZutatId: number; etag?: string; erhalten?: number }[] }[];
+  einkaeufe?: {
+    posten: { planungZutatId: number; etag?: string; stand?: string; erhalten?: number }[];
+  }[];
   zusatzbedarf: Pick<ZusatzPosten, 'planungZutatId' | 'menge' | 'etag'>[];
 }): Set<number> {
   const neuester = new Map<number, string>();
@@ -71,10 +77,12 @@ export function erledigtOhneMenge(stand: {
   const erledigt = new Set<number>();
   for (const haken of (stand.einkaeufe ?? []).flatMap((e) => e.posten)) {
     const bedarf = neuester.get(haken.planungZutatId);
+    // When it was ticked off; bringing units into line gives it a new version, not a new tick
+    const abgehakt = haken.stand ?? haken.etag;
+    // The state is the database's newest version at the tick: a need of exactly that version
+    // was written before it
     const erledigtHaken =
-      bedarf === undefined
-        ? !(haken.erhalten ?? 0)
-        : haken.etag === undefined || haken.etag > bedarf;
+      bedarf === undefined ? !(haken.erhalten ?? 0) : abgehakt === undefined || abgehakt >= bedarf;
     if (erledigtHaken) erledigt.add(haken.planungZutatId);
   }
   return erledigt;
@@ -123,7 +131,8 @@ export function einkaufsliste(
     (posten): posten is EinkaufPosten => posten.menge !== null && posten.einheit !== null
   );
   for (const summe of summiere([...bedarf(stand), ...mitMenge])) {
-    const rest = summe.menge - (vorhanden.get(`${summe.planungZutatId}:${summe.einheit}`) ?? 0);
+    const rest =
+      summe.menge - (vorhanden.get(mengenSchluessel(summe.planungZutatId, summe.einheit)) ?? 0);
     const zutat = zutaten.get(summe.planungZutatId);
     if (rest > REST && zutat)
       hinzu(zutat, { ...einkaufsMenge(rest, summe.einheit), nachGefuehl: false });

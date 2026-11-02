@@ -1,5 +1,9 @@
 import { anwesend, mahlzeitenReihenfolge } from '../../../api/lib/essen-teilnehmende-model';
-import { einheitText } from '../../../api/lib/essen-gerichte-model';
+import {
+  einheitBasis,
+  einheitSchluessel,
+  einheitText,
+} from '../../../api/lib/essen-gerichte-model';
 import type { GerichtEinheit, GerichtZutat } from '../../../api/lib/essen-gerichte-model';
 import type { Ernaehrung, PlanungGruppe, Teilnehmende } from './types';
 
@@ -9,18 +13,19 @@ import type { Ernaehrung, PlanungGruppe, Teilnehmende } from './types';
  * (`test/essensplanungRechnung.test.ts`).
  */
 
-/** The units amounts are summed in; kg and l are counted in g and ml. */
-export type BasisEinheit = 'g' | 'ml' | 'stueck' | 'packung' | 'bund';
+/**
+ * The units amounts are summed in: kg and l are counted in g and ml, every other unit (also one
+ * of one's own, „Dose“) in itself.
+ */
+export type BasisEinheit = GerichtEinheit;
 
-const BASIS: Record<GerichtEinheit, { einheit: BasisEinheit; mal: number }> = {
-  g: { einheit: 'g', mal: 1 },
-  kg: { einheit: 'g', mal: 1000 },
-  ml: { einheit: 'ml', mal: 1 },
-  l: { einheit: 'ml', mal: 1000 },
-  stueck: { einheit: 'stueck', mal: 1 },
-  packung: { einheit: 'packung', mal: 1 },
-  bund: { einheit: 'bund', mal: 1 },
-};
+/**
+ * The key of an ingredient in a base unit, as sums, stock and lists are matched: upper and lower
+ * case of a unit of one's own are the same („Dose“, „dose“).
+ */
+export function mengenSchluessel(planungZutatId: number, einheit: GerichtEinheit): string {
+  return `${planungZutatId}:${einheitSchluessel(einheit)}`;
+}
 
 /** What decides who eats a line. */
 export type ZeileFuer = Pick<
@@ -44,7 +49,8 @@ export interface RechnungsMahlzeit {
 
 export interface RechnungsGericht {
   id: number;
-  personen: number;
+  /** null: no number of people yet; lines that scale cannot be worked out. */
+  personen: number | null;
   zutaten: (ZeileMenge & Pick<GerichtZutat, 'id' | 'planungZutatId'>)[];
 }
 
@@ -93,18 +99,31 @@ export function esserRechner(stand: Pick<RechnungsStand, 'tage' | 'gruppen' | 't
 }
 
 /**
+ * Whether a line counts as a fixed amount: marked so, or in a dish without a number of people,
+ * whose amounts are all fixed. A fixed amount is the total for each planned dish, whoever eats.
+ */
+export function istFest(zeile: Pick<ZeileMenge, 'fest'>, personen: number | null): boolean {
+  return zeile.fest || personen === null;
+}
+
+/**
  * The amount of a line in its own unit: a fixed amount as it is, otherwise per person of the
  * dish times the eaters and the factor of the planned dish. null without an amount.
  */
 export function zeilenMenge(
   zeile: Pick<ZeileMenge, 'menge' | 'fest'>,
-  personen: number,
+  personen: number | null,
   esser: number,
   faktor: number
 ): number | null {
   if (zeile.menge === null) return null;
-  if (zeile.fest) return zeile.menge;
+  if (personen === null || zeile.fest) return zeile.menge;
   return personen > 0 ? (zeile.menge / personen) * esser * faktor : 0;
+}
+
+/** Whether all amounts of a dish are fixed: it has no number of people. */
+export function festeMengen(gericht: Pick<RechnungsGericht, 'personen'>): boolean {
+  return gericht.personen === null;
 }
 
 /** An amount in the unit it is summed in. */
@@ -112,7 +131,7 @@ export function inBasis(
   menge: number,
   einheit: GerichtEinheit
 ): { menge: number; einheit: BasisEinheit } {
-  const basis = BASIS[einheit];
+  const basis = einheitBasis(einheit);
   return { menge: menge * basis.mal, einheit: basis.einheit };
 }
 
@@ -141,7 +160,7 @@ export function bedarf(stand: RechnungsStand): Bedarf[] {
       if (!gericht) continue;
       for (const zeile of gericht.zutaten) {
         if (zeile.einheit === null) continue;
-        const wer = zeile.fest ? 0 : esser(mahlzeit, zeile);
+        const wer = istFest(zeile, gericht.personen) ? 0 : esser(mahlzeit, zeile);
         const menge = zeilenMenge(zeile, gericht.personen, wer, einplanung.faktor);
         if (menge === null) continue;
         ergebnis.push({
@@ -160,23 +179,46 @@ export function bedarf(stand: RechnungsStand): Bedarf[] {
   return ergebnis;
 }
 
+/** A line without an amount of a planned dish that someone eats at its meal. */
+export interface OhneMengeZeile {
+  mahlzeitId: number;
+  einplanungId: number;
+  gerichtId: number;
+  planungZutatId: number;
+}
+
+/**
+ * Every line without an amount („nach Gefühl“) of every planned dish that someone eats, in the
+ * order of the plan.
+ */
+export function ohneMengeZeilen(stand: RechnungsStand): OhneMengeZeile[] {
+  const esser = esserRechner(stand);
+  const gerichte = new Map(stand.gerichte.map((gericht) => [gericht.id, gericht]));
+  const ergebnis: OhneMengeZeile[] = [];
+  for (const mahlzeit of stand.tage.flatMap((tag) => tag.mahlzeiten)) {
+    for (const einplanung of mahlzeit.einplanungen) {
+      const gericht = gerichte.get(einplanung.gerichtId);
+      for (const zeile of gericht?.zutaten ?? []) {
+        if (zeile.menge !== null && zeile.einheit !== null) continue;
+        if (esser(mahlzeit, zeile) > 0)
+          ergebnis.push({
+            mahlzeitId: mahlzeit.id,
+            einplanungId: einplanung.id,
+            gerichtId: einplanung.gerichtId,
+            planungZutatId: zeile.planungZutatId,
+          });
+      }
+    }
+  }
+  return ergebnis;
+}
+
 /**
  * Ingredients of planned dishes that someone eats but whose line has no amount (salt and pepper
  * „nach Gefühl“): they are bought, just without a number.
  */
 export function ohneMenge(stand: RechnungsStand): Set<number> {
-  const esser = esserRechner(stand);
-  const gerichte = new Map(stand.gerichte.map((gericht) => [gericht.id, gericht]));
-  const ergebnis = new Set<number>();
-  for (const mahlzeit of stand.tage.flatMap((tag) => tag.mahlzeiten)) {
-    for (const einplanung of mahlzeit.einplanungen) {
-      for (const zeile of gerichte.get(einplanung.gerichtId)?.zutaten ?? []) {
-        if (zeile.menge !== null && zeile.einheit !== null) continue;
-        if (esser(mahlzeit, zeile) > 0) ergebnis.add(zeile.planungZutatId);
-      }
-    }
-  }
-  return ergebnis;
+  return new Set(ohneMengeZeilen(stand).map((zeile) => zeile.planungZutatId));
 }
 
 /** The sum of one ingredient in one unit. */
@@ -187,14 +229,15 @@ export interface Summe {
 }
 
 /**
- * Sums the needs per ingredient and unit. An ingredient measured in different kinds of unit (a
- * tin in pieces and in grams) keeps one sum per kind; nothing is converted between them.
+ * Sums the needs per ingredient and base unit. An ingredient measured in different base units (a
+ * tin in pieces and in grams, herbs in Bund and in g) keeps one sum per base; nothing is converted
+ * between them. A unit of one's own is summed under its first spelling.
  */
 export function summiere(liste: Pick<Bedarf, 'planungZutatId' | 'menge' | 'einheit'>[]): Summe[] {
   const summen = new Map<string, Summe>();
   for (const eintrag of liste) {
     const basis = inBasis(eintrag.menge, eintrag.einheit);
-    const schluessel = `${eintrag.planungZutatId}:${basis.einheit}`;
+    const schluessel = mengenSchluessel(eintrag.planungZutatId, basis.einheit);
     const summe = summen.get(schluessel);
     if (summe) summe.menge += basis.menge;
     else summen.set(schluessel, { planungZutatId: eintrag.planungZutatId, ...basis });
@@ -203,7 +246,8 @@ export function summiere(liste: Pick<Bedarf, 'planungZutatId' | 'menge' | 'einhe
 }
 
 /**
- * A sum as bought: from 1000 g in kg and from 1000 ml in l, pieces, packs and bunches rounded up.
+ * A sum as bought: from 1000 g in kg and from 1000 ml in l, every other unit (pieces, packs,
+ * bunches, „Dose“) rounded up to whole ones.
  * Rounding comes after summing, so the list buys less surplus than rounding per dish.
  */
 export function einkaufsMenge(

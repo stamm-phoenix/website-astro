@@ -1,4 +1,5 @@
 import type { Db } from './db';
+import { belegeDerPlanungLoeschen } from './essen-belege';
 
 /**
  * Deletes a Planung of the Essensplanung with all its rows (the foreign keys cascade) and its
@@ -15,6 +16,8 @@ export async function deletePlanung(trx: Db, planungId: number): Promise<boolean
     )
     .execute();
   await trx.deleteFrom('essen.gericht').where('planung_id', '=', planungId).execute();
+  // Receipts point to the members without a cascade; their photos go first (Blob Storage)
+  await belegeDerPlanungLoeschen(trx, planungId);
   // The packing list points to the members without a cascade
   await trx.deleteFrom('essen.packliste_eintrag').where('planung_id', '=', planungId).execute();
   // Participants and skipped meals point to the groups without a cascade

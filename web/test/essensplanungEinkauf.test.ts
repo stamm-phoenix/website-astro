@@ -147,6 +147,45 @@ test('the shopping list is need plus extra needs less stock, by shop and categor
   ]);
 });
 
+test('a breakfast without people buys its amounts per planned meal: 2 loaves twice are 4', () => {
+  const liste = einkaufsliste(
+    {
+      tage: [
+        {
+          mahlzeiten: [
+            { id: 1, ohneGruppen: [], einplanungen: [{ id: 11, gerichtId: 100, faktor: 1 }] },
+            // The factor does not change a fixed amount
+            { id: 2, ohneGruppen: [], einplanungen: [{ id: 12, gerichtId: 100, faktor: 0.5 }] },
+          ],
+        },
+      ],
+      gruppen: [{ id: 1, faktor: 1 }],
+      teilnehmende: [
+        {
+          gruppeId: 1,
+          ernaehrung: 'alles',
+          anzahl: 25,
+          unvertraeglichkeiten: [],
+          vonMahlzeitId: null,
+          bisMahlzeitId: null,
+        },
+      ],
+      gerichte: [{ id: 100, personen: null, zutaten: [zeile(1, 1, 2, 'stueck')] }],
+      zutaten: [{ ...zutat(1, 'Brot (Laib)', 3, null), einheitenart: 'stueck' }],
+      geschaefte: [],
+      bestand: [],
+      zusatzbedarf: [],
+    },
+    new Map([[3, 'Backwaren']])
+  );
+  const posten = liste[0].kategorien[0].posten;
+  assert.deepEqual(
+    posten.map((p) => [p.name, p.menge, p.einheit]),
+    [['Brot (Laib)', 4, 'stueck']]
+  );
+  assert.equal(postenMenge(posten[0]), '4 Stück');
+});
+
 test('ingredients without an amount are bought „nach Gefühl“ unless listed or in stock', () => {
   const ohne = (id: number, planungZutatId: number) => ({
     ...zeile(id, planungZutatId, 0, 'g'),

@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict';
-import type { TestContext } from 'node:test';
 import * as endpoints from '../endpoints/essensplanung';
-import * as packliste from '../endpoints/essensplanung-packliste';
 import { getDb } from '../lib/db';
 import { seedPreviewEssensplanungEinkauf } from '../lib/db-preview-essen-einkauf';
 import { seedPreviewEssensplanungPackliste } from '../lib/db-preview-essen-packliste';
@@ -14,65 +12,17 @@ import {
 import { ladeZugang, planungLoeschen } from '../lib/essen-planung';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { dbTest } from './fixtures/database';
+import {
+  aendern,
+  einplanen,
+  gericht,
+  loeschen,
+  neu,
+  personen,
+  werkzeug,
+  type Fehler,
+} from './fixtures/essen-packliste';
 import { anlegen, call, captureMails, json } from './fixtures/essensplanung';
-
-type Fehler = { fields: Record<string, string> };
-
-async function gericht(
-  t: TestContext,
-  token: string,
-  name: string,
-  werkzeuge: string[]
-): Promise<number> {
-  const antwort = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
-    token,
-    body: { name, personen: 10, werkzeuge },
-  });
-  assert.equal(antwort.status, 201, JSON.stringify(antwort.jsonBody));
-  return json<{ id: number }>(antwort).id;
-}
-
-async function einplanen(t: TestContext, token: string, mahlzeitId: number, gerichtId: number) {
-  const antwort = await call(
-    t,
-    endpoints.EssensplanungEinplanungen,
-    'POST',
-    'planung/einplanungen',
-    {
-      token,
-      body: { mahlzeitId, gerichtId },
-    }
-  );
-  assert.equal(antwort.status, 201, JSON.stringify(antwort.jsonBody));
-  return json<PlanungAnsicht>(antwort);
-}
-
-function neu(t: TestContext, token: string, body: object) {
-  return call(t, packliste.EssensplanungPackliste, 'POST', 'planung/packliste', { token, body });
-}
-
-function werkzeug(t: TestContext, token: string, body: object) {
-  return call(t, packliste.EssensplanungPackWerkzeug, 'PUT', 'planung/packliste/werkzeug', {
-    token,
-    body,
-  });
-}
-
-function aendern(t: TestContext, token: string, id: number, body: object) {
-  return call(t, packliste.EssensplanungPackEintrag, 'PATCH', `planung/packliste/${id}`, {
-    token,
-    params: { id: String(id) },
-    body,
-  });
-}
-
-function loeschen(t: TestContext, token: string, id: number, ifMatch: string) {
-  return call(t, packliste.EssensplanungPackEintrag, 'DELETE', `planung/packliste/${id}`, {
-    token,
-    params: { id: String(id) },
-    ifMatch,
-  });
-}
 
 dbTest('tools of planned dishes get a state when someone packs them', async (t) => {
   const mails = captureMails(t);
@@ -98,17 +48,22 @@ dbTest('tools of planned dishes get a state when someone packs them', async (t) 
     await werkzeug(t, token, { werkzeug: ' großer  TOPF', etag: null, gepackt: true })
   );
   assert.deepEqual(
-    topf.packliste.map(({ werkzeug: w, name, gepackt: g, zustaendig }) => [w, name, g, zustaendig]),
-    [['großer topf', 'Großer Topf', true, '']]
+    topf.packliste.map(({ werkzeug: w, name, gepackt: g, zuteilungen }) => [
+      w,
+      name,
+      g,
+      zuteilungen,
+    ]),
+    [['großer topf', 'Großer Topf', true, []]]
   );
   assert.equal(topf.aenderungen[0].aktion, 'packliste-geaendert');
   assert.deepEqual(topf.aenderungen[0].details, { name: 'Großer Topf', gepackt: true });
 
-  // Someone else who saw no row yet gets a conflict with the current view
+  // Someone else who saw no row yet and packs gets a conflict with the current view
   const zweiter = await werkzeug(t, token, {
     werkzeug: 'Großer Topf',
     etag: null,
-    zustaendigText: 'Ben',
+    gepackt: false,
   });
   assert.equal(zweiter.status, 409);
   assert.equal(
@@ -116,36 +71,57 @@ dbTest('tools of planned dishes get a state when someone packs them', async (t) 
     topf.packliste[0].etag
   );
 
-  // With the version: who packs it; only that field changes
+  // Persons merge without a version; the first start packed like the tool, later ones not
   const ich = ansicht.mitglieder.find((m) => m.ich)!;
+  const ben = json<PlanungAnsicht>(
+    await werkzeug(t, token, { werkzeug: 'Großer Topf', etag: null, namen: ['Ben', ' ben '] })
+  );
+  assert.deepEqual(personen(ben.packliste[0]), [['Ben', true]]);
+  assert.equal(ben.packliste[0].gepackt, true);
   const zustaendig = json<PlanungAnsicht>(
     await werkzeug(t, token, {
       werkzeug: 'Großer Topf',
       etag: topf.packliste[0].etag,
-      zustaendigId: ich.id,
+      mitglieder: [ich.id],
+      namen: ['BEN'],
     })
   );
-  assert.deepEqual(
-    zustaendig.packliste.map((e) => [e.gepackt, e.zustaendigId, e.zustaendig]),
-    [[true, ich.id, ich.name]]
-  );
-  // The old version is a conflict, also over the row's own route
+  assert.deepEqual(personen(zustaendig.packliste[0]), [
+    ['Ben', true],
+    [ich.name, false],
+  ]);
+  assert.equal(zustaendig.packliste[0].gepackt, false, 'not everyone packed');
+  assert.deepEqual(zustaendig.aenderungen[0].details, { name: 'Großer Topf', hinzu: [ich.name] });
+  // The old version is a conflict for packing, also over the row's own route
   const veraltet = await aendern(t, token, topf.packliste[0].id, {
     etag: topf.packliste[0].etag,
-    gepackt: false,
+    gepackt: true,
   });
   assert.equal(veraltet.status, 409);
-  const ausgepackt = json<PlanungAnsicht>(
+  // Packing the whole entry packs everyone; taking off a person needs no version
+  const allesGepackt = json<PlanungAnsicht>(
     await aendern(t, token, topf.packliste[0].id, {
       etag: zustaendig.packliste[0].etag,
-      gepackt: false,
-      zustaendigText: 'Küchenteam',
+      gepackt: true,
     })
   );
-  assert.deepEqual(
-    ausgepackt.packliste.map((e) => [e.gepackt, e.zustaendigId, e.zustaendig]),
-    [[false, null, 'Küchenteam']]
+  assert.deepEqual(personen(allesGepackt.packliste[0]), [
+    ['Ben', true],
+    [ich.name, true],
+  ]);
+  const benId = allesGepackt.packliste[0].zuteilungen[0].id;
+  const ohneBen = json<PlanungAnsicht>(
+    await aendern(t, token, topf.packliste[0].id, { weg: [benId, 999_999] })
   );
+  assert.deepEqual(personen(ohneBen.packliste[0]), [[ich.name, true]]);
+  assert.deepEqual(ohneBen.aenderungen[0].details, { name: 'Großer Topf', weg: ['Ben'] });
+  const ausgepackt = json<PlanungAnsicht>(
+    await aendern(t, token, topf.packliste[0].id, {
+      etag: ohneBen.packliste[0].etag,
+      gepackt: false,
+    })
+  );
+  assert.equal(ausgepackt.packliste[0].gepackt, false);
 
   // A tool cannot be taken off the list, and its row stays when the dish is no longer planned
   const weg = await loeschen(t, token, topf.packliste[0].id, ausgepackt.packliste[0].etag);
@@ -188,18 +164,15 @@ dbTest('entries of its own are added once, packed and taken off', async (t) => {
     name: 'Das steht schon auf der Packliste.',
   });
   const mitZelt = json<PlanungAnsicht>(
-    await neu(t, token, { name: 'Küchenzelt', zustaendigText: 'Rover' })
+    await neu(t, token, { name: 'Küchenzelt', namen: ['Rover'] })
   );
   assert.deepEqual(
-    mitZelt.packliste.map(({ werkzeug: w, name, gepackt, zustaendig }) => [
-      w,
-      name,
-      gepackt,
-      zustaendig,
-    ]),
-    [[null, 'Küchenzelt', false, 'Rover']]
+    mitZelt.packliste.map(({ werkzeug: w, name, gepackt }) => [w, name, gepackt]),
+    [[null, 'Küchenzelt', false]]
   );
+  assert.deepEqual(personen(mitZelt.packliste[0]), [['Rover', false]]);
   assert.equal(mitZelt.aenderungen[0].aktion, 'packliste-neu');
+  assert.deepEqual(mitZelt.aenderungen[0].details, { name: 'Küchenzelt', hinzu: ['Rover'] });
   assert.equal((await neu(t, token, { name: 'KÜCHENZELT' })).status, 400);
 
   // Someone without access is no choice; a member of another Planung neither
@@ -209,29 +182,28 @@ dbTest('entries of its own are added once, packed and taken off', async (t) => {
     .output('inserted.id')
     .executeTakeFirstOrThrow();
   const zelt = mitZelt.packliste[0];
-  const mitBen = json<PlanungAnsicht>(
-    await aendern(t, token, zelt.id, { etag: zelt.etag, zustaendigId: ben })
-  );
-  assert.equal(mitBen.packliste[0].zustaendig, 'Ben Bezirk');
+  const mitBen = json<PlanungAnsicht>(await aendern(t, token, zelt.id, { mitglieder: [ben] }));
+  assert.deepEqual(personen(mitBen.packliste[0]), [
+    ['Rover', false],
+    ['Ben Bezirk', false],
+  ]);
   await getDb()
     .updateTable('essen.mitglied')
     .set({ entzogen_am: new Date() })
     .where('id', '=', ben)
     .execute();
-  // Ben stays responsible, the entry can still be packed; chosen anew he is not
+  // Ben stays, the entry can still be packed; adding him anew changes nothing, elsewhere he is no
+  // choice
   const gepackt = json<PlanungAnsicht>(
-    await aendern(t, token, zelt.id, {
-      etag: mitBen.packliste[0].etag,
-      gepackt: true,
-      zustaendigId: ben,
-    })
+    await aendern(t, token, zelt.id, { etag: mitBen.packliste[0].etag, gepackt: true })
   );
-  assert.deepEqual(
-    gepackt.packliste.map((e) => [e.gepackt, e.zustaendig]),
-    [[true, 'Ben Bezirk']]
-  );
-  assert.deepEqual(json<Fehler>(await neu(t, token, { name: 'Plane', zustaendigId: ben })).fields, {
-    zustaendigId: 'Bitte aus der Liste wählen.',
+  assert.deepEqual(personen(gepackt.packliste[0]), [
+    ['Rover', true],
+    ['Ben Bezirk', true],
+  ]);
+  assert.equal((await aendern(t, token, zelt.id, { mitglieder: [ben] })).status, 200);
+  assert.deepEqual(json<Fehler>(await neu(t, token, { name: 'Plane', mitglieder: [ben] })).fields, {
+    mitglieder: 'Bitte aus der Liste wählen.',
   });
 
   // Taking it off needs the current version
@@ -242,7 +214,7 @@ dbTest('entries of its own are added once, packed and taken off', async (t) => {
   assert.equal((await loeschen(t, token, zelt.id, gepackt.packliste[0].etag)).status, 404);
 
   // The whole Planung goes with its packing list, also with a member responsible
-  await neu(t, token, { name: 'Plane', zustaendigId: ansicht.mitglieder[0].id });
+  await neu(t, token, { name: 'Plane', mitglieder: [ansicht.mitglieder[0].id] });
   const planungId = (await ladeZugang(token)).planungId;
   await planungLoeschen(await ladeZugang(token));
   const rest = await getDb()
@@ -303,11 +275,20 @@ dbTest('the preview gets an invented packing list once', async () => {
     .executeTakeFirstOrThrow();
   const eintraege = await getDb()
     .selectFrom('essen.packliste_eintrag')
-    .select(['werkzeug', 'name'])
+    .select(['id', 'werkzeug', 'name'])
     .where('planung_id', '=', planung.id)
     .execute();
   assert.ok(eintraege.some((e) => e.werkzeug === null && e.name === 'Gaskocher (Test)'));
-  assert.ok(eintraege.length <= 2);
+  assert.ok(eintraege.length <= 3);
+  const schuerze = eintraege.find((e) => e.name === 'Kochschürze (Test)');
+  assert.ok(schuerze);
+  const zuteilungen = await getDb()
+    .selectFrom('essen.packliste_zuteilung')
+    .select('gepackt')
+    .where('eintrag_id', '=', schuerze.id)
+    .execute();
+  assert.ok(zuteilungen.length >= 2);
+  assert.ok(zuteilungen.some((z) => !z.gepackt));
 });
 
 dbTest('a tool whose merged name is longer than its name is packed and assigned', async (t) => {
@@ -324,12 +305,13 @@ dbTest('a tool whose merged name is longer than its name is packed and assigned'
   const zustaendig = await werkzeug(t, token, {
     werkzeug: name,
     etag: eintrag.etag,
-    zustaendigText: 'Rover',
+    namen: ['Rover'],
   });
   assert.equal(zustaendig.status, 200, JSON.stringify(zustaendig.jsonBody));
+  const [mitRover] = json<PlanungAnsicht>(zustaendig).packliste;
   assert.deepEqual(
-    json<PlanungAnsicht>(zustaendig).packliste.map((e) => [e.name, e.gepackt, e.zustaendig]),
-    [[name, true, 'Rover']]
+    [mitRover.name, mitRover.gepackt, personen(mitRover)],
+    [name, true, [['Rover', true]]]
   );
 });
 

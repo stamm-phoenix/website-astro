@@ -64,3 +64,31 @@ export async function gerichteMitWerkzeugen(page: Page, gerichte = GERICHTE): Pr
   await page.reload();
   await page.getByRole('tab', { name: 'Packliste' }).click();
 }
+
+/**
+ * Opens the choice of who packs `was` (the button in the list or „Wer packt?“ in the matrix),
+ * ticks members by name and adds free names, then saves.
+ */
+export async function werWaehlen(
+  page: Page,
+  was: string,
+  wahl: { mitglieder?: string[]; namen?: string[]; alle?: boolean; niemand?: boolean },
+  speichern = 'Speichern'
+): Promise<void> {
+  await page
+    .getByRole('button', { name: `Wer packt ${was} ein?` })
+    .first()
+    .click();
+  const dialog = page.getByRole('dialog', { name: `Wer packt ${was} ein?` });
+  await expect(dialog).toBeVisible();
+  if (wahl.niemand) await dialog.getByRole('button', { name: 'Niemand', exact: true }).click();
+  if (wahl.alle) await dialog.getByRole('button', { name: 'Alle', exact: true }).click();
+  for (const name of wahl.mitglieder ?? [])
+    await dialog.getByRole('checkbox', { name, exact: true }).setChecked(true);
+  for (const name of wahl.namen ?? []) {
+    await dialog.getByRole('textbox', { name: 'Anderer Name' }).fill(name);
+    await dialog.getByRole('textbox', { name: 'Anderer Name' }).press('Enter');
+  }
+  await dialog.getByRole('button', { name: speichern, exact: true }).click();
+  await expect(dialog).toBeHidden();
+}

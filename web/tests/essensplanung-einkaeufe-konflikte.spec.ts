@@ -1,5 +1,6 @@
 import { test, expect, answerConfirm } from './fixtures';
-import { nudelnPlanen, einkaufAnlegen, karte } from './essensplanung-einkaeufe-helpers';
+import { liveFeld } from './essensplanung-helpers';
+import { nudelnPlanen, einkaufAnlegen, oeffnen, box } from './essensplanung-einkaeufe-helpers';
 
 test('deleting a trip after someone ticked something off meanwhile is a conflict', async ({
   page,
@@ -8,8 +9,8 @@ test('deleting a trip after someone ticked something off meanwhile is a conflict
   test.slow();
   await nudelnPlanen(page, 'E2E Einkäufe Löschen');
   await einkaufAnlegen(page, 'Montag', 0);
-  const montag = karte(page, 'Montag');
-  await expect(montag).toContainText('1 Posten · 0 von 1 abgehakt');
+  const montag = await oeffnen(page, 'Montag', 'liste');
+  await expect(montag.getByRole('status')).toHaveText('0 von 1 abgehakt');
   await montag.getByRole('button', { name: 'Montag löschen' }).click();
   const frage = page.getByRole('dialog', { name: 'Montag löschen?' });
   await expect(frage).toBeVisible();
@@ -18,18 +19,16 @@ test('deleting a trip after someone ticked something off meanwhile is a conflict
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Einkauf' }).click();
-  const dort = karte(anderes, 'Montag');
-  await dort.getByRole('button', { name: 'Montag: Einkaufen' }).click();
-  await dort.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
-  await dort.getByRole('button', { name: 'Abhaken' }).click();
+  const dort = await oeffnen(anderes, 'Montag');
+  await box(dort, 'Nudeln (Spaghetti)').click();
   await expect(dort.getByRole('status')).toHaveText('1 von 1 abgehakt');
   await anderes.context().close();
-  await expect(montag).toContainText('1 von 1 abgehakt', { timeout: 15_000 });
+  await expect(montag.getByRole('status')).toHaveText('1 von 1 abgehakt', { timeout: 15_000 });
 
   // Deleting with what was seen when asking: a conflict, the trip stays
   await answerConfirm(page, 'Montag löschen?', 'Löschen');
   await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
-  await expect(montag).toContainText('1 von 1 abgehakt');
+  await expect(montag.getByRole('status')).toHaveText('1 von 1 abgehakt');
 });
 
 test('while a fixed amount is saved its row waits, each amount stays with its thing', async ({
@@ -42,8 +41,7 @@ test('while a fixed amount is saved its row waits, each amount stays with its th
   await feld.press('Enter');
   await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
   await einkaufAnlegen(page, 'Montag', 0);
-  const montag = karte(page, 'Montag');
-  await montag.getByRole('button', { name: 'Liste von Montag' }).click();
+  const montag = await oeffnen(page, 'Montag', 'liste');
   const nudelnAnpassen = montag.getByRole('button', {
     name: 'Nudeln (Spaghetti) in Montag anpassen',
   });
@@ -85,7 +83,7 @@ test('a trip being changed cannot be typed into while it is saved', async ({ pag
   test.slow();
   await nudelnPlanen(page, 'E2E Einkäufe Formular sperren');
   await einkaufAnlegen(page, 'Montag', 0);
-  const montag = karte(page, 'Montag');
+  const montag = await oeffnen(page, 'Montag');
   await montag.getByRole('button', { name: 'Montag ändern' }).click();
   const form = page.getByRole('form', { name: 'Montag ändern' });
   const name = form.getByLabel('Name des Einkaufs');
@@ -130,7 +128,7 @@ test('changes of a trip someone else deletes are named to copy', async ({ page, 
   test.slow();
   await nudelnPlanen(page, 'E2E Einkäufe gelöscht');
   await einkaufAnlegen(page, 'Montag', 0);
-  const montag = karte(page, 'Montag');
+  const montag = await oeffnen(page, 'Montag');
   await montag.getByRole('button', { name: 'Montag ändern' }).click();
   const form = page.getByRole('form', { name: 'Montag ändern' });
   await form.getByLabel('Name des Einkaufs').fill('Montag früh');
@@ -138,7 +136,8 @@ test('changes of a trip someone else deletes are named to copy', async ({ page, 
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Einkauf' }).click();
-  await karte(anderes, 'Montag').getByRole('button', { name: 'Montag löschen' }).click();
+  const dort = await oeffnen(anderes, 'Montag');
+  await dort.getByRole('button', { name: 'Montag löschen' }).click();
   await answerConfirm(anderes, 'Montag löschen?', 'Löschen');
   await expect(anderes.getByText('Montag gelöscht.').first()).toBeVisible();
   await anderes.context().close();
@@ -150,18 +149,18 @@ test('changes of a trip someone else deletes are named to copy', async ({ page, 
       )
       .first()
   ).toBeVisible({ timeout: 15_000 });
+  // The page shows the overview again
+  await expect(page.getByText('Noch keine Einkäufe.')).toBeVisible();
 });
 
 test('a tick saved after leaving the live mode leaves no draft behind', async ({ page }) => {
   test.slow();
   await nudelnPlanen(page, 'E2E Einkäufe später fertig');
   await einkaufAnlegen(page, 'Montag', 0);
-  const montag = karte(page, 'Montag');
-  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
-  await montag.getByRole('button', { name: 'Nudeln (Spaghetti)', exact: true }).click();
-  const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
+  const montag = await oeffnen(page, 'Montag');
+  const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await menge.fill('800');
-  await montag.getByLabel('Einheit von Nudeln (Spaghetti)').selectOption('g');
+  await (await liveFeld(montag, 'Einheit von Nudeln (Spaghetti)')).selectOption('g');
   let freigeben: () => void = () => undefined;
   const warten = new Promise<void>((done) => (freigeben = done));
   await page.route('**/api/essensplanung/planung/einkaeufe/*/posten', async (route) => {
@@ -169,13 +168,13 @@ test('a tick saved after leaving the live mode leaves no draft behind', async ({
     await route.continue();
   });
   await montag.getByRole('button', { name: 'Abhaken' }).click();
-  await montag.getByRole('button', { name: 'Liste von Montag' }).click();
+  await montag.getByRole('button', { name: 'Liste anpassen' }).click();
   freigeben();
-  await expect(montag).toContainText('1 von 1 abgehakt');
-  await page.unroute('**/api/essensplanung/planung/einkaeufe/*/posten');
-  await montag.getByRole('button', { name: 'Montag: Einkaufen' }).click();
   await expect(montag.getByRole('status')).toHaveText('1 von 1 abgehakt');
-  await expect(menge).toBeHidden();
+  await page.unroute('**/api/essensplanung/planung/einkaeufe/*/posten');
+  await montag.getByRole('button', { name: 'Einkaufen', exact: true }).click();
+  await expect(menge).toHaveValue('800');
+  await expect(montag.getByRole('button', { name: 'Speichern', exact: true })).toHaveCount(0);
   // Nothing unsaved: leaving asks nothing
   await page.getByRole('link', { name: 'Impressum' }).click();
   await expect(page).toHaveURL(/\/impressum/);

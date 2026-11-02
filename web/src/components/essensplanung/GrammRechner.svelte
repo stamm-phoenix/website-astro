@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import { leseMenge, mengeFeld } from '../../lib/essensplanungGerichte';
@@ -9,10 +10,12 @@
   interface Props {
     /** The central ingredient with its grams per TL, EL and piece. */
     zentral: EssenKatalog['zutaten'][number];
+    /** The amount the line has in TL, EL or pieces, to start with. */
+    vorgabe?: { anzahl: string; mass: 'tl' | 'el' | 'stueck' };
     /** Takes the result over as the amount in g. */
     onuebernehmen: (gramm: number) => void;
   }
-  let { zentral, onuebernehmen }: Props = $props();
+  let { zentral, vorgabe, onuebernehmen }: Props = $props();
 
   const umrechnung = $derived(
     [
@@ -23,8 +26,17 @@
       (entry): entry is { mass: string; label: string; gramm: number } => entry.gramm !== null
     )
   );
-  let anzahl = $state('1');
-  let mass = $state('');
+  let anzahl = $state(untrack(() => vorgabe?.anzahl ?? '1'));
+  let mass = $state<string>(untrack(() => vorgabe?.mass ?? ''));
+  // The line typed in TL, EL or pieces: the conversion follows it
+  $effect(() => {
+    const von = vorgabe;
+    if (!von) return;
+    untrack(() => {
+      anzahl = von.anzahl;
+      mass = von.mass;
+    });
+  });
   const gramm = $derived.by(() => {
     const zahl = leseMenge(anzahl);
     const eintrag = umrechnung.find((entry) => entry.mass === mass);
@@ -34,9 +46,13 @@
     return roh < 10 ? Math.round(roh * 10) / 10 : Math.round(roh);
   });
   // The measure shown is the one calculated with: the first one when the chosen is not offered
+  // A count of another measure (3 TL with no value for TL) would be taken as that many of the
+  // first one: the count starts again at 1
   $effect(() => {
-    if (umrechnung.length && !umrechnung.some((entry) => entry.mass === mass))
+    if (umrechnung.length && !umrechnung.some((entry) => entry.mass === mass)) {
       mass = umrechnung[0].mass;
+      anzahl = '1';
+    }
   });
 </script>
 

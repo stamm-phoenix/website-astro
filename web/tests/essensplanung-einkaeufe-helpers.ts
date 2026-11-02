@@ -1,6 +1,6 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect } from './fixtures';
-import { anlegen } from './essensplanung-helpers';
+import { anlegen, einplanen } from './essensplanung-helpers';
 
 /** Pasta for 4 (500 g), eaten by 8 at lunch on both days: 1 kg each. */
 export async function nudelnPlanen(page: Page, name: string): Promise<void> {
@@ -27,12 +27,7 @@ export async function nudelnPlanen(page: Page, name: string): Promise<void> {
   await expect(dialog).toBeHidden();
 
   await page.getByRole('tab', { name: 'Plan' }).click();
-  for (const mahlzeit of ['1_2', '2_2']) {
-    await page.getByRole('button', { name: `Gericht einplanen bei ${mahlzeit}` }).click();
-    await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Nudeln' });
-    await dialog.getByRole('button', { name: 'Einplanen' }).click();
-    await expect(dialog).toBeHidden();
-  }
+  for (const mahlzeit of ['1_2', '2_2']) await einplanen(page, mahlzeit, 'Nudeln');
   await page.getByRole('tab', { name: 'Einkauf' }).click();
 }
 
@@ -46,8 +41,26 @@ export async function einkaufAnlegen(page: Page, name: string, bis: number): Pro
   await expect(page.getByText(`${name} angelegt.`).first()).toBeVisible();
 }
 
-export const karte = (page: Page, name: string) =>
-  page
-    .getByRole('list', { name: 'Einkäufe' })
-    .getByRole('listitem')
-    .filter({ has: page.getByRole('heading', { name }) });
+/** A trip shown on its own. */
+export const karte = (page: Page, name: string) => page.getByRole('region', { name, exact: true });
+
+/** Back to the overview of the trips, if a trip is shown. */
+export async function uebersicht(page: Page): Promise<void> {
+  const zurueck = page.getByRole('button', { name: 'Zurück zu den Einkäufen' });
+  if (await zurueck.count()) await zurueck.click();
+  await expect(page.getByRole('list', { name: 'Einkäufe' })).toBeVisible();
+}
+
+/** Opens a trip from the overview, to shop with or with its list to change. */
+export async function oeffnen(page: Page, name: string, modus: 'live' | 'liste' = 'live') {
+  await uebersicht(page);
+  await page.getByRole('button', { name: `${name}: Einkaufen` }).click();
+  const einkauf = karte(page, name);
+  await expect(einkauf).toBeVisible();
+  if (modus === 'liste') await einkauf.getByRole('button', { name: 'Liste anpassen' }).click();
+  return einkauf;
+}
+
+/** The box that ticks a thing off or takes the tick back. */
+export const box = (einkauf: Locator, name: string) =>
+  einkauf.getByRole('checkbox', { name: `${name} abhaken` });

@@ -15,11 +15,9 @@ import type {
   ZusatzPosten,
 } from './essen-einkauf-model';
 import { MAX_GESCHAEFTE, MAX_POSTEN } from './essen-einkauf-model';
-import { einheitPasst } from './essen-gerichte-model';
 import type { Zugang } from './essen-planung';
 import { aendere } from './essen-planung';
 import { sonstigesDerPlanung, zutatDerPlanung, zutatDerPlanungFuer } from './essen-planung-zutat';
-import type { EssenEinheitenart } from './essen-validation';
 import { ValidationError } from './validation/errors';
 
 /**
@@ -207,14 +205,6 @@ export async function zutatGeschaeftSetzen(
 // Stock and extra needs
 // ---------------------------------------------------------------------------------------------
 
-const EINHEITENART_TEXT: Record<EssenEinheitenart, string> = {
-  masse: 'g oder kg',
-  volumen: 'ml oder l',
-  stueck: 'Stück',
-  packung: 'Packungen',
-  bund: 'Bund',
-};
-
 async function postenZutat(
   trx: Parameters<Parameters<typeof aendere>[2]>[0],
   zugang: Zugang,
@@ -226,11 +216,6 @@ async function postenZutat(
     'name' in input.zutat
       ? await sonstigesDerPlanung(trx, zugang, input.zutat.name, input.einheit)
       : await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: false });
-  if (!einheitPasst(zutat.einheitenart, input.einheit)) {
-    throw new ValidationError({
-      einheit: `${zutat.name} wird in ${EINHEITENART_TEXT[zutat.einheitenart]} gemessen.`,
-    });
-  }
   return zutat;
 }
 

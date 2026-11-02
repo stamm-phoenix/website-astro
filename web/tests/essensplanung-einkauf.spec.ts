@@ -1,5 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import { anlegen } from './essensplanung-helpers';
+import { anlegen, einplanen } from './essensplanung-helpers';
 
 test('the shopping list sums the dishes and extra needs, less the stock, by shop', async ({
   page,
@@ -20,7 +20,7 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await dialog.getByLabel('Zutat', { exact: true }).fill('Nudeln (Spag');
   await dialog.getByRole('option', { name: 'Nudeln (Spaghetti)' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('500');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('g');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('g');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(dialog).toBeHidden();
 
@@ -32,26 +32,23 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await expect(dialog).toBeHidden();
 
   await page.getByRole('tab', { name: 'Plan' }).click();
-  for (const mahlzeit of ['1_2', '2_2']) {
-    await page.getByRole('button', { name: `Gericht einplanen bei ${mahlzeit}` }).click();
-    await dialog.getByLabel('Gericht', { exact: true }).selectOption({ label: 'Nudeln' });
-    await dialog.getByRole('button', { name: 'Einplanen' }).click();
-    await expect(dialog).toBeHidden();
-  }
+  for (const mahlzeit of ['1_2', '2_2']) await einplanen(page, mahlzeit, 'Nudeln');
 
   // 2 × 1 kg pasta, without a shop yet
   await page.getByRole('tab', { name: 'Einkauf' }).click();
-  const ohne = page.getByRole('list', { name: 'Ohne Geschäft: Teigware' });
+  const ohne = page.getByRole('rowgroup', { name: 'Ohne Geschäft: Teigware' });
   await expect(ohne).toContainText('2 kg Nudeln (Spaghetti)');
 
   // 500 g are in stock, dish soap is needed on top
+  await page.getByRole('tab', { name: 'Lager' }).click();
   await page.getByRole('button', { name: 'Bestand eintragen' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Nudeln (Spag');
   await dialog.getByRole('option', { name: 'Nudeln (Spaghetti)' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('0,5');
-  await dialog.getByLabel('Einheit', { exact: true }).selectOption('kg');
+  await dialog.getByLabel('Einheit', { exact: true }).fill('kg');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
+  await page.getByRole('tab', { name: 'Einkauf' }).click();
   await expect(ohne).toContainText('1,5 kg Nudeln (Spaghetti)');
 
   await page.getByRole('button', { name: 'Zusatzbedarf eintragen' }).click();
@@ -65,9 +62,9 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
   // Pieces are rounded up for buying
-  await expect(page.getByRole('list', { name: 'Ohne Geschäft: Reinigung/Hygiene' })).toContainText(
-    '3 Stück Spülmittel'
-  );
+  await expect(
+    page.getByRole('rowgroup', { name: 'Ohne Geschäft: Reinigung/Hygiene' })
+  ).toContainText('3 Stück Spülmittel');
 
   // A shop, and the pasta is bought there
   await page.getByRole('button', { name: 'Geschäft hinzufügen' }).click();
@@ -82,7 +79,7 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await expect(ohne).toContainText('1,5 kg Nudeln (Spaghetti)');
   await page.unroute('**/api/essensplanung/planung/zutaten/*/geschaeft');
   await wahl.selectOption({ label: 'Metro' });
-  await expect(page.getByRole('list', { name: 'Metro: Teigware' })).toContainText(
+  await expect(page.getByRole('rowgroup', { name: 'Metro: Teigware' })).toContainText(
     '1,5 kg Nudeln (Spaghetti)'
   );
   await expectNoHorizontalOverflow(page);
@@ -93,8 +90,10 @@ test('the shopping list sums the dishes and extra needs, less the stock, by shop
   await expect(ohne).toContainText('1,5 kg Nudeln (Spaghetti)');
 
   // Taking the stock away buys all of it again
+  await page.getByRole('tab', { name: 'Lager' }).click();
   await page.getByRole('button', { name: '500 g Nudeln (Spaghetti) entfernen' }).click();
   await answerConfirm(page, '500 g Nudeln (Spaghetti) entfernen?', 'Entfernen');
+  await page.getByRole('tab', { name: 'Einkauf' }).click();
   await expect(ohne).toContainText('2 kg Nudeln (Spaghetti)');
 });
 
@@ -103,7 +102,7 @@ test('the stock dialog retries a failed list and keeps typed text', async ({ pag
   const dialog = page.getByRole('dialog');
   // The list fails first: the open dialog offers to load it again, keeping the input
   await page.route('**/api/essensplanung/planung/katalog', (route) => route.abort());
-  await page.getByRole('tab', { name: 'Einkauf' }).click();
+  await page.getByRole('tab', { name: 'Lager' }).click();
   await page.getByRole('button', { name: 'Bestand eintragen' }).click();
   await dialog.getByLabel('Menge', { exact: true }).fill('3');
   await expect(dialog.getByRole('alert')).toContainText('Noch einmal versuchen');
@@ -120,5 +119,5 @@ test('the stock dialog retries a failed list and keeps typed text', async ({ pag
   await expect(feld).toHaveValue('Oliven');
   await dialog.getByRole('button', { name: 'Eintragen' }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByText('3 g (ATG) Oliven', { exact: true })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Bestand' })).toContainText(/3 g \(ATG\)\s*Oliven/);
 });

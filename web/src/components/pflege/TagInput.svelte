@@ -17,6 +17,8 @@
     disabled?: boolean;
     /** Lets a surrounding dialog protect text that has not yet been added. */
     ondraftchange?: (value: string) => void;
+    /** 32 px high with a mouse, like the dense forms of the Essensplanung; 44 px for a finger. */
+    kompakt?: boolean;
   }
 
   let {
@@ -27,10 +29,13 @@
     placeholder = 'Neues Merkmal',
     describedBy,
     invalid = false,
+    kompakt = false,
     onchange,
     disabled = false,
     ondraftchange,
   }: Props = $props();
+  const hoehe = $derived(kompakt ? 'min-h-7 any-pointer-coarse:min-h-11' : 'min-h-11');
+  const knopf = $derived(kompakt ? 'size-7 any-pointer-coarse:size-11' : 'size-11');
 
   const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   let draft = $state('');
@@ -75,20 +80,22 @@
 </script>
 
 <div
-  class="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border bg-surface px-2 py-1.5 focus-within:ring-2 focus-within:ring-[var(--color-brand-400)] {invalid
+  class="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border bg-surface px-2 {kompakt
+    ? 'py-px any-pointer-coarse:py-1.5'
+    : 'py-1.5'} focus-within:ring-2 focus-within:ring-[var(--color-brand-400)] {invalid
     ? 'border-danger'
     : 'border-neutral-300'}"
 >
   {#each tags as tag (tag)}
     <span
-      class="inline-flex min-h-11 max-w-full items-center gap-1 rounded-sm border pl-2 text-sm {TONE_CLASS[
+      class="inline-flex {hoehe} max-w-full items-center gap-1 rounded-sm border pl-2 text-sm {TONE_CLASS[
         tone
       ]}"
     >
       <span class="min-w-0 break-words">{tag}</span>
       <button
         type="button"
-        class="flex size-11 shrink-0 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
+        class="flex {knopf} shrink-0 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
         aria-label="{tag} entfernen"
         {disabled}
         onclick={() => remove(tag)}>×</button
@@ -99,7 +106,9 @@
     bind:input
     {id}
     wrapperClass="min-w-[10rem] flex-1"
-    class="min-h-11 w-full border-0 bg-transparent px-1 py-1 text-base focus:outline-none"
+    class="{hoehe} w-full border-0 bg-transparent px-1 py-1 {kompakt
+      ? 'text-sm any-pointer-coarse:text-base'
+      : 'text-base'} focus:outline-none"
     {placeholder}
     aria-describedby={describedBy}
     aria-invalid={invalid ? 'true' : undefined}
@@ -128,7 +137,7 @@
   />
   <button
     type="button"
-    class="min-h-11 shrink-0 px-2 text-sm font-semibold text-link disabled:opacity-50"
+    class="{hoehe} shrink-0 px-2 text-sm font-semibold text-link disabled:opacity-50"
     disabled={disabled || !draft.trim()}
     onmousedown={(event) => event.preventDefault()}
     onclick={() => add(draft)}>Hinzufügen</button

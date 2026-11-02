@@ -22,7 +22,7 @@
 </script>
 
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import {
@@ -33,7 +33,9 @@
     zutatWahl,
     type ZutatWahl,
   } from '../../lib/essensplanungGerichte';
-  import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
+  import { EINHEITEN_JE_ART } from '../../../../api/lib/essen-gerichte-model';
+  import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
+  import EinheitFeld from './EinheitFeld.svelte';
   import type { EssenKatalog, Gericht, GerichtEinheit } from '../../lib/types';
   import type { Vorschlag } from '../../lib/vorschlaege';
   import type { PlanKontext } from './planKontext';
@@ -75,23 +77,22 @@
   });
   /** Tins and jars are weighed drained, shown as „g (ATG)“ like on the saved line. */
   const abtropfgewicht = $derived(gewaehlt?.abtropfgewicht ?? false);
-  /** A unit no longer fitting stays choosable, so a typed amount does not change its meaning. */
-  const einheiten = $derived(
-    passend.length && eingabe.menge.trim() && !passend.includes(eingabe.einheit)
-      ? [...passend, eingabe.einheit]
-      : passend
-  );
   const unpassend = $derived(passend.length > 0 && !passend.includes(eingabe.einheit));
-  // Without an amount the unit follows the ingredient, e.g. g for flour, Stück for eggs
+  // Without an amount the unit follows the chosen ingredient, e.g. g for flour, Stück for eggs;
+  // a unit typed meanwhile stays until another ingredient is chosen
   $effect(() => {
-    if (!eingabe.menge.trim() && unpassend) eingabe.einheit = passend[0];
+    void passend;
+    untrack(() => {
+      if (!eingabe.menge.trim() && unpassend) eingabe.einheit = passend[0];
+    });
   });
   const ohneTreffer = $derived(!auswahl && eingabe.name.trim().length > 1);
-  /** Picking an ingredient picks a fitting unit, as nothing typed is reinterpreted by it. */
+  /** Picking an ingredient picks its unit, unless an amount is typed already in another one. */
   function nimm(option: Vorschlag): void {
     auswahl = zutatWahl(option);
     fehler = null;
-    if (passend.length && !passend.includes(eingabe.einheit)) eingabe.einheit = passend[0];
+    if (!eingabe.menge.trim() && passend.length && !passend.includes(eingabe.einheit))
+      eingabe.einheit = passend[0];
   }
 
   function waehle(option: Vorschlag): void {
@@ -120,8 +121,8 @@
       fehler = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
       return;
     }
-    if (zahl !== null && unpassend) {
-      fehler = `${einheitText(eingabe.einheit)} passt nicht mehr zu ${eingabe.name.trim()}. Bitte wähle eine andere Einheit.`;
+    if (zahl !== null && !eingabe.einheit) {
+      fehler = 'Bitte eine Einheit eintragen, z. B. g oder Bund.';
       return;
     }
     const ziel = auswahl;
@@ -209,17 +210,15 @@
       onkeydown={taste}
     />
     <label class="sr-only" for="gericht-{gericht.id}-neu-einheit">Einheit der neuen Zutat</label>
-    <select
+    <EinheitFeld
       id="gericht-{gericht.id}-neu-einheit"
-      class="form-input"
-      bind:value={eingabe.einheit}
-      disabled={speichert || !einheiten.length}
+      bind:einheit={eingabe.einheit}
+      art={gewaehlt?.einheitenart ?? null}
+      eigene={eigeneEinheiten(ansicht)}
+      {abtropfgewicht}
+      disabled={speichert}
       onkeydown={taste}
-    >
-      {#each einheiten as wert (wert)}
-        <option value={wert}>{einheitText(wert, abtropfgewicht)}</option>
-      {/each}
-    </select>
+    />
     <label class="sr-only" for="gericht-{gericht.id}-neu-hinweis">Hinweis zur neuen Zutat</label>
     <input
       id="gericht-{gericht.id}-neu-hinweis"
@@ -245,7 +244,7 @@
           const vorgabe = {
             name: eingabe.name.trim(),
             menge: eingabe.menge.trim(),
-            einheit: einheiten.length ? eingabe.einheit : null,
+            einheit: eingabe.einheit || null,
             hinweis: eingabe.hinweis.trim(),
           };
           eingabe = leereZeile();

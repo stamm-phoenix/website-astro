@@ -2,7 +2,7 @@ import type { Transaction } from 'kysely';
 import type { Db } from './db';
 import type { Database } from './db-schema';
 import { RecordNotFoundError, lockResource } from './db';
-import { EINHEITEN_JE_ART, MAX_PLANUNG_ZUTATEN, zutatSperre } from './essen-gerichte-model';
+import { MAX_PLANUNG_ZUTATEN, einheitenartVon, zutatSperre } from './essen-gerichte-model';
 import type { GerichtEinheit } from './essen-gerichte-model';
 import type { Zugang } from './essen-planung';
 import type { EssenEinheitenart } from './essen-validation';
@@ -107,13 +107,6 @@ export async function zutatDerPlanungFuer(
   return { id, name: zentral.name, einheitenart: zentral.einheitenart };
 }
 
-/** The kind of unit a unit belongs to, e.g. `masse` for kg. */
-function artVon(einheit: GerichtEinheit): EssenEinheitenart {
-  return (Object.keys(EINHEITEN_JE_ART) as EssenEinheitenart[]).find((art) =>
-    EINHEITEN_JE_ART[art].includes(einheit)
-  )!;
-}
-
 /** The category of things of their own on the shopping list. */
 const SONSTIGES = 'Sonstiges';
 
@@ -173,7 +166,7 @@ export async function sonstigesDerPlanung(
     });
   }
   const kategorieId = await sonstigesKategorie(trx);
-  const einheitenart = einheit === null ? 'stueck' : artVon(einheit);
+  const einheitenart = (einheit === null ? null : einheitenartVon(einheit)) ?? 'stueck';
   const { id } = await trx
     .insertInto('essen.planung_zutat')
     .values({

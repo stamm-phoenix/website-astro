@@ -1,11 +1,12 @@
 import { packlisteSchluessel } from '../../../api/lib/essen-packliste-model';
 import { einplanungKennung } from './essensplanungEinplanung';
-import type { PacklisteEintrag, PlanungAnsicht, PlanungMitglied } from './types';
+import type { PackZuteilung, PacklisteEintrag, PlanungAnsicht, PlanungMitglied } from './types';
 
 /**
  * The packing list of a Planung (`docs/essensplanung.md`, Packliste): the tools of all planned
  * dishes, merged by name (`packlisteSchluessel`), with the dishes and planned meals that need
- * them, and the entries of its own. What someone set at a tool comes from its stored row.
+ * them, and the entries of its own. What someone set at a tool comes from its stored row: whether
+ * it is packed and the persons who pack it, each with their own box.
  */
 
 /** A dish that needs a tool, with the IDs of its planned meals, e.g. `3_2_1`. */
@@ -24,9 +25,10 @@ export interface PackZeile {
   name: string;
   /** The stored row; null while nobody set anything at this tool. */
   eintrag: PacklisteEintrag | null;
+  /** The whole thing: its one box, or with persons whether all of them packed. */
   gepackt: boolean;
-  zustaendigId: number | null;
-  zustaendig: string;
+  /** Who packs it, each with their own box; empty for nobody. */
+  personen: PackZuteilung[];
   /** The dishes that need it, in the order of the plan; empty for an entry of its own. */
   gerichte: PackGericht[];
 }
@@ -72,8 +74,7 @@ export function packliste(
   const zustand = (eintrag: PacklisteEintrag | null) => ({
     eintrag,
     gepackt: eintrag?.gepackt ?? false,
-    zustaendigId: eintrag?.zustaendigId ?? null,
-    zustaendig: eintrag?.zustaendig ?? '',
+    personen: eintrag?.zuteilungen ?? [],
   });
   // An entry of its own named like a tool of a dish planned later is that tool: one row, with
   // the state of the entry and the dishes of the tool; it stays removable as an entry
@@ -131,7 +132,9 @@ export function gefiltert(
   if (filter === 'offen') return zeilen.filter((zeile) => !zeile.gepackt);
   if (filter === 'gepackt') return zeilen.filter((zeile) => zeile.gepackt);
   if (filter === 'meine')
-    return zeilen.filter((zeile) => ichId !== null && zeile.zustaendigId === ichId);
+    return zeilen.filter(
+      (zeile) => ichId !== null && zeile.personen.some((p) => p.mitgliedId === ichId)
+    );
   return zeilen;
 }
 
@@ -148,8 +151,19 @@ export function packlisteDruck(zeilen: PackZeile[]): PackDruckZeile[] {
     gepackt: zeile.gepackt,
     name: zeile.name,
     fuer: fuerText(zeile),
-    zustaendig: zeile.zustaendig,
+    zustaendig: personenText(zeile, true),
   }));
+}
+
+/**
+ * „Kim Küche, Alex Rover“; with `stand` and several persons, who packed is named, as one box
+ * stands for all: „Kim Küche (gepackt), Alex Rover“.
+ */
+export function personenText(zeile: Pick<PackZeile, 'personen'>, stand = false): string {
+  const mehrere = zeile.personen.length > 1;
+  return zeile.personen
+    .map((p) => (stand && mehrere && p.gepackt ? `${p.name} (gepackt)` : p.name))
+    .join(', ');
 }
 
 /**
@@ -164,96 +178,73 @@ export function packId(key: string): string {
   return `pack-${hex}`;
 }
 
-/**
- * The members to choose who packs a thing: those with access, and the one responsible now even
- * without access. Others with a read link or the role „bearbeiten“ do not get removed members in
- * the view, so that one is named from the row.
- */
-export function zustaendigWahl(
-  mitglieder: Pick<PlanungMitglied, 'id' | 'name' | 'entzogen'>[],
-  zeile: Pick<PackZeile, 'zustaendigId' | 'zustaendig'>
-): { id: number; name: string }[] {
+/** The key of a person, like the column of the matrix: `m:<id>` or `t:<merged name>`. */
+export function personKey(person: Pick<PackZuteilung, 'mitgliedId' | 'name'>): string {
+  return person.mitgliedId !== null
+    ? `m:${person.mitgliedId}`
+    : `t:${packlisteSchluessel(person.name)}`;
+}
+
+/** The members to choose who packs a thing: those with access, and those it has even without. */
+export function personenWahl(
+  mitglieder: Pick<PlanungMitglied, 'id' | 'name' | 'entzogen' | 'ich'>[],
+  zeile: Pick<PackZeile, 'personen'> | null
+): { id: number; name: string; ich: boolean; ohneZugang: boolean }[] {
+  const hat = (id: number) => zeile?.personen.some((p) => p.mitgliedId === id) ?? false;
   const wahl = mitglieder
-    .filter((m) => !m.entzogen || m.id === zeile.zustaendigId)
-    .map(({ id, name }) => ({ id, name }));
-  if (zeile.zustaendigId !== null && !wahl.some((m) => m.id === zeile.zustaendigId))
-    wahl.push({ id: zeile.zustaendigId, name: zeile.zustaendig || 'Mitglied ohne Zugang' });
+    .filter((m) => !m.entzogen || hat(m.id))
+    .map(({ id, name, ich, entzogen }) => ({ id, name, ich, ohneZugang: entzogen }));
+  // Members the view lacks, e.g. one without access for those who do not manage the members
+  for (const person of zeile?.personen ?? []) {
+    if (person.mitgliedId !== null && !wahl.some((m) => m.id === person.mitgliedId))
+      wahl.push({
+        id: person.mitgliedId,
+        name: person.name || 'Mitglied ohne Zugang',
+        ich: false,
+        ohneZugang: true,
+      });
+  }
   return wahl;
+}
+
+/** Who is chosen to pack a thing: members and free names. */
+export interface PackAuswahl {
+  mitglieder: number[];
+  namen: string[];
+}
+
+/** The choice a row starts with: its persons. */
+export function auswahlVon(zeile: Pick<PackZeile, 'personen'>): PackAuswahl {
+  return {
+    mitglieder: zeile.personen.flatMap((p) => (p.mitgliedId !== null ? [p.mitgliedId] : [])),
+    namen: zeile.personen.flatMap((p) => (p.mitgliedId === null ? [p.name] : [])),
+  };
+}
+
+/**
+ * What saves a choice at a row: the persons to add and the assignments to take off. Nothing
+ * else, so a person someone else added meanwhile stays.
+ */
+export function personenAenderung(
+  zeile: Pick<PackZeile, 'personen'>,
+  auswahl: PackAuswahl
+): { mitglieder: number[]; namen: string[]; weg: number[] } {
+  const namen = new Set(auswahl.namen.map(packlisteSchluessel));
+  const da = new Set(zeile.personen.map(personKey));
+  return {
+    mitglieder: auswahl.mitglieder.filter((id) => !da.has(`m:${id}`)),
+    namen: auswahl.namen.filter((name) => !da.has(`t:${packlisteSchluessel(name)}`)),
+    weg: zeile.personen
+      .filter((p) =>
+        p.mitgliedId !== null
+          ? !auswahl.mitglieder.includes(p.mitgliedId)
+          : !namen.has(packlisteSchluessel(p.name))
+      )
+      .map((p) => p.id),
+  };
 }
 
 /** A free name as it is saved: trimmed, inner whitespace collapsed. */
 export function freiName(text: string): string {
   return text.trim().replace(/\s+/g, ' ');
-}
-
-/**
- * A free name typed at a row. It keeps the version of the row it was typed on, so saving it over
- * a change of someone else is a conflict; `gesendet` is the text of a save still running.
- */
-export interface PackEntwurf {
-  text: string;
-  /**
-   * The text the field started from (the saved free name, empty for a member or nobody). A field
-   * left as it started saves nothing, so opening it under a member does not take them away.
-   */
-  start: string;
-  /** The name of the thing, to name the draft when its row goes. */
-  name: string;
-  /** The version of the row when the field was opened; null while nothing is stored. */
-  etag: string | null;
-  gesendet: string | null;
-  /** Someone else changed the row meanwhile; only Enter saves over it now. */
-  konflikt: boolean;
-}
-
-/**
- * Whether a free name typed at a row differs from what is saved there, also while it is saved or
- * after saving failed. `entwuerfe` are the open fields by row key.
- */
-export function entwurfOffen(
-  entwuerfe: Record<string, Pick<PackEntwurf, 'text'>>,
-  zeilen: PackZeile[]
-): boolean {
-  return Object.entries(entwuerfe).some(([key, entwurf]) => {
-    const zeile = zeilen.find((z) => z.key === key);
-    // A row gone meanwhile: the name is lost unless someone copies it (`entwuerfeOhneZeile`)
-    if (!zeile) return freiName(entwurf.text) !== '';
-    return freiName(entwurf.text) !== (zeile.zustaendigId === null ? zeile.zustaendig : '');
-  });
-}
-
-/**
- * The draft after its save `gesendet` went through: gone when it still is that text; typed on
- * meanwhile (e.g. in the row shown anew after a filter), it stays on the version now saved.
- */
-export function entwurfNachSpeichern(
-  entwurf: PackEntwurf | undefined,
-  gesendet: string,
-  etagJetzt: string | null
-): PackEntwurf | null {
-  if (!entwurf || freiName(entwurf.text) === gesendet) return null;
-  return { ...entwurf, start: gesendet, etag: etagJetzt, gesendet: null, konflikt: false };
-}
-
-/**
- * Drafts whose row is gone, e.g. as someone else took the last dish with the tool out of the
- * plan; with the text to copy for those with something typed.
- */
-export function entwuerfeOhneZeile(
-  entwuerfe: Record<string, Pick<PackEntwurf, 'text' | 'name'>>,
-  zeilen: Pick<PackZeile, 'key'>[]
-): { key: string; meldung: string | null }[] {
-  const da = new Set(zeilen.map((zeile) => zeile.key));
-  return Object.entries(entwuerfe)
-    .filter(([key]) => !da.has(key))
-    .map(([key, entwurf]) => {
-      const text = freiName(entwurf.text);
-      const grund = key.startsWith('w:')
-        ? 'das Werkzeug wird nicht mehr gebraucht'
-        : 'der Eintrag wurde entfernt';
-      return {
-        key,
-        meldung: text ? `Zuständig für ${entwurf.name}: „${text}“ – ${grund}.` : null,
-      };
-    });
 }

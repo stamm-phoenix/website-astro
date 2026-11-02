@@ -51,8 +51,13 @@ export function thumbFileName(photo: string): string {
   return `${base(photo)}-thumb.jpg`;
 }
 
+/** The folder of the files of a receipt of the Leitendenbereich. */
+function belegOrdner(id: number | string): string {
+  return `belege/${id}/`;
+}
+
 export function belegBlobName(id: number | string, file: string): string {
-  return `belege/${id}/${file}`;
+  return `${belegOrdner(id)}${file}`;
 }
 
 /** All files of a photo: the photo, its original or first page, and its preview. */
@@ -73,34 +78,52 @@ export async function storeBelegPhoto(
   original?: Uint8Array,
   pdf?: Uint8Array
 ): Promise<string> {
+  return storeBelegFotoIn(belegOrdner(id), photo, original, pdf);
+}
+
+/**
+ * Like `storeBelegPhoto`, in any folder (ending with a slash), e.g. the receipts of a Planung of
+ * the Essensplanung (`essen-beleg-fotos.ts`), whose files share one folder.
+ */
+export async function storeBelegFotoIn(
+  ordner: string,
+  photo: Uint8Array,
+  original?: Uint8Array,
+  pdf?: Uint8Array
+): Promise<string> {
   const name = newBelegPhotoName(pdf ? 'pdf' : original ? 'scan' : 'foto');
   const written: string[] = [];
   try {
     const originalName = originalFileName(name);
     if (original && originalName) {
       written.push(originalName);
-      await putBlob(belegBlobName(id, originalName), original, 'image/jpeg');
+      await putBlob(`${ordner}${originalName}`, original, 'image/jpeg');
     }
     const pageName = pageFileName(name);
     if (pdf && pageName) {
       written.push(pageName);
-      await putBlob(belegBlobName(id, pageName), photo, 'image/jpeg');
+      await putBlob(`${ordner}${pageName}`, photo, 'image/jpeg');
       written.push(name);
-      await putBlob(belegBlobName(id, name), pdf, 'application/pdf');
+      await putBlob(`${ordner}${name}`, pdf, 'application/pdf');
       return name;
     }
     written.push(name);
-    await putBlob(belegBlobName(id, name), photo, 'image/jpeg');
+    await putBlob(`${ordner}${name}`, photo, 'image/jpeg');
     return name;
   } catch (error: unknown) {
-    await Promise.allSettled(written.map((file) => deleteBlob(belegBlobName(id, file))));
+    await Promise.allSettled(written.map((file) => deleteBlob(`${ordner}${file}`)));
     throw error;
   }
 }
 
 /** Deletes all files of a photo. */
 export async function deleteBelegPhoto(id: number, photo: string): Promise<void> {
-  for (const file of belegPhotoFiles(photo)) await deleteBlob(belegBlobName(id, file));
+  await deleteBelegFotoIn(belegOrdner(id), photo);
+}
+
+/** Like `deleteBelegPhoto`, in any folder. */
+export async function deleteBelegFotoIn(ordner: string, photo: string): Promise<void> {
+  for (const file of belegPhotoFiles(photo)) await deleteBlob(`${ordner}${file}`);
 }
 
 /**
@@ -112,17 +135,26 @@ export async function readBelegPhoto(
   photo: string,
   variant: 'photo' | 'original' | 'thumb' | 'file'
 ): Promise<Buffer | undefined> {
+  return readBelegFotoIn(belegOrdner(id), photo, variant);
+}
+
+/** Like `readBelegPhoto`, in any folder. */
+export async function readBelegFotoIn(
+  ordner: string,
+  photo: string,
+  variant: 'photo' | 'original' | 'thumb' | 'file'
+): Promise<Buffer | undefined> {
   if (variant === 'original') {
     const original = originalFileName(photo);
-    return original ? getBlob(belegBlobName(id, original)) : undefined;
+    return original ? getBlob(`${ordner}${original}`) : undefined;
   }
-  if (variant === 'file') return getBlob(belegBlobName(id, photo));
+  if (variant === 'file') return getBlob(`${ordner}${photo}`);
   const picture = pageFileName(photo) ?? photo;
-  if (variant === 'photo') return getBlob(belegBlobName(id, picture));
-  const thumbName = belegBlobName(id, thumbFileName(photo));
+  if (variant === 'photo') return getBlob(`${ordner}${picture}`);
+  const thumbName = `${ordner}${thumbFileName(photo)}`;
   const stored = await getBlob(thumbName);
   if (stored) return stored;
-  const full = await getBlob(belegBlobName(id, picture));
+  const full = await getBlob(`${ordner}${picture}`);
   if (!full) return undefined;
   let thumb: Buffer;
   const { default: sharp } = await import('sharp');

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { CONFIG } from './config';
+import type { AzureOpenAiDeployment } from './azure-openai';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 import { lenientObject } from './validation/zod';
 
@@ -215,7 +216,19 @@ export function checkBelegPhoto(
 
 async function askModel(jpeg: Uint8Array): Promise<BelegCheck | undefined> {
   reserveCheck();
-  const answer = await requestStructuredOutput(CONFIG.belege.check, {
+  return frageBelegPruefung(CONFIG.belege.check, jpeg);
+}
+
+/**
+ * Asks `deployment` for the check of a JPEG photo, without the daily limit and the reuse of
+ * `checkBelegPhoto`, e.g. for the receipts of the Essensplanung (`essen-belege-ki.ts`). Errors of
+ * the deployment come as `AzureOpenAiError`.
+ */
+export async function frageBelegPruefung(
+  deployment: AzureOpenAiDeployment,
+  jpeg: Uint8Array
+): Promise<BelegCheck> {
+  const answer = await requestStructuredOutput(deployment, {
     schemaName: 'belegpruefung',
     schema: RESPONSE_SCHEMA,
     maxCompletionTokens: MAX_COMPLETION_TOKENS,
@@ -261,8 +274,16 @@ const ROTATION_MAX_TOKENS = 2_000;
 export async function checkBelegRotation(jpeg: Uint8Array): Promise<BelegRotation | undefined> {
   if (!isBelegCheckConfigured()) return undefined;
   reserveCheck();
+  return frageBelegDrehung(CONFIG.belege.check, jpeg);
+}
+
+/** Asks `deployment`, with little thinking, how the photo must be turned; no daily limit. */
+export async function frageBelegDrehung(
+  deployment: AzureOpenAiDeployment,
+  jpeg: Uint8Array
+): Promise<BelegRotation> {
   const answer = await requestStructuredOutput(
-    { ...CONFIG.belege.check, reasoningEffort: 'low' },
+    { ...deployment, reasoningEffort: 'low' },
     {
       schemaName: 'belegdrehung',
       schema: ROTATION_SCHEMA,
