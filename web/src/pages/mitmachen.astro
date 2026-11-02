@@ -10,10 +10,6 @@ import TextLink from '../components/TextLink.astro';
 import CardGrid from '../components/CardGrid.astro';
 import MembershipApplication from '../components/MembershipApplication.astro';
 import SchnupperAnfrageForm from '../components/SchnupperAnfrageForm.svelte';
-import { getGruppenstundenContent } from '../lib/content/content';
-
-// Baked at build time, to show when the chosen Stufe meets
-const gruppenstunden = await getGruppenstundenContent();
 ---
 
 <BaseLayout
@@ -36,7 +32,7 @@ const gruppenstunden = await getGruppenstundenContent();
         Komm zu einer kostenlosen <strong>Schnupperstunde</strong>. Sag uns Alter und Wunschzeit,
         dann schicken wir dir einen Termin.
       </Text>
-      <SchnupperAnfrageForm client:only="svelte" gruppenstunden={gruppenstunden.data}>
+      <SchnupperAnfrageForm client:only="svelte">
         <p slot="fallback" class="text-sm text-neutral-700">
           Ohne JavaScript funktioniert das Formular nicht. Schreib uns stattdessen an{' '}
           <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>.

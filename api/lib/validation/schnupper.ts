@@ -6,8 +6,8 @@
 import { z } from 'zod';
 import { isValidDate } from '../calendar-date';
 import { berlinDay } from '../calendar-day';
-import { SCHNUPPER_MAX_LENGTH } from '../schnupper-model';
-import type { SchnupperAbsage, SchnupperBestaetigung } from '../schnupper-model';
+import { SCHNUPPER_MAX_LENGTH, isSchnupperStufe } from '../schnupper-model';
+import type { SchnupperAbsage, SchnupperBestaetigung, SchnupperStufe } from '../schnupper-model';
 import { labeledText, lenientObject, parseWith } from './zod';
 
 /** Text to the family: trimmed, line breaks kept, a missing value is `''`. */
@@ -20,9 +20,12 @@ const antwort = z.preprocess(
     })
 );
 
-/** A confirmed date: today or later in Berlin, with a time and an optional place. */
+/** A confirmed date: today or later in Berlin, with a time, the Stufe and an optional place. */
 export function schnupperBestaetigungSchema(today: string = berlinDay()) {
   return lenientObject({
+    stufe: z.custom<SchnupperStufe>(isSchnupperStufe, {
+      error: 'Bitte die Stufe auswählen.',
+    }),
     datum: z
       .string({ error: 'Bitte ein Datum angeben.' })
       .refine(isValidDate, { error: 'Bitte ein gültiges Datum angeben.' })

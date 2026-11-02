@@ -1,5 +1,5 @@
 import type { ColumnType, Generated } from 'kysely';
-import type { SchnupperStatus, SchnupperStufe } from './schnupper-model';
+import type { SchnupperStatus } from './schnupper-model';
 
 /** Set by the database (rowversion); never written by the code. */
 type ReadOnly<T> = ColumnType<T, never, never>;
@@ -10,7 +10,8 @@ export interface SchnupperAnfrageTable {
   version: ReadOnly<Buffer>;
   created_at: Generated<Date>;
   alter_jahre: number;
-  stufe: SchnupperStufe;
+  /** A key of `STUFE_KEYS`; the column also allows `unklar` of the first version. */
+  stufe: string;
   kind_vorname: Generated<string>;
   kontakt_name: string;
   email: string;

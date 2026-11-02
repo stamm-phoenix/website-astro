@@ -6,21 +6,24 @@
 import { STUFE_KEYS } from './aktion-stufen';
 import type { StufeKey } from './aktion-stufen';
 
-/** A Stufe, or `unklar` when the family does not know which one fits. */
-export type SchnupperStufe = StufeKey | 'unklar';
+/**
+ * The Stufe of a request. Families give only the age: until a leader confirms a date with the
+ * Stufe that fits, it is the one of the age (`stufeFuerAlter`).
+ */
+export type SchnupperStufe = StufeKey;
 
 export const SCHNUPPER_STUFEN: readonly SchnupperStufe[] = [
   'woelflinge',
   'jupfis',
   'pfadis',
   'rover',
-  'unklar',
 ];
 
-export const SCHNUPPER_STUFE_LABELS: Record<SchnupperStufe, string> = {
-  ...STUFE_KEYS,
-  unklar: 'Weiß ich nicht',
-};
+export const SCHNUPPER_STUFE_LABELS: Record<SchnupperStufe, string> = STUFE_KEYS;
+
+export function isSchnupperStufe(value: unknown): value is SchnupperStufe {
+  return typeof value === 'string' && (SCHNUPPER_STUFEN as readonly string[]).includes(value);
+}
 
 export const SCHNUPPER_STATUS = ['offen', 'bestaetigt', 'abgesagt'] as const;
 export type SchnupperStatus = (typeof SCHNUPPER_STATUS)[number];
@@ -46,10 +49,9 @@ export function stufeFuerAlter(alter: number): StufeKey {
   return 'rover';
 }
 
-/** What a family sends. */
+/** What a family sends; the Stufe is chosen by the leaders. */
 export interface SchnupperAnfrageInput {
   alter: number;
-  stufe: SchnupperStufe;
   /** Optional; empty when not given. */
   kindVorname: string;
   name: string;
@@ -94,10 +96,6 @@ function readAlter(value: unknown): number | null {
     : null;
 }
 
-function isSchnupperStufe(value: unknown): value is SchnupperStufe {
-  return typeof value === 'string' && (SCHNUPPER_STUFEN as readonly string[]).includes(value);
-}
-
 /**
  * Checks a request of the public form. Returns the trimmed request, or `null` with a German
  * message per invalid field. Extra fields are ignored.
@@ -109,9 +107,6 @@ export function validateSchnupperAnfrage(input: Record<string, unknown>): Schnup
   const alter = readAlter(input.alter);
   if (alter === null)
     errors.alter = `Bitte gib das Alter in Jahren an (${SCHNUPPER_ALTER.min} bis ${SCHNUPPER_ALTER.max}).`;
-
-  const stufe = isSchnupperStufe(input.stufe) ? input.stufe : null;
-  if (stufe === null) errors.stufe = 'Bitte wähle eine Stufe oder „Weiß ich nicht“.';
 
   const kindVorname = line(input.kindVorname);
   if (kindVorname.length > max.kindVorname)
@@ -139,11 +134,11 @@ export function validateSchnupperAnfrage(input: Record<string, unknown>): Schnup
   if (nachricht.length > max.nachricht)
     errors.nachricht = `Deine Nachricht darf höchstens ${max.nachricht} Zeichen lang sein.`;
 
-  if (Object.keys(errors).length > 0 || alter === null || stufe === null) {
+  if (Object.keys(errors).length > 0 || alter === null) {
     return { anfrage: null, errors };
   }
   return {
-    anfrage: { alter, stufe, kindVorname, name, email, telefon, wunschzeit, nachricht },
+    anfrage: { alter, kindVorname, name, email, telefon, wunschzeit, nachricht },
     errors,
   };
 }
@@ -151,6 +146,8 @@ export function validateSchnupperAnfrage(input: Record<string, unknown>): Schnup
 /** A request as the Leitendenbereich shows it. */
 export interface StaffSchnupperAnfrage extends SchnupperAnfrageInput {
   id: number;
+  /** Chosen with the confirmed date; before that the Stufe of the age. */
+  stufe: SchnupperStufe;
   etag: string;
   createdAt: string;
   status: SchnupperStatus;
@@ -164,8 +161,9 @@ export interface StaffSchnupperAnfrage extends SchnupperAnfrageInput {
   bearbeitetAm: string | null;
 }
 
-/** A confirmed date for the Schnupperstunde. */
+/** A confirmed date for the Schnupperstunde, with the Stufe the child goes to. */
 export interface SchnupperBestaetigung {
+  stufe: SchnupperStufe;
   datum: string;
   zeit: string;
   ort: string;

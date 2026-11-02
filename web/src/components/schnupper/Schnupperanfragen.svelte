@@ -138,7 +138,9 @@
         <li class="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between">
           <div class="min-w-0 space-y-1">
             <p class="font-semibold text-brand-900 [overflow-wrap:anywhere]">
-              {wer(anfrage)} · {SCHNUPPER_STUFE_LABELS[anfrage.stufe]}
+              {wer(anfrage)}{anfrage.status === 'bestaetigt'
+                ? ` · ${SCHNUPPER_STUFE_LABELS[anfrage.stufe]}`
+                : ''}
             </p>
             <StatusLabel
               label={SCHNUPPER_STATUS_LABELS[anfrage.status]}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { tick } from 'svelte';
   import AltchaWidget from './AltchaWidget.svelte';
   import FormField from './pflege/FormField.svelte';
   import ActionButton from './ui/ActionButton.svelte';
@@ -7,35 +7,13 @@
   import {
     SCHNUPPER_ALTER,
     SCHNUPPER_MAX_LENGTH,
-    SCHNUPPER_STUFEN,
-    SCHNUPPER_STUFE_LABELS,
-    gruppenstundeText,
-    stufeFuerAlter,
     validateSchnupperAnfrage,
   } from '../lib/schnupper';
-  import type { SchnupperField, SchnupperSent, SchnupperStufe } from '../lib/schnupper';
+  import type { SchnupperField, SchnupperSent } from '../lib/schnupper';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
-  import { fetchGruppenstunden, gruppenstundenStore } from '../lib/gruppenstundenStore.svelte';
-  import { withBaked } from '../lib/storeView';
-  import type { Gruppenstunde } from '../lib/types';
-
-  interface Props {
-    /** Baked Gruppenstunden, to show when the chosen Stufe meets; refreshed in the browser. */
-    gruppenstunden?: Gruppenstunde[] | null;
-  }
-  let { gruppenstunden = null }: Props = $props();
-
-  const stunden = $derived(withBaked(gruppenstundenStore, gruppenstunden).data ?? []);
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
-
-  $effect(() => {
-    untrack(() => void fetchGruppenstunden());
-  });
-
   const ID = 'schnupper';
   const FIELD_ORDER: SchnupperField[] = [
     'alter',
-    'stufe',
     'kindVorname',
     'wunschzeit',
     'name',
@@ -45,9 +23,6 @@
   ];
 
   let alter = $state('');
-  let stufe = $state<SchnupperStufe | ''>('');
-  /** The family picked the Stufe itself; a changed age no longer replaces it. */
-  let stufeGewaehlt = $state(false);
   let kindVorname = $state('');
   let wunschzeit = $state('');
   let name = $state('');
@@ -65,7 +40,7 @@
 
   const hasUnsentInput = $derived(
     !sentTo &&
-      [alter, stufe, kindVorname, wunschzeit, name, email, telefon, nachricht].some(
+      [alter, kindVorname, wunschzeit, name, email, telefon, nachricht].some(
         (value) => value.length > 0
       )
   );
@@ -74,26 +49,9 @@
     if (hasUnsentInput) return guardUnsavedChanges(() => hasUnsentInput);
   });
 
-  const stundeText = $derived(
-    stufe && stufe !== 'unklar'
-      ? gruppenstundeText(stunden, SCHNUPPER_STUFE_LABELS[stufe], today)
-      : null
-  );
-
   function clearError(field: SchnupperField): void {
     if (errors[field]) errors = { ...errors, [field]: undefined };
     formError = null;
-  }
-
-  /** Suggests the Stufe of the age until the family picks one itself. */
-  function onAlter(): void {
-    clearError('alter');
-    const jahre = Number(alter);
-    if (stufeGewaehlt || !Number.isInteger(jahre)) return;
-    if (jahre >= SCHNUPPER_ALTER.min && jahre <= SCHNUPPER_ALTER.max) {
-      stufe = stufeFuerAlter(jahre);
-      clearError('stufe');
-    }
   }
 
   async function focusFirstError(): Promise<void> {
@@ -108,7 +66,6 @@
 
     const validation = validateSchnupperAnfrage({
       alter,
-      stufe,
       kindVorname,
       wunschzeit,
       name,
@@ -191,36 +148,10 @@
             step="1"
             placeholder="z. B. 8"
             required
-            bind:value={
-              () => alter,
-              (value) => {
-                // After the new value is taken, so the suggestion uses it
-                alter = value == null ? '' : String(value);
-                onAlter();
-              }
-            }
+            bind:value={() => alter, (value) => (alter = value == null ? '' : String(value))}
+            oninput={() => clearError('alter')}
             class="form-input"
           />
-        {/snippet}
-      </FormField>
-
-      <FormField id="{ID}-stufe" label="Stufe" hint={stundeText ?? undefined} error={errors.stufe}>
-        {#snippet children(field)}
-          <select
-            {...field}
-            required
-            bind:value={stufe}
-            onchange={() => {
-              stufeGewaehlt = true;
-              clearError('stufe');
-            }}
-            class="form-input"
-          >
-            <option value="" disabled>Bitte auswählen</option>
-            {#each SCHNUPPER_STUFEN as option (option)}
-              <option value={option}>{SCHNUPPER_STUFE_LABELS[option]}</option>
-            {/each}
-          </select>
         {/snippet}
       </FormField>
 

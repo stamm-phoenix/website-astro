@@ -33,7 +33,6 @@ test('a request is trimmed, the age read as a number and the name kept on one li
   assert.deepEqual(errors, {});
   assert.deepEqual(anfrage, {
     alter: 8,
-    stufe: 'woelflinge',
     kindVorname: 'Mia',
     name: 'Erika Muster',
     email: 'erika@example.test',
@@ -59,12 +58,10 @@ test('a request names every invalid field in German', () => {
     'email',
     'nachricht',
     'name',
-    'stufe',
     'telefon',
     'wunschzeit',
   ]);
   assert.equal(errors.alter, 'Bitte gib das Alter in Jahren an (5 bis 25).');
-  assert.equal(errors.stufe, 'Bitte wähle eine Stufe oder „Weiß ich nicht“.');
 });
 
 test('a fraction or text is no age', () => {
@@ -88,10 +85,17 @@ test('the Stufe follows the age ranges of the Gruppenstunden', () => {
 
 test('a confirmation needs a date from today on and a time', () => {
   const input = validateSchnupperBestaetigung(
-    { datum: '2026-11-10', zeit: '17:30', ort: ' Pfarrheim ', antwort: ' Bis bald!\nGut Pfad ' },
+    {
+      stufe: 'woelflinge',
+      datum: '2026-11-10',
+      zeit: '17:30',
+      ort: ' Pfarrheim ',
+      antwort: ' Bis bald!\nGut Pfad ',
+    },
     '2026-11-02'
   );
   assert.deepEqual(input, {
+    stufe: 'woelflinge',
     datum: '2026-11-10',
     zeit: '17:30',
     ort: 'Pfarrheim',
@@ -100,7 +104,10 @@ test('a confirmation needs a date from today on and a time', () => {
 
   assert.deepEqual(
     errorsOf(() =>
-      validateSchnupperBestaetigung({ datum: '2026-11-01', zeit: '25:00' }, '2026-11-02')
+      validateSchnupperBestaetigung(
+        { stufe: 'rover', datum: '2026-11-01', zeit: '25:00' },
+        '2026-11-02'
+      )
     ),
     {
       datum: 'Das Datum liegt in der Vergangenheit.',
@@ -111,7 +118,7 @@ test('a confirmation needs a date from today on and a time', () => {
     Object.keys(
       errorsOf(() => validateSchnupperBestaetigung({ datum: '2026-02-30' }, '2026-01-01'))
     ),
-    ['datum', 'zeit']
+    ['stufe', 'datum', 'zeit']
   );
 });
 

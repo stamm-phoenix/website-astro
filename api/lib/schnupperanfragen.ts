@@ -13,6 +13,7 @@ import {
 } from './db';
 import type { Db } from './db';
 import type { SchnupperAnfrageTable } from './db-schema-schnupper';
+import { isSchnupperStufe, stufeFuerAlter } from './schnupper-model';
 import type {
   SchnupperAbsage,
   SchnupperAnfrageInput,
@@ -33,7 +34,7 @@ function toStaffItem(row: Selectable<SchnupperAnfrageTable>): StaffSchnupperAnfr
     etag: toVersion(row.version),
     createdAt: row.created_at.toISOString(),
     alter: row.alter_jahre,
-    stufe: row.stufe,
+    stufe: isSchnupperStufe(row.stufe) ? row.stufe : stufeFuerAlter(row.alter_jahre),
     kindVorname: row.kind_vorname,
     name: row.kontakt_name,
     email: row.email,
@@ -81,7 +82,8 @@ export async function storeSchnupperAnfrage(
       .insertInto(TABLE)
       .values({
         alter_jahre: anfrage.alter,
-        stufe: anfrage.stufe,
+        // The leaders choose the Stufe when they confirm a date; until then the one of the age
+        stufe: stufeFuerAlter(anfrage.alter),
         kind_vorname: anfrage.kindVorname,
         kontakt_name: anfrage.name,
         email: anfrage.email,
@@ -130,6 +132,7 @@ async function answer(
   etag: string,
   values: {
     status: 'bestaetigt' | 'abgesagt';
+    stufe?: string;
     termin_datum: string | null;
     termin_zeit: string | null;
     termin_ort: string;
@@ -168,6 +171,7 @@ export function confirmSchnupperAnfrage(
     etag,
     {
       status: 'bestaetigt',
+      stufe: input.stufe,
       termin_datum: input.datum,
       termin_zeit: input.zeit,
       termin_ort: input.ort,

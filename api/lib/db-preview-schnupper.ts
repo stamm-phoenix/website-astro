@@ -36,7 +36,7 @@ export async function seedPreviewSchnupperanfragen(now: Date = new Date()): Prom
     },
     {
       alter_jahre: 14,
-      stufe: 'unklar',
+      stufe: 'pfadis',
       kontakt_name: 'Jonas Beispiel (Test)',
       email: 'jonas.beispiel@example.invalid',
       wunschzeit: 'So bald wie möglich',

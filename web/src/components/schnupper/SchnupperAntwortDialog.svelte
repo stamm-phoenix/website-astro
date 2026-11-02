@@ -5,7 +5,11 @@
   import GermanDateInput from '../ui/GermanDateInput.svelte';
   import { sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
-  import { SCHNUPPER_MAX_LENGTH, SCHNUPPER_STUFE_LABELS } from '../../lib/schnupper';
+  import {
+    SCHNUPPER_MAX_LENGTH,
+    SCHNUPPER_STUFEN,
+    SCHNUPPER_STUFE_LABELS,
+  } from '../../lib/schnupper';
   import type { SchnupperAntwortErgebnis, StaffSchnupperAnfrage } from '../../lib/schnupper';
 
   interface Props {
@@ -22,6 +26,9 @@
   // The dialog is mounted anew for every request, so the start values are all it needs
   // svelte-ignore state_referenced_locally
   let current = $state(anfrage);
+  // Until a date is confirmed this is the Stufe of the age, the leader decides
+  // svelte-ignore state_referenced_locally
+  let stufe = $state(anfrage.stufe);
   // svelte-ignore state_referenced_locally
   let datum = $state(anfrage.termin?.datum ?? '');
   // svelte-ignore state_referenced_locally
@@ -42,7 +49,7 @@
   const bestaetigen = $derived(art === 'bestaetigen');
 
   const wer = $derived(
-    `${current.kindVorname ? `${current.kindVorname}, ` : ''}${current.alter} Jahre, ${SCHNUPPER_STUFE_LABELS[current.stufe]}`
+    `${current.kindVorname ? `${current.kindVorname}, ` : ''}${current.alter} Jahre`
   );
   const titel = $derived(
     bestaetigen
@@ -66,7 +73,7 @@
       return;
     }
     const body = bestaetigen
-      ? { datum, zeit, ort, antwort, etag: current.etag }
+      ? { stufe, datum, zeit, ort, antwort, etag: current.etag }
       : { antwort, etag: current.etag };
     await dialog.run(
       async () => {
@@ -110,6 +117,7 @@
     }
     // The dialog asked before: the current version replaces the input
     current = fresh;
+    stufe = fresh.stufe;
     datum = fresh.termin?.datum ?? '';
     zeit = fresh.termin?.zeit ?? '';
     ort = fresh.termin?.ort ?? '';
@@ -133,6 +141,15 @@
 >
   <fieldset disabled={busy} class="min-w-0 space-y-4">
     {#if bestaetigen}
+      <FormField id="schnupper-stufe" label="Stufe" error={fields.stufe}>
+        {#snippet children(attrs)}
+          <select {...attrs} class="form-input" required bind:value={stufe}>
+            {#each SCHNUPPER_STUFEN as option (option)}
+              <option value={option}>{SCHNUPPER_STUFE_LABELS[option]}</option>
+            {/each}
+          </select>
+        {/snippet}
+      </FormField>
       <div class="grid gap-4 sm:grid-cols-2">
         <FormField id="schnupper-datum" label="Datum" error={fields.datum}>
           {#snippet children(attrs)}

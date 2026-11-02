@@ -31,7 +31,6 @@ const PRINCIPAL = {
 
 const ANFRAGE = {
   alter: 8,
-  stufe: 'woelflinge',
   kindVorname: 'Mia',
   name: 'Erika Muster',
   email: 'erika@example.test',
@@ -124,7 +123,15 @@ const bestaetigen = (context: InvocationContext, item: StaffSchnupperAnfrage, ex
   SchnupperAnfrageBestaetigenEndpoint(
     request(
       'POST',
-      { datum: DATUM, zeit: '17:30', ort: 'Pfarrheim', antwort: '', etag: item.etag, ...extra },
+      {
+        stufe: 'jupfis',
+        datum: DATUM,
+        zeit: '17:30',
+        ort: 'Pfarrheim',
+        antwort: '',
+        etag: item.etag,
+        ...extra,
+      },
       { id: item.id }
     ),
     context
@@ -139,6 +146,7 @@ dbTest('a request is stored, the Stamm is told and the family gets a receipt', a
 
   const item = await only(context);
   assert.equal(item.status, 'offen');
+  assert.equal(item.stufe, 'woelflinge');
   assert.equal(item.alter, 8);
   assert.equal(item.kindVorname, 'Mia');
   assert.equal(item.termin, null);
@@ -148,7 +156,7 @@ dbTest('a request is stored, the Stamm is told and the family gets a receipt', a
     [CONFIG.kontakt.mailbox, 'erika@example.test']
   );
   assert.equal(sent[0].replyTo?.address, 'erika@example.test');
-  assert.match(sent[0].subject, /Wölflinge, 8 Jahre – Erika Muster/);
+  assert.match(sent[0].subject, /Schnupperanfrage: 8 Jahre – Erika Muster/);
   assert.match(sent[0].html, /\/leitendenbereich\/schnupperanfragen/);
   assert.match(sent[1].html, /Stand: offen/);
 });
@@ -195,6 +203,8 @@ dbTest('confirming a date needs the loaded version and mails the date', async (t
   const result = response.jsonBody as SchnupperAntwortErgebnis;
   assert.equal(result.mailSent, true);
   assert.equal(result.anfrage.status, 'bestaetigt');
+  // The leaders chose another Stufe than the one of the age
+  assert.equal(result.anfrage.stufe, 'jupfis');
   assert.deepEqual(result.anfrage.termin, { datum: DATUM, zeit: '17:30', ort: 'Pfarrheim' });
   assert.equal(result.anfrage.bearbeitetVon, 'leiterin@example.test');
 
@@ -302,7 +312,7 @@ dbTest('the mail of an outdated answer never changes the flag of a newer one', a
   const offen = await only(context);
   const bestaetigt = await confirmSchnupperAnfrage(
     offen.id,
-    { datum: DATUM, zeit: '17:30', ort: '', antwort: '' },
+    { stufe: 'woelflinge', datum: DATUM, zeit: '17:30', ort: '', antwort: '' },
     offen.etag,
     'anna@example.test'
   );

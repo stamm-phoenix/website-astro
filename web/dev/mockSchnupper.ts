@@ -1,5 +1,5 @@
 import type { MockRequest, MockResult } from './mockApi';
-import { validateSchnupperAnfrage } from '../../api/lib/schnupper-model';
+import { stufeFuerAlter, validateSchnupperAnfrage } from '../../api/lib/schnupper-model';
 import type { StaffSchnupperAnfrage } from '../../api/lib/schnupper-model';
 import {
   validateSchnupperAbsage,
@@ -54,7 +54,7 @@ const anfragen: StaffSchnupperAnfrage[] = [
   }),
   anfrage(2, {
     alter: 14,
-    stufe: 'unklar',
+    stufe: 'pfadis',
     name: 'Jonas Beispiel',
     email: 'jonas.beispiel@example.invalid',
     wunschzeit: 'So bald wie möglich',
@@ -95,7 +95,13 @@ export function registerSchnupperRoutes(
         'Die Prüfung, ob du ein Mensch bist, ist fehlgeschlagen.'
       );
     const id = Math.max(0, ...anfragen.map((item) => item.id)) + 1;
-    anfragen.unshift(anfrage(id, { ...input, createdAt: new Date().toISOString() }));
+    anfragen.unshift(
+      anfrage(id, {
+        ...input,
+        stufe: stufeFuerAlter(input.alter),
+        createdAt: new Date().toISOString(),
+      })
+    );
     return json({ status: 'sent', receipt: true });
   });
 
@@ -124,6 +130,7 @@ export function registerSchnupperRoutes(
     if (req.params.art === 'bestaetigen') {
       const input = validateSchnupperBestaetigung(req.json);
       item.status = 'bestaetigt';
+      item.stufe = input.stufe;
       item.termin = { datum: input.datum, zeit: input.zeit, ort: input.ort };
       item.antwort = input.antwort;
     } else if (req.params.art === 'absagen') {

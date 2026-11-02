@@ -50,7 +50,6 @@ function row(label: string, value: string): string {
 export function schnupperStammMail(anfrage: StaffSchnupperAnfrage, siteUrl: string): Mail {
   const rows = [
     row('Alter', `${anfrage.alter} Jahre`),
-    row('Stufe', escapeHtml(stufeLabel(anfrage))),
     anfrage.kindVorname ? row('Kind', escapeHtml(anfrage.kindVorname)) : '',
     row('Wunschzeit', paragraphs(anfrage.wunschzeit)),
     row('Von', escapeHtml(anfrage.name)),
@@ -71,7 +70,7 @@ export function schnupperStammMail(anfrage: StaffSchnupperAnfrage, siteUrl: stri
     <p><a href="${escapeHtml(siteUrl + MODULE_PATH)}" style="color:#003056;font-weight:bold;">Termin bestätigen oder absagen</a></p>
     <p style="font-size:13px;color:#6b7280;">Die E-Mail-Adresse wurde nicht überprüft.</p>`);
   return {
-    subject: `Schnupperanfrage: ${stufeLabel(anfrage)}, ${anfrage.alter} Jahre – ${anfrage.name}`,
+    subject: `Schnupperanfrage: ${anfrage.alter} Jahre – ${anfrage.name}`,
     html,
   };
 }
