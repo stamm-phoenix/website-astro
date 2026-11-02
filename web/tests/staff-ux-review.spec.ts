@@ -139,3 +139,54 @@ test('a missing receipt photo highlights its visible chooser after a pointer sub
   await page.keyboard.press('Space');
   expect((await opened).isMultiple()).toBe(false);
 });
+
+for (const scenario of [
+  { mode: 'create', label: 'Aktion anlegen', open: 'Aktion anlegen' },
+  { mode: 'edit', label: 'Speichern', open: 'Kalendereintrag bearbeiten: Leiterrunde' },
+  {
+    mode: 'publish',
+    label: 'Veröffentlichen',
+    open: 'Im öffentlichen Kalender veröffentlichen: Sommerlager 2026 Oberjoch',
+  },
+]) {
+  test(`a failed action ${scenario.mode} names the available retry and preserves the input`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.route(/\/api\/intern\/pflege\/aktionen(?:\/[^?]*)?(?:\?.*)?$/, (route) =>
+      ['POST', 'PATCH'].includes(route.request().method())
+        ? route.fulfill({ status: 503, body: 'unavailable' })
+        : route.continue()
+    );
+    await page.goto('/leitendenbereich/aktionen?jahr=alle');
+    const detail =
+      scenario.mode === 'publish'
+        ? page.waitForResponse((response) =>
+            response.url().endsWith('/api/intern/aktionen/evt_Sola26')
+          )
+        : null;
+    await page.getByRole('button', { name: scenario.open, exact: true }).click();
+    if (detail) await detail;
+    const dialog = page.getByRole('dialog');
+    if (scenario.mode === 'create') {
+      await dialog.getByLabel('Titel', { exact: true }).fill('Aktion mit erhaltenen Eingaben');
+      await dialog.getByLabel('Beginn', { exact: true }).fill('2026-12-02');
+    }
+    const group = dialog.getByRole('checkbox', { name: 'Rover', exact: true });
+    await group.uncheck();
+    await group.check();
+    const submit = dialog.getByRole('button', { name: scenario.label, exact: true });
+    await submit.click();
+    const error = dialog.getByRole('alert');
+    await expect(error).toContainText(`Tippe noch einmal auf „${scenario.label}“.`);
+    await expect(error).toContainText('Deine Eingaben sind noch da.');
+    await expect(submit).toBeEnabled();
+    await expect(group).toBeChecked();
+    if (scenario.mode === 'create') {
+      await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue(
+        'Aktion mit erhaltenen Eingaben'
+      );
+      await expect(dialog.getByLabel('Beginn', { exact: true })).toHaveValue('2026-12-02');
+    }
+  });
+}
