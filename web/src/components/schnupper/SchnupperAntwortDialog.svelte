@@ -7,6 +7,7 @@
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import {
     SCHNUPPER_MAX_LENGTH,
+    SCHNUPPER_STATUS_LABELS,
     SCHNUPPER_STUFEN,
     SCHNUPPER_STUFE_LABELS,
   } from '../../lib/schnupper';
@@ -85,9 +86,12 @@
         const getan = bestaetigen ? 'Termin bestätigt.' : 'Abgesagt.';
         await ondone(
           ergebnis,
-          ergebnis.mailSent
-            ? `${getan} ${current.name} hat eine E-Mail bekommen.`
-            : `${getan} Die E-Mail an ${current.name} konnte nicht gesendet werden. Schreib bitte selbst an ${current.email}.`
+          // Another leader answered meanwhile: this answer is outdated, no manual mail for it
+          ergebnis.ueberholt
+            ? `Inzwischen hat jemand anderes geantwortet, die Anfrage steht jetzt auf „${SCHNUPPER_STATUS_LABELS[ergebnis.anfrage.status]}“. Schau dir die Anfrage in der Liste an, bevor du ${current.name} schreibst.`
+            : ergebnis.mailSent
+              ? `${getan} ${current.name} hat eine E-Mail bekommen.`
+              : `${getan} Die E-Mail an ${current.name} konnte nicht gesendet werden. Schreib bitte selbst an ${current.email}.`
         );
       },
       bestaetigen

@@ -326,9 +326,11 @@ dbTest('the mail of an outdated answer never changes the flag of a newer one', a
     'ben@example.test'
   );
   const neu = await markSchnupperMail(offen.id, abgesagt.etag, false);
-  assert.equal(neu?.antwortMail, false);
+  assert.equal(neu?.anfrage.antwortMail, false);
+  assert.equal(neu?.ueberholt, false);
   const spaet = await markSchnupperMail(offen.id, bestaetigt.etag, true);
-  assert.equal(spaet?.status, 'abgesagt');
-  assert.equal(spaet?.antwortMail, false);
+  assert.equal(spaet?.ueberholt, true);
+  assert.equal(spaet?.anfrage.status, 'abgesagt');
+  assert.equal(spaet?.anfrage.antwortMail, false);
   assert.equal((await only(context)).antwortMail, false);
 });

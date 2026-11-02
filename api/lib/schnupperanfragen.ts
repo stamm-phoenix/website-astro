@@ -205,14 +205,14 @@ export function cancelSchnupperAnfrage(
 /**
  * Notes whether the mail of the answer with the version `etag` reached the family. Only that
  * answer gets the flag: if another leader answered meanwhile, the newer answer and its flag stay.
- * Returns the request in its version after the write, the newer answer when it is outdated,
- * or `undefined` if it was deleted meanwhile.
+ * Returns the request in its version after the write, or the newer answer with `ueberholt` when
+ * it is outdated; `undefined` if it was deleted meanwhile.
  */
 export async function markSchnupperMail(
   id: number,
   etag: string,
   sent: boolean
-): Promise<StaffSchnupperAnfrage | undefined> {
+): Promise<{ anfrage: StaffSchnupperAnfrage; ueberholt: boolean } | undefined> {
   const row = await getDb()
     .updateTable(TABLE)
     .set({ antwort_mail: sent })
@@ -220,7 +220,9 @@ export async function markSchnupperMail(
     .where('id', '=', id)
     .where('version', '=', requireVersion(etag))
     .executeTakeFirst();
-  return row ? toStaffItem(row) : getSchnupperAnfrage(id);
+  if (row) return { anfrage: toStaffItem(row), ueberholt: false };
+  const current = await getSchnupperAnfrage(id);
+  return current && { anfrage: current, ueberholt: true };
 }
 
 /** Deletes a request that still has the version `etag`. */

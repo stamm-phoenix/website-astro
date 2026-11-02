@@ -175,8 +175,12 @@ export interface SchnupperAbsage {
   antwort: string;
 }
 
-/** The result of an answer: whether the mail reached the family. */
+/**
+ * The result of an answer: whether the mail reached the family. `ueberholt` is set when another
+ * leader answered while the mail was sent; `anfrage` is then that newer answer.
+ */
 export interface SchnupperAntwortErgebnis {
   anfrage: StaffSchnupperAnfrage;
   mailSent: boolean;
+  ueberholt?: boolean;
 }

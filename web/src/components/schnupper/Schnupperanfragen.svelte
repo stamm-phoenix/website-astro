@@ -75,7 +75,10 @@
         store.data.map((a) => (a.id === ergebnis.anfrage.id ? ergebnis.anfrage : a))
       );
     }
-    await show(text, ergebnis && !ergebnis.mailSent ? 'warning' : 'success');
+    await show(
+      text,
+      ergebnis && (!ergebnis.mailSent || ergebnis.ueberholt) ? 'warning' : 'success'
+    );
     await schnupperPflege.load({ force: true });
   }
 

@@ -56,7 +56,7 @@ async function deliver(
   // answer of another leader keeps its own flag.
   try {
     const current = await markSchnupperMail(anfrage.id, anfrage.etag, mailSent);
-    if (current) return { anfrage: current, mailSent };
+    if (current) return { ...current, mailSent };
   } catch (error: unknown) {
     context.error('Recording the Schnupper mail state failed', error);
   }
