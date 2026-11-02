@@ -2,6 +2,7 @@ import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
 import { registerGruppenstundenRoutes } from './mockGruppenstunden';
 import { registerBelegPruefungRoutes } from './mockBelegPruefung';
+import { registerSchnupperRoutes } from './mockSchnupper';
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
 import { ValidationError } from '../../api/lib/validation/errors';
 import {
@@ -3433,6 +3434,7 @@ route(
 route('PUT', '/api/mock-upload/:id', () => ({ kind: 'empty', status: 201 }), true);
 
 registerGruppenstundenRoutes(route);
+registerSchnupperRoutes(route);
 
 function applyLeitende(target: (typeof leitende)[number], body: Record<string, unknown>): void {
   target.name = str(body.name, target.name);

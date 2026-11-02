@@ -12,6 +12,17 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-02-05-schnupperanfragen',
+    date: '2026-11-02',
+    title: 'Schnupperanfragen',
+    changes: [
+      {
+        text: 'Familien fragen eine Schnupperstunde jetzt über ein Formular auf der Seite „Mitmachen“ an, mit Alter, Stufe und Wunschzeit. Im neuen Bereich Schnupperanfragen siehst du die offenen Anfragen, bestätigst einen Termin oder sagst ab. Die Familie bekommt dazu jeweils eine E-Mail.',
+        href: '/leitendenbereich/schnupperanfragen',
+      },
+    ],
+  },
+  {
     id: '2026-11-02-04-beleg-pdf-seiten',
     date: '2026-11-02',
     title: 'Mehrseitige PDF-Belege',
