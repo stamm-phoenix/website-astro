@@ -47,7 +47,8 @@
   ]);
 
   $effect(() => {
-    untrack(() => void schnupperPflege.load());
+    // New requests arrive any time, and the list survives a page change: always ask again
+    untrack(() => void schnupperPflege.load({ force: true }));
   });
 
   async function show(text: string, kind: 'success' | 'warning' = 'success'): Promise<void> {
@@ -68,6 +69,12 @@
 
   async function done(ergebnis: SchnupperAntwortErgebnis | null, text: string): Promise<void> {
     antworten = null;
+    // The saved answer is shown at once, also if loading the list fails afterwards
+    if (ergebnis && store.data) {
+      schnupperPflege.set(
+        store.data.map((a) => (a.id === ergebnis.anfrage.id ? ergebnis.anfrage : a))
+      );
+    }
     await show(text, ergebnis && !ergebnis.mailSent ? 'warning' : 'success');
     await schnupperPflege.load({ force: true });
   }
