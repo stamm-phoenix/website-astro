@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Alle Bereiche liegen auf Karten, die Lilie im Hintergrund stört das Lesen nicht mehr.',
       'Am Computer bleiben Name der Planung und die Reiter beim Scrollen oben stehen.',
       'Teilnehmende und Gruppen stehen dichter und lassen sich auch als Matrix anzeigen.',
+      'Bei einer Zutat im Gericht trägst du direkt das Geschäft ein, auch ein neues.',
     ],
   },
   {
