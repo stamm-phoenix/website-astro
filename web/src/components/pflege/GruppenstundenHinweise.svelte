@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import StaffPageHead from '../StaffPageHead.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -23,7 +23,12 @@
   const store = gruppenstundenPflege.state;
   const dialog = createDialogForm();
   const errors = $derived(dialog.state.fields);
-  const busy = $derived(dialog.state.busy);
+  let reloading = $state(false);
+  const busy = $derived(dialog.state.busy || reloading);
+  let disposed = false;
+  onDestroy(() => {
+    disposed = true;
+  });
   let form = $state<Form | null>(null);
   let baseline = $state('');
   const dirty = $derived(form !== null && JSON.stringify(form.exception) !== baseline);
@@ -65,23 +70,31 @@
   }
 
   async function reloadCurrent(): Promise<boolean> {
-    const id = form?.item.id;
-    await gruppenstundenPflege.load({ force: true });
-    if (store.error) {
-      dialog.state.error =
-        'Der aktuelle Hinweis konnte nicht geladen werden. Deine Eingaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Aktuelle Fassung laden“.';
-      return false;
-    }
-    const fresh = store.data?.items.find((item) => item.id === id);
-    if (!fresh) {
+    const current = form;
+    if (!current || busy) return false;
+    reloading = true;
+    try {
+      await gruppenstundenPflege.load({ force: true });
+      if (disposed || form !== current) return false;
+      if (store.error) {
+        dialog.state.error =
+          'Der aktuelle Hinweis konnte nicht geladen werden. Deine Eingaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Aktuelle Fassung laden“.';
+        return false;
+      }
+      const fresh = store.data?.items.find((item) => item.id === current.item.id);
+      if (!fresh) {
+        form = null;
+        message = 'Die Gruppenstunde wurde inzwischen gelöscht.';
+        return false;
+      }
       form = null;
-      message = 'Die Gruppenstunde wurde inzwischen gelöscht.';
-      return false;
+      await tick();
+      if (disposed || form !== null) return false;
+      edit(fresh);
+      return true;
+    } finally {
+      reloading = false;
     }
-    form = null;
-    await tick();
-    edit(fresh);
-    return true;
   }
 
   function close(): void {
@@ -237,6 +250,7 @@
   rescueKey={form ? `gruppenstunden-hinweis:${form.item.id}` : undefined}
   rescueVersion={form?.item.etag}
   {busy}
+  busyLabel={reloading ? 'Wird geladen …' : 'Wird gespeichert …'}
   {dirty}
   submitLabel="Hinweis veröffentlichen"
   error={dialog.state.error}
