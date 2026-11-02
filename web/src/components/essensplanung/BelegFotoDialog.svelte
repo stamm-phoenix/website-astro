@@ -19,16 +19,26 @@
   let fehler = $state<string | null>(null);
   let original = $state(false);
 
+  /**
+   * What to load, as a string: a new view of the plan brings new objects of unchanged receipts,
+   * which must not load the photo again.
+   */
+  const quelle = $derived(
+    beleg
+      ? // A photo replaced meanwhile may have no original any more
+        `${beleg.id}|${beleg.etag}|${original && beleg.original ? 'original' : 'bild'}`
+      : null
+  );
+
   $effect(() => {
-    const aktuell = beleg;
-    // A photo replaced meanwhile may have no original any more
-    const art = original && aktuell?.original ? 'original' : 'bild';
+    const aktuell = quelle;
     url = null;
     fehler = null;
     if (!aktuell) return;
+    const [id, , art] = aktuell.split('|');
     let gueltig = true;
     let geladen: string | null = null;
-    kontext.api.belegFoto(aktuell.id, art).then(
+    kontext.api.belegFoto(Number(id), art as 'original' | 'bild').then(
       (datei) => {
         geladen = URL.createObjectURL(datei.blob);
         if (gueltig) url = geladen;
