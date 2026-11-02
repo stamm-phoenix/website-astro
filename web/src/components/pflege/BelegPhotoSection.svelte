@@ -5,7 +5,7 @@
   import BelegAiCheck from './BelegAiCheck.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import BelegPdfSeiten from './BelegPdfSeiten.svelte';
-  import { pdfPath, photoUrl, formatTimestamp, type BelegForm } from '../../lib/belegForm';
+  import { ladePdf, photoUrl, formatTimestamp, type BelegForm } from '../../lib/belegForm';
   import type { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   interface Props {
     form: BelegForm;
@@ -46,7 +46,11 @@
       <span class="mt-1 block text-xs text-link underline">In voller Größe öffnen</span>
     </a>
     {#if form.isPdf}
-      <BelegPdfSeiten path={pdfPath(form)} class={SEITE} />
+      <BelegPdfSeiten
+        schluessel={photoUrl(form)}
+        laden={(signal) => ladePdf(form, signal)}
+        class={SEITE}
+      />
     {/if}
   {/if}
   <BelegFotoEntwurf {photo} {busy} />

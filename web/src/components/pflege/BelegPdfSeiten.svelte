@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import BelegSeiten from './BelegSeiten.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import { errorMessage, fetchFile } from '../../lib/api';
+  import { errorMessage } from '../../lib/api';
   import { freeSeiten, loadWeitereSeiten, type PdfSeite } from '../../lib/belegPdf';
 
   /**
@@ -10,11 +10,13 @@
    * the first page is shown above them.
    */
   interface Props {
-    /** The stored PDF, for `fetchFile`. */
-    path: string;
+    /** Names the stored PDF; when it changes, the pages are drawn anew. */
+    schluessel: string;
+    /** Loads the stored PDF, e.g. with the token of the Essensplanung. */
+    laden: (signal: AbortSignal) => Promise<Blob>;
     class?: string;
   }
-  let { path, class: imgClass = '' }: Props = $props();
+  let { schluessel, laden, class: imgClass = '' }: Props = $props();
 
   const FEHLER =
     'Die weiteren Seiten des PDFs konnten nicht angezeigt werden. Lade das PDF herunter, um sie anzusehen.';
@@ -26,7 +28,7 @@
   let versuch = $state(0);
 
   $effect(() => {
-    const current = path;
+    void schluessel;
     void versuch;
     const controller = new AbortController();
     let result: { weitere: PdfSeite[]; seiten: number } | null = null;
@@ -36,9 +38,9 @@
     });
     void (async () => {
       try {
-        const file = await fetchFile(current, controller.signal);
+        const pdf = await untrack(() => laden(controller.signal));
         if (controller.signal.aborted) return;
-        result = await loadWeitereSeiten(file.blob);
+        result = await loadWeitereSeiten(pdf);
         if (controller.signal.aborted) freeSeiten(result.weitere);
         else geladen = result;
       } catch (error: unknown) {
