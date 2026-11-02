@@ -1,3 +1,4 @@
+import { fetchFile } from './api';
 import { parseEuroToCent } from './belege';
 import { todayIso, formatDateTime } from './format';
 import type { BelegArt, BelegCampflow, BelegCheck, BelegStatus, StaffBeleg } from './types';
@@ -74,9 +75,13 @@ export function photoUrl(beleg: { id: string | null; etag: string }, variant = '
   return `/api/intern/pflege/belege/${beleg.id}/foto?v=${encodeURIComponent(beleg.etag)}${variant}`;
 }
 
-/** The stored PDF of a receipt, for `fetchFile`, to draw its further pages. */
-export function pdfPath(beleg: { id: string | null; etag: string }): string {
-  return photoUrl(beleg, '&download=1').replace(/^\/api/, '');
+/** Loads the stored PDF of a receipt, to draw its further pages. */
+export async function ladePdf(
+  beleg: { id: string | null; etag: string },
+  signal: AbortSignal
+): Promise<Blob> {
+  const file = await fetchFile(photoUrl(beleg, '&download=1').replace(/^\/api/, ''), signal);
+  return file.blob;
 }
 
 export function formatTimestamp(value: string): string {

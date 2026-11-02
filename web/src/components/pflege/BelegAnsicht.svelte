@@ -3,7 +3,7 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { formatIsoDate } from '../../lib/belege';
   import BelegPdfSeiten from './BelegPdfSeiten.svelte';
-  import { pdfPath, photoUrl } from '../../lib/belegForm';
+  import { ladePdf, photoUrl } from '../../lib/belegForm';
   import { formatEuro } from '../../lib/format';
   import type { StaffBeleg } from '../../lib/types';
   interface Props {
@@ -58,7 +58,8 @@
         />
         {#if beleg.isPdf}
           <BelegPdfSeiten
-            path={pdfPath(beleg)}
+            schluessel={photoUrl(beleg)}
+            laden={(signal) => ladePdf(beleg, signal)}
             class="h-auto w-full rounded-md bg-neutral-100 object-contain"
           />
           <a class="btn-secondary" href="{photoUrl(beleg)}&download=1" download>PDF herunterladen</a

@@ -1,19 +1,5 @@
-import { jsPDF } from 'jspdf';
+import { rechnung } from './pdf-rechnung';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-
-/** An invoice of three pages, its total on the last one. */
-function rechnung(): Buffer {
-  const doc = new jsPDF();
-  for (let page = 1; page <= 3; page++) {
-    if (page > 1) doc.addPage();
-    doc.setFontSize(22);
-    doc.text(`Rechnung – Seite ${page} von 3`, 20, 30);
-    for (let line = 0; line < 20; line++)
-      doc.text(`Artikel ${page}-${line}   1,99 EUR`, 20, 50 + line * 10);
-    if (page === 3) doc.text('Summe 119,40 EUR', 20, 270);
-  }
-  return Buffer.from(doc.output('arraybuffer'));
-}
 
 test('every page of a PDF is shown and checked, not only the first', async ({ page }, testInfo) => {
   await page.goto('/leitendenbereich/belege');

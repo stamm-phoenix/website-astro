@@ -1,12 +1,13 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
+  import BelegPdfSeiten from '../pflege/BelegPdfSeiten.svelte';
   import { errorMessage, saveFile } from '../../lib/api';
   import { belegTitel } from '../../lib/essensplanungBelege';
   import type { PlanungBeleg } from '../../lib/types';
   import type { PlanKontext } from './planKontext';
 
-  /** The picture of a receipt in full size (for a PDF its first page), with the download. */
+  /** The picture of a receipt in full size (for a PDF all its pages), with the download. */
 
   interface Props {
     kontext: PlanKontext;
@@ -101,6 +102,14 @@
         <p class="text-sm text-danger" role="alert">{fehler}</p>
       {:else}
         <p role="status" class="text-sm text-neutral-700">Wird geladen …</p>
+      {/if}
+      {#if url && beleg.foto === 'pdf' && quelle}
+        {@const id = beleg.id}
+        <BelegPdfSeiten
+          schluessel={quelle}
+          laden={async (signal) => (await kontext.api.belegFoto(id, 'datei', signal)).blob}
+          class="mx-auto h-auto max-h-[70vh] w-auto max-w-full border border-neutral-200 bg-neutral-100 object-contain"
+        />
       {/if}
       {#if downloadFehler}
         <p class="text-sm text-danger" role="alert">{downloadFehler}</p>
