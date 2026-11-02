@@ -2,6 +2,7 @@
 @import '@fontsource/arvo/latin-400.css';
 @import '@fontsource/arvo/latin-700.css';
 @import '@fontsource-variable/source-sans-3';
+@import './formAccessibility.css';
 
 /* Manual choice wins; without one, CSS follows the system even without JS. */
 @custom-variant theme-dark {

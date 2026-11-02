@@ -152,7 +152,7 @@
               href={getDownloadFileUrl(file.id)}
               class="relative block aspect-[210/297] w-14 shrink-0 overflow-hidden rounded-sm border border-neutral-200 bg-neutral-100 sm:w-16"
               download={file.fileName}
-              aria-label="Vorschau von {file.fileName}"
+              aria-label="{file.fileName} herunterladen"
             >
               {#if file.hasPreview}
                 <img
