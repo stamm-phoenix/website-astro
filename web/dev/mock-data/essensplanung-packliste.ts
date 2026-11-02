@@ -1,25 +1,54 @@
 /**
- * The packing lists of the Planungen in the mock API, like `api/lib/essen-packliste.ts`.
+ * The packing lists of the Planungen in the mock API, like `api/lib/essen-packliste.ts` and
+ * `essen-packliste-zuteilung.ts`.
  */
 import type {
   PackAenderung,
   PackEintragInput,
-  PackZustaendig,
+  PackPersonen,
+  PacklisteEintrag,
   WerkzeugAenderung,
 } from '../../../api/lib/essen-packliste-model';
-import { MAX_PACKLISTE, packlisteSchluessel } from '../../../api/lib/essen-packliste-model';
-import type { MockZugang } from './essensplanung-planung';
+import {
+  MAX_PACK_PERSONEN,
+  MAX_PACKLISTE,
+  packlisteSchluessel,
+} from '../../../api/lib/essen-packliste-model';
+import type { MockPlanung, MockZugang } from './essensplanung-planung';
 import { aendere, feld, konflikt, neueId, neuesEtag, nichtGefunden } from './essensplanung-planung';
 
-/** A stored entry; who packs it is shown by the member's current name. */
+/** A person who packs an entry; a member is shown by their current name. */
+export interface MockZuteilung {
+  id: number;
+  etag: string;
+  mitgliedId: number | null;
+  /** The free name; empty for a member. */
+  name: string;
+  gepackt: boolean;
+}
+
+/** A stored entry with its persons. */
 export interface MockPackEintrag {
   id: number;
   etag: string;
   werkzeug: string | null;
   name: string;
   gepackt: boolean;
-  zustaendigId: number | null;
-  zustaendigText: string;
+  zuteilungen: MockZuteilung[];
+}
+
+/** The entries as the view shows them, with the members' current names. */
+export function packlisteAnsicht(planung: MockPlanung): PacklisteEintrag[] {
+  return planung.packliste.map((eintrag) => ({
+    ...eintrag,
+    zuteilungen: eintrag.zuteilungen.map((z) => ({ ...z, name: personName(planung, z) })),
+  }));
+}
+
+function personName(planung: MockPlanung, z: MockZuteilung): string {
+  return z.mitgliedId === null
+    ? z.name
+    : (planung.mitglieder.find((m) => m.id === z.mitgliedId)?.name ?? '');
 }
 
 /** The tools of the planned dishes by merged name, with the first name. */
@@ -40,28 +69,101 @@ function eingeplanteWerkzeuge(z: MockZugang): Map<string, string> {
   return werkzeuge;
 }
 
-function pruefeZustaendig(z: MockZugang, zustaendig: PackZustaendig, bisher: number | null) {
-  if (zustaendig.zustaendigId === null) return zustaendig.zustaendigText;
-  const mitglied = z.planung.mitglieder.find((m) => m.id === zustaendig.zustaendigId);
-  if (!mitglied || (mitglied.entzogen && mitglied.id !== bisher))
-    throw feld('zustaendigId', 'Bitte aus der Liste wählen.');
-  return mitglied.name;
+/** The entry is packed when all its persons packed; without persons it keeps its own box. */
+function nachfuehren(eintrag: MockPackEintrag): void {
+  if (!eintrag.zuteilungen.length) return;
+  const alle = eintrag.zuteilungen.every((z) => z.gepackt);
+  if (alle !== eintrag.gepackt) Object.assign(eintrag, { gepackt: alle, etag: neuesEtag() });
 }
 
-/** The changed fields and the details of the log entry. */
-function werte(z: MockZugang, aenderung: PackAenderung, bisher: number | null) {
-  const set: Partial<MockPackEintrag> = {};
-  const details: Record<string, unknown> = {};
-  if (aenderung.gepackt !== undefined) {
-    set.gepackt = aenderung.gepackt;
-    details.gepackt = aenderung.gepackt;
+/**
+ * Checks the persons to add and returns the change to apply, like `personenAendern` of the API:
+ * new members need access, names there already count once.
+ */
+function personenPruefen(
+  z: MockZugang,
+  eintrag: Pick<MockPackEintrag, 'zuteilungen'>,
+  hinzu: PackPersonen = { mitglieder: [], namen: [] },
+  weg: number[] = []
+) {
+  const bleiben = eintrag.zuteilungen.filter((p) => !weg.includes(p.id));
+  const mitglieder = hinzu.mitglieder.filter((id) => !bleiben.some((p) => p.mitgliedId === id));
+  for (const id of mitglieder) {
+    const mitglied = z.planung.mitglieder.find((m) => m.id === id);
+    if (!mitglied || mitglied.entzogen) throw feld('mitglieder', 'Bitte aus der Liste wählen.');
   }
-  if (aenderung.zustaendig) {
-    details.zustaendig = pruefeZustaendig(z, aenderung.zustaendig, bisher);
-    set.zustaendigId = aenderung.zustaendig.zustaendigId;
-    set.zustaendigText = aenderung.zustaendig.zustaendigText;
+  const freie = new Set(
+    bleiben.filter((p) => p.mitgliedId === null).map((p) => packlisteSchluessel(p.name))
+  );
+  const namen = hinzu.namen.filter((name) => !freie.has(packlisteSchluessel(name)));
+  if (freie.size + namen.length > MAX_PACK_PERSONEN)
+    throw feld('namen', `Höchstens ${MAX_PACK_PERSONEN} Namen.`);
+  const entfernt = eintrag.zuteilungen.filter((p) => weg.includes(p.id));
+  return {
+    mitglieder,
+    namen,
+    entfernt,
+    details: {
+      ...(mitglieder.length || namen.length
+        ? {
+            hinzu: [
+              ...mitglieder.map((id) => z.planung.mitglieder.find((m) => m.id === id)!.name),
+              ...namen,
+            ],
+          }
+        : {}),
+      ...(entfernt.length ? { weg: entfernt.map((p) => personName(z.planung, p)) } : {}),
+    },
+  };
+}
+
+/** Applies checked persons (`personenPruefen`) to an entry. */
+function personenAnwenden(
+  eintrag: MockPackEintrag,
+  personen: ReturnType<typeof personenPruefen>
+): void {
+  const start = eintrag.zuteilungen.length === 0 ? eintrag.gepackt : false;
+  eintrag.zuteilungen = eintrag.zuteilungen.filter((p) => !personen.entfernt.includes(p));
+  for (const [mitgliedId, name] of [
+    ...personen.mitglieder.map((id) => [id, ''] as const),
+    ...personen.namen.map((n) => [null, n] as const),
+  ]) {
+    eintrag.zuteilungen.push({
+      id: neueId(),
+      etag: neuesEtag(),
+      mitgliedId,
+      name,
+      gepackt: start,
+    });
   }
-  return { set, details };
+  if (personen.mitglieder.length || personen.namen.length || personen.entfernt.length)
+    nachfuehren(eintrag);
+}
+
+/** Packs the whole entry on its version, then adds and takes off persons. */
+function anwenden(
+  z: MockZugang,
+  eintrag: MockPackEintrag,
+  aenderung: PackAenderung,
+  etag: unknown
+): { details: Record<string, unknown>; los: () => void } {
+  if (aenderung.gepackt !== undefined && eintrag.etag !== etag) throw konflikt();
+  const personen = personenPruefen(z, eintrag, aenderung.hinzu, aenderung.weg);
+  return {
+    details: {
+      ...(aenderung.gepackt !== undefined ? { gepackt: aenderung.gepackt } : {}),
+      ...personen.details,
+    },
+    los: () => {
+      if (aenderung.gepackt !== undefined) {
+        Object.assign(eintrag, { gepackt: aenderung.gepackt, etag: neuesEtag() });
+        for (const p of eintrag.zuteilungen)
+          if (p.gepackt !== aenderung.gepackt)
+            Object.assign(p, { gepackt: aenderung.gepackt, etag: neuesEtag() });
+      }
+      personenAnwenden(eintrag, personen);
+    },
+  };
 }
 
 export function packEintragAnlegen(z: MockZugang, input: PackEintragInput): void {
@@ -71,17 +173,18 @@ export function packEintragAnlegen(z: MockZugang, input: PackEintragInput): void
   const key = packlisteSchluessel(input.name);
   if (eigene.some((e) => packlisteSchluessel(e.name) === key) || eingeplanteWerkzeuge(z).has(key))
     throw feld('name', 'Das steht schon auf der Packliste.');
-  pruefeZustaendig(z, input, null);
-  aendere(z, 'packliste-neu', { name: input.name }, () => {
-    z.planung.packliste.push({
-      id: neueId(),
-      etag: neuesEtag(),
-      werkzeug: null,
-      name: input.name,
-      gepackt: false,
-      zustaendigId: input.zustaendigId,
-      zustaendigText: input.zustaendigText,
-    });
+  const eintrag: MockPackEintrag = {
+    id: neueId(),
+    etag: neuesEtag(),
+    werkzeug: null,
+    name: input.name,
+    gepackt: false,
+    zuteilungen: [],
+  };
+  const personen = personenPruefen(z, eintrag, input);
+  aendere(z, 'packliste-neu', { name: input.name, ...personen.details }, () => {
+    personenAnwenden(eintrag, personen);
+    z.planung.packliste.push(eintrag);
   });
 }
 
@@ -106,10 +209,20 @@ export function packEintragAendern(
     });
     return;
   }
-  const { set, details } = werte(z, aenderung, eintrag.zustaendigId);
-  if (eintrag.etag !== etag) throw konflikt();
-  aendere(z, 'packliste-geaendert', { name: eintrag.name, ...details }, () => {
-    Object.assign(eintrag, set, { etag: neuesEtag() });
+  const { details, los } = anwenden(z, eintrag, aenderung, etag);
+  aendere(z, 'packliste-geaendert', { name: eintrag.name, ...details }, los);
+}
+
+/** Packs or unpacks one person's share, on its version. */
+export function zuteilungAbhaken(z: MockZugang, id: number, gepackt: boolean, etag: unknown): void {
+  const eintrag = z.planung.packliste.find((e) => e.zuteilungen.some((p) => p.id === id));
+  const person = eintrag?.zuteilungen.find((p) => p.id === id);
+  if (!eintrag || !person) throw nichtGefunden();
+  if (person.etag !== etag) throw konflikt();
+  const details = { name: eintrag.name, gepackt, fuer: personName(z.planung, person) };
+  aendere(z, 'packliste-geaendert', details, () => {
+    Object.assign(person, { gepackt, etag: neuesEtag() });
+    nachfuehren(eintrag);
   });
 }
 
@@ -125,20 +238,28 @@ export function werkzeugSetzen(
   if (z.planung.packliste.some((e) => e.werkzeug === null && packlisteSchluessel(e.name) === key))
     throw konflikt();
   const vorhanden = z.planung.packliste.find((e) => e.werkzeug === key);
-  const { set, details } = werte(z, aenderung, vorhanden?.zustaendigId ?? null);
-  if ((vorhanden?.etag ?? null) !== etag) throw konflikt();
+  if (vorhanden) {
+    const { details, los } = anwenden(z, vorhanden, aenderung, etag);
+    aendere(z, 'packliste-geaendert', { name, ...details }, los);
+    return;
+  }
+  // A version of a row that is not there: the page loads the current state
+  if (etag !== null) throw konflikt();
+  const eintrag: MockPackEintrag = {
+    id: neueId(),
+    etag: neuesEtag(),
+    werkzeug: key,
+    name,
+    gepackt: aenderung.gepackt ?? false,
+    zuteilungen: [],
+  };
+  const personen = personenPruefen(z, eintrag, aenderung.hinzu, aenderung.weg);
+  const details = {
+    ...(aenderung.gepackt !== undefined ? { gepackt: aenderung.gepackt } : {}),
+    ...personen.details,
+  };
   aendere(z, 'packliste-geaendert', { name, ...details }, () => {
-    if (vorhanden) Object.assign(vorhanden, set, { etag: neuesEtag() });
-    else
-      z.planung.packliste.push({
-        id: neueId(),
-        etag: neuesEtag(),
-        werkzeug: key,
-        name,
-        gepackt: false,
-        zustaendigId: null,
-        zustaendigText: '',
-        ...set,
-      });
+    personenAnwenden(eintrag, personen);
+    z.planung.packliste.push(eintrag);
   });
 }

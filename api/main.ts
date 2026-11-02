@@ -185,6 +185,7 @@ import {
   EssensplanungPackEintrag,
   EssensplanungPackliste,
   EssensplanungPackWerkzeug,
+  EssensplanungPackZuteilung,
 } from './endpoints/essensplanung-packliste';
 import {
   EssensplanungBeleg,
@@ -1563,6 +1564,13 @@ app.http('essensplanungPackWerkzeug', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/packliste/werkzeug',
   handler: EssensplanungPackWerkzeug,
+});
+
+app.http('essensplanungPackZuteilung', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/packliste/zuteilung/{id}',
+  handler: EssensplanungPackZuteilung,
 });
 
 app.http('essensplanungPackEintrag', {

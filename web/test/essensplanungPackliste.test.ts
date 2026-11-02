@@ -1,19 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { aenderungText } from '../src/lib/essensplanung.ts';
 import { packlisteSchluessel } from '../../api/lib/essen-packliste-model.ts';
 import {
-  entwurfNachSpeichern,
-  entwurfOffen,
-  entwuerfeOhneZeile,
   fuerText,
   gefiltert,
   packliste,
   packId,
   packlisteDruck,
-  zustaendigWahl,
+  personenText,
 } from '../src/lib/essensplanungPackliste.ts';
-import type { Gericht, PacklisteEintrag, PlanungAnsicht } from '../src/lib/types.ts';
+import type { Gericht, PackZuteilung, PacklisteEintrag, PlanungAnsicht } from '../src/lib/types.ts';
 
 const gericht = (id: number, name: string, werkzeuge: string[]): Gericht => ({
   id,
@@ -50,12 +46,13 @@ const mahlzeit = (id: number, kennung: string, einplanungen: ReturnType<typeof e
   ohneGruppen: [],
 });
 
-const eintrag = (felder: Partial<PacklisteEintrag> & Pick<PacklisteEintrag, 'id' | 'name'>) => ({
+const eintrag = (
+  felder: Partial<PacklisteEintrag> & Pick<PacklisteEintrag, 'id' | 'name'>
+): PacklisteEintrag => ({
   etag: '"1"',
   werkzeug: null,
   gepackt: false,
-  zustaendigId: null,
-  zustaendig: '',
+  zuteilungen: [],
   ...felder,
 });
 
@@ -89,6 +86,13 @@ function ansicht(
   };
 }
 
+const person = (
+  id: number,
+  mitgliedId: number | null,
+  name: string,
+  gepackt = false
+): PackZuteilung => ({ id, etag: '"1"', mitgliedId, name, gepackt });
+
 test('the tools of all planned dishes are merged by name, with their dishes and meals', () => {
   const zeilen = packliste(ansicht());
   assert.deepEqual(
@@ -101,11 +105,11 @@ test('the tools of all planned dishes are merged by name, with their dishes and 
   );
   // Nobody set anything yet
   assert.deepEqual(
-    zeilen.map((zeile) => [zeile.eintrag, zeile.gepackt, zeile.zustaendigId, zeile.zustaendig]),
+    zeilen.map((zeile) => [zeile.eintrag, zeile.gepackt, zeile.personen]),
     [
-      [null, false, null, ''],
-      [null, false, null, ''],
-      [null, false, null, ''],
+      [null, false, []],
+      [null, false, []],
+      [null, false, []],
     ]
   );
 });
@@ -116,19 +120,22 @@ test('stored states belong to their tool; entries of its own join by name', () =
     werkzeug: 'großer topf',
     name: 'großer topf',
     gepackt: true,
-    zustaendigId: 4,
-    zustaendig: 'Kim',
+    zuteilungen: [person(1, 4, 'Kim', true)],
   });
   // A tool no planned dish needs any more stays stored, but is not on the list
   const alt = eintrag({ id: 8, werkzeug: 'waffeleisen', name: 'Waffeleisen', gepackt: true });
-  const zelt = eintrag({ id: 9, name: 'Küchenzelt', zustaendig: 'Rover' });
+  const zelt = eintrag({
+    id: 9,
+    name: 'Küchenzelt',
+    zuteilungen: [person(2, null, 'Rover', true), person(3, 4, 'Kim')],
+  });
   const zeilen = packliste(ansicht([topf, alt, zelt]));
   assert.deepEqual(
-    zeilen.map((zeile) => [zeile.key, zeile.name, zeile.gepackt, zeile.zustaendig]),
+    zeilen.map((zeile) => [zeile.key, zeile.name, zeile.gepackt, personenText(zeile)]),
     [
       ['w:großer topf', 'Großer Topf', true, 'Kim'],
       ['w:kochlöffel', 'Kochlöffel', false, ''],
-      ['e:9', 'Küchenzelt', false, 'Rover'],
+      ['e:9', 'Küchenzelt', false, 'Rover, Kim'],
       ['w:pürierstab', 'Pürierstab', false, ''],
     ]
   );
@@ -143,13 +150,15 @@ test('stored states belong to their tool; entries of its own join by name', () =
     gefiltert(zeilen, 'gepackt', 4).map((z) => z.name),
     ['Großer Topf']
   );
+  // Mine: also a thing I pack with others
   assert.deepEqual(
     gefiltert(zeilen, 'meine', 4).map((z) => z.name),
-    ['Großer Topf']
+    ['Großer Topf', 'Küchenzelt']
   );
   assert.deepEqual(gefiltert(zeilen, 'meine', null), []);
   assert.equal(gefiltert(zeilen, 'alle', null).length, 4);
 
+  // On paper, with several persons who packed is named
   assert.deepEqual(packlisteDruck(zeilen.slice(0, 3)), [
     {
       gepackt: true,
@@ -158,33 +167,8 @@ test('stored states belong to their tool; entries of its own join by name', () =
       zustaendig: 'Kim',
     },
     { gepackt: false, name: 'Kochlöffel', fuer: 'Chili (1_2_1, 2_2_1)', zustaendig: '' },
-    { gepackt: false, name: 'Küchenzelt', fuer: '', zustaendig: 'Rover' },
+    { gepackt: false, name: 'Küchenzelt', fuer: '', zustaendig: 'Rover (gepackt), Kim' },
   ]);
-});
-
-test('changes of the packing list say what happened', () => {
-  const text = (aktion: string, details: Record<string, unknown>) =>
-    aenderungText({ seq: 1, at: '', wer: 'Kim', aktion, details });
-  assert.equal(
-    text('packliste-geaendert', { name: 'Gaskocher', gepackt: true }),
-    'Kim hat eingepackt: Gaskocher'
-  );
-  assert.equal(
-    text('packliste-geaendert', { name: 'Gaskocher', gepackt: false }),
-    'Kim hat wieder ausgepackt: Gaskocher'
-  );
-  assert.equal(
-    text('packliste-geaendert', { name: 'Gaskocher', zustaendig: 'Ben' }),
-    'Kim hat Ben zuständig gemacht: Gaskocher'
-  );
-  assert.equal(
-    text('packliste-geaendert', { name: 'Gaskocher', zustaendig: '' }),
-    'Kim hat eine Zuständigkeit entfernt: Gaskocher'
-  );
-  assert.equal(
-    text('packliste-neu', { name: 'Gaskocher' }),
-    'Kim hat etwas auf die Packliste gesetzt: Gaskocher'
-  );
 });
 
 test('rows whose names differ only in signs get their own ids', () => {
@@ -209,95 +193,12 @@ test('a name with a lone surrogate gets an id too, distinct from its neighbours'
   assert.match(packId('e:12'), /^pack-[0-9a-f]+$/);
 });
 
-test('the member responsible stays a choice after losing access, also when the view lacks them', () => {
-  const mitglieder = [
-    { id: 1, name: 'Kim', entzogen: false },
-    { id: 2, name: 'Ben', entzogen: true },
-  ];
-  assert.deepEqual(zustaendigWahl(mitglieder, { zustaendigId: null, zustaendig: '' }), [
-    { id: 1, name: 'Kim' },
-  ]);
-  assert.deepEqual(zustaendigWahl(mitglieder, { zustaendigId: 2, zustaendig: 'Ben' }), [
-    { id: 1, name: 'Kim' },
-    { id: 2, name: 'Ben' },
-  ]);
-  // Those who do not manage the members get no removed ones in the view
-  assert.deepEqual(zustaendigWahl([mitglieder[0]], { zustaendigId: 2, zustaendig: 'Ben' }), [
-    { id: 1, name: 'Kim' },
-    { id: 2, name: 'Ben' },
-  ]);
-});
-
-test('a typed free name is unsaved until the row shows it', () => {
-  const zeilen = packliste(
-    ansicht([eintrag({ id: 7, werkzeug: 'kochlöffel', name: 'Kochlöffel', zustaendig: 'Rover' })])
-  );
-  assert.equal(entwurfOffen({}, zeilen), false);
-  // Opened without typing, or typed as saved
-  assert.equal(
-    entwurfOffen({ 'w:kochlöffel': { text: ' Rover ' }, 'w:pürierstab': { text: '' } }, zeilen),
-    false
-  );
-  assert.equal(entwurfOffen({ 'w:kochlöffel': { text: 'Rover und Wö' } }, zeilen), true);
-  assert.equal(entwurfOffen({ 'w:pürierstab': { text: 'Kim' } }, zeilen), true);
-});
-
-test('a save that went through takes its draft only while it is still the text sent', () => {
-  const entwurf = {
-    text: ' Rover ',
-    start: '',
-    name: 'Kochlöffel',
-    etag: '"1"',
-    gesendet: 'Rover',
-    konflikt: false,
-  };
-  assert.equal(entwurfNachSpeichern(entwurf, 'Rover', '"2"'), null);
-  assert.equal(entwurfNachSpeichern(undefined, 'Rover', '"2"'), null);
-  // Typed on while it was saved: the text stays, on the version now saved, which it now starts
-  // from (so typing back to it saves nothing, typing to the old start saves)
-  assert.deepEqual(entwurfNachSpeichern({ ...entwurf, text: 'Rover und Wö' }, 'Rover', '"2"'), {
-    text: 'Rover und Wö',
-    start: 'Rover',
-    name: 'Kochlöffel',
-    etag: '"2"',
-    gesendet: null,
-    konflikt: false,
-  });
-});
-
-test('a draft whose row is gone stays unsaved and is named to copy', () => {
-  const zeilen = packliste(ansicht());
-  // The waffle iron is on no planned dish: its typed name is not saved anywhere
-  assert.equal(entwurfOffen({ 'w:waffeleisen': { text: 'Tante Erna' } }, zeilen), true);
-  assert.equal(entwurfOffen({ 'w:waffeleisen': { text: '  ' } }, zeilen), false);
-  assert.deepEqual(
-    entwuerfeOhneZeile(
-      {
-        'w:waffeleisen': { text: ' Tante  Erna ', name: 'Waffeleisen' },
-        'e:99': { text: 'Ben', name: 'Küchenzelt' },
-        'w:kochlöffel': { text: 'Rover', name: 'Kochlöffel' },
-        'w:alt': { text: '', name: 'Alt' },
-      },
-      zeilen
-    ),
-    [
-      {
-        key: 'w:waffeleisen',
-        meldung:
-          'Zuständig für Waffeleisen: „Tante Erna“ – das Werkzeug wird nicht mehr gebraucht.',
-      },
-      { key: 'e:99', meldung: 'Zuständig für Küchenzelt: „Ben“ – der Eintrag wurde entfernt.' },
-      { key: 'w:alt', meldung: null },
-    ]
-  );
-});
-
 test('an entry of its own named like a planned tool is one row, in either order', () => {
   const eigen = eintrag({
     id: 9,
     name: 'kochlöffel ',
     gepackt: true,
-    zustaendig: 'Rover',
+    zuteilungen: [person(1, null, 'Rover', true)],
   });
   // Added first, then a dish with the tool was planned
   const zeilen = packliste(ansicht([eigen]));
@@ -307,7 +208,7 @@ test('an entry of its own named like a planned tool is one row, in either order'
       zeile.key,
       zeile.werkzeug,
       zeile.gepackt,
-      zeile.zustaendig,
+      personenText(zeile),
       fuerText(zeile),
     ]),
     [['e:9', null, true, 'Rover', 'Chili (1_2_1, 2_2_1)']]
@@ -318,13 +219,13 @@ test('an entry of its own named like a planned tool is one row, in either order'
     id: 7,
     werkzeug: 'kochlöffel',
     name: 'Kochlöffel',
-    zustaendig: 'Kim',
+    zuteilungen: [person(2, null, 'Kim')],
   });
   const beide = packliste(ansicht([werkzeug, eigen]));
   assert.deepEqual(
     beide
       .filter((zeile) => packlisteSchluessel(zeile.name) === 'kochlöffel')
-      .map((zeile) => [zeile.key, zeile.gepackt, zeile.zustaendig]),
+      .map((zeile) => [zeile.key, zeile.gepackt, personenText(zeile)]),
     [['e:9', true, 'Rover']]
   );
   assert.equal(beide.length, 3);

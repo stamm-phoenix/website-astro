@@ -2,24 +2,22 @@
   import { tick } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { fuerText, type PackZeile } from '../../lib/essensplanungPackliste';
+  import { naechsteZelle, type PackZelle } from '../../lib/essensplanungPackMatrix';
   import {
-    NIEMAND,
-    naechsteZelle,
+    anteil,
     packSpalten,
-    spalteVon,
     spaltenSumme,
     type PackSpalte,
-    type PackZelle,
-  } from '../../lib/essensplanungPackMatrix';
-  import type { packEntwuerfe } from './packEntwuerfe.svelte';
-  import { packAbhaken, packAendern, zustaendigErfolg } from './packSpeichern';
+  } from '../../lib/essensplanungPackSpalten';
+  import { anteilAbhaken, packAbhaken, packSenden, personenErfolg } from './packSpeichern';
   import type { PlanKontext } from './planKontext';
 
   /**
-   * The packing list as a matrix: the persons across, the things down. A click in a person's cell
-   * says they pack it (again in the same cell: nobody), the box in the first column packs it. The
-   * focus moves with the arrow keys like in a spreadsheet; Space or Enter acts on the cell. Saves
-   * like the list (`packSpeichern.ts`), on the version the row was shown with.
+   * The packing list as a matrix: the persons across, the things down. The cell of a person who
+   * packs a thing is their own box; a click in an empty cell makes them pack it too. „Wer
+   * packt?“ at the thing chooses anew, also to take someone off. The box in the column
+   * „Gepackt“ packs a thing with at most one person; with several it counts their boxes. The
+   * focus moves with the arrow keys like in a spreadsheet; Space or Enter acts on the cell.
    */
 
   interface Props {
@@ -29,21 +27,26 @@
     /** The rows of the filter. */
     sichtbar: PackZeile[];
     bearbeiten: boolean;
-    entwuerfe: ReturnType<typeof packEntwuerfe>;
+    /** Opens the choice of who packs a row. */
+    onwer: (zeile: PackZeile) => void;
   }
-  let { kontext, zeilen, sichtbar, bearbeiten, entwuerfe }: Props = $props();
+  let { kontext, zeilen, sichtbar, bearbeiten, onwer }: Props = $props();
 
   const spalten = $derived(packSpalten(kontext.ansicht.mitglieder, zeilen));
   const gepacktGesamt = $derived(zeilen.filter((zeile) => zeile.gepackt).length);
   /** Rows whose change is being saved; a click there waits. */
   const laeuft = new SvelteSet<string>();
+  /** Cells before the persons: the thing (with „Wer packt?“) and „Gepackt“. */
+  const VORNE = 2;
 
   /** The cell reached with Tab; the arrows move it. */
-  let aktiv = $state<PackZelle>({ zeile: 0, spalte: 0 });
+  let aktiv = $state<PackZelle>({ zeile: 0, spalte: 1 });
   const tabZelle = $derived({
     zeile: Math.min(aktiv.zeile, Math.max(sichtbar.length - 1, 0)),
-    spalte: Math.min(aktiv.spalte, spalten.length),
+    spalte: Math.min(aktiv.spalte, spalten.length + VORNE - 1),
   });
+  const tabindex = (z: number, s: number): number =>
+    tabZelle.zeile === z && tabZelle.spalte === s ? 0 : -1;
   let tabelle = $state<HTMLTableElement | null>(null);
   /** The focus was in the matrix; a row that goes with it (a filter) hands it to its neighbour. */
   let imGitter = false;
@@ -83,7 +86,12 @@
       ziel.click();
       return;
     }
-    const naechste = naechsteZelle({ zeile, spalte }, event, sichtbar.length, spalten.length + 1);
+    const naechste = naechsteZelle(
+      { zeile, spalte },
+      event,
+      sichtbar.length,
+      spalten.length + VORNE
+    );
     if (!naechste) return;
     event.preventDefault();
     aktiv = naechste;
@@ -93,53 +101,59 @@
   const zeileVon = (zeile: PackZeile): PackZeile =>
     zeilen.find((z) => z.key === zeile.key) ?? zeile;
 
-  async function packen(zeile: PackZeile, feld: HTMLInputElement): Promise<void> {
-    const gepackt = feld.checked;
+  /** Runs one change of a row at a time; a click while one runs puts the box back. */
+  async function einzeln(
+    zeile: PackZeile,
+    arbeit: (jetzt: PackZeile) => Promise<boolean>,
+    feld?: HTMLInputElement
+  ): Promise<void> {
     if (laeuft.has(zeile.key)) {
-      feld.checked = !gepackt;
+      if (feld) feld.checked = !feld.checked;
       return;
     }
     laeuft.add(zeile.key);
-    const ok = await packAbhaken(
-      kontext,
-      () => zeileVon(zeile),
-      gepackt,
-      entwuerfe.von(zeile.key),
-      entwuerfe.aktionen(zeile.key)
-    );
+    await arbeit(zeileVon(zeile));
     laeuft.delete(zeile.key);
-    if (!ok) feld.checked = zeileVon(zeile).gepackt;
   }
 
-  async function zuweisen(zeile: PackZeile, spalte: PackSpalte): Promise<void> {
-    if (laeuft.has(zeile.key) || !waehlbar(zeile, spalte)) return;
-    // The cell of who packs it takes it back
-    const ziel = spalteVon(zeile) === spalte.key ? spalten.find((s) => s.key === NIEMAND)! : spalte;
-    if (ziel.key === spalteVon(zeile) && !entwuerfe.von(zeile.key)) return;
-    laeuft.add(zeile.key);
-    // A free name typed at the row in the list, maybe still saving, goes first: the choice then
-    // goes on the version its answer brought and replaces it
-    const { ok } = await packAendern(
-      kontext,
-      () => zeileVon(zeile),
-      (jetzt) =>
-        spalteVon(jetzt) === ziel.key
-          ? null
-          : { zustaendigId: ziel.zustaendigId, zustaendigText: ziel.zustaendigText },
-      (jetzt) => zustaendigErfolg(ziel.key === NIEMAND ? '' : ziel.name, jetzt.name),
-      entwuerfe.von(zeile.key),
-      entwuerfe.aktionen(zeile.key)
+  function packen(zeile: PackZeile, feld: HTMLInputElement): void {
+    const gepackt = feld.checked;
+    void einzeln(
+      zeile,
+      async (jetzt) => {
+        const ok = await packAbhaken(kontext, jetzt, gepackt);
+        if (!ok) feld.checked = zeileVon(zeile).gepackt;
+        return ok;
+      },
+      feld
     );
-    laeuft.delete(zeile.key);
-    if (ok) entwuerfe.aktionen(zeile.key).verwerfen();
   }
 
-  /**
-   * Whether a cell can be chosen: a member without access (also one the view lacks) keeps what
-   * they pack and can be taken off it, but gets nothing new.
-   */
-  function waehlbar(zeile: PackZeile, spalte: PackSpalte): boolean {
-    return !spalte.ohneZugang || spalteVon(zeile) === spalte.key;
+  function anteilPacken(zeile: PackZeile, spalte: PackSpalte, feld: HTMLInputElement): void {
+    const gepackt = feld.checked;
+    void einzeln(
+      zeile,
+      async (jetzt) => {
+        const person = anteil(jetzt, spalte.key);
+        if (!person) return false;
+        const ok = await anteilAbhaken(kontext, jetzt, person, gepackt);
+        if (!ok) feld.checked = anteil(zeileVon(zeile), spalte.key)?.gepackt ?? false;
+        return ok;
+      },
+      feld
+    );
+  }
+
+  /** Adds the column's person to a row; a member without access gets nothing new. */
+  function zuteilen(zeile: PackZeile, spalte: PackSpalte): void {
+    if (spalte.ohneZugang) return;
+    void einzeln(zeile, async (jetzt) => {
+      if (anteil(jetzt, spalte.key)) return true;
+      const felder =
+        spalte.mitgliedId !== null ? { mitglieder: [spalte.mitgliedId] } : { namen: [spalte.name] };
+      const erfolg = personenErfolg(jetzt.name, [spalte.name], [], jetzt.personen.length + 1);
+      return (await packSenden(kontext, jetzt, felder, erfolg)).ok;
+    });
   }
 
   function summe(spalte: PackSpalte): string {
@@ -163,6 +177,9 @@
     beobachter.observe(innen);
     return () => beobachter.disconnect();
   });
+
+  const zellKnopf =
+    'flex size-full min-h-8 any-pointer-coarse:min-h-11 min-w-8 any-pointer-coarse:min-w-11 items-center justify-center';
 </script>
 
 {#if breiter}
@@ -228,7 +245,8 @@
     <tbody>
       {#each sichtbar as zeile, z (zeile.key)}
         {@const fuer = fuerText(zeile)}
-        {@const wer = spalteVon(zeile)}
+        {@const mehrere = zeile.personen.length > 1}
+        {@const gepacktAnzahl = zeile.personen.filter((p) => p.gepackt).length}
         <tr class="group">
           <th
             scope="row"
@@ -244,62 +262,100 @@
                 >für {fuer}</span
               >
             {/if}
+            {#if bearbeiten}
+              <button
+                type="button"
+                data-zelle="{z}:0"
+                tabindex={tabindex(z, 0)}
+                class="min-h-8 any-pointer-coarse:min-h-11 text-xs font-semibold text-brand-900 underline"
+                aria-label="Wer packt {zeile.name} ein?"
+                onclick={() => onwer(zeileVon(zeile))}>Wer packt?</button
+              >
+            {/if}
           </th>
           <td
             class="border-b border-neutral-200 text-center {zeile.gepackt ? 'bg-success-soft' : ''}"
           >
-            {#if bearbeiten}
-              <label
-                class="flex min-h-8 any-pointer-coarse:min-h-11 min-w-8 any-pointer-coarse:min-w-11 cursor-pointer items-center justify-center"
-              >
+            {#if bearbeiten && !mehrere}
+              <label class="{zellKnopf} cursor-pointer">
                 <input
                   type="checkbox"
                   class="size-4 any-pointer-coarse:size-5"
-                  data-zelle="{z}:0"
-                  tabindex={tabZelle.zeile === z && tabZelle.spalte === 0 ? 0 : -1}
+                  data-zelle="{z}:1"
+                  tabindex={tabindex(z, 1)}
                   aria-label="{zeile.name} gepackt"
                   checked={zeile.gepackt}
-                  onchange={(event) => void packen(zeile, event.currentTarget)}
+                  onchange={(event) => packen(zeile, event.currentTarget)}
                 />
               </label>
             {:else}
-              <span
-                class="text-xs font-semibold {zeile.gepackt ? 'text-success' : 'text-neutral-700'}"
-                >{zeile.gepackt ? '✓ gepackt' : 'offen'}</span
-              >
+              {@const stand = zeile.gepackt
+                ? '✓ gepackt'
+                : mehrere
+                  ? `${gepacktAnzahl} von ${zeile.personen.length}`
+                  : 'offen'}
+              {#if bearbeiten}
+                <!-- Several persons each pack their own: the count opens who packs it -->
+                <button
+                  type="button"
+                  data-zelle="{z}:1"
+                  tabindex={tabindex(z, 1)}
+                  class="{zellKnopf} px-1 text-xs font-semibold hover:bg-neutral-100 {zeile.gepackt
+                    ? 'text-success'
+                    : 'text-neutral-700'}"
+                  aria-label="Wer packt {zeile.name} ein? {gepacktAnzahl} von {zeile.personen
+                    .length} gepackt"
+                  onclick={() => onwer(zeileVon(zeile))}
+                  >{zeile.gepackt ? '✓ ' : ''}{gepacktAnzahl} von {zeile.personen.length}</button
+                >
+              {:else}
+                <span
+                  class="px-1 text-xs font-semibold {zeile.gepackt
+                    ? 'text-success'
+                    : 'text-neutral-700'}">{stand}</span
+                >
+              {/if}
             {/if}
           </td>
           {#each spalten as spalte, s (spalte.key)}
-            {@const zugewiesen = wer === spalte.key}
+            {@const person = anteil(zeile, spalte.key)}
             <td
-              class="border-b border-l border-neutral-200 p-0 text-center {zugewiesen
-                ? zeile.gepackt
+              class="border-b border-l border-neutral-200 p-0 text-center {person
+                ? person.gepackt
                   ? 'bg-success-soft'
                   : 'bg-brand-50'
                 : ''}"
             >
-              {#if bearbeiten}
+              {#if bearbeiten && person}
+                <label class="{zellKnopf} cursor-pointer">
+                  <input
+                    type="checkbox"
+                    class="size-4 any-pointer-coarse:size-5"
+                    data-zelle="{z}:{s + VORNE}"
+                    tabindex={tabindex(z, s + VORNE)}
+                    aria-label="{spalte.name} hat {zeile.name} gepackt"
+                    checked={person.gepackt}
+                    onchange={(event) => anteilPacken(zeile, spalte, event.currentTarget)}
+                  />
+                </label>
+              {:else if bearbeiten}
                 <button
                   type="button"
-                  data-zelle="{z}:{s + 1}"
-                  tabindex={tabZelle.zeile === z && tabZelle.spalte === s + 1 ? 0 : -1}
-                  class="flex size-full min-h-8 any-pointer-coarse:min-h-11 min-w-8 any-pointer-coarse:min-w-11 items-center justify-center font-semibold hover:bg-neutral-100 focus-visible:outline-2 focus-visible:-outline-offset-2 {zugewiesen
-                    ? zeile.gepackt
-                      ? 'text-success'
-                      : 'text-brand-900'
-                    : 'text-neutral-400'} {waehlbar(zeile, spalte) ? '' : 'cursor-not-allowed'}"
-                  aria-pressed={zugewiesen}
-                  aria-disabled={waehlbar(zeile, spalte) ? undefined : 'true'}
+                  data-zelle="{z}:{s + VORNE}"
+                  tabindex={tabindex(z, s + VORNE)}
+                  class="{zellKnopf} text-neutral-400 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:-outline-offset-2 {spalte.ohneZugang
+                    ? 'cursor-not-allowed'
+                    : ''}"
+                  aria-disabled={spalte.ohneZugang ? 'true' : undefined}
                   aria-label="{spalte.name} packt {zeile.name} ein"
-                  onclick={() => void zuweisen(zeile, spalte)}
+                  onclick={() => zuteilen(zeile, spalte)}
                 >
-                  {#if zugewiesen}{zeile.gepackt ? '✓' : '●'}{:else}<span aria-hidden="true">○</span
-                    >{/if}
+                  <span aria-hidden="true">○</span>
                 </button>
-              {:else if zugewiesen}
-                <span class="font-semibold {zeile.gepackt ? 'text-success' : 'text-brand-900'}"
-                  >{zeile.gepackt ? '✓' : '●'}<span class="sr-only"
-                    >{spalte.name} packt {zeile.name} ein</span
+              {:else if person}
+                <span class="font-semibold {person.gepackt ? 'text-success' : 'text-brand-900'}"
+                  >{person.gepackt ? '✓' : '●'}<span class="sr-only"
+                    >{spalte.name} packt {zeile.name} ein{person.gepackt ? ', gepackt' : ''}</span
                   ></span
                 >
               {/if}

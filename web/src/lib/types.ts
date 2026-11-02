@@ -470,7 +470,7 @@ export interface PlanungAnsicht {
 }
 
 export type { EinkaufPosten, Geschaeft, ZusatzPosten } from '../../../api/lib/essen-einkauf-model';
-export type { PacklisteEintrag } from '../../../api/lib/essen-packliste-model';
+export type { PackZuteilung, PacklisteEintrag } from '../../../api/lib/essen-packliste-model';
 export type { PlanungBeleg } from '../../../api/lib/essen-belege-model';
 
 export type {

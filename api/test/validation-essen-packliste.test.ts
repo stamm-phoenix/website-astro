@@ -9,6 +9,7 @@ import {
   validatePackAenderung,
   validatePackEintrag,
   validateWerkzeugAenderung,
+  validateZuteilungAenderung,
 } from '../lib/essen-packliste-validation';
 import { fields } from './fixtures/essen-fields';
 
@@ -29,57 +30,60 @@ test('a merged name may outgrow its name but fits the stored column', () => {
   assert.ok(packlisteSchluessel('İ'.repeat(MAX_PACK_NAME)).length <= MAX_PACK_SCHLUESSEL);
 });
 
-test('an entry of its own needs a name and at most one who packs it', () => {
+test('an entry of its own needs a name and may have several who pack it', () => {
   assert.deepEqual(validatePackEintrag({ name: '  Gas   kocher ' }), {
     name: 'Gas kocher',
-    zustaendigId: null,
-    zustaendigText: '',
+    mitglieder: [],
+    namen: [],
   });
-  assert.deepEqual(validatePackEintrag({ name: 'Zelt', zustaendigText: ' Ben ' }), {
-    name: 'Zelt',
-    zustaendigId: null,
-    zustaendigText: 'Ben',
-  });
-  assert.deepEqual(validatePackEintrag({ name: 'Zelt', zustaendigId: 4 }), {
-    name: 'Zelt',
-    zustaendigId: 4,
-    zustaendigText: '',
-  });
+  // The same member or name (any case) counts once; empty names are dropped
+  assert.deepEqual(
+    validatePackEintrag({
+      name: 'Kochschürze',
+      mitglieder: [4, 7, 4],
+      namen: [' Ben ', 'ben', '', 'Sam'],
+    }),
+    { name: 'Kochschürze', mitglieder: [4, 7], namen: ['Ben', 'Sam'] }
+  );
   assert.deepEqual(
     fields(() => validatePackEintrag(null)),
     { name: 'Bitte eintragen, was eingepackt werden soll, z. B. „Gaskocher“.' }
   );
   assert.deepEqual(
+    fields(() => validatePackEintrag({ name: 'x'.repeat(101), mitglieder: [0] })),
+    { name: 'Höchstens 100 Zeichen.', mitglieder: 'Bitte aus der Liste wählen.' }
+  );
+  assert.deepEqual(
+    fields(() => validatePackEintrag({ name: 'Zelt', mitglieder: 3 })),
+    { mitglieder: 'Bitte aus der Liste wählen.' }
+  );
+  assert.deepEqual(
+    fields(() => validatePackEintrag({ name: 'Zelt', namen: ['z'.repeat(101)] })),
+    { namen: 'Höchstens 100 Zeichen.' }
+  );
+  assert.deepEqual(
     fields(() =>
-      validatePackEintrag({ name: 'x'.repeat(101), zustaendigId: 0, zustaendigText: 'y' })
+      validatePackEintrag({ name: 'Zelt', namen: Array.from({ length: 51 }, (_, i) => `P${i}`) })
     ),
-    { name: 'Höchstens 100 Zeichen.', zustaendigId: 'Bitte aus der Liste wählen.' }
-  );
-  assert.deepEqual(
-    fields(() => validatePackEintrag({ name: 'Zelt', zustaendigId: 3, zustaendigText: 'Ben' })),
-    { zustaendigText: 'Entweder ein Mitglied oder einen Namen.' }
-  );
-  assert.deepEqual(
-    fields(() => validatePackEintrag({ name: 'Zelt', zustaendigText: 'z'.repeat(101) })),
-    { zustaendigText: 'Höchstens 100 Zeichen.' }
+    { namen: 'Höchstens 50 Namen.' }
   );
 });
 
 test('a change keeps only the fields that were sent', () => {
   assert.deepEqual(validatePackAenderung({ etag: '"1"', gepackt: true }), { gepackt: true });
-  assert.deepEqual(validatePackAenderung({ zustaendigId: 7 }), {
-    zustaendig: { zustaendigId: 7, zustaendigText: '' },
+  assert.deepEqual(validatePackAenderung({ mitglieder: [7] }), {
+    hinzu: { mitglieder: [7], namen: [] },
   });
-  // Sending one of the two fields sets who packs it, an empty name takes it away
-  assert.deepEqual(validatePackAenderung({ zustaendigText: '' }), {
-    zustaendig: { zustaendigId: null, zustaendigText: '' },
+  assert.deepEqual(validatePackAenderung({ namen: ['Rover'], weg: [3, 3] }), {
+    hinzu: { mitglieder: [], namen: ['Rover'] },
+    weg: [3],
   });
-  assert.deepEqual(validatePackAenderung({ gepackt: false, zustaendigId: null }), {
+  assert.deepEqual(validatePackAenderung({ gepackt: false, weg: [2] }), {
     gepackt: false,
-    zustaendig: { zustaendigId: null, zustaendigText: '' },
+    weg: [2],
   });
   assert.deepEqual(
-    fields(() => validatePackAenderung({ etag: '"1"' })),
+    fields(() => validatePackAenderung({ etag: '"1"', mitglieder: [], namen: [' '] })),
     { gepackt: 'Es gibt nichts zu speichern.' }
   );
   // A body that is no object names the same in German, not an inner field
@@ -94,8 +98,16 @@ test('a change keeps only the fields that were sent', () => {
     { gepackt: 'Bitte ankreuzen oder nicht.' }
   );
   assert.deepEqual(
-    fields(() => validatePackAenderung({ zustaendigId: 1.5 })),
-    { zustaendigId: 'Bitte aus der Liste wählen.' }
+    fields(() => validatePackAenderung({ weg: [1.5] })),
+    { weg: 'Bitte aus der Liste wählen.' }
+  );
+});
+
+test('a share of one person is packed or not', () => {
+  assert.deepEqual(validateZuteilungAenderung({ etag: '"1"', gepackt: true }), { gepackt: true });
+  assert.deepEqual(
+    fields(() => validateZuteilungAenderung({ etag: '"1"' })),
+    { gepackt: 'Bitte ankreuzen oder nicht.' }
   );
 });
 

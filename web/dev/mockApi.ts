@@ -123,6 +123,7 @@ import {
   validatePackAenderung,
   validatePackEintrag,
   validateWerkzeugAenderung,
+  validateZuteilungAenderung,
 } from '../../api/lib/essen-packliste-validation';
 import { validateGruppe, validateTeilnehmende } from '../../api/lib/essen-teilnehmende-validation';
 import {
@@ -1766,6 +1767,13 @@ route('PUT', '/api/essensplanung/planung/packliste/werkzeug', (req) => {
   const input = validateWerkzeugAenderung(req.json);
   const etag = typeof req.json?.etag === 'string' ? req.json.etag : null;
   return essenAendern(req, (z) => essenPackliste.werkzeugSetzen(z, input, etag));
+});
+
+route('PATCH', '/api/essensplanung/planung/packliste/zuteilung/:id', (req) => {
+  const { gepackt } = validateZuteilungAenderung(req.json);
+  return essenAendern(req, (z) =>
+    essenPackliste.zuteilungAbhaken(z, Number(req.params.id), gepackt, req.json?.etag)
+  );
 });
 
 route(['PATCH', 'DELETE'], '/api/essensplanung/planung/packliste/:id', (req) => {

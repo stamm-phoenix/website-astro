@@ -132,6 +132,7 @@ export interface Database {
   'essen.einkauf_posten': EssenEinkaufPostenTable;
   'essen.einkauf_regel': EssenEinkaufRegelTable;
   'essen.packliste_eintrag': EssenPacklisteEintragTable;
+  'essen.packliste_zuteilung': EssenPacklisteZuteilungTable;
   'essen.beleg': EssenBelegTable;
   'essen.beleg_ordner_loeschen': EssenBelegOrdnerLoeschenTable;
   'essen.beleg_ordner': EssenBelegOrdnerTable;
@@ -1214,9 +1215,24 @@ export interface EssenPacklisteEintragTable {
   /** The normalized name of a tool of the dishes; null for an entry of its own. */
   werkzeug: string | null;
   name: string;
+  /** The whole entry: its one box, or with persons assigned whether all of them packed. */
   gepackt: Generated<boolean>;
-  zustaendig_mitglied_id: number | null;
+  /** Not read any more since `0076` (`essen.packliste_zuteilung`); dropped later. */
+  zustaendig_mitglied_id: Generated<number | null>;
+  /** Not read any more since `0076`; dropped later. */
   zustaendig_text: Generated<string>;
+}
+
+/** `essen.packliste_zuteilung` (`0076`): a person who packs an entry, with their own box. */
+export interface EssenPacklisteZuteilungTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  eintrag_id: number;
+  /** A member of the Planung, or null for a free name. */
+  mitglied_id: number | null;
+  /** The free name; empty for a member. */
+  name: Generated<string>;
+  gepackt: Generated<boolean>;
 }
 
 /** `essen.beleg_ordner_loeschen`: photo folders of deleted Planungen still to clean up (`0072`). */

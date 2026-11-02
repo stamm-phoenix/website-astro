@@ -8,7 +8,9 @@ import {
   validatePackAenderung,
   validatePackEintrag,
   validateWerkzeugAenderung,
+  validateZuteilungAenderung,
 } from '../lib/essen-packliste-validation';
+import { zuteilungAbhaken } from '../lib/essen-packliste-zuteilung';
 import { ladeAnsicht } from '../lib/essen-planung';
 import {
   METHOD_NOT_ALLOWED,
@@ -25,7 +27,7 @@ import { readJsonBody } from '../lib/nikolaus-api';
  * like the other endpoints of a Planung. Changes answer with the whole view.
  */
 
-/** POST `{ name, zustaendigId?, zustaendigText? }`: adds an entry of its own. */
+/** POST `{ name, mitglieder?, namen? }`: adds an entry of its own with who packs it. */
 export const EssensplanungPackliste = planungHandler(async (request) => {
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
@@ -34,8 +36,9 @@ export const EssensplanungPackliste = planungHandler(async (request) => {
 });
 
 /**
- * PATCH `{ etag, gepackt?, zustaendigId?, zustaendigText? }`: packs an entry or changes who packs
- * it. DELETE (If-Match): takes an entry of its own off the list.
+ * PATCH `{ etag, gepackt?, mitglieder?, namen?, weg? }`: packs an entry (on the version `etag`),
+ * or adds members and free names and takes off persons (ids in `weg`), which needs no version.
+ * DELETE (If-Match): takes an entry of its own off the list.
  */
 export const EssensplanungPackEintrag = planungHandler(async (request) => {
   const zugang = await zugangVon(request);
@@ -46,13 +49,26 @@ export const EssensplanungPackEintrag = planungHandler(async (request) => {
   }
   if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
-  await packEintragAendern(zugang, id, validatePackAenderung(body), readEtag(body, request));
+  const aenderung = validatePackAenderung(body);
+  const etag = aenderung.gepackt !== undefined ? readEtag(body, request) : null;
+  await packEintragAendern(zugang, id, aenderung, etag);
+  return ok(await ladeAnsicht(zugang));
+});
+
+/** PATCH `{ etag, gepackt }`: packs or unpacks one person's share of an entry. */
+export const EssensplanungPackZuteilung = planungHandler(async (request) => {
+  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+  const zugang = await zugangVon(request);
+  const id = readId(request);
+  const body = await readJsonBody(request);
+  const { gepackt } = validateZuteilungAenderung(body);
+  await zuteilungAbhaken(zugang, id, gepackt, readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
 });
 
 /**
- * PUT `{ werkzeug, etag, gepackt?, zustaendigId?, zustaendigText? }`: the state of a tool of the
- * planned dishes; `etag` null while nothing is stored for it yet.
+ * PUT `{ werkzeug, etag, gepackt?, mitglieder?, namen?, weg? }`: the state of a tool of the
+ * planned dishes, changed like an entry; `etag` null while nothing is stored for it yet.
  */
 export const EssensplanungPackWerkzeug = planungHandler(async (request) => {
   if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;

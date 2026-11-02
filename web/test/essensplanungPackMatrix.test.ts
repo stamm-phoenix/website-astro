@@ -1,12 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  NIEMAND,
-  naechsteZelle,
-  packSpalten,
-  spalteVon,
-  spaltenSumme,
-} from '../src/lib/essensplanungPackMatrix.ts';
+import { naechsteZelle } from '../src/lib/essensplanungPackMatrix.ts';
+import { anteil, packSpalten, spaltenSumme } from '../src/lib/essensplanungPackSpalten.ts';
 
 const mitglied = (id: number, name: string, entzogen = false, ich = false) => ({
   id,
@@ -14,46 +9,51 @@ const mitglied = (id: number, name: string, entzogen = false, ich = false) => ({
   entzogen,
   ich,
 });
-const zeile = (zustaendigId: number | null, zustaendig: string, gepackt = false) => ({
-  zustaendigId,
-  zustaendig,
+let naechste = 1;
+const person = (mitgliedId: number | null, name: string, gepackt = false) => ({
+  id: naechste++,
+  etag: '"1"',
+  mitgliedId,
+  name,
   gepackt,
 });
+const zeile = (...personen: ReturnType<typeof person>[]) => ({ personen });
 
-test('the columns are the members with access, the free names by name, then nobody', () => {
+test('the columns are the members with access, then the free names by name', () => {
   const spalten = packSpalten(
     [mitglied(1, 'Kim', false, true), mitglied(2, 'Alex', true), mitglied(3, 'Jo', true)],
     [
-      zeile(null, 'Rover'),
-      zeile(null, ' Bezirk  '),
-      zeile(3, 'Jo'),
-      zeile(null, 'Rover'),
-      zeile(9, 'Weg'),
+      zeile(person(null, 'Rover'), person(null, 'Bezirk')),
+      zeile(person(3, 'Jo'), person(null, 'rover')),
+      // A member the view lacks, e.g. for those who only read
+      zeile(person(9, 'Sam')),
+      zeile(),
     ]
   );
   assert.deepEqual(
-    spalten.map((s) => [s.key, s.name, s.zustaendigId, s.zustaendigText, s.ich, s.ohneZugang]),
+    spalten.map((s) => [s.key, s.name, s.mitgliedId, s.ich, s.ohneZugang]),
     [
-      ['m:1', 'Kim', 1, '', true, false],
-      // Without access, but still packs something
-      ['m:3', 'Jo', 3, '', false, true],
-      // A member the view lacks (removed, for those who do not manage members): without access
-      ['m:9', 'Weg', 9, '', false, true],
-      ['t:Bezirk', 'Bezirk', null, 'Bezirk', false, false],
-      ['t:Rover', 'Rover', null, 'Rover', false, false],
-      [NIEMAND, 'Niemand', null, '', false, false],
+      ['m:1', 'Kim', 1, true, false],
+      ['m:3', 'Jo', 3, false, true],
+      ['m:9', 'Sam', 9, false, true],
+      ['t:bezirk', 'Bezirk', null, false, false],
+      ['t:rover', 'Rover', null, false, false],
     ]
   );
 });
 
-test('a row belongs to the column of who packs it; sums count packed of all', () => {
-  assert.equal(spalteVon(zeile(4, 'Kim')), 'm:4');
-  assert.equal(spalteVon(zeile(null, '  Rover ')), 't:Rover');
-  assert.equal(spalteVon(zeile(null, '')), NIEMAND);
-  const zeilen = [zeile(4, 'Kim', true), zeile(4, 'Kim'), zeile(null, '', true)];
-  assert.deepEqual(spaltenSumme(zeilen, 'm:4'), { gepackt: 1, gesamt: 2 });
-  assert.deepEqual(spaltenSumme(zeilen, NIEMAND), { gepackt: 1, gesamt: 1 });
-  assert.deepEqual(spaltenSumme(zeilen, 't:Rover'), { gepackt: 0, gesamt: 0 });
+test('a person packs their own share; sums count their packed shares', () => {
+  const zeilen = [
+    zeile(person(1, 'Kim', true), person(null, 'Rover')),
+    zeile(person(1, 'Kim'), person(2, 'Alex', true)),
+    zeile(person(null, 'ROVER', true)),
+  ];
+  assert.equal(anteil(zeilen[0], 'm:1')?.gepackt, true);
+  assert.equal(anteil(zeilen[0], 'm:2'), undefined);
+  assert.equal(anteil(zeilen[2], 't:rover')?.name, 'ROVER');
+  assert.deepEqual(spaltenSumme(zeilen, 'm:1'), { gepackt: 1, gesamt: 2 });
+  assert.deepEqual(spaltenSumme(zeilen, 't:rover'), { gepackt: 1, gesamt: 2 });
+  assert.deepEqual(spaltenSumme(zeilen, 'm:3'), { gepackt: 0, gesamt: 0 });
 });
 
 test('the keys move the focus like in a spreadsheet and stop at the edges', () => {

@@ -1,6 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import { anlegen, pdfLaden } from './essensplanung-helpers';
-import { gerichteMitWerkzeugen, senden } from './essensplanung-packliste-helpers';
+import { gerichteMitWerkzeugen, senden, werWaehlen } from './essensplanung-packliste-helpers';
 
 test('the packing list merges the tools of planned dishes; packing goes in the row', async ({
   page,
@@ -8,7 +8,7 @@ test('the packing list merges the tools of planned dishes; packing goes in the r
   await anlegen(page, 'E2E Packliste');
   await gerichteMitWerkzeugen(page);
   const liste = page.getByRole('list', { name: 'Packliste' });
-  const zeile = (name: string) => liste.getByRole('listitem').filter({ hasText: name });
+  const zeile = (name: string) => liste.getByRole('listitem').filter({ hasText: name }).first();
 
   // Same names once, with the dishes and their planned meals; unplanned dishes bring nothing
   await expect(liste.getByRole('listitem')).toHaveCount(3);
@@ -22,16 +22,14 @@ test('the packing list merges the tools of planned dishes; packing goes in the r
   await expect(page.getByText('Großer Topf ist eingepackt.').first()).toBeVisible();
   await expect(zeile('Großer Topf')).toContainText('gepackt');
 
-  // Who packs it: a member, or a free name typed in the row
-  await page.getByLabel('Wer packt Kochlöffel ein?').selectOption({ label: 'Kim Küche' });
+  // Who packs it: a member, or a free name
+  await werWaehlen(page, 'Kochlöffel', { mitglieder: ['Kim Küche (du)'] });
   await expect(page.getByText('Kim Küche packt Kochlöffel ein.').first()).toBeVisible();
-  await page.getByLabel('Wer packt Pürierstab ein?').selectOption({ label: 'Anderer Name …' });
-  const name = page.getByRole('textbox', { name: 'Wer packt Pürierstab ein?' });
-  await expect(name).toBeFocused();
-  await name.fill('Rover');
-  await name.press('Enter');
+  await expect(page.getByRole('button', { name: 'Wer packt Kochlöffel ein?' })).toHaveText(
+    'Kim Küche'
+  );
+  await werWaehlen(page, 'Pürierstab', { namen: ['Rover'] });
   await expect(page.getByText('Rover packt Pürierstab ein.').first()).toBeVisible();
-  await expect(page.getByLabel('Wer packt Pürierstab ein?')).toHaveValue('text');
 
   // Something of its own below the list, with Enter; a name on the list already is refused
   const neu = page.getByLabel('Noch etwas einpacken');
@@ -73,7 +71,7 @@ test('the packing list merges the tools of planned dishes; packing goes in the r
   await expect(page.getByRole('button', { name: 'Großer Topf entfernen' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Gaskocher entfernen' }).click();
   await answerConfirm(page, 'Gaskocher von der Packliste nehmen?', 'Entfernen');
-  await expect(zeile('Gaskocher')).toHaveCount(0);
+  await expect(liste.getByRole('listitem').filter({ hasText: 'Gaskocher' })).toHaveCount(0);
   await expect(liste.getByRole('listitem')).toHaveCount(3);
 });
 
@@ -87,22 +85,23 @@ test('two people pack at once; the read-only link shows the list without changin
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Packliste' }).click();
 
-  // This page does not hear of the other one's tick before it changes the same tool
+  // This page does not hear of the other one's tick before it ticks the same tool
   await page.route('**/api/essensplanung/planung/stand*', (route) => route.abort());
   await anderes.getByRole('checkbox', { name: 'Großer Topf' }).check();
   await expect(anderes.getByText('Großer Topf ist eingepackt.').first()).toBeVisible();
-  const wer = page.getByLabel('Wer packt Großer Topf ein?');
-  await wer.selectOption({ label: 'Kim Küche' });
+  const box = page.getByRole('checkbox', { name: 'Großer Topf' });
+  await box.check();
   await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
-  // The current state is shown, the choice is open again and goes through now
-  await expect(page.getByRole('checkbox', { name: 'Großer Topf' })).toBeChecked();
-  await expect(wer).toHaveValue('');
-  await wer.selectOption({ label: 'Kim Küche' });
+  // The current state is shown
+  await expect(box).toBeChecked();
+  // Who packs it merges with the other's change: no conflict
+  await werWaehlen(page, 'Großer Topf', { mitglieder: ['Kim Küche (du)'] });
   await expect(page.getByText('Kim Küche packt Großer Topf ein.').first()).toBeVisible();
   await page.unroute('**/api/essensplanung/planung/stand*');
-  await expect(anderes.getByLabel('Wer packt Großer Topf ein?')).toHaveValue(/^m:/, {
-    timeout: 15_000,
-  });
+  await expect(anderes.getByRole('button', { name: 'Wer packt Großer Topf ein?' })).toHaveText(
+    'Kim Küche',
+    { timeout: 15_000 }
+  );
   await anderes.context().close();
 
   // The read-only link
@@ -128,7 +127,7 @@ test('two people pack at once; the read-only link shows the list without changin
   await leser.context().close();
 });
 
-test('names that differ in signs have their own box; a typed name that failed is kept', async ({
+test('names that differ in signs have their own box; a choice not saved is asked about', async ({
   page,
 }) => {
   await anlegen(page, 'E2E Packliste Zeichen');
@@ -178,30 +177,18 @@ test('names that differ in signs have their own box; a typed name that failed is
   await expect(page.getByRole('checkbox', { name: 'Grill-Zange', exact: true })).not.toBeChecked();
   await expect(page.getByText('Grill Zange ist eingepackt.').first()).toBeVisible();
 
-  // A free name whose save failed stays, also when a filter hides its row for a while
-  await page.route('**/api/essensplanung/planung/packliste/werkzeug', (route) => route.abort());
-  await page.getByLabel('Wer packt Grill-Zange ein?').selectOption({ label: 'Anderer Name …' });
-  const name = page.getByRole('textbox', { name: 'Wer packt Grill-Zange ein?' });
-  await name.fill('Rover');
-  await name.press('Enter');
-  await expect(page.getByText(/Das hat nicht geklappt/).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Gepackt', exact: true }).click();
-  await expect(liste.getByRole('listitem')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Alle', exact: true }).click();
-  await expect(name).toHaveValue('Rover');
-
-  // Leaving asks first
-  await page.getByRole('link', { name: 'Impressum' }).first().click();
+  // A choice of who packs that is not saved yet: closing asks, leaving the page asks too
+  await page.getByRole('button', { name: 'Wer packt Grill-Zange ein?' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Wer packt Grill-Zange ein?' });
+  await dialog.getByRole('textbox', { name: 'Anderer Name' }).fill('Rover');
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   const frage = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
   await expect(frage).toBeVisible();
   await frage.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-  await expect(name).toHaveValue('Rover');
-
-  // Saved, it asks no more
-  await page.unroute('**/api/essensplanung/planung/packliste/werkzeug');
-  await name.press('Enter');
+  // A typed name not added yet is saved with the choice
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toBeHidden();
   await expect(page.getByText('Rover packt Grill-Zange ein.').first()).toBeVisible();
-  await expect(page.getByLabel('Wer packt Grill-Zange ein?')).toHaveValue('text');
   await page.getByRole('link', { name: 'Impressum' }).first().click();
   await expect(page).toHaveURL(/impressum/, { timeout: 15_000 });
 });
@@ -214,10 +201,7 @@ test('an entry of its own that a dish planned later needs stays one row with its
   const neu = page.getByLabel('Noch etwas einpacken');
   await neu.fill('Gaskocher');
   await neu.press('Enter');
-  await page.getByLabel('Wer packt Gaskocher ein?').selectOption({ label: 'Anderer Name …' });
-  const name = page.getByRole('textbox', { name: 'Wer packt Gaskocher ein?' });
-  await name.fill('Rover');
-  await name.press('Enter');
+  await werWaehlen(page, 'Gaskocher', { namen: ['Rover'] });
   await expect(page.getByText('Rover packt Gaskocher ein.').first()).toBeVisible();
   await page.getByRole('checkbox', { name: 'Gaskocher' }).check();
   await expect(page.getByText('Gaskocher ist eingepackt.').first()).toBeVisible();
@@ -239,9 +223,7 @@ test('an entry of its own that a dish planned later needs stays one row with its
   await expect(zeile).toContainText('für Grillen (1_2_1)', { timeout: 15_000 });
   await expect(zeile).toHaveCount(1);
   await expect(page.getByRole('checkbox', { name: 'Gaskocher' })).toBeChecked();
-  await expect(
-    page.getByLabel('Wer packt Gaskocher ein?').locator('option[value="text"]')
-  ).toHaveText('Rover');
+  await expect(page.getByRole('button', { name: 'Wer packt Gaskocher ein?' })).toHaveText('Rover');
   const pdf = await pdfLaden(page, () =>
     page.getByRole('button', { name: 'Packliste als PDF' }).click()
   );
@@ -264,29 +246,4 @@ test('an entry of its own that a dish planned later needs stays one row with its
   await expect(zeile).toHaveCount(1);
   await expect(zeile).toContainText('für Grillen (1_2_1)');
   await expect(page.getByRole('checkbox', { name: 'gaskocher' })).not.toBeChecked();
-});
-
-test('opening a free name under a member and leaving it empty keeps the member', async ({
-  page,
-}) => {
-  await anlegen(page, 'E2E Packliste Mitglied bleibt');
-  await gerichteMitWerkzeugen(page);
-  const wer = page.getByLabel('Wer packt Kochlöffel ein?');
-  await wer.selectOption({ label: 'Kim Küche' });
-  await expect(page.getByText('Kim Küche packt Kochlöffel ein.').first()).toBeVisible();
-
-  let gesendet = 0;
-  page.on('request', (request) => {
-    if (request.url().includes('/packliste/') && request.method() !== 'GET') gesendet++;
-  });
-  await wer.selectOption({ label: 'Anderer Name …' });
-  const name = page.getByRole('textbox', { name: 'Wer packt Kochlöffel ein?' });
-  await expect(name).toHaveValue('');
-  await name.blur();
-  await expect(name).toHaveCount(0);
-  await expect(page.getByLabel('Wer packt Kochlöffel ein?')).toHaveValue(/^m:/);
-  await expect(page.getByLabel('Wer packt Kochlöffel ein?').locator('option:checked')).toHaveText(
-    'Kim Küche'
-  );
-  expect(gesendet).toBe(0);
 });

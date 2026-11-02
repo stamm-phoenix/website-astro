@@ -2,65 +2,63 @@
   import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { ApiError } from '../../lib/api';
-  import { freiName } from '../../lib/essensplanungPackliste';
-  import { zustaendigErfolg } from './packSpeichern';
+  import { freiName, type PackAuswahl } from '../../lib/essensplanungPackliste';
+  import PackWerDialog from './PackWerDialog.svelte';
+  import { personenErfolg } from './packSpeichern';
   import type { PlanKontext } from './planKontext';
 
   /**
-   * The row under the packing list for what else has to go along, with who packs it; Enter puts it
-   * on the list and goes back to the name. The typed name and the choice belong to the list
-   * (`text`, `wer`), which also guards them, so they survive this row being hidden, e.g. while the
-   * maintenance mode is on. Who packs stays chosen for the next thing.
+   * The row under the packing list for what else has to go along, with who packs it (any
+   * persons, chosen in `PackWerDialog.svelte`); Enter puts it on the list and goes back to the
+   * name. The typed name and the choice belong to the list (`text`, `wer`), which also guards
+   * them, so they survive this row being hidden, e.g. while the maintenance mode is on. Who packs
+   * stays chosen for the next thing.
    */
 
   interface Props {
     kontext: PlanKontext;
     text: string;
-    /** `''` nobody, `m:<id>` a member, `neu` the free name `werText`. */
-    wer: string;
-    werText: string;
+    /** Who packs the next thing: members and free names. */
+    wer: PackAuswahl;
   }
-  let { kontext, text = $bindable(), wer = $bindable(), werText = $bindable() }: Props = $props();
+  let { kontext, text = $bindable(), wer = $bindable() }: Props = $props();
 
   let fehler = $state<string | null>(null);
   let speichert = $state(false);
+  let waehlt = $state(false);
   let feld = $state<HTMLInputElement | null>(null);
-  let werFeld = $state<HTMLInputElement | null>(null);
 
   /** Members with access to choose. */
   const mitglieder = $derived(kontext.ansicht.mitglieder.filter((m) => !m.entzogen));
-  // A member chosen before and gone since: nobody again
+  // A member chosen before and gone since is no longer chosen
   $effect(() => {
-    if (wer.startsWith('m:') && !mitglieder.some((m) => `m:${m.id}` === wer)) wer = '';
+    const da = wer.mitglieder.filter((id) => mitglieder.some((m) => m.id === id));
+    if (da.length !== wer.mitglieder.length) wer = { ...wer, mitglieder: da };
   });
+  const namen = $derived([
+    ...mitglieder.filter((m) => wer.mitglieder.includes(m.id)).map((m) => m.name),
+    ...wer.namen,
+  ]);
+  const werText = $derived(namen.join(', ') || 'Niemand');
 
   async function hinzufuegen(): Promise<void> {
     const name = freiName(text);
     if (speichert || !name) return;
     fehler = null;
     speichert = true;
-    const zustaendigId = wer.startsWith('m:') ? Number(wer.slice(2)) : null;
-    const zustaendigText = wer === 'neu' ? freiName(werText) : '';
-    const person = zustaendigId
-      ? (mitglieder.find((m) => m.id === zustaendigId)?.name ?? '')
-      : zustaendigText;
     /** What the server said about a field, e.g. that the name is on the list already. */
     let feldFehler: string | undefined;
     const ok = await kontext.aendern(
       async () => {
         try {
-          return await kontext.api.senden('POST', '/packliste', {
-            name,
-            zustaendigId,
-            zustaendigText,
-          });
+          return await kontext.api.senden('POST', '/packliste', { name, ...wer });
         } catch (error: unknown) {
           if (error instanceof ApiError && error.fields)
             feldFehler = error.fields.name ?? Object.values(error.fields)[0];
           throw error;
         }
       },
-      `${name} steht auf der Packliste.${person ? ` ${zustaendigErfolg(person, name)}` : ''}`
+      `${name} steht auf der Packliste.${namen.length ? ` ${personenErfolg(name, namen, [], namen.length)}` : ''}`
     );
     speichert = false;
     if (!ok) {
@@ -79,13 +77,6 @@
     if (event.key !== 'Enter') return;
     event.preventDefault();
     void hinzufuegen();
-  }
-
-  async function waehlen(wert: string): Promise<void> {
-    wer = wert;
-    if (wert !== 'neu') return;
-    await tick();
-    werFeld?.focus();
   }
 </script>
 
@@ -108,33 +99,15 @@
     />
   </div>
   <div class="min-w-0 flex-1 basis-40">
-    <label class="form-label text-xs" for="packliste-neu-wer">Wer packt?</label>
-    <select
+    <span class="form-label text-xs" id="packliste-neu-wer-label">Wer packt?</span>
+    <ActionButton
+      type="button"
       id="packliste-neu-wer"
-      class="form-input mt-0.5 min-h-8 any-pointer-coarse:min-h-11 py-0.5 text-sm"
-      value={wer}
+      class="mt-0.5 min-h-8 w-full justify-start truncate px-2 py-0.5 text-left text-sm any-pointer-coarse:min-h-11"
+      aria-labelledby="packliste-neu-wer-label packliste-neu-wer"
       disabled={speichert}
-      onchange={(event) => void waehlen(event.currentTarget.value)}
-      onkeydown={enter}
+      onclick={() => (waehlt = true)}>{werText}</ActionButton
     >
-      <option value="">Niemand</option>
-      {#each mitglieder as mitglied (mitglied.id)}
-        <option value="m:{mitglied.id}">{mitglied.name}{mitglied.ich ? ' (du)' : ''}</option>
-      {/each}
-      <option value="neu">Anderer Name …</option>
-    </select>
-    {#if wer === 'neu'}
-      <input
-        bind:this={werFeld}
-        bind:value={werText}
-        class="form-input mt-1 min-h-8 any-pointer-coarse:min-h-11 py-0.5 text-sm"
-        aria-label="Anderer Name, wer packt"
-        placeholder="Name, z. B. Rover"
-        maxlength="100"
-        disabled={speichert}
-        onkeydown={enter}
-      />
-    {/if}
   </div>
   <ActionButton
     type="button"
@@ -149,3 +122,16 @@
     </p>
   {/if}
 </div>
+
+<PackWerDialog
+  {kontext}
+  was={waehlt ? freiName(text) || 'das Nächste' : undefined}
+  zeile={null}
+  start={wer}
+  submitLabel="Übernehmen"
+  onwahl={async (auswahl) => {
+    wer = auswahl;
+    return null;
+  }}
+  onclose={() => (waehlt = false)}
+/>

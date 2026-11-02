@@ -1,120 +1,161 @@
 import { ApiError } from '../../lib/api';
-import type { PackEntwurf, PackZeile } from '../../lib/essensplanungPackliste';
-import type { EntwurfAktionen } from './packEntwuerfe.svelte';
+import {
+  personenAenderung,
+  type PackAuswahl,
+  type PackZeile,
+} from '../../lib/essensplanungPackliste';
+import type { PackZuteilung, PlanungAnsicht } from '../../lib/types';
 import { merkeSpeichern, type PlanKontext } from './planKontext';
 
 /**
- * Saving a row of the packing list, shared by the list (`PackZeile.svelte`) and the matrix
- * (`PackMatrix.svelte`), so both follow the same versions and conflicts.
+ * Saving a row of the packing list, shared by the list (`PackZeile.svelte`), the matrix
+ * (`PackMatrix.svelte`) and the choice of who packs (`PackWerDialog.svelte`), so all follow the
+ * same versions and conflicts: packing the whole thing goes on the version the row was shown
+ * with, a person's own box on the version of their share; persons added and taken off merge.
  */
 
-/** The fields of a row to save: packed, who packs it, or both. */
+/** The fields of a row to save: packed, persons added (members, free names) or taken off. */
 export interface PackFelder {
   gepackt?: boolean;
-  zustaendigId?: number | null;
-  zustaendigText?: string;
+  mitglieder?: number[];
+  namen?: string[];
+  weg?: number[];
+}
+
+/** Runs a save of the packing list; a message of the server about a field is named with `was`. */
+async function senden(
+  kontext: PlanKontext,
+  was: string,
+  arbeit: () => Promise<PlanungAnsicht>,
+  erfolg: string
+): Promise<{ ok: boolean; feldFehler: string | null }> {
+  /** A message of the server about a field, e.g. a member who has no access any more. */
+  let feldFehler: string | null = null;
+  // Noted, so a PDF asked for meanwhile waits for it
+  const lauf = kontext.aendern(async () => {
+    try {
+      return await arbeit();
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.fields)
+        feldFehler = Object.values(error.fields)[0] ?? null;
+      throw error;
+    }
+  }, erfolg);
+  merkeSpeichern(lauf);
+  const ok = await lauf;
+  if (!ok && feldFehler) kontext.hinweis(`${was}: ${feldFehler}`, 'error');
+  return { ok, feldFehler };
 }
 
 /**
- * Saves a change of a row: of its stored row, or the first one of a tool, on the version the row
- * was shown with. Never throws: a failed save shows its message and says false.
+ * Saves a change of a row: of its stored row, or the first one of a tool. Never throws: a failed
+ * save shows its message and says false (with the server's message about a field, if any).
  */
 export async function packSenden(
   kontext: PlanKontext,
   zeile: PackZeile,
   felder: PackFelder,
   erfolg: string
-): Promise<boolean> {
+): Promise<{ ok: boolean; feldFehler: string | null }> {
   const { eintrag, werkzeug, name } = zeile;
-  /** A message of the server about a field, e.g. a member who has no access any more. */
-  let feldFehler: string | undefined;
-  // Noted, so a PDF asked for meanwhile waits for it
-  const lauf = kontext.aendern(async () => {
-    try {
-      return werkzeug === null
-        ? await kontext.api.senden('PATCH', `/packliste/${eintrag!.id}`, {
+  return senden(
+    kontext,
+    name,
+    () =>
+      werkzeug === null
+        ? kontext.api.senden('PATCH', `/packliste/${eintrag!.id}`, {
             ...felder,
             etag: eintrag!.etag,
           })
-        : await kontext.api.senden('PUT', '/packliste/werkzeug', {
+        : kontext.api.senden('PUT', '/packliste/werkzeug', {
             ...felder,
             werkzeug: name,
             etag: eintrag?.etag ?? null,
-          });
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.fields) feldFehler = Object.values(error.fields)[0];
-      throw error;
-    }
-  }, erfolg);
-  merkeSpeichern(lauf);
-  const ok = await lauf;
-  if (!ok && feldFehler) kontext.hinweis(`${name}: ${feldFehler}`, 'error');
+          }),
+    erfolg
+  );
+}
+
+/** Packs the whole row or opens it again, also the boxes of all its persons. */
+export async function packAbhaken(
+  kontext: PlanKontext,
+  zeile: PackZeile,
+  gepackt: boolean
+): Promise<boolean> {
+  const erfolg = gepackt ? `${zeile.name} ist eingepackt.` : `${zeile.name} ist wieder offen.`;
+  return (await packSenden(kontext, zeile, { gepackt }, erfolg)).ok;
+}
+
+/** Packs or unpacks one person's share of a row, on the version of that share. */
+export async function anteilAbhaken(
+  kontext: PlanKontext,
+  zeile: PackZeile,
+  person: PackZuteilung,
+  gepackt: boolean
+): Promise<boolean> {
+  const erfolg = gepackt
+    ? `${person.name} hat ${zeile.name} eingepackt.`
+    : `${zeile.name} ist für ${person.name} wieder offen.`;
+  const { ok } = await senden(
+    kontext,
+    zeile.name,
+    () =>
+      kontext.api.senden('PATCH', `/packliste/zuteilung/${person.id}`, {
+        gepackt,
+        etag: person.etag,
+      }),
+    erfolg
+  );
   return ok;
+}
+
+/** „Kim und Alex packen Kochschürze ein.“, „Sam packt Topf nicht mehr ein.“ */
+export function personenErfolg(
+  was: string,
+  hinzu: string[],
+  weg: string[],
+  bleiben: number
+): string {
+  const liste = (namen: string[]) =>
+    namen.length > 1 ? `${namen.slice(0, -1).join(', ')} und ${namen.at(-1)}` : namen[0];
+  const verb = (namen: string[]) => (namen.length > 1 ? 'packen' : 'packt');
+  if (!bleiben && !hinzu.length) return `Für ${was} ist niemand mehr zuständig.`;
+  return [
+    hinzu.length ? `${liste(hinzu)} ${verb(hinzu)} ${was} ein.` : '',
+    weg.length ? `${liste(weg)} ${verb(weg)} ${was} nicht mehr ein.` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 /**
- * Saves a field of a row that may have a free name typed in it (`entwurf`), also one whose save
- * is still running (e.g. left by switching to the matrix). That name saves first, or its running
- * save is waited for: the change then goes on the version its answer brought, not into a
- * conflict with this page's own save; changes of others still conflict. A failed name keeps its
- * draft and notice; the change is saved on the version now shown. `zeileJetzt` reads the row as
- * shown after the name's save; `erfolg` names the change for it. While the change saves, later
- * saves of the name wait for it. Says whether the change is saved and whether the name failed.
+ * Saves who packs a row as chosen in the dialog: the difference to `vorher`, the row as the
+ * dialog opened with it, so a person someone else added meanwhile stays. `jetzt` is the row as
+ * shown now. Says null when saved, else why not.
  */
-export async function packAendern(
+export async function personenSpeichern(
   kontext: PlanKontext,
-  zeileJetzt: () => PackZeile,
-  felder: (zeile: PackZeile) => PackFelder | null,
-  erfolg: (zeile: PackZeile) => string,
-  entwurf: PackEntwurf | null,
-  aktionen: EntwurfAktionen
-): Promise<{ ok: boolean; nameFehlt: string | null }> {
-  let nameFehlt: string | null = null;
-  if (entwurf !== null) {
-    const name = aktionen.speichern(false);
-    merkeSpeichern(name);
-    if (!(await name)) nameFehlt = entwurf.text.trim() || null;
-  }
-  const zeile = zeileJetzt();
-  const aenderung = felder(zeile);
-  // Nothing left to change on the version now shown
-  if (aenderung === null) return { ok: true, nameFehlt };
-  const vorher = zeile.eintrag?.etag ?? null;
-  const freigeben = aktionen.sperren();
-  const ok = await packSenden(kontext, zeile, aenderung, erfolg(zeile));
-  if (ok) aktionen.eigeneAenderung(vorher);
-  freigeben(nameFehlt === null);
-  return { ok, nameFehlt };
-}
-
-/** Packs a row or opens it again (`packAendern`). Says whether the tick is saved. */
-export async function packAbhaken(
-  kontext: PlanKontext,
-  zeileJetzt: () => PackZeile,
-  gepackt: boolean,
-  entwurf: PackEntwurf | null,
-  aktionen: EntwurfAktionen
-): Promise<boolean> {
-  const erfolg = (zeile: PackZeile) =>
-    gepackt ? `${zeile.name} ist eingepackt.` : `${zeile.name} ist wieder offen.`;
-  const { ok, nameFehlt } = await packAendern(
-    kontext,
-    zeileJetzt,
-    () => ({ gepackt }),
-    erfolg,
-    entwurf,
-    aktionen
+  vorher: PackZeile,
+  jetzt: PackZeile,
+  auswahl: PackAuswahl
+): Promise<string | null> {
+  const aenderung = personenAenderung(vorher, auswahl);
+  if (!aenderung.mitglieder.length && !aenderung.namen.length && !aenderung.weg.length) return null;
+  const hinzu = [
+    ...aenderung.mitglieder.map(
+      (id) => kontext.ansicht.mitglieder.find((m) => m.id === id)?.name ?? ''
+    ),
+    ...aenderung.namen,
+  ];
+  const weg = vorher.personen.filter((p) => aenderung.weg.includes(p.id)).map((p) => p.name);
+  const erfolg = personenErfolg(
+    jetzt.name,
+    hinzu,
+    weg,
+    vorher.personen.length - aenderung.weg.length
   );
-  // The tick's success must not hide that the name typed here is still unsaved
-  if (ok && nameFehlt)
-    kontext.hinweis(
-      `${erfolg(zeileJetzt())} Der Name „${nameFehlt}“ ist aber noch nicht gespeichert; er steht noch in der Zeile, Enter versucht es noch einmal.`,
-      'error'
-    );
-  return ok;
-}
-
-/** „Kim packt Topf ein.“ or that nobody does any more. */
-export function zustaendigErfolg(wer: string, was: string): string {
-  return wer ? `${wer} packt ${was} ein.` : `Für ${was} ist niemand mehr zuständig.`;
+  const { ok, feldFehler } = await packSenden(kontext, jetzt, aenderung, erfolg);
+  if (ok) return null;
+  if (feldFehler) kontext.hinweis(null);
+  return feldFehler ?? kontext.fehler ?? `Wer ${jetzt.name} einpackt, ist nicht gespeichert.`;
 }

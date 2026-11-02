@@ -3,18 +3,31 @@
  * `essen-packliste-schema.ts`; the types they return are declared in `essen-packliste-model.ts`,
  * which the browser imports and which therefore stays free of zod.
  */
-import type { PackAenderung, PackEintragInput, WerkzeugAenderung } from './essen-packliste-model';
-import { packAenderungSchema, packEintragSchema, werkzeugSchema } from './essen-packliste-schema';
+import type {
+  PackAenderung,
+  PackEintragInput,
+  WerkzeugAenderung,
+  ZuteilungAenderung,
+} from './essen-packliste-model';
+import {
+  packAenderungSchema,
+  packEintragSchema,
+  werkzeugSchema,
+  zuteilungAenderungSchema,
+} from './essen-packliste-schema';
 import { ValidationError } from './validation/errors';
 import { parseWith } from './validation/zod';
 
 export function validatePackEintrag(input: unknown): PackEintragInput {
-  const value = parseWith(packEintragSchema, input);
-  return { ...value, zustaendigText: value.zustaendigId === null ? value.zustaendigText : '' };
+  return parseWith(packEintragSchema, input);
 }
 
 export function validatePackAenderung(input: unknown): PackAenderung {
   return parseWith(packAenderungSchema, input);
+}
+
+export function validateZuteilungAenderung(input: unknown): ZuteilungAenderung {
+  return parseWith(zuteilungAenderungSchema, input);
 }
 
 /** The state of a tool: its name and the changed fields; every field reports at once. */
