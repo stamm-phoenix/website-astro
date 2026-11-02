@@ -1,5 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Concurrent saves, shopping drafts and minutes approval are covered on mobile Chromium.
+// Keep the full mobile suite for the phone-first staff area; all other files also run on desktop.
+const MOBILE_ONLY_LOGIC_SUITES = [
+  '**/essensplanung-ki-konflikte.spec.ts',
+  '**/essensplanung-einkaeufe-entwuerfe.spec.ts',
+  '**/essensplanung-einkaeufe-konflikte.spec.ts',
+  '**/protokoll-review.spec.ts',
+  '**/essensplanung-zeilen-konflikte.spec.ts',
+];
+
 // Demo writes live in the dev server process, so every worker gets its own server and port.
 const WORKERS = Number(process.env.E2E_WORKERS ?? (process.env.CI ? 4 : 2));
 // E2E_PORT_BASE lets runs in separate checkouts on one machine use their own ports.
@@ -23,6 +33,7 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop',
+      testIgnore: MOBILE_ONLY_LOGIC_SUITES,
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1536, height: 960 },

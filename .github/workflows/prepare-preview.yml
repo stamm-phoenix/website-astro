@@ -1,0 +1,69 @@
+name: Prepare preview database
+on:
+  workflow_call:
+    outputs:
+      prepared:
+        description: Whether this open PR still points at the tested commit
+        value: ${{ jobs.database.outputs.prepared }}
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: read
+jobs:
+  database:
+    name: Prepare preview database
+    runs-on: ubuntu-24.04
+    # Share the deployment lock with uploads and cleanup. Never cancel remote SQL work.
+    # This job can finish while browser tests run, releasing the lock until the upload.
+    concurrency:
+      group: website-astro-deployment
+      cancel-in-progress: false
+      queue: max
+    outputs:
+      prepared: ${{ steps.current.outputs.prepared }}
+    steps:
+      - name: Skip closed or outdated pull requests
+        id: current
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expected = context.payload.pull_request;
+            if (!expected || expected.head.repo.full_name !== context.repo.owner + '/' + context.repo.repo || expected.user.type === 'Bot') {
+              core.setOutput('prepared', 'false');
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: expected.number });
+            const current = pr.state === 'open' && pr.head.sha === expected.head.sha;
+            core.setOutput('prepared', String(current));
+            if (!current) core.notice('Not preparing a closed or outdated pull request.');
+      - uses: actions/checkout@v4
+        if: steps.current.outputs.prepared == 'true'
+      - uses: oven-sh/setup-bun@v2
+        if: steps.current.outputs.prepared == 'true'
+        with:
+          bun-version: 1.4.2
+      - name: Install API dependencies
+        if: steps.current.outputs.prepared == 'true'
+        working-directory: api
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Azure login (preview database)
+        if: steps.current.outputs.prepared == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
+          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Create, migrate and seed preview database
+        if: steps.current.outputs.prepared == 'true'
+        working-directory: api
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: bun scripts/db-preview.ts create "$PR_NUMBER" --write-deployment
+      - name: Upload preview database configuration
+        if: steps.current.outputs.prepared == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-deployment
+          path: api/lib/deployment.ts
+          if-no-files-found: error
+          retention-days: 1
