@@ -19,6 +19,40 @@ test('temporary notice can be saved, displayed publicly and removed', async ({ p
   await expect(dialog.getByLabel('Hinweis', { exact: true })).toHaveValue(
     'Diese Woche am Spielplatz'
   );
+  await dialog.getByLabel('Hinweis', { exact: true }).fill('Neuer Hinweis per Enter');
+  const enterSave = page.waitForRequest(
+    (request) => request.method() === 'PATCH' && request.url().includes('/pflege/gruppenstunden/')
+  );
+  await dialog.getByLabel('Hinweis', { exact: true }).press('Enter');
+  expect((await enterSave).postDataJSON().exception.message).toBe('Neuer Hinweis per Enter');
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)', exact: true }).click();
+  const rescued = {
+    startDate: '2020-02-02',
+    endDate: '2099-11-30',
+    message: 'Geretteter Hinweis',
+    location: 'Wiese',
+    time: '18 Uhr',
+  };
+  for (const [id, value] of Object.entries({
+    'gs-exception-start': rescued.startDate,
+    'gs-exception-end': rescued.endDate,
+    'gs-exception-message': rescued.message,
+    'gs-exception-location': rescued.location,
+    'gs-exception-time': rescued.time,
+  })) {
+    await dialog.locator('#' + id).evaluate((element, text) => {
+      (element as HTMLInputElement).value = text;
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }, value);
+  }
+  const rescuedSave = page.waitForRequest(
+    (request) => request.method() === 'PATCH' && request.url().includes('/pflege/gruppenstunden/')
+  );
+  await dialog.locator('form').evaluate((form) => (form as HTMLFormElement).requestSubmit());
+  expect((await rescuedSave).postDataJSON().exception).toEqual(rescued);
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Bearbeiten (Wölflinge)', exact: true }).click();
   await dialog.getByLabel('Abweichung anzeigen', { exact: true }).uncheck();
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).toBeHidden();

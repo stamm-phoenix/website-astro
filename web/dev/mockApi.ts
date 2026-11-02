@@ -1,6 +1,6 @@
 import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
-import { readGruppenstundenException } from '../../api/lib/validation/gruppenstunden-exception';
+import { registerGruppenstundenRoutes } from './mockGruppenstunden';
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
 import { ValidationError } from '../../api/lib/validation/errors';
 import {
@@ -258,16 +258,11 @@ import {
 import { toNikolausConfig } from '../src/lib/nikolausConfig';
 import type { NikolausSettings } from '../src/lib/nikolausConfig';
 import {
-  gruppenstunden,
   leitende,
   leitendePhotos,
-  publicGruppenstunden,
   publicLeitende,
   publicVorstand,
-  staffGruppenstunden,
-  STUFEN,
   TEAMS,
-  WEEKDAYS,
 } from './mock-data/people';
 import {
   campaigns,
@@ -288,7 +283,7 @@ import { dayFromToday, isoFromNow, MOCK_NOW, newEtag, newId } from './mock-data/
 const READ_DELAY_MS: [number, number] = [150, 350];
 const WRITE_DELAY_MS: [number, number] = [600, 900];
 
-interface MockRequest {
+export interface MockRequest {
   method: string;
   path: string;
   query: URLSearchParams;
@@ -299,7 +294,7 @@ interface MockRequest {
   json: Record<string, unknown> | null;
 }
 
-type MockResult =
+export type MockResult =
   | { kind: 'json'; status: number; body: unknown }
   | { kind: 'empty'; status: number }
   | {
@@ -502,7 +497,6 @@ route(
   true
 );
 
-route('GET', '/api/gruppenstunden', () => json(publicGruppenstunden()));
 route(
   'GET',
   '/api/mock/campflow-embed',
@@ -3310,49 +3304,7 @@ route(
 // Stands in for Blob Storage: accepts the upload and forgets it
 route('PUT', '/api/mock-upload/:id', () => ({ kind: 'empty', status: 201 }), true);
 
-route(['GET', 'POST'], '/api/intern/pflege/gruppenstunden', (req) => {
-  if (req.method === 'GET')
-    return json({ items: staffGruppenstunden(), stufen: STUFEN, weekdays: WEEKDAYS });
-  const body = req.json ?? {};
-  const id = newId();
-  gruppenstunden.push({
-    id,
-    etag: newEtag(`gs-${id}`),
-    stufe: str(body.stufe, STUFEN[0]),
-    weekday: str(body.weekday, WEEKDAYS[0]),
-    time: str(body.time),
-    ageRange: str(body.ageRange),
-    location: str(body.location),
-    description: str(body.description),
-    exception: readGruppenstundenException(JSON.stringify(body.exception) ?? null),
-  });
-  return json({ id }, 201);
-});
-
-route(['PATCH', 'DELETE'], '/api/intern/pflege/gruppenstunden/:id', (req) => {
-  const index = gruppenstunden.findIndex((g) => g.id === req.params.id);
-  if (index < 0) return notFound();
-  if (req.method === 'DELETE') {
-    gruppenstunden.splice(index, 1);
-    return noContent();
-  }
-  const body = req.json ?? {};
-  const g = gruppenstunden[index];
-  Object.assign(g, {
-    stufe: str(body.stufe, g.stufe),
-    weekday: str(body.weekday, g.weekday),
-    time: str(body.time, g.time),
-    ageRange: str(body.ageRange, g.ageRange),
-    location: str(body.location, g.location),
-    description: str(body.description, g.description),
-    exception:
-      body.exception === undefined
-        ? (g.exception ?? null)
-        : readGruppenstundenException(JSON.stringify(body.exception) ?? null),
-    etag: newEtag(`gs-${g.id}`),
-  });
-  return noContent();
-});
+registerGruppenstundenRoutes(route);
 
 function applyLeitende(target: (typeof leitende)[number], body: Record<string, unknown>): void {
   target.name = str(body.name, target.name);

@@ -57,14 +57,30 @@
             {...attrs}
             class="form-input"
             type="date"
-            bind:value={startDate}
-            onchange={update}
+            bind:value={
+              () => startDate,
+              (value) => {
+                startDate = value;
+                update();
+              }
+            }
           />
         {/snippet}
       </FormField>
       <FormField id="gs-exception-end" label="Bis" error={errors.exceptionEndDate}>
         {#snippet children(attrs)}
-          <input {...attrs} class="form-input" type="date" bind:value={endDate} onchange={update} />
+          <input
+            {...attrs}
+            class="form-input"
+            type="date"
+            bind:value={
+              () => endDate,
+              (value) => {
+                endDate = value;
+                update();
+              }
+            }
+          />
         {/snippet}
       </FormField>
       <FormField id="gs-exception-message" label="Hinweis" error={errors.exceptionMessage}>
@@ -73,8 +89,13 @@
             {...attrs}
             class="form-input"
             maxlength="500"
-            bind:value={message}
-            onchange={update}
+            bind:value={
+              () => message,
+              (value) => {
+                message = value;
+                update();
+              }
+            }
           />
         {/snippet}
       </FormField>
@@ -89,8 +110,13 @@
             {...attrs}
             class="form-input"
             maxlength="120"
-            bind:value={location}
-            onchange={update}
+            bind:value={
+              () => location,
+              (value) => {
+                location = value;
+                update();
+              }
+            }
           />
         {/snippet}
       </FormField>
@@ -106,8 +132,13 @@
             class="form-input"
             maxlength="60"
             placeholder="18:00 – 20:00 Uhr"
-            bind:value={time}
-            onchange={update}
+            bind:value={
+              () => time,
+              (value) => {
+                time = value;
+                update();
+              }
+            }
           />
         {/snippet}
       </FormField>
