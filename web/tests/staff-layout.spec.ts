@@ -80,7 +80,7 @@ test('on a phone the bar at the bottom and the sheet „Menü“ lead to every m
   await expect(sheet.getByRole('link', { name: 'Abmelden' })).toHaveAttribute('href', '/logout');
   await sheet.getByRole('searchbox', { name: 'Bereich finden' }).fill('kassenzettel');
   // Belege by keyword, Eigenbeleg by its description
-  await expect(sheet.getByRole('status')).toHaveText(/2 Bereiche gefunden/);
+  await expect(sheet.locator('#staff-nav').getByRole('status')).toHaveText(/2 Bereiche gefunden/);
   await sheet
     .locator('#staff-nav')
     .getByRole('link', { name: /^Belege/ })
