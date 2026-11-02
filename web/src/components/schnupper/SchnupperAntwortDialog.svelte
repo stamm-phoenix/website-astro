@@ -12,8 +12,8 @@
     anfrage: StaffSchnupperAnfrage;
     /** `bestaetigen` sends a date, `absagen` a cancellation. */
     art: 'bestaetigen' | 'absagen';
-    /** Loads the requests again and returns the current version of this one. */
-    onreload: (id: number) => Promise<StaffSchnupperAnfrage | null>;
+    /** The current version of this request; `null` when it was deleted, `undefined` when loading failed. */
+    onreload: (id: number) => Promise<StaffSchnupperAnfrage | null | undefined>;
     ondone: (ergebnis: SchnupperAntwortErgebnis | null, message: string) => void | Promise<void>;
     onclose: () => void;
   }
@@ -28,7 +28,13 @@
   let zeit = $state(anfrage.termin?.zeit ?? '');
   // svelte-ignore state_referenced_locally
   let ort = $state(anfrage.termin?.ort ?? '');
-  let antwort = $state('');
+  // After a failed mail the saved text is offered again, so it is not written twice
+  // svelte-ignore state_referenced_locally
+  let antwort = $state(
+    anfrage.antwortMail === false && (art === 'bestaetigen') === (anfrage.status === 'bestaetigt')
+      ? anfrage.antwort
+      : ''
+  );
   const dialog = createDialogForm();
   let reloading = $state(false);
   const busy = $derived(dialog.state.busy || reloading);
@@ -86,11 +92,17 @@
   /** After a conflict: shows the current state of the request, the input stays. */
   async function reloadCurrent(): Promise<boolean> {
     reloading = true;
-    let fresh: StaffSchnupperAnfrage | null;
+    let fresh: StaffSchnupperAnfrage | null | undefined;
     try {
       fresh = await onreload(current.id);
     } finally {
       reloading = false;
+    }
+    if (fresh === undefined) {
+      // The input stays, and so does the button to try again
+      dialog.state.error =
+        'Die aktuelle Fassung konnte nicht geladen werden. Deine Eingaben sind noch da. Tippe gleich noch einmal auf „Aktuelle Fassung laden“.';
+      return false;
     }
     if (!fresh) {
       await ondone(null, 'Die Anfrage wurde inzwischen gelöscht.');

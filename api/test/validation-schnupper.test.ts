@@ -122,3 +122,17 @@ test('a cancellation may come without a text, but not with one that is too long'
     ['antwort']
   );
 });
+
+test('an address that would add recipients to a mail link is refused', () => {
+  for (const email of [
+    'erika@example.test?bcc=fremd%40example.test',
+    'erika@example.test&cc=fremd@example.test',
+    'erika@example.test,fremd@example.test',
+    'eri#ka@example.test',
+  ]) {
+    assert.ok(validateSchnupperAnfrage({ ...ANFRAGE, email }).errors.email, email);
+  }
+  for (const email of ['erika.muster+schnupper@example.test', 'jörg@müller-beispiel.de']) {
+    assert.equal(validateSchnupperAnfrage({ ...ANFRAGE, email }).errors.email, undefined, email);
+  }
+});

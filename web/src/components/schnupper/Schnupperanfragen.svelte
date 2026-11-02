@@ -58,8 +58,11 @@
     message = text;
   }
 
-  async function reloadAnfrage(id: number): Promise<StaffSchnupperAnfrage | null> {
+  /** The current version of a request, `null` when it was deleted, `undefined` when loading failed. */
+  async function reloadAnfrage(id: number): Promise<StaffSchnupperAnfrage | null | undefined> {
     await schnupperPflege.load({ force: true });
+    // A failed load keeps the old data, which must not pass for the current version
+    if (store.error) return undefined;
     return store.data?.find((a) => a.id === id) ?? null;
   }
 
@@ -169,6 +172,12 @@
             {#if anfrage.nachricht}
               <p class="whitespace-pre-line text-sm text-neutral-900 [overflow-wrap:anywhere]">
                 {anfrage.nachricht}
+              </p>
+            {/if}
+            {#if anfrage.antwort}
+              <p class="whitespace-pre-line text-sm text-neutral-900 [overflow-wrap:anywhere]">
+                <span class="text-neutral-700">Nachricht an die Familie:</span>
+                {anfrage.antwort}
               </p>
             {/if}
             {#if anfrage.antwortMail === false}

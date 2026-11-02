@@ -68,7 +68,11 @@ export interface SchnupperValidation {
   errors: Partial<Record<SchnupperField, string>>;
 }
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/**
+ * A plain address without characters that carry meaning in a `mailto:` link (`?`, `&`, `%`, `#`,
+ * `,`), so a request cannot add recipients when a leader writes back.
+ */
+const EMAIL_PATTERN = /^[\p{L}\p{N}._+'-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}$/u;
 const TELEFON_PATTERN = /^\+?[\d\s/()-]{5,}$/;
 
 /** Trimmed text, `''` for anything but a string. */
