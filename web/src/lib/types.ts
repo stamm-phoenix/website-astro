@@ -7,6 +7,7 @@ import type { PacklisteEintrag } from '../../../api/lib/essen-packliste-model';
 import type { PlanungBeleg } from '../../../api/lib/essen-belege-model';
 import type { NikolausBookingDetails, NikolausSettings } from './nikolausConfig';
 import type { EinteilungDay, HelperRole as NikolausHelperRole } from './nikolausEinteilung';
+import type { GruppenstundenException } from '../../../api/lib/gruppenstunden-exception-model';
 
 export interface Leitende {
   id: string;
@@ -39,6 +40,7 @@ export interface Gruppenstunde {
   ageRange: string;
   description: string;
   leitende: GruppenstundeLeitende[];
+  exception?: GruppenstundenException | null;
 }
 
 export interface Aktion {
@@ -700,6 +702,7 @@ export interface StaffGruppenstunde {
   /** Formatted description (a small subset of HTML). */
   description: string;
   leitende: GruppenstundeLeitende[];
+  exception?: GruppenstundenException | null;
 }
 
 export interface StaffGruppenstundenData {

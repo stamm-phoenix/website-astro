@@ -297,6 +297,7 @@ export interface BlogImageTable {
 }
 
 export interface GruppenstundeTable {
+  exception_json: Generated<string | null>;
   /** Taken over from SharePoint or assigned by `nextContentId`. */
   id: number;
   version: ReadOnly<Buffer>;
@@ -1095,7 +1096,7 @@ export interface EssenGerichtTable {
   version: ReadOnly<Buffer>;
   planung_id: number;
   name: string;
-  /** `NULL`: no reference number of people yet (`0069`). */
+  /** `NULL`: no reference number of people yet (`0075`). */
   personen: number | null;
   anleitung: Generated<string>;
   notiz: Generated<string>;

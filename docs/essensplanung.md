@@ -101,7 +101,7 @@ Alle schreibenden Routen antworten mit der ganzen Ansicht wie `GET`, die Seite e
 
 - **Felder:**
   - Name,
-  - Referenz-Personenzahl, optional (#486, Migration `0069`): So lässt sich erst ein Plan aus Namen bauen und die Rezepte später ausarbeiten. Ohne Zahl zählen skalierende Zeilen nirgends (Einkauf, Lager, Mengen im Plan), feste Mengen schon; Karte, Plan und Liste der Gerichte zeigen „Personenzahl fehlt“, die Rezeptkarte auch. Leeren der Zahl beim Ändern setzt sie wieder auf `NULL`.
+  - Referenz-Personenzahl, optional (#486, Migration `0075`): So lässt sich erst ein Plan aus Namen bauen und die Rezepte später ausarbeiten. Ohne Zahl zählen skalierende Zeilen nirgends (Einkauf, Lager, Mengen im Plan), feste Mengen schon; Karte, Plan und Liste der Gerichte zeigen „Personenzahl fehlt“, die Rezeptkarte auch. Leeren der Zahl beim Ändern setzt sie wieder auf `NULL`.
   - Anlegen im Reiter Gerichte mit Name, optional Personen und optional „Einplanen bei“ (Mahlzeit) samt Zuständigen: `POST planung/gerichte` nimmt dafür `mahlzeitId`, `faktor`, `zustaendigId`/`zustaendigText` und legt die Einplanung in derselben Änderung an (`fuegeEinplanungEin` in `api/lib/essen-einplanung.ts`, Prüfung `validateNeuesGericht`; eine fehlende Mahlzeit legt auch das Gericht nicht an). Das Änderungsprotokoll nennt dann „Gericht angelegt: Chili bei Mittagessen (1.8.)“. Die Gerichte selbst (anlegen, ändern, löschen) liegen in `api/lib/essen-gericht.ts`.
   - Anleitung als Freitext (Markdown),
   - Links,
@@ -348,7 +348,7 @@ Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach.
 | `mahlzeit_ohne_gruppe` | Gruppen, die an einer Mahlzeit nicht mitessen (Mahlzeit mit Kaskade, Gruppe ohne) |
 | `geschaeft` | Geschäfte der Planung: `position`, `name` (eindeutig je Planung) |
 | `planung_zutat`, `planung_zutat_unvertraeglichkeit` | jede in der Planung genutzte Zutat: `zutat_id` (zentral) mit den Abweichungen `kategorie_id` und `einheitenart` (`NULL`: wie in der Liste), oder eine eigene mit `name`, `kategorie_id`, `einheitenart`, `vegetarisch`, `vegan` und Allergenen; später das Geschäft |
-| `gericht` | `name` (eindeutig je Planung), `personen` (`NULL`: noch keine, `0069`), `anleitung`, `notiz`, `links` und `werkzeuge` (JSON, nur mit dem Gericht bearbeitet) |
+| `gericht` | `name` (eindeutig je Planung), `personen` (`NULL`: noch keine, `0075`), `anleitung`, `notiz`, `links` und `werkzeuge` (JSON, nur mit dem Gericht bearbeitet) |
 | `gericht_zutat`, `gericht_zutat_unvertraeglichkeit` | Zeilen: `position`, `planung_zutat_id`, `menge` und `einheit` (beide `NULL` ohne Menge; `einheit` seit `0070` `nvarchar(20)`, bekannt oder eigen, wie in allen Einheitenspalten), `fest`, `fuer_alles`/`fuer_vegetarisch`/`fuer_vegan`, `hinweis`; Unverträglichkeiten mit `nur` = 0 („nicht für“) oder 1 („nur für“) |
 | `einplanung` | Gericht an Mahlzeit: `mahlzeit_id` (mit Kaskade), `gericht_id` (ohne Kaskade, das Löschen des Gerichts entfernt sie zuerst), `position`, `faktor`, `zustaendig_mitglied_id` oder `zustaendig_text`, `status` (`offen`, `gekocht`, `ausgelassen`) |
 | `einplanung_verbrauch` | tatsächlicher Verbrauch je Zutat und Einheit eines gekochten Gerichts (`0061`) |

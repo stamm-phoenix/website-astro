@@ -31,7 +31,7 @@
 
   let {
     id,
-    name,
+    name = id,
     label,
     labelAs = 'label',
     error,

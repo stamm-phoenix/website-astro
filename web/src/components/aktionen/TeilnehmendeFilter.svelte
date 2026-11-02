@@ -48,7 +48,9 @@
           type="button"
           aria-pressed={statuses.includes(status)}
           onclick={() => toggleStatus(status)}
-          class="py-2 font-semibold decoration-2 underline-offset-[6px] {statuses.includes(status)
+          class="min-h-11 py-2 font-semibold decoration-2 underline-offset-[6px] {statuses.includes(
+            status
+          )
             ? 'underline text-brand-900'
             : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
         >

@@ -40,6 +40,7 @@ export async function GetGruppenstundenEndpoint(): Promise<HttpResponseInit> {
   const responseData: GruppenstundenData[] = gruppenstunden.map((g) => {
     return {
       id: g.id,
+      exception: g.exception,
       time: g.time,
       stufe: g.stufe,
       description: g.description,

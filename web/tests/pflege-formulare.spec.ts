@@ -22,12 +22,12 @@ test.describe('Gruppenstunden', () => {
     const dialog = page.getByRole('dialog', { name: 'Gruppenstunde Rover bearbeiten' });
 
     // An empty place is refused without a request
-    await dialog.getByLabel('Ort').fill('');
+    await dialog.getByLabel('Ort', { exact: true }).fill('');
     await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(dialog.getByText('Bitte einen Ort angeben.')).toBeVisible();
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel('Ort').fill(`${location} geändert`);
+    await dialog.getByLabel('Ort', { exact: true }).fill(`${location} geändert`);
     await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(page.getByText('Gruppenstunde Rover gespeichert.').first()).toBeVisible();

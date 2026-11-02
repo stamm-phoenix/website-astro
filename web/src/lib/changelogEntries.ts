@@ -12,8 +12,8 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-11-01-01-essensplanung-praxistest',
-    date: '2026-11-01',
+    id: '2026-11-02-03-essensplanung-praxistest',
+    date: '2026-11-02',
     title: 'Essensplanung: schneller planen nach dem ersten Praxistest',
     changes: [
       'Die Planung nutzt jetzt die ganze Breite des Bildschirms und zeigt mehr auf einmal, mit kleineren Feldern und Knöpfen und mehr Bedienung per Tastatur.',
@@ -23,6 +23,29 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Ein Einkauf öffnet sich in einer eigenen Ansicht. Beim Einkaufen trägst du Menge und Ersatz direkt in der Zeile ein, auf dem Handy über „Menge“. Mit „Für welche Gerichte“ siehst du bei jeder Zutat, wofür sie gebraucht wird.',
       'In der Packliste wählst du beim Eintragen gleich, wer etwas einpackt. Neu ist die Matrix mit allen Personen nebeneinander, in der du mit einem Klick zuweist und abhakst.',
       'Im neuen Bereich „Belege“ fotografierst du Kassenzettel oder trägst sie von Hand ein, hältst fest, wer bezahlt hat, und hakst ab, was erstattet ist. Eine Übersicht zeigt, wem noch wie viel zusteht, und „Belege als PDF“ gibt dir alles samt Fotos zum Abrechnen. Die Belege bleiben in der Essensplanung.',
+    ],
+  },
+  {
+    id: '2026-11-02-02-gruppenstunden-ausnahmen',
+    date: '2026-11-02',
+    title: 'Gruppenstunden-Hinweise',
+    changes: [
+      {
+        text: 'Im Bereich Gruppenstunden-Hinweise kannst du je Stufe einen befristeten Hinweis mit anderem Ort oder anderer Uhrzeit veröffentlichen und entfernen. Auf der Website erscheint er an den eingetragenen Tagen.',
+        href: '/leitendenbereich/gruppenstunden-hinweise',
+      },
+    ],
+  },
+  {
+    id: '2026-11-02-01-tastaturbedienung',
+    date: '2026-11-02',
+    title: 'Dateien mit der Tastatur auswählen',
+    changes: [
+      'Wenn du mit der Tastatur ein Foto oder eine Datei auswählst, ist die Schaltfläche jetzt sichtbar hervorgehoben.',
+      {
+        text: 'Die Statusschaltflächen in der Teilnehmendenliste von Aktionen lassen sich auf dem Handy leichter antippen.',
+        href: '/leitendenbereich/aktionen',
+      },
     ],
   },
   {

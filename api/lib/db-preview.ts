@@ -19,19 +19,14 @@ import { neuerInhalt } from './protokoll-editor-model';
 import { validateAbstimmung } from './abstimmung-schema';
 import { createAbstimmung, queueAbstimmungEinladungen, voteAsStaff } from './abstimmungen';
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
-import { createGruppenstunde, getStaffGruppenstunden } from './gruppenstunden-list';
+export { seedPreviewGruppenstunden } from './db-preview-gruppenstunden';
 import { createLeitende, getStaffLeitende, setLeitendePhoto } from './leitende-list';
 import { createAktion, getStaffAktionen } from './aktionen-list';
 import { createBeleg, getBelege } from './beleg-list';
 import { nextContentId } from './content-ids';
 import { getDb, inTransaction } from './db';
 import { LEITENDE_STUFE, STUFEN } from './validation/constants';
-import {
-  validateAktion,
-  validateGruppenstunde,
-  validateLeitende,
-  validateQuestionAndAnswer,
-} from './validation/content';
+import { validateAktion, validateLeitende, validateQuestionAndAnswer } from './validation/content';
 import { validateBeleg } from './validation/beleg';
 import { validateBlogPost } from './validation/blog';
 import type { Database } from './db-schema';
@@ -181,7 +176,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:47';
+const SEEDED_KEY = 'preview:seeded:48';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -946,28 +941,6 @@ export async function seedPreviewStaffSettings(): Promise<void> {
       settings: JSON.stringify({ protokollText: 'markdown' }),
     })
     .execute();
-}
-
-/** Invented Gruppenstunden, one per Stufe (matched by Stufe). */
-const PREVIEW_GRUPPENSTUNDEN = [
-  { weekday: 'Montags', time: '17:00 – 18:30 Uhr', ageRange: '7 – 10 Jahre' },
-  { weekday: 'Dienstags', time: '17:30 – 19:00 Uhr', ageRange: '10 – 13 Jahre' },
-  { weekday: 'Mittwochs', time: '18:00 – 19:30 Uhr', ageRange: '13 – 16 Jahre' },
-  { weekday: 'Freitags', time: '19:00 – 21:00 Uhr', ageRange: '16 – 20 Jahre' },
-];
-
-export async function seedPreviewGruppenstunden(): Promise<void> {
-  const existing = new Set((await getStaffGruppenstunden()).map((item) => item.stufe));
-  for (const [index, stufe] of STUFEN.entries()) {
-    if (existing.has(stufe)) continue;
-    const input = {
-      stufe,
-      ...PREVIEW_GRUPPENSTUNDEN[index],
-      location: 'Pfarrheim (Testdaten)',
-      description: `<p>Erfundene Beschreibung der Gruppenstunde der ${stufe}.</p>`,
-    };
-    await createGruppenstunde(validateGruppenstunde(input, STUFEN), PREVIEW_ACTOR);
-  }
 }
 
 /** Invented Leitende with their teams; some with a test photo (matched by name). */

@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../layouts/StaffLayout.astro';
+import GruppenstundenHinweise from '../../components/pflege/GruppenstundenHinweise.svelte';
+---
+
+<StaffLayout header="none">
+  <GruppenstundenHinweise client:only="svelte" />
+</StaffLayout>

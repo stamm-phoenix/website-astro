@@ -234,6 +234,7 @@ import GetInternKostenstellenSummenEndpoint from './endpoints/intern-kostenstell
 import GetInternMitgliederEndpoint from './endpoints/intern-mitglieder';
 import {
   GruppenstundenCollection,
+  GruppenstundenHinweis,
   GruppenstundeItem,
 } from './endpoints/intern-pflege-gruppenstunden';
 import {
@@ -908,6 +909,13 @@ app.http('internPflegeGruppenstunden', {
   authLevel: 'anonymous',
   route: 'intern/pflege/gruppenstunden',
   handler: GruppenstundenCollection,
+});
+
+app.http('internPflegeGruppenstundenHinweis', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/gruppenstunden/{id}/hinweis',
+  handler: GruppenstundenHinweis,
 });
 
 app.http('internPflegeGruppenstunde', {
