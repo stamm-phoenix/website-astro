@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
   import StaffNavPanel from './StaffNavPanel.svelte';
+  import StaffFavoritesFeedback from './StaffFavoritesFeedback.svelte';
   import { isolateModal } from '../lib/modalRegion';
   import ChangelogBadge from './changelog/ChangelogBadge.svelte';
   import { CHANGELOG_SEEN_MAX_AGE_MS, loadChangelogSeen } from '../lib/staffChangelogStore.svelte';
@@ -10,10 +11,8 @@
     favoritesStore,
     favoritesUnsaved,
     loadFavorites,
-    saveFavorites,
   } from '../lib/staffFavoritesStore.svelte';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
-  import Toast from './ui/Toast.svelte';
   import { loadRecent, recordVisit } from '../lib/staffRecentStore.svelte';
   import {
     STAFF_DEFAULT_QUICK,
@@ -239,14 +238,14 @@
   }
 
   /**
-   * Keyboard focus leaving the panel and the bar for the covered page closes the panel. Safari
+   * Keyboard focus leaving the menu region for the covered page closes the panel. Safari
    * focuses the surrounding `<main tabindex="-1">` on a tap on „Menü“; that is no move away,
    * else the panel closes and the click opens it again.
    */
   function onfocusin(event: FocusEvent): void {
     const target = event.target;
     if (!open || !(target instanceof Node)) return;
-    if (panel?.contains(target) || (bar && (bar.contains(target) || target.contains(bar)))) return;
+    if (modal?.contains(target) || (bar && target.contains(bar))) return;
     hide(false);
   }
 
@@ -498,20 +497,12 @@
     {onPanelTouchStart}
     {onPanelTouchEnd}
   />
+
+  <StaffFavoritesFeedback />
 </div>
 
 <svelte:window {onkeydown} />
 <svelte:document {onfocusin} />
-
-<!-- The result of a change to the favorites, wherever it was made -->
-<Toast
-  message={favoritesStore.notice?.text ?? null}
-  kind={favoritesStore.notice?.kind}
-  actionLabel={favoritesStore.notice?.kind === 'error' ? 'Erneut speichern' : undefined}
-  duration={favoritesStore.notice?.kind === 'error' ? 0 : undefined}
-  onaction={() => saveFavorites()}
-  onclose={() => (favoritesStore.notice = null)}
-/>
 
 <style>
   .staff-bar-item {

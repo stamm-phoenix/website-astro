@@ -25,8 +25,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: 'Neuigkeiten bleiben ungelesen, bis du sie ausdrücklich als gelesen markierst.',
         href: '/leitendenbereich/neuigkeiten',
       },
-      'Beim Speichern oder Einreichen führen dich markierte Fehler direkt zur ersten betroffenen Angabe. Eine fehlende Stufenauswahl zählt dabei als eine Angabe.',
-      'Das Menü lässt sich mit der Tastatur und mit Vorlesefunktionen leichter bedienen und passt sich auch bei größer oder kleiner eingestellter Schrift zuverlässig an. Weitere Schaltflächen sind auf dem Handy größer.',
+      'Beim Speichern oder Einreichen führen dich markierte Fehler direkt zur ersten betroffenen Angabe. Fehlt ein Belegfoto, wird die Dateiauswahl sichtbar hervorgehoben. Eine fehlende Stufenauswahl zählt dabei als eine Angabe.',
+      'Das Menü lässt sich mit der Tastatur und mit Vorlesefunktionen leichter bedienen und passt sich auch bei größer oder kleiner eingestellter Schrift zuverlässig an. Konnten Favoriten nicht gespeichert werden, kannst du das direkt im geöffneten Menü erneut versuchen. Weitere Schaltflächen sind auf dem Handy größer.',
       {
         text: 'Bei Belegen siehst du deutlicher, wenn ein Teil der Liste nicht geladen werden konnte.',
         href: '/leitendenbereich/belege',

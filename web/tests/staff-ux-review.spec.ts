@@ -70,3 +70,72 @@ test('a missing group selection is one correction, separately from a missing tit
   await expect(dialog.getByRole('alert')).toHaveText('Bitte prüfe die 2 markierten Felder.');
   await expect(dialog.getByLabel('Titel', { exact: true })).toBeFocused();
 });
+
+test('a failed favorite can be retried inside the open mobile menu', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.request.put('/api/intern/favoriten', { data: { modules: [] } });
+  let failSave = true;
+  await page.route('**/api/intern/favoriten', async (route) => {
+    if (route.request().method() === 'PUT' && failSave) {
+      failSave = false;
+      await route.fulfill({ status: 503, json: {} });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto('/leitendenbereich/belege');
+  await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
+  await page.getByRole('button', { name: 'Menü', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'Alle Bereiche' });
+  await menu.getByRole('button', { name: 'Belege als Favorit', exact: true }).click();
+  const notice = page
+    .getByRole('status')
+    .filter({ hasText: 'Deine Favoriten wurden nicht gespeichert.' });
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveAttribute('aria-live', 'polite');
+  const retry = notice.getByRole('button', { name: 'Erneut speichern', exact: true });
+  await retry.focus();
+  await expect(retry).toBeFocused();
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(menu).toBeVisible();
+  await expect(
+    menu.getByRole('status').filter({ hasText: 'Favoriten gespeichert.' })
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
+  await page.getByRole('button', { name: 'Menü', exact: true }).click();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Alle Bereiche' })
+      .getByRole('button', { name: 'Belege als Favorit', exact: true })
+  ).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('a missing receipt photo highlights its visible chooser after a pointer submission', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
+  await dialog.getByRole('button', { name: 'Einreichen', exact: true }).click();
+  const input = dialog.locator('input[type="file"]');
+  await expect(input).toBeFocused();
+  const chooser = dialog.locator('label:has(input[type="file"])');
+  for (const [colorScheme, color] of [
+    ['light', 'rgb(0, 48, 86)'],
+    ['dark', 'rgb(140, 203, 236)'],
+  ] as const) {
+    await page.emulateMedia({ colorScheme });
+    await expect(chooser).toBeInViewport();
+    await expect(chooser).toHaveCSS('outline-style', 'solid');
+    await expect(chooser).toHaveCSS('outline-width', '3px');
+    await expect(chooser).toHaveCSS('outline-color', color);
+    await page.screenshot({ path: testInfo.outputPath(`belegfoto-fokus-${colorScheme}.png`) });
+  }
+  const opened = page.waitForEvent('filechooser');
+  await page.keyboard.press('Space');
+  expect((await opened).isMultiple()).toBe(false);
+});
