@@ -93,6 +93,8 @@
       await sendApi('DELETE', `/intern/pflege/schnupperanfragen/${anfrage.id}`, undefined, {
         etag: anfrage.etag,
       });
+      // Gone at once, also if loading the list fails afterwards
+      if (store.data) schnupperPflege.set(store.data.filter((a) => a.id !== anfrage.id));
       await show(`Anfrage von ${anfrage.name} gelöscht.`);
     } catch (error: unknown) {
       await show(
