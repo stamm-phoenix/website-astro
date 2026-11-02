@@ -55,7 +55,7 @@ export async function geschaeftAnlegen(
 /**
  * Sets the typed shop of an ingredient of the Planung, which must exist; empty text: none.
  * Nothing is sent when it has that shop already. Set on the version `etag` of the ingredient,
- * so the choice of someone else meanwhile is a conflict.
+ * so the choice of someone else meanwhile is a conflict. `geschrieben`: it was sent and saved.
  */
 export async function geschaeftSetzen(
   kontext: PlanKontext,
@@ -63,7 +63,7 @@ export async function geschaeftSetzen(
   etag: string,
   text: string,
   erfolg?: string
-): Promise<{ ok: boolean; konflikt?: boolean }> {
+): Promise<{ ok: boolean; konflikt?: boolean; geschrieben?: boolean }> {
   const name = geschaeftsName(text);
   const geschaeftId = name ? getipptesGeschaeft(kontext.ansicht.geschaefte, name)?.id : null;
   // Renamed or deleted by someone else meanwhile: the page shows the shops of now
@@ -85,5 +85,5 @@ export async function geschaeftSetzen(
       throw error;
     }
   }, erfolg);
-  return { ok, konflikt };
+  return { ok, konflikt, geschrieben: ok };
 }

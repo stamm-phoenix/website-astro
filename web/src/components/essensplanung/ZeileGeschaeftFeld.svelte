@@ -81,9 +81,17 @@
       stand?.planungZutatId === planungZutatId
         ? stand.etag
         : (ansicht.zutaten.find((z) => z.id === planungZutatId)?.etag ?? '');
-    const { ok, konflikt } = await geschaeftSetzen(kontext, planungZutatId, etag, text, erfolg);
-    const jetzt = ansicht.zutaten.find((z) => z.id === planungZutatId);
-    if (konflikt && jetzt) stand = { planungZutatId, etag: jetzt.etag };
+    const { ok, konflikt, geschrieben } = await geschaeftSetzen(
+      kontext,
+      planungZutatId,
+      etag,
+      text,
+      erfolg
+    );
+    // Its own saved shop is the base of the next try (the line may have failed after it); a
+    // shop chosen by someone else becomes the base only after the conflict was shown
+    const jetzt = kontext.ansicht.zutaten.find((z) => z.id === planungZutatId);
+    if ((konflikt || geschrieben) && jetzt) stand = { planungZutatId, etag: jetzt.etag };
     return ok;
   }
 </script>

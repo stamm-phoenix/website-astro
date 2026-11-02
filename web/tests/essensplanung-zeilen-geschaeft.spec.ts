@@ -43,6 +43,29 @@ test('the shop of an ingredient is typed in the line of a dish, a new name adds 
   await feld.fill('met');
   await dialog.getByRole('option', { name: 'Metro' }).click();
   await expect(feld).toHaveValue('Metro');
+  // The shop is saved before the line; a line refused after it saves again without a conflict
+  await page.route('**/api/essensplanung/planung/gericht-zutaten/*', (route) =>
+    route.fulfill({
+      status: 400,
+      json: {
+        error: 'INVALID',
+        code: 'INVALID',
+        message: 'Die Eingaben sind unvollständig oder ungültig.',
+        fields: { menge: 'Bitte eine Menge größer 0 eintragen' },
+      },
+    })
+  );
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog.getByText('Bitte eine Menge größer 0 eintragen')).toBeVisible();
+  await page.unroute('**/api/essensplanung/planung/gericht-zutaten/*');
+  await feld.fill('Bäck');
+  await dialog.getByRole('option', { name: 'Bäckerei Krume' }).click();
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog).toBeHidden();
+  await nudeln.getByRole('button', { name: 'Nudeln (Spaghetti) ändern' }).click();
+  await expect(feld).toHaveValue('Bäckerei Krume');
+  await feld.fill('met');
+  await dialog.getByRole('option', { name: 'Metro' }).click();
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog).toBeHidden();
 
