@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { checkPhoto, isPhotos, readPhotos } from '../lib/validation/beleg-upload';
+import { checkPhoto, isPhotos, readCheckPages, readPhotos } from '../lib/validation/beleg-upload';
 
 /** Minimal JPEG header with a frame of the given size. */
 function jpeg(width: number, height: number): Uint8Array {
@@ -87,4 +87,45 @@ test('oversized files are refused with 413', () => {
   pdf.set(Buffer.from('%PDF-'));
   assert.deepEqual(failure({ photo: PHOTO, pdf: encode(pdf) }), { status: 413, code: 'TOO_LARGE' });
   assert.equal(checkPhoto(jpeg(1200, 1600)), undefined);
+});
+
+test('a PDF brings the further pages the check reads, a photo none', () => {
+  const page = encode(jpeg(1400, 2000));
+  const withPages = readPhotos({ photo: PHOTO, pdf: PDF, pages: [page, page] });
+  assert.ok(isPhotos(withPages));
+  assert.equal(withPages.pages?.length, 2);
+  const noPages = readPhotos({ photo: PHOTO, pdf: PDF, pages: [] });
+  assert.ok(isPhotos(noPages) && noPages.pages === undefined);
+  // The first page is `photo`, so four more at most
+  assert.deepEqual(failure({ photo: PHOTO, pdf: PDF, pages: new Array(5).fill(page) }), {
+    status: 400,
+    code: 'INVALID',
+  });
+  assert.deepEqual(failure({ photo: PHOTO, pdf: PDF, pages: [encode(jpeg(10, 10))] }), {
+    status: 400,
+    code: 'INVALID',
+  });
+  assert.deepEqual(failure({ photo: PHOTO, pdf: PDF, pages: page }), {
+    status: 400,
+    code: 'INVALID',
+  });
+  assert.deepEqual(failure({ photo: PHOTO, pages: [page] }), { status: 400, code: 'INVALID' });
+});
+
+test('the check reads one to five pages', () => {
+  const page = encode(jpeg(1400, 2000));
+  const pages = readCheckPages({ pages: [page, page, page] });
+  assert.ok(Array.isArray(pages) && pages.length === 3);
+  for (const body of [
+    null,
+    {},
+    { pages: [] },
+    { pages: page },
+    { pages: new Array(6).fill(page) },
+    { pages: [page, 'AAA'] },
+  ]) {
+    const result = readCheckPages(body);
+    assert.equal(Array.isArray(result), false, JSON.stringify(body).slice(0, 40));
+    assert.equal((result as { status?: number }).status, 400);
+  }
 });

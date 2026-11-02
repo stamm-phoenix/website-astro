@@ -2,7 +2,8 @@
   import ModalDialog from '../ui/ModalDialog.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { formatIsoDate } from '../../lib/belege';
-  import { photoUrl } from '../../lib/belegForm';
+  import BelegPdfSeiten from './BelegPdfSeiten.svelte';
+  import { pdfPath, photoUrl } from '../../lib/belegForm';
   import { formatEuro } from '../../lib/format';
   import type { StaffBeleg } from '../../lib/types';
   interface Props {
@@ -56,6 +57,10 @@
           class="aspect-[3/4] h-auto w-full rounded-md bg-neutral-100 object-contain"
         />
         {#if beleg.isPdf}
+          <BelegPdfSeiten
+            path={pdfPath(beleg)}
+            class="h-auto w-full rounded-md bg-neutral-100 object-contain"
+          />
           <a class="btn-secondary" href="{photoUrl(beleg)}&download=1" download>PDF herunterladen</a
           >
         {/if}

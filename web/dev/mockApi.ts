@@ -1,6 +1,7 @@
 import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
 import { registerGruppenstundenRoutes } from './mockGruppenstunden';
+import { registerBelegPruefungRoutes } from './mockBelegPruefung';
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
 import { ValidationError } from '../../api/lib/validation/errors';
 import {
@@ -1804,7 +1805,8 @@ route('POST', '/api/essensplanung/planung/belege/pruefung', (req) => {
   } catch (caught) {
     return essenFehler(caught);
   }
-  if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
+  // The pages of a PDF come as `{ pages }`, a photo as it is
+  if (!Array.isArray(req.json?.pages) && (req.raw[0] !== 0xff || req.raw[1] !== 0xd8))
     return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
   return json(essenBelege.demoPruefung(req.query.get('nur') === 'drehung'));
 });
@@ -3756,12 +3758,7 @@ route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
   return json({ id: beleg.id }, 201);
 });
 
-route('POST', '/api/intern/pflege/belege/pruefung', (req) => {
-  if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
-    return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
-  if (req.query.get('nur') === 'drehung') return json({ available: true, rotation: 0 });
-  return json({ available: true, check: mockBelegCheck() });
-});
+registerBelegPruefungRoutes(route, mockBelegCheck);
 
 route(['GET'], '/api/intern/pflege/belege/rolle', () =>
   json({ reviewer: PRINCIPAL.userRoles.includes('team_kasse') })

@@ -94,6 +94,8 @@ export interface BelegPhotos {
   original?: Uint8Array;
   /** The receipt as a PDF, if it is one. */
   pdf?: Uint8Array;
+  /** Further pages of the PDF as pictures, only for the check; not stored. */
+  pages?: Uint8Array[];
 }
 
 /** The columns of a transfer the receipt list shows. */

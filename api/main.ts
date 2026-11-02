@@ -269,9 +269,9 @@ import {
   BelegCampflow,
   BelegeCampflow,
   BelegPhoto,
-  BelegPruefung,
   BelegRolle,
 } from './endpoints/intern-pflege-belege';
+import { BelegPruefung } from './endpoints/intern-pflege-beleg-pruefung';
 import {
   ProtokolleCollection,
   ProtokollItem,

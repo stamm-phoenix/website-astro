@@ -189,21 +189,28 @@ export function forgetBelegChecks(): void {
   recentChecks.clear();
 }
 
-/** Checks a JPEG photo; returns undefined if the check is not configured. */
+/**
+ * Checks a JPEG photo, or the pages of a PDF as JPEGs in their order; returns undefined if the
+ * check is not configured.
+ */
 export function checkBelegPhoto(
-  jpeg: Uint8Array,
+  jpeg: Uint8Array | readonly Uint8Array[],
   now = Date.now()
 ): Promise<BelegCheck | undefined> {
+  const pages = jpeg instanceof Uint8Array ? [jpeg] : jpeg;
   if (!isBelegCheckConfigured()) return Promise.resolve(undefined);
   for (const [key, entry] of recentChecks) {
     if (now - entry.at < REUSE_MS) break;
     recentChecks.delete(key);
   }
-  const key = `${CONFIG.belege.check.deployment}:${createHash('sha256').update(jpeg).digest('hex')}`;
+  const hash = createHash('sha256');
+  // The length of each page keeps two lists with the same bytes apart
+  for (const page of pages) hash.update(`${page.length}:`).update(page);
+  const key = `${CONFIG.belege.check.deployment}:${hash.digest('hex')}`;
   const known = recentChecks.get(key);
   if (known) return known.check;
 
-  const check = askModel(jpeg);
+  const check = askModel(pages);
   const entry = { at: now, check };
   recentChecks.set(key, entry);
   if (recentChecks.size > MAX_REUSED) recentChecks.delete(recentChecks.keys().next().value!);
@@ -214,20 +221,45 @@ export function checkBelegPhoto(
   return check;
 }
 
-async function askModel(jpeg: Uint8Array): Promise<BelegCheck | undefined> {
+/** A part of the message to the model. */
+type ChatContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string; detail: 'high' } };
+
+/** The pictures for the model; several pages are introduced as one receipt. */
+function pageContent(pages: readonly Uint8Array[]): ChatContentPart[] {
+  const images = pages.map((page): ChatContentPart => ({
+    type: 'image_url',
+    image_url: {
+      url: `data:image/jpeg;base64,${Buffer.from(page).toString('base64')}`,
+      detail: 'high',
+    },
+  }));
+  if (images.length === 1) return images;
+  return [
+    {
+      type: 'text',
+      text: `Die ${images.length} Bilder sind Seiten desselben Belegs (eines PDFs), in ihrer Reihenfolge. Beurteile sie zusammen als einen Beleg; der Gesamtbetrag steht oft auf der letzten Seite.`,
+    },
+    ...images,
+  ];
+}
+
+async function askModel(pages: readonly Uint8Array[]): Promise<BelegCheck | undefined> {
   reserveCheck();
-  return frageBelegPruefung(CONFIG.belege.check, jpeg);
+  return frageBelegPruefung(CONFIG.belege.check, pages);
 }
 
 /**
- * Asks `deployment` for the check of a JPEG photo, without the daily limit and the reuse of
- * `checkBelegPhoto`, e.g. for the receipts of the Essensplanung (`essen-belege-ki.ts`). Errors of
- * the deployment come as `AzureOpenAiError`.
+ * Asks `deployment` for the check of a JPEG photo, or of the pages of a PDF as JPEGs in their
+ * order, without the daily limit and the reuse of `checkBelegPhoto`, e.g. for the receipts of the
+ * Essensplanung (`essen-belege-ki.ts`). Errors of the deployment come as `AzureOpenAiError`.
  */
 export async function frageBelegPruefung(
   deployment: AzureOpenAiDeployment,
-  jpeg: Uint8Array
+  jpeg: Uint8Array | readonly Uint8Array[]
 ): Promise<BelegCheck> {
+  const pages = jpeg instanceof Uint8Array ? [jpeg] : jpeg;
   const answer = await requestStructuredOutput(deployment, {
     schemaName: 'belegpruefung',
     schema: RESPONSE_SCHEMA,
@@ -235,18 +267,7 @@ export async function frageBelegPruefung(
     timeoutMs: REQUEST_TIMEOUT_MS,
     messages: [
       { role: 'system', content: PROMPT },
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image_url',
-            image_url: {
-              url: `data:image/jpeg;base64,${Buffer.from(jpeg).toString('base64')}`,
-              detail: 'high',
-            },
-          },
-        ],
-      },
+      { role: 'user', content: pageContent(pages) },
     ],
   });
   return toBelegCheck(answer);

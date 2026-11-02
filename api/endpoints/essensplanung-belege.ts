@@ -25,7 +25,7 @@ import {
 } from '../lib/essen-planung-http';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
 import { encodeContentDisposition, errorResponse } from '../lib/response-utils';
-import { checkPhoto, isPhotos, readPhotos } from '../lib/validation/beleg-upload';
+import { isPhotos, readCheckRequest, readPhotos } from '../lib/validation/beleg-upload';
 import { ValidationError } from '../lib/validation/errors';
 
 /**
@@ -118,18 +118,19 @@ export const EssensplanungBelegFoto = planungHandler(async (request) => {
 });
 
 /**
- * POST with a JPEG as body: the check of a new photo to prefill the form (`{ available, check }`)
- * or, with `?nur=drehung`, how to turn it upright (`{ available, rotation }`), like the Belege of
+ * POST with a JPEG as body, or the pages of a PDF as JSON `{ pages }`: the check of a new photo
+ * to prefill the form (`{ available, check }`) or, with `?nur=drehung`, how to turn it upright (`{ available, rotation }`), like the Belege of
  * the Leitendenbereich. Nothing is stored.
  */
 export const EssensplanungBelegPruefung = planungHandler(async (request) => {
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  const ungueltig = checkPhoto(bytes);
-  if (ungueltig) return { ...ungueltig, headers: NO_STORE_HEADERS };
+  const nurDrehung = request.query.get('nur') === 'drehung';
+  // A photo comes as it is, the pages of a PDF as `{ pages }` in JSON
+  const seiten = await readCheckRequest(request, nurDrehung);
+  if (!Array.isArray(seiten)) return { ...seiten, headers: NO_STORE_HEADERS };
   try {
-    return ok(await belegPruefen(zugang, bytes, request.query.get('nur') === 'drehung'));
+    return ok(await belegPruefen(zugang, seiten, nurDrehung));
   } catch (error: unknown) {
     if (!(error instanceof KiNichtVerfuegbar)) throw error;
     return {

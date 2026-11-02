@@ -191,6 +191,22 @@ dbTest('the check answers without a model and refuses the read-only link', async
   assert.equal(antwort.status, 200);
   assert.deepEqual(json(antwort), { available: false, check: null, rotation: 0 });
   assert.equal((await pruefen(token, Buffer.from('kein Foto'))).status, 400);
+
+  // The pages of a PDF come as JSON and are checked together; they are never turned
+  const seiten = (query: string) =>
+    belege.EssensplanungBelegPruefung(
+      new HttpRequest({
+        url: `https://www.stamm-phoenix.de/api/essensplanung/planung/belege/pruefung${query}`,
+        method: 'POST',
+        headers: { 'x-essensplanung-token': token, 'content-type': 'application/json' },
+        body: {
+          string: JSON.stringify({ pages: [jpeg.toString('base64'), jpeg.toString('base64')] }),
+        },
+      }),
+      context(t)
+    );
+  assert.equal((await seiten('')).status, 200);
+  assert.equal((await seiten('?nur=drehung')).status, 400);
 });
 
 dbTest('deleting a Planung deletes its receipts, then their photos after the commit', async (t) => {

@@ -4,13 +4,20 @@ import {
   BELEG_PHOTO_EDGE,
   MIN_BELEG_PHOTO_EDGE,
   canvasToJpeg,
-  isPdfFile,
-  loadPdfPage,
   loadPhoto,
-  MAX_BELEG_PDF_BYTES,
   centToInput,
   photoWarnings as measurePhotoWarnings,
 } from './belege';
+import {
+  freeSeiten,
+  isPdfFile,
+  loadPdfBeleg,
+  MAX_BELEG_PDF_BYTES,
+  pdfFotos,
+  pdfPruefung,
+} from './belegPdf';
+import { isEdited } from './belegEntwurf';
+import type { Draft, FotoNutzlast, Zuschnitt } from './belegEntwurf';
 import { todayIso } from './format';
 import { findReceipt, fullFrame, isFullFrame, readPixels, toCanvas } from './belegScan';
 import type { Pixels, Quad } from './belegScan';
@@ -26,35 +33,6 @@ import type { Ausrichtung, FotoFarben } from './belegBild';
 import type { BelegCheck, StaffBeleg } from './types';
 import type { BelegForm } from './belegForm';
 import type { createDialogForm } from './dialogForm.svelte';
-/** A chosen photo while it is being edited. */
-interface Draft {
-  original: Pixels;
-  originalBlob: Blob;
-  originalUrl: string;
-  /** The photo rotated and mirrored as chosen; the original itself while it is not. */
-  bild: Pixels;
-  /** The receipt's corners in `bild`; null for the whole picture. */
-  quad: Quad | null;
-  mode: FotoFarben;
-  /** The photo as it will be submitted; for a PDF the picture of its first page. */
-  result: { blob: Blob; url: string; width: number; height: number } | null;
-  /** The chosen PDF, submitted as it is; its first page is `original`. Not edited. */
-  pdf: Blob | null;
-}
-
-/** The crop tool while it is open: the uncropped picture and the corners being moved. */
-interface Zuschnitt {
-  url: string;
-  width: number;
-  height: number;
-  quad: Quad;
-}
-
-/** Whether anything was changed, so the photo differs from the one chosen. */
-function isEdited(draft: Draft): boolean {
-  return draft.bild !== draft.original || draft.quad !== null || draft.mode !== 'original';
-}
-
 /** Share of the receipt's long edge left around a found receipt, so no letter at its edge is cut. */
 const RAND = 0.02;
 
@@ -91,7 +69,7 @@ interface BelegPhotoDraft {
   zuschnittFertig: () => Promise<void>;
   zuschnittAbbrechen: () => void;
   savePhoto: () => Promise<void>;
-  photoPayload: (draft: Draft) => Promise<{ photo: string; original?: string; pdf?: string }>;
+  photoPayload: (draft: Draft) => Promise<FotoNutzlast>;
   fertig: () => Promise<void>;
   reset: () => void;
 }
@@ -125,10 +103,14 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     if (draft) {
       URL.revokeObjectURL(draft.originalUrl);
       if (draft.result) URL.revokeObjectURL(draft.result.url);
+      freeSeiten(draft.pdfLetzte ? [...draft.pdfSeiten, draft.pdfLetzte] : draft.pdfSeiten);
     }
     clearTimeout(checkTimer);
     geplant = null;
     offeneDrehung = null;
+    // A check still running belongs to the old photo; its answer is ignored
+    photoGeneration++;
+    aiChecking = false;
     zuschnittSchliessen();
     draft = null;
     scanHint = null;
@@ -192,6 +174,9 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
         mode,
         result: null,
         pdf: null,
+        pdfSeiten: [],
+        pdfLetzte: null,
+        pdfSeitenzahl: 0,
       };
       dialog.clearField('photo');
       await render();
@@ -203,7 +188,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     }
   }
 
-  /** A PDF goes as it is; its first page is shown and checked like a photo. */
+  /** A PDF goes as it is; its pages are shown and checked like a photo. */
   async function choosePdf(file: File): Promise<void> {
     if (file.size > MAX_BELEG_PDF_BYTES) {
       dialog.state.fields.photo =
@@ -212,7 +197,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     }
     try {
       await nextFrame();
-      const canvas = await loadPdfPage(file);
+      const { erste: canvas, weitere, letzte, seiten } = await loadPdfBeleg(file);
       const original = readPixels(canvas, canvas.width, canvas.height);
       const originalBlob = await canvasToJpeg(canvas);
       clearDraft();
@@ -226,6 +211,9 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
         mode: 'original',
         result: null,
         pdf: file,
+        pdfSeiten: weitere,
+        pdfLetzte: letzte,
+        pdfSeitenzahl: seiten,
       };
       dialog.clearField('photo');
       await render();
@@ -384,13 +372,11 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
 
   /**
    * The photos for the API: the scan, plus the original if the scan differs from it; for a PDF
-   * the PDF and the picture of its first page.
+   * the PDF, the picture of its first page and the further pages the check reads.
    */
-  async function photoPayload(
-    current: Draft
-  ): Promise<{ photo: string; original?: string; pdf?: string }> {
+  async function photoPayload(current: Draft): Promise<FotoNutzlast> {
     const photo = await blobToBase64(current.result!.blob);
-    if (current.pdf) return { photo, pdf: await blobToBase64(current.pdf) };
+    if (current.pdf) return pdfFotos(photo, current.pdf, current.pdfSeiten, current.pdfLetzte);
     return isEdited(current)
       ? { photo, original: await blobToBase64(current.originalBlob) }
       : { photo };
@@ -522,10 +508,13 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
           if (generation !== photoGeneration) return;
         }
       }
+      // The pages of a PDF are read together, so a total on a later page is found
+      const body = draft?.pdf ? await pdfPruefung(blob, draft.pdfSeiten, draft.pdfLetzte) : blob;
+      if (generation !== photoGeneration) return;
       const result = await sendApi<{ available: boolean; check: BelegCheck | null }>(
         'POST',
         pruefung.url,
-        blob,
+        body,
         { headers: pruefung.headers }
       );
       if (generation !== photoGeneration || options.form() !== form || form.id) return;

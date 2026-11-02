@@ -2,6 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import BelegScanEditor from './BelegScanEditor.svelte';
+  import BelegSeiten from './BelegSeiten.svelte';
   import type { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import type { Ausrichtung, FotoFarben } from '../../lib/belegBild';
 
@@ -15,6 +16,8 @@
     busy: boolean;
   }
   let { photo, busy }: Props = $props();
+  /** A picture of the photo or of a page of the PDF, as wide as the dialog. */
+  const SEITE = 'h-auto w-full rounded-md border border-neutral-200 bg-neutral-100';
   const FARBEN: { value: FotoFarben; label: string }[] = [
     { value: 'farbe', label: 'Farbe' },
     { value: 'graustufen', label: 'Graustufen' },
@@ -94,12 +97,15 @@
         alt={draft.pdf ? 'Erste Seite des PDFs' : 'Vorschau des Fotos'}
         width={draft.result.width}
         height={draft.result.height}
-        class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-surface"
+        class={SEITE}
       />
+      {#if draft.pdf}
+        <BelegSeiten seiten={draft.pdfSeiten} seitenzahl={draft.pdfSeitenzahl} class={SEITE} />
+      {/if}
     {:else}
       <div
         role="status"
-        class="flex h-48 w-36 items-center justify-center rounded-md border border-neutral-200 bg-neutral-100 text-sm text-neutral-700"
+        class="flex h-48 w-full items-center justify-center rounded-md border border-neutral-200 bg-neutral-100 text-sm text-neutral-700"
       >
         Wird verarbeitet …
       </div>

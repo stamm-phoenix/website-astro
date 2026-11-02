@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { TestContext } from 'node:test';
-import { HttpRequest, InvocationContext } from '@azure/functions';
 import sharp from 'sharp';
 import * as blobStorage from '../lib/blob-storage';
 import { CONFIG } from '../lib/config';
@@ -21,59 +19,15 @@ import {
   BelegeCollection,
   BelegItem,
   BelegPhoto,
-  BelegPruefung,
   BelegRolle,
   downloadFileName,
   todayInBerlin,
 } from '../endpoints/intern-pflege-belege';
 import { validateBeleg } from '../lib/validation/beleg';
 import { ValidationError } from '../lib/validation/errors';
-import {
-  BelegCheckError,
-  forgetBelegChecks,
-  parseStoredBelegCheck,
-  toBelegCheck,
-} from '../lib/beleg-check';
 import { dbTest } from './fixtures/database';
 import { recordQueries } from './fixtures/queries';
-
-const STAFF_ROLES = ['authenticated', 'team_leitende'];
-/** In the team „Kasse“ unless a test gives a principal `STAFF_ROLES`. */
-const PRINCIPAL = {
-  identityProvider: 'aad',
-  userId: 'test-staff',
-  userDetails: 'staff@example.test',
-  userRoles: [...STAFF_ROLES, 'team_kasse'],
-};
-const INPUT = {
-  shop: 'REWE',
-  date: '2026-09-30',
-  amountCent: 1234,
-  paidBy: 'Alex Beispiel',
-  payout: true,
-  kostenstelle: 'Sommerlager 2026',
-  kategorie: 'Verpflegungskosten',
-  note: '',
-};
-
-/** Minimal JPEG header with a frame of the given size. */
-function jpeg(width: number, height: number): Uint8Array {
-  return new Uint8Array([
-    0xff,
-    0xd8,
-    0xff,
-    0xc0,
-    0x00,
-    0x11,
-    0x08,
-    height >> 8,
-    height & 0xff,
-    width >> 8,
-    width & 0xff,
-    0x03,
-    ...new Array<number>(12).fill(0),
-  ]);
-}
+import { INPUT, jpeg, PRINCIPAL, request, setup, STAFF_ROLES } from './fixtures/belege';
 
 /** A JPEG that can be decoded, for previews. */
 async function realJpeg(width: number, height: number): Promise<Uint8Array> {
@@ -82,38 +36,6 @@ async function realJpeg(width: number, height: number): Promise<Uint8Array> {
       .jpeg()
       .toBuffer()
   );
-}
-
-interface Storage {
-  context: InvocationContext;
-  blobs: Map<string, Buffer>;
-  times: Map<string, Date>;
-}
-
-/** Blob Storage in memory and a quiet context. */
-function setup(t: TestContext): Storage {
-  const blobs = new Map<string, Buffer>();
-  const times = new Map<string, Date>();
-  t.mock.method(blobStorage, 'putBlob', async (name: string, bytes: Uint8Array) => {
-    blobs.set(name, Buffer.from(bytes));
-    times.set(name, new Date());
-  });
-  t.mock.method(blobStorage, 'getBlob', async (name: string) => blobs.get(name));
-  t.mock.method(blobStorage, 'deleteBlob', async (name: string) => {
-    blobs.delete(name);
-  });
-  t.mock.method(blobStorage, 'listBlobs', async (prefix: string) =>
-    [...blobs.keys()]
-      .filter((name) => name.startsWith(prefix))
-      .map((name) => ({ name, lastModified: times.get(name) ?? new Date() }))
-  );
-  t.mock.method(console, 'warn', () => undefined);
-  // No team „Kasse“ to notify unless a test gives one
-  t.mock.method(taskDirectory, 'readTaskDirectory', async () => []);
-  const context = new InvocationContext({ functionName: 'belege-test' });
-  t.mock.method(context, 'log', () => undefined);
-  t.mock.method(context, 'error', () => undefined);
-  return { context, blobs, times };
 }
 
 interface StoredBelegRow {
@@ -161,35 +83,6 @@ async function version(id: number): Promise<string> {
   const beleg = (await getBelege()).find((candidate) => candidate.id === String(id));
   assert.ok(beleg, `receipt ${id}`);
   return beleg.etag;
-}
-
-function request(
-  method: string,
-  body?: unknown,
-  options: { id?: string; etag?: string; principal?: unknown; query?: string } = {}
-): HttpRequest {
-  const binary = body instanceof Uint8Array;
-  const headers: Record<string, string> = {
-    'content-type': binary ? 'image/jpeg' : 'application/json',
-  };
-  if (options.principal !== null) {
-    headers['x-ms-client-principal'] = Buffer.from(
-      JSON.stringify(options.principal ?? PRINCIPAL)
-    ).toString('base64');
-  }
-  if (options.etag) headers['if-match'] = options.etag;
-  return new HttpRequest({
-    url: `http://localhost/api/intern/pflege/belege${options.query ?? ''}`,
-    method,
-    headers,
-    params: options.id ? { id: options.id } : {},
-    body:
-      body === undefined || method === 'GET'
-        ? undefined
-        : binary
-          ? { bytes: body }
-          : { string: JSON.stringify(body) },
-  });
 }
 
 test('receipt operations reject anonymous identities before reading anything', async (t) => {
@@ -1065,210 +958,6 @@ test('receipt helpers use German local dates and safe file names', () => {
     downloadFileName({ shop: 'Rechnung', date: '2026-10-01', amountCent: 1250, isPdf: true }),
     '2026-10-01 Rechnung 12,50 EUR.pdf'
   );
-});
-
-const MODEL_ANSWER = {
-  isReceipt: true,
-  complete: false,
-  readable: true,
-  issues: ['  Der untere Rand   ist abgeschnitten. ', 7],
-  restrictedItems: [' Augustiner  Hell 0,5l ', null],
-  shop: 'REWE',
-  date: '2026-09-30',
-  amount: 12.34,
-};
-
-const MODEL_ENDPOINT = 'https://example.openai.azure.com';
-
-function withModel(t: TestContext, maxChecksPerDay = 1000): void {
-  overrideConfig(t, CONFIG.belege.check, {
-    endpoint: MODEL_ENDPOINT,
-    deployment: 'gpt-6.1-sol-datazone',
-    reasoningEffort: 'high',
-    maxChecksPerDay,
-  });
-  // Every test asks the model afresh
-  forgetBelegChecks();
-  t.after(forgetBelegChecks);
-  const previousKey = process.env.AZURE_OPENAI_API_KEY;
-  process.env.AZURE_OPENAI_API_KEY = 'test-key';
-  t.after(() => {
-    if (previousKey === undefined) delete process.env.AZURE_OPENAI_API_KEY;
-    else process.env.AZURE_OPENAI_API_KEY = previousKey;
-  });
-}
-
-function mockModel(t: TestContext, answer: unknown = MODEL_ANSWER, status = 200) {
-  return t.mock.method(
-    globalThis,
-    'fetch',
-    async () =>
-      new Response(
-        JSON.stringify({ choices: [{ message: { content: JSON.stringify(answer) } }] }),
-        { status }
-      )
-  );
-}
-
-test('the model answer is normalized and never trusted blindly', () => {
-  const now = new Date('2026-10-01T10:00:00Z');
-  assert.deepEqual(toBelegCheck(MODEL_ANSWER, now), {
-    ok: false,
-    isReceipt: true,
-    complete: false,
-    readable: true,
-    issues: ['Der untere Rand ist abgeschnitten.'],
-    restrictedItems: ['Augustiner Hell 0,5l'],
-    shop: 'REWE',
-    date: '2026-09-30',
-    amountCent: 1234,
-    checkedAt: '2026-10-01T10:00:00.000Z',
-  });
-  const notAReceipt = toBelegCheck(
-    {
-      isReceipt: false,
-      complete: true,
-      readable: true,
-      issues: [],
-      restrictedItems: ['Bier'],
-      date: '30.9.',
-      amount: -1,
-    },
-    now
-  );
-  assert.equal(notAReceipt.ok, false);
-  assert.deepEqual(notAReceipt.restrictedItems, []);
-  // Restricted items are a hint for the Kasse and do not make a good photo unfit
-  assert.equal(toBelegCheck({ ...MODEL_ANSWER, complete: true }, now).ok, true);
-  assert.equal(notAReceipt.complete, false);
-  assert.equal(notAReceipt.date, null);
-  assert.equal(notAReceipt.amountCent, null);
-  assert.throws(() => toBelegCheck('nonsense'), BelegCheckError);
-});
-
-test('the photo check sends the image to the configured deployment', async (t) => {
-  const { context } = setup(t);
-  withModel(t);
-  const fetch = mockModel(t);
-  const response = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
-  assert.equal(response.status, 200);
-  const body = response.jsonBody as { available: boolean; check: { ok: boolean } };
-  assert.equal(body.available, true);
-  assert.equal(body.check.ok, false);
-  const [url, init] = fetch.mock.calls[0].arguments as unknown as [string, RequestInit];
-  assert.equal(url, 'https://example.openai.azure.com/openai/v1/chat/completions');
-  assert.equal((init.headers as Record<string, string>)['api-key'], 'test-key');
-  const sent = JSON.parse(String(init.body)) as {
-    model: string;
-    messages: { content: unknown }[];
-    reasoning_effort?: string;
-    temperature?: number;
-    max_completion_tokens: number;
-  };
-  assert.equal(sent.model, 'gpt-6.1-sol-datazone');
-  assert.match(JSON.stringify(sent.messages[1].content), /data:image\/jpeg;base64,/);
-  // A reasoning model refuses `temperature`, and its thinking counts against the tokens
-  assert.equal(sent.reasoning_effort, 'high');
-  assert.equal('temperature' in sent, false);
-  assert.ok(sent.max_completion_tokens >= 4000);
-});
-
-test('the form asks first only how to turn the photo, quickly and with little thinking', async (t) => {
-  const { context } = setup(t);
-  withModel(t);
-  const fetch = mockModel(t, { rotation: 270 });
-  const response = await BelegPruefung(
-    request('POST', jpeg(1600, 1200), { query: '?nur=drehung' }),
-    context
-  );
-  assert.equal(response.status, 200);
-  assert.deepEqual(response.jsonBody, { available: true, rotation: 270 });
-  const sent = JSON.parse(String((fetch.mock.calls[0].arguments[1] as RequestInit).body)) as {
-    reasoning_effort?: string;
-    response_format: { json_schema: { name: string } };
-  };
-  assert.equal(sent.reasoning_effort, 'low');
-  assert.equal(sent.response_format.json_schema.name, 'belegdrehung');
-
-  // Anything but a quarter turn means upright
-  fetch.mock.restore();
-  mockModel(t, { rotation: 45 });
-  const odd = await BelegPruefung(
-    request('POST', jpeg(1600, 1201), { query: '?nur=drehung' }),
-    context
-  );
-  assert.deepEqual(odd.jsonBody, { available: true, rotation: 0 });
-});
-
-dbTest('submitting the checked photo reuses the check instead of asking again', async (t) => {
-  const { context } = setup(t);
-  withModel(t);
-  const fetch = mockModel(t);
-  const bytes = jpeg(1200, 1600);
-  assert.equal((await BelegPruefung(request('POST', bytes), context)).status, 200);
-  const photo = Buffer.from(bytes).toString('base64');
-  assert.equal((await BelegeCollection(request('POST', { ...INPUT, photo }), context)).status, 201);
-  assert.equal(fetch.mock.callCount(), 1);
-  assert.equal((await getBelege())[0]?.aiCheck?.ok, false);
-
-  // Another photo is checked anew
-  const other = Buffer.from(jpeg(1200, 1601)).toString('base64');
-  await BelegeCollection(request('POST', { ...INPUT, photo: other }), context);
-  assert.equal(fetch.mock.callCount(), 2);
-});
-
-test('models without reasoning get temperature 0 as before', async (t) => {
-  const { context } = setup(t);
-  withModel(t);
-  CONFIG.belege.check.reasoningEffort = undefined;
-  const fetch = mockModel(t);
-  await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
-  const [, init] = fetch.mock.calls[0].arguments as unknown as [string, RequestInit];
-  const sent = JSON.parse(String(init.body)) as Record<string, unknown>;
-  assert.equal(sent.temperature, 0);
-  assert.equal('reasoning_effort' in sent, false);
-});
-
-dbTest('without a model the check is skipped and failures never block submitting', async (t) => {
-  const { context } = setup(t);
-  withModel(t);
-  CONFIG.belege.check.endpoint = '';
-  const skipped = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
-  assert.deepEqual(skipped.jsonBody, { available: false, check: null });
-
-  CONFIG.belege.check.endpoint = MODEL_ENDPOINT;
-  mockModel(t, {}, 500);
-  const failed = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
-  assert.equal(failed.status, 502);
-
-  t.mock.method(context, 'warn', () => undefined);
-  const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
-  const created = await BelegeCollection(request('POST', { ...INPUT, photo }), context);
-  assert.equal(created.status, 201);
-  assert.equal((await getBelege())[0]?.aiCheck, null);
-});
-
-dbTest('submitting stores the check with the receipt', async (t) => {
-  const { context } = setup(t);
-  withModel(t);
-  mockModel(t);
-  const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
-  assert.equal((await BelegeCollection(request('POST', { ...INPUT, photo }), context)).status, 201);
-  const stored = (await getBelege())[0]?.aiCheck;
-  assert.equal(stored?.ok, false);
-  assert.deepEqual(stored?.issues, ['Der untere Rand ist abgeschnitten.']);
-  assert.deepEqual(stored?.restrictedItems, ['Augustiner Hell 0,5l']);
-  // Checks stored before restricted items existed still parse
-  assert.deepEqual(parseStoredBelegCheck('{"ok":true,"issues":[]}')?.restrictedItems, []);
-});
-
-test('the daily limit stops calling the model', async (t) => {
-  const { context } = setup(t);
-  withModel(t, 0);
-  const fetch = mockModel(t);
-  const response = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
-  assert.equal(response.status, 429);
-  assert.equal(fetch.mock.callCount(), 0);
 });
 
 dbTest('the preview gets invented Aktionen and Belege once', async (t) => {
