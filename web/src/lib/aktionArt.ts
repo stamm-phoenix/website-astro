@@ -7,7 +7,8 @@ import type { CampflowEvent } from './types';
 /** Events running longer than this are likely orders or registrations, not an Aktion. */
 const LANG_TAGE = 60;
 /** Words in a title that hint at an order. */
-const BESTELLUNG = /pulli|pullover|halstuch|halstücher|t-shirt|shirt|hoodie|bestellung|kluft/i;
+const BESTELLUNG =
+  /pulli|pullover|halstuch|halstücher|t-shirt|shirt|hoodie|bestellung|kluft|vorlage|template/i;
 
 /** Whether the event is a real Aktion; events without the mark (e.g. from old data) are. */
 export function isAktion(event: Pick<CampflowEvent, 'keineAktion'>): boolean {

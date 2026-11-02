@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { staffPage } from '../src/lib/staffModules';
-import { changelogProblems, newestEntryId, unseenEntries } from '../src/lib/changelog';
+import {
+  changelogProblems,
+  newestEntryId,
+  recentUnseenEntries,
+  unseenEntries,
+} from '../src/lib/changelog';
 import type { ChangelogEntry } from '../src/lib/changelog';
 import { CHANGELOG } from '../src/lib/changelogEntries';
 
@@ -41,6 +46,19 @@ test('an entry that is not newer than the one before it is reported', () => {
 
 test('a new person sees every entry as unseen', () => {
   assert.equal(unseenEntries(ENTRIES, null).length, 3);
+});
+
+test('a new person gets a capped recent notice without losing historic entries', () => {
+  const entries = [...ENTRIES, entry('2026-10-17-01-before'), entry('2026-10-16-01-oldest')];
+  assert.deepEqual(
+    recentUnseenEntries(entries, null, 3).map((item) => item.id),
+    ['2026-10-20-01-c', '2026-10-19-01-b', '2026-10-18-01-a']
+  );
+  assert.equal(unseenEntries(entries, null).length, 5);
+});
+
+test('an existing reader keeps all unread entries even after a longer absence', () => {
+  assert.equal(recentUnseenEntries(ENTRIES, '2026-10-01-01-before', 1).length, 3);
 });
 
 test('only entries newer than the last seen one are unseen', () => {

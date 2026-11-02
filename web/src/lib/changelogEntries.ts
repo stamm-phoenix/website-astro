@@ -12,6 +12,28 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-02-03-leitendenbereich-bedienung',
+    date: '2026-11-02',
+    title: 'Übersichtlicher auf dem Handy',
+    changes: [
+      'Auf der Startseite findest du wichtige Aktionen schneller. Die Bereiche zeigen auch auf dem Handy, was du dort tun kannst.',
+      {
+        text: 'Teilnehmendenlisten beginnen mit den wichtigsten Angaben. Weitere Angaben kannst du gezielt auswählen. Auffällige Bestellungen und Vorlagen kannst du prüfen und ausdrücklich aus den Aktionen ausblenden.',
+        href: '/leitendenbereich/aktionen',
+      },
+      {
+        text: 'Neuigkeiten bleiben ungelesen, bis du sie ausdrücklich als gelesen markierst.',
+        href: '/leitendenbereich/neuigkeiten',
+      },
+      'Beim Einreichen eines Belegs führen dich fehlende oder fehlerhafte Angaben direkt zum ersten markierten Feld.',
+      'Das Menü lässt sich mit der Tastatur und mit Vorlesefunktionen leichter bedienen. Weitere Schaltflächen sind auf dem Handy größer.',
+      {
+        text: 'Bei Belegen siehst du deutlicher, wenn ein Teil der Liste nicht geladen werden konnte.',
+        href: '/leitendenbereich/belege',
+      },
+    ],
+  },
+  {
     id: '2026-11-03-02-meine-essensplanungen',
     date: '2026-11-03',
     title: 'Deine Essensplanungen im Leitendenbereich',

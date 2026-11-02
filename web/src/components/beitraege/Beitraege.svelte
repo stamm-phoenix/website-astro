@@ -69,15 +69,12 @@
   <div
     class="flex flex-col gap-2 border-b border-neutral-200 pb-4 text-sm text-neutral-700 sm:flex-row sm:items-center sm:justify-between"
   >
-    <p>
-      Nur zum Nachschauen. Zahlungen zuordnen, Beiträge ändern oder anlegen geht weiterhin in
-      <a
-        href={CAMPFLOW_URL}
-        class="text-link underline underline-offset-4"
-        target="_blank"
-        rel="noopener">CampFlow</a
-      >.
-    </p>
+    <a
+      href={CAMPFLOW_URL}
+      class="text-link inline-flex min-h-11 items-center underline underline-offset-4"
+      target="_blank"
+      rel="noopener">Beiträge in CampFlow öffnen</a
+    >
     {#if store.data}
       <span class="flex flex-wrap items-center gap-x-2">
         <span data-testid="beitraege-stand"

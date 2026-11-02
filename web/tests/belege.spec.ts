@@ -346,12 +346,12 @@ test('one list holds the receipts here and in CampFlow, filtered by source and m
 }) => {
   await page.goto('/leitendenbereich/belege/');
   const list = page.getByRole('list', { name: 'Belege' });
-  const tabs = page.getByRole('group', { name: 'Nach Quelle filtern' });
+  const tabs = page.getByRole('group', { name: 'Belege auswählen' });
   // Five in CampFlow, the receipts here first, as they wait for the Kasse
-  await expect(tabs.getByRole('button', { name: /^CampFlow/ })).toHaveText(/\(5\)/);
-  await expect(list.getByRole('listitem').first()).toContainText('Website');
+  await expect(tabs.getByRole('button', { name: /^In CampFlow/ })).toHaveText(/\(5\)/);
+  await expect(list.getByRole('listitem').first()).toContainText('Hier eingereicht');
 
-  await tabs.getByRole('button', { name: /^CampFlow/ }).click();
+  await tabs.getByRole('button', { name: /^In CampFlow/ }).click();
   await expect(list.getByRole('listitem')).toHaveCount(5);
   await openFilters(page);
   await page

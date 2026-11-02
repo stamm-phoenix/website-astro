@@ -134,7 +134,7 @@
         : 'Im öffentlichen Kalender veröffentlichen'
       : entry
         ? 'Aktion bearbeiten'
-        : 'Neue Aktion ohne CampFlow'
+        : 'Aktion anlegen'
   );
 
   function formFrom(source: StaffAktion | null): Form {
@@ -247,7 +247,9 @@
         ? `„${adoptedEntry.title}“ ist jetzt mit der CampFlow-Aktion verknüpft. Titel, Datum und Anmeldelink kommen ab jetzt aus CampFlow.`
         : current
           ? 'Kalendereintrag gespeichert. Die Website wird in wenigen Minuten aktualisiert.'
-          : 'Aktion veröffentlicht. Sie erscheint in wenigen Minuten im öffentlichen Kalender.';
+          : event
+            ? 'Aktion veröffentlicht. Sie erscheint in wenigen Minuten im öffentlichen Kalender.'
+            : 'Aktion angelegt.';
     await dialog.run(async () => {
       if (current) await sendApi('PATCH', `/intern/pflege/aktionen/${current.id}`, body);
       else await sendApi('POST', '/intern/pflege/aktionen', body);
@@ -281,7 +283,7 @@
   error={dialog.state.error}
   submitDisabled={dialog.state.conflict}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}
-  submitLabel={targetEntry || !event ? 'Speichern' : 'Veröffentlichen'}
+  submitLabel={targetEntry ? 'Speichern' : event ? 'Veröffentlichen' : 'Aktion anlegen'}
   onsubmit={save}
   onclose={close}
   ondelete={targetEntry ? remove : undefined}

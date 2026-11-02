@@ -17,6 +17,7 @@
   import StatusNotice from './pflege/StatusNotice.svelte';
   import InfoHint from './ui/InfoHint.svelte';
   import MonthGrid from './MonthGrid.svelte';
+  import AktionenPruefen from './aktionen/AktionenPruefen.svelte';
 
   type View = 'liste' | 'monat';
   /** Real Aktionen, or the events that only use CampFlow for orders and registrations. */
@@ -286,12 +287,12 @@
         variant="primary"
         type="button"
         disabled={!calendar.data}
-        onclick={() => (target = { event: null, entry: null })}
-        >Neue Aktion ohne CampFlow</ActionButton
+        onclick={() => (target = { event: null, entry: null })}>Aktion anlegen</ActionButton
       >
     </div>
 
     <StatusNotice {message} popup />
+    <AktionenPruefen {events} />
 
     {#each [{ error: campflowEventsStore.error, label: 'Die Aktionen aus CampFlow' }, { error: calendar.error, label: 'Der öffentliche Kalender' }] as problem (problem.label)}
       {#if problem.error}

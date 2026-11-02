@@ -46,6 +46,7 @@
   import { formatIsoDate } from '../lib/belege';
   import { formatEuro } from '../lib/format';
   import InfoHint from './ui/InfoHint.svelte';
+  import StaffFirstVisit from './StaffFirstVisit.svelte';
 
   /** Entries per area; the link next to the heading leads to the full list. */
   const CARD_LIMIT = 3;
@@ -502,6 +503,7 @@
 {/snippet}
 
 <div class="mt-6 space-y-6">
+  <StaffFirstVisit modules={allModules} />
   {#if selectedModules.length > 0}
     <section aria-labelledby="favorites-heading">
       <div class="flex items-center gap-1">

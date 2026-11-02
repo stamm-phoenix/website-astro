@@ -48,6 +48,10 @@ test('names and long runs hint at events that are no Aktion, only while unmarked
     keineAktionHinweis(event('evt_Y', 'Stammeshalstuch', '2026-05-01', '2026-05-01')) ?? '',
     /Bestellung/
   );
+  assert.match(
+    keineAktionHinweis(event('evt_Z', 'Vorlage Sommerlager', '2026-05-01', '2026-05-01')) ?? '',
+    /Bestellung/
+  );
 });
 
 test('receipt suggestions list Aktionen first and orders last', () => {

@@ -70,7 +70,7 @@
       <ul class="space-y-1">
         {#each available as column (column.key)}
           <li>
-            <label class="flex items-center gap-2">
+            <label class="flex min-h-11 cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={shownColumns.some((c) => c.key === column.key)}
@@ -83,7 +83,7 @@
       </ul>
       <button
         type="button"
-        class="mt-3 border-t border-neutral-200 pt-2 text-sm font-semibold text-brand-800 underline"
+        class="mt-3 min-h-11 border-t border-neutral-200 py-2 text-sm font-semibold text-brand-800 underline"
         onclick={onresetcolumns}
       >
         Standardauswahl

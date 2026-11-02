@@ -32,7 +32,6 @@
   import { centToInput, parseEuroToCent } from '../../lib/belege';
   import { formatEuro, todayIso } from '../../lib/format';
   import {
-    BELEG_QUELLEN,
     BELEG_STAENDE,
     belegEintraege,
     eintragKostenstellen,
@@ -42,7 +41,8 @@
     type BelegStand,
   } from '../../lib/belegEintraege';
   import { ichStore, isIch } from '../../lib/ichStore.svelte';
-  import MessageText from '../ui/MessageText.svelte';
+  import BelegLadehinweise from './BelegLadehinweise.svelte';
+  import BelegQuellenFilter from './BelegQuellenFilter.svelte';
   import Toast from '../ui/Toast.svelte';
   import type { BelegStatus, CampflowBeleg, StaffBeleg } from '../../lib/types';
 
@@ -510,21 +510,12 @@
       />
     </label>
     <div class="sm:col-span-3">
-      <FilterTabs
-        label="Nach Quelle filtern"
-        options={[
-          { value: '', label: 'Alle', count: store.data ? gefiltert.length : undefined },
-          ...BELEG_QUELLEN.map((option) => ({
-            value: option.value,
-            label: option.label,
-            count: (option.value === 'campflow' ? campflowStore.data : store.data)
-              ? gefiltert.filter((e) => e.quelle === option.value).length
-              : undefined,
-          })),
-        ]}
+      <BelegQuellenFilter
+        entries={gefiltert}
+        websiteLoaded={store.data !== null}
+        campflowLoaded={campflowStore.data !== null}
         value={quelle}
         onselect={(value) => (quelle = value)}
-        countNouns={['Beleg', 'Belege']}
       />
     </div>
     <details class="group sm:col-span-3" bind:open={filtersOpen}>
@@ -590,32 +581,16 @@
 
   <StatusNotice {message} popup />
 
-  {#if campflowStore.loading && !campflowStore.data}
-    <p role="status" class="text-sm text-neutral-700">Belege aus CampFlow werden geladen …</p>
-  {:else if campflowStore.error}
-    <p class="text-sm text-neutral-700">
-      <MessageText text={campflowStore.error} />
-      <button
-        type="button"
-        class="text-link min-h-11 underline underline-offset-4"
-        onclick={() => void campflowBelegeStore.load({ force: true, param: false })}
-        >Erneut versuchen</button
-      >
-    </p>
-  {/if}
+  <BelegLadehinweise
+    campflowLoading={campflowStore.loading && !campflowStore.data}
+    campflowError={campflowStore.error}
+    campflowStale={campflowStore.data !== null}
+    websiteError={store.error && !store.data && campflowStore.data ? store.error : null}
+    onreloadCampflow={() => void campflowBelegeStore.load({ force: true, param: false })}
+    onreloadWebsite={() => void belegePflege.load({ force: true })}
+  />
 
   <!-- Two sources: what one of them delivered shows even if the other fails -->
-  {#if store.error && !store.data && campflowStore.data}
-    <p class="text-sm text-neutral-700">
-      <MessageText text={store.error} />
-      <button
-        type="button"
-        class="text-link min-h-11 underline underline-offset-4"
-        onclick={() => void belegePflege.load({ force: true })}>Erneut versuchen</button
-      >
-    </p>
-  {/if}
-
   <LoadState
     data={store.data ?? (campflowStore.data ? [] : null)}
     loading={store.loading && !campflowStore.data}

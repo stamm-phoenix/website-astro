@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }, testInfo) => {
  */
 async function openSheet(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Menü', exact: true }).click();
-  const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
+  const sheet = page.locator('#staff-nav-panel');
   await expect(sheet).toBeInViewport({ ratio: 1 });
   await expect(sheet).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
 }
@@ -78,7 +78,7 @@ function transformMs(transition: string): number | null {
 test('a quick flick down closes the sheet faster than a slow pull past the threshold', async ({
   page,
 }) => {
-  const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
+  const sheet = page.locator('#staff-nav-panel');
 
   await openSheet(page);
   // Slowly past a third of the height, resting before letting go: the full panel duration
@@ -97,7 +97,7 @@ test('a quick flick down closes the sheet faster than a slow pull past the thres
 });
 
 test('a short slow pull springs back open', async ({ page }) => {
-  const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
+  const sheet = page.locator('#staff-nav-panel');
   await openSheet(page);
   const transition = await swipeSheet(page, 60, { step: 30, pause: 200 });
   expect(transformMs(transition)).toBe(220);
@@ -111,7 +111,7 @@ test('a short slow pull springs back open', async ({ page }) => {
 
 test('with Reduced Motion a swipe closes the sheet at once', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
+  const sheet = page.locator('#staff-nav-panel');
   await openSheet(page);
   expect(await sheet.evaluate((node) => node.style.transition)).toBe('none');
   const transition = await swipeSheet(page, 450, { step: 4 });
@@ -125,7 +125,7 @@ test('with Reduced Motion a swipe closes the sheet at once', async ({ page }) =>
 
 test('a second finger during a pull sends the sheet back open', async ({ page }) => {
   await openSheet(page);
-  const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
+  const sheet = page.locator('#staff-nav-panel');
   await page.evaluate(() => {
     const target = document.querySelector('#staff-nav-title');
     if (!target) throw new Error('Sheet missing');

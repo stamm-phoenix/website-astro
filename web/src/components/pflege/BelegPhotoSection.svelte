@@ -103,6 +103,7 @@
         type="file"
         accept="image/*,application/pdf"
         class="sr-only"
+        aria-invalid={errors.photo ? 'true' : undefined}
         aria-describedby={errors.photo ? 'bl-photo-error' : undefined}
         disabled={photo.photoBusy || busy}
         onchange={photo.choosePhoto}

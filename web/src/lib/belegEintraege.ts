@@ -12,8 +12,8 @@ export type BelegStand =
   'eingereicht' | 'angenommen' | 'abgelehnt' | 'ungebucht' | 'gebucht' | 'bezahlt';
 
 export const BELEG_QUELLEN: { value: BelegQuelle; label: string }[] = [
-  { value: 'website', label: 'Website' },
-  { value: 'campflow', label: 'CampFlow' },
+  { value: 'website', label: 'Hier eingereicht' },
+  { value: 'campflow', label: 'In CampFlow' },
 ];
 
 export const BELEG_STAENDE: { value: BelegStand; label: string }[] = [

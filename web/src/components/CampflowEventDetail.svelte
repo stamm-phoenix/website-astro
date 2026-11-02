@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { defaultColumnKeys, NEW_COLUMN_KEYS } from '../lib/campflowColumns';
   import StatusLabel from './ui/StatusLabel.svelte';
   import type { StatusTone } from '../lib/status';
   import ReloadAction from './ui/ReloadAction.svelte';
@@ -12,9 +13,7 @@
     fetchCampflowEvent,
   } from '../lib/campflowStore.svelte';
   import {
-    NEW_COLUMN_KEYS,
     PERSON_STATUS_LABEL,
-    defaultColumnKeys,
     formatEventRange,
     formatName,
     getPersonColumns,
@@ -65,7 +64,7 @@
     return [name, status, ...beitragColumns(beitraegeDaten), ...rest];
   });
   const shownColumns = $derived.by(() => {
-    const keys = visibleKeys ?? (detail ? defaultColumnKeys(available, detail.columns) : []);
+    const keys = visibleKeys ?? (detail ? defaultColumnKeys(available) : []);
     return available.filter((c) => keys.includes(c.key));
   });
 

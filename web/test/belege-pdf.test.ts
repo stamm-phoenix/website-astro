@@ -82,14 +82,14 @@ describe('belegePdfReport', () => {
     };
     assert.equal(
       belegFilterText(filter, { kostenstelle: 'Sommerlager', kategorie: 'Verpflegung' }),
-      'Quelle: CampFlow · Stand: Bezahlt · Kostenstelle: Sommerlager · Kategorie: Verpflegung · Suche: „Edeka“ · Nur meine Belege'
+      'Quelle: In CampFlow · Stand: Bezahlt · Kostenstelle: Sommerlager · Kategorie: Verpflegung · Suche: „Edeka“ · Nur meine Belege'
     );
     const report = belegePdfReport(
       [eintrag('5', { campflow: { number: '2026-101' } as BelegEintrag['campflow'] })],
       filter,
       { kostenstelle: 'Sommerlager', kategorie: 'Verpflegung' }
     );
-    assert.equal(report.notes?.[0]?.startsWith('Filter: Quelle: CampFlow'), true);
+    assert.equal(report.notes?.[0]?.startsWith('Filter: Quelle: In CampFlow'), true);
     assert.equal(report.sections[0].rows?.[0][1], 'Laden 5\nBeleg 2026-101');
     assert.match(report.fileName, /^Belege Auswahl /);
     // Without Einnahmen only the Ausgaben are summed up

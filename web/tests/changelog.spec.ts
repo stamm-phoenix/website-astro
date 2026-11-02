@@ -9,7 +9,7 @@ test.afterEach(async ({ page }) => {
   await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_ALL } });
 });
 
-test('unread news show a count at the menu, opening them marks them read', async ({ page }) => {
+test('unread news show a count at the menu and need explicit confirmation', async ({ page }) => {
   await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/leitendenbereich');
@@ -25,12 +25,34 @@ test('unread news show a count at the menu, opening them marks them read', async
   await expect(page.getByRole('heading', { level: 2, name: CHANGELOG[0].title })).toBeVisible();
   await expect(page.getByText('2 Neuigkeiten für dich.')).toBeVisible();
   await expect(page.getByText('Neu', { exact: true })).toHaveCount(2);
+  await expect(page.getByRole('button', { name: 'Alle als gelesen markieren' })).toBeVisible();
 
-  // The next page no longer counts them
+  // Opening the page alone does not save the read state
+  await page.goto('/leitendenbereich');
+  await expect(page.getByRole('link', { name: 'Neuigkeiten lesen' })).toBeVisible();
+  await expect(menu).toHaveAccessibleDescription('2 neue Neuigkeiten');
+
+  await page.getByRole('link', { name: 'Neuigkeiten lesen' }).click();
+  await page.getByRole('button', { name: 'Alle als gelesen markieren' }).click();
+  await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toBeVisible();
   await page.goto('/leitendenbereich');
   await expect(page.getByRole('link', { name: 'Neuigkeiten lesen' })).toHaveCount(0);
   await expect(menu).toHaveAccessibleDescription('');
   await expect(page.getByTestId('changelog-badge')).toHaveCount(0);
+});
+
+test('a new account gets a recent notice without saving historic entries', async ({ page }) => {
+  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: null } });
+  let writes = 0;
+  await page.route('**/api/intern/neuigkeiten', (route) => {
+    if (route.request().method() === 'PUT') writes++;
+    return route.continue();
+  });
+  await page.goto('/leitendenbereich');
+  await expect(page.getByTestId('changelog-badge').first()).toHaveText('3');
+  await page.getByRole('link', { name: 'Neuigkeiten lesen' }).click();
+  await expect(page.getByText('Neu', { exact: true })).toHaveCount(3);
+  expect(writes).toBe(0);
 });
 
 test('a person who has read everything is told so', async ({ page }) => {
@@ -77,10 +99,11 @@ test('the page confirms the read state only after it was saved', async ({ page }
     await route.continue();
   });
   await page.goto('/leitendenbereich/neuigkeiten');
+  await page.getByRole('button', { name: 'Alle als gelesen markieren' }).click();
   await expect(page.getByText('Gelesen wird gespeichert …')).toBeVisible();
-  await expect(page.getByText('gelten jetzt als gelesen')).toHaveCount(0);
+  await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toHaveCount(0);
   release();
-  await expect(page.getByText('gelten jetzt als gelesen')).toBeVisible();
+  await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toBeVisible();
 });
 
 test('reading on another device shows at the next page without a full reload', async ({ page }) => {
@@ -119,6 +142,7 @@ test('opening the menu keeps the message about a failed save', async ({ page }) 
       : route.continue()
   );
   await page.goto('/leitendenbereich/neuigkeiten');
+  await page.getByRole('button', { name: 'Alle als gelesen markieren' }).click();
   await expect(page.getByText('Nicht als gelesen gespeichert.')).toBeVisible();
 
   // The menu asks the server for the read state again, which succeeds
@@ -171,6 +195,7 @@ test('a load that overlaps the save cannot bring back the unread count', async (
     }
   });
   await page.goto('/leitendenbereich/neuigkeiten');
+  await page.getByRole('button', { name: 'Alle als gelesen markieren' }).click();
   await expect(page.getByText('Gelesen wird gespeichert …')).toBeVisible();
   // The menu asks for the read state while the save is still running
   const menu = page
@@ -179,7 +204,7 @@ test('a load that overlaps the save cannot bring back the unread count', async (
   await menu.click();
   await expect(page.getByRole('dialog', { name: 'Alle Bereiche' })).toBeVisible();
   releasePut();
-  await expect(page.getByText('gelten jetzt als gelesen')).toBeVisible();
+  await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toBeVisible();
   // Give the late stale answer time to arrive
   await page.waitForTimeout(500);
   await menu.click();

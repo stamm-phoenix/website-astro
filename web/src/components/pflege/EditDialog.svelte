@@ -1,12 +1,10 @@
 <script lang="ts">
   import ModalDialog from '../ui/ModalDialog.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
-  import ActionButton from '../ui/ActionButton.svelte';
+  import EditDialogFooter from './EditDialogFooter.svelte';
   import { onDestroy, tick, setContext, untrack, type Snippet } from 'svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { confirmAction } from '../../lib/confirm';
-  import StatusNotice from './StatusNotice.svelte';
-  import MessageText from '../ui/MessageText.svelte';
   import NichtEingesetzt from './NichtEingesetzt.svelte';
   import {
     fillDialog,
@@ -105,7 +103,6 @@
   let rescueAppliedNotice = $state<string | null>(null);
   const unsaved = $derived(edited || dirty || restored);
   let confirmingDiscard = $state(false);
-  let deleteActionsOpen = $state(false);
   let reloadRequested = $state(false);
   let previousFocus: HTMLElement | null = null;
   /** Kept input without a field to go into, e.g. a row the form does not have yet. */
@@ -225,7 +222,6 @@
   function opened(): void {
     edited = false;
     confirmingDiscard = false;
-    deleteActionsOpen = false;
     initial = [];
     for (const el of form?.elements ?? []) remember(el);
     restored = false;
@@ -369,61 +365,28 @@
         />{/if}
     </div>
 
-    <div class="shrink-0 border-t border-neutral-200 px-5 py-3">
-      <StatusNotice
-        message={error ? null : shownNotice}
-        class={shownNotice && !error ? 'mb-3' : ''}
-      />
-      {#if error}
-        <p role="alert" class="mb-3 text-sm text-danger"><MessageText text={error} /></p>
-      {/if}
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="flex flex-wrap gap-2">
-          {#if ondelete}
-            {#snippet deleteButton()}
-              <ActionButton
-                variant="danger"
-                type="button"
-                disabled={busy}
-                onclick={() => void requestDelete()}>{deleteLabel}</ActionButton
-              >
-            {/snippet}
-            {#if deleteDisclosure}
-              <details bind:open={deleteActionsOpen}>
-                <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-link"
-                  >Weitere Aktionen</summary
-                >
-                <div class="pt-2">{@render deleteButton()}</div>
-              </details>
-            {:else}
-              {@render deleteButton()}
-            {/if}
-          {/if}
-          {@render actions?.()}
-          {#if onreload}<ActionButton
-              variant="secondary"
-              disabled={busy}
-              onclick={() => {
-                reloadRequested = true;
-                confirmingDiscard = true;
-              }}>Aktuelle Fassung laden</ActionButton
-            >{/if}
-        </div>
-        <div class="flex flex-wrap justify-end gap-2">
-          <ActionButton variant="secondary" type="button" disabled={busy} onclick={requestClose}>
-            {cancelLabel}
-          </ActionButton>
-          <ActionButton
-            variant="primary"
-            type="submit"
-            disabled={busy || submitDisabled}
-            aria-busy={busy}
-          >
-            {busy ? busyLabel : submitLabel}
-          </ActionButton>
-        </div>
-      </div>
-    </div>
+    <EditDialogFooter
+      {open}
+      {form}
+      {busy}
+      {submitDisabled}
+      {error}
+      {shownNotice}
+      {submitLabel}
+      {cancelLabel}
+      {busyLabel}
+      {deleteLabel}
+      {deleteDisclosure}
+      {actions}
+      ondelete={ondelete ? () => void requestDelete() : undefined}
+      onreload={onreload
+        ? () => {
+            reloadRequested = true;
+            confirmingDiscard = true;
+          }
+        : undefined}
+      onclose={() => void requestClose()}
+    />
   </form>
 </ModalDialog>
 <ConfirmDialog
