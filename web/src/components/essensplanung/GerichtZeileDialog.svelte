@@ -470,16 +470,19 @@
           />
         {/snippet}
       </FormField>
-      <div class="flex items-center gap-1">
-        <label class="flex min-h-11 items-center gap-3">
-          <input type="checkbox" bind:checked={fest} disabled={!menge.trim()} />
-          <span>Feste Menge</span>
-        </label>
-        <InfoHint
-          label="Feste Menge"
-          text="Die Menge gilt für das ganze Gericht und wächst nicht mit den Personen, z. B. 150 g Vanillepaste für den ganzen Pudding."
-        />
-      </div>
+      <!-- Without people all amounts of the dish are fixed; the box would change nothing -->
+      {#if gericht.personen !== null}
+        <div class="flex items-center gap-1">
+          <label class="flex min-h-11 items-center gap-3">
+            <input type="checkbox" bind:checked={fest} disabled={!menge.trim()} />
+            <span>Feste Menge</span>
+          </label>
+          <InfoHint
+            label="Feste Menge"
+            text="Die Menge gilt für das ganze Gericht und wächst nicht mit den Personen, z. B. 150 g Vanillepaste für den ganzen Pudding."
+          />
+        </div>
+      {/if}
 
       <fieldset class="space-y-1">
         <legend class="form-label">Für wen</legend>

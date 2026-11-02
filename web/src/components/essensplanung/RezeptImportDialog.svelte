@@ -420,7 +420,7 @@
           {#if rezept.personen === null}
             Die Mengen stehen wie im Rezept{rezept.rezeptPersonen
               ? ` für ${rezept.rezeptPersonen} Personen`
-              : ''}.
+              : ''}{rezept.rezeptPersonen && personenUebernehmen ? '' : ', als feste Mengen'}.
           {:else if rezept.rezeptPersonen && rezept.rezeptPersonen !== rezept.personen}
             Die Mengen sind von {rezept.rezeptPersonen} auf {rezept.personen} Personen umgerechnet.
           {:else if !rezept.rezeptPersonen}

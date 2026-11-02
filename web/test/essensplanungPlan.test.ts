@@ -10,8 +10,9 @@ import {
 } from '../src/lib/essensplanungPlan.ts';
 import {
   bedarf,
+  festeMengen,
+  istFest,
   ohneMenge,
-  personenFehlen,
   zeilenMenge,
 } from '../src/lib/essensplanungRechnung.ts';
 import type { PlanungMahlzeit, PlanungTag } from '../src/lib/types.ts';
@@ -129,7 +130,7 @@ test('a typed name finds a dish and who is responsible', () => {
   assert.equal(passtZurSuche('Chili sin Carne', 'Nudeln'), false);
 });
 
-test('a dish without people counts only its fixed amounts', () => {
+test('a dish without people uses all its amounts as fixed amounts', () => {
   const zeile = (id: number, menge: number | null, fest = false) => ({
     id,
     planungZutatId: id,
@@ -142,16 +143,21 @@ test('a dish without people counts only its fixed amounts', () => {
     ohne: [],
     nur: [],
   });
-  assert.equal(zeilenMenge(zeile(1, 400), null, 10, 1), null);
+  // Neither the eaters nor the factor of the planned dish change a fixed amount
+  assert.equal(zeilenMenge(zeile(1, 400), null, 10, 0.5), 400);
   assert.equal(zeilenMenge(zeile(1, 400, true), null, 10, 1), 400);
+  assert.equal(zeilenMenge(zeile(1, null), null, 10, 1), null);
   assert.equal(zeilenMenge(zeile(1, 400), 4, 10, 1), 1000);
+  assert.equal(istFest(zeile(1, 400), null), true);
+  assert.equal(istFest(zeile(1, 400), 4), false);
+  assert.equal(istFest(zeile(1, 400, true), 4), true);
   const gericht = {
     id: 1,
     personen: null,
     zutaten: [zeile(1, 400), zeile(2, 50, true), zeile(3, null)],
   };
-  assert.equal(personenFehlen(gericht), true);
-  assert.equal(personenFehlen({ ...gericht, zutaten: [zeile(2, 50, true)] }), false);
+  assert.equal(festeMengen(gericht), true);
+  assert.equal(festeMengen({ ...gericht, personen: 4 }), false);
   const stand = {
     tage: [
       {
@@ -173,10 +179,13 @@ test('a dish without people counts only its fixed amounts', () => {
     ],
     gerichte: [gericht],
   };
-  // Only the fixed amount is needed; the scaled line and the one without amount are bought without
+  // Every amount as it is, without eaters; only the line without amount is bought without
   assert.deepEqual(
-    bedarf(stand).map((b) => [b.planungZutatId, b.menge]),
-    [[2, 50]]
+    bedarf(stand).map((b) => [b.planungZutatId, b.menge, b.esser]),
+    [
+      [1, 400, 0],
+      [2, 50, 0],
+    ]
   );
-  assert.deepEqual([...ohneMenge(stand)].sort(), [1, 3]);
+  assert.deepEqual([...ohneMenge(stand)], [3]);
 });

@@ -176,12 +176,10 @@ function einheitBleibt(
 function aenderungFuer(
   hinweis: z.infer<typeof hinweisSchema>,
   zeile: GerichtZutat,
-  art: EssenEinheitenart | undefined,
-  /** False for a scaling line of a dish without people: there is nothing to scale against. */
-  mengeErlaubt = true
+  art: EssenEinheitenart | undefined
 ): KiAenderung | undefined {
   const aenderung: KiAenderung = {};
-  if (hinweis.menge !== null && mengeErlaubt) {
+  if (hinweis.menge !== null) {
     const einheit = hinweis.einheit ?? zeile.einheit;
     // A new amount stays in the base unit of the line: 500 ml of pasta is no proposal
     if (einheit && einheitBleibt(einheit, zeile, art)) {
@@ -252,12 +250,7 @@ export function leseKiPruefung(
     const zeile =
       hinweis.zeile !== null && hinweis.zeile >= 1 ? gericht.zutaten[hinweis.zeile - 1] : undefined;
     const aenderung = zeile
-      ? aenderungFuer(
-          hinweis,
-          zeile,
-          zutaten.get(zeile.planungZutatId)?.einheitenart,
-          gericht.personen !== null || zeile.fest
-        )
+      ? aenderungFuer(hinweis, zeile, zutaten.get(zeile.planungZutatId)?.einheitenart)
       : undefined;
     hinweise.push({
       art: hinweis.art,

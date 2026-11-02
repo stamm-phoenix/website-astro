@@ -76,3 +76,58 @@ test('a planned dish shows its amounts for the people who eat at the meal', asyn
   await expect(abend).toContainText('500 g Hackfleisch · nur mit allem · für 5 Portionen');
   await expect(abend).toContainText('30 ml Sonnenblumenöl · nur bei Gluten · für 3 Portionen');
 });
+
+test('a dish without people uses its amounts as they are: 2 loaves twice are 4', async ({
+  page,
+}) => {
+  test.slow();
+  await anlegen(page, 'E2E Feste Mengen');
+  const dialog = page.getByRole('dialog');
+
+  // Breakfast without people: the amounts are fixed amounts
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await expect(page.getByLabel('Personen', { exact: true })).toHaveAttribute(
+    'placeholder',
+    'leer: feste Mengen'
+  );
+  await page.getByLabel('Neues Gericht').fill('Frühstück');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Frühstück angelegt.').first()).toBeVisible();
+  const frueh = page
+    .locator('li[id^="gericht-"]', { has: page.getByText('Frühstück', { exact: true }) })
+    .first();
+  const zutat = frueh.getByLabel('Neue Zutat für Frühstück');
+  await zutat.pressSequentially('Brot (La');
+  await zutat.press('Enter');
+  await frueh.getByLabel('Menge der neuen Zutat').fill('2');
+  await frueh.getByLabel('Menge der neuen Zutat').press('Enter');
+  await expect.poll(() => zeilenMenge(frueh, 'Brot (Laib)')).toBe('2 Stück');
+  await expect(frueh.getByText('Feste Mengen', { exact: true })).toBeVisible();
+  // The box of a line changes nothing here
+  await frueh.getByRole('button', { name: 'Brot (Laib) ändern' }).click();
+  await expect(dialog.getByLabel('Feste Menge')).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(dialog).toBeHidden();
+
+  // 12 people eat, which changes nothing about the bread
+  await page.getByRole('tab', { name: 'Teilnehmende' }).click();
+  await page.getByRole('button', { name: 'Teilnehmende hinzufügen' }).click();
+  await dialog.getByLabel('Gruppe', { exact: true }).selectOption({ label: 'Pfadi' });
+  await dialog.getByLabel('Anzahl').fill('12');
+  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByRole('tab', { name: 'Plan' }).click();
+  for (const mahlzeit of ['1_1', '2_1']) await einplanen(page, mahlzeit, 'Frühstück');
+  await aufklappen(page, '1_1_1', 'Frühstück');
+  await expect(page.getByText('Mengen für 12 Portionen · feste Mengen').first()).toBeVisible();
+  await expect(
+    page.getByRole('list', { name: 'Mengen für Frühstück bei 1_1' }).first()
+  ).toContainText('2 Stück Brot (Laib)');
+  await expect(page.getByText('Personenzahl fehlt')).toHaveCount(0);
+
+  await page.getByRole('tab', { name: 'Einkauf' }).click();
+  const backware = page.getByRole('rowgroup', { name: 'Ohne Geschäft: Backware' });
+  await expect(backware).toContainText('4 Stück Brot (Laib)');
+  await expect(backware).not.toContainText('nach Gefühl');
+});

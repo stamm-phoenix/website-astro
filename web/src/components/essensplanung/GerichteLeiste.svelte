@@ -2,7 +2,6 @@
   import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import { plaetzeVon } from '../../lib/essensplanungEinplanung';
   import { passtZurSuche } from '../../lib/essensplanungPlan';
-  import { personenFehlen } from '../../lib/essensplanungRechnung';
   import { beende, starte } from './planZiehen.svelte';
   import type { PlanKontext } from './planKontext';
 
@@ -70,12 +69,6 @@
               >{plaetze ? `${plaetze}-mal eingeplant` : 'nicht eingeplant'}</span
             ></span
           >
-          {#if personenFehlen(gericht)}<span
-              class="size-2 shrink-0 rounded-full bg-warning"
-              title="Personenzahl fehlt"
-              aria-label="Personenzahl fehlt"
-              role="img"
-            ></span>{/if}
           <button
             type="button"
             class="flex size-6 shrink-0 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-link any-pointer-coarse:size-11"

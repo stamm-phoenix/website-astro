@@ -1,6 +1,7 @@
 import { einheitSchluessel } from '../../../api/lib/essen-gerichte-model';
 import {
   inBasis,
+  istFest,
   kochMenge,
   mengenSchluessel,
   summiere,
@@ -188,7 +189,7 @@ export function geplanterVerbrauch(
   if (!gericht) return [];
   const mengen = gericht.zutaten.flatMap((zeile) => {
     if (zeile.einheit === null) return [];
-    const wer = zeile.fest ? 0 : esser(mahlzeit, zeile);
+    const wer = istFest(zeile, gericht.personen) ? 0 : esser(mahlzeit, zeile);
     const menge = zeilenMenge(zeile, gericht.personen, wer, faktor);
     return menge === null
       ? []

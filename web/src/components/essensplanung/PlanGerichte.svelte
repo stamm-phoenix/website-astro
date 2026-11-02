@@ -6,7 +6,6 @@
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { zustaendigAus } from '../../lib/essensplanungPlan';
-  import { personenFehlen } from '../../lib/essensplanungRechnung';
   import { ApiError, errorMessage } from '../../lib/api';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type { EssenKatalog, Gericht, PlanungAnsicht } from '../../lib/types';
@@ -173,10 +172,16 @@
         label="Personen"
         class="w-48"
         error={felder.personen}
-        info="Für so viele Personen gelten die Mengen, die du einträgst. Leer lassen geht: dann zählen nur feste Mengen, bis du die Zahl einträgst."
+        info="Für so viele Personen gelten die Mengen und wachsen mit den Essern. Leer gelten sie fest für jede Einplanung, z. B. 2 Brote fürs Frühstück."
       >
         {#snippet children(attrs)}
-          <input {...attrs} class="form-input" inputmode="numeric" bind:value={personen} />
+          <input
+            {...attrs}
+            class="form-input"
+            inputmode="numeric"
+            placeholder="leer: feste Mengen"
+            bind:value={personen}
+          />
         {/snippet}
       </FormField>
       <FormField
@@ -248,16 +253,9 @@
               >
               <span class="text-sm text-neutral-700"
                 >{gericht.zutaten.length} Zutaten{gericht.personen === null
-                  ? ''
+                  ? ' · feste Mengen'
                   : ` · für ${gericht.personen} Personen`}</span
               >
-              {#if gericht.personen === null}
-                <span
-                  class="text-sm font-semibold {personenFehlen(gericht)
-                    ? 'text-warning'
-                    : 'text-neutral-700'}">Personenzahl fehlt</span
-                >
-              {/if}
               <AufklappPfeil class="ml-auto self-center" />
             </summary>
             <div class="px-4 pb-4">

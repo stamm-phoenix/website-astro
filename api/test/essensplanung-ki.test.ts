@@ -411,7 +411,7 @@ test("the recipe's word for a tin or a clove is kept where nothing converts it",
   );
 });
 
-test('without people a recipe keeps its amounts and a check proposes none', async (t) => {
+test('without people a recipe keeps its amounts and a check treats them as fixed', async (t) => {
   modell(t, {
     rezeptPersonen: 4,
     zeilen: [
@@ -435,7 +435,8 @@ test('without people a recipe keeps its amounts and a check proposes none', asyn
   });
   const pruefung = await pruefeGericht({ ...GERICHT, personen: null }, [SPAGHETTI, HACK], KATALOG);
   assert.equal(pruefung.personen, null);
-  assert.equal(pruefung.hinweise[0].aenderung, undefined);
+  // Fixed totals like a line marked „feste Menge“: a new amount can be proposed
+  assert.deepEqual(pruefung.hinweise[0].aenderung, { menge: 1, einheit: 'kg' });
 });
 
 test('an implausible estimate of grams is no estimate', async (t) => {

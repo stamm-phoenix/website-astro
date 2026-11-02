@@ -52,8 +52,7 @@
 <div class="space-y-1">
   <p class="text-sm font-semibold">
     Mengen für {zahlText(portionen)} Portionen
-    {#if mengen.personenFehlen}<span class="font-normal text-warning">· Personenzahl fehlt</span
-      >{/if}
+    {#if mengen.festeMengen}<span class="font-normal text-neutral-700">· feste Mengen</span>{/if}
   </p>
   {@render liste()}
 </div>

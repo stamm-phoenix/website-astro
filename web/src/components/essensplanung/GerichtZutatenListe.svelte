@@ -78,6 +78,7 @@
           namen={unvertraeglichkeiten}
           katalogDa={katalog !== null}
           position={index + 1}
+          festeMengen={gericht.personen === null}
           onaendern={() => (dialog = { zeile, vorgabe: null })}
           onverschiebe={(position) => void verschiebe(zeile, position)}
           onloeschen={() => zeileLoeschen(zeile)}

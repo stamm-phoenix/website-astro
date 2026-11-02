@@ -157,7 +157,7 @@ const PRUEFEN_SCHEMA = {
   },
 };
 
-const PRUEFEN_PROMPT = `Du prüfst ein Gericht für die Essensplanung eines Zeltlagers der Pfadfinder. Die Mengen gelten für die angegebene Personenzahl, außer bei Zeilen mit "fest" (Gesamtmenge, unabhängig von der Personenzahl). Ist "personen" null, hat das Gericht noch keine Personenzahl: Dann bewerte keine Mengen und schlage keine neuen vor. Prüfe:
+const PRUEFEN_PROMPT = `Du prüfst ein Gericht für die Essensplanung eines Zeltlagers der Pfadfinder. Die Mengen gelten für die angegebene Personenzahl, außer bei Zeilen mit "fest" (Gesamtmenge, unabhängig von der Personenzahl). Ist "personen" null, sind alle Mengen des Gerichts Gesamtmengen wie bei "fest". Prüfe:
 - Sind die Mengen für die Personenzahl plausibel (zu viel, zu wenig, vertauschte Einheit wie kg statt g)?
 - Gibt es Tippfehler im Namen des Gerichts oder in Hinweisen?
 - Passen die Häkchen "fuer" (alles, vegetarisch, vegan) zu den Merkmalen der Zutat (z. B. Fleisch nur für "alles"), und gibt es für jede Ernährungsform etwas zu essen?
@@ -184,7 +184,8 @@ function gerichtFuerModell(
         einheitenart: zutat?.einheitenart ?? null,
         menge: zeile.menge,
         einheit: zeile.einheit ? einheitText(zeile.einheit) : null,
-        fest: zeile.fest,
+        // Without people every amount of the dish is a fixed total
+        fest: zeile.fest || gericht.personen === null,
         fuer: [
           ...(zeile.fuerAlles ? ['alles'] : []),
           ...(zeile.fuerVegetarisch ? ['vegetarisch'] : []),

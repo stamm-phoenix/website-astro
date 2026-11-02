@@ -63,17 +63,18 @@ export function kiPruefen(z: MockZugang, gerichtId: number, wartung: boolean): K
     fuerVegan: null,
   };
   const hinweise: unknown[] = [];
-  // Without people there is nothing to scale against: no amount is proposed, like the API
-  const erste = gericht.zutaten.findIndex(
-    (zeile) => zeile.menge !== null && (gericht.personen !== null || zeile.fest)
-  );
+  // Without people the amounts are fixed totals, which can be proposed like the API does
+  const erste = gericht.zutaten.findIndex((zeile) => zeile.menge !== null);
   if (erste >= 0) {
     const zeile = gericht.zutaten[erste];
     hinweise.push({
       ...leer,
       art: 'menge',
       zeile: erste + 1,
-      text: `Die Menge wirkt für ${gericht.personen} Personen knapp.`,
+      text:
+        gericht.personen === null
+          ? 'Die Menge wirkt knapp.'
+          : `Die Menge wirkt für ${gericht.personen} Personen knapp.`,
       vorschlag: 'Etwa doppelt so viel einplanen.',
       menge: zeile.menge! * 2,
       einheit: zeile.einheit,

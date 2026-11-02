@@ -188,7 +188,7 @@ test('a recipe sets the people of a dish without any in the same save, never hal
 }) => {
   await anlegen(page, 'E2E KI Personen');
   const karte = await gericht(page, 'Suppe', '');
-  await expect(karte.getByText('Personenzahl fehlt').first()).toBeVisible();
+  await expect(karte.getByText('Feste Mengen', { exact: true }).first()).toBeVisible();
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Suppe' });
   await dialog.getByLabel('Rezept', { exact: true }).fill(`Für 4 Personen\n${REZEPT}`);
@@ -209,7 +209,7 @@ test('a recipe sets the people of a dish without any in the same save, never hal
   await expect(dialog.getByRole('alert').first()).toBeVisible();
   await expect(dialog).toBeVisible();
   await page.unroute('**/api/essensplanung/planung/gerichte/*/zutaten/sammel');
-  await expect(karte.getByText('Personenzahl fehlt').first()).toBeAttached();
+  await expect(karte.getByText('Feste Mengen', { exact: true }).first()).toBeAttached();
   await expect(karte.getByLabel('Menge von Zwiebeln', { exact: true })).toHaveCount(0);
 
   // Someone sets 20 people meanwhile: nothing is taken over, the preview offers to scale

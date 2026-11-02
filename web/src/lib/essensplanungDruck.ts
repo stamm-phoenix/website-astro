@@ -3,7 +3,13 @@ import { gerichtWarnungen, mengeText } from '../../../api/lib/essen-gerichte-mod
 import { datumKurz } from './essensplanung';
 import { ernaehrung, fuerText } from './essensplanungGerichte';
 import { einplanungKennung } from './essensplanungEinplanung';
-import { esserRechner, kochMenge, personenFehlen, zeilenMenge } from './essensplanungRechnung';
+import {
+  esserRechner,
+  festeMengen,
+  istFest,
+  kochMenge,
+  zeilenMenge,
+} from './essensplanungRechnung';
 import { ersatzText } from './essensplanungLager';
 import { ERNAEHRUNG_TEXT, zahlText, zeitraumText } from './essensplanungTeilnehmende';
 import { parseProtokollMarkdown, type MdBlock, type MdInline } from './protokollMarkdown';
@@ -45,8 +51,8 @@ export interface DruckEinplanung {
   /** Everybody who eats at the meal, weighted, times the factor of the planned dish. */
   portionen: number;
   zustaendig: string;
-  /** Lines scale, but the dish has no number of people yet: their amounts are missing. */
-  personenFehlen: boolean;
+  /** The dish has no number of people: all its amounts are fixed. */
+  festeMengen: boolean;
   zeilen: DruckZeile[];
 }
 
@@ -68,28 +74,28 @@ export function einplanungZeilen(
     name: `${gericht?.name ?? 'Gericht'}${einplanung.status && einplanung.status !== 'offen' ? ` (${einplanung.status})` : ''}`,
     portionen,
     zustaendig: einplanung.zustaendig,
-    personenFehlen: gericht ? personenFehlen(gericht) : false,
+    festeMengen: gericht ? festeMengen(gericht) : false,
     zeilen: (gericht?.zutaten ?? []).map((zeile) => {
       const zutat = zutaten.get(zeile.planungZutatId);
-      const wer = zeile.fest ? 0 : esser(mahlzeit, zeile);
+      const fest = istFest(zeile, gericht?.personen ?? null);
+      const wer = fest ? 0 : esser(mahlzeit, zeile);
       const menge = gericht ? zeilenMenge(zeile, gericht.personen, wer, einplanung.faktor) : null;
       // What was bought instead, „→ Pepsi Cola“
       const ersatz = ersatzText(ansicht, zeile.planungZutatId);
       return {
         name: `${zutat?.name ?? 'Zutat'}${ersatz ? ` ${ersatz}` : ''}`,
         menge:
-          zeile.menge !== null && menge === null
-            ? 'Personenzahl fehlt'
-            : menge === null || zeile.einheit === null
-              ? 'nach Gefühl'
-              : kochMenge(menge, zeile.einheit, zutat?.abtropfgewicht),
-        // Like the card of the dish, so two lines of one ingredient read apart
+          menge === null || zeile.einheit === null
+            ? 'nach Gefühl'
+            : kochMenge(menge, zeile.einheit, zutat?.abtropfgewicht),
+        // Like the card of the dish, so two lines of one ingredient read apart; in a dish of
+        // fixed amounts the heading says it once
         fuer: [
-          zeile.fest ? 'feste Menge' : '',
+          zeile.fest && gericht?.personen !== null ? 'feste Menge' : '',
           fuerText(zeile) ?? '',
           zeile.nur.length ? `nur bei ${unvertraeglichkeitenText(zeile.nur, namen)}` : '',
           zeile.ohne.length ? `nicht bei ${unvertraeglichkeitenText(zeile.ohne, namen)}` : '',
-          !zeile.fest && Math.abs(wer * einplanung.faktor - portionen) > 0.005
+          !fest && Math.abs(wer * einplanung.faktor - portionen) > 0.005
             ? `für ${zahlText(wer * einplanung.faktor)} Portionen`
             : '',
         ]
@@ -115,9 +121,9 @@ export interface DruckTag {
   mahlzeiten: DruckMahlzeit[];
 }
 
-/** „Für 10 Personen“, or that the number is still missing; on the card and in the PDF. */
+/** „Für 10 Personen“, or „Feste Mengen“ without a number; on the card and in the PDF. */
 export function personenText(gericht: { personen: number | null }): string {
-  return gericht.personen === null ? 'Personenzahl fehlt' : `Für ${gericht.personen} Personen`;
+  return gericht.personen === null ? 'Feste Mengen' : `Für ${gericht.personen} Personen`;
 }
 
 /** The meal as titled on paper: ID and name. */
@@ -170,7 +176,7 @@ export function rezeptZeilen(
       menge: mengeText(zeile.menge, zeile.einheit, zutat?.abtropfgewicht) ?? 'nach Gefühl',
       name: zutat?.name ?? 'Zutat',
       fuer: [
-        zeile.fest ? 'feste Menge' : '',
+        zeile.fest && gericht.personen !== null ? 'feste Menge' : '',
         fuerText(zeile) ?? '',
         zeile.nur.length ? `nur bei ${unvertraeglichkeitenText(zeile.nur, namen)}` : '',
         zeile.ohne.length ? `nicht bei ${unvertraeglichkeitenText(zeile.ohne, namen)}` : '',

@@ -145,6 +145,7 @@ export async function downloadPlanPdf(
       for (const gericht of mahlzeit.gerichte) {
         const zeile = [
           `${gericht.kennung} ${gericht.name}: ${zahlText(gericht.portionen)} Portionen`,
+          gericht.festeMengen && 'feste Mengen',
           gericht.zustaendig && `zuständig: ${gericht.zustaendig}`,
         ]
           .filter(Boolean)

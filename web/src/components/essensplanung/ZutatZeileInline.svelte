@@ -48,6 +48,8 @@
     onloeschen: () => Promise<boolean>;
     /** Position of the line in its dish, from 1. */
     position: number;
+    /** The dish has no number of people: all its amounts are fixed, said once above. */
+    festeMengen: boolean;
   }
   let {
     kontext,
@@ -62,6 +64,7 @@
     onverschiebe,
     onloeschen,
     position,
+    festeMengen,
   }: Props = $props();
 
   const name = $derived(zutat?.name ?? 'Zutat');
@@ -380,7 +383,7 @@
     </p>
   {/if}
   <p class="flex flex-wrap gap-x-3 text-sm text-neutral-700">
-    {#if zeile.fest}<span>feste Menge</span>{/if}
+    {#if zeile.fest && !festeMengen}<span>feste Menge</span>{/if}
     {#if fuerText(zeile)}<span>{fuerText(zeile)}</span>{/if}
     {#if zeile.nur.length}<span>nur bei {unvertraeglichkeitenText(zeile.nur, namen)}</span>{/if}
     {#if zeile.ohne.length}<span>nicht bei {unvertraeglichkeitenText(zeile.ohne, namen)}</span>{/if}

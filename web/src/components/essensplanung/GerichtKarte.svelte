@@ -5,7 +5,6 @@
   import TagInput from '../pflege/TagInput.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import GerichtKi from './GerichtKi.svelte';
-  import InfoHint from '../ui/InfoHint.svelte';
   import ProtokollText from '../protokolle/ProtokollText.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -220,17 +219,9 @@
   <section class="surface-muted space-y-3 rounded-md p-3" aria-label="Angaben zu {gericht.name}">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="space-y-1">
-        {#if gericht.personen === null}
-          <p class="flex items-center gap-1 font-semibold text-warning">
-            Personenzahl fehlt
-            <InfoHint
-              label="Personenzahl fehlt"
-              text="Mengen, die mit den Essern wachsen, zählen erst mit einer Personenzahl. Feste Mengen zählen schon."
-            />
-          </p>
-        {:else}
-          <p class="text-neutral-700">Mengen für {gericht.personen} Personen</p>
-        {/if}
+        <p class="text-neutral-700">
+          {gericht.personen === null ? 'Feste Mengen' : `Mengen für ${gericht.personen} Personen`}
+        </p>
         <GerichtPlaetze {plaetze} />
       </div>
       <div class="flex flex-wrap gap-2 print:hidden">
@@ -257,7 +248,7 @@
       <form class="space-y-3 print:hidden" onsubmit={speichern}>
         <div class="grid gap-x-6 gap-y-3 lg:grid-cols-2">
           <div class="space-y-3">
-            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
+            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
               <FormField id="gericht-{gericht.id}-name" label="Name" error={felder.name}>
                 {#snippet children(attrs)}
                   <input {...attrs} class="form-input" maxlength="150" bind:value={kopf.name} />
@@ -267,13 +258,14 @@
                 id="gericht-{gericht.id}-personen"
                 label="Personen"
                 error={felder.personen}
-                info="Für so viele Personen gelten die Mengen der Zutaten. Ohne Zahl zählen nur feste Mengen."
+                info="Für so viele Personen gelten die Mengen und wachsen mit den Essern. Leer gelten sie fest für jede Einplanung, z. B. 2 Brote fürs Frühstück."
               >
                 {#snippet children(attrs)}
                   <input
                     {...attrs}
                     class="form-input"
                     inputmode="numeric"
+                    placeholder="leer: feste Mengen"
                     bind:value={kopf.personen}
                   />
                 {/snippet}

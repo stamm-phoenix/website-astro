@@ -9,7 +9,7 @@
   import { einplanungKennung, faktorText } from '../../lib/essensplanungEinplanung';
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
   import { nachbarPlatz, type Richtung } from '../../lib/essensplanungPlan';
-  import { personenFehlen, type esserRechner } from '../../lib/essensplanungRechnung';
+  import type { esserRechner } from '../../lib/essensplanungRechnung';
   import { zahlText } from '../../lib/essensplanungTeilnehmende';
   import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
   import EinplanungAbhaken from './EinplanungAbhaken.svelte';
@@ -56,7 +56,6 @@
   const name = $derived(gerichtName(kontext.ansicht, einplanung));
   const kennung = $derived(einplanungKennung(mahlzeit, einplanung.id));
   const portionen = $derived(esser(mahlzeit, ALLE) * einplanung.faktor);
-  const fehlt = $derived(gericht ? personenFehlen(gericht) : false);
   const kalender = $derived(variante === 'kalender');
 
   let offen = $state(false);
@@ -183,14 +182,13 @@
           ? ` (${faktorText(einplanung.faktor)})`
           : ''}{einplanung.zustaendig ? ` · ${einplanung.zustaendig}` : ''}
       </span>
-      {#if einplanung.status !== 'offen' || fehlt || (gericht && !gericht.zutaten.length)}
+      {#if einplanung.status !== 'offen' || (gericht && !gericht.zutaten.length)}
         <span class="{kalender ? 'block' : ''} font-semibold">
           {#if einplanung.status === 'gekocht'}<span class="text-success">gekocht</span>
           {:else if einplanung.status === 'ausgelassen'}<span class="text-neutral-700"
               >ausgelassen</span
             >{/if}
-          {#if fehlt}<span class="text-warning">Personenzahl fehlt</span>
-          {:else if gericht && !gericht.zutaten.length}<span class="font-normal text-neutral-700"
+          {#if gericht && !gericht.zutaten.length}<span class="font-normal text-neutral-700"
               >noch ohne Zutaten</span
             >{/if}
         </span>
