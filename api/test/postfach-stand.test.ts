@@ -157,3 +157,22 @@ dbTest(
     assert.equal(done.status, 200);
   }
 );
+
+dbTest('a mark covers what the mailbox holds, even when the page names a later time', async (t) => {
+  const { context } = setup(t);
+  const done = await PostfachStatusRoute(
+    request('PUT', '/kontakt/status', KONTAKT, {
+      konversation: K2,
+      status: 'erledigt',
+      vorher: 'offen',
+      bis: '9999-12-31T00:00:00.000Z',
+    }),
+    context
+  );
+  assert.equal(done.status, 200);
+  const row = await getDb()
+    .selectFrom('postfach.erledigung')
+    .select('bis')
+    .executeTakeFirstOrThrow();
+  assert.equal(row.bis?.toISOString().slice(0, 19), iso(0.5).slice(0, 19));
+});
