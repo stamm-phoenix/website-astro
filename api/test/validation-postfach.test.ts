@@ -26,6 +26,20 @@ test('marks take a list of message ids or all at once', () => {
     nachrichten: [ID],
     gelesen: false,
   });
+  const viele = Array.from(
+    { length: 200 },
+    (_, index) => `AAkALg${String(index).padStart(6, '0')}`
+  );
+  assert.equal(
+    (validateGelesen({ nachrichten: viele, gelesen: true }) as { nachrichten: string[] })
+      .nachrichten.length,
+    200
+  );
+  assert.match(
+    fields(() => validateGelesen({ nachrichten: [...viele, 'AAkALg999999'], gelesen: true }))
+      .nachrichten,
+    /Zu viele/
+  );
   assert.match(
     fields(() => validateGelesen({ nachrichten: [], gelesen: true })).nachrichten,
     /fehlen/
