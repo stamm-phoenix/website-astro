@@ -159,3 +159,26 @@ test('a first visit shows common tasks before the overview cards and explains th
   expect(positions.common).toBeLessThan(positions.overview);
   await page.screenshot({ path: testInfo.outputPath('erster-besuch-390.png') });
 });
+
+test('common tasks remain below personal areas for returning leaders', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({
+    width: testInfo.project.name === 'mobile' ? 390 : 1536,
+    height: 960,
+  });
+  await page.route('**/api/intern/favoriten', (route) =>
+    route.fulfill({ json: { modules: ['/leitendenbereich/aufgaben'] } })
+  );
+  await page.route('**/api/intern/zuletzt', (route) =>
+    route.fulfill({ json: { modules: ['/leitendenbereich/mitglieder'] } })
+  );
+  await page.goto('/leitendenbereich');
+  const personal = page.getByRole('region', { name: 'Deine Bereiche', exact: true });
+  await expect(personal.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
+  await expect(personal.getByRole('link', { name: 'Mitglieder', exact: true })).toBeVisible();
+  const common = page.getByRole('region', { name: 'Häufige Aufgaben', exact: true });
+  await expect(common.getByRole('link', { name: /^Belege/ })).toBeVisible();
+  expect((await personal.boundingBox())!.y).toBeLessThan((await common.boundingBox())!.y);
+  await page.screenshot({ path: testInfo.outputPath('haeufige-aufgaben.png') });
+});
