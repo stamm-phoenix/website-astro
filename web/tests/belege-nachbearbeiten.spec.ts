@@ -172,3 +172,61 @@ test('without the Kasse an accepted receipt offers no photo editing', async ({ p
   await expect(dialog.getByAltText(/Foto des Belegs/)).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Foto bearbeiten', exact: true })).toHaveCount(0);
 });
+
+test('an unchanged stored photo does not hold up the transfer to CampFlow', async ({ page }) => {
+  let uploads = 0;
+  let transferred = 0;
+  await page.route('**/api/intern/pflege/belege/*/foto*', async (route) => {
+    if (route.request().method() === 'PUT') uploads++;
+    await route.fallback();
+  });
+  // Answered here, so the shared demo keeps its receipt for the other tests
+  await page.route('**/api/intern/pflege/belege/*/campflow', async (route) => {
+    transferred++;
+    await route.fulfill({
+      json: {
+        campflow: { state: 'Hochgeladen', number: '2026-120' },
+        created: true,
+        deleted: true,
+      },
+    });
+  });
+  await page.route('**/api/intern/pflege/belege/*', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    await route.fulfill({ json: { mailed: false, etag: 'gespeichert' } });
+  });
+  await page.goto('/leitendenbereich/belege');
+  await page
+    .getByRole('button', { name: /Deutsche Bahn/ })
+    .first()
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
+  const photo = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 900;
+    canvas.height = 1200;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, 900, 1200);
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), 'image/png')
+    );
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await dialog
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'beleg.png', mimeType: 'image/png', buffer: Buffer.from(photo) });
+  await dialog.getByRole('button', { name: 'Neues Foto speichern', exact: true }).click();
+  await expect(dialog.getByText('Foto ersetzt.', { exact: true })).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Foto bearbeiten', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Nach rechts drehen' }).click();
+  const reset = dialog.getByRole('button', { name: 'Auf das Originalfoto zurücksetzen' });
+  await expect(reset).toBeEnabled();
+  await reset.click();
+  await expect(reset).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(transferred).toBe(1);
+  expect(uploads).toBe(1);
+});

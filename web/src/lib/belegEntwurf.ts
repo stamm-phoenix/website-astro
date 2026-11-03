@@ -74,9 +74,14 @@ export function isEdited(draft: Draft): boolean {
   return draft.bild !== draft.original || draft.quad !== null || draft.mode !== 'original';
 }
 
+/** Whether the draft holds changes not saved yet; a stored photo opened again only once changed. */
+export function ungespeichert(draft: Draft | null): boolean {
+  return !!draft && (!draft.aufbewahrt || isEdited(draft));
+}
+
 /** Whether the draft has a photo to save: a stored photo opened again only once it was changed. */
 export function zuSpeichern(draft: Draft | null): draft is Draft {
-  return !!draft?.result && (!draft.aufbewahrt || isEdited(draft));
+  return !!draft?.result && ungespeichert(draft);
 }
 
 /** The draft rotated by `schritte`, its crop turned along. */

@@ -8,7 +8,7 @@
     type BelegForm,
   } from '../../lib/belegForm';
   import { zuordnungStand } from '../../lib/belegZuordnung';
-  import { zuSpeichern } from '../../lib/belegEntwurf';
+  import { ungespeichert, zuSpeichern } from '../../lib/belegEntwurf';
   import { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import BelegFields from './BelegFields.svelte';
   import BelegPhotoSection from './BelegPhotoSection.svelte';
@@ -364,10 +364,12 @@
   async function transfer(): Promise<void> {
     const current = form;
     if (!current?.id || photo.photoBusy) return;
-    if (photo.draft) {
+    if (photo.zuschnitt || ungespeichert(photo.draft)) {
       dialogNotice = 'Bitte zuerst das neue Foto oder PDF speichern.';
       return;
     }
+    // A stored photo opened without changes has nothing to save
+    photo.clearDraft();
     const locked = current.campflow?.state === 'Gestartet';
     if (dialog.invalid(formErrors(current, false, !locked))) return;
     const { id, shop } = current;
@@ -642,11 +644,13 @@
   title={form?.id ? `Beleg von ${form.shop || 'unbekannt'}` : 'Beleg einreichen'}
   rescueKey={form ? `beleg:${form.id ?? 'neu'}` : undefined}
   rescueVersion={form?.etag}
-  rescueWarning={photo.draft?.pdf
-    ? 'Das ausgewählte PDF wird nicht gesichert. Wähle es nach der neuen Anmeldung erneut aus.'
-    : photo.draft
-      ? 'Das ausgewählte Foto und sein Zuschnitt werden nicht gesichert. Wähle das Foto nach der neuen Anmeldung erneut aus und schneide es wieder zu.'
-      : null}
+  rescueWarning={!ungespeichert(photo.draft)
+    ? null
+    : photo.draft?.pdf
+      ? 'Das ausgewählte PDF wird nicht gesichert. Wähle es nach der neuen Anmeldung erneut aus.'
+      : photo.draft
+        ? 'Das ausgewählte Foto und sein Zuschnitt werden nicht gesichert. Wähle das Foto nach der neuen Anmeldung erneut aus und schneide es wieder zu.'
+        : null}
   busy={busy || photo.photoBusy}
   error={dialog.state.error}
   notice={dialogNotice}
@@ -657,7 +661,7 @@
     : photo.aiChecking
       ? 'Beleg wird geprüft …'
       : 'Wird hochgeladen …'}
-  dirty={photo.draft !== null}
+  dirty={!!photo.zuschnitt || ungespeichert(photo.draft)}
   onsubmit={() => save()}
   onclose={close}
   ondelete={form?.id && (reviewer || form.status !== 'Angenommen') ? remove : undefined}
