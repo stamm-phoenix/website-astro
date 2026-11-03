@@ -3,10 +3,18 @@ import { HttpRequest } from '@azure/functions';
 import * as endpoints from '../endpoints/essensplanung';
 import { EssensplanungMeineEndpoint } from '../endpoints/intern-essensplanung-meine';
 import { CONFIG } from '../lib/config';
+import { getDb } from '../lib/db';
 import { seedPreviewEssensplanung, seedPreviewEssensplanungPlanung } from '../lib/db-preview';
 import { seedPreviewEssensplanungLeitung } from '../lib/db-preview-essen-leitung';
 import type { LeitungPlanung } from '../lib/essen-leitung-model';
-import { PlanungError, einladen, ladeZugang, mitgliedAendern } from '../lib/essen-planung';
+import {
+  PlanungError,
+  einladen,
+  ladeZugang,
+  mitgliedAendern,
+  neueLinksFuerAdresse,
+  neuerLink,
+} from '../lib/essen-planung';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';
@@ -110,4 +118,31 @@ dbTest('the preview test account finds the invented Planung once', async (t) => 
     [['Sommerlager (Test)', 'bearbeiten']]
   );
   assert.equal((await ladeZugang(liste[0].token)).zugang, 'bearbeiten');
+});
+
+dbTest('a new link by mail also replaces the token of the Leitendenbereich', async (t) => {
+  const mails = captureMails(t);
+  const { token } = await anlegen(t, mails);
+  const besitzerin = await ladeZugang(token);
+
+  // „Meine Planungen“ on the start page
+  const vorher = (await planungen(BESITZERIN.email))[0].token;
+  await neueLinksFuerAdresse(BESITZERIN.email);
+  await assert.rejects(ladeZugang(vorher), ungueltig);
+  const danach = (await planungen(BESITZERIN.email))[0].token;
+  assert.notEqual(danach, vorher);
+  assert.equal((await ladeZugang(danach)).zugang, 'besitzer');
+
+  // „Neuer Link“ for a member
+  await einladen(besitzerin, { name: 'Ben', email: 'ben@stamm-phoenix.de', rolle: 'bearbeiten' });
+  const [ben] = await planungen('ben@stamm-phoenix.de');
+  // The invitation just went out; the waiting time does not matter here
+  await getDb()
+    .updateTable('essen.mitglied')
+    .set({ link_gesendet_am: null })
+    .where('email', '=', 'ben@stamm-phoenix.de')
+    .execute();
+  const neu = await neuerLink(await ladeZugang(danach), (await ladeZugang(ben.token)).mitgliedId!);
+  await assert.rejects(ladeZugang(ben.token), ungueltig);
+  assert.equal((await ladeZugang(neu.token)).zugang, 'bearbeiten');
 });
