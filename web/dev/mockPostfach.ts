@@ -165,6 +165,7 @@ const erledigungen = new Map<string, Erledigung>([
       login: 'lea.leitung@example.test',
       name: 'Lea Leitung',
       am: vor(24 * 4),
+      bis: vor(24 * 5),
     },
   ],
 ]);
@@ -300,6 +301,12 @@ export function registerPostfachRoutes(
     const eingabe = validateStatus(req.json);
     const zeile = zeilen(req.params.postfach).find((entry) => entry.id === eingabe.konversation);
     if (!zeile) return error(404, 'NOT_FOUND', 'Diese E-Mail ist nicht mehr im Postfach.');
+    if (eingabe.status !== 'offen' && zeile.am > new Date(eingabe.bis).toISOString())
+      return error(
+        409,
+        'NEUE_NACHRICHT',
+        'Seit du die Unterhaltung geöffnet hast, ist eine neue Nachricht gekommen. Nichts wurde gespeichert.'
+      );
     if (statusVon(zeile) !== eingabe.vorher)
       return error(
         409,
@@ -316,6 +323,7 @@ export function registerPostfachRoutes(
       login: ich.login,
       name: ich.name,
       am: new Date().toISOString(),
+      bis: new Date(eingabe.bis).toISOString(),
     };
     erledigungen.set(eingabe.konversation, neu);
     return json({ erledigung: neu });

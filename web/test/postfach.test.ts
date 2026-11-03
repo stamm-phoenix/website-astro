@@ -34,7 +34,13 @@ function zeile(
       ? { login, name: login, vonLogin: login, vonName: login, am: '2026-11-03T10:00:00.000Z' }
       : null,
     erledigung: status
-      ? { status, login: 'tom@x.de', name: 'Tom', am: '2026-11-03T11:00:00.000Z' }
+      ? {
+          status,
+          login: 'tom@x.de',
+          name: 'Tom',
+          am: '2026-11-03T11:00:00.000Z',
+          bis: '2026-11-03T10:00:00.000Z',
+        }
       : null,
     wiederOffen: false,
   };

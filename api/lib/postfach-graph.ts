@@ -118,6 +118,7 @@ const listMessageSchema = z.object({
 });
 
 const fullMessageSchema = listMessageSchema.extend({
+  parentFolderId: z.string().nullable().catch(null).optional(),
   toRecipients: addressList.optional(),
   ccRecipients: addressList.optional(),
   body: z.object({ contentType: text, content: text }).nullable().catch(null).optional(),
@@ -246,6 +247,28 @@ async function readAttachments(
   return readCollection(attachmentMetaSchema, response);
 }
 
+const folderSchema = z.object({ id: z.string().min(1) });
+const sentItemsCache = new Map<string, string>();
+
+/** The ID of „Gesendete Elemente“ of the mailbox, in the same ID format as `parentFolderId`. */
+async function sentItemsId(address: string): Promise<string | null> {
+  const cached = sentItemsCache.get(address);
+  if (cached) return cached;
+  // Without the folder every message counts as received: better read twice than never
+  const response = await postfachGraph
+    .get(`${mailboxPath(address)}/mailFolders/sentitems`, { $select: 'id' }, [IMMUTABLE])
+    .catch(() => null);
+  const parsed = folderSchema.safeParse(response);
+  if (!parsed.success) return null;
+  sentItemsCache.set(address, parsed.data.id);
+  return parsed.data.id;
+}
+
+/** For the tests. */
+export function resetSentItemsCache(): void {
+  sentItemsCache.clear();
+}
+
 /**
  * All messages of a conversation in the mailbox, in every folder (so answers from Sent Items
  * show), oldest first. `gelesen` is filled in by the caller.
@@ -262,7 +285,7 @@ export async function readKonversation(
       path,
       {
         $filter: `conversationId eq '${konversationId.replaceAll("'", "''")}'`,
-        $select: `${LIST_SELECT},toRecipients,ccRecipients,body`,
+        $select: `${LIST_SELECT},parentFolderId,toRecipients,ccRecipients,body`,
         $top: String(KONVERSATION_SEITE),
       },
       prefer
@@ -277,7 +300,7 @@ export async function readKonversation(
     const messages = gelesen
       .filter((message) => !message.isDraft && message.conversationId === konversationId)
       .sort((a, b) => a.receivedDateTime.localeCompare(b.receivedDateTime));
-    const own = address.toLowerCase();
+    const gesendetOrdner = await sentItemsId(address);
     const nachrichten = await Promise.all(
       messages.map(async (message) => {
         const base = toInbox(message);
@@ -312,7 +335,8 @@ export async function readKonversation(
               typ: isFileAttachment(entry) ? entry.contentType : 'message/rfc822',
               herunterladbar: isFileAttachment(entry) && entry.size <= ANHANG_MAX,
             })),
-          gesendet: base.von.adresse.toLowerCase() === own,
+          // By the folder, not the sender: the forms send from the mailbox to itself
+          gesendet: gesendetOrdner !== null && message.parentFolderId === gesendetOrdner,
         };
       })
     );

@@ -342,3 +342,78 @@ test('opening a mail with the keyboard moves the focus to its subject', async ({
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Frage zum Nikolausdienst' })).toBeFocused();
 });
+
+test('a late status answer of a mailbox that was left keeps the new mailbox on screen', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'switches through the sidebar of the desktop');
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('link', { name: /Newsletter Diözesanverband/ }).click();
+  const mail = page.getByRole('article', { name: 'Newsletter Diözesanverband' });
+  const stand = mail.getByRole('group', { name: 'Stand' });
+  await expect(stand).toBeVisible();
+  const ziel =
+    (await stand.getByRole('button', { name: 'Erledigt' }).getAttribute('aria-pressed')) === 'true'
+      ? 'Offen'
+      : 'Erledigt';
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let answered: () => void = () => undefined;
+  const answer = new Promise<void>((resolve) => (answered = resolve));
+  await page.route('**/api/intern/postfach/kontakt/status', async (route) => {
+    await held;
+    await route.continue();
+    answered();
+  });
+  // The list of the Vorstand is still on its way when the late answer arrives
+  let releaseVorstand: () => void = () => undefined;
+  const heldVorstand = new Promise<void>((resolve) => (releaseVorstand = resolve));
+  await page.route(/\/api\/intern\/postfach\/vorstand$/, async (route) => {
+    await heldVorstand;
+    await route.continue();
+  });
+  await stand.getByRole('button', { name: ziel }).click();
+  await page
+    .getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' })
+    .getByRole('link', { name: 'Vorstand-Postfach' })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Vorstand-Postfach', level: 1 })).toBeVisible();
+  const statusAntwort = page.waitForResponse('**/api/intern/postfach/kontakt/status');
+  release();
+  await answer;
+  await statusAntwort;
+  await page.waitForTimeout(300);
+  releaseVorstand();
+  await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
+});
+
+test('marking done after a newer message arrived says so and saves nothing', async ({ page }) => {
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('link', { name: /Frage zum Nikolausdienst/ }).click();
+  const mail = page.getByRole('article', { name: 'Frage zum Nikolausdienst' });
+  const stand = mail.getByRole('group', { name: 'Stand' });
+  await expect(stand).toBeVisible();
+  if (
+    (await stand.getByRole('button', { name: 'Offen' }).getAttribute('aria-pressed')) !== 'true'
+  ) {
+    await stand.getByRole('button', { name: 'Offen' }).click();
+    await expect(mail.getByText('Wieder als offen markiert.')).toBeVisible();
+  }
+  // As if the page still showed an older state of the conversation
+  await page.route('**/api/intern/postfach/kontakt/status', async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    await route.continue({
+      postData: JSON.stringify({ ...body, bis: '2020-01-01T00:00:00.000Z' }),
+    });
+  });
+  await stand.getByRole('button', { name: 'Erledigt' }).click();
+  await expect(mail.getByText(/ist eine neue Nachricht gekommen/)).toBeVisible();
+  await expect(stand.getByRole('button', { name: 'Offen' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+});

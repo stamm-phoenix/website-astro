@@ -1,7 +1,11 @@
 import { METHOD_NOT_ALLOWED, NO_STORE_HEADERS, ok, readJsonBody } from '../lib/pflege-api';
 import { errorResponse } from '../lib/response-utils';
 import { eigenerLogin, ladePersonen } from '../lib/postfach';
-import { ErledigungKonfliktError, setzeErledigung } from '../lib/postfach-erledigung';
+import {
+  ErledigungKonfliktError,
+  NeueNachrichtError,
+  setzeErledigung,
+} from '../lib/postfach-erledigung';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { validateStatus } from '../lib/validation/postfach';
 import { postfachRoute, zeileFuer } from './intern-postfach';
@@ -26,7 +30,8 @@ const STATUS_NAMEN = {
 export const PostfachStatusRoute = postfachRoute(async (request, postfach, principal, context) => {
   if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const eingabe = validateStatus(await readJsonBody(request));
-  const zeile = await zeileFuer(postfach, principal, eingabe.konversation);
+  // Fresh from the mailbox, so a message that just arrived is not closed unseen
+  const zeile = await zeileFuer(postfach, principal, eingabe.konversation, true);
   if (!zeile) return KONVERSATION_FEHLT;
   const ich = eigenerLogin(principal);
   const personen = await ladePersonen(postfach).catch(() => []);
@@ -40,6 +45,7 @@ export const PostfachStatusRoute = postfachRoute(async (request, postfach, princ
       eingabe.konversation,
       eingabe.status,
       eingabe.vorher,
+      new Date(eingabe.bis).toISOString(),
       zeile.am,
       von,
       zeile.betreff
@@ -47,6 +53,18 @@ export const PostfachStatusRoute = postfachRoute(async (request, postfach, princ
     context.log(`[postfach] ${ich} ${postfach.id} Stand: ${eingabe.status}`);
     return ok({ erledigung });
   } catch (error: unknown) {
+    if (error instanceof NeueNachrichtError) {
+      return {
+        status: 409,
+        headers: NO_STORE_HEADERS,
+        jsonBody: {
+          error: 'CONFLICT',
+          code: 'NEUE_NACHRICHT',
+          message:
+            'Seit du die Unterhaltung geöffnet hast, ist eine neue Nachricht gekommen. Nichts wurde gespeichert. Lies sie und markiere dann noch einmal.',
+        },
+      };
+    }
     if (!(error instanceof ErledigungKonfliktError)) throw error;
     const jetzt = error.aktuell
       ? `${error.aktuell.name} hat sie inzwischen als ${STATUS_NAMEN[error.aktuell.status]} markiert`

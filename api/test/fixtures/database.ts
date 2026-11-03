@@ -80,6 +80,10 @@ function useTestDatabase(): void {
  */
 export async function resetDatabase(): Promise<void> {
   await sql`
+    DELETE FROM postfach.zustaendigkeit;
+    DELETE FROM postfach.erledigung;
+    DELETE FROM postfach.gelesen;
+    DELETE FROM postfach.leser;
     DELETE FROM nikolaus.assignment;
     DELETE FROM nikolaus.dispo_visit;
     DELETE FROM nikolaus.helper_availability;

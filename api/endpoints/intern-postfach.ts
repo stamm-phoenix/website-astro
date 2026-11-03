@@ -152,9 +152,10 @@ export const PostfachPersonenRoute = postfachRoute(async (request, postfach) => 
 export async function zeileFuer(
   postfach: PostfachEintrag,
   principal: ClientPrincipal,
-  konversation: string
+  konversation: string,
+  frisch = false
 ): Promise<KonversationZeile | null> {
-  const nachrichten = (await inbox(postfach.address)).filter(
+  const nachrichten = (await inbox(postfach.address, frisch)).filter(
     (nachricht) => nachricht.konversation === konversation
   );
   if (nachrichten.length) {

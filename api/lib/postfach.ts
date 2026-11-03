@@ -6,7 +6,7 @@ import {
   POSTFAECHER,
   type PostfachEintrag,
 } from './postfach-liste';
-import { readInbox, readKonversation, readRestId } from './postfach-graph';
+import { readInbox, readKonversation, readRestId, resetSentItemsCache } from './postfach-graph';
 import {
   fuerMich,
   istGelesen,
@@ -74,6 +74,7 @@ export async function inbox(address: string, frisch = false): Promise<InboxNachr
 
 /** For the tests. */
 export function resetPostfachCaches(): void {
+  resetSentItemsCache();
   inboxCache.clear();
   personenCache.clear();
 }

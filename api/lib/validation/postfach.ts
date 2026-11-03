@@ -81,9 +81,16 @@ export function validateStatus(value: unknown): {
   konversation: string;
   status: PostfachStatus;
   vorher: PostfachStatus;
+  /** Received time of the newest message the page showed. */
+  bis: string;
 } {
   return parseWith(
-    lenientObject({ konversation: konversationId, status: statusSchema, vorher: statusSchema }),
+    lenientObject({
+      konversation: konversationId,
+      status: statusSchema,
+      vorher: statusSchema,
+      bis: z.iso.datetime({ offset: true, error: `Der Stand ist ungültig. ${RELOAD}` }),
+    }),
     value
   );
 }
