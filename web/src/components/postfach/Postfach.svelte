@@ -39,6 +39,8 @@
 
   let filter = $state<PostfachFilter>('alle');
   let aktiv = $state<string | null>(null);
+  /** Counts „Neu laden“, so the open conversation is read again too. */
+  let neuladen = $state(0);
   let busy = $state(false);
   let meldung = $state<string | null>(null);
   let fehler = $state<string | null>(null);
@@ -99,6 +101,7 @@
     fehler = null;
     try {
       await neuLaden(postfach);
+      neuladen++;
       meldung = 'Neu geladen.';
     } catch (error: unknown) {
       fehler = errorMessage(
@@ -185,6 +188,7 @@
             {postfach}
             outlookPostfach={outlook}
             konversation={aktiv}
+            {neuladen}
             {ich}
             onzurueck={zurListe}
             onkonflikt={() => void postfachListe.load({ param: postfach, force: true })}
