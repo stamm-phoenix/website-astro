@@ -25,24 +25,17 @@
     postfach: string;
     zeilen: KonversationZeile[];
     ich: string;
-    /** After a run, with the conversations that could not be saved (they stay chosen). */
+    /** True while saving; the list keeps the choice as it is meanwhile. */
+    busy?: boolean;
+    /**
+     * After a run, with the conversations that stay chosen: those that could not be saved, or
+     * all of them when the answer did not come.
+     */
     onfertig: (offenGeblieben: string[]) => void;
     onaufheben: () => void;
   }
+  let { postfach, zeilen, ich, busy = $bindable(false), onfertig, onaufheben }: Props = $props();
 
-  // A new choice starts without the result of the last one
-  let vorige = 0;
-  $effect.pre(() => {
-    const jetzt = zeilen.length;
-    if (vorige === 0 && jetzt > 0 && !busy) {
-      meldung = null;
-      fehler = [];
-    }
-    vorige = jetzt;
-  });
-  let { postfach, zeilen, ich, onfertig, onaufheben }: Props = $props();
-
-  let busy = $state(false);
   let meldung = $state<string | null>(null);
   let fehler = $state<string[]>([]);
   let auswahl = $state(false);
@@ -53,24 +46,48 @@
   const anzahl = $derived(zeilen.length);
   const wort = (n: number): string => (n === 1 ? 'E-Mail' : 'E-Mails');
 
-  function betreff(id: string): string {
-    return zeilen.find((zeile) => zeile.id === id)?.betreff ?? 'E-Mail';
+  // A new choice starts without the result of the last one
+  let vorige = 0;
+  $effect.pre(() => {
+    const jetzt = zeilen.length;
+    if (vorige === 0 && jetzt > 0) {
+      meldung = null;
+      fehler = [];
+    }
+    vorige = jetzt;
+  });
+
+  interface Fehlschlag {
+    id: string;
+    grund: string;
   }
 
-  function abschliessen(erfolg: string, fehlgeschlagen: { id: string; grund: string }[]): void {
+  /** Starts a run on the choice as it is now; the result counts exactly these. */
+  function beginnen(): KonversationZeile[] {
+    busy = true;
+    meldung = null;
+    fehler = [];
+    return [...zeilen];
+  }
+
+  function abschliessen(
+    lauf: readonly KonversationZeile[],
+    erfolg: string,
+    fehlgeschlagen: Fehlschlag[]
+  ): void {
+    const betreff = (id: string): string =>
+      lauf.find((zeile) => zeile.id === id)?.betreff ?? 'E-Mail';
     meldung = erfolg;
     fehler = fehlgeschlagen.map((eintrag) => `„${betreff(eintrag.id)}“: ${eintrag.grund}`);
+    busy = false;
     onfertig(fehlgeschlagen.map((eintrag) => eintrag.id));
   }
 
   async function stand(neu: PostfachStatus): Promise<void> {
-    busy = true;
-    meldung = null;
-    fehler = [];
+    const lauf = beginnen();
     // Those already in this state need nothing; the others are saved one after the other
-    const zuAendern = zeilen.filter((zeile) => statusVon(zeile) !== neu);
-    const fehlgeschlagen: { id: string; grund: string }[] = [];
-    for (const zeile of zuAendern) {
+    const fehlgeschlagen: Fehlschlag[] = [];
+    for (const zeile of lauf.filter((eintrag) => statusVon(eintrag) !== neu)) {
       try {
         await setzeStatus(postfach, zeile.id, neu, statusVon(zeile), zeile.am);
       } catch (error: unknown) {
@@ -80,7 +97,7 @@
         });
       }
     }
-    const geschafft = zeilen.length - fehlgeschlagen.length;
+    const geschafft = lauf.length - fehlgeschlagen.length;
     const ziel =
       neu === 'offen'
         ? 'wieder als offen'
@@ -88,23 +105,21 @@
           ? 'als erledigt'
           : `als „${STATUS_LABEL.kein_handlungsbedarf}“`;
     abschliessen(
+      lauf,
       fehlgeschlagen.length
-        ? `${geschafft} von ${zeilen.length} ${wort(zeilen.length)} ${ziel} markiert.`
+        ? `${geschafft} von ${lauf.length} ${wort(lauf.length)} ${ziel} markiert.`
         : `${geschafft} ${wort(geschafft)} ${ziel} markiert.`,
       fehlgeschlagen
     );
-    busy = false;
   }
 
   async function zuweisen(person: PostfachPerson | null): Promise<void> {
-    busy = true;
-    meldung = null;
-    fehler = [];
+    const lauf = beginnen();
     try {
       const { ergebnisse, benachrichtigt } = await setzeZustaendigMehrere(
         postfach,
         person?.login ?? null,
-        zeilen
+        lauf
       );
       const fehlgeschlagen = ergebnisse
         .filter((ergebnis) => !ergebnis.ok)
@@ -117,6 +132,7 @@
       auswahl = false;
       query = '';
       abschliessen(
+        lauf,
         !person
           ? `Zuständigkeit für ${teil} ${wort(ergebnisse.length)} entfernt.`
           : person.login === ich
@@ -131,14 +147,15 @@
         fehlgeschlagen
       );
     } catch (error: unknown) {
+      // Without an answer nobody knows what was saved: the list is read again and shows it
+      busy = false;
       fehler = [
         errorMessage(
           error,
-          'Die Zuständigkeit konnte nicht gespeichert werden. Nichts wurde geändert. Prüfe deine Internetverbindung und versuche es noch einmal.'
+          'Die Zuständigkeit konnte nicht gespeichert werden. Die Liste zeigt, was jetzt gilt. Prüfe deine Internetverbindung und versuche es noch einmal.'
         ),
       ];
-    } finally {
-      busy = false;
+      onfertig(lauf.map((zeile) => zeile.id));
     }
   }
 
@@ -166,7 +183,8 @@
         <p class="font-semibold text-brand-900" role="status">{anzahl} {wort(anzahl)} ausgewählt</p>
         <button
           type="button"
-          class="text-link min-h-11 text-sm underline underline-offset-4"
+          class="text-link min-h-11 text-sm underline underline-offset-4 disabled:opacity-60"
+          disabled={busy}
           onclick={onaufheben}>Auswahl aufheben</button
         >
       </div>

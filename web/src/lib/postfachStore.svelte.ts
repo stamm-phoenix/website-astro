@@ -175,7 +175,8 @@ export async function setzeStatus(
 export interface MehrfachErgebnis {
   konversation: string;
   ok: boolean;
-  zustaendig: Zustaendigkeit | null;
+  /** Missing when the API does not know what applies now; the list is read again then. */
+  zustaendig?: Zustaendigkeit | null;
   fehler?: string;
 }
 
@@ -199,8 +200,11 @@ export async function setzeZustaendigMehrere(
       })),
     }
   );
-  for (const ergebnis of result.ergebnisse)
+  for (const ergebnis of result.ergebnisse) {
+    // Unknown after an unexpected error: the list is read again instead
+    if (ergebnis.zustaendig === undefined) continue;
     aendereZeile(postfach, ergebnis.konversation, { zustaendig: ergebnis.zustaendig });
+  }
   return result;
 }
 

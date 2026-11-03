@@ -91,3 +91,29 @@ test('several mails are handed to one person at once', async ({ page }) => {
   await liste.getByRole('button', { name: /^Alle/ }).click();
   await zuruecksetzen(page);
 });
+
+test('while the chosen ones are saved, the choice stays as it is and the result counts them', async ({
+  page,
+}) => {
+  const liste = await oeffnen(page);
+  await zuruecksetzen(page);
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/postfach/kontakt/status', async (route) => {
+    await held;
+    await route.continue();
+  });
+  await liste.getByRole('checkbox', { name: NEWSLETTER }).check();
+  const aktionen = liste.getByRole('region', { name: 'Aktionen für die Auswahl' });
+  await aktionen.getByRole('button', { name: 'Als erledigt markieren' }).click();
+  await expect(aktionen.getByText('Wird gespeichert …')).toBeVisible();
+  // Nothing can be added or taken away before the answer is there
+  await expect(liste.getByRole('checkbox', { name: RECHNUNG })).toBeDisabled();
+  await expect(liste.getByRole('checkbox', { name: /^Alle \d+ auswählen/ })).toBeDisabled();
+  release();
+  await expect(aktionen.getByText('1 E-Mail als erledigt markiert.')).toBeVisible();
+  await expect(liste.getByRole('link', { name: RECHNUNG })).toContainText('Offen');
+  await expect(liste.getByRole('checkbox', { name: RECHNUNG })).toBeEnabled();
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await zuruecksetzen(page);
+});

@@ -18,9 +18,12 @@
     onoeffnen: (id: string) => void;
     /** The chosen conversations. */
     ausgewaehlt: ReadonlySet<string>;
+    /** While the chosen ones are saved. */
+    auswahlGesperrt: boolean;
     onwaehle: (id: string, gewaehlt: boolean) => void;
   }
-  let { zeilen, ich, aktiv, leer, onoeffnen, ausgewaehlt, onwaehle }: Props = $props();
+  let { zeilen, ich, aktiv, leer, onoeffnen, ausgewaehlt, auswahlGesperrt, onwaehle }: Props =
+    $props();
 
   function klick(event: MouseEvent, id: string): void {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
@@ -47,6 +50,7 @@
             type="checkbox"
             class="size-5 cursor-pointer accent-brand-900"
             checked={gewaehlt}
+            disabled={auswahlGesperrt}
             onchange={(event) => onwaehle(zeile.id, event.currentTarget.checked)}
           />
           <span class="sr-only">„{zeile.betreff}“ von {zeile.von.name} auswählen</span>
