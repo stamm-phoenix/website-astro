@@ -59,7 +59,11 @@
         antwort = await kontext.api.senden<Antwort>('POST', '/mitglieder', gesendet);
         return antwort;
       } catch (error: unknown) {
-        if (felderZeigen && error instanceof ApiError && error.fields) felder = error.fields;
+        if (error instanceof ApiError && error.fields) {
+          if (felderZeigen) felder = error.fields;
+          // From the list of Leitende there is no field to show it at, so the reason is the message
+          else throw new ApiError(error.status, Object.values(error.fields).join(' '));
+        }
         throw error;
       }
     });

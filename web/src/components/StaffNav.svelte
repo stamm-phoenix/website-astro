@@ -386,7 +386,7 @@
 </script>
 
 {#snippet moduleTitle(module: StaffModule)}
-  {#each (module.wrap ?? module.title).split('|') as part, index (index)}{#if index > 0}<wbr
+  {#each (module.shortcut ?? module.wrap ?? module.title).split('|') as part, index (index)}{#if index > 0}<wbr
       />{/if}{part}{/each}
 {/snippet}
 

@@ -567,7 +567,9 @@ async function zaehleMitglieder(trx: Db, planungId: number): Promise<number> {
 }
 
 const ZU_VIELE_MITGLIEDER = () =>
-  new ValidationError({ name: `Eine Planung hat höchstens ${MAX_MITGLIEDER} Mitglieder.` });
+  new ValidationError({
+    name: `Eine Planung hat höchstens ${MAX_MITGLIEDER} Mitglieder. Entziehe zuerst jemandem den Zugang, der nicht mehr mitplant.`,
+  });
 
 /** Invites someone by mail; returns the new member's token for the invitation. */
 export async function einladen(zugang: Zugang, input: EinladungInput): Promise<LinkFuerMail> {
