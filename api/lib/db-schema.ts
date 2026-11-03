@@ -5,6 +5,11 @@ import type { GerichtEinheit } from './essen-gerichte-model';
 import type { AnwesenheitStufeName } from './anwesenheit-model';
 import type { InventarArtikelTable, InventarVarianteTable } from './db-schema-inventur';
 import type { SchnupperAnfrageTable } from './db-schema-schnupper';
+import type {
+  PostfachGelesenTable,
+  PostfachLeserTable,
+  PostfachZustaendigkeitTable,
+} from './db-schema-postfach';
 import type { SammelShop } from './sammelbestellung-shops';
 import type { SammelStatus } from './sammelbestellung-model';
 import type { SammelPaymentEvent, SammelPaymentOperation } from './sammelbestellung-payment-model';
@@ -83,6 +88,9 @@ export interface Database {
   'organisation.inventar_artikel': InventarArtikelTable;
   'organisation.inventar_variante': InventarVarianteTable;
   'organisation.schnupper_anfrage': SchnupperAnfrageTable;
+  'postfach.zustaendigkeit': PostfachZustaendigkeitTable;
+  'postfach.gelesen': PostfachGelesenTable;
+  'postfach.leser': PostfachLeserTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
   'organisation.aktion_keine_aktion': AktionKeineAktionTable;
   'organisation.staff_changelog_seen': StaffChangelogSeenTable;

@@ -1,0 +1,124 @@
+import { fetchApi, sendApi } from './api';
+import { createResource } from './pflegeStore.svelte';
+import type {
+  KonversationDetail,
+  KonversationZeile,
+  PostfachAnsicht,
+  PostfachPerson,
+  PostfachStart,
+  Zustaendigkeit,
+} from '../../../api/lib/postfach-model';
+
+/** The mailboxes of the person and what is waiting for them, for the start page. */
+export const postfachStart = createResource<PostfachStart>('/intern/postfach', {
+  loadError:
+    'Die E-Mails konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.',
+});
+
+/** The list of one mailbox; `param` is its ID. */
+export const postfachListe = createResource<PostfachAnsicht, string>(
+  (id) => `/intern/postfach/${encodeURIComponent(id)}`,
+  {
+    idle: true,
+    loadError:
+      'Die E-Mails konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
+  }
+);
+
+export function ladeKonversation(
+  postfach: string,
+  konversation: string,
+  signal?: AbortSignal
+): Promise<KonversationDetail> {
+  return fetchApi<KonversationDetail>(
+    `/intern/postfach/${encodeURIComponent(postfach)}/konversation?id=${encodeURIComponent(konversation)}`,
+    signal
+  );
+}
+
+/** Reads the list of the mailbox again, bypassing the cache of the API. */
+export async function neuLaden(postfach: string): Promise<void> {
+  const data = await fetchApi<PostfachAnsicht>(
+    `/intern/postfach/${encodeURIComponent(postfach)}?frisch=1`
+  );
+  postfachListe.set(data);
+}
+
+/** Changes a line of the loaded list in place, e.g. after a mark or an assignment. */
+export function aendereZeile(id: string, change: Partial<KonversationZeile>): void {
+  const data = postfachListe.state.data;
+  if (!data) return;
+  postfachListe.set({
+    ...data,
+    konversationen: data.konversationen.map((zeile) =>
+      zeile.id === id ? { ...zeile, ...change } : zeile
+    ),
+  });
+  postfachStart.invalidate();
+}
+
+export async function markiere(
+  postfach: string,
+  nachrichten: string[],
+  gelesen: boolean
+): Promise<void> {
+  await sendApi('POST', `/intern/postfach/${encodeURIComponent(postfach)}/gelesen`, {
+    nachrichten,
+    gelesen,
+  });
+  postfachStart.invalidate();
+}
+
+export async function alleGelesen(postfach: string): Promise<void> {
+  await sendApi('POST', `/intern/postfach/${encodeURIComponent(postfach)}/gelesen`, {
+    alle: true,
+  });
+  const data = postfachListe.state.data;
+  if (data?.postfach.id === postfach) {
+    postfachListe.set({
+      ...data,
+      konversationen: data.konversationen.map((zeile) => ({ ...zeile, ungelesen: 0 })),
+    });
+  }
+  postfachStart.invalidate();
+}
+
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a cache, never rendered
+const personen = new Map<string, Promise<PostfachPerson[]>>();
+
+/** Who can be made responsible; loaded once per page. */
+export function ladePersonen(postfach: string): Promise<PostfachPerson[]> {
+  let promise = personen.get(postfach);
+  if (!promise) {
+    promise = fetchApi<{ personen: PostfachPerson[] }>(
+      `/intern/postfach/${encodeURIComponent(postfach)}/personen`
+    ).then((data) => data.personen);
+    personen.set(postfach, promise);
+    promise.catch(() => personen.delete(postfach));
+  }
+  return promise;
+}
+
+export interface ZuweisungErgebnis {
+  zustaendig: Zustaendigkeit | null;
+  benachrichtigt: boolean;
+}
+
+export async function setzeZustaendig(
+  postfach: string,
+  konversation: string,
+  login: string | null,
+  vorher: string | null
+): Promise<ZuweisungErgebnis> {
+  const result = await sendApi<ZuweisungErgebnis>(
+    'PUT',
+    `/intern/postfach/${encodeURIComponent(postfach)}/zustaendig`,
+    { konversation, login, vorher }
+  );
+  aendereZeile(konversation, { zustaendig: result.zustaendig });
+  return result;
+}
+
+export function anhangUrl(postfach: string, nachricht: string, anhang: string): string {
+  return `/api/intern/postfach/${encodeURIComponent(postfach)}/anhang?nachricht=${encodeURIComponent(nachricht)}&anhang=${encodeURIComponent(anhang)}`;
+}

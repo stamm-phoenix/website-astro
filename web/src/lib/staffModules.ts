@@ -1,3 +1,5 @@
+import { POSTFACH_MODULES } from './postfaecher';
+
 /** A page of the Leitendenbereich. `StaffLayout.astro` builds its title, header and breadcrumb from it. */
 export interface StaffPage {
   href: string;
@@ -43,6 +45,7 @@ export interface StaffModule extends StaffPage {
 export const CHANGELOG_PATH = '/leitendenbereich/neuigkeiten';
 
 export const STAFF_MODULES: StaffModule[] = [
+  ...POSTFACH_MODULES,
   {
     href: '/leitendenbereich/aufgaben',
     title: 'Aufgaben',
@@ -485,6 +488,11 @@ const byPath = (...paths: string[]): StaffModule[] =>
  * section „Nikolausdienst“ is rendered by `NikolausStaffSection.svelte`.
  */
 export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffModule[] }[] = [
+  {
+    id: 'email',
+    title: 'E-Mail',
+    modules: POSTFACH_MODULES,
+  },
   {
     id: 'leitendenrunde',
     title: 'Leitendenrunde',
