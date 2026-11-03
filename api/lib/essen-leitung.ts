@@ -16,6 +16,15 @@ import { istStammAdresse } from './essen-leitung-model';
  */
 
 /**
+ * Invalidates the member's token of the Leitendenbereich, together with every new link or the
+ * withdrawal: a link that got out must stop working completely. The next visit of the overview
+ * creates a new one.
+ */
+export async function leitungLinkVergessen(db: Db, mitgliedId: number): Promise<void> {
+  await db.deleteFrom('essen.leitung_link').where('mitglied_id', '=', mitgliedId).execute();
+}
+
+/**
  * The member the token of a Leitende:r stands for, if it is one and access was not withdrawn.
  * `ladeZugang` asks this after the personal links and before the read-only link.
  */

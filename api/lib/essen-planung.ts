@@ -51,7 +51,7 @@ import { ladeEinkaeufe } from './essen-einkaeufe';
 import { ladePackliste } from './essen-packliste';
 import { belegOrdnerAufraeumen, ladeBelege } from './essen-belege';
 import { pruefeAnwesenheit, verschiebeGrenzen } from './essen-teilnehmende-grenzen';
-import { leitungMitglied } from './essen-leitung';
+import { leitungLinkVergessen, leitungMitglied } from './essen-leitung';
 import { ValidationError } from './validation/errors';
 
 /**
@@ -596,6 +596,7 @@ export async function neueLinksFuerAdresse(email: string): Promise<LinkFuerMail[
         .where('token_hash', '=', row.token_hash!)
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) continue;
+      await leitungLinkVergessen(trx, row.id);
       links.push({
         mitgliedId: row.id,
         name: row.name,
@@ -724,6 +725,7 @@ export async function neuerLink(zugang: Zugang, mitgliedId: number): Promise<Lin
         .executeTakeFirst();
       // „Meine Planungen“ renewed it at the same moment
       if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
+      await leitungLinkVergessen(trx, mitgliedId);
       return {
         result: {
           mitgliedId,
@@ -849,7 +851,7 @@ export async function mitgliedAendern(
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
       if ('entziehen' in aenderung) {
-        await trx.deleteFrom('essen.leitung_link').where('mitglied_id', '=', mitgliedId).execute();
+        await leitungLinkVergessen(trx, mitgliedId);
       }
       return {
         result: undefined,
