@@ -143,6 +143,14 @@ export interface ApiConfig {
     hourlyLimit: number;
     dailyLimit: number;
   };
+  /** Schnupperstunden-Anfragen of /mitmachen (#139); the mails go out from `kontakt.mailbox`. */
+  schnupper: {
+    /** Requests per hour and day over all Function instances, counted in the database. */
+    hourlyLimit: number;
+    dailyLimit: number;
+    /** Days a request is kept: open ones after arrival, confirmed ones after the date, cancelled ones after the answer. */
+    retention: { openDays: number; confirmedDays: number; cancelledDays: number };
+  };
   /** „Problem melden“: Meldungen der Besuchenden, KI-Sichtung und GitHub (docs/problemmeldungen.md). */
   problemmeldung: {
     /** Reports per hour and day over all Function instances, counted in the database. */
@@ -388,6 +396,11 @@ export const CONFIG: ApiConfig = {
     mailbox: 'kontakt@stamm-phoenix.de',
     hourlyLimit: 20,
     dailyLimit: 100,
+  },
+  schnupper: {
+    hourlyLimit: 20,
+    dailyLimit: 60,
+    retention: { openDays: 180, confirmedDays: 60, cancelledDays: 60 },
   },
   problemmeldung: {
     hourlyLimit: 20,

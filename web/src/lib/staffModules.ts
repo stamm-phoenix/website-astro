@@ -151,6 +151,17 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M9 4h6v3H9zM9 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3M9 14l2 2 4-4',
   },
   {
+    href: '/leitendenbereich/schnupperanfragen',
+    title: 'Schnupperanfragen',
+    wrap: 'Schnupper|anfragen',
+    description:
+      'Anfragen von Familien für eine Schnupperstunde ansehen, einen Termin bestätigen oder absagen.',
+    intro:
+      'Familien fragen auf der Seite „Mitmachen“ eine Schnupperstunde an. Bestätigst du einen Termin oder sagst ab, bekommt die Familie sofort eine E-Mail mit dem neuen Stand. Offene Anfragen werden nach 180 Tagen gelöscht, bestätigte 60 Tage nach dem Termin und abgesagte 60 Tage nach der Absage.',
+    keywords: ['schnuppern', 'schnupperstunde', 'probestunde', 'anfrage', 'neue kinder', 'termin'],
+    icon: 'M8 7V3M16 7V3M4 11h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 16l2 2 4-4',
+  },
+  {
     href: '/leitendenbereich/mitglieder',
     title: 'Mitglieder',
     description: 'Die Mitglieder aus CampFlow nach Gruppen ansehen und ihre Angaben nachschlagen.',
@@ -450,6 +461,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
     modules: byPath(
       'anwesenheit',
       'mitglieder',
+      'schnupperanfragen',
       'aktionen',
       'fahrten',
       'fotos',

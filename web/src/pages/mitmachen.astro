@@ -7,9 +7,9 @@ import Card from '../components/Card.astro';
 import Heading from '../components/Heading.astro';
 import Text from '../components/Text.astro';
 import TextLink from '../components/TextLink.astro';
-import Button from '../components/Button.astro';
 import CardGrid from '../components/CardGrid.astro';
 import MembershipApplication from '../components/MembershipApplication.astro';
+import SchnupperAnfrageForm from '../components/SchnupperAnfrageForm.svelte';
 ---
 
 <BaseLayout
@@ -23,23 +23,23 @@ import MembershipApplication from '../components/MembershipApplication.astro';
     description="So kommst du zu uns: als Mitglied oder als Gruppenleiter."
   />
 
-  <!-- Schnupperstunde CTA -->
-  <Card class="mt-6 border-l-4 border-l-accent-500">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-      <div>
-        <Heading level={2} variant="card">
-          Erst mal reinschnuppern?
-        </Heading>
-        <Text class="mt-1">
-          Komm zu einer kostenlosen <strong>Schnupperstunde</strong>. Schreib uns kurz das Alter
-          oder die gewünschte Stufe.
-        </Text>
-      </div>
-      <Button href="/kontakt?thema=gruppenstunden#kontaktformular" variant="cta">
-        Nachricht schreiben
-      </Button>
-    </div>
-  </Card>
+  <section aria-labelledby="schnupperstunde" class="mt-6">
+    <Card class="border-l-4 border-l-accent-500">
+      <Heading level={2} variant="card" id="schnupperstunde">
+        Schnupperstunde anfragen
+      </Heading>
+      <Text class="mt-1 mb-5">
+        Komm zu einer kostenlosen <strong>Schnupperstunde</strong>. Sag uns Alter und Wunschzeit,
+        dann schicken wir dir einen Termin.
+      </Text>
+      <SchnupperAnfrageForm client:only="svelte">
+        <p slot="fallback" class="text-sm text-neutral-700">
+          Ohne JavaScript funktioniert das Formular nicht. Schreib uns stattdessen an{' '}
+          <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>.
+        </p>
+      </SchnupperAnfrageForm>
+    </Card>
+  </section>
 
   <!-- Two paths: Members and Leaders -->
   <CardGrid class="mt-8">

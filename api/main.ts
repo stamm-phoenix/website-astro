@@ -12,6 +12,7 @@ import {
 } from './endpoints/intern-pflege-aufgaben';
 import { app } from '@azure/functions';
 import './endpoints/ics-routes';
+import './endpoints/schnupper-routes';
 import { AbstimmungAbstimmen, AbstimmungAnsehen } from './endpoints/abstimmungen';
 import {
   AbstimmungEinladung,
