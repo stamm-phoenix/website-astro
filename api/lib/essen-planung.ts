@@ -51,6 +51,7 @@ import { ladeEinkaeufe } from './essen-einkaeufe';
 import { ladePackliste } from './essen-packliste';
 import { belegOrdnerAufraeumen, ladeBelege } from './essen-belege';
 import { pruefeAnwesenheit, verschiebeGrenzen } from './essen-teilnehmende-grenzen';
+import { leitungMitglied } from './essen-leitung';
 import { ValidationError } from './validation/errors';
 
 /**
@@ -117,7 +118,10 @@ export interface Zugang {
   name: string;
 }
 
-/** The access a token gives: a member's own link, or the shared read-only link. */
+/**
+ * The access a token gives: a member's own link (from a mail or, for Leitende, from the
+ * Leitendenbereich), or the shared read-only link.
+ */
 export async function ladeZugang(token: unknown, db: Db = getDb()): Promise<Zugang> {
   if (!isToken(token)) throw LINK_UNGUELTIG();
   const mitglied = await db
@@ -125,7 +129,9 @@ export async function ladeZugang(token: unknown, db: Db = getDb()): Promise<Zuga
     .select(['id', 'planung_id', 'rolle', 'name'])
     .where('token_hash', '=', hashToken(token))
     .where('entzogen_am', 'is', null)
-    .executeTakeFirst();
+    .executeTakeFirst()
+    // The member's token for the Leitendenbereich gives the same access
+    .then((row) => row ?? leitungMitglied(db, token));
   if (mitglied) {
     return {
       planungId: mitglied.planung_id,
@@ -842,6 +848,9 @@ export async function mitgliedAendern(
         .where('version', '=', requireVersion(etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
+      if ('entziehen' in aenderung) {
+        await trx.deleteFrom('essen.leitung_link').where('mitglied_id', '=', mitgliedId).execute();
+      }
       return {
         result: undefined,
         details: { name: row.name, ...('rolle' in aenderung ? { rolle: aenderung.rolle } : {}) },

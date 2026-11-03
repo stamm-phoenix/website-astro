@@ -107,6 +107,7 @@ import { validateEinheiten } from '../../api/lib/essen-einheiten-schema';
 import * as essenKochen from './mock-data/essensplanung-kochen';
 import * as essenEinkaeufe from './mock-data/essensplanung-einkaeufe';
 import { fuelleDemoPlanung } from './mock-data/essensplanung-demo';
+import { leitungPlanungen } from './mock-data/essensplanung-leitung';
 import {
   readHakenEtag,
   validateEinkauf,
@@ -1160,6 +1161,10 @@ function essenResult(result: EssenMockResult, body: () => unknown): MockResult {
     });
   return json(body(), 'id' in result && result.id !== undefined ? 201 : 200);
 }
+
+route('GET', '/api/intern/essensplanung/meine', () =>
+  json({ planungen: leitungPlanungen(PRINCIPAL.userDetails) })
+);
 
 route(
   'GET',

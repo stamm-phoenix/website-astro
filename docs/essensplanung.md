@@ -45,15 +45,26 @@ Neues öffentliches Modul **„Essensplanung“**. Ein Küchenteam plant damit f
   - Prüfung beim Anlegen:
     - Für Adressen auf `@stamm-phoenix.de` ist das Anlegen immer erlaubt.
     - Für alle anderen nur, wenn „Anlegen durch Externe“ in der Steuerung an ist **und** eine dort gepflegte Whitelist leer ist oder die Adresse beziehungsweise ihre Domain enthält.
-- **Leitende** benutzen vorerst ebenfalls nur Links. Eine Übersicht im Leitendenbereich ist eine spätere Ausbaustufe.
+- **Leitende** öffnen ihre Planungen zusätzlich aus dem Leitendenbereich, siehe [Zugang aus dem Leitendenbereich](#zugang-aus-dem-leitendenbereich).
 - **Routen:**
   - `/essensplanung*` bekommt in `staticwebapp.config.json` `noindex`, `no-store` und `no-referrer`.
   - `/api/essensplanung/*` bekommt `no-store`.
   - **Nicht** unter `/leitendenbereich` oder `/api/intern` legen, und keine `allowedRoles`.
 
+## Zugang aus dem Leitendenbereich
+
+Die Seite `/leitendenbereich/essensplanungen` (Kachel „Meine Essensplanungen“ unter „Gruppen & Aktionen“) listet die Planungen, in denen die Adresse des Logins Mitglied ist, und öffnet sie ohne neuen Link aus der Mail.
+
+- **Wer:** Leitende (`requireStaff`), deren Login auf `@stamm-phoenix.de` endet (`istStammAdresse` in `api/lib/essen-leitung-model.ts`); alle anderen bekommen `403 KEINE_STAMM_ADRESSE`. Gezeigt werden Mitglieder mit dieser Adresse (ohne Groß-/Kleinschreibung), deren Zugang nicht entzogen ist, also Besitzer:innen und Bearbeitende. Der gemeinsame Lese-Link gehört zu keiner Person und erscheint nicht. Hat eine Adresse in einer Planung mehrere Mitglieder, zählt die Besitzer:in, sonst das älteste.
+- **Token:** Jedes dieser Mitglieder bekommt beim ersten Aufruf der Übersicht einen **zweiten persönlichen Token** in `essen.leitung_link` (`0078`), im Klartext, weil die Übersicht ihn bei jedem Aufruf wieder ausgibt. Er gibt dieselben Rechte wie der Link aus der Mail (`ladeZugang` fragt nach den persönlichen Links `leitungMitglied`, vor dem Lese-Link), der Link aus der Mail gilt weiter, und „Neuer Link“ oder „Meine Planungen“ ändern ihn nicht. Die Seite der Planung braucht deshalb nichts Eigenes: Die Übersicht verlinkt `/essensplanung/planung#t=<token>`. Mit dem Entziehen des Zugangs gilt er nicht mehr (die Zeile wird gelöscht), mit der Planung verschwindet er per Kaskade.
+- **Abwägung:** Ein Token im Klartext ist schwächer als die Hashes der Mail-Links, wer die Datenbank lesen kann, kann damit Planungen öffnen. Das ist für Essensplanungen vertretbar; abgerufen werden die Tokens nur über den Login des Leitendenbereichs.
+- **Wiederfinden über die Adresse:** Wer jemanden mit einer `@stamm-phoenix.de`-Adresse einlädt oder beim Beitritt so eine Adresse angibt, macht die Planung in der Übersicht dieser Person sichtbar. Beim Beitritt ist die Adresse nicht bestätigt; die Person bekommt dadurch nur Zugang zu einer Planung, nicht umgekehrt.
+- **API:** `GET /api/intern/essensplanung/meine` (`api/endpoints/intern-essensplanung-meine.ts`, Logik in `api/lib/essen-leitung.ts`) mit `{ planungen: [{ planungId, name, rolle, ersterTag, letzterTag, token }] }`, neueste zuerst, ohne Tage oben. Fehlende Tokens legt der Aufruf unter einer Sperre je Adresse an.
+- **Vorschau:** Das Testkonto ist Bearbeitende:r im „Sommerlager (Test)“ (`api/lib/db-preview-essen-leitung.ts`).
+
 ## Steuerung (Leitendenbereich)
 
-Die Seite `/leitendenbereich/essensplanung-steuerung` (Kachel „Essensplanung“ unter „Gruppen & Aktionen“) ist nur für die Teams **`team-admin`** und **`team-vorstand`**.
+Die Seite `/leitendenbereich/essensplanung-steuerung` (Kachel „Essensplanung steuern“ unter „Gruppen & Aktionen“) ist nur für die Teams **`team-admin`** und **`team-vorstand`**.
 
 - **Rollen:** `CONFIG.staff.teams.admin` ist die Gruppe „IT-Administratoren“ (Mail-Alias `team-admin`, Rolle `team_admin`), siehe [Berechtigungen](berechtigungen.md). Die Kachel hat `roles: ['team_admin', 'team_vorstand']`, die API prüft `hasTeam(principal, 'admin') || hasTeam(principal, 'vorstand')` (`api/endpoints/intern-essensplanung-steuerung.ts`).
   - Wie bei den Kostenstellen bleibt die Seite unter `team_leitende`. Admins ohne Leitenden-Rolle kommen also nicht hinein.
@@ -338,7 +349,7 @@ So sicher gegen Konflikte wie der Protokoll-Editor, ohne Neuladen, aber ohne ech
 
 ## Datenmodell (Schema `essen`, Azure SQL)
 
-Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`), Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`) Gerichte mit den Zutaten der Planung (`0055_essensplanung_gerichte.sql`), Einplanungen (`0056`) und Teilnehmende (`0058_essensplanung_teilnehmende.sql`) sowie Geschäfte, Bestand und Zusatzbedarf (`0059_essensplanung_einkaufsliste.sql`, Zusatzbedarf ohne Menge und eigene Nicht-Lebensmittel in `0060_essensplanung_freie_posten.sql`) sowie Status und Verbrauch der Einplanungen (`0061_essensplanung_kochen.sql`) und die Packliste (`0062_essensplanung_packliste.sql`, `0065_essensplanung_packliste_schluessel.sql`) und Einkäufe (`0064_essensplanung_einkaeufe.sql`, Ziel einer Verschiebung in `0066_essensplanung_einkauf_verschoben.sql`) und Belege (`0071_essensplanung_belege.sql`, Vermerke zum Aufräumen der Fotos in `0072_essensplanung_beleg_ordner.sql`); Typen in `api/lib/db-schema.ts`.
+Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach. Angelegt sind bisher die zentralen Tabellen (`api/migrations/0049_essensplanung.sql`, Startdaten in `0050_essensplanung_startdaten.sql`), Planungen mit Anfragen, Mitgliedern, Tagen, Mahlzeiten und Änderungen (`0053_essensplanung_planungen.sql`, `0054_essensplanung_loeschwarnung.sql`) Gerichte mit den Zutaten der Planung (`0055_essensplanung_gerichte.sql`), Einplanungen (`0056`) und Teilnehmende (`0058_essensplanung_teilnehmende.sql`) sowie Geschäfte, Bestand und Zusatzbedarf (`0059_essensplanung_einkaufsliste.sql`, Zusatzbedarf ohne Menge und eigene Nicht-Lebensmittel in `0060_essensplanung_freie_posten.sql`) sowie Status und Verbrauch der Einplanungen (`0061_essensplanung_kochen.sql`) und die Packliste (`0062_essensplanung_packliste.sql`, `0065_essensplanung_packliste_schluessel.sql`) und Einkäufe (`0064_essensplanung_einkaeufe.sql`, Ziel einer Verschiebung in `0066_essensplanung_einkauf_verschoben.sql`) und Belege (`0071_essensplanung_belege.sql`, Vermerke zum Aufräumen der Fotos in `0072_essensplanung_beleg_ordner.sql`) und die Tokens für den Leitendenbereich (`0078_essensplanung_leitung_link.sql`); Typen in `api/lib/db-schema.ts`.
 
 | Tabelle | Inhalt |
 | --- | --- |
@@ -348,6 +359,7 @@ Spaltennamen legt der PR fest, der die Tabelle anlegt, und trägt sie hier nach.
 | `anlage_anfrage` | unbestätigte Anlagen (Mail-Bestätigung, 24 h) |
 | `planung` | Name, angelegt, Einstellungen (Mitglieder verwalten erlaubt), Hashes von Beitritts- und Lese-Token, `aenderung_seq` |
 | `mitglied` | Name, Mail (optional), Rolle, Token-Hash, entzogen |
+| `leitung_link` | zweiter persönlicher Token eines Mitglieds für den Leitendenbereich: `mitglied_id` (Schlüssel, Kaskade), `token` (Klartext, eindeutig, binär verglichen), `erstellt_am` |
 | `aenderung` | Änderungsprotokoll für Polling und „wer hat was geändert“ |
 | `tag`, `mahlzeit` | Tage, Slots (Position, Name; `uhrzeit` wird seit #486 nicht mehr genutzt) |
 | `planung_gruppe` | Gruppen der Planung: `position`, `name` (eindeutig je Planung), `faktor` |
@@ -390,6 +402,7 @@ Jede Tabelle mit veränderlichen Zeilen bekommt eine `rowversion`. Löschen eine
   - Die Bereiche (Plan, Mitglieder, Einstellungen) bleiben beim Wechseln erhalten, ungespeicherte Einstellungen auch.
   - „Letzte Änderungen“ (`PlanAenderungen.svelte`) steht nur im Bereich Einstellungen, standardmäßig aufgeklappt.
 - **Steuerung:** `/api/intern/essensplanung/steuerung` und `/api/intern/pflege/essensplanung/*`.
+- **Meine Essensplanungen:** `/api/intern/essensplanung/meine`, siehe [Zugang aus dem Leitendenbereich](#zugang-aus-dem-leitendenbereich).
 - **Mails** (`api/lib/essen-mails.ts`, Absender `kontakt@stamm-phoenix.de`): Bestätigung, Einladung, neuer Link, Meine Planungen, Warnung vor dem Löschen. Previews verschicken keine Mails, die Antwort enthält dann `vorschauLink(s)`. Scheitert eine Mail mit neuem Link, gilt der alte Link weiter (`linkZuruecknehmen`) und ein neuer Versuch geht sofort.
 - **Datenschutz:** Abschnitt „Essensplanung“ in `web/src/pages/datenschutz.astro` (auch, was an die KI geht).
 
@@ -414,7 +427,6 @@ Aus dem Sheet „2026 – Küche Bezirkslager“ (die Datei selbst liegt nicht i
 ## Ausbaustufen (später)
 
 - Planung aus einer Aktion der Website anlegen (Name und Tage vorbelegt, später auch Teilnehmendenzahlen).
-- „Meine Essensplanungen“ im Leitendenbereich über den Login.
 - Abweichungen aus Planungen in die zentrale Zutatenliste übernehmen (Prüfung in der Steuerung).
 - Zentrale Sammlung von Gerichten (kopieren statt verknüpfen).
 - Packungsgrößen und Aufrunden auf Packungen (Metro-Daten aus dem Sheet).
@@ -435,6 +447,7 @@ Die vollständige, fortgeschriebene Liste steht in #452.
 - Aufrunden von Stück, Packung, Bund und eigenen Einheiten nach dem Summieren.
 - Wer eine `@stamm-phoenix.de`-Adresse hat, darf immer anlegen; Schalter und Whitelist gelten für alle anderen.
 - „Meine Planungen“ verschickt neue Links, die alten werden ungültig (nur Hashes gespeichert).
+- Leitende mit `@stamm-phoenix.de`-Login öffnen ihre Planungen aus dem Leitendenbereich mit einem zweiten Token je Mitglied, der im Klartext gespeichert ist; kein eigener Zugriffsweg neben den Links.
 - Die Steuerung erreichen nur Admins/Vorstände, die auch die Rolle `team_leitende` haben.
 - Aufbewahrung hängt am letzten Tag der Planung, Warnmail 14 Tage vorher.
 - Jede Ansicht gibt es als PDF zum Herunterladen statt über den Druckdialog des Browsers (siehe „PDF“).

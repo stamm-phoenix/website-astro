@@ -107,7 +107,8 @@ export interface MockPlanung {
 }
 
 let nextId = 1;
-const planungen: MockPlanung[] = [];
+/** All Planungen of the mock API; `essensplanung-leitung.ts` reads them too. */
+export const planungen: MockPlanung[] = [];
 const anfragen = new Map<string, AnlegenInput & { planungId?: number }>();
 
 export function neuesMockToken(): string {
