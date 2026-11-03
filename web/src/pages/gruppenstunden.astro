@@ -8,10 +8,13 @@ import Heading from '../components/Heading.astro';
 import Text from '../components/Text.astro';
 import TextLink from '../components/TextLink.astro';
 import Button from '../components/Button.astro';
+import SchulferienHinweis from '../components/SchulferienHinweis.svelte';
+import { requireCurrentSchulferien } from '../lib/schulferien';
 import GruppenstundenList from '../components/GruppenstundenList.svelte';
 import { getGruppenstundenContent } from '../lib/content/content';
 
 // Baked at build time, refreshed in the browser
+requireCurrentSchulferien();
 const gruppenstunden = await getGruppenstundenContent();
 ---
 
@@ -22,6 +25,8 @@ const gruppenstunden = await getGruppenstundenContent();
     title="Gruppenstunden"
     description="Unsere wöchentlichen Gruppenstunden im Überblick."
   />
+
+  <SchulferienHinweis client:only="svelte" />
 
   <div class="mt-6">
     <GruppenstundenList client:load initial={gruppenstunden.data} images={gruppenstunden.images} />
