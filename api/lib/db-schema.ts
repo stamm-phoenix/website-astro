@@ -113,6 +113,7 @@ export interface Database {
   'essen.anlage_anfrage': EssenAnlageAnfrageTable;
   'essen.planung': EssenPlanungTable;
   'essen.mitglied': EssenMitgliedTable;
+  'essen.leitung_link': EssenLeitungLinkTable;
   'essen.tag': EssenTagTable;
   'essen.mahlzeit': EssenMahlzeitTable;
   'essen.aenderung': EssenAenderungTable;
@@ -1053,6 +1054,13 @@ export interface EssenMitgliedTable {
   entzogen_am: Date | null;
   /** The deletion date the owner was warned about (retention). */
   loeschwarnung_fuer: SqlDate | null;
+}
+
+/** A member's second token for opening the Planung from the Leitendenbereich (`0078`). */
+export interface EssenLeitungLinkTable {
+  mitglied_id: number;
+  token: string;
+  erstellt_am: Generated<Date>;
 }
 
 export interface EssenTagTable {

@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../layouts/StaffLayout.astro';
+import MeineEssensplanungen from '../../components/essensplanung/MeineEssensplanungen.svelte';
+---
+
+<StaffLayout>
+  <MeineEssensplanungen client:only="svelte" />
+</StaffLayout>

@@ -12,6 +12,7 @@ import type {
   ZutatInput,
 } from './essen-schema';
 import { parseWith } from './validation/zod';
+import { istStammAdresse } from './essen-leitung-model';
 
 export { COLLATOR, EINHEITENARTEN };
 export type { EssenEinheitenart, EssenEinstellungen, VorlageGruppe, ZutatInput };
@@ -122,9 +123,9 @@ export function validateEssenEinstellungen(input: unknown): EssenEinstellungen {
  * domain.
  */
 export function darfPlanungAnlegen(email: string, einstellungen: EssenEinstellungen): boolean {
+  if (istStammAdresse(email)) return true;
   const address = email.trim().toLowerCase();
   const domain = address.split('@')[1] ?? '';
-  if (domain === 'stamm-phoenix.de') return true;
   if (!einstellungen.anlegenExtern) return false;
   if (einstellungen.whitelist.length === 0) return true;
   return einstellungen.whitelist.some((entry) => entry === address || entry === domain);

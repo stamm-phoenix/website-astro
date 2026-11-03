@@ -1,4 +1,5 @@
 import { errorMessage, fetchApi } from './api';
+import type { LeitungPlanung } from '../../../api/lib/essen-leitung-model';
 import type { StaffProblemMeldungenData } from './problemMelden';
 import type {
   AnwesenheitOverview,
@@ -176,6 +177,15 @@ export const sammelCampaigns = createResource<SammelAktion[]>('/intern/pflege/sa
 });
 export const nikolausSteuerung = createResource<StaffNikolausSteuerung>(
   '/intern/nikolaus/steuerung'
+);
+
+/** The own Planungen of the Essensplanung, each with a token to open it; loaded on every visit. */
+export const essensplanungMeine = createResource<{ planungen: LeitungPlanung[] }>(
+  '/intern/essensplanung/meine',
+  {
+    loadError:
+      'Deine Essensplanungen konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.',
+  }
 );
 
 /** Steuerung of the Essensplanung, only for the teams Admin and Vorstand. */

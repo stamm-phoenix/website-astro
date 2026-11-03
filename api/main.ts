@@ -131,6 +131,7 @@ import {
   EssensplanungListeEndpoint,
   EssensplanungSteuerungEndpoint,
 } from './endpoints/intern-essensplanung-steuerung';
+import EssensplanungMeineEndpoint from './endpoints/intern-essensplanung-meine';
 import {
   EssensplanungAnlegen,
   EssensplanungBeitreten,
@@ -1691,6 +1692,14 @@ app.http('essensplanungEinkaufPosten', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/einkauf-posten/{id}',
   handler: EssensplanungEinkaufPosten,
+});
+
+// Essensplanung: the own Planungen of a Leitende:r with an address of the Stamm.
+app.http('internEssensplanungMeine', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/essensplanung/meine',
+  handler: EssensplanungMeineEndpoint,
 });
 
 // Essensplanung: the Steuerung for the teams Admin and Vorstand (docs/essensplanung.md).

@@ -12,6 +12,17 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-03-02-meine-essensplanungen',
+    date: '2026-11-03',
+    title: 'Deine Essensplanungen im Leitendenbereich',
+    changes: [
+      {
+        text: 'Unter „Meine Essensplanungen“ siehst du alle Planungen, in denen du mit deiner @stamm-phoenix.de-Adresse Mitglied bist, und öffnest sie mit einem Klick. Du musst dir dafür keine neuen Links mehr per Mail schicken lassen, und deine bisherigen Links gelten weiter.',
+        href: '/leitendenbereich/essensplanungen',
+      },
+    ],
+  },
+  {
     id: '2026-11-03-01-beleg-foto-bearbeiten',
     date: '2026-11-03',
     title: 'Gespeichertes Belegfoto nachbearbeiten',
