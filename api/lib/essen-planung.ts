@@ -32,8 +32,6 @@ import {
   MAX_MAHLZEITEN_PRO_TAG,
   MAX_MITGLIEDER,
   MAX_TAGE,
-  addDays,
-  daysBetween,
   darfBearbeiten,
   darfMitgliederVerwalten,
   loeschDatum,
@@ -52,6 +50,7 @@ import { ladePackliste } from './essen-packliste';
 import { belegOrdnerAufraeumen, ladeBelege } from './essen-belege';
 import { pruefeAnwesenheit, verschiebeGrenzen } from './essen-teilnehmende-grenzen';
 import { leitungLinkVergessen, leitungMitglied } from './essen-leitung';
+import { legePlanungAn } from './essen-planung-anlegen';
 import { ValidationError } from './validation/errors';
 
 /**
@@ -464,76 +463,23 @@ export async function anfrageBestaetigen(
       throw ANLEGEN_NICHT_ERLAUBT();
     }
 
-    const planung = await trx
-      .insertInto('essen.planung')
-      .values({ name: anfrage.planung_name })
-      .output('inserted.id')
-      .executeTakeFirstOrThrow();
     const besitzerToken = neuesToken();
-    const besitzer = await trx
-      .insertInto('essen.mitglied')
-      .values({
-        planung_id: planung.id,
+    const { planungId } = await legePlanungAn(
+      trx,
+      {
+        planungName: anfrage.planung_name,
         name: anfrage.name,
         email: anfrage.email,
-        rolle: 'besitzer',
-        token_hash: hashToken(besitzerToken),
-      })
-      .output('inserted.id')
-      .executeTakeFirstOrThrow();
-    if (einstellungen.vorlageGruppen.length) {
-      await trx
-        .insertInto('essen.planung_gruppe')
-        .values(
-          einstellungen.vorlageGruppen.map((gruppe, index) => ({
-            planung_id: planung.id,
-            position: index + 1,
-            name: gruppe.name,
-            faktor: gruppe.faktor,
-          }))
-        )
-        .execute();
-    }
-    const erster = toDateString(anfrage.erster_tag);
-    const anzahl = Math.min(daysBetween(erster, toDateString(anfrage.letzter_tag)) + 1, MAX_TAGE);
-    for (let index = 0; index < anzahl; index++) {
-      const tag = await trx
-        .insertInto('essen.tag')
-        .values({ planung_id: planung.id, datum: addDays(erster, index) })
-        .output('inserted.id')
-        .executeTakeFirstOrThrow();
-      if (einstellungen.vorlageMahlzeiten.length) {
-        await trx
-          .insertInto('essen.mahlzeit')
-          .values(
-            einstellungen.vorlageMahlzeiten.map((name, position) => ({
-              tag_id: tag.id,
-              position: position + 1,
-              name,
-            }))
-          )
-          .execute();
-      }
-    }
+        ersterTag: toDateString(anfrage.erster_tag),
+        letzterTag: toDateString(anfrage.letzter_tag),
+        tokenHash: hashToken(besitzerToken),
+      },
+      einstellungen
+    );
     await trx
       .updateTable('essen.anlage_anfrage')
-      .set({ planung_id: planung.id })
+      .set({ planung_id: planungId })
       .where('id', '=', anfrage.id)
-      .execute();
-    await trx
-      .updateTable('essen.planung')
-      .set({ aenderung_seq: '1' })
-      .where('id', '=', planung.id)
-      .execute();
-    await trx
-      .insertInto('essen.aenderung')
-      .values({
-        planung_id: planung.id,
-        seq: 1,
-        mitglied_id: besitzer.id,
-        aktion: 'planung-angelegt',
-        details: JSON.stringify({ name: anfrage.planung_name }),
-      })
       .execute();
     return besitzerToken;
   });

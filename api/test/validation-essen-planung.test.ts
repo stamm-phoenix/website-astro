@@ -5,6 +5,7 @@ import {
   validateBeitritt,
   validateEinladung,
   validateEmail,
+  validateLeitungAnlegen,
   validateMitgliedName,
 } from '../lib/essen-planung-validation';
 import { fields } from './fixtures/essen-fields';
@@ -231,5 +232,35 @@ test('Email: lower-cased and required', () => {
     {
       email: MAIL_UNGUELTIG,
     }
+  );
+});
+
+test('Anlegen im Leitendenbereich: only name and days, name and address come from the login', () => {
+  assert.deepEqual(
+    validateLeitungAnlegen({
+      planungName: ' Sommer   lager ',
+      ersterTag: '2027-07-24',
+      letzterTag: '2027-07-26',
+      email: 'fremd@example.org',
+    }),
+    { planungName: 'Sommer lager', ersterTag: '2027-07-24', letzterTag: '2027-07-26' }
+  );
+  assert.deepEqual(
+    fields(() => validateLeitungAnlegen(undefined)),
+    {
+      planungName: 'Bitte einen Namen für die Planung eintragen, z. B. „Sommerlager 2027“.',
+      ersterTag: 'Bitte den ersten Tag wählen.',
+      letzterTag: 'Bitte den letzten Tag wählen.',
+    }
+  );
+  assert.equal(
+    fields(() =>
+      validateLeitungAnlegen({
+        planungName: 'Lager',
+        ersterTag: '2027-07-26',
+        letzterTag: '2027-07-24',
+      })
+    ).letzterTag,
+    'Der letzte Tag liegt vor dem ersten.'
   );
 });

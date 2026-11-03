@@ -10,6 +10,7 @@ import { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor } from './essen-pl
 import { MAX_TAGE, addDays, daysBetween, loeschDatum, readDatum } from './essen-planung-datum';
 import type {
   anlegenSchema,
+  leitungAnlegenSchema,
   beitrittSchema,
   einladungSchema,
   mahlzeitSchema,
@@ -196,6 +197,8 @@ export function nummeriereTage(
 }
 
 export type AnlegenInput = z.output<typeof anlegenSchema>;
+
+export type LeitungAnlegenInput = z.output<typeof leitungAnlegenSchema>;
 
 export type BeitrittInput = z.output<typeof beitrittSchema>;
 

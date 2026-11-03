@@ -23,3 +23,18 @@ export interface LeitungPlanung {
   /** The token for `/essensplanung/planung#t=…`. */
   token: string;
 }
+
+/**
+ * The name a Leitende:r gets as owner of a Planung created from the Leitendenbereich: the full
+ * name from the login if there is one, otherwise from the address („kim.kueche@…“ →
+ * „Kim Kueche“). It can be changed in the Planung like every member's name.
+ */
+export function anzeigeName(login: string, vollerName?: string): string {
+  const name = vollerName?.trim().replace(/\s+/g, ' ');
+  if (name) return name.slice(0, 100);
+  const teile = (login.split('@')[0] ?? '')
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((teil) => teil.charAt(0).toUpperCase() + teil.slice(1));
+  return (teile.join(' ') || login).slice(0, 100);
+}

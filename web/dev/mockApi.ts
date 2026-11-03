@@ -139,6 +139,7 @@ import {
 import {
   readPosition,
   validateAnlegen,
+  validateLeitungAnlegen,
   validateBeitritt,
   validateEinladung,
   validateEmail,
@@ -1165,6 +1166,22 @@ function essenResult(result: EssenMockResult, body: () => unknown): MockResult {
 route('GET', '/api/intern/essensplanung/meine', () =>
   json({ planungen: leitungPlanungen(PRINCIPAL.userDetails) })
 );
+
+// Created at once with the mock login as owner, like the real API
+route('POST', '/api/intern/essensplanung/meine', (req) => {
+  const input = validateLeitungAnlegen(req.json);
+  const anfrage = essenPlanung.anfrage({
+    ...input,
+    email: PRINCIPAL.userDetails,
+    name: 'Demo Leitung',
+  });
+  const token = essenPlanung.bestaetige(
+    anfrage,
+    essenEinstellungen().vorlageMahlzeiten,
+    essenEinstellungen().vorlageGruppen
+  );
+  return json({ planungId: essenPlanung.zugangVon(token).planung.id, token }, 201);
+});
 
 route(
   'GET',

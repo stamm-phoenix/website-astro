@@ -1696,7 +1696,7 @@ app.http('essensplanungEinkaufPosten', {
 
 // Essensplanung: the own Planungen of a Leitende:r with an address of the Stamm.
 app.http('internEssensplanungMeine', {
-  methods: ['GET'],
+  methods: ['GET', 'POST'],
   authLevel: 'anonymous',
   route: 'intern/essensplanung/meine',
   handler: EssensplanungMeineEndpoint,
