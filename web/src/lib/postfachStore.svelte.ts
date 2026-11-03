@@ -65,6 +65,8 @@ export async function neuLaden(postfach: string): Promise<void> {
 export function aendereZeile(id: string, change: Partial<KonversationZeile>): void {
   const data = postfachListe.state.data;
   if (!data) return;
+  // A reload asked before this saved change must not bring the old line back
+  ladeRevision++;
   postfachListe.set({
     ...data,
     konversationen: data.konversationen.map((zeile) =>
@@ -92,6 +94,7 @@ export async function alleGelesen(postfach: string): Promise<void> {
   });
   const data = postfachListe.state.data;
   if (data?.postfach.id === postfach) {
+    ladeRevision++;
     postfachListe.set({
       ...data,
       konversationen: data.konversationen.map((zeile) => ({ ...zeile, ungelesen: 0 })),

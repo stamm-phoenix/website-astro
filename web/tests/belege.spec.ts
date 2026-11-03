@@ -65,7 +65,7 @@ test('the Kasse transfers an accepted receipt to CampFlow on its Kostenstelle an
   });
   await page.goto('/leitendenbereich/belege/');
   await openFilters(page);
-  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
+  await page.getByRole('combobox', { name: /^Stand/ }).selectOption({ label: 'Angenommen' });
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
 
@@ -283,7 +283,7 @@ test('a retry right after a failed transfer sends the version just written, with
   });
   await page.goto('/leitendenbereich/belege/');
   await openFilters(page);
-  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
+  await page.getByRole('combobox', { name: /^Stand/ }).selectOption({ label: 'Angenommen' });
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
   await dialog.getByRole('textbox', { name: 'Bemerkung (optional)' }).fill('Rückfahrt');
@@ -364,10 +364,10 @@ test('one list holds the receipts here and in CampFlow, filtered by source and m
   await openFilters(page);
   await page.getByRole('combobox', { name: 'Kostenstelle' }).selectOption({ label: 'Alle' });
   await openFilters(page);
-  await page.getByLabel('Stand').selectOption({ label: 'Gebucht' });
+  await page.getByRole('combobox', { name: /^Stand/ }).selectOption({ label: 'Gebucht' });
   await expect(list.getByRole('listitem')).toHaveCount(2);
   await openFilters(page);
-  await page.getByLabel('Stand').selectOption({ label: 'Alle' });
+  await page.getByRole('combobox', { name: /^Stand/ }).selectOption({ label: 'Alle' });
 
   // Own receipts: paid out of pocket by the demo user, matched by name
   await page.getByLabel('Nur meine Belege').check();
@@ -462,7 +462,7 @@ test('a transfer whose answer is lost closes the receipt once it is gone', async
   });
   await page.goto('/leitendenbereich/belege/');
   await openFilters(page);
-  await page.getByLabel('Stand').selectOption({ label: 'Angenommen' });
+  await page.getByRole('combobox', { name: /^Stand/ }).selectOption({ label: 'Angenommen' });
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
   await dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true }).click();
