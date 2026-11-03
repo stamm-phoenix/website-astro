@@ -195,10 +195,11 @@ export async function readKonversation(
         const base = toInbox(message);
         const isHtml = message.body?.contentType.toLowerCase() === 'html';
         let html = isHtml ? (message.body?.content ?? '') : null;
-        const needsAttachments = message.hasAttachments || (html?.includes('cid:') ?? false);
+        const mitCid = html !== null && /cid:/i.test(html);
+        const needsAttachments = message.hasAttachments || mitCid;
         const attachments = needsAttachments ? await readAttachments(address, message.id) : [];
         let eingebettet = new Set<string>();
-        if (html?.includes('cid:')) {
+        if (html !== null && mitCid) {
           ({ html, eingebettet } = await embedInlineImages(
             address,
             message.id,
