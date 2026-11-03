@@ -10,6 +10,7 @@
   import { errorMessage } from '../../lib/api';
   import {
     alleGelesen,
+    ladeNachKonflikt,
     ladePostfach,
     neuLaden,
     postfachListe,
@@ -225,7 +226,7 @@
             {neuladen}
             {ich}
             onzurueck={zurListe}
-            onkonflikt={() => void ladePostfach(postfach)}
+            onkonflikt={() => void ladeNachKonflikt(postfach)}
           />
         {:else}
           <p class="surface-muted p-6 text-center text-neutral-700">Wähle links eine E-Mail aus.</p>

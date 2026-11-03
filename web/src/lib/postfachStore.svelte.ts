@@ -50,6 +50,15 @@ export function ladePostfach(postfach: string): Promise<void> {
 }
 
 /**
+ * Loads the list again after a conflict, but only while this mailbox is still the open one: the
+ * answer of a page that was left must not take the list over from another mailbox.
+ */
+export function ladeNachKonflikt(postfach: string): Promise<void> {
+  if (offenesPostfach !== postfach) return Promise.resolve();
+  return ladePostfach(postfach);
+}
+
+/**
  * Reads the list of the mailbox again, bypassing the cache of the API. A late answer is
  * dropped when another mailbox was opened or loaded meanwhile.
  */
