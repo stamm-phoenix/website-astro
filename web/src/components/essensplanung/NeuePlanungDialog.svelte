@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
@@ -36,6 +37,10 @@
         // A one-day Aktion needs no last day
         letzterTag: letzterTag || ersterTag,
       });
+      // Saved: close first, so the guard against leaving with unsaved input is gone
+      leeren();
+      onclose();
+      await tick();
       window.location.assign(planungUrl(token));
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) {
@@ -51,12 +56,17 @@
     }
   }
 
-  function schliessen(): void {
+  function leeren(): void {
     planungName = '';
     ersterTag = '';
     letzterTag = '';
     fehler = {};
     fehlerText = null;
+    busy = false;
+  }
+
+  function schliessen(): void {
+    leeren();
     onclose();
   }
 </script>
@@ -66,6 +76,7 @@
   title="Neue Planung"
   {busy}
   {dirty}
+  rescueKey="essen-planung:neu"
   error={fehlerText}
   submitLabel="Planung anlegen"
   busyLabel="Wird angelegt …"
