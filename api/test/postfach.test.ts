@@ -580,7 +580,7 @@ dbTest(
         'PUT',
         '/kontakt/status',
         KONTAKT,
-        { konversation: K2, status: 'erledigt', vorher: 'offen', bis: iso(2) },
+        { konversation: K2, status: 'erledigt', vorher: 'offen', bis: iso(0.5) },
         TOM
       ),
       context
@@ -608,7 +608,7 @@ dbTest(
         konversation: K2,
         status: 'kein_handlungsbedarf',
         vorher: 'offen',
-        bis: iso(2),
+        bis: iso(0.5),
       }),
       context
     );
@@ -633,7 +633,7 @@ dbTest(
         konversation: K2,
         status: 'kein_handlungsbedarf',
         vorher: 'offen',
-        bis: iso(2),
+        bis: iso(0.5),
       }),
       context
     );
@@ -643,7 +643,7 @@ dbTest(
         konversation: K2,
         status: 'offen',
         vorher: 'kein_handlungsbedarf',
-        bis: iso(2),
+        bis: iso(0.5),
       }),
       context
     );
@@ -758,4 +758,64 @@ dbTest('a full inbox says that older messages are only in Outlook', async (t) =>
   );
   const response = await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context);
   assert.equal((response.jsonBody as PostfachAnsicht).begrenzt, true);
+});
+
+dbTest(
+  'a later reply that was archived counts for the status, as in the reading view',
+  async (t) => {
+    const { context } = setup(t);
+    // Done up to the message in the inbox (2 h ago); a later reply (0.5 h ago) was archived
+    await getDb()
+      .insertInto('postfach.erledigung')
+      .values({
+        postfach: 'kontakt',
+        konversation_id: K2,
+        status: 'erledigt',
+        login: 'tom@stamm-phoenix.de',
+        name: 'Tom Test',
+        bis: new Date(iso(2)),
+      })
+      .execute();
+    const detail = (
+      await PostfachKonversationRoute(
+        request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
+        context
+      )
+    ).jsonBody as KonversationDetail;
+    assert.equal(detail.konversation.erledigung, null);
+    assert.equal(detail.konversation.wiederOffen, true);
+    const done = await PostfachStatusRoute(
+      request('PUT', '/kontakt/status', KONTAKT, {
+        konversation: K2,
+        status: 'erledigt',
+        vorher: 'offen',
+        bis: detail.konversation.am,
+      }),
+      context
+    );
+    assert.equal(done.status, 200);
+  }
+);
+
+dbTest('the start page tells a refused mailbox apart from one that failed for now', async (t) => {
+  const { context } = setup(t);
+  t.mock.method(postfachGraph, 'get', async () => {
+    throw Object.assign(new Error('Access denied'), { statusCode: 403 });
+  });
+  const start = (await PostfachStartRoute(request('GET', '', {}), context))
+    .jsonBody as PostfachStart;
+  assert.deepEqual(
+    start.postfaecher.map((postfach) => [postfach.fehler, postfach.gesperrt]),
+    [[true, true]]
+  );
+  t.mock.method(postfachGraph, 'get', async () => {
+    throw new Error('timeout');
+  });
+  resetPostfachCaches();
+  const again = (await PostfachStartRoute(request('GET', '', {}), context))
+    .jsonBody as PostfachStart;
+  assert.deepEqual(
+    again.postfaecher.map((postfach) => [postfach.fehler, postfach.gesperrt]),
+    [[true, false]]
+  );
 });

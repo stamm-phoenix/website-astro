@@ -1,6 +1,6 @@
 import { METHOD_NOT_ALLOWED, NO_STORE_HEADERS, ok, readJsonBody } from '../lib/pflege-api';
 import { errorResponse } from '../lib/response-utils';
-import { eigenerLogin, ladePersonen } from '../lib/postfach';
+import { eigenerLogin, ladeKonversation, ladePersonen } from '../lib/postfach';
 import {
   ErledigungKonfliktError,
   NeueNachrichtError,
@@ -8,7 +8,7 @@ import {
 } from '../lib/postfach-erledigung';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { validateStatus } from '../lib/validation/postfach';
-import { postfachRoute, zeileFuer } from './intern-postfach';
+import { postfachRoute } from './intern-postfach';
 
 const KONVERSATION_FEHLT = errorResponse(
   404,
@@ -30,8 +30,9 @@ const STATUS_NAMEN = {
 export const PostfachStatusRoute = postfachRoute(async (request, postfach, principal, context) => {
   if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const eingabe = validateStatus(await readJsonBody(request));
-  // Fresh from the mailbox, so a message that just arrived is not closed unseen
-  const zeile = await zeileFuer(postfach, principal, eingabe.konversation, true);
+  // Fresh from all folders, as the reading view counts: an archived later reply counts too, and a
+  // message that just arrived is not closed unseen
+  const zeile = (await ladeKonversation(postfach, principal, eingabe.konversation))?.konversation;
   if (!zeile) return KONVERSATION_FEHLT;
   const ich = eigenerLogin(principal);
   const personen = await ladePersonen(postfach).catch(() => []);
