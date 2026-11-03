@@ -74,6 +74,11 @@ export function isEdited(draft: Draft): boolean {
   return draft.bild !== draft.original || draft.quad !== null || draft.mode !== 'original';
 }
 
+/** Whether the draft has a photo to save: a stored photo opened again only once it was changed. */
+export function zuSpeichern(draft: Draft | null): draft is Draft {
+  return !!draft?.result && (!draft.aufbewahrt || isEdited(draft));
+}
+
 /** The draft rotated by `schritte`, its crop turned along. */
 export function gedreht(current: Draft, schritte: Ausrichtung[]): Draft {
   let { bild, quad } = current;
@@ -91,7 +96,9 @@ export function gedreht(current: Draft, schritte: Ausrichtung[]): Draft {
 export async function fotoNutzlast(current: Draft): Promise<FotoNutzlast> {
   const photo = await blobToBase64(current.result!.blob);
   if (current.pdf) return pdfFotos(photo, current.pdf, current.pdfSeiten, current.pdfLetzte);
+  // The original kept with a stored photo always goes along, or the server would drop it
+  if (current.aufbewahrt) return { photo, original: await blobToBase64(current.aufbewahrt) };
   return isEdited(current)
-    ? { photo, original: await blobToBase64(current.aufbewahrt ?? current.originalBlob) }
+    ? { photo, original: await blobToBase64(current.originalBlob) }
     : { photo };
 }
