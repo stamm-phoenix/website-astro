@@ -20,14 +20,24 @@
     konversation: string;
     erledigung: Erledigung | null;
     wiederOffen: boolean;
+    /** Received time of the newest message shown; a newer one keeps the conversation open. */
+    bis: string;
     ich: string;
     /** After a save, with the conversation it was for and what applies now. */
     onaenderung: (konversation: string, erledigung: Erledigung | null) => void;
     /** After a conflict: the page reloads what is current. */
     onkonflikt: (konversation: string) => void;
   }
-  let { postfach, konversation, erledigung, wiederOffen, ich, onaenderung, onkonflikt }: Props =
-    $props();
+  let {
+    postfach,
+    konversation,
+    erledigung,
+    wiederOffen,
+    bis,
+    ich,
+    onaenderung,
+    onkonflikt,
+  }: Props = $props();
 
   const OPTIONEN = [
     { value: 'offen', label: STATUS_LABEL.offen, tone: 'neutral' },
@@ -55,7 +65,7 @@
     meldung = null;
     fehler = null;
     try {
-      const result = await setzeStatus(postfach, fuer, neu, status);
+      const result = await setzeStatus(postfach, fuer, neu, status, bis);
       onaenderung(fuer, result);
       if (fuer !== konversation) return;
       meldung =

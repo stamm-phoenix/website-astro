@@ -62,9 +62,15 @@ export async function neuLaden(postfach: string): Promise<void> {
 }
 
 /** Changes a line of the loaded list in place, e.g. after a mark or an assignment. */
-export function aendereZeile(id: string, change: Partial<KonversationZeile>): void {
+export function aendereZeile(
+  postfach: string,
+  id: string,
+  change: Partial<KonversationZeile>
+): void {
+  postfachStart.invalidate();
   const data = postfachListe.state.data;
-  if (!data) return;
+  // A late answer of a page that was left must not touch the list of another mailbox
+  if (!data || offenesPostfach !== postfach || data.postfach.id !== postfach) return;
   // A reload asked before this saved change must not bring the old line back
   ladeRevision++;
   postfachListe.set({
@@ -73,7 +79,6 @@ export function aendereZeile(id: string, change: Partial<KonversationZeile>): vo
       zeile.id === id ? { ...zeile, ...change } : zeile
     ),
   });
-  postfachStart.invalidate();
 }
 
 export async function markiere(
@@ -93,7 +98,7 @@ export async function alleGelesen(postfach: string): Promise<void> {
     alle: true,
   });
   const data = postfachListe.state.data;
-  if (data?.postfach.id === postfach) {
+  if (data?.postfach.id === postfach && offenesPostfach === postfach) {
     ladeRevision++;
     postfachListe.set({
       ...data,
@@ -135,7 +140,7 @@ export async function setzeZustaendig(
     `/intern/postfach/${encodeURIComponent(postfach)}/zustaendig`,
     { konversation, login, vorher }
   );
-  aendereZeile(konversation, { zustaendig: result.zustaendig });
+  aendereZeile(postfach, konversation, { zustaendig: result.zustaendig });
   return result;
 }
 
@@ -144,14 +149,16 @@ export async function setzeStatus(
   postfach: string,
   konversation: string,
   status: PostfachStatus,
-  vorher: PostfachStatus
+  vorher: PostfachStatus,
+  /** Received time of the newest message the page shows; newer ones stay open. */
+  bis: string
 ): Promise<Erledigung | null> {
   const result = await sendApi<{ erledigung: Erledigung | null }>(
     'PUT',
     `/intern/postfach/${encodeURIComponent(postfach)}/status`,
-    { konversation, status, vorher }
+    { konversation, status, vorher, bis }
   );
-  aendereZeile(konversation, { erledigung: result.erledigung, wiederOffen: false });
+  aendereZeile(postfach, konversation, { erledigung: result.erledigung, wiederOffen: false });
   return result.erledigung;
 }
 

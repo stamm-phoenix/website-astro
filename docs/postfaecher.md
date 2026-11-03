@@ -42,8 +42,10 @@ Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
 - **Stand:** Jede Konversation ist offen, „Erledigt“ oder „Kein Handlungsbedarf“
   (`postfach.erledigung`, Migration `0081`, Route `PUT …/{postfach}/status`). Das kann jede Person
   setzen, die das Postfach sieht, und alle sehen es mit Namen und Zeit (grüner Haken in der Liste).
-  Eine Konversation ohne Zeile ist offen. Kommt nach dem Setzen eine neue Nachricht in den
-  Posteingang, gilt sie wieder als offen und zeigt „Neue Nachricht nach „Erledigt““; die Zeile
+  Eine Konversation ohne Zeile ist offen. Gespeichert wird auch, bis zu welcher Nachricht der Stand
+  gilt (`bis`, Migration `0082`): die Empfangszeit der neuesten Nachricht, die die Seite gezeigt hat.
+  Ist inzwischen eine neuere gekommen, wird nichts gespeichert und die Seite sagt es. Kommt nach dem
+  Setzen eine neue Nachricht in den Posteingang, gilt sie wieder als offen und zeigt „Neue Nachricht nach „Erledigt““; die Zeile
   bleibt, bis jemand den Stand neu setzt. Die Liste beginnt mit dem Filter „Offen“; „Mir
   zugewiesen“, „Ohne Zuständige“ und „Ungelesen“ zählen nur offene Konversationen, „Erledigt“
   zeigt beide abgeschlossenen Stände. Wie bei der Zuständigkeit schickt die Seite mit, welchen
@@ -113,7 +115,7 @@ Die API liest mit ihrer App-Registrierung (`CONFIG.azure.clientId`). Dafür brau
   `GET /api/intern/postfach`, `GET …/{postfach}`, `GET …/{postfach}/konversation?id=`,
   `POST …/{postfach}/gelesen`, `GET …/{postfach}/personen`, `PUT …/{postfach}/zustaendig`, `PUT …/{postfach}/status`,
   `GET …/{postfach}/anhang?nachricht=&anhang=`.
-- **Daten:** Schema `postfach` (Migrationen `0080_postfach.sql`, `0081_postfach_erledigung.sql`): nur IDs, Logins, Namen und der
+- **Daten:** Schema `postfach` (Migrationen `0080_postfach.sql`, `0081_postfach_erledigung.sql`, `0082_postfach_erledigung_bis.sql`): nur IDs, Logins, Namen und der
   Betreff einer zugewiesenen Konversation. Die E-Mails bleiben in Exchange.
 - **Previews** lesen über Graph dasselbe echte Postfach wie die Produktion, speichern Gelesen und
   Zuständigkeit aber in ihrer eigenen Datenbank und schicken keine Benachrichtigungen. Lokal

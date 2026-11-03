@@ -30,6 +30,8 @@ export interface Erledigung {
   name: string;
   /** ISO time it was set. */
   am: string;
+  /** ISO received time of the newest message it covers; a newer one opens it again. */
+  bis: string;
 }
 
 /** A conversation in the list of a mailbox: its newest message in the inbox and its state. */
@@ -210,7 +212,7 @@ function erledigungsStand(
   neueste: string
 ): Pick<KonversationZeile, 'erledigung' | 'wiederOffen'> {
   if (!erledigung) return { erledigung: null, wiederOffen: false };
-  return erledigung.am >= neueste
+  return erledigung.bis >= neueste
     ? { erledigung, wiederOffen: false }
     : { erledigung: null, wiederOffen: true };
 }

@@ -96,7 +96,7 @@
           autoMark = mark;
           await mark;
           // With only part of a long conversation read, the rest may still be unread
-          if (data.vollstaendig) aendereZeile(id, { ungelesen: 0 });
+          if (data.vollstaendig) aendereZeile(postfach, id, { ungelesen: 0 });
         } catch (markError: unknown) {
           markFehler = errorMessage(
             markError,
@@ -139,7 +139,7 @@
       // The automatic read mark of the opening must not land after this one and undo it
       await autoMark?.catch(() => undefined);
       await markiere(postfach, [neueste.id], false);
-      aendereZeile(id, { ungelesen: 1 });
+      aendereZeile(postfach, id, { ungelesen: 1 });
       if (id === konversation) markMeldung = 'Als ungelesen markiert.';
     } catch (markError: unknown) {
       if (id !== konversation) return;
@@ -241,6 +241,7 @@
               konversation={data.konversation.id}
               erledigung={data.konversation.erledigung}
               wiederOffen={data.konversation.wiederOffen}
+              bis={data.konversation.am}
               {ich}
               onaenderung={(id, erledigung) => {
                 if (detail?.konversation.id === id)

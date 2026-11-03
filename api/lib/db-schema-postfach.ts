@@ -21,6 +21,8 @@ export interface PostfachErledigungTable {
   name: string;
   betreff: Generated<string>;
   am: Generated<Date>;
+  /** Received time of the newest message seen when marking (migration 0082); null: `am`. */
+  bis: Date | null;
 }
 
 /** A message a person has marked as read or unread in the Leitendenbereich (`postfach.gelesen`). */

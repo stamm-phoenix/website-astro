@@ -83,15 +83,27 @@ test('ids from the query string are checked before Graph is asked', () => {
   assert.match(fields(() => validateAnhang(ID, '../x')).anhang, /Anhang/);
 });
 
-test('a status is one of the three and names the one shown before', () => {
-  assert.deepEqual(validateStatus({ konversation: ID, status: 'erledigt', vorher: 'offen' }), {
+test('a status is one of the three and names the one shown before and the newest message seen', () => {
+  const bis = '2026-11-03T10:00:00.000Z';
+  assert.deepEqual(validateStatus({ konversation: ID, status: 'erledigt', vorher: 'offen', bis }), {
     konversation: ID,
     status: 'erledigt',
     vorher: 'offen',
+    bis,
   });
   assert.match(
-    fields(() => validateStatus({ konversation: ID, status: 'fertig', vorher: 'offen' })).status,
+    fields(() => validateStatus({ konversation: ID, status: 'fertig', vorher: 'offen', bis }))
+      .status,
     /Stand/
   );
-  assert.match(fields(() => validateStatus({ konversation: ID, status: 'offen' })).vorher, /Stand/);
+  assert.match(
+    fields(() => validateStatus({ konversation: ID, status: 'offen', bis })).vorher,
+    /Stand/
+  );
+  assert.match(
+    fields(() =>
+      validateStatus({ konversation: ID, status: 'erledigt', vorher: 'offen', bis: 'gestern' })
+    ).bis,
+    /Stand/
+  );
 });

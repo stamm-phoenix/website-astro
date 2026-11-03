@@ -67,6 +67,7 @@ function setup(t: TestContext): { context: InvocationContext; mocks: Mocks } {
   t.mock.method(postfachGraph, 'get', async (path: string, query: Record<string, string>) => {
     mocks.graph.push(path);
     if (path.endsWith('/mailFolders/inbox/messages')) return { value: INBOX };
+    if (path.endsWith('/mailFolders/sentitems')) return { id: 'FOLDER-SENT' };
     if (path.endsWith('/messages') && query.$filter?.includes(K2)) {
       return {
         value: [
@@ -76,10 +77,18 @@ function setup(t: TestContext): { context: InvocationContext; mocks: Mocks } {
               { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } },
             ],
             body: { contentType: 'html', content: '<p>Hallo <img src="cid:bild1"></p>' },
+            parentFolderId: 'FOLDER-INBOX',
           }),
           message('AAkALgm4000000', K2, 1, {
             from: { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } },
             body: { contentType: 'text', content: 'Danke!' },
+            parentFolderId: 'FOLDER-SENT',
+          }),
+          // A note of the contact form: sent by the mailbox to itself, received in the inbox
+          message('AAkALgm5000000', K2, 0.5, {
+            from: { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } },
+            body: { contentType: 'text', content: 'Neue Nachricht über das Kontaktformular' },
+            parentFolderId: 'FOLDER-INBOX',
           }),
         ],
       };
@@ -359,7 +368,7 @@ dbTest(
     );
     assert.equal(response.status, 200);
     const detail = response.jsonBody as KonversationDetail;
-    assert.equal(detail.nachrichten.length, 2);
+    assert.equal(detail.nachrichten.length, 3);
     assert.match(detail.nachrichten[0].html ?? '', /src="data:image\/png;base64,iVBO"/);
     assert.deepEqual(
       detail.nachrichten[0].anhaenge.map((anhang) => anhang.name),
@@ -368,7 +377,11 @@ dbTest(
     assert.equal(detail.nachrichten[1].gesendet, true);
     assert.equal(detail.nachrichten[1].gelesen, true);
     assert.equal(detail.nachrichten[1].text, 'Danke!');
-    assert.equal(detail.konversation.betreff, 'Betreff AAkALgm3000000');
+    // The form note comes from the mailbox's own address, but it was received: it is to be read
+    assert.equal(detail.nachrichten[2].gesendet, false);
+    assert.equal(detail.nachrichten[2].gelesen, false);
+    // The line takes the newest received message, here the form note
+    assert.equal(detail.konversation.betreff, 'Betreff AAkALgm5000000');
     assert.equal(
       detail.outlookUrl,
       'https://outlook.office.com/mail/kontakt%40stamm-phoenix.de/inbox/id/AAMkrest'
@@ -561,7 +574,7 @@ dbTest(
         'PUT',
         '/kontakt/status',
         KONTAKT,
-        { konversation: K2, status: 'erledigt', vorher: 'offen' },
+        { konversation: K2, status: 'erledigt', vorher: 'offen', bis: iso(2) },
         TOM
       ),
       context
@@ -589,6 +602,7 @@ dbTest(
         konversation: K2,
         status: 'kein_handlungsbedarf',
         vorher: 'offen',
+        bis: iso(2),
       }),
       context
     );
@@ -601,7 +615,7 @@ dbTest(
     // A reply that arrives after the mark opens it again
     await getDb()
       .updateTable('postfach.erledigung')
-      .set({ am: new Date(NOW - 3 * 3_600_000) })
+      .set({ bis: new Date(NOW - 3 * 3_600_000) })
       .execute();
     const again = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
       .jsonBody as PostfachAnsicht;
@@ -613,6 +627,7 @@ dbTest(
         konversation: K2,
         status: 'kein_handlungsbedarf',
         vorher: 'offen',
+        bis: iso(2),
       }),
       context
     );
@@ -622,6 +637,7 @@ dbTest(
         konversation: K2,
         status: 'offen',
         vorher: 'kein_handlungsbedarf',
+        bis: iso(2),
       }),
       context
     );
@@ -632,3 +648,22 @@ dbTest(
     );
   }
 );
+
+dbTest('marking done refuses when a newer message arrived than the page showed', async (t) => {
+  const { context } = setup(t);
+  const stale = await PostfachStatusRoute(
+    request('PUT', '/kontakt/status', KONTAKT, {
+      konversation: K2,
+      status: 'erledigt',
+      vorher: 'offen',
+      bis: iso(5),
+    }),
+    context
+  );
+  assert.equal(stale.status, 409);
+  assert.match((stale.jsonBody as { message: string }).message, /neue Nachricht gekommen/);
+  assert.equal(
+    await getDb().selectFrom('postfach.erledigung').select('postfach').executeTakeFirst(),
+    undefined
+  );
+});
