@@ -1,5 +1,11 @@
 import type { MockRequest, MockResult } from './mockApi';
-import { findPostfach, postfachOutlookUrl } from '../../api/lib/postfach-liste';
+import {
+  findPostfach,
+  POSTFAECHER,
+  postfachOutlookUrl,
+  postfachRoles,
+  type PostfachEintrag,
+} from '../../api/lib/postfach-liste';
 import {
   fuerMich,
   istGelesen,
@@ -137,7 +143,9 @@ function stand() {
   return { marken, gelesenBis };
 }
 
-function zeilen() {
+/** Only the Kontakt-Postfach has demo mails; the others start empty. */
+function zeilen(id: string = POSTFACH) {
+  if (id !== POSTFACH) return [];
   return konversationenAus(
     POSTFACH,
     MAILS.filter((mail) => !mail.gesendet),
@@ -146,12 +154,12 @@ function zeilen() {
   );
 }
 
-function info() {
+function info(postfach: PostfachEintrag = findPostfach(POSTFACH)!) {
   return {
-    id: POSTFACH,
-    name: findPostfach(POSTFACH)?.name ?? 'Kontakt-Postfach',
-    address: ADRESSE,
-    outlookUrl: postfachOutlookUrl(ADRESSE),
+    id: postfach.id,
+    name: postfach.name,
+    address: postfach.address,
+    outlookUrl: postfachOutlookUrl(postfach.address),
   };
 }
 
@@ -162,38 +170,50 @@ export function registerPostfachRoutes(
     handler: (req: MockRequest) => MockResult,
     instant?: boolean
   ) => void,
-  login: () => string
+  login: () => string,
+  roles: () => string[]
 ): void {
+  const sichtbar = (): PostfachEintrag[] =>
+    POSTFAECHER.filter((postfach) =>
+      postfachRoles(postfach).some((role) => roles().includes(role))
+    );
   const unbekannt = (req: MockRequest): MockResult | null =>
-    req.params.postfach === POSTFACH
+    sichtbar().some((postfach) => postfach.id === req.params.postfach)
       ? null
       : error(404, 'NOT_FOUND', 'Dieses Postfach gibt es nicht.');
 
-  route('GET', '/api/intern/postfach', () => {
-    const alle = zeilen();
-    return json({
+  route('GET', '/api/intern/postfach', () =>
+    json({
       ich: login(),
-      postfaecher: [
-        {
-          ...info(),
+      postfaecher: sichtbar().map((postfach) => {
+        const alle = zeilen(postfach.id);
+        return {
+          ...info(postfach),
           ungelesen: alle.filter((zeile) => zeile.ungelesen > 0).length,
           mirZugewiesen: alle.filter((zeile) => istMirZugewiesen(zeile, login())).length,
           fehler: false,
-        },
-      ],
-      fuerMich: fuerMich(alle, login()),
-    });
-  });
+        };
+      }),
+      fuerMich: sichtbar().flatMap((postfach) => fuerMich(zeilen(postfach.id), login())),
+    })
+  );
 
   route(
     'GET',
     '/api/intern/postfach/:postfach',
-    (req) => unbekannt(req) ?? json({ postfach: info(), konversationen: zeilen(), ich: login() })
+    (req) =>
+      unbekannt(req) ??
+      json({
+        postfach: info(findPostfach(req.params.postfach)),
+        konversationen: zeilen(req.params.postfach),
+        ich: login(),
+      })
   );
 
   route('GET', '/api/intern/postfach/:postfach/konversation', (req) => {
     const id = req.query.get('id');
-    const mails = MAILS.filter((mail) => mail.konversation === id);
+    const mails =
+      req.params.postfach === POSTFACH ? MAILS.filter((mail) => mail.konversation === id) : [];
     if (unbekannt(req)) return unbekannt(req)!;
     if (!mails.length) return error(404, 'NOT_FOUND', 'Diese E-Mail ist nicht mehr im Postfach.');
     const eingegangen = mails.filter((mail) => !mail.gesendet);
