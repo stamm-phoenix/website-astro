@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { hatExterneBilder, mailDokument, textAlsHtml } from '../../lib/postfachAnsicht';
 
   /**
@@ -20,7 +20,39 @@
 
   const inhalt = $derived(html ?? textAlsHtml(text ?? ''));
   const mitBildern = $derived(html !== null && hatExterneBilder(html));
-  const dokument = $derived(mailDokument(inhalt, externeBilder));
+  /**
+   * Plain text follows the dark theme of the site. HTML mails stay light, as in Outlook: their
+   * colours (dark text, coloured tables) assume a white background.
+   */
+  let seiteDunkel = $state(false);
+  const dunkel = $derived(html === null && seiteDunkel);
+  const dokument = $derived(mailDokument(inhalt, externeBilder, dunkel));
+
+  function istDunkel(): boolean {
+    const choice = document.documentElement.dataset.theme;
+    return (
+      choice === 'dark' ||
+      (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+    );
+  }
+
+  onMount(() => {
+    const folgen = (): void => {
+      seiteDunkel = istDunkel();
+    };
+    folgen();
+    const beobachter = new MutationObserver(folgen);
+    beobachter.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+    const vorliebe = matchMedia('(prefers-color-scheme: dark)');
+    vorliebe.addEventListener('change', folgen);
+    return () => {
+      beobachter.disconnect();
+      vorliebe.removeEventListener('change', folgen);
+    };
+  });
 
   function messen(): void {
     // The body, not the root: the root is at least as high as the frame and would only grow
@@ -79,6 +111,6 @@
   sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
   srcdoc={dokument}
   onload={geladen}
-  class="block w-full rounded border border-neutral-200 bg-white p-3"
+  class="block w-full rounded border border-neutral-200 p-3 {dunkel ? 'bg-[#1b1f24]' : 'bg-white'}"
   style:height="{hoehe + 24}px"
 ></iframe>

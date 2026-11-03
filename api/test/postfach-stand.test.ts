@@ -8,8 +8,9 @@ import {
 import { PostfachStatusRoute } from '../endpoints/intern-postfach-status';
 import type { KonversationDetail, PostfachAnsicht, PostfachStart } from '../lib/postfach-model';
 import { getDb } from '../lib/db';
+import { postfachGraph } from '../lib/postfach-graph';
 import { dbTest } from './fixtures/database';
-import { iso, K2, KONTAKT, NOW, request, setup, TOM } from './fixtures/postfach';
+import { iso, K2, KONTAKT, message, NOW, request, setup, TOM } from './fixtures/postfach';
 
 dbTest(
   'a conversation is marked done for everyone and opens again with a newer message',
@@ -175,4 +176,47 @@ dbTest('a mark covers what the mailbox holds, even when the page names a later t
     .select('bis')
     .executeTakeFirstOrThrow();
   assert.equal(row.bis?.toISOString().slice(0, 19), iso(0.5).slice(0, 19));
+});
+
+dbTest('an own answer that was archived does not open a done conversation again', async (t) => {
+  const { context } = setup(t);
+  const original = postfachGraph.get;
+  t.mock.method(
+    postfachGraph,
+    'get',
+    async (path: string, query: Record<string, string>, prefer: string[]) => {
+      if (path.endsWith('/messages') && query.$filter?.includes(K2)) {
+        return {
+          value: [
+            message('AAkALgm3000000', K2, 2, { parentFolderId: 'FOLDER-INBOX' }),
+            message('AAkALgm4000000', K2, 1, {
+              from: { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } },
+              parentFolderId: 'FOLDER-ARCHIV',
+            }),
+          ],
+        };
+      }
+      return original.call(postfachGraph, path, query, prefer);
+    }
+  );
+  await getDb()
+    .insertInto('postfach.erledigung')
+    .values({
+      postfach: 'kontakt',
+      konversation_id: K2,
+      status: 'erledigt',
+      login: 'tom@stamm-phoenix.de',
+      name: 'Tom Test',
+      bis: new Date(iso(2)),
+    })
+    .execute();
+  const detail = (
+    await PostfachKonversationRoute(
+      request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
+      context
+    )
+  ).jsonBody as KonversationDetail;
+  assert.equal(detail.nachrichten[1].gesendet, true);
+  assert.equal(detail.konversation.erledigung?.status, 'erledigt');
+  assert.equal(detail.konversation.wiederOffen, false);
 });
