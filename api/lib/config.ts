@@ -145,8 +145,6 @@ export interface ApiConfig {
   };
   /** Module „E-Mail“: the shared mailboxes in the Leitendenbereich (`docs/postfaecher.md`). */
   postfaecher: {
-    /** Mailbox the note about an assigned conversation is sent from. */
-    sender: string;
     /** On the first visit of a mailbox, messages older than this count as read. */
     ungelesenTage: number;
   };
@@ -405,7 +403,6 @@ export const CONFIG: ApiConfig = {
     dailyLimit: 100,
   },
   postfaecher: {
-    sender: 'kontakt@stamm-phoenix.de',
     ungelesenTage: 14,
   },
   schnupper: {

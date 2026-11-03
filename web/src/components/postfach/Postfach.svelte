@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { navigate } from 'astro:transitions/client';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -7,7 +8,12 @@
   import KonversationListe from './KonversationListe.svelte';
   import KonversationAnsicht from './KonversationAnsicht.svelte';
   import { errorMessage } from '../../lib/api';
-  import { alleGelesen, neuLaden, postfachListe } from '../../lib/postfachStore.svelte';
+  import {
+    alleGelesen,
+    ladePostfach,
+    neuLaden,
+    postfachListe,
+  } from '../../lib/postfachStore.svelte';
   import {
     POSTFACH_FILTER,
     filterAnzahl,
@@ -62,22 +68,19 @@
     if (aktiv === null) vonListe = false;
   }
 
-  // The client router of Astro does not report changes of the hash, so the page keeps the
-  // history entries itself
+  // The client router of Astro does not report changes of the hash to the page
   function oeffnen(id: string): void {
     if (id === aktiv) return;
-    if (aktiv === null) {
-      history.pushState(history.state, '', konversationHash(id));
-      vonListe = true;
-    } else {
-      history.replaceState(history.state, '', konversationHash(id));
-    }
+    // Through the router, so its history stays intact: going back then only changes the hash
+    // instead of rendering the page anew (which would drop the chosen filter)
+    void navigate(konversationHash(id), { history: aktiv === null ? 'push' : 'replace' });
+    if (aktiv === null) vonListe = true;
     aktiv = id;
   }
 
   onMount(() => {
     ausAdresse();
-    void postfachListe.load({ param: postfach, force: true });
+    void ladePostfach(postfach);
     window.addEventListener('popstate', ausAdresse);
     window.addEventListener('hashchange', ausAdresse);
     return () => {
@@ -156,7 +159,7 @@
     loading={store.loading}
     error={store.error}
     loadingText="E-Mails werden geladen …"
-    onretry={() => void postfachListe.load({ param: postfach, force: true })}
+    onretry={() => void ladePostfach(postfach)}
   >
     <div class="grid gap-4 lg:grid-cols-[minmax(18rem,26rem)_1fr]">
       <section
@@ -191,7 +194,7 @@
             {neuladen}
             {ich}
             onzurueck={zurListe}
-            onkonflikt={() => void postfachListe.load({ param: postfach, force: true })}
+            onkonflikt={() => void ladePostfach(postfach)}
           />
         {:else}
           <p class="surface-muted p-6 text-center text-neutral-700">Wähle links eine E-Mail aus.</p>

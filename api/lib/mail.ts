@@ -25,7 +25,7 @@ export async function sendMail(
   html: string,
   sender?: string,
   replyTo?: MailReplyTo,
-  options: { retry?: boolean; timeoutMs?: number } = {}
+  options: { retry?: boolean; timeoutMs?: number; saveToSentItems?: boolean } = {}
 ): Promise<void> {
   const client = getClient();
 
@@ -41,7 +41,7 @@ export async function sendMail(
       toRecipients: [{ emailAddress: { address: to } }],
       ...(replyTo ? { replyTo: [{ emailAddress: replyTo }] } : {}),
     },
-    saveToSentItems: true,
+    saveToSentItems: options.saveToSentItems ?? true,
   });
 }
 

@@ -6,6 +6,7 @@ import {
   PostfachGelesenRoute,
   PostfachKonversationRoute,
   PostfachListeRoute,
+  PostfachPersonenRoute,
   PostfachStartRoute,
   PostfachZustaendigRoute,
 } from '../endpoints/intern-postfach';
@@ -14,6 +15,7 @@ import { postfachVerzeichnis, resetPostfachCaches } from '../lib/postfach';
 import { postfachBenachrichtigung } from '../lib/postfach-mails';
 import type { KonversationDetail, PostfachAnsicht, PostfachStart } from '../lib/postfach-model';
 import { getDb } from '../lib/db';
+import { CONFIG } from '../lib/config';
 import { dbTest } from './fixtures/database';
 
 const LEA = {
@@ -497,3 +499,47 @@ dbTest('attached messages and large files are only offered in Outlook', async (t
     ]
   );
 });
+
+dbTest(
+  'only members who are also Leitende can be made responsible for a team mailbox',
+  async (t) => {
+    const { context } = setup(t);
+    t.mock.method(postfachVerzeichnis, 'lesen', async (_signal: AbortSignal, groupId: string) =>
+      groupId === CONFIG.staff.teams.verein.groupId
+        ? [
+            { login: 'tom@stamm-phoenix.de', name: 'Tom Test', givenName: 'Tom' },
+            { login: 'vera@stamm-phoenix.de', name: 'Vera Verein', givenName: 'Vera' },
+          ]
+        : [
+            { login: 'lea@stamm-phoenix.de', name: 'Lea Leitung', givenName: 'Lea' },
+            { login: 'tom@stamm-phoenix.de', name: 'Tom Test', givenName: 'Tom' },
+          ]
+    );
+    const verein = { ...LEA, userRoles: ['authenticated', 'team_leitende', 'team_verein'] };
+    const params = { postfach: 'verein' };
+    const personen = await PostfachPersonenRoute(
+      request('GET', '/verein/personen', params, undefined, verein),
+      context
+    );
+    assert.deepEqual(
+      (personen.jsonBody as { personen: { login: string }[] }).personen.map((p) => p.login),
+      ['tom@stamm-phoenix.de']
+    );
+    const vera = await PostfachZustaendigRoute(
+      request(
+        'PUT',
+        '/verein/zustaendig',
+        params,
+        { konversation: K2, login: 'vera@stamm-phoenix.de' },
+        verein
+      ),
+      context
+    );
+    assert.equal(vera.status, 400);
+    const ohneTeam = await PostfachPersonenRoute(
+      request('GET', '/verein/personen', params),
+      context
+    );
+    assert.equal(ohneTeam.status, 403);
+  }
+);

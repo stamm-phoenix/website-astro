@@ -40,7 +40,7 @@ Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
   mit, wen sie als zuständig angezeigt hat; hat das inzwischen jemand geändert, kommt
   `409` mit dem aktuellen Namen und nichts wird gespeichert.
 - **Benachrichtigung:** Wer von jemand anderem zuständig gemacht wird, bekommt eine Mail an das
-  eigene Konto (`postfach-mails.ts`, Absender `CONFIG.postfaecher.sender`) mit Betreff, Absender
+  eigene Konto (`postfach-mails.ts`, gesendet vom Postfach selbst, ohne Kopie in seinen „Gesendeten Elementen“, damit Betreffe des Vorstands-Postfachs nicht im Kontakt-Postfach landen) mit Betreff, Absender
   und einem Link auf die Konversation (`#konversation=<id>`), ohne den Text der E-Mail. Scheitert
   der Versand, bleibt die Zuständigkeit gespeichert und die Seite sagt, dass man selbst Bescheid
   geben soll. PR-Previews schicken keine solchen Mails, weil sie den Mailversand der Produktion

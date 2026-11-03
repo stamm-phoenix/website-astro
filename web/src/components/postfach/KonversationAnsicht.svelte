@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import MessageText from '../ui/MessageText.svelte';
@@ -55,6 +55,11 @@
   let markMeldung = $state<string | null>(null);
   let heading = $state<HTMLHeadingElement | null>(null);
 
+  /** The request of the last load; an older answer, also for the same conversation, is dropped. */
+  let anfrage = 0;
+  let laufend: AbortController | null = null;
+  onDestroy(() => laufend?.abort());
+
   async function laden(id: string): Promise<void> {
     // Another conversation: its predecessor must not stay on screen with working buttons
     if (detail?.konversation.id !== id) detail = null;
@@ -62,10 +67,13 @@
     error = null;
     markMeldung = null;
     markFehler = null;
-    const controller = new AbortController();
+    const nummer = ++anfrage;
+    laufend?.abort();
+    const controller = (laufend = new AbortController());
+    const aktuell = (): boolean => nummer === anfrage && id === konversation;
     try {
       const data = await ladeKonversation(postfach, id, controller.signal);
-      if (id !== konversation) return;
+      if (!aktuell()) return;
       detail = data;
       const ungelesen = data.nachrichten.filter((nachricht) => !nachricht.gelesen);
       // Unread ones and the newest are unfolded
@@ -93,14 +101,22 @@
         }
       }
     } catch (loadError: unknown) {
-      if (id !== konversation) return;
+      if (!aktuell()) return;
+      if (detail?.konversation.id === id) {
+        // „Neu laden“ of the open conversation: what is shown stays, the failure is named
+        markFehler = errorMessage(
+          loadError,
+          'Die E-Mail konnte nicht neu geladen werden. Du siehst den letzten Stand.'
+        );
+        return;
+      }
       detail = null;
       error = errorMessage(
         loadError,
         'Die E-Mail konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.'
       );
     } finally {
-      if (id === konversation) loading = false;
+      if (nummer === anfrage) loading = false;
     }
   }
 

@@ -1,4 +1,3 @@
-import { CONFIG } from './config';
 import { escapeHtml, sendMail } from './mail';
 import { mailButton, mailLayout } from './mail-template';
 import type { PostfachEintrag } from './postfach-liste';
@@ -8,6 +7,9 @@ import type { KonversationZeile } from './postfach-model';
  * The note to a person who was made responsible for a conversation. It goes to the person's
  * own account and holds only subject and sender, not the text of the mail: that stays in the
  * mailbox and is read in the Leitendenbereich or in Outlook.
+ *
+ * It is sent from the mailbox itself and not kept in its Sent Items: subject and sender of a
+ * mailbox of the Vorstand must not land in a mailbox other people can open.
  */
 
 interface Mail {
@@ -71,8 +73,9 @@ async function sendeZuweisungMail(
   siteUrl: string
 ): Promise<void> {
   const mail = zuweisungMail(postfach, konversation, vonName, siteUrl);
-  await sendMail(an, mail.subject, mail.html, CONFIG.postfaecher.sender, undefined, {
+  await sendMail(an, mail.subject, mail.html, postfach.address, undefined, {
     retry: false,
     timeoutMs: 10_000,
+    saveToSentItems: false,
   });
 }

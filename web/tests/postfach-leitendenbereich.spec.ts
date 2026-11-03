@@ -154,3 +154,74 @@ test('„Neu laden“ also reads the open conversation again', async ({ page }, 
   await reread;
   await expect(page.getByRole('article', { name: 'Frage zum Nikolausdienst' })).toBeVisible();
 });
+
+test('a late reload of another mailbox and an older answer of the same mail are dropped', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'switches through the sidebar of the desktop');
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  await liste.getByRole('link', { name: /Frage zum Nikolausdienst/ }).click();
+  await expect(page.getByRole('article', { name: 'Frage zum Nikolausdienst' })).toBeVisible();
+
+  // The first of two loads of the open mail answers last, with an outdated subject
+  let releaseMail: () => void = () => undefined;
+  const heldMail = new Promise<void>((resolve) => (releaseMail = resolve));
+  let firstMail = true;
+  let oldAnswered: () => void = () => undefined;
+  const oldAnswer = new Promise<void>((resolve) => (oldAnswered = resolve));
+  await page.route('**/api/intern/postfach/kontakt/konversation?*', async (route) => {
+    if (!firstMail) return route.continue();
+    firstMail = false;
+    const response = await route.fetch();
+    const body = await response.json();
+    body.konversation.betreff = 'Veralteter Stand';
+    await heldMail;
+    await route.fulfill({ response, json: body });
+    oldAnswered();
+  });
+  // Also hold the list of the first reload back
+  let releaseList: () => void = () => undefined;
+  const heldList = new Promise<void>((resolve) => (releaseList = resolve));
+  let firstList = true;
+  await page.route('**/api/intern/postfach/kontakt?frisch=1', async (route) => {
+    if (firstList) {
+      firstList = false;
+      await heldList;
+    }
+    await route.continue();
+  });
+  const neuLaden = page.getByRole('button', { name: 'Neu laden' });
+  await neuLaden.click();
+  releaseList();
+  await expect(page.getByText('Neu geladen.')).toBeVisible();
+  const newer = page.waitForResponse((response) =>
+    response.url().includes('/api/intern/postfach/kontakt/konversation?')
+  );
+  await neuLaden.click();
+  await newer;
+  releaseMail();
+  await oldAnswer;
+  await page.waitForTimeout(300);
+  await expect(page.getByRole('article', { name: 'Frage zum Nikolausdienst' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Veralteter Stand' })).toHaveCount(0);
+
+  // A reload of the Kontakt-Postfach that answers after the switch keeps the Vorstand on screen
+  let releaseKontakt: () => void = () => undefined;
+  const heldKontakt = new Promise<void>((resolve) => (releaseKontakt = resolve));
+  await page.unroute('**/api/intern/postfach/kontakt?frisch=1');
+  await page.route('**/api/intern/postfach/kontakt?frisch=1', async (route) => {
+    await heldKontakt;
+    await route.continue();
+  });
+  await neuLaden.click();
+  await page
+    .getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' })
+    .getByRole('link', { name: 'Vorstand-Postfach' })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Vorstand-Postfach', level: 1 })).toBeVisible();
+  await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
+  releaseKontakt();
+  await page.waitForTimeout(500);
+  await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
+});

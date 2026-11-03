@@ -180,18 +180,26 @@ export const postfachVerzeichnis = { lesen: readTaskDirectory };
 
 const personenCache = new Map<string, { at: number; promise: Promise<PostfachPerson[]> }>();
 
-/** Who can be made responsible: the members of the mailbox's teams. */
+/**
+ * Who can be made responsible: the members of the mailbox's teams who are also in the team
+ * „Leitende“, because only they can open the Leitendenbereich the note links to.
+ */
 export async function ladePersonen(postfach: PostfachEintrag): Promise<PostfachPerson[]> {
   const cached = personenCache.get(postfach.id);
   if (cached && Date.now() - cached.at < PERSONEN_CACHE_MS) return cached.promise;
-  const promise = Promise.all(
-    postfach.teams.map((team) =>
-      postfachVerzeichnis.lesen(AbortSignal.timeout(5000), CONFIG.staff.teams[team].groupId)
-    )
-  ).then((listen) => {
+  const lesen = (team: keyof typeof CONFIG.staff.teams) =>
+    postfachVerzeichnis.lesen(AbortSignal.timeout(5000), CONFIG.staff.teams[team].groupId);
+  const promise = Promise.all([
+    lesen('leitende'),
+    ...postfach.teams.filter((team) => team !== 'leitende').map(lesen),
+  ]).then(([leitende, ...teams]) => {
+    const imLeitendenbereich = new Set(leitende.map((user) => user.login));
+    // Mailboxes of the Leitende take all of them; others only their members among them
+    const kandidaten = postfach.teams.includes('leitende') ? leitende : teams.flat();
     const byLogin = new Map<string, PostfachPerson>();
-    for (const user of listen.flat())
-      byLogin.set(user.login, { login: user.login, name: user.name });
+    for (const user of kandidaten)
+      if (imLeitendenbereich.has(user.login))
+        byLogin.set(user.login, { login: user.login, name: user.name });
     return [...byLogin.values()].sort((a, b) => a.name.localeCompare(b.name, 'de'));
   });
   personenCache.set(postfach.id, { at: Date.now(), promise });
