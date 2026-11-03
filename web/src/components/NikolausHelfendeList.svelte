@@ -289,7 +289,7 @@
                 <ActionButton
                   variant="secondary"
                   type="button"
-                  class="min-h-9 px-3 py-1"
+                  class="min-h-11 px-3 py-2"
                   onclick={() => openEdit(person)}
                 >
                   Bearbeiten<span class="sr-only"> ({person.name})</span>

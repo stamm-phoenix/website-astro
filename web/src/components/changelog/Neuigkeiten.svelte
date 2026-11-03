@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { CHANGELOG } from '../../lib/changelogEntries';
-  import { changeText, unseenEntries } from '../../lib/changelog';
+  import { changeText, recentUnseenEntries } from '../../lib/changelog';
   import { staffPage } from '../../lib/staffModules';
   import { formatDay } from '../../lib/format';
   import {
     changelogStore,
+    INITIAL_UNREAD_LIMIT,
     loadChangelogSeen,
     markChangelogSeen,
   } from '../../lib/staffChangelogStore.svelte';
@@ -13,9 +14,9 @@
   import MessageText from '../ui/MessageText.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
 
-  type Phase = 'loading' | 'loadFailed' | 'saving' | 'saved' | 'saveFailed';
+  type Phase = 'loading' | 'loadFailed' | 'ready' | 'saving' | 'saved' | 'saveFailed';
 
-  /** What was new when the page opened; the labels stay while the entries count as read. */
+  /** The recent entries shown as new; historic entries remain available in the list below. */
   let newIds = $state<string[]>([]);
   let phase = $state<Phase>('loading');
 
@@ -26,14 +27,20 @@
       phase = 'loadFailed';
       return;
     }
-    newIds = unseenEntries(CHANGELOG, changelogStore.lastSeenId).map((entry) => entry.id);
-    // Everything is read already, so there is nothing to save
-    if (newIds.length === 0) {
-      phase = 'saved';
-      return;
-    }
+    newIds = recentUnseenEntries(CHANGELOG, changelogStore.lastSeenId, INITIAL_UNREAD_LIMIT).map(
+      (entry) => entry.id
+    );
+    phase = 'ready';
+  }
+
+  async function markAllRead(): Promise<void> {
     phase = 'saving';
-    phase = (await markChangelogSeen()) ? 'saved' : 'saveFailed';
+    if (await markChangelogSeen()) {
+      newIds = [];
+      phase = 'saved';
+    } else {
+      phase = 'saveFailed';
+    }
   }
 
   onMount(open);
@@ -61,13 +68,19 @@
       <MessageText text={changelogStore.saveError ?? ''} />
       Die Zahl am Menü bleibt deshalb stehen.
     </p>
+  {:else if phase === 'saved'}
+    <p class="mb-4 text-sm text-neutral-700">Alle Neuigkeiten sind als gelesen gespeichert.</p>
   {:else if newIds.length > 0}
     <p class="mb-4 text-sm text-neutral-700">
-      {newIds.length === 1 ? 'Eine Neuigkeit' : `${newIds.length} Neuigkeiten`} für dich. Sie gelten jetzt
-      als gelesen, auf allen deinen Geräten.
+      {newIds.length === 1 ? 'Eine Neuigkeit' : `${newIds.length} Neuigkeiten`} für dich.
     </p>
   {:else}
     <p class="mb-4 text-sm text-neutral-700">Du bist auf dem neuesten Stand.</p>
+  {/if}
+  {#if (phase === 'ready' && newIds.length > 0) || phase === 'saveFailed'}
+    <ActionButton variant="secondary" type="button" class="mb-4" onclick={markAllRead}>
+      Alle als gelesen markieren
+    </ActionButton>
   {/if}
 </div>
 

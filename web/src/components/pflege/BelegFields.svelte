@@ -106,6 +106,8 @@
         <input
           type="radio"
           name="bl-payment-method"
+          data-form-error={errors.payout && option.value === 'ich' ? 'true' : undefined}
+          aria-describedby={errors.payout ? 'bl-payout-error' : undefined}
           class="size-6 shrink-0 accent-[var(--color-action)]"
           checked={form.zahlung === option.value}
           onchange={() => {

@@ -46,6 +46,7 @@
   import { formatIsoDate } from '../lib/belege';
   import { formatEuro } from '../lib/format';
   import InfoHint from './ui/InfoHint.svelte';
+  import StaffCommonTasks from './StaffCommonTasks.svelte';
 
   /** Entries per area; the link next to the heading leads to the full list. */
   const CARD_LIMIT = 3;
@@ -542,6 +543,8 @@
       <span hidden></span>
     </LoadState>
   </div>
+
+  <StaffCommonTasks modules={allModules} />
 
   <section aria-labelledby="for-you-heading">
     <h2 id="for-you-heading" class="font-serif text-lg font-semibold text-brand-900">Für dich</h2>

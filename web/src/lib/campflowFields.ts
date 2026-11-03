@@ -363,20 +363,6 @@ export function getPersonColumns(
   });
 }
 
-/** Columns added to the table after it first remembered a choice, shown once to everyone. */
-export const NEW_COLUMN_KEYS = ['beitrag', 'verwendungszweck'];
-
-/** Keys of the columns shown by default: name, status, age, Beitrag and all custom fields. */
-export function defaultColumnKeys(available: PersonColumn[], columns: CampflowColumn[]): string[] {
-  return available
-    .filter(
-      (c) =>
-        ['name', 'status', 'age', ...NEW_COLUMN_KEYS].includes(c.key) ||
-        findColumn(c.key, columns) !== undefined
-    )
-    .map((c) => c.key);
-}
-
 /**
  * Unique action names near this year; both receipt forms use the same suggestions. Events that
  * are no real Aktion (e.g. an order of jumpers) come last: a receipt of the supplier still

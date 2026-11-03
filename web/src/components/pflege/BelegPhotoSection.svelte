@@ -93,7 +93,7 @@
         >Foto bearbeiten</ActionButton
       >
     {/if}
-    <label class="btn-secondary cursor-pointer" class:opacity-60={photo.photoBusy}>
+    <label class="photo-picker btn-secondary cursor-pointer" class:opacity-60={photo.photoBusy}>
       {photo.photoBusy
         ? 'Wird verarbeitet …'
         : form.hasImage || photo.draft
@@ -103,6 +103,7 @@
         type="file"
         accept="image/*,application/pdf"
         class="sr-only"
+        aria-invalid={errors.photo ? 'true' : undefined}
         aria-describedby={errors.photo ? 'bl-photo-error' : undefined}
         disabled={photo.photoBusy || busy}
         onchange={photo.choosePhoto}
@@ -132,3 +133,10 @@
     </p>
   {/if}
 </section>
+
+<style>
+  .photo-picker:focus-within {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
+  }
+</style>

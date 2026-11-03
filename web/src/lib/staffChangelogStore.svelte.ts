@@ -1,5 +1,5 @@
 import { CHANGELOG } from './changelogEntries';
-import { newestEntryId, unseenEntries } from './changelog';
+import { newestEntryId, recentUnseenEntries, unseenEntries } from './changelog';
 import { errorMessage, fetchApi, sendApi } from './api';
 
 /**
@@ -42,6 +42,7 @@ let writes = 0;
 
 /** How long the menu and the start page keep the seen state before asking again. */
 export const CHANGELOG_SEEN_MAX_AGE_MS = 5 * 60_000;
+export const INITIAL_UNREAD_LIMIT = 3;
 
 /**
  * Loads the seen state from the server. Astro keeps the store across pages; `maxAge` keeps a
@@ -87,7 +88,11 @@ export function loadChangelogSeen({ maxAge }: { maxAge?: number } = {}): Promise
 
 /** How many entries are new to the person; 0 until the state has loaded. */
 export function unseenCount(): number {
-  return changelogStore.loaded ? unseenEntries(CHANGELOG, changelogStore.lastSeenId).length : 0;
+  return changelogStore.loaded
+    ? changelogStore.lastSeenId === null
+      ? recentUnseenEntries(CHANGELOG, null, INITIAL_UNREAD_LIMIT).length
+      : unseenEntries(CHANGELOG, changelogStore.lastSeenId).length
+    : 0;
 }
 
 /** Marks every entry as seen. Resolves to whether the server saved it. */

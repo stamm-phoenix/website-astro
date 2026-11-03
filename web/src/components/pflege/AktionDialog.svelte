@@ -3,6 +3,7 @@
   import { ApiError, sendApi } from '../../lib/api';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import { dateDistance, isLikelyMatch } from '../../lib/aktionMatch';
+  import { aktionSaveFeedback } from '../../lib/aktionDialogFeedback';
   import { eventGroupNames, stufenFromGroups } from '../../lib/campflowGroups';
   import { campflowDetailStore, fetchCampflowEvent } from '../../lib/campflowStore.svelte';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
@@ -64,6 +65,7 @@
   const canLink = $derived(!!targetEntry && !targetEvent);
   const linkedEvent = $derived(canLink ? (linkable.find((e) => e.id === linkId) ?? null) : null);
   const event = $derived(targetEvent ?? linkedEvent);
+  const saveFeedback = $derived(aktionSaveFeedback(!!targetEntry, !!event));
   /** Whether the Stufen were chosen by hand (or taken over); then they are never prefilled. */
   let stufenTouched = $state(false);
   /**
@@ -134,7 +136,7 @@
         : 'Im öffentlichen Kalender veröffentlichen'
       : entry
         ? 'Aktion bearbeiten'
-        : 'Neue Aktion ohne CampFlow'
+        : 'Aktion anlegen'
   );
 
   function formFrom(source: StaffAktion | null): Form {
@@ -247,12 +249,14 @@
         ? `„${adoptedEntry.title}“ ist jetzt mit der CampFlow-Aktion verknüpft. Titel, Datum und Anmeldelink kommen ab jetzt aus CampFlow.`
         : current
           ? 'Kalendereintrag gespeichert. Die Website wird in wenigen Minuten aktualisiert.'
-          : 'Aktion veröffentlicht. Sie erscheint in wenigen Minuten im öffentlichen Kalender.';
+          : event
+            ? 'Aktion veröffentlicht. Sie erscheint in wenigen Minuten im öffentlichen Kalender.'
+            : 'Aktion angelegt.';
     await dialog.run(async () => {
       if (current) await sendApi('PATCH', `/intern/pflege/aktionen/${current.id}`, body);
       else await sendApi('POST', '/intern/pflege/aktionen', body);
       onsaved(message);
-    }, 'Die Aktion wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“ oder „Veröffentlichen“.');
+    }, saveFeedback.failure);
   }
 
   async function remove(): Promise<void> {
@@ -281,7 +285,7 @@
   error={dialog.state.error}
   submitDisabled={dialog.state.conflict}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}
-  submitLabel={targetEntry || !event ? 'Speichern' : 'Veröffentlichen'}
+  submitLabel={saveFeedback.label}
   onsubmit={save}
   onclose={close}
   ondelete={targetEntry ? remove : undefined}
@@ -407,6 +411,7 @@
       {/if}
 
       <fieldset
+        data-form-error-group
         aria-describedby={[
           leitendeOnly ? 'aktion-stufen-hint' : '',
           errors.stufen ? 'aktion-stufen-error' : '',

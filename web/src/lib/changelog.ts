@@ -23,6 +23,16 @@ export function unseenEntries(
   return entries.filter((entry) => entry.id > lastSeenId);
 }
 
+/** Keeps a new account's notice useful without pretending older entries were read. */
+export function recentUnseenEntries(
+  entries: readonly ChangelogEntry[],
+  lastSeenId: string | null,
+  limit: number
+): ChangelogEntry[] {
+  const unseen = unseenEntries(entries, lastSeenId);
+  return lastSeenId === null ? unseen.slice(0, Math.max(0, limit)) : unseen;
+}
+
 /** The ID of the newest entry, or `null` for an empty changelog. */
 export function newestEntryId(entries: readonly ChangelogEntry[]): string | null {
   return entries.reduce<string | null>(

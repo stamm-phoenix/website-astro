@@ -9,9 +9,10 @@
   interface Props {
     title: string;
     modules: StaffModule[];
+    level?: 2 | 3;
   }
 
-  let { title, modules }: Props = $props();
+  let { title, modules, level = 3 }: Props = $props();
   const id = $props.id();
 </script>
 
@@ -22,8 +23,15 @@
 
 <!-- Always open: every area is one tap away, without opening sections first -->
 <section aria-labelledby={id} class="staff-section mt-5">
-  <h3 {id} class="m-0 text-xs font-semibold tracking-wide text-neutral-700 uppercase">{title}</h3>
-  <ul class="grid grid-cols-2 gap-x-4 md:grid-cols-3">
+  <svelte:element
+    this={level === 2 ? 'h2' : 'h3'}
+    {id}
+    class={level === 2
+      ? 'm-0 font-serif text-lg font-semibold text-brand-900'
+      : 'm-0 text-xs font-semibold tracking-wide text-neutral-700 uppercase'}
+    >{title}</svelte:element
+  >
+  <ul class="grid gap-x-4 sm:grid-cols-2 md:grid-cols-3">
     {#each modules.filter(canOpenModule) as module (module.href)}
       <li class="group flex min-w-0 items-center border-b border-neutral-200">
         <a
@@ -51,9 +59,7 @@
               {@render moduleTitle(module)}
               {#if module.href === CHANGELOG_PATH}<ChangelogBadge />{/if}
             </span>
-            <!-- On a phone the search above names what each area is for -->
-            <span class="mt-0.5 hidden text-sm text-neutral-700 sm:block">{module.description}</span
-            >
+            <span class="mt-0.5 block text-sm text-neutral-700">{module.description}</span>
           </span>
         </a>
         <FavoriteStar {module} />

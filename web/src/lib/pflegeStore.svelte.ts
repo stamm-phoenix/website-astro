@@ -154,7 +154,10 @@ export const downloadsPflege = createResource<StaffDownload[]>('/intern/pflege/d
 export const blogPflege = createResource<StaffBlogListItem[]>('/intern/pflege/blog');
 export const faqPflege = createResource<StaffQuestionsData>('/intern/pflege/qa');
 export const aktionenPflege = createResource<StaffAktionenData>('/intern/pflege/aktionen');
-export const belegePflege = createResource<StaffBeleg[]>('/intern/pflege/belege');
+export const belegePflege = createResource<StaffBeleg[]>('/intern/pflege/belege', {
+  loadError:
+    'Die hier eingereichten Belege konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Belege erneut.',
+});
 export const protokollePflege = createResource<StaffProtokolleData>('/intern/pflege/protokolle');
 export const personenPflege = createResource<PersonenUebersicht>('/intern/pflege/personen');
 /** The Gruppenstunden with their recorded Termine; loaded again on every visit. */
@@ -200,7 +203,7 @@ export const campflowBelegeStore = createResource<CampflowBelegeData, boolean>(
   {
     idle: true,
     loadError:
-      'Die Belege aus CampFlow konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
+      'Die Belege aus CampFlow konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Belege erneut.',
   }
 );
 

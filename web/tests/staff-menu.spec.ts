@@ -39,7 +39,7 @@ test('„Menü“ closes the sheet „Alle Bereiche“ again', async ({ page, br
   await expect(sheet).toBeHidden();
 });
 
-test('keyboard focus leaving the sheet „Alle Bereiche“ closes it', async ({
+test('keyboard focus remains inside the mobile menu until Escape', async ({
   page,
   browserName,
 }) => {
@@ -59,8 +59,10 @@ test('keyboard focus leaving the sheet „Alle Bereiche“ closes it', async ({
   const signOut = sheet.getByRole('link', { name: 'Abmelden' });
   await signOut.focus();
   await expect(signOut).toBeFocused();
-  // Logout sits in the fixed header; the final navigation link ends the tab sequence.
+  // The last menu link wraps to the quick navigation inside the same modal region.
   await sheet.getByRole('link').last().focus();
   await page.keyboard.press('Tab');
+  await expect(sheet).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(sheet).toBeHidden();
 });

@@ -80,8 +80,11 @@ test('on a phone the bar at the bottom and the sheet „Menü“ lead to every m
   await expect(sheet.getByRole('link', { name: 'Abmelden' })).toHaveAttribute('href', '/logout');
   await sheet.getByRole('searchbox', { name: 'Bereich finden' }).fill('kassenzettel');
   // Belege by keyword, Eigenbeleg by its description
-  await expect(sheet.getByRole('status')).toHaveText(/2 Bereiche gefunden/);
-  await sheet.getByRole('link', { name: /^Belege/ }).click();
+  await expect(sheet.locator('#staff-nav').getByRole('status')).toHaveText(/2 Bereiche gefunden/);
+  await sheet
+    .locator('#staff-nav')
+    .getByRole('link', { name: /^Belege/ })
+    .click();
   await expect(page).toHaveURL(/\/leitendenbereich\/belege$/);
   await expect(sheet).toBeHidden();
 
@@ -115,14 +118,16 @@ test('the start page lists every area and the recently used ones without opening
   const all = page.getByRole('region', { name: 'Alle Bereiche' });
   const kasse = all.getByRole('region', { name: 'Kasse & Material' });
   for (const name of ['Belege', 'Eigenbeleg', 'Abrechnung', 'Beiträge', 'Sammelbestellungen']) {
-    await expect(kasse.getByRole('link', { name, exact: true })).toBeVisible();
+    await expect(kasse.getByRole('link', { name: new RegExp(`^${name}(?:\\s|$)`) })).toBeVisible();
   }
 
   // The search above finds an area by what it is for
   const search = page.getByRole('main').getByRole('searchbox', { name: 'Bereich finden' });
   await search.filter({ visible: true }).fill('rüsthaus');
   await expect(
-    page.getByRole('main').getByRole('link', { name: /^Sammelbestellungen Rüsthaus/ })
+    page
+      .getByRole('region', { name: 'Begrüßung und Suche' })
+      .getByRole('link', { name: /^Sammelbestellungen Rüsthaus/ })
   ).toBeVisible();
 });
 

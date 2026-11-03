@@ -1,18 +1,18 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
-  import StaffModuleSearch from './StaffModuleSearch.svelte';
+  import StaffNavPanel from './StaffNavPanel.svelte';
+  import StaffFavoritesFeedback from './StaffFavoritesFeedback.svelte';
+  import { isolateModal } from '../lib/modalRegion';
   import ChangelogBadge from './changelog/ChangelogBadge.svelte';
   import { CHANGELOG_SEEN_MAX_AGE_MS, loadChangelogSeen } from '../lib/staffChangelogStore.svelte';
-  import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
+  import { fetchPrincipal } from '../lib/authStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import {
     favoritesStore,
     favoritesUnsaved,
     loadFavorites,
-    saveFavorites,
   } from '../lib/staffFavoritesStore.svelte';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
-  import Toast from './ui/Toast.svelte';
   import { loadRecent, recordVisit } from '../lib/staffRecentStore.svelte';
   import {
     STAFF_DEFAULT_QUICK,
@@ -22,7 +22,6 @@
   } from '../lib/staffModules';
   import { yourStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
   import { canOpenModule } from '../lib/staffAccess.svelte';
-  import { HELP_CONTACTS } from '../lib/helpContacts';
   import {
     SWIPE_START,
     commits,
@@ -32,7 +31,6 @@
     rubberBand,
     settleDuration,
     settleEasing,
-    settleTransition,
     startTrack,
     type SwipeTrack,
   } from '../lib/swipe';
@@ -101,6 +99,10 @@
   });
 
   let open = $state(false);
+  let modal = $state<HTMLElement>();
+  $effect(() => {
+    if (open && modal) return isolateModal(modal);
+  });
 
   function isCurrent(href: string): boolean {
     return href === current || ancestors.includes(href);
@@ -147,6 +149,13 @@
     void loadChangelogSeen({ maxAge: CHANGELOG_SEEN_MAX_AGE_MS });
     // Whether Nikolaus modules may appear in the bar; the Steuerung refreshes it on a change
     void fetchNikolausStatus();
+    // Keep the modal boundary aligned with Tailwind's rem-based sidebar breakpoint.
+    const wide = window.matchMedia('(min-width: 80rem)');
+    const closeForSidebar = (): void => {
+      if (open && wide.matches) hide(false);
+    };
+    wide.addEventListener('change', closeForSidebar);
+    return () => wide.removeEventListener('change', closeForSidebar);
   });
 
   // The start page loads the favorites itself (StaffDashboard); elsewhere the bar needs them
@@ -229,14 +238,14 @@
   }
 
   /**
-   * Keyboard focus leaving the panel and the bar for the covered page closes the panel. Safari
+   * Keyboard focus leaving the menu region for the covered page closes the panel. Safari
    * focuses the surrounding `<main tabindex="-1">` on a tap on „Menü“; that is no move away,
    * else the panel closes and the click opens it again.
    */
   function onfocusin(event: FocusEvent): void {
     const target = event.target;
     if (!open || !(target instanceof Node)) return;
-    if (panel?.contains(target) || (bar && (bar.contains(target) || target.contains(bar)))) return;
+    if (modal?.contains(target) || (bar && target.contains(bar))) return;
     hide(false);
   }
 
@@ -403,194 +412,99 @@
   >
 {/snippet}
 
-<nav
-  bind:this={bar}
-  aria-label="Schnellzugriff"
-  data-sticky-bottom
-  ontouchstart={onBarTouchStart}
-  ontouchend={onBarTouchEnd}
-  ontouchcancel={onBarTouchEnd}
-  onclickcapture={(event) => {
-    if (suppressClick) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  }}
-  class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden xl:hidden"
+<div
+  class={open ? 'fixed inset-0 z-40' : undefined}
+  bind:this={modal}
+  role={open ? 'dialog' : undefined}
+  aria-modal={open ? 'true' : undefined}
+  aria-labelledby={open ? 'staff-nav-title' : undefined}
 >
-  <!-- Centered on tablets, so the areas stay close together -->
-  <div class="mx-auto grid max-w-xl grid-cols-5" class:sheet-open={open}>
-    <a href={STAFF_HOME.href} aria-current={home ? 'page' : undefined} class="staff-bar-item">
-      {@render icon('M3 11l9-8 9 8M5 10v10h14V10')}
-      <span>Übersicht</span>
-    </a>
-    {#if shownQuick}
-      {#each shownQuick as entry (entry.href)}
-        <a
-          href={entry.href}
-          data-astro-reload={entry.reload || undefined}
-          aria-current={entry.href === current
-            ? 'page'
-            : isCurrent(entry.href)
-              ? 'true'
-              : undefined}
-          class="staff-bar-item"
-        >
-          {@render icon(entry.icon)}
-          <span>{@render moduleTitle(entry)}</span>
-        </a>
-      {/each}
-    {:else}
-      {#each { length: QUICK_COUNT }, index (index)}
-        <span class="staff-bar-item" aria-hidden="true"></span>
-      {/each}
-    {/if}
-    <button
-      type="button"
-      class="staff-bar-item relative"
-      bind:this={menuButton}
-      aria-expanded={open}
-      aria-controls="staff-nav-panel"
-      aria-describedby="staff-menu-news"
-      aria-current={inBar || open ? undefined : 'true'}
-      onclick={toggleSheet}
-    >
-      {@render icon('M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z')}
-      <span>Menü</span>
-      <ChangelogBadge floating textId="staff-menu-news" />
-    </button>
-  </div>
-</nav>
-
-{#if mounted}
-  <!-- Dims the page above the bar; the bar stays usable, „Menü“ closes the panel again -->
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div
-    class="staff-sheet-scrim fixed inset-x-0 top-0 z-30 print:hidden xl:hidden"
-    style:opacity={progress}
-    style:transition={settleTransition('opacity', settleMs, settleCurve)}
-    onclick={closeSheet}
-  ></div>
-  <div
-    bind:this={panel}
-    id="staff-nav-panel"
-    role="dialog"
-    tabindex="-1"
-    aria-labelledby="staff-nav-title"
-    style:transform="translateY({offset}px)"
-    style:transition={settleTransition('transform', settleMs, settleCurve)}
-    ontouchstart={onPanelTouchStart}
-    ontouchend={onPanelTouchEnd}
-    ontouchcancel={onPanelTouchEnd}
-    class="staff-sheet fixed inset-x-0 z-[35] mx-auto flex w-full max-w-xl flex-col rounded-t-2xl border border-b-0 border-neutral-300 bg-surface shadow-lift print:hidden xl:hidden"
+  <nav
+    bind:this={bar}
+    aria-label="Schnellzugriff"
+    data-sticky-bottom
+    ontouchstart={onBarTouchStart}
+    ontouchend={onBarTouchEnd}
+    ontouchcancel={onBarTouchEnd}
+    onclickcapture={(event) => {
+      if (suppressClick) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }}
+    class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden xl:hidden"
   >
-    <div bind:this={panelHeader} class="shrink-0 border-b border-neutral-200">
-      <!-- Grip: the panel can be pulled down to close it -->
-      <div aria-hidden="true" class="mx-auto mt-2 h-1.5 w-10 rounded-full bg-neutral-300"></div>
-      <div class="flex items-center justify-between gap-4 px-5 pt-1 pb-3">
-        <h2 id="staff-nav-title" class="font-serif text-xl font-semibold text-brand-900">
-          Alle Bereiche
-        </h2>
-        <a
-          href="/logout"
-          data-astro-reload
-          class="ml-auto inline-flex min-h-11 items-center font-semibold text-link">Abmelden</a
-        >
-        <button
-          bind:this={closeButton}
-          type="button"
-          class="-mr-2 flex min-h-11 min-w-11 items-center justify-center rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
-          aria-label="Schließen"
-          onclick={closeSheet}
-        >
-          <svg
-            aria-hidden="true"
-            class="size-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg
+    <!-- Centered on tablets, so the areas stay close together -->
+    <div class="mx-auto grid max-w-xl grid-cols-5" class:sheet-open={open}>
+      <a href={STAFF_HOME.href} aria-current={home ? 'page' : undefined} class="staff-bar-item">
+        {@render icon('M3 11l9-8 9 8M5 10v10h14V10')}
+        <span>Übersicht</span>
+      </a>
+      {#if shownQuick}
+        {#each shownQuick as entry (entry.href)}
+          <a
+            href={entry.href}
+            data-astro-reload={entry.reload || undefined}
+            aria-current={entry.href === current
+              ? 'page'
+              : isCurrent(entry.href)
+                ? 'true'
+                : undefined}
+            class="staff-bar-item"
           >
-        </button>
-      </div>
+            {@render icon(entry.icon)}
+            <span>{@render moduleTitle(entry)}</span>
+          </a>
+        {/each}
+      {:else}
+        {#each { length: QUICK_COUNT }, index (index)}
+          <span class="staff-bar-item" aria-hidden="true"></span>
+        {/each}
+      {/if}
+      <button
+        type="button"
+        class="staff-bar-item relative"
+        bind:this={menuButton}
+        aria-expanded={open}
+        aria-controls="staff-nav-panel"
+        aria-describedby="staff-menu-news"
+        aria-current={inBar || open ? undefined : 'true'}
+        onclick={toggleSheet}
+      >
+        {@render icon('M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z')}
+        <span>Menü</span>
+        <ChangelogBadge floating textId="staff-menu-news" />
+      </button>
     </div>
-    <div
-      bind:this={list}
-      id="staff-nav"
-      class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
-    >
-      <StaffModuleSearch
-        {groups}
-        variant="sheet"
-        {current}
-        {ancestors}
-        onnavigate={() => hide(false)}
-      />
+  </nav>
 
-      <div class="mt-5 border-t border-neutral-300 pt-3 text-sm">
-        <section aria-labelledby="staff-help-title">
-          <h3 id="staff-help-title" class="m-0 text-sm font-semibold text-brand-900">
-            Hilfe &amp; Kontakt
-          </h3>
-          <ul>
-            <li>
-              Technische Probleme:
-              <a
-                href="mailto:{HELP_CONTACTS.technik}"
-                class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.technik}</a
-              >
-            </li>
-            <li>
-              Alles andere:
-              <a
-                href="mailto:{HELP_CONTACTS.allgemein}"
-                class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.allgemein}</a
-              >
-            </li>
-          </ul>
-        </section>
-        {#if authStore.principal}
-          <p class="pt-1 text-neutral-700">
-            Angemeldet als <span class="font-semibold">{authStore.principal.userDetails}</span>
-          </p>
-        {/if}
-        <ul class="flex flex-wrap gap-x-6">
-          <li>
-            <a href="/" class="inline-flex min-h-11 items-center text-link">Zur Website</a>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </div>
-{/if}
+  <StaffNavPanel
+    {mounted}
+    {open}
+    {progress}
+    {offset}
+    {settleMs}
+    {settleCurve}
+    {groups}
+    {current}
+    {ancestors}
+    bind:panel
+    bind:panelHeader
+    bind:list
+    bind:closeButton
+    onclose={closeSheet}
+    onnavigate={() => hide(false)}
+    {onPanelTouchStart}
+    {onPanelTouchEnd}
+  />
+
+  <StaffFavoritesFeedback />
+</div>
 
 <svelte:window {onkeydown} />
 <svelte:document {onfocusin} />
 
-<!-- The result of a change to the favorites, wherever it was made -->
-<Toast
-  message={favoritesStore.notice?.text ?? null}
-  kind={favoritesStore.notice?.kind}
-  actionLabel={favoritesStore.notice?.kind === 'error' ? 'Erneut speichern' : undefined}
-  duration={favoritesStore.notice?.kind === 'error' ? 0 : undefined}
-  onaction={() => saveFavorites()}
-  onclose={() => (favoritesStore.notice = null)}
-/>
-
 <style>
-  /*
-   * Above the bar at the bottom and behind it, so it slides out from under the bar; it keeps
-   * clear of the header at the top, so its grip and rounded corners stay in view
-   */
-  .staff-sheet {
-    bottom: var(--staff-bar-h, 0px);
-    max-height: calc(100dvh - var(--staff-bar-h, 0px) - 6rem);
-  }
-  .staff-sheet-scrim {
-    bottom: var(--staff-bar-h, 0px);
-    background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
-  }
   .staff-bar-item {
     display: flex;
     min-height: 3.75rem;

@@ -160,7 +160,7 @@
         <button
           type="button"
           aria-pressed={filters.activeFilters[filter.key]}
-          class="py-2 text-sm font-semibold decoration-2 underline-offset-[6px] {filters
+          class="min-h-11 py-2 text-sm font-semibold decoration-2 underline-offset-[6px] {filters
             .activeFilters[filter.key]
             ? 'text-brand-900 underline decoration-accent-500'
             : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
@@ -170,7 +170,7 @@
       {/each}
     </div>
   </fieldset>
-  <label class="mt-4 flex items-center gap-2 text-sm text-neutral-700">
+  <label class="mt-4 flex min-h-11 items-center gap-2 text-sm text-neutral-700">
     <input type="checkbox" bind:checked={filters.showFinished} class="h-4 w-4 accent-brand-900" />
     Erledigte und stornierte Bestellungen anzeigen
   </label>
