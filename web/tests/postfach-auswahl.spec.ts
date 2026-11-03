@@ -1,4 +1,5 @@
-import { test, expect, expectNoHorizontalOverflow, type Page } from './fixtures';
+import type { Page } from '@playwright/test';
+import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 /** Choosing several conversations of the Kontakt-Postfach and changing them at once. */
 
