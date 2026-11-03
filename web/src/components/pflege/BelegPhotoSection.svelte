@@ -14,8 +14,10 @@
     photo: ReturnType<typeof createBelegPhotoDraft>;
     busy: boolean;
     errors: Record<string, string>;
+    /** Whether the person checks receipts for the Kasse, who may also change accepted ones. */
+    reviewer: boolean;
   }
-  let { form, photo, busy, errors }: Props = $props();
+  let { form, photo, busy, errors, reviewer }: Props = $props();
   /** A picture of the photo or of a page of the PDF, as wide as the dialog. */
   const SEITE = 'h-auto w-full rounded-md border border-neutral-200 bg-neutral-100';
   /** The stored photo is open with the edit tools, rather than a newly chosen one. */
@@ -82,7 +84,7 @@
     {/if}
   {/if}
   <div class="flex flex-wrap gap-2">
-    {#if form.id && form.hasImage && !form.isPdf && !photo.draft}
+    {#if form.id && form.hasImage && !form.isPdf && !photo.draft && (reviewer || form.status !== 'Angenommen')}
       <ActionButton
         variant="secondary"
         type="button"

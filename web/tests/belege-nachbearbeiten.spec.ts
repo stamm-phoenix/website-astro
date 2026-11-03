@@ -151,3 +151,24 @@ test('saving the receipt with an unchanged or reset stored photo keeps its origi
   await open.click();
   await expect(dialog.getByRole('link', { name: 'Original ansehen' })).toBeVisible();
 });
+
+test('without the Kasse an accepted receipt offers no photo editing', async ({ page }) => {
+  await page.route('**/api/intern/pflege/belege/rolle', (route) =>
+    route.fulfill({ json: { reviewer: false } })
+  );
+  const records = (await (await page.request.get('/api/intern/pflege/belege')).json()) as {
+    shop: string;
+    status: string;
+    hasImage: boolean;
+    isPdf: boolean;
+    readOnly?: boolean;
+  }[];
+  const accepted = records.find(
+    (item) => item.status === 'Angenommen' && item.hasImage && !item.isPdf && !item.readOnly
+  )!;
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button').filter({ hasText: accepted.shop }).first().click();
+  const dialog = page.getByRole('dialog', { name: /Beleg von/ });
+  await expect(dialog.getByAltText(/Foto des Belegs/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Foto bearbeiten', exact: true })).toHaveCount(0);
+});
