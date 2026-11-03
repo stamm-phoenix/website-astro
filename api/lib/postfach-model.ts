@@ -212,13 +212,22 @@ export function konversationenAus(
   return [...byId.values()];
 }
 
+/**
+ * A time to the second. Exchange gives received times in whole seconds, and the database
+ * driver sends a `Date` as `datetime`, which may lose a millisecond; compared to the second
+ * both agree.
+ */
+export function sekunde(iso: string): string {
+  return iso.slice(0, 19);
+}
+
 /** A mark counts until a newer message arrives; then the conversation is open again. */
 function erledigungsStand(
   erledigung: Erledigung | undefined,
   neueste: string
 ): Pick<KonversationZeile, 'erledigung' | 'wiederOffen'> {
   if (!erledigung) return { erledigung: null, wiederOffen: false };
-  return erledigung.bis >= neueste
+  return sekunde(erledigung.bis) >= sekunde(neueste)
     ? { erledigung, wiederOffen: false }
     : { erledigung: null, wiederOffen: true };
 }

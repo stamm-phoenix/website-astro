@@ -16,6 +16,7 @@
   import { dateiGroesse, mailZeitLang } from '../../lib/postfachAnsicht';
   import type {
     KonversationDetail,
+    KonversationZeile,
     MailAdresse,
     MailNachricht,
   } from '../../../../api/lib/postfach-model';
@@ -60,6 +61,18 @@
   let anfrage = 0;
   let laufend: AbortController | null = null;
   onDestroy(() => laufend?.abort());
+
+  /**
+   * Takes over a saved change of the open conversation. A load asked before it would bring the
+   * old state back, so it is dropped; a late answer for another conversation changes nothing here.
+   */
+  function uebernimm(id: string, change: Partial<KonversationZeile>): void {
+    if (detail?.konversation.id !== id) return;
+    anfrage++;
+    laufend?.abort();
+    loading = false;
+    detail = { ...detail, konversation: { ...detail.konversation, ...change } };
+  }
 
   async function laden(id: string): Promise<void> {
     // Another conversation: its predecessor must not stay on screen with working buttons
@@ -228,11 +241,7 @@
             konversation={data.konversation.id}
             zustaendig={data.konversation.zustaendig}
             {ich}
-            onaenderung={(id, zustaendig) => {
-              // A late answer for another conversation only changes its line in the list
-              if (detail?.konversation.id === id)
-                detail = { ...detail, konversation: { ...detail.konversation, zustaendig } };
-            }}
+            onaenderung={(id, zustaendig) => uebernimm(id, { zustaendig })}
             onkonflikt={(id) => {
               onkonflikt();
               if (id === konversation) void laden(id);
@@ -246,13 +255,7 @@
               wiederOffen={data.konversation.wiederOffen}
               bis={data.konversation.am}
               {ich}
-              onaenderung={(id, erledigung) => {
-                if (detail?.konversation.id === id)
-                  detail = {
-                    ...detail,
-                    konversation: { ...detail.konversation, erledigung, wiederOffen: false },
-                  };
-              }}
+              onaenderung={(id, erledigung) => uebernimm(id, { erledigung, wiederOffen: false })}
               onkonflikt={(id) => {
                 onkonflikt();
                 if (id === konversation) void laden(id);
