@@ -36,12 +36,27 @@ export function ladeKonversation(
   );
 }
 
-/** Reads the list of the mailbox again, bypassing the cache of the API. */
+/** The mailbox whose page is open, and a count of its loads. */
+let offenesPostfach: string | null = null;
+let ladeRevision = 0;
+
+/** Loads the list of the mailbox whose page opens; a later load always wins. */
+export function ladePostfach(postfach: string): Promise<void> {
+  offenesPostfach = postfach;
+  ladeRevision++;
+  return postfachListe.load({ param: postfach, force: true });
+}
+
+/**
+ * Reads the list of the mailbox again, bypassing the cache of the API. A late answer is
+ * dropped when another mailbox was opened or loaded meanwhile.
+ */
 export async function neuLaden(postfach: string): Promise<void> {
+  const revision = ++ladeRevision;
   const data = await fetchApi<PostfachAnsicht>(
     `/intern/postfach/${encodeURIComponent(postfach)}?frisch=1`
   );
-  postfachListe.set(data);
+  if (offenesPostfach === postfach && revision === ladeRevision) postfachListe.set(data);
 }
 
 /** Changes a line of the loaded list in place, e.g. after a mark or an assignment. */

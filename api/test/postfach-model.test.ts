@@ -9,7 +9,9 @@ import {
 } from '../lib/postfach-model';
 import { POSTFAECHER, postfachRoles, nachrichtOutlookUrl } from '../lib/postfach-liste';
 import { CONFIG } from '../lib/config';
-import { zuweisungMail } from '../lib/postfach-mails';
+import { postfachBenachrichtigung, zuweisungMail } from '../lib/postfach-mails';
+import * as token from '../lib/token';
+import type { Client } from '@microsoft/microsoft-graph-client';
 
 function nachricht(
   id: string,
@@ -136,4 +138,42 @@ test('the note about an assignment escapes the mail and links the conversation',
     /https:\/\/example\.test\/leitendenbereich\/email\/kontakt#konversation=AAQk%2Fx%2By%3D/
   );
   assert.doesNotMatch(mail.html, /Text m1/);
+});
+
+test('the note goes out from the mailbox itself and leaves no copy in its Sent Items', async (t) => {
+  const calls: { path: string; body: Record<string, unknown> }[] = [];
+  t.mock.method(
+    token,
+    'getClient',
+    () =>
+      ({
+        api: (path: string) => {
+          const request = {
+            middlewareOptions: () => request,
+            options: () => request,
+            post: async (body: Record<string, unknown>) => {
+              calls.push({ path, body });
+            },
+          };
+          return request;
+        },
+      }) as unknown as Client
+  );
+  const [zeile] = konversationenAus(
+    'vorstand',
+    [nachricht('m1', 'k1', '2026-11-03T08:00:00.000Z', 'Vertraulich')],
+    { marken: new Map(), gelesenBis: null },
+    new Map()
+  );
+  const vorstand = POSTFAECHER.find((postfach) => postfach.id === 'vorstand')!;
+  await postfachBenachrichtigung.senden(
+    'tom@stamm-phoenix.de',
+    vorstand,
+    zeile,
+    'Vera',
+    'https://x.test'
+  );
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, '/users/vorstand%40stamm-phoenix.de/sendMail');
+  assert.equal(calls[0].body.saveToSentItems, false);
 });
