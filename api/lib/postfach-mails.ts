@@ -62,17 +62,47 @@ export function zuweisungMail(
   return { subject: `Dir zugewiesen: ${konversation.betreff}`, html };
 }
 
+/** One note for several conversations at once, so a choice of ten does not send ten mails. */
+export function zuweisungenMail(
+  postfach: PostfachEintrag,
+  konversationen: readonly KonversationZeile[],
+  vonName: string,
+  siteUrl: string
+): Mail {
+  if (konversationen.length === 1)
+    return zuweisungMail(postfach, konversationen[0], vonName, siteUrl);
+  const zeilen = konversationen
+    .map(
+      (konversation) =>
+        `<li style="margin:0 0 8px;"><a href="${escapeHtml(konversationLink(siteUrl, postfach.id, konversation.id))}" style="color:#003056;font-weight:bold;">${escapeHtml(konversation.betreff)}</a><br /><span style="color:#6b7280;">${escapeHtml(konversation.von.name)} · ${escapeHtml(datum(konversation.am))}</span></li>`
+    )
+    .join('');
+  const html = mailLayout(`
+    <h1 style="font-size:20px;color:#003056;margin:0 0 16px;">Du bist zuständig für ${konversationen.length} E-Mails</h1>
+    <p>${escapeHtml(vonName)} hat dir ${konversationen.length} E-Mails im ${escapeHtml(postfach.name)} (${escapeHtml(postfach.address)}) zugewiesen.</p>
+    <ul style="padding-left:20px;margin:16px 0;font-size:14px;">${zeilen}</ul>
+    ${mailButton(
+      `${siteUrl}/leitendenbereich/email/${postfach.id}`,
+      'Postfach öffnen',
+      'Falls der Button nicht funktioniert, kopiere diese Adresse in deinen Browser:'
+    )}`);
+  return {
+    subject: `Dir zugewiesen: ${konversationen.length} E-Mails im ${postfach.name}`,
+    html,
+  };
+}
+
 /** Sends the note; the caller decides what a failure means. A seam for the tests. */
 export const postfachBenachrichtigung = { senden: sendeZuweisungMail };
 
 async function sendeZuweisungMail(
   an: string,
   postfach: PostfachEintrag,
-  konversation: KonversationZeile,
+  konversationen: readonly KonversationZeile[],
   vonName: string,
   siteUrl: string
 ): Promise<void> {
-  const mail = zuweisungMail(postfach, konversation, vonName, siteUrl);
+  const mail = zuweisungenMail(postfach, konversationen, vonName, siteUrl);
   await sendMail(an, mail.subject, mail.html, postfach.address, undefined, {
     retry: false,
     timeoutMs: 10_000,

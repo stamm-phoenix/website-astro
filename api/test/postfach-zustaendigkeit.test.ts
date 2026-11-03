@@ -9,8 +9,9 @@ import { postfachVerzeichnis } from '../lib/postfach';
 import type { PostfachStart } from '../lib/postfach-model';
 import { getDb } from '../lib/db';
 import { CONFIG } from '../lib/config';
+import { PostfachZustaendigMehrereRoute } from '../endpoints/intern-postfach-mehrere';
 import { dbTest } from './fixtures/database';
-import { K2, KONTAKT, LEA, request, setup, TOM } from './fixtures/postfach';
+import { K1, K2, KONTAKT, LEA, request, setup, TOM } from './fixtures/postfach';
 
 dbTest(
   'assigning a conversation notifies the person and shows it on their start page',
@@ -142,5 +143,67 @@ dbTest(
       context
     );
     assert.equal(ohneTeam.status, 403);
+  }
+);
+
+dbTest(
+  'several conversations are assigned at once with one note, a stale one stays as it is',
+  async (t) => {
+    const { context, mocks } = setup(t);
+    // K1 was taken by Lea meanwhile; the page still shows nobody
+    await PostfachZustaendigRoute(
+      request('PUT', '/kontakt/zustaendig', KONTAKT, {
+        konversation: K1,
+        login: 'lea@stamm-phoenix.de',
+      }),
+      context
+    );
+    const response = await PostfachZustaendigMehrereRoute(
+      request('PUT', '/kontakt/zustaendig-mehrere', KONTAKT, {
+        login: 'tom@stamm-phoenix.de',
+        konversationen: [
+          { konversation: K1, vorher: null },
+          { konversation: K2, vorher: null },
+          { konversation: K2, vorher: null },
+        ],
+      }),
+      context
+    );
+    assert.equal(response.status, 200);
+    const body = response.jsonBody as {
+      ergebnisse: {
+        konversation: string;
+        ok: boolean;
+        fehler?: string;
+        zustaendig: { login: string } | null;
+      }[];
+      benachrichtigt: boolean;
+    };
+    assert.deepEqual(
+      body.ergebnisse.map((ergebnis) => [
+        ergebnis.konversation,
+        ergebnis.ok,
+        ergebnis.zustaendig?.login,
+      ]),
+      [
+        [K1, false, 'lea@stamm-phoenix.de'],
+        [K2, true, 'tom@stamm-phoenix.de'],
+      ]
+    );
+    assert.match(body.ergebnisse[0].fehler ?? '', /Lea Leitung/);
+    assert.equal(body.benachrichtigt, true);
+    // One note for Tom, with the conversation that was assigned
+    const toTom = mocks.mails.filter((mail) => mail[0] === 'tom@stamm-phoenix.de');
+    assert.equal(toTom.length, 1);
+    assert.deepEqual(
+      (toTom[0][2] as { id: string }[]).map((zeile) => zeile.id),
+      [K2]
+    );
+
+    const leer = await PostfachZustaendigMehrereRoute(
+      request('PUT', '/kontakt/zustaendig-mehrere', KONTAKT, { login: null, konversationen: [] }),
+      context
+    );
+    assert.equal(leer.status, 400);
   }
 );

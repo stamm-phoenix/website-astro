@@ -74,6 +74,7 @@ import {
   PostfachZustaendigRoute,
 } from './endpoints/intern-postfach';
 import { PostfachStatusRoute } from './endpoints/intern-postfach-status';
+import { PostfachZustaendigMehrereRoute } from './endpoints/intern-postfach-mehrere';
 import { StaffRecent } from './endpoints/intern-zuletzt';
 import { StaffSettings } from './endpoints/intern-einstellungen';
 import {
@@ -925,6 +926,13 @@ app.http('internPostfachZustaendig', {
   authLevel: 'anonymous',
   route: 'intern/postfach/{postfach}/zustaendig',
   handler: PostfachZustaendigRoute,
+});
+
+app.http('internPostfachZustaendigMehrere', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/zustaendig-mehrere',
+  handler: PostfachZustaendigMehrereRoute,
 });
 
 app.http('internPostfachStatus', {

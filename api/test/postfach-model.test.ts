@@ -9,7 +9,7 @@ import {
 } from '../lib/postfach-model';
 import { POSTFAECHER, postfachRoles, nachrichtOutlookUrl } from '../lib/postfach-liste';
 import { CONFIG } from '../lib/config';
-import { postfachBenachrichtigung, zuweisungMail } from '../lib/postfach-mails';
+import { postfachBenachrichtigung, zuweisungMail, zuweisungenMail } from '../lib/postfach-mails';
 import * as token from '../lib/token';
 import type { Client } from '@microsoft/microsoft-graph-client';
 
@@ -169,11 +169,33 @@ test('the note goes out from the mailbox itself and leaves no copy in its Sent I
   await postfachBenachrichtigung.senden(
     'tom@stamm-phoenix.de',
     vorstand,
-    zeile,
+    [zeile],
     'Vera',
     'https://x.test'
   );
   assert.equal(calls.length, 1);
   assert.equal(calls[0].path, '/users/vorstand%40stamm-phoenix.de/sendMail');
   assert.equal(calls[0].body.saveToSentItems, false);
+});
+
+test('several assigned conversations make one note with a link to each', () => {
+  const zeilen = konversationenAus(
+    'kontakt',
+    [
+      nachricht('m1', 'AAQk/eins=', '2026-11-03T08:00:00.000Z', 'Erste <Frage>'),
+      nachricht('m2', 'AAQk/zwei=', '2026-11-03T09:00:00.000Z', 'Zweite Frage'),
+    ],
+    { marken: new Map(), gelesenBis: null },
+    new Map()
+  );
+  const mail = zuweisungenMail(POSTFAECHER[0], zeilen, 'Vera Vorstand', 'https://example.test');
+  assert.equal(mail.subject, 'Dir zugewiesen: 2 E-Mails im Kontakt-Postfach');
+  assert.match(mail.html, /Vera Vorstand hat dir 2 E-Mails im Kontakt-Postfach/);
+  assert.match(mail.html, /Erste &lt;Frage&gt;/);
+  assert.match(mail.html, /#konversation=AAQk%2Feins%3D/);
+  assert.match(mail.html, /#konversation=AAQk%2Fzwei%3D/);
+  assert.equal(
+    zuweisungenMail(POSTFAECHER[0], zeilen.slice(0, 1), 'Vera', 'https://example.test').subject,
+    'Dir zugewiesen: Zweite Frage'
+  );
 });

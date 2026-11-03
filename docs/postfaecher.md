@@ -18,8 +18,9 @@ Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
 ## Was das Modul kann
 
 - **Liste:** Die neuesten 100 Nachrichten des Posteingangs (`INBOX_LIMIT`), nach Konversation
-  (`conversationId` von Exchange) gruppiert, neueste zuerst. Filter: Alle, Ungelesen, Mir
-  zugewiesen, Ohne Zuständige. Wer eine Konversation in Outlook aus dem Posteingang verschiebt
+  (`conversationId` von Exchange) gruppiert, neueste zuerst. Filter: Alle (Start), Offen, Mir
+  zugewiesen, Ohne Zuständige, Ungelesen, Erledigt. Jede Zeile zeigt ihren Stand („Offen“ oder
+  grüner Haken mit Stand und Namen) und wer zuständig ist. Wer eine Konversation in Outlook aus dem Posteingang verschiebt
   (z. B. archiviert), nimmt sie damit aus der Liste. Liegen mehr als 100 Nachrichten im Posteingang, sagt die
   Liste das („Hier stehen die neuesten 100 E-Mails.“ mit Link zu Outlook), und leere Filter
   behaupten nicht, das ganze Postfach sei erledigt.
@@ -48,10 +49,18 @@ Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
   gilt (`bis`, Migration `0082`): die Empfangszeit der neuesten Nachricht, die die Seite gezeigt hat.
   Ist inzwischen eine neuere gekommen, wird nichts gespeichert und die Seite sagt es. Kommt nach dem
   Setzen eine neue Nachricht in den Posteingang, gilt sie wieder als offen und zeigt „Neue Nachricht nach „Erledigt““; die Zeile
-  bleibt, bis jemand den Stand neu setzt. Die Liste beginnt mit dem Filter „Offen“; „Mir
+  bleibt, bis jemand den Stand neu setzt. „Mir
   zugewiesen“, „Ohne Zuständige“ und „Ungelesen“ zählen nur offene Konversationen, „Erledigt“
   zeigt beide abgeschlossenen Stände. Wie bei der Zuständigkeit schickt die Seite mit, welchen
   Stand sie angezeigt hat, und bekommt `409`, wenn jemand ihn inzwischen geändert hat.
+- **Mehrere auf einmal:** Mit den Kästchen vor den Zeilen (oder „Alle … auswählen“ für das, was
+  der Filter zeigt) wählt man Konversationen aus und setzt für alle denselben Stand oder dieselbe
+  zuständige Person (`MehrfachAktionen.svelte`). Den Stand speichert die Seite Konversation für
+  Konversation über `PUT …/status`; die Zuständigkeit geht in einem Aufruf an
+  `PUT …/{postfach}/zustaendig-mehrere` (`intern-postfach-mehrere.ts`, höchstens 100), der jede
+  Konversation für sich mit ihrem `vorher` prüft und eine einzige Mail mit allen Betreffen schickt.
+  Was nicht gespeichert wurde (z. B. weil es jemand inzwischen geändert hat), nennt die Seite und
+  lässt es ausgewählt.
 - **Benachrichtigung:** Wer von jemand anderem zuständig gemacht wird, bekommt eine Mail an das
   eigene Konto (`postfach-mails.ts`, gesendet vom Postfach selbst, ohne Kopie in seinen „Gesendeten Elementen“, damit Betreffe des Vorstands-Postfachs nicht im Kontakt-Postfach landen) mit Betreff, Absender
   und einem Link auf die Konversation (`#konversation=<id>`), ohne den Text der E-Mail. Scheitert
@@ -115,7 +124,7 @@ Die API liest mit ihrer App-Registrierung (`CONFIG.azure.clientId`). Dafür brau
   gelesen, „Neu laden“ umgeht das; die Personenliste fünf Minuten.
 - **Routen** (`api/endpoints/intern-postfach.ts`, alle hinter `requireStaff`):
   `GET /api/intern/postfach`, `GET …/{postfach}`, `GET …/{postfach}/konversation?id=`,
-  `POST …/{postfach}/gelesen`, `GET …/{postfach}/personen`, `PUT …/{postfach}/zustaendig`, `PUT …/{postfach}/status`,
+  `POST …/{postfach}/gelesen`, `GET …/{postfach}/personen`, `PUT …/{postfach}/zustaendig`, `PUT …/{postfach}/zustaendig-mehrere`, `PUT …/{postfach}/status`,
   `GET …/{postfach}/anhang?nachricht=&anhang=`.
 - **Daten:** Schema `postfach` (Migrationen `0080_postfach.sql`, `0081_postfach_erledigung.sql`, `0082_postfach_erledigung_bis.sql`): nur IDs, Logins, Namen und der
   Betreff einer zugewiesenen Konversation. Die E-Mails bleiben in Exchange.

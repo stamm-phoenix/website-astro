@@ -68,6 +68,40 @@ export interface ZustaendigEingabe {
   vorher: string | null;
 }
 
+/** Conversations changed at once from the list; a page shows at most 100. */
+const MAX_AUSWAHL = 100;
+
+const mehrereSchema = lenientObject({
+  login: login.nullable(),
+  konversationen: z
+    .array(
+      lenientObject({ konversation: konversationId, vorher: login.nullable().default(null) }),
+      {
+        error: `Die Auswahl ist ungültig. ${RELOAD}`,
+      }
+    )
+    .min(1, { error: `Es ist keine E-Mail ausgewählt. ${RELOAD}` })
+    .max(MAX_AUSWAHL, { error: `Zu viele E-Mails auf einmal. ${RELOAD}` }),
+});
+
+export interface ZustaendigMehrereEingabe {
+  login: string | null;
+  konversationen: { konversation: string; vorher: string | null }[];
+}
+
+/** `PUT …/zustaendig-mehrere`: one person (or nobody) for several conversations. */
+export function validateZustaendigMehrere(value: unknown): ZustaendigMehrereEingabe {
+  const eingabe = parseWith(mehrereSchema, value);
+  // The same conversation twice would only conflict with itself
+  const gesehen = new Set<string>();
+  return {
+    login: eingabe.login,
+    konversationen: eingabe.konversationen.filter(({ konversation }) =>
+      gesehen.has(konversation) ? false : (gesehen.add(konversation), true)
+    ),
+  };
+}
+
 /** `PUT …/zustaendig`. */
 export function validateZustaendig(value: unknown): ZustaendigEingabe {
   return parseWith(zustaendigSchema, value);
