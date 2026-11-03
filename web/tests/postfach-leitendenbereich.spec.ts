@@ -288,3 +288,57 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
   await mail.getByRole('group', { name: 'Stand' }).getByRole('button', { name: 'Offen' }).click();
   await expect(mail.getByText('Wieder als offen markiert.')).toBeVisible();
 });
+
+test('a reload asked before an assignment does not bring the old line back', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'needs the list next to the open mail');
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('link', { name: /Rechnung Zeltplatz Sommerlager/ }).click();
+  const mail = page.getByRole('article', { name: 'Rechnung Zeltplatz Sommerlager' });
+  // Start from nobody, also on a retry
+  const abgeben = mail.getByRole('button', {
+    name: /Nicht mehr zuständig|Zuständigkeit entfernen/,
+  });
+  await expect(mail.getByRole('region', { name: 'Zuständigkeit' })).toBeVisible();
+  if (await abgeben.isVisible()) {
+    await abgeben.click();
+    await expect(mail.getByText('Zuständigkeit entfernt.')).toBeVisible();
+  }
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let answered: () => void = () => undefined;
+  const answer = new Promise<void>((resolve) => (answered = resolve));
+  let fetched: () => void = () => undefined;
+  const oldState = new Promise<void>((resolve) => (fetched = resolve));
+  await page.route('**/api/intern/postfach/kontakt?frisch=1', async (route) => {
+    // The answer holds the state before the assignment and arrives after it
+    const response = await route.fetch();
+    fetched();
+    await held;
+    await route.fulfill({ response });
+    answered();
+  });
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await oldState;
+  await mail.getByRole('button', { name: 'Ich kümmere mich' }).click();
+  await expect(mail.getByText('Du bist jetzt zuständig.')).toBeVisible();
+  release();
+  await answer;
+  await page.waitForTimeout(300);
+  await expect(liste.getByRole('link', { name: /Rechnung Zeltplatz Sommerlager/ })).toContainText(
+    'Dir zugewiesen'
+  );
+});
+
+test('opening a mail with the keyboard moves the focus to its subject', async ({ page }) => {
+  await page.goto('/leitendenbereich/email/kontakt');
+  const link = page
+    .getByRole('region', { name: 'Posteingang' })
+    .getByRole('link', { name: /Frage zum Nikolausdienst/ });
+  await link.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Frage zum Nikolausdienst' })).toBeFocused();
+});

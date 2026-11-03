@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, untrack } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import MessageText from '../ui/MessageText.svelte';
@@ -82,6 +82,9 @@
         ...ungelesen.map((nachricht) => nachricht.id),
         ...(data.nachrichten.at(-1) ? [data.nachrichten.at(-1)!.id] : []),
       ]);
+      // The heading appears with the data; focus it once it is on screen
+      await tick();
+      if (!aktuell()) return;
       heading?.focus();
       if (ungelesen.length) {
         try {
