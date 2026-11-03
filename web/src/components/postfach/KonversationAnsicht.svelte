@@ -306,25 +306,31 @@
                   {#if nachricht.anhaenge.length}
                     <ul class="flex flex-wrap gap-2" aria-label="Anhänge">
                       {#each nachricht.anhaenge as anhang (anhang.id)}
-                        <li>
+                        <li class="max-w-full min-w-0">
                           {#if anhang.herunterladbar}
                             <a
-                              class="surface-muted inline-flex min-h-11 items-center gap-2 px-3 text-sm"
+                              class="surface-muted inline-flex min-h-11 max-w-full flex-wrap items-center gap-x-2 px-3 py-1.5 text-sm"
                               href={anhangUrl(postfach, nachricht.id, anhang.id)}
                               download={anhang.name}
                             >
-                              <span class="font-semibold text-brand-900">{anhang.name}</span>
+                              <!-- Long file names without spaces break instead of being cut off -->
+                              <span class="min-w-0 font-semibold break-all text-brand-900"
+                                >{anhang.name}</span
+                              >
                               <span class="text-neutral-700">{dateiGroesse(anhang.groesse)}</span>
                             </a>
                           {:else}
                             <!-- Attached messages and large files only open in Outlook -->
                             <a
-                              class="surface-muted inline-flex min-h-11 items-center gap-2 px-3 text-sm"
+                              class="surface-muted inline-flex min-h-11 max-w-full flex-wrap items-center gap-x-2 px-3 py-1.5 text-sm"
                               href={data.outlookUrl ?? outlookPostfach}
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              <span class="font-semibold text-brand-900">{anhang.name}</span>
+                              <!-- Long file names without spaces break instead of being cut off -->
+                              <span class="min-w-0 font-semibold break-all text-brand-900"
+                                >{anhang.name}</span
+                              >
                               <span class="text-neutral-700"
                                 >in Outlook öffnen<span aria-hidden="true">↗</span></span
                               >
