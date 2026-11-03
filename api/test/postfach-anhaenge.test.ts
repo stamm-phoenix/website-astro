@@ -165,3 +165,54 @@ dbTest('an inline image too large to embed stays reachable as an attachment', as
     [['Einladung.png', true]]
   );
 });
+
+dbTest('an inline image written with CID: in capitals is embedded too', async (t) => {
+  const { context } = setup(t);
+  const original = postfachGraph.get;
+  t.mock.method(
+    postfachGraph,
+    'get',
+    async (path: string, query: Record<string, string>, prefer: string[]) => {
+      if (path.endsWith('/messages') && query.$filter?.includes(K2)) {
+        return {
+          value: [
+            message('AAkALgm3000000', K2, 2, {
+              hasAttachments: false,
+              body: { contentType: 'html', content: '<img src="CID:einladung">' },
+              parentFolderId: 'FOLDER-INBOX',
+            }),
+          ],
+        };
+      }
+      if (path.endsWith('/attachments')) {
+        return {
+          value: [
+            {
+              id: 'AAMkeinlad001',
+              name: 'einladung.png',
+              contentType: 'image/png',
+              size: 4,
+              isInline: true,
+            },
+          ],
+        };
+      }
+      if (path.endsWith('/attachments/AAMkeinlad001'))
+        return {
+          name: 'einladung.png',
+          contentType: 'image/png',
+          contentId: 'einladung',
+          contentBytes: 'EEEE',
+          size: 4,
+        };
+      return original.call(postfachGraph, path, query, prefer);
+    }
+  );
+  const response = await PostfachKonversationRoute(
+    request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
+    context
+  );
+  const [nachricht] = (response.jsonBody as KonversationDetail).nachrichten;
+  assert.equal(nachricht.html, '<img src="data:image/png;base64,EEEE">');
+  assert.deepEqual(nachricht.anhaenge, []);
+});

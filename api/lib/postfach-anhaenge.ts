@@ -72,7 +72,8 @@ export async function embedInlineImages(
     const url = `data:${file.data.contentType};base64,${file.data.contentBytes}`;
     // The whole reference only: `cid:image1` must not eat the start of `cid:image10`
     const escaped = cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    result = result.replace(new RegExp(`cid:${escaped}(?![\\w.@-])`, 'g'), () => url);
+    // The scheme in any case (`CID:` is valid), the Content-ID itself exactly
+    result = result.replace(new RegExp(`[cC][iI][dD]:${escaped}(?![\\w.@-])`, 'g'), () => url);
     eingebettet.add(entry.id);
   }
   return { html: result, eingebettet };
