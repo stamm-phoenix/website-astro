@@ -6,7 +6,13 @@ import {
   POSTFAECHER,
   type PostfachEintrag,
 } from './postfach-liste';
-import { readInbox, readKonversation, readRestId, resetSentItemsCache } from './postfach-graph';
+import {
+  readInbox,
+  readKonversation,
+  readRestId,
+  resetSentItemsCache,
+  type Posteingang,
+} from './postfach-graph';
 import {
   fuerMich,
   istGelesen,
@@ -57,10 +63,10 @@ export function eigenerLogin(principal: Pick<ClientPrincipal, 'userDetails'>): s
   return principal.userDetails.trim().toLowerCase();
 }
 
-const inboxCache = new Map<string, { at: number; promise: Promise<InboxNachricht[]> }>();
+const inboxCache = new Map<string, { at: number; promise: Promise<Posteingang> }>();
 
 /** The inbox, shared by the requests of the next seconds; `frisch` reads it again. */
-export async function inbox(address: string, frisch = false): Promise<InboxNachricht[]> {
+export async function inbox(address: string, frisch = false): Promise<Posteingang> {
   const cached = inboxCache.get(address);
   if (cached && !frisch && Date.now() - cached.at < INBOX_CACHE_MS) return cached.promise;
   const promise = readInbox(address);
@@ -85,7 +91,7 @@ export async function ladeKonversationen(
   principal: Pick<ClientPrincipal, 'userId' | 'userDetails'>,
   frisch = false
 ): Promise<KonversationZeile[]> {
-  const [nachrichten, stand, zustaendig, erledigungen] = await Promise.all([
+  const [{ nachrichten }, stand, zustaendig, erledigungen] = await Promise.all([
     inbox(postfach.address, frisch),
     getLeseStand(postfach.id, principal.userId, eigenerLogin(principal)),
     getZustaendigkeiten(postfach.id),
@@ -99,9 +105,12 @@ export async function ladeAnsicht(
   principal: Pick<ClientPrincipal, 'userId' | 'userDetails'>,
   frisch = false
 ): Promise<PostfachAnsicht> {
+  const konversationen = await ladeKonversationen(postfach, principal, frisch);
   return {
     postfach: postfachInfo(postfach),
-    konversationen: await ladeKonversationen(postfach, principal, frisch),
+    konversationen,
+    // Read once above; the second call takes the same answer from the cache
+    begrenzt: (await inbox(postfach.address)).begrenzt,
     ich: eigenerLogin(principal),
   };
 }

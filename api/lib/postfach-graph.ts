@@ -169,7 +169,13 @@ const LIST_SELECT =
   'id,conversationId,subject,from,receivedDateTime,bodyPreview,hasAttachments,importance,isDraft';
 
 /** The newest messages of the inbox, newest first. */
-export async function readInbox(address: string): Promise<InboxNachricht[]> {
+/** The newest messages of the inbox; `begrenzt`: the inbox holds more than were read. */
+export interface Posteingang {
+  nachrichten: InboxNachricht[];
+  begrenzt: boolean;
+}
+
+export async function readInbox(address: string): Promise<Posteingang> {
   return guarded(address, async () => {
     const response = await postfachGraph.get(
       `${mailboxPath(address)}/mailFolders/inbox/messages`,
@@ -180,9 +186,14 @@ export async function readInbox(address: string): Promise<InboxNachricht[]> {
       },
       [IMMUTABLE]
     );
-    return readCollection(listMessageSchema, response)
-      .filter((message) => !message.isDraft)
-      .map(toInbox);
+    const gelesen = readCollection(listMessageSchema, response);
+    const begrenzt =
+      gelesen.length >= INBOX_LIMIT ||
+      (collectionSchema.safeParse(response).data?.['@odata.nextLink'] ?? null) !== null;
+    return {
+      nachrichten: gelesen.filter((message) => !message.isDraft).map(toInbox),
+      begrenzt,
+    };
   });
 }
 
@@ -230,7 +241,9 @@ async function embedInlineImages(
     total += entry.size;
     const cid = file.data.contentId.replace(/^<|>$/g, '');
     const url = `data:${file.data.contentType};base64,${file.data.contentBytes}`;
-    result = result.split(`cid:${cid}`).join(url);
+    // The whole reference only: `cid:image1` must not eat the start of `cid:image10`
+    const escaped = cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(`cid:${escaped}(?![\\w.@-])`, 'g'), () => url);
   }
   return result;
 }
@@ -250,17 +263,21 @@ async function readAttachments(
 const folderSchema = z.object({ id: z.string().min(1) });
 const sentItemsCache = new Map<string, string>();
 
-/** The ID of „Gesendete Elemente“ of the mailbox, in the same ID format as `parentFolderId`. */
-async function sentItemsId(address: string): Promise<string | null> {
-  const cached = sentItemsCache.get(address);
+/**
+ * The ID of a well-known folder of the mailbox, in the same ID format as `parentFolderId`; null
+ * when Graph does not tell. Without „Gesendete Elemente“ every message counts as received:
+ * better read twice than never.
+ */
+async function ordnerId(address: string, ordner: 'sentitems' | 'inbox'): Promise<string | null> {
+  const key = `${address}|${ordner}`;
+  const cached = sentItemsCache.get(key);
   if (cached) return cached;
-  // Without the folder every message counts as received: better read twice than never
   const response = await postfachGraph
-    .get(`${mailboxPath(address)}/mailFolders/sentitems`, { $select: 'id' }, [IMMUTABLE])
+    .get(`${mailboxPath(address)}/mailFolders/${ordner}`, { $select: 'id' }, [IMMUTABLE])
     .catch(() => null);
   const parsed = folderSchema.safeParse(response);
   if (!parsed.success) return null;
-  sentItemsCache.set(address, parsed.data.id);
+  sentItemsCache.set(key, parsed.data.id);
   return parsed.data.id;
 }
 
@@ -300,7 +317,10 @@ export async function readKonversation(
     const messages = gelesen
       .filter((message) => !message.isDraft && message.conversationId === konversationId)
       .sort((a, b) => a.receivedDateTime.localeCompare(b.receivedDateTime));
-    const gesendetOrdner = await sentItemsId(address);
+    const [gesendetOrdner, posteingang] = await Promise.all([
+      ordnerId(address, 'sentitems'),
+      ordnerId(address, 'inbox'),
+    ]);
     const nachrichten = await Promise.all(
       messages.map(async (message) => {
         const base = toInbox(message);
@@ -337,6 +357,8 @@ export async function readKonversation(
             })),
           // By the folder, not the sender: the forms send from the mailbox to itself
           gesendet: gesendetOrdner !== null && message.parentFolderId === gesendetOrdner,
+          // Unknown folder: counted as in the inbox, as the list did before
+          imPosteingang: posteingang === null || message.parentFolderId === posteingang,
         };
       })
     );

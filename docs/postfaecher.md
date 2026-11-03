@@ -20,7 +20,9 @@ Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
 - **Liste:** Die neuesten 100 Nachrichten des Posteingangs (`INBOX_LIMIT`), nach Konversation
   (`conversationId` von Exchange) gruppiert, neueste zuerst. Filter: Alle, Ungelesen, Mir
   zugewiesen, Ohne Zuständige. Wer eine Konversation in Outlook aus dem Posteingang verschiebt
-  (z. B. archiviert), nimmt sie damit aus der Liste.
+  (z. B. archiviert), nimmt sie damit aus der Liste. Liegen mehr als 100 Nachrichten im Posteingang, sagt die
+  Liste das („Hier stehen die neuesten 100 E-Mails.“ mit Link zu Outlook), und leere Filter
+  behaupten nicht, das ganze Postfach sei erledigt.
 - **Lesen:** Alle Nachrichten der Konversation aus allen Ordnern, also auch Antworten aus
   „Gesendete Elemente“. HTML wird in einem abgeschotteten Rahmen gezeigt (`MailInhalt.svelte`):
   `sandbox` ohne Skripte und Formulare, eine eigene CSP ohne Netzwerkzugriff. Bilder aus dem

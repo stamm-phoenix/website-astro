@@ -85,6 +85,8 @@ export interface MailNachricht {
   anhaenge: MailAnhang[];
   /** The mailbox itself sent it (Sent Items), e.g. an answer from Outlook. */
   gesendet: boolean;
+  /** It lies in the inbox, which the list counts; false when moved, e.g. archived. */
+  imPosteingang: boolean;
   gelesen: boolean;
 }
 
@@ -105,6 +107,8 @@ export interface PostfachPerson {
 export interface PostfachAnsicht {
   postfach: PostfachInfo;
   konversationen: KonversationZeile[];
+  /** The inbox holds older messages than the list reads; they are in Outlook. */
+  begrenzt: boolean;
   /** Login of the logged-in person, to recognise own assignments. */
   ich: string;
 }

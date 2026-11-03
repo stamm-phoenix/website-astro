@@ -132,7 +132,10 @@
 
   async function alsUngelesen(): Promise<void> {
     const id = detail?.konversation.id;
-    const neueste = detail?.nachrichten.filter((nachricht) => !nachricht.gesendet).at(-1);
+    // The list counts only the inbox: mark the newest message there, so the mark shows
+    const eingegangen = detail?.nachrichten.filter((nachricht) => !nachricht.gesendet) ?? [];
+    const neueste =
+      eingegangen.filter((nachricht) => nachricht.imPosteingang).at(-1) ?? eingegangen.at(-1);
     if (!id || !neueste) return;
     markFehler = null;
     try {

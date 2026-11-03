@@ -417,3 +417,29 @@ test('marking done after a newer message arrived says so and saves nothing', asy
     'true'
   );
 });
+
+test('a full inbox says that older mails are in Outlook instead of claiming all is done', async ({
+  page,
+}) => {
+  await page.route(/\/api\/intern\/postfach\/kontakt$/, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({
+      response,
+      json: { ...body, begrenzt: true, konversationen: body.konversationen.slice(0, 1) },
+    });
+  });
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  await expect(liste.getByText('Hier stehen die neuesten 100 E-Mails.')).toBeVisible();
+  await expect(liste.getByRole('link', { name: /Ältere in Outlook ansehen/ })).toHaveAttribute(
+    'href',
+    /^https:\/\/outlook\.office\.com\/mail\/kontakt%40stamm-phoenix\.de\//
+  );
+  await liste.getByRole('button', { name: /^Erledigt/ }).click();
+  await expect(
+    liste.getByText(
+      /Unter den neuesten 100 E-Mails ist noch keine erledigt\. Ältere E-Mails siehst du in Outlook\./
+    )
+  ).toBeVisible();
+});

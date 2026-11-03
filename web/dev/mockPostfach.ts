@@ -238,6 +238,7 @@ export function registerPostfachRoutes(
       json({
         postfach: info(findPostfach(req.params.postfach)),
         konversationen: zeilen(req.params.postfach),
+        begrenzt: false,
         ich: login(),
       })
   );
@@ -270,6 +271,7 @@ export function registerPostfachRoutes(
         text: mail.text,
         anhaenge: mail.anhaenge ?? [],
         gesendet: mail.gesendet ?? false,
+        imPosteingang: !(mail.gesendet ?? false),
         gelesen: (mail.gesendet ?? false) || istGelesen(mail, stand()),
       })),
       vollstaendig: true,

@@ -68,6 +68,7 @@ function setup(t: TestContext): { context: InvocationContext; mocks: Mocks } {
     mocks.graph.push(path);
     if (path.endsWith('/mailFolders/inbox/messages')) return { value: INBOX };
     if (path.endsWith('/mailFolders/sentitems')) return { id: 'FOLDER-SENT' };
+    if (path.endsWith('/mailFolders/inbox')) return { id: 'FOLDER-INBOX' };
     if (path.endsWith('/messages') && query.$filter?.includes(K2)) {
       return {
         value: [
@@ -173,6 +174,7 @@ dbTest('the list groups the inbox and starts unread a few days back', async (t) 
   assert.equal(response.status, 200);
   const ansicht = response.jsonBody as PostfachAnsicht;
   assert.equal(ansicht.ich, 'lea@stamm-phoenix.de');
+  assert.equal(ansicht.begrenzt, false);
   assert.equal(
     ansicht.postfach.outlookUrl,
     'https://outlook.office.com/mail/kontakt%40stamm-phoenix.de/'
@@ -380,6 +382,10 @@ dbTest(
     // The form note comes from the mailbox's own address, but it was received: it is to be read
     assert.equal(detail.nachrichten[2].gesendet, false);
     assert.equal(detail.nachrichten[2].gelesen, false);
+    assert.deepEqual(
+      detail.nachrichten.map((nachricht) => nachricht.imPosteingang),
+      [true, false, true]
+    );
     // The line takes the newest received message, here the form note
     assert.equal(detail.konversation.betreff, 'Betreff AAkALgm5000000');
     assert.equal(
@@ -666,4 +672,90 @@ dbTest('marking done refuses when a newer message arrived than the page showed',
     await getDb().selectFrom('postfach.erledigung').select('postfach').executeTakeFirst(),
     undefined
   );
+});
+
+dbTest('inline images with ids that start alike each get their own picture', async (t) => {
+  const { context } = setup(t);
+  const original = postfachGraph.get;
+  t.mock.method(
+    postfachGraph,
+    'get',
+    async (path: string, query: Record<string, string>, prefer: string[]) => {
+      if (path.endsWith('/messages') && query.$filter?.includes(K2)) {
+        return {
+          value: [
+            message('AAkALgm3000000', K2, 2, {
+              body: {
+                contentType: 'html',
+                content: '<img src="cid:image1"><img src="cid:image10">',
+              },
+              parentFolderId: 'FOLDER-INBOX',
+            }),
+          ],
+        };
+      }
+      if (path.endsWith('/attachments')) {
+        return {
+          value: [
+            {
+              id: 'AAMkbild00001',
+              name: 'a.png',
+              contentType: 'image/png',
+              size: 4,
+              isInline: true,
+            },
+            {
+              id: 'AAMkbild00010',
+              name: 'b.png',
+              contentType: 'image/png',
+              size: 4,
+              isInline: true,
+            },
+          ],
+        };
+      }
+      if (path.endsWith('/attachments/AAMkbild00001'))
+        return {
+          name: 'a.png',
+          contentType: 'image/png',
+          contentId: 'image1',
+          contentBytes: 'AAAA',
+          size: 4,
+        };
+      if (path.endsWith('/attachments/AAMkbild00010'))
+        return {
+          name: 'b.png',
+          contentType: 'image/png',
+          contentId: 'image10',
+          contentBytes: 'BBBB',
+          size: 4,
+        };
+      return original.call(postfachGraph, path, query, prefer);
+    }
+  );
+  const response = await PostfachKonversationRoute(
+    request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
+    context
+  );
+  const html = (response.jsonBody as KonversationDetail).nachrichten[0].html ?? '';
+  assert.equal(
+    html,
+    '<img src="data:image/png;base64,AAAA"><img src="data:image/png;base64,BBBB">'
+  );
+});
+
+dbTest('a full inbox says that older messages are only in Outlook', async (t) => {
+  const { context } = setup(t);
+  const original = postfachGraph.get;
+  t.mock.method(
+    postfachGraph,
+    'get',
+    async (path: string, query: Record<string, string>, prefer: string[]) => {
+      if (path.endsWith('/mailFolders/inbox/messages'))
+        return { value: INBOX, '@odata.nextLink': 'https://graph.microsoft.com/v1.0/next' };
+      return original.call(postfachGraph, path, query, prefer);
+    }
+  );
+  const response = await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context);
+  assert.equal((response.jsonBody as PostfachAnsicht).begrenzt, true);
 });
