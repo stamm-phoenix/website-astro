@@ -118,6 +118,15 @@ dbTest('the preview test account finds the invented Planung once', async (t) => 
     [['Sommerlager (Test)', 'bearbeiten']]
   );
   assert.equal((await ladeZugang(liste[0].token)).zugang, 'bearbeiten');
+
+  // „Meine Planungen“ also works for it, and replaces the token of the Leitendenbereich
+  const links = await neueLinksFuerAdresse(CONFIG.staff.previewOnlyLogins[0].toLowerCase());
+  assert.deepEqual(
+    links.map((link) => link.planungName),
+    ['Sommerlager (Test)']
+  );
+  assert.equal((await ladeZugang(links[0].token)).zugang, 'bearbeiten');
+  await assert.rejects(ladeZugang(liste[0].token), ungueltig);
 });
 
 dbTest('a new link by mail also replaces the token of the Leitendenbereich', async (t) => {

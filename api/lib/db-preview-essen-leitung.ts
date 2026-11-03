@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { CONFIG } from './config';
 import { getDb } from './db';
+import { hashToken, neuesToken } from './essen-planung';
 
 /**
  * The preview test account becomes a member of the invented „Sommerlager (Test)“ with its token
@@ -23,11 +24,26 @@ export async function seedPreviewEssensplanungLeitung(): Promise<void> {
     .where('planung_id', '=', planung.id)
     .where('email', '=', email)
     .executeTakeFirst();
+  // A link from the mail nobody gets; „Meine Planungen“ and „Neuer Link“ replace it
   mitglied ??= await db
     .insertInto('essen.mitglied')
-    .values({ planung_id: planung.id, name: 'Vorschau-Testkonto', email, rolle: 'bearbeiten' })
+    .values({
+      planung_id: planung.id,
+      name: 'Vorschau-Testkonto',
+      email,
+      rolle: 'bearbeiten',
+      token_hash: hashToken(neuesToken()),
+    })
     .output('inserted.id')
     .executeTakeFirstOrThrow();
+  // Seeded before it had one; a withdrawn member stays withdrawn
+  await db
+    .updateTable('essen.mitglied')
+    .set({ token_hash: hashToken(neuesToken()) })
+    .where('id', '=', mitglied.id)
+    .where('token_hash', 'is', null)
+    .where('entzogen_am', 'is', null)
+    .execute();
   const link = await db
     .selectFrom('essen.leitung_link')
     .select('mitglied_id')
