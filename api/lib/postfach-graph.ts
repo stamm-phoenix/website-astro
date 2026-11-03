@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getGraphStatus } from './sharepoint-data-access';
 import { getClient } from './token';
+import { KONVERSATION_MAX } from './postfach-model';
 import type { InboxNachricht, MailAdresse, MailAnhang, MailNachricht } from './postfach-model';
 
 /**
@@ -17,7 +18,7 @@ import type { InboxNachricht, MailAdresse, MailAnhang, MailNachricht } from './p
 export const INBOX_LIMIT = 100;
 /** Messages of a conversation read per request, and the pages read at most. */
 const KONVERSATION_SEITE = 50;
-const KONVERSATION_SEITEN = 4;
+const KONVERSATION_SEITEN = KONVERSATION_MAX / KONVERSATION_SEITE;
 /** Inline images up to this size are embedded, at most `INLINE_TOTAL` per message. */
 const INLINE_MAX = 1_000_000;
 const INLINE_TOTAL = 4_000_000;

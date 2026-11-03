@@ -195,6 +195,9 @@ export function fuerMich(zeilen: readonly KonversationZeile[], login: string): K
   return zeilen.filter((zeile) => zeile.ungelesen > 0 || istMirZugewiesen(zeile, login));
 }
 
+/** Messages of a conversation the reading view reads and marks at most. */
+export const KONVERSATION_MAX = 200;
+
 /** Conversation IDs of Exchange are base64; anything else is refused before Graph is asked. */
 export const KONVERSATION_ID = /^[A-Za-z0-9+/=_-]{8,256}$/;
 

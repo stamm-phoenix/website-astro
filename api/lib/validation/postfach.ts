@@ -1,12 +1,12 @@
 /** Validation of the requests of the module „E-Mail“ (`docs/postfaecher.md`). */
 import { z } from 'zod';
-import { ANHANG_ID, KONVERSATION_ID, NACHRICHT_ID } from '../postfach-model';
+import { ANHANG_ID, KONVERSATION_ID, KONVERSATION_MAX, NACHRICHT_ID } from '../postfach-model';
 import { lenientObject, parseWith } from './zod';
 
 const RELOAD = 'Bitte lade die Seite neu und versuche es noch einmal.';
 
-/** Messages of one conversation that the reading view marks at once. */
-const MAX_NACHRICHTEN = 50;
+/** All messages of one conversation that the reading view reads can be marked at once. */
+const MAX_NACHRICHTEN = KONVERSATION_MAX;
 
 const konversationId = z
   .string({ error: `Die Konversation ist ungültig. ${RELOAD}` })
