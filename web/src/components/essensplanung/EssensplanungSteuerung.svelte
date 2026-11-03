@@ -6,8 +6,6 @@
   import { essensplanungSteuerung } from '../../lib/pflegeStore.svelte';
   import { setRescueContext } from '../../lib/geretteteEingaben';
   import EssenEinstellungenForm from './EssenEinstellungenForm.svelte';
-  import EssenZutaten from './EssenZutaten.svelte';
-  import EssenListe from './EssenListe.svelte';
   import EssenProtokoll from './EssenProtokoll.svelte';
   import EssenPlanungen from './EssenPlanungen.svelte';
 
@@ -52,7 +50,7 @@
     {#snippet skeleton()}
       <div class="space-y-4">
         <div class="skeleton-element h-40 rounded-[var(--radius-lg)]"></div>
-        <div class="skeleton-element h-96 rounded-[var(--radius-lg)]"></div>
+        <div class="skeleton-element h-64 rounded-[var(--radius-lg)]"></div>
       </div>
     {/snippet}
     {#snippet children(data)}
@@ -62,23 +60,6 @@
         onrescue={(rettung) => (einstellungenRettung = rettung)}
       />
       <EssenPlanungen {data} {onnotice} />
-      <EssenZutaten {data} {onnotice} />
-      <div class="grid gap-8 lg:grid-cols-2">
-        <EssenListe
-          {onnotice}
-          liste="kategorien"
-          title="Kategorien"
-          intro="Wie im Supermarkt; die Einkaufsliste ist danach sortiert. Eine Kategorie lässt sich erst löschen, wenn keine Zutat mehr dazugehört."
-          items={data.kategorien}
-        />
-        <EssenListe
-          {onnotice}
-          liste="unvertraeglichkeiten"
-          title="Allergene und Unverträglichkeiten"
-          intro="Die 14 Hauptallergene der EU sind fest dabei und lassen sich nur umbenennen. Weitere, z. B. Fructose, kannst du ergänzen."
-          items={data.unvertraeglichkeiten}
-        />
-      </div>
       <EssenProtokoll entries={data.log} />
     {/snippet}
   </LoadState>

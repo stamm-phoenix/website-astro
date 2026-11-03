@@ -17,8 +17,12 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Deine Essensplanungen im Leitendenbereich',
     changes: [
       {
-        text: 'Unter „Meine Essensplanungen“ siehst du alle Planungen, in denen du mit deiner @stamm-phoenix.de-Adresse Mitglied bist, und öffnest sie mit einem Klick. Du musst dir dafür keine neuen Links mehr per Mail schicken lassen, und deine bisherigen Links gelten weiter.',
+        text: 'Die Essensplanung hat im Leitendenbereich jetzt einen eigenen Bereich. Unter „Meine Planungen“ siehst du alle Planungen, in denen du mit deiner @stamm-phoenix.de-Adresse Mitglied bist, und öffnest sie mit einem Klick. Du musst dir dafür keine neuen Links mehr per Mail schicken lassen, und deine bisherigen Links gelten weiter.',
         href: '/leitendenbereich/essensplanungen',
+      },
+      {
+        text: 'Admins und Vorstand finden dort auch die Steuerung und, auf einer eigenen Seite, die Zutatenliste mit Kategorien und Allergenen.',
+        href: '/leitendenbereich/essensplanung-zutaten',
       },
     ],
   },
