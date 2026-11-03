@@ -321,3 +321,44 @@ test('a late failure of the read mark stays with its conversation', async ({ pag
   await page.waitForTimeout(500);
   await expect(page.getByText(/kaputt|nicht als gelesen gespeichert/)).toHaveCount(0);
 });
+
+test('a late conflict of a mailbox that was left does not take the list over', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'switches through the sidebar of the desktop');
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('link', { name: /Newsletter Diözesanverband/ }).click();
+  const stand = page
+    .getByRole('article', { name: 'Newsletter Diözesanverband' })
+    .getByRole('group', {
+      name: 'Stand',
+    });
+  await expect(stand).toBeVisible();
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/postfach/kontakt/status', async (route) => {
+    await held;
+    await route.fulfill({
+      status: 409,
+      json: { error: 'CONFLICT', code: 'CONFLICT', message: 'Jemand hat den Stand geändert.' },
+    });
+  });
+  const ziel =
+    (await stand.getByRole('button', { name: 'Erledigt' }).getAttribute('aria-pressed')) === 'true'
+      ? 'Offen'
+      : 'Erledigt';
+  await stand.getByRole('button', { name: ziel }).click();
+  await page
+    .getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' })
+    .getByRole('link', { name: 'Vorstand-Postfach' })
+    .click();
+  await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
+  const konflikt = page.waitForResponse('**/api/intern/postfach/kontakt/status');
+  release();
+  await konflikt;
+  await page.waitForTimeout(800);
+  await expect(page.getByRole('heading', { name: 'Vorstand-Postfach', level: 1 })).toBeVisible();
+  await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
+});
