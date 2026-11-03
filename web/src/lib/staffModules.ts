@@ -45,7 +45,6 @@ export interface StaffModule extends StaffPage {
 export const CHANGELOG_PATH = '/leitendenbereich/neuigkeiten';
 
 export const STAFF_MODULES: StaffModule[] = [
-  ...POSTFACH_MODULES,
   {
     href: '/leitendenbereich/aufgaben',
     title: 'Aufgaben',
@@ -418,6 +417,7 @@ export const STAFF_MODULES: StaffModule[] = [
     keywords: ['changelog', 'änderungen', 'neu', 'update', 'version', 'was ist neu'],
     icon: 'M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
   },
+  ...POSTFACH_MODULES,
 ];
 
 /** The Steuerung of the Nikolausdienst: always shown, it switches the other modules on and off. */
@@ -489,14 +489,14 @@ const byPath = (...paths: string[]): StaffModule[] =>
  */
 export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffModule[] }[] = [
   {
-    id: 'email',
-    title: 'E-Mail',
-    modules: POSTFACH_MODULES,
-  },
-  {
     id: 'leitendenrunde',
     title: 'Leitendenrunde',
     modules: byPath('aufgaben', 'protokolle', 'abstimmungen', 'personen'),
+  },
+  {
+    id: 'email',
+    title: 'E-Mail',
+    modules: POSTFACH_MODULES,
   },
   {
     id: 'gruppen',
