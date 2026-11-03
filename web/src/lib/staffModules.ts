@@ -26,6 +26,11 @@ export interface StaffModule extends StaffPage {
   /** The title with `|` where a long word may break in narrow places (tiles, the bar). */
   wrap?: string;
   /**
+   * The title on tiles and in the bar, where no section names the module, when `title` alone
+   * would be ambiguous there (two modules „Steuerung“); `|` as in `wrap`.
+   */
+  shortcut?: string;
+  /**
    * Only for these roles of the teams (`CONFIG.staff.teams`), one of them is enough; the module is
    * hidden from everyone else. Its API checks the teams with `hasTeam`; the page itself stays under
    * `team_leitende`, because a route of its own in `staticwebapp.config.json` could only allow
@@ -248,6 +253,7 @@ export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/essensplanung-steuerung',
     title: 'Steuerung',
+    shortcut: 'Essens|planung steuern',
     heading: 'Essensplanung: Steuerung',
     description:
       'Essensplanung einrichten: wer Planungen anlegen darf, Vorlagen, Aufbewahrung und alle Planungen – für Admins und Vorstand.',
@@ -415,6 +421,7 @@ export const STAFF_MODULES: StaffModule[] = [
 export const NIKOLAUS_CONTROL_MODULE: StaffModule = {
   href: '/leitendenbereich/nikolaus-steuerung',
   title: 'Steuerung',
+  shortcut: 'Nikolaus steuern',
   description:
     'Nikolausdienst einrichten, Anmeldung und Verwaltung ein- und ausschalten, Daten nach der Aktion löschen.',
   heading: 'Nikolaus-Steuerung',
