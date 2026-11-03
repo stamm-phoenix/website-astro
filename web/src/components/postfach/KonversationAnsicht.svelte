@@ -43,6 +43,8 @@
   let heading = $state<HTMLHeadingElement | null>(null);
 
   async function laden(id: string): Promise<void> {
+    // Another conversation: its predecessor must not stay on screen with working buttons
+    if (detail?.konversation.id !== id) detail = null;
     loading = true;
     error = null;
     markMeldung = null;
@@ -66,7 +68,8 @@
             ungelesen.map((nachricht) => nachricht.id),
             true
           );
-          aendereZeile(id, { ungelesen: 0 });
+          // With only part of a long conversation read, the rest may still be unread
+          if (data.vollstaendig) aendereZeile(id, { ungelesen: 0 });
         } catch (markError: unknown) {
           markFehler = errorMessage(
             markError,
@@ -92,14 +95,16 @@
   });
 
   async function alsUngelesen(): Promise<void> {
+    const id = detail?.konversation.id;
     const neueste = detail?.nachrichten.filter((nachricht) => !nachricht.gesendet).at(-1);
-    if (!neueste) return;
+    if (!id || !neueste) return;
     markFehler = null;
     try {
       await markiere(postfach, [neueste.id], false);
-      aendereZeile(konversation, { ungelesen: 1 });
-      markMeldung = 'Als ungelesen markiert.';
+      aendereZeile(id, { ungelesen: 1 });
+      if (id === konversation) markMeldung = 'Als ungelesen markiert.';
     } catch (markError: unknown) {
+      if (id !== konversation) return;
       markFehler = errorMessage(
         markError,
         'Die E-Mail konnte nicht als ungelesen markiert werden. Versuche es noch einmal.'
@@ -175,20 +180,30 @@
             </p>{/if}
         </header>
 
-        <ZustaendigWahl
-          {postfach}
-          konversation={data.konversation.id}
-          zustaendig={data.konversation.zustaendig}
-          {ich}
-          onaenderung={(zustaendig) => {
-            if (detail)
-              detail = { ...detail, konversation: { ...detail.konversation, zustaendig } };
-          }}
-          onkonflikt={() => {
-            onkonflikt();
-            void laden(konversation);
-          }}
-        />
+        <!-- A fresh one per conversation, so a choice in progress never carries over -->
+        {#key data.konversation.id}
+          <ZustaendigWahl
+            {postfach}
+            konversation={data.konversation.id}
+            zustaendig={data.konversation.zustaendig}
+            {ich}
+            onaenderung={(id, zustaendig) => {
+              // A late answer for another conversation only changes its line in the list
+              if (detail?.konversation.id === id)
+                detail = { ...detail, konversation: { ...detail.konversation, zustaendig } };
+            }}
+            onkonflikt={(id) => {
+              onkonflikt();
+              if (id === konversation) void laden(id);
+            }}
+          />
+        {/key}
+
+        {#if !data.vollstaendig}
+          <p class="text-sm text-warning">
+            Diese Unterhaltung ist sehr lang. Alle Nachrichten siehst du in Outlook.
+          </p>
+        {/if}
 
         <ol class="space-y-3" aria-label="Nachrichten, älteste zuerst">
           {#each data.nachrichten as nachricht (nachricht.id)}
@@ -227,14 +242,29 @@
                     <ul class="flex flex-wrap gap-2" aria-label="Anhänge">
                       {#each nachricht.anhaenge as anhang (anhang.id)}
                         <li>
-                          <a
-                            class="surface-muted inline-flex min-h-11 items-center gap-2 px-3 text-sm"
-                            href={anhangUrl(postfach, nachricht.id, anhang.id)}
-                            download={anhang.name}
-                          >
-                            <span class="font-semibold text-brand-900">{anhang.name}</span>
-                            <span class="text-neutral-700">{dateiGroesse(anhang.groesse)}</span>
-                          </a>
+                          {#if anhang.herunterladbar}
+                            <a
+                              class="surface-muted inline-flex min-h-11 items-center gap-2 px-3 text-sm"
+                              href={anhangUrl(postfach, nachricht.id, anhang.id)}
+                              download={anhang.name}
+                            >
+                              <span class="font-semibold text-brand-900">{anhang.name}</span>
+                              <span class="text-neutral-700">{dateiGroesse(anhang.groesse)}</span>
+                            </a>
+                          {:else}
+                            <!-- Attached messages and large files only open in Outlook -->
+                            <a
+                              class="surface-muted inline-flex min-h-11 items-center gap-2 px-3 text-sm"
+                              href={data.outlookUrl ?? outlookPostfach}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <span class="font-semibold text-brand-900">{anhang.name}</span>
+                              <span class="text-neutral-700"
+                                >in Outlook öffnen<span aria-hidden="true">↗</span></span
+                              >
+                            </a>
+                          {/if}
                         </li>
                       {/each}
                     </ul>

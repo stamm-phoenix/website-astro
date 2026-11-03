@@ -17,10 +17,10 @@
     konversation: string;
     zustaendig: Zustaendigkeit | null;
     ich: string;
-    /** After a save, with what applies now. */
-    onaenderung: (zustaendig: Zustaendigkeit | null) => void;
+    /** After a save, with the conversation it was for and what applies now. */
+    onaenderung: (konversation: string, zustaendig: Zustaendigkeit | null) => void;
     /** After a conflict: the page reloads what is current. */
-    onkonflikt: () => void;
+    onkonflikt: (konversation: string) => void;
   }
   let { postfach, konversation, zustaendig, ich, onaenderung, onkonflikt }: Props = $props();
 
@@ -53,19 +53,22 @@
   }
 
   async function setze(person: PostfachPerson | null): Promise<void> {
+    // The conversation of this request; the answer may come after another one was opened
+    const fuer = konversation;
     busy = true;
     meldung = null;
     fehler = null;
     try {
       const result = await setzeZustaendig(
         postfach,
-        konversation,
+        fuer,
         person?.login ?? null,
         zustaendig?.login ?? null
       );
+      onaenderung(fuer, result.zustaendig);
+      if (fuer !== konversation) return;
       auswahl = false;
       query = '';
-      onaenderung(result.zustaendig);
       if (!result.zustaendig) meldung = 'Zuständigkeit entfernt.';
       else if (result.zustaendig.login === ich) meldung = 'Du bist jetzt zuständig.';
       else
@@ -73,11 +76,12 @@
           ? `${result.zustaendig.name} ist jetzt zuständig und hat eine Mail bekommen.`
           : `${result.zustaendig.name} ist jetzt zuständig. Die Mail an ${result.zustaendig.name} ging nicht raus; sag bitte selbst Bescheid.`;
     } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 409) onkonflikt(fuer);
+      if (fuer !== konversation) return;
       fehler = errorMessage(
         error,
         'Die Zuständigkeit konnte nicht gespeichert werden. Prüfe deine Internetverbindung und versuche es noch einmal.'
       );
-      if (error instanceof ApiError && error.status === 409) onkonflikt();
     } finally {
       busy = false;
     }

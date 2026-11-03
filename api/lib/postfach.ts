@@ -141,7 +141,7 @@ export async function ladeKonversation(
   principal: Pick<ClientPrincipal, 'userId' | 'userDetails'>,
   konversationId: string
 ): Promise<KonversationDetail | null> {
-  const [nachrichten, stand, zustaendig] = await Promise.all([
+  const [{ nachrichten, vollstaendig }, stand, zustaendig] = await Promise.all([
     readKonversation(postfach.address, konversationId),
     getLeseStand(postfach.id, principal.userId, eigenerLogin(principal)),
     getZustaendigkeiten(postfach.id),
@@ -170,6 +170,7 @@ export async function ladeKonversation(
       // Own answers count as read: the person does not need to read them again
       gelesen: nachricht.gesendet || istGelesen(nachricht, stand),
     })),
+    vollstaendig,
     outlookUrl: restId ? nachrichtOutlookUrl(postfach.address, restId) : null,
   };
 }
