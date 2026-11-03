@@ -57,7 +57,7 @@
           {#each data.planungen as planung (planung.planungId)}
             <li class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3">
               <a
-                class="inline-flex min-h-11 items-center font-semibold text-link underline"
+                class="inline-flex min-h-11 min-w-0 items-center font-semibold text-link underline [overflow-wrap:anywhere]"
                 href={planungUrl(planung.token)}
                 data-astro-reload>{planung.name}</a
               >
