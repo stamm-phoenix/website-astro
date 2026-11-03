@@ -34,7 +34,9 @@ Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leiten
    die Belege prüfen `hasTeam(principal, 'kasse')`, die Kostenstellen
    (`GET /api/intern/kostenstellen/summen`) `kasse` oder `vorstand`. Menü, Suche und Startseite zeigen
    die Seite `/leitendenbereich/kostenstellen` nur mit einer der beiden Rollen (`roles` in
-   `staffModules.ts`); wer sie ohne aufruft, sieht nur die Fehlermeldung der API.
+   `staffModules.ts`); wer sie ohne aufruft, sieht nur die Fehlermeldung der API. Die Gruppenpostfächer im Bereich „E-Mail“ stehen mit ihren
+   Teams in `api/lib/postfach-liste.ts`, weil Graph die Berechtigungen eines Postfachs nicht
+   lesen kann ([postfaecher.md](postfaecher.md)).
 
 ## Was man wissen muss
 

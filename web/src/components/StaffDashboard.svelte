@@ -40,6 +40,9 @@
   } from '../lib/pflegeStore.svelte';
   import { planungenFuerStartseite } from '../lib/essensplanungStartseite';
   import EssensplanungKarte from './essensplanung/EssensplanungKarte.svelte';
+  import PostfachKarte from './postfach/PostfachKarte.svelte';
+  import { postfachStart } from '../lib/postfachStore.svelte';
+  import { POSTFACH_MODULES } from '../lib/postfaecher';
   import { meineBeitraege } from '../lib/beitraege';
   import { meineBelege } from '../lib/campflowBelege';
   import { isIch } from '../lib/ichStore.svelte';
@@ -165,6 +168,16 @@
   const essenEmpty = $derived(
     essenStore.data !== null && !essenStore.loading && !essenStore.error && essen.length === 0
   );
+  // Unread and assigned mails of the mailboxes the person sees (module „E-Mail“)
+  const postfaecher = $derived(POSTFACH_MODULES.filter(canOpenModule));
+  const mailStore = postfachStart.state;
+  const mailsEmpty = $derived(
+    mailStore.data !== null &&
+      !mailStore.loading &&
+      !mailStore.error &&
+      mailStore.data.fuerMich.length === 0 &&
+      !mailStore.data.postfaecher.some((postfach) => postfach.fehler)
+  );
   const cards = $derived([
     eventsEmpty,
     tasksEmpty,
@@ -172,6 +185,7 @@
     belegeEmpty,
     beitraegeEmpty,
     essenEmpty,
+    ...(postfaecher.length ? [mailsEmpty] : []),
   ]);
   const cardCount = $derived(cards.filter((empty) => !empty).length);
   // Side by side once there is room; stacked areas are divided by lines instead
@@ -206,6 +220,7 @@
       void campflowBelegeStore.load({ param: false });
       void offeneBeitraegeStore.load();
       void essensplanungMeine.load({ force: true });
+      void postfachStart.load({ force: true });
     };
     const timeout = setTimeout(startSecondary, SECONDARY_LOAD_DELAY_MS);
     void Promise.allSettled([favorites, tasks]).then(startSecondary);
@@ -440,6 +455,10 @@
   <EssensplanungKarte planungen={essen} limit={CARD_LIMIT} />
 {/snippet}
 
+{#snippet mailsBody()}
+  <PostfachKarte limit={CARD_LIMIT} />
+{/snippet}
+
 {#snippet beitraegeBody()}
   <LoadState
     data={beitraegeStore.data}
@@ -550,6 +569,13 @@
     <h2 id="for-you-heading" class="font-serif text-lg font-semibold text-brand-900">Für dich</h2>
     {#if cardCount > 0}
       <div class="surface mt-2 grid divide-y divide-neutral-200 {gridColumns}">
+        {#if postfaecher.length && !mailsEmpty}{@render card(
+            'meine-emails-heading',
+            'E-Mails',
+            postfaecher[0].href,
+            postfaecher.length > 1 ? 'Zum ersten Postfach' : 'Zum Postfach',
+            mailsBody
+          )}{/if}
         {#if !tasksEmpty}{@render card(
             'open-tasks-heading',
             'Offene Aufgaben',
@@ -603,6 +629,12 @@
             {@render check()}<span
               >Keine kommenden Aktionen in CampFlow ·
               <a href="/leitendenbereich/aktionen" class="text-link">Alle Aktionen</a></span
+            >
+          </li>{/if}
+        {#if postfaecher.length && mailsEmpty}<li class="flex items-center gap-2">
+            {@render check()}<span
+              >Keine ungelesenen oder dir zugewiesenen E-Mails ·
+              <a href={postfaecher[0].href} class="text-link">Zum Postfach</a></span
             >
           </li>{/if}
         {#if tasksEmpty}<li class="flex items-center gap-2">

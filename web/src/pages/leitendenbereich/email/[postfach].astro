@@ -1,0 +1,18 @@
+---
+import StaffLayout from '../../../layouts/StaffLayout.astro';
+import Postfach from '../../../components/postfach/Postfach.svelte';
+import { POSTFAECHER } from '../../../../../api/lib/postfach-liste';
+
+export function getStaticPaths() {
+  return POSTFAECHER.map((postfach) => ({
+    params: { postfach: postfach.id },
+    props: { id: postfach.id, address: postfach.address },
+  }));
+}
+
+const { id, address } = Astro.props;
+---
+
+<StaffLayout compact>
+  <Postfach postfach={id} {address} client:only="svelte" />
+</StaffLayout>

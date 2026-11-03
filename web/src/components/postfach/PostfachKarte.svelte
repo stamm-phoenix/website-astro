@@ -1,0 +1,75 @@
+<script lang="ts">
+  import LoadState from '../ui/LoadState.svelte';
+  import StatusLabel from '../ui/StatusLabel.svelte';
+  import { postfachStart } from '../../lib/postfachStore.svelte';
+  import { postfachHref } from '../../lib/postfaecher';
+  import { konversationHash, mailZeitKurz } from '../../lib/postfachAnsicht';
+  import { istMirZugewiesen, type KonversationZeile } from '../../../../api/lib/postfach-model';
+
+  /**
+   * The body of the card „E-Mails“ on the start page: conversations with unread messages or
+   * assigned to the person, from all mailboxes they see. The dashboard loads the data.
+   */
+  interface Props {
+    limit: number;
+  }
+  let { limit }: Props = $props();
+
+  const store = postfachStart.state;
+  const zeilen = $derived(store.data?.fuerMich ?? []);
+  const ich = $derived(store.data?.ich ?? '');
+  const postfaecher = $derived(store.data?.postfaecher ?? []);
+  const mehrere = $derived(postfaecher.length > 1);
+  const gestoert = $derived(postfaecher.filter((postfach) => postfach.fehler));
+
+  function name(zeile: KonversationZeile): string {
+    return postfaecher.find((postfach) => postfach.id === zeile.postfach)?.name ?? '';
+  }
+</script>
+
+<LoadState
+  data={store.data}
+  loading={store.loading}
+  error={store.error}
+  loadingText="E-Mails werden geladen …"
+  onretry={() => void postfachStart.load({ force: true })}
+>
+  {#snippet skeleton()}
+    <p aria-hidden="true" class="mt-2 text-sm text-neutral-700">E-Mails werden geladen …</p>
+  {/snippet}
+  {#each gestoert as postfach (postfach.id)}
+    <p class="mt-1 text-sm text-danger">{postfach.name} konnte nicht geladen werden.</p>
+  {/each}
+  <ul class="mt-1 divide-y divide-neutral-200" data-testid="meine-emails">
+    {#each zeilen.slice(0, limit) as zeile (zeile.postfach + zeile.id)}
+      <li>
+        <a
+          href="{postfachHref(zeile.postfach)}{konversationHash(zeile.id)}"
+          class="block min-h-11 py-2"
+          title={zeile.betreff}
+        >
+          <span class="text-link block truncate" class:font-semibold={zeile.ungelesen > 0}
+            >{zeile.betreff}</span
+          >
+          <span class="flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
+            <span class="max-w-full truncate"
+              >{zeile.von.name} · {mailZeitKurz(zeile.am)}{mehrere ? ` · ${name(zeile)}` : ''}</span
+            >
+            {#if istMirZugewiesen(zeile, ich)}<StatusLabel
+                label="Dir zugewiesen"
+                tone="warning"
+                dot
+              />{:else if zeile.ungelesen > 0}<StatusLabel
+                label="Ungelesen"
+                tone="neutral"
+                dot
+              />{/if}
+          </span>
+        </a>
+      </li>
+    {/each}
+  </ul>
+  {#if zeilen.length > limit}
+    <p class="pt-2 text-sm text-neutral-700">und {zeilen.length - limit} weitere</p>
+  {/if}
+</LoadState>

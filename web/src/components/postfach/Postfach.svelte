@@ -1,0 +1,198 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import FilterTabs from '../ui/FilterTabs.svelte';
+  import LoadState from '../ui/LoadState.svelte';
+  import MessageText from '../ui/MessageText.svelte';
+  import KonversationListe from './KonversationListe.svelte';
+  import KonversationAnsicht from './KonversationAnsicht.svelte';
+  import { errorMessage } from '../../lib/api';
+  import { alleGelesen, neuLaden, postfachListe } from '../../lib/postfachStore.svelte';
+  import {
+    POSTFACH_FILTER,
+    filterAnzahl,
+    filterKonversationen,
+    konversationAusHash,
+    konversationHash,
+    type PostfachFilter,
+  } from '../../lib/postfachAnsicht';
+  import { postfachOutlookUrl } from '../../../../api/lib/postfach-liste';
+
+  /**
+   * The page of a shared mailbox: the conversations of the inbox on the left, the open one on
+   * the right; on a phone one after the other. The open conversation sits in the address
+   * (`#konversation=`), so links from the note mails and the start page open it directly.
+   */
+  interface Props {
+    postfach: string;
+    address: string;
+  }
+  let { postfach, address }: Props = $props();
+
+  const store = postfachListe.state;
+  const LEER: Record<PostfachFilter, string> = {
+    alle: 'Im Posteingang liegt keine E-Mail.',
+    ungelesen: 'Du hast alles gelesen.',
+    mir: 'Dir ist gerade keine E-Mail zugewiesen.',
+    offen: 'Für jede E-Mail ist jemand zuständig.',
+  };
+
+  let filter = $state<PostfachFilter>('alle');
+  let aktiv = $state<string | null>(null);
+  let busy = $state(false);
+  let meldung = $state<string | null>(null);
+  let fehler = $state<string | null>(null);
+
+  const daten = $derived(store.data?.postfach.id === postfach ? store.data : null);
+  const ich = $derived(daten?.ich ?? '');
+  const zeilen = $derived(filterKonversationen(daten?.konversationen ?? [], filter, ich));
+  const anzahl = $derived(filterAnzahl(daten?.konversationen ?? [], ich));
+  const optionen = $derived(
+    POSTFACH_FILTER.map((option) => ({ ...option, count: anzahl[option.value] }))
+  );
+  const outlook = $derived(daten?.postfach.outlookUrl ?? postfachOutlookUrl(address));
+
+  /** The conversation was opened from the list on this page, so „back“ leads to the list. */
+  let vonListe = false;
+
+  function ausAdresse(): void {
+    aktiv = konversationAusHash(window.location.hash);
+    if (aktiv === null) vonListe = false;
+  }
+
+  // The client router of Astro does not report changes of the hash, so the page keeps the
+  // history entries itself
+  function oeffnen(id: string): void {
+    if (id === aktiv) return;
+    if (aktiv === null) {
+      history.pushState(history.state, '', konversationHash(id));
+      vonListe = true;
+    } else {
+      history.replaceState(history.state, '', konversationHash(id));
+    }
+    aktiv = id;
+  }
+
+  onMount(() => {
+    ausAdresse();
+    void postfachListe.load({ param: postfach, force: true });
+    window.addEventListener('popstate', ausAdresse);
+    window.addEventListener('hashchange', ausAdresse);
+    return () => {
+      window.removeEventListener('popstate', ausAdresse);
+      window.removeEventListener('hashchange', ausAdresse);
+    };
+  });
+
+  function zurListe(): void {
+    if (vonListe) {
+      history.back();
+      return;
+    }
+    history.replaceState(history.state, '', window.location.pathname + window.location.search);
+    aktiv = null;
+  }
+
+  async function aktualisieren(): Promise<void> {
+    busy = true;
+    meldung = null;
+    fehler = null;
+    try {
+      await neuLaden(postfach);
+      meldung = 'Neu geladen.';
+    } catch (error: unknown) {
+      fehler = errorMessage(
+        error,
+        'Das Postfach konnte nicht neu geladen werden. Prüfe deine Internetverbindung.'
+      );
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function allesGelesen(): Promise<void> {
+    busy = true;
+    meldung = null;
+    fehler = null;
+    try {
+      await alleGelesen(postfach);
+      meldung = 'Alle als gelesen markiert.';
+    } catch (error: unknown) {
+      fehler = errorMessage(
+        error,
+        'Die E-Mails konnten nicht als gelesen markiert werden. Nichts wurde geändert.'
+      );
+    } finally {
+      busy = false;
+    }
+  }
+</script>
+
+<div class="space-y-3">
+  <div class="flex flex-wrap items-center gap-2" class:max-lg:hidden={aktiv}>
+    <a
+      class="btn-primary inline-flex items-center gap-1"
+      href={outlook}
+      target="_blank"
+      rel="noopener noreferrer"
+      >Postfach in Outlook öffnen<span aria-hidden="true">↗</span><span class="sr-only">
+        (öffnet neuen Tab)</span
+      ></a
+    >
+    <ActionButton disabled={busy} onclick={aktualisieren}>Neu laden</ActionButton>
+    {#if anzahl.ungelesen > 0}
+      <ActionButton disabled={busy} onclick={allesGelesen}>Alle als gelesen markieren</ActionButton>
+    {/if}
+    {#if meldung}<span role="status" class="text-sm text-success">{meldung}</span>{/if}
+    {#if fehler}<span role="alert" class="text-sm text-danger"><MessageText text={fehler} /></span
+      >{/if}
+  </div>
+
+  <LoadState
+    data={daten}
+    loading={store.loading}
+    error={store.error}
+    loadingText="E-Mails werden geladen …"
+    onretry={() => void postfachListe.load({ param: postfach, force: true })}
+  >
+    <div class="grid gap-4 lg:grid-cols-[minmax(18rem,26rem)_1fr]">
+      <section
+        aria-label="Posteingang"
+        class="surface min-w-0 lg:flex lg:max-h-[calc(100dvh-11rem)] lg:flex-col"
+        class:max-lg:hidden={aktiv}
+      >
+        <div class="border-b border-neutral-200 p-2">
+          <FilterTabs
+            label="E-Mails filtern"
+            options={optionen}
+            value={filter}
+            onselect={(value) => (filter = value)}
+            countNouns={['E-Mail', 'E-Mails']}
+          />
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto">
+          <KonversationListe {zeilen} {ich} {aktiv} leer={LEER[filter]} onoeffnen={oeffnen} />
+        </div>
+      </section>
+
+      <section
+        aria-label="Gewählte E-Mail"
+        class="min-w-0 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto lg:pr-1"
+        class:max-lg:hidden={!aktiv}
+      >
+        {#if aktiv}
+          <KonversationAnsicht
+            {postfach}
+            outlookPostfach={outlook}
+            konversation={aktiv}
+            {ich}
+            onzurueck={zurListe}
+            onkonflikt={() => void postfachListe.load({ param: postfach, force: true })}
+          />
+        {:else}
+          <p class="surface-muted p-6 text-center text-neutral-700">Wähle links eine E-Mail aus.</p>
+        {/if}
+      </section>
+    </div>
+  </LoadState>
+</div>

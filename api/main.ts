@@ -64,6 +64,15 @@ import {
 import { Ich } from './endpoints/intern-ich';
 import { StaffFavorites } from './endpoints/intern-favoriten';
 import { StaffChangelog } from './endpoints/intern-neuigkeiten';
+import {
+  PostfachAnhangRoute,
+  PostfachGelesenRoute,
+  PostfachKonversationRoute,
+  PostfachListeRoute,
+  PostfachPersonenRoute,
+  PostfachStartRoute,
+  PostfachZustaendigRoute,
+} from './endpoints/intern-postfach';
 import { StaffRecent } from './endpoints/intern-zuletzt';
 import { StaffSettings } from './endpoints/intern-einstellungen';
 import {
@@ -872,6 +881,56 @@ app.http('internNeuigkeiten', {
   authLevel: 'anonymous',
   route: 'intern/neuigkeiten',
   handler: StaffChangelog,
+});
+
+// Module „E-Mail“: shared mailboxes (docs/postfaecher.md)
+app.http('internPostfachStart', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach',
+  handler: PostfachStartRoute,
+});
+
+app.http('internPostfachListe', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}',
+  handler: PostfachListeRoute,
+});
+
+app.http('internPostfachKonversation', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/konversation',
+  handler: PostfachKonversationRoute,
+});
+
+app.http('internPostfachGelesen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/gelesen',
+  handler: PostfachGelesenRoute,
+});
+
+app.http('internPostfachPersonen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/personen',
+  handler: PostfachPersonenRoute,
+});
+
+app.http('internPostfachZustaendig', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/zustaendig',
+  handler: PostfachZustaendigRoute,
+});
+
+app.http('internPostfachAnhang', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/anhang',
+  handler: PostfachAnhangRoute,
 });
 
 app.http('internEinstellungen', {
