@@ -6,6 +6,7 @@ import {
   PostfachZustaendigRoute,
 } from '../endpoints/intern-postfach';
 import { postfachVerzeichnis } from '../lib/postfach';
+import { postfachGraph } from '../lib/postfach-graph-basis';
 import type { PostfachStart } from '../lib/postfach-model';
 import { getDb } from '../lib/db';
 import { CONFIG } from '../lib/config';
@@ -205,5 +206,53 @@ dbTest(
       context
     );
     assert.equal(leer.status, 400);
+  }
+);
+
+dbTest(
+  'an unexpected failure of one conversation keeps those saved before and after',
+  async (t) => {
+    const { context, mocks } = setup(t);
+    const K3 = 'AAQkAGkonversation3333333333=';
+    const gelesen = postfachGraph.get;
+    t.mock.method(
+      postfachGraph,
+      'get',
+      async (path: string, query: Record<string, string>, prefer: string[]) => {
+        if (query?.$filter?.includes(K3)) throw new Error('Graph antwortet nicht');
+        return gelesen(path, query, prefer);
+      }
+    );
+    const response = await PostfachZustaendigMehrereRoute(
+      request('PUT', '/kontakt/zustaendig-mehrere', KONTAKT, {
+        login: 'tom@stamm-phoenix.de',
+        konversationen: [
+          { konversation: K2, vorher: null },
+          { konversation: K3, vorher: null },
+          { konversation: K1, vorher: null },
+        ],
+      }),
+      context
+    );
+    assert.equal(response.status, 200);
+    const body = response.jsonBody as {
+      ergebnisse: { konversation: string; ok: boolean; zustaendig?: { login: string } | null }[];
+      benachrichtigt: boolean;
+    };
+    assert.deepEqual(
+      body.ergebnisse.map((ergebnis) => [ergebnis.konversation, ergebnis.ok]),
+      [
+        [K2, true],
+        [K3, false],
+        [K1, true],
+      ]
+    );
+    // What applies to K3 is unknown, so the page does not guess
+    assert.equal('zustaendig' in body.ergebnisse[1], false);
+    assert.equal(body.benachrichtigt, true);
+    assert.deepEqual(
+      (mocks.mails[0][2] as { id: string }[]).map((zeile) => zeile.id),
+      [K2, K1]
+    );
   }
 );

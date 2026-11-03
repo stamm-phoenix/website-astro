@@ -61,6 +61,8 @@
   let filter = $state<PostfachFilter>('alle');
   /** Conversations chosen for the actions on several at once. */
   const ausgewaehlt = new SvelteSet<string>();
+  /** While the chosen ones are saved, the choice stays as it is. */
+  let mehrfachBusy = $state(false);
   let aktiv = $state<string | null>(null);
   /** Counts „Neu laden“, so the open conversation is read again too. */
   let neuladen = $state(0);
@@ -230,6 +232,7 @@
               type="checkbox"
               class="size-5 cursor-pointer accent-brand-900"
               checked={alleSichtbarenGewaehlt}
+              disabled={mehrfachBusy}
               indeterminate={!alleSichtbarenGewaehlt &&
                 zeilen.some((zeile) => ausgewaehlt.has(zeile.id))}
               onchange={(event) => alleSichtbaren(event.currentTarget.checked)}
@@ -238,6 +241,7 @@
           </label>
         {/if}
         <MehrfachAktionen
+          bind:busy={mehrfachBusy}
           {postfach}
           zeilen={gewaehlteZeilen}
           {ich}
@@ -247,6 +251,7 @@
         <div class="min-h-0 flex-1 overflow-y-auto">
           <KonversationListe
             {ausgewaehlt}
+            auswahlGesperrt={mehrfachBusy}
             onwaehle={waehle}
             {zeilen}
             {ich}

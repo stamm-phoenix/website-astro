@@ -15,12 +15,17 @@ const PERSON_OHNE_ZUGRIFF = errorResponse(
   'Diese Person hat keinen Zugriff auf das Postfach. Wähle jemanden aus der Liste.'
 );
 
+const NICHT_MEHR_DA = 'Diese E-Mail ist nicht mehr im Postfach.';
+const NICHT_GESPEICHERT =
+  'Nicht gespeichert. Versuche es noch einmal; hilft das nicht, schreib an admin@stamm-phoenix.de.';
+
 /** What happened to one conversation of the choice. */
 export interface ZuweisungErgebnis {
   konversation: string;
   /** Saved; otherwise `fehler` says why and `zustaendig` what applies now. */
   ok: boolean;
-  zustaendig: Zustaendigkeit | null;
+  /** Missing when it is not known what applies now (an unexpected error). */
+  zustaendig?: Zustaendigkeit | null;
   fehler?: string;
 }
 
@@ -47,17 +52,13 @@ export const PostfachZustaendigMehrereRoute = postfachRoute(
     const ergebnisse: ZuweisungErgebnis[] = [];
     const zugewiesen: KonversationZeile[] = [];
     for (const { konversation, vorher } of eingabe.konversationen) {
-      const zeile = await zeileFuer(postfach, principal, konversation);
-      if (!zeile) {
-        ergebnisse.push({
-          konversation,
-          ok: false,
-          zustaendig: null,
-          fehler: 'Diese E-Mail ist nicht mehr im Postfach.',
-        });
-        continue;
-      }
+      // Each one is saved on its own, so a failure of one must not hide those already saved
       try {
+        const zeile = await zeileFuer(postfach, principal, konversation);
+        if (!zeile) {
+          ergebnisse.push({ konversation, ok: false, zustaendig: null, fehler: NICHT_MEHR_DA });
+          continue;
+        }
         const zustaendig = await setzeZustaendigkeit(
           postfach.id,
           konversation,
@@ -70,15 +71,20 @@ export const PostfachZustaendigMehrereRoute = postfachRoute(
         // Only what is new for the person goes into the note
         if (zustaendig && vorher !== zustaendig.login) zugewiesen.push(zeile);
       } catch (error: unknown) {
-        if (!(error instanceof ZustaendigkeitKonfliktError)) throw error;
-        ergebnisse.push({
-          konversation,
-          ok: false,
-          zustaendig: error.aktuell,
-          fehler: error.aktuell
-            ? `Inzwischen ist ${error.aktuell.name} zuständig.`
-            : 'Inzwischen ist niemand mehr zuständig.',
-        });
+        if (error instanceof ZustaendigkeitKonfliktError) {
+          ergebnisse.push({
+            konversation,
+            ok: false,
+            zustaendig: error.aktuell,
+            fehler: error.aktuell
+              ? `Inzwischen ist ${error.aktuell.name} zuständig.`
+              : 'Inzwischen ist niemand mehr zuständig.',
+          });
+          continue;
+        }
+        context.error(`[postfach] Zuständigkeit für ${konversation} nicht gespeichert`, error);
+        // Unknown what applies now: the page reads the list again
+        ergebnisse.push({ konversation, ok: false, fehler: NICHT_GESPEICHERT });
       }
     }
     context.log(
