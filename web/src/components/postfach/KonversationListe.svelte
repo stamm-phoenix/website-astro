@@ -5,7 +5,8 @@
 
   /**
    * The conversations of a mailbox: unread ones bold with a dot, the responsible person as a
-   * label. Each line is a link to `#konversation=<id>`, so a new tab works as expected.
+   * label. Each line is a link to `#konversation=<id>`, so a new tab works as expected; the
+   * box in front chooses it for the actions on several at once.
    */
   interface Props {
     zeilen: KonversationZeile[];
@@ -15,8 +16,11 @@
     leer: string;
     /** A plain click opens the conversation on this page; a new tab follows the link. */
     onoeffnen: (id: string) => void;
+    /** The chosen conversations. */
+    ausgewaehlt: ReadonlySet<string>;
+    onwaehle: (id: string, gewaehlt: boolean) => void;
   }
-  let { zeilen, ich, aktiv, leer, onoeffnen }: Props = $props();
+  let { zeilen, ich, aktiv, leer, onoeffnen, ausgewaehlt, onwaehle }: Props = $props();
 
   function klick(event: MouseEvent, id: string): void {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
@@ -33,12 +37,25 @@
     {#each zeilen as zeile (zeile.id)}
       {@const ungelesen = zeile.ungelesen > 0}
       {@const erledigung = zeile.erledigung}
-      <li>
+      {@const gewaehlt = ausgewaehlt.has(zeile.id)}
+      <li class="flex items-stretch" class:bg-brand-50={gewaehlt}>
+        <label
+          class="flex min-h-11 w-11 shrink-0 cursor-pointer items-start justify-center pt-3"
+          title="Auswählen"
+        >
+          <input
+            type="checkbox"
+            class="size-5 cursor-pointer accent-brand-900"
+            checked={gewaehlt}
+            onchange={(event) => onwaehle(zeile.id, event.currentTarget.checked)}
+          />
+          <span class="sr-only">„{zeile.betreff}“ von {zeile.von.name} auswählen</span>
+        </label>
         <a
           href={konversationHash(zeile.id)}
           onclick={(event) => klick(event, zeile.id)}
           aria-current={zeile.id === aktiv ? 'true' : undefined}
-          class="block min-h-11 px-3 py-2.5 no-underline hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-900 aria-[current=true]:bg-neutral-100 aria-[current=true]:shadow-[inset_3px_0_0_var(--color-dpsg-red)]"
+          class="block min-h-11 min-w-0 flex-1 py-2.5 pr-3 no-underline hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-900 aria-[current=true]:bg-neutral-100 aria-[current=true]:shadow-[inset_3px_0_0_var(--color-dpsg-red)]"
         >
           <span class="flex items-baseline gap-2">
             {#if erledigung}
@@ -90,7 +107,9 @@
                 tone="success"
               />
             {:else if zeile.wiederOffen}
-              <StatusLabel label="Neue Nachricht nach „Erledigt“" tone="warning" dot />
+              <StatusLabel label="Offen · neue Nachricht nach „Erledigt“" tone="warning" dot />
+            {:else}
+              <StatusLabel label={STATUS_LABEL.offen} tone="neutral" dot />
             {/if}
             {#if zeile.zustaendig}
               <StatusLabel

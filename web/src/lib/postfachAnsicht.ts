@@ -1,15 +1,15 @@
 import { istMirZugewiesen, type KonversationZeile } from '../../../api/lib/postfach-model';
 
-/** Filters of the list of a mailbox; the page starts with the open conversations. */
+/** Filters of the list of a mailbox; the page starts with all conversations. */
 export type PostfachFilter = 'offen' | 'mir' | 'ohne' | 'ungelesen' | 'erledigt' | 'alle';
 
 export const POSTFACH_FILTER: readonly { value: PostfachFilter; label: string }[] = [
+  { value: 'alle', label: 'Alle' },
   { value: 'offen', label: 'Offen' },
   { value: 'mir', label: 'Mir zugewiesen' },
   { value: 'ohne', label: 'Ohne Zuständige' },
   { value: 'ungelesen', label: 'Ungelesen' },
   { value: 'erledigt', label: 'Erledigt' },
-  { value: 'alle', label: 'Alle' },
 ];
 
 /** Assigned, without anyone and unread count only open conversations, like the start page. */

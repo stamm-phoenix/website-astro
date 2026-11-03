@@ -149,7 +149,7 @@ export const PostfachPersonenRoute = postfachRoute(async (request, postfach) => 
 });
 
 /** The line of the conversation for the note, from the inbox or, if it left it, from all folders. */
-async function zeileFuer(
+export async function zeileFuer(
   postfach: PostfachEintrag,
   principal: ClientPrincipal,
   konversation: string
@@ -218,7 +218,7 @@ export const PostfachZustaendigRoute = postfachRoute(
         await postfachBenachrichtigung.senden(
           zustaendig.login,
           postfach,
-          zeile,
+          [zeile],
           von.name,
           getSiteUrl(request)
         );

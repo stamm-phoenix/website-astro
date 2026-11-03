@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import { navigate } from 'astro:transitions/client';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
@@ -7,6 +8,7 @@
   import MessageText from '../ui/MessageText.svelte';
   import KonversationListe from './KonversationListe.svelte';
   import KonversationAnsicht from './KonversationAnsicht.svelte';
+  import MehrfachAktionen from './MehrfachAktionen.svelte';
   import { errorMessage } from '../../lib/api';
   import {
     alleGelesen,
@@ -56,7 +58,9 @@
     alle: '',
   };
 
-  let filter = $state<PostfachFilter>('offen');
+  let filter = $state<PostfachFilter>('alle');
+  /** Conversations chosen for the actions on several at once. */
+  const ausgewaehlt = new SvelteSet<string>();
   let aktiv = $state<string | null>(null);
   /** Counts „Neu laden“, so the open conversation is read again too. */
   let neuladen = $state(0);
@@ -71,6 +75,35 @@
   const optionen = $derived(
     POSTFACH_FILTER.map((option) => ({ ...option, count: anzahl[option.value] }))
   );
+  /** The chosen ones still in the mailbox, in the order of the list. */
+  const gewaehlteZeilen = $derived(
+    (daten?.konversationen ?? []).filter((zeile) => ausgewaehlt.has(zeile.id))
+  );
+  const alleSichtbarenGewaehlt = $derived(
+    zeilen.length > 0 && zeilen.every((zeile) => ausgewaehlt.has(zeile.id))
+  );
+
+  function waehle(id: string, gewaehlt: boolean): void {
+    if (gewaehlt) ausgewaehlt.add(id);
+    else ausgewaehlt.delete(id);
+  }
+
+  function alleSichtbaren(gewaehlt: boolean): void {
+    for (const zeile of zeilen) {
+      if (gewaehlt) ausgewaehlt.add(zeile.id);
+      else ausgewaehlt.delete(zeile.id);
+    }
+  }
+
+  function mehrfachFertig(offenGeblieben: string[]): void {
+    // The open conversation shows the new state too
+    if (aktiv && gewaehlteZeilen.some((zeile) => zeile.id === aktiv)) neuladen++;
+    ausgewaehlt.clear();
+    for (const id of offenGeblieben) ausgewaehlt.add(id);
+    // Who changed what meanwhile shows after reading the list again
+    if (offenGeblieben.length) void ladeNachKonflikt(postfach);
+  }
+
   const outlook = $derived(daten?.postfach.outlookUrl ?? postfachOutlookUrl(address));
 
   /** The conversation was opened from the list on this page, so „back“ leads to the list. */
@@ -189,8 +222,32 @@
             countNouns={['E-Mail', 'E-Mails']}
           />
         </div>
+        {#if zeilen.length}
+          <label
+            class="flex min-h-11 cursor-pointer items-center gap-3 border-b border-neutral-200 pl-3 pr-3 text-sm text-brand-900"
+          >
+            <input
+              type="checkbox"
+              class="size-5 cursor-pointer accent-brand-900"
+              checked={alleSichtbarenGewaehlt}
+              indeterminate={!alleSichtbarenGewaehlt &&
+                zeilen.some((zeile) => ausgewaehlt.has(zeile.id))}
+              onchange={(event) => alleSichtbaren(event.currentTarget.checked)}
+            />
+            Alle {zeilen.length} auswählen
+          </label>
+        {/if}
+        <MehrfachAktionen
+          {postfach}
+          zeilen={gewaehlteZeilen}
+          {ich}
+          onfertig={mehrfachFertig}
+          onaufheben={() => ausgewaehlt.clear()}
+        />
         <div class="min-h-0 flex-1 overflow-y-auto">
           <KonversationListe
+            {ausgewaehlt}
+            onwaehle={waehle}
             {zeilen}
             {ich}
             {aktiv}

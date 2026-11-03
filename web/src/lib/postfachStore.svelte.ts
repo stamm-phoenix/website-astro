@@ -171,6 +171,39 @@ export async function setzeStatus(
   return result.erledigung;
 }
 
+/** What happened to one conversation of a choice (`PUT …/zustaendig-mehrere`). */
+export interface MehrfachErgebnis {
+  konversation: string;
+  ok: boolean;
+  zustaendig: Zustaendigkeit | null;
+  fehler?: string;
+}
+
+/**
+ * One person (null: nobody) for several conversations of the list; each line shows what applies
+ * afterwards, also where someone else changed it meanwhile.
+ */
+export async function setzeZustaendigMehrere(
+  postfach: string,
+  login: string | null,
+  zeilen: readonly KonversationZeile[]
+): Promise<{ ergebnisse: MehrfachErgebnis[]; benachrichtigt: boolean }> {
+  const result = await sendApi<{ ergebnisse: MehrfachErgebnis[]; benachrichtigt: boolean }>(
+    'PUT',
+    `/intern/postfach/${encodeURIComponent(postfach)}/zustaendig-mehrere`,
+    {
+      login,
+      konversationen: zeilen.map((zeile) => ({
+        konversation: zeile.id,
+        vorher: zeile.zustaendig?.login ?? null,
+      })),
+    }
+  );
+  for (const ergebnis of result.ergebnisse)
+    aendereZeile(postfach, ergebnis.konversation, { zustaendig: ergebnis.zustaendig });
+  return result;
+}
+
 export function anhangUrl(postfach: string, nachricht: string, anhang: string): string {
   return `/api/intern/postfach/${encodeURIComponent(postfach)}/anhang?nachricht=${encodeURIComponent(nachricht)}&anhang=${encodeURIComponent(anhang)}`;
 }
