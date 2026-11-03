@@ -26,7 +26,10 @@ test('the Steuerung switches the staff modules and saves days', async ({ page })
 
   // Only the Steuerung remains in the Leitendenbereich
   await page.goto('/leitendenbereich');
-  await expect(page.getByRole('link', { name: /Steuerung/ })).toBeVisible();
+  // The Essensplanung has a Steuerung too
+  await expect(
+    page.locator('a[href="/leitendenbereich/nikolaus-steuerung"]:visible').first()
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: /Dispo/ })).toHaveCount(0);
 
   // Restore the demo state for the following tests of this worker
