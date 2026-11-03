@@ -105,3 +105,63 @@ dbTest('a continuation of the attachments that leaves Graph is refused', async (
   assert.equal(next.mock.callCount(), 0);
   assert.ok(response instanceof Error || (response as { status?: number }).status === 500);
 });
+
+dbTest('an inline image too large to embed stays reachable as an attachment', async (t) => {
+  const { context } = setup(t);
+  const original = postfachGraph.get;
+  t.mock.method(
+    postfachGraph,
+    'get',
+    async (path: string, query: Record<string, string>, prefer: string[]) => {
+      if (path.endsWith('/messages') && query.$filter?.includes(K2)) {
+        return {
+          value: [
+            message('AAkALgm3000000', K2, 2, {
+              body: { contentType: 'html', content: '<img src="cid:klein"><img src="cid:gross">' },
+              parentFolderId: 'FOLDER-INBOX',
+            }),
+          ],
+        };
+      }
+      if (path.endsWith('/attachments')) {
+        return {
+          value: [
+            {
+              id: 'AAMkklein0001',
+              name: 'klein.png',
+              contentType: 'image/png',
+              size: 4,
+              isInline: true,
+            },
+            {
+              id: 'AAMkgross0001',
+              name: 'Einladung.png',
+              contentType: 'image/png',
+              size: 2_000_000,
+              isInline: true,
+            },
+          ],
+        };
+      }
+      if (path.endsWith('/attachments/AAMkklein0001'))
+        return {
+          name: 'klein.png',
+          contentType: 'image/png',
+          contentId: 'klein',
+          contentBytes: 'DDDD',
+          size: 4,
+        };
+      return original.call(postfachGraph, path, query, prefer);
+    }
+  );
+  const response = await PostfachKonversationRoute(
+    request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
+    context
+  );
+  const [nachricht] = (response.jsonBody as KonversationDetail).nachrichten;
+  assert.match(nachricht.html ?? '', /data:image\/png;base64,DDDD/);
+  assert.deepEqual(
+    nachricht.anhaenge.map((anhang) => [anhang.name, anhang.herunterladbar]),
+    [['Einladung.png', true]]
+  );
+});

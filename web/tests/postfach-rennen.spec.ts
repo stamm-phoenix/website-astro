@@ -288,3 +288,36 @@ test('a late reload answer does not undo a status just saved in the reading view
   await stand.getByRole('button', { name: 'Offen' }).click();
   await expect(mail.getByText('Wieder als offen markiert.')).toBeVisible();
 });
+
+test('a late failure of the read mark stays with its conversation', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'needs the list next to the open mail');
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  // Make the first conversation unread again, so opening it marks it
+  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('link', { name: /Schnupperstunde für Mia/ }).click();
+  const a = page.getByRole('article', { name: 'Schnupperstunde für Mia' });
+  await a.getByRole('button', { name: 'Als ungelesen markieren' }).click();
+  await expect(a.getByText('Als ungelesen markiert.')).toBeVisible();
+  await liste.getByRole('link', { name: /Danke für das Sommerlager/ }).click();
+  await expect(page.getByRole('article', { name: 'Danke für das Sommerlager' })).toBeVisible();
+
+  // The read mark of A fails late, after B is open
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let first = true;
+  await page.route('**/api/intern/postfach/kontakt/gelesen', async (route) => {
+    if (!first) return route.continue();
+    first = false;
+    await held;
+    await route.fulfill({ status: 500, json: { error: 'X', code: 'X', message: 'kaputt' } });
+  });
+  await liste.getByRole('link', { name: /Schnupperstunde für Mia/ }).click();
+  await expect(a).toBeVisible();
+  await liste.getByRole('link', { name: /Frage zum Nikolausdienst/ }).click();
+  const b = page.getByRole('article', { name: 'Frage zum Nikolausdienst' });
+  await expect(b).toBeVisible();
+  release();
+  await page.waitForTimeout(500);
+  await expect(page.getByText(/kaputt|nicht als gelesen gespeichert/)).toHaveCount(0);
+});
