@@ -117,3 +117,34 @@ test('while the chosen ones are saved, the choice stays as it is and the result 
   await page.unrouteAll({ behavior: 'ignoreErrors' });
   await zuruecksetzen(page);
 });
+
+test('a mail someone opened again meanwhile is not confirmed as done', async ({ page }) => {
+  const liste = await oeffnen(page);
+  await zuruecksetzen(page);
+  await liste.getByRole('checkbox', { name: NEWSLETTER }).check();
+  const aktionen = liste.getByRole('region', { name: 'Aktionen für die Auswahl' });
+  await aktionen.getByRole('button', { name: 'Als erledigt markieren' }).click();
+  await expect(aktionen.getByText('1 E-Mail als erledigt markiert.')).toBeVisible();
+
+  // Someone else opens it again; this page still shows it done
+  const antwort = await page.request.put('/api/intern/postfach/kontakt/status', {
+    data: {
+      konversation: 'AAQkADemoKonv04',
+      status: 'offen',
+      vorher: 'erledigt',
+      bis: new Date().toISOString(),
+    },
+  });
+  expect(antwort.ok()).toBe(true);
+  await expect(liste.getByRole('link', { name: NEWSLETTER })).toContainText('Erledigt');
+
+  await liste.getByRole('checkbox', { name: NEWSLETTER }).check();
+  await aktionen.getByRole('button', { name: 'Als erledigt markieren' }).click();
+  await expect(aktionen.getByText('0 von 1 E-Mail als erledigt markiert.')).toBeVisible();
+  await expect(aktionen.getByRole('alert')).toContainText('Newsletter Diözesanverband');
+  await expect(liste.getByRole('checkbox', { name: NEWSLETTER })).toBeChecked();
+  // The list is read again and shows what applies now
+  await expect(liste.getByRole('link', { name: NEWSLETTER })).toContainText('Offen');
+  await aktionen.getByRole('button', { name: 'Auswahl aufheben' }).click();
+  await zuruecksetzen(page);
+});

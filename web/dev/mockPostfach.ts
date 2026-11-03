@@ -202,17 +202,19 @@ export function registerPostfachRoutes(
     const eingabe = validateStatus(req.json);
     const zeile = zeilen(req.params.postfach).find((entry) => entry.id === eingabe.konversation);
     if (!zeile) return error(404, 'NOT_FOUND', 'Diese E-Mail ist nicht mehr im Postfach.');
-    if (eingabe.status !== 'offen' && zeile.am > new Date(eingabe.bis).toISOString())
-      return error(
-        409,
-        'NEUE_NACHRICHT',
-        'Seit du die Unterhaltung geöffnet hast, ist eine neue Nachricht gekommen. Nichts wurde gespeichert.'
-      );
     if (statusVon(zeile) !== eingabe.vorher)
       return error(
         409,
         'CONFLICT',
         'Jemand hat den Stand inzwischen geändert. Nichts wurde gespeichert.'
+      );
+    // As in the API: already so, who marked it and when stay
+    if (eingabe.status === eingabe.vorher) return json({ erledigung: zeile.erledigung ?? null });
+    if (eingabe.status !== 'offen' && zeile.am > new Date(eingabe.bis).toISOString())
+      return error(
+        409,
+        'NEUE_NACHRICHT',
+        'Seit du die Unterhaltung geöffnet hast, ist eine neue Nachricht gekommen. Nichts wurde gespeichert.'
       );
     if (eingabe.status === 'offen') {
       erledigungen.delete(eingabe.konversation);

@@ -81,6 +81,8 @@ export async function setzeErledigung(
     const aktuell =
       gespeichert && sekunde(gespeichert.bis) >= sekunde(neueste) ? gespeichert : null;
     if ((aktuell?.status ?? 'offen') !== vorher) throw new ErledigungKonfliktError(aktuell);
+    // Already so (e.g. from a choice of several): who marked it and when stay as they are
+    if (status === vorher) return aktuell;
     if (status !== 'offen' && sekunde(neueste) > sekunde(gesehen)) throw new NeueNachrichtError();
     if (status === 'offen') {
       await trx
