@@ -218,8 +218,14 @@ export async function readKonversation(
           text: isHtml ? null : (message.body?.content ?? base.vorschau),
           // Inline images too large to embed stay reachable as attachments
           anhaenge: attachments.filter((entry) => !eingebettet.has(entry.id)).map(alsAnhang),
-          // By the folder, not the sender: the forms send from the mailbox to itself
-          gesendet: gesendetOrdner !== null && message.parentFolderId === gesendetOrdner,
+          // Sent: in „Gesendete Elemente“, or from the mailbox itself and moved elsewhere (e.g.
+          // an archived answer). From the mailbox but in the inbox: a note of the forms, which
+          // send from the mailbox to itself, so it was received
+          gesendet:
+            (gesendetOrdner !== null && message.parentFolderId === gesendetOrdner) ||
+            (base.von.adresse.toLowerCase() === address.toLowerCase() &&
+              posteingang !== null &&
+              message.parentFolderId !== posteingang),
           // Unknown folder: counted as in the inbox, as the list did before
           imPosteingang: posteingang === null || message.parentFolderId === posteingang,
         };
