@@ -12,7 +12,7 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-11-03-01-haeufige-aufgaben',
+    id: '2026-11-03-04-haeufige-aufgaben',
     date: '2026-11-03',
     title: 'Häufige Aufgaben bleiben sichtbar',
     changes: [
@@ -23,8 +23,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-11-02-03-leitendenbereich-bedienung',
-    date: '2026-11-02',
+    id: '2026-11-03-03-leitendenbereich-bedienung',
+    date: '2026-11-03',
     title: 'Übersichtlicher auf dem Handy',
     changes: [
       'Auf der Startseite findest du wichtige Aktionen schneller. Die Bereiche zeigen auch auf dem Handy, was du dort tun kannst.',
