@@ -35,8 +35,11 @@
   import {
     belegePflege,
     campflowBelegeStore,
+    essensplanungMeine,
     offeneBeitraegeStore,
   } from '../lib/pflegeStore.svelte';
+  import { planungenFuerStartseite } from '../lib/essensplanungStartseite';
+  import EssensplanungKarte from './essensplanung/EssensplanungKarte.svelte';
   import { meineBeitraege } from '../lib/beitraege';
   import { meineBelege } from '../lib/campflowBelege';
   import { isIch } from '../lib/ichStore.svelte';
@@ -155,11 +158,24 @@
       !beitraegeStore.error &&
       ownBeitraege.length === 0
   );
-  const cards = $derived([eventsEmpty, tasksEmpty, fristenEmpty, belegeEmpty, beitraegeEmpty]);
+  const essenStore = essensplanungMeine.state;
+  // Invitations and running or coming Planungen of the Essensplanung
+  const essen = $derived(planungenFuerStartseite(essenStore.data?.planungen ?? [], localDate()));
+  const essenEmpty = $derived(
+    essenStore.data !== null && !essenStore.loading && !essenStore.error && essen.length === 0
+  );
+  const cards = $derived([
+    eventsEmpty,
+    tasksEmpty,
+    fristenEmpty,
+    belegeEmpty,
+    beitraegeEmpty,
+    essenEmpty,
+  ]);
   const cardCount = $derived(cards.filter((empty) => !empty).length);
   // Side by side once there is room; stacked areas are divided by lines instead
   const gridColumns = $derived(
-    cardCount === 5
+    cardCount >= 5
       ? 'md:grid-cols-2 xl:grid-cols-3'
       : cardCount === 4
         ? 'md:grid-cols-2 xl:grid-cols-4 xl:divide-x xl:divide-y-0'
@@ -188,6 +204,7 @@
       void belegePflege.load();
       void campflowBelegeStore.load({ param: false });
       void offeneBeitraegeStore.load();
+      void essensplanungMeine.load({ force: true });
     };
     const timeout = setTimeout(startSecondary, SECONDARY_LOAD_DELAY_MS);
     void Promise.allSettled([favorites, tasks]).then(startSecondary);
@@ -415,6 +432,10 @@
   {@render more(ownBelege.length)}
 {/snippet}
 
+{#snippet essenBody()}
+  <EssensplanungKarte planungen={essen} limit={CARD_LIMIT} />
+{/snippet}
+
 {#snippet beitraegeBody()}
   <LoadState
     data={beitraegeStore.data}
@@ -558,6 +579,13 @@
             'Zu den Beiträgen',
             beitraegeBody
           )}{/if}
+        {#if !essenEmpty}{@render card(
+            'meine-essensplanungen-heading',
+            'Essensplanung',
+            '/leitendenbereich/essensplanungen',
+            'Meine Planungen',
+            essenBody
+          )}{/if}
       </div>
     {/if}
     {#if cardCount < cards.length}
@@ -592,6 +620,13 @@
             {@render check()}<span
               >Keine offenen Beiträge ·
               <a href="/leitendenbereich/beitraege" class="text-link">Zu den Beiträgen</a></span
+            >
+          </li>{/if}
+        {#if essenEmpty}<li class="flex items-center gap-2">
+            {@render check()}<span
+              >Keine anstehenden Essensplanungen ·
+              <a href="/leitendenbereich/essensplanungen" class="text-link">Meine Planungen</a
+              ></span
             >
           </li>{/if}
         {#if fristenEmpty}<li class="flex items-center gap-2">

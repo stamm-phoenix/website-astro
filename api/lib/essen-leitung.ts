@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
 import type { Db } from './db';
-import { inTransaction, lockResource, toDateString } from './db';
+import { getSqlErrorNumber, inTransaction, lockResource, toDateString } from './db';
 import type { PlanungRolle } from './essen-planung-model';
 import type { LeitungPlanung } from './essen-leitung-model';
 import { istStammAdresse } from './essen-leitung-model';
@@ -22,6 +22,24 @@ import { istStammAdresse } from './essen-leitung-model';
  */
 export async function leitungLinkVergessen(db: Db, mitgliedId: number): Promise<void> {
   await db.deleteFrom('essen.leitung_link').where('mitglied_id', '=', mitgliedId).execute();
+}
+
+/**
+ * Notes that a member opened the Planung, once; until then it counts as an invitation on the
+ * start page of the Leitendenbereich. Two first loads at once may both try, the second is
+ * ignored.
+ */
+export async function alsGeoeffnetMerken(db: Db, mitgliedId: number): Promise<void> {
+  await sql`
+    INSERT INTO essen.mitglied_geoeffnet (mitglied_id)
+    SELECT ${mitgliedId}
+    WHERE NOT EXISTS (SELECT 1 FROM essen.mitglied_geoeffnet WHERE mitglied_id = ${mitgliedId})
+  `
+    .execute(db)
+    .catch((error: unknown) => {
+      // Primary key violation: the other load was first
+      if (getSqlErrorNumber(error) !== 2627) throw error;
+    });
 }
 
 /**
@@ -56,12 +74,14 @@ export async function leitungPlanungen(email: string): Promise<LeitungPlanung[]>
       .selectFrom('essen.mitglied as m')
       .innerJoin('essen.planung as p', 'p.id', 'm.planung_id')
       .leftJoin('essen.leitung_link as l', 'l.mitglied_id', 'm.id')
+      .leftJoin('essen.mitglied_geoeffnet as g', 'g.mitglied_id', 'm.id')
       .select([
         'm.id',
         'm.rolle',
         'm.planung_id',
         'p.name',
         'l.token',
+        'g.am as geoeffnet_am',
         (eb) =>
           eb
             .selectFrom('essen.tag as t')
@@ -99,6 +119,7 @@ export async function leitungPlanungen(email: string): Promise<LeitungPlanung[]>
         ersterTag: row.erster_tag ? toDateString(row.erster_tag) : null,
         letzterTag: row.letzter_tag ? toDateString(row.letzter_tag) : null,
         token,
+        neu: row.geoeffnet_am === null,
       });
     }
     return planungen.sort(

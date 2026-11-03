@@ -1,4 +1,6 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { getDb } from '../lib/db';
+import { alsGeoeffnetMerken } from '../lib/essen-leitung';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import {
   bestaetigungMail,
@@ -233,7 +235,11 @@ export const EssensplanungBeitreten = planungHandler(async (request) => {
  */
 export const EssensplanungPlanung = planungHandler(async (request) => {
   const zugang = await zugangVon(request);
-  if (request.method === 'GET') return ok(await ladeAnsicht(zugang));
+  if (request.method === 'GET') {
+    // The first load ends an invitation on the start page of the Leitendenbereich
+    if (zugang.mitgliedId !== null) await alsGeoeffnetMerken(getDb(), zugang.mitgliedId);
+    return ok(await ladeAnsicht(zugang));
+  }
   if (request.method === 'PATCH') {
     await planungAendern(zugang, validatePlanungEinstellungen(await readJsonBody(request)));
     return ok(await ladeAnsicht(zugang));

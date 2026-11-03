@@ -25,6 +25,11 @@ export const CHANGELOG: ChangelogEntry[] = [
         href: '/leitendenbereich/essensplanungen',
       },
       {
+        text: 'Auf der Startseite zeigt der Kasten „Essensplanung“ unter „Für dich“ deine laufenden und kommenden Planungen und neue Einladungen. Ein Klick öffnet die Planung.',
+        href: '/leitendenbereich/essensplanungen',
+      },
+      'In einer Planung lädst du unter „Mitglieder“ Leitende des Stammes mit einem Klick zum Mitplanen ein: Namen suchen, „Einladen“ tippen. Das geht, wenn du gleichzeitig im Leitendenbereich angemeldet bist. Die eingeladene Person bekommt eine Mail und sieht die Planung auch hier.',
+      {
         text: 'Admins und Vorstand finden dort auch die Steuerung und, auf einer eigenen Seite, die Zutatenliste mit Kategorien und Allergenen.',
         href: '/leitendenbereich/essensplanung-zutaten',
       },

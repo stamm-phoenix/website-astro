@@ -3,6 +3,8 @@ import { HttpRequest, InvocationContext } from '@azure/functions';
 import type { HttpResponseInit } from '@azure/functions';
 import * as endpoints from '../endpoints/essensplanung';
 import EssensplanungMeineEndpoint from '../endpoints/intern-essensplanung-meine';
+import { EssensplanungLeitende } from '../endpoints/essensplanung-leitende';
+import * as taskDirectory from '../lib/task-directory';
 import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
 import { seedPreviewEssensplanung, seedPreviewEssensplanungPlanung } from '../lib/db-preview';
@@ -216,3 +218,89 @@ dbTest(
     assert.deepEqual(await planungen('kim@stamm-phoenix.de'), []);
   }
 );
+
+function leitende(token: string, email?: string): Promise<HttpResponseInit> {
+  const headers: Record<string, string> = { 'x-essensplanung-token': token };
+  if (email) {
+    const principal = {
+      identityProvider: 'aad',
+      userId: email,
+      userDetails: email,
+      userRoles: ['authenticated', 'team_leitende'],
+    };
+    headers['x-ms-client-principal'] = Buffer.from(JSON.stringify(principal)).toString('base64');
+  }
+  return EssensplanungLeitende(
+    new HttpRequest({
+      url: 'https://www.stamm-phoenix.de/api/essensplanung/planung/leitende',
+      method: 'GET',
+      headers,
+    }),
+    new InvocationContext()
+  );
+}
+
+dbTest(
+  'those who may invite see the Leitende when logged in to the Leitendenbereich',
+  async (t) => {
+    const mails = captureMails(t);
+    t.mock.method(taskDirectory, 'readTaskDirectory', async () => [
+      { name: 'Zoe Zelt', givenName: 'Zoe', login: 'zoe.zelt@stamm-phoenix.de' },
+      { name: 'Anna Ast', givenName: 'Anna', login: 'anna.ast@stamm-phoenix.de' },
+    ]);
+    const { token } = await anlegen(t, mails);
+
+    const liste = await leitende(token, BESITZERIN.email);
+    assert.equal(liste.status, 200, JSON.stringify(liste.jsonBody));
+    assert.deepEqual(json<{ leitende: unknown[] }>(liste).leitende, [
+      { name: 'Anna Ast', email: 'anna.ast@stamm-phoenix.de' },
+      { name: 'Zoe Zelt', email: 'zoe.zelt@stamm-phoenix.de' },
+    ]);
+
+    // The link alone shows nobody, neither does a login from elsewhere
+    assert.equal((await leitende(token)).status, 401);
+    assert.equal((await leitende(token, 'kim@example.org')).status, 403);
+
+    // An editor only while the owner lets editors manage the members
+    await einladen(await ladeZugang(token), {
+      name: 'Ben',
+      email: 'ben@stamm-phoenix.de',
+      rolle: 'bearbeiten',
+    });
+    const [ben] = await planungen('ben@stamm-phoenix.de');
+    assert.equal((await leitende(ben.token, 'ben@stamm-phoenix.de')).status, 403);
+  }
+);
+
+dbTest('the list says so when the directory cannot be read', async (t) => {
+  const mails = captureMails(t);
+  t.mock.method(taskDirectory, 'readTaskDirectory', async () => {
+    throw new Error('Graph down');
+  });
+  const { token } = await anlegen(t, mails);
+  assert.equal((await leitende(token, BESITZERIN.email)).status, 502);
+});
+
+dbTest('an invitation is new until the Planung is opened', async (t) => {
+  const mails = captureMails(t);
+  const { token } = await anlegen(t, mails);
+  assert.equal((await planungen(BESITZERIN.email))[0].neu, false);
+
+  await einladen(await ladeZugang(token), {
+    name: 'Ben',
+    email: 'ben@stamm-phoenix.de',
+    rolle: 'bearbeiten',
+  });
+  const [eingeladen] = await planungen('ben@stamm-phoenix.de');
+  assert.equal(eingeladen.neu, true);
+
+  // Polling does not count, the first load of the Planung does
+  await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
+    token: eingeladen.token,
+    query: '?seit=0',
+  });
+  assert.equal((await planungen('ben@stamm-phoenix.de'))[0].neu, true);
+  await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: eingeladen.token });
+  await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: eingeladen.token });
+  assert.equal((await planungen('ben@stamm-phoenix.de'))[0].neu, false);
+});

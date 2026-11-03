@@ -42,6 +42,8 @@ export async function legePlanungAn(
     })
     .output('inserted.id')
     .executeTakeFirstOrThrow();
+  // The owner created it; it is no invitation
+  await trx.insertInto('essen.mitglied_geoeffnet').values({ mitglied_id: besitzer.id }).execute();
   if (einstellungen.vorlageGruppen.length) {
     await trx
       .insertInto('essen.planung_gruppe')

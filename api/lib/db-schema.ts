@@ -114,6 +114,7 @@ export interface Database {
   'essen.planung': EssenPlanungTable;
   'essen.mitglied': EssenMitgliedTable;
   'essen.leitung_link': EssenLeitungLinkTable;
+  'essen.mitglied_geoeffnet': EssenMitgliedGeoeffnetTable;
   'essen.tag': EssenTagTable;
   'essen.mahlzeit': EssenMahlzeitTable;
   'essen.aenderung': EssenAenderungTable;
@@ -1061,6 +1062,12 @@ export interface EssenLeitungLinkTable {
   mitglied_id: number;
   token: string;
   erstellt_am: Generated<Date>;
+}
+
+/** When a member first opened the Planung; without a row it is an invitation (`0079`). */
+export interface EssenMitgliedGeoeffnetTable {
+  mitglied_id: number;
+  am: Generated<Date>;
 }
 
 export interface EssenTagTable {
