@@ -22,6 +22,8 @@ export interface LeitungPlanung {
   letzterTag: string | null;
   /** The token for `/essensplanung/planung#t=…`. */
   token: string;
+  /** Invited and never opened since. */
+  neu: boolean;
 }
 
 /**

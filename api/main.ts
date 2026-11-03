@@ -203,6 +203,7 @@ import {
   EssensplanungKiUmrechnung,
 } from './endpoints/essensplanung-ki';
 import { EssensplanungZutatEinheiten } from './endpoints/essensplanung-einheiten';
+import { EssensplanungLeitende } from './endpoints/essensplanung-leitende';
 import {
   EditorCollection,
   EditorItem,
@@ -1328,6 +1329,13 @@ app.http('essensplanungStand', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/stand',
   handler: EssensplanungStand,
+});
+
+app.http('essensplanungLeitende', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/leitende',
+  handler: EssensplanungLeitende,
 });
 
 app.http('essensplanungIch', {

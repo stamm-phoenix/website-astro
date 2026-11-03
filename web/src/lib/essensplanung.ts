@@ -38,6 +38,13 @@ export function planungApi(token: string) {
       ),
     katalog: (signal?: AbortSignal) =>
       fetchApi<EssenKatalog>('/essensplanung/planung/katalog', signal, headers),
+    /** The Leitende of the Stamm; only while logged in to the Leitendenbereich, too. */
+    leitende: (signal?: AbortSignal) =>
+      fetchApi<{ leitende: { name: string; email: string }[] }>(
+        '/essensplanung/planung/leitende',
+        signal,
+        headers
+      ),
     senden: <T = PlanungAnsicht>(
       method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
       path: string,

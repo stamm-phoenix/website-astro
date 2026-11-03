@@ -48,7 +48,7 @@ test('members are invited, join by link, read only, and lose access', async ({ p
 
   await page.getByLabel('Name', { exact: true }).fill('Ben Bezirk');
   await page.getByLabel('Mailadresse').fill('ben@example.org');
-  await page.getByRole('button', { name: 'Einladen' }).click();
+  await page.getByRole('button', { name: 'Einladen', exact: true }).click();
   const einladung = await page
     .getByRole('link', { name: /essensplanung\/planung#t=/ })
     .getAttribute('href');
@@ -359,7 +359,7 @@ test('typing on while a meal or an invitation is saved keeps the next input', as
   });
   await page.getByLabel('Name', { exact: true }).fill('Ben Bezirk');
   await page.getByLabel('Mailadresse').fill('ben@example.org');
-  await page.getByRole('button', { name: 'Einladen' }).click();
+  await page.getByRole('button', { name: 'Einladen', exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill('Cleo Chor');
   await page.getByLabel('Mailadresse').fill('cleo@example.org');
   await expect(page.getByText('ben@example.org')).toBeVisible();
@@ -403,7 +403,7 @@ test('a replaced link keeps the input; drafts ask before leaving; arrow keys swi
 
   // Ben's link is replaced while he types: his page stops saving but keeps the input
   await page.getByLabel('Mailadresse').fill('ben@example.org');
-  await page.getByRole('button', { name: 'Einladen' }).click();
+  await page.getByRole('button', { name: 'Einladen', exact: true }).click();
   const einladung = await page
     .getByRole('link', { name: /essensplanung\/planung#t=/ })
     .getAttribute('href');

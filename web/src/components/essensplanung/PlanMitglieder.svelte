@@ -3,6 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import CopyCode from '../ui/CopyCode.svelte';
+  import LeitendeEinladen from './LeitendeEinladen.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -47,22 +48,30 @@
       );
   }
 
-  async function einladen(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    felder = {};
-    const gesendet = { name, email, rolle };
+  /** Invites by mail; returns whether it worked. */
+  async function sendeEinladung(
+    gesendet: { name: string; email: string; rolle: 'bearbeiten' | 'besitzer' },
+    felderZeigen: boolean
+  ): Promise<boolean> {
     let antwort: Antwort | undefined;
     const ok = await kontext.aendern(async () => {
       try {
         antwort = await kontext.api.senden<Antwort>('POST', '/mitglieder', gesendet);
         return antwort;
       } catch (error: unknown) {
-        if (error instanceof ApiError && error.fields) felder = error.fields;
+        if (felderZeigen && error instanceof ApiError && error.fields) felder = error.fields;
         throw error;
       }
     });
-    if (ok && antwort) {
-      mailHinweis(antwort, gesendet.email.trim());
+    if (ok && antwort) mailHinweis(antwort, gesendet.email.trim());
+    return ok && !!antwort;
+  }
+
+  async function einladen(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    felder = {};
+    const gesendet = { name, email, rolle };
+    if (await sendeEinladung(gesendet, true)) {
       // What was typed for the next person while sending stays
       if (name === gesendet.name) name = '';
       if (email === gesendet.email) email = '';
@@ -245,6 +254,13 @@
   {/if}
 
   {#if ansicht.darfVerwalten && !gesperrt}
+    <LeitendeEinladen
+      {kontext}
+      mitglieder={aktiv}
+      einladen={(person) =>
+        sendeEinladung({ name: person.name, email: person.email, rolle: 'bearbeiten' }, false)}
+    />
+
     <section aria-labelledby="einladen-heading" class="surface space-y-4 p-5 print:hidden">
       <h3 id="einladen-heading" class="font-serif text-xl font-bold text-brand-900">
         Per Mail einladen

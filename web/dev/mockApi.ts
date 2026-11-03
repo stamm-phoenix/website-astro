@@ -1445,6 +1445,25 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/mahlzeiten/:id', (req) =>
   return essenAendern(req, (z) => essenPlanung.mahlzeitAendern(z, id, input, req.json?.etag));
 });
 
+// Invented Leitende for „Leitende einladen“; the real API reads the team „Leitende“
+route('GET', '/api/essensplanung/planung/leitende', (req) => {
+  try {
+    const zugang = essenZugang(req);
+    if (zugang.zugang === 'lesen')
+      return error(403, 'NICHT_ERLAUBT', 'Mitglieder einladen dürfen nur Besitzer:innen.');
+    return json({
+      leitende: [
+        { name: 'Anna Ast', email: 'anna.ast@example.test' },
+        { name: 'Ben Brot', email: 'ben.brot@example.test' },
+        { name: 'Demo Leitung', email: 'leitung@example.test' },
+        { name: 'Zoe Zelt', email: 'zoe.zelt@example.test' },
+      ],
+    });
+  } catch (caught) {
+    return essenFehler(caught);
+  }
+});
+
 route('GET', '/api/essensplanung/planung/katalog', (req) => {
   try {
     essenZugang(req);

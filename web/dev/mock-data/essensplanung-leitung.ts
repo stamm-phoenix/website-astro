@@ -24,6 +24,8 @@ export function leitungPlanungen(email: string): LeitungPlanung[] {
       ersterTag: daten[0] ?? null,
       letzterTag: daten.at(-1) ?? null,
       token: mitglied.token,
+      // The mock API does not note who opened a Planung
+      neu: false,
     });
   }
   return liste.sort(
