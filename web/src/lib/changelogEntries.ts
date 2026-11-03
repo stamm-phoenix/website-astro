@@ -21,6 +21,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         href: '/leitendenbereich/essensplanungen',
       },
       {
+        text: 'Eine neue Planung legst du dort mit „Neue Planung anlegen“ an: Name und Tage eintragen, fertig. Du brauchst keine Bestätigungsmail und landest gleich in deiner neuen Planung.',
+        href: '/leitendenbereich/essensplanungen',
+      },
+      {
         text: 'Admins und Vorstand finden dort auch die Steuerung und, auf einer eigenen Seite, die Zutatenliste mit Kategorien und Allergenen.',
         href: '/leitendenbereich/essensplanung-zutaten',
       },

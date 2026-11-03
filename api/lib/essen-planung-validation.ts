@@ -10,6 +10,7 @@ import {
   einplanungSchema,
   emailSchema,
   gerichtEinplanungSchema,
+  leitungAnlegenSchema,
   mahlzeitSchema,
   mitgliedNameSchema,
   planungEinstellungenSchema,
@@ -21,6 +22,7 @@ import type {
   BeitrittInput,
   EinladungInput,
   EinplanungInput,
+  LeitungAnlegenInput,
   MahlzeitInput,
   PlanungEinstellungenInput,
 } from './essen-planung-model';
@@ -28,6 +30,10 @@ import { parseWith } from './validation/zod';
 
 export function validateAnlegen(input: unknown): AnlegenInput {
   return parseWith(anlegenSchema, input);
+}
+
+export function validateLeitungAnlegen(input: unknown): LeitungAnlegenInput {
+  return parseWith(leitungAnlegenSchema, input);
 }
 
 export function validateMitgliedName(input: unknown): string {

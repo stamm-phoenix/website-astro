@@ -55,30 +55,47 @@ function tage(value: { ersterTag: unknown; letzterTag: unknown }): number {
   return erster && letzter ? daysBetween(erster, letzter) + 1 : 1;
 }
 
-export const anlegenSchema = z.preprocess(
-  (value) => (isRecord(value) ? value : {}),
-  z
-    .object({
-      email,
-      name: text(100, 'Bitte deinen Namen eintragen.'),
-      planungName: text(
-        150,
-        'Bitte einen Namen für die Planung eintragen, z. B. „Sommerlager 2027“.'
-      ),
-      ersterTag: datum('Bitte den ersten Tag wählen.'),
-      letzterTag: datum('Bitte den letzten Tag wählen.'),
-    })
-    .refine((value) => tage(value) >= 1, {
-      error: 'Der letzte Tag liegt vor dem ersten.',
-      path: ['letzterTag'],
-      when: ALWAYS,
-    })
-    .refine((value) => tage(value) <= MAX_TAGE, {
-      error: `Höchstens ${MAX_TAGE} Tage.`,
-      path: ['letzterTag'],
-      when: ALWAYS,
-    })
+const planungName = text(
+  150,
+  'Bitte einen Namen für die Planung eintragen, z. B. „Sommerlager 2027“.'
 );
+
+interface Zeitraum {
+  ersterTag: unknown;
+  letzterTag: unknown;
+}
+
+/** Checks the days of a new Planung; the form reports at the last day. */
+function mitZeitraum<T extends z.ZodRawShape>(shape: T) {
+  return z.preprocess(
+    (value) => (isRecord(value) ? value : {}),
+    z
+      .object({
+        ...shape,
+        planungName,
+        ersterTag: datum('Bitte den ersten Tag wählen.'),
+        letzterTag: datum('Bitte den letzten Tag wählen.'),
+      })
+      .refine((value) => tage(value as Zeitraum) >= 1, {
+        error: 'Der letzte Tag liegt vor dem ersten.',
+        path: ['letzterTag'],
+        when: ALWAYS,
+      })
+      .refine((value) => tage(value as Zeitraum) <= MAX_TAGE, {
+        error: `Höchstens ${MAX_TAGE} Tage.`,
+        path: ['letzterTag'],
+        when: ALWAYS,
+      })
+  );
+}
+
+export const anlegenSchema = mitZeitraum({
+  email,
+  name: text(100, 'Bitte deinen Namen eintragen.'),
+});
+
+/** Creating from the Leitendenbereich: name and address come from the login. */
+export const leitungAnlegenSchema = mitZeitraum({});
 
 export const mitgliedNameSchema = lenientObject({
   name: text(100, 'Bitte einen Namen eintragen.'),

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { HttpRequest } from '@azure/functions';
+import { HttpRequest, InvocationContext } from '@azure/functions';
+import type { HttpResponseInit } from '@azure/functions';
 import * as endpoints from '../endpoints/essensplanung';
-import { EssensplanungMeineEndpoint } from '../endpoints/intern-essensplanung-meine';
+import EssensplanungMeineEndpoint from '../endpoints/intern-essensplanung-meine';
 import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
 import { seedPreviewEssensplanung, seedPreviewEssensplanungPlanung } from '../lib/db-preview';
@@ -22,7 +23,11 @@ import { BESITZERIN, anlegen, call, captureMails, json } from './fixtures/essens
 
 /** „Meine Essensplanungen“ in the Leitendenbereich (`api/lib/essen-leitung.ts`). */
 
-function meine(email: string, roles = ['authenticated', 'team_leitende']) {
+function meine(
+  email: string,
+  roles = ['authenticated', 'team_leitende'],
+  body?: unknown
+): Promise<HttpResponseInit> {
   const principal = {
     identityProvider: 'aad',
     userId: email,
@@ -32,11 +37,13 @@ function meine(email: string, roles = ['authenticated', 'team_leitende']) {
   return EssensplanungMeineEndpoint(
     new HttpRequest({
       url: 'https://www.stamm-phoenix.de/api/intern/essensplanung/meine',
-      method: 'GET',
+      method: body === undefined ? 'GET' : 'POST',
       headers: {
         'x-ms-client-principal': Buffer.from(JSON.stringify(principal)).toString('base64'),
       },
-    })
+      body: body === undefined ? undefined : { string: JSON.stringify(body) },
+    }),
+    new InvocationContext()
   );
 }
 
@@ -155,3 +162,57 @@ dbTest('a new link by mail also replaces the token of the Leitendenbereich', asy
   await assert.rejects(ladeZugang(ben.token), ungueltig);
   assert.equal((await ladeZugang(neu.token)).zugang, 'bearbeiten');
 });
+
+dbTest('a Leitende:r creates a Planung with name and days only and opens it', async () => {
+  const angelegt = await meine('kim.kueche@stamm-phoenix.de', undefined, {
+    planungName: 'Herbstlager',
+    ersterTag: '2027-10-01',
+    letzterTag: '2027-10-03',
+  });
+  assert.equal(angelegt.status, 201, JSON.stringify(angelegt.jsonBody));
+  const { token, planungId } = json<{ token: string; planungId: number }>(angelegt);
+
+  const zugang = await ladeZugang(token);
+  assert.equal(zugang.planungId, planungId);
+  assert.equal(zugang.zugang, 'besitzer');
+  assert.equal(zugang.name, 'Kim Kueche');
+  const mitglied = await getDb()
+    .selectFrom('essen.mitglied')
+    .select(['email', 'token_hash'])
+    .where('id', '=', zugang.mitgliedId!)
+    .executeTakeFirstOrThrow();
+  assert.equal(mitglied.email, 'kim.kueche@stamm-phoenix.de');
+  // A link by mail can be requested later („Meine Planungen“ needs a hash to replace)
+  assert.ok(mitglied.token_hash);
+
+  const [planung] = await planungen('kim.kueche@stamm-phoenix.de');
+  assert.equal(planung.token, token);
+  assert.equal(planung.ersterTag, '2027-10-01');
+  assert.equal(planung.letzterTag, '2027-10-03');
+  assert.equal(planung.rolle, 'besitzer');
+});
+
+dbTest(
+  'creating from the Leitendenbereich checks the form, the address and the maintenance',
+  async () => {
+    const leer = await meine('kim@stamm-phoenix.de', undefined, {});
+    assert.equal(leer.status, 400);
+    assert.deepEqual(Object.keys((leer.jsonBody as { fields: object }).fields).sort(), [
+      'ersterTag',
+      'letzterTag',
+      'planungName',
+    ]);
+
+    const gueltig = { planungName: 'Lager', ersterTag: '2027-10-01', letzterTag: '2027-10-01' };
+    assert.equal((await meine('kim@example.org', undefined, gueltig)).status, 403);
+    assert.equal((await meine('kim@stamm-phoenix.de', ['authenticated'], gueltig)).status, 403);
+
+    await getDb().updateTable('essen.einstellungen').set({ wartung: true }).execute();
+    try {
+      assert.equal((await meine('kim@stamm-phoenix.de', undefined, gueltig)).status, 503);
+    } finally {
+      await getDb().updateTable('essen.einstellungen').set({ wartung: false }).execute();
+    }
+    assert.deepEqual(await planungen('kim@stamm-phoenix.de'), []);
+  }
+);

@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import LoadState from '../ui/LoadState.svelte';
   import ReloadButton from '../pflege/ReloadButton.svelte';
+  import NeuePlanungDialog from './NeuePlanungDialog.svelte';
   import { datumKurz, planungUrl } from '../../lib/essensplanung';
   import { essensplanungMeine } from '../../lib/pflegeStore.svelte';
   import type { LeitungPlanung } from '../../../../api/lib/essen-leitung-model';
@@ -12,6 +13,7 @@
    */
 
   const store = essensplanungMeine.state;
+  let anlegenOffen = $state(false);
 
   $effect(() => {
     untrack(() => essensplanungMeine.load({ force: true }));
@@ -32,7 +34,9 @@
 
 <div class="space-y-6">
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <a class="btn-primary" href="/essensplanung" data-astro-reload>Neue Planung anlegen</a>
+    <button type="button" class="btn-primary" onclick={() => (anlegenOffen = true)}
+      >Neue Planung anlegen</button
+    >
     <ReloadButton resource={essensplanungMeine} />
   </div>
 
@@ -71,3 +75,5 @@
     {/snippet}
   </LoadState>
 </div>
+
+<NeuePlanungDialog open={anlegenOffen} onclose={() => (anlegenOffen = false)} />
