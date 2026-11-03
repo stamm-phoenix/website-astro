@@ -139,7 +139,7 @@ test('saving the receipt with an unchanged or reset stored photo keeps its origi
   // Opened, turned and reset, then the receipt is saved: the photo is not sent again
   await dialog.getByRole('button', { name: 'Foto bearbeiten', exact: true }).click();
   await dialog.getByRole('button', { name: 'Nach rechts drehen' }).click();
-  const reset = dialog.getByRole('button', { name: 'Auf das Originalfoto zurücksetzen' });
+  const reset = dialog.getByRole('button', { name: 'Auf das gespeicherte Foto zurücksetzen' });
   await expect(reset).toBeEnabled();
   await reset.click();
   await expect(reset).toBeDisabled();
@@ -221,7 +221,7 @@ test('an unchanged stored photo does not hold up the transfer to CampFlow', asyn
 
   await dialog.getByRole('button', { name: 'Foto bearbeiten', exact: true }).click();
   await dialog.getByRole('button', { name: 'Nach rechts drehen' }).click();
-  const reset = dialog.getByRole('button', { name: 'Auf das Originalfoto zurücksetzen' });
+  const reset = dialog.getByRole('button', { name: 'Auf das gespeicherte Foto zurücksetzen' });
   await expect(reset).toBeEnabled();
   await reset.click();
   await expect(reset).toBeDisabled();
