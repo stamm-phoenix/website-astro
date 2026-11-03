@@ -1,4 +1,7 @@
-import type { FotoFarben } from './belegBild';
+import { ausrichten, eckenAusrichten } from './belegBild';
+import type { Ausrichtung, FotoFarben } from './belegBild';
+import { blobToBase64 } from './belege';
+import { pdfFotos } from './belegPdf';
 import type { PdfSeite } from './belegPdf';
 import type { Pixels, Quad } from './belegScan';
 
@@ -24,6 +27,29 @@ export interface Draft {
   pdfLetzte: PdfSeite | null;
   /** How many pages the PDF has; more than shown for a very long one. */
   pdfSeitenzahl: number;
+  /**
+   * When a stored photo is edited again: the original kept with the receipt, sent as the
+   * original instead of the stored photo the edits start from.
+   */
+  aufbewahrt?: Blob;
+}
+
+/** A draft of `original` without any edits; `teile` sets the rest, e.g. a PDF. */
+export function entwurf(original: Pixels, originalBlob: Blob, teile: Partial<Draft> = {}): Draft {
+  return {
+    original,
+    originalBlob,
+    originalUrl: URL.createObjectURL(originalBlob),
+    bild: original,
+    quad: null,
+    mode: 'original',
+    result: null,
+    pdf: null,
+    pdfSeiten: [],
+    pdfLetzte: null,
+    pdfSeitenzahl: 0,
+    ...teile,
+  };
 }
 
 /** The crop tool while it is open: the uncropped picture and the corners being moved. */
@@ -46,4 +72,26 @@ export interface FotoNutzlast {
 /** Whether anything was changed, so the photo differs from the one chosen. */
 export function isEdited(draft: Draft): boolean {
   return draft.bild !== draft.original || draft.quad !== null || draft.mode !== 'original';
+}
+
+/** The draft rotated by `schritte`, its crop turned along. */
+export function gedreht(current: Draft, schritte: Ausrichtung[]): Draft {
+  let { bild, quad } = current;
+  for (const schritt of schritte) {
+    quad = quad ? eckenAusrichten(quad, bild.width, bild.height, schritt) : null;
+    bild = ausrichten(bild, schritt);
+  }
+  return { ...current, bild, quad };
+}
+
+/**
+ * The photos for the API: the scan, plus the original if the scan differs from it; for a PDF
+ * the PDF, the picture of its first page and the further pages the check reads.
+ */
+export async function fotoNutzlast(current: Draft): Promise<FotoNutzlast> {
+  const photo = await blobToBase64(current.result!.blob);
+  if (current.pdf) return pdfFotos(photo, current.pdf, current.pdfSeiten, current.pdfLetzte);
+  return isEdited(current)
+    ? { photo, original: await blobToBase64(current.aufbewahrt ?? current.originalBlob) }
+    : { photo };
 }

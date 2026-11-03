@@ -1,6 +1,5 @@
 import { errorMessage, sendApi } from './api';
 import {
-  blobToBase64,
   BELEG_PHOTO_EDGE,
   MIN_BELEG_PHOTO_EDGE,
   canvasToJpeg,
@@ -8,16 +7,10 @@ import {
   centToInput,
   photoWarnings as measurePhotoWarnings,
 } from './belege';
-import {
-  freeSeiten,
-  isPdfFile,
-  loadPdfBeleg,
-  MAX_BELEG_PDF_BYTES,
-  pdfFotos,
-  pdfPruefung,
-} from './belegPdf';
-import { isEdited } from './belegEntwurf';
+import { freeSeiten, isPdfFile, loadPdfBeleg, MAX_BELEG_PDF_BYTES, pdfPruefung } from './belegPdf';
+import { entwurf, fotoNutzlast, gedreht, isEdited } from './belegEntwurf';
 import type { Draft, FotoNutzlast, Zuschnitt } from './belegEntwurf';
+import type { GespeichertesFoto } from './belegFotoNachbearbeiten';
 import { todayIso } from './format';
 import { findReceipt, fullFrame, isFullFrame, readPixels, toCanvas } from './belegScan';
 import type { Pixels, Quad } from './belegScan';
@@ -60,6 +53,7 @@ interface BelegPhotoDraft {
   readonly aiChecking: boolean;
   readonly aiNotice: string | null;
   choosePhoto: (event: Event) => Promise<void>;
+  nachbearbeiten: (laden: () => Promise<GespeichertesFoto>) => Promise<void>;
   clearDraft: () => void;
   setMode: (mode: FotoFarben) => void;
   ausrichten: (schritt: Ausrichtung) => void;
@@ -165,24 +159,43 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       } else {
         quad = eckenErweitern(found, original.width, original.height, RAND);
       }
-      draft = {
-        original,
-        originalBlob,
-        originalUrl: URL.createObjectURL(originalBlob),
-        bild: original,
-        quad,
-        mode,
-        result: null,
-        pdf: null,
-        pdfSeiten: [],
-        pdfLetzte: null,
-        pdfSeitenzahl: 0,
-      };
+      draft = entwurf(original, originalBlob, { quad, mode });
       dialog.clearField('photo');
       await render();
     } catch {
       dialog.state.error =
         'Das Foto konnte nicht gelesen werden. Bitte ein JPEG- oder PNG-Foto oder ein PDF wählen.';
+    } finally {
+      photoBusy = false;
+    }
+  }
+
+  /**
+   * Opens the stored photo of the receipt with the edit tools, e.g. to crop it again. The edits
+   * start from the stored photo; its original stays the one kept with the receipt.
+   */
+  async function nachbearbeiten(laden: () => Promise<GespeichertesFoto>): Promise<void> {
+    if (!options.form()?.id || photoBusy) return;
+    photoBusy = true;
+    dialog.state.error = null;
+    dialog.state.conflict = false;
+    options.notice(null);
+    try {
+      const gespeichert = await laden();
+      await nextFrame();
+      const canvas = await loadPhoto(gespeichert.foto);
+      const original = readPixels(canvas, canvas.width, canvas.height);
+      clearDraft();
+      photoWarnings = [];
+      draft = entwurf(original, gespeichert.foto, {
+        aufbewahrt: gespeichert.original ?? gespeichert.foto,
+      });
+      await render();
+    } catch (error: unknown) {
+      dialog.fail(
+        error,
+        'Das gespeicherte Foto konnte nicht geladen werden. Prüfe deine Internetverbindung und versuche es noch einmal.'
+      );
     } finally {
       photoBusy = false;
     }
@@ -202,19 +215,12 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       const originalBlob = await canvasToJpeg(canvas);
       clearDraft();
       photoWarnings = [];
-      draft = {
-        original,
-        originalBlob,
-        originalUrl: URL.createObjectURL(originalBlob),
-        bild: original,
-        quad: null,
-        mode: 'original',
-        result: null,
+      draft = entwurf(original, originalBlob, {
         pdf: file,
         pdfSeiten: weitere,
         pdfLetzte: letzte,
         pdfSeitenzahl: seiten,
-      };
+      });
       dialog.clearField('photo');
       await render();
     } catch {
@@ -370,23 +376,12 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     }
   }
 
-  /**
-   * The photos for the API: the scan, plus the original if the scan differs from it; for a PDF
-   * the PDF, the picture of its first page and the further pages the check reads.
-   */
-  async function photoPayload(current: Draft): Promise<FotoNutzlast> {
-    const photo = await blobToBase64(current.result!.blob);
-    if (current.pdf) return pdfFotos(photo, current.pdf, current.pdfSeiten, current.pdfLetzte);
-    return isEdited(current)
-      ? { photo, original: await blobToBase64(current.originalBlob) }
-      : { photo };
-  }
-
   /** Replaces the photo of an existing receipt with the current scan. */
   async function savePhoto(): Promise<void> {
     const form = options.form();
     if (!form?.id || !draft?.result) return;
     const id = form.id;
+    const nachbearbeitet = !!draft.aufbewahrt;
     photoBusy = true;
     dialog.state.error = null;
     dialog.state.conflict = false;
@@ -395,7 +390,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       const saved = await sendApi<StaffBeleg>(
         'PUT',
         `/intern/pflege/belege/${id}/foto`,
-        await photoPayload(draft),
+        await fotoNutzlast(draft),
         {
           etag: form.etag,
         }
@@ -404,7 +399,13 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       photoWarnings = [];
       options.applyPhoto(saved);
       // The dialog stays open, so the confirmation belongs into it.
-      options.notice(saved.isPdf ? 'PDF gespeichert.' : 'Foto ersetzt.');
+      options.notice(
+        saved.isPdf
+          ? 'PDF gespeichert.'
+          : nachbearbeitet
+            ? 'Bearbeitetes Foto gespeichert.'
+            : 'Foto ersetzt.'
+      );
     } catch (error: unknown) {
       dialog.fail(
         error,
@@ -436,16 +437,6 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     for (let round = 0; round < 2 && (geplant || laufend); round++) {
       await (geplant ? pruefen() : laufend);
     }
-  }
-
-  /** The draft rotated by `schritte`, its crop turned along. */
-  function gedreht(current: Draft, schritte: Ausrichtung[]): Draft {
-    let { bild, quad } = current;
-    for (const schritt of schritte) {
-      quad = quad ? eckenAusrichten(quad, bild.width, bild.height, schritt) : null;
-      bild = ausrichten(bild, schritt);
-    }
-    return { ...current, bild, quad };
   }
 
   /**
@@ -570,6 +561,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       return aiNotice;
     },
     choosePhoto,
+    nachbearbeiten,
     clearDraft,
     setMode,
     ausrichten: ausrichtenBild,
@@ -579,7 +571,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     zuschnittFertig,
     zuschnittAbbrechen,
     savePhoto,
-    photoPayload,
+    photoPayload: fotoNutzlast,
     fertig,
     reset,
   };

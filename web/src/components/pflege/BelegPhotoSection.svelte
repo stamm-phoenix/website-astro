@@ -6,6 +6,7 @@
   import InfoHint from '../ui/InfoHint.svelte';
   import BelegPdfSeiten from './BelegPdfSeiten.svelte';
   import { ladePdf, photoUrl, formatTimestamp, type BelegForm } from '../../lib/belegForm';
+  import { ladeGespeichertesFoto } from '../../lib/belegFotoNachbearbeiten';
   import type { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   interface Props {
     form: BelegForm;
@@ -16,6 +17,8 @@
   let { form, photo, busy, errors }: Props = $props();
   /** A picture of the photo or of a page of the PDF, as wide as the dialog. */
   const SEITE = 'h-auto w-full rounded-md border border-neutral-200 bg-neutral-100';
+  /** The stored photo is open with the edit tools, rather than a newly chosen one. */
+  const nachbearbeitet = $derived(!!photo.draft?.aufbewahrt);
 </script>
 
 <section aria-labelledby="bl-photo-label" class="space-y-2">
@@ -60,9 +63,17 @@
         <ActionButton
           variant="primary"
           type="button"
-          disabled={photo.photoBusy || busy || !photo.draft.result || !!photo.zuschnitt}
+          disabled={photo.photoBusy ||
+            busy ||
+            !photo.draft.result ||
+            !!photo.zuschnitt ||
+            (nachbearbeitet && !photo.edited)}
           onclick={photo.savePhoto}
-          >{photo.draft.pdf ? 'Neues PDF speichern' : 'Neues Foto speichern'}</ActionButton
+          >{photo.draft.pdf
+            ? 'Neues PDF speichern'
+            : nachbearbeitet
+              ? 'Bearbeitetes Foto speichern'
+              : 'Neues Foto speichern'}</ActionButton
         >
         <ActionButton
           variant="secondary"
@@ -74,6 +85,15 @@
     {/if}
   {/if}
   <div class="flex flex-wrap gap-2">
+    {#if form.id && form.hasImage && !form.isPdf && !photo.draft}
+      <ActionButton
+        variant="secondary"
+        type="button"
+        disabled={photo.photoBusy || busy}
+        onclick={() => photo.nachbearbeiten(() => ladeGespeichertesFoto(form))}
+        >Foto bearbeiten</ActionButton
+      >
+    {/if}
     <label class="btn-secondary cursor-pointer" class:opacity-60={photo.photoBusy}>
       {photo.photoBusy
         ? 'Wird verarbeitet …'
