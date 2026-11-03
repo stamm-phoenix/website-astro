@@ -15,8 +15,9 @@ import type { InboxNachricht, MailAdresse, MailAnhang, MailNachricht } from './p
 
 /** Messages of the inbox the list reads; older ones are left to Outlook. */
 export const INBOX_LIMIT = 100;
-/** Messages of a conversation read for the reading view. */
-const KONVERSATION_LIMIT = 50;
+/** Messages of a conversation read per request, and the pages read at most. */
+const KONVERSATION_SEITE = 50;
+const KONVERSATION_SEITEN = 4;
 /** Inline images up to this size are embedded, at most `INLINE_TOTAL` per message. */
 const INLINE_MAX = 1_000_000;
 const INLINE_TOTAL = 4_000_000;
@@ -48,6 +49,14 @@ export const postfachGraph = {
     return getClient()
       .api(path)
       .query(query)
+      .header('Prefer', prefer.join(', '))
+      .option('signal', AbortSignal.timeout(TIMEOUT_MS))
+      .get();
+  },
+  /** The next page of a collection, from its `@odata.nextLink`. */
+  async next(url: string, prefer: string[]): Promise<unknown> {
+    return getClient()
+      .api(url)
       .header('Prefer', prefer.join(', '))
       .option('signal', AbortSignal.timeout(TIMEOUT_MS))
       .get();
@@ -113,7 +122,21 @@ const fullMessageSchema = listMessageSchema.extend({
   body: z.object({ contentType: text, content: text }).nullable().catch(null).optional(),
 });
 
-const collectionSchema = z.object({ value: z.array(z.unknown()) });
+const collectionSchema = z.object({
+  value: z.array(z.unknown()),
+  '@odata.nextLink': z.string().optional(),
+});
+
+/** A continuation must stay on Graph and on the path it continues. */
+function nextLinkOf(response: unknown, path: string): string | null {
+  const parsed = collectionSchema.safeParse(response);
+  const next = parsed.success ? parsed.data['@odata.nextLink'] : undefined;
+  if (!next) return null;
+  const url = new URL(next);
+  if (url.origin !== 'https://graph.microsoft.com' || !url.pathname.endsWith(path))
+    throw new Error('Invalid Graph continuation');
+  return next;
+}
 
 /** Entries that do not parse are skipped, so one odd message does not hide the mailbox. */
 function readCollection<S extends z.ZodType>(schema: S, response: unknown): z.output<S>[] {
@@ -229,23 +252,32 @@ async function readAttachments(
 export async function readKonversation(
   address: string,
   konversationId: string
-): Promise<Omit<MailNachricht, 'gelesen'>[]> {
+): Promise<{ nachrichten: Omit<MailNachricht, 'gelesen'>[]; vollstaendig: boolean }> {
   return guarded(address, async () => {
+    const path = `${mailboxPath(address)}/messages`;
+    const prefer = [IMMUTABLE, 'outlook.body-content-type="html"'];
     // Sorting together with this filter is refused by Exchange; the list is sorted here
-    const response = await postfachGraph.get(
-      `${mailboxPath(address)}/messages`,
+    let response = await postfachGraph.get(
+      path,
       {
         $filter: `conversationId eq '${konversationId.replaceAll("'", "''")}'`,
         $select: `${LIST_SELECT},toRecipients,ccRecipients,body`,
-        $top: String(KONVERSATION_LIMIT),
+        $top: String(KONVERSATION_SEITE),
       },
-      [IMMUTABLE, 'outlook.body-content-type="html"']
+      prefer
     );
-    const messages = readCollection(fullMessageSchema, response)
+    const gelesen = readCollection(fullMessageSchema, response);
+    let next = nextLinkOf(response, path);
+    for (let seite = 1; next && seite < KONVERSATION_SEITEN; seite++) {
+      response = await postfachGraph.next(next, prefer);
+      gelesen.push(...readCollection(fullMessageSchema, response));
+      next = nextLinkOf(response, path);
+    }
+    const messages = gelesen
       .filter((message) => !message.isDraft && message.conversationId === konversationId)
       .sort((a, b) => a.receivedDateTime.localeCompare(b.receivedDateTime));
     const own = address.toLowerCase();
-    return Promise.all(
+    const nachrichten = await Promise.all(
       messages.map(async (message) => {
         const base = toInbox(message);
         const isHtml = message.body?.contentType.toLowerCase() === 'html';
@@ -277,11 +309,13 @@ export async function readKonversation(
               name: entry.name || 'Anhang',
               groesse: entry.size,
               typ: isFileAttachment(entry) ? entry.contentType : 'message/rfc822',
+              herunterladbar: isFileAttachment(entry) && entry.size <= ANHANG_MAX,
             })),
           gesendet: base.von.adresse.toLowerCase() === own,
         };
       })
     );
+    return { nachrichten, vollstaendig: next === null };
   });
 }
 

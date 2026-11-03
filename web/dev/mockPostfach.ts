@@ -68,6 +68,14 @@ const MAILS: DemoMail[] = [
         name: 'Rechnung-2026-117.pdf',
         groesse: 182_000,
         typ: 'application/pdf',
+        herunterladbar: true,
+      },
+      {
+        id: 'AAMkDemoAnhang2',
+        name: 'Buchungsbestätigung',
+        groesse: 24_000,
+        typ: 'message/rfc822',
+        herunterladbar: false,
       },
     ],
   },
@@ -206,6 +214,7 @@ export function registerPostfachRoutes(
         gesendet: mail.gesendet ?? false,
         gelesen: (mail.gesendet ?? false) || istGelesen(mail, stand()),
       })),
+      vollstaendig: true,
       outlookUrl: `${postfachOutlookUrl(ADRESSE)}inbox/id/${encodeURIComponent(mails[0].id)}`,
     };
     return json(detail);

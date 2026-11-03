@@ -44,6 +44,8 @@ export interface MailAnhang {
   name: string;
   groesse: number;
   typ: string;
+  /** false: an attached message or too large; it opens only in Outlook. */
+  herunterladbar: boolean;
 }
 
 /** A message of a conversation, with its body, as the reading view shows it. */
@@ -92,6 +94,8 @@ export interface PostfachAnsicht {
 export interface KonversationDetail {
   konversation: KonversationZeile;
   nachrichten: MailNachricht[];
+  /** false: the conversation has more messages than the view reads; the rest is in Outlook. */
+  vollstaendig: boolean;
   /** Outlook on the web with the newest message of the conversation; null if none is in the inbox. */
   outlookUrl: string | null;
 }
