@@ -256,3 +256,23 @@ dbTest(
     );
   }
 );
+
+dbTest(
+  'handing a choice to the person who already has it sends no note and reports none due',
+  async (t) => {
+    const { context, mocks } = setup(t);
+    const anTom = (vorher: string | null) =>
+      PostfachZustaendigMehrereRoute(
+        request('PUT', '/kontakt/zustaendig-mehrere', KONTAKT, {
+          login: 'tom@stamm-phoenix.de',
+          konversationen: [{ konversation: K2, vorher }],
+        }),
+        context
+      );
+    assert.equal((await anTom(null)).jsonBody?.benachrichtigt, true);
+    const nochmal = await anTom('tom@stamm-phoenix.de');
+    assert.equal(nochmal.status, 200);
+    assert.equal(nochmal.jsonBody?.benachrichtigt, null);
+    assert.equal(mocks.mails.length, 1);
+  }
+);

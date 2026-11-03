@@ -171,6 +171,13 @@ export async function setzeStatus(
   return result.erledigung;
 }
 
+/** The answer of `PUT …/zustaendig-mehrere`. */
+export interface MehrfachAntwort {
+  ergebnisse: MehrfachErgebnis[];
+  /** Null when no note was due (nothing new for another person), false when it failed. */
+  benachrichtigt: boolean | null;
+}
+
 /** What happened to one conversation of a choice (`PUT …/zustaendig-mehrere`). */
 export interface MehrfachErgebnis {
   konversation: string;
@@ -188,8 +195,8 @@ export async function setzeZustaendigMehrere(
   postfach: string,
   login: string | null,
   zeilen: readonly KonversationZeile[]
-): Promise<{ ergebnisse: MehrfachErgebnis[]; benachrichtigt: boolean }> {
-  const result = await sendApi<{ ergebnisse: MehrfachErgebnis[]; benachrichtigt: boolean }>(
+): Promise<MehrfachAntwort> {
+  const result = await sendApi<MehrfachAntwort>(
     'PUT',
     `/intern/postfach/${encodeURIComponent(postfach)}/zustaendig-mehrere`,
     {

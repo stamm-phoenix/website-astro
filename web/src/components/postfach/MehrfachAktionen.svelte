@@ -139,11 +139,11 @@
           : person.login === ich
             ? `Du bist jetzt für ${teil} ${wort(ergebnisse.length)} zuständig.`
             : `${person.name} ist jetzt für ${teil} ${wort(ergebnisse.length)} zuständig${
-                geschafft === 0
-                  ? '.'
-                  : benachrichtigt
-                    ? ' und hat eine Mail bekommen.'
-                    : '. Die Mail ging nicht raus; sag bitte selbst Bescheid.'
+                benachrichtigt === true
+                  ? ' und hat eine Mail bekommen.'
+                  : benachrichtigt === false
+                    ? '. Die Mail ging nicht raus; sag bitte selbst Bescheid.'
+                    : '.'
               }`,
         fehlgeschlagen
       );
