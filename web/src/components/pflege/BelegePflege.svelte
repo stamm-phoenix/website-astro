@@ -8,6 +8,7 @@
     type BelegForm,
   } from '../../lib/belegForm';
   import { zuordnungStand } from '../../lib/belegZuordnung';
+  import { zuSpeichern } from '../../lib/belegEntwurf';
   import { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import BelegFields from './BelegFields.svelte';
   import BelegPhotoSection from './BelegPhotoSection.svelte';
@@ -296,7 +297,7 @@
     const saved = await dialog.run(async () => {
       if (id) {
         // A new photo chosen for this receipt is saved first, so a decision never discards it
-        if (photo.draft?.result) {
+        if (zuSpeichern(photo.draft)) {
           const savedPhoto = await sendApi<StaffBeleg>(
             'PUT',
             `/intern/pflege/belege/${id}/foto`,

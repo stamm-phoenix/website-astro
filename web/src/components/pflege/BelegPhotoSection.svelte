@@ -7,6 +7,7 @@
   import BelegPdfSeiten from './BelegPdfSeiten.svelte';
   import { ladePdf, photoUrl, formatTimestamp, type BelegForm } from '../../lib/belegForm';
   import { ladeGespeichertesFoto } from '../../lib/belegFotoNachbearbeiten';
+  import { zuSpeichern } from '../../lib/belegEntwurf';
   import type { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   interface Props {
     form: BelegForm;
@@ -63,11 +64,7 @@
         <ActionButton
           variant="primary"
           type="button"
-          disabled={photo.photoBusy ||
-            busy ||
-            !photo.draft.result ||
-            !!photo.zuschnitt ||
-            (nachbearbeitet && !photo.edited)}
+          disabled={photo.photoBusy || busy || !zuSpeichern(photo.draft) || !!photo.zuschnitt}
           onclick={photo.savePhoto}
           >{photo.draft.pdf
             ? 'Neues PDF speichern'

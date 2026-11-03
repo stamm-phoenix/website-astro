@@ -102,3 +102,52 @@ test('editing a stored photo can be discarded without saving', async ({ page }) 
   await expect(dialog.getByRole('button', { name: 'Foto bearbeiten', exact: true })).toBeVisible();
   expect(puts).toBe(1);
 });
+
+test('saving the receipt with an unchanged or reset stored photo keeps its original', async ({
+  page,
+}) => {
+  const uploads: { photo: string; original?: string }[] = [];
+  await page.route('**/api/intern/pflege/belege/*/foto*', async (route) => {
+    if (route.request().method() === 'PUT') uploads.push(route.request().postDataJSON());
+    await route.fallback();
+  });
+  await page.goto('/leitendenbereich/belege');
+  const open = page.getByRole('button', { name: /REWE/ }).first();
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: /Beleg von/ });
+  const photo = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 900;
+    canvas.height = 1200;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#333';
+    context.fillRect(0, 0, 900, 1200);
+    context.fillStyle = '#fff';
+    context.fillRect(150, 150, 600, 900);
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), 'image/png')
+    );
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await dialog
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'beleg.png', mimeType: 'image/png', buffer: Buffer.from(photo) });
+  await dialog.getByRole('button', { name: 'Neues Foto speichern', exact: true }).click();
+  await expect(dialog.getByText('Foto ersetzt.', { exact: true })).toBeVisible();
+  expect(uploads).toHaveLength(1);
+
+  // Opened, turned and reset, then the receipt is saved: the photo is not sent again
+  await dialog.getByRole('button', { name: 'Foto bearbeiten', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Nach rechts drehen' }).click();
+  const reset = dialog.getByRole('button', { name: 'Auf das Originalfoto zurücksetzen' });
+  await expect(reset).toBeEnabled();
+  await reset.click();
+  await expect(reset).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(uploads).toHaveLength(1);
+
+  // The original is still there
+  await open.click();
+  await expect(dialog.getByRole('link', { name: 'Original ansehen' })).toBeVisible();
+});
