@@ -116,9 +116,25 @@ export function mailDokument(html: string, externeBilder: boolean, dunkel = fals
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><base target="_blank"><style>${farben}body{margin:0;padding:0;display:flow-root;font:15px/1.5 system-ui,sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}blockquote{margin-left:0;padding-left:12px;border-left:3px solid #9aa5b1}</style></head><body>${html}</body></html>`;
 }
 
-/** Whether the mail would load images from the internet. */
+const EXTERN = /^\s*(?:https?:)?\/\//i;
+const BILD_ATTRIBUT = /\b(src|srcset|background|poster)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+const CSS_URL = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/gi;
+
+/**
+ * Whether the mail would load images from the internet: absolute or protocol-relative addresses
+ * in an attribute that loads an image (each candidate of a `srcset`) or in a CSS `url()`.
+ * Embedded `data:` images do not count.
+ */
 export function hatExterneBilder(html: string): boolean {
-  return /<img[^>]+src\s*=\s*["']?https?:/i.test(html) || /url\(\s*["']?https?:/i.test(html);
+  for (const [, name, ...werte] of html.matchAll(BILD_ATTRIBUT)) {
+    const wert = werte.find((entry) => entry !== undefined) ?? '';
+    const kandidaten = name.toLowerCase() === 'srcset' ? wert.split(',') : [wert];
+    if (kandidaten.some((kandidat) => EXTERN.test(kandidat))) return true;
+  }
+  for (const [, ...werte] of html.matchAll(CSS_URL)) {
+    if (EXTERN.test(werte.find((entry) => entry !== undefined) ?? '')) return true;
+  }
+  return false;
 }
 
 /** Escapes a plain text body for the frame, with line breaks. */

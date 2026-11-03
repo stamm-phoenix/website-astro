@@ -72,6 +72,16 @@ test('the mail frame blocks remote images until asked and escapes plain text', (
   const html = '<p>Hi</p><img src="https://tracker.example/p.gif">';
   assert.equal(hatExterneBilder(html), true);
   assert.equal(hatExterneBilder('<img src="data:image/png;base64,AA">'), false);
+  assert.equal(hatExterneBilder('<img src="//bilder.example/banner.png">'), true);
+  assert.equal(hatExterneBilder('<img src=//bilder.example/b.png>'), true);
+  assert.equal(
+    hatExterneBilder('<img srcset="data:image/png;base64,AA 1x, https://x.example/b.png 2x">'),
+    true
+  );
+  assert.equal(hatExterneBilder('<td background="http://x.example/bg.gif">'), true);
+  assert.equal(hatExterneBilder('<div style="background:url(\'//x.example/a.png\')">'), true);
+  assert.equal(hatExterneBilder('<img src="data:image/png;base64,ab//cd==">'), false);
+  assert.equal(hatExterneBilder('<a href="https://example.invalid">Link</a>'), false);
   assert.match(mailDokument(html, false), /img-src data:;/);
   assert.match(mailDokument(html, true), /img-src data: https:;/);
   assert.match(mailDokument(html, false), /default-src 'none'/);
