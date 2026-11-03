@@ -282,15 +282,15 @@ export function registerPostfachRoutes(
     const eingabe = validateZustaendigMehrere(req.json);
     if (eingabe.login && !PERSONEN.some((entry) => entry.login === eingabe.login))
       return error(400, 'INVALID', OHNE_ZUGRIFF);
+    let neuFuerPerson = false;
     const ergebnisse = eingabe.konversationen.map(({ konversation, vorher }) => {
       const ergebnis = weise(konversation, eingabe.login, vorher);
+      if (!ergebnis.fehler && vorher !== eingabe.login) neuFuerPerson = true;
       return { konversation, ok: !ergebnis.fehler, ...ergebnis };
     });
-    return json({
-      ergebnisse,
-      benachrichtigt:
-        !!eingabe.login && eingabe.login !== login() && ergebnisse.some((entry) => entry.ok),
-    });
+    // As in the API: null when no note was due
+    const faellig = !!eingabe.login && eingabe.login !== login() && neuFuerPerson;
+    return json({ ergebnisse, benachrichtigt: faellig ? true : null });
   });
 
   route(

@@ -77,6 +77,14 @@ test('several mails are handed to one person at once', async ({ page }) => {
   await expect(liste.getByRole('link', { name: RECHNUNG })).toContainText('Tom Test');
   await expectNoHorizontalOverflow(page);
 
+  // The same person again: nothing new for Tom, so no note is due and none is missing
+  const nochmal = await waehleBeide(page);
+  await nochmal.getByRole('button', { name: 'Jemandem zuweisen' }).click();
+  await nochmal.getByLabel('Wer soll sich um die 2 E-Mails kümmern?').fill('Tom');
+  await page.getByRole('option', { name: /Tom Test/ }).click();
+  await expect(nochmal.getByText('Tom Test ist jetzt für 2 E-Mails zuständig.')).toBeVisible();
+  await expect(nochmal.getByText(/Mail ging nicht raus/)).toHaveCount(0);
+
   // „Alle auswählen“ takes what the filter shows
   await liste.getByRole('button', { name: /^Erledigt/ }).click();
   await liste.getByRole('checkbox', { name: /^Alle \d+ auswählen/ }).check();

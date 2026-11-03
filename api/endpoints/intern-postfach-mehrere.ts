@@ -34,7 +34,8 @@ export interface ZuweisungErgebnis {
  * vorher }] }`: one person (null: nobody) for several conversations of the list. Each one is
  * checked on its own like a single assignment, so a conflict keeps only that one as it is. The new
  * person gets one note for all of them, unless it is oneself. Answers `{ ergebnisse,
- * benachrichtigt }`.
+ * benachrichtigt }`; `benachrichtigt` is null when no note was due (nothing new for another
+ * person), false when it was due but not sent.
  */
 export const PostfachZustaendigMehrereRoute = postfachRoute(
   async (request, postfach, principal, context) => {
@@ -90,9 +91,10 @@ export const PostfachZustaendigMehrereRoute = postfachRoute(
     context.log(
       `[postfach] ${ich} ${postfach.id} zuständig für ${zugewiesen.length}/${eingabe.konversationen.length}: ${neu?.login ?? 'niemand'}`
     );
-    let benachrichtigt = false;
+    const faellig = !!neu && neu.login !== ich && zugewiesen.length > 0;
+    let benachrichtigt: boolean | null = faellig ? false : null;
     // Previews share the mail sending with production, so they send no notes
-    if (neu && neu.login !== ich && zugewiesen.length && !isPreviewDeployment()) {
+    if (neu && faellig && !isPreviewDeployment()) {
       try {
         await postfachBenachrichtigung.senden(
           neu.login,
