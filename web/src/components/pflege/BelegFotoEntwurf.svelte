@@ -57,6 +57,13 @@
     },
   ];
 
+  /** The label of a tool; a stored photo opened again is reset to itself, not to its original. */
+  function labelOf(tool: (typeof TOOLS)[number]): string {
+    return tool.id === 'zuruecksetzen' && photo.draft?.aufbewahrt
+      ? 'Auf das gespeicherte Foto zurücksetzen'
+      : tool.label;
+  }
+
   function runTool(id: Werkzeug): void {
     if (id === 'zuschneiden') void photo.zuschneiden();
     else if (id === 'zuruecksetzen') photo.zuruecksetzen();
@@ -117,8 +124,8 @@
             type="button"
             class="werkzeug"
             class:ml-auto={tool.id === 'zuruecksetzen'}
-            title={tool.label}
-            aria-label={tool.label}
+            title={labelOf(tool)}
+            aria-label={labelOf(tool)}
             disabled={locked || (tool.id === 'zuruecksetzen' && !photo.edited)}
             onclick={() => runTool(tool.id)}
           >
