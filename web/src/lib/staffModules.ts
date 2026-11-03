@@ -237,36 +237,54 @@ export const STAFF_MODULES: StaffModule[] = [
   },
   {
     href: '/leitendenbereich/essensplanungen',
-    title: 'Meine Essensplanungen',
-    wrap: 'Meine Essens|planungen',
+    title: 'Meine Planungen',
+    heading: 'Meine Essensplanungen',
     description: 'Deine Planungen aus der Essensplanung öffnen, ohne Link aus der Mail.',
     intro:
       'Hier stehen die Planungen, in denen du mit der Adresse deines Stammes-Kontos Mitglied bist, als Besitzer:in oder zum Bearbeiten. Planungen, zu denen du mit einer anderen Adresse eingeladen wurdest, und der gemeinsame Lese-Link erscheinen hier nicht. Deine Links aus den Mails gelten weiter.',
-    keywords: ['essen', 'küche', 'kochen', 'einkauf', 'rezepte', 'lager', 'planung'],
+    keywords: ['essensplanung', 'essen', 'küche', 'kochen', 'einkauf', 'rezepte', 'lager'],
     icon: 'M4 3v8a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M6 13v8M6 3v5M17 21V3c-2 1-3 4-3 7h3',
   },
   {
     href: '/leitendenbereich/essensplanung-steuerung',
-    title: 'Essensplanung steuern',
-    wrap: 'Essens|planung steuern',
+    title: 'Steuerung',
     heading: 'Essensplanung: Steuerung',
     description:
-      'Essensplanung für Aktionen einrichten: wer Planungen anlegen darf, Vorlagen und die zentrale Zutatenliste – für Admins und Vorstand.',
+      'Essensplanung einrichten: wer Planungen anlegen darf, Vorlagen, Aufbewahrung und alle Planungen – für Admins und Vorstand.',
     intro:
-      'Die Essensplanung ist ein öffentliches Werkzeug, mit dem Küchenteams – auch außerhalb des Stammes – Mahlzeiten, Gerichte und Einkäufe für Aktionen planen. Hier legst du fest, wer Planungen anlegen darf, und pflegst die Zutatenliste, die alle Planungen teilen. Nur die Teams Admin und Vorstand sehen diesen Bereich.',
+      'Die Essensplanung ist ein öffentliches Werkzeug, mit dem Küchenteams – auch außerhalb des Stammes – Mahlzeiten, Gerichte und Einkäufe für Aktionen planen. Hier legst du fest, wer Planungen anlegen darf und wie lange sie aufbewahrt werden. Nur die Teams Admin und Vorstand sehen diesen Bereich.',
     roles: ['team_admin', 'team_vorstand'],
     keywords: [
+      'essensplanung',
       'essen',
       'küche',
-      'kochen',
-      'einkauf',
+      'einstellungen',
+      'vorlagen',
+      'wartung',
+      'löschen',
+    ],
+    icon: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+  },
+  {
+    href: '/leitendenbereich/essensplanung-zutaten',
+    title: 'Zutatenliste',
+    wrap: 'Zutaten|liste',
+    heading: 'Essensplanung: Zutatenliste',
+    description:
+      'Die zentrale Liste der Zutaten mit Kategorien und Allergenen pflegen, die alle Planungen teilen – für Admins und Vorstand.',
+    roles: ['team_admin', 'team_vorstand'],
+    keywords: [
+      'essensplanung',
+      'essen',
       'zutaten',
       'lebensmittel',
       'allergene',
-      'rezepte',
-      'lager',
+      'unverträglichkeiten',
+      'kategorien',
+      'vegan',
+      'vegetarisch',
     ],
-    icon: 'M4 3v8a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M6 13v8M6 3v5M17 21V3c-2 1-3 4-3 7h3',
+    icon: 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01',
   },
   {
     href: '/leitendenbereich/inventur',
@@ -474,10 +492,13 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
       'schnupperanfragen',
       'aktionen',
       'fahrten',
-      'fotos',
-      'essensplanungen',
-      'essensplanung-steuerung'
+      'fotos'
     ),
+  },
+  {
+    id: 'essensplanung',
+    title: 'Essensplanung',
+    modules: byPath('essensplanungen', 'essensplanung-steuerung', 'essensplanung-zutaten'),
   },
   {
     id: 'kasse',
