@@ -233,3 +233,27 @@ test('a mailbox that failed on the start page offers a retry or names whom to te
   ).toBeVisible();
   await expect(karte.getByRole('link', { name: 'admin@stamm-phoenix.de' })).toBeVisible();
 });
+
+test('a long attachment name wraps on a phone instead of being cut off', async ({ page }) => {
+  const lang = 'RechnungSommerlager2026TeilnehmerlisteUndZeltplatzkostenMitAnlagen.pdf';
+  await page.route('**/api/intern/postfach/kontakt/konversation?*', async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    for (const nachricht of body.nachrichten)
+      for (const anhang of nachricht.anhaenge) anhang.name = lang;
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('link', { name: /Rechnung Zeltplatz Sommerlager/ }).click();
+  const links = page.getByRole('list', { name: 'Anhänge' }).getByRole('link');
+  await expect(links.first()).toContainText(lang);
+  for (const link of await links.all()) {
+    const [box, liste] = await Promise.all([
+      link.boundingBox(),
+      page.getByRole('list', { name: 'Anhänge' }).boundingBox(),
+    ]);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(liste!.x + liste!.width + 1);
+  }
+});
