@@ -77,7 +77,7 @@ test('the maintenance mode asks before it is switched on', async ({ page }) => {
 });
 
 test('ingredients are filtered, checked and added', async ({ page }) => {
-  await page.goto('/leitendenbereich/essensplanung-steuerung');
+  await page.goto('/leitendenbereich/essensplanung-zutaten');
   const status = page.getByText(/von \d+ Zutaten/);
   await expect(status).toBeVisible();
 
@@ -139,7 +139,7 @@ test('ingredients are filtered, checked and added', async ({ page }) => {
 });
 
 test('used categories and the EU allergens cannot be deleted', async ({ page }) => {
-  await page.goto('/leitendenbereich/essensplanung-steuerung');
+  await page.goto('/leitendenbereich/essensplanung-zutaten');
   await page.getByRole('button', { name: 'Bearbeiten: Backware' }).click();
   const kategorie = page.getByRole('dialog', { name: 'Kategorie bearbeiten' });
   await expect(kategorie.getByText(/Löschen geht erst/)).toBeVisible();

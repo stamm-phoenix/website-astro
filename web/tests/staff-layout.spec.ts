@@ -26,7 +26,7 @@ test('on a wide screen the sidebar leads to every module and finds one by typing
     'aria-current',
     'true'
   );
-  await expect(sidebar.getByRole('link', { name: 'Steuerung' })).toBeVisible();
+  await expect(sidebar.locator('a[href="/leitendenbereich/nikolaus-steuerung"]')).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Schnellzugriff' })).toBeHidden();
 
   // Strg+K jumps into the search; Enter opens the best match
@@ -76,7 +76,7 @@ test('on a phone the bar at the bottom and the sheet „Menü“ lead to every m
   await bar.getByRole('button', { name: 'Menü', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
   // Every group is open, the account links are at the end
-  await expect(sheet.getByRole('link', { name: /^Steuerung/ })).toBeAttached();
+  await expect(sheet.getByRole('link', { name: /^Steuerung Nikolausdienst/ })).toBeAttached();
   await expect(sheet.getByRole('link', { name: 'Abmelden' })).toHaveAttribute('href', '/logout');
   await sheet.getByRole('searchbox', { name: 'Bereich finden' }).fill('kassenzettel');
   // Belege by keyword, Eigenbeleg by its description
