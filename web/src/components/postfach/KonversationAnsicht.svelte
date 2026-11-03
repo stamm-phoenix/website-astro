@@ -5,6 +5,7 @@
   import MessageText from '../ui/MessageText.svelte';
   import MailInhalt from './MailInhalt.svelte';
   import ZustaendigWahl from './ZustaendigWahl.svelte';
+  import StatusWahl from './StatusWahl.svelte';
   import { errorMessage } from '../../lib/api';
   import {
     aendereZeile,
@@ -231,6 +232,26 @@
               if (id === konversation) void laden(id);
             }}
           />
+          <section aria-label="Stand" class="surface-muted p-3">
+            <StatusWahl
+              {postfach}
+              konversation={data.konversation.id}
+              erledigung={data.konversation.erledigung}
+              wiederOffen={data.konversation.wiederOffen}
+              {ich}
+              onaenderung={(id, erledigung) => {
+                if (detail?.konversation.id === id)
+                  detail = {
+                    ...detail,
+                    konversation: { ...detail.konversation, erledigung, wiederOffen: false },
+                  };
+              }}
+              onkonflikt={(id) => {
+                onkonflikt();
+                if (id === konversation) void laden(id);
+              }}
+            />
+          </section>
         {/key}
 
         {#if !data.vollstaendig}

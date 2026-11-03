@@ -84,7 +84,7 @@ type Handler = (
 ) => Promise<HttpResponseInit>;
 
 /** Resolves the mailbox of `{postfach}`, checks the teams and maps the errors of the module. */
-function postfachRoute(handler: Handler) {
+export function postfachRoute(handler: Handler) {
   return withErrorHandling(
     pflegeHandler(
       'postfach',
@@ -149,7 +149,7 @@ export const PostfachPersonenRoute = postfachRoute(async (request, postfach) => 
 });
 
 /** The line of the conversation for the note, from the inbox or, if it left it, from all folders. */
-async function zeileFuer(
+export async function zeileFuer(
   postfach: PostfachEintrag,
   principal: ClientPrincipal,
   konversation: string

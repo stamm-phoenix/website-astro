@@ -1,7 +1,7 @@
 <script lang="ts">
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { istMirZugewiesen, type KonversationZeile } from '../../../../api/lib/postfach-model';
-  import { konversationHash, mailZeitKurz } from '../../lib/postfachAnsicht';
+  import { konversationHash, mailZeitKurz, STATUS_LABEL } from '../../lib/postfachAnsicht';
 
   /**
    * The conversations of a mailbox: unread ones bold with a dot, the responsible person as a
@@ -32,6 +32,7 @@
   <ul class="divide-y divide-neutral-200" data-testid="postfach-liste">
     {#each zeilen as zeile (zeile.id)}
       {@const ungelesen = zeile.ungelesen > 0}
+      {@const erledigung = zeile.erledigung}
       <li>
         <a
           href={konversationHash(zeile.id)}
@@ -40,7 +41,19 @@
           class="block min-h-11 px-3 py-2.5 no-underline hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-900 aria-[current=true]:bg-neutral-100 aria-[current=true]:shadow-[inset_3px_0_0_var(--color-dpsg-red)]"
         >
           <span class="flex items-baseline gap-2">
-            {#if ungelesen}
+            {#if erledigung}
+              <!-- Ticked off, so done ones stand out from open ones at a glance -->
+              <svg
+                class="size-4 shrink-0 self-center text-success"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg
+              >
+            {:else if ungelesen}
               <span class="size-2 shrink-0 self-center rounded-full bg-[var(--color-dpsg-red)]"
               ></span>
               <span class="sr-only">Ungelesen:</span>
@@ -68,13 +81,24 @@
           </span>
           <span class="mt-0.5 block truncate text-sm text-neutral-700">{zeile.vorschau}</span>
           <span class="mt-1 flex flex-wrap gap-2 text-sm">
+            {#if erledigung}
+              <StatusLabel
+                label="{STATUS_LABEL[erledigung.status]} · {erledigung.login.toLowerCase() ===
+                ich.toLowerCase()
+                  ? 'du'
+                  : erledigung.name}"
+                tone="success"
+              />
+            {:else if zeile.wiederOffen}
+              <StatusLabel label="Neue Nachricht nach „Erledigt“" tone="warning" dot />
+            {/if}
             {#if zeile.zustaendig}
               <StatusLabel
                 label={istMirZugewiesen(zeile, ich) ? 'Dir zugewiesen' : zeile.zustaendig.name}
                 tone={istMirZugewiesen(zeile, ich) ? 'warning' : 'neutral'}
                 dot
               />
-            {:else}
+            {:else if !erledigung}
               <StatusLabel label="Niemand zuständig" tone="neutral" />
             {/if}
             {#if zeile.wichtig}<StatusLabel label="Wichtig" tone="danger" />{/if}

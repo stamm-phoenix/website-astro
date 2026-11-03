@@ -225,3 +225,66 @@ test('a late reload of another mailbox and an older answer of the same mail are 
   await page.waitForTimeout(500);
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
 });
+
+test('a mail marked done is ticked off for everyone and leaves the start page', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  // Retries on the same demo server find it done already
+  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('link', { name: /Schnupperstunde für Mia/ }).click();
+  const mail = page.getByRole('article', { name: 'Schnupperstunde für Mia' });
+  const stand = mail.getByRole('group', { name: 'Stand' });
+  await expect(stand).toBeVisible();
+  if (
+    (await stand.getByRole('button', { name: 'Offen' }).getAttribute('aria-pressed')) !== 'true'
+  ) {
+    await stand.getByRole('button', { name: 'Offen' }).click();
+    await expect(mail.getByText('Wieder als offen markiert.')).toBeVisible();
+  }
+  const uebernehmen = mail.getByRole('button', { name: 'Ich kümmere mich' });
+  if (await uebernehmen.isVisible()) {
+    await uebernehmen.click();
+    await expect(mail.getByText('Du bist jetzt zuständig.')).toBeVisible();
+  }
+
+  await page.goto('/leitendenbereich/');
+  const karte = page.getByRole('region', { name: 'E-Mails' });
+  await expect(karte.getByRole('link', { name: /Schnupperstunde für Mia/ })).toBeVisible();
+  await karte.getByRole('link', { name: /Schnupperstunde für Mia/ }).click();
+
+  await mail
+    .getByRole('group', { name: 'Stand' })
+    .getByRole('button', { name: 'Erledigt' })
+    .click();
+  await expect(mail.getByText('Als erledigt markiert.')).toBeVisible();
+  await expect(mail.getByText(/Erledigt von dir/)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  if (await page.getByRole('button', { name: /Zur Liste/ }).isVisible())
+    await page.getByRole('button', { name: /Zur Liste/ }).click();
+  // Under „Offen“ it is gone, under „Erledigt“ it is ticked off
+  await liste.getByRole('button', { name: /^Offen/ }).click();
+  await expect(liste.getByRole('link', { name: /Schnupperstunde für Mia/ })).toHaveCount(0);
+  await liste.getByRole('button', { name: /^Erledigt/ }).click();
+  await expect(liste.getByRole('link', { name: /Schnupperstunde für Mia/ })).toContainText(
+    'Erledigt · du'
+  );
+  await expect(liste.getByRole('link', { name: /Danke für das Sommerlager/ })).toContainText(
+    'Kein Handlungsbedarf · Lea Leitung'
+  );
+
+  await page.goto('/leitendenbereich/');
+  await expect(
+    page.getByRole('region', { name: 'E-Mails' }).or(page.getByTestId('nothing-open')).first()
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: /Schnupperstunde für Mia/ })).toHaveCount(0);
+
+  // Open again, so the next run starts the same way
+  await page.goto('/leitendenbereich/email/kontakt');
+  await liste.getByRole('button', { name: /^Erledigt/ }).click();
+  await liste.getByRole('link', { name: /Schnupperstunde für Mia/ }).click();
+  await mail.getByRole('group', { name: 'Stand' }).getByRole('button', { name: 'Offen' }).click();
+  await expect(mail.getByText('Wieder als offen markiert.')).toBeVisible();
+});

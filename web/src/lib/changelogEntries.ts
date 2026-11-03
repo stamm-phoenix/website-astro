@@ -21,6 +21,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         href: '/leitendenbereich/email/kontakt',
       },
       'Mit „Ich kümmere mich“ übernimmst du eine E-Mail, oder du weist sie mit „Jemandem zuweisen“ einer anderen Leitungsperson zu. Die Zuständigkeit gilt für die ganze Unterhaltung, und wer zuständig wird, bekommt eine Mail.',
+      'Unter „Stand“ markierst du eine Unterhaltung als „Erledigt“ oder „Kein Handlungsbedarf“. Alle sehen dann in der Liste einen grünen Haken und wer es markiert hat. Erledigte E-Mails verschwinden aus dem Kasten auf der Startseite. Kommt danach eine neue Nachricht, ist die Unterhaltung wieder offen.',
       'Gelesen und ungelesen gilt nur für dich: Was du hier liest, bleibt für die anderen ungelesen, und in Outlook ändert sich nichts.',
       'Antworten, Verschieben und Löschen gehen weiter in Outlook. „In Outlook öffnen“ bringt dich direkt zur E-Mail oder zum Postfach.',
       'Auf der Startseite zeigt der Kasten „E-Mails“ unter „Für dich“ ungelesene und dir zugewiesene E-Mails.',

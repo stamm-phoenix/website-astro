@@ -1,6 +1,12 @@
 /** Validation of the requests of the module „E-Mail“ (`docs/postfaecher.md`). */
 import { z } from 'zod';
-import { ANHANG_ID, KONVERSATION_ID, KONVERSATION_MAX, NACHRICHT_ID } from '../postfach-model';
+import {
+  ANHANG_ID,
+  KONVERSATION_ID,
+  KONVERSATION_MAX,
+  NACHRICHT_ID,
+  type PostfachStatus,
+} from '../postfach-model';
 import { lenientObject, parseWith } from './zod';
 
 const RELOAD = 'Bitte lade die Seite neu und versuche es noch einmal.';
@@ -65,6 +71,21 @@ export interface ZustaendigEingabe {
 /** `PUT …/zustaendig`. */
 export function validateZustaendig(value: unknown): ZustaendigEingabe {
   return parseWith(zustaendigSchema, value);
+}
+
+const STATUS = ['offen', 'erledigt', 'kein_handlungsbedarf'] as const;
+const statusSchema = z.enum(STATUS, { error: `Der Stand ist ungültig. ${RELOAD}` });
+
+/** `PUT …/status`: the new status and the one the page showed. */
+export function validateStatus(value: unknown): {
+  konversation: string;
+  status: PostfachStatus;
+  vorher: PostfachStatus;
+} {
+  return parseWith(
+    lenientObject({ konversation: konversationId, status: statusSchema, vorher: statusSchema }),
+    value
+  );
 }
 
 /** The conversation ID of a query string. */

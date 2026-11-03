@@ -37,13 +37,15 @@
 
   const store = postfachListe.state;
   const LEER: Record<PostfachFilter, string> = {
-    alle: 'Im Posteingang liegt keine E-Mail.',
+    offen: 'Alles erledigt: Keine E-Mail ist mehr offen.',
+    mir: 'Dir ist gerade keine offene E-Mail zugewiesen.',
+    ohne: 'Für jede offene E-Mail ist jemand zuständig.',
     ungelesen: 'Du hast alles gelesen.',
-    mir: 'Dir ist gerade keine E-Mail zugewiesen.',
-    offen: 'Für jede E-Mail ist jemand zuständig.',
+    erledigt: 'Noch keine E-Mail ist erledigt.',
+    alle: 'Im Posteingang liegt keine E-Mail.',
   };
 
-  let filter = $state<PostfachFilter>('alle');
+  let filter = $state<PostfachFilter>('offen');
   let aktiv = $state<string | null>(null);
   /** Counts „Neu laden“, so the open conversation is read again too. */
   let neuladen = $state(0);
@@ -177,7 +179,13 @@
           />
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto">
-          <KonversationListe {zeilen} {ich} {aktiv} leer={LEER[filter]} onoeffnen={oeffnen} />
+          <KonversationListe
+            {zeilen}
+            {ich}
+            {aktiv}
+            leer={daten?.konversationen.length ? LEER[filter] : LEER.alle}
+            onoeffnen={oeffnen}
+          />
         </div>
       </section>
 

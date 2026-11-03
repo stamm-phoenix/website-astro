@@ -1,27 +1,35 @@
 import { istMirZugewiesen, type KonversationZeile } from '../../../api/lib/postfach-model';
 
-/** Filters of the list of a mailbox. */
-export type PostfachFilter = 'alle' | 'ungelesen' | 'mir' | 'offen';
+/** Filters of the list of a mailbox; the page starts with the open conversations. */
+export type PostfachFilter = 'offen' | 'mir' | 'ohne' | 'ungelesen' | 'erledigt' | 'alle';
 
 export const POSTFACH_FILTER: readonly { value: PostfachFilter; label: string }[] = [
-  { value: 'alle', label: 'Alle' },
-  { value: 'ungelesen', label: 'Ungelesen' },
+  { value: 'offen', label: 'Offen' },
   { value: 'mir', label: 'Mir zugewiesen' },
-  { value: 'offen', label: 'Ohne Zuständige' },
+  { value: 'ohne', label: 'Ohne Zuständige' },
+  { value: 'ungelesen', label: 'Ungelesen' },
+  { value: 'erledigt', label: 'Erledigt' },
+  { value: 'alle', label: 'Alle' },
 ];
 
+/** Assigned, without anyone and unread count only open conversations, like the start page. */
 export function filterKonversationen(
   zeilen: readonly KonversationZeile[],
   filter: PostfachFilter,
   ich: string
 ): KonversationZeile[] {
+  const offen = zeilen.filter((zeile) => !zeile.erledigung);
   switch (filter) {
-    case 'ungelesen':
-      return zeilen.filter((zeile) => zeile.ungelesen > 0);
-    case 'mir':
-      return zeilen.filter((zeile) => istMirZugewiesen(zeile, ich));
     case 'offen':
-      return zeilen.filter((zeile) => !zeile.zustaendig);
+      return offen;
+    case 'mir':
+      return offen.filter((zeile) => istMirZugewiesen(zeile, ich));
+    case 'ohne':
+      return offen.filter((zeile) => !zeile.zustaendig);
+    case 'ungelesen':
+      return offen.filter((zeile) => zeile.ungelesen > 0);
+    case 'erledigt':
+      return zeilen.filter((zeile) => zeile.erledigung);
     default:
       return [...zeilen];
   }
@@ -31,13 +39,17 @@ export function filterAnzahl(
   zeilen: readonly KonversationZeile[],
   ich: string
 ): Record<PostfachFilter, number> {
-  return {
-    alle: zeilen.length,
-    ungelesen: filterKonversationen(zeilen, 'ungelesen', ich).length,
-    mir: filterKonversationen(zeilen, 'mir', ich).length,
-    offen: filterKonversationen(zeilen, 'offen', ich).length,
-  };
+  return Object.fromEntries(
+    POSTFACH_FILTER.map(({ value }) => [value, filterKonversationen(zeilen, value, ich).length])
+  ) as Record<PostfachFilter, number>;
 }
+
+/** Label of a status for the list, the start page and the result note. */
+export const STATUS_LABEL = {
+  offen: 'Offen',
+  erledigt: 'Erledigt',
+  kein_handlungsbedarf: 'Kein Handlungsbedarf',
+} as const;
 
 const HASH = /^#konversation=([^&]+)$/;
 

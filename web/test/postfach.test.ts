@@ -13,7 +13,12 @@ import {
   textAlsHtml,
 } from '../src/lib/postfachAnsicht';
 
-function zeile(id: string, ungelesen: number, login: string | null): KonversationZeile {
+function zeile(
+  id: string,
+  ungelesen: number,
+  login: string | null,
+  status: 'erledigt' | 'kein_handlungsbedarf' | null = null
+): KonversationZeile {
   return {
     id,
     postfach: 'kontakt',
@@ -28,26 +33,36 @@ function zeile(id: string, ungelesen: number, login: string | null): Konversatio
     zustaendig: login
       ? { login, name: login, vonLogin: login, vonName: login, am: '2026-11-03T10:00:00.000Z' }
       : null,
+    erledigung: status
+      ? { status, login: 'tom@x.de', name: 'Tom', am: '2026-11-03T11:00:00.000Z' }
+      : null,
+    wiederOffen: false,
   };
 }
 
-test('the filters of a mailbox and their counts', () => {
+test('the filters of a mailbox and their counts; done ones only under „Erledigt“ and „Alle“', () => {
   const zeilen = [
     zeile('a', 1, null),
     zeile('b', 0, 'lea@stamm-phoenix.de'),
     zeile('c', 2, 'tom@x.de'),
+    zeile('d', 1, 'lea@stamm-phoenix.de', 'erledigt'),
+    zeile('e', 0, null, 'kein_handlungsbedarf'),
   ];
   const ids = (filter: Parameters<typeof filterKonversationen>[1]) =>
     filterKonversationen(zeilen, filter, 'Lea@stamm-phoenix.de').map((entry) => entry.id);
-  assert.deepEqual(ids('alle'), ['a', 'b', 'c']);
-  assert.deepEqual(ids('ungelesen'), ['a', 'c']);
+  assert.deepEqual(ids('offen'), ['a', 'b', 'c']);
   assert.deepEqual(ids('mir'), ['b']);
-  assert.deepEqual(ids('offen'), ['a']);
+  assert.deepEqual(ids('ohne'), ['a']);
+  assert.deepEqual(ids('ungelesen'), ['a', 'c']);
+  assert.deepEqual(ids('erledigt'), ['d', 'e']);
+  assert.deepEqual(ids('alle'), ['a', 'b', 'c', 'd', 'e']);
   assert.deepEqual(filterAnzahl(zeilen, 'lea@stamm-phoenix.de'), {
-    alle: 3,
-    ungelesen: 2,
+    offen: 3,
     mir: 1,
-    offen: 1,
+    ohne: 1,
+    ungelesen: 2,
+    erledigt: 2,
+    alle: 5,
   });
 });
 
