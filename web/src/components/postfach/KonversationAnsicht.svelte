@@ -31,8 +31,21 @@
     ich: string;
     onzurueck: () => void;
     onkonflikt: () => void;
+    /** Counts „Neu laden“ of the page; each change reads the open conversation again. */
+    neuladen?: number;
   }
-  let { postfach, outlookPostfach, konversation, ich, onzurueck, onkonflikt }: Props = $props();
+  let {
+    postfach,
+    outlookPostfach,
+    konversation,
+    ich,
+    onzurueck,
+    onkonflikt,
+    neuladen = 0,
+  }: Props = $props();
+
+  /** The automatic read mark of the last load, while it is being saved. */
+  let autoMark: Promise<void> | null = null;
 
   let detail = $state<KonversationDetail | null>(null);
   let loading = $state(true);
@@ -63,11 +76,13 @@
       heading?.focus();
       if (ungelesen.length) {
         try {
-          await markiere(
+          const mark = markiere(
             postfach,
             ungelesen.map((nachricht) => nachricht.id),
             true
           );
+          autoMark = mark;
+          await mark;
           // With only part of a long conversation read, the rest may still be unread
           if (data.vollstaendig) aendereZeile(id, { ungelesen: 0 });
         } catch (markError: unknown) {
@@ -91,6 +106,7 @@
 
   $effect(() => {
     const id = konversation;
+    void neuladen;
     untrack(() => void laden(id));
   });
 
@@ -100,6 +116,8 @@
     if (!id || !neueste) return;
     markFehler = null;
     try {
+      // The automatic read mark of the opening must not land after this one and undo it
+      await autoMark?.catch(() => undefined);
       await markiere(postfach, [neueste.id], false);
       aendereZeile(id, { ungelesen: 1 });
       if (id === konversation) markMeldung = 'Als ungelesen markiert.';

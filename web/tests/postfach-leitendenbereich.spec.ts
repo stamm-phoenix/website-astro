@@ -103,3 +103,54 @@ test('a late assignment stays with its conversation when another one was opened 
     'Rechnung-2026-117.pdf'
   );
 });
+
+test('marking unread right after opening is not undone by the automatic read mark', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  // Hold back the automatic read mark of the opening
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let first = true;
+  await page.route('**/api/intern/postfach/kontakt/gelesen', async (route) => {
+    if (first) {
+      first = false;
+      await held;
+    }
+    await route.continue();
+  });
+  await liste.getByRole('link', { name: /Rechnung Zeltplatz Sommerlager/ }).click();
+  const mail = page.getByRole('article', { name: 'Rechnung Zeltplatz Sommerlager' });
+  await mail.getByRole('button', { name: 'Als ungelesen markieren' }).click();
+  release();
+  await expect(mail.getByText('Als ungelesen markiert.')).toBeVisible();
+
+  // Loaded again from the server, the mail is still unread
+  if (await page.getByRole('button', { name: /Zur Liste/ }).isVisible())
+    await page.getByRole('button', { name: /Zur Liste/ }).click();
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await expect(page.getByText('Neu geladen.')).toBeVisible();
+  await expect(liste.getByRole('link', { name: /Rechnung Zeltplatz Sommerlager/ })).toContainText(
+    'Ungelesen:'
+  );
+});
+
+test('„Neu laden“ also reads the open conversation again', async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'desktop',
+    'the reload button sits next to the open mail on desktop'
+  );
+  await page.goto('/leitendenbereich/email/kontakt');
+  await page
+    .getByRole('region', { name: 'Posteingang' })
+    .getByRole('link', { name: /Frage zum Nikolausdienst/ })
+    .click();
+  await expect(page.getByRole('article', { name: 'Frage zum Nikolausdienst' })).toBeVisible();
+  const reread = page.waitForRequest((request) =>
+    request.url().includes('/api/intern/postfach/kontakt/konversation?id=')
+  );
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await reread;
+  await expect(page.getByRole('article', { name: 'Frage zum Nikolausdienst' })).toBeVisible();
+});
