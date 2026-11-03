@@ -1,6 +1,6 @@
 import { sql } from 'kysely';
 import { getDb, inTransaction, lockResource } from './db';
-import type { Erledigung, PostfachStatus } from './postfach-model';
+import { sekunde, type Erledigung, type PostfachStatus } from './postfach-model';
 import type { Person } from './postfach-stand';
 
 /**
@@ -78,9 +78,10 @@ export async function setzeErledigung(
       .executeTakeFirst();
     // A mark older than the newest message no longer counts, as on the page
     const gespeichert = row ? toErledigung(row) : null;
-    const aktuell = gespeichert && gespeichert.bis >= neueste ? gespeichert : null;
+    const aktuell =
+      gespeichert && sekunde(gespeichert.bis) >= sekunde(neueste) ? gespeichert : null;
     if ((aktuell?.status ?? 'offen') !== vorher) throw new ErledigungKonfliktError(aktuell);
-    if (status !== 'offen' && neueste > gesehen) throw new NeueNachrichtError();
+    if (status !== 'offen' && sekunde(neueste) > sekunde(gesehen)) throw new NeueNachrichtError();
     if (status === 'offen') {
       await trx
         .deleteFrom('postfach.erledigung')

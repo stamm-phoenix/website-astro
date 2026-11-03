@@ -1,8 +1,29 @@
 import { z } from 'zod';
-import { getGraphStatus } from './sharepoint-data-access';
-import { getClient } from './token';
+import {
+  collectionSchema,
+  guarded,
+  IMMUTABLE,
+  mailboxPath,
+  nextLinkOf,
+  postfachGraph,
+  readCollection,
+  text,
+} from './postfach-graph-basis';
+import {
+  alsAnhang,
+  embedInlineImages,
+  isFileAttachment,
+  readAttachments,
+} from './postfach-anhaenge';
 import { KONVERSATION_MAX } from './postfach-model';
-import type { InboxNachricht, MailAdresse, MailAnhang, MailNachricht } from './postfach-model';
+import type { InboxNachricht, MailAdresse, MailNachricht } from './postfach-model';
+
+export {
+  AnhangNichtLadbarError,
+  PostfachZugriffError,
+  postfachGraph,
+} from './postfach-graph-basis';
+export { ANHANG_MAX, readAnhang } from './postfach-anhaenge';
 
 /**
  * Reading the shared mailboxes through Microsoft Graph with the API's app registration
@@ -19,70 +40,7 @@ export const INBOX_LIMIT = 100;
 /** Messages of a conversation read per request, and the pages read at most. */
 const KONVERSATION_SEITE = 50;
 const KONVERSATION_SEITEN = KONVERSATION_MAX / KONVERSATION_SEITE;
-/** Inline images up to this size are embedded, at most `INLINE_TOTAL` per message. */
-const INLINE_MAX = 1_000_000;
-const INLINE_TOTAL = 4_000_000;
-/** Attachments up to this size are downloaded through the API; larger ones in Outlook. */
-export const ANHANG_MAX = 25_000_000;
-const TIMEOUT_MS = 10_000;
 
-const IMMUTABLE = 'IdType="ImmutableId"';
-
-/** Graph refused the mailbox: the app may not read it, or it does not exist. */
-export class PostfachZugriffError extends Error {
-  constructor(public readonly address: string) {
-    super(`Graph refused the mailbox ${address}.`);
-    this.name = 'PostfachZugriffError';
-  }
-}
-
-/** The attachment cannot be downloaded here (too large, or an attached item instead of a file). */
-export class AnhangNichtLadbarError extends Error {
-  constructor() {
-    super('The attachment cannot be downloaded through the API.');
-    this.name = 'AnhangNichtLadbarError';
-  }
-}
-
-/** Graph requests of this module; a seam for the tests. */
-export const postfachGraph = {
-  async get(path: string, query: Record<string, string>, prefer: string[]): Promise<unknown> {
-    return getClient()
-      .api(path)
-      .query(query)
-      .header('Prefer', prefer.join(', '))
-      .option('signal', AbortSignal.timeout(TIMEOUT_MS))
-      .get();
-  },
-  /** The next page of a collection, from its `@odata.nextLink`. */
-  async next(url: string, prefer: string[]): Promise<unknown> {
-    return getClient()
-      .api(url)
-      .header('Prefer', prefer.join(', '))
-      .option('signal', AbortSignal.timeout(TIMEOUT_MS))
-      .get();
-  },
-  async post(path: string, body: unknown): Promise<unknown> {
-    return getClient().api(path).option('signal', AbortSignal.timeout(TIMEOUT_MS)).post(body);
-  },
-};
-
-function mailboxPath(address: string): string {
-  return `/users/${encodeURIComponent(address)}`;
-}
-
-/** Maps a refusal of Graph (403, 404) to `PostfachZugriffError`; other errors pass. */
-async function guarded<T>(address: string, work: () => Promise<T>): Promise<T> {
-  try {
-    return await work();
-  } catch (error: unknown) {
-    const status = getGraphStatus(error);
-    if (status === 401 || status === 403 || status === 404) throw new PostfachZugriffError(address);
-    throw error;
-  }
-}
-
-const text = z.string().catch('');
 const addressSchema = z
   .object({
     emailAddress: z
@@ -123,32 +81,6 @@ const fullMessageSchema = listMessageSchema.extend({
   ccRecipients: addressList.optional(),
   body: z.object({ contentType: text, content: text }).nullable().catch(null).optional(),
 });
-
-const collectionSchema = z.object({
-  value: z.array(z.unknown()),
-  '@odata.nextLink': z.string().optional(),
-});
-
-/** A continuation must stay on Graph and on the path it continues. */
-function nextLinkOf(response: unknown, path: string): string | null {
-  const parsed = collectionSchema.safeParse(response);
-  const next = parsed.success ? parsed.data['@odata.nextLink'] : undefined;
-  if (!next) return null;
-  const url = new URL(next);
-  if (url.origin !== 'https://graph.microsoft.com' || !url.pathname.endsWith(path))
-    throw new Error('Invalid Graph continuation');
-  return next;
-}
-
-/** Entries that do not parse are skipped, so one odd message does not hide the mailbox. */
-function readCollection<S extends z.ZodType>(schema: S, response: unknown): z.output<S>[] {
-  const parsed = collectionSchema.safeParse(response);
-  if (!parsed.success) throw new Error('Invalid Graph message collection');
-  return parsed.data.value.flatMap((item) => {
-    const entry = schema.safeParse(item);
-    return entry.success ? [entry.data] : [];
-  });
-}
 
 const NO_SENDER: MailAdresse = { name: 'Unbekannt', adresse: '' };
 
@@ -195,69 +127,6 @@ export async function readInbox(address: string): Promise<Posteingang> {
       begrenzt,
     };
   });
-}
-
-const attachmentMetaSchema = z.object({
-  '@odata.type': text.optional(),
-  id: z.string().min(1),
-  name: text,
-  contentType: text,
-  size: z.number().catch(0),
-  isInline: z.boolean().catch(false),
-});
-
-const fileAttachmentSchema = z.object({
-  name: text,
-  contentType: text,
-  contentId: z.string().nullable().catch(null).optional(),
-  contentBytes: z.string(),
-  size: z.number().catch(0),
-});
-
-function isFileAttachment(entry: z.output<typeof attachmentMetaSchema>): boolean {
-  return !entry['@odata.type'] || entry['@odata.type'] === '#microsoft.graph.fileAttachment';
-}
-
-/** Replaces `cid:` references with `data:` URLs of the inline images, within the size limits. */
-async function embedInlineImages(
-  address: string,
-  messageId: string,
-  html: string,
-  inline: z.output<typeof attachmentMetaSchema>[]
-): Promise<string> {
-  let total = 0;
-  let result = html;
-  for (const entry of inline) {
-    if (!entry.contentType.startsWith('image/') || entry.size > INLINE_MAX) continue;
-    if (total + entry.size > INLINE_TOTAL) break;
-    const file = fileAttachmentSchema.safeParse(
-      await postfachGraph.get(
-        `${mailboxPath(address)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(entry.id)}`,
-        {},
-        [IMMUTABLE]
-      )
-    );
-    if (!file.success || !file.data.contentId) continue;
-    total += entry.size;
-    const cid = file.data.contentId.replace(/^<|>$/g, '');
-    const url = `data:${file.data.contentType};base64,${file.data.contentBytes}`;
-    // The whole reference only: `cid:image1` must not eat the start of `cid:image10`
-    const escaped = cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    result = result.replace(new RegExp(`cid:${escaped}(?![\\w.@-])`, 'g'), () => url);
-  }
-  return result;
-}
-
-async function readAttachments(
-  address: string,
-  messageId: string
-): Promise<z.output<typeof attachmentMetaSchema>[]> {
-  const response = await postfachGraph.get(
-    `${mailboxPath(address)}/messages/${encodeURIComponent(messageId)}/attachments`,
-    { $select: 'id,name,contentType,size,isInline' },
-    [IMMUTABLE]
-  );
-  return readCollection(attachmentMetaSchema, response);
 }
 
 const folderSchema = z.object({ id: z.string().min(1) });
@@ -346,15 +215,7 @@ export async function readKonversation(
           vorschau: base.vorschau,
           html,
           text: isHtml ? null : (message.body?.content ?? base.vorschau),
-          anhaenge: attachments
-            .filter((entry) => !entry.isInline)
-            .map((entry): MailAnhang => ({
-              id: entry.id,
-              name: entry.name || 'Anhang',
-              groesse: entry.size,
-              typ: isFileAttachment(entry) ? entry.contentType : 'message/rfc822',
-              herunterladbar: isFileAttachment(entry) && entry.size <= ANHANG_MAX,
-            })),
+          anhaenge: attachments.filter((entry) => !entry.isInline).map(alsAnhang),
           // By the folder, not the sender: the forms send from the mailbox to itself
           gesendet: gesendetOrdner !== null && message.parentFolderId === gesendetOrdner,
           // Unknown folder: counted as in the inbox, as the list did before
@@ -363,29 +224,6 @@ export async function readKonversation(
       })
     );
     return { nachrichten, vollstaendig: next === null };
-  });
-}
-
-/** One attachment of a message as a file. */
-export async function readAnhang(
-  address: string,
-  messageId: string,
-  anhangId: string
-): Promise<{ name: string; contentType: string; content: Buffer }> {
-  return guarded(address, async () => {
-    const path = `${mailboxPath(address)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(anhangId)}`;
-    const meta = attachmentMetaSchema.safeParse(
-      await postfachGraph.get(path, { $select: 'id,name,contentType,size,isInline' }, [IMMUTABLE])
-    );
-    if (!meta.success || !isFileAttachment(meta.data) || meta.data.size > ANHANG_MAX)
-      throw new AnhangNichtLadbarError();
-    const file = fileAttachmentSchema.safeParse(await postfachGraph.get(path, {}, [IMMUTABLE]));
-    if (!file.success) throw new AnhangNichtLadbarError();
-    return {
-      name: file.data.name || 'Anhang',
-      contentType: file.data.contentType || 'application/octet-stream',
-      content: Buffer.from(file.data.contentBytes, 'base64'),
-    };
   });
 }
 
