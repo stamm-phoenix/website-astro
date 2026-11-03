@@ -21,6 +21,7 @@ import {
   type PostfachStart,
 } from './postfach-model';
 import { getLeseStand, getZustaendigkeiten } from './postfach-stand';
+import { getErledigungen } from './postfach-erledigung';
 import type { ClientPrincipal } from './staff-auth';
 import { readTaskDirectory } from './task-directory';
 
@@ -83,12 +84,13 @@ export async function ladeKonversationen(
   principal: Pick<ClientPrincipal, 'userId' | 'userDetails'>,
   frisch = false
 ): Promise<KonversationZeile[]> {
-  const [nachrichten, stand, zustaendig] = await Promise.all([
+  const [nachrichten, stand, zustaendig, erledigungen] = await Promise.all([
     inbox(postfach.address, frisch),
     getLeseStand(postfach.id, principal.userId, eigenerLogin(principal)),
     getZustaendigkeiten(postfach.id),
+    getErledigungen(postfach.id),
   ]);
-  return konversationenAus(postfach.id, nachrichten, stand, zustaendig);
+  return konversationenAus(postfach.id, nachrichten, stand, zustaendig, erledigungen);
 }
 
 export async function ladeAnsicht(
@@ -122,8 +124,10 @@ export async function ladeStart(
     ich: login,
     postfaecher: ergebnisse.map(({ postfach, zeilen }) => ({
       ...postfachInfo(postfach),
-      ungelesen: zeilen?.filter((zeile) => zeile.ungelesen > 0).length ?? 0,
-      mirZugewiesen: zeilen?.filter((zeile) => istMirZugewiesen(zeile, login)).length ?? 0,
+      // Counted like the start page: open conversations only
+      ungelesen: zeilen?.filter((zeile) => !zeile.erledigung && zeile.ungelesen > 0).length ?? 0,
+      mirZugewiesen:
+        zeilen?.filter((zeile) => !zeile.erledigung && istMirZugewiesen(zeile, login)).length ?? 0,
       fehler: zeilen === null,
     })),
     fuerMich: ergebnisse
@@ -141,10 +145,11 @@ export async function ladeKonversation(
   principal: Pick<ClientPrincipal, 'userId' | 'userDetails'>,
   konversationId: string
 ): Promise<KonversationDetail | null> {
-  const [{ nachrichten, vollstaendig }, stand, zustaendig] = await Promise.all([
+  const [{ nachrichten, vollstaendig }, stand, zustaendig, erledigungen] = await Promise.all([
     readKonversation(postfach.address, konversationId),
     getLeseStand(postfach.id, principal.userId, eigenerLogin(principal)),
     getZustaendigkeiten(postfach.id),
+    getErledigungen(postfach.id),
   ]);
   if (!nachrichten.length) return null;
   const eingegangen = nachrichten.filter((nachricht) => !nachricht.gesendet);
@@ -160,7 +165,7 @@ export async function ladeKonversation(
       wichtig: false,
     })
   );
-  const [konversation] = konversationenAus(postfach.id, fuerZeile, stand, zustaendig);
+  const [konversation] = konversationenAus(postfach.id, fuerZeile, stand, zustaendig, erledigungen);
   const neueste = fuerZeile.at(-1);
   const restId = neueste ? await readRestId(postfach.address, neueste.id) : null;
   return {

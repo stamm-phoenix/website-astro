@@ -12,6 +12,17 @@ export interface PostfachZustaendigkeitTable {
   am: Generated<Date>;
 }
 
+/** Whether a conversation is done or needs nothing (`postfach.erledigung`, migration 0081). */
+export interface PostfachErledigungTable {
+  postfach: string;
+  konversation_id: string;
+  status: 'erledigt' | 'kein_handlungsbedarf';
+  login: string;
+  name: string;
+  betreff: Generated<string>;
+  am: Generated<Date>;
+}
+
 /** A message a person has marked as read or unread in the Leitendenbereich (`postfach.gelesen`). */
 export interface PostfachGelesenTable {
   postfach: string;

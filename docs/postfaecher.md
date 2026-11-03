@@ -39,14 +39,23 @@ Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
   oder „Jemandem zuweisen“ (Mitglieder der Teams des Postfachs, aus Entra ID). Die Seite schickt
   mit, wen sie als zuständig angezeigt hat; hat das inzwischen jemand geändert, kommt
   `409` mit dem aktuellen Namen und nichts wird gespeichert.
+- **Stand:** Jede Konversation ist offen, „Erledigt“ oder „Kein Handlungsbedarf“
+  (`postfach.erledigung`, Migration `0081`, Route `PUT …/{postfach}/status`). Das kann jede Person
+  setzen, die das Postfach sieht, und alle sehen es mit Namen und Zeit (grüner Haken in der Liste).
+  Eine Konversation ohne Zeile ist offen. Kommt nach dem Setzen eine neue Nachricht in den
+  Posteingang, gilt sie wieder als offen und zeigt „Neue Nachricht nach „Erledigt““; die Zeile
+  bleibt, bis jemand den Stand neu setzt. Die Liste beginnt mit dem Filter „Offen“; „Mir
+  zugewiesen“, „Ohne Zuständige“ und „Ungelesen“ zählen nur offene Konversationen, „Erledigt“
+  zeigt beide abgeschlossenen Stände. Wie bei der Zuständigkeit schickt die Seite mit, welchen
+  Stand sie angezeigt hat, und bekommt `409`, wenn jemand ihn inzwischen geändert hat.
 - **Benachrichtigung:** Wer von jemand anderem zuständig gemacht wird, bekommt eine Mail an das
   eigene Konto (`postfach-mails.ts`, gesendet vom Postfach selbst, ohne Kopie in seinen „Gesendeten Elementen“, damit Betreffe des Vorstands-Postfachs nicht im Kontakt-Postfach landen) mit Betreff, Absender
   und einem Link auf die Konversation (`#konversation=<id>`), ohne den Text der E-Mail. Scheitert
   der Versand, bleibt die Zuständigkeit gespeichert und die Seite sagt, dass man selbst Bescheid
   geben soll. PR-Previews schicken keine solchen Mails, weil sie den Mailversand der Produktion
   teilen.
-- **Startseite:** Der Kasten „E-Mails“ zeigt Konversationen mit ungelesenen Nachrichten oder die
-  der Person zugewiesen sind, aus allen Postfächern, die sie sieht (`GET /api/intern/postfach`).
+- **Startseite:** Der Kasten „E-Mails“ zeigt offene Konversationen mit ungelesenen Nachrichten oder
+  die der Person zugewiesen sind, aus allen Postfächern, die sie sieht (`GET /api/intern/postfach`).
 
 ## Wer welches Postfach sieht
 
@@ -102,9 +111,9 @@ Die API liest mit ihrer App-Registrierung (`CONFIG.azure.clientId`). Dafür brau
   gelesen, „Neu laden“ umgeht das; die Personenliste fünf Minuten.
 - **Routen** (`api/endpoints/intern-postfach.ts`, alle hinter `requireStaff`):
   `GET /api/intern/postfach`, `GET …/{postfach}`, `GET …/{postfach}/konversation?id=`,
-  `POST …/{postfach}/gelesen`, `GET …/{postfach}/personen`, `PUT …/{postfach}/zustaendig`,
+  `POST …/{postfach}/gelesen`, `GET …/{postfach}/personen`, `PUT …/{postfach}/zustaendig`, `PUT …/{postfach}/status`,
   `GET …/{postfach}/anhang?nachricht=&anhang=`.
-- **Daten:** Schema `postfach` (Migration `0080_postfach.sql`): nur IDs, Logins, Namen und der
+- **Daten:** Schema `postfach` (Migrationen `0080_postfach.sql`, `0081_postfach_erledigung.sql`): nur IDs, Logins, Namen und der
   Betreff einer zugewiesenen Konversation. Die E-Mails bleiben in Exchange.
 - **Previews** lesen über Graph dasselbe echte Postfach wie die Produktion, speichern Gelesen und
   Zuständigkeit aber in ihrer eigenen Datenbank und schicken keine Benachrichtigungen. Lokal

@@ -19,6 +19,19 @@ export interface Zustaendigkeit {
   am: string;
 }
 
+/** Where a conversation stands; without a mark it is open. */
+export type PostfachStatus = 'offen' | 'erledigt' | 'kein_handlungsbedarf';
+
+/** A conversation that was marked as done or as needing nothing. */
+export interface Erledigung {
+  status: Exclude<PostfachStatus, 'offen'>;
+  /** Who set it. */
+  login: string;
+  name: string;
+  /** ISO time it was set. */
+  am: string;
+}
+
 /** A conversation in the list of a mailbox: its newest message in the inbox and its state. */
 export interface KonversationZeile {
   /** `conversationId` of Exchange. */
@@ -37,6 +50,10 @@ export interface KonversationZeile {
   hatAnhang: boolean;
   wichtig: boolean;
   zustaendig: Zustaendigkeit | null;
+  /** Done or nothing to do; null while open, also when a message came after the mark. */
+  erledigung: Erledigung | null;
+  /** It was marked done, but a newer message arrived since: open again. */
+  wiederOffen: boolean;
 }
 
 export interface MailAnhang {
@@ -154,7 +171,8 @@ export function konversationenAus(
   postfach: string,
   nachrichten: readonly InboxNachricht[],
   stand: LeseStand,
-  zustaendig: ReadonlyMap<string, Zustaendigkeit>
+  zustaendig: ReadonlyMap<string, Zustaendigkeit>,
+  erledigungen: ReadonlyMap<string, Erledigung> = new Map()
 ): KonversationZeile[] {
   const byId = new Map<string, KonversationZeile>();
   const sorted = [...nachrichten].sort((a, b) => b.am.localeCompare(a.am));
@@ -180,9 +198,26 @@ export function konversationenAus(
       hatAnhang: nachricht.hatAnhang,
       wichtig: nachricht.wichtig,
       zustaendig: zustaendig.get(nachricht.konversation) ?? null,
+      ...erledigungsStand(erledigungen.get(nachricht.konversation), nachricht.am),
     });
   }
   return [...byId.values()];
+}
+
+/** A mark counts until a newer message arrives; then the conversation is open again. */
+function erledigungsStand(
+  erledigung: Erledigung | undefined,
+  neueste: string
+): Pick<KonversationZeile, 'erledigung' | 'wiederOffen'> {
+  if (!erledigung) return { erledigung: null, wiederOffen: false };
+  return erledigung.am >= neueste
+    ? { erledigung, wiederOffen: false }
+    : { erledigung: null, wiederOffen: true };
+}
+
+/** The status the page shows for the conversation. */
+export function statusVon(zeile: Pick<KonversationZeile, 'erledigung'>): PostfachStatus {
+  return zeile.erledigung?.status ?? 'offen';
 }
 
 /** The conversation is assigned to the login (compared without case). */
@@ -190,9 +225,11 @@ export function istMirZugewiesen(zeile: KonversationZeile, login: string): boole
   return zeile.zustaendig?.login.toLowerCase() === login.toLowerCase();
 }
 
-/** What the start page shows: unread or assigned to the person. */
+/** What the start page shows: open conversations that are unread or assigned to the person. */
 export function fuerMich(zeilen: readonly KonversationZeile[], login: string): KonversationZeile[] {
-  return zeilen.filter((zeile) => zeile.ungelesen > 0 || istMirZugewiesen(zeile, login));
+  return zeilen.filter(
+    (zeile) => !zeile.erledigung && (zeile.ungelesen > 0 || istMirZugewiesen(zeile, login))
+  );
 }
 
 /** Messages of a conversation the reading view reads and marks at most. */

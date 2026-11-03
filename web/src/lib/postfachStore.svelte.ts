@@ -1,7 +1,9 @@
 import { fetchApi, sendApi } from './api';
 import { createResource } from './pflegeStore.svelte';
 import type {
+  Erledigung,
   KonversationDetail,
+  PostfachStatus,
   KonversationZeile,
   PostfachAnsicht,
   PostfachPerson,
@@ -132,6 +134,22 @@ export async function setzeZustaendig(
   );
   aendereZeile(konversation, { zustaendig: result.zustaendig });
   return result;
+}
+
+/** Marks the conversation as done, as needing nothing or as open again. */
+export async function setzeStatus(
+  postfach: string,
+  konversation: string,
+  status: PostfachStatus,
+  vorher: PostfachStatus
+): Promise<Erledigung | null> {
+  const result = await sendApi<{ erledigung: Erledigung | null }>(
+    'PUT',
+    `/intern/postfach/${encodeURIComponent(postfach)}/status`,
+    { konversation, status, vorher }
+  );
+  aendereZeile(konversation, { erledigung: result.erledigung, wiederOffen: false });
+  return result.erledigung;
 }
 
 export function anhangUrl(postfach: string, nachricht: string, anhang: string): string {

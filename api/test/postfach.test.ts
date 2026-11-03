@@ -10,6 +10,7 @@ import {
   PostfachStartRoute,
   PostfachZustaendigRoute,
 } from '../endpoints/intern-postfach';
+import { PostfachStatusRoute } from '../endpoints/intern-postfach-status';
 import { postfachGraph } from '../lib/postfach-graph';
 import { postfachVerzeichnis, resetPostfachCaches } from '../lib/postfach';
 import { postfachBenachrichtigung } from '../lib/postfach-mails';
@@ -541,5 +542,93 @@ dbTest(
       context
     );
     assert.equal(ohneTeam.status, 403);
+  }
+);
+
+dbTest(
+  'a conversation is marked done for everyone and opens again with a newer message',
+  async (t) => {
+    const { context } = setup(t);
+    await PostfachZustaendigRoute(
+      request('PUT', '/kontakt/zustaendig', KONTAKT, {
+        konversation: K2,
+        login: 'tom@stamm-phoenix.de',
+      }),
+      context
+    );
+    const done = await PostfachStatusRoute(
+      request(
+        'PUT',
+        '/kontakt/status',
+        KONTAKT,
+        { konversation: K2, status: 'erledigt', vorher: 'offen' },
+        TOM
+      ),
+      context
+    );
+    assert.equal(done.status, 200);
+    assert.equal((done.jsonBody as { erledigung: { name: string } }).erledigung.name, 'Tom Test');
+
+    const lea = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
+      .jsonBody as PostfachAnsicht;
+    const zeile = lea.konversationen.find((entry) => entry.id === K2)!;
+    assert.equal(zeile.erledigung?.status, 'erledigt');
+    assert.equal(zeile.wiederOffen, false);
+    // Done conversations leave the start page, also unread ones
+    const start = (await PostfachStartRoute(request('GET', '', {}, undefined, TOM), context))
+      .jsonBody as PostfachStart;
+    assert.equal(
+      start.fuerMich.some((entry) => entry.id === K2),
+      false
+    );
+    assert.equal(start.postfaecher[0].mirZugewiesen, 0);
+
+    // A stale page gets a conflict naming the status
+    const stale = await PostfachStatusRoute(
+      request('PUT', '/kontakt/status', KONTAKT, {
+        konversation: K2,
+        status: 'kein_handlungsbedarf',
+        vorher: 'offen',
+      }),
+      context
+    );
+    assert.equal(stale.status, 409);
+    assert.match(
+      (stale.jsonBody as { message: string }).message,
+      /Tom Test hat sie inzwischen als erledigt markiert/
+    );
+
+    // A reply that arrives after the mark opens it again
+    await getDb()
+      .updateTable('postfach.erledigung')
+      .set({ am: new Date(NOW - 3 * 3_600_000) })
+      .execute();
+    const again = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
+      .jsonBody as PostfachAnsicht;
+    const offen = again.konversationen.find((entry) => entry.id === K2)!;
+    assert.equal(offen.erledigung, null);
+    assert.equal(offen.wiederOffen, true);
+    const reopen = await PostfachStatusRoute(
+      request('PUT', '/kontakt/status', KONTAKT, {
+        konversation: K2,
+        status: 'kein_handlungsbedarf',
+        vorher: 'offen',
+      }),
+      context
+    );
+    assert.equal(reopen.status, 200);
+    const back = await PostfachStatusRoute(
+      request('PUT', '/kontakt/status', KONTAKT, {
+        konversation: K2,
+        status: 'offen',
+        vorher: 'kein_handlungsbedarf',
+      }),
+      context
+    );
+    assert.equal((back.jsonBody as { erledigung: unknown }).erledigung, null);
+    assert.equal(
+      await getDb().selectFrom('postfach.erledigung').select('postfach').executeTakeFirst(),
+      undefined
+    );
   }
 );

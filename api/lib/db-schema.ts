@@ -6,6 +6,7 @@ import type { AnwesenheitStufeName } from './anwesenheit-model';
 import type { InventarArtikelTable, InventarVarianteTable } from './db-schema-inventur';
 import type { SchnupperAnfrageTable } from './db-schema-schnupper';
 import type {
+  PostfachErledigungTable,
   PostfachGelesenTable,
   PostfachLeserTable,
   PostfachZustaendigkeitTable,
@@ -89,6 +90,7 @@ export interface Database {
   'organisation.inventar_variante': InventarVarianteTable;
   'organisation.schnupper_anfrage': SchnupperAnfrageTable;
   'postfach.zustaendigkeit': PostfachZustaendigkeitTable;
+  'postfach.erledigung': PostfachErledigungTable;
   'postfach.gelesen': PostfachGelesenTable;
   'postfach.leser': PostfachLeserTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;

@@ -5,7 +5,7 @@ const NACHRICHT = 'AAkALgAAAAAAHYQDEapmEc2byACqAC-EWg0AdGVzdHByZXZpZXc=';
 const USER = 'preview-test-user';
 
 /**
- * Invented rows of the module „E-Mail“: a responsibility and a read state of a conversation
+ * Invented rows of the module „E-Mail“: a responsibility, a status and a read state of a conversation
  * that exists in no mailbox, so the tables have data in the previews without touching Exchange.
  * Each table is filled only while it is empty.
  */
@@ -39,6 +39,24 @@ export async function seedPreviewPostfach(now: Date = new Date()): Promise<void>
         user_id: USER,
         login: 'leitung.test@example.invalid',
         gelesen_bis: new Date(now.getTime() - 14 * 86_400_000),
+      })
+      .execute();
+  }
+  const erledigt = await db
+    .selectFrom('postfach.erledigung')
+    .select('postfach')
+    .top(1)
+    .executeTakeFirst();
+  if (!erledigt) {
+    await db
+      .insertInto('postfach.erledigung')
+      .values({
+        postfach: 'kontakt',
+        konversation_id: KONVERSATION,
+        status: 'erledigt',
+        login: 'leitung.test@example.invalid',
+        name: 'Lea Leitung (Test)',
+        betreff: 'Frage zur Gruppenstunde (Test)',
       })
       .execute();
   }

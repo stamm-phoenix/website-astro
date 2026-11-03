@@ -15,9 +15,15 @@ import {
   type KonversationDetail,
   type MailNachricht,
   type PostfachPerson,
+  type Erledigung,
   type Zustaendigkeit,
+  statusVon,
 } from '../../api/lib/postfach-model';
-import { validateGelesen, validateZustaendig } from '../../api/lib/validation/postfach';
+import {
+  validateGelesen,
+  validateStatus,
+  validateZustaendig,
+} from '../../api/lib/validation/postfach';
 
 /** Demo mails of the module „E-Mail“ (`docs/postfaecher.md`), in memory. */
 
@@ -122,6 +128,18 @@ const MAILS: DemoMail[] = [
     html: '<h2>Termine</h2><p>Die Termine für das nächste Halbjahr stehen fest.</p>',
     text: null,
   },
+  {
+    id: 'AAkALgDemo0006',
+    konversation: 'AAQkADemoKonv05',
+    betreff: 'Danke für das Sommerlager',
+    von: { name: 'Familie Probe', adresse: 'probe@example.invalid' },
+    am: vor(24 * 5),
+    vorschau: 'Unser Sohn erzählt immer noch begeistert vom Lager.',
+    hatAnhang: false,
+    wichtig: false,
+    html: '<p>Unser Sohn erzählt immer noch begeistert vom Lager. Danke euch allen!</p>',
+    text: null,
+  },
 ];
 
 const marken = new Map<string, boolean>();
@@ -139,6 +157,18 @@ const zustaendig = new Map<string, Zustaendigkeit>([
   ],
 ]);
 
+const erledigungen = new Map<string, Erledigung>([
+  [
+    'AAQkADemoKonv05',
+    {
+      status: 'kein_handlungsbedarf',
+      login: 'lea.leitung@example.test',
+      name: 'Lea Leitung',
+      am: vor(24 * 4),
+    },
+  ],
+]);
+
 function stand() {
   return { marken, gelesenBis };
 }
@@ -150,7 +180,8 @@ function zeilen(id: string = POSTFACH) {
     POSTFACH,
     MAILS.filter((mail) => !mail.gesendet),
     stand(),
-    zustaendig
+    zustaendig,
+    erledigungen
   );
 }
 
@@ -217,7 +248,13 @@ export function registerPostfachRoutes(
     if (unbekannt(req)) return unbekannt(req)!;
     if (!mails.length) return error(404, 'NOT_FOUND', 'Diese E-Mail ist nicht mehr im Postfach.');
     const eingegangen = mails.filter((mail) => !mail.gesendet);
-    const [konversation] = konversationenAus(POSTFACH, eingegangen, stand(), zustaendig);
+    const [konversation] = konversationenAus(
+      POSTFACH,
+      eingegangen,
+      stand(),
+      zustaendig,
+      erledigungen
+    );
     const detail: KonversationDetail = {
       konversation,
       nachrichten: mails.map((mail) => ({
@@ -257,6 +294,32 @@ export function registerPostfachRoutes(
     '/api/intern/postfach/:postfach/personen',
     (req) => unbekannt(req) ?? json({ personen: PERSONEN })
   );
+
+  route('PUT', '/api/intern/postfach/:postfach/status', (req) => {
+    if (unbekannt(req)) return unbekannt(req)!;
+    const eingabe = validateStatus(req.json);
+    const zeile = zeilen(req.params.postfach).find((entry) => entry.id === eingabe.konversation);
+    if (!zeile) return error(404, 'NOT_FOUND', 'Diese E-Mail ist nicht mehr im Postfach.');
+    if (statusVon(zeile) !== eingabe.vorher)
+      return error(
+        409,
+        'CONFLICT',
+        'Jemand hat den Stand inzwischen geändert. Nichts wurde gespeichert.'
+      );
+    if (eingabe.status === 'offen') {
+      erledigungen.delete(eingabe.konversation);
+      return json({ erledigung: null });
+    }
+    const ich = PERSONEN.find((entry) => entry.login === login()) ?? PERSONEN[0];
+    const neu: Erledigung = {
+      status: eingabe.status,
+      login: ich.login,
+      name: ich.name,
+      am: new Date().toISOString(),
+    };
+    erledigungen.set(eingabe.konversation, neu);
+    return json({ erledigung: neu });
+  });
 
   route('PUT', '/api/intern/postfach/:postfach/zustaendig', (req) => {
     if (unbekannt(req)) return unbekannt(req)!;

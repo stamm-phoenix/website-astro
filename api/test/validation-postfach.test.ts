@@ -5,6 +5,7 @@ import {
   validateAnhang,
   validateGelesen,
   validateKonversationId,
+  validateStatus,
   validateZustaendig,
 } from '../lib/validation/postfach';
 
@@ -80,4 +81,17 @@ test('ids from the query string are checked before Graph is asked', () => {
   assert.match(fields(() => validateKonversationId(null)).konversation, /Konversation/);
   assert.deepEqual(validateAnhang(ID, ID), { nachricht: ID, anhang: ID });
   assert.match(fields(() => validateAnhang(ID, '../x')).anhang, /Anhang/);
+});
+
+test('a status is one of the three and names the one shown before', () => {
+  assert.deepEqual(validateStatus({ konversation: ID, status: 'erledigt', vorher: 'offen' }), {
+    konversation: ID,
+    status: 'erledigt',
+    vorher: 'offen',
+  });
+  assert.match(
+    fields(() => validateStatus({ konversation: ID, status: 'fertig', vorher: 'offen' })).status,
+    /Stand/
+  );
+  assert.match(fields(() => validateStatus({ konversation: ID, status: 'offen' })).vorher, /Stand/);
 });
