@@ -10,6 +10,7 @@ import {
 import { freeSeiten, isPdfFile, loadPdfBeleg, MAX_BELEG_PDF_BYTES, pdfPruefung } from './belegPdf';
 import { entwurf, fotoNutzlast, gedreht, isEdited } from './belegEntwurf';
 import type { Draft, FotoNutzlast, Zuschnitt } from './belegEntwurf';
+import { entwurfAusGespeichertem } from './belegFotoNachbearbeiten';
 import type { GespeichertesFoto } from './belegFotoNachbearbeiten';
 import { todayIso } from './format';
 import { findReceipt, fullFrame, isFullFrame, readPixels, toCanvas } from './belegScan';
@@ -181,15 +182,10 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     dialog.state.conflict = false;
     options.notice(null);
     try {
-      const gespeichert = await laden();
-      await nextFrame();
-      const canvas = await loadPhoto(gespeichert.foto);
-      const original = readPixels(canvas, canvas.width, canvas.height);
+      const neu = await entwurfAusGespeichertem(laden);
       clearDraft();
       photoWarnings = [];
-      draft = entwurf(original, gespeichert.foto, {
-        aufbewahrt: gespeichert.original ?? gespeichert.foto,
-      });
+      draft = neu;
       await render();
     } catch (error: unknown) {
       dialog.fail(

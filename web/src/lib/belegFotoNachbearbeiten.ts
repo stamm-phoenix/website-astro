@@ -1,5 +1,9 @@
 import { fetchFile } from './api';
+import { loadPhoto } from './belege';
+import { entwurf } from './belegEntwurf';
+import type { Draft } from './belegEntwurf';
 import { photoUrl } from './belegForm';
+import { readPixels } from './belegScan';
 
 /** A stored photo of a receipt, loaded to edit it again. */
 export interface GespeichertesFoto {
@@ -20,4 +24,19 @@ export async function ladeGespeichertesFoto(beleg: {
     beleg.hasOriginal ? fetchFile(pfad('&original=1')) : null,
   ]);
   return { foto: foto.blob, original: original?.blob ?? null };
+}
+
+/**
+ * A draft of the stored photo, to edit it again: the edits start from the stored photo, and the
+ * original kept with the receipt (or else the stored photo) is sent as its original.
+ */
+export async function entwurfAusGespeichertem(
+  laden: () => Promise<GespeichertesFoto>
+): Promise<Draft> {
+  const gespeichert = await laden();
+  const canvas = await loadPhoto(gespeichert.foto);
+  const original = readPixels(canvas, canvas.width, canvas.height);
+  return entwurf(original, gespeichert.foto, {
+    aufbewahrt: gespeichert.original ?? gespeichert.foto,
+  });
 }

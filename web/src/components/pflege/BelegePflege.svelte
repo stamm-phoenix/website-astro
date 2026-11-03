@@ -667,7 +667,7 @@
     : 'Diesen Beleg endgültig löschen?'}
 >
   {#if form}
-    <BelegPhotoSection {form} {photo} {busy} {errors} />
+    <BelegPhotoSection {form} {photo} {busy} {errors} {reviewer} />
 
     <BelegFields
       bind:form
