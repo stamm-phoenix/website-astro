@@ -95,7 +95,8 @@ export async function setzeErledigung(
       login: von.login,
       name: von.name,
       betreff: betreff.slice(0, 400),
-      bis: new Date(gesehen),
+      // What the server knows, not the page: a time in the future would keep later replies closed
+      bis: new Date(neueste),
     };
     if (row) {
       await trx
