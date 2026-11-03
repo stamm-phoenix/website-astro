@@ -10,7 +10,7 @@
  */
 
 /** Keys of `CONFIG.staff.teams`; checked against it by `test/postfach-liste.test.ts`. */
-export type PostfachTeam = 'leitende' | 'kasse' | 'vorstand' | 'admin';
+export type PostfachTeam = 'leitende' | 'kasse' | 'vorstand' | 'admin' | 'verein';
 
 export interface PostfachEintrag {
   /** Part of the page address `/leitendenbereich/email/<id>` and of the stored rows; never change it. */
@@ -33,6 +33,30 @@ export const POSTFAECHER: readonly PostfachEintrag[] = [
     description:
       'E-Mails an kontakt@stamm-phoenix.de lesen, Zuständige festlegen und in Outlook antworten.',
     teams: ['leitende'],
+  },
+  {
+    id: 'vorstand',
+    name: 'Vorstand-Postfach',
+    address: 'vorstand@stamm-phoenix.de',
+    description:
+      'E-Mails an vorstand@stamm-phoenix.de lesen, Zuständige festlegen und in Outlook antworten.',
+    teams: ['vorstand'],
+  },
+  {
+    id: 'verein',
+    name: 'Verein-Postfach',
+    address: 'verein@stamm-phoenix.de',
+    description:
+      'E-Mails an verein@stamm-phoenix.de lesen, Zuständige festlegen und in Outlook antworten.',
+    teams: ['verein'],
+  },
+  {
+    id: 'admin',
+    name: 'Admin-Postfach',
+    address: 'admin@stamm-phoenix.de',
+    description:
+      'E-Mails an admin@stamm-phoenix.de lesen, Zuständige festlegen und in Outlook antworten.',
+    teams: ['admin'],
   },
 ];
 

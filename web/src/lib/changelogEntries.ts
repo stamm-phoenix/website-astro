@@ -24,6 +24,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Gelesen und ungelesen gilt nur für dich: Was du hier liest, bleibt für die anderen ungelesen, und in Outlook ändert sich nichts.',
       'Antworten, Verschieben und Löschen gehen weiter in Outlook. „In Outlook öffnen“ bringt dich direkt zur E-Mail oder zum Postfach.',
       'Auf der Startseite zeigt der Kasten „E-Mails“ unter „Für dich“ ungelesene und dir zugewiesene E-Mails.',
+      'Im Vorstand, im Förderverein und bei den IT-Administratoren siehst du dort außerdem das Postfach deines Teams: vorstand@, verein@ und admin@stamm-phoenix.de. Bist du gerade erst in ein Team gekommen, melde dich einmal ab und wieder an.',
     ],
   },
   {

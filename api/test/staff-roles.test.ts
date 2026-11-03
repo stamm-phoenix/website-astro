@@ -76,6 +76,7 @@ test('gives preview test accounts every role on previews only, without asking Gr
     'team_kasse',
     'team_vorstand',
     'team_admin',
+    'team_verein',
   ]);
   assert.deepEqual(calls, []);
 });

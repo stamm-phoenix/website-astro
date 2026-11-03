@@ -1,7 +1,16 @@
 # E-Mail (Gruppenpostfächer)
 
-Der Bereich „E-Mail“ im Leitendenbereich zeigt Gruppenpostfächer des Stammes, zurzeit das
-Kontakt-Postfach `kontakt@stamm-phoenix.de`. Jedes Postfach hat eine eigene Seite
+Der Bereich „E-Mail“ im Leitendenbereich zeigt Gruppenpostfächer des Stammes:
+
+| Postfach                    | Seite                              | sehen dürfen    |
+| --------------------------- | ---------------------------------- | --------------- |
+| `kontakt@stamm-phoenix.de`  | `/leitendenbereich/email/kontakt`  | `team-leitende` |
+| `vorstand@stamm-phoenix.de` | `/leitendenbereich/email/vorstand` | `team-vorstand` |
+| `verein@stamm-phoenix.de`   | `/leitendenbereich/email/verein`   | `team-verein`   |
+| `admin@stamm-phoenix.de`    | `/leitendenbereich/email/admin`    | `team-admin`    |
+
+Der Leitendenbereich selbst bleibt dem Team „Leitende“ vorbehalten: Wer nur in `team-verein` ist,
+kommt nicht hinein und sieht das Postfach dort nicht. Jedes Postfach hat eine eigene Seite
 (`/leitendenbereich/email/<id>`) und eine Kachel im Abschnitt „E-Mail“. Wie beim Modul „Fotos“
 wird Outlook nicht nachgebaut: Gelesen, Zuständigkeit und Anhänge gibt es hier, Antworten,
 Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
@@ -70,7 +79,7 @@ Die API liest mit ihrer App-Registrierung (`CONFIG.azure.clientId`). Dafür brau
 
    ```powershell
    New-ServicePrincipal -AppId 5dd5864b-e2c3-4c21-9ef2-8bb3290cd374 -ObjectId 50f52211-4d8f-4bfb-9ce1-897649d8c1f9 -DisplayName website-astro
-   New-ManagementScope -Name "Website Gruppenpostfaecher" -RecipientRestrictionFilter "PrimarySmtpAddress -eq 'kontakt@stamm-phoenix.de'"
+   New-ManagementScope -Name "Website Gruppenpostfaecher" -RecipientRestrictionFilter "PrimarySmtpAddress -eq 'kontakt@stamm-phoenix.de' -or PrimarySmtpAddress -eq 'vorstand@stamm-phoenix.de' -or PrimarySmtpAddress -eq 'verein@stamm-phoenix.de' -or PrimarySmtpAddress -eq 'admin@stamm-phoenix.de'"
    New-ManagementRoleAssignment -App 5dd5864b-e2c3-4c21-9ef2-8bb3290cd374 -Role "Application Mail.Read" -CustomResourceScope "Website Gruppenpostfaecher"
    ```
 
@@ -78,6 +87,7 @@ Die API liest mit ihrer App-Registrierung (`CONFIG.azure.clientId`). Dafür brau
    gilt sie weiter für alle Postfächer; die Exchange-Rolle reicht. Für ein weiteres Postfach den
    Filter des Scopes erweitern. Prüfen mit
    `Test-ServicePrincipalAuthorization -Identity 5dd5864b-… -Resource kontakt@stamm-phoenix.de`.
+
 3. `Mail.Send` (für die Benachrichtigung) und `GroupMember.Read.All`/`User.Read.All` (für die
    Personenliste) hat die App schon.
 

@@ -3477,7 +3477,11 @@ route('PUT', '/api/mock-upload/:id', () => ({ kind: 'empty', status: 201 }), tru
 
 registerGruppenstundenRoutes(route);
 registerSchnupperRoutes(route);
-registerPostfachRoutes(route, () => PRINCIPAL.userDetails);
+registerPostfachRoutes(
+  route,
+  () => PRINCIPAL.userDetails,
+  () => PRINCIPAL.userRoles
+);
 
 function applyLeitende(target: (typeof leitende)[number], body: Record<string, unknown>): void {
   target.name = str(body.name, target.name);
