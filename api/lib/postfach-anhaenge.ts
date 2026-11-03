@@ -51,12 +51,14 @@ export async function embedInlineImages(
   messageId: string,
   html: string,
   inline: z.output<typeof attachmentMetaSchema>[]
-): Promise<string> {
+): Promise<{ html: string; eingebettet: Set<string> }> {
   let total = 0;
   let result = html;
+  // The IDs of the attachments that are now part of the text; the others stay attachments
+  const eingebettet = new Set<string>();
   for (const entry of inline) {
     if (!entry.contentType.startsWith('image/') || entry.size > INLINE_MAX) continue;
-    if (total + entry.size > INLINE_TOTAL) break;
+    if (total + entry.size > INLINE_TOTAL) continue;
     const file = fileAttachmentSchema.safeParse(
       await postfachGraph.get(
         `${mailboxPath(address)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(entry.id)}`,
@@ -71,8 +73,9 @@ export async function embedInlineImages(
     // The whole reference only: `cid:image1` must not eat the start of `cid:image10`
     const escaped = cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     result = result.replace(new RegExp(`cid:${escaped}(?![\\w.@-])`, 'g'), () => url);
+    eingebettet.add(entry.id);
   }
-  return result;
+  return { html: result, eingebettet };
 }
 
 export async function readAttachments(

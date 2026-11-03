@@ -111,6 +111,8 @@
           // With only part of a long conversation read, the rest may still be unread
           if (data.vollstaendig) aendereZeile(postfach, id, { ungelesen: 0 });
         } catch (markError: unknown) {
+          // A late failure of a conversation that was left must not show here
+          if (!aktuell()) return;
           markFehler = errorMessage(
             markError,
             'Die E-Mail konnte nicht als gelesen gespeichert werden; sie bleibt in der Liste ungelesen.'

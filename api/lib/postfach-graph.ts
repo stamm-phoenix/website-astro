@@ -197,13 +197,14 @@ export async function readKonversation(
         let html = isHtml ? (message.body?.content ?? '') : null;
         const needsAttachments = message.hasAttachments || (html?.includes('cid:') ?? false);
         const attachments = needsAttachments ? await readAttachments(address, message.id) : [];
+        let eingebettet = new Set<string>();
         if (html?.includes('cid:')) {
-          html = await embedInlineImages(
+          ({ html, eingebettet } = await embedInlineImages(
             address,
             message.id,
             html,
             attachments.filter((entry) => entry.isInline && isFileAttachment(entry))
-          );
+          ));
         }
         return {
           id: base.id,
@@ -215,7 +216,8 @@ export async function readKonversation(
           vorschau: base.vorschau,
           html,
           text: isHtml ? null : (message.body?.content ?? base.vorschau),
-          anhaenge: attachments.filter((entry) => !entry.isInline).map(alsAnhang),
+          // Inline images too large to embed stay reachable as attachments
+          anhaenge: attachments.filter((entry) => !eingebettet.has(entry.id)).map(alsAnhang),
           // By the folder, not the sender: the forms send from the mailbox to itself
           gesendet: gesendetOrdner !== null && message.parentFolderId === gesendetOrdner,
           // Unknown folder: counted as in the inbox, as the list did before
