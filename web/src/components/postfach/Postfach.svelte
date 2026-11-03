@@ -45,6 +45,16 @@
     alle: 'Im Posteingang liegt keine E-Mail.',
   };
 
+  /** Empty filters of a full inbox: only the newest messages were looked at. */
+  const LEER_BEGRENZT: Record<PostfachFilter, string> = {
+    offen: 'Unter den neuesten 100 E-Mails ist keine mehr offen.',
+    mir: 'Unter den neuesten 100 E-Mails ist dir keine offene zugewiesen.',
+    ohne: 'Unter den neuesten 100 E-Mails hat jede offene eine Zuständige.',
+    ungelesen: 'Unter den neuesten 100 E-Mails hast du alles gelesen.',
+    erledigt: 'Unter den neuesten 100 E-Mails ist noch keine erledigt.',
+    alle: '',
+  };
+
   let filter = $state<PostfachFilter>('offen');
   let aktiv = $state<string | null>(null);
   /** Counts „Neu laden“, so the open conversation is read again too. */
@@ -183,9 +193,22 @@
             {zeilen}
             {ich}
             {aktiv}
-            leer={daten?.konversationen.length ? LEER[filter] : LEER.alle}
+            leer={!daten?.konversationen.length
+              ? LEER.alle
+              : daten.begrenzt && filter !== 'alle'
+                ? `${LEER_BEGRENZT[filter]} Ältere E-Mails siehst du in Outlook.`
+                : LEER[filter]}
             onoeffnen={oeffnen}
           />
+          {#if daten?.begrenzt}
+            <!-- The list reads the newest messages only; nothing older is hidden silently -->
+            <p class="border-t border-neutral-200 p-3 text-sm text-neutral-700">
+              Hier stehen die neuesten 100 E-Mails.
+              <a class="text-link" href={outlook} target="_blank" rel="noopener noreferrer"
+                >Ältere in Outlook ansehen<span aria-hidden="true">↗</span></a
+              >
+            </p>
+          {/if}
         </div>
       </section>
 

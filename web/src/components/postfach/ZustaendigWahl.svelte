@@ -47,7 +47,7 @@
     } catch (error: unknown) {
       personenFehler = errorMessage(
         error,
-        'Die Liste der Leitenden konnte nicht geladen werden. Du kannst die E-Mail trotzdem selbst übernehmen.'
+        'Die Liste der Leitenden konnte nicht geladen werden; dann geht auch das Zuweisen gerade nicht. Versuche es in ein paar Minuten noch einmal. Hilft das nicht, schreib an admin@stamm-phoenix.de.'
       );
     }
   }

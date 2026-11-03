@@ -155,7 +155,7 @@ export async function zeileFuer(
   konversation: string,
   frisch = false
 ): Promise<KonversationZeile | null> {
-  const nachrichten = (await inbox(postfach.address, frisch)).filter(
+  const nachrichten = (await inbox(postfach.address, frisch)).nachrichten.filter(
     (nachricht) => nachricht.konversation === konversation
   );
   if (nachrichten.length) {
