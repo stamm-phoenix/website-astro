@@ -224,6 +224,7 @@ export function registerPostfachRoutes(
           ungelesen: alle.filter((zeile) => zeile.ungelesen > 0).length,
           mirZugewiesen: alle.filter((zeile) => istMirZugewiesen(zeile, login())).length,
           fehler: false,
+          gesperrt: false,
         };
       }),
       fuerMich: sichtbar().flatMap((postfach) => fuerMich(zeilen(postfach.id), login())),

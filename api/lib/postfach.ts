@@ -7,6 +7,7 @@ import {
   type PostfachEintrag,
 } from './postfach-liste';
 import {
+  PostfachZugriffError,
   readInbox,
   readKonversation,
   readRestId,
@@ -123,22 +124,27 @@ export async function ladeStart(
   const ergebnisse = await Promise.all(
     sichtbarePostfaecher(principal).map(async (postfach) => {
       try {
-        return { postfach, zeilen: await ladeKonversationen(postfach, principal) };
+        return {
+          postfach,
+          zeilen: await ladeKonversationen(postfach, principal),
+          gesperrt: false,
+        };
       } catch (error: unknown) {
         console.error(`[postfach] ${postfach.address} konnte nicht gelesen werden`, error);
-        return { postfach, zeilen: null };
+        return { postfach, zeilen: null, gesperrt: error instanceof PostfachZugriffError };
       }
     })
   );
   return {
     ich: login,
-    postfaecher: ergebnisse.map(({ postfach, zeilen }) => ({
+    postfaecher: ergebnisse.map(({ postfach, zeilen, gesperrt }) => ({
       ...postfachInfo(postfach),
       // Counted like the start page: open conversations only
       ungelesen: zeilen?.filter((zeile) => !zeile.erledigung && zeile.ungelesen > 0).length ?? 0,
       mirZugewiesen:
         zeilen?.filter((zeile) => !zeile.erledigung && istMirZugewiesen(zeile, login)).length ?? 0,
       fehler: zeilen === null,
+      gesperrt,
     })),
     fuerMich: ergebnisse
       .flatMap(({ zeilen }) => fuerMich(zeilen ?? [], login))

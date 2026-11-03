@@ -129,6 +129,8 @@ export interface PostfachUebersicht extends PostfachInfo {
   mirZugewiesen: number;
   /** The mailbox could not be read; the others still show. */
   fehler: boolean;
+  /** Graph refuses the mailbox (missing permission): retrying does not help. */
+  gesperrt: boolean;
 }
 
 /** `GET /api/intern/postfach`: the mailboxes the person sees and what is waiting for them. */

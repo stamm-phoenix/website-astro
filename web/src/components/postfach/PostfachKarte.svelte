@@ -38,7 +38,21 @@
     <p aria-hidden="true" class="mt-2 text-sm text-neutral-700">E-Mails werden geladen …</p>
   {/snippet}
   {#each gestoert as postfach (postfach.id)}
-    <p class="mt-1 text-sm text-danger">{postfach.name} konnte nicht geladen werden.</p>
+    <p class="mt-1 text-sm text-danger">
+      {#if postfach.gesperrt}
+        Die Website darf das {postfach.name} gerade nicht lesen. Bitte melde das an
+        <a class="text-link" href="mailto:admin@stamm-phoenix.de">admin@stamm-phoenix.de</a>.
+      {:else}
+        {postfach.name} konnte nicht geladen werden.
+        <button
+          type="button"
+          class="text-link min-h-11 underline underline-offset-4"
+          onclick={() => void postfachStart.load({ force: true })}>Erneut versuchen</button
+        >
+      {/if}
+      ·
+      <a class="text-link" href={postfachHref(postfach.id)}>Zum Postfach</a>
+    </p>
   {/each}
   <ul class="mt-1 divide-y divide-neutral-200" data-testid="meine-emails">
     {#each zeilen.slice(0, limit) as zeile (zeile.postfach + zeile.id)}

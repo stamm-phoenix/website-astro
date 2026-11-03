@@ -443,3 +443,36 @@ test('a full inbox says that older mails are in Outlook instead of claiming all 
     )
   ).toBeVisible();
 });
+
+test('a mailbox that failed on the start page offers a retry or names whom to tell', async ({
+  page,
+}) => {
+  let gesperrt = false;
+  await page.route(/\/api\/intern\/postfach$/, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...body,
+        fuerMich: [],
+        postfaecher: body.postfaecher.map((postfach: Record<string, unknown>, index: number) =>
+          index === 0 ? { ...postfach, fehler: true, gesperrt } : postfach
+        ),
+      },
+    });
+  });
+  await page.goto('/leitendenbereich/');
+  const karte = page.getByRole('region', { name: 'E-Mails' });
+  await expect(karte.getByText('Kontakt-Postfach konnte nicht geladen werden.')).toBeVisible();
+  await expect(karte.getByRole('link', { name: 'Zum Postfach' }).first()).toHaveAttribute(
+    'href',
+    '/leitendenbereich/email/kontakt'
+  );
+  gesperrt = true;
+  await karte.getByRole('button', { name: 'Erneut versuchen' }).click();
+  await expect(
+    karte.getByText(/Die Website darf das Kontakt-Postfach gerade nicht lesen/)
+  ).toBeVisible();
+  await expect(karte.getByRole('link', { name: 'admin@stamm-phoenix.de' })).toBeVisible();
+});

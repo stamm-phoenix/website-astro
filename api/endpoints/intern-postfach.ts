@@ -149,13 +149,12 @@ export const PostfachPersonenRoute = postfachRoute(async (request, postfach) => 
 });
 
 /** The line of the conversation for the note, from the inbox or, if it left it, from all folders. */
-export async function zeileFuer(
+async function zeileFuer(
   postfach: PostfachEintrag,
   principal: ClientPrincipal,
-  konversation: string,
-  frisch = false
+  konversation: string
 ): Promise<KonversationZeile | null> {
-  const nachrichten = (await inbox(postfach.address, frisch)).nachrichten.filter(
+  const nachrichten = (await inbox(postfach.address)).nachrichten.filter(
     (nachricht) => nachricht.konversation === konversation
   );
   if (nachrichten.length) {
