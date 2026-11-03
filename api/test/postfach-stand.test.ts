@@ -220,3 +220,27 @@ dbTest('an own answer that was archived does not open a done conversation again'
   assert.equal(detail.konversation.erledigung?.status, 'erledigt');
   assert.equal(detail.konversation.wiederOffen, false);
 });
+
+dbTest('the same status again keeps who set it and still refuses a stale page', async (t) => {
+  const { context } = setup(t);
+  const setze = (status: string, vorher: string, wer?: typeof TOM) =>
+    PostfachStatusRoute(
+      request(
+        'PUT',
+        '/kontakt/status',
+        KONTAKT,
+        { konversation: K2, status, vorher, bis: iso(0.5) },
+        wer
+      ),
+      context
+    );
+  assert.equal((await setze('erledigt', 'offen', TOM)).status, 200);
+  // Lea marks a choice of several as done, this one among them
+  const nochmal = await setze('erledigt', 'erledigt');
+  assert.equal(nochmal.status, 200);
+  assert.equal((nochmal.jsonBody as { erledigung: { name: string } }).erledigung.name, 'Tom Test');
+
+  // Opened again meanwhile: a page that still shows it done gets a conflict, not a confirmation
+  assert.equal((await setze('offen', 'erledigt', TOM)).status, 200);
+  assert.equal((await setze('erledigt', 'erledigt')).status, 409);
+});

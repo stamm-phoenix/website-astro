@@ -85,9 +85,10 @@
 
   async function stand(neu: PostfachStatus): Promise<void> {
     const lauf = beginnen();
-    // Those already in this state need nothing; the others are saved one after the other
+    // One after the other, also those that already show this state: the server checks each
+    // against what the page shows, so a change by someone else meanwhile is not confirmed
     const fehlgeschlagen: Fehlschlag[] = [];
-    for (const zeile of lauf.filter((eintrag) => statusVon(eintrag) !== neu)) {
+    for (const zeile of lauf) {
       try {
         await setzeStatus(postfach, zeile.id, neu, statusVon(zeile), zeile.am);
       } catch (error: unknown) {
