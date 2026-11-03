@@ -231,6 +231,30 @@ dbTest('read marks belong to one person', async (t) => {
     again.konversationen.map((zeile) => zeile.ungelesen),
     [0, 0]
   );
+  // Another person's marks stay, also old ones
+  await PostfachGelesenRoute(
+    request(
+      'POST',
+      '/kontakt/gelesen',
+      KONTAKT,
+      { nachrichten: ['AAkALgm3000000'], gelesen: true },
+      TOM
+    ),
+    context
+  );
+  await getDb()
+    .updateTable('postfach.gelesen')
+    .set({ am: new Date('2020-01-01T00:00:00Z') })
+    .where('user_id', '=', TOM.userId)
+    .execute();
+  await PostfachGelesenRoute(request('POST', '/kontakt/gelesen', KONTAKT, { alle: true }), context);
+  const tomDanach = (
+    await PostfachListeRoute(request('GET', '/kontakt', KONTAKT, undefined, TOM), context)
+  ).jsonBody as PostfachAnsicht;
+  assert.deepEqual(
+    tomDanach.konversationen.map((zeile) => zeile.ungelesen),
+    [1, 0]
+  );
 });
 
 dbTest(

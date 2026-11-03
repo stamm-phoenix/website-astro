@@ -149,8 +149,6 @@ export interface ApiConfig {
     sender: string;
     /** On the first visit of a mailbox, messages older than this count as read. */
     ungelesenTage: number;
-    /** Read marks older than this are deleted; the messages have left the list by then. */
-    gelesenAufbewahrungTage: number;
   };
   /** Schnupperstunden-Anfragen of /mitmachen (#139); the mails go out from `kontakt.mailbox`. */
   schnupper: {
@@ -409,7 +407,6 @@ export const CONFIG: ApiConfig = {
   postfaecher: {
     sender: 'kontakt@stamm-phoenix.de',
     ungelesenTage: 14,
-    gelesenAufbewahrungTage: 365,
   },
   schnupper: {
     hourlyLimit: 20,

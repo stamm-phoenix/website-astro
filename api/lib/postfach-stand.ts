@@ -98,7 +98,7 @@ export async function markiereNachrichten(
 
 /**
  * „Alle als gelesen markieren“: everything received until now counts as read; marks of single
- * messages are dropped, also the unread ones. Old marks of all people are cleaned up on the way.
+ * messages of the person are dropped, also the unread ones; those of others stay as they are.
  */
 export async function alleGelesen(
   postfach: string,
@@ -126,8 +126,6 @@ export async function alleGelesen(
         .execute();
     }
   });
-  const grenze = new Date(now.getTime() - CONFIG.postfaecher.gelesenAufbewahrungTage * DAY_MS);
-  await getDb().deleteFrom('postfach.gelesen').where('am', '<', grenze).execute();
 }
 
 function toZustaendigkeit(row: {

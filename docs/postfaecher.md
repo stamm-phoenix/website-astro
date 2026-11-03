@@ -24,8 +24,8 @@ Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
   die API das Postfach nur liest. Beim ersten Besuch gilt alles, was älter als
   `CONFIG.postfaecher.ungelesenTage` (14 Tage) ist, als gelesen (`postfach.leser.gelesen_bis`);
   „Alle als gelesen markieren“ setzt diese Grenze auf jetzt. „Als ungelesen markieren“ setzt eine
-  Markierung, die auch vor der Grenze gilt. Markierungen älter als
-  `CONFIG.postfaecher.gelesenAufbewahrungTage` werden beim nächsten „Alle als gelesen“ gelöscht.
+  Markierung, die auch vor der Grenze gilt. „Alle als gelesen“ löscht die Markierungen dieser
+  Person in diesem Postfach; die der anderen bleiben unberührt.
 - **Zuständigkeit:** pro Konversation eine Person (`postfach.zustaendigkeit`). „Ich kümmere mich“
   oder „Jemandem zuweisen“ (Mitglieder der Teams des Postfachs, aus Entra ID). Die Seite schickt
   mit, wen sie als zuständig angezeigt hat; hat das inzwischen jemand geändert, kommt
