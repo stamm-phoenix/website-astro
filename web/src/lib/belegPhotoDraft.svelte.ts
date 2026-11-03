@@ -186,6 +186,7 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
       clearDraft();
       photoWarnings = [];
       draft = neu;
+      dialog.clearField('photo');
       await render();
     } catch (error: unknown) {
       dialog.fail(

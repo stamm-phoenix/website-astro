@@ -230,3 +230,44 @@ test('an unchanged stored photo does not hold up the transfer to CampFlow', asyn
   expect(transferred).toBe(1);
   expect(uploads).toBe(1);
 });
+
+test('editing the stored photo clears the message of a refused replacement', async ({ page }) => {
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button', { name: /REWE/ }).first().click();
+  const dialog = page.getByRole('dialog', { name: /Beleg von/ });
+  const photo = async (width: number, height: number) =>
+    page.evaluate(
+      async ([w, h]) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const context = canvas.getContext('2d')!;
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, w, h);
+        const blob = await new Promise<Blob>((resolve) =>
+          canvas.toBlob((b) => resolve(b!), 'image/png')
+        );
+        return Array.from(new Uint8Array(await blob.arrayBuffer()));
+      },
+      [width, height]
+    );
+  const input = dialog.locator('input[type=file]');
+  await input.setInputFiles({
+    name: 'beleg.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(await photo(900, 1200)),
+  });
+  await dialog.getByRole('button', { name: 'Neues Foto speichern', exact: true }).click();
+  await expect(dialog.getByText('Foto ersetzt.', { exact: true })).toBeVisible();
+
+  await input.setInputFiles({
+    name: 'klein.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(await photo(300, 400)),
+  });
+  const tooSmall = dialog.getByText(/Das Foto ist zu klein/);
+  await expect(tooSmall).toBeVisible();
+  await dialog.getByRole('button', { name: 'Foto bearbeiten', exact: true }).click();
+  await expect(dialog.getByAltText('Vorschau des Fotos')).toBeVisible();
+  await expect(tooSmall).toHaveCount(0);
+});
