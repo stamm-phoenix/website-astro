@@ -33,7 +33,7 @@
             class="min-h-11 cursor-pointer py-3 font-semibold text-brand-900 [overflow-wrap:anywhere]"
             >{item.question}</summary
           >
-          <div class="prose max-w-none pb-4 text-neutral-800 [overflow-wrap:anywhere]">
+          <div class="answer prose max-w-none pb-4 text-neutral-800 [overflow-wrap:anywhere]">
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html sanitizeDescription(item.answer, 'public')}
           </div>
@@ -42,3 +42,18 @@
     </div>
   </section>
 {/if}
+
+<style>
+  .answer :global(ul),
+  .answer :global(ol) {
+    margin: 0.5rem 0 0.75rem 1.25rem;
+  }
+
+  .answer :global(ul) {
+    list-style: disc;
+  }
+
+  .answer :global(ol) {
+    list-style: decimal;
+  }
+</style>
