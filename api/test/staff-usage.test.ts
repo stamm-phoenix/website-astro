@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { HttpRequest, InvocationContext } from '@azure/functions';
+import { StaffUsage } from '../endpoints/intern-haeufig';
 import { getDb } from '../lib/db';
 import { getStaffUsage, recordStaffUsage, pruneStaffUsage } from '../lib/staff-usage';
 import { usageMonth } from '../lib/staff-usage-model';
@@ -64,8 +66,6 @@ dbTest('ranking uses three months and cleanup retains no more than four', async 
 });
 
 test('anonymous and non-staff requests cannot read or change totals', async () => {
-  const { HttpRequest, InvocationContext } = await import('@azure/functions');
-  const { StaffUsage } = await import('../endpoints/intern-haeufig.js');
   for (const principal of [
     null,
     {
