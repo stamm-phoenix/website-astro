@@ -3,6 +3,14 @@ import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import { suggestedDate } from '../src/lib/anwesenheit';
 
+/**
+ * A past date without a Termin of the demo data, which seeds some days before today
+ * (`dev/mock-data/anwesenheit.ts`): fixed dates would meet one of them on some day.
+ */
+function freierTag(nummer: number): string {
+  return new Date(Date.now() - (100 + nummer) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 /** The three-way choice of one child; each button's aria-pressed marks the current one. */
 function choice(page: Page, name: string) {
   const group = page.getByRole('group', { name: `Anwesenheit von ${name}` });
@@ -336,7 +344,7 @@ for (const failedReload of [false, true]) {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    const date = failedReload ? '2026-08-19' : '2026-08-20';
+    const date = failedReload ? freierTag(1) : freierTag(2);
     const read = `/api/intern/anwesenheit/woelflinge/${date}`;
     const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
     const initial = await page.request.put(write, {
@@ -446,7 +454,7 @@ test('notes and cancellation wait for each other without losing text or the curr
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const date = '2026-08-17';
+  const date = freierTag(3);
   const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
   const read = `/api/intern/anwesenheit/woelflinge/${date}`;
   expect((await (await page.request.get(read)).json()).etag).toBeNull();
@@ -525,7 +533,7 @@ test('a reload after a failed child choice settles before notes save and cancell
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const date = '2026-08-16';
+  const date = freierTag(4);
   const read = `/api/intern/anwesenheit/woelflinge/${date}`;
   const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
   await page.goto('/leitendenbereich/anwesenheit');
@@ -593,7 +601,7 @@ for (const guests of [1, 2]) {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    const date = guests === 1 ? '2026-08-14' : '2026-08-13';
+    const date = guests === 1 ? freierTag(5) : freierTag(6);
     const write = `/api/intern/pflege/anwesenheit/woelflinge/${date}`;
     const read = `/api/intern/anwesenheit/woelflinge/${date}`;
     for (let index = 0; index < guests; index++) {
@@ -665,6 +673,57 @@ for (const guests of [1, 2]) {
     expect(stored.guests).toEqual([]);
   });
 }
+
+test('a late cancellation response belongs to its original date after another date was opened', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const firstDate = freierTag(7);
+  const nextDate = freierTag(8);
+  const firstWrite = `/api/intern/pflege/anwesenheit/woelflinge/${firstDate}`;
+  const nextWrite = `/api/intern/pflege/anwesenheit/woelflinge/${nextDate}`;
+  let release = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let stored = false;
+  await page.route(`**${firstWrite}/ausgefallen`, async (route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    stored = true;
+    await gate;
+    await route.fulfill({ response });
+  });
+  await page.goto('/leitendenbereich/anwesenheit');
+  const date = page.getByLabel('Datum', { exact: true });
+  await date.fill(firstDate);
+  const notes = page.locator('#anwesenheit-inhalt');
+  await expect(notes).toHaveValue('');
+  await page
+    .getByRole('group', { name: 'Gruppenstunde', exact: true })
+    .getByRole('button', { name: 'Ausgefallen', exact: true })
+    .click();
+  await expect.poll(() => stored).toBe(true);
+  const loaded = page.waitForResponse(`**/api/intern/anwesenheit/woelflinge/${nextDate}`);
+  await date.fill(nextDate);
+  expect((await loaded).ok()).toBe(true);
+  await notes.fill('Notiz zum anderen Termin.');
+  const save = page.getByRole('button', { name: 'Notiz speichern', exact: true });
+  await expect(save).toBeDisabled();
+  release();
+  await expect(save).toBeEnabled();
+  const saved = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === nextWrite && response.request().method() === 'PUT'
+  );
+  await save.click();
+  expect((await saved).ok()).toBe(true);
+  const current = await (
+    await page.request.get(`/api/intern/anwesenheit/woelflinge/${nextDate}`)
+  ).json();
+  expect(current.notes).toBe('Notiz zum anderen Termin.');
+  expect(current.cancelled).toBe(false);
+});
 
 test('a revisit on a later day records attendance for one Termin while the Termine reload', async ({
   page,
