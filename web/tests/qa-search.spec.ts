@@ -53,3 +53,36 @@ test('unavailable FAQ does not block writing or submitting a contact message', a
   await expect(page.getByLabel('Dein Name', { exact: true })).toBeFocused();
   await expect(page.getByLabel('Deine Nachricht')).toHaveValue('Eine ganz andere Frage');
 });
+
+test('contact answers retain numbered steps and nested bullet lists', async ({ page }) => {
+  await page.route('**/api/qa', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'steps',
+          category: 'Mitmachen',
+          question: 'Wie läuft der Schnupperkurs?',
+          answer:
+            '<p>So geht es:</p><ol><li>Anmelden<ul><li>Termin wählen</li><li>Namen angeben</li></ul></li><li>Vorbeikommen</li></ol>',
+        },
+      ],
+    })
+  );
+  await page.goto('/kontakt');
+  await page.getByLabel('Deine Nachricht').fill('Schnupperkurs');
+  const suggestions = page.getByRole('region', { name: 'Passende Antworten' });
+  await suggestions.locator('summary').click();
+  const steps = suggestions.locator('ol');
+  const bullets = steps.locator('ul');
+  await expect(steps).toHaveCSS('list-style-type', 'decimal');
+  await expect(bullets).toHaveCSS('list-style-type', 'disc');
+  expect(
+    await steps.evaluate((list) => parseFloat(getComputedStyle(list).marginLeft))
+  ).toBeGreaterThan(0);
+  expect(
+    await bullets.evaluate((list) => parseFloat(getComputedStyle(list).marginLeft))
+  ).toBeGreaterThan(0);
+  await expect(steps.locator(':scope > li')).toHaveCount(2);
+  await expect(bullets.locator('li')).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
