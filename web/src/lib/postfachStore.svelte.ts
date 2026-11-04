@@ -64,6 +64,7 @@ export function ladeNachKonflikt(postfach: string): Promise<void> {
  */
 export async function neuLaden(postfach: string): Promise<void> {
   const revision = ++ladeRevision;
+  personen.delete(postfach);
   const data = await fetchApi<PostfachAnsicht>(
     `/intern/postfach/${encodeURIComponent(postfach)}?frisch=1`
   );
@@ -137,20 +138,32 @@ export async function alleGelesen(postfach: string): Promise<void> {
   postfachStart.invalidate();
 }
 
-// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a cache, never rendered
-const personen = new Map<string, Promise<PostfachPerson[]>>();
+/** As long as the API keeps its list; a change of a team shows after that at the latest. */
+const PERSONEN_MS = 5 * 60_000;
 
-/** Who can be made responsible; loaded once per page. */
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a cache, never rendered
+const personen = new Map<string, { promise: Promise<PostfachPerson[]>; bis: number }>();
+
+/** Who can be made responsible; kept a few minutes, read again after „Neu laden“. */
 export function ladePersonen(postfach: string): Promise<PostfachPerson[]> {
-  let promise = personen.get(postfach);
-  if (!promise) {
-    promise = fetchApi<{ personen: PostfachPerson[] }>(
-      `/intern/postfach/${encodeURIComponent(postfach)}/personen`
-    ).then((data) => data.personen);
-    personen.set(postfach, promise);
-    promise.catch(() => personen.delete(postfach));
-  }
+  const eintrag = personen.get(postfach);
+  if (eintrag && eintrag.bis > Date.now()) return eintrag.promise;
+  const promise = fetchApi<{ personen: PostfachPerson[] }>(
+    `/intern/postfach/${encodeURIComponent(postfach)}/personen`
+  ).then((data) => data.personen);
+  personen.set(postfach, { promise, bis: Date.now() + PERSONEN_MS });
+  promise.catch(() => personen.delete(postfach));
   return promise;
+}
+
+/** A refused assignment may name someone who left the team: the next choice reads the list anew. */
+async function mitFrischenPersonen<T>(postfach: string, speichern: () => Promise<T>): Promise<T> {
+  try {
+    return await speichern();
+  } catch (error: unknown) {
+    personen.delete(postfach);
+    throw error;
+  }
 }
 
 export interface ZuweisungErgebnis {
@@ -164,10 +177,12 @@ export async function setzeZustaendig(
   login: string | null,
   vorher: string | null
 ): Promise<ZuweisungErgebnis> {
-  const result = await sendApi<ZuweisungErgebnis>(
-    'PUT',
-    `/intern/postfach/${encodeURIComponent(postfach)}/zustaendig`,
-    { konversation, login, vorher }
+  const result = await mitFrischenPersonen(postfach, () =>
+    sendApi<ZuweisungErgebnis>(
+      'PUT',
+      `/intern/postfach/${encodeURIComponent(postfach)}/zustaendig`,
+      { konversation, login, vorher }
+    )
   );
   aendereZeile(postfach, konversation, { zustaendig: result.zustaendig });
   return result;
@@ -216,16 +231,18 @@ export async function setzeZustaendigMehrere(
   login: string | null,
   zeilen: readonly KonversationZeile[]
 ): Promise<MehrfachAntwort> {
-  const result = await sendApi<MehrfachAntwort>(
-    'PUT',
-    `/intern/postfach/${encodeURIComponent(postfach)}/zustaendig-mehrere`,
-    {
-      login,
-      konversationen: zeilen.map((zeile) => ({
-        konversation: zeile.id,
-        vorher: zeile.zustaendig?.login ?? null,
-      })),
-    }
+  const result = await mitFrischenPersonen(postfach, () =>
+    sendApi<MehrfachAntwort>(
+      'PUT',
+      `/intern/postfach/${encodeURIComponent(postfach)}/zustaendig-mehrere`,
+      {
+        login,
+        konversationen: zeilen.map((zeile) => ({
+          konversation: zeile.id,
+          vorher: zeile.zustaendig?.login ?? null,
+        })),
+      }
+    )
   );
   for (const ergebnis of result.ergebnisse) {
     // Unknown after an unexpected error: the list is read again instead
