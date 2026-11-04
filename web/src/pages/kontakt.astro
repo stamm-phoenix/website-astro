@@ -10,6 +10,9 @@ import Button from '../components/Button.astro';
 import Card from '../components/Card.astro';
 import Heading from '../components/Heading.astro';
 import ContactForm from '../components/ContactForm.svelte';
+import { getQuestionsContent } from '../lib/content/content';
+
+const questions = await getQuestionsContent();
 ---
 
 <BaseLayout
@@ -47,7 +50,7 @@ import ContactForm from '../components/ContactForm.svelte';
   <section aria-labelledby="kontaktformular" class="mt-12">
     <Heading id="kontaktformular">Schreib uns direkt</Heading>
     <Card class="max-w-3xl">
-      <ContactForm client:only="svelte">
+      <ContactForm client:only="svelte" initialQuestions={questions.data}>
         <p slot="fallback" class="text-sm text-neutral-700">
           Ohne JavaScript funktioniert das Formular nicht. Schreib uns stattdessen an{' '}
           <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>.
