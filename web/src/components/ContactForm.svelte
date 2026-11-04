@@ -1,5 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import ContactSuggestions from './ContactSuggestions.svelte';
+  import type { QuestionAndAnswer } from '../lib/types';
   import AltchaWidget from './AltchaWidget.svelte';
   import FormField from './pflege/FormField.svelte';
   import ActionButton from './ui/ActionButton.svelte';
@@ -8,6 +10,11 @@
   import type { KontaktField } from '../lib/kontaktConfig';
   import type { KontaktSent } from '../lib/types';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
+
+  interface Props {
+    initialQuestions?: QuestionAndAnswer[] | null;
+  }
+  let { initialQuestions = null }: Props = $props();
 
   const ID = 'kontakt';
   const FIELD_ORDER: KontaktField[] = ['name', 'email', 'topic', 'message'];
@@ -194,6 +201,8 @@
         {/snippet}
       </FormField>
     </div>
+
+    <ContactSuggestions {message} initial={initialQuestions} />
 
     <!-- Honeypot for bots, hidden from humans and assistive technology -->
     <div class="hp" aria-hidden="true">

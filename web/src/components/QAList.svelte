@@ -6,6 +6,7 @@
   import { fetchQuestionsAndAnswers, QA_STORE } from '../lib/qaStore.svelte';
   import type { QuestionAndAnswer } from '../lib/types';
   import { withBaked } from '../lib/storeView';
+  import { createQuestionIndex, searchQuestions } from '../lib/qaSearch';
 
   interface Props {
     /** Baked at build time; refreshed from the API in the browser */
@@ -27,10 +28,14 @@
 
   let expandedId = $state<string | null>(null);
 
+  let query = $state('');
+  const questionIndex = $derived(createQuestionIndex(view.data ?? []));
+  const matchingQuestions = $derived(searchQuestions(questionIndex, query));
+
   const groupedQuestions = $derived.by(() => {
     const groups: Record<string, QuestionAndAnswer[]> = Object.create(null);
 
-    for (const item of view.data ?? []) {
+    for (const item of matchingQuestions) {
       (groups[item.category] ??= []).push(item);
     }
 
@@ -75,6 +80,36 @@
       onclick={() => (refreshed = true)}>Aktualisierte Fragen anzeigen</button
     >{/if}
 </div>
+
+{#if view.data?.length}
+  <div class="mb-8 max-w-2xl">
+    <label for="fragen-suche" class="mb-2 block font-semibold text-brand-900"
+      >Fragen und Antworten durchsuchen</label
+    >
+    <div class="flex flex-wrap items-center gap-3">
+      <input
+        id="fragen-suche"
+        type="search"
+        class="form-input min-w-0 flex-1"
+        placeholder="Zum Beispiel Mitgliedsbeitrag"
+        bind:value={query}
+      />
+      {#if query}
+        <ActionButton
+          type="button"
+          onclick={() => {
+            query = '';
+            document.getElementById('fragen-suche')?.focus();
+          }}>Suche löschen</ActionButton
+        >
+      {/if}
+    </div>
+    <p class="mt-2 text-sm text-neutral-700" role="status">
+      {matchingQuestions.length}
+      {matchingQuestions.length === 1 ? 'Frage gefunden' : 'Fragen gefunden'}
+    </p>
+  </div>
+{/if}
 
 {#if view.loading}
   <div role="status" aria-live="polite">
@@ -208,6 +243,14 @@
         </section>
       {/each}
     </div>
+  </div>
+{:else if view.data?.length}
+  <div class="border-y border-neutral-200 py-6">
+    <h2 class="font-serif text-xl text-brand-900">Keine passenden Fragen gefunden</h2>
+    <a
+      class="mt-4 inline-flex min-h-11 items-center font-semibold text-link underline underline-offset-4"
+      href="/kontakt">Frage stellen</a
+    >
   </div>
 {:else}
   <div class="border-y border-neutral-200 py-6">
