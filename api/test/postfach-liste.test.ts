@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { CONFIG } from '../lib/config';
 import {
   PostfachGelesenRoute,
   PostfachListeRoute,
   PostfachStartRoute,
 } from '../endpoints/intern-postfach';
 import { postfachGraph } from '../lib/postfach-graph';
-import { resetPostfachCaches } from '../lib/postfach';
+import { resetPostfachCaches, sichtbarePostfaecher } from '../lib/postfach';
 import type { PostfachAnsicht, PostfachStart } from '../lib/postfach-model';
 import { getDb } from '../lib/db';
 import { dbTest } from './fixtures/database';
@@ -163,5 +165,25 @@ dbTest('the start page tells a refused mailbox apart from one that failed for no
   assert.deepEqual(
     again.postfaecher.map((postfach) => [postfach.fehler, postfach.gesperrt]),
     [[true, false]]
+  );
+});
+
+test('the preview test account sees only the mailbox of the Leitende, whatever its roles', () => {
+  // On previews it gets every team role without being in the teams, and previews read real mail
+  const alleRollen = Object.values(CONFIG.staff.teams).map((team) => team.role);
+  const testkonto = {
+    userDetails: CONFIG.staff.previewOnlyLogins[0],
+    userRoles: ['authenticated', ...alleRollen],
+  };
+  assert.deepEqual(
+    sichtbarePostfaecher(testkonto).map((postfach) => postfach.id),
+    ['kontakt']
+  );
+  // A real member of all teams keeps all four
+  assert.deepEqual(
+    sichtbarePostfaecher({ ...testkonto, userDetails: 'lea@stamm-phoenix.de' })
+      .map((postfach) => postfach.id)
+      .sort(),
+    ['admin', 'kontakt', 'verein', 'vorstand']
   );
 });

@@ -128,6 +128,6 @@ Die API liest mit ihrer App-Registrierung (`CONFIG.azure.clientId`). Dafür brau
   `GET …/{postfach}/anhang?nachricht=&anhang=`.
 - **Daten:** Schema `postfach` (Migrationen `0080_postfach.sql`, `0081_postfach_erledigung.sql`, `0082_postfach_erledigung_bis.sql`): nur IDs, Logins, Namen und der
   Betreff einer zugewiesenen Konversation. Die E-Mails bleiben in Exchange.
-- **Previews** lesen über Graph dasselbe echte Postfach wie die Produktion, speichern Gelesen und
-  Zuständigkeit aber in ihrer eigenen Datenbank und schicken keine Benachrichtigungen. Lokal
+- **Previews** lesen über Graph dasselbe echte Postfach wie die Produktion. Das Testkonto der Previews (`CONFIG.staff.previewOnlyLogins`) bekommt dort alle Teamrollen, ohne in den Teams zu sein; es sieht deshalb nur das Postfach der Leitenden (`sichtbarePostfaecher`), nie Vorstand-, Förderverein- oder Admin-Postfach. Previews speichern Gelesen und
+  Zuständigkeit in ihrer eigenen Datenbank und schicken keine Benachrichtigungen. Lokal
   (`dev:mock`) liefert `web/dev/mockPostfach.ts` Demo-Mails.

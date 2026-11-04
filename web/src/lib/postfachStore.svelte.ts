@@ -90,6 +90,26 @@ export function aendereZeile(
   });
 }
 
+/**
+ * After the open conversation was marked read: its line in the list shows nothing unread, unless
+ * the list has a newer message than the reading view loaded (e.g. read again meanwhile). Then
+ * only the marked ones are taken off, and the new one stays unread.
+ */
+export function gelesenMarkiert(
+  postfach: string,
+  id: string,
+  /** Time of the newest message the reading view showed. */
+  bis: string,
+  markiert: number
+): void {
+  const zeile = postfachListe.state.data?.konversationen.find((entry) => entry.id === id);
+  if (!zeile) return;
+  const neuer = Math.floor(Date.parse(zeile.am) / 1000) > Math.floor(Date.parse(bis) / 1000);
+  aendereZeile(postfach, id, {
+    ungelesen: neuer ? Math.max(0, zeile.ungelesen - markiert) : 0,
+  });
+}
+
 export async function markiere(
   postfach: string,
   nachrichten: string[],

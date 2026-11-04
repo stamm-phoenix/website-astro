@@ -9,6 +9,7 @@
   import { errorMessage } from '../../lib/api';
   import {
     aendereZeile,
+    gelesenMarkiert,
     anhangUrl,
     ladeKonversation,
     markiere,
@@ -109,7 +110,13 @@
           autoMark = mark;
           await mark;
           // With only part of a long conversation read, the rest may still be unread
-          if (data.vollstaendig) aendereZeile(postfach, id, { ungelesen: 0 });
+          if (data.vollstaendig) {
+            const bis = data.nachrichten.reduce(
+              (neueste, nachricht) => (nachricht.am > neueste ? nachricht.am : neueste),
+              ''
+            );
+            gelesenMarkiert(postfach, id, bis, ungelesen.length);
+          }
         } catch (markError: unknown) {
           // A late failure of a conversation that was left must not show here
           if (!aktuell()) return;

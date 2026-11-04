@@ -156,3 +156,65 @@ test('a mail someone opened again meanwhile is not confirmed as done', async ({ 
   await aktionen.getByRole('button', { name: 'Auswahl aufheben' }).click();
   await zuruecksetzen(page);
 });
+
+test('a late read mark leaves a reply unread that the list got meanwhile', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'list and mail side by side only on desktop');
+  const SCHNUPPER = /Schnupperstunde für Mia/;
+  let neuer = false;
+  // The list read again after the failed action has a newer, unread reply of the open mail
+  await page.route(
+    (url) => url.pathname === '/api/intern/postfach/kontakt',
+    async (route) => {
+      const antwort = await route.fetch();
+      const body = await antwort.json();
+      if (neuer) {
+        for (const zeile of body.konversationen) {
+          if (zeile.id !== 'AAQkADemoKonv01') continue;
+          zeile.am = new Date(Date.now() + 60_000).toISOString();
+          zeile.ungelesen = 2;
+          zeile.erledigung = null;
+        }
+      }
+      await route.fulfill({ response: antwort, json: body });
+    }
+  );
+  const liste = await oeffnen(page);
+  // Start with the mail unread, as an earlier test may have read it
+  await liste.getByRole('link', { name: SCHNUPPER }).click();
+  const mail = page.getByRole('article', { name: 'Schnupperstunde für Mia' });
+  await mail.getByRole('button', { name: 'Als ungelesen markieren' }).click();
+  await expect(mail.getByText('Als ungelesen markiert.')).toBeVisible();
+  await liste.getByRole('link', { name: NEWSLETTER }).click();
+  await expect(page.getByRole('article', { name: 'Newsletter Diözesanverband' })).toBeVisible();
+
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/postfach/kontakt/gelesen', async (route) => {
+    await held;
+    await route.continue();
+  });
+  await liste.getByRole('link', { name: SCHNUPPER }).click();
+  await expect(mail).toBeVisible();
+
+  // A failed choice reads the list again while the read mark is still on its way
+  neuer = true;
+  await page.route('**/api/intern/postfach/kontakt/status', (route) =>
+    route.fulfill({
+      status: 409,
+      json: { error: 'CONFLICT', code: 'CONFLICT', message: 'Jemand war schneller.' },
+    })
+  );
+  await liste.getByRole('checkbox', { name: NEWSLETTER }).check();
+  const aktionen = liste.getByRole('region', { name: 'Aktionen für die Auswahl' });
+  await aktionen.getByRole('button', { name: 'Als erledigt markieren' }).click();
+  await expect(aktionen.getByRole('alert')).toContainText('Jemand war schneller.');
+  await expect(liste.getByRole('link', { name: SCHNUPPER })).toContainText('Ungelesen:');
+
+  release();
+  await page.waitForResponse('**/api/intern/postfach/kontakt/gelesen');
+  await expect(liste.getByRole('link', { name: SCHNUPPER })).toContainText('Ungelesen:');
+  await aktionen.getByRole('button', { name: 'Auswahl aufheben' }).click();
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
