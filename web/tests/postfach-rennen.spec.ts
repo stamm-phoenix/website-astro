@@ -161,7 +161,7 @@ test('a reload asked before an assignment does not bring the old line back', asy
   test.skip(testInfo.project.name !== 'desktop', 'needs the list next to the open mail');
   await page.goto('/leitendenbereich/email/kontakt');
   const liste = page.getByRole('region', { name: 'Posteingang' });
-  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Rechnung Zeltplatz Sommerlager/ }).click();
   const mail = page.getByRole('article', { name: 'Rechnung Zeltplatz Sommerlager' });
   // Start from nobody, also on a retry
@@ -205,7 +205,7 @@ test('a late status answer of a mailbox that was left keeps the new mailbox on s
   test.skip(testInfo.project.name !== 'desktop', 'switches through the sidebar of the desktop');
   await page.goto('/leitendenbereich/email/kontakt');
   const liste = page.getByRole('region', { name: 'Posteingang' });
-  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Newsletter Diözesanverband/ }).click();
   const mail = page.getByRole('article', { name: 'Newsletter Diözesanverband' });
   const stand = mail.getByRole('group', { name: 'Stand' });
@@ -251,7 +251,7 @@ test('a late reload answer does not undo a status just saved in the reading view
   test.skip(testInfo.project.name !== 'desktop', 'the reload button sits next to the open mail');
   await page.goto('/leitendenbereich/email/kontakt');
   const liste = page.getByRole('region', { name: 'Posteingang' });
-  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Frage zum Nikolausdienst/ }).click();
   const mail = page.getByRole('article', { name: 'Frage zum Nikolausdienst' });
   const stand = mail.getByRole('group', { name: 'Stand' });
@@ -294,7 +294,7 @@ test('a late failure of the read mark stays with its conversation', async ({ pag
   await page.goto('/leitendenbereich/email/kontakt');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   // Make the first conversation unread again, so opening it marks it
-  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Schnupperstunde für Mia/ }).click();
   const a = page.getByRole('article', { name: 'Schnupperstunde für Mia' });
   await a.getByRole('button', { name: 'Als ungelesen markieren' }).click();
@@ -328,7 +328,7 @@ test('a late conflict of a mailbox that was left does not take the list over', a
   test.skip(testInfo.project.name !== 'desktop', 'switches through the sidebar of the desktop');
   await page.goto('/leitendenbereich/email/kontakt');
   const liste = page.getByRole('region', { name: 'Posteingang' });
-  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Newsletter Diözesanverband/ }).click();
   const stand = page
     .getByRole('article', { name: 'Newsletter Diözesanverband' })

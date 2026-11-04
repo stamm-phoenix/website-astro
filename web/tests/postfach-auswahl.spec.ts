@@ -37,10 +37,15 @@ test('the list shows all mails with their state; several are marked as done at o
 }) => {
   const liste = await oeffnen(page);
   // „Alle“ is where the page starts
-  await expect(liste.getByRole('button', { name: /^Alle/ })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  await expect(
+    liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ })
+  ).toHaveAttribute('aria-pressed', 'true');
+  // „Ungelesen“ is a switch on top of the two groups
+  const ungelesen = liste.getByRole('button', { name: /^Ungelesen/ });
+  await ungelesen.click();
+  await expect(ungelesen).toHaveAttribute('aria-pressed', 'true');
+  await ungelesen.click();
+  await expect(ungelesen).toHaveAttribute('aria-pressed', 'false');
   await zuruecksetzen(page);
   await expect(liste.getByRole('link', { name: NEWSLETTER })).toContainText('Offen');
   await expect(liste.getByRole('link', { name: /Danke für das Sommerlager/ })).toContainText(
@@ -56,9 +61,12 @@ test('the list shows all mails with their state; several are marked as done at o
   await expect(liste.getByRole('link', { name: NEWSLETTER })).toContainText('Erledigt · du');
   await expect(liste.getByRole('link', { name: RECHNUNG })).toContainText('Erledigt · du');
 
-  await liste.getByRole('button', { name: /^Offen/ }).click();
+  await liste
+    .getByRole('group', { name: 'Stand' })
+    .getByRole('button', { name: /^Offen/ })
+    .click();
   await expect(liste.getByRole('link', { name: NEWSLETTER })).toHaveCount(0);
-  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await zuruecksetzen(page);
 });
 
@@ -86,7 +94,10 @@ test('several mails are handed to one person at once', async ({ page }) => {
   await expect(nochmal.getByText(/Mail ging nicht raus/)).toHaveCount(0);
 
   // „Alle auswählen“ takes what the filter shows
-  await liste.getByRole('button', { name: /^Erledigt/ }).click();
+  await liste
+    .getByRole('group', { name: 'Stand' })
+    .getByRole('button', { name: /^Erledigt/ })
+    .click();
   await liste.getByRole('checkbox', { name: /^Alle \d+ auswählen/ }).check();
   await expect(liste.getByRole('checkbox', { name: /Danke für das Sommerlager/ })).toBeChecked();
   await expect(liste.getByRole('checkbox', { name: NEWSLETTER })).toHaveCount(0);
@@ -96,7 +107,7 @@ test('several mails are handed to one person at once', async ({ page }) => {
     .click();
   await expect(liste.getByRole('checkbox', { name: /^Alle \d+ auswählen/ })).not.toBeChecked();
 
-  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await zuruecksetzen(page);
 });
 

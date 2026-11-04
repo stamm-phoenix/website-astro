@@ -46,11 +46,13 @@ test('a Leitende:r reads a mail of the Kontakt-Postfach, hands it on and finds t
   await expect(liste.getByRole('link', { name: /Frage zum Nikolausdienst/ })).toContainText(
     'Tom Test'
   );
-  await liste.getByRole('button', { name: /Mir zugewiesen/ }).click();
-  await expect(liste.getByRole('button', { name: /Mir zugewiesen/ })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  await liste
+    .getByRole('group', { name: 'Zuständig' })
+    .getByRole('button', { name: /^Ich/ })
+    .click();
+  await expect(
+    liste.getByRole('group', { name: 'Zuständig' }).getByRole('button', { name: /^Ich/ })
+  ).toHaveAttribute('aria-pressed', 'true');
   await expect(liste.getByRole('link', { name: /Frage zum Nikolausdienst/ })).toHaveCount(0);
 });
 
@@ -79,7 +81,7 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
   await page.goto('/leitendenbereich/email/kontakt');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   // Retries on the same demo server find it done already
-  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Schnupperstunde für Mia/ }).click();
   const mail = page.getByRole('article', { name: 'Schnupperstunde für Mia' });
   const stand = mail.getByRole('group', { name: 'Stand' });
@@ -112,9 +114,15 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
   if (await page.getByRole('button', { name: /Zur Liste/ }).isVisible())
     await page.getByRole('button', { name: /Zur Liste/ }).click();
   // Under „Offen“ it is gone, under „Erledigt“ it is ticked off
-  await liste.getByRole('button', { name: /^Offen/ }).click();
+  await liste
+    .getByRole('group', { name: 'Stand' })
+    .getByRole('button', { name: /^Offen/ })
+    .click();
   await expect(liste.getByRole('link', { name: /Schnupperstunde für Mia/ })).toHaveCount(0);
-  await liste.getByRole('button', { name: /^Erledigt/ }).click();
+  await liste
+    .getByRole('group', { name: 'Stand' })
+    .getByRole('button', { name: /^Erledigt/ })
+    .click();
   await expect(liste.getByRole('link', { name: /Schnupperstunde für Mia/ })).toContainText(
     'Erledigt · du'
   );
@@ -130,7 +138,10 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
 
   // Open again, so the next run starts the same way
   await page.goto('/leitendenbereich/email/kontakt');
-  await liste.getByRole('button', { name: /^Erledigt/ }).click();
+  await liste
+    .getByRole('group', { name: 'Stand' })
+    .getByRole('button', { name: /^Erledigt/ })
+    .click();
   await liste.getByRole('link', { name: /Schnupperstunde für Mia/ }).click();
   await mail.getByRole('group', { name: 'Stand' }).getByRole('button', { name: 'Offen' }).click();
   await expect(mail.getByText('Wieder als offen markiert.')).toBeVisible();
@@ -149,7 +160,7 @@ test('opening a mail with the keyboard moves the focus to its subject', async ({
 test('marking done after a newer message arrived says so and saves nothing', async ({ page }) => {
   await page.goto('/leitendenbereich/email/kontakt');
   const liste = page.getByRole('region', { name: 'Posteingang' });
-  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Frage zum Nikolausdienst/ }).click();
   const mail = page.getByRole('article', { name: 'Frage zum Nikolausdienst' });
   const stand = mail.getByRole('group', { name: 'Stand' });
@@ -193,12 +204,21 @@ test('a full inbox says that older mails are in Outlook instead of claiming all 
     'href',
     /^https:\/\/outlook\.office\.com\/mail\/kontakt%40stamm-phoenix\.de\//
   );
-  await liste.getByRole('button', { name: /^Erledigt/ }).click();
+  await liste
+    .getByRole('group', { name: 'Stand' })
+    .getByRole('button', { name: /^Erledigt/ })
+    .click();
   await expect(
     liste.getByText(
-      /Unter den neuesten 100 E-Mails ist noch keine erledigt\. Ältere E-Mails siehst du in Outlook\./
+      'Unter den neuesten 100 E-Mails passt keine zu den Filtern. Ältere siehst du in Outlook.'
     )
   ).toBeVisible();
+  // One step back to everything
+  await liste.getByRole('button', { name: 'Filter zurücksetzen' }).click();
+  await expect(
+    liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ })
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(liste.getByRole('button', { name: 'Filter zurücksetzen' })).toHaveCount(0);
 });
 
 test('a mailbox that failed on the start page offers a retry or names whom to tell', async ({
@@ -245,7 +265,7 @@ test('a long attachment name wraps on a phone instead of being cut off', async (
   });
   await page.goto('/leitendenbereich/email/kontakt');
   const liste = page.getByRole('region', { name: 'Posteingang' });
-  await liste.getByRole('button', { name: /^Alle/ }).click();
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Rechnung Zeltplatz Sommerlager/ }).click();
   const links = page.getByRole('list', { name: 'Anhänge' }).getByRole('link');
   await expect(links.first()).toContainText(lang);

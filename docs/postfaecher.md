@@ -18,8 +18,12 @@ Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
 ## Was das Modul kann
 
 - **Liste:** Die neuesten 100 Nachrichten des Posteingangs (`INBOX_LIMIT`), nach Konversation
-  (`conversationId` von Exchange) gruppiert, neueste zuerst. Filter: Alle (Start), Offen, Mir
-  zugewiesen, Ohne Zuständige, Ungelesen, Erledigt. Jede Zeile zeigt ihren Stand („Offen“ oder
+  (`conversationId` von Exchange) gruppiert, neueste zuerst. Filter in zwei Gruppen, die sich
+  kombinieren (`PostfachFilterLeiste.svelte`, `lib/postfachAnsicht.ts`): „Stand“ (Alle, Offen,
+  Erledigt; Erledigt umfasst auch „Kein Handlungsbedarf“) und „Zuständig“ (Alle, Ich, Niemand),
+  dazu der Schalter „Ungelesen“. Die Seite beginnt mit allem. Jede Zahl sagt, wie viele E-Mails
+  diese Wahl mit den übrigen Filtern zeigen würde; passt nichts, bietet die Liste „Filter
+  zurücksetzen“. Jede Zeile zeigt ihren Stand („Offen“ oder
   grüner Haken mit Stand und Namen) und wer zuständig ist. Wer eine Konversation in Outlook aus dem Posteingang verschiebt
   (z. B. archiviert), nimmt sie damit aus der Liste. Liegen mehr als 100 Nachrichten im Posteingang, sagt die
   Liste das („Hier stehen die neuesten 100 E-Mails.“ mit Link zu Outlook), und leere Filter
@@ -49,8 +53,7 @@ Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
   gilt (`bis`, Migration `0082`): die Empfangszeit der neuesten Nachricht, die die Seite gezeigt hat.
   Ist inzwischen eine neuere gekommen, wird nichts gespeichert und die Seite sagt es. Kommt nach dem
   Setzen eine neue Nachricht in den Posteingang, gilt sie wieder als offen und zeigt „Neue Nachricht nach „Erledigt““; die Zeile
-  bleibt, bis jemand den Stand neu setzt. „Mir
-  zugewiesen“, „Ohne Zuständige“ und „Ungelesen“ zählen nur offene Konversationen, „Erledigt“
+  bleibt, bis jemand den Stand neu setzt. „Erledigt“
   zeigt beide abgeschlossenen Stände. Wie bei der Zuständigkeit schickt die Seite mit, welchen
   Stand sie angezeigt hat, und bekommt `409`, wenn jemand ihn inzwischen geändert hat.
 - **Mehrere auf einmal:** Mit den Kästchen vor den Zeilen (oder „Alle … auswählen“ für das, was

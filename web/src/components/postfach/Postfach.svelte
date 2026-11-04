@@ -3,10 +3,10 @@
   import { SvelteSet } from 'svelte/reactivity';
   import { navigate } from 'astro:transitions/client';
   import ActionButton from '../ui/ActionButton.svelte';
-  import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import KonversationListe from './KonversationListe.svelte';
+  import PostfachFilterLeiste from './PostfachFilterLeiste.svelte';
   import KonversationAnsicht from './KonversationAnsicht.svelte';
   import MehrfachAktionen from './MehrfachAktionen.svelte';
   import { errorMessage } from '../../lib/api';
@@ -18,7 +18,8 @@
     postfachListe,
   } from '../../lib/postfachStore.svelte';
   import {
-    POSTFACH_FILTER,
+    FILTER_START,
+    filterAktiv,
     filterAnzahl,
     filterKonversationen,
     konversationAusHash,
@@ -39,26 +40,7 @@
   let { postfach, address }: Props = $props();
 
   const store = postfachListe.state;
-  const LEER: Record<PostfachFilter, string> = {
-    offen: 'Alles erledigt: Keine E-Mail ist mehr offen.',
-    mir: 'Dir ist gerade keine offene E-Mail zugewiesen.',
-    ohne: 'Für jede offene E-Mail ist jemand zuständig.',
-    ungelesen: 'Du hast alles gelesen.',
-    erledigt: 'Noch keine E-Mail ist erledigt.',
-    alle: 'Im Posteingang liegt keine E-Mail.',
-  };
-
-  /** Empty filters of a full inbox: only the newest messages were looked at. */
-  const LEER_BEGRENZT: Record<PostfachFilter, string> = {
-    offen: 'Unter den neuesten 100 E-Mails ist keine mehr offen.',
-    mir: 'Unter den neuesten 100 E-Mails ist dir keine offene zugewiesen.',
-    ohne: 'Unter den neuesten 100 E-Mails hat jede offene eine Zuständige.',
-    ungelesen: 'Unter den neuesten 100 E-Mails hast du alles gelesen.',
-    erledigt: 'Unter den neuesten 100 E-Mails ist noch keine erledigt.',
-    alle: '',
-  };
-
-  let filter = $state<PostfachFilter>('alle');
+  let filter = $state<PostfachFilter>({ ...FILTER_START });
   /** Conversations chosen for the actions on several at once. */
   const ausgewaehlt = new SvelteSet<string>();
   /** While the chosen ones are saved, the choice stays as it is. */
@@ -73,9 +55,14 @@
   const daten = $derived(store.data?.postfach.id === postfach ? store.data : null);
   const ich = $derived(daten?.ich ?? '');
   const zeilen = $derived(filterKonversationen(daten?.konversationen ?? [], filter, ich));
-  const anzahl = $derived(filterAnzahl(daten?.konversationen ?? [], ich));
-  const optionen = $derived(
-    POSTFACH_FILTER.map((option) => ({ ...option, count: anzahl[option.value] }))
+  const anzahl = $derived(filterAnzahl(daten?.konversationen ?? [], filter, ich));
+  /** Empty list: nothing in the inbox, or nothing that fits the filters. */
+  const leer = $derived(
+    !daten?.konversationen.length
+      ? 'Im Posteingang liegt keine E-Mail.'
+      : daten.begrenzt
+        ? 'Unter den neuesten 100 E-Mails passt keine zu den Filtern. Ältere siehst du in Outlook.'
+        : 'Keine E-Mail passt zu den Filtern.'
   );
   /** The chosen ones still in the mailbox, in the order of the list. */
   const gewaehlteZeilen = $derived(
@@ -215,31 +202,26 @@
         class="surface min-w-0 lg:flex lg:max-h-[calc(100dvh-11rem)] lg:flex-col"
         class:max-lg:hidden={aktiv}
       >
-        <div class="border-b border-neutral-200 p-2">
-          <FilterTabs
-            label="E-Mails filtern"
-            options={optionen}
-            value={filter}
-            onselect={(value) => (filter = value)}
-            countNouns={['E-Mail', 'E-Mails']}
-          />
-        </div>
-        {#if zeilen.length}
-          <label
-            class="flex min-h-11 cursor-pointer items-center gap-3 border-b border-neutral-200 pl-3 pr-3 text-sm text-brand-900"
-          >
-            <input
-              type="checkbox"
-              class="size-5 cursor-pointer accent-brand-900"
-              checked={alleSichtbarenGewaehlt}
-              disabled={mehrfachBusy}
-              indeterminate={!alleSichtbarenGewaehlt &&
-                zeilen.some((zeile) => ausgewaehlt.has(zeile.id))}
-              onchange={(event) => alleSichtbaren(event.currentTarget.checked)}
-            />
-            Alle {zeilen.length} auswählen
-          </label>
-        {/if}
+        <PostfachFilterLeiste bind:filter {anzahl}>
+          {#snippet vorne()}
+            {#if zeilen.length}
+              <label
+                class="flex min-h-11 cursor-pointer items-center gap-3 pl-1 text-sm text-brand-900"
+              >
+                <input
+                  type="checkbox"
+                  class="size-5 cursor-pointer accent-brand-900"
+                  checked={alleSichtbarenGewaehlt}
+                  disabled={mehrfachBusy}
+                  indeterminate={!alleSichtbarenGewaehlt &&
+                    zeilen.some((zeile) => ausgewaehlt.has(zeile.id))}
+                  onchange={(event) => alleSichtbaren(event.currentTarget.checked)}
+                />
+                Alle {zeilen.length} auswählen
+              </label>
+            {/if}
+          {/snippet}
+        </PostfachFilterLeiste>
         <MehrfachAktionen
           bind:busy={mehrfachBusy}
           {postfach}
@@ -256,11 +238,8 @@
             {zeilen}
             {ich}
             {aktiv}
-            leer={!daten?.konversationen.length
-              ? LEER.alle
-              : daten.begrenzt && filter !== 'alle'
-                ? `${LEER_BEGRENZT[filter]} Ältere E-Mails siehst du in Outlook.`
-                : LEER[filter]}
+            {leer}
+            onzuruecksetzen={filterAktiv(filter) ? () => (filter = { ...FILTER_START }) : undefined}
             onoeffnen={oeffnen}
           />
           {#if daten?.begrenzt}

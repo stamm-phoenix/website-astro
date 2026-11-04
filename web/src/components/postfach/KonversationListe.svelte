@@ -14,6 +14,8 @@
     aktiv: string | null;
     /** Sentence shown when the filter leaves nothing. */
     leer: string;
+    /** Offered next to that sentence while filters are set. */
+    onzuruecksetzen?: () => void;
     /** A plain click opens the conversation on this page; a new tab follows the link. */
     onoeffnen: (id: string) => void;
     /** The chosen conversations. */
@@ -22,8 +24,17 @@
     auswahlGesperrt: boolean;
     onwaehle: (id: string, gewaehlt: boolean) => void;
   }
-  let { zeilen, ich, aktiv, leer, onoeffnen, ausgewaehlt, auswahlGesperrt, onwaehle }: Props =
-    $props();
+  let {
+    zeilen,
+    ich,
+    aktiv,
+    leer,
+    onzuruecksetzen,
+    onoeffnen,
+    ausgewaehlt,
+    auswahlGesperrt,
+    onwaehle,
+  }: Props = $props();
 
   function klick(event: MouseEvent, id: string): void {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
@@ -34,7 +45,14 @@
 </script>
 
 {#if zeilen.length === 0}
-  <p class="p-4 text-sm text-neutral-700">{leer}</p>
+  <div class="flex flex-wrap items-center gap-x-3 p-4 text-sm text-neutral-700">
+    <p>{leer}</p>
+    {#if onzuruecksetzen}<button
+        type="button"
+        class="text-link min-h-11 underline underline-offset-4"
+        onclick={onzuruecksetzen}>Filter zurücksetzen</button
+      >{/if}
+  </div>
 {:else}
   <ul class="divide-y divide-neutral-200" data-testid="postfach-liste">
     {#each zeilen as zeile (zeile.id)}

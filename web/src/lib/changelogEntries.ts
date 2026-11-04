@@ -17,7 +17,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'E-Mails des Kontakt-Postfachs im Leitendenbereich',
     changes: [
       {
-        text: 'Im neuen Bereich „E-Mail“ liest du die E-Mails an kontakt@stamm-phoenix.de, auch auf dem Handy. Die Liste zeigt alle E-Mails mit ihrem Stand; Filter zeigen dir offene, ungelesene, dir zugewiesene und E-Mails, um die sich noch niemand kümmert.',
+        text: 'Im neuen Bereich „E-Mail“ liest du die E-Mails an kontakt@stamm-phoenix.de, auch auf dem Handy. Die Liste zeigt alle E-Mails mit ihrem Stand. Oben filterst du nach Stand (offen oder erledigt) und Zuständigkeit (du oder niemand), beides kombinierbar, und mit „Ungelesen“ nur nach dem, was du noch nicht gelesen hast.',
         href: '/leitendenbereich/email/kontakt',
       },
       'Mit „Ich kümmere mich“ übernimmst du eine E-Mail, oder du weist sie mit „Jemandem zuweisen“ einer anderen Leitungsperson zu. Die Zuständigkeit gilt für die ganze Unterhaltung, und wer zuständig wird, bekommt eine Mail.',

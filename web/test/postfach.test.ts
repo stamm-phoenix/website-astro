@@ -3,8 +3,11 @@ import { test } from 'node:test';
 import type { KonversationZeile } from '../../api/lib/postfach-model';
 import {
   dateiGroesse,
+  FILTER_START,
+  filterAktiv,
   filterAnzahl,
   filterKonversationen,
+  type PostfachFilter,
   hatExterneBilder,
   konversationAusHash,
   konversationHash,
@@ -46,7 +49,7 @@ function zeile(
   };
 }
 
-test('the filters of a mailbox and their counts; done ones only under „Erledigt“ and „Alle“', () => {
+test('the filters of a mailbox combine, and each count keeps the other filters', () => {
   const zeilen = [
     zeile('a', 1, null),
     zeile('b', 0, 'lea@stamm-phoenix.de'),
@@ -54,22 +57,27 @@ test('the filters of a mailbox and their counts; done ones only under „Erledig
     zeile('d', 1, 'lea@stamm-phoenix.de', 'erledigt'),
     zeile('e', 0, null, 'kein_handlungsbedarf'),
   ];
-  const ids = (filter: Parameters<typeof filterKonversationen>[1]) =>
-    filterKonversationen(zeilen, filter, 'Lea@stamm-phoenix.de').map((entry) => entry.id);
-  assert.deepEqual(ids('offen'), ['a', 'b', 'c']);
-  assert.deepEqual(ids('mir'), ['b']);
-  assert.deepEqual(ids('ohne'), ['a']);
-  assert.deepEqual(ids('ungelesen'), ['a', 'c']);
-  assert.deepEqual(ids('erledigt'), ['d', 'e']);
-  assert.deepEqual(ids('alle'), ['a', 'b', 'c', 'd', 'e']);
-  assert.deepEqual(filterAnzahl(zeilen, 'lea@stamm-phoenix.de'), {
-    offen: 3,
-    mir: 1,
-    ohne: 1,
+  const ich = 'Lea@stamm-phoenix.de';
+  const ids = (filter: Partial<PostfachFilter>) =>
+    filterKonversationen(zeilen, { ...FILTER_START, ...filter }, ich).map((entry) => entry.id);
+  assert.deepEqual(ids({}), ['a', 'b', 'c', 'd', 'e']);
+  assert.deepEqual(ids({ stand: 'offen' }), ['a', 'b', 'c']);
+  assert.deepEqual(ids({ stand: 'erledigt' }), ['d', 'e']);
+  // Who is responsible counts for done ones too, and the groups combine
+  assert.deepEqual(ids({ zustaendig: 'mir' }), ['b', 'd']);
+  assert.deepEqual(ids({ zustaendig: 'mir', stand: 'offen' }), ['b']);
+  assert.deepEqual(ids({ zustaendig: 'niemand' }), ['a', 'e']);
+  assert.deepEqual(ids({ ungelesen: true }), ['a', 'c', 'd']);
+  assert.deepEqual(ids({ ungelesen: true, stand: 'offen', zustaendig: 'niemand' }), ['a']);
+
+  // Each count says what that choice would show with the other filters kept
+  assert.deepEqual(filterAnzahl(zeilen, { ...FILTER_START, stand: 'offen' }, ich), {
+    stand: { alle: 5, offen: 3, erledigt: 2 },
+    zustaendig: { alle: 3, mir: 1, niemand: 1 },
     ungelesen: 2,
-    erledigt: 2,
-    alle: 5,
   });
+  assert.equal(filterAktiv(FILTER_START), false);
+  assert.equal(filterAktiv({ ...FILTER_START, ungelesen: true }), true);
 });
 
 test('the open conversation round-trips through the address', () => {
