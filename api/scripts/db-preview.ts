@@ -23,6 +23,7 @@ import { resolve } from 'node:path';
 import { sql } from 'kysely';
 import { AzureCliCredential } from '@azure/identity';
 import { CONFIG } from '../lib/config';
+import { seedPreviewStaffUsage } from '../lib/staff-usage-preview';
 import { createContainerClient, useBlobStorage } from '../lib/blob-storage';
 import type { BlobTarget } from '../lib/blob-storage';
 import { closeDatabase, createDatabase, getDb, getSqlErrorNumber, useDatabase } from '../lib/db';
@@ -161,6 +162,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewStaffFavorites();
       await seedPreviewStaffChangelogSeen();
       await seedPreviewStaffRecent();
+      await seedPreviewStaffUsage();
       await seedPreviewStaffSettings();
       await seedPreviewAbrechnungEingabe();
       await seedPreviewSammel();

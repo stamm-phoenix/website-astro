@@ -48,6 +48,8 @@ export function loadRecent(): Promise<void> {
 
 /** Records that the person opened `module`; the answer is the new list. */
 export function recordVisit(module: string): Promise<void> {
+  // A separate anonymous counter; a failure must never affect personal recent areas.
+  void sendApi('POST', '/intern/haeufig', { module }).catch(() => undefined);
   // Shown at once, so the bar on the phone does not wait for the server
   recentStore.modules = [module, ...recentStore.modules.filter((entry) => entry !== module)];
   return enqueue(() => sendApi<{ modules: string[] }>('POST', ENDPOINT, { module }));

@@ -1,4 +1,5 @@
 import type { ColumnType, Generated } from 'kysely';
+import type { StaffUsageTable } from './db-schema-staff-usage';
 import type { EssenEinheitenart } from './essen-validation';
 import type { GerichtEinheit } from './essen-gerichte-model';
 import type { AnwesenheitStufeName } from './anwesenheit-model';
@@ -86,6 +87,7 @@ export interface Database {
   'organisation.aktion_keine_aktion': AktionKeineAktionTable;
   'organisation.staff_changelog_seen': StaffChangelogSeenTable;
   'organisation.staff_favorites': StaffFavoritesTable;
+  'organisation.staff_usage': StaffUsageTable;
   'organisation.staff_recent': StaffRecentTable;
   'organisation.staff_settings': StaffSettingsTable;
   'organisation.abrechnung_eingabe': AbrechnungEingabeTable;
