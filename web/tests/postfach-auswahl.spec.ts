@@ -218,3 +218,37 @@ test('a late read mark leaves a reply unread that the list got meanwhile', async
   await aktionen.getByRole('button', { name: 'Auswahl aufheben' }).click();
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
+
+test('after „Neu laden“ the choice of people follows the team', async ({ page }) => {
+  let personen = [
+    { login: 'leitung@example.test', name: 'Demo Leitung' },
+    { login: 'tom.test@example.test', name: 'Tom Test' },
+  ];
+  await page.route('**/api/intern/postfach/kontakt/personen', (route) =>
+    route.fulfill({ json: { personen } })
+  );
+  const liste = await oeffnen(page);
+  await liste.getByRole('checkbox', { name: NEWSLETTER }).check();
+  const aktionen = liste.getByRole('region', { name: 'Aktionen für die Auswahl' });
+  const waehlen = async (name: string) => {
+    await aktionen.getByRole('button', { name: 'Jemandem zuweisen' }).click();
+    await aktionen.getByLabel(/Wer soll sich um die/).fill(name);
+  };
+  await waehlen('Tom');
+  await expect(page.getByRole('option', { name: /Tom Test/ })).toBeVisible();
+  await aktionen.getByRole('button', { name: 'Abbrechen' }).click();
+
+  // Tom left the team, Nina joined
+  personen = [
+    { login: 'leitung@example.test', name: 'Demo Leitung' },
+    { login: 'nina.neu@example.test', name: 'Nina Neu' },
+  ];
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await expect(page.getByText('Neu geladen.')).toBeVisible();
+  await waehlen('Nina');
+  await expect(page.getByRole('option', { name: /Nina Neu/ })).toBeVisible();
+  await aktionen.getByLabel(/Wer soll sich um die/).fill('Tom');
+  await expect(page.getByRole('option', { name: /Tom Test/ })).toHaveCount(0);
+  await aktionen.getByRole('button', { name: 'Abbrechen' }).click();
+  await aktionen.getByRole('button', { name: 'Auswahl aufheben' }).click();
+});

@@ -67,16 +67,33 @@ export async function embedInlineImages(
       )
     );
     if (!file.success || !file.data.contentId) continue;
-    total += entry.size;
     const cid = file.data.contentId.replace(/^<|>$/g, '');
     const url = `data:${file.data.contentType};base64,${file.data.contentBytes}`;
-    // The whole reference only: `cid:image1` must not eat the start of `cid:image10`
-    const escaped = cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // The scheme in any case (`CID:` is valid), the Content-ID itself exactly
-    result = result.replace(new RegExp(`[cC][iI][dD]:${escaped}(?![\\w.@-])`, 'g'), () => url);
+    let ersetzt = false;
+    // Each whole reference: `cid:image1` must not eat the start of `cid:image10`. The scheme in
+    // any case (`CID:` is valid); the address may be URL-encoded (RFC 2392: `bild%40host`)
+    result = result.replace(CID_VERWEIS, (verweis: string, adresse: string) => {
+      if (cidAdresse(adresse) !== cid) return verweis;
+      ersetzt = true;
+      return url;
+    });
+    // Only what the text really shows leaves the list of attachments
+    if (!ersetzt) continue;
+    total += entry.size;
     eingebettet.add(entry.id);
   }
   return { html: result, eingebettet };
+}
+
+/** A `cid:` reference in the HTML up to the end of the attribute value or URL. */
+const CID_VERWEIS = /cid:([^\s"'<>()]+)/gi;
+
+function cidAdresse(adresse: string): string {
+  try {
+    return decodeURIComponent(adresse);
+  } catch {
+    return adresse;
+  }
 }
 
 export async function readAttachments(
