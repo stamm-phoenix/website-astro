@@ -46,8 +46,12 @@ test('public pages show the baked content even when the API is down', async ({ p
   await expect(page.getByText('Stammesversammlung mit Wahl des Vorstands')).toHaveCount(0);
 
   await page.goto('/fragen-und-antworten');
-  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByRole('status')).toHaveText(/\d+\s+Fragen gefunden/);
   await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.getByRole('searchbox', { name: 'Fragen und Antworten durchsuchen' }).fill('Isomatte');
+  await expect(page.getByRole('status')).toHaveText('1 Frage gefunden');
+  await page.getByRole('button', { name: 'Was muss mein Kind zum Lager mitnehmen?' }).click();
+  await expect(page.locator('#antwort-5')).toContainText('Isomatte');
 
   await page.goto('/downloads');
   await expect(page.getByTestId('downloads-grid').locator('article').first()).toBeVisible();
