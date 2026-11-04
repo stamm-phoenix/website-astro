@@ -15,11 +15,13 @@
     markiere,
   } from '../../lib/postfachStore.svelte';
   import { dateiGroesse, mailZeitLang } from '../../lib/postfachAnsicht';
-  import type {
-    KonversationDetail,
-    KonversationZeile,
-    MailAdresse,
-    MailNachricht,
+  import {
+    erledigungsStand,
+    type Erledigung,
+    type KonversationDetail,
+    type KonversationZeile,
+    type MailAdresse,
+    type MailNachricht,
   } from '../../../../api/lib/postfach-model';
 
   /**
@@ -73,6 +75,12 @@
     laufend?.abort();
     loading = false;
     detail = { ...detail, konversation: { ...detail.konversation, ...change } };
+  }
+
+  /** A saved status, as far as it covers the newest message this view shows by now. */
+  function standUebernehmen(id: string, erledigung: Erledigung | null): void {
+    if (detail?.konversation.id !== id) return;
+    uebernimm(id, erledigungsStand(erledigung ?? undefined, detail.konversation.am));
   }
 
   async function laden(id: string): Promise<void> {
@@ -264,7 +272,7 @@
               wiederOffen={data.konversation.wiederOffen}
               bis={data.konversation.am}
               {ich}
-              onaenderung={(id, erledigung) => uebernimm(id, { erledigung, wiederOffen: false })}
+              onaenderung={(id, erledigung) => standUebernehmen(id, erledigung)}
               onkonflikt={(id) => {
                 onkonflikt();
                 if (id === konversation) void laden(id);

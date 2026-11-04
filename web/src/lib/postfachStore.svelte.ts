@@ -10,6 +10,7 @@ import type {
   PostfachStart,
   Zustaendigkeit,
 } from '../../../api/lib/postfach-model';
+import { erledigungsStand } from '../../../api/lib/postfach-model';
 
 /** The mailboxes of the person and what is waiting for them, for the start page. */
 export const postfachStart = createResource<PostfachStart>('/intern/postfach', {
@@ -202,7 +203,10 @@ export async function setzeStatus(
     `/intern/postfach/${encodeURIComponent(postfach)}/status`,
     { konversation, status, vorher, bis }
   );
-  aendereZeile(postfach, konversation, { erledigung: result.erledigung, wiederOffen: false });
+  // A late answer: the list may have a newer message by now, which the mark does not cover
+  const zeile = postfachListe.state.data?.konversationen.find((entry) => entry.id === konversation);
+  const neueste = zeile && zeile.am > bis ? zeile.am : bis;
+  aendereZeile(postfach, konversation, erledigungsStand(result.erledigung ?? undefined, neueste));
   return result.erledigung;
 }
 
