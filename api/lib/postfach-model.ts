@@ -222,7 +222,11 @@ export function sekunde(iso: string): string {
 }
 
 /** A mark counts until a newer message arrives; then the conversation is open again. */
-function erledigungsStand(
+/**
+ * The status of a conversation whose newest message arrived at `neueste`: a mark up to an older
+ * message no longer counts, the conversation is open again.
+ */
+export function erledigungsStand(
   erledigung: Erledigung | undefined,
   neueste: string
 ): Pick<KonversationZeile, 'erledigung' | 'wiederOffen'> {
