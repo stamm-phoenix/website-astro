@@ -29,7 +29,7 @@ import {
 } from './postfach-model';
 import { getLeseStand, getZustaendigkeiten } from './postfach-stand';
 import { getErledigungen } from './postfach-erledigung';
-import type { ClientPrincipal } from './staff-auth';
+import { isPreviewOnlyLogin, type ClientPrincipal } from './staff-auth';
 import { readTaskDirectory } from './task-directory';
 
 /**
@@ -41,13 +41,21 @@ import { readTaskDirectory } from './task-directory';
 const INBOX_CACHE_MS = 30_000;
 const PERSONEN_CACHE_MS = 300_000;
 
-/** The mailboxes the person may see, by the roles of their teams. */
+/**
+ * The mailboxes the person may see, by the roles of their teams. The test accounts of the
+ * previews get every role there without being in the teams (`getTeamRoles`), and previews read
+ * the real mailboxes: so they see only the mailbox of the Leitende, never those of the Vorstand,
+ * the Förderverein or the admins.
+ */
 export function sichtbarePostfaecher(
-  principal: Pick<ClientPrincipal, 'userRoles'>
+  principal: Pick<ClientPrincipal, 'userRoles' | 'userDetails'>
 ): PostfachEintrag[] {
-  return POSTFAECHER.filter((postfach) =>
-    postfachRoles(postfach).some((role) => principal.userRoles.includes(role))
-  );
+  const testkonto = isPreviewOnlyLogin(principal.userDetails);
+  return POSTFAECHER.filter((postfach) => {
+    const rollen = postfachRoles(postfach);
+    if (testkonto) return rollen.includes(CONFIG.staff.teams.leitende.role);
+    return rollen.some((role) => principal.userRoles.includes(role));
+  });
 }
 
 export function postfachInfo(postfach: PostfachEintrag): PostfachInfo {
