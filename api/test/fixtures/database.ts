@@ -85,6 +85,7 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM nikolaus.helper_availability;
     DELETE FROM nikolaus.helper;
     DELETE FROM nikolaus.booking;
+    DELETE FROM organisation.staff_usage;
     DELETE FROM nikolaus.state;
     DELETE FROM nikolaus.audit_log;
     DELETE FROM organisation.protokoll;
