@@ -1,47 +1,91 @@
 import { istMirZugewiesen, type KonversationZeile } from '../../../api/lib/postfach-model';
 
-/** Filters of the list of a mailbox; the page starts with all conversations. */
-export type PostfachFilter = 'offen' | 'mir' | 'ohne' | 'ungelesen' | 'erledigt' | 'alle';
+/**
+ * Filters of the list of a mailbox, combined: the state, who is responsible and unread only.
+ * The page starts with everything.
+ */
+export type StandFilter = 'alle' | 'offen' | 'erledigt';
+export type ZustaendigFilter = 'alle' | 'mir' | 'niemand';
 
-export const POSTFACH_FILTER: readonly { value: PostfachFilter; label: string }[] = [
+export interface PostfachFilter {
+  stand: StandFilter;
+  zustaendig: ZustaendigFilter;
+  ungelesen: boolean;
+}
+
+export const FILTER_START: PostfachFilter = { stand: 'alle', zustaendig: 'alle', ungelesen: false };
+
+export const STAND_FILTER: readonly { value: StandFilter; label: string }[] = [
   { value: 'alle', label: 'Alle' },
   { value: 'offen', label: 'Offen' },
-  { value: 'mir', label: 'Mir zugewiesen' },
-  { value: 'ohne', label: 'Ohne Zuständige' },
-  { value: 'ungelesen', label: 'Ungelesen' },
   { value: 'erledigt', label: 'Erledigt' },
 ];
 
-/** Assigned, without anyone and unread count only open conversations, like the start page. */
+export const ZUSTAENDIG_FILTER: readonly { value: ZustaendigFilter; label: string }[] = [
+  { value: 'alle', label: 'Alle' },
+  { value: 'mir', label: 'Ich' },
+  { value: 'niemand', label: 'Niemand' },
+];
+
+function passtStand(zeile: KonversationZeile, stand: StandFilter): boolean {
+  if (stand === 'offen') return !zeile.erledigung;
+  if (stand === 'erledigt') return !!zeile.erledigung;
+  return true;
+}
+
+function passtZustaendig(zeile: KonversationZeile, wer: ZustaendigFilter, ich: string): boolean {
+  if (wer === 'mir') return istMirZugewiesen(zeile, ich);
+  if (wer === 'niemand') return !zeile.zustaendig;
+  return true;
+}
+
+function passt(zeile: KonversationZeile, filter: PostfachFilter, ich: string): boolean {
+  return (
+    passtStand(zeile, filter.stand) &&
+    passtZustaendig(zeile, filter.zustaendig, ich) &&
+    (!filter.ungelesen || zeile.ungelesen > 0)
+  );
+}
+
 export function filterKonversationen(
   zeilen: readonly KonversationZeile[],
   filter: PostfachFilter,
   ich: string
 ): KonversationZeile[] {
-  const offen = zeilen.filter((zeile) => !zeile.erledigung);
-  switch (filter) {
-    case 'offen':
-      return offen;
-    case 'mir':
-      return offen.filter((zeile) => istMirZugewiesen(zeile, ich));
-    case 'ohne':
-      return offen.filter((zeile) => !zeile.zustaendig);
-    case 'ungelesen':
-      return offen.filter((zeile) => zeile.ungelesen > 0);
-    case 'erledigt':
-      return zeilen.filter((zeile) => zeile.erledigung);
-    default:
-      return [...zeilen];
-  }
+  return zeilen.filter((zeile) => passt(zeile, filter, ich));
 }
 
+export interface FilterAnzahl {
+  stand: Record<StandFilter, number>;
+  zustaendig: Record<ZustaendigFilter, number>;
+  ungelesen: number;
+}
+
+/** What each choice would show, with the other filters as they are. */
 export function filterAnzahl(
   zeilen: readonly KonversationZeile[],
+  filter: PostfachFilter,
   ich: string
-): Record<PostfachFilter, number> {
-  return Object.fromEntries(
-    POSTFACH_FILTER.map(({ value }) => [value, filterKonversationen(zeilen, value, ich).length])
-  ) as Record<PostfachFilter, number>;
+): FilterAnzahl {
+  const zaehle = (anders: Partial<PostfachFilter>): number =>
+    filterKonversationen(zeilen, { ...filter, ...anders }, ich).length;
+  return {
+    stand: Object.fromEntries(
+      STAND_FILTER.map(({ value }) => [value, zaehle({ stand: value })])
+    ) as Record<StandFilter, number>,
+    zustaendig: Object.fromEntries(
+      ZUSTAENDIG_FILTER.map(({ value }) => [value, zaehle({ zustaendig: value })])
+    ) as Record<ZustaendigFilter, number>,
+    ungelesen: zaehle({ ungelesen: true }),
+  };
+}
+
+export function filterAktiv(filter: PostfachFilter): boolean {
+  return (
+    filter.stand !== FILTER_START.stand ||
+    filter.zustaendig !== FILTER_START.zustaendig ||
+    filter.ungelesen !== FILTER_START.ungelesen
+  );
 }
 
 /** Label of a status for the list, the start page and the result note. */

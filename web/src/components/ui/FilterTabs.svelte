@@ -20,6 +20,10 @@
     /** Shows the label in front of the options, e.g. when two rows sit together. */
     showLabel?: boolean;
     disabled?: boolean;
+    /** Segments share the whole width evenly (only with `variant="segmented"`). */
+    fill?: boolean;
+    /** The count as a small badge instead of „(3)“. */
+    countStyle?: 'text' | 'badge';
   }
   let {
     label,
@@ -31,6 +35,8 @@
     countNouns = ['Eintrag', 'Einträge'],
     showLabel = false,
     disabled = false,
+    fill = false,
+    countStyle = 'text',
   }: Props = $props();
   const id = $props.id();
 </script>
@@ -40,7 +46,7 @@
     role="group"
     aria-label={showLabel ? undefined : label}
     aria-labelledby={showLabel ? `${id}-label` : undefined}
-    class={`${variant === 'segmented' ? 'segments' : 'flex flex-wrap gap-x-5 gap-y-1'} ${groupClass}`}
+    class={`${variant === 'segmented' ? 'segments' : 'flex flex-wrap gap-x-5 gap-y-1'} ${variant === 'segmented' && fill ? 'segments-fill' : ''} ${groupClass}`}
   >
     {#each options as option, index (option.value)}
       <button
@@ -55,10 +61,11 @@
         {#if variant === 'segmented' && value === option.value && (option.tone === 'success' || option.tone === 'warning')}<span
             aria-hidden="true"
             class="mr-1">✓</span
-          >{/if}{option.label}{#if option.count !== undefined}<span
-            aria-hidden="true"
-            class="ml-1 tabular-nums">({option.count})</span
-          >{/if}
+          >{/if}{option.label}{#if option.count !== undefined}{#if countStyle === 'badge'}<span
+              aria-hidden="true"
+              class="count-badge">{option.count}</span
+            >{:else}<span aria-hidden="true" class="ml-1 tabular-nums">({option.count})</span
+            >{/if}{/if}
       </button>
       {#if option.count !== undefined}<span class="sr-only" id="{id}-count-{index}"
           >{option.count} {option.count === 1 ? countNouns[0] : countNouns[1]}</span
@@ -90,6 +97,36 @@
     border-radius: 0.375rem;
     background: var(--color-surface);
     padding: 0.25rem;
+  }
+  .segments-fill {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  .segments-fill .filter-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 0.375rem;
+    white-space: nowrap;
+  }
+  .count-badge {
+    display: inline-block;
+    min-width: 1.5rem;
+    margin-left: 0.375rem;
+    padding: 0 0.375rem;
+    border-radius: 9999px;
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-700);
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .filter-tab[aria-pressed='true'] .count-badge {
+    background: var(--color-brand-900);
+    color: var(--color-surface);
+  }
+  .filter-tab[aria-pressed='true'][data-tone='success'] .count-badge {
+    background: var(--color-success);
   }
   .segments .filter-tab {
     min-height: 44px;
