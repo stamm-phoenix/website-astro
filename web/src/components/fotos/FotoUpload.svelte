@@ -213,7 +213,11 @@
         {/if}
       {:else}
         <FotoOrdnerWahl bind:path={draft.folder} pending={cleanSub ? [cleanSub] : []} />
-        <FotoOrdnerErstellen bind:path={draft.folder} bind:name={draft.subfolder} />
+        <FotoOrdnerErstellen
+          bind:path={draft.folder}
+          bind:name={draft.subfolder}
+          uploadError={errors.ordner}
+        />
       {/if}
     </section>
 
