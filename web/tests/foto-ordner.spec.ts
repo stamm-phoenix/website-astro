@@ -47,7 +47,7 @@ test('Upload zeigt fehlendes Ziel und unbrauchbaren Ordnernamen', async ({ page 
   await expect(
     page.getByText('Wähle einen Ordner aus oder gib einen neuen Ordnernamen ein.', { exact: false })
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Gruppenstunden', exact: false }).click();
+  await page.getByRole('button', { name: 'Gruppenstunden', exact: true }).click();
   await page.getByLabel('Neuer Ordner darin').fill('???');
   await page.getByRole('button', { name: '1 Datei hochladen', exact: true }).click();
   await expect(
@@ -84,4 +84,34 @@ test('verspätete Ordnerantwort erhält den neueren Uploadentwurf', async ({ pag
   release();
   await refreshed;
   await expect(page.getByLabel('Neuer Ordner darin')).toHaveValue('Neuer Entwurf');
+});
+
+test('Ordnererstellung erneuert eine noch laufende alte Elternabfrage', async ({ page }) => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let received!: () => void;
+  const started = new Promise<void>((resolve) => {
+    received = resolve;
+  });
+  let first = true;
+  await page.route('**/api/intern/fotos/ordner?pfad=Gruppenstunden', async (route) => {
+    if (!first) return route.continue();
+    first = false;
+    const old = await route.fetch();
+    received();
+    await gate;
+    await route.fulfill({ response: old });
+  });
+  await page.goto('/leitendenbereich/fotos#ansicht=hochladen&ziel=Gruppenstunden');
+  await started;
+  await page.getByLabel('Neuer Ordner darin').fill('Schuljahr Cachetest');
+  await page.getByRole('button', { name: 'Ordner erstellen', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'erstellt und geöffnet' })).toBeVisible();
+  release();
+  await page.getByRole('button', { name: 'Gruppenstunden', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Schuljahr Cachetest', exact: true })
+  ).toBeVisible();
 });
