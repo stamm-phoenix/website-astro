@@ -23,6 +23,7 @@
   import StatusNotice from './StatusNotice.svelte';
   import { confirmAction } from '../../lib/confirm';
 
+  import type { BlogWorkflow } from '../../../../api/lib/blog-workflow-model';
   interface Form {
     title: string;
     date: string;
@@ -42,6 +43,9 @@
   let loadError = $state<string | null>(null);
   let errors = $state<Record<string, string>>({});
   let busy = $state(false);
+  let workflowBusy = $state(false);
+  let feedback = $state('');
+  let workflow = $state<BlogWorkflow>({ state: 'draft' });
   let imageBusy = $state<string | null>(null);
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'warning' | 'error'>('success');
@@ -59,7 +63,9 @@
       setForm({ title: '', date: todayIso(), published: false, content: '' });
     }
 
-    return guardUnsavedChanges(() => dirty || busy || imageBusy !== null);
+    return guardUnsavedChanges(
+      () => dirty || busy || workflowBusy || !!feedback.trim() || imageBusy !== null
+    );
   });
 
   function setForm(value: Form): void {
@@ -70,10 +76,10 @@
 
   async function load(id: string): Promise<void> {
     loadError = null;
-    form = null;
     conflict = false;
     try {
       const post = await requestBlogPost(id);
+      workflow = post.workflow ?? { state: post.published ? 'published' : 'draft' };
       etag = post.etag;
       images = post.images;
       setForm({
@@ -107,7 +113,7 @@
 
   async function save(): Promise<void> {
     const targetPublished = false;
-    if (!form || busy || imageBusy !== null) return;
+    if (!form || busy || workflowBusy || imageBusy !== null) return;
     if (
       published &&
       !(await confirmAction({
@@ -155,7 +161,7 @@
       saved = sent;
       // The list of posts asks again when it is shown next
       blogPflege.invalidate();
-      await load(postId!);
+      workflow = { state: 'draft' };
       notify('Beitrag gespeichert.');
     } catch (error: unknown) {
       handleError(error);
@@ -240,7 +246,7 @@
       void save();
     }}
   >
-    <div class="surface space-y-5 p-4 sm:p-6">
+    <div class="surface space-y-5 p-4 sm:p-6" inert={busy || workflowBusy}>
       <FormField id="blog-title" label="Titel" error={errors.title}>
         {#snippet children(attrs)}
           <input
@@ -311,7 +317,17 @@
             id={postId}
             {etag}
             disabled={dirty || busy || imageBusy !== null}
-            onchanged={() => load(postId!)}
+            {workflow}
+            bind:busy={workflowBusy}
+            bind:feedback
+            onchanged={(result, text) => {
+              etag = result.etag;
+              workflow = result.workflow;
+              published = workflow.state === 'published';
+              form!.published = published;
+              saved = JSON.stringify(form);
+              notify(text);
+            }}
           />{/if}
         {#if dirty}
           <span class="text-sm text-neutral-700">Ungespeicherte Änderungen</span>
@@ -343,27 +359,30 @@
       </div>
     </div>
 
-    <BlogEditorImages
-      {published}
-      onchanged={() => {
-        published = false;
-      }}
-      {postId}
-      bind:etag
-      bind:images
-      bind:imageBusy
-      {usedImages}
-      {notify}
-      {handleError}
-      oninsert={(image) => {
-        if (postId)
-          editor?.insertImage({
-            'data-bild': image.file,
-            src: getStaffBlogImageUrl(postId, image),
-            alt: image.alt,
-          });
-      }}
-      onremove={(file) => editor?.removeImage(file)}
-    />
+    <div inert={busy || workflowBusy}>
+      <BlogEditorImages
+        {published}
+        onchanged={() => {
+          published = false;
+          workflow = { state: 'draft' };
+        }}
+        {postId}
+        bind:etag
+        bind:images
+        bind:imageBusy
+        {usedImages}
+        {notify}
+        {handleError}
+        oninsert={(image) => {
+          if (postId)
+            editor?.insertImage({
+              'data-bild': image.file,
+              src: getStaffBlogImageUrl(postId, image),
+              alt: image.alt,
+            });
+        }}
+        onremove={(file) => editor?.removeImage(file)}
+      />
+    </div>
   </form>
 {/if}

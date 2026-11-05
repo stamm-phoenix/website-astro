@@ -87,6 +87,8 @@ export async function seedPreviewBlog(): Promise<void> {
       entry = await getBlogEntry(id);
       if (!entry) throw new Error(`Preview post ${id} vanished`);
     }
+    // Recover publication after interruption; the workflow seeder checks preview ownership.
+    if (post.published) publishIds.push(Number(entry.id));
     if (post.images.length === 0) continue;
 
     const files = post.images.map((_colors, index) => `bild-${1_700_000_000_000 + index}.jpg`);

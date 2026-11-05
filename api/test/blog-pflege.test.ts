@@ -97,7 +97,7 @@ async function createPost(context: InvocationContext): Promise<{ id: string; eta
   return response.jsonBody as { id: string; etag: string };
 }
 
-async function publishPost(id: string, etag: string, context: InvocationContext): Promise<void> {
+async function publishPost(id: string, etag: string, context: InvocationContext): Promise<string> {
   for (const action of ['submit', 'approve', 'publish']) {
     const response = await BlogItem(
       request('PATCH', { id }, { action, etag }, { reviewer: action === 'approve' }),
@@ -106,6 +106,7 @@ async function publishPost(id: string, etag: string, context: InvocationContext)
     assert.equal(response.status, 200);
     etag = (response.jsonBody as { etag: string }).etag;
   }
+  return etag;
 }
 
 dbTest(
@@ -124,7 +125,7 @@ dbTest(
     const stale = await save(etag);
     assert.equal(stale.status, 409);
 
-    await publishPost(id, (saved.jsonBody as { etag: string }).etag, context);
+    const publishedEtag = await publishPost(id, (saved.jsonBody as { etag: string }).etag, context);
     const list = (await GetBlogEndpoint()).jsonBody as {
       id: string;
       title: string;
@@ -140,10 +141,7 @@ dbTest(
     assert.equal(post.content, POST.content);
 
     const staff = await BlogItem(request('GET', { id }), context);
-    assert.equal(
-      (staff.jsonBody as { etag: string }).etag,
-      (saved.jsonBody as { etag: string }).etag
-    );
+    assert.equal((staff.jsonBody as { etag: string }).etag, publishedEtag);
   }
 );
 

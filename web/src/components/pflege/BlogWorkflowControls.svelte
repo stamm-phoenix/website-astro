@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { ApiError, fetchApi, sendApi, errorMessage } from '../../lib/api';
-  import type { BlogWorkflow } from '../../../../../api/lib/blog-workflow-model';
+  import { ApiError, sendApi, errorMessage } from '../../lib/api';
+  import type { BlogWorkflow } from '../../../../api/lib/blog-workflow-model';
   import ActionButton from '../ui/ActionButton.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { blogPflege } from '../../lib/pflegeStore.svelte';
@@ -8,12 +8,20 @@
     id: string;
     etag: string;
     disabled: boolean;
-    onchanged: () => Promise<void>;
+    workflow: BlogWorkflow;
+    busy?: boolean;
+    feedback?: string;
+    onchanged: (result: { etag: string; workflow: BlogWorkflow }, message: string) => void;
   }
-  let { id, etag, disabled, onchanged }: Props = $props();
-  let workflow = $state<BlogWorkflow | null>(null);
-  let feedback = $state('');
-  let busy = $state(false);
+  let {
+    id,
+    etag,
+    disabled,
+    workflow,
+    busy = $bindable(false),
+    feedback = $bindable(''),
+    onchanged,
+  }: Props = $props();
   let error = $state('');
   const labels = {
     draft: 'Entwurf',
@@ -21,37 +29,31 @@
     approved: 'Freigegeben',
     published: 'Veröffentlicht',
   };
-  $effect(() => {
-    const version = etag;
-    let active = true;
-    void fetchApi<{ workflow: BlogWorkflow }>(`/intern/pflege/blog/${id}`)
-      .then((post) => {
-        if (active && version === etag) workflow = post.workflow;
-      })
-      .catch((cause: unknown) => {
-        if (active)
-          error = errorMessage(
-            cause,
-            'Der Freigabestand konnte nicht geladen werden. Lade die Seite neu.'
-          );
-      });
-    return () => {
-      active = false;
-    };
-  });
   async function act(action: string): Promise<void> {
+    if (disabled || busy) return;
     busy = true;
     error = '';
     try {
-      const result = await sendApi<{ workflow: BlogWorkflow }>(
+      const result = await sendApi<{ etag: string; workflow: BlogWorkflow }>(
         'PATCH',
         `/intern/pflege/blog/${id}`,
         { action, etag, feedback }
       );
-      workflow = result.workflow;
+
       feedback = '';
       blogPflege.invalidate();
-      await onchanged();
+      onchanged(
+        result,
+        (
+          {
+            submit: 'Beitrag zur Prüfung eingereicht.',
+            approve: 'Beitrag freigegeben.',
+            return: 'Beitrag mit Rückmeldung zurückgegeben.',
+            publish: 'Beitrag veröffentlicht.',
+            unpublish: 'Veröffentlichung zurückgenommen.',
+          } as Record<string, string>
+        )[action]
+      );
     } catch (cause: unknown) {
       error =
         (cause instanceof ApiError &&
@@ -92,6 +94,7 @@
       <label class="block text-sm"
         ><span class="form-label">Rückmeldung bei Rückgabe</span><textarea
           class="form-input"
+          disabled={disabled || busy}
           maxlength="2000"
           bind:value={feedback}></textarea></label
       >
