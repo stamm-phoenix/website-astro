@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { dbTest } from './fixtures/database';
-import { getDb } from '../lib/db';
+import { getDb, toVersion } from '../lib/db';
+import { transitionBlog } from '../lib/blog-workflow';
 import { getBlogEntries } from '../lib/blog-list';
 import { seedPreviewBlog } from '../lib/db-preview-blog';
 import * as workflow from '../lib/blog-workflow-preview';
@@ -33,4 +34,34 @@ dbTest('interrupted preview seeding recovers publication and preserves user edit
     true
   );
   assert.equal(recovered.find((entry) => entry.id === edited.id)?.published, false);
+});
+
+dbTest('preview seeding preserves an intentional withdrawal', async (t) => {
+  t.mock.method(blobs, 'putBlob', async () => undefined);
+  await seedPreviewBlog();
+  const entry = (await getBlogEntries()).find((item) => item.title === 'Testbeitrag: Sommerlager')!;
+  const row = await getDb()
+    .selectFrom('content.blog_post')
+    .selectAll()
+    .where('id', '=', Number(entry.id))
+    .executeTakeFirstOrThrow();
+  await transitionBlog(
+    entry.id,
+    { action: 'unpublish', etag: toVersion(row.version) },
+    {
+      identityProvider: 'aad',
+      userId: 'a',
+      userDetails: 'a@example.test',
+      userRoles: ['team_leitende'],
+    }
+  );
+  await seedPreviewBlog();
+  const result = await getDb()
+    .selectFrom('content.blog_post')
+    .selectAll()
+    .where('id', '=', Number(entry.id))
+    .executeTakeFirstOrThrow();
+  assert.equal(result.published, false);
+  assert.equal(result.updated_by, 'preview');
+  assert.equal(JSON.parse(result.workflow_json!).withdrawn.by, 'a');
 });
