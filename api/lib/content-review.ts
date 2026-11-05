@@ -116,7 +116,7 @@ export async function markContentReviewed(
                 .where('c.id', '=', Number(id))
                 .executeTakeFirstOrThrow()
             ).hash
-          : null,
+          : sql<Buffer | null>`NULL`,
       reviewed_at: sql<Date>`SYSUTCDATETIME()`,
       reviewed_by: actor,
     };
