@@ -38,7 +38,7 @@
         bind:value
         {options}
         loading={store.loading}
-        maxlength="100"
+        maxlength={100}
         listLabel="Person aus Personen auswählen"
         pickFirstOnEnter
       />

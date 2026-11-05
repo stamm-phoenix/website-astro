@@ -2,6 +2,7 @@ import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 test('Person aus Vorschlägen übernehmen, Teams wählen und eigenen Namen anlegen', async ({
   page,
+  isMobile,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/api/intern/pflege/personen', (route) =>
@@ -29,7 +30,9 @@ test('Person aus Vorschlägen übernehmen, Teams wählen und eigenen Namen anleg
   await dialog.getByRole('checkbox', { name: 'Vorstand', exact: true }).check();
   await expect(dialog.getByLabel('Telefon', { exact: false })).toBeVisible();
   await name.fill('Dominik');
-  await page.getByRole('option', { name: 'Dominik Beispiel' }).tap();
+  const option = page.getByRole('option', { name: 'Dominik Beispiel' });
+  if (isMobile) await option.tap();
+  else await option.click();
   await expect(name).toHaveValue('Dominik Beispiel');
   await name.fill('Eigener neuer Name');
   await expect(dialog.getByText('Keine passende Person gefunden.')).toBeVisible();
