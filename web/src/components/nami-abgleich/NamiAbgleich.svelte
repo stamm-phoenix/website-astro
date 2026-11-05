@@ -40,7 +40,9 @@
   }
 
   onMount(() => {
-    void namiAbgleichStore.load({ param: false });
+    // The store outlives a change of page; a result older than a minute is asked for again and
+    // stays shown until the answer is there
+    void namiAbgleichStore.load({ param: false, maxAge: 60_000 });
   });
 
   function tabs(data: NamiAbgleichData) {

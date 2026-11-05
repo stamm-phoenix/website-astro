@@ -231,3 +231,22 @@ test('without first names, last name and birthday only link a pair to be checked
   );
   assert.equal(result.paare[0].verbindung, 'geburtsdatum');
 });
+
+test('a Mitgliedsnummer with letters does not meet the same digits', () => {
+  const result = gleicheAb(
+    [nami(123, 'Anna', 'Muster')],
+    [
+      campflow('per_M', 'Max', 'Anders', { membership_number: 'M123', birthdate: '2010-01-01' }),
+      campflow('per_A', 'Anna', 'Muster'),
+    ],
+    TODAY,
+    LOADED
+  );
+  assert.equal(result.paare.length, 1);
+  assert.equal(result.paare[0].campflow.id, 'per_A');
+  assert.equal(result.paare[0].verbindung, 'name-geburtsdatum');
+  assert.deepEqual(
+    result.nurCampflow.map((p) => p.id),
+    ['per_M']
+  );
+});
