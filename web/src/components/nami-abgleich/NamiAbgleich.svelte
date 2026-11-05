@@ -49,6 +49,15 @@
     return ANSICHTEN.map((option) => ({ ...option, count: anzahl(data, option.value, filter) }));
   }
 
+  /** The note of an empty view; it never claims agreement while former members are hidden. */
+  function leer(data: NamiAbgleichData): string {
+    if (suche.trim()) return 'Niemand passt zur Suche.';
+    if (!ausgetretene && anzahl(data, ansicht, { suche, ausgetretene: true }) > 0) {
+      return 'Hier stehen nur Ausgetretene. Setze das Häkchen bei „Ausgetretene zeigen“.';
+    }
+    return LEER[ansicht];
+  }
+
   function geburtstag(person: AbgleichPerson): string {
     if (!person.geburtsdatum) return '';
     const [year, month, day] = person.geburtsdatum.split('-');
@@ -140,7 +149,7 @@
           {@const paare = paareIn(data, ansicht, filter)}
           {#if paare.length === 0}
             <p class="surface p-6 text-sm text-neutral-700">
-              {suche.trim() ? 'Niemand passt zur Suche.' : LEER[ansicht]}
+              {leer(data)}
             </p>
           {:else}
             <ul
@@ -156,7 +165,7 @@
           {@const personen = personenIn(data, ansicht, filter)}
           {#if personen.length === 0}
             <p class="surface p-6 text-sm text-neutral-700">
-              {suche.trim() ? 'Niemand passt zur Suche.' : LEER[ansicht]}
+              {leer(data)}
             </p>
           {:else}
             <ul

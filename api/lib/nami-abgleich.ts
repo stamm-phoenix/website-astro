@@ -55,6 +55,8 @@ function record(value: unknown): Record<string, unknown> {
 export function nameKey(name: string): string {
   return (
     name
+      // „ü“ written as „u“ plus two dots becomes one letter before the umlauts are spelled out
+      .normalize('NFC')
       .toLocaleLowerCase('de')
       .replace(/ä/g, 'ae')
       .replace(/ö/g, 'oe')

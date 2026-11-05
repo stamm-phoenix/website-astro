@@ -263,4 +263,7 @@ test('names in other scripts are compared, not dropped', () => {
   assert.equal(felder.nachname, false);
   // Accents still do not count
   assert.equal(nameKey('Renée'), nameKey('Renee'));
+  // The same umlaut in both Unicode forms
+  assert.equal(nameKey('Müller'), nameKey('Mu\u0308ller'));
+  assert.equal(nameKey('Mu\u0308ller'), nameKey('Mueller'));
 });
