@@ -1,5 +1,6 @@
 import { errorMessage, fetchApi } from './api';
 import type { LeitungPlanung } from '../../../api/lib/essen-leitung-model';
+import type { NamiAbgleichData } from '../../../api/lib/nami-abgleich-model';
 import type { StaffProblemMeldungenData } from './problemMelden';
 import type {
   AnwesenheitOverview,
@@ -232,6 +233,15 @@ export const offeneBeitraegeStore = createResource<OffeneBeitraegeData>('/intern
 });
 
 /** The CampFlow member list with its groups, read-only; `true` as param reads CampFlow again. */
+export const namiAbgleichStore = createResource<NamiAbgleichData, boolean>(
+  (refresh) => (refresh ? '/intern/nami-abgleich?refresh=true' : '/intern/nami-abgleich'),
+  {
+    idle: true,
+    loadError:
+      'Der Nami-Abgleich konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
+  }
+);
+
 export const mitgliederStore = createResource<MitgliederData, boolean>(
   (refresh) => (refresh ? '/intern/mitglieder?refresh=true' : '/intern/mitglieder'),
   {

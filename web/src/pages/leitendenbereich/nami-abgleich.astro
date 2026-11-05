@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../layouts/StaffLayout.astro';
+import NamiAbgleich from '../../components/nami-abgleich/NamiAbgleich.svelte';
+---
+
+<StaffLayout>
+  <NamiAbgleich client:only="svelte" />
+</StaffLayout>

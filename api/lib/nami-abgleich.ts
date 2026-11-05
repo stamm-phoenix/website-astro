@@ -1,0 +1,333 @@
+/**
+ * Finds the same people in NaMi and in the CampFlow member list and compares their fields
+ * (`docs/nami-abgleich.md`). Pure functions; nothing is stored or written.
+ */
+import { stufenFromGroups } from './campflow-groups';
+import type { CampflowPerson } from './campflow';
+import type {
+  AbgleichFeld,
+  AbgleichFeldName,
+  AbgleichPaar,
+  AbgleichPerson,
+  AbgleichVerbindung,
+  NamiAbgleichData,
+} from './nami-abgleich-model';
+import type { NamiMitglied } from './nami-schema';
+
+/** A person of either list with the values the comparison needs, already normalized. */
+interface Eintrag {
+  person: AbgleichPerson;
+  werte: Record<AbgleichFeldName, string>;
+  /** Values compared as sets (e-mail addresses, phone numbers). */
+  mengen: { email: string[]; telefon: string[] };
+}
+
+const LABELS: Record<AbgleichFeldName, string> = {
+  vorname: 'Vorname',
+  nachname: 'Nachname',
+  geburtsdatum: 'Geburtsdatum',
+  geschlecht: 'Geschlecht',
+  mitgliedsnummer: 'Mitgliedsnummer',
+  status: 'Status',
+  eintritt: 'Eintritt',
+  austritt: 'Austritt',
+  stufe: 'Stufe',
+  email: 'E-Mail',
+  telefon: 'Telefon',
+  strasse: 'Straße',
+  plz: 'PLZ',
+  ort: 'Ort',
+};
+
+const FELDER = Object.keys(LABELS) as AbgleichFeldName[];
+
+function text(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : typeof value === 'number' ? String(value) : '';
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+/** A name for matching: lower case, umlauts spelled out, without accents, spaces and dashes. */
+export function nameKey(name: string): string {
+  return name
+    .toLocaleLowerCase('de')
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .normalize('NFKD')
+    .replace(/[^a-z]/g, '');
+}
+
+/** The first of several first names, for „Anna Maria“ against „Anna“. */
+function firstNameKey(name: string): string {
+  return nameKey(name.split(/[\s-]+/)[0] ?? '');
+}
+
+/** Digits without leading zeros, so `0012345` and `12345` are the same number. */
+function nummerKey(value: string): string {
+  return value.replace(/\D/g, '').replace(/^0+/, '');
+}
+
+/** A phone number as digits with a leading 0 instead of +49 or 0049. */
+export function telefonKey(value: string): string {
+  const digits = value.replace(/[^\d+]/g, '');
+  return digits.replace(/^(\+|00)49/, '0').replace(/\D/g, '');
+}
+
+/** A street for comparison: „Hauptstr. 3“ and „Hauptstraße 3“ are the same. */
+export function strasseKey(value: string): string {
+  return value
+    .toLocaleLowerCase('de')
+    .replace(/str\.(?=\s|\d|$)/g, 'straße')
+    .replace(/strasse/g, 'straße')
+    .replace(/\s+/g, '');
+}
+
+function formatDay(day: string | null): string {
+  if (!day) return '';
+  const [year, month, date] = day.split('-');
+  return `${date}.${month}.${year}`;
+}
+
+const GESCHLECHT: Record<string, string> = {
+  männlich: 'männlich',
+  m: 'männlich',
+  male: 'männlich',
+  weiblich: 'weiblich',
+  f: 'weiblich',
+  w: 'weiblich',
+  female: 'weiblich',
+  divers: 'divers',
+  d: 'divers',
+  diverse: 'divers',
+};
+
+function geschlecht(value: string): string {
+  return GESCHLECHT[value.toLocaleLowerCase('de')] ?? value;
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))].sort();
+}
+
+/** A NaMi member as an entry; active means status „Aktiv“. */
+export function namiEintrag(mitglied: NamiMitglied): Eintrag {
+  const aktiv = mitglied.status === 'Aktiv';
+  const stufe = stufenFromGroups([mitglied.stufe])[0] ?? '';
+  const email = uniqueSorted(
+    [mitglied.email, mitglied.emailVertretungsberechtigter].map((e) => e.toLowerCase())
+  );
+  const telefon = uniqueSorted(mitglied.telefon.map(telefonKey));
+  return {
+    person: {
+      id: String(mitglied.id),
+      vorname: mitglied.vorname,
+      nachname: mitglied.nachname,
+      geburtsdatum: mitglied.geburtsdatum,
+      mitgliedsnummer: mitglied.mitgliedsnummer,
+      aktiv,
+      gruppen: [mitglied.stufe || mitglied.mitgliedstyp].filter(Boolean),
+    },
+    werte: {
+      vorname: mitglied.vorname,
+      nachname: mitglied.nachname,
+      geburtsdatum: formatDay(mitglied.geburtsdatum),
+      geschlecht: geschlecht(mitglied.geschlecht),
+      mitgliedsnummer: mitglied.mitgliedsnummer,
+      status: aktiv ? 'Mitglied' : 'Ausgetreten',
+      eintritt: formatDay(mitglied.eintritt),
+      austritt: aktiv ? '' : formatDay(mitglied.austritt),
+      stufe,
+      email: email.join(', '),
+      telefon: mitglied.telefon.join(', '),
+      strasse: mitglied.adresse?.strasse ?? '',
+      plz: mitglied.adresse?.plz ?? '',
+      ort: mitglied.adresse?.ort ?? '',
+    },
+    mengen: { email, telefon },
+  };
+}
+
+function day(value: unknown): string | null {
+  const t = text(value);
+  return /^\d{4}-\d{2}-\d{2}/.test(t) ? t.slice(0, 10) : null;
+}
+
+/** A CampFlow person as an entry; active means not left by `today` (`YYYY-MM-DD`, Berlin). */
+export function campflowEintrag(person: CampflowPerson, today: string): Eintrag {
+  const name = record(person.name);
+  const address = record(person.address);
+  const austritt = day(person.leave_date);
+  const aktiv = austritt === null || austritt > today;
+  const groups = Array.isArray(person.group_names) ? person.group_names.map(text) : [];
+  const ccEmails = Array.isArray(person.cc_emails) ? person.cc_emails.map(text) : [];
+  const email = uniqueSorted([text(person.primary_email), ...ccEmails].map((e) => e.toLowerCase()));
+  const phones = Array.isArray(person.phone_numbers)
+    ? person.phone_numbers.map((phone) => text(record(phone).number)).filter(Boolean)
+    : [];
+  const vorname = text(name.first_name);
+  const nachname = text(name.last_name);
+  return {
+    person: {
+      id: person.id,
+      vorname,
+      nachname,
+      geburtsdatum: day(person.birthdate),
+      mitgliedsnummer: text(person.membership_number),
+      aktiv,
+      gruppen: groups.filter(Boolean),
+    },
+    werte: {
+      vorname,
+      nachname,
+      geburtsdatum: formatDay(day(person.birthdate)),
+      geschlecht: geschlecht(text(person.gender)),
+      mitgliedsnummer: text(person.membership_number),
+      status: aktiv ? 'Mitglied' : 'Ausgetreten',
+      eintritt: formatDay(day(person.join_date)),
+      austritt: aktiv ? '' : formatDay(austritt),
+      stufe: stufenFromGroups(groups).join(', '),
+      email: email.join(', '),
+      telefon: phones.join(', '),
+      strasse: text(address.street),
+      plz: text(address.postcode),
+      ort: text(address.city),
+    },
+    mengen: { email, telefon: uniqueSorted(phones.map(telefonKey)) },
+  };
+}
+
+function sameSet(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+/** Whether a field has the same value in both lists, ignoring spelling that means the same. */
+function gleich(feld: AbgleichFeldName, nami: Eintrag, campflow: Eintrag): boolean {
+  const a = nami.werte[feld];
+  const b = campflow.werte[feld];
+  switch (feld) {
+    case 'vorname':
+    case 'nachname':
+      return nameKey(a) === nameKey(b);
+    case 'mitgliedsnummer':
+      return nummerKey(a) === nummerKey(b);
+    case 'email':
+    case 'telefon':
+      return sameSet(nami.mengen[feld], campflow.mengen[feld]);
+    case 'strasse':
+      return strasseKey(a) === strasseKey(b);
+    case 'ort':
+      return (
+        a.toLocaleLowerCase('de').replace(/\s+/g, '') ===
+        b.toLocaleLowerCase('de').replace(/\s+/g, '')
+      );
+    case 'stufe':
+      // Leitende have no Stufe in NaMi; only a Stufe NaMi names is checked
+      return a === '' || b.split(', ').includes(a);
+    case 'austritt':
+      // A leave counts once the status differs; its day is only compared when both have one
+      return a === '' || b === '' || a === b;
+    default:
+      return a === b;
+  }
+}
+
+export function vergleiche(nami: Eintrag, campflow: Eintrag): AbgleichFeld[] {
+  return FELDER.map((feld) => ({
+    feld,
+    label: LABELS[feld],
+    nami: nami.werte[feld],
+    campflow: campflow.werte[feld],
+    gleich: gleich(feld, nami, campflow),
+  }));
+}
+
+type Schluessel = (eintrag: Eintrag) => string | null;
+
+const SCHRITTE: [AbgleichVerbindung, Schluessel][] = [
+  ['mitgliedsnummer', (e) => nummerKey(e.person.mitgliedsnummer) || null],
+  [
+    'name-geburtsdatum',
+    (e) =>
+      e.person.geburtsdatum
+        ? `${nameKey(e.person.nachname)}|${firstNameKey(e.person.vorname)}|${e.person.geburtsdatum}`
+        : null,
+  ],
+  [
+    'geburtsdatum',
+    (e) =>
+      e.person.geburtsdatum ? `${nameKey(e.person.nachname)}|${e.person.geburtsdatum}` : null,
+  ],
+  [
+    'geburtsdatum',
+    (e) =>
+      e.person.geburtsdatum ? `${firstNameKey(e.person.vorname)}|${e.person.geburtsdatum}` : null,
+  ],
+  ['name', (e) => `${nameKey(e.person.nachname)}|${firstNameKey(e.person.vorname)}`],
+];
+
+/** Entries by key, only keys that exactly one entry has. */
+function eindeutig(eintraege: Eintrag[], schluessel: Schluessel): Map<string, Eintrag> {
+  const counts = new Map<string, Eintrag[]>();
+  for (const eintrag of eintraege) {
+    const key = schluessel(eintrag);
+    if (!key || key.startsWith('|') || key.endsWith('|')) continue;
+    counts.set(key, [...(counts.get(key) ?? []), eintrag]);
+  }
+  return new Map([...counts].filter(([, list]) => list.length === 1).map(([k, [e]]) => [k, e]));
+}
+
+function sortiere<T extends { nachname: string; vorname: string }>(list: T[]): T[] {
+  return list.sort(
+    (a, b) => a.nachname.localeCompare(b.nachname, 'de') || a.vorname.localeCompare(b.vorname, 'de')
+  );
+}
+
+/**
+ * Links each NaMi member to at most one CampFlow person. The steps run from the surest key to the
+ * weakest, each only among those still unlinked, and link only where the key is unique on both
+ * sides, so two siblings with the same birthday never get swapped.
+ */
+export function gleicheAb(
+  mitglieder: NamiMitglied[],
+  personen: CampflowPerson[],
+  today: string,
+  loadedAt: { nami: Date; campflow: Date }
+): NamiAbgleichData {
+  let nami = mitglieder.map(namiEintrag);
+  let campflow = personen.map((person) => campflowEintrag(person, today));
+  const paare: AbgleichPaar[] = [];
+
+  for (const [verbindung, schluessel] of SCHRITTE) {
+    const kandidaten = eindeutig(campflow, schluessel);
+    const verbunden = new Set<Eintrag>();
+    for (const [key, eintrag] of eindeutig(nami, schluessel)) {
+      const partner = kandidaten.get(key);
+      if (!partner) continue;
+      paare.push({
+        nami: eintrag.person,
+        campflow: partner.person,
+        verbindung,
+        felder: vergleiche(eintrag, partner),
+      });
+      verbunden.add(eintrag).add(partner);
+    }
+    nami = nami.filter((e) => !verbunden.has(e));
+    campflow = campflow.filter((e) => !verbunden.has(e));
+  }
+
+  return {
+    namiLoadedAt: loadedAt.nami.toISOString(),
+    campflowLoadedAt: loadedAt.campflow.toISOString(),
+    paare: paare.sort(
+      (a, b) =>
+        a.nami.nachname.localeCompare(b.nami.nachname, 'de') ||
+        a.nami.vorname.localeCompare(b.nami.vorname, 'de')
+    ),
+    nurNami: sortiere(nami.map((e) => e.person)),
+    nurCampflow: sortiere(campflow.map((e) => e.person)),
+  };
+}
