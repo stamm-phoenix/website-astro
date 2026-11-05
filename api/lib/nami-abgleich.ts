@@ -68,9 +68,13 @@ function firstNameKey(name: string): string {
   return nameKey(name.split(/[\s-]+/)[0] ?? '');
 }
 
-/** Digits without leading zeros, so `0012345` and `12345` are the same number. */
+/**
+ * A Mitgliedsnummer for comparison: a plain number without leading zeros (`0012345` = `12345`),
+ * anything else as written without spaces, so `M123` never meets `123`.
+ */
 function nummerKey(value: string): string {
-  return value.replace(/\D/g, '').replace(/^0+/, '');
+  const compact = value.replace(/\s+/g, '').toUpperCase();
+  return /^\d+$/.test(compact) ? compact.replace(/^0+(?=\d)/, '') : compact;
 }
 
 /** A phone number as digits with a leading 0 instead of +49 or 0049. */
