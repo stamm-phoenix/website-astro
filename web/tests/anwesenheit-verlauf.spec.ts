@@ -12,7 +12,8 @@ test('the attendance history shows names and opens the chosen date', async ({ pa
   const overview = (await (
     await page.request.get('/api/intern/anwesenheit')
   ).json()) as AnwesenheitOverview;
-  const meeting = overview.meetings.find((m) => m.stufe === 'Wölflinge')!;
+  // Other test files may have saved a newer meeting on this worker's mock server.
+  const meeting = overview.meetings.find((m) => m.stufe === 'Wölflinge' && m.date === daysAgo(7))!;
   await page.goto('/leitendenbereich/anwesenheit');
   await page.getByRole('button', { name: 'Verlauf & Statistik', exact: true }).click();
   const row = page.locator(`[data-meeting-date="${meeting.date}"]`);
