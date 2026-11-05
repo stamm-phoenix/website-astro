@@ -1,10 +1,13 @@
 import type { BlogWorkflow } from './blog-workflow-model';
-import type { ClientPrincipal } from './staff-auth';
+interface WorkflowActor {
+  userId: string;
+  userDetails: string;
+}
 import { ValidationError } from './validation/errors';
 export function nextBlogWorkflow(
   current: BlogWorkflow,
   action: 'submit' | 'return' | 'approve' | 'publish' | 'unpublish',
-  actor: ClientPrincipal,
+  actor: WorkflowActor,
   lastEditor: string,
   feedback?: string
 ): BlogWorkflow {
