@@ -52,7 +52,10 @@
       bind:value={packingText}></textarea>
   {/snippet}
 </FormField>
-<fieldset>
+<fieldset
+  data-form-error-group
+  aria-describedby={errors.downloadIds ? 'aktion-downloads-error' : undefined}
+>
   <legend class="form-label">Unterlagen</legend>
   <LoadState
     data={files.state.data}
@@ -62,7 +65,13 @@
   >
     {#each files.state.data ?? [] as file (file.id)}
       <label class="flex min-h-11 items-center gap-3 text-sm break-all">
-        <input type="checkbox" value={file.id} bind:group={downloadIds} />{file.fileName}
+        <input
+          type="checkbox"
+          aria-invalid={errors.downloadIds ? 'true' : undefined}
+          aria-describedby={errors.downloadIds ? 'aktion-downloads-error' : undefined}
+          value={file.id}
+          bind:group={downloadIds}
+        />{file.fileName}
       </label>
     {/each}
     {#if files.state.data?.length === 0}<p class="text-sm text-neutral-700">
@@ -70,9 +79,17 @@
       </p>{/if}
     {#each downloadIds.filter((id) => files.state.data && !files.state.data.some((file) => file.id === id)) as id (id)}
       <label class="flex min-h-11 items-center gap-3 text-sm text-neutral-700">
-        <input type="checkbox" value={id} bind:group={downloadIds} />Datei nicht mehr verfügbar
+        <input
+          type="checkbox"
+          aria-invalid={errors.downloadIds ? 'true' : undefined}
+          aria-describedby={errors.downloadIds ? 'aktion-downloads-error' : undefined}
+          value={id}
+          bind:group={downloadIds}
+        />Datei nicht mehr verfügbar
       </label>
     {/each}
   </LoadState>
-  {#if errors.downloadIds}<p role="alert" class="text-sm text-danger">{errors.downloadIds}</p>{/if}
+  {#if errors.downloadIds}<p id="aktion-downloads-error" role="alert" class="text-sm text-danger">
+      {errors.downloadIds}
+    </p>{/if}
 </fieldset>
