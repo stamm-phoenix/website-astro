@@ -2,6 +2,11 @@ import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 test.use({ viewport: { width: 390, height: 844 } });
 
+test.beforeEach(async ({ request, baseURL }) => {
+  const response = await request.post(`${baseURL}/api/intern/pflege/content-review/reset`);
+  expect(response.ok()).toBe(true);
+});
+
 test('review overview filters and marks one content item on a phone', async ({ page }) => {
   await page.goto('/leitendenbereich/redaktion');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Redaktionsübersicht');
@@ -52,7 +57,5 @@ test('failed review keeps the item and offers reload', async ({ page }) => {
   await page.unroute('**/api/intern/pflege/content-review/*/*');
   await page.getByRole('button', { name: 'Als geprüft markieren', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
-  await expect(
-    page.getByRole('status').filter({ hasText: 'als geprüft markiert.' })
-  ).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'als geprüft markiert.' })).toBeVisible();
 });

@@ -9,6 +9,7 @@ export const STAFF_USAGE_MODULES = [
   '/leitendenbereich/qr-code',
   '/leitendenbereich/problemmeldungen',
   '/leitendenbereich/fragen-und-antworten',
+  '/leitendenbereich/redaktion',
   '/leitendenbereich/anwesenheit',
   '/leitendenbereich/schnupperanfragen',
   '/leitendenbereich/mitglieder',
