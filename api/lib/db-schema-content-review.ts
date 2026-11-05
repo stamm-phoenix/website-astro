@@ -12,6 +12,7 @@ export interface ContentReviewTable {
   aktion_id: ColumnType<number | null, number | null | undefined, number | null>;
   download_id: ColumnType<string | null, string | null | undefined, string | null>;
   source_version: Buffer;
+  source_hash: ColumnType<Buffer | null, Buffer | null | undefined, Buffer | null>;
   reviewed_at: Date;
   reviewed_by: string;
 }

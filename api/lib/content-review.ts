@@ -1,3 +1,4 @@
+import { blogContentHash } from './content-review-blog';
 import { resolveReviewTitles, type ReviewWithCampflow } from './content-review-titles';
 import { sql } from 'kysely';
 import {
@@ -44,6 +45,8 @@ interface ReviewRow {
   reviewed_at: Date | null;
   reviewed_by: string | null;
   source_version: Buffer | null;
+  source_hash: Buffer | null;
+  current_hash: Buffer | null;
   campflow: string | null;
 }
 async function listKind(
@@ -54,7 +57,8 @@ async function listKind(
   const domain = REVIEW_DOMAINS[kind];
   const { rows } = await sql<ReviewRow>`
     SELECT c.id, ${sql.ref(`c.${domain.title}`)} AS title, c.version, c.updated_at, c.updated_by,
-      r.reviewed_at, r.reviewed_by, r.source_version,
+      r.reviewed_at, r.reviewed_by, r.source_version, r.source_hash,
+      ${kind === 'blog' ? blogContentHash() : sql`NULL`} AS current_hash,
       ${kind === 'aktion' ? sql`c.campflow_id` : sql`NULL`} AS campflow
     FROM ${sql.table(domain.table)} c
     LEFT JOIN content.review r ON r.kind = ${kind} AND r.content_id = CAST(c.id AS nvarchar(128))
@@ -68,7 +72,11 @@ async function listKind(
     updatedBy: row.updated_by,
     reviewedAt: row.reviewed_at?.toISOString() ?? null,
     reviewedBy: row.reviewed_by,
-    changedSinceReview: row.source_version !== null && !row.source_version.equals(row.version),
+    changedSinceReview:
+      kind === 'blog'
+        ? row.reviewed_at !== null &&
+          (row.source_hash === null || !row.source_hash.equals(row.current_hash!))
+        : row.source_version !== null && !row.source_version.equals(row.version),
     etag: toVersion(row.version),
     campflowOwned: row.campflow !== null,
     campflowId: row.campflow,
@@ -99,6 +107,16 @@ export async function markContentReviewed(
     if (!rows[0].version.equals(version)) throw new VersionConflictError();
     const values = {
       source_version: version,
+      source_hash:
+        kind === 'blog'
+          ? (
+              await trx
+                .selectFrom('content.blog_post as c')
+                .select(blogContentHash().as('hash'))
+                .where('c.id', '=', Number(id))
+                .executeTakeFirstOrThrow()
+            ).hash
+          : null,
       reviewed_at: sql<Date>`SYSUTCDATETIME()`,
       reviewed_by: actor,
     };

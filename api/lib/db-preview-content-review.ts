@@ -1,3 +1,4 @@
+import { blogContentHash } from './content-review-blog';
 import { sql } from 'kysely';
 import { inTransaction, lockResource } from './db';
 import { REVIEW_DOMAINS, reviewReference } from './content-review';
@@ -30,6 +31,16 @@ export async function seedPreviewContentReviews(): Promise<void> {
               content_id: contentId,
               ...reviewReference(kind, contentId),
               source_version: row.version,
+              source_hash:
+                kind === 'blog'
+                  ? (
+                      await trx
+                        .selectFrom('content.blog_post as c')
+                        .select(blogContentHash().as('hash'))
+                        .where('c.id', '=', Number(contentId))
+                        .executeTakeFirstOrThrow()
+                    ).hash
+                  : null,
               reviewed_at:
                 index === 0
                   ? sql<Date>`SYSUTCDATETIME()`

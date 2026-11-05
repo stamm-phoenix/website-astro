@@ -1,3 +1,4 @@
+import { addBlogImage, saveBlogImages, removeBlogImage } from '../lib/blog-list';
 import { seedPreviewContentReviews } from '../lib/db-preview-content-review';
 import { deleteDownloadRow } from '../lib/download-delete';
 import { HttpRequest, InvocationContext } from '@azure/functions';
@@ -185,6 +186,7 @@ dbTest(
     const items = await getContentReviews();
     assert.deepEqual(items, seeded);
     assert.equal(items.length, 6);
+    assert.ok(items.every((item) => !item.changedSinceReview));
     assert.ok(items.every((item) => item.reviewedBy === 'Redaktion (Testdaten)'));
     for (const item of items) {
       assert.equal(item.updatedBy, `${item.kind}-editor`);
@@ -260,3 +262,83 @@ dbTest('deleting a linked download invalidates action review and stale etag', as
     VersionConflictError
   );
 });
+
+dbTest(
+  'blog reviews ignore publishing but detect text and image changes and reject stale etags',
+  async () => {
+    const db = getDb();
+    const post = await db
+      .insertInto('content.blog_post')
+      .values({
+        title: 'Fingerprint',
+        post_date: '2026-11-01',
+        content: '<p>Original</p>',
+        published: false,
+        updated_by: 'editor',
+      })
+      .output('inserted.id')
+      .executeTakeFirstOrThrow();
+    const id = String(post.id);
+    const current = async () =>
+      (await getContentReviews()).find((item) => item.kind === 'blog' && item.id === id)!;
+    const initial = await current();
+    await markContentReviewed('blog', id, initial.etag, 'reviewer');
+    await db
+      .updateTable('content.blog_post')
+      .set({ published: true })
+      .where('id', '=', post.id)
+      .execute();
+    assert.equal((await current()).changedSinceReview, false);
+    await assert.rejects(
+      markContentReviewed('blog', id, initial.etag, 'reviewer'),
+      VersionConflictError
+    );
+    for (const change of [
+      { title: 'Changed title' },
+      { post_date: '2026-11-02' },
+      { content: '<p>Changed</p>' },
+    ]) {
+      await db.updateTable('content.blog_post').set(change).where('id', '=', post.id).execute();
+      assert.equal((await current()).changedSinceReview, true);
+      await markContentReviewed('blog', id, (await current()).etag, 'reviewer');
+    }
+    let images = await addBlogImage(
+      id,
+      { file: 'first', alt: 'First', width: 800, height: 600 },
+      (await current()).etag,
+      'editor'
+    );
+    assert.equal((await current()).changedSinceReview, true);
+    await markContentReviewed('blog', id, images.etag, 'reviewer');
+    for (const change of [{ alt: 'Changed' }, { width: 900 }, { height: 700 }]) {
+      images = await saveBlogImages(
+        id,
+        [{ ...images.images[0], ...change }],
+        images.etag,
+        'editor'
+      );
+      assert.equal((await current()).changedSinceReview, true);
+      await markContentReviewed('blog', id, images.etag, 'reviewer');
+    }
+    images = await addBlogImage(
+      id,
+      { file: 'second', alt: 'Second', width: 800, height: 600 },
+      images.etag,
+      'editor'
+    );
+    await markContentReviewed('blog', id, images.etag, 'reviewer');
+    images = await saveBlogImages(id, [...images.images].reverse(), images.etag, 'editor');
+    assert.equal((await current()).changedSinceReview, true);
+    await markContentReviewed('blog', id, images.etag, 'reviewer');
+    await removeBlogImage(id, 'second', images.etag, 'editor');
+    assert.equal((await current()).changedSinceReview, true);
+    await markContentReviewed('blog', id, (await current()).etag, 'reviewer');
+    await db
+      .updateTable('content.review')
+      .set({ source_hash: null })
+      .where('kind', '=', 'blog')
+      .where('content_id', '=', id)
+      .execute();
+    assert.equal((await current()).changedSinceReview, true);
+  }
+);
