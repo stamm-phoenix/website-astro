@@ -12,8 +12,9 @@
     path: string;
     name: string;
     uploadError?: string;
+    oncreated?: () => void;
   }
-  let { path = $bindable(), name = $bindable(), uploadError }: Props = $props();
+  let { path = $bindable(), name = $bindable(), uploadError, oncreated }: Props = $props();
   let saving = $state(false);
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
@@ -45,6 +46,7 @@
       if (mounted && path === parent && name === originalName) {
         path = folder.path;
         name = '';
+        oncreated?.();
         success = `Ordner „${folderName}“ erstellt und geöffnet.`;
       }
       await Promise.all([loadFotoFolder(parent), loadFotoFolder(folder.path)]);
