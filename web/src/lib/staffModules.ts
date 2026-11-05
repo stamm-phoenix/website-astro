@@ -132,6 +132,13 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M4 21V4M4 4h13l-2 4 2 4H4',
   },
   {
+    href: '/leitendenbereich/redaktion',
+    title: 'Redaktionsübersicht',
+    description: 'Öffentliche Inhalte prüfen und ältere Prüfungen finden.',
+    keywords: ['website', 'prüfung', 'redaktion'],
+    icon: 'M9 12l2 2 4-4M4 4h16v16H4z',
+  },
+  {
     href: '/leitendenbereich/fragen-und-antworten',
     title: 'Fragen & Antworten',
     description: 'Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten.',
@@ -533,6 +540,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
     id: 'website',
     title: 'Website pflegen',
     modules: byPath(
+      'redaktion',
       'gruppenstunden',
       'gruppenstunden-hinweise',
       'leitende',

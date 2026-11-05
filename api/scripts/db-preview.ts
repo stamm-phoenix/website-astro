@@ -1,3 +1,4 @@
+import { seedPreviewContentReviews } from '../lib/db-preview-content-review';
 import { seedPreviewAktionen } from '../lib/db-preview-aktionen';
 /**
  * The database (`website-pr-<number>`) and blob container (`pr-<number>` in the preview storage
@@ -176,6 +177,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewBelegeCampflow();
       await seedPreviewDownloads();
       await seedPreviewAktionDownloads();
+      await seedPreviewContentReviews();
       await seedPreviewEssensplanung();
       await seedPreviewEssensplanungPlanung();
       await seedPreviewEssensplanungGerichte();

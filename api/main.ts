@@ -1,3 +1,4 @@
+import './endpoints/content-review-routes';
 import { ProtokollCutoverStatus } from './endpoints/protokoll-cutover-status';
 import {
   AufgabenCollection,
