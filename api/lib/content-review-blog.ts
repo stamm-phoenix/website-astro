@@ -9,9 +9,9 @@ export function blogContentHash(): RawBuilder<Buffer> {
   return sql<Buffer>`HASHBYTES('SHA2_256', (
     SELECT c.title, CONVERT(char(10), c.post_date, 23) AS post_date, c.content,
       JSON_QUERY((
-        SELECT i.file, i.alt, i.position, i.width, i.height
+        SELECT i.[file], i.alt, i.[position], i.width, i.height
         FROM content.blog_image i WHERE i.post_id = c.id
-        ORDER BY i.position, i.file
+        ORDER BY i.[position], i.[file]
         FOR JSON PATH, INCLUDE_NULL_VALUES
       )) AS images
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES
