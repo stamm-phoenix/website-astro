@@ -44,6 +44,23 @@ function campflowErrorResponse(error: CampflowError): HttpResponseInit {
 }
 
 /**
+ * How long the answer waits for the CampFlow member list, whose pages load one after another,
+ * each with its own time limit. NaMi keeps to its own budget (`nami.ts`); both stay well below
+ * the 45 seconds a request to the Static Web App may take. The shared load goes on and serves
+ * the next request.
+ */
+const CAMPFLOW_BUDGET_MS = 35_000;
+
+/** `promise`, or the error of `timeout` once the budget is used up. */
+function withinBudget<T>(promise: Promise<T>, timeout: () => Error): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(timeout()), CAMPFLOW_BUDGET_MS);
+  });
+  return Promise.race([promise, expired]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Compares the members in NaMi with the CampFlow member list, read-only and only for the teams
  * Admin and Vorstand (`docs/nami-abgleich.md`). Both lists are shared for a while;
  * `?refresh=true` reads both again. Nothing is stored and nothing is written to NaMi or CampFlow.
@@ -58,7 +75,10 @@ export async function GetInternNamiAbgleichEndpoint(
   const refresh = request.query.get('refresh') === 'true';
   const [nami, campflow] = await Promise.allSettled([
     getNamiMitglieder(refresh),
-    getCampflowMembersWithTime(refresh),
+    withinBudget(
+      getCampflowMembersWithTime(refresh),
+      () => new CampflowError(504, 'CampFlow member list took too long')
+    ),
   ]);
   for (const result of [nami, campflow]) {
     if (result.status === 'fulfilled') continue;

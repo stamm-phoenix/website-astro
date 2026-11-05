@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { HttpRequest } from '@azure/functions';
 import * as campflow from '../lib/campflow';
+import * as nami from '../lib/nami';
 import { loadNamiMitglieder, NamiError, resetNamiLoad } from '../lib/nami';
 import { GetInternNamiAbgleichEndpoint } from '../endpoints/intern-nami-abgleich';
 
@@ -217,4 +218,19 @@ test('only the teams Admin and Vorstand see the comparison', async (t) => {
   // Without a NaMi login configured the answer names the login, not a server error
   assert.equal(allowed.status, 502);
   assert.equal((allowed.jsonBody as { code: string }).code, 'NAMI_FORBIDDEN');
+});
+
+test('a CampFlow list that takes too long ends the comparison in time', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(nami, 'getNamiMitglieder', async () => ({ value: [], loadedAt: new Date() }));
+  // Pages that answer one after another, each after 18 seconds, never finish in time
+  t.mock.method(campflow, 'getCampflowMembersWithTime', () => new Promise(() => {}));
+
+  const answer = GetInternNamiAbgleichEndpoint(request(['team_vorstand']));
+  for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+  t.mock.timers.tick(35_000);
+  const response = await answer;
+
+  assert.equal(response.status, 502);
+  assert.equal((response.jsonBody as { code: string }).code, 'CAMPFLOW_UNAVAILABLE');
 });
