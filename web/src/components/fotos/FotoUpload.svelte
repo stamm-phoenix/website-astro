@@ -2,7 +2,7 @@
   import { scrollBehavior } from '../../lib/motion';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
-  import FormField from '../pflege/FormField.svelte';
+  import FotoOrdnerErstellen from './FotoOrdnerErstellen.svelte';
   import FotoAktionWahl from './FotoAktionWahl.svelte';
   import FotoAuswahlVorschau from './FotoAuswahlVorschau.svelte';
   import FotoFortschritt from './FotoFortschritt.svelte';
@@ -213,17 +213,7 @@
         {/if}
       {:else}
         <FotoOrdnerWahl bind:path={draft.folder} pending={cleanSub ? [cleanSub] : []} />
-        <FormField id="foto-unterordner" label="Neuer Ordner darin" optional error={errors.ordner}>
-          {#snippet children(attrs)}
-            <input
-              {...attrs}
-              class="form-input"
-              autocomplete="off"
-              placeholder="z. B. Anna"
-              bind:value={draft.subfolder}
-            />
-          {/snippet}
-        </FormField>
+        <FotoOrdnerErstellen bind:path={draft.folder} bind:name={draft.subfolder} />
       {/if}
     </section>
 
