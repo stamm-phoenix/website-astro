@@ -34,12 +34,12 @@
       {#if feld.gleich === false}<span class="sr-only">(unterschiedlich)</span>{/if}
     </dt>
     <dd class="break-words" class:text-danger={feld.gleich === false}>
-      <span class="text-neutral-700 sm:sr-only">NaMi: </span>{feld.gleich === null
+      <span class="mr-1 text-neutral-700 sm:sr-only">NaMi:</span>{feld.gleich === null
         ? 'Nicht geladen'
         : wert(feld.nami)}
     </dd>
     <dd class="break-words" class:text-danger={feld.gleich === false}>
-      <span class="text-neutral-700 sm:sr-only">CampFlow: </span>{wert(feld.campflow)}
+      <span class="mr-1 text-neutral-700 sm:sr-only">CampFlow:</span>{wert(feld.campflow)}
     </dd>
   </div>
 {/snippet}
