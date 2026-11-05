@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LeitendeNameField from './LeitendeNameField.svelte';
   import LeaderAvatar from '../LeaderAvatar.svelte';
   import { canvasToJpeg } from '../../lib/image';
   import ReloadButton from './ReloadButton.svelte';
@@ -425,17 +426,7 @@
       </section>
     {/if}
 
-    <FormField id="ld-name" label="Name" error={errors.name}>
-      {#snippet children(attrs)}
-        <input
-          {...attrs}
-          class="form-input"
-          maxlength="100"
-          autocomplete="off"
-          bind:value={form!.name}
-        />
-      {/snippet}
-    </FormField>
+    <LeitendeNameField bind:value={form.name} error={errors.name} suggest={!form.id} />
 
     <fieldset>
       <legend class="form-label float-left">Teams</legend>
