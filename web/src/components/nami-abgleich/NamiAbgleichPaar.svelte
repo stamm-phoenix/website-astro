@@ -1,6 +1,7 @@
 <script lang="ts">
   import StatusLabel from '../ui/StatusLabel.svelte';
   import {
+    nichtGeladen,
     personName,
     unsicher,
     unterschiede,
@@ -16,7 +17,8 @@
 
   let alle = $state(false);
   const anzahl = $derived(unterschiede(paar));
-  const felder = $derived(alle ? paar.felder : paar.felder.filter((feld) => !feld.gleich));
+  const offen = $derived(nichtGeladen(paar));
+  const felder = $derived(alle ? paar.felder : paar.felder.filter((feld) => feld.gleich !== true));
   const namiName = $derived(personName(paar.nami));
   const campflowName = $derived(personName(paar.campflow));
 
@@ -29,12 +31,14 @@
   <div class="py-2 sm:grid sm:grid-cols-[9rem_1fr_1fr] sm:gap-4">
     <dt class="font-semibold text-neutral-700">
       {feld.label}
-      {#if !feld.gleich}<span class="sr-only">(unterschiedlich)</span>{/if}
+      {#if feld.gleich === false}<span class="sr-only">(unterschiedlich)</span>{/if}
     </dt>
-    <dd class="break-words" class:text-danger={!feld.gleich}>
-      <span class="text-neutral-700 sm:sr-only">NaMi: </span>{wert(feld.nami)}
+    <dd class="break-words" class:text-danger={feld.gleich === false}>
+      <span class="text-neutral-700 sm:sr-only">NaMi: </span>{feld.gleich === null
+        ? 'Nicht geladen'
+        : wert(feld.nami)}
     </dd>
-    <dd class="break-words" class:text-danger={!feld.gleich}>
+    <dd class="break-words" class:text-danger={feld.gleich === false}>
       <span class="text-neutral-700 sm:sr-only">CampFlow: </span>{wert(feld.campflow)}
     </dd>
   </div>
@@ -58,6 +62,8 @@
           tone="danger"
           dot
         />
+      {:else if offen > 0}
+        <StatusLabel label="Adresse aus NaMi nicht geladen" tone="warning" dot />
       {:else}
         <StatusLabel label="Stimmt überein" tone="success" />
       {/if}

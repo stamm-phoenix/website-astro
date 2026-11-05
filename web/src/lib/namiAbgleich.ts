@@ -38,12 +38,17 @@ export const VERBINDUNG_LABEL: Record<AbgleichVerbindung, string> = {
 };
 
 export function unterschiede(paar: AbgleichPaar): number {
-  return paar.felder.filter((feld) => !feld.gleich).length;
+  return paar.felder.filter((feld) => feld.gleich === false).length;
 }
 
-/** A pair to check: it has differences or was found by a weak key. */
+/** Fields one list could not deliver; they are neither a difference nor a match. */
+export function nichtGeladen(paar: AbgleichPaar): number {
+  return paar.felder.filter((feld) => feld.gleich === null).length;
+}
+
+/** A pair to check: it has differences, fields not loaded or was found by a weak key. */
 function zuPruefen(paar: AbgleichPaar): boolean {
-  return unterschiede(paar) > 0 || unsicher(paar.verbindung);
+  return unterschiede(paar) > 0 || nichtGeladen(paar) > 0 || unsicher(paar.verbindung);
 }
 
 function fold(value: string): string {

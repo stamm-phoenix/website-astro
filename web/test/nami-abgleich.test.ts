@@ -75,3 +75,12 @@ test('the search finds names in either list and Mitgliedsnummern', () => {
   );
   assert.equal(anzahl(DATA, 'gleich', { suche: 'xyz', ausgetretene: false }), 0);
 });
+
+test('a pair with fields not loaded is to check, not agreeing', () => {
+  const offen = paar('Hans', true, {
+    felder: [{ feld: 'ort', label: 'Ort', nami: '', campflow: 'B', gleich: null }],
+  });
+  const data = { ...DATA, paare: [offen] };
+  assert.equal(paareIn(data, 'unterschiede', OHNE).length, 1);
+  assert.equal(paareIn(data, 'gleich', OHNE).length, 0);
+});

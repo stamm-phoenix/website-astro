@@ -119,6 +119,35 @@ test('a refused or missing login is a NamiError 401', async (t) => {
   );
 });
 
+test('an answer whose body stalls runs into the time limit', async (t) => {
+  process.env.NAMI_USERNAME = '123456';
+  process.env.NAMI_PASSWORD = 'geheim';
+  t.after(() => {
+    delete process.env.NAMI_USERNAME;
+    delete process.env.NAMI_PASSWORD;
+  });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(globalThis, 'fetch', async (_input: string | URL, init: RequestInit = {}) => {
+    // The headers arrive at once, the body never ends until the request is cancelled
+    const body = new ReadableStream({
+      start(controller) {
+        init.signal?.addEventListener('abort', () => controller.error(new Error('aborted')));
+      },
+    });
+    return new Response(body, { status: 200 });
+  });
+
+  const loading = loadNamiMitglieder();
+  const failed = assert.rejects(
+    loading,
+    (error) => error instanceof NamiError && error.status === 504
+  );
+  // Let the request reach the body before the time runs out
+  await new Promise((resolve) => setImmediate(resolve));
+  t.mock.timers.tick(15_000);
+  await failed;
+});
+
 function request(roles: string[]): HttpRequest {
   const principal = {
     identityProvider: 'aad',

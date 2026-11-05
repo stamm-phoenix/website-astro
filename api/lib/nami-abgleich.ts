@@ -20,6 +20,8 @@ interface Eintrag {
   werte: Record<AbgleichFeldName, string>;
   /** Values compared as sets (e-mail addresses, phone numbers). */
   mengen: { email: string[]; telefon: string[] };
+  /** Fields that could not be read, e.g. the address of a NaMi single view that failed. */
+  nichtGeladen: AbgleichFeldName[];
 }
 
 const LABELS: Record<AbgleichFeldName, string> = {
@@ -139,7 +141,7 @@ export function namiEintrag(mitglied: NamiMitglied): Eintrag {
       mitgliedsnummer: mitglied.mitgliedsnummer,
       status: aktiv ? 'Mitglied' : 'Ausgetreten',
       eintritt: formatDay(mitglied.eintritt),
-      austritt: aktiv ? '' : formatDay(mitglied.austritt),
+      austritt: formatDay(mitglied.austritt),
       stufe,
       email: email.join(', '),
       telefon: mitglied.telefon.join(', '),
@@ -148,6 +150,7 @@ export function namiEintrag(mitglied: NamiMitglied): Eintrag {
       ort: mitglied.adresse?.ort ?? '',
     },
     mengen: { email, telefon },
+    nichtGeladen: mitglied.adresse ? [] : ['strasse', 'plz', 'ort'],
   };
 }
 
@@ -188,7 +191,8 @@ export function campflowEintrag(person: CampflowPerson, today: string): Eintrag 
       mitgliedsnummer: text(person.membership_number),
       status: aktiv ? 'Mitglied' : 'Ausgetreten',
       eintritt: formatDay(day(person.join_date)),
-      austritt: aktiv ? '' : formatDay(austritt),
+      // Also a leave planned for later, so a date missing in NaMi shows
+      austritt: formatDay(austritt),
       stufe: stufenFromGroups(groups).join(', '),
       email: email.join(', '),
       telefon: phones.join(', '),
@@ -197,6 +201,7 @@ export function campflowEintrag(person: CampflowPerson, today: string): Eintrag 
       ort: text(address.city),
     },
     mengen: { email, telefon: uniqueSorted(phones.map(telefonKey)) },
+    nichtGeladen: [],
   };
 }
 
@@ -204,8 +209,12 @@ function sameSet(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
-/** Whether a field has the same value in both lists, ignoring spelling that means the same. */
-function gleich(feld: AbgleichFeldName, nami: Eintrag, campflow: Eintrag): boolean {
+/**
+ * Whether a field has the same value in both lists, ignoring spelling that means the same;
+ * `null` when one side could not be read, so it is neither a difference nor a match.
+ */
+function gleich(feld: AbgleichFeldName, nami: Eintrag, campflow: Eintrag): boolean | null {
+  if (nami.nichtGeladen.includes(feld) || campflow.nichtGeladen.includes(feld)) return null;
   const a = nami.werte[feld];
   const b = campflow.werte[feld];
   switch (feld) {
@@ -227,9 +236,6 @@ function gleich(feld: AbgleichFeldName, nami: Eintrag, campflow: Eintrag): boole
     case 'stufe':
       // Leitende have no Stufe in NaMi; only a Stufe NaMi names is checked
       return a === '' || b.split(', ').includes(a);
-    case 'austritt':
-      // A leave counts once the status differs; its day is only compared when both have one
-      return a === '' || b === '' || a === b;
     default:
       return a === b;
   }
