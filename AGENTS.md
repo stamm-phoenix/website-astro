@@ -305,24 +305,23 @@ The site needs no cookie banner and must stay that way. Do not add analytics, tr
 
 ## Before Committing
 
-### Lessons from the UI preview threads
+### Reliable development checks
 
 - Read the actual current component and nearby patterns before redesigning it.
   Keep functional changes from `main` when resolving styling conflicts.
-- Run commands in the documented `web/` or `api/` directory and check the runtime
-  in the executing shell. A background process or an HTTP `000` does not establish
+- Run each command in its documented directory and check the runtime in the
+  executing shell. A background process or an HTTP `000` does not establish
   a working dev server; inspect startup errors and actual readiness.
-- Use the managed test environment for browser/service tests under the global
-  test policy. Stop only test processes you own, by exact PID or process group;
-  `pkill -f` can match the invoking shell.
+- Use an isolated environment when browser or service test setup could disrupt
+  an active development or production session. Stop only test processes started
+  for the current task, by exact PID or process group; broad process-name matching
+  can terminate unrelated processes or the invoking shell.
 - After a push, inspect PR mergeability and a workflow run for the pushed SHA
   before claiming Azure is rebuilding. Distinguish a ready preview from a queued
   or blocked build. Re-test affected behavior after merging upstream changes.
 - Preserve each build/lint command's exit status when logging or filtering output.
-  Treat quota-interrupted workers as incomplete; inspect their actual changes.
-
-These regressions are captured in Yomi's `evals/agent-reliability/` (R10, R20,
-R30 and R38). They supplement the checks below.
+  If a test or delegated task is interrupted, inspect its output and changes
+  before treating it as complete.
 
 1. For frontend/API changes, run the build in the affected package (`web/` or `api/`)
 2. For frontend changes, `bunx astro check` passes (in `web/`)
