@@ -1,4 +1,5 @@
 import type { BlogPostTable, BlogImageTable } from './db-schema-blog';
+import type { ContentReviewTable } from './content-review-model';
 import type { ColumnType, Generated } from 'kysely';
 import type { StaffUsageTable } from './db-schema-staff-usage';
 import type { EssenEinheitenart } from './essen-validation';
@@ -54,6 +55,7 @@ export interface Database {
   'nikolaus.settings': SettingsTable;
   'nikolaus.day': DayTable;
   'nikolaus.audit_log': AuditLogTable;
+  'content.review': ContentReviewTable;
   'content.faq': FaqTable;
   'content.blog_post': BlogPostTable;
   'content.blog_image': BlogImageTable;

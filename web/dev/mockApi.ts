@@ -1,4 +1,5 @@
 import { registerBlogRoutes } from './mockBlog';
+import { mockContentReview } from './mockContentReview';
 import { registerAktionenRoutes } from './mockAktionen';
 import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
@@ -4489,7 +4490,10 @@ export function mockApiMiddleware(): Connect.NextHandleFunction {
       next();
       return;
     }
-    handle(req, res, url).catch((caught: unknown) => {
+    (async () => {
+      if (await mockContentReview(req, res, url.pathname)) return;
+      await handle(req, res, url);
+    })().catch((caught: unknown) => {
       console.error('[mock-api] Handler failed', caught);
       if (!res.headersSent) send(res, error(500, 'MOCK_ERROR', 'Fehler in der Mock-API.'));
       else res.end();
