@@ -31,6 +31,7 @@ export function nextBlogWorkflow(
   }
   if (action === 'publish' && current.state === 'approved')
     return { ...current, state: 'published', publication: event };
-  if (action === 'unpublish' && current.state === 'published') return { state: 'draft' };
+  if (action === 'unpublish' && current.state === 'published')
+    return { ...current, state: 'draft', withdrawn: event };
   return invalid('Diese Aktion ist für den aktuellen Stand nicht möglich. Bitte neu laden.');
 }

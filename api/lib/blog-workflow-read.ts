@@ -6,6 +6,7 @@ const schema = z.object({
   submitted: event.optional(),
   reviewed: event.optional(),
   publication: event.optional(),
+  withdrawn: event.optional(),
   feedback: z.string().optional(),
 });
 /** Lenient on old rows, closed on malformed workflow data. */

@@ -246,49 +246,50 @@
       void save();
     }}
   >
-    <div class="surface space-y-5 p-4 sm:p-6" inert={busy || workflowBusy}>
-      <FormField id="blog-title" label="Titel" error={errors.title}>
-        {#snippet children(attrs)}
-          <input
-            {...attrs}
-            class="form-input"
-            maxlength="255"
-            autocomplete="off"
-            bind:value={form!.title}
-          />
-        {/snippet}
-      </FormField>
-
-      <div class="max-w-sm">
-        <FormField
-          id="blog-date"
-          label="Datum"
-          info="Bestimmt die Reihenfolge im Blog, z. B. der Tag der Aktion."
-          error={errors.date}
-        >
+    <div class="surface space-y-5 p-4 sm:p-6">
+      <div class="space-y-5" inert={busy || workflowBusy}>
+        <FormField id="blog-title" label="Titel" error={errors.title}>
           {#snippet children(attrs)}
-            <input {...attrs} type="date" class="form-input" bind:value={form!.date} />
+            <input
+              {...attrs}
+              class="form-input"
+              maxlength="255"
+              autocomplete="off"
+              bind:value={form!.title}
+            />
+          {/snippet}
+        </FormField>
+
+        <div class="max-w-sm">
+          <FormField
+            id="blog-date"
+            label="Datum"
+            info="Bestimmt die Reihenfolge im Blog, z. B. der Tag der Aktion."
+            error={errors.date}
+          >
+            {#snippet children(attrs)}
+              <input {...attrs} type="date" class="form-input" bind:value={form!.date} />
+            {/snippet}
+          </FormField>
+        </div>
+
+        <FormField id="blog-content" label="Text" labelAs="span" error={errors.content}>
+          {#snippet children(attrs)}
+            <TextEditor
+              bind:this={editor}
+              bind:value={form!.content}
+              format="html"
+              id={attrs.id}
+              labelledBy="blog-content-label"
+              describedBy={attrs['aria-describedby']}
+              invalid={!!attrs['aria-invalid']}
+              features={{ headings: [2, 3], links: true, images: true }}
+              sanitize={toCanonicalBlogHtml}
+              toDisplay={(html) => (postId ? toEditorHtml(html, postId, images) : html)}
+            />
           {/snippet}
         </FormField>
       </div>
-
-      <FormField id="blog-content" label="Text" labelAs="span" error={errors.content}>
-        {#snippet children(attrs)}
-          <TextEditor
-            bind:this={editor}
-            bind:value={form!.content}
-            format="html"
-            id={attrs.id}
-            labelledBy="blog-content-label"
-            describedBy={attrs['aria-describedby']}
-            invalid={!!attrs['aria-invalid']}
-            features={{ headings: [2, 3], links: true, images: true }}
-            sanitize={toCanonicalBlogHtml}
-            toDisplay={(html) => (postId ? toEditorHtml(html, postId, images) : html)}
-          />
-        {/snippet}
-      </FormField>
-
       <StatusNotice {message} kind={messageKind} popup />
       {#if conflict && postId}
         <p class="text-sm text-neutral-700">
@@ -304,7 +305,11 @@
       {/if}
 
       <div class="flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-4">
-        <ActionButton variant="primary" type="submit" disabled={busy || imageBusy !== null}>
+        <ActionButton
+          variant="primary"
+          type="submit"
+          disabled={busy || workflowBusy || imageBusy !== null}
+        >
           {busy
             ? 'Wird gespeichert …'
             : published
@@ -342,7 +347,7 @@
           <ActionButton
             variant="danger"
             type="button"
-            disabled={busy || imageBusy !== null}
+            disabled={busy || workflowBusy || imageBusy !== null}
             onclick={async () => {
               if (
                 await confirmAction({

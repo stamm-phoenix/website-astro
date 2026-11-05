@@ -9,5 +9,6 @@ export interface BlogWorkflow {
   submitted?: BlogWorkflowEvent;
   reviewed?: BlogWorkflowEvent;
   publication?: BlogWorkflowEvent;
+  withdrawn?: BlogWorkflowEvent;
   feedback?: string;
 }
