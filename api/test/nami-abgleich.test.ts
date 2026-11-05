@@ -163,7 +163,38 @@ test('a leave later than today still counts as member in CampFlow', () => {
     TODAY,
     LOADED
   );
-  assert.equal(result.paare[0].felder.find((f) => f.feld === 'status')?.gleich, true);
+  const felder = Object.fromEntries(result.paare[0].felder.map((f) => [f.feld, f]));
+  assert.equal(felder.status.gleich, true);
+  // The planned leave is shown and is a difference, as NaMi has none
+  assert.deepEqual([felder.austritt.nami, felder.austritt.campflow], ['', '31.12.2026']);
+  assert.equal(felder.austritt.gleich, false);
+});
+
+test('a leave date missing in one list is a difference, also when both have left', () => {
+  const result = gleicheAb(
+    [nami(1, 'Anna', 'Muster', { status: 'Inaktiv', austritt: null })],
+    [campflow('per_A', 'Anna', 'Muster', { leave_date: '2025-12-31' })],
+    TODAY,
+    LOADED
+  );
+  const felder = Object.fromEntries(result.paare[0].felder.map((f) => [f.feld, f.gleich]));
+  assert.equal(felder.status, true);
+  assert.equal(felder.austritt, false);
+});
+
+test('an address NaMi could not deliver is neither a difference nor a match', () => {
+  const result = gleicheAb(
+    [nami(1, 'Anna', 'Muster', { adresse: null })],
+    [campflow('per_A', 'Anna', 'Muster', { membership_number: '1' })],
+    TODAY,
+    LOADED
+  );
+  const felder = Object.fromEntries(result.paare[0].felder.map((f) => [f.feld, f.gleich]));
+  assert.deepEqual([felder.strasse, felder.plz, felder.ort], [null, null, null]);
+  assert.equal(
+    result.paare[0].felder.some((f) => f.gleich === false),
+    false
+  );
 });
 
 test('phone numbers and streets are compared without their spelling', () => {

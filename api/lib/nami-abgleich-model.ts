@@ -23,7 +23,8 @@ export interface AbgleichFeld {
   label: string;
   nami: string;
   campflow: string;
-  gleich: boolean;
+  /** `null` when one list could not be read for this field (e.g. a NaMi address). */
+  gleich: boolean | null;
 }
 
 export type AbgleichFeldName =

@@ -35,11 +35,29 @@ interface NamiSession {
   cookie: string;
 }
 
-async function call(url: string, init: RequestInit = {}): Promise<Response> {
+interface NamiAnswer {
+  response: Response;
+  /** The parsed JSON body, `null` when there is none or it is no JSON. */
+  body: unknown;
+}
+
+/**
+ * Sends a request and reads its whole body within the time limit, so an answer whose body
+ * stalls fails like one that never came.
+ */
+async function call(url: string, init: RequestInit = {}): Promise<NamiAnswer> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, redirect: 'manual', signal: controller.signal });
+    const response = await fetch(url, { ...init, redirect: 'manual', signal: controller.signal });
+    const text = await response.text();
+    let body: unknown = null;
+    try {
+      body = text ? (JSON.parse(text) as unknown) : null;
+    } catch {
+      // No JSON; callers treat it as a missing answer
+    }
+    return { response, body };
   } catch (error: unknown) {
     throw new NamiError(
       controller.signal.aborted ? 504 : 502,
@@ -70,10 +88,10 @@ export async function namiLogin(): Promise<NamiSession> {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
     body: new URLSearchParams({ username, password, Login: 'API', redirectTo: './app.jsp' }),
   });
-  let cookie = sessionCookie(startup);
-  let answer: Response = startup;
-  const location = startup.headers.get('location');
-  if (startup.status >= 300 && startup.status < 400 && location) {
+  let cookie = sessionCookie(startup.response);
+  let answer = startup;
+  const location = startup.response.headers.get('location');
+  if (startup.response.status >= 300 && startup.response.status < 400 && location) {
     // NaMi names its own address with http://; the activation must stay on https
     const activation = new URL(location, base);
     if (activation.host !== new URL(base).host) {
@@ -83,12 +101,12 @@ export async function namiLogin(): Promise<NamiSession> {
     answer = await call(activation.href, {
       headers: { Accept: 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
     });
-    cookie = sessionCookie(answer) ?? cookie;
+    cookie = sessionCookie(answer.response) ?? cookie;
   }
 
-  const body = (await answer.json().catch(() => null)) as { statusCode?: unknown } | null;
-  if (!answer.ok || body?.statusCode !== 0) {
-    throw new NamiError(401, `NaMi login refused (status ${answer.status})`);
+  const body = answer.body as { statusCode?: unknown } | null;
+  if (!answer.response.ok || body?.statusCode !== 0) {
+    throw new NamiError(401, `NaMi login refused (status ${answer.response.status})`);
   }
   if (!cookie) throw new NamiError(502, 'NaMi login set no session');
   return { cookie };
@@ -96,14 +114,14 @@ export async function namiLogin(): Promise<NamiSession> {
 
 /** Reads a NaMi resource with GET; everything but the login goes through here. */
 export async function namiGet(session: NamiSession, path: string): Promise<unknown> {
-  const response = await call(`${CONFIG.nami.baseUrl}${path}`, {
+  const { response, body: answer } = await call(`${CONFIG.nami.baseUrl}${path}`, {
     method: 'GET',
     headers: { Accept: 'application/json', Cookie: session.cookie },
   });
   if (!response.ok) {
     throw new NamiError(502, `NaMi request failed: ${response.status} ${response.statusText}`);
   }
-  const body = (await response.json().catch(() => null)) as {
+  const body = answer as {
     success?: unknown;
     data?: unknown;
     message?: unknown;
