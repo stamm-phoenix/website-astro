@@ -51,16 +51,20 @@ function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
 
-/** A name for matching: lower case, umlauts spelled out, without accents, spaces and dashes. */
+/** A name for matching: lower case, umlauts spelled out, without accents, spaces and dashes; any script. */
 export function nameKey(name: string): string {
-  return name
-    .toLocaleLowerCase('de')
-    .replace(/ä/g, 'ae')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss')
-    .normalize('NFKD')
-    .replace(/[^a-z]/g, '');
+  return (
+    name
+      .toLocaleLowerCase('de')
+      .replace(/ä/g, 'ae')
+      .replace(/ö/g, 'oe')
+      .replace(/ü/g, 'ue')
+      .replace(/ß/g, 'ss')
+      .normalize('NFKD')
+      // Accents go, letters of every script stay, so „Иванова“ and „Петрова“ remain different
+      .replace(/\p{M}/gu, '')
+      .replace(/[^\p{L}]/gu, '')
+  );
 }
 
 /** The first of several first names, for „Anna Maria“ against „Anna“. */

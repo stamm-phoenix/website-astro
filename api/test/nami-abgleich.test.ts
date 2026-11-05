@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { CampflowPerson } from '../lib/campflow';
-import { gleicheAb, strasseKey, telefonKey } from '../lib/nami-abgleich';
+import { gleicheAb, nameKey, strasseKey, telefonKey } from '../lib/nami-abgleich';
 import type { NamiMitglied } from '../lib/nami-schema';
 
 const TODAY = '2026-11-05';
@@ -249,4 +249,18 @@ test('a Mitgliedsnummer with letters does not meet the same digits', () => {
     result.nurCampflow.map((p) => p.id),
     ['per_M']
   );
+});
+
+test('names in other scripts are compared, not dropped', () => {
+  const result = gleicheAb(
+    [nami(1, 'Анна', 'Иванова')],
+    [campflow('per_A', 'Анна', 'Петрова', { membership_number: '1' })],
+    TODAY,
+    LOADED
+  );
+  const felder = Object.fromEntries(result.paare[0].felder.map((f) => [f.feld, f.gleich]));
+  assert.equal(felder.vorname, true);
+  assert.equal(felder.nachname, false);
+  // Accents still do not count
+  assert.equal(nameKey('Renée'), nameKey('Renee'));
 });
