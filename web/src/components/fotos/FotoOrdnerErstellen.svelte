@@ -43,6 +43,7 @@
         unterordner: folderName,
       });
       forgetFotoFolder(folder.path);
+      forgetFotoFolder(parent);
       if (mounted && path === parent && name === originalName) {
         path = folder.path;
         name = '';
