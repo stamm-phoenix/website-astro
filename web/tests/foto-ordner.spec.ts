@@ -135,3 +135,26 @@ test('Ordnererstellung beseitigt den überholten Uploadzielfehler', async ({ pag
   await expect(page.getByLabel('Neuer Ordner darin')).not.toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByRole('button', { name: '1 Datei hochladen', exact: true })).toBeVisible();
 });
+
+test('anders geschriebener Foto-Link zeigt neue Ordner sofort', async ({ page }) => {
+  // SharePoint resolves paths without regard to case and returns its stored spelling.
+  await page.route('**/api/intern/fotos/ordner?pfad=gruppenstunden', async (route) => {
+    const url = new URL(route.request().url());
+    url.searchParams.set('pfad', 'Gruppenstunden');
+    await route.fulfill({ response: await route.fetch({ url: url.toString() }) });
+  });
+  await page.route('**/api/intern/fotos/ziel', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const body = route.request().postDataJSON();
+    await route.fulfill({
+      response: await route.fetch({ postData: { ...body, pfad: 'Gruppenstunden' } }),
+    });
+  });
+  await page.goto('/leitendenbereich/fotos#pfad=gruppenstunden');
+  await page.getByRole('button', { name: 'Hierher hochladen', exact: true }).click();
+  await page.getByLabel('Neuer Ordner darin').fill('Schuljahr Schreibweise');
+  await page.getByRole('button', { name: 'Ordner erstellen', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'erstellt und geöffnet' })).toBeVisible();
+  await page.getByRole('button', { name: 'Fotos ansehen', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Schuljahr Schreibweise/ })).toBeVisible();
+});
