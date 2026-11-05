@@ -162,7 +162,7 @@
       // The list of posts asks again when it is shown next
       blogPflege.invalidate();
       workflow = { state: 'draft' };
-      notify('Beitrag gespeichert.');
+      notify('Als Entwurf gespeichert.');
     } catch (error: unknown) {
       handleError(error);
     } finally {
