@@ -12,6 +12,17 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-05-03-personenvorschlaege',
+    date: '2026-11-05',
+    title: 'Personen beim Anlegen auswählen',
+    changes: [
+      {
+        text: 'Unter „Leitende & Teams“ kannst du beim Anlegen einer Person einen vorgeschlagenen Namen aus dem Bereich „Personen“ auswählen.',
+        href: '/leitendenbereich/leitende',
+      },
+    ],
+  },
+  {
     id: '2026-11-05-02-foto-ordner',
     date: '2026-11-05',
     title: 'Foto-Ordner ohne Hochladen erstellen',
