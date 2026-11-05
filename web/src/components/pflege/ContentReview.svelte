@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { SvelteDate } from 'svelte/reactivity';
+  import { contentReviewDue } from '../../lib/contentReviewDue';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -38,10 +39,9 @@
     { value: 'never', label: 'Ungeprüft' },
     { value: 'stale', label: 'Prüfung fällig' },
   ];
-  const cutoff = new SvelteDate();
-  cutoff.setMonth(cutoff.getMonth() - 6);
+  const now = new SvelteDate();
   function due(item: ContentReviewItem): boolean {
-    return !item.reviewedAt || item.changedSinceReview || new Date(item.reviewedAt) <= cutoff;
+    return contentReviewDue(item, now);
   }
   const visible = $derived(
     (resource.state.data ?? []).filter(
