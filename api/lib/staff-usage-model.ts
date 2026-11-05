@@ -13,6 +13,7 @@ export const STAFF_USAGE_MODULES = [
   '/leitendenbereich/anwesenheit',
   '/leitendenbereich/schnupperanfragen',
   '/leitendenbereich/mitglieder',
+  '/leitendenbereich/nami-abgleich',
   '/leitendenbereich/aktionen',
   '/leitendenbereich/aktionen/fahrten',
   '/leitendenbereich/abrechnung',

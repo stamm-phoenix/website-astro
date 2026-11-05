@@ -197,6 +197,27 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M4 4h16v16H4zM9.5 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6.5 16a3 3 0 0 1 6 0M15 9h3M15 13h3',
   },
   {
+    href: '/leitendenbereich/nami-abgleich',
+    title: 'Nami-Abgleich',
+    wrap: 'Nami-|Abgleich',
+    description:
+      'Die Mitglieder in NaMi und CampFlow vergleichen: Unterschiede und wer nur in einer Liste steht – für Admins und Vorstand.',
+    intro:
+      'Vergleicht die Mitglieder in NaMi mit der Mitgliederliste in CampFlow. Gleiche Personen werden über die Mitgliedsnummer, den Namen und das Geburtsdatum gefunden. Geändert wird nichts, weder in NaMi noch in CampFlow. Nur die Teams Admin und Vorstand sehen diesen Bereich.',
+    roles: ['team_admin', 'team_vorstand'],
+    keywords: [
+      'nami',
+      'dpsg',
+      'mitgliederverwaltung',
+      'abgleich',
+      'vergleich',
+      'campflow',
+      'mitgliedsnummer',
+      'unterschiede',
+    ],
+    icon: 'M3 5h7v14H3zM14 5h7v14h-7zM10 9h4M10 15h4M12 7l2 2-2 2M12 13l-2 2 2 2',
+  },
+  {
     href: '/leitendenbereich/aktionen',
     title: 'Aktionen',
     description:
@@ -511,6 +532,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
     modules: byPath(
       'anwesenheit',
       'mitglieder',
+      'nami-abgleich',
       'schnupperanfragen',
       'aktionen',
       'fahrten',

@@ -12,6 +12,17 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-05-07-nami-abgleich',
+    date: '2026-11-05',
+    title: 'Mitglieder in NaMi und CampFlow vergleichen',
+    changes: [
+      {
+        text: 'Admins und Vorstand sehen im Nami-Abgleich, welche Mitglieder in NaMi und CampFlow unterschiedliche Angaben haben und wer nur in einer der beiden Listen steht.',
+        href: '/leitendenbereich/nami-abgleich',
+      },
+    ],
+  },
+  {
     id: '2026-11-05-06-redaktion',
     date: '2026-11-05',
     title: 'Öffentliche Inhalte prüfen',

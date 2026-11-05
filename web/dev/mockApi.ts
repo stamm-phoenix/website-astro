@@ -160,6 +160,7 @@ import {
 } from '../../api/lib/essen-validation';
 import { aktionBeitraegeFor, campflowDetail, campflowEvents } from './mock-data/campflow';
 import { mitgliederData } from './mock-data/mitglieder';
+import { namiAbgleichData } from './mock-data/namiAbgleich';
 import {
   MOCK_LEITENDE,
   addPerson,
@@ -2068,6 +2069,12 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
 });
 
 route('GET', '/api/intern/mitglieder', () => json(mitgliederData()));
+route('GET', '/api/intern/nami-abgleich', () => {
+  if (!['team_admin', 'team_vorstand'].some((role) => PRINCIPAL.userRoles.includes(role))) {
+    return error(403, 'NOT_IN_TEAM', 'Den Nami-Abgleich sehen nur die Teams Admin und Vorstand.');
+  }
+  return json(namiAbgleichData());
+});
 
 route('GET', '/api/intern/aktionen/:id/beitraege', (req) => {
   const beitraege = aktionBeitraegeFor(req.params.id, req.query.get('refresh') === 'true');

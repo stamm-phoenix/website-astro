@@ -6,13 +6,13 @@ reicht nicht: Gäste, die aus anderen Gründen ein Konto haben, kommen nicht hin
 
 ## Teams und Rollen
 
-| Team (Mail-Alias) | Rolle           | Erlaubt                                                                                                           |
-| ----------------- | --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `team-leitende`   | `team_leitende` | Leitendenbereich (`/leitendenbereich/*`, `/api/intern/*`); Kontakt-Postfach                                       |
-| `team-kasse`      | `team_kasse`    | Belege: alle sehen, annehmen, ablehnen, nach CampFlow übertragen; Kostenstellen                                   |
-| `team-vorstand`   | `team_vorstand` | Kostenstellen (Summen je Kostenstelle und Kategorie aus CampFlow); Steuerung der Essensplanung; Vorstand-Postfach |
-| `team-admin`      | `team_admin`    | Steuerung der Essensplanung (Gruppe „IT-Administratoren“); Admin-Postfach                                         |
-| `team-verein`     | `team_verein`   | Verein-Postfach (Gruppe „Förderverein“)                                                                           |
+| Team (Mail-Alias) | Rolle           | Erlaubt                                                                                                                          |
+| ----------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `team-leitende`   | `team_leitende` | Leitendenbereich (`/leitendenbereich/*`, `/api/intern/*`); Kontakt-Postfach                                                      |
+| `team-kasse`      | `team_kasse`    | Belege: alle sehen, annehmen, ablehnen, nach CampFlow übertragen; Kostenstellen                                                  |
+| `team-vorstand`   | `team_vorstand` | Kostenstellen (Summen je Kostenstelle und Kategorie aus CampFlow); Steuerung der Essensplanung; Nami-Abgleich; Vorstand-Postfach |
+| `team-admin`      | `team_admin`    | Steuerung der Essensplanung (Gruppe „IT-Administratoren“); Nami-Abgleich; Admin-Postfach                                         |
+| `team-verein`     | `team_verein`   | Verein-Postfach (Gruppe „Förderverein“)                                                                                          |
 
 Die Gruppen-IDs stehen in `CONFIG.staff.teams` (`api/lib/config.ts`). Rollennamen von Static
 Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leitende` statt
