@@ -192,8 +192,17 @@ test('a favorite taken back before it was saved still asks before leaving', asyn
     await route.fallback();
   });
   await expect(page.getByRole('region', { name: 'Deine Bereiche' })).toHaveCount(0);
-  await toggleFavoriteLikeAPerson(page, 'Aufgaben');
-  await toggleFavoriteLikeAPerson(page, 'Aufgaben');
+  // This covers the pending save, while the gesture tests above cover long presses.
+  // A click waits for late dashboard panels to finish moving the control.
+  const star = page
+    .getByRole('button', { name: 'Aufgaben als Favorit', exact: true })
+    .filter({ visible: true })
+    .first();
+  await star.locator('..').hover();
+  await star.click();
+  await expect(star).toHaveAttribute('aria-pressed', 'true');
+  await star.click();
+  await expect(star).toHaveAttribute('aria-pressed', 'false');
   // The first save may already be on the server, so leaving now would keep the removed favorite
   await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
   const leave = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
