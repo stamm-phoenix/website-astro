@@ -9,6 +9,7 @@
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
   import { aktionenPflege } from '../../lib/pflegeStore.svelte';
   import type { AktionTarget, CampflowEvent, StaffAktion } from '../../lib/types';
+  import AktionUnterlagenFields from './AktionUnterlagenFields.svelte';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
@@ -32,6 +33,9 @@
     link: string;
     stufen: string[];
     description: string;
+    meetingPoint: string;
+    packingText: string;
+    downloadIds: string[];
   }
 
   let { target, stufen, linkable, adoptable, onsaved, onclose }: Props = $props();
@@ -147,6 +151,9 @@
       link: source?.link ?? '',
       stufen: [...(source?.stufen ?? [])],
       description: source?.description ?? '',
+      meetingPoint: source?.meetingPoint ?? '',
+      packingText: (source?.packingList ?? []).join('\n'),
+      downloadIds: [...(source?.downloadIds ?? [])],
     };
   }
 
@@ -202,6 +209,9 @@
     if (!form) return;
     form.stufen = [...(chosen?.stufen ?? [])];
     form.description = chosen?.description ?? '';
+    form.meetingPoint = chosen?.meetingPoint ?? '';
+    form.packingText = (chosen?.packingList ?? []).join('\n');
+    form.downloadIds = [...(chosen?.downloadIds ?? [])];
   }
 
   function toggleStufe(stufe: string): void {
@@ -238,6 +248,10 @@
 
     const body = {
       ...form,
+      packingList: form.packingText
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter(Boolean),
       stufen: stufen.filter((s) => selectedStufen.includes(s)),
       campflowId: event?.id ?? null,
       etag: entry?.etag,
@@ -456,6 +470,13 @@
             {errors.stufen}
           </p>{/if}
       </fieldset>
+
+      <AktionUnterlagenFields
+        bind:meetingPoint={form.meetingPoint}
+        bind:packingText={form.packingText}
+        bind:downloadIds={form.downloadIds}
+        {errors}
+      />
 
       <div inert={busy}>
         <FormField

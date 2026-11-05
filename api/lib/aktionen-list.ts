@@ -3,6 +3,7 @@ import { sql } from 'kysely';
 import { getKeineAktionen } from './aktion-art';
 import type { CampflowEvent } from './campflow';
 import { getCampflowEvents } from './campflow';
+import { getPublicDownloads, type PublicDownload } from './downloads-public';
 import { nextContentId } from './content-ids';
 import {
   RecordNotFoundError,
@@ -15,7 +16,7 @@ import {
   toVersion,
 } from './db';
 import type { AktionTable, Database } from './db-schema';
-import type { AktionInput } from './validation/content';
+import type { AktionInput } from './validation/aktion';
 import { LEITENDE_STUFE, STUFEN } from './validation/constants';
 
 /**
@@ -31,6 +32,9 @@ export interface Aktion {
   description?: string | undefined;
   start: string;
   end: string;
+  meetingPoint?: string;
+  packingList?: string[];
+  downloads?: PublicDownload[];
   /** CampFlow event the entry was published from; its title, dates and link win. */
   campflowId?: string | undefined;
 }
@@ -134,6 +138,9 @@ export interface StaffAktion {
   end: string;
   link: string;
   description: string;
+  meetingPoint?: string;
+  packingList?: string[];
+  downloadIds?: string[];
 }
 
 /** Order of the Stufen: the four Stufen, Leitende, then the others by name. */
@@ -155,17 +162,25 @@ export async function getStaffAktionen(): Promise<StaffAktion[]> {
   const rows = await getDb()
     .selectFrom('content.aktion as a')
     .leftJoin('content.aktion_stufe as s', 's.aktion_id', 'a.id')
+    .leftJoin('content.aktion_download as ad', 'ad.aktion_id', 'a.id')
     .selectAll('a')
     .select('s.stufe')
+    .select(['ad.download_id', 'ad.sort_order'])
     .orderBy('a.id')
+    .orderBy('ad.sort_order')
     .execute();
-  const entries = new Map<number, { row: Selectable<AktionTable>; stufen: string[] }>();
-  for (const { stufe, ...row } of rows) {
-    const entry = entries.get(row.id) ?? { row, stufen: [] };
-    if (stufe !== null) entry.stufen.push(stufe);
+  const entries = new Map<
+    number,
+    { row: Selectable<AktionTable>; stufen: string[]; downloadIds: string[] }
+  >();
+  for (const { stufe, download_id, ...row } of rows) {
+    const entry = entries.get(row.id) ?? { row, stufen: [], downloadIds: [] };
+    if (stufe !== null && !entry.stufen.includes(stufe)) entry.stufen.push(stufe);
+    if (download_id !== null && !entry.downloadIds.includes(download_id))
+      entry.downloadIds.push(download_id);
     entries.set(row.id, entry);
   }
-  return [...entries.values()].map(({ row, stufen }) => ({
+  return [...entries.values()].map(({ row, stufen, downloadIds }) => ({
     id: String(row.id),
     etag: toVersion(row.version),
     campflowId: row.campflow_id,
@@ -175,17 +190,46 @@ export async function getStaffAktionen(): Promise<StaffAktion[]> {
     end: dateText(row.end_date),
     link: row.link,
     description: row.description,
+    ...(row.meeting_point ? { meetingPoint: row.meeting_point } : {}),
+    ...(parsePackingList(row.packing_list).length > 0
+      ? { packingList: parsePackingList(row.packing_list) }
+      : {}),
+    ...(downloadIds.length > 0 ? { downloadIds } : {}),
   }));
+}
+
+function parsePackingList(value: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string') ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 /** Reads the calendar entries as stored, without CampFlow data. */
 export async function getStoredAktionen(): Promise<Aktion[]> {
-  return (await getStaffAktionen()).map((entry) => ({
+  const entries = await getStaffAktionen();
+  const ids = entries.flatMap((entry) => entry.downloadIds ?? []);
+  const files = new Map(
+    (ids.length ? await getPublicDownloads(ids) : []).map((file) => [file.id, file])
+  );
+  return entries.map((entry) => ({
     id: entry.id,
     stufen: entry.stufen,
     title: entry.title,
     campflow_link: entry.link || undefined,
     description: entry.description || undefined,
+    ...(entry.meetingPoint ? { meetingPoint: entry.meetingPoint } : {}),
+    ...(entry.packingList?.length ? { packingList: entry.packingList } : {}),
+    ...(entry.downloadIds?.length
+      ? {
+          downloads: entry.downloadIds.flatMap((id) => {
+            const file = files.get(id);
+            return file ? [file] : [];
+          }),
+        }
+      : {}),
     start: entry.start,
     end: entry.end,
     campflowId: entry.campflowId ?? undefined,
@@ -205,6 +249,8 @@ function toColumns(input: AktionInput): {
   link: string;
   description: string;
   campflow_id: string | null;
+  meeting_point: string;
+  packing_list: string;
 } {
   return {
     title: input.title,
@@ -213,6 +259,8 @@ function toColumns(input: AktionInput): {
     link: input.link,
     description: input.description,
     campflow_id: input.campflowId,
+    meeting_point: input.meetingPoint ?? '',
+    packing_list: JSON.stringify(input.packingList ?? []),
   };
 }
 
@@ -227,6 +275,25 @@ async function writeStufen(
     .insertInto('content.aktion_stufe')
     .values(stufen.map((stufe) => ({ aktion_id: id, stufe })))
     .execute();
+}
+
+async function writeDownloads(
+  trx: Transaction<Database>,
+  id: number,
+  downloadIds: readonly string[]
+): Promise<void> {
+  await trx.deleteFrom('content.aktion_download').where('aktion_id', '=', id).execute();
+  if (downloadIds.length === 0) return;
+  const existing = await trx
+    .selectFrom('content.download')
+    .select('id')
+    .where('id', 'in', [...new Set(downloadIds)])
+    .execute();
+  const available = new Set(existing.map((download) => download.id));
+  const values = [...new Set(downloadIds)]
+    .filter((download_id) => available.has(download_id))
+    .map((download_id, sort_order) => ({ aktion_id: id, download_id, sort_order }));
+  if (values.length > 0) await trx.insertInto('content.aktion_download').values(values).execute();
 }
 
 /** Another entry is linked to the same CampFlow event (`uq_aktion_campflow_id`). */
@@ -257,6 +324,7 @@ export async function createAktion(input: AktionInput, actor: string): Promise<s
         .values({ id, ...toColumns(input), updated_by: actor })
         .execute();
       await writeStufen(trx, id, input.stufen);
+      await writeDownloads(trx, id, input.downloadIds ?? []);
       return String(id);
     })
   );
@@ -288,6 +356,7 @@ export async function updateAktion(
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) return false;
       await writeStufen(trx, id, input.stufen);
+      await writeDownloads(trx, id, input.downloadIds ?? []);
       return true;
     })
   );

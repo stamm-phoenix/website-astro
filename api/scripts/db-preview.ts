@@ -1,3 +1,4 @@
+import { seedPreviewAktionen } from '../lib/db-preview-aktionen';
 /**
  * The database (`website-pr-<number>`) and blob container (`pr-<number>` in the preview storage
  * account) of a PR preview, so previews never use the production data. Runs in the deploy
@@ -60,14 +61,13 @@ import {
   seedPreviewEssensplanungTeilnehmende,
   seedPreviewGruppenstunden,
   seedPreviewLeitende,
-  seedPreviewAktionen,
   seedPreviewBelege,
   seedPreviewBelegeCampflow,
   seedPreviewBlog,
   seedPreviewPlans,
   seedPreviewQuestions,
 } from '../lib/db-preview';
-import { seedPreviewDownloads } from '../lib/db-preview-downloads';
+import { seedPreviewAktionDownloads, seedPreviewDownloads } from '../lib/db-preview-downloads';
 import { seedPreviewEssensplanungEinkauf } from '../lib/db-preview-essen-einkauf';
 import { seedPreviewEssensplanungPackliste } from '../lib/db-preview-essen-packliste';
 import { seedPreviewEssensplanungBelege } from '../lib/db-preview-essen-belege';
@@ -175,6 +175,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewBelege();
       await seedPreviewBelegeCampflow();
       await seedPreviewDownloads();
+      await seedPreviewAktionDownloads();
       await seedPreviewEssensplanung();
       await seedPreviewEssensplanungPlanung();
       await seedPreviewEssensplanungGerichte();

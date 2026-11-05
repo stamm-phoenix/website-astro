@@ -1,4 +1,5 @@
 import { completeUpload, listDownloads, newDownloadKey, stageUploadPart } from './downloads';
+import { getDb } from './db';
 import { testPicture } from './db-preview';
 
 const PREVIEW_ACTOR = 'preview';
@@ -76,5 +77,37 @@ export async function seedPreviewDownloads(): Promise<void> {
     );
     if (result.status !== 'saved')
       throw new Error(`Preview download ${file.fileName}: ${result.status}`);
+  }
+}
+
+/** Links the invented public downloads to the invented calendar entry. */
+export async function seedPreviewAktionDownloads(): Promise<void> {
+  const aktion = await getDb()
+    .selectFrom('content.aktion')
+    .select('id')
+    .where('title', '=', 'Stammeswochenende (Testdaten)')
+    .executeTakeFirst();
+  if (!aktion) return;
+  const downloads = await getDb()
+    .selectFrom('content.download')
+    .select('id')
+    .where('file_name', 'in', [
+      'Packliste Sommerlager (Testdaten).pdf',
+      'Anmeldung Stammeswochenende (Testdaten).pdf',
+    ])
+    .orderBy('file_name')
+    .execute();
+  for (const [sort_order, download] of downloads.entries()) {
+    const existing = await getDb()
+      .selectFrom('content.aktion_download')
+      .select('aktion_id')
+      .where('aktion_id', '=', aktion.id)
+      .where('download_id', '=', download.id)
+      .executeTakeFirst();
+    if (existing) continue;
+    await getDb()
+      .insertInto('content.aktion_download')
+      .values({ aktion_id: aktion.id, download_id: download.id, sort_order })
+      .execute();
   }
 }

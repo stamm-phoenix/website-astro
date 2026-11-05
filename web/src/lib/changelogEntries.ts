@@ -12,6 +12,12 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-05-01-aktionsunterlagen',
+    date: '2026-11-05',
+    title: 'Treffpunkt und Unterlagen am Termin',
+    changes: [{ text: 'Du kannst Treffpunkt, Packliste und vorhandene Unterlagen zu einer Aktion ergänzen. Sie erscheinen direkt am öffentlichen Termin; die Packliste lässt sich als PDF zum Abhaken herunterladen.', href: '/leitendenbereich/aktionen' }],
+  },
+  {
     id: '2026-11-04-02-kontakt-postfach',
     date: '2026-11-04',
     title: 'E-Mails des Kontakt-Postfachs im Leitendenbereich',

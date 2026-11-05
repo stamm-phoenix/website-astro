@@ -1,5 +1,6 @@
 import type { HttpResponseInit } from '@azure/functions';
 import type { Aktion } from '../lib/aktionen-list';
+import type { PublicDownload } from '../lib/downloads-public';
 import { getAktionen, isLeitendeOnly } from '../lib/aktionen-list';
 import { withErrorHandling } from '../lib/response-utils';
 
@@ -11,6 +12,9 @@ interface AktionData {
   description?: string | undefined;
   start: string;
   end: string;
+  meetingPoint?: string;
+  packingList?: string[];
+  downloads?: PublicDownload[];
 }
 
 /**
@@ -33,6 +37,9 @@ export async function GetAktionenEndpoint(): Promise<HttpResponseInit> {
       description: a.description,
       start: a.start,
       end: a.end,
+      meetingPoint: a.meetingPoint,
+      packingList: a.packingList,
+      downloads: a.downloads,
     };
   });
 

@@ -12,7 +12,7 @@ import {
   getStaffAktionen,
   resetCampflowEventCache,
 } from '../lib/aktionen-list';
-import { validateAktion } from '../lib/validation/content';
+import { validateAktion } from '../lib/validation/aktion';
 import { ValidationError } from '../lib/validation/errors';
 import { dbTest } from './fixtures/database';
 
