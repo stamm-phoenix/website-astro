@@ -121,7 +121,7 @@ export async function assessProblemMeldung(
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: problemModelInput(meldung) },
     ],
-    maxCompletionTokens: 1200,
+    maxCompletionTokens: 3000,
     timeoutMs: CONFIG.problemmeldung.ai.timeoutMs,
   });
   return parseProblemAssessment(answer);

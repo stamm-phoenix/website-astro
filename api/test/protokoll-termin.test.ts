@@ -281,7 +281,7 @@ test('the minutes are sent delimited, as data, and long minutes keep their end',
 function withModel(t: TestContext, maxExtractionsPerDay = 1000): void {
   overrideConfig(t, CONFIG.protokolle.termin, {
     endpoint: 'https://example.openai.azure.com',
-    deployment: 'gpt-4.1-mini',
+    deployment: 'gpt-6.1-sol-datazone',
     maxExtractionsPerDay,
   });
   const previousKey = process.env.AZURE_OPENAI_API_KEY;
@@ -332,7 +332,7 @@ test('the detection sends only the text of the file and stores the checked answe
     response_format: { json_schema: { strict: boolean } };
     messages: { role: string; content: string }[];
   };
-  assert.equal(sent.model, 'gpt-4.1-mini');
+  assert.equal(sent.model, 'gpt-6.1-sol-datazone');
   assert.equal(sent.response_format.json_schema.strict, true);
   assert.deepEqual(
     sent.messages.map((message) => message.role),

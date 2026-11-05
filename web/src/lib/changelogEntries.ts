@@ -12,6 +12,14 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-05-07-ki-eu',
+    date: '2026-11-05',
+    title: 'Alle KI-Funktionen laufen in der EU',
+    changes: [
+      'Die KI-Einschätzung der Problemmeldungen und die Erkennung von nächstem Termin und Aufgaben in Protokollen nutzen jetzt dasselbe Modell wie die Belegprüfung. Was sie liest, wird nur noch in der EU verarbeitet. Die Erkennung kann ein paar Sekunden länger dauern.',
+    ],
+  },
+  {
     id: '2026-11-05-06-redaktion',
     date: '2026-11-05',
     title: 'Öffentliche Inhalte prüfen',

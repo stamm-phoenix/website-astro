@@ -165,6 +165,8 @@ export interface ApiConfig {
     ai: {
       endpoint: string;
       deployment: string;
+      /** For reasoning models; see `AzureOpenAiDeployment`. */
+      reasoningEffort?: 'low' | 'medium' | 'high';
       /** Assessments per day and Function instance. */
       maxPerDay: number;
       /** A visitor waits for the assessment while the report is sent; it is retried by hand after a timeout. */
@@ -282,6 +284,8 @@ export interface ProtokolleConfig {
   termin: {
     endpoint: string;
     deployment: string;
+    /** For reasoning models; see `AzureOpenAiDeployment`. */
+    reasoningEffort?: 'low' | 'medium' | 'high';
     /** Detections per day and Function instance. */
     maxExtractionsPerDay: number;
   };
@@ -299,11 +303,16 @@ export interface LeihgebuehrenConfig {
   material: { id: string; name: string; priceCentPerDay: number }[];
 }
 
-/** Azure OpenAI resource and model deployment, used by the receipt check and the minutes. */
+/**
+ * Azure OpenAI resource and the only model deployment of the website, used by every AI feature:
+ * Data Zone Standard, so everything sent is processed in the EU only. A reasoning model, so
+ * every feature sets `reasoningEffort` (without it `temperature: 0` is sent, which it refuses).
+ */
 const AZURE_OPENAI = {
   endpoint: 'https://website-astro-openai.openai.azure.com',
-  deployment: 'gpt-4.1-mini',
-};
+  deployment: 'gpt-6.1-sol-datazone',
+  reasoningEffort: 'low',
+} as const;
 
 export const CONFIG: ApiConfig = {
   azure: {
@@ -377,12 +386,11 @@ export const CONFIG: ApiConfig = {
   },
   belege: {
     check: {
-      endpoint: AZURE_OPENAI.endpoint,
+      ...AZURE_OPENAI,
       // Data Zone Standard: the photos are processed in the EU only. In a comparison of
       // receipts with abbreviated alcohol and tobacco, cut-off and blurry photos it found
       // everything with `medium` as with `high`, in about 7 s instead of 12; a long real
       // receipt took 25 s instead of 41 (docs/belege-ki-pruefung.md)
-      deployment: 'gpt-6.1-sol-datazone',
       reasoningEffort: 'medium',
       // Each photo is asked twice: how to turn it, then the check itself
       maxChecksPerDay: 200,
@@ -416,7 +424,8 @@ export const CONFIG: ApiConfig = {
     ai: {
       ...AZURE_OPENAI,
       maxPerDay: 200,
-      timeoutMs: 12_000,
+      // A reasoning model thinks first; the form waits up to a minute for the answer
+      timeoutMs: 20_000,
     },
     githubRepository: 'stamm-phoenix/website-astro',
     retention: { discardedDays: 30, sentDays: 90, openDays: 180 },
@@ -454,12 +463,8 @@ export const CONFIG: ApiConfig = {
   },
   essensplanung: {
     sender: 'kontakt@stamm-phoenix.de',
-    // The deployment of the receipt check (Data Zone Standard, EU); the questions are short
-    ki: {
-      endpoint: AZURE_OPENAI.endpoint,
-      deployment: 'gpt-6.1-sol-datazone',
-      reasoningEffort: 'low',
-    },
+    // The questions are short
+    ki: { ...AZURE_OPENAI },
   },
   abstimmungen: {
     sender: 'kontakt@stamm-phoenix.de',

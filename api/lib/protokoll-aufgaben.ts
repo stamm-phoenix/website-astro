@@ -98,8 +98,8 @@ export async function detectProtokollTasks(
     throw new ValidationError({ form: 'Das Tageslimit der Aufgabenerkennung ist erreicht.' });
   const answer = await requestStructuredOutput(CONFIG.protokolle.aufgaben, {
     schemaName: 'protokoll_aufgaben',
-    timeoutMs: 20000,
-    maxCompletionTokens: 4000,
+    timeoutMs: 40_000,
+    maxCompletionTokens: 6000,
     schema: {
       type: 'object',
       additionalProperties: false,

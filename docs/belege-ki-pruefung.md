@@ -8,7 +8,7 @@ Das Modul **Belege** im Leitendenbereich kann jedes Belegfoto von einem Bildmode
 - Ohne Einrichtung (keine App-Settings) wird die Prüfung übersprungen, das Modul funktioniert trotzdem.
 - Code: `api/lib/beleg-check.ts`, der Aufruf von Azure OpenAI in `api/lib/azure-openai.ts`.
 - Dieselbe Bereitstellung liest in der Abrechnung den Zeitplan der Kurzbeschreibung aus einem Foto, PDF oder einer Excel-Tabelle (eigenes Tageslimit, siehe [abrechnung-eingaben.md](abrechnung-eingaben.md#kurzbeschreibung)).
-- Die Belegprüfung hat eine eigene Bereitstellung (`gpt-6.1-sol-datazone`); die KI der Essensplanung nutzt sie mit (ohne eigenes Tageslimit, siehe [Essensplanung](essensplanung.md#ki-azure-openai-gpt-61-sol-datazone)). Den nächsten Termin und Aufgaben in freigegebenen Protokollen erkennt weiter `gpt-4.1-mini` auf derselben Ressource (siehe [Protokolle](protokolle.md#nächster-termin)).
+- Alle KI-Funktionen der Website nutzen dieselbe Bereitstellung `gpt-6.1-sol-datazone` (`AZURE_OPENAI` in `api/lib/config.ts`): Belegprüfung, Essensplanung (ohne eigenes Tageslimit, siehe [Essensplanung](essensplanung.md#ki-azure-openai-gpt-61-sol-datazone)), Zeitplan der Kurzbeschreibung, Problemmeldungen sowie Termin und Aufgaben in freigegebenen Protokollen (siehe [Protokolle](protokolle.md#nächster-termin)). Die Belegprüfung denkt mit `medium`, die übrigen mit `low`.
 
 ## Modell
 
@@ -107,4 +107,4 @@ Wenn eine Warnung kommt: sofort die Bereitstellung im Foundry-Portal löschen (E
 
 Die Fotos gehen an Azure OpenAI in eurem eigenen Abonnement. Microsoft verwendet sie nicht zum Training. Zur Missbrauchserkennung kann Microsoft Ein- und Ausgaben bis zu 30 Tage speichern; mit „Datenzonenstandard“ in einer EU-Region bleibt die Verarbeitung in der EU. Belege können Namen oder Teile von Kartennummern enthalten – das gehört in das Verzeichnis der Verarbeitungstätigkeiten des Stammes.
 
-Die Belegfotos gehen an die Bereitstellung `gpt-6.1-sol-datazone` im Datenzonenstandard und werden damit nur in der EU verarbeitet. Die Bereitstellung `gpt-4.1-mini` für die Protokolle verwendet „Global Standard“; dort kann die Verarbeitung weltweit erfolgen.
+Die Belegfotos gehen an die Bereitstellung `gpt-6.1-sol-datazone` im Datenzonenstandard und werden damit nur in der EU verarbeitet. Das gilt für alle KI-Funktionen der Website, auch für Protokolle und Problemmeldungen; eine Bereitstellung mit „Global Standard“ wird nicht mehr verwendet.
