@@ -102,7 +102,13 @@
             </a>
             <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-neutral-700">
               <StatusLabel
-                label={post.published ? 'Veröffentlicht' : 'Entwurf'}
+                label={post.workflow?.state === 'review'
+                  ? 'Zur Prüfung'
+                  : post.workflow?.state === 'approved'
+                    ? 'Freigegeben'
+                    : post.published
+                      ? 'Veröffentlicht'
+                      : 'Entwurf'}
                 tone={post.published ? 'success' : 'neutral'}
                 dot
               />

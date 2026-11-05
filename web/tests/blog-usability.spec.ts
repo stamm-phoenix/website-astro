@@ -12,87 +12,54 @@ test('a new blog post has an accurate heading and explains when images become av
   await expect(page.getByRole('checkbox', { name: /Veröffentlicht/ })).toHaveCount(0);
 });
 
-test('publishing and withdrawing are explicit actions and failed publishing preserves the draft', async ({
+test('review is required before publication and failed submission preserves the draft', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/leitendenbereich/blog/beitrag');
-  await page
-    .getByRole('textbox', { name: 'Titel', exact: true })
-    .fill('TEST – bitte löschen: Blog-Freigabe');
+  await page.getByRole('textbox', { name: 'Titel', exact: true }).fill('TEST – Blog-Freigabe');
   await page.getByRole('textbox', { name: 'Text', exact: true }).fill('Bericht der Gruppenstunde.');
   await page.getByRole('button', { name: 'Als Entwurf anlegen', exact: true }).click();
   await expect(page).toHaveURL(/\?id=/);
   const id = new URL(page.url()).searchParams.get('id')!;
+  const path = '/api/intern/pflege/blog/' + id;
   try {
-    await expect(
-      page.getByTestId('blog-status').getByText('Entwurf', { exact: true })
-    ).toBeVisible();
-    let releaseFailure: () => void = () => {};
-    const failedResponse = new Promise<void>((resolve) => (releaseFailure = resolve));
-    let markStarted: () => void = () => {};
-    const writeStarted = new Promise<void>((resolve) => (markStarted = resolve));
-    await page.route(`**/api/intern/pflege/blog/${id}`, async (route) => {
-      if (route.request().method() !== 'PATCH') return route.fallback();
-      markStarted();
-      await failedResponse;
-      await route.fulfill({ status: 500, json: {} });
-    });
-    await page.getByRole('button', { name: 'Veröffentlichen', exact: true }).click();
-    await answerConfirm(
-      page,
-      'Beitrag „TEST – bitte löschen: Blog-Freigabe“ veröffentlichen?',
-      'Veröffentlichen'
+    await expect(page.getByRole('button', { name: 'Veröffentlichen', exact: true })).toHaveCount(0);
+    await page.route('**' + path, (route) =>
+      route.request().method() === 'PATCH'
+        ? route.fulfill({ status: 500, json: {} })
+        : route.fallback()
     );
-    await writeStarted;
-    try {
-      await page
-        .getByRole('navigation', { name: 'Zurück' })
-        .getByRole('link', { name: 'Blog', exact: true })
-        .click();
-      const discard = page.getByRole('dialog', { name: 'Änderungen verwerfen?', exact: true });
-      await expect(discard).toBeVisible();
-      await discard.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
-      await expect(page).toHaveURL(new RegExp(`\\?id=${id}$`));
-    } finally {
-      releaseFailure();
-    }
-    await expect(
-      page.getByText('Der Beitrag wurde nicht gespeichert.', { exact: false }).first()
-    ).toBeVisible();
-    await expect(
-      page.getByTestId('blog-status').getByText('Entwurf', { exact: true })
-    ).toBeVisible();
+    await page.getByRole('button', { name: 'Zur Prüfung einreichen', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Der Stand wurde nicht geändert.');
     await expect(page.getByRole('textbox', { name: 'Text', exact: true })).toContainText(
       'Bericht der Gruppenstunde.'
     );
-    await page.unroute(`**/api/intern/pflege/blog/${id}`);
+    await page.unroute('**' + path);
+    await page.getByRole('button', { name: 'Zur Prüfung einreichen', exact: true }).click();
+    await page.getByRole('button', { name: 'Freigeben', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Eine andere Person');
+    const post = await (await page.request.get(path)).json();
+    const approved = await page.request.patch(path, {
+      data: { action: 'approve', etag: post.etag },
+      headers: {
+        'x-ms-client-principal': Buffer.from(
+          JSON.stringify({ userId: 'reviewer', userDetails: 'Andere Leitung' })
+        ).toString('base64'),
+      },
+    });
+    expect(approved.ok()).toBe(true);
+    await page.reload();
     await page.getByRole('button', { name: 'Veröffentlichen', exact: true }).click();
-    await answerConfirm(
-      page,
-      'Beitrag „TEST – bitte löschen: Blog-Freigabe“ veröffentlichen?',
-      'Veröffentlichen'
-    );
-    await expect(
-      page.getByTestId('blog-status').getByText('Veröffentlicht', { exact: true })
-    ).toBeVisible();
     await expect(
       page.getByRole('link', { name: 'Auf der Website ansehen', exact: true })
     ).toBeVisible();
     await page.getByRole('button', { name: 'Veröffentlichung zurücknehmen', exact: true }).click();
-    await answerConfirm(
-      page,
-      'Veröffentlichung von „TEST – bitte löschen: Blog-Freigabe“ zurücknehmen?',
-      'Veröffentlichung zurücknehmen'
-    );
     await expect(
-      page.getByTestId('blog-status').getByText('Entwurf', { exact: true })
-    ).toBeVisible();
-    await page.reload();
-    await expect(
-      page.getByTestId('blog-status').getByText('Entwurf', { exact: true })
+      page.getByRole('button', { name: 'Zur Prüfung einreichen', exact: true })
     ).toBeVisible();
   } finally {
-    await page.request.delete(`/api/intern/pflege/blog/${id}`);
+    await page.request.delete(path);
   }
 });
 

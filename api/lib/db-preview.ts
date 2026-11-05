@@ -4,17 +4,9 @@ import { lockResource } from './db';
 import { loadEssenEinstellungen } from './essen-steuerung';
 import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
-import sharp from 'sharp';
+import { testPicture } from './db-preview-blog';
 import { retentionStart } from './anwesenheit';
 import { STUFE_SLUGS } from './anwesenheit-model';
-import { storeBlogImageFiles } from './blog-images';
-import {
-  addBlogImage,
-  createBlogPost,
-  getBlogEntries,
-  getBlogEntry,
-  updateBlogPost,
-} from './blog-list';
 import { neuerInhalt } from './protokoll-editor-model';
 import { validateAbstimmung } from './abstimmung-schema';
 import { createAbstimmung, queueAbstimmungEinladungen, voteAsStaff } from './abstimmungen';
@@ -26,7 +18,6 @@ import { nextContentId } from './content-ids';
 import { getDb, inTransaction } from './db';
 import { validateLeitende, validateQuestionAndAnswer } from './validation/content';
 import { validateBeleg } from './validation/beleg';
-import { validateBlogPost } from './validation/blog';
 import type { Database } from './db-schema';
 import { getAllBookings } from './nikolaus-bookings';
 import { toLocation } from './nikolaus-api';
@@ -174,7 +165,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:54';
+const SEEDED_KEY = 'preview:seeded:55';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -316,113 +307,7 @@ export async function seedPreviewQuestions(): Promise<void> {
   }
 }
 
-/** A plain test picture: a diagonal gradient in the given colors. */
-export function testPicture(
-  width: number,
-  height: number,
-  from: string,
-  to: string
-): Promise<Buffer> {
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-    `<defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="${from}"/>` +
-    `<stop offset="1" stop-color="${to}"/></linearGradient></defs>` +
-    `<rect width="100%" height="100%" fill="url(#g)"/></svg>`;
-  return sharp(Buffer.from(svg)).jpeg().toBuffer();
-}
-
-interface PreviewPost {
-  title: string;
-  date: string;
-  published: boolean;
-  /** Text without and with the images (`{0}`, `{1}` stand for their file names). */
-  content: string;
-  contentWithImages?: string;
-  /** Gradient colors of the test pictures. */
-  images: [string, string][];
-}
-
-/** One post with images (stored in the preview's blob container), one without and a draft. */
-const PREVIEW_POSTS: PreviewPost[] = [
-  {
-    title: 'Testbeitrag: Sommerlager',
-    date: '2026-08-20',
-    published: true,
-    content: '<p>Dieser Beitrag ist erfunden und nur in der Preview zu sehen.</p>',
-    contentWithImages:
-      '<p>Dieser Beitrag ist erfunden und nur in der Preview zu sehen.</p>' +
-      '<img data-bild="{1}"><p>Zweiter Absatz unter dem zweiten Bild.</p>',
-    images: [
-      ['#003056', '#810a1a'],
-      ['#2a7a3b', '#f2b705'],
-    ],
-  },
-  {
-    title: 'Testbeitrag: Waldweihnacht',
-    date: '2026-12-14',
-    published: true,
-    content: '<h2>Ohne Bilder</h2><p>Auch dieser Beitrag ist erfunden.</p>',
-    images: [],
-  },
-  {
-    title: 'Entwurf: Jahresrückblick',
-    date: '2026-12-31',
-    published: false,
-    content: '<p>Noch nicht fertig.</p>',
-    images: [],
-  },
-];
-
-/**
- * Adds the invented posts that are missing (matched by title) and the images a post lacks,
- * e.g. after a run that stopped halfway. Image files get fixed names, so a retry overwrites
- * the files of an image that was stored but not recorded.
- */
-export async function seedPreviewBlog(): Promise<void> {
-  const entries = await getBlogEntries();
-  for (const post of PREVIEW_POSTS) {
-    let entry = entries.find((candidate) => candidate.title === post.title);
-    if (!entry) {
-      const input = { title: post.title, date: post.date, published: post.published };
-      const { id } = await createBlogPost(
-        validateBlogPost({ ...input, content: post.content }, []),
-        PREVIEW_ACTOR
-      );
-      entry = await getBlogEntry(id);
-      if (!entry) throw new Error(`Preview post ${id} vanished`);
-    }
-    if (post.images.length === 0) continue;
-
-    const files = post.images.map((_colors, index) => `bild-${1_700_000_000_000 + index}.jpg`);
-    let etag = entry.etag;
-    for (const [index, [from, to]] of post.images.entries()) {
-      if (entry.images.some((image) => image.file === files[index])) continue;
-      const image = {
-        file: files[index],
-        alt: `Testbild ${index + 1}`,
-        width: 1600,
-        height: 1067,
-      };
-      await storeBlogImageFiles(entry.id, image, await testPicture(1600, 1067, from, to));
-      etag = (await addBlogImage(entry.id, image, etag, PREVIEW_ACTOR)).etag;
-    }
-    if (post.contentWithImages && !entry.content.includes('data-bild')) {
-      const content = files.reduce(
-        (text, file, index) => text.replaceAll(`{${index}}`, file),
-        post.contentWithImages
-      );
-      await updateBlogPost(
-        entry.id,
-        validateBlogPost(
-          { title: post.title, date: post.date, published: post.published, content },
-          files
-        ),
-        etag,
-        PREVIEW_ACTOR
-      );
-    }
-  }
-}
+export { seedPreviewBlog, testPicture } from './db-preview-blog';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

@@ -56,10 +56,16 @@ function request(
   method: string,
   params: Record<string, string> = {},
   body?: unknown,
-  options: { etag?: string; query?: string } = {}
+  options: { etag?: string; query?: string; reviewer?: boolean } = {}
 ): HttpRequest {
   const headers: Record<string, string> = {
-    'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+    'x-ms-client-principal': Buffer.from(
+      JSON.stringify(
+        options.reviewer
+          ? { ...PRINCIPAL, userId: 'reviewer', userDetails: 'reviewer@example.test' }
+          : PRINCIPAL
+      )
+    ).toString('base64'),
   };
   if (options.etag) headers['if-match'] = options.etag;
   let init: { string: string } | { bytes: Uint8Array } | undefined;
@@ -91,6 +97,17 @@ async function createPost(context: InvocationContext): Promise<{ id: string; eta
   return response.jsonBody as { id: string; etag: string };
 }
 
+async function publishPost(id: string, etag: string, context: InvocationContext): Promise<void> {
+  for (const action of ['submit', 'approve', 'publish']) {
+    const response = await BlogItem(
+      request('PATCH', { id }, { action, etag }, { reviewer: action === 'approve' }),
+      context
+    );
+    assert.equal(response.status, 200);
+    etag = (response.jsonBody as { etag: string }).etag;
+  }
+}
+
 dbTest(
   'posts are created, edited with their version and only published ones are public',
   async (t) => {
@@ -107,6 +124,7 @@ dbTest(
     const stale = await save(etag);
     assert.equal(stale.status, 409);
 
+    await publishPost(id, (saved.jsonBody as { etag: string }).etag, context);
     const list = (await GetBlogEndpoint()).jsonBody as {
       id: string;
       title: string;
@@ -174,10 +192,7 @@ dbTest(
     );
 
     const current = (await BlogItem(request('GET', { id }), context)).jsonBody as { etag: string };
-    await BlogItem(
-      request('PATCH', { id }, { ...POST, published: true, etag: current.etag }),
-      context
-    );
+    await publishPost(id, current.etag, context);
     for (const [width, status] of [
       ['800', 200],
       ['1600', 200],
@@ -245,6 +260,7 @@ dbTest('the list of posts reads only what it shows and counts the text as before
       title: 'Entwurf',
       date: '2026-06-01',
       published: false,
+      workflow: { state: 'draft' },
       cover: null,
       imageCount: 0,
       textLength: 0,
@@ -254,6 +270,7 @@ dbTest('the list of posts reads only what it shows and counts the text as before
       title: 'Gleicher Tag',
       date: '2026-05-01',
       published: true,
+      workflow: { state: 'published' },
       cover: { file: 'bild-3.jpg', alt: 'Bild bild-3.jpg', width: 1600, height: 900 },
       imageCount: 1,
       textLength: 4,
@@ -263,6 +280,7 @@ dbTest('the list of posts reads only what it shows and counts the text as before
       title: 'Lager',
       date: '2026-05-01',
       published: true,
+      workflow: { state: 'published' },
       cover: { file: 'bild-2.jpg', alt: 'Bild bild-2.jpg', width: 1600, height: 900 },
       imageCount: 2,
       textLength: 27,

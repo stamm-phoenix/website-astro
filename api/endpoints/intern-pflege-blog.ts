@@ -1,3 +1,4 @@
+import { transitionBlog } from '../lib/blog-workflow';
 import { randomInt } from 'node:crypto';
 import type { HttpRequest } from '@azure/functions';
 import type { BlogEntry } from '../lib/blog-list';
@@ -49,6 +50,7 @@ const TOO_MANY_IMAGES = errorResponse(
 /** A post as the editor needs it. */
 function toStaffPost(entry: BlogEntry): unknown {
   return {
+    workflow: entry.workflow,
     id: entry.id,
     etag: entry.etag,
     title: entry.title,
@@ -95,6 +97,9 @@ export const BlogItemEndpoint = pflegeHandler(
     const entry = await getBlogEntry(id);
     if (!entry) return NOT_FOUND;
     const body = await readJsonBody(request);
+    if (typeof body === 'object' && body !== null && 'action' in body) {
+      return ok(await transitionBlog(id, body, principal));
+    }
     const input = validateBlogPost(
       body,
       entry.images.map((image) => image.file)
