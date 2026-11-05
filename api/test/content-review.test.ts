@@ -1,4 +1,5 @@
 import { addBlogImage, saveBlogImages, removeBlogImage } from '../lib/blog-list';
+import { sql } from 'kysely';
 import { seedPreviewContentReviews } from '../lib/db-preview-content-review';
 import { deleteDownloadRow } from '../lib/download-delete';
 import { HttpRequest, InvocationContext } from '@azure/functions';
@@ -304,7 +305,7 @@ dbTest(
     }
     let images = await addBlogImage(
       id,
-      { file: 'first', alt: 'First', width: 800, height: 600 },
+      { file: 'bild-1.jpg', alt: 'First', width: 800, height: 600 },
       (await current()).etag,
       'editor'
     );
@@ -322,7 +323,7 @@ dbTest(
     }
     images = await addBlogImage(
       id,
-      { file: 'second', alt: 'Second', width: 800, height: 600 },
+      { file: 'bild-2.jpg', alt: 'Second', width: 800, height: 600 },
       images.etag,
       'editor'
     );
@@ -330,12 +331,12 @@ dbTest(
     images = await saveBlogImages(id, [...images.images].reverse(), images.etag, 'editor');
     assert.equal((await current()).changedSinceReview, true);
     await markContentReviewed('blog', id, images.etag, 'reviewer');
-    await removeBlogImage(id, 'second', images.etag, 'editor');
+    await removeBlogImage(id, 'bild-2.jpg', images.etag, 'editor');
     assert.equal((await current()).changedSinceReview, true);
     await markContentReviewed('blog', id, (await current()).etag, 'reviewer');
     await db
       .updateTable('content.review')
-      .set({ source_hash: null })
+      .set({ source_hash: sql<Buffer | null>`NULL` })
       .where('kind', '=', 'blog')
       .where('content_id', '=', id)
       .execute();

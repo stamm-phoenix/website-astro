@@ -40,7 +40,7 @@ export async function seedPreviewContentReviews(): Promise<void> {
                         .where('c.id', '=', Number(contentId))
                         .executeTakeFirstOrThrow()
                     ).hash
-                  : null,
+                  : sql<Buffer | null>`NULL`,
               reviewed_at:
                 index === 0
                   ? sql<Date>`SYSUTCDATETIME()`
