@@ -69,7 +69,7 @@ function toSummary(entry: BlogEntry): BlogSummary {
 /** A published post, or undefined for drafts and unknown IDs. */
 async function getPublishedEntry(id: string | undefined): Promise<BlogEntry | undefined> {
   const entry = await getBlogEntry(id ?? '');
-  return entry?.published ? entry : undefined;
+  return entry?.published && entry.workflow.state === 'published' ? entry : undefined;
 }
 
 /** GET: published posts, newest first. */
@@ -78,7 +78,9 @@ export async function GetBlogEndpoint(): Promise<HttpResponseInit> {
   return {
     status: 200,
     headers: LIST_CACHE_HEADERS,
-    jsonBody: entries.filter((entry) => entry.published).map(toSummary),
+    jsonBody: entries
+      .filter((entry) => entry.published && entry.workflow.state === 'published')
+      .map(toSummary),
   };
 }
 

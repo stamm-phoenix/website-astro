@@ -1,3 +1,4 @@
+import { registerBlogRoutes } from './mockBlog';
 import { registerAktionenRoutes } from './mockAktionen';
 import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
@@ -184,8 +185,6 @@ import {
   publicDownloads,
   QA_CATEGORIES,
   questions,
-  staffBlogList,
-  staffBlogPost,
   staffDownloads,
 } from './mock-data/content';
 import { stufeFeed } from './mock-data/aktionenFeeds';
@@ -3948,90 +3947,7 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/downloads/:id', (req) => {
   return noContent();
 });
 
-route(['GET', 'POST'], '/api/intern/pflege/blog', (req) => {
-  if (req.method === 'GET') return json(staffBlogList());
-  const body = req.json ?? {};
-  const id = newId();
-  const entry = {
-    id,
-    etag: newEtag(`blog-${id}`),
-    title: str(body.title),
-    date: str(body.date, new Date(MOCK_NOW).toISOString().slice(0, 10)),
-    published: body.published === true,
-    content: str(body.content),
-    images: [],
-  };
-  blogEntries.push(entry);
-  return json({ id, etag: entry.etag }, 201);
-});
-
-route(['GET', 'PATCH', 'DELETE'], '/api/intern/pflege/blog/:id', (req) => {
-  const index = blogEntries.findIndex((e) => e.id === req.params.id);
-  if (index < 0) return notFound('Der Beitrag wurde nicht gefunden.');
-  const entry = blogEntries[index];
-  if (req.method === 'GET') return json(staffBlogPost(entry));
-  if (req.method === 'DELETE') {
-    blogEntries.splice(index, 1);
-    return noContent();
-  }
-  const body = req.json ?? {};
-  entry.title = str(body.title, entry.title);
-  entry.date = str(body.date, entry.date);
-  entry.published = typeof body.published === 'boolean' ? body.published : entry.published;
-  entry.content = str(body.content, entry.content);
-  entry.etag = newEtag(`blog-${entry.id}`);
-  return json({ etag: entry.etag });
-});
-
-/** Width and height from the SOF marker of a JPEG, if found. */
-function jpegSize(bytes: Buffer): { width: number; height: number } | null {
-  let offset = 2;
-  while (offset + 9 < bytes.length) {
-    if (bytes[offset] !== 0xff) return null;
-    const marker = bytes[offset + 1];
-    const length = bytes.readUInt16BE(offset + 2);
-    if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
-      return { height: bytes.readUInt16BE(offset + 5), width: bytes.readUInt16BE(offset + 7) };
-    }
-    offset += 2 + length;
-  }
-  return null;
-}
-
-route(['PUT', 'PATCH'], '/api/intern/pflege/blog/:id/bilder', (req) => {
-  const entry = blogEntries.find((e) => e.id === req.params.id);
-  if (!entry) return notFound('Der Beitrag wurde nicht gefunden.');
-  if (req.method === 'PATCH') {
-    const raw = Array.isArray(req.json?.images) ? (req.json?.images as unknown[]) : [];
-    const byFile = new Map(entry.images.map((i) => [i.file, i]));
-    entry.images = raw.flatMap((value) => {
-      const item = value as { file?: unknown; alt?: unknown };
-      const image = byFile.get(str(item.file));
-      return image ? [{ ...image, alt: str(item.alt, image.alt) }] : [];
-    });
-    entry.etag = newEtag(`blog-${entry.id}`);
-    return json({ etag: entry.etag, images: entry.images });
-  }
-  if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
-    return error(400, 'INVALID', 'Bitte ein Bild im JPEG-Format hochladen.');
-  const size = jpegSize(req.raw) ?? { width: 1600, height: 1067 };
-  const image = { file: `bild-${MOCK_NOW}.jpg`, alt: '', ...size };
-  blogUploads.set(`${entry.id}/${image.file}`, new Uint8Array(req.raw));
-  entry.images = [...entry.images, image];
-  entry.etag = newEtag(`blog-${entry.id}`);
-  return json({ etag: entry.etag, images: entry.images, image }, 201);
-});
-
-route(['GET', 'DELETE'], '/api/intern/pflege/blog/:id/bilder/:file', (req) => {
-  if (req.method === 'GET')
-    return blogImage(req.params.id, req.params.file, req.query.get('w'), false);
-  const entry = blogEntries.find((e) => e.id === req.params.id);
-  if (!entry || !entry.images.some((i) => i.file === req.params.file)) return notFound();
-  entry.images = entry.images.filter((i) => i.file !== req.params.file);
-  blogUploads.delete(`${entry.id}/${req.params.file}`);
-  entry.etag = newEtag(`blog-${entry.id}`);
-  return json({ etag: entry.etag, images: entry.images });
-});
+registerBlogRoutes(route, blogImage);
 
 // ---------------------------------------------------------------------------------------------
 // Sammelbestellungen

@@ -12,6 +12,17 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-05-05-blog-freigabe',
+    date: '2026-11-05',
+    title: 'Blogbeiträge zur Prüfung einreichen',
+    changes: [
+      {
+        text: 'Du kannst Blogbeiträge zur Prüfung einreichen und mit Rückmeldung zurückbekommen oder freigeben lassen. Nach der Freigabe kannst du den Beitrag veröffentlichen.',
+        href: '/leitendenbereich/blog',
+      },
+    ],
+  },
+  {
     id: '2026-11-05-03-personenvorschlaege',
     date: '2026-11-05',
     title: 'Personen beim Anlegen auswählen',
@@ -37,7 +48,12 @@ export const CHANGELOG: ChangelogEntry[] = [
     id: '2026-11-05-01-aktionsunterlagen',
     date: '2026-11-05',
     title: 'Treffpunkt und Unterlagen am Termin',
-    changes: [{ text: 'Du kannst Treffpunkt, Packliste und vorhandene Unterlagen zu einer Aktion ergänzen. Sie erscheinen direkt am öffentlichen Termin; die Packliste lässt sich als PDF zum Abhaken herunterladen.', href: '/leitendenbereich/aktionen' }],
+    changes: [
+      {
+        text: 'Du kannst Treffpunkt, Packliste und vorhandene Unterlagen zu einer Aktion ergänzen. Sie erscheinen direkt am öffentlichen Termin; die Packliste lässt sich als PDF zum Abhaken herunterladen.',
+        href: '/leitendenbereich/aktionen',
+      },
+    ],
   },
   {
     id: '2026-11-04-02-kontakt-postfach',
