@@ -65,3 +65,45 @@ test('Abgelaufene Anmeldung zeigt erneutes Anmelden und bewahrt den Namen', asyn
   await expect(name).toHaveValue('Unfertiger Name');
   await expect(dialog.getByRole('button', { name: 'Anlegen', exact: true })).toBeEnabled();
 });
+
+test('Ausfall der Leitendenquelle erhält weitere Vorschläge und erlaubt erneutes Laden', async ({
+  page,
+}) => {
+  let requests = 0;
+  await page.route('**/api/intern/pflege/personen', (route) => {
+    requests += 1;
+    return route.fulfill({
+      json: {
+        personen: [{ id: 1, name: 'Weitere Beispiel', login: '', gruppe: 'weitere', aktiv: true }],
+        leitende: requests === 1 ? null : [{ login: 'dominik@example.de', name: 'Dominik Konto' }],
+        campflow: null,
+      },
+    });
+  });
+  await page.goto('/leitendenbereich/leitende');
+  await page.getByRole('button', { name: 'Neue Person', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const name = dialog.getByRole('combobox', { name: 'Name', exact: true });
+  await name.fill('Dominik');
+  await expect(
+    dialog.getByText(
+      'Die Namen der Leitenden konnten nicht geladen werden. Lade die Vorschläge erneut.'
+    )
+  ).toBeVisible();
+  await expect(dialog.getByText('Keine passende Person gefunden.')).toHaveCount(0);
+  await name.fill('Weitere');
+  await page.getByRole('option', { name: 'Weitere Beispiel' }).click();
+  await expect(name).toHaveValue('Weitere Beispiel');
+  await name.fill('Dominik');
+  await dialog.getByRole('button', { name: 'Vorschläge erneut laden' }).click();
+  await expect(
+    dialog.getByText(
+      'Die Namen der Leitenden konnten nicht geladen werden. Lade die Vorschläge erneut.'
+    )
+  ).toHaveCount(0);
+  await expect(name).toHaveValue('Dominik');
+  await name.click();
+  await page.getByRole('option', { name: 'Dominik Konto' }).click();
+  await expect(name).toHaveValue('Dominik Konto');
+  expect(requests).toBe(2);
+});
