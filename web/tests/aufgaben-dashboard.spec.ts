@@ -10,6 +10,7 @@ test('favorites are set on the areas themselves, saved for the account and survi
 }) => {
   // Waits for the popup of a failed save to outlast the usual display time
   test.setTimeout(75_000);
+  await page.clock.install();
   await page.goto('/leitendenbereich');
   await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' }).first()).toBeAttached();
   await expect(page.getByRole('region', { name: 'Deine Bereiche' })).toHaveCount(0);
@@ -31,7 +32,7 @@ test('favorites are set on the areas themselves, saved for the account and survi
   await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
   await expect(favorites.getByRole('link', { name: 'Aktionen', exact: true })).toBeVisible();
   // The popup with „Erneut speichern“ stays until it is saved
-  await page.waitForTimeout(11_000);
+  await page.clock.fastForward(11_000);
   await expect(page.getByRole('button', { name: 'Erneut speichern' })).toBeVisible();
   // The unsaved choice is not lost by leaving the page by accident
   await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();

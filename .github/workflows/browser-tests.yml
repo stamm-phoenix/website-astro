@@ -30,22 +30,26 @@ jobs:
           - {
               name: "1/4",
               browser: chromium,
-              args: "--project=desktop --project=mobile --shard=1/4",
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "1/4",
             }
           - {
               name: "2/4",
               browser: chromium,
-              args: "--project=desktop --project=mobile --shard=2/4",
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "2/4",
             }
           - {
               name: "3/4",
               browser: chromium,
-              args: "--project=desktop --project=mobile --shard=3/4",
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "3/4",
             }
           - {
               name: "4/4",
               browser: chromium,
-              args: "--project=desktop --project=mobile --shard=4/4",
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "4/4",
             }
           # Run the small WebKit suite with one worker and one dev server.
           - {
@@ -76,6 +80,10 @@ jobs:
         run: |
           version=$(node -p "require('@playwright/test/package.json').version")
           test "$PLAYWRIGHT_IMAGE" = "mcr.microsoft.com/playwright:v${version}-noble"
+      - name: Balance Chromium files by measured duration
+        if: matrix.browser == 'chromium'
+        working-directory: web
+        run: bun scripts/ci/select-browser-shard.ts ${{ matrix.shard }}
       - name: Test browser workflows with simulated data
         working-directory: web
         # Each shard runs its share of the test files with one mock dev server per worker.

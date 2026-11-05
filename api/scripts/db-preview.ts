@@ -1,5 +1,5 @@
-import { seedPreviewContentReviews } from '../lib/db-preview-content-review';
-import { seedPreviewAktionen } from '../lib/db-preview-aktionen';
+import { seedPreviewData } from './preview-seeds';
+
 /**
  * The database (`website-pr-<number>`) and blob container (`pr-<number>` in the preview storage
  * account) of a PR preview, so previews never use the production data. Runs in the deploy
@@ -25,7 +25,7 @@ import { resolve } from 'node:path';
 import { sql } from 'kysely';
 import { AzureCliCredential } from '@azure/identity';
 import { CONFIG } from '../lib/config';
-import { seedPreviewStaffUsage } from '../lib/staff-usage-preview';
+
 import { createContainerClient, useBlobStorage } from '../lib/blob-storage';
 import type { BlobTarget } from '../lib/blob-storage';
 import { closeDatabase, createDatabase, getDb, getSqlErrorNumber, useDatabase } from '../lib/db';
@@ -40,46 +40,9 @@ import {
   markPreviewSeeded,
   previewContainerName,
   previewDatabaseName,
-  seedPreviewProtokolle,
-  seedPreviewTasks,
-  seedPreviewAttendance,
-  seedPreviewProtokollEditor,
-  seedPreviewPersonen,
-  seedPreviewAktionenOhneZuschuss,
-  seedPreviewKeineAktionen,
-  seedPreviewStaffChangelogSeen,
-  seedPreviewStaffFavorites,
-  seedPreviewStaffRecent,
-  seedPreviewStaffSettings,
-  seedPreviewAbrechnungEingabe,
-  seedPreviewSammel,
-  seedPreviewAbstimmungen,
-  seedPreviewEssensplanung,
-  seedPreviewProblemmeldungen,
-  seedPreviewEssensplanungPlanung,
-  seedPreviewEssensplanungGerichte,
-  seedPreviewEssensplanungEinplanung,
-  seedPreviewEssensplanungTeilnehmende,
-  seedPreviewGruppenstunden,
-  seedPreviewLeitende,
-  seedPreviewBelege,
-  seedPreviewBelegeCampflow,
-  seedPreviewBlog,
-  seedPreviewPlans,
-  seedPreviewQuestions,
 } from '../lib/db-preview';
-import { seedPreviewAktionDownloads, seedPreviewDownloads } from '../lib/db-preview-downloads';
-import { seedPreviewEssensplanungEinkauf } from '../lib/db-preview-essen-einkauf';
-import { seedPreviewEssensplanungPackliste } from '../lib/db-preview-essen-packliste';
-import { seedPreviewEssensplanungBelege } from '../lib/db-preview-essen-belege';
-import { seedPreviewEssensplanungLeitung } from '../lib/db-preview-essen-leitung';
-import { seedPreviewInventur } from '../lib/db-preview-inventur';
-import { seedPreviewSchnupperanfragen } from '../lib/db-preview-schnupper';
-import { seedPreviewPostfach } from '../lib/db-preview-postfach';
-import { seedPreviewEssensplanungKochen } from '../lib/db-preview-essen-kochen';
-import { seedPreviewEssensplanungEinkaeufe } from '../lib/db-preview-essen-einkaeufe';
+
 import { setDeploymentValue } from '../lib/preview-deployment';
-import { createTestData, createTestHelpers } from './nikolaus-testdata';
 
 const USAGE =
   'Usage: bun scripts/db-preview.ts create <PR> [--write-deployment] | reset <PR> | drop <PR> | grant-creator <client ID>';
@@ -149,49 +112,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
     try {
       const preview = getDb();
       await enablePreviewSettings(preview);
-      await createTestData(false, null);
-      await createTestHelpers(false, true);
-      await seedPreviewPlans();
-      await seedPreviewQuestions();
-      await seedPreviewBlog();
-      await seedPreviewAttendance();
-      await seedPreviewTasks();
-      await seedPreviewProtokolle();
-      await seedPreviewProtokollEditor();
-      await seedPreviewPersonen();
-      await seedPreviewAktionenOhneZuschuss();
-      await seedPreviewKeineAktionen();
-      await seedPreviewStaffFavorites();
-      await seedPreviewStaffChangelogSeen();
-      await seedPreviewStaffRecent();
-      await seedPreviewStaffUsage();
-      await seedPreviewStaffSettings();
-      await seedPreviewAbrechnungEingabe();
-      await seedPreviewSammel();
-      await seedPreviewAbstimmungen();
-      await seedPreviewProblemmeldungen();
-      await seedPreviewGruppenstunden();
-      await seedPreviewLeitende();
-      await seedPreviewAktionen();
-      await seedPreviewBelege();
-      await seedPreviewBelegeCampflow();
-      await seedPreviewDownloads();
-      await seedPreviewAktionDownloads();
-      await seedPreviewContentReviews();
-      await seedPreviewEssensplanung();
-      await seedPreviewEssensplanungPlanung();
-      await seedPreviewEssensplanungGerichte();
-      await seedPreviewEssensplanungEinplanung();
-      await seedPreviewEssensplanungTeilnehmende();
-      await seedPreviewEssensplanungEinkauf();
-      await seedPreviewEssensplanungKochen();
-      await seedPreviewEssensplanungEinkaeufe();
-      await seedPreviewEssensplanungPackliste();
-      await seedPreviewEssensplanungBelege();
-      await seedPreviewEssensplanungLeitung();
-      await seedPreviewInventur();
-      await seedPreviewSchnupperanfragen();
-      await seedPreviewPostfach();
+      await seedPreviewData();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();

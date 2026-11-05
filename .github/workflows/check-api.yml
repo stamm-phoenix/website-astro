@@ -1,0 +1,71 @@
+name: Check API
+on:
+  workflow_call:
+
+jobs:
+  api:
+    runs-on: ubuntu-24.04
+    name: Check API
+    concurrency:
+      group: ci-api-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
+      cancel-in-progress: true
+    # The API tests of the Nikolaus data run against a real SQL Server (api/test/fixtures/database.ts)
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Test_Passw0rd!"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'Test_Passw0rd!' -Q 'SELECT 1' -b"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          check-latest: true
+      - name: Install API test dependencies
+        working-directory: api
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Test API
+        working-directory: api
+        # Builds dist/, which the package checks below reuse
+        run: bun run test
+        env:
+          TEST_SQL_PASSWORD: "Test_Passw0rd!"
+      - name: Validate protocol production package
+        run: bash scripts/validate-protokoll-package.sh
+      - name: Lint API
+        working-directory: api
+        run: bun run lint
+      - name: Check operator scripts
+        working-directory: api
+        run: bunx tsc --noEmit --ignoreConfig --module Node16 --target ES2022 --moduleResolution Node16 --esModuleInterop --strict --types node scripts/*.ts
+      - name: Validate Azure timer infrastructure
+        run: az bicep build --file infrastructure/task-reminder-worker.bicep --outfile /tmp/task-reminder-worker.arm.json
+      - name: Validate standalone timer package
+        run: |
+          bash scripts/package-task-worker.sh /tmp/task-reminder-build-check --use-built
+          node -e "require('/tmp/task-reminder-build-check/dist/timers/index.js')"
+      - name: Prepare API deployment package
+        run: |
+          bash scripts/package-swa-api.sh /tmp/swa-api
+          tar -czf /tmp/swa-api.tar.gz -C /tmp/swa-api .
+      - name: Upload API deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: swa-api
+          path: /tmp/swa-api.tar.gz
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1

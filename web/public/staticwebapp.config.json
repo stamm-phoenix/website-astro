@@ -1,4 +1,5 @@
 {
+  "platform": { "apiRuntime": "node:22" },
   "auth": {
     "rolesSource": "/api/GetRoles",
     "identityProviders": {

@@ -6,7 +6,11 @@ import process from 'node:process';
 import * as esbuild from 'esbuild';
 
 const options = {
-  entryPoints: ['main.ts', 'lib/protokoll-pdf-worker.ts'],
+  entryPoints: {
+    main: 'main.ts',
+    'protokoll-pdf-worker': 'lib/protokoll-pdf-worker.ts',
+    deployment: 'lib/deployment.ts',
+  },
   bundle: true,
   platform: 'node',
   target: 'es2022',
@@ -14,6 +18,18 @@ const options = {
   entryNames: '[name]',
   external: ['@azure/functions', 'sharp', 'pdfmake', 'pdfjs-dist'],
   logLevel: 'warning',
+  // Deployment values are supplied after the tested artifact reaches the deploy job.
+  plugins: [
+    {
+      name: 'deployment-config',
+      setup(build) {
+        build.onResolve({ filter: /^\.\/deployment$/ }, () => ({
+          path: './deployment.js',
+          external: true,
+        }));
+      },
+    },
+  ],
 };
 
 if (process.argv.includes('--watch')) {
