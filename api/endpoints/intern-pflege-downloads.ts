@@ -155,7 +155,11 @@ export const DownloadItemEndpoint = pflegeHandler(
     if (request.method !== 'DELETE' && request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
     if (request.method === 'DELETE') {
-      await deleteDownload(id, parseVersion(requireVersion(readIfMatch(request))));
+      await deleteDownload(
+        id,
+        parseVersion(requireVersion(readIfMatch(request))),
+        principal.userDetails
+      );
       return NO_CONTENT;
     }
 

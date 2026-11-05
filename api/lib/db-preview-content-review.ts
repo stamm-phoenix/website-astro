@@ -12,7 +12,7 @@ export async function seedPreviewContentReviews(): Promise<void> {
         .selectFrom(REVIEW_DOMAINS[kind].table)
         .select(['id', 'version'])
         .orderBy('id')
-        .limit(2)
+        .top(2)
         .execute();
       for (const [index, row] of rows.entries()) {
         const contentId = String(row.id);
