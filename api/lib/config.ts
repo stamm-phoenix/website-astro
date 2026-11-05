@@ -132,6 +132,13 @@ export interface ApiConfig {
   playwrightApi: {
     url: string;
   };
+  /** NaMi, the member register of the DPSG, read for the module „Nami-Abgleich“ (`docs/nami-abgleich.md`). */
+  nami: {
+    /** Base of NaMi's REST API, e.g. `https://nami.dpsg.de/ica/rest`. */
+    baseUrl: string;
+    /** Our Stamm in NaMi; its members are compared with CampFlow. */
+    gruppierungId: number;
+  };
   sammelbestellung: {
     /** Tax sphere used only when creating a missing Bestellungen category. */
     categorySphere: 'ideal' | 'purpose' | 'assets' | 'business';
@@ -395,6 +402,11 @@ export const CONFIG: ApiConfig = {
       // Each photo is asked twice: how to turn it, then the check itself
       maxChecksPerDay: 200,
     },
+  },
+  nami: {
+    baseUrl: 'https://nami.dpsg.de/ica/rest',
+    // „Feldkirchen-Westerh., Phoenix 131912“
+    gruppierungId: 131912,
   },
   playwrightApi: {
     // A PR preview may use the preview of the matching playwright-api PR (scripts/playwright-preview.ts)

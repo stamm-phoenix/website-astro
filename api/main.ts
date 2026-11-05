@@ -249,6 +249,7 @@ import GetInternBeitraegeEndpoint from './endpoints/intern-beitraege';
 import GetInternBeitraegeMeineEndpoint from './endpoints/intern-beitraege-meine';
 import GetInternKostenstellenSummenEndpoint from './endpoints/intern-kostenstellen-summen';
 import GetInternMitgliederEndpoint from './endpoints/intern-mitglieder';
+import GetInternNamiAbgleichEndpoint from './endpoints/intern-nami-abgleich';
 import {
   GruppenstundenCollection,
   GruppenstundenHinweis,
@@ -624,6 +625,13 @@ app.http('internMitglieder', {
   authLevel: 'anonymous',
   route: 'intern/mitglieder',
   handler: GetInternMitgliederEndpoint,
+});
+
+app.http('internNamiAbgleich', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nami-abgleich',
+  handler: GetInternNamiAbgleichEndpoint,
 });
 
 // Edit modules of the Leitendenbereich (write to SharePoint)
