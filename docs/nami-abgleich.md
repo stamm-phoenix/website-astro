@@ -71,6 +71,15 @@ REST unter `CONFIG.nami.baseUrl` (`https://nami.dpsg.de/ica/rest`), Gruppierung
 
 Außer der Anmeldung schickt das Modul nur `GET` an NaMi (geprüft in `api/test/nami.test.ts`).
 
+### Zeitlimits
+
+Jede NaMi-Anfrage endet nach 15 Sekunden (einschließlich der Antwort), das ganze Laden aus NaMi
+nach 25 Sekunden; bis dahin fehlende Adressen erscheinen als „Nicht geladen“. Auf die
+CampFlow-Liste wartet der Abgleich ebenfalls höchstens 25 Sekunden (`CAMPFLOW_BUDGET_MS`), danach
+meldet er `CAMPFLOW_UNAVAILABLE`; das geteilte Laden läuft weiter. Beide Grenzen liegen unter den
+30 Sekunden, die der Browser auf eine Leseanfrage wartet (`web/src/lib/apiTimeout.ts`), damit die
+Fehlermeldung ankommt.
+
 ### Zugang
 
 Die App Settings `NAMI_USERNAME` (Mitgliedsnummer) und `NAMI_PASSWORD` des NaMi-Kontos. Fehlen sie

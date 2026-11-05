@@ -14,10 +14,11 @@ import { namiMemberDetail, namiMemberListEntry, type NamiMitglied } from './nami
 
 const REQUEST_TIMEOUT_MS = 15_000;
 /**
- * The whole load (login, list, single views) ends within this time, well below the 45 seconds a
- * request to the Static Web App may take; single views still missing then keep no address.
+ * The whole load (login, list, single views) ends within this time, below the 30 seconds the
+ * browser waits for a read (`web/src/lib/apiTimeout.ts`) and the 45 seconds of the Static Web
+ * App; single views still missing then keep no address.
  */
-const LOAD_BUDGET_MS = 30_000;
+const LOAD_BUDGET_MS = 25_000;
 /** Single views read at the same time; NaMi is slow, but must not be flooded. */
 const DETAIL_CONCURRENCY = 6;
 /** How long a load is reused; the page offers „Neu laden“ for a newer state. */

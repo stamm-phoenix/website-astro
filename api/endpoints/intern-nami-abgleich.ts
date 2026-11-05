@@ -45,11 +45,12 @@ function campflowErrorResponse(error: CampflowError): HttpResponseInit {
 
 /**
  * How long the answer waits for the CampFlow member list, whose pages load one after another,
- * each with its own time limit. NaMi keeps to its own budget (`nami.ts`); both stay well below
- * the 45 seconds a request to the Static Web App may take. The shared load goes on and serves
- * the next request.
+ * each with its own time limit. NaMi keeps to its own budget (`nami.ts`); both stay below the
+ * 30 seconds the browser waits for a read (`web/src/lib/apiTimeout.ts`), so the browser gets
+ * this answer instead of giving up and asking again. The shared load goes on and serves the next
+ * request.
  */
-const CAMPFLOW_BUDGET_MS = 35_000;
+const CAMPFLOW_BUDGET_MS = 25_000;
 
 /** `promise`, or the error of `timeout` once the budget is used up. */
 function withinBudget<T>(promise: Promise<T>, timeout: () => Error): Promise<T> {
