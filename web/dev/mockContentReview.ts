@@ -9,19 +9,21 @@ const titles = [
   'Stammeswochenende',
   'Packliste Sommerlager.pdf',
 ];
-const items: ContentReviewItem[] = kinds.map((kind, index) => ({
-  kind,
-  id: String(index + 1),
-  title: titles[index],
-  updatedAt: '2026-10-01T12:00:00Z',
-  updatedBy: 'Alex Beispiel',
-  reviewedAt:
-    index % 3 === 0 ? null : index % 3 === 1 ? '2026-01-10T09:00:00Z' : '2026-10-05T09:00:00Z',
-  reviewedBy: index % 3 === 0 ? null : 'Sam Muster',
-  changedSinceReview: false,
-  etag: `"000000000000000${index + 1}"`,
-  campflowOwned: kind === 'aktion',
-}));
+const initialItems = (): ContentReviewItem[] =>
+  kinds.map((kind, index) => ({
+    kind,
+    id: String(index + 1),
+    title: titles[index],
+    updatedAt: '2026-10-01T12:00:00Z',
+    updatedBy: 'Alex Beispiel',
+    reviewedAt:
+      index % 3 === 0 ? null : index % 3 === 1 ? '2026-01-10T09:00:00Z' : '2026-10-05T09:00:00Z',
+    reviewedBy: index % 3 === 0 ? null : 'Sam Muster',
+    changedSinceReview: false,
+    etag: `"000000000000000${index + 1}"`,
+    campflowOwned: kind === 'aktion',
+  }));
+let items = initialItems();
 export async function mockContentReview(
   req: IncomingMessage,
   res: ServerResponse,
@@ -30,6 +32,12 @@ export async function mockContentReview(
   if (!path.startsWith('/api/intern/pflege/content-review')) return false;
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'no-store');
+  if (req.method === 'POST' && path === '/api/intern/pflege/content-review/reset') {
+    items = initialItems();
+    res.statusCode = 204;
+    res.end();
+    return true;
+  }
   if (req.method === 'GET' && path === '/api/intern/pflege/content-review') {
     res.end(JSON.stringify(items));
     return true;

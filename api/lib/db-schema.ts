@@ -1,5 +1,5 @@
 import type { BlogPostTable, BlogImageTable } from './db-schema-blog';
-import type { ContentReviewTable } from './content-review-model';
+import type { ContentReviewTable } from './db-schema-content-review';
 import type { ColumnType, Generated } from 'kysely';
 import type { StaffUsageTable } from './db-schema-staff-usage';
 import type { EssenEinheitenart } from './essen-validation';
