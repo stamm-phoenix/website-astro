@@ -21,12 +21,10 @@ import { createAbstimmung, queueAbstimmungEinladungen, voteAsStaff } from './abs
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
 export { seedPreviewGruppenstunden } from './db-preview-gruppenstunden';
 import { createLeitende, getStaffLeitende, setLeitendePhoto } from './leitende-list';
-import { createAktion, getStaffAktionen } from './aktionen-list';
 import { createBeleg, getBelege } from './beleg-list';
 import { nextContentId } from './content-ids';
 import { getDb, inTransaction } from './db';
-import { LEITENDE_STUFE, STUFEN } from './validation/constants';
-import { validateAktion, validateLeitende, validateQuestionAndAnswer } from './validation/content';
+import { validateLeitende, validateQuestionAndAnswer } from './validation/content';
 import { validateBeleg } from './validation/beleg';
 import { validateBlogPost } from './validation/blog';
 import type { Database } from './db-schema';
@@ -176,7 +174,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:53';
+const SEEDED_KEY = 'preview:seeded:54';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -996,38 +994,6 @@ export async function seedPreviewLeitende(): Promise<void> {
       stored.etag,
       PREVIEW_ACTOR
     );
-  }
-}
-
-/** Invented calendar entries without CampFlow (matched by title). */
-const PREVIEW_AKTIONEN: { title: string; stufen: string[]; days: number; length: number }[] = [
-  { title: 'Stammeswochenende (Testdaten)', stufen: [...STUFEN], days: 30, length: 2 },
-  {
-    title: 'Waldweihnacht (Testdaten)',
-    stufen: ['Wölflinge', 'Jungpfadfinder'],
-    days: 60,
-    length: 0,
-  },
-  { title: 'Leitendenrunde (Testdaten)', stufen: [LEITENDE_STUFE], days: 10, length: 0 },
-];
-
-export async function seedPreviewAktionen(now: Date = new Date()): Promise<void> {
-  const existing = new Set((await getStaffAktionen()).map((entry) => entry.title));
-  for (const aktion of PREVIEW_AKTIONEN) {
-    if (existing.has(aktion.title)) continue;
-    const start = dateToLocalParts(new Date(now.getTime() + aktion.days * DAY_MS)).date;
-    const end = dateToLocalParts(
-      new Date(now.getTime() + (aktion.days + aktion.length) * DAY_MS)
-    ).date;
-    const input = {
-      title: aktion.title,
-      stufen: aktion.stufen,
-      start,
-      end,
-      link: '',
-      description: '<p>Dieser Termin ist erfunden und nur in der Preview zu sehen.</p>',
-    };
-    await createAktion(validateAktion(input, [...STUFEN, LEITENDE_STUFE]), PREVIEW_ACTOR);
   }
 }
 

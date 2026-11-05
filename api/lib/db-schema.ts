@@ -65,6 +65,7 @@ export interface Database {
   'content.aktion_stufe_option': AktionStufeOptionTable;
   'content.aktion': AktionTable;
   'content.aktion_stufe': AktionStufeTable;
+  'content.aktion_download': AktionDownloadTable;
   'organisation.beleg': BelegTable;
   'organisation.beleg_campflow': BelegCampflowTable;
   'content.instagram_token': InstagramTokenTable;
@@ -376,6 +377,8 @@ export interface AktionTable {
   /** Sanitized HTML. */
   description: Generated<string>;
   campflow_id: ColumnType<string | null, string | null | undefined, string | null>;
+  meeting_point: Generated<string>;
+  packing_list: Generated<string>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
   updated_by: Generated<string>;
@@ -384,6 +387,12 @@ export interface AktionTable {
 export interface AktionStufeTable {
   aktion_id: number;
   stufe: string;
+}
+
+export interface AktionDownloadTable {
+  aktion_id: number;
+  download_id: string;
+  sort_order: number;
 }
 
 export interface BelegTable {

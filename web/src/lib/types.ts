@@ -44,6 +44,9 @@ export interface Gruppenstunde {
 }
 
 export interface Aktion {
+  meetingPoint?: string;
+  packingList?: string[];
+  downloads?: DownloadFile[];
   id: string;
   stufen: string[];
   title: string;
@@ -563,6 +566,9 @@ export interface CampflowEventDetail {
 
 /** An entry of the public calendar as edited in the Leitendenbereich. */
 export interface StaffAktion {
+  meetingPoint?: string;
+  packingList?: string[];
+  downloadIds?: string[];
   id: string;
   /** Version of the item as loaded; sent back on save to detect concurrent changes. */
   etag: string;

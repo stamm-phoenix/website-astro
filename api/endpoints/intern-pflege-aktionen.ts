@@ -11,9 +11,9 @@ import {
   updateAktion,
 } from '../lib/aktionen-list';
 import { parseId } from '../lib/db';
-import type { AktionInput } from '../lib/validation/content';
+import type { AktionInput } from '../lib/validation/aktion';
 import { ValidationError } from '../lib/validation/errors';
-import { validateAktion } from '../lib/validation/content';
+import { validateAktion } from '../lib/validation/aktion';
 import {
   CONFLICT,
   METHOD_NOT_ALLOWED,

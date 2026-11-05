@@ -114,6 +114,7 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM content.sharepoint_import;
     UPDATE content.id_counter SET last_id = 0;
     DELETE FROM content.aktion_stufe;
+    DELETE FROM content.aktion_download;
     DELETE FROM content.aktion;
     DELETE FROM content.aktion_stufe_option
       WHERE name NOT IN (N'Wölflinge', N'Jungpfadfinder', N'Pfadfinder', N'Rover', N'Leitende');

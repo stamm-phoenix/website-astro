@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ValidationError } from '../lib/validation/errors';
-import { validateAktion } from '../lib/validation/content';
+import { validateAktion } from '../lib/validation/aktion';
 
 function fields(run: () => unknown): Record<string, string> {
   try {
@@ -43,6 +43,43 @@ test('a free entry is normalised and the end defaults to the start', () => {
   assert.equal(validateAktion({ ...FREE, end: ' 2026-05-03 ' }, STUFEN).end, '2026-05-03');
   assert.equal(validateAktion({ ...FREE, end: '2026-05-01' }, STUFEN).end, '2026-05-01');
   assert.equal(validateAktion({ ...FREE, campflowId: null }, STUFEN).campflowId, null);
+});
+
+test('optional action details are normalised and report German errors', () => {
+  assert.deepEqual(
+    validateAktion(
+      {
+        ...FREE,
+        meetingPoint: '  Pfadfinderheim ',
+        packingList: [' Schlafsack ', 'Schlafsack', 'Taschenlampe'],
+        downloadIds: ['download_a', 'download_a'],
+      },
+      STUFEN
+    ),
+    {
+      campflowId: null,
+      ...FREE,
+      end: FREE.start,
+      link: '',
+      description: '',
+      meetingPoint: 'Pfadfinderheim',
+      packingList: ['Schlafsack', 'Taschenlampe'],
+      downloadIds: ['download_a'],
+    }
+  );
+  assert.deepEqual(
+    fields(() =>
+      validateAktion(
+        { ...FREE, meetingPoint: 'x'.repeat(501), packingList: 'Schlafsack', downloadIds: [7] },
+        STUFEN
+      )
+    ),
+    {
+      meetingPoint: 'den Treffpunkt darf höchstens 500 Zeichen lang sein.',
+      packingList: 'Die Packliste ist ungültig.',
+      downloadIds: 'Die Unterlagen sind ungültig.',
+    }
+  );
 });
 
 test('an entry linked to CampFlow ignores title, dates and link', () => {

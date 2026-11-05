@@ -1,3 +1,4 @@
+import { seedPreviewAktionen } from '../lib/db-preview-aktionen';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import sharp from 'sharp';
@@ -6,11 +7,7 @@ import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
 import { getBelege } from '../lib/beleg-list';
 import { getStaffAktionen } from '../lib/aktionen-list';
-import {
-  seedPreviewAktionen,
-  seedPreviewBelege,
-  seedPreviewBelegeCampflow,
-} from '../lib/db-preview';
+import { seedPreviewBelege, seedPreviewBelegeCampflow } from '../lib/db-preview';
 import { overrideConfig } from './fixtures/config';
 import * as mail from '../lib/mail';
 import * as taskDirectory from '../lib/task-directory';

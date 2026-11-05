@@ -5,16 +5,12 @@ import type { GruppenstundenException } from '../gruppenstunden-exception-model'
  * and the Leitende. Formatted text is sanitized here, the schemas check the rest.
  */
 import { z } from 'zod';
-import { isValidDate } from '../calendar-date';
-import { CAMPFLOW_EVENT_ID_PATTERN } from '../campflow';
 import { VORSTAND_TEAM } from './constants';
 import { sanitize } from './rich-text';
-import { choices, isRecord, labeledText, lenientObject, parseWith } from './zod';
-
-const MAX_DESCRIPTION_LENGTH = 5000;
-const HTTPS_URL = /^https:\/\/[^\s"'<>`]+$/i;
+import { choices, labeledText, lenientObject, parseWith } from './zod';
 
 // `z.unknown()` needs `.optional()` here: a missing key would be an error otherwise
+const MAX_DESCRIPTION_LENGTH = 5000;
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -28,7 +24,7 @@ function choiceOf(label: string, allowed: readonly string[]) {
     .refine((value) => allowed.includes(value), { error: message });
 }
 
-/** The description of a Gruppenstunde or Aktion: sanitized, at most 5000 visible characters. */
+/** The description of a Gruppenstunde: sanitized, at most 5000 visible characters. */
 const descriptionSchema = z
   .unknown()
   .optional()
@@ -129,90 +125,6 @@ function gruppenstundeSchema(stufen: string[]) {
 
 export function validateGruppenstunde(body: unknown, stufen: string[]): GruppenstundeInput {
   return parseWith(gruppenstundeSchema(stufen), body, gruppenstundenField);
-}
-
-// --- Aktionen (public calendar) ---
-
-export interface AktionInput {
-  /** CampFlow event the entry belongs to; then title, dates and link come from CampFlow. */
-  campflowId: string | null;
-  stufen: string[];
-  description: string;
-  title: string;
-  start: string;
-  end: string;
-  link: string;
-}
-
-const campflowIdSchema = z
-  .unknown()
-  .optional()
-  .transform((value, ctx) => {
-    if (value === undefined || value === null || value === '') return null;
-    if (typeof value === 'string' && CAMPFLOW_EVENT_ID_PATTERN.test(value)) return value;
-    ctx.issues.push({ code: 'custom', input: value, message: 'Die CampFlow-Aktion ist ungültig.' });
-    return null;
-  });
-
-function aktionShape(stufen: string[]) {
-  return {
-    campflowId: campflowIdSchema,
-    stufen: choices('Die Auswahl der Stufen', stufen).refine((selected) => selected.length > 0, {
-      error: 'Bitte mindestens eine Stufe auswählen.',
-    }),
-    description: descriptionSchema,
-  };
-}
-
-/** What CampFlow provides for a linked entry; the caller takes it from there. */
-const FROM_CAMPFLOW = { title: '', start: '', end: '', link: '' };
-
-/**
- * A date as typed: only a real date passes. Text that is too long is no date either, so the
- * length needs no message of its own.
- */
-function dateText(label: string, required: boolean, invalid: string) {
-  return labeledText(label, Infinity, required).refine((value) => !value || isValidDate(value), {
-    error: invalid,
-  });
-}
-
-function freeAktionSchema(stufen: string[]) {
-  return lenientObject({
-    ...aktionShape(stufen),
-    title: labeledText('einen Titel', 255, true),
-    start: dateText('ein Startdatum', true, 'Bitte ein gültiges Startdatum angeben.'),
-    end: dateText('das Enddatum', false, 'Bitte ein gültiges Enddatum angeben.'),
-    // The scheme is checked before the length, as a link that is no URL needs that message first
-    link: labeledText('Der Anmeldelink', Infinity)
-      .refine((value) => !value || HTTPS_URL.test(value), {
-        error: 'Der Anmeldelink muss mit https:// beginnen.',
-      })
-      .refine((value) => value.length <= 255, {
-        error: 'Der Anmeldelink darf höchstens 255 Zeichen lang sein.',
-      }),
-  })
-    .refine(({ start, end }) => !(text(end) && text(start) && text(end) < text(start)), {
-      path: ['end'],
-      error: 'Das Enddatum darf nicht vor dem Startdatum liegen.',
-      // Reported next to the problems of the other fields
-      when: () => true,
-    })
-    .transform((input) => ({ ...input, end: input.end || input.start }));
-}
-
-function linkedAktionSchema(stufen: string[]) {
-  return lenientObject(aktionShape(stufen)).transform((input) => ({ ...input, ...FROM_CAMPFLOW }));
-}
-
-/**
- * Validates a calendar entry. For entries linked to CampFlow (`campflowId` set) title, dates and
- * link are ignored here; the caller takes them from CampFlow.
- */
-export function validateAktion(body: unknown, stufen: string[]): AktionInput {
-  const id = isRecord(body) ? body.campflowId : undefined;
-  const linked = typeof id === 'string' && CAMPFLOW_EVENT_ID_PATTERN.test(id);
-  return parseWith(linked ? linkedAktionSchema(stufen) : freeAktionSchema(stufen), body);
 }
 
 // --- Leitende ---
