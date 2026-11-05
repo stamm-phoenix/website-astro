@@ -68,7 +68,7 @@ export const MAX_TERMIN_TEXT_CHARS = 12_000;
 const HEAD_CHARS = 4_000;
 /** A suggestion further ahead than this is no next meeting but some other date. */
 const MAX_DAYS_AHEAD = 366;
-const REQUEST_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 const EMPTY_SUGGESTION: TerminSuggestion = { date: null, time: null, place: null, quote: null };
 
@@ -265,7 +265,7 @@ export async function detectProtokollTermin(
   const answer = await requestStructuredOutput(deployment, {
     schemaName: 'naechster_termin',
     schema: RESPONSE_SCHEMA,
-    maxCompletionTokens: 400,
+    maxCompletionTokens: 2000,
     timeoutMs: REQUEST_TIMEOUT_MS,
     messages: terminMessages(text, options.sessionDate),
   });

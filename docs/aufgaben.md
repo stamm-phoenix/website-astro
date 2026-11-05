@@ -66,11 +66,11 @@ physisch gelöscht, damit erneutes Erkennen sie nicht wieder anlegt.
 `CONFIG.protokolle.aufgaben` enthält Deployment und Tageslimit (initial 20 pro Functions-Instanz),
 mit derselben Azure-Ressource wie die Terminerkennung. Leere Deploymentwerte oder ein Limit von 0
 schalten die Erkennung aus; manuelle Pflege bleibt verfügbar. Der Modellaufruf hat ein Timeout
-von 20 Sekunden. Protokolltext und Modellantworten werden nicht geloggt. Die Protokollerkennung
+von 40 Sekunden. Protokolltext und Modellantworten werden nicht geloggt. Die Protokollerkennung
 startet ausschließlich auf ausdrücklichen Aufruf, ohne automatische Erkennung oder Erinnerungen
 an die Protokollprüfung. Sie nutzt die bestehende Function App. Erinnerungsmails für fällige
 Aufgaben sind davon unabhängig und im Abschnitt „Erinnerungsmails“ beschrieben.
-Azure Global Standard kann weltweit verarbeiten.
+Die Bereitstellung `gpt-6.1-sol-datazone` (Datenzonenstandard) verarbeitet nur in der EU.
 
 ## Personen auswählen
 
@@ -98,7 +98,7 @@ Namen und Vorschläge ohne automatische Login-Zuordnung möglich.
 
 Die KI erhält Anzeigenamen und Vornamen mit kurzlebigen Kandidatennummern, keine E-Mail-Adressen,
 Logins oder Entra-Konto-IDs aus der Personenliste. Die verwendete Bereitstellung ist
-`gpt-4.1-mini` auf `website-astro-openai` (Global Standard).
+`gpt-6.1-sol-datazone` auf `website-astro-openai` (Datenzonenstandard, EU).
 `assigneeId` muss auf die übergebene Liste zeigen. Der Server akzeptiert nur eindeutige, in der
 Fundstelle vorkommende Namen: vollständige Namen, Vornamen oder explizit konfigurierte Kurzformen
 (`CONFIG.taskDirectory.shortNames`, zunächst Kathi/Kati für Katharina). Gruppen wie PGR und

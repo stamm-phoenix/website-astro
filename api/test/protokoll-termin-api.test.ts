@@ -40,7 +40,7 @@ const APPROVED_VERSION = '"c:{P1},3"';
 function withModel(t: TestContext, answer: unknown = MODEL_ANSWER, status = 200) {
   Object.assign(CONFIG.protokolle.termin, {
     endpoint: 'https://example.openai.azure.com',
-    deployment: 'gpt-4.1-mini',
+    deployment: 'gpt-6.1-sol-datazone',
   });
   const previousKey = process.env.AZURE_OPENAI_API_KEY;
   process.env.AZURE_OPENAI_API_KEY = 'test-key';

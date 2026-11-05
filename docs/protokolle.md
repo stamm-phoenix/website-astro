@@ -55,7 +55,7 @@ Code: `api/lib/protokoll-termin.ts` (Prompt, Prüfung der Antwort, Entscheidunge
 
 Das Datum der Sitzung und der Text des freigegebenen oder manuell ausgewählten archivierten Protokolls. Zusätzliche Daten aus CampFlow, Empfängerlisten oder Kontodaten von Leitenden werden nicht abgerufen oder übertragen. Im Protokoll selbst können Namen und andere personenbezogene Angaben stehen. Lange Protokolle werden gekürzt (Anfang und Ende, zusammen höchstens 12.000 Zeichen). Der Prompt sagt dem Modell, dass der Protokolltext nur Daten sind und keine Anweisungen; der Text steht zwischen Markierungen, die er selbst nicht enthalten kann. Das Modell schlägt nur Datum, Uhrzeit, Ort und Fundstelle vor, es entscheidet nichts. Die Website schreibt weder Protokolltext noch Prompt noch Fundstelle in die Logs.
 
-Es gelten dieselben Bedingungen wie bei der [KI-Vorprüfung für Belege](belege-ki-pruefung.md#datenschutz): eigenes Azure-Abonnement, kein Training und mögliche Speicherung zur Missbrauchserkennung. Die am 10. Oktober 2026 geprüfte Bereitstellung `gpt-4.1-mini` verwendet „Global Standard“ und kann weltweit verarbeiten. Die Ressourcenregion Germany West Central begrenzt die Verarbeitung nicht auf Deutschland oder die EU. Nur „Datenzonenstandard“ in einer EU-Region würde die Verarbeitung auf die EU beschränken.
+Es gelten dieselben Bedingungen wie bei der [KI-Vorprüfung für Belege](belege-ki-pruefung.md#datenschutz): eigenes Azure-Abonnement, kein Training und mögliche Speicherung zur Missbrauchserkennung. Die Bereitstellung `gpt-6.1-sol-datazone` verwendet den Datenzonenstandard in einer EU-Region; die Verarbeitung bleibt damit in der EU (nicht nur in Deutschland).
 
 ## Empfänger*innen
 
@@ -208,7 +208,7 @@ Autocomplete und Erkennung verwenden diese Liste. Der KI werden Anzeigenamen, Vo
 kurzlebige Indexnummern mitgegeben, keine Konto-IDs oder Mailadressen aus der Liste. Empfängeradressen
 werden erst serverseitig nach Prüfung der Fundstelle aufgelöst. Die Dokumentinhalte selbst können
 weiterhin personenbezogene Angaben enthalten. Verarbeitung: Azure OpenAI `website-astro-openai`,
-Deployment `gpt-4.1-mini`, Global Standard; die bestehenden Datenschutzhinweise gelten ebenso für
+Deployment `gpt-6.1-sol-datazone`, Datenzonenstandard (EU); die bestehenden Datenschutzhinweise gelten ebenso für
 diese zusätzlichen Namen. Die Zuordnung bleibt bis zur menschlichen Annahme ein Vorschlag.
 Bei fehlender Berechtigung bleibt die Personenliste nicht verfügbar; manuelle Namen und
 Aufgabenvorschläge ohne automatische Zuordnung funktionieren weiter.
