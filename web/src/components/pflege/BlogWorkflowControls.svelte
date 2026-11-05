@@ -2,6 +2,7 @@
   import { ApiError, sendApi, errorMessage } from '../../lib/api';
   import type { BlogWorkflow } from '../../../../api/lib/blog-workflow-model';
   import ActionButton from '../ui/ActionButton.svelte';
+  import MessageText from '../ui/MessageText.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { blogPflege } from '../../lib/pflegeStore.svelte';
   interface Props {
@@ -126,5 +127,5 @@
   {/if}
   {#if disabled}<p class="text-sm text-neutral-700">Änderungen zuerst speichern.</p>{/if}
   {#if busy}<p role="status">Wird geändert …</p>{/if}
-  {#if error}<p role="alert" class="text-danger">{error}</p>{/if}
+  {#if error}<p role="alert" class="text-danger"><MessageText text={error} /></p>{/if}
 </section>
