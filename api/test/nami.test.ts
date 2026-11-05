@@ -184,7 +184,7 @@ test('single views that hang end with the time budget, the members without addre
 
   const loading = loadNamiMitglieder();
   for (let i = 0; i < 50; i++) await new Promise((resolve) => setImmediate(resolve));
-  t.mock.timers.tick(30_000);
+  t.mock.timers.tick(25_000);
   const members = await loading;
 
   assert.equal(members.length, 85);
@@ -228,7 +228,7 @@ test('a CampFlow list that takes too long ends the comparison in time', async (t
 
   const answer = GetInternNamiAbgleichEndpoint(request(['team_vorstand']));
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
-  t.mock.timers.tick(35_000);
+  t.mock.timers.tick(25_000);
   const response = await answer;
 
   assert.equal(response.status, 502);
