@@ -51,7 +51,6 @@ import type {
   TasksOverview,
   ProtokollTermin,
   StaffBeleg,
-  CampflowBeleg,
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
   StaffProtokoll,
@@ -293,6 +292,7 @@ import {
 } from './mock-data/sammel';
 import { avatarSvg, documentPreviewSvg, pickColor, sceneSvg, STUFE_COLORS } from './mock-data/svg';
 import { dayFromToday, isoFromNow, MOCK_NOW, newEtag, newId } from './mock-data/util';
+import { belege, campflowBeleg, campflowBelege, mockBelegCheck } from './mock-data/belege';
 
 // ---------------------------------------------------------------------------------------------
 // Plumbing
@@ -3454,190 +3454,6 @@ route(['PUT', 'DELETE'], '/api/intern/pflege/leitende/:id/foto', (req) => {
 
 // --- Belege ---
 
-/** What the mocked image model answers for every photo. */
-function mockBelegCheck(): NonNullable<StaffBeleg['aiCheck']> {
-  return {
-    ok: true,
-    isReceipt: true,
-    complete: true,
-    readable: true,
-    issues: [],
-    restrictedItems: [],
-    shop: 'Demo-Markt',
-    date: dayFromToday(-1),
-    amountCent: 999,
-    checkedAt: new Date(MOCK_NOW).toISOString(),
-  };
-}
-
-const belege: StaffBeleg[] = [
-  {
-    id: '41',
-    etag: newEtag('beleg-41'),
-    art: 'Ausgabe',
-    shop: 'REWE',
-    date: dayFromToday(-2),
-    amountCent: 4387,
-    paidBy: 'Demo Leitung',
-    payout: true,
-    aktion: '',
-    kostenstelle: 'Wölflings-Herbstwochenende',
-    kategorie: 'Verpflegungskosten',
-    note: 'Lebensmittel für Samstag',
-    status: 'Eingereicht',
-    reviewNote: '',
-    submittedBy: 'leitung@example.test',
-    submittedAt: isoFromNow(-1.8),
-    hasImage: true,
-    hasOriginal: false,
-    isPdf: false,
-    aiCheck: {
-      ...mockBelegCheck(),
-      shop: 'REWE',
-      amountCent: 4387,
-      restrictedItems: ['Augustiner Hell 0,5l'],
-    },
-    campflow: null,
-  },
-  {
-    id: '40',
-    etag: newEtag('beleg-40'),
-    art: 'Ausgabe',
-    shop: 'Bauhaus',
-    date: dayFromToday(-9),
-    amountCent: 2199,
-    paidBy: 'Kim Beispiel',
-    payout: true,
-    // From before Kostenstelle and Kategorie
-    aktion: 'Gruppenstunde Pfadfinder',
-    kostenstelle: '',
-    kategorie: '',
-    note: '',
-    status: 'Abgelehnt',
-    reviewNote: 'Der Betrag ist auf dem Foto abgeschnitten. Bitte neu fotografieren.',
-    submittedBy: 'kim@example.test',
-    submittedAt: isoFromNow(-8),
-    hasImage: true,
-    hasOriginal: false,
-    isPdf: false,
-    aiCheck: {
-      ...mockBelegCheck(),
-      ok: false,
-      complete: false,
-      issues: ['Der untere Rand mit dem Gesamtbetrag ist abgeschnitten.'],
-      shop: 'Bauhaus',
-      amountCent: null,
-    },
-    campflow: null,
-  },
-  {
-    id: '39',
-    etag: newEtag('beleg-39'),
-    art: 'Ausgabe',
-    shop: 'Deutsche Bahn',
-    date: dayFromToday(-20),
-    amountCent: 11840,
-    paidBy: 'Sam Muster',
-    payout: true,
-    aktion: '',
-    kostenstelle: 'Sommerlager 2026 Oberjoch',
-    kategorie: 'Fahrtkosten',
-    note: 'Fahrkarten Vorbereitungsteam',
-    status: 'Angenommen',
-    reviewNote: '',
-    submittedBy: 'sam@example.test',
-    submittedAt: isoFromNow(-19),
-    hasImage: true,
-    hasOriginal: false,
-    isPdf: false,
-    aiCheck: null,
-    campflow: null,
-  },
-];
-/** The demo CampFlow's page „Belege“; images of booked ones come from the Abrechnung route. */
-const campflowBeleg = (
-  values: Partial<CampflowBeleg> & Pick<CampflowBeleg, 'id' | 'status'>
-): CampflowBeleg => ({
-  number: null,
-  description: '',
-  date: null,
-  amountCent: 0,
-  openCent: 0,
-  paidBy: null,
-  costUnits: [],
-  categories: [],
-  pages: 1,
-  fileName: null,
-  uploadedAt: null,
-  settledAt: null,
-  viaWebsite: false,
-  submittedByMe: false,
-  mine: false,
-  ...values,
-});
-const sola = { id: 'cun_Sola26', name: 'Sommerlager 2026 Oberjoch' };
-const herbst = { id: 'cun_WoeHerbst', name: 'Wölflings-Herbstwochenende' };
-const campflowBelege: CampflowBeleg[] = [
-  campflowBeleg({
-    id: 'rcp_Neu1',
-    status: 'unbooked',
-    fileName: 'Kassenzettel Baumarkt.pdf',
-    uploadedAt: `${dayFromToday(-1)} 18:12:00`,
-  }),
-  campflowBeleg({
-    id: 'exp_104',
-    status: 'open',
-    number: '2026-104',
-    description: 'Edeka – Grillabend',
-    date: dayFromToday(-30),
-    amountCent: -6412,
-    openCent: -6412,
-    paidBy: 'Demo Leitung',
-    costUnits: [sola],
-    categories: [{ id: 'cat_Sola261', name: 'Verpflegung', costUnitId: sola.id }],
-    uploadedAt: `${dayFromToday(-25)} 20:01:00`,
-    viaWebsite: true,
-    submittedByMe: true,
-  }),
-  campflowBeleg({
-    id: 'exp_97',
-    status: 'settled',
-    number: '2026-97',
-    description: 'DB Fahrkarten Vorbereitung',
-    date: dayFromToday(-48),
-    amountCent: -8890,
-    paidBy: 'Demo Leitung',
-    costUnits: [sola],
-    categories: [{ id: 'cat_Sola262', name: 'Fahrtkosten', costUnitId: sola.id }],
-    uploadedAt: `${dayFromToday(-45)} 09:30:00`,
-    settledAt: dayFromToday(-12),
-  }),
-  campflowBeleg({
-    id: 'exp_99',
-    status: 'open',
-    number: '2026-99',
-    description: 'Bastelmaterial',
-    date: dayFromToday(-20),
-    amountCent: -2350,
-    openCent: -2350,
-    paidBy: 'Sam Beispiel',
-    costUnits: [herbst],
-    categories: [{ id: 'cat_WoeHerbst2', name: 'Material', costUnitId: herbst.id }],
-    uploadedAt: `${dayFromToday(-19)} 12:00:00`,
-  }),
-  campflowBeleg({
-    id: 'exp_88',
-    status: 'settled',
-    number: '2026-88',
-    description: 'Selbstversorgerhaus Anzahlung',
-    date: dayFromToday(-90),
-    amountCent: -50000,
-    costUnits: [sola],
-    categories: [{ id: 'cat_Sola264', name: 'Unterkunft', costUnitId: sola.id }],
-    pages: 2,
-    settledAt: dayFromToday(-70),
-  }),
-];
 const belegPhotos = new Map<string, Uint8Array>();
 const belegOriginals = new Map<string, Uint8Array>();
 const belegPdfs = new Map<string, Uint8Array>();

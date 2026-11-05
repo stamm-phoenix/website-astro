@@ -140,7 +140,11 @@ export function belegEintraege(
         tone: 'neutral',
       });
     }
-    if (beleg.aiCheck && !beleg.aiCheck.ok) tags.push({ label: 'Foto prüfen', tone: 'warning' });
+    if (beleg.aiCheck?.unsignedEigenbeleg) {
+      tags.push({ label: 'Nicht unterschrieben', tone: 'danger' });
+    } else if (beleg.aiCheck && !beleg.aiCheck.ok) {
+      tags.push({ label: 'Foto prüfen', tone: 'warning' });
+    }
     if (beleg.aiCheck?.restrictedItems.length) {
       tags.push({ label: 'Evtl. Alkohol/Tabak', tone: 'danger' });
     }

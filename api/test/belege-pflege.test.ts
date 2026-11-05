@@ -322,6 +322,7 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
       isReceipt: false,
       complete: false,
       readable: false,
+      unsignedEigenbeleg: false,
       issues: ['Unscharf.'],
       restrictedItems: [],
       shop: 'REWE',

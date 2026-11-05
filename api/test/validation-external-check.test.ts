@@ -7,6 +7,7 @@ import {
   forgetBelegChecks,
   parseStoredBelegCheck,
   toBelegCheck,
+  UNSIGNED_EIGENBELEG_ISSUE,
 } from '../lib/beleg-check';
 import { CONFIG } from '../lib/config';
 import { overrideConfig } from './fixtures/config';
@@ -60,6 +61,7 @@ test('unexpected types in the answer are replaced by the safe default', () => {
     isReceipt: false,
     complete: false,
     readable: false,
+    unsignedEigenbeleg: false,
     issues: [],
     restrictedItems: [],
     shop: null,
@@ -81,6 +83,31 @@ test('only a receipt can be complete and readable, and only then restricted item
   );
   const partial = check({ readable: false });
   assert.deepEqual([partial.ok, partial.complete, partial.readable], [false, true, false]);
+});
+
+test('an Eigenbeleg without the signature of the person who paid is not fit (#460)', () => {
+  const unsigned = check({ isEigenbeleg: true, signed: false, issues: ['Unscharf.'] });
+  assert.deepEqual(
+    [unsigned.ok, unsigned.unsignedEigenbeleg, unsigned.issues],
+    [false, true, [UNSIGNED_EIGENBELEG_ISSUE, 'Unscharf.']]
+  );
+  // The message leads, even when the model fills every place
+  const crowded = check({
+    isEigenbeleg: true,
+    signed: false,
+    issues: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
+  });
+  assert.equal(crowded.issues[0], UNSIGNED_EIGENBELEG_ISSUE);
+  assert.equal(crowded.issues.length, 8);
+  // Without a clear answer an Eigenbeleg counts as unsigned
+  assert.equal(check({ isEigenbeleg: true, signed: 'ja' }).unsignedEigenbeleg, true);
+
+  const signed = check({ isEigenbeleg: true, signed: true });
+  assert.deepEqual([signed.ok, signed.unsignedEigenbeleg, signed.issues], [true, false, []]);
+  // A shop's receipt needs no signature, and a photo of no receipt is not an Eigenbeleg
+  assert.equal(check({ isEigenbeleg: false, signed: false }).ok, true);
+  const noReceipt = check({ isReceipt: false, isEigenbeleg: true, signed: false });
+  assert.deepEqual([noReceipt.unsignedEigenbeleg, noReceipt.issues], [false, []]);
 });
 
 test('date and amount are only kept when they are plausible', () => {
@@ -119,6 +146,7 @@ const STORED = {
   isReceipt: true,
   complete: true,
   readable: false,
+  unsignedEigenbeleg: false,
   issues: ['a', 5, 'b'],
   restrictedItems: ['c', null],
   shop: 'REWE',
@@ -135,6 +163,7 @@ test('a stored check keeps its values and drops what is not a string', () => {
     isReceipt: true,
     complete: true,
     readable: false,
+    unsignedEigenbeleg: false,
     issues: ['a', 'b'],
     restrictedItems: ['c'],
     shop: 'REWE',
@@ -150,6 +179,7 @@ test('an old or sparse stored check is filled with defaults', () => {
     isReceipt: false,
     complete: false,
     readable: false,
+    unsignedEigenbeleg: false,
     issues: [],
     restrictedItems: [],
     shop: null,
@@ -174,6 +204,7 @@ test('an old or sparse stored check is filled with defaults', () => {
     isReceipt: false,
     complete: false,
     readable: false,
+    unsignedEigenbeleg: false,
     issues: [],
     restrictedItems: [],
     shop: null,

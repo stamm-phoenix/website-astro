@@ -4,6 +4,7 @@ Das Modul **Belege** im Leitendenbereich kann jedes Belegfoto von einem Bildmode
 
 - Die Prüfung läuft, sobald ein Foto gewählt wurde (Rückmeldung an die einreichende Person, mit Fortschrittsbalken „Beleg wird geprüft …“). Das Ergebnis wird beim Beleg gespeichert und dem Kassenteam angezeigt. Beim Einreichen fragt die API das Modell nicht noch einmal: Sie erkennt dasselbe Foto an seinem Inhalt (SHA-256) und nimmt das Ergebnis der Vorschau oder wartet auf die noch laufende Prüfung (`checkBelegPhoto` in `beleg-check.ts`, je Functions-Instanz, eine Stunde lang). Nur ein anderes oder unbekanntes Foto wird neu geprüft.
 - Außerdem meldet das Modell Positionen, die in der Jugendarbeit nicht abgerechnet werden dürfen (Alkohol, Tabak, sonstige nicht jugendfreie Artikel), auch aus abgekürzten Artikelnamen. Das ist ein Hinweis für die Kasse und erscheint als „Evtl. Alkohol/Tabak“ am Beleg.
+- Bei einem Eigenbeleg prüft das Modell, ob die Person, die bezahlt hat, ihn von Hand unterschrieben hat (#460). Ein gedruckter Name zählt nicht, das Feld „Sachlich richtig“ der Kasse darf leer sein. Fehlt die Unterschrift oder ist die Antwort unklar, ist der Beleg nicht geeignet (`unsignedEigenbeleg`): das Formular nennt das als ersten Mangel und sagt, dass die Kasse ihn ablehnt, die Liste zeigt „Nicht unterschrieben“. Einreichen bleibt möglich, die Kasse entscheidet.
 - Die Prüfung ist nur ein Hinweis. Einreichen geht auch mit Mängeln, die Freigabe macht das Kassenteam.
 - Ohne Einrichtung (keine App-Settings) wird die Prüfung übersprungen, das Modul funktioniert trotzdem.
 - Code: `api/lib/beleg-check.ts`, der Aufruf von Azure OpenAI in `api/lib/azure-openai.ts`.
@@ -16,13 +17,13 @@ Das Modul **Belege** im Leitendenbereich kann jedes Belegfoto von einem Bildmode
 
 Ausgewählt im Oktober 2026 nach einem Vergleich mit gezeichneten Belegfotos und bekannter Lösung, je zwei bis drei Läufe mit dem Prompt aus `beleg-check.ts`. Die Fotos enthielten abgekürzten Alkohol und Tabak („RADL.ZITR.“, „OETT.PILS“, „SMIRN.ICE“, „JAEGERM.“, „IQOS TEREA“, „ELFBAR“), Fallen, die nicht gemeldet werden dürfen (alkoholfreies Bier, Kindersekt, Malzbier, Weingummi, Pfand, Essig), einen verblassten Bon, einen abgeschnittenen und einen unscharfen Beleg:
 
-| Modell (Reasoning) | richtig | Ø Zeit | max. Zeit |
-| --- | --- | --- | --- |
-| `gpt-4.1-mini` (vorher) | 0 von 8 | 3,6 s | 4 s |
-| `gpt-5.4` (high) | 15 von 18 | 10,0 s | 27 s |
-| `gpt-6-astra` (medium) | 17 von 18 | 6,1 s | 8 s |
-| `gpt-6-astra` (high) | 18 von 18 | 8,4 s | 12 s |
-| `gpt-6.1-sol` (high) | 18 von 18 | 8,1 s | 12,5 s |
+| Modell (Reasoning)      | richtig   | Ø Zeit | max. Zeit |
+| ----------------------- | --------- | ------ | --------- |
+| `gpt-4.1-mini` (vorher) | 0 von 8   | 3,6 s  | 4 s       |
+| `gpt-5.4` (high)        | 15 von 18 | 10,0 s | 27 s      |
+| `gpt-6-astra` (medium)  | 17 von 18 | 6,1 s  | 8 s       |
+| `gpt-6-astra` (high)    | 18 von 18 | 8,4 s  | 12 s      |
+| `gpt-6.1-sol` (high)    | 18 von 18 | 8,1 s  | 12,5 s    |
 
 Nachgemessen mit den Regeln für Ränder (siehe unten), knapp zugeschnittenen und abgeschnittenen Belegen und einem echten, 30 Zeilen langen Kassenbon: `gpt-6.1-sol` mit `medium` 16 von 16 richtig in Ø 7,4 s (der echte Bon 18–25 s), mit `high` ebenfalls 16 von 16, aber Ø 12,5 s und bis 41 s. Deshalb `medium`.
 

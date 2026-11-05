@@ -44,6 +44,8 @@
           ? 'Die automatische Prüfung konnte die Angaben lesen. Kannst du sie auch lesen, reich ihn so ein.'
           : 'Die automatische Prüfung konnte die Angaben lesen. Kannst du sie auch lesen, speichere ihn so.'}
       </p>
+    {:else if isNew && kasse && check?.unsignedEigenbeleg}
+      <p>Ohne Unterschrift lehnt die Kasse den Eigenbeleg ab.</p>
     {:else if isNew && needsCheck}
       <p>{kasse ? 'Einreichen geht trotzdem.' : 'Speichern geht trotzdem.'}</p>
     {/if}

@@ -273,6 +273,7 @@ export function demoPruefung(nurDrehung: boolean): Record<string, unknown> {
       isReceipt: true,
       complete: true,
       readable: true,
+      unsignedEigenbeleg: false,
       issues: [],
       restrictedItems: [],
       shop: 'Demo-Markt',
