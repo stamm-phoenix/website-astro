@@ -56,13 +56,16 @@ jobs:
             }
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           check-latest: true
+      # setup-bun needs unzip, which the Playwright image does not include.
+      # npm installs the native Bun package without adding Ubuntu system packages.
+      - name: Install Bun
+        run: |
+          npm install --global bun@1.4.2
+          test "$(bun --version)" = "1.4.2"
       - name: Install frontend dependencies
         working-directory: web
         run: bun install --frozen-lockfile
