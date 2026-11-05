@@ -305,6 +305,24 @@ The site needs no cookie banner and must stay that way. Do not add analytics, tr
 
 ## Before Committing
 
+### Reliable development checks
+
+- Read the actual current component and nearby patterns before redesigning it.
+  Keep functional changes from `main` when resolving styling conflicts.
+- Run each command in its documented directory and check the runtime in the
+  executing shell. A background process or an HTTP `000` does not establish
+  a working dev server; inspect startup errors and actual readiness.
+- Use an isolated environment when browser or service test setup could disrupt
+  an active development or production session. Stop only test processes started
+  for the current task, by exact PID or process group; broad process-name matching
+  can terminate unrelated processes or the invoking shell.
+- After a push, inspect PR mergeability and a workflow run for the pushed SHA
+  before claiming Azure is rebuilding. Distinguish a ready preview from a queued
+  or blocked build. Re-test affected behavior after merging upstream changes.
+- Preserve each build/lint command's exit status when logging or filtering output.
+  If a test or delegated task is interrupted, inspect its output and changes
+  before treating it as complete.
+
 1. For frontend/API changes, run the build in the affected package (`web/` or `api/`)
 2. For frontend changes, `bunx astro check` passes (in `web/`)
 3. For UI changes, verify only the affected flows in the dev server or focused browser tests
