@@ -45,8 +45,10 @@ test('a double click saves one receipt, also while the photo is still being chec
   // While the crop tool is open, the receipt cannot be saved with the old picture
   await neu(page).getByLabel('Betrag in €').fill('7,50');
   await neu(page).getByRole('button', { name: 'Zuschneiden', exact: true }).click();
+  const zuschnitt = neu(page).getByRole('button', { name: 'Zuschneiden fertig', exact: true });
+  await expect(zuschnitt).toBeVisible();
   await expect(neu(page).getByRole('button', { name: 'Beleg speichern' })).toBeDisabled();
-  await neu(page).getByRole('button', { name: 'Abbrechen', exact: true }).first().click();
+  await zuschnitt.locator('..').getByRole('button', { name: 'Abbrechen', exact: true }).click();
 
   const speichern = neu(page).getByRole('button', { name: 'Beleg speichern' });
   await speichern.dblclick();

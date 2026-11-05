@@ -9,6 +9,7 @@ interface FolderEntry {
   loading: boolean;
   error: string | null;
   loadedAt: number | null;
+  revision: number;
 }
 
 /**
@@ -25,7 +26,9 @@ function key(path: string): string {
 const pending = new Map<string, Promise<void>>();
 
 export function folderEntry(path: string): FolderEntry {
-  return fotoOrdner[key(path)] ?? { data: null, loading: true, error: null, loadedAt: null };
+  return (
+    fotoOrdner[key(path)] ?? { data: null, loading: true, error: null, loadedAt: null, revision: 0 }
+  );
 }
 
 /** Whether the links of a loaded folder are still fresh enough to use. */
@@ -40,9 +43,10 @@ export function loadFotoFolder(path: string, { force = false } = {}): Promise<vo
   const running = pending.get(path);
   if (running) return running;
 
-  fotoOrdner[key(path)] ??= { data: null, loading: true, error: null, loadedAt: null };
+  fotoOrdner[key(path)] ??= { data: null, loading: true, error: null, loadedAt: null, revision: 0 };
   // The proxy of the store, not the object assigned above
   const entry = fotoOrdner[key(path)];
+  const revision = entry.revision;
   entry.loading = true;
   entry.error = null;
   const promise = (async () => {
@@ -50,16 +54,22 @@ export function loadFotoFolder(path: string, { force = false } = {}): Promise<vo
       const data = await fetchApi<FotoFolderContent>(
         `/intern/fotos/ordner?pfad=${encodeURIComponent(path)}`
       );
+      if (entry.revision !== revision) return;
       entry.data = data;
       entry.loadedAt = Date.now();
     } catch (error: unknown) {
+      if (entry.revision !== revision) return;
       entry.error = errorMessage(
         error,
         'Der Ordner konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.'
       );
     } finally {
-      entry.loading = false;
       pending.delete(path);
+      if (entry.revision !== revision) {
+        await loadFotoFolder(path, { force: true });
+      } else {
+        entry.loading = false;
+      }
     }
   })();
   pending.set(path, promise);
@@ -71,6 +81,9 @@ export function forgetFotoFolder(path: string): void {
   const segments = path ? path.split('/') : [];
   for (let depth = 0; depth <= segments.length; depth++) {
     const entry = fotoOrdner[key(segments.slice(0, depth).join('/'))];
-    if (entry) entry.loadedAt = null;
+    if (entry) {
+      entry.loadedAt = null;
+      entry.revision++;
+    }
   }
 }
