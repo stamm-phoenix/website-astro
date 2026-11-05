@@ -1,0 +1,90 @@
+name: Browser tests
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Playwright image matching web/package.json
+        type: string
+        default: mcr.microsoft.com/playwright:v1.64.1-noble
+
+jobs:
+  browser-tests:
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ inputs.image }}
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
+    name: Browser tests (${{ matrix.name }})
+    # A group per shard, so the shards of one run do not cancel each other
+    concurrency:
+      group: ci-browser-tests-${{ matrix.name }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep the existing Chromium shards and the smaller WebKit suite separate.
+        include:
+          - {
+              name: "1/4",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --shard=1/4",
+            }
+          - {
+              name: "2/4",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --shard=2/4",
+            }
+          - {
+              name: "3/4",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --shard=3/4",
+            }
+          - {
+              name: "4/4",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --shard=4/4",
+            }
+          # Run the small WebKit suite with one worker and one dev server.
+          - {
+              name: "WebKit",
+              browser: webkit,
+              args: "--project=webkit-tablet",
+              workers: 1,
+            }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          check-latest: true
+      - name: Install frontend dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+      - name: Check Playwright image version
+        working-directory: web
+        env:
+          PLAYWRIGHT_IMAGE: ${{ inputs.image }}
+        run: |
+          version=$(node -p "require('@playwright/test/package.json').version")
+          test "$PLAYWRIGHT_IMAGE" = "mcr.microsoft.com/playwright:v${version}-noble"
+      - name: Test browser workflows with simulated data
+        working-directory: web
+        # Each shard runs its share of the test files with one mock dev server per worker.
+        run: bun run test:e2e ${{ matrix.args }}
+        env:
+          E2E_WORKERS: ${{ matrix.workers || 4 }}
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-report-${{ matrix.browser }}-${{ strategy.job-index }}
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
