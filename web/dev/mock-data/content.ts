@@ -28,6 +28,7 @@ import {
 /** A calendar entry as stored in SharePoint; `campflowId` links it to a CampFlow event. */
 export interface MockAktion extends Aktion {
   campflowId?: string;
+  downloadIds?: string[];
 }
 
 /** All Aktionen including the ones only for Leitende (hidden on the public site). */
@@ -130,7 +131,13 @@ export const aktionen: MockAktion[] = [
 
 /** Calendar entries as the API returns them: linked entries show the CampFlow data live. */
 export function calendarAktionen(): Aktion[] {
-  return aktionen.map(({ campflowId, ...aktion }) => {
+  return aktionen.map(({ campflowId, downloadIds, ...stored }) => {
+    const aktion = {
+      ...stored,
+      downloads: (downloadIds ?? []).flatMap((id) =>
+        publicDownloads().filter((file) => file.id === id)
+      ),
+    };
     const event = campflowEvents.find((e) => e.id === campflowId);
     if (!event?.start_date) return aktion;
     return {

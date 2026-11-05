@@ -1,3 +1,4 @@
+import { registerAktionenRoutes } from './mockAktionen';
 import { emptySession, parseSession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
 import { registerGruppenstundenRoutes } from './mockGruppenstunden';
@@ -170,7 +171,6 @@ import {
   updatePerson,
 } from './mock-data/personen';
 import {
-  aktionen,
   blogEntries,
   blogUploads,
   buildIcs,
@@ -188,7 +188,6 @@ import {
   staffBlogPost,
   staffDownloads,
 } from './mock-data/content';
-import type { MockAktion } from './mock-data/content';
 import { stufeFeed } from './mock-data/aktionenFeeds';
 import type { StufeSlug } from '../../api/lib/anwesenheit-model';
 import {
@@ -2877,99 +2876,7 @@ route('POST', '/api/intern/pflege/protokolle/:id/versand', (req) => {
 
 // Pflege: FAQ, Gruppenstunden, Leitende, Downloads, Blog
 
-const CALENDAR_STUFEN = ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover', 'Leitende'];
-const aktionEtags = new Map<string, string>();
-
-function aktionEtag(id: string): string {
-  let etag = aktionEtags.get(id);
-  if (!etag) aktionEtags.set(id, (etag = newEtag(`aktion-${id}`)));
-  return etag;
-}
-
-/** Applies the form to an entry; linked entries take title, dates and link from CampFlow. */
-function aktionFields(body: Record<string, unknown>): MockResult | Partial<MockAktion> {
-  const campflowId = str(body.campflowId) || undefined;
-  const fields = {
-    stufen: strings(body.stufen).filter((s) => CALENDAR_STUFEN.includes(s)),
-    description: str(body.description),
-    campflowId,
-  };
-  if (fields.stufen.length === 0)
-    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
-      stufen: 'Bitte mindestens eine Stufe auswählen.',
-    });
-  if (campflowId) {
-    const event = campflowEvents.find((e) => e.id === campflowId);
-    if (!event?.start_date)
-      return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
-        campflowId: 'Diese Aktion gibt es in CampFlow nicht (mehr).',
-      });
-    return {
-      ...fields,
-      title: event.title,
-      start: event.start_date,
-      end: event.end_date ?? event.start_date,
-      campflow_link: event.url ?? undefined,
-    };
-  }
-  const start = str(body.start);
-  if (!str(body.title).trim() || !start)
-    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
-      ...(str(body.title).trim() ? {} : { title: 'Bitte einen Titel angeben.' }),
-      ...(start ? {} : { start: 'Bitte ein Startdatum angeben.' }),
-    });
-  return {
-    ...fields,
-    title: str(body.title).trim(),
-    start,
-    end: str(body.end) || start,
-    campflow_link: str(body.link) || undefined,
-  };
-}
-
-route(['GET', 'POST'], '/api/intern/pflege/aktionen', (req) => {
-  if (req.method === 'GET')
-    return json({
-      stufen: CALENDAR_STUFEN,
-      items: aktionen.map((a) => ({
-        id: a.id,
-        etag: aktionEtag(a.id),
-        campflowId: a.campflowId ?? null,
-        title: a.title,
-        stufen: a.stufen,
-        start: a.start,
-        end: a.end,
-        link: a.campflow_link ?? '',
-        description: a.description ?? '',
-      })),
-    });
-  const body = req.json ?? {};
-  if (str(body.campflowId) && aktionen.some((a) => a.campflowId === str(body.campflowId)))
-    return error(409, 'CONFLICT', 'Diese Aktion ist schon veröffentlicht.');
-  const fields = aktionFields(body);
-  if ('kind' in fields) return fields;
-  const id = newId();
-  aktionen.push({ id, title: '', start: '', end: '', stufen: [], ...fields });
-  return json({ id }, 201);
-});
-
-route(['PATCH', 'DELETE'], '/api/intern/pflege/aktionen/:id', (req) => {
-  const index = aktionen.findIndex((a) => a.id === req.params.id);
-  if (index < 0) return notFound();
-  if (req.method === 'DELETE') {
-    aktionen.splice(index, 1);
-    return noContent();
-  }
-  const body = req.json ?? {};
-  const campflowId = str(body.campflowId);
-  if (campflowId && aktionen.some((a, i) => i !== index && a.campflowId === campflowId))
-    return error(409, 'CONFLICT', 'Diese Aktion ist schon mit einem anderen Eintrag verknüpft.');
-  const fields = aktionFields(body);
-  if ('kind' in fields) return fields;
-  Object.assign(aktionen[index], fields);
-  aktionEtags.delete(req.params.id);
-  return noContent();
-});
+registerAktionenRoutes(route);
 
 route(['GET', 'POST'], '/api/intern/pflege/qa', (req) => {
   if (req.method === 'GET')
