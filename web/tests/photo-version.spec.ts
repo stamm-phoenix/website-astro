@@ -104,9 +104,11 @@ for (const pathway of ['photo', 'receipt'] as const) {
     });
     await page.goto('/leitendenbereich/belege');
     await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
-    const editor = page
-      .getByRole('dialog')
-      .filter({ has: page.getByLabel('Geschäft', { exact: true }) });
+    const editor = page.getByRole('dialog').filter({
+      has: page.getByLabel(receipt.art === 'Einnahme' ? 'Einnahme von' : 'Geschäft', {
+        exact: true,
+      }),
+    });
     const note = editor.getByLabel(/^Bemerkung(?: \(optional\))?$/, { exact: true });
     await note.fill('Mein noch nicht gespeicherter Hinweis');
     const photo = await page.evaluate(() => {

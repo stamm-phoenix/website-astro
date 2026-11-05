@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import type { StaffNikolausFahrtData } from '../src/lib/types';
 import { readFile } from 'node:fs/promises';
 import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
 
@@ -204,6 +206,24 @@ test('showing a route from the panel brings the map back into view', async ({ pa
 });
 
 test('a visit already checked off keeps its team on the map', async ({ page }) => {
+  // Offline tests may have cleared every visit on the same worker's mock server.
+  const date = '2026-12-05';
+  const data = (await (
+    await page.request.get(`/api/intern/nikolaus/fahrt?date=${date}`)
+  ).json()) as StaffNikolausFahrtData;
+  const stops = Object.values(data.routes).flat().slice(0, 2);
+  expect(stops).toHaveLength(2);
+  for (const [index, stop] of stops.entries()) {
+    const response = await page.request.post(`/api/intern/pflege/nikolaus-fahrt?date=${date}`, {
+      data: {
+        bookingId: stop.bookingId,
+        visited: index === 0,
+        version: stop.visitVersion,
+        operationId: randomUUID(),
+      },
+    });
+    expect(response.ok()).toBe(true);
+  }
   await page.goto('/leitendenbereich/nikolaus-dispo?ansicht=karte');
   await page.locator('.stop-item').filter({ hasText: 'besucht' }).first().click();
   const card = page.locator('.selected-card');
