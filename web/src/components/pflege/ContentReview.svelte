@@ -5,6 +5,7 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
+  import MessageText from '../ui/MessageText.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import { contentReviews as resource } from '../../lib/contentReviewStore.svelte';
   import { sendApi, errorMessage } from '../../lib/api';
@@ -78,7 +79,7 @@
     }
   }
   $effect(() => {
-    untrack(() => resource.load());
+    untrack(() => resource.load({ force: true }));
   });
 </script>
 
@@ -161,7 +162,7 @@
             class="mt-2 text-sm"
             role={messages[key(item)].error ? 'alert' : 'status'}
           >
-            {messages[key(item)].text}
+            <MessageText text={messages[key(item)].text} />
           </p>{/if}
       </li>
     {/each}

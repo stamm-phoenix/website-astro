@@ -1,3 +1,4 @@
+import { resolveReviewTitles, type ReviewWithCampflow } from './content-review-titles';
 import { sql } from 'kysely';
 import {
   getDb,
@@ -49,7 +50,7 @@ async function listKind(
   db: Db,
   kind: ContentReviewKind,
   id?: string
-): Promise<ContentReviewItem[]> {
+): Promise<ReviewWithCampflow[]> {
   const domain = REVIEW_DOMAINS[kind];
   const { rows } = await sql<ReviewRow>`
     SELECT c.id, ${sql.ref(`c.${domain.title}`)} AS title, c.version, c.updated_at, c.updated_by,
@@ -70,13 +71,16 @@ async function listKind(
     changedSinceReview: row.source_version !== null && !row.source_version.equals(row.version),
     etag: toVersion(row.version),
     campflowOwned: row.campflow !== null,
+    campflowId: row.campflow,
   }));
 }
 export async function getContentReviews(db: Db = getDb()): Promise<ContentReviewItem[]> {
   const lists = await Promise.all(
     (Object.keys(REVIEW_DOMAINS) as ContentReviewKind[]).map((kind) => listKind(db, kind))
   );
-  return lists.flat().sort((a, b) => a.title.localeCompare(b.title, 'de'));
+  return (await resolveReviewTitles(lists.flat())).sort((a, b) =>
+    a.title.localeCompare(b.title, 'de')
+  );
 }
 /** Source row locks also serialize reviews against edits and deletes. No client identity/time is accepted. */
 export async function markContentReviewed(
@@ -86,7 +90,7 @@ export async function markContentReviewed(
   actor: string
 ): Promise<ContentReviewItem> {
   const version = requireVersion(etag);
-  return inTransaction(async (trx) => {
+  const reviewed = await inTransaction(async (trx) => {
     const { rows } = await sql<{
       version: Buffer;
     }>`SELECT version FROM ${sql.table(REVIEW_DOMAINS[kind].table)} WITH (UPDLOCK, HOLDLOCK)
@@ -111,4 +115,5 @@ export async function markContentReviewed(
         .execute();
     return (await listKind(trx, kind, id))[0];
   });
+  return (await resolveReviewTitles([reviewed]))[0];
 }

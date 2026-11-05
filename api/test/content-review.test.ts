@@ -1,8 +1,10 @@
+import { seedPreviewContentReviews } from '../lib/db-preview-content-review';
+import { deleteDownloadRow } from '../lib/download-delete';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import { ContentReviewCollection, ContentReviewItem } from '../endpoints/content-review-routes';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getDb, RecordNotFoundError, VersionConflictError } from '../lib/db';
+import { getDb, requireVersion, RecordNotFoundError, VersionConflictError } from '../lib/db';
 import { getContentReviews, markContentReviewed } from '../lib/content-review';
 import { validateContentReview } from '../lib/validation/content-review';
 import { ValidationError } from '../lib/validation/errors';
@@ -177,8 +179,13 @@ dbTest(
         updated_by: 'download-editor',
       })
       .execute();
+    await seedPreviewContentReviews();
+    const seeded = await getContentReviews();
+    await seedPreviewContentReviews();
     const items = await getContentReviews();
+    assert.deepEqual(items, seeded);
     assert.equal(items.length, 6);
+    assert.ok(items.every((item) => item.reviewedBy === 'Redaktion (Testdaten)'));
     for (const item of items) {
       assert.equal(item.updatedBy, `${item.kind}-editor`);
       assert.equal(item.campflowOwned, item.kind === 'aktion');
@@ -207,3 +214,49 @@ dbTest(
     );
   }
 );
+
+dbTest('deleting a linked download invalidates action review and stale etag', async () => {
+  const db = getDb();
+  await db
+    .insertInto('content.aktion')
+    .values({
+      id: 90002,
+      title: 'Linked action',
+      start_date: null,
+      end_date: null,
+      updated_by: 'original-editor',
+    })
+    .execute();
+  await db
+    .insertInto('content.download')
+    .values({
+      id: 'review-linked-download',
+      file_name: 'Linked.pdf',
+      file_key: 'review-linked',
+      size: 10,
+      mime_type: 'application/pdf',
+      updated_by: 'uploader',
+    })
+    .execute();
+  await db
+    .insertInto('content.aktion_download')
+    .values({
+      aktion_id: 90002,
+      download_id: 'review-linked-download',
+      sort_order: 0,
+    })
+    .execute();
+  const items = await getContentReviews();
+  const action = items.find((item) => item.kind === 'aktion')!;
+  const download = items.find((item) => item.kind === 'download')!;
+  await markContentReviewed('aktion', action.id, action.etag, 'reviewer');
+  await deleteDownloadRow(download.id, requireVersion(download.etag), 'actual-deleter');
+  const changed = (await getContentReviews()).find((item) => item.kind === 'aktion')!;
+  assert.equal(changed.changedSinceReview, true);
+  assert.equal(changed.updatedBy, 'actual-deleter');
+  assert.notEqual(changed.etag, action.etag);
+  await assert.rejects(
+    markContentReviewed('aktion', action.id, action.etag, 'reviewer'),
+    VersionConflictError
+  );
+});

@@ -1,3 +1,4 @@
+import { deleteDownloadRow } from './download-delete';
 import type { HttpResponseInit } from '@azure/functions';
 import { randomBytes } from 'node:crypto';
 import {
@@ -396,15 +397,9 @@ export async function renameDownload(
 }
 
 /** Deletes a download with its files, only in the loaded version. */
-export async function deleteDownload(id: string, version: Buffer): Promise<void> {
+export async function deleteDownload(id: string, version: Buffer, actor: string): Promise<void> {
   if (!isDownloadId(id)) throw new RecordNotFoundError();
-  const row = await getDb()
-    .deleteFrom('content.download')
-    .where('id', '=', id)
-    .where('version', '=', version)
-    .output('deleted.file_key')
-    .executeTakeFirst();
-  if (!row) return noRowWritten(id);
+  const row = await deleteDownloadRow(id, version, actor);
   await removeFiles(() => deleteBlobs(`${ROOT}${row.file_key}/`));
 }
 

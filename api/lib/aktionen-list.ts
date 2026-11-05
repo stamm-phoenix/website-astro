@@ -11,6 +11,7 @@ import {
   getDb,
   getSqlErrorNumber,
   inTransaction,
+  lockResource,
   requireVersion,
   toDateString,
   toVersion,
@@ -318,6 +319,7 @@ async function linkedTwice<T>(work: () => Promise<T>): Promise<T> {
 export async function createAktion(input: AktionInput, actor: string): Promise<string> {
   return linkedTwice(() =>
     inTransaction(async (trx) => {
+      await lockResource(trx, 'content.aktion-download');
       const id = await nextContentId(trx, 'content.aktion');
       await trx
         .insertInto('content.aktion')
@@ -348,6 +350,7 @@ export async function updateAktion(
 ): Promise<void> {
   const updated = await linkedTwice(() =>
     inTransaction(async (trx) => {
+      await lockResource(trx, 'content.aktion-download');
       const result = await trx
         .updateTable('content.aktion')
         .set({ ...toColumns(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
