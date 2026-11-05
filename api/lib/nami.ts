@@ -13,6 +13,11 @@ import { EnvironmentVariable, findEnvironment } from './environment';
 import { namiMemberDetail, namiMemberListEntry, type NamiMitglied } from './nami-schema';
 
 const REQUEST_TIMEOUT_MS = 15_000;
+/**
+ * The whole load (login, list, single views) ends within this time, well below the 45 seconds a
+ * request to the Static Web App may take; single views still missing then keep no address.
+ */
+const LOAD_BUDGET_MS = 30_000;
 /** Single views read at the same time; NaMi is slow, but must not be flooded. */
 const DETAIL_CONCURRENCY = 6;
 /** How long a load is reused; the page offers „Neu laden“ for a newer state. */
@@ -33,6 +38,8 @@ export class NamiError extends Error {
 
 interface NamiSession {
   cookie: string;
+  /** Aborts every request of the load once its time budget is used up. */
+  deadline?: AbortSignal;
 }
 
 interface NamiAnswer {
@@ -45,11 +52,16 @@ interface NamiAnswer {
  * Sends a request and reads its whole body within the time limit, so an answer whose body
  * stalls fails like one that never came.
  */
-async function call(url: string, init: RequestInit = {}): Promise<NamiAnswer> {
+async function call(
+  url: string,
+  init: RequestInit = {},
+  deadline?: AbortSignal
+): Promise<NamiAnswer> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const signal = deadline ? AbortSignal.any([controller.signal, deadline]) : controller.signal;
   try {
-    const response = await fetch(url, { ...init, redirect: 'manual', signal: controller.signal });
+    const response = await fetch(url, { ...init, redirect: 'manual', signal });
     const text = await response.text();
     let body: unknown = null;
     try {
@@ -60,7 +72,7 @@ async function call(url: string, init: RequestInit = {}): Promise<NamiAnswer> {
     return { response, body };
   } catch (error: unknown) {
     throw new NamiError(
-      controller.signal.aborted ? 504 : 502,
+      signal.aborted ? 504 : 502,
       `NaMi request ${new URL(url).pathname} failed: ${error instanceof Error ? error.message : String(error)}`
     );
   } finally {
@@ -77,17 +89,21 @@ function sessionCookie(response: Response): string | undefined {
 }
 
 /** Logs in with the account of the environment; the login is the only request that is not a GET. */
-export async function namiLogin(): Promise<NamiSession> {
+export async function namiLogin(deadline?: AbortSignal): Promise<NamiSession> {
   const username = findEnvironment(EnvironmentVariable.NAMI_USERNAME);
   const password = findEnvironment(EnvironmentVariable.NAMI_PASSWORD);
   if (!username || !password) throw new NamiError(401, 'NaMi login is not configured');
 
   const base = CONFIG.nami.baseUrl;
-  const startup = await call(`${base}/nami/auth/manual/sessionStartup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-    body: new URLSearchParams({ username, password, Login: 'API', redirectTo: './app.jsp' }),
-  });
+  const startup = await call(
+    `${base}/nami/auth/manual/sessionStartup`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: new URLSearchParams({ username, password, Login: 'API', redirectTo: './app.jsp' }),
+    },
+    deadline
+  );
   let cookie = sessionCookie(startup.response);
   let answer = startup;
   const location = startup.response.headers.get('location');
@@ -98,9 +114,11 @@ export async function namiLogin(): Promise<NamiSession> {
       throw new NamiError(502, 'NaMi redirected the login to another host');
     }
     activation.protocol = new URL(base).protocol;
-    answer = await call(activation.href, {
-      headers: { Accept: 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
-    });
+    answer = await call(
+      activation.href,
+      { headers: { Accept: 'application/json', ...(cookie ? { Cookie: cookie } : {}) } },
+      deadline
+    );
     cookie = sessionCookie(answer.response) ?? cookie;
   }
 
@@ -109,15 +127,16 @@ export async function namiLogin(): Promise<NamiSession> {
     throw new NamiError(401, `NaMi login refused (status ${answer.response.status})`);
   }
   if (!cookie) throw new NamiError(502, 'NaMi login set no session');
-  return { cookie };
+  return { cookie, deadline };
 }
 
 /** Reads a NaMi resource with GET; everything but the login goes through here. */
 export async function namiGet(session: NamiSession, path: string): Promise<unknown> {
-  const { response, body: answer } = await call(`${CONFIG.nami.baseUrl}${path}`, {
-    method: 'GET',
-    headers: { Accept: 'application/json', Cookie: session.cookie },
-  });
+  const { response, body: answer } = await call(
+    `${CONFIG.nami.baseUrl}${path}`,
+    { method: 'GET', headers: { Accept: 'application/json', Cookie: session.cookie } },
+    session.deadline
+  );
   if (!response.ok) {
     throw new NamiError(502, `NaMi request failed: ${response.status} ${response.statusText}`);
   }
@@ -168,7 +187,19 @@ async function mapLimited<T, R>(
  * view. A single view that fails keeps the member without address.
  */
 export async function loadNamiMitglieder(): Promise<NamiMitglied[]> {
-  const session = await namiLogin();
+  const budget = new AbortController();
+  const timer = setTimeout(() => budget.abort(), LOAD_BUDGET_MS);
+  timer.unref?.();
+  const deadline = budget.signal;
+  try {
+    return await loadWithin(deadline);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function loadWithin(deadline: AbortSignal): Promise<NamiMitglied[]> {
+  const session = await namiLogin(deadline);
   try {
     const gruppierung = `/nami/mitglied/filtered-for-navigation/gruppierung/gruppierung/${CONFIG.nami.gruppierungId}`;
     const list = await namiGet(session, `${gruppierung}/flist?page=1&start=0&limit=5000`);
@@ -178,13 +209,15 @@ export async function loadNamiMitglieder(): Promise<NamiMitglied[]> {
       return parsed.success ? [parsed.data] : [];
     });
     return await mapLimited(members, DETAIL_CONCURRENCY, async (member) => {
+      // Once the time is up, the remaining members keep no address instead of failing the load
+      if (deadline.aborted) return member;
       try {
         const detail = namiMemberDetail.safeParse(
           await namiGet(session, `${gruppierung}/${member.id}`)
         );
         return detail.success ? { ...member, ...detail.data } : member;
       } catch (error: unknown) {
-        if (error instanceof NamiError && error.status === 401) throw error;
+        if (error instanceof NamiError && error.status === 401 && !deadline.aborted) throw error;
         return member;
       }
     });

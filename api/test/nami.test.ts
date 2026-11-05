@@ -148,6 +148,48 @@ test('an answer whose body stalls runs into the time limit', async (t) => {
   await failed;
 });
 
+test('single views that hang end with the time budget, the members without address', async (t) => {
+  process.env.NAMI_USERNAME = '123456';
+  process.env.NAMI_PASSWORD = 'geheim';
+  t.after(() => {
+    delete process.env.NAMI_USERNAME;
+    delete process.env.NAMI_PASSWORD;
+  });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const json = (body: unknown): Response =>
+    new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+  t.mock.method(globalThis, 'fetch', async (input: string | URL, init: RequestInit = {}) => {
+    const url = String(input);
+    if (url.endsWith('/sessionStartup')) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: `${BASE}/nami/auth/loginActivatin/abc/API`,
+          'set-cookie': 'JSESSIONID=s1; Path=/ica',
+        },
+      });
+    }
+    if (url.includes('/loginActivatin/')) return json({ statusCode: 0 });
+    if (url.endsWith('/nami/auth/logout')) return json({ success: true });
+    if (url.startsWith(`${LIST}/flist`)) {
+      const data = Array.from({ length: 85 }, (_, i) => ({ id: i + 1, entries_vorname: `P${i}` }));
+      return json({ success: true, data });
+    }
+    // Single views never answer until they are cancelled
+    return new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+    });
+  });
+
+  const loading = loadNamiMitglieder();
+  for (let i = 0; i < 50; i++) await new Promise((resolve) => setImmediate(resolve));
+  t.mock.timers.tick(30_000);
+  const members = await loading;
+
+  assert.equal(members.length, 85);
+  assert.ok(members.every((member) => member.adresse === null));
+});
+
 function request(roles: string[]): HttpRequest {
   const principal = {
     identityProvider: 'aad',

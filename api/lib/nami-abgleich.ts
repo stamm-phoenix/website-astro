@@ -76,7 +76,8 @@ function nummerKey(value: string): string {
 /** A phone number as digits with a leading 0 instead of +49 or 0049. */
 export function telefonKey(value: string): string {
   const digits = value.replace(/[^\d+]/g, '');
-  return digits.replace(/^(\+|00)49/, '0').replace(/\D/g, '');
+  // „+49 (0)8063“ keeps its national 0 after the country code
+  return digits.replace(/^(\+|00)490?/, '0').replace(/\D/g, '');
 }
 
 /** A street for comparison: „Hauptstr. 3“ and „Hauptstraße 3“ are the same. */
@@ -164,7 +165,10 @@ export function campflowEintrag(person: CampflowPerson, today: string): Eintrag 
   const name = record(person.name);
   const address = record(person.address);
   const austritt = day(person.leave_date);
+  const eintritt = day(person.join_date);
+  // Someone who joins later counts as current, so the list does not hide them
   const aktiv = austritt === null || austritt > today;
+  const kuenftig = aktiv && eintritt !== null && eintritt > today;
   const groups = Array.isArray(person.group_names) ? person.group_names.map(text) : [];
   const ccEmails = Array.isArray(person.cc_emails) ? person.cc_emails.map(text) : [];
   const email = uniqueSorted([text(person.primary_email), ...ccEmails].map((e) => e.toLowerCase()));
@@ -189,8 +193,8 @@ export function campflowEintrag(person: CampflowPerson, today: string): Eintrag 
       geburtsdatum: formatDay(day(person.birthdate)),
       geschlecht: geschlecht(text(person.gender)),
       mitgliedsnummer: text(person.membership_number),
-      status: aktiv ? 'Mitglied' : 'Ausgetreten',
-      eintritt: formatDay(day(person.join_date)),
+      status: kuenftig ? `Tritt am ${formatDay(eintritt)} ein` : aktiv ? 'Mitglied' : 'Ausgetreten',
+      eintritt: formatDay(eintritt),
       // Also a leave planned for later, so a date missing in NaMi shows
       austritt: formatDay(austritt),
       stufe: stufenFromGroups(groups).join(', '),
@@ -258,7 +262,7 @@ const SCHRITTE: [AbgleichVerbindung, Schluessel][] = [
   [
     'name-geburtsdatum',
     (e) =>
-      e.person.geburtsdatum
+      e.person.geburtsdatum && nameKey(e.person.nachname) && firstNameKey(e.person.vorname)
         ? `${nameKey(e.person.nachname)}|${firstNameKey(e.person.vorname)}|${e.person.geburtsdatum}`
         : null,
   ],
