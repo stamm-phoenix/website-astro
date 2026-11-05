@@ -4,6 +4,7 @@
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 import * as esbuild from 'esbuild';
+import { deploymentPlugin } from './deployment-bundle.mjs';
 
 const options = {
   entryPoints: {
@@ -19,17 +20,7 @@ const options = {
   external: ['@azure/functions', 'sharp', 'pdfmake', 'pdfjs-dist'],
   logLevel: 'warning',
   // Deployment values are supplied after the tested artifact reaches the deploy job.
-  plugins: [
-    {
-      name: 'deployment-config',
-      setup(build) {
-        build.onResolve({ filter: /^\.\/deployment$/ }, () => ({
-          path: './deployment.js',
-          external: true,
-        }));
-      },
-    },
-  ],
+  plugins: [deploymentPlugin()],
 };
 
 if (process.argv.includes('--watch')) {

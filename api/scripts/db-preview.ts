@@ -25,7 +25,6 @@ import { resolve } from 'node:path';
 import { sql } from 'kysely';
 import { AzureCliCredential } from '@azure/identity';
 import { CONFIG } from '../lib/config';
-
 import { createContainerClient, useBlobStorage } from '../lib/blob-storage';
 import type { BlobTarget } from '../lib/blob-storage';
 import { closeDatabase, createDatabase, getDb, getSqlErrorNumber, useDatabase } from '../lib/db';
@@ -41,7 +40,6 @@ import {
   previewContainerName,
   previewDatabaseName,
 } from '../lib/db-preview';
-
 import { setDeploymentValue } from '../lib/preview-deployment';
 
 const USAGE =

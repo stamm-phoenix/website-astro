@@ -287,7 +287,11 @@ jobs:
         if: steps.current.outputs.deploy == 'true'
         working-directory: api
         # Only these three constants differ between production and a PR preview.
-        run: bun build lib/deployment.ts --target=node --format=cjs --outfile ../swa-api/dist/bundle/deployment.js
+        env:
+          PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+        run: |
+          bun build lib/deployment.ts --target=node --format=cjs --outfile ../swa-api/dist/bundle/deployment.js
+          node scripts/check-deployment.mjs ../swa-api "$PR_NUMBER"
       - name: Get Id Token
         if: steps.current.outputs.deploy == 'true'
         uses: actions/github-script@v7
@@ -610,6 +614,21 @@ jobs:
         with:
           name: content-dist
           path: dist
+      # An older deployed commit may predate prebuilt API packages; keep its old build path.
+      - uses: oven-sh/setup-bun@v2
+        if: steps.current.outputs.deploy == 'true' && hashFiles('scripts/package-content-api.sh') != ''
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@v4
+        if: steps.current.outputs.deploy == 'true' && hashFiles('scripts/package-content-api.sh') != ''
+        with:
+          node-version: "22"
+      - name: Prepare tested production API
+        id: package
+        if: steps.current.outputs.deploy == 'true' && hashFiles('scripts/package-content-api.sh') != ''
+        run: |
+          bash scripts/package-content-api.sh
+          echo "prebuilt=true" >> "$GITHUB_OUTPUT"
       - name: Get Id Token
         if: steps.current.outputs.deploy == 'true'
         uses: actions/github-script@v7
@@ -625,7 +644,8 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
           action: "upload"
           app_location: "dist"
-          api_location: "api"
+          api_location: ${{ steps.package.outputs.prebuilt == 'true' && 'content-swa-api' || 'api' }}
+          skip_api_build: ${{ steps.package.outputs.prebuilt == 'true' }}
           output_location: ""
           skip_app_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}

@@ -57,6 +57,9 @@ jobs:
         run: |
           bash scripts/package-task-worker.sh /tmp/task-reminder-build-check --use-built
           node -e "require('/tmp/task-reminder-build-check/dist/timers/index.js')"
+      - name: Verify runtime deployment configuration contracts
+        working-directory: api
+        run: node --test scripts/deployment-bundle.test.mjs
       - name: Prepare API deployment package
         run: |
           bash scripts/package-swa-api.sh /tmp/swa-api

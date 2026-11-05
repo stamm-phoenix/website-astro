@@ -19,11 +19,8 @@ import { getDb, inTransaction } from './db';
 import { validateLeitende, validateQuestionAndAnswer } from './validation/content';
 import { validateBeleg } from './validation/beleg';
 import type { Database } from './db-schema';
-
 import { dateToLocalParts } from './nikolaus-config';
-
 import { anfrageBestaetigen, hashToken, neuesToken } from './essen-planung';
-
 import {
   createSammelCampaign,
   ensureSammelOrder,
