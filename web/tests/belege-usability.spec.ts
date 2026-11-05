@@ -7,6 +7,7 @@ const knownCheck: BelegCheck = {
   isReceipt: true,
   complete: true,
   readable: true,
+  unsignedEigenbeleg: false,
   issues: [],
   restrictedItems: [],
   shop: 'Testmarkt',

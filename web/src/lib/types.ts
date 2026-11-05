@@ -741,11 +741,13 @@ export type BelegStatus = 'Eingereicht' | 'Angenommen' | 'Abgelehnt';
 
 /** Preliminary check of a receipt photo by the image model. */
 export interface BelegCheck {
-  /** Receipt, complete and readable: fit for the archive. */
+  /** Receipt, complete, readable and, for an Eigenbeleg, signed: fit for the archive. */
   ok: boolean;
   isReceipt: boolean;
   complete: boolean;
   readable: boolean;
+  /** An Eigenbeleg without the signature of the person who paid; the Kasse rejects it. */
+  unsignedEigenbeleg: boolean;
   issues: string[];
   /** Positions not suitable for youth work, e.g. alcohol or tobacco; a hint for the Kasse. */
   restrictedItems: string[];

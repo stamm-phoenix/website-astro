@@ -7,8 +7,8 @@ import { lenientObject } from './validation/zod';
 
 /**
  * Preliminary check of receipt photos with an image model on Azure OpenAI: is it a receipt,
- * is it fully visible and readable enough for the archive? Also reads shop, date and amount
- * to prefill the form. The result is only a hint; the Kassenteam decides.
+ * is it fully visible and readable enough for the archive, and is an Eigenbeleg signed? Also reads
+ * shop, date and amount to prefill the form. The result is only a hint; the Kassenteam decides.
  *
  * Optional: with an empty endpoint or deployment in `CONFIG.belege.check` the check is skipped.
  * With `AZURE_OPENAI_API_KEY` the key is used, otherwise the app registration (Entra ID).
@@ -25,16 +25,24 @@ const REUSE_MS = 60 * 60 * 1000;
 const MAX_REUSED = 200;
 const MAX_ISSUES = 8;
 const MAX_ISSUE_LENGTH = 200;
+/** Leads the issues of an unsigned Eigenbeleg; the model is told to leave it out. */
+export const UNSIGNED_EIGENBELEG_ISSUE =
+  'Der Eigenbeleg ist nicht unterschrieben. Bitte unterschreiben und neu fotografieren.';
 const MAX_RESTRICTED_ITEMS = 20;
 const MAX_ITEM_LENGTH = 100;
 
 /** Result of the check as stored with the receipt and sent to the browser. */
 export interface BelegCheck {
-  /** Receipt, complete and readable: fit for the archive. */
+  /** Receipt, complete, readable and, for an Eigenbeleg, signed: fit for the archive. */
   ok: boolean;
   isReceipt: boolean;
   complete: boolean;
   readable: boolean;
+  /**
+   * An Eigenbeleg (written by the person who paid) without that person's signature; the Kasse
+   * rejects it (discussion #460).
+   */
+  unsignedEigenbeleg: boolean;
   /** Concrete problems in German, e.g. „Der Gesamtbetrag ist abgeschnitten.“ */
   issues: string[];
   /**
@@ -89,6 +97,8 @@ Beurteile:
 - complete: Ist der ganze Inhalt zu sehen, nur ein Beleg auf dem Foto? Unvollständig ist ein Beleg nur, wenn Inhalt fehlt oder verdeckt ist: angeschnittene Zeichen oder Zeilen am Bildrand, ein fehlender Kopf mit dem Geschäft, fehlende Positionen, ein fehlender Gesamtbetrag oder ein fehlendes Datum. Ein knapper Zuschnitt ohne fehlenden Text ist vollständig.
 - readable: Sind Geschäft, Datum, Gesamtbetrag und Positionen scharf und gut lesbar (kein Verwackeln, keine Spiegelung, kein starker Schatten, nicht zu dunkel, nicht stark verzerrt)?
 - issues: Konkrete Mängel auf Deutsch, je ein kurzer Satz mit Hinweis zur Abhilfe, z. B. „Der Gesamtbetrag am Ende des Belegs fehlt. Bitte den ganzen Beleg fotografieren.“ Nenne nur, was wirklich fehlt oder unlesbar ist, keine fehlenden Papierränder und nicht die Drehung. Leer, wenn alles passt.
+- isEigenbeleg: Ist es ein Eigenbeleg, also ein Beleg, den die Person, die bezahlt hat, selbst ausgestellt hat (Überschrift „Eigenbeleg“, oder eine selbst geschriebene Quittung ohne Geschäft oder andere Person, die sie ausgestellt hat)? Kassenbons, Rechnungen und Quittungen eines Geschäfts oder einer anderen Person sind keine Eigenbelege.
+- signed: Nur für Eigenbelege: Hat die Person, die bezahlt hat, ihn von Hand unterschrieben (handschriftliche Unterschrift auf oder über der Zeile „Unterschrift …“ der ausstellenden Person)? Ein gedruckter oder getippter Name ist keine Unterschrift. Das Feld „Sachlich richtig: Datum, Unterschrift Kasse oder Vorstand“ füllt die Kasse erst später aus; es darf leer sein und zählt hier nicht. Bei anderen Belegen immer true. Eine fehlende Unterschrift gehört nicht in issues.
 - shop, date (YYYY-MM-DD), amount (Gesamtbetrag in Euro als Zahl): nur, wenn sicher lesbar, sonst null.
 - restrictedItems: Positionen, die in der Jugendarbeit nicht abgerechnet werden dürfen, so wie sie auf dem Beleg stehen (z. B. „Augustiner Hell 0,5l“): alkoholische Getränke (Bier, Radler, Wein, Sekt, Spirituosen, Alkopops, alkoholhaltige Mixgetränke), Lebensmittel mit deutlichem Alkoholgehalt (z. B. Weinbrandbohnen, Rumtopf, Eierlikör), Tabakwaren (Zigaretten, Tabak, Zigarren, Shisha-Tabak, E-Zigaretten, Liquids, Nikotinbeutel) und sonstige nicht jugendfreie Artikel (z. B. Medien ab 18, Erotikartikel). Nicht dazu gehören alkoholfreie Varianten („alkoholfrei“, „0,0 %“), Pfand und Kochzutaten wie Essig. Nur aufnehmen, wenn die Position auf dem Beleg eindeutig erkennbar ist; leer, wenn nichts davon zu sehen ist.
 
@@ -101,6 +111,8 @@ const RESPONSE_SCHEMA = {
     'isReceipt',
     'complete',
     'readable',
+    'isEigenbeleg',
+    'signed',
     'issues',
     'restrictedItems',
     'shop',
@@ -111,6 +123,8 @@ const RESPONSE_SCHEMA = {
     isReceipt: { type: 'boolean' },
     complete: { type: 'boolean' },
     readable: { type: 'boolean' },
+    isEigenbeleg: { type: 'boolean' },
+    signed: { type: 'boolean' },
     issues: { type: 'array', items: { type: 'string' } },
     restrictedItems: { type: 'array', items: { type: 'string' } },
     shop: { type: ['string', 'null'] },
@@ -138,6 +152,9 @@ const answerSchema = lenientObject({
   isReceipt: z.boolean().catch(false),
   complete: z.boolean().catch(false),
   readable: z.boolean().catch(false),
+  isEigenbeleg: z.boolean().catch(false),
+  // Without a clear „yes“ an Eigenbeleg counts as unsigned
+  signed: z.boolean().catch(false),
   issues: shortTexts(MAX_ISSUE_LENGTH, MAX_ISSUES),
   restrictedItems: shortTexts(MAX_ITEM_LENGTH, MAX_RESTRICTED_ITEMS),
   shop: shortText(100),
@@ -162,13 +179,17 @@ export function toBelegCheck(raw: unknown, now = new Date()): BelegCheck {
   const isReceipt = answer.isReceipt;
   const complete = isReceipt && answer.complete;
   const readable = isReceipt && answer.readable;
+  const unsignedEigenbeleg = isReceipt && answer.isEigenbeleg && !answer.signed;
 
   return {
-    ok: isReceipt && complete && readable,
+    ok: isReceipt && complete && readable && !unsignedEigenbeleg,
     isReceipt,
     complete,
     readable,
-    issues: answer.issues,
+    unsignedEigenbeleg,
+    issues: unsignedEigenbeleg
+      ? [UNSIGNED_EIGENBELEG_ISSUE, ...answer.issues].slice(0, MAX_ISSUES)
+      : answer.issues,
     restrictedItems: isReceipt ? answer.restrictedItems : [],
     shop: answer.shop,
     date: answer.date && /^\d{4}-\d{2}-\d{2}$/.test(answer.date) ? answer.date : null,
@@ -343,6 +364,8 @@ const storedSchema = z.object({
   isReceipt: z.boolean().catch(false),
   complete: z.boolean().catch(false),
   readable: z.boolean().catch(false),
+  // Checks from before #460 did not look for the signature
+  unsignedEigenbeleg: z.boolean().catch(false),
   issues: storedStrings,
   restrictedItems: storedStrings.catch([]),
   shop: z.string().nullable().catch(null),

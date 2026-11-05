@@ -66,6 +66,7 @@ test('the model answer is normalized and never trusted blindly', () => {
     isReceipt: true,
     complete: false,
     readable: true,
+    unsignedEigenbeleg: false,
     issues: ['Der untere Rand ist abgeschnitten.'],
     restrictedItems: ['Augustiner Hell 0,5l'],
     shop: 'REWE',

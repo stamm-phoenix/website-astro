@@ -12,6 +12,18 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-05-09-eigenbeleg-unterschrift',
+    date: '2026-11-05',
+    title: 'Eigenbelege ohne Unterschrift',
+    changes: [
+      {
+        text: 'Reichst du ein Foto eines Eigenbelegs ein, prüft die automatische Prüfung, ob du ihn unterschrieben hast. Fehlt die Unterschrift, siehst du das sofort, denn ohne Unterschrift lehnt die Kasse den Eigenbeleg ab.',
+        href: '/leitendenbereich/belege',
+      },
+      'Die Kasse sieht in der Liste der Belege „Nicht unterschrieben“ an Eigenbelegen ohne Unterschrift.',
+    ],
+  },
+  {
     id: '2026-11-05-08-ki-eu',
     date: '2026-11-05',
     title: 'Automatische Auswertungen nur noch in der EU',
