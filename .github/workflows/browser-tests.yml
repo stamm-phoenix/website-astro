@@ -25,31 +25,55 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Keep the existing Chromium shards and the smaller WebKit suite separate.
+        # Eight balanced Chromium jobs keep the critical path below the ten-minute target.
         include:
           - {
-              name: "1/4",
+              name: "1/8",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "1/4",
+              shard: "1/8",
             }
           - {
-              name: "2/4",
+              name: "2/8",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "2/4",
+              shard: "2/8",
             }
           - {
-              name: "3/4",
+              name: "3/8",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "3/4",
+              shard: "3/8",
             }
           - {
-              name: "4/4",
+              name: "4/8",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "4/4",
+              shard: "4/8",
+            }
+          - {
+              name: "5/8",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "5/8",
+            }
+          - {
+              name: "6/8",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "6/8",
+            }
+          - {
+              name: "7/8",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "7/8",
+            }
+          - {
+              name: "8/8",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "8/8",
             }
           # Run the small WebKit suite with one worker and one dev server.
           - {

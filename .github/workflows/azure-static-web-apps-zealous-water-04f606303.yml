@@ -147,7 +147,7 @@ jobs:
       - name: All shards passed
         run: test "${{ needs.browser-tests.result }}" = success
   prepare-preview:
-    needs: [build]
+    # Prepare only the isolated PR database while checks run; Deploy still requires Build.
     if: github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot'
     uses: ./.github/workflows/prepare-preview.yml
     permissions:
