@@ -1,5 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { SvelteMap } from 'svelte/reactivity';
+  import MessageText from '../ui/MessageText.svelte';
+  import type { Vorschlag } from '../../lib/vorschlaege';
   import FormField from './FormField.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -13,11 +16,21 @@
   }
   let { value = $bindable(), error, suggest }: Props = $props();
   const store = personenPflege.state;
-  const options = $derived(
-    (store.data?.personen ?? [])
-      .filter((person) => person.aktiv)
-      .map((person) => ({ value: person.name, key: String(person.id) }))
-  );
+  const options = $derived.by(() => {
+    const result = new SvelteMap<string, Vorschlag>();
+    const key = (login: string, fallback: string): string =>
+      login.trim() ? login.trim().toLocaleLowerCase('de') : fallback;
+    for (const konto of store.data?.leitende ?? []) {
+      const id = key(konto.login, `name:${konto.name}`);
+      if (!result.has(id)) result.set(id, { value: konto.name, key: id });
+    }
+    for (const person of store.data?.personen ?? []) {
+      if (!person.aktiv || person.gruppe === 'leitende') continue;
+      const id = key(person.login, `person:${person.id}`);
+      if (!result.has(id)) result.set(id, { value: person.name, key: id });
+    }
+    return [...result.values()];
+  });
   const noMatches = $derived(
     suggest &&
       store.data !== null &&
@@ -49,7 +62,7 @@
 </FormField>
 {#if suggest && store.error}
   <div role="status" class="text-sm text-danger">
-    <p>Personenvorschläge konnten nicht geladen werden. Du kannst den Namen selbst eintragen.</p>
+    <p><MessageText text={store.error} /></p>
     <ActionButton type="button" onclick={() => void personenPflege.load({ force: true })}>
       Vorschläge erneut laden
     </ActionButton>
