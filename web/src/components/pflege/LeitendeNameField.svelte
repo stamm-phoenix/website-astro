@@ -31,9 +31,16 @@
     }
     return [...result.values()];
   });
+  const loadError = $derived(
+    store.error ??
+      (store.data?.leitende === null
+        ? 'Die Namen der Leitenden konnten nicht geladen werden. Lade die Vorschläge erneut.'
+        : null)
+  );
   const noMatches = $derived(
     suggest &&
       store.data !== null &&
+      !loadError &&
       !store.loading &&
       value.trim() !== '' &&
       filterVorschlaege(options, value, 1).total === 0
@@ -60,10 +67,14 @@
     {/if}
   {/snippet}
 </FormField>
-{#if suggest && store.error}
+{#if suggest && loadError}
   <div role="status" class="text-sm text-danger">
-    <p><MessageText text={store.error} /></p>
-    <ActionButton type="button" onclick={() => void personenPflege.load({ force: true })}>
+    <p><MessageText text={loadError} /></p>
+    <ActionButton
+      type="button"
+      disabled={store.loading}
+      onclick={() => void personenPflege.load({ force: true })}
+    >
       Vorschläge erneut laden
     </ActionButton>
   </div>
