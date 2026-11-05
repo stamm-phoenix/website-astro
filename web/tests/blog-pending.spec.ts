@@ -29,17 +29,23 @@ test('failed workflow preserves feedback and navigation protection', async ({ pa
   await page.getByLabel('Rückmeldung bei Rückgabe').fill('Bitte Datum prüfen.');
   await page.getByRole('button', { name: 'Mit Rückmeldung zurückgeben', exact: true }).click();
   await expect(page.getByText('Wird geändert …', { exact: true })).toBeVisible();
-  expect(
-    await page
-      .getByRole('textbox', { name: 'Titel', exact: true })
-      .evaluate((node) => !!node.closest('[inert]'))
-  ).toBe(true);
+  expect(await page.locator('#blog-title').evaluate((node) => !!node.closest('[inert]'))).toBe(
+    true
+  );
   release();
   await expect(page.getByRole('alert')).toContainText('Der Stand wurde nicht geändert.');
   await expect(page.getByLabel('Rückmeldung bei Rückgabe')).toHaveValue('Bitte Datum prüfen.');
-  const dialog = page.waitForEvent('dialog');
-  const reload = page.reload();
-  await (await dialog).dismiss();
-  await reload.catch(() => undefined);
+  expect(
+    await page.evaluate(
+      () => !window.dispatchEvent(new Event('beforeunload', { cancelable: true }))
+    )
+  ).toBe(true);
+  await page
+    .locator('a[href="/leitendenbereich/blog"]')
+    .filter({ visible: true })
+    .first()
+    .click({ noWaitAfter: true });
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
   await expect(page.getByLabel('Rückmeldung bei Rückgabe')).toHaveValue('Bitte Datum prüfen.');
 });
