@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { seedPreviewPlans } from '../lib/db-preview';
+import { seedPreviewPlans } from '../lib/db-preview-plans';
 import { getAllDispoRows, getDispoVersion } from '../lib/nikolaus-dispo-list';
 import { getEinteilungRows, getEinteilungVersion } from '../lib/nikolaus-einteilung-list';
 import { dbTest } from './fixtures/database';

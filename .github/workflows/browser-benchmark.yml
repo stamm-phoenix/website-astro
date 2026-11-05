@@ -1,0 +1,59 @@
+name: Browser worker benchmark
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    name: Browser benchmark (${{ matrix.workers }} workers)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        workers: [2, 4]
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Bun and frontend dependencies
+        run: |
+          npm install --global bun@1.4.2
+          bun install --frozen-lockfile
+          test "$(node -p "require('@playwright/test/package.json').version")" = "1.64.1"
+      - name: Measure representative browser workflows
+        run: >-
+          bun run test:e2e --project=mobile
+          'tests/(protokoll-editor|essensplanung-planung|aufgaben-dashboard|essensplanung-gerichte)[.]spec[.]ts$'
+          --reporter=list,json
+        env:
+          E2E_WORKERS: ${{ matrix.workers }}
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/benchmark.json
+      - name: Summarize measurement
+        if: always()
+        env:
+          WORKERS: ${{ matrix.workers }}
+        run: |
+          node <<'JS'
+          const fs = require('node:fs');
+          const file = 'test-results/benchmark.json';
+          if (!fs.existsSync(file)) process.exit(0);
+          const { stats } = JSON.parse(fs.readFileSync(file, 'utf8'));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `${process.env.WORKERS} workers: ${(stats.duration / 1000).toFixed(1)} s; ` +
+            `${stats.expected} passed, ${stats.unexpected} failed, ${stats.flaky} flaky.\n`);
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-benchmark-${{ matrix.workers }}
+          path: web/test-results/
+          retention-days: 7

@@ -82,17 +82,30 @@ for (const pathway of ['photo', 'receipt'] as const) {
     const records = (await (
       await page.request.get('/api/intern/pflege/belege')
     ).json()) as StaffBeleg[];
-    const receipt = records.find((item) => item.status === 'Eingereicht')!;
+    // Start from an existing PDF so replacing it with a JPEG also checks the type change.
+    const receipt = {
+      ...records.find((item) => item.status === 'Eingereicht')!,
+      hasImage: true,
+      isPdf: true,
+    };
     let changedPhoto = false;
     const ownVersion = 'receipt-photo-write-version';
     await page.route('**/api/intern/pflege/belege', (route) =>
       route.fulfill({
-        json: [{ ...receipt, etag: changedPhoto ? 'later-foreign-version' : receipt.etag }],
+        json: [
+          {
+            ...receipt,
+            isPdf: changedPhoto ? false : receipt.isPdf,
+            etag: changedPhoto ? 'later-foreign-version' : receipt.etag,
+          },
+        ],
       })
     );
     await page.route(`**/api/intern/pflege/belege/${receipt.id}/foto`, (route) => {
       changedPhoto = true;
-      return route.fulfill({ json: { ...receipt, etag: ownVersion, hasImage: true } });
+      return route.fulfill({
+        json: { ...receipt, etag: ownVersion, hasImage: true, isPdf: false },
+      });
     });
     let usedVersion = '';
     await page.route(`**/api/intern/pflege/belege/${receipt.id}`, (route) => {
@@ -104,9 +117,11 @@ for (const pathway of ['photo', 'receipt'] as const) {
     });
     await page.goto('/leitendenbereich/belege');
     await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
-    const editor = page
-      .getByRole('dialog')
-      .filter({ has: page.getByLabel('Geschäft', { exact: true }) });
+    const editor = page.getByRole('dialog').filter({
+      has: page.getByLabel(receipt.art === 'Einnahme' ? 'Einnahme von' : 'Geschäft', {
+        exact: true,
+      }),
+    });
     const note = editor.getByLabel(/^Bemerkung(?: \(optional\))?$/, { exact: true });
     await note.fill('Mein noch nicht gespeicherter Hinweis');
     const photo = await page.evaluate(() => {

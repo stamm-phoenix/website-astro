@@ -21,6 +21,8 @@ export interface TravelMatrix {
 }
 
 export interface TravelOptions {
+  /** Preview fixtures need estimates without contacting the real routing service. */
+  estimateOnly?: boolean;
   /**
    * Departure (RFC 3339 with offset), so the usual traffic of that weekday and hour is
    * included. Ignored once it has passed.
@@ -289,7 +291,7 @@ export async function getTravelMatrix(
   const time = departAt ?? 'any';
   let source: TravelSource = 'estimate';
   let routes = new Map<string, number | null>();
-  if (unique.size > 1 && isAzureMapsConfigured()) {
+  if (!options.estimateOnly && unique.size > 1 && isAzureMapsConfigured()) {
     const filled = await fillPairs(unique, departAt);
     if (filled.ok) {
       source = 'route';

@@ -10,6 +10,7 @@ test('favorites are set on the areas themselves, saved for the account and survi
 }) => {
   // Waits for the popup of a failed save to outlast the usual display time
   test.setTimeout(75_000);
+  await page.clock.install();
   await page.goto('/leitendenbereich');
   await expect(page.getByRole('button', { name: 'Aufgaben als Favorit' }).first()).toBeAttached();
   await expect(page.getByRole('region', { name: 'Deine Bereiche' })).toHaveCount(0);
@@ -31,7 +32,7 @@ test('favorites are set on the areas themselves, saved for the account and survi
   await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
   await expect(favorites.getByRole('link', { name: 'Aktionen', exact: true })).toBeVisible();
   // The popup with „Erneut speichern“ stays until it is saved
-  await page.waitForTimeout(11_000);
+  await page.clock.fastForward(11_000);
   await expect(page.getByRole('button', { name: 'Erneut speichern' })).toBeVisible();
   // The unsaved choice is not lost by leaving the page by accident
   await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
@@ -191,8 +192,17 @@ test('a favorite taken back before it was saved still asks before leaving', asyn
     await route.fallback();
   });
   await expect(page.getByRole('region', { name: 'Deine Bereiche' })).toHaveCount(0);
-  await toggleFavoriteLikeAPerson(page, 'Aufgaben');
-  await toggleFavoriteLikeAPerson(page, 'Aufgaben');
+  // This covers the pending save, while the gesture tests above cover long presses.
+  // A click waits for late dashboard panels to finish moving the control.
+  const star = page
+    .getByRole('button', { name: 'Aufgaben als Favorit', exact: true })
+    .filter({ visible: true })
+    .first();
+  await star.locator('..').hover();
+  await star.click();
+  await expect(star).toHaveAttribute('aria-pressed', 'true');
+  await star.click();
+  await expect(star).toHaveAttribute('aria-pressed', 'false');
   // The first save may already be on the server, so leaving now would keep the removed favorite
   await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
   const leave = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });

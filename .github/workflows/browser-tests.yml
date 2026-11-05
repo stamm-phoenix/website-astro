@@ -1,0 +1,149 @@
+name: Browser tests
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Playwright image matching web/package.json
+        type: string
+        default: mcr.microsoft.com/playwright:v1.64.1-noble
+
+jobs:
+  browser-tests:
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ inputs.image }}
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
+    name: Browser tests (${{ matrix.name }})
+    # A group per shard, so the shards of one run do not cancel each other
+    concurrency:
+      group: ci-browser-tests-${{ matrix.name }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # Twelve balanced Chromium jobs target a full deployment within ten minutes.
+        include:
+          - {
+              name: "1/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "1/12",
+            }
+          - {
+              name: "2/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "2/12",
+            }
+          - {
+              name: "3/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "3/12",
+            }
+          - {
+              name: "4/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "4/12",
+            }
+          - {
+              name: "5/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "5/12",
+            }
+          - {
+              name: "6/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "6/12",
+            }
+          - {
+              name: "7/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "7/12",
+            }
+          - {
+              name: "8/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "8/12",
+            }
+          - {
+              name: "9/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "9/12",
+            }
+          - {
+              name: "10/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "10/12",
+            }
+          - {
+              name: "11/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "11/12",
+            }
+          - {
+              name: "12/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "12/12",
+            }
+          # Run the small WebKit suite with one worker and one dev server.
+          - {
+              name: "WebKit",
+              browser: webkit,
+              args: "--project=webkit-tablet",
+              workers: 1,
+            }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          check-latest: true
+      # setup-bun needs unzip, which the Playwright image does not include.
+      # npm installs the native Bun package without adding Ubuntu system packages.
+      - name: Install Bun
+        run: |
+          npm install --global bun@1.4.2
+          test "$(bun --version)" = "1.4.2"
+      - name: Install frontend dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+      - name: Check Playwright image version
+        working-directory: web
+        env:
+          PLAYWRIGHT_IMAGE: ${{ inputs.image }}
+        run: |
+          version=$(node -p "require('@playwright/test/package.json').version")
+          test "$PLAYWRIGHT_IMAGE" = "mcr.microsoft.com/playwright:v${version}-noble"
+      - name: Balance Chromium files by measured duration
+        if: matrix.browser == 'chromium'
+        working-directory: web
+        run: bun scripts/ci/select-browser-shard.ts ${{ matrix.shard }}
+      - name: Test browser workflows with simulated data
+        working-directory: web
+        # Each shard runs its share of the test files with one mock dev server per worker.
+        run: bun run test:e2e ${{ matrix.args }}
+        env:
+          E2E_WORKERS: ${{ matrix.workers || 4 }}
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-report-${{ matrix.browser }}-${{ strategy.job-index }}
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
