@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { errorMessage, sendApi } from '../../lib/api';
   import { cleanName } from '../../lib/fotoPfade';
   import { forgetFotoFolder, loadFotoFolder } from '../../lib/fotoOrdnerStore.svelte';
@@ -10,11 +11,18 @@
   interface Props {
     path: string;
     name: string;
+    uploadError?: string;
   }
-  let { path = $bindable(), name = $bindable() }: Props = $props();
+  let { path = $bindable(), name = $bindable(), uploadError }: Props = $props();
   let saving = $state(false);
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
+
+  let mounted = true;
+  onDestroy(() => {
+    mounted = false;
+  });
+  const displayedError = $derived([error, uploadError].filter(Boolean).join(' ') || null);
 
   async function create(): Promise<void> {
     if (saving) return;
@@ -26,6 +34,7 @@
       return;
     }
     const parent = path;
+    const originalName = name;
     saving = true;
     try {
       const folder = await sendApi<FotoTarget>('POST', '/intern/fotos/ziel', {
@@ -33,11 +42,14 @@
         unterordner: folderName,
       });
       forgetFotoFolder(folder.path);
-      path = folder.path;
-      name = '';
-      success = `Ordner „${folderName}“ erstellt und geöffnet.`;
+      if (mounted && path === parent && name === originalName) {
+        path = folder.path;
+        name = '';
+        success = `Ordner „${folderName}“ erstellt und geöffnet.`;
+      }
       await Promise.all([loadFotoFolder(parent), loadFotoFolder(folder.path)]);
     } catch (cause: unknown) {
+      if (!mounted || path !== parent || name !== originalName) return;
       error = errorMessage(
         cause,
         'Der Ordner konnte nicht erstellt werden. Prüfe deine Internetverbindung und versuch es noch einmal.'
@@ -53,8 +65,8 @@
     {#snippet children(attrs)}
       <input
         {...attrs}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? 'foto-ordner-fehler' : undefined}
+        aria-invalid={displayedError ? true : undefined}
+        aria-describedby={displayedError ? 'foto-ordner-fehler' : undefined}
         class="form-input"
         autocomplete="off"
         placeholder="z. B. Schuljahr 2027-28"
@@ -69,9 +81,9 @@
   {#if success}
     <p class="text-sm text-brand-900" role="status">{success}</p>
   {/if}
-  {#if error}
+  {#if displayedError}
     <p id="foto-ordner-fehler" class="text-sm text-danger" role="alert">
-      <MessageText text={error} />
+      <MessageText text={displayedError} />
     </p>
   {/if}
 </div>
