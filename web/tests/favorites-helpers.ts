@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 /**
  * Toggles an area as a favorite the way a person does: with a mouse by pointing at it in the
@@ -38,12 +38,21 @@ export async function toggleFavoriteLikeAPerson(
     if (before && box && before.y === box.y) break;
   }
   if (!box) throw new Error(`${name} is not on screen`);
+  const star = link.locator('..').getByRole('button', { name: `${name} als Favorit`, exact: true });
+  await expect(star).toBeAttached();
+  const previous = await star.getAttribute('aria-pressed');
   const point = { x: box.x + 40, y: box.y + box.height / 2 };
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
-  await page.waitForTimeout(hold);
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await cdp.detach();
+  try {
+    await page.waitForTimeout(hold);
+    // A busy browser may deliver its long-press timer after the host-side delay.
+    // Keep the finger down until the actual gesture changed the favorite.
+    await expect(star).toHaveAttribute('aria-pressed', previous === 'true' ? 'false' : 'true');
+  } finally {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await cdp.detach();
+  }
   // Another touch right away would count as a double tap
   await page.waitForTimeout(400);
 }
