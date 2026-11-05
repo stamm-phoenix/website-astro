@@ -25,55 +25,79 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Eight balanced Chromium jobs keep the critical path below the ten-minute target.
+        # Twelve balanced Chromium jobs target a full deployment within ten minutes.
         include:
           - {
-              name: "1/8",
+              name: "1/12",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "1/8",
+              shard: "1/12",
             }
           - {
-              name: "2/8",
+              name: "2/12",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "2/8",
+              shard: "2/12",
             }
           - {
-              name: "3/8",
+              name: "3/12",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "3/8",
+              shard: "3/12",
             }
           - {
-              name: "4/8",
+              name: "4/12",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "4/8",
+              shard: "4/12",
             }
           - {
-              name: "5/8",
+              name: "5/12",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "5/8",
+              shard: "5/12",
             }
           - {
-              name: "6/8",
+              name: "6/12",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "6/8",
+              shard: "6/12",
             }
           - {
-              name: "7/8",
+              name: "7/12",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "7/8",
+              shard: "7/12",
             }
           - {
-              name: "8/8",
+              name: "8/12",
               browser: chromium,
               args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "8/8",
+              shard: "8/12",
+            }
+          - {
+              name: "9/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "9/12",
+            }
+          - {
+              name: "10/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "10/12",
+            }
+          - {
+              name: "11/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "11/12",
+            }
+          - {
+              name: "12/12",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
+              shard: "12/12",
             }
           # Run the small WebKit suite with one worker and one dev server.
           - {
