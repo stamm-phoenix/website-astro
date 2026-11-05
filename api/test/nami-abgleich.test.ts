@@ -200,6 +200,34 @@ test('an address NaMi could not deliver is neither a difference nor a match', ()
 test('phone numbers and streets are compared without their spelling', () => {
   assert.equal(telefonKey('+49 (8063) 12-345'), telefonKey('08063/12345'));
   assert.equal(telefonKey('0049 176 1234'), '0176 1234'.replace(/\D/g, ''));
+  assert.equal(telefonKey('+49 (0)8063 12345'), telefonKey('08063 12345'));
+  assert.equal(telefonKey('0049 (0)8063 12345'), telefonKey('08063 12345'));
   assert.equal(strasseKey('Hauptstr. 3'), strasseKey('Hauptstrasse 3'));
   assert.notEqual(strasseKey('Hauptstr. 3'), strasseKey('Hauptstraße 5'));
+});
+
+test('someone who joins CampFlow later is no member yet', () => {
+  const result = gleicheAb(
+    [nami(1, 'Anna', 'Muster')],
+    [campflow('per_A', 'Anna', 'Muster', { membership_number: '1', join_date: '2026-11-19' })],
+    TODAY,
+    LOADED
+  );
+  const status = result.paare[0].felder.find((f) => f.feld === 'status');
+  assert.deepEqual(
+    [status?.nami, status?.campflow, status?.gleich],
+    ['Mitglied', 'Tritt am 19.11.2026 ein', false]
+  );
+  // Still shown while former members are hidden
+  assert.equal(result.paare[0].campflow.aktiv, true);
+});
+
+test('without first names, last name and birthday only link a pair to be checked', () => {
+  const result = gleicheAb(
+    [nami(1, '', 'Berger', { mitgliedsnummer: '' })],
+    [campflow('per_B', '', 'Berger')],
+    TODAY,
+    LOADED
+  );
+  assert.equal(result.paare[0].verbindung, 'geburtsdatum');
 });
