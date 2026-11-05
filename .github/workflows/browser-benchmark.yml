@@ -1,8 +1,9 @@
 name: Browser worker benchmark
 on:
   workflow_dispatch:
-  # Run when the benchmark itself changes; ordinary PRs do not repeat it.
+  # Measure a new benchmark PR once; later fixes do not repeat an unchanged benchmark.
   pull_request:
+    types: [opened]
     paths:
       - .github/workflows/browser-benchmark.yml
 permissions:
