@@ -115,3 +115,23 @@ test('Ordnererstellung erneuert eine noch laufende alte Elternabfrage', async ({
     page.getByRole('button', { name: 'Schuljahr Cachetest', exact: true })
   ).toBeVisible();
 });
+
+test('Ordnererstellung beseitigt den überholten Uploadzielfehler', async ({ page }) => {
+  await page.goto('/leitendenbereich/fotos#ansicht=hochladen&ziel=');
+  await page
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from('photo') });
+  await page.getByRole('button', { name: '1 Datei hochladen', exact: true }).click();
+  await expect(
+    page.getByText('Wähle einen Ordner aus oder gib einen neuen Ordnernamen ein.', { exact: false })
+  ).toBeVisible();
+  await expect(page.getByLabel('Neuer Ordner darin')).toHaveAttribute('aria-invalid', 'true');
+  await page.getByLabel('Neuer Ordner darin').fill('Schuljahr Fehlerkorrektur');
+  await page.getByRole('button', { name: 'Ordner erstellen', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'erstellt und geöffnet' })).toBeVisible();
+  await expect(
+    page.getByText('Wähle einen Ordner aus oder gib einen neuen Ordnernamen ein.', { exact: false })
+  ).toHaveCount(0);
+  await expect(page.getByLabel('Neuer Ordner darin')).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByRole('button', { name: '1 Datei hochladen', exact: true })).toBeVisible();
+});

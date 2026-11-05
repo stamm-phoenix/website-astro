@@ -217,6 +217,7 @@
           bind:path={draft.folder}
           bind:name={draft.subfolder}
           uploadError={errors.ordner}
+          oncreated={() => (errors.ordner = undefined)}
         />
       {/if}
     </section>
