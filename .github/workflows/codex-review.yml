@@ -6,8 +6,9 @@ name: Codex Review
 # same in website-astro and playwright-api; what to look for in each repo is in
 # .github/review-instructions.md. Setup and costs: docs/ki-review.md.
 # The run name tells the skip and label steps which runs were started by the label for which PR
-# (the runs list of the API leaves pull_requests empty for many PRs)
-run-name: "${{ format('Review #{0}{1}', github.event.pull_request.number, github.event.action == 'labeled' && ' (Label)' || '') }}"
+# (the runs list of the API leaves pull_requests empty for many PRs). Runs for other labels do
+# not get the suffix, so they are never mistaken for a requested review.
+run-name: "${{ format('Review #{0}{1}', github.event.pull_request.number, github.event.action == 'labeled' && github.event.label.name == 'codex-review' && ' (Label)' || '') }}"
 on:
   pull_request:
     types: [ready_for_review, labeled]
