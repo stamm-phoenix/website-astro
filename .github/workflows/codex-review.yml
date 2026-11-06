@@ -95,8 +95,9 @@ jobs:
       # here instead of with `paths-ignore`, so that the label is still removed afterwards. The
       # files come from the same comparison as the diff below (the commit of the event, not the
       # PR's current head), written to a file first so that a failed request fails the step
-      # instead of looking like a PR without code. GitHub lists at most 300 files there; a PR
-      # that large is reviewed.
+      # instead of looking like a PR without code. A renamed file counts with its old path too,
+      # so that code moved into docs/ is still reviewed. GitHub lists at most 300 files there; a
+      # PR that large is reviewed.
       - name: Skip if only docs, lockfiles or the changelog changed
         id: files
         if: steps.duplicate.outputs.skip != 'true'
@@ -105,9 +106,10 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" --jq '.files[].filename' > "$RUNNER_TEMP/files.txt"
+          gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" > "$RUNNER_TEMP/compare.json"
+          jq -r '.files[] | .filename, (.previous_filename // empty)' "$RUNNER_TEMP/compare.json" > "$RUNNER_TEMP/files.txt"
           relevant=false
-          if [ "$(wc -l < "$RUNNER_TEMP/files.txt")" -ge 300 ]; then relevant=true; fi
+          if [ "$(jq '.files | length' "$RUNNER_TEMP/compare.json")" -ge 300 ]; then relevant=true; fi
           while IFS= read -r file; do
             case "$file" in
               *.md | docs/* | */docs/* | bun.lock | */bun.lock | package-lock.json | */package-lock.json | web/src/lib/changelogEntries.ts) ;;
