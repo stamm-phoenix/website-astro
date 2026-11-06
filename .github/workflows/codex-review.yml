@@ -22,12 +22,14 @@ env:
   # playwright-api) and how hard Codex thinks
   MODEL: gpt-6.1-sol
   CODEX_EFFORT: medium
-# One review per PR at a time; a second request waits for the running one. Other labels start
-# runs that are skipped (concurrency applies before the job's `if`); they get a group of their own
-# so they do not replace a waiting review.
+# One review per PR at a time; further requests wait for the running one in order (`queue: max`,
+# without it a third request would replace the waiting second one). Other labels start runs that
+# are skipped (concurrency applies before the job's `if`); they get a group of their own so they
+# do not wait for or replace a review.
 concurrency:
   group: codex-review-${{ github.event.pull_request.number }}${{ github.event.action == 'labeled' && github.event.label.name != 'codex-review' && format('-other-{0}', github.event.label.name) || '' }}
   cancel-in-progress: false
+  queue: max
 jobs:
   review:
     # Only pull_request events: they run without secrets for PRs from forks, so code from a PR
