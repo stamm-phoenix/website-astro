@@ -58,8 +58,9 @@ jobs:
     steps:
       # A PR marked ready for review together with the label would be reviewed twice. The label
       # wins: the ready_for_review run skips when a label review of the same commit runs, waits
-      # or succeeded. A failed or cancelled one does not count, nor one whose comments could not
-      # be posted.
+      # or succeeded. A run that is not completed counts even without jobs (it may still wait
+      # for this one in the concurrency group of the PR). A failed or cancelled one does not
+      # count, nor one whose comments could not be posted.
       - name: Skip if a label review of this commit exists
         id: duplicate
         if: github.event.action == 'ready_for_review'
@@ -71,33 +72,48 @@ jobs:
         # against another base), and its review is posted there
         run: |
           found=false
-          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$LABEL.yml/runs?head_sha=$HEAD_SHA&per_page=100" \
-            --jq '.workflow_runs[] | select(.display_title == env.LABEL_TITLE) | .id'); do
+          runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$LABEL.yml/runs?head_sha=$HEAD_SHA&per_page=100" \
+            --jq '.workflow_runs[] | select(.display_title == env.LABEL_TITLE) | "\(.id) \(.status)"')
+          while read -r run status; do
+            [ -n "$run" ] || continue
+            if [ "$status" != completed ] && [ "$run" != "$GITHUB_RUN_ID" ]; then
+              found=true
+              echo "::notice::Run $run reviews this commit (label) and has not finished; skipping."
+              break
+            fi
             if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
               --jq 'select(any(.jobs[]; .name == "Review" and (.conclusion == null or .conclusion == "success"))
                 and all(.jobs[]; .name != "comment" or .conclusion == null or .conclusion == "success" or .conclusion == "skipped")) | .total_count' | grep -q .; then
               found=true
-              echo "::notice::Run $run reviews this commit (label); skipping."
+              echo "::notice::Run $run reviewed this commit (label); skipping."
               break
             fi
-          done
+          done <<< "$runs"
           echo "skip=$found" >> "$GITHUB_OUTPUT"
 
       # PRs that only change documentation, lockfiles or the changelog need no review. Checked
-      # here instead of with `paths-ignore`, so that the label is still removed afterwards.
+      # here instead of with `paths-ignore`, so that the label is still removed afterwards. The
+      # files come from the same comparison as the diff below (the commit of the event, not the
+      # PR's current head), written to a file first so that a failed request fails the step
+      # instead of looking like a PR without code. GitHub lists at most 300 files there; a PR
+      # that large is reviewed.
       - name: Skip if only docs, lockfiles or the changelog changed
         id: files
         if: steps.duplicate.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" --jq '.files[].filename' > "$RUNNER_TEMP/files.txt"
           relevant=false
+          if [ "$(wc -l < "$RUNNER_TEMP/files.txt")" -ge 300 ]; then relevant=true; fi
           while IFS= read -r file; do
             case "$file" in
               *.md | docs/* | */docs/* | bun.lock | */bun.lock | package-lock.json | */package-lock.json | web/src/lib/changelogEntries.ts) ;;
               *) relevant=true; break ;;
             esac
-          done < <(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename')
+          done < "$RUNNER_TEMP/files.txt"
           if [ "$relevant" != true ]; then
             echo "::notice::The PR only changes documentation, lockfiles or the changelog; skipping the review."
           fi
