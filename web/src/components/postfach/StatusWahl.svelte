@@ -74,7 +74,9 @@
       if (fuer !== konversation) return;
       meldung = ERFOLG[neu];
     } catch (error: unknown) {
-      if (error instanceof ApiError && error.status === 409) onkonflikt(fuer);
+      // A conflict, or a change that failed half way: the page reads what applies now
+      if (error instanceof ApiError && (error.status === 409 || error.status >= 500))
+        onkonflikt(fuer);
       if (fuer !== konversation) return;
       fehler = errorMessage(
         error,

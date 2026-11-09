@@ -3,7 +3,11 @@ import { errorResponse } from '../lib/response-utils';
 import { eigenerLogin, ladePersonen } from '../lib/postfach';
 import { PostfachSchreibError } from '../lib/postfach-graph-basis';
 import type { KonversationZeile, PostfachStatus, Zustaendigkeit } from '../lib/postfach-model';
-import { setzeZustaendig, ZustaendigkeitKonfliktError } from '../lib/postfach-stand';
+import {
+  KonversationZuLangError,
+  setzeZustaendig,
+  ZustaendigkeitKonfliktError,
+} from '../lib/postfach-stand';
 import { postfachBenachrichtigung } from '../lib/postfach-mails';
 import { isPreviewDeployment } from '../lib/staff-auth';
 import { getSiteUrl } from '../lib/site-url';
@@ -79,6 +83,14 @@ export const PostfachZustaendigMehrereRoute = postfachAenderung(
             fehler: error.aktuell
               ? `Inzwischen ist ${error.aktuell.name} zuständig.`
               : 'Inzwischen ist niemand mehr zuständig.',
+          });
+          continue;
+        }
+        if (error instanceof KonversationZuLangError) {
+          ergebnisse.push({
+            konversation,
+            ok: false,
+            fehler: 'Zu lang, um sie hier zu ändern. Setz die Kategorie bitte in Outlook.',
           });
           continue;
         }

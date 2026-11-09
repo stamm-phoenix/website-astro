@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { PostfachKonversationRoute, PostfachListeRoute } from '../endpoints/intern-postfach';
 import { PostfachStatusRoute } from '../endpoints/intern-postfach-status';
 import type { KonversationDetail, PostfachAnsicht } from '../lib/postfach-model';
+import { postfachGraph } from '../lib/postfach-graph-basis';
 import { iso, K1, K2, KONTAKT, message, request, setup } from './fixtures/postfach';
 
 function flags(mocks: { postfach: Record<string, unknown>[] }): Record<string, string> {
@@ -140,4 +141,72 @@ test('an archived message counts, a deleted conversation is reported as gone', a
     context
   );
   assert.equal(weg.status, 404);
+});
+
+test('an archived message with a flag counts in the list as in the reading view', async (t) => {
+  const { context, mocks } = setup(t);
+  // The newest message of K1 needs action and was archived; the older one stays in the inbox
+  Object.assign(mocks.postfach[0], {
+    parentFolderId: 'FOLDER-ARCHIV',
+    flag: { flagStatus: 'flagged' },
+    categories: ['👤 Tom Test'],
+  });
+  const liste = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
+    .jsonBody as PostfachAnsicht;
+  const k1 = liste.konversationen.find((zeile) => zeile.id === K1);
+  assert.equal(k1?.status, 'handlungsbedarf');
+  assert.equal(k1?.zustaendig?.name, 'Tom Test');
+  assert.equal(k1?.anzahl, 1);
+});
+
+test('after a change that failed half way the list shows what was written', async (t) => {
+  const { context, mocks } = setup(t);
+  await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context);
+  const original = postfachGraph.patch;
+  t.mock.method(postfachGraph, 'patch', async (path: string, body: Record<string, unknown>) => {
+    if (path.endsWith('AAkALgm3000000'))
+      throw Object.assign(new Error('busy'), { statusCode: 503 });
+    return original.call(postfachGraph, path, body);
+  });
+  const response = await PostfachStatusRoute(
+    status({ konversation: K2, status: 'erledigt', vorher: 'neu', bis: iso(0.5) }),
+    context
+  ).catch((error: unknown) => error);
+  assert.ok(response instanceof Error || (response as { status?: number }).status === 500);
+  assert.equal(flags(mocks).AAkALgm5000000, 'complete');
+  // Not taken from the cache of the list read before
+  const liste = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
+    .jsonBody as PostfachAnsicht;
+  assert.equal(liste.konversationen.find((zeile) => zeile.id === K2)?.status, 'erledigt');
+});
+
+test('a conversation longer than a change reads is left to Outlook', async (t) => {
+  const { context, mocks } = setup(t);
+  const original = postfachGraph.get;
+  t.mock.method(
+    postfachGraph,
+    'get',
+    async (path: string, query: Record<string, string>, prefer: string[]) => {
+      const antwort = await original.call(postfachGraph, path, query, prefer);
+      if (query?.$filter?.includes(K1))
+        return {
+          ...(antwort as object),
+          '@odata.nextLink':
+            'https://graph.microsoft.com/v1.0/users/kontakt%40stamm-phoenix.de/messages?$skip=50',
+        };
+      return antwort;
+    }
+  );
+  t.mock.method(postfachGraph, 'next', async () => ({
+    value: [],
+    '@odata.nextLink':
+      'https://graph.microsoft.com/v1.0/users/kontakt%40stamm-phoenix.de/messages?$skip=100',
+  }));
+  const response = await PostfachStatusRoute(
+    status({ konversation: K1, status: 'erledigt', vorher: 'neu', bis: iso(1) }),
+    context
+  );
+  assert.equal(response.status, 422);
+  assert.match((response.jsonBody as { message: string }).message, /Outlook/);
+  assert.equal(mocks.patches.length, 0);
 });

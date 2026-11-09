@@ -43,6 +43,36 @@ export class NeueNachrichtError extends Error {
   }
 }
 
+/**
+ * The conversation has more messages than a change reads: changing only part of them would
+ * report a status the whole conversation does not have.
+ */
+export class KonversationZuLangError extends Error {
+  constructor() {
+    super('The conversation is longer than a change reads.');
+    this.name = 'KonversationZuLangError';
+  }
+}
+
+/**
+ * Changes of one conversation in this Function instance, one after the other: two at once would
+ * both pass the check against the same state and overwrite each other. Graph offers no
+ * conditional change of a message, so a change in Outlook in the moment between reading and
+ * writing can still be overwritten.
+ */
+const laufend = new Map<string, Promise<unknown>>();
+
+async function nacheinander<T>(schluessel: string, arbeit: () => Promise<T>): Promise<T> {
+  const vorher = laufend.get(schluessel) ?? Promise.resolve();
+  const jetzt = vorher.catch(() => undefined).then(arbeit);
+  laufend.set(schluessel, jetzt);
+  try {
+    return await jetzt;
+  } finally {
+    if (laufend.get(schluessel) === jetzt) laufend.delete(schluessel);
+  }
+}
+
 export interface Person {
   login: string;
   name: string;
@@ -58,11 +88,12 @@ export async function ladeFrisch(
   postfach: PostfachEintrag,
   konversation: string
 ): Promise<Frisch | null> {
-  const [nachrichten, personen] = await Promise.all([
+  const [{ nachrichten, vollstaendig }, personen] = await Promise.all([
     readKonversationStand(postfach.address, konversation),
     personenFuerKategorien(postfach),
   ]);
   if (!nachrichten.length) return null;
+  if (!vollstaendig) throw new KonversationZuLangError();
   return { zeile: konversationenAus(postfach.id, nachrichten, personen)[0], nachrichten };
 }
 
@@ -74,8 +105,12 @@ async function schreiben(
 ): Promise<KonversationZeile> {
   const geaendert = aenderungen(nachrichten, ziel);
   if (!geaendert.length) return zeile;
-  await schreibeAenderungen(postfach.address, geaendert);
-  inboxVergessen(postfach.address);
+  try {
+    await schreibeAenderungen(postfach.address, geaendert);
+  } finally {
+    // Also after a failure: part of it may be written, the list must not show the old state
+    inboxVergessen(postfach.address);
+  }
   const danach = nachAenderung(nachrichten, geaendert);
   return { ...zeile, ...konversationenAus(postfach.id, danach, personen)[0], id: zeile.id };
 }
@@ -94,15 +129,17 @@ export async function setzeStatus(
   vorher: PostfachStatus,
   gesehen: string
 ): Promise<KonversationZeile | null> {
-  const frisch = await ladeFrisch(postfach, konversation);
-  if (!frisch) return null;
-  if (frisch.zeile.status !== vorher) throw new StatusKonfliktError(frisch.zeile);
-  // Already so (e.g. from a choice of several): when it was done stays as it is
-  if (status === vorher) return frisch.zeile;
-  if (status !== 'neu' && sekunde(frisch.zeile.am) > sekunde(gesehen))
-    throw new NeueNachrichtError();
-  const personen = await personenFuerKategorien(postfach);
-  return schreiben(postfach, frisch, { status }, personen);
+  return nacheinander(`${postfach.address}|${konversation}`, async () => {
+    const frisch = await ladeFrisch(postfach, konversation);
+    if (!frisch) return null;
+    if (frisch.zeile.status !== vorher) throw new StatusKonfliktError(frisch.zeile);
+    // Already so (e.g. from a choice of several): when it was done stays as it is
+    if (status === vorher) return frisch.zeile;
+    if (status !== 'neu' && sekunde(frisch.zeile.am) > sekunde(gesehen))
+      throw new NeueNachrichtError();
+    const personen = await personenFuerKategorien(postfach);
+    return schreiben(postfach, frisch, { status }, personen);
+  });
 }
 
 function gleicherName(a: string | null, b: string | null): boolean {
@@ -121,19 +158,22 @@ export async function setzeZustaendig(
   neu: Person | null,
   vorher: string | null
 ): Promise<{ zeile: KonversationZeile; vorher: Zustaendigkeit | null } | null> {
-  const frisch = await ladeFrisch(postfach, konversation);
-  if (!frisch) return null;
-  const aktuell = frisch.zeile.zustaendig;
-  if (!gleicherName(aktuell?.name ?? null, vorher)) throw new ZustaendigkeitKonfliktError(aktuell);
-  const kategorie = neu ? kategorieFuer(neu.name) : null;
-  // Only a colour in Outlook; the category works without it
-  if (kategorie) await kategorieAnlegen(postfach.address, kategorie);
-  const personen = await personenFuerKategorien(postfach);
-  const zeile = await schreiben(
-    postfach,
-    frisch,
-    { kategorie, status: neu && frisch.zeile.status === 'neu' ? 'handlungsbedarf' : undefined },
-    neu ? [...personen.filter((person) => person.login !== neu.login), neu] : personen
-  );
-  return { zeile, vorher: aktuell };
+  return nacheinander(`${postfach.address}|${konversation}`, async () => {
+    const frisch = await ladeFrisch(postfach, konversation);
+    if (!frisch) return null;
+    const aktuell = frisch.zeile.zustaendig;
+    if (!gleicherName(aktuell?.name ?? null, vorher))
+      throw new ZustaendigkeitKonfliktError(aktuell);
+    const kategorie = neu ? kategorieFuer(neu.name) : null;
+    // Only a colour in Outlook; the category works without it
+    if (kategorie) await kategorieAnlegen(postfach.address, kategorie);
+    const personen = await personenFuerKategorien(postfach);
+    const zeile = await schreiben(
+      postfach,
+      frisch,
+      { kategorie, status: neu && frisch.zeile.status === 'neu' ? 'handlungsbedarf' : undefined },
+      neu ? [...personen.filter((person) => person.login !== neu.login), neu] : personen
+    );
+    return { zeile, vorher: aktuell };
+  });
 }

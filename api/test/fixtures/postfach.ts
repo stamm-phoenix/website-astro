@@ -110,6 +110,14 @@ export function setup(t: TestContext): { context: InvocationContext; mocks: Mock
     if (path.endsWith('/mailFolders/inbox')) return { id: 'FOLDER-INBOX' };
     if (path.endsWith('/outlook/masterCategories'))
       return { value: mocks.kategorien.map((displayName) => ({ displayName })) };
+    if (path.endsWith('/messages') && query.$filter?.startsWith('receivedDateTime ge ')) {
+      const ab = query.$filter.slice('receivedDateTime ge '.length);
+      return {
+        value: mocks.postfach
+          .filter((entry) => String(entry.receivedDateTime) >= ab)
+          .map(ohneDetails),
+      };
+    }
     if (path.endsWith('/messages')) {
       const id = /conversationId eq '([^']*)'/.exec(query.$filter ?? '')?.[1];
       return { value: mocks.postfach.filter((entry) => entry.conversationId === id) };

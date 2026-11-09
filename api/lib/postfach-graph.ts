@@ -135,8 +135,16 @@ const LIST_SELECT =
 /** The newest messages of the inbox; `begrenzt`: the inbox holds more than were read. */
 export interface Posteingang {
   nachrichten: InboxNachricht[];
+  /**
+   * Received messages of the same conversations in other folders (e.g. archived), as far back as
+   * the inbox reaches: their flags and categories count for the status, as in the reading view.
+   */
+  weitere: InboxNachricht[];
   begrenzt: boolean;
 }
+
+/** Messages of other folders read for the status of the listed conversations. */
+const WEITERE_SEITEN = 2;
 
 export async function readInbox(address: string): Promise<Posteingang> {
   return guarded(address, async () => {
@@ -153,11 +161,59 @@ export async function readInbox(address: string): Promise<Posteingang> {
     const begrenzt =
       gelesen.length >= INBOX_LIMIT ||
       (collectionSchema.safeParse(response).data?.['@odata.nextLink'] ?? null) !== null;
-    return {
-      nachrichten: gelesen.filter((message) => !message.isDraft).map(toInbox),
-      begrenzt,
-    };
+    const nachrichten = gelesen.filter((message) => !message.isDraft).map(toInbox);
+    return { nachrichten, weitere: await readWeitere(address, nachrichten), begrenzt };
   });
+}
+
+/**
+ * The received messages of the listed conversations outside the inbox, since the oldest one
+ * listed. Without them a flag on an archived message would show as „Neu“ in the list but as
+ * „Handlungsbedarf“ in the reading view. Failing, the list still shows; the reading view and
+ * every change read the whole conversation anyway.
+ */
+async function readWeitere(
+  address: string,
+  inbox: readonly InboxNachricht[]
+): Promise<InboxNachricht[]> {
+  if (!inbox.length) return [];
+  const imPosteingang = new Set(inbox.map((nachricht) => nachricht.id));
+  const konversationen = new Set(inbox.map((nachricht) => nachricht.konversation));
+  const aelteste = inbox.reduce((a, b) => (b.am < a ? b.am : a), inbox[0].am);
+  try {
+    const path = `${mailboxPath(address)}/messages`;
+    let response = await postfachGraph.get(
+      path,
+      {
+        $filter: `receivedDateTime ge ${aelteste}`,
+        $select: `${LIST_SELECT},parentFolderId`,
+        $orderby: 'receivedDateTime desc',
+        $top: String(INBOX_LIMIT),
+      },
+      [IMMUTABLE]
+    );
+    const gelesen = readCollection(listMessageSchema, response);
+    let next = nextLinkOf(response, path);
+    for (let seite = 1; next && seite < WEITERE_SEITEN; seite++) {
+      response = await postfachGraph.next(next, [IMMUTABLE]);
+      gelesen.push(...readCollection(listMessageSchema, response));
+      next = nextLinkOf(response, path);
+    }
+    const ordnerIds = await ordner(address);
+    return gelesen
+      .filter(
+        (message) =>
+          !message.isDraft &&
+          !imPosteingang.has(message.id) &&
+          konversationen.has(message.conversationId)
+      )
+      .map((message) => ({ message, base: toInbox(message) }))
+      .filter(({ message, base }) => !istGesendet(message, base.von, address, ordnerIds))
+      .map(({ base }) => base);
+  } catch (error: unknown) {
+    console.error(`[postfach] Weitere Ordner von ${address} nicht lesbar`, error);
+    return [];
+  }
 }
 
 const folderSchema = z.object({ id: z.string().min(1) });
@@ -258,9 +314,9 @@ async function readKonversationsNachrichten<S extends typeof listMessageSchema>(
 export async function readKonversationStand(
   address: string,
   konversationId: string
-): Promise<InboxNachricht[]> {
+): Promise<{ nachrichten: InboxNachricht[]; vollstaendig: boolean }> {
   return guarded(address, async () => {
-    const { messages } = await readKonversationsNachrichten(
+    const { messages, vollstaendig } = await readKonversationsNachrichten(
       address,
       konversationId,
       listMessageSchema,
@@ -268,10 +324,11 @@ export async function readKonversationStand(
       [IMMUTABLE]
     );
     const ordnerIds = await ordner(address);
-    return messages
+    const nachrichten = messages
       .map((message) => ({ message, base: toInbox(message) }))
       .filter(({ message, base }) => !istGesendet(message, base.von, address, ordnerIds))
       .map(({ base }) => base);
+    return { nachrichten, vollstaendig };
   });
 }
 

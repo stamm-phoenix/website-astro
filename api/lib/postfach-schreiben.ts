@@ -28,7 +28,8 @@ function body(aenderung: NachrichtAenderung, jetzt: string): Record<string, unkn
 
 /**
  * Sends the changes, a few at a time. A message deleted meanwhile is skipped; when Graph refuses
- * the change, `PostfachSchreibError`. What was sent before an error stays changed.
+ * the change, `PostfachSchreibError`. After a failure the requests already on their way finish
+ * first, so the caller knows nothing is still changing; what was sent stays changed.
  */
 export async function schreibeAenderungen(
   address: string,
@@ -37,7 +38,7 @@ export async function schreibeAenderungen(
 ): Promise<void> {
   const jetzt = now.toISOString();
   for (let start = 0; start < aenderungen.length; start += GLEICHZEITIG) {
-    await Promise.all(
+    const ergebnisse = await Promise.allSettled(
       aenderungen.slice(start, start + GLEICHZEITIG).map(async (aenderung) => {
         try {
           await postfachGraph.patch(
@@ -52,6 +53,10 @@ export async function schreibeAenderungen(
         }
       })
     );
+    const fehler = ergebnisse.find(
+      (ergebnis): ergebnis is PromiseRejectedResult => ergebnis.status === 'rejected'
+    );
+    if (fehler) throw fehler.reason;
   }
 }
 
