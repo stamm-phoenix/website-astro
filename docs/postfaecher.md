@@ -170,8 +170,7 @@ sie **einmalig**:
   `GET …/{postfach}/anhang?nachricht=&anhang=`.
 - **Daten:** keine eigenen. Das Schema `postfach` (Migrationen `0080`–`0082`) stammt aus der Zeit,
   als die Website Gelesen, Zuständigkeit und Stand selbst gespeichert hat. Der Code liest und
-  schreibt es nicht mehr; die Tabellen werden in einem späteren PR entfernt, sobald die Daten
-  übertragen sind (unten).
+  schreibt es nicht mehr; die Tabellen werden in einem späteren PR entfernt.
 - **Previews** lesen und ändern dieselben echten Postfächer wie die Produktion, damit sich der
   Ablauf dort ausprobieren lässt: Was man in einer Preview als erledigt markiert, ist auch in
   Outlook archiviert. Das Testkonto der Previews (`CONFIG.staff.previewOnlyLogins`) bekommt dort
@@ -182,17 +181,7 @@ sie **einmalig**:
 
 ## Umstellung von der eigenen Datenbank auf Outlook
 
-Bis November 2026 hat die Website Zuständigkeit und Stand in Azure SQL gespeichert. Nach dem
-Deploy überträgt `api/scripts/postfach-nach-outlook.ts` sie einmalig nach Outlook: Eine zuständige
-Person wird zur Kategorie und, wenn die Konversation nicht erledigt ist, zum Fähnchen;
-„Erledigt“ und „Kein Handlungsbedarf“ verschieben die Konversation ins Archiv, sofern seitdem
-keine neue Nachricht kam. Was in Outlook schon gesetzt ist, bleibt. Alles, was auf der Website
-nie markiert wurde, bleibt „Neu“: Was davon erledigt ist, archiviert man einmal in Outlook. Ohne `--schreiben` zeigt es nur, was es
-ändern würde:
-
-```bash
-cd api
-az login   # liest die Datenbank
-AZURE_CLIENT_CERT="$(…Zertifikat der App…)" bun scripts/postfach-nach-outlook.ts
-AZURE_CLIENT_CERT="$(…)" bun scripts/postfach-nach-outlook.ts --schreiben
-```
+Bis November 2026 hat die Website Zuständigkeit und Stand in Azure SQL gespeichert. Diese Daten
+werden nicht übertragen: Das Modul war erst wenige Tage in Betrieb, und kaum etwas war vergeben.
+Nach dem Umstellen ist alles im Posteingang „Neu“; was davon erledigt ist, archiviert man einmal
+in Outlook.
