@@ -1,246 +1,143 @@
 import assert from 'node:assert/strict';
-import {
-  PostfachKonversationRoute,
-  PostfachListeRoute,
-  PostfachStartRoute,
-  PostfachZustaendigRoute,
-} from '../endpoints/intern-postfach';
+import { test } from 'node:test';
+import { PostfachKonversationRoute, PostfachListeRoute } from '../endpoints/intern-postfach';
 import { PostfachStatusRoute } from '../endpoints/intern-postfach-status';
-import type { KonversationDetail, PostfachAnsicht, PostfachStart } from '../lib/postfach-model';
-import { getDb } from '../lib/db';
-import { postfachGraph } from '../lib/postfach-graph';
-import { dbTest } from './fixtures/database';
-import { iso, K2, KONTAKT, message, NOW, request, setup, TOM } from './fixtures/postfach';
+import type { KonversationDetail, PostfachAnsicht } from '../lib/postfach-model';
+import { iso, K1, K2, KONTAKT, message, request, setup } from './fixtures/postfach';
 
-dbTest(
-  'a conversation is marked done for everyone and opens again with a newer message',
-  async (t) => {
-    const { context } = setup(t);
-    await PostfachZustaendigRoute(
-      request('PUT', '/kontakt/zustaendig', KONTAKT, {
-        konversation: K2,
-        login: 'tom@stamm-phoenix.de',
-      }),
-      context
-    );
-    const done = await PostfachStatusRoute(
-      request(
-        'PUT',
-        '/kontakt/status',
-        KONTAKT,
-        { konversation: K2, status: 'erledigt', vorher: 'offen', bis: iso(0.5) },
-        TOM
-      ),
-      context
-    );
-    assert.equal(done.status, 200);
-    assert.equal((done.jsonBody as { erledigung: { name: string } }).erledigung.name, 'Tom Test');
+function flags(mocks: { postfach: Record<string, unknown>[] }): Record<string, string> {
+  return Object.fromEntries(
+    mocks.postfach.map((entry) => [
+      entry.id,
+      (entry.flag as { flagStatus?: string } | undefined)?.flagStatus ?? '-',
+    ])
+  );
+}
 
-    const lea = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
-      .jsonBody as PostfachAnsicht;
-    const zeile = lea.konversationen.find((entry) => entry.id === K2)!;
-    assert.equal(zeile.erledigung?.status, 'erledigt');
-    assert.equal(zeile.wiederOffen, false);
-    // Done conversations leave the start page, also unread ones
-    const start = (await PostfachStartRoute(request('GET', '', {}, undefined, TOM), context))
-      .jsonBody as PostfachStart;
-    assert.equal(
-      start.fuerMich.some((entry) => entry.id === K2),
-      false
-    );
-    assert.equal(start.postfaecher[0].mirZugewiesen, 0);
+const status = (body: object) => request('PUT', '/kontakt/status', KONTAKT, body);
 
-    // A stale page gets a conflict naming the status
-    const stale = await PostfachStatusRoute(
-      request('PUT', '/kontakt/status', KONTAKT, {
-        konversation: K2,
-        status: 'kein_handlungsbedarf',
-        vorher: 'offen',
-        bis: iso(0.5),
-      }),
-      context
-    );
-    assert.equal(stale.status, 409);
-    assert.match(
-      (stale.jsonBody as { message: string }).message,
-      /Tom Test hat sie inzwischen als erledigt markiert/
-    );
-
-    // A reply that arrives after the mark opens it again
-    await getDb()
-      .updateTable('postfach.erledigung')
-      .set({ bis: new Date(NOW - 3 * 3_600_000) })
-      .execute();
-    const again = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
-      .jsonBody as PostfachAnsicht;
-    const offen = again.konversationen.find((entry) => entry.id === K2)!;
-    assert.equal(offen.erledigung, null);
-    assert.equal(offen.wiederOffen, true);
-    const reopen = await PostfachStatusRoute(
-      request('PUT', '/kontakt/status', KONTAKT, {
-        konversation: K2,
-        status: 'kein_handlungsbedarf',
-        vorher: 'offen',
-        bis: iso(0.5),
-      }),
-      context
-    );
-    assert.equal(reopen.status, 200);
-    const back = await PostfachStatusRoute(
-      request('PUT', '/kontakt/status', KONTAKT, {
-        konversation: K2,
-        status: 'offen',
-        vorher: 'kein_handlungsbedarf',
-        bis: iso(0.5),
-      }),
-      context
-    );
-    assert.equal((back.jsonBody as { erledigung: unknown }).erledigung, null);
-    assert.equal(
-      await getDb().selectFrom('postfach.erledigung').select('postfach').executeTakeFirst(),
-      undefined
-    );
-  }
-);
-
-dbTest('marking done refuses when a newer message arrived than the page showed', async (t) => {
-  const { context } = setup(t);
-  const stale = await PostfachStatusRoute(
-    request('PUT', '/kontakt/status', KONTAKT, {
-      konversation: K2,
-      status: 'erledigt',
-      vorher: 'offen',
-      bis: iso(5),
-    }),
+test('the status is written as flags into Outlook and read back from there', async (t) => {
+  const { context, mocks } = setup(t);
+  const handeln = await PostfachStatusRoute(
+    status({ konversation: K2, status: 'handlungsbedarf', vorher: 'neu', bis: iso(0.5) }),
     context
   );
-  assert.equal(stale.status, 409);
-  assert.match((stale.jsonBody as { message: string }).message, /neue Nachricht gekommen/);
-  assert.equal(
-    await getDb().selectFrom('postfach.erledigung').select('postfach').executeTakeFirst(),
-    undefined
-  );
-});
+  assert.equal(handeln.status, 200);
+  assert.deepEqual(handeln.jsonBody, { status: 'handlungsbedarf', erledigtAm: null });
+  // Only the newest received message carries the flag; the sent answer is left alone
+  assert.deepEqual(flags(mocks), {
+    AAkALgm1000000: '-',
+    AAkALgm2000000: '-',
+    AAkALgm3000000: '-',
+    AAkALgm4000000: '-',
+    AAkALgm5000000: 'flagged',
+  });
 
-dbTest(
-  'a later reply that was archived counts for the status, as in the reading view',
-  async (t) => {
-    const { context } = setup(t);
-    // Done up to the message in the inbox (2 h ago); a later reply (0.5 h ago) was archived
-    await getDb()
-      .insertInto('postfach.erledigung')
-      .values({
-        postfach: 'kontakt',
-        konversation_id: K2,
-        status: 'erledigt',
-        login: 'tom@stamm-phoenix.de',
-        name: 'Tom Test',
-        bis: new Date(iso(2)),
-      })
-      .execute();
-    const detail = (
-      await PostfachKonversationRoute(
-        request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
-        context
-      )
-    ).jsonBody as KonversationDetail;
-    assert.equal(detail.konversation.erledigung, null);
-    assert.equal(detail.konversation.wiederOffen, true);
-    const done = await PostfachStatusRoute(
-      request('PUT', '/kontakt/status', KONTAKT, {
-        konversation: K2,
-        status: 'erledigt',
-        vorher: 'offen',
-        bis: detail.konversation.am,
-      }),
-      context
-    );
-    assert.equal(done.status, 200);
-  }
-);
-
-dbTest('a mark covers what the mailbox holds, even when the page names a later time', async (t) => {
-  const { context } = setup(t);
-  const done = await PostfachStatusRoute(
-    request('PUT', '/kontakt/status', KONTAKT, {
-      konversation: K2,
-      status: 'erledigt',
-      vorher: 'offen',
-      bis: '9999-12-31T00:00:00.000Z',
-    }),
+  const erledigt = await PostfachStatusRoute(
+    status({ konversation: K2, status: 'erledigt', vorher: 'handlungsbedarf', bis: iso(0.5) }),
     context
   );
-  assert.equal(done.status, 200);
-  const row = await getDb()
-    .selectFrom('postfach.erledigung')
-    .select('bis')
-    .executeTakeFirstOrThrow();
-  assert.equal(row.bis?.toISOString().slice(0, 19), iso(0.5).slice(0, 19));
-});
+  assert.equal(erledigt.status, 200);
+  const body = erledigt.jsonBody as { status: string; erledigtAm: string };
+  assert.equal(body.status, 'erledigt');
+  assert.ok(Date.parse(body.erledigtAm) > Date.now() - 60_000);
+  assert.equal(flags(mocks).AAkALgm3000000, 'complete');
+  assert.equal(flags(mocks).AAkALgm5000000, 'complete');
+  assert.equal(flags(mocks).AAkALgm4000000, '-');
 
-dbTest('an own answer that was archived does not open a done conversation again', async (t) => {
-  const { context } = setup(t);
-  const original = postfachGraph.get;
-  t.mock.method(
-    postfachGraph,
-    'get',
-    async (path: string, query: Record<string, string>, prefer: string[]) => {
-      if (path.endsWith('/messages') && query.$filter?.includes(K2)) {
-        return {
-          value: [
-            message('AAkALgm3000000', K2, 2, { parentFolderId: 'FOLDER-INBOX' }),
-            message('AAkALgm4000000', K2, 1, {
-              from: { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } },
-              parentFolderId: 'FOLDER-ARCHIV',
-            }),
-          ],
-        };
-      }
-      return original.call(postfachGraph, path, query, prefer);
-    }
-  );
-  await getDb()
-    .insertInto('postfach.erledigung')
-    .values({
-      postfach: 'kontakt',
-      konversation_id: K2,
-      status: 'erledigt',
-      login: 'tom@stamm-phoenix.de',
-      name: 'Tom Test',
-      bis: new Date(iso(2)),
-    })
-    .execute();
+  // The list reads the inbox again after a change
+  const liste = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
+    .jsonBody as PostfachAnsicht;
+  assert.equal(liste.konversationen.find((zeile) => zeile.id === K2)?.status, 'erledigt');
   const detail = (
     await PostfachKonversationRoute(
       request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
       context
     )
   ).jsonBody as KonversationDetail;
-  assert.equal(detail.nachrichten[1].gesendet, true);
-  assert.equal(detail.konversation.erledigung?.status, 'erledigt');
-  assert.equal(detail.konversation.wiederOffen, false);
+  assert.equal(detail.konversation.status, 'erledigt');
+
+  // Back to „Neu“ takes every flag off
+  const neu = await PostfachStatusRoute(
+    status({ konversation: K2, status: 'neu', vorher: 'erledigt', bis: iso(0.5) }),
+    context
+  );
+  assert.equal(neu.status, 200);
+  assert.equal(flags(mocks).AAkALgm3000000, 'notFlagged');
+  assert.equal(flags(mocks).AAkALgm5000000, 'notFlagged');
 });
 
-dbTest('the same status again keeps who set it and still refuses a stale page', async (t) => {
-  const { context } = setup(t);
-  const setze = (status: string, vorher: string, wer?: typeof TOM) =>
-    PostfachStatusRoute(
-      request(
-        'PUT',
-        '/kontakt/status',
-        KONTAKT,
-        { konversation: K2, status, vorher, bis: iso(0.5) },
-        wer
-      ),
-      context
-    );
-  assert.equal((await setze('erledigt', 'offen', TOM)).status, 200);
-  // Lea marks a choice of several as done, this one among them
-  const nochmal = await setze('erledigt', 'erledigt');
-  assert.equal(nochmal.status, 200);
-  assert.equal((nochmal.jsonBody as { erledigung: { name: string } }).erledigung.name, 'Tom Test');
+test('a reply after „Erledigt“ makes the conversation new again', async (t) => {
+  const { context, mocks } = setup(t);
+  await PostfachStatusRoute(
+    status({ konversation: K1, status: 'erledigt', vorher: 'neu', bis: iso(1) }),
+    context
+  );
+  mocks.postfach.push(message('AAkALgm9000000', K1, 0.1, { parentFolderId: 'FOLDER-INBOX' }));
+  const liste = (await PostfachListeRoute(request('GET', '/kontakt?frisch=1', KONTAKT), context))
+    .jsonBody as PostfachAnsicht;
+  assert.equal(liste.konversationen.find((zeile) => zeile.id === K1)?.status, 'neu');
+  // A page that still shows „Erledigt“ is told
+  const stale = await PostfachStatusRoute(
+    status({ konversation: K1, status: 'handlungsbedarf', vorher: 'erledigt', bis: iso(1) }),
+    context
+  );
+  assert.equal(stale.status, 409);
+  assert.match((stale.jsonBody as { message: string }).message, /wieder neu/);
+});
 
-  // Opened again meanwhile: a page that still shows it done gets a conflict, not a confirmation
-  assert.equal((await setze('offen', 'erledigt', TOM)).status, 200);
-  assert.equal((await setze('erledigt', 'erledigt')).status, 409);
+test('marking refuses when a newer message arrived than the page showed', async (t) => {
+  const { context, mocks } = setup(t);
+  const response = await PostfachStatusRoute(
+    status({ konversation: K2, status: 'erledigt', vorher: 'neu', bis: iso(2) }),
+    context
+  );
+  assert.equal(response.status, 409);
+  assert.equal((response.jsonBody as { code: string }).code, 'NEUE_NACHRICHT');
+  assert.equal(mocks.patches.length, 0);
+});
+
+test('a status set in Outlook meanwhile is not overwritten', async (t) => {
+  const { context, mocks } = setup(t);
+  mocks.postfach[0].flag = { flagStatus: 'flagged' };
+  const response = await PostfachStatusRoute(
+    status({ konversation: K1, status: 'erledigt', vorher: 'neu', bis: iso(1) }),
+    context
+  );
+  assert.equal(response.status, 409);
+  assert.deepEqual(response.jsonBody, {
+    error: 'CONFLICT',
+    code: 'CONFLICT',
+    message: 'Jemand hat sie inzwischen mit „Handlungsbedarf“ markiert. Nichts wurde gespeichert.',
+    status: 'handlungsbedarf',
+    erledigtAm: null,
+  });
+  // The same status again changes nothing
+  const gleich = await PostfachStatusRoute(
+    status({ konversation: K1, status: 'handlungsbedarf', vorher: 'handlungsbedarf', bis: iso(1) }),
+    context
+  );
+  assert.equal(gleich.status, 200);
+  assert.equal(mocks.patches.length, 0);
+});
+
+test('an archived message counts, a deleted conversation is reported as gone', async (t) => {
+  const { context, mocks } = setup(t);
+  mocks.postfach[0].parentFolderId = 'FOLDER-ARCHIV';
+  const response = await PostfachStatusRoute(
+    status({ konversation: K1, status: 'erledigt', vorher: 'neu', bis: iso(1) }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.equal(flags(mocks).AAkALgm1000000, 'complete');
+  const weg = await PostfachStatusRoute(
+    status({
+      konversation: 'AAQkAGkonversation9999999999=',
+      status: 'erledigt',
+      vorher: 'neu',
+      bis: iso(1),
+    }),
+    context
+  );
+  assert.equal(weg.status, 404);
 });

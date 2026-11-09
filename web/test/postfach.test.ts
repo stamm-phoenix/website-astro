@@ -18,9 +18,8 @@ import {
 
 function zeile(
   id: string,
-  ungelesen: number,
-  login: string | null,
-  status: 'erledigt' | 'kein_handlungsbedarf' | null = null
+  status: KonversationZeile['status'],
+  login: string | null
 ): KonversationZeile {
   return {
     id,
@@ -30,54 +29,41 @@ function zeile(
     am: '2026-11-03T10:00:00.000Z',
     vorschau: '',
     anzahl: 1,
-    ungelesen,
     hatAnhang: false,
     wichtig: false,
-    zustaendig: login
-      ? { login, name: login, vonLogin: login, vonName: login, am: '2026-11-03T10:00:00.000Z' }
-      : null,
-    erledigung: status
-      ? {
-          status,
-          login: 'tom@x.de',
-          name: 'Tom',
-          am: '2026-11-03T11:00:00.000Z',
-          bis: '2026-11-03T10:00:00.000Z',
-        }
-      : null,
-    wiederOffen: false,
+    zustaendig: login ? { login, name: login } : null,
+    status,
+    erledigtAm: status === 'erledigt' ? '2026-11-03T11:00:00.000Z' : null,
   };
 }
 
-test('the filters of a mailbox combine, and each count keeps the other filters', () => {
+test('the filters of a mailbox combine, and each count keeps the other filter', () => {
   const zeilen = [
-    zeile('a', 1, null),
-    zeile('b', 0, 'lea@stamm-phoenix.de'),
-    zeile('c', 2, 'tom@x.de'),
-    zeile('d', 1, 'lea@stamm-phoenix.de', 'erledigt'),
-    zeile('e', 0, null, 'kein_handlungsbedarf'),
+    zeile('a', 'neu', null),
+    zeile('b', 'handlungsbedarf', 'lea@stamm-phoenix.de'),
+    zeile('c', 'handlungsbedarf', 'tom@x.de'),
+    zeile('d', 'erledigt', 'lea@stamm-phoenix.de'),
+    zeile('e', 'erledigt', null),
   ];
   const ich = 'Lea@stamm-phoenix.de';
   const ids = (filter: Partial<PostfachFilter>) =>
     filterKonversationen(zeilen, { ...FILTER_START, ...filter }, ich).map((entry) => entry.id);
   assert.deepEqual(ids({}), ['a', 'b', 'c', 'd', 'e']);
-  assert.deepEqual(ids({ stand: 'offen' }), ['a', 'b', 'c']);
+  assert.deepEqual(ids({ stand: 'neu' }), ['a']);
+  assert.deepEqual(ids({ stand: 'handlungsbedarf' }), ['b', 'c']);
   assert.deepEqual(ids({ stand: 'erledigt' }), ['d', 'e']);
   // Who is responsible counts for done ones too, and the groups combine
   assert.deepEqual(ids({ zustaendig: 'mir' }), ['b', 'd']);
-  assert.deepEqual(ids({ zustaendig: 'mir', stand: 'offen' }), ['b']);
+  assert.deepEqual(ids({ zustaendig: 'mir', stand: 'handlungsbedarf' }), ['b']);
   assert.deepEqual(ids({ zustaendig: 'niemand' }), ['a', 'e']);
-  assert.deepEqual(ids({ ungelesen: true }), ['a', 'c', 'd']);
-  assert.deepEqual(ids({ ungelesen: true, stand: 'offen', zustaendig: 'niemand' }), ['a']);
 
-  // Each count says what that choice would show with the other filters kept
-  assert.deepEqual(filterAnzahl(zeilen, { ...FILTER_START, stand: 'offen' }, ich), {
-    stand: { alle: 5, offen: 3, erledigt: 2 },
-    zustaendig: { alle: 3, mir: 1, niemand: 1 },
-    ungelesen: 2,
+  // Each count says what that choice would show with the other filter kept
+  assert.deepEqual(filterAnzahl(zeilen, { ...FILTER_START, stand: 'handlungsbedarf' }, ich), {
+    stand: { alle: 5, neu: 1, handlungsbedarf: 2, erledigt: 2 },
+    zustaendig: { alle: 2, mir: 1, niemand: 0 },
   });
   assert.equal(filterAktiv(FILTER_START), false);
-  assert.equal(filterAktiv({ ...FILTER_START, ungelesen: true }), true);
+  assert.equal(filterAktiv({ ...FILTER_START, stand: 'neu' }), true);
 });
 
 test('the open conversation round-trips through the address', () => {

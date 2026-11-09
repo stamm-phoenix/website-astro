@@ -9,23 +9,24 @@
   } from '../../lib/postfachAnsicht';
 
   /**
-   * The filters of a mailbox in two groups, the state and who is responsible, plus „Ungelesen“
-   * as a switch. They combine; each count says what that choice would show with the others kept.
+   * The filters of a mailbox in two groups, the status and who is responsible. They combine;
+   * each count says what that choice would show with the other kept.
    */
   interface Props {
     filter: PostfachFilter;
     anzahl: FilterAnzahl;
-    /** Left of „Ungelesen“, e.g. choosing all shown conversations. */
+    /** Below the filters, e.g. choosing all shown conversations. */
     vorne?: Snippet;
   }
   let { filter = $bindable(), anzahl, vorne }: Props = $props();
 
   const NOMEN = ['E-Mail', 'E-Mails'] as const;
+  const TON = { neu: undefined, handlungsbedarf: 'warning', erledigt: 'success' } as const;
 </script>
 
 <div class="space-y-2 border-b border-neutral-200 p-2">
   <div class="space-y-2">
-    <div>
+    <div class="stand">
       <span class="gruppe" aria-hidden="true">Stand</span>
       <FilterTabs
         label="Stand"
@@ -36,7 +37,7 @@
         options={STAND_FILTER.map((option) => ({
           ...option,
           count: anzahl.stand[option.value],
-          tone: option.value === 'erledigt' ? ('success' as const) : undefined,
+          tone: option.value === 'alle' ? undefined : TON[option.value],
         }))}
         value={filter.stand}
         onselect={(stand) => (filter = { ...filter, stand })}
@@ -59,24 +60,25 @@
       />
     </div>
   </div>
-  <div class="flex min-h-11 items-center justify-between gap-2">
-    <div class="min-w-0">{@render vorne?.()}</div>
-    <button
-      type="button"
-      class="ungelesen"
-      aria-pressed={filter.ungelesen}
-      onclick={() => (filter = { ...filter, ungelesen: !filter.ungelesen })}
-    >
-      <span class="punkt" aria-hidden="true"></span>Ungelesen<span class="anzahl" aria-hidden="true"
-        >{anzahl.ungelesen}</span
-      ><span class="sr-only"
-        >, {anzahl.ungelesen} {anzahl.ungelesen === 1 ? NOMEN[0] : NOMEN[1]}</span
-      >
-    </button>
-  </div>
+  {#if vorne}
+    <div class="flex min-h-11 items-center">{@render vorne()}</div>
+  {/if}
 </div>
 
 <style>
+  /* Four statuses do not fit one row of a phone or of the list column: two rows of two */
+  .stand {
+    container-type: inline-size;
+  }
+  .stand :global(.segments-fill) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @container (min-width: 34rem) {
+    .stand :global(.segments-fill) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
   /* Above its group, so the segments get the whole width of the list */
   .gruppe {
     display: block;
@@ -86,51 +88,5 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--color-neutral-700);
-  }
-  .ungelesen {
-    display: inline-flex;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 0.375rem;
-    min-height: 2.75rem;
-    padding: 0 0.875rem;
-    border: 1px solid var(--color-neutral-300);
-    border-radius: 9999px;
-    background: var(--color-surface);
-    color: var(--color-neutral-700);
-    font-size: 0.875rem;
-    font-weight: 600;
-  }
-  .ungelesen[aria-pressed='true'] {
-    border-color: var(--color-brand-900);
-    background: var(--color-neutral-100);
-    color: var(--color-brand-900);
-    box-shadow: inset 0 0 0 1px var(--color-brand-900);
-  }
-  .punkt {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 9999px;
-    background: var(--color-dpsg-red);
-  }
-  .anzahl {
-    min-width: 1.5rem;
-    padding: 0 0.375rem;
-    border-radius: 9999px;
-    background: var(--color-neutral-100);
-    font-size: 0.75rem;
-    line-height: 1.25rem;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-  }
-  .ungelesen[aria-pressed='true'] .anzahl {
-    background: var(--color-brand-900);
-    color: var(--color-surface);
-  }
-  @media (forced-colors: active) {
-    .ungelesen[aria-pressed='true'] {
-      outline: 2px solid Highlight;
-      outline-offset: -2px;
-    }
   }
 </style>

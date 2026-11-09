@@ -1,52 +1,51 @@
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { PostfachAnhangRoute, PostfachKonversationRoute } from '../endpoints/intern-postfach';
 import { postfachGraph } from '../lib/postfach-graph';
 import type { KonversationDetail } from '../lib/postfach-model';
-import { dbTest } from './fixtures/database';
 import { K1, K2, KONTAKT, message, request, setup } from './fixtures/postfach';
 
-dbTest(
-  'the reading view embeds inline images, lists attachments and links to Outlook',
-  async (t) => {
-    const { context } = setup(t);
-    const response = await PostfachKonversationRoute(
-      request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
-      context
-    );
-    assert.equal(response.status, 200);
-    const detail = response.jsonBody as KonversationDetail;
-    assert.equal(detail.nachrichten.length, 3);
-    assert.match(detail.nachrichten[0].html ?? '', /src="data:image\/png;base64,iVBO"/);
-    assert.deepEqual(
-      detail.nachrichten[0].anhaenge.map((anhang) => anhang.name),
-      ['Plan.pdf']
-    );
-    assert.equal(detail.nachrichten[1].gesendet, true);
-    assert.equal(detail.nachrichten[1].gelesen, true);
-    assert.equal(detail.nachrichten[1].text, 'Danke!');
-    // The form note comes from the mailbox's own address, but it was received: it is to be read
-    assert.equal(detail.nachrichten[2].gesendet, false);
-    assert.equal(detail.nachrichten[2].gelesen, false);
-    assert.deepEqual(
-      detail.nachrichten.map((nachricht) => nachricht.imPosteingang),
-      [true, false, true]
-    );
-    // The line takes the newest received message, here the form note
-    assert.equal(detail.konversation.betreff, 'Betreff AAkALgm5000000');
-    assert.equal(
-      detail.outlookUrl,
-      'https://outlook.office.com/mail/kontakt%40stamm-phoenix.de/inbox/id/AAMkrest'
-    );
+test('the reading view embeds inline images, lists attachments and links to Outlook', async (t) => {
+  const { context } = setup(t);
+  const response = await PostfachKonversationRoute(
+    request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
+    context
+  );
+  assert.equal(response.status, 200);
+  const detail = response.jsonBody as KonversationDetail;
+  assert.equal(detail.nachrichten.length, 3);
+  assert.match(detail.nachrichten[0].html ?? '', /src="data:image\/png;base64,iVBO"/);
+  assert.deepEqual(
+    detail.nachrichten[0].anhaenge.map((anhang) => anhang.name),
+    ['Plan.pdf']
+  );
+  assert.equal(detail.nachrichten[1].gesendet, true);
+  assert.equal(detail.nachrichten[1].text, 'Danke!');
+  // The form note comes from the mailbox's own address, but it was received
+  assert.equal(detail.nachrichten[2].gesendet, false);
+  assert.deepEqual(
+    detail.nachrichten.map((nachricht) => nachricht.imPosteingang),
+    [true, false, true]
+  );
+  // The line takes the newest received message, here the form note
+  assert.equal(detail.konversation.betreff, 'Betreff AAkALgm5000000');
+  assert.equal(
+    detail.outlookUrl,
+    'https://outlook.office.com/mail/kontakt%40stamm-phoenix.de/inbox/id/AAMkrest'
+  );
 
-    const fehlt = await PostfachKonversationRoute(
-      request('GET', `/kontakt/konversation?id=${encodeURIComponent(K1)}`, KONTAKT),
-      context
-    );
-    assert.equal(fehlt.status, 404);
-  }
-);
+  const fehlt = await PostfachKonversationRoute(
+    request(
+      'GET',
+      `/kontakt/konversation?id=${encodeURIComponent('AAQkAGkonversation9999999999=')}`,
+      KONTAKT
+    ),
+    context
+  );
+  assert.equal(fehlt.status, 404);
+});
 
-dbTest('attachments download with a harmless type', async (t) => {
+test('attachments download with a harmless type', async (t) => {
   const { context } = setup(t);
   const response = await PostfachAnhangRoute(
     request('GET', '/kontakt/anhang?nachricht=AAkALgm3000000&anhang=AAMkdatei00001', KONTAKT),
@@ -59,7 +58,7 @@ dbTest('attachments download with a harmless type', async (t) => {
   assert.equal(Buffer.from(response.body as Uint8Array).toString(), 'pdf');
 });
 
-dbTest('long conversations are read page by page and say when Outlook has more', async (t) => {
+test('long conversations are read page by page and say when Outlook has more', async (t) => {
   const { context } = setup(t);
   const page = (id: string, hoursAgo: number, next?: string): object => ({
     value: [message(id, K1, hoursAgo, { body: { contentType: 'text', content: id } })],
@@ -98,7 +97,7 @@ dbTest('long conversations are read page by page and say when Outlook has more',
   assert.ok(fremd instanceof Error || (fremd as { status?: number }).status === 500);
 });
 
-dbTest('attached messages and large files are only offered in Outlook', async (t) => {
+test('attached messages and large files are only offered in Outlook', async (t) => {
   const { context } = setup(t);
   const original = postfachGraph.get;
   t.mock.method(
@@ -152,7 +151,7 @@ dbTest('attached messages and large files are only offered in Outlook', async (t
   );
 });
 
-dbTest('inline images with ids that start alike each get their own picture', async (t) => {
+test('inline images with ids that start alike each get their own picture', async (t) => {
   const { context } = setup(t);
   const original = postfachGraph.get;
   t.mock.method(

@@ -4,9 +4,10 @@
   import { konversationHash, mailZeitKurz, STATUS_LABEL } from '../../lib/postfachAnsicht';
 
   /**
-   * The conversations of a mailbox: unread ones bold with a dot, the responsible person as a
-   * label. Each line is a link to `#konversation=<id>`, so a new tab works as expected; the
-   * box in front chooses it for the actions on several at once.
+   * The conversations of a mailbox: new ones bold with a dot, those needing action with a flag,
+   * done ones ticked off, and the responsible person as a label. Each line is a link to
+   * `#konversation=<id>`, so a new tab works as expected; the box in front chooses it for the
+   * actions on several at once.
    */
   interface Props {
     zeilen: KonversationZeile[];
@@ -18,6 +19,8 @@
     onzuruecksetzen?: () => void;
     /** A plain click opens the conversation on this page; a new tab follows the link. */
     onoeffnen: (id: string) => void;
+    /** Without the boxes, e.g. in a preview that must not change anything. */
+    auswaehlbar?: boolean;
     /** The chosen conversations. */
     ausgewaehlt: ReadonlySet<string>;
     /** While the chosen ones are saved. */
@@ -31,6 +34,7 @@
     leer,
     onzuruecksetzen,
     onoeffnen,
+    auswaehlbar = true,
     ausgewaehlt,
     auswahlGesperrt,
     onwaehle,
@@ -56,23 +60,22 @@
 {:else}
   <ul class="divide-y divide-neutral-200" data-testid="postfach-liste">
     {#each zeilen as zeile (zeile.id)}
-      {@const ungelesen = zeile.ungelesen > 0}
-      {@const erledigung = zeile.erledigung}
+      {@const neu = zeile.status === 'neu'}
       {@const gewaehlt = ausgewaehlt.has(zeile.id)}
-      <li class="flex items-stretch" class:bg-brand-50={gewaehlt}>
-        <label
-          class="flex min-h-11 w-11 shrink-0 cursor-pointer items-start justify-center pt-3"
-          title="Auswählen"
-        >
-          <input
-            type="checkbox"
-            class="size-5 cursor-pointer accent-brand-900"
-            checked={gewaehlt}
-            disabled={auswahlGesperrt}
-            onchange={(event) => onwaehle(zeile.id, event.currentTarget.checked)}
-          />
-          <span class="sr-only">„{zeile.betreff}“ von {zeile.von.name} auswählen</span>
-        </label>
+      <li class="flex items-stretch" class:bg-brand-50={gewaehlt} class:pl-3={!auswaehlbar}>
+        {#if auswaehlbar}<label
+            class="flex min-h-11 w-11 shrink-0 cursor-pointer items-start justify-center pt-3"
+            title="Auswählen"
+          >
+            <input
+              type="checkbox"
+              class="size-5 cursor-pointer accent-brand-900"
+              checked={gewaehlt}
+              disabled={auswahlGesperrt}
+              onchange={(event) => onwaehle(zeile.id, event.currentTarget.checked)}
+            />
+            <span class="sr-only">„{zeile.betreff}“ von {zeile.von.name} auswählen</span>
+          </label>{/if}
         <a
           href={konversationHash(zeile.id)}
           onclick={(event) => klick(event, zeile.id)}
@@ -80,7 +83,7 @@
           class="block min-h-11 min-w-0 flex-1 py-2.5 pr-3 no-underline hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-900 aria-[current=true]:bg-neutral-100 aria-[current=true]:shadow-[inset_3px_0_0_var(--color-dpsg-red)]"
         >
           <span class="flex items-baseline gap-2">
-            {#if erledigung}
+            {#if zeile.status === 'erledigt'}
               <!-- Ticked off, so done ones stand out from open ones at a glance -->
               <svg
                 class="size-4 shrink-0 self-center text-success"
@@ -92,14 +95,21 @@
                 stroke-linejoin="round"
                 aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg
               >
-            {:else if ungelesen}
+            {:else if zeile.status === 'handlungsbedarf'}
+              <!-- The flag of Outlook -->
+              <svg
+                class="size-4 shrink-0 self-center text-warning"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H7v9z" /></svg
+              >
+            {:else}
               <span class="size-2 shrink-0 self-center rounded-full bg-[var(--color-dpsg-red)]"
               ></span>
-              <span class="sr-only">Ungelesen:</span>
             {/if}
             <span
               class="min-w-0 flex-1 truncate text-brand-900"
-              class:font-semibold={ungelesen}
+              class:font-semibold={neu}
               title={zeile.von.adresse}>{zeile.von.name}</span
             >
             <span class="shrink-0 text-xs text-neutral-700 tabular-nums"
@@ -108,7 +118,7 @@
           </span>
           <span
             class="mt-0.5 flex items-baseline gap-1.5 text-sm text-brand-900"
-            class:font-semibold={ungelesen}
+            class:font-semibold={neu}
           >
             <span class="min-w-0 truncate">{zeile.betreff}</span>
             {#if zeile.anzahl > 1}<span class="shrink-0 text-xs text-neutral-700"
@@ -120,18 +130,17 @@
           </span>
           <span class="mt-0.5 block truncate text-sm text-neutral-700">{zeile.vorschau}</span>
           <span class="mt-1 flex flex-wrap gap-2 text-sm">
-            {#if erledigung}
+            {#if zeile.status === 'erledigt'}
               <StatusLabel
-                label="{STATUS_LABEL[erledigung.status]} · {erledigung.login.toLowerCase() ===
-                ich.toLowerCase()
-                  ? 'du'
-                  : erledigung.name}"
+                label={zeile.erledigtAm
+                  ? `${STATUS_LABEL.erledigt} · ${mailZeitKurz(zeile.erledigtAm)}`
+                  : STATUS_LABEL.erledigt}
                 tone="success"
               />
-            {:else if zeile.wiederOffen}
-              <StatusLabel label="Offen · neue Nachricht nach „Erledigt“" tone="warning" dot />
+            {:else if zeile.status === 'handlungsbedarf'}
+              <StatusLabel label={STATUS_LABEL.handlungsbedarf} tone="warning" dot />
             {:else}
-              <StatusLabel label={STATUS_LABEL.offen} tone="neutral" dot />
+              <StatusLabel label={STATUS_LABEL.neu} tone="danger" dot />
             {/if}
             {#if zeile.zustaendig}
               <StatusLabel
@@ -139,7 +148,7 @@
                 tone={istMirZugewiesen(zeile, ich) ? 'warning' : 'neutral'}
                 dot
               />
-            {:else if !erledigung}
+            {:else if zeile.status !== 'erledigt'}
               <StatusLabel label="Niemand zuständig" tone="neutral" />
             {/if}
             {#if zeile.wichtig}<StatusLabel label="Wichtig" tone="danger" />{/if}

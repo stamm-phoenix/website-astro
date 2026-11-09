@@ -7,8 +7,9 @@
   import { istMirZugewiesen, type KonversationZeile } from '../../../../api/lib/postfach-model';
 
   /**
-   * The body of the card „E-Mails“ on the start page: conversations with unread messages or
-   * assigned to the person, from all mailboxes they see. The dashboard loads the data.
+   * The body of the card „E-Mails“ on the start page: new conversations, and those that need
+   * action from the person or from nobody yet, from all mailboxes they see. The dashboard loads
+   * the data.
    */
   interface Props {
     limit: number;
@@ -62,7 +63,7 @@
           class="block min-h-11 py-2"
           title={zeile.betreff}
         >
-          <span class="text-link block truncate" class:font-semibold={zeile.ungelesen > 0}
+          <span class="text-link block truncate" class:font-semibold={zeile.status === 'neu'}
             >{zeile.betreff}</span
           >
           <span class="flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
@@ -73,11 +74,11 @@
                 label="Dir zugewiesen"
                 tone="warning"
                 dot
-              />{:else if zeile.ungelesen > 0}<StatusLabel
-                label="Ungelesen"
-                tone="neutral"
+              />{:else if zeile.status === 'neu'}<StatusLabel
+                label="Neu"
+                tone="danger"
                 dot
-              />{/if}
+              />{:else}<StatusLabel label="Niemand zuständig" tone="warning" dot />{/if}
           </span>
         </a>
       </li>

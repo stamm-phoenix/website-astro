@@ -86,11 +86,9 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
   const mail = page.getByRole('article', { name: 'Schnupperstunde für Mia' });
   const stand = mail.getByRole('group', { name: 'Stand' });
   await expect(stand).toBeVisible();
-  if (
-    (await stand.getByRole('button', { name: 'Offen' }).getAttribute('aria-pressed')) !== 'true'
-  ) {
-    await stand.getByRole('button', { name: 'Offen' }).click();
-    await expect(mail.getByText('Wieder als offen markiert.')).toBeVisible();
+  if ((await stand.getByRole('button', { name: 'Neu' }).getAttribute('aria-pressed')) !== 'true') {
+    await stand.getByRole('button', { name: 'Neu' }).click();
+    await expect(mail.getByText('Wieder als neu markiert.')).toBeVisible();
   }
   const uebernehmen = mail.getByRole('button', { name: 'Ich kümmere mich' });
   if (await uebernehmen.isVisible()) {
@@ -108,26 +106,23 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
     .getByRole('button', { name: 'Erledigt' })
     .click();
   await expect(mail.getByText('Als erledigt markiert.')).toBeVisible();
-  await expect(mail.getByText(/Erledigt von dir/)).toBeVisible();
+  await expect(mail.getByText(/^Erledigt .* · Wird sofort gespeichert\./)).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   if (await page.getByRole('button', { name: /Zur Liste/ }).isVisible())
     await page.getByRole('button', { name: /Zur Liste/ }).click();
-  // Under „Offen“ it is gone, under „Erledigt“ it is ticked off
-  await liste
-    .getByRole('group', { name: 'Stand' })
-    .getByRole('button', { name: /^Offen/ })
-    .click();
+  // Under „Neu“ it is gone, under „Erledigt“ it is ticked off
+  await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Neu/ }).click();
   await expect(liste.getByRole('link', { name: /Schnupperstunde für Mia/ })).toHaveCount(0);
   await liste
     .getByRole('group', { name: 'Stand' })
     .getByRole('button', { name: /^Erledigt/ })
     .click();
   await expect(liste.getByRole('link', { name: /Schnupperstunde für Mia/ })).toContainText(
-    'Erledigt · du'
+    'Erledigt ·'
   );
   await expect(liste.getByRole('link', { name: /Danke für das Sommerlager/ })).toContainText(
-    'Kein Handlungsbedarf · Lea Leitung'
+    'Erledigt ·'
   );
 
   await page.goto('/leitendenbereich/');
@@ -143,8 +138,8 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
     .getByRole('button', { name: /^Erledigt/ })
     .click();
   await liste.getByRole('link', { name: /Schnupperstunde für Mia/ }).click();
-  await mail.getByRole('group', { name: 'Stand' }).getByRole('button', { name: 'Offen' }).click();
-  await expect(mail.getByText('Wieder als offen markiert.')).toBeVisible();
+  await mail.getByRole('group', { name: 'Stand' }).getByRole('button', { name: 'Neu' }).click();
+  await expect(mail.getByText('Wieder als neu markiert.')).toBeVisible();
 });
 
 test('opening a mail with the keyboard moves the focus to its subject', async ({ page }) => {
@@ -165,11 +160,9 @@ test('marking done after a newer message arrived says so and saves nothing', asy
   const mail = page.getByRole('article', { name: 'Frage zum Nikolausdienst' });
   const stand = mail.getByRole('group', { name: 'Stand' });
   await expect(stand).toBeVisible();
-  if (
-    (await stand.getByRole('button', { name: 'Offen' }).getAttribute('aria-pressed')) !== 'true'
-  ) {
-    await stand.getByRole('button', { name: 'Offen' }).click();
-    await expect(mail.getByText('Wieder als offen markiert.')).toBeVisible();
+  if ((await stand.getByRole('button', { name: 'Neu' }).getAttribute('aria-pressed')) !== 'true') {
+    await stand.getByRole('button', { name: 'Neu' }).click();
+    await expect(mail.getByText('Wieder als neu markiert.')).toBeVisible();
   }
   // As if the page still showed an older state of the conversation
   await page.route('**/api/intern/postfach/kontakt/status', async (route) => {
@@ -180,10 +173,7 @@ test('marking done after a newer message arrived says so and saves nothing', asy
   });
   await stand.getByRole('button', { name: 'Erledigt' }).click();
   await expect(mail.getByText(/ist eine neue Nachricht gekommen/)).toBeVisible();
-  await expect(stand.getByRole('button', { name: 'Offen' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  await expect(stand.getByRole('button', { name: 'Neu' })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('a full inbox says that older mails are in Outlook instead of claiming all is done', async ({

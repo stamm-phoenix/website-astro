@@ -1,6 +1,6 @@
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
-import { postfachGraph } from '../../lib/postfach-graph';
+import { postfachGraph } from '../../lib/postfach-graph-basis';
 import { postfachVerzeichnis, resetPostfachCaches } from '../../lib/postfach';
 import { postfachBenachrichtigung } from '../../lib/postfach-mails';
 
@@ -23,8 +23,8 @@ export function message(
   id: string,
   conversationId: string,
   hoursAgo: number,
-  extra: object = {}
-): object {
+  extra: Record<string, unknown> = {}
+): Record<string, unknown> {
   return {
     id,
     conversationId,
@@ -39,15 +39,50 @@ export function message(
   };
 }
 
-export const INBOX = [
-  message('AAkALgm1000000', K1, 1),
-  message('AAkALgm2000000', K1, 30 * 24),
-  message('AAkALgm3000000', K2, 2, { hasAttachments: true }),
-];
+const KONTAKT_ADRESSE = { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } };
+
+/** The messages of the demo mailbox in every folder, as Graph gives them. */
+export function demoPostfach(): Record<string, unknown>[] {
+  return [
+    message('AAkALgm1000000', K1, 1, { parentFolderId: 'FOLDER-INBOX' }),
+    message('AAkALgm2000000', K1, 30 * 24, { parentFolderId: 'FOLDER-INBOX' }),
+    message('AAkALgm3000000', K2, 2, {
+      hasAttachments: true,
+      toRecipients: [KONTAKT_ADRESSE],
+      body: { contentType: 'html', content: '<p>Hallo <img src="cid:bild1"></p>' },
+      parentFolderId: 'FOLDER-INBOX',
+    }),
+    message('AAkALgm4000000', K2, 1, {
+      from: KONTAKT_ADRESSE,
+      body: { contentType: 'text', content: 'Danke!' },
+      parentFolderId: 'FOLDER-SENT',
+    }),
+    // A note of the contact form: sent by the mailbox to itself, received in the inbox
+    message('AAkALgm5000000', K2, 0.5, {
+      from: KONTAKT_ADRESSE,
+      body: { contentType: 'text', content: 'Neue Nachricht über das Kontaktformular' },
+      parentFolderId: 'FOLDER-INBOX',
+    }),
+  ];
+}
 
 export interface Mocks {
   mails: unknown[][];
   graph: string[];
+  /** The messages of the mailbox; changes through Graph land here. */
+  postfach: Record<string, unknown>[];
+  /** The changes sent to Graph, by message ID. */
+  patches: { id: string; body: Record<string, unknown> }[];
+  /** Categories in the mailbox's list. */
+  kategorien: string[];
+}
+
+/** A message of the list, without what only the reading view asks for. */
+function ohneDetails(entry: Record<string, unknown>): Record<string, unknown> {
+  const rest = { ...entry };
+  delete rest.body;
+  delete rest.toRecipients;
+  return rest;
 }
 
 export function setup(t: TestContext): { context: InvocationContext; mocks: Mocks } {
@@ -55,38 +90,30 @@ export function setup(t: TestContext): { context: InvocationContext; mocks: Mock
   const context = new InvocationContext({ functionName: 'postfach-test' });
   t.mock.method(context, 'log', () => undefined);
   t.mock.method(context, 'error', () => undefined);
-  const mocks: Mocks = { mails: [], graph: [] };
+  const mocks: Mocks = {
+    mails: [],
+    graph: [],
+    postfach: demoPostfach(),
+    patches: [],
+    kategorien: [],
+  };
   t.mock.method(postfachGraph, 'get', async (path: string, query: Record<string, string>) => {
     mocks.graph.push(path);
-    if (path.endsWith('/mailFolders/inbox/messages')) return { value: INBOX };
+    if (path.endsWith('/mailFolders/inbox/messages'))
+      return {
+        value: mocks.postfach
+          .filter((entry) => entry.parentFolderId === 'FOLDER-INBOX')
+          .sort((a, b) => String(b.receivedDateTime).localeCompare(String(a.receivedDateTime)))
+          .map(ohneDetails),
+      };
     if (path.endsWith('/mailFolders/sentitems')) return { id: 'FOLDER-SENT' };
     if (path.endsWith('/mailFolders/inbox')) return { id: 'FOLDER-INBOX' };
-    if (path.endsWith('/messages') && query.$filter?.includes(K2)) {
-      return {
-        value: [
-          message('AAkALgm3000000', K2, 2, {
-            hasAttachments: true,
-            toRecipients: [
-              { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } },
-            ],
-            body: { contentType: 'html', content: '<p>Hallo <img src="cid:bild1"></p>' },
-            parentFolderId: 'FOLDER-INBOX',
-          }),
-          message('AAkALgm4000000', K2, 1, {
-            from: { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } },
-            body: { contentType: 'text', content: 'Danke!' },
-            parentFolderId: 'FOLDER-SENT',
-          }),
-          // A note of the contact form: sent by the mailbox to itself, received in the inbox
-          message('AAkALgm5000000', K2, 0.5, {
-            from: { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } },
-            body: { contentType: 'text', content: 'Neue Nachricht über das Kontaktformular' },
-            parentFolderId: 'FOLDER-INBOX',
-          }),
-        ],
-      };
+    if (path.endsWith('/outlook/masterCategories'))
+      return { value: mocks.kategorien.map((displayName) => ({ displayName })) };
+    if (path.endsWith('/messages')) {
+      const id = /conversationId eq '([^']*)'/.exec(query.$filter ?? '')?.[1];
+      return { value: mocks.postfach.filter((entry) => entry.conversationId === id) };
     }
-    if (path.endsWith('/messages')) return { value: [] };
     if (path.endsWith('/attachments')) {
       return {
         value: [
@@ -128,7 +155,21 @@ export function setup(t: TestContext): { context: InvocationContext; mocks: Mock
     }
     throw Object.assign(new Error('unexpected'), { statusCode: 404 });
   });
-  t.mock.method(postfachGraph, 'post', async () => ({ value: [{ targetId: 'AAMkrest' }] }));
+  t.mock.method(postfachGraph, 'post', async (path: string, body: { displayName?: string }) => {
+    if (path.endsWith('/outlook/masterCategories')) {
+      mocks.kategorien.push(body.displayName ?? '');
+      return {};
+    }
+    return { value: [{ targetId: 'AAMkrest' }] };
+  });
+  t.mock.method(postfachGraph, 'patch', async (path: string, body: Record<string, unknown>) => {
+    const id = decodeURIComponent(path.slice(path.lastIndexOf('/') + 1));
+    const entry = mocks.postfach.find((candidate) => candidate.id === id);
+    if (!entry) throw Object.assign(new Error('not found'), { statusCode: 404 });
+    mocks.patches.push({ id, body });
+    Object.assign(entry, body);
+    return entry;
+  });
   t.mock.method(postfachVerzeichnis, 'lesen', async () => [
     { login: 'lea@stamm-phoenix.de', name: 'Lea Leitung', givenName: 'Lea' },
     { login: 'tom@stamm-phoenix.de', name: 'Tom Test', givenName: 'Tom' },

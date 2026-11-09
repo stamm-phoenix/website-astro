@@ -10,7 +10,6 @@
   } from '../../lib/postfachStore.svelte';
   import { STATUS_LABEL } from '../../lib/postfachAnsicht';
   import {
-    statusVon,
     type KonversationZeile,
     type PostfachPerson,
     type PostfachStatus,
@@ -90,7 +89,7 @@
     const fehlgeschlagen: Fehlschlag[] = [];
     for (const zeile of lauf) {
       try {
-        await setzeStatus(postfach, zeile.id, neu, statusVon(zeile), zeile.am);
+        await setzeStatus(postfach, zeile.id, neu, zeile.status, zeile.am);
       } catch (error: unknown) {
         fehlgeschlagen.push({
           id: zeile.id,
@@ -100,11 +99,11 @@
     }
     const geschafft = lauf.length - fehlgeschlagen.length;
     const ziel =
-      neu === 'offen'
-        ? 'wieder als offen'
+      neu === 'neu'
+        ? 'wieder als neu'
         : neu === 'erledigt'
           ? 'als erledigt'
-          : `als „${STATUS_LABEL.kein_handlungsbedarf}“`;
+          : `mit „${STATUS_LABEL.handlungsbedarf}“`;
     abschliessen(
       lauf,
       fehlgeschlagen.length
@@ -193,11 +192,10 @@
         <ActionButton disabled={busy} onclick={() => void stand('erledigt')}
           >Als erledigt markieren</ActionButton
         >
-        <ActionButton disabled={busy} onclick={() => void stand('kein_handlungsbedarf')}
-          >Kein Handlungsbedarf</ActionButton
+        <ActionButton disabled={busy} onclick={() => void stand('handlungsbedarf')}
+          >Handlungsbedarf</ActionButton
         >
-        <ActionButton disabled={busy} onclick={() => void stand('offen')}>Wieder offen</ActionButton
-        >
+        <ActionButton disabled={busy} onclick={() => void stand('neu')}>Wieder neu</ActionButton>
       </div>
       <div class="flex flex-wrap gap-2" role="group" aria-label="Zuständigkeit für die Auswahl">
         <ActionButton

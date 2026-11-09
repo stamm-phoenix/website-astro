@@ -1,23 +1,15 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from 'svelte';
-  import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import MailInhalt from './MailInhalt.svelte';
   import ZustaendigWahl from './ZustaendigWahl.svelte';
   import StatusWahl from './StatusWahl.svelte';
   import { errorMessage } from '../../lib/api';
-  import {
-    aendereZeile,
-    gelesenMarkiert,
-    anhangUrl,
-    ladeKonversation,
-    markiere,
-  } from '../../lib/postfachStore.svelte';
+  import { anhangUrl, ladeKonversation } from '../../lib/postfachStore.svelte';
   import { dateiGroesse, mailZeitLang } from '../../lib/postfachAnsicht';
   import {
-    erledigungsStand,
-    type Erledigung,
+    standFuer,
     type KonversationDetail,
     type KonversationZeile,
     type MailAdresse,
@@ -25,15 +17,16 @@
   } from '../../../../api/lib/postfach-model';
 
   /**
-   * The reading view of a conversation: who is responsible, the messages oldest first (read
-   * ones folded), and the way to Outlook. Opening it marks the unread messages as read for the
-   * person; „Als ungelesen markieren“ undoes that for the newest one.
+   * The reading view of a conversation: who is responsible, where it stands, the messages oldest
+   * first (all but the newest folded), and the way to Outlook. Opening it changes nothing.
    */
   interface Props {
     postfach: string;
     outlookPostfach: string;
     konversation: string;
     ich: string;
+    /** A preview: shown, but not changed. */
+    nurLesen: boolean;
     onzurueck: () => void;
     onkonflikt: () => void;
     /** Counts „Neu laden“ of the page; each change reads the open conversation again. */
@@ -44,20 +37,17 @@
     outlookPostfach,
     konversation,
     ich,
+    nurLesen,
     onzurueck,
     onkonflikt,
     neuladen = 0,
   }: Props = $props();
 
-  /** The automatic read mark of the last load, while it is being saved. */
-  let autoMark: Promise<void> | null = null;
-
   let detail = $state<KonversationDetail | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let offen = $state<Set<string>>(new Set());
-  let markFehler = $state<string | null>(null);
-  let markMeldung = $state<string | null>(null);
+  let ladeFehler = $state<string | null>(null);
   let heading = $state<HTMLHeadingElement | null>(null);
 
   /** The request of the last load; an older answer, also for the same conversation, is dropped. */
@@ -77,19 +67,12 @@
     detail = { ...detail, konversation: { ...detail.konversation, ...change } };
   }
 
-  /** A saved status, as far as it covers the newest message this view shows by now. */
-  function standUebernehmen(id: string, erledigung: Erledigung | null): void {
-    if (detail?.konversation.id !== id) return;
-    uebernimm(id, erledigungsStand(erledigung ?? undefined, detail.konversation.am));
-  }
-
   async function laden(id: string): Promise<void> {
     // Another conversation: its predecessor must not stay on screen with working buttons
     if (detail?.konversation.id !== id) detail = null;
     loading = true;
     error = null;
-    markMeldung = null;
-    markFehler = null;
+    ladeFehler = null;
     const nummer = ++anfrage;
     laufend?.abort();
     const controller = (laufend = new AbortController());
@@ -98,47 +81,18 @@
       const data = await ladeKonversation(postfach, id, controller.signal);
       if (!aktuell()) return;
       detail = data;
-      const ungelesen = data.nachrichten.filter((nachricht) => !nachricht.gelesen);
-      // Unread ones and the newest are unfolded
-      offen = new Set([
-        ...ungelesen.map((nachricht) => nachricht.id),
-        ...(data.nachrichten.at(-1) ? [data.nachrichten.at(-1)!.id] : []),
-      ]);
+      // The newest is unfolded
+      const neueste = data.nachrichten.at(-1);
+      offen = new Set(neueste ? [neueste.id] : []);
       // The heading appears with the data; focus it once it is on screen
       await tick();
       if (!aktuell()) return;
       heading?.focus();
-      if (ungelesen.length) {
-        try {
-          const mark = markiere(
-            postfach,
-            ungelesen.map((nachricht) => nachricht.id),
-            true
-          );
-          autoMark = mark;
-          await mark;
-          // With only part of a long conversation read, the rest may still be unread
-          if (data.vollstaendig) {
-            const bis = data.nachrichten.reduce(
-              (neueste, nachricht) => (nachricht.am > neueste ? nachricht.am : neueste),
-              ''
-            );
-            gelesenMarkiert(postfach, id, bis, ungelesen.length);
-          }
-        } catch (markError: unknown) {
-          // A late failure of a conversation that was left must not show here
-          if (!aktuell()) return;
-          markFehler = errorMessage(
-            markError,
-            'Die E-Mail konnte nicht als gelesen gespeichert werden; sie bleibt in der Liste ungelesen.'
-          );
-        }
-      }
     } catch (loadError: unknown) {
       if (!aktuell()) return;
       if (detail?.konversation.id === id) {
         // „Neu laden“ of the open conversation: what is shown stays, the failure is named
-        markFehler = errorMessage(
+        ladeFehler = errorMessage(
           loadError,
           'Die E-Mail konnte nicht neu geladen werden. Du siehst den letzten Stand.'
         );
@@ -159,29 +113,6 @@
     void neuladen;
     untrack(() => void laden(id));
   });
-
-  async function alsUngelesen(): Promise<void> {
-    const id = detail?.konversation.id;
-    // The list counts only the inbox: mark the newest message there, so the mark shows
-    const eingegangen = detail?.nachrichten.filter((nachricht) => !nachricht.gesendet) ?? [];
-    const neueste =
-      eingegangen.filter((nachricht) => nachricht.imPosteingang).at(-1) ?? eingegangen.at(-1);
-    if (!id || !neueste) return;
-    markFehler = null;
-    try {
-      // The automatic read mark of the opening must not land after this one and undo it
-      await autoMark?.catch(() => undefined);
-      await markiere(postfach, [neueste.id], false);
-      aendereZeile(postfach, id, { ungelesen: 1 });
-      if (id === konversation) markMeldung = 'Als ungelesen markiert.';
-    } catch (markError: unknown) {
-      if (id !== konversation) return;
-      markFehler = errorMessage(
-        markError,
-        'Die E-Mail konnte nicht als ungelesen markiert werden. Versuche es noch einmal.'
-      );
-    }
-  }
 
   function umschalten(id: string): void {
     // A new set, so the change is seen; `offen` is replaced as a whole on every load
@@ -243,11 +174,9 @@
                 (öffnet neuen Tab)</span
               ></a
             >
-            <ActionButton onclick={alsUngelesen}>Als ungelesen markieren</ActionButton>
           </div>
-          {#if markMeldung}<p role="status" class="text-sm text-success">{markMeldung}</p>{/if}
-          {#if markFehler}<p role="alert" class="text-sm text-danger">
-              <MessageText text={markFehler} />
+          {#if ladeFehler}<p role="alert" class="text-sm text-danger">
+              <MessageText text={ladeFehler} />
             </p>{/if}
         </header>
 
@@ -258,7 +187,13 @@
             konversation={data.konversation.id}
             zustaendig={data.konversation.zustaendig}
             {ich}
-            onaenderung={(id, zustaendig) => uebernimm(id, { zustaendig })}
+            {nurLesen}
+            onaenderung={(id, ergebnis) =>
+              uebernimm(id, {
+                zustaendig: ergebnis.zustaendig,
+                status: ergebnis.status,
+                erledigtAm: ergebnis.erledigtAm,
+              })}
             onkonflikt={(id) => {
               onkonflikt();
               if (id === konversation) void laden(id);
@@ -268,11 +203,12 @@
             <StatusWahl
               {postfach}
               konversation={data.konversation.id}
-              erledigung={data.konversation.erledigung}
-              wiederOffen={data.konversation.wiederOffen}
+              status={data.konversation.status}
+              erledigtAm={data.konversation.erledigtAm}
               bis={data.konversation.am}
-              {ich}
-              onaenderung={(id, erledigung) => standUebernehmen(id, erledigung)}
+              {nurLesen}
+              onaenderung={(id, stand, bis) =>
+                uebernimm(id, standFuer(stand, detail?.konversation.am ?? bis, bis))}
               onkonflikt={(id) => {
                 onkonflikt();
                 if (id === konversation) void laden(id);

@@ -1,8 +1,8 @@
 import { fetchApi, sendApi } from './api';
 import { createResource } from './pflegeStore.svelte';
 import type {
-  Erledigung,
   KonversationDetail,
+  KonversationStand,
   PostfachStatus,
   KonversationZeile,
   PostfachAnsicht,
@@ -10,7 +10,7 @@ import type {
   PostfachStart,
   Zustaendigkeit,
 } from '../../../api/lib/postfach-model';
-import { erledigungsStand } from '../../../api/lib/postfach-model';
+import { standFuer } from '../../../api/lib/postfach-model';
 
 /** The mailboxes of the person and what is waiting for them, for the start page. */
 export const postfachStart = createResource<PostfachStart>('/intern/postfach', {
@@ -92,53 +92,6 @@ export function aendereZeile(
   });
 }
 
-/**
- * After the open conversation was marked read: its line in the list shows nothing unread, unless
- * the list has a newer message than the reading view loaded (e.g. read again meanwhile). Then
- * only the marked ones are taken off, and the new one stays unread.
- */
-export function gelesenMarkiert(
-  postfach: string,
-  id: string,
-  /** Time of the newest message the reading view showed. */
-  bis: string,
-  markiert: number
-): void {
-  const zeile = postfachListe.state.data?.konversationen.find((entry) => entry.id === id);
-  if (!zeile) return;
-  const neuer = Math.floor(Date.parse(zeile.am) / 1000) > Math.floor(Date.parse(bis) / 1000);
-  aendereZeile(postfach, id, {
-    ungelesen: neuer ? Math.max(0, zeile.ungelesen - markiert) : 0,
-  });
-}
-
-export async function markiere(
-  postfach: string,
-  nachrichten: string[],
-  gelesen: boolean
-): Promise<void> {
-  await sendApi('POST', `/intern/postfach/${encodeURIComponent(postfach)}/gelesen`, {
-    nachrichten,
-    gelesen,
-  });
-  postfachStart.invalidate();
-}
-
-export async function alleGelesen(postfach: string): Promise<void> {
-  await sendApi('POST', `/intern/postfach/${encodeURIComponent(postfach)}/gelesen`, {
-    alle: true,
-  });
-  const data = postfachListe.state.data;
-  if (data?.postfach.id === postfach && offenesPostfach === postfach) {
-    ladeRevision++;
-    postfachListe.set({
-      ...data,
-      konversationen: data.konversationen.map((zeile) => ({ ...zeile, ungelesen: 0 })),
-    });
-  }
-  postfachStart.invalidate();
-}
-
 /** As long as the API keeps its list; a change of a team shows after that at the latest. */
 const PERSONEN_MS = 5 * 60_000;
 
@@ -167,7 +120,10 @@ async function mitFrischenPersonen<T>(postfach: string, speichern: () => Promise
   }
 }
 
-export interface ZuweisungErgebnis {
+/** Status and done time of a conversation, as the API answers after a change. */
+export type StatusStand = Pick<KonversationStand, 'status' | 'erledigtAm'>;
+
+export interface ZuweisungErgebnis extends StatusStand {
   zustaendig: Zustaendigkeit | null;
   benachrichtigt: boolean;
 }
@@ -176,6 +132,7 @@ export async function setzeZustaendig(
   postfach: string,
   konversation: string,
   login: string | null,
+  /** Name of the person the page showed. */
   vorher: string | null
 ): Promise<ZuweisungErgebnis> {
   const result = await mitFrischenPersonen(postfach, () =>
@@ -185,29 +142,32 @@ export async function setzeZustaendig(
       { konversation, login, vorher }
     )
   );
-  aendereZeile(postfach, konversation, { zustaendig: result.zustaendig });
+  aendereZeile(postfach, konversation, {
+    zustaendig: result.zustaendig,
+    status: result.status,
+    erledigtAm: result.erledigtAm,
+  });
   return result;
 }
 
-/** Marks the conversation as done, as needing nothing or as open again. */
+/** Sets the flags of the conversation in Outlook: „Neu“, „Handlungsbedarf“ or „Erledigt“. */
 export async function setzeStatus(
   postfach: string,
   konversation: string,
   status: PostfachStatus,
   vorher: PostfachStatus,
-  /** Received time of the newest message the page shows; newer ones stay open. */
+  /** Received time of the newest message the page shows; a newer one is not closed unseen. */
   bis: string
-): Promise<Erledigung | null> {
-  const result = await sendApi<{ erledigung: Erledigung | null }>(
+): Promise<StatusStand> {
+  const result = await sendApi<StatusStand>(
     'PUT',
     `/intern/postfach/${encodeURIComponent(postfach)}/status`,
     { konversation, status, vorher, bis }
   );
-  // A late answer: the list may have a newer message by now, which the mark does not cover
+  // A late answer: the list may have a newer message by now, which the change does not cover
   const zeile = postfachListe.state.data?.konversationen.find((entry) => entry.id === konversation);
-  const neueste = zeile && zeile.am > bis ? zeile.am : bis;
-  aendereZeile(postfach, konversation, erledigungsStand(result.erledigung ?? undefined, neueste));
-  return result.erledigung;
+  aendereZeile(postfach, konversation, standFuer(result, zeile?.am ?? bis, bis));
+  return result;
 }
 
 /** The answer of `PUT …/zustaendig-mehrere`. */
@@ -223,6 +183,8 @@ export interface MehrfachErgebnis {
   ok: boolean;
   /** Missing when the API does not know what applies now; the list is read again then. */
   zustaendig?: Zustaendigkeit | null;
+  status?: PostfachStatus;
+  erledigtAm?: string | null;
   fehler?: string;
 }
 
@@ -243,7 +205,7 @@ export async function setzeZustaendigMehrere(
         login,
         konversationen: zeilen.map((zeile) => ({
           konversation: zeile.id,
-          vorher: zeile.zustaendig?.login ?? null,
+          vorher: zeile.zustaendig?.name ?? null,
         })),
       }
     )
@@ -251,7 +213,10 @@ export async function setzeZustaendigMehrere(
   for (const ergebnis of result.ergebnisse) {
     // Unknown after an unexpected error: the list is read again instead
     if (ergebnis.zustaendig === undefined) continue;
-    aendereZeile(postfach, ergebnis.konversation, { zustaendig: ergebnis.zustaendig });
+    aendereZeile(postfach, ergebnis.konversation, {
+      zustaendig: ergebnis.zustaendig,
+      ...(ergebnis.status && { status: ergebnis.status, erledigtAm: ergebnis.erledigtAm ?? null }),
+    });
   }
   return result;
 }

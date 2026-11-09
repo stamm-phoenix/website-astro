@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { PostfachKonversationRoute } from '../endpoints/intern-postfach';
 import { postfachGraph } from '../lib/postfach-graph';
 import type { KonversationDetail } from '../lib/postfach-model';
-import { dbTest } from './fixtures/database';
 import { K2, KONTAKT, message, request, setup } from './fixtures/postfach';
 
-dbTest('attachments on later pages are read too, files and inline images alike', async (t) => {
+test('attachments on later pages are read too, files and inline images alike', async (t) => {
   const { context } = setup(t);
   const original = postfachGraph.get;
   const base =
@@ -85,7 +85,7 @@ dbTest('attachments on later pages are read too, files and inline images alike',
   assert.equal(nachricht.html, '<img src="data:image/png;base64,CCCC">');
 });
 
-dbTest('a continuation of the attachments that leaves Graph is refused', async (t) => {
+test('a continuation of the attachments that leaves Graph is refused', async (t) => {
   const { context } = setup(t);
   const original = postfachGraph.get;
   t.mock.method(
@@ -106,7 +106,7 @@ dbTest('a continuation of the attachments that leaves Graph is refused', async (
   assert.ok(response instanceof Error || (response as { status?: number }).status === 500);
 });
 
-dbTest('an inline image too large to embed stays reachable as an attachment', async (t) => {
+test('an inline image too large to embed stays reachable as an attachment', async (t) => {
   const { context } = setup(t);
   const original = postfachGraph.get;
   t.mock.method(
@@ -166,7 +166,7 @@ dbTest('an inline image too large to embed stays reachable as an attachment', as
   );
 });
 
-dbTest('an inline image written with CID: in capitals is embedded too', async (t) => {
+test('an inline image written with CID: in capitals is embedded too', async (t) => {
   const { context } = setup(t);
   const original = postfachGraph.get;
   t.mock.method(
@@ -217,56 +217,53 @@ dbTest('an inline image written with CID: in capitals is embedded too', async (t
   assert.deepEqual(nachricht.anhaenge, []);
 });
 
-dbTest(
-  'a URL-encoded cid reference is embedded, an unreferenced inline image stays an attachment',
-  async (t) => {
-    const { context } = setup(t);
-    const original = postfachGraph.get;
-    const bilder: Record<string, { contentId: string; contentBytes: string }> = {
-      AAMkkodiert001: { contentId: '<bild@example.invalid>', contentBytes: 'KKKK' },
-      AAMkunbenutzt1: { contentId: 'logo@example.invalid', contentBytes: 'UUUU' },
-    };
-    t.mock.method(
-      postfachGraph,
-      'get',
-      async (path: string, query: Record<string, string>, prefer: string[]) => {
-        if (path.endsWith('/messages') && query.$filter?.includes(K2)) {
-          return {
-            value: [
-              message('AAkALgm3000000', K2, 2, {
-                hasAttachments: false,
-                body: { contentType: 'html', content: '<img src="cid:bild%40example.invalid">' },
-                parentFolderId: 'FOLDER-INBOX',
-              }),
-            ],
-          };
-        }
-        if (path.endsWith('/attachments')) {
-          return {
-            value: Object.keys(bilder).map((id) => ({
-              id,
-              name: `${id}.png`,
-              contentType: 'image/png',
-              size: 4,
-              isInline: true,
-            })),
-          };
-        }
-        const id = Object.keys(bilder).find((key) => path.endsWith(`/attachments/${key}`));
-        if (id) return { name: `${id}.png`, contentType: 'image/png', size: 4, ...bilder[id] };
-        return original.call(postfachGraph, path, query, prefer);
+test('a URL-encoded cid reference is embedded, an unreferenced inline image stays an attachment', async (t) => {
+  const { context } = setup(t);
+  const original = postfachGraph.get;
+  const bilder: Record<string, { contentId: string; contentBytes: string }> = {
+    AAMkkodiert001: { contentId: '<bild@example.invalid>', contentBytes: 'KKKK' },
+    AAMkunbenutzt1: { contentId: 'logo@example.invalid', contentBytes: 'UUUU' },
+  };
+  t.mock.method(
+    postfachGraph,
+    'get',
+    async (path: string, query: Record<string, string>, prefer: string[]) => {
+      if (path.endsWith('/messages') && query.$filter?.includes(K2)) {
+        return {
+          value: [
+            message('AAkALgm3000000', K2, 2, {
+              hasAttachments: false,
+              body: { contentType: 'html', content: '<img src="cid:bild%40example.invalid">' },
+              parentFolderId: 'FOLDER-INBOX',
+            }),
+          ],
+        };
       }
-    );
-    const response = await PostfachKonversationRoute(
-      request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
-      context
-    );
-    const [nachricht] = (response.jsonBody as KonversationDetail).nachrichten;
-    assert.equal(nachricht.html, '<img src="data:image/png;base64,KKKK">');
-    // Not shown in the text, so it must stay reachable
-    assert.deepEqual(
-      nachricht.anhaenge.map((anhang) => anhang.id),
-      ['AAMkunbenutzt1']
-    );
-  }
-);
+      if (path.endsWith('/attachments')) {
+        return {
+          value: Object.keys(bilder).map((id) => ({
+            id,
+            name: `${id}.png`,
+            contentType: 'image/png',
+            size: 4,
+            isInline: true,
+          })),
+        };
+      }
+      const id = Object.keys(bilder).find((key) => path.endsWith(`/attachments/${key}`));
+      if (id) return { name: `${id}.png`, contentType: 'image/png', size: 4, ...bilder[id] };
+      return original.call(postfachGraph, path, query, prefer);
+    }
+  );
+  const response = await PostfachKonversationRoute(
+    request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
+    context
+  );
+  const [nachricht] = (response.jsonBody as KonversationDetail).nachrichten;
+  assert.equal(nachricht.html, '<img src="data:image/png;base64,KKKK">');
+  // Not shown in the text, so it must stay reachable
+  assert.deepEqual(
+    nachricht.anhaenge.map((anhang) => anhang.id),
+    ['AAMkunbenutzt1']
+  );
+});

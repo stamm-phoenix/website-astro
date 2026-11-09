@@ -11,7 +11,6 @@
   import MehrfachAktionen from './MehrfachAktionen.svelte';
   import { errorMessage } from '../../lib/api';
   import {
-    alleGelesen,
     ladeNachKonflikt,
     ladePostfach,
     neuLaden,
@@ -54,6 +53,8 @@
 
   const daten = $derived(store.data?.postfach.id === postfach ? store.data : null);
   const ich = $derived(daten?.ich ?? '');
+  /** A preview reads the real mailbox, but must not change it. */
+  const nurLesen = $derived(daten?.nurLesen ?? false);
   const zeilen = $derived(filterKonversationen(daten?.konversationen ?? [], filter, ich));
   const anzahl = $derived(filterAnzahl(daten?.konversationen ?? [], filter, ich));
   /** Empty list: nothing in the inbox, or nothing that fits the filters. */
@@ -150,23 +151,6 @@
       busy = false;
     }
   }
-
-  async function allesGelesen(): Promise<void> {
-    busy = true;
-    meldung = null;
-    fehler = null;
-    try {
-      await alleGelesen(postfach);
-      meldung = 'Alle als gelesen markiert.';
-    } catch (error: unknown) {
-      fehler = errorMessage(
-        error,
-        'Die E-Mails konnten nicht als gelesen markiert werden. Nichts wurde geändert.'
-      );
-    } finally {
-      busy = false;
-    }
-  }
 </script>
 
 <div class="space-y-3">
@@ -181,9 +165,6 @@
       ></a
     >
     <ActionButton disabled={busy} onclick={aktualisieren}>Neu laden</ActionButton>
-    {#if anzahl.ungelesen > 0}
-      <ActionButton disabled={busy} onclick={allesGelesen}>Alle als gelesen markieren</ActionButton>
-    {/if}
     {#if meldung}<span role="status" class="text-sm text-success">{meldung}</span>{/if}
     {#if fehler}<span role="alert" class="text-sm text-danger"><MessageText text={fehler} /></span
       >{/if}
@@ -204,7 +185,7 @@
       >
         <PostfachFilterLeiste bind:filter {anzahl}>
           {#snippet vorne()}
-            {#if zeilen.length}
+            {#if zeilen.length && !nurLesen}
               <label
                 class="flex min-h-11 cursor-pointer items-center gap-3 pl-1 text-sm text-brand-900"
               >
@@ -222,16 +203,17 @@
             {/if}
           {/snippet}
         </PostfachFilterLeiste>
-        <MehrfachAktionen
-          bind:busy={mehrfachBusy}
-          {postfach}
-          zeilen={gewaehlteZeilen}
-          {ich}
-          onfertig={mehrfachFertig}
-          onaufheben={() => ausgewaehlt.clear()}
-        />
+        {#if !nurLesen}<MehrfachAktionen
+            bind:busy={mehrfachBusy}
+            {postfach}
+            zeilen={gewaehlteZeilen}
+            {ich}
+            onfertig={mehrfachFertig}
+            onaufheben={() => ausgewaehlt.clear()}
+          />{/if}
         <div class="min-h-0 flex-1 overflow-y-auto">
           <KonversationListe
+            auswaehlbar={!nurLesen}
             {ausgewaehlt}
             auswahlGesperrt={mehrfachBusy}
             onwaehle={waehle}
@@ -266,6 +248,7 @@
             konversation={aktiv}
             {neuladen}
             {ich}
+            {nurLesen}
             onzurueck={zurListe}
             onkonflikt={() => void ladeNachKonflikt(postfach)}
           />

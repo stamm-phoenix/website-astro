@@ -1,18 +1,9 @@
 /** Validation of the requests of the module „E-Mail“ (`docs/postfaecher.md`). */
 import { z } from 'zod';
-import {
-  ANHANG_ID,
-  KONVERSATION_ID,
-  KONVERSATION_MAX,
-  NACHRICHT_ID,
-  type PostfachStatus,
-} from '../postfach-model';
+import { ANHANG_ID, KONVERSATION_ID, NACHRICHT_ID, type PostfachStatus } from '../postfach-model';
 import { lenientObject, parseWith } from './zod';
 
 const RELOAD = 'Bitte lade die Seite neu und versuche es noch einmal.';
-
-/** All messages of one conversation that the reading view reads can be marked at once. */
-const MAX_NACHRICHTEN = KONVERSATION_MAX;
 
 const konversationId = z
   .string({ error: `Die Konversation ist ungültig. ${RELOAD}` })
@@ -30,36 +21,18 @@ const login = z
   .max(254, { error: `Die Person ist ungültig. ${RELOAD}` })
   .regex(/^[^\s@]+@[^\s@]+$/, { error: `Die Person ist ungültig. ${RELOAD}` });
 
-const gelesenSchema = z.union([
-  lenientObject({
-    alle: z.literal(true, { error: `Die Markierung ist ungültig. ${RELOAD}` }),
-  }),
-  lenientObject({
-    nachrichten: z
-      .array(nachrichtId, { error: `Die Nachrichten sind ungültig. ${RELOAD}` })
-      .min(1, { error: `Es fehlen die Nachrichten. ${RELOAD}` })
-      .max(MAX_NACHRICHTEN, { error: `Zu viele Nachrichten auf einmal. ${RELOAD}` })
-      .transform((ids) => [...new Set(ids)]),
-    gelesen: z.boolean({ error: `Die Markierung ist ungültig. ${RELOAD}` }),
-  }),
-]);
-
-export type GelesenEingabe = { alle: true } | { nachrichten: string[]; gelesen: boolean };
-
-/** `POST …/gelesen`: `{ alle: true }` or `{ nachrichten, gelesen }`. */
-export function validateGelesen(value: unknown): GelesenEingabe {
-  const parsed = gelesenSchema.safeParse(value);
-  if (parsed.success) return parsed.data;
-  // The issues of the second form name the field that is wrong
-  return parseWith(gelesenSchema.options[1], value);
-}
+/** The name of the responsible person the page showed; null when nobody was. */
+const vorherName = z
+  .string({ error: `Die Zuständigkeit ist ungültig. ${RELOAD}` })
+  .trim()
+  .max(200, { error: `Die Zuständigkeit ist ungültig. ${RELOAD}` })
+  .nullable();
 
 const zustaendigSchema = lenientObject({
   konversation: konversationId,
   /** The person to make responsible; null removes the responsibility. */
   login: login.nullable(),
-  /** The responsible login the page showed; null when nobody was. */
-  vorher: login.nullable().optional().default(null),
+  vorher: vorherName.optional().default(null),
 });
 
 export interface ZustaendigEingabe {
@@ -74,12 +47,9 @@ const MAX_AUSWAHL = 100;
 const mehrereSchema = lenientObject({
   login: login.nullable(),
   konversationen: z
-    .array(
-      lenientObject({ konversation: konversationId, vorher: login.nullable().default(null) }),
-      {
-        error: `Die Auswahl ist ungültig. ${RELOAD}`,
-      }
-    )
+    .array(lenientObject({ konversation: konversationId, vorher: vorherName.default(null) }), {
+      error: `Die Auswahl ist ungültig. ${RELOAD}`,
+    })
     .min(1, { error: `Es ist keine E-Mail ausgewählt. ${RELOAD}` })
     .max(MAX_AUSWAHL, { error: `Zu viele E-Mails auf einmal. ${RELOAD}` }),
 });
@@ -107,7 +77,7 @@ export function validateZustaendig(value: unknown): ZustaendigEingabe {
   return parseWith(zustaendigSchema, value);
 }
 
-const STATUS = ['offen', 'erledigt', 'kein_handlungsbedarf'] as const;
+const STATUS = ['neu', 'handlungsbedarf', 'erledigt'] as const;
 const statusSchema = z.enum(STATUS, { error: `Der Stand ist ungültig. ${RELOAD}` });
 
 /** `PUT …/status`: the new status and the one the page showed. */

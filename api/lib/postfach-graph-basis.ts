@@ -21,6 +21,14 @@ export class PostfachZugriffError extends Error {
   }
 }
 
+/** Graph refused a change of the mailbox: the app may read it, but not change it. */
+export class PostfachSchreibError extends Error {
+  constructor(public readonly address: string) {
+    super(`Graph refused to change the mailbox ${address}.`);
+    this.name = 'PostfachSchreibError';
+  }
+}
+
 /** The attachment cannot be downloaded here (too large, or an attached item instead of a file). */
 export class AnhangNichtLadbarError extends Error {
   constructor() {
@@ -49,6 +57,14 @@ export const postfachGraph = {
   },
   async post(path: string, body: unknown): Promise<unknown> {
     return getClient().api(path).option('signal', AbortSignal.timeout(TIMEOUT_MS)).post(body);
+  },
+  /** Changes a message; the path holds its immutable ID. */
+  async patch(path: string, body: unknown): Promise<unknown> {
+    return getClient()
+      .api(path)
+      .header('Prefer', IMMUTABLE)
+      .option('signal', AbortSignal.timeout(TIMEOUT_MS))
+      .patch(body);
   },
 };
 

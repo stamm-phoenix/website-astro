@@ -1,24 +1,32 @@
-import { istMirZugewiesen, type KonversationZeile } from '../../../api/lib/postfach-model';
+import {
+  istMirZugewiesen,
+  type KonversationZeile,
+  type PostfachStatus,
+} from '../../../api/lib/postfach-model';
 
-/**
- * Filters of the list of a mailbox, combined: the state, who is responsible and unread only.
- * The page starts with everything.
- */
-export type StandFilter = 'alle' | 'offen' | 'erledigt';
+/** Filters of the list of a mailbox, combined: the status and who is responsible. */
+export type StandFilter = 'alle' | PostfachStatus;
 export type ZustaendigFilter = 'alle' | 'mir' | 'niemand';
 
 export interface PostfachFilter {
   stand: StandFilter;
   zustaendig: ZustaendigFilter;
-  ungelesen: boolean;
 }
 
-export const FILTER_START: PostfachFilter = { stand: 'alle', zustaendig: 'alle', ungelesen: false };
+export const FILTER_START: PostfachFilter = { stand: 'alle', zustaendig: 'alle' };
+
+/** Label of a status for the list, the start page and the result note. */
+export const STATUS_LABEL: Record<PostfachStatus, string> = {
+  neu: 'Neu',
+  handlungsbedarf: 'Handlungsbedarf',
+  erledigt: 'Erledigt',
+};
 
 export const STAND_FILTER: readonly { value: StandFilter; label: string }[] = [
   { value: 'alle', label: 'Alle' },
-  { value: 'offen', label: 'Offen' },
-  { value: 'erledigt', label: 'Erledigt' },
+  { value: 'neu', label: STATUS_LABEL.neu },
+  { value: 'handlungsbedarf', label: STATUS_LABEL.handlungsbedarf },
+  { value: 'erledigt', label: STATUS_LABEL.erledigt },
 ];
 
 export const ZUSTAENDIG_FILTER: readonly { value: ZustaendigFilter; label: string }[] = [
@@ -26,12 +34,6 @@ export const ZUSTAENDIG_FILTER: readonly { value: ZustaendigFilter; label: strin
   { value: 'mir', label: 'Ich' },
   { value: 'niemand', label: 'Niemand' },
 ];
-
-function passtStand(zeile: KonversationZeile, stand: StandFilter): boolean {
-  if (stand === 'offen') return !zeile.erledigung;
-  if (stand === 'erledigt') return !!zeile.erledigung;
-  return true;
-}
 
 function passtZustaendig(zeile: KonversationZeile, wer: ZustaendigFilter, ich: string): boolean {
   if (wer === 'mir') return istMirZugewiesen(zeile, ich);
@@ -41,9 +43,8 @@ function passtZustaendig(zeile: KonversationZeile, wer: ZustaendigFilter, ich: s
 
 function passt(zeile: KonversationZeile, filter: PostfachFilter, ich: string): boolean {
   return (
-    passtStand(zeile, filter.stand) &&
-    passtZustaendig(zeile, filter.zustaendig, ich) &&
-    (!filter.ungelesen || zeile.ungelesen > 0)
+    (filter.stand === 'alle' || zeile.status === filter.stand) &&
+    passtZustaendig(zeile, filter.zustaendig, ich)
   );
 }
 
@@ -58,10 +59,9 @@ export function filterKonversationen(
 export interface FilterAnzahl {
   stand: Record<StandFilter, number>;
   zustaendig: Record<ZustaendigFilter, number>;
-  ungelesen: number;
 }
 
-/** What each choice would show, with the other filters as they are. */
+/** What each choice would show, with the other filter as it is. */
 export function filterAnzahl(
   zeilen: readonly KonversationZeile[],
   filter: PostfachFilter,
@@ -76,24 +76,12 @@ export function filterAnzahl(
     zustaendig: Object.fromEntries(
       ZUSTAENDIG_FILTER.map(({ value }) => [value, zaehle({ zustaendig: value })])
     ) as Record<ZustaendigFilter, number>,
-    ungelesen: zaehle({ ungelesen: true }),
   };
 }
 
 export function filterAktiv(filter: PostfachFilter): boolean {
-  return (
-    filter.stand !== FILTER_START.stand ||
-    filter.zustaendig !== FILTER_START.zustaendig ||
-    filter.ungelesen !== FILTER_START.ungelesen
-  );
+  return filter.stand !== FILTER_START.stand || filter.zustaendig !== FILTER_START.zustaendig;
 }
-
-/** Label of a status for the list, the start page and the result note. */
-export const STATUS_LABEL = {
-  offen: 'Offen',
-  erledigt: 'Erledigt',
-  kein_handlungsbedarf: 'Kein Handlungsbedarf',
-} as const;
 
 const HASH = /^#konversation=([^&]+)$/;
 

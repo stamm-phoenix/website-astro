@@ -1,15 +1,23 @@
-import { sql } from 'kysely';
-import { CONFIG } from './config';
-import { getDb, inTransaction, lockResource } from './db';
-import type { LeseStand, Zustaendigkeit } from './postfach-model';
+import { aenderungen, nachAenderung } from './postfach-aenderung';
+import { readKonversationStand } from './postfach-graph';
+import type { PostfachEintrag } from './postfach-liste';
+import {
+  kategorieFuer,
+  konversationenAus,
+  sekunde,
+  type InboxNachricht,
+  type KonversationZeile,
+  type PostfachStatus,
+  type Zustaendigkeit,
+} from './postfach-model';
+import { inboxVergessen, personenFuerKategorien } from './postfach';
+import { kategorieAnlegen, schreibeAenderungen } from './postfach-schreiben';
 
 /**
- * What the Leitendenbereich keeps about the shared mailboxes in Azure SQL (schema `postfach`,
- * migration 0080): who is responsible for a conversation and what each person has read. The
- * messages themselves stay in Exchange.
+ * Changes of the status and the responsible person of a conversation, written into Outlook
+ * (`docs/postfaecher.md`). Each change reads the conversation fresh and compares it with what the
+ * page showed, so a change made meanwhile (also in Outlook) is not overwritten unseen.
  */
-
-const DAY_MS = 86_400_000;
 
 /** Someone else changed the responsibility since the page loaded it. */
 export class ZustaendigkeitKonfliktError extends Error {
@@ -19,199 +27,113 @@ export class ZustaendigkeitKonfliktError extends Error {
   }
 }
 
+/** Someone else changed the status since the page loaded it. */
+export class StatusKonfliktError extends Error {
+  constructor(public readonly aktuell: KonversationZeile) {
+    super('The status changed meanwhile.');
+    this.name = 'StatusKonfliktError';
+  }
+}
+
+/** A newer message arrived than the page showed; marking the conversation would close it unseen. */
+export class NeueNachrichtError extends Error {
+  constructor() {
+    super('A newer message arrived than the page showed.');
+    this.name = 'NeueNachrichtError';
+  }
+}
+
 export interface Person {
   login: string;
   name: string;
 }
 
-/**
- * The read state of the person in the mailbox. On the first visit it starts
- * `CONFIG.postfaecher.ungelesenTage` back, so the whole inbox is not unread at once.
- */
-export async function getLeseStand(
-  postfach: string,
-  userId: string,
-  login: string,
-  now: Date = new Date()
-): Promise<LeseStand> {
-  const db = getDb();
-  let leser = await db
-    .selectFrom('postfach.leser')
-    .select('gelesen_bis')
-    .where('postfach', '=', postfach)
-    .where('user_id', '=', userId)
-    .executeTakeFirst();
-  if (!leser) {
-    const gelesenBis = new Date(now.getTime() - CONFIG.postfaecher.ungelesenTage * DAY_MS);
-    leser = await inTransaction(async (trx) => {
-      await lockResource(trx, `postfach-leser:${postfach}:${userId}`);
-      const row = await trx
-        .selectFrom('postfach.leser')
-        .select('gelesen_bis')
-        .where('postfach', '=', postfach)
-        .where('user_id', '=', userId)
-        .executeTakeFirst();
-      if (row) return row;
-      await trx
-        .insertInto('postfach.leser')
-        .values({ postfach, user_id: userId, login, gelesen_bis: gelesenBis })
-        .execute();
-      return { gelesen_bis: gelesenBis };
-    });
-  }
-  const rows = await db
-    .selectFrom('postfach.gelesen')
-    .select(['nachricht_id', 'gelesen'])
-    .where('postfach', '=', postfach)
-    .where('user_id', '=', userId)
-    .execute();
-  return {
-    marken: new Map(rows.map((row) => [row.nachricht_id, Boolean(row.gelesen)])),
-    gelesenBis: leser.gelesen_bis.toISOString(),
-  };
+interface Frisch {
+  zeile: KonversationZeile;
+  nachrichten: InboxNachricht[];
 }
 
-/** Marks the messages as read or unread for the person. */
-export async function markiereNachrichten(
-  postfach: string,
-  userId: string,
-  nachrichten: readonly string[],
-  gelesen: boolean
-): Promise<void> {
-  if (!nachrichten.length) return;
-  await inTransaction(async (trx) => {
-    await lockResource(trx, `postfach-leser:${postfach}:${userId}`);
-    await trx
-      .deleteFrom('postfach.gelesen')
-      .where('postfach', '=', postfach)
-      .where('user_id', '=', userId)
-      .where('nachricht_id', 'in', [...nachrichten])
-      .execute();
-    await trx
-      .insertInto('postfach.gelesen')
-      .values(
-        nachrichten.map((nachricht_id) => ({ postfach, user_id: userId, nachricht_id, gelesen }))
-      )
-      .execute();
-  });
+/** The received messages of the conversation in every folder, and its line; null when none. */
+export async function ladeFrisch(
+  postfach: PostfachEintrag,
+  konversation: string
+): Promise<Frisch | null> {
+  const [nachrichten, personen] = await Promise.all([
+    readKonversationStand(postfach.address, konversation),
+    personenFuerKategorien(postfach),
+  ]);
+  if (!nachrichten.length) return null;
+  return { zeile: konversationenAus(postfach.id, nachrichten, personen)[0], nachrichten };
+}
+
+async function schreiben(
+  postfach: PostfachEintrag,
+  { zeile, nachrichten }: Frisch,
+  ziel: Parameters<typeof aenderungen>[1],
+  personen: readonly Person[] = []
+): Promise<KonversationZeile> {
+  const geaendert = aenderungen(nachrichten, ziel);
+  if (!geaendert.length) return zeile;
+  await schreibeAenderungen(postfach.address, geaendert);
+  inboxVergessen(postfach.address);
+  const danach = nachAenderung(nachrichten, geaendert);
+  return { ...zeile, ...konversationenAus(postfach.id, danach, personen)[0], id: zeile.id };
 }
 
 /**
- * „Alle als gelesen markieren“: everything received until now counts as read; marks of single
- * messages of the person are dropped, also the unread ones; those of others stay as they are.
+ * Sets the status of the conversation. `vorher` is the status the page showed and `gesehen` the
+ * received time of the newest message it showed. If someone changed the status meanwhile,
+ * nothing is written and `StatusKonfliktError` names what applies now; if a newer message arrived
+ * and the conversation would leave „Neu“ with it unseen, `NeueNachrichtError`. Null: the
+ * conversation is no longer in the mailbox.
  */
-export async function alleGelesen(
-  postfach: string,
-  userId: string,
-  login: string,
-  now: Date = new Date()
-): Promise<void> {
-  await inTransaction(async (trx) => {
-    await lockResource(trx, `postfach-leser:${postfach}:${userId}`);
-    await trx
-      .deleteFrom('postfach.gelesen')
-      .where('postfach', '=', postfach)
-      .where('user_id', '=', userId)
-      .execute();
-    const updated = await trx
-      .updateTable('postfach.leser')
-      .set({ gelesen_bis: now, login })
-      .where('postfach', '=', postfach)
-      .where('user_id', '=', userId)
-      .executeTakeFirst();
-    if (Number(updated.numUpdatedRows) === 0) {
-      await trx
-        .insertInto('postfach.leser')
-        .values({ postfach, user_id: userId, login, gelesen_bis: now })
-        .execute();
-    }
-  });
+export async function setzeStatus(
+  postfach: PostfachEintrag,
+  konversation: string,
+  status: PostfachStatus,
+  vorher: PostfachStatus,
+  gesehen: string
+): Promise<KonversationZeile | null> {
+  const frisch = await ladeFrisch(postfach, konversation);
+  if (!frisch) return null;
+  if (frisch.zeile.status !== vorher) throw new StatusKonfliktError(frisch.zeile);
+  // Already so (e.g. from a choice of several): when it was done stays as it is
+  if (status === vorher) return frisch.zeile;
+  if (status !== 'neu' && sekunde(frisch.zeile.am) > sekunde(gesehen))
+    throw new NeueNachrichtError();
+  const personen = await personenFuerKategorien(postfach);
+  return schreiben(postfach, frisch, { status }, personen);
 }
 
-function toZustaendigkeit(row: {
-  login: string;
-  name: string;
-  von_login: string;
-  von_name: string;
-  am: Date;
-}): Zustaendigkeit {
-  return {
-    login: row.login,
-    name: row.name,
-    vonLogin: row.von_login,
-    vonName: row.von_name,
-    am: row.am.toISOString(),
-  };
-}
-
-/** The responsibilities of the mailbox, by conversation ID. */
-export async function getZustaendigkeiten(postfach: string): Promise<Map<string, Zustaendigkeit>> {
-  const rows = await getDb()
-    .selectFrom('postfach.zustaendigkeit')
-    .select(['konversation_id', 'login', 'name', 'von_login', 'von_name', 'am'])
-    .where('postfach', '=', postfach)
-    .execute();
-  return new Map(rows.map((row) => [row.konversation_id, toZustaendigkeit(row)]));
+function gleicherName(a: string | null, b: string | null): boolean {
+  return (a?.trim().toLowerCase() ?? null) === (b?.trim().toLowerCase() ?? null);
 }
 
 /**
- * Makes `neu` responsible for the conversation, or nobody with `null`. `vorher` is the login the
- * page showed (null: nobody); if someone changed it meanwhile, nothing is saved and
- * `ZustaendigkeitKonfliktError` names the current person.
+ * Makes `neu` responsible for the conversation, or nobody with `null`. `vorher` is the name the
+ * page showed (null: nobody); if someone changed it meanwhile, nothing is written and
+ * `ZustaendigkeitKonfliktError` names the current person. A new conversation that gets a person
+ * needs action: it gets the flag too. Null: the conversation is no longer in the mailbox.
  */
-export async function setzeZustaendigkeit(
-  postfach: string,
+export async function setzeZustaendig(
+  postfach: PostfachEintrag,
   konversation: string,
   neu: Person | null,
-  vorher: string | null,
-  von: Person,
-  betreff: string
-): Promise<Zustaendigkeit | null> {
-  return inTransaction(async (trx) => {
-    await lockResource(trx, `postfach-zustaendigkeit:${postfach}:${konversation}`);
-    const row = await trx
-      .selectFrom('postfach.zustaendigkeit')
-      .select(['login', 'name', 'von_login', 'von_name', 'am'])
-      .where('postfach', '=', postfach)
-      .where('konversation_id', '=', konversation)
-      .executeTakeFirst();
-    const aktuell = row ? toZustaendigkeit(row) : null;
-    if ((aktuell?.login.toLowerCase() ?? null) !== (vorher?.toLowerCase() ?? null))
-      throw new ZustaendigkeitKonfliktError(aktuell);
-    if (!neu) {
-      await trx
-        .deleteFrom('postfach.zustaendigkeit')
-        .where('postfach', '=', postfach)
-        .where('konversation_id', '=', konversation)
-        .execute();
-      return null;
-    }
-    const values = {
-      login: neu.login,
-      name: neu.name,
-      von_login: von.login,
-      von_name: von.name,
-      betreff: betreff.slice(0, 400),
-    };
-    if (row) {
-      await trx
-        .updateTable('postfach.zustaendigkeit')
-        .set({ ...values, am: sql<Date>`SYSUTCDATETIME()` })
-        .where('postfach', '=', postfach)
-        .where('konversation_id', '=', konversation)
-        .execute();
-    } else {
-      await trx
-        .insertInto('postfach.zustaendigkeit')
-        .values({ postfach, konversation_id: konversation, ...values })
-        .execute();
-    }
-    const saved = await trx
-      .selectFrom('postfach.zustaendigkeit')
-      .select(['login', 'name', 'von_login', 'von_name', 'am'])
-      .where('postfach', '=', postfach)
-      .where('konversation_id', '=', konversation)
-      .executeTakeFirstOrThrow();
-    return toZustaendigkeit(saved);
-  });
+  vorher: string | null
+): Promise<{ zeile: KonversationZeile; vorher: Zustaendigkeit | null } | null> {
+  const frisch = await ladeFrisch(postfach, konversation);
+  if (!frisch) return null;
+  const aktuell = frisch.zeile.zustaendig;
+  if (!gleicherName(aktuell?.name ?? null, vorher)) throw new ZustaendigkeitKonfliktError(aktuell);
+  const kategorie = neu ? kategorieFuer(neu.name) : null;
+  // Only a colour in Outlook; the category works without it
+  if (kategorie) await kategorieAnlegen(postfach.address, kategorie);
+  const personen = await personenFuerKategorien(postfach);
+  const zeile = await schreiben(
+    postfach,
+    frisch,
+    { kategorie, status: neu && frisch.zeile.status === 'neu' ? 'handlungsbedarf' : undefined },
+    neu ? [...personen.filter((person) => person.login !== neu.login), neu] : personen
+  );
+  return { zeile, vorher: aktuell };
 }

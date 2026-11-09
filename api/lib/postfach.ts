@@ -16,25 +16,24 @@ import {
 } from './postfach-graph';
 import {
   fuerMich,
-  istGelesen,
   istMirZugewiesen,
   konversationenAus,
   type InboxNachricht,
   type KonversationDetail,
+  type MailNachricht,
   type KonversationZeile,
   type PostfachAnsicht,
   type PostfachInfo,
   type PostfachPerson,
   type PostfachStart,
 } from './postfach-model';
-import { getLeseStand, getZustaendigkeiten } from './postfach-stand';
-import { getErledigungen } from './postfach-erledigung';
-import { isPreviewOnlyLogin, type ClientPrincipal } from './staff-auth';
+import { resetKategorienCache } from './postfach-schreiben';
+import { isPreviewDeployment, isPreviewOnlyLogin, type ClientPrincipal } from './staff-auth';
 import { readTaskDirectory } from './task-directory';
 
 /**
- * The module „E-Mail“: combines the inbox from Graph with the responsibilities and the read
- * state of the person from Azure SQL (`docs/postfaecher.md`).
+ * The module „E-Mail“: the inbox from Graph, with the status and the responsible person taken
+ * from the flags and categories in Outlook (`docs/postfaecher.md`).
  */
 
 /** The inbox of a mailbox is read at most this often per Function instance. */
@@ -87,46 +86,62 @@ export async function inbox(address: string, frisch = false): Promise<Posteingan
   return promise;
 }
 
+/** After a change: the next request reads the inbox anew. */
+export function inboxVergessen(address: string): void {
+  inboxCache.delete(address);
+}
+
 /** For the tests. */
 export function resetPostfachCaches(): void {
   resetSentItemsCache();
+  resetKategorienCache();
   inboxCache.clear();
   personenCache.clear();
 }
 
-/** The list of a mailbox for the person. */
+/**
+ * The people of the mailbox to match the categories against. Without them the names still show,
+ * only „Dir zugewiesen“ is not recognised.
+ */
+export async function personenFuerKategorien(postfach: PostfachEintrag): Promise<PostfachPerson[]> {
+  return ladePersonen(postfach).catch((error: unknown) => {
+    console.error(`[postfach] Personen von ${postfach.id} nicht lesbar`, error);
+    return [];
+  });
+}
+
+/** The list of a mailbox. */
 export async function ladeKonversationen(
   postfach: PostfachEintrag,
-  principal: Pick<ClientPrincipal, 'userId' | 'userDetails'>,
   frisch = false
 ): Promise<KonversationZeile[]> {
-  const [{ nachrichten }, stand, zustaendig, erledigungen] = await Promise.all([
+  const [{ nachrichten }, personen] = await Promise.all([
     inbox(postfach.address, frisch),
-    getLeseStand(postfach.id, principal.userId, eigenerLogin(principal)),
-    getZustaendigkeiten(postfach.id),
-    getErledigungen(postfach.id),
+    personenFuerKategorien(postfach),
   ]);
-  return konversationenAus(postfach.id, nachrichten, stand, zustaendig, erledigungen);
+  return konversationenAus(postfach.id, nachrichten, personen);
 }
 
 export async function ladeAnsicht(
   postfach: PostfachEintrag,
-  principal: Pick<ClientPrincipal, 'userId' | 'userDetails'>,
+  principal: Pick<ClientPrincipal, 'userDetails'>,
   frisch = false
 ): Promise<PostfachAnsicht> {
-  const konversationen = await ladeKonversationen(postfach, principal, frisch);
+  const konversationen = await ladeKonversationen(postfach, frisch);
   return {
     postfach: postfachInfo(postfach),
     konversationen,
     // Read once above; the second call takes the same answer from the cache
     begrenzt: (await inbox(postfach.address)).begrenzt,
     ich: eigenerLogin(principal),
+    // Previews read the real mailboxes, so they must not change them
+    nurLesen: isPreviewDeployment(),
   };
 }
 
 /** Each mailbox on its own: one that fails shows as such, the others still count. */
 export async function ladeStart(
-  principal: Pick<ClientPrincipal, 'userId' | 'userDetails' | 'userRoles'>
+  principal: Pick<ClientPrincipal, 'userDetails' | 'userRoles'>
 ): Promise<PostfachStart> {
   const login = eigenerLogin(principal);
   const ergebnisse = await Promise.all(
@@ -134,7 +149,7 @@ export async function ladeStart(
       try {
         return {
           postfach,
-          zeilen: await ladeKonversationen(postfach, principal),
+          zeilen: await ladeKonversationen(postfach),
           gesperrt: false,
         };
       } catch (error: unknown) {
@@ -147,10 +162,10 @@ export async function ladeStart(
     ich: login,
     postfaecher: ergebnisse.map(({ postfach, zeilen, gesperrt }) => ({
       ...postfachInfo(postfach),
-      // Counted like the start page: open conversations only
-      ungelesen: zeilen?.filter((zeile) => !zeile.erledigung && zeile.ungelesen > 0).length ?? 0,
+      neu: zeilen?.filter((zeile) => zeile.status === 'neu').length ?? 0,
       mirZugewiesen:
-        zeilen?.filter((zeile) => !zeile.erledigung && istMirZugewiesen(zeile, login)).length ?? 0,
+        zeilen?.filter((zeile) => zeile.status !== 'erledigt' && istMirZugewiesen(zeile, login))
+          .length ?? 0,
       fehler: zeilen === null,
       gesperrt,
     })),
@@ -161,47 +176,49 @@ export async function ladeStart(
 }
 
 /**
- * The messages of a conversation with their read state. The line of the list is built from the
- * received messages, so it also exists when the conversation has left the inbox.
+ * The messages of a conversation. The line of the list is built from the received messages, so
+ * it also exists when the conversation has left the inbox.
  */
 export async function ladeKonversation(
   postfach: PostfachEintrag,
-  principal: Pick<ClientPrincipal, 'userId' | 'userDetails'>,
   konversationId: string
 ): Promise<KonversationDetail | null> {
-  const [{ nachrichten, vollstaendig }, stand, zustaendig, erledigungen] = await Promise.all([
+  const [{ nachrichten, eingegangen, vollstaendig }, personen] = await Promise.all([
     readKonversation(postfach.address, konversationId),
-    getLeseStand(postfach.id, principal.userId, eigenerLogin(principal)),
-    getZustaendigkeiten(postfach.id),
-    getErledigungen(postfach.id),
+    personenFuerKategorien(postfach),
   ]);
   if (!nachrichten.length) return null;
-  const eingegangen = nachrichten.filter((nachricht) => !nachricht.gesendet);
-  const fuerZeile = (eingegangen.length ? eingegangen : nachrichten).map(
-    (nachricht): InboxNachricht => ({
-      id: nachricht.id,
-      konversation: konversationId,
-      betreff: nachricht.betreff,
-      von: nachricht.von,
-      am: nachricht.am,
-      vorschau: nachricht.vorschau,
-      hatAnhang: nachricht.anhaenge.length > 0,
-      wichtig: false,
-    })
-  );
-  const [konversation] = konversationenAus(postfach.id, fuerZeile, stand, zustaendig, erledigungen);
-  const neueste = fuerZeile.at(-1);
+  const konversation = zeileAus(konversationId, eingegangen, nachrichten);
+  const neueste = (eingegangen.length ? eingegangen : nachrichten).at(-1);
   const restId = neueste ? await readRestId(postfach.address, neueste.id) : null;
   return {
-    konversation,
-    nachrichten: nachrichten.map((nachricht) => ({
-      ...nachricht,
-      // Own answers count as read: the person does not need to read them again
-      gelesen: nachricht.gesendet || istGelesen(nachricht, stand),
-    })),
+    konversation: konversationenAus(postfach.id, konversation, personen)[0],
+    nachrichten,
     vollstaendig,
     outlookUrl: restId ? nachrichtOutlookUrl(postfach.address, restId) : null,
   };
+}
+
+/** The received messages for the line; with none (only sent ones) the sent ones, without marks. */
+function zeileAus(
+  konversationId: string,
+  eingegangen: InboxNachricht[],
+  nachrichten: MailNachricht[]
+): InboxNachricht[] {
+  if (eingegangen.length) return eingegangen;
+  return nachrichten.map((nachricht) => ({
+    id: nachricht.id,
+    konversation: konversationId,
+    betreff: nachricht.betreff,
+    von: nachricht.von,
+    am: nachricht.am,
+    vorschau: nachricht.vorschau,
+    hatAnhang: nachricht.anhaenge.length > 0,
+    wichtig: false,
+    flag: 'notFlagged',
+    erledigtAm: null,
+    kategorien: [],
+  }));
 }
 
 /** The directory of the teams; a seam for the tests. */

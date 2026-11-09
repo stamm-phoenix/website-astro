@@ -38,11 +38,11 @@ test('a late „Erledigt“ does not close a conversation that got a newer messa
   await liste.getByRole('link', { name: RECHNUNG }).click();
   const mail = page.getByRole('article', { name: 'Rechnung Zeltplatz Sommerlager' });
   const stand = mail.getByRole('group', { name: 'Stand' });
-  const offen = stand.getByRole('button', { name: 'Offen' });
+  const offen = stand.getByRole('button', { name: 'Neu' });
   await expect(stand).toBeVisible();
   if ((await offen.getAttribute('aria-pressed')) !== 'true') {
     await offen.click();
-    await expect(mail.getByText('Wieder als offen markiert.')).toBeVisible();
+    await expect(mail.getByText('Wieder als neu markiert.')).toBeVisible();
   }
 
   let release: () => void = () => undefined;
@@ -60,13 +60,12 @@ test('a late „Erledigt“ does not close a conversation that got a newer messa
   const gespeichert = page.waitForResponse('**/api/intern/postfach/kontakt/status');
   release();
   await gespeichert;
-  // The mark covers only the older messages: both views keep the conversation open
-  await expect(liste.getByRole('link', { name: RECHNUNG })).toContainText(
-    'neue Nachricht nach „Erledigt“'
-  );
+  // The flags cover only the older messages: both views show the conversation as new
+  await expect(liste.getByRole('link', { name: RECHNUNG })).toContainText('Neu');
+  await expect(liste.getByRole('link', { name: RECHNUNG })).not.toContainText('Erledigt');
   await expect(offen).toHaveAttribute('aria-pressed', 'true');
 
-  // Back to open for the other tests on the shared demo server
+  // Back to new for the other tests on the shared demo server
   await page.unrouteAll({ behavior: 'ignoreErrors' });
   await page.reload();
   await page
@@ -77,10 +76,7 @@ test('a late „Erledigt“ does not close a conversation that got a newer messa
     .getByRole('article', { name: 'Rechnung Zeltplatz Sommerlager' })
     .getByRole('group', { name: 'Stand' });
   await expect(wieder).toBeVisible();
-  if ((await wieder.getByRole('button', { name: 'Offen' }).getAttribute('aria-pressed')) !== 'true')
-    await wieder.getByRole('button', { name: 'Offen' }).click();
-  await expect(wieder.getByRole('button', { name: 'Offen' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  if ((await wieder.getByRole('button', { name: 'Neu' }).getAttribute('aria-pressed')) !== 'true')
+    await wieder.getByRole('button', { name: 'Neu' }).click();
+  await expect(wieder.getByRole('button', { name: 'Neu' })).toHaveAttribute('aria-pressed', 'true');
 });

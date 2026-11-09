@@ -633,7 +633,7 @@
           </li>{/if}
         {#if postfaecher.length && mailsEmpty}<li class="flex items-center gap-2">
             {@render check()}<span
-              >Keine ungelesenen oder dir zugewiesenen E-Mails ·
+              >Keine neuen oder dir zugewiesenen E-Mails ·
               <a href={postfaecher[0].href} class="text-link">Zum Postfach</a></span
             >
           </li>{/if}
