@@ -70,8 +70,15 @@ async function main(): Promise<void> {
       const alt = await altStand(postfach.id);
       let geaendert = 0;
       for (const [konversation, { name, erledigtBis }] of alt) {
-        const nachrichten = await readKonversationStand(postfach.address, konversation);
+        const { nachrichten, vollstaendig } = await readKonversationStand(
+          postfach.address,
+          konversation
+        );
         if (!nachrichten.length) continue;
+        if (!vollstaendig) {
+          console.log(`${postfach.id} ${konversation}: zu lang, bitte in Outlook setzen`);
+          continue;
+        }
         const jetzt = standAus(nachrichten, []);
         const neueste = nachrichten.reduce((a, b) => (b.am > a.am ? b : a));
         const erledigt =

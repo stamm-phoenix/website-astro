@@ -18,7 +18,11 @@ import {
   sichtbarePostfaecher,
 } from '../lib/postfach';
 import { AnhangNichtLadbarError, PostfachZugriffError, readAnhang } from '../lib/postfach-graph';
-import { setzeZustaendig, ZustaendigkeitKonfliktError } from '../lib/postfach-stand';
+import {
+  KonversationZuLangError,
+  setzeZustaendig,
+  ZustaendigkeitKonfliktError,
+} from '../lib/postfach-stand';
 import { postfachBenachrichtigung } from '../lib/postfach-mails';
 import {
   getPrincipalFirstName,
@@ -70,6 +74,12 @@ const NUR_LESEN = errorResponse(
   'In der Vorschau kann im Postfach nichts geändert werden. Nichts wurde gespeichert.'
 );
 
+const ZU_LANG = errorResponse(
+  422,
+  'KONVERSATION_ZU_LANG',
+  'Diese Unterhaltung ist zu lang, um sie hier zu ändern. Nichts wurde gespeichert. Setz Fähnchen und Kategorie bitte in Outlook.'
+);
+
 const ANHANG_NUR_OUTLOOK = errorResponse(
   422,
   'ANHANG_NUR_OUTLOOK',
@@ -118,6 +128,7 @@ export function postfachRoute(handler: Handler) {
             return SCHREIBEN_GESPERRT;
           }
           if (error instanceof AnhangNichtLadbarError) return ANHANG_NUR_OUTLOOK;
+          if (error instanceof KonversationZuLangError) return ZU_LANG;
           throw error;
         }
       },

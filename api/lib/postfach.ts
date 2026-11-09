@@ -115,11 +115,11 @@ export async function ladeKonversationen(
   postfach: PostfachEintrag,
   frisch = false
 ): Promise<KonversationZeile[]> {
-  const [{ nachrichten }, personen] = await Promise.all([
+  const [{ nachrichten, weitere }, personen] = await Promise.all([
     inbox(postfach.address, frisch),
     personenFuerKategorien(postfach),
   ]);
-  return konversationenAus(postfach.id, nachrichten, personen);
+  return konversationenAus(postfach.id, nachrichten, personen, weitere);
 }
 
 export async function ladeAnsicht(

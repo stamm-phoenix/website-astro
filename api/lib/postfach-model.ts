@@ -211,12 +211,14 @@ export function standAus(
 
 /**
  * Groups the messages of the inbox into conversations, newest first. Each conversation takes
- * subject, sender and preview of its newest message.
+ * subject, sender and preview of its newest message; its status and person also count
+ * `weitere`, received messages of the same conversations in other folders (e.g. archived).
  */
 export function konversationenAus(
   postfach: string,
   nachrichten: readonly InboxNachricht[],
-  personen: readonly PostfachPerson[]
+  personen: readonly PostfachPerson[],
+  weitere: readonly InboxNachricht[] = []
 ): KonversationZeile[] {
   const gruppen = new Map<string, InboxNachricht[]>();
   for (const nachricht of neuesteZuerst(nachrichten)) {
@@ -225,6 +227,7 @@ export function konversationenAus(
     else gruppen.set(nachricht.konversation, [nachricht]);
   }
   return [...gruppen.values()].map((gruppe) => {
+    const andere = weitere.filter((nachricht) => nachricht.konversation === gruppe[0].konversation);
     const [neueste] = gruppe;
     return {
       id: neueste.konversation,
@@ -236,7 +239,7 @@ export function konversationenAus(
       anzahl: gruppe.length,
       hatAnhang: gruppe.some((nachricht) => nachricht.hatAnhang),
       wichtig: gruppe.some((nachricht) => nachricht.wichtig),
-      ...standAus(gruppe, personen),
+      ...standAus([...gruppe, ...andere], personen),
     };
   });
 }

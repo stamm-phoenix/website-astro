@@ -89,7 +89,9 @@
           ? `${result.zustaendig.name} ist jetzt zuständig und hat eine Mail bekommen.`
           : `${result.zustaendig.name} ist jetzt zuständig. Die Mail an ${result.zustaendig.name} ging nicht raus; sag bitte selbst Bescheid.`;
     } catch (error: unknown) {
-      if (error instanceof ApiError && error.status === 409) onkonflikt(fuer);
+      // A conflict, or a change that failed half way: the page reads what applies now
+      if (error instanceof ApiError && (error.status === 409 || error.status >= 500))
+        onkonflikt(fuer);
       if (fuer !== konversation) return;
       fehler = errorMessage(
         error,
