@@ -192,3 +192,51 @@ test('after „Neu laden“ the choice of people follows the team', async ({ pag
   await aktionen.getByRole('button', { name: 'Abbrechen' }).click();
   await aktionen.getByRole('button', { name: 'Auswahl aufheben' }).click();
 });
+
+test('more than 100 chosen mails are handed on in parts and counted together', async ({ page }) => {
+  // The list holds inbox and archive, so it can show more than the API takes at once
+  await page.route(
+    (url) => url.pathname === '/api/intern/postfach/kontakt',
+    async (route) => {
+      const antwort = await route.fetch();
+      const body = await antwort.json();
+      const vorlage = body.konversationen[0];
+      const viele = Array.from({ length: 150 }, (_, index) => ({
+        ...vorlage,
+        id: `AAQkADemoViele${String(index).padStart(4, '0')}`,
+        betreff: `Anfrage ${index + 1}`,
+        zustaendig: null,
+      }));
+      await route.fulfill({ response: antwort, json: { ...body, konversationen: viele } });
+    }
+  );
+  const teile: number[] = [];
+  await page.route('**/api/intern/postfach/kontakt/zustaendig-mehrere', async (route) => {
+    const body = route.request().postDataJSON() as {
+      konversationen: { konversation: string }[];
+    };
+    teile.push(body.konversationen.length);
+    await route.fulfill({
+      json: {
+        ergebnisse: body.konversationen.map(({ konversation }) => ({
+          konversation,
+          ok: true,
+          zustaendig: { login: 'tom.test@example.test', name: 'Tom Test' },
+          status: 'handlungsbedarf',
+        })),
+        benachrichtigt: true,
+      },
+    });
+  });
+  await page.goto('/leitendenbereich/email/kontakt');
+  const liste = page.getByRole('region', { name: 'Posteingang' });
+  await liste.getByRole('checkbox', { name: 'Alle 150 auswählen' }).check();
+  const aktionen = liste.getByRole('region', { name: 'Aktionen für die Auswahl' });
+  await aktionen.getByRole('button', { name: 'Jemandem zuweisen' }).click();
+  await aktionen.getByLabel('Wer soll sich um die 150 E-Mails kümmern?').fill('Tom');
+  await page.getByRole('option', { name: /Tom Test/ }).click();
+  await expect(
+    aktionen.getByText('Tom Test ist jetzt für 150 E-Mails zuständig und hat eine Mail bekommen.')
+  ).toBeVisible();
+  expect(teile).toEqual([100, 50]);
+});
