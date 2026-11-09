@@ -325,3 +325,26 @@ test('a reply that arrives while archiving is not reported as done', async (t) =
   assert.equal(response.status, 200);
   assert.deepEqual(response.jsonBody, { status: 'neu' });
 });
+
+test('with a full inbox an archived conversation with an older message in the inbox is open', async (t) => {
+  const { context, mocks } = setup(t);
+  // 100 newer messages fill the inbox; K1 has its newest message archived, an older one with a
+  // flag is still in the inbox beyond what the list reads
+  for (let index = 0; index < 100; index++)
+    mocks.postfach.push(
+      message(
+        `AAkALgf${String(index).padStart(7, '0')}`,
+        `AAQkAGfueller${String(index).padStart(10, '0')}=`,
+        0.01 * (index + 1),
+        {
+          parentFolderId: 'FOLDER-INBOX',
+        }
+      )
+    );
+  mocks.postfach[0].parentFolderId = 'FOLDER-ARCHIV';
+  mocks.postfach[1].flag = { flagStatus: 'flagged' };
+  const ansicht = await liste(context);
+  assert.equal(ansicht.begrenzt, true);
+  const k1 = ansicht.konversationen.find((zeile) => zeile.id === K1);
+  assert.equal(k1?.status, 'handlungsbedarf');
+});
