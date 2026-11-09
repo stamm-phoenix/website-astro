@@ -90,7 +90,7 @@ Postfach sagt er nur, ob irgendwer die Nachricht schon angeklickt hat.
 - **Startseite:** Der Kasten „E-Mails“ zeigt, was auf eine Entscheidung wartet, aus allen
   Postfächern, die die Person sieht (`GET /api/intern/postfach`, `fuerMich`): neue Konversationen
   bei allen, Konversationen mit „Handlungsbedarf“ bei der zuständigen Person, und bei allen,
-  solange niemand zuständig ist. Erledigte stehen dort nicht.
+  solange niemand zuständig ist oder die genannte Person unbekannt ist (z. B. nicht mehr im Team). Erledigte stehen dort nicht.
 
 ## Wer welches Postfach sieht
 

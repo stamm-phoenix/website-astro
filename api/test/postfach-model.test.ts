@@ -157,6 +157,16 @@ test('the start page shows new ones, and flagged ones to their person or to all'
     fuerMich(zeilen, 'jemand@stamm-phoenix.de').map((zeile) => zeile.id),
     ['neu', 'offen']
   );
+  // Without the people (the directory failed) a named person is not known: everyone sees it
+  const ohnePersonen = konversationenAus(
+    'kontakt',
+    [nachricht('m5', 'fremd', '2026-10-03T08:00:00.000Z', 'x', 'flagged', ['👤 Tom Test'])],
+    []
+  );
+  assert.deepEqual(
+    fuerMich(ohnePersonen, 'lea@stamm-phoenix.de').map((zeile) => zeile.id),
+    ['fremd']
+  );
 });
 
 test('every mailbox names known teams and a unique address-safe id', () => {

@@ -297,13 +297,15 @@ export function istMirZugewiesen(
 
 /**
  * What the start page shows the person until someone decides: new conversations for everyone,
- * and those that need action for the responsible person, or for everyone while nobody is.
+ * and those that need action for the responsible person, or for everyone while nobody is (also
+ * when the named person is not known, e.g. left the team or the directory could not be read).
  */
 export function fuerMich(zeilen: readonly KonversationZeile[], login: string): KonversationZeile[] {
   return zeilen.filter(
     (zeile) =>
       zeile.status === 'neu' ||
-      (zeile.status === 'handlungsbedarf' && (!zeile.zustaendig || istMirZugewiesen(zeile, login)))
+      (zeile.status === 'handlungsbedarf' &&
+        (!zeile.zustaendig?.login || istMirZugewiesen(zeile, login)))
   );
 }
 
