@@ -82,7 +82,6 @@ export interface Mocks {
 function ohneDetails(entry: Record<string, unknown>): Record<string, unknown> {
   const rest = { ...entry };
   delete rest.body;
-  delete rest.toRecipients;
   return rest;
 }
 

@@ -103,6 +103,15 @@ test('two people with the same name get categories that tell them apart', () => 
   });
   // Without the login the name fits both: it is shown, but belongs to nobody
   assert.deepEqual(zustaendigAus(['👤 Lea Leitung'], zwei), { login: null, name: 'Lea Leitung' });
+  // The other Lea left: the category with the login still belongs to the one who stays
+  assert.equal(
+    zustaendigAus(['👤 Lea Leitung (lea.b)'], [zwei[1], zwei[2]])?.login,
+    'lea.b@stamm-phoenix.de'
+  );
+  assert.equal(
+    zustaendigAus(['👤 Lea Leitung'], [zwei[1], zwei[2]])?.login,
+    'lea.b@stamm-phoenix.de'
+  );
 });
 
 test('changes touch only what differs and keep other categories', () => {

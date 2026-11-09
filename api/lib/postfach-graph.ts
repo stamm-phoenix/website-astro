@@ -102,10 +102,10 @@ const listMessageSchema = z.object({
   '@odata.etag': z.string().optional().catch(undefined),
   categories: z.array(z.string()).optional().catch([]),
   parentFolderId: z.string().nullable().catch(null).optional(),
+  toRecipients: addressList.optional(),
 });
 
 const fullMessageSchema = listMessageSchema.extend({
-  toRecipients: addressList.optional(),
   ccRecipients: addressList.optional(),
   body: z.object({ contentType: text, content: text }).nullable().catch(null).optional(),
 });
@@ -188,7 +188,7 @@ async function readWeitere(
       path,
       {
         $filter: `receivedDateTime ge ${aelteste}`,
-        $select: `${LIST_SELECT},parentFolderId`,
+        $select: `${LIST_SELECT},parentFolderId,toRecipients`,
         $orderby: 'receivedDateTime desc',
         $top: String(INBOX_LIMIT),
       },
@@ -260,20 +260,22 @@ async function ordner(address: string): Promise<Ordner> {
 
 /**
  * Sent: in „Gesendete Elemente“, or from the mailbox itself and moved elsewhere (e.g. an
- * archived answer). From the mailbox but in the inbox: a note of the forms, which send from the
- * mailbox to itself, so it was received.
+ * archived answer). A note of the forms is sent by the mailbox to itself, so it was received,
+ * in the inbox or archived.
  */
 function istGesendet(
-  message: Pick<z.output<typeof listMessageSchema>, 'parentFolderId'>,
+  message: Pick<z.output<typeof listMessageSchema>, 'parentFolderId' | 'toRecipients'>,
   von: MailAdresse,
   address: string,
   { gesendet, posteingang }: Ordner
 ): boolean {
+  if (gesendet !== null && message.parentFolderId === gesendet) return true;
+  const vomPostfach = von.adresse.toLowerCase() === address.toLowerCase();
+  const anPostfach = (message.toRecipients ?? []).some(
+    (empfaenger) => empfaenger.adresse.toLowerCase() === address.toLowerCase()
+  );
   return (
-    (gesendet !== null && message.parentFolderId === gesendet) ||
-    (von.adresse.toLowerCase() === address.toLowerCase() &&
-      posteingang !== null &&
-      message.parentFolderId !== posteingang)
+    vomPostfach && !anPostfach && posteingang !== null && message.parentFolderId !== posteingang
   );
 }
 
@@ -322,7 +324,7 @@ export async function readKonversationStand(
       address,
       konversationId,
       listMessageSchema,
-      `${LIST_SELECT},parentFolderId`,
+      `${LIST_SELECT},parentFolderId,toRecipients`,
       [IMMUTABLE]
     );
     const ordnerIds = await ordner(address);
