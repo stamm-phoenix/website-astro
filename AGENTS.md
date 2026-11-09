@@ -251,9 +251,9 @@ Write endpoints for the edit modules (the `content` and `organisation` tables, t
 
 ## Planned Move to Azure Container Apps
 
-From 7 December 2026 (right after the Nikolausaktion) the whole site moves from the Static Web App to one Azure Container App, and the SvelteKit app of [leitenden-website](https://github.com/stamm-phoenix/leitenden-website) moves into this repo as `app/`. SvelteKit becomes the server; the public site stays Astro and is served as a static build; `/api/*` keeps running through an adapter. Plan and checklist: #528. Until then, build so that the move stays small:
+From 7 December 2026 (right after the Nikolausaktion) the whole site moves from the Static Web App to one Azure Container App, and the code of the SvelteKit prototype [leitenden-website](https://github.com/stamm-phoenix/leitenden-website) (archived, read-only; its Azure resources are removed) moves into this repo as `app/`. SvelteKit becomes the server; the public site stays Astro and is served as a static build; `/api/*` keeps running through an adapter. Plan and checklist: #528. Until then, build so that the move stays small:
 
-- New features of the Leitendenbereich are built here, in `web/` and `api/`. leitenden-website only gets bug fixes until the move.
+- New features of the Leitendenbereich are built here, in `web/` and `api/`. Never change leitenden-website or rely on its Azure resources.
 - Put the logic of a page into Svelte components under `web/src/components/`. The `.astro` page only wraps the island in `StaffLayout.astro` and passes baked data; no page scripts, redirects or logic in the frontmatter beyond loading data. SvelteKit reuses the components as they are, while anything in an `.astro` page has to be rewritten by hand.
 - API endpoints stay in `api/` with `app.http()`; the adapter serves them unchanged. Read the user only through `api/lib/staff-auth.ts` (`getClientPrincipal`, `requireStaff`, `hasTeam`) and, in the browser, `/.auth/me`: the container provides exactly these.
 - Links to the site (mails, calendar entries) go through `api/lib/site-url.ts`; never hard-code a host.
