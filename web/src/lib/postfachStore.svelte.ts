@@ -120,8 +120,8 @@ async function mitFrischenPersonen<T>(postfach: string, speichern: () => Promise
   }
 }
 
-/** Status and done time of a conversation, as the API answers after a change. */
-export interface StatusStand extends Pick<KonversationStand, 'status' | 'erledigtAm'> {
+/** The status of a conversation, as the API answers after a change. */
+export interface StatusStand extends Pick<KonversationStand, 'status'> {
   /**
    * Another change of the same conversation was started after this one: the answer is not
    * taken over, the page reads what applies now instead.
@@ -167,12 +167,11 @@ export async function setzeZustaendig(
   aendereZeile(postfach, konversation, {
     zustaendig: result.zustaendig,
     status: result.status,
-    erledigtAm: result.erledigtAm,
   });
   return result;
 }
 
-/** Sets the flags of the conversation in Outlook: „Neu“, „Handlungsbedarf“ or „Erledigt“. */
+/** Sets the status in Outlook: „Neu“ or „Handlungsbedarf“ in the inbox, or „Erledigt“ archived. */
 export async function setzeStatus(
   postfach: string,
   konversation: string,
@@ -211,7 +210,6 @@ export interface MehrfachErgebnis {
   /** Missing when the API does not know what applies now; the list is read again then. */
   zustaendig?: Zustaendigkeit | null;
   status?: PostfachStatus;
-  erledigtAm?: string | null;
   fehler?: string;
 }
 
@@ -242,7 +240,7 @@ export async function setzeZustaendigMehrere(
     if (ergebnis.zustaendig === undefined) continue;
     aendereZeile(postfach, ergebnis.konversation, {
       zustaendig: ergebnis.zustaendig,
-      ...(ergebnis.status && { status: ergebnis.status, erledigtAm: ergebnis.erledigtAm ?? null }),
+      ...(ergebnis.status && { status: ergebnis.status }),
     });
   }
   return result;

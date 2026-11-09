@@ -67,13 +67,6 @@ const SCHREIBEN_GESPERRT = errorResponse(
   'Die Website darf in diesem Postfach gerade nichts ändern. Nichts wurde gespeichert. Setz Fähnchen und Kategorie solange in Outlook und melde das an admin@stamm-phoenix.de.'
 );
 
-/** Previews read the real mailboxes and must not change them. */
-const NUR_LESEN = errorResponse(
-  403,
-  'NUR_LESEN',
-  'In der Vorschau kann im Postfach nichts geändert werden. Nichts wurde gespeichert.'
-);
-
 const ZU_LANG = errorResponse(
   422,
   'KONVERSATION_ZU_LANG',
@@ -98,12 +91,9 @@ const PERSON_OHNE_ZUGRIFF = errorResponse(
   'Diese Person hat keinen Zugriff auf das Postfach. Wähle jemanden aus der Liste.'
 );
 
-/** For the routes that change the mailbox: refused in the previews. */
+/** The routes that change the mailbox. Previews change the real mailboxes too, to try them. */
 export function postfachAenderung(handler: Handler) {
-  return postfachRoute(async (request, postfach, principal, context) => {
-    if (request.method === 'PUT' && isPreviewDeployment()) return NUR_LESEN;
-    return handler(request, postfach, principal, context);
-  });
+  return postfachRoute(handler);
 }
 
 type Handler = (
@@ -189,7 +179,7 @@ export async function handelnde(
  * `PUT /api/intern/postfach/{postfach}/zustaendig` `{ konversation, login, vorher }`: makes a
  * member of the mailbox's teams responsible (null: nobody) with an Outlook category and sends
  * them a note, unless they chose themselves. `vorher` is the name the page showed. Answers
- * `{ zustaendig, status, erledigtAm, benachrichtigt }`; 409 names who is responsible now.
+ * `{ zustaendig, status, benachrichtigt }`; 409 names who is responsible now.
  */
 export const PostfachZustaendigRoute = postfachAenderung(
   async (request, postfach, principal, context) => {
@@ -242,7 +232,6 @@ export const PostfachZustaendigRoute = postfachAenderung(
     return ok({
       zustaendig: zeile.zustaendig,
       status: zeile.status,
-      erledigtAm: zeile.erledigtAm,
       benachrichtigt,
     });
   }

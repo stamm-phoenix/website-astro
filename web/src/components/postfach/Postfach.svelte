@@ -53,8 +53,6 @@
 
   const daten = $derived(store.data?.postfach.id === postfach ? store.data : null);
   const ich = $derived(daten?.ich ?? '');
-  /** A preview reads the real mailbox, but must not change it. */
-  const nurLesen = $derived(daten?.nurLesen ?? false);
   const zeilen = $derived(filterKonversationen(daten?.konversationen ?? [], filter, ich));
   const anzahl = $derived(filterAnzahl(daten?.konversationen ?? [], filter, ich));
   /** Empty list: nothing in the inbox, or nothing that fits the filters. */
@@ -185,7 +183,7 @@
       >
         <PostfachFilterLeiste bind:filter {anzahl}>
           {#snippet vorne()}
-            {#if zeilen.length && !nurLesen}
+            {#if zeilen.length}
               <label
                 class="flex min-h-11 cursor-pointer items-center gap-3 pl-1 text-sm text-brand-900"
               >
@@ -203,17 +201,16 @@
             {/if}
           {/snippet}
         </PostfachFilterLeiste>
-        {#if !nurLesen}<MehrfachAktionen
-            bind:busy={mehrfachBusy}
-            {postfach}
-            zeilen={gewaehlteZeilen}
-            {ich}
-            onfertig={mehrfachFertig}
-            onaufheben={() => ausgewaehlt.clear()}
-          />{/if}
+        <MehrfachAktionen
+          bind:busy={mehrfachBusy}
+          {postfach}
+          zeilen={gewaehlteZeilen}
+          {ich}
+          onfertig={mehrfachFertig}
+          onaufheben={() => ausgewaehlt.clear()}
+        />
         <div class="min-h-0 flex-1 overflow-y-auto">
           <KonversationListe
-            auswaehlbar={!nurLesen}
             {ausgewaehlt}
             auswahlGesperrt={mehrfachBusy}
             onwaehle={waehle}
@@ -248,7 +245,6 @@
             konversation={aktiv}
             {neuladen}
             {ich}
-            {nurLesen}
             onzurueck={zurListe}
             onkonflikt={() => void ladeNachKonflikt(postfach)}
           />

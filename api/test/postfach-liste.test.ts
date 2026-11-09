@@ -9,13 +9,8 @@ import { K1, K2, KONTAKT, LEA, message, request, setup, TOM } from './fixtures/p
 
 test('the list groups the inbox and takes status and person from Outlook', async (t) => {
   const { context, mocks } = setup(t);
-  // Done in Outlook, then a reply: new again. The other one has a flag and a person
-  Object.assign(mocks.postfach[1], {
-    flag: {
-      flagStatus: 'complete',
-      completedDateTime: { dateTime: '2026-11-01T10:00:00.0000000', timeZone: 'UTC' },
-    },
-  });
+  // Archived as done, then a reply: new again. The other one has a flag and a person
+  Object.assign(mocks.postfach[1], { parentFolderId: 'FOLDER-ARCHIV' });
   Object.assign(mocks.postfach[2], {
     flag: { flagStatus: 'flagged' },
     categories: ['👤 Tom Test', 'Rechnung'],
@@ -29,7 +24,6 @@ test('the list groups the inbox and takes status and person from Outlook', async
     ansicht.postfach.outlookUrl,
     'https://outlook.office.com/mail/kontakt%40stamm-phoenix.de/'
   );
-  assert.equal(ansicht.nurLesen, false);
   assert.deepEqual(
     ansicht.konversationen.map((zeile) => [
       zeile.id,
@@ -39,26 +33,20 @@ test('the list groups the inbox and takes status and person from Outlook', async
     ]),
     [
       [K2, 2, 'handlungsbedarf', 'tom@stamm-phoenix.de'],
-      [K1, 2, 'neu', null],
+      [K1, 1, 'neu', null],
     ]
   );
 });
 
-test('a done conversation keeps when it was done, and an unknown person keeps the name', async (t) => {
+test('an archived conversation shows as done, and an unknown person keeps the name', async (t) => {
   const { context, mocks } = setup(t);
   for (const entry of mocks.postfach.filter((candidate) => candidate.conversationId === K1))
-    Object.assign(entry, {
-      flag: {
-        flagStatus: 'complete',
-        completedDateTime: { dateTime: '2026-11-01T10:00:00.0000000', timeZone: 'UTC' },
-      },
-      categories: ['👤 Altleiter Anton'],
-    });
+    Object.assign(entry, { parentFolderId: 'FOLDER-ARCHIV', categories: ['👤 Altleiter Anton'] });
   const ansicht = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
     .jsonBody as PostfachAnsicht;
   const k1 = ansicht.konversationen.find((zeile) => zeile.id === K1);
   assert.equal(k1?.status, 'erledigt');
-  assert.equal(k1?.erledigtAm, '2026-11-01T10:00:00.000Z');
+  assert.equal(k1?.anzahl, 2);
   assert.deepEqual(k1?.zustaendig, { login: null, name: 'Altleiter Anton' });
 });
 
@@ -71,10 +59,7 @@ test('the start page shows new ones to everyone and flagged ones to the person o
       parentFolderId: 'FOLDER-INBOX',
       flag: { flagStatus: 'flagged' },
     }),
-    message('AAkALgm7000000', k4, 4, {
-      parentFolderId: 'FOLDER-INBOX',
-      flag: { flagStatus: 'complete' },
-    })
+    message('AAkALgm7000000', k4, 4, { parentFolderId: 'FOLDER-ARCHIV' })
   );
   Object.assign(mocks.postfach[2], {
     flag: { flagStatus: 'flagged' },

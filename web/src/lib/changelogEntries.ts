@@ -20,7 +20,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: 'Jede E-Mail ist jetzt „Neu“, „Handlungsbedarf“ oder „Erledigt“. Neue E-Mails stehen bei allen auf der Übersicht, bis jemand entscheidet. Mit „Handlungsbedarf“ erinnern sie die zuständige Person, oder alle, solange niemand zuständig ist.',
         href: '/leitendenbereich/email/kontakt',
       },
-      'Stand und Zuständigkeit stehen auch in Outlook: „Handlungsbedarf“ ist ein Fähnchen, „Erledigt“ ein erledigtes Fähnchen und die zuständige Person eine Kategorie mit 👤 vor dem Namen. Was du in Outlook setzt, siehst du hier, und umgekehrt.',
+      'Stand und Zuständigkeit stehen auch in Outlook: „Handlungsbedarf“ ist ein Fähnchen, „Erledigt“ heißt archiviert und die zuständige Person ist eine Kategorie mit 👤 vor dem Namen. Was du in Outlook tust, siehst du hier, und umgekehrt. Archivierst du in Outlook, ist die E-Mail erledigt.',
       'Wer zuständig wird, macht aus einer neuen E-Mail „Handlungsbedarf“. Kommt nach „Erledigt“ eine Antwort, ist die E-Mail wieder neu.',
       '„Kein Handlungsbedarf“ gehört jetzt zu „Erledigt“. Gelesen und ungelesen gibt es hier nicht mehr, weil es nur zeigte, wer eine E-Mail schon angeklickt hatte.',
     ],

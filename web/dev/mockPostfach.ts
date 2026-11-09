@@ -16,6 +16,7 @@ import {
   type InboxNachricht,
   type KonversationDetail,
   type KonversationZeile,
+  type MailOrdner,
   type OutlookFlag,
   type PostfachPerson,
 } from '../../api/lib/postfach-model';
@@ -26,7 +27,7 @@ import {
   validateZustaendigMehrere,
 } from '../../api/lib/validation/postfach';
 
-import { ADRESSE, MAILS, vor, type DemoMail } from './mockPostfachMails';
+import { ADRESSE, MAILS, type DemoMail } from './mockPostfachMails';
 
 /**
  * Demo mails of the module „E-Mail“ (`docs/postfaecher.md`), in memory. Flags and categories are
@@ -45,28 +46,29 @@ const PERSONEN: PostfachPerson[] = [
   { login: 'tom.test@example.test', name: 'Tom Test' },
 ];
 
-/** Flag, done time and categories of each message, as Outlook keeps them. */
-const outlook = new Map<string, Pick<InboxNachricht, 'flag' | 'erledigtAm' | 'kategorien'>>();
+/** Flag, categories and folder of each message, as Outlook keeps them. */
+const outlook = new Map<string, Pick<InboxNachricht, 'flag' | 'kategorien' | 'ordner'>>();
 
-function setzeStart(konversation: string, flag: OutlookFlag, kategorien: string[] = []): void {
+function setzeStart(
+  konversation: string,
+  flag: OutlookFlag,
+  ordner: MailOrdner,
+  kategorien: string[] = []
+): void {
   for (const mail of MAILS.filter(
     (entry) => entry.konversation === konversation && !entry.gesendet
   ))
-    outlook.set(mail.id, {
-      flag,
-      erledigtAm: flag === 'complete' ? vor(24 * 4) : null,
-      kategorien,
-    });
+    outlook.set(mail.id, { flag, kategorien, ordner });
 }
-setzeStart('AAQkADemoKonv03', 'flagged', [
+setzeStart('AAQkADemoKonv03', 'flagged', 'posteingang', [
   kategorieFuer({ login: 'leitung@example.test', name: 'Demo Leitung' }),
 ]);
-setzeStart('AAQkADemoKonv05', 'complete');
+setzeStart('AAQkADemoKonv05', 'notFlagged', 'archiv');
 
 function mitStand(mail: DemoMail): InboxNachricht {
   return {
     ...mail,
-    ...(outlook.get(mail.id) ?? { flag: 'notFlagged', erledigtAm: null, kategorien: [] }),
+    ...(outlook.get(mail.id) ?? { flag: 'notFlagged', kategorien: [], ordner: 'posteingang' }),
   };
 }
 
@@ -105,8 +107,8 @@ function schreibe(
   for (const nachricht of danach)
     outlook.set(nachricht.id, {
       flag: nachricht.flag,
-      erledigtAm: nachricht.erledigtAm,
       kategorien: nachricht.kategorien,
+      ordner: nachricht.ordner,
     });
   return konversationenAus(POSTFACH, danach, PERSONEN)[0];
 }
@@ -159,7 +161,6 @@ export function registerPostfachRoutes(
         konversationen: zeilen(req.params.postfach),
         begrenzt: false,
         ich: login(),
-        nurLesen: false,
       })
   );
 
@@ -184,7 +185,7 @@ export function registerPostfachRoutes(
         text: mail.text,
         anhaenge: mail.anhaenge ?? [],
         gesendet: mail.gesendet ?? false,
-        imPosteingang: !(mail.gesendet ?? false),
+        imPosteingang: !(mail.gesendet ?? false) && mitStand(mail).ordner === 'posteingang',
       })),
       vollstaendig: true,
       outlookUrl: `${postfachOutlookUrl(ADRESSE)}inbox/id/${encodeURIComponent(mails[0].id)}`,
@@ -210,8 +211,7 @@ export function registerPostfachRoutes(
         'Jemand hat den Stand inzwischen geändert. Nichts wurde gespeichert.'
       );
     // As in the API: already so, nothing changes
-    if (eingabe.status === eingabe.vorher)
-      return json({ status: zeile.status, erledigtAm: zeile.erledigtAm });
+    if (eingabe.status === eingabe.vorher) return json({ status: zeile.status });
     if (
       eingabe.status !== 'neu' &&
       sekunde(zeile.am) > sekunde(new Date(eingabe.bis).toISOString())
@@ -222,7 +222,7 @@ export function registerPostfachRoutes(
         'Seit du die Unterhaltung geöffnet hast, ist eine neue Nachricht gekommen. Nichts wurde gespeichert.'
       );
     const neu = schreibe(eingabe.konversation, { status: eingabe.status })!;
-    return json({ status: neu.status, erledigtAm: neu.erledigtAm });
+    return json({ status: neu.status });
   });
 
   /** One conversation to one person (null: nobody), as `setzeZustaendig` in the API. */
@@ -260,7 +260,6 @@ export function registerPostfachRoutes(
     return json({
       zustaendig: ergebnis.zeile.zustaendig,
       status: ergebnis.zeile.status,
-      erledigtAm: ergebnis.zeile.erledigtAm,
       benachrichtigt: !!eingabe.login && eingabe.login !== login(),
     });
   });
@@ -284,7 +283,7 @@ export function registerPostfachRoutes(
         konversation,
         ok: !fehler,
         zustaendig: zeile?.zustaendig ?? null,
-        ...(!fehler && zeile && { status: zeile.status, erledigtAm: zeile.erledigtAm }),
+        ...(!fehler && zeile && { status: zeile.status }),
         ...(fehler && { fehler }),
       };
     });

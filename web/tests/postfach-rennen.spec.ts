@@ -242,7 +242,7 @@ test('a late reload answer does not undo a status just saved in the reading view
   await page.getByRole('button', { name: 'Neu laden' }).click();
   await oldState;
   await stand.getByRole('button', { name: 'Erledigt' }).click();
-  await expect(mail.getByText('Als erledigt markiert.')).toBeVisible();
+  await expect(mail.getByText('Erledigt und archiviert.')).toBeVisible();
   release();
   await page.waitForTimeout(500);
   await expect(stand.getByRole('button', { name: 'Erledigt' })).toHaveAttribute(

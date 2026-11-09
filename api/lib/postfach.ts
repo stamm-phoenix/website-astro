@@ -28,7 +28,7 @@ import {
   type PostfachStart,
 } from './postfach-model';
 import { resetKategorienCache } from './postfach-schreiben';
-import { isPreviewDeployment, isPreviewOnlyLogin, type ClientPrincipal } from './staff-auth';
+import { isPreviewOnlyLogin, type ClientPrincipal } from './staff-auth';
 import { readTaskDirectory } from './task-directory';
 
 /**
@@ -115,11 +115,11 @@ export async function ladeKonversationen(
   postfach: PostfachEintrag,
   frisch = false
 ): Promise<KonversationZeile[]> {
-  const [{ nachrichten, weitere }, personen] = await Promise.all([
+  const [{ nachrichten }, personen] = await Promise.all([
     inbox(postfach.address, frisch),
     personenFuerKategorien(postfach),
   ]);
-  return konversationenAus(postfach.id, nachrichten, personen, weitere);
+  return konversationenAus(postfach.id, nachrichten, personen);
 }
 
 export async function ladeAnsicht(
@@ -134,8 +134,6 @@ export async function ladeAnsicht(
     // Read once above; the second call takes the same answer from the cache
     begrenzt: (await inbox(postfach.address)).begrenzt,
     ich: eigenerLogin(principal),
-    // Previews read the real mailboxes, so they must not change them
-    nurLesen: isPreviewDeployment(),
   };
 }
 
@@ -199,7 +197,10 @@ export async function ladeKonversation(
   };
 }
 
-/** The received messages for the line; with none (only sent ones) the sent ones, without marks. */
+/**
+ * The received messages for the line; with none (only sent ones) the sent ones, without marks
+ * and outside the inbox, so the conversation counts as done.
+ */
 function zeileAus(
   konversationId: string,
   eingegangen: InboxNachricht[],
@@ -216,8 +217,8 @@ function zeileAus(
     hatAnhang: nachricht.anhaenge.length > 0,
     wichtig: false,
     flag: 'notFlagged',
-    erledigtAm: null,
     kategorien: [],
+    ordner: 'anderer',
   }));
 }
 

@@ -16,7 +16,13 @@ import {
   readAttachments,
 } from './postfach-anhaenge';
 import { KONVERSATION_MAX } from './postfach-model';
-import type { InboxNachricht, MailAdresse, MailNachricht, OutlookFlag } from './postfach-model';
+import type {
+  InboxNachricht,
+  MailAdresse,
+  MailNachricht,
+  MailOrdner,
+  OutlookFlag,
+} from './postfach-model';
 
 export {
   AnhangNichtLadbarError,
@@ -68,25 +74,10 @@ const FLAGS = new Set<string>(['notFlagged', 'flagged', 'complete']);
 const flagSchema = z
   .object({
     flagStatus: text.optional(),
-    completedDateTime: z
-      .object({ dateTime: text, timeZone: text.optional() })
-      .nullable()
-      .optional()
-      .catch(null),
   })
   .nullable()
   .optional()
   .catch(null);
-
-/** A time of Graph without zone (`dateTimeTimeZone`); Graph answers in UTC unless asked otherwise. */
-function utc(value: { dateTime: string; timeZone?: string } | null | undefined): string | null {
-  if (!value?.dateTime) return null;
-  const zone = (value.timeZone ?? 'UTC').toUpperCase();
-  if (zone !== 'UTC' && zone !== 'COORDINATED UNIVERSAL TIME') return null;
-  const text = /[zZ]|[+-]\d\d:\d\d$/.test(value.dateTime) ? value.dateTime : `${value.dateTime}Z`;
-  const time = Date.parse(text);
-  return Number.isNaN(time) ? null : new Date(time).toISOString();
-}
 
 const listMessageSchema = z.object({
   id: z.string().min(1),
@@ -112,7 +103,10 @@ const fullMessageSchema = listMessageSchema.extend({
 
 const NO_SENDER: MailAdresse = { name: 'Unbekannt', adresse: '' };
 
-function toInbox(message: z.output<typeof listMessageSchema>): InboxNachricht {
+function toInbox(
+  message: z.output<typeof listMessageSchema>,
+  ordner: MailOrdner = 'posteingang'
+): InboxNachricht {
   return {
     id: message.id,
     konversation: message.conversationId,
@@ -125,8 +119,8 @@ function toInbox(message: z.output<typeof listMessageSchema>): InboxNachricht {
     flag: (FLAGS.has(message.flag?.flagStatus ?? '')
       ? message.flag?.flagStatus
       : 'notFlagged') as OutlookFlag,
-    erledigtAm: utc(message.flag?.completedDateTime),
     kategorien: message.categories ?? [],
+    ordner,
     ...(message['@odata.etag'] && { etag: message['@odata.etag'] }),
   };
 }
@@ -134,49 +128,69 @@ function toInbox(message: z.output<typeof listMessageSchema>): InboxNachricht {
 const LIST_SELECT =
   'id,conversationId,subject,from,receivedDateTime,bodyPreview,hasAttachments,importance,isDraft,flag,categories';
 
-/** The newest messages of the inbox; `begrenzt`: the inbox holds more than were read. */
+/**
+ * What the list of a mailbox reads: the newest messages of the inbox and of the archive, and the
+ * received messages of the inbox's conversations in other folders. `begrenzt`: the inbox or the
+ * archive holds more than were read.
+ */
 export interface Posteingang {
   nachrichten: InboxNachricht[];
-  /**
-   * Received messages of the same conversations in other folders (e.g. archived), as far back as
-   * the inbox reaches: their flags and categories count for the status, as in the reading view.
-   */
-  weitere: InboxNachricht[];
   begrenzt: boolean;
 }
 
-/** Messages of other folders read for the status of the listed conversations. */
+/** Messages of other folders read for the person of the listed conversations. */
 const WEITERE_SEITEN = 2;
+
+const KOPF_SELECT = `${LIST_SELECT},parentFolderId,toRecipients`;
+
+async function readOrdner(
+  address: string,
+  ordnerName: 'inbox' | 'archive'
+): Promise<{ messages: z.output<typeof listMessageSchema>[]; begrenzt: boolean }> {
+  const response = await postfachGraph.get(
+    `${mailboxPath(address)}/mailFolders/${ordnerName}/messages`,
+    { $top: String(INBOX_LIMIT), $select: KOPF_SELECT, $orderby: 'receivedDateTime desc' },
+    [IMMUTABLE]
+  );
+  const messages = readCollection(listMessageSchema, response);
+  const begrenzt =
+    messages.length >= INBOX_LIMIT ||
+    (collectionSchema.safeParse(response).data?.['@odata.nextLink'] ?? null) !== null;
+  return { messages: messages.filter((message) => !message.isDraft), begrenzt };
+}
 
 export async function readInbox(address: string): Promise<Posteingang> {
   return guarded(address, async () => {
-    const response = await postfachGraph.get(
-      `${mailboxPath(address)}/mailFolders/inbox/messages`,
-      {
-        $top: String(INBOX_LIMIT),
-        $select: LIST_SELECT,
-        $orderby: 'receivedDateTime desc',
-      },
-      [IMMUTABLE]
-    );
-    const gelesen = readCollection(listMessageSchema, response);
-    const begrenzt =
-      gelesen.length >= INBOX_LIMIT ||
-      (collectionSchema.safeParse(response).data?.['@odata.nextLink'] ?? null) !== null;
-    const nachrichten = gelesen.filter((message) => !message.isDraft).map(toInbox);
-    return { nachrichten, weitere: await readWeitere(address, nachrichten), begrenzt };
+    const [inbox, archiv, ordnerIds] = await Promise.all([
+      readOrdner(address, 'inbox'),
+      // A mailbox without an archive has nothing done there; the inbox still shows
+      readOrdner(address, 'archive').catch((error: unknown) => {
+        console.error(`[postfach] Archiv von ${address} nicht lesbar`, error);
+        return { messages: [], begrenzt: false };
+      }),
+      ordner(address),
+    ]);
+    const offen = inbox.messages.map((message) => toInbox(message, 'posteingang'));
+    const erledigt = archiv.messages
+      .map((message) => ({ message, base: toInbox(message, 'archiv') }))
+      .filter(({ message, base }) => !istGesendet(message, base.von, address, ordnerIds))
+      .map(({ base }) => base);
+    return {
+      nachrichten: [...offen, ...erledigt, ...(await readWeitere(address, offen, ordnerIds))],
+      begrenzt: inbox.begrenzt || archiv.begrenzt,
+    };
   });
 }
 
 /**
- * The received messages of the listed conversations outside the inbox, since the oldest one
- * listed. Without them a flag on an archived message would show as „Neu“ in the list but as
- * „Handlungsbedarf“ in the reading view. Failing, the list still shows; the reading view and
- * every change read the whole conversation anyway.
+ * The received messages of the conversations in the inbox outside it, since the oldest one
+ * listed: an earlier message may name the responsible person, as in the reading view. Failing,
+ * the list still shows; the reading view and every change read the whole conversation anyway.
  */
 async function readWeitere(
   address: string,
-  inbox: readonly InboxNachricht[]
+  inbox: readonly InboxNachricht[],
+  ordnerIds: Ordner
 ): Promise<InboxNachricht[]> {
   if (!inbox.length) return [];
   const imPosteingang = new Set(inbox.map((nachricht) => nachricht.id));
@@ -188,7 +202,7 @@ async function readWeitere(
       path,
       {
         $filter: `receivedDateTime ge ${aelteste}`,
-        $select: `${LIST_SELECT},parentFolderId,toRecipients`,
+        $select: KOPF_SELECT,
         $orderby: 'receivedDateTime desc',
         $top: String(INBOX_LIMIT),
       },
@@ -201,7 +215,6 @@ async function readWeitere(
       gelesen.push(...readCollection(listMessageSchema, response));
       next = nextLinkOf(response, path);
     }
-    const ordnerIds = await ordner(address);
     return gelesen
       .filter(
         (message) =>
@@ -209,7 +222,7 @@ async function readWeitere(
           !imPosteingang.has(message.id) &&
           konversationen.has(message.conversationId)
       )
-      .map((message) => ({ message, base: toInbox(message) }))
+      .map((message) => ({ message, base: toInbox(message, ordnerVon(message, ordnerIds)) }))
       .filter(({ message, base }) => !istGesendet(message, base.von, address, ordnerIds))
       .map(({ base }) => base);
   } catch (error: unknown) {
@@ -226,7 +239,10 @@ const sentItemsCache = new Map<string, string>();
  * when Graph does not tell. Without „Gesendete Elemente“ every message counts as received:
  * better read twice than never.
  */
-async function ordnerId(address: string, ordner: 'sentitems' | 'inbox'): Promise<string | null> {
+async function ordnerId(
+  address: string,
+  ordner: 'sentitems' | 'inbox' | 'archive'
+): Promise<string | null> {
   const key = `${address}|${ordner}`;
   const cached = sentItemsCache.get(key);
   if (cached) return cached;
@@ -244,18 +260,34 @@ export function resetSentItemsCache(): void {
   sentItemsCache.clear();
 }
 
-/** The folders that tell sent from received messages. */
+/** The folders that tell sent from received messages, and open from done ones. */
 interface Ordner {
   gesendet: string | null;
   posteingang: string | null;
+  archiv: string | null;
 }
 
 async function ordner(address: string): Promise<Ordner> {
-  const [gesendet, posteingang] = await Promise.all([
+  const [gesendet, posteingang, archiv] = await Promise.all([
     ordnerId(address, 'sentitems'),
     ordnerId(address, 'inbox'),
+    ordnerId(address, 'archive'),
   ]);
-  return { gesendet, posteingang };
+  return { gesendet, posteingang, archiv };
+}
+
+/** Whether the mailbox has an archive to move done conversations to. */
+export async function hatArchiv(address: string): Promise<boolean> {
+  return (await ordnerId(address, 'archive')) !== null;
+}
+
+/** Where a message lies; unknown folders count as the inbox, as the list did before. */
+function ordnerVon(
+  message: Pick<z.output<typeof listMessageSchema>, 'parentFolderId'>,
+  { posteingang, archiv }: Ordner
+): MailOrdner {
+  if (posteingang === null || message.parentFolderId === posteingang) return 'posteingang';
+  return archiv !== null && message.parentFolderId === archiv ? 'archiv' : 'anderer';
 }
 
 /**
@@ -329,7 +361,7 @@ export async function readKonversationStand(
     );
     const ordnerIds = await ordner(address);
     const nachrichten = messages
-      .map((message) => ({ message, base: toInbox(message) }))
+      .map((message) => ({ message, base: toInbox(message, ordnerVon(message, ordnerIds)) }))
       .filter(({ message, base }) => !istGesendet(message, base.von, address, ordnerIds))
       .map(({ base }) => base);
     return { nachrichten, vollstaendig };
@@ -356,7 +388,7 @@ export async function readKonversation(
     const eingegangen: InboxNachricht[] = [];
     const nachrichten = await Promise.all(
       messages.map(async (message): Promise<MailNachricht> => {
-        const base = toInbox(message);
+        const base = toInbox(message, ordnerVon(message, ordnerIds));
         const gesendet = istGesendet(message, base.von, address, ordnerIds);
         if (!gesendet) eingegangen.push(base);
         const isHtml = message.body?.contentType.toLowerCase() === 'html';
@@ -386,9 +418,7 @@ export async function readKonversation(
           // Inline images too large to embed stay reachable as attachments
           anhaenge: attachments.filter((entry) => !eingebettet.has(entry.id)).map(alsAnhang),
           gesendet,
-          // Unknown folder: counted as in the inbox, as the list did before
-          imPosteingang:
-            ordnerIds.posteingang === null || message.parentFolderId === ordnerIds.posteingang,
+          imPosteingang: base.ordner === 'posteingang',
         };
       })
     );

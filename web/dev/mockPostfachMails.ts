@@ -7,7 +7,7 @@ export const ADRESSE = 'kontakt@stamm-phoenix.de';
 export const vor = (stunden: number): string =>
   new Date(Date.now() - stunden * 3_600_000).toISOString();
 
-export interface DemoMail extends Omit<InboxNachricht, 'flag' | 'erledigtAm' | 'kategorien'> {
+export interface DemoMail extends Omit<InboxNachricht, 'flag' | 'kategorien' | 'ordner'> {
   html: string | null;
   text: string | null;
   gesendet?: boolean;

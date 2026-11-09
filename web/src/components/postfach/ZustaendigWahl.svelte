@@ -25,15 +25,12 @@
     konversation: string;
     zustaendig: Zustaendigkeit | null;
     ich: string;
-    /** A preview: shown, but not changed. */
-    nurLesen: boolean;
     /** After a save, with the conversation it was for and what applies now. */
     onaenderung: (konversation: string, ergebnis: ZuweisungErgebnis) => void;
     /** After a conflict: the page reloads what is current. */
     onkonflikt: (konversation: string) => void;
   }
-  let { postfach, konversation, zustaendig, ich, nurLesen, onaenderung, onkonflikt }: Props =
-    $props();
+  let { postfach, konversation, zustaendig, ich, onaenderung, onkonflikt }: Props = $props();
 
   let auswahl = $state(false);
   let personen = $state<PostfachPerson[] | null>(null);
@@ -114,7 +111,7 @@
         <span class="font-semibold text-warning">Noch niemand zuständig</span>
       {/if}
     </p>
-    <div class="flex flex-wrap gap-2" class:hidden={nurLesen}>
+    <div class="flex flex-wrap gap-2">
       {#if !meins}
         <ActionButton
           variant="primary"

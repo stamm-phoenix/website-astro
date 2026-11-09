@@ -78,6 +78,18 @@ export const postfachGraph = {
     if (etag) request.header('If-Match', etag);
     return request.patch(body);
   },
+  /**
+   * Moves a message into a folder (a well-known name such as `archive`); with `ImmutableId` it
+   * keeps its ID. With `etag` Exchange refuses it when the message changed since it was read.
+   */
+  async move(path: string, destinationId: string, etag?: string): Promise<unknown> {
+    const request = getClient()
+      .api(`${path}/move`)
+      .header('Prefer', IMMUTABLE)
+      .option('signal', AbortSignal.timeout(TIMEOUT_MS));
+    if (etag) request.header('If-Match', etag);
+    return request.post({ destinationId });
+  },
 };
 
 export function mailboxPath(address: string): string {

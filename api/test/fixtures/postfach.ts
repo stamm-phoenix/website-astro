@@ -61,6 +61,7 @@ export function demoPostfach(): Record<string, unknown>[] {
     // A note of the contact form: sent by the mailbox to itself, received in the inbox
     message('AAkALgm5000000', K2, 0.5, {
       from: KONTAKT_ADRESSE,
+      toRecipients: [KONTAKT_ADRESSE],
       body: { contentType: 'text', content: 'Neue Nachricht über das Kontaktformular' },
       parentFolderId: 'FOLDER-INBOX',
     }),
@@ -76,6 +77,8 @@ export interface Mocks {
   patches: { id: string; body: Record<string, unknown> }[];
   /** Categories in the mailbox's list. */
   kategorien: string[];
+  /** Messages moved, by message ID and target. */
+  moves: { id: string; ziel: string }[];
 }
 
 /** A message of the list, without what only the reading view asks for. */
@@ -96,16 +99,22 @@ export function setup(t: TestContext): { context: InvocationContext; mocks: Mock
     postfach: demoPostfach(),
     patches: [],
     kategorien: [],
+    moves: [],
   };
   t.mock.method(postfachGraph, 'get', async (path: string, query: Record<string, string>) => {
     mocks.graph.push(path);
-    if (path.endsWith('/mailFolders/inbox/messages'))
+    const ordner = /\/mailFolders\/(inbox|archive)\/messages$/.exec(path)?.[1];
+    if (ordner)
       return {
         value: mocks.postfach
-          .filter((entry) => entry.parentFolderId === 'FOLDER-INBOX')
+          .filter(
+            (entry) =>
+              entry.parentFolderId === (ordner === 'inbox' ? 'FOLDER-INBOX' : 'FOLDER-ARCHIV')
+          )
           .sort((a, b) => String(b.receivedDateTime).localeCompare(String(a.receivedDateTime)))
           .map(ohneDetails),
       };
+    if (path.endsWith('/mailFolders/archive')) return { id: 'FOLDER-ARCHIV' };
     if (path.endsWith('/mailFolders/sentitems')) return { id: 'FOLDER-SENT' };
     if (path.endsWith('/mailFolders/inbox')) return { id: 'FOLDER-INBOX' };
     if (path.endsWith('/outlook/masterCategories'))
@@ -186,10 +195,23 @@ export function setup(t: TestContext): { context: InvocationContext; mocks: Mock
       if (etag && etag !== entry['@odata.etag'])
         throw Object.assign(new Error('precondition failed'), { statusCode: 412 });
       mocks.patches.push({ id, body });
-      Object.assign(entry, body, { '@odata.etag': `W/"${id}-${mocks.patches.length + 1}"` });
-      return entry;
+      Object.assign(entry, body, { '@odata.etag': `W/"${id}-p${mocks.patches.length}"` });
+      return structuredClone(entry);
     }
   );
+  t.mock.method(postfachGraph, 'move', async (path: string, ziel: string, etag?: string) => {
+    const id = decodeURIComponent(path.split('/').at(-1) ?? '');
+    const entry = mocks.postfach.find((candidate) => candidate.id === id);
+    if (!entry) throw Object.assign(new Error('not found'), { statusCode: 404 });
+    if (etag && etag !== entry['@odata.etag'])
+      throw Object.assign(new Error('precondition failed'), { statusCode: 412 });
+    mocks.moves.push({ id, ziel });
+    Object.assign(entry, {
+      parentFolderId: ziel === 'inbox' ? 'FOLDER-INBOX' : 'FOLDER-ARCHIV',
+      '@odata.etag': `W/"${id}-m${mocks.moves.length}"`,
+    });
+    return structuredClone(entry);
+  });
   t.mock.method(postfachVerzeichnis, 'lesen', async () => [
     { login: 'lea@stamm-phoenix.de', name: 'Lea Leitung', givenName: 'Lea' },
     { login: 'tom@stamm-phoenix.de', name: 'Tom Test', givenName: 'Tom' },
