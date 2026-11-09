@@ -6,7 +6,7 @@ import {
   pflegeHandler,
   readJsonBody,
 } from '../lib/pflege-api';
-import { PostfachSchreibError } from '../lib/postfach-graph-basis';
+import { NachrichtGeaendertError, PostfachSchreibError } from '../lib/postfach-graph-basis';
 import { errorResponse, encodeContentDisposition, withErrorHandling } from '../lib/response-utils';
 import { findPostfach, type PostfachEintrag } from '../lib/postfach-liste';
 import {
@@ -80,6 +80,12 @@ const ZU_LANG = errorResponse(
   'Diese Unterhaltung ist zu lang, um sie hier zu ändern. Nichts wurde gespeichert. Setz Fähnchen und Kategorie bitte in Outlook.'
 );
 
+const GERADE_GEAENDERT = errorResponse(
+  409,
+  'CONFLICT',
+  'Jemand hat diese E-Mail gerade geändert, vielleicht in Outlook. Die Seite zeigt jetzt, was gilt. Versuche es dann noch einmal.'
+);
+
 const ANHANG_NUR_OUTLOOK = errorResponse(
   422,
   'ANHANG_NUR_OUTLOOK',
@@ -129,6 +135,7 @@ export function postfachRoute(handler: Handler) {
           }
           if (error instanceof AnhangNichtLadbarError) return ANHANG_NUR_OUTLOOK;
           if (error instanceof KonversationZuLangError) return ZU_LANG;
+          if (error instanceof NachrichtGeaendertError) return GERADE_GEAENDERT;
           throw error;
         }
       },
@@ -215,7 +222,7 @@ export const PostfachZustaendigRoute = postfachAenderung(
       `[postfach] ${ich} ${postfach.id} zuständig: ${neu?.login ?? 'niemand'} (vorher ${eingabe.vorher ?? 'niemand'})`
     );
     let benachrichtigt = false;
-    const neuFuerPerson = !!neu && ergebnis.vorher?.name.toLowerCase() !== neu.name.toLowerCase();
+    const neuFuerPerson = !!neu && ergebnis.vorher?.login !== neu.login;
     // Previews share the mail sending with production, so they send no notes
     if (neu && neu.login !== ich && neuFuerPerson && !isPreviewDeployment()) {
       try {

@@ -12,6 +12,7 @@ import {
   kategorieFuer,
   konversationenAus,
   sekunde,
+  ZUSTAENDIG_PRAEFIX,
   type InboxNachricht,
   type KonversationDetail,
   type KonversationZeile,
@@ -57,7 +58,9 @@ function setzeStart(konversation: string, flag: OutlookFlag, kategorien: string[
       kategorien,
     });
 }
-setzeStart('AAQkADemoKonv03', 'flagged', [kategorieFuer('Demo Leitung')]);
+setzeStart('AAQkADemoKonv03', 'flagged', [
+  kategorieFuer({ login: 'leitung@example.test', name: 'Demo Leitung' }),
+]);
 setzeStart('AAQkADemoKonv05', 'complete');
 
 function mitStand(mail: DemoMail): InboxNachricht {
@@ -237,7 +240,7 @@ export function registerPostfachRoutes(
       };
     const person = PERSONEN.find((entry) => entry.login === wer);
     const zeile = schreibe(konversation, {
-      kategorie: person ? kategorieFuer(person.name) : null,
+      kategorie: person ? kategorieFuer(person, PERSONEN) : null,
       status: person && aktuell.status === 'neu' ? 'handlungsbedarf' : undefined,
     });
     return { zeile, vorher: aktuell.zustaendig?.name ?? null };
@@ -270,7 +273,12 @@ export function registerPostfachRoutes(
     let neuFuerPerson = false;
     const ergebnisse = eingabe.konversationen.map(({ konversation, vorher }) => {
       const { zeile, fehler, vorher: alt } = weise(konversation, eingabe.login, vorher);
-      if (!fehler && person && alt?.toLowerCase() !== person.name.toLowerCase())
+      if (
+        !fehler &&
+        person &&
+        alt?.toLowerCase() !==
+          kategorieFuer(person, PERSONEN).slice(ZUSTAENDIG_PRAEFIX.length).toLowerCase()
+      )
         neuFuerPerson = true;
       return {
         konversation,

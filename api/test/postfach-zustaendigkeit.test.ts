@@ -326,3 +326,32 @@ test('a preview reads the real mailbox but changes nothing in it', async (t) => 
   assert.equal(response.status, 403);
   assert.equal(mocks.patches.length, 0);
 });
+
+test('a message changed in Outlook after it was read is not overwritten', async (t) => {
+  const { context, mocks } = setup(t);
+  const original = postfachGraph.get;
+  // Someone adds a category in Outlook right after the website read the conversation
+  t.mock.method(
+    postfachGraph,
+    'get',
+    async (path: string, query: Record<string, string>, prefer: string[]) => {
+      const antwort = await original.call(postfachGraph, path, query, prefer);
+      if (query?.$filter?.includes(K2) && !query.$select?.includes('toRecipients')) {
+        const entry = mocks.postfach[2];
+        entry.categories = ['Rechnung'];
+        entry['@odata.etag'] = 'W/"outlook"';
+      }
+      return antwort;
+    }
+  );
+  const response = await PostfachZustaendigRoute(
+    request('PUT', '/kontakt/zustaendig', KONTAKT, {
+      konversation: K2,
+      login: 'tom@stamm-phoenix.de',
+    }),
+    context
+  );
+  assert.equal(response.status, 409);
+  assert.deepEqual(kategorien(mocks, 'AAkALgm3000000'), ['Rechnung']);
+  assert.equal(mocks.mails.length, 0);
+});

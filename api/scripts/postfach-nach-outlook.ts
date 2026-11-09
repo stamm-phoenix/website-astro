@@ -91,7 +91,8 @@ async function main(): Promise<void> {
               : name
                 ? 'handlungsbedarf'
                 : undefined;
-        const kategorie = name && !jetzt.zustaendig ? kategorieFuer(name) : undefined;
+        const kategorie =
+          name && !jetzt.zustaendig ? kategorieFuer({ login: '', name }) : undefined;
         const plan = aenderungen(nachrichten, { status, kategorie });
         if (!plan.length) continue;
         geaendert++;

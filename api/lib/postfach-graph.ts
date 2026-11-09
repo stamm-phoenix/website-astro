@@ -99,6 +99,7 @@ const listMessageSchema = z.object({
   importance: text.optional(),
   isDraft: z.boolean().catch(false),
   flag: flagSchema,
+  '@odata.etag': z.string().optional().catch(undefined),
   categories: z.array(z.string()).optional().catch([]),
   parentFolderId: z.string().nullable().catch(null).optional(),
 });
@@ -126,6 +127,7 @@ function toInbox(message: z.output<typeof listMessageSchema>): InboxNachricht {
       : 'notFlagged') as OutlookFlag,
     erledigtAm: utc(message.flag?.completedDateTime),
     kategorien: message.categories ?? [],
+    ...(message['@odata.etag'] && { etag: message['@odata.etag'] }),
   };
 }
 
