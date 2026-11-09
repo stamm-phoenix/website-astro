@@ -118,20 +118,22 @@ test('deleting a blog image names its position and description', async ({ page }
 
 test('a post saved while an older list answer is on its way shows up in the list', async ({
   page,
-}) => {
+}, testInfo) => {
+  // Projects and retries share the demo server: each run gets titles of its own
+  const lauf = `${testInfo.project.name}-${testInfo.retry}-${Date.now()}`;
+  const alt = `TEST – Liste alt ${lauf}`;
+  const neu = `TEST – Liste neu ${lauf}`;
   await page.clock.install();
   await page.goto('/leitendenbereich/blog/beitrag');
-  await page.getByRole('textbox', { name: 'Titel', exact: true }).fill('TEST – Liste alt');
+  await page.getByRole('textbox', { name: 'Titel', exact: true }).fill(alt);
   await page.getByRole('textbox', { name: 'Text', exact: true }).fill('Bericht der Gruppenstunde.');
   await page.getByRole('button', { name: 'Als Entwurf anlegen', exact: true }).click();
   await expect(page).toHaveURL(/\?id=/);
   const back = page.getByRole('navigation', { name: 'Zurück' }).getByRole('link', { name: 'Blog' });
   await back.click();
-  await expect(page.getByRole('link', { name: 'TEST – Liste alt', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'TEST – Liste alt', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
-    'TEST – Liste alt'
-  );
+  await expect(page.getByRole('link', { name: alt, exact: true })).toBeVisible();
+  await page.getByRole('link', { name: alt, exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(alt);
 
   // A minute later the list asks again, and its answer, with the old title, is held back
   let release = (): void => undefined;
@@ -148,8 +150,8 @@ test('a post saved while an older list answer is on its way shows up in the list
       response.url().endsWith('/api/intern/pflege/blog') && response.request().method() === 'GET'
   );
   await back.click();
-  await page.getByRole('link', { name: 'TEST – Liste alt', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Titel', exact: true }).fill('TEST – Liste neu');
+  await page.getByRole('link', { name: alt, exact: true }).click();
+  await page.getByRole('textbox', { name: 'Titel', exact: true }).fill(neu);
   await page.getByRole('button', { name: 'Als Entwurf speichern', exact: true }).click();
   await expect(page.getByText('Als Entwurf gespeichert.', { exact: false }).first()).toBeVisible();
   release();
@@ -157,5 +159,5 @@ test('a post saved while an older list answer is on its way shows up in the list
   await page.unroute('**/api/intern/pflege/blog');
 
   await back.click();
-  await expect(page.getByRole('link', { name: 'TEST – Liste neu', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: neu, exact: true })).toBeVisible();
 });
