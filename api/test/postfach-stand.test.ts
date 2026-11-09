@@ -348,3 +348,24 @@ test('with a full inbox an archived conversation with an older message in the in
   const k1 = ansicht.konversationen.find((zeile) => zeile.id === K1);
   assert.equal(k1?.status, 'handlungsbedarf');
 });
+
+test('a change made in Outlook right after archiving counts in the answer', async (t) => {
+  const { context, mocks } = setup(t);
+  const original = postfachGraph.move;
+  t.mock.method(postfachGraph, 'move', async (path: string, ziel: string, etag?: string) => {
+    const antwort = await original.call(postfachGraph, path, ziel, etag);
+    // Someone takes it back into the inbox in Outlook and flags it
+    if (path.endsWith('AAkALgm1000000'))
+      Object.assign(mocks.postfach[0], {
+        parentFolderId: 'FOLDER-INBOX',
+        flag: { flagStatus: 'flagged' },
+      });
+    return antwort;
+  });
+  const response = await PostfachStatusRoute(
+    status({ konversation: K1, status: 'erledigt', vorher: 'neu', bis: iso(1) }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { status: 'handlungsbedarf' });
+});

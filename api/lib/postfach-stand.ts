@@ -118,10 +118,11 @@ async function schreiben(
     // Also after a failure: part of it may be written, the list must not show the old state
     inboxVergessen(postfach.address);
   }
-  // Read again: a reply that arrived meanwhile lies in the inbox and makes it new. What was just
-  // written counts as written, in case Exchange does not show it yet
+  // Read again: what Outlook holds now counts, also a reply that arrived meanwhile or a change
+  // made there in the same moment. Exchange shows its own changes at once once they are answered;
+  // only when reading fails does the answer rest on what was written
   const neu = await readKonversationStand(postfach.address, zeile.id).catch(() => null);
-  const danach = nachAenderung(neu?.nachrichten.length ? neu.nachrichten : nachrichten, geaendert);
+  const danach = neu?.nachrichten.length ? neu.nachrichten : nachAenderung(nachrichten, geaendert);
   return { ...zeile, ...konversationenAus(postfach.id, danach, personen)[0], id: zeile.id };
 }
 
