@@ -18,11 +18,13 @@ import {
  * - Back from „Erledigt“: the archived messages return to the inbox (when none is archived, the
  *   newest one, e.g. from another folder).
  * - The responsible person is a category on every received message; other categories stay.
+ * - Whatever is done marks every received message of the conversation as read in Outlook:
+ *   someone took care of it, so it need not stand out there any more.
  */
 
 export type NachrichtStand = Pick<
   InboxNachricht,
-  'id' | 'am' | 'flag' | 'kategorien' | 'etag' | 'ordner'
+  'id' | 'am' | 'flag' | 'kategorien' | 'etag' | 'ordner' | 'gelesen'
 >;
 
 /** Where a message is moved to: the inbox or the archive (well-known folder names of Graph). */
@@ -36,6 +38,7 @@ export interface NachrichtAenderung {
   flag?: OutlookFlag;
   kategorien?: string[];
   verschieben?: Ziel;
+  gelesen?: true;
 }
 
 function neueste<T extends Pick<NachrichtStand, 'am'>>(nachrichten: readonly T[]): T | null {
@@ -117,7 +120,10 @@ export function aenderungen(
       const kategorien = kategorienMit(nachricht.kategorien, ziel.kategorie);
       if (!gleich(kategorien, nachricht.kategorien)) aenderung.kategorien = kategorien;
     }
-    return aenderung.flag || aenderung.kategorien || aenderung.verschieben ? [aenderung] : [];
+    if (!nachricht.gelesen) aenderung.gelesen = true;
+    return aenderung.flag || aenderung.kategorien || aenderung.verschieben || aenderung.gelesen
+      ? [aenderung]
+      : [];
   });
 }
 
@@ -134,6 +140,7 @@ export function nachAenderung<T extends NachrichtStand>(
       ...nachricht,
       ...(aenderung.flag && { flag: aenderung.flag }),
       ...(aenderung.kategorien && { kategorien: aenderung.kategorien }),
+      ...(aenderung.gelesen && { gelesen: true }),
       ...(aenderung.verschieben && {
         ordner: aenderung.verschieben === 'inbox' ? 'posteingang' : 'archiv',
       }),

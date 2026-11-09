@@ -89,6 +89,7 @@ const listMessageSchema = z.object({
   hasAttachments: z.boolean().catch(false),
   importance: text.optional(),
   isDraft: z.boolean().catch(false),
+  isRead: z.boolean().catch(true),
   flag: flagSchema,
   '@odata.etag': z.string().optional().catch(undefined),
   categories: z.array(z.string()).optional().catch([]),
@@ -120,13 +121,14 @@ function toInbox(
       ? message.flag?.flagStatus
       : 'notFlagged') as OutlookFlag,
     kategorien: message.categories ?? [],
+    gelesen: message.isRead,
     ordner,
     ...(message['@odata.etag'] && { etag: message['@odata.etag'] }),
   };
 }
 
 const LIST_SELECT =
-  'id,conversationId,subject,from,receivedDateTime,bodyPreview,hasAttachments,importance,isDraft,flag,categories';
+  'id,conversationId,subject,from,receivedDateTime,bodyPreview,hasAttachments,importance,isDraft,isRead,flag,categories';
 
 /**
  * What the list of a mailbox reads: the newest messages of the inbox and of the archive, and the

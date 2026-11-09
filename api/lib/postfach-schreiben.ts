@@ -30,6 +30,7 @@ function body(aenderung: NachrichtAenderung, jetzt: string): Record<string, unkn
     patch.flag = { flagStatus: aenderung.flag };
   }
   if (aenderung.kategorien) patch.categories = aenderung.kategorien;
+  if (aenderung.gelesen) patch.isRead = true;
   return Object.keys(patch).length ? patch : null;
 }
 

@@ -30,11 +30,15 @@ async function liste(context: ReturnType<typeof setup>['context']): Promise<Post
 
 test('needing action is a flag, done is the archive, and new brings it back', async (t) => {
   const { context, mocks } = setup(t);
+  mocks.postfach[2].isRead = false;
   const handeln = await PostfachStatusRoute(
     status({ konversation: K2, status: 'handlungsbedarf', vorher: 'neu', bis: iso(0.5) }),
     context
   );
   assert.equal(handeln.status, 200);
+  // Something was done with it: unread messages are read in Outlook now
+  assert.equal(mocks.postfach[2].isRead, true);
+  assert.equal(mocks.postfach[0].isRead, undefined);
   assert.deepEqual(handeln.jsonBody, { status: 'handlungsbedarf' });
   // Only the newest received message carries the flag; the sent answer is left alone
   assert.deepEqual(flags(mocks), {

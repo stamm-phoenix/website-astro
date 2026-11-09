@@ -38,6 +38,7 @@ function nachricht(
     flag,
     kategorien,
     ordner,
+    gelesen: true,
   };
 }
 
@@ -154,6 +155,11 @@ test('changes touch only what differs, move between inbox and archive and keep c
   ]);
   assert.deepEqual(aenderungen([archiviert[1]], { status: 'neu' }), [
     { id: 'b', verschieben: 'inbox' },
+  ]);
+  // Whatever is done marks the unread ones as read, also when nothing else changes
+  const ungelesen = [{ ...nachrichten[1], gelesen: false }];
+  assert.deepEqual(aenderungen(ungelesen, { kategorie: '👤 Tom Test' }), [
+    { id: 'b', gelesen: true },
   ]);
   const danach = nachAenderung(nachrichten, [{ id: 'b', verschieben: 'archive' }]);
   assert.equal(danach[1].ordner, 'archiv');
