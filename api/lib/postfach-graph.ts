@@ -177,11 +177,69 @@ export async function readInbox(address: string): Promise<Posteingang> {
       .map((message) => ({ message, base: toInbox(message, 'archiv') }))
       .filter(({ message, base }) => !istGesendet(message, base.von, address, ordnerIds))
       .map(({ base }) => base);
+    // With more in the inbox than was read, an archived conversation may still have an older
+    // message there: then it is open, not done
+    const aelterOffen = inbox.begrenzt ? await readImPosteingang(address, offen, erledigt) : [];
     return {
-      nachrichten: [...offen, ...erledigt, ...(await readWeitere(address, offen, ordnerIds))],
+      nachrichten: [
+        ...offen,
+        ...aelterOffen,
+        ...erledigt,
+        ...(await readWeitere(address, offen, ordnerIds)),
+      ],
       begrenzt: inbox.begrenzt || archiv.begrenzt,
     };
   });
+}
+
+/** Conversations asked for in one filter; Graph limits the length of a filter. */
+const KONVERSATIONEN_JE_ABFRAGE = 10;
+
+/**
+ * The messages still in the inbox of the archived conversations that are not among the inbox
+ * messages read. Failing, these conversations show as done until the inbox is smaller; the
+ * reading view and every change read the whole conversation anyway.
+ */
+async function readImPosteingang(
+  address: string,
+  offen: readonly InboxNachricht[],
+  erledigt: readonly InboxNachricht[]
+): Promise<InboxNachricht[]> {
+  const gelesen = new Set(offen.map((nachricht) => nachricht.konversation));
+  const gesucht = [...new Set(erledigt.map((nachricht) => nachricht.konversation))].filter(
+    (konversation) => !gelesen.has(konversation)
+  );
+  const path = `${mailboxPath(address)}/mailFolders/inbox/messages`;
+  const teile: string[][] = [];
+  for (let start = 0; start < gesucht.length; start += KONVERSATIONEN_JE_ABFRAGE)
+    teile.push(gesucht.slice(start, start + KONVERSATIONEN_JE_ABFRAGE));
+  try {
+    const antworten = await Promise.all(
+      teile.map((teil) =>
+        postfachGraph.get(
+          path,
+          {
+            $filter: teil
+              .map((konversation) => `conversationId eq '${konversation.replaceAll("'", "''")}'`)
+              .join(' or '),
+            $select: KOPF_SELECT,
+            $top: String(INBOX_LIMIT),
+          },
+          [IMMUTABLE]
+        )
+      )
+    );
+    return antworten
+      .flatMap((antwort) => readCollection(listMessageSchema, antwort))
+      .filter((message) => !message.isDraft && gesucht.includes(message.conversationId))
+      .map((message) => toInbox(message, 'posteingang'));
+  } catch (error: unknown) {
+    console.error(
+      `[postfach] Ältere Nachrichten im Posteingang von ${address} nicht lesbar`,
+      error
+    );
+    return [];
+  }
 }
 
 /**

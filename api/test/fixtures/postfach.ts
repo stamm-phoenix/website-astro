@@ -104,16 +104,25 @@ export function setup(t: TestContext): { context: InvocationContext; mocks: Mock
   t.mock.method(postfachGraph, 'get', async (path: string, query: Record<string, string>) => {
     mocks.graph.push(path);
     const ordner = /\/mailFolders\/(inbox|archive)\/messages$/.exec(path)?.[1];
-    if (ordner)
+    if (ordner) {
+      const ids = [...(query.$filter ?? '').matchAll(/conversationId eq '([^']*)'/g)].map(
+        (match) => match[1]
+      );
+      const passend = mocks.postfach
+        .filter(
+          (entry) =>
+            entry.parentFolderId === (ordner === 'inbox' ? 'FOLDER-INBOX' : 'FOLDER-ARCHIV') &&
+            (!ids.length || ids.includes(String(entry.conversationId)))
+        )
+        .sort((a, b) => String(b.receivedDateTime).localeCompare(String(a.receivedDateTime)));
+      const top = Number(query.$top ?? passend.length);
       return {
-        value: mocks.postfach
-          .filter(
-            (entry) =>
-              entry.parentFolderId === (ordner === 'inbox' ? 'FOLDER-INBOX' : 'FOLDER-ARCHIV')
-          )
-          .sort((a, b) => String(b.receivedDateTime).localeCompare(String(a.receivedDateTime)))
-          .map(ohneDetails),
+        value: passend.slice(0, top).map(ohneDetails),
+        ...(passend.length > top && {
+          '@odata.nextLink': `https://graph.microsoft.com/v1.0${path}?$skip=${top}`,
+        }),
       };
+    }
     if (path.endsWith('/mailFolders/archive')) return { id: 'FOLDER-ARCHIV' };
     if (path.endsWith('/mailFolders/sentitems')) return { id: 'FOLDER-SENT' };
     if (path.endsWith('/mailFolders/inbox')) return { id: 'FOLDER-INBOX' };

@@ -44,9 +44,10 @@ gelesen, damit sie dort nicht mehr fett stehen. Öffnen allein ändert nichts.
   „Neu“, Fähnchen für „Handlungsbedarf“, grüner Haken für „Erledigt“) und wer zuständig ist.
   Erledigte stehen unter „Erledigt“, soweit sie im Archiv liegen; was in einen anderen Ordner
   verschoben wurde, zeigt die Liste nicht. Liegen mehr als 100 Nachrichten im Posteingang oder im
-  Archiv, sagt die Liste das
-  („Hier stehen die neuesten 100 E-Mails.“ mit Link zu Outlook), und leere Filter behaupten nicht,
-  das ganze Postfach sei erledigt.
+  Archiv, sagt die Liste das („Hier stehen die neuesten 100 E-Mails.“ mit Link zu Outlook), und
+  leere Filter behaupten nicht, das ganze Postfach sei erledigt. Hat der Posteingang mehr als 100
+  Nachrichten, fragt die API für Konversationen, die sie nur aus dem Archiv kennt, nach, ob eine
+  ältere Nachricht noch im Posteingang liegt; dann ist sie offen.
 - **Lesen:** Alle Nachrichten der Konversation aus allen Ordnern, also auch Antworten aus
   „Gesendete Elemente“. HTML wird in einem abgeschotteten Rahmen gezeigt (`MailInhalt.svelte`):
   `sandbox` ohne Skripte und Formulare, eine eigene CSP ohne Netzwerkzugriff. Bilder aus dem
