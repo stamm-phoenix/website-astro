@@ -78,6 +78,10 @@
                 label="Neu"
                 tone="danger"
                 dot
+              />{:else if zeile.zustaendig}<StatusLabel
+                label={zeile.zustaendig.name}
+                tone="warning"
+                dot
               />{:else}<StatusLabel label="Niemand zuständig" tone="warning" dot />{/if}
           </span>
         </a>
