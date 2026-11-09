@@ -230,3 +230,40 @@ test('a message deleted while it is changed is not reported as saved', async (t)
   assert.equal(response.status, 409);
   assert.equal(flags(mocks).AAkALgm5000000, 'complete');
 });
+
+test('an archived form note still counts, an archived own answer does not', async (t) => {
+  const { context, mocks } = setup(t);
+  const kontakt = { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } };
+  // The note of the form (to the mailbox itself) was flagged, assigned and archived
+  Object.assign(mocks.postfach[4], {
+    parentFolderId: 'FOLDER-ARCHIV',
+    toRecipients: [kontakt],
+    flag: { flagStatus: 'flagged' },
+    categories: ['👤 Tom Test'],
+  });
+  // An own answer to Erika, moved from „Gesendete Elemente“ into the archive, with a flag
+  mocks.postfach.push(
+    message('AAkALgm8000000', K2, 0.2, {
+      from: kontakt,
+      toRecipients: [{ emailAddress: { name: 'Erika', address: 'erika@example.invalid' } }],
+      parentFolderId: 'FOLDER-ARCHIV',
+      flag: { flagStatus: 'complete' },
+    })
+  );
+  const liste = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
+    .jsonBody as PostfachAnsicht;
+  const k2 = liste.konversationen.find((zeile) => zeile.id === K2);
+  assert.equal(k2?.status, 'handlungsbedarf');
+  assert.equal(k2?.zustaendig?.name, 'Tom Test');
+  const erledigt = await PostfachStatusRoute(
+    status({ konversation: K2, status: 'erledigt', vorher: 'handlungsbedarf', bis: iso(0.5) }),
+    context
+  );
+  assert.equal(erledigt.status, 200);
+  assert.equal(flags(mocks).AAkALgm5000000, 'complete');
+  // The own answer is not one of the messages the status works on
+  assert.equal(
+    mocks.patches.some((entry) => entry.id === 'AAkALgm8000000'),
+    false
+  );
+});

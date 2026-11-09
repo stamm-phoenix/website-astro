@@ -336,7 +336,7 @@ test('a message changed in Outlook after it was read is not overwritten', async 
     'get',
     async (path: string, query: Record<string, string>, prefer: string[]) => {
       const antwort = await original.call(postfachGraph, path, query, prefer);
-      if (query?.$filter?.includes(K2) && !query.$select?.includes('toRecipients')) {
+      if (query?.$filter?.includes(K2) && !query.$select?.includes('ccRecipients')) {
         const entry = mocks.postfach[2];
         entry.categories = ['Rechnung'];
         entry['@odata.etag'] = 'W/"outlook"';

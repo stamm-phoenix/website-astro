@@ -206,9 +206,13 @@ export function zustaendigAus(
   );
   if (!kategorie) return null;
   const name = kategorie.slice(ZUSTAENDIG_PRAEFIX.length).trim();
-  // Only one person may fit; a name two people share without the login stays a plain name
-  const passend = personen.filter(
-    (entry) => kategorieFuer(entry, personen).toLowerCase() === kategorie.trim().toLowerCase()
+  const gesucht = kategorie.trim().toLowerCase();
+  // Only one person may fit; a name two people share without the login stays a plain name. With
+  // the login it stays theirs, also after the other one with the name left the team
+  const passend = personen.filter((entry) =>
+    [kategorieFuer(entry, personen), kategorieFuer(entry, [{ login: '', name: entry.name }])]
+      .map((form) => form.toLowerCase())
+      .includes(gesucht)
   );
   if (passend.length !== 1) return { login: null, name };
   return {
