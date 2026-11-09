@@ -32,9 +32,9 @@ function body(aenderung: NachrichtAenderung, jetzt: string): Record<string, unkn
 }
 
 /**
- * Sends the changes, a few at a time. A message deleted meanwhile is skipped; when Graph refuses
- * the change, `PostfachSchreibError`; when a message changed since it was read (e.g. in
- * Outlook), `NachrichtGeaendertError`. After a failure the requests already on their way finish
+ * Sends the changes, a few at a time. When Graph refuses
+ * the change, `PostfachSchreibError`; when a message changed or was deleted since it was read
+ * (e.g. in Outlook), `NachrichtGeaendertError`. After a failure the requests already on their way finish
  * first, so the caller knows nothing is still changing; what was sent stays changed.
  */
 export async function schreibeAenderungen(
@@ -54,9 +54,10 @@ export async function schreibeAenderungen(
           );
         } catch (error: unknown) {
           const status = getGraphStatus(error);
-          if (status === 404) return;
           if (status === 401 || status === 403) throw new PostfachSchreibError(address);
-          if (status === 409 || status === 412) throw new NachrichtGeaendertError();
+          // Changed or deleted since it was read: what the page would be told is not what is saved
+          if (status === 404 || status === 409 || status === 412)
+            throw new NachrichtGeaendertError();
           throw error;
         }
       })
