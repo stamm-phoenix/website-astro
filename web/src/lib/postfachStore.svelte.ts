@@ -222,28 +222,45 @@ export async function setzeZustaendigMehrere(
   login: string | null,
   zeilen: readonly KonversationZeile[]
 ): Promise<MehrfachAntwort> {
-  const result = await mitFrischenPersonen(postfach, () =>
-    sendApi<MehrfachAntwort>(
-      'PUT',
-      `/intern/postfach/${encodeURIComponent(postfach)}/zustaendig-mehrere`,
-      {
-        login,
-        konversationen: zeilen.map((zeile) => ({
-          konversation: zeile.id,
-          vorher: zeile.zustaendig?.name ?? null,
-        })),
-      }
-    )
-  );
-  for (const ergebnis of result.ergebnisse) {
-    // Unknown after an unexpected error: the list is read again instead
-    if (ergebnis.zustaendig === undefined) continue;
-    aendereZeile(postfach, ergebnis.konversation, {
-      zustaendig: ergebnis.zustaendig,
-      ...(ergebnis.status && { status: ergebnis.status }),
-    });
+  const ergebnisse: MehrfachErgebnis[] = [];
+  const benachrichtigt: (boolean | null)[] = [];
+  // The API takes at most MEHRFACH_MAX at once; the list may show more (inbox and archive)
+  for (let start = 0; start < zeilen.length; start += MEHRFACH_MAX) {
+    const teil = zeilen.slice(start, start + MEHRFACH_MAX);
+    const result = await mitFrischenPersonen(postfach, () =>
+      sendApi<MehrfachAntwort>(
+        'PUT',
+        `/intern/postfach/${encodeURIComponent(postfach)}/zustaendig-mehrere`,
+        {
+          login,
+          konversationen: teil.map((zeile) => ({
+            konversation: zeile.id,
+            vorher: zeile.zustaendig?.name ?? null,
+          })),
+        }
+      )
+    );
+    for (const ergebnis of result.ergebnisse) {
+      // Unknown after an unexpected error: the list is read again instead
+      if (ergebnis.zustaendig === undefined) continue;
+      aendereZeile(postfach, ergebnis.konversation, {
+        zustaendig: ergebnis.zustaendig,
+        ...(ergebnis.status && { status: ergebnis.status }),
+      });
+    }
+    ergebnisse.push(...result.ergebnisse);
+    benachrichtigt.push(result.benachrichtigt);
   }
-  return result;
+  return { ergebnisse, benachrichtigt: zusammen(benachrichtigt) };
+}
+
+/** Conversations the API takes in one call (`MAX_AUSWAHL` of `api/lib/validation/postfach.ts`). */
+export const MEHRFACH_MAX = 100;
+
+/** One answer for all calls: a note that failed counts, otherwise one that was sent. */
+function zusammen(werte: readonly (boolean | null)[]): boolean | null {
+  if (werte.includes(false)) return false;
+  return werte.includes(true) ? true : null;
 }
 
 export function anhangUrl(postfach: string, nachricht: string, anhang: string): string {

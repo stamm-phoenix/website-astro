@@ -305,3 +305,23 @@ test('an archived form note still counts for the person, an archived own answer 
   // Only the message left in the inbox is moved; the own answer is not touched
   assert.deepEqual(mocks.moves, [{ id: 'AAkALgm3000000', ziel: 'archive' }]);
 });
+
+test('a reply that arrives while archiving is not reported as done', async (t) => {
+  const { context, mocks } = setup(t);
+  const original = postfachGraph.move;
+  let einmal = true;
+  t.mock.method(postfachGraph, 'move', async (path: string, ziel: string, etag?: string) => {
+    const antwort = await original.call(postfachGraph, path, ziel, etag);
+    if (einmal) {
+      einmal = false;
+      mocks.postfach.push(message('AAkALgm9000000', K1, 0.05, { parentFolderId: 'FOLDER-INBOX' }));
+    }
+    return antwort;
+  });
+  const response = await PostfachStatusRoute(
+    status({ konversation: K1, status: 'erledigt', vorher: 'neu', bis: iso(1) }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { status: 'neu' });
+});
