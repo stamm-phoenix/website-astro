@@ -22,7 +22,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       'Stand und Zuständigkeit stehen auch in Outlook: „Handlungsbedarf“ ist ein Fähnchen, „Erledigt“ heißt archiviert und die zuständige Person ist eine Kategorie mit 👤 vor dem Namen. Was du in Outlook tust, siehst du hier, und umgekehrt. Archivierst du in Outlook, ist die E-Mail erledigt.',
       'Wer zuständig wird, macht aus einer neuen E-Mail „Handlungsbedarf“. Kommt nach „Erledigt“ eine Antwort, ist die E-Mail wieder neu.',
-      '„Kein Handlungsbedarf“ gehört jetzt zu „Erledigt“. Gelesen und ungelesen gibt es hier nicht mehr, weil es nur zeigte, wer eine E-Mail schon angeklickt hatte.',
+      '„Kein Handlungsbedarf“ gehört jetzt zu „Erledigt“. Gelesen und ungelesen gibt es hier nicht mehr, weil es nur zeigte, wer eine E-Mail schon angeklickt hatte. Änderst du hier Stand oder Zuständigkeit, ist die E-Mail in Outlook als gelesen markiert.',
     ],
   },
   {

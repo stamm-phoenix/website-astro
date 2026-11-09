@@ -219,6 +219,7 @@ function zeileAus(
     flag: 'notFlagged',
     kategorien: [],
     ordner: 'anderer',
+    gelesen: true,
   }));
 }
 

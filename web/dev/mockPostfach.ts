@@ -47,7 +47,10 @@ const PERSONEN: PostfachPerson[] = [
 ];
 
 /** Flag, categories and folder of each message, as Outlook keeps them. */
-const outlook = new Map<string, Pick<InboxNachricht, 'flag' | 'kategorien' | 'ordner'>>();
+const outlook = new Map<
+  string,
+  Pick<InboxNachricht, 'flag' | 'kategorien' | 'ordner' | 'gelesen'>
+>();
 
 function setzeStart(
   konversation: string,
@@ -58,7 +61,7 @@ function setzeStart(
   for (const mail of MAILS.filter(
     (entry) => entry.konversation === konversation && !entry.gesendet
   ))
-    outlook.set(mail.id, { flag, kategorien, ordner });
+    outlook.set(mail.id, { flag, kategorien, ordner, gelesen: true });
 }
 setzeStart('AAQkADemoKonv03', 'flagged', 'posteingang', [
   kategorieFuer({ login: 'leitung@example.test', name: 'Demo Leitung' }),
@@ -68,7 +71,12 @@ setzeStart('AAQkADemoKonv05', 'notFlagged', 'archiv');
 function mitStand(mail: DemoMail): InboxNachricht {
   return {
     ...mail,
-    ...(outlook.get(mail.id) ?? { flag: 'notFlagged', kategorien: [], ordner: 'posteingang' }),
+    ...(outlook.get(mail.id) ?? {
+      flag: 'notFlagged',
+      kategorien: [],
+      ordner: 'posteingang',
+      gelesen: false,
+    }),
   };
 }
 
@@ -109,6 +117,7 @@ function schreibe(
       flag: nachricht.flag,
       kategorien: nachricht.kategorien,
       ordner: nachricht.ordner,
+      gelesen: nachricht.gelesen,
     });
   return konversationenAus(POSTFACH, danach, PERSONEN)[0];
 }

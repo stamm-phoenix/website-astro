@@ -28,8 +28,10 @@ Nachrichten des Postfachs. Was jemand in Outlook tut, zeigt die Website, und umg
 Der Posteingang ist also die offene Arbeit: Wer in Outlook archiviert oder in einen anderen
 Ordner verschiebt, hat die E-Mail damit erledigt.
 
-Der Gelesen-Status von Outlook (`isRead`) wird weder gelesen noch geändert: In einem gemeinsamen
-Postfach sagt er nur, ob irgendwer die Nachricht schon angeklickt hat.
+Den Gelesen-Status von Outlook (`isRead`) zeigt die Website nicht: In einem gemeinsamen Postfach
+sagt er nur, ob irgendwer die Nachricht schon angeklickt hat. Ändert jemand auf der Website Stand
+oder Zuständigkeit, markiert sie aber alle empfangenen Nachrichten der Konversation in Outlook als
+gelesen, damit sie dort nicht mehr fett stehen. Öffnen allein ändert nichts.
 
 ## Was das Modul kann
 

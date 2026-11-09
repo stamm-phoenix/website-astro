@@ -170,6 +170,8 @@ export interface InboxNachricht {
   flag: OutlookFlag;
   kategorien: string[];
   ordner: MailOrdner;
+  /** Read in Outlook (`isRead`); only changed when something is done with the conversation. */
+  gelesen: boolean;
   /** Version of the message in Exchange, for a change that must not overwrite a newer one. */
   etag?: string;
 }
