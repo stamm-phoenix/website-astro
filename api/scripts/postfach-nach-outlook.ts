@@ -21,6 +21,7 @@ import { CONFIG } from '../lib/config';
 import { getDb, useDatabase } from '../lib/db';
 import { aenderungen } from '../lib/postfach-aenderung';
 import { readKonversationStand } from '../lib/postfach-graph';
+import { NachrichtGeaendertError } from '../lib/postfach-graph-basis';
 import { POSTFAECHER } from '../lib/postfach-liste';
 import { kategorieFuer, sekunde, standAus, type PostfachStatus } from '../lib/postfach-model';
 import { kategorieAnlegen, schreibeAenderungen } from '../lib/postfach-schreiben';
@@ -101,7 +102,14 @@ async function main(): Promise<void> {
         );
         if (!schreiben) continue;
         if (kategorie) await kategorieAnlegen(postfach.address, kategorie);
-        await schreibeAenderungen(postfach.address, plan);
+        try {
+          await schreibeAenderungen(postfach.address, plan);
+        } catch (error: unknown) {
+          if (!(error instanceof NachrichtGeaendertError)) throw error;
+          console.log(
+            `${postfach.id} ${konversation}: gerade geändert, bitte noch einmal laufen lassen`
+          );
+        }
       }
       console.log(
         `${postfach.id}: ${geaendert} von ${alt.size} Konversationen ${schreiben ? 'geändert' : 'würden geändert'}`

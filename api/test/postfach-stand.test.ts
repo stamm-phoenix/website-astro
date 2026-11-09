@@ -210,3 +210,23 @@ test('a conversation longer than a change reads is left to Outlook', async (t) =
   assert.match((response.jsonBody as { message: string }).message, /Outlook/);
   assert.equal(mocks.patches.length, 0);
 });
+
+test('a message deleted while it is changed is not reported as saved', async (t) => {
+  const { context, mocks } = setup(t);
+  const original = postfachGraph.patch;
+  t.mock.method(
+    postfachGraph,
+    'patch',
+    async (path: string, body: Record<string, unknown>, etag?: string) => {
+      if (path.endsWith('AAkALgm3000000'))
+        throw Object.assign(new Error('not found'), { statusCode: 404 });
+      return original.call(postfachGraph, path, body, etag);
+    }
+  );
+  const response = await PostfachStatusRoute(
+    status({ konversation: K2, status: 'erledigt', vorher: 'neu', bis: iso(0.5) }),
+    context
+  );
+  assert.equal(response.status, 409);
+  assert.equal(flags(mocks).AAkALgm5000000, 'complete');
+});
