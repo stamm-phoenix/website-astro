@@ -30,9 +30,21 @@ export type OutlookFlag = 'notFlagged' | 'flagged' | 'complete';
 /** Prefix of the Outlook categories that name the responsible person. */
 export const ZUSTAENDIG_PRAEFIX = '👤 ';
 
-/** The Outlook category that makes the person responsible. */
-export function kategorieFuer(name: string): string {
-  return `${ZUSTAENDIG_PRAEFIX}${name.trim()}`;
+/**
+ * The Outlook category that makes the person responsible: their name, and the start of their
+ * login when another person of the mailbox has the same name.
+ */
+export function kategorieFuer(
+  person: Pick<PostfachPerson, 'login' | 'name'>,
+  personen: readonly PostfachPerson[] = []
+): string {
+  const gleichnamig = personen.some(
+    (andere) =>
+      andere.login.toLowerCase() !== person.login.toLowerCase() &&
+      andere.name.trim().toLowerCase() === person.name.trim().toLowerCase()
+  );
+  const zusatz = gleichnamig ? ` (${person.login.split('@')[0]})` : '';
+  return `${ZUSTAENDIG_PRAEFIX}${person.name.trim()}${zusatz}`;
 }
 
 /** The status and responsibility of a conversation, as the list and the reading view show it. */
@@ -160,6 +172,8 @@ export interface InboxNachricht {
   /** ISO time the flag was completed, if Outlook tells. */
   erledigtAm: string | null;
   kategorien: string[];
+  /** Version of the message in Exchange, for a change that must not overwrite a newer one. */
+  etag?: string;
 }
 
 /** The newest first; the same time keeps the order of the input. */
@@ -192,8 +206,15 @@ export function zustaendigAus(
   );
   if (!kategorie) return null;
   const name = kategorie.slice(ZUSTAENDIG_PRAEFIX.length).trim();
-  const person = personen.find((entry) => entry.name.toLowerCase() === name.toLowerCase());
-  return { login: person?.login ?? null, name: person?.name ?? name };
+  // Only one person may fit; a name two people share without the login stays a plain name
+  const passend = personen.filter(
+    (entry) => kategorieFuer(entry, personen).toLowerCase() === kategorie.trim().toLowerCase()
+  );
+  if (passend.length !== 1) return { login: null, name };
+  return {
+    login: passend[0].login,
+    name: kategorieFuer(passend[0], personen).slice(ZUSTAENDIG_PRAEFIX.length),
+  };
 }
 
 /** Status and responsibility of a conversation; the newest message with a person names them. */

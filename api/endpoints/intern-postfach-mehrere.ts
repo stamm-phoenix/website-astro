@@ -1,7 +1,7 @@
 import { METHOD_NOT_ALLOWED, ok, readJsonBody } from '../lib/pflege-api';
 import { errorResponse } from '../lib/response-utils';
 import { eigenerLogin, ladePersonen } from '../lib/postfach';
-import { PostfachSchreibError } from '../lib/postfach-graph-basis';
+import { NachrichtGeaendertError, PostfachSchreibError } from '../lib/postfach-graph-basis';
 import type { KonversationZeile, PostfachStatus, Zustaendigkeit } from '../lib/postfach-model';
 import {
   KonversationZuLangError,
@@ -72,8 +72,7 @@ export const PostfachZustaendigMehrereRoute = postfachAenderung(
           erledigtAm: zeile.erledigtAm,
         });
         // Only what is new for the person goes into the note
-        if (neu && ergebnis.vorher?.name.toLowerCase() !== neu.name.toLowerCase())
-          zugewiesen.push(zeile);
+        if (neu && ergebnis.vorher?.login !== neu.login) zugewiesen.push(zeile);
       } catch (error: unknown) {
         if (error instanceof ZustaendigkeitKonfliktError) {
           ergebnisse.push({
@@ -83,6 +82,16 @@ export const PostfachZustaendigMehrereRoute = postfachAenderung(
             fehler: error.aktuell
               ? `Inzwischen ist ${error.aktuell.name} zuständig.`
               : 'Inzwischen ist niemand mehr zuständig.',
+          });
+          continue;
+        }
+        if (error instanceof NachrichtGeaendertError) {
+          // Part of it may be written: the page reads the list again
+          ergebnisse.push({
+            konversation,
+            ok: false,
+            fehler:
+              'Jemand hat sie gerade geändert, vielleicht in Outlook. Versuche es noch einmal.',
           });
           continue;
         }

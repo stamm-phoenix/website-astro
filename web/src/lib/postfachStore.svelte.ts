@@ -121,11 +121,28 @@ async function mitFrischenPersonen<T>(postfach: string, speichern: () => Promise
 }
 
 /** Status and done time of a conversation, as the API answers after a change. */
-export type StatusStand = Pick<KonversationStand, 'status' | 'erledigtAm'>;
+export interface StatusStand extends Pick<KonversationStand, 'status' | 'erledigtAm'> {
+  /**
+   * Another change of the same conversation was started after this one: the answer is not
+   * taken over, the page reads what applies now instead.
+   */
+  ueberholt?: boolean;
+}
 
 export interface ZuweisungErgebnis extends StatusStand {
   zustaendig: Zustaendigkeit | null;
   benachrichtigt: boolean;
+}
+
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- counters, never rendered
+const aenderungen = new Map<string, number>();
+
+/** Starts a change of a conversation; the returned check tells whether a later one started. */
+function aenderungBeginnen(postfach: string, konversation: string): () => boolean {
+  const schluessel = `${postfach}|${konversation}`;
+  const nummer = (aenderungen.get(schluessel) ?? 0) + 1;
+  aenderungen.set(schluessel, nummer);
+  return () => aenderungen.get(schluessel) !== nummer;
 }
 
 export async function setzeZustaendig(
@@ -135,6 +152,7 @@ export async function setzeZustaendig(
   /** Name of the person the page showed. */
   vorher: string | null
 ): Promise<ZuweisungErgebnis> {
+  const ueberholt = aenderungBeginnen(postfach, konversation);
   const result = await mitFrischenPersonen(postfach, () =>
     sendApi<ZuweisungErgebnis>(
       'PUT',
@@ -142,6 +160,10 @@ export async function setzeZustaendig(
       { konversation, login, vorher }
     )
   );
+  if (ueberholt()) {
+    void ladeNachKonflikt(postfach);
+    return { ...result, ueberholt: true };
+  }
   aendereZeile(postfach, konversation, {
     zustaendig: result.zustaendig,
     status: result.status,
@@ -159,11 +181,16 @@ export async function setzeStatus(
   /** Received time of the newest message the page shows; a newer one is not closed unseen. */
   bis: string
 ): Promise<StatusStand> {
+  const ueberholt = aenderungBeginnen(postfach, konversation);
   const result = await sendApi<StatusStand>(
     'PUT',
     `/intern/postfach/${encodeURIComponent(postfach)}/status`,
     { konversation, status, vorher, bis }
   );
+  if (ueberholt()) {
+    void ladeNachKonflikt(postfach);
+    return { ...result, ueberholt: true };
+  }
   // A late answer: the list may have a newer message by now, which the change does not cover
   const zeile = postfachListe.state.data?.konversationen.find((entry) => entry.id === konversation);
   aendereZeile(postfach, konversation, standFuer(result, zeile?.am ?? bis, bis));

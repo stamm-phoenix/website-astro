@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { mailboxPath, postfachGraph, PostfachSchreibError } from './postfach-graph-basis';
+import {
+  mailboxPath,
+  NachrichtGeaendertError,
+  postfachGraph,
+  PostfachSchreibError,
+} from './postfach-graph-basis';
 import { getGraphStatus } from './sharepoint-data-access';
 import type { NachrichtAenderung } from './postfach-aenderung';
 
@@ -28,7 +33,8 @@ function body(aenderung: NachrichtAenderung, jetzt: string): Record<string, unkn
 
 /**
  * Sends the changes, a few at a time. A message deleted meanwhile is skipped; when Graph refuses
- * the change, `PostfachSchreibError`. After a failure the requests already on their way finish
+ * the change, `PostfachSchreibError`; when a message changed since it was read (e.g. in
+ * Outlook), `NachrichtGeaendertError`. After a failure the requests already on their way finish
  * first, so the caller knows nothing is still changing; what was sent stays changed.
  */
 export async function schreibeAenderungen(
@@ -43,12 +49,14 @@ export async function schreibeAenderungen(
         try {
           await postfachGraph.patch(
             `${mailboxPath(address)}/messages/${encodeURIComponent(aenderung.id)}`,
-            body(aenderung, jetzt)
+            body(aenderung, jetzt),
+            aenderung.etag
           );
         } catch (error: unknown) {
           const status = getGraphStatus(error);
           if (status === 404) return;
           if (status === 401 || status === 403) throw new PostfachSchreibError(address);
+          if (status === 409 || status === 412) throw new NachrichtGeaendertError();
           throw error;
         }
       })

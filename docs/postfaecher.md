@@ -60,12 +60,12 @@ Postfach sagt er nur, ob irgendwer die Nachricht schon angeklickt hat.
   was sich ändert. Das kann jede Person, die das Postfach sieht. Die Seite schickt mit, welchen
   Stand sie angezeigt hat (`vorher`) und bis zu welcher Nachricht (`bis`); die API liest die
   Konversation frisch und antwortet mit `409`, wenn inzwischen jemand (auch in Outlook) etwas
-  geändert hat oder eine neuere Nachricht gekommen ist. Wer vorher was gesetzt hat, speichert
+  geändert hat oder eine neuere Nachricht gekommen ist. Jede Nachricht wird nur in der gelesenen Version geändert (`If-Match` mit dem ETag); hat sie jemand dazwischen geändert, etwa in Outlook, kommt ebenfalls `409`. Änderungen derselben Konversation laufen je Instanz nacheinander. Konversationen mit mehr als 200 Nachrichten ändert die Website nicht (`422`, Hinweis auf Outlook). Wer vorher was gesetzt hat, speichert
   Outlook nicht; die Seite zeigt deshalb nur, seit wann etwas erledigt ist.
 - **Zuständigkeit** (`PUT …/{postfach}/zustaendig`): pro Konversation eine Person, als Kategorie
   `👤 <Anzeigename>` an allen empfangenen Nachrichten; andere Kategorien bleiben. „Ich kümmere
   mich“ oder „Jemandem zuweisen“ (Mitglieder der Teams des Postfachs, aus Entra ID). Die Website
-  ordnet eine Kategorie über den Anzeigenamen einer Person zu; eine Kategorie mit unbekanntem
+  ordnet eine Kategorie über den Anzeigenamen einer Person zu (haben zwei Personen denselben Namen, hängt die Website den Anfang des Logins an, z. B. `👤 Lea Leitung (lea.b)`); eine Kategorie mit unbekanntem
   Namen (z. B. von jemandem, der nicht mehr im Team ist) zeigt sie nur als Namen. Wird eine neue
   Konversation jemandem zugewiesen, bekommt sie auch das Fähnchen („Handlungsbedarf“). Die Seite
   schickt mit, welchen Namen sie als zuständig angezeigt hat; hat das inzwischen jemand geändert,

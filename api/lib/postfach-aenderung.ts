@@ -16,11 +16,13 @@ import {
  * - The responsible person is a category on every received message; other categories stay.
  */
 
-export type NachrichtStand = Pick<InboxNachricht, 'id' | 'am' | 'flag' | 'kategorien'>;
+export type NachrichtStand = Pick<InboxNachricht, 'id' | 'am' | 'flag' | 'kategorien' | 'etag'>;
 
 /** The change of one message; only what differs from now is sent. */
 export interface NachrichtAenderung {
   id: string;
+  /** The version that was read; the change is refused when the message changed since. */
+  etag?: string;
   flag?: OutlookFlag;
   kategorien?: string[];
 }
@@ -71,7 +73,10 @@ export function aenderungen(
 ): NachrichtAenderung[] {
   const flags = ziel.status ? flagsFuer(nachrichten, ziel.status) : null;
   return nachrichten.flatMap((nachricht) => {
-    const aenderung: NachrichtAenderung = { id: nachricht.id };
+    const aenderung: NachrichtAenderung = {
+      id: nachricht.id,
+      ...(nachricht.etag && { etag: nachricht.etag }),
+    };
     const flag = flags?.get(nachricht.id);
     if (flag && flag !== nachricht.flag) aenderung.flag = flag;
     if (ziel.kategorie !== undefined) {

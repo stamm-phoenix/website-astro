@@ -55,10 +55,9 @@ export class KonversationZuLangError extends Error {
 }
 
 /**
- * Changes of one conversation in this Function instance, one after the other: two at once would
- * both pass the check against the same state and overwrite each other. Graph offers no
- * conditional change of a message, so a change in Outlook in the moment between reading and
- * writing can still be overwritten.
+ * Changes of one conversation in this Function instance, one after the other, so two of them do
+ * not check against the same state. Across instances and against Outlook, each message is
+ * changed only in the version that was read (`If-Match`, `NachrichtGeaendertError`).
  */
 const laufend = new Map<string, Promise<unknown>>();
 
@@ -164,10 +163,10 @@ export async function setzeZustaendig(
     const aktuell = frisch.zeile.zustaendig;
     if (!gleicherName(aktuell?.name ?? null, vorher))
       throw new ZustaendigkeitKonfliktError(aktuell);
-    const kategorie = neu ? kategorieFuer(neu.name) : null;
+    const personen = await personenFuerKategorien(postfach);
+    const kategorie = neu ? kategorieFuer(neu, personen) : null;
     // Only a colour in Outlook; the category works without it
     if (kategorie) await kategorieAnlegen(postfach.address, kategorie);
-    const personen = await personenFuerKategorien(postfach);
     const zeile = await schreiben(
       postfach,
       frisch,

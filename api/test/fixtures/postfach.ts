@@ -35,6 +35,7 @@ export function message(
     hasAttachments: false,
     importance: 'normal',
     isDraft: false,
+    '@odata.etag': `W/"${id}-1"`,
     ...extra,
   };
 }
@@ -120,7 +121,12 @@ export function setup(t: TestContext): { context: InvocationContext; mocks: Mock
     }
     if (path.endsWith('/messages')) {
       const id = /conversationId eq '([^']*)'/.exec(query.$filter ?? '')?.[1];
-      return { value: mocks.postfach.filter((entry) => entry.conversationId === id) };
+      // Copies, as Graph answers: a later change of the mailbox does not reach what was read
+      return {
+        value: mocks.postfach
+          .filter((entry) => entry.conversationId === id)
+          .map((entry) => structuredClone(entry)),
+      };
     }
     if (path.endsWith('/attachments')) {
       return {
@@ -170,14 +176,21 @@ export function setup(t: TestContext): { context: InvocationContext; mocks: Mock
     }
     return { value: [{ targetId: 'AAMkrest' }] };
   });
-  t.mock.method(postfachGraph, 'patch', async (path: string, body: Record<string, unknown>) => {
-    const id = decodeURIComponent(path.slice(path.lastIndexOf('/') + 1));
-    const entry = mocks.postfach.find((candidate) => candidate.id === id);
-    if (!entry) throw Object.assign(new Error('not found'), { statusCode: 404 });
-    mocks.patches.push({ id, body });
-    Object.assign(entry, body);
-    return entry;
-  });
+  t.mock.method(
+    postfachGraph,
+    'patch',
+    async (path: string, body: Record<string, unknown>, etag?: string) => {
+      const id = decodeURIComponent(path.slice(path.lastIndexOf('/') + 1));
+      const entry = mocks.postfach.find((candidate) => candidate.id === id);
+      if (!entry) throw Object.assign(new Error('not found'), { statusCode: 404 });
+      // As Exchange: a change of another version is refused
+      if (etag && etag !== entry['@odata.etag'])
+        throw Object.assign(new Error('precondition failed'), { statusCode: 412 });
+      mocks.patches.push({ id, body });
+      Object.assign(entry, body, { '@odata.etag': `W/"${id}-${mocks.patches.length + 1}"` });
+      return entry;
+    }
+  );
   t.mock.method(postfachVerzeichnis, 'lesen', async () => [
     { login: 'lea@stamm-phoenix.de', name: 'Lea Leitung', givenName: 'Lea' },
     { login: 'tom@stamm-phoenix.de', name: 'Tom Test', givenName: 'Tom' },

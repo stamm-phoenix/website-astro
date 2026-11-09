@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   fuerMich,
+  kategorieFuer,
   konversationenAus,
   statusAus,
   zustaendigAus,
@@ -86,6 +87,22 @@ test('a person category names the person, matched without case, unknown names st
     name: 'Tom Test',
   });
   assert.deepEqual(zustaendigAus(['👤 Anton Alt'], PERSONEN), { login: null, name: 'Anton Alt' });
+});
+
+test('two people with the same name get categories that tell them apart', () => {
+  const zwei = [
+    { login: 'lea.a@stamm-phoenix.de', name: 'Lea Leitung' },
+    { login: 'lea.b@stamm-phoenix.de', name: 'Lea Leitung' },
+    { login: 'tom@stamm-phoenix.de', name: 'Tom Test' },
+  ];
+  assert.equal(kategorieFuer(zwei[1], zwei), '👤 Lea Leitung (lea.b)');
+  assert.equal(kategorieFuer(zwei[2], zwei), '👤 Tom Test');
+  assert.deepEqual(zustaendigAus(['👤 Lea Leitung (lea.b)'], zwei), {
+    login: 'lea.b@stamm-phoenix.de',
+    name: 'Lea Leitung (lea.b)',
+  });
+  // Without the login the name fits both: it is shown, but belongs to nobody
+  assert.deepEqual(zustaendigAus(['👤 Lea Leitung'], zwei), { login: null, name: 'Lea Leitung' });
 });
 
 test('changes touch only what differs and keep other categories', () => {

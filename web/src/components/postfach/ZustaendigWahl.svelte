@@ -45,9 +45,7 @@
 
   const meins = $derived(istMirZugewiesen({ zustaendig }, ich));
   const optionen = $derived(
-    (personen ?? []).filter(
-      (person) => person.name.toLowerCase() !== zustaendig?.name.toLowerCase()
-    )
+    (personen ?? []).filter((person) => !zustaendig?.login || person.login !== zustaendig.login)
   );
 
   async function oeffneAuswahl(): Promise<void> {
@@ -78,7 +76,9 @@
         person?.login ?? null,
         zustaendig?.name ?? null
       );
-      onaenderung(fuer, result);
+      // Overtaken by a later change of this conversation: the page reads what applies now
+      if (result.ueberholt) onkonflikt(fuer);
+      else onaenderung(fuer, result);
       if (fuer !== konversation) return;
       auswahl = false;
       query = '';

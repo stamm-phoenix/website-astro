@@ -29,6 +29,14 @@ export class PostfachSchreibError extends Error {
   }
 }
 
+/** A message changed between reading and changing it, e.g. in Outlook. */
+export class NachrichtGeaendertError extends Error {
+  constructor() {
+    super('A message changed since it was read.');
+    this.name = 'NachrichtGeaendertError';
+  }
+}
+
 /** The attachment cannot be downloaded here (too large, or an attached item instead of a file). */
 export class AnhangNichtLadbarError extends Error {
   constructor() {
@@ -58,13 +66,17 @@ export const postfachGraph = {
   async post(path: string, body: unknown): Promise<unknown> {
     return getClient().api(path).option('signal', AbortSignal.timeout(TIMEOUT_MS)).post(body);
   },
-  /** Changes a message; the path holds its immutable ID. */
-  async patch(path: string, body: unknown): Promise<unknown> {
-    return getClient()
+  /**
+   * Changes a message; the path holds its immutable ID. With `etag` Exchange refuses the change
+   * (412) when the message changed since it was read.
+   */
+  async patch(path: string, body: unknown, etag?: string): Promise<unknown> {
+    const request = getClient()
       .api(path)
       .header('Prefer', IMMUTABLE)
-      .option('signal', AbortSignal.timeout(TIMEOUT_MS))
-      .patch(body);
+      .option('signal', AbortSignal.timeout(TIMEOUT_MS));
+    if (etag) request.header('If-Match', etag);
+    return request.patch(body);
   },
 };
 

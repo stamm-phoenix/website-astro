@@ -70,7 +70,9 @@
     try {
       const gesehen = bis;
       const result = await setzeStatus(postfach, fuer, neu, status, gesehen);
-      onaenderung(fuer, result, gesehen);
+      // Overtaken by a later change of this conversation: the page reads what applies now
+      if (result.ueberholt) onkonflikt(fuer);
+      else onaenderung(fuer, result, gesehen);
       if (fuer !== konversation) return;
       meldung = ERFOLG[neu];
     } catch (error: unknown) {
