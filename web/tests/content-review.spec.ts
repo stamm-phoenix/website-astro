@@ -86,10 +86,16 @@ test('returning through Astro navigation reloads changed content', async ({ page
 test('expired session offers sign-in after a successful overview load', async ({ page }) => {
   await page.goto('/leitendenbereich/redaktion');
   await expect(page.locator('main li.surface')).toHaveCount(6);
-  await page.route('**/api/intern/pflege/content-review/*/*', route =>
-    route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
-  await page.locator('main li.surface').first().getByRole('button', {
-    name: 'Als geprüft markieren', exact: true,
-  }).click();
+  await page.route('**/api/intern/pflege/content-review/*/*', (route) =>
+    route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
+  );
+  await page
+    .locator('main li.surface')
+    .first()
+    .getByRole('button', {
+      name: 'Als geprüft markieren',
+      exact: true,
+    })
+    .click();
   await expect(page.getByRole('alert').getByRole('link', { name: /Neu anmelden/ })).toBeVisible();
 });

@@ -7,6 +7,7 @@ import {
   statusAus,
   zustaendigAus,
   type InboxNachricht,
+  type MailOrdner,
   type OutlookFlag,
 } from '../lib/postfach-model';
 import { aenderungen, nachAenderung } from '../lib/postfach-aenderung';
@@ -22,7 +23,8 @@ function nachricht(
   am: string,
   betreff = 'Frage',
   flag: OutlookFlag = 'notFlagged',
-  kategorien: string[] = []
+  kategorien: string[] = [],
+  ordner: MailOrdner = 'posteingang'
 ): InboxNachricht {
   return {
     id,
@@ -34,8 +36,8 @@ function nachricht(
     hatAnhang: id === 'm2',
     wichtig: false,
     flag,
-    erledigtAm: flag === 'complete' ? '2026-11-04T08:00:00.000Z' : null,
     kategorien,
+    ordner,
   };
 }
 
@@ -48,35 +50,38 @@ test('messages are grouped into conversations with the newest message on top', (
   const zeilen = konversationenAus(
     'kontakt',
     [
-      nachricht('m1', 'k1', '2026-11-01T08:00:00.000Z', 'Alt', 'complete'),
+      nachricht('m1', 'k1', '2026-11-01T08:00:00.000Z', 'Alt', 'complete', [], 'archiv'),
       nachricht('m2', 'k1', '2026-11-03T08:00:00.000Z', 'AW: Alt'),
       nachricht('m3', 'k2', '2026-11-02T08:00:00.000Z', 'Andere', 'notFlagged', [
         'Rechnung',
         '👤 lea leitung',
       ]),
+      nachricht('m4', 'k3', '2026-10-30T08:00:00.000Z', 'Fertig', 'notFlagged', [], 'archiv'),
     ],
     PERSONEN
   );
+  // A reply after „Erledigt“ is in the inbox: the line shows it and counts only the inbox
   assert.deepEqual(
     zeilen.map((zeile) => [zeile.id, zeile.betreff, zeile.anzahl, zeile.status, zeile.hatAnhang]),
     [
-      ['k1', 'AW: Alt', 2, 'neu', true],
+      ['k1', 'AW: Alt', 1, 'neu', true],
       ['k2', 'Andere', 1, 'neu', false],
+      ['k3', 'Fertig', 1, 'erledigt', false],
     ]
   );
   assert.deepEqual(zeilen[1].zustaendig, { login: 'lea@stamm-phoenix.de', name: 'Lea Leitung' });
   assert.equal(zeilen[0].zustaendig, null);
 });
 
-test('a flag anywhere needs action, otherwise the newest message decides', () => {
-  const am = (stunde: number) => `2026-11-0${stunde}T08:00:00.000Z`;
-  const mit = (...flags: OutlookFlag[]) =>
-    statusAus(flags.map((flag, index) => ({ am: am(index + 1), flag, erledigtAm: null })));
-  assert.equal(mit('flagged', 'complete').status, 'handlungsbedarf');
-  assert.equal(mit('complete', 'flagged').status, 'handlungsbedarf');
-  assert.equal(mit('notFlagged', 'complete').status, 'erledigt');
-  assert.equal(mit('complete', 'notFlagged').status, 'neu');
-  assert.equal(mit().status, 'neu');
+test('done is archived, a flag in the inbox needs action, the rest is new', () => {
+  const mit = (...nachrichten: [OutlookFlag, MailOrdner][]) =>
+    statusAus(nachrichten.map(([flag, ordner]) => ({ flag, ordner })));
+  assert.equal(mit(['notFlagged', 'archiv']), 'erledigt');
+  assert.equal(mit(['flagged', 'archiv'], ['notFlagged', 'anderer']), 'erledigt');
+  assert.equal(mit(['flagged', 'archiv'], ['notFlagged', 'posteingang']), 'neu');
+  assert.equal(mit(['complete', 'posteingang'], ['flagged', 'posteingang']), 'handlungsbedarf');
+  assert.equal(mit(['complete', 'posteingang']), 'neu');
+  assert.equal(mit(), 'erledigt');
 });
 
 test('a person category names the person, matched without case, unknown names stay names', () => {
@@ -114,17 +119,19 @@ test('two people with the same name get categories that tell them apart', () => 
   );
 });
 
-test('changes touch only what differs and keep other categories', () => {
+test('changes touch only what differs, move between inbox and archive and keep categories', () => {
   const nachrichten = [
-    nachricht('a', 'k', '2026-11-01T08:00:00.000Z', 'x', 'complete', ['Rechnung', '👤 Tom Test']),
+    nachricht('a', 'k', '2026-11-01T08:00:00.000Z', 'x', 'flagged', ['Rechnung', '👤 Tom Test']),
     nachricht('b', 'k', '2026-11-02T08:00:00.000Z', 'x', 'notFlagged', ['👤 Tom Test']),
   ];
   assert.deepEqual(aenderungen(nachrichten, { status: 'handlungsbedarf' }), [
     { id: 'a', flag: 'notFlagged' },
     { id: 'b', flag: 'flagged' },
   ]);
+  // Done: archived, a flag still open completed
   assert.deepEqual(aenderungen(nachrichten, { status: 'erledigt' }), [
-    { id: 'b', flag: 'complete' },
+    { id: 'a', flag: 'complete', verschieben: 'archive' },
+    { id: 'b', verschieben: 'archive' },
   ]);
   assert.deepEqual(aenderungen(nachrichten, { kategorie: '👤 Lea Leitung' }), [
     { id: 'a', kategorien: ['Rechnung', '👤 Lea Leitung'] },
@@ -137,12 +144,19 @@ test('changes touch only what differs and keep other categories', () => {
   assert.deepEqual(aenderungen(nachrichten, { kategorie: '👤 Tom Test', status: 'neu' }), [
     { id: 'a', flag: 'notFlagged' },
   ]);
-  const danach = nachAenderung(
-    nachrichten,
-    [{ id: 'b', flag: 'complete' }],
-    new Date('2026-11-05T00:00:00.000Z')
-  );
-  assert.equal(danach[1].erledigtAm, '2026-11-05T00:00:00.000Z');
+  // Back from the archive: the archived ones return; another folder only without them
+  const archiviert = [
+    nachricht('a', 'k', '2026-11-01T08:00:00.000Z', 'x', 'complete', [], 'archiv'),
+    nachricht('b', 'k', '2026-11-02T08:00:00.000Z', 'x', 'notFlagged', [], 'anderer'),
+  ];
+  assert.deepEqual(aenderungen(archiviert, { status: 'handlungsbedarf' }), [
+    { id: 'a', flag: 'flagged', verschieben: 'inbox' },
+  ]);
+  assert.deepEqual(aenderungen([archiviert[1]], { status: 'neu' }), [
+    { id: 'b', verschieben: 'inbox' },
+  ]);
+  const danach = nachAenderung(nachrichten, [{ id: 'b', verschieben: 'archive' }]);
+  assert.equal(danach[1].ordner, 'archiv');
   assert.equal(danach[0], nachrichten[0]);
 });
 
@@ -151,7 +165,7 @@ test('the start page shows new ones, and flagged ones to their person or to all'
     'kontakt',
     [
       nachricht('m1', 'neu', '2026-11-01T08:00:00.000Z'),
-      nachricht('m2', 'erledigt', '2026-11-02T08:00:00.000Z', 'x', 'complete'),
+      nachricht('m2', 'erledigt', '2026-11-02T08:00:00.000Z', 'x', 'complete', [], 'archiv'),
       nachricht('m3', 'meins', '2026-10-01T08:00:00.000Z', 'x', 'flagged', ['👤 Lea Leitung']),
       nachricht('m4', 'offen', '2026-10-02T08:00:00.000Z', 'x', 'flagged'),
       nachricht('m5', 'fremd', '2026-10-03T08:00:00.000Z', 'x', 'flagged', ['👤 Tom Test']),

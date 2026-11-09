@@ -19,8 +19,6 @@
     onzuruecksetzen?: () => void;
     /** A plain click opens the conversation on this page; a new tab follows the link. */
     onoeffnen: (id: string) => void;
-    /** Without the boxes, e.g. in a preview that must not change anything. */
-    auswaehlbar?: boolean;
     /** The chosen conversations. */
     ausgewaehlt: ReadonlySet<string>;
     /** While the chosen ones are saved. */
@@ -34,7 +32,6 @@
     leer,
     onzuruecksetzen,
     onoeffnen,
-    auswaehlbar = true,
     ausgewaehlt,
     auswahlGesperrt,
     onwaehle,
@@ -62,20 +59,20 @@
     {#each zeilen as zeile (zeile.id)}
       {@const neu = zeile.status === 'neu'}
       {@const gewaehlt = ausgewaehlt.has(zeile.id)}
-      <li class="flex items-stretch" class:bg-brand-50={gewaehlt} class:pl-3={!auswaehlbar}>
-        {#if auswaehlbar}<label
-            class="flex min-h-11 w-11 shrink-0 cursor-pointer items-start justify-center pt-3"
-            title="Auswählen"
-          >
-            <input
-              type="checkbox"
-              class="size-5 cursor-pointer accent-brand-900"
-              checked={gewaehlt}
-              disabled={auswahlGesperrt}
-              onchange={(event) => onwaehle(zeile.id, event.currentTarget.checked)}
-            />
-            <span class="sr-only">„{zeile.betreff}“ von {zeile.von.name} auswählen</span>
-          </label>{/if}
+      <li class="flex items-stretch" class:bg-brand-50={gewaehlt}>
+        <label
+          class="flex min-h-11 w-11 shrink-0 cursor-pointer items-start justify-center pt-3"
+          title="Auswählen"
+        >
+          <input
+            type="checkbox"
+            class="size-5 cursor-pointer accent-brand-900"
+            checked={gewaehlt}
+            disabled={auswahlGesperrt}
+            onchange={(event) => onwaehle(zeile.id, event.currentTarget.checked)}
+          />
+          <span class="sr-only">„{zeile.betreff}“ von {zeile.von.name} auswählen</span>
+        </label>
         <a
           href={konversationHash(zeile.id)}
           onclick={(event) => klick(event, zeile.id)}
@@ -131,12 +128,7 @@
           <span class="mt-0.5 block truncate text-sm text-neutral-700">{zeile.vorschau}</span>
           <span class="mt-1 flex flex-wrap gap-2 text-sm">
             {#if zeile.status === 'erledigt'}
-              <StatusLabel
-                label={zeile.erledigtAm
-                  ? `${STATUS_LABEL.erledigt} · ${mailZeitKurz(zeile.erledigtAm)}`
-                  : STATUS_LABEL.erledigt}
-                tone="success"
-              />
+              <StatusLabel label={STATUS_LABEL.erledigt} tone="success" />
             {:else if zeile.status === 'handlungsbedarf'}
               <StatusLabel label={STATUS_LABEL.handlungsbedarf} tone="warning" dot />
             {:else}

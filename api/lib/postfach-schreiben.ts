@@ -9,15 +9,17 @@ import { getGraphStatus } from './sharepoint-data-access';
 import type { NachrichtAenderung } from './postfach-aenderung';
 
 /**
- * Writes the status and the responsible person of a conversation into Outlook: the flags and
- * categories of its messages (`postfach-aenderung.ts`). Needs `Mail.ReadWrite` on the mailbox;
- * nothing else of the mailbox is changed, nothing moved or deleted.
+ * Writes the status and the responsible person of a conversation into Outlook: flags and
+ * categories of its received messages, and moves between inbox and archive
+ * (`postfach-aenderung.ts`). Needs `Mail.ReadWrite` on the mailbox; nothing is deleted or sent.
  */
+
+const etagSchema = z.object({ '@odata.etag': z.string().optional() }).catch({});
 
 /** Messages changed at the same time. */
 const GLEICHZEITIG = 4;
 
-function body(aenderung: NachrichtAenderung, jetzt: string): Record<string, unknown> {
+function body(aenderung: NachrichtAenderung, jetzt: string): Record<string, unknown> | null {
   const patch: Record<string, unknown> = {};
   if (aenderung.flag === 'complete') {
     patch.flag = {
@@ -28,7 +30,20 @@ function body(aenderung: NachrichtAenderung, jetzt: string): Record<string, unkn
     patch.flag = { flagStatus: aenderung.flag };
   }
   if (aenderung.kategorien) patch.categories = aenderung.kategorien;
-  return patch;
+  return Object.keys(patch).length ? patch : null;
+}
+
+/** Flag and categories first, then the move, each only in the version that was read. */
+async function aendere(address: string, aenderung: NachrichtAenderung, jetzt: string) {
+  const path = `${mailboxPath(address)}/messages/${encodeURIComponent(aenderung.id)}`;
+  let etag = aenderung.etag;
+  const patch = body(aenderung, jetzt);
+  if (patch) {
+    const antwort = await postfachGraph.patch(path, patch, etag);
+    // The change made a new version: the move must not fail on it
+    etag = etagSchema.parse(antwort)['@odata.etag'] ?? undefined;
+  }
+  if (aenderung.verschieben) await postfachGraph.move(path, aenderung.verschieben, etag);
 }
 
 /**
@@ -47,11 +62,7 @@ export async function schreibeAenderungen(
     const ergebnisse = await Promise.allSettled(
       aenderungen.slice(start, start + GLEICHZEITIG).map(async (aenderung) => {
         try {
-          await postfachGraph.patch(
-            `${mailboxPath(address)}/messages/${encodeURIComponent(aenderung.id)}`,
-            body(aenderung, jetzt),
-            aenderung.etag
-          );
+          await aendere(address, aenderung, jetzt);
         } catch (error: unknown) {
           const status = getGraphStatus(error);
           if (status === 401 || status === 403) throw new PostfachSchreibError(address);

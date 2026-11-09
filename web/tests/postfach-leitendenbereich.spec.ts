@@ -105,8 +105,7 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
     .getByRole('group', { name: 'Stand' })
     .getByRole('button', { name: 'Erledigt' })
     .click();
-  await expect(mail.getByText('Als erledigt markiert.')).toBeVisible();
-  await expect(mail.getByText(/^Erledigt .* · Wird sofort gespeichert\./)).toBeVisible();
+  await expect(mail.getByText('Erledigt und archiviert.')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   if (await page.getByRole('button', { name: /Zur Liste/ }).isVisible())
@@ -119,10 +118,10 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
     .getByRole('button', { name: /^Erledigt/ })
     .click();
   await expect(liste.getByRole('link', { name: /Schnupperstunde für Mia/ })).toContainText(
-    'Erledigt ·'
+    'Erledigt'
   );
   await expect(liste.getByRole('link', { name: /Danke für das Sommerlager/ })).toContainText(
-    'Erledigt ·'
+    'Erledigt'
   );
 
   await page.goto('/leitendenbereich/');

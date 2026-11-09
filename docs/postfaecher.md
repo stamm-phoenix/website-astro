@@ -13,32 +13,36 @@ Der Leitendenbereich selbst bleibt dem Team „Leitende“ vorbehalten: Wer nur 
 kommt nicht hinein und sieht das Postfach dort nicht. Jedes Postfach hat eine eigene Seite
 (`/leitendenbereich/email/<id>`) und eine Kachel im Abschnitt „E-Mail“. Wie beim Modul „Fotos“
 wird Outlook nicht nachgebaut: Stand, Zuständigkeit und Anhänge gibt es hier, Antworten,
-Verschieben, Löschen und alles Weitere in Outlook („In Outlook öffnen“).
+Löschen und alles Weitere in Outlook („In Outlook öffnen“).
 
 Stand und Zuständigkeit speichert die Website nicht selbst, sondern **in Outlook**, an den
-Nachrichten des Postfachs. Was jemand in Outlook setzt, zeigt die Website, und umgekehrt:
+Nachrichten des Postfachs. Was jemand in Outlook tut, zeigt die Website, und umgekehrt:
 
-| Website         | Outlook                                      | Graph                          |
-| --------------- | -------------------------------------------- | ------------------------------ |
-| Neu             | kein Fähnchen                                | `flag.flagStatus = notFlagged` |
-| Handlungsbedarf | Fähnchen                                     | `flag.flagStatus = flagged`    |
-| Erledigt        | erledigtes Fähnchen                          | `flag.flagStatus = complete`   |
-| Zuständig       | Kategorie `👤 <Name>` (`ZUSTAENDIG_PRAEFIX`) | `categories`                   |
+| Website         | Outlook                                      | Graph                             |
+| --------------- | -------------------------------------------- | --------------------------------- |
+| Neu             | im Posteingang, kein Fähnchen                | Ordner `inbox`, `notFlagged`      |
+| Handlungsbedarf | im Posteingang, Fähnchen                     | Ordner `inbox`, `flagged`         |
+| Erledigt        | archiviert (nicht mehr im Posteingang)       | Ordner `archive` oder ein anderer |
+| Zuständig       | Kategorie `👤 <Name>` (`ZUSTAENDIG_PRAEFIX`) | `categories`                      |
+
+Der Posteingang ist also die offene Arbeit: Wer in Outlook archiviert oder in einen anderen
+Ordner verschiebt, hat die E-Mail damit erledigt.
 
 Der Gelesen-Status von Outlook (`isRead`) wird weder gelesen noch geändert: In einem gemeinsamen
 Postfach sagt er nur, ob irgendwer die Nachricht schon angeklickt hat.
 
 ## Was das Modul kann
 
-- **Liste:** Die neuesten 100 Nachrichten des Posteingangs (`INBOX_LIMIT`), nach Konversation
-  (`conversationId` von Exchange) gruppiert, neueste zuerst. Filter in zwei Gruppen, die sich
+- **Liste:** Die neuesten 100 Nachrichten des Posteingangs und die neuesten 100 des Archivs
+  (`INBOX_LIMIT`), nach Konversation (`conversationId` von Exchange) gruppiert, neueste zuerst. Filter in zwei Gruppen, die sich
   kombinieren (`PostfachFilterLeiste.svelte`, `lib/postfachAnsicht.ts`): „Stand“ (Alle, Neu,
   Handlungsbedarf, Erledigt) und „Zuständig“ (Alle, Ich, Niemand). Die Seite beginnt mit allem.
   Jede Zahl sagt, wie viele E-Mails diese Wahl mit dem anderen Filter zeigen würde; passt nichts,
   bietet die Liste „Filter zurücksetzen“. Jede Zeile zeigt ihren Stand (roter Punkt und fett für
-  „Neu“, Fähnchen für „Handlungsbedarf“, grüner Haken mit Datum für „Erledigt“) und wer zuständig
-  ist. Wer eine Konversation in Outlook aus dem Posteingang verschiebt (z. B. archiviert), nimmt
-  sie damit aus der Liste. Liegen mehr als 100 Nachrichten im Posteingang, sagt die Liste das
+  „Neu“, Fähnchen für „Handlungsbedarf“, grüner Haken für „Erledigt“) und wer zuständig ist.
+  Erledigte stehen unter „Erledigt“, soweit sie im Archiv liegen; was in einen anderen Ordner
+  verschoben wurde, zeigt die Liste nicht. Liegen mehr als 100 Nachrichten im Posteingang oder im
+  Archiv, sagt die Liste das
   („Hier stehen die neuesten 100 E-Mails.“ mit Link zu Outlook), und leere Filter behaupten nicht,
   das ganze Postfach sei erledigt.
 - **Lesen:** Alle Nachrichten der Konversation aus allen Ordnern, also auch Antworten aus
@@ -49,19 +53,26 @@ Postfach sagt er nur, ob irgendwer die Nachricht schon angeklickt hat.
   API herunter, immer als Download und nur PNG, JPEG, GIF, WebP und PDF mit ihrem Typ; angehängte
   Nachrichten und größere Dateien gibt es nur in Outlook.
 - **Stand einer Konversation** (`statusAus` in `api/lib/postfach-model.ts`), aus den empfangenen
-  Nachrichten aller Ordner (die Liste nur aus dem Posteingang): Hat irgendeine ein Fähnchen, ist
-  es „Handlungsbedarf“. Sonst entscheidet die neueste: erledigtes Fähnchen heißt „Erledigt“
-  (mit `completedDateTime`), keines heißt „Neu“. Eine Antwort nach „Erledigt“ hat noch kein
-  Fähnchen, die Konversation ist also wieder neu. Gesendete Antworten zählen nicht mit.
-- **Stand setzen** (`PUT …/{postfach}/status`, `api/lib/postfach-aenderung.ts`): „Neu“ nimmt
-  allen empfangenen Nachrichten das Fähnchen, „Handlungsbedarf“ setzt es nur an der neuesten (und
-  nimmt es den anderen), damit „Als erledigt markieren“ an dieser einen Nachricht in Outlook die
-  Konversation erledigt, „Erledigt“ setzt an allen ein erledigtes Fähnchen. Geschrieben wird nur,
-  was sich ändert. Das kann jede Person, die das Postfach sieht. Die Seite schickt mit, welchen
-  Stand sie angezeigt hat (`vorher`) und bis zu welcher Nachricht (`bis`); die API liest die
-  Konversation frisch und antwortet mit `409`, wenn inzwischen jemand (auch in Outlook) etwas
-  geändert hat oder eine neuere Nachricht gekommen ist. Jede Nachricht wird nur in der gelesenen Version geändert (`If-Match` mit dem ETag); hat sie jemand dazwischen geändert, etwa in Outlook, kommt ebenfalls `409`. Änderungen derselben Konversation laufen je Instanz nacheinander. Konversationen mit mehr als 200 Nachrichten ändert die Website nicht (`422`, Hinweis auf Outlook). Wer vorher was gesetzt hat, speichert
-  Outlook nicht; die Seite zeigt deshalb nur, seit wann etwas erledigt ist.
+  Nachrichten: Liegt keine mehr im Posteingang, ist sie „Erledigt“. Hat eine im Posteingang ein
+  Fähnchen, ist es „Handlungsbedarf“, sonst „Neu“. Eine Antwort nach „Erledigt“ landet im
+  Posteingang, die Konversation ist also wieder neu. Gesendete Antworten zählen nicht mit: was in
+  „Gesendete Elemente“ liegt, und was das Postfach an andere geschickt und dann verschoben hat;
+  Formularnachrichten, die das Postfach an sich selbst schickt, zählen als empfangen.
+- **Stand setzen** (`PUT …/{postfach}/status`, `api/lib/postfach-aenderung.ts`): „Erledigt“
+  verschiebt die empfangenen Nachrichten aus dem Posteingang ins Archiv (ein noch offenes
+  Fähnchen wird vorher erledigt, damit es aus den Aufgaben in Outlook verschwindet). „Neu“ und
+  „Handlungsbedarf“ holen eine erledigte Konversation zurück: die archivierten Nachrichten, oder,
+  wenn keine im Archiv liegt, die neueste aus ihrem Ordner. „Handlungsbedarf“ setzt das Fähnchen
+  nur an der neuesten Nachricht im Posteingang, „Neu“ nimmt es allen dort. Geschrieben und
+  verschoben wird nur, was sich ändert. Das kann jede Person, die das Postfach sieht. Die Seite
+  schickt mit, welchen Stand sie angezeigt hat (`vorher`) und bis zu welcher Nachricht (`bis`);
+  die API liest die Konversation frisch und antwortet mit `409`, wenn inzwischen jemand (auch in
+  Outlook) etwas geändert hat oder eine neuere Nachricht gekommen ist. Jede Nachricht wird nur in
+  der gelesenen Version geändert und verschoben (`If-Match` mit dem ETag); hat sie jemand
+  dazwischen geändert oder gelöscht, kommt ebenfalls `409`. Änderungen derselben Konversation
+  laufen je Instanz nacheinander. Konversationen mit mehr als 200 Nachrichten ändert die Website
+  nicht (`422`, Hinweis auf Outlook). Hat das Postfach keinen Archivordner, antwortet „Erledigt“
+  mit `503 KEIN_ARCHIV`. Wer vorher was gesetzt hat, speichert Outlook nicht.
 - **Zuständigkeit** (`PUT …/{postfach}/zustaendig`): pro Konversation eine Person, als Kategorie
   `👤 <Anzeigename>` an allen empfangenen Nachrichten; andere Kategorien bleiben. „Ich kümmere
   mich“ oder „Jemandem zuweisen“ (Mitglieder der Teams des Postfachs, aus Entra ID). Die Website
@@ -73,8 +84,8 @@ Postfach sagt er nur, ob irgendwer die Nachricht schon angeklickt hat.
   API die Kategorie in der Kategorieliste des Postfachs an, damit Outlook sie farbig zeigt und im
   Menü anbietet (optional, `MailboxSettings.ReadWrite`; ohne geht die Kategorie trotzdem).
 - **Mehrere auf einmal:** Mit den Kästchen vor den Zeilen (oder „Alle … auswählen“ für das, was
-  der Filter zeigt) wählt man Konversationen aus und setzt für alle denselben Stand („Als erledigt
-  markieren“, „Handlungsbedarf“, „Wieder neu“) oder dieselbe zuständige Person
+  der Filter zeigt) wählt man Konversationen aus und setzt für alle denselben Stand („Erledigt und
+  archivieren“, „Handlungsbedarf“, „Wieder neu“) oder dieselbe zuständige Person
   (`MehrfachAktionen.svelte`). Den Stand speichert die Seite Konversation für
   Konversation über `PUT …/status`; die Zuständigkeit geht in einem Aufruf an
   `PUT …/{postfach}/zustaendig-mehrere` (`intern-postfach-mehrere.ts`, höchstens 100), der jede
@@ -119,8 +130,9 @@ sie **einmalig**:
    (`503 POSTFACH_GESPERRT`, im Log `[postfach] Graph verweigert …`), ohne Schreibzugriff jede
    Änderung mit „Die Website darf in diesem Postfach gerade nichts ändern …“
    (`503 POSTFACH_SCHREIBGESCHUETZT`, im Log `[postfach] Graph verweigert Änderungen an …`).
-   Geändert werden nur Fähnchen und Kategorien; der Code verschiebt, löscht und sendet keine
-   Nachrichten des Postfachs (außer der Benachrichtigung über `Mail.Send`).
+   Geändert werden nur Fähnchen, Kategorien und der Ordner (Posteingang oder Archiv); der Code
+   löscht und sendet keine Nachrichten des Postfachs (außer der Benachrichtigung über
+   `Mail.Send`).
 2. **Auf die Gruppenpostfächer beschränken.** `Mail.Read` gilt sonst für alle Postfächer des
    Tenants. Mit RBAC for Applications in Exchange Online (Exchange Online PowerShell):
 
@@ -160,21 +172,22 @@ sie **einmalig**:
   als die Website Gelesen, Zuständigkeit und Stand selbst gespeichert hat. Der Code liest und
   schreibt es nicht mehr; die Tabellen werden in einem späteren PR entfernt, sobald die Daten
   übertragen sind (unten).
-- **Previews** lesen über Graph dasselbe echte Postfach wie die Produktion und dürfen es deshalb
-  **nicht ändern**: `PUT …/status`, `…/zustaendig` und `…/zustaendig-mehrere` antworten dort mit
-  `403 NUR_LESEN`, und die Seite blendet die Knöpfe aus (`nurLesen` in `GET …/{postfach}`). Das
-  Testkonto der Previews (`CONFIG.staff.previewOnlyLogins`) bekommt dort alle Teamrollen, ohne in
-  den Teams zu sein; es sieht deshalb nur das Postfach der Leitenden (`sichtbarePostfaecher`), nie
-  Vorstand-, Förderverein- oder Admin-Postfach. Previews schicken keine Benachrichtigungen. Lokal
-  (`dev:mock`) liefert `web/dev/mockPostfach.ts` Demo-Mails mit Fähnchen und Kategorien im Speicher.
+- **Previews** lesen und ändern dieselben echten Postfächer wie die Produktion, damit sich der
+  Ablauf dort ausprobieren lässt: Was man in einer Preview als erledigt markiert, ist auch in
+  Outlook archiviert. Das Testkonto der Previews (`CONFIG.staff.previewOnlyLogins`) bekommt dort
+  alle Teamrollen, ohne in den Teams zu sein; es sieht deshalb nur das Postfach der Leitenden
+  (`sichtbarePostfaecher`), nie Vorstand-, Förderverein- oder Admin-Postfach. Previews schicken
+  keine Benachrichtigungen. Lokal (`dev:mock`) liefert `web/dev/mockPostfach.ts` Demo-Mails mit
+  Fähnchen, Kategorien und Ordnern im Speicher.
 
 ## Umstellung von der eigenen Datenbank auf Outlook
 
 Bis November 2026 hat die Website Zuständigkeit und Stand in Azure SQL gespeichert. Nach dem
 Deploy überträgt `api/scripts/postfach-nach-outlook.ts` sie einmalig nach Outlook: Eine zuständige
 Person wird zur Kategorie und, wenn die Konversation nicht erledigt ist, zum Fähnchen;
-„Erledigt“ und „Kein Handlungsbedarf“ werden zum erledigten Fähnchen, sofern seitdem keine neue
-Nachricht kam. Was in Outlook schon gesetzt ist, bleibt. Ohne `--schreiben` zeigt es nur, was es
+„Erledigt“ und „Kein Handlungsbedarf“ verschieben die Konversation ins Archiv, sofern seitdem
+keine neue Nachricht kam. Was in Outlook schon gesetzt ist, bleibt. Alles, was auf der Website
+nie markiert wurde, bleibt „Neu“: Was davon erledigt ist, archiviert man einmal in Outlook. Ohne `--schreiben` zeigt es nur, was es
 ändern würde:
 
 ```bash

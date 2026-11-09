@@ -1,13 +1,16 @@
 /**
  * One-time move of the module „E-Mail“ to Outlook (`docs/postfaecher.md`): writes the
  * responsibilities and the done marks the website kept in Azure SQL (`postfach.zustaendigkeit`,
- * `postfach.erledigung`) as categories and flags into the mailboxes.
+ * `postfach.erledigung`) into the mailboxes.
  *
  * - A person becomes the category `👤 <Name>`; the conversation gets the flag
  *   („Handlungsbedarf“), unless it is done.
- * - „Erledigt“ and „Kein Handlungsbedarf“ become a completed flag, unless a newer message arrived
- *   after the mark.
- * - What Outlook already has wins: a conversation with a flag or a person category stays as it is.
+ * - „Erledigt“ and „Kein Handlungsbedarf“ move the conversation into the archive, unless a newer
+ *   message arrived after the mark.
+ * - What Outlook already has wins: a conversation with a flag, a person category or outside the
+ *   inbox stays as it is.
+ *
+ * Mails nobody marked stay „Neu“; whatever of them is done, archive it in Outlook.
  *
  * Reads the database with the Azure CLI login and changes the mailboxes with the app registration
  * (certificate in `AZURE_CLIENT_CERT`, which needs `Mail.ReadWrite` on the mailboxes). Without

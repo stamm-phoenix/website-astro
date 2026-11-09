@@ -1,7 +1,12 @@
 import { METHOD_NOT_ALLOWED, NO_STORE_HEADERS, ok, readJsonBody } from '../lib/pflege-api';
 import { errorResponse } from '../lib/response-utils';
 import { eigenerLogin } from '../lib/postfach';
-import { NeueNachrichtError, setzeStatus, StatusKonfliktError } from '../lib/postfach-stand';
+import {
+  KeinArchivError,
+  NeueNachrichtError,
+  setzeStatus,
+  StatusKonfliktError,
+} from '../lib/postfach-stand';
 import { validateStatus } from '../lib/validation/postfach';
 import { postfachAenderung } from './intern-postfach';
 
@@ -11,16 +16,23 @@ const KONVERSATION_FEHLT = errorResponse(
   'Diese E-Mail ist nicht mehr im Postfach. Vielleicht wurde sie in Outlook gelöscht.'
 );
 
+const KEIN_ARCHIV = errorResponse(
+  503,
+  'KEIN_ARCHIV',
+  'Dieses Postfach hat keinen Archivordner, in den erledigte E-Mails kommen. Nichts wurde gespeichert. Bitte melde das an admin@stamm-phoenix.de.'
+);
+
 const JETZT = {
   neu: 'Sie ist inzwischen wieder neu, vielleicht durch eine neue Nachricht',
   handlungsbedarf: 'Jemand hat sie inzwischen mit „Handlungsbedarf“ markiert',
-  erledigt: 'Jemand hat sie inzwischen als erledigt markiert',
+  erledigt: 'Jemand hat sie inzwischen erledigt oder archiviert',
 } as const;
 
 /**
- * `PUT /api/intern/postfach/{postfach}/status` `{ konversation, status, vorher, bis }`: sets the
- * flags of the conversation in Outlook to „Neu“, „Handlungsbedarf“ or „Erledigt“. Anyone who sees
- * the mailbox may do it. Answers `{ status, erledigtAm }`; 409 says what applies now.
+ * `PUT /api/intern/postfach/{postfach}/status` `{ konversation, status, vorher, bis }`: makes the
+ * conversation „Neu“ or „Handlungsbedarf“ in the inbox (with or without a flag) or archives it as
+ * „Erledigt“. Anyone who sees the mailbox may do it. Answers `{ status }`; 409 says what applies
+ * now.
  */
 export const PostfachStatusRoute = postfachAenderung(
   async (request, postfach, principal, context) => {
@@ -36,8 +48,9 @@ export const PostfachStatusRoute = postfachAenderung(
       );
       if (!zeile) return KONVERSATION_FEHLT;
       context.log(`[postfach] ${eigenerLogin(principal)} ${postfach.id} Stand: ${eingabe.status}`);
-      return ok({ status: zeile.status, erledigtAm: zeile.erledigtAm });
+      return ok({ status: zeile.status });
     } catch (error: unknown) {
+      if (error instanceof KeinArchivError) return KEIN_ARCHIV;
       if (error instanceof NeueNachrichtError) {
         return {
           status: 409,
@@ -59,7 +72,6 @@ export const PostfachStatusRoute = postfachAenderung(
           code: 'CONFLICT',
           message: `${JETZT[error.aktuell.status]}. Nichts wurde gespeichert.`,
           status: error.aktuell.status,
-          erledigtAm: error.aktuell.erledigtAm,
         },
       };
     }

@@ -35,8 +35,12 @@ for (const status of [500, 401]) {
     expect(await page.locator('#blog-title').evaluate((node) => !!node.closest('[inert]'))).toBe(
       true
     );
-    expect(await page.locator('input[type="file"]').evaluate((node) => !!node.closest('[inert]'))).toBe(true);
-    await expect(page.getByRole('button', { name: 'Als Entwurf speichern', exact: true })).toBeDisabled();
+    expect(
+      await page.locator('input[type="file"]').evaluate((node) => !!node.closest('[inert]'))
+    ).toBe(true);
+    await expect(
+      page.getByRole('button', { name: 'Als Entwurf speichern', exact: true })
+    ).toBeDisabled();
     expect(
       await page
         .getByRole('status')

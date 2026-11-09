@@ -100,15 +100,15 @@
     const geschafft = lauf.length - fehlgeschlagen.length;
     const ziel =
       neu === 'neu'
-        ? 'wieder als neu'
+        ? 'wieder als neu markiert'
         : neu === 'erledigt'
-          ? 'als erledigt'
-          : `mit „${STATUS_LABEL.handlungsbedarf}“`;
+          ? 'erledigt und archiviert'
+          : `mit „${STATUS_LABEL.handlungsbedarf}“ markiert`;
     abschliessen(
       lauf,
       fehlgeschlagen.length
-        ? `${geschafft} von ${lauf.length} ${wort(lauf.length)} ${ziel} markiert.`
-        : `${geschafft} ${wort(geschafft)} ${ziel} markiert.`,
+        ? `${geschafft} von ${lauf.length} ${wort(lauf.length)} ${ziel}.`
+        : `${geschafft} ${wort(geschafft)} ${ziel}.`,
       fehlgeschlagen
     );
   }
@@ -190,7 +190,7 @@
       </div>
       <div class="flex flex-wrap gap-2" role="group" aria-label="Stand für die Auswahl">
         <ActionButton disabled={busy} onclick={() => void stand('erledigt')}
-          >Als erledigt markieren</ActionButton
+          >Erledigt und archivieren</ActionButton
         >
         <ActionButton disabled={busy} onclick={() => void stand('handlungsbedarf')}
           >Handlungsbedarf</ActionButton

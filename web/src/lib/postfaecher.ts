@@ -18,7 +18,7 @@ export const POSTFACH_MODULES: StaffModule[] = POSTFAECHER.map((postfach) => ({
   title: postfach.name,
   description: postfach.description,
   intro:
-    'Stand und Zuständigkeit stehen auch in Outlook: „Handlungsbedarf“ ist ein Fähnchen, „Erledigt“ ein erledigtes Fähnchen, die zuständige Person eine Kategorie mit 👤. Was du hier oder in Outlook änderst, sehen alle. Antworten, Verschieben und Löschen gehen in Outlook. Wer zuständig wird, bekommt eine Mail.',
+    'Stand und Zuständigkeit stehen auch in Outlook: „Handlungsbedarf“ ist ein Fähnchen, „Erledigt“ heißt archiviert, die zuständige Person ist eine Kategorie mit 👤. Was du hier oder in Outlook änderst, sehen alle. Antworten und Löschen gehen in Outlook. Wer zuständig wird, bekommt eine Mail.',
   wrap: postfach.name.replace('-', '-|'),
   keywords: ['mail', 'e-mail', 'postfach', 'outlook', 'posteingang', postfach.address],
   icon: ICON,

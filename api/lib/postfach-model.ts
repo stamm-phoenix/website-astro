@@ -19,8 +19,8 @@ export interface Zustaendigkeit {
 }
 
 /**
- * Where a conversation stands, from the flags in Outlook: „Neu“ without a flag, „Handlungsbedarf“
- * with a flag, „Erledigt“ with a completed flag.
+ * Where a conversation stands in Outlook: „Neu“ in the inbox without a flag, „Handlungsbedarf“
+ * in the inbox with a flag, „Erledigt“ archived (no longer in the inbox).
  */
 export type PostfachStatus = 'neu' | 'handlungsbedarf' | 'erledigt';
 
@@ -47,11 +47,12 @@ export function kategorieFuer(
   return `${ZUSTAENDIG_PRAEFIX}${person.name.trim()}${zusatz}`;
 }
 
+/** Where a received message lies: the inbox, the archive or another folder. */
+export type MailOrdner = 'posteingang' | 'archiv' | 'anderer';
+
 /** The status and responsibility of a conversation, as the list and the reading view show it. */
 export interface KonversationStand {
   status: PostfachStatus;
-  /** ISO time it was marked done in Outlook; null unless done (or when Outlook does not tell). */
-  erledigtAm: string | null;
   zustaendig: Zustaendigkeit | null;
 }
 
@@ -66,7 +67,7 @@ export interface KonversationZeile extends KonversationStand {
   /** ISO time of the newest message. */
   am: string;
   vorschau: string;
-  /** Messages of the conversation in the inbox, as far as the list reaches. */
+  /** Messages of the conversation in the inbox (archived: in the archive), as far as read. */
   anzahl: number;
   hatAnhang: boolean;
   wichtig: boolean;
@@ -124,8 +125,6 @@ export interface PostfachAnsicht {
   begrenzt: boolean;
   /** Login of the logged-in person, to recognise own assignments. */
   ich: string;
-  /** A preview: it reads the real mailbox, but must not change it. */
-  nurLesen: boolean;
 }
 
 /** `GET /api/intern/postfach/{id}/konversation?id=`. */
@@ -169,9 +168,8 @@ export interface InboxNachricht {
   hatAnhang: boolean;
   wichtig: boolean;
   flag: OutlookFlag;
-  /** ISO time the flag was completed, if Outlook tells. */
-  erledigtAm: string | null;
   kategorien: string[];
+  ordner: MailOrdner;
   /** Version of the message in Exchange, for a change that must not overwrite a newer one. */
   etag?: string;
 }
@@ -182,18 +180,16 @@ function neuesteZuerst<T extends Pick<InboxNachricht, 'am'>>(nachrichten: readon
 }
 
 /**
- * The status of a conversation from the flags of its received messages: a flag anywhere means
- * „Handlungsbedarf“; otherwise the newest message decides, so a reply after „Erledigt“ is new
- * again.
+ * The status of a conversation from its received messages: none left in the inbox means
+ * „Erledigt“; a flag on one in the inbox „Handlungsbedarf“; otherwise „Neu“. A reply after
+ * „Erledigt“ lands in the inbox, so the conversation is new again.
  */
 export function statusAus(
-  nachrichten: readonly Pick<InboxNachricht, 'am' | 'flag' | 'erledigtAm'>[]
-): Pick<KonversationStand, 'status' | 'erledigtAm'> {
-  if (nachrichten.some((nachricht) => nachricht.flag === 'flagged'))
-    return { status: 'handlungsbedarf', erledigtAm: null };
-  const [neueste] = neuesteZuerst(nachrichten);
-  if (neueste?.flag === 'complete') return { status: 'erledigt', erledigtAm: neueste.erledigtAm };
-  return { status: 'neu', erledigtAm: null };
+  nachrichten: readonly Pick<InboxNachricht, 'flag' | 'ordner'>[]
+): PostfachStatus {
+  const offen = nachrichten.filter((nachricht) => nachricht.ordner === 'posteingang');
+  if (!offen.length) return 'erledigt';
+  return offen.some((nachricht) => nachricht.flag === 'flagged') ? 'handlungsbedarf' : 'neu';
 }
 
 /** The responsible person named by a category, matched against the people of the mailbox. */
@@ -223,7 +219,7 @@ export function zustaendigAus(
 
 /** Status and responsibility of a conversation; the newest message with a person names them. */
 export function standAus(
-  nachrichten: readonly Pick<InboxNachricht, 'am' | 'flag' | 'erledigtAm' | 'kategorien'>[],
+  nachrichten: readonly Pick<InboxNachricht, 'am' | 'flag' | 'ordner' | 'kategorien'>[],
   personen: readonly PostfachPerson[]
 ): KonversationStand {
   let zustaendig: Zustaendigkeit | null = null;
@@ -231,29 +227,33 @@ export function standAus(
     zustaendig = zustaendigAus(nachricht.kategorien, personen);
     if (zustaendig) break;
   }
-  return { ...statusAus(nachrichten), zustaendig };
+  return { status: statusAus(nachrichten), zustaendig };
 }
 
 /**
- * Groups the messages of the inbox into conversations, newest first. Each conversation takes
- * subject, sender and preview of its newest message; its status and person also count
- * `weitere`, received messages of the same conversations in other folders (e.g. archived).
+ * Groups received messages into conversations, newest first: those of the inbox and archived
+ * ones, plus received messages of the same conversations in other folders. A conversation with a
+ * message in the inbox shows its newest one there; an archived one its newest message.
  */
 export function konversationenAus(
   postfach: string,
   nachrichten: readonly InboxNachricht[],
-  personen: readonly PostfachPerson[],
-  weitere: readonly InboxNachricht[] = []
+  personen: readonly PostfachPerson[]
 ): KonversationZeile[] {
   const gruppen = new Map<string, InboxNachricht[]>();
+  const gesehen = new Set<string>();
   for (const nachricht of neuesteZuerst(nachrichten)) {
+    if (gesehen.has(nachricht.id)) continue;
+    gesehen.add(nachricht.id);
     const gruppe = gruppen.get(nachricht.konversation);
     if (gruppe) gruppe.push(nachricht);
     else gruppen.set(nachricht.konversation, [nachricht]);
   }
-  return [...gruppen.values()].map((gruppe) => {
-    const andere = weitere.filter((nachricht) => nachricht.konversation === gruppe[0].konversation);
-    const [neueste] = gruppe;
+  const zeilen = [...gruppen.values()].map((gruppe): KonversationZeile => {
+    const offen = gruppe.filter((nachricht) => nachricht.ordner === 'posteingang');
+    const gezeigt = offen.length ? offen : gruppe.filter((n) => n.ordner === 'archiv');
+    const sichtbar = gezeigt.length ? gezeigt : gruppe;
+    const [neueste] = sichtbar;
     return {
       id: neueste.konversation,
       postfach,
@@ -261,12 +261,13 @@ export function konversationenAus(
       von: neueste.von,
       am: neueste.am,
       vorschau: neueste.vorschau,
-      anzahl: gruppe.length,
-      hatAnhang: gruppe.some((nachricht) => nachricht.hatAnhang),
-      wichtig: gruppe.some((nachricht) => nachricht.wichtig),
-      ...standAus([...gruppe, ...andere], personen),
+      anzahl: sichtbar.length,
+      hatAnhang: sichtbar.some((nachricht) => nachricht.hatAnhang),
+      wichtig: sichtbar.some((nachricht) => nachricht.wichtig),
+      ...standAus(gruppe, personen),
     };
   });
+  return zeilen.sort((a, b) => b.am.localeCompare(a.am));
 }
 
 /**
@@ -279,16 +280,14 @@ export function sekunde(iso: string): string {
 
 /**
  * A status saved for the messages up to `bis`, applied to a view whose newest message is
- * `neueste`: a newer message has no flag yet, so a conversation saved as done is new again.
+ * `neueste`: a newer message lands in the inbox, so a conversation saved as done is new again.
  */
 export function standFuer(
-  stand: Pick<KonversationStand, 'status' | 'erledigtAm'>,
+  stand: Pick<KonversationStand, 'status'>,
   neueste: string,
   bis: string
-): Pick<KonversationStand, 'status' | 'erledigtAm'> {
-  return stand.status === 'erledigt' && sekunde(neueste) > sekunde(bis)
-    ? { status: 'neu', erledigtAm: null }
-    : stand;
+): Pick<KonversationStand, 'status'> {
+  return stand.status === 'erledigt' && sekunde(neueste) > sekunde(bis) ? { status: 'neu' } : stand;
 }
 
 /** The conversation is assigned to the login (compared without case). */

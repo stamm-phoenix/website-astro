@@ -33,7 +33,6 @@ function zeile(
     wichtig: false,
     zustaendig: login ? { login, name: login } : null,
     status,
-    erledigtAm: status === 'erledigt' ? '2026-11-03T11:00:00.000Z' : null,
   };
 }
 

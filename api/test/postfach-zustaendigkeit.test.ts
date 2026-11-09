@@ -37,7 +37,6 @@ test('assigning writes the category into Outlook, flags a new one and notifies t
   assert.deepEqual(response.jsonBody, {
     zustaendig: { login: 'tom@stamm-phoenix.de', name: 'Tom Test' },
     status: 'handlungsbedarf',
-    erledigtAm: null,
     benachrichtigt: true,
   });
   // Every received message gets the person, other categories stay; the sent one is left alone
@@ -313,7 +312,7 @@ test('without permission to change the mailbox nothing is saved and the page say
   assert.equal(mocks.mails.length, 0);
 });
 
-test('a preview reads the real mailbox but changes nothing in it', async (t) => {
+test('a preview changes the real mailbox to try it, but sends no note', async (t) => {
   const { context, mocks } = setup(t);
   overrideConfig(t, CONFIG.database, { server: CONFIG.database.previewServer });
   const response = await PostfachZustaendigRoute(
@@ -323,8 +322,10 @@ test('a preview reads the real mailbox but changes nothing in it', async (t) => 
     }),
     context
   );
-  assert.equal(response.status, 403);
-  assert.equal(mocks.patches.length, 0);
+  assert.equal(response.status, 200);
+  assert.deepEqual(kategorien(mocks, 'AAkALgm3000000'), ['👤 Tom Test']);
+  assert.equal((response.jsonBody as { benachrichtigt: boolean }).benachrichtigt, false);
+  assert.equal(mocks.mails.length, 0);
 });
 
 test('a message changed in Outlook after it was read is not overwritten', async (t) => {

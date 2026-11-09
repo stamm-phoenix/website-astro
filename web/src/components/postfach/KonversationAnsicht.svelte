@@ -25,8 +25,6 @@
     outlookPostfach: string;
     konversation: string;
     ich: string;
-    /** A preview: shown, but not changed. */
-    nurLesen: boolean;
     onzurueck: () => void;
     onkonflikt: () => void;
     /** Counts „Neu laden“ of the page; each change reads the open conversation again. */
@@ -37,7 +35,6 @@
     outlookPostfach,
     konversation,
     ich,
-    nurLesen,
     onzurueck,
     onkonflikt,
     neuladen = 0,
@@ -187,12 +184,10 @@
             konversation={data.konversation.id}
             zustaendig={data.konversation.zustaendig}
             {ich}
-            {nurLesen}
             onaenderung={(id, ergebnis) =>
               uebernimm(id, {
                 zustaendig: ergebnis.zustaendig,
                 status: ergebnis.status,
-                erledigtAm: ergebnis.erledigtAm,
               })}
             onkonflikt={(id) => {
               onkonflikt();
@@ -204,9 +199,7 @@
               {postfach}
               konversation={data.konversation.id}
               status={data.konversation.status}
-              erledigtAm={data.konversation.erledigtAm}
               bis={data.konversation.am}
-              {nurLesen}
               onaenderung={(id, stand, bis) =>
                 uebernimm(id, standFuer(stand, detail?.konversation.am ?? bis, bis))}
               onkonflikt={(id) => {

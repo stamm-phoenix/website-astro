@@ -1,5 +1,5 @@
 import { aenderungen, nachAenderung } from './postfach-aenderung';
-import { readKonversationStand } from './postfach-graph';
+import { hatArchiv, readKonversationStand } from './postfach-graph';
 import type { PostfachEintrag } from './postfach-liste';
 import {
   kategorieFuer,
@@ -72,6 +72,14 @@ async function nacheinander<T>(schluessel: string, arbeit: () => Promise<T>): Pr
   }
 }
 
+/** The mailbox has no archive to move a done conversation to. */
+export class KeinArchivError extends Error {
+  constructor() {
+    super('The mailbox has no archive folder.');
+    this.name = 'KeinArchivError';
+  }
+}
+
 export interface Person {
   login: string;
   name: string;
@@ -136,6 +144,7 @@ export async function setzeStatus(
     if (status === vorher) return frisch.zeile;
     if (status !== 'neu' && sekunde(frisch.zeile.am) > sekunde(gesehen))
       throw new NeueNachrichtError();
+    if (status === 'erledigt' && !(await hatArchiv(postfach.address))) throw new KeinArchivError();
     const personen = await personenFuerKategorien(postfach);
     return schreiben(postfach, frisch, { status }, personen);
   });

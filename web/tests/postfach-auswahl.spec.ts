@@ -48,12 +48,12 @@ test('the list shows all mails with their state; several are marked as done at o
 
   const aktionen = await waehleBeide(page);
   await expectNoHorizontalOverflow(page);
-  await aktionen.getByRole('button', { name: 'Als erledigt markieren' }).click();
-  await expect(aktionen.getByText('2 E-Mails als erledigt markiert.')).toBeVisible();
+  await aktionen.getByRole('button', { name: 'Erledigt und archivieren' }).click();
+  await expect(aktionen.getByText('2 E-Mails erledigt und archiviert.')).toBeVisible();
   // Done, the choice is empty again and both stay in „Alle“, ticked off
   await expect(liste.getByRole('checkbox', { name: NEWSLETTER })).not.toBeChecked();
-  await expect(liste.getByRole('link', { name: NEWSLETTER })).toContainText('Erledigt ·');
-  await expect(liste.getByRole('link', { name: RECHNUNG })).toContainText('Erledigt ·');
+  await expect(liste.getByRole('link', { name: NEWSLETTER })).toContainText('Erledigt');
+  await expect(liste.getByRole('link', { name: RECHNUNG })).toContainText('Erledigt');
 
   await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Neu/ }).click();
   await expect(liste.getByRole('link', { name: NEWSLETTER })).toHaveCount(0);
@@ -115,13 +115,13 @@ test('while the chosen ones are saved, the choice stays as it is and the result 
   });
   await liste.getByRole('checkbox', { name: NEWSLETTER }).check();
   const aktionen = liste.getByRole('region', { name: 'Aktionen für die Auswahl' });
-  await aktionen.getByRole('button', { name: 'Als erledigt markieren' }).click();
+  await aktionen.getByRole('button', { name: 'Erledigt und archivieren' }).click();
   await expect(aktionen.getByText('Wird gespeichert …')).toBeVisible();
   // Nothing can be added or taken away before the answer is there
   await expect(liste.getByRole('checkbox', { name: RECHNUNG })).toBeDisabled();
   await expect(liste.getByRole('checkbox', { name: /^Alle \d+ auswählen/ })).toBeDisabled();
   release();
-  await expect(aktionen.getByText('1 E-Mail als erledigt markiert.')).toBeVisible();
+  await expect(aktionen.getByText('1 E-Mail erledigt und archiviert.')).toBeVisible();
   await expect(liste.getByRole('link', { name: RECHNUNG })).toContainText('Neu');
   await expect(liste.getByRole('checkbox', { name: RECHNUNG })).toBeEnabled();
   await page.unrouteAll({ behavior: 'ignoreErrors' });
@@ -133,8 +133,8 @@ test('a mail someone opened again meanwhile is not confirmed as done', async ({ 
   await zuruecksetzen(page);
   await liste.getByRole('checkbox', { name: NEWSLETTER }).check();
   const aktionen = liste.getByRole('region', { name: 'Aktionen für die Auswahl' });
-  await aktionen.getByRole('button', { name: 'Als erledigt markieren' }).click();
-  await expect(aktionen.getByText('1 E-Mail als erledigt markiert.')).toBeVisible();
+  await aktionen.getByRole('button', { name: 'Erledigt und archivieren' }).click();
+  await expect(aktionen.getByText('1 E-Mail erledigt und archiviert.')).toBeVisible();
 
   // Someone else opens it again; this page still shows it done
   const antwort = await page.request.put('/api/intern/postfach/kontakt/status', {
@@ -149,8 +149,8 @@ test('a mail someone opened again meanwhile is not confirmed as done', async ({ 
   await expect(liste.getByRole('link', { name: NEWSLETTER })).toContainText('Erledigt');
 
   await liste.getByRole('checkbox', { name: NEWSLETTER }).check();
-  await aktionen.getByRole('button', { name: 'Als erledigt markieren' }).click();
-  await expect(aktionen.getByText('0 von 1 E-Mail als erledigt markiert.')).toBeVisible();
+  await aktionen.getByRole('button', { name: 'Erledigt und archivieren' }).click();
+  await expect(aktionen.getByText('0 von 1 E-Mail erledigt und archiviert.')).toBeVisible();
   await expect(aktionen.getByRole('alert')).toContainText('Newsletter Diözesanverband');
   await expect(liste.getByRole('checkbox', { name: NEWSLETTER })).toBeChecked();
   // The list is read again and shows what applies now

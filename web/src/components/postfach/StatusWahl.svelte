@@ -4,38 +4,26 @@
   import { errorMessage } from '../../lib/api';
   import { ApiError } from '../../lib/apiError';
   import { setzeStatus, type StatusStand } from '../../lib/postfachStore.svelte';
-  import { mailZeitKurz, STATUS_LABEL } from '../../lib/postfachAnsicht';
+  import { STATUS_LABEL } from '../../lib/postfachAnsicht';
   import type { PostfachStatus } from '../../../../api/lib/postfach-model';
 
   /**
-   * Where the conversation stands, for everyone who sees the mailbox and in Outlook: new,
-   * needs action (a flag) or done (a completed flag). Saves at once; a reply after „Erledigt“
-   * makes it new again.
+   * Where the conversation stands, for everyone who sees the mailbox and in Outlook: new, needs
+   * action (a flag) or done (archived). Saves at once; a reply after „Erledigt“ lands in the inbox
+   * and makes it new again.
    */
   interface Props {
     postfach: string;
     konversation: string;
     status: PostfachStatus;
-    erledigtAm: string | null;
     /** Received time of the newest message shown; a newer one is not closed unseen. */
     bis: string;
-    /** A preview: shown, but not changed. */
-    nurLesen: boolean;
     /** After a save, with the conversation it was for, what was saved and up to which message. */
     onaenderung: (konversation: string, stand: StatusStand, bis: string) => void;
     /** After a conflict: the page reloads what is current. */
     onkonflikt: (konversation: string) => void;
   }
-  let {
-    postfach,
-    konversation,
-    status,
-    erledigtAm,
-    bis,
-    nurLesen,
-    onaenderung,
-    onkonflikt,
-  }: Props = $props();
+  let { postfach, konversation, status, bis, onaenderung, onkonflikt }: Props = $props();
 
   const OPTIONEN = [
     { value: 'neu', label: STATUS_LABEL.neu, tone: 'neutral' },
@@ -46,23 +34,15 @@
   const ERFOLG: Record<PostfachStatus, string> = {
     neu: 'Wieder als neu markiert.',
     handlungsbedarf: 'Mit „Handlungsbedarf“ markiert.',
-    erledigt: 'Als erledigt markiert.',
+    erledigt: 'Erledigt und archiviert.',
   };
 
   let busy = $state(false);
   let meldung = $state<string | null>(null);
   let fehler = $state<string | null>(null);
 
-  const hinweis = $derived(
-    nurLesen
-      ? 'In der Vorschau nur zum Ansehen.'
-      : status === 'erledigt' && erledigtAm
-        ? `Erledigt ${mailZeitKurz(erledigtAm)} · Wird sofort gespeichert.`
-        : 'Wird sofort gespeichert.'
-  );
-
   async function waehle(neu: PostfachStatus): Promise<void> {
-    if (neu === status || busy || nurLesen) return;
+    if (neu === status || busy) return;
     const fuer = konversation;
     busy = true;
     meldung = null;
@@ -97,10 +77,10 @@
     variant="segmented"
     options={OPTIONEN}
     value={status}
-    disabled={busy || nurLesen}
+    disabled={busy}
     onselect={(value) => void waehle(value)}
   />
-  <p class="text-sm text-neutral-700">{hinweis}</p>
+  <p class="text-sm text-neutral-700">Wird sofort gespeichert.</p>
   {#if meldung}<p role="status" class="text-sm text-success">{meldung}</p>{/if}
   {#if fehler}<p role="alert" class="text-sm text-danger"><MessageText text={fehler} /></p>{/if}
 </div>

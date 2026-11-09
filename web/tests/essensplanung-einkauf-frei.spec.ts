@@ -44,9 +44,9 @@ test('anything goes on the shopping list by name, without the list and an amount
   // A name of the list takes that ingredient
   await feld.fill('Spülmittel');
   await feld.press('Enter');
-  await expect(page.getByRole('rowgroup', { name: 'Ohne Geschäft: Reinigung/Hygiene' })).toContainText(
-    'Spülmittel'
-  );
+  await expect(
+    page.getByRole('rowgroup', { name: 'Ohne Geschäft: Reinigung/Hygiene' })
+  ).toContainText('Spülmittel');
 
   // The amount can come later, also for a thing of its own
   await page.getByRole('button', { name: 'Kochhandschuhe ändern' }).click();

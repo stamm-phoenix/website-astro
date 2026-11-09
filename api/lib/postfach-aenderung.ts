@@ -1,22 +1,32 @@
 import {
   ZUSTAENDIG_PRAEFIX,
   type InboxNachricht,
+  type MailOrdner,
   type OutlookFlag,
   type PostfachStatus,
 } from './postfach-model';
 
 /**
  * What the module „E-Mail“ writes into Outlook to set the status or the responsible person of a
- * conversation (`docs/postfaecher.md`). Pure rules; `postfach-schreiben.ts` sends them.
+ * conversation (`docs/postfaecher.md`). Pure rules; `postfach-schreiben.ts` sends them. Only the
+ * received messages of a conversation are touched.
  *
- * - „Neu“: no message of the conversation has a flag.
- * - „Handlungsbedarf“: the newest message has a flag, the others none, so completing that one
- *   flag in Outlook completes the conversation.
- * - „Erledigt“: every message has a completed flag.
+ * - „Neu“: in the inbox, no flag.
+ * - „Handlungsbedarf“: in the inbox, the newest message with a flag and the others without, so
+ *   completing that one flag in Outlook completes it there.
+ * - „Erledigt“: archived; a flag still open is completed, so Outlook's task list drops it.
+ * - Back from „Erledigt“: the archived messages return to the inbox (when none is archived, the
+ *   newest one, e.g. from another folder).
  * - The responsible person is a category on every received message; other categories stay.
  */
 
-export type NachrichtStand = Pick<InboxNachricht, 'id' | 'am' | 'flag' | 'kategorien' | 'etag'>;
+export type NachrichtStand = Pick<
+  InboxNachricht,
+  'id' | 'am' | 'flag' | 'kategorien' | 'etag' | 'ordner'
+>;
+
+/** Where a message is moved to: the inbox or the archive (well-known folder names of Graph). */
+export type Ziel = 'inbox' | 'archive';
 
 /** The change of one message; only what differs from now is sent. */
 export interface NachrichtAenderung {
@@ -25,31 +35,53 @@ export interface NachrichtAenderung {
   etag?: string;
   flag?: OutlookFlag;
   kategorien?: string[];
+  verschieben?: Ziel;
 }
 
-function neuesteId(nachrichten: readonly NachrichtStand[]): string | null {
-  let neueste: NachrichtStand | null = null;
+function neueste<T extends Pick<NachrichtStand, 'am'>>(nachrichten: readonly T[]): T | null {
+  let ergebnis: T | null = null;
   for (const nachricht of nachrichten)
-    if (!neueste || nachricht.am > neueste.am) neueste = nachricht;
-  return neueste?.id ?? null;
+    if (!ergebnis || nachricht.am > ergebnis.am) ergebnis = nachricht;
+  return ergebnis;
 }
 
-/** The flag each message gets for the status. */
-export function flagsFuer(
+interface Soll {
+  ordner: MailOrdner;
+  flag: OutlookFlag;
+}
+
+/** The folder and flag each message gets for the status. */
+function zielFuer(
   nachrichten: readonly NachrichtStand[],
   status: PostfachStatus
-): Map<string, OutlookFlag> {
-  const neueste = neuesteId(nachrichten);
-  return new Map(
-    nachrichten.map((nachricht): [string, OutlookFlag] => [
-      nachricht.id,
-      status === 'erledigt'
-        ? 'complete'
-        : status === 'handlungsbedarf' && nachricht.id === neueste
-          ? 'flagged'
-          : 'notFlagged',
-    ])
-  );
+): Map<string, Soll> {
+  const ergebnis = new Map<string, Soll>();
+  if (status === 'erledigt') {
+    for (const nachricht of nachrichten)
+      ergebnis.set(nachricht.id, {
+        ordner: nachricht.ordner === 'posteingang' ? 'archiv' : nachricht.ordner,
+        flag: nachricht.flag === 'flagged' ? 'complete' : nachricht.flag,
+      });
+    return ergebnis;
+  }
+  // Open again: what is in the inbox stays; with nothing there the archived ones come back
+  let offen = nachrichten.filter((nachricht) => nachricht.ordner === 'posteingang');
+  if (!offen.length) offen = nachrichten.filter((nachricht) => nachricht.ordner === 'archiv');
+  if (!offen.length) {
+    const letzte = neueste(nachrichten);
+    offen = letzte ? [letzte] : [];
+  }
+  const offenIds = new Set(offen.map((nachricht) => nachricht.id));
+  const markiert = status === 'handlungsbedarf' ? neueste(offen)?.id : undefined;
+  for (const nachricht of nachrichten) {
+    const imPosteingang = offenIds.has(nachricht.id);
+    ergebnis.set(nachricht.id, {
+      ordner: imPosteingang ? 'posteingang' : nachricht.ordner,
+      // Outside the inbox a flag stays as it is: it does not count there
+      flag: !imPosteingang ? nachricht.flag : nachricht.id === markiert ? 'flagged' : 'notFlagged',
+    });
+  }
+  return ergebnis;
 }
 
 /** The categories of a message with `kategorie` as the only person (null: nobody). */
@@ -71,27 +103,28 @@ export function aenderungen(
   nachrichten: readonly NachrichtStand[],
   ziel: { status?: PostfachStatus; kategorie?: string | null }
 ): NachrichtAenderung[] {
-  const flags = ziel.status ? flagsFuer(nachrichten, ziel.status) : null;
+  const ziele = ziel.status ? zielFuer(nachrichten, ziel.status) : null;
   return nachrichten.flatMap((nachricht) => {
     const aenderung: NachrichtAenderung = {
       id: nachricht.id,
       ...(nachricht.etag && { etag: nachricht.etag }),
     };
-    const flag = flags?.get(nachricht.id);
-    if (flag && flag !== nachricht.flag) aenderung.flag = flag;
+    const soll = ziele?.get(nachricht.id);
+    if (soll && soll.flag !== nachricht.flag) aenderung.flag = soll.flag;
+    if (soll && soll.ordner !== nachricht.ordner)
+      aenderung.verschieben = soll.ordner === 'posteingang' ? 'inbox' : 'archive';
     if (ziel.kategorie !== undefined) {
       const kategorien = kategorienMit(nachricht.kategorien, ziel.kategorie);
       if (!gleich(kategorien, nachricht.kategorien)) aenderung.kategorien = kategorien;
     }
-    return aenderung.flag || aenderung.kategorien ? [aenderung] : [];
+    return aenderung.flag || aenderung.kategorien || aenderung.verschieben ? [aenderung] : [];
   });
 }
 
 /** The messages as they are after the changes, to answer with the new state without reading. */
-export function nachAenderung<T extends NachrichtStand & Pick<InboxNachricht, 'erledigtAm'>>(
+export function nachAenderung<T extends NachrichtStand>(
   nachrichten: readonly T[],
-  geaendert: readonly NachrichtAenderung[],
-  now: Date = new Date()
+  geaendert: readonly NachrichtAenderung[]
 ): T[] {
   const byId = new Map(geaendert.map((aenderung) => [aenderung.id, aenderung]));
   return nachrichten.map((nachricht) => {
@@ -99,11 +132,11 @@ export function nachAenderung<T extends NachrichtStand & Pick<InboxNachricht, 'e
     if (!aenderung) return nachricht;
     return {
       ...nachricht,
-      ...(aenderung.flag && {
-        flag: aenderung.flag,
-        erledigtAm: aenderung.flag === 'complete' ? now.toISOString() : null,
-      }),
+      ...(aenderung.flag && { flag: aenderung.flag }),
       ...(aenderung.kategorien && { kategorien: aenderung.kategorien }),
+      ...(aenderung.verschieben && {
+        ordner: aenderung.verschieben === 'inbox' ? 'posteingang' : 'archiv',
+      }),
     };
   });
 }

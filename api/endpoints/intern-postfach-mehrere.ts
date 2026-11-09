@@ -33,7 +33,6 @@ export interface ZuweisungErgebnis {
   zustaendig?: Zustaendigkeit | null;
   /** The status afterwards: a new conversation that got a person needs action. */
   status?: PostfachStatus;
-  erledigtAm?: string | null;
   fehler?: string;
 }
 
@@ -69,7 +68,6 @@ export const PostfachZustaendigMehrereRoute = postfachAenderung(
           ok: true,
           zustaendig: zeile.zustaendig,
           status: zeile.status,
-          erledigtAm: zeile.erledigtAm,
         });
         // Only what is new for the person goes into the note
         if (neu && ergebnis.vorher?.login !== neu.login) zugewiesen.push(zeile);

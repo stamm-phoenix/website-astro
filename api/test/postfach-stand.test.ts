@@ -6,7 +6,9 @@ import type { KonversationDetail, PostfachAnsicht } from '../lib/postfach-model'
 import { postfachGraph } from '../lib/postfach-graph-basis';
 import { iso, K1, K2, KONTAKT, message, request, setup } from './fixtures/postfach';
 
-function flags(mocks: { postfach: Record<string, unknown>[] }): Record<string, string> {
+type Mocks = ReturnType<typeof setup>['mocks'];
+
+function flags(mocks: Mocks): Record<string, string> {
   return Object.fromEntries(
     mocks.postfach.map((entry) => [
       entry.id,
@@ -15,16 +17,25 @@ function flags(mocks: { postfach: Record<string, unknown>[] }): Record<string, s
   );
 }
 
+function ordner(mocks: Mocks): Record<string, unknown> {
+  return Object.fromEntries(mocks.postfach.map((entry) => [entry.id, entry.parentFolderId]));
+}
+
 const status = (body: object) => request('PUT', '/kontakt/status', KONTAKT, body);
 
-test('the status is written as flags into Outlook and read back from there', async (t) => {
+async function liste(context: ReturnType<typeof setup>['context']): Promise<PostfachAnsicht> {
+  return (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
+    .jsonBody as PostfachAnsicht;
+}
+
+test('needing action is a flag, done is the archive, and new brings it back', async (t) => {
   const { context, mocks } = setup(t);
   const handeln = await PostfachStatusRoute(
     status({ konversation: K2, status: 'handlungsbedarf', vorher: 'neu', bis: iso(0.5) }),
     context
   );
   assert.equal(handeln.status, 200);
-  assert.deepEqual(handeln.jsonBody, { status: 'handlungsbedarf', erledigtAm: null });
+  assert.deepEqual(handeln.jsonBody, { status: 'handlungsbedarf' });
   // Only the newest received message carries the flag; the sent answer is left alone
   assert.deepEqual(flags(mocks), {
     AAkALgm1000000: '-',
@@ -39,17 +50,26 @@ test('the status is written as flags into Outlook and read back from there', asy
     context
   );
   assert.equal(erledigt.status, 200);
-  const body = erledigt.jsonBody as { status: string; erledigtAm: string };
-  assert.equal(body.status, 'erledigt');
-  assert.ok(Date.parse(body.erledigtAm) > Date.now() - 60_000);
-  assert.equal(flags(mocks).AAkALgm3000000, 'complete');
+  assert.deepEqual(erledigt.jsonBody, { status: 'erledigt' });
+  // The received ones are archived, the open flag completed; the sent answer stays in Sent Items
+  assert.deepEqual(ordner(mocks), {
+    AAkALgm1000000: 'FOLDER-INBOX',
+    AAkALgm2000000: 'FOLDER-INBOX',
+    AAkALgm3000000: 'FOLDER-ARCHIV',
+    AAkALgm4000000: 'FOLDER-SENT',
+    AAkALgm5000000: 'FOLDER-ARCHIV',
+  });
   assert.equal(flags(mocks).AAkALgm5000000, 'complete');
-  assert.equal(flags(mocks).AAkALgm4000000, '-');
+  // The flag is completed before the move, each in the version it has then
+  assert.deepEqual(
+    mocks.moves.map((move) => move.id),
+    ['AAkALgm3000000', 'AAkALgm5000000']
+  );
 
-  // The list reads the inbox again after a change
-  const liste = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
-    .jsonBody as PostfachAnsicht;
-  assert.equal(liste.konversationen.find((zeile) => zeile.id === K2)?.status, 'erledigt');
+  // The list reads inbox and archive again after a change
+  const k2 = (await liste(context)).konversationen.find((zeile) => zeile.id === K2);
+  assert.equal(k2?.status, 'erledigt');
+  assert.equal(k2?.anzahl, 2);
   const detail = (
     await PostfachKonversationRoute(
       request('GET', `/kontakt/konversation?id=${encodeURIComponent(K2)}`, KONTAKT),
@@ -58,13 +78,14 @@ test('the status is written as flags into Outlook and read back from there', asy
   ).jsonBody as KonversationDetail;
   assert.equal(detail.konversation.status, 'erledigt');
 
-  // Back to „Neu“ takes every flag off
+  // Back to „Neu“ brings the archived ones back without a flag
   const neu = await PostfachStatusRoute(
     status({ konversation: K2, status: 'neu', vorher: 'erledigt', bis: iso(0.5) }),
     context
   );
   assert.equal(neu.status, 200);
-  assert.equal(flags(mocks).AAkALgm3000000, 'notFlagged');
+  assert.equal(ordner(mocks).AAkALgm3000000, 'FOLDER-INBOX');
+  assert.equal(ordner(mocks).AAkALgm5000000, 'FOLDER-INBOX');
   assert.equal(flags(mocks).AAkALgm5000000, 'notFlagged');
 });
 
@@ -75,9 +96,11 @@ test('a reply after „Erledigt“ makes the conversation new again', async (t) 
     context
   );
   mocks.postfach.push(message('AAkALgm9000000', K1, 0.1, { parentFolderId: 'FOLDER-INBOX' }));
-  const liste = (await PostfachListeRoute(request('GET', '/kontakt?frisch=1', KONTAKT), context))
+  const zeilen = (await PostfachListeRoute(request('GET', '/kontakt?frisch=1', KONTAKT), context))
     .jsonBody as PostfachAnsicht;
-  assert.equal(liste.konversationen.find((zeile) => zeile.id === K1)?.status, 'neu');
+  const k1 = zeilen.konversationen.find((zeile) => zeile.id === K1);
+  assert.equal(k1?.status, 'neu');
+  assert.equal(k1?.anzahl, 1);
   // A page that still shows „Erledigt“ is told
   const stale = await PostfachStatusRoute(
     status({ konversation: K1, status: 'handlungsbedarf', vorher: 'erledigt', bis: iso(1) }),
@@ -95,7 +118,7 @@ test('marking refuses when a newer message arrived than the page showed', async 
   );
   assert.equal(response.status, 409);
   assert.equal((response.jsonBody as { code: string }).code, 'NEUE_NACHRICHT');
-  assert.equal(mocks.patches.length, 0);
+  assert.equal(mocks.moves.length, 0);
 });
 
 test('a status set in Outlook meanwhile is not overwritten', async (t) => {
@@ -111,7 +134,6 @@ test('a status set in Outlook meanwhile is not overwritten', async (t) => {
     code: 'CONFLICT',
     message: 'Jemand hat sie inzwischen mit „Handlungsbedarf“ markiert. Nichts wurde gespeichert.',
     status: 'handlungsbedarf',
-    erledigtAm: null,
   });
   // The same status again changes nothing
   const gleich = await PostfachStatusRoute(
@@ -119,10 +141,10 @@ test('a status set in Outlook meanwhile is not overwritten', async (t) => {
     context
   );
   assert.equal(gleich.status, 200);
-  assert.equal(mocks.patches.length, 0);
+  assert.equal(mocks.patches.length + mocks.moves.length, 0);
 });
 
-test('an archived message counts, a deleted conversation is reported as gone', async (t) => {
+test('only what is still in the inbox is archived; a deleted conversation is reported as gone', async (t) => {
   const { context, mocks } = setup(t);
   mocks.postfach[0].parentFolderId = 'FOLDER-ARCHIV';
   const response = await PostfachStatusRoute(
@@ -130,7 +152,7 @@ test('an archived message counts, a deleted conversation is reported as gone', a
     context
   );
   assert.equal(response.status, 200);
-  assert.equal(flags(mocks).AAkALgm1000000, 'complete');
+  assert.deepEqual(mocks.moves, [{ id: 'AAkALgm2000000', ziel: 'archive' }]);
   const weg = await PostfachStatusRoute(
     status({
       konversation: 'AAQkAGkonversation9999999999=',
@@ -143,41 +165,64 @@ test('an archived message counts, a deleted conversation is reported as gone', a
   assert.equal(weg.status, 404);
 });
 
-test('an archived message with a flag counts in the list as in the reading view', async (t) => {
+test('filed in another folder counts as done; opening it again brings the newest back', async (t) => {
   const { context, mocks } = setup(t);
-  // The newest message of K1 needs action and was archived; the older one stays in the inbox
-  Object.assign(mocks.postfach[0], {
-    parentFolderId: 'FOLDER-ARCHIV',
-    flag: { flagStatus: 'flagged' },
-    categories: ['👤 Tom Test'],
-  });
-  const liste = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
-    .jsonBody as PostfachAnsicht;
-  const k1 = liste.konversationen.find((zeile) => zeile.id === K1);
-  assert.equal(k1?.status, 'handlungsbedarf');
-  assert.equal(k1?.zustaendig?.name, 'Tom Test');
-  assert.equal(k1?.anzahl, 1);
+  mocks.postfach[0].parentFolderId = 'FOLDER-NIKOLAUS';
+  mocks.postfach[1].parentFolderId = 'FOLDER-NIKOLAUS';
+  assert.equal(
+    (await liste(context)).konversationen.some((zeile) => zeile.id === K1),
+    false
+  );
+  const response = await PostfachStatusRoute(
+    status({ konversation: K1, status: 'neu', vorher: 'erledigt', bis: iso(1) }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(mocks.moves, [{ id: 'AAkALgm1000000', ziel: 'inbox' }]);
+});
+
+test('without an archive in the mailbox nothing is marked done', async (t) => {
+  const { context, mocks } = setup(t);
+  const original = postfachGraph.get;
+  t.mock.method(
+    postfachGraph,
+    'get',
+    async (path: string, query: Record<string, string>, prefer: string[]) => {
+      if (path.includes('/mailFolders/archive'))
+        throw Object.assign(new Error('not found'), { statusCode: 404 });
+      return original.call(postfachGraph, path, query, prefer);
+    }
+  );
+  // The list still shows the inbox
+  assert.equal((await liste(context)).konversationen.length, 2);
+  const response = await PostfachStatusRoute(
+    status({ konversation: K1, status: 'erledigt', vorher: 'neu', bis: iso(1) }),
+    context
+  );
+  assert.equal(response.status, 503);
+  assert.match((response.jsonBody as { message: string }).message, /Archivordner/);
+  assert.equal(mocks.moves.length, 0);
 });
 
 test('after a change that failed half way the list shows what was written', async (t) => {
   const { context, mocks } = setup(t);
-  await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context);
-  const original = postfachGraph.patch;
-  t.mock.method(postfachGraph, 'patch', async (path: string, body: Record<string, unknown>) => {
+  await liste(context);
+  const original = postfachGraph.move;
+  t.mock.method(postfachGraph, 'move', async (path: string, ziel: string, etag?: string) => {
     if (path.endsWith('AAkALgm3000000'))
       throw Object.assign(new Error('busy'), { statusCode: 503 });
-    return original.call(postfachGraph, path, body);
+    return original.call(postfachGraph, path, ziel, etag);
   });
   const response = await PostfachStatusRoute(
     status({ konversation: K2, status: 'erledigt', vorher: 'neu', bis: iso(0.5) }),
     context
   ).catch((error: unknown) => error);
   assert.ok(response instanceof Error || (response as { status?: number }).status === 500);
-  assert.equal(flags(mocks).AAkALgm5000000, 'complete');
-  // Not taken from the cache of the list read before
-  const liste = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
-    .jsonBody as PostfachAnsicht;
-  assert.equal(liste.konversationen.find((zeile) => zeile.id === K2)?.status, 'erledigt');
+  assert.equal(ordner(mocks).AAkALgm5000000, 'FOLDER-ARCHIV');
+  // Not taken from the cache of the list read before: one message is still in the inbox
+  const k2 = (await liste(context)).konversationen.find((zeile) => zeile.id === K2);
+  assert.equal(k2?.status, 'neu');
+  assert.equal(k2?.anzahl, 1);
 });
 
 test('a conversation longer than a change reads is left to Outlook', async (t) => {
@@ -213,57 +258,46 @@ test('a conversation longer than a change reads is left to Outlook', async (t) =
 
 test('a message deleted while it is changed is not reported as saved', async (t) => {
   const { context, mocks } = setup(t);
-  const original = postfachGraph.patch;
-  t.mock.method(
-    postfachGraph,
-    'patch',
-    async (path: string, body: Record<string, unknown>, etag?: string) => {
-      if (path.endsWith('AAkALgm3000000'))
-        throw Object.assign(new Error('not found'), { statusCode: 404 });
-      return original.call(postfachGraph, path, body, etag);
-    }
-  );
+  const original = postfachGraph.move;
+  t.mock.method(postfachGraph, 'move', async (path: string, ziel: string, etag?: string) => {
+    if (path.endsWith('AAkALgm3000000'))
+      throw Object.assign(new Error('not found'), { statusCode: 404 });
+    return original.call(postfachGraph, path, ziel, etag);
+  });
   const response = await PostfachStatusRoute(
     status({ konversation: K2, status: 'erledigt', vorher: 'neu', bis: iso(0.5) }),
     context
   );
   assert.equal(response.status, 409);
-  assert.equal(flags(mocks).AAkALgm5000000, 'complete');
+  assert.equal(ordner(mocks).AAkALgm5000000, 'FOLDER-ARCHIV');
 });
 
-test('an archived form note still counts, an archived own answer does not', async (t) => {
+test('an archived form note still counts for the person, an archived own answer not at all', async (t) => {
   const { context, mocks } = setup(t);
   const kontakt = { emailAddress: { name: 'Kontakt', address: 'kontakt@stamm-phoenix.de' } };
-  // The note of the form (to the mailbox itself) was flagged, assigned and archived
+  // The note of the form (to the mailbox itself) was assigned and archived
   Object.assign(mocks.postfach[4], {
     parentFolderId: 'FOLDER-ARCHIV',
     toRecipients: [kontakt],
-    flag: { flagStatus: 'flagged' },
     categories: ['👤 Tom Test'],
   });
-  // An own answer to Erika, moved from „Gesendete Elemente“ into the archive, with a flag
+  // An own answer to Erika, moved from „Gesendete Elemente“ into the archive
   mocks.postfach.push(
     message('AAkALgm8000000', K2, 0.2, {
       from: kontakt,
       toRecipients: [{ emailAddress: { name: 'Erika', address: 'erika@example.invalid' } }],
       parentFolderId: 'FOLDER-ARCHIV',
-      flag: { flagStatus: 'complete' },
+      categories: ['👤 Lea Leitung'],
     })
   );
-  const liste = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
-    .jsonBody as PostfachAnsicht;
-  const k2 = liste.konversationen.find((zeile) => zeile.id === K2);
-  assert.equal(k2?.status, 'handlungsbedarf');
+  const k2 = (await liste(context)).konversationen.find((zeile) => zeile.id === K2);
+  assert.equal(k2?.status, 'neu');
   assert.equal(k2?.zustaendig?.name, 'Tom Test');
   const erledigt = await PostfachStatusRoute(
-    status({ konversation: K2, status: 'erledigt', vorher: 'handlungsbedarf', bis: iso(0.5) }),
+    status({ konversation: K2, status: 'erledigt', vorher: 'neu', bis: iso(2) }),
     context
   );
   assert.equal(erledigt.status, 200);
-  assert.equal(flags(mocks).AAkALgm5000000, 'complete');
-  // The own answer is not one of the messages the status works on
-  assert.equal(
-    mocks.patches.some((entry) => entry.id === 'AAkALgm8000000'),
-    false
-  );
+  // Only the message left in the inbox is moved; the own answer is not touched
+  assert.deepEqual(mocks.moves, [{ id: 'AAkALgm3000000', ziel: 'archive' }]);
 });
