@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   fuerMich,
-  istGelesen,
   konversationenAus,
+  statusAus,
+  zustaendigAus,
   type InboxNachricht,
-  type Zustaendigkeit,
+  type OutlookFlag,
 } from '../lib/postfach-model';
+import { aenderungen, nachAenderung } from '../lib/postfach-aenderung';
 import { POSTFAECHER, postfachRoles, nachrichtOutlookUrl } from '../lib/postfach-liste';
 import { CONFIG } from '../lib/config';
 import { postfachBenachrichtigung, zuweisungMail, zuweisungenMail } from '../lib/postfach-mails';
@@ -17,7 +19,9 @@ function nachricht(
   id: string,
   konversation: string,
   am: string,
-  betreff = 'Frage'
+  betreff = 'Frage',
+  flag: OutlookFlag = 'notFlagged',
+  kategorien: string[] = []
 ): InboxNachricht {
   return {
     id,
@@ -28,77 +32,113 @@ function nachricht(
     vorschau: `Text ${id}`,
     hatAnhang: id === 'm2',
     wichtig: false,
+    flag,
+    erledigtAm: flag === 'complete' ? '2026-11-04T08:00:00.000Z' : null,
+    kategorien,
   };
 }
 
-const ZUSTAENDIG: Zustaendigkeit = {
-  login: 'lea@stamm-phoenix.de',
-  name: 'Lea Leitung',
-  vonLogin: 'vera@stamm-phoenix.de',
-  vonName: 'Vera Vorstand',
-  am: '2026-11-02T10:00:00.000Z',
-};
+const PERSONEN = [
+  { login: 'lea@stamm-phoenix.de', name: 'Lea Leitung' },
+  { login: 'tom@stamm-phoenix.de', name: 'Tom Test' },
+];
 
 test('messages are grouped into conversations with the newest message on top', () => {
   const zeilen = konversationenAus(
     'kontakt',
     [
-      nachricht('m1', 'k1', '2026-11-01T08:00:00.000Z', 'Alt'),
+      nachricht('m1', 'k1', '2026-11-01T08:00:00.000Z', 'Alt', 'complete'),
       nachricht('m2', 'k1', '2026-11-03T08:00:00.000Z', 'AW: Alt'),
-      nachricht('m3', 'k2', '2026-11-02T08:00:00.000Z', 'Andere'),
+      nachricht('m3', 'k2', '2026-11-02T08:00:00.000Z', 'Andere', 'notFlagged', [
+        'Rechnung',
+        '👤 lea leitung',
+      ]),
     ],
-    { marken: new Map([['m1', true]]), gelesenBis: null },
-    new Map([['k2', ZUSTAENDIG]])
+    PERSONEN
   );
   assert.deepEqual(
-    zeilen.map((zeile) => [
-      zeile.id,
-      zeile.betreff,
-      zeile.anzahl,
-      zeile.ungelesen,
-      zeile.hatAnhang,
-    ]),
+    zeilen.map((zeile) => [zeile.id, zeile.betreff, zeile.anzahl, zeile.status, zeile.hatAnhang]),
     [
-      ['k1', 'AW: Alt', 2, 1, true],
-      ['k2', 'Andere', 1, 1, false],
+      ['k1', 'AW: Alt', 2, 'neu', true],
+      ['k2', 'Andere', 1, 'neu', false],
     ]
   );
-  assert.equal(zeilen[1].zustaendig?.name, 'Lea Leitung');
+  assert.deepEqual(zeilen[1].zustaendig, { login: 'lea@stamm-phoenix.de', name: 'Lea Leitung' });
   assert.equal(zeilen[0].zustaendig, null);
 });
 
-test('a mark wins over the read-until time, both ways', () => {
-  const stand = {
-    marken: new Map([
-      ['alt-ungelesen', false],
-      ['neu-gelesen', true],
-    ]),
-    gelesenBis: '2026-11-01T00:00:00.000Z',
-  };
-  assert.equal(istGelesen({ id: 'alt', am: '2026-10-30T00:00:00.000Z' }, stand), true);
-  assert.equal(istGelesen({ id: 'alt-ungelesen', am: '2026-10-30T00:00:00.000Z' }, stand), false);
-  assert.equal(istGelesen({ id: 'neu', am: '2026-11-02T00:00:00.000Z' }, stand), false);
-  assert.equal(istGelesen({ id: 'neu-gelesen', am: '2026-11-02T00:00:00.000Z' }, stand), true);
+test('a flag anywhere needs action, otherwise the newest message decides', () => {
+  const am = (stunde: number) => `2026-11-0${stunde}T08:00:00.000Z`;
+  const mit = (...flags: OutlookFlag[]) =>
+    statusAus(flags.map((flag, index) => ({ am: am(index + 1), flag, erledigtAm: null })));
+  assert.equal(mit('flagged', 'complete').status, 'handlungsbedarf');
+  assert.equal(mit('complete', 'flagged').status, 'handlungsbedarf');
+  assert.equal(mit('notFlagged', 'complete').status, 'erledigt');
+  assert.equal(mit('complete', 'notFlagged').status, 'neu');
+  assert.equal(mit().status, 'neu');
 });
 
-test('the start page shows unread conversations and those assigned to the person', () => {
+test('a person category names the person, matched without case, unknown names stay names', () => {
+  assert.equal(zustaendigAus(['Rechnung'], PERSONEN), null);
+  assert.equal(zustaendigAus(['👤 '], PERSONEN), null);
+  assert.deepEqual(zustaendigAus(['👤 TOM TEST'], PERSONEN), {
+    login: 'tom@stamm-phoenix.de',
+    name: 'Tom Test',
+  });
+  assert.deepEqual(zustaendigAus(['👤 Anton Alt'], PERSONEN), { login: null, name: 'Anton Alt' });
+});
+
+test('changes touch only what differs and keep other categories', () => {
+  const nachrichten = [
+    nachricht('a', 'k', '2026-11-01T08:00:00.000Z', 'x', 'complete', ['Rechnung', '👤 Tom Test']),
+    nachricht('b', 'k', '2026-11-02T08:00:00.000Z', 'x', 'notFlagged', ['👤 Tom Test']),
+  ];
+  assert.deepEqual(aenderungen(nachrichten, { status: 'handlungsbedarf' }), [
+    { id: 'a', flag: 'notFlagged' },
+    { id: 'b', flag: 'flagged' },
+  ]);
+  assert.deepEqual(aenderungen(nachrichten, { status: 'erledigt' }), [
+    { id: 'b', flag: 'complete' },
+  ]);
+  assert.deepEqual(aenderungen(nachrichten, { kategorie: '👤 Lea Leitung' }), [
+    { id: 'a', kategorien: ['Rechnung', '👤 Lea Leitung'] },
+    { id: 'b', kategorien: ['👤 Lea Leitung'] },
+  ]);
+  assert.deepEqual(aenderungen(nachrichten, { kategorie: null }), [
+    { id: 'a', kategorien: ['Rechnung'] },
+    { id: 'b', kategorien: [] },
+  ]);
+  assert.deepEqual(aenderungen(nachrichten, { kategorie: '👤 Tom Test', status: 'neu' }), [
+    { id: 'a', flag: 'notFlagged' },
+  ]);
+  const danach = nachAenderung(
+    nachrichten,
+    [{ id: 'b', flag: 'complete' }],
+    new Date('2026-11-05T00:00:00.000Z')
+  );
+  assert.equal(danach[1].erledigtAm, '2026-11-05T00:00:00.000Z');
+  assert.equal(danach[0], nachrichten[0]);
+});
+
+test('the start page shows new ones, and flagged ones to their person or to all', () => {
   const zeilen = konversationenAus(
     'kontakt',
     [
-      nachricht('m1', 'gelesen', '2026-11-01T08:00:00.000Z'),
-      nachricht('m2', 'ungelesen', '2026-11-02T08:00:00.000Z'),
-      nachricht('m3', 'meins', '2026-10-01T08:00:00.000Z'),
+      nachricht('m1', 'neu', '2026-11-01T08:00:00.000Z'),
+      nachricht('m2', 'erledigt', '2026-11-02T08:00:00.000Z', 'x', 'complete'),
+      nachricht('m3', 'meins', '2026-10-01T08:00:00.000Z', 'x', 'flagged', ['👤 Lea Leitung']),
+      nachricht('m4', 'offen', '2026-10-02T08:00:00.000Z', 'x', 'flagged'),
+      nachricht('m5', 'fremd', '2026-10-03T08:00:00.000Z', 'x', 'flagged', ['👤 Tom Test']),
     ],
-    { marken: new Map([['m1', true]]), gelesenBis: '2026-10-15T00:00:00.000Z' },
-    new Map([['meins', ZUSTAENDIG]])
+    PERSONEN
   );
   assert.deepEqual(
     fuerMich(zeilen, 'LEA@stamm-phoenix.de').map((zeile) => zeile.id),
-    ['ungelesen', 'meins']
+    ['neu', 'offen', 'meins']
   );
   assert.deepEqual(
     fuerMich(zeilen, 'jemand@stamm-phoenix.de').map((zeile) => zeile.id),
-    ['ungelesen']
+    ['neu', 'offen']
   );
 });
 
@@ -126,8 +166,7 @@ test('the note about an assignment escapes the mail and links the conversation',
   const [zeile] = konversationenAus(
     'kontakt',
     [nachricht('m1', 'AAQk/x+y=', '2026-11-03T08:00:00.000Z', '<b>Hilfe</b>')],
-    { marken: new Map(), gelesenBis: null },
-    new Map()
+    []
   );
   const mail = zuweisungMail(POSTFAECHER[0], zeile, 'Vera Vorstand', 'https://example.test');
   assert.equal(mail.subject, 'Dir zugewiesen: <b>Hilfe</b>');
@@ -162,8 +201,7 @@ test('the note goes out from the mailbox itself and leaves no copy in its Sent I
   const [zeile] = konversationenAus(
     'vorstand',
     [nachricht('m1', 'k1', '2026-11-03T08:00:00.000Z', 'Vertraulich')],
-    { marken: new Map(), gelesenBis: null },
-    new Map()
+    []
   );
   const vorstand = POSTFAECHER.find((postfach) => postfach.id === 'vorstand')!;
   await postfachBenachrichtigung.senden(
@@ -185,8 +223,7 @@ test('several assigned conversations make one note with a link to each', () => {
       nachricht('m1', 'AAQk/eins=', '2026-11-03T08:00:00.000Z', 'Erste <Frage>'),
       nachricht('m2', 'AAQk/zwei=', '2026-11-03T09:00:00.000Z', 'Zweite Frage'),
     ],
-    { marken: new Map(), gelesenBis: null },
-    new Map()
+    []
   );
   const mail = zuweisungenMail(POSTFAECHER[0], zeilen, 'Vera Vorstand', 'https://example.test');
   assert.equal(mail.subject, 'Dir zugewiesen: 2 E-Mails im Kontakt-Postfach');

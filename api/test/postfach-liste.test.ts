@@ -1,20 +1,25 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { CONFIG } from '../lib/config';
-import {
-  PostfachGelesenRoute,
-  PostfachListeRoute,
-  PostfachStartRoute,
-} from '../endpoints/intern-postfach';
+import { PostfachListeRoute, PostfachStartRoute } from '../endpoints/intern-postfach';
 import { postfachGraph } from '../lib/postfach-graph';
 import { resetPostfachCaches, sichtbarePostfaecher } from '../lib/postfach';
 import type { PostfachAnsicht, PostfachStart } from '../lib/postfach-model';
-import { getDb } from '../lib/db';
-import { dbTest } from './fixtures/database';
-import { INBOX, K1, K2, KONTAKT, LEA, request, setup, TOM } from './fixtures/postfach';
+import { K1, K2, KONTAKT, LEA, message, request, setup, TOM } from './fixtures/postfach';
 
-dbTest('the list groups the inbox and starts unread a few days back', async (t) => {
-  const { context } = setup(t);
+test('the list groups the inbox and takes status and person from Outlook', async (t) => {
+  const { context, mocks } = setup(t);
+  // Done in Outlook, then a reply: new again. The other one has a flag and a person
+  Object.assign(mocks.postfach[1], {
+    flag: {
+      flagStatus: 'complete',
+      completedDateTime: { dateTime: '2026-11-01T10:00:00.0000000', timeZone: 'UTC' },
+    },
+  });
+  Object.assign(mocks.postfach[2], {
+    flag: { flagStatus: 'flagged' },
+    categories: ['👤 Tom Test', 'Rechnung'],
+  });
   const response = await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context);
   assert.equal(response.status, 200);
   const ansicht = response.jsonBody as PostfachAnsicht;
@@ -24,16 +29,78 @@ dbTest('the list groups the inbox and starts unread a few days back', async (t) 
     ansicht.postfach.outlookUrl,
     'https://outlook.office.com/mail/kontakt%40stamm-phoenix.de/'
   );
+  assert.equal(ansicht.nurLesen, false);
   assert.deepEqual(
-    ansicht.konversationen.map((zeile) => [zeile.id, zeile.anzahl, zeile.ungelesen]),
+    ansicht.konversationen.map((zeile) => [
+      zeile.id,
+      zeile.anzahl,
+      zeile.status,
+      zeile.zustaendig?.login ?? null,
+    ]),
     [
-      [K1, 2, 1],
-      [K2, 1, 1],
+      [K2, 2, 'handlungsbedarf', 'tom@stamm-phoenix.de'],
+      [K1, 2, 'neu', null],
     ]
   );
 });
 
-dbTest('mailboxes of other teams and unknown ones are refused', async (t) => {
+test('a done conversation keeps when it was done, and an unknown person keeps the name', async (t) => {
+  const { context, mocks } = setup(t);
+  for (const entry of mocks.postfach.filter((candidate) => candidate.conversationId === K1))
+    Object.assign(entry, {
+      flag: {
+        flagStatus: 'complete',
+        completedDateTime: { dateTime: '2026-11-01T10:00:00.0000000', timeZone: 'UTC' },
+      },
+      categories: ['👤 Altleiter Anton'],
+    });
+  const ansicht = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
+    .jsonBody as PostfachAnsicht;
+  const k1 = ansicht.konversationen.find((zeile) => zeile.id === K1);
+  assert.equal(k1?.status, 'erledigt');
+  assert.equal(k1?.erledigtAm, '2026-11-01T10:00:00.000Z');
+  assert.deepEqual(k1?.zustaendig, { login: null, name: 'Altleiter Anton' });
+});
+
+test('the start page shows new ones to everyone and flagged ones to the person or to all', async (t) => {
+  const { context, mocks } = setup(t);
+  const k3 = 'AAQkAGkonversation3333333333=';
+  const k4 = 'AAQkAGkonversation4444444444=';
+  mocks.postfach.push(
+    message('AAkALgm6000000', k3, 3, {
+      parentFolderId: 'FOLDER-INBOX',
+      flag: { flagStatus: 'flagged' },
+    }),
+    message('AAkALgm7000000', k4, 4, {
+      parentFolderId: 'FOLDER-INBOX',
+      flag: { flagStatus: 'complete' },
+    })
+  );
+  Object.assign(mocks.postfach[2], {
+    flag: { flagStatus: 'flagged' },
+    categories: ['👤 Tom Test'],
+  });
+  const fuer = async (wer: typeof LEA) =>
+    (await PostfachStartRoute(request('GET', '', {}, undefined, wer), context))
+      .jsonBody as PostfachStart;
+  const lea = await fuer(LEA);
+  assert.deepEqual(
+    lea.fuerMich.map((zeile) => zeile.id),
+    [K1, k3]
+  );
+  assert.deepEqual(
+    lea.postfaecher.map((postfach) => [postfach.neu, postfach.mirZugewiesen]),
+    [[1, 0]]
+  );
+  const tom = await fuer(TOM);
+  assert.deepEqual(
+    tom.fuerMich.map((zeile) => zeile.id),
+    [K2, K1, k3]
+  );
+  assert.equal(tom.postfaecher[0].mirZugewiesen, 1);
+});
+
+test('mailboxes of other teams and unknown ones are refused', async (t) => {
   const { context } = setup(t);
   const fremd = { ...LEA, userRoles: ['authenticated', 'team_leitende'] };
   const unbekannt = await PostfachListeRoute(
@@ -48,75 +115,7 @@ dbTest('mailboxes of other teams and unknown ones are refused', async (t) => {
   assert.equal(anonym.status, 401);
 });
 
-dbTest('read marks belong to one person', async (t) => {
-  const { context } = setup(t);
-  const marked = await PostfachGelesenRoute(
-    request('POST', '/kontakt/gelesen', KONTAKT, {
-      nachrichten: ['AAkALgm1000000', 'AAkALgm3000000'],
-      gelesen: true,
-    }),
-    context
-  );
-  assert.equal(marked.status, 204);
-  const lea = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
-    .jsonBody as PostfachAnsicht;
-  assert.deepEqual(
-    lea.konversationen.map((zeile) => zeile.ungelesen),
-    [0, 0]
-  );
-  const tom = (
-    await PostfachListeRoute(request('GET', '/kontakt', KONTAKT, undefined, TOM), context)
-  ).jsonBody as PostfachAnsicht;
-  assert.deepEqual(
-    tom.konversationen.map((zeile) => zeile.ungelesen),
-    [1, 1]
-  );
-
-  // An old message marked unread stays unread, until all are marked read
-  await PostfachGelesenRoute(
-    request('POST', '/kontakt/gelesen', KONTAKT, {
-      nachrichten: ['AAkALgm2000000'],
-      gelesen: false,
-    }),
-    context
-  );
-  let again = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
-    .jsonBody as PostfachAnsicht;
-  assert.equal(again.konversationen[0].ungelesen, 1);
-  await PostfachGelesenRoute(request('POST', '/kontakt/gelesen', KONTAKT, { alle: true }), context);
-  again = (await PostfachListeRoute(request('GET', '/kontakt', KONTAKT), context))
-    .jsonBody as PostfachAnsicht;
-  assert.deepEqual(
-    again.konversationen.map((zeile) => zeile.ungelesen),
-    [0, 0]
-  );
-  // Another person's marks stay, also old ones
-  await PostfachGelesenRoute(
-    request(
-      'POST',
-      '/kontakt/gelesen',
-      KONTAKT,
-      { nachrichten: ['AAkALgm3000000'], gelesen: true },
-      TOM
-    ),
-    context
-  );
-  await getDb()
-    .updateTable('postfach.gelesen')
-    .set({ am: new Date('2020-01-01T00:00:00Z') })
-    .where('user_id', '=', TOM.userId)
-    .execute();
-  await PostfachGelesenRoute(request('POST', '/kontakt/gelesen', KONTAKT, { alle: true }), context);
-  const tomDanach = (
-    await PostfachListeRoute(request('GET', '/kontakt', KONTAKT, undefined, TOM), context)
-  ).jsonBody as PostfachAnsicht;
-  assert.deepEqual(
-    tomDanach.konversationen.map((zeile) => zeile.ungelesen),
-    [1, 0]
-  );
-});
-
-dbTest('a refused mailbox says whom to tell', async (t) => {
+test('a refused mailbox says whom to tell', async (t) => {
   const { context } = setup(t);
   t.mock.method(postfachGraph, 'get', async () => {
     throw Object.assign(new Error('Access denied'), { statusCode: 403 });
@@ -129,7 +128,7 @@ dbTest('a refused mailbox says whom to tell', async (t) => {
   assert.equal(start.postfaecher[0].fehler, true);
 });
 
-dbTest('a full inbox says that older messages are only in Outlook', async (t) => {
+test('a full inbox says that older messages are only in Outlook', async (t) => {
   const { context } = setup(t);
   const original = postfachGraph.get;
   t.mock.method(
@@ -137,7 +136,10 @@ dbTest('a full inbox says that older messages are only in Outlook', async (t) =>
     'get',
     async (path: string, query: Record<string, string>, prefer: string[]) => {
       if (path.endsWith('/mailFolders/inbox/messages'))
-        return { value: INBOX, '@odata.nextLink': 'https://graph.microsoft.com/v1.0/next' };
+        return {
+          value: [message('AAkALgm1000000', K1, 1)],
+          '@odata.nextLink': 'https://graph.microsoft.com/v1.0/next',
+        };
       return original.call(postfachGraph, path, query, prefer);
     }
   );
@@ -145,7 +147,7 @@ dbTest('a full inbox says that older messages are only in Outlook', async (t) =>
   assert.equal((response.jsonBody as PostfachAnsicht).begrenzt, true);
 });
 
-dbTest('the start page tells a refused mailbox apart from one that failed for now', async (t) => {
+test('the start page tells a refused mailbox apart from one that failed for now', async (t) => {
   const { context } = setup(t);
   t.mock.method(postfachGraph, 'get', async () => {
     throw Object.assign(new Error('Access denied'), { statusCode: 403 });

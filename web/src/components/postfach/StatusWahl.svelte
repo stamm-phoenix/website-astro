@@ -3,77 +3,76 @@
   import MessageText from '../ui/MessageText.svelte';
   import { errorMessage } from '../../lib/api';
   import { ApiError } from '../../lib/apiError';
-  import { setzeStatus } from '../../lib/postfachStore.svelte';
+  import { setzeStatus, type StatusStand } from '../../lib/postfachStore.svelte';
   import { mailZeitKurz, STATUS_LABEL } from '../../lib/postfachAnsicht';
-  import {
-    statusVon,
-    type Erledigung,
-    type PostfachStatus,
-  } from '../../../../api/lib/postfach-model';
+  import type { PostfachStatus } from '../../../../api/lib/postfach-model';
 
   /**
-   * Where the conversation stands, for everyone who sees the mailbox: open, done or nothing to
-   * do. Saves at once; a newer message after „Erledigt“ makes it open again.
+   * Where the conversation stands, for everyone who sees the mailbox and in Outlook: new,
+   * needs action (a flag) or done (a completed flag). Saves at once; a reply after „Erledigt“
+   * makes it new again.
    */
   interface Props {
     postfach: string;
     konversation: string;
-    erledigung: Erledigung | null;
-    wiederOffen: boolean;
-    /** Received time of the newest message shown; a newer one keeps the conversation open. */
+    status: PostfachStatus;
+    erledigtAm: string | null;
+    /** Received time of the newest message shown; a newer one is not closed unseen. */
     bis: string;
-    ich: string;
-    /** After a save, with the conversation it was for and what applies now. */
-    onaenderung: (konversation: string, erledigung: Erledigung | null) => void;
+    /** A preview: shown, but not changed. */
+    nurLesen: boolean;
+    /** After a save, with the conversation it was for, what was saved and up to which message. */
+    onaenderung: (konversation: string, stand: StatusStand, bis: string) => void;
     /** After a conflict: the page reloads what is current. */
     onkonflikt: (konversation: string) => void;
   }
   let {
     postfach,
     konversation,
-    erledigung,
-    wiederOffen,
+    status,
+    erledigtAm,
     bis,
-    ich,
+    nurLesen,
     onaenderung,
     onkonflikt,
   }: Props = $props();
 
   const OPTIONEN = [
-    { value: 'offen', label: STATUS_LABEL.offen, tone: 'neutral' },
+    { value: 'neu', label: STATUS_LABEL.neu, tone: 'neutral' },
+    { value: 'handlungsbedarf', label: STATUS_LABEL.handlungsbedarf, tone: 'warning' },
     { value: 'erledigt', label: STATUS_LABEL.erledigt, tone: 'success' },
-    { value: 'kein_handlungsbedarf', label: STATUS_LABEL.kein_handlungsbedarf, tone: 'success' },
   ] as const;
+
+  const ERFOLG: Record<PostfachStatus, string> = {
+    neu: 'Wieder als neu markiert.',
+    handlungsbedarf: 'Mit „Handlungsbedarf“ markiert.',
+    erledigt: 'Als erledigt markiert.',
+  };
 
   let busy = $state(false);
   let meldung = $state<string | null>(null);
   let fehler = $state<string | null>(null);
 
-  const status = $derived(statusVon({ erledigung }));
   const hinweis = $derived(
-    erledigung
-      ? `${STATUS_LABEL[erledigung.status]} von ${
-          erledigung.login.toLowerCase() === ich.toLowerCase() ? 'dir' : erledigung.name
-        }, ${mailZeitKurz(erledigung.am)} · Wird sofort gespeichert.`
-      : 'Wird sofort gespeichert.'
+    nurLesen
+      ? 'In der Vorschau nur zum Ansehen.'
+      : status === 'erledigt' && erledigtAm
+        ? `Erledigt ${mailZeitKurz(erledigtAm)} · Wird sofort gespeichert.`
+        : 'Wird sofort gespeichert.'
   );
 
   async function waehle(neu: PostfachStatus): Promise<void> {
-    if (neu === status || busy) return;
+    if (neu === status || busy || nurLesen) return;
     const fuer = konversation;
     busy = true;
     meldung = null;
     fehler = null;
     try {
-      const result = await setzeStatus(postfach, fuer, neu, status, bis);
-      onaenderung(fuer, result);
+      const gesehen = bis;
+      const result = await setzeStatus(postfach, fuer, neu, status, gesehen);
+      onaenderung(fuer, result, gesehen);
       if (fuer !== konversation) return;
-      meldung =
-        neu === 'offen'
-          ? 'Wieder als offen markiert.'
-          : neu === 'erledigt'
-            ? 'Als erledigt markiert.'
-            : 'Als „Kein Handlungsbedarf“ markiert.';
+      meldung = ERFOLG[neu];
     } catch (error: unknown) {
       if (error instanceof ApiError && error.status === 409) onkonflikt(fuer);
       if (fuer !== konversation) return;
@@ -94,15 +93,10 @@
     variant="segmented"
     options={OPTIONEN}
     value={status}
-    disabled={busy}
+    disabled={busy || nurLesen}
     onselect={(value) => void waehle(value)}
   />
   <p class="text-sm text-neutral-700">{hinweis}</p>
-  {#if wiederOffen && !erledigung}
-    <p class="text-sm font-semibold text-warning">
-      Nach „Erledigt“ ist eine neue Nachricht gekommen.
-    </p>
-  {/if}
   {#if meldung}<p role="status" class="text-sm text-success">{meldung}</p>{/if}
   {#if fehler}<p role="alert" class="text-sm text-danger"><MessageText text={fehler} /></p>{/if}
 </div>

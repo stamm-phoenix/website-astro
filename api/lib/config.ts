@@ -150,11 +150,6 @@ export interface ApiConfig {
     hourlyLimit: number;
     dailyLimit: number;
   };
-  /** Module „E-Mail“: the shared mailboxes in the Leitendenbereich (`docs/postfaecher.md`). */
-  postfaecher: {
-    /** On the first visit of a mailbox, messages older than this count as read. */
-    ungelesenTage: number;
-  };
   /** Schnupperstunden-Anfragen of /mitmachen (#139); the mails go out from `kontakt.mailbox`. */
   schnupper: {
     /** Requests per hour and day over all Function instances, counted in the database. */
@@ -421,9 +416,6 @@ export const CONFIG: ApiConfig = {
     mailbox: 'kontakt@stamm-phoenix.de',
     hourlyLimit: 20,
     dailyLimit: 100,
-  },
-  postfaecher: {
-    ungelesenTage: 14,
   },
   schnupper: {
     hourlyLimit: 20,

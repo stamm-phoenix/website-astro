@@ -4,25 +4,36 @@
   import MessageText from '../ui/MessageText.svelte';
   import { errorMessage } from '../../lib/api';
   import { ApiError } from '../../lib/apiError';
-  import { ladePersonen, setzeZustaendig } from '../../lib/postfachStore.svelte';
-  import { mailZeitKurz } from '../../lib/postfachAnsicht';
-  import type { PostfachPerson, Zustaendigkeit } from '../../../../api/lib/postfach-model';
+  import {
+    ladePersonen,
+    setzeZustaendig,
+    type ZuweisungErgebnis,
+  } from '../../lib/postfachStore.svelte';
+  import {
+    istMirZugewiesen,
+    type PostfachPerson,
+    type Zustaendigkeit,
+  } from '../../../../api/lib/postfach-model';
 
   /**
-   * Who takes care of the conversation: „Ich kümmere mich“ in one tap, or another member of the
-   * mailbox's teams through the search. The new person gets a mail, unless it is oneself.
+   * Who takes care of the conversation, as a category in Outlook: „Ich kümmere mich“ in one tap,
+   * or another member of the mailbox's teams through the search. The new person gets a mail,
+   * unless it is oneself; a new conversation gets the flag „Handlungsbedarf“ with it.
    */
   interface Props {
     postfach: string;
     konversation: string;
     zustaendig: Zustaendigkeit | null;
     ich: string;
+    /** A preview: shown, but not changed. */
+    nurLesen: boolean;
     /** After a save, with the conversation it was for and what applies now. */
-    onaenderung: (konversation: string, zustaendig: Zustaendigkeit | null) => void;
+    onaenderung: (konversation: string, ergebnis: ZuweisungErgebnis) => void;
     /** After a conflict: the page reloads what is current. */
     onkonflikt: (konversation: string) => void;
   }
-  let { postfach, konversation, zustaendig, ich, onaenderung, onkonflikt }: Props = $props();
+  let { postfach, konversation, zustaendig, ich, nurLesen, onaenderung, onkonflikt }: Props =
+    $props();
 
   let auswahl = $state(false);
   let personen = $state<PostfachPerson[] | null>(null);
@@ -32,9 +43,11 @@
   let meldung = $state<string | null>(null);
   let fehler = $state<string | null>(null);
 
-  const meins = $derived(zustaendig?.login.toLowerCase() === ich.toLowerCase());
+  const meins = $derived(istMirZugewiesen({ zustaendig }, ich));
   const optionen = $derived(
-    (personen ?? []).filter((person) => person.login !== zustaendig?.login.toLowerCase())
+    (personen ?? []).filter(
+      (person) => person.name.toLowerCase() !== zustaendig?.name.toLowerCase()
+    )
   );
 
   async function oeffneAuswahl(): Promise<void> {
@@ -63,14 +76,14 @@
         postfach,
         fuer,
         person?.login ?? null,
-        zustaendig?.login ?? null
+        zustaendig?.name ?? null
       );
-      onaenderung(fuer, result.zustaendig);
+      onaenderung(fuer, result);
       if (fuer !== konversation) return;
       auswahl = false;
       query = '';
       if (!result.zustaendig) meldung = 'Zuständigkeit entfernt.';
-      else if (result.zustaendig.login === ich) meldung = 'Du bist jetzt zuständig.';
+      else if (istMirZugewiesen(result, ich)) meldung = 'Du bist jetzt zuständig.';
       else
         meldung = result.benachrichtigt
           ? `${result.zustaendig.name} ist jetzt zuständig und hat eine Mail bekommen.`
@@ -95,16 +108,11 @@
         <span class="font-semibold text-brand-900"
           >{meins ? 'Du bist zuständig' : `Zuständig: ${zustaendig.name}`}</span
         >
-        <span class="block text-sm text-neutral-700">
-          seit {mailZeitKurz(zustaendig.am)}{zustaendig.vonLogin !== zustaendig.login
-            ? `, eingetragen von ${zustaendig.vonLogin === ich ? 'dir' : zustaendig.vonName}`
-            : ''}
-        </span>
       {:else}
         <span class="font-semibold text-warning">Noch niemand zuständig</span>
       {/if}
     </p>
-    <div class="flex flex-wrap gap-2">
+    <div class="flex flex-wrap gap-2" class:hidden={nurLesen}>
       {#if !meins}
         <ActionButton
           variant="primary"

@@ -16,7 +16,7 @@ import {
   readAttachments,
 } from './postfach-anhaenge';
 import { KONVERSATION_MAX } from './postfach-model';
-import type { InboxNachricht, MailAdresse, MailNachricht } from './postfach-model';
+import type { InboxNachricht, MailAdresse, MailNachricht, OutlookFlag } from './postfach-model';
 
 export {
   AnhangNichtLadbarError,
@@ -27,9 +27,9 @@ export { ANHANG_MAX, readAnhang } from './postfach-anhaenge';
 
 /**
  * Reading the shared mailboxes through Microsoft Graph with the API's app registration
- * (`Mail.Read`, scoped to the mailboxes with RBAC for Applications, see `docs/postfaecher.md`).
- * Nothing is changed in the mailbox: reading with Graph leaves `isRead` of Outlook alone, and the
- * read state of each person lives in Azure SQL.
+ * (`Mail.ReadWrite`, scoped to the mailboxes with RBAC for Applications, see
+ * `docs/postfaecher.md`). Reading leaves `isRead` of Outlook alone; the status and the
+ * responsible person are the flags and categories of the messages (`postfach-schreiben.ts`).
  *
  * All IDs are immutable IDs (`Prefer: IdType="ImmutableId"`), so a message keeps its ID when
  * someone moves it in Outlook.
@@ -63,6 +63,31 @@ const addressList = z
   );
 const timestamp = z.string().refine((value) => !Number.isNaN(Date.parse(value)));
 
+const FLAGS = new Set<string>(['notFlagged', 'flagged', 'complete']);
+
+const flagSchema = z
+  .object({
+    flagStatus: text.optional(),
+    completedDateTime: z
+      .object({ dateTime: text, timeZone: text.optional() })
+      .nullable()
+      .optional()
+      .catch(null),
+  })
+  .nullable()
+  .optional()
+  .catch(null);
+
+/** A time of Graph without zone (`dateTimeTimeZone`); Graph answers in UTC unless asked otherwise. */
+function utc(value: { dateTime: string; timeZone?: string } | null | undefined): string | null {
+  if (!value?.dateTime) return null;
+  const zone = (value.timeZone ?? 'UTC').toUpperCase();
+  if (zone !== 'UTC' && zone !== 'COORDINATED UNIVERSAL TIME') return null;
+  const text = /[zZ]|[+-]\d\d:\d\d$/.test(value.dateTime) ? value.dateTime : `${value.dateTime}Z`;
+  const time = Date.parse(text);
+  return Number.isNaN(time) ? null : new Date(time).toISOString();
+}
+
 const listMessageSchema = z.object({
   id: z.string().min(1),
   conversationId: z.string().min(1),
@@ -73,10 +98,12 @@ const listMessageSchema = z.object({
   hasAttachments: z.boolean().catch(false),
   importance: text.optional(),
   isDraft: z.boolean().catch(false),
+  flag: flagSchema,
+  categories: z.array(z.string()).optional().catch([]),
+  parentFolderId: z.string().nullable().catch(null).optional(),
 });
 
 const fullMessageSchema = listMessageSchema.extend({
-  parentFolderId: z.string().nullable().catch(null).optional(),
   toRecipients: addressList.optional(),
   ccRecipients: addressList.optional(),
   body: z.object({ contentType: text, content: text }).nullable().catch(null).optional(),
@@ -94,13 +121,17 @@ function toInbox(message: z.output<typeof listMessageSchema>): InboxNachricht {
     vorschau: (message.bodyPreview ?? '').replace(/\s+/g, ' ').trim().slice(0, 200),
     hatAnhang: message.hasAttachments,
     wichtig: message.importance === 'high',
+    flag: (FLAGS.has(message.flag?.flagStatus ?? '')
+      ? message.flag?.flagStatus
+      : 'notFlagged') as OutlookFlag,
+    erledigtAm: utc(message.flag?.completedDateTime),
+    kategorien: message.categories ?? [],
   };
 }
 
 const LIST_SELECT =
-  'id,conversationId,subject,from,receivedDateTime,bodyPreview,hasAttachments,importance,isDraft';
+  'id,conversationId,subject,from,receivedDateTime,bodyPreview,hasAttachments,importance,isDraft,flag,categories';
 
-/** The newest messages of the inbox, newest first. */
 /** The newest messages of the inbox; `begrenzt`: the inbox holds more than were read. */
 export interface Posteingang {
   nachrichten: InboxNachricht[];
@@ -155,44 +186,118 @@ export function resetSentItemsCache(): void {
   sentItemsCache.clear();
 }
 
+/** The folders that tell sent from received messages. */
+interface Ordner {
+  gesendet: string | null;
+  posteingang: string | null;
+}
+
+async function ordner(address: string): Promise<Ordner> {
+  const [gesendet, posteingang] = await Promise.all([
+    ordnerId(address, 'sentitems'),
+    ordnerId(address, 'inbox'),
+  ]);
+  return { gesendet, posteingang };
+}
+
+/**
+ * Sent: in „Gesendete Elemente“, or from the mailbox itself and moved elsewhere (e.g. an
+ * archived answer). From the mailbox but in the inbox: a note of the forms, which send from the
+ * mailbox to itself, so it was received.
+ */
+function istGesendet(
+  message: Pick<z.output<typeof listMessageSchema>, 'parentFolderId'>,
+  von: MailAdresse,
+  address: string,
+  { gesendet, posteingang }: Ordner
+): boolean {
+  return (
+    (gesendet !== null && message.parentFolderId === gesendet) ||
+    (von.adresse.toLowerCase() === address.toLowerCase() &&
+      posteingang !== null &&
+      message.parentFolderId !== posteingang)
+  );
+}
+
+/** The messages of a conversation in every folder, oldest first, with up to 200 read. */
+async function readKonversationsNachrichten<S extends typeof listMessageSchema>(
+  address: string,
+  konversationId: string,
+  schema: S,
+  select: string,
+  prefer: string[]
+): Promise<{ messages: z.output<S>[]; vollstaendig: boolean }> {
+  const path = `${mailboxPath(address)}/messages`;
+  // Sorting together with this filter is refused by Exchange; the list is sorted here
+  let response = await postfachGraph.get(
+    path,
+    {
+      $filter: `conversationId eq '${konversationId.replaceAll("'", "''")}'`,
+      $select: select,
+      $top: String(KONVERSATION_SEITE),
+    },
+    prefer
+  );
+  const gelesen = readCollection(schema, response);
+  let next = nextLinkOf(response, path);
+  for (let seite = 1; next && seite < KONVERSATION_SEITEN; seite++) {
+    response = await postfachGraph.next(next, prefer);
+    gelesen.push(...readCollection(schema, response));
+    next = nextLinkOf(response, path);
+  }
+  const messages = gelesen
+    .filter((message) => !message.isDraft && message.conversationId === konversationId)
+    .sort((a, b) => a.receivedDateTime.localeCompare(b.receivedDateTime));
+  return { messages, vollstaendig: next === null };
+}
+
+/**
+ * The received messages of a conversation in every folder, without bodies, with their flags and
+ * categories: what a change of the status or the responsible person works on.
+ */
+export async function readKonversationStand(
+  address: string,
+  konversationId: string
+): Promise<InboxNachricht[]> {
+  return guarded(address, async () => {
+    const { messages } = await readKonversationsNachrichten(
+      address,
+      konversationId,
+      listMessageSchema,
+      `${LIST_SELECT},parentFolderId`,
+      [IMMUTABLE]
+    );
+    const ordnerIds = await ordner(address);
+    return messages
+      .map((message) => ({ message, base: toInbox(message) }))
+      .filter(({ message, base }) => !istGesendet(message, base.von, address, ordnerIds))
+      .map(({ base }) => base);
+  });
+}
+
 /**
  * All messages of a conversation in the mailbox, in every folder (so answers from Sent Items
- * show), oldest first. `gelesen` is filled in by the caller.
+ * show), oldest first; `eingegangen` are the received ones with their flags and categories.
  */
 export async function readKonversation(
   address: string,
   konversationId: string
-): Promise<{ nachrichten: Omit<MailNachricht, 'gelesen'>[]; vollstaendig: boolean }> {
+): Promise<{ nachrichten: MailNachricht[]; eingegangen: InboxNachricht[]; vollstaendig: boolean }> {
   return guarded(address, async () => {
-    const path = `${mailboxPath(address)}/messages`;
-    const prefer = [IMMUTABLE, 'outlook.body-content-type="html"'];
-    // Sorting together with this filter is refused by Exchange; the list is sorted here
-    let response = await postfachGraph.get(
-      path,
-      {
-        $filter: `conversationId eq '${konversationId.replaceAll("'", "''")}'`,
-        $select: `${LIST_SELECT},parentFolderId,toRecipients,ccRecipients,body`,
-        $top: String(KONVERSATION_SEITE),
-      },
-      prefer
+    const { messages, vollstaendig } = await readKonversationsNachrichten(
+      address,
+      konversationId,
+      fullMessageSchema,
+      `${LIST_SELECT},parentFolderId,toRecipients,ccRecipients,body`,
+      [IMMUTABLE, 'outlook.body-content-type="html"']
     );
-    const gelesen = readCollection(fullMessageSchema, response);
-    let next = nextLinkOf(response, path);
-    for (let seite = 1; next && seite < KONVERSATION_SEITEN; seite++) {
-      response = await postfachGraph.next(next, prefer);
-      gelesen.push(...readCollection(fullMessageSchema, response));
-      next = nextLinkOf(response, path);
-    }
-    const messages = gelesen
-      .filter((message) => !message.isDraft && message.conversationId === konversationId)
-      .sort((a, b) => a.receivedDateTime.localeCompare(b.receivedDateTime));
-    const [gesendetOrdner, posteingang] = await Promise.all([
-      ordnerId(address, 'sentitems'),
-      ordnerId(address, 'inbox'),
-    ]);
+    const ordnerIds = await ordner(address);
+    const eingegangen: InboxNachricht[] = [];
     const nachrichten = await Promise.all(
-      messages.map(async (message) => {
+      messages.map(async (message): Promise<MailNachricht> => {
         const base = toInbox(message);
+        const gesendet = istGesendet(message, base.von, address, ordnerIds);
+        if (!gesendet) eingegangen.push(base);
         const isHtml = message.body?.contentType.toLowerCase() === 'html';
         let html = isHtml ? (message.body?.content ?? '') : null;
         const mitCid = html !== null && /cid:/i.test(html);
@@ -219,20 +324,14 @@ export async function readKonversation(
           text: isHtml ? null : (message.body?.content ?? base.vorschau),
           // Inline images too large to embed stay reachable as attachments
           anhaenge: attachments.filter((entry) => !eingebettet.has(entry.id)).map(alsAnhang),
-          // Sent: in „Gesendete Elemente“, or from the mailbox itself and moved elsewhere (e.g.
-          // an archived answer). From the mailbox but in the inbox: a note of the forms, which
-          // send from the mailbox to itself, so it was received
-          gesendet:
-            (gesendetOrdner !== null && message.parentFolderId === gesendetOrdner) ||
-            (base.von.adresse.toLowerCase() === address.toLowerCase() &&
-              posteingang !== null &&
-              message.parentFolderId !== posteingang),
+          gesendet,
           // Unknown folder: counted as in the inbox, as the list did before
-          imPosteingang: posteingang === null || message.parentFolderId === posteingang,
+          imPosteingang:
+            ordnerIds.posteingang === null || message.parentFolderId === ordnerIds.posteingang,
         };
       })
     );
-    return { nachrichten, vollstaendig: next === null };
+    return { nachrichten, eingegangen, vollstaendig };
   });
 }
 

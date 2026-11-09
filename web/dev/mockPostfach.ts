@@ -8,25 +8,29 @@ import {
 } from '../../api/lib/postfach-liste';
 import {
   fuerMich,
-  istGelesen,
   istMirZugewiesen,
+  kategorieFuer,
   konversationenAus,
+  sekunde,
+  type InboxNachricht,
   type KonversationDetail,
+  type KonversationZeile,
+  type OutlookFlag,
   type PostfachPerson,
-  type Erledigung,
-  type Zustaendigkeit,
-  statusVon,
 } from '../../api/lib/postfach-model';
+import { aenderungen, nachAenderung } from '../../api/lib/postfach-aenderung';
 import {
-  validateGelesen,
   validateStatus,
   validateZustaendig,
   validateZustaendigMehrere,
 } from '../../api/lib/validation/postfach';
 
-import { ADRESSE, MAILS, vor } from './mockPostfachMails';
+import { ADRESSE, MAILS, vor, type DemoMail } from './mockPostfachMails';
 
-/** Demo mails of the module „E-Mail“ (`docs/postfaecher.md`), in memory. */
+/**
+ * Demo mails of the module „E-Mail“ (`docs/postfaecher.md`), in memory. Flags and categories are
+ * kept per message as Outlook does, and changed with the same rules as the API.
+ */
 
 const json = (body: unknown, status = 200): MockResult => ({ kind: 'json', status, body });
 const error = (status: number, code: string, message: string): MockResult =>
@@ -40,47 +44,41 @@ const PERSONEN: PostfachPerson[] = [
   { login: 'tom.test@example.test', name: 'Tom Test' },
 ];
 
-const marken = new Map<string, boolean>();
-let gelesenBis: string = vor(24 * 14);
-const zustaendig = new Map<string, Zustaendigkeit>([
-  [
-    'AAQkADemoKonv03',
-    {
-      login: 'leitung@example.test',
-      name: 'Demo Leitung',
-      vonLogin: 'lea.leitung@example.test',
-      vonName: 'Lea Leitung',
-      am: vor(70),
-    },
-  ],
-]);
+/** Flag, done time and categories of each message, as Outlook keeps them. */
+const outlook = new Map<string, Pick<InboxNachricht, 'flag' | 'erledigtAm' | 'kategorien'>>();
 
-const erledigungen = new Map<string, Erledigung>([
-  [
-    'AAQkADemoKonv05',
-    {
-      status: 'kein_handlungsbedarf',
-      login: 'lea.leitung@example.test',
-      name: 'Lea Leitung',
-      am: vor(24 * 4),
-      bis: vor(24 * 5),
-    },
-  ],
-]);
+function setzeStart(konversation: string, flag: OutlookFlag, kategorien: string[] = []): void {
+  for (const mail of MAILS.filter(
+    (entry) => entry.konversation === konversation && !entry.gesendet
+  ))
+    outlook.set(mail.id, {
+      flag,
+      erledigtAm: flag === 'complete' ? vor(24 * 4) : null,
+      kategorien,
+    });
+}
+setzeStart('AAQkADemoKonv03', 'flagged', [kategorieFuer('Demo Leitung')]);
+setzeStart('AAQkADemoKonv05', 'complete');
 
-function stand() {
-  return { marken, gelesenBis };
+function mitStand(mail: DemoMail): InboxNachricht {
+  return {
+    ...mail,
+    ...(outlook.get(mail.id) ?? { flag: 'notFlagged', erledigtAm: null, kategorien: [] }),
+  };
+}
+
+/** The received messages of a conversation. */
+function eingegangen(konversation: string): InboxNachricht[] {
+  return MAILS.filter((mail) => mail.konversation === konversation && !mail.gesendet).map(mitStand);
 }
 
 /** Only the Kontakt-Postfach has demo mails; the others start empty. */
-function zeilen(id: string = POSTFACH) {
+function zeilen(id: string = POSTFACH): KonversationZeile[] {
   if (id !== POSTFACH) return [];
   return konversationenAus(
     POSTFACH,
-    MAILS.filter((mail) => !mail.gesendet),
-    stand(),
-    zustaendig,
-    erledigungen
+    MAILS.filter((mail) => !mail.gesendet).map(mitStand),
+    PERSONEN
   );
 }
 
@@ -91,6 +89,23 @@ function info(postfach: PostfachEintrag = findPostfach(POSTFACH)!) {
     address: postfach.address,
     outlookUrl: postfachOutlookUrl(postfach.address),
   };
+}
+
+/** Writes the changes into the demo „Outlook“ and answers with the new line. */
+function schreibe(
+  konversation: string,
+  ziel: Parameters<typeof aenderungen>[1]
+): KonversationZeile | null {
+  const nachrichten = eingegangen(konversation);
+  if (!nachrichten.length) return null;
+  const danach = nachAenderung(nachrichten, aenderungen(nachrichten, ziel));
+  for (const nachricht of danach)
+    outlook.set(nachricht.id, {
+      flag: nachricht.flag,
+      erledigtAm: nachricht.erledigtAm,
+      kategorien: nachricht.kategorien,
+    });
+  return konversationenAus(POSTFACH, danach, PERSONEN)[0];
 }
 
 export function registerPostfachRoutes(
@@ -119,8 +134,10 @@ export function registerPostfachRoutes(
         const alle = zeilen(postfach.id);
         return {
           ...info(postfach),
-          ungelesen: alle.filter((zeile) => zeile.ungelesen > 0).length,
-          mirZugewiesen: alle.filter((zeile) => istMirZugewiesen(zeile, login())).length,
+          neu: alle.filter((zeile) => zeile.status === 'neu').length,
+          mirZugewiesen: alle.filter(
+            (zeile) => zeile.status !== 'erledigt' && istMirZugewiesen(zeile, login())
+          ).length,
           fehler: false,
           gesperrt: false,
         };
@@ -139,23 +156,17 @@ export function registerPostfachRoutes(
         konversationen: zeilen(req.params.postfach),
         begrenzt: false,
         ich: login(),
+        nurLesen: false,
       })
   );
 
   route('GET', '/api/intern/postfach/:postfach/konversation', (req) => {
-    const id = req.query.get('id');
+    const id = req.query.get('id') ?? '';
     const mails =
       req.params.postfach === POSTFACH ? MAILS.filter((mail) => mail.konversation === id) : [];
     if (unbekannt(req)) return unbekannt(req)!;
     if (!mails.length) return error(404, 'NOT_FOUND', 'Diese E-Mail ist nicht mehr im Postfach.');
-    const eingegangen = mails.filter((mail) => !mail.gesendet);
-    const [konversation] = konversationenAus(
-      POSTFACH,
-      eingegangen,
-      stand(),
-      zustaendig,
-      erledigungen
-    );
+    const [konversation] = konversationenAus(POSTFACH, eingegangen(id), PERSONEN);
     const detail: KonversationDetail = {
       konversation,
       nachrichten: mails.map((mail) => ({
@@ -171,24 +182,11 @@ export function registerPostfachRoutes(
         anhaenge: mail.anhaenge ?? [],
         gesendet: mail.gesendet ?? false,
         imPosteingang: !(mail.gesendet ?? false),
-        gelesen: (mail.gesendet ?? false) || istGelesen(mail, stand()),
       })),
       vollstaendig: true,
       outlookUrl: `${postfachOutlookUrl(ADRESSE)}inbox/id/${encodeURIComponent(mails[0].id)}`,
     };
     return json(detail);
-  });
-
-  route('POST', '/api/intern/postfach/:postfach/gelesen', (req) => {
-    if (unbekannt(req)) return unbekannt(req)!;
-    const eingabe = validateGelesen(req.json);
-    if ('alle' in eingabe) {
-      marken.clear();
-      gelesenBis = new Date().toISOString();
-    } else {
-      for (const id of eingabe.nachrichten) marken.set(id, eingabe.gelesen);
-    }
-    return { kind: 'empty', status: 204 };
   });
 
   route(
@@ -202,63 +200,47 @@ export function registerPostfachRoutes(
     const eingabe = validateStatus(req.json);
     const zeile = zeilen(req.params.postfach).find((entry) => entry.id === eingabe.konversation);
     if (!zeile) return error(404, 'NOT_FOUND', 'Diese E-Mail ist nicht mehr im Postfach.');
-    if (statusVon(zeile) !== eingabe.vorher)
+    if (zeile.status !== eingabe.vorher)
       return error(
         409,
         'CONFLICT',
         'Jemand hat den Stand inzwischen geändert. Nichts wurde gespeichert.'
       );
-    // As in the API: already so, who marked it and when stay
-    if (eingabe.status === eingabe.vorher) return json({ erledigung: zeile.erledigung ?? null });
-    if (eingabe.status !== 'offen' && zeile.am > new Date(eingabe.bis).toISOString())
+    // As in the API: already so, nothing changes
+    if (eingabe.status === eingabe.vorher)
+      return json({ status: zeile.status, erledigtAm: zeile.erledigtAm });
+    if (
+      eingabe.status !== 'neu' &&
+      sekunde(zeile.am) > sekunde(new Date(eingabe.bis).toISOString())
+    )
       return error(
         409,
         'NEUE_NACHRICHT',
         'Seit du die Unterhaltung geöffnet hast, ist eine neue Nachricht gekommen. Nichts wurde gespeichert.'
       );
-    if (eingabe.status === 'offen') {
-      erledigungen.delete(eingabe.konversation);
-      return json({ erledigung: null });
-    }
-    const ich = PERSONEN.find((entry) => entry.login === login()) ?? PERSONEN[0];
-    const neu: Erledigung = {
-      status: eingabe.status,
-      login: ich.login,
-      name: ich.name,
-      am: new Date().toISOString(),
-      bis: new Date(eingabe.bis).toISOString(),
-    };
-    erledigungen.set(eingabe.konversation, neu);
-    return json({ erledigung: neu });
+    const neu = schreibe(eingabe.konversation, { status: eingabe.status })!;
+    return json({ status: neu.status, erledigtAm: neu.erledigtAm });
   });
 
-  /** One conversation to one person (null: nobody), as `setzeZustaendigkeit` in the API. */
+  /** One conversation to one person (null: nobody), as `setzeZustaendig` in the API. */
   function weise(
     konversation: string,
     wer: string | null,
     vorher: string | null
-  ): { zustaendig: Zustaendigkeit | null; fehler?: string } {
-    const aktuell = zustaendig.get(konversation) ?? null;
-    if ((aktuell?.login ?? null) !== vorher)
+  ): { zeile: KonversationZeile | null; fehler?: string; vorher?: string | null } {
+    const aktuell = zeilen().find((entry) => entry.id === konversation) ?? null;
+    if (!aktuell) return { zeile: null, fehler: 'Diese E-Mail ist nicht mehr im Postfach.' };
+    if ((aktuell.zustaendig?.name.toLowerCase() ?? null) !== (vorher?.toLowerCase() ?? null))
       return {
-        zustaendig: aktuell,
+        zeile: aktuell,
         fehler: 'Jemand hat die Zuständigkeit inzwischen geändert. Nichts wurde gespeichert.',
       };
     const person = PERSONEN.find((entry) => entry.login === wer);
-    if (!person) {
-      zustaendig.delete(konversation);
-      return { zustaendig: null };
-    }
-    const ich = PERSONEN.find((entry) => entry.login === login()) ?? PERSONEN[0];
-    const neu: Zustaendigkeit = {
-      login: person.login,
-      name: person.name,
-      vonLogin: ich.login,
-      vonName: ich.name,
-      am: new Date().toISOString(),
-    };
-    zustaendig.set(konversation, neu);
-    return { zustaendig: neu };
+    const zeile = schreibe(konversation, {
+      kategorie: person ? kategorieFuer(person.name) : null,
+      status: person && aktuell.status === 'neu' ? 'handlungsbedarf' : undefined,
+    });
+    return { zeile, vorher: aktuell.zustaendig?.name ?? null };
   }
 
   const OHNE_ZUGRIFF =
@@ -270,9 +252,12 @@ export function registerPostfachRoutes(
     if (eingabe.login && !PERSONEN.some((entry) => entry.login === eingabe.login))
       return error(400, 'INVALID', OHNE_ZUGRIFF);
     const ergebnis = weise(eingabe.konversation, eingabe.login, eingabe.vorher);
+    if (!ergebnis.zeile) return error(404, 'NOT_FOUND', ergebnis.fehler ?? '');
     if (ergebnis.fehler) return error(409, 'CONFLICT', ergebnis.fehler);
     return json({
-      zustaendig: ergebnis.zustaendig,
+      zustaendig: ergebnis.zeile.zustaendig,
+      status: ergebnis.zeile.status,
+      erledigtAm: ergebnis.zeile.erledigtAm,
       benachrichtigt: !!eingabe.login && eingabe.login !== login(),
     });
   });
@@ -280,13 +265,20 @@ export function registerPostfachRoutes(
   route('PUT', '/api/intern/postfach/:postfach/zustaendig-mehrere', (req) => {
     if (unbekannt(req)) return unbekannt(req)!;
     const eingabe = validateZustaendigMehrere(req.json);
-    if (eingabe.login && !PERSONEN.some((entry) => entry.login === eingabe.login))
-      return error(400, 'INVALID', OHNE_ZUGRIFF);
+    const person = PERSONEN.find((entry) => entry.login === eingabe.login);
+    if (eingabe.login && !person) return error(400, 'INVALID', OHNE_ZUGRIFF);
     let neuFuerPerson = false;
     const ergebnisse = eingabe.konversationen.map(({ konversation, vorher }) => {
-      const ergebnis = weise(konversation, eingabe.login, vorher);
-      if (!ergebnis.fehler && vorher !== eingabe.login) neuFuerPerson = true;
-      return { konversation, ok: !ergebnis.fehler, ...ergebnis };
+      const { zeile, fehler, vorher: alt } = weise(konversation, eingabe.login, vorher);
+      if (!fehler && person && alt?.toLowerCase() !== person.name.toLowerCase())
+        neuFuerPerson = true;
+      return {
+        konversation,
+        ok: !fehler,
+        zustaendig: zeile?.zustaendig ?? null,
+        ...(!fehler && zeile && { status: zeile.status, erledigtAm: zeile.erledigtAm }),
+        ...(fehler && { fehler }),
+      };
     });
     // As in the API: null when no note was due
     const faellig = !!eingabe.login && eingabe.login !== login() && neuFuerPerson;

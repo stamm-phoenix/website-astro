@@ -67,7 +67,6 @@ import { StaffFavorites } from './endpoints/intern-favoriten';
 import { StaffChangelog } from './endpoints/intern-neuigkeiten';
 import {
   PostfachAnhangRoute,
-  PostfachGelesenRoute,
   PostfachKonversationRoute,
   PostfachListeRoute,
   PostfachPersonenRoute,
@@ -914,13 +913,6 @@ app.http('internPostfachKonversation', {
   authLevel: 'anonymous',
   route: 'intern/postfach/{postfach}/konversation',
   handler: PostfachKonversationRoute,
-});
-
-app.http('internPostfachGelesen', {
-  methods: ['POST'],
-  authLevel: 'anonymous',
-  route: 'intern/postfach/{postfach}/gelesen',
-  handler: PostfachGelesenRoute,
 });
 
 app.http('internPostfachPersonen', {

@@ -6,11 +6,11 @@ import {
   pflegeHandler,
   readJsonBody,
 } from '../lib/pflege-api';
+import { PostfachSchreibError } from '../lib/postfach-graph-basis';
 import { errorResponse, encodeContentDisposition, withErrorHandling } from '../lib/response-utils';
 import { findPostfach, type PostfachEintrag } from '../lib/postfach-liste';
 import {
   eigenerLogin,
-  inbox,
   ladeAnsicht,
   ladeKonversation,
   ladePersonen,
@@ -18,13 +18,7 @@ import {
   sichtbarePostfaecher,
 } from '../lib/postfach';
 import { AnhangNichtLadbarError, PostfachZugriffError, readAnhang } from '../lib/postfach-graph';
-import { konversationenAus, type KonversationZeile } from '../lib/postfach-model';
-import {
-  alleGelesen,
-  markiereNachrichten,
-  setzeZustaendigkeit,
-  ZustaendigkeitKonfliktError,
-} from '../lib/postfach-stand';
+import { setzeZustaendig, ZustaendigkeitKonfliktError } from '../lib/postfach-stand';
 import { postfachBenachrichtigung } from '../lib/postfach-mails';
 import {
   getPrincipalFirstName,
@@ -34,7 +28,6 @@ import {
 import { getSiteUrl } from '../lib/site-url';
 import {
   validateAnhang,
-  validateGelesen,
   validateKonversationId,
   validateZustaendig,
 } from '../lib/validation/postfach';
@@ -64,6 +57,19 @@ const GESPERRT = errorResponse(
   'Die Website darf dieses Postfach gerade nicht lesen. Nichts wurde geändert. Bitte melde das an admin@stamm-phoenix.de.'
 );
 
+const SCHREIBEN_GESPERRT = errorResponse(
+  503,
+  'POSTFACH_SCHREIBGESCHUETZT',
+  'Die Website darf in diesem Postfach gerade nichts ändern. Nichts wurde gespeichert. Setz Fähnchen und Kategorie solange in Outlook und melde das an admin@stamm-phoenix.de.'
+);
+
+/** Previews read the real mailboxes and must not change them. */
+const NUR_LESEN = errorResponse(
+  403,
+  'NUR_LESEN',
+  'In der Vorschau kann im Postfach nichts geändert werden. Nichts wurde gespeichert.'
+);
+
 const ANHANG_NUR_OUTLOOK = errorResponse(
   422,
   'ANHANG_NUR_OUTLOOK',
@@ -75,6 +81,14 @@ const PERSON_OHNE_ZUGRIFF = errorResponse(
   'INVALID',
   'Diese Person hat keinen Zugriff auf das Postfach. Wähle jemanden aus der Liste.'
 );
+
+/** For the routes that change the mailbox: refused in the previews. */
+export function postfachAenderung(handler: Handler) {
+  return postfachRoute(async (request, postfach, principal, context) => {
+    if (request.method === 'PUT' && isPreviewDeployment()) return NUR_LESEN;
+    return handler(request, postfach, principal, context);
+  });
+}
 
 type Handler = (
   request: HttpRequest,
@@ -98,6 +112,10 @@ export function postfachRoute(handler: Handler) {
           if (error instanceof PostfachZugriffError) {
             context.error(`[postfach] Graph verweigert ${error.address}`);
             return GESPERRT;
+          }
+          if (error instanceof PostfachSchreibError) {
+            context.error(`[postfach] Graph verweigert Änderungen an ${error.address}`);
+            return SCHREIBEN_GESPERRT;
           }
           if (error instanceof AnhangNichtLadbarError) return ANHANG_NUR_OUTLOOK;
           throw error;
@@ -123,23 +141,11 @@ export const PostfachListeRoute = postfachRoute(async (request, postfach, princi
 });
 
 /** `GET /api/intern/postfach/{postfach}/konversation?id=`: the messages with their bodies. */
-export const PostfachKonversationRoute = postfachRoute(async (request, postfach, principal) => {
+export const PostfachKonversationRoute = postfachRoute(async (request, postfach) => {
   if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
   const id = validateKonversationId(request.query.get('id'));
-  const detail = await ladeKonversation(postfach, principal, id);
+  const detail = await ladeKonversation(postfach, id);
   return detail ? ok(detail) : KONVERSATION_FEHLT;
-});
-
-/** `POST /api/intern/postfach/{postfach}/gelesen`: `{ nachrichten, gelesen }` or `{ alle: true }`. */
-export const PostfachGelesenRoute = postfachRoute(async (request, postfach, principal) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-  const eingabe = validateGelesen(await readJsonBody(request));
-  if ('alle' in eingabe) {
-    await alleGelesen(postfach.id, principal.userId, eigenerLogin(principal));
-  } else {
-    await markiereNachrichten(postfach.id, principal.userId, eingabe.nachrichten, eingabe.gelesen);
-  }
-  return { status: 204, headers: NO_STORE_HEADERS };
 });
 
 /** `GET /api/intern/postfach/{postfach}/personen`: who can be made responsible. */
@@ -148,28 +154,26 @@ export const PostfachPersonenRoute = postfachRoute(async (request, postfach) => 
   return ok({ personen: await ladePersonen(postfach) });
 });
 
-/** The line of the conversation for the note, from the inbox or, if it left it, from all folders. */
-export async function zeileFuer(
+/** Who acts, with the name of the directory if there is one. */
+export async function handelnde(
   postfach: PostfachEintrag,
-  principal: ClientPrincipal,
-  konversation: string
-): Promise<KonversationZeile | null> {
-  const nachrichten = (await inbox(postfach.address)).nachrichten.filter(
-    (nachricht) => nachricht.konversation === konversation
-  );
-  if (nachrichten.length) {
-    const leer = { marken: new Map<string, boolean>(), gelesenBis: null };
-    return konversationenAus(postfach.id, nachrichten, leer, new Map())[0] ?? null;
-  }
-  return (await ladeKonversation(postfach, principal, konversation))?.konversation ?? null;
+  principal: ClientPrincipal
+): Promise<{ login: string; name: string }> {
+  const ich = eigenerLogin(principal);
+  const personen = await ladePersonen(postfach).catch(() => []);
+  return {
+    login: ich,
+    name: personen.find((person) => person.login === ich)?.name ?? getPrincipalFirstName(principal),
+  };
 }
 
 /**
  * `PUT /api/intern/postfach/{postfach}/zustaendig` `{ konversation, login, vorher }`: makes a
- * member of the mailbox's teams responsible (null: nobody) and sends them a note, unless they
- * chose themselves. Answers `{ zustaendig, benachrichtigt }`; 409 names who is responsible now.
+ * member of the mailbox's teams responsible (null: nobody) with an Outlook category and sends
+ * them a note, unless they chose themselves. `vorher` is the name the page showed. Answers
+ * `{ zustaendig, status, erledigtAm, benachrichtigt }`; 409 names who is responsible now.
  */
-export const PostfachZustaendigRoute = postfachRoute(
+export const PostfachZustaendigRoute = postfachAenderung(
   async (request, postfach, principal, context) => {
     if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const eingabe = validateZustaendig(await readJsonBody(request));
@@ -177,23 +181,9 @@ export const PostfachZustaendigRoute = postfachRoute(
     const personen = await ladePersonen(postfach);
     const neu = eingabe.login ? personen.find((person) => person.login === eingabe.login) : null;
     if (eingabe.login && !neu) return PERSON_OHNE_ZUGRIFF;
-    const zeile = await zeileFuer(postfach, principal, eingabe.konversation);
-    if (!zeile) return KONVERSATION_FEHLT;
-    const von = {
-      login: ich,
-      name:
-        personen.find((person) => person.login === ich)?.name ?? getPrincipalFirstName(principal),
-    };
-    let zustaendig;
+    let ergebnis;
     try {
-      zustaendig = await setzeZustaendigkeit(
-        postfach.id,
-        eingabe.konversation,
-        neu ?? null,
-        eingabe.vorher,
-        von,
-        zeile.betreff
-      );
+      ergebnis = await setzeZustaendig(postfach, eingabe.konversation, neu ?? null, eingabe.vorher);
     } catch (error: unknown) {
       if (!(error instanceof ZustaendigkeitKonfliktError)) throw error;
       const wer = error.aktuell ? `${error.aktuell.name} ist` : 'Niemand ist';
@@ -208,15 +198,19 @@ export const PostfachZustaendigRoute = postfachRoute(
         },
       };
     }
+    if (!ergebnis) return KONVERSATION_FEHLT;
+    const { zeile } = ergebnis;
     context.log(
-      `[postfach] ${ich} ${postfach.id} zuständig: ${zustaendig?.login ?? 'niemand'} (vorher ${eingabe.vorher ?? 'niemand'})`
+      `[postfach] ${ich} ${postfach.id} zuständig: ${neu?.login ?? 'niemand'} (vorher ${eingabe.vorher ?? 'niemand'})`
     );
     let benachrichtigt = false;
+    const neuFuerPerson = !!neu && ergebnis.vorher?.name.toLowerCase() !== neu.name.toLowerCase();
     // Previews share the mail sending with production, so they send no notes
-    if (zustaendig && zustaendig.login !== ich && !isPreviewDeployment()) {
+    if (neu && neu.login !== ich && neuFuerPerson && !isPreviewDeployment()) {
       try {
+        const von = await handelnde(postfach, principal);
         await postfachBenachrichtigung.senden(
-          zustaendig.login,
+          neu.login,
           postfach,
           [zeile],
           von.name,
@@ -224,10 +218,15 @@ export const PostfachZustaendigRoute = postfachRoute(
         );
         benachrichtigt = true;
       } catch (error: unknown) {
-        context.error(`[postfach] Mail an ${zustaendig.login} fehlgeschlagen`, error);
+        context.error(`[postfach] Mail an ${neu.login} fehlgeschlagen`, error);
       }
     }
-    return ok({ zustaendig, benachrichtigt });
+    return ok({
+      zustaendig: zeile.zustaendig,
+      status: zeile.status,
+      erledigtAm: zeile.erledigtAm,
+      benachrichtigt,
+    });
   }
 );
 

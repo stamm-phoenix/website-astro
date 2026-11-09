@@ -1,14 +1,9 @@
 import { METHOD_NOT_ALLOWED, NO_STORE_HEADERS, ok, readJsonBody } from '../lib/pflege-api';
 import { errorResponse } from '../lib/response-utils';
-import { eigenerLogin, ladeKonversation, ladePersonen } from '../lib/postfach';
-import {
-  ErledigungKonfliktError,
-  NeueNachrichtError,
-  setzeErledigung,
-} from '../lib/postfach-erledigung';
-import { getPrincipalFirstName } from '../lib/staff-auth';
+import { eigenerLogin } from '../lib/postfach';
+import { NeueNachrichtError, setzeStatus, StatusKonfliktError } from '../lib/postfach-stand';
 import { validateStatus } from '../lib/validation/postfach';
-import { postfachRoute } from './intern-postfach';
+import { postfachAenderung } from './intern-postfach';
 
 const KONVERSATION_FEHLT = errorResponse(
   404,
@@ -16,69 +11,57 @@ const KONVERSATION_FEHLT = errorResponse(
   'Diese E-Mail ist nicht mehr im Postfach. Vielleicht wurde sie in Outlook gelöscht.'
 );
 
-const STATUS_NAMEN = {
-  offen: 'offen',
-  erledigt: 'erledigt',
-  kein_handlungsbedarf: 'ohne Handlungsbedarf',
+const JETZT = {
+  neu: 'Sie ist inzwischen wieder neu, vielleicht durch eine neue Nachricht',
+  handlungsbedarf: 'Jemand hat sie inzwischen mit „Handlungsbedarf“ markiert',
+  erledigt: 'Jemand hat sie inzwischen als erledigt markiert',
 } as const;
 
 /**
- * `PUT /api/intern/postfach/{postfach}/status` `{ konversation, status, vorher }`: marks the
- * conversation as done, as needing nothing or as open again. Anyone who sees the mailbox may do
- * it. Answers `{ erledigung }`; 409 says what applies now.
+ * `PUT /api/intern/postfach/{postfach}/status` `{ konversation, status, vorher, bis }`: sets the
+ * flags of the conversation in Outlook to „Neu“, „Handlungsbedarf“ or „Erledigt“. Anyone who sees
+ * the mailbox may do it. Answers `{ status, erledigtAm }`; 409 says what applies now.
  */
-export const PostfachStatusRoute = postfachRoute(async (request, postfach, principal, context) => {
-  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
-  const eingabe = validateStatus(await readJsonBody(request));
-  // Fresh from all folders, as the reading view counts: an archived later reply counts too, and a
-  // message that just arrived is not closed unseen
-  const zeile = (await ladeKonversation(postfach, principal, eingabe.konversation))?.konversation;
-  if (!zeile) return KONVERSATION_FEHLT;
-  const ich = eigenerLogin(principal);
-  const personen = await ladePersonen(postfach).catch(() => []);
-  const von = {
-    login: ich,
-    name: personen.find((person) => person.login === ich)?.name ?? getPrincipalFirstName(principal),
-  };
-  try {
-    const erledigung = await setzeErledigung(
-      postfach.id,
-      eingabe.konversation,
-      eingabe.status,
-      eingabe.vorher,
-      new Date(eingabe.bis).toISOString(),
-      zeile.am,
-      von,
-      zeile.betreff
-    );
-    context.log(`[postfach] ${ich} ${postfach.id} Stand: ${eingabe.status}`);
-    return ok({ erledigung });
-  } catch (error: unknown) {
-    if (error instanceof NeueNachrichtError) {
+export const PostfachStatusRoute = postfachAenderung(
+  async (request, postfach, principal, context) => {
+    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
+    const eingabe = validateStatus(await readJsonBody(request));
+    try {
+      const zeile = await setzeStatus(
+        postfach,
+        eingabe.konversation,
+        eingabe.status,
+        eingabe.vorher,
+        new Date(eingabe.bis).toISOString()
+      );
+      if (!zeile) return KONVERSATION_FEHLT;
+      context.log(`[postfach] ${eigenerLogin(principal)} ${postfach.id} Stand: ${eingabe.status}`);
+      return ok({ status: zeile.status, erledigtAm: zeile.erledigtAm });
+    } catch (error: unknown) {
+      if (error instanceof NeueNachrichtError) {
+        return {
+          status: 409,
+          headers: NO_STORE_HEADERS,
+          jsonBody: {
+            error: 'CONFLICT',
+            code: 'NEUE_NACHRICHT',
+            message:
+              'Seit du die Unterhaltung geöffnet hast, ist eine neue Nachricht gekommen. Nichts wurde gespeichert. Lies sie und markiere dann noch einmal.',
+          },
+        };
+      }
+      if (!(error instanceof StatusKonfliktError)) throw error;
       return {
         status: 409,
         headers: NO_STORE_HEADERS,
         jsonBody: {
           error: 'CONFLICT',
-          code: 'NEUE_NACHRICHT',
-          message:
-            'Seit du die Unterhaltung geöffnet hast, ist eine neue Nachricht gekommen. Nichts wurde gespeichert. Lies sie und markiere dann noch einmal.',
+          code: 'CONFLICT',
+          message: `${JETZT[error.aktuell.status]}. Nichts wurde gespeichert.`,
+          status: error.aktuell.status,
+          erledigtAm: error.aktuell.erledigtAm,
         },
       };
     }
-    if (!(error instanceof ErledigungKonfliktError)) throw error;
-    const jetzt = error.aktuell
-      ? `${error.aktuell.name} hat sie inzwischen als ${STATUS_NAMEN[error.aktuell.status]} markiert`
-      : 'Sie ist inzwischen wieder offen';
-    return {
-      status: 409,
-      headers: NO_STORE_HEADERS,
-      jsonBody: {
-        error: 'CONFLICT',
-        code: 'CONFLICT',
-        message: `${jetzt}. Nichts wurde gespeichert.`,
-        erledigung: error.aktuell,
-      },
-    };
   }
-});
+);
