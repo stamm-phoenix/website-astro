@@ -2,17 +2,34 @@ name: Browser tests
 
 on:
   workflow_call:
-    inputs:
-      image:
-        description: Playwright image matching web/package.json
-        type: string
-        default: mcr.microsoft.com/playwright:v1.64.1-noble
 
 jobs:
+  playwright-image:
+    name: Playwright image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.version.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: web/package.json
+          sparse-checkout-cone-mode: false
+      - name: Read the Playwright version from web/package.json
+        id: version
+        run: |
+          version=$(node -p "require('./web/package.json').devDependencies['@playwright/test'] || require('./web/package.json').dependencies['@playwright/test']")
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::@playwright/test in web/package.json must be an exact version, found: $version"
+            exit 1
+          fi
+          echo "image=mcr.microsoft.com/playwright:v${version}-noble" >> "$GITHUB_OUTPUT"
+
   browser-tests:
+    needs: playwright-image
     runs-on: ubuntu-24.04
     container:
-      image: ${{ inputs.image }}
+      image: ${{ needs.playwright-image.outputs.image }}
       options: --init --ipc=host
     defaults:
       run:
@@ -128,7 +145,7 @@ jobs:
       - name: Check Playwright image version
         working-directory: web
         env:
-          PLAYWRIGHT_IMAGE: ${{ inputs.image }}
+          PLAYWRIGHT_IMAGE: ${{ needs.playwright-image.outputs.image }}
         run: |
           version=$(node -p "require('@playwright/test/package.json').version")
           test "$PLAYWRIGHT_IMAGE" = "mcr.microsoft.com/playwright:v${version}-noble"

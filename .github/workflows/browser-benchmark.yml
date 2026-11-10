@@ -30,9 +30,31 @@ on:
 permissions:
   contents: read
 jobs:
+  playwright-image:
+    name: Playwright image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.version.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: web/package.json
+          sparse-checkout-cone-mode: false
+      - name: Read the Playwright version from web/package.json
+        id: version
+        run: |
+          version=$(node -p "require('./web/package.json').devDependencies['@playwright/test'] || require('./web/package.json').dependencies['@playwright/test']")
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::@playwright/test in web/package.json must be an exact version, found: $version"
+            exit 1
+          fi
+          echo "image=mcr.microsoft.com/playwright:v${version}-noble" >> "$GITHUB_OUTPUT"
+
   benchmark:
     if: ${{ !inputs.suite && inputs.repeat_filter == '' }}
     name: Browser benchmark (${{ matrix.workers }} workers)
+    needs: playwright-image
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -40,7 +62,7 @@ jobs:
       matrix:
         workers: [2, 4]
     container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      image: ${{ needs.playwright-image.outputs.image }}
       options: --init --ipc=host
     defaults:
       run:
@@ -52,10 +74,12 @@ jobs:
         with:
           node-version: "22"
       - name: Install Bun and frontend dependencies
+        env:
+          PLAYWRIGHT_IMAGE: ${{ needs.playwright-image.outputs.image }}
         run: |
           npm install --global bun@1.4.2
           bun install --frozen-lockfile
-          test "$(node -p "require('@playwright/test/package.json').version")" = "1.64.1"
+          test "$PLAYWRIGHT_IMAGE" = "mcr.microsoft.com/playwright:v$(node -p "require('@playwright/test/package.json').version")-noble"
       - name: Measure representative browser workflows
         run: >-
           bun run test:e2e --project=mobile
@@ -89,6 +113,7 @@ jobs:
     # flaky test shows its first-attempt failure rate for both sources.
     if: ${{ !inputs.suite && inputs.repeat_filter != '' }}
     name: Repeat (${{ matrix.label }})
+    needs: playwright-image
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -96,7 +121,7 @@ jobs:
       matrix:
         label: [base, head]
     container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      image: ${{ needs.playwright-image.outputs.image }}
       options: --init --ipc=host
     defaults:
       run:
@@ -175,6 +200,7 @@ jobs:
     # retries. Records the duration of every test per file and project (JSON reporter).
     if: ${{ inputs.suite }}
     name: Whole suite (${{ matrix.label }})
+    needs: playwright-image
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     strategy:
@@ -182,7 +208,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(inputs.head_only && '[{"label":"head"}]' || '[{"label":"base"},{"label":"head"}]') }}
     container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      image: ${{ needs.playwright-image.outputs.image }}
       options: --init --ipc=host
     defaults:
       run:
@@ -202,10 +228,12 @@ jobs:
         with:
           node-version: "22"
       - name: Install Bun and frontend dependencies
+        env:
+          PLAYWRIGHT_IMAGE: ${{ needs.playwright-image.outputs.image }}
         run: |
           npm install --global bun@1.4.2
           bun install --frozen-lockfile
-          test "$(node -p "require('@playwright/test/package.json').version")" = "1.64.1"
+          test "$PLAYWRIGHT_IMAGE" = "mcr.microsoft.com/playwright:v$(node -p "require('@playwright/test/package.json').version")-noble"
       - name: Run desktop and mobile
         run: bun run test:e2e --project=desktop --project=mobile --reporter=json
         env:
