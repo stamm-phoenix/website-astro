@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { BelegCheck, StaffBeleg } from '../src/lib/types';
-import { settle } from './settle';
+import { requestSettled, settle } from './settle';
 
 const knownCheck: BelegCheck = {
   ok: true,
@@ -446,7 +446,7 @@ test('a direction that comes while cropping turns the photo once the crop is don
   await expect(preview).toBeVisible();
   // Cropping while the direction is asked
   await expect.poll(() => asked).toBe(1);
-  const richtung = page.waitForResponse((response) => response.url().includes('nur=drehung'));
+  const richtung = requestSettled(page, (url) => url.includes('nur=drehung'));
   await dialog.getByRole('button', { name: 'Zuschneiden', exact: true }).click();
   await richtung;
   await settle(page);

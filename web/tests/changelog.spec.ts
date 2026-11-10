@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 import { CHANGELOG } from '../src/lib/changelogEntries';
-import { settle } from './settle';
+import { requestSettled, settle } from './settle';
 
 const SEEN_ALL = CHANGELOG[0].id;
 const SEEN_OLDER = CHANGELOG[2].id;
@@ -204,10 +204,7 @@ test('a load that overlaps the save cannot bring back the unread count', async (
     .getByRole('button', { name: 'Menü', exact: true });
   await menu.click();
   await expect(page.getByRole('dialog', { name: 'Alle Bereiche' })).toBeVisible();
-  const staleAnswer = page.waitForResponse(
-    (response) =>
-      response.url().endsWith('/api/intern/neuigkeiten') && response.request().method() === 'GET'
-  );
+  const staleAnswer = requestSettled(page, (url) => url.endsWith('/api/intern/neuigkeiten'));
   releasePut();
   await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toBeVisible();
   // The late stale answer arrives and is shown

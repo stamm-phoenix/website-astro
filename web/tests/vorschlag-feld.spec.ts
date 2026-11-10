@@ -1,5 +1,4 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-import { waitUntilStill } from './settle';
 
 // The suggestion fields of the Leitendenbereich (#418), one place per source of suggestions:
 // people, Aktionen from CampFlow, the FAQ themes and the Nikolaus Merkmale.
@@ -200,7 +199,13 @@ test('field near the bottom moves up and keeps room for several suggestions', as
   await anlass.fill('e');
   const popup = page.locator('#eb-anlass-options').locator('..');
   await expect(popup).toBeVisible();
-  await waitUntilStill(popup);
+  // The field moves up and the list grows once the page has measured the room
+  await expect
+    .poll(async () => {
+      const shown = await popup.boundingBox();
+      return shown !== null && shown.height >= 3 * 44 && shown.y + shown.height <= 600;
+    })
+    .toBe(true);
   const box = (await popup.boundingBox())!;
   expect(box.height).toBeGreaterThanOrEqual(3 * 44);
   expect(box.y + box.height).toBeLessThanOrEqual(600);

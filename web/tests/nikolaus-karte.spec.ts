@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { settle } from './settle';
+import { requestSettled, settle } from './settle';
 
 test('the maps load their tiles from our own site and follow the dark theme', async ({ page }) => {
   const foreign: string[] = [];
@@ -68,7 +68,7 @@ test('a late notice of another zoom level does not replace the shown one', async
   await expect.poll(() => releaseLate !== undefined).toBe(true);
   await map.getByRole('button', { name: 'Zoom in' }).click();
   await expect(attribution).toContainText(`Stufe ${shownZoom}`);
-  const late = page.waitForResponse((response) => response.url().endsWith(`/${lateZoom}`));
+  const late = requestSettled(page, (url) => url.endsWith(`/${lateZoom}`));
   releaseLate?.();
   await late;
   await settle(page);

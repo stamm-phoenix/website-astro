@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { settle } from './settle';
+import { requestSettled, settle } from './settle';
 
 /** Answers that arrive late or out of order in the module „E-Mail“; each holds one back. */
 
@@ -119,8 +119,8 @@ test('a late reload of another mailbox and an older answer of the same mail are 
     .click();
   await expect(page.getByRole('heading', { name: 'Vorstand-Postfach', level: 1 })).toBeVisible();
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
-  const spaeteAntwort = page.waitForResponse((response) =>
-    response.url().includes('/api/intern/postfach/kontakt?frisch=1')
+  const spaeteAntwort = requestSettled(page, (url) =>
+    url.includes('/api/intern/postfach/kontakt?frisch=1')
   );
   releaseKontakt();
   await spaeteAntwort;
@@ -248,8 +248,8 @@ test('a late reload answer does not undo a status just saved in the reading view
   await oldState;
   await stand.getByRole('button', { name: 'Erledigt' }).click();
   await expect(mail.getByText('Erledigt und archiviert.')).toBeVisible();
-  const spaeterStand = page.waitForResponse((response) =>
-    response.url().includes('/api/intern/postfach/kontakt/konversation?')
+  const spaeterStand = requestSettled(page, (url) =>
+    url.includes('/api/intern/postfach/kontakt/konversation?')
   );
   release();
   await spaeterStand;

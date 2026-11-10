@@ -1,6 +1,8 @@
 import type { CDPSession, Page } from '@playwright/test';
 import { test, expect } from './fixtures';
-import { settle } from './settle';
+// The pace of a touch gesture decides its speed, so it is time by definition: the page's own
+// frame clock, which keeps counting under load
+import { paintedFor } from './settle';
 
 // Touch gestures on a phone: pulling an action sheet down and swiping a popup away.
 test.skip(({ isMobile }) => !isMobile, 'Touch gestures exist only on phones');
@@ -25,9 +27,9 @@ async function drag(page: Page, cdp: CDPSession, from: Point, to: Point): Promis
       y: from.y + ((to.y - from.y) * step) / steps,
     };
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: touch(point) });
-    await settle(page, 1);
+    await paintedFor(page, 16);
   }
-  await settle(page, 9);
+  await paintedFor(page, 150);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 
@@ -98,7 +100,7 @@ async function oneMoveFlick(page: Page, cdp: CDPSession, from: Point, to: Point)
     type: 'touchStart',
     touchPoints: [{ ...from, id: 1 }],
   });
-  await settle(page, 2);
+  await paintedFor(page, 40);
   await Promise.all([
     cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...to, id: 1 }] }),
     cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }),
@@ -123,7 +125,7 @@ async function pullThenSecondFinger(
       id: 1,
     };
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] });
-    await settle(page, 1);
+    await paintedFor(page, 16);
   }
   await cdp.send('Input.dispatchTouchEvent', {
     type: 'touchStart',
@@ -132,7 +134,7 @@ async function pullThenSecondFinger(
       { x: to.x + 60, y: to.y, id: 2 },
     ],
   });
-  await settle(page, 3);
+  await paintedFor(page, 50);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 

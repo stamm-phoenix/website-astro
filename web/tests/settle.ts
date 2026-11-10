@@ -75,3 +75,16 @@ export async function afterPlanungPolls(page: Page, count = 2): Promise<void> {
   }
   await settle(page);
 }
+
+/**
+ * Resolves when a request that matches is over: answered, or cut off by the page (a page that
+ * asks again drops the older request, so its answer may never arrive). Start it before the request
+ * is released.
+ */
+export function requestSettled(page: Page, matches: (url: string) => boolean): Promise<unknown> {
+  const own = (request: { url(): string }): boolean => matches(request.url());
+  return Promise.race([
+    page.waitForEvent('requestfinished', { predicate: own, timeout: 30_000 }),
+    page.waitForEvent('requestfailed', { predicate: own, timeout: 30_000 }),
+  ]);
+}
