@@ -75,11 +75,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {
-              label: base,
-              ref: "${{ github.event.repository.default_branch }}",
-            }
-          - { label: head, ref: "${{ github.sha }}" }
+          - { label: base }
+          - { label: head }
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
       options: --init --ipc=host
@@ -89,8 +86,14 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ matrix.ref }}
+      - name: Use the default branch for the baseline
+        if: matrix.label == 'base'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch --depth=1 origin "$DEFAULT_BRANCH"
+          git checkout --detach FETCH_HEAD
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
