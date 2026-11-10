@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 import { CHANGELOG } from '../src/lib/changelogEntries';
-import { requestSettled, settle } from './settle';
+import { latch, settle } from './settle';
 
 const SEEN_ALL = CHANGELOG[0].id;
 const SEEN_OLDER = CHANGELOG[2].id;
@@ -176,6 +176,7 @@ test('a load that overlaps the save cannot bring back the unread count', async (
   await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
   await page.setViewportSize({ width: 390, height: 844 });
   let putStarted = false;
+  const staleDelivered = latch();
   let finishPut: () => void = () => undefined;
   const putDone = new Promise<void>((resolve) => (finishPut = resolve));
   let releasePut: () => void = () => undefined;
@@ -190,7 +191,8 @@ test('a load that overlaps the save cannot bring back the unread count', async (
       // The server answers with the state from before the save, and the answer arrives after it
       const stale = await route.fetch();
       await putDone;
-      await route.fulfill({ response: stale });
+      await route.fulfill({ response: stale }).catch(() => undefined);
+      staleDelivered.open();
     } else {
       await route.continue();
     }
@@ -204,11 +206,10 @@ test('a load that overlaps the save cannot bring back the unread count', async (
     .getByRole('button', { name: 'Menü', exact: true });
   await menu.click();
   await expect(page.getByRole('dialog', { name: 'Alle Bereiche' })).toBeVisible();
-  const staleAnswer = requestSettled(page, (url) => url.endsWith('/api/intern/neuigkeiten'));
   releasePut();
   await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toBeVisible();
   // The late stale answer arrives and is shown
-  await staleAnswer;
+  await staleDelivered.reached;
   await settle(page);
   await menu.click();
   await expect(page.getByTestId('changelog-badge')).toHaveCount(0);

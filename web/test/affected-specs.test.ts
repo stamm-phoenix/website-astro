@@ -28,6 +28,7 @@ before(() => {
     "---\nimport Base from '../layouts/Base.astro';\nimport Menu from '../components/Menu.svelte';\n---"
   );
   write('web/src/orphan.ts', '');
+  write('web/src/pages/leer.astro', '');
   write('web/tests/helper.ts', "export const open = (page) => page.goto('/menue');");
   write(
     'web/tests/belege.spec.ts',
@@ -38,6 +39,13 @@ before(() => {
   write('web/tests/unbekannt.spec.ts', "test('d', async () => { await somethingDynamic(); });");
   write('api/lib/shared.ts', 'export const s = 1;');
   write('api/lib/only-api.ts', 'export const t = 1;');
+  write('api/lib/mocked.ts', 'export const m = 1;');
+  write('web/dev/mockApi.ts', "import { m } from '../../api/lib/mocked';");
+  write('api/lib/helper-shared.ts', 'export const h = 1;');
+  write(
+    'web/tests/uses-api-helper.spec.ts',
+    "import { h } from '../../api/lib/helper-shared';\ntest('f', async ({ page }) => { await page.goto('/leer'); });"
+  );
   write('web/src/lib/uses-api.ts', "import { s } from '../../../api/lib/shared';");
   write('web/src/pages/geteilt.astro', "---\nimport { s } from '../lib/uses-api';\n---");
   write(
@@ -75,6 +83,11 @@ test('a layout selects the specs of every page that uses it', () => {
 test('code in api/ counts where a page imports it, and not otherwise', () => {
   assert.deepEqual(specsFor('api/lib/shared.ts'), ['geteilt.spec.ts', 'unbekannt.spec.ts']);
   assert.deepEqual(specsFor('api/lib/only-api.ts'), ['unbekannt.spec.ts']);
+});
+
+test('api code that the mock API serves runs everything; code a spec imports selects that spec', () => {
+  assert.equal(specsFor('api/lib/mocked.ts'), 'all');
+  assert.ok((specsFor('api/lib/helper-shared.ts') as string[]).includes('uses-api-helper.spec.ts'));
 });
 
 test('a changed spec or helper selects the specs that use it', () => {

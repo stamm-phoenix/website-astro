@@ -1,6 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import { anlegen } from './essensplanung-helpers';
-import { settle } from './settle';
+import { quiet, settle } from './settle';
 
 test('a Planung is created, its meals are edited and others see the changes', async ({
   page,
@@ -347,7 +347,7 @@ test('typing on while a meal or an invitation is saved keeps the next input', as
   await gespeichert;
   await page.getByLabel('Name von 1_1').fill('Spätes Frühstück');
   await page.getByLabel('Name von 1_1').press('Enter');
-  await settle(page, 10);
+  await quiet(page);
   await expect(page.getByText(/Jemand anderes hat 1_1/)).toHaveCount(0);
   await page.reload();
   await expect(page.getByLabel('Name von 1_1')).toHaveValue('Spätes Frühstück');

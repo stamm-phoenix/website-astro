@@ -1,6 +1,6 @@
 import { rechnung } from './pdf-rechnung';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-import { settle } from './settle';
+import { quiet } from './settle';
 
 test('every page of a PDF is shown and checked, not only the first', async ({ page }, testInfo) => {
   await page.goto('/leitendenbereich/belege');
@@ -118,6 +118,6 @@ test('a late answer for a photo is ignored once a PDF is chosen instead', async 
 
   // Only the PDF is checked, with its own three pages
   await expect(page.getByLabel('Geschäft')).toHaveValue('Demo-Markt');
-  await settle(page, 10);
+  await quiet(page);
   expect(pruefungen.map((body) => body.pages?.length ?? 1)).toEqual([3]);
 });

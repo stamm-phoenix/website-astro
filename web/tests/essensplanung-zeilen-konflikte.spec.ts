@@ -1,6 +1,6 @@
 import { test, expect, answerConfirm } from './fixtures';
 import { anlegen, pdfLaden } from './essensplanung-helpers';
-import { afterPlanungPolls, settle } from './settle';
+import { afterPlanungPolls, quiet, settle } from './settle';
 
 test('a change of others is only saved over with Enter; a cancelled removal still guards', async ({
   page,
@@ -168,7 +168,7 @@ test('a row saves before it moves, keeps decimal amounts and warns about changes
   await expect(page.getByText('Hackfleisch gespeichert.').first()).toBeVisible();
   const anzahl = patches.length;
   await menge.press('Enter');
-  await settle(page, 10);
+  await quiet(page);
   expect(patches.length).toBe(anzahl);
 
   // The answer of a save already holds a change of others: typed input is not saved over it
@@ -189,7 +189,7 @@ test('a row saves before it moves, keeps decimal amounts and warns about changes
   await page.unroute('**/api/essensplanung/planung/gericht-zutaten/*');
   const vorher = patches.length;
   await page.getByRole('heading', { name: 'E2E Zeilen Reihenfolge' }).click();
-  await settle(page, 10);
+  await quiet(page);
   expect(patches.length).toBe(vorher);
   await expect(menge).toHaveValue('800');
 });

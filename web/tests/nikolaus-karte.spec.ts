@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { requestSettled, settle } from './settle';
+import { latch, settle } from './settle';
 
 test('the maps load their tiles from our own site and follow the dark theme', async ({ page }) => {
   const foreign: string[] = [];
@@ -47,13 +47,15 @@ test('a late notice of another zoom level does not replace the shown one', async
   let releaseLate: (() => void) | undefined;
   // No level is held back until the test zooms out
   let lateZoom = -1;
+  const lateDelivered = latch();
   const asked: number[] = [];
   await page.route('**/api/karte-quelle/**', async (route) => {
     const zoom = Number(new URL(route.request().url()).pathname.split('/').pop());
     asked.push(zoom);
     const copyrights = [`Stufe ${zoom}`];
     if (zoom === lateZoom) await new Promise<void>((resolve) => (releaseLate = resolve));
-    return route.fulfill({ status: 200, json: { copyrights } });
+    await route.fulfill({ status: 200, json: { copyrights } });
+    if (zoom === lateZoom) lateDelivered.open();
   });
   await page.goto('/leitendenbereich/nikolaus-dispo');
   const map = page.locator('.dispo-map');
@@ -68,9 +70,8 @@ test('a late notice of another zoom level does not replace the shown one', async
   await expect.poll(() => releaseLate !== undefined).toBe(true);
   await map.getByRole('button', { name: 'Zoom in' }).click();
   await expect(attribution).toContainText(`Stufe ${shownZoom}`);
-  const late = requestSettled(page, (url) => url.endsWith(`/${lateZoom}`));
   releaseLate?.();
-  await late;
+  await lateDelivered.reached;
   await settle(page);
   await expect(attribution).toContainText(`Stufe ${shownZoom}`);
   await expect(attribution).not.toContainText(`Stufe ${lateZoom}`);

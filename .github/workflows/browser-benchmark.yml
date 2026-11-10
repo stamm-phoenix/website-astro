@@ -146,6 +146,7 @@ jobs:
               for (const test of spec.tests) {
                 const row = rows.get(spec.title) ?? { runs: 0, failed: 0, first: '' };
                 for (const result of test.results) {
+                  if (result.status === 'skipped') continue;
                   row.runs++;
                   if (result.status !== 'passed') {
                     row.failed++;

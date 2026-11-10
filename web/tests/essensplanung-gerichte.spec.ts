@@ -1,6 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import { anlegen, pdfLaden, zeilenMenge } from './essensplanung-helpers';
-import { settle } from './settle';
+import { quiet } from './settle';
 
 test('dishes get ingredients from the list, warnings and a recipe card', async ({
   page,
@@ -387,6 +387,6 @@ test('typed text stays as typed, Enter takes the first suggestion; discarding sa
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Verwerfen');
   await expect(dialog).toHaveCount(0);
-  await settle(page, 10);
+  await quiet(page);
   await expect(page.getByText(/das Gericht wurde gelöscht/)).toHaveCount(0);
 });

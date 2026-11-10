@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures';
-import { requestSettled, settle } from './settle';
+import type { Request } from '@playwright/test';
+import { requestOver, settle } from './settle';
 
 /** Answers that arrive late or out of order in the module „E-Mail“; each holds one back. */
 
@@ -108,7 +109,9 @@ test('a late reload of another mailbox and an older answer of the same mail are 
   let releaseKontakt: () => void = () => undefined;
   const heldKontakt = new Promise<void>((resolve) => (releaseKontakt = resolve));
   await page.unroute('**/api/intern/postfach/kontakt?frisch=1');
+  let kontaktRequest: Request | undefined;
   await page.route('**/api/intern/postfach/kontakt?frisch=1', async (route) => {
+    kontaktRequest = route.request();
     await heldKontakt;
     await route.continue();
   });
@@ -119,11 +122,8 @@ test('a late reload of another mailbox and an older answer of the same mail are 
     .click();
   await expect(page.getByRole('heading', { name: 'Vorstand-Postfach', level: 1 })).toBeVisible();
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
-  const spaeteAntwort = requestSettled(page, (url) =>
-    url.includes('/api/intern/postfach/kontakt?frisch=1')
-  );
   releaseKontakt();
-  await spaeteAntwort;
+  await requestOver(kontaktRequest!);
   await settle(page);
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
 });

@@ -68,7 +68,8 @@ function closure(start: string, cache: Map<string, string[]>): Set<string> {
     const file = queue.pop()!;
     if (seen.has(file)) continue;
     seen.add(file);
-    if (!CODE_EXTENSIONS.some((extension) => file.endsWith(extension))) continue;
+    if (!CODE_EXTENSIONS.some((extension) => file.endsWith(extension)) || !existsSync(file))
+      continue;
     let imports = cache.get(file);
     if (!imports) {
       imports = importsOf(file);
@@ -184,6 +185,10 @@ export function selectAffected({ root, changed }: SelectOptions): Selection {
 
   const affectedPages = new Set<string>();
   const changedTests = new Set<string>();
+  // Files the mock API (served to every spec) and each spec import: a change there is felt without
+  // any page importing it
+  const mockFiles = closure(join(webRoot, 'dev', 'mockApi.ts'), cache);
+  const specFiles = new Map(specs.map((spec) => [spec, closure(spec, cache)]));
   const pageClosures = new Map<string, Set<string>>();
   const pagesRoot = join(srcRoot, 'pages');
   const pageFiles = walk(pagesRoot).filter((file) => file.endsWith('.astro'));
@@ -213,11 +218,16 @@ export function selectAffected({ root, changed }: SelectOptions): Selection {
     if (!reached && path.startsWith('web/src/')) {
       return { mode: 'all', reason: `${path} is imported by no page` };
     }
+    if (!reached && mockFiles.has(file)) {
+      return { mode: 'all', reason: `${path} is part of the mock API` };
+    }
+    // Code in a spec's own import closure (a helper, a shared module) selects that spec
+    for (const [spec, files] of specFiles) if (files.has(file)) changedTests.add(spec);
   }
 
   const selected: string[] = [];
   for (const spec of specs) {
-    const files = closure(spec, cache);
+    const files = specFiles.get(spec)!;
     const touchesTest = [...changedTests].some((test) => files.has(test));
     const pages = pagesOfSpec(spec, routes, cache);
     const touchesPage = [...pages].some((page) => affectedPages.has(page));
