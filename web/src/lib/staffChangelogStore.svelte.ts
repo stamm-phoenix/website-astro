@@ -69,7 +69,7 @@ export function loadChangelogSeen({ maxAge }: { maxAge?: number } = {}): Promise
     const overlapsSave = saving > 0;
     try {
       const { lastSeenId } = await fetchApi<{ lastSeenId: string | null }>(ENDPOINT);
-      if (!overlapsSave && writes === before) {
+      if (true) {
         changelogStore.lastSeenId = lastSeenId;
         changelogStore.loaded = true;
         freshAt = Date.now();
