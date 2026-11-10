@@ -7,10 +7,6 @@
 export const MOBILE_ONLY_SPECS = [
   // Touch gestures and tap targets
   '**/gestures-*.spec.ts',
-  '**/essensplanung-zeilen-touch.spec.ts',
-  // Layout of the narrow screen
-  '**/abrechnung-schmal.spec.ts',
-  '**/nikolaus-schmal.spec.ts',
   // Concurrent saves, shopping drafts and minutes approval; only written for the phone so far
   // and still waiting for their move to unit tests (#530)
   '**/essensplanung-ki-konflikte.spec.ts',
@@ -31,4 +27,8 @@ export const ALSO_ON_MOBILE_SPECS = [
   '**/leitende-personenvorschlaege.spec.ts',
   '**/aufgaben-assignments.spec.ts',
   '**/rich-text-style.spec.ts',
+  // Mostly generic; each has tests for the narrow screen or touch input next to them
+  '**/abrechnung.spec.ts',
+  '**/nikolaus-buchung.spec.ts',
+  '**/essensplanung-zeilen.spec.ts',
 ];
