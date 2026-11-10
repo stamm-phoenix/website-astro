@@ -91,7 +91,7 @@ test('Kanban groups tasks by status and preserves project and personal filters',
   await expectNoHorizontalOverflow(page);
 });
 
-test('task deletion and discarding edits use app dialogs without browser prompts', async ({
+test('task deletion and discarding edits use app dialogs without browser prompts @dark', async ({
   page,
 }, testInfo) => {
   page.on('dialog', async (dialog) => {

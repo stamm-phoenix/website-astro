@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }, testInfo) => {
   await page.emulateMedia({ colorScheme: testInfo.project.name === 'mobile' ? 'dark' : 'light' });
 });
 
-test('an uncertain CampFlow result is the same visible warning in the order and payment dialog', async ({
+test('an uncertain CampFlow result is the same visible warning in the order and payment dialog @dark', async ({
   page,
 }) => {
   const response = await page.request.get('/api/intern/pflege/sammelbestellungen/101');

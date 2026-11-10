@@ -173,7 +173,7 @@ test('reject conflicts show one error and retry with the reloaded version', asyn
   expect(attempts).toBe(2);
 });
 
-test('field errors follow the field name when its DOM id changes', async ({ page }, info) => {
+test('field errors follow the field name when its DOM id changes @dark', async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/leitendenbereich/aufgaben');
   await page.getByRole('button', { name: 'Küche vorbereiten', exact: true }).click();
@@ -200,7 +200,9 @@ test('field errors follow the field name when its DOM id changes', async ({ page
   await page.screenshot({ path: `/tmp/278-task-field-${info.project.name}.png` });
 });
 
-test('date and assignee placeholders retain readable contrast in both themes', async ({ page }) => {
+test('date and assignee placeholders retain readable contrast in both themes @dark', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/leitendenbereich/aufgaben');
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();

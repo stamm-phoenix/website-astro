@@ -6,6 +6,10 @@ on:
         description: Run the whole desktop and mobile suite of this branch and of the default branch instead of the worker benchmark.
         type: boolean
         default: false
+      head_only:
+        description: With suite, measure only this branch (the baseline of an earlier run stays valid).
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -74,9 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { label: base }
-          - { label: head }
+        include: ${{ fromJSON(inputs.head_only && '[{"label":"head"}]' || '[{"label":"base"},{"label":"head"}]') }}
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
       options: --init --ipc=host

@@ -268,7 +268,7 @@ test('projects can be deleted with app confirmation while their tasks survive wi
   ).toHaveCount(0);
 });
 
-test('new project ideas are reviewed with the task and created only with explicit confirmation', async ({
+test('new project ideas are reviewed with the task and created only with explicit confirmation @dark', async ({
   page,
 }, testInfo) => {
   const title = `Winteridee ${testInfo.project.name}`;

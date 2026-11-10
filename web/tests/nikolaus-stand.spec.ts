@@ -1,6 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
-test('the Dispo says when the visits in its plan were loaded', async ({ page }, testInfo) => {
+test('the Dispo says when the visits in its plan were loaded @dark', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: testInfo.project.name === 'mobile' ? 'dark' : 'light' });
   await page.goto('/leitendenbereich/nikolaus-dispo');
