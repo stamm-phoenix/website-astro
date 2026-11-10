@@ -10,6 +10,11 @@ on:
         description: With suite, measure only this branch (the baseline of an earlier run stays valid).
         type: boolean
         default: false
+      server:
+        description: With suite, how this branch is served. static builds the site once and restarts the mock server before every test (see web/scripts/e2e-static-server.ts); the baseline always uses dev servers.
+        type: choice
+        options: [dev, static]
+        default: dev
 permissions:
   contents: read
 jobs:
@@ -104,15 +109,23 @@ jobs:
           npm install --global bun@1.4.2
           bun install --frozen-lockfile
           test "$(node -p "require('@playwright/test/package.json').version")" = "1.64.1"
+      - name: Build the site for the static server
+        if: matrix.label == 'head' && inputs.server == 'static'
+        run: |
+          start=$(date +%s)
+          bun run build
+          echo "Build: $(( $(date +%s) - start )) s" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Run desktop and mobile
         run: bun run test:e2e --project=desktop --project=mobile --reporter=json
         env:
           E2E_WORKERS: 4
+          E2E_SERVER: ${{ matrix.label == 'head' && inputs.server == 'static' && 'static' || 'dev' }}
           PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/suite.json
       - name: Summarize per file and project
         if: always()
         env:
           LABEL: ${{ matrix.label }}
+          E2E_SERVER: ${{ matrix.label == 'head' && inputs.server == 'static' && 'static' || 'dev' }}
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           export SHA="$(git rev-parse HEAD)"
@@ -142,7 +155,7 @@ jobs:
           const total = (project) => list.filter((r) => r.project === project);
           const sum = (items, field) => items.reduce((n, r) => n + r[field], 0);
           const lines = [
-            `### ${process.env.LABEL}: ${process.env.SHA}`,
+            `### ${process.env.LABEL}: ${process.env.SHA} (server: ${process.env.E2E_SERVER})`,
             `Wall clock ${(report.stats.duration / 1000).toFixed(0)} s; ${report.stats.expected} passed, ${report.stats.unexpected} failed, ${report.stats.flaky} flaky, ${report.stats.skipped} skipped.`,
             '',
             '| Project | Files | Tests | Skipped | Sum of test seconds |',

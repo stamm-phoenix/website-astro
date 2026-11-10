@@ -3,6 +3,32 @@ import type { Locator, Page } from '@playwright/test';
 
 interface Fixtures {
   offlineDemo: void;
+  mockState: void;
+}
+
+/**
+ * With E2E_SERVER=static every test begins on the demo data: the server of the worker is asked to
+ * restart (scripts/e2e-static-server.ts) and answers again under a new instance id.
+ */
+async function resetMockServer(origin: string): Promise<void> {
+  const instance = async (): Promise<string | null> => {
+    try {
+      return await (await fetch(`${origin}/__e2e/instance`)).text();
+    } catch {
+      return null; // Not listening while the new process starts
+    }
+  };
+  const before = await instance();
+  await fetch(`${origin}/__e2e/reset`, { method: 'POST' });
+  await expect
+    .poll(
+      async () => {
+        const now = await instance();
+        return now !== null && now !== before;
+      },
+      { timeout: 30_000, intervals: [20, 20, 50, 100] }
+    )
+    .toBe(true);
 }
 
 export const test = base.extend<Fixtures>({
@@ -13,6 +39,13 @@ export const test = base.extend<Fixtures>({
       `http://127.0.0.1:${Number(process.env.E2E_PORT_BASE ?? 4323) + testInfo.parallelIndex}`
     );
   },
+  mockState: [
+    async ({ baseURL }, use) => {
+      if (process.env.E2E_SERVER === 'static') await resetMockServer(baseURL!);
+      await use();
+    },
+    { auto: true },
+  ],
   offlineDemo: [
     async ({ context, page, baseURL }, use) => {
       const errors: string[] = [];
