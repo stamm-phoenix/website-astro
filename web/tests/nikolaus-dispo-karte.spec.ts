@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { StaffNikolausFahrtData } from '../src/lib/types';
 import { readFile } from 'node:fs/promises';
 import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
+import { waitUntilStill } from './settle';
 
 test('the map view shows the visits and drives and leads to the list', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-dispo');
@@ -100,7 +101,7 @@ test('pointing at a drive highlights both visits and the team shows its kilometr
       .first()
   ).toBeVisible();
   await map.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(1000);
+  await waitUntilStill(map.locator('.leaflet-marker-icon').nth(1));
   // Between the second and third visit of the first team, far enough apart on a phone
   const [first, second] = await map.locator('.leaflet-marker-icon').evaluateAll((elements) =>
     elements.slice(1, 3).map((element) => {

@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures';
 import { CHANGELOG } from '../src/lib/changelogEntries';
+import { latch, settle } from './settle';
 
 const SEEN_ALL = CHANGELOG[0].id;
 const SEEN_OLDER = CHANGELOG[2].id;
@@ -175,6 +176,8 @@ test('a load that overlaps the save cannot bring back the unread count', async (
   await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
   await page.setViewportSize({ width: 390, height: 844 });
   let putStarted = false;
+  let staleStarted = false;
+  const staleDelivered = latch();
   let finishPut: () => void = () => undefined;
   const putDone = new Promise<void>((resolve) => (finishPut = resolve));
   let releasePut: () => void = () => undefined;
@@ -187,9 +190,11 @@ test('a load that overlaps the save cannot bring back the unread count', async (
       finishPut();
     } else if (putStarted) {
       // The server answers with the state from before the save, and the answer arrives after it
+      staleStarted = true;
       const stale = await route.fetch();
       await putDone;
-      await route.fulfill({ response: stale });
+      await route.fulfill({ response: stale }).catch(() => undefined);
+      staleDelivered.open();
     } else {
       await route.continue();
     }
@@ -197,16 +202,24 @@ test('a load that overlaps the save cannot bring back the unread count', async (
   await page.goto('/leitendenbereich/neuigkeiten');
   await page.getByRole('button', { name: 'Alle als gelesen markieren' }).click();
   await expect(page.getByText('Gelesen wird gespeichert …')).toBeVisible();
+  // The save has reached the server and is held there
+  await expect.poll(() => putStarted).toBe(true);
+  // The menu keeps a read state younger than five minutes instead of asking again, so it only asks
+  // while the save runs once the state has aged: the demo clock moves ten minutes on
+  await page.clock.setFixedTime(new Date('2026-10-01T12:10:00Z'));
   // The menu asks for the read state while the save is still running
   const menu = page
     .getByRole('navigation', { name: 'Schnellzugriff' })
     .getByRole('button', { name: 'Menü', exact: true });
   await menu.click();
   await expect(page.getByRole('dialog', { name: 'Alle Bereiche' })).toBeVisible();
+  // That read overlaps the save: its answer is held until the save is done
+  await expect.poll(() => staleStarted).toBe(true);
   releasePut();
   await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toBeVisible();
-  // Give the late stale answer time to arrive
-  await page.waitForTimeout(500);
+  // The late answer, which still holds the state from before the save, arrives and is dropped
+  await staleDelivered.reached;
+  await settle(page);
   await menu.click();
   await expect(page.getByTestId('changelog-badge')).toHaveCount(0);
 });

@@ -6,6 +6,7 @@ import * as parserAstro from 'astro-eslint-parser';
 import pluginSvelte from 'eslint-plugin-svelte';
 import configPrettier from 'eslint-config-prettier';
 import pluginPrettier from 'eslint-plugin-prettier';
+import pluginPlaywright from 'eslint-plugin-playwright';
 
 export default tseslint.config(
   {
@@ -89,6 +90,13 @@ export default tseslint.config(
     rules: {
       'prettier/prettier': 'error',
     },
+  },
+
+  // Browser tests wait for a condition, never for a fixed time (use `tests/settle.ts`)
+  {
+    files: ['tests/**/*.ts'],
+    plugins: { playwright: pluginPlaywright },
+    rules: { 'playwright/no-wait-for-timeout': 'error' },
   },
 
   // Prettier config (disables conflicting rules) - must be last

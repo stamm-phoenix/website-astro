@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures';
 import type { Request } from '@playwright/test';
+import { settle } from './settle';
 
 // The choice between the formatting editor and the Markdown field is saved per person (#320).
 
@@ -88,7 +89,7 @@ test('two quick switches keep the last choice, also when the first save answers 
       timeout: 5000,
     })
     .toEqual({ settings: { protokollText: 'formatiert' } });
-  await page.waitForTimeout(300);
+  await settle(page);
   await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
   await expect(modus.getByRole('button', { name: 'Formatiert' })).toHaveAttribute(
     'aria-pressed',
@@ -126,7 +127,7 @@ test('a choice made while the settings still load is not taken back by their lat
   await page.getByLabel('Text zu Punkt 2.').fill('Gespeichert vor der Antwort und mehr');
 
   await answered;
-  await page.waitForTimeout(300);
+  await settle(page);
   // The late answer neither takes the choice back nor the text, and parks nothing as a conflict
   await expect(region.locator('textarea')).toHaveCount(1);
   await expect(modus.getByRole('button', { name: 'Einfacher Text (Markdown)' })).toHaveAttribute(
@@ -238,7 +239,7 @@ test('a choice made on another device applies when the editor opens again over i
   );
   held.forEach((release) => release());
   await answers;
-  await page.waitForTimeout(300);
+  await settle(page);
   await expect(region.locator('textarea')).toHaveCount(1);
 });
 
@@ -270,7 +271,7 @@ test('a failed first switch leaves no hint once the next switch is saved', async
       timeout: 5000,
     })
     .toEqual({ settings: { protokollText: 'formatiert' } });
-  await page.waitForTimeout(300);
+  await settle(page);
   await expect(page.getByText('nicht gespeichert')).toHaveCount(0);
 });
 

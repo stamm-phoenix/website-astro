@@ -1,4 +1,5 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { relative, resolve } from 'node:path';
 import { balanceGroups } from './browser-shards';
@@ -10,12 +11,20 @@ interface DiscoverySuite {
   specs?: { tests: { projectName: string }[] }[];
 }
 const [current, total] = (process.argv[2] ?? '').split('/').map(Number);
+// Projects to list; the Chromium shards use desktop and mobile, the WebKit job `webkit-tablet`
+const projects = process.argv.slice(3).length > 0 ? process.argv.slice(3) : ['desktop', 'mobile'];
 if (!Number.isInteger(current) || !Number.isInteger(total) || current < 1 || current > total) {
   throw new Error('Pass a shard such as 1/4');
 }
 const discovery = spawnSync(
   'bunx',
-  ['playwright', 'test', '--list', '--project=desktop', '--project=mobile', '--reporter=json'],
+  [
+    'playwright',
+    'test',
+    '--list',
+    ...projects.map((project) => `--project=${project}`),
+    '--reporter=json',
+  ],
   {
     maxBuffer: 32 * 1024 * 1024,
     encoding: 'utf8',
@@ -50,7 +59,27 @@ function visit(suite: DiscoverySuite): void {
 }
 report.suites.forEach(visit);
 if (groups.size === 0) throw new Error('No test groups discovered');
-const shards = balanceGroups([...groups.values()], total);
+
+// On pull requests (E2E_AFFECTED_BASE is set), only the specs the change can affect run; anything
+// that cannot be mapped selects everything, see affected-specs.ts. Every shard still starts and
+// reports, so the required check "All shards passed" keeps its meaning.
+let candidates = [...groups.values()];
+const base = process.env.E2E_AFFECTED_BASE;
+if (base) {
+  const [answer, reason] = (
+    spawnSync('bun', ['scripts/ci/select-affected.ts', base], { encoding: 'utf8' }).stdout ?? ''
+  )
+    .trim()
+    .split('\t');
+  if (answer && answer !== 'all') {
+    const wanted = new Set(answer.split(','));
+    candidates = candidates.filter((group) => wanted.has(group.file));
+    console.log(`Affected specs: ${wanted.size} files (${reason})`);
+  } else {
+    console.log(`Whole suite: ${reason ?? 'no answer from select-affected'}`);
+  }
+}
+const shards = balanceGroups(candidates, total);
 mkdirSync('test-results', { recursive: true });
 writeFileSync(
   'test-results/shard.txt',
@@ -61,3 +90,6 @@ console.log(
   shards.map((s) => Math.round(s.reduce((n, g) => n + g.seconds, 0)))
 );
 console.log(`Shard ${current}/${total}: ${shards[current - 1].length} project/files`);
+if (process.env.GITHUB_OUTPUT) {
+  appendFileSync(process.env.GITHUB_OUTPUT, `run=${shards[current - 1].length > 0}\n`);
+}

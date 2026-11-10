@@ -1,5 +1,6 @@
 import { test, expect, answerConfirm } from './fixtures';
 import { anlegen, pdfLaden } from './essensplanung-helpers';
+import { afterPlanungPolls, quiet, settle } from './settle';
 
 test('a change of others is only saved over with Enter; a cancelled removal still guards', async ({
   page,
@@ -35,11 +36,11 @@ test('a change of others is only saved over with Enter; a cancelled removal stil
   );
   await andereMenge.press('Enter');
   expect((await fremd).ok()).toBe(true);
-  await page.waitForTimeout(5_000);
+  await afterPlanungPolls(page);
   await menge.press('Enter');
   await expect(gericht.getByRole('alert')).toContainText('Jemand anderes hat Hackfleisch');
   await page.getByRole('heading', { name: 'E2E Zeilen Konflikt' }).click();
-  await page.waitForTimeout(2_000);
+  await settle(page);
   await anderes.reload();
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
   await anderes.getByText('Gulasch', { exact: true }).click();
@@ -97,7 +98,7 @@ test('an amount typed for one ingredient does not go to another one others chose
   await gericht.getByLabel('Menge von Zwiebeln').press('Enter');
   await expect(gericht.getByRole('alert')).toContainText('die Zutat gerade zu Zwiebeln');
   await page.getByRole('heading', { name: 'E2E Zeilen Zutat' }).click();
-  await page.waitForTimeout(2_000);
+  await settle(page);
   await anderes.reload();
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
   await anderes.getByText('Eintopf', { exact: true }).click();
@@ -167,7 +168,7 @@ test('a row saves before it moves, keeps decimal amounts and warns about changes
   await expect(page.getByText('Hackfleisch gespeichert.').first()).toBeVisible();
   const anzahl = patches.length;
   await menge.press('Enter');
-  await page.waitForTimeout(1000);
+  await quiet(page);
   expect(patches.length).toBe(anzahl);
 
   // The answer of a save already holds a change of others: typed input is not saved over it
@@ -188,7 +189,7 @@ test('a row saves before it moves, keeps decimal amounts and warns about changes
   await page.unroute('**/api/essensplanung/planung/gericht-zutaten/*');
   const vorher = patches.length;
   await page.getByRole('heading', { name: 'E2E Zeilen Reihenfolge' }).click();
-  await page.waitForTimeout(1500);
+  await quiet(page);
   expect(patches.length).toBe(vorher);
   await expect(menge).toHaveValue('800');
 });
@@ -316,7 +317,7 @@ test('a conflict is settled with buttons, without Enter or Escape', async ({ pag
     await andereMenge.fill(wert);
     await andereMenge.press('Enter');
     await expect(andereMenge).toHaveValue(wert);
-    await page.waitForTimeout(4_000);
+    await afterPlanungPolls(page);
     await page.getByRole('heading', { name: 'E2E Zeilen Knöpfe' }).click();
     await expect(gericht.getByRole('alert')).toContainText('Jemand anderes hat Hackfleisch');
   };

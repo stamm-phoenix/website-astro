@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures';
 import type { Page } from '@playwright/test';
 import { anlegen } from './essensplanung-helpers';
+import { afterPlanungPolls } from './settle';
 
 /** A plain receipt photo in one colour, drawn in the browser. */
 async function belegFoto(page: Page, farbe: string): Promise<Buffer> {
@@ -63,7 +64,7 @@ test('a photo replaced by someone else meanwhile is not overwritten without aski
   await b.context().close();
 
   // A's page learns of it by polling; saving still refuses to overwrite B's photo
-  await page.waitForTimeout(4000);
+  await afterPlanungPolls(page);
   await page.getByRole('button', { name: 'Foto speichern' }).click();
   await expect(page.getByText(/Jemand anderes hat/).first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByAltText('Vorschau des Fotos')).toBeVisible();
@@ -105,7 +106,7 @@ test('a payer typed while someone else changed it saves only after the conflict'
   expect(antwort.status()).toBe(200);
 
   // A's page hears of it; saving the typed name is a conflict, and the name stays
-  await page.waitForTimeout(4000);
+  await afterPlanungPolls(page);
   await nameA.press('Enter');
   await expect(page.getByText(/Jemand anderes hat/).first()).toBeVisible({ timeout: 15_000 });
   await expect(nameA).toHaveValue('Oma Inge');
@@ -157,7 +158,7 @@ test('after a failed save a change of someone else still is a conflict', async (
     data: { etag: beleg.etag, haendler: 'Lidl' },
   });
   expect(antwort.status()).toBe(200);
-  await page.waitForTimeout(4000);
+  await afterPlanungPolls(page);
 
   // Saving again is a conflict, not a silent overwrite of B's change; the input stays
   await haendler.press('Enter');

@@ -1,5 +1,6 @@
 import { EDITOR_LOAD_TIMEOUT, test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { Page } from '@playwright/test';
+import { waitUntilStill } from './settle';
 
 // The agenda as one document in the formatting editor (#277, Stufe 1).
 
@@ -362,7 +363,7 @@ test('the handle moves items with the keyboard and by dragging', async ({ page }
     const ziel = (await zielZeile.boundingBox())!;
     await page.mouse.move(x + step * 6, y - 12 + ((ziel.y + 4 - y + 12) * step) / 10);
   }
-  await page.waitForTimeout(150);
+  await waitUntilStill(zielZeile);
   const ziel = (await zielZeile.boundingBox())!;
   await page.mouse.move(x + 60, ziel.y + 4);
   await expect(page.getByText('als Unterpunkt von 2. StaVos')).toBeVisible();

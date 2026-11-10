@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 import { anlegen, zeilenMenge } from './essensplanung-helpers';
+import { settle } from './settle';
 
 /**
  * The AI of the Essensplanung when others change things meanwhile, late answers and leaving the
@@ -96,7 +97,7 @@ test('a late estimate is not shown under another ingredient', async ({ page }) =
   const antwort = page.waitForResponse('**/api/essensplanung/planung/ki/umrechnung');
   freigeben();
   await antwort;
-  await page.waitForTimeout(500);
+  await settle(page);
   await expect(schaetzen.getByText('KI-Schätzung, ungeprüft:')).toHaveCount(0);
   await expect(
     schaetzen.getByRole('button', { name: 'Schätzen lassen', exact: true })

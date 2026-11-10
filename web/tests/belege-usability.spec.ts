@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { BelegCheck, StaffBeleg } from '../src/lib/types';
+import { latch, quiet, settle } from './settle';
 
 const knownCheck: BelegCheck = {
   ok: true,
@@ -415,7 +416,7 @@ test('a sideways photo is turned upright first, then checked upright', async ({ 
   // Asked once for the direction, then the upright photo was checked
   expect(asked).toEqual(['drehung', 'pruefung']);
   expect(await jpegSize(page, checked!)).toEqual(upright);
-  await page.waitForTimeout(1500);
+  await quiet(page);
   expect(asked).toEqual(['drehung', 'pruefung']);
 });
 
@@ -424,11 +425,14 @@ test('a direction that comes while cropping turns the photo once the crop is don
 }) => {
   let asked = 0;
   let checked: Buffer | null = null;
+  const drehungDelivered = latch();
   await page.route('**/api/intern/pflege/belege/pruefung**', async (route) => {
     if (new URL(route.request().url()).searchParams.get('nur') === 'drehung') {
       asked++;
       await new Promise((resolve) => setTimeout(resolve, 2000));
-      return route.fulfill({ json: { available: true, rotation: 90 } });
+      await route.fulfill({ json: { available: true, rotation: 90 } }).catch(() => undefined);
+      drehungDelivered.open();
+      return;
     }
     checked = route.request().postDataBuffer();
     await route.fulfill({ json: { available: true, check: knownCheck } });
@@ -446,7 +450,8 @@ test('a direction that comes while cropping turns the photo once the crop is don
   // Cropping while the direction is asked
   await expect.poll(() => asked).toBe(1);
   await dialog.getByRole('button', { name: 'Zuschneiden', exact: true }).click();
-  await page.waitForTimeout(2500);
+  await drehungDelivered.reached;
+  await settle(page);
   await expect(dialog.getByRole('group', { name: 'Ecken des Belegs' })).toBeVisible();
   await dialog.getByRole('button', { name: 'Zuschneiden fertig' }).click();
   const size = async () => ({

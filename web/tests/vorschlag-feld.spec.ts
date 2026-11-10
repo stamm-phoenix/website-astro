@@ -199,7 +199,13 @@ test('field near the bottom moves up and keeps room for several suggestions', as
   await anlass.fill('e');
   const popup = page.locator('#eb-anlass-options').locator('..');
   await expect(popup).toBeVisible();
-  await page.waitForTimeout(800);
+  // The field moves up and the list grows once the page has measured the room
+  await expect
+    .poll(async () => {
+      const shown = await popup.boundingBox();
+      return shown !== null && shown.height >= 3 * 44 && shown.y + shown.height <= 600;
+    })
+    .toBe(true);
   const box = (await popup.boundingBox())!;
   expect(box.height).toBeGreaterThanOrEqual(3 * 44);
   expect(box.y + box.height).toBeLessThanOrEqual(600);
