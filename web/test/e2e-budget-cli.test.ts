@@ -22,15 +22,21 @@ function git(cwd: string, ...args: string[]): void {
   );
 }
 
-function run(head: string, labels: string[]): { status: number | null; output: string } {
+function run(
+  head: string,
+  labels: string[],
+  base: Record<string, string> = {},
+  spec = SPEC
+): { status: number | null; output: string } {
   const repo = mkdtempSync(join(tmpdir(), 'e2e-budget-'));
   try {
     mkdirSync(join(repo, 'web/tests'), { recursive: true });
     git(repo, 'init', '-q');
-    writeFileSync(join(repo, SPEC), BASE);
+    for (const [path, content] of Object.entries(base)) writeFileSync(join(repo, path), content);
+    if (!(spec in base)) writeFileSync(join(repo, spec), BASE);
     git(repo, 'add', '.');
     git(repo, 'commit', '-q', '-m', 'base');
-    writeFileSync(join(repo, SPEC), head);
+    writeFileSync(join(repo, spec), head);
     git(repo, 'commit', '-q', '-a', '--allow-empty', '-m', 'head');
     const result = spawnSync(process.execPath, [SCRIPT, 'HEAD^1', 'HEAD'], {
       cwd: join(repo, 'web'),
@@ -71,4 +77,36 @@ test('changes that add no test pass without the label', () => {
     const result = run(head, []);
     assert.equal(result.status, 0, result.output);
   }
+});
+
+// Provenance and helpers: the same bypass attempts as above, but through other files.
+const FIXTURES =
+  "import { test as base } from '@playwright/test';\nexport default base.extend({});\n";
+const HELPER =
+  "import { test } from './fixtures';\nexport function reg(n: string) { test(n, async () => {}); }\n";
+
+test('a default-imported fixture alias and a helper call count like test', () => {
+  const files = { 'web/tests/fixtures.ts': FIXTURES, 'web/tests/helper.ts': HELPER };
+  const base = `import it from './fixtures';\nimport { reg } from './helper';\nit('a', async () => {});\nreg('b');\n`;
+  const baseFiles = { ...files, [SPEC]: base };
+  for (const head of [
+    `${base}it('c', async () => {});\n`, // default-import alias
+    `${base}reg('c');\n`, // one more helper call, no new declaration
+  ]) {
+    const result = run(head, [], baseFiles);
+    assert.equal(result.status, 1, result.output);
+    assert.equal(run(head, ['e2e-ok'], baseFiles).status, 0);
+  }
+  assert.equal(run(base, [], baseFiles).status, 0);
+});
+
+test('passing test to a function needs review, an unrelated default import does not', () => {
+  const base = { 'web/tests/fixtures.ts': FIXTURES };
+  const uncertain = run(`${BASE}defineSuites(test);\n`, [], base);
+  assert.equal(uncertain.status, 1, uncertain.output);
+  assert.match(uncertain.output, /nicht sicher bestimmen/);
+  assert.equal(
+    run(`${BASE}import dayjs from 'dayjs';\ndayjs('a', async () => {});\n`, [], base).status,
+    0
+  );
 });
