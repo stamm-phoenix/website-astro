@@ -11,7 +11,7 @@ Ein Review läuft nur auf Anfrage, nie von allein bei einem Push:
 
 Nach jedem Review entfernt der Workflow das Label wieder, auch wenn das Review fehlgeschlagen ist oder übersprungen wurde. Für ein weiteres Review, z. B. nach neuen Commits, das Label einfach erneut setzen. Labels setzen können nur Personen mit Schreibrechten im Repo.
 
-Übersprungen wird ein Review, wenn der PR nur Dokumentation (`*.md`, `docs/`), Lockfiles oder den Changelog (`web/src/lib/changelogEntries.ts`) ändert, sowie bei PRs von Bots (Dependabot) und aus Forks. Wird ein PR zugleich auf Ready for review gestellt und mit dem Label versehen, läuft nur das Review des Labels.
+Übersprungen wird ein Review, wenn der PR nur Dokumentation (`*.md`, `docs/`), Lockfiles oder den Changelog (`web/src/lib/changelog/entries/`) ändert, sowie bei PRs von Bots (Dependabot) und aus Forks. Wird ein PR zugleich auf Ready for review gestellt und mit dem Label versehen, läuft nur das Review des Labels.
 
 Bis Anfang November 2026 lief bei jedem Push ein Review und auf Wunsch ein gründliches Review mit `gpt-6-astra`. Das kostete in aktiven Monaten mehrere hundert Euro und ist abgeschaltet; die Bereitstellung `gpt-6-astra` ist gelöscht.
 

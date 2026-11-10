@@ -1,7 +1,8 @@
 import { test, expect } from './fixtures';
-import { CHANGELOG } from '../src/lib/changelogEntries';
+import { loadChangelog } from '../test/changelogFiles';
 import { latch, settle } from './settle';
 
+const CHANGELOG = await loadChangelog();
 const SEEN_ALL = CHANGELOG[0].id;
 const SEEN_OLDER = CHANGELOG[2].id;
 
