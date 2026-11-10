@@ -3,7 +3,8 @@
 // Prints the compiled test files (dist/test/*.test.js) of that shard, one per line.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import process from "node:process";
+import { fileURLToPath, URL } from "node:url";
 
 const DATABASE_FIXTURE = /fixtures\/database/;
 
@@ -35,6 +36,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [index, count] = process.argv.slice(2).map(Number);
   const dir = fileURLToPath(new URL("../../test", import.meta.url));
   for (const name of shardFiles(dir, index, count)) {
-    console.log(`dist/test/${name.replace(/\.ts$/, ".js")}`);
+    process.stdout.write(`dist/test/${name.replace(/\.ts$/, ".js")}\n`);
   }
 }
