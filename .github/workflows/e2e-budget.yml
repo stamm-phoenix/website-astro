@@ -14,6 +14,7 @@ jobs:
   budget:
     name: E2E budget
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       # Checks out the merge of the PR into its base. Its first parent is the base the merge was
       # made with, so a label change after main moved on still compares the right commits.
@@ -24,12 +25,17 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
-      - name: Install dependencies
-        working-directory: web
+      # The checking code comes from the base commit, never from the PR: a PR that changes
+      # web/scripts/ci/e2e-* must not decide its own result. The script runs from the base worktree
+      # but with the working directory in the real checkout, so it counts the PR's files.
+      - name: Check out the checking code of the base
+        run: git worktree add --detach "$RUNNER_TEMP/base" 'HEAD^1'
+      - name: Install dependencies of the base
+        working-directory: ${{ runner.temp }}/base/web
         # Only for the TypeScript parser that counts the tests; no install scripts, no test code runs
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Compare E2E tests with the base
         env:
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         working-directory: web
-        run: bun scripts/ci/e2e-budget.ts 'HEAD^1' HEAD
+        run: bun "$RUNNER_TEMP/base/web/scripts/ci/e2e-budget.ts" 'HEAD^1' HEAD
