@@ -24,6 +24,10 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
+      - name: Install dependencies
+        working-directory: web
+        # Only for the TypeScript parser that counts the tests; no install scripts, no test code runs
+        run: bun install --frozen-lockfile --ignore-scripts
       - name: Compare E2E tests with the base
         env:
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}

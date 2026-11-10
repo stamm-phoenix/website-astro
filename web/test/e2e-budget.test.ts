@@ -1,56 +1,36 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { countTests, evaluateBudget, isSpecPath } from '../scripts/ci/e2e-budget';
+import { evaluateBudget, isSpecPath, isTestSourcePath } from '../scripts/ci/e2e-budget';
 
-test('countTests counts tests but not describe blocks, steps or hooks', () => {
-  const source = [
-    "test.describe('x', () => {",
-    "  test('a', async () => {",
-    "    await test.step('s', async () => {});",
-    '  });',
-    "  test.skip('b', async () => {});",
-    "  test.only('c', async () => {});",
-    '  test.beforeEach(async () => {});',
-    '  test.use({ viewport: null });',
-    '});',
-    "// test('commented') is not at the line start",
-  ].join('\n');
-  assert.equal(countTests(source), 3);
-});
+const BASE = { specFiles: 10, tests: 50, loopedTests: 2 };
 
-test('countTests ignores in-test modifiers but counts titled skips', () => {
-  const source = [
-    "test('a', async ({ page }, testInfo) => {",
-    '  test.slow();',
-    "  test.skip(testInfo.project.name !== 'desktop', 'only desktop');",
-    '});',
-    "test.fixme('b', async () => {});",
-  ].join('\n');
-  assert.equal(countTests(source), 2);
-});
-
-test('isSpecPath only matches spec files below web/tests', () => {
+test('isSpecPath matches Playwright spec files below web/tests, isTestSourcePath any source there', () => {
   assert.equal(isSpecPath('web/tests/a.spec.ts'), true);
+  assert.equal(isSpecPath('web/tests/a.test.js'), true);
   assert.equal(isSpecPath('web/tests/helpers.ts'), false);
   assert.equal(isSpecPath('web/test/a.spec.ts'), false);
+  assert.equal(isTestSourcePath('web/tests/helpers.ts'), true);
+  assert.equal(isTestSourcePath('web/tests/data.json'), false);
 });
 
 test('unchanged or smaller budgets pass without label', () => {
-  const base = { specFiles: 10, tests: 50 };
-  assert.equal(evaluateBudget(base, base, []).ok, true);
-  assert.equal(evaluateBudget(base, { specFiles: 9, tests: 40 }, []).ok, true);
+  assert.equal(evaluateBudget(BASE, BASE, []).ok, true);
+  assert.equal(evaluateBudget(BASE, { specFiles: 9, tests: 40, loopedTests: 1 }, []).ok, true);
 });
 
-test('a new test or spec file fails without e2e-ok', () => {
-  const base = { specFiles: 10, tests: 50 };
-  assert.equal(evaluateBudget(base, { specFiles: 10, tests: 51 }, []).ok, false);
-  assert.equal(evaluateBudget(base, { specFiles: 11, tests: 50 }, ['bug']).ok, false);
+test('a new test, spec file or looped test fails without e2e-ok', () => {
+  assert.equal(evaluateBudget(BASE, { ...BASE, tests: 51 }, []).ok, false);
+  assert.equal(evaluateBudget(BASE, { ...BASE, specFiles: 11 }, ['bug']).ok, false);
+  assert.equal(evaluateBudget(BASE, { ...BASE, loopedTests: 3 }, []).ok, false);
 });
 
 test('the e2e-ok label releases a growing budget', () => {
-  const result = evaluateBudget({ specFiles: 10, tests: 50 }, { specFiles: 11, tests: 52 }, [
-    'e2e-ok',
-  ]);
+  const result = evaluateBudget(BASE, { specFiles: 11, tests: 52, loopedTests: 2 }, ['e2e-ok']);
   assert.equal(result.ok, true);
   assert.match(result.messages.join(' '), /e2e-ok/);
+});
+
+test('the failure message does not tell the author to set the label', () => {
+  const text = evaluateBudget(BASE, { ...BASE, tests: 51 }, []).messages.join(' ');
+  assert.match(text, /nur Hugo oder eine maintainende Person/);
 });
