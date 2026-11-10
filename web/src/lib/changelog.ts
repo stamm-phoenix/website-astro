@@ -3,7 +3,7 @@ import { isChangelogId } from '../../../api/lib/changelog-id';
 /** A sentence of an entry; with `href` the page it is about gets a link after the sentence. */
 export type ChangelogChange = string | { text: string; href: string };
 
-/** One entry of the changelog of the Leitendenbereich, written in `changelogEntries.ts`. */
+/** One entry of the changelog of the Leitendenbereich, written in `changelog/entries/<id>.ts`. */
 export interface ChangelogEntry {
   /** Date, number of the day and short name, see `api/lib/changelog-id.ts`. */
   id: string;
@@ -12,6 +12,11 @@ export interface ChangelogEntry {
   title: string;
   /** Whole sentences in plain German: what leaders can do now or what works differently. */
   changes: ChangelogChange[];
+}
+
+/** The entries ordered by ID, the newest first; an ID starts with the date and the number of the day. */
+export function sortedNewestFirst(entries: readonly ChangelogEntry[]): ChangelogEntry[] {
+  return [...entries].sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
 }
 
 /** The entries newer than `lastSeenId`; all of them while nothing has been seen. */
@@ -43,6 +48,18 @@ export function newestEntryId(entries: readonly ChangelogEntry[]): string | null
 
 export function changeText(change: ChangelogChange): string {
   return typeof change === 'string' ? change : change.text;
+}
+
+/** Problems of entries that share the `YYYY-MM-DD-NN` prefix of their ID, which two PRs may pick at once. */
+export function duplicateNumbers(entries: readonly ChangelogEntry[]): string[] {
+  const byNumber = new Map<string, string[]>();
+  for (const { id } of entries) {
+    const number = id.slice(0, 13);
+    byNumber.set(number, [...(byNumber.get(number) ?? []), id]);
+  }
+  return [...byNumber]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([number, ids]) => `${number}: mehrfach vergeben (${ids.join(', ')})`);
 }
 
 /**

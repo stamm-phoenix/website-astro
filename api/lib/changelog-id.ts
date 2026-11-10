@@ -1,5 +1,5 @@
 /**
- * IDs of the entries in the changelog of the Leitendenbereich (`web/src/lib/changelogEntries.ts`),
+ * IDs of the entries in the changelog of the Leitendenbereich (one file per entry in `web/src/lib/changelog/entries/`),
  * shared by the API and the frontend. Free of imports.
  *
  * An ID is the day of the entry, a two-digit number that counts the entries of that day, and a

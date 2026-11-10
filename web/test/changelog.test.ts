@@ -3,12 +3,15 @@ import { test } from 'node:test';
 import { staffPage } from '../src/lib/staffModules';
 import {
   changelogProblems,
+  duplicateNumbers,
   newestEntryId,
   recentUnseenEntries,
   unseenEntries,
 } from '../src/lib/changelog';
 import type { ChangelogEntry } from '../src/lib/changelog';
-import { CHANGELOG } from '../src/lib/changelogEntries';
+import { loadChangelog, loadChangelogFiles } from './changelogFiles';
+
+const CHANGELOG = await loadChangelog();
 
 function entry(id: string): ChangelogEntry {
   return { id, date: id.slice(0, 10), title: id, changes: ['Etwas ist neu.'] };
@@ -23,6 +26,26 @@ function berlinToday(): string {
 
 test('the written changelog has valid, unique IDs, newest first, no empty text and no future date', () => {
   assert.deepEqual(changelogProblems(CHANGELOG, berlinToday()), []);
+});
+
+test('every entry file is named after the ID of its entry', async () => {
+  const files = await loadChangelogFiles();
+  assert.ok(files.length > 0);
+  assert.deepEqual(
+    files.filter(({ file, entry }) => file !== `${entry.id}.ts`).map(({ file }) => file),
+    []
+  );
+});
+
+test('a day number is used by one entry only', () => {
+  assert.deepEqual(duplicateNumbers(CHANGELOG), []);
+});
+
+test('two entries with the same day number are reported, whatever their slug', () => {
+  assert.deepEqual(duplicateNumbers([entry('2026-10-20-01-a'), entry('2026-10-20-01-b')]), [
+    '2026-10-20-01: mehrfach vergeben (2026-10-20-01-a, 2026-10-20-01-b)',
+  ]);
+  assert.deepEqual(duplicateNumbers([entry('2026-10-20-01-a'), entry('2026-10-20-02-a')]), []);
 });
 
 test('several entries of one day are ordered by their number', () => {

@@ -115,7 +115,7 @@ jobs:
           if [ "$(jq '.files | length' "$RUNNER_TEMP/compare.json")" -ge 300 ]; then relevant=true; fi
           while IFS= read -r file; do
             case "$file" in
-              *.md | docs/* | */docs/* | bun.lock | */bun.lock | package-lock.json | */package-lock.json | web/src/lib/changelogEntries.ts) ;;
+              *.md | docs/* | */docs/* | bun.lock | */bun.lock | package-lock.json | */package-lock.json | web/src/lib/changelog/entries/*) ;;
               *) relevant=true; break ;;
             esac
           done < "$RUNNER_TEMP/files.txt"

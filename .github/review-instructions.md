@@ -13,7 +13,7 @@ Die Website von DPSG Stamm Phoenix: Astro 7, Svelte 5 Runes, Tailwind CSS 4, Azu
 - `content.ts` wird nur im Frontmatter von Seiten importiert, nie in Islands; Sanitizer nutzen `parseHtml`.
 - Barrierefreiheit: `aria-labelledby`, `width`/`height` an Bildern, ARIA an interaktiven Elementen.
 - Texte im Leitendenbereich: einfache Sprache in der Du-Form, Fehlermeldungen mit nächstem Schritt, keine erklärenden Sätze (siehe „Usability for Leitende“ in `AGENTS.md`).
-- Änderungen, die Leitende bemerken, haben einen Eintrag in `web/src/lib/changelogEntries.ts`.
+- Änderungen, die Leitende bemerken, haben einen Eintrag in `web/src/lib/changelog/entries/`.
 
 ## Regeln
 
