@@ -103,8 +103,9 @@ jobs:
       # ESLint lints only files whose content changed since the cached run. Its rules use no
       # type information, so the result of an unchanged file cannot depend on other files.
       # The cache resets with the dependencies or the configuration.
-      - name: Cache ESLint results
-        uses: actions/cache@v6
+      # Pull requests only read the cache; only pushes to main save it, so a PR run adds no entry.
+      - name: Restore ESLint results
+        uses: actions/cache/restore@v6
         with:
           path: web/.eslintcache
           key: eslint-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'web/eslint.config.mjs') }}-${{ github.sha }}
@@ -116,6 +117,12 @@ jobs:
       - name: Check frontend (ESLint, Astro, Svelte and unit tests in parallel)
         working-directory: web
         run: bun run check
+      - name: Save ESLint results
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v6
+        with:
+          path: web/.eslintcache
+          key: eslint-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'web/eslint.config.mjs') }}-${{ github.sha }}
   api:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
     uses: ./.github/workflows/check-api.yml
