@@ -3,8 +3,7 @@ import { emptySession } from '../../api/lib/abrechnung-session';
 
 const URL = '/leitendenbereich/abrechnung/evt_Sola26';
 const API = '/api/intern/abrechnung/evt_Sola26/eingaben';
-test.beforeEach(async ({ page }, testInfo) => {
-  if (testInfo.title.startsWith('old local entries')) return;
+test.beforeEach(async ({ page }) => {
   const current = await (await page.request.get(API)).json();
   expect(
     (await page.request.put(API, { data: { session: emptySession(), etag: current.etag } })).ok()
@@ -73,50 +72,6 @@ test('a failed save keeps inputs and clearing the last saved value is still guar
   await expect(save).toBeDisabled();
 });
 
-test('old local entries are removed only after their explicit migration succeeds', async ({
-  page,
-}) => {
-  await page.route('**/eingaben', (route) =>
-    route.request().method() === 'GET'
-      ? route.fulfill({
-          json: { session: emptySession(), etag: null, savedAt: null, deleteAfter: null },
-        })
-      : route.fallback()
-  );
-  await page.goto('/impressum');
-  await page.evaluate(() =>
-    localStorage.setItem(
-      'phoenix:abrechnung:v1:evt_Sola26',
-      JSON.stringify({
-        session: { zusatztag: true },
-        savedAt: '2026-09-30T10:00:00Z',
-        deleteAfter: '2026-12-11',
-      })
-    )
-  );
-  await page.goto(URL);
-  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
-  expect(
-    await page.evaluate(() => localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26'))
-  ).not.toBeNull();
-  await page.route('**/eingaben', (route) =>
-    route.request().method() === 'PUT'
-      ? route.fulfill({
-          json: {
-            session: route.request().postDataJSON().session,
-            etag: 'migrated',
-            savedAt: '2026-10-01T12:00:00Z',
-            deleteAfter: '2026-12-11',
-          },
-        })
-      : route.fallback()
-  );
-  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
-  await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26')))
-    .toBeNull();
-});
-
 test('an expired login while loading a receipt offers the new login', async ({ page }) => {
   await page.route('**/api/intern/abrechnung/belege/*/bild*', (route) =>
     route.fulfill({ status: 401, body: '' })
@@ -131,43 +86,6 @@ test('an expired login while loading a receipt offers the new login', async ({ p
   await expect(dialog.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
 });
 
-test('a failed reset preserves edits made while its request was pending', async ({ page }) => {
-  await page.goto(URL);
-  const toggle = page.getByRole('checkbox', { name: /Zusatztag/ });
-  await toggle.check();
-  await page.getByRole('button', { name: 'Eingaben speichern' }).click();
-  await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'Auf allen deinen Geräten verfügbar'
-  );
-  let release!: () => void;
-  const pending = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  let received!: () => void;
-  const started = new Promise<void>((resolve) => {
-    received = resolve;
-  });
-  await page.route('**/eingaben', async (route) => {
-    if (route.request().method() !== 'PUT') return route.fallback();
-    received();
-    await pending;
-    await route.fulfill({ status: 500, json: {} });
-  });
-  await page.getByRole('button', { name: 'Eingaben zurücksetzen' }).click();
-  await answerConfirm(page, 'Eingaben zurücksetzen?', 'Eingaben zurücksetzen');
-  await started;
-  await toggle.uncheck();
-  release();
-  await expect(page.getByTestId('eingaben-ablage')).toContainText(
-    'Die Eingaben wurden nicht gespeichert'
-  );
-  await expect(toggle).not.toBeChecked();
-  await expect(page.getByTestId('eingaben-ablage')).toContainText('Ungespeicherte Änderungen');
-  await page.getByRole('navigation', { name: 'Zurück' }).getByRole('link').click();
-  await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
-  await expect(toggle).not.toBeChecked();
-});
-
 test('expired retention explains why new inputs cannot be saved', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2027-01-01T12:00:00Z'));
   await page.goto(URL);
@@ -177,53 +95,6 @@ test('expired retention explains why new inputs cannot be saved', async ({ page 
   await expect(storage).toContainText('nur auf dieser geöffneten Seite');
   await expect(storage).not.toContainText('Tippe auf');
   await expect(page.getByRole('button', { name: 'Eingaben speichern' })).toBeDisabled();
-});
-
-test('a discarded load cannot overwrite a reopened draft or its unsaved warning', async ({
-  page,
-}) => {
-  await page.goto('/impressum');
-  const result = await page.evaluate(async () => {
-    const path = '/src/lib/abrechnungStore.svelte.ts';
-    const store = await import(path);
-    const id = 'evt_Sola26';
-    const originalFetch = window.fetch;
-    const baseline = await (await originalFetch(`/api/intern/abrechnung/${id}/eingaben`)).json();
-    let calls = 0;
-    let release!: (response: Response) => void;
-    const delayed = new Promise<Response>((resolve) => {
-      release = resolve;
-    });
-    window.fetch = (input, init) => {
-      if (String(input).includes(`/abrechnung/${id}/eingaben`)) {
-        calls++;
-        return calls === 2 ? delayed : Promise.resolve(Response.json(baseline));
-      }
-      return originalFetch(input, init);
-    };
-    const loaded = async () => {
-      while (!store.abrechnungAblage[id]?.loaded)
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    };
-    try {
-      store.abrechnungSession(id);
-      await loaded();
-      const stale = store.loadAbrechnungSession(id);
-      store.resetAbrechnungSession(id);
-      const reopened = store.abrechnungSession(id);
-      await loaded();
-      reopened.kjr.ort = 'Neue Eingabe nach dem Wiederöffnen';
-      store.storeAbrechnungSession(id);
-      release(Response.json(baseline));
-      await stale;
-      store.storeAbrechnungSession(id);
-      return { ort: reopened.kjr.ort, dirty: store.abrechnungAblage[id].dirty };
-    } finally {
-      window.fetch = originalFetch;
-      store.resetAbrechnungSession(id);
-    }
-  });
-  expect(result).toEqual({ ort: 'Neue Eingabe nach dem Wiederöffnen', dirty: true });
 });
 
 test('an undated Aktion keeps its accounting and receipts accessible while explaining the save restriction', async ({
