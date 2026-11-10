@@ -15,21 +15,17 @@ jobs:
     name: E2E budget
     runs-on: ubuntu-24.04
     steps:
-      # Checks out the merge of the PR into its base, so the count includes what main gained since
+      # Checks out the merge of the PR into its base. Its first parent is the base the merge was
+      # made with, so a label change after main moved on still compares the right commits.
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-      - name: Fetch base commit
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          fetch-depth: 2
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
       - name: Compare E2E tests with the base
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         working-directory: web
-        run: bun scripts/ci/e2e-budget.ts "$BASE_SHA" HEAD
+        run: bun scripts/ci/e2e-budget.ts 'HEAD^1' HEAD
