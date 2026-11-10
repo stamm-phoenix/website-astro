@@ -103,11 +103,15 @@ jobs:
           - {
               name: "WebKit",
               browser: webkit,
-              args: "--project=webkit-tablet",
+              args: "--project=webkit-tablet --test-list=test-results/shard.txt",
               workers: 1,
             }
     steps:
+      # Two commits on pull requests: the first parent of the merge commit is the base the
+      # affected specs are computed against (scripts/ci/select-affected.ts).
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -128,11 +132,21 @@ jobs:
         run: |
           version=$(node -p "require('@playwright/test/package.json').version")
           test "$PLAYWRIGHT_IMAGE" = "mcr.microsoft.com/playwright:v${version}-noble"
-      - name: Balance Chromium files by measured duration
-        if: matrix.browser == 'chromium'
+      - name: Select the specs of this shard
+        id: select
         working-directory: web
-        run: bun scripts/ci/select-browser-shard.ts ${{ matrix.shard }}
+        env:
+          # Pull requests run the specs their change can affect; main and other triggers run all
+          E2E_AFFECTED_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+        run: |
+          if [ "${{ matrix.browser }}" = chromium ]; then
+            bun scripts/ci/select-browser-shard.ts ${{ matrix.shard }}
+          else
+            bun scripts/ci/select-browser-shard.ts 1/1 webkit-tablet
+          fi
       - name: Test browser workflows with simulated data
+        # A shard without affected specs still succeeds, so "All shards passed" stays complete
+        if: steps.select.outputs.run == 'true'
         working-directory: web
         # Each shard runs its share of the test files with one mock dev server per worker.
         run: bun run test:e2e ${{ matrix.args }}
