@@ -1,10 +1,14 @@
-// The `mobile` project (Pixel 7: touch, narrow screen) runs only specs that are about phones.
-// Everything else is a generic flow and runs once, on `desktop`. Add a spec to one of the lists
-// below only when it needs touch input or the phone layout (or while it still uses `mobile` as its
-// dark variant, see DARK_VARIANT_SPECS); the unit test
-// `test/browser-selection.test.ts` keeps the lists and the discovered tests in sync.
+// The `mobile` project (Pixel 7: touch, narrow screen) runs only what is about phones; every
+// other test is a generic flow and runs once, on `desktop`. Two ways to put something on `mobile`:
+//
+// - A single test gets the tag `@mobile`: `test('title', { tag: '@mobile' }, async () => ...)`.
+//   Use it for a test that needs touch input, the phone layout or the mobile branch of a flow,
+//   also inside a file that is otherwise generic.
+// - A whole file is listed below when every test in it is about phones (or needs the dark run).
+//
+// `test/browser-selection.test.ts` checks that both rules and the discovered tests agree.
 
-// Phone-only specs; `desktop` does not run them.
+/** Phone-only files; `desktop` does not run them. */
 export const MOBILE_ONLY_SPECS = [
   // Touch gestures and tap targets
   '**/gestures-*.spec.ts',
@@ -17,7 +21,7 @@ export const MOBILE_ONLY_SPECS = [
   '**/essensplanung-zeilen-konflikte.spec.ts',
 ];
 
-// Generic specs with a touch or phone branch; they run on `desktop` and on `mobile`.
+/** Generic files with tests for touch or the phone layout throughout; they run on both. */
 export const ALSO_ON_MOBILE_SPECS = [
   '**/staff-menu.spec.ts',
   '**/staff-layout.spec.ts',
@@ -28,20 +32,11 @@ export const ALSO_ON_MOBILE_SPECS = [
   '**/leitende-personenvorschlaege.spec.ts',
   '**/aufgaben-assignments.spec.ts',
   '**/rich-text-style.spec.ts',
-  // Mostly generic; each has tests for the narrow screen or touch input next to them
-  '**/abrechnung.spec.ts',
-  '**/nikolaus-buchung.spec.ts',
-  '**/essensplanung-zeilen.spec.ts',
-  // Branches on the phone project: menu breakpoints, narrow viewport, mobile layout
-  '**/staff-ux-review.spec.ts',
-  '**/staff-ux-feedback.spec.ts',
-  '**/protokoll-dokument.spec.ts',
-  '**/aktion-beitraege.spec.ts',
 ];
 
-// Specs that pick the dark colour scheme when the project is `mobile` (and light otherwise), so
+// Files that pick the dark colour scheme when the project is `mobile` (and light otherwise), so
 // the `mobile` run is their only run in dark. Not about phones: replace the project check with an
-// explicit dark test per flow, then remove the spec from this list (#530).
+// explicit dark test per flow, then remove the file from this list (#530).
 export const DARK_VARIANT_SPECS = [
   '**/aufgaben-actions.spec.ts',
   '**/aufgaben-alignment.spec.ts',
@@ -63,3 +58,41 @@ export const DARK_VARIANT_SPECS = [
   '**/staff-dates.spec.ts',
   '**/staff-status.spec.ts',
 ];
+
+/** The tag of a test that runs on `mobile` inside a file that is otherwise generic. */
+export const MOBILE_TAG = '@mobile';
+
+/** Every file that runs on `mobile` as a whole. */
+export const MOBILE_FILE_PATTERNS = [
+  ...MOBILE_ONLY_SPECS,
+  ...ALSO_ON_MOBILE_SPECS,
+  ...DARK_VARIANT_SPECS,
+];
+
+/** Whether a file name (`abrechnung.spec.ts`) matches a pattern of the lists above. */
+export function matchesSpecPattern(patterns: string[], file: string): boolean {
+  return patterns.some((pattern) => {
+    const name = pattern.replace(/^\*\*\//, '');
+    const source = name.replace(/[.]/g, '[.]').replace(/\*/g, '[^/]*');
+    return new RegExp(`^${source}$`).test(file);
+  });
+}
+
+/**
+ * The `grep` of the `mobile` project. Playwright matches it against the path of the file and the
+ * title with its tags, so one expression selects the listed files and the tagged tests.
+ */
+export const MOBILE_GREP = new RegExp(
+  [
+    MOBILE_TAG,
+    ...MOBILE_FILE_PATTERNS.map(
+      (pattern) =>
+        '(?<![\\w-])' +
+        pattern
+          .replace(/^\*\*\//, '')
+          .replace(/[.]/g, '[.]')
+          .replace(/\*/g, '[^/ ]*') +
+        '(?![\\w-])'
+    ),
+  ].join('|')
+);

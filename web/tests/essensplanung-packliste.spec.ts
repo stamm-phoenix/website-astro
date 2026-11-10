@@ -127,84 +127,88 @@ test('two people pack at once; the read-only link shows the list without changin
   await leser.context().close();
 });
 
-test('names that differ in signs have their own box; a choice not saved is asked about', async ({
-  page,
-}) => {
-  await anlegen(page, 'E2E Packliste Zeichen');
-  await gerichteMitWerkzeugen(page, [
-    ['Chili', ['Grill-Zange']],
-    ['Suppe', ['Grill Zange']],
-  ]);
-  const liste = page.getByRole('list', { name: 'Packliste' });
-  await expect(liste.getByRole('listitem')).toHaveCount(2);
+test(
+  'names that differ in signs have their own box; a choice not saved is asked about',
+  { tag: '@mobile' },
+  async ({ page }) => {
+    await anlegen(page, 'E2E Packliste Zeichen');
+    await gerichteMitWerkzeugen(page, [
+      ['Chili', ['Grill-Zange']],
+      ['Suppe', ['Grill Zange']],
+    ]);
+    const liste = page.getByRole('list', { name: 'Packliste' });
+    await expect(liste.getByRole('listitem')).toHaveCount(2);
 
-  // A name and an open choice of persons survive the maintenance mode, which only locks adding
-  const neu = page.getByLabel('Noch etwas einpacken');
-  const wartung = async (an: boolean): Promise<void> => {
+    // A name and an open choice of persons survive the maintenance mode, which only locks adding
+    const neu = page.getByLabel('Noch etwas einpacken');
+    const wartung = async (an: boolean): Promise<void> => {
+      await page.unroute('**/api/essensplanung/planung/stand?*');
+      await page.route('**/api/essensplanung/planung/stand?*', async (route) => {
+        const url = route
+          .request()
+          .url()
+          .replace(/seit=[^&]*/, 'seit=0');
+        const antwort = await route.fetch({ url });
+        const json = await antwort.json();
+        if (json.ansicht) json.ansicht.wartung = an;
+        await route.fulfill({ response: antwort, json });
+      });
+    };
+    await neu.fill('Gaskocher');
+    await page.getByRole('button', { name: /^Wer packt\?/ }).click();
+    const wer = page.getByRole('dialog', { name: 'Wer packt Gaskocher ein?' });
+    const ich = wer.getByRole('group', { name: 'Mitglieder' }).getByRole('checkbox').first();
+    await ich.check();
+    await wer.getByLabel('Anderer Name').fill('Rover');
+    await wartung(true);
+    const aufDieListe = page.getByRole('button', { name: 'Auf die Packliste' });
+    await expect(aufDieListe).toBeDisabled({ timeout: 15_000 });
+    await expect(ich).toBeChecked();
+    await expect(wer.getByLabel('Anderer Name')).toHaveValue('Rover');
+    await wartung(false);
+    await expect(aufDieListe).toBeEnabled({ timeout: 15_000 });
+    await expect(neu).toHaveValue('Gaskocher');
     await page.unroute('**/api/essensplanung/planung/stand?*');
-    await page.route('**/api/essensplanung/planung/stand?*', async (route) => {
-      const url = route
-        .request()
-        .url()
-        .replace(/seit=[^&]*/, 'seit=0');
-      const antwort = await route.fetch({ url });
-      const json = await antwort.json();
-      if (json.ansicht) json.ansicht.wartung = an;
-      await route.fulfill({ response: antwort, json });
-    });
-  };
-  await neu.fill('Gaskocher');
-  await page.getByRole('button', { name: /^Wer packt\?/ }).click();
-  const wer = page.getByRole('dialog', { name: 'Wer packt Gaskocher ein?' });
-  const ich = wer.getByRole('group', { name: 'Mitglieder' }).getByRole('checkbox').first();
-  await ich.check();
-  await wer.getByLabel('Anderer Name').fill('Rover');
-  await wartung(true);
-  const aufDieListe = page.getByRole('button', { name: 'Auf die Packliste' });
-  await expect(aufDieListe).toBeDisabled({ timeout: 15_000 });
-  await expect(ich).toBeChecked();
-  await expect(wer.getByLabel('Anderer Name')).toHaveValue('Rover');
-  await wartung(false);
-  await expect(aufDieListe).toBeEnabled({ timeout: 15_000 });
-  await expect(neu).toHaveValue('Gaskocher');
-  await page.unroute('**/api/essensplanung/planung/stand?*');
-  await wer.getByLabel('Anderer Name').fill('');
-  await ich.uncheck();
-  await wer.getByRole('button', { name: 'Übernehmen' }).click();
-  await expect(wer).toBeHidden();
-  await neu.fill('');
+    await wer.getByLabel('Anderer Name').fill('');
+    await ich.uncheck();
+    await wer.getByRole('button', { name: 'Übernehmen' }).click();
+    await expect(wer).toBeHidden();
+    await neu.fill('');
 
-  // Box and name are one target of at least 44 px for a finger (compact with a mouse)
-  await page.setViewportSize({ width: 390, height: 844 });
-  const flaeche = await liste
-    .locator('label', { has: page.getByRole('checkbox', { name: 'Grill Zange', exact: true }) })
-    .boundingBox();
-  const finger = await page.evaluate(() => matchMedia('(any-pointer: coarse)').matches);
-  expect(flaeche!.height).toBeGreaterThanOrEqual(finger ? 44 : 28);
-  expect(flaeche!.width).toBeGreaterThanOrEqual(finger ? 44 : 28);
-  await expectNoHorizontalOverflow(page);
+    // Box and name are one target of at least 44 px for a finger (compact with a mouse)
+    await page.setViewportSize({ width: 390, height: 844 });
+    const flaeche = await liste
+      .locator('label', { has: page.getByRole('checkbox', { name: 'Grill Zange', exact: true }) })
+      .boundingBox();
+    const finger = await page.evaluate(() => matchMedia('(any-pointer: coarse)').matches);
+    expect(flaeche!.height).toBeGreaterThanOrEqual(finger ? 44 : 28);
+    expect(flaeche!.width).toBeGreaterThanOrEqual(finger ? 44 : 28);
+    await expectNoHorizontalOverflow(page);
 
-  // The label of the one row ticks its own box
-  await liste.getByText('Grill Zange', { exact: true }).click();
-  await expect(page.getByRole('checkbox', { name: 'Grill Zange', exact: true })).toBeChecked();
-  await expect(page.getByRole('checkbox', { name: 'Grill-Zange', exact: true })).not.toBeChecked();
-  await expect(page.getByText('Grill Zange ist eingepackt.').first()).toBeVisible();
+    // The label of the one row ticks its own box
+    await liste.getByText('Grill Zange', { exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: 'Grill Zange', exact: true })).toBeChecked();
+    await expect(
+      page.getByRole('checkbox', { name: 'Grill-Zange', exact: true })
+    ).not.toBeChecked();
+    await expect(page.getByText('Grill Zange ist eingepackt.').first()).toBeVisible();
 
-  // A choice of who packs that is not saved yet: closing asks, leaving the page asks too
-  await page.getByRole('button', { name: 'Wer packt Grill-Zange ein?' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Wer packt Grill-Zange ein?' });
-  await dialog.getByRole('textbox', { name: 'Anderer Name' }).fill('Rover');
-  await dialog.getByRole('button', { name: 'Abbrechen' }).click();
-  const frage = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
-  await expect(frage).toBeVisible();
-  await frage.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-  // A typed name not added yet is saved with the choice
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(dialog).toBeHidden();
-  await expect(page.getByText('Rover packt Grill-Zange ein.').first()).toBeVisible();
-  await page.getByRole('link', { name: 'Impressum' }).first().click();
-  await expect(page).toHaveURL(/impressum/, { timeout: 15_000 });
-});
+    // A choice of who packs that is not saved yet: closing asks, leaving the page asks too
+    await page.getByRole('button', { name: 'Wer packt Grill-Zange ein?' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Wer packt Grill-Zange ein?' });
+    await dialog.getByRole('textbox', { name: 'Anderer Name' }).fill('Rover');
+    await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+    const frage = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+    await expect(frage).toBeVisible();
+    await frage.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+    // A typed name not added yet is saved with the choice
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText('Rover packt Grill-Zange ein.').first()).toBeVisible();
+    await page.getByRole('link', { name: 'Impressum' }).first().click();
+    await expect(page).toHaveURL(/impressum/, { timeout: 15_000 });
+  }
+);
 
 test('an entry of its own that a dish planned later needs stays one row with its state', async ({
   page,

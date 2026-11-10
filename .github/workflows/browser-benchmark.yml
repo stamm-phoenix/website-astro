@@ -1,10 +1,20 @@
 name: Browser worker benchmark
 on:
   workflow_dispatch:
+    inputs:
+      base:
+        description: Commit to measure as the baseline. With head, runs the whole desktop and mobile suite of both commits instead of the worker benchmark.
+        required: false
+        default: ""
+      head:
+        description: Commit to measure against the baseline.
+        required: false
+        default: ""
 permissions:
   contents: read
 jobs:
   benchmark:
+    if: ${{ inputs.base == '' }}
     name: Browser benchmark (${{ matrix.workers }} workers)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -57,3 +67,91 @@ jobs:
           name: browser-benchmark-${{ matrix.workers }}
           path: web/test-results/
           retention-days: 7
+  suite:
+    # The whole suite of one commit on one runner, with the settings of the shards in CI, so that
+    # two commits are measured under the same conditions: same image, same worker count, same
+    # retries. Records the duration of every test per file and project (JSON reporter).
+    if: ${{ inputs.base != '' && inputs.head != '' }}
+    name: Whole suite (${{ matrix.label }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: base, ref: "${{ inputs.base }}" }
+          - { label: head, ref: "${{ inputs.head }}" }
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Bun and frontend dependencies
+        run: |
+          npm install --global bun@1.4.2
+          bun install --frozen-lockfile
+          test "$(node -p "require('@playwright/test/package.json').version")" = "1.64.1"
+      - name: Run desktop and mobile
+        run: bun run test:e2e --project=desktop --project=mobile --reporter=json
+        env:
+          E2E_WORKERS: 4
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/suite.json
+      - name: Summarize per file and project
+        if: always()
+        env:
+          LABEL: ${{ matrix.label }}
+          REF: ${{ matrix.ref }}
+        run: |
+          node <<'JS'
+          const fs = require('node:fs');
+          const file = 'test-results/suite.json';
+          if (!fs.existsSync(file)) process.exit(0);
+          const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const rows = new Map();
+          const visit = (suite) => {
+            for (const spec of suite.specs ?? []) {
+              for (const test of spec.tests) {
+                const key = `${test.projectName}/${spec.file}`;
+                const row = rows.get(key) ?? { project: test.projectName, file: spec.file, tests: 0, skipped: 0, failed: 0, flaky: 0, seconds: 0 };
+                row.tests++;
+                if (test.status === 'skipped') row.skipped++;
+                if (test.status === 'unexpected') row.failed++;
+                if (test.status === 'flaky') row.flaky++;
+                row.seconds += test.results.reduce((sum, result) => sum + result.duration, 0) / 1000;
+                rows.set(key, row);
+              }
+            }
+            for (const child of suite.suites ?? []) visit(child);
+          };
+          report.suites.forEach(visit);
+          const list = [...rows.values()].sort((a, b) => b.seconds - a.seconds);
+          const total = (project) => list.filter((r) => r.project === project);
+          const sum = (items, field) => items.reduce((n, r) => n + r[field], 0);
+          const lines = [
+            `### ${process.env.LABEL}: ${process.env.REF}`,
+            `Wall clock ${(report.stats.duration / 1000).toFixed(0)} s; ${report.stats.expected} passed, ${report.stats.unexpected} failed, ${report.stats.flaky} flaky, ${report.stats.skipped} skipped.`,
+            '',
+            '| Project | Files | Tests | Skipped | Sum of test seconds |',
+            '|---|---|---|---|---|',
+            ...['desktop', 'mobile'].map((p) => `| ${p} | ${total(p).length} | ${sum(total(p), 'tests')} | ${sum(total(p), 'skipped')} | ${sum(total(p), 'seconds').toFixed(0)} |`),
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          fs.writeFileSync(`test-results/per-spec-${process.env.LABEL}.json`, JSON.stringify({ ref: process.env.REF, stats: report.stats, rows: list }, null, 1));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-suite-${{ matrix.label }}
+          path: |
+            web/test-results/suite.json
+            web/test-results/per-spec-*.json
+          retention-days: 14

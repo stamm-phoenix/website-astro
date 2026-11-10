@@ -287,44 +287,49 @@ test('an expired login while saving staff tags offers the new login', async ({ p
   await expect(dialog.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
 });
 
-test('on a phone all five values of a Nikolaus day are visible', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile', 'Narrow screens only');
-  await page.goto('/leitendenbereich/nikolaus');
-  await page.getByRole('heading', { name: 'Überblick über die Tage', exact: true }).click();
-  const section = page.getByRole('region', { name: 'Überblick über die Tage', exact: true });
-  const day = section.getByRole('row').nth(1);
-  await expectWithinWindowWidth(page, day.getByRole('rowheader'));
-  const cells = day.getByRole('cell');
-  await expect(cells).toHaveCount(4);
-  for (const cell of await cells.all()) await expectWithinWindowWidth(page, cell);
-  // Without column headers on screen, each value carries its own label
-  for (const [index, label] of ['Bestätigt', 'Ausstehend', 'Frei', 'Kinder'].entries()) {
-    await expect(cells.nth(index)).toHaveText(new RegExp(`^${label}\\s*\\d+`));
+test(
+  'on a phone all five values of a Nikolaus day are visible',
+  { tag: '@mobile' },
+  async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', 'Narrow screens only');
+    await page.goto('/leitendenbereich/nikolaus');
+    await page.getByRole('heading', { name: 'Überblick über die Tage', exact: true }).click();
+    const section = page.getByRole('region', { name: 'Überblick über die Tage', exact: true });
+    const day = section.getByRole('row').nth(1);
+    await expectWithinWindowWidth(page, day.getByRole('rowheader'));
+    const cells = day.getByRole('cell');
+    await expect(cells).toHaveCount(4);
+    for (const cell of await cells.all()) await expectWithinWindowWidth(page, cell);
+    // Without column headers on screen, each value carries its own label
+    for (const [index, label] of ['Bestätigt', 'Ausstehend', 'Frei', 'Kinder'].entries()) {
+      await expect(cells.nth(index)).toHaveText(new RegExp(`^${label}\\s*\\d+`));
+    }
+    await expectNoHorizontalOverflow(page);
   }
-  await expectNoHorizontalOverflow(page);
-});
+);
 
-test('the booking link can be copied and the bookmark hint keeps the token in the address bar', async ({
-  page,
-  context,
-}, testInfo) => {
-  test.skip(testInfo.project.name === 'tablet', 'WebKit has no clipboard permissions');
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.goto('/nikolaus/termin#token=mock');
-  await expect(page.getByText(/Speichern Sie sich diesen Link/)).toBeVisible();
-  await page.getByRole('button', { name: 'Link kopieren' }).click();
-  await expect(page.getByText('Der Link ist in der Zwischenablage.')).toBeVisible();
-  const copied = await page.evaluate(() => navigator.clipboard.readText());
-  expect(copied).toMatch(/\/nikolaus\/termin#token=mock$/);
+test(
+  'the booking link can be copied and the bookmark hint keeps the token in the address bar',
+  { tag: '@mobile' },
+  async ({ page, context }, testInfo) => {
+    test.skip(testInfo.project.name === 'tablet', 'WebKit has no clipboard permissions');
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.goto('/nikolaus/termin#token=mock');
+    await expect(page.getByText(/Speichern Sie sich diesen Link/)).toBeVisible();
+    await page.getByRole('button', { name: 'Link kopieren' }).click();
+    await expect(page.getByText('Der Link ist in der Zwischenablage.')).toBeVisible();
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toMatch(/\/nikolaus\/termin#token=mock$/);
 
-  await page.goto('/nikolaus/termin#main');
-  await page.getByRole('button', { name: 'Als Lesezeichen speichern' }).click();
-  await expect(page).toHaveURL(/\/nikolaus\/termin#token=mock$/);
-  const hint =
-    testInfo.project.name === 'mobile' ? /Lesezeichen hinzufügen/ : /Drücken Sie jetzt Strg \+ D/;
-  await expect(page.getByRole('status').filter({ hasText: hint })).toBeVisible();
-  await expectNoHorizontalOverflow(page);
-});
+    await page.goto('/nikolaus/termin#main');
+    await page.getByRole('button', { name: 'Als Lesezeichen speichern' }).click();
+    await expect(page).toHaveURL(/\/nikolaus\/termin#token=mock$/);
+    const hint =
+      testInfo.project.name === 'mobile' ? /Lesezeichen hinzufügen/ : /Drücken Sie jetzt Strg \+ D/;
+    await expect(page.getByRole('status').filter({ hasText: hint })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  }
+);
 
 test('a failed copy leaves the full booking link in the address bar', async ({ page }) => {
   await page.addInitScript(() => {

@@ -1,13 +1,21 @@
-import { rescueValues, findRescue, forgetRescue } from './geretteteEingaben';
 import { untrack } from 'svelte';
-import { ABRECHNUNG_STORAGE_PREFIX, storedLoeschdatum } from './abrechnungAblage';
+import { ABRECHNUNG_STORAGE_PREFIX } from './abrechnungAblage';
+import {
+  legacyZugriff,
+  leereEingaben,
+  loadEingaben,
+  markiereEingaben,
+  neueAblage,
+  offeneZeitplanZeilen as offeneZeilen,
+  refreshEingaben,
+  rescueEingaben,
+  speichereEingaben,
+  stelleEingabenWiederHer,
+} from './abrechnungEingaben';
+import type { AbrechnungAblage, EingabenIo, EingabenRegistry } from './abrechnungEingaben';
 import { localDate } from './dateUtils';
 import { ApiError, errorMessage, fetchApi, sendApi } from './api';
-import {
-  emptySession,
-  parseSession,
-  validAbrechnungSession,
-} from '../../../api/lib/abrechnung-session';
+import { emptySession } from '../../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../../api/lib/abrechnung-session';
 import type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
 export type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
@@ -139,19 +147,11 @@ export function fetchKostenstellen({
 /**
  * Personal changes to an Aktion. Explicitly saved in Azure SQL per account and restored
  * on every device. Browser storage is only read to recover drafts from older versions.
+ * The rules (load, save, refresh, reset, recovery) are in `abrechnungEingaben.ts`; this file
+ * holds the reactive state and connects them to the network and the browser.
  */
-/** Whether the account draft is loaded, changed, saving or confirmed. */
-export interface AbrechnungAblage {
-  available: boolean;
-  loaded: boolean;
-  saving: boolean;
-  dirty: boolean;
-  error: string | null;
-  conflict: boolean;
-  etag: string | null;
-  savedAt: string | null;
-  deleteAfter: string | null;
-}
+export { abrechnungSessionChanged } from './abrechnungEingaben';
+export type { AbrechnungAblage } from './abrechnungEingaben';
 
 export const abrechnungSessions = $state<Record<string, AbrechnungSession>>({});
 /**
@@ -162,119 +162,51 @@ export const zeitplanZeilen = $state<Record<string, Record<string, string>>>({})
 
 /** The description of the Zeitplan typed but not sent yet, by Aktion; kept and guarded likewise. */
 export const zeitplanFreitext = $state<Record<string, string>>({});
-
-/** Whether lines or a description of the Zeitplan were typed and not taken over yet. */
-export function offeneZeitplanZeilen(eventId: string): boolean {
-  return (
-    Object.values(zeitplanZeilen[eventId] ?? {}).some((text) => text.trim() !== '') ||
-    !!zeitplanFreitext[eventId]?.trim()
-  );
-}
 export const abrechnungAblage = $state<Record<string, AbrechnungAblage>>({});
 
 const STORAGE_KEY = ABRECHNUNG_STORAGE_PREFIX;
 /** Last JSON of each session read from or written to storage, to skip unchanged writes. */
 const storedJson: Record<string, string> = {};
+/** Dialogs open per Aktion whose input is not in the session yet, such as an amount being typed. */
+const openDrafts: Record<string, number> = {};
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+const registry: EingabenRegistry = {
+  sessions: abrechnungSessions,
+  ablage: abrechnungAblage,
+  storedJson,
+  openDrafts,
+  zeitplanZeilen,
+  zeitplanFreitext,
+};
+
+function eingabenUrl(eventId: string): string {
+  return `/intern/abrechnung/${encodeURIComponent(eventId)}/eingaben`;
 }
 
-interface StoredSession {
-  session: AbrechnungSession;
-  savedAt: string;
-  deleteAfter: string;
-}
+const io: EingabenIo = {
+  fetch: (eventId) => fetchApi<AbrechnungEingabe>(eingabenUrl(eventId)),
+  put: (eventId, body) => sendApi<AbrechnungEingabe>('PUT', eingabenUrl(eventId), body),
+  ...legacyZugriff(() => localStorage, STORAGE_KEY, localDate),
+};
 
-/** Reads what this device kept for an Aktion; anything that does not fit counts as nothing. */
-function readStored(eventId: string): { available: boolean; stored: StoredSession | null } {
-  let raw: string | null;
-  try {
-    raw = localStorage.getItem(`${STORAGE_KEY}${eventId}`);
-  } catch {
-    return { available: false, stored: null };
-  }
-  if (!raw) return { available: true, stored: null };
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    const deleteAfter = storedLoeschdatum(parsed);
-    if (
-      !isRecord(parsed) ||
-      typeof parsed.savedAt !== 'string' ||
-      Number.isNaN(Date.parse(parsed.savedAt)) ||
-      deleteAfter === null
-    ) {
-      return { available: true, stored: null };
-    }
-    if (deleteAfter < localDate()) {
-      // Kept until one month after the KJR deadline (abrechnungAblage.ts)
-      localStorage.removeItem(`${STORAGE_KEY}${eventId}`);
-      return { available: true, stored: null };
-    }
-    const session = parseSession(parsed.session);
-    return {
-      available: true,
-      stored: abrechnungSessionChanged(session)
-        ? { session, savedAt: parsed.savedAt, deleteAfter }
-        : null,
-    };
-  } catch {
-    return { available: true, stored: null };
-  }
+/** Whether lines or a description of the Zeitplan were typed and not taken over yet. */
+export function offeneZeitplanZeilen(eventId: string): boolean {
+  return offeneZeilen(registry, eventId);
 }
 
 /** Same-account entries are loaded before controls are shown; old local data is offered as an unsaved draft. */
 export function abrechnungSession(eventId: string): AbrechnungSession {
   if (!abrechnungSessions[eventId]) {
     abrechnungSessions[eventId] = emptySession();
-    abrechnungAblage[eventId] = {
-      available: false,
-      loaded: false,
-      saving: false,
-      dirty: false,
-      error: null,
-      conflict: false,
-      etag: null,
-      savedAt: null,
-      deleteAfter: null,
-    };
+    abrechnungAblage[eventId] = neueAblage();
     void loadAbrechnungSession(eventId);
   }
   return abrechnungSessions[eventId];
 }
 
-export async function loadAbrechnungSession(eventId: string): Promise<void> {
-  const state = abrechnungAblage[eventId];
-  if (!state || state.saving) return;
-  state.error = null;
-  try {
-    const saved = await fetchApi<AbrechnungEingabe>(
-      `/intern/abrechnung/${encodeURIComponent(eventId)}/eingaben`
-    );
-    const target = abrechnungSessions[eventId];
-    if (!target || abrechnungAblage[eventId] !== state) return;
-    const legacy = saved.etag === null ? readStored(eventId).stored : null;
-    Object.assign(target, legacy?.session ?? saved.session);
-    storedJson[eventId] = JSON.stringify(saved.session);
-    Object.assign(state, {
-      loaded: true,
-      available: true,
-      etag: saved.etag,
-      savedAt: saved.savedAt,
-      deleteAfter: saved.deleteAfter,
-      dirty: !!legacy,
-      conflict: false,
-    });
-  } catch (error) {
-    state.error = errorMessage(
-      error,
-      'Deine gespeicherten Eingaben konnten nicht geladen werden. Prüfe die Verbindung und lade sie erneut.'
-    );
-  }
+export function loadAbrechnungSession(eventId: string): Promise<void> {
+  return loadEingaben(registry, io, eventId);
 }
-
-/** Dialogs open per Aktion whose input is not in the session yet, such as an amount being typed. */
-const openDrafts: Record<string, number> = {};
 
 /**
  * Marks a dialog of the Aktion as open until the returned function is called. Its input builds on
@@ -289,56 +221,9 @@ export function holdAbrechnungDraft(eventId: string): () => void {
   };
 }
 
-const CONFLICT_MESSAGE =
-  'Du hast die Eingaben inzwischen auf einem anderen Gerät geändert. Hier wurde nichts überschrieben. Kopiere deine neuen Angaben und lade dann die gespeicherte Fassung.';
-
-/**
- * Asks the server again for the entries of a session kept from an earlier visit, while they stay
- * shown and editable. A newer saved version replaces them only while nothing was changed here and
- * no dialog is open; otherwise the input is kept and the page reports the conflict, as a failed
- * save would.
- * A failed request changes nothing: saving still checks the version.
- */
-export async function refreshAbrechnungSession(eventId: string): Promise<void> {
-  const state = abrechnungAblage[eventId];
-  if (!state?.loaded || state.saving || state.conflict) return;
-  const etag = state.etag;
-  let saved: AbrechnungEingabe;
-  try {
-    saved = await fetchApi<AbrechnungEingabe>(
-      `/intern/abrechnung/${encodeURIComponent(eventId)}/eingaben`
-    );
-  } catch {
-    return;
-  }
-  const target = abrechnungSessions[eventId];
-  // A save, a reset or a newer load meanwhile has a newer answer than this one
-  if (!target || abrechnungAblage[eventId] !== state || state.saving || state.etag !== etag) return;
-  if (state.conflict) return;
-  if (saved.etag === etag) {
-    state.savedAt = saved.savedAt;
-    state.deleteAfter = saved.deleteAfter;
-    return;
-  }
-  // Lines typed under „Mehrere Zeilen einfügen“ count as unsaved input: their day must stay
-  if (
-    !openDrafts[eventId] &&
-    !offeneZeitplanZeilen(eventId) &&
-    JSON.stringify(target) === storedJson[eventId]
-  ) {
-    Object.assign(target, saved.session);
-    storedJson[eventId] = JSON.stringify(saved.session);
-    Object.assign(state, {
-      etag: saved.etag,
-      savedAt: saved.savedAt,
-      deleteAfter: saved.deleteAfter,
-      dirty: false,
-      error: null,
-    });
-  } else {
-    state.conflict = true;
-    state.error = CONFLICT_MESSAGE;
-  }
+/** Asks the server again for the entries of a session kept from an earlier visit. */
+export function refreshAbrechnungSession(eventId: string): Promise<void> {
+  return refreshEingaben(registry, io, eventId);
 }
 
 /**
@@ -362,56 +247,16 @@ export function abrechnungSessionReusable(eventId: string): boolean {
 export function storeAbrechnungSession(eventId: string): void {
   const session = abrechnungSessions[eventId];
   if (!session) return;
+  // Reading the session here, outside untrack, makes a calling effect run again on every edit
   const json = JSON.stringify(session);
-  untrack(() => {
-    const state = abrechnungAblage[eventId];
-    if (!state?.loaded) return;
-    state.dirty = json !== storedJson[eventId];
-  });
+  untrack(() => markiereEingaben(registry, eventId, json));
 }
 
-export async function saveAbrechnungSession(
+export function saveAbrechnungSession(
   eventId: string,
   submitted: AbrechnungSession = abrechnungSessions[eventId]
 ): Promise<boolean> {
-  const state = abrechnungAblage[eventId];
-  if (!state?.loaded || state.saving || state.conflict) return false;
-  const json = JSON.stringify(submitted);
-  state.saving = true;
-  state.error = null;
-  try {
-    const saved = await sendApi<AbrechnungEingabe>(
-      'PUT',
-      `/intern/abrechnung/${encodeURIComponent(eventId)}/eingaben`,
-      { session: JSON.parse(json), etag: state.etag }
-    );
-    // A request from a discarded page must not update a newly opened session.
-    if (abrechnungAblage[eventId] !== state) return false;
-    storedJson[eventId] = json;
-    state.etag = saved.etag;
-    state.savedAt = saved.savedAt;
-    state.deleteAfter = saved.deleteAfter;
-    state.available = true;
-    state.dirty = JSON.stringify(abrechnungSessions[eventId]) !== json;
-    // The old device-only copy is removed only after a confirmed save.
-    try {
-      localStorage.removeItem(`${STORAGE_KEY}${eventId}`);
-    } catch {
-      /* Server copy is saved. */
-    }
-    return true;
-  } catch (error) {
-    state.conflict = error instanceof ApiError && [409, 412].includes(error.status);
-    state.error = state.conflict
-      ? CONFLICT_MESSAGE
-      : errorMessage(
-          error,
-          'Die Eingaben wurden nicht gespeichert. Sie bleiben auf dieser Seite erhalten. Prüfe die Verbindung und tippe noch einmal auf „Eingaben speichern“.'
-        );
-    return false;
-  } finally {
-    state.saving = false;
-  }
+  return speichereEingaben(registry, io, eventId, submitted);
 }
 
 /** A Postleitzahl entered on the page, if it is a valid one. */
@@ -443,25 +288,6 @@ export function abrechnungPersonen(
   });
 }
 
-/** Whether anything was entered on the page that would be lost when leaving it. */
-export function abrechnungSessionChanged(session: AbrechnungSession): boolean {
-  const filled = (value: string): boolean => value.trim() !== '';
-  return (
-    session.zusatztag ||
-    Object.keys(session.excluded).length > 0 ||
-    session.extra.length > 0 ||
-    Object.keys(session.betreuer).length > 0 ||
-    Object.values(session.plz).some(filled) ||
-    Object.values(session.kjr).some(filled) ||
-    Object.values(session.leihgebuehren).some((e) => e.count > 0 || e.days !== null) ||
-    Object.values(session.deckblatt).some(filled) ||
-    Object.keys(session.betraege).length > 0 ||
-    filled(session.kurzbeschreibung.einleitung) ||
-    // Days changed by hand, even without blocks, can be reset
-    session.kurzbeschreibung.tage.length > 0
-  );
-}
-
 /**
  * Forgets the session of an Aktion in memory, e.g. after leaving its page. What this device
  * kept stays and is restored on the next visit.
@@ -473,84 +299,22 @@ export function resetAbrechnungSession(eventId: string): void {
 }
 
 /** Clears everything entered for an Aktion, in memory and on this device. */
-export async function clearAbrechnungSession(eventId: string): Promise<boolean> {
-  if (abrechnungAblage[eventId]?.saving || abrechnungAblage[eventId]?.conflict) return false;
-  const session = abrechnungSession(eventId);
-  const before = JSON.stringify(session);
-  // Keep the editable draft intact until the reset has been confirmed. New edits made
-  // during the request also survive a successful reset and remain marked unsaved.
-  const saved = await saveAbrechnungSession(eventId, emptySession());
-  if (saved && JSON.stringify(session) === before) Object.assign(session, emptySession());
-  storeAbrechnungSession(eventId);
-  return saved;
+export function clearAbrechnungSession(eventId: string): Promise<boolean> {
+  if (abrechnungAblage[eventId]?.saving || abrechnungAblage[eventId]?.conflict) {
+    return Promise.resolve(false);
+  }
+  abrechnungSession(eventId);
+  return leereEingaben(registry, io, eventId);
 }
 
 /** Rescue the entire personal draft before same-window login, scoped to its account and Aktion. */
 export function rescueAbrechnungSession(eventId: string, userId: string, title: string): boolean {
-  const state = abrechnungAblage[eventId];
-  const session = abrechnungSessions[eventId];
-  if (!state?.loaded || state.saving || !session) return false;
-  return rescueValues(`abrechnung:${userId}:${eventId}`, title, state.etag ?? '', [
-    {
-      key: 'Abrechnung#custom',
-      kind: 'custom',
-      value: JSON.stringify({
-        session,
-        etag: state.etag,
-        zeilen: zeitplanZeilen[eventId] ?? {},
-        freitext: zeitplanFreitext[eventId] ?? '',
-      }),
-      display: 'Deine persönlichen Ergänzungen zur Abrechnung',
-    },
-  ]);
+  return rescueEingaben(registry, eventId, userId, title);
 }
 
 /** Restore locally; a changed server version requires an explicit conflict decision before saving. */
 export function restoreAbrechnungRescue(eventId: string, userId: string): boolean {
-  const state = abrechnungAblage[eventId];
-  const session = abrechnungSessions[eventId];
-  if (!state?.loaded || state.saving || !session) return false;
-  const record = `abrechnung:${userId}:${eventId}`;
-  const kept = findRescue(record, null, Date.now())?.find(
-    (field) => field.key === 'Abrechnung#custom'
-  );
-  if (!kept) return false;
-  try {
-    const draft = JSON.parse(kept.value) as {
-      session: unknown;
-      etag: unknown;
-      zeilen?: unknown;
-      freitext?: unknown;
-    };
-    if (
-      !validAbrechnungSession(draft.session) ||
-      !(draft.etag === null || typeof draft.etag === 'string')
-    )
-      return false;
-    Object.assign(session, parseSession(draft.session));
-    if (typeof draft.freitext === 'string' && draft.freitext.trim())
-      zeitplanFreitext[eventId] = draft.freitext;
-    if (isRecord(draft.zeilen)) {
-      zeitplanZeilen[eventId] = Object.fromEntries(
-        Object.entries(draft.zeilen).filter(
-          (entry): entry is [string, string] => typeof entry[1] === 'string'
-        )
-      );
-    }
-    state.dirty = JSON.stringify(session) !== storedJson[eventId];
-    if (draft.etag !== state.etag) {
-      // Keep the draft's base version even across a second login, so repeated recovery
-      // can never turn a known conflict into permission to overwrite the server.
-      state.etag = draft.etag;
-      state.conflict = true;
-      state.error =
-        'Die gespeicherten Eingaben wurden während der Anmeldung geändert. Deine geretteten Angaben stehen hier noch ungespeichert. Hier wurde nichts überschrieben. Kopiere sie und lade dann die gespeicherte Fassung.';
-    }
-    forgetRescue(record);
-    return true;
-  } catch {
-    return false;
-  }
+  return stelleEingabenWiederHer(registry, eventId, userId);
 }
 
 /**
