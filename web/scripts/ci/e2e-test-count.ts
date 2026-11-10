@@ -9,6 +9,8 @@
  * A declaration inside a loop or `.forEach/.map` callback is one declared case, not one run per
  * entry. It is also reported in `looped`, so a PR that adds a loop cannot hide behind a zero delta.
  * Adding an entry to the array of an existing loop is not seen; review that by reading the diff.
+ * The same holds for a helper that declares a test: it counts once, not once per call, and a
+ * default import used as `test` (`import t from './fixtures'`) is not followed.
  */
 import ts from 'typescript';
 
@@ -21,12 +23,34 @@ const MODIFIERS = new Set(['only', 'skip', 'fixme', 'fail', 'slow']);
 const TITLED_ONLY = new Set(['skip', 'fixme', 'fail', 'slow']);
 const ITERATORS = new Set(['forEach', 'map', 'flatMap', 'reduce', 'from']);
 
+function unwrap(node: ts.Expression): ts.Expression {
+  let current = node;
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isNonNullExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isTypeAssertionExpression(current) ||
+    ts.isSatisfiesExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
 function chainOf(node: ts.Expression): { root: string; names: string[] } | undefined {
   const names: string[] = [];
-  let current: ts.Expression = node;
-  while (ts.isPropertyAccessExpression(current)) {
-    names.unshift(current.name.text);
-    current = current.expression;
+  let current = unwrap(node);
+  for (;;) {
+    if (ts.isPropertyAccessExpression(current)) {
+      names.unshift(current.name.text);
+      current = unwrap(current.expression);
+    } else if (
+      ts.isElementAccessExpression(current) &&
+      ts.isStringLiteralLike(current.argumentExpression)
+    ) {
+      names.unshift(current.argumentExpression.text);
+      current = unwrap(current.expression);
+    } else break;
   }
   return ts.isIdentifier(current) ? { root: current.text, names } : undefined;
 }
@@ -54,6 +78,18 @@ function testRoots(file: ts.SourceFile): { roots: Set<string>; namespaces: Set<s
         }
       }
     }
+    if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name)) {
+      for (const element of node.name.elements) {
+        const imported = element.propertyName ?? element.name;
+        if (
+          ts.isIdentifier(imported) &&
+          imported.text === 'test' &&
+          ts.isIdentifier(element.name)
+        ) {
+          roots.add(element.name.text);
+        }
+      }
+    }
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
       declarations.push(node);
     }
@@ -66,11 +102,23 @@ function testRoots(file: ts.SourceFile): { roots: Set<string>; namespaces: Set<s
     for (const declaration of declarations) {
       const name = (declaration.name as ts.Identifier).text;
       if (roots.has(name)) continue;
-      let init: ts.Expression = declaration.initializer as ts.Expression;
-      if (ts.isCallExpression(init) && ts.isPropertyAccessExpression(init.expression)) {
-        if (init.expression.name.text !== 'extend') continue;
-        init = init.expression.expression;
+      let init = unwrap(declaration.initializer as ts.Expression);
+      if (
+        ts.isCallExpression(init) &&
+        ts.isIdentifier(init.expression) &&
+        init.expression.text === 'mergeTests'
+      ) {
+        if (init.arguments.some((arg) => roots.has(chainOf(arg)?.root ?? ''))) {
+          roots.add(name);
+          grew = true;
+        }
+        continue;
       }
+      while (ts.isCallExpression(init) && ts.isPropertyAccessExpression(init.expression)) {
+        if (init.expression.name.text !== 'extend') break;
+        init = unwrap(init.expression.expression);
+      }
+      if (ts.isCallExpression(init)) continue;
       const chain = chainOf(init);
       const viaNamespace = chain && namespaces.has(chain.root) && chain.names[0] === 'test';
       if (chain && ((roots.has(chain.root) && chain.names.length === 0) || viaNamespace)) {
