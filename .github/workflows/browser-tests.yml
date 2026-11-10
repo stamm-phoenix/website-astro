@@ -28,6 +28,7 @@ jobs:
   browser-tests:
     needs: playwright-image
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     container:
       image: ${{ needs.playwright-image.outputs.image }}
       options: --init --ipc=host
