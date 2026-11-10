@@ -15,11 +15,24 @@ on:
         type: choice
         options: [dev, static]
         default: dev
+      repeat_filter:
+        description: Repeat only the specs matching this regular expression (for example gestures-sheet) on this branch and on the default branch, without retries, instead of the worker benchmark or the suite.
+        type: string
+        default: ""
+      repeat_each:
+        description: With repeat_filter, how often every test runs.
+        type: string
+        default: "20"
+      repeat_project:
+        description: With repeat_filter, the Playwright project.
+        type: choice
+        options: [desktop, mobile]
+        default: desktop
 permissions:
   contents: read
 jobs:
   benchmark:
-    if: ${{ !inputs.suite }}
+    if: ${{ !inputs.suite && inputs.repeat_filter == '' }}
     name: Browser benchmark (${{ matrix.workers }} workers)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -72,6 +85,89 @@ jobs:
           name: browser-benchmark-${{ matrix.workers }}
           path: web/test-results/
           retention-days: 7
+  repeat:
+    # The same tests many times without retries, on this branch and on the default branch, so that a
+    # flaky test shows its first-attempt failure rate for both sources.
+    if: ${{ !inputs.suite && inputs.repeat_filter != '' }}
+    name: Repeat (${{ matrix.label }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        label: [base, head]
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the default branch for the baseline
+        if: matrix.label == 'base'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch --depth=1 origin "$DEFAULT_BRANCH"
+          git checkout --detach FETCH_HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Bun and frontend dependencies
+        run: |
+          npm install --global bun@1.4.2
+          bun install --frozen-lockfile
+      - name: Repeat the tests
+        env:
+          FILTER: ${{ inputs.repeat_filter }}
+          REPEAT: ${{ inputs.repeat_each }}
+          PROJECT: ${{ inputs.repeat_project }}
+          E2E_WORKERS: 4
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/repeat.json
+        run: bun run test:e2e --project="$PROJECT" --retries=0 --repeat-each="$REPEAT" --reporter=json -- "$FILTER"
+      - name: Summarize first-attempt failures per test
+        if: always()
+        env:
+          LABEL: ${{ matrix.label }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          export SHA="$(git rev-parse HEAD)"
+          node <<'JS'
+          const fs = require('node:fs');
+          const file = 'test-results/repeat.json';
+          if (!fs.existsSync(file)) process.exit(0);
+          const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const rows = new Map();
+          const visit = (suite) => {
+            for (const spec of suite.specs ?? []) {
+              for (const test of spec.tests) {
+                const row = rows.get(spec.title) ?? { runs: 0, failed: 0, first: '' };
+                for (const result of test.results) {
+                  row.runs++;
+                  if (result.status !== 'passed') {
+                    row.failed++;
+                    row.first ||= (result.error?.message ?? '').split('\n')[0].slice(0, 120);
+                  }
+                }
+                rows.set(spec.title, row);
+              }
+            }
+            for (const child of suite.suites ?? []) visit(child);
+          };
+          report.suites.forEach(visit);
+          const lines = [`### ${process.env.LABEL}: ${process.env.SHA}`, `${report.stats.expected} passed, ${report.stats.unexpected} failed in ${(report.stats.duration / 1000).toFixed(0)} s.`, '', '| Test | Runs | Failed | First error |', '|---|---|---|---|'];
+          for (const [title, row] of rows) lines.push(`| ${title} | ${row.runs} | ${row.failed} | ${row.first.replace(/\|/g, '/')} |`);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-repeat-${{ matrix.label }}
+          path: web/test-results/repeat.json
+          retention-days: 14
   suite:
     # The whole suite of the dispatched commit and of the default branch, each on one runner, with the settings of the shards in CI, so that
     # two commits are measured under the same conditions: same image, same worker count, same
