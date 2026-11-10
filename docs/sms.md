@@ -35,6 +35,11 @@ Versand selbst hat höchstens zehn Sekunden und keine Wiederholung. Ein Fehler w
 
 ## Einrichtung
 
+Eingerichtet am 10.11.2026: Ressource `website-astro-sms` (Ressourcengruppe `website-astro`,
+Datenstandort Europa), eigene Rolle „Website SMS Sender“ (nur `read`/`write` auf
+`Microsoft.Communication/CommunicationServices`) für die App-Registrierung `website-astro` auf
+der Ressource, Absender `DPSGPhoenix`.
+
 Ohne `CONFIG.sms` (`api/lib/config.ts`) wird keine SMS verschickt; der Rest läuft wie bisher.
 
 1. Im Abo eine **Communication Services**-Ressource anlegen, Datenstandort Europa.

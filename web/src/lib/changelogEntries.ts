@@ -12,6 +12,21 @@ import type { ChangelogEntry } from './changelog';
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-01-kasse-sms',
+    date: '2026-11-10',
+    title: 'Kasse: SMS bei neuen Belegen',
+    changes: [
+      {
+        text: 'Bist du in der Kasse, bekommst du jetzt zusätzlich zur Mail eine SMS, sobald jemand einen Beleg einreicht oder einen abgelehnten Beleg erneut einreicht.',
+        href: '/leitendenbereich/belege',
+      },
+      {
+        text: 'Die SMS geht an die Handynummer, die in CampFlow bei der Person steht, mit der dein Konto verknüpft ist. Ohne Verknüpfung oder ohne Handynummer in CampFlow bekommst du nur die Mail.',
+        href: '/leitendenbereich/personen',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-01-postfach-outlook',
     date: '2026-11-09',
     title: 'E-Mail: Stand und Zuständigkeit auch in Outlook',

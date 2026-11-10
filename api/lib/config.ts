@@ -354,7 +354,10 @@ export const CONFIG: ApiConfig = {
     sammelbestellungSender: 'bestellungen@stamm-phoenix.de',
     belegeSender: 'kontakt@stamm-phoenix.de',
   },
-  // sms: set once the Communication Services resource and the sender ID exist (docs/sms.md)
+  sms: {
+    endpoint: 'https://website-astro-sms.europe.communication.azure.com',
+    sender: 'DPSGPhoenix',
+  },
   taskDirectory: {
     groupId: TEAM_LEITENDE,
     domain: 'stamm-phoenix.de',

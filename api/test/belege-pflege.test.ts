@@ -481,6 +481,8 @@ dbTest('submitting and resubmitting a receipt mails the team „Kasse“', async
   ]);
   const send = t.mock.method(mail, 'sendMail', async () => undefined);
   overrideConfig(t, CONFIG.mail, { belegeSender: 'kasse@example.test' });
+  // The SMS have tests of their own (belege-sms.test.ts)
+  overrideConfig(t, CONFIG, { sms: undefined });
   const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
 
   const response = await BelegeCollection(
