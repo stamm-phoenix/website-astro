@@ -18,6 +18,10 @@ on:
         description: With repeat_filter, how often every test runs.
         type: string
         default: "20"
+      repeat_grep:
+        description: With repeat_filter, only tests whose title matches this regular expression (empty for all).
+        type: string
+        default: ""
       repeat_project:
         description: With repeat_filter, the Playwright project.
         type: choice
@@ -120,9 +124,10 @@ jobs:
           FILTER: ${{ inputs.repeat_filter }}
           REPEAT: ${{ inputs.repeat_each }}
           PROJECT: ${{ inputs.repeat_project }}
+          GREP: ${{ inputs.repeat_grep }}
           E2E_WORKERS: 4
           PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/repeat.json
-        run: bun run test:e2e --project="$PROJECT" --retries=0 --repeat-each="$REPEAT" --reporter=json -- "$FILTER"
+        run: bun run test:e2e --project="$PROJECT" --retries=0 --repeat-each="$REPEAT" --grep="$GREP" --reporter=list,json -- "$FILTER"
       - name: Summarize first-attempt failures per test
         if: always()
         env:
