@@ -14,10 +14,11 @@ jobs:
     name: Prepare preview database
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # Share the deployment lock with uploads and cleanup. Never cancel remote SQL work.
-    # This job can finish while browser tests run, releasing the lock until the upload.
+    # Share the queue of this PR with its upload, cleanup and reset, so they never meet on its
+    # database; other PRs and production are not in it. Never cancel remote SQL work.
+    # This job can finish while browser tests run, releasing the queue until the upload.
     concurrency:
-      group: website-astro-deployment
+      group: website-astro-preview-pr-${{ github.event.pull_request.number }}
       cancel-in-progress: false
       queue: max
     outputs:

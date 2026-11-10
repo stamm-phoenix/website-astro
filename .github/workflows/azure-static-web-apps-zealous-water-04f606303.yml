@@ -23,9 +23,13 @@ on:
 # Build and test jobs have a group per PR (by number: github.ref of a "closed" event is the base
 # branch) or pushed branch, and a newer push cancels them; a series of merges builds only the
 # newest commit, which contains the others. Other events get a group per run. Every job that
-# deploys or removes a deployment shares the group website-astro-deployment and is never
-# cancelled, because an Azure upload may continue remotely after cancellation; its queue keeps
-# the order in which the builds finished. A cancelled build or test skips its deploy.
+# deploys or removes a deployment is never cancelled, because an Azure upload may continue
+# remotely after cancellation; its queue keeps the order in which the builds finished. Two
+# queues, so a preview never waits for another preview or for production (#566): production
+# (Deploy, Deploy content) shares the group website-astro-production, and everything that
+# touches the preview of one PR (database, Deploy preview, Close Pull Request, and the reset in
+# preview-db-reset.yml) shares website-astro-preview-pr-<number>. The number, not github.ref:
+# the ref of a "closed" event is the base branch. A cancelled build or test skips its deploy.
 permissions:
   contents: read
 jobs:
@@ -292,8 +296,10 @@ jobs:
     timeout-minutes: 15
     # Not "Deploy": the push runs look up their newest deploy by that job name.
     name: Deploy preview
+    # The queue of this PR: behind its database, its earlier deploys, its cleanup and its reset,
+    # but not behind other PRs or production
     concurrency:
-      group: website-astro-deployment
+      group: website-astro-preview-pr-${{ github.event.pull_request.number }}
       cancel-in-progress: false
       queue: max
     permissions:
@@ -303,8 +309,9 @@ jobs:
       actions: read
     steps:
       # Runs no longer wait for each other, so a run can reach this group after a newer one. The
-      # PR must still be open (Close Pull Request shares this group; a deploy after it would bring
-      # back the preview and its database) and still point at this commit. Fails closed.
+      # PR must still be open (Close Pull Request shares the group of this PR; a deploy after it
+      # would bring back the preview and its database) and still point at this commit. Fails
+      # closed.
       - name: Skip if the PR moved on or was closed
         id: current
         env:
@@ -399,8 +406,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     name: Deploy
+    # Shared only with Deploy content, never with a preview
     concurrency:
-      group: website-astro-deployment
+      group: website-astro-production
       cancel-in-progress: false
       queue: max
     outputs:
@@ -482,8 +490,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     name: Close Pull Request
+    # The queue of this PR, so the cleanup comes after a running deploy or database step of it
     concurrency:
-      group: website-astro-deployment
+      group: website-astro-preview-pr-${{ github.event.pull_request.number }}
       cancel-in-progress: false
       queue: max
     permissions:
@@ -705,7 +714,7 @@ jobs:
     timeout-minutes: 15
     name: Deploy content
     concurrency:
-      group: website-astro-deployment
+      group: website-astro-production
       cancel-in-progress: false
       queue: max
     permissions:
@@ -720,8 +729,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         # A newer deploy of main already contains the current content; ours would roll it back.
         # The deployed commit is the one of the newest push run whose Deploy job succeeded; that
-        # job shares this concurrency group. stamm-phoenix.de is not asked, because Cloudflare
-        # answers requests from runners with a bot check at random.
+        # job shares this concurrency group (website-astro-production). stamm-phoenix.de is not
+        # asked, because Cloudflare answers requests from runners with a bot check at random.
         # Fails closed: if the deployed commit cannot be read, nothing is deployed.
         run: |
           deployed=""

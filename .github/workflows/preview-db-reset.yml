@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     name: Reset preview database
-    # The group of the deploy jobs in the main workflow, so a reset never meets a deploy that
-    # migrates the same database or the cleanup that drops it
+    # The queue of this PR in the main workflow, so a reset never meets a deploy that migrates
+    # the same database or the cleanup that drops it (the number, as in the main workflow)
     concurrency:
-      group: website-astro-deployment
+      group: website-astro-preview-pr-${{ github.event.pull_request.number }}
       cancel-in-progress: false
       queue: max
     permissions:
