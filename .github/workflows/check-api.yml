@@ -2,12 +2,15 @@ name: Check API
 on:
   workflow_call:
 
+# Two jobs run in parallel: the tests need the SQL Server and are the long one; everything else
+# (lint, scripts, Bicep, packages) builds dist/ itself and produces the artifact `swa-api`.
 jobs:
-  api:
+  api-test:
     runs-on: ubuntu-24.04
-    name: Check API
+    name: Check API tests
+    timeout-minutes: 15
     concurrency:
-      group: ci-api-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
+      group: ci-api-test-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
       cancel-in-progress: true
     # The API tests of the Nikolaus data run against a real SQL Server (api/test/fixtures/database.ts)
     services:
@@ -39,10 +42,35 @@ jobs:
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Test API
         working-directory: api
-        # Builds dist/, which the package checks below reuse
         run: bun run test
         env:
           TEST_SQL_PASSWORD: "Test_Passw0rd!"
+
+  api-static:
+    runs-on: ubuntu-24.04
+    name: Check API static
+    timeout-minutes: 15
+    concurrency:
+      group: ci-api-static-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          check-latest: true
+      - name: Install API dependencies
+        working-directory: api
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Build API
+        working-directory: api
+        # Builds dist/ (tsc and bundle), which the package checks below reuse
+        run: bun run build
       - name: Validate protocol production package
         run: bash scripts/validate-protokoll-package.sh
       - name: Lint API

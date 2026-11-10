@@ -370,7 +370,7 @@ TEST_SQL_PASSWORD='Test_Passw0rd!' bun run test
 ```
 
 Ohne `TEST_SQL_PASSWORD` werden diese Tests lokal übersprungen; in CI (`CI=true`) ist die
-Variable Pflicht, der Job „Check API“ startet dafür einen SQL-Server-Container.
+Variable Pflicht, der Job „Check API tests“ startet dafür einen SQL-Server-Container.
 
 ## Previews
 
