@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { ALSO_ON_MOBILE_SPECS, MOBILE_ONLY_SPECS } from './e2e-projects';
+import { ALSO_ON_MOBILE_SPECS, DARK_VARIANT_SPECS, MOBILE_ONLY_SPECS } from './e2e-projects';
 
 // Demo writes live in the dev server process, so every worker gets its own server and port.
 const WORKERS = Number(process.env.E2E_WORKERS ?? (process.env.CI ? 4 : 2));
@@ -35,7 +35,7 @@ export default defineConfig({
     },
     {
       name: 'mobile',
-      testMatch: [...MOBILE_ONLY_SPECS, ...ALSO_ON_MOBILE_SPECS],
+      testMatch: [...MOBILE_ONLY_SPECS, ...ALSO_ON_MOBILE_SPECS, ...DARK_VARIANT_SPECS],
       use: {
         ...devices['Pixel 7'],
         launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH

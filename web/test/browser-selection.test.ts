@@ -5,7 +5,9 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ALSO_ON_MOBILE_SPECS, MOBILE_ONLY_SPECS } from '../e2e-projects';
+import { ALSO_ON_MOBILE_SPECS, DARK_VARIANT_SPECS, MOBILE_ONLY_SPECS } from '../e2e-projects';
+
+const MOBILE_PATTERNS = [...MOBILE_ONLY_SPECS, ...ALSO_ON_MOBILE_SPECS, ...DARK_VARIANT_SPECS];
 
 interface Spec {
   title: string;
@@ -72,13 +74,13 @@ test(
       );
       assert.equal(
         projects.has('mobile'),
-        matches([...MOBILE_ONLY_SPECS, ...ALSO_ON_MOBILE_SPECS], file),
+        matches(MOBILE_PATTERNS, file),
         `${file}: mobile run`
       );
     }
     // A listed pattern that matches no file would silently run nothing
     const allFiles = [...cases.keys()].map((key) => (JSON.parse(key) as string[])[0]);
-    for (const pattern of [...MOBILE_ONLY_SPECS, ...ALSO_ON_MOBILE_SPECS]) {
+    for (const pattern of MOBILE_PATTERNS) {
       assert.ok(
         allFiles.some((file) => matches([pattern], file)),
         `${pattern} matches no spec`
