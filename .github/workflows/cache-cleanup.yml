@@ -1,0 +1,22 @@
+name: Cache cleanup
+
+# Deletes the Actions caches of a pull request when it is closed. Runs no code of the PR.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Delete caches of the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: |
+          gh cache delete --all --ref "$PR_REF" || echo "No caches to delete for $PR_REF."
