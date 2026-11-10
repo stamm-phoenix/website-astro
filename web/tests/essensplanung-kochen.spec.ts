@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
 import {
   anlegen,
@@ -217,11 +218,9 @@ test('amounts typed to tick off a dish stay through maintenance', async ({ page 
   await expect(verbrauch).toHaveValue(geplant);
 });
 
-test('ticking off after someone else did keeps the amounts and saves them on the second try', async ({
-  page,
-  browser,
-}) => {
-  await anlegen(page, 'E2E Kochen Konflikt');
+/** A Planung with the dish Nudeln (4 Personen, 500 g Nudeln) planned for 1_2. */
+async function nudelnPlanen(page: Page, titel: string): Promise<void> {
+  await anlegen(page, titel);
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Nudeln');
   await page.getByLabel('Personen', { exact: true }).fill('4');
@@ -236,6 +235,13 @@ test('ticking off after someone else did keeps the amounts and saves them on the
   await expect(nudeln.getByLabel('Menge von Nudeln (Spaghetti)')).toHaveValue('500');
   await page.getByRole('tab', { name: 'Plan' }).click();
   await einplanen(page, '1_2', 'Nudeln');
+}
+
+test('ticking off after someone else did keeps the amounts and saves them on the second try', async ({
+  page,
+  browser,
+}) => {
+  await nudelnPlanen(page, 'E2E Kochen Konflikt');
 
   await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
   const verbrauch = page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_2_1');
@@ -254,6 +260,22 @@ test('ticking off after someone else did keeps the amounts and saves them on the
     page.getByRole('alert').filter({ hasText: 'Jetzt gespeichert: ausgelassen.' })
   ).toBeVisible();
   await expect(verbrauch).toHaveValue('0,3');
+  await page.getByRole('button', { name: 'Gekocht', exact: true }).click();
+  await expect(page.getByText('Nudeln ist als gekocht abgehakt.').first()).toBeVisible();
+  await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
+  await expect(verbrauch).toHaveValue('0,3');
+});
+
+test('typed amounts of a cooked dish move along when someone else moves it and are shown to copy when it is taken off', async ({
+  page,
+  browser,
+}) => {
+  await nudelnPlanen(page, 'E2E Kochen Verschieben');
+
+  // The dish is ticked off as cooked with the typed amount, as in the test above
+  await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
+  const verbrauch = page.getByLabel('Verbrauch von Nudeln (Spaghetti) bei 1_2_1');
+  await verbrauch.fill('0,3');
   await page.getByRole('button', { name: 'Gekocht', exact: true }).click();
   await expect(page.getByText('Nudeln ist als gekocht abgehakt.').first()).toBeVisible();
   await verbrauchOeffnen(page, '1_2_1', 'Nudeln');
