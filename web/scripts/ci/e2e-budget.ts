@@ -53,7 +53,16 @@ export function evaluateBudget(base: Budget, head: Budget, labels: string[]): Bu
   if (newFiles === 0 && newTests === 0 && newLooped === 0 && newUncertain === 0) {
     return { ok: true, messages: ['Keine neuen E2E-Tests oder Spec-Dateien.'] };
   }
-  const added = `Dieser PR fügt ${newTests} E2E-Test(s), davon ${newLooped} in Schleifen, und ${newFiles} Spec-Datei(en) hinzu, dazu ${newUncertain} Stelle(n), deren Testanzahl sich nicht sicher bestimmen lässt (\`test\` wird an eine Funktion übergeben oder dynamisch angesprochen) (jetzt ${head.tests} Tests in ${head.specFiles} Dateien, vorher ${base.tests} in ${base.specFiles}).`;
+  const parts = [
+    `${newTests} E2E-Test(s)${newLooped ? ` (davon ${newLooped} in Schleifen)` : ''}`,
+    `${newFiles} Spec-Datei(en)`,
+  ];
+  if (newUncertain) {
+    parts.push(
+      `${newUncertain} Stelle(n), deren Testanzahl sich nicht sicher bestimmen lässt (\`test\` wird an eine Funktion übergeben oder dynamisch angesprochen)`
+    );
+  }
+  const added = `Dieser PR fügt ${parts.join(', ')} hinzu (jetzt ${head.tests} Tests in ${head.specFiles} Dateien, vorher ${base.tests} in ${base.specFiles}).`;
   if (labels.includes(E2E_OK_LABEL)) {
     return { ok: true, messages: [added, `Freigegeben durch das Label „${E2E_OK_LABEL}“.`] };
   }
