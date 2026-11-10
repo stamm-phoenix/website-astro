@@ -202,18 +202,23 @@ test('a load that overlaps the save cannot bring back the unread count', async (
   await page.goto('/leitendenbereich/neuigkeiten');
   await page.getByRole('button', { name: 'Alle als gelesen markieren' }).click();
   await expect(page.getByText('Gelesen wird gespeichert …')).toBeVisible();
+  // The save has reached the server and is held there
+  await expect.poll(() => putStarted).toBe(true);
+  // The menu keeps a read state younger than five minutes instead of asking again, so it only asks
+  // while the save runs once the state has aged: the demo clock moves ten minutes on
+  await page.clock.setFixedTime(new Date('2026-10-01T12:10:00Z'));
   // The menu asks for the read state while the save is still running
   const menu = page
     .getByRole('navigation', { name: 'Schnellzugriff' })
     .getByRole('button', { name: 'Menü', exact: true });
   await menu.click();
   await expect(page.getByRole('dialog', { name: 'Alle Bereiche' })).toBeVisible();
+  // That read overlaps the save: its answer is held until the save is done
+  await expect.poll(() => staleStarted).toBe(true);
   releasePut();
   await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toBeVisible();
-  // A read of the state that was started while the save was held is answered late, after the save.
-  // The menu does not always start one (the repeat runs of this test never saw it), so the test only
-  // waits for the answer when there is one.
-  if (staleStarted) await staleDelivered.reached;
+  // The late answer, which still holds the state from before the save, arrives and is dropped
+  await staleDelivered.reached;
   await settle(page);
   await menu.click();
   await expect(page.getByTestId('changelog-badge')).toHaveCount(0);
