@@ -55,7 +55,7 @@ jobs:
         run: bun run build
       - name: Test API (shard ${{ matrix.shard }}/3)
         working-directory: api
-        run: node --test $(node scripts/ci/test-shard.mjs "$SHARD" 3)
+        run: node scripts/ci/test-shard.mjs "$SHARD" 3 | xargs node --test
         env:
           TEST_SQL_PASSWORD: "Test_Passw0rd!"
           SHARD: ${{ matrix.shard }}
