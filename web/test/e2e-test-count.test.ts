@@ -72,3 +72,38 @@ test('reports declarations in loops separately', () => {
   ].join('\n');
   assert.deepEqual(countRegistrations(source), { declared: 3, looped: 2 });
 });
+
+test('counts parenthesised, non-null and element-access callees', () => {
+  assert.equal(
+    count(
+      "(test)('a', async () => {}); test!('b', async () => {}); test['only']('c', async () => {});"
+    ),
+    3
+  );
+});
+
+test('counts chained extend, mergeTests and renamed destructuring', () => {
+  assert.equal(
+    count(
+      "import { test as base } from '@playwright/test';\nconst t = base.extend({}).extend({});\nt('a', async () => {});"
+    ),
+    1
+  );
+  assert.equal(
+    count(
+      "import { test as base, mergeTests } from '@playwright/test';\nconst t = mergeTests(base, other);\nt('a', async () => {});"
+    ),
+    1
+  );
+  assert.equal(
+    count("const { test: t } = require('@playwright/test');\nt('a', async () => {});"),
+    1
+  );
+});
+
+test('a helper that declares a test counts once, however often it is called', () => {
+  assert.equal(
+    count("function reg(n: string) { test(n, async () => {}); }\nreg('a'); reg('b');"),
+    1
+  );
+});
