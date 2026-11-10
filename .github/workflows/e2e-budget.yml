@@ -1,0 +1,35 @@
+name: E2E budget
+# Fails when a pull request adds Playwright tests or spec files without the label "e2e-ok"
+# (rule: AGENTS.md, "Welche Testebene?"). Reads only git objects with read-only rights, so it is
+# safe for pull requests from forks. The label is read again whenever it is set or removed.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+permissions:
+  contents: read
+concurrency:
+  group: e2e-budget-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  budget:
+    name: E2E budget
+    runs-on: ubuntu-24.04
+    steps:
+      # Checks out the merge of the PR into its base. Its first parent is the base the merge was
+      # made with, so a label change after main moved on still compares the right commits.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install dependencies
+        working-directory: web
+        # Only for the TypeScript parser that counts the tests; no install scripts, no test code runs
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Compare E2E tests with the base
+        env:
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        working-directory: web
+        run: bun scripts/ci/e2e-budget.ts 'HEAD^1' HEAD

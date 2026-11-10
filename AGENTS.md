@@ -301,6 +301,16 @@ The site needs no cookie banner and must stay that way. Do not add analytics, tr
 - PR previews call the production Playwright API, unless a playwright-api PR is named in the PR description (`playwright-api#12`): then the deploy points the preview at that PR's preview (`api/scripts/playwright-preview.ts`, `PREVIEW_PLAYWRIGHT_API` in `deployment.ts`). If its preview did not answer yet, re-run the deploy once it is up. playwright-api is private, so the deploy cannot look the PR up; a branch name alone does not link them.
 - `bun run preview` (in `web/`, after `bun run build`) serves only the static pages: `/api/*` and the rewrites and routes of `staticwebapp.config.json` (e.g. `/leitendenbereich/abrechnung/<id>`, the login) are missing. Use `bun run dev:mock` or, against the real API, `bun run dev:full` (SWA CLI, port 4280).
 
+## Welche Testebene?
+
+Choose the test level before you write a test. The Playwright suite in `web/tests/` is large and slow, so a new E2E test must earn its place.
+
+- Logic, validation, calculations, conflict resolution and drafts are tested with `bun test` (`web/test/`, `api/test/`) or a component test, not in the browser.
+- A new E2E test exists only for a new or changed user flow across several pages, or for behavior that only occurs in a real browser (gestures, viewport, focus). The PR description justifies it in one sentence.
+- At most one new E2E test per PR. Extend an existing spec on the topic instead of adding a file.
+- Write a test for the `mobile` project only when the behavior is specific to phones.
+- The check „E2E budget“ (`.github/workflows/e2e-budget.yml`, `web/scripts/ci/e2e-budget.ts`) parses `web/tests/` (nothing is executed) and fails a PR that raises the number of declared E2E tests, tests declared in loops, places where the count is uncertain (`test` passed to a function or used as `test[x]`), or spec files. It counts declared cases, not runs after expanding a loop, and a helper that declares tests counts once per call or argument reference to its name (imports under another name, methods and objects holding `test` are not followed; a maintainer reads the diff for those). Adding an entry to an existing loop's array stays your responsibility. Only the label `e2e-ok`, set by Hugo or a maintainer after reading the justification, releases it. Agents never set that label themselves and never dodge the check by hiding tests behind aliases, loops, helpers or by passing `test` around.
+
 ## Focused Verification
 
 - Choose the smallest set of meaningful checks that covers the changed behavior and its real risks.
