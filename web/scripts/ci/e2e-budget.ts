@@ -2,7 +2,7 @@
  * E2E budget: fails when a pull request adds Playwright tests or spec files, unless it carries
  * the label `e2e-ok`. The rule is in AGENTS.md ("Welche Testebene?").
  *
- * Usage in CI (from `web/`): `bun scripts/ci/e2e-budget.ts <base-sha> <head-sha>`; the label is
+ * Usage in CI (from `web/`): `bun scripts/ci/e2e-budget.ts <base> <head> (in CI: HEAD^1 HEAD, the merge commit and its base)`; the label is
  * read from `PR_LABELS` (JSON array of label names). Only git objects are read, so it also works
  * for pull requests from forks and needs no secrets.
  */
@@ -11,9 +11,10 @@ import { execFileSync } from 'node:child_process';
 export const E2E_OK_LABEL = 'e2e-ok';
 const SPEC_DIR = 'web/tests/';
 const SPEC_PATTERN = /\.spec\.ts$/;
-// `test(`, `test.only(`, `test.skip(` … at the start of a line; `test.describe`, `test.step`,
-// `test.use` and hooks are not tests.
-const TEST_PATTERN = /^\s*test(?:\.(?:only|skip|fixme|fail|slow))?\s*\(/;
+// `test(` and `test.only(` at the start of a line, and `test.skip/fixme/fail('title', …)` with a
+// literal title. Conditional `test.skip(cond, …)`, `test.slow()`, `test.describe`, `test.step`,
+// `test.use` and hooks are not tests. Loops that generate tests count once.
+const TEST_PATTERN = /^\s*(?:test(?:\.only)?\s*\(|test\.(?:skip|fixme|fail)\s*\(\s*['"`])/;
 
 export interface Budget {
   specFiles: number;
@@ -68,7 +69,9 @@ export function budgetAt(sha: string): Budget {
 function main(): void {
   const [base, head] = process.argv.slice(2);
   if (!base || !head) {
-    console.error('Aufruf: bun scripts/ci/e2e-budget.ts <base-sha> <head-sha>');
+    console.error(
+      'Aufruf: bun scripts/ci/e2e-budget.ts <base> <head> (in CI: HEAD^1 HEAD, the merge commit and its base)'
+    );
     process.exit(2);
   }
   const labels: unknown = JSON.parse(process.env.PR_LABELS ?? '[]');

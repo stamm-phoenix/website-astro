@@ -18,6 +18,17 @@ test('countTests counts tests but not describe blocks, steps or hooks', () => {
   assert.equal(countTests(source), 3);
 });
 
+test('countTests ignores in-test modifiers but counts titled skips', () => {
+  const source = [
+    "test('a', async ({ page }, testInfo) => {",
+    '  test.slow();',
+    "  test.skip(testInfo.project.name !== 'desktop', 'only desktop');",
+    '});',
+    "test.fixme('b', async () => {});",
+  ].join('\n');
+  assert.equal(countTests(source), 2);
+});
+
 test('isSpecPath only matches spec files below web/tests', () => {
   assert.equal(isSpecPath('web/tests/a.spec.ts'), true);
   assert.equal(isSpecPath('web/tests/helpers.ts'), false);
