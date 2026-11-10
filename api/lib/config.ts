@@ -59,6 +59,16 @@ export interface ApiConfig {
      */
     belegeSender?: string;
   };
+  /**
+   * Azure Communication Services for SMS (`docs/sms.md`); without it no SMS is sent. The app
+   * registration signs in with its certificate and needs a role on the resource.
+   */
+  sms?: {
+    /** e.g. `https://<name>.europe.communication.azure.com` */
+    endpoint: string;
+    /** Alphanumeric sender ID, at most 11 letters and digits. */
+    sender: string;
+  };
   taskDirectory: { groupId: string; domain: string; shortNames: Record<string, readonly string[]> };
   taskReminders: {
     sender: string;
@@ -344,6 +354,7 @@ export const CONFIG: ApiConfig = {
     sammelbestellungSender: 'bestellungen@stamm-phoenix.de',
     belegeSender: 'kontakt@stamm-phoenix.de',
   },
+  // sms: set once the Communication Services resource and the sender ID exist (docs/sms.md)
   taskDirectory: {
     groupId: TEAM_LEITENDE,
     domain: 'stamm-phoenix.de',

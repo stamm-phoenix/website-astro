@@ -17,12 +17,8 @@ import {
   readJsonBody,
   requireVersion,
 } from '../lib/pflege-api';
-import {
-  belegMailSender,
-  belegReviewerAddresses,
-  sendBelegRejectedMail,
-  sendBelegSubmittedMail,
-} from '../lib/beleg-mails';
+import { belegMailSender, sendBelegRejectedMail } from '../lib/beleg-mails';
+import { beforeDeadline, MIN_MAIL_BUDGET_MS, notifyKasse } from '../lib/beleg-kasse';
 import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
 import type { BelegCheck } from '../lib/beleg-check';
@@ -48,22 +44,11 @@ import * as taskDirectory from '../lib/task-directory';
 
 export type { StaffBeleg } from '../lib/beleg-list';
 export { downloadFileName } from '../lib/beleg-list';
+export { beforeDeadline } from '../lib/beleg-kasse';
 export { originalFileName } from '../lib/beleg-photos';
 
 /** The time of a request from its start; Static Web Apps cuts it off after 45 seconds. */
 const REQUEST_BUDGET_MS = 40_000;
-/** The mail to the Kasse is left out when less than this is left of the request's time. */
-const MIN_MAIL_BUDGET_MS = 2_000;
-
-/** Resolves with `fallback` once `deadline` has passed, so a slow lookup never holds the answer. */
-export function beforeDeadline<T>(promise: Promise<T>, deadline: number, fallback: T): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<T>((resolve) => {
-    timer = setTimeout(() => resolve(fallback), Math.max(0, deadline - Date.now()));
-  });
-  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
-}
-
 /** Previews are requested with the receipt's etag in the URL, so a short private cache is safe. */
 const PRIVATE_CACHE_HEADERS = { 'Cache-Control': 'private, max-age=300' };
 
@@ -151,7 +136,7 @@ function startCheck(
 
 /**
  * GET: all receipts, newest first; POST: submit a receipt with its photo and tell the Kasse
- * about it by mail.
+ * about it by mail and SMS.
  */
 export const BelegeCollectionEndpoint = pflegeHandler(
   'belege',
@@ -188,7 +173,7 @@ export const BelegeCollectionEndpoint = pflegeHandler(
     const check = startCheck(photos, context);
     const id = await createBeleg(input, principal.userDetails, photos, check);
     await beforeDeadline(
-      notifyKasse(input, false, principal, request, context, deadline),
+      notifyKasse(input, false, principal, request, context, deadline, () => ownNames(principal)),
       deadline,
       undefined
     );
@@ -241,7 +226,7 @@ export const BelegItemEndpoint = pflegeHandler(
       isOwner(previous, principal)
     ) {
       await beforeDeadline(
-        notifyKasse(input, true, principal, request, context, deadline),
+        notifyKasse(input, true, principal, request, context, deadline, () => ownNames(principal)),
         deadline,
         undefined
       );
@@ -259,63 +244,6 @@ export const BelegItemEndpoint = pflegeHandler(
     });
   }
 );
-
-/**
- * Tells the members of the team „Kasse“ that a receipt waits for their check, within what is
- * left of the request's time (`deadline`): the receipt is already saved, so the answer must not
- * run into the time limit and make the uploader submit it twice. A failure never undoes the
- * saved receipt; PR previews hold made-up receipts and send nothing.
- */
-async function notifyKasse(
-  input: BelegInput,
-  resubmitted: boolean,
-  principal: ClientPrincipal,
-  request: HttpRequest,
-  context: InvocationContext,
-  deadline: number
-): Promise<void> {
-  const sender = belegMailSender();
-  if (!sender || isPreviewDeployment()) return;
-  // Leave the mail out rather than risk the answer
-  const left = (): number => deadline - Date.now() - MIN_MAIL_BUDGET_MS;
-  try {
-    if (left() <= 0) throw new Error('Keine Zeit mehr für die Mail');
-    const [recipients, names] = await Promise.all([
-      belegReviewerAddresses(
-        principal.userDetails,
-        AbortSignal.timeout(Math.min(5_000, Math.max(1, left())))
-      ),
-      beforeDeadline(ownNames(principal), deadline - MIN_MAIL_BUDGET_MS, []),
-    ]);
-    if (recipients.length === 0) return;
-    if (left() <= 0) throw new Error('Keine Zeit mehr für die Mail');
-    const failed = await sendBelegSubmittedMail(
-      {
-        art: input.art,
-        shop: input.shop,
-        date: input.date,
-        amountCent: input.amountCent,
-        paidBy: input.paidBy,
-        payout: input.payout,
-        aktion: input.aktion,
-        kostenstelle: input.kostenstelle,
-        kategorie: input.kategorie,
-        note: input.note,
-        submitter: names[0] ?? principal.userDetails,
-        resubmitted,
-        url: `${getSiteUrl(request)}/leitendenbereich/belege`,
-      },
-      recipients,
-      sender,
-      left()
-    );
-    if (failed.length > 0) {
-      context.warn(`[belege] Mail an die Kasse an ${failed.length} Person(en) fehlgeschlagen`);
-    }
-  } catch (error: unknown) {
-    context.warn('[belege] Kasse konnte nicht benachrichtigt werden', error);
-  }
-}
 
 /**
  * Sends the rejection mail; a failure never undoes the saved decision. PR previews hold
