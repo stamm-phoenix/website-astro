@@ -28,7 +28,6 @@ on:
 # the order in which the builds finished. A cancelled build or test skips its deploy.
 permissions:
   contents: read
-  pull-requests: write
 jobs:
   build-web:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
@@ -38,18 +37,18 @@ jobs:
       group: ci-build-web-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           check-latest: true
       - name: Cache Bun dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.bun/install/cache
@@ -69,7 +68,7 @@ jobs:
           # of real photos (see web/src/lib/content/source.ts)
           CONTENT_SOURCE: ${{ github.event_name == 'push' && 'live' || 'mock' }}
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist
           path: web/dist
@@ -82,18 +81,18 @@ jobs:
       group: ci-check-web-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           check-latest: true
       - name: Cache Bun dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.bun/install/cache
@@ -105,7 +104,7 @@ jobs:
       # type information, so the result of an unchanged file cannot depend on other files.
       # The cache resets with the dependencies or the configuration.
       - name: Cache ESLint results
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: web/.eslintcache
           key: eslint-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'web/eslint.config.mjs') }}-${{ github.sha }}
@@ -220,11 +219,11 @@ jobs:
           else
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.current.outputs.deploy == 'true'
       - name: Download build artifact
         if: steps.current.outputs.deploy == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
@@ -244,7 +243,7 @@ jobs:
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Azure login (database migrations)
         if: steps.current.outputs.deploy == 'true' && github.event_name == 'push'
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.SQL_MIGRATION_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
@@ -259,7 +258,7 @@ jobs:
         run: bun scripts/protokoll-migrate.ts --check
       - name: Download preview database configuration
         if: steps.current.outputs.deploy == 'true' && github.event_name == 'pull_request'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: preview-deployment
           path: api/lib
@@ -274,7 +273,7 @@ jobs:
         run: bun scripts/playwright-preview.ts "${{ github.event.pull_request.number }}"
       - name: Download tested API deployment package
         if: steps.current.outputs.deploy == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: swa-api
           path: /tmp/swa-package
@@ -294,7 +293,7 @@ jobs:
           node scripts/check-deployment.mjs ../swa-api "$PR_NUMBER"
       - name: Get Id Token
         if: steps.current.outputs.deploy == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         id: idtoken
         with:
           script: |
@@ -318,7 +317,7 @@ jobs:
       # Skipped until the repository variables are set.
       - name: Azure login (Entra)
         if: steps.current.outputs.deploy == 'true' && github.event_name == 'pull_request' && vars.ENTRA_DEPLOY_CLIENT_ID != ''
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.ENTRA_DEPLOY_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
@@ -347,7 +346,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Get Id Token
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         id: idtoken
         with:
           script: |
@@ -362,7 +361,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
       # The base branch, not the PR: the merge ref of a PR closed with conflicts may not exist,
       # and the cleanup should run code that was reviewed
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.base.ref }}
       - uses: oven-sh/setup-bun@v2
@@ -372,7 +371,7 @@ jobs:
         working-directory: api
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Azure login (preview database)
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
@@ -382,7 +381,7 @@ jobs:
         run: bun scripts/db-preview.ts drop "${{ github.event.pull_request.number }}"
       - name: Azure login (Entra)
         if: vars.ENTRA_DEPLOY_CLIENT_ID != ''
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.ENTRA_DEPLOY_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
@@ -434,13 +433,13 @@ jobs:
             fi
           done
           echo "deploy=true" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.current.outputs.deploy == 'true'
       - uses: oven-sh/setup-bun@v2
         if: steps.current.outputs.deploy == 'true'
         with:
           bun-version: 1.4.2
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.current.outputs.deploy == 'true'
         with:
           node-version: "22"
@@ -450,7 +449,7 @@ jobs:
         run: bash scripts/package-task-worker.sh /tmp/task-reminder-worker
       - name: Azure login (timer deployment only)
         if: steps.current.outputs.deploy == 'true'
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.TASK_REMINDER_DEPLOY_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
@@ -473,7 +472,7 @@ jobs:
       commit: ${{ steps.check.outputs.commit }}
       required: ${{ steps.check.outputs.required }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           persist-credentials: false
@@ -505,7 +504,7 @@ jobs:
         # Someone editing several entries in a row causes one build instead of many
         if: github.event_name == 'repository_dispatch'
         run: sleep 90
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
@@ -529,7 +528,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           check-latest: true
@@ -547,7 +546,7 @@ jobs:
           # as well does not block the other content
           CONTENT_STRICT: ${{ needs.content-check.outputs.required }}
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: content-dist
           path: web/dist
@@ -594,7 +593,7 @@ jobs:
           else
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.current.outputs.deploy == 'true'
         with:
           ref: main
@@ -610,7 +609,7 @@ jobs:
           git checkout --quiet --detach "$BUILT_COMMIT"
       - name: Download build artifact
         if: steps.current.outputs.deploy == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: content-dist
           path: dist
@@ -619,7 +618,7 @@ jobs:
         if: steps.current.outputs.deploy == 'true' && hashFiles('scripts/package-content-api.sh') != ''
         with:
           bun-version: 1.4.2
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.current.outputs.deploy == 'true' && hashFiles('scripts/package-content-api.sh') != ''
         with:
           node-version: "22"
@@ -631,7 +630,7 @@ jobs:
           echo "prebuilt=true" >> "$GITHUB_OUTPUT"
       - name: Get Id Token
         if: steps.current.outputs.deploy == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         id: idtoken
         with:
           script: |
