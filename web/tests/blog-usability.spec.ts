@@ -89,7 +89,7 @@ test('a successful deletion returns to the blog list without an unsaved-work war
   }
 });
 
-test('deleting a blog image names its position and description', async ({ page }, info) => {
+test('deleting a blog image names its position and description @dark', async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: info.project.name === 'mobile' ? 'dark' : 'light' });
   const created = await page.request.post('/api/intern/pflege/blog', {

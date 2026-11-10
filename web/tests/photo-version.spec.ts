@@ -2,7 +2,7 @@ import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { StaffBeleg } from '../src/lib/types';
 
 for (const operation of ['PUT', 'DELETE'] as const) {
-  test(`photo ${operation} keeps its own write version for the unsaved person draft`, async ({
+  test(`photo ${operation} keeps its own write version for the unsaved person draft @dark`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -74,7 +74,7 @@ for (const operation of ['PUT', 'DELETE'] as const) {
 }
 
 for (const pathway of ['photo', 'receipt'] as const) {
-  test(`receipt ${pathway} save keeps the photo write version and its unsaved note`, async ({
+  test(`receipt ${pathway} save keeps the photo write version and its unsaved note @dark`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width: 390, height: 844 });

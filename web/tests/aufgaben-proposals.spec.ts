@@ -303,7 +303,7 @@ test('past proposals are hidden while today, undated proposals and overdue accep
   await expect(tasks.getByRole('link', { name: 'Gestern offen', exact: true })).toBeVisible();
 });
 
-test('recognition feedback is local, neutral, dismissible and cleared when continuing work', async ({
+test('recognition feedback is local, neutral, dismissible and cleared when continuing work @dark', async ({
   page,
 }) => {
   await page.route('**/api/intern/pflege/aufgaben/protokolle/**/erkennen', (route) =>

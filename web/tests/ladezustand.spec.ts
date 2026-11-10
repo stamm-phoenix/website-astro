@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }, testInfo) => {
   await page.emulateMedia({ colorScheme: testInfo.project.name === 'mobile' ? 'dark' : 'light' });
 });
 
-test('a failed load offers a retry that shows the list', async ({ page }) => {
+test('a failed load offers a retry that shows the list @dark', async ({ page }) => {
   let fail = true;
   await page.route('**/api/intern/pflege/gruppenstunden', (route) =>
     fail && route.request().method() === 'GET'

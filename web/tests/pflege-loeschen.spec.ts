@@ -1,6 +1,6 @@
 import { test, expect, answerConfirm } from './fixtures';
 
-test('deleting from an edit dialog asks in the app first', async ({ page }) => {
+test('deleting from an edit dialog asks in the app first @dark', async ({ page }) => {
   // Its own entry, so the demo data other tests rely on stays in place
   const location = `TEST – bitte löschen ${test.info().project.name}`;
   const created = await page.request.post('/api/intern/pflege/gruppenstunden', {
@@ -64,7 +64,7 @@ test('deleting a person names the person in the question', async ({ page }) => {
   await expect(dialog).toBeVisible();
 });
 
-test('deleting a calendar entry names the Aktion', async ({ page }, info) => {
+test('deleting a calendar entry names the Aktion @dark', async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: info.project.name === 'mobile' ? 'dark' : 'light' });
   await page.goto('/leitendenbereich/aktionen?jahr=alle');

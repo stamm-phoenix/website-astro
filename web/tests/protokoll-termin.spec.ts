@@ -314,7 +314,7 @@ test('a stale archive can be reset and entered manually with recognition disable
   await expectNoHorizontalOverflow(page);
 });
 
-test('a confirmation conflict preserves input until the current version is explicitly loaded', async ({
+test('a confirmation conflict preserves input until the current version is explicitly loaded @dark', async ({
   page,
 }) => {
   let conflicted = false;
@@ -442,7 +442,9 @@ test('PDF and TXT protocols have format-appropriate actions and safe text previe
   await expectNoHorizontalOverflow(page);
 });
 
-test('a rejected meeting date explains the correction at the date field', async ({ page }) => {
+test('a rejected meeting date explains the correction at the date field @dark', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const message = 'Der nächste Termin darf nicht vor dem Sitzungsdatum liegen.';
   await initialItem(page, 'prot-7', { termin: null, terminStale: false });

@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }, testInfo) => {
   await prepareTaskTest(page, testInfo.project.name);
   await page.request.post('/api/__mock/zuletzt/reset');
 });
-test('favorites are set on the areas themselves, saved for the account and survive a failed save', async ({
+test('favorites are set on the areas themselves, saved for the account and survive a failed save @mobile', async ({
   page,
 }) => {
   // Waits for the popup of a failed save to outlast the usual display time

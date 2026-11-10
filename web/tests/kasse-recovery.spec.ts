@@ -5,7 +5,9 @@ test.beforeEach(async ({ page }, info) => {
   await page.emulateMedia({ colorScheme: info.project.name === 'mobile' ? 'dark' : 'light' });
 });
 
-test('participant errors name their fields and clear while correcting them', async ({ page }) => {
+test('participant errors name their fields and clear while correcting them @dark', async ({
+  page,
+}) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=teilnehmende');
   const form = page.getByRole('region', { name: 'Person nachtragen' });
   await form.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
@@ -43,7 +45,7 @@ test('participant errors name their fields and clear while correcting them', asy
 });
 
 for (const mode of ['status', 'item']) {
-  test(`staff ${mode} conflict keeps the draft until confirmed reload`, async ({ page }) => {
+  test(`staff ${mode} conflict keeps the draft until confirmed reload @dark`, async ({ page }) => {
     let saves = 0;
     let releaseLoad: () => void = () => {};
     const pendingLoad = new Promise<void>((resolve) => {
@@ -119,7 +121,7 @@ for (const mode of ['status', 'item']) {
   });
 }
 
-test('a conflict reload waits for new item prices before prefilling the total', async ({
+test('a conflict reload waits for new item prices before prefilling the total @dark', async ({
   page,
 }) => {
   const reference = 'https://www.ruesthaus.de/987654/review-neuer-artikel';

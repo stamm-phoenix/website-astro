@@ -324,7 +324,9 @@ test.describe('Leitende', () => {
   });
 });
 
-test('an action conflict reload that fails keeps the description draft', async ({ page }, info) => {
+test('an action conflict reload that fails keeps the description draft @dark', async ({
+  page,
+}, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: info.project.name === 'mobile' ? 'dark' : 'light' });
   let failReload = false;

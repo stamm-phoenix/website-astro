@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import {
   MOBILE_FILE_PATTERNS,
   MOBILE_ONLY_SPECS,
+  DARK_TAG,
   MOBILE_TAG,
   matchesSpecPattern,
 } from '../e2e-projects';
@@ -58,7 +59,7 @@ test(
         for (const item of spec.tests) projects.set(item.projectName, item.expectedStatus);
         cases.set(key, projects);
         // The report lists the tag without its @
-        if (spec.tags?.includes(MOBILE_TAG.slice(1))) tagged.add(key);
+        if (spec.tags?.some((tag) => [MOBILE_TAG, DARK_TAG].includes(`@${tag}`))) tagged.add(key);
       }
       for (const child of suite.suites ?? []) visit(child, [...parents, child.title]);
     }

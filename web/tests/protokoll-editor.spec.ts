@@ -488,7 +488,7 @@ test('the loading editor does not take the focus from a field the person chose',
   await expect(page.getByRole('region', { name: /^5\. Pfadi-Winterlager/ })).toBeVisible();
 });
 
-test('a table wider than the screen says to swipe sideways', async ({ page, isMobile }) => {
+test('a table wider than the screen says to swipe sideways @mobile', async ({ page, isMobile }) => {
   await createProtokoll(page, 'Leitendenrunde Tabelle');
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
@@ -665,7 +665,9 @@ test('agenda items are dragged into a new order and between the levels', async (
   await expect(page.getByLabel('Titel von Punkt 2b.')).toHaveValue('Sonstiges');
 });
 
-test('deleting minutes names the protocol and cancellation keeps it', async ({ page }, info) => {
+test('deleting minutes names the protocol and cancellation keeps it @dark', async ({
+  page,
+}, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: info.project.name === 'mobile' ? 'dark' : 'light' });
   const title = `Leitendenrunde Löschfrage ${info.project.name}`;
