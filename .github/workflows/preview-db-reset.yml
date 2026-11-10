@@ -14,6 +14,7 @@ jobs:
     # PRs from forks get no OIDC token and have no preview
     if: github.event.label.name == 'reset-preview-db' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     name: Reset preview database
     # The group of the deploy jobs in the main workflow, so a reset never meets a deploy that
     # migrates the same database or the cleanup that drops it

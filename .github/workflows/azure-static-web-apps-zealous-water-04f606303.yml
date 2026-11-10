@@ -32,6 +32,7 @@ jobs:
   build-web:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     name: Build website
     concurrency:
       group: ci-build-web-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
@@ -76,6 +77,7 @@ jobs:
   check-web:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     name: Check website
     concurrency:
       group: ci-check-web-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
@@ -127,31 +129,139 @@ jobs:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
     uses: ./.github/workflows/check-api.yml
   build:
-    # One stable check name for branch protection over the website and API jobs. Skipped when
-    # a newer push cancelled one of them (a manual cancel of the run still fails it).
-    if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')) && !(contains(needs.*.result, 'cancelled') && !cancelled())
+    # One stable check name for branch protection over the website and API jobs. Always runs
+    # and fails on anything but success. Cancelled jobs pass only when the run was replaced by a
+    # newer state; a timeout-minutes hit cancels a job too and must not pass as skipped.
+    if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed'))
     needs: [build-web, check-web, api]
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     name: Build
+    outputs:
+      superseded: ${{ steps.gate.outputs.superseded }}
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
     steps:
       - name: Website and API passed
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
-          test "${{ needs.build-web.result }}" = success
-          test "${{ needs.check-web.result }}" = success
-          test "${{ needs.api.result }}" = success
+          set -euo pipefail
+          failed=
+          cancelled=
+          for result in $RESULTS; do
+            case "$result" in
+              success) ;;
+              cancelled) cancelled=1 ;;
+              *) failed=1 ;;
+            esac
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::A required job did not succeed: $RESULTS"
+            exit 1
+          fi
+          if [ -z "$cancelled" ]; then
+            exit 0
+          fi
+          # Only cancelled jobs are left. That is harmless only for a run that a newer state replaced;
+          # a job that hit its timeout-minutes is cancelled too and must fail the check. A failed
+          # request fails the step (set -e), so an unreadable state counts as not superseded.
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '"\(.state) \(.head.sha)"')"
+            read -r state head <<< "$pr"
+            if [ "$state" != open ]; then
+              reason="the pull request is $state"
+            elif [ "$head" != "$HEAD_SHA" ]; then
+              reason="the pull request moved on to $head"
+            fi
+          else
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/azure-static-web-apps-zealous-water-04f606303.yml/runs?branch=main&event=push&per_page=30" \
+              --jq ".workflow_runs[] | select(.run_number > $RUN_NUMBER) | .id")"
+            if [ -n "$runs" ]; then
+              reason="a newer push run exists"
+            fi
+          fi
+          if [ -n "${reason:-}" ]; then
+            echo "::notice::Cancelled jobs ignored, this run was replaced: $reason."
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::error::A required job was cancelled and this run was not replaced (timeout or manual cancel): $RESULTS"
+          exit 1
   browser-tests:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
     uses: ./.github/workflows/browser-tests.yml
   browser-tests-result:
-    # One stable check name for branch protection, independent of the number of shards. Skipped
-    # when a newer push cancelled the shards (a manual cancel of the run still fails it).
-    if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')) && !(needs.browser-tests.result == 'cancelled' && !cancelled())
+    # One stable check name for branch protection, independent of the number of shards. Always
+    # runs and fails on anything but success; cancelled shards pass only for a replaced run.
+    if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed'))
     needs: [browser-tests]
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     name: Browser tests
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
     steps:
       - name: All shards passed
-        run: test "${{ needs.browser-tests.result }}" = success
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          failed=
+          cancelled=
+          for result in $RESULTS; do
+            case "$result" in
+              success) ;;
+              cancelled) cancelled=1 ;;
+              *) failed=1 ;;
+            esac
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::A required job did not succeed: $RESULTS"
+            exit 1
+          fi
+          if [ -z "$cancelled" ]; then
+            exit 0
+          fi
+          # Only cancelled jobs are left. That is harmless only for a run that a newer state replaced;
+          # a job that hit its timeout-minutes is cancelled too and must fail the check. A failed
+          # request fails the step (set -e), so an unreadable state counts as not superseded.
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '"\(.state) \(.head.sha)"')"
+            read -r state head <<< "$pr"
+            if [ "$state" != open ]; then
+              reason="the pull request is $state"
+            elif [ "$head" != "$HEAD_SHA" ]; then
+              reason="the pull request moved on to $head"
+            fi
+          else
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/azure-static-web-apps-zealous-water-04f606303.yml/runs?branch=main&event=push&per_page=30" \
+              --jq ".workflow_runs[] | select(.run_number > $RUN_NUMBER) | .id")"
+            if [ -n "$runs" ]; then
+              reason="a newer push run exists"
+            fi
+          fi
+          if [ -n "${reason:-}" ]; then
+            echo "::notice::Cancelled jobs ignored, this run was replaced: $reason."
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::error::A required job was cancelled and this run was not replaced (timeout or manual cancel): $RESULTS"
+          exit 1
   prepare-preview:
     # Prepare only the isolated PR database while checks run; Deploy still requires Build.
     if: github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot'
@@ -168,11 +278,12 @@ jobs:
     # preview either; Close Pull Request still runs for them and removes any leftovers.
     # The preview job is skipped on main; require every check explicitly before deploying.
     if: >-
-      always() && !cancelled() && needs.build.result == 'success' &&
+      always() && !cancelled() && needs.build.result == 'success' && needs.build.outputs.superseded != 'true' &&
       needs.browser-tests.result == 'success' &&
       (github.event_name != 'pull_request' ||
       (needs.prepare-preview.result == 'success' && needs.prepare-preview.outputs.prepared == 'true'))
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     name: Deploy
     concurrency:
       group: website-astro-deployment
@@ -342,6 +453,7 @@ jobs:
   close_pull_request:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     name: Close Pull Request
     concurrency:
       group: website-astro-deployment
@@ -407,6 +519,7 @@ jobs:
     needs: [deploy]
     name: Deploy Azure task timer
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     # Runs no longer wait for each other, so the timer deploys of two merges could overlap or
     # arrive out of order (a job may get its runner later); the queue serializes them and the
     # first step skips a timer deploy once a newer state is out.
@@ -562,6 +675,7 @@ jobs:
   content-deploy:
     needs: content-build
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     name: Deploy content
     concurrency:
       group: website-astro-deployment

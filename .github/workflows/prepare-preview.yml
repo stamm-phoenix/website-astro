@@ -13,6 +13,7 @@ jobs:
   database:
     name: Prepare preview database
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     # Share the deployment lock with uploads and cleanup. Never cancel remote SQL work.
     # This job can finish while browser tests run, releasing the lock until the upload.
     concurrency:
