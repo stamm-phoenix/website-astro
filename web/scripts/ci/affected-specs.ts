@@ -130,6 +130,20 @@ function routeLiterals(file: string): { exact: string[]; prefixes: string[] } {
   return { exact: [...exact], prefixes: [...prefixes] };
 }
 
+/** Addresses of real pages that a spec writes out, without query (for example /leitendenbereich/belege). */
+export function urlsNamedBySpec(spec: string, webRoot: string): string[] {
+  const routes = routesOf(webRoot);
+  const cache = new Map<string, string[]>();
+  const urls = new Set<string>();
+  for (const file of closure(spec, cache)) {
+    if (!file.endsWith('.ts')) continue;
+    for (const literal of routeLiterals(file).exact) {
+      if (routes.some((route) => route.pattern.test(literal))) urls.add(literal);
+    }
+  }
+  return [...urls].sort();
+}
+
 /** Pages a spec names, through itself and the test helpers it imports. */
 export function pagesOfSpec(
   spec: string,
