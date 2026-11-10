@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect, answerConfirm } from './fixtures';
 import { anlegen } from './essensplanung-helpers';
+import { settle } from './settle';
 
 /**
  * The preview of a recipe read by the demo AI: going back to the text keeps the corrections,
@@ -93,7 +94,7 @@ test('discarding on purpose or taking over says nothing about lost input', async
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   await answerConfirm(page, 'Rezept verwerfen?', 'Verwerfen');
   await expect(dialog).toHaveCount(0);
-  await page.waitForTimeout(300);
+  await settle(page, 10);
   await expect(page.getByText(/das Rezept wurde nicht übernommen/)).toHaveCount(0);
 });
 

@@ -1,5 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { CDPSession, Locator, Page } from '@playwright/test';
+import { waitUntilSteady } from './settle';
 
 // Swipes in the image viewers follow the finger and decide on release, by distance or speed.
 // Real touches go through the browser's own input pipeline (CDP), so `touch-action` and
@@ -392,10 +393,10 @@ test('the zoom button works with the keyboard and the arrow keys move a zoomed p
   await expect(counter).toBeVisible();
   for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowRight');
   // Each press moves for a moment; read the edge once the photo rests
-  await page.waitForTimeout(400);
+  await waitUntilSteady(async () => (await photoZoom(area)).x);
   const edge = (await photoZoom(area)).x;
   await page.keyboard.press('ArrowRight');
-  await page.waitForTimeout(400);
+  await waitUntilSteady(async () => (await photoZoom(area)).x);
   expect((await photoZoom(area)).x).toBe(edge);
   await page.keyboard.press('ArrowLeft');
   await expect.poll(async () => (await photoZoom(area)).x).toBeGreaterThan(edge);

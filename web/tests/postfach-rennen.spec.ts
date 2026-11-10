@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures';
+import { settle } from './settle';
 
 /** Answers that arrive late or out of order in the module „E-Mail“; each holds one back. */
 
@@ -99,7 +100,7 @@ test('a late reload of another mailbox and an older answer of the same mail are 
   await newer;
   releaseMail();
   await oldAnswer;
-  await page.waitForTimeout(300);
+  await settle(page);
   await expect(page.getByRole('article', { name: 'Frage zum Nikolausdienst' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Veralteter Stand' })).toHaveCount(0);
 
@@ -118,8 +119,12 @@ test('a late reload of another mailbox and an older answer of the same mail are 
     .click();
   await expect(page.getByRole('heading', { name: 'Vorstand-Postfach', level: 1 })).toBeVisible();
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
+  const spaeteAntwort = page.waitForResponse((response) =>
+    response.url().includes('/api/intern/postfach/kontakt?frisch=1')
+  );
   releaseKontakt();
-  await page.waitForTimeout(500);
+  await spaeteAntwort;
+  await settle(page);
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
 });
 
@@ -161,7 +166,7 @@ test('a reload asked before an assignment does not bring the old line back', asy
   await expect(mail.getByText('Du bist jetzt zuständig.')).toBeVisible();
   release();
   await answer;
-  await page.waitForTimeout(300);
+  await settle(page);
   await expect(liste.getByRole('link', { name: /Rechnung Zeltplatz Sommerlager/ })).toContainText(
     'Dir zugewiesen'
   );
@@ -208,7 +213,7 @@ test('a late status answer of a mailbox that was left keeps the new mailbox on s
   release();
   await answer;
   await statusAntwort;
-  await page.waitForTimeout(300);
+  await settle(page);
   releaseVorstand();
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
 });
@@ -243,8 +248,12 @@ test('a late reload answer does not undo a status just saved in the reading view
   await oldState;
   await stand.getByRole('button', { name: 'Erledigt' }).click();
   await expect(mail.getByText('Erledigt und archiviert.')).toBeVisible();
+  const spaeterStand = page.waitForResponse((response) =>
+    response.url().includes('/api/intern/postfach/kontakt/konversation?')
+  );
   release();
-  await page.waitForTimeout(500);
+  await spaeterStand;
+  await settle(page);
   await expect(stand.getByRole('button', { name: 'Erledigt' })).toHaveAttribute(
     'aria-pressed',
     'true'
@@ -291,7 +300,7 @@ test('a late conflict of a mailbox that was left does not take the list over', a
   const konflikt = page.waitForResponse('**/api/intern/postfach/kontakt/status');
   release();
   await konflikt;
-  await page.waitForTimeout(800);
+  await settle(page);
   await expect(page.getByRole('heading', { name: 'Vorstand-Postfach', level: 1 })).toBeVisible();
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
 });

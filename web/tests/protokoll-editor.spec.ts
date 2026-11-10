@@ -1,5 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { Page } from '@playwright/test';
+import { settle } from './settle';
 
 /** Creates minutes in the editor and returns the URL of their page (without `bearbeiten`). */
 async function createProtokoll(page: Page, title: string): Promise<string> {
@@ -220,7 +221,7 @@ test('a late answer of the server never replaces newer text from the editor', as
 
   release();
   await praesentation.waitForResponse(/\/api\/intern\/protokoll-editor\/\d+$/);
-  await praesentation.waitForTimeout(300);
+  await settle(praesentation);
   await expect(planung).toContainText('Neuer Stand, noch nicht gespeichert.');
 });
 
@@ -482,7 +483,7 @@ test('the loading editor does not take the focus from a field the person chose',
   await externe.click();
   await page.keyboard.type('Pfarrer Huber');
   await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeVisible();
-  await page.waitForTimeout(300);
+  await settle(page);
   await expect(externe).toBeFocused();
   await expect(externe).toHaveValue('Pfarrer Huber');
   await expect(page.getByRole('region', { name: /^5\. Pfadi-Winterlager/ })).toBeVisible();
@@ -727,7 +728,7 @@ test('„Bearbeiten“ before the login check answers keeps the unsaved copy of 
   await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   // Without waiting for the login, the editor would now open the saved version and drop the copy
   await locked;
-  await page.waitForTimeout(500);
+  await settle(page);
   answerLogin();
 
   await expect(

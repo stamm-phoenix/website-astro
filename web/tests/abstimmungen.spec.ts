@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './fixtures';
+import { settle } from './settle';
 
 test('a leader creates an Abstimmung, invites, and a guest votes over the shared link', async ({
   page,
@@ -267,8 +268,10 @@ test('a late save of the link before does not take the page back', async ({ page
     .getByRole('button', { name: 'Anderen Link öffnen' })
     .click();
   await expect(page.getByText(/Dieser Link ist ungültig/)).toBeVisible();
+  const answered = page.waitForResponse('**/api/abstimmungen/stimme');
   answer();
-  await page.waitForTimeout(1500);
+  await answered;
+  await settle(page);
   expect(new URL(page.url()).hash).toBe('#link=' + 'x'.repeat(43));
   await expect(page.getByText(/Dieser Link ist ungültig/)).toBeVisible();
 });

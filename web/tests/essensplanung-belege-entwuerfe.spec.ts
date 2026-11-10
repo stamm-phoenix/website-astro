@@ -103,7 +103,12 @@ test('switching the kind keeps what is typed; drafts of rows survive the filter'
 test('nothing typed while a slow save runs gets lost', async ({ page }) => {
   await anlegen(page, 'E2E Belege langsam');
   await page.getByRole('tab', { name: 'Belege' }).click();
-  // Every change of a receipt answers late
+  // Every change of a receipt answers late; the page counts the answers of the saves of rows
+  let gespeicherteBelege = 0;
+  page.on('response', (response) => {
+    if (response.request().method() === 'PATCH' && /\/belege\/\d+$/.test(response.url()))
+      gespeicherteBelege++;
+  });
   await page.route(/\/api\/essensplanung\/planung\/belege(\/\d+)?$/, async (route) => {
     if (['POST', 'PATCH'].includes(route.request().method()))
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -130,7 +135,7 @@ test('nothing typed while a slow save runs gets lost', async ({ page }) => {
   await expect(notiz).toHaveValue('Brötchen');
   // Both saved one after the other: after a reload the row shows them
   await expect(page.getByText('Beleg gespeichert.').first()).toBeVisible({ timeout: 10_000 });
-  await page.waitForTimeout(3500);
+  await expect.poll(() => gespeicherteBelege).toBeGreaterThanOrEqual(2);
   await page.reload();
   await page.getByRole('tab', { name: 'Belege' }).click();
   const neuGeladen = page.getByTestId('belege-tabelle').locator('tbody tr').first();

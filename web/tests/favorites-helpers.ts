@@ -1,16 +1,12 @@
 import { expect, type Page } from '@playwright/test';
+import { paintedFor, waitUntilStill } from './settle';
 
 /**
  * Toggles an area as a favorite the way a person does: with a mouse by pointing at it in the
  * menu and clicking the star, on a touch screen by a long press on it in the list „Alle Bereiche“
  * of the start page (or in the sheet, if it is open).
  */
-export async function toggleFavoriteLikeAPerson(
-  page: Page,
-  name: string,
-  /** How long the finger rests on a touch screen. */
-  hold = 700
-): Promise<void> {
+export async function toggleFavoriteLikeAPerson(page: Page, name: string): Promise<void> {
   const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
   if (!coarse) {
     const star = page
@@ -32,10 +28,9 @@ export async function toggleFavoriteLikeAPerson(
     await link.evaluate((element) =>
       element.scrollIntoView({ block: 'center', behavior: 'instant' })
     );
-    const before = await link.boundingBox();
-    await page.waitForTimeout(150);
+    await waitUntilStill(link);
     box = await link.boundingBox();
-    if (before && box && before.y === box.y) break;
+    if (box) break;
   }
   if (!box) throw new Error(`${name} is not on screen`);
   const star = link.locator('..').getByRole('button', { name: `${name} als Favorit`, exact: true });
@@ -45,14 +40,12 @@ export async function toggleFavoriteLikeAPerson(
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
   try {
-    await page.waitForTimeout(hold);
-    // A busy browser may deliver its long-press timer after the host-side delay.
-    // Keep the finger down until the actual gesture changed the favorite.
+    // Keep the finger down until the long press has changed the favorite.
     await expect(star).toHaveAttribute('aria-pressed', previous === 'true' ? 'false' : 'true');
   } finally {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await cdp.detach();
   }
   // Another touch right away would count as a double tap
-  await page.waitForTimeout(400);
+  await paintedFor(page, 400);
 }

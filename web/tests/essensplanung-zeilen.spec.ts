@@ -1,5 +1,6 @@
 import { test, expect, answerConfirm } from './fixtures';
 import { anlegen, zeilenMenge } from './essensplanung-helpers';
+import { afterPlanungPolls } from './settle';
 
 test('lines are typed and changed right in the rows, like in a sheet', async ({
   page,
@@ -103,7 +104,7 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await anderes.getByLabel('Hinweis zu Hackfleisch').fill('vom Metzger');
   await anderes.getByLabel('Hinweis zu Hackfleisch').press('Enter');
   await expect(anderes.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('vom Metzger');
-  await page.waitForTimeout(5_000);
+  await afterPlanungPolls(page);
   await expect(gericht.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('gemischt');
   await page.getByRole('heading', { name: 'E2E Zeilen' }).click();
   await expect(gericht.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('vom Metzger', {
@@ -142,12 +143,17 @@ test('typed input survives a slow save, removing and a read-only phase', async (
     await new Promise((done) => setTimeout(done, 1500));
     await route.continue();
   });
+  let gespeichert = 0;
+  page.on('response', (response) => {
+    if (response.url().includes('/gericht-zutaten/') && response.request().method() === 'PATCH')
+      gespeichert++;
+  });
   await menge.fill('750');
   await menge.press('Enter');
   await menge.fill('900');
   await page.getByRole('heading', { name: 'E2E Zeilen sicher' }).click();
   await expect(menge).toHaveValue('900');
-  await page.waitForTimeout(4000);
+  await expect.poll(() => gespeichert).toBeGreaterThanOrEqual(2);
   await page.unroute('**/api/essensplanung/planung/gericht-zutaten/*');
   await expect(gericht.getByRole('alert')).toHaveCount(0);
   await page.reload();

@@ -27,7 +27,7 @@ test('favorites are set on the areas themselves, saved for the account and survi
     route.request().method() === 'PUT' ? route.fulfill({ status: 503 }) : route.fallback()
   );
   // A long hold changes the favorite and does not open the area as well
-  await toggleFavoriteLikeAPerson(page, 'Aktionen', 2000);
+  await toggleFavoriteLikeAPerson(page, 'Aktionen');
   await expect(page.getByText('nicht gespeichert', { exact: false }).first()).toBeVisible();
   await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
   await expect(favorites.getByRole('link', { name: 'Aktionen', exact: true })).toBeVisible();

@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { BelegCheck, StaffBeleg } from '../src/lib/types';
+import { settle } from './settle';
 
 const knownCheck: BelegCheck = {
   ok: true,
@@ -415,7 +416,7 @@ test('a sideways photo is turned upright first, then checked upright', async ({ 
   // Asked once for the direction, then the upright photo was checked
   expect(asked).toEqual(['drehung', 'pruefung']);
   expect(await jpegSize(page, checked!)).toEqual(upright);
-  await page.waitForTimeout(1500);
+  await settle(page, 10);
   expect(asked).toEqual(['drehung', 'pruefung']);
 });
 
@@ -445,8 +446,10 @@ test('a direction that comes while cropping turns the photo once the crop is don
   await expect(preview).toBeVisible();
   // Cropping while the direction is asked
   await expect.poll(() => asked).toBe(1);
+  const richtung = page.waitForResponse((response) => response.url().includes('nur=drehung'));
   await dialog.getByRole('button', { name: 'Zuschneiden', exact: true }).click();
-  await page.waitForTimeout(2500);
+  await richtung;
+  await settle(page);
   await expect(dialog.getByRole('group', { name: 'Ecken des Belegs' })).toBeVisible();
   await dialog.getByRole('button', { name: 'Zuschneiden fertig' }).click();
   const size = async () => ({
