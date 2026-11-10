@@ -1,59 +1,45 @@
 /**
- * Counts the Playwright tests a source file declares, by parsing it (nothing is executed).
+ * Counts the Playwright tests that source files declare, by parsing them (nothing is executed;
+ * `playwright test --list` would load and run the PR's test code, so it is not used).
  *
- * Counted are declarations: `test(…)`, `test.only(…)` and the titled forms `test.skip/fixme/fail('title', fn)`,
- * also when they sit on one line inside `describe`, behind an alias (`import { test as t }`,
- * `const it = base.extend(…)`) or in a helper. Not counted: `test.describe`, `test.step`,
- * `test.slow()`, conditional `test.skip(cond, 'reason')`, hooks, comments and strings.
- *
- * A declaration inside a loop or `.forEach/.map` callback is one declared case, not one run per
- * entry. It is also reported in `looped`, so a PR that adds a loop cannot hide behind a zero delta.
- * Adding an entry to the array of an existing loop is not seen; review that by reading the diff.
- * The same holds for a helper that declares a test: it counts once, not once per call, and a
- * default import used as `test` (`import t from './fixtures'`) is not followed.
+ * Semantics: the number of declared cases, not the runs after Playwright expands them.
+ * - Counted: `test(…)`, `test.only(…)` and the titled forms `test.skip/fixme/fail('title', fn)`,
+ *   also several on one line, inside `describe`, behind aliases, default or renamed imports of a
+ *   fixture module (see `e2e-test-roots.ts`) and in helpers.
+ * - Not counted: `test.describe`, `test.step`, `test.slow()`, conditional `test.skip(cond, 'x')`,
+ *   hooks, comments, strings.
+ * - A declaration inside a loop or `.forEach/.map` callback is one declared case and also
+ *   `looped`. Adding an entry to the array of an existing loop is not seen.
+ * - A named function that declares tests is a helper: its declarations count once per reference
+ *   (call, or passed as an argument, in any file), not once in the helper.
+ * - `uncertain` marks places whose count cannot be known statically: `test` (or an alias) passed
+ *   to a function, or `test[computed]`. A PR that adds one needs maintainer review like new tests.
  */
 import ts from 'typescript';
+import { chainOf, findRoots, unwrap } from './e2e-test-roots';
+import type { ImportResolver } from './e2e-test-roots';
 
 export interface Registrations {
   declared: number;
   looped: number;
+  uncertain: number;
+}
+
+interface Weight {
+  declared: number;
+  looped: number;
+}
+
+export interface FileCounts extends Registrations {
+  /** Declarations inside named functions, by function name. */
+  helpers: Map<string, Weight>;
+  /** Calls of, or arguments that are, identifiers: name → references (and how many in loops). */
+  references: Map<string, { count: number; looped: number }>;
 }
 
 const MODIFIERS = new Set(['only', 'skip', 'fixme', 'fail', 'slow']);
 const TITLED_ONLY = new Set(['skip', 'fixme', 'fail', 'slow']);
 const ITERATORS = new Set(['forEach', 'map', 'flatMap', 'reduce', 'from']);
-
-function unwrap(node: ts.Expression): ts.Expression {
-  let current = node;
-  while (
-    ts.isParenthesizedExpression(current) ||
-    ts.isNonNullExpression(current) ||
-    ts.isAsExpression(current) ||
-    ts.isTypeAssertionExpression(current) ||
-    ts.isSatisfiesExpression(current)
-  ) {
-    current = current.expression;
-  }
-  return current;
-}
-
-function chainOf(node: ts.Expression): { root: string; names: string[] } | undefined {
-  const names: string[] = [];
-  let current = unwrap(node);
-  for (;;) {
-    if (ts.isPropertyAccessExpression(current)) {
-      names.unshift(current.name.text);
-      current = unwrap(current.expression);
-    } else if (
-      ts.isElementAccessExpression(current) &&
-      ts.isStringLiteralLike(current.argumentExpression)
-    ) {
-      names.unshift(current.argumentExpression.text);
-      current = unwrap(current.expression);
-    } else break;
-  }
-  return ts.isIdentifier(current) ? { root: current.text, names } : undefined;
-}
 
 function isStringLike(node: ts.Expression): boolean {
   return (
@@ -61,73 +47,6 @@ function isStringLike(node: ts.Expression): boolean {
     ts.isNoSubstitutionTemplateLiteral(node) ||
     ts.isTemplateExpression(node)
   );
-}
-
-/** Names that stand for Playwright's `test`: itself, imports of it under any name, `x.extend(…)`. */
-function testRoots(file: ts.SourceFile): { roots: Set<string>; namespaces: Set<string> } {
-  const roots = new Set(['test']);
-  const namespaces = new Set<string>();
-  const declarations: ts.VariableDeclaration[] = [];
-  const visit = (node: ts.Node): void => {
-    if (ts.isImportDeclaration(node) && node.importClause?.namedBindings) {
-      const bindings = node.importClause.namedBindings;
-      if (ts.isNamespaceImport(bindings)) namespaces.add(bindings.name.text);
-      else {
-        for (const spec of bindings.elements) {
-          if ((spec.propertyName ?? spec.name).text === 'test') roots.add(spec.name.text);
-        }
-      }
-    }
-    if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name)) {
-      for (const element of node.name.elements) {
-        const imported = element.propertyName ?? element.name;
-        if (
-          ts.isIdentifier(imported) &&
-          imported.text === 'test' &&
-          ts.isIdentifier(element.name)
-        ) {
-          roots.add(element.name.text);
-        }
-      }
-    }
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      declarations.push(node);
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(file);
-  let grew = true;
-  while (grew) {
-    grew = false;
-    for (const declaration of declarations) {
-      const name = (declaration.name as ts.Identifier).text;
-      if (roots.has(name)) continue;
-      let init = unwrap(declaration.initializer as ts.Expression);
-      if (
-        ts.isCallExpression(init) &&
-        ts.isIdentifier(init.expression) &&
-        init.expression.text === 'mergeTests'
-      ) {
-        if (init.arguments.some((arg) => roots.has(chainOf(arg)?.root ?? ''))) {
-          roots.add(name);
-          grew = true;
-        }
-        continue;
-      }
-      while (ts.isCallExpression(init) && ts.isPropertyAccessExpression(init.expression)) {
-        if (init.expression.name.text !== 'extend') break;
-        init = unwrap(init.expression.expression);
-      }
-      if (ts.isCallExpression(init)) continue;
-      const chain = chainOf(init);
-      const viaNamespace = chain && namespaces.has(chain.root) && chain.names[0] === 'test';
-      if (chain && ((roots.has(chain.root) && chain.names.length === 0) || viaNamespace)) {
-        roots.add(name);
-        grew = true;
-      }
-    }
-  }
-  return { roots, namespaces };
 }
 
 function declaresTest(
@@ -149,12 +68,46 @@ function declaresTest(
   return args.length >= 2 && isStringLike(args[0]);
 }
 
-export function countRegistrations(source: string, fileName = 'spec.ts'): Registrations {
+/** The name of a function declaration, or of a variable initialised with a function. */
+function functionName(node: ts.Node): string | undefined {
+  if (ts.isFunctionDeclaration(node) && node.name) return node.name.text;
+  if (
+    ts.isVariableDeclaration(node) &&
+    ts.isIdentifier(node.name) &&
+    node.initializer &&
+    (ts.isArrowFunction(unwrap(node.initializer)) ||
+      ts.isFunctionExpression(unwrap(node.initializer)))
+  ) {
+    return node.name.text;
+  }
+  return undefined;
+}
+
+export function analyzeFile(
+  source: string,
+  fileName = 'spec.ts',
+  resolve?: ImportResolver
+): FileCounts {
   const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
-  const { roots, namespaces } = testRoots(file);
-  const result: Registrations = { declared: 0, looped: 0 };
-  const visit = (node: ts.Node, looped: boolean): void => {
+  const { roots, namespaces } = findRoots(file, resolve);
+  const result: FileCounts = {
+    declared: 0,
+    looped: 0,
+    uncertain: 0,
+    helpers: new Map(),
+    references: new Map(),
+  };
+  const reference = (name: string, looped: boolean): void => {
+    const entry = result.references.get(name) ?? { count: 0, looped: 0 };
+    entry.count += 1;
+    if (looped) entry.looped += 1;
+    result.references.set(name, entry);
+  };
+  const visit = (node: ts.Node, looped: boolean, helper: string | undefined): void => {
     let inLoop = looped;
+    let inHelper = helper;
+    const own = functionName(node);
+    if (own) inHelper = own;
     if (
       ts.isForStatement(node) ||
       ts.isForInStatement(node) ||
@@ -165,15 +118,72 @@ export function countRegistrations(source: string, fileName = 'spec.ts'): Regist
       inLoop = true;
     }
     if (ts.isCallExpression(node)) {
+      const iterated = unwrap(node.expression);
+      if (ts.isPropertyAccessExpression(iterated) && ITERATORS.has(iterated.name.text))
+        inLoop = true;
       if (declaresTest(node, roots, namespaces)) {
-        result.declared += 1;
-        if (inLoop) result.looped += 1;
+        if (inHelper) {
+          const weight = result.helpers.get(inHelper) ?? { declared: 0, looped: 0 };
+          weight.declared += 1;
+          if (inLoop) weight.looped += 1;
+          result.helpers.set(inHelper, weight);
+        } else {
+          result.declared += 1;
+          if (inLoop) result.looped += 1;
+        }
       }
-      const callee = node.expression;
-      if (ts.isPropertyAccessExpression(callee) && ITERATORS.has(callee.name.text)) inLoop = true;
+      const callee = unwrap(node.expression);
+      if (ts.isIdentifier(callee)) reference(callee.text, inLoop);
+      for (const arg of node.arguments) {
+        const value = unwrap(arg);
+        if (ts.isIdentifier(value)) {
+          reference(value.text, inLoop);
+          if (roots.has(value.text)) result.uncertain += 1;
+        }
+      }
     }
-    ts.forEachChild(node, (child) => visit(child, inLoop));
+    if (ts.isElementAccessExpression(node) && !ts.isStringLiteralLike(node.argumentExpression)) {
+      const target = unwrap(node.expression);
+      if (ts.isIdentifier(target) && roots.has(target.text)) result.uncertain += 1;
+    }
+    ts.forEachChild(node, (child) => visit(child, inLoop, inHelper));
   };
-  visit(file, false);
+  visit(file, false, undefined);
   return result;
+}
+
+/** Adds up files: helper declarations count once per reference to the helper in any file. */
+export function totalRegistrations(files: FileCounts[]): Registrations {
+  const total: Registrations = { declared: 0, looped: 0, uncertain: 0 };
+  const helpers = new Map<string, Weight>();
+  for (const file of files) {
+    total.declared += file.declared;
+    total.looped += file.looped;
+    total.uncertain += file.uncertain;
+    for (const [name, weight] of file.helpers) {
+      const sum = helpers.get(name) ?? { declared: 0, looped: 0 };
+      sum.declared += weight.declared;
+      sum.looped += weight.looped;
+      helpers.set(name, sum);
+    }
+  }
+  for (const [name, weight] of helpers) {
+    let references = 0;
+    let looped = 0;
+    for (const file of files) {
+      const entry = file.references.get(name);
+      if (entry) {
+        references += entry.count;
+        looped += entry.looped;
+      }
+    }
+    total.declared += weight.declared * references;
+    total.looped += weight.looped * references + (weight.declared - weight.looped) * looped;
+  }
+  return total;
+}
+
+/** Single file without cross-file imports; the budget uses `analyzeFile` for the whole tree. */
+export function countRegistrations(source: string, fileName = 'spec.ts'): Registrations {
+  return totalRegistrations([analyzeFile(source, fileName)]);
 }

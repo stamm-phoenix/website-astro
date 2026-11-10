@@ -70,7 +70,7 @@ test('reports declarations in loops separately', () => {
     "['a', 'b'].forEach((n) => test(`b ${n}`, async () => {}));",
     "test('plain', async () => {});",
   ].join('\n');
-  assert.deepEqual(countRegistrations(source), { declared: 3, looped: 2 });
+  assert.deepEqual(countRegistrations(source), { declared: 3, looped: 2, uncertain: 0 });
 });
 
 test('counts parenthesised, non-null and element-access callees', () => {
@@ -101,9 +101,33 @@ test('counts chained extend, mergeTests and renamed destructuring', () => {
   );
 });
 
-test('a helper that declares a test counts once, however often it is called', () => {
+test('a helper that declares tests counts once per reference, not once in the helper', () => {
+  const helper = 'function reg(n: string) { test(n, async () => {}); }\n';
+  assert.equal(count(helper), 0);
+  assert.equal(count(`${helper}reg('a'); reg('b');`), 2);
+  assert.equal(count(`${helper}reg('a'); reg('b'); reg('c');`), 3);
+  // by reference: `describe('x', suite)` and `.forEach(reg)`
   assert.equal(
-    count("function reg(n: string) { test(n, async () => {}); }\nreg('a'); reg('b');"),
+    count("const suite = () => { test('a', async () => {}); };\ntest.describe('x', suite);"),
     1
   );
+  assert.deepEqual(countRegistrations(`${helper}['a', 'b'].forEach(reg);`), {
+    declared: 1,
+    looped: 1,
+    uncertain: 0,
+  });
+});
+
+test('test passed to a function or used dynamically is uncertain', () => {
+  assert.equal(countRegistrations('defineSuites(test);').uncertain, 1);
+  assert.equal(
+    countRegistrations("import { test as t } from '@playwright/test';\nregister(t, 'a');")
+      .uncertain,
+    1
+  );
+  assert.equal(
+    countRegistrations("const kind = 'only';\ntest[kind]('a', async () => {});").uncertain,
+    1
+  );
+  assert.equal(countRegistrations('expect(page).toBeVisible(); test.use({});').uncertain, 0);
 });
