@@ -15,6 +15,7 @@ import {
   stelleEingabenWiederHer,
 } from '../src/lib/abrechnungEingaben';
 import type { EingabenIo, EingabenRegistry, StoredSession } from '../src/lib/abrechnungEingaben';
+import { ABRECHNUNG_STORAGE_PREFIX } from '../src/lib/abrechnungAblage';
 import { ApiError } from '../src/lib/apiError';
 import { emptySession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe, AbrechnungSession } from '../../api/lib/abrechnung-session';
@@ -494,6 +495,8 @@ test('rescue needs a loaded session that is not being saved', () => {
 });
 
 test('the copy of an older version is kept under the key of the deployed pages', async () => {
+  // The store passes this prefix on; entries of the deployed pages sit under it
+  assert.equal(ABRECHNUNG_STORAGE_PREFIX, 'phoenix:abrechnung:v1:');
   const store = new Map<string, string>();
   const zugriff = legacyZugriff(
     () => ({

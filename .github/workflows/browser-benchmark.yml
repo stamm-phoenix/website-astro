@@ -2,19 +2,15 @@ name: Browser worker benchmark
 on:
   workflow_dispatch:
     inputs:
-      base:
-        description: Commit to measure as the baseline. With head, runs the whole desktop and mobile suite of both commits instead of the worker benchmark.
-        required: false
-        default: ""
-      head:
-        description: Commit to measure against the baseline.
-        required: false
-        default: ""
+      suite:
+        description: Run the whole desktop and mobile suite of this branch and of the default branch instead of the worker benchmark.
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   benchmark:
-    if: ${{ inputs.base == '' }}
+    if: ${{ !inputs.suite }}
     name: Browser benchmark (${{ matrix.workers }} workers)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -68,10 +64,10 @@ jobs:
           path: web/test-results/
           retention-days: 7
   suite:
-    # The whole suite of one commit on one runner, with the settings of the shards in CI, so that
+    # The whole suite of the dispatched commit and of the default branch, each on one runner, with the settings of the shards in CI, so that
     # two commits are measured under the same conditions: same image, same worker count, same
     # retries. Records the duration of every test per file and project (JSON reporter).
-    if: ${{ inputs.base != '' && inputs.head != '' }}
+    if: ${{ inputs.suite }}
     name: Whole suite (${{ matrix.label }})
     runs-on: ubuntu-24.04
     timeout-minutes: 150
@@ -79,8 +75,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { label: base, ref: "${{ inputs.base }}" }
-          - { label: head, ref: "${{ inputs.head }}" }
+          - {
+              label: base,
+              ref: "${{ github.event.repository.default_branch }}",
+            }
+          - { label: head, ref: "${{ github.sha }}" }
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
       options: --init --ipc=host
@@ -109,8 +108,9 @@ jobs:
         if: always()
         env:
           LABEL: ${{ matrix.label }}
-          REF: ${{ matrix.ref }}
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          export SHA="$(git rev-parse HEAD)"
           node <<'JS'
           const fs = require('node:fs');
           const file = 'test-results/suite.json';
@@ -137,7 +137,7 @@ jobs:
           const total = (project) => list.filter((r) => r.project === project);
           const sum = (items, field) => items.reduce((n, r) => n + r[field], 0);
           const lines = [
-            `### ${process.env.LABEL}: ${process.env.REF}`,
+            `### ${process.env.LABEL}: ${process.env.SHA}`,
             `Wall clock ${(report.stats.duration / 1000).toFixed(0)} s; ${report.stats.expected} passed, ${report.stats.unexpected} failed, ${report.stats.flaky} flaky, ${report.stats.skipped} skipped.`,
             '',
             '| Project | Files | Tests | Skipped | Sum of test seconds |',
@@ -145,7 +145,7 @@ jobs:
             ...['desktop', 'mobile'].map((p) => `| ${p} | ${total(p).length} | ${sum(total(p), 'tests')} | ${sum(total(p), 'skipped')} | ${sum(total(p), 'seconds').toFixed(0)} |`),
           ];
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
-          fs.writeFileSync(`test-results/per-spec-${process.env.LABEL}.json`, JSON.stringify({ ref: process.env.REF, stats: report.stats, rows: list }, null, 1));
+          fs.writeFileSync(`test-results/per-spec-${process.env.LABEL}.json`, JSON.stringify({ ref: process.env.SHA, stats: report.stats, rows: list }, null, 1));
           JS
       - uses: actions/upload-artifact@v4
         if: always()
