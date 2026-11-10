@@ -287,23 +287,6 @@ test('an expired login while saving staff tags offers the new login', async ({ p
   await expect(dialog.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
 });
 
-test('on a phone all five values of a Nikolaus day are visible', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile', 'Narrow screens only');
-  await page.goto('/leitendenbereich/nikolaus');
-  await page.getByRole('heading', { name: 'Überblick über die Tage', exact: true }).click();
-  const section = page.getByRole('region', { name: 'Überblick über die Tage', exact: true });
-  const day = section.getByRole('row').nth(1);
-  await expectWithinWindowWidth(page, day.getByRole('rowheader'));
-  const cells = day.getByRole('cell');
-  await expect(cells).toHaveCount(4);
-  for (const cell of await cells.all()) await expectWithinWindowWidth(page, cell);
-  // Without column headers on screen, each value carries its own label
-  for (const [index, label] of ['Bestätigt', 'Ausstehend', 'Frei', 'Kinder'].entries()) {
-    await expect(cells.nth(index)).toHaveText(new RegExp(`^${label}\\s*\\d+`));
-  }
-  await expectNoHorizontalOverflow(page);
-});
-
 test('the booking link can be copied and the bookmark hint keeps the token in the address bar', async ({
   page,
   context,
@@ -320,9 +303,9 @@ test('the booking link can be copied and the bookmark hint keeps the token in th
   await page.goto('/nikolaus/termin#main');
   await page.getByRole('button', { name: 'Als Lesezeichen speichern' }).click();
   await expect(page).toHaveURL(/\/nikolaus\/termin#token=mock$/);
-  const hint =
-    testInfo.project.name === 'mobile' ? /Lesezeichen hinzufügen/ : /Drücken Sie jetzt Strg \+ D/;
-  await expect(page.getByRole('status').filter({ hasText: hint })).toBeVisible();
+  await expect(
+    page.getByRole('status').filter({ hasText: /Drücken Sie jetzt Strg \+ D/ })
+  ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 

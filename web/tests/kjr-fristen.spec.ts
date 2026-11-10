@@ -23,14 +23,6 @@ test('the start page lists the KJR deadlines of Aktionen that are over', async (
   await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung\/evt_Sola26$/);
 });
 
-test('a KJR deadline within two weeks is highlighted', async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-11-01T12:00:00Z'));
-  await page.goto('/leitendenbereich');
-  const sola = page.getByTestId('kjr-fristen').getByRole('listitem').first();
-  await expect(sola).toContainText('Abgabe bis 11.11.2026, noch 10 Tage');
-  await expect(sola.getByText(/Abgabe bis/)).toHaveClass(/text-warning/);
-});
-
 test('areas without entries collapse into a line instead of disappearing', async ({ page }) => {
   await page.route('**/api/intern/aktionen', (route) => route.fulfill({ json: [] }));
   await page.goto('/leitendenbereich');
@@ -75,8 +67,17 @@ test('the Abrechnung shows the KJR deadline of each Aktion', async ({ page }) =>
   );
 });
 
-test('a KJR deadline within two weeks is highlighted in the Abrechnung', async ({ page }) => {
+// The two-week threshold itself is covered in test/kjr-fristen.test.ts; here only the highlight
+// on the two pages is checked.
+test('a KJR deadline within two weeks is highlighted on the start page and in the Abrechnung', async ({
+  page,
+}) => {
   await page.clock.setFixedTime(new Date('2026-11-01T12:00:00Z'));
+  await page.goto('/leitendenbereich');
+  const sola = page.getByTestId('kjr-fristen').getByRole('listitem').first();
+  await expect(sola).toContainText('Abgabe bis 11.11.2026, noch 10 Tage');
+  await expect(sola.getByText(/Abgabe bis/)).toHaveClass(/text-warning/);
+
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
   const frist = page.getByTestId('kjr-frist');
   await expect(frist).toHaveText('Abgabe beim KJR bis 11.11.2026, noch 10 Tage');
