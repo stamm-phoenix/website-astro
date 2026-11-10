@@ -139,6 +139,8 @@ jobs:
           # Pull requests run the specs their change can affect; main and other triggers run all
           E2E_AFFECTED_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
         run: |
+          # The container user does not own the checkout; without this git does not see the repository
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           if [ "${{ matrix.browser }}" = chromium ]; then
             bun scripts/ci/select-browser-shard.ts ${{ matrix.shard }}
           else

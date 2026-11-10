@@ -238,21 +238,21 @@ test('a late reload answer does not undo a status just saved in the reading view
   const held = new Promise<void>((resolve) => (release = resolve));
   let fetched: () => void = () => undefined;
   const oldState = new Promise<void>((resolve) => (fetched = resolve));
+  let delivered: () => void = () => undefined;
+  const oldStateDelivered = new Promise<void>((resolve) => (delivered = resolve));
   await page.route('**/api/intern/postfach/kontakt/konversation?*', async (route) => {
     const response = await route.fetch();
     fetched();
     await held;
     await route.fulfill({ response }).catch(() => undefined);
+    delivered();
   });
   await page.getByRole('button', { name: 'Neu laden' }).click();
   await oldState;
   await stand.getByRole('button', { name: 'Erledigt' }).click();
   await expect(mail.getByText('Erledigt und archiviert.')).toBeVisible();
-  const spaeterStand = requestSettled(page, (url) =>
-    url.includes('/api/intern/postfach/kontakt/konversation?')
-  );
   release();
-  await spaeterStand;
+  await oldStateDelivered;
   await settle(page);
   await expect(stand.getByRole('button', { name: 'Erledigt' })).toHaveAttribute(
     'aria-pressed',
