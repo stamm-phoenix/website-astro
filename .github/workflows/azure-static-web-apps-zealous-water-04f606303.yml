@@ -29,8 +29,43 @@ on:
 permissions:
   contents: read
 jobs:
-  build-web:
+  # Which build and test jobs this run needs (web/scripts/ci/job-plan.ts). Pull requests skip
+  # what their diff cannot affect; every other event, a CI change and any error run everything.
+  plan:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    name: Plan
+    outputs:
+      web: ${{ steps.plan.outputs.web }}
+      api_tests: ${{ steps.plan.outputs.api_tests }}
+      api_package: ${{ steps.plan.outputs.api_package }}
+      browser: ${{ steps.plan.outputs.browser }}
+      preview: ${{ steps.plan.outputs.preview }}
+    steps:
+      # Two commits on pull requests: the first parent of the merge commit is the base
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Plan the jobs
+        id: plan
+        working-directory: web
+        # The script needs no dependencies and falls back to everything itself; a crash does too
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+        run: |
+          if ! bun scripts/ci/plan-jobs.ts "$GITHUB_EVENT_NAME" "$BASE" > "$RUNNER_TEMP/plan"; then
+            echo "::warning::Planning failed, running everything."
+            printf 'web=true\napi_tests=true\napi_package=true\nbrowser=true\npreview=true\n' > "$RUNNER_TEMP/plan"
+          fi
+          tee -a "$GITHUB_OUTPUT" < "$RUNNER_TEMP/plan"
+  build-web:
+    needs: plan
+    if: needs.plan.outputs.web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     name: Build website
@@ -75,7 +110,8 @@ jobs:
           path: web/dist
           retention-days: 1
   check-web:
-    if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    needs: plan
+    if: needs.plan.outputs.web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     name: Check website
@@ -129,19 +165,25 @@ jobs:
   # for the API tests. Both are named "api" to keep the check names "api / Check API tests"
   # and "api / Check API static"; the gate job Build requires both.
   api:
-    if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    needs: plan
+    if: needs.plan.outputs.api_tests == 'true'
     name: api
     uses: ./.github/workflows/check-api.yml
+  # Runs whenever a preview needs the package; without API changes it may take the package
+  # built on main for the same inputs from the cache and skip the build and checks.
   api-static:
-    if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    needs: plan
+    if: needs.plan.outputs.api_package == 'true' || needs.plan.outputs.preview == 'true'
     name: api
     uses: ./.github/workflows/check-api-static.yml
+    with:
+      use-cache: ${{ needs.plan.outputs.api_package != 'true' }}
   build:
     # One stable check name for branch protection over the website and API jobs. Always runs
     # and fails on anything but success. Cancelled jobs pass only when the run was replaced by a
     # newer state; a timeout-minutes hit cancels a job too and must not pass as skipped.
     if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed'))
-    needs: [build-web, check-web, api, api-static]
+    needs: [plan, build-web, check-web, api, api-static]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     name: Build
@@ -156,7 +198,13 @@ jobs:
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
-          RESULTS: ${{ join(needs.*.result, ' ') }}
+          # job:result:planned; planned is false for a job the plan deselected
+          RESULTS: >-
+            plan:${{ needs.plan.result }}:true
+            build-web:${{ needs.build-web.result }}:${{ needs.plan.outputs.web }}
+            check-web:${{ needs.check-web.result }}:${{ needs.plan.outputs.web }}
+            api:${{ needs.api.result }}:${{ needs.plan.outputs.api_tests }}
+            api-static:${{ needs.api-static.result }}:${{ needs.plan.outputs.api_package == 'true' || needs.plan.outputs.preview == 'true' }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_NUMBER: ${{ github.run_number }}
@@ -164,10 +212,16 @@ jobs:
           set -euo pipefail
           failed=
           cancelled=
-          for result in $RESULTS; do
+          plan_ok=
+          case "$RESULTS" in plan:success:*) plan_ok=1 ;; esac
+          for entry in $RESULTS; do
+            IFS=: read -r _ result planned <<< "$entry"
             case "$result" in
               success) ;;
               cancelled) cancelled=1 ;;
+              # Deselected by the plan counts as passed. Without a successful plan every job is
+              # skipped, and the plan's own result decides.
+              skipped) if [ "$planned" != false ] && [ -n "$plan_ok" ]; then failed=1; fi ;;
               *) failed=1 ;;
             esac
           done
@@ -204,13 +258,14 @@ jobs:
           echo "::error::A required job was cancelled and this run was not replaced (timeout or manual cancel): $RESULTS"
           exit 1
   browser-tests:
-    if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    needs: plan
+    if: needs.plan.outputs.browser == 'true'
     uses: ./.github/workflows/browser-tests.yml
   browser-tests-result:
     # One stable check name for branch protection, independent of the number of shards. Always
     # runs and fails on anything but success; cancelled shards pass only for a replaced run.
     if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed'))
-    needs: [browser-tests]
+    needs: [plan, browser-tests]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     name: Browser tests
@@ -223,7 +278,10 @@ jobs:
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
-          RESULTS: ${{ join(needs.*.result, ' ') }}
+          # job:result:planned; planned is false for a job the plan deselected
+          RESULTS: >-
+            plan:${{ needs.plan.result }}:true
+            browser-tests:${{ needs.browser-tests.result }}:${{ needs.plan.outputs.browser }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_NUMBER: ${{ github.run_number }}
@@ -231,10 +289,16 @@ jobs:
           set -euo pipefail
           failed=
           cancelled=
-          for result in $RESULTS; do
+          plan_ok=
+          case "$RESULTS" in plan:success:*) plan_ok=1 ;; esac
+          for entry in $RESULTS; do
+            IFS=: read -r _ result planned <<< "$entry"
             case "$result" in
               success) ;;
               cancelled) cancelled=1 ;;
+              # Deselected by the plan counts as passed. Without a successful plan every job is
+              # skipped, and the plan's own result decides.
+              skipped) if [ "$planned" != false ] && [ -n "$plan_ok" ]; then failed=1; fi ;;
               *) failed=1 ;;
             esac
           done
@@ -272,7 +336,9 @@ jobs:
           exit 1
   prepare-preview:
     # Prepares the isolated PR database while the website and API build; Deploy preview needs it.
-    if: github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot'
+    # Skipped with the plan (documentation only), which skips Deploy preview too.
+    needs: plan
+    if: needs.plan.outputs.preview == 'true' && github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot'
     uses: ./.github/workflows/prepare-preview.yml
     permissions:
       id-token: write
