@@ -100,7 +100,8 @@ async function oneMoveFlick(page: Page, cdp: CDPSession, from: Point, to: Point)
     type: 'touchStart',
     touchPoints: [{ ...from, id: 1 }],
   });
-  await paintedFor(page, 40);
+  // No pause: the speed is measured from touching to this move, and a loaded runner would stretch a
+  // pause past the 100 ms a flick may rest
   await Promise.all([
     cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...to, id: 1 }] }),
     cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }),

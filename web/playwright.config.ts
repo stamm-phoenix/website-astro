@@ -1,20 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 import { MOBILE_GREP, MOBILE_ONLY_SPECS } from './e2e-projects';
 
-// Demo writes live in the server process, so every worker gets its own server and port.
-// E2E_SERVER=static serves the built site (`bun run build` first) with the mock API and restarts
-// the server of a worker before every test, so each test starts on the demo data.
-const STATIC_SERVER = process.env.E2E_SERVER === 'static';
+// Demo writes live in the dev server process, so every worker gets its own server and port.
 const WORKERS = Number(process.env.E2E_WORKERS ?? (process.env.CI ? 4 : 2));
 // E2E_PORT_BASE lets runs in separate checkouts on one machine use their own ports.
 const PORT_BASE = Number(process.env.E2E_PORT_BASE ?? 4323);
 
 export default defineConfig({
   testDir: './tests',
-  // With the dev server, tests in one file share demo state, so files (not tests) are spread
-  // across workers. With the static server every test starts on fresh state and may run anywhere.
+  // Tests in one file share demo state, so files (not tests) are spread across workers.
   workers: WORKERS,
-  fullyParallel: STATIC_SERVER,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   // One retry in CI, so a timing flake of the runner does not fail an unrelated PR; the report
   // still lists the test as flaky. Locally a failure shows at once.
