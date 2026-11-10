@@ -176,6 +176,7 @@ test('a load that overlaps the save cannot bring back the unread count', async (
   await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
   await page.setViewportSize({ width: 390, height: 844 });
   let putStarted = false;
+  let staleStarted = false;
   const staleDelivered = latch();
   let finishPut: () => void = () => undefined;
   const putDone = new Promise<void>((resolve) => (finishPut = resolve));
@@ -189,6 +190,7 @@ test('a load that overlaps the save cannot bring back the unread count', async (
       finishPut();
     } else if (putStarted) {
       // The server answers with the state from before the save, and the answer arrives after it
+      staleStarted = true;
       const stale = await route.fetch();
       await putDone;
       await route.fulfill({ response: stale }).catch(() => undefined);
@@ -200,12 +202,15 @@ test('a load that overlaps the save cannot bring back the unread count', async (
   await page.goto('/leitendenbereich/neuigkeiten');
   await page.getByRole('button', { name: 'Alle als gelesen markieren' }).click();
   await expect(page.getByText('Gelesen wird gespeichert …')).toBeVisible();
+  // The save has reached the server and is held there, so what the menu asks for next overlaps it
+  await expect.poll(() => putStarted).toBe(true);
   // The menu asks for the read state while the save is still running
   const menu = page
     .getByRole('navigation', { name: 'Schnellzugriff' })
     .getByRole('button', { name: 'Menü', exact: true });
   await menu.click();
   await expect(page.getByRole('dialog', { name: 'Alle Bereiche' })).toBeVisible();
+  await expect.poll(() => staleStarted).toBe(true);
   releasePut();
   await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toBeVisible();
   // The late stale answer arrives and is shown
