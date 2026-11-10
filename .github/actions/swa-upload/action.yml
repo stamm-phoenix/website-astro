@@ -1,0 +1,63 @@
+name: Upload to Azure Static Web Apps
+description: >-
+  Uploads the built website (dist/) and the tested API package (artifact swa-api) to the Static
+  Web App, as production or as the preview of a pull request. Runs inside the calling job, so the
+  OIDC token still names the workflow file the Static Web App accepts. Expects the checkout, the
+  artifact dist in dist/ and the API dependencies installed with Bun.
+inputs:
+  pr-number:
+    description: Number of the pull request for a preview; empty for production.
+    required: false
+    default: ""
+  api-token:
+    description: Deployment token of the Static Web App.
+    required: true
+  repo-token:
+    description: GitHub token for the Static Web Apps action (preview comment).
+    required: true
+outputs:
+  static-web-app-url:
+    description: URL of the deployed site, as reported by the Static Web Apps action.
+    value: ${{ steps.deploy.outputs.static_web_app_url }}
+runs:
+  using: composite
+  steps:
+    - name: Download tested API deployment package
+      uses: actions/download-artifact@v8
+      with:
+        name: swa-api
+        path: /tmp/swa-package
+    - name: Extract API deployment package
+      shell: bash
+      run: |
+        mkdir swa-api
+        tar -xzf /tmp/swa-package/swa-api.tar.gz -C swa-api
+    - name: Apply deployment configuration to API package
+      shell: bash
+      working-directory: api
+      # Only these three constants differ between production and a PR preview.
+      env:
+        PR_NUMBER: ${{ inputs.pr-number }}
+      run: |
+        bun build lib/deployment.ts --target=node --format=cjs --outfile ../swa-api/dist/bundle/deployment.js
+        node scripts/check-deployment.mjs ../swa-api "$PR_NUMBER"
+    - name: Get Id Token
+      uses: actions/github-script@v9
+      id: idtoken
+      with:
+        script: |
+          return await core.getIDToken()
+        result-encoding: string
+    - name: Deploy to Azure Static Web Apps
+      id: deploy
+      uses: Azure/static-web-apps-deploy@v1
+      with:
+        azure_static_web_apps_api_token: ${{ inputs.api-token }}
+        action: "upload"
+        app_location: "dist"
+        api_location: "swa-api"
+        skip_api_build: true
+        output_location: ""
+        skip_app_build: true
+        github_id_token: ${{ steps.idtoken.outputs.result }}
+        repo_token: ${{ inputs.repo-token }}
