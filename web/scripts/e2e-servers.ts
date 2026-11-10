@@ -103,7 +103,8 @@ try {
     const results = await Promise.all(
       ports.map((port) => warmUp(`http://127.0.0.1:${port}`, pages))
     );
-    console.log(
+    // On stderr, which Playwright shows as [WebServer]; its stdout stays hidden
+    console.error(
       `Warmed up ${pages.length} pages: ${results.map((r) => `${r.modules} modules in ${r.seconds.toFixed(0)} s`).join(', ')}`
     );
   }
