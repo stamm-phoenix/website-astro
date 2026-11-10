@@ -13,56 +13,80 @@ const MODULE_SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)["']([^"']+)
 const HTML_MODULE_URL =
   /(?:component-url|renderer-url|before-hydration-url|src|href)="([^"]+\.(?:js|svelte|ts)[^"]*|\/@vite\/client)"/g;
 
-async function fetchText(url: string): Promise<string | null> {
+async function fetchText(url: string, until: number): Promise<string | null> {
+  const left = until - Date.now();
+  if (left <= 0) return null;
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(left) });
     return response.ok ? await response.text() : null;
   } catch {
     return null;
   }
 }
 
-/** Fetches `paths` and every module they import, from one server; gives up after `limitMs`. */
+function resolveUrl(specifier: string, base: string): string | null {
+  try {
+    return new URL(specifier, base).href;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetches `paths` and every module they import, from one server. It stops at `limitMs` for good:
+ * every request is cut off at that moment, so the caller can rely on the time it gave.
+ */
 export async function warmUp(
   origin: string,
   paths: string[],
   { limitMs = 45_000, parallel = 6 } = {}
 ): Promise<{ pages: number; modules: number; seconds: number }> {
   const started = Date.now();
+  const until = started + limitMs;
   const seen = new Set<string>();
-  const queue: string[] = [];
-  const add = (url: string): void => {
-    if (!seen.has(url)) {
+  const queue: { url: string; page: boolean }[] = [];
+  const add = (url: string | null, page: boolean): void => {
+    if (url !== null && !seen.has(url)) {
       seen.add(url);
-      queue.push(url);
+      queue.push({ url, page });
     }
   };
+  for (const path of paths) add(resolveUrl(path, origin), true);
   let pages = 0;
-  for (const path of paths) {
-    const html = await fetchText(`${origin}${path}`);
-    if (html === null) continue;
-    pages++;
-    for (const match of html.matchAll(HTML_MODULE_URL)) add(new URL(match[1], origin).href);
-  }
   let modules = 0;
+  let busy = 0;
   const worker = async (): Promise<void> => {
-    while (Date.now() - started < limitMs) {
-      const url = queue.pop();
-      if (url === undefined) return;
-      const body = await fetchText(url);
-      if (body === null) continue;
-      modules++;
-      if (new URL(url).pathname.endsWith('.css')) continue;
-      for (const match of body.matchAll(MODULE_SPECIFIER)) {
-        const specifier = match[1];
-        if (specifier.startsWith('/') || specifier.startsWith('.'))
-          add(new URL(specifier, url).href);
+    while (Date.now() < until) {
+      const item = queue.shift();
+      if (item === undefined) {
+        // Another worker may still find imports; stop only when all are idle
+        if (busy === 0) return;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        continue;
+      }
+      busy++;
+      try {
+        const body = await fetchText(item.url, until);
+        if (body === null) continue;
+        if (item.page) {
+          pages++;
+          for (const match of body.matchAll(HTML_MODULE_URL))
+            add(resolveUrl(match[1], origin), false);
+        } else {
+          modules++;
+          if (new URL(item.url).pathname.endsWith('.css')) continue;
+          for (const match of body.matchAll(MODULE_SPECIFIER)) {
+            const specifier = match[1];
+            if (specifier.startsWith('/') || specifier.startsWith('.')) {
+              add(resolveUrl(specifier, item.url), false);
+            }
+          }
+        }
+      } finally {
+        busy--;
       }
     }
   };
-  // An import that is handled while another worker idles would be missed, so repeat while work is left
-  while (queue.length > 0 && Date.now() - started < limitMs) {
-    await Promise.all(Array.from({ length: parallel }, worker));
-  }
+  await Promise.all(Array.from({ length: parallel }, worker));
   return { pages, modules, seconds: (Date.now() - started) / 1000 };
 }

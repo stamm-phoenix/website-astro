@@ -19,6 +19,9 @@ if (!Number.isInteger(firstPort) || !Number.isInteger(count) || count < 1) {
 }
 
 const TIMEOUT_MS = 60_000;
+// playwright.config.ts gives the servers 90 s to report; the warm-up may use what is left of 80 s
+const STARTUP_BUDGET_MS = 80_000;
+const scriptStarted = Date.now();
 const ports = Array.from({ length: count }, (_, index) => firstPort + index);
 
 // A server already running on a port would answer for the new one (and Astro would move the
@@ -99,9 +102,10 @@ function shardPages(): string[] {
 try {
   await Promise.all(ports.map(waitFor));
   const pages = shardPages();
-  if (pages.length > 0) {
+  const budget = Math.min(45_000, STARTUP_BUDGET_MS - (Date.now() - scriptStarted));
+  if (pages.length > 0 && budget >= 5_000) {
     const results = await Promise.all(
-      ports.map((port) => warmUp(`http://127.0.0.1:${port}`, pages))
+      ports.map((port) => warmUp(`http://127.0.0.1:${port}`, pages, { limitMs: budget }))
     );
     // On stderr, which Playwright shows as [WebServer]; its stdout stays hidden
     console.error(
