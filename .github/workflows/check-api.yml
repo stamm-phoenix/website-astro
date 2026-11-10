@@ -8,10 +8,16 @@ on:
 jobs:
   api-test:
     runs-on: ubuntu-24.04
-    name: Check API tests
+    name: Check API tests (${{ matrix.shard }}/3)
     timeout-minutes: 15
+    # The test files are spread over three jobs with an own SQL Server each (#564);
+    # api/scripts/ci/test-shard.mjs picks the files, so new tests need no list.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     concurrency:
-      group: ci-api-test-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
+      group: ci-api-test-${{ matrix.shard }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
       cancel-in-progress: true
     # The API tests of the Nikolaus data run against a real SQL Server (api/test/fixtures/database.ts)
     services:
@@ -41,8 +47,15 @@ jobs:
       - name: Install API test dependencies
         working-directory: api
         run: bun install --frozen-lockfile --ignore-scripts
-      - name: Test API
+      - name: Test the shard script
         working-directory: api
-        run: bun run test
+        run: node --test scripts/ci/test-shard.test.mjs
+      - name: Build API
+        working-directory: api
+        run: bun run build
+      - name: Test API (shard ${{ matrix.shard }}/3)
+        working-directory: api
+        run: node --test $(node scripts/ci/test-shard.mjs "$SHARD" 3)
         env:
           TEST_SQL_PASSWORD: "Test_Passw0rd!"
+          SHARD: ${{ matrix.shard }}
