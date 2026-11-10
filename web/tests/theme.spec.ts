@@ -16,6 +16,9 @@ for (const colorScheme of ['light', 'dark'] as const) {
       '/mitgliederbereich/sammelbestellungen?token=mock',
     ]) {
       await page.goto(path);
+      // The next page is only opened once this one has hydrated: WebKit reports an island that
+      // is still importing its module when the page is left as an uncaught error
+      await expect(page.locator('astro-island[ssr]:not([client="visible"])')).toHaveCount(0);
       await expect
         .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme))
         .toBe(colorScheme);
