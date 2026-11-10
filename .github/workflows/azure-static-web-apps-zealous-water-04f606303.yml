@@ -125,15 +125,23 @@ jobs:
         with:
           path: web/.eslintcache
           key: eslint-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'web/eslint.config.mjs') }}-${{ github.sha }}
+  # Two calls, so the PR preview can wait for the API package (api-static) without waiting
+  # for the API tests. Both are named "api" to keep the check names "api / Check API tests"
+  # and "api / Check API static"; the gate job Build requires both.
   api:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    name: api
     uses: ./.github/workflows/check-api.yml
+  api-static:
+    if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    name: api
+    uses: ./.github/workflows/check-api-static.yml
   build:
     # One stable check name for branch protection over the website and API jobs. Always runs
     # and fails on anything but success. Cancelled jobs pass only when the run was replaced by a
     # newer state; a timeout-minutes hit cancels a job too and must not pass as skipped.
     if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed'))
-    needs: [build-web, check-web, api]
+    needs: [build-web, check-web, api, api-static]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     name: Build
@@ -263,7 +271,7 @@ jobs:
           echo "::error::A required job was cancelled and this run was not replaced (timeout or manual cancel): $RESULTS"
           exit 1
   prepare-preview:
-    # Prepare only the isolated PR database while checks run; Deploy still requires Build.
+    # Prepares the isolated PR database while the website and API build; Deploy preview needs it.
     if: github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot'
     uses: ./.github/workflows/prepare-preview.yml
     permissions:
@@ -271,17 +279,123 @@ jobs:
       contents: read
       pull-requests: read
 
+  deploy-preview:
+    # The PR preview waits only for the website build, the API package and its database, not
+    # for the tests (#565): agents and reviewers need it early, and the checks on the PR still
+    # show a red test. Build and Browser tests never depend on it.
+    # PRs from forks get neither secrets nor OIDC tokens and PRs opened by bots (Dependabot) get
+    # no preview; prepare-preview is skipped for both, which skips this job. Close Pull Request
+    # still runs for them and removes any leftovers.
+    needs: [build-web, api-static, prepare-preview]
+    if: github.event_name == 'pull_request' && needs.prepare-preview.outputs.prepared == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Not "Deploy": the push runs look up their newest deploy by that job name.
+    name: Deploy preview
+    concurrency:
+      group: website-astro-deployment
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      actions: read
+    steps:
+      # Runs no longer wait for each other, so a run can reach this group after a newer one. The
+      # PR must still be open (Close Pull Request shares this group; a deploy after it would bring
+      # back the preview and its database) and still point at this commit. Fails closed.
+      - name: Skip if the PR moved on or was closed
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # A separate assignment, so a failed request fails the step (read would hide it)
+          pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '"\(.state) \(.head.sha)"')"
+          read -r state head <<< "$pr"
+          if [ "$state" != open ]; then
+            reason="the pull request is $state"
+          elif [ "$head" != "$HEAD_SHA" ]; then
+            reason="the pull request moved on to $head"
+          fi
+          if [ -n "${reason:-}" ]; then
+            echo "::notice::Not deploying: $reason."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.current.outputs.deploy == 'true'
+      - name: Download build artifact
+        if: steps.current.outputs.deploy == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      # Each PR preview gets a database of its own with test data (website-pr-<number>); without
+      # SQL_PREVIEW_CLIENT_ID the preview is not deployed rather than falling back to the
+      # production data (docs/azure-sql.md).
+      - name: Setup Bun (database)
+        if: steps.current.outputs.deploy == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install API dependencies (database)
+        if: steps.current.outputs.deploy == 'true'
+        working-directory: api
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Download preview database configuration
+        if: steps.current.outputs.deploy == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: preview-deployment
+          path: api/lib
+      # A playwright-api PR named in the description (playwright-api#12) lends its preview to
+      # this one, so both can be tried together; otherwise, or while its preview does not
+      # answer, the preview uses the production Playwright API. Never fails the deploy.
+      - name: Link playwright-api preview
+        if: steps.current.outputs.deploy == 'true'
+        working-directory: api
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun scripts/playwright-preview.ts "${{ github.event.pull_request.number }}"
+      - name: Upload to Azure Static Web Apps
+        if: steps.current.outputs.deploy == 'true'
+        id: upload
+        uses: ./.github/actions/swa-upload
+        with:
+          pr-number: ${{ github.event.pull_request.number }}
+          api-token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # Previews get their login callback registered in Entra, see docs/entra-preview-login.md.
+      # Skipped until the repository variables are set.
+      - name: Azure login (Entra)
+        if: steps.current.outputs.deploy == 'true' && vars.ENTRA_DEPLOY_CLIENT_ID != ''
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.ENTRA_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Register preview login callback
+        if: steps.current.outputs.deploy == 'true' && vars.ENTRA_DEPLOY_CLIENT_ID != ''
+        env:
+          ENTRA_WEBSITE_APP_OBJECT_ID: ${{ vars.ENTRA_WEBSITE_APP_OBJECT_ID }}
+          PREVIEW_URL: ${{ steps.upload.outputs.static-web-app-url }}
+          FALLBACK_HOST: zealous-water-04f606303-${{ github.event.pull_request.number }}.westeurope.1.azurestaticapps.net
+        run: |
+          host="${PREVIEW_URL#https://}"
+          host="${host%%/*}"
+          .github/scripts/entra-preview-redirect.sh add "${host:-$FALLBACK_HOST}"
+
   deploy:
-    needs: [build, browser-tests, prepare-preview]
-    # PRs from forks get neither secrets nor OIDC tokens; skip them explicitly instead of
-    # running their code up to a failing Azure login. PRs opened by bots (Dependabot) get no
-    # preview either; Close Pull Request still runs for them and removes any leftovers.
-    # The preview job is skipped on main; require every check explicitly before deploying.
+    # Production: a push to main deploys only after Build and all Browser tests passed.
+    needs: [build, browser-tests]
     if: >-
-      always() && !cancelled() && needs.build.result == 'success' && needs.build.outputs.superseded != 'true' &&
-      needs.browser-tests.result == 'success' &&
-      (github.event_name != 'pull_request' ||
-      (needs.prepare-preview.result == 'success' && needs.prepare-preview.outputs.prepared == 'true'))
+      always() && !cancelled() && github.event_name == 'push' &&
+      needs.build.result == 'success' && needs.build.outputs.superseded != 'true' &&
+      needs.browser-tests.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     name: Deploy
@@ -300,37 +414,22 @@ jobs:
     steps:
       # Runs no longer wait for each other, so a run can reach this group after a newer one
       # (its Build job got a runner later). Its deploy would roll the site back, so it deploys
-      # only while it is the newest: on main no newer push run may have deployed yet; a PR
-      # must still be open (Close Pull Request shares this group; a deploy after it would bring
-      # back the preview and its database) and still point at this commit. Fails closed.
-      - name: Skip if a newer state was deployed or the PR was closed
+      # only while no newer push run has deployed yet. Fails closed.
+      - name: Skip if a newer state was deployed
         id: current
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            # A separate assignment, so a failed request fails the step (read would hide it)
-            pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '"\(.state) \(.head.sha)"')"
-            read -r state head <<< "$pr"
-            if [ "$state" != open ]; then
-              reason="the pull request is $state"
-            elif [ "$head" != "$HEAD_SHA" ]; then
-              reason="the pull request moved on to $head"
+          runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/azure-static-web-apps-zealous-water-04f606303.yml/runs?branch=main&event=push&per_page=30" \
+            --jq ".workflow_runs[] | select(.run_number > $RUN_NUMBER) | .id")"
+          for run in $runs; do
+            deploy="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" --jq '[.jobs[] | select(.name == "Deploy")][0].conclusion // ""')"
+            if [ "$deploy" = success ]; then
+              reason="the newer run $run deployed already"
+              break
             fi
-          else
-            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/azure-static-web-apps-zealous-water-04f606303.yml/runs?branch=main&event=push&per_page=30" \
-              --jq ".workflow_runs[] | select(.run_number > $RUN_NUMBER) | .id")"
-            for run in $runs; do
-              deploy="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" --jq '[.jobs[] | select(.name == "Deploy")][0].conclusion // ""')"
-              if [ "$deploy" = success ]; then
-                reason="the newer run $run deployed already"
-                break
-              fi
-            done
-          fi
+          done
           if [ -n "${reason:-}" ]; then
             echo "::notice::Not deploying: $reason."
             echo "deploy=false" >> "$GITHUB_OUTPUT"
@@ -347,9 +446,7 @@ jobs:
           path: dist
       # Schema changes reach the database before the code that needs them (docs/azure-sql.md).
       # main migrates the production database; a missing SQL_MIGRATION_CLIENT_ID fails the
-      # deploy instead of shipping code without its schema. Each PR preview gets a database of
-      # its own with test data (website-pr-<number>); without SQL_PREVIEW_CLIENT_ID the preview
-      # is not deployed rather than falling back to the production data.
+      # deploy instead of shipping code without its schema.
       - name: Setup Bun (database)
         if: steps.current.outputs.deploy == 'true'
         uses: oven-sh/setup-bun@v2
@@ -360,96 +457,26 @@ jobs:
         working-directory: api
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Azure login (database migrations)
-        if: steps.current.outputs.deploy == 'true' && github.event_name == 'push'
+        if: steps.current.outputs.deploy == 'true'
         uses: azure/login@v3
         with:
           client-id: ${{ vars.SQL_MIGRATION_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
           allow-no-subscriptions: true
       - name: Apply database migrations
-        if: steps.current.outputs.deploy == 'true' && github.event_name == 'push'
+        if: steps.current.outputs.deploy == 'true'
         working-directory: api
         run: bun scripts/db-migrate.ts
       - name: Verify protocol cutover gate or current SQL import
-        if: steps.current.outputs.deploy == 'true' && github.event_name == 'push'
+        if: steps.current.outputs.deploy == 'true'
         working-directory: api
         run: bun scripts/protokoll-migrate.ts --check
-      - name: Download preview database configuration
-        if: steps.current.outputs.deploy == 'true' && github.event_name == 'pull_request'
-        uses: actions/download-artifact@v8
-        with:
-          name: preview-deployment
-          path: api/lib
-      # A playwright-api PR named in the description (playwright-api#12) lends its preview to
-      # this one, so both can be tried together; otherwise, or while its preview does not
-      # answer, the preview uses the production Playwright API. Never fails the deploy.
-      - name: Link playwright-api preview
-        if: steps.current.outputs.deploy == 'true' && github.event_name == 'pull_request'
-        working-directory: api
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bun scripts/playwright-preview.ts "${{ github.event.pull_request.number }}"
-      - name: Download tested API deployment package
+      - name: Upload to Azure Static Web Apps
         if: steps.current.outputs.deploy == 'true'
-        uses: actions/download-artifact@v8
+        uses: ./.github/actions/swa-upload
         with:
-          name: swa-api
-          path: /tmp/swa-package
-      - name: Extract API deployment package
-        if: steps.current.outputs.deploy == 'true'
-        run: |
-          mkdir swa-api
-          tar -xzf /tmp/swa-package/swa-api.tar.gz -C swa-api
-      - name: Apply deployment configuration to API package
-        if: steps.current.outputs.deploy == 'true'
-        working-directory: api
-        # Only these three constants differ between production and a PR preview.
-        env:
-          PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-        run: |
-          bun build lib/deployment.ts --target=node --format=cjs --outfile ../swa-api/dist/bundle/deployment.js
-          node scripts/check-deployment.mjs ../swa-api "$PR_NUMBER"
-      - name: Get Id Token
-        if: steps.current.outputs.deploy == 'true'
-        uses: actions/github-script@v9
-        id: idtoken
-        with:
-          script: |
-            return await core.getIDToken()
-          result-encoding: string
-      - name: Deploy to Azure Static Web Apps
-        if: steps.current.outputs.deploy == 'true'
-        id: deploy
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
-          action: "upload"
-          app_location: "dist"
-          api_location: "swa-api"
-          skip_api_build: true
-          output_location: ""
-          skip_app_build: true
-          github_id_token: ${{ steps.idtoken.outputs.result }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-      # Previews get their login callback registered in Entra, see docs/entra-preview-login.md.
-      # Skipped until the repository variables are set.
-      - name: Azure login (Entra)
-        if: steps.current.outputs.deploy == 'true' && github.event_name == 'pull_request' && vars.ENTRA_DEPLOY_CLIENT_ID != ''
-        uses: azure/login@v3
-        with:
-          client-id: ${{ vars.ENTRA_DEPLOY_CLIENT_ID }}
-          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
-          allow-no-subscriptions: true
-      - name: Register preview login callback
-        if: steps.current.outputs.deploy == 'true' && github.event_name == 'pull_request' && vars.ENTRA_DEPLOY_CLIENT_ID != ''
-        env:
-          ENTRA_WEBSITE_APP_OBJECT_ID: ${{ vars.ENTRA_WEBSITE_APP_OBJECT_ID }}
-          PREVIEW_URL: ${{ steps.deploy.outputs.static_web_app_url }}
-          FALLBACK_HOST: zealous-water-04f606303-${{ github.event.pull_request.number }}.westeurope.1.azurestaticapps.net
-        run: |
-          host="${PREVIEW_URL#https://}"
-          host="${host%%/*}"
-          .github/scripts/entra-preview-redirect.sh add "${host:-$FALLBACK_HOST}"
+          api-token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
   close_pull_request:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
