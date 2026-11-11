@@ -1,5 +1,5 @@
 import type { Locator } from '@playwright/test';
-import { test, expect, navigate, expectNoHorizontalOverflow } from './fixtures';
+import { test, expect, navigate, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`Leitfaden follows ${colorScheme} preference across public, member and staff views`, async ({
@@ -358,7 +358,11 @@ test('Nikolaus selection and error indicators remain distinct in both themes', a
       new URL(response.url()).searchParams.get('date') ===
         new URL(page.url()).searchParams.get('tag')
   );
+  // The first day has no saved Dispo, so the page computes an unsaved suggestion once its data is
+  // there, and changing the day asks first. Wait for it: a click before would change at once.
+  await expect(page.getByText('Vorschlag berechnet – noch nicht gespeichert.')).toBeVisible();
   await days.getByRole('button').last().click();
+  await answerConfirm(page, 'Tag wechseln?', 'Änderungen verwerfen');
   const selected = days.getByRole('button', { pressed: true });
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme });
