@@ -309,6 +309,8 @@ Choose the test level before you write a test. The Playwright suite in `web/test
 - A new E2E test exists only for a new or changed user flow across several pages, or for behavior that only occurs in a real browser (gestures, viewport, focus). The PR description justifies it in one sentence.
 - At most one new E2E test per PR. Extend an existing spec on the topic instead of adding a file.
 - Write a test for the `mobile` project only when the behavior is specific to phones.
+- Prepare the state of a browser test through the demo API instead of clicking through pages; keep one test per flow that clicks through the creation. Every test starts with fresh demo data.
+- When you remove or move a browser test, name what protects the behavior afterwards. If the wiring of a component would be left without any test, keep the shortest browser test that proves it.
 - The check „E2E budget“ (`.github/workflows/e2e-budget.yml`, `web/scripts/ci/e2e-budget.ts`) parses `web/tests/` (nothing is executed) and fails a PR that raises the number of declared E2E tests, tests declared in loops, places where the count is uncertain (`test` passed to a function or used as `test[x]`), or spec files. It counts declared cases, not runs after expanding a loop, and a helper that declares tests counts once per call or argument reference to its name (imports under another name, methods and objects holding `test` are not followed; a maintainer reads the diff for those). Adding an entry to an existing loop's array stays your responsibility. Only the label `e2e-ok`, set by Hugo or a maintainer after reading the justification, releases it. Agents never set that label themselves and never dodge the check by hiding tests behind aliases, loops, helpers or by passing `test` around.
 
 ## Focused Verification
@@ -365,6 +367,9 @@ Details: `docs/ci.md`. Read it before you change a workflow or a CI script.
 - Merge with `gh pr merge <n> --auto --rebase`. If the queue run fails, fix and enqueue again.
 - After the merge, check the push run of the head SHA before you say it is deployed.
 - Never change rulesets or repository settings, and never set the label `e2e-ok`.
+- Numbers about CI come from a run, with its ID; say when it is a single run. Without a browser on the dev machine, browser behavior is verified by the PR run, not locally.
+- A flaky test blocks the merge queue for everybody: fix it first, in its own PR, by waiting for the right condition.
+- Lessons from building the pipeline and from shrinking the browser suite: `docs/ci.md`, "Lessons from building this pipeline".
 
 ## Git History
 
