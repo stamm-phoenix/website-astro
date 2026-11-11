@@ -394,7 +394,9 @@
     // A new receipt waits for the check of its photo; its warnings are taken note of first
     if (!id) {
       const geprueft = await dialog.run(() => photo.fertig(), PHOTO_FEHLER);
-      const hinweise = form ? pruefHinweise(form.aiCheck, photo.photoWarnings) : [];
+      const hinweise = form
+        ? pruefHinweise(form.aiCheck, photo.photoWarnings, photo.draft?.result)
+        : [];
       const bestaetigt =
         geprueft &&
         (hinweise.length === 0 ||

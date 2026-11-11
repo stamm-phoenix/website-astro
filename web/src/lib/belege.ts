@@ -5,7 +5,9 @@ export const BELEG_STATUSES: BelegStatus[] = ['Eingereicht', 'Angenommen', 'Abge
 
 /** Longest edge of the uploaded photo; enough to read small print on a receipt. */
 export const BELEG_PHOTO_EDGE = 2000;
-/** Shorter photos are rejected by the API as unreadable. */
+/** Shorter photos are refused by the API as unreadable (`MIN_BELEG_PHOTO_EDGE` there). */
+export const MIN_BELEG_PHOTO_HARD = 300;
+/** Shorter photos get a hint to check that everything is legible; they can be submitted. */
 export const MIN_BELEG_PHOTO_EDGE = 800;
 /** Edge of the grayscale copy used for the quality hints. */
 const ANALYSIS_EDGE = 400;
@@ -77,17 +79,12 @@ export function measureQuality(
   return { brightness, sharpness: count ? m2 / count : 0 };
 }
 
-/** Hints about a photo that is likely hard to read; empty if it looks fine. */
-export function qualityWarnings(
-  quality: PhotoQuality,
-  size: { width: number; height: number }
-): string[] {
+/**
+ * Hints about a photo that is likely hard to read (dark, blurry); empty if it looks fine. Its
+ * size is judged on the finished, cropped photo (`pruefHinweise`).
+ */
+export function qualityWarnings(quality: PhotoQuality): string[] {
   const warnings: string[] = [];
-  if (Math.max(size.width, size.height) < MIN_BELEG_PHOTO_EDGE) {
-    warnings.push(
-      'Das Foto ist sehr klein. Bitte näher heran oder mit höherer Auflösung fotografieren.'
-    );
-  }
   if (quality.brightness < MIN_BRIGHTNESS) {
     warnings.push('Das Foto wirkt sehr dunkel. Bitte bei mehr Licht fotografieren.');
   }
@@ -122,7 +119,7 @@ export async function loadPhoto(file: Blob): Promise<HTMLCanvasElement> {
   }
 }
 
-/** Hints whether the photo on the canvas is hard to read (dark, blurry, too small). */
+/** Hints whether the photo on the canvas is hard to read (dark, blurry). */
 export function photoWarnings(canvas: HTMLCanvasElement): string[] {
   const { width, height } = canvas;
   const analysisScale = Math.min(1, ANALYSIS_EDGE / Math.max(width, height));
@@ -139,7 +136,7 @@ export function photoWarnings(canvas: HTMLCanvasElement): string[] {
   for (let i = 0; i < gray.length; i++) {
     gray[i] = 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
   }
-  return qualityWarnings(measureQuality(gray, aw, ah), { width, height });
+  return qualityWarnings(measureQuality(gray, aw, ah));
 }
 
 export { canvasToJpeg } from './image';

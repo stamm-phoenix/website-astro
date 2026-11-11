@@ -230,7 +230,7 @@ test('editing the stored photo clears the message of a refused replacement', asy
   await input.setInputFiles({
     name: 'klein.png',
     mimeType: 'image/png',
-    buffer: Buffer.from(await photo(300, 400)),
+    buffer: Buffer.from(await photo(200, 280)),
   });
   const tooSmall = dialog.getByText(/Das Foto ist zu klein/);
   await expect(tooSmall).toBeVisible();

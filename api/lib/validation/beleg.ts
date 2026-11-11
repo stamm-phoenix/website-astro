@@ -22,8 +22,11 @@ export const MAX_BELEG_PDF_BYTES = 5 * 1024 * 1024;
  * usually is. More pictures would make the check slow and expensive.
  */
 export const MAX_BELEG_CHECK_PAGES = 5;
-/** Shorter photos are too small to read a receipt. */
-export const MIN_BELEG_PHOTO_EDGE = 800;
+/**
+ * Longer edge below which a photo cannot show a receipt legibly. Whether a larger one is legible
+ * is up to the check and the person submitting it (the form warns below 800 px), not a hard limit.
+ */
+export const MIN_BELEG_PHOTO_EDGE = 300;
 /** Kostenstelle and Kategorie; CampFlow's own names are far shorter. */
 export const MAX_BELEG_ZUORDNUNG = 120;
 /** 10.000 € – anything above is surely a typo. */

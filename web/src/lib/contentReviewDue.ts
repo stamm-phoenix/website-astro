@@ -15,6 +15,9 @@ export function contentReviewDue(
   item: Pick<ContentReviewItem, 'reviewedAt' | 'changedSinceReview'>,
   now: Date
 ): boolean {
-  return !item.reviewedAt || item.changedSinceReview ||
-    new Date(item.reviewedAt) <= contentReviewCutoff(now);
+  return (
+    !item.reviewedAt ||
+    item.changedSinceReview ||
+    new Date(item.reviewedAt) <= contentReviewCutoff(now)
+  );
 }
