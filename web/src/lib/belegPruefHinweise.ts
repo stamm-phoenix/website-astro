@@ -1,11 +1,23 @@
+import { MIN_BELEG_PHOTO_EDGE } from './belege';
 import type { BelegCheck } from './types';
 
 /**
  * What the check of a receipt's photo warns about, one sentence each: what the photo itself
- * showed (`warnings`, e.g. too dark) and what the automatic check found. Empty when all is well.
+ * showed (`warnings`, e.g. too dark), its size once cropped (`groesse`) and what the automatic
+ * check found. Empty when all is well.
  */
-export function pruefHinweise(check: BelegCheck | null, warnings: string[]): string[] {
+export function pruefHinweise(
+  check: BelegCheck | null,
+  warnings: string[],
+  groesse?: { width: number; height: number } | null
+): string[] {
   const hinweise = [...warnings];
+  const kante = groesse ? Math.max(groesse.width, groesse.height) : null;
+  if (kante !== null && kante < MIN_BELEG_PHOTO_EDGE) {
+    hinweise.push(
+      `Das Foto ist klein (${kante} Pixel an der längeren Seite). Prüfe, ob Betrag, Datum und Geschäft gut lesbar sind.`
+    );
+  }
   if (check && !check.isReceipt) hinweise.push('Das Foto zeigt möglicherweise keinen Beleg.');
   if (check && !check.ok) {
     if (check.issues.length) hinweise.push(...check.issues);

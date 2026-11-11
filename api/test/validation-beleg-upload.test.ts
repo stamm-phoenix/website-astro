@@ -54,7 +54,9 @@ test('a missing, invalid or unusable photo is refused', () => {
     { photo: 'AAA' },
   ])
     assert.deepEqual(failure(body), { status: 400, code: 'INVALID' }, JSON.stringify(body));
-  assert.deepEqual(failure({ photo: encode(jpeg(600, 400)) }), { status: 400, code: 'INVALID' });
+  assert.deepEqual(failure({ photo: encode(jpeg(280, 200)) }), { status: 400, code: 'INVALID' });
+  // A small photo, e.g. a ticket cropped from a larger one, is up to the check, not refused
+  assert.equal(checkPhoto(jpeg(600, 400)), undefined);
   assert.deepEqual(failure({ photo: Buffer.from('plain text').toString('base64') }), {
     status: 400,
     code: 'INVALID',

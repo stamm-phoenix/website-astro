@@ -27,7 +27,7 @@ export function checkPhoto(bytes: Uint8Array): HttpResponseInit | undefined {
     return errorResponse(
       400,
       'INVALID',
-      'Das Foto ist zu klein, um den Beleg zu lesen. Bitte näher heran oder mit höherer Auflösung fotografieren.'
+      `Das Foto ist zu klein, um den Beleg zu lesen (unter ${MIN_BELEG_PHOTO_EDGE} Pixeln an der längeren Seite). Bitte näher heran oder mit höherer Auflösung fotografieren.`
     );
   }
   return undefined;

@@ -43,3 +43,11 @@ test('without its own words the check says what is missing', () => {
   );
   assert.equal(pruefHinweise({ ...ok, unsignedEigenbeleg: true }, []).length, 1);
 });
+
+test('a small photo is a hint to check it, judged on its finished size', () => {
+  assert.deepEqual(pruefHinweise(ok, [], { width: 650, height: 400 }), [
+    'Das Foto ist klein (650 Pixel an der längeren Seite). Prüfe, ob Betrag, Datum und Geschäft gut lesbar sind.',
+  ]);
+  assert.deepEqual(pruefHinweise(ok, [], { width: 600, height: 800 }), []);
+  assert.deepEqual(pruefHinweise(ok, [], null), []);
+});
