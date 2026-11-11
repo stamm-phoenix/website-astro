@@ -10,8 +10,7 @@
   import TaskAssigneeField from './TaskAssigneeField.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
-  import { rescuePeople } from '../lib/taskRescue';
-  import type { RescueField } from '../lib/geretteteEingaben';
+  import { rescuePeople, rescueRowCount } from '../lib/taskRescue';
   let {
     target: initialTarget = null,
     onclose,
@@ -36,28 +35,12 @@
   const form = createTaskForm();
   const fields = $derived(form.state.fields);
   const busy = $derived(form.state.busy);
-  const rowCount: RescueField = {
-    key: 'Vorlagenaufgaben#custom',
-    structure: true,
-    get: () => String(items.length),
-    describe: (value) => `${value} Aufgaben`,
-    set(value) {
-      const count = Number(value);
-      if (!Number.isInteger(count) || count < 1 || count > 50) return false;
-      items = Array.from(
-        { length: count },
-        (_, index) =>
-          items[index] ?? {
-            title: '',
-            description: '',
-            assignee: '',
-            assignees: [],
-            daysBefore: 0,
-          }
-      );
-      return true;
-    },
-  };
+  const rowCount = rescueRowCount(
+    'Vorlagenaufgaben#custom',
+    () => items,
+    (rows) => (items = rows),
+    () => ({ title: '', description: '', assignee: '', assignees: [], daysBefore: 0 })
+  );
   async function save(): Promise<void> {
     await form.submit(async () => {
       await sendApi(

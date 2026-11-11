@@ -160,18 +160,18 @@ const title =
 </BaseLayout>
 
 <script>
-  import { loginUrl, reloginOnlyHere } from '../lib/api';
+  import { reloginOnlyHere } from '../lib/api';
+  import { loginForNewWindow } from '../lib/appAnmeldung';
 
-  // In the iPhone app a link opening a new window goes to Safari, which has its own login. A
-  // protected page is opened through the login there, which comes back to it.
-  const PROTECTED = /^\/(leitendenbereich|api\/intern)(\/|$)/;
+  // In the iPhone app a protected page in a new window opens through the login of that window
   document.addEventListener('click', (event) => {
     if (event.defaultPrevented || !reloginOnlyHere() || !(event.target instanceof Element)) return;
     const link = event.target.closest('a[target="_blank"]');
-    if (!(link instanceof HTMLAnchorElement) || link.origin !== location.origin) return;
-    if (!PROTECTED.test(link.pathname)) return;
+    if (!(link instanceof HTMLAnchorElement)) return;
+    const login = loginForNewWindow(link, location.origin);
+    if (!login) return;
     event.preventDefault();
-    window.open(loginUrl(`${link.pathname}${link.search}${link.hash}`), '_blank', 'noopener');
+    window.open(login, '_blank', 'noopener');
   });
 
   function showOfflineNotice(): void {
