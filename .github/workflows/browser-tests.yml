@@ -77,8 +77,8 @@ jobs:
       cancel-in-progress: true
     strategy:
       fail-fast: false
-      # Chromium shards of about three minutes each (at most twelve) and WebKit when one of its
-      # specs is affected; each entry carries its own list of project/files
+      # Chromium shards balanced on their estimated wall time (at most twelve), and WebKit when
+      # one of its specs is affected; each entry carries its own list of project/files
       matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7

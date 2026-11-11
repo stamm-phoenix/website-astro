@@ -3,18 +3,20 @@
  * Actions matrix. Used by `select-browser-shards.ts` in the job `select` of
  * `.github/workflows/browser-tests.yml`, which runs once per workflow run.
  *
- * Chromium (projects `desktop` and `mobile`) gets as many shards as the summed durations need,
- * WebKit (`webkit-tablet`) one job, and only when one of its specs is selected.
+ * Chromium (projects `desktop` and `mobile`) gets as few shards as keep the estimated wall time
+ * of each at about `TARGET_SECONDS` (`browser-shards.ts`), WebKit (`webkit-tablet`) one job,
+ * and only when one of its specs is selected.
  */
-import { balanceGroups } from './browser-shards';
+import { balanceGroups, estimateWallSeconds, shardLimit } from './browser-shards';
 import type { TestGroup } from './browser-shards';
 
 /**
- * Summed spec seconds per Chromium shard. In the full run 42920295941 on main, a shard with
- * 561 summed seconds took 253 s in its test step (four workers, one server each), so about
- * 360 summed seconds give the target of about three minutes of test time per shard.
+ * Estimated seconds from the first to the last test of a Chromium shard. Start of the dev
+ * servers and warm-up add 24 to 43 s to the test step, and the estimate was at most 22 s below
+ * the real time (run 42947457925), so a shard stays below about 3:40 min. A shard whose longest
+ * file takes longer may take as long as that file, since a file never splits.
  */
-export const SHARD_SECONDS = 360;
+export const TARGET_SECONDS = 150;
 export const MAX_SHARDS = 12;
 const WEBKIT_PROJECT = 'webkit-tablet';
 const CHROMIUM_WORKERS = 4;
@@ -30,8 +32,10 @@ export interface BrowserJob {
   workers: number;
   /** Lines of the `--test-list` file, `[project] > file` */
   tests: string;
-  /** Estimated summed seconds of the specs */
+  /** Summed seconds of the specs */
   seconds: number;
+  /** Estimated seconds from the first to the last test, see `estimateWallSeconds` */
+  wall: number;
 }
 
 export interface BrowserMatrix {
@@ -70,9 +74,38 @@ export function withDurations(
   }));
 }
 
-/** Chromium shards for the summed seconds: about `SHARD_SECONDS` each, 1 to `MAX_SHARDS`. */
-export function shardCount(seconds: number): number {
-  return Math.min(MAX_SHARDS, Math.max(1, Math.ceil(seconds / SHARD_SECONDS)));
+/** Lowers the target in these steps while the shard count still fits, to even out the shards. */
+const EVEN_OUT_STEP = 5;
+
+function fits(shards: readonly TestGroup[][], target: number): boolean {
+  return shards.every(
+    (shard) => estimateWallSeconds(shard, CHROMIUM_WORKERS) <= shardLimit(shard, target)
+  );
+}
+
+/**
+ * The fewest Chromium shards (1 to `MAX_SHARDS`, never more than files) that each stay within
+ * `TARGET_SECONDS` or their longest file; `MAX_SHARDS` when no count does. With that count the
+ * target is then lowered as far as everything still fits, so the work spreads evenly instead of
+ * filling the first shards and leaving a small last one.
+ */
+export function chromiumShards(groups: readonly TestGroup[]): TestGroup[][] {
+  if (groups.length === 0) return [];
+  const most = Math.min(MAX_SHARDS, groups.length);
+  let count = 1;
+  let shards = balanceGroups(groups, count, CHROMIUM_WORKERS, TARGET_SECONDS);
+  while (!fits(shards, TARGET_SECONDS) && count < most) {
+    count += 1;
+    shards = balanceGroups(groups, count, CHROMIUM_WORKERS, TARGET_SECONDS);
+  }
+  if (fits(shards, TARGET_SECONDS)) {
+    for (let target = TARGET_SECONDS - EVEN_OUT_STEP; target > 0; target -= EVEN_OUT_STEP) {
+      const lower = balanceGroups(groups, count, CHROMIUM_WORKERS, target);
+      if (!fits(lower, target)) break;
+      shards = lower;
+    }
+  }
+  return shards.filter((s) => s.length > 0);
 }
 
 const sum = (groups: readonly TestGroup[]): number => groups.reduce((n, g) => n + g.seconds, 0);
@@ -85,7 +118,7 @@ export function browserMatrix(groups: readonly TestGroup[]): BrowserMatrix {
   const chromium = groups.filter((g) => g.project !== WEBKIT_PROJECT);
   const include: BrowserJob[] = [];
   if (chromium.length > 0) {
-    const shards = balanceGroups(chromium, shardCount(sum(chromium))).filter((s) => s.length > 0);
+    const shards = chromiumShards(chromium);
     shards.forEach((shard, index) => {
       include.push({
         name: `${index + 1}/${shards.length}`,
@@ -95,6 +128,7 @@ export function browserMatrix(groups: readonly TestGroup[]): BrowserMatrix {
         workers: CHROMIUM_WORKERS,
         tests: testList(shard),
         seconds: Math.round(sum(shard)),
+        wall: Math.round(estimateWallSeconds(shard, CHROMIUM_WORKERS)),
       });
     });
   }
@@ -108,6 +142,7 @@ export function browserMatrix(groups: readonly TestGroup[]): BrowserMatrix {
       workers: 1,
       tests: testList([...webkit].sort((a, b) => a.file.localeCompare(b.file))),
       seconds: Math.round(sum(webkit)),
+      wall: Math.round(estimateWallSeconds(webkit, 1)),
     });
   }
   return { include };

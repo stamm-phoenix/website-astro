@@ -70,14 +70,17 @@ if (base) {
   console.log('Whole suite: no base given');
 }
 
-// Measured in run 42920295941 on main; a new project/file uses the median known duration
+// Mean of the full runs 42920295941, 42946213010 and 42947457925; a new project/file uses the
+// median known duration
 const durations = parseDurations(
   readFileSync(new URL('./browser-durations.tsv', import.meta.url), 'utf8')
 );
 const matrix = browserMatrix(withDurations(candidates, durations));
 for (const job of matrix.include) {
   const files = job.tests.split('\n').length;
-  console.log(`${job.browser} ${job.name}: ${files} project/files, about ${job.seconds} s summed`);
+  console.log(
+    `${job.browser} ${job.name}: ${files} project/files, ${job.seconds} s summed, about ${job.wall} s wall`
+  );
 }
 if (matrix.include.length === 0) console.log('No browser specs to run.');
 if (process.env.GITHUB_OUTPUT) {
