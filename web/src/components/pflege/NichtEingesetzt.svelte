@@ -1,8 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import { rescuedLabel, type GeretteterWert } from '../../lib/geretteteEingaben';
-  import { sanitizeFaqAnswer } from '../../lib/api';
-  import { parseHtml } from '../../lib/html';
+  import { clipboardContent, editorHtml, keptText } from '../../lib/nichtEingesetzt';
 
   /**
    * Input from before a new login in the iPhone app that the dialog could not fill in itself,
@@ -20,25 +19,17 @@
   let failed = $state<number | null>(null);
   let applyFailed = $state<string | null>(null);
 
-  /** Only explicitly marked editor HTML is interpreted; ordinary fields stay plain text. */
-  function editorHtml(kept: GeretteterWert): string | null {
-    return kept.kind === 'editor' && kept.format === 'html' ? sanitizeFaqAnswer(kept.value) : null;
-  }
-
   async function copy(index: number, kept: GeretteterWert): Promise<void> {
     try {
-      const html = editorHtml(kept);
+      const { html, text } = clipboardContent(kept);
       if (html !== null) {
-        const doc = parseHtml(html);
-        for (const br of doc.querySelectorAll('br')) br.replaceWith(doc.createTextNode('\n'));
-        for (const block of doc.querySelectorAll('p, div, li')) block.append('\n');
         await navigator.clipboard.write([
           new ClipboardItem({
             'text/html': new Blob([html], { type: 'text/html' }),
-            'text/plain': new Blob([doc.body.textContent?.trim() ?? ''], { type: 'text/plain' }),
+            'text/plain': new Blob([text], { type: 'text/plain' }),
           }),
         ]);
-      } else await navigator.clipboard.writeText(kept.display ?? kept.value);
+      } else await navigator.clipboard.writeText(text);
       copied = index;
       failed = null;
     } catch {
@@ -66,7 +57,7 @@
       <li class="border-t border-neutral-200 pt-2">
         <p class="font-semibold text-neutral-800">{rescuedLabel(kept)}</p>
         {#if kept.kind === 'checked'}
-          <p class="text-neutral-800">{kept.value === 'true' ? 'angehakt' : 'nicht angehakt'}</p>
+          <p class="text-neutral-800">{keptText(kept)}</p>
         {:else}
           {@const html = editorHtml(kept)}
           {#if html}
@@ -76,9 +67,7 @@
             </div>
           {:else}
             <p class="whitespace-pre-wrap break-words text-neutral-800">
-              {html === '' || (kept.display ?? kept.value) === ''
-                ? 'Leer'
-                : (kept.display ?? kept.value)}
+              {keptText(kept)}
             </p>
           {/if}
           <div class="mt-1 flex flex-wrap items-center gap-2">

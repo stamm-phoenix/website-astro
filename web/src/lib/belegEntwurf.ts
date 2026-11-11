@@ -107,3 +107,11 @@ export async function fotoNutzlast(current: Draft): Promise<FotoNutzlast> {
     ? { photo, original: await blobToBase64(current.originalBlob) }
     : { photo };
 }
+
+/** Note at the login link of the iPhone app: a chosen file is not kept across the new login. */
+export function rettungsWarnung(draft: Draft | null): string | null {
+  if (!draft || !ungespeichert(draft)) return null;
+  return draft.pdf
+    ? 'Das ausgewählte PDF wird nicht gesichert. Wähle es nach der neuen Anmeldung erneut aus.'
+    : 'Das ausgewählte Foto und sein Zuschnitt werden nicht gesichert. Wähle das Foto nach der neuen Anmeldung erneut aus und schneide es wieder zu.';
+}

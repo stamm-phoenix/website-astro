@@ -39,3 +39,28 @@ export function rescuePeople(
     },
   };
 }
+
+/**
+ * Keeps the number of rows of a list, so kept row values find their fields after the rows were
+ * added again. Missing rows are made with `blank`, rows beyond the count are dropped.
+ */
+export function rescueRowCount<T>(
+  key: string,
+  get: () => T[],
+  set: (rows: T[]) => void,
+  blank: () => T
+): RescueField {
+  return {
+    key,
+    structure: true,
+    get: () => String(get().length),
+    describe: (value) => `${value} Aufgaben`,
+    set(value) {
+      const count = Number(value);
+      if (!Number.isInteger(count) || count < 1 || count > 50) return false;
+      const rows = get();
+      set(Array.from({ length: count }, (_, index) => rows[index] ?? blank()));
+      return true;
+    },
+  };
+}

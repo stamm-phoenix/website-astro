@@ -9,19 +9,27 @@
   import NichtEingesetzt from './NichtEingesetzt.svelte';
   import {
     fillDialog,
-    fillRescueFields,
-    rescueDialog,
     setRescueContext,
-    findRescue,
     forgetRescue,
     shownValues,
     withoutEditedField,
-    rescuedLabel,
     type GeretteterWert,
     type RescueEditor,
     type RescueField,
     type RescueDependency,
   } from '../../lib/geretteteEingaben';
+  import {
+    acceptVersion,
+    adoptKept,
+    canAdopt,
+    leftOverValues,
+    fillAppeared,
+    keepDialogInput,
+    keptOnOpening,
+    openedDialog,
+    rescueNotice,
+    restoreKept,
+  } from '../../lib/dialogRettung';
 
   interface Props {
     open: boolean;
@@ -108,17 +116,9 @@
   let previousFocus: HTMLElement | null = null;
   /** Kept input without a field to go into, e.g. a row the form does not have yet. */
   let pending = $state<GeretteterWert[]>([]);
-  const leftOver = $derived(rescueConflict ? pending : shownValues(pending));
+  const leftOver = $derived(leftOverValues(rescueConflict, pending));
   const shownNotice = $derived(
-    notice ??
-      rescueAppliedNotice ??
-      (rescueConflict
-        ? 'Dieser Eintrag wurde inzwischen geändert. Deine früheren Eingaben stehen im Abschnitt „Noch nicht eingesetzt“. Prüfe die aktuelle Fassung, bevor du etwas übernimmst und speicherst.'
-        : !restored
-          ? null
-          : leftOver.length > 0
-            ? 'Ein Teil deiner Eingaben von vor der neuen Anmeldung ist wieder eingesetzt. Den Rest findest du im Abschnitt „Noch nicht eingesetzt“.'
-            : 'Deine Eingaben von vor der neuen Anmeldung sind wieder eingesetzt. Prüf sie und speichere.')
+    notice ?? rescueAppliedNotice ?? rescueNotice(rescueConflict, restored, leftOver.length)
   );
 
   async function keepEditing(): Promise<void> {
@@ -159,19 +159,14 @@
 
   // A new login in the iPhone app reloads the page; the input is kept and filled in again
   let editors: RescueEditor[] = [];
-  /** Title and field values when the dialog opened; they identify the record being edited. */
-  let openingTitle = '';
+  /** Record, title and field values when the dialog opened; they identify what is edited. */
+  let opening = openedDialog(undefined, '', '', []);
   /** The record of the open dialog: `rescueKey` when it opened. */
   let record: string | undefined;
-  let opening = '';
-  let openingVersion = '';
-  let openingValues: string[] = [];
 
   /** A confirmed partial write (a photo) advances only our version, never unsaved fields. */
   export function acceptRescueVersion(previous: string, saved: string): void {
-    if (rescueConflict || openingVersion !== previous) return;
-    openingVersion = saved;
-    opening = JSON.stringify([openingVersion, openingVersion ? [] : openingValues]);
+    if (!rescueConflict) opening = acceptVersion(opening, previous, saved);
   }
 
   /** Additional save/transfer actions use the same error guidance as the submit button. */
@@ -182,17 +177,8 @@
     warning: () => rescueWarning,
     enabled: () => record !== undefined,
     rescue: () =>
-      !rescueConflict && form && record !== undefined
-        ? rescueDialog(
-            form,
-            record,
-            openingTitle,
-            opening,
-            editors,
-            pending,
-            rescueFields,
-            rescueDependencies
-          )
+      !rescueConflict && form
+        ? keepDialogInput(form, opening, editors, pending, rescueFields, rescueDependencies)
         : false,
     register(editor) {
       editors.push(editor);
@@ -208,16 +194,7 @@
 
   async function restore(kept: GeretteterWert[]): Promise<void> {
     if (!form) return;
-    pending = fillRescueFields(kept, rescueFields, true);
-    if (pending.length !== kept.length) await tick();
-    pending = fillRescueFields(pending, rescueFields);
-    // Choices first: their handlers may change other fields, which take their values after
-    pending = fillDialog(form, editors, pending, 'choices');
-    await tick();
-    pending = fillDialog(form, editors, pending);
-    // Fields that appear only after a choice above them
-    await tick();
-    if (pending.length > 0) pending = fillDialog(form, editors, pending);
+    pending = await restoreKept(form, editors, kept, rescueFields, tick);
     // Kept until everything found its field; editors still loading take theirs on arrival
     if (shownValues(pending).length === 0) forgetRescue(record);
     restored = true;
@@ -235,38 +212,31 @@
     rescueAppliedNotice = null;
     pending = [];
     discarded = false;
-    openingTitle = title;
     record = rescueKey;
-    openingVersion = rescueVersion ?? '';
-    // A persisted record's version identifies its original data. Displayed defaults can
-    // depend on separately loaded prices or names and must not create false conflicts.
-    // New records have no version, so compare their visible starting fields instead.
-    openingValues = initial
-      .filter(({ el }) => !(el instanceof HTMLInputElement && el.type === 'hidden'))
-      .map((entry) => entry.value);
-    opening = JSON.stringify([openingVersion, openingVersion ? [] : openingValues]);
-    const kept =
-      record === undefined
-        ? null
-        : findRescue(record, opening, Date.now(), rescueDependencyVersion);
-    if (kept) void restore(kept);
-    else if (record !== undefined) {
-      const conflicting = findRescue(record, null, Date.now());
-      if (conflicting) {
-        pending = conflicting;
-        rescueConflict = true;
-        restored = true;
-      }
+    opening = openedDialog(
+      record,
+      title,
+      rescueVersion ?? '',
+      initial
+        .filter(({ el }) => !(el instanceof HTMLInputElement && el.type === 'hidden'))
+        .map((entry) => entry.value)
+    );
+    const kept = keptOnOpening(opening, Date.now(), rescueDependencyVersion);
+    if (kept && !kept.conflict) void restore(kept.values);
+    else if (kept) {
+      pending = kept.values;
+      rescueConflict = true;
+      restored = true;
     }
   }
 
   /** Explicitly adopts one compound selection; other saved values are never filled in. */
   function applyRescueField(kept: GeretteterWert): boolean {
-    if (!open || busy || kept.kind !== 'custom') return false;
-    const field = rescueFields.find((entry) => entry.key === kept.key && !entry.structure);
-    if (!field?.set(kept.value)) return false;
-    pending = pending.filter((entry) => entry.key !== kept.key);
-    rescueAppliedNotice = `${rescuedLabel(kept)} übernommen. Prüfe die Auswahl im Formular und speichere.`;
+    if (!open || busy) return false;
+    const adopted = adoptKept(kept, pending, rescueFields);
+    if (!adopted) return false;
+    pending = adopted.pending;
+    rescueAppliedNotice = adopted.notice;
     void tick().then(updateEdited);
     return true;
   }
@@ -295,8 +265,7 @@
     if (!form || !restored || rescueConflict || pending.length === 0) return;
     const target = form;
     const observer = new MutationObserver(() => {
-      pending = fillRescueFields(pending, rescueFields);
-      pending = fillDialog(target, editors, pending);
+      pending = fillAppeared(target, editors, pending, rescueFields);
       if (shownValues(pending).length === 0) forgetRescue(record);
     });
     observer.observe(target, { childList: true, subtree: true });
@@ -365,8 +334,7 @@
       {#if restored && leftOver.length > 0}<NichtEingesetzt
           values={leftOver}
           conflict={rescueConflict}
-          canApply={(kept) =>
-            rescueFields.some((field) => field.key === kept.key && !field.structure)}
+          canApply={(kept) => canAdopt(kept, rescueFields)}
           onapply={applyRescueField}
         />{/if}
     </div>

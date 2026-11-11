@@ -8,7 +8,7 @@
     type BelegForm,
   } from '../../lib/belegForm';
   import { zuordnungStand } from '../../lib/belegZuordnung';
-  import { ungespeichert, zuSpeichern } from '../../lib/belegEntwurf';
+  import { rettungsWarnung, ungespeichert, zuSpeichern } from '../../lib/belegEntwurf';
   import { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import BelegFields from './BelegFields.svelte';
   import BelegPhotoSection from './BelegPhotoSection.svelte';
@@ -621,13 +621,7 @@
   title={form?.id ? `Beleg von ${form.shop || 'unbekannt'}` : 'Beleg einreichen'}
   rescueKey={form ? `beleg:${form.id ?? 'neu'}` : undefined}
   rescueVersion={form?.etag}
-  rescueWarning={!ungespeichert(photo.draft)
-    ? null
-    : photo.draft?.pdf
-      ? 'Das ausgewählte PDF wird nicht gesichert. Wähle es nach der neuen Anmeldung erneut aus.'
-      : photo.draft
-        ? 'Das ausgewählte Foto und sein Zuschnitt werden nicht gesichert. Wähle das Foto nach der neuen Anmeldung erneut aus und schneide es wieder zu.'
-        : null}
+  rescueWarning={rettungsWarnung(photo.draft)}
   busy={busy || photo.photoBusy}
   error={dialog.state.error}
   notice={dialogNotice}

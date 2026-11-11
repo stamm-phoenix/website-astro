@@ -15,6 +15,7 @@
   import HelfendeCoverage from './nikolaus/HelfendeCoverage.svelte';
   import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
   import type { RescueField } from '../lib/geretteteEingaben';
+  import { rescueTags } from '../lib/nikolausWunschRettung';
 
   interface Props {
     data: StaffNikolausHelfendeData;
@@ -36,22 +37,15 @@
 
   let form = $state<Form | null>(null);
   function tagRecovery(field: 'positiveTags' | 'negativeTags', label: string): RescueField {
-    return {
-      key: `${label}#custom`,
-      get: () => JSON.stringify(form?.[field] ?? []),
-      describe: (value) => (JSON.parse(value) as string[]).join(', '),
-      set(value) {
-        try {
-          const tags: unknown = JSON.parse(value);
-          if (!form || !Array.isArray(tags) || !tags.every((tag) => typeof tag === 'string'))
-            return false;
-          form[field] = tags;
-          return true;
-        } catch {
-          return false;
-        }
-      },
-    };
+    return rescueTags(
+      label,
+      () => form?.[field],
+      (tags) => {
+        if (!form) return false;
+        form[field] = tags;
+        return true;
+      }
+    );
   }
   let busy = $state(false);
   let initialTags = $state('');
