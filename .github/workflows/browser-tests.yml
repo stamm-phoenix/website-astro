@@ -116,6 +116,13 @@ jobs:
         run: bun run test:e2e ${{ matrix.args }}
         env:
           E2E_WORKERS: ${{ matrix.workers }}
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/results.json
+      - name: List failed and flaky tests
+        # Never fails the job; a shard without tests or report writes nothing
+        if: always()
+        continue-on-error: true
+        working-directory: web
+        run: bun scripts/ci/flaky-summary.ts test-results/results.json "${{ matrix.name }}"
       - name: Upload browser report
         if: always()
         uses: actions/upload-artifact@v7

@@ -707,6 +707,31 @@ jobs:
         # Changes from the Pflege forms and manual runs always build
         run: bun scripts/content-check.ts ${{ github.event_name != 'schedule' && '--force' || '' }}
 
+  main-deployed:
+    # Only a signal, apart from the content jobs: a failure here does not skip them
+    if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+    needs: content-check
+    runs-on: ubuntu-24.04
+    name: Check that main is deployed
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Compare the deployed commit with main
+        working-directory: web
+        env:
+          DEPLOYED_COMMIT: ${{ needs.content-check.outputs.commit }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bun scripts/main-deployed-check.ts
+
   content-build:
     needs: content-check
     if: needs.content-check.outputs.build == 'true'
