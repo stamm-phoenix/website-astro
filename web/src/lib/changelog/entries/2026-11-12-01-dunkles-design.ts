@@ -1,8 +1,8 @@
 import type { ChangelogEntry } from '../../changelog';
 
 const entry: ChangelogEntry = {
-  id: '2026-11-11-02-dunkles-design',
-  date: '2026-11-11',
+  id: '2026-11-12-01-dunkles-design',
+  date: '2026-11-12',
   title: 'Dunkles Design überarbeitet',
   changes: [
     'Das dunkle Design hat jetzt einen warmen, dunkelgrauen Grundton statt Dunkelblau, passend zum beigen hellen Design.',
