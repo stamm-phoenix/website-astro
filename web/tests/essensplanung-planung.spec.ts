@@ -1,5 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import { anlegen } from './essensplanung-helpers';
+import { planungVorbereiten } from './essensplanung-vorbereitung';
 import { quiet, settle } from './settle';
 
 test('a Planung is created, its meals are edited and others see the changes', async ({
@@ -44,7 +45,7 @@ test('a Planung is created, its meals are edited and others see the changes', as
 });
 
 test('members are invited, join by link, read only, and lose access', async ({ page, browser }) => {
-  await anlegen(page, 'E2E Mitglieder');
+  await planungVorbereiten(page, 'E2E Mitglieder');
   await page.getByRole('tab', { name: 'Mitglieder' }).click();
 
   await page.getByLabel('Name', { exact: true }).fill('Ben Bezirk');
@@ -107,7 +108,7 @@ test('members are invited, join by link, read only, and lose access', async ({ p
 });
 
 test('owners rename and delete; the Steuerung lists the Planungen', async ({ page }) => {
-  await anlegen(page, 'E2E Löschen');
+  await planungVorbereiten(page, 'E2E Löschen');
   await page.getByRole('tab', { name: 'Einstellungen' }).click();
   await page.getByLabel('Name der Planung').fill('E2E Umbenannt');
   await page.getByRole('button', { name: 'Speichern' }).click();
@@ -135,7 +136,7 @@ test('an incomplete or old link explains how to get a new one', async ({ page })
 test('input survives changes of others and saves in turn', async ({ page, browser }) => {
   // Two windows and five rounds of polling: about 25 s alone, more on a busy runner
   test.slow();
-  await anlegen(page, 'E2E Entwurf');
+  await planungVorbereiten(page, 'E2E Entwurf');
   const link = page.url();
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(link);
@@ -233,7 +234,7 @@ test('saving the name keeps a setting someone else changed; long links fit', asy
   page,
   browser,
 }) => {
-  await anlegen(page, 'E2E Einstellungen');
+  await planungVorbereiten(page, 'E2E Einstellungen');
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Einstellungen' }).click();
@@ -268,7 +269,7 @@ test('saving the name keeps a setting someone else changed; long links fit', asy
 test('unsaved meals ask before leaving; typing while saving the settings keeps the input', async ({
   page,
 }) => {
-  await anlegen(page, 'E2E Verlassen');
+  await planungVorbereiten(page, 'E2E Verlassen');
 
   // A meal whose save failed stays as a draft, and leaving the page asks first
   await page.route('**/api/essensplanung/planung/mahlzeiten/*', (route) =>
@@ -303,7 +304,7 @@ test('unsaved meals ask before leaving; typing while saving the settings keeps t
 test('the skip link keeps the Planung on reload; a name typed while saving stays', async ({
   page,
 }) => {
-  await anlegen(page, 'E2E Sprung');
+  await planungVorbereiten(page, 'E2E Sprung');
   await page.getByRole('link', { name: 'Zum Inhalt springen' }).focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/#main$/);
@@ -327,7 +328,7 @@ test('the skip link keeps the Planung on reload; a name typed while saving stays
 });
 
 test('typing on while a meal or an invitation is saved keeps the next input', async ({ page }) => {
-  await anlegen(page, 'E2E Weiter');
+  await planungVorbereiten(page, 'E2E Weiter');
 
   // The name is saved while the next meal has focus; a second name afterwards is no conflict
   let ersteMahlzeit = true;
@@ -372,7 +373,7 @@ test('a replaced link keeps the input; drafts ask before leaving; arrow keys swi
   page,
   browser,
 }) => {
-  await anlegen(page, 'E2E Ersetzt');
+  await planungVorbereiten(page, 'E2E Ersetzt');
 
   // Arrow keys move between the areas
   await page.getByRole('tab', { name: 'Plan' }).focus();
@@ -440,7 +441,7 @@ test('a replaced link keeps the input; drafts ask before leaving; arrow keys swi
 test('a failing sync is shown; a failed day move stays and asks before leaving', async ({
   page,
 }) => {
-  await anlegen(page, 'E2E Abgleich');
+  await planungVorbereiten(page, 'E2E Abgleich');
 
   // Server errors of the sync show a hint until it works again
   await page.route('**/api/essensplanung/planung/stand*', (route) =>
@@ -471,7 +472,7 @@ test('a failing sync is shown; a failed day move stays and asks before leaving',
 });
 
 test('a meal deleted by someone else shows the unsaved input', async ({ page, browser }) => {
-  await anlegen(page, 'E2E Gelöscht');
+  await planungVorbereiten(page, 'E2E Gelöscht');
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await page.getByLabel('Name von 1_2').fill('Brunch für alle');

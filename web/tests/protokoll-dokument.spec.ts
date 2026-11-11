@@ -1,6 +1,7 @@
 import { EDITOR_LOAD_TIMEOUT, test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { Page } from '@playwright/test';
 import { waitUntilStill } from './settle';
+import { protokollAnlegen } from './protokoll-vorbereitung';
 
 // The agenda as one document in the formatting editor (#277, Stufe 1).
 
@@ -8,12 +9,12 @@ test.beforeEach(async ({ page }) => {
   await page.request.post('/api/__mock/einstellungen/reset');
 });
 
-/** Creates minutes and waits for the document; returns the URL of their page. */
+/**
+ * Creates minutes over the API (`protokoll-editor.spec.ts` creates them over the list page) and
+ * waits for the document; returns the URL of their page.
+ */
 async function createProtokoll(page: Page, title: string): Promise<string> {
-  await page.goto('/leitendenbereich/protokolle');
-  await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
-  await page.getByLabel('Titel').fill(title);
-  await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  await protokollAnlegen(page, title);
   await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeVisible({
     timeout: EDITOR_LOAD_TIMEOUT,
   });

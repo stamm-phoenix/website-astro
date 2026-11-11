@@ -172,6 +172,16 @@ export async function planungVorbereiten(
   if (vorbereitung.tab) await page.getByRole('tab', { name: vorbereitung.tab }).click();
 }
 
+/** Pasta for 4 with 500 g of spaghetti, planned at the meals `mahlzeiten` (`1_2`). */
+export function nudeln(mahlzeiten: string[]): GerichtVorlage {
+  return {
+    name: 'Nudeln',
+    personen: 4,
+    zutaten: [{ name: 'Nudeln (Spaghetti)', menge: 500, einheit: 'g' }],
+    mahlzeiten,
+  };
+}
+
 /**
  * Pasta for 4 (500 g), eaten by 8 Pfadis at lunch on both days: 1 kg each; opens the tab
  * „Einkauf“. The same Planung as `nudelnPlanen` (`essensplanung-einkaeufe-helpers.ts`).
@@ -182,14 +192,7 @@ export function nudelnVorbereiten(
   extra: Pick<Vorbereitung, 'zusatz' | 'einkaeufe'> = {}
 ): Promise<void> {
   return planungVorbereiten(page, name, {
-    gerichte: [
-      {
-        name: 'Nudeln',
-        personen: 4,
-        zutaten: [{ name: 'Nudeln (Spaghetti)', menge: 500, einheit: 'g' }],
-        mahlzeiten: ['1_2', '2_2'],
-      },
-    ],
+    gerichte: [nudeln(['1_2', '2_2'])],
     teilnehmende: [{ gruppe: 'Pfadi', anzahl: 8 }],
     ...extra,
     tab: 'Einkauf',
