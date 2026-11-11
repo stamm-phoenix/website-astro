@@ -4,6 +4,8 @@ import ConfirmPrompt from '../components/ui/ConfirmPrompt.svelte';
 export interface ConfirmOptions {
   title: string;
   message: string;
+  /** Points listed below the message, e.g. warnings to take note of. */
+  items?: string[];
   /** Label of the button that confirms. */
   confirmLabel?: string;
   cancelLabel?: string;
@@ -17,6 +19,7 @@ export interface ConfirmOptions {
 export function confirmAction({
   title,
   message,
+  items = [],
   confirmLabel = 'Löschen',
   cancelLabel = 'Abbrechen',
   tone = 'danger',
@@ -29,6 +32,7 @@ export function confirmAction({
       props: {
         title,
         message,
+        items,
         confirmLabel,
         cancelLabel,
         tone,

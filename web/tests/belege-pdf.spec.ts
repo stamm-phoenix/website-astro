@@ -58,7 +58,7 @@ test('every page of a PDF is shown and checked, not only the first', async ({ pa
   await expectNoHorizontalOverflow(page);
 
   // An expired login while loading the further pages offers the new login
-  await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await page.keyboard.press('Escape');
   await page.route('**/api/intern/pflege/belege/*/foto?*download=1*', (route) =>
     route.fulfill({ status: 401, body: '' })
   );

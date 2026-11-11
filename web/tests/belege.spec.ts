@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
+import type { StaffBeleg } from '../src/lib/types';
 import { test, expect } from './fixtures';
 
 /** Opens the folded filters of the Belege, closed on a phone. */
@@ -47,10 +48,22 @@ test('the Kasse transfers an accepted receipt to CampFlow on its Kostenstelle an
 }) => {
   // Answered here, so the shared demo keeps its receipt for the other tests
   let sent: Record<string, unknown> | undefined;
-  let saved: Record<string, unknown> | undefined;
+  let saved = 0;
+  let etag = '';
+  await page.route('**/api/intern/pflege/belege', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    const belege = (await response.json()) as StaffBeleg[];
+    // A Kategorie the Kostenstelle lacks in CampFlow, outside the KJR ones
+    const json = belege.map((beleg) =>
+      beleg.shop === 'Deutsche Bahn' ? { ...beleg, kategorie: 'Getränke' } : beleg
+    );
+    etag = json.find((beleg) => beleg.shop === 'Deutsche Bahn')?.etag ?? '';
+    await route.fulfill({ response, json });
+  });
   await page.route('**/api/intern/pflege/belege/*', async (route) => {
     if (route.request().method() !== 'PATCH') return route.fallback();
-    saved = route.request().postDataJSON();
+    saved++;
     await route.fulfill({ json: { mailed: false, etag: 'gespeichert' } });
   });
   await page.route('**/api/intern/pflege/belege/*/campflow', async (route) => {
@@ -69,20 +82,15 @@ test('the Kasse transfers an accepted receipt to CampFlow on its Kostenstelle an
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
 
-  // Booked on the receipt's own fields; the Kasse corrects them there
-  await expect(dialog.getByLabel('Kostenstelle', { exact: true })).toHaveValue(
-    'Sommerlager 2026 Oberjoch'
-  );
-  await expect(dialog.getByLabel('Kategorie', { exact: true })).toHaveValue('Fahrtkosten');
+  // Accepted, it is booked as it is; changing it takes taking the acceptance back first
+  await expect(dialog.getByRole('button', { name: 'Bearbeiten', exact: true })).toHaveCount(0);
+  await expect(
+    dialog.getByRole('button', { name: 'Annahme zurücknehmen', exact: true })
+  ).toBeVisible();
   await expect(dialog.getByText('Wird gebucht auf')).toContainText(
-    'Sommerlager 2026 Oberjoch · Fahrtkosten'
+    'Sommerlager 2026 Oberjoch · Getränke'
   );
-  // A Kategorie of the KJR the Kostenstelle lacks is created without a warning, any other with one
-  const kategorie = dialog.getByLabel('Kategorie', { exact: true });
-  await kategorie.fill('Getränke');
   await expect(dialog.getByText(/Dabei wird in „Sommerlager 2026 Oberjoch“/)).toBeVisible();
-  await kategorie.fill('Honorare');
-  await expect(dialog.getByText(/neu angelegt/)).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true }).click();
 
   await expect(dialog).toBeHidden();
@@ -93,11 +101,9 @@ test('the Kasse transfers an accepted receipt to CampFlow on its Kostenstelle an
       )
       .first()
   ).toBeVisible();
-  expect(saved).toMatchObject({
-    kostenstelle: 'Sommerlager 2026 Oberjoch',
-    kategorie: 'Honorare',
-  });
-  expect(sent).toEqual({ etag: 'gespeichert' });
+  // Nothing changed, so nothing is saved before the transfer
+  expect(saved).toBe(0);
+  expect(sent).toEqual({ etag });
 });
 
 /** The field Kostenstelle, which also searches the Kategorien, and its suggestions. */
@@ -286,7 +292,8 @@ test('a retry right after a failed transfer sends the version just written, with
   await page.getByRole('combobox', { name: /^Stand/ }).selectOption({ label: 'Angenommen' });
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
-  await dialog.getByRole('textbox', { name: 'Bemerkung (optional)' }).fill('Rückfahrt');
+  // The remark of the Kasse is saved before the transfer
+  await dialog.getByLabel('Bemerkung der Kasse').fill('Rückfahrt geprüft');
   const transfer = dialog.getByRole('button', { name: 'Nach CampFlow übertragen', exact: true });
   await transfer.click();
   await expect(dialog.getByRole('alert')).toContainText('Der Beleg wurde nicht übertragen');
@@ -317,9 +324,11 @@ test('my Auslage submitted by someone else is mine to look at, not to change', a
           paidBy: 'Demo Leitung',
           payout: true,
           submittedBy: 'sam@example.test',
+          submittedByName: 'Sam Muster',
           status: 'Eingereicht',
           isPdf: true,
           readOnly: true,
+          editable: false,
         },
         ...belege,
       ],
@@ -330,7 +339,7 @@ test('my Auslage submitted by someone else is mine to look at, not to change', a
   const list = page.getByRole('list', { name: 'Belege' });
   await list.getByRole('button', { name: /Baumarkt Fremd/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von Baumarkt Fremd' });
-  await expect(dialog.getByText('sam@example.test')).toBeVisible();
+  await expect(dialog.getByText('Sam Muster')).toBeVisible();
   await expect(dialog.getByText('Demo Leitung')).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Speichern' })).toHaveCount(0);
   await expect(dialog.getByRole('textbox')).toHaveCount(0);
@@ -567,7 +576,7 @@ test('income is submitted as a PDF without asking how it was paid', async ({ pag
 
   await entry.click();
   const opened = page.getByRole('dialog', { name: 'Beleg von Spende Bäckerei Huber' });
-  await expect(opened.getByRole('radio', { name: 'Einnahme', exact: true })).toBeChecked();
+  await expect(opened.getByRole('definition').filter({ hasText: /^Einnahme$/ })).toBeVisible();
   await expect(opened.getByRole('link', { name: 'PDF herunterladen' })).toBeVisible();
 });
 

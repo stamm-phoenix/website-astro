@@ -16,6 +16,9 @@
   import BelegLesen from './BelegLesen.svelte';
   import BelegOeffnet from './BelegOeffnet.svelte';
   import { ladeVorschau } from '../../lib/belegVorschau';
+  import { pruefHinweise } from '../../lib/belegPruefHinweise';
+  import { confirmAction } from '../../lib/confirm';
+  import { findRescue } from '../../lib/geretteteEingaben';
   import BelegAnsicht from './BelegAnsicht.svelte';
   import BelegCampflowDialog from './BelegCampflowDialog.svelte';
   import BelegUebersicht from './BelegUebersicht.svelte';
@@ -274,7 +277,8 @@
 
   function edit(beleg: StaffBeleg): void {
     resetDialog();
-    bearbeiten = false;
+    // Input kept over a new login in the iPhone app goes back into the fields: open them
+    bearbeiten = !!beleg.editable && !!findRescue(`beleg:${beleg.id}`, null, Date.now());
     form = {
       ...beleg,
       amount: centToInput(beleg.amountCent),
@@ -333,6 +337,9 @@
     if (store.data) store.data = store.data.map((beleg) => (beleg.id === saved.id ? saved : beleg));
   }
 
+  const PHOTO_FEHLER =
+    'Der Beleg wurde nicht gespeichert. Deine Eingaben und das Foto oder PDF sind noch da. Prüfe deine Internetverbindung und versuche es noch einmal.';
+
   /** Saves the receipt; `decision` accepts, rejects or resubmits it at the same time. */
   async function save(decision?: BelegStatus): Promise<void> {
     if (!form) return;
@@ -361,6 +368,27 @@
       kategorie,
       note,
     };
+    // A new receipt waits for the check of its photo; its warnings are taken note of first
+    if (!id) {
+      const geprueft = await dialog.run(() => photo.fertig(), PHOTO_FEHLER);
+      const hinweise = form ? pruefHinweise(form.aiCheck, photo.photoWarnings) : [];
+      const bestaetigt =
+        geprueft &&
+        (hinweise.length === 0 ||
+          (await confirmAction({
+            title: 'Hinweise der Prüfung',
+            message:
+              'Die automatische Prüfung hat etwas gefunden. Sieh dir den Beleg noch einmal an.',
+            items: hinweise,
+            confirmLabel: 'Gelesen, trotzdem einreichen',
+            cancelLabel: 'Zurück zum Beleg',
+            tone: 'neutral',
+          })));
+      if (!bestaetigt || !form) {
+        if (form) form.status = previousStatus;
+        return;
+      }
+    }
     let newId: string | null = null;
     const saved = await dialog.run(async () => {
       if (id) {
@@ -433,7 +461,7 @@
         search = '';
         onlyMine = false;
       }
-    }, 'Der Beleg wurde nicht gespeichert. Deine Eingaben und das Foto oder PDF sind noch da. Prüfe deine Internetverbindung und versuche es noch einmal.');
+    }, PHOTO_FEHLER);
     if (!saved && form) form.status = previousStatus;
   }
 

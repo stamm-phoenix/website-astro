@@ -84,7 +84,13 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
 
   const card = page.getByRole('button', { name: new RegExp(shop) });
   await card.click();
-  await expect(page.getByText(/Eingereicht von leitung@example\.test/)).toBeVisible();
+  // It opens to look at, with who submitted it and the decision of the Kasse
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByRole('definition')
+      .filter({ hasText: /^Demo Leitung$/ })
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Original ansehen' })).toBeVisible();
   // Rejecting needs a reason, which is mailed to the uploader
   await page.getByRole('button', { name: 'Ablehnen', exact: true }).click();
@@ -213,6 +219,10 @@ test('a receipt submitted behind many waiting ones is shown right away', async (
   await page.getByRole('dialog').getByLabel('Kategorie', { exact: true }).press('Escape');
   await page.getByRole('radio', { name: 'Mit Stammeskarte / aus der Kasse', exact: true }).check();
   await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
+  // The blank photo looks blurred: that is taken note of before it is submitted
+  const hinweise = page.getByRole('dialog', { name: 'Hinweise der Prüfung' });
+  await expect(hinweise.getByRole('listitem')).toContainText(['unscharf']);
+  await answerConfirm(page, 'Hinweise der Prüfung', 'Gelesen, trotzdem einreichen');
   await expect(page.getByText(/über 4,56\s€ eingereicht/).first()).toBeVisible();
   await expect(page.getByRole('button', { name: new RegExp(shop) })).toBeVisible();
 });
