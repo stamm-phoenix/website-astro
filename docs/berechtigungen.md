@@ -9,8 +9,8 @@ reicht nicht: Gäste, die aus anderen Gründen ein Konto haben, kommen nicht hin
 | Team (Mail-Alias) | Rolle           | Erlaubt                                                                                                                          |
 | ----------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `team-leitende`   | `team_leitende` | Leitendenbereich (`/leitendenbereich/*`, `/api/intern/*`); Kontakt-Postfach                                                      |
-| `team-kasse`      | `team_kasse`    | Belege: alle sehen, annehmen, ablehnen, nach CampFlow übertragen; Kostenstellen                                                  |
-| `team-vorstand`   | `team_vorstand` | Kostenstellen (Summen je Kostenstelle und Kategorie aus CampFlow); Steuerung der Essensplanung; Nami-Abgleich; Vorstand-Postfach |
+| `team-kasse`      | `team_kasse`    | Belege: alle sehen und ändern, annehmen, ablehnen, nach CampFlow übertragen; Kostenstellen                                      |
+| `team-vorstand`   | `team_vorstand` | Belege: alle sehen und ändern; Kostenstellen (Summen aus CampFlow); Steuerung der Essensplanung; Nami-Abgleich; Vorstand-Postfach |
 | `team-admin`      | `team_admin`    | Steuerung der Essensplanung (Gruppe „IT-Administratoren“); Nami-Abgleich; Admin-Postfach                                         |
 | `team-verein`     | `team_verein`   | Verein-Postfach (Gruppe „Förderverein“)                                                                                          |
 
@@ -32,7 +32,9 @@ Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leiten
 4. Die Routen verlangen `team_leitende`. Wer angemeldet ist, aber die Rolle nicht hat, sieht
    `/kein-zugang` (`responseOverrides.403`) mit einem Knopf zum Ab- und Neuanmelden.
 5. Die API prüft zusätzlich: `requireStaff` verlangt `team_leitende` (sonst `403 NOT_IN_TEAM`),
-   die Belege prüfen `hasTeam(principal, 'kasse')`, die Kostenstellen
+   die Belege prüfen ihre Regeln in `api/lib/beleg-rechte.ts` (Kasse, Vorstand und die Person,
+   die einen Beleg eingereicht hat, ändern ihn, solange er nicht angenommen ist; annehmen und
+   ablehnen nur `kasse`), die Kostenstellen
    (`GET /api/intern/kostenstellen/summen`) `kasse` oder `vorstand`. Menü, Suche und Startseite zeigen
    die Seite `/leitendenbereich/kostenstellen` nur mit einer der beiden Rollen (`roles` in
    `staffModules.ts`); wer sie ohne aufruft, sieht nur die Fehlermeldung der API. Die Gruppenpostfächer im Bereich „E-Mail“ stehen mit ihren

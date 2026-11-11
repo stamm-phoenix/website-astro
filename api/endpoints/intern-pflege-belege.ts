@@ -1,6 +1,14 @@
 import type { HttpRequest, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
-import { hasTeam, isPreviewDeployment } from '../lib/staff-auth';
+import { isPreviewDeployment } from '../lib/staff-auth';
+import {
+  changesDetails,
+  isBelegReviewer,
+  isUploader as isOwner,
+  mayDeleteBeleg,
+  mayEditBeleg,
+  seesAllBelege,
+} from '../lib/beleg-rechte';
 import { parseId } from '../lib/db';
 import type { BelegInput } from '../lib/validation/beleg';
 import { validateBeleg } from '../lib/validation/beleg';
@@ -45,6 +53,7 @@ import { getCampflowBelege, PlaywrightApiError } from '../lib/playwright-api';
 import { getIch } from '../lib/personen';
 import { sameName } from '../lib/personen-model';
 import * as taskDirectory from '../lib/task-directory';
+import type { TaskDirectoryUser } from '../lib/task-directory-types';
 
 export type { StaffBeleg } from '../lib/beleg-list';
 export { downloadFileName } from '../lib/beleg-list';
@@ -67,39 +76,48 @@ export function beforeDeadline<T>(promise: Promise<T>, deadline: number, fallbac
 /** Previews are requested with the receipt's etag in the URL, so a short private cache is safe. */
 const PRIVATE_CACHE_HEADERS = { 'Cache-Control': 'private, max-age=300' };
 
+export { isBelegReviewer } from '../lib/beleg-rechte';
+
 const FORBIDDEN = errorResponse(
   403,
   'FORBIDDEN',
-  'Das darf nur die Kasse oder die Person, die den Beleg eingereicht hat.'
+  'Das darf nur die Kasse, der Vorstand oder die Person, die den Beleg eingereicht hat.'
 );
 
-/** Whether the user may see all receipts and accept or reject them: the team „Kasse“. */
-export function isBelegReviewer(principal: ClientPrincipal): boolean {
-  return hasTeam(principal, 'kasse');
+const ACCEPTED = errorResponse(
+  403,
+  'FORBIDDEN',
+  'Ein angenommener Beleg lässt sich nicht mehr ändern. Die Kasse kann die Annahme zurücknehmen.'
+);
+
+/** The people of the Entra directory; none when it cannot be read. */
+async function directoryUsers(): Promise<TaskDirectoryUser[]> {
+  try {
+    return await taskDirectory.getTaskDirectoryUsers();
+  } catch {
+    return [];
+  }
 }
 
-function isOwner(beleg: StaffBeleg, principal: ClientPrincipal): boolean {
-  return (
-    beleg.submittedBy !== '' &&
-    beleg.submittedBy.toLowerCase() === principal.userDetails.toLowerCase()
-  );
+/** Written like saved receipts: trimmed, single spaces. */
+function cleanName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ');
 }
 
 /**
  * The names the user goes by: in the Entra directory and as the linked CampFlow person. Static
  * Web Apps does not pass the name claim on, so these are what an Auslage names.
  */
-async function ownNames(principal: ClientPrincipal): Promise<string[]> {
+async function ownNames(
+  principal: ClientPrincipal,
+  users?: TaskDirectoryUser[]
+): Promise<string[]> {
   const login = principal.userDetails.toLowerCase();
-  const [users, ich] = await Promise.allSettled([
-    taskDirectory.getTaskDirectoryUsers(),
-    getIch(login),
-  ]);
+  const [directory, ich] = await Promise.allSettled([users ?? directoryUsers(), getIch(login)]);
   const names: string[] = [];
-  // Written like saved receipts: trimmed, single spaces
-  if (users.status === 'fulfilled') {
-    const me = users.value.find((user) => user.login.toLowerCase() === login);
-    if (me?.name) names.push(me.name.trim().replace(/\s+/g, ' '));
+  if (directory.status === 'fulfilled') {
+    const me = directory.value.find((user) => user.login.toLowerCase() === login);
+    if (me?.name) names.push(cleanName(me.name));
   }
   const linked = ich.status === 'fulfilled' ? ich.value.campflow : null;
   if (linked?.firstName || linked?.lastName) {
@@ -111,11 +129,6 @@ async function ownNames(principal: ClientPrincipal): Promise<string[]> {
 /** An Auslage of the user: they may see the receipt, whoever submitted it. */
 function isAuslageOf(beleg: { payout: boolean; paidBy: string }, names: string[]): boolean {
   return beleg.payout && names.some((name) => sameName(name, beleg.paidBy));
-}
-
-/** Uploaders may still change, replace or withdraw their receipt until it is accepted. */
-function mayChange(beleg: StaffBeleg, principal: ClientPrincipal): boolean {
-  return isBelegReviewer(principal) || (isOwner(beleg, principal) && beleg.status !== 'Angenommen');
 }
 
 /** Today in Germany as `YYYY-MM-DD`; receipts are dated in local time. */
@@ -158,19 +171,28 @@ export const BelegeCollectionEndpoint = pflegeHandler(
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
     const deadline = Date.now() + REQUEST_BUDGET_MS;
     if (request.method === 'GET') {
-      const names = await ownNames(principal);
-      // The browser does not know the user's names, so the server marks their Auslagen
-      const markMine = (beleg: StaffBeleg): StaffBeleg =>
-        isAuslageOf(beleg, names) ? { ...beleg, mine: true } : beleg;
-      if (isBelegReviewer(principal))
-        return ok((await getBelege()).map(toStaffBeleg).map(markMine));
+      const users = await directoryUsers();
+      const names = await ownNames(principal, users);
+      const byLogin = new Map(users.map((user) => [user.login.toLowerCase(), user.name]));
+      // The browser does not know the user's names, so the server marks their Auslagen; it also
+      // names who submitted a receipt and says whether the user may still change it
+      const describe = (beleg: StaffBeleg): StaffBeleg => {
+        const submitter = byLogin.get(beleg.submittedBy.toLowerCase());
+        return {
+          ...beleg,
+          ...(isAuslageOf(beleg, names) ? { mine: true as const } : {}),
+          ...(submitter ? { submittedByName: cleanName(submitter) } : {}),
+          editable: !beleg.readOnly && mayEditBeleg(beleg, principal),
+        };
+      };
+      if (seesAllBelege(principal)) return ok((await getBelege()).map(toStaffBeleg).map(describe));
       // Own receipts, and to look at the ones someone else submitted for the user's Auslage
       // The database narrows the list, so other people's receipts are never read
       const belege = (await getBelege({ submittedBy: principal.userDetails, auslageNames: names }))
         .map(toStaffBeleg)
         .filter((beleg) => isOwner(beleg, principal) || isAuslageOf(beleg, names))
         .map((beleg) => (isOwner(beleg, principal) ? beleg : { ...beleg, readOnly: true as const }))
-        .map(markMine);
+        .map(describe);
       return ok(belege);
     }
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
@@ -212,7 +234,7 @@ export const BelegItemEndpoint = pflegeHandler(
       const etag = requireVersion(readIfMatch(request));
       const beleg = await getBeleg(id);
       if (!beleg) return NOT_FOUND;
-      if (!mayChange(beleg, principal)) return FORBIDDEN;
+      if (!mayDeleteBeleg(beleg, principal)) return FORBIDDEN;
       await deleteBeleg(id, etag);
       return NO_CONTENT;
     }
@@ -222,10 +244,17 @@ export const BelegItemEndpoint = pflegeHandler(
     const etag = requireVersion(readEtag(body));
     const previous = await getBeleg(id);
     if (!previous) return NOT_FOUND;
-    if (!mayChange(previous, principal)) return FORBIDDEN;
+    const reviewer = isBelegReviewer(principal);
+    const editor = mayEditBeleg(previous, principal);
+    if (!reviewer && !editor)
+      return previous.status === 'Angenommen' && isOwner(previous, principal)
+        ? ACCEPTED
+        : FORBIDDEN;
     const input = validateBeleg(body, todayInBerlin(), previous.aktion);
-    if (!isBelegReviewer(principal)) {
-      // Uploaders correct their details and resubmit a rejected receipt, nothing more
+    // An accepted receipt keeps its details; the Kasse may still change its decision
+    if (!editor && changesDetails(previous, input)) return ACCEPTED;
+    if (!reviewer) {
+      // Others correct the details and resubmit a rejected receipt, nothing more
       const resubmit = previous.status === 'Abgelehnt' && input.status === 'Eingereicht';
       if (input.status !== previous.status && !resubmit) return FORBIDDEN;
       input.reviewNote = previous.reviewNote;
@@ -234,12 +263,8 @@ export const BelegItemEndpoint = pflegeHandler(
     // someone else's later change for it
     const saved = await updateBeleg(id, input, etag, principal.userDetails);
 
-    // Only the uploader corrects and resubmits; the Kasse resetting a decision mails nobody
-    if (
-      previous.status === 'Abgelehnt' &&
-      input.status === 'Eingereicht' &&
-      isOwner(previous, principal)
-    ) {
+    // A resubmitted receipt goes to the Kasse again; the Kasse resetting a decision mails nobody
+    if (previous.status === 'Abgelehnt' && input.status === 'Eingereicht' && !reviewer) {
       await beforeDeadline(
         notifyKasse(input, true, principal, request, context, deadline),
         deadline,
@@ -366,7 +391,7 @@ export const BelegPhotoEndpoint = pflegeHandler(
 
     const beleg = await getBeleg(id);
     if (!beleg) return NOT_FOUND;
-    if (!isBelegReviewer(principal) && !isOwner(beleg, principal)) {
+    if (!seesAllBelege(principal) && !isOwner(beleg, principal)) {
       // Who laid out the money may look at the photo, not change it
       if (request.method !== 'GET' || !isAuslageOf(beleg, await ownNames(principal))) {
         return NOT_FOUND;
@@ -411,7 +436,9 @@ export const BelegPhotoEndpoint = pflegeHandler(
       return { status: 200, headers, body: new Uint8Array(bytes) };
     }
     if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
-    if (!mayChange(beleg, principal)) return FORBIDDEN;
+    if (!mayEditBeleg(beleg, principal)) {
+      return beleg.status === 'Angenommen' ? ACCEPTED : FORBIDDEN;
+    }
 
     // Reject photo changes based on an outdated version of the receipt
     const etag = requireVersion(readIfMatch(request));

@@ -304,6 +304,8 @@ dbTest('uploaders get only their own receipts from the database, unchanged', asy
     isPdf: false,
     aiCheck: null as unknown,
     campflow: null,
+    // Nothing is accepted yet: the uploader and the Kasse may still change them
+    editable: true,
   });
   const first = beleg(1, 'Leitung@Example.test', '2026-09-02T10:00:00.000Z');
   const own = {
@@ -582,92 +584,120 @@ dbTest('submitting and resubmitting a receipt mails the team „Kasse“', async
   assert.equal(send.mock.callCount(), 0);
 });
 
-dbTest('only the Kasse sees all receipts and decides; uploaders manage their own', async (t) => {
-  const { context, blobs } = setup(t);
-  const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test', userRoles: STAFF_ROLES };
-  const kasse = { ...PRINCIPAL, userDetails: 'kasse@example.test' };
-  await store(
-    blobs,
-    { id: 7, status: 'Abgelehnt', submittedAt: '2026-09-01T10:00:00.000Z' },
-    { id: 8, submittedBy: 'other@example.test' }
-  );
-  const ids = async (principal: unknown) =>
-    (
-      (await BelegeCollection(request('GET', undefined, { principal }), context)).jsonBody as {
-        id: string;
-      }[]
-    ).map((b) => b.id);
-
-  assert.deepEqual(await ids(uploader), ['7']);
-  assert.deepEqual(await ids(kasse), ['8', '7']);
-  const role = await BelegRolle(request('GET', undefined, { principal: uploader }), context);
-  assert.deepEqual(role.jsonBody, { reviewer: false });
-
-  const patch = async (body: Record<string, unknown>, principal: unknown) =>
-    BelegItem(
-      request('PATCH', { ...INPUT, etag: await version(7), ...body }, { id: '7', principal }),
-      context
+dbTest(
+  'the Kasse decides, Kasse, Vorstand and uploaders change receipts until accepted',
+  async (t) => {
+    const { context, blobs } = setup(t);
+    const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test', userRoles: STAFF_ROLES };
+    const kasse = { ...PRINCIPAL, userDetails: 'kasse@example.test' };
+    await store(
+      blobs,
+      { id: 7, status: 'Abgelehnt', submittedAt: '2026-09-01T10:00:00.000Z' },
+      { id: 8, submittedBy: 'other@example.test' }
     );
-  // Uploaders can resubmit a rejected receipt but keep the remark of the Kasse
-  await getDb()
-    .updateTable('organisation.beleg')
-    .set({ review_note: 'Unscharf' })
-    .where('id', '=', 7)
-    .execute();
-  assert.equal((await patch({ status: 'Angenommen' }, uploader)).status, 403);
-  assert.equal((await patch({ status: 'Eingereicht', reviewNote: 'egal' }, uploader)).status, 200);
-  const resubmitted = (await getBelege()).find((beleg) => beleg.id === '7');
-  assert.deepEqual([resubmitted?.status, resubmitted?.reviewNote], ['Eingereicht', 'Unscharf']);
-  // Others' receipts and accepted receipts are off limits for uploaders
-  assert.equal(
-    (
-      await patch(
-        { status: 'Abgelehnt', reviewNote: 'x' },
-        { ...uploader, userDetails: 'x@example.test' }
-      )
-    ).status,
-    403
-  );
-  await getDb()
-    .updateTable('organisation.beleg')
-    .set({ status: 'Angenommen' })
-    .where('id', '=', 7)
-    .execute();
-  assert.equal((await patch({ status: 'Angenommen' }, uploader)).status, 403);
-  assert.equal(
-    (
-      await BelegItem(
-        request('DELETE', undefined, { id: '7', etag: await version(7), principal: uploader }),
+    const ids = async (principal: unknown) =>
+      (
+        (await BelegeCollection(request('GET', undefined, { principal }), context)).jsonBody as {
+          id: string;
+        }[]
+      ).map((b) => b.id);
+
+    assert.deepEqual(await ids(uploader), ['7']);
+    assert.deepEqual(await ids(kasse), ['8', '7']);
+    // The Vorstand sees and corrects every receipt, but does not decide
+    const vorstand = {
+      ...PRINCIPAL,
+      userDetails: 'vorstand@example.test',
+      userRoles: [...STAFF_ROLES, 'team_vorstand'],
+    };
+    assert.deepEqual(await ids(vorstand), ['8', '7']);
+    const patch8 = async (body: Record<string, unknown>) =>
+      BelegItem(
+        request(
+          'PATCH',
+          { ...INPUT, etag: await version(8), ...body },
+          { id: '8', principal: vorstand }
+        ),
         context
-      )
-    ).status,
-    403
-  );
-  assert.equal(
-    (
-      await BelegPhoto(
-        request('GET', undefined, {
-          id: '7',
-          principal: { ...uploader, userDetails: 'x@example.test' },
-        }),
+      );
+    assert.equal((await patch8({ status: 'Angenommen' })).status, 403);
+    assert.equal((await patch8({ shop: 'Korrigiert' })).status, 200);
+    assert.equal((await getBelege()).find((beleg) => beleg.id === '8')?.shop, 'Korrigiert');
+    const role = await BelegRolle(request('GET', undefined, { principal: uploader }), context);
+    assert.deepEqual(role.jsonBody, { reviewer: false });
+
+    const patch = async (body: Record<string, unknown>, principal: unknown) =>
+      BelegItem(
+        request('PATCH', { ...INPUT, etag: await version(7), ...body }, { id: '7', principal }),
         context
-      )
-    ).status,
-    404
-  );
-  // The Kasse decides
-  assert.equal((await patch({ status: 'Abgelehnt', reviewNote: 'Unscharf' }, kasse)).status, 200);
-  assert.equal(
-    (
-      await BelegItem(
-        request('DELETE', undefined, { id: '7', etag: await version(7), principal: kasse }),
-        context
-      )
-    ).status,
-    204
-  );
-  assert.deepEqual(await ids(kasse), ['8']);
-});
+      );
+    // Uploaders can resubmit a rejected receipt but keep the remark of the Kasse
+    await getDb()
+      .updateTable('organisation.beleg')
+      .set({ review_note: 'Unscharf' })
+      .where('id', '=', 7)
+      .execute();
+    assert.equal((await patch({ status: 'Angenommen' }, uploader)).status, 403);
+    assert.equal(
+      (await patch({ status: 'Eingereicht', reviewNote: 'egal' }, uploader)).status,
+      200
+    );
+    const resubmitted = (await getBelege()).find((beleg) => beleg.id === '7');
+    assert.deepEqual([resubmitted?.status, resubmitted?.reviewNote], ['Eingereicht', 'Unscharf']);
+    // Others' receipts and accepted receipts are off limits for uploaders
+    assert.equal(
+      (
+        await patch(
+          { status: 'Abgelehnt', reviewNote: 'x' },
+          { ...uploader, userDetails: 'x@example.test' }
+        )
+      ).status,
+      403
+    );
+    await getDb()
+      .updateTable('organisation.beleg')
+      .set({ status: 'Angenommen' })
+      .where('id', '=', 7)
+      .execute();
+    assert.equal((await patch({ status: 'Angenommen' }, uploader)).status, 403);
+    assert.equal(
+      (
+        await BelegItem(
+          request('DELETE', undefined, { id: '7', etag: await version(7), principal: uploader }),
+          context
+        )
+      ).status,
+      403
+    );
+    assert.equal(
+      (
+        await BelegPhoto(
+          request('GET', undefined, {
+            id: '7',
+            principal: { ...uploader, userDetails: 'x@example.test' },
+          }),
+          context
+        )
+      ).status,
+      404
+    );
+    // Once accepted, the details stay; the Kasse may still change its decision
+    assert.equal((await patch({ shop: 'Anders' }, kasse)).status, 403);
+    assert.equal((await patch({ shop: 'Anders' }, vorstand)).status, 403);
+    // The Kasse decides
+    assert.equal((await patch({ status: 'Abgelehnt', reviewNote: 'Unscharf' }, kasse)).status, 200);
+    assert.equal(
+      (
+        await BelegItem(
+          request('DELETE', undefined, { id: '7', etag: await version(7), principal: kasse }),
+          context
+        )
+      ).status,
+      204
+    );
+    assert.deepEqual(await ids(kasse), ['8']);
+  }
+);
 
 dbTest('the photo is served privately, as a preview and as a named download', async (t) => {
   const { context, blobs } = setup(t);
