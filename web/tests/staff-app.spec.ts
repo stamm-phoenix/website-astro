@@ -15,8 +15,8 @@ test('the Leitendenbereich can be installed and the app starts on its start page
     display: 'standalone',
     short_name: 'Leitende',
     // Firefox colors the status bar only from here, in every theme
-    theme_color: '#101b26',
-    background_color: '#101b26',
+    theme_color: '#181614',
+    background_color: '#181614',
   });
   for (const icon of manifest.icons) {
     expect((await page.request.get(icon.src)).ok(), icon.src).toBe(true);

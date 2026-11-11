@@ -91,7 +91,7 @@ const websiteLd = {
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="theme-color" content="#f8f5ef" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#101b26" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#181614" media="(prefers-color-scheme: dark)" />
     <script is:inline>
       (() => {
         let choice;
@@ -106,7 +106,7 @@ const websiteLd = {
           (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
         document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
           meta.removeAttribute('media');
-          meta.setAttribute('content', dark ? '#101b26' : '#f8f5ef');
+          meta.setAttribute('content', dark ? '#181614' : '#f8f5ef');
         });
       })();
     </script>
