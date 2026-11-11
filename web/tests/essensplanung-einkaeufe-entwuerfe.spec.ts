@@ -1,11 +1,11 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import { liveFeld } from './essensplanung-helpers';
-import { nudelnPlanen, einkaufAnlegen, oeffnen, box } from './essensplanung-einkaeufe-helpers';
+import { oeffnen, box } from './essensplanung-einkaeufe-helpers';
+import { nudelnVorbereiten } from './essensplanung-vorbereitung';
 
 test('a change of a trip keeps its draft while the list is looked at', async ({ page }) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe Entwurf');
-  await einkaufAnlegen(page, 'Montag', 0);
+  await nudelnVorbereiten(page, 'E2E Einkäufe Entwurf', { einkaeufe: ['Montag'] });
   const montag = await oeffnen(page, 'Montag');
   await montag.getByRole('button', { name: 'Montag ändern' }).click();
   const form = page.getByRole('form', { name: 'Montag ändern' });
@@ -28,9 +28,7 @@ test('a thing that falls off the list while being ticked off names what was type
   browser,
 }) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe verloren');
-  await einkaufAnlegen(page, 'Montag', 0);
-  await einkaufAnlegen(page, 'Mittwoch', 0);
+  await nudelnVorbereiten(page, 'E2E Einkäufe verloren', { einkaeufe: ['Montag', 'Mittwoch'] });
   // Wednesday buys nothing yet: everything is on Monday. Monday is ticked off with less, so the
   // rest is on Wednesday
   const montag = await oeffnen(page, 'Montag');
@@ -66,12 +64,10 @@ test('what is typed for a thing stays while another one is ticked off, refused a
   page,
 }) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe Entwürfe');
-  const feld = page.getByLabel('Noch etwas besorgen');
-  await feld.fill('Kochhandschuhe');
-  await feld.press('Enter');
-  await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
-  await einkaufAnlegen(page, 'Montag', 0);
+  await nudelnVorbereiten(page, 'E2E Einkäufe Entwürfe', {
+    zusatz: ['Kochhandschuhe'],
+    einkaeufe: ['Montag'],
+  });
   const montag = await oeffnen(page, 'Montag');
   const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await menge.fill('800');
@@ -112,8 +108,7 @@ test('on a phone the amount opens with a visible button, the box ticks off at on
 }) => {
   test.slow();
   await page.setViewportSize({ width: 390, height: 844 });
-  await nudelnPlanen(page, 'E2E Einkäufe Handy');
-  await einkaufAnlegen(page, 'Montag', 0);
+  await nudelnVorbereiten(page, 'E2E Einkäufe Handy', { einkaeufe: ['Montag'] });
   const montag = await oeffnen(page, 'Montag');
   const menge = montag.getByLabel('Erhaltene Menge von Nudeln (Spaghetti)');
   await expect(menge).toBeHidden();
@@ -133,10 +128,11 @@ test('on a phone the amount opens with a visible button, the box ticks off at on
   await expect(montag.getByRole('status')).toHaveText('0 von 1 abgehakt');
 });
 
-test('leaving the page with something typed in the live mode asks first', async ({ page }) => {
+test('leaving the page with live input asks first, and once it is discarded asks no more', async ({
+  page,
+}) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe Verlassen');
-  await einkaufAnlegen(page, 'Montag', 0);
+  await nudelnVorbereiten(page, 'E2E Einkäufe Verlassen', { einkaeufe: ['Montag'] });
   const montag = await oeffnen(page, 'Montag');
   const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await menge.fill('800');
@@ -146,14 +142,25 @@ test('leaving the page with something typed in the live mode asks first', async 
   await expect(page).toHaveURL(/\/essensplanung\/planung/);
   await expect(menge).toHaveValue('800');
   await expect(montag.getByLabel('Ersatz für Nudeln (Spaghetti)')).toHaveValue('Vollkornnudeln');
+
+  // Discarded: back to the planning and away again without the browser loading anew, no question
+  await page.getByRole('link', { name: 'Impressum' }).click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
+  await expect(page).toHaveURL(/\/impressum/);
+  for (let mal = 0; mal < 2; mal++) {
+    await page.goBack();
+    await expect(page.getByRole('heading', { name: 'E2E Einkäufe Verlassen' })).toBeVisible();
+    await page.getByRole('link', { name: 'Impressum' }).click();
+    await expect(page).toHaveURL(/\/impressum/);
+    await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).toHaveCount(0);
+  }
 });
 
 test('what is typed in the live mode stays while the trip shows its list or is left', async ({
   page,
 }) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe Ansicht');
-  await einkaufAnlegen(page, 'Montag', 0);
+  await nudelnVorbereiten(page, 'E2E Einkäufe Ansicht', { einkaeufe: ['Montag'] });
   const montag = await oeffnen(page, 'Montag');
   const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await menge.fill('800');
@@ -181,34 +188,9 @@ test('what is typed in the live mode stays while the trip shows its list or is l
   await expect(montag).toContainText('800 g → Vollkornnudeln');
 });
 
-test('leaving the planning after discarding live input asks no more on other pages', async ({
-  page,
-}) => {
-  test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe Verwerfen');
-  await einkaufAnlegen(page, 'Montag', 0);
-  const montag = await oeffnen(page, 'Montag');
-  await (await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)')).fill('800');
-  await page.getByRole('link', { name: 'Impressum' }).click();
-  await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
-  await expect(page).toHaveURL(/\/impressum/);
-  // Back to the planning and away again without the browser loading anew: no question
-  await page.goBack();
-  await expect(page.getByRole('heading', { name: 'E2E Einkäufe Verwerfen' })).toBeVisible();
-  await page.getByRole('link', { name: 'Impressum' }).click();
-  await expect(page).toHaveURL(/\/impressum/);
-  await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).toHaveCount(0);
-  await page.goBack();
-  await expect(page.getByRole('heading', { name: 'E2E Einkäufe Verwerfen' })).toBeVisible();
-  await page.getByRole('link', { name: 'Impressum' }).click();
-  await expect(page).toHaveURL(/\/impressum/);
-  await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).toHaveCount(0);
-});
-
 test('what is typed while ticking off is saved stays as a new change', async ({ page }) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe Weitertippen');
-  await einkaufAnlegen(page, 'Montag', 0);
+  await nudelnVorbereiten(page, 'E2E Einkäufe Weitertippen', { einkaeufe: ['Montag'] });
   const montag = await oeffnen(page, 'Montag');
   const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   const ersatz = await liveFeld(montag, 'Ersatz für Nudeln (Spaghetti)');
@@ -238,12 +220,10 @@ test('a fixed amount typed and not saved stays while another thing is adjusted',
   page,
 }) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe feste Menge');
-  const feld = page.getByLabel('Noch etwas besorgen');
-  await feld.fill('Kochhandschuhe');
-  await feld.press('Enter');
-  await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
-  await einkaufAnlegen(page, 'Montag', 0);
+  await nudelnVorbereiten(page, 'E2E Einkäufe feste Menge', {
+    zusatz: ['Kochhandschuhe'],
+    einkaeufe: ['Montag'],
+  });
   const montag = await oeffnen(page, 'Montag', 'liste');
   await montag.getByRole('button', { name: 'Nudeln (Spaghetti) in Montag anpassen' }).click();
   const fest = montag.getByLabel('Feste Menge von Nudeln (Spaghetti)');

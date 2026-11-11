@@ -1,4 +1,5 @@
-import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
+import type { Einkauf } from '../../../../api/lib/essen-einkaeufe-model';
+import { einheitSchluessel, type GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
 import { guardUnsavedChanges } from '../../lib/unsavedChanges';
 
 /** Shopping trips shown in the live mode now, by id, counted (`EinkaufLive.svelte`). */
@@ -98,4 +99,57 @@ export function merkeFest(key: string, entwurf: FestEntwurf): void {
 export function vergissFest(key: string): void {
   festeEntwuerfe.delete(key);
   aufraeumen();
+}
+
+/** Where the tick of a thing was saved from, read when it was sent. */
+export interface AbhakenOrt {
+  /** The key of its kept input, as for `entwuerfe`. */
+  key: string;
+  einkauf: number;
+  /** The key of the thing on the list, as kept in `offeneZeile`. */
+  zeile: string;
+  /** False once its row is gone (another view). */
+  aktiv: boolean;
+}
+
+/**
+ * Settles the kept input of a thing once its tick is saved, also when its row is gone: saved as
+ * it is, it goes (and a row that is gone no longer opens when coming back); typed on meanwhile, it
+ * stays on the version just saved (`neuerEtag`, read only then) without its conflict.
+ */
+export function entwurfNachAbhaken(
+  ort: AbhakenOrt,
+  gesendet: Pick<LiveEntwurf, 'menge' | 'einheit' | 'ersatz'>,
+  neuerEtag: () => string | null
+): void {
+  const kept = entwuerfe.get(ort.key);
+  if (
+    !kept ||
+    (kept.menge === gesendet.menge &&
+      kept.einheit === gesendet.einheit &&
+      kept.ersatz === gesendet.ersatz)
+  ) {
+    vergissEntwurf(ort.key);
+    if (!ort.aktiv && offeneZeile.get(ort.einkauf) === ort.zeile) offeneZeile.delete(ort.einkauf);
+  } else {
+    merkeEntwurf(ort.key, { ...kept, etag: neuerEtag(), konflikt: null });
+  }
+}
+
+/** The version of the tick of an ingredient in a unit of the same base, as saved in a trip. */
+export function gespeicherterEtag(
+  einkaeufe: readonly Pick<Einkauf, 'id' | 'posten'>[],
+  einkauf: number,
+  planungZutatId: number,
+  einheit: GerichtEinheit
+): string | null {
+  return (
+    einkaeufe
+      .find((e) => e.id === einkauf)
+      ?.posten.find(
+        (p) =>
+          p.planungZutatId === planungZutatId &&
+          einheitSchluessel(p.einheit) === einheitSchluessel(einheit)
+      )?.etag ?? null
+  );
 }
