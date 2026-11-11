@@ -16,8 +16,10 @@
     errors: Record<string, string>;
     /** Only to look at: the photo and its links, no tools. */
     lesen?: boolean;
+    /** The stored photo, already loaded; without it, it loads from the server. */
+    bild?: string;
   }
-  let { form, photo, busy, errors, lesen = false }: Props = $props();
+  let { form, photo, busy, errors, lesen = false, bild }: Props = $props();
   /** A picture of the photo or of a page of the PDF, as wide as the dialog. */
   const SEITE = 'h-auto w-full rounded-md border border-neutral-200 bg-neutral-100';
   /** The stored photo is open with the edit tools, rather than a newly chosen one. */
@@ -41,9 +43,15 @@
       </p>
     </InfoHint>{/if}
   {#if form.id && form.hasImage && !photo.draft}
-    <a href={photoUrl(form)} target="_blank" rel="noopener" class="block">
+    <a
+      data-astro-prefetch="false"
+      href={photoUrl(form)}
+      target="_blank"
+      rel="noopener"
+      class="block"
+    >
       <img
-        src={photoUrl(form)}
+        src={bild ?? photoUrl(form)}
         alt="{form.isPdf ? 'Erste Seite des PDFs' : 'Foto des Belegs'} von {form.shop}"
         width="600"
         height="800"
@@ -59,14 +67,24 @@
     {/if}
     <!-- Links that only open or save the file; the buttons below change it -->
     <div class="flex flex-wrap gap-x-5">
-      <a href={photoUrl(form)} target="_blank" rel="noopener" class="datei-link"
-        >In voller Größe öffnen</a
+      <a
+        data-astro-prefetch="false"
+        href={photoUrl(form)}
+        target="_blank"
+        rel="noopener"
+        class="datei-link">In voller Größe öffnen</a
       >
-      <a href="{photoUrl(form)}&download=1" download class="datei-link">
+      <a data-astro-prefetch="false" href="{photoUrl(form)}&download=1" download class="datei-link">
         {form.isPdf ? 'PDF herunterladen' : 'Foto herunterladen'}
       </a>
       {#if form.hasOriginal}
-        <a href="{photoUrl(form)}&original=1" target="_blank" rel="noopener" class="datei-link">
+        <a
+          data-astro-prefetch="false"
+          href="{photoUrl(form)}&original=1"
+          target="_blank"
+          rel="noopener"
+          class="datei-link"
+        >
           Original ansehen
         </a>
       {/if}
