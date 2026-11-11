@@ -29,6 +29,9 @@ export interface BelegForm {
   submittedAt: string;
   aiCheck: BelegCheck | null;
   campflow: BelegCampflow | null;
+  submittedByName?: string;
+  /** Whether the user may change it; a new receipt always. */
+  editable?: boolean;
 }
 
 /**
@@ -121,17 +124,21 @@ export function decisionMessage(
   shop: string,
   decision: BelegStatus | undefined,
   mailed: boolean,
-  submittedBy: string
+  submittedBy: string,
+  /** The status before, to tell taking back an acceptance from resubmitting. */
+  previous?: BelegStatus
 ): string {
   switch (decision) {
     case 'Angenommen':
-      return `Beleg von ${shop} angenommen. Jetzt Kostenstelle und Kategorie prüfen und nach CampFlow übertragen.`;
+      return `Beleg von ${shop} angenommen. Jetzt nach CampFlow übertragen.`;
     case 'Abgelehnt':
       return mailed
         ? `Beleg von ${shop} abgelehnt. ${submittedBy} hat die Begründung per Mail bekommen.`
         : `Beleg von ${shop} abgelehnt. Es wurde keine Mail verschickt, bitte gib ${submittedBy || 'der Person'} selbst Bescheid.`;
     case 'Eingereicht':
-      return `Beleg von ${shop} erneut eingereicht.`;
+      return previous === 'Angenommen'
+        ? `Annahme des Belegs von ${shop} zurückgenommen. Er lässt sich jetzt wieder bearbeiten.`
+        : `Beleg von ${shop} erneut eingereicht.`;
     default:
       return `Beleg von ${shop} gespeichert.`;
   }

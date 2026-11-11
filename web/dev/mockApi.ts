@@ -3505,7 +3505,21 @@ function applyBeleg(target: StaffBeleg, body: Record<string, unknown>): void {
 }
 
 route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
-  if (req.method === 'GET') return json(belege);
+  if (req.method === 'GET') {
+    // Like the API: the name of who submitted it, and whether the demo user may still change it
+    const namen: Record<string, string> = {
+      [PRINCIPAL.userDetails]: 'Demo Leitung',
+      'sam@example.test': 'Sam Muster',
+      'kim@example.test': 'Kim Beispiel',
+    };
+    return json(
+      belege.map((beleg) => ({
+        ...beleg,
+        ...(namen[beleg.submittedBy] ? { submittedByName: namen[beleg.submittedBy] } : {}),
+        editable: !beleg.readOnly && beleg.status !== 'Angenommen',
+      }))
+    );
+  }
   const body = req.json ?? {};
   const beleg: StaffBeleg = {
     id: newId(),

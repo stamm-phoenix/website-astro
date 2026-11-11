@@ -20,6 +20,7 @@
     onreload?: () => void;
     onclose: () => void;
     actions?: Snippet;
+    hideSubmit?: boolean;
   }
   let {
     open,
@@ -37,6 +38,7 @@
     onreload,
     onclose,
     actions,
+    hideSubmit = false,
   }: Props = $props();
   let deleteActionsOpen = $state(false);
   $effect(() => {
@@ -78,14 +80,16 @@
       <ActionButton variant="secondary" type="button" disabled={busy} onclick={onclose}>
         {cancelLabel}
       </ActionButton>
-      <ActionButton
-        variant="primary"
-        type="submit"
-        disabled={busy || submitDisabled}
-        aria-busy={busy}
-      >
-        {busy ? busyLabel : submitLabel}
-      </ActionButton>
+      {#if !hideSubmit}
+        <ActionButton
+          variant="primary"
+          type="submit"
+          disabled={busy || submitDisabled}
+          aria-busy={busy}
+        >
+          {busy ? busyLabel : submitLabel}
+        </ActionButton>
+      {/if}
     </div>
   </div>
 </div>

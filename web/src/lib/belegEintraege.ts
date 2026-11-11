@@ -42,6 +42,8 @@ export interface BelegEintrag {
   tone: StatusTone;
   /** „Bezahlt von“ here, „Auslage durch“ in CampFlow. */
   paidBy: string | null;
+  /** Who submitted it here, by name where known; null for CampFlow. */
+  submittedBy: string | null;
   /** Aktion, or Kostenstelle and Kategorie. */
   where: string;
   costUnitIds: string[];
@@ -159,6 +161,7 @@ export function belegEintraege(
       income: beleg.art === 'Einnahme',
       hasAmount: true,
       paidBy: beleg.paidBy || null,
+      submittedBy: beleg.submittedByName || beleg.submittedBy || null,
       where: beleg.kostenstelle.trim()
         ? [beleg.kostenstelle, beleg.kategorie].filter((part) => part.trim()).join(' · ')
         : beleg.aktion,
@@ -192,6 +195,7 @@ export function belegEintraege(
         income: beleg.amountCent > 0,
         hasAmount: beleg.status !== 'unbooked',
         paidBy: beleg.paidBy,
+        submittedBy: null,
         where: where.filter(Boolean).join(' · '),
         costUnitIds: beleg.costUnits.map((unit) => unit.id),
         categoryIds: beleg.categories.map((category) => category.id),

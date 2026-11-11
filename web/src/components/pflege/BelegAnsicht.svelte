@@ -1,10 +1,9 @@
 <script lang="ts">
   import ModalDialog from '../ui/ModalDialog.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
-  import { formatIsoDate } from '../../lib/belege';
+  import { belegDetails } from '../../lib/belegDetails';
   import BelegPdfSeiten from './BelegPdfSeiten.svelte';
   import { ladePdf, photoUrl } from '../../lib/belegForm';
-  import { formatEuro } from '../../lib/format';
   import type { StaffBeleg } from '../../lib/types';
   interface Props {
     /** A receipt someone else submitted for the user's Auslage: to look at, not to change. */
@@ -17,18 +16,11 @@
 
   const details = $derived.by<[string, string][]>(() => {
     if (!beleg) return [];
-    const rows: [string, string | null][] = [
-      ['Datum', beleg.date ? formatIsoDate(beleg.date) : null],
-      ['Betrag', formatEuro(beleg.amountCent)],
-      ['Kostenstelle', beleg.kostenstelle || null],
-      ['Kategorie', beleg.kategorie || null],
-      ['Aktion', beleg.kostenstelle ? null : beleg.aktion || null],
-      ['Ausgelegt von', beleg.paidBy || null],
-      ['Bemerkung', beleg.note || null],
-      ['Eingereicht von', beleg.submittedBy || null],
-      ['Begründung der Kasse', beleg.status === 'Abgelehnt' ? beleg.reviewNote || null : null],
+    const reason = beleg.status === 'Abgelehnt' ? beleg.reviewNote : '';
+    return [
+      ...belegDetails(beleg),
+      ...(reason ? [['Begründung der Kasse', reason] as [string, string]] : []),
     ];
-    return rows.filter((row): row is [string, string] => !!row[1]);
   });
 </script>
 

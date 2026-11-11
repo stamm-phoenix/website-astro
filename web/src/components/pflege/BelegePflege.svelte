@@ -13,6 +13,7 @@
   import BelegFields from './BelegFields.svelte';
   import BelegPhotoSection from './BelegPhotoSection.svelte';
   import BelegReview from './BelegReview.svelte';
+  import BelegLesen from './BelegLesen.svelte';
   import BelegAnsicht from './BelegAnsicht.svelte';
   import BelegCampflowDialog from './BelegCampflowDialog.svelte';
   import BelegUebersicht from './BelegUebersicht.svelte';
@@ -178,6 +179,23 @@
     });
   });
 
+  /** Editing the open receipt; a stored one opens to look at, with „Bearbeiten“. */
+  let bearbeiten = $state(false);
+  const lesen = $derived(!!form?.id && !bearbeiten);
+
+  function startBearbeiten(): void {
+    bearbeiten = true;
+    void editDialog?.neuerStand();
+  }
+
+  /** Leaves editing without saving: the stored receipt is shown again. */
+  function zurueckZumLesen(): void {
+    const stored = store.data?.find((beleg) => beleg.id === form?.id);
+    if (!stored) return close();
+    edit(stored);
+    void editDialog?.neuerStand();
+  }
+
   function resetDialog(): void {
     // The suggestions of the form, in case the list is still loading
     void fetchKostenstellen();
@@ -188,6 +206,7 @@
 
   function create(): void {
     resetDialog();
+    bearbeiten = true;
     form = {
       id: null,
       etag: '',
@@ -211,11 +230,13 @@
       submittedAt: '',
       aiCheck: null,
       campflow: null,
+      editable: true,
     };
   }
 
   function edit(beleg: StaffBeleg): void {
     resetDialog();
+    bearbeiten = false;
     form = {
       ...beleg,
       amount: centToInput(beleg.amountCent),
@@ -321,7 +342,13 @@
           status,
           reviewNote,
         });
-        message = decisionMessage(shop, decision, result?.mailed === true, submittedBy);
+        message = decisionMessage(
+          shop,
+          decision,
+          result?.mailed === true,
+          submittedBy,
+          previousStatus
+        );
       } else {
         // The photo as the check may still turn it upright, and what the check read meanwhile
         await photo.fertig();
@@ -340,9 +367,21 @@
         message = `${art === 'Einnahme' ? 'Einnahme' : 'Beleg'} von ${final.shop} über ${formatEuro(final.amountCent!)} eingereicht. Danke!`;
         newId = created?.id ?? null;
       }
-      form = null;
-      photo.clearDraft();
+      // Saved changes are shown again; a decision or a new receipt closes the dialog
+      const bleibt = id && !decision ? id : null;
+      if (!bleibt) {
+        form = null;
+        photo.clearDraft();
+      }
       await belegePflege.load({ force: true });
+      if (bleibt) {
+        const fresh = store.data?.find((beleg) => beleg.id === bleibt);
+        if (fresh) {
+          edit(fresh);
+          dialogNotice = `Beleg von ${fresh.shop || 'unbekannt'} gespeichert.`;
+          void editDialog?.neuerStand();
+        } else form = null;
+      }
       // The new receipt is to be seen in the list, whatever the filters said
       if (newId) neuerBeleg = `website-${newId}`;
       if (newId && !visible.some((e) => e.key === `website-${newId}`)) {
@@ -632,16 +671,19 @@
   error={dialog.state.error}
   notice={dialogNotice}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}
-  submitLabel={form?.id ? 'Speichern' : 'Einreichen'}
+  submitLabel={lesen ? 'Bearbeiten' : form?.id ? 'Speichern' : 'Einreichen'}
+  cancelLabel={lesen ? 'Schließen' : 'Abbrechen'}
+  hideSubmit={lesen && !form?.editable}
+  oncancel={form?.id && bearbeiten ? zurueckZumLesen : undefined}
   busyLabel={form?.id
     ? 'Wird gespeichert …'
     : photo.aiChecking
       ? 'Beleg wird geprüft …'
       : 'Wird hochgeladen …'}
   dirty={!!photo.zuschnitt || ungespeichert(photo.draft)}
-  onsubmit={() => save()}
+  onsubmit={() => (lesen ? startBearbeiten() : save())}
   onclose={close}
-  ondelete={form?.id && (reviewer || form.status !== 'Angenommen') ? remove : undefined}
+  ondelete={form?.id && (reviewer || form.editable) ? remove : undefined}
   deleteTitle={`Beleg von ${form?.shop || 'unbekannt'} löschen?`}
   deleteQuestion={form?.campflow?.state === 'Hochgeladen'
     ? `In CampFlow steht Beleg ${form.campflow.number} mit dem Stand der Übertragung. Prüfe dort, ob spätere Änderungen übernommen sind, bevor du ihn hier löschst. Diesen Beleg endgültig löschen?`
@@ -649,10 +691,21 @@
 >
   {#snippet aside()}
     {#if form}
-      <BelegPhotoSection {form} {photo} {busy} {errors} {reviewer} />
+      <BelegPhotoSection {form} {photo} {busy} {errors} {lesen} />
     {/if}
   {/snippet}
-  {#if form}
+  {#if form && lesen}
+    <BelegLesen {form} />
+    <!-- The Kasse decides on the receipt as it is stored, not while it is being changed -->
+    <BelegReview
+      bind:form
+      {reviewer}
+      busy={busy || photo.photoBusy}
+      {errors}
+      onsave={save}
+      ontransfer={transfer}
+    />
+  {:else if form}
     <BelegFields
       bind:form
       {errors}
@@ -662,15 +715,6 @@
         dialog.clearField('payout');
         dialog.clearField('paidBy');
       }}
-    />
-
-    <BelegReview
-      bind:form
-      {reviewer}
-      busy={busy || photo.photoBusy}
-      {errors}
-      onsave={save}
-      ontransfer={transfer}
     />
   {/if}
 </EditDialog>
