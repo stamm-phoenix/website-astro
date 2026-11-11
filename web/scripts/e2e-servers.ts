@@ -12,10 +12,8 @@
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { urlsNamedBySpec } from './ci/affected-specs';
-import { warmUp } from './e2e-warmup';
 
 const [firstPort, count] = process.argv.slice(2).map(Number);
 if (!Number.isInteger(firstPort) || !Number.isInteger(count) || count < 1) {
@@ -24,9 +22,6 @@ if (!Number.isInteger(firstPort) || !Number.isInteger(count) || count < 1) {
 }
 
 const TIMEOUT_MS = 60_000;
-// playwright.config.ts gives the servers 90 s to report; the warm-up may use what is left of 80 s
-const STARTUP_BUDGET_MS = 80_000;
-const scriptStarted = Date.now();
 const ports = Array.from({ length: count }, (_, index) => firstPort + index);
 const mode = process.env.E2E_SERVER ?? 'dev';
 if (mode !== 'dev' && mode !== 'built') {
@@ -102,39 +97,8 @@ async function waitFor(port: number): Promise<void> {
   );
 }
 
-/**
- * The pages of the specs a CI shard runs (`test-results/shard.txt`); none on a developer machine
- * and none for the built site, which has nothing to compile.
- */
-function shardPages(): string[] {
-  const list = resolve('test-results', 'shard.txt');
-  if (mode === 'built' || !existsSync(list) || process.env.E2E_WARMUP === '0') return [];
-  const specs = new Set(
-    readFileSync(list, 'utf8')
-      .split('\n')
-      .map((line) => /> (.+)$/.exec(line)?.[1])
-      .filter((file): file is string => file !== undefined)
-  );
-  const pages = new Set<string>();
-  for (const file of specs) {
-    for (const url of urlsNamedBySpec(resolve('tests', file), resolve('.'))) pages.add(url);
-  }
-  return [...pages].sort();
-}
-
 try {
   await Promise.all(ports.map(waitFor));
-  const pages = shardPages();
-  const budget = Math.min(45_000, STARTUP_BUDGET_MS - (Date.now() - scriptStarted));
-  if (pages.length > 0 && budget >= 5_000) {
-    const results = await Promise.all(
-      ports.map((port) => warmUp(`http://127.0.0.1:${port}`, pages, { limitMs: budget }))
-    );
-    // On stderr, which Playwright shows as [WebServer]; its stdout stays hidden
-    console.error(
-      `Warmed up ${pages.length} pages: ${results.map((r) => `${r.modules} modules in ${r.seconds.toFixed(0)} s`).join(', ')}`
-    );
-  }
   // playwright.config.ts waits for this line
   console.log(`E2E servers ready on ports ${ports.join(', ')}`);
 } catch (error) {

@@ -59,19 +59,31 @@ const sum = (groups: readonly TestGroup[]): number => groups.reduce((n, g) => n 
 const key = (g: TestGroup): string => `${g.project}/${g.file}`;
 
 /**
- * Splits the groups into `count` shards: the longest files first, each into the shard with the
- * least summed work (ties to the lower index). Since the tests of a file spread over the workers,
- * equal work gives about equal wall time.
+ * Splits the groups into `count` shards: the longest files first, each into the shard whose
+ * estimated wall time with `workers` ends lowest, then the one with less summed work, then the
+ * lower index. Equal work alone is not enough: a file whose long tests come last in Playwright's
+ * order leaves the other workers idle at the end.
  */
-export function balanceGroups(groups: readonly TestGroup[], count: number): TestGroup[][] {
+export function balanceGroups(
+  groups: readonly TestGroup[],
+  count: number,
+  workers: number
+): TestGroup[][] {
   if (!Number.isInteger(count) || count < 1) throw new Error('Invalid shard count');
   const shards: TestGroup[][] = Array.from({ length: count }, () => []);
-  const work = Array.from({ length: count }, () => 0);
   const ordered = [...groups].sort((a, b) => b.seconds - a.seconds || byName(key(a), key(b)));
   for (const group of ordered) {
-    const index = work.indexOf(Math.min(...work));
-    shards[index].push(group);
-    work[index] += group.seconds;
+    let best = 0;
+    let bestWall = Infinity;
+    let bestWork = Infinity;
+    shards.forEach((shard, index) => {
+      const wall = estimateWallSeconds([...shard, group], workers);
+      const work = sum(shard);
+      if (wall < bestWall || (wall === bestWall && work < bestWork)) {
+        [best, bestWall, bestWork] = [index, wall, work];
+      }
+    });
+    shards[best].push(group);
   }
   return shards;
 }
