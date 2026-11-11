@@ -10,11 +10,12 @@
     form: BelegForm;
     errors: Record<string, string>;
     /** The name of the logged-in person, for the own Auslage. */
-    myName: string;
+    /** Name an Auslage starts with: the person submitting a new receipt. */
+    vorschlag: string;
     onpayment: () => void;
     onfield: (field: string) => void;
   }
-  let { form = $bindable(), errors, myName, onpayment, onfield }: Props = $props();
+  let { form = $bindable(), errors, vorschlag, onpayment, onfield }: Props = $props();
 
   const ARTEN: { value: BelegArt; label: string }[] = [
     { value: 'Ausgabe', label: 'Ausgabe' },
@@ -22,8 +23,7 @@
   ];
   const einnahme = $derived(form.art === 'Einnahme');
   const ZAHLUNGEN: { value: BelegZahlung; label: string }[] = [
-    { value: 'ich', label: 'Mit meinem Geld – bitte an mich auszahlen' },
-    { value: 'andere', label: 'Jemand anderes hat ausgelegt – an diese Person auszahlen' },
+    { value: 'auslage', label: 'Privat ausgelegt – an diese Person auszahlen' },
     { value: 'stamm', label: 'Mit Stammeskarte / aus der Kasse' },
     { value: 'sparbuch', label: 'Umbuchung aufs Sparbuch' },
   ];
@@ -31,7 +31,7 @@
 
   // Names from the module „Personen“ to pick from; any other name can be typed
   $effect(() => {
-    if (form.zahlung === 'andere') void fetchBelegPersonen();
+    if (form.zahlung === 'auslage') void fetchBelegPersonen();
   });
 </script>
 
@@ -106,18 +106,18 @@
         <input
           type="radio"
           name="bl-payment-method"
-          data-form-error={errors.payout && option.value === 'ich' ? 'true' : undefined}
+          data-form-error={errors.payout && option.value === 'auslage' ? 'true' : undefined}
           aria-describedby={errors.payout ? 'bl-payout-error' : undefined}
           class="size-6 shrink-0 accent-[var(--color-action)]"
           checked={form.zahlung === option.value}
           onchange={() => {
-            applyZahlung(form, option.value, myName);
+            applyZahlung(form, option.value, vorschlag);
             onpayment();
           }}
         />
         <span>{option.label}</span>
       </label>
-      {#if option.value === 'andere' && form.zahlung === 'andere'}
+      {#if option.value === 'auslage' && form.zahlung === 'auslage'}
         <FormField id="bl-paid-by" label="Ausgelegt von" error={errors.paidBy} class="pl-9">
           {#snippet children(attrs)}
             <VorschlagFeld

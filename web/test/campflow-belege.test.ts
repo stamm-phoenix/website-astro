@@ -304,25 +304,23 @@ test('the server marks my Auslagen when the browser does not know my name', () =
 
 test('the choice of payment sets who gets the Auslage', () => {
   const form = { zahlung: null, paidBy: '', payout: null } as unknown as BelegForm;
-  applyZahlung(form, 'andere', 'Kim');
-  assert.deepEqual([form.payout, form.paidBy], [true, '']);
+  applyZahlung(form, 'auslage', 'Kim');
+  assert.deepEqual([form.payout, form.paidBy], [true, 'Kim'], 'starts with the suggested name');
   form.paidBy = 'Sam';
-  applyZahlung(form, 'andere', 'Kim');
+  applyZahlung(form, 'auslage', 'Kim');
   assert.equal(form.paidBy, 'Sam', 'a typed name stays');
-  applyZahlung(form, 'ich', 'Kim');
-  assert.deepEqual([form.payout, form.paidBy], [true, 'Kim']);
   applyZahlung(form, 'sparbuch', 'Kim');
   assert.deepEqual([form.payout, form.paidBy], [true, 'Sparbuch']);
-  applyZahlung(form, 'andere', 'Kim');
-  assert.equal(form.paidBy, '', 'neither the own name nor the savings book stay');
+  applyZahlung(form, 'auslage', '');
+  assert.equal(form.paidBy, '', 'the savings book does not stay, without a suggestion');
   applyZahlung(form, 'stamm', 'Kim');
   assert.deepEqual([form.payout, form.paidBy], [false, '']);
 
-  // Read back from a stored receipt
-  assert.equal(zahlungOf({ payout: false, paidBy: 'Kim' }, isKim), 'stamm');
-  assert.equal(zahlungOf({ payout: true, paidBy: 'Kim' }, isKim), 'ich');
-  assert.equal(zahlungOf({ payout: true, paidBy: 'Sam' }, isKim), 'andere');
-  assert.equal(zahlungOf({ payout: true, paidBy: 'Sparbuch' }, isKim), 'sparbuch');
+  // Read back from a stored receipt, whoever paid
+  assert.equal(zahlungOf({ payout: false, paidBy: 'Kim' }), 'stamm');
+  assert.equal(zahlungOf({ payout: true, paidBy: 'Kim' }), 'auslage');
+  assert.equal(zahlungOf({ payout: true, paidBy: 'Sam' }), 'auslage');
+  assert.equal(zahlungOf({ payout: true, paidBy: 'Sparbuch' }), 'sparbuch');
 });
 
 test('a receipt here of an archived Kostenstelle is found by its filter', () => {

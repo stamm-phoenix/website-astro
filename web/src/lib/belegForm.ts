@@ -32,22 +32,18 @@ export interface BelegForm {
 }
 
 /**
- * How a receipt was paid: out of the own pocket, by someone else, by the Stamm (card or cash box)
- * or as a transfer to the savings book. All but the Stamm are an Auslage in CampFlow.
+ * How a receipt was paid: by a person who gets the money back (`auslage`), by the Stamm (card or
+ * cash box) or as a transfer to the savings book. All but the Stamm are an Auslage in CampFlow.
  */
-export type BelegZahlung = 'ich' | 'andere' | 'stamm' | 'sparbuch';
+export type BelegZahlung = 'auslage' | 'stamm' | 'sparbuch';
 
 /** What CampFlow's „Auslage durch“ says for a transfer to the savings book. */
 export const SPARBUCH = 'Sparbuch';
 
-/** The choice in the form for a stored receipt; `isIch` tells the own Auslage from others. */
-export function zahlungOf(
-  beleg: { payout: boolean; paidBy: string },
-  isIch: (person: { name: string }) => boolean
-): BelegZahlung {
+/** The choice in the form for a stored receipt. */
+export function zahlungOf(beleg: { payout: boolean; paidBy: string }): BelegZahlung {
   if (!beleg.payout) return 'stamm';
-  if (beleg.paidBy.trim() === SPARBUCH) return 'sparbuch';
-  return isIch({ name: beleg.paidBy }) ? 'ich' : 'andere';
+  return beleg.paidBy.trim() === SPARBUCH ? 'sparbuch' : 'auslage';
 }
 
 /** Switches between expense and income; income has no Auslage, so its choice goes. */
@@ -59,16 +55,18 @@ export function applyArt(form: BelegForm, art: BelegArt): void {
   form.paidBy = '';
 }
 
-/** Sets who gets the Auslage for a choice; `myName` for the own one. */
-export function applyZahlung(form: BelegForm, zahlung: BelegZahlung, myName: string): void {
+/**
+ * Sets who gets the Auslage for a choice. An Auslage starts with `vorschlag`, the name of the
+ * person submitting a new receipt, which can be changed to whoever paid.
+ */
+export function applyZahlung(form: BelegForm, zahlung: BelegZahlung, vorschlag: string): void {
   const before = form.zahlung;
   form.zahlung = zahlung;
   form.payout = zahlung !== 'stamm';
-  if (zahlung === 'ich') form.paidBy = myName;
-  else if (zahlung === 'sparbuch') form.paidBy = SPARBUCH;
+  if (zahlung === 'sparbuch') form.paidBy = SPARBUCH;
   else if (zahlung === 'stamm') form.paidBy = '';
-  // Someone else: a name typed before stays, the own name or „Sparbuch“ does not
-  else if (before !== 'andere') form.paidBy = '';
+  // A name typed before stays; „Sparbuch“ or nothing becomes the suggestion
+  else if (before !== 'auslage') form.paidBy = vorschlag;
 }
 
 export function photoUrl(beleg: { id: string | null; etag: string }, variant = ''): string {
@@ -105,10 +103,8 @@ export function validateBeleg(
     result.amountCent = 'Bitte einen Betrag wie 12,34 angeben.';
   // Income has no Auslage
   if (!einnahme && f.zahlung === null) result.payout = 'Bitte auswählen, wie bezahlt wurde.';
-  else if (!einnahme && f.zahlung === 'andere' && !f.paidBy.trim()) {
+  else if (!einnahme && f.zahlung === 'auslage' && !f.paidBy.trim()) {
     result.paidBy = 'Bitte angeben, wer das Geld ausgelegt hat.';
-  } else if (!einnahme && f.zahlung === 'ich' && !f.paidBy.trim()) {
-    result.payout = 'Dein Name ist nicht bekannt. Wähle „Jemand anderes“ und trage ihn ein.';
   }
   // A receipt from before Kostenstelle and Kategorie may keep its Aktion, unless it is transferred
   if (!f.aktion.trim() || f.kostenstelle.trim() || f.kategorie.trim() || forTransfer) {

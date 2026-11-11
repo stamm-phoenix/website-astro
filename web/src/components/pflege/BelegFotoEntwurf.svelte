@@ -5,6 +5,7 @@
   import BelegSeiten from './BelegSeiten.svelte';
   import type { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import type { Ausrichtung, FotoFarben } from '../../lib/belegBild';
+  import { eckenVon, rechteckUm, type ZuschnittArt } from '../../lib/belegZuschnittRechteck';
 
   /**
    * The chosen photo of a receipt while it is edited: crop, turn, mirror and colours. Shared by
@@ -23,6 +24,20 @@
     { value: 'graustufen', label: 'Graustufen' },
     { value: 'original', label: 'Original' },
   ];
+  const ARTEN: { value: ZuschnittArt; label: string }[] = [
+    { value: 'frei', label: 'Frei' },
+    { value: 'rechteck', label: 'Rechteck' },
+  ];
+  /** Kept while the dialog is open, so the next crop starts the way the last one was made. */
+  let art = $state<ZuschnittArt>('frei');
+
+  /** A rectangle starts around the free corners; free corners start on the rectangle. */
+  function artWaehlen(neu: ZuschnittArt): void {
+    const offen = photo.zuschnitt;
+    art = neu;
+    if (offen && neu === 'rechteck')
+      photo.setZuschnitt(eckenVon(rechteckUm(offen.quad, offen.width, offen.height)));
+  }
   type Werkzeug = 'zuschneiden' | Ausrichtung | 'zuruecksetzen';
   /** The tools; icons from simple strokes, the label is also the tooltip. */
   const TOOLS: { id: Werkzeug; label: string; text?: string; icon: string }[] = [
@@ -80,22 +95,34 @@
       width={photo.zuschnitt.width}
       height={photo.zuschnitt.height}
       quad={photo.zuschnitt.quad}
+      {art}
       disabled={locked}
       onchange={photo.setZuschnitt}
     />
-    <div class="flex flex-wrap gap-2">
-      <ActionButton
-        variant="primary"
-        type="button"
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <FilterTabs
+        label="Form"
+        showLabel
+        variant="segmented"
+        options={ARTEN}
+        value={art}
         disabled={locked}
-        onclick={photo.zuschnittFertig}>Zuschneiden fertig</ActionButton
-      >
-      <ActionButton
-        variant="secondary"
-        type="button"
-        disabled={locked}
-        onclick={photo.zuschnittAbbrechen}>Abbrechen</ActionButton
-      >
+        onselect={artWaehlen}
+      />
+      <div class="flex flex-wrap gap-2">
+        <ActionButton
+          variant="secondary"
+          type="button"
+          disabled={locked}
+          onclick={photo.zuschnittAbbrechen}>Abbrechen</ActionButton
+        >
+        <ActionButton
+          variant="primary"
+          type="button"
+          disabled={locked}
+          onclick={photo.zuschnittFertig}>Zuschneiden fertig</ActionButton
+        >
+      </div>
     </div>
   {:else}
     {#if draft.result}

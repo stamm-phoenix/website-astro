@@ -98,9 +98,14 @@
     return linked ? `${linked.firstName} ${linked.lastName}`.trim() : '';
   });
 
-  // The name may arrive after „Mit meinem Geld“ was chosen
+  /** A new receipt's Auslage starts with the own name; who submitted an older one is unknown. */
+  const vorschlag = $derived(form && !form.id ? myName : '');
+  // The name may arrive after the Auslage was chosen; a name typed or cleared meanwhile stays
   $effect(() => {
-    if (form?.zahlung === 'ich' && !form.paidBy.trim() && myName) form.paidBy = myName;
+    const name = vorschlag;
+    untrack(() => {
+      if (name && form?.zahlung === 'auslage' && !form.paidBy.trim()) form.paidBy = name;
+    });
   });
   const eintraege = $derived(belegEintraege(store.data ?? [], campflowStore.data, { isIch }));
   const kostenstellen = $derived(eintragKostenstellen(eintraege, campflowStore.data));
@@ -215,7 +220,7 @@
       ...beleg,
       amount: centToInput(beleg.amountCent),
       // Income has no Auslage to choose
-      zahlung: beleg.art === 'Einnahme' ? null : zahlungOf(beleg, isIch),
+      zahlung: beleg.art === 'Einnahme' ? null : zahlungOf(beleg),
     };
   }
 
@@ -651,7 +656,7 @@
     <BelegFields
       bind:form
       {errors}
-      {myName}
+      {vorschlag}
       onfield={(field) => dialog.clearField(field)}
       onpayment={() => {
         dialog.clearField('payout');

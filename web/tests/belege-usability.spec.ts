@@ -22,7 +22,7 @@ test('a new receipt asks how it was paid without preselecting a payout', async (
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
   const ownMoney = dialog.getByRole('radio', {
-    name: 'Mit meinem Geld – bitte an mich auszahlen',
+    name: 'Privat ausgelegt – an diese Person auszahlen',
     exact: true,
   });
   const clubMoney = dialog.getByRole('radio', {
@@ -80,7 +80,7 @@ test('the check of a new photo shows its progress until the answer arrives', asy
   await expect(dialog.getByLabel('Geschäft')).toHaveValue('Demo-Markt');
 });
 
-test('my own Auslage takes the name of the linked CampFlow person without a name claim', async ({
+test('a new Auslage starts with the name of the linked CampFlow person without a name claim', async ({
   page,
 }) => {
   // A login without its name, and the linked CampFlow person known only a moment later
@@ -98,27 +98,20 @@ test('my own Auslage takes the name of the linked CampFlow person without a name
       },
     });
   });
-  const sent: Array<Record<string, unknown>> = [];
-  await page.route('**/api/intern/pflege/belege/41', async (route) => {
-    if (route.request().method() !== 'PATCH') return route.fallback();
-    sent.push(route.request().postDataJSON());
-    await route.fulfill({ json: { mailed: false, etag: 'gespeichert' } });
-  });
   await page.goto('/leitendenbereich/belege/');
-  await page.getByRole('button', { name: /REWE/ }).first().click();
-  const dialog = page.getByRole('dialog', { name: 'Beleg von REWE' });
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
   await dialog
-    .getByRole('radio', { name: 'Mit meinem Geld – bitte an mich auszahlen', exact: true })
+    .getByRole('radio', { name: 'Privat ausgelegt – an diese Person auszahlen', exact: true })
     .check();
+  const paidBy = dialog.getByLabel('Ausgelegt von');
+  await expect(paidBy).toHaveValue('');
   releaseIch();
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(dialog).toBeHidden();
-  expect(sent.at(-1)).toMatchObject({ payout: true, paidBy: 'Kim Verknüpft' });
+  // The name arriving later fills the empty field; it can still be changed
+  await expect(paidBy).toHaveValue('Kim Verknüpft');
 });
 
-test('an Auslage of someone else names that person, the savings book names itself', async ({
-  page,
-}) => {
+test('an Auslage names who paid, the savings book names itself', async ({ page }) => {
   // Answered here, so the shared demo keeps its receipts for the other tests
   const sent: Array<Record<string, unknown>> = [];
   await page.route('**/api/intern/pflege/belege/41', async (route) => {
@@ -133,16 +126,12 @@ test('an Auslage of someone else names that person, the savings book names itsel
   };
   let dialog = await open();
   const paidBy = dialog.getByLabel('Ausgelegt von');
-  // Paid out of the demo user's pocket: the own Auslage, no name to type
+  // Paid out of the demo user's pocket: an Auslage like any other, with the name to see
   await expect(
-    dialog.getByRole('radio', { name: 'Mit meinem Geld – bitte an mich auszahlen' })
+    dialog.getByRole('radio', { name: 'Privat ausgelegt – an diese Person auszahlen' })
   ).toBeChecked();
-  await expect(paidBy).toBeHidden();
-
-  await dialog
-    .getByRole('radio', { name: 'Jemand anderes hat ausgelegt – an diese Person auszahlen' })
-    .check();
-  await expect(paidBy).toHaveValue('');
+  await expect(paidBy).not.toHaveValue('');
+  await paidBy.fill('');
   // The people of the module „Personen“ are suggested, any name can be typed
   await paidBy.click();
   await expect(
@@ -170,11 +159,11 @@ test('an Auslage of someone else names that person, the savings book names itsel
   await expect(dialog).toBeHidden();
   expect(sent.at(-1)).toMatchObject({ payout: false, paidBy: '' });
 
-  // Sam's Auslage, submitted by Sam: someone else's, with the name
+  // Sam's Auslage, submitted by Sam, reads the same
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const bahn = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
   await expect(
-    bahn.getByRole('radio', { name: 'Jemand anderes hat ausgelegt – an diese Person auszahlen' })
+    bahn.getByRole('radio', { name: 'Privat ausgelegt – an diese Person auszahlen' })
   ).toBeChecked();
   await expect(bahn.getByLabel('Ausgelegt von')).toHaveValue('Sam Muster');
 });

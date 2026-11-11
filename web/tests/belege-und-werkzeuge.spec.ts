@@ -73,7 +73,7 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
     .fill('Verpflegungskosten');
   await page.getByRole('dialog').getByLabel('Kategorie', { exact: true }).press('Escape');
   await page
-    .getByRole('radio', { name: 'Mit meinem Geld – bitte an mich auszahlen', exact: true })
+    .getByRole('radio', { name: 'Privat ausgelegt – an diese Person auszahlen', exact: true })
     .check();
   await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
   // On small screens the page message is scrolled away and repeated in a popup.
