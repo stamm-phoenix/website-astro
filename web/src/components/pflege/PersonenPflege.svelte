@@ -202,10 +202,11 @@
       if (current.id)
         await sendApi('PATCH', `/intern/pflege/personen/${current.id}`, body(current));
       else await sendApi('POST', '/intern/pflege/personen', body(current));
+      // Before the message: a page opened right after it must not get the former link's Aktionen
+      linkChanged();
       message = `${current.name.trim()} gespeichert.`;
       form = null;
       await personenPflege.load({ force: true });
-      linkChanged();
     }, 'Die Person wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.');
   }
 
@@ -216,12 +217,12 @@
       await sendApi('DELETE', `/intern/pflege/personen/${current.id}`, undefined, {
         etag: current.etag,
       });
+      linkChanged();
       message = current.konto
         ? `Die Verknüpfung von ${current.name.trim()} ist gelöscht.`
         : `${current.name.trim()} gelöscht. In alten Protokollen bleibt der Name stehen.`;
       form = null;
       await personenPflege.load({ force: true });
-      linkChanged();
     }, 'Die Person wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 
@@ -260,9 +261,9 @@
           ? `${saved} ${saved === 1 ? 'Vorschlag' : 'Vorschläge'} übernommen.`
           : `${saved} übernommen, ${failed} nicht gespeichert. Bitte die übrigen einzeln verknüpfen.`;
     } finally {
+      linkChanged();
       applying = false;
       await personenPflege.load({ force: true });
-      linkChanged();
     }
   }
 

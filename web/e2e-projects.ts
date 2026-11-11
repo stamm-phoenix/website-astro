@@ -41,6 +41,13 @@ export const MOBILE_TAG = '@mobile';
  */
 export const DARK_TAG = '@dark';
 
+/**
+ * A test that loads a source module from the dev server (`import('/src/lib/…')`) to call its
+ * functions directly. The built site has no such modules, so these tests run only on the dev
+ * server (`E2E_SERVER=built` leaves them out, CI runs them in a job of their own).
+ */
+export const DEV_SERVER_TAG = '@dev-server';
+
 /** Every file that runs on `mobile` as a whole. */
 export const MOBILE_FILE_PATTERNS = [...MOBILE_ONLY_SPECS, ...ALSO_ON_MOBILE_SPECS];
 

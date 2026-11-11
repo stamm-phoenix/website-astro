@@ -590,25 +590,18 @@ for (const newerOverview of [false, true]) {
     const request = page.waitForRequest(
       (req) => req.method() === 'GET' && req.url().endsWith('/intern/pflege/aufgaben')
     );
-    await page.evaluate(async () => {
-      const path = '/src/lib/aufgabenStore.svelte.ts';
-      const store = await import(path);
-      void store.loadTasks();
-    });
+    // Opening the page again through the menu swaps it in place (Astro's client navigation): the
+    // tasks stay shown from the store while the page loads the overview again
+    await page.locator('a[aria-current="page"][href="/leitendenbereich/aufgaben"]').first().click();
     await request;
+    await taskStatus(page, 'Alle');
     await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
     await expect(row.getByRole('button', { name: 'Wieder öffnen', exact: true })).toBeVisible();
     release();
-    await expect
-      .poll(() =>
-        page.evaluate(async () => {
-          const path = '/src/lib/aufgabenStore.svelte.ts';
-          return (await import(path)).aufgabenStore.data.projects.some(
-            (project: { id: number }) => project.id === 987
-          );
-        })
-      )
-      .toBe(true);
+    // The project filter lists the projects of the overview that arrived last
+    await expect(
+      page.locator('#task-project-filter option', { hasText: 'Anderes neues Projekt' })
+    ).toHaveCount(1);
     await expect(
       row.getByRole('button', {
         name: newerOverview ? 'Als erledigt markieren' : 'Wieder öffnen',
