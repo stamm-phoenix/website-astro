@@ -1,0 +1,3 @@
+[test]
+# Lets unit tests import modules that use Svelte runes (`*.svelte.ts`).
+preload = ["./test/setup/svelte-runes.ts"]

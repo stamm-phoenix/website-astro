@@ -151,8 +151,7 @@ jobs:
     needs: select
     if: >-
       needs.select.outputs.run == 'true' &&
-      (contains(needs.select.outputs.matrix, 'nikolaus-offline.spec.ts') ||
-      contains(needs.select.outputs.matrix, 'sammelbestellung-flows.spec.ts'))
+      contains(needs.select.outputs.matrix, 'nikolaus-offline.spec.ts')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     container:
