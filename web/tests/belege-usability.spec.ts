@@ -583,3 +583,24 @@ for (const decision of [
     });
   });
 }
+
+test('on a wide screen the picture of a receipt sits beside its fields, and only the content scrolls', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1400, height: 800 });
+  await page.goto('/leitendenbereich/belege');
+  await page.getByText('REWE', { exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg von REWE' });
+  const picture = dialog.getByAltText(/Foto des Belegs/);
+  const shop = dialog.getByLabel('Geschäft');
+  await expect(picture).toBeVisible();
+  const [pictureBox, shopBox] = [await picture.boundingBox(), await shop.boundingBox()];
+  expect(pictureBox!.x + pictureBox!.width).toBeLessThan(shopBox!.x);
+  // The hidden file input once made the dialog itself scrollable, past its own footer
+  await dialog.getByRole('button', { name: 'Annehmen', exact: true }).scrollIntoViewIfNeeded();
+  await dialog.locator('input[type="file"]').focus();
+  await page.mouse.move(pictureBox!.x + 20, 400);
+  await page.mouse.wheel(0, 3000);
+  expect(await dialog.evaluate((element) => element.scrollTop)).toBe(0);
+  await expect(dialog.getByRole('heading', { name: 'Beleg von REWE' })).toBeInViewport();
+});

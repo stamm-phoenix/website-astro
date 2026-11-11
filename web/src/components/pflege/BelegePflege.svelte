@@ -618,6 +618,7 @@
 <EditDialog
   bind:this={editDialog}
   open={form !== null}
+  size="split"
   title={form?.id ? `Beleg von ${form.shop || 'unbekannt'}` : 'Beleg einreichen'}
   rescueKey={form ? `beleg:${form.id ?? 'neu'}` : undefined}
   rescueVersion={form?.etag}
@@ -641,9 +642,12 @@
     ? `In CampFlow steht Beleg ${form.campflow.number} mit dem Stand der Übertragung. Prüfe dort, ob spätere Änderungen übernommen sind, bevor du ihn hier löschst. Diesen Beleg endgültig löschen?`
     : 'Diesen Beleg endgültig löschen?'}
 >
+  {#snippet aside()}
+    {#if form}
+      <BelegPhotoSection {form} {photo} {busy} {errors} {reviewer} />
+    {/if}
+  {/snippet}
   {#if form}
-    <BelegPhotoSection {form} {photo} {busy} {errors} {reviewer} />
-
     <BelegFields
       bind:form
       {errors}

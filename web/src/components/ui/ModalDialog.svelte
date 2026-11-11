@@ -28,8 +28,11 @@
     closeDisabled?: boolean;
     /** Label of the close button in the header. */
     closeLabel?: string;
-    /** `wide` (44rem) for forms, `medium` (40rem) for details, `narrow` (28rem) for questions. */
-    size?: 'wide' | 'medium' | 'narrow';
+    /**
+     * `wide` (44rem) for forms, `medium` (40rem) for details, `narrow` (28rem) for questions,
+     * `split` like `wide` but 76rem on large screens, for a form with a preview beside it.
+     */
+    size?: 'wide' | 'medium' | 'narrow' | 'split';
     /** Close on a click on the dimmed area around the dialog. Only for dialogs without input. */
     dismissOnBackdrop?: boolean;
     /** Stronger shadow and darker backdrop, so a question stands out from a dialog behind it. */
@@ -54,6 +57,7 @@
     wide: 'w-[min(44rem,calc(100%-2rem))]',
     medium: 'w-[min(40rem,calc(100%-2rem))]',
     narrow: 'w-[min(28rem,calc(100%-4rem))]',
+    split: 'w-[min(44rem,calc(100%-2rem))] lg:w-[min(76rem,calc(100%-2rem))]',
   } as const;
   /** Whether the current click started on the backdrop, so a drag out of the dialog keeps it open. */
   let pressedBackdrop = false;
@@ -232,7 +236,7 @@
   aria-labelledby={id}
   class="m-auto max-h-[calc(100dvh-2rem)] {WIDTH[
     size
-  ]} rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
+  ]} overflow-clip rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
   class:action-sheet={sheet}
   class:prominent
   style:transform={pulling || settle > 0 ? `translateY(${pull}px)` : undefined}
@@ -264,7 +268,8 @@
   }}
 >
   {#if open}
-    <div class="flex max-h-[calc(100dvh-2rem)] flex-col">
+    <!-- The dialog itself never scrolls: only the content inside it does. Its borders take 2px. -->
+    <div class="relative flex max-h-[calc(100dvh-2rem-2px)] flex-col">
       <div bind:this={header} class="shrink-0 border-b border-neutral-200">
         {#if sheet && !closeDisabled}
           <!-- Grip: on phones the sheet can be pulled down to close it -->

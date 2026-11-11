@@ -45,6 +45,11 @@ test('the Kasse crops a stored receipt photo again and keeps its original', asyn
   const before = Number(await preview.getAttribute('width'));
 
   await dialog.getByRole('button', { name: 'Zuschneiden', exact: true }).click();
+  // The photo to crop starts below the label, as big as the other previews allow
+  const original = await dialog.getByAltText('Originalfoto mit dem erkannten Beleg').boundingBox();
+  const label = await dialog.getByText('Foto oder PDF des Belegs', { exact: true }).boundingBox();
+  expect(original!.y).toBeGreaterThanOrEqual(label!.y + label!.height);
+  expect(original!.height).toBeGreaterThan(400);
   await dialog
     .getByRole('button', { name: /Ecke oben links verschieben/ })
     .press('Shift+ArrowRight');
