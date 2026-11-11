@@ -2,6 +2,7 @@ import { test as base, expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 
 interface Fixtures {
+  freshDemoData: void;
   offlineDemo: void;
 }
 
@@ -13,8 +14,22 @@ export const test = base.extend<Fixtures>({
       `http://127.0.0.1:${Number(process.env.E2E_PORT_BASE ?? 4323) + testInfo.parallelIndex}`
     );
   },
+  // Against the built site every test, and every retry, starts with the initial demo data, so the
+  // tests of one file can run on several workers (scripts/mock-state.ts). The dev server keeps
+  // one data set per server; its files run one after the other (playwright.config.ts).
+  freshDemoData: [
+    async ({ baseURL }, use) => {
+      if (process.env.E2E_SERVER === 'built') {
+        const response = await fetch(`${baseURL}/__e2e/fresh-state`, { method: 'POST' });
+        if (!response.ok) throw new Error(`No fresh demo data: ${await response.text()}`);
+      }
+      await use();
+    },
+    { auto: true },
+  ],
   offlineDemo: [
-    async ({ context, page, baseURL }, use) => {
+    async ({ context, page, baseURL, freshDemoData }, use) => {
+      void freshDemoData;
       const errors: string[] = [];
       await page.clock.setFixedTime(new Date('2026-10-01T12:00:00Z'));
       // WebKit reports a request to our own origin that the next navigation cut off (an

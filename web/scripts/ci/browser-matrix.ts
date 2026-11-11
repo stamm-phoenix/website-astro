@@ -7,17 +7,16 @@
  * of each at about `TARGET_SECONDS` (`browser-shards.ts`), WebKit (`webkit-tablet`) one job,
  * and only when one of its specs is selected.
  */
-import { balanceGroups, estimateWallSeconds, shardFits } from './browser-shards';
+import { balanceGroups, estimateWallSeconds, totalSeconds } from './browser-shards';
 import type { TestGroup } from './browser-shards';
 
 /**
- * Estimated seconds from the first to the last test of a Chromium shard. Start of the dev
- * servers and warm-up add 24 to 43 s to the test step, and the estimate was at most 22 s below
- * the real time (run 42947457925), so a shard stays below about 3:40 min. A shard whose longest
- * file takes longer may take as long as that file, since a file never splits.
+ * Estimated seconds from the first to the last test of a Chromium shard. A shard job spends
+ * about 60 s besides the tests (container, install, build, report), so 85 s keeps a job at about
+ * 2:30 min (#570).
  */
-export const TARGET_SECONDS = 150;
-export const MAX_SHARDS = 12;
+export const TARGET_SECONDS = 85;
+export const MAX_SHARDS = 16;
 const WEBKIT_PROJECT = 'webkit-tablet';
 const CHROMIUM_WORKERS = 4;
 
@@ -55,6 +54,19 @@ export function parseDurations(text: string): Map<string, number> {
   );
 }
 
+/**
+ * Test counts from the optional fourth column of `browser-durations.tsv`, as measured; the
+ * discovery of the run counts the tests anew and takes precedence.
+ */
+export function parseTestCounts(text: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const line of text.split('\n')) {
+    const [project, file, , tests] = line.split('\t');
+    if (tests !== undefined && Number(tests) >= 1) counts.set(`${project}/${file}`, Number(tests));
+  }
+  return counts;
+}
+
 /** The median known duration, used for a project/file without one; 30 s when none is known. */
 export function fallbackSeconds(durations: Map<string, number>): number {
   const sorted = [...durations.values()].sort((a, b) => a - b);
@@ -63,50 +75,47 @@ export function fallbackSeconds(durations: Map<string, number>): number {
 
 /** Adds the known or the fallback duration to each discovered project/file. */
 export function withDurations(
-  found: readonly { project: string; file: string }[],
-  durations: Map<string, number>
+  found: readonly { project: string; file: string; tests?: number }[],
+  durations: Map<string, number>,
+  counts: Map<string, number> = new Map()
 ): TestGroup[] {
   const fallback = fallbackSeconds(durations);
-  return found.map(({ project, file }) => ({
-    project,
-    file,
-    seconds: durations.get(`${project}/${file}`) ?? fallback,
-  }));
+  return found.map(({ project, file, tests }) => {
+    const known = tests ?? counts.get(`${project}/${file}`);
+    return {
+      project,
+      file,
+      seconds: durations.get(`${project}/${file}`) ?? fallback,
+      ...(known === undefined ? {} : { tests: known }),
+    };
+  });
 }
 
-/** Lowers the target in these steps while the shard count still fits, to even out the shards. */
-const EVEN_OUT_STEP = 5;
-
-function fits(shards: readonly TestGroup[][], target: number): boolean {
-  return shards.every((shard) => shardFits(shard, CHROMIUM_WORKERS, target));
+function fits(shards: readonly TestGroup[][]): boolean {
+  return shards.every((shard) => estimateWallSeconds(shard, CHROMIUM_WORKERS) <= TARGET_SECONDS);
 }
 
 /**
- * The fewest Chromium shards (1 to `MAX_SHARDS`, never more than files) that each stay within
- * `TARGET_SECONDS` or their longest file; `MAX_SHARDS` when no count does. With that count the
- * target is then lowered as far as everything still fits, so the work spreads evenly instead of
- * filling the first shards and leaving a small last one.
+ * The fewest Chromium shards (1 to `MAX_SHARDS`, never more than files) whose estimated wall
+ * time each stays within `TARGET_SECONDS`; `MAX_SHARDS` when no count does.
  */
 export function chromiumShards(groups: readonly TestGroup[]): TestGroup[][] {
   if (groups.length === 0) return [];
   const most = Math.min(MAX_SHARDS, groups.length);
-  let count = 1;
-  let shards = balanceGroups(groups, count, CHROMIUM_WORKERS, TARGET_SECONDS);
-  while (!fits(shards, TARGET_SECONDS) && count < most) {
+  // Fewer shards than the summed work allows can never fit; start there
+  let count = Math.min(
+    most,
+    Math.max(1, Math.ceil(totalSeconds(groups) / (CHROMIUM_WORKERS * TARGET_SECONDS)))
+  );
+  let shards = balanceGroups(groups, count);
+  while (!fits(shards) && count < most) {
     count += 1;
-    shards = balanceGroups(groups, count, CHROMIUM_WORKERS, TARGET_SECONDS);
-  }
-  if (fits(shards, TARGET_SECONDS)) {
-    for (let target = TARGET_SECONDS - EVEN_OUT_STEP; target > 0; target -= EVEN_OUT_STEP) {
-      const lower = balanceGroups(groups, count, CHROMIUM_WORKERS, target);
-      if (!fits(lower, target)) break;
-      shards = lower;
-    }
+    shards = balanceGroups(groups, count);
   }
   return shards.filter((s) => s.length > 0);
 }
 
-const sum = (groups: readonly TestGroup[]): number => groups.reduce((n, g) => n + g.seconds, 0);
+const sum = totalSeconds;
 const testList = (groups: readonly TestGroup[]): string =>
   groups.map((g) => `[${g.project}] > ${g.file}`).join('\n');
 

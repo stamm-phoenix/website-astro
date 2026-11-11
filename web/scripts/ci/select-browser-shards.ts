@@ -37,13 +37,17 @@ const discovery = spawnSync(
 if (discovery.status !== 0) throw new Error(discovery.stderr || 'Test discovery failed');
 const report = JSON.parse(discovery.stdout) as { suites: DiscoverySuite[] };
 
-const found = new Map<string, { project: string; file: string }>();
+/** Each discovered project/file with its number of tests, which the shard estimate spreads */
+const found = new Map<string, { project: string; file: string; tests: number }>();
 function visit(suite: DiscoverySuite): void {
   for (const spec of suite.specs ?? []) {
     for (const test of spec.tests) {
       if (!suite.file) throw new Error('Missing discovered test file');
       const file = relative(resolve('tests'), resolve('tests', suite.file));
-      found.set(`${test.projectName}/${file}`, { project: test.projectName, file });
+      const key = `${test.projectName}/${file}`;
+      const known = found.get(key);
+      if (known) known.tests += 1;
+      else found.set(key, { project: test.projectName, file, tests: 1 });
     }
   }
   for (const child of suite.suites ?? []) visit(child);

@@ -6,8 +6,9 @@
  * Run by playwright.config.ts: `bun scripts/e2e-servers.ts <first port> <count>`.
  *
  * `E2E_SERVER=built` starts `bun run start:mock` (scripts/serve-built.ts) instead: the site in
- * `dist/` with the same demo API, without compiling pages on their first request. Build it with
- * the test data first (`bun run build`; CONTENT_SOURCE=mock is the default).
+ * `dist/` with the same demo API, without compiling pages on their first request, and with fresh
+ * demo data for every test (`--fresh-state`, `scripts/mock-state.ts`). Build it with the test
+ * data first (`bun run build`; CONTENT_SOURCE=mock is the default).
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -58,7 +59,7 @@ if (busy.length > 0) {
 }
 const servers: ChildProcess[] = ports.map((port) =>
   mode === 'built'
-    ? spawn('bun', ['run', 'start:mock', '--port', String(port)], {
+    ? spawn('bun', ['run', 'start:mock', '--port', String(port), '--fresh-state'], {
         stdio: ['ignore', 'inherit', 'inherit'],
       })
     : spawn(
