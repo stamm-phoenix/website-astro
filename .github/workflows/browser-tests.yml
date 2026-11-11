@@ -168,6 +168,8 @@ jobs:
         run: bun run build
         env:
           CONTENT_SOURCE: mock
+          # A source that cannot be baked fails the build instead of the baked-content specs
+          CONTENT_STRICT: "1"
       - name: Test browser workflows against the built site
         # Public pages with baked content and forms, the detail pages of the Abrechnung (a rewrite
         # of staticwebapp.config.json) and the staff layout. Not public-flows.spec.ts: the built
