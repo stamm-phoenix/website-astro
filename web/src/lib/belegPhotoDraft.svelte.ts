@@ -244,7 +244,14 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
         };
       } else {
         const edited = toCanvas(
-          bildBearbeiten(current.bild, current.quad, current.mode, BELEG_PHOTO_EDGE)
+          // A stored photo was big enough once: cropping it again must not make it too small
+          bildBearbeiten(
+            current.bild,
+            current.quad,
+            current.mode,
+            BELEG_PHOTO_EDGE,
+            current.aufbewahrt ? MIN_BELEG_PHOTO_EDGE : 0
+          )
         );
         const blob = await canvasToJpeg(edited);
         result = {

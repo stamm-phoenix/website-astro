@@ -11,7 +11,7 @@ import {
   punktAusrichten,
   spiegeln,
 } from '../src/lib/belegBild';
-import { fullFrame } from '../src/lib/belegScan';
+import { fullFrame, outputSize } from '../src/lib/belegScan';
 import type { Pixels, Quad } from '../src/lib/belegScan';
 
 /** A 3 × 2 picture whose red channel numbers the pixels row by row: 0 1 2 / 3 4 5. */
@@ -167,4 +167,19 @@ test('a perspective crop turns with the picture, content and all', () => {
     const corner = { rechts: [w, 2], links: [2, h], horizontal: [w, 2], vertikal: [2, h] }[schritt];
     assert.equal(at(corner[0], corner[1]), 0, schritt);
   }
+});
+
+test('a crop keeps its size, but a crop of a stored photo is enlarged to the smallest size', () => {
+  // A parking ticket on a third of a stored photo of 2000 px
+  const ticket: Quad = [
+    { x: 600, y: 700 },
+    { x: 1250, y: 700 },
+    { x: 1250, y: 1100 },
+    { x: 600, y: 1100 },
+  ];
+  assert.deepEqual(outputSize(ticket, 2000), { width: 650, height: 400 });
+  assert.deepEqual(outputSize(ticket, 2000, 800), { width: 800, height: 492 });
+  // Large crops stay as they are, and the largest size still wins
+  assert.deepEqual(outputSize(fullFrame(1500, 2000), 2000, 800), { width: 1500, height: 2000 });
+  assert.deepEqual(outputSize(ticket, 600, 800), { width: 600, height: 369 });
 });

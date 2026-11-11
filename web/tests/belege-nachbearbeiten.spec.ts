@@ -58,8 +58,14 @@ test('the Kasse crops a stored receipt photo again and keeps its original', asyn
   await dialog
     .getByRole('button', { name: /Ecke unten links verschieben/ })
     .press('Shift+ArrowRight');
+  // A rectangle around a small part, like a ticket on a large photo
+  await dialog.getByRole('button', { name: 'Rechteck', exact: true }).click();
+  for (let step = 0; step < 6; step++) {
+    await dialog.getByRole('button', { name: /Rechten Rand verschieben/ }).press('Shift+ArrowLeft');
+    await dialog.getByRole('button', { name: /Unteren Rand verschieben/ }).press('Shift+ArrowUp');
+  }
   await dialog.getByRole('button', { name: 'Zuschneiden fertig' }).click();
-  await expect.poll(async () => Number(await preview.getAttribute('width'))).toBeLessThan(before);
+  await expect.poll(async () => Number(await preview.getAttribute('width'))).not.toBe(before);
   await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: testInfo.outputPath('nachbearbeiten.png') });
 
@@ -70,6 +76,13 @@ test('the Kasse crops a stored receipt photo again and keeps its original', asyn
   // The new crop replaces the photo; the original taken by the submitter stays
   expect(uploads[1].photo).not.toBe(uploads[0].photo);
   expect(uploads[1].original).toBe(uploads[0].original);
+  // The stored photo was big enough: its small crop is enlarged, so the API accepts it
+  const size = await page.evaluate(async (photo) => {
+    const blob = await (await fetch(`data:image/jpeg;base64,${photo}`)).blob();
+    const bitmap = await createImageBitmap(blob);
+    return Math.max(bitmap.width, bitmap.height);
+  }, uploads[1].photo);
+  expect(size).toBeGreaterThanOrEqual(800);
 });
 
 test('editing a stored photo can be discarded without saving', async ({ page }) => {

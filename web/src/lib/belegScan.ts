@@ -209,11 +209,17 @@ export function detectReceipt(source: Uint8Array, width: number, height: number)
 }
 
 /** Width and height of the straightened receipt, at most `maxEdge` on the long side. */
-export function outputSize(quad: Quad, maxEdge: number): { width: number; height: number } {
+export function outputSize(
+  quad: Quad,
+  maxEdge: number,
+  /** Enlarges a smaller crop to this longer edge, e.g. a crop of a photo already stored. */
+  minEdge = 0
+): { width: number; height: number } {
   const distance = (a: Point, b: Point): number => Math.hypot(a.x - b.x, a.y - b.y);
   const width = Math.max(distance(quad[0], quad[1]), distance(quad[3], quad[2]));
   const height = Math.max(distance(quad[0], quad[3]), distance(quad[1], quad[2]));
-  const scale = Math.min(1, maxEdge / Math.max(width, height));
+  const longest = Math.max(width, height);
+  const scale = Math.max(Math.min(1, maxEdge / longest), Math.min(minEdge, maxEdge) / longest);
   return {
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),
