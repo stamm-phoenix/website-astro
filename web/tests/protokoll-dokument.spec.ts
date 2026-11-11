@@ -15,6 +15,7 @@ test.beforeEach(async ({ page }) => {
  */
 async function createProtokoll(page: Page, title: string): Promise<string> {
   await protokollAnlegen(page, title);
+  expect(new URL(page.url()).pathname).toBe('/leitendenbereich/protokolle/protokoll');
   await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeVisible({
     timeout: EDITOR_LOAD_TIMEOUT,
   });
