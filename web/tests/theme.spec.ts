@@ -358,11 +358,14 @@ test('Nikolaus selection and error indicators remain distinct in both themes', a
       new URL(response.url()).searchParams.get('date') ===
         new URL(page.url()).searchParams.get('tag')
   );
-  // The first day has no saved Dispo, so the page computes an unsaved suggestion once its data is
-  // there, and changing the day asks first. Wait for it: a click before would change at once.
-  await expect(page.getByText('Vorschlag berechnet – noch nicht gespeichert.')).toBeVisible();
-  await days.getByRole('button').last().click();
-  await answerConfirm(page, 'Tag wechseln?', 'Änderungen verwerfen');
+  // Once the first day's data is there, the page may hold unsaved changes (times computed anew,
+  // a suggestion), and then changing the day asks first. A click before changes at once.
+  const lastDay = days.getByRole('button').last();
+  await lastDay.click();
+  const ask = page.getByRole('dialog', { name: 'Tag wechseln?' });
+  await expect(ask.or(lastDay.and(page.locator('[aria-pressed="true"]')))).toBeVisible();
+  if (await ask.isVisible()) await answerConfirm(page, 'Tag wechseln?', 'Änderungen verwerfen');
+  await expect(lastDay).toHaveAttribute('aria-pressed', 'true');
   const selected = days.getByRole('button', { pressed: true });
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme });
