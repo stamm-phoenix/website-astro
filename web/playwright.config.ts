@@ -15,7 +15,12 @@ export default defineConfig({
   // One retry in CI, so a timing flake of the runner does not fail an unrelated PR; the report
   // still lists the test as flaky. Locally a failure shows at once.
   retries: process.env.CI ? 1 : 0,
-  reporter: [['list'], ['html', { open: 'never', outputFolder: 'test-results/report' }]],
+  // CI adds the JSON report (PLAYWRIGHT_JSON_OUTPUT_FILE) for the list of failed and flaky tests
+  reporter: [
+    ['list'],
+    ['html', { open: 'never', outputFolder: 'test-results/report' }],
+    ...(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE ? [['json'] as const] : []),
+  ],
   outputDir: 'test-results/artifacts',
   use: {
     trace: 'retain-on-failure',
