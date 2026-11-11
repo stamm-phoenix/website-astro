@@ -75,7 +75,8 @@ export function listTests(report: Report): TestLists {
   return lists;
 }
 
-const cell = (text: string): string => text.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+const cell = (text: string): string =>
+  text.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
 function table(heading: string, tests: ListedTest[]): string {
   const rows = tests.map(
