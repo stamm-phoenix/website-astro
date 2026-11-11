@@ -117,6 +117,7 @@ for (const pathway of ['photo', 'receipt'] as const) {
     });
     await page.goto('/leitendenbereich/belege');
     await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
     const editor = page.getByRole('dialog').filter({
       has: page.getByLabel(receipt.art === 'Einnahme' ? 'Einnahme von' : 'Geschäft', {
         exact: true,

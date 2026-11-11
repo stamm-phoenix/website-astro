@@ -29,7 +29,7 @@
 
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
@@ -337,6 +337,29 @@
     if (store.data) store.data = store.data.map((beleg) => (beleg.id === saved.id ? saved : beleg));
   }
 
+  /**
+   * Shows the form's errors; returns whether there are any. Looking at a receipt shows only the
+   * remark of the Kasse as a field: other errors open the fields of a receipt that may still be
+   * changed, or say what is missing on an accepted one.
+   */
+  async function ungueltig(errors: Record<string, string>): Promise<boolean> {
+    const verdeckt = lesen && Object.keys(errors).some((key) => key !== 'reviewNote');
+    if (verdeckt && form?.editable) {
+      startBearbeiten();
+      await tick();
+      editDialog?.beginValidation();
+    }
+    const invalid = dialog.invalid(errors);
+    if (verdeckt && !form?.editable) {
+      const fehlt = Object.entries(errors)
+        .filter(([key]) => key !== 'reviewNote')
+        .map(([, text]) => text)
+        .join(' ');
+      dialog.state.error = `${fehlt} Nimm dafür die Annahme zurück und ergänze die Angaben.`;
+    }
+    return invalid;
+  }
+
   const PHOTO_FEHLER =
     'Der Beleg wurde nicht gespeichert. Deine Eingaben und das Foto oder PDF sind noch da. Prüfe deine Internetverbindung und versuche es noch einmal.';
 
@@ -350,7 +373,7 @@
     const previousStatus = form.status;
     if (decision) form.status = decision;
     editDialog?.beginValidation();
-    if (dialog.invalid(formErrors(form, !!photo.draft?.result))) {
+    if (await ungueltig(formErrors(form, !!photo.draft?.result))) {
       form.status = previousStatus;
       return;
     }
@@ -486,7 +509,7 @@
     photo.clearDraft();
     const locked = current.campflow?.state === 'Gestartet';
     editDialog?.beginValidation();
-    if (dialog.invalid(formErrors(current, false, !locked))) return;
+    if (await ungueltig(formErrors(current, false, !locked))) return;
     const { id, shop } = current;
     await dialog.run(async () => {
       const listed = store.data?.find((b) => b.id === id);

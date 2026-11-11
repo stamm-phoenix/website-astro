@@ -1,12 +1,24 @@
 import { test, expect } from './fixtures';
 import type { BelegStatus, StaffBeleg } from '../src/lib/types';
 
+// A receipt opens to look at; a decision on stored details that do not pass opens the field to
+// correct, or, once accepted, says what is missing
 for (const scenario of [
-  { action: 'Ablehnen', status: 'Eingereicht', field: 'Bemerkung der Kasse' },
-  { action: 'Annehmen', status: 'Eingereicht', field: 'Betrag in €' },
-  { action: 'Erneut einreichen', status: 'Abgelehnt', field: 'Geschäft' },
-  { action: 'Nach CampFlow übertragen', status: 'Angenommen', field: 'Betrag in €' },
-] satisfies { action: string; status: BelegStatus; field: string }[]) {
+  { action: 'Ablehnen', status: 'Eingereicht', field: 'Bemerkung der Kasse', stored: {} },
+  { action: 'Annehmen', status: 'Eingereicht', field: 'Datum des Belegs', stored: { date: '' } },
+  { action: 'Erneut einreichen', status: 'Abgelehnt', field: 'Geschäft', stored: { shop: '' } },
+  {
+    action: 'Nach CampFlow übertragen',
+    status: 'Angenommen',
+    field: null,
+    stored: { kostenstelle: '', kategorie: '' },
+  },
+] satisfies {
+  action: string;
+  status: BelegStatus;
+  field: string | null;
+  stored: Partial<StaffBeleg>;
+}[]) {
   test(`receipt action ${scenario.action} announces and focuses its invalid field`, async ({
     page,
   }) => {
@@ -26,9 +38,11 @@ for (const scenario of [
       kostenstelle: 'Allgemein',
       kategorie: 'Material',
       status: scenario.status,
-      reviewNote: '',
+      reviewNote: scenario.status === 'Abgelehnt' ? 'Unscharf' : '',
       campflow: null,
       readOnly: undefined,
+      editable: scenario.status !== 'Angenommen',
+      ...scenario.stored,
     };
     await page.route('**/api/intern/pflege/belege', (route) =>
       route.request().method() === 'GET' ? route.fulfill({ json: [receipt] }) : route.continue()
@@ -36,12 +50,18 @@ for (const scenario of [
     await page.goto('/leitendenbereich/belege');
     await page
       .getByRole('list', { name: 'Belege' })
-      .getByRole('button', { name: /^UX-Prüfung/ })
+      .getByRole('button', { name: /^(UX-Prüfung|Ohne Geschäft)/ })
       .click();
     const dialog = page.getByRole('dialog');
+    const action = dialog.getByRole('button', { name: scenario.action, exact: true });
+    if (!scenario.field) {
+      // Accepted, it can no longer be changed: the transfer waits, and says how to go on
+      await expect(action).toBeDisabled();
+      await expect(dialog.getByText(/Nimm die Annahme zurück, um sie zu ergänzen/)).toBeVisible();
+      return;
+    }
+    await action.click();
     const field = dialog.getByLabel(scenario.field, { exact: true });
-    await field.clear();
-    await dialog.getByRole('button', { name: scenario.action, exact: true }).click();
     await expect(dialog.getByRole('alert')).toHaveText('Bitte prüfe das markierte Feld.');
     await expect(field).toBeFocused();
     await expect(field).toHaveAttribute('aria-invalid', 'true');
