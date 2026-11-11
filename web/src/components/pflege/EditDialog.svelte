@@ -68,6 +68,13 @@
     onreload?: () => Promise<boolean>;
     onsubmit: () => void;
     onclose: () => void;
+    /**
+     * „Abbrechen“ in the footer runs this instead of closing, e.g. to leave editing and show the
+     * record again; it asks first like closing. The close button still closes.
+     */
+    oncancel?: () => void;
+    /** Without the submit button, e.g. for a record the user may only look at. */
+    hideSubmit?: boolean;
     children: Snippet;
     /**
      * Shown before the fields; on large screens beside them in its own scrolling column, e.g. the
@@ -105,6 +112,8 @@
     onreload,
     onsubmit,
     onclose,
+    oncancel,
+    hideSubmit = false,
     children,
     aside,
     size = 'wide',
@@ -131,6 +140,7 @@
 
   async function keepEditing(): Promise<void> {
     confirmingDiscard = false;
+    cancelling = false;
     await tick();
     previousFocus?.focus();
   }
@@ -299,15 +309,35 @@
     if (confirmed) await ondelete?.();
   }
 
+  /** Whether the pending discard question came from „Abbrechen“ with `oncancel`. */
+  let cancelling = false;
+
   /** Keep discard confirmation inside the app dialog, preserving the mounted form. */
-  async function requestClose(): Promise<void> {
+  async function requestClose(cancel = false): Promise<void> {
     if (busy) return;
+    const leave = cancel && oncancel ? oncancel : onclose;
     if (confirmingDiscard) {
       await keepEditing();
     } else if (unsaved) {
       previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      cancelling = cancel && !!oncancel;
       confirmingDiscard = true;
-    } else onclose();
+    } else leave();
+  }
+
+  /**
+   * The fields shown now are the new starting point, e.g. after switching between looking at a
+   * record and editing it: nothing counts as changed.
+   */
+  export async function neuerStand(): Promise<void> {
+    await tick();
+    restored = false;
+    rescueConflict = false;
+    rescueAppliedNotice = null;
+    pending = [];
+    initial = [];
+    for (const el of form?.elements ?? []) remember(el);
+    edited = false;
   }
 </script>
 
@@ -385,7 +415,8 @@
             confirmingDiscard = true;
           }
         : undefined}
-      onclose={() => void requestClose()}
+      {hideSubmit}
+      onclose={() => void requestClose(true)}
     />
   </form>
 </ModalDialog>
@@ -410,7 +441,11 @@
     } else {
       discarded = true;
       if (record !== undefined) forgetRescue(record);
-      onclose();
+      if (cancelling) {
+        cancelling = false;
+        discarded = false;
+        oncancel?.();
+      } else onclose();
     }
   }}
 >

@@ -40,8 +40,19 @@
     eintrag.hasAmount
       ? `${eintrag.income ? 'Einnahme · ' : ''}${formatEuro(eintrag.amountCent)}`
       : '';
-  const meta = (eintrag: BelegEintrag) =>
-    [eintrag.date ? formatIsoDate(eintrag.date) : '', eintrag.where].filter(Boolean).join(' · ');
+  /** Who paid and who submitted, in one line; once when it is the same person. */
+  const personen = (eintrag: BelegEintrag) => {
+    const { paidBy, submittedBy } = eintrag;
+    const ich = (name: string) => (isIch({ name }) ? `${name}\u00a0(ich)` : name);
+    if (paidBy && submittedBy && paidBy.trim() === submittedBy.trim())
+      return `Bezahlt und eingereicht von ${ich(paidBy)}`;
+    return [
+      paidBy ? `Bezahlt von ${ich(paidBy)}` : '',
+      submittedBy ? `Eingereicht von ${ich(submittedBy)}` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  };
 </script>
 
 {#snippet preview(eintrag: BelegEintrag, size: 'klein' | 'gross')}
@@ -106,6 +117,9 @@
           {#if amount(eintrag)}
             <span class="font-semibold tabular-nums text-brand-900">{amount(eintrag)}</span>
           {/if}
+          {#if eintrag.where}
+            <span class="line-clamp-2 break-words text-sm text-neutral-700">{eintrag.where}</span>
+          {/if}
           <StatusLabel label={eintrag.label} tone={eintrag.tone} dot />
           {@render tags(eintrag)}
         </button>
@@ -125,13 +139,14 @@
           <span class="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:justify-between sm:gap-6">
             <span class="min-w-0">
               <span class="block break-words font-semibold text-brand-900">{eintrag.title}</span>
-              {#if meta(eintrag)}
-                <span class="block text-sm text-neutral-700">{meta(eintrag)}</span>
+              {#if eintrag.date}
+                <span class="block text-sm text-neutral-700">{formatIsoDate(eintrag.date)}</span>
               {/if}
-              {#if eintrag.paidBy}
-                <span class="block text-sm text-neutral-700"
-                  >Bezahlt von {eintrag.paidBy}{#if isIch( { name: eintrag.paidBy } )}&nbsp;(ich){/if}</span
-                >
+              {#if eintrag.where}
+                <span class="block text-sm text-neutral-900">{eintrag.where}</span>
+              {/if}
+              {#if personen(eintrag)}
+                <span class="block text-sm text-neutral-700">{personen(eintrag)}</span>
               {/if}
               {#if eintrag.hinweis}
                 <span class="line-clamp-2 block text-sm text-danger"

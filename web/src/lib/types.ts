@@ -798,6 +798,10 @@ export interface StaffBeleg {
   readOnly?: true;
   /** An Auslage of the logged-in user, as the server knows their names. */
   mine?: true;
+  /** Name of who submitted it, when the server knows their login. */
+  submittedByName?: string;
+  /** Whether the user may still change details and photo: not once accepted. */
+  editable?: boolean;
 }
 
 /**

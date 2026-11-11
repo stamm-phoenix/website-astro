@@ -61,6 +61,14 @@
             disabled={busy}
             onclick={() => onsave('Angenommen')}>Annehmen</ActionButton
           >
+        {:else}
+          <!-- An accepted receipt keeps its details; taking it back opens them again -->
+          <ActionButton
+            variant="secondary"
+            type="button"
+            disabled={busy}
+            onclick={() => onsave('Eingereicht')}>Annahme zurücknehmen</ActionButton
+          >
         {/if}
         {#if form.status !== 'Abgelehnt'}
           <ActionButton

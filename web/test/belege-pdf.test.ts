@@ -25,6 +25,7 @@ function eintrag(key: string, extra: Partial<BelegEintrag> = {}): BelegEintrag {
     label: 'Eingereicht',
     tone: 'neutral',
     paidBy: 'Eva',
+    submittedBy: null,
     where: 'Sommerlager · Verpflegung',
     costUnitIds: [],
     categoryIds: [],

@@ -14,10 +14,10 @@
     photo: ReturnType<typeof createBelegPhotoDraft>;
     busy: boolean;
     errors: Record<string, string>;
-    /** Whether the person checks receipts for the Kasse, who may also change accepted ones. */
-    reviewer: boolean;
+    /** Only to look at: the photo and its links, no tools. */
+    lesen?: boolean;
   }
-  let { form, photo, busy, errors, reviewer }: Props = $props();
+  let { form, photo, busy, errors, lesen = false }: Props = $props();
   /** A picture of the photo or of a page of the PDF, as wide as the dialog. */
   const SEITE = 'h-auto w-full rounded-md border border-neutral-200 bg-neutral-100';
   /** The stored photo is open with the edit tools, rather than a newly chosen one. */
@@ -26,20 +26,20 @@
 
 <section aria-labelledby="bl-photo-label" class="space-y-2">
   <p id="bl-photo-label" class="form-label inline">Foto oder PDF des Belegs</p>
-  <InfoHint label="Foto oder PDF des Belegs" class="ml-1">
-    <p>
-      Am besten mit der Scan-Funktion des Handys: auf dem iPhone in der Notizen- oder Dateien-App
-      „Dokumente scannen“, auf Android in Google Drive „Scannen“.
-    </p>
-    <p>
-      Ein normales Foto geht auch: Beleg flach hinlegen, gut beleuchten, alle Ränder im Bild, am
-      besten auf dunklem Untergrund.
-    </p>
-    <p>
-      Rechnungen, die du als PDF bekommen hast, lädst du direkt als PDF hoch, mit allen Seiten
-      (höchstens 5 MB).
-    </p>
-  </InfoHint>
+  {#if !lesen}<InfoHint label="Foto oder PDF des Belegs" class="ml-1">
+      <p>
+        Am besten mit der Scan-Funktion des Handys: auf dem iPhone in der Notizen- oder Dateien-App
+        „Dokumente scannen“, auf Android in Google Drive „Scannen“.
+      </p>
+      <p>
+        Ein normales Foto geht auch: Beleg flach hinlegen, gut beleuchten, alle Ränder im Bild, am
+        besten auf dunklem Untergrund.
+      </p>
+      <p>
+        Rechnungen, die du als PDF bekommen hast, lädst du direkt als PDF hoch, mit allen Seiten
+        (höchstens 5 MB).
+      </p>
+    </InfoHint>{/if}
   {#if form.id && form.hasImage && !photo.draft}
     <a href={photoUrl(form)} target="_blank" rel="noopener" class="block">
       <img
@@ -72,9 +72,12 @@
       {/if}
     </div>
   {/if}
-  <BelegFotoEntwurf {photo} {busy} />
+  {#if lesen && !form.hasImage}
+    <p class="text-sm text-neutral-700">Kein Foto oder PDF.</p>
+  {/if}
+  {#if !lesen}<BelegFotoEntwurf {photo} {busy} />{/if}
   <!-- While cropping, only the crop's own buttons are shown -->
-  {#if !photo.zuschnitt}
+  {#if !lesen && !photo.zuschnitt}
     <div class="flex flex-wrap items-center gap-2">
       {#if photo.draft && form.id}
         <ActionButton
@@ -95,7 +98,7 @@
           onclick={photo.clearDraft}>Verwerfen</ActionButton
         >
       {/if}
-      {#if form.id && form.hasImage && !form.isPdf && !photo.draft && (reviewer || form.status !== 'Angenommen')}
+      {#if form.id && form.hasImage && !form.isPdf && !photo.draft}
         <ActionButton
           variant="secondary"
           type="button"
@@ -133,7 +136,7 @@
   {#if errors.photo}
     <p id="bl-photo-error" class="text-sm text-danger">{errors.photo}</p>
   {/if}
-  {#if form.id}
+  {#if form.id && !lesen}
     <p class="text-xs text-neutral-700">
       Eingereicht{form.submittedBy ? ` von ${form.submittedBy}` : ''}{form.submittedAt
         ? ` am ${formatTimestamp(form.submittedAt)}`
