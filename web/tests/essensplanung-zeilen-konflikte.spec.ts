@@ -1,23 +1,24 @@
 import { test, expect, answerConfirm } from './fixtures';
-import { anlegen, pdfLaden } from './essensplanung-helpers';
+import { pdfLaden } from './essensplanung-helpers';
+import { gerichtOeffnen, planungVorbereiten } from './essensplanung-vorbereitung';
 import { afterPlanungPolls, quiet, settle } from './settle';
+
+/** Gulasch with 500 g of minced meat. */
+const GULASCH = {
+  name: 'Gulasch',
+  zutaten: [{ name: 'Hackfleisch', menge: 500, einheit: 'g' }],
+};
 
 test('a change of others is only saved over with Enter; a cancelled removal still guards', async ({
   page,
   browser,
 }) => {
   test.slow();
-  await anlegen(page, 'E2E Zeilen Konflikt');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Gulasch');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
-  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
-  const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
-  await zutat.pressSequentially('Hackfl');
-  await zutat.press('Enter');
-  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
-  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+  await planungVorbereiten(page, 'E2E Zeilen Konflikt', {
+    gerichte: [GULASCH],
+    tab: 'Gerichte',
+  });
+  const gericht = await gerichtOeffnen(page, 'Gulasch');
   const menge = gericht.getByLabel('Menge von Hackfleisch');
   await expect(menge).toHaveValue('500');
 
@@ -65,12 +66,11 @@ test('an amount typed for one ingredient does not go to another one others chose
   browser,
 }) => {
   test.slow();
-  await anlegen(page, 'E2E Zeilen Zutat');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Eintopf');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Eintopf angelegt.').first()).toBeVisible();
-  const gericht = page.locator('li', { has: page.getByText('Eintopf', { exact: true }) }).first();
+  await planungVorbereiten(page, 'E2E Zeilen Zutat', {
+    gerichte: [{ name: 'Eintopf' }],
+    tab: 'Gerichte',
+  });
+  const gericht = await gerichtOeffnen(page, 'Eintopf');
 
   // Tins show their drained weight already in the new row
   const zutat = gericht.getByLabel('Neue Zutat für Eintopf');
@@ -109,12 +109,11 @@ test('a row saves before it moves, keeps decimal amounts and warns about changes
   page,
 }) => {
   test.slow();
-  await anlegen(page, 'E2E Zeilen Reihenfolge');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Gulasch');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
-  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
+  await planungVorbereiten(page, 'E2E Zeilen Reihenfolge', {
+    gerichte: [{ name: 'Gulasch' }],
+    tab: 'Gerichte',
+  });
+  const gericht = await gerichtOeffnen(page, 'Gulasch');
   const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
   for (const [name, menge] of [
     ['Hackfl', '500'],
@@ -199,19 +198,12 @@ test('a fixed amount set by others is a conflict; PDF and deleting wait for the 
   browser,
 }) => {
   test.slow();
-  await anlegen(page, 'E2E Zeilen Fest');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Gulasch');
   // With a Personenzahl, so a row can be made fixed on its own
-  await page.getByLabel('Personen', { exact: true }).fill('10');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
-  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
-  const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
-  await zutat.pressSequentially('Hackfl');
-  await zutat.press('Enter');
-  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
-  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+  await planungVorbereiten(page, 'E2E Zeilen Fest', {
+    gerichte: [{ ...GULASCH, personen: 10 }],
+    tab: 'Gerichte',
+  });
+  const gericht = await gerichtOeffnen(page, 'Gulasch');
   const menge = gericht.getByLabel('Menge von Hackfleisch');
   await expect(menge).toHaveValue('500');
 
@@ -249,17 +241,11 @@ test('a fixed amount set by others is a conflict; PDF and deleting wait for the 
 test('an amount of 0 is refused; a PDF waits for a failed save and is not made', async ({
   page,
 }) => {
-  await anlegen(page, 'E2E Zeilen Fehler');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Gulasch');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
-  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
-  const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
-  await zutat.pressSequentially('Hackfl');
-  await zutat.press('Enter');
-  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
-  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+  await planungVorbereiten(page, 'E2E Zeilen Fehler', {
+    gerichte: [GULASCH],
+    tab: 'Gerichte',
+  });
+  const gericht = await gerichtOeffnen(page, 'Gulasch');
   const menge = gericht.getByLabel('Menge von Hackfleisch');
   await expect(menge).toHaveValue('500');
 
@@ -292,17 +278,11 @@ test('an amount of 0 is refused; a PDF waits for a failed save and is not made',
 
 test('a conflict is settled with buttons, without Enter or Escape', async ({ page, browser }) => {
   test.slow();
-  await anlegen(page, 'E2E Zeilen Knöpfe');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Gulasch');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
-  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
-  const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
-  await zutat.pressSequentially('Hackfl');
-  await zutat.press('Enter');
-  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
-  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
+  await planungVorbereiten(page, 'E2E Zeilen Knöpfe', {
+    gerichte: [GULASCH],
+    tab: 'Gerichte',
+  });
+  const gericht = await gerichtOeffnen(page, 'Gulasch');
   const menge = gericht.getByLabel('Menge von Hackfleisch');
   await expect(menge).toHaveValue('500');
 
@@ -343,14 +323,11 @@ test('a new row follows an ingredient of the list that others take over and meas
   browser,
 }) => {
   test.slow();
-  await anlegen(page, 'E2E Zeilen Übernahme');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Pfannkuchen');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Pfannkuchen angelegt.').first()).toBeVisible();
-  const gericht = page
-    .locator('li', { has: page.getByText('Pfannkuchen', { exact: true }) })
-    .first();
+  await planungVorbereiten(page, 'E2E Zeilen Übernahme', {
+    gerichte: [{ name: 'Pfannkuchen' }],
+    tab: 'Gerichte',
+  });
+  const gericht = await gerichtOeffnen(page, 'Pfannkuchen');
 
   // A picks syrup of the list and types 1,5 l, not added yet
   const zutat = gericht.getByLabel('Neue Zutat für Pfannkuchen');

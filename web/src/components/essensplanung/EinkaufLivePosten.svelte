@@ -13,16 +13,16 @@
   import {
     EINHEITEN_JE_ART,
     einheitText,
-    einheitSchluessel,
     einheitenGleicherBasis,
   } from '../../../../api/lib/essen-gerichte-model';
   import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
   import { meldeVerloren, type PlanKontext } from './planKontext';
   import {
     entwuerfe,
+    entwurfNachAbhaken,
+    gespeicherterEtag,
     lebendig,
     merkeEntwurf,
-    offeneZeile,
     sichtbar,
     vergissEntwurf,
   } from './einkaufLive';
@@ -228,28 +228,10 @@
     }, `${posten.name} abgehakt.`);
     speichert = false;
     if (ok) {
-      // The kept input is settled here, not by the row, which may be gone: saved as it is, it
-      // goes; typed on meanwhile, it stays on the version just saved
-      const kept = entwuerfe.get(key);
-      if (
-        !kept ||
-        (kept.menge === gesendet.menge &&
-          kept.einheit === gesendet.einheit &&
-          kept.ersatz === gesendet.ersatz)
-      ) {
-        vergissEntwurf(key);
-        if (!aktiv && offeneZeile.get(einkauf) === zeile) offeneZeile.delete(einkauf);
-      } else {
-        const neu =
-          kontext.ansicht.einkaeufe
-            .find((e) => e.id === einkauf)
-            ?.posten.find(
-              (p) =>
-                p.planungZutatId === zutatId &&
-                einheitSchluessel(p.einheit) === einheitSchluessel(gesendet.einheit)
-            )?.etag ?? null;
-        merkeEntwurf(key, { ...kept, etag: neu, konflikt: null });
-      }
+      // The kept input is settled here, not by the row, which may be gone
+      entwurfNachAbhaken({ key, einkauf, zeile, aktiv }, gesendet, () =>
+        gespeicherterEtag(kontext.ansicht.einkaeufe, einkauf, zutatId, gesendet.einheit)
+      );
       if (!aktiv) return;
       konflikt = null;
       if (menge === gesendet.menge && einheit === gesendet.einheit && ersatz === gesendet.ersatz) {

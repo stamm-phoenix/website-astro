@@ -1,6 +1,7 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
-import { anlegen, zeilenMenge } from './essensplanung-helpers';
+import { zeilenMenge } from './essensplanung-helpers';
+import { gerichtOeffnen, planungVorbereiten } from './essensplanung-vorbereitung';
 import { settle } from './settle';
 
 /**
@@ -8,14 +9,12 @@ import { settle } from './settle';
  * page, with the demo AI of the mock API.
  */
 
-async function gericht(page: Page, name: string, personen: string): Promise<Locator> {
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill(name);
-  await page.locator('#gericht-neu-personen').fill(personen);
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText(`${name} angelegt.`).first()).toBeVisible();
-  return page.locator('li', { has: page.getByText(name, { exact: true }) }).first();
-}
+/** Chili for 10 with 500 g of minced meat, which the demo AI finds short. */
+const CHILI = {
+  name: 'Chili',
+  personen: 10,
+  zutaten: [{ name: 'Hackfleisch', menge: 500, einheit: 'g' }],
+};
 
 /** Calls the API of the Planung with the page's own link, as another member would. */
 function api(page: Page) {
@@ -41,8 +40,11 @@ function fragtVorDemVerlassen(page: Page): Promise<boolean> {
 test('recipe amounts for old people are refused and scaled again; leaving asks', async ({
   page,
 }) => {
-  await anlegen(page, 'E2E KI Personen');
-  const karte = await gericht(page, 'Gulasch', '8');
+  await planungVorbereiten(page, 'E2E KI Personen', {
+    gerichte: [{ name: 'Gulasch', personen: 8 }],
+    tab: 'Gerichte',
+  });
+  const karte = await gerichtOeffnen(page, 'Gulasch');
   expect(await fragtVorDemVerlassen(page)).toBe(false);
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Gulasch' });
@@ -74,8 +76,11 @@ test('recipe amounts for old people are refused and scaled again; leaving asks',
 });
 
 test('a late estimate is not shown under another ingredient', async ({ page }) => {
-  await anlegen(page, 'E2E KI Spät');
-  const karte = await gericht(page, 'Pudding', '10');
+  await planungVorbereiten(page, 'E2E KI Spät', {
+    gerichte: [{ name: 'Pudding', personen: 10 }],
+    tab: 'Gerichte',
+  });
+  const karte = await gerichtOeffnen(page, 'Pudding');
   await karte.getByRole('button', { name: 'Mehr Angaben …' }).click();
   const dialog = page.getByRole('dialog', { name: 'Zutat für Pudding' });
   await dialog.getByLabel('Zutat', { exact: true }).fill('Zucker (weiß)');
@@ -105,14 +110,8 @@ test('a late estimate is not shown under another ingredient', async ({ page }) =
 });
 
 test('a proposal is not saved over a change of others', async ({ page }) => {
-  await anlegen(page, 'E2E KI Fremd');
-  const karte = await gericht(page, 'Chili', '10');
-  await karte.getByRole('button', { name: 'Mehr Angaben …' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Zutat für Chili' });
-  await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
-  await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
-  await dialog.getByLabel('Menge', { exact: true }).fill('500');
-  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await planungVorbereiten(page, 'E2E KI Fremd', { gerichte: [CHILI], tab: 'Gerichte' });
+  const karte = await gerichtOeffnen(page, 'Chili');
   await expect.poll(() => zeilenMenge(karte, 'Hackfleisch')).toBe('500 g');
   await karte.getByRole('button', { name: 'Gericht prüfen (KI)' }).click();
   const hinweise = karte.getByRole('status').filter({ hasText: 'KI-Hinweise zu Chili' });
@@ -150,14 +149,8 @@ test('a proposal is not saved over a change of others', async ({ page }) => {
 test('a proposed amount is not taken over once the people of the dish changed', async ({
   page,
 }) => {
-  await anlegen(page, 'E2E KI Personen Prüfen');
-  const karte = await gericht(page, 'Chili', '10');
-  await karte.getByRole('button', { name: 'Mehr Angaben …' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Zutat für Chili' });
-  await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
-  await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
-  await dialog.getByLabel('Menge', { exact: true }).fill('500');
-  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await planungVorbereiten(page, 'E2E KI Personen Prüfen', { gerichte: [CHILI], tab: 'Gerichte' });
+  const karte = await gerichtOeffnen(page, 'Chili');
   await expect.poll(() => zeilenMenge(karte, 'Hackfleisch')).toBe('500 g');
   await karte.getByRole('button', { name: 'Gericht prüfen (KI)' }).click();
   const hinweise = karte.getByRole('status').filter({ hasText: 'KI-Hinweise zu Chili' });
@@ -190,8 +183,11 @@ test('a proposed amount is not taken over once the people of the dish changed', 
 test('maintenance keeps the recipe being read; taking over waits until it ends', async ({
   page,
 }) => {
-  await anlegen(page, 'E2E KI Wartung');
-  const karte = await gericht(page, 'Suppe', '4');
+  await planungVorbereiten(page, 'E2E KI Wartung', {
+    gerichte: [{ name: 'Suppe', personen: 4 }],
+    tab: 'Gerichte',
+  });
+  const karte = await gerichtOeffnen(page, 'Suppe');
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Suppe' });
   await dialog.getByLabel('Rezept', { exact: true }).fill('500 g Zwiebeln');
@@ -226,14 +222,8 @@ test('maintenance keeps the recipe being read; taking over waits until it ends',
 });
 
 test('checking again waits while a proposal is saved', async ({ page }) => {
-  await anlegen(page, 'E2E KI Übernahme läuft');
-  const karte = await gericht(page, 'Chili', '10');
-  await karte.getByRole('button', { name: 'Mehr Angaben …' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Zutat für Chili' });
-  await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
-  await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
-  await dialog.getByLabel('Menge', { exact: true }).fill('500');
-  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await planungVorbereiten(page, 'E2E KI Übernahme läuft', { gerichte: [CHILI], tab: 'Gerichte' });
+  const karte = await gerichtOeffnen(page, 'Chili');
   await expect.poll(() => zeilenMenge(karte, 'Hackfleisch')).toBe('500 g');
   await karte.getByRole('button', { name: 'Gericht prüfen (KI)' }).click();
   const hinweise = karte.getByRole('status').filter({ hasText: 'KI-Hinweise zu Chili' });
@@ -260,14 +250,8 @@ test('checking again waits while a proposal is saved', async ({ page }) => {
 });
 
 test('checking a dish waits for a line saved by the click', async ({ page }) => {
-  await anlegen(page, 'E2E KI Warten');
-  const karte = await gericht(page, 'Chili', '10');
-  await karte.getByRole('button', { name: 'Mehr Angaben …' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Zutat für Chili' });
-  await dialog.getByLabel('Zutat', { exact: true }).fill('Hackfl');
-  await dialog.getByRole('option', { name: 'Hackfleisch' }).click();
-  await dialog.getByLabel('Menge', { exact: true }).fill('500');
-  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
+  await planungVorbereiten(page, 'E2E KI Warten', { gerichte: [CHILI], tab: 'Gerichte' });
+  const karte = await gerichtOeffnen(page, 'Chili');
   await expect.poll(() => zeilenMenge(karte, 'Hackfleisch')).toBe('500 g');
 
   // The line saves slowly; the check must only be asked once it is saved
