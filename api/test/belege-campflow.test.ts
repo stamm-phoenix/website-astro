@@ -762,33 +762,38 @@ dbTest('a failing photo read ends the attempt, so another Kategorie may be chose
 dbTest('saving a receipt answers with the version it wrote', async (t) => {
   const { context, blobs } = setup(t, () => uploaded());
   const etag = await store(blobs, 7);
-  const response = await BelegItem(
-    new HttpRequest({
-      url: 'http://localhost/api/intern/pflege/belege/7',
-      method: 'PATCH',
-      headers: {
-        'content-type': 'application/json',
-        'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
-      },
-      params: { id: '7' },
-      body: {
-        string: JSON.stringify({
-          shop: 'REWE',
-          date: '2026-09-30',
-          amountCent: 2000,
-          paidBy: 'Alex Beispiel',
-          payout: true,
-          kostenstelle: 'Stammeslager 2026',
-          kategorie: 'Verpflegung',
-          note: '',
-          status: 'Angenommen',
-          reviewNote: '',
-          etag,
-        }),
-      },
-    }),
-    context
-  );
+  const patch = (changes: Json) =>
+    BelegItem(
+      new HttpRequest({
+        url: 'http://localhost/api/intern/pflege/belege/7',
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+          'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+        },
+        params: { id: '7' },
+        body: {
+          string: JSON.stringify({
+            shop: 'REWE',
+            date: '2026-09-30',
+            amountCent: 1234,
+            paidBy: 'Alex Beispiel',
+            payout: true,
+            kostenstelle: 'Stammeslager 2026',
+            kategorie: 'Verpflegung',
+            note: 'Grillgut',
+            status: 'Angenommen',
+            reviewNote: 'Geprüft',
+            etag,
+            ...changes,
+          }),
+        },
+      }),
+      context
+    );
+  // The receipt is accepted: its details stay, the remark of the Kasse may change
+  assert.equal((await patch({ amountCent: 2000 })).status, 403);
+  const response = await patch({});
   assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
   const saved = (response.jsonBody as { etag: string }).etag;
   assert.notEqual(saved, etag);

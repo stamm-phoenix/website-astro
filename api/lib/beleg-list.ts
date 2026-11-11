@@ -62,6 +62,10 @@ export interface StaffBeleg {
   readOnly?: true;
   /** An Auslage of the user asking, by the names the server knows for them. */
   mine?: true;
+  /** Name of who submitted it, when the directory knows their login. */
+  submittedByName?: string;
+  /** Whether the user asking may still change its details and photo (`beleg-rechte.ts`). */
+  editable?: boolean;
 }
 
 /** Transfer of a receipt to CampFlow, as the Kasse sees it. */
