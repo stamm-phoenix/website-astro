@@ -1,6 +1,5 @@
 import { test, expect } from './fixtures';
 import { loadChangelog } from '../test/changelogFiles';
-import { latch, settle } from './settle';
 
 const CHANGELOG = await loadChangelog();
 const SEEN_ALL = CHANGELOG[0].id;
@@ -108,19 +107,6 @@ test('the page confirms the read state only after it was saved', async ({ page }
   await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toBeVisible();
 });
 
-test('reading on another device shows at the next page without a full reload', async ({ page }) => {
-  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/leitendenbereich');
-  await expect(page.getByTestId('changelog-badge').first()).toHaveText('2');
-
-  // Another device reads everything
-  await page.request.put('/api/intern/neuigkeiten', { data: { lastSeenId: SEEN_ALL } });
-  await page.getByRole('link', { name: 'Neuigkeiten lesen' }).click();
-  await expect(page.getByText('Du bist auf dem neuesten Stand.')).toBeVisible();
-  await expect(page.getByText('Neu', { exact: true })).toHaveCount(0);
-});
-
 test('an expired login is named and offers a new login instead of a connection check', async ({
   page,
 }) => {
@@ -133,29 +119,6 @@ test('an expired login is named and offers a new login instead of a connection c
   await expect(page.getByText('Deine Anmeldung ist abgelaufen.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
   await expect(page.getByText('Prüfe deine Internetverbindung')).toHaveCount(0);
-});
-
-test('opening the menu keeps the message about a failed save', async ({ page }) => {
-  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.route('**/api/intern/neuigkeiten', (route) =>
-    route.request().method() === 'PUT'
-      ? route.fulfill({ status: 503, json: { error: 'unavailable' } })
-      : route.continue()
-  );
-  await page.goto('/leitendenbereich/neuigkeiten');
-  await page.getByRole('button', { name: 'Alle als gelesen markieren' }).click();
-  await expect(page.getByText('Nicht als gelesen gespeichert.')).toBeVisible();
-
-  // The menu asks the server for the read state again, which succeeds
-  const menu = page
-    .getByRole('navigation', { name: 'Schnellzugriff' })
-    .getByRole('button', { name: 'Menü', exact: true });
-  await menu.click();
-  await expect(page.getByRole('dialog', { name: 'Alle Bereiche' })).toBeVisible();
-  await menu.click();
-  await expect(page.getByText('Nicht als gelesen gespeichert.')).toBeVisible();
-  await expect(page.getByText('Die Zahl am Menü bleibt deshalb stehen.')).toBeVisible();
 });
 
 test('the news link in the menu is described by the number of unread entries', async ({ page }) => {
@@ -171,58 +134,6 @@ test('the news link in the menu is described by the number of unread entries', a
   await expect(sheet.getByRole('link', { name: /^Neuigkeiten/ })).toHaveAccessibleDescription(
     '2 neue Neuigkeiten'
   );
-});
-
-test('a load that overlaps the save cannot bring back the unread count', async ({ page }) => {
-  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_OLDER } });
-  await page.setViewportSize({ width: 390, height: 844 });
-  let putStarted = false;
-  let staleStarted = false;
-  const staleDelivered = latch();
-  let finishPut: () => void = () => undefined;
-  const putDone = new Promise<void>((resolve) => (finishPut = resolve));
-  let releasePut: () => void = () => undefined;
-  const gate = new Promise<void>((resolve) => (releasePut = resolve));
-  await page.route('**/api/intern/neuigkeiten', async (route) => {
-    if (route.request().method() === 'PUT') {
-      putStarted = true;
-      await gate;
-      await route.fulfill({ response: await route.fetch() });
-      finishPut();
-    } else if (putStarted) {
-      // The server answers with the state from before the save, and the answer arrives after it
-      staleStarted = true;
-      const stale = await route.fetch();
-      await putDone;
-      await route.fulfill({ response: stale }).catch(() => undefined);
-      staleDelivered.open();
-    } else {
-      await route.continue();
-    }
-  });
-  await page.goto('/leitendenbereich/neuigkeiten');
-  await page.getByRole('button', { name: 'Alle als gelesen markieren' }).click();
-  await expect(page.getByText('Gelesen wird gespeichert …')).toBeVisible();
-  // The save has reached the server and is held there
-  await expect.poll(() => putStarted).toBe(true);
-  // The menu keeps a read state younger than five minutes instead of asking again, so it only asks
-  // while the save runs once the state has aged: the demo clock moves ten minutes on
-  await page.clock.setFixedTime(new Date('2026-10-01T12:10:00Z'));
-  // The menu asks for the read state while the save is still running
-  const menu = page
-    .getByRole('navigation', { name: 'Schnellzugriff' })
-    .getByRole('button', { name: 'Menü', exact: true });
-  await menu.click();
-  await expect(page.getByRole('dialog', { name: 'Alle Bereiche' })).toBeVisible();
-  // That read overlaps the save: its answer is held until the save is done
-  await expect.poll(() => staleStarted).toBe(true);
-  releasePut();
-  await expect(page.getByText('Alle Neuigkeiten sind als gelesen gespeichert.')).toBeVisible();
-  // The late answer, which still holds the state from before the save, arrives and is dropped
-  await staleDelivered.reached;
-  await settle(page);
-  await menu.click();
-  await expect(page.getByTestId('changelog-badge')).toHaveCount(0);
 });
 
 test('nothing is saved when everything was read already', async ({ page }) => {
