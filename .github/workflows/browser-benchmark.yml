@@ -37,7 +37,7 @@ jobs:
     outputs:
       image: ${{ steps.version.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: web/package.json
           sparse-checkout-cone-mode: false
