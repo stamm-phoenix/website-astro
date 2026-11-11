@@ -128,7 +128,8 @@
 </script>
 
 <!-- A block, so it starts on its own line after an inline label; as wide as the picture -->
-<div class="relative w-fit max-w-full">
+<!-- Room around it for the handles on its edge -->
+<div class="relative mx-1 my-4 w-fit max-w-[calc(100%-0.5rem)]">
   <img
     {src}
     alt="Originalfoto mit dem erkannten Beleg"
@@ -140,7 +141,7 @@
     bind:this={svg}
     viewBox="0 0 {width} {height}"
     preserveAspectRatio="none"
-    class="absolute inset-0 h-full w-full touch-none select-none"
+    class="absolute inset-0 h-full w-full touch-none overflow-visible select-none"
     role="group"
     aria-label={art === 'frei' ? 'Ecken des Belegs' : 'Ausschnitt des Belegs'}
     onpointermove={pointerMove}
