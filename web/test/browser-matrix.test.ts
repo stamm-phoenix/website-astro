@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 import {
+  CHROMIUM_WORKERS,
   MAX_SHARDS,
   TARGET_SECONDS,
   browserMatrix,
@@ -68,13 +69,16 @@ describe('browser test matrix', () => {
   test('a large selection gets as few shards as stay within the target, each file once', () => {
     const groups = Array.from({ length: 40 }, (_, i) => group('desktop', `${i}.spec.ts`, 50, 10));
     const { include } = browserMatrix(groups);
-    // Four workers share the tests of six files (300 s) within 85 s, of seven not
-    assert.equal(include.length, 7);
+    // The workers of a shard share the tests of as many files as fit into the target
+    const perShard = Math.floor((CHROMIUM_WORKERS * TARGET_SECONDS) / 50);
+    const count = Math.ceil(40 / perShard);
+    assert.ok(count > 1);
+    assert.equal(include.length, count);
     assert.deepEqual(
       include.map((job) => job.name),
-      ['1/7', '2/7', '3/7', '4/7', '5/7', '6/7', '7/7']
+      Array.from({ length: count }, (_, i) => `${i + 1}/${count}`)
     );
-    assert.equal(new Set(include.map((job) => job.group)).size, 7);
+    assert.equal(new Set(include.map((job) => job.group)).size, count);
     const listed = include.flatMap((job) => lines(job.tests)).sort();
     assert.deepEqual(listed, groups.map((g) => `[desktop] > ${g.file}`).sort());
     assert.ok(include.every((job) => job.wall <= TARGET_SECONDS));
@@ -95,7 +99,10 @@ describe('browser test matrix', () => {
     assert.equal(include.flatMap((job) => lines(job.tests)).length, all.length);
     for (const job of chromium) {
       const shard = withDurations(groupsOf(job.tests), durations, counts);
-      assert.ok(estimateWallSeconds(shard, 4) <= TARGET_SECONDS, `${job.name} takes ${job.wall} s`);
+      assert.ok(
+        estimateWallSeconds(shard, CHROMIUM_WORKERS) <= TARGET_SECONDS,
+        `${job.name} takes ${job.wall} s`
+      );
     }
   });
 

@@ -18,7 +18,7 @@ import type { TestGroup } from './browser-shards';
 export const TARGET_SECONDS = 85;
 export const MAX_SHARDS = 16;
 const WEBKIT_PROJECT = 'webkit-tablet';
-const CHROMIUM_WORKERS = 4;
+export const CHROMIUM_WORKERS = 6;
 
 export interface BrowserJob {
   /** Shown in the job name, e.g. `1/3` or `WebKit` */
