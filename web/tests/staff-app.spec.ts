@@ -332,12 +332,31 @@ test('in the iPhone app a newly created person keeps later edits under their sav
     route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
   );
   await dialog.getByLabel('Name', { exact: true }).fill('Recovery edited person');
+  // A confirmed photo advances the version, but the unsaved name must not become its baseline
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 10;
+    canvas.height = 10;
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: 'photo.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(png, 'base64'),
+  });
+  await expect(dialog.getByText('Foto gespeichert.', { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('Recovery edited person');
   await page.getByRole('dialog').getByRole('button', { name: 'Speichern', exact: true }).click();
   await page.getByRole('dialog').getByRole('link', { name: 'Neu anmelden', exact: true }).click();
   await page.getByRole('button', { name: /Recovery new person/ }).click();
   await expect(page.getByRole('dialog').getByLabel('Name', { exact: true })).toHaveValue(
     'Recovery edited person'
   );
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByText('wieder eingesetzt. Prüf sie und speichere.', { exact: false })
+  ).toBeVisible();
 });
 
 test('in the iPhone app template rows come back when added, and saving or discarding ends the kept input', async ({
@@ -519,4 +538,192 @@ test('in the iPhone app receipt login links warn that the chosen photo and crop 
   await expect(dialog.getByLabel('Betrag in €')).toHaveValue('12,34');
   await expect(dialog.getByAltText('Vorschau des Fotos')).toHaveCount(0);
   await expect(dialog.getByText(warning, { exact: false })).toHaveCount(0);
+});
+
+test('in the iPhone app a saved receipt photo keeps later recovery', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route('**/api/intern/pflege/belege/*', (route) =>
+    route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/belege');
+  const open = page.getByRole('button', { name: /REWE/ }).first();
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: /Beleg von/ });
+  await dialog.getByLabel('Geschäft').fill('REWE recovery after photo');
+  const photo = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 1200;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#333';
+    context.fillRect(0, 0, 800, 1200);
+    context.fillStyle = '#fff';
+    context.fillRect(120, 120, 560, 960);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await dialog.locator('input[type=file]').setInputFiles({
+    name: 'receipt.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(photo, 'base64'),
+  });
+  await dialog.getByRole('button', { name: 'Neues Foto speichern', exact: true }).click();
+  await expect(dialog.getByText('Foto ersetzt.', { exact: true })).toBeVisible();
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
+  await dialog.getByRole('alert').getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await open.click();
+  // The saved photo advanced the version: the input is filled in, not shown as a conflict
+  await expect(dialog.getByLabel('Geschäft')).toHaveValue('REWE recovery after photo');
+  await expect(
+    dialog.getByText('wieder eingesetzt. Prüf sie und speichere.', { exact: false })
+  ).toBeVisible();
+});
+
+test('in the iPhone app adopting a calendar entry that changed since shows the input as a conflict', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const data = {
+    title: 'Recovery adoption',
+    start: '2026-10-22',
+    end: '',
+    link: '',
+    stufen: ['Rover'],
+    description: '<p>Original adoption text</p>',
+    campflowId: null,
+  };
+  const created = await page.request.post('/api/intern/pflege/aktionen', { data });
+  const { id } = await created.json();
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route(`**/api/intern/pflege/aktionen/${id}`, (route) =>
+    route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aktionen');
+  const publish = page.getByRole('button', {
+    name: 'Im öffentlichen Kalender veröffentlichen: Sommerlager 2026 Oberjoch',
+  });
+  await publish.click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel(/Vorhandenen Kalendereintrag/).selectOption(id);
+  await expect(dialog.getByRole('textbox', { name: 'Beschreibung' })).toContainText(
+    'Original adoption text'
+  );
+  await dialog.getByRole('button', { name: 'Veröffentlichen', exact: true }).click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await page.request.patch(`/api/intern/pflege/aktionen/${id}`, {
+    data: { ...data, description: '<p>Newer adoption text</p>' },
+  });
+  await page.reload();
+  await publish.click();
+  // The adopted entry is not the one being edited; only its version shows the change
+  await expect(
+    dialog.getByText('Dieser Eintrag wurde inzwischen geändert.', { exact: false })
+  ).toBeVisible();
+  await expect(dialog.getByRole('region', { name: 'Noch nicht eingesetzt' })).toContainText(
+    'Original adoption text'
+  );
+  await page.request.delete(`/api/intern/pflege/aktionen/${id}`);
+});
+
+test('in the iPhone app helper wishes recover an added wish and cleared old ones', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const data = await (await page.request.get('/api/intern/nikolaus/helfende')).json();
+  const person = data.persons.find((entry: { name: string }) => entry.name === 'Katharina Huber');
+  await page.request.patch(`/api/intern/pflege/nikolaus-helfende/${person.id}`, {
+    data: { ...person, positiveTags: ['Old preferred'], negativeTags: ['Old restriction'] },
+  });
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route(`**/api/intern/pflege/nikolaus-helfende/${person.id}`, (route) =>
+    route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/nikolaus-helfende?ansicht=helfende');
+  const open = page.getByRole('button', { name: /^Bearbeiten.*Katharina Huber/ });
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: 'Person bearbeiten', exact: true });
+  for (const tag of ['Old preferred', 'Old restriction']) {
+    await dialog.getByRole('button', { name: `${tag} entfernen`, exact: true }).click();
+  }
+  await dialog.getByLabel('Bevorzugt zu Familien mit', { exact: false }).fill('Recovery wish');
+  await dialog.getByLabel('Bevorzugt zu Familien mit', { exact: false }).press('Enter');
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  await open.click();
+  await expect(
+    dialog.getByRole('button', { name: 'Recovery wish entfernen', exact: true })
+  ).toBeVisible();
+  for (const tag of ['Old preferred', 'Old restriction']) {
+    await expect(dialog.getByRole('button', { name: `${tag} entfernen`, exact: true })).toHaveCount(
+      0
+    );
+  }
+  await page.request.patch(`/api/intern/pflege/nikolaus-helfende/${person.id}`, { data: person });
+});
+
+test('in the iPhone app conflicting task assignees can be adopted with their identities', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.request.post('/api/__mock/aufgaben/reset');
+  const title = 'Manual recovery task';
+  const base = '/api/intern/pflege/aufgaben';
+  await page.request.post(base, {
+    data: {
+      title,
+      description: 'Original description',
+      assignee: '',
+      assignees: [],
+      dueDate: null,
+      projectId: null,
+    },
+  });
+  const overview = await (await page.request.get(base)).json();
+  const original = overview.tasks.find((entry: { title: string }) => entry.title === title);
+  await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+  await page.route(`**${base}/${original.id}`, (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aufgaben');
+  const open = page.getByRole('button', { name: title, exact: true });
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: 'Aufgabe bearbeiten', exact: true });
+  const names = ['Alex Beispiel', 'Bea Beispiel'];
+  for (const name of names) {
+    await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill(name);
+    await dialog.getByRole('option', { name, exact: true }).click();
+  }
+  await dialog
+    .getByRole('button', {
+      name: /^(?:Speichern|Aufgabe anlegen|Aufgabe speichern|Person hinzufügen|Person speichern)$/,
+    })
+    .click();
+  await dialog.getByRole('link', { name: 'Neu anmelden', exact: true }).click();
+  expect(
+    (
+      await page.request.put(`${base}/${original.id}`, {
+        data: { ...original, description: 'Newer server description', done: false },
+      })
+    ).ok()
+  ).toBe(true);
+  await page.reload();
+  await open.click();
+  await dialog
+    .getByRole('region', { name: 'Noch nicht eingesetzt' })
+    .getByRole('button', { name: 'Zuständige übernehmen', exact: true })
+    .click();
+  for (const name of names) {
+    await expect(
+      dialog.getByRole('button', { name: `${name} entfernen`, exact: true })
+    ).toBeVisible();
+  }
+  await expect(dialog.getByText('Zuständige übernommen.', { exact: false })).toBeVisible();
 });
