@@ -93,7 +93,10 @@
         >Foto bearbeiten</ActionButton
       >
     {/if}
-    <label class="photo-picker btn-secondary cursor-pointer" class:opacity-60={photo.photoBusy}>
+    <label
+      class="photo-picker btn-secondary relative cursor-pointer"
+      class:opacity-60={photo.photoBusy}
+    >
       {photo.photoBusy
         ? 'Wird verarbeitet …'
         : form.hasImage || photo.draft

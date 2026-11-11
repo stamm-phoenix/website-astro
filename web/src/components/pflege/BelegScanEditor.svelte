@@ -72,13 +72,14 @@
   }
 </script>
 
-<div class="relative inline-block max-w-full">
+<!-- A block, so it starts on its own line after an inline label; as wide as the picture -->
+<div class="relative w-fit max-w-full">
   <img
     {src}
     alt="Originalfoto mit dem erkannten Beleg"
     {width}
     {height}
-    class="block h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-neutral-100"
+    class="block h-auto max-h-[max(24rem,calc(100dvh-16rem))] w-auto max-w-full rounded-md border border-neutral-200 bg-neutral-100"
   />
   <svg
     bind:this={svg}

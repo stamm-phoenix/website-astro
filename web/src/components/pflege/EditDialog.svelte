@@ -69,6 +69,12 @@
     onsubmit: () => void;
     onclose: () => void;
     children: Snippet;
+    /**
+     * Shown before the fields; on large screens beside them in its own scrolling column, e.g. the
+     * picture of a receipt. Give the dialog `size="split"` for the room.
+     */
+    aside?: Snippet;
+    size?: 'wide' | 'split';
     /** Extra actions on the left of the footer, after the delete button. */
     actions?: Snippet;
   }
@@ -100,6 +106,8 @@
     onsubmit,
     onclose,
     children,
+    aside,
+    size = 'wide',
     actions,
   }: Props = $props();
 
@@ -303,7 +311,7 @@
   }
 </script>
 
-<ModalDialog {open} {title} closeDisabled={busy} onclose={requestClose} onopen={opened}>
+<ModalDialog {open} {title} {size} closeDisabled={busy} onclose={requestClose} onopen={opened}>
   <form
     novalidate
     class="flex min-h-0 flex-col"
@@ -327,17 +335,35 @@
       if (!busy && !submitDisabled && !confirmingDiscard) onsubmit();
     }}
   >
-    <div class="min-h-0 space-y-4 overflow-y-auto px-5 py-4">
-      <fieldset disabled={busy} inert={busy} class="min-w-0 space-y-4">
-        {@render children()}
-      </fieldset>
-      {#if restored && leftOver.length > 0}<NichtEingesetzt
-          values={leftOver}
-          conflict={rescueConflict}
-          canApply={(kept) => canAdopt(kept, rescueFields)}
-          onapply={applyRescueField}
-        />{/if}
-    </div>
+    {#snippet fields(scrollClass: string)}
+      <!-- Positioned, so hidden inputs (e.g. the file input of a photo) stay inside the scroll area -->
+      <div class="relative min-h-0 space-y-4 px-5 py-4 {scrollClass}">
+        <fieldset disabled={busy} inert={busy} class="min-w-0 space-y-4">
+          {@render children()}
+        </fieldset>
+        {#if restored && leftOver.length > 0}<NichtEingesetzt
+            values={leftOver}
+            conflict={rescueConflict}
+            canApply={(kept) => canAdopt(kept, rescueFields)}
+            onapply={applyRescueField}
+          />{/if}
+      </div>
+    {/snippet}
+    {#if aside}
+      <!-- One scroll area on small screens; on large ones two columns that scroll on their own -->
+      <div class="relative flex min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+        <div
+          class="relative min-h-0 shrink-0 px-5 pt-4 lg:w-1/2 lg:shrink lg:overflow-y-auto lg:border-r lg:border-neutral-200 lg:pb-4"
+        >
+          <fieldset disabled={busy} inert={busy} class="min-w-0 space-y-4">
+            {@render aside()}
+          </fieldset>
+        </div>
+        {@render fields('shrink-0 lg:flex-1 lg:shrink lg:overflow-y-auto')}
+      </div>
+    {:else}
+      {@render fields('overflow-y-auto')}
+    {/if}
 
     <EditDialogFooter
       {open}
