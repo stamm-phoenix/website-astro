@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sql } from 'kysely';
-import type { Kysely } from 'kysely';
+import type { Kysely, RawBuilder } from 'kysely';
 import type { Database } from './db-schema';
 
 export interface Migration {
@@ -36,8 +36,32 @@ export function readMigrations(directory: string): Migration[] {
 }
 
 /**
+ * Runs the batches of one migration and records it in a single request instead of one round
+ * trip per batch, which dominates on a fresh database (the CI runner is far from the server).
+ * Each batch still compiles on its own, as with `GO`; the transaction is rolled back and the
+ * original error thrown if one fails. Session settings are not touched, so a pooled connection
+ * stays clean.
+ */
+export function migrationStatement(migration: Migration): RawBuilder<unknown> {
+  const batches = migration.batches.map((batch) => sql`EXEC sp_executesql ${batch};`);
+  return sql`
+    BEGIN TRY
+      BEGIN TRANSACTION;
+      ${sql.join(batches, sql` `)}
+      INSERT INTO dbo.schema_migrations (name, checksum)
+        VALUES (${migration.name}, ${migration.checksum});
+      COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+      IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+      THROW;
+    END CATCH
+  `;
+}
+
+/**
  * Applies all migrations that are not recorded in `dbo.schema_migrations`, each in its own
- * transaction. An application lock keeps two runs (e.g. two deployments) from overlapping.
+ * transaction (one request per migration). An application lock keeps two runs (e.g. two deployments) from overlapping.
  * An applied migration whose file changed afterwards stops the run: migrations are never
  * edited, a change needs a new file.
  */
@@ -88,13 +112,7 @@ export async function migrate(
           continue;
         }
         if (!options.dryRun) {
-          await connection.transaction().execute(async (trx) => {
-            for (const batch of migration.batches) await sql.raw(batch).execute(trx);
-            await trx
-              .insertInto('dbo.schema_migrations')
-              .values({ name: migration.name, checksum: migration.checksum })
-              .execute();
-          });
+          await migrationStatement(migration).execute(connection);
         }
         result.applied.push(migration.name);
       }

@@ -76,6 +76,20 @@ function log(values: Record<string, unknown>): void {
   console.log(JSON.stringify({ scope: 'db_preview', ...values }));
 }
 
+/** Stores how long a phase took, so the log shows where a new preview spends its time. */
+async function timed<T>(
+  phases: Record<string, number>,
+  key: string,
+  run: () => Promise<T>
+): Promise<T> {
+  const started = performance.now();
+  try {
+    return await run();
+  } finally {
+    phases[key] = Math.round(performance.now() - started);
+  }
+}
+
 async function create(pr: string, writeDeployment: boolean): Promise<void> {
   const name = previewDatabaseName(pr);
   const blobs = blobTarget(pr);
@@ -84,8 +98,11 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
 
   const master = createDatabase(target('master'));
   let created: boolean;
+  const phases: Record<string, number> = {};
   try {
-    created = await createPreviewDatabase(master, name, { azure: true });
+    created = await timed(phases, 'createMilliseconds', () =>
+      createPreviewDatabase(master, name, { azure: true })
+    );
   } finally {
     await master.destroy();
   }
@@ -93,10 +110,12 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
   const db = createDatabase(target(name));
   let seeded: boolean;
   try {
-    await grantWebsiteAccess(db, CONFIG.azure.clientId);
-    const result = await migrate(db, readMigrations(resolve(__dirname, '../migrations')));
+    await timed(phases, 'grantMilliseconds', () => grantWebsiteAccess(db, CONFIG.azure.clientId));
+    const result = await timed(phases, 'migrateMilliseconds', () =>
+      migrate(db, readMigrations(resolve(__dirname, '../migrations')))
+    );
     seeded = await isPreviewSeeded(db);
-    log({ database: name, created, seeded, applied: result.applied });
+    log({ database: name, created, seeded, applied: result.applied, ...phases });
   } finally {
     await db.destroy();
   }
