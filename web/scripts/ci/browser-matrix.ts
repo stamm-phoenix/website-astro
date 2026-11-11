@@ -7,7 +7,7 @@
  * of each at about `TARGET_SECONDS` (`browser-shards.ts`), WebKit (`webkit-tablet`) one job,
  * and only when one of its specs is selected.
  */
-import { balanceGroups, estimateWallSeconds, shardLimit } from './browser-shards';
+import { balanceGroups, estimateWallSeconds, shardFits } from './browser-shards';
 import type { TestGroup } from './browser-shards';
 
 /**
@@ -78,9 +78,7 @@ export function withDurations(
 const EVEN_OUT_STEP = 5;
 
 function fits(shards: readonly TestGroup[][], target: number): boolean {
-  return shards.every(
-    (shard) => estimateWallSeconds(shard, CHROMIUM_WORKERS) <= shardLimit(shard, target)
-  );
+  return shards.every((shard) => shardFits(shard, CHROMIUM_WORKERS, target));
 }
 
 /**

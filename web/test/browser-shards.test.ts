@@ -4,6 +4,7 @@ import {
   balanceGroups,
   estimateWallSeconds,
   playwrightOrder,
+  shardFits,
   shardLimit,
 } from '../scripts/ci/browser-shards';
 import type { TestGroup } from '../scripts/ci/browser-shards';
@@ -60,6 +61,30 @@ describe('estimated wall time of a shard', () => {
   });
 });
 
+describe('what a shard may hold', () => {
+  const long = group('desktop', 'staff-app.spec.ts', 190);
+  const short = (name: string, seconds: number): TestGroup => group('desktop', name, seconds);
+
+  test('one long file with short files on the other workers fits', () => {
+    assert.ok(shardFits([long, short('a.spec.ts', 140), short('b.spec.ts', 140)], 4, 150));
+  });
+
+  test('two long files do not fit, even when the wall time would', () => {
+    const other = group('desktop', 'protokoll-editor.spec.ts', 170);
+    assert.equal(estimateWallSeconds([long, other], 4), 190);
+    assert.equal(shardFits([long, other], 4, 150), false);
+  });
+
+  test('beside a long file the others may keep the remaining workers busy for the target only', () => {
+    const first = group('desktop', 'a-long.spec.ts', 190);
+    const rest = ['b', 'c', 'd', 'e', 'f', 'g'].map((n) => short(`${n}.spec.ts`, 80));
+    // 480 s of other work: more than 3 × 150, though the wall time stays at the long file
+    assert.equal(estimateWallSeconds([first, ...rest], 4), 190);
+    assert.equal(shardFits([first, ...rest], 4, 150), false);
+    assert.equal(shardFits([first, ...rest.slice(0, 5)], 4, 150), true);
+  });
+});
+
 describe('balanced browser shards', () => {
   const groups = [
     group('desktop', 'a.spec.ts', 50),
@@ -99,6 +124,24 @@ describe('balanced browser shards', () => {
     assert.deepEqual(
       shards.map((shard) => shard.length),
       [4, 0]
+    );
+  });
+
+  test('never puts two files longer than the target into one shard', () => {
+    const shards = balanceGroups(
+      [
+        group('desktop', 'a.spec.ts', 190),
+        group('desktop', 'b.spec.ts', 170),
+        group('desktop', 'c.spec.ts', 160),
+        group('desktop', 'd.spec.ts', 20),
+      ],
+      3,
+      4,
+      150
+    );
+    assert.deepEqual(
+      shards.map((shard) => shard.filter((g) => g.seconds > 150).length),
+      [1, 1, 1]
     );
   });
 

@@ -52,6 +52,26 @@ export function shardLimit(groups: readonly TestGroup[], target: number): number
   return Math.max(target, ...groups.map((g) => g.seconds));
 }
 
+/**
+ * Whether a shard stays within its limit, holds at most one file longer than `target`, and the
+ * other files keep the remaining workers busy for no more than `target` each.
+ *
+ * Long files slow each other down when they run side by side: in run 42950546620 the four
+ * longest files shared shard 1/10 and each took 5 to 33 % longer than measured alone
+ * (`staff-app.spec.ts` 240 s instead of 189 s; 19 to 47 % in run 42949688688), while files of
+ * 100 to 130 s in the other shards stayed within about 10 %. A long file beside short ones ran
+ * at its measured time (run 42947457925: `staff-app.spec.ts` 196 s next to 335 s of others).
+ */
+export function shardFits(groups: readonly TestGroup[], workers: number, target: number): boolean {
+  const long = groups.filter((g) => g.seconds > target).length;
+  const rest = sum(groups.filter((g) => g.seconds <= target));
+  return (
+    long <= 1 &&
+    rest <= (workers - long) * target &&
+    estimateWallSeconds(groups, workers) <= shardLimit(groups, target)
+  );
+}
+
 interface Placement {
   index: number;
   fits: boolean;
@@ -71,7 +91,7 @@ function better(a: Placement, b: Placement): boolean {
 
 /**
  * Whole project/file groups keep the mock server's sequential tests together. The longest files
- * are placed first, each into a shard that stays within its limit (`shardLimit`) and whose
+ * are placed first, each into a shard that still fits (`shardFits`) and whose
  * estimated wall time grows least, so a short file fills an idle worker next to a long one; ties
  * go to the shard with less work. A file that fits nowhere goes where the wall time stays lowest.
  */
@@ -92,7 +112,7 @@ export function balanceGroups(
         const wall = estimateWallSeconds(next, workers);
         return {
           index,
-          fits: wall <= shardLimit(next, target),
+          fits: shardFits(next, workers, target),
           wall,
           growth: wall - walls[index],
           work: sum(shard),
