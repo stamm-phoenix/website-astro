@@ -14,6 +14,8 @@
   import BelegPhotoSection from './BelegPhotoSection.svelte';
   import BelegReview from './BelegReview.svelte';
   import BelegLesen from './BelegLesen.svelte';
+  import BelegOeffnet from './BelegOeffnet.svelte';
+  import { ladeVorschau } from '../../lib/belegVorschau';
   import BelegAnsicht from './BelegAnsicht.svelte';
   import BelegCampflowDialog from './BelegCampflowDialog.svelte';
   import BelegUebersicht from './BelegUebersicht.svelte';
@@ -145,9 +147,45 @@
     history.replaceState(history.state, '', url);
   }
 
+  /** The photo of the open receipt, loaded before its dialog opened, so the dialog keeps its size. */
+  let vorschau = $state<{ id: string; url: string } | null>(null);
+  let oeffnen: AbortController | null = null;
+  let oeffnet = $state(false);
+
+  function vorschauWeg(): void {
+    if (vorschau) URL.revokeObjectURL(vorschau.url);
+    vorschau = null;
+  }
+  // However the dialog closed (saved, deleted, transferred), the loaded photo is let go
+  $effect(() => {
+    if (!form) untrack(vorschauWeg);
+  });
+
+  /** Opens a receipt once its photo is there; another click meanwhile opens that one instead. */
+  async function zeigen(beleg: StaffBeleg): Promise<void> {
+    oeffnen?.abort();
+    vorschauWeg();
+    if (!beleg.hasImage) return edit(beleg);
+    const controller = new AbortController();
+    oeffnen = controller;
+    oeffnet = true;
+    const url = await ladeVorschau(
+      `/api/intern/pflege/belege/${beleg.id}/foto?v=${encodeURIComponent(beleg.etag)}`,
+      controller.signal
+    );
+    if (oeffnen !== controller) {
+      if (url) URL.revokeObjectURL(url);
+      return;
+    }
+    oeffnen = null;
+    oeffnet = false;
+    if (url) vorschau = { id: beleg.id, url };
+    edit(beleg);
+  }
+
   function open(eintrag: BelegEintrag): void {
     if (eintrag.beleg?.readOnly) openAnsicht = eintrag.beleg;
-    else if (eintrag.beleg) edit(eintrag.beleg);
+    else if (eintrag.beleg) void zeigen(eintrag.beleg);
     else if (eintrag.campflow) openCampflow = eintrag.campflow;
   }
 
@@ -275,12 +313,15 @@
 
   function close(): void {
     if (busy || photo.photoBusy) return;
+    vorschauWeg();
     form = null;
     photo.clearDraft();
   }
 
   /** Keep the exact write version and derived photo metadata without replacing draft fields. */
   function applyPhoto(saved: StaffBeleg): void {
+    // The photo loaded before opening is no longer the stored one
+    if (vorschau?.id === saved.id) vorschauWeg();
     if (form?.id === saved.id) {
       editDialog?.acceptRescueVersion(form.etag, saved.etag);
       form.etag = saved.etag;
@@ -691,7 +732,14 @@
 >
   {#snippet aside()}
     {#if form}
-      <BelegPhotoSection {form} {photo} {busy} {errors} {lesen} />
+      <BelegPhotoSection
+        {form}
+        {photo}
+        {busy}
+        {errors}
+        {lesen}
+        bild={vorschau?.id === form.id ? vorschau.url : undefined}
+      />
     {/if}
   {/snippet}
   {#if form && lesen}
@@ -719,5 +767,6 @@
   {/if}
 </EditDialog>
 
+<BelegOeffnet sichtbar={oeffnet} />
 <BelegCampflowDialog beleg={openCampflow} onclose={() => (openCampflow = null)} />
 <BelegAnsicht beleg={openAnsicht} onclose={() => (openAnsicht = null)} />
