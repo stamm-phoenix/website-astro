@@ -63,8 +63,12 @@ export async function seedPreviewData(): Promise<void> {
       { name: 'seedPreviewAktionDownloads', run: () => seedPreviewAktionDownloads() },
       { name: 'seedPreviewContentReviews', run: () => seedPreviewContentReviews() },
     ],
+    // Self-contained steps that alone took 40 s, 28 s and 11 s: each only touches its own
+    // schema (`gruppenstunde`, `sammel`, `abstimmung`), so they must not wait for the others
+    [{ name: 'seedPreviewAttendance', run: () => seedPreviewAttendance() }],
+    [{ name: 'seedPreviewSammel', run: () => seedPreviewSammel() }],
+    [{ name: 'seedPreviewAbstimmungen', run: () => seedPreviewAbstimmungen() }],
     [
-      { name: 'seedPreviewAttendance', run: () => seedPreviewAttendance() },
       { name: 'seedPreviewTasks', run: () => seedPreviewTasks() },
       { name: 'seedPreviewProtokolle', run: () => seedPreviewProtokolle() },
       { name: 'seedPreviewProtokollEditor', run: () => seedPreviewProtokollEditor() },
@@ -77,8 +81,6 @@ export async function seedPreviewData(): Promise<void> {
       { name: 'seedPreviewStaffUsage', run: () => seedPreviewStaffUsage() },
       { name: 'seedPreviewStaffSettings', run: () => seedPreviewStaffSettings() },
       { name: 'seedPreviewAbrechnungEingabe', run: () => seedPreviewAbrechnungEingabe() },
-      { name: 'seedPreviewSammel', run: () => seedPreviewSammel() },
-      { name: 'seedPreviewAbstimmungen', run: () => seedPreviewAbstimmungen() },
       { name: 'seedPreviewProblemmeldungen', run: () => seedPreviewProblemmeldungen() },
       { name: 'seedPreviewInventur', run: () => seedPreviewInventur() },
       { name: 'seedPreviewSchnupperanfragen', run: () => seedPreviewSchnupperanfragen() },
