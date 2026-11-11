@@ -132,3 +132,65 @@ jobs:
             web/playwright-report/
             web/test-results/
           retention-days: 7
+
+  # A few specs against the built site (scripts/serve-built.ts: dist/ with the demo API) instead of
+  # the dev server, next to the shards and without slowing them down (#570). It builds with the
+  # test data itself: the artifact of build-web holds the live content on main and would make
+  # every shard wait for that job.
+  built-site:
+    needs: select
+    if: needs.select.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container:
+      image: ${{ needs.select.outputs.image }}
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
+        working-directory: web
+    name: Browser tests (built site)
+    concurrency:
+      group: ci-browser-built-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          check-latest: true
+      - name: Install Bun and frontend dependencies
+        run: |
+          npm install --global bun@1.4.2
+          test "$(bun --version)" = "1.4.2"
+          bun install --frozen-lockfile
+      - name: Build the site with the test data
+        run: bun run build
+        env:
+          CONTENT_SOURCE: mock
+      - name: Test browser workflows against the built site
+        # Public pages with baked content and forms, the detail pages of the Abrechnung (a rewrite
+        # of staticwebapp.config.json) and the staff layout. Not public-flows.spec.ts: the built
+        # site loads the real CampFlow embed, only the dev server the demo one
+        run: >-
+          bun run test:e2e --project=desktop
+          tests/baked-content.spec.ts tests/qa-search.spec.ts tests/contact-accessibility.spec.ts
+          tests/abrechnung.spec.ts
+          tests/sammel-overview.spec.ts tests/staff-layout.spec.ts
+        env:
+          E2E_SERVER: built
+          E2E_WORKERS: "2"
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/results.json
+      - name: List failed and flaky tests
+        if: always()
+        continue-on-error: true
+        run: bun scripts/ci/flaky-summary.ts test-results/results.json "built site"
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-report-built
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7

@@ -4,6 +4,10 @@
  * 3 s per server in CI.
  *
  * Run by playwright.config.ts: `bun scripts/e2e-servers.ts <first port> <count>`.
+ *
+ * `E2E_SERVER=built` starts `bun run start:mock` (scripts/serve-built.ts) instead: the site in
+ * `dist/` with the same demo API, without compiling pages on their first request. Build it with
+ * the test data first (`bun run build`; CONTENT_SOURCE=mock is the default).
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -23,6 +27,15 @@ const TIMEOUT_MS = 60_000;
 const STARTUP_BUDGET_MS = 80_000;
 const scriptStarted = Date.now();
 const ports = Array.from({ length: count }, (_, index) => firstPort + index);
+const mode = process.env.E2E_SERVER ?? 'dev';
+if (mode !== 'dev' && mode !== 'built') {
+  console.error(`Unknown E2E_SERVER "${mode}" (expected dev or built)`);
+  process.exit(1);
+}
+if (mode === 'built' && !existsSync(resolve('dist', 'staticwebapp.config.json'))) {
+  console.error('E2E_SERVER=built needs the built site in dist/; run `bun run build` first.');
+  process.exit(1);
+}
 
 // A server already running on a port would answer for the new one (and Astro would move the
 // new one to another port), so the tests would share its demo state. Stop instead, as
@@ -44,15 +57,19 @@ if (busy.length > 0) {
   process.exit(1);
 }
 const servers: ChildProcess[] = ports.map((port) =>
-  spawn(
-    'bun',
-    ['run', 'dev:mock', '--host', '127.0.0.1', '--port', String(port), '--ignore-lock'],
-    {
-      // The Vite cache per port keeps the servers from overwriting each other's optimized deps
-      env: { ...process.env, VITE_CACHE_SUFFIX: String(port) },
-      stdio: ['ignore', 'inherit', 'inherit'],
-    }
-  )
+  mode === 'built'
+    ? spawn('bun', ['run', 'start:mock', '--port', String(port)], {
+        stdio: ['ignore', 'inherit', 'inherit'],
+      })
+    : spawn(
+        'bun',
+        ['run', 'dev:mock', '--host', '127.0.0.1', '--port', String(port), '--ignore-lock'],
+        {
+          // The Vite cache per port keeps the servers from overwriting each other's optimized deps
+          env: { ...process.env, VITE_CACHE_SUFFIX: String(port) },
+          stdio: ['ignore', 'inherit', 'inherit'],
+        }
+      )
 );
 
 function stopAll(code: number): never {
@@ -63,7 +80,7 @@ process.on('SIGINT', () => stopAll(0));
 process.on('SIGTERM', () => stopAll(0));
 for (const [index, server] of servers.entries()) {
   server.on('exit', (code) => {
-    console.error(`Mock dev server on port ${ports[index]} exited with code ${code}`);
+    console.error(`Mock ${mode} server on port ${ports[index]} exited with code ${code}`);
     stopAll(1);
   });
 }
@@ -79,13 +96,18 @@ async function waitFor(port: number): Promise<void> {
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error(`Mock dev server on port ${port} did not answer within ${TIMEOUT_MS / 1000} s`);
+  throw new Error(
+    `Mock ${mode} server on port ${port} did not answer within ${TIMEOUT_MS / 1000} s`
+  );
 }
 
-/** The pages of the specs a CI shard runs (`test-results/shard.txt`); none on a developer machine. */
+/**
+ * The pages of the specs a CI shard runs (`test-results/shard.txt`); none on a developer machine
+ * and none for the built site, which has nothing to compile.
+ */
 function shardPages(): string[] {
   const list = resolve('test-results', 'shard.txt');
-  if (!existsSync(list) || process.env.E2E_WARMUP === '0') return [];
+  if (mode === 'built' || !existsSync(list) || process.env.E2E_WARMUP === '0') return [];
   const specs = new Set(
     readFileSync(list, 'utf8')
       .split('\n')
