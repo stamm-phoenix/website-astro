@@ -336,8 +336,11 @@ test('a failed copy leaves the full booking link in the address bar', async ({ p
     navigator.clipboard.writeText = () => Promise.reject(new Error('denied'));
   });
   await page.goto('/nikolaus/termin#token=mock');
+  // The page keeps the link once it has read it; the booking shows when it has
+  const copy = page.getByRole('button', { name: 'Link kopieren' });
+  await expect(copy).toBeVisible();
   await page.goto('/nikolaus/termin#main');
-  await page.getByRole('button', { name: 'Link kopieren' }).click();
+  await copy.click();
   await expect(page.getByText(/Kopieren ging nicht/)).toBeVisible();
   await expect(page).toHaveURL(/\/nikolaus\/termin#token=mock$/);
 });
