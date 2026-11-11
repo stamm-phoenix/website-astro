@@ -18,7 +18,7 @@ import type { TestGroup } from './browser-shards';
 export const TARGET_SECONDS = 85;
 export const MAX_SHARDS = 16;
 const WEBKIT_PROJECT = 'webkit-tablet';
-export const CHROMIUM_WORKERS = 6;
+export const CHROMIUM_WORKERS = 4;
 
 export interface BrowserJob {
   /** Shown in the job name, e.g. `1/3` or `WebKit` */
@@ -107,10 +107,10 @@ export function chromiumShards(groups: readonly TestGroup[]): TestGroup[][] {
     most,
     Math.max(1, Math.ceil(totalSeconds(groups) / (CHROMIUM_WORKERS * TARGET_SECONDS)))
   );
-  let shards = balanceGroups(groups, count);
+  let shards = balanceGroups(groups, count, CHROMIUM_WORKERS);
   while (!fits(shards) && count < most) {
     count += 1;
-    shards = balanceGroups(groups, count);
+    shards = balanceGroups(groups, count, CHROMIUM_WORKERS);
   }
   return shards.filter((s) => s.length > 0);
 }

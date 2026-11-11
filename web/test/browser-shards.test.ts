@@ -76,7 +76,7 @@ describe('balancing project/files across shards', () => {
   ];
 
   test('places the longest files first onto the shard with the least work', () => {
-    const shards = balanceGroups(groups, 2);
+    const shards = balanceGroups(groups, 2, 4);
     assert.deepEqual(shards.map(totalSeconds), [180, 180]);
     assert.deepEqual(names(shards[0]), [
       'desktop/a.spec.ts',
@@ -86,12 +86,12 @@ describe('balancing project/files across shards', () => {
   });
 
   test('keeps every project/file exactly once', () => {
-    const shards = balanceGroups(groups, 4);
+    const shards = balanceGroups(groups, 4, 4);
     assert.deepEqual(names(shards.flat()).sort(), names(groups).sort());
     assert.equal(totalSeconds(shards.flat()), totalSeconds(groups));
   });
 
   test('rejects invalid shard counts', () => {
-    for (const count of [0, -1, 1.5]) assert.throws(() => balanceGroups(groups, count));
+    for (const count of [0, -1, 1.5]) assert.throws(() => balanceGroups(groups, count, 4));
   });
 });
