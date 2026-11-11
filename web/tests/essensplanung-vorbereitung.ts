@@ -23,6 +23,8 @@ export interface GerichtVorlage {
   name: string;
   personen?: number;
   zutaten?: { name: string; menge: number; einheit: string }[];
+  /** Tools the dish needs, as typed on the dish. */
+  werkzeuge?: string[];
   /** Meals (`1_2`) the dish is planned at. */
   mahlzeiten?: string[];
 }
@@ -98,6 +100,7 @@ export async function planungAnlegen(
     const { id } = await api.post<{ id: number }>('/gerichte', {
       name: gericht.name,
       personen: gericht.personen ?? null,
+      ...(gericht.werkzeuge ? { werkzeuge: gericht.werkzeuge } : {}),
     });
     for (const zeile of gericht.zutaten ?? []) {
       const zeileZutat = zutatId(zeile.name);

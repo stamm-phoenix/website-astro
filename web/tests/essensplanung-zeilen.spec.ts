@@ -1,20 +1,24 @@
 import { test, expect, answerConfirm } from './fixtures';
-import { anlegen, zeilenMenge } from './essensplanung-helpers';
+import { zeilenMenge } from './essensplanung-helpers';
+import { gerichtOeffnen, planungVorbereiten } from './essensplanung-vorbereitung';
 import { afterPlanungPolls } from './settle';
+
+/** Gulasch with 500 g of minced meat. */
+const GULASCH = {
+  name: 'Gulasch',
+  zutaten: [{ name: 'Hackfleisch', menge: 500, einheit: 'g' }],
+};
 
 test('lines are typed and changed right in the rows, like in a sheet', async ({
   page,
   browser,
 }) => {
   test.slow();
-  await anlegen(page, 'E2E Zeilen');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Nudeln mit Soße');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Nudeln mit Soße angelegt.').first()).toBeVisible();
-  const gericht = page
-    .locator('li', { has: page.getByText('Nudeln mit Soße', { exact: true }) })
-    .first();
+  await planungVorbereiten(page, 'E2E Zeilen', {
+    gerichte: [{ name: 'Nudeln mit Soße' }],
+    tab: 'Gerichte',
+  });
+  const gericht = await gerichtOeffnen(page, 'Nudeln mit Soße');
 
   // The new row: Enter in the name takes the suggestion, Enter in the amount adds the line,
   // and the next line starts in the name again
@@ -124,17 +128,12 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
 
 test('typed input survives a slow save, removing and a read-only phase', async ({ page }) => {
   test.slow();
-  await anlegen(page, 'E2E Zeilen sicher');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Gulasch');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
-  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
+  await planungVorbereiten(page, 'E2E Zeilen sicher', {
+    gerichte: [GULASCH],
+    tab: 'Gerichte',
+  });
+  const gericht = await gerichtOeffnen(page, 'Gulasch');
   const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
-  await zutat.pressSequentially('Hackfl');
-  await zutat.press('Enter');
-  await gericht.getByLabel('Menge der neuen Zutat').fill('500');
-  await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
   const menge = gericht.getByLabel('Menge von Hackfleisch');
   await expect(menge).toHaveValue('500');
 
@@ -196,12 +195,11 @@ test('Enter in the name adds a chosen ingredient; saved text and amounts are not
   page,
 }) => {
   test.slow();
-  await anlegen(page, 'E2E Zeilen Enter');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Gulasch');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
-  const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
+  await planungVorbereiten(page, 'E2E Zeilen Enter', {
+    gerichte: [{ name: 'Gulasch' }],
+    tab: 'Gerichte',
+  });
+  const gericht = await gerichtOeffnen(page, 'Gulasch');
 
   // The first Enter takes the suggestion, the second adds the line without an amount
   const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
@@ -248,23 +246,19 @@ test(
   async ({ page, hasTouch }) => {
     test.skip(!hasTouch, 'needs a touch screen');
     test.slow();
-    await anlegen(page, 'E2E Zeilen Tippen');
-    await page.getByRole('tab', { name: 'Gerichte' }).click();
-    await page.getByLabel('Neues Gericht').fill('Gulasch');
-    await page.getByRole('button', { name: 'Anlegen' }).click();
-    await expect(page.getByText('Gulasch angelegt.').first()).toBeVisible();
-    const gericht = page.locator('li', { has: page.getByText('Gulasch', { exact: true }) }).first();
-    const zutat = gericht.getByLabel('Neue Zutat für Gulasch');
-    for (const [name, menge] of [
-      ['Hackfl', '500'],
-      ['Zwiebeln', '3'],
-    ]) {
-      await zutat.pressSequentially(name);
-      await zutat.press('Enter');
-      await gericht.getByLabel('Menge der neuen Zutat').fill(menge);
-      await gericht.getByLabel('Menge der neuen Zutat').press('Enter');
-      await expect(zutat).toHaveValue('');
-    }
+    await planungVorbereiten(page, 'E2E Zeilen Tippen', {
+      gerichte: [
+        {
+          name: 'Gulasch',
+          zutaten: [
+            { name: 'Hackfleisch', menge: 500, einheit: 'g' },
+            { name: 'Zwiebeln', menge: 3, einheit: 'g' },
+          ],
+        },
+      ],
+      tab: 'Gerichte',
+    });
+    const gericht = await gerichtOeffnen(page, 'Gulasch');
     const menge = gericht.getByLabel('Menge von Hackfleisch');
 
     // One tap on the page outside the row saves it

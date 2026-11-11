@@ -1,12 +1,12 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import { anlegen, pdfLaden } from './essensplanung-helpers';
-import { gerichteMitWerkzeugen, senden, werWaehlen } from './essensplanung-packliste-helpers';
+import { pdfLaden } from './essensplanung-helpers';
+import { planungVorbereiten } from './essensplanung-vorbereitung';
+import { packlisteVorbereiten, senden, werWaehlen } from './essensplanung-packliste-helpers';
 
 test('the packing list merges the tools of planned dishes; packing goes in the row', async ({
   page,
 }) => {
-  await anlegen(page, 'E2E Packliste');
-  await gerichteMitWerkzeugen(page);
+  await packlisteVorbereiten(page, 'E2E Packliste');
   const liste = page.getByRole('list', { name: 'Packliste' });
   const zeile = (name: string) => liste.getByRole('listitem').filter({ hasText: name }).first();
 
@@ -79,8 +79,7 @@ test('two people pack at once; the read-only link shows the list without changin
   page,
   browser,
 }) => {
-  await anlegen(page, 'E2E Packliste zu zweit');
-  await gerichteMitWerkzeugen(page);
+  await packlisteVorbereiten(page, 'E2E Packliste zu zweit');
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Packliste' }).click();
@@ -131,8 +130,7 @@ test(
   'names that differ in signs have their own box; a choice not saved is asked about',
   { tag: '@mobile' },
   async ({ page }) => {
-    await anlegen(page, 'E2E Packliste Zeichen');
-    await gerichteMitWerkzeugen(page, [
+    await packlisteVorbereiten(page, 'E2E Packliste Zeichen', [
       ['Chili', ['Grill-Zange']],
       ['Suppe', ['Grill Zange']],
     ]);
@@ -213,8 +211,7 @@ test(
 test('an entry of its own that a dish planned later needs stays one row with its state', async ({
   page,
 }) => {
-  await anlegen(page, 'E2E Packliste eigen und Werkzeug');
-  await page.getByRole('tab', { name: 'Packliste' }).click();
+  await planungVorbereiten(page, 'E2E Packliste eigen und Werkzeug', { tab: 'Packliste' });
   const neu = page.getByLabel('Noch etwas einpacken');
   await neu.fill('Gaskocher');
   await neu.press('Enter');
