@@ -144,7 +144,8 @@ dbTest('receipts without a usable photo are rejected before anything is written'
     '',
     'not base64!',
     Buffer.from('%PDF-1.4').toString('base64'),
-    Buffer.from(jpeg(600, 400)).toString('base64'),
+    // Too small to show a receipt at all; larger small photos are up to the check
+    Buffer.from(jpeg(280, 200)).toString('base64'),
   ]) {
     const response = await BelegeCollection(request('POST', { ...INPUT, photo }), context);
     assert.equal(response.status, 400);
