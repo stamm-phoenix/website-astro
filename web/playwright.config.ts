@@ -10,9 +10,11 @@ const BUILT = process.env.E2E_SERVER === 'built';
 
 export default defineConfig({
   testDir: './tests',
-  // Tests in one file share demo state, so files (not tests) are spread across workers.
   workers: WORKERS,
-  fullyParallel: false,
+  // Against the built site each test starts with fresh demo data (tests/fixtures.ts), so the tests
+  // of one file spread across the workers. On the dev server the tests of a file share the data
+  // of their server and run one after the other.
+  fullyParallel: BUILT,
   forbidOnly: !!process.env.CI,
   // Tests that load source modules of the dev server have nothing to load from the built site
   grepInvert: BUILT ? new RegExp(DEV_SERVER_TAG) : undefined,

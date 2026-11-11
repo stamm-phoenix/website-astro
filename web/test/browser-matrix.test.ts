@@ -7,6 +7,7 @@ import {
   browserMatrix,
   fallbackSeconds,
   parseDurations,
+  parseTestCounts,
   withDurations,
 } from '../scripts/ci/browser-matrix';
 import { estimateWallSeconds } from '../scripts/ci/browser-shards';
@@ -16,10 +17,11 @@ const durationsFile = readFileSync(
   new URL('../scripts/ci/browser-durations.tsv', import.meta.url),
   'utf8'
 );
-const group = (project: string, file: string, seconds: number): TestGroup => ({
+const group = (project: string, file: string, seconds: number, tests?: number): TestGroup => ({
   project,
   file,
   seconds,
+  ...(tests === undefined ? {} : { tests }),
 });
 const lines = (tests: string): string[] => tests.split('\n');
 const groupsOf = (tests: string): TestGroup[] =>
@@ -64,40 +66,37 @@ describe('browser test matrix', () => {
   });
 
   test('a large selection gets as few shards as stay within the target, each file once', () => {
-    const groups = Array.from({ length: 40 }, (_, i) => group('desktop', `${i}.spec.ts`, 50));
+    const groups = Array.from({ length: 40 }, (_, i) => group('desktop', `${i}.spec.ts`, 50, 10));
     const { include } = browserMatrix(groups);
-    // Four workers run three files of 50 s one after the other within 150 s: 12 files a shard
-    assert.equal(include.length, 4);
+    // Four workers share the tests of six files (300 s) within 85 s, of seven not
+    assert.equal(include.length, 7);
     assert.deepEqual(
       include.map((job) => job.name),
-      ['1/4', '2/4', '3/4', '4/4']
+      ['1/7', '2/7', '3/7', '4/7', '5/7', '6/7', '7/7']
     );
-    assert.equal(new Set(include.map((job) => job.group)).size, 4);
+    assert.equal(new Set(include.map((job) => job.group)).size, 7);
     const listed = include.flatMap((job) => lines(job.tests)).sort();
     assert.deepEqual(listed, groups.map((g) => `[desktop] > ${g.file}`).sort());
     assert.ok(include.every((job) => job.wall <= TARGET_SECONDS));
   });
 
-  test('the full suite stays within the target or its longest file, with at most twelve shards', () => {
+  test('the full suite stays within the target, with fewer than the most shards', () => {
     const durations = parseDurations(durationsFile);
+    const counts = parseTestCounts(durationsFile);
+    assert.equal(counts.size, durations.size);
     const all = [...durations.keys()].map((key) => {
       const [project, file] = key.split('/');
       return { project, file };
     });
-    const { include } = browserMatrix(withDurations(all, durations));
+    const { include } = browserMatrix(withDurations(all, durations, counts));
     const chromium = include.filter((job) => job.browser === 'chromium');
-    assert.ok(chromium.length > 1 && chromium.length <= MAX_SHARDS);
+    assert.ok(chromium.length > 1 && chromium.length < MAX_SHARDS);
     assert.equal(include.filter((job) => job.browser === 'webkit').length, 1);
     assert.equal(include.flatMap((job) => lines(job.tests)).length, all.length);
-    const longestFile = Math.max(...durations.values());
     for (const job of chromium) {
-      const shard = withDurations(groupsOf(job.tests), durations);
-      const limit = Math.max(TARGET_SECONDS, ...shard.map((g) => g.seconds));
-      assert.ok(estimateWallSeconds(shard, 4) <= limit, `${job.name} takes ${job.wall} s`);
-      const long = shard.filter((g) => g.seconds > TARGET_SECONDS);
-      assert.ok(long.length <= 1, `${job.name} runs ${long.length} long files side by side`);
+      const shard = withDurations(groupsOf(job.tests), durations, counts);
+      assert.ok(estimateWallSeconds(shard, 4) <= TARGET_SECONDS, `${job.name} takes ${job.wall} s`);
     }
-    assert.equal(Math.max(...chromium.map((job) => job.wall)), Math.round(longestFile));
   });
 
   test('each file longer than the target gets a shard of its own', () => {
@@ -108,7 +107,7 @@ describe('browser test matrix', () => {
     assert.ok(include.every((job) => lines(job.tests).length === 1 && job.wall === 200));
   });
 
-  test('never starts more than twelve shards', () => {
+  test('never starts more than the most shards', () => {
     const groups = Array.from({ length: 100 }, (_, i) => group('desktop', `${i}.spec.ts`, 200));
     const { include } = browserMatrix(groups);
     assert.equal(include.length, MAX_SHARDS);
@@ -131,5 +130,17 @@ describe('browser test matrix', () => {
       [group('desktop', 'a.spec.ts', 10), group('desktop', 'new.spec.ts', 30)]
     );
     assert.equal(fallbackSeconds(new Map()), 30);
+    // Counted tests of the run come before the measured ones
+    assert.deepEqual(
+      withDurations(
+        [
+          { project: 'desktop', file: 'a.spec.ts', tests: 4 },
+          { project: 'desktop', file: 'b.spec.ts' },
+        ],
+        durations,
+        parseTestCounts('desktop\ta.spec.ts\t10\t2\ndesktop\tb.spec.ts\t30\t3\n')
+      ).map((g) => g.tests),
+      [4, 3]
+    );
   });
 });
