@@ -4,17 +4,26 @@ on:
   workflow_call:
 
 jobs:
-  playwright-image:
-    name: Playwright image
+  # Runs once per run: the Playwright image, the affected specs and the shards as a matrix
+  # (web/scripts/ci/select-browser-shards.ts, browser-matrix.ts). Listing the specs needs the
+  # frontend dependencies but no browsers, so this job runs on the plain runner.
+  select:
+    name: Select browser tests
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    concurrency:
+      group: ci-browser-select-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
+      cancel-in-progress: true
     outputs:
       image: ${{ steps.version.outputs.image }}
+      matrix: ${{ steps.select.outputs.matrix }}
+      run: ${{ steps.select.outputs.run }}
     steps:
-      - uses: actions/checkout@v4
+      # Two commits on pull requests: the first parent of the merge commit is the base the
+      # affected specs are computed against (scripts/ci/select-affected.ts).
+      - uses: actions/checkout@v7
         with:
-          sparse-checkout: web/package.json
-          sparse-checkout-cone-mode: false
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
       - name: Read the Playwright version from web/package.json
         id: version
         run: |
@@ -24,13 +33,39 @@ jobs:
             exit 1
           fi
           echo "image=mcr.microsoft.com/playwright:v${version}-noble" >> "$GITHUB_OUTPUT"
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Cache Bun dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.bun/install/cache
+            web/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+      - name: Install frontend dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+      - name: Select the specs and shards
+        id: select
+        working-directory: web
+        env:
+          # Pull requests run the specs their change can affect; main and other triggers run all
+          E2E_AFFECTED_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+        run: bun scripts/ci/select-browser-shards.ts
 
   browser-tests:
-    needs: playwright-image
+    needs: select
+    # Without affected specs no browser job starts; the run still succeeds, because a skipped
+    # job counts as passed for the result of this workflow
+    if: needs.select.outputs.run == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     container:
-      image: ${{ needs.playwright-image.outputs.image }}
+      image: ${{ needs.select.outputs.image }}
       options: --init --ipc=host
     defaults:
       run:
@@ -38,98 +73,15 @@ jobs:
     name: Browser tests (${{ matrix.name }})
     # A group per shard, so the shards of one run do not cancel each other
     concurrency:
-      group: ci-browser-tests-${{ matrix.name }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
+      group: ci-browser-tests-${{ matrix.group }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
       cancel-in-progress: true
     strategy:
       fail-fast: false
-      matrix:
-        # Twelve balanced Chromium jobs target a full deployment within ten minutes.
-        include:
-          - {
-              name: "1/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "1/12",
-            }
-          - {
-              name: "2/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "2/12",
-            }
-          - {
-              name: "3/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "3/12",
-            }
-          - {
-              name: "4/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "4/12",
-            }
-          - {
-              name: "5/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "5/12",
-            }
-          - {
-              name: "6/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "6/12",
-            }
-          - {
-              name: "7/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "7/12",
-            }
-          - {
-              name: "8/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "8/12",
-            }
-          - {
-              name: "9/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "9/12",
-            }
-          - {
-              name: "10/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "10/12",
-            }
-          - {
-              name: "11/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "11/12",
-            }
-          - {
-              name: "12/12",
-              browser: chromium,
-              args: "--project=desktop --project=mobile --test-list=test-results/shard.txt",
-              shard: "12/12",
-            }
-          # Run the small WebKit suite with one worker and one dev server.
-          - {
-              name: "WebKit",
-              browser: webkit,
-              args: "--project=webkit-tablet --test-list=test-results/shard.txt",
-              workers: 1,
-            }
+      # Chromium shards of about three minutes each (at most twelve) and WebKit when one of its
+      # specs is affected; each entry carries its own list of project/files
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
     steps:
-      # Two commits on pull requests: the first parent of the merge commit is the base the
-      # affected specs are computed against (scripts/ci/select-affected.ts).
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -146,32 +98,24 @@ jobs:
       - name: Check Playwright image version
         working-directory: web
         env:
-          PLAYWRIGHT_IMAGE: ${{ needs.playwright-image.outputs.image }}
+          PLAYWRIGHT_IMAGE: ${{ needs.select.outputs.image }}
         run: |
           version=$(node -p "require('@playwright/test/package.json').version")
           test "$PLAYWRIGHT_IMAGE" = "mcr.microsoft.com/playwright:v${version}-noble"
-      - name: Select the specs of this shard
-        id: select
+      - name: Write the specs of this shard
         working-directory: web
         env:
-          # Pull requests run the specs their change can affect; main and other triggers run all
-          E2E_AFFECTED_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+          TESTS: ${{ matrix.tests }}
         run: |
-          # The container user does not own the checkout; without this git does not see the repository
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          if [ "${{ matrix.browser }}" = chromium ]; then
-            bun scripts/ci/select-browser-shard.ts ${{ matrix.shard }}
-          else
-            bun scripts/ci/select-browser-shard.ts 1/1 webkit-tablet
-          fi
+          mkdir -p test-results
+          printf '%s\n' "$TESTS" > test-results/shard.txt
+          cat test-results/shard.txt
       - name: Test browser workflows with simulated data
-        # A shard without affected specs still succeeds, so "All shards passed" stays complete
-        if: steps.select.outputs.run == 'true'
         working-directory: web
         # Each shard runs its share of the test files with one mock dev server per worker.
         run: bun run test:e2e ${{ matrix.args }}
         env:
-          E2E_WORKERS: ${{ matrix.workers || 4 }}
+          E2E_WORKERS: ${{ matrix.workers }}
       - name: Upload browser report
         if: always()
         uses: actions/upload-artifact@v7

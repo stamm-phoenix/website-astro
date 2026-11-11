@@ -1,5 +1,5 @@
 /**
- * Prints the specs a pull request affects, or `all`. Used by `select-browser-shard.ts`.
+ * Prints the specs a pull request affects, or `all`. Used by `select-browser-shards.ts`.
  *
  * `bun scripts/ci/select-affected.ts <base>` compares the checkout with `<base>` (in CI the first
  * parent of the merge commit, `HEAD^1`). Without a base, or when the diff cannot be read, it prints
