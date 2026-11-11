@@ -3,12 +3,13 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 import {
   MAX_SHARDS,
+  TARGET_SECONDS,
   browserMatrix,
   fallbackSeconds,
   parseDurations,
-  shardCount,
   withDurations,
 } from '../scripts/ci/browser-matrix';
+import { estimateWallSeconds } from '../scripts/ci/browser-shards';
 import type { TestGroup } from '../scripts/ci/browser-shards';
 
 const durationsFile = readFileSync(
@@ -21,6 +22,11 @@ const group = (project: string, file: string, seconds: number): TestGroup => ({
   seconds,
 });
 const lines = (tests: string): string[] => tests.split('\n');
+const groupsOf = (tests: string): TestGroup[] =>
+  lines(tests).map((line) => {
+    const [, project, file] = /^\[(.+)\] > (.+)$/.exec(line) ?? [];
+    return group(project, file, 0);
+  });
 
 describe('browser test matrix', () => {
   test('one spec in two projects starts one Chromium job and no WebKit job', () => {
@@ -57,50 +63,59 @@ describe('browser test matrix', () => {
     );
   });
 
-  test('a large selection gets shards of about the target size, each file once', () => {
+  test('a large selection gets as few shards as stay within the target, each file once', () => {
     const groups = Array.from({ length: 40 }, (_, i) => group('desktop', `${i}.spec.ts`, 50));
     const { include } = browserMatrix(groups);
-    // 2000 summed seconds need six shards of at most 360
-    assert.equal(include.length, 6);
+    // Four workers run three files of 50 s one after the other within 150 s: 12 files a shard
+    assert.equal(include.length, 4);
     assert.deepEqual(
       include.map((job) => job.name),
-      ['1/6', '2/6', '3/6', '4/6', '5/6', '6/6']
+      ['1/4', '2/4', '3/4', '4/4']
     );
-    assert.equal(new Set(include.map((job) => job.group)).size, 6);
+    assert.equal(new Set(include.map((job) => job.group)).size, 4);
     const listed = include.flatMap((job) => lines(job.tests)).sort();
     assert.deepEqual(listed, groups.map((g) => `[desktop] > ${g.file}`).sort());
-    assert.ok(include.every((job) => job.seconds <= 400));
+    assert.ok(include.every((job) => job.wall <= TARGET_SECONDS));
   });
 
-  test('the full suite gets twelve Chromium shards and WebKit', () => {
+  test('the full suite stays within the target or its longest file, with at most twelve shards', () => {
     const durations = parseDurations(durationsFile);
     const all = [...durations.keys()].map((key) => {
       const [project, file] = key.split('/');
       return { project, file };
     });
     const { include } = browserMatrix(withDurations(all, durations));
-    assert.equal(include.filter((job) => job.browser === 'chromium').length, MAX_SHARDS);
+    const chromium = include.filter((job) => job.browser === 'chromium');
+    assert.ok(chromium.length > 1 && chromium.length <= MAX_SHARDS);
     assert.equal(include.filter((job) => job.browser === 'webkit').length, 1);
     assert.equal(include.flatMap((job) => lines(job.tests)).length, all.length);
+    const longestFile = Math.max(...durations.values());
+    for (const job of chromium) {
+      const shard = withDurations(groupsOf(job.tests), durations);
+      const limit = Math.max(TARGET_SECONDS, ...shard.map((g) => g.seconds));
+      assert.ok(estimateWallSeconds(shard, 4) <= limit, `${job.name} takes ${job.wall} s`);
+    }
+    assert.equal(Math.max(...chromium.map((job) => job.wall)), Math.round(longestFile));
   });
 
-  test('never starts more shards than files', () => {
-    const { include } = browserMatrix([
-      group('desktop', 'a.spec.ts', 300),
-      group('desktop', 'b.spec.ts', 300),
-    ]);
-    assert.equal(include.length, 2);
+  test('long files run side by side on the workers of one shard', () => {
+    const { include } = browserMatrix(
+      Array.from({ length: 6 }, (_, i) => group('desktop', `${i}.spec.ts`, 200))
+    );
     assert.deepEqual(
-      include.map((job) => job.name),
-      ['1/2', '2/2']
+      include.map((job) => [job.name, lines(job.tests).length, job.wall]),
+      [
+        ['1/2', 4, 200],
+        ['2/2', 2, 200],
+      ]
     );
   });
 
-  test('shard count stays between one and twelve', () => {
-    assert.equal(shardCount(0), 1);
-    assert.equal(shardCount(360), 1);
-    assert.equal(shardCount(361), 2);
-    assert.equal(shardCount(100_000), MAX_SHARDS);
+  test('never starts more than twelve shards', () => {
+    const groups = Array.from({ length: 100 }, (_, i) => group('desktop', `${i}.spec.ts`, 200));
+    const { include } = browserMatrix(groups);
+    assert.equal(include.length, MAX_SHARDS);
+    assert.equal(include.flatMap((job) => lines(job.tests)).length, 100);
   });
 
   test('a spec without a known duration uses the median', () => {
