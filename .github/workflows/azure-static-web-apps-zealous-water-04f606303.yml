@@ -7,6 +7,13 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+  # The merge queue (#568): every queued group runs everything once on the state it would merge.
+  # No preview and no deploy (both require pull_request or push). The push to main that follows
+  # skips the tests when this run succeeded for exactly its commit (job plan).
+  merge_group:
+    types: [checks_requested]
+    branches:
+      - main
   # Content refresh (jobs content-*): rebuilds the site with the current content of the API,
   # without code changes. The public pages contain content baked at build time (see
   # web/src/lib/content/). Triggered by the Pflege forms (repository_dispatch from
@@ -22,9 +29,9 @@ on:
 # No concurrency for the whole run, so a run never waits for the build and tests of another.
 # Build and test jobs have a group per PR (by number: github.ref of a "closed" event is the base
 # branch) or pushed branch, and a newer push cancels them; a series of merges builds only the
-# newest commit, which contains the others. Other events get a group per run. Every job that
-# deploys or removes a deployment is never cancelled, because an Azure upload may continue
-# remotely after cancellation; its queue keeps the order in which the builds finished. Two
+# newest commit, which contains the others. Other events (merge groups too) get a group per run.
+# Every job that deploys or removes a deployment is never cancelled, because an Azure upload may
+# continue remotely after cancellation; its queue keeps the order in which the builds finished. Two
 # queues, so a preview never waits for another preview or for production (#566): production
 # (Deploy, Deploy content) shares the group website-astro-production, and everything that
 # touches the preview of one PR (database, Deploy preview, Close Pull Request, and the reset in
@@ -35,17 +42,24 @@ permissions:
 jobs:
   # Which build and test jobs this run needs (web/scripts/ci/job-plan.ts). Pull requests skip
   # what their diff cannot affect; every other event, a CI change and any error run everything.
+  # A push skips the tests when a successful merge queue run tested exactly its commit
+  # (web/scripts/ci/queue-run.ts); without one, or when the lookup fails, it runs everything.
   plan:
-    if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed') || github.event_name == 'merge_group'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     name: Plan
+    permissions:
+      contents: read
+      # The merge queue runs of the pushed commit
+      actions: read
     outputs:
       web: ${{ steps.plan.outputs.web }}
       api_tests: ${{ steps.plan.outputs.api_tests }}
       api_package: ${{ steps.plan.outputs.api_package }}
       browser: ${{ steps.plan.outputs.browser }}
       preview: ${{ steps.plan.outputs.preview }}
+      queue_tested: ${{ steps.plan.outputs.queue_tested }}
     steps:
       # Two commits on pull requests: the first parent of the merge commit is the base
       - uses: actions/checkout@v7
@@ -61,12 +75,16 @@ jobs:
         # The script needs no dependencies and falls back to everything itself; a crash does too
         env:
           BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if ! bun scripts/ci/plan-jobs.ts "$GITHUB_EVENT_NAME" "$BASE" > "$RUNNER_TEMP/plan"; then
             echo "::warning::Planning failed, running everything."
-            printf 'web=true\napi_tests=true\napi_package=true\nbrowser=true\npreview=true\n' > "$RUNNER_TEMP/plan"
+            printf 'web=true\napi_tests=true\napi_package=true\nbrowser=true\npreview=true\nqueue_tested=false\n' > "$RUNNER_TEMP/plan"
           fi
           tee -a "$GITHUB_OUTPUT" < "$RUNNER_TEMP/plan"
+          if grep -qx 'queue_tested=true' "$RUNNER_TEMP/plan"; then
+            echo "::notice::The merge queue tested this commit (run event merge_group, same SHA): no API and browser tests, only the website build and the API package for the deploy."
+          fi
   build-web:
     needs: plan
     if: needs.plan.outputs.web == 'true'
@@ -175,9 +193,11 @@ jobs:
     uses: ./.github/workflows/check-api.yml
   # Runs whenever a preview needs the package; without API changes it may take the package
   # built on main for the same inputs from the cache and skip the build and checks.
+  # A push that the merge queue tested needs the package for the deploy and uses the cache the
+  # same way (merge groups save none: their branch is not main, so main could not restore it).
   api-static:
     needs: plan
-    if: needs.plan.outputs.api_package == 'true' || needs.plan.outputs.preview == 'true'
+    if: needs.plan.outputs.api_package == 'true' || needs.plan.outputs.preview == 'true' || needs.plan.outputs.queue_tested == 'true'
     name: api
     uses: ./.github/workflows/check-api-static.yml
     with:
@@ -186,7 +206,7 @@ jobs:
     # One stable check name for branch protection over the website and API jobs. Always runs
     # and fails on anything but success. Cancelled jobs pass only when the run was replaced by a
     # newer state; a timeout-minutes hit cancels a job too and must not pass as skipped.
-    if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed'))
+    if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed') || github.event_name == 'merge_group')
     needs: [plan, build-web, check-web, api, api-static]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -208,16 +228,22 @@ jobs:
             build-web:${{ needs.build-web.result }}:${{ needs.plan.outputs.web }}
             check-web:${{ needs.check-web.result }}:${{ needs.plan.outputs.web }}
             api:${{ needs.api.result }}:${{ needs.plan.outputs.api_tests }}
-            api-static:${{ needs.api-static.result }}:${{ needs.plan.outputs.api_package == 'true' || needs.plan.outputs.preview == 'true' }}
+            api-static:${{ needs.api-static.result }}:${{ needs.plan.outputs.api_package == 'true' || needs.plan.outputs.preview == 'true' || needs.plan.outputs.queue_tested == 'true' }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_NUMBER: ${{ github.run_number }}
+          QUEUE_TESTED: ${{ needs.plan.outputs.queue_tested }}
         run: |
           set -euo pipefail
           failed=
           cancelled=
           plan_ok=
           case "$RESULTS" in plan:success:*) plan_ok=1 ;; esac
+          # On a push, a job counts as deselected only when the merge queue tested this commit;
+          # otherwise every skipped job counts as required (the planned field becomes true)
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$QUEUE_TESTED" != true ]; then
+            RESULTS="${RESULTS//:false/:true}"
+          fi
           for entry in $RESULTS; do
             IFS=: read -r _ result planned <<< "$entry"
             case "$result" in
@@ -247,7 +273,8 @@ jobs:
             elif [ "$head" != "$HEAD_SHA" ]; then
               reason="the pull request moved on to $head"
             fi
-          else
+          # A merge group is never replaced this way: its own run decides the queue entry
+          elif [ "$GITHUB_EVENT_NAME" = push ]; then
             runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/azure-static-web-apps-zealous-water-04f606303.yml/runs?branch=main&event=push&per_page=30" \
               --jq ".workflow_runs[] | select(.run_number > $RUN_NUMBER) | .id")"
             if [ -n "$runs" ]; then
@@ -268,7 +295,7 @@ jobs:
   browser-tests-result:
     # One stable check name for branch protection, independent of the number of shards. Always
     # runs and fails on anything but success; cancelled shards pass only for a replaced run.
-    if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed'))
+    if: always() && ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed') || github.event_name == 'merge_group')
     needs: [plan, browser-tests]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -289,12 +316,18 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_NUMBER: ${{ github.run_number }}
+          QUEUE_TESTED: ${{ needs.plan.outputs.queue_tested }}
         run: |
           set -euo pipefail
           failed=
           cancelled=
           plan_ok=
           case "$RESULTS" in plan:success:*) plan_ok=1 ;; esac
+          # On a push, a job counts as deselected only when the merge queue tested this commit;
+          # otherwise every skipped job counts as required (the planned field becomes true)
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$QUEUE_TESTED" != true ]; then
+            RESULTS="${RESULTS//:false/:true}"
+          fi
           for entry in $RESULTS; do
             IFS=: read -r _ result planned <<< "$entry"
             case "$result" in
@@ -324,7 +357,8 @@ jobs:
             elif [ "$head" != "$HEAD_SHA" ]; then
               reason="the pull request moved on to $head"
             fi
-          else
+          # A merge group is never replaced this way: its own run decides the queue entry
+          elif [ "$GITHUB_EVENT_NAME" = push ]; then
             runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/azure-static-web-apps-zealous-water-04f606303.yml/runs?branch=main&event=push&per_page=30" \
               --jq ".workflow_runs[] | select(.run_number > $RUN_NUMBER) | .id")"
             if [ -n "$runs" ]; then
@@ -463,12 +497,16 @@ jobs:
           .github/scripts/entra-preview-redirect.sh add "${host:-$FALLBACK_HOST}"
 
   deploy:
-    # Production: a push to main deploys only after Build and all Browser tests passed.
-    needs: [build, browser-tests]
+    # Production: a push to main deploys only after Build and all Browser tests passed. Skipped
+    # Browser tests count only when the plan deselected them because the merge queue tested
+    # exactly this commit (#568).
+    needs: [plan, build, browser-tests]
     if: >-
       always() && !cancelled() && github.event_name == 'push' &&
       needs.build.result == 'success' && needs.build.outputs.superseded != 'true' &&
-      needs.browser-tests.result == 'success'
+      (needs.browser-tests.result == 'success' ||
+      (needs.browser-tests.result == 'skipped' && needs.plan.result == 'success' &&
+      needs.plan.outputs.queue_tested == 'true' && needs.plan.outputs.browser == 'false'))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     name: Deploy

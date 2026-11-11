@@ -5,10 +5,19 @@ name: E2E budget
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
+  # The merge queue (#568) waits for every required check on the commit of its group, so the check
+  # reports there too. It passes without counting: the budget compares a PR with its base and was
+  # checked on the PR, and the queue adds no tests of its own.
+  merge_group:
+    types: [checks_requested]
+    branches:
+      - main
 permissions:
   contents: read
 concurrency:
-  group: e2e-budget-${{ github.event.pull_request.number }}
+  # A group per merge group run; one shared group would let a newer group cancel the check of an
+  # older one, which would drop it from the queue
+  group: e2e-budget-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 jobs:
   budget:
@@ -16,12 +25,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      - name: Merge queue (checked on the pull request)
+        if: github.event_name == 'merge_group'
+        run: echo "::notice::E2E budget was checked on the pull request; the merge queue adds no tests."
       # Checks out the merge of the PR into its base. Its first parent is the base the merge was
       # made with, so a label change after main moved on still compares the right commits.
       - uses: actions/checkout@v7
+        if: github.event_name == 'pull_request'
         with:
           fetch-depth: 2
       - name: Setup Bun
+        if: github.event_name == 'pull_request'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -29,12 +43,15 @@ jobs:
       # web/scripts/ci/e2e-* must not decide its own result. The script runs from the base worktree
       # but with the working directory in the real checkout, so it counts the PR's files.
       - name: Check out the checking code of the base
+        if: github.event_name == 'pull_request'
         run: git worktree add --detach "$RUNNER_TEMP/base" 'HEAD^1'
       - name: Install dependencies of the base
+        if: github.event_name == 'pull_request'
         working-directory: ${{ runner.temp }}/base/web
         # Only for the TypeScript parser that counts the tests; no install scripts, no test code runs
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Compare E2E tests with the base
+        if: github.event_name == 'pull_request'
         env:
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         working-directory: web

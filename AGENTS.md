@@ -360,5 +360,5 @@ Choose the test level before you write a test. The Playwright suite in `web/test
 Keep the history as linear as possible. Merge commits are allowed, but rebasing is the default whenever it works.
 
 - To bring `main` into a PR branch (e.g. after a conflict or to pick up a fix), rebase the branch onto `origin/main` and push with `git push --force-with-lease`, instead of merging `main` into it. After the rebase, check that your changelog entry is still on top with the next free number, and that your migration still has the next free number.
-- Merge PRs with "Rebase and merge" where possible.
+- Merge PRs with "Rebase and merge" where possible. Once the ruleset of `main` requires the merge queue (#568), merge with `gh pr merge --auto --rebase`: the queue tests the PR on top of `main` and merges it. Then rebase only for a real conflict, not because `main` moved on. Without the queue, `--auto` merges at once when no check is required, so wait for green checks first.
 - Fall back to a merge commit only when a rebase is not reasonable, e.g. when others have based work on the branch or resolving the same conflict across many commits would be error-prone.

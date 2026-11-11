@@ -11,10 +11,27 @@ const jobs = (plan: JobPlan): Omit<JobPlan, 'reason'> => ({
   api_package: plan.api_package,
   browser: plan.browser,
   preview: plan.preview,
+  queue_tested: plan.queue_tested,
 });
-const ALL = { web: true, api_tests: true, api_package: true, browser: true, preview: true };
-const NONE = { web: false, api_tests: false, api_package: false, browser: false, preview: false };
-const WEB = { web: true, api_tests: false, api_package: false, browser: true, preview: true };
+const ALL = {
+  web: true,
+  api_tests: true,
+  api_package: true,
+  browser: true,
+  preview: true,
+  queue_tested: false,
+};
+const NONE = {
+  web: false,
+  api_tests: false,
+  api_package: false,
+  browser: false,
+  preview: false,
+  queue_tested: false,
+};
+const WEB = { ...ALL, api_tests: false, api_package: false };
+// Website build with live content and the API package for the deploy, no tests
+const QUEUE_TESTED = { ...NONE, web: true, queue_tested: true };
 
 test('runs everything for every event but a pull request', () => {
   for (const event of ['push', 'merge_group', 'workflow_dispatch', '']) {
@@ -68,6 +85,21 @@ test('skips the API tests and the package build without API changes', () => {
   assert.deepEqual(jobs(planJobs('pull_request', ['.gitignore'])), WEB);
 });
 
+test('a push skips the tests only when the merge queue tested its commit', () => {
+  assert.deepEqual(jobs(planJobs('push', undefined, 'tested')), QUEUE_TESTED);
+  assert.match(planJobs('push', undefined, 'tested').reason, /merge queue tested/);
+  // No queue run (as before the queue), or the lookup failed: everything, as today
+  assert.deepEqual(jobs(planJobs('push', undefined, 'untested')), ALL);
+  assert.deepEqual(jobs(planJobs('push', undefined, 'unknown')), ALL);
+  assert.deepEqual(jobs(planJobs('push', undefined)), ALL);
+  assert.match(planJobs('push', undefined, 'unknown').reason, /lookup failed/);
+  // Only a push deploys; every other event ignores a lookup result
+  for (const event of ['merge_group', 'pull_request', 'workflow_dispatch']) {
+    assert.equal(planJobs(event, ['web/src/x.ts'], 'tested').queue_tested, false, event);
+  }
+  assert.deepEqual(jobs(planJobs('merge_group', undefined, 'tested')), ALL);
+});
+
 test('runs the API and the website jobs for API changes', () => {
   for (const file of ['api/lib/config.ts', 'api/test/db.test.ts', 'infrastructure/main.bicep']) {
     assert.deepEqual(jobs(planJobs('pull_request', [file])), ALL, file);
@@ -78,7 +110,7 @@ test('runs the API and the website jobs for API changes', () => {
 test('formats the plan for $GITHUB_OUTPUT', () => {
   assert.equal(
     formatPlan(planJobs('pull_request', ['web/src/x.ts'])),
-    'web=true\napi_tests=false\napi_package=false\nbrowser=true\npreview=true\n'
+    'web=true\napi_tests=false\napi_package=false\nbrowser=true\npreview=true\nqueue_tested=false\n'
   );
 });
 
@@ -86,6 +118,8 @@ test('the command runs everything when the diff fails', () => {
   const run = (...args: string[]): string =>
     spawnSync(process.execPath, ['scripts/ci/plan-jobs.ts', ...args], {
       cwd: fileURLToPath(new URL('..', import.meta.url)),
+      // No token: a push must not ask the API in a unit test (it plans everything then)
+      env: { ...process.env, GH_TOKEN: '' },
       encoding: 'utf8',
     }).stdout;
   assert.equal(run('pull_request', 'no-such-commit'), formatPlan(planJobs('push', undefined)));
