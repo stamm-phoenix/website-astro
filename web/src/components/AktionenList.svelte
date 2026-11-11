@@ -102,11 +102,14 @@
   const GROUP_BAR_CLASSES: Record<GroupKey, string> = {
     woelflinge:
       'stufe-marker bg-[var(--color-dpsg-woelflinge)] text-[var(--color-dpsg-blue)] border-transparent',
-    jupfis: 'stufe-marker bg-[var(--color-dpsg-jupfis)] text-white border-transparent',
-    pfadis: 'stufe-marker bg-[var(--color-dpsg-pfadfinder)] text-white border-transparent',
-    rover: 'stufe-marker bg-[var(--color-dpsg-rover)] text-white border-transparent',
+    jupfis:
+      'stufe-marker bg-[var(--color-dpsg-jupfis)] text-[var(--color-on-stufe)] border-transparent',
+    pfadis:
+      'stufe-marker bg-[var(--color-dpsg-pfadfinder)] text-[var(--color-on-stufe)] border-transparent',
+    rover:
+      'stufe-marker bg-[var(--color-dpsg-rover)] text-[var(--color-on-stufe)] border-transparent',
   };
-  const SHARED_BAR_CLASS = 'bg-[var(--color-dpsg-blue)] text-white border-transparent';
+  const SHARED_BAR_CLASS = 'stufe-marker bg-[var(--color-dpsg-blue)] text-white border-transparent';
 
   /** Bars take the colour of their Stufe; Aktionen for several Stufen are DPSG blue. */
   function barClass(item: AktionItem): string {

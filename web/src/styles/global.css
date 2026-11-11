@@ -83,51 +83,63 @@
   --page-decoration-filter: grayscale(1) brightness(0.1);
   --button-press: #001a30;
   --field-border: var(--color-brand-900);
+  --color-on-stufe: #ffffff;
 }
 
 /* CSS media queries apply before the first render, without JS or saved theme state. */
 :root {
   @variant theme-dark {
     color-scheme: dark;
-    --lily-color: #ecdfcb;
-    --contour-color: transparent;
-    --color-neutral-50: #101b26;
-    --color-neutral-100: #1b2c3c;
-    --color-neutral-200: #3a4c5b;
-    --color-neutral-300: #71808c;
-    --color-neutral-400: #8896a1;
-    --color-neutral-500: #a7b0b8;
-    --color-neutral-600: #a7b0b8;
-    --color-neutral-700: #a7b0b8;
-    --color-neutral-800: #e4ded4;
-    --color-neutral-900: #e4ded4;
-    --color-surface: #172633;
-    --color-brand-50: #1b2c3c;
-    --color-brand-100: #304558;
-    --color-brand-200: #63798a;
-    --color-brand-300: #8ca7bb;
-    --color-brand-400: #8ccbec;
-    --color-brand-500: #8ccbec;
-    --color-brand-600: #8ccbec;
+    /* The lily stays black as in the DPSG mark, outlined in the colour of the name beside it. */
+    --lily-outline: var(--color-brand-900);
+    /* Warm charcoal, the dark counterpart of the beige paper in light. Page, panel, muted panel
+       and field differ, and every text step from 400 up keeps 4.5:1 on panels and fields. */
+    --color-neutral-50: #181614;
+    --color-neutral-100: #2a2724;
+    --color-neutral-200: #4a443d;
+    --color-neutral-300: #7a736b;
+    --color-neutral-400: #9c948a;
+    --color-neutral-500: #aaa298;
+    --color-neutral-600: #b9b2a9;
+    --color-neutral-700: #c8c2ba;
+    --color-neutral-800: #ebe6df;
+    --color-neutral-900: #efebe5;
+    --color-surface: #22201d;
+    /* Beige headings and light DPSG blue for links, as blue headings and links stand out in light. */
+    --color-brand-50: #2a2724;
+    --color-brand-100: #3a352f;
+    --color-brand-200: #5c554c;
+    --color-brand-300: #8f877c;
+    --color-brand-400: #7fb3d6;
+    --color-brand-500: #93c2e1;
+    --color-brand-600: #a6cfea;
     --color-brand-700: #ecdfcb;
     --color-brand-800: #ecdfcb;
     --color-brand-900: #ecdfcb;
-    --color-accent-500: #e0606e;
-    --color-danger: #ff9aa6;
-    --color-success: #8fdbac;
-    --color-success-soft: #213c32;
-    --color-danger-soft: #442631;
-    --color-warning: #ffcf8f;
-    --color-warning-soft: #463521;
-    --color-focus: #8ccbec;
+    /* DPSG red, lightened so it reads as red rather than pink on the dark page. */
+    --color-accent-500: #ec5a63;
+    --color-danger: #ff8f88;
+    --color-success: #84d6a4;
+    --color-success-soft: #1d3324;
+    --color-danger-soft: #3d1d1c;
+    --color-warning: #f7c27a;
+    --color-warning-soft: #3b2f1c;
+    --color-focus: #93c2e1;
     --color-action: #ecdfcb;
     --color-on-action: #003056;
-    --color-link: #8ccbec;
-    --color-field: #21334a;
-    --field-border: #a7b0b8;
+    --color-link: #93c2e1;
+    --color-field: #2e2b27;
+    --field-border: #aaa298;
     --button-press: #d8c8af;
-    --dialog-backdrop: rgb(4 9 14 / 0.75);
-    --dialog-backdrop-strong: rgb(4 9 14 / 0.85);
+    --shadow-lift: 0 8px 24px rgb(0 0 0 / 0.45);
+    /* Group markers keep their hue and reach 3:1 as lines and icons on dark panels. */
+    --color-dpsg-woelflinge: #ff7a2e;
+    --color-dpsg-jupfis: #7f9be3;
+    --color-dpsg-pfadfinder: #3fb874;
+    --color-dpsg-rover: #ef5b67;
+    --color-on-stufe: #181614;
+    --dialog-backdrop: rgb(10 9 8 / 0.75);
+    --dialog-backdrop-strong: rgb(10 9 8 / 0.85);
     --page-decoration-opacity: 0.2;
     --page-decoration-filter: grayscale(1) brightness(0) invert(1);
   }
@@ -503,6 +515,10 @@ p {
   }
 }
 
+/* The outline of the lily reaches past the edge of its drawing; it must not be cut off. */
+.brand-mark--phoenix {
+  overflow: visible;
+}
 /* Dark surfaces and fields share roles across every island, including newer forms. */
 .brand-mark--dpsg {
   @variant theme-dark {
@@ -592,6 +608,24 @@ dialog {
   @variant theme-dark {
     background: var(--color-action);
     color: var(--color-on-action);
+  }
+}
+/* Red on dark red only for the heading; the text and the button keep full contrast. */
+.nikolaus-banner-text {
+  @variant theme-dark {
+    color: var(--color-neutral-800);
+  }
+}
+.nikolaus-banner-cta {
+  @variant theme-dark {
+    background: var(--color-action);
+    color: var(--color-on-action);
+    outline-color: var(--color-focus);
+  }
+}
+.nikolaus-banner-cta:is(:hover, :active) {
+  @variant theme-dark {
+    background: var(--button-press);
   }
 }
 .application-form {

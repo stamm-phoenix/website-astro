@@ -111,6 +111,6 @@
   sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
   srcdoc={dokument}
   onload={geladen}
-  class="block w-full rounded border border-neutral-200 p-3 {dunkel ? 'bg-[#1b1f24]' : 'bg-white'}"
+  class="block w-full rounded border border-neutral-200 p-3 {dunkel ? 'bg-[#22201d]' : 'bg-white'}"
   style:height="{hoehe + 24}px"
 ></iframe>

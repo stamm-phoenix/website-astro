@@ -26,7 +26,7 @@ export function initTheme(): void {
     });
     document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
       meta.removeAttribute('media');
-      meta.content = dark ? '#101b26' : '#f8f5ef';
+      meta.content = dark ? '#181614' : '#f8f5ef';
     });
   }
   refresh();

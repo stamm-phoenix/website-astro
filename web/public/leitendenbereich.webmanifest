@@ -8,8 +8,8 @@
   "start_url": "/leitendenbereich-app/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#101b26",
-  "theme_color": "#101b26",
+  "background_color": "#181614",
+  "theme_color": "#181614",
   "icons": [
     { "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "/app-icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
