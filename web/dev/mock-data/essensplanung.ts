@@ -3,7 +3,9 @@
  * `api/migrations/seed/essensplanung` (the kitchen sheet of the Bezirkslager).
  */
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readCsv } from '../../../api/lib/essen-startdaten';
 import type { EssenKatalog } from '../../../api/lib/essen-gerichte-model';
 import type { EssenEinstellungen, ZutatInput } from '../../../api/lib/essen-validation';
@@ -19,13 +21,17 @@ import { planungenUebersicht } from './essensplanung-planung';
 
 const ACTOR = 'leitung@example.test';
 
+// Next to this file on the dev server and under Bun. The build bakes the mock content from a
+// bundled copy of this module, whose import.meta.url lies in the build output; there the folder
+// is found from the working directory, web/.
+const SEED_DIR = [
+  fileURLToPath(new URL('../../../api/migrations/seed/essensplanung', import.meta.url)),
+  resolve('../api/migrations/seed/essensplanung'),
+].find((dir) => existsSync(dir));
+
 function seed(file: string): Record<string, string>[] {
-  return readCsv(
-    readFileSync(
-      new URL(`../../../api/migrations/seed/essensplanung/${file}`, import.meta.url),
-      'utf8'
-    )
-  );
+  if (!SEED_DIR) throw new Error('api/migrations/seed/essensplanung not found');
+  return readCsv(readFileSync(resolve(SEED_DIR, file), 'utf8'));
 }
 
 const ALLERGENE: [string, string][] = [
