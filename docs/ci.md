@@ -102,3 +102,46 @@ Three checks are the ones to require: **`Build`**, **`Browser tests`**, **`E2E b
 | `Browser tests`          | `bun run test:e2e …` in `web/`, only the affected specs                 |
 | `E2E budget`             | `bun scripts/ci/e2e-budget.ts <base> HEAD` in `web/`                    |
 | CI script tests          | `bun test test/job-plan.test.ts …` in `web/`                            |
+
+## Lessons from building this pipeline
+
+Rules that came out of real failures in November 2026 (#555, #530, #570). Follow them; each one cost a red run or a wrong claim.
+
+### Measuring and claiming
+
+- Measure on CI, never estimate. Predictions of shard times were off by up to 60 % (#590, #593); the plan for #530 expected 18 and 23 removed tests where 8 and 17 were possible. Put the run ID next to every number, and say when a number comes from one run.
+- Report test seconds, not test counts. Removing one test saved about 100 s (#604), removing fifteen saved almost nothing (#599).
+- A file-level estimate cannot predict a shard: long files that run side by side slow each other down by 5 to 47 %, and each worker's server start adds a fixed cost. Only state per test with `fullyParallel` removed that floor (#598).
+- "Passed locally" is no evidence for browser behaviour: agents on the dev machine have no browser. Say which checks ran and where. Push, read the PR run, then claim.
+- Do not end a turn to say you are waiting for CI. Wait with `gh run watch <id>`, or hand back with the PR and what is unverified.
+
+### Flaky and red tests
+
+- One red test throws a PR out of the merge queue, so a flaky test blocks everybody. Fix it first, in its own PR.
+- A test that fails in both attempts is usually not random: before #598 the retry ran on the same demo data the failed attempt left behind. Read the trace before you call it flaky.
+- Wait for the condition, not for stillness or time. The favourites helper pressed where the list had been, because cards above it were still loading; the fix scrolls until `document.elementFromPoint` at the press point belongs to the target (#596).
+- A dialog titled after a field changes its name when the test types into that field. Take the locator after the edit (#601).
+- Repeating a spec on one server (`browser-benchmark.yml`, `repeat_each`) fails tests that create a record with a fixed name. That is an artefact of repeating, not a flake (#597).
+- The built site exposes what the dev server hides: the build with test data had baked no content for two weeks because a path was only right under Vite (#594). When a spec only passes on the dev server, find out why before you tag it `@dev-server`.
+
+### Shrinking the browser suite (#530)
+
+- About 470 of the tests check what only a browser shows (touch, focus, service worker, downloads, layout, a second browser context). Do not aim at a test count.
+- First choice: prepare the state through the demo API instead of clicking through pages, and keep one test per flow that really clicks through the creation. Every test starts with fresh demo data, so this is safe.
+- Move a test to `bun test` only when its logic lives in a store or module. `web/bunfig.toml` preloads what `bun test` needs for `*.svelte.ts` stores and for `import.meta.glob`.
+- When the logic sits in a `.svelte` component, moving it out is a refactoring of the component. Do it only as a behaviour-neutral move that a remaining browser test of that flow verifies.
+- Never leave a gap. If removing a test leaves the wiring of a component (a prop passed, a handler called) without any test, keep the shortest browser test that proves it: one run instead of a loop, only the assertions for the wiring.
+- The PR description has a table "removed test or group → protection now", and every new unit test file is broken once on purpose to see it fail.
+
+### Working with the merge queue
+
+- `gh pr merge <n> --auto` (the queue sets the method; `--rebase` only prints a notice) enqueues the PR as soon as its required checks are green. Use it instead of polling.
+- A push to a queued PR takes it out of the queue. Put follow-ups (a changelog entry the reviewer asks for) into the PR before you enqueue, or into a new PR.
+- After a queue merge `main` runs only build and deploy. A red queue run means the PR is out; nothing reached `main`.
+- Without required checks in the ruleset the queue merges at once. The ruleset is Hugo's; check it with `gh api repos/stamm-phoenix/website-astro/rules/branches/main`, never change it.
+
+### Delegating CI work to agents
+
+- Give each agent its own spec files or its own workflow. Two PRs that both regenerate `browser-durations.tsv` or renumber shards conflict.
+- An agent's report is a claim. Read the diff and the PR run before merging; twice a report said a check had passed that had not run.
+- Review what a PR removes harder than what it adds: gaps in protection are named in the description only when you ask for them.
