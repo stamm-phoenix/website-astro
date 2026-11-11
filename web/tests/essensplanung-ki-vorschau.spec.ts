@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect, answerConfirm } from './fixtures';
-import { anlegen } from './essensplanung-helpers';
+import { gerichtOeffnen, planungVorbereiten } from './essensplanung-vorbereitung';
 import { quiet } from './settle';
 
 /**
@@ -8,10 +8,9 @@ import { quiet } from './settle';
  * a deletion by others shows the text to copy, and the rows are easy to hit on a phone.
  */
 
-async function gericht(page: Page, name: string, personen: string): Promise<Locator> {
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
+/** Creates a dish without a Personenzahl on the open tab „Gerichte“, over the page. */
+async function gerichtAnlegen(page: Page, name: string): Promise<Locator> {
   await page.getByLabel('Neues Gericht').fill(name);
-  await page.locator('#gericht-neu-personen').fill(personen);
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText(`${name} angelegt.`).first()).toBeVisible();
   return page.locator('li', { has: page.getByText(name, { exact: true }) }).first();
@@ -20,8 +19,12 @@ async function gericht(page: Page, name: string, personen: string): Promise<Loca
 const REZEPT = '500 g Zwiebeln\n1 Prise Salz';
 
 test('back to the text and forward keeps the corrections; reading again asks', async ({ page }) => {
-  await anlegen(page, 'E2E KI Vorschau');
-  const karte = await gericht(page, 'Suppe', '4');
+  await planungVorbereiten(page, 'E2E KI Vorschau', {
+    gerichte: [{ name: 'Suppe', personen: 4 }],
+    tab: 'Gerichte',
+  });
+  expect(new URL(page.url()).pathname).toBe('/essensplanung/planung');
+  const karte = await gerichtOeffnen(page, 'Suppe');
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Suppe' });
   await dialog.getByLabel('Rezept', { exact: true }).fill(REZEPT);
@@ -59,8 +62,11 @@ test('a dish deleted by someone else shows the pasted recipe to copy', async ({
   page,
   browser,
 }) => {
-  await anlegen(page, 'E2E KI Rezept weg');
-  const karte = await gericht(page, 'Eintopf', '4');
+  await planungVorbereiten(page, 'E2E KI Rezept weg', {
+    gerichte: [{ name: 'Eintopf', personen: 4 }],
+    tab: 'Gerichte',
+  });
+  const karte = await gerichtOeffnen(page, 'Eintopf');
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Eintopf' });
   await dialog.getByLabel('Rezept', { exact: true }).fill(REZEPT);
@@ -86,8 +92,11 @@ test('a dish deleted by someone else shows the pasted recipe to copy', async ({
 });
 
 test('discarding on purpose or taking over says nothing about lost input', async ({ page }) => {
-  await anlegen(page, 'E2E KI Rezept verworfen');
-  const karte = await gericht(page, 'Brei', '4');
+  await planungVorbereiten(page, 'E2E KI Rezept verworfen', {
+    gerichte: [{ name: 'Brei', personen: 4 }],
+    tab: 'Gerichte',
+  });
+  const karte = await gerichtOeffnen(page, 'Brei');
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Brei' });
   await dialog.getByLabel('Rezept', { exact: true }).fill(REZEPT);
@@ -100,8 +109,11 @@ test('discarding on purpose or taking over says nothing about lost input', async
 
 test('the checkbox of a preview row has a touch area of at least 44 px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await anlegen(page, 'E2E KI Fläche');
-  const karte = await gericht(page, 'Salat', '4');
+  await planungVorbereiten(page, 'E2E KI Fläche', {
+    gerichte: [{ name: 'Salat', personen: 4 }],
+    tab: 'Gerichte',
+  });
+  const karte = await gerichtOeffnen(page, 'Salat');
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Salat' });
   await dialog.getByLabel('Rezept', { exact: true }).fill(REZEPT);
@@ -116,8 +128,11 @@ test('the checkbox of a preview row has a touch area of at least 44 px', async (
 });
 
 test('an error of the whole take-over is named in the dialog', async ({ page }) => {
-  await anlegen(page, 'E2E KI Zu viele');
-  const karte = await gericht(page, 'Buffet', '4');
+  await planungVorbereiten(page, 'E2E KI Zu viele', {
+    gerichte: [{ name: 'Buffet', personen: 4 }],
+    tab: 'Gerichte',
+  });
+  const karte = await gerichtOeffnen(page, 'Buffet');
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Buffet' });
   await dialog.getByLabel('Rezept', { exact: true }).fill(REZEPT);
@@ -142,8 +157,11 @@ test('an error of the whole take-over is named in the dialog', async ({ page }) 
 });
 
 test('an ingredient first used meanwhile is still recognised from the list', async ({ page }) => {
-  await anlegen(page, 'E2E KI Erste Verwendung');
-  const karte = await gericht(page, 'Suppe', '4');
+  await planungVorbereiten(page, 'E2E KI Erste Verwendung', {
+    gerichte: [{ name: 'Suppe', personen: 4 }],
+    tab: 'Gerichte',
+  });
+  const karte = await gerichtOeffnen(page, 'Suppe');
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Suppe' });
   await dialog.getByLabel('Rezept', { exact: true }).fill('500 g Zwiebeln');
@@ -187,8 +205,11 @@ test('a recipe sets the people of a dish without any in the same save, never hal
   page,
   browser,
 }) => {
-  await anlegen(page, 'E2E KI Personen');
-  const karte = await gericht(page, 'Suppe', '');
+  await planungVorbereiten(page, 'E2E KI Personen', {
+    gerichte: [{ name: 'Suppe' }],
+    tab: 'Gerichte',
+  });
+  const karte = await gerichtOeffnen(page, 'Suppe');
   await expect(karte.getByText('Feste Mengen', { exact: true }).first()).toBeVisible();
   await karte.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rezept für Suppe' });
@@ -240,7 +261,7 @@ test('a recipe sets the people of a dish without any in the same save, never hal
   await expect(karte.getByText('Mengen für 20 Personen')).toBeVisible();
 
   // Without anyone changing it, the recipe sets the people with its lines
-  const zweite = await gericht(page, 'Eintopf', '');
+  const zweite = await gerichtAnlegen(page, 'Eintopf');
   await zweite.getByRole('button', { name: 'Rezept einfügen (KI)' }).click();
   const zweiterDialog = page.getByRole('dialog', { name: 'Rezept für Eintopf' });
   await zweiterDialog.getByLabel('Rezept', { exact: true }).fill(`Für 4 Personen\n${REZEPT}`);

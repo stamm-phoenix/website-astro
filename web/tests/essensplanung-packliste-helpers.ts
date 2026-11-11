@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect } from './fixtures';
+import { planungVorbereiten } from './essensplanung-vorbereitung';
 
 /** Setup of the packing list specs: dishes with tools, planned, sent as the page would. */
 
@@ -63,6 +64,27 @@ export async function gerichteMitWerkzeugen(page: Page, gerichte = GERICHTE): Pr
   }
   await page.reload();
   await page.getByRole('tab', { name: 'Packliste' }).click();
+}
+
+/**
+ * Creates the Planung `name` over the API with the dishes of `gerichteMitWerkzeugen` planned the
+ * same way and opens its tab „Packliste“.
+ */
+export function packlisteVorbereiten(
+  page: Page,
+  name: string,
+  gerichte: [string, string[]][] = GERICHTE
+): Promise<void> {
+  const geplant: Record<string, string[]> = { Chili: ['1_2', '2_2'], Suppe: ['1_2'] };
+  return planungVorbereiten(page, name, {
+    gerichte: gerichte.map(([gericht, werkzeuge]) => ({
+      name: gericht,
+      personen: 10,
+      werkzeuge,
+      mahlzeiten: geplant[gericht] ?? [],
+    })),
+    tab: 'Packliste',
+  });
 }
 
 /**
