@@ -14,7 +14,7 @@ export interface JobPlan {
   api_tests: boolean;
   /** Build the API package from source with all static checks; otherwise it may come from the cache */
   api_package: boolean;
-  /** Browser tests (each shard still selects its specs itself) */
+  /** Browser tests (the job `select` of browser-tests.yml then picks the specs and shards) */
   browser: boolean;
   /** Prepare and deploy the PR preview */
   preview: boolean;
