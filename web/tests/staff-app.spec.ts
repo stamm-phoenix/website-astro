@@ -531,7 +531,7 @@ test('in the iPhone app receipt login links warn that the chosen photo and crop 
   // The open suggestions would cover the choice below on a small screen
   await dialog.getByLabel('Kategorie', { exact: true }).press('Escape');
   await dialog
-    .getByRole('radio', { name: 'Mit meinem Geld – bitte an mich auszahlen', exact: true })
+    .getByRole('radio', { name: 'Privat ausgelegt – an diese Person auszahlen', exact: true })
     .check();
   await dialog.getByRole('button', { name: 'Einreichen', exact: true }).click();
   const error = dialog.getByRole('alert');

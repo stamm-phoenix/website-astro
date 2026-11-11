@@ -34,7 +34,7 @@ test('every page of a PDF is shown and checked, not only the first', async ({ pa
     .fill('Verpflegungskosten');
   await page.getByRole('dialog').getByLabel('Kategorie', { exact: true }).press('Escape');
   await page
-    .getByRole('radio', { name: 'Mit meinem Geld – bitte an mich auszahlen', exact: true })
+    .getByRole('radio', { name: 'Privat ausgelegt – an diese Person auszahlen', exact: true })
     .check();
   const submit = page.waitForRequest(
     (request) => request.url().endsWith('/api/intern/pflege/belege') && request.method() === 'POST'

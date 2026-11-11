@@ -7,11 +7,12 @@ test('people are suggested under „Ausgelegt von“ and picked by tap', async (
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Beleg einreichen' });
-  await dialog
-    .getByRole('radio', { name: 'Jemand anderes hat ausgelegt – an diese Person auszahlen' })
-    .check();
+  await dialog.getByRole('radio', { name: 'Privat ausgelegt – an diese Person auszahlen' }).check();
   const paidBy = dialog.getByRole('combobox', { name: 'Ausgelegt von' });
   const list = dialog.getByRole('listbox', { name: 'Person auswählen' });
+  // A new Auslage starts with the own name; emptied, the field offers everyone
+  await expect(paidBy).not.toHaveValue('');
+  await paidBy.fill('');
 
   // Without typing the list already offers names, also on a phone
   await paidBy.click();
