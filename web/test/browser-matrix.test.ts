@@ -94,21 +94,18 @@ describe('browser test matrix', () => {
       const shard = withDurations(groupsOf(job.tests), durations);
       const limit = Math.max(TARGET_SECONDS, ...shard.map((g) => g.seconds));
       assert.ok(estimateWallSeconds(shard, 4) <= limit, `${job.name} takes ${job.wall} s`);
+      const long = shard.filter((g) => g.seconds > TARGET_SECONDS);
+      assert.ok(long.length <= 1, `${job.name} runs ${long.length} long files side by side`);
     }
     assert.equal(Math.max(...chromium.map((job) => job.wall)), Math.round(longestFile));
   });
 
-  test('long files run side by side on the workers of one shard', () => {
+  test('each file longer than the target gets a shard of its own', () => {
     const { include } = browserMatrix(
       Array.from({ length: 6 }, (_, i) => group('desktop', `${i}.spec.ts`, 200))
     );
-    assert.deepEqual(
-      include.map((job) => [job.name, lines(job.tests).length, job.wall]),
-      [
-        ['1/2', 4, 200],
-        ['2/2', 2, 200],
-      ]
-    );
+    assert.equal(include.length, 6);
+    assert.ok(include.every((job) => lines(job.tests).length === 1 && job.wall === 200));
   });
 
   test('never starts more than twelve shards', () => {
