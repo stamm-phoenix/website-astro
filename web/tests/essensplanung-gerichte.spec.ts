@@ -1,12 +1,13 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import { anlegen, pdfLaden, zeilenMenge } from './essensplanung-helpers';
+import { pdfLaden, zeilenMenge } from './essensplanung-helpers';
+import { planungVorbereiten } from './essensplanung-vorbereitung';
 import { quiet } from './settle';
 
 test('dishes get ingredients from the list, warnings and a recipe card', async ({
   page,
   browser,
 }) => {
-  await anlegen(page, 'E2E Gerichte');
+  await planungVorbereiten(page, 'E2E Gerichte');
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
 
@@ -95,7 +96,7 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
 });
 
 test('the read-only link shows dishes without editing', async ({ page, browser }) => {
-  await anlegen(page, 'E2E Gerichte lesen');
+  await planungVorbereiten(page, 'E2E Gerichte lesen');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Brotzeit');
   await page.getByRole('button', { name: 'Anlegen' }).click();
@@ -125,7 +126,7 @@ test('an open line keeps its version, a deleted one is not added again; closing 
   page,
   browser,
 }) => {
-  await anlegen(page, 'E2E Zeilenkonflikt');
+  await planungVorbereiten(page, 'E2E Zeilenkonflikt');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Kakao');
   await page.getByRole('button', { name: 'Anlegen' }).click();
@@ -181,7 +182,7 @@ test('an open line keeps its version, a deleted one is not added again; closing 
 });
 
 test('a dish deleted by someone else shows the unsaved input', async ({ page, browser }) => {
-  await anlegen(page, 'E2E Gericht weg');
+  await planungVorbereiten(page, 'E2E Gericht weg');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Waffeln');
   await page.getByRole('button', { name: 'Anlegen' }).click();
@@ -212,7 +213,7 @@ test('drained weight is marked; a typed unit is saved when others change the ing
   page,
   browser,
 }) => {
-  await anlegen(page, 'E2E Einheiten');
+  await planungVorbereiten(page, 'E2E Einheiten');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Eintopf');
   await page.getByRole('button', { name: 'Anlegen' }).click();
@@ -261,7 +262,7 @@ test('drained weight is marked; a typed unit is saved when others change the ing
 });
 
 test('without the central list the card does not hide allergens', async ({ page }) => {
-  await anlegen(page, 'E2E Allergene');
+  await planungVorbereiten(page, 'E2E Allergene');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Milchreis');
   await page.getByRole('button', { name: 'Anlegen' }).click();
@@ -283,7 +284,7 @@ test('without the central list the card does not hide allergens', async ({ page 
 });
 
 test('a dish changed during the delete question is not deleted', async ({ page, browser }) => {
-  await anlegen(page, 'E2E Löschkonflikt');
+  await planungVorbereiten(page, 'E2E Löschkonflikt');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Suppe');
   await page.getByRole('button', { name: 'Anlegen' }).click();
@@ -325,7 +326,7 @@ test('a dish changed during the delete question is not deleted', async ({ page, 
 });
 
 test('spoons and pieces are converted to grams from the list', async ({ page }) => {
-  await anlegen(page, 'E2E Umrechnung');
+  await planungVorbereiten(page, 'E2E Umrechnung');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Rührkuchen');
   await page.getByRole('button', { name: 'Anlegen' }).click();
@@ -366,7 +367,7 @@ test('spoons and pieces are converted to grams from the list', async ({ page }) 
 test('typed text stays as typed, Enter takes the first suggestion; discarding says nothing', async ({
   page,
 }) => {
-  await anlegen(page, 'E2E Vorschläge');
+  await planungVorbereiten(page, 'E2E Vorschläge');
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Salat');
   await page.getByRole('button', { name: 'Anlegen' }).click();

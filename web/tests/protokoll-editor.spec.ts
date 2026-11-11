@@ -1,21 +1,18 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { Page } from '@playwright/test';
+import { editorBereit, protokollVorbereiten } from './protokoll-vorbereitung';
 import { settle } from './settle';
 
-/** Creates minutes in the editor and returns the URL of their page (without `bearbeiten`). */
+/**
+ * Creates minutes over the list page and returns the URL of their page. The other tests
+ * create them over the API (`protokollVorbereiten`); this one keeps the creation itself covered.
+ */
 async function createProtokoll(page: Page, title: string): Promise<string> {
   await page.goto('/leitendenbereich/protokolle');
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
   await page.getByLabel('Titel').fill(title);
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
-  await page.getByText(/^Sitzungsdaten und Teilnehmende bearbeiten/).click();
-  await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
-  // These tests type Markdown into the plain fields; the formatting editor has its own tests
-  await page
-    .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
-    .click();
-  await expect(page.getByLabel('Text zu Punkt 1.')).toHaveAttribute('rows', '2');
+  await editorBereit(page);
   return page.url();
 }
 
@@ -54,7 +51,7 @@ test('the writer types, autosave keeps it and a reload continues writing', async
 });
 
 test('an agenda item comes from an Aktion with its dates below the title', async ({ page }) => {
-  await createProtokoll(page, 'Leitendenrunde Aktion');
+  await protokollVorbereiten(page, 'Leitendenrunde Aktion');
   await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
   const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
   // Aktionen over before the meeting are hidden unless asked for
@@ -76,7 +73,7 @@ test('others read along live and can take over after asking', async ({
   browser,
   baseURL,
 }) => {
-  const url = await createProtokoll(page, 'Leitendenrunde Live');
+  const url = await protokollVorbereiten(page, 'Leitendenrunde Live');
   await page.getByLabel('Text zu Punkt 2.').fill('Stammestag war super.');
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
 
@@ -121,7 +118,7 @@ test('others read along live and can take over after asking', async ({
 test('without a connection the changes stay on the device and are saved later', async ({
   page,
 }) => {
-  await createProtokoll(page, 'Leitendenrunde Offline');
+  await protokollVorbereiten(page, 'Leitendenrunde Offline');
   await page.route('**/api/intern/pflege/protokoll-editor/*', (route) =>
     route.request().method() === 'PUT' ? route.abort() : route.continue()
   );
@@ -144,7 +141,7 @@ test('in the iPhone app the presentation window logs in first and shows the save
   await context.addInitScript(() => {
     Object.defineProperty(navigator, 'standalone', { value: true });
   });
-  await createProtokoll(page, 'Leitendenrunde iPhone');
+  await protokollVorbereiten(page, 'Leitendenrunde iPhone');
   const [praesentation, login] = await Promise.all([
     context.waitForEvent('page'),
     context.waitForEvent('request', (request) => request.url().includes('/.auth/login/aad')),
@@ -165,7 +162,7 @@ test('the presentation opens in a window of its own and follows every change', a
   page,
   context,
 }) => {
-  await createProtokoll(page, 'Leitendenrunde Präsentation');
+  await protokollVorbereiten(page, 'Leitendenrunde Präsentation');
   const [praesentation] = await Promise.all([
     context.waitForEvent('page'),
     page.getByRole('button', { name: 'Präsentation öffnen' }).click(),
@@ -196,7 +193,7 @@ test('a late answer of the server never replaces newer text from the editor', as
   page,
   context,
 }) => {
-  await createProtokoll(page, 'Leitendenrunde Reihenfolge');
+  await protokollVorbereiten(page, 'Leitendenrunde Reihenfolge');
   await page.getByLabel('Text zu Punkt 3.').fill('Alter Stand.');
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
 
@@ -226,7 +223,7 @@ test('a late answer of the server never replaces newer text from the editor', as
 });
 
 test('the presentation recovers when its first load fails', async ({ page, browser, baseURL }) => {
-  const url = await createProtokoll(page, 'Leitendenrunde Wiederholung');
+  const url = await protokollVorbereiten(page, 'Leitendenrunde Wiederholung');
   await page.getByLabel('Text zu Punkt 2.').fill('Steht schon auf dem Server.');
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
   await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
@@ -253,7 +250,7 @@ test('the presentation recovers when its first load fails', async ({ page, brows
 });
 
 test('names are picked from Leitende and Altleitende or typed for guests', async ({ page }) => {
-  await createProtokoll(page, 'Leitendenrunde Namen');
+  await protokollVorbereiten(page, 'Leitendenrunde Namen');
   await expect(page.getByRole('list', { name: 'Protokoll' })).toHaveText('Demo Leitung');
 
   // One person writes the minutes: picking another replaces them
@@ -295,7 +292,7 @@ test('names are picked from Leitende and Altleitende or typed for guests', async
 });
 
 test('a Termin is added per item like an Aufgabe and shown in the minutes', async ({ page }) => {
-  await createProtokoll(page, 'Leitendenrunde Termine');
+  await protokollVorbereiten(page, 'Leitendenrunde Termine');
   const planung = page.getByRole('region', { name: '3. Planung' });
   await planung.getByRole('button', { name: '+ Termin' }).click();
   await expect(planung.getByLabel('Termin', { exact: true })).toBeFocused();
@@ -334,7 +331,7 @@ test('a Termin is added per item like an Aufgabe and shown in the minutes', asyn
 });
 
 test('the text understands Markdown and never runs HTML', async ({ page }) => {
-  await createProtokoll(page, 'Leitendenrunde Markdown');
+  await protokollVorbereiten(page, 'Leitendenrunde Markdown');
   const text = page.getByLabel('Text zu Punkt 2.');
   await text.fill(
     [
@@ -385,7 +382,7 @@ test('the text understands Markdown and never runs HTML', async ({ page }) => {
 });
 
 test('the formatting editor writes Markdown that the minutes render the same', async ({ page }) => {
-  await createProtokoll(page, 'Leitendenrunde Formatiert');
+  await protokollVorbereiten(page, 'Leitendenrunde Formatiert');
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
   await modus.getByRole('button', { name: 'Formatiert' }).click();
   const region = page.getByRole('region', { name: /^2\. / });
@@ -434,7 +431,7 @@ test('the formatting editor writes Markdown that the minutes render the same', a
 test('a new item from an Aktion gets the focus while the formatting editor still loads', async ({
   page,
 }) => {
-  await createProtokoll(page, 'Leitendenrunde Fokus');
+  await protokollVorbereiten(page, 'Leitendenrunde Fokus');
   // The editor arrives slowly, as on a phone with a weak connection
   await page.route('**/ProtokollDokument*', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -465,7 +462,7 @@ function aktiverPunkt(page: Page): () => Promise<string | null> {
 test('the loading editor does not take the focus from a field the person chose', async ({
   page,
 }) => {
-  await createProtokoll(page, 'Leitendenrunde Fokus bleibt');
+  await protokollVorbereiten(page, 'Leitendenrunde Fokus bleibt');
   await page.route('**/ProtokollDokument*', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     await route.continue();
@@ -490,7 +487,7 @@ test('the loading editor does not take the focus from a field the person chose',
 });
 
 test('a table wider than the screen says to swipe sideways @mobile', async ({ page, isMobile }) => {
-  await createProtokoll(page, 'Leitendenrunde Tabelle');
+  await protokollVorbereiten(page, 'Leitendenrunde Tabelle');
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
     .getByRole('button', { name: 'Formatiert' })
@@ -544,7 +541,7 @@ test('Altleitende are kept in their own module and offered in the minutes', asyn
   await expect(page.getByRole('region', { name: 'Altleitende' })).toContainText('Berta Beispiel');
   await expectNoHorizontalOverflow(page);
 
-  await createProtokoll(page, 'Leitendenrunde Berta');
+  await protokollVorbereiten(page, 'Leitendenrunde Berta');
   const leitung = page.getByRole('combobox', { name: 'Sitzungsleitung' });
   await leitung.fill('Berta');
   await page
@@ -579,7 +576,7 @@ test('the start can stay empty and leaving without an end keeps it empty', async
 });
 
 test('agenda items are dragged into a new order and between the levels', async ({ page }) => {
-  await createProtokoll(page, 'Leitendenrunde Reihenfolge');
+  await protokollVorbereiten(page, 'Leitendenrunde Reihenfolge');
   /** Number and title of every item, in the order of the editor. */
   const reihenfolge = (): Promise<string[]> =>
     page
@@ -672,7 +669,7 @@ test('deleting minutes names the protocol and cancellation keeps it @dark', asyn
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: info.project.name === 'mobile' ? 'dark' : 'light' });
   const title = `Leitendenrunde Löschfrage ${info.project.name}`;
-  await createProtokoll(page, title);
+  await protokollVorbereiten(page, title);
   await page.getByRole('button', { name: 'Protokoll löschen', exact: true }).click();
   const confirmation = page.getByRole('dialog', {
     name: `Protokoll „${title}“ löschen?`,
@@ -688,7 +685,7 @@ test('deleting minutes names the protocol and cancellation keeps it @dark', asyn
 test('„Bearbeiten“ before the login check answers keeps the unsaved copy of this device', async ({
   page,
 }) => {
-  const url = await createProtokoll(page, 'Leitendenrunde Handy');
+  const url = await protokollVorbereiten(page, 'Leitendenrunde Handy');
   await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
   await page
     .getByRole('dialog', { name: 'Sitzungsende eintragen?' })

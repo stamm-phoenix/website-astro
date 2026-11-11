@@ -1,5 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
-import { anlegen, pdfLaden, aufklappen, liveFeld } from './essensplanung-helpers';
+import { pdfLaden, aufklappen, liveFeld } from './essensplanung-helpers';
 import {
   nudelnPlanen,
   einkaufAnlegen,
@@ -7,6 +7,7 @@ import {
   oeffnen,
   box,
 } from './essensplanung-einkaeufe-helpers';
+import { nudelnVorbereiten, planungVorbereiten } from './essensplanung-vorbereitung';
 
 test('two shop at once in the live mode; a rest goes to the next trip and into the stock', async ({
   page,
@@ -136,7 +137,7 @@ test('two shop at once in the live mode; a rest goes to the next trip and into t
 
 test('things move to another trip or get a fixed amount by hand', async ({ page }) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe Regeln');
+  await nudelnVorbereiten(page, 'E2E Einkäufe Regeln');
   await einkaufAnlegen(page, 'Montag', 2);
   await einkaufAnlegen(page, 'Mittwoch', 0);
   const montag = await oeffnen(page, 'Montag', 'liste');
@@ -178,8 +179,7 @@ test('ticking off what someone else just ticked off keeps the input until saved 
   browser,
 }) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe Konflikt');
-  await einkaufAnlegen(page, 'Montag', 0);
+  await nudelnVorbereiten(page, 'E2E Einkäufe Konflikt', { einkaeufe: ['Montag'] });
   const montag = await oeffnen(page, 'Montag');
   const menge = await liveFeld(montag, 'Erhaltene Menge von Nudeln (Spaghetti)');
   await menge.fill('1,8');
@@ -215,7 +215,7 @@ test('ticking off what someone else just ticked off keeps the input until saved 
 
 test('a trip being added keeps its draft through maintenance', async ({ page }) => {
   test.slow();
-  await nudelnPlanen(page, 'E2E Einkäufe Wartung');
+  await nudelnVorbereiten(page, 'E2E Einkäufe Wartung');
   await page.getByRole('button', { name: 'Einkauf anlegen' }).click();
   const form = page.getByRole('form', { name: 'Neuer Einkauf' });
   const name = form.getByLabel('Name des Einkaufs');
@@ -249,13 +249,11 @@ test('a thing without an amount keeps what is typed when someone else ticks it o
   browser,
 }) => {
   test.slow();
-  await anlegen(page, 'E2E Einkäufe ohne Menge');
-  await page.getByRole('tab', { name: 'Einkauf' }).click();
-  const feld = page.getByLabel('Noch etwas besorgen');
-  await feld.fill('Kochhandschuhe');
-  await feld.press('Enter');
-  await expect(page.getByText('Kochhandschuhe steht auf der Einkaufsliste.').first()).toBeVisible();
-  await einkaufAnlegen(page, 'Baumarkt', 0);
+  await planungVorbereiten(page, 'E2E Einkäufe ohne Menge', {
+    zusatz: ['Kochhandschuhe'],
+    einkaeufe: ['Baumarkt'],
+    tab: 'Einkauf',
+  });
   const hier = await oeffnen(page, 'Baumarkt');
   const ersatz = await liveFeld(hier, 'Ersatz für Kochhandschuhe');
   await ersatz.fill('Grillhandschuhe');

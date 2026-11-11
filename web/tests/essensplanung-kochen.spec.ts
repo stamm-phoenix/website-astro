@@ -1,44 +1,20 @@
 import type { Page } from '@playwright/test';
 import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
-import {
-  anlegen,
-  aufklappen,
-  einplanen,
-  pdfLaden,
-  verbrauchOeffnen,
-} from './essensplanung-helpers';
+import { aufklappen, pdfLaden, verbrauchOeffnen } from './essensplanung-helpers';
+import { nudeln, planungVorbereiten } from './essensplanung-vorbereitung';
 
 test('dishes are ticked off as cooked or left out; the stock and the list follow', async ({
   page,
   browser,
 }) => {
   test.slow();
-  await anlegen(page, 'E2E Kochen');
+  // Pasta for 4: 500 g; 8 people eat it at lunch on both days
+  await planungVorbereiten(page, 'E2E Kochen', {
+    gerichte: [nudeln(['1_2', '2_2'])],
+    teilnehmende: [{ gruppe: 'Pfadi', anzahl: 8 }],
+    tab: 'Plan',
+  });
   const dialog = page.getByRole('dialog');
-
-  // Pasta for 4: 500 g and salt to taste; 8 people eat it at lunch on both days
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Nudeln');
-  await page.getByLabel('Personen', { exact: true }).fill('4');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Nudeln angelegt.').first()).toBeVisible();
-  const nudeln = page.locator('li', { has: page.getByText('Nudeln', { exact: true }) }).first();
-  const zutat = nudeln.getByLabel('Neue Zutat für Nudeln');
-  await zutat.pressSequentially('Nudeln (Spag');
-  await zutat.press('Enter');
-  await nudeln.getByLabel('Menge der neuen Zutat').fill('500');
-  await nudeln.getByLabel('Menge der neuen Zutat').press('Enter');
-  await expect(nudeln.getByLabel('Menge von Nudeln (Spaghetti)')).toHaveValue('500');
-
-  await page.getByRole('tab', { name: 'Teilnehmende' }).click();
-  await page.getByRole('button', { name: 'Teilnehmende hinzufügen' }).click();
-  await dialog.getByLabel('Gruppe', { exact: true }).selectOption({ label: 'Pfadi' });
-  await dialog.getByLabel('Anzahl').fill('8');
-  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(dialog).toBeHidden();
-
-  await page.getByRole('tab', { name: 'Plan' }).click();
-  for (const mahlzeit of ['1_2', '2_2']) await einplanen(page, mahlzeit, 'Nudeln');
 
   // 1,5 kg in stock: 2 × 1 kg needed, 500 g to buy
   await page.getByRole('tab', { name: 'Lager' }).click();
@@ -144,21 +120,10 @@ test('dishes are ticked off as cooked or left out; the stock and the list follow
 });
 
 test('amounts typed to tick off a dish stay through maintenance', async ({ page }) => {
-  await anlegen(page, 'E2E Kochen Wartung');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Nudeln');
-  await page.getByLabel('Personen', { exact: true }).fill('4');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Nudeln angelegt.').first()).toBeVisible();
-  const nudeln = page.locator('li', { has: page.getByText('Nudeln', { exact: true }) }).first();
-  const zutat = nudeln.getByLabel('Neue Zutat für Nudeln');
-  await zutat.pressSequentially('Nudeln (Spag');
-  await zutat.press('Enter');
-  await nudeln.getByLabel('Menge der neuen Zutat').fill('500');
-  await nudeln.getByLabel('Menge der neuen Zutat').press('Enter');
-  await expect(nudeln.getByLabel('Menge von Nudeln (Spaghetti)')).toHaveValue('500');
-  await page.getByRole('tab', { name: 'Plan' }).click();
-  await einplanen(page, '1_2', 'Nudeln');
+  await planungVorbereiten(page, 'E2E Kochen Wartung', {
+    gerichte: [nudeln(['1_2'])],
+    tab: 'Plan',
+  });
 
   const wartung = async (an: boolean): Promise<void> => {
     await page.unroute('**/api/essensplanung/planung/stand?*');
@@ -219,22 +184,8 @@ test('amounts typed to tick off a dish stay through maintenance', async ({ page 
 });
 
 /** A Planung with the dish Nudeln (4 Personen, 500 g Nudeln) planned for 1_2. */
-async function nudelnPlanen(page: Page, titel: string): Promise<void> {
-  await anlegen(page, titel);
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByLabel('Neues Gericht').fill('Nudeln');
-  await page.getByLabel('Personen', { exact: true }).fill('4');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
-  await expect(page.getByText('Nudeln angelegt.').first()).toBeVisible();
-  const nudeln = page.locator('li', { has: page.getByText('Nudeln', { exact: true }) }).first();
-  const zutat = nudeln.getByLabel('Neue Zutat für Nudeln');
-  await zutat.pressSequentially('Nudeln (Spag');
-  await zutat.press('Enter');
-  await nudeln.getByLabel('Menge der neuen Zutat').fill('500');
-  await nudeln.getByLabel('Menge der neuen Zutat').press('Enter');
-  await expect(nudeln.getByLabel('Menge von Nudeln (Spaghetti)')).toHaveValue('500');
-  await page.getByRole('tab', { name: 'Plan' }).click();
-  await einplanen(page, '1_2', 'Nudeln');
+function nudelnPlanen(page: Page, titel: string): Promise<void> {
+  return planungVorbereiten(page, titel, { gerichte: [nudeln(['1_2'])], tab: 'Plan' });
 }
 
 test('ticking off after someone else did keeps the amounts and saves them on the second try', async ({
