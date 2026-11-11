@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import {
   KEINE_ANPASSUNGEN,
   planFahrt,
@@ -40,9 +41,9 @@ test('Leitende ride with Leitende first, then with the oldest children', () => {
   const seats = seating(personen);
   const leitende = ['leitung-1', 'leitung-2', 'leitung-3'].map((id) => seats[id]);
   // The Leitende car is full of Leitende; the one left over rides with the Rover, not the Wölflinge
-  expect(leitende.filter((fahrer) => fahrer === 'leitung-fahrer')).toHaveLength(2);
-  expect(leitende).toContain('rover-fahrer');
-  expect(leitende).not.toContain('woe-fahrer');
+  assert.equal(leitende.filter((fahrer) => fahrer === 'leitung-fahrer').length, 2);
+  assert.ok(leitende.includes('rover-fahrer'));
+  assert.ok(!leitende.includes('woe-fahrer'));
 });
 
 test('without a Leitende car, Leitende ride with the oldest Stufe that has seats', () => {
@@ -56,7 +57,7 @@ test('without a Leitende car, Leitende ride with the oldest Stufe that has seats
     person('woe-4', '🟠 Wölfling'),
   ];
 
-  expect(seating(personen).leitung).toBe('pfadi-fahrer');
+  assert.equal(seating(personen).leitung, 'pfadi-fahrer');
 });
 
 test('siblings from different Stufen share a car when there is room', () => {
@@ -69,8 +70,8 @@ test('siblings from different Stufen share a car when there is room', () => {
   ];
 
   const seats = seating(personen);
-  expect(seats['huber-woe']).toBeDefined();
-  expect(seats['huber-rover']).toBe(seats['huber-woe']);
+  assert.notEqual(seats['huber-woe'], undefined);
+  assert.equal(seats['huber-rover'], seats['huber-woe']);
 });
 
 test('a child rides with the sibling whose family drives, even when another car is filled first', () => {
@@ -85,7 +86,7 @@ test('a child rides with the sibling whose family drives, even when another car 
     person('pfadi', '🟢 Pfadfinder*in'),
   ];
 
-  expect(seating(personen).leah).toBe('erik');
+  assert.equal(seating(personen).leah, 'erik');
 });
 
 test('a sibling who is the only passenger of the family car stays there', () => {
@@ -98,7 +99,7 @@ test('a sibling who is the only passenger of the family car stays there', () => 
     person('woe-3', '🟠 Wölfling'),
   ];
 
-  expect(seating(personen).leah).toBe('erik');
+  assert.equal(seating(personen).leah, 'erik');
 });
 
 test('someone moved to no seat by hand is not picked as driver later', () => {
@@ -117,8 +118,8 @@ test('someone moved to no seat by hand is not picked as driver later', () => {
   };
 
   const plan = planFahrt(personen, 'hin', anpassungen);
-  expect(plan.autos.map((auto) => auto.fahrer.id)).not.toContain('klein');
-  expect(plan.ohnePlatz.map((p) => p.id)).toContain('klein');
+  assert.ok(!plan.autos.map((auto) => auto.fahrer.id).includes('klein'));
+  assert.ok(plan.ohnePlatz.map((p) => p.id).includes('klein'));
 });
 
 test('the CSV export lists everyone in the plan, including those taken out', () => {
@@ -130,8 +131,8 @@ test('the CSV export lists everyone in the plan, including those taken out', () 
   const plan = planFahrt(personen, 'hin', { ...KEINE_ANPASSUNGEN, entfernt: ['daheim'] });
 
   const rows = fahrtenRows([plan]).slice(1);
-  expect(rows.map((row) => row[2]).sort()).toEqual(['daheim', 'fahrer', 'kind']);
-  expect(rows.find((row) => row[2] === 'daheim')?.[1]).toBe('Nicht eingeplant');
+  assert.deepEqual(rows.map((row) => row[2]).sort(), ['daheim', 'fahrer', 'kind']);
+  assert.equal(rows.find((row) => row[2] === 'daheim')?.[1], 'Nicht eingeplant');
 });
 
 test('someone taken out and planned back in returns to the seat chosen by hand', () => {
@@ -145,7 +146,10 @@ test('someone taken out and planned back in returns to the seat chosen by hand',
   const moved = withMove(KEINE_ANPASSUNGEN, 'kind-1', null);
   const back = withRemoved(withRemoved(moved, 'kind-1', true), 'kind-1', false);
 
-  expect(planFahrt(personen, 'hin', back).ohnePlatz.map((p) => p.id)).toEqual(['kind-1']);
+  assert.deepEqual(
+    planFahrt(personen, 'hin', back).ohnePlatz.map((p) => p.id),
+    ['kind-1']
+  );
 });
 
 test("a driver's sibling keeps the family seat even when a Leitende passenger wants it", () => {
@@ -158,8 +162,8 @@ test("a driver's sibling keeps the family seat even when a Leitende passenger wa
   ];
 
   const seats = seating(personen);
-  expect(seats['huber-kind']).toBe('leitung-fahrer');
-  expect(seats.leitung).toBe('woe-fahrer');
+  assert.equal(seats['huber-kind'], 'leitung-fahrer');
+  assert.equal(seats.leitung, 'woe-fahrer');
 });
 
 test('a Leitende sibling also rides in the family car first', () => {
@@ -171,7 +175,7 @@ test('a Leitende sibling also rides in the family car first', () => {
     person('kind-2', '🟠 Wölfling'),
   ];
 
-  expect(seating(personen)['huber-leitung']).toBe('huber-fahrer');
+  assert.equal(seating(personen)['huber-leitung'], 'huber-fahrer');
 });
 
 test('every Leitende who offered seats drives, even with only their own seat', () => {
@@ -184,7 +188,8 @@ test('every Leitende who offered seats drives, even with only their own seat', (
   ];
 
   const plan = planFahrt(personen, 'hin');
-  expect(plan.autos.map((auto) => auto.fahrer.id).sort()).toEqual(
+  assert.deepEqual(
+    plan.autos.map((auto) => auto.fahrer.id).sort(),
     ['leitung-allein', 'leitung-mit-platz', 'woe-fahrer'].sort()
   );
 });
@@ -197,7 +202,10 @@ test('a Leitende set to "Fährt nicht" rides along instead', () => {
   ];
 
   const plan = planFahrt(personen, 'hin', { ...KEINE_ANPASSUNGEN, keinFahrer: ['leitung-allein'] });
-  expect(plan.autos.map((auto) => auto.fahrer.id)).toEqual(['woe-fahrer']);
+  assert.deepEqual(
+    plan.autos.map((auto) => auto.fahrer.id),
+    ['woe-fahrer']
+  );
 });
 
 test('a car someone was moved into by hand stays in the plan when another driver is added', () => {
@@ -214,7 +222,7 @@ test('a car someone was moved into by hand stays in the plan when another driver
 
   const plan = planFahrt(personen, 'hin', anpassungen);
   const mittel = plan.autos.find((auto) => auto.fahrer.id === 'mittel');
-  expect(mittel?.mitfahrende.map((p) => p.id)).toContain('kind-1');
+  assert.ok(mittel?.mitfahrende.map((p) => p.id).includes('kind-1'));
 });
 
 test('someone moved to no seat by hand needs no seat, so no extra car drives for them', () => {
@@ -227,6 +235,9 @@ test('someone moved to no seat by hand needs no seat, so no extra car drives for
   ];
 
   const plan = planFahrt(personen, 'hin', withMove(KEINE_ANPASSUNGEN, 'kind-1', null));
-  expect(plan.autos).toHaveLength(1);
-  expect(plan.ohnePlatz.map((p) => p.id)).toEqual(['kind-1']);
+  assert.equal(plan.autos.length, 1);
+  assert.deepEqual(
+    plan.ohnePlatz.map((p) => p.id),
+    ['kind-1']
+  );
 });
