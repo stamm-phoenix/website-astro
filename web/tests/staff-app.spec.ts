@@ -555,6 +555,7 @@ test('in the iPhone app a saved receipt photo keeps later recovery', async ({ pa
   const open = page.getByRole('button', { name: /REWE/ }).first();
   await open.click();
   const dialog = page.getByRole('dialog', { name: /Beleg von/ });
+  await dialog.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await dialog.getByLabel('Geschäft').fill('REWE recovery after photo');
   const photo = await page.evaluate(() => {
     const canvas = document.createElement('canvas');

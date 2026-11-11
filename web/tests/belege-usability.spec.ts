@@ -124,8 +124,13 @@ test('an Auslage names who paid, the savings book names itself', async ({ page }
     await page.getByRole('button', { name: /REWE/ }).first().click();
     return page.getByRole('dialog', { name: 'Beleg von REWE' });
   };
-  let dialog = await open();
+  const dialog = await open();
   const paidBy = dialog.getByLabel('Ausgelegt von');
+  // Saving shows the receipt again; the next change starts with „Bearbeiten“
+  const bearbeiten = () => dialog.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  const gespeichert = () =>
+    expect(dialog.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
+  await bearbeiten();
   // Paid out of the demo user's pocket: an Auslage like any other, with the name to see
   await expect(
     dialog.getByRole('radio', { name: 'Privat ausgelegt – an diese Person auszahlen' })
@@ -143,29 +148,30 @@ test('an Auslage names who paid, the savings book names itself', async ({ page }
   ).toBeVisible();
   await paidBy.fill('Robin Gast');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(dialog).toBeHidden();
+  await gespeichert();
   expect(sent.at(-1)).toMatchObject({ payout: true, paidBy: 'Robin Gast' });
 
-  dialog = await open();
+  await bearbeiten();
   await dialog.getByRole('radio', { name: 'Umbuchung aufs Sparbuch' }).check();
   await expect(paidBy).toBeHidden();
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(dialog).toBeHidden();
+  await gespeichert();
   expect(sent.at(-1)).toMatchObject({ payout: true, paidBy: 'Sparbuch' });
 
-  dialog = await open();
+  await bearbeiten();
   await dialog.getByRole('radio', { name: 'Mit Stammeskarte / aus der Kasse' }).check();
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(dialog).toBeHidden();
+  await gespeichert();
   expect(sent.at(-1)).toMatchObject({ payout: false, paidBy: '' });
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
 
   // Sam's Auslage, submitted by Sam, reads the same
   await page.getByRole('button', { name: /Deutsche Bahn/ }).click();
   const bahn = page.getByRole('dialog', { name: 'Beleg von Deutsche Bahn' });
   await expect(
-    bahn.getByRole('radio', { name: 'Privat ausgelegt – an diese Person auszahlen' })
-  ).toBeChecked();
-  await expect(bahn.getByLabel('Ausgelegt von')).toHaveValue('Sam Muster');
+    bahn.getByRole('definition').filter({ hasText: 'Privat ausgelegt von Sam Muster' })
+  ).toBeVisible();
 });
 
 test('new names are saved with a warning, kept after a failed save and retried', async ({
@@ -187,6 +193,7 @@ test('new names are saved with a warning, kept after a failed save and retried',
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
   const editor = page.getByRole('dialog', { name: `Beleg von ${receipt.shop}` });
+  await editor.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await editor.getByLabel('Kostenstelle', { exact: true }).fill('Herbstfahrt 2026');
   await editor.getByLabel('Kategorie', { exact: true }).fill('Getränke');
   await expect(editor.getByRole('status').filter({ hasText: 'neu angelegt' })).toContainText(
@@ -196,7 +203,7 @@ test('new names are saved with a warning, kept after a failed save and retried',
   await expect(editor.getByRole('alert')).toContainText('Der Beleg wurde nicht gespeichert');
   await expect(editor.getByLabel('Kostenstelle', { exact: true })).toHaveValue('Herbstfahrt 2026');
   await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(editor).toBeHidden();
+  await expect(editor.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
   expect(writes).toBe(2);
   expect(saved).toMatchObject({ kostenstelle: 'Herbstfahrt 2026', kategorie: 'Getränke' });
 });
@@ -519,6 +526,7 @@ test('choosing a suggestion on an existing receipt asks before discarding the ch
   await page.goto('/leitendenbereich/belege');
   await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
   const editor = page.getByRole('dialog', { name: `Beleg von ${receipt.shop}` });
+  await editor.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await editor.getByLabel('Kostenstelle', { exact: true }).fill('leite');
   await editor
     .getByRole('listbox', { name: 'Kostenstelle oder Kategorie auswählen' })
@@ -537,7 +545,9 @@ for (const decision of [
   { label: 'Ablehnen', source: 'Eingereicht', target: 'Abgelehnt' },
   { label: 'Erneut einreichen', source: 'Abgelehnt', target: 'Eingereicht' },
 ]) {
-  test(`a decision saves Kostenstelle and Kategorie: ${decision.label}`, async ({ page }) => {
+  test(`a decision keeps the stored Kostenstelle and Kategorie: ${decision.label}`, async ({
+    page,
+  }) => {
     const records = (await (
       await page.request.get('/api/intern/pflege/belege')
     ).json()) as StaffBeleg[];
@@ -556,9 +566,9 @@ for (const decision of [
     await page.goto('/leitendenbereich/belege');
     await page.getByRole('button', { name: /^Alle/ }).click();
     await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
+    // The Kasse decides on the receipt as it is shown, without editing it
     const editor = page.getByRole('dialog', { name: `Beleg von ${receipt.shop}` });
-    await editor.getByLabel('Kostenstelle', { exact: true }).fill('Hike 2026');
-    await editor.getByLabel('Kategorie', { exact: true }).fill('Fahrtkosten');
+    await expect(editor.getByLabel('Kostenstelle', { exact: true })).toHaveCount(0);
     if (decision.target === 'Abgelehnt')
       await editor
         .getByLabel('Bemerkung der Kasse', { exact: false })
@@ -567,8 +577,8 @@ for (const decision of [
     await expect(editor).toBeHidden();
     expect(saved).toMatchObject({
       status: decision.target,
-      kostenstelle: 'Hike 2026',
-      kategorie: 'Fahrtkosten',
+      kostenstelle: receipt.kostenstelle,
+      kategorie: receipt.kategorie,
     });
   });
 }
@@ -580,13 +590,14 @@ test('on a wide screen the picture of a receipt sits beside its fields, and only
   await page.goto('/leitendenbereich/belege');
   await page.getByText('REWE', { exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Beleg von REWE' });
+  await dialog.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   const picture = dialog.getByAltText(/Foto des Belegs/);
   const shop = dialog.getByLabel('Geschäft');
   await expect(picture).toBeVisible();
   const [pictureBox, shopBox] = [await picture.boundingBox(), await shop.boundingBox()];
   expect(pictureBox!.x + pictureBox!.width).toBeLessThan(shopBox!.x);
   // The hidden file input once made the dialog itself scrollable, past its own footer
-  await dialog.getByRole('button', { name: 'Annehmen', exact: true }).scrollIntoViewIfNeeded();
+  await dialog.getByLabel('Bemerkung (optional)').scrollIntoViewIfNeeded();
   await dialog.locator('input[type="file"]').focus();
   await page.mouse.move(pictureBox!.x + 20, 400);
   await page.mouse.wheel(0, 3000);
