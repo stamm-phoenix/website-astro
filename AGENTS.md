@@ -355,10 +355,21 @@ Choose the test level before you write a test. The Playwright suite in `web/test
 6. For changes in the Leitendenbereich, check them against "Usability for Leitende", including the walk-through on a phone viewport. Go through every visible sentence your diff adds (`git diff` of `.svelte`/`.astro` files): each one must be a label, a placeholder, a result, an error or a note for the state on screen; any other explaining sentence goes behind the (i) or away (see "No explaining prose")
 7. For changes leaders notice in the Leitendenbereich, add or extend the entry file in `web/src/lib/changelog/entries/` and run `bun test test/changelog.test.ts` (see "Changelog"). Check this again after every rebase onto `main`
 
+## CI and merging
+
+Details: `docs/ci.md`. Read it before you change a workflow or a CI script.
+
+- A pull request needs three green checks: `Build`, `Browser tests` and `E2E budget`. They always report, also when the plan skipped their jobs. Never require or depend on a single shard name.
+- The plan skips what a diff cannot affect (documentation-only PRs run nothing); on a PR only the affected browser specs run.
+- A check is red: read the failed job and the step summary "List failed and flaky tests", fix the cause, and re-run only failed jobs with `gh run rerun <run-id> --failed`. Do not raise timeouts to hide a flaky test.
+- Merge with `gh pr merge <n> --auto --rebase`. If the queue run fails, fix and enqueue again.
+- After the merge, check the push run of the head SHA before you say it is deployed.
+- Never change rulesets or repository settings, and never set the label `e2e-ok`.
+
 ## Git History
 
 Keep the history as linear as possible. Merge commits are allowed, but rebasing is the default whenever it works.
 
 - To bring `main` into a PR branch (e.g. after a conflict or to pick up a fix), rebase the branch onto `origin/main` and push with `git push --force-with-lease`, instead of merging `main` into it. After the rebase, check that your changelog entry is still on top with the next free number, and that your migration still has the next free number.
-- Merge PRs with "Rebase and merge" where possible. Once the ruleset of `main` requires the merge queue (#568), merge with `gh pr merge --auto --rebase`: the queue tests the PR on top of `main` and merges it. Then rebase only for a real conflict, not because `main` moved on. Without the queue, `--auto` merges at once when no check is required, so wait for green checks first.
+- Merge PRs through the merge queue with `gh pr merge <n> --auto --rebase`: the queue tests the PR on top of `main` and merges it. Rebase only for a real conflict, not because `main` moved on (see "CI and merging").
 - Fall back to a merge commit only when a rebase is not reasonable, e.g. when others have based work on the branch or resolving the same conflict across many commits would be error-prone.
