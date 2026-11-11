@@ -332,6 +332,11 @@ test('in the iPhone app a newly created person keeps later edits under their sav
     route.request().method() === 'PATCH' ? route.fulfill({ status: 401 }) : route.fallback()
   );
   await dialog.getByLabel('Name', { exact: true }).fill('Recovery edited person');
+  // The title follows the name field
+  const edited = page.getByRole('dialog', {
+    name: 'Recovery edited person bearbeiten',
+    exact: true,
+  });
   // A confirmed photo advances the version, but the unsaved name must not become its baseline
   const png = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
@@ -339,13 +344,13 @@ test('in the iPhone app a newly created person keeps later edits under their sav
     canvas.height = 10;
     return canvas.toDataURL('image/png').split(',')[1];
   });
-  await dialog.locator('input[type="file"]').setInputFiles({
+  await edited.locator('input[type="file"]').setInputFiles({
     name: 'photo.png',
     mimeType: 'image/png',
     buffer: Buffer.from(png, 'base64'),
   });
-  await expect(dialog.getByText('Foto gespeichert.', { exact: true })).toBeVisible();
-  await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('Recovery edited person');
+  await expect(edited.getByText('Foto gespeichert.', { exact: true })).toBeVisible();
+  await expect(edited.getByLabel('Name', { exact: true })).toHaveValue('Recovery edited person');
   await page.getByRole('dialog').getByRole('button', { name: 'Speichern', exact: true }).click();
   await page.getByRole('dialog').getByRole('link', { name: 'Neu anmelden', exact: true }).click();
   await page.getByRole('button', { name: /Recovery new person/ }).click();
