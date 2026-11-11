@@ -1,11 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
-import { MOBILE_GREP, MOBILE_ONLY_SPECS } from './e2e-projects';
+import { DEV_SERVER_TAG, MOBILE_GREP, MOBILE_ONLY_SPECS } from './e2e-projects';
 
 // Demo writes live in the server process, so every worker gets its own server and port.
 // E2E_SERVER=built serves the built dist/ instead of the dev server (scripts/e2e-servers.ts).
 const WORKERS = Number(process.env.E2E_WORKERS ?? (process.env.CI ? 4 : 2));
 // E2E_PORT_BASE lets runs in separate checkouts on one machine use their own ports.
 const PORT_BASE = Number(process.env.E2E_PORT_BASE ?? 4323);
+const BUILT = process.env.E2E_SERVER === 'built';
 
 export default defineConfig({
   testDir: './tests',
@@ -13,6 +14,8 @@ export default defineConfig({
   workers: WORKERS,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
+  // Tests that load source modules of the dev server have nothing to load from the built site
+  grepInvert: BUILT ? new RegExp(DEV_SERVER_TAG) : undefined,
   // One retry in CI, so a timing flake of the runner does not fail an unrelated PR; the report
   // still lists the test as flaky. Locally a failure shows at once.
   retries: process.env.CI ? 1 : 0,

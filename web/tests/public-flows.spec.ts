@@ -1,4 +1,17 @@
+import type { Page } from '@playwright/test';
 import { test, expect, navigate, expectNoHorizontalOverflow } from './fixtures';
+
+/**
+ * CampFlow's embed script: the built site names the real host, the dev server the demo copy of
+ * the mock API. Tests never contact CampFlow, so both get the demo copy.
+ */
+const CAMPFLOW_EMBED = /\/api\/mock\/campflow-embed|^https:\/\/embed\.campflow\.de\//;
+
+async function serveDemoEmbed(page: Page): Promise<void> {
+  await page.route(CAMPFLOW_EMBED, async (route) =>
+    route.fulfill({ response: await page.request.get('/api/mock/campflow-embed') })
+  );
+}
 
 test('navigation and skip link work with a keyboard at both widths', async ({ page }) => {
   await page.goto('/');
@@ -22,9 +35,10 @@ test('navigation and skip link work with a keyboard at both widths', async ({ pa
 });
 
 test('membership embed loads on request and again after Astro navigation', async ({ page }) => {
+  await serveDemoEmbed(page);
   const campflowRequests: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('campflow-embed')) campflowRequests.push(request.url());
+    if (CAMPFLOW_EMBED.test(request.url())) campflowRequests.push(request.url());
   });
   await page.goto('/mitmachen');
   await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(0);
@@ -50,7 +64,7 @@ test('membership embed loads on request and again after Astro navigation', async
 });
 
 test('blocked membership embed shows an error and can be retried', async ({ page }) => {
-  await page.route('**/api/mock/campflow-embed', (route) => route.abort());
+  await page.route(CAMPFLOW_EMBED, (route) => route.abort());
   await page.goto('/mitmachen');
   const loadButton = page.getByRole('button', { name: 'Mitgliedsantrag hier laden' });
   await loadButton.click();
@@ -58,7 +72,8 @@ test('blocked membership embed shows an error and can be retried', async ({ page
   await expect(loadButton).toBeEnabled();
   await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(0);
   expect(await page.evaluate(() => sessionStorage.getItem('campflow-embed-confirmed'))).toBeNull();
-  await page.unroute('**/api/mock/campflow-embed');
+  await page.unroute(CAMPFLOW_EMBED);
+  await serveDemoEmbed(page);
   await loadButton.click();
   await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(1);
   await expect(page.getByText('Der Mitgliedsantrag konnte nicht geladen werden.')).toBeHidden();

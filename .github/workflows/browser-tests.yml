@@ -144,3 +144,54 @@ jobs:
             web/playwright-report/
             web/test-results/
           retention-days: 7
+
+  # Tests tagged @dev-server load source modules of the dev server (web/e2e-projects.ts), which
+  # the built site has not; the shards leave them out. Only when the selection holds their files.
+  dev-server:
+    needs: select
+    if: >-
+      needs.select.outputs.run == 'true' &&
+      (contains(needs.select.outputs.matrix, 'nikolaus-offline.spec.ts') ||
+      contains(needs.select.outputs.matrix, 'sammelbestellung-flows.spec.ts'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container:
+      image: ${{ needs.select.outputs.image }}
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
+        working-directory: web
+    name: Browser tests (dev server)
+    concurrency:
+      group: ci-browser-dev-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || github.run_id }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          check-latest: true
+      - name: Install Bun and frontend dependencies
+        run: |
+          npm install --global bun@1.4.2
+          test "$(bun --version)" = "1.4.2"
+          bun install --frozen-lockfile
+      - name: Test browser workflows on the dev server
+        run: bun run test:e2e --project=desktop --grep @dev-server
+        env:
+          E2E_WORKERS: "2"
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/results.json
+      - name: List failed and flaky tests
+        if: always()
+        continue-on-error: true
+        run: bun scripts/ci/flaky-summary.ts test-results/results.json "dev server"
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-report-dev-server
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
