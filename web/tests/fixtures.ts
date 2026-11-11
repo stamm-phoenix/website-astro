@@ -42,10 +42,15 @@ export const test = base.extend<Fixtures>({
       page.on('pageerror', (error) => {
         if (!cutOffByNavigation(error.message)) errors.push(error.message);
       });
+      let tearingDown = false;
       await context.route('**/*', async (route) => {
         const url = new URL(route.request().url());
         if (url.origin === baseURL) {
-          await route.continue();
+          // While the test's handlers are removed below, a request one of them passed on can
+          // arrive here already handled ("Route is already handled!", run 43005460914)
+          await route.continue().catch((error: unknown) => {
+            if (!tearingDown) throw error;
+          });
         } else {
           // No requests to real lists, shops, mail services, map providers or embeds.
           await route.abort();
@@ -54,6 +59,7 @@ export const test = base.extend<Fixtures>({
       await use();
       // A route handler of the test can still be waiting on route.fetch() or response.json()
       // when the test ends; closing the page then fails it with "Response has been disposed"
+      tearingDown = true;
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       expect(errors, 'No uncaught browser errors').toEqual([]);
     },
