@@ -81,7 +81,9 @@
         </p>
       {/if}
     {:else}
-      <p class="text-sm text-neutral-800">Bitte oben Kostenstelle und Kategorie eintragen.</p>
+      <p class="text-sm text-neutral-800">
+        Kostenstelle und Kategorie fehlen. Nimm die Annahme zurück, um sie zu ergänzen.
+      </p>
     {/if}
     <ActionButton
       variant="primary"
