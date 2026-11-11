@@ -146,11 +146,13 @@ export function bildBearbeiten(
   bild: Pixels,
   quad: Quad | null,
   farben: FotoFarben,
-  maxEdge: number
+  maxEdge: number,
+  /** Smallest longer edge of a crop; it is enlarged up to it. */
+  minEdge = 0
 ): Pixels {
   let cropped = bild;
   if (quad) {
-    const size = outputSize(quad, maxEdge);
+    const size = outputSize(quad, maxEdge, minEdge);
     cropped = warpPerspective(bild, quad, size.width, size.height);
   }
   return farben === 'original' ? cropped : enhance(cropped, farben);
