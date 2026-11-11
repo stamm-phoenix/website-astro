@@ -22,23 +22,38 @@ export async function toggleFavoriteLikeAPerson(page: Page, name: string): Promi
     ? sheet
     : page.getByRole('region', { name: 'Alle Bereiche' });
   const link = place.getByRole('link', { name: new RegExp(`^${name}`) }).first();
-  // The page may still be filling in above; press only once the area holds still
-  let box = null;
-  for (let attempt = 0; attempt < 20; attempt++) {
-    await link.evaluate((element) =>
-      element.scrollIntoView({ block: 'center', behavior: 'instant' })
-    );
-    await waitUntilStill(link);
-    box = await link.boundingBox();
-    if (box) break;
-  }
-  if (!box) throw new Error(`${name} is not on screen`);
   const star = link.locator('..').getByRole('button', { name: `${name} als Favorit`, exact: true });
   await expect(star).toBeAttached();
   const previous = await star.getAttribute('aria-pressed');
-  const point = { x: box.x + 40, y: box.y + box.height / 2 };
+  // The cards above the list keep loading and push it down, out of the screen or under the bar at
+  // the bottom. Press only where the area is on top at that very moment: scroll it into view
+  // again until the point to press belongs to the link (a position that holds still is not enough)
+  const pressed: { point?: { x: number; y: number } } = {};
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+  await expect
+    .poll(
+      async () => {
+        await link.evaluate((element) =>
+          element.scrollIntoView({ block: 'center', behavior: 'instant' })
+        );
+        await waitUntilStill(link);
+        const found = await link.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const x = box.x + 40;
+          const y = box.y + box.height / 2;
+          const top = document.elementFromPoint(x, y);
+          return top && element.contains(top) ? { x, y } : null;
+        });
+        pressed.point = found ?? undefined;
+        return found !== null;
+      },
+      { message: `${name} is not on top of the screen`, intervals: [0, 100, 250, 500] }
+    )
+    .toBe(true);
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [pressed.point ?? { x: 0, y: 0 }],
+  });
   try {
     // Keep the finger down until the long press has changed the favorite.
     await expect(star).toHaveAttribute('aria-pressed', previous === 'true' ? 'false' : 'true');
