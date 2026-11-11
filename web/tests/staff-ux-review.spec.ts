@@ -127,7 +127,7 @@ test('a missing receipt photo highlights its visible chooser after a pointer sub
   const chooser = dialog.locator('label:has(input[type="file"])');
   for (const [colorScheme, color] of [
     ['light', 'rgb(0, 48, 86)'],
-    ['dark', 'rgb(140, 203, 236)'],
+    ['dark', 'rgb(147, 194, 225)'],
   ] as const) {
     await page.emulateMedia({ colorScheme });
     await expect(chooser).toBeInViewport();

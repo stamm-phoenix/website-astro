@@ -24,7 +24,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         .toBe(colorScheme);
       await expect
         .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
-        .toBe(colorScheme === 'dark' ? 'rgb(16, 27, 38)' : 'rgb(248, 245, 239)');
+        .toBe(colorScheme === 'dark' ? 'rgb(24, 22, 20)' : 'rgb(248, 245, 239)');
       await expectNoHorizontalOverflow(page);
     }
     await page.goto('/');
@@ -53,7 +53,7 @@ test('dark theme and staff navigation work without JavaScript', async ({ browser
   const page = await context.newPage();
   await page.goto(`${baseURL}/leitendenbereich`);
   expect(await page.locator('body').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
-    'rgb(16, 27, 38)'
+    'rgb(24, 22, 20)'
   );
   // Every area is listed without opening a group: on the start page or in the sidebar
   await expect(
@@ -76,7 +76,7 @@ test('invalid inputs retain their error border and enabled buttons show a presse
     await page.emulateMedia({ colorScheme });
     await expect
       .poll(() => field.evaluate((el) => getComputedStyle(el).borderBottomColor))
-      .toBe(colorScheme === 'dark' ? 'rgb(255, 154, 166)' : 'rgb(129, 10, 26)');
+      .toBe(colorScheme === 'dark' ? 'rgb(255, 143, 136)' : 'rgb(129, 10, 26)');
   }
   const button = page.getByRole('button', { name: 'Abbrechen', exact: true });
   await button.hover();
@@ -255,18 +255,22 @@ test('manual theme choice overrides the system and persists through navigation a
   await page.goto('/');
   const toggle = page.getByRole('button', { name: 'Dunkles Theme', exact: true });
   const lily = page.locator('.brand-mark--phoenix use[clip-path]').first();
-  const contour = page.locator('.brand-mark--phoenix use:not([clip-path])').first();
+  const contour = page.locator('.brand-mark--phoenix use[fill*="--contour-color"]').first();
+  // Dark keeps the black lily and draws a light outline around it.
+  const outline = page.locator('.brand-mark--phoenix g[stroke-linejoin]').first();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
   await expect(contour).toHaveCSS('fill', 'rgb(0, 0, 0)');
+  await expect(outline).toHaveCSS('stroke', 'none');
   await toggle.focus();
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(lily).toHaveCSS('fill', 'rgb(236, 223, 203)');
-  await expect(contour).toHaveCSS('fill', 'rgba(0, 0, 0, 0)');
+  await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
+  await expect(contour).toHaveCSS('fill', 'rgb(0, 0, 0)');
+  await expect(outline).toHaveCSS('stroke', 'rgb(236, 223, 203)');
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
-    .toBe('rgb(16, 27, 38)');
+    .toBe('rgb(24, 22, 20)');
   await expect(page.locator('.brand-mark--dpsg').first()).toHaveCSS(
     'filter',
     'brightness(0) invert(1)'
@@ -278,8 +282,9 @@ test('manual theme choice overrides the system and persists through navigation a
   await expect(page.locator('astro-island[client="load"][ssr]')).toHaveCount(0);
   await page.reload();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(lily).toHaveCSS('fill', 'rgb(236, 223, 203)');
-  await expect(contour).toHaveCSS('fill', 'rgba(0, 0, 0, 0)');
+  await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
+  await expect(contour).toHaveCSS('fill', 'rgb(0, 0, 0)');
+  await expect(outline).toHaveCSS('stroke', 'rgb(236, 223, 203)');
   expect(await page.evaluate(() => localStorage.getItem('phoenix-theme'))).toBe('dark');
   await page.emulateMedia({ colorScheme: 'dark' });
   await toggle.click();
