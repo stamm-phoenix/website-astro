@@ -6,6 +6,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "start:mock": "NODE_PATH=node_modules bun --no-install scripts/serve-built.ts",
     "astro": "astro",
     "lint": "eslint . --cache --cache-strategy content",
     "lint:fix": "eslint . --fix",
