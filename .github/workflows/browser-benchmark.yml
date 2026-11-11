@@ -144,15 +144,23 @@ jobs:
         run: |
           npm install --global bun@1.4.2
           bun install --frozen-lockfile
-      - name: Repeat the tests
+      - name: Build the site with the test data
+        run: bun run build
         env:
+          CONTENT_SOURCE: mock
+          CONTENT_STRICT: "1"
+      - name: Repeat the tests
+        # Same server as the shards in CI. The filter is a positional argument; after a bare "--"
+        # Playwright ignored it and ran the whole project.
+        env:
+          E2E_SERVER: built
           FILTER: ${{ inputs.repeat_filter }}
           REPEAT: ${{ inputs.repeat_each }}
           PROJECT: ${{ inputs.repeat_project }}
           GREP: ${{ inputs.repeat_grep }}
           E2E_WORKERS: 4
           PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/repeat.json
-        run: bun run test:e2e --project="$PROJECT" --retries=0 --repeat-each="$REPEAT" --grep="$GREP" --reporter=list,json -- "$FILTER"
+        run: bun run test:e2e --project="$PROJECT" --retries=0 --repeat-each="$REPEAT" --grep="$GREP" --reporter=list,json "$FILTER"
       - name: Summarize first-attempt failures per test
         if: always()
         env:
