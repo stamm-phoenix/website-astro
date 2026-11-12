@@ -150,7 +150,8 @@
         teamAssignments = fromRows(current.rows);
         parked = parkedFromRows(
           problem.persons,
-          current.rows.filter((row) => personById.has(row.personId))
+          current.rows.filter((row) => personById.has(row.personId)),
+          current.days.map((day) => day.date)
         );
         dirty = false;
       }

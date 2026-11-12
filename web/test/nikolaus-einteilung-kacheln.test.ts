@@ -144,6 +144,19 @@ describe('moveTile', () => {
     });
   });
 
+  test('who is pushed off a post without a kitchen to go to stays in the box', () => {
+    const result = moveTile([post('cem', 'A', 'Nikolaus')], {}, persons, DAY, 'ben', {
+      team: 'A',
+      role: 'Nikolaus',
+    });
+    assert.deepEqual(result.parked, { [DAY]: ['cem'] });
+    const toKitchen = moveTile([post('anna', 'A', 'Nikolaus')], {}, persons, DAY, 'ben', {
+      team: 'A',
+      role: 'Nikolaus',
+    });
+    assert.deepEqual(toKitchen.parked, {});
+  });
+
   test('only who volunteered for the kitchen goes there', () => {
     const before = [post('ben', 'A', 'Krampus')];
     const result = moveTile(before, {}, persons, DAY, 'ben', 'Küche');
@@ -154,12 +167,25 @@ describe('moveTile', () => {
 describe('parkedFromRows', () => {
   test('a kitchen volunteer without a row on a saved day was put aside', () => {
     const rows = [post('ben', 'A', 'Nikolaus')];
-    assert.deepEqual(parkedFromRows([...persons.values()], rows), { [DAY]: ['anna'] });
+    assert.deepEqual(parkedFromRows([...persons.values()], rows, [DAY]), { [DAY]: ['anna'] });
     assert.deepEqual(
-      parkedFromRows([...persons.values()], [...rows, post('anna', 'Küche', 'Küche')]),
+      parkedFromRows([...persons.values()], [...rows, post('anna', 'Küche', 'Küche')], [DAY]),
       {}
     );
-    assert.deepEqual(parkedFromRows([...persons.values()], []), {});
+    assert.deepEqual(parkedFromRows([...persons.values()], [], [DAY]), {});
+  });
+
+  test('a day whose persons were all put aside keeps them after saving', () => {
+    const both = new Map(persons);
+    both.set('anna', {
+      ...persons.get('anna')!,
+      availability: { [DAY]: ['Küche'], [OTHER]: ['Küche'] },
+    });
+    // Saved: only the kitchen row of the other day; the day itself has no rows any more
+    const rows = [post('anna', 'Küche', 'Küche', OTHER)];
+    assert.deepEqual(parkedFromRows([...both.values()], rows, [DAY, OTHER]), {
+      [DAY]: ['anna'],
+    });
   });
 });
 

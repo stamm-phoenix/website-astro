@@ -107,21 +107,37 @@ export function moveTile(
     };
   }
   const next = placePerson(assignments, persons, date, personId, target);
-  return next === assignments ? { assignments, parked } : { assignments: next, parked: unparked };
+  if (next === assignments) return { assignments, parked };
+  // Who is pushed off the post and has no kitchen to go to lands in the box and stays there
+  const occupant = assignments.find(
+    (a) => a.date === date && a.team === target.team && a.role === target.role
+  );
+  const displaced =
+    occupant &&
+    !next.some((a) => a.date === date && a.personId === occupant.personId) &&
+    !rolesOn(persons.get(occupant.personId), date).includes(KITCHEN)
+      ? [occupant.personId]
+      : [];
+  return {
+    assignments: next,
+    parked: withParked([...parkedToday.filter((id) => id !== personId), ...displaced]),
+  };
 }
 
 /**
- * The persons put aside in a saved Einteilung: on a day with saved rows, who volunteered for
- * the kitchen but has no row was taken out of it by hand.
+ * The persons put aside in a saved Einteilung: once an Einteilung is saved, who volunteered for
+ * the kitchen on a planned day but has no row was taken out of it by hand – also on a day whose
+ * persons were all put aside, which has no rows at all.
  */
 export function parkedFromRows(
   persons: EinteilungPerson[],
-  rows: Pick<EinteilungAssignment, 'personId' | 'date'>[]
+  rows: Pick<EinteilungAssignment, 'personId' | 'date'>[],
+  dates: string[]
 ): Parked {
   const parked: Parked = {};
-  const days = new Set(rows.map((row) => row.date));
+  if (rows.length === 0) return parked;
   const placed = new Set(rows.map((row) => `${row.personId}|${row.date}`));
-  for (const date of [...days].sort()) {
+  for (const date of [...dates].sort()) {
     const ids = persons
       .filter((p) => rolesOn(p, date).includes(KITCHEN) && !placed.has(`${p.id}|${date}`))
       .map((p) => p.id);
