@@ -143,7 +143,7 @@ dbTest('new minutes get the standard agenda, the Vorstand and the writer', async
     [
       ['Stufenberichte', ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover', 'StaVos']],
       ['Reflexion', []],
-      ['Planung', []],
+      ['Aktionsvorschau', []],
       ['Sonstiges', []],
     ]
   );

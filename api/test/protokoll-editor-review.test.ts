@@ -538,7 +538,7 @@ test('the PDF has a cover page with only the contents, then the minutes', async 
   assert.ok(!deckblatt.section.some((node) => node.tocItem));
   assert.deepEqual(
     protokoll.section.filter((node) => node.tocItem).map((node) => node.text),
-    ['Sitzung', '1. Stufenberichte', '2. Reflexion', '3. Planung', '4. Sonstiges']
+    ['Sitzung', '1. Stufenberichte', '2. Reflexion', '3. Aktionsvorschau', '4. Sonstiges']
   );
   assert.notEqual(deckblatt.footer, protokoll.footer);
 });

@@ -218,7 +218,7 @@ dbTest('the approval creates the tasks of the minutes in their projects', async 
         state: 'offen',
         projectId: lager,
         dueDate: '2026-11-01',
-        punkt: '3. Planung',
+        punkt: '3. Aktionsvorschau',
         people: [
           { login: ANNA, name: 'Anna Autorin' },
           { login: '', name: 'Gast Person' },

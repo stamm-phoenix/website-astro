@@ -715,7 +715,10 @@
   function addAktion(aktion: ProtokollAktion): void {
     if (!stand) return;
     aktionOpen = false;
-    const punkt: ProtokollPunkt = { ...neuerPunkt(newElementId(), aktion.titel), aktion };
+    const punkt: ProtokollPunkt = {
+      ...neuerPunkt(newElementId(), `Planung ${aktion.titel}`.slice(0, 200)),
+      aktion,
+    };
     stand.inhalt.punkte.push(punkt);
     void focusPunkt(punkt.id, 'text');
   }
@@ -1220,7 +1223,7 @@
               onclick={() => (aktionOpen = true)}
               disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}
             >
-              + Punkt aus Aktion
+              + Planungskapitel aus Aktion
             </ActionButton>
           </div>
         </section>

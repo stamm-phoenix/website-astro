@@ -47,7 +47,7 @@ test('a Stufenbericht lists the Gruppenstunden oldest first with counts and what
   assert.equal(berichte['Pfadfinder'], undefined);
 });
 
-test('Aktionen split into Reflexion (over since the last minutes) and Planung (still to come)', () => {
+test('Aktionen split into Reflexion (over since the last minutes) and Aktionsvorschau (still to come)', () => {
   const texte = aktionenTexte(
     [
       aktion({
@@ -69,7 +69,7 @@ test('Aktionen split into Reflexion (over since the last minutes) and Planung (s
     texte['Reflexion'],
     'Aktionen seit der letzten Sitzung:\n- 10.–12.10.2026: Zeltlager (Rover)\n- 14.10.2026: Heute'
   );
-  assert.equal(texte['Planung'], 'Anstehende Aktionen:\n- 05.12.2026: Adventsbasar');
+  assert.equal(texte['Aktionsvorschau'], 'Anstehende Aktionen:\n- 05.12.2026: Adventsbasar');
 });
 
 test('the next meeting presets time and place of the previous minutes, not the date', () => {
@@ -83,7 +83,7 @@ test('the next meeting presets time and place of the previous minutes, not the d
     () => `id${n++}`,
     {},
     {
-      texte: { Wölflinge: '- 07.10.: 8 Kinder', Planung: 'Anstehende Aktionen:' },
+      texte: { Wölflinge: '- 07.10.: 8 Kinder', Aktionsvorschau: 'Anstehende Aktionen:' },
       naechsteSitzung: { uhrzeit: '19:30', ort: 'Pfarrheim' },
     }
   );
@@ -123,7 +123,7 @@ test('a long note is copied whole and Markdown characters in copied text stay as
     date: '2026-10-14',
     bis: '2027-01-12',
   });
-  assert.equal(texte['Planung'], 'Anstehende Aktionen:\n- 01.11.2026: Sommer\\*lager');
+  assert.equal(texte['Aktionsvorschau'], 'Anstehende Aktionen:\n- 01.11.2026: Sommer\\*lager');
 });
 
 test('a Stufenbericht over the limit is cut after the last whole line', () => {

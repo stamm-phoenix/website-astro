@@ -322,7 +322,7 @@ export const STANDARD_PUNKTE: { titel: string; unterpunkte: string[] }[] = [
     unterpunkte: ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover', 'StaVos'],
   },
   { titel: 'Reflexion', unterpunkte: [] },
-  { titel: 'Planung', unterpunkte: [] },
+  { titel: 'Aktionsvorschau', unterpunkte: [] },
   { titel: 'Sonstiges', unterpunkte: [] },
 ];
 
@@ -411,7 +411,7 @@ export function mergeOffeneAufgaben(
 
 /**
  * Data of other modules that new minutes start with. `texte` maps the title of an agenda item
- * or sub-item („Wölflinge“, „Planung“) to its text; `naechsteSitzung` presets the time and place
+ * or sub-item („Wölflinge“, „Aktionsvorschau“) to its text; `naechsteSitzung` presets the time and place
  * of the next meeting (not the date, which only the writer knows).
  */
 export interface Vorbelegung {

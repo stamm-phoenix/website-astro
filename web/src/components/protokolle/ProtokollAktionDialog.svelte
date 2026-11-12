@@ -44,7 +44,7 @@
   });
 </script>
 
-<ModalDialog {open} title="Tagesordnungspunkt aus einer Aktion" {onclose}>
+<ModalDialog {open} title="Planungskapitel aus einer Aktion" {onclose}>
   <div class="space-y-4 px-5 py-4">
     <div class="flex flex-wrap items-end gap-3">
       <div class="min-w-48 flex-1">
