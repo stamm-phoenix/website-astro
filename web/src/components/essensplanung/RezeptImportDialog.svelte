@@ -445,6 +445,7 @@
             bind:werkzeuge
             bind:werkzeugeAn
             fehler={kopfFehler}
+            gesperrt={speichert}
           />
         {/if}
         <div class="flex flex-wrap justify-end gap-2">

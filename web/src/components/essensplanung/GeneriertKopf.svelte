@@ -18,6 +18,8 @@
     werkzeuge: string[];
     werkzeugeAn: boolean;
     fehler: Record<string, string>;
+    /** While saving: the editor is no form field, so a disabled fieldset does not lock it. */
+    gesperrt: boolean;
   }
   let {
     gericht,
@@ -27,6 +29,7 @@
     werkzeuge = $bindable(),
     werkzeugeAn = $bindable(),
     fehler,
+    gesperrt,
   }: Props = $props();
   const hatAnleitung = $derived(gericht.anleitung.trim() !== '');
 </script>
@@ -49,14 +52,16 @@
       </label>
       <span class="sr-only" id="generiert-anleitung-label">Anleitung</span>
       {#if anleitungAn}
-        <LazyTextEditor
-          id="generiert-anleitung"
-          labelledBy="generiert-anleitung-label"
-          invalid={Boolean(fehler['kopf.anleitung'])}
-          placeholder="z. B. Zwiebeln anbraten, dann …"
-          maxLength={20_000}
-          bind:value={anleitung}
-        />
+        <div inert={gesperrt}>
+          <LazyTextEditor
+            id="generiert-anleitung"
+            labelledBy="generiert-anleitung-label"
+            invalid={Boolean(fehler['kopf.anleitung'])}
+            placeholder="z. B. Zwiebeln anbraten, dann …"
+            maxLength={20_000}
+            bind:value={anleitung}
+          />
+        </div>
       {/if}
       {#if fehler['kopf.anleitung']}<p class="text-sm text-danger">
           {fehler['kopf.anleitung']}
