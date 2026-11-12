@@ -256,18 +256,18 @@ test('manual theme choice overrides the system and persists through navigation a
   const toggle = page.getByRole('button', { name: 'Dunkles Theme', exact: true });
   const lily = page.locator('.brand-mark--phoenix use[clip-path]').first();
   const contour = page.locator('.brand-mark--phoenix use[fill*="--contour-color"]').first();
-  // Dark keeps the black lily and draws a light outline around it.
-  const outline = page.locator('.brand-mark--phoenix g[stroke-linejoin]').first();
+  // Dark keeps the black lily and sets the mark on a light round patch.
+  const badge = page.locator('.brand-mark--phoenix').first();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
   await expect(contour).toHaveCSS('fill', 'rgb(0, 0, 0)');
-  await expect(outline).toHaveCSS('stroke', 'none');
+  await expect(badge).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await toggle.focus();
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
   await expect(contour).toHaveCSS('fill', 'rgb(0, 0, 0)');
-  await expect(outline).toHaveCSS('stroke', 'rgb(236, 223, 203)');
+  await expect(badge).toHaveCSS('background-color', 'rgb(236, 223, 203)');
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
     .toBe('rgb(24, 22, 20)');
@@ -284,7 +284,7 @@ test('manual theme choice overrides the system and persists through navigation a
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
   await expect(contour).toHaveCSS('fill', 'rgb(0, 0, 0)');
-  await expect(outline).toHaveCSS('stroke', 'rgb(236, 223, 203)');
+  await expect(badge).toHaveCSS('background-color', 'rgb(236, 223, 203)');
   expect(await page.evaluate(() => localStorage.getItem('phoenix-theme'))).toBe('dark');
   await page.emulateMedia({ colorScheme: 'dark' });
   await toggle.click();
