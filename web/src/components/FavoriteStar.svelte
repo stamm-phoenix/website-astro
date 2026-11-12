@@ -1,5 +1,6 @@
 <script lang="ts">
   import { favoritesStore, favoriteToggle } from '../lib/staffFavoritesStore.svelte';
+  import { FAVORITE_STAR_PATH as STAR } from '../lib/favoriteStar';
   import type { StaffModule } from '../lib/staffModules';
 
   interface Props {
@@ -8,8 +9,6 @@
     compact?: boolean;
   }
   let { module, compact = false }: Props = $props();
-
-  const STAR = 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z';
 
   const toggle = $derived(favoriteToggle(module));
   const active = $derived(favoritesStore.modules.includes(module.href));

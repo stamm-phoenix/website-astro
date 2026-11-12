@@ -142,9 +142,13 @@ Favoriten der Startseite liegen pro Account in Azure SQL (`organisation.staff_fa
 ist die SWA-Benutzer-ID) und gelten so auf jedem Gerät; `GET`/`PUT /api/intern/favoriten` liest
 bzw. ersetzt die eigene Auswahl. Favoriten werden direkt an den Bereichen gesetzt: Mit der Maus
 erscheint beim Zeigen auf einen Bereich (Seitenleiste, Liste „Alle Bereiche“, Suchergebnisse) ein
-Stern (`FavoriteStar.svelte`, ausgefüllt bei Favoriten), der umschaltet; an den Favoriten-Kacheln
-erscheint ein Minus, das entfernt. Auf Touchscreens schaltet langes Tippen auf einen Bereich oder
-eine Kachel (`lib/longPress.ts`), der Stern markiert dort nur die Favoriten. Jede Änderung
+Stern (`FavoriteStar.svelte`, ausgefüllt bei Favoriten), der umschaltet; die Kacheln der
+Startseite („Deine Bereiche“, `StaffFavoriteTiles.svelte`) haben im Normalzustand keinen Knopf:
+„Bearbeiten“ (`aria-pressed`, dann „Fertig“) zeigt an den Favoriten einen „Entfernen“-Knopf mit
+Stern und die Kacheln führen nicht mehr zu ihrem Bereich. Auf Touchscreens schaltet langes Tippen
+auf einen Bereich in den Listen (`lib/longPress.ts`), der Stern markiert dort nur die Favoriten.
+Nach dem Entfernen bietet das Popup „Rückgängig“ (stellt den Favoriten an seinem alten Platz
+wieder her, `restoreFavorite`). Jede Änderung
 speichert sofort und bestätigt sie im Popup („„Belege“ ist jetzt ein Favorit.“, `StaffNav.svelte`);
 schlägt das fehl, bleibt die Auswahl stehen und lässt sich mit „Erneut speichern“ nachholen; bis
 dahin fragt jede Seite vor dem Verlassen nach, und wer trotzdem geht, bekommt auf der nächsten

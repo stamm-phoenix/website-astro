@@ -3,21 +3,12 @@
   import { onMount, type Snippet } from 'svelte';
   import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
   import { fetchPrincipal } from '../lib/authStore.svelte';
-  import {
-    favoritesStore,
-    canChooseFavorites,
-    favoriteToggle,
-    loadFavorites,
-    toggleFavorite,
-  } from '../lib/staffFavoritesStore.svelte';
-  import { longPress } from '../lib/longPress';
+  import { favoritesStore, loadFavorites } from '../lib/staffFavoritesStore.svelte';
   import {
     STAFF_MODULES,
     NIKOLAUS_CONTROL_MODULE,
     NIKOLAUS_MODULES,
     STAFF_FAVORITE_PATHS,
-    CHANGELOG_PATH,
-    type StaffModule,
   } from '../lib/staffModules';
   import { loadRecent, recentStore } from '../lib/staffRecentStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
@@ -49,9 +40,8 @@
   import { isIch } from '../lib/ichStore.svelte';
   import { formatIsoDate } from '../lib/belege';
   import { formatEuro } from '../lib/format';
-  import InfoHint from './ui/InfoHint.svelte';
+  import StaffFavoriteTiles from './StaffFavoriteTiles.svelte';
   import StaffCommonTasks from './StaffCommonTasks.svelte';
-  import ChangelogBadge from './changelog/ChangelogBadge.svelte';
 
   /** Entries per area; the link next to the heading leads to the full list. */
   const CARD_LIMIT = 3;
@@ -59,7 +49,6 @@
   const TILE_LIMIT = 8;
   const SECONDARY_LOAD_DELAY_MS = 1500;
   const modules = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE];
-  const tileGrid = 'mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8';
   // Modules of the Nikolausdienst only while they are switched on (Steuerung always)
   const allModules = $derived(
     [...modules, ...(nikolausStatusStore.data?.staffActive ? NIKOLAUS_MODULES : [])].filter(
@@ -80,30 +69,6 @@
       Math.max(TILE_LIMIT, favoritesStore.modules.length)
     )
   );
-  interface PinnedTile {
-    href: string;
-    index: number;
-  }
-  let pinned = $state<PinnedTile | null>(null);
-  const visibleModules = $derived.by(() => {
-    const result = [...selectedModules];
-    if (pinned) {
-      const module = allModules.find(
-        (entry) =>
-          entry.href === pinned?.href &&
-          (favoritesStore.modules.includes(entry.href) || recentStore.modules.includes(entry.href))
-      );
-      if (module) {
-        const index = result.findIndex((entry) => entry.href === module.href);
-        if (index >= 0) result.splice(index, 1);
-        result.splice(pinned.index, 0, module);
-      }
-    }
-    return result;
-  });
-  function pinTile(href: string): void {
-    pinned = { href, index: visibleModules.findIndex((module) => module.href === href) };
-  }
   const upcoming = $derived(
     nurAktionen(campflowEventsStore.data ?? [])
       .filter(
@@ -244,83 +209,6 @@
     </div>
     {@render body()}
   </section>
-{/snippet}
-
-{#snippet moduleTitle(module: StaffModule)}
-  {#each (module.shortcut ?? module.wrap ?? module.title).split('|') as part, index (index)}{#if index > 0}<wbr
-      />{/if}{part}{/each}
-{/snippet}
-
-{#snippet tile(module: StaffModule, favorite: boolean)}
-  <li
-    class="group relative min-w-0"
-    onfocusout={(event) => {
-      if (
-        pinned?.href === module.href &&
-        (!(event.relatedTarget instanceof Node) ||
-          !event.currentTarget.contains(event.relatedTarget))
-      )
-        pinned = null;
-    }}
-  >
-    <a
-      onfocus={() => pinTile(module.href)}
-      onpointerdown={() => pinTile(module.href)}
-      onpointercancel={() => {
-        if (pinned?.href === module.href) pinned = null;
-      }}
-      onpointerleave={(event) => {
-        if (
-          pinned?.href === module.href &&
-          !event.currentTarget.closest('li')?.contains(document.activeElement)
-        )
-          pinned = null;
-      }}
-      use:longPress={favoriteToggle(module)}
-      href={module.href}
-      data-astro-reload={module.reload || undefined}
-      class="staff-tile flex h-full min-h-20 flex-col items-center justify-center gap-1.5 border border-neutral-300 bg-surface px-1 py-2 text-center text-[0.8rem] leading-tight font-semibold text-brand-900 no-underline hover:border-brand-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 sm:text-sm"
-    >
-      <svg
-        class="size-6 shrink-0"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.8"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"><path d={module.icon} /></svg
-      >
-      <span class="max-w-full break-words hyphens-auto">{@render moduleTitle(module)}</span>
-      {#if module.href === CHANGELOG_PATH}<ChangelogBadge floating />{/if}
-    </a>
-    {#if favorite && canChooseFavorites()}
-      <!-- With a mouse on hover; on a touch screen a long press on the tile removes it -->
-      <button
-        type="button"
-        class="absolute -top-2 -right-2 flex size-11 items-center justify-center rounded-full border border-neutral-300 bg-surface text-brand-900 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:border-brand-900 focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
-        aria-label="{(module.shortcut ?? module.title).replaceAll(
-          '|',
-          ''
-        )} aus deinen Favoriten entfernen"
-        title="Aus deinen Favoriten entfernen"
-        onclick={() => {
-          if (pinned?.href === module.href) pinned = null;
-          toggleFavorite(module.href, module.title);
-        }}
-      >
-        <svg
-          aria-hidden="true"
-          class="size-3.5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"><path d="M6 12h12" /></svg
-        >
-      </button>
-    {/if}
-  </li>
 {/snippet}
 
 {#snippet check()}
@@ -526,32 +414,7 @@
 
 <div class="mt-6 space-y-6">
   {#if selectedModules.length > 0}
-    <section aria-labelledby="favorites-heading">
-      <div class="flex items-center gap-1">
-        <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
-          Deine Bereiche
-        </h2>
-        <InfoHint label="Deine Bereiche">
-          <p class="pointer-coarse:hidden">
-            Zeig mit der Maus auf einen Bereich und klick auf den Stern, um ihn zum Favoriten zu
-            machen; das Minus an einer Kachel entfernt ihn wieder.
-          </p>
-          <p class="hidden pointer-coarse:block">
-            Tippe auf den Stern neben einem Bereich, um ihn zum Favoriten zu machen. Das Minus an
-            einer Kachel entfernt ihn wieder. Langes Tippen geht auch.
-          </p>
-        </InfoHint>
-      </div>
-
-      <ul class={tileGrid}>
-        {#each visibleModules as module (module.href)}
-          {@render tile(
-            module,
-            favoritesStore.loaded && favoritesStore.modules.includes(module.href)
-          )}
-        {/each}
-      </ul>
-    </section>
+    <StaffFavoriteTiles selected={selectedModules} available={allModules} />
   {/if}
   <div class:sr-only={!favoritesStore.loadError}>
     <LoadState

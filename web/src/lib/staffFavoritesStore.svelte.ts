@@ -21,7 +21,14 @@ interface FavoritesState {
   loaded: boolean;
   loading: boolean;
   loadError: string | null;
-  notice: { text: string; kind: 'success' | 'error' } | null;
+  notice: { text: string; kind: 'success' | 'error'; undo?: RemovedFavorite } | null;
+}
+
+/** A favorite that was just removed, with its place, so „Rückgängig“ puts it back there. */
+export interface RemovedFavorite {
+  path: string;
+  title: string;
+  index: number;
 }
 
 export const favoritesStore = $state<FavoritesState>({
@@ -132,9 +139,10 @@ export function favoritesUnsaved(): boolean {
 
 /**
  * Saves the shown selection after all earlier saves. `success` is the confirmation, e.g. naming
- * the area that changed; a retry confirms all favorites.
+ * the area that changed; a retry confirms all favorites. `undo` adds „Rückgängig“ to the
+ * confirmation of a removal.
  */
-export function saveFavorites(success = 'Favoriten gespeichert.'): void {
+export function saveFavorites(success = 'Favoriten gespeichert.', undo?: RemovedFavorite): void {
   pendingSaves++;
   queue = queue.then(async () => {
     const selection = [...favoritesStore.modules];
@@ -145,7 +153,7 @@ export function saveFavorites(success = 'Favoriten gespeichert.'): void {
       // Every save sends the whole selection, so it also covers an earlier failed one. A newer
       // choice is confirmed by its own save.
       if (!favoritesUnsaved()) {
-        favoritesStore.notice = { text: success, kind: 'success' };
+        favoritesStore.notice = { text: success, kind: 'success', undo };
       }
     } catch (error: unknown) {
       pendingSaves--;
@@ -157,19 +165,33 @@ export function saveFavorites(success = 'Favoriten gespeichert.'): void {
 
 /** Adds or removes a favorite and saves it right away; `title` names it in the confirmation. */
 export function toggleFavorite(path: string, title?: string): void {
-  const adding = !favoritesStore.modules.includes(path);
+  const index = favoritesStore.modules.indexOf(path);
+  const adding = index < 0;
   favoritesStore.modules = adding
     ? [...favoritesStore.modules, path]
     : favoritesStore.modules.filter((module) => module !== path);
   // An earlier result does not apply to the new choice
   favoritesStore.notice = null;
+  if (!title) {
+    saveFavorites();
+    return;
+  }
   saveFavorites(
-    title
-      ? adding
-        ? `„${title}“ ist jetzt ein Favorit.`
-        : `„${title}“ ist kein Favorit mehr.`
-      : undefined
+    adding ? `„${title}“ ist jetzt ein Favorit.` : `„${title}“ ist kein Favorit mehr.`,
+    adding ? undefined : { path, title, index }
   );
+}
+
+/** Puts a removed favorite back where it was and saves it. */
+export function restoreFavorite({ path, title, index }: RemovedFavorite): void {
+  if (!canChooseFavorites() || favoritesStore.modules.includes(path)) return;
+  favoritesStore.modules = favoritesStore.modules.toSpliced(
+    Math.min(index, favoritesStore.modules.length),
+    0,
+    path
+  );
+  favoritesStore.notice = null;
+  saveFavorites(`„${title}“ ist wieder ein Favorit.`);
 }
 
 /**

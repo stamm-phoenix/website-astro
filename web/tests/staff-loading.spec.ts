@@ -95,8 +95,12 @@ test('removing the last favorite releases the tile and hides the personal sectio
   await page.goto('/leitendenbereich');
   const areas = page.getByRole('region', { name: 'Deine Bereiche' });
   const remove = areas.getByRole('button', { name: 'Mitglieder aus deinen Favoriten entfernen' });
-  await expect(remove).toBeVisible();
-  await areas.getByRole('link', { name: 'Mitglieder', exact: true }).focus();
+  // Without „Bearbeiten“ a tile has no button to remove it
+  await expect(remove).toHaveCount(0);
+  const edit = areas.getByRole('button', { name: /^(Bearbeiten|Fertig)$/ });
+  await edit.click();
+  await expect(edit).toHaveText('Fertig');
+  await expect(edit).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.press('Tab');
   await expect(remove).toBeFocused();
   await page.keyboard.press('Enter');
@@ -125,9 +129,7 @@ test('a delayed selection preserves a focused recent area despite mouse movement
     .getByRole('link', { name: 'Belege', exact: true })
     .dispatchEvent('pointerleave', { pointerType: 'mouse' });
   release();
-  await expect(
-    areas.getByRole('button', { name: 'Mitglieder aus deinen Favoriten entfernen' })
-  ).toBeVisible();
+  await expect(areas.getByRole('button', { name: 'Bearbeiten' })).toBeVisible();
   await expect(tasks).toBeFocused();
   expect(await tasks.boundingBox()).toEqual(before);
 });
@@ -155,9 +157,7 @@ test('a touched recent area keeps its position until the touch is canceled', asy
   await tasks.dispatchEvent('pointerdown', { pointerType: 'touch' });
   const before = await tasks.boundingBox();
   release();
-  await expect(
-    areas.getByRole('button', { name: 'Belege aus deinen Favoriten entfernen' })
-  ).toBeVisible();
+  await expect(areas.getByRole('button', { name: 'Bearbeiten' })).toBeVisible();
   expect(await tasks.boundingBox()).toEqual(before);
   await tasks.dispatchEvent('pointercancel', { pointerType: 'touch' });
   await expect(areas.getByRole('link')).toHaveText(['Belege', 'Aufgaben']);
