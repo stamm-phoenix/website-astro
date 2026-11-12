@@ -831,3 +831,13 @@ dialog {
   opacity: 0.2;
   pointer-events: none;
 }
+
+/* A person mentioned in the minutes (#547), in the text and in the editor */
+.erwaehnung {
+  border-radius: 0.25rem;
+  padding: 0 0.2em;
+  background: var(--color-brand-100);
+  color: var(--color-brand-900);
+  font-weight: 600;
+  white-space: nowrap;
+}

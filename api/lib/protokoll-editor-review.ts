@@ -15,7 +15,7 @@ import { SperreError, editorResource, parseInhalt, readSperre, toSperre } from '
 import type { PdfVorstand } from './protokoll-editor-pdf';
 import { createProtokollPdf, protokollPdfFileName } from './protokoll-editor-pdf';
 import { createProtokollTasks } from './protokoll-editor-aufgaben';
-import type { ProtokollFreigabeResponse } from './protokoll-editor-model';
+import type { ProtokollInhalt } from './protokoll-editor-model';
 import { findDrive } from './protokoll-source';
 import { assertOwnApprovalConfirmed } from './protokolle';
 import {
@@ -199,6 +199,17 @@ async function filePdf(
   deny('Im Protokoll-Ordner gibt es schon zu viele Dateien mit diesem Namen.');
 }
 
+/** The result of an approval, with what the notes to the mentioned people need (#547). */
+export interface EditorFreigabe {
+  fileName: string;
+  aufgaben: number;
+  title: string;
+  /** `YYYY-MM-DD` */
+  date: string;
+  /** The approved content. */
+  inhalt: ProtokollInhalt;
+}
+
 /**
  * Approves a draft or minutes in review: creates the PDF with the approval, files it in the
  * folder of the minutes and then marks the minutes as approved and creates their tasks in the
@@ -212,7 +223,7 @@ export async function approveEditorProtokoll(
   input: { etag: string | undefined; token: string | null; ownConfirmed: boolean },
   principal: ClientPrincipal,
   now: Date = new Date()
-): Promise<ProtokollFreigabeResponse> {
+): Promise<EditorFreigabe> {
   const version = requireVersion(input.etag);
   const row = await loadRow(id);
   if (row.status !== 'entwurf' && row.status !== 'review') {
@@ -280,7 +291,7 @@ export async function approveEditorProtokoll(
     await deleteSharePointDriveItem(driveId, filed.id).catch(() => undefined);
     throw error;
   }
-  return { fileName: filed.name, aufgaben };
+  return { fileName: filed.name, aufgaben, title: row.title, date, inhalt };
 }
 
 /**

@@ -55,6 +55,8 @@ function inlineRuns(nodes: MdInline[]): Content[] {
           color: BRAND,
           decoration: 'underline',
         };
+      case 'erwaehnung':
+        return { text: `@${node.name}`, bold: true, color: BRAND };
     }
   });
 }

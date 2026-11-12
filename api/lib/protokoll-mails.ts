@@ -84,3 +84,40 @@ export async function sendProtokollRejectedMail(data: ProtokollRejectedMail): Pr
     sender: CONFIG.protokolle.sender,
   });
 }
+
+/** How long one mail to a mentioned person may take, the CampFlow address included. */
+export const ERWAEHNUNG_MAIL_TIMEOUT_MS = 10_000;
+
+export interface ProtokollErwaehnungMail {
+  /** Login of the mentioned leader; the mail also goes to their CampFlow address. */
+  to: string;
+  title: string;
+  date: string;
+  /** The agenda items naming the person, e.g. „2a. Sommerlager“. */
+  punkte: string[];
+  approvedBy: string;
+  url: string;
+}
+
+/** Tells a person mentioned with `@` in approved minutes where they are named (#547). */
+export async function sendProtokollErwaehnungMail(data: ProtokollErwaehnungMail): Promise<void> {
+  const name = heading(data.title, data.date);
+  const punkte = data.punkte.map((punkt) => `<li>${escapeHtml(punkt)}</li>`).join('');
+  const html = mailLayout(`
+    <h1 style="font-size:20px;color:#003056;">Du wurdest im Protokoll erwähnt</h1>
+    <p>Hallo,</p>
+    <p>im Protokoll <strong>${escapeHtml(name)}</strong> wirst du erwähnt${
+      data.punkte.length === 1 ? ' unter diesem Punkt' : ' unter diesen Punkten'
+    }:</p>
+    <ul>${punkte}</ul>
+    ${mailButton(data.url, 'Protokoll öffnen', FALLBACK)}
+    <p style="font-size:13px;color:#6b7280;">Freigegeben von ${escapeHtml(data.approvedBy)}.
+      Der Link funktioniert nach der Anmeldung mit einem Stammes-Account.</p>
+  `);
+  // Sent while the approval waits for its answer, so a slow mail must not hold it up
+  await sendLeitendenMail(data.to, `Erwähnt im Protokoll: ${name}`, html, {
+    sender: CONFIG.protokolle.sender,
+    retry: false,
+    timeoutMs: ERWAEHNUNG_MAIL_TIMEOUT_MS,
+  });
+}

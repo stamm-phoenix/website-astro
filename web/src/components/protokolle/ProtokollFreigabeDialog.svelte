@@ -18,6 +18,8 @@
     consequence: string;
     /** Tasks of the minutes that the approval creates in the module Aufgaben. */
     aufgaben?: number;
+    /** Names of the people mentioned with `@`, who get a note after the approval (#547). */
+    erwaehnte?: string[];
     /** Version of the minutes being approved; a new version needs the box ticked again. */
     version: string;
     busy: boolean;
@@ -34,6 +36,7 @@
     draft,
     consequence,
     aufgaben = 0,
+    erwaehnte = [],
     version,
     busy,
     error,
@@ -87,6 +90,13 @@
     <p class="text-sm text-neutral-700">
       Dabei {aufgaben === 1 ? 'wird' : 'werden'} aus dem Protokoll {aufgabenAnzahl(aufgaben)} im Modul
       Aufgaben angelegt.
+    </p>
+  {/if}
+  {#if erwaehnte.length > 0}
+    <p class="text-sm text-neutral-700">
+      {erwaehnte.length === 1 ? 'Erwähnt ist' : 'Erwähnt sind'}
+      {erwaehnte.join(', ')}. {erwaehnte.length === 1 ? 'Sie bekommt' : 'Sie bekommen'} nach der Freigabe
+      eine Mail.
     </p>
   {/if}
   {#if draft && !own}

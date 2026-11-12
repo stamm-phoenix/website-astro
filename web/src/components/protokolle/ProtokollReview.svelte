@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { freigabeErwaehnte, freigabeMeldung } from '../../lib/protokollFreigabe';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { tick } from 'svelte';
@@ -116,9 +117,7 @@
         ownConfirmed,
       });
       approving = false;
-      notify(
-        `Freigegeben. „${result.fileName}“ liegt jetzt im Protokoll-Ordner.${result.aufgaben ? ` ${aufgabenAnzahl(result.aufgaben).replace(/^e/, 'E')} im Modul Aufgaben angelegt.` : ''}`
-      );
+      notify(freigabeMeldung(result, detail.title));
       await onchanged();
     } catch (error: unknown) {
       approveError = errorMessage(
@@ -301,6 +300,7 @@
   version={detail.etag}
   consequence="Das Protokoll wird als PDF im Protokoll-Ordner abgelegt und lässt sich danach nicht mehr ändern."
   aufgaben={freigabeAufgaben(detail.inhalt)}
+  erwaehnte={freigabeErwaehnte(detail.inhalt, login)}
   {busy}
   error={approveError}
   onclose={() => {

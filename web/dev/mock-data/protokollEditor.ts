@@ -21,6 +21,8 @@ import type {
   ProtokollSperre,
 } from '../../src/lib/types';
 import { dayFromToday, isoFromNow } from './util';
+import { erwaehnungenIn } from '../../../api/lib/protokoll-markdown';
+import { parseProtokollMarkdown } from '../../src/lib/protokollMarkdown';
 import { mockMitEigenerAdresse } from './personen';
 
 /**
@@ -70,6 +72,24 @@ interface MockEditorProtokoll {
 export const mockAufgabenHooks: {
   create: (protokollId: number, eintraege: ProtokollEintrag[]) => number;
 } = { create: () => 0 };
+
+/**
+ * The people the approval would notify (#547): everyone mentioned except the approver. The demo
+ * sends no mail and only logs them.
+ */
+function mockErwaehnte(inhalt: ProtokollInhalt): string[] {
+  const logins = new Set<string>();
+  for (const punkt of inhalt.punkte) {
+    for (const item of [punkt, ...punkt.unterpunkte]) {
+      for (const { login } of erwaehnungenIn(parseProtokollMarkdown(item.text))) {
+        if (login.toLowerCase() !== LOGIN.toLowerCase()) logins.add(login.toLowerCase());
+      }
+    }
+  }
+  const result = [...logins];
+  if (result.length) console.info(`[mock] Erwähnte benachrichtigt: ${result.join(', ')}`);
+  return result;
+}
 
 /** Review fields of new minutes. */
 const NO_REVIEW = {
@@ -471,7 +491,13 @@ export function reviewEditorProtokoll(
       });
       p.version++;
       p.aufgabenAngelegt = mockAufgabenHooks.create(p.id, protokollEintraege(p.inhalt));
-      return { ok: { fileName: p.ablage?.fileName, aufgaben: p.aufgabenAngelegt } };
+      return {
+        ok: {
+          fileName: p.ablage?.fileName,
+          aufgaben: p.aufgabenAngelegt,
+          benachrichtigt: mockErwaehnte(p.inhalt).length,
+        },
+      };
     case 'reject':
       if (p.status !== 'review') return { invalid: 'Nur Protokolle im Review können zurückgehen.' };
       if (!body.note.trim())

@@ -36,7 +36,9 @@ export type MdInline =
   | { type: 'strong' | 'em' | 'del'; children: MdInline[] }
   | { type: 'code'; text: string }
   | { type: 'br' }
-  | { type: 'link'; href: string; children: MdInline[] };
+  | { type: 'link'; href: string; children: MdInline[] }
+  /** A person named with `@` (#547); `name` without the `@`. */
+  | { type: 'erwaehnung'; login: string; name: string };
 
 export interface MdListItem {
   /** `null` for a plain item, else whether its box is ticked. */
@@ -61,6 +63,88 @@ const SAFE_LINK = /^(?:https?:\/\/|mailto:)/i;
 export function safeHref(href: string): string | null {
   const trimmed = href.trim();
   return SAFE_LINK.test(trimmed) && !/[\s<>"`]/.test(trimmed) ? trimmed : null;
+}
+
+/**
+ * Mentions (#547) are links to `person:<login>` with the name as text: `[@Anna Muster](person:
+ * anna@example.org)`. Plain Markdown keeps them readable; this module turns them into
+ * `erwaehnung` nodes, and the approval notifies the people (`protokoll-erwaehnungen.ts`).
+ */
+export const ERWAEHNUNG_SCHEMA = 'person:';
+
+const ERWAEHNUNG_LOGIN = /^[^\s()<>[\]\\]+$/;
+
+/** The login of a mention link, or `null` if `href` is none. */
+export function erwaehnungLogin(href: string): string | null {
+  const trimmed = href.trim();
+  if (!trimmed.toLowerCase().startsWith(ERWAEHNUNG_SCHEMA)) return null;
+  const login = trimmed.slice(ERWAEHNUNG_SCHEMA.length);
+  return ERWAEHNUNG_LOGIN.test(login) ? login : null;
+}
+
+/** Whether a person can be mentioned: only a login makes a link and a notification. */
+export function erwaehnbar(person: { login: string }): boolean {
+  return ERWAEHNUNG_LOGIN.test(person.login.trim());
+}
+
+/** The Markdown of a mention; characters of Markdown in the name are escaped. */
+export function erwaehnungMarkdown(person: { login: string; name: string }): string {
+  const name = person.name
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[\\[\]*_~`<>]/g, '\\$&');
+  return `[@${name}](${ERWAEHNUNG_SCHEMA}${person.login.trim()})`;
+}
+
+/** The text of inline nodes without formatting. */
+function plainText(nodes: MdInline[]): string {
+  return nodes
+    .map((node) => {
+      if (node.type === 'text' || node.type === 'code') return node.text;
+      if (node.type === 'br') return ' ';
+      if (node.type === 'erwaehnung') return `@${node.name}`;
+      return plainText(node.children);
+    })
+    .join('');
+}
+
+function inlineErwaehnungen(nodes: MdInline[], into: { login: string; name: string }[]): void {
+  for (const node of nodes) {
+    if (node.type === 'erwaehnung') into.push({ login: node.login, name: node.name });
+    else if (node.type === 'strong' || node.type === 'em' || node.type === 'del') {
+      inlineErwaehnungen(node.children, into);
+    } else if (node.type === 'link') inlineErwaehnungen(node.children, into);
+  }
+}
+
+/** The mentions in a tree, in reading order and with repetitions. */
+export function erwaehnungenIn(tree: readonly MdBlock[]): { login: string; name: string }[] {
+  const result: { login: string; name: string }[] = [];
+  const walk = (list: readonly MdBlock[]): void => {
+    for (const block of list) {
+      switch (block.type) {
+        case 'paragraph':
+        case 'heading':
+          inlineErwaehnungen(block.children, result);
+          break;
+        case 'list':
+          for (const item of block.items) walk(item.blocks);
+          break;
+        case 'quote':
+          walk(block.blocks);
+          break;
+        case 'table':
+          for (const cell of [...block.header, ...block.rows.flat()]) {
+            inlineErwaehnungen(cell, result);
+          }
+          break;
+        default:
+          break;
+      }
+    }
+  };
+  walk(tree);
+  return result;
 }
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
@@ -106,6 +190,12 @@ function inline(tokens: MdToken[] | undefined): MdInline[] {
         result.push({ type: 'br' });
         break;
       case 'link': {
+        const login = erwaehnungLogin(token.href ?? '');
+        if (login !== null) {
+          const name = plainText(inline(token.tokens)).trim().replace(/^@/, '');
+          result.push({ type: 'erwaehnung', login, name: name || login });
+          break;
+        }
         const href = safeHref(token.href ?? '');
         if (href) result.push({ type: 'link', href, children: inline(token.tokens) });
         else result.push({ type: 'text', text: token.raw });

@@ -1,6 +1,9 @@
 <script lang="ts">
   import Self from './ProtokollPunktEditor.svelte';
   import ProtokollPunktExtras from './ProtokollPunktExtras.svelte';
+  import ErwaehnungListe from './ErwaehnungListe.svelte';
+  import { ErwaehnungAuswahl } from '../../lib/erwaehnungAuswahl.svelte';
+  import { erwaehnungMarkdown, erwaehnungSuche } from '../../lib/protokollErwaehnung';
   import {
     MAX_TEXT,
     aktionZeitraum,
@@ -57,6 +60,29 @@
     if (textarea) grow(textarea);
   });
 
+  /** `@` and a name pick a person to mention (#547); the field keeps the focus. */
+  const erwaehnung = new ErwaehnungAuswahl(
+    () => personen,
+    (person, suche) => {
+      if (!textarea) return;
+      const caret = textarea.selectionStart;
+      const insert = `${erwaehnungMarkdown(person)} `;
+      const next = punkt.text.slice(0, suche.start) + insert + punkt.text.slice(caret);
+      if (next.length > MAX_TEXT) return;
+      punkt.text = next;
+      const at = suche.start + insert.length;
+      requestAnimationFrame(() => textarea?.setSelectionRange(at, at));
+    }
+  );
+
+  function sucheErwaehnung(): void {
+    if (!textarea || textarea.selectionStart !== textarea.selectionEnd) {
+      erwaehnung.setze(null);
+      return;
+    }
+    erwaehnung.setze(erwaehnungSuche(textarea.value.slice(0, textarea.selectionStart)));
+  }
+
   function addUnterpunkt(): void {
     punkt.unterpunkte.push(neuerPunkt(newElementId()));
   }
@@ -73,6 +99,10 @@
    * (counting up) and checkboxes. Enter on an empty item ends the list.
    */
   function onkeydown(event: KeyboardEvent): void {
+    if (erwaehnung.taste(event)) {
+      event.preventDefault();
+      return;
+    }
     if (event.key !== 'Enter' || event.shiftKey || event.isComposing || !textarea) return;
     const { selectionStart, selectionEnd, value } = textarea;
     if (selectionStart !== selectionEnd) return;
@@ -101,9 +131,20 @@
     class="form-input text"
     rows="2"
     maxlength={MAX_TEXT}
-    placeholder="Was besprochen wurde …"
+    placeholder="Was besprochen wurde … Mit @ erwähnst du jemanden."
+    aria-autocomplete="list"
+    aria-controls={erwaehnung.offen ? erwaehnung.id : undefined}
+    aria-activedescendant={erwaehnung.aktiveId}
     bind:value={punkt.text}
+    oninput={sucheErwaehnung}
+    onkeyup={(event) => {
+      if (event.key.startsWith('Arrow') && !erwaehnung.offen) sucheErwaehnung();
+      else if (event.key === 'Home' || event.key === 'End') sucheErwaehnung();
+    }}
+    onclick={sucheErwaehnung}
+    onblur={() => erwaehnung.schliessen()}
     {onkeydown}></textarea>
+  <ErwaehnungListe auswahl={erwaehnung} />
 {/snippet}
 
 <section

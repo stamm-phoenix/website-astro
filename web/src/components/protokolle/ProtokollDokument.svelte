@@ -4,6 +4,9 @@
   import { Placeholder } from '@tiptap/extensions';
   import { TextSelection } from '@tiptap/pm/state';
   import TextEditorToolbar from '../ui/TextEditorToolbar.svelte';
+  import ErwaehnungListe from './ErwaehnungListe.svelte';
+  import { ErwaehnungAuswahl } from '../../lib/erwaehnungAuswahl.svelte';
+  import { ErwaehnungSuchePlugin, erwaehnen } from '../../lib/erwaehnungNode';
   import {
     DokumentUmwandlung,
     PLACEHOLDER_TEXT,
@@ -76,6 +79,42 @@
     return null;
   }
 
+  /** `@` and a name pick a person to mention (#547); the list floats below the `@`. */
+  const erwaehnung = new ErwaehnungAuswahl(
+    () => personen,
+    (person, suche) => {
+      if (editor) erwaehnen(editor, person, suche);
+    }
+  );
+  let erwaehnungOrt = $state<{ left: number; top: number } | null>(null);
+
+  /** Keeps the list below its `@` while the page scrolls. */
+  function erwaehnungFolgen(): void {
+    const start = erwaehnung.suche?.start;
+    if (!editor || start === undefined || !erwaehnung.offen) return;
+    try {
+      const coords = editor.view.coordsAtPos(start);
+      erwaehnungOrt = { left: coords.left, top: coords.bottom + 4 };
+    } catch {
+      erwaehnung.schliessen();
+    }
+  }
+
+  // The editor is a text box of its own; the list is announced like that of the Markdown fields
+  $effect(() => {
+    const dom = editor?.view.dom;
+    if (!dom) return;
+    dom.setAttribute('aria-autocomplete', 'list');
+    const aktiv = erwaehnung.aktiveId;
+    if (aktiv) {
+      dom.setAttribute('aria-controls', erwaehnung.id);
+      dom.setAttribute('aria-activedescendant', aktiv);
+    } else {
+      dom.removeAttribute('aria-controls');
+      dom.removeAttribute('aria-activedescendant');
+    }
+  });
+
   const views = new DokumentViews({
     // Read when a view is built or an event fires, so the props are seen as they are then
     get griff() {
@@ -112,6 +151,11 @@
         'aria-label': 'Tagesordnung',
       },
       handleKeyDown: (view, event) => {
+        // The open list of people takes the arrows, Enter, Tab and Escape first
+        if (erwaehnung.taste(event)) {
+          event.preventDefault();
+          return true;
+        }
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
           event.preventDefault();
           toolbar?.openLink();
@@ -206,6 +250,15 @@
       extras: extrasView(views),
     });
     extensions.push(
+      ErwaehnungSuchePlugin.configure({
+        steuerung: {
+          setze: (suche, ort) => {
+            erwaehnung.setze(suche);
+            erwaehnungOrt = ort;
+          },
+          taste: (event) => erwaehnung.taste(event),
+        },
+      }),
       Placeholder.configure({
         includeChildren: true,
         showOnlyCurrent: false,
@@ -285,7 +338,13 @@
   }
 </script>
 
-<svelte:window onresize={measureTop} />
+<svelte:window
+  onresize={() => {
+    measureTop();
+    erwaehnungFolgen();
+  }}
+  onscroll={erwaehnungFolgen}
+/>
 
 <div
   class="dokument rounded-md border border-neutral-300 bg-surface shadow-sm focus-within:ring-2 focus-within:ring-[var(--color-brand-400)]"
@@ -299,6 +358,7 @@
     --toolbar-top="{toolbarTop}px"
   />
   <div bind:this={element} class="inhalt"></div>
+  <ErwaehnungListe auswahl={erwaehnung} position={erwaehnungOrt} />
 </div>
 
 <style>

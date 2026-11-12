@@ -33,6 +33,8 @@
         href={node.href}
         target="_blank"
         rel="noopener noreferrer">{@render inline(node.children)}</a
+      >{:else if node.type === 'erwaehnung'}<span class="erwaehnung" title={node.login}
+        >@{node.name}</span
       >{/if}
   {/each}
 {/snippet}

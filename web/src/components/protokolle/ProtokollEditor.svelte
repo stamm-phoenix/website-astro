@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { freigabeErwaehnte, freigabeMeldung } from '../../lib/protokollFreigabe';
   import { scrollBehavior } from '../../lib/motion';
   import MessageText from '../ui/MessageText.svelte';
   import { onMount, tick, untrack } from 'svelte';
@@ -25,7 +26,6 @@
     MAX_PUNKTE,
     PROTOKOLL_STATUS,
     SPERRE_RENEW_SECONDS,
-    aufgabenAnzahl,
     changedPunkte,
     clearLocalDraft,
     copyStand,
@@ -823,7 +823,7 @@
       notify(
         action === 'review'
           ? 'Zur Prüfung gegeben. Alle Leitenden können es jetzt freigeben oder zurückgeben.'
-          : `Freigegeben. „${result.fileName ?? detail.title}“ liegt jetzt im Protokoll-Ordner.${result.aufgaben ? ` ${aufgabenAnzahl(result.aufgaben).replace(/^e/, 'E')} im Modul Aufgaben angelegt.` : ''}`
+          : freigabeMeldung(result, detail.title)
       );
     } catch (error: unknown) {
       if (error instanceof ApiError && error.status === 423) {
@@ -1386,6 +1386,7 @@
     version={detail.etag}
     consequence="Das Protokoll wird als PDF im Protokoll-Ordner abgelegt und lässt sich danach nicht mehr ändern."
     aufgaben={freigabeAufgaben(stand?.inhalt ?? detail.inhalt)}
+    erwaehnte={freigabeErwaehnte(stand?.inhalt ?? detail.inhalt, login)}
     busy={submitBusy}
     error={submitError}
     onclose={() => {

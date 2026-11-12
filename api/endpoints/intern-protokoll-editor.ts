@@ -44,12 +44,12 @@ import {
 } from '../lib/protokoll-editor';
 import type {
   OffeneAufgabeQuelle,
-  PersonOption,
   ProtokollEditorPersonen,
+  ProtokollFreigabeResponse,
   ProtokollPerson,
   Vorbelegung,
 } from '../lib/protokoll-editor-model';
-import { MAX_SITZUNGSLEITUNG, PERSON_GRUPPEN } from '../lib/protokoll-editor-model';
+import { MAX_SITZUNGSLEITUNG } from '../lib/protokoll-editor-model';
 import { vorbelegungFuer } from '../lib/protokoll-vorbelegung';
 import {
   AblageNotConfiguredError,
@@ -79,7 +79,9 @@ import { encodeContentDisposition, errorResponse, withErrorHandling } from '../l
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { getClaim, isStaffError, requireStaff } from '../lib/staff-auth';
 import { getTaskDirectoryUsers } from '../lib/task-directory';
-import { getPersonen, mitEigenerAdresse } from '../lib/personen';
+import { mitEigenerAdresse } from '../lib/personen';
+import { loadEditorPersonen } from '../lib/protokoll-editor-personen';
+import { benachrichtigeErwaehnte } from '../lib/protokoll-erwaehnungen';
 
 /**
  * Protokoll-Editor (#277, `docs/protokoll-editor.md`): every logged-in leader may read all
@@ -229,40 +231,11 @@ export async function GetEditorRevisionEndpoint(request: HttpRequest): Promise<H
   return revision ? { status: 200, headers: NO_STORE_HEADERS, jsonBody: revision } : NOT_FOUND;
 }
 
-/**
- * GET: the people to pick in the minutes: the leaders from the Entra group and the active
- * Altleitende and others of the list (#301). A source that fails is left out and reported as
- * `unavailable`; names can always be typed.
- */
+/** GET: the people to pick in the minutes and to mention with `@` (`loadEditorPersonen`). */
 export async function GetEditorPersonenEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const principal = requireStaff(request);
   if (isStaffError(principal)) return principal;
-  const [leitende, weitere] = await Promise.allSettled([getTaskDirectoryUsers(), getPersonen()]);
-  const personen = new Map<string, PersonOption>();
-  const key = (person: ProtokollPerson): string =>
-    person.login ? person.login.toLowerCase() : `name:${person.name.toLowerCase()}`;
-  if (leitende.status === 'fulfilled') {
-    for (const user of leitende.value) {
-      const person: PersonOption = { login: user.login, name: user.name, gruppe: 'leitende' };
-      if (!personen.has(key(person))) personen.set(key(person), person);
-    }
-  }
-  if (weitere.status === 'fulfilled') {
-    // Rows of leaders only link them to CampFlow; the Entra group says who leads
-    for (const entry of weitere.value.filter((p) => p.aktiv && p.gruppe !== 'leitende')) {
-      const person: PersonOption = { login: entry.login, name: entry.name, gruppe: entry.gruppe };
-      // Someone in the Entra group counts as a leader, even if also on the list
-      if (!personen.has(key(person))) personen.set(key(person), person);
-    }
-  }
-  const body: ProtokollEditorPersonen = {
-    personen: [...personen.values()].sort(
-      (a, b) =>
-        PERSON_GRUPPEN.indexOf(a.gruppe) - PERSON_GRUPPEN.indexOf(b.gruppe) ||
-        a.name.localeCompare(b.name, 'de')
-    ),
-    unavailable: leitende.status === 'rejected' || weitere.status === 'rejected',
-  };
+  const body: ProtokollEditorPersonen = await loadEditorPersonen();
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };
 }
 
@@ -451,7 +424,29 @@ export const EditorReviewEndpoint = editorHandler(async (id, request, context, p
     await submitEditorReview(id, { etag, token }, principal.userDetails);
     result = ok({});
   } else if (action === 'approve') {
-    result = ok(await approveEditorProtokoll(id, { etag, token, ownConfirmed }, principal));
+    const freigabe = await approveEditorProtokoll(id, { etag, token, ownConfirmed }, principal);
+    // The approval stands; the notes to the mentioned people are best effort
+    let benachrichtigt = 0;
+    try {
+      benachrichtigt = await benachrichtigeErwaehnte(
+        {
+          inhalt: freigabe.inhalt,
+          title: freigabe.title,
+          date: freigabe.date,
+          approvedBy: principal.userDetails,
+          url: editorUrl(request, id),
+        },
+        (message, error) => context.warn(`${message} (Protokoll ${id})`, error ?? '')
+      );
+    } catch (error: unknown) {
+      context.warn(`[protokoll-editor] Erwähnte von ${id} nicht benachrichtigt`, error);
+    }
+    const body: ProtokollFreigabeResponse = {
+      fileName: freigabe.fileName,
+      aufgaben: freigabe.aufgaben,
+      benachrichtigt,
+    };
+    result = ok(body);
   } else {
     const rejected = await rejectEditorReview(id, { etag, note });
     let mailSent = false;
