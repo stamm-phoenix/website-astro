@@ -286,6 +286,24 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   expect(await page.evaluate(() => localStorage.getItem('phoenix:staff-sidebar:v1'))).toBe(
     'ausgeklappt'
   );
+
+  // Dragging it with the mouse folds it to the left and unfolds it to the right, without
+  // following the link the drag started on
+  const dragFrom = async (name: string, dx: number): Promise<void> => {
+    const link = sidebar.getByRole('link', { name, exact: true });
+    await link.scrollIntoViewIfNeeded();
+    const box = (await link.boundingBox())!;
+    const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + dx, y, { steps: 8 });
+    await page.mouse.up();
+  };
+  await dragFrom('Belege', -100);
+  await expect(sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' })).toBeVisible();
+  await dragFrom('Belege', 100);
+  await expect(sidebar.getByRole('button', { name: 'Seitenleiste einklappen' })).toBeVisible();
+  await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
 });
 
 /**
