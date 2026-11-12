@@ -16,6 +16,7 @@
     NIKOLAUS_CONTROL_MODULE,
     NIKOLAUS_MODULES,
     STAFF_FAVORITE_PATHS,
+    CHANGELOG_PATH,
     type StaffModule,
   } from '../lib/staffModules';
   import { loadRecent, recentStore } from '../lib/staffRecentStore.svelte';
@@ -50,6 +51,7 @@
   import { formatEuro } from '../lib/format';
   import InfoHint from './ui/InfoHint.svelte';
   import StaffCommonTasks from './StaffCommonTasks.svelte';
+  import ChangelogBadge from './changelog/ChangelogBadge.svelte';
 
   /** Entries per area; the link next to the heading leads to the full list. */
   const CARD_LIMIT = 3;
@@ -290,6 +292,7 @@
         aria-hidden="true"><path d={module.icon} /></svg
       >
       <span class="max-w-full break-words hyphens-auto">{@render moduleTitle(module)}</span>
+      {#if module.href === CHANGELOG_PATH}<ChangelogBadge floating />{/if}
     </a>
     {#if favorite && canChooseFavorites()}
       <!-- With a mouse on hover; on a touch screen a long press on the tile removes it -->
