@@ -173,7 +173,7 @@ test('approving while a project is being created waits for the link', async ({ p
 
   const data = await (await page.request.get('/api/intern/pflege/aufgaben')).json();
   const project = data.projects.find(
-    (p: { title: string }) => p.title === 'Planung Pfadi-Winterlager auf der Hütte'
+    (p: { title: string }) => p.title === 'Pfadi-Winterlager auf der Hütte'
   );
   const task = data.tasks.find((t: { title: string }) => t.title === 'Hütte buchen');
   expect(task.projectId).toBe(project.id);
