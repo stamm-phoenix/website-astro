@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { ApiError, errorMessage, postApi } from '../../lib/api';
@@ -18,8 +19,10 @@
     detail: ProtokollEditorDetail;
     /** Reloads the minutes after a proposal was taken over. */
     onchanged: () => Promise<unknown>;
+    /** The button next to „Korrekturen prüfen“ in the row of two. */
+    nebenan?: Snippet;
   }
-  let { detail, onchanged }: Props = $props();
+  let { detail, onchanged, nebenan }: Props = $props();
 
   type Zustand = 'offen' | 'uebernommen' | 'verworfen';
 
@@ -59,12 +62,12 @@
           ? 'Geprüft: keine Korrekturen gefunden.'
           : `Geprüft: ${anzahl === 1 ? 'ein Vorschlag' : `${anzahl} Vorschläge`}.`) +
         (result.nichtGeprueft.length > 0
-          ? ` Nicht geprüft: ${result.nichtGeprueft.join(', ')}. Tippe noch einmal auf „Auf Korrekturen prüfen“.`
+          ? ` Nicht geprüft: ${result.nichtGeprueft.join(', ')}. Tippe noch einmal auf „Korrekturen prüfen“.`
           : '');
     } catch (error: unknown) {
       fehler = errorMessage(
         error,
-        'Die Prüfung hat nicht geklappt. Am Protokoll wurde nichts geändert. Tippe noch einmal auf „Auf Korrekturen prüfen“.'
+        'Die Prüfung hat nicht geklappt. Am Protokoll wurde nichts geändert. Tippe noch einmal auf „Korrekturen prüfen“.'
       );
     } finally {
       pruefend = false;
@@ -115,18 +118,24 @@
 </script>
 
 <div class="space-y-3">
-  <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-    <ActionButton disabled={pruefend || uebernehmend} aria-busy={pruefend} onclick={pruefen}>
-      {pruefend ? 'Wird geprüft …' : 'Auf Korrekturen prüfen'}
+  <div class="grid max-w-xl grid-cols-2 gap-2">
+    <ActionButton
+      class="w-full"
+      disabled={pruefend || uebernehmend}
+      aria-busy={pruefend}
+      onclick={pruefen}
+    >
+      {pruefend ? 'Wird geprüft …' : 'Korrekturen prüfen'}
     </ActionButton>
-    <p class="text-sm" role="status" aria-live="polite">
-      {#if fehler}
-        <span class="text-danger">{fehler}</span>
-      {:else if ergebnis}
-        <span class="text-neutral-800">{ergebnis}</span>
-      {/if}
-    </p>
+    {@render nebenan?.()}
   </div>
+  <p class="text-sm" role="status" aria-live="polite">
+    {#if fehler}
+      <span class="text-danger">{fehler}</span>
+    {:else if ergebnis}
+      <span class="text-neutral-800">{ergebnis}</span>
+    {/if}
+  </p>
 
   {#if sichtbar.length > 0}
     {#if rechtschreibung.length > 1}

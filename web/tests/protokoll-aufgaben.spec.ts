@@ -27,7 +27,9 @@ async function createProtokoll(page: Page, title: string): Promise<void> {
 }
 
 async function approveOwn(page: Page, title: string): Promise<void> {
-  await page.getByRole('button', { name: 'Freigeben', exact: true }).click();
+  // Approving without a review is a rare step behind „Mehr“
+  await page.getByRole('button', { name: 'Mehr' }).click();
+  await page.getByRole('button', { name: 'Ohne Prüfung freigeben' }).click();
   const approve = page.getByRole('dialog', { name: `„${title}“ freigeben?` });
   await expect(approve).toContainText('eine Aufgabe im Modul Aufgaben angelegt');
   await approve.getByRole('checkbox', { name: /ohne zweite Person/ }).check();
@@ -57,7 +59,7 @@ test('tasks of approved minutes become tasks and come back as open tasks', async
 
   await approveOwn(page, 'Leitendenrunde Aufgaben');
   await expect(page.getByText(/Eine Aufgabe im Modul Aufgaben angelegt\./).first()).toBeVisible();
-  const review = page.getByRole('region', { name: 'Prüfung und Versand' });
+  const review = page.getByRole('region', { name: 'Aktionen zum Protokoll' });
   await expect(review).toContainText('Aus diesem Protokoll stammt eine Aufgabe im Modul Aufgaben.');
   // The read view and the PDF show the project of the item
   await expect(page.getByText('Projekt: Herbstlager')).toBeVisible();
@@ -138,7 +140,9 @@ test('approving right after a tick waits for it, so the minutes show it as done'
     await route.continue();
   });
   await planung.getByRole('checkbox', { name: /Küche vorbereiten/ }).click();
-  await page.getByRole('button', { name: 'Freigeben', exact: true }).click();
+  // Approving without a review is a rare step behind „Mehr“
+  await page.getByRole('button', { name: 'Mehr' }).click();
+  await page.getByRole('button', { name: 'Ohne Prüfung freigeben' }).click();
   const approve = page.getByRole('dialog', { name: '„Leitendenrunde Langsam“ freigeben?' });
   await approve.getByRole('checkbox', { name: /ohne zweite Person/ }).check();
   await approve.getByRole('button', { name: 'Freigeben' }).click();

@@ -21,8 +21,10 @@ test('the writer gives minutes to the review; saving stops and the PDF is a draf
   await confirm.getByRole('button', { name: 'Zur Prüfung geben' }).click();
   await expect(confirm).toBeHidden();
 
-  const review = page.getByRole('region', { name: 'Prüfung und Versand' });
-  await expect(review.getByText('In Prüfung', { exact: true })).toBeVisible();
+  const review = page.getByRole('region', { name: 'Aktionen zum Protokoll' });
+  await expect(
+    page.locator('[data-sticky-top]').getByText('In Prüfung', { exact: true })
+  ).toBeVisible();
   await expect(page.getByText('Alles fertig besprochen.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Bearbeiten' })).toHaveCount(0);
   // Every leader may approve, the author too after an explicit confirmation
@@ -46,7 +48,9 @@ test('the author approves their own draft directly after confirming it', async (
     .click();
 
   await page.getByLabel('Text zu Punkt 2.').fill('Ohne Review fertig.');
-  await page.getByRole('button', { name: 'Freigeben', exact: true }).click();
+  // Approving without a review is a rare step behind „Mehr“
+  await page.getByRole('button', { name: 'Mehr' }).click();
+  await page.getByRole('button', { name: 'Ohne Prüfung freigeben' }).click();
   const approve = page.getByRole('dialog', { name: '„Leitendenrunde Direkt“ freigeben?' });
   await approve.getByRole('button', { name: 'Freigeben' }).click();
   // Without the tick nothing happens but a hint
@@ -55,8 +59,10 @@ test('the author approves their own draft directly after confirming it', async (
   await approve.getByRole('button', { name: 'Freigeben' }).click();
   await expect(approve).toBeHidden();
 
-  const review = page.getByRole('region', { name: 'Prüfung und Versand' });
-  await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
+  const review = page.getByRole('region', { name: 'Aktionen zum Protokoll' });
+  await expect(
+    page.locator('[data-sticky-top]').getByText('Freigegeben', { exact: true })
+  ).toBeVisible();
   await expect(review.getByText(/Zur Prüfung gegeben/)).toHaveCount(0);
   await expect(page.getByText('Ohne Review fertig.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Bearbeiten' })).toHaveCount(0);
@@ -68,8 +74,10 @@ test('any leader approves minutes in review and sends them to all leaders', asyn
     .getByRole('region', { name: 'Im Editor' })
     .getByRole('link', { name: 'Stavo-Sitzung', exact: true })
     .click();
-  const review = page.getByRole('region', { name: 'Prüfung und Versand' });
-  await expect(review.getByText('In Prüfung', { exact: true })).toBeVisible();
+  const review = page.getByRole('region', { name: 'Aktionen zum Protokoll' });
+  await expect(
+    page.locator('[data-sticky-top]').getByText('In Prüfung', { exact: true })
+  ).toBeVisible();
 
   await review.getByRole('button', { name: 'Freigeben' }).click();
   const approve = page.getByRole('dialog', { name: '„Stavo-Sitzung“ freigeben?' });
@@ -79,7 +87,9 @@ test('any leader approves minutes in review and sends them to all leaders', asyn
   await expect(approve.getByRole('checkbox')).toHaveCount(0);
   await approve.getByRole('button', { name: 'Freigeben' }).click();
   await expect(approve).toBeHidden();
-  await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
+  await expect(
+    page.locator('[data-sticky-top]').getByText('Freigegeben', { exact: true })
+  ).toBeVisible();
   await expect(review.getByRole('link', { name: /Im Protokoll-Ordner öffnen/ })).toBeVisible();
   await expect(review.getByText(/Freigegeben von leitung@example\.test/)).toBeVisible();
 
@@ -178,7 +188,7 @@ test('a newer version after a conflict needs the own approval confirmed again', 
     });
   });
 
-  const review = page.getByRole('region', { name: 'Prüfung und Versand' });
+  const review = page.getByRole('region', { name: 'Aktionen zum Protokoll' });
   await review.getByRole('button', { name: 'Freigeben' }).click();
   const approve = page.getByRole('dialog', { name: '„Leitendenrunde Konflikt“ freigeben?' });
   const tick = approve.getByRole('checkbox', { name: /ohne zweite Person/ });
@@ -192,7 +202,9 @@ test('a newer version after a conflict needs the own approval confirmed again', 
   await tick.check();
   await approve.getByRole('button', { name: 'Freigeben' }).click();
   await expect(approve).toBeHidden();
-  await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
+  await expect(
+    page.locator('[data-sticky-top]').getByText('Freigegeben', { exact: true })
+  ).toBeVisible();
 });
 
 test('after a refused mail the selection stays and the next try uses the new version', async ({
