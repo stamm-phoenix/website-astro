@@ -1,24 +1,20 @@
 <script lang="ts">
   import PlanToolbar from './nikolaus/PlanToolbar.svelte';
-  import PinToggle from './nikolaus/PinToggle.svelte';
+  import EinteilungBoard from './nikolaus/EinteilungBoard.svelte';
   import { createPlanEditor } from '../lib/planEditor.svelte';
   import { untrack } from 'svelte';
   import { ApiError, errorMessage, fetchApi, saveFile, sendApi } from '../lib/api';
   import { confirmAction } from '../lib/confirm';
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
-  import StatusLabel from './ui/StatusLabel.svelte';
 
   import { NIKOLAUS_TEAMS } from '../lib/nikolausConfig';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import {
     KITCHEN,
     MAX_TEAMS_PER_DAY,
-    OPEN_REASON_LABELS,
     REQUIRED_ROLES,
-    TEAM_ROLES,
     completeEinteilung,
-    conflictingTags,
     readyTeams,
     solveEinteilung,
     teamCapacity,
@@ -28,7 +24,6 @@
     EinteilungDay,
     EinteilungPerson,
     EinteilungProblem,
-    TeamRole,
   } from '../lib/nikolausEinteilung';
   import type {
     StaffNikolausEinteilungData,
@@ -36,6 +31,14 @@
     StaffNikolausHelper,
     StaffNikolausSteuerung,
   } from '../lib/types';
+  import EinteilungEinsaetze from './nikolaus/EinteilungEinsaetze.svelte';
+  import {
+    applyParked,
+    countEinsaetze,
+    parkedFromRows,
+    withoutParked,
+  } from '../lib/nikolausEinteilungKacheln';
+  import type { Parked } from '../lib/nikolausEinteilungKacheln';
   import { einteilungStore, fetchEinteilung } from '../lib/nikolausHelfendeStore.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import {
@@ -54,6 +57,8 @@
 
   /** Team posts only; kitchen and idle persons are derived. */
   let teamAssignments = $state<EinteilungAssignment[]>([]);
+  /** Persons in the box „Ohne Posten“ per day: no post, not even the kitchen. */
+  let parked = $state<Parked>({});
 
   const editor = createPlanEditor({
     dirty: () => dirty,
@@ -111,18 +116,12 @@
   const capacity = $derived(
     Object.fromEntries(data.days.map((day) => [day.date, teamCapacity(problem.persons, day.date)]))
   );
-  const personById = $derived(new Map(data.persons.map((p) => [p.id, p])));
-  const result = $derived(completeEinteilung(problem, teamAssignments));
+  const personById = $derived(new Map(problem.persons.map((p) => [p.id, p])));
+  const result = $derived(applyParked(completeEinteilung(problem, teamAssignments), parked));
   const ready = $derived(readyTeams(problem.days, teamAssignments));
 
-  /** Days with a post in a team, per person. */
-  const workload = $derived.by(() => {
-    const counts: Record<string, number> = {};
-    for (const a of teamAssignments) counts[a.personId] = (counts[a.personId] ?? 0) + 1;
-    return Object.entries(counts)
-      .map(([id, count]) => ({ name: personById.get(id)?.name ?? '?', count }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'de'));
-  });
+  /** Posts per person over all days, the kitchen included. */
+  const einsaetze = $derived(countEinsaetze(result.assignments));
 
   function fromRows(rows: StaffNikolausEinteilungRow[]): EinteilungAssignment[] {
     return rows
@@ -141,6 +140,7 @@
       editor.state.conflict = false;
       if (current.rows.length === 0 && current.persons.length > 0) {
         teamAssignments = teamOnly(solveEinteilung(problem).assignments);
+        parked = {};
         dirty = true;
         editor.state.notice = {
           text: 'Vorschlag berechnet – noch nicht gespeichert.',
@@ -148,6 +148,10 @@
         };
       } else {
         teamAssignments = fromRows(current.rows);
+        parked = parkedFromRows(
+          problem.persons,
+          current.rows.filter((row) => personById.has(row.personId))
+        );
         dirty = false;
       }
     });
@@ -159,7 +163,9 @@
 
   function recalculate(): void {
     const fixed = teamAssignments.filter((a) => a.fixed);
-    teamAssignments = teamOnly(solveEinteilung({ ...problem, fixed }).assignments);
+    teamAssignments = teamOnly(
+      solveEinteilung({ ...withoutParked(problem, parked), fixed }).assignments
+    );
     dirty = true;
     editor.state.notice = { text: 'Neu berechnet – noch nicht gespeichert.', kind: 'warning' };
   }
@@ -190,7 +196,7 @@
       (a) => a.date === date && a.fixed && kept.includes(a.team)
     );
     const solved = solveEinteilung({
-      ...problem,
+      ...withoutParked(problem, parked),
       fixed: [...others, ...pinned],
       plannedDates: [date],
     }).assignments;
@@ -275,18 +281,10 @@
     }
   }
 
-  function assigned(date: string, team: string, role: TeamRole): EinteilungAssignment | undefined {
-    return teamAssignments.find((a) => a.date === date && a.team === team && a.role === role);
-  }
-
-  /** Sets a post by hand; the person leaves any other post of the day. */
-  function setPost(date: string, team: string, role: TeamRole, personId: string): void {
-    const rest = teamAssignments.filter(
-      (a) =>
-        !(a.date === date && a.team === team && a.role === role) &&
-        !(a.date === date && a.personId === personId)
-    );
-    teamAssignments = personId ? [...rest, { personId, date, team, role, fixed: true }] : rest;
+  /** Takes the posts and the box „Ohne Posten“ after a tile was moved. */
+  function setAssignments(next: EinteilungAssignment[], nextParked: Parked): void {
+    teamAssignments = next;
+    parked = nextParked;
     dirty = true;
     editor.state.notice = null;
   }
@@ -298,37 +296,10 @@
     dirty = true;
   }
 
-  /** Persons who volunteered for a post that day, with a hint why they may not fit. */
-  function candidates(date: string, team: string, role: TeamRole) {
-    const families = data.days.find((d) => d.date === date)?.familyTags?.[team];
-    return data.persons
-      .filter((p) => (p.availability[date] ?? []).includes(role))
-      .map((person) => {
-        const elsewhere = teamAssignments.find(
-          (a) =>
-            a.date === date && a.personId === person.id && !(a.team === team && a.role === role)
-        );
-        const tags = conflictingTags(person, families, role);
-        const hints = [
-          elsewhere ? `schon Team ${elsewhere.team} ${elsewhere.role}` : '',
-          tags.length > 0 ? `nicht zu Familien mit: ${tags.join(', ')}` : '',
-        ].filter(Boolean);
-        return {
-          id: person.id,
-          label: hints.length ? `${person.name} (${hints.join('; ')})` : person.name,
-        };
-      });
-  }
-
   const TEAM_COUNT_OPTIONS = Array.from({ length: MAX_TEAMS_PER_DAY }, (_, i) => ({
     value: String(i + 1),
     label: String(i + 1),
   }));
-
-  /** Required posts a team still lacks. */
-  function missing(date: string, team: string): string[] {
-    return REQUIRED_ROLES.filter((role) => !assigned(date, team, role));
-  }
 
   function name(personId: string): string {
     return personById.get(personId)?.name ?? '?';
@@ -481,8 +452,6 @@
       {@const official = data.days.find((d) => d.date === day.date)?.teams.length ?? 0}
       {@const cap = capacity[day.date]}
       {@const dayConflicts = result.conflicts.filter((c) => c.date === day.date)}
-      {@const kitchen = result.assignments.filter((a) => a.date === day.date && a.team === KITCHEN)}
-      {@const idle = result.idle[day.date] ?? []}
       <section aria-labelledby="einteilung-{day.date}" class="space-y-3">
         <h2 id="einteilung-{day.date}" class="font-serif text-2xl font-semibold text-brand-900">
           {formatShortDate(day.date)}
@@ -563,133 +532,21 @@
           </p>
         {/each}
 
-        <div
-          class="grid gap-x-6 gap-y-8 sm:grid-cols-2 {day.teams.length >= 3
-            ? 'xl:grid-cols-4'
-            : ''}"
-        >
-          {#each day.teams as team (team)}
-            <section
-              aria-labelledby="einteilung-{day.date}-{team}"
-              class="border-t-4"
-              style:border-top-color={teamColor.get(team)}
-            >
-              <h3
-                id="einteilung-{day.date}-{team}"
-                class="border-b border-neutral-200 py-2 font-serif text-lg font-semibold text-brand-900"
-              >
-                Team {team}
-              </h3>
-              <p class="pt-1">
-                {#if ready.has(`${day.date}|${team}`)}
-                  <StatusLabel tone="success" label="Kann losfahren" />
-                {:else}
-                  <StatusLabel
-                    tone="danger"
-                    label={`Kann nicht losfahren – es ${missing(day.date, team).length === 1 ? 'fehlt' : 'fehlen'} ${missing(day.date, team).join(' und ')}`}
-                  />
-                {/if}
-              </p>
-              <dl class="divide-y divide-neutral-200 text-sm">
-                {#each TEAM_ROLES as role (role)}
-                  {@const current = assigned(day.date, team, role)}
-                  {@const open = result.open.find(
-                    (o) => o.date === day.date && o.team === team && o.role === role
-                  )}
-                  {@const selectId = `post-${day.date}-${team}-${role}`}
-                  <div class="py-2.5">
-                    <dt>
-                      <label class="font-semibold text-brand-900" for={selectId}>{role}</label>
-                    </dt>
-                    <dd class="mt-1">
-                      <div class="flex flex-col items-stretch gap-2">
-                        <select
-                          id={selectId}
-                          class="form-input mt-0! min-w-0 flex-1 py-1.5 {current
-                            ? 'border-neutral-300'
-                            : 'border-danger! bg-danger-soft!'}"
-                          value={current?.personId ?? ''}
-                          onchange={(event) =>
-                            setPost(day.date, team, role, event.currentTarget.value)}
-                        >
-                          <option value="">— offen —</option>
-                          {#each candidates(day.date, team, role) as option (option.id)}
-                            <option value={option.id}>{option.label}</option>
-                          {/each}
-                        </select>
-                        {#if current}
-                          <PinToggle
-                            compact
-                            fixed={current.fixed}
-                            label={`${role} in Team ${team} am ${formatShortDate(day.date)}`}
-                            onclick={() => toggleFixed(current)}
-                          />
-                        {/if}
-                      </div>
-                      {#if open}
-                        <p class="mt-1 text-xs text-danger">
-                          {OPEN_REASON_LABELS[open.reason]}
-                        </p>
-                      {/if}
-                    </dd>
-                  </div>
-                {/each}
-              </dl>
-            </section>
-          {/each}
-        </div>
-
-        <div class="grid gap-x-6 gap-y-4 border-t border-neutral-200 pt-4 sm:grid-cols-2">
-          <section class="text-sm" aria-labelledby="kitchen-{day.date}">
-            <h3 id="kitchen-{day.date}" class="font-semibold text-brand-900">
-              Küche <span class="font-normal text-neutral-700">({kitchen.length})</span>
-            </h3>
-            {#if kitchen.length === 0}
-              <p class="text-neutral-700">Niemand.</p>
-            {:else}
-              <ul class="mt-1 flex flex-wrap gap-x-3">
-                {#each kitchen as a (a.personId)}
-                  <li>{name(a.personId)}</li>
-                {/each}
-              </ul>
-            {/if}
-          </section>
-          <section class="text-sm" aria-labelledby="idle-{day.date}">
-            <h3 id="idle-{day.date}" class="font-semibold text-brand-900">
-              Reserve (ohne Aufgabe) <span class="font-normal text-neutral-700"
-                >({idle.length})</span
-              >
-            </h3>
-            {#if idle.length > 0}
-              <ul class="mt-1 space-y-0.5">
-                {#each idle as personId (personId)}
-                  <li>
-                    {name(personId)}
-                    <span class="text-neutral-700"
-                      >({(personById.get(personId)?.availability[day.date] ?? []).join(', ')})</span
-                    >
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          </section>
-        </div>
+        <EinteilungBoard
+          {day}
+          persons={personById}
+          assignments={teamAssignments}
+          {parked}
+          {result}
+          {einsaetze}
+          {ready}
+          {teamColor}
+          onchange={setAssignments}
+          ontogglefixed={toggleFixed}
+        />
       </section>
     {/each}
 
-    {#if workload.length > 0}
-      <section aria-labelledby="workload-heading" class="border-t border-neutral-200 pt-6 text-sm">
-        <h2 id="workload-heading" class="font-serif text-xl font-semibold text-brand-900">
-          Einsätze pro Person (Tage in einem Team)
-        </h2>
-        <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-          {#each workload as entry (entry.name)}
-            <li>
-              {entry.name}: <span class="font-semibold tabular-nums">{entry.count}</span>
-            </li>
-          {/each}
-        </ul>
-      </section>
-    {/if}
+    <EinteilungEinsaetze persons={problem.persons} {einsaetze} />
   {/if}
 </div>
