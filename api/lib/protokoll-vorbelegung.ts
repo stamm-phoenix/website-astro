@@ -1,6 +1,6 @@
 /**
  * What new minutes start with, taken from other modules (#264): the Gruppenstunden of the
- * Anwesenheit in the Stufenberichte, the Aktionen of the calendar in Reflexion and Planung, and
+ * Anwesenheit in the Stufenberichte, the Aktionen of the calendar in Reflexion and Aktionsvorschau, and
  * time and place of the next meeting from the previous minutes. Only data every leader may see
  * is copied: counts and the text of a Gruppenstunde (never names of children or guests) and
  * Aktionen of the public calendar (not those only for Leitende). Each source fails alone; the
@@ -97,7 +97,7 @@ function aktionZeile(aktion: Aktion): string {
 }
 
 /**
- * Aktionen of the public calendar for Reflexion (ended after `nach` up to `date`) and Planung
+ * Aktionen of the public calendar for Reflexion (ended after `nach` up to `date`) and Aktionsvorschau
  * (still running or starting after `date`, until `bis`), each as a short list with a heading.
  * Entries only for Leitende are left out.
  */
@@ -121,7 +121,7 @@ export function aktionenTexte(
     offen.filter((a) => aktionEnde(a) > date && a.start <= bis).sort(byStart)
   );
   if (rueckblick) texte['Reflexion'] = rueckblick;
-  if (planung) texte['Planung'] = planung;
+  if (planung) texte['Aktionsvorschau'] = planung;
   return texte;
 }
 

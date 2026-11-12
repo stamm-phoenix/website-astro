@@ -40,7 +40,7 @@ test('tasks of approved minutes become tasks and come back as open tasks', async
   // Without tasks from earlier minutes the agenda starts as before
   await expect(page.getByRole('region', { name: /^1\. Stufenberichte/ })).toBeVisible();
 
-  const planung = page.getByRole('region', { name: /^3\. Planung/ });
+  const planung = page.getByRole('region', { name: /^3\. Aktionsvorschau/ });
   await planung.getByRole('button', { name: 'Projekt verknüpfen' }).click();
   await planung.getByLabel('Projekt für Punkt 3.').selectOption({ label: 'Herbstlager' });
   await expect(planung.getByText('Projekt: Herbstlager')).toBeVisible();
@@ -68,7 +68,7 @@ test('tasks of approved minutes become tasks and come back as open tasks', async
     has: page.getByRole('heading', { name: 'Zelte zählen', exact: true }),
   });
   await expect(card.getByRole('link', { name: 'Protokoll' })).toBeVisible();
-  await expect(card).toContainText('Punkt 3. Planung');
+  await expect(card).toContainText('Punkt 3. Aktionsvorschau');
   await expect(card).toContainText('Herbstlager');
 
   // The next minutes start with it
@@ -101,20 +101,20 @@ test('tasks of approved minutes become tasks and come back as open tasks', async
 
 test('an item from an Aktion suggests creating its project', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Aktion');
-  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await page.getByRole('button', { name: '+ Planungskapitel aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Planungskapitel aus einer Aktion' });
   await dialog.getByLabel('Aktion suchen').fill('Winterlager');
   await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
 
-  const punkt = page.getByRole('region', { name: /^5\. Pfadi-Winterlager/ });
+  const punkt = page.getByRole('region', { name: /^5\. Planung Pfadi-Winterlager/ });
   await punkt.getByRole('button', { name: 'Projekt für die Aktion anlegen' }).click();
   await expect(punkt.getByText('Projekt: Pfadi-Winterlager auf der Hütte')).toBeVisible();
 
   // The next item from the same Aktion is offered the existing project
-  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
+  await page.getByRole('button', { name: '+ Planungskapitel aus Aktion' }).click();
   await dialog.getByLabel('Aktion suchen').fill('Winterlager');
   await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
-  const zweiter = page.getByRole('region', { name: /^6\. Pfadi-Winterlager/ });
+  const zweiter = page.getByRole('region', { name: /^6\. Planung Pfadi-Winterlager/ });
   await zweiter
     .getByRole('button', { name: 'Mit Projekt „Pfadi-Winterlager auf der Hütte“ verknüpfen' })
     .click();
@@ -127,7 +127,7 @@ test('approving right after a tick waits for it, so the minutes show it as done'
   page,
 }) => {
   await createProtokoll(page, 'Leitendenrunde Langsam');
-  const planung = page.getByRole('region', { name: /^3\. Planung/ });
+  const planung = page.getByRole('region', { name: /^3\. Aktionsvorschau/ });
   await planung.getByRole('button', { name: 'Projekt verknüpfen' }).click();
   await planung.getByLabel('Projekt für Punkt 3.').selectOption({ label: 'Herbstlager' });
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
@@ -153,11 +153,11 @@ test('approving right after a tick waits for it, so the minutes show it as done'
 
 test('approving while a project is being created waits for the link', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Projekt langsam');
-  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await page.getByRole('button', { name: '+ Planungskapitel aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Planungskapitel aus einer Aktion' });
   await dialog.getByLabel('Aktion suchen').fill('Winterlager');
   await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
-  const punkt = page.getByRole('region', { name: /^5\. Pfadi-Winterlager/ });
+  const punkt = page.getByRole('region', { name: /^5\. Planung Pfadi-Winterlager/ });
   await punkt.getByRole('button', { name: '+ Aufgabe' }).click();
   await punkt.getByLabel('Aufgabe', { exact: true }).fill('Hütte buchen');
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
@@ -173,7 +173,7 @@ test('approving while a project is being created waits for the link', async ({ p
 
   const data = await (await page.request.get('/api/intern/pflege/aufgaben')).json();
   const project = data.projects.find(
-    (p: { title: string }) => p.title === 'Pfadi-Winterlager auf der Hütte'
+    (p: { title: string }) => p.title === 'Planung Pfadi-Winterlager auf der Hütte'
   );
   const task = data.tasks.find((t: { title: string }) => t.title === 'Hütte buchen');
   expect(task.projectId).toBe(project.id);
@@ -181,7 +181,7 @@ test('approving while a project is being created waits for the link', async ({ p
 
 test('leaving the page while a tick is on its way asks first', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Verlassen');
-  const planung = page.getByRole('region', { name: /^3\. Planung/ });
+  const planung = page.getByRole('region', { name: /^3\. Aktionsvorschau/ });
   await planung.getByRole('button', { name: 'Projekt verknüpfen' }).click();
   await planung.getByLabel('Projekt für Punkt 3.').selectOption({ label: 'Herbstlager' });
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
@@ -205,7 +205,7 @@ test('leaving the page while a tick is on its way asks first', async ({ page }) 
 
 test('a tick that fails leaves the box as it was and says so', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Fehler');
-  const planung = page.getByRole('region', { name: /^3\. Planung/ });
+  const planung = page.getByRole('region', { name: /^3\. Aktionsvorschau/ });
   await planung.getByRole('button', { name: 'Projekt verknüpfen' }).click();
   await planung.getByLabel('Projekt für Punkt 3.').selectOption({ label: 'Herbstlager' });
 

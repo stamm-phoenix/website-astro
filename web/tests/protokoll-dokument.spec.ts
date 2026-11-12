@@ -82,7 +82,7 @@ test('Enter and Backspace move through the items like in a document', async ({ p
       '1e. StaVos',
       '2. Reflexion',
       '3. Zeltlager',
-      '4. Planung',
+      '4. Aktionsvorschau',
       '5. Sonstiges',
     ]);
   // The empty line in Reflexion went with the new item
@@ -200,7 +200,7 @@ test('a selection across items cannot delete them, the buttons can', async ({ pa
   await page.keyboard.press('Delete');
   await expect.poll(reihenfolge(page)).toHaveLength(9);
   await expect(reflexion.locator('.punkt-text')).toHaveText('Wichtig');
-  await expect(page.getByRole('region', { name: /^3\. Planung/ })).toBeVisible();
+  await expect(page.getByRole('region', { name: /^3\. Aktionsvorschau/ })).toBeVisible();
 
   // The button asks for an item with content and deletes it
   await reflexion.getByRole('button', { name: 'Punkt 2. löschen' }).click();
@@ -216,7 +216,7 @@ test('a selection across items cannot delete them, the buttons can', async ({ pa
       '1c. Pfadfinder',
       '1d. Rover',
       '1e. StaVos',
-      '2. Planung',
+      '2. Aktionsvorschau',
       '3. Sonstiges',
     ]);
   // An empty item goes without asking, and undo brings it back
@@ -248,9 +248,11 @@ test('the last item is emptied instead of removed', async ({ page }) => {
     .getByRole('dialog', { name: 'Punkt 1. „Stufenberichte“ löschen?' })
     .getByRole('button', { name: 'Löschen' })
     .click();
-  await expect.poll(reihenfolge(page)).toEqual(['1. Reflexion', '2. Planung', '3. Sonstiges']);
+  await expect
+    .poll(reihenfolge(page))
+    .toEqual(['1. Reflexion', '2. Aktionsvorschau', '3. Sonstiges']);
   await page.getByRole('button', { name: 'Punkt 1. löschen' }).click();
-  await expect.poll(reihenfolge(page)).toEqual(['1. Planung', '2. Sonstiges']);
+  await expect.poll(reihenfolge(page)).toEqual(['1. Aktionsvorschau', '2. Sonstiges']);
   await page.getByRole('button', { name: 'Punkt 1. löschen' }).click();
   await expect.poll(reihenfolge(page)).toEqual(['1. Sonstiges']);
 
@@ -297,16 +299,16 @@ test('a text that is too long gets a warning at its item', async ({ page }) => {
 
 test('the arrow buttons keep the cursor in the moved item', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Pfeile');
-  const planung = page.getByRole('region', { name: /Planung/ });
+  const planung = page.getByRole('region', { name: /Aktionsvorschau/ });
   await planung.locator('.punkt-text').click();
   await page.keyboard.type('Plan');
   await page.getByRole('button', { name: 'Punkt 3. nach unten' }).click();
-  await expect.poll(reihenfolge(page)).toContain('4. Planung');
-  await expect.poll(aktiverPunkt(page)).toBe('4. Planung');
+  await expect.poll(reihenfolge(page)).toContain('4. Aktionsvorschau');
+  await expect.poll(aktiverPunkt(page)).toBe('4. Aktionsvorschau');
   await page.keyboard.type(' B');
   await page.getByRole('button', { name: 'Punkt 4. nach oben' }).click();
-  await expect.poll(reihenfolge(page)).toContain('3. Planung');
-  await expect.poll(aktiverPunkt(page)).toBe('3. Planung');
+  await expect.poll(reihenfolge(page)).toContain('3. Aktionsvorschau');
+  await expect.poll(aktiverPunkt(page)).toBe('3. Aktionsvorschau');
   await page.keyboard.type('!');
   await expect(planung.locator('.punkt-text')).toHaveText('Plan B!');
   await expect(page.getByRole('region', { name: /Sonstiges/ }).locator('.punkt-text')).toHaveText(
@@ -339,11 +341,11 @@ test('the handle moves items with the keyboard and by dragging', async ({ page }
       '2. StaVos',
       '2a. Reflexion',
       '3. Sonstiges',
-      '4. Planung',
+      '4. Aktionsvorschau',
     ]);
 
-  // Dragging „Planung“ up and to the right below „Reflexion“ makes it a sub-item of „StaVos“
-  const griff = page.getByRole('button', { name: /^4\. Planung verschieben/ });
+  // Dragging „Aktionsvorschau“ up and to the right below „Reflexion“ makes it a sub-item of „StaVos“
+  const griff = page.getByRole('button', { name: /^4\. Aktionsvorschau verschieben/ });
   // In the middle of the window, so the page does not scroll along while dragging
   await griff.evaluate((element) =>
     element.scrollIntoView({ block: 'center', behavior: 'instant' })
@@ -381,7 +383,7 @@ test('the handle moves items with the keyboard and by dragging', async ({ page }
       '1d. Rover',
       '2. StaVos',
       '2a. Reflexion',
-      '2b. Planung',
+      '2b. Aktionsvorschau',
       '3. Sonstiges',
     ]);
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
@@ -403,13 +405,13 @@ test('tasks, dates, sub-items and an Aktion live in the document and are kept', 
   await page.keyboard.type('Rückmeldungen');
   await expect(reflexion.getByRole('list', { name: 'Aufgaben zu Punkt 2.' })).toBeVisible();
 
-  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await page.getByRole('button', { name: '+ Planungskapitel aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Planungskapitel aus einer Aktion' });
   await dialog.getByLabel('Aktion suchen').fill('Winterlager');
   await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
-  const winterlager = page.getByRole('region', { name: /^5\. Pfadi-Winterlager/ });
+  const winterlager = page.getByRole('region', { name: /^5\. Planung Pfadi-Winterlager/ });
   await expect(winterlager).toContainText('Aktion, ');
-  await expect.poll(aktiverPunkt(page)).toMatch(/^5\. Pfadi-Winterlager/);
+  await expect.poll(aktiverPunkt(page)).toMatch(/^5\. Planung Pfadi-Winterlager/);
   await page.keyboard.type('Anmeldungen laufen');
 
   await expect.poll(gespeichert(page)).toContain('Anmeldungen laufen');
@@ -433,11 +435,11 @@ test('tasks, dates, sub-items and an Aktion live in the document and are kept', 
 
 test('an item from an Aktion survives Backspace in its emptied title', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Aktion');
-  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await page.getByRole('button', { name: '+ Planungskapitel aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Planungskapitel aus einer Aktion' });
   await dialog.getByLabel('Aktion suchen').fill('Winterlager');
   await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
-  await expect.poll(aktiverPunkt(page)).toMatch(/^5\. Pfadi-Winterlager/);
+  await expect.poll(aktiverPunkt(page)).toMatch(/^5\. Planung Pfadi-Winterlager/);
   // Backspace in the empty text goes to the title; the emptied title keeps the item and its Aktion
   await page.keyboard.press('Backspace');
   await expect

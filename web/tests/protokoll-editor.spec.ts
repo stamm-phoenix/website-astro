@@ -52,18 +52,18 @@ test('the writer types, autosave keeps it and a reload continues writing', async
 
 test('an agenda item comes from an Aktion with its dates below the title', async ({ page }) => {
   await protokollVorbereiten(page, 'Leitendenrunde Aktion');
-  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await page.getByRole('button', { name: '+ Planungskapitel aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Planungskapitel aus einer Aktion' });
   // Aktionen over before the meeting are hidden unless asked for
   await dialog.getByLabel('Aktion suchen').fill('Stammesversammlung');
   await expect(dialog.getByText('Keine passende Aktion gefunden.')).toBeVisible();
   await dialog.getByLabel('Aktion suchen').fill('Winterlager');
   await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
   await expect(page.getByLabel('Titel von Punkt 5.')).toHaveValue(
-    'Pfadi-Winterlager auf der Hütte'
+    'Planung Pfadi-Winterlager auf der Hütte'
   );
   await expect(
-    page.getByRole('region', { name: /^5\. Pfadi-Winterlager/ }).getByText(/^Aktion, \d/)
+    page.getByRole('region', { name: /^5\. Planung Pfadi-Winterlager/ }).getByText(/^Aktion, \d/)
   ).toBeVisible();
   await expect(page.getByLabel('Text zu Punkt 5.')).toBeFocused();
 });
@@ -211,7 +211,7 @@ test('a late answer of the server never replaces newer text from the editor', as
     context.waitForEvent('page'),
     page.getByRole('button', { name: 'Präsentation öffnen' }).click(),
   ]);
-  const planung = praesentation.locator('section', { hasText: '3. Planung' });
+  const planung = praesentation.locator('section', { hasText: '3. Aktionsvorschau' });
   await expect(planung).toContainText('Alter Stand.');
   await page.getByLabel('Text zu Punkt 3.').fill('Neuer Stand, noch nicht gespeichert.');
   await expect(planung).toContainText('Neuer Stand, noch nicht gespeichert.');
@@ -293,7 +293,7 @@ test('names are picked from Leitende and Altleitende or typed for guests', async
 
 test('a Termin is added per item like an Aufgabe and shown in the minutes', async ({ page }) => {
   await protokollVorbereiten(page, 'Leitendenrunde Termine');
-  const planung = page.getByRole('region', { name: '3. Planung' });
+  const planung = page.getByRole('region', { name: '3. Aktionsvorschau' });
   await planung.getByRole('button', { name: '+ Termin' }).click();
   await expect(planung.getByLabel('Termin', { exact: true })).toBeFocused();
   await planung.getByLabel('Termin', { exact: true }).fill('Vortreffen Pfingstlager');
@@ -441,12 +441,12 @@ test('a new item from an Aktion gets the focus while the formatting editor still
     .getByRole('group', { name: 'Texte schreiben als' })
     .getByRole('button', { name: 'Formatiert' })
     .click();
-  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await page.getByRole('button', { name: '+ Planungskapitel aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Planungskapitel aus einer Aktion' });
   await dialog.getByLabel('Aktion suchen').fill('Winterlager');
   await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
   await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeFocused();
-  await expect.poll(aktiverPunkt(page)).toMatch(/^5\. Pfadi-Winterlager/);
+  await expect.poll(aktiverPunkt(page)).toMatch(/^5\. Planung Pfadi-Winterlager/);
 });
 
 /** The item the cursor of the document is in, by its label. */
@@ -471,8 +471,8 @@ test('the loading editor does not take the focus from a field the person chose',
     .getByRole('group', { name: 'Texte schreiben als' })
     .getByRole('button', { name: 'Formatiert' })
     .click();
-  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await page.getByRole('button', { name: '+ Planungskapitel aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Planungskapitel aus einer Aktion' });
   await dialog.getByLabel('Aktion suchen').fill('Winterlager');
   await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
   // While the editor still loads, the person writes the guests
@@ -483,7 +483,7 @@ test('the loading editor does not take the focus from a field the person chose',
   await settle(page);
   await expect(externe).toBeFocused();
   await expect(externe).toHaveValue('Pfarrer Huber');
-  await expect(page.getByRole('region', { name: /^5\. Pfadi-Winterlager/ })).toBeVisible();
+  await expect(page.getByRole('region', { name: /^5\. Planung Pfadi-Winterlager/ })).toBeVisible();
 });
 
 test('a table wider than the screen says to swipe sideways @mobile', async ({ page, isMobile }) => {
@@ -597,7 +597,7 @@ test('agenda items are dragged into a new order and between the levels', async (
       '1d. Rover',
       '1e. StaVos',
       '2. Reflexion',
-      '3. Planung',
+      '3. Aktionsvorschau',
       '4. Sonstiges',
     ]);
 
@@ -650,12 +650,12 @@ test('agenda items are dragged into a new order and between the levels', async (
       '2. StaVos',
       '2a. Reflexion',
       '2b. Sonstiges',
-      '3. Planung',
+      '3. Aktionsvorschau',
     ]);
 
   // A click on the handle without moving changes nothing
-  await page.getByRole('button', { name: /^3\. Planung verschieben/ }).click();
-  await expect(page.getByLabel('Titel von Punkt 3.')).toHaveValue('Planung');
+  await page.getByRole('button', { name: /^3\. Aktionsvorschau verschieben/ }).click();
+  await expect(page.getByLabel('Titel von Punkt 3.')).toHaveValue('Aktionsvorschau');
   await expectNoHorizontalOverflow(page);
 
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
