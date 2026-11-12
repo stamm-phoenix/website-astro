@@ -513,17 +513,16 @@ p {
   }
 }
 
-/* The mark is drawn for light paper: its lily reads through the gaps in the black. On dark it
-   sits on a round patch in the colour of the name beside it, drawn in the SVG so patch, ring
-   and mark scale together. The mark shrinks and moves down until its wings clear the ring. */
+/* The mark is drawn for light paper: its black lily reads through the gaps in it. On dark the
+   lily and the flames sit on a round patch in the colour of the name beside it, and the phoenix
+   rises out of it. The mark keeps the size and place it has in light; the patch reaches a few
+   pixels past its box. */
+.brand-mark--phoenix {
+  overflow: visible;
+}
 .brand-mark__patch,
 .brand-mark__ring {
   display: none;
-}
-.brand-mark--phoenix {
-  @variant theme-dark {
-    aspect-ratio: 1;
-  }
 }
 .brand-mark__patch {
   @variant theme-dark {
@@ -536,14 +535,7 @@ p {
     display: inline;
     fill: none;
     stroke: var(--color-neutral-50);
-    stroke-width: 12;
-  }
-}
-.brand-mark__art {
-  @variant theme-dark {
-    transform-box: view-box;
-    transform-origin: center;
-    transform: translateY(22px) scale(0.76);
+    stroke-width: 8;
   }
 }
 /* Dark surfaces and fields share roles across every island, including newer forms. */
