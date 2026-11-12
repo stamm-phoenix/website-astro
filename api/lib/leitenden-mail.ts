@@ -71,7 +71,6 @@ async function campflowAdresseInnerhalb(login: string, timeoutMs: number): Promi
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<string>((resolve) => {
     timer = setTimeout(() => resolve(''), timeoutMs);
-    timer.unref?.();
   });
   try {
     return await Promise.race([leitendenAdresse.campflow(login).catch(() => ''), timeout]);
