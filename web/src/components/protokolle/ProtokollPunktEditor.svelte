@@ -138,7 +138,9 @@
     bind:value={punkt.text}
     oninput={sucheErwaehnung}
     onkeyup={(event) => {
-      if (event.key.startsWith('Arrow') && !erwaehnung.offen) sucheErwaehnung();
+      // Up and down pick from an open list; every other cursor move changes the search
+      const auswahlTaste = event.key === 'ArrowUp' || event.key === 'ArrowDown';
+      if (event.key.startsWith('Arrow') && (!auswahlTaste || !erwaehnung.offen)) sucheErwaehnung();
       else if (event.key === 'Home' || event.key === 'End') sucheErwaehnung();
     }}
     onclick={sucheErwaehnung}
