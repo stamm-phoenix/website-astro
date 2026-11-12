@@ -209,7 +209,8 @@
   const kopf = $derived.by(() => {
     if (!generieren) return undefined;
     const felder = {
-      ...(anleitungAn && anleitung.trim() ? { anleitung } : {}),
+      // Emptied, the instructions still replace the dish's; empty on both sides is nothing to send
+      ...(anleitungAn && (anleitung.trim() || gericht.anleitung.trim()) ? { anleitung } : {}),
       ...(werkzeugeAn && werkzeuge.length
         ? { werkzeuge: vereint(gericht.werkzeuge, werkzeuge) }
         : {}),
