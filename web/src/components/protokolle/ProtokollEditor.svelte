@@ -63,6 +63,7 @@
     saveStaffSetting,
     settingsStore,
   } from '../../lib/staffSettingsStore.svelte';
+  import { punktHatInhalt } from '../../lib/protokollPunktInhalt';
   import type {
     ProtokollAktion,
     ProtokollEditorDetail,
@@ -725,21 +726,8 @@
     void focusPunkt(punkt.id, 'text');
   }
 
-  function hasContent(punkt: ProtokollPunkt): boolean {
-    return Boolean(
-      punkt.text.trim() ||
-      punkt.aktion ||
-      punkt.zeitraum ||
-      punkt.aufgaben.length > 0 ||
-      punkt.termine.length > 0 ||
-      punkt.projekt ||
-      punkt.offeneAufgaben.length > 0 ||
-      punkt.unterpunkte.some((sub) => sub.titel.trim() || hasContent(sub))
-    );
-  }
-
   function confirmRemove(punkt: ProtokollPunkt, nummer: string, remove: () => void): void {
-    if (!hasContent(punkt)) {
+    if (!punktHatInhalt(punkt)) {
       remove();
       return;
     }
