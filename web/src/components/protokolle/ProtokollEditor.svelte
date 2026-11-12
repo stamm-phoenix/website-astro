@@ -4,6 +4,7 @@
   import { onMount, tick, untrack } from 'svelte';
   import { navigate } from 'astro:transitions/client';
   import ProtokollAktionDialog from './ProtokollAktionDialog.svelte';
+  import type { AktionKapitel } from './ProtokollAktionDialog.svelte';
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
   import ProtokollKopfEditor from './ProtokollKopfEditor.svelte';
   import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
@@ -178,7 +179,7 @@
   /** The time offered as the end, taken when the question opens. */
   let endeJetzt = $state('');
   let versionsOpen = $state(false);
-  let aktionOpen = $state(false);
+  let aktionOpen = $state<AktionKapitel | null>(null);
   let deleting = $state(false);
   let deleteBusy = $state(false);
   let deleteError = $state<string | null>(null);
@@ -714,9 +715,10 @@
 
   function addAktion(aktion: ProtokollAktion): void {
     if (!stand) return;
-    aktionOpen = false;
+    const art = aktionOpen ?? 'Planung';
+    aktionOpen = null;
     const punkt: ProtokollPunkt = {
-      ...neuerPunkt(newElementId(), `Planung ${aktion.titel}`.slice(0, 200)),
+      ...neuerPunkt(newElementId(), `${art} ${aktion.titel}`.slice(0, 200)),
       aktion,
     };
     stand.inhalt.punkte.push(punkt);
@@ -1220,10 +1222,16 @@
               + Tagesordnungspunkt
             </ActionButton>
             <ActionButton
-              onclick={() => (aktionOpen = true)}
+              onclick={() => (aktionOpen = 'Planung')}
               disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}
             >
               + Planungskapitel aus Aktion
+            </ActionButton>
+            <ActionButton
+              onclick={() => (aktionOpen = 'Reflexion')}
+              disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}
+            >
+              + Reflexionskapitel aus Aktion
             </ActionButton>
           </div>
         </section>
@@ -1306,10 +1314,10 @@
 {/if}
 
 <ProtokollAktionDialog
-  open={aktionOpen}
+  art={aktionOpen}
   date={stand?.date ?? detail?.date ?? ''}
   used={usedAktionen}
-  onclose={() => (aktionOpen = false)}
+  onclose={() => (aktionOpen = null)}
   onselect={addAktion}
 />
 

@@ -80,12 +80,12 @@ test('Enter and Backspace move through the items like in a document', async ({ p
       '1c. Pfadfinder',
       '1d. Rover',
       '1e. StaVos',
-      '2. Reflexion',
+      '2. Aktionsrückblick',
       '3. Zeltlager',
       '4. Aktionsvorschau',
       '5. Sonstiges',
     ]);
-  // The empty line in Reflexion went with the new item
+  // The empty line in Aktionsrückblick went with the new item
   await expect(reflexion.locator('.punkt-text')).toHaveText('Stammestag war gut');
 
   // Backspace in an empty item removes it and goes back to the item before
@@ -204,7 +204,7 @@ test('a selection across items cannot delete them, the buttons can', async ({ pa
 
   // The button asks for an item with content and deletes it
   await reflexion.getByRole('button', { name: 'Punkt 2. löschen' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Punkt 2. „Reflexion“ löschen?' });
+  const dialog = page.getByRole('dialog', { name: 'Punkt 2. „Aktionsrückblick“ löschen?' });
   await expect(dialog).toContainText('mitgelöscht');
   await dialog.getByRole('button', { name: 'Löschen' }).click();
   await expect
@@ -250,7 +250,7 @@ test('the last item is emptied instead of removed', async ({ page }) => {
     .click();
   await expect
     .poll(reihenfolge(page))
-    .toEqual(['1. Reflexion', '2. Aktionsvorschau', '3. Sonstiges']);
+    .toEqual(['1. Aktionsrückblick', '2. Aktionsvorschau', '3. Sonstiges']);
   await page.getByRole('button', { name: 'Punkt 1. löschen' }).click();
   await expect.poll(reihenfolge(page)).toEqual(['1. Aktionsvorschau', '2. Sonstiges']);
   await page.getByRole('button', { name: 'Punkt 1. löschen' }).click();
@@ -326,8 +326,8 @@ test('the handle moves items with the keyboard and by dragging', async ({ page }
   await expect(
     page.getByRole('status').filter({ hasText: '„StaVos“ ist jetzt Punkt 2.' })
   ).toBeVisible();
-  await page.getByRole('button', { name: /^3\. Reflexion verschieben/ }).press('ArrowRight');
-  await expect.poll(reihenfolge(page)).toContain('2a. Reflexion');
+  await page.getByRole('button', { name: /^3\. Aktionsrückblick verschieben/ }).press('ArrowRight');
+  await expect.poll(reihenfolge(page)).toContain('2a. Aktionsrückblick');
   // The arrow buttons in the title row move too
   await page.getByRole('button', { name: 'Punkt 4. nach oben' }).click();
   await expect
@@ -339,12 +339,12 @@ test('the handle moves items with the keyboard and by dragging', async ({ page }
       '1c. Pfadfinder',
       '1d. Rover',
       '2. StaVos',
-      '2a. Reflexion',
+      '2a. Aktionsrückblick',
       '3. Sonstiges',
       '4. Aktionsvorschau',
     ]);
 
-  // Dragging „Aktionsvorschau“ up and to the right below „Reflexion“ makes it a sub-item of „StaVos“
+  // Dragging „Aktionsvorschau“ up and to the right below „Aktionsrückblick“ makes it a sub-item of „StaVos“
   const griff = page.getByRole('button', { name: /^4\. Aktionsvorschau verschieben/ });
   // In the middle of the window, so the page does not scroll along while dragging
   await griff.evaluate((element) =>
@@ -382,7 +382,7 @@ test('the handle moves items with the keyboard and by dragging', async ({ page }
       '1c. Pfadfinder',
       '1d. Rover',
       '2. StaVos',
-      '2a. Reflexion',
+      '2a. Aktionsrückblick',
       '2b. Aktionsvorschau',
       '3. Sonstiges',
     ]);
@@ -428,8 +428,12 @@ test('tasks, dates, sub-items and an Aktion live in the document and are kept', 
   // The reading view shows it all
   await page.getByRole('button', { name: 'Leseansicht' }).click();
   const lese = page.getByRole('dialog', { name: 'Leseansicht' });
-  await expect(lese.getByRole('region', { name: '2. Reflexion' })).toContainText('Zelte zählen');
-  await expect(lese.getByRole('region', { name: '2. Reflexion' })).toContainText('Elternabend');
+  await expect(lese.getByRole('region', { name: '2. Aktionsrückblick' })).toContainText(
+    'Zelte zählen'
+  );
+  await expect(lese.getByRole('region', { name: '2. Aktionsrückblick' })).toContainText(
+    'Elternabend'
+  );
   await expect(lese.getByRole('region', { name: '2a. Rückmeldungen' })).toBeVisible();
 });
 
@@ -483,7 +487,7 @@ test('pasted items bring their tasks along and get IDs of their own', async ({ p
       titel: string;
       aufgaben: { id: string }[];
     }[];
-  const original = (await lesen()).find((punkt) => punkt.titel === 'Reflexion');
+  const original = (await lesen()).find((punkt) => punkt.titel === 'Aktionsrückblick');
   // The copy as the editor puts it on the clipboard, pasted at the start of the first item:
   // the copies come first, and still the original keeps its IDs
   await page
@@ -502,7 +506,7 @@ test('pasted items bring their tasks along and get IDs of their own', async ({ p
   const punkte = await lesen();
   const ids = punkte.flatMap((punkt) => [punkt.id, ...punkt.aufgaben.map((a) => a.id)]);
   expect(new Set(ids).size).toBe(ids.length);
-  const kopien = punkte.filter((punkt) => punkt.titel === 'Reflexion');
+  const kopien = punkte.filter((punkt) => punkt.titel === 'Aktionsrückblick');
   expect(kopien).toHaveLength(2);
   expect(kopien.map((punkt) => punkt.aufgaben.length)).toEqual([1, 1]);
   expect(kopien.map((punkt) => punkt.id)).toContain(original?.id);

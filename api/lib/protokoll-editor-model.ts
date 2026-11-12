@@ -321,7 +321,7 @@ export const STANDARD_PUNKTE: { titel: string; unterpunkte: string[] }[] = [
     titel: 'Stufenberichte',
     unterpunkte: ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover', 'StaVos'],
   },
-  { titel: 'Reflexion', unterpunkte: [] },
+  { titel: 'Aktionsrückblick', unterpunkte: [] },
   { titel: 'Aktionsvorschau', unterpunkte: [] },
   { titel: 'Sonstiges', unterpunkte: [] },
 ];

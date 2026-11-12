@@ -362,7 +362,7 @@ test('the text understands Markdown and never runs HTML', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Leseansicht' }).click();
   const punkt = page.getByRole('dialog', { name: 'Leseansicht' }).getByRole('region', {
-    name: '2. Reflexion',
+    name: '2. Aktionsrückblick',
   });
   await expect(punkt.locator('em')).toHaveText('kursiv');
   await expect(punkt.locator('del')).toHaveText('alt');
@@ -421,7 +421,7 @@ test('the formatting editor writes Markdown that the minutes render the same', a
 
   await page.getByRole('button', { name: 'Leseansicht' }).click();
   const punkt = page.getByRole('dialog', { name: 'Leseansicht' }).getByRole('region', {
-    name: '2. Reflexion',
+    name: '2. Aktionsrückblick',
   });
   await expect(punkt.locator('strong')).toHaveText('super');
   await expect(punkt).toContainText('und <3, Tag <b>x</b>');
@@ -596,7 +596,7 @@ test('agenda items are dragged into a new order and between the levels', async (
       '1c. Pfadfinder',
       '1d. Rover',
       '1e. StaVos',
-      '2. Reflexion',
+      '2. Aktionsrückblick',
       '3. Aktionsvorschau',
       '4. Sonstiges',
     ]);
@@ -612,10 +612,10 @@ test('agenda items are dragged into a new order and between the levels', async (
   await expect(
     page.getByRole('status').filter({ hasText: '„StaVos“ ist jetzt Punkt 2.' })
   ).toBeVisible();
-  await page.getByRole('button', { name: /^3\. Reflexion verschieben/ }).press('ArrowRight');
-  await expect(page.getByLabel('Titel von Punkt 2a.')).toHaveValue('Reflexion');
+  await page.getByRole('button', { name: /^3\. Aktionsrückblick verschieben/ }).press('ArrowRight');
+  await expect(page.getByLabel('Titel von Punkt 2a.')).toHaveValue('Aktionsrückblick');
 
-  // Dragging „Sonstiges“ up and to the right below „Reflexion“ makes it a sub-item of „StaVos“
+  // Dragging „Sonstiges“ up and to the right below „Aktionsrückblick“ makes it a sub-item of „StaVos“
   const griff = page.getByRole('button', { name: /^4\. Sonstiges verschieben/ });
   // The positions below are measured without the bar at the bottom of a phone, which would
   // cover the handle; dragging itself scrolls above that bar (data-sticky-bottom)
@@ -648,7 +648,7 @@ test('agenda items are dragged into a new order and between the levels', async (
       '1c. Pfadfinder',
       '1d. Rover',
       '2. StaVos',
-      '2a. Reflexion',
+      '2a. Aktionsrückblick',
       '2b. Sonstiges',
       '3. Aktionsvorschau',
     ]);

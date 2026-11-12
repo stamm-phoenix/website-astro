@@ -47,7 +47,7 @@ test('a Stufenbericht lists the Gruppenstunden oldest first with counts and what
   assert.equal(berichte['Pfadfinder'], undefined);
 });
 
-test('Aktionen split into Reflexion (over since the last minutes) and Aktionsvorschau (still to come)', () => {
+test('Aktionen split into Aktionsrückblick (over since the last minutes) and Aktionsvorschau (still to come)', () => {
   const texte = aktionenTexte(
     [
       aktion({
@@ -66,7 +66,7 @@ test('Aktionen split into Reflexion (over since the last minutes) and Aktionsvor
     { nach: '2026-09-30', date: '2026-10-14', bis: '2027-01-12' }
   );
   assert.equal(
-    texte['Reflexion'],
+    texte['Aktionsrückblick'],
     'Aktionen seit der letzten Sitzung:\n- 10.–12.10.2026: Zeltlager (Rover)\n- 14.10.2026: Heute'
   );
   assert.equal(texte['Aktionsvorschau'], 'Anstehende Aktionen:\n- 05.12.2026: Adventsbasar');
