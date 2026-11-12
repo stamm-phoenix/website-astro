@@ -152,3 +152,37 @@ test('grams without a value in the list are estimated by the AI, marked as such'
   await expect(dialog).toHaveCount(0);
   await expect.poll(() => zeilenMenge(karte, 'Zucker (weiß)')).toBe('36 g');
 });
+
+test('a dish written by the AI is taken over with people, lines, instructions and tools', async ({
+  page,
+}) => {
+  await anlegen(page, 'E2E KI Gericht');
+  const karte = await gericht(page, 'Nudelpfanne', '');
+  await karte.getByRole('button', { name: 'Gericht generieren lassen (KI): Nudelpfanne' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Gericht generieren lassen: Nudelpfanne' });
+  const beschreibung = dialog.getByLabel('Was soll es geben?');
+  // Starts with the name of the dish
+  await expect(beschreibung).toHaveValue('Nudelpfanne');
+  await beschreibung.fill('Nudelpfanne mit Paprika, vegetarisch, unbekannt');
+  await dialog.getByRole('button', { name: 'Gericht generieren' }).click();
+
+  // The dish has no people yet: the AI's number is offered
+  await expect(dialog.getByLabel('Personenzahl 10 für das Gericht übernehmen')).toBeChecked();
+  await expect(dialog.getByTestId('rezept-zeile')).toHaveCount(7);
+  const unbekannt = dialog.getByTestId('rezept-zeile').filter({ hasText: 'Drachenfrucht-Pesto' });
+  await expect(unbekannt.getByText('nicht in der Liste, bitte wählen')).toBeVisible();
+  await expect(dialog.getByLabel('Anleitung', { exact: true })).toHaveValue(
+    /Wasser für die Nudeln/
+  );
+  await expect(dialog.getByText('Nudelsieb')).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Gericht übernehmen' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(
+    page.getByText(
+      '6 Zutaten, Anleitung und Werkzeuge übernommen, Nudelpfanne ist jetzt für 10 Personen.'
+    )
+  ).toBeVisible();
+  await expect(karte.getByLabel('Personen')).toHaveValue('10');
+  await expect(karte.getByText('Großer Topf', { exact: true })).toBeVisible();
+});
