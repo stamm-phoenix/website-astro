@@ -4,7 +4,10 @@
  * the batch of recipe lines. „KI-Fehler“ in the name of a dish or in a recipe makes the AI
  * answer 429 with `Retry-After`, as a busy deployment does.
  */
-import type { GerichtZutatInput } from '../../../api/lib/essen-gerichte-validation';
+import type {
+  GerichtKopfInput,
+  GerichtZutatInput,
+} from '../../../api/lib/essen-gerichte-validation';
 import { MAX_ZEILEN_PRO_GERICHT } from '../../../api/lib/essen-gerichte-model';
 import type {
   KiMass,
@@ -18,7 +21,7 @@ import { leseKiRezept, rezeptKandidaten } from '../../../api/lib/essen-ki-rezept
 import { essenKatalog } from './essensplanung';
 import { gerichteAnsicht, gerichtZutatAnlegen } from './essensplanung-gerichte';
 import type { MockZugang } from './essensplanung-planung';
-import { MockPlanungFehler, aendere, neuesEtag } from './essensplanung-planung';
+import { MockPlanungFehler, aendere, konflikt, neuesEtag } from './essensplanung-planung';
 
 /** The deployment is busy; the mock answers 429 with this `Retry-After`. */
 export class MockKiBesetzt extends Error {
@@ -217,11 +220,14 @@ export function gerichtZutatenSammeln(
   gerichtId: number,
   inputs: GerichtZutatInput[],
   personen?: number | null,
-  personenSetzen?: number
+  personenSetzen?: number,
+  /** Instructions and tools in the same change, with the version they replace. */
+  kopf?: GerichtKopfInput
 ): void {
   const gericht = z.planung.gerichte.find((entry) => entry.id === gerichtId);
   if (!gericht) throw new MockPlanungFehler(404, 'NOT_FOUND', 'Das gibt es inzwischen nicht mehr.');
   pruefePersonen(gericht, personen);
+  if (kopf && kopf.etag !== gericht.etag) throw konflikt();
   if (gericht.zutaten.length + inputs.length > MAX_ZEILEN_PRO_GERICHT)
     throw new MockPlanungFehler(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
       zeilen: `Ein Gericht hat höchstens ${MAX_ZEILEN_PRO_GERICHT} Zutaten.`,
@@ -262,15 +268,25 @@ export function gerichtZutatenSammeln(
       anzahl: inputs.length,
       // The names of the lines just added, as the API logs them
       namen: gericht.zutaten
-        .slice(-inputs.length)
+        .slice(gericht.zutaten.length - inputs.length)
         .map((zeile) => nachId.get(zeile.planungZutatId)?.name ?? '')
         .slice(0, 10),
       ...(personenSetzen !== undefined ? { personen: personenSetzen } : {}),
+      ...(kopf
+        ? {
+            kopf: [
+              ...(kopf.anleitung !== undefined ? ['Anleitung'] : []),
+              ...(kopf.werkzeuge !== undefined ? ['Werkzeuge'] : []),
+            ],
+          }
+        : {}),
     },
     () => {
-      // The people of the recipe go in the same change as its lines
-      if (personenSetzen === undefined) return;
-      gericht.personen = personenSetzen;
+      // People, instructions and tools go in the same change as the lines
+      if (personenSetzen === undefined && !kopf) return;
+      if (personenSetzen !== undefined) gericht.personen = personenSetzen;
+      if (kopf?.anleitung !== undefined) gericht.anleitung = kopf.anleitung;
+      if (kopf?.werkzeuge !== undefined) gericht.werkzeuge = kopf.werkzeuge;
       gericht.etag = neuesEtag();
     }
   );

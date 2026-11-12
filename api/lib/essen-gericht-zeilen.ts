@@ -3,7 +3,7 @@ import type { Db } from './db';
 import { RecordNotFoundError, VersionConflictError, lockResource, requireVersion } from './db';
 import type { Database } from './db-schema';
 import { MAX_ZEILEN_PRO_GERICHT, gerichtSperre } from './essen-gerichte-model';
-import type { GerichtZutatInput } from './essen-gerichte-validation';
+import type { GerichtKopfInput, GerichtZutatInput } from './essen-gerichte-validation';
 import { gerichtDerPlanung } from './essen-gericht';
 import { pruefeVerweise } from './essen-gerichte';
 import type { Zugang } from './essen-planung';
@@ -166,7 +166,8 @@ async function pruefePersonen(trx: Db, gerichtId: number, personen: number | nul
  * none. An error of a line names its field as `zeilen.<index>.<field>`. With `personen`, the
  * amounts were scaled for that many people: if the dish has another number by now, nothing is
  * added (409 `PERSONEN_GEAENDERT`). With `personenSetzen` the dish gets that number in the same
- * change, so lines and people are saved together or not at all.
+ * change, so lines and people are saved together or not at all; so do `kopf`'s instructions and
+ * tools, with the version of the dish they replace (409 `CONFLICT` if it changed meanwhile).
  */
 export async function gerichtZutatenSammeln(
   zugang: Zugang,
@@ -174,14 +175,27 @@ export async function gerichtZutatenSammeln(
   inputs: GerichtZutatInput[],
   personen?: number | null,
   /** Sets the people of the dish in the same change, after `personen` was checked. */
-  personenSetzen?: number
+  personenSetzen?: number,
+  kopf?: GerichtKopfInput
 ): Promise<void> {
   await aendere(zugang, 'gericht-zutaten-neu', async (trx) => {
     const gericht = await gerichtDerPlanung(trx, zugang, gerichtId);
     await lockResource(trx, gerichtSperre(gerichtId));
     // Read after the Planung is locked by `aendere`, so a change of the people cannot slip in
     await pruefePersonen(trx, gericht.id, personen);
-    if (personenSetzen !== undefined)
+    if (kopf) {
+      const result = await trx
+        .updateTable('essen.gericht')
+        .set({
+          ...(kopf.anleitung !== undefined ? { anleitung: kopf.anleitung } : {}),
+          ...(kopf.werkzeuge !== undefined ? { werkzeuge: JSON.stringify(kopf.werkzeuge) } : {}),
+          ...(personenSetzen !== undefined ? { personen: personenSetzen } : {}),
+        })
+        .where('id', '=', gericht.id)
+        .where('version', '=', requireVersion(kopf.etag))
+        .executeTakeFirst();
+      if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
+    } else if (personenSetzen !== undefined)
       await trx
         .updateTable('essen.gericht')
         .set({ personen: personenSetzen })
@@ -208,9 +222,18 @@ export async function gerichtZutatenSammeln(
         anzahl: namen.length,
         namen: namen.slice(0, 10),
         ...(personenSetzen !== undefined ? { personen: personenSetzen } : {}),
+        ...(kopf ? { kopf: kopfFelder(kopf) } : {}),
       },
     };
   });
+}
+
+/** What a batch set of the dish's fields, for the log: „Anleitung“, „Werkzeuge“. */
+function kopfFelder(kopf: GerichtKopfInput): string[] {
+  return [
+    ...(kopf.anleitung !== undefined ? ['Anleitung'] : []),
+    ...(kopf.werkzeuge !== undefined ? ['Werkzeuge'] : []),
+  ];
 }
 
 async function zeileDerPlanung(trx: Db, zugang: Zugang, id: number) {

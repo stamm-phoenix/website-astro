@@ -106,6 +106,7 @@ import {
   validateBelegAenderung,
 } from '../../api/lib/essen-belege-validation';
 import * as essenKi from './mock-data/essensplanung-ki';
+import * as essenKiGericht from './mock-data/essensplanung-ki-gericht';
 import * as essenEinheiten from './mock-data/essensplanung-einheiten';
 import { validateEinheiten } from '../../api/lib/essen-einheiten-schema';
 import * as essenKochen from './mock-data/essensplanung-kochen';
@@ -138,6 +139,7 @@ import {
   validateNeuesGericht,
   validateGerichtZutat,
   validatePlanungZutat,
+  readKopf,
   readPersonenSetzen,
 } from '../../api/lib/essen-gerichte-validation';
 import {
@@ -1535,7 +1537,14 @@ route(['PATCH', 'DELETE'], '/api/essensplanung/planung/gericht-zutaten/:id', (re
 
 route('POST', '/api/essensplanung/planung/gerichte/:id/zutaten/sammel', (req) => {
   const zeilen = Array.isArray(req.json?.zeilen) ? req.json.zeilen : [];
-  if (!zeilen.length)
+  let kopf: ReturnType<typeof readKopf>;
+  try {
+    kopf = readKopf(req.json);
+  } catch (caught) {
+    if (!(caught instanceof ValidationError)) throw caught;
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', caught.fields);
+  }
+  if (!zeilen.length && !kopf)
     return error(400, 'INVALID', 'Bitte mindestens eine Zutat auswählen.', {
       zeilen: 'Bitte mindestens eine Zutat auswählen.',
     });
@@ -1566,7 +1575,7 @@ route('POST', '/api/essensplanung/planung/gerichte/:id/zutaten/sammel', (req) =>
   }
   return essenAendern(
     req,
-    (z) => essenKi.gerichtZutatenSammeln(z, id, inputs, personen, personenSetzen),
+    (z) => essenKi.gerichtZutatenSammeln(z, id, inputs, personen, personenSetzen, kopf),
     201
   );
 });
@@ -1607,6 +1616,17 @@ route('POST', '/api/essensplanung/planung/gerichte/:id/ki/rezept', (req) => {
     });
   return essenKiFrage(req, (z, wartung) =>
     essenKi.kiRezept(z, Number(req.params.id), text, wartung)
+  );
+});
+
+route('POST', '/api/essensplanung/planung/gerichte/:id/ki/generieren', (req) => {
+  const beschreibung = str(req.json?.beschreibung).trim();
+  if (!beschreibung)
+    return error(400, 'INVALID', 'Bitte beschreiben, was es geben soll.', {
+      beschreibung: 'Bitte beschreiben, was es geben soll.',
+    });
+  return essenKiFrage(req, (z, wartung) =>
+    essenKiGericht.kiGenerieren(z, Number(req.params.id), beschreibung, wartung)
   );
 });
 

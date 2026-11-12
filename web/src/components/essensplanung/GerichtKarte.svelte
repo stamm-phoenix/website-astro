@@ -5,6 +5,7 @@
   import TagInput from '../pflege/TagInput.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import GerichtKi from './GerichtKi.svelte';
+  import GerichtGenerierenKnopf from './GerichtGenerierenKnopf.svelte';
   import ProtokollText from '../protokolle/ProtokollText.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -225,6 +226,10 @@
         <GerichtPlaetze {plaetze} />
       </div>
       <div class="flex flex-wrap gap-2 print:hidden">
+        <!-- Stays during maintenance, so a dish being written is not lost; its actions wait -->
+        {#if ansicht.zugang !== 'lesen'}
+          <GerichtGenerierenKnopf {kontext} {katalog} {gericht} {bearbeiten} />
+        {/if}
         <!-- Only with the list, so the card names all allergens -->
         <PdfKnopf
           {kontext}

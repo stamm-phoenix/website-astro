@@ -312,7 +312,13 @@ function zutatenHinzugefuegt(wer: string, details: Record<string, unknown>): str
   const namen = Array.isArray(details.namen)
     ? details.namen.filter((name): name is string => typeof name === 'string')
     : [];
+  // Instructions and tools set in the same change, e.g. of a dish written by the AI
+  const kopf = Array.isArray(details.kopf)
+    ? details.kopf.filter((feld): feld is string => typeof feld === 'string')
+    : [];
+  const felder = kopf.join(' und ');
+  if (!anzahl && felder) return `${wer} hat ${felder}${gericht} übernommen`;
   const was = anzahl === 1 ? 'eine Zutat' : anzahl > 1 ? `${anzahl} Zutaten` : 'Zutaten';
   const liste = namen.length && anzahl <= 5 ? `: ${namen.join(', ')}` : '';
-  return `${wer} hat ${was}${gericht} hinzugefügt${liste}`;
+  return `${wer} hat ${was}${gericht} hinzugefügt${liste}${felder ? ` (mit ${felder})` : ''}`;
 }

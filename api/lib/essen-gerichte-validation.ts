@@ -86,3 +86,43 @@ export function readPersonenSetzen(body: Record<string, unknown> | null): number
     });
   return wert;
 }
+
+/** Instructions and tools a batch of lines sets for the dish in the same change (`kopf`). */
+export interface GerichtKopfInput {
+  /** The version of the dish's fields the page started from; a change meanwhile is a conflict. */
+  etag: string;
+  anleitung?: string;
+  werkzeuge?: string[];
+}
+
+/**
+ * The fields of the dish a batch sets with its lines (`kopf`, e.g. of a dish written by the AI):
+ * instructions and tools with the version they replace; undefined when not sent. Errors name
+ * their field as `kopf.<field>`.
+ */
+export function readKopf(body: Record<string, unknown> | null): GerichtKopfInput | undefined {
+  const kopf = body?.kopf;
+  if (kopf === undefined || kopf === null) return undefined;
+  if (typeof kopf !== 'object' || Array.isArray(kopf))
+    throw new ValidationError({ kopf: 'Die Angaben zum Gericht sind ungültig.' });
+  const { etag, anleitung, werkzeuge } = kopf as Record<string, unknown>;
+  if (typeof etag !== 'string' || !etag.trim())
+    throw new ValidationError({
+      kopf: 'Anleitung und Werkzeuge lassen sich nur zusammen mit dem bisherigen Stand setzen.',
+    });
+  if (anleitung === undefined && werkzeuge === undefined)
+    throw new ValidationError({ kopf: 'Bitte Anleitung oder Werkzeuge mitschicken.' });
+  try {
+    const input = validateGericht({ anleitung, werkzeuge }, { neu: false });
+    return {
+      etag,
+      ...(input.anleitung !== undefined ? { anleitung: input.anleitung } : {}),
+      ...(input.werkzeuge !== undefined ? { werkzeuge: input.werkzeuge } : {}),
+    };
+  } catch (error: unknown) {
+    if (!(error instanceof ValidationError)) throw error;
+    throw new ValidationError(
+      Object.fromEntries(Object.entries(error.fields).map(([feld, text]) => [`kopf.${feld}`, text]))
+    );
+  }
+}
