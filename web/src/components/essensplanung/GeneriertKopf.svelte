@@ -1,5 +1,6 @@
 <script lang="ts">
   import TagInput from '../pflege/TagInput.svelte';
+  import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import type { Gericht } from '../../lib/types';
 
   /**
@@ -10,6 +11,8 @@
 
   interface Props {
     gericht: Gericht;
+    /** What the AI wrote: those fields stay to edit, even once emptied. */
+    angeboten: { anleitung: boolean; werkzeuge: boolean };
     anleitung: string;
     anleitungAn: boolean;
     werkzeuge: string[];
@@ -18,6 +21,7 @@
   }
   let {
     gericht,
+    angeboten,
     anleitung = $bindable(),
     anleitungAn = $bindable(),
     werkzeuge = $bindable(),
@@ -28,7 +32,7 @@
 </script>
 
 <div class="space-y-3">
-  {#if anleitung}
+  {#if angeboten.anleitung}
     <div class="space-y-2">
       <label class="form-check-row cursor-pointer text-sm">
         <input
@@ -43,20 +47,23 @@
             : 'Anleitung übernehmen'}</span
         >
       </label>
-      <label class="sr-only" for="generiert-anleitung">Anleitung</label>
-      <textarea
-        id="generiert-anleitung"
-        class="form-input min-h-40"
-        maxlength="20000"
-        disabled={!anleitungAn}
-        aria-invalid={fehler['kopf.anleitung'] ? 'true' : undefined}
-        bind:value={anleitung}></textarea>
+      <span class="sr-only" id="generiert-anleitung-label">Anleitung</span>
+      {#if anleitungAn}
+        <LazyTextEditor
+          id="generiert-anleitung"
+          labelledBy="generiert-anleitung-label"
+          invalid={Boolean(fehler['kopf.anleitung'])}
+          placeholder="z. B. Zwiebeln anbraten, dann …"
+          maxLength={20_000}
+          bind:value={anleitung}
+        />
+      {/if}
       {#if fehler['kopf.anleitung']}<p class="text-sm text-danger">
           {fehler['kopf.anleitung']}
         </p>{/if}
     </div>
   {/if}
-  {#if werkzeuge.length}
+  {#if angeboten.werkzeuge}
     <div class="space-y-2">
       <label class="form-check-row cursor-pointer text-sm">
         <input

@@ -85,7 +85,7 @@
   let kopfEtag = '';
   let kopfFehler = $state<Record<string, string>>({});
   /** Instructions and tools as written, to tell whether the member changed them. */
-  let erzeugt = { anleitung: '', werkzeuge: [] as string[] };
+  let erzeugt = $state.raw({ anleitung: '', werkzeuge: [] as string[] });
   const kopfGeaendert = (): boolean =>
     anleitung !== erzeugt.anleitung ||
     JSON.stringify(werkzeuge) !== JSON.stringify(erzeugt.werkzeuge);
@@ -203,13 +203,13 @@
 
   const gewaehlt = $derived(zeilen.filter((zeile) => zeile.an && zeile.auswahl));
 
-  /** The tools the dish has, with the new ones added; no doubles, at most as many as allowed. */
+  /** The tools the dish has, with the new ones added, without doubles. */
   function vereint(bisher: readonly string[], neu: readonly string[]): string[] {
     const ergebnis: string[] = [];
     for (const name of [...bisher, ...neu])
       if (!ergebnis.some((other) => other.toLowerCase() === name.toLowerCase()))
         ergebnis.push(name);
-    return ergebnis.slice(0, MAX_WERKZEUGE);
+    return ergebnis;
   }
 
   /** Instructions and tools to set with the lines, with the version they replace. */
@@ -252,6 +252,13 @@
       return zeileFuerSammel(zeile, menge);
     });
     if (gesendet.some((zeile) => Object.keys(zeile.fehler).length)) return;
+    // Nothing is cut off unnoticed: too many tools are for the member to pick from
+    const zuViele = (kopf?.werkzeuge?.length ?? 0) - MAX_WERKZEUGE;
+    if (zuViele > 0) {
+      kopfFehler['kopf.werkzeuge'] =
+        `Ein Gericht hat höchstens ${MAX_WERKZEUGE} Werkzeuge. Entferne hier ${zuViele === 1 ? 'eines' : zuViele} oder übernimm keine.`;
+      return;
+    }
     speichert = true;
     let personenKonflikt = false;
     let kopfKonflikt = false;
@@ -449,6 +456,10 @@
         {#if generieren}
           <GeneriertKopf
             {gericht}
+            angeboten={{
+              anleitung: erzeugt.anleitung !== '',
+              werkzeuge: erzeugt.werkzeuge.length > 0,
+            }}
             bind:anleitung
             bind:anleitungAn
             bind:werkzeuge

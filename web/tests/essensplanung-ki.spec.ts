@@ -171,7 +171,7 @@ test('a dish written by the AI is taken over with people, lines, instructions an
   await expect(dialog.getByTestId('rezept-zeile')).toHaveCount(7);
   const unbekannt = dialog.getByTestId('rezept-zeile').filter({ hasText: 'Drachenfrucht-Pesto' });
   await expect(unbekannt.getByText('nicht in der Liste, bitte wählen')).toBeVisible();
-  await expect(dialog.getByLabel('Anleitung', { exact: true })).toHaveValue(
+  await expect(dialog.getByLabel('Anleitung', { exact: true })).toContainText(
     /Wasser für die Nudeln/
   );
   await expect(dialog.getByText('Nudelsieb')).toBeVisible();
