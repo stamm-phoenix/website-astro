@@ -253,13 +253,14 @@ export interface ProtokollSaveResponse {
 }
 
 export type ProtokollRevisionReason =
-  'speichern' | 'uebernahme' | 'ueberschreiben' | 'wiederherstellen';
+  'speichern' | 'uebernahme' | 'ueberschreiben' | 'wiederherstellen' | 'korrektur';
 
 export const REVISION_REASON_LABELS: Record<ProtokollRevisionReason, string> = {
   speichern: 'Automatisch gesichert',
   uebernahme: 'Vor dem Übernehmen der Bearbeitung',
   ueberschreiben: 'Vor dem Übernehmen einer lokalen Fassung',
   wiederherstellen: 'Vor dem Wiederherstellen einer älteren Fassung',
+  korrektur: 'Vor dem Übernehmen einer Korrektur',
 };
 
 export interface ProtokollRevisionListItem {

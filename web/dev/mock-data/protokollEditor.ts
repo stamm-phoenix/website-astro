@@ -158,7 +158,9 @@ function seed(): void {
     beginn: '20:00',
     ende: '21:00',
   });
-  review.punkte[1].text = 'Kurzer Rückblick auf das Sommerlager.\n- Alles gut gelaufen';
+  // Typos on purpose, for the demo of the correction proposals
+  review.punkte[1].text =
+    'Kurzer Rückblick auf das Sommerlagr.\n- Alles gut gelaufen\n- Material evtl seperat lagern';
   const reviewId = nextId++;
   protokolle.set(reviewId, {
     id: reviewId,
@@ -568,3 +570,11 @@ export function versandEditorProtokoll(
   p.version++;
   return { ok: { recipients } };
 }
+
+/** For the correction proposals (`dev/mockProtokollKorrektur.ts`). */
+export {
+  protokolle as mockEditorProtokolle,
+  addRevision as addMockEditorRevision,
+  etagOf as mockEditorEtag,
+  LOGIN as MOCK_EDITOR_LOGIN,
+};

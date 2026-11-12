@@ -5,6 +5,7 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
   import ProtokollEmpfaenger from './ProtokollEmpfaenger.svelte';
+  import ProtokollKorrektur from './ProtokollKorrektur.svelte';
   import { ApiError, errorMessage, fetchFile, saveFile, sendApi } from '../../lib/api';
   import { HELP_CONTACTS } from '../../lib/helpContacts';
   import {
@@ -35,11 +36,13 @@
   interface Props {
     detail: ProtokollEditorDetail;
     login: string;
+    /** This tab writes; the check for corrections waits until the writing is finished. */
+    writing?: boolean;
     /** Reloads the minutes after a step. */
     onchanged: () => Promise<unknown>;
     notify: (text: string, kind?: 'success' | 'warning' | 'error') => void;
   }
-  let { detail, login, onchanged, notify }: Props = $props();
+  let { detail, login, writing = false, onchanged, notify }: Props = $props();
 
   let busy = $state(false);
   let approving = $state(false);
@@ -302,6 +305,13 @@
       </ActionButton>
     {/if}
   </div>
+
+  {#if detail.status === 'entwurf' || detail.status === 'review'}
+    <!-- Hidden, not removed, while writing: the proposals stay for after the writing -->
+    <div hidden={writing}>
+      <ProtokollKorrektur {detail} {onchanged} />
+    </div>
+  {/if}
 </section>
 
 <ProtokollFreigabeDialog

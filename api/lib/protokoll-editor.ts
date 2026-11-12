@@ -309,7 +309,7 @@ export async function createEditorProtokoll(
   return id;
 }
 
-async function addRevision(
+export async function addRevision(
   db: Db,
   protokoll: { id: number; title: string; meeting_date: Date | string; content: string },
   reason: ProtokollRevisionReason,
@@ -371,7 +371,7 @@ async function claimSperre(
   return toSperre({ protokoll_id: protokoll.id, ...values }, input.token, now);
 }
 
-async function lockedProtokoll(db: Db, id: number) {
+export async function lockedProtokoll(db: Db, id: number) {
   const row = await db
     .selectFrom('protokoll.protokoll')
     .select(['id', 'title', 'meeting_date', 'content', 'status', 'version', 'updated_at'])

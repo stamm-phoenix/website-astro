@@ -293,6 +293,8 @@ export interface ProtokolleConfig {
   };
   /** Manual task proposals from approved minutes; see docs/aufgaben.md. */
   aufgaben: ProtokolleConfig['termin'];
+  /** Correction proposals for minutes of the editor on request (#553); see docs/protokoll-editor.md. */
+  korrektur: ProtokolleConfig['termin'];
 }
 
 /** Fees the Stamm charges an Aktion for its tents and material. */
@@ -451,6 +453,7 @@ export const CONFIG: ApiConfig = {
     campflowGroups: ['Leiter*in'],
     campflowLabels: ['Protokollempfang'],
     aufgaben: { ...AZURE_OPENAI, maxExtractionsPerDay: 20 },
+    korrektur: { ...AZURE_OPENAI, maxExtractionsPerDay: 40 },
     termin: {
       ...AZURE_OPENAI,
       maxExtractionsPerDay: 20,

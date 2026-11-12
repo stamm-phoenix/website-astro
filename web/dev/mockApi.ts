@@ -6,6 +6,7 @@ import type { AbrechnungEingabe } from '../../api/lib/abrechnung-session';
 import { registerGruppenstundenRoutes } from './mockGruppenstunden';
 import { registerBelegPruefungRoutes } from './mockBelegPruefung';
 import { registerSchnupperRoutes } from './mockSchnupper';
+import { registerProtokollKorrekturRoutes } from './mockProtokollKorrektur';
 import { registerPostfachRoutes } from './mockPostfach';
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
 import { ValidationError } from '../../api/lib/validation/errors';
@@ -3391,6 +3392,7 @@ route('PUT', '/api/mock-upload/:id', () => ({ kind: 'empty', status: 201 }), tru
 
 registerGruppenstundenRoutes(route);
 registerSchnupperRoutes(route);
+registerProtokollKorrekturRoutes(route);
 registerPostfachRoutes(
   route,
   () => PRINCIPAL.userDetails,

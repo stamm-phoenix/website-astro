@@ -1082,7 +1082,13 @@
 
     <StatusNotice {message} kind={messageKind} popup />
 
-    <ProtokollReview {detail} {login} onchanged={loadDetail} {notify} />
+    <ProtokollReview
+      {detail}
+      {login}
+      writing={mode === 'schreiben'}
+      onchanged={loadDetail}
+      {notify}
+    />
 
     {#if mode === 'schreiben' && stand}
       <div class="space-y-8">
