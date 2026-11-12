@@ -7,6 +7,7 @@ import {
   gastNamen,
   korrekturDaten,
   pruefeProtokoll,
+  teile,
 } from '../lib/protokoll-korrektur';
 import {
   fehlendeAngaben,
@@ -152,7 +153,8 @@ test('only proposals of the model that fit the text are kept, then the missing d
       { punktId: 'p-1', feld: 'unbekannt' },
     ],
   }));
-  const vorschlaege = await pruefeProtokoll(inhalt());
+  const { vorschlaege, nichtGeprueft } = await pruefeProtokoll(inhalt());
+  assert.deepEqual(nichtGeprueft, []);
   assert.deepEqual(
     vorschlaege.map((v) => [v.id, v.art, v.punktId, v.vorher, v.nachher]),
     [
@@ -206,4 +208,61 @@ test('without a deployment or with too long minutes the check refuses before the
     return true;
   });
   assert.equal(request.mock.callCount(), 0);
+});
+
+test('long minutes are checked in parts side by side, and a failed part names its items', async (t) => {
+  const minutes = inhalt();
+  const lang = 'Ein langer Satz über das Lager. '.repeat(120);
+  minutes.punkte.push(
+    punkt('p-3', { titel: 'Lagr', text: lang }),
+    punkt('p-4', { titel: 'Rest', text: lang })
+  );
+  const parts = teile(korrekturDaten(minutes).punkte);
+  assert.deepEqual(
+    parts.map((part) => part.map((p) => p.id)),
+    [['p-1', 'p-2', 'p-3'], ['p-4']]
+  );
+
+  t.mock.method(openai, 'isDeploymentConfigured', () => true);
+  const request = t.mock.method(
+    openai,
+    'requestStructuredOutput',
+    async (_d: unknown, r: { messages: { content: string }[] }) => {
+      const ids = (JSON.parse(r.messages[1].content) as { punkte: { id: string }[] }).punkte.map(
+        (p) => p.id
+      );
+      if (ids.includes('p-4')) throw new AzureOpenAiError('late', { timedOut: true });
+      if (ids.includes('p-3')) {
+        return {
+          vorschlaege: [
+            {
+              punktId: 'p-3',
+              feld: 'titel',
+              elementId: null,
+              art: 'rechtschreibung',
+              vorher: 'Lagr',
+              nachher: 'Lager',
+              begruendung: 'Tippfehler.',
+            },
+          ],
+        };
+      }
+      return { vorschlaege: [] };
+    }
+  );
+  const result = await pruefeProtokoll(minutes);
+  assert.equal(request.mock.callCount(), 2);
+  assert.deepEqual(result.vorschlaege.map((v) => [v.punktId, v.nachher]).slice(0, 1), [
+    ['p-3', 'Lager'],
+  ]);
+  assert.deepEqual(result.nichtGeprueft, ['4. Rest']);
+
+  request.mock.mockImplementation(async () => {
+    throw new AzureOpenAiError('late', { timedOut: true });
+  });
+  await assert.rejects(pruefeProtokoll(minutes), (error: unknown) => {
+    assert.ok(error instanceof KorrekturFehler);
+    assert.equal(error.status, 503);
+    return true;
+  });
 });

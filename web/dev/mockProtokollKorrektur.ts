@@ -90,7 +90,7 @@ export function registerProtokollKorrekturRoutes(
     const vorschlaege = [...demoVorschlaege(p.inhalt), ...fehlendeAngaben(p.inhalt)].map(
       (v, index) => ({ ...v, id: `k${index + 1}` })
     );
-    return json({ etag: mockEditorEtag(p), vorschlaege });
+    return json({ etag: mockEditorEtag(p), vorschlaege, nichtGeprueft: [] });
   });
 
   route('POST', '/api/intern/pflege/protokoll-editor/:id/korrekturen', (req) => {
