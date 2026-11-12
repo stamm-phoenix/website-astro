@@ -6,7 +6,8 @@
   import { STAFF_HOME, type StaffModule } from '../lib/staffModules';
   import type { StaffModuleGroup } from '../lib/staffSearch';
   import { HELP_CONTACTS } from '../lib/helpContacts';
-  import { SIDEBAR_KEY } from '../lib/staffSidebar';
+  import { storeSidebarChoice, type SidebarFlyout } from '../lib/staffSidebar';
+  import { sidebarDrag } from '../lib/sidebarDrag';
 
   interface Props {
     sections: StaffModuleGroup[];
@@ -60,27 +61,17 @@
 
   function setCollapsed(value: boolean): void {
     collapsed = value;
-    const stored = value ? 'eingeklappt' : 'ausgeklappt';
-    document.documentElement.dataset.staffSidebar = stored;
-    try {
-      localStorage.setItem(SIDEBAR_KEY, stored);
-    } catch {
-      // Without browser storage the choice lasts until the next full page load
-    }
+    storeSidebarChoice(value);
   }
 
-  /**
-   * The name that slides out next to an icon of the folded sidebar while it is pointed at or has
-   * the focus. Fixed on the page, because the scrolling sidebar would clip it.
-   */
-  interface Flyout {
-    top: number;
-    left: number;
-    height: number;
-    label: string;
-    icon: string;
-    current: boolean;
-  }
+  /** Pixels the mouse dragged the sidebar sideways; it follows them until let go. */
+  let dragged = $state<number | null>(null);
+  const dragWidth = $derived(
+    dragged === null
+      ? undefined
+      : `clamp(3.5rem, calc(${collapsed ? '3.5rem' : '16rem'} + ${dragged}px), 16rem)`
+  );
+
   let nav = $state<HTMLElement>();
   /**
    * The item under the pointer and the one with the focus, kept apart: following a link moves the
@@ -101,9 +92,14 @@
    */
   let changingPage = false;
 
-  const flyout = $derived.by((): Flyout | null => {
+  const flyout = $derived.by((): SidebarFlyout | null => {
     void moves;
-    const item = collapsed ? (focusLast ? (focused ?? hovered) : (hovered ?? focused)) : null;
+    const item =
+      collapsed && dragged === null
+        ? focusLast
+          ? (focused ?? hovered)
+          : (hovered ?? focused)
+        : null;
     if (!item?.isConnected) return null;
     const rect = item.getBoundingClientRect();
     return {
@@ -241,10 +237,18 @@
   }}
   onfocusout={() => (focused = null)}
   {onscroll}
+  use:sidebarDrag={{
+    collapsed: () => collapsed,
+    enabled: wide,
+    onmove: (dx) => (dragged = dx),
+    oncommit: () => setCollapsed(!collapsed),
+  }}
+  style:width={dragWidth}
+  style:cursor={dragWidth && 'grabbing'}
   aria-label="Bereiche des Leitendenbereichs"
   class="staff-sidebar hidden shrink-0 self-start overflow-x-hidden border-r border-neutral-200 print:hidden xl:sticky xl:top-24 xl:block xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain {collapsed
     ? 'w-14 pr-2'
-    : 'w-64 pr-4'} {animate
+    : 'w-64 pr-4'} {animate && dragged === null
     ? 'transition-[width,padding] duration-200 ease-out motion-reduce:transition-none'
     : ''}"
 >
