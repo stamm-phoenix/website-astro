@@ -12,7 +12,7 @@ export interface MailReplyTo {
  * Sends an HTML e-mail via Microsoft Graph from the configured sender mailbox.
  * Requires the application permission `Mail.Send` for the app registration.
  * Saves a copy in the sender's Sent Items.
- * @param to Recipient e-mail address.
+ * @param to Recipient e-mail address, or several that all get the same mail.
  * @param subject Subject line.
  * @param html HTML body.
  * @param sender Mailbox to send from; defaults to CONFIG.mail.nikolausSender.
@@ -20,7 +20,7 @@ export interface MailReplyTo {
  * @throws Propagates mail client setup, authentication, and Graph request errors.
  */
 export async function sendMail(
-  to: string,
+  to: string | readonly string[],
   subject: string,
   html: string,
   sender?: string,
@@ -38,7 +38,9 @@ export async function sendMail(
     message: {
       subject,
       body: { contentType: 'HTML', content: html },
-      toRecipients: [{ emailAddress: { address: to } }],
+      toRecipients: (typeof to === 'string' ? [to] : to).map((address) => ({
+        emailAddress: { address },
+      })),
       ...(replyTo ? { replyTo: [{ emailAddress: replyTo }] } : {}),
     },
     saveToSentItems: options.saveToSentItems ?? true,

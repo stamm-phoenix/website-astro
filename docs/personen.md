@@ -102,6 +102,27 @@ ihre `ich`-Listen neu kommen (eigene Eingaben in der Abrechnung bleiben). Eine P
 Wer sich mit der privaten Adresse aus der Mitgliederliste anmeldet, wird sicher erkannt, auch
 unter anderem Namen. Ohne Verknüpfung bleibt nur der Name des Microsoft-Kontos, wie bisher.
 
+## Benachrichtigungen an einzelne Leitende
+
+Mails, die eine einzelne Person über etwas informieren, gehen an ihr Konto und zusätzlich an die
+primäre Adresse der verknüpften CampFlow-Person (#552), in einer Mail mit beiden Adressen als
+Empfänger. So erreichen sie auch Leitende, die ihr Stammes-Postfach selten lesen. Alle diese
+Stellen schicken über `sendLeitendenMail` in `api/lib/leitenden-mail.ts`:
+
+- Postfach: Zuweisung einer Konversation (`postfach-mails.ts`)
+- Aufgaben: tägliche Erinnerung an fällige Aufgaben (`aufgaben-erinnerung-mails.ts`)
+- Belege: Ablehnung an die einreichende Person, Hinweis auf einen neuen Beleg an jedes Mitglied
+  der Kasse (`beleg-mails.ts`)
+- Protokolle und Protokoll-Editor: Rückgabe an die anlegende Person (`protokoll-mails.ts`)
+
+Die CampFlow-Adresse fehlt, wenn es keine Verknüpfung gibt, die Adresse ungültig ist oder ein
+anderes Mitglied der Mitgliederliste sie auch hat (etwa eine Familienadresse): Die Mails nennen
+Betreffe aus Postfächern oder Belege, die nicht bei anderen landen sollen. Ist die Datenbank oder
+CampFlow nicht erreichbar oder antwortet nicht binnen fünf Sekunden (bei Mails mit Zeitlimit
+höchstens einem Drittel davon), geht die Mail nur an das Konto. Neue Benachrichtigungen an eine
+einzelne Person schicken ebenfalls über `sendLeitendenMail`. Rundmails an viele Leitende
+(Protokollversand, Fotos, Leitendenrunde) holen ihre Adressen schon selbst aus CampFlow.
+
 ## Wo „(ich)“ steht
 
 - Aktion: Teilnehmendenliste und Detaildialog (`CampflowEventDetail.svelte`,

@@ -1,7 +1,8 @@
 import { HELP_CONTACTS } from './help-contacts';
 import { CONFIG } from './config';
 import type { MailAttachment } from './mail';
-import { escapeHtml, MAX_MAIL_ATTACHMENT_BYTES, sendBlindCopyMail, sendMail } from './mail';
+import { sendLeitendenMail } from './leitenden-mail';
+import { escapeHtml, MAX_MAIL_ATTACHMENT_BYTES, sendBlindCopyMail } from './mail';
 import { ValidationError } from './validation/errors';
 import { mailButton, mailLayout } from './mail-template';
 import { formatGermanDate } from './protokolle';
@@ -79,5 +80,7 @@ export async function sendProtokollRejectedMail(data: ProtokollRejectedMail): Pr
     <p>Bitte überarbeite es und gib es danach erneut zum Review.</p>
     ${mailButton(data.url, 'Protokolle öffnen', FALLBACK)}
   `);
-  await sendMail(data.to, `Protokoll zurückgegeben: ${name}`, html, CONFIG.protokolle.sender);
+  await sendLeitendenMail(data.to, `Protokoll zurückgegeben: ${name}`, html, {
+    sender: CONFIG.protokolle.sender,
+  });
 }

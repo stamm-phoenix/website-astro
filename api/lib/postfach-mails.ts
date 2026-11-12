@@ -1,12 +1,14 @@
-import { escapeHtml, sendMail } from './mail';
+import { sendLeitendenMail } from './leitenden-mail';
+import { escapeHtml } from './mail';
 import { mailButton, mailLayout } from './mail-template';
 import type { PostfachEintrag } from './postfach-liste';
 import type { KonversationZeile } from './postfach-model';
 
 /**
  * The note to a person who was made responsible for a conversation. It goes to the person's
- * own account and holds only subject and sender, not the text of the mail: that stays in the
- * mailbox and is read in the Leitendenbereich or in Outlook.
+ * own account and the own address of the linked CampFlow person (`leitenden-mail.ts`, never one
+ * shared with other members) and holds only subject and sender, not the text of the mail: that
+ * stays in the mailbox and is read in the Leitendenbereich or in Outlook.
  *
  * It is sent from the mailbox itself and not kept in its Sent Items: subject and sender of a
  * mailbox of the Vorstand must not land in a mailbox other people can open.
@@ -103,7 +105,8 @@ async function sendeZuweisungMail(
   siteUrl: string
 ): Promise<void> {
   const mail = zuweisungenMail(postfach, konversationen, vonName, siteUrl);
-  await sendMail(an, mail.subject, mail.html, postfach.address, undefined, {
+  await sendLeitendenMail(an, mail.subject, mail.html, {
+    sender: postfach.address,
     retry: false,
     timeoutMs: 10_000,
     saveToSentItems: false,

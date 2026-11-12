@@ -1,6 +1,7 @@
 import { CONFIG } from './config';
 import { PREVIEW_DATABASE } from './deployment';
-import { escapeHtml, sendMail } from './mail';
+import { sendLeitendenMail } from './leitenden-mail';
+import { escapeHtml } from './mail';
 import type { Task, TaskProject } from './aufgaben-model';
 
 /** Neither preview databases nor their fictional assignments may send reminder mails. */
@@ -28,12 +29,14 @@ export async function sendTaskReminderMail(
     return `<li><p><strong><a href="${escapeHtml(url)}">${escapeHtml(task.title)}</a></strong><br>${task.dueDate === today ? 'Heute' : 'Morgen'} fällig · ${date}${project ? `<br>Projekt: ${escapeHtml(project.title)}` : ''}</p></li>`;
   });
   const html = `<p>Hallo!</p><p>Diese offenen Aufgaben sind dir zugewiesen und werden heute oder morgen fällig:</p><ul>${items.join('')}</ul><p><a href="${escapeHtml(CONFIG.taskReminders.siteUrl)}/leitendenbereich/aufgaben">Aufgaben öffnen</a> und fertige Aufgaben als erledigt markieren.</p><p>Gut Pfad!<br>Stamm Phoenix</p>`;
-  await sendMail(
+  await sendLeitendenMail(
     recipient,
     `Erinnerung: ${tasks.length} ${tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'}`,
     html,
-    CONFIG.taskReminders.sender,
-    undefined,
-    { retry: false, timeoutMs: CONFIG.taskReminders.mailTimeoutMs }
+    {
+      sender: CONFIG.taskReminders.sender,
+      retry: false,
+      timeoutMs: CONFIG.taskReminders.mailTimeoutMs,
+    }
   );
 }

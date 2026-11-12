@@ -96,7 +96,9 @@ gelesen, damit sie dort nicht mehr fett stehen. Öffnen allein ändert nichts.
   Was nicht gespeichert wurde (z. B. weil es jemand inzwischen geändert hat), nennt die Seite und
   lässt es ausgewählt.
 - **Benachrichtigung:** Wer von jemand anderem zuständig gemacht wird, bekommt eine Mail an das
-  eigene Konto (`postfach-mails.ts`, gesendet vom Postfach selbst, ohne Kopie in seinen „Gesendeten Elementen“, damit Betreffe des Vorstands-Postfachs nicht im Kontakt-Postfach landen) mit Betreff, Absender
+  eigene Konto und die eigene Adresse der verknüpften CampFlow-Person, nie an eine mit anderen
+  Mitgliedern geteilte ([Personen](personen.md#benachrichtigungen-an-einzelne-leitende);
+  `postfach-mails.ts`, gesendet vom Postfach selbst, ohne Kopie in seinen „Gesendeten Elementen“, damit Betreffe des Vorstands-Postfachs nicht im Kontakt-Postfach landen) mit Betreff, Absender
   und einem Link auf die Konversation (`#konversation=<id>`), ohne den Text der E-Mail. Scheitert
   der Versand, bleibt die Zuständigkeit gespeichert und die Seite sagt, dass man selbst Bescheid
   geben soll. PR-Previews schicken keine solchen Mails, weil sie den Mailversand der Produktion
