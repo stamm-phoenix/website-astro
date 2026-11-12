@@ -461,7 +461,7 @@ test('an item from an Aktion survives Backspace in its emptied title', async ({ 
   // only take one letter
   await expect
     .poll(() => page.evaluate(() => document.getSelection()?.toString()))
-    .toMatch(/^Pfadi-Winterlager/);
+    .toMatch(/^Planung Pfadi-Winterlager/);
   await page.keyboard.press('Backspace');
   await expect.poll(reihenfolge(page)).toContain('5. ');
   await page.keyboard.press('Backspace');
