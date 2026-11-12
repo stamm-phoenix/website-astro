@@ -232,6 +232,7 @@ import {
   GetEditorRevision,
   GetEditorRevisions,
 } from './endpoints/intern-protokoll-editor';
+import { KorrekturPruefen, KorrekturUebernehmen } from './endpoints/intern-protokoll-korrektur';
 import GetNikolausSettingsEndpoint from './endpoints/nikolaus-settings';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
@@ -814,6 +815,20 @@ app.http('internPflegeProtokollEditorSperre', {
   authLevel: 'anonymous',
   route: 'intern/pflege/protokoll-editor/{id}/sperre',
   handler: EditorSperre,
+});
+
+app.http('internProtokollEditorKorrekturPruefen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}/ki/korrekturen',
+  handler: KorrekturPruefen,
+});
+
+app.http('internPflegeProtokollEditorKorrekturen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor/{id}/korrekturen',
+  handler: KorrekturUebernehmen,
 });
 
 app.http('internPflegeAktionZuschuss', {
