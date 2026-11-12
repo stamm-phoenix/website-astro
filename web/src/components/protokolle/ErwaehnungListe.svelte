@@ -8,14 +8,26 @@
     position?: { left: number; top: number } | null;
   }
   let { auswahl, position = null }: Props = $props();
+
+  /** Space kept to the edge of the window. */
+  const RAND = 8;
+  let breite = $state(0);
+  let fensterBreite = $state(0);
+  /** The `@` position, moved left as far as needed to keep the whole list in the window. */
+  const left = $derived(
+    position ? Math.max(RAND, Math.min(position.left, fensterBreite - breite - RAND)) : null
+  );
 </script>
+
+<svelte:window bind:innerWidth={fensterBreite} />
 
 {#if auswahl.offen}
   <ul
     id={auswahl.id}
     class="erwaehnung-liste"
     class:is-schwebend={position !== null}
-    style:left={position ? `${position.left}px` : undefined}
+    bind:offsetWidth={breite}
+    style:left={left === null ? undefined : `${left}px`}
     style:top={position ? `${position.top}px` : undefined}
     role="listbox"
     aria-label="Person erwähnen"
@@ -43,7 +55,7 @@
   .erwaehnung-liste {
     z-index: 30;
     margin-top: 0.25rem;
-    max-width: min(22rem, calc(100vw - 2rem));
+    max-width: min(22rem, calc(100vw - 1rem));
     overflow: hidden;
     border: 1px solid var(--color-neutral-300);
     border-radius: 0.375rem;
