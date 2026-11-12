@@ -1269,6 +1269,7 @@ export type {
 
 export type {
   ProtokollAktion,
+  ProtokollZeitraum,
   OffeneAufgabe,
   OffeneAufgabeQuelle,
   ProtokollAnwesenheit,

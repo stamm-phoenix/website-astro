@@ -160,3 +160,25 @@ test('the project and open tasks of an agenda item', () => {
     'offene Aufgaben fehlt.'
   );
 });
+
+test('the date of an agenda item is optional in older minutes and checked otherwise', () => {
+  const legacy = inhalt() as unknown as Loose;
+  delete legacy.punkte[0].zeitraum;
+  assert.equal(validateProtokollInhalt(legacy).punkte[0].zeitraum, null);
+  const ok = inhalt();
+  ok.punkte[0].zeitraum = { start: '2026-06-12', ende: '2026-06-14' };
+  assert.deepEqual(validateProtokollInhalt(ok), ok);
+  // The end may be typed before the start, the editor saves in between
+  ok.punkte[0].zeitraum = { start: '', ende: '2026-06-14' };
+  assert.deepEqual(validateProtokollInhalt(ok), ok);
+  const broken = (zeitraum: unknown): string => message((v) => (firstPunkt(v).zeitraum = zeitraum));
+  assert.equal(
+    broken({ start: '12.06.2026', ende: '' }),
+    'Das Datum eines Tagesordnungspunkts ist ungültig.'
+  );
+  assert.equal(
+    broken({ start: '2026-06-12', ende: '2026-02-30' }),
+    'Das Enddatum eines Tagesordnungspunkts ist ungültig.'
+  );
+  assert.equal(broken('2026-06-12'), 'Das Datum eines Tagesordnungspunkts fehlt.');
+});

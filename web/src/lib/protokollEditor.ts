@@ -137,6 +137,7 @@ export function changedPunkte(before: ProtokollInhalt, after: ProtokollInhalt): 
       a: p.aufgaben,
       d: p.termine,
       k: p.aktion,
+      z: p.zeitraum,
       p: p.projekt,
       o: p.offeneAufgaben,
     });

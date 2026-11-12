@@ -207,6 +207,9 @@
         {@const zeitraum = aktionZeitraum(item.aktion)}
         <p class="text-sm text-neutral-700">Aktion{zeitraum ? `, ${zeitraum}` : ''}</p>
       {/if}
+      {#if item.zeitraum && aktionZeitraum(item.zeitraum)}
+        <p class="text-sm text-neutral-700">Datum: {aktionZeitraum(item.zeitraum)}</p>
+      {/if}
       {#if item.projekt}
         <p class="text-sm text-neutral-700">Projekt: {item.projekt.titel}</p>
       {/if}

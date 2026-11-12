@@ -17,12 +17,13 @@
     ProtokollAktion,
     ProtokollAufgabe,
     ProtokollProjekt,
+    ProtokollZeitraum,
     PunktTermin,
   } from '../../lib/types';
 
   /**
-   * The tasks and dates of an agenda item with the buttons to add them (and a sub-item), and its
-   * project with its open tasks. Shown below the text, in the Markdown fields
+   * The date (range), tasks and dates of an agenda item with the buttons to add them (and a
+   * sub-item), and its project with its open tasks. Shown below the text, in the Markdown fields
    * (`ProtokollPunktEditor`) as well as in the document (`ProtokollDokument`).
    */
   interface Props {
@@ -30,6 +31,8 @@
     termine: PunktTermin[];
     projekt: ProtokollProjekt | null;
     offeneAufgaben: OffeneAufgabe[];
+    /** The day or days the item is about; an item from an Aktion has the Aktion's dates. */
+    zeitraum: ProtokollZeitraum | null;
     /** The Aktion of the item; its project is suggested. */
     aktion: ProtokollAktion | null;
     /** „1.“, „1a.“ */
@@ -46,6 +49,7 @@
     termine = $bindable(),
     projekt = $bindable(),
     offeneAufgaben = $bindable(),
+    zeitraum = $bindable(),
     aktion,
     nummer,
     personen,
@@ -54,6 +58,7 @@
     onAddUnterpunkt,
   }: Props = $props();
 
+  const uid = $props.id();
   let projektWahl = $state(false);
   const canLink = $derived(
     !projekt && !aktion && !projektWahl && (protokollAufgaben.state.data?.projekte.length ?? 0) > 0
@@ -63,6 +68,12 @@
     aufgaben.push({ id: newElementId(), titel: '', zustaendig: [], faellig: '' });
   }
 
+  async function addZeitraum(): Promise<void> {
+    zeitraum = { start: '', ende: '' };
+    await tick();
+    document.getElementById(`zeitraum-start-${uid}`)?.focus();
+  }
+
   async function addTermin(): Promise<void> {
     const id = newElementId();
     termine.push({ id, titel: '', datum: '', uhrzeit: '', ort: '', zustaendig: [] });
@@ -70,6 +81,45 @@
     document.getElementById(`termin-${id}`)?.focus();
   }
 </script>
+
+{#if zeitraum}
+  <div
+    class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2 border-l-2 border-neutral-400 pl-3"
+    role="group"
+    aria-label="Datum von Punkt {nummer}"
+  >
+    <div>
+      <label for="zeitraum-start-{uid}" class="text-sm font-semibold">Datum</label>
+      <input
+        id="zeitraum-start-{uid}"
+        type="date"
+        class="form-input py-1"
+        bind:value={zeitraum.start}
+      />
+    </div>
+    <div>
+      <label for="zeitraum-ende-{uid}" class="text-sm text-neutral-700">Bis (falls mehrtägig)</label
+      >
+      <input
+        id="zeitraum-ende-{uid}"
+        type="date"
+        class="form-input py-1"
+        min={zeitraum.start || undefined}
+        bind:value={zeitraum.ende}
+      />
+    </div>
+    <button
+      type="button"
+      class="icon-button"
+      aria-label="Datum von Punkt {nummer} entfernen"
+      onclick={() => (zeitraum = null)}
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        ><path d="M6 6l12 12M18 6L6 18" /></svg
+      >
+    </button>
+  </div>
+{/if}
 
 <ProtokollPunktProjekt
   bind:projekt
@@ -216,6 +266,9 @@
     + Aufgabe
   </ActionButton>
   <ActionButton onclick={addTermin} disabled={termine.length >= MAX_TERMINE}>+ Termin</ActionButton>
+  {#if !zeitraum && !aktion}
+    <ActionButton onclick={addZeitraum}>+ Datum</ActionButton>
+  {/if}
   {#if !isSub && onAddUnterpunkt}
     <ActionButton onclick={onAddUnterpunkt} disabled={unterpunkte >= MAX_UNTERPUNKTE}>
       + Unterpunkt

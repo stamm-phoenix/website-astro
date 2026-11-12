@@ -225,6 +225,7 @@
         bind:termine={punkt.termine}
         bind:projekt={punkt.projekt}
         bind:offeneAufgaben={punkt.offeneAufgaben}
+        bind:zeitraum={punkt.zeitraum}
         aktion={punkt.aktion}
         {nummer}
         {personen}

@@ -729,6 +729,7 @@
     return Boolean(
       punkt.text.trim() ||
       punkt.aktion ||
+      punkt.zeitraum ||
       punkt.aufgaben.length > 0 ||
       punkt.termine.length > 0 ||
       punkt.projekt ||

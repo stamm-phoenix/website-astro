@@ -49,6 +49,14 @@ export interface ProtokollAktion {
   ende: string;
 }
 
+/** The day or days an item without Aktion is about (#551), shown below the title like an Aktion's. */
+export interface ProtokollZeitraum {
+  /** `YYYY-MM-DD` or empty. */
+  start: string;
+  /** `YYYY-MM-DD` or empty for a single day. */
+  ende: string;
+}
+
 /** A project of the module Aufgaben linked to an agenda item. */
 export interface ProtokollProjekt {
   id: number;
@@ -77,6 +85,8 @@ export interface ProtokollPunkt {
   titel: string;
   /** Set for items about an Aktion, `null` for all others. */
   aktion: ProtokollAktion | null;
+  /** Date or date range typed at the item; missing in minutes stored before #551, read as `null`. */
+  zeitraum: ProtokollZeitraum | null;
   /** Markdown (CommonMark and GFM), rendered without HTML (`web/src/lib/protokollMarkdown.ts`). */
   text: string;
   aufgaben: ProtokollAufgabe[];
@@ -332,6 +342,7 @@ export function neuerPunkt(id: string, titel = ''): ProtokollPunkt {
     id,
     titel,
     aktion: null,
+    zeitraum: null,
     text: '',
     aufgaben: [],
     termine: [],
@@ -452,16 +463,21 @@ export function neuerInhalt(
   };
 }
 
-/** „12.–14.06.2026“, „03.10.2026“ or empty: the dates of an Aktion below the title. */
-export function aktionZeitraum(aktion: ProtokollAktion): string {
+/** „12.–14.06.2026“, „03.10.2026“ or empty: the dates of an Aktion or item below the title. */
+export function aktionZeitraum(aktion: ProtokollZeitraum): string {
   const format = (date: string): string[] => {
     const [year, month, day] = date.split('-');
     return [day, month, year];
   };
-  if (!aktion.start) return '';
-  const [d1, m1, y1] = format(aktion.start);
-  if (!aktion.ende || aktion.ende === aktion.start) return `${d1}.${m1}.${y1}`;
-  const [d2, m2, y2] = format(aktion.ende);
+  // A range typed the wrong way round reads as the range it means
+  const [start, ende] =
+    aktion.start && aktion.ende && aktion.ende < aktion.start
+      ? [aktion.ende, aktion.start]
+      : [aktion.start || aktion.ende, aktion.ende];
+  if (!start) return '';
+  const [d1, m1, y1] = format(start);
+  if (!ende || ende === start) return `${d1}.${m1}.${y1}`;
+  const [d2, m2, y2] = format(ende);
   if (y1 !== y2) return `${d1}.${m1}.${y1}–${d2}.${m2}.${y2}`;
   if (m1 !== m2) return `${d1}.${m1}.–${d2}.${m2}.${y2}`;
   return `${d1}.–${d2}.${m2}.${y2}`;
@@ -540,7 +556,7 @@ export function personNames(list: ProtokollPerson[]): string {
 
 /**
  * Brings content written before #297, #301 and step 3 of #277 into the current shape: a missing
- * `termine` or `offeneAufgaben` becomes an empty list, a missing `projekt` `null`, a Sitzungsleitung or Protokoll typed as one string becomes one person
+ * `termine` or `offeneAufgaben` becomes an empty list, a missing `projekt` or `zeitraum` `null`, a Sitzungsleitung or Protokoll typed as one string becomes one person
  * without login. Used for local copies in the browser; the server does the same while checking.
  */
 export function upgradeInhalt(inhalt: ProtokollInhalt): ProtokollInhalt {
@@ -552,6 +568,7 @@ export function upgradeInhalt(inhalt: ProtokollInhalt): ProtokollInhalt {
     ...p,
     termine: Array.isArray(p.termine) ? p.termine : [],
     projekt: p.projekt ?? null,
+    zeitraum: p.zeitraum ?? null,
     offeneAufgaben: Array.isArray(p.offeneAufgaben) ? p.offeneAufgaben : [],
     unterpunkte: (p.unterpunkte ?? []).map(punkt),
   });

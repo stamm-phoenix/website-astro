@@ -700,6 +700,9 @@ test('the dates of an Aktion are written compactly', () => {
   assert.equal(aktionZeitraum({ ...aktion, ende: '2026-07-02' }), '12.06.–02.07.2026');
   assert.equal(aktionZeitraum({ ...aktion, ende: '' }), '12.06.2026');
   assert.equal(aktionZeitraum({ ...aktion, start: '', ende: '' }), '');
+  // A date range typed at an item (#551): only the end, or the wrong way round
+  assert.equal(aktionZeitraum({ start: '', ende: '2026-06-14' }), '14.06.2026');
+  assert.equal(aktionZeitraum({ start: '2026-06-14', ende: '2026-06-12' }), '12.–14.06.2026');
 });
 
 dbTest('Altleitende of the list are offered next to the leaders', async (t) => {

@@ -10,6 +10,7 @@ export function punkt(id: string, overrides: Partial<ProtokollPunkt> = {}): Prot
     id,
     titel: 'Begrüßung',
     aktion: null,
+    zeitraum: null,
     text: 'Zeile 1\nZeile 2',
     aufgaben: [],
     termine: [],

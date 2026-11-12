@@ -18,6 +18,7 @@ import type {
   ProtokollAktion,
   ProtokollAufgabe,
   ProtokollProjekt,
+  ProtokollZeitraum,
   PunktTermin,
 } from './types';
 
@@ -313,6 +314,7 @@ interface ExtrasAttrs {
   termine: PunktTermin[];
   projekt: ProtokollProjekt | null;
   offeneAufgaben: OffeneAufgabe[];
+  zeitraum: ProtokollZeitraum | null;
 }
 
 interface ExtrasProps extends ExtrasAttrs {
@@ -325,7 +327,13 @@ interface ExtrasProps extends ExtrasAttrs {
 }
 
 function extrasKey(attrs: ExtrasAttrs): string {
-  return JSON.stringify([attrs.aufgaben, attrs.termine, attrs.projekt, attrs.offeneAufgaben]);
+  return JSON.stringify([
+    attrs.aufgaben,
+    attrs.termine,
+    attrs.projekt,
+    attrs.offeneAufgaben,
+    attrs.zeitraum,
+  ]);
 }
 
 /** A copy of the node's data, so the component never changes the node itself. */
@@ -336,6 +344,7 @@ function extrasAttrs(node: PMNode): ExtrasAttrs {
     termine: structuredClone(attrs.termine),
     projekt: attrs.projekt ? structuredClone(attrs.projekt) : null,
     offeneAufgaben: structuredClone(attrs.offeneAufgaben),
+    zeitraum: attrs.zeitraum ? structuredClone(attrs.zeitraum) : null,
   };
 }
 
@@ -367,6 +376,7 @@ export function extrasView(views: DokumentViews): NodeViewRenderer {
           termine: $state.snapshot(props.termine),
           projekt: $state.snapshot(props.projekt),
           offeneAufgaben: $state.snapshot(props.offeneAufgaben),
+          zeitraum: $state.snapshot(props.zeitraum),
         };
         const key = extrasKey(next);
         if (key === known) return;

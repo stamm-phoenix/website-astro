@@ -119,6 +119,36 @@ test('an item from an Aktion is not empty, so Backspace keeps it', () => {
   assert.ok(!punktLeer(mitAktion.firstChild!));
 });
 
+test('the date of an item goes through the document and the clipboard (#551)', () => {
+  const punkte = beispiel();
+  punkte[2].zeitraum = { start: '2026-06-12', ende: '2026-06-14' };
+  const doc = umwandlung.doc(punkte);
+  assert.deepEqual(
+    umwandlung.punkte(doc),
+    punkte.map((p) => umwandlung.punkt(umwandlung.punktNode(p)))
+  );
+  assert.deepEqual(umwandlung.punkt(doc.child(2)).zeitraum, punkte[2].zeitraum);
+  // An item with a date is not empty, so Backspace keeps it
+  assert.ok(!punktLeer(doc.child(2)));
+  const { document } = parseHTML('<!doctype html><html><body></body></html>');
+  const html = DOMSerializer.fromSchema(schema).serializeNode(doc.child(2), {
+    document: document as unknown as Document,
+  }) as unknown as HTMLElement;
+  const pasted = PMDOMParser.fromSchema(schema).parse(html as unknown as Node, {
+    topNode: schema.nodes.punkt.create({ id: 'kopie' }),
+  });
+  assert.deepEqual(umwandlung.punkt(pasted).zeitraum, punkte[2].zeitraum);
+  const kaputt = parseHTML(
+    `<!doctype html><html><body><section data-punkt-block>
+      <div data-punkt-titel>Titel</div>
+      <div data-punkt-text><p>Text</p></div>
+      <div data-punkt-extras data-zeitraum='{"start":5}'></div>
+    </section></body></html>`
+  ).document;
+  const fremd = PMDOMParser.fromSchema(schema).parse(kaputt.body as unknown as Node);
+  assert.equal(umwandlung.punkt(fremd.firstChild!).zeitraum, null);
+});
+
 test('an empty agenda becomes one empty item', () => {
   const doc = umwandlung.doc([]);
   assert.equal(doc.childCount, 1);
