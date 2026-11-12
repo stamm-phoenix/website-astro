@@ -1,0 +1,43 @@
+name: PR CI reports
+on:
+  pull_request:
+    paths:
+      - .github/scripts/ci-comments*
+      - .github/workflows/ci-comments.yml
+  workflow_run:
+    workflows: [Azure Static Web Apps CI/CD, E2E budget, Codex Review]
+    types: [completed]
+permissions:
+  contents: read
+concurrency:
+  group: ci-report-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch || github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: node --test .github/scripts/ci-comments.test.cjs
+  comment:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request'
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # workflow_run uses the default branch; never check out or execute PR code here.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            await require('./.github/scripts/ci-comments.cjs').report({ github, context, core });
