@@ -1,4 +1,4 @@
-import { EINHEITEN_JE_ART } from '../../../../api/lib/essen-gerichte-model';
+import { EINHEITEN_JE_ART, MAX_WERKZEUGE } from '../../../../api/lib/essen-gerichte-model';
 import { mengeFeld, zutatWahl, type ZutatWahl } from '../../lib/essensplanungGerichte';
 import { vorschlagKey, type KiRezeptZeile, type VorschauMenge } from '../../lib/essensplanungKi';
 import type { EssenKatalog, GerichtEinheit, PlanungZutat } from '../../lib/types';
@@ -86,3 +86,36 @@ export function zeileFuerSammel(zeile: VorschauZeile, menge: number | null) {
 /** What the member may have changed of a line, to tell edited lines apart. */
 export const schnappschuss = (zeile: VorschauZeile): string =>
   JSON.stringify([zeile.an, zeile.zutatText, zeile.menge, zeile.einheit, zeile.hinweis]);
+
+/** The tools a dish has, with the new ones added, without doubles; nothing is cut off. */
+export function vereint(bisher: readonly string[], neu: readonly string[]): string[] {
+  const ergebnis: string[] = [];
+  for (const name of [...bisher, ...neu])
+    if (!ergebnis.some((other) => other.toLowerCase() === name.toLowerCase())) ergebnis.push(name);
+  return ergebnis;
+}
+
+/** Why the tools cannot be taken over, or null: a dish has at most `MAX_WERKZEUGE`. */
+export function werkzeugeFehler(anzahl: number): string | null {
+  const zuViele = anzahl - MAX_WERKZEUGE;
+  if (zuViele <= 0) return null;
+  return `Ein Gericht hat höchstens ${MAX_WERKZEUGE} Werkzeuge. Entferne hier ${zuViele === 1 ? 'eines' : zuViele} oder übernimm keine.`;
+}
+
+/** What taking over did, e.g. „3 Zutaten und Anleitung übernommen“. */
+export function erfolgText(
+  name: string,
+  anzahl: number,
+  kopf: { anleitung?: string; werkzeuge?: string[] } | undefined,
+  personenSetzen: number | undefined
+): string {
+  const teile = [
+    ...(anzahl ? [anzahl === 1 ? 'Eine Zutat' : `${anzahl} Zutaten`] : []),
+    ...(kopf?.anleitung !== undefined ? ['Anleitung'] : []),
+    ...(kopf?.werkzeuge !== undefined ? ['Werkzeuge'] : []),
+  ];
+  const was = teile.length > 1 ? `${teile.slice(0, -1).join(', ')} und ${teile.at(-1)}` : teile[0];
+  const personen =
+    personenSetzen !== undefined ? `, ${name} ist jetzt für ${personenSetzen} Personen` : '';
+  return `${was} übernommen${personen}.`;
+}

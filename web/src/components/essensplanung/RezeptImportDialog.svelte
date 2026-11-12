@@ -14,14 +14,16 @@
     type KiGericht,
     type KiRezept,
   } from '../../lib/essensplanungKi';
-  import { MAX_WERKZEUGE } from '../../../../api/lib/essen-gerichte-model';
   import type { EssenKatalog, Gericht } from '../../lib/types';
   import type { PlanKontext } from './planKontext';
   import GeneriertKopf from './GeneriertKopf.svelte';
   import RezeptVorschau from './RezeptVorschau.svelte';
   import {
+    erfolgText,
     schnappschuss,
+    vereint,
     vorschauZeile,
+    werkzeugeFehler,
     zeileFuerSammel,
     type VorschauZeile,
   } from './rezeptVorschau';
@@ -203,15 +205,6 @@
 
   const gewaehlt = $derived(zeilen.filter((zeile) => zeile.an && zeile.auswahl));
 
-  /** The tools the dish has, with the new ones added, without doubles. */
-  function vereint(bisher: readonly string[], neu: readonly string[]): string[] {
-    const ergebnis: string[] = [];
-    for (const name of [...bisher, ...neu])
-      if (!ergebnis.some((other) => other.toLowerCase() === name.toLowerCase()))
-        ergebnis.push(name);
-    return ergebnis;
-  }
-
   /** Instructions and tools to set with the lines, with the version they replace. */
   const kopf = $derived.by(() => {
     if (!generieren) return undefined;
@@ -223,18 +216,6 @@
     };
     return Object.keys(felder).length ? { etag: kopfEtag, ...felder } : undefined;
   });
-
-  /** What taking over did, e.g. „3 Zutaten und Anleitung übernommen“. */
-  function erfolgText(anzahl: number, personenSetzen: number | undefined): string {
-    const teile = [
-      ...(anzahl ? [anzahl === 1 ? 'Eine Zutat' : `${anzahl} Zutaten`] : []),
-      ...(kopf?.anleitung !== undefined ? ['Anleitung'] : []),
-      ...(kopf?.werkzeuge !== undefined ? ['Werkzeuge'] : []),
-    ];
-    const was =
-      teile.length > 1 ? `${teile.slice(0, -1).join(', ')} und ${teile.at(-1)}` : teile[0];
-    return `${was} übernommen${personenSetzen !== undefined ? `, ${gericht.name} ist jetzt für ${personenSetzen} Personen` : ''}.`;
-  }
 
   async function uebernehmen(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -253,10 +234,9 @@
     });
     if (gesendet.some((zeile) => Object.keys(zeile.fehler).length)) return;
     // Nothing is cut off unnoticed: too many tools are for the member to pick from
-    const zuViele = (kopf?.werkzeuge?.length ?? 0) - MAX_WERKZEUGE;
-    if (zuViele > 0) {
-      kopfFehler['kopf.werkzeuge'] =
-        `Ein Gericht hat höchstens ${MAX_WERKZEUGE} Werkzeuge. Entferne hier ${zuViele === 1 ? 'eines' : zuViele} oder übernimm keine.`;
+    const zuViele = werkzeugeFehler(kopf?.werkzeuge?.length ?? 0);
+    if (zuViele) {
+      kopfFehler['kopf.werkzeuge'] = zuViele;
       return;
     }
     speichert = true;
@@ -299,7 +279,7 @@
             throw error;
           }
         },
-        erfolgText(gesendet.length, personenSetzen)
+        erfolgText(gericht.name, gesendet.length, kopf, personenSetzen)
       );
       if (ok) {
         fertig = true;
