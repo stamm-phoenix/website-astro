@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from '../../changelog';
 
 const entry: ChangelogEntry = {
-  id: '2026-11-12-09-seitenleiste-ziehen',
+  id: '2026-11-12-10-seitenleiste-ziehen',
   date: '2026-11-12',
   title: 'Seitenleiste mit der Maus ein- und ausklappen',
   changes: [
