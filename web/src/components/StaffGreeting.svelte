@@ -12,7 +12,7 @@
   });
 </script>
 
-<div class="min-h-[4.75rem]">
+<div class="min-h-11 pb-2 md:min-h-12">
   {#if authStore.loading}
     <span role="status" class="sr-only">Anmeldung wird geprüft …</span>
     <div class="skeleton-element h-9 w-72 max-w-full rounded"></div>
@@ -20,10 +20,5 @@
     <h1 class="font-serif text-3xl md:text-4xl font-semibold text-brand-900">
       {greeting}{firstName ? `, ${firstName}` : ''}!
     </h1>
-    {#if authStore.principal}
-      <p class="mt-1 text-sm text-neutral-700">
-        Angemeldet als <span class="font-semibold">{authStore.principal.userDetails}</span>
-      </p>
-    {/if}
   {/if}
 </div>

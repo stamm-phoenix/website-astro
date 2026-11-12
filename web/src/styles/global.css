@@ -141,7 +141,8 @@
     --color-on-stufe: #181614;
     --dialog-backdrop: rgb(10 9 8 / 0.75);
     --dialog-backdrop-strong: rgb(10 9 8 / 0.85);
-    --page-decoration-opacity: 0.2;
+    /* Fainter than in light: the light outline on the dark page must not read as a line through the text */
+    --page-decoration-opacity: 0.08;
     --page-decoration-filter: grayscale(1) brightness(0) invert(1);
   }
 }
