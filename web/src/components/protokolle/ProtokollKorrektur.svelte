@@ -55,9 +55,12 @@
       zustand = {};
       const anzahl = result.vorschlaege.length;
       ergebnis =
-        anzahl === 0
+        (anzahl === 0
           ? 'Geprüft: keine Korrekturen gefunden.'
-          : `Geprüft: ${anzahl === 1 ? 'ein Vorschlag' : `${anzahl} Vorschläge`}.`;
+          : `Geprüft: ${anzahl === 1 ? 'ein Vorschlag' : `${anzahl} Vorschläge`}.`) +
+        (result.nichtGeprueft.length > 0
+          ? ` Nicht geprüft: ${result.nichtGeprueft.join(', ')}. Tippe noch einmal auf „Auf Korrekturen prüfen“.`
+          : '');
     } catch (error: unknown) {
       fehler = errorMessage(
         error,

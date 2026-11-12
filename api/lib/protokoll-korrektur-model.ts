@@ -62,6 +62,8 @@ export interface KorrekturVorschlag extends KorrekturStelle {
 /** Answer of the check. */
 export interface KorrekturPruefung {
   vorschlaege: KorrekturVorschlag[];
+  /** Items whose part of the check failed, e.g. „2. Finanzen“; empty when all were checked. */
+  nichtGeprueft: string[];
 }
 
 /** Proposals to take over, as the page sends them. */

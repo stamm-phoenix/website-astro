@@ -41,7 +41,7 @@ export async function KorrekturPruefenEndpoint(request: HttpRequest): Promise<Ht
   try {
     const body: KorrekturPruefung & { etag: string } = {
       etag: detail.etag,
-      vorschlaege: await pruefeProtokoll(detail.inhalt),
+      ...(await pruefeProtokoll(detail.inhalt)),
     };
     return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };
   } catch (error: unknown) {
