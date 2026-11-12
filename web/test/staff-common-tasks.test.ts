@@ -43,3 +43,40 @@ test('equal counts have a deterministic order and invalid counts are ignored', (
     ['/leitendenbereich/belege', '/leitendenbereich/fotos']
   );
 });
+
+test('areas already shown as tiles are left out of the fallback', () => {
+  const shown = ['/leitendenbereich/aufgaben', '/leitendenbereich/belege'];
+  const result = commonTaskModules(STAFF_MODULES, {}, shown).map((m) => m.href);
+  assert.ok(result.length > 0);
+  for (const href of shown) assert.ok(!result.includes(href));
+  assert.deepEqual(
+    result,
+    paths({}).filter((href) => !shown.includes(href))
+  );
+});
+
+test('areas already shown as tiles are left out of the popular list, which fills up', () => {
+  assert.deepEqual(
+    commonTaskModules(
+      STAFF_MODULES,
+      {
+        '/leitendenbereich/fotos': 30,
+        '/leitendenbereich/aufgaben': 20,
+        '/leitendenbereich/belege': 10,
+        '/leitendenbereich/protokolle': 8,
+        '/leitendenbereich/aktionen': 5,
+      },
+      ['/leitendenbereich/fotos']
+    ).map((m) => m.href),
+    [
+      '/leitendenbereich/aufgaben',
+      '/leitendenbereich/belege',
+      '/leitendenbereich/protokolle',
+      '/leitendenbereich/aktionen',
+    ]
+  );
+});
+
+test('nothing is left when every common area is already shown', () => {
+  assert.deepEqual(commonTaskModules(STAFF_MODULES, {}, paths({})), []);
+});

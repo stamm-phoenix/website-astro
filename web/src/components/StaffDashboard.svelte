@@ -563,7 +563,7 @@
     </LoadState>
   </div>
 
-  <StaffCommonTasks modules={allModules} />
+  <StaffCommonTasks modules={allModules} shown={selectedModules.map((module) => module.href)} />
 
   <section aria-labelledby="for-you-heading">
     <h2 id="for-you-heading" class="font-serif text-lg font-semibold text-brand-900">Für dich</h2>
