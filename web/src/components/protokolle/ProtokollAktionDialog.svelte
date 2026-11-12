@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  /** What the chapter made from an Aktion is called: „Planung Sommerlager“ or „Reflexion Sommerlager“. */
+  export type AktionKapitel = 'Planung' | 'Reflexion';
+</script>
+
 <script lang="ts">
   import MessageText from '../ui/MessageText.svelte';
   import { untrack } from 'svelte';
@@ -9,7 +14,8 @@
   import type { CampflowEvent, ProtokollAktion } from '../../lib/types';
 
   interface Props {
-    open: boolean;
+    /** The kind of chapter to make; null while closed. */
+    art: AktionKapitel | null;
     /** Date of the meeting; Aktionen around it are listed first. */
     date: string;
     /** Aktionen that already have an item. */
@@ -17,10 +23,11 @@
     onclose: () => void;
     onselect: (aktion: ProtokollAktion) => void;
   }
-  let { open, date, used, onclose, onselect }: Props = $props();
+  let { art, date, used, onclose, onselect }: Props = $props();
 
   let query = $state('');
   let showPast = $state(false);
+  const open = $derived(art !== null);
 
   function toAktion(event: CampflowEvent): ProtokollAktion {
     const start = event.start_date?.slice(0, 10) ?? '';
@@ -42,9 +49,14 @@
   $effect(() => {
     if (open) untrack(() => void fetchCampflowEvents());
   });
+
+  // A Reflexion looks back, so Aktionen that are over are shown from the start
+  $effect(() => {
+    if (art) showPast = art === 'Reflexion';
+  });
 </script>
 
-<ModalDialog {open} title="Planungskapitel aus einer Aktion" {onclose}>
+<ModalDialog {open} title={`${art ?? 'Planung'}skapitel aus einer Aktion`} {onclose}>
   <div class="space-y-4 px-5 py-4">
     <div class="flex flex-wrap items-end gap-3">
       <div class="min-w-48 flex-1">

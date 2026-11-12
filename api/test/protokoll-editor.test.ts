@@ -142,7 +142,7 @@ dbTest('new minutes get the standard agenda, the Vorstand and the writer', async
     detail.inhalt.punkte.map((p) => [p.titel, p.unterpunkte.map((u) => u.titel)]),
     [
       ['Stufenberichte', ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover', 'StaVos']],
-      ['Reflexion', []],
+      ['Aktionsrückblick', []],
       ['Aktionsvorschau', []],
       ['Sonstiges', []],
     ]
