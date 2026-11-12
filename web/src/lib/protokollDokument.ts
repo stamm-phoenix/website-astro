@@ -48,7 +48,7 @@ import type {
 export const PUNKTE_META = 'protokoll-punkte';
 
 export const PLACEHOLDER_TITEL = 'Titel des Tagesordnungspunkts';
-export const PLACEHOLDER_TEXT = 'Was besprochen wurde …';
+export const PLACEHOLDER_TEXT = 'Was besprochen wurde … Mit @ erwähnst du jemanden.';
 
 /**
  * An attribute that holds data, not text. It is not rendered in the document (the views show it)

@@ -49,6 +49,7 @@ export const PROTOKOLL_TEXT_FEATURES: TextEditorFeatures = {
   checklists: true,
   tables: true,
   blocks: true,
+  erwaehnungen: true,
 };
 
 export function personKey(person: ProtokollPerson): string {

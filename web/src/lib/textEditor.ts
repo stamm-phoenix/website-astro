@@ -17,6 +17,7 @@ import Heading from '@tiptap/extension-heading';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Italic from '@tiptap/extension-italic';
 import Link from '@tiptap/extension-link';
+import { Erwaehnung } from './erwaehnungNode';
 import {
   BulletList,
   ListItem,
@@ -51,6 +52,8 @@ export interface TextEditorFeatures {
   blocks?: boolean;
   /** Images of the blog: `<img data-bild="…">` with a preview `src` (HTML only). */
   images?: boolean;
+  /** People mentioned with `@` (#547; Markdown of the minutes only). */
+  erwaehnungen?: boolean;
 }
 
 /** What the editor reads and writes: Markdown (the minutes) or HTML (the other fields). */
@@ -128,6 +131,7 @@ export function editorExtensions(
   if (features.strike) extensions.push(Strike);
   if (features.code) extensions.push(Code);
   if (features.images) extensions.push(BlogImage);
+  if (features.erwaehnungen && format === 'markdown') extensions.push(Erwaehnung);
   if (features.headings?.length) {
     extensions.push(Heading.configure({ levels: features.headings as (1 | 2 | 3 | 4 | 5 | 6)[] }));
   }

@@ -208,6 +208,7 @@ function inlineText(nodes: MdInline[]): string {
     .map((node) => {
       if (node.type === 'text' || node.type === 'code') return node.text;
       if (node.type === 'br') return '\n';
+      if (node.type === 'erwaehnung') return `@${node.name}`;
       if (node.type === 'link') {
         const text = inlineText(node.children);
         // Paper has no links: the address follows the text

@@ -230,6 +230,8 @@ export interface ProtokollEditorAufgaben {
 export interface ProtokollFreigabeResponse {
   fileName: string;
   aufgaben: number;
+  /** People mentioned with `@` who got a note (#547). */
+  benachrichtigt: number;
 }
 
 /**
