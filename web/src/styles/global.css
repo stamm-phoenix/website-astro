@@ -514,17 +514,36 @@ p {
 }
 
 /* The mark is drawn for light paper: its lily reads through the gaps in the black. On dark it
-   sits on a round patch in the colour of the name beside it, with a fine inner ring. */
+   sits on a round patch in the colour of the name beside it, drawn in the SVG so patch, ring
+   and mark scale together. The mark shrinks and moves down until its wings clear the ring. */
+.brand-mark__patch,
+.brand-mark__ring {
+  display: none;
+}
 .brand-mark--phoenix {
   @variant theme-dark {
     aspect-ratio: 1;
-    box-sizing: border-box;
-    padding: 5px;
-    border-radius: 9999px;
-    background: var(--color-brand-900);
-    box-shadow:
-      inset 0 0 0 2px var(--color-brand-900),
-      inset 0 0 0 3.5px var(--color-neutral-50);
+  }
+}
+.brand-mark__patch {
+  @variant theme-dark {
+    display: inline;
+    fill: var(--color-brand-900);
+  }
+}
+.brand-mark__ring {
+  @variant theme-dark {
+    display: inline;
+    fill: none;
+    stroke: var(--color-neutral-50);
+    stroke-width: 12;
+  }
+}
+.brand-mark__art {
+  @variant theme-dark {
+    transform-box: view-box;
+    transform-origin: center;
+    transform: translateY(22px) scale(0.76);
   }
 }
 /* Dark surfaces and fields share roles across every island, including newer forms. */

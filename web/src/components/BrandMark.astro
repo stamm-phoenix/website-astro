@@ -31,7 +31,12 @@ const geometry = lily
     aria-hidden={decorative ? 'true' : undefined}
     class={`brand-mark brand-mark--phoenix shrink-0 w-auto ${className}`}
   >
-    <Fragment set:html={geometry} />
+    {/* A round patch behind the mark, shown only in the dark theme (global.css). */}
+    <circle class="brand-mark__patch" cx="190" cy="245" r="245" />
+    <circle class="brand-mark__ring" cx="190" cy="245" r="228" />
+    <g class="brand-mark__art">
+      <Fragment set:html={geometry} />
+    </g>
   </svg>
 ) : (
   <img
