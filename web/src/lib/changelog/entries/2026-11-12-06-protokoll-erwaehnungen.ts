@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from '../../changelog';
 
 const entry: ChangelogEntry = {
-  id: '2026-11-12-05-protokoll-erwaehnungen',
+  id: '2026-11-12-06-protokoll-erwaehnungen',
   date: '2026-11-12',
   title: 'Leute im Protokoll mit @ erwähnen',
   changes: [
