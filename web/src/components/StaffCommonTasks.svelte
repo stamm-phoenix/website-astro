@@ -6,10 +6,12 @@
   import { commonTaskModules } from '../lib/staffCommonTasks';
   interface Props {
     modules: StaffModule[];
+    /** Areas the start page already shows as tiles. */
+    shown?: string[];
   }
-  let { modules }: Props = $props();
+  let { modules, shown = [] }: Props = $props();
   let counts = $state<Record<string, number>>({});
-  const commonModules = $derived(commonTaskModules(modules, counts));
+  const commonModules = $derived(commonTaskModules(modules, counts, shown));
   onMount(() => {
     void fetchApi<{ counts: Record<string, number> }>('/intern/haeufig')
       .then((result) => {
@@ -22,5 +24,5 @@
 </script>
 
 {#if commonModules.length > 0}
-  <StaffModuleSection title="Häufige Aufgaben" modules={commonModules} level={2} />
+  <StaffModuleSection title="Oft genutzt" modules={commonModules} level={2} />
 {/if}

@@ -147,12 +147,12 @@ test('a first visit shows common tasks before the overview cards and explains th
     );
   }
   await page.goto('/leitendenbereich');
-  const common = page.getByRole('region', { name: 'Häufige Aufgaben', exact: true });
+  const common = page.getByRole('region', { name: 'Oft genutzt', exact: true });
   await expect(common.getByRole('link', { name: /^Belege/ })).toBeInViewport();
   await expect(common).toContainText('Kassenbelege fotografieren und einreichen');
   const positions = await page.evaluate(() => ({
     common: [...document.querySelectorAll('h2')]
-      .find((heading) => heading.textContent?.trim() === 'Häufige Aufgaben')!
+      .find((heading) => heading.textContent?.trim() === 'Oft genutzt')!
       .getBoundingClientRect().top,
     overview: document.querySelector('#for-you-heading')!.getBoundingClientRect().top,
   }));
@@ -178,9 +178,9 @@ test(
     const personal = page.getByRole('region', { name: 'Deine Bereiche', exact: true });
     await expect(personal.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
     await expect(personal.getByRole('link', { name: 'Mitglieder', exact: true })).toBeVisible();
-    const common = page.getByRole('region', { name: 'Häufige Aufgaben', exact: true });
+    const common = page.getByRole('region', { name: 'Oft genutzt', exact: true });
     await expect(common.getByRole('link', { name: /^Belege/ })).toBeVisible();
     expect((await personal.boundingBox())!.y).toBeLessThan((await common.boundingBox())!.y);
-    await page.screenshot({ path: testInfo.outputPath('haeufige-aufgaben.png') });
+    await page.screenshot({ path: testInfo.outputPath('oft-genutzt.png') });
   }
 );
