@@ -3,6 +3,7 @@ import { describe, test } from 'node:test';
 import {
   DRAG_COMMIT,
   DRAG_START,
+  claimsNativeDrag,
   classifyMove,
   dragCommits,
   dragDirection,
@@ -49,5 +50,19 @@ describe('dragCommits', () => {
     assert.equal(dragCommits(-20, -1, -1), true);
     assert.equal(dragCommits(-(DRAG_COMMIT + 20), 1, -1), false);
     assert.equal(dragCommits(20, 1, 1), true);
+  });
+});
+
+describe('claimsNativeDrag', () => {
+  test('a link the browser starts dragging in the direction is taken for the sidebar', () => {
+    assert.equal(claimsNativeDrag(-4, 1, -1), true);
+    assert.equal(claimsNativeDrag(4, -2, 1), true);
+  });
+
+  test('against the direction or up and down, the link is dragged as usual', () => {
+    assert.equal(claimsNativeDrag(4, 0, -1), false);
+    assert.equal(claimsNativeDrag(-4, 0, 1), false);
+    assert.equal(claimsNativeDrag(-1, 4, -1), false);
+    assert.equal(claimsNativeDrag(0, 0, -1), false);
   });
 });
