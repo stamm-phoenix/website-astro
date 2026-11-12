@@ -1605,10 +1605,11 @@ Q 337.83 191.79 347.28 209.32 L 380 225 L 380 490 L 0 490 L 0 225 Z"/></clipPath
   L 168.25 387.48
   A 1.11 1.09 -71.9 0 1 169.14 387.01
   Q 173.48 386.99 189.54 386.99
-  Z"/></defs>
-<!-- A sticker outline around the whole mark, behind it so only its outer half shows.
-     Off unless the theme sets a colour. -->
-<g fill="none" stroke="var(--lily-outline, none)" stroke-width="28" stroke-linejoin="round">
+  Z"/>
+<clipPath id="lily-outline-clip" clipPathUnits="userSpaceOnUse"><rect x="-60" y="206" width="500" height="340"/></clipPath></defs>
+<!-- An outline around the lily only, from the corners of its crossbar down, behind it so only
+     its outer half shows. Phoenix and flames stay without. Off unless the theme sets a colour. -->
+<g fill="none" stroke="var(--lily-outline, none)" stroke-width="28" stroke-linejoin="round" clip-path="url(#lily-outline-clip)">
 <use href="#phoenix-and-lily-shape"/>
 <use href="#lily-foot"/>
 </g>
