@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from '../../changelog';
 
 const entry: ChangelogEntry = {
-  id: '2026-11-12-02-dunkles-design',
+  id: '2026-11-12-03-dunkles-design',
   date: '2026-11-12',
   title: 'Dunkles Design überarbeitet',
   changes: [
