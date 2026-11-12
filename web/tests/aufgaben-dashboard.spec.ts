@@ -58,17 +58,19 @@ test('favorites are set on the areas themselves, saved for the account and survi
   await toggleFavoriteLikeAPerson(page, 'Belege');
   await expect(page.getByText('„Belege“ ist kein Favorit mehr.')).toBeVisible();
 
-  // The minus on a tile (with a mouse) or a long press (on a touch screen) removes a favorite
-  const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-  if (coarse) {
-    await toggleFavoriteLikeAPerson(page, 'Aufgaben');
-  } else {
-    await favorites.getByRole('link', { name: 'Aufgaben', exact: true }).hover();
-    await favorites
-      .getByRole('button', { name: 'Aufgaben aus deinen Favoriten entfernen' })
-      .click();
-  }
+  // A tile has a button to remove it only after „Bearbeiten“; „Rückgängig“ puts it back
+  const remove = favorites.getByRole('button', { name: 'Aufgaben aus deinen Favoriten entfernen' });
+  await expect(remove).toHaveCount(0);
+  const edit = favorites.getByRole('button', { name: /^(Bearbeiten|Fertig)$/ });
+  await edit.click();
+  await expect(edit).toHaveAttribute('aria-pressed', 'true');
+  await remove.click();
   await expect(page.getByText('„Aufgaben“ ist kein Favorit mehr.')).toBeVisible();
+  await page.getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(page.getByText('„Aufgaben“ ist wieder ein Favorit.')).toBeVisible();
+  await remove.click();
+  await expect(page.getByText('„Aufgaben“ ist kein Favorit mehr.')).toBeVisible();
+  await edit.click();
   await toggleFavoriteLikeAPerson(page, 'Aktionen');
   await expect(page.getByText('„Aktionen“ ist kein Favorit mehr.')).toBeVisible();
   await page.reload();
