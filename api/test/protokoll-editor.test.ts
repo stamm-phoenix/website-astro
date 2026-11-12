@@ -12,6 +12,7 @@ import {
   GetEditorRevision,
   GetEditorRevisions,
 } from '../endpoints/intern-protokoll-editor';
+import { aktionZeitraum } from '../lib/protokoll-zeitraum';
 import { seedPreviewProtokollEditor } from '../lib/db-preview';
 import * as leitendeList from '../lib/leitende-list';
 import { ValidationError } from '../lib/validation/errors';
@@ -28,12 +29,7 @@ import type {
 } from '../lib/protokoll-editor-model';
 import type { ProtokollEditorPersonen } from '../lib/protokoll-editor-model';
 import type { Person, PersonenUebersicht } from '../lib/personen-model';
-import {
-  SPERRE_SECONDS,
-  aktionZeitraum,
-  neuerInhalt,
-  upgradeInhalt,
-} from '../lib/protokoll-editor-model';
+import { SPERRE_SECONDS, neuerInhalt, upgradeInhalt } from '../lib/protokoll-editor-model';
 import { PersonItem, PersonenCollection } from '../endpoints/intern-pflege-personen';
 import * as taskDirectory from '../lib/task-directory';
 import { CONFIG } from '../lib/config';

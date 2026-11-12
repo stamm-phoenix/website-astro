@@ -10,7 +10,8 @@ import { getMeetingSummaries } from './anwesenheit';
 import { getAktionen, isLeitendeOnly } from './aktionen-list';
 import type { Aktion } from './aktionen-list';
 import { getDb, toDateString } from './db';
-import { aktionZeitraum, einzeilig, MAX_TEXT } from './protokoll-editor-model';
+import { einzeilig, MAX_TEXT } from './protokoll-editor-model';
+import { aktionZeitraum } from './protokoll-zeitraum';
 import type { Vorbelegung } from './protokoll-editor-model';
 
 /** Longest period an entry reaches back or ahead when there are no earlier minutes. */

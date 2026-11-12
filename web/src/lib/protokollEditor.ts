@@ -24,7 +24,6 @@ export {
   OFFENE_AUFGABEN_TITEL,
   REVISION_REASON_LABELS,
   SPERRE_RENEW_SECONDS,
-  aktionZeitraum,
   aufgabenAnzahl,
   freigabeAufgaben,
   mergeOffeneAufgaben,
@@ -35,6 +34,7 @@ export {
   punktNummer,
   upgradeInhalt,
 } from '../../../api/lib/protokoll-editor-model';
+export { aktionZeitraum } from '../../../api/lib/protokoll-zeitraum';
 
 /** Identity of a person in the minutes: the login, or the name of someone typed by hand. */
 /** How the text of an agenda item is written: the formatting editor or Markdown (#320). */
