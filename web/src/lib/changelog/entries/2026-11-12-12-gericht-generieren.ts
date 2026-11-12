@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from '../../changelog';
 
 const entry: ChangelogEntry = {
-  id: '2026-11-12-11-gericht-generieren',
+  id: '2026-11-12-12-gericht-generieren',
   date: '2026-11-12',
   title: 'Gerichte von der KI schreiben lassen',
   changes: [

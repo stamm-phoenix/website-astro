@@ -54,8 +54,9 @@ export function generiereGericht(
     {
       schemaName: 'essen_gericht_generieren',
       schema: GENERIEREN_SCHEMA,
-      timeoutMs: 90_000,
-      maxCompletionTokens: 16_000,
+      // Below the 45 s the Static Web App waits for an answer, so a late one is not lost
+      timeoutMs: 40_000,
+      maxCompletionTokens: 10_000,
       messages: [
         { role: 'system', content: GENERIEREN_PROMPT },
         {
