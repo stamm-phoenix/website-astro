@@ -184,8 +184,9 @@ Favoriten stehen über den Kategorien; Favoriten sind unabhängig von der Katego
 
 Offene Aufgaben mit Fälligkeit und zugewiesenem Stammes-Login werden am Vortag und am
 Fälligkeitstag berücksichtigt. Pro Person gibt es eine private Sammelmail pro Berliner Kalendertag,
-mit Aufgaben, deutschem Datum, Projekt und Links zur App. Mehrere Zuständige erhalten jeweils ihre
-eigene Mail. Vorschläge, erledigte/abgelehnte Aufgaben, vergangene Fristen, Aufgaben ohne Frist oder
+mit Aufgaben, deutschem Datum, Projekt und Links zur App, an den Login und die Adresse der
+verknüpften CampFlow-Person ([Personen](personen.md#benachrichtigungen-an-einzelne-leitende)).
+Mehrere Zuständige erhalten jeweils ihre eigene Mail. Vorschläge, erledigte/abgelehnte Aufgaben, vergangene Fristen, Aufgaben ohne Frist oder
 ohne auflösbaren internen Login werden nicht versendet.
 
 Der Versand läuft in einer eigenständigen Azure Function App über einen Timer Trigger

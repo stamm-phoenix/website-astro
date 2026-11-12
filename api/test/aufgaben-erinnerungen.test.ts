@@ -7,6 +7,7 @@ import {
   runTaskReminders,
 } from '../lib/aufgaben-erinnerungen';
 import * as reminderMail from '../lib/aufgaben-erinnerung-mails';
+import * as leitendenMail from '../lib/leitenden-mail';
 import * as mail from '../lib/mail';
 import * as tasks from '../lib/aufgaben';
 import { CONFIG } from '../lib/config';
@@ -85,6 +86,7 @@ test('before-window runs do no database work', async (t) => {
 });
 test('reminder HTML escapes titles and projects, uses private mail, dates and app links without transport retries', async (t) => {
   const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  t.mock.method(leitendenMail.leitendenAdresse, 'campflow', async () => '');
   await reminderMail.sendTaskReminderMail(
     alex.login,
     [{ ...task, title: '<script>x</script>', projectId: 7 }],
@@ -99,7 +101,10 @@ test('reminder HTML escapes titles and projects, uses private mail, dates and ap
   assert.match(args[2]!, /Heute fällig · 12.10.2026/);
   assert.match(args[2]!, /leitendenbereich\/aufgaben#aufgabe-1/);
   assert.ok(!args[2]!.includes(bea.login));
-  assert.deepEqual(args[5], { retry: false, timeoutMs: CONFIG.taskReminders.mailTimeoutMs });
+  assert.equal(args[5]?.retry, false);
+  // Looking up the CampFlow address counts towards the timeout
+  const timeoutMs = args[5]?.timeoutMs ?? 0;
+  assert.ok(timeoutMs > 0 && timeoutMs <= CONFIG.taskReminders.mailTimeoutMs);
 });
 
 dbTest(

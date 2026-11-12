@@ -1,5 +1,6 @@
 import { CONFIG } from './config';
-import { escapeHtml, sendMail } from './mail';
+import { sendLeitendenMail } from './leitenden-mail';
+import { escapeHtml } from './mail';
 import { mailButton, mailLayout } from './mail-template';
 import { readTaskDirectory } from './task-directory';
 
@@ -73,7 +74,8 @@ export async function sendBelegRejectedMail(
     ${mailButton(data.url, 'Belege öffnen', 'Falls der Button nicht funktioniert, kopiere diese Adresse in deinen Browser:')}
     <p style="font-size:13px;color:#6b7280;">Bei Fragen wende dich an ${escapeHtml(data.reviewer)}.</p>
   `);
-  await sendMail(data.to, `Beleg abgelehnt: ${data.shop}`, html, sender, undefined, {
+  await sendLeitendenMail(data.to, `Beleg abgelehnt: ${data.shop}`, html, {
+    sender,
     retry: false,
     timeoutMs: Math.max(1, Math.min(10_000, timeoutMs)),
   });
@@ -147,7 +149,7 @@ export async function sendBelegSubmittedMail(
   const timeout = Math.max(1, Math.min(10_000, timeoutMs));
   const results = await Promise.allSettled(
     recipients.map((to) =>
-      sendMail(to, subject, html, sender, undefined, { retry: false, timeoutMs: timeout })
+      sendLeitendenMail(to, subject, html, { sender, retry: false, timeoutMs: timeout })
     )
   );
   return recipients.filter((_to, index) => results[index]?.status === 'rejected');
