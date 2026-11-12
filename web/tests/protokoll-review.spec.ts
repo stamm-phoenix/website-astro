@@ -90,7 +90,7 @@ test('any leader approves minutes in review and sends them to all leaders', asyn
   await expect(
     page.locator('[data-sticky-top]').getByText('Freigegeben', { exact: true })
   ).toBeVisible();
-  await expect(review.getByRole('link', { name: /Im Protokoll-Ordner öffnen/ })).toBeVisible();
+  await expect(review.getByRole('link', { name: /^Im Ordner öffnen/ })).toBeVisible();
   await expect(review.getByText(/Freigegeben von leitung@example\.test/)).toBeVisible();
 
   await review.getByRole('button', { name: 'Protokoll verschicken' }).click();
