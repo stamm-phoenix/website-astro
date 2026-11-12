@@ -31,28 +31,21 @@ test('the Dispo pin says whether the team is held and keeps it when recalculatin
   await expectNoHorizontalOverflow(page);
 });
 
-test('the compact assignment pin visibly names its actual state and has a touch target', async ({
-  page,
-}) => {
+test('the pin in an assignment tile holds the post and locks the person', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-helfende?ansicht=einteilung');
   const pin = page.getByRole('button', { name: /^Posten festhalten/ }).first();
   await expect(pin).toBeVisible();
-  await expect(pin).toHaveText('Posten festhalten');
   const label = await pin.getAttribute('aria-label');
   const size = await pin.boundingBox();
   expect(size!.width).toBeGreaterThanOrEqual(44);
   expect(size!.height).toBeGreaterThanOrEqual(44);
+  await expect(pin.locator('xpath=..').locator('[draggable="true"]')).toHaveCount(1);
   await pin.click();
-  await expect(
-    page.getByRole('button', {
-      name: label!.replace('Posten festhalten', 'Posten festgehalten'),
-      exact: true,
-    })
-  ).toHaveAttribute('aria-pressed', 'true');
-  await expect(
-    page.getByRole('button', {
-      name: label!.replace('Posten festhalten', 'Posten festgehalten'),
-      exact: true,
-    })
-  ).toHaveText('Posten festgehalten');
+  const held = page.getByRole('button', {
+    name: label!.replace('Posten festhalten', 'Posten festgehalten'),
+    exact: true,
+  });
+  await expect(held).toHaveAttribute('aria-pressed', 'true');
+  await expect(held).toHaveAttribute('title', /^Posten festgehalten/);
+  await expect(held.locator('xpath=..').locator('[draggable="true"]')).toHaveCount(0);
 });
