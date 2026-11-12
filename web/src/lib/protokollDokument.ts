@@ -23,14 +23,24 @@ import {
   MAX_UNTERPUNKTE,
 } from '../../../api/lib/protokoll-editor-model';
 import { PROTOKOLL_TEXT_FEATURES, neuerPunkt, newElementId, punktNummer } from './protokollEditor';
+import {
+  isRecord,
+  leseAktion,
+  leseAufgabe,
+  leseListe,
+  leseOffeneAufgabe,
+  leseProjekt,
+  leseTermin,
+  leseZeitraum,
+} from './protokollDokumentLesen';
 import { editorExtensions, markdownManager, normalizeBullets } from './textEditor';
 import type {
   OffeneAufgabe,
   ProtokollAktion,
   ProtokollAufgabe,
-  ProtokollPerson,
   ProtokollProjekt,
   ProtokollPunkt,
+  ProtokollZeitraum,
   PunktTermin,
 } from './types';
 
@@ -39,99 +49,6 @@ export const PUNKTE_META = 'protokoll-punkte';
 
 export const PLACEHOLDER_TITEL = 'Titel des Tagesordnungspunkts';
 export const PLACEHOLDER_TEXT = 'Was besprochen wurde …';
-
-// --- Data from the clipboard ---
-
-type Felder = Record<string, unknown>;
-
-function isRecord(value: unknown): value is Felder {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** Whether `value` is an object whose fields `keys` are all strings. */
-function hasStrings(value: unknown, keys: string[]): value is Felder {
-  return isRecord(value) && keys.every((key) => typeof value[key] === 'string');
-}
-
-function isPerson(value: unknown): value is ProtokollPerson {
-  return hasStrings(value, ['login', 'name']);
-}
-
-/** The valid people of a list, as the task or date stores them. */
-function personen(value: unknown): ProtokollPerson[] {
-  return Array.isArray(value)
-    ? value.filter(isPerson).map((person) => ({ login: person.login, name: person.name }))
-    : [];
-}
-
-/**
- * Only the fields of the model are taken over, with a fresh ID: a pasted copy must never share an
- * ID with its original, which keeps its own wherever the copy lands.
- */
-function leseAufgabe(value: unknown): ProtokollAufgabe | null {
-  if (!hasStrings(value, ['titel', 'faellig'])) return null;
-  return {
-    id: newElementId(),
-    titel: value.titel as string,
-    zustaendig: personen(value.zustaendig),
-    faellig: value.faellig as string,
-  };
-}
-
-function leseTermin(value: unknown): PunktTermin | null {
-  if (!hasStrings(value, ['titel', 'datum', 'uhrzeit', 'ort'])) return null;
-  return {
-    id: newElementId(),
-    titel: value.titel as string,
-    datum: value.datum as string,
-    uhrzeit: value.uhrzeit as string,
-    ort: value.ort as string,
-    zustaendig: personen(value.zustaendig),
-  };
-}
-
-function isTaskId(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value > 0;
-}
-
-function leseProjekt(value: unknown): ProtokollProjekt | null {
-  if (!hasStrings(value, ['titel']) || !isTaskId(value.id)) return null;
-  return { id: value.id, titel: value.titel as string };
-}
-
-/** An open task keeps its ID: it is the task of the module Aufgaben, not an entry of the minutes. */
-function leseOffeneAufgabe(value: unknown): OffeneAufgabe | null {
-  if (!hasStrings(value, ['titel', 'faellig']) || !isTaskId(value.id)) return null;
-  return {
-    id: value.id,
-    titel: value.titel as string,
-    zustaendig: personen(value.zustaendig),
-    faellig: value.faellig as string,
-    erledigt: value.erledigt === true,
-  };
-}
-
-function leseAktion(value: unknown): ProtokollAktion | null {
-  if (!hasStrings(value, ['id', 'titel', 'start', 'ende'])) return null;
-  return {
-    id: value.id as string,
-    titel: value.titel as string,
-    start: value.start as string,
-    ende: value.ende as string,
-  };
-}
-
-/** The valid entries of a list from the clipboard, within the limit of the minutes. */
-function leseListe<T>(value: unknown, lese: (item: unknown) => T | null, max: number): T[] {
-  if (!Array.isArray(value)) return [];
-  const items: T[] = [];
-  for (const item of value) {
-    const read = lese(item);
-    if (read) items.push(read);
-    if (items.length === max) break;
-  }
-  return items;
-}
 
 /**
  * An attribute that holds data, not text. It is not rendered in the document (the views show it)
@@ -224,6 +141,7 @@ const PunktExtras = Node.create({
         (value) => leseListe(value, leseOffeneAufgabe, MAX_OFFENE_AUFGABEN),
         'offeneAufgaben'
       ),
+      zeitraum: jsonAttribute<ProtokollZeitraum | null>('data-zeitraum', null, leseZeitraum),
     };
   },
   parseHTML() {
@@ -377,6 +295,7 @@ export function leererPunktNode(schema: Schema, id: string, sub: boolean): PMNod
       termine: [],
       projekt: null,
       offeneAufgaben: [],
+      zeitraum: null,
     }),
   ];
   return schema.nodes[sub ? 'unterpunkt' : 'punkt'].create({ id }, children);
@@ -388,6 +307,7 @@ export function punktKey(punkt: ProtokollPunkt): string {
     punkt.id,
     punkt.titel,
     punkt.aktion,
+    punkt.zeitraum,
     punkt.text,
     punkt.aufgaben,
     punkt.termine,
@@ -450,6 +370,7 @@ export class DokumentUmwandlung {
         termine: structuredClone(punkt.termine),
         projekt: punkt.projekt ? structuredClone(punkt.projekt) : null,
         offeneAufgaben: structuredClone(punkt.offeneAufgaben),
+        zeitraum: punkt.zeitraum ? structuredClone(punkt.zeitraum) : null,
       }),
     ];
   }
@@ -495,6 +416,9 @@ export class DokumentUmwandlung {
       id: node.attrs.id,
       titel: titel.textContent,
       aktion: titel.attrs.aktion ? structuredClone(titel.attrs.aktion as ProtokollAktion) : null,
+      zeitraum: extras.attrs.zeitraum
+        ? structuredClone(extras.attrs.zeitraum as ProtokollZeitraum)
+        : null,
       text: this.text(node.child(1)),
       aufgaben: structuredClone(extras.attrs.aufgaben as ProtokollAufgabe[]),
       termine: structuredClone(extras.attrs.termine as PunktTermin[]),
@@ -570,6 +494,7 @@ export function punktLeer(node: PMNode): boolean {
     (extras.attrs.aufgaben as unknown[]).length === 0 &&
     (extras.attrs.termine as unknown[]).length === 0 &&
     extras.attrs.projekt === null &&
+    extras.attrs.zeitraum === null &&
     (extras.attrs.offeneAufgaben as unknown[]).length === 0 &&
     node.childCount === 3
   );
@@ -927,7 +852,7 @@ export function setAktion(editor: Editor, id: string, aktion: ProtokollAktion | 
 export function setExtras(
   editor: Editor,
   id: string,
-  extras: Pick<ProtokollPunkt, 'aufgaben' | 'termine' | 'projekt' | 'offeneAufgaben'>
+  extras: Pick<ProtokollPunkt, 'aufgaben' | 'termine' | 'projekt' | 'offeneAufgaben' | 'zeitraum'>
 ): boolean {
   const { state } = editor;
   const found = findPunkt(state.doc, id);
@@ -938,6 +863,7 @@ export function setExtras(
     termine: structuredClone(extras.termine),
     projekt: extras.projekt ? structuredClone(extras.projekt) : null,
     offeneAufgaben: structuredClone(extras.offeneAufgaben),
+    zeitraum: extras.zeitraum ? structuredClone(extras.zeitraum) : null,
   });
   editor.view.dispatch(tr);
   return true;

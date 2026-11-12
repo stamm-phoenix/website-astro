@@ -86,12 +86,7 @@ function aktionEnde(aktion: Aktion): string {
 }
 
 function aktionZeile(aktion: Aktion): string {
-  const zeitraum = aktionZeitraum({
-    id: aktion.id,
-    titel: aktion.title,
-    start: aktion.start,
-    ende: aktion.end,
-  });
+  const zeitraum = aktionZeitraum({ start: aktion.start, ende: aktion.end });
   const stufen = aktion.stufen.length ? ` (${plain(aktion.stufen.join(', '))})` : '';
   return `- ${zeitraum ? `${zeitraum}: ` : ''}${plain(einzeilig(aktion.title))}${stufen}`;
 }

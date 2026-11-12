@@ -404,10 +404,12 @@ function punktBlock(punkt: ProtokollPunkt, lex: Lex, index: number, subIndex?: n
     tocMargin: level === 1 ? [0, 5, 0, 0] : [14, 1, 0, 0],
   };
   const zeitraum = punkt.aktion ? aktionZeitraum(punkt.aktion) : '';
+  const datum = punkt.zeitraum ? aktionZeitraum(punkt.zeitraum) : '';
   const body: Content[] = [
     ...(punkt.aktion
       ? [{ text: `Aktion${zeitraum ? `, ${zeitraum}` : ''}`, style: 'untertitel' }]
       : []),
+    ...(datum ? [{ text: `Datum: ${datum}`, style: 'untertitel' }] : []),
     ...(punkt.projekt
       ? [{ text: `Projekt: ${punkt.projekt.titel.trim()}`, style: 'untertitel' }]
       : []),

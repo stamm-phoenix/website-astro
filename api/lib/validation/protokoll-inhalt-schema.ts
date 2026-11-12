@@ -140,6 +140,15 @@ const aktionSchema = z.object(
   { error: 'Die Aktion fehlt.' }
 );
 
+// Checked only per date: the editor saves while the second date is still being typed
+const zeitraumSchema = z.object(
+  {
+    start: optionalDate('Das Datum eines Tagesordnungspunkts'),
+    ende: optionalDate('Das Enddatum eines Tagesordnungspunkts'),
+  },
+  { error: 'Das Datum eines Tagesordnungspunkts fehlt.' }
+);
+
 const projektSchema = z.object(
   {
     id: taskId('Das Projekt eines Tagesordnungspunkts'),
@@ -163,6 +172,8 @@ const punktShape = {
   id: elementId,
   titel: text('Der Titel eines Tagesordnungspunkts', MAX_TITEL),
   aktion: orDefault(aktionSchema.nullable(), null),
+  // Missing in minutes stored before #551
+  zeitraum: orDefault(zeitraumSchema.nullable(), null),
   text: text('Der Text eines Tagesordnungspunkts', MAX_TEXT, false),
   aufgaben: list(aufgabeSchema, 'Aufgaben', MAX_AUFGABEN),
   // Missing in minutes stored before #297
