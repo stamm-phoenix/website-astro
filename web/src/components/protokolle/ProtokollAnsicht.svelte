@@ -1,7 +1,7 @@
 <script lang="ts">
+  import ProtokollPunktUntertitel from './ProtokollPunktUntertitel.svelte';
   import ProtokollText from './ProtokollText.svelte';
   import {
-    aktionZeitraum,
     formatMeetingDate,
     formatShortDate,
     formatTermin,
@@ -203,16 +203,7 @@
       <span>{item.titel.trim() || 'Ohne Titel'}</span>
     </svelte:element>
     <div class="punkt-inhalt">
-      {#if item.aktion}
-        {@const zeitraum = aktionZeitraum(item.aktion)}
-        <p class="text-sm text-neutral-700">Aktion{zeitraum ? `, ${zeitraum}` : ''}</p>
-      {/if}
-      {#if item.zeitraum && aktionZeitraum(item.zeitraum)}
-        <p class="text-sm text-neutral-700">Datum: {aktionZeitraum(item.zeitraum)}</p>
-      {/if}
-      {#if item.projekt}
-        <p class="text-sm text-neutral-700">Projekt: {item.projekt.titel}</p>
-      {/if}
+      <ProtokollPunktUntertitel punkt={item} />
       {#if item.offeneAufgaben.length > 0}
         {@render offeneTabelle(item.offeneAufgaben, `Offene Aufgaben zu Punkt ${nummer}`)}
       {/if}

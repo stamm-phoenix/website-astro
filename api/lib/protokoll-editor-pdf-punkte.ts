@@ -6,7 +6,8 @@ import type {
   ProtokollPunkt,
   PunktTermin,
 } from './protokoll-editor-model';
-import { aktionZeitraum, personNames, punktNummer } from './protokoll-editor-model';
+import { personNames, punktNummer } from './protokoll-editor-model';
+import { aktionZeitraum } from './protokoll-zeitraum';
 import type { MdBlock, MdInline, MdToken } from './protokoll-markdown';
 import { MARKED_OPTIONS, markdownTree, normalizeBullets } from './protokoll-markdown';
 
