@@ -84,7 +84,7 @@
   let werkzeuge = $state<string[]>([]);
   let werkzeugeAn = $state(false);
   /** The version of the dish's fields the instructions and tools replace. */
-  let kopfEtag = '';
+  let kopfEtag = $state('');
   let kopfFehler = $state<Record<string, string>>({});
   /** Instructions and tools as written, to tell whether the member changed them. */
   let erzeugt = $state.raw({ anleitung: '', werkzeuge: [] as string[] });
