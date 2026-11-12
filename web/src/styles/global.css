@@ -90,6 +90,9 @@
 :root {
   @variant theme-dark {
     color-scheme: dark;
+    /* The lily stays black as in the DPSG mark. A muted outline sets it off from the dark page
+       without outshining the name beside it. */
+    --lily-outline: var(--color-neutral-300);
     /* Warm charcoal, the dark counterpart of the beige paper in light. Page, panel, muted panel
        and field differ, and every text step from 400 up keeps 4.5:1 on panels and fields. */
     --color-neutral-50: #181614;
@@ -513,30 +516,9 @@ p {
   }
 }
 
-/* The mark is drawn for light paper: its black lily reads through the gaps in it. On dark the
-   lily and the flames sit on a round patch in the colour of the name beside it, and the phoenix
-   rises out of it. The mark keeps the size and place it has in light; the patch reaches a few
-   pixels past its box. */
+/* The outline of the lily reaches past the edge of its drawing; it must not be cut off. */
 .brand-mark--phoenix {
   overflow: visible;
-}
-.brand-mark__patch,
-.brand-mark__ring {
-  display: none;
-}
-.brand-mark__patch {
-  @variant theme-dark {
-    display: inline;
-    fill: var(--color-brand-900);
-  }
-}
-.brand-mark__ring {
-  @variant theme-dark {
-    display: inline;
-    fill: none;
-    stroke: var(--color-neutral-50);
-    stroke-width: 8;
-  }
 }
 /* Dark surfaces and fields share roles across every island, including newer forms. */
 .brand-mark--dpsg {
