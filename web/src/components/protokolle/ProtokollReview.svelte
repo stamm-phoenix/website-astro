@@ -1,48 +1,56 @@
 <script lang="ts">
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
+  import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import StatusLabel from '../ui/StatusLabel.svelte';
+  import ActionSheet from '../ui/ActionSheet.svelte';
+  import Schalter from '../ui/Schalter.svelte';
   import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
-  import ProtokollEmpfaenger from './ProtokollEmpfaenger.svelte';
   import ProtokollKorrektur from './ProtokollKorrektur.svelte';
+  import ProtokollVersand from './ProtokollVersand.svelte';
   import { ApiError, errorMessage, fetchFile, saveFile, sendApi } from '../../lib/api';
   import { HELP_CONTACTS } from '../../lib/helpContacts';
-  import {
-    PROTOKOLL_STATUS,
-    aufgabenAnzahl,
-    formatDateTime,
-    freigabeAufgaben,
-  } from '../../lib/protokollEditor';
+  import { aufgabenAnzahl, formatDateTime, freigabeAufgaben } from '../../lib/protokollEditor';
   import type { ProtokollEditorDetail, ProtokollFreigabeResponse } from '../../lib/types';
-  import type { ProtokollVersandAuswahl, ProtokollVersandPreview } from '../../lib/protokolleView';
-  import {
-    LIST_RELOADED,
-    auswahlBody,
-    auswahlCount,
-    auswahlDirty,
-    pendingProblem,
-    personen,
-    refreshAuswahl,
-    startAuswahl,
-    versandProblem,
-  } from '../../lib/protokolleView';
 
   /**
-   * Review, approval and mailing of minutes from the editor (#277, step 2): who gave them to
-   * the review, the note when they came back, the filed PDF and the buttons to approve, send
-   * back and mail them. Every leader may do these steps; drafts are approved in the editor.
+   * The actions of minutes in the editor (#277, step 2): who gave them to the review, the note
+   * when they came back, and the buttons in rows of two. The next step of the workflow is the
+   * one wide, filled button (give to the review, approve, mail); views, the check for
+   * corrections and rarely used steps (versions, approving without a review) follow, and
+   * „Mitlesen“ is a switch below. Every leader may do these steps.
    */
   interface Props {
     detail: ProtokollEditorDetail;
     login: string;
     /** This tab writes; the check for corrections waits until the writing is finished. */
     writing?: boolean;
+    /** Follow the writer while reading. */
+    follow?: boolean;
+    /** The draft can be finished here: nobody else writes. */
+    canFinish?: boolean;
+    /** Gives the draft to the review or approves it without one (dialogs of the editor). */
+    onfinish: (action: 'review' | 'approve') => void;
+    onpraesentation: () => void;
+    onleseansicht: () => void;
+    onversionen: () => void;
     /** Reloads the minutes after a step. */
     onchanged: () => Promise<unknown>;
     notify: (text: string, kind?: 'success' | 'warning' | 'error') => void;
   }
-  let { detail, login, writing = false, onchanged, notify }: Props = $props();
+  let {
+    detail,
+    login,
+    writing = false,
+    follow = $bindable(true),
+    canFinish = false,
+    onfinish,
+    onpraesentation,
+    onleseansicht,
+    onversionen,
+    onchanged,
+    notify,
+  }: Props = $props();
 
   let busy = $state(false);
   let approving = $state(false);
@@ -50,11 +58,10 @@
   let rejecting = $state<{ note: string } | null>(null);
   let rejectError = $state<string | null>(null);
   let rejectFieldError = $state<string | null>(null);
-  let sending = $state<ProtokollVersandAuswahl | null>(null);
-  const sendCount = $derived(sending ? auswahlCount(sending) : 0);
-  let sendError = $state<string | null>(null);
+  let mehrOpen = $state(false);
 
-  const status = $derived(PROTOKOLL_STATUS[detail.status]);
+  const korrigierbar = $derived(detail.status === 'entwurf' || detail.status === 'review');
+  const ohnePruefung = $derived(detail.status === 'entwurf' && canFinish);
   const own = $derived(login !== '' && detail.createdBy.toLowerCase() === login.toLowerCase());
   const draftPdf = $derived(detail.status === 'entwurf' || detail.status === 'review');
 
@@ -155,74 +162,15 @@
     }
   }
 
-  async function startSend(): Promise<void> {
-    const retry = detail.versand?.state === 'attempted';
-    busy = true;
-    sendError = null;
-    try {
-      const preview = await sendApi<ProtokollVersandPreview>('POST', url('/versand'), {
-        action: 'preview',
-        retry,
-      });
-      sending = startAuswahl(preview, retry);
-    } catch (error: unknown) {
-      notify(
-        versandProblem(
-          error,
-          'Die Empfänger*innen konnten nicht aus CampFlow geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.'
-        ),
-        'error'
-      );
-    } finally {
-      busy = false;
-    }
-  }
-
-  async function send(): Promise<void> {
-    if (!sending) return;
-    sendError = pendingProblem(sending);
-    if (sendError) return;
-    busy = true;
-    try {
-      const result = await sendApi<{ recipients: number }>('POST', url('/versand'), {
-        action: 'send',
-        etag: detail.etag,
-        ...auswahlBody(sending),
-      });
-      sending = null;
-      notify(`Protokoll an ${personen(result.recipients)} verschickt.`);
-    } catch (error: unknown) {
-      sendError = versandProblem(
-        error,
-        'Es ist unklar, ob das Protokoll verschickt wurde. Lies den Hinweis zum Versand auf dieser Seite, bevor du noch einmal schickst.'
-      );
-    } finally {
-      busy = false;
-      await onchanged();
-      // An unconfirmed attempt turns the open dialog into an explicit retry
-      if (sending) {
-        sending.retry = detail.versand?.state === 'attempted';
-        // A changed list in CampFlow is taken over, so the selection can be checked and sent
-        const preview = await sendApi<ProtokollVersandPreview>('POST', url('/versand'), {
-          action: 'preview',
-          retry: sending.retry,
-        }).catch(() => null);
-        if (sending && preview) {
-          const refreshed = refreshAuswahl(sending, preview);
-          sending = refreshed.auswahl;
-          if (refreshed.changed) sendError = `${sendError ?? ''} ${LIST_RELOADED}`.trim();
-        }
-      }
-    }
+  /** Closes „Mehr“ first, so its dialog does not stay under the next one. */
+  async function ausMehr(action: () => void): Promise<void> {
+    mehrOpen = false;
+    await tick();
+    action();
   }
 </script>
 
-<section class="space-y-3 border-b border-neutral-200 pb-4" aria-labelledby="review-titel">
-  <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-    <h2 id="review-titel" class="font-serif text-xl text-brand-900">Prüfung und Versand</h2>
-    <StatusLabel label={status.label} tone={status.tone} />
-  </div>
-
+<section class="space-y-3 border-b border-neutral-200 pb-4" aria-label="Aktionen zum Protokoll">
   {#if lines.length > 0}
     <p class="text-sm text-neutral-700">
       {#each lines as line, index (line)}
@@ -258,23 +206,17 @@
     </p>
   {/if}
 
-  <div class="flex flex-wrap gap-2">
-    <ActionButton disabled={busy} onclick={downloadPdf}>
-      {draftPdf ? 'PDF-Vorschau' : 'PDF herunterladen'}
-    </ActionButton>
-    {#if detail.ablage?.webUrl}
-      <a
-        class="btn-secondary"
-        href={detail.ablage.webUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Im Protokoll-Ordner öffnen<span class="sr-only"> (neues Fenster)</span>
-      </a>
-    {/if}
-    {#if detail.status === 'review'}
+  <div class="grid max-w-xl grid-cols-2 gap-2">
+    {#if detail.status === 'entwurf'}
+      {#if canFinish}
+        <ActionButton class="col-span-2" onclick={() => onfinish('review')}>
+          Zur Prüfung geben
+        </ActionButton>
+      {/if}
+    {:else if detail.status === 'review'}
       <ActionButton
         variant="primary"
+        class="w-full"
         disabled={busy}
         onclick={() => {
           approving = true;
@@ -284,6 +226,7 @@
         Freigeben
       </ActionButton>
       <ActionButton
+        class="w-full"
         disabled={busy}
         onclick={() => {
           rejecting = { note: '' };
@@ -293,26 +236,62 @@
       >
         Zurückgeben
       </ActionButton>
+    {:else if detail.sendingConfigured}
+      <ProtokollVersand class="col-span-2" {detail} {onchanged} {notify} />
     {/if}
-    {#if detail.status === 'freigegeben' && detail.sendingConfigured}
-      <ActionButton
-        variant={detail.versand ? 'danger' : 'primary'}
-        disabled={busy}
-        aria-busy={busy}
-        onclick={startSend}
-      >
-        {detail.versand ? 'Erneut senden' : 'Protokoll verschicken'}
-      </ActionButton>
-    {/if}
+    <ActionButton class="w-full" disabled={busy} onclick={downloadPdf}>
+      {draftPdf ? 'PDF-Vorschau' : 'PDF herunterladen'}
+    </ActionButton>
+    <ActionButton class="w-full" onclick={onpraesentation}>Präsentation</ActionButton>
   </div>
 
-  {#if detail.status === 'entwurf' || detail.status === 'review'}
+  {#snippet mehr()}
+    <!-- „Mehr“ only when it holds more than the versions -->
+    {#if ohnePruefung}
+      <ActionButton class="w-full" aria-haspopup="dialog" onclick={() => (mehrOpen = true)}>
+        <span aria-hidden="true">⋯</span> Mehr
+      </ActionButton>
+    {:else}
+      <ActionButton class="w-full" onclick={onversionen}>Versionen</ActionButton>
+    {/if}
+  {/snippet}
+  {#if korrigierbar}
     <!-- Hidden, not removed, while writing: the proposals stay for after the writing -->
     <div hidden={writing}>
-      <ProtokollKorrektur {detail} {onchanged} />
+      <ProtokollKorrektur {detail} {onchanged} nebenan={mehr} />
     </div>
   {/if}
+  {#if !korrigierbar || writing}
+    <div class="grid max-w-xl grid-cols-2 gap-2">
+      {#if writing}
+        <ActionButton class="w-full" onclick={onleseansicht}>Leseansicht</ActionButton>
+      {:else if detail.ablage?.webUrl}
+        <a
+          class="btn-secondary w-full"
+          href={detail.ablage.webUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Im Ordner öffnen<span class="sr-only"> (Protokoll-Ordner, neues Fenster)</span>
+        </a>
+      {/if}
+      {@render mehr()}
+    </div>
+  {/if}
+
+  {#if !writing}
+    <Schalter label="Mitlesen" bind:checked={follow} />
+  {/if}
 </section>
+
+<ActionSheet open={mehrOpen} title="Weitere Aktionen" onclose={() => (mehrOpen = false)}>
+  <div class="grid gap-3">
+    <ActionButton onclick={() => void ausMehr(onversionen)}>Versionen</ActionButton>
+    <ActionButton onclick={() => void ausMehr(() => onfinish('approve'))}>
+      Ohne Prüfung freigeben
+    </ActionButton>
+  </div>
+</ActionSheet>
 
 <ProtokollFreigabeDialog
   open={approving}
@@ -359,39 +338,5 @@
           bind:value={rejecting!.note}></textarea>
       {/snippet}
     </FormField>
-  {/if}
-</EditDialog>
-
-<EditDialog
-  open={sending !== null}
-  title={sending?.retry ? 'Protokoll erneut verschicken?' : 'Protokoll verschicken?'}
-  {busy}
-  error={sendError}
-  submitLabel={`An ${personen(sendCount)} schicken`}
-  busyLabel="Wird verschickt …"
-  submitDisabled={!sending || sendCount === 0}
-  dirty={auswahlDirty(sending)}
-  onsubmit={send}
-  onclose={() => {
-    if (!busy) sending = null;
-  }}
->
-  {#if sending}
-    <p class="text-sm text-neutral-800">
-      „{detail.title}“ geht als PDF mit Link an alle mit Häkchen.
-    </p>
-    {#if sending.retry}
-      <p class="text-sm text-danger">
-        Ein früherer Versand wurde nicht bestätigt. Schick es nur erneut, wenn die Mail nicht in den
-        „Gesendeten Elementen“ des Absenders liegt.
-      </p>
-    {/if}
-    <ProtokollEmpfaenger
-      list={sending.list}
-      bind:excluded={sending.excluded}
-      bind:extra={sending.extra}
-      bind:pending={sending.pending}
-      disabled={busy}
-    />
   {/if}
 </EditDialog>

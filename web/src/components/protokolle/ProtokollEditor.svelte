@@ -17,11 +17,13 @@
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
+  import StatusLabel from '../ui/StatusLabel.svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal } from '../../lib/authStore.svelte';
   import {
     MAX_PUNKTE,
+    PROTOKOLL_STATUS,
     SPERRE_RENEW_SECONDS,
     aufgabenAnzahl,
     changedPunkte,
@@ -991,13 +993,17 @@
           {statusText}
         </p>
       {:else}
-        <p class="text-sm" role="status" aria-live="polite">
-          {#if detail.status === 'review'}
-            In Prüfung
-          {:else if !editable}
-            Freigegeben
-          {:else if writerActive && sperre}
-            <span class="font-semibold">{sperre.name}</span> schreibt gerade
+        <p
+          class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <StatusLabel
+            label={PROTOKOLL_STATUS[detail.status].label}
+            tone={PROTOKOLL_STATUS[detail.status].tone}
+          />
+          {#if editable && writerActive && sperre}
+            <span><span class="font-semibold">{sperre.name}</span> schreibt gerade</span>
           {/if}
         </p>
       {/if}
@@ -1013,37 +1019,6 @@
           {writerActive ? 'Bearbeitung übernehmen' : 'Bearbeiten'}
         </ActionButton>
       {/if}
-      <div class="flex flex-wrap gap-2 py-2">
-        {#if mode === 'lesen'}
-          <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" bind:checked={follow} />
-            Mitlesen
-          </label>
-        {/if}
-        {#if mode === 'schreiben'}
-          <ActionButton onclick={() => (ownPreview = true)}>Leseansicht</ActionButton>
-        {/if}
-        <ActionButton onclick={showPraesentation}>Präsentation öffnen</ActionButton>
-        <ActionButton onclick={() => (versionsOpen = true)}>Versionen</ActionButton>
-        {#if editable && (mode === 'schreiben' || !writerActive)}
-          <ActionButton
-            onclick={() => {
-              submitting = 'review';
-              submitError = null;
-            }}
-          >
-            Zur Prüfung geben
-          </ActionButton>
-          <ActionButton
-            onclick={() => {
-              submitting = 'approve';
-              submitError = null;
-            }}
-          >
-            Freigeben
-          </ActionButton>
-        {/if}
-      </div>
     </div>
 
     {#if mode === 'schreiben' && saveState === 'fehler' && saveError}
@@ -1086,6 +1061,15 @@
       {detail}
       {login}
       writing={mode === 'schreiben'}
+      bind:follow
+      canFinish={editable && (mode === 'schreiben' || !writerActive)}
+      onfinish={(action) => {
+        submitting = action;
+        submitError = null;
+      }}
+      onpraesentation={showPraesentation}
+      onleseansicht={() => (ownPreview = true)}
+      onversionen={() => (versionsOpen = true)}
       onchanged={loadDetail}
       {notify}
     />

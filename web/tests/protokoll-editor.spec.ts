@@ -88,7 +88,7 @@ test('others read along live and can take over after asking', async ({
   // Whoever shares their screen instead of the writer can open the same presentation
   const [readerPraesentation] = await Promise.all([
     readerContext.waitForEvent('page'),
-    reader.getByRole('button', { name: 'Präsentation öffnen' }).click(),
+    reader.getByRole('button', { name: 'Präsentation', exact: true }).click(),
   ]);
   await expect(
     readerPraesentation
@@ -145,7 +145,7 @@ test('in the iPhone app the presentation window logs in first and shows the save
   const [praesentation, login] = await Promise.all([
     context.waitForEvent('page'),
     context.waitForEvent('request', (request) => request.url().includes('/.auth/login/aad')),
-    page.getByRole('button', { name: 'Präsentation öffnen' }).click(),
+    page.getByRole('button', { name: 'Präsentation', exact: true }).click(),
   ]);
   expect(new URL(login.url()).searchParams.get('post_login_redirect_uri')).toMatch(
     /^\/leitendenbereich\/protokolle\/praesentation\?id=\d+$/
@@ -165,7 +165,7 @@ test('the presentation opens in a window of its own and follows every change', a
   await protokollVorbereiten(page, 'Leitendenrunde Präsentation');
   const [praesentation] = await Promise.all([
     context.waitForEvent('page'),
-    page.getByRole('button', { name: 'Präsentation öffnen' }).click(),
+    page.getByRole('button', { name: 'Präsentation', exact: true }).click(),
   ]);
   await expect(praesentation).toHaveURL(/\/leitendenbereich\/protokolle\/praesentation\?id=\d+$/);
   const ansicht = praesentation.getByRole('article', { name: 'Protokoll' });
@@ -209,7 +209,7 @@ test('a late answer of the server never replaces newer text from the editor', as
 
   const [praesentation] = await Promise.all([
     context.waitForEvent('page'),
-    page.getByRole('button', { name: 'Präsentation öffnen' }).click(),
+    page.getByRole('button', { name: 'Präsentation', exact: true }).click(),
   ]);
   const planung = praesentation.locator('section', { hasText: '3. Aktionsvorschau' });
   await expect(planung).toContainText('Alter Stand.');

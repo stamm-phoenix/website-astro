@@ -202,7 +202,7 @@ async function pruefeTeil(
 }
 
 const UNBRAUCHBAR =
-  'Die Prüfung hat keine brauchbare Antwort gegeben. Am Protokoll wurde nichts geändert. Tippe noch einmal auf „Auf Korrekturen prüfen“.';
+  'Die Prüfung hat keine brauchbare Antwort gegeben. Am Protokoll wurde nichts geändert. Tippe noch einmal auf „Korrekturen prüfen“.';
 
 const istUeberlastet = (error: unknown): boolean =>
   error instanceof AzureOpenAiError &&
@@ -268,7 +268,7 @@ export async function pruefeProtokoll(inhalt: ProtokollInhalt): Promise<Korrektu
       throw (
         fehler.find((e) => e instanceof KorrekturFehler) ??
         new KorrekturFehler(
-          'Die Prüfung hat nicht geklappt. Am Protokoll wurde nichts geändert. Tippe noch einmal auf „Auf Korrekturen prüfen“.',
+          'Die Prüfung hat nicht geklappt. Am Protokoll wurde nichts geändert. Tippe noch einmal auf „Korrekturen prüfen“.',
           502
         )
       );
