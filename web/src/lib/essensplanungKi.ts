@@ -7,6 +7,7 @@ import type { KiAenderung, KiZutatWahl } from '../../../api/lib/essen-ki-model';
 
 export type {
   KiAenderung,
+  KiGericht,
   KiHinweis,
   KiMass,
   KiPruefung,

@@ -97,6 +97,17 @@ export interface KiRezept {
   zeilen: KiRezeptZeile[];
 }
 
+/**
+ * A whole dish written by the AI from a short description („Gericht generieren lassen“): the
+ * lines like a read recipe, with instructions and tools. Nothing is saved before the member
+ * confirms.
+ */
+export interface KiGericht extends KiRezept {
+  /** Instructions in Markdown; empty when the model wrote none. */
+  anleitung: string;
+  werkzeuge: string[];
+}
+
 export const KI_MASSE = ['tl', 'el', 'stueck'] as const;
 export type KiMass = (typeof KI_MASSE)[number];
 
@@ -112,6 +123,8 @@ export const KI_MASS_TEXT: Record<KiMass, string> = { tl: 'TL', el: 'EL', stueck
 export const MAX_MENGE = 1_000_000;
 const MAX_TEXT = 300;
 export const MAX_REZEPT_TEXT = 10_000;
+/** The description of a dish to write („Gericht generieren lassen“). */
+export const MAX_GERICHT_BESCHREIBUNG = 2000;
 export const MAX_HINWEISE = 20;
 
 /** Rounds like a cook writes: a tenth below 10, whole numbers above, three places for kg and l. */

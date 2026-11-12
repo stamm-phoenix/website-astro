@@ -210,6 +210,7 @@ import {
 import {
   EssensplanungGerichtZutatenSammel,
   EssensplanungKiEinheiten,
+  EssensplanungKiGenerieren,
   EssensplanungKiPruefen,
   EssensplanungKiRezept,
   EssensplanungKiUmrechnung,
@@ -1561,6 +1562,13 @@ app.http('essensplanungKiRezept', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/gerichte/{id}/ki/rezept',
   handler: EssensplanungKiRezept,
+});
+
+app.http('essensplanungKiGenerieren', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}/ki/generieren',
+  handler: EssensplanungKiGenerieren,
 });
 
 app.http('essensplanungKiUmrechnung', {

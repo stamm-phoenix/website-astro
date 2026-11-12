@@ -104,7 +104,7 @@ export async function frage<T>(
 }
 
 /** The ingredients, dishes and central lists of the Planung, and the dish asked about. */
-async function ladeGericht(zugang: Zugang, gerichtId: number, db: Db) {
+export async function ladeGericht(zugang: Zugang, gerichtId: number, db: Db) {
   const [{ zutaten, gerichte }, katalog] = await Promise.all([
     ladeGerichte(db, zugang.planungId),
     ladeKatalog(db),
@@ -114,9 +114,9 @@ async function ladeGericht(zugang: Zugang, gerichtId: number, db: Db) {
   return { gericht, zutaten, katalog };
 }
 
-const ZAHL_ODER_NULL = { type: ['number', 'null'] };
+export const ZAHL_ODER_NULL = { type: ['number', 'null'] };
 const BOOL_ODER_NULL = { type: ['boolean', 'null'] };
-const enumOderNull = (werte: readonly string[]) => ({
+export const enumOderNull = (werte: readonly string[]) => ({
   anyOf: [{ type: 'string', enum: [...werte] }, { type: 'null' }],
 });
 
@@ -237,7 +237,7 @@ export function pruefeGericht(
   );
 }
 
-const REZEPT_SCHEMA = {
+export const REZEPT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['rezeptPersonen', 'zeilen'],
