@@ -105,7 +105,9 @@ test('any leader approves minutes in review and sends them to all leaders', asyn
   await expect(send.getByText('gast@example.test hinzugefügt.')).toBeVisible();
   await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
   await expect(send).toBeHidden();
-  await expect(review.getByText('Verschickt', { exact: true })).toBeVisible();
+  await expect(
+    page.locator('[data-sticky-top]').getByText('Verschickt', { exact: true })
+  ).toBeVisible();
   await expect(review.getByText(/An 23 Personen verschickt am/)).toBeVisible();
   await expect(review.getByRole('button', { name: 'PDF herunterladen' })).toBeVisible();
 });
