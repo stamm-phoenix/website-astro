@@ -34,6 +34,16 @@ export function classifyMove(
   return 'wait';
 }
 
+/**
+ * Whether the browser starting to drag a link natively, before the movement decided, takes it
+ * for the sidebar: only when it so far went in the direction and more sideways than up or down.
+ * Otherwise the link is dragged as usual.
+ */
+export function claimsNativeDrag(dx: number, dy: number, direction: DragDirection): boolean {
+  const along = dx * direction;
+  return along > 0 && along >= Math.abs(dy);
+}
+
 /** Whether a release finishes the drag: far enough or flicked in the direction. */
 export function dragCommits(dx: number, velocityX: number, direction: DragDirection): boolean {
   return commits(dx * direction, velocityX * direction, DRAG_COMMIT);
@@ -140,13 +150,21 @@ export function sidebarDrag(
 
   /** Dragging a link the native way would end the pointer events; in the direction it is ours. */
   function ondragstart(event: DragEvent): void {
-    if (!track) return;
-    const kind = classifyMove(
-      event.clientX - track.startX,
-      event.clientY - track.startY,
-      direction
-    );
-    if (phase === 'drag' || kind !== 'none') event.preventDefault();
+    if (!track || pointer === null || phase === 'cancelled') return;
+    if (phase === 'drag') {
+      event.preventDefault();
+      return;
+    }
+    const dx = event.clientX - track.startX;
+    if (!claimsNativeDrag(dx, event.clientY - track.startY, direction)) {
+      // The browser drags the link and ends the pointer events
+      reset();
+      return;
+    }
+    event.preventDefault();
+    phase = 'drag';
+    node.setPointerCapture(pointer);
+    current.onmove(dx);
   }
 
   /** Escape lets the sidebar spring back; letting go of the mouse then does nothing. */
