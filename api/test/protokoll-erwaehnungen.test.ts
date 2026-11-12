@@ -39,6 +39,7 @@ function punkt(titel: string, text: string, unterpunkte: ProtokollPunkt[] = []):
     aufgaben: [],
     termine: [],
     projekt: null,
+    zeitraum: null,
     offeneAufgaben: [],
     unterpunkte,
   };

@@ -88,6 +88,7 @@ function punkt(text: string, unterpunkte: ProtokollPunkt[] = []): ProtokollPunkt
     aufgaben: [],
     termine: [],
     projekt: null,
+    zeitraum: null,
     offeneAufgaben: [],
     unterpunkte,
   };
