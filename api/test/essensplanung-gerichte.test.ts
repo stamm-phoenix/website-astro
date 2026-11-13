@@ -1,7 +1,20 @@
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
-import * as endpoints from '../endpoints/essensplanung';
+import {
+  EssensplanungGerichte,
+  EssensplanungGerichtZutaten,
+  EssensplanungKatalog,
+  EssensplanungGerichtZutat,
+  EssensplanungGericht,
+  EssensplanungZutaten,
+  EssensplanungZutat,
+} from '../endpoints/essensplanung-gerichte';
+import {
+  EssensplanungPlanung,
+  EssensplanungLinks,
+  EssensplanungStand,
+} from '../endpoints/essensplanung-planung';
 import { EssensplanungListeEintrag } from '../endpoints/intern-essensplanung-steuerung';
 import { getDb, toVersion } from '../lib/db';
 import {
@@ -42,7 +55,7 @@ async function gerichtMitId(
   token: string,
   body: Record<string, unknown>
 ): Promise<{ id: number; ansicht: PlanungAnsicht }> {
-  const antwort = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+  const antwort = await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
     token,
     body,
   });
@@ -51,30 +64,24 @@ async function gerichtMitId(
 }
 
 function zeileHinzufuegen(t: TestContext, token: string, gerichtId: number, body: object) {
-  return call(
-    t,
-    endpoints.EssensplanungGerichtZutaten,
-    'POST',
-    `planung/gerichte/${gerichtId}/zutaten`,
-    {
-      token,
-      params: { id: String(gerichtId) },
-      body,
-    }
-  );
+  return call(t, EssensplanungGerichtZutaten, 'POST', `planung/gerichte/${gerichtId}/zutaten`, {
+    token,
+    params: { id: String(gerichtId) },
+    body,
+  });
 }
 
 dbTest('dishes get lines from the central list in the unit of the ingredient', async (t) => {
   const mails = captureMails(t);
   const { token } = await anlegen(t, mails);
   const katalog = json<EssenKatalog>(
-    await call(t, endpoints.EssensplanungKatalog, 'GET', 'planung/katalog', { token })
+    await call(t, EssensplanungKatalog, 'GET', 'planung/katalog', { token })
   );
   assert.ok(katalog.zutaten.length > 400);
   assert.equal(katalog.unvertraeglichkeiten.filter((u) => u.schluessel).length, 14);
 
   const { id } = await gerichtMitId(t, token, { name: 'Chili', personen: 10 });
-  const doppelt = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+  const doppelt = await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
     token,
     body: { name: 'chili', personen: 4 },
   });
@@ -153,7 +160,7 @@ dbTest('dishes get lines from the central list in the unit of the ingredient', a
   const zweite = gericht.zutaten[1];
   const geaendert = await call(
     t,
-    endpoints.EssensplanungGerichtZutat,
+    EssensplanungGerichtZutat,
     'PATCH',
     `planung/gericht-zutaten/${zweite.id}`,
     {
@@ -182,7 +189,7 @@ dbTest('dishes get lines from the central list in the unit of the ingredient', a
   );
   const veraltet = await call(
     t,
-    endpoints.EssensplanungGerichtZutat,
+    EssensplanungGerichtZutat,
     'PATCH',
     `planung/gericht-zutaten/${zweite.id}`,
     {
@@ -196,17 +203,11 @@ dbTest('dishes get lines from the central list in the unit of the ingredient', a
   // Deleting a line closes the gap
   const weg = nachher[0];
   const geloescht = json<PlanungAnsicht>(
-    await call(
-      t,
-      endpoints.EssensplanungGerichtZutat,
-      'DELETE',
-      `planung/gericht-zutaten/${weg.id}`,
-      {
-        token,
-        params: { id: String(weg.id) },
-        ifMatch: weg.etag,
-      }
-    )
+    await call(t, EssensplanungGerichtZutat, 'DELETE', `planung/gericht-zutaten/${weg.id}`, {
+      token,
+      params: { id: String(weg.id) },
+      ifMatch: weg.etag,
+    })
   );
   assert.deepEqual(
     geloescht.gerichte[0].zutaten.map((z) => z.position),
@@ -220,20 +221,14 @@ dbTest('the dish itself changes with its version; tools and links are checked', 
   const { token } = await anlegen(t, mails);
   const { id, ansicht } = await gerichtMitId(t, token, { name: 'Pudding', personen: 20 });
   const etag = ansicht.gerichte[0].etag;
-  const ungueltig = await call(
-    t,
-    endpoints.EssensplanungGericht,
-    'PATCH',
-    `planung/gerichte/${id}`,
-    {
-      token,
-      params: { id: String(id) },
-      body: { etag, links: [{ titel: 'Rezept', url: 'javascript:alert(1)' }] },
-    }
-  );
+  const ungueltig = await call(t, EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
+    token,
+    params: { id: String(id) },
+    body: { etag, links: [{ titel: 'Rezept', url: 'javascript:alert(1)' }] },
+  });
   assert.equal(ungueltig.status, 400);
   // A too long tool name shows at the field of the tools
-  const zuLang = await call(t, endpoints.EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
+  const zuLang = await call(t, EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
     token,
     params: { id: String(id) },
     body: { etag, werkzeuge: ['x'.repeat(101)] },
@@ -241,7 +236,7 @@ dbTest('the dish itself changes with its version; tools and links are checked', 
   assert.equal(zuLang.status, 400);
   assert.ok(json<{ fields: { werkzeuge: string } }>(zuLang).fields.werkzeuge);
   const gespeichert = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
+    await call(t, EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
       token,
       params: { id: String(id) },
       body: {
@@ -257,17 +252,11 @@ dbTest('the dish itself changes with its version; tools and links are checked', 
   assert.equal(gericht.anleitung, 'Milch aufkochen.');
   assert.deepEqual(gericht.werkzeuge, ['Schneebesen', 'Großer Topf']);
   assert.deepEqual(gericht.links, [{ titel: 'Rezept', url: 'https://example.org/pudding' }]);
-  const konflikt = await call(
-    t,
-    endpoints.EssensplanungGericht,
-    'PATCH',
-    `planung/gerichte/${id}`,
-    {
-      token,
-      params: { id: String(id) },
-      body: { etag, personen: 30 },
-    }
-  );
+  const konflikt = await call(t, EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
+    token,
+    params: { id: String(id) },
+    body: { etag, personen: 30 },
+  });
   assert.equal(konflikt.status, 409);
   assert.equal(json<{ ansicht: PlanungAnsicht }>(konflikt).ansicht.gerichte[0].personen, 20);
 
@@ -278,10 +267,10 @@ dbTest('the dish itself changes with its version; tools and links are checked', 
     einheit: 'l',
   });
   const vorLoeschen = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   const loesche = (ifMatch: string) =>
-    call(t, endpoints.EssensplanungGericht, 'DELETE', `planung/gerichte/${id}`, {
+    call(t, EssensplanungGericht, 'DELETE', `planung/gerichte/${id}`, {
       token,
       params: { id: String(id) },
       ifMatch,
@@ -300,12 +289,12 @@ dbTest('own ingredients and differences stay in their Planung', async (t) => {
     await getDb().selectFrom('essen.kategorie').select('id').executeTakeFirstOrThrow()
   ).id;
   const nuss = await unvertraeglichkeit('schalenfruechte');
-  const schonDa = await call(t, endpoints.EssensplanungZutaten, 'POST', 'planung/zutaten', {
+  const schonDa = await call(t, EssensplanungZutaten, 'POST', 'planung/zutaten', {
     token,
     body: { name: 'Hackfleisch', kategorieId: kategorie, einheitenart: 'masse' },
   });
   assert.equal(schonDa.status, 400);
-  const angelegt = await call(t, endpoints.EssensplanungZutaten, 'POST', 'planung/zutaten', {
+  const angelegt = await call(t, EssensplanungZutaten, 'POST', 'planung/zutaten', {
     token,
     body: {
       name: 'Omas Nussmischung',
@@ -338,7 +327,7 @@ dbTest('own ingredients and differences stay in their Planung', async (t) => {
   // Used ingredients stay; the kind of unit stays while lines measure in it
   const nichtLoeschbar = await call(
     t,
-    endpoints.EssensplanungZutat,
+    EssensplanungZutat,
     'DELETE',
     `planung/zutaten/${eigeneId}`,
     {
@@ -349,7 +338,7 @@ dbTest('own ingredients and differences stay in their Planung', async (t) => {
   );
   assert.equal(nichtLoeschbar.status, 400);
   const andereKategorie = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungZutat, 'PATCH', `planung/zutaten/${milchDerPlanung.id}`, {
+    await call(t, EssensplanungZutat, 'PATCH', `planung/zutaten/${milchDerPlanung.id}`, {
       token,
       params: { id: String(milchDerPlanung.id) },
       body: { etag: milchDerPlanung.etag, kategorieId: kategorie, einheitenart: null },
@@ -399,22 +388,21 @@ dbTest('the read-only link sees dishes but changes nothing', async (t) => {
   const { token } = await anlegen(t, mails);
   await gerichtMitId(t, token, { name: 'Brot', personen: 1 });
   const links = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungLinks, 'POST', 'planung/links', {
+    await call(t, EssensplanungLinks, 'POST', 'planung/links', {
       token,
       body: { art: 'lesen', an: true },
     })
   );
   const lesen = links.links!.lesen!;
   const ansicht = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: lesen })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token: lesen })
   );
   assert.equal(ansicht.gerichte[0].name, 'Brot');
   assert.equal(
-    (await call(t, endpoints.EssensplanungKatalog, 'GET', 'planung/katalog', { token: lesen }))
-      .status,
+    (await call(t, EssensplanungKatalog, 'GET', 'planung/katalog', { token: lesen })).status,
     200
   );
-  const verboten = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+  const verboten = await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
     token: lesen,
     body: { name: 'Butter', personen: 1 },
   });
@@ -476,11 +464,11 @@ dbTest('open pages see changes of the central lists', async (t) => {
   };
   // A change of the central lists changes the state the open pages poll
   const vorher = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   await updateZutat(String(milch), { ...input, hinweis: 'neu geprüft' }, etag, 'admin');
   const stand = json<{ stand: string; ansicht?: PlanungAnsicht }>(
-    await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
+    await call(t, EssensplanungStand, 'GET', 'planung/stand', {
       token,
       query: `?seit=${encodeURIComponent(vorher.stand)}`,
     })
@@ -530,7 +518,7 @@ dbTest('a dish typed into a meal is created without people and planned there', a
   assert.equal(neu.aenderungen[0].details.mahlzeit, mahlzeit.name);
 
   // A meal that is gone creates nothing, not even the dish
-  const weg = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+  const weg = await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
     token,
     body: { name: 'Salat', mahlzeitId: 999_999 },
   });
@@ -539,13 +527,13 @@ dbTest('a dish typed into a meal is created without people and planned there', a
     mahlzeitId: 'Diese Mahlzeit gibt es nicht mehr.',
   });
   const danach = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   assert.equal(danach.gerichte.length, 1);
 
   // People can be set and taken away again
   const patch = (body: Record<string, unknown>) =>
-    call(t, endpoints.EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
+    call(t, EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
       token,
       params: { id: String(id) },
       body,

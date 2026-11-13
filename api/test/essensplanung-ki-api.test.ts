@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
-import * as endpoints from '../endpoints/essensplanung';
+import {
+  EssensplanungGerichte,
+  EssensplanungGericht,
+  EssensplanungGerichtZutaten,
+  EssensplanungGerichtZutat,
+} from '../endpoints/essensplanung-gerichte';
+import { EssensplanungLinks, EssensplanungPlanung } from '../endpoints/essensplanung-planung';
 import * as ki from '../endpoints/essensplanung-ki';
 import { getDb } from '../lib/db';
 import type { KiPruefung, KiUmrechnung } from '../lib/essen-ki-model';
@@ -23,7 +29,7 @@ async function zentraleZutat(name: string): Promise<number> {
 }
 
 async function gericht(t: TestContext, token: string): Promise<number> {
-  const antwort = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+  const antwort = await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
     token,
     body: { name: 'Chili', personen: 10 },
   });
@@ -108,7 +114,7 @@ dbTest('the AI is only for members who edit, outside the maintenance mode', asyn
       params: { id: String(id) },
     });
   const lesen = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungLinks, 'POST', 'planung/links', {
+    await call(t, EssensplanungLinks, 'POST', 'planung/links', {
       token,
       body: { art: 'lesen', an: true },
     })
@@ -179,20 +185,14 @@ dbTest('recipe lines scaled for other people than the dish has now are refused',
   const id = await gericht(t, token);
   const zwiebeln = await zentraleZutat('Zwiebeln');
   const ansicht = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   // Someone changes the people while the preview is open
-  const geaendert = await call(
-    t,
-    endpoints.EssensplanungGericht,
-    'PATCH',
-    `planung/gerichte/${id}`,
-    {
-      token,
-      params: { id: String(id) },
-      body: { etag: ansicht.gerichte.find((g) => g.id === id)!.etag, personen: 20 },
-    }
-  );
+  const geaendert = await call(t, EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
+    token,
+    params: { id: String(id) },
+    body: { etag: ansicht.gerichte.find((g) => g.id === id)!.etag, personen: 20 },
+  });
   assert.equal(geaendert.status, 200, JSON.stringify(geaendert.jsonBody));
   const zeilen = [{ zutatId: zwiebeln, menge: 500, einheit: 'g' }];
   const alt = await call(
@@ -205,7 +205,7 @@ dbTest('recipe lines scaled for other people than the dish has now are refused',
   assert.equal(alt.status, 409, JSON.stringify(alt.jsonBody));
   assert.equal(json<{ code: string }>(alt).code, 'PERSONEN_GEAENDERT');
   const danach = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   assert.equal(danach.gerichte.find((g) => g.id === id)!.zutaten.length, 0);
   const neu = await call(
@@ -224,7 +224,7 @@ dbTest('a recipe sets the people of a dish without any together with its lines',
   const zwiebeln = await zentraleZutat('Zwiebeln');
   const zeilen = [{ zutatId: zwiebeln, menge: 400, einheit: 'g' }];
   const ohnePersonen = async (name: string): Promise<number> => {
-    const antwort = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+    const antwort = await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
       token,
       body: { name },
     });
@@ -232,9 +232,7 @@ dbTest('a recipe sets the people of a dish without any together with its lines',
     return json<{ id: number }>(antwort).id;
   };
   const stand = async () =>
-    json<PlanungAnsicht>(
-      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
-    );
+    json<PlanungAnsicht>(await call(t, EssensplanungPlanung, 'GET', 'planung', { token }));
   const senden = (id: number, body: Record<string, unknown>) =>
     call(t, ki.EssensplanungGerichtZutatenSammel, 'POST', `planung/gerichte/${id}/zutaten/sammel`, {
       token,
@@ -244,17 +242,11 @@ dbTest('a recipe sets the people of a dish without any together with its lines',
 
   // Someone sets 20 people while the preview of a recipe for 4 is open: nothing is taken over
   const chili = await ohnePersonen('Chili');
-  const geaendert = await call(
-    t,
-    endpoints.EssensplanungGericht,
-    'PATCH',
-    `planung/gerichte/${chili}`,
-    {
-      token,
-      params: { id: String(chili) },
-      body: { etag: (await stand()).gerichte.find((g) => g.id === chili)!.etag, personen: 20 },
-    }
-  );
+  const geaendert = await call(t, EssensplanungGericht, 'PATCH', `planung/gerichte/${chili}`, {
+    token,
+    params: { id: String(chili) },
+    body: { etag: (await stand()).gerichte.find((g) => g.id === chili)!.etag, personen: 20 },
+  });
   assert.equal(geaendert.status, 200, JSON.stringify(geaendert.jsonBody));
   const konflikt = await senden(chili, { zeilen, personen: null, personenSetzen: 4 });
   assert.equal(konflikt.status, 409, JSON.stringify(konflikt.jsonBody));
@@ -298,7 +290,7 @@ dbTest('a proposed amount is refused once the people of the dish changed', async
   const zwiebeln = await zentraleZutat('Zwiebeln');
   const angelegt = await call(
     t,
-    endpoints.EssensplanungGerichtZutaten,
+    EssensplanungGerichtZutaten,
     'POST',
     `planung/gerichte/${id}/zutaten`,
     { token, params: { id: String(id) }, body: { zutatId: zwiebeln, menge: 500, einheit: 'g' } }
@@ -307,20 +299,14 @@ dbTest('a proposed amount is refused once the people of the dish changed', async
   const vorher = json<PlanungAnsicht>(angelegt).gerichte.find((g) => g.id === id)!;
   const zeile = vorher.zutaten[0];
   // The dish is checked for 10 people; then someone changes them to 20
-  const geaendert = await call(
-    t,
-    endpoints.EssensplanungGericht,
-    'PATCH',
-    `planung/gerichte/${id}`,
-    {
-      token,
-      params: { id: String(id) },
-      body: { etag: vorher.etag, personen: 20 },
-    }
-  );
+  const geaendert = await call(t, EssensplanungGericht, 'PATCH', `planung/gerichte/${id}`, {
+    token,
+    params: { id: String(id) },
+    body: { etag: vorher.etag, personen: 20 },
+  });
   assert.equal(geaendert.status, 200, JSON.stringify(geaendert.jsonBody));
   const zeileAendern = (body: Record<string, unknown>) =>
-    call(t, endpoints.EssensplanungGerichtZutat, 'PATCH', `planung/gericht-zutaten/${zeile.id}`, {
+    call(t, EssensplanungGerichtZutat, 'PATCH', `planung/gericht-zutaten/${zeile.id}`, {
       token,
       params: { id: String(zeile.id) },
       body: { planungZutatId: zeile.planungZutatId, einheit: 'g', etag: zeile.etag, ...body },

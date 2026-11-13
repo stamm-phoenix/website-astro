@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import * as endpoints from '../endpoints/essensplanung';
+import { EssensplanungEinplanung } from '../endpoints/essensplanung-teilnehmende';
+import { EssensplanungPlanung, EssensplanungLinks } from '../endpoints/essensplanung-planung';
 import { getDb } from '../lib/db';
 import { seedPreviewEssensplanungEinkauf } from '../lib/db-preview-essen-einkauf';
 import { seedPreviewEssensplanungPackliste } from '../lib/db-preview-essen-packliste';
@@ -132,7 +133,7 @@ dbTest('tools of planned dishes get a state when someone packs them', async (t) 
   for (const einplanung of [...einplanungen].reverse()) {
     const entfernt = await call(
       t,
-      endpoints.EssensplanungEinplanung,
+      EssensplanungEinplanung,
       'DELETE',
       `planung/einplanungen/${einplanung.id}`,
       { token, params: { id: String(einplanung.id) }, ifMatch: einplanung.etag }
@@ -140,7 +141,7 @@ dbTest('tools of planned dishes get a state when someone packs them', async (t) 
     assert.equal(entfernt.status, 200, JSON.stringify(entfernt.jsonBody));
   }
   const ohne = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   assert.equal(ohne.packliste.length, 1);
   const spaeter = await werkzeug(t, token, {
@@ -231,14 +232,14 @@ dbTest('the read-only link sees the packing list; maintenance stops changes', as
   const { token } = await anlegen(t, mails);
   await neu(t, token, { name: 'Kühlbox' });
   const links = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungLinks, 'POST', 'planung/links', {
+    await call(t, EssensplanungLinks, 'POST', 'planung/links', {
       token,
       body: { art: 'lesen', an: true },
     })
   );
   const lesen = links.links!.lesen!;
   const gelesen = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: lesen })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token: lesen })
   );
   assert.deepEqual(
     gelesen.packliste.map((e) => e.name),

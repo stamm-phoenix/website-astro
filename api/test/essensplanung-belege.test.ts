@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
 import sharp from 'sharp';
-import * as endpoints from '../endpoints/essensplanung';
+import { EssensplanungLinks, EssensplanungPlanung } from '../endpoints/essensplanung-planung';
 import * as belege from '../endpoints/essensplanung-belege';
 import * as blobStorage from '../lib/blob-storage';
 import { CONFIG } from '../lib/config';
@@ -148,14 +148,14 @@ dbTest('the read-only link sees receipts and photos but changes nothing', async 
     await neu(t, token, { ...BELEG, bezahltVonId: ich.id, photo: await foto() })
   );
   const links = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungLinks, 'POST', 'planung/links', {
+    await call(t, EssensplanungLinks, 'POST', 'planung/links', {
       token,
       body: { art: 'lesen', an: true },
     })
   );
   const lesen = links.links!.lesen!;
   const gelesen = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: lesen })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token: lesen })
   );
   const beleg = gelesen.belege[0];
   assert.equal(beleg.bezahltVon, 'Kim Küche');
@@ -281,10 +281,7 @@ dbTest('photos that could not be deleted with the Planung go in the next cleanup
     throw new Error('Blob Storage nicht erreichbar');
   });
   await planungLoeschen(await ladeZugang(token));
-  assert.equal(
-    (await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })).status,
-    404
-  );
+  assert.equal((await call(t, EssensplanungPlanung, 'GET', 'planung', { token })).status, 404);
   assert.equal([...blobs.keys()].filter((name) => name.includes(`/${ansicht.id}/`)).length, 1);
   const notiert = () =>
     getDb()

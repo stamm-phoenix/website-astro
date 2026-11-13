@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
-import * as endpoints from '../endpoints/essensplanung';
+import {
+  EssensplanungGruppen,
+  EssensplanungTeilnehmendeListe,
+  EssensplanungGruppe,
+  EssensplanungTeilnehmende,
+} from '../endpoints/essensplanung-teilnehmende';
+import {
+  EssensplanungPlanung,
+  EssensplanungMahlzeitGruppe,
+  EssensplanungMahlzeit,
+  EssensplanungTag,
+} from '../endpoints/essensplanung-planung';
 import { getDb } from '../lib/db';
 import {
   seedPreviewEssensplanungPlanung,
@@ -15,11 +26,11 @@ import { dbTest } from './fixtures/database';
 import { anlegen, call, captureMails, json } from './fixtures/essensplanung';
 
 function gruppeNeu(t: TestContext, token: string, body: object) {
-  return call(t, endpoints.EssensplanungGruppen, 'POST', 'planung/gruppen', { token, body });
+  return call(t, EssensplanungGruppen, 'POST', 'planung/gruppen', { token, body });
 }
 
 function teilnehmendeNeu(t: TestContext, token: string, body: object) {
-  return call(t, endpoints.EssensplanungTeilnehmendeListe, 'POST', 'planung/teilnehmende', {
+  return call(t, EssensplanungTeilnehmendeListe, 'POST', 'planung/teilnehmende', {
     token,
     body,
   });
@@ -57,46 +68,34 @@ dbTest('a Planung starts with the groups of the template, which can change', asy
   assert.equal((await gruppeNeu(t, token, { name: 'Gäste', faktor: 0 })).status, 400);
   assert.equal((await gruppeNeu(t, token, { name: 'Gäste', faktor: 5.001 })).status, 400);
 
-  const geaendert = await call(
-    t,
-    endpoints.EssensplanungGruppe,
-    'PATCH',
-    `planung/gruppen/${kueche.id}`,
-    {
-      token,
-      params: { id: String(kueche.id) },
-      body: { etag: kueche.etag, name: 'Küchenteam', faktor: 1.5 },
-    }
-  );
+  const geaendert = await call(t, EssensplanungGruppe, 'PATCH', `planung/gruppen/${kueche.id}`, {
+    token,
+    params: { id: String(kueche.id) },
+    body: { etag: kueche.etag, name: 'Küchenteam', faktor: 1.5 },
+  });
   assert.equal(geaendert.status, 200);
-  const alt = await call(
-    t,
-    endpoints.EssensplanungGruppe,
-    'PATCH',
-    `planung/gruppen/${kueche.id}`,
-    {
-      token,
-      params: { id: String(kueche.id) },
-      body: { etag: kueche.etag, name: 'Küche', faktor: 1 },
-    }
-  );
+  const alt = await call(t, EssensplanungGruppe, 'PATCH', `planung/gruppen/${kueche.id}`, {
+    token,
+    params: { id: String(kueche.id) },
+    body: { etag: kueche.etag, name: 'Küche', faktor: 1 },
+  });
   assert.equal(alt.status, 409);
 
   // A group with participants stays; without them it goes
   const jetzt = json<PlanungAnsicht>(geaendert).gruppen.at(-1)!;
   await teilnehmendeNeu(t, token, { gruppeId: jetzt.id, ernaehrung: 'alles', anzahl: 3 });
   const loesche = (etag: string) =>
-    call(t, endpoints.EssensplanungGruppe, 'DELETE', `planung/gruppen/${jetzt.id}`, {
+    call(t, EssensplanungGruppe, 'DELETE', `planung/gruppen/${jetzt.id}`, {
       token,
       params: { id: String(jetzt.id) },
       ifMatch: etag,
     });
   assert.equal((await loesche(jetzt.etag)).status, 400);
   const leer = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   const zeile = leer.teilnehmende[0];
-  await call(t, endpoints.EssensplanungTeilnehmende, 'DELETE', `planung/teilnehmende/${zeile.id}`, {
+  await call(t, EssensplanungTeilnehmende, 'DELETE', `planung/teilnehmende/${zeile.id}`, {
     token,
     params: { id: String(zeile.id) },
     ifMatch: zeile.etag,
@@ -169,7 +168,7 @@ dbTest('participants are counted per meal by group, diet and presence', async (t
   for (const gruppe of voll.gruppen.filter((g) => g.id !== leitende.id)) {
     const antwort = await call(
       t,
-      endpoints.EssensplanungMahlzeitGruppe,
+      EssensplanungMahlzeitGruppe,
       'PUT',
       `planung/mahlzeiten/${tag1.mahlzeiten[0].id}/gruppen`,
       {
@@ -181,7 +180,7 @@ dbTest('participants are counted per meal by group, diet and presence', async (t
     assert.equal(antwort.status, 200);
   }
   const plan = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   assert.equal(plan.tage[0].mahlzeiten[0].ohneGruppen.length, 4);
   const esser = esserJeMahlzeit(plan);
@@ -199,7 +198,7 @@ dbTest('participants are counted per meal by group, diet and presence', async (t
   // Back again: the leaders eat at the first breakfast with the others
   await call(
     t,
-    endpoints.EssensplanungMahlzeitGruppe,
+    EssensplanungMahlzeitGruppe,
     'PUT',
     `planung/mahlzeiten/${tag1.mahlzeiten[0].id}/gruppen`,
     {
@@ -209,14 +208,14 @@ dbTest('participants are counted per meal by group, diet and presence', async (t
     }
   );
   const zurueck = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   assert.equal(zurueck.tage[0].mahlzeiten[0].ohneGruppen.includes(woe.id), false);
 
   // A stale row is a conflict
   const rovers = zurueck.teilnehmende.find((z) => z.gruppeId === rover.id)!;
   const aendern = (etag: string, anzahl: number) =>
-    call(t, endpoints.EssensplanungTeilnehmende, 'PATCH', `planung/teilnehmende/${rovers.id}`, {
+    call(t, EssensplanungTeilnehmende, 'PATCH', `planung/teilnehmende/${rovers.id}`, {
       token,
       params: { id: String(rovers.id) },
       body: { ...rovers, etag, anzahl },
@@ -244,22 +243,22 @@ dbTest('deleting a meal or day moves the limits of participants to the next one'
     vonMahlzeitId: tag2.mahlzeiten[0].id,
   });
   const vorher = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   // The start meal goes: from the next one
   const start = vorher.tage[0].mahlzeiten[2];
-  await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${start.id}`, {
+  await call(t, EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${start.id}`, {
     token,
     params: { id: String(start.id) },
     ifMatch: mahlzeitStand(start),
   });
   // The whole day 2 goes: the end moves back to day 1, the other start forward to day 3
   const ohne = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   const zweiter = ohne.tage[1];
   const nachher = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${zweiter.id}`, {
+    await call(t, EssensplanungTag, 'DELETE', `planung/tage/${zweiter.id}`, {
       token,
       params: { id: String(zweiter.id) },
       ifMatch: tagStand(zweiter),
@@ -273,7 +272,7 @@ dbTest('deleting a meal or day moves the limits of participants to the next one'
   // The whole Planung goes with groups, participants and skipped meals
   await call(
     t,
-    endpoints.EssensplanungMahlzeitGruppe,
+    EssensplanungMahlzeitGruppe,
     'PUT',
     `planung/mahlzeiten/${tag3.mahlzeiten[0].id}/gruppen`,
     {
@@ -314,19 +313,19 @@ dbTest(
     const zeile = { gruppeId: gruppe.id, ernaehrung: 'alles', anzahl: 3, bisMahlzeitId: erste.id };
     await teilnehmendeNeu(t, token, zeile);
     // The end meal goes and has none before it: the row keeps it and eats nowhere
-    await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${erste.id}`, {
+    await call(t, EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${erste.id}`, {
       token,
       params: { id: String(erste.id) },
       ifMatch: mahlzeitStand(erste),
     });
     const ohne = json<PlanungAnsicht>(
-      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+      await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
     );
     const [gespeichert] = ohne.teilnehmende;
     assert.equal(gespeichert.bisMahlzeitId, erste.id);
     const geaendert = await call(
       t,
-      endpoints.EssensplanungTeilnehmende,
+      EssensplanungTeilnehmende,
       'PATCH',
       `planung/teilnehmende/${gespeichert.id}`,
       {
@@ -342,7 +341,7 @@ dbTest(
     // A new limit must still be in the plan
     const weg = await call(
       t,
-      endpoints.EssensplanungTeilnehmende,
+      EssensplanungTeilnehmende,
       'PATCH',
       `planung/teilnehmende/${gespeichert.id}`,
       {
@@ -358,21 +357,15 @@ dbTest(
     const stand = mahlzeitStand(mahlzeit);
     const tag = tagStand(nachher.tage[0]);
     const setzen = (isst: boolean) =>
-      call(
-        t,
-        endpoints.EssensplanungMahlzeitGruppe,
-        'PUT',
-        `planung/mahlzeiten/${mahlzeit.id}/gruppen`,
-        {
-          token,
-          params: { id: String(mahlzeit.id) },
-          body: { gruppeId: gruppe.id, isst },
-        }
-      );
+      call(t, EssensplanungMahlzeitGruppe, 'PUT', `planung/mahlzeiten/${mahlzeit.id}/gruppen`, {
+        token,
+        params: { id: String(mahlzeit.id) },
+        body: { gruppeId: gruppe.id, isst },
+      });
     await setzen(false);
     const alt = await call(
       t,
-      endpoints.EssensplanungMahlzeit,
+      EssensplanungMahlzeit,
       'DELETE',
       `planung/mahlzeiten/${mahlzeit.id}`,
       {
@@ -382,17 +375,11 @@ dbTest(
       }
     );
     assert.equal(alt.status, 409);
-    const tagAlt = await call(
-      t,
-      endpoints.EssensplanungTag,
-      'DELETE',
-      `planung/tage/${nachher.tage[0].id}`,
-      {
-        token,
-        params: { id: String(nachher.tage[0].id) },
-        ifMatch: tag,
-      }
-    );
+    const tagAlt = await call(t, EssensplanungTag, 'DELETE', `planung/tage/${nachher.tage[0].id}`, {
+      token,
+      params: { id: String(nachher.tage[0].id) },
+      ifMatch: tag,
+    });
     assert.equal(tagAlt.status, 409);
     // Setting the same again changes nothing, not even the version
     const vorher = mahlzeitStand(json<PlanungAnsicht>(await setzen(false)).tage[0].mahlzeiten[0]);
@@ -417,7 +404,7 @@ dbTest(
     };
     await teilnehmendeNeu(t, token, zeile);
     const ohne = json<PlanungAnsicht>(
-      await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${mittag.id}`, {
+      await call(t, EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${mittag.id}`, {
         token,
         params: { id: String(mittag.id) },
         ifMatch: mahlzeitStand(mittag),
@@ -430,7 +417,7 @@ dbTest(
     assert.ok([...esserJeMahlzeit(ohne).values()].every((esser) => esser.personen === 0));
     const geaendert = await call(
       t,
-      endpoints.EssensplanungTeilnehmende,
+      EssensplanungTeilnehmende,
       'PATCH',
       `planung/teilnehmende/${gespeichert.id}`,
       {

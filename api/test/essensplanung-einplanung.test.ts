@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
-import * as endpoints from '../endpoints/essensplanung';
+import { EssensplanungGerichte, EssensplanungGericht } from '../endpoints/essensplanung-gerichte';
+import {
+  EssensplanungEinplanungen,
+  EssensplanungEinplanung,
+} from '../endpoints/essensplanung-teilnehmende';
+import {
+  EssensplanungPlanung,
+  EssensplanungMahlzeit,
+  EssensplanungTag,
+} from '../endpoints/essensplanung-planung';
 import { getDb } from '../lib/db';
 import {
   seedPreviewEssensplanungEinplanung,
@@ -16,7 +25,7 @@ import { dbTest } from './fixtures/database';
 import { anlegen, call, captureMails, json } from './fixtures/essensplanung';
 
 async function gericht(t: TestContext, token: string, name: string): Promise<number> {
-  const antwort = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+  const antwort = await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
     token,
     body: { name, personen: 10 },
   });
@@ -25,14 +34,14 @@ async function gericht(t: TestContext, token: string, name: string): Promise<num
 }
 
 function einplanen(t: TestContext, token: string, body: object) {
-  return call(t, endpoints.EssensplanungEinplanungen, 'POST', 'planung/einplanungen', {
+  return call(t, EssensplanungEinplanungen, 'POST', 'planung/einplanungen', {
     token,
     body,
   });
 }
 
 function aendern(t: TestContext, token: string, id: number, body: object) {
-  return call(t, endpoints.EssensplanungEinplanung, 'PATCH', `planung/einplanungen/${id}`, {
+  return call(t, EssensplanungEinplanung, 'PATCH', `planung/einplanungen/${id}`, {
     token,
     params: { id: String(id) },
     body,
@@ -134,7 +143,7 @@ dbTest('dishes are planned at meals with factor and who is responsible', async (
   // Taking it off the meal keeps the dish
   const weg = tag.mahlzeiten.find((m) => m.id === abend.id)!.einplanungen[0];
   const ohne = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungEinplanung, 'DELETE', `planung/einplanungen/${weg.id}`, {
+    await call(t, EssensplanungEinplanung, 'DELETE', `planung/einplanungen/${weg.id}`, {
       token,
       params: { id: String(weg.id) },
       ifMatch: weg.etag,
@@ -150,7 +159,7 @@ dbTest('deleting a dish, meal or day covers what is planned there', async (t) =>
   const chili = await gericht(t, token, 'Chili');
   const [fruehstueck, mittag] = ansicht.tage[0].mahlzeiten;
   const vorher = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   await einplanen(t, token, { mahlzeitId: mittag.id, gerichtId: chili });
   const jetzt = json<PlanungAnsicht>(
@@ -161,7 +170,7 @@ dbTest('deleting a dish, meal or day covers what is planned there', async (t) =>
   const mittagVorher = vorher.tage[0].mahlzeiten.find((m) => m.id === mittag.id)!;
   const mittagJetzt = jetzt.tage[0].mahlzeiten.find((m) => m.id === mittag.id)!;
   const loescheMahlzeit = (ifMatch: string) =>
-    call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${mittag.id}`, {
+    call(t, EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${mittag.id}`, {
       token,
       params: { id: String(mittag.id) },
       ifMatch,
@@ -171,14 +180,14 @@ dbTest('deleting a dish, meal or day covers what is planned there', async (t) =>
 
   // The dish: with its places in the plan
   const mitPlatz = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   const plaetze = mitPlatz.tage.flatMap((tag) =>
     tag.mahlzeiten.flatMap((m) => m.einplanungen.filter((e) => e.gerichtId === chili))
   );
   assert.equal(plaetze.length, 1);
   const loescheGericht = (ifMatch: string) =>
-    call(t, endpoints.EssensplanungGericht, 'DELETE', `planung/gerichte/${chili}`, {
+    call(t, EssensplanungGericht, 'DELETE', `planung/gerichte/${chili}`, {
       token,
       params: { id: String(chili) },
       ifMatch,
@@ -199,13 +208,13 @@ dbTest('deleting a dish, meal or day covers what is planned there', async (t) =>
   // The day: a dish planned at one of its meals meanwhile
   const pudding = await gericht(t, token, 'Pudding');
   const tagVorher = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   ).tage[1];
   const tagJetzt = json<PlanungAnsicht>(
     await einplanen(t, token, { mahlzeitId: tagVorher.mahlzeiten[0].id, gerichtId: pudding })
   ).tage[1];
   const loescheTag = (ifMatch: string) =>
-    call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${tagVorher.id}`, {
+    call(t, EssensplanungTag, 'DELETE', `planung/tage/${tagVorher.id}`, {
       token,
       params: { id: String(tagVorher.id) },
       ifMatch,
@@ -291,7 +300,7 @@ dbTest('a member without access stays responsible; deleting a dish closes the ga
   const bDaten = vorher.gerichte.find((g) => g.id === b)!;
   const bPlaetze = vorher.tage[0].mahlzeiten[0].einplanungen.filter((e) => e.gerichtId === b);
   const ohneB = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungGericht, 'DELETE', `planung/gerichte/${b}`, {
+    await call(t, EssensplanungGericht, 'DELETE', `planung/gerichte/${b}`, {
       token,
       params: { id: String(b) },
       ifMatch: gerichtStand(
