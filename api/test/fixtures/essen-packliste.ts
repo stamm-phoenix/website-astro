@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
-import * as endpoints from '../../endpoints/essensplanung';
+import * as gerichteEndpoints from '../../endpoints/essensplanung-gerichte';
+import * as teilnehmendeEndpoints from '../../endpoints/essensplanung-teilnehmende';
 import * as packliste from '../../endpoints/essensplanung-packliste';
 import type { PlanungAnsicht } from '../../lib/essen-planung-model';
 import { call, json } from './essensplanung';
@@ -15,10 +16,16 @@ export async function gericht(
   name: string,
   werkzeuge: string[]
 ): Promise<number> {
-  const antwort = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
-    token,
-    body: { name, personen: 10, werkzeuge },
-  });
+  const antwort = await call(
+    t,
+    gerichteEndpoints.EssensplanungGerichte,
+    'POST',
+    'planung/gerichte',
+    {
+      token,
+      body: { name, personen: 10, werkzeuge },
+    }
+  );
   assert.equal(antwort.status, 201, JSON.stringify(antwort.jsonBody));
   return json<{ id: number }>(antwort).id;
 }
@@ -31,7 +38,7 @@ export async function einplanen(
 ): Promise<PlanungAnsicht> {
   const antwort = await call(
     t,
-    endpoints.EssensplanungEinplanungen,
+    teilnehmendeEndpoints.EssensplanungEinplanungen,
     'POST',
     'planung/einplanungen',
     { token, body: { mahlzeitId, gerichtId } }

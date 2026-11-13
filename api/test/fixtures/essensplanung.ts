@@ -3,6 +3,7 @@ import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import type { HttpResponseInit } from '@azure/functions';
 import * as endpoints from '../../endpoints/essensplanung';
+import * as planungEndpoints from '../../endpoints/essensplanung-planung';
 import { essenMail } from '../../lib/essen-mails';
 import type { PlanungAnsicht } from '../../lib/essen-planung-model';
 import { solvedAltcha, useAltcha } from './altcha';
@@ -115,7 +116,7 @@ export async function anlegen(
   assert.equal(bestaetigt.status, 201);
   const token = json<{ token: string }>(bestaetigt).token;
   const ansicht = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, planungEndpoints.EssensplanungPlanung, 'GET', 'planung', { token })
   );
   return { token, ansicht };
 }
