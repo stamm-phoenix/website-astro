@@ -141,6 +141,20 @@ test('problems name the line and nothing typed is dropped', () => {
   assert.equal(punkte[0].aufgaben[0].titel, 'Putzen; farbe: blau');
 });
 
+test('a title with a backslash or semicolon reads back unchanged', () => {
+  const punkte = beispiel();
+  // A backslash before the semicolon and one at the end of the title
+  const titel = 'Pfad C:\\; Rest\\\\';
+  const aufgabe = { id: 'a2', titel, zustaendig: [LEA], faellig: '' };
+  punkte[1].aufgaben.push(aufgabe);
+  const text = dokumentText(punkte);
+  assert.ok(text.includes('Aufgabe: Pfad C:\\\\\\; Rest\\\\\\\\; zuständig: Lea Leiterin'));
+  assert.deepEqual(zurueck(text, punkte).punkte[1].aufgaben.at(-1), aufgabe);
+  const getippt = liesDokument('# A\nAufgabe: a\\b; bis: 01.12.2026', finde);
+  assert.equal(getippt.punkte[0].aufgaben[0].titel, 'a\\b');
+  assert.equal(getippt.punkte[0].aufgaben[0].faellig, '2026-12-01');
+});
+
 test('an empty document keeps one empty item', () => {
   const punkte = beispiel();
   const result = zurueck('', punkte).punkte;
