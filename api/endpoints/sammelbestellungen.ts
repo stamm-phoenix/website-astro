@@ -5,16 +5,8 @@ import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-u
 import { VersionConflictError } from '../lib/db';
 import { ValidationError } from '../lib/validation/errors';
 import { isSammelOpen, canEditSammelOrder } from '../lib/sammelbestellung-model';
-import {
-  getSammelCampaign,
-  getSammelOrder,
-  ensureSammelOrder,
-  verifySammelToken,
-  sammelUrl,
-  publicSammelOrder,
-  updateSammelOrder,
-  InvalidSammelDataError,
-} from '../lib/sammelbestellung-list';
+import { getSammelCampaign, getSammelOrder, ensureSammelOrder, verifySammelToken, sammelUrl, publicSammelOrder, updateSammelOrder } from '../lib/sammelbestellung-list';
+import { InvalidSammelDataError } from '../lib/sammelbestellung-list-basis';
 import { email, text, validateSammelItems } from '../lib/sammelbestellung-validation';
 import { isSammelEtag } from '../lib/validation/sammel-input';
 import { getSammelProduct, sammelProductReference } from '../lib/sammelbestellung-product-resolver';
