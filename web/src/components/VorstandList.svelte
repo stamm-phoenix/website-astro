@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { vorstandStore, fetchVorstand } from '../lib/vorstandStore.svelte';
   import LeaderAvatar from './LeaderAvatar.svelte';
   import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
@@ -16,10 +16,8 @@
   untrack(() => registerBakedImages(images));
   const view = $derived(withBaked(vorstandStore, initial));
 
-  $effect(() => {
-    untrack(() => {
-      fetchVorstand();
-    });
+  onMount(() => {
+    fetchVorstand();
   });
 
   function formatPhone(phone: string): string {

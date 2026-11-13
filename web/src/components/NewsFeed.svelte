@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import InstagramProfileButton from './InstagramProfileButton.svelte';
   import NewsGrid from './NewsGrid.svelte';
   import { blogStore, fetchBlogPosts } from '../lib/blogStore.svelte';
@@ -31,11 +31,9 @@
   const loading = $derived(blog.loading || instagram.loading);
   const items = $derived(mergeNews(blog.data ?? [], instagram.data ?? []).slice(0, MAX_ITEMS));
 
-  $effect(() => {
-    untrack(() => {
-      fetchBlogPosts();
-      fetchInstagram();
-    });
+  onMount(() => {
+    fetchBlogPosts();
+    fetchInstagram();
   });
 </script>
 

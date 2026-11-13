@@ -3,7 +3,7 @@
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { gruppenstundenPflege } from '../../lib/pflegeStore.svelte';
@@ -50,8 +50,8 @@
     return form?.weekday && !options.includes(form.weekday) ? [form.weekday, ...options] : options;
   });
 
-  $effect(() => {
-    untrack(() => gruppenstundenPflege.load());
+  onMount(() => {
+    gruppenstundenPflege.load();
   });
 
   function config(stufe: string) {

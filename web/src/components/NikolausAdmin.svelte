@@ -5,7 +5,7 @@
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import {
     fetchNikolausOverview,
     nikolausAdminStore,
@@ -79,12 +79,10 @@
     )
   );
 
-  $effect(() => {
-    untrack(() => {
-      const param = new URLSearchParams(window.location.search).get('ansicht');
-      if (param === 'matrix' || param === 'liste') view = param;
-      fetchNikolausOverview();
-    });
+  onMount(() => {
+    const param = new URLSearchParams(window.location.search).get('ansicht');
+    if (param === 'matrix' || param === 'liste') view = param;
+    fetchNikolausOverview();
   });
 
   function selectView(next: View): void {

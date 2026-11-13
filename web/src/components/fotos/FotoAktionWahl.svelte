@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import { SESSION_EXPIRED_MESSAGE } from '../../lib/api';
@@ -74,11 +74,9 @@
   const campflowFailed = $derived(!!campflowEventsStore.error && !campflowEventsStore.data);
   const calendarFailed = $derived(!!calendar.error && !calendar.data);
 
-  $effect(() => {
-    untrack(() => {
-      void fetchCampflowEvents();
-      void aktionenPflege.load();
-    });
+  onMount(() => {
+    void fetchCampflowEvents();
+    void aktionenPflege.load();
   });
 
   function retry(): void {

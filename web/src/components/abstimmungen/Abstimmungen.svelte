@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { navigate } from 'astro:transitions/client';
   import StaffPageHead from '../StaffPageHead.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -18,8 +18,8 @@
   let ansicht = $state<'offen' | 'beendet'>('offen');
   let neu = $state(false);
 
-  $effect(() => {
-    untrack(() => void abstimmungenStore.load({ force: true }));
+  onMount(() => {
+    void abstimmungenStore.load({ force: true });
   });
 
   const liste = $derived(

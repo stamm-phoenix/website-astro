@@ -6,7 +6,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
-  import { onMount, untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { leitendePflege } from '../../lib/pflegeStore.svelte';
@@ -65,8 +65,8 @@
       .sort((a, b) => a.name.localeCompare(b.name, 'de'));
   });
 
-  $effect(() => {
-    untrack(() => leitendePflege.load());
+  onMount(() => {
+    leitendePflege.load();
   });
 
   function edit(person: StaffLeitende): void {

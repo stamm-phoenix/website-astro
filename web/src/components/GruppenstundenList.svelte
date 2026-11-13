@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { gruppenstundenStore, fetchGruppenstunden } from '../lib/gruppenstundenStore.svelte';
   import { sanitizeDescription } from '../lib/api';
   import { STUFE_TO_KEY, GROUP_CONFIG } from '../lib/types/stufen';
@@ -24,10 +24,8 @@
   let expandedGruppe = $state<string | null>(null);
   let today = $state(berlinDate());
 
-  $effect(() => {
-    untrack(() => {
-      fetchGruppenstunden();
-    });
+  onMount(() => {
+    fetchGruppenstunden();
   });
 
   $effect(() => {

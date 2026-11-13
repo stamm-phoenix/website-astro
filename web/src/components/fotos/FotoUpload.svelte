@@ -20,7 +20,7 @@
     startFotoUpload,
     type FotoTargetRequest,
   } from '../../lib/fotoUpload.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
 
   type Mode = 'aktion' | 'ordner';
 
@@ -61,8 +61,8 @@
     return target ? `Ziel: ${target}` : 'Wähle noch einen Ordner aus.';
   });
 
-  $effect(() => {
-    untrack(() => void loadFotoPerson());
+  onMount(() => {
+    void loadFotoPerson();
   });
 
   function onpick(event: Event): void {

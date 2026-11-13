@@ -1,7 +1,7 @@
 <script lang="ts">
   import FilterTabs from './ui/FilterTabs.svelte';
   import LoadState from './ui/LoadState.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { fetchPrincipal } from '../lib/authStore.svelte';
   import { confirmAction } from '../lib/confirm';
   import {
@@ -25,14 +25,12 @@
   /** Switching the view unmounts the Einteilung together with its unsaved draft. */
   let einteilungDirty = $state(false);
 
-  $effect(() => {
-    untrack(() => {
-      const param = new URLSearchParams(window.location.search).get('ansicht');
-      if (param === 'einteilung' || param === 'helfende' || param === 'stufen') view = param;
-      void fetchPrincipal();
-      void fetchHelfende();
-      void fetchEinteilung();
-    });
+  onMount(() => {
+    const param = new URLSearchParams(window.location.search).get('ansicht');
+    if (param === 'einteilung' || param === 'helfende' || param === 'stufen') view = param;
+    void fetchPrincipal();
+    void fetchHelfende();
+    void fetchEinteilung();
   });
 
   async function selectView(next: View): Promise<void> {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import LoadState from '../ui/LoadState.svelte';
   import ReloadButton from '../pflege/ReloadButton.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
@@ -18,8 +18,8 @@
     messageKind = kind;
   }
 
-  $effect(() => {
-    untrack(() => essensplanungSteuerung.load());
+  onMount(() => {
+    essensplanungSteuerung.load();
   });
 
   /** Set by the settings form, the only input of this page outside a dialog. */

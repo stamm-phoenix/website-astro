@@ -1,7 +1,7 @@
 <script lang="ts">
   import AktionCard from './AktionCard.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { aktionenStore, fetchAktionen } from '../lib/aktionenStore.svelte';
   import { GROUP_EMOJIS, GROUP_LABELS, stufeToFilterKeys, type GroupKey } from '../lib/events';
   import { localDate } from '../lib/dateUtils';
@@ -44,23 +44,21 @@
   let month = $state('');
   let expandedEvent = $state<string | null>(null);
 
-  $effect(() => {
-    untrack(() => {
-      now = new Date();
-      fetchAktionen();
-      const params = new URLSearchParams(window.location.search);
-      const gruppeParam = params.get('gruppe');
-      const validKeys = GROUP_FILTERS.map((f: { key: string; label: string }) => f.key);
-      if (gruppeParam && validKeys.includes(gruppeParam)) {
-        activeFilter = gruppeParam;
-      }
-      if (params.get('ansicht') === 'monat') {
-        const monthParam = params.get('monat');
-        month =
-          monthParam && /^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam) ? monthParam : currentMonth();
-        viewMode = 'monat';
-      }
-    });
+  onMount(() => {
+    now = new Date();
+    fetchAktionen();
+    const params = new URLSearchParams(window.location.search);
+    const gruppeParam = params.get('gruppe');
+    const validKeys = GROUP_FILTERS.map((f: { key: string; label: string }) => f.key);
+    if (gruppeParam && validKeys.includes(gruppeParam)) {
+      activeFilter = gruppeParam;
+    }
+    if (params.get('ansicht') === 'monat') {
+      const monthParam = params.get('monat');
+      month =
+        monthParam && /^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam) ? monthParam : currentMonth();
+      viewMode = 'monat';
+    }
   });
 
   function handleFilterClick(key: string) {

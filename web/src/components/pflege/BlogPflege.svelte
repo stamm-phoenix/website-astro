@@ -2,7 +2,7 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import { onMount, untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import StatusNotice from './StatusNotice.svelte';
   import { blogPflege } from '../../lib/pflegeStore.svelte';
   import { formatBlogDate, getBlogPostUrl, getStaffBlogImageUrl } from '../../lib/blog';
@@ -29,8 +29,8 @@
 
   // The editor marks the list as outdated after a change; posts others changed show once the
   // list is older than a minute (or with „Neu laden“). The last list stays shown meanwhile.
-  $effect(() => {
-    untrack(() => blogPflege.load({ maxAge: LIST_MAX_AGE_MS }));
+  onMount(() => {
+    blogPflege.load({ maxAge: LIST_MAX_AGE_MS });
   });
 </script>
 

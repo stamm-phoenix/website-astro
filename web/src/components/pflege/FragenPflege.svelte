@@ -3,7 +3,7 @@
   import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { ApiError, sanitizeDescription, sanitizeFaqAnswer, sendApi } from '../../lib/api';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
   import { faqPflege } from '../../lib/pflegeStore.svelte';
@@ -58,10 +58,8 @@
     return Object.entries(grouped).map(([category, items]) => ({ category, items }));
   });
 
-  $effect(() => {
-    untrack(() => {
-      void faqPflege.load().then(openFromUrl);
-    });
+  onMount(() => {
+    void faqPflege.load().then(openFromUrl);
   });
 
   /** Reloads the list; a successful retry also opens the dialog a link asked for. */

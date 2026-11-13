@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { SvelteDate } from 'svelte/reactivity';
   import { contentReviewDue } from '../../lib/contentReviewDue';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -78,8 +78,8 @@
       busy = null;
     }
   }
-  $effect(() => {
-    untrack(() => resource.load({ force: true }));
+  onMount(() => {
+    resource.load({ force: true });
   });
 </script>
 

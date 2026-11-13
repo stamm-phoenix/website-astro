@@ -7,7 +7,7 @@
   import ProtokollDeleteDialog from './ProtokollDeleteDialog.svelte';
   import ProtokollFreigabeDialog from '../protokolle/ProtokollFreigabeDialog.svelte';
   import MessageText from '../ui/MessageText.svelte';
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -82,8 +82,8 @@
     filter === 'offen' ? openItems : filter === 'erledigt' ? items.filter(isDone) : items
   );
 
-  $effect(() => {
-    untrack(() => protokollePflege.load());
+  onMount(() => {
+    protokollePflege.load();
   });
 
   // A link from the mail points to `#protokoll-<id>`; scroll there once the list is loaded

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import {
     downloadsStore,
     fetchDownloads,
@@ -38,10 +38,8 @@
     category = '';
   }
 
-  $effect(() => {
-    untrack(() => {
-      fetchDownloads();
-    });
+  onMount(() => {
+    fetchDownloads();
   });
 
   function formatDate(dateString: string): string {

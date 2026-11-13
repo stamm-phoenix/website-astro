@@ -1,6 +1,6 @@
 <script lang="ts">
   import { aktionTitles } from '../../lib/campflowFields';
-  import { onMount, tick, untrack } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import Panel from '../ui/Panel.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -61,21 +61,19 @@
     };
   });
 
-  $effect(() => {
-    untrack(() => {
-      // Only suggestions and the letterhead; the form works without them
-      const vorstand = fetchVorstand();
-      const name = fetchPrincipal().then(() => {
-        const name = authStore.principal ? getFullName(authStore.principal) : null;
-        if (!name || beleg.aussteller.trim()) return;
-        const leer = JSON.stringify(beleg) === gesichert;
-        beleg.aussteller = name;
-        if (leer) gesichert = JSON.stringify(beleg);
-      });
-      // The Aktionen are only suggestions for one field: they wait for the name in the form
-      // (or start when that field is used first)
-      void Promise.allSettled([vorstand, name]).then(() => fetchCampflowEvents());
+  onMount(() => {
+    // Only suggestions and the letterhead; the form works without them
+    const vorstand = fetchVorstand();
+    const name = fetchPrincipal().then(() => {
+      const name = authStore.principal ? getFullName(authStore.principal) : null;
+      if (!name || beleg.aussteller.trim()) return;
+      const leer = JSON.stringify(beleg) === gesichert;
+      beleg.aussteller = name;
+      if (leer) gesichert = JSON.stringify(beleg);
     });
+    // The Aktionen are only suggestions for one field: they wait for the name in the form
+    // (or start when that field is used first)
+    void Promise.allSettled([vorstand, name]).then(() => fetchCampflowEvents());
   });
 
   function addPosition(): void {

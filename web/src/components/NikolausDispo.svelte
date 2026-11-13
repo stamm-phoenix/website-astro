@@ -8,7 +8,7 @@
 
   import { createPlanEditor } from '../lib/planEditor.svelte';
   import LoadState from './ui/LoadState.svelte';
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { errorMessage, sendApi } from '../lib/api';
   import { confirmAction } from '../lib/confirm';
   import { dateToLocalParts } from '../lib/nikolausConfig';
@@ -40,8 +40,8 @@
   }
   let { config }: Props = $props();
 
-  $effect(() => {
-    untrack(() => void fetchNikolausStatus());
+  onMount(() => {
+    void fetchNikolausStatus();
   });
   const settings = $derived(withBaked(nikolausSettingsStore, config).data ?? config);
   const base = $derived(settings.area.base);
@@ -196,29 +196,25 @@
     }
   });
 
-  $effect(() => {
-    untrack(() => {
-      const param = new URLSearchParams(window.location.search).get('tag');
-      const choose = (): void => {
-        const today = dateToLocalParts(new Date()).date;
-        const next =
-          (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ??
-          dates[0] ??
-          '';
-        if (next === date) return;
-        date = next;
-        dirty = false;
-        editor.state.notice = null;
-        if (date) void fetchNikolausDispo(date);
-      };
-      choose();
-      const chosen = date;
-      // The days may have changed since the page was built
-      void fetchNikolausSettings().then(() => {
-        // Choose again unless someone picked a day or worked on it meanwhile: a day added after
-        // the build may be the one of the link or the next one
-        if ((date === chosen && !edited) || !dates.includes(date)) choose();
-      });
+  onMount(() => {
+    const param = new URLSearchParams(window.location.search).get('tag');
+    const choose = (): void => {
+      const today = dateToLocalParts(new Date()).date;
+      const next =
+        (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ?? dates[0] ?? '';
+      if (next === date) return;
+      date = next;
+      dirty = false;
+      editor.state.notice = null;
+      if (date) void fetchNikolausDispo(date);
+    };
+    choose();
+    const chosen = date;
+    // The days may have changed since the page was built
+    void fetchNikolausSettings().then(() => {
+      // Choose again unless someone picked a day or worked on it meanwhile: a day added after
+      // the build may be the one of the link or the next one
+      if ((date === chosen && !edited) || !dates.includes(date)) choose();
     });
   });
 

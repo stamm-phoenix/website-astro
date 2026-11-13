@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -46,9 +46,9 @@
     { value: 'alle' as const, label: 'Alle', count: alle.length },
   ]);
 
-  $effect(() => {
+  onMount(() => {
     // New requests arrive any time, and the list survives a page change: always ask again
-    untrack(() => void schnupperPflege.load({ force: true }));
+    void schnupperPflege.load({ force: true });
   });
 
   async function show(text: string, kind: 'success' | 'warning' = 'success'): Promise<void> {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import { fetchKostenstellen, kostenstellenStore } from '../../lib/abrechnungStore.svelte';
@@ -32,8 +32,8 @@
     return null;
   });
 
-  $effect(() => {
-    untrack(() => void fetchKostenstellen());
+  onMount(() => {
+    void fetchKostenstellen();
   });
 </script>
 
