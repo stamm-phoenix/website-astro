@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import LoadState from './ui/LoadState.svelte';
   import ReloadButton from './pflege/ReloadButton.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
@@ -16,8 +16,8 @@
     message = text;
     messageKind = kind;
   }
-  $effect(() => {
-    untrack(() => nikolausSteuerung.load());
+  onMount(() => {
+    nikolausSteuerung.load();
   });
 </script>
 

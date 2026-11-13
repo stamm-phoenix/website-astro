@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
@@ -117,8 +117,8 @@
     }
   }
   // The proposal is asked for right away; without it unit and factors are typed by hand
-  $effect(() => {
-    untrack(() => void vorschlagHolen());
+  onMount(() => {
+    void vorschlagHolen();
   });
 
   let speichert = $state(false);

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import LoadState from '../ui/LoadState.svelte';
   import ReloadButton from '../pflege/ReloadButton.svelte';
   import NeuePlanungDialog from './NeuePlanungDialog.svelte';
@@ -15,8 +15,8 @@
   const store = essensplanungMeine.state;
   let anlegenOffen = $state(false);
 
-  $effect(() => {
-    untrack(() => essensplanungMeine.load({ force: true }));
+  onMount(() => {
+    essensplanungMeine.load({ force: true });
   });
 
   const ROLLE: Record<LeitungPlanung['rolle'], string> = {

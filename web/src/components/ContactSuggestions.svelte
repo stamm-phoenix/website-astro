@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { sanitizeDescription } from '../lib/api';
   import { fetchQuestionsAndAnswers, QA_STORE } from '../lib/qaStore.svelte';
   import { createQuestionIndex, suggestQuestions } from '../lib/qaSearch';
@@ -15,8 +15,8 @@
   const index = $derived(createQuestionIndex(view.data ?? []));
   const suggestions = $derived(suggestQuestions(index, message));
 
-  $effect(() => {
-    untrack(() => fetchQuestionsAndAnswers());
+  onMount(() => {
+    fetchQuestionsAndAnswers();
   });
 </script>
 

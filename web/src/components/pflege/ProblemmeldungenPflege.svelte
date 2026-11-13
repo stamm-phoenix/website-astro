@@ -7,7 +7,7 @@
   import LoadState from '../ui/LoadState.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
@@ -75,8 +75,8 @@
     if (discarding && draftChanged) return guardUnsavedChanges(() => draftChanged);
   });
 
-  $effect(() => {
-    untrack(() => void problemmeldungenPflege.load({ force: true }));
+  onMount(() => {
+    void problemmeldungenPflege.load({ force: true });
   });
 
   const STATUS: Record<StaffProblemMeldung['status'], { label: string; tone: StatusTone }> = {

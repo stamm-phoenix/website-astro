@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -45,8 +45,8 @@
       filter.zustand !== 'alle'
   );
 
-  $effect(() => {
-    untrack(() => void inventurPflege.load());
+  onMount(() => {
+    void inventurPflege.load();
   });
 
   const KATEGORIE_OPTIONEN = [

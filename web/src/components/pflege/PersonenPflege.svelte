@@ -1,6 +1,6 @@
 <script lang="ts">
   import ReloadAction from '../ui/ReloadAction.svelte';
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
@@ -100,8 +100,8 @@
       );
   });
 
-  $effect(() => {
-    untrack(() => void personenPflege.load());
+  onMount(() => {
+    void personenPflege.load();
   });
 
   /** How a CampFlow link is shown in the lists. */

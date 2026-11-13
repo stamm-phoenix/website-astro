@@ -29,7 +29,7 @@
 
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
@@ -207,19 +207,17 @@
     }
   }
 
-  $effect(() => {
-    untrack(() => {
-      // Only suggestions; the form works without CampFlow. They follow the list, so it comes
-      // first, and are there by the time a receipt is opened (which also asks for them)
-      void belegePflege.load().finally(() => fetchKostenstellen());
-      void campflowBelegeStore.load();
-      readAnsicht();
-      filtersOpen = window.matchMedia('(min-width: 640px)').matches;
-      fetchPrincipal();
-      fetchApi<{ reviewer: boolean }>('/intern/pflege/belege/rolle')
-        .then((role) => (reviewer = role.reviewer))
-        .catch(() => undefined);
-    });
+  onMount(() => {
+    // Only suggestions; the form works without CampFlow. They follow the list, so it comes
+    // first, and are there by the time a receipt is opened (which also asks for them)
+    void belegePflege.load().finally(() => fetchKostenstellen());
+    void campflowBelegeStore.load();
+    readAnsicht();
+    filtersOpen = window.matchMedia('(min-width: 640px)').matches;
+    fetchPrincipal();
+    fetchApi<{ reviewer: boolean }>('/intern/pflege/belege/rolle')
+      .then((role) => (reviewer = role.reviewer))
+      .catch(() => undefined);
   });
 
   /** Editing the open receipt; a stored one opens to look at, with „Bearbeiten“. */

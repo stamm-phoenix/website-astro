@@ -1,7 +1,7 @@
 <script lang="ts">
   import ActionButton from './ui/ActionButton.svelte';
   import StaffLink from './StaffLink.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { sanitizeDescription } from '../lib/api';
   import { fetchQuestionsAndAnswers, QA_STORE } from '../lib/qaStore.svelte';
   import type { QuestionAndAnswer } from '../../../api/lib/qa-model';
@@ -42,8 +42,8 @@
     return Object.entries(groups).map(([category, questions]) => ({ category, questions }));
   });
 
-  $effect(() => {
-    untrack(() => fetchQuestionsAndAnswers());
+  onMount(() => {
+    fetchQuestionsAndAnswers();
   });
 
   /** Builds a readable, collision-free DOM id for a category heading. */

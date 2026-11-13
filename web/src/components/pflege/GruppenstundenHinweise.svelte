@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, tick, untrack } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
   import StaffPageHead from '../StaffPageHead.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -50,8 +50,8 @@
     )
   );
 
-  $effect(() => {
-    untrack(() => gruppenstundenPflege.load());
+  onMount(() => {
+    gruppenstundenPflege.load();
   });
 
   function config(stufe: string) {

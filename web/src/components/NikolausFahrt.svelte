@@ -10,7 +10,7 @@
   import FilterTabs from './ui/FilterTabs.svelte';
 
   import LoadState from './ui/LoadState.svelte';
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { ApiError } from '../lib/api';
 
   import { dateToLocalParts } from '../lib/nikolausConfig';
@@ -115,22 +115,20 @@
     await fetchNikolausFahrt(date, { silent: true });
   }
 
-  $effect(() => {
-    untrack(() => {
-      const params = new URLSearchParams(window.location.search);
-      team = params.get('team') ?? readStoredTeam();
-      chooseDate(params.get('tag'));
-      const chosen = date;
-      // The days may have changed since the page was built; offline the baked ones stay
-      void fetchNikolausSettings().then(() => {
-        // Choose again unless someone picked a day meanwhile: a day added after the build may
-        // be the one of the link or the next one. The route of the day first shown may already
-        // have replaced the team, so the team of the link (or the last one) comes back as well.
-        if (date === chosen || !dates.includes(date)) {
-          chooseDate(params.get('tag'));
-          if (date !== chosen) team = params.get('team') ?? readStoredTeam();
-        }
-      });
+  onMount(() => {
+    const params = new URLSearchParams(window.location.search);
+    team = params.get('team') ?? readStoredTeam();
+    chooseDate(params.get('tag'));
+    const chosen = date;
+    // The days may have changed since the page was built; offline the baked ones stay
+    void fetchNikolausSettings().then(() => {
+      // Choose again unless someone picked a day meanwhile: a day added after the build may
+      // be the one of the link or the next one. The route of the day first shown may already
+      // have replaced the team, so the team of the link (or the last one) comes back as well.
+      if (date === chosen || !dates.includes(date)) {
+        chooseDate(params.get('tag'));
+        if (date !== chosen) team = params.get('team') ?? readStoredTeam();
+      }
     });
   });
 

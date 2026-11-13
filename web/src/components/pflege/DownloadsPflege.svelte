@@ -5,7 +5,7 @@
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { makeDownloadPreview } from '../../lib/downloadPreview';
@@ -48,8 +48,8 @@
 
   const categories = $derived(downloadCategories(store.data ?? []));
 
-  $effect(() => {
-    untrack(() => downloadsPflege.load());
+  onMount(() => {
+    downloadsPflege.load();
   });
 
   /** Sends the file in parts; the API puts them together when the upload is completed. */

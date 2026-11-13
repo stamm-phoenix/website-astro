@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import StaffModuleSection from './StaffModuleSection.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { NIKOLAUS_CONTROL_MODULE, NIKOLAUS_MODULES } from '../lib/staffModules';
@@ -10,8 +10,8 @@
     NIKOLAUS_CONTROL_MODULE,
   ]);
 
-  $effect(() => {
-    untrack(() => fetchNikolausStatus());
+  onMount(() => {
+    fetchNikolausStatus();
   });
 </script>
 

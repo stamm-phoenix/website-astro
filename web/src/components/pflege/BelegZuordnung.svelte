@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext, untrack } from 'svelte';
+  import { getContext, onMount } from 'svelte';
   import FormField from './FormField.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
@@ -39,8 +39,8 @@
       : null
   );
 
-  $effect(() => {
-    untrack(() => void fetchKostenstellen());
+  onMount(() => {
+    void fetchKostenstellen();
   });
 
   /** A Kategorie fills both fields; a Kostenstelle keeps a Kategorie that suits it. */

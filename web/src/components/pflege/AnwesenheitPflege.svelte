@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { fetchApi } from '../../lib/api';
@@ -114,8 +114,8 @@
     date = value;
   }
 
-  $effect(() => {
-    untrack(() => void loadOverview());
+  onMount(() => {
+    void loadOverview();
   });
 </script>
 

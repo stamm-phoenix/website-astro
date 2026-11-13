@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { authStore, fetchPrincipal, getFirstName } from '../lib/authStore.svelte';
 
   const hour = new Date().getHours();
@@ -7,8 +7,8 @@
 
   const firstName = $derived(authStore.principal ? getFirstName(authStore.principal) : null);
 
-  $effect(() => {
-    untrack(() => fetchPrincipal());
+  onMount(() => {
+    fetchPrincipal();
   });
 </script>
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
 
   interface Props {
@@ -11,8 +11,8 @@
   }
   let { href, variant = 'secondary', class: className = '', children }: Props = $props();
 
-  $effect(() => {
-    untrack(() => fetchPrincipal());
+  onMount(() => {
+    fetchPrincipal();
   });
 </script>
 

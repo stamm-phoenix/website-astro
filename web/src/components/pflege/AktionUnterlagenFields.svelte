@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { createResource } from '../../lib/resource.svelte';
   import type { DownloadFile } from '../../lib/types/oeffentlich';
   import FormField from './FormField.svelte';
@@ -21,8 +21,8 @@
     loadError:
       'Die Unterlagen konnten nicht geladen werden. Prüfe deine Internetverbindung und lade sie erneut.',
   });
-  $effect(() => {
-    untrack(() => files.load());
+  onMount(() => {
+    files.load();
   });
 </script>
 

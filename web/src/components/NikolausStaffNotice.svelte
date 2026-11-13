@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { formatNikolausDate } from '../lib/nikolausConfig';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
 
@@ -11,8 +11,8 @@
 
   const status = $derived(nikolausStatusStore.data);
 
-  $effect(() => {
-    untrack(() => fetchNikolausStatus());
+  onMount(() => {
+    fetchNikolausStatus();
   });
 </script>
 
