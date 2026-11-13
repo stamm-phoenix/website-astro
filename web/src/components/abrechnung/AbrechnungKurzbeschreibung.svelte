@@ -37,7 +37,7 @@
     leseZeitplan,
   } from '../../lib/zeitplanDatei';
   import type { GelesenerZeitplan } from '../../lib/zeitplanDatei';
-  import type { Abrechnung } from '../../lib/types';
+  import type { Abrechnung } from '../../lib/types/abrechnung';
 
   interface Props {
     abrechnung: Abrechnung;

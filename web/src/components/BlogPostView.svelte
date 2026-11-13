@@ -3,7 +3,7 @@
   import { ApiError, fetchApi } from '../lib/api';
   import { formatBlogDate } from '../lib/blog';
   import { bakedUrl, registerBakedImages, type BakedImages } from '../lib/bakedImages';
-  import type { BlogPost } from '../lib/types';
+  import type { BlogPost } from '../lib/types/oeffentlich';
   import BlogContent from './BlogContent.svelte';
   import StaffLink from './StaffLink.svelte';
   import ProblemMeldenLink from './ui/ProblemMeldenLink.svelte';

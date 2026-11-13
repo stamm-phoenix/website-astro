@@ -4,7 +4,7 @@
 import { sendApi } from './api';
 import { loadedAbrechnungen } from './abrechnungStore.svelte';
 import { campflowDetailStore, campflowEventsStore } from './campflowStore.svelte';
-import type { CampflowEvent } from './types';
+import type { CampflowEvent } from './types/aktionen';
 
 /** Saves whether the KJR grant is applied for the Aktion `eventId`; throws `ApiError`. */
 export async function saveZuschussfaehig(eventId: string, zuschussfaehig: boolean): Promise<void> {

@@ -16,7 +16,7 @@
     SammelArtikel,
     SammelMemberView,
     SammelSaveResult,
-  } from '../../lib/types';
+  } from '../../../../api/lib/sammelbestellung-model';
 
   let kind = $state('');
   let id = $state('');

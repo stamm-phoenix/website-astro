@@ -1,5 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow, expectWithinWindowWidth } from './fixtures';
-import type { NikolausBookingInfo, StaffNikolausOverview } from '../src/lib/types';
+import type { NikolausBookingInfo } from '../src/lib/types/nikolaus';
+import type { StaffNikolausOverview } from '../src/lib/types/nikolausStaff';
 
 test('booking management saves contact details and survives reload', async ({ page }, testInfo) => {
   const documents: string[] = [];

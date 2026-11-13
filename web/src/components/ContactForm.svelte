@@ -1,14 +1,14 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import ContactSuggestions from './ContactSuggestions.svelte';
-  import type { QuestionAndAnswer } from '../lib/types';
+  import type { QuestionAndAnswer } from '../../../api/lib/qa-list';
   import AltchaWidget from './AltchaWidget.svelte';
   import FormField from './pflege/FormField.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import { ApiError, postApi } from '../lib/api';
   import { KONTAKT_MAX_LENGTH, KONTAKT_TOPICS, validateKontaktMessage } from '../lib/kontaktConfig';
   import type { KontaktField } from '../lib/kontaktConfig';
-  import type { KontaktSent } from '../lib/types';
+  import type { KontaktSent } from '../lib/types/nikolaus';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
 
   interface Props {

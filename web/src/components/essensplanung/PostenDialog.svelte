@@ -21,7 +21,8 @@
   import EinheitFeld from './EinheitFeld.svelte';
   import { MENGE_FEHLER } from '../../../../api/lib/essen-einkauf-model';
   import type { PostenArt } from '../../../../api/lib/essen-einkauf-model';
-  import type { EssenEinheitenart, EssenKatalog, GerichtEinheit } from '../../lib/types';
+  import type { EssenEinheitenart } from '../../../../api/lib/essen-schema';
+  import type { EssenKatalog, GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
   import type { Vorschlag } from '../../lib/vorschlaege';
   import type { PlanKontext } from './planKontext';
 

@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { kjrPersons, summarizeEntries, toNachweise } from '../../../api/lib/abrechnung';
 import type { NachweisInput } from '../../../api/lib/abrechnung';
-import type { Abrechnung, CampflowPerson, Kostenstelle } from '../../src/lib/types';
+import type { Abrechnung } from '../../src/lib/types/abrechnung';
+import type { CampflowPerson } from '../../../api/lib/campflow';
+import type { Kostenstelle } from '../../../api/lib/playwright-api';
 import { CONFIG } from '../../../api/lib/config';
 import {
   buildKjrTeilnahmeliste,

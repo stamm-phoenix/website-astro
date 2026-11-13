@@ -1,4 +1,4 @@
-import type { Vorstand } from './types';
+import type { Vorstand } from './types/oeffentlich';
 import { createResource } from './resource.svelte';
 import { loadStateOf } from './storeView';
 

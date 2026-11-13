@@ -3,7 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import { getippteZutat, zutatVorschlaege, zutatWahl } from '../../lib/essensplanungGerichte';
-  import type { EssenKatalog } from '../../lib/types';
+  import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
   import type { Vorschlag } from '../../lib/vorschlaege';
   import type { PlanKontext } from './planKontext';
 

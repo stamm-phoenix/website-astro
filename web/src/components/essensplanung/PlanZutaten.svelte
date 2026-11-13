@@ -9,7 +9,8 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { EINHEITENART_LABELS } from '../../lib/essensplanungSteuerung';
   import { ernaehrung } from '../../lib/essensplanungGerichte';
-  import type { EssenEinheitenart, EssenKatalog, PlanungZutat } from '../../lib/types';
+  import type { EssenEinheitenart } from '../../../../api/lib/essen-schema';
+  import type { EssenKatalog, PlanungZutat } from '../../../../api/lib/essen-gerichte-model';
   import type { PlanKontext } from './planKontext';
 
   /**

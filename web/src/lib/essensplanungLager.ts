@@ -15,7 +15,8 @@ import type {
   esserRechner,
 } from './essensplanungRechnung';
 import type { GerichtEinheit } from '../../../api/lib/essen-gerichte-model';
-import type { EinkaufPosten, PlanungZutat } from './types';
+import type { EinkaufPosten } from '../../../api/lib/essen-einkauf-model';
+import type { PlanungZutat } from '../../../api/lib/essen-gerichte-model';
 import type { EinplanungStatus, Verbrauch } from '../../../api/lib/essen-kochen-model';
 import type { EinkaufHaken } from '../../../api/lib/essen-einkaeufe-model';
 

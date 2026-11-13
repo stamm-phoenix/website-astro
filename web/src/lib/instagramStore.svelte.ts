@@ -1,4 +1,4 @@
-import type { InstagramPost } from './types';
+import type { InstagramPost } from './types/oeffentlich';
 import { bakedUrl } from './bakedImages';
 import { createResource } from './resource.svelte';
 import { loadStateOf } from './storeView';

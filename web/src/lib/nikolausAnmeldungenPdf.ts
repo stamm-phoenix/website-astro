@@ -6,7 +6,7 @@ import type { BookingProblem } from './nikolausAdmin';
 import { slotLabel } from './nikolausMaps';
 import { downloadReportPdf } from './pdfTabelle';
 import type { PdfReport } from './pdfTabelle';
-import type { StaffNikolausBooking } from './types';
+import type { StaffNikolausBooking } from './types/nikolaus';
 
 export interface AnmeldungenPdfInput {
   bookings: StaffNikolausBooking[];

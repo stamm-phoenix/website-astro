@@ -15,7 +15,7 @@
   import { untrack } from 'svelte';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import type { PlanungBeleg } from '../../lib/types';
+  import type { PlanungBeleg } from '../../../../api/lib/essen-belege-model';
   import { entwurfOffen, entwurfText, type BelegEntwuerfe } from './belegEntwuerfe';
   import { meldeVerloren, type PlanKontext } from './planKontext';
 

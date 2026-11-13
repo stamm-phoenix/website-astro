@@ -9,7 +9,7 @@
     KorrekturUebernahmeResponse,
     KorrekturVorschlag,
   } from '../../lib/protokollKorrektur';
-  import type { ProtokollEditorDetail } from '../../lib/types';
+  import type { ProtokollEditorDetail } from '../../../../api/lib/protokoll-editor-model';
 
   /**
    * Correction proposals on request (#553): the check of the saved minutes and the proposals,

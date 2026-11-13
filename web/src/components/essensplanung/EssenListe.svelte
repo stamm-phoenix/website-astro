@@ -7,7 +7,7 @@
   import { ApiError, sendApi } from '../../lib/api';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
   import { essensplanungSteuerung } from '../../lib/pflegeStore.svelte';
-  import type { StaffEssenSteuerung } from '../../lib/types';
+  import type { StaffEssenSteuerung } from '../../lib/types/essen';
 
   interface Eintrag {
     id: number;

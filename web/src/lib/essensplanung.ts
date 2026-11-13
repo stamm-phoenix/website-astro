@@ -1,5 +1,6 @@
 import { fetchApi, fetchFile, sendApi } from './api';
-import type { EssenKatalog, PlanungAenderung, PlanungAnsicht } from './types';
+import type { EssenKatalog } from '../../../api/lib/essen-gerichte-model';
+import type { PlanungAenderung, PlanungAnsicht } from '../../../api/lib/essen-planung-model';
 
 /**
  * Pages of the Essensplanung (`docs/essensplanung.md`): no login, the link of a Planung carries a

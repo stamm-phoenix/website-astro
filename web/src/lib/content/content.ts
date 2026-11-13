@@ -12,9 +12,9 @@ import type {
   DownloadFile,
   Gruppenstunde,
   InstagramPost,
-  QuestionAndAnswer,
   Vorstand,
-} from '../types';
+} from '../types/oeffentlich';
+import type { QuestionAndAnswer } from '../../../../api/lib/qa-list';
 import type { NikolausConfig } from '../nikolausConfig';
 import { fetchFromSource, getContentSource, isStrict } from './source';
 import { stageImage, stageSource } from './staging';

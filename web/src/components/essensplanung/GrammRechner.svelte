@@ -3,7 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import { leseMenge, mengeFeld } from '../../lib/essensplanungGerichte';
-  import type { EssenKatalog } from '../../lib/types';
+  import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
 
   /** Converts TL, EL or pieces of an ingredient measured by weight into grams, from the list. */
 

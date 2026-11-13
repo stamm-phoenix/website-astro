@@ -1,6 +1,6 @@
 <script lang="ts">
   import { formatNikolausDate } from '../lib/nikolausConfig';
-  import type { NikolausSlot } from '../lib/types';
+  import type { NikolausSlot } from '../lib/types/nikolaus';
 
   interface Props {
     slots: NikolausSlot[];

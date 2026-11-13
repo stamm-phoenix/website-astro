@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { aufgabenPdfReport, vorlageChecklistReport } from '../src/lib/aufgabenPdf';
-import type { Task, TaskProject, TaskTemplate } from '../src/lib/types';
+import type { Task, TaskProject, TaskTemplate } from '../../api/lib/aufgaben-model';
 
 const TODAY = '2026-10-29';
 

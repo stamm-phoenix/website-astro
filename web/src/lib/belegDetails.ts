@@ -1,7 +1,7 @@
 import { formatIsoDate } from './belege';
 import { formatEuro } from './format';
 import { SPARBUCH } from './belegForm';
-import type { BelegArt } from './types';
+import type { BelegArt } from '../../../api/lib/validation/beleg';
 
 /** What a receipt shows when it is looked at, from a stored receipt or the open form. */
 export interface BelegDetailQuelle {

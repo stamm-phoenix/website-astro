@@ -14,7 +14,7 @@
     startTrack,
     type SwipeTrack,
   } from '../lib/swipe';
-  import type { CalendarItem } from '../lib/types';
+  import type { CalendarItem } from '../lib/types/aktionen';
 
   interface Props {
     /** Items to show; items without date are not shown in the grid. */

@@ -8,7 +8,8 @@
     unvertraeglichkeitenNamen,
     zeitraumText,
   } from '../../lib/essensplanungTeilnehmende';
-  import type { PlanungAnsicht, Teilnehmende } from '../../lib/types';
+  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
+  import type { Teilnehmende } from '../../../../api/lib/essen-teilnehmende-model';
 
   /**
    * The participants as a matrix: a row each, by group, with its persons in the column of its

@@ -11,7 +11,7 @@
   import { withBaked } from '../lib/storeView';
   import { downloadCategories, filterDownloads } from '../lib/downloadsFilter';
   import FilterTabs from './ui/FilterTabs.svelte';
-  import type { DownloadFile } from '../lib/types';
+  import type { DownloadFile } from '../lib/types/oeffentlich';
 
   interface Props {
     /** Baked at build time; refreshed from the API in the browser */

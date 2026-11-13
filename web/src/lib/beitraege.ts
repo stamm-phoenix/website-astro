@@ -1,5 +1,6 @@
 import type { StatusTone } from './status';
-import type { AktionBeitrag, Beitrag, BeitragSammlung, OffeneBeitraegeData } from './types';
+import type { AktionBeitrag, Beitrag, BeitragSammlung } from '../../../api/lib/beitraege';
+import type { OffeneBeitraegeData } from './types/aktionen';
 import { formatEuro } from './format';
 
 /** Status filters of the list, like CampFlow's quick filters. */

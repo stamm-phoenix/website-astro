@@ -3,7 +3,7 @@ import type {
   StaffNikolausEinteilungData,
   StaffNikolausHelfendeData,
   StaffNikolausStufenData,
-} from './types';
+} from './types/nikolausStaff';
 
 const helfende = createResource<StaffNikolausHelfendeData>('/intern/nikolaus/helfende');
 const einteilung = createResource<StaffNikolausEinteilungData>('/intern/nikolaus/einteilung');

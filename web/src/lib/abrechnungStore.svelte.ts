@@ -23,7 +23,9 @@ import type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
 export type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
 import { isKjrBetreuer, kjrHerkunft } from './kjrZuschuss';
 import { ortFuerPlz } from './plzOrte.svelte';
-import type { Abrechnung, AbrechnungPerson, Kostenstelle } from './types';
+import type { Abrechnung } from './types/abrechnung';
+import type { AbrechnungPerson } from '../../../api/lib/abrechnung';
+import type { Kostenstelle } from '../../../api/lib/playwright-api';
 
 const LOAD_ERROR =
   'Die Daten konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.';

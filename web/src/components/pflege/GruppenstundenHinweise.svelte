@@ -11,8 +11,8 @@
   import { sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { gruppenstundenPflege } from '../../lib/pflegeStore.svelte';
-  import { GROUP_CONFIG, STUFE_ORDER, STUFE_TO_KEY } from '../../lib/types';
-  import type { StaffGruppenstunde } from '../../lib/types';
+  import { GROUP_CONFIG, STUFE_ORDER, STUFE_TO_KEY } from '../../lib/types/stufen';
+  import type { StaffGruppenstunde } from '../../lib/types/staff';
   import type { GruppenstundenException } from '../../../../api/lib/gruppenstunden-exception-model';
 
   interface Form {

@@ -1,7 +1,11 @@
 import { aufgabeZeile, terminZeile, zeitraumText } from './protokollMarkdownZeilen';
 import { textImDokument } from './protokollMarkdownDokument';
 import type { GelesenerPunkt } from './protokollMarkdownDokument';
-import type { ProtokollAufgabe, ProtokollPunkt, PunktTermin } from './types';
+import type {
+  ProtokollAufgabe,
+  ProtokollPunkt,
+  PunktTermin,
+} from '../../../api/lib/protokoll-editor-model';
 
 /**
  * Turns the items read from the Markdown document (#613) back into `ProtokollPunkt`s. What the

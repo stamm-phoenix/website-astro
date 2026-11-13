@@ -6,8 +6,8 @@
   import { SvelteSet } from 'svelte/reactivity';
   import { errorMessage, sendApi } from '../lib/api';
   import { fetchStufen, stufenStore } from '../lib/nikolausHelfendeStore.svelte';
-  import { GROUP_CONFIG, STUFE_TO_KEY } from '../lib/types';
-  import type { StaffNikolausStufenSuggestion } from '../lib/types';
+  import { GROUP_CONFIG, STUFE_TO_KEY } from '../lib/types/stufen';
+  import type { StaffNikolausStufenSuggestion } from '../lib/types/nikolausStaff';
   import StatusNotice from './pflege/StatusNotice.svelte';
 
   interface Props {

@@ -1,6 +1,6 @@
 import { validateNikolausDetails } from './nikolausConfig';
 import type { NikolausDetailsValidation } from './nikolausConfig';
-import type { NikolausBookingInfo, NikolausDetailsForm } from './types';
+import type { NikolausBookingInfo, NikolausDetailsForm } from './types/nikolaus';
 
 export function emptyDetailsForm(): NikolausDetailsForm {
   return {

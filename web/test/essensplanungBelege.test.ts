@@ -11,7 +11,8 @@ import {
   personKey,
   statistikDruck,
 } from '../src/lib/essensplanungBelege.ts';
-import type { PlanungBeleg, PlanungMitglied } from '../src/lib/types.ts';
+import type { PlanungBeleg } from '../../api/lib/essen-belege-model.ts';
+import type { PlanungMitglied } from '../../api/lib/essen-planung-model.ts';
 
 let naechste = 1;
 const beleg = (werte: Partial<PlanungBeleg>): PlanungBeleg => ({

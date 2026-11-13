@@ -1,5 +1,5 @@
 import type { planungApi } from '../../lib/essensplanung';
-import type { PlanungAnsicht } from '../../lib/types';
+import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
 
 /** What the parts of the page of a Planung share (`EssensplanungApp.svelte`). */
 export interface PlanKontext {

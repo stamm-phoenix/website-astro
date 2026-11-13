@@ -4,7 +4,7 @@
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
   import { kalenderZeilen } from '../../lib/essensplanungPlan';
   import type { esserRechner } from '../../lib/essensplanungRechnung';
-  import type { PlanungMahlzeit } from '../../lib/types';
+  import type { PlanungMahlzeit } from '../../../../api/lib/essen-planung-model';
   import EinplanungKarte from './EinplanungKarte.svelte';
   import SlotEingabe from './SlotEingabe.svelte';
   import { getippt, slotEntwuerfe } from './slotEntwuerfe.svelte';

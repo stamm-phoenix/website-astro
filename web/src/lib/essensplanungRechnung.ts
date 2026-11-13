@@ -5,7 +5,11 @@ import {
   einheitText,
 } from '../../../api/lib/essen-gerichte-model';
 import type { GerichtEinheit, GerichtZutat } from '../../../api/lib/essen-gerichte-model';
-import type { Ernaehrung, PlanungGruppe, Teilnehmende } from './types';
+import type {
+  Ernaehrung,
+  PlanungGruppe,
+  Teilnehmende,
+} from '../../../api/lib/essen-teilnehmende-model';
 
 /**
  * The amounts of a Planung (`docs/essensplanung.md`, Berechnung): who eats a line of a dish at a

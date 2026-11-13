@@ -1,4 +1,9 @@
-import type { Einplanung, PlanungAnsicht, PlanungMahlzeit, PlanungTag } from './types';
+import type {
+  Einplanung,
+  PlanungAnsicht,
+  PlanungMahlzeit,
+  PlanungTag,
+} from '../../../api/lib/essen-planung-model';
 
 /** Helpers of planning dishes at meals (`docs/essensplanung.md`, Einplanung). */
 

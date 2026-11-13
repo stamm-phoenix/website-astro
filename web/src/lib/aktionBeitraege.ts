@@ -1,7 +1,9 @@
 import { statusLabel } from './beitraege';
 import type { PersonColumn } from './campflowFields';
 import { formatEuro } from './format';
-import type { AktionBeitrag, AktionBeitraegeData, CampflowPerson } from './types';
+import type { AktionBeitrag } from '../../../api/lib/beitraege';
+import type { AktionBeitraegeData } from './types/aktionen';
+import type { CampflowPerson } from '../../../api/lib/campflow';
 
 /** Sorting the column „Beitrag“ ascending puts what still needs attention first. */
 const STATUS_RANK: Record<AktionBeitrag['status'], number> = {

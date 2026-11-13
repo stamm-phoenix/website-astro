@@ -14,7 +14,9 @@
   import { beitragBetrag } from '../lib/aktionBeitraege';
   import { statusLabel } from '../lib/beitraege';
   import { formatEuro } from '../lib/format';
-  import type { AktionBeitrag, CampflowColumn, CampflowEvent, CampflowPerson } from '../lib/types';
+  import type { AktionBeitrag } from '../../../api/lib/beitraege';
+  import type { CampflowColumn, CampflowPerson } from '../../../api/lib/campflow';
+  import type { CampflowEvent } from '../lib/types/aktionen';
 
   /** Status as coloured text with a small dot instead of a pill. */
   const STATUS_TONE: Record<PersonStatus, { text: string; dot: string }> = {

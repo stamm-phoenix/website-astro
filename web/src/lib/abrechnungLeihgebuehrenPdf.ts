@@ -7,7 +7,7 @@ import { drawBriefFuss, drawBriefkopf, loadBriefBilder } from './abrechnungBrief
 import type { LeihgebuehrPosition } from './abrechnungRechnung';
 import { formatEuro } from './format';
 import { BRAND, MARGIN, PAGE_WIDTH, loadPdf } from './pdfBasis';
-import type { Vorstand } from './types';
+import type { Vorstand } from './types/oeffentlich';
 
 export interface PdfLeihgebuehren {
   aktion: string;

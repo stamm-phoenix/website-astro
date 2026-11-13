@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import type { Aktion } from '../src/lib/types';
+import type { Aktion } from '../src/lib/types/oeffentlich';
 
 test.use({ timezoneId: 'America/Los_Angeles' });
 

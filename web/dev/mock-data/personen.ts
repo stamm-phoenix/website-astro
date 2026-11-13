@@ -1,5 +1,5 @@
 import type { CampflowMitglied, Ich, PersonInput } from '../../../api/lib/personen-model';
-import type { Person, PersonenUebersicht } from '../../src/lib/types';
+import type { Person, PersonenUebersicht } from '../../../api/lib/personen-model';
 
 /**
  * The module „Personen“ of the mock API (`docs/personen.md`), as kept in `organisation.person`,

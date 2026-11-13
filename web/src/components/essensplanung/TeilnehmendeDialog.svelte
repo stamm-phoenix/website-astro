@@ -9,7 +9,8 @@
   import { datumKurz } from '../../lib/essensplanung';
   import { ERNAEHRUNG_TEXT } from '../../lib/essensplanungTeilnehmende';
   import { ERNAEHRUNGEN } from '../../../../api/lib/essen-teilnehmende-model';
-  import type { Ernaehrung, EssenKatalog } from '../../lib/types';
+  import type { Ernaehrung } from '../../../../api/lib/essen-teilnehmende-model';
+  import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
   import type { PlanKontext } from './planKontext';
 
   /**

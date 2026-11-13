@@ -1,6 +1,6 @@
 <script lang="ts">
   import AktionUnterlagen from './AktionUnterlagen.svelte';
-  import type { Aktion } from '../lib/types';
+  import type { Aktion } from '../lib/types/oeffentlich';
   import { GROUP_EMOJIS, GROUP_LABELS, stufeToFilterKeys } from '../lib/events';
   import { formatDateRange, localDate } from '../lib/dateUtils';
   import { berlinDay, formatDay } from '../lib/format';

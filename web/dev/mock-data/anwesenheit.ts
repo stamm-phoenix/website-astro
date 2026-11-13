@@ -6,7 +6,7 @@ import type {
   AnwesenheitMeeting,
   AnwesenheitOverview,
   AnwesenheitTermin,
-} from '../../src/lib/types';
+} from '../../../api/lib/anwesenheit-model';
 import { gruppenstunden } from './people';
 import { newEtag, newId } from './util';
 

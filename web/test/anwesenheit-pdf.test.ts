@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { anwesenheitListe, anwesenheitReport } from '../src/lib/anwesenheitPdf';
-import type { AnwesenheitChild, AnwesenheitMeeting } from '../src/lib/types';
+import type { AnwesenheitChild, AnwesenheitMeeting } from '../../api/lib/anwesenheit-model';
 
 function meeting(date: string, extra: Partial<AnwesenheitMeeting> = {}): AnwesenheitMeeting {
   return {

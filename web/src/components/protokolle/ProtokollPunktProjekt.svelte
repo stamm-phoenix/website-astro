@@ -23,7 +23,7 @@
     ProtokollAktion,
     ProtokollProjekt,
     ProtokollProjektOption,
-  } from '../../lib/types';
+  } from '../../../../api/lib/protokoll-editor-model';
 
   /**
    * The link of an agenda item to the module Aufgaben (#277, step 3): the project its tasks go

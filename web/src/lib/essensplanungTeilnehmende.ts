@@ -1,4 +1,5 @@
-import type { Ernaehrung, PlanungAnsicht, Teilnehmende } from './types';
+import type { Ernaehrung, Teilnehmende } from '../../../api/lib/essen-teilnehmende-model';
+import type { PlanungAnsicht } from '../../../api/lib/essen-planung-model';
 
 /** Helpers of the participants of a Planung (`docs/essensplanung.md`, Teilnehmende). */
 

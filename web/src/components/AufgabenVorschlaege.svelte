@@ -3,7 +3,7 @@
   import { onMount, tick } from 'svelte';
   import { taskFocusReturn } from '../lib/aufgabenFocus';
   import { sendApi } from '../lib/api';
-  import type { Task } from '../lib/types';
+  import type { Task } from '../../../api/lib/aufgaben-model';
   import {
     aufgabenStore,
     loadTasks,

@@ -4,7 +4,7 @@ import type { jsPDF as JsPdf } from 'jspdf';
 import { PAGE_HEIGHT, PAGE_WIDTH, MARGIN, BRAND, GREY, RED, today } from './pdfBasis';
 import { drawImage, loadImage } from './pdfBild';
 import type { PdfImage } from './pdfBild';
-import type { Vorstand } from './types';
+import type { Vorstand } from './types/oeffentlich';
 
 const FOOTER_TEXT =
   'Die Deutsche Pfadfinderschaft Sankt Georg (DPSG) ist als anerkannter Träger freier Jugendhilfe Mitglied im Bayerischen Jugendring (BJR) und als Verband katholischer Pfadfinderinnen und Pfadfinder Mitglied im Bund der Deutschen Katholischen Jugend (BDKJ) und der Internationalen Katholischen Konferenz des Pfadfindertums (IKKP). Die DPSG ist Mitglied im Ring deutscher Pfadfinderverbände (RdP) und von der World Organisation of the Scout Movement (WOSM) als Mitgliedsverband der Weltpfadfinderbewegung offiziell anerkannt.';

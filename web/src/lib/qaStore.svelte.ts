@@ -1,5 +1,5 @@
-import { parseQuestionsAndAnswers } from './types';
-import type { QuestionAndAnswer } from './types';
+import { parseQuestionsAndAnswers } from './types/oeffentlich';
+import type { QuestionAndAnswer } from '../../../api/lib/qa-list';
 import { createResource } from './resource.svelte';
 import { loadStateOf } from './storeView';
 

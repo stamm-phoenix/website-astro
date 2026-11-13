@@ -11,7 +11,7 @@ import type {
   ProtokollProjekt,
   ProtokollZeitraum,
   PunktTermin,
-} from './types';
+} from '../../../api/lib/protokoll-editor-model';
 
 type Felder = Record<string, unknown>;
 

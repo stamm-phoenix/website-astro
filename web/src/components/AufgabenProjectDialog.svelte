@@ -5,7 +5,7 @@
   import { createTaskForm } from '../lib/aufgabenForm.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
-  import type { TaskProject } from '../lib/types';
+  import type { TaskProject } from '../../../api/lib/aufgaben-model';
   import { campflowEventsStore } from '../lib/campflowStore.svelte';
   import { isAktion } from '../lib/aktionArt';
   import StatusNotice from './pflege/StatusNotice.svelte';

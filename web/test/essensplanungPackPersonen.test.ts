@@ -9,7 +9,7 @@ import {
   personenWahl,
 } from '../src/lib/essensplanungPackliste.ts';
 import { personenErfolg } from '../src/components/essensplanung/packSpeichern.ts';
-import type { PackZuteilung } from '../src/lib/types.ts';
+import type { PackZuteilung } from '../../api/lib/essen-packliste-model.ts';
 
 const person = (
   id: number,

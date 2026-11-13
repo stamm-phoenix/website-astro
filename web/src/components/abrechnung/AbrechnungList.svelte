@@ -9,7 +9,7 @@
   import { kjrFristStand, kjrRestzeit } from '../../lib/kjrFristen';
   import { todayIso } from '../../lib/format';
   import { countNights } from '../../lib/kjrZuschuss';
-  import type { CampflowEvent } from '../../lib/types';
+  import type { CampflowEvent } from '../../lib/types/aktionen';
 
   const today = todayIso();
 

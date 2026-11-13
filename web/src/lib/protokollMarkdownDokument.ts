@@ -19,7 +19,12 @@ import {
   MAX_UNTERPUNKTE,
   MAX_ZUSTAENDIG,
 } from '../../../api/lib/protokoll-editor-model';
-import type { ProtokollAufgabe, ProtokollPunkt, ProtokollZeitraum, PunktTermin } from './types';
+import type {
+  ProtokollAufgabe,
+  ProtokollPunkt,
+  ProtokollZeitraum,
+  PunktTermin,
+} from '../../../api/lib/protokoll-editor-model';
 
 /**
  * The agenda as one Markdown document (#613): `# Titel` starts an item, `## Titel` a sub-item,

@@ -13,7 +13,7 @@ import {
   summenImJahr,
   treffer,
 } from '../src/lib/kostenstellen';
-import type { KostenstelleStatistik } from '../src/lib/types';
+import type { KostenstelleStatistik } from '../../api/lib/kostenstellen';
 
 const kostenstelle = (
   name: string,

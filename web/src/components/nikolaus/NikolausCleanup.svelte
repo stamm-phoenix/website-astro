@@ -7,7 +7,7 @@
   import { nikolausSteuerung } from '../../lib/pflegeStore.svelte';
   import { refreshNikolausStatus } from '../../lib/nikolausStatusStore.svelte';
 
-  import type { NikolausCleanupScope, StaffNikolausSteuerung } from '../../lib/types';
+  import type { NikolausCleanupScope, StaffNikolausSteuerung } from '../../lib/types/nikolaus';
 
   import { formatDay } from '../../lib/nikolausSteuerungForm';
   interface Props {

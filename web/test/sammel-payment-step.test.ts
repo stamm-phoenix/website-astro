@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { paymentStep, type PaymentMode } from '../src/lib/sammelPaymentStep.ts';
-import type { SammelPaymentView } from '../src/lib/types.ts';
+import type { SammelPaymentView } from '../../api/lib/sammelbestellung-payment-model.ts';
 
 function fixture(): SammelPaymentView {
   return {

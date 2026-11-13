@@ -14,8 +14,8 @@ import type {
   EssenKategorie,
   EssenUnvertraeglichkeit,
   EssenZutat,
-  StaffEssenSteuerung,
-} from '../../src/lib/types';
+} from '../../../api/lib/essen-validation';
+import type { StaffEssenSteuerung } from '../../src/lib/types/essen';
 import { MOCK_NOW, newEtag } from './util';
 import { planungenUebersicht } from './essensplanung-planung';
 

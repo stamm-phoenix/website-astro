@@ -11,13 +11,13 @@
   import { ApiError, fetchApi, sendApi, errorMessage } from '../../lib/api';
   import { formatOptionalEuro, formatDateTime } from '../../lib/format';
   import { isIch } from '../../lib/ichStore.svelte';
+  import type { SammelBestellung } from '../../../../api/lib/sammelbestellung-model';
   import type {
-    SammelBestellung,
     SammelBillingPerson,
     SammelPaymentView,
     SammelPaymentPreview,
     SammelPaymentEvent,
-  } from '../../lib/types';
+  } from '../../../../api/lib/sammelbestellung-payment-model';
 
   interface Props {
     order: SammelBestellung;

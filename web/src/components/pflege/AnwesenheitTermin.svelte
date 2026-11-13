@@ -7,7 +7,7 @@
     AnwesenheitGuest,
     AnwesenheitStatus,
     AnwesenheitTermin,
-  } from '../../lib/types';
+  } from '../../../../api/lib/anwesenheit-model';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';

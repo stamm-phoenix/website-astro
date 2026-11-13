@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { fahrtPdfTeam } from '../src/lib/nikolausFahrtPdf';
-import type { StaffNikolausFahrtData, StaffNikolausFahrtStop } from '../src/lib/types';
+import type {
+  StaffNikolausFahrtData,
+  StaffNikolausFahrtStop,
+} from '../src/lib/types/nikolausStaff';
 
 const DATE = '2026-12-05';
 

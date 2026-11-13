@@ -2,7 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { confirmAction } from '../../lib/confirm';
   import { fuerText, packId, personenText, type PackZeile } from '../../lib/essensplanungPackliste';
-  import type { PackZuteilung } from '../../lib/types';
+  import type { PackZuteilung } from '../../../../api/lib/essen-packliste-model';
   import { anteilAbhaken, packAbhaken } from './packSpeichern';
   import { gespeichert, type PlanKontext } from './planKontext';
 

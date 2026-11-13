@@ -4,7 +4,11 @@ import { geplanterVerbrauch } from '../../lib/essensplanungLager';
 import { gerichtNamens, zustaendigAus } from '../../lib/essensplanungPlan';
 import type { esserRechner } from '../../lib/essensplanungRechnung';
 import type { EinplanungStatus } from '../../../../api/lib/essen-kochen-model';
-import type { Einplanung, PlanungAnsicht, PlanungMahlzeit } from '../../lib/types';
+import type {
+  Einplanung,
+  PlanungAnsicht,
+  PlanungMahlzeit,
+} from '../../../../api/lib/essen-planung-model';
 import type { PlanKontext } from './planKontext';
 
 /**

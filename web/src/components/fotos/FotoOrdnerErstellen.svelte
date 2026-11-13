@@ -3,7 +3,7 @@
   import { errorMessage, sendApi } from '../../lib/api';
   import { cleanName } from '../../lib/fotoPfade';
   import { forgetFotoFolder, loadFotoFolder } from '../../lib/fotoOrdnerStore.svelte';
-  import type { FotoTarget } from '../../lib/types';
+  import type { FotoTarget } from '../../lib/types/staff';
   import FormField from '../pflege/FormField.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import MessageText from '../ui/MessageText.svelte';

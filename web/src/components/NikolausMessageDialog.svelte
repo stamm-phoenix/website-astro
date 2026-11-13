@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ApiError, sendApi } from '../lib/api';
   import { STATUS_LABEL, formatSlotKey } from '../lib/nikolausAdmin';
-  import type { StaffNikolausBooking } from '../lib/types';
+  import type { StaffNikolausBooking } from '../lib/types/nikolaus';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
   import LazyTextEditor from './ui/LazyTextEditor.svelte';

@@ -3,7 +3,7 @@
   import { isSammelProductUrl, sammelAvailabilityLabel } from '../../lib/sammelShops';
   import { postApi } from '../../lib/api';
   import { formatEuro } from '../../lib/format';
-  import type { SammelProductInfo } from '../../lib/types';
+  import type { SammelProductInfo } from '../../../../api/lib/sammelbestellung-model';
 
   /** Availability values worth a line; an unknown availability says nothing. */
   const KNOWN_AVAILABILITY = ['available', 'unavailable', 'preorder'];

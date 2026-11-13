@@ -3,7 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { aktionZeitraum, punktNummer } from '../../lib/protokollEditor';
   import { protokollAufgaben } from '../../lib/protokollAufgabenStore.svelte';
-  import type { ProtokollPunkt } from '../../lib/types';
+  import type { ProtokollPunkt } from '../../../../api/lib/protokoll-editor-model';
 
   /**
    * What the Markdown document (#613) cannot show of the item at the cursor: its Aktion, its

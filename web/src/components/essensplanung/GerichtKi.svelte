@@ -11,9 +11,9 @@
     EssenKatalog,
     Gericht,
     GerichtZutat,
-    PlanungAnsicht,
     PlanungZutat,
-  } from '../../lib/types';
+  } from '../../../../api/lib/essen-gerichte-model';
+  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
   import RezeptImportDialog from './RezeptImportDialog.svelte';
   import { gespeichert } from './planKontext';
   import type { PlanKontext } from './planKontext';

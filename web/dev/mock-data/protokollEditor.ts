@@ -19,7 +19,7 @@ import type {
   ProtokollRevisionReason,
   ProtokollSaveResponse,
   ProtokollSperre,
-} from '../../src/lib/types';
+} from '../../../api/lib/protokoll-editor-model';
 import { dayFromToday, isoFromNow } from './util';
 import { erwaehnungenIn } from '../../../api/lib/protokoll-markdown';
 import { parseProtokollMarkdown } from '../../src/lib/protokollMarkdown';

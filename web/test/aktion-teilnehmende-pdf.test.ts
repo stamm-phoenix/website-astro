@@ -3,7 +3,7 @@ import { describe, test } from 'node:test';
 import { teilnehmendePdfReport } from '../src/lib/aktionTeilnehmendePdf';
 import type { TeilnehmendePdf } from '../src/lib/aktionTeilnehmendePdf';
 import type { PersonColumn } from '../src/lib/campflowFields';
-import type { CampflowPerson } from '../src/lib/types';
+import type { CampflowPerson } from '../../api/lib/campflow';
 
 function column(key: string, label = key): PersonColumn {
   return {

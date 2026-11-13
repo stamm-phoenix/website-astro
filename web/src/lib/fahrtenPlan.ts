@@ -1,6 +1,6 @@
 import { formatName, formatValue, personStatus } from './campflowFields';
 import { mapGroupToStufe } from './campflowGroups';
-import type { CampflowColumn, CampflowPerson } from './types';
+import type { CampflowColumn, CampflowPerson } from '../../../api/lib/campflow';
 
 export type Fahrt = 'hin' | 'rueck';
 

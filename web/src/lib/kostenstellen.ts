@@ -4,7 +4,7 @@ import type {
   KostenstelleStatistik,
   KostenstellenSphaere,
   KostenstellenSummen,
-} from './types';
+} from '../../../api/lib/kostenstellen';
 
 export type KostenstellenAnsicht = 'aktuell' | 'archiviert' | 'alle';
 export type KostenstellenSortierung = 'name' | 'saldo' | 'ausgaben' | 'einnahmen';

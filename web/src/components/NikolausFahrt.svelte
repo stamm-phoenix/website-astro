@@ -28,7 +28,7 @@
     fetchNikolausFahrt,
     nikolausFahrtStore,
   } from '../lib/nikolausFahrtStore.svelte';
-  import type { StaffNikolausFahrtStop } from '../lib/types';
+  import type { StaffNikolausFahrtStop } from '../lib/types/nikolausStaff';
   import StatusNotice from './pflege/StatusNotice.svelte';
 
   /** How often the route is reloaded, to see changes of the Dispo and of the team mates. */

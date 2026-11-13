@@ -16,7 +16,7 @@
     summen,
     type BeitragFilter,
   } from '../../lib/beitraege';
-  import type { Beitrag } from '../../lib/types';
+  import type { Beitrag } from '../../../../api/lib/beitraege';
   import { isIch } from '../../lib/ichStore.svelte';
 
   interface Props {

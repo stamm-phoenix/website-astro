@@ -1,4 +1,5 @@
-import type { CampflowColumn, CampflowEvent, CampflowPerson } from './types';
+import type { CampflowColumn, CampflowPerson } from '../../../api/lib/campflow';
+import type { CampflowEvent } from './types/aktionen';
 import { formatDateTime } from './format';
 import { isAktion } from './aktionArt';
 

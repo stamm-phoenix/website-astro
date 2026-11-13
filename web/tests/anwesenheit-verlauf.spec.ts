@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import { attendanceSnapshot } from '../../api/lib/anwesenheit-model';
-import type { AnwesenheitTermin, AnwesenheitOverview } from '../src/lib/types';
+import type { AnwesenheitTermin, AnwesenheitOverview } from '../../api/lib/anwesenheit-model';
 
 /** The date of a mock Termin `days` ago, as `dev/mock-data/anwesenheit.ts` creates it. */
 function daysAgo(days: number): string {

@@ -1,4 +1,9 @@
-import type { ProtokollAufgabe, ProtokollPerson, ProtokollZeitraum, PunktTermin } from './types';
+import type {
+  ProtokollAufgabe,
+  ProtokollPerson,
+  ProtokollZeitraum,
+  PunktTermin,
+} from '../../../api/lib/protokoll-editor-model';
 
 /**
  * The lines of the Markdown document (#613) that are no text: „Aufgabe:“, „Termin:“ and

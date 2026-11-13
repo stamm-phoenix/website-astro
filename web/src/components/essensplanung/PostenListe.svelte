@@ -3,7 +3,7 @@
   import { confirmAction } from '../../lib/confirm';
   import { kochMenge } from '../../lib/essensplanungRechnung';
   import type { PostenArt } from '../../../../api/lib/essen-einkauf-model';
-  import type { ZusatzPosten } from '../../lib/types';
+  import type { ZusatzPosten } from '../../../../api/lib/essen-einkauf-model';
   import { KNOPF } from './einkaufHerkunft.svelte';
   import type { PlanKontext } from './planKontext';
 

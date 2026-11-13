@@ -14,7 +14,8 @@
     kjrZuschuss,
   } from '../../lib/kjrZuschuss';
   import type { KjrPersonenZahlen } from '../../lib/kjrZuschuss';
-  import type { Abrechnung, AbrechnungPerson } from '../../lib/types';
+  import type { Abrechnung } from '../../lib/types/abrechnung';
+  import type { AbrechnungPerson } from '../../../../api/lib/abrechnung';
   import { ZIEL_TOLERANZ_CENT, auslagen, geaenderteBetraege } from '../../lib/abrechnungRechnung';
   import type {
     BilanzMitLeihgebuehren,

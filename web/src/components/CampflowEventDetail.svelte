@@ -30,7 +30,7 @@
   import { statusLabel } from '../lib/beitraege';
   import { isIchCampflow } from '../lib/ichStore.svelte';
   import { formatDateTime, formatEuro } from '../lib/format';
-  import type { CampflowPerson } from '../lib/types';
+  import type { CampflowPerson } from '../../../api/lib/campflow';
   import CampflowPersonDetails from './CampflowPersonDetails.svelte';
   import AktionZuschussSchalter from './AktionZuschussSchalter.svelte';
   import AktionArtSchalter from './AktionArtSchalter.svelte';

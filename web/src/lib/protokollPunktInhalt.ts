@@ -1,4 +1,4 @@
-import type { ProtokollPunkt } from './types';
+import type { ProtokollPunkt } from '../../../api/lib/protokoll-editor-model';
 
 /**
  * Whether an agenda item holds more than its title, so removing it asks first: text, an Aktion,

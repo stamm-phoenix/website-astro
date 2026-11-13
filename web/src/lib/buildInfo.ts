@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import type { BuildInfo } from './types';
+import type { BuildInfo } from './types/oeffentlich';
 
 const REPO_URL = 'https://github.com/stamm-phoenix/website-astro';
 

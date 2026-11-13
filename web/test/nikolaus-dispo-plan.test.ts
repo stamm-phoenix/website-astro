@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { restoreDispoDraft } from '../src/lib/nikolausDispoPlan';
-import type {
-  StaffNikolausBooking,
-  StaffNikolausDispoData,
-  StaffNikolausDispoRow,
-} from '../src/lib/types';
+import type { StaffNikolausBooking } from '../src/lib/types/nikolaus';
+import type { StaffNikolausDispoData, StaffNikolausDispoRow } from '../src/lib/types/nikolausStaff';
 
 const DATE = '2026-12-05';
 

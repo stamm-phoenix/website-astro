@@ -9,7 +9,7 @@ import {
 } from './abrechnungBriefPdf';
 import { formatEuro } from './format';
 import { BRAND, GREY, MARGIN, PAGE_HEIGHT, PAGE_WIDTH, loadPdf } from './pdfBasis';
-import type { Vorstand } from './types';
+import type { Vorstand } from './types/oeffentlich';
 
 /** An Eigenbeleg as printed, with dates already formatted. */
 export interface PdfEigenbeleg {

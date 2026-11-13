@@ -1,5 +1,5 @@
 import { zielPosition } from '../../lib/essensplanungPlan';
-import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
+import type { Einplanung, PlanungMahlzeit } from '../../../../api/lib/essen-planung-model';
 import { planeEin, verschiebe } from './planAktionen';
 import type { PlanKontext } from './planKontext';
 

@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { einplanungZeilen } from '../src/lib/essensplanungDruck.ts';
 import { esserRechner } from '../src/lib/essensplanungRechnung.ts';
-import type { Einplanung, PlanungAnsicht, PlanungMahlzeit } from '../src/lib/types.ts';
+import type {
+  Einplanung,
+  PlanungAnsicht,
+  PlanungMahlzeit,
+} from '../../api/lib/essen-planung-model.ts';
 
 // The numbers of the browser test `essensplanung-berechnung.spec.ts`: Chili for 4 people with
 // mince only for those who eat meat and two lines of oil, planned for 10 Pfadis and 5 vegetarian

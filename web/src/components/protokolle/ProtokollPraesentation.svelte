@@ -6,7 +6,10 @@
   import { errorMessage, fetchApi } from '../../lib/api';
   import { changedPunkte, formatTime, praesentationChannel } from '../../lib/protokollEditor';
   import type { PraesentationMessage, ProtokollStand } from '../../lib/protokollEditor';
-  import type { ProtokollEditorDetail, ProtokollLiveResponse } from '../../lib/types';
+  import type {
+    ProtokollEditorDetail,
+    ProtokollLiveResponse,
+  } from '../../../../api/lib/protokoll-editor-model';
 
   /**
    * The minutes for the TV and the screen share in Teams, in a window of their own: only the

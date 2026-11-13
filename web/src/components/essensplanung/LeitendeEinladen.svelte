@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { ApiError, errorMessage } from '../../lib/api';
-  import type { PlanungMitglied } from '../../lib/types';
+  import type { PlanungMitglied } from '../../../../api/lib/essen-planung-model';
   import type { PlanKontext } from './planKontext';
 
   /**

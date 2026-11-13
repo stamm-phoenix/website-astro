@@ -4,7 +4,7 @@
   import BelegPdfSeiten from '../pflege/BelegPdfSeiten.svelte';
   import { errorMessage, saveFile } from '../../lib/api';
   import { belegTitel } from '../../lib/essensplanungBelege';
-  import type { PlanungBeleg } from '../../lib/types';
+  import type { PlanungBeleg } from '../../../../api/lib/essen-belege-model';
   import type { PlanKontext } from './planKontext';
 
   /** The picture of a receipt in full size (for a PDF all its pages), with the download. */

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { formatEuro } from '../../lib/format';
-  import type { KostenstellenSummen } from '../../lib/types';
+  import type { KostenstellenSummen } from '../../../../api/lib/kostenstellen';
 
   interface Props {
     summen: KostenstellenSummen;

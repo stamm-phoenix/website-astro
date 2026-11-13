@@ -8,6 +8,10 @@ import type {
   NikolausSlot,
   NikolausVisitProgress,
   StaffNikolausBooking,
+  NikolausAuditEntry,
+  StaffNikolausSteuerung,
+} from '../../src/lib/types/nikolaus';
+import type {
   StaffNikolausDispoData,
   StaffNikolausDispoRow,
   StaffNikolausEinteilungData,
@@ -19,9 +23,7 @@ import type {
   StaffNikolausOverview,
   StaffNikolausStufenSuggestion,
   StaffNikolausTeamMember,
-  NikolausAuditEntry,
-  StaffNikolausSteuerung,
-} from '../../src/lib/types';
+} from '../../src/lib/types/nikolausStaff';
 import type { NikolausCoordinates, NikolausSettings } from '../../src/lib/nikolausConfig';
 import { distanceKm, getNikolausSlots, getNikolausTeams } from '../../src/lib/nikolausConfig';
 import {

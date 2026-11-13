@@ -1,6 +1,6 @@
 import { datumKurz } from '../../lib/essensplanung';
 import type { Einkauf } from '../../../../api/lib/essen-einkaeufe-model';
-import type { PlanungAnsicht } from '../../lib/types';
+import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
 
 /** What a trip covers: „Sa., 31.7.2027 · Metro · bis 2_1 Frühstück“. */
 export function einkaufInfo(

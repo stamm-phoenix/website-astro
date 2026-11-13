@@ -6,7 +6,7 @@
     getOverbookedSlots,
     isActiveBooking,
   } from '../../lib/nikolausAdmin';
-  import type { StaffNikolausBooking, StaffNikolausSlot } from '../../lib/types';
+  import type { StaffNikolausBooking, StaffNikolausSlot } from '../../lib/types/nikolaus';
 
   interface Props {
     slots: StaffNikolausSlot[];

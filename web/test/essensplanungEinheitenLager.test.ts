@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { einkaufsliste, postenMenge } from '../src/lib/essensplanungEinkauf.ts';
 import { vorschau, type VorschauZeile } from '../src/lib/essensplanungEinheiten.ts';
-import type { PlanungZutat } from '../src/lib/types.ts';
+import type { PlanungZutat } from '../../api/lib/essen-gerichte-model.ts';
 
 /**
  * Bringing units into line converts what the stock is worked out from too (what was cooked,

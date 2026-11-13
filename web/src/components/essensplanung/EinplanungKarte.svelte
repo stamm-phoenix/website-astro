@@ -11,7 +11,7 @@
   import { nachbarPlatz, type Richtung } from '../../lib/essensplanungPlan';
   import type { esserRechner } from '../../lib/essensplanungRechnung';
   import { zahlText } from '../../lib/essensplanungTeilnehmende';
-  import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
+  import type { Einplanung, PlanungMahlzeit } from '../../../../api/lib/essen-planung-model';
   import EinplanungAbhaken from './EinplanungAbhaken.svelte';
   import EinplanungMengen from './EinplanungMengen.svelte';
   import { KNOPF, gerichtName, nimmHeraus, setzeStatus, verschiebe } from './planAktionen';

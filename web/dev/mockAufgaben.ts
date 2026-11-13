@@ -2,7 +2,7 @@
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
 import { ValidationError } from '../../api/lib/validation/errors';
 import { taggedTaskAssignee } from '../../api/lib/aufgaben-zuordnung';
-import type { TasksOverview } from '../src/lib/types';
+import type { TasksOverview } from '../../api/lib/aufgaben-model';
 import { mockAufgabenHooks } from './mock-data/protokollEditor';
 import { newEtag, newId } from './mock-data/util';
 import { PRINCIPAL } from './mockAuth';

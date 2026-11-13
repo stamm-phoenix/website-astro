@@ -5,7 +5,7 @@
 </script>
 
 <script lang="ts">
-  import type { PlanungBeleg } from '../../lib/types';
+  import type { PlanungBeleg } from '../../../../api/lib/essen-belege-model';
   import type { PlanKontext } from './planKontext';
 
   /**

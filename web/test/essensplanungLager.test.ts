@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { einkaufsliste } from '../src/lib/essensplanungEinkauf.ts';
 import { geplanterVerbrauch, lager, lagerZeilen } from '../src/lib/essensplanungLager.ts';
-import type { PlanungZutat } from '../src/lib/types.ts';
+import type { PlanungZutat } from '../../api/lib/essen-gerichte-model.ts';
 
 const zutat = (id: number, name: string): PlanungZutat => ({
   id,

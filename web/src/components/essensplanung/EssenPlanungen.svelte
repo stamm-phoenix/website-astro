@@ -6,7 +6,8 @@
   import { datumKurz } from '../../lib/essensplanung';
   import { formatDateTime } from '../../lib/format';
   import { essensplanungSteuerung } from '../../lib/pflegeStore.svelte';
-  import type { EssenPlanungUebersicht, StaffEssenSteuerung } from '../../lib/types';
+  import type { EssenPlanungUebersicht } from '../../../../api/lib/essen-validation';
+  import type { StaffEssenSteuerung } from '../../lib/types/essen';
 
   /** All Planungen of the Essensplanung with their owners; the Steuerung can delete them. */
 

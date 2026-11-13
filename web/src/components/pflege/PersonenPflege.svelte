@@ -12,7 +12,11 @@
   import { reloadIch } from '../../lib/ichStore.svelte';
   import { PERSON_GRUPPE_LABELS } from '../../lib/protokollEditor';
   import { campflowVorschlaege, mitgliedName } from '../../lib/personen';
-  import type { CampflowMitglied, LeitendenKonto, Person } from '../../lib/types';
+  import type {
+    CampflowMitglied,
+    LeitendenKonto,
+    Person,
+  } from '../../../../api/lib/personen-model';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';

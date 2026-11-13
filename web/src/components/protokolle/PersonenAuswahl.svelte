@@ -2,7 +2,7 @@
   import PersonSuche from '../ui/PersonSuche.svelte';
   import type { SuchPerson } from '../ui/PersonSuche.svelte';
   import { PERSON_GRUPPE_LABELS, personKey } from '../../lib/protokollEditor';
-  import type { PersonOption, ProtokollPerson } from '../../lib/types';
+  import type { PersonOption, ProtokollPerson } from '../../../../api/lib/protokoll-editor-model';
 
   /**
    * Names in the minutes (#301): search Leitende, Altleitende and others like the Zuständigkeit

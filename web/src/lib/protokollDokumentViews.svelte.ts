@@ -20,7 +20,7 @@ import type {
   ProtokollProjekt,
   ProtokollZeitraum,
   PunktTermin,
-} from './types';
+} from '../../../api/lib/protokoll-editor-model';
 
 export interface DokumentHooks {
   /** The handle to drag an item (`ProtokollTagesordnung`); without it there is no handle. */

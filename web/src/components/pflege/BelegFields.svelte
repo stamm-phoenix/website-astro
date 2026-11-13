@@ -4,7 +4,7 @@
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import { todayIso } from '../../lib/format';
   import { applyArt, applyZahlung, type BelegForm, type BelegZahlung } from '../../lib/belegForm';
-  import type { BelegArt } from '../../lib/types';
+  import type { BelegArt } from '../../../../api/lib/validation/beleg';
   import { belegPersonen, fetchBelegPersonen } from '../../lib/belegPersonen.svelte';
   interface Props {
     form: BelegForm;

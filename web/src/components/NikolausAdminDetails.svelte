@@ -14,7 +14,7 @@
     isActiveBooking,
   } from '../lib/nikolausAdmin';
   import type { BookingProblem } from '../lib/nikolausAdmin';
-  import type { StaffNikolausBooking } from '../lib/types';
+  import type { StaffNikolausBooking } from '../lib/types/nikolaus';
 
   import { ApiError, errorMessage, sendApi } from '../lib/api';
   import TagInput from './pflege/TagInput.svelte';

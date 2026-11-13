@@ -1,6 +1,6 @@
 import { formatDate, formatName } from './campflowFields';
 import { mapGroupToStufe } from './campflowGroups';
-import type { CampflowPerson } from './types';
+import type { CampflowPerson } from '../../../api/lib/campflow';
 
 /** Whether someone is a member today, will join later or has left. */
 export type MitgliedStatus = 'aktiv' | 'kuenftig' | 'ausgetreten';

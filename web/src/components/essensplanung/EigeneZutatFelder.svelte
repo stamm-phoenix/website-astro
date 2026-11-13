@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  import type { EssenEinheitenart } from '../../lib/types';
+  import type { EssenEinheitenart } from '../../../../api/lib/essen-schema';
 
   /** A new ingredient of the Planung's own, for a name that is not in the list. */
   export interface EigeneZutat {
@@ -33,7 +33,7 @@
 <script lang="ts">
   import FormField from '../pflege/FormField.svelte';
   import { EINHEITENART_LABELS } from '../../lib/essensplanungSteuerung';
-  import type { EssenKatalog } from '../../lib/types';
+  import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
 
   /** The fields of a new ingredient of the Planung's own in the dialog of a line of a dish. */
 

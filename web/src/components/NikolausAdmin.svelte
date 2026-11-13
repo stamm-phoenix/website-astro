@@ -20,7 +20,8 @@
     getOverbookedSlots,
     isActiveBooking,
   } from '../lib/nikolausAdmin';
-  import type { NikolausMoveRequest, StaffNikolausBooking } from '../lib/types';
+  import type { NikolausMoveRequest } from '../lib/types/nikolausStaff';
+  import type { StaffNikolausBooking } from '../lib/types/nikolaus';
   import NikolausAdminList from './NikolausAdminList.svelte';
   import NikolausAdminMatrix from './NikolausAdminMatrix.svelte';
   import AdminDayOverview from './nikolaus/AdminDayOverview.svelte';

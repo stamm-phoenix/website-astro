@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-import type { BelegCheck, StaffBeleg } from '../src/lib/types';
+import type { BelegCheck } from '../../api/lib/beleg-check';
+import type { StaffBeleg } from '../../api/lib/beleg-list';
 import { latch, quiet, settle } from './settle';
 
 const knownCheck: BelegCheck = {

@@ -3,7 +3,7 @@
   import { errorMessage } from '../../lib/api';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { einkaufListen, einkaufsReihenfolge } from '../../lib/essensplanungEinkaeufe';
-  import type { EssenKatalog } from '../../lib/types';
+  import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
   import EinkaufAnsicht from './EinkaufAnsicht.svelte';
   import GeschaeftDialog from './GeschaeftDialog.svelte';
   import OffeneEinkaufsliste from './OffeneEinkaufsliste.svelte';

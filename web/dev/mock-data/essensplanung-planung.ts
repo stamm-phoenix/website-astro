@@ -25,7 +25,7 @@ import type {
 import type { Gericht } from '../../../api/lib/essen-gerichte-model';
 import type { EinplanungStatus, Verbrauch } from '../../../api/lib/essen-kochen-model';
 import type { Einkauf } from '../../../api/lib/essen-einkaeufe-model';
-import type { EssenPlanungUebersicht } from '../../src/lib/types';
+import type { EssenPlanungUebersicht } from '../../../api/lib/essen-validation';
 import type { MockPlanungZutat } from './essensplanung-gerichte';
 import type { PlanungGruppe, Teilnehmende } from '../../../api/lib/essen-teilnehmende-model';
 import type { EinkaufPosten, Geschaeft, ZusatzPosten } from '../../../api/lib/essen-einkauf-model';

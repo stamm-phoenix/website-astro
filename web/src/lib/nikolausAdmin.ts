@@ -1,7 +1,11 @@
 import { localDateTimeToDate } from './nikolausConfig';
 import { formatDateTime, formatDay } from './format';
 import type { StatusTone } from './status';
-import type { NikolausBookingStatus, StaffNikolausBooking, StaffNikolausSlot } from './types';
+import type {
+  NikolausBookingStatus,
+  StaffNikolausBooking,
+  StaffNikolausSlot,
+} from './types/nikolaus';
 
 export const STATUS_ORDER: NikolausBookingStatus[] = [
   'confirmed',

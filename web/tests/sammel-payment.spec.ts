@@ -1,5 +1,9 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-import type { SammelStaffView, SammelPaymentView, SammelPaymentPreview } from '../src/lib/types';
+import type { SammelStaffView } from '../../api/lib/sammelbestellung-model';
+import type {
+  SammelPaymentView,
+  SammelPaymentPreview,
+} from '../../api/lib/sammelbestellung-payment-model';
 
 test('payment review explains mapping setup and retains dialog confirmation guards', async ({
   page,

@@ -7,7 +7,7 @@ export {
   getSammelStammProdukt,
   SAMMEL_MAX_KATALOG_ARTIKEL,
 } from '../../../api/lib/sammelbestellung-stamm';
-import type { SammelKatalogArtikel } from './types';
+import type { SammelKatalogArtikel } from '../../../api/lib/sammelbestellung-model';
 
 const PRODUCT_IMAGES: Record<string, string> = {
   '2891': '/images/sammelbestellungen/2891.webp',

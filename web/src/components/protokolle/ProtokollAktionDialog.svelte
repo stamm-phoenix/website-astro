@@ -11,7 +11,8 @@
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { nurAktionen } from '../../lib/aktionArt';
   import { aktionZeitraum } from '../../lib/protokollEditor';
-  import type { CampflowEvent, ProtokollAktion } from '../../lib/types';
+  import type { CampflowEvent } from '../../lib/types/aktionen';
+  import type { ProtokollAktion } from '../../../../api/lib/protokoll-editor-model';
 
   interface Props {
     /** The kind of chapter to make; null while closed. */

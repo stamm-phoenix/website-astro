@@ -3,7 +3,7 @@ import test from 'node:test';
 import { abrechnungGroups } from '../src/lib/abrechnungList.ts';
 import { isAktion, keineAktionHinweis, nurAktionen } from '../src/lib/aktionArt.ts';
 import { aktionTitles } from '../src/lib/campflowFields.ts';
-import type { CampflowEvent } from '../src/lib/types.ts';
+import type { CampflowEvent } from '../src/lib/types/aktionen.ts';
 
 function event(
   id: string,

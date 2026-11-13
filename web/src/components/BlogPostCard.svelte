@@ -2,7 +2,7 @@
   import NewsTypeBadge from './NewsTypeBadge.svelte';
   import StaffLink from './StaffLink.svelte';
   import { formatBlogDate, getBlogPostUrl } from '../lib/blog';
-  import type { BlogPostSummary } from '../lib/types';
+  import type { BlogPostSummary } from '../lib/types/oeffentlich';
   import { bakedUrl } from '../lib/bakedImages';
 
   interface Props {

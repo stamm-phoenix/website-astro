@@ -13,7 +13,7 @@
     editing = false;
     message = result;
   }
-  import type { TaskTemplate } from '../lib/types';
+  import type { TaskTemplate } from '../../../api/lib/aufgaben-model';
   import AufgabenTemplateDialog from './AufgabenTemplateDialog.svelte';
   let target = $state<TaskTemplate | null>(null);
   function edit(template: TaskTemplate | null = null): void {

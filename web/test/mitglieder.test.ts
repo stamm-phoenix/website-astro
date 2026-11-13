@@ -8,7 +8,7 @@ import {
   mitgliedStatus,
   sortMitglieder,
 } from '../src/lib/mitglieder';
-import type { CampflowPerson } from '../src/lib/types';
+import type { CampflowPerson } from '../../api/lib/campflow';
 
 const TODAY = '2026-10-23';
 

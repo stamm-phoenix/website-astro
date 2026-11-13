@@ -1,10 +1,6 @@
-import type {
-  EssenAuditEntry,
-  EssenEinheitenart,
-  EssenEinstellungen,
-  EssenZutat,
-  EssenZutatInput,
-} from './types';
+import type { EssenAuditEntry, EssenZutat } from '../../../api/lib/essen-validation';
+import type { EssenEinheitenart, EssenEinstellungen } from '../../../api/lib/essen-schema';
+import type { EssenZutatInput } from './types/essen';
 
 /** Shown names of the units of an ingredient. */
 export const EINHEITENART_LABELS: Record<EssenEinheitenart, string> = {

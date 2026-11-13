@@ -4,7 +4,7 @@ import { averageMembers, monthlyStats, type MonthStats } from './anwesenheit';
 import { pdfFileName } from './pdfBasis';
 import { downloadReportPdf, type PdfReport, type PdfSection } from './pdfTabelle';
 import { pdfText } from './pdfText';
-import type { AnwesenheitChild, AnwesenheitMeeting } from './types';
+import type { AnwesenheitChild, AnwesenheitMeeting } from '../../../api/lib/anwesenheit-model';
 
 const MONTH_LABEL = new Intl.DateTimeFormat('de-DE', {
   month: 'long',

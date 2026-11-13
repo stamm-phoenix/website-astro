@@ -4,7 +4,7 @@
  * syntax itself is in `api/lib/protokoll-markdown.ts`.
  */
 import { erwaehnbar } from '../../../api/lib/protokoll-markdown';
-import type { PersonOption } from './types';
+import type { PersonOption } from '../../../api/lib/protokoll-editor-model';
 
 export { erwaehnbar, erwaehnungMarkdown } from '../../../api/lib/protokoll-markdown';
 

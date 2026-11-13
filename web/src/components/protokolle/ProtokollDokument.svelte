@@ -30,7 +30,7 @@
   } from '../../lib/protokollDokumentViews.svelte';
   import { PROTOKOLL_TEXT_FEATURES, neuerPunkt, newElementId } from '../../lib/protokollEditor';
   import type { Griff } from '../../lib/protokollReihenfolge';
-  import type { PersonOption, ProtokollPunkt } from '../../lib/types';
+  import type { PersonOption, ProtokollPunkt } from '../../../../api/lib/protokoll-editor-model';
 
   /**
    * The whole agenda as one document (#277): the items are blocks with title, text, tasks and

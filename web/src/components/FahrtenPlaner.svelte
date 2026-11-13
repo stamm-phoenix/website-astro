@@ -33,7 +33,7 @@
     writeAnpassungen,
   } from '../lib/fahrtenPlan';
   import type { Auto, Fahrt, FahrtAnpassungen, FahrtPerson } from '../lib/fahrtenPlan';
-  import { GROUP_CONFIG, STUFE_TO_KEY } from '../lib/types';
+  import { GROUP_CONFIG, STUFE_TO_KEY } from '../lib/types/stufen';
   import { confirmAction } from '../lib/confirm';
   import { isIchCampflow } from '../lib/ichStore.svelte';
 

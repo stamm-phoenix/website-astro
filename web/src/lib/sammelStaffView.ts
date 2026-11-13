@@ -1,7 +1,7 @@
 import { saveFile } from './api';
 export { formatOptionalEuro as money } from './format';
 import { sammelCsv } from './sammelExport';
-import type { SammelBestellung } from './types';
+import type { SammelBestellung } from '../../../api/lib/sammelbestellung-model';
 /** Classifies cancelled orders and fully priced, paid and delivered arrivals as completed. */
 export function isFinished(order: SammelBestellung): boolean {
   return (

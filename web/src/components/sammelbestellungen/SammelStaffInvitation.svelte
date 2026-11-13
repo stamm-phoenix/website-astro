@@ -3,7 +3,7 @@
   import SammelInvitationRelease from './SammelInvitationRelease.svelte';
   import { formatDateTime } from '../../lib/format';
   import { isSammelOpen } from '../../lib/sammelbestellung';
-  import type { SammelStaffView } from '../../lib/types';
+  import type { SammelStaffView } from '../../../../api/lib/sammelbestellung-model';
   interface Props {
     view: SammelStaffView;
     busy: boolean;

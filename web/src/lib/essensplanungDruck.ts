@@ -15,12 +15,10 @@ import { ERNAEHRUNG_TEXT, zahlText, zeitraumText } from './essensplanungTeilnehm
 import { parseProtokollMarkdown, type MdBlock, type MdInline } from './protokollMarkdown';
 import type {
   Einplanung,
-  Gericht,
-  GerichtZutat,
   PlanungAnsicht,
   PlanungMahlzeit,
-  PlanungZutat,
-} from './types';
+} from '../../../api/lib/essen-planung-model';
+import type { Gericht, GerichtZutat, PlanungZutat } from '../../../api/lib/essen-gerichte-model';
 
 /**
  * What the views of a Planung show on paper, as plain rows (`docs/essensplanung.md`, PDF): the

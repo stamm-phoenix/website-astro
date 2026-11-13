@@ -1,4 +1,9 @@
-import type { Gericht, PlanungMitglied, PlanungMahlzeit, PlanungTag } from './types';
+import type { Gericht } from '../../../api/lib/essen-gerichte-model';
+import type {
+  PlanungMitglied,
+  PlanungMahlzeit,
+  PlanungTag,
+} from '../../../api/lib/essen-planung-model';
 
 /**
  * Helpers of the plan (`docs/essensplanung.md`, Einplanung): the rows of the calendar, a dish

@@ -14,7 +14,7 @@ import {
 import { pdfText } from './pdfText';
 import { downloadReportPdf } from './pdfTabelle';
 import type { PdfReport, PdfSection } from './pdfTabelle';
-import type { Task, TaskProject, TaskTemplate } from './types';
+import type { Task, TaskProject, TaskTemplate } from '../../../api/lib/aufgaben-model';
 import { taskToday } from './aufgabenView';
 import { taskAssigneeNames, taskPeople } from '../../../api/lib/aufgaben-zuordnung';
 

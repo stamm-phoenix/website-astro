@@ -2,7 +2,7 @@
   import ReloadAction from './ui/ReloadAction.svelte';
   import StaffPageHead from './StaffPageHead.svelte';
   import { onMount, tick } from 'svelte';
-  import type { Task } from '../lib/types';
+  import type { Task } from '../../../api/lib/aufgaben-model';
   import {
     aufgabenStore,
     loadTasks,

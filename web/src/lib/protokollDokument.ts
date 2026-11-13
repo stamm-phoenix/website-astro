@@ -42,7 +42,7 @@ import type {
   ProtokollPunkt,
   ProtokollZeitraum,
   PunktTermin,
-} from './types';
+} from '../../../api/lib/protokoll-editor-model';
 
 /** Transactions that change the agenda itself (this module, the component); the guard lets them through. */
 export const PUNKTE_META = 'protokoll-punkte';

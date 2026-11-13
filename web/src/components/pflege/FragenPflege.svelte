@@ -7,7 +7,7 @@
   import { ApiError, sanitizeDescription, sanitizeFaqAnswer, sendApi } from '../../lib/api';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
   import { faqPflege } from '../../lib/pflegeStore.svelte';
-  import type { StaffQuestionAndAnswer } from '../../lib/types';
+  import type { StaffQuestionAndAnswer } from '../../../../api/lib/qa-list';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';

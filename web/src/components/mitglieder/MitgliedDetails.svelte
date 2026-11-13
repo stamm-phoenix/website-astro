@@ -4,7 +4,7 @@
   import { formatEuro } from '../../lib/format';
   import { isIch } from '../../lib/ichStore.svelte';
   import { mitgliedSeit } from '../../lib/mitglieder';
-  import type { CampflowColumn, CampflowPerson } from '../../lib/types';
+  import type { CampflowColumn, CampflowPerson } from '../../../../api/lib/campflow';
 
   interface Props {
     person: CampflowPerson | null;

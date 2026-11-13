@@ -9,7 +9,7 @@
     isOutsideServicePostalCodes,
     isValidNikolausPostalCode,
   } from '../lib/nikolausConfig';
-  import type { NikolausGeocodeResult, NikolausLocation } from '../lib/types';
+  import type { NikolausGeocodeResult, NikolausLocation } from '../lib/types/nikolaus';
 
   interface Props {
     street: string;

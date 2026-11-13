@@ -7,7 +7,7 @@
   import { formatShortDate } from '../lib/nikolausAdmin';
   import { HELPER_ROLES } from '../lib/nikolausEinteilung';
   import type { HelperRole } from '../lib/nikolausEinteilung';
-  import type { StaffNikolausHelfendeData, StaffNikolausHelper } from '../lib/types';
+  import type { StaffNikolausHelfendeData, StaffNikolausHelper } from '../lib/types/nikolausStaff';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';

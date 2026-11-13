@@ -3,7 +3,7 @@
   import { vorstandStore, fetchVorstand } from '../lib/vorstandStore.svelte';
 
   import { withBaked } from '../lib/storeView';
-  import type { Vorstand } from '../lib/types';
+  import type { Vorstand } from '../lib/types/oeffentlich';
 
   interface Props {
     variant?: 'beige' | 'default';

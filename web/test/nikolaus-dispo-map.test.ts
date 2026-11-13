@@ -9,7 +9,7 @@ import {
 } from '../src/lib/nikolausDispoMap';
 import type { LatLon } from '../src/lib/nikolausDispoMap';
 import type { DispoRoute } from '../src/lib/nikolausDispo';
-import type { StaffNikolausBooking } from '../src/lib/types';
+import type { StaffNikolausBooking } from '../src/lib/types/nikolaus';
 
 const BASE = { name: 'Pfarrheim', lat: 48, lon: 11 };
 

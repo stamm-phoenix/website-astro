@@ -5,7 +5,7 @@ import { HELPER_ROLES, KITCHEN } from './nikolausEinteilung';
 import { helperCoverage } from './nikolausHelfende';
 import { downloadReportPdf } from './pdfTabelle';
 import type { PdfReport } from './pdfTabelle';
-import type { StaffNikolausHelfendeData } from './types';
+import type { StaffNikolausHelfendeData } from './types/nikolausStaff';
 
 /** From this many days on the table of the helpers is printed on landscape pages. */
 const LANDSCAPE_FROM_DAYS = 4;

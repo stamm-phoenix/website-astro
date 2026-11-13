@@ -1,4 +1,4 @@
-import type { Aktion } from './types';
+import type { Aktion } from './types/oeffentlich';
 import { createResource } from './resource.svelte';
 import { loadStateOf } from './storeView';
 

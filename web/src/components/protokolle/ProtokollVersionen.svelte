@@ -6,7 +6,10 @@
   import ModalDialog from '../ui/ModalDialog.svelte';
   import { errorMessage, fetchApi } from '../../lib/api';
   import { REVISION_REASON_LABELS, formatDateTime } from '../../lib/protokollEditor';
-  import type { ProtokollRevision, ProtokollRevisionListItem } from '../../lib/types';
+  import type {
+    ProtokollRevision,
+    ProtokollRevisionListItem,
+  } from '../../../../api/lib/protokoll-editor-model';
 
   interface Props {
     open: boolean;

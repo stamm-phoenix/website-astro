@@ -4,7 +4,7 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { ApiError, errorMessage } from '../../lib/api';
   import { merkeGeoeffnet, planungApi, tokenAusHash, datumLang } from '../../lib/essensplanung';
-  import type { PlanungAnsicht } from '../../lib/types';
+  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
   import PlanTage from './PlanTage.svelte';
   import PlanGerichte from './PlanGerichte.svelte';
   import PlanTeilnehmende from './PlanTeilnehmende.svelte';

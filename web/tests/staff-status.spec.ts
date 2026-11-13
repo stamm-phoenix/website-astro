@@ -1,5 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-import type { SammelPaymentView, SammelStaffView } from '../src/lib/types';
+import type { SammelPaymentView } from '../../api/lib/sammelbestellung-payment-model';
+import type { SammelStaffView } from '../../api/lib/sammelbestellung-model';
 
 test.beforeEach(async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });

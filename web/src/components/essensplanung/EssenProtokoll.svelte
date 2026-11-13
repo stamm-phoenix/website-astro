@@ -1,7 +1,7 @@
 <script lang="ts">
   import { formatDateTime } from '../../lib/format';
   import { describeAudit } from '../../lib/essensplanungSteuerung';
-  import type { EssenAuditEntry } from '../../lib/types';
+  import type { EssenAuditEntry } from '../../../../api/lib/essen-validation';
 
   interface Props {
     entries: EssenAuditEntry[];

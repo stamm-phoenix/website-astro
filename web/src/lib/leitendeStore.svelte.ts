@@ -1,4 +1,4 @@
-import type { Leitende } from './types';
+import type { Leitende } from './types/oeffentlich';
 import { createResource } from './resource.svelte';
 import { loadStateOf } from './storeView';
 

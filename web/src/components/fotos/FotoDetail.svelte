@@ -17,7 +17,7 @@
     startTrack,
     type SwipeTrack,
   } from '../../lib/swipe';
-  import type { FotoFile, FotoFileDetail } from '../../lib/types';
+  import type { FotoFile, FotoFileDetail } from '../../../../api/lib/fotos';
   import {
     NO_ZOOM,
     ZOOM_SNAP,

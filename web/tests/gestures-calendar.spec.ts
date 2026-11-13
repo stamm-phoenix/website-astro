@@ -1,6 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { CDPSession, Locator, Page } from '@playwright/test';
-import type { Aktion } from '../src/lib/types';
+import type { Aktion } from '../src/lib/types/oeffentlich';
 
 // A sideways swipe on the month grid of the public calendar changes the month like the arrow
 // buttons. Real touches go through the browser's own input pipeline (CDP), so `touch-action`

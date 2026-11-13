@@ -3,11 +3,11 @@
   import { minutesToTime } from '../../lib/nikolausDispo';
   import { slotLabel } from '../../lib/nikolausMaps';
   import type { DispoPlannedStop } from '../../lib/nikolausDispo';
+  import type { StaffNikolausBooking } from '../../lib/types/nikolaus';
   import type {
-    StaffNikolausBooking,
     StaffNikolausDispoData,
     StaffNikolausDispoRow,
-  } from '../../lib/types';
+  } from '../../lib/types/nikolausStaff';
   interface Props {
     booking: StaffNikolausBooking;
     planned: DispoPlannedStop;

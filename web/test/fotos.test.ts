@@ -4,7 +4,8 @@ import { buildZip, crc32 } from '../src/lib/fotoZip.ts';
 import { fotoAktionen, recentFotoAktionen, searchFotoAktionen } from '../src/lib/fotoAktionen.ts';
 import { fotoAnsichtHash, readFotoAnsicht } from '../src/lib/fotoAnsicht.ts';
 import { selectFotoFiles, uploadName } from '../src/lib/fotoAuswahl.ts';
-import type { CampflowEvent, StaffAktion } from '../src/lib/types.ts';
+import type { CampflowEvent } from '../src/lib/types/aktionen.ts';
+import type { StaffAktion } from '../../api/lib/aktionen-list.ts';
 
 test('crc32 matches the reference value and continues over parts', () => {
   const bytes = new TextEncoder().encode('123456789');

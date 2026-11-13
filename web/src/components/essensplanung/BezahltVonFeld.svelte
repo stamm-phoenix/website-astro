@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { bezahltVonWahl } from '../../lib/essensplanungBelege';
-  import type { PlanungMitglied } from '../../lib/types';
+  import type { PlanungMitglied } from '../../../../api/lib/essen-planung-model';
 
   /**
    * Who paid a receipt: the own name first, the other members, or „Jemand anderes …“ with a

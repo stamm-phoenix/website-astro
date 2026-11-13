@@ -1,12 +1,7 @@
 // Calculations of the Abrechnung that depend on what is entered on the page: the
 // Materialleihgebühren as a virtual expense and the target of the Abrechnung.
-import type {
-  Abrechnung,
-  AbrechnungPerson,
-  KategorieSumme,
-  LeihgebuehrenTarif,
-  Nachweis,
-} from './types';
+import type { Abrechnung, LeihgebuehrenTarif } from './types/abrechnung';
+import type { AbrechnungPerson, KategorieSumme, Nachweis } from '../../../api/lib/abrechnung';
 
 /** CampFlow category for the fees: the KJR wants them as Unterkunft, not Material. */
 export const LEIHGEBUEHREN_KATEGORIE = 'Unterkunft';

@@ -1,7 +1,11 @@
 import { EINHEITEN_JE_ART, MAX_WERKZEUGE } from '../../../../api/lib/essen-gerichte-model';
 import { mengeFeld, zutatWahl, type ZutatWahl } from '../../lib/essensplanungGerichte';
 import { vorschlagKey, type KiRezeptZeile, type VorschauMenge } from '../../lib/essensplanungKi';
-import type { EssenKatalog, GerichtEinheit, PlanungZutat } from '../../lib/types';
+import type {
+  EssenKatalog,
+  GerichtEinheit,
+  PlanungZutat,
+} from '../../../../api/lib/essen-gerichte-model';
 import type { Vorschlag } from '../../lib/vorschlaege';
 
 /**

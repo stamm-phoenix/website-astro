@@ -1,4 +1,4 @@
-import type { Aktion } from './types';
+import type { Aktion } from './types/oeffentlich';
 import type { PdfReport } from './pdfTabelle';
 
 export function packlisteReport(aktion: Aktion): PdfReport {

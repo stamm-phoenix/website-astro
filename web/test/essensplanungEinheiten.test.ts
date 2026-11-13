@@ -5,7 +5,7 @@ import { lager, vorraetig } from '../src/lib/essensplanungLager.ts';
 import { einkaufsMenge, kochMenge, summiere } from '../src/lib/essensplanungRechnung.ts';
 import { einheitenVorschlaege, vorschau } from '../src/lib/essensplanungEinheiten.ts';
 import { uneinheitlicheZutaten } from '../../api/lib/essen-einheiten-model.ts';
-import type { PlanungZutat } from '../src/lib/types.ts';
+import type { PlanungZutat } from '../../api/lib/essen-gerichte-model.ts';
 
 /** Units of one's own: summed per base unit, rounded up after summing, never converted. */
 

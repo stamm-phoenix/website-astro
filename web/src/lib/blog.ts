@@ -1,6 +1,6 @@
 import { canvasToJpeg } from './image';
 import { SAFE_URL, TEXT_NODE, isElement, parseHtml } from './html';
-import type { BlogImage } from './types';
+import type { BlogImage } from './blogTypes';
 
 /**
  * Helpers for blog posts. The content is stored as canonical HTML: a few formatting tags,

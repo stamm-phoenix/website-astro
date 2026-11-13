@@ -9,7 +9,7 @@ import {
   punktAnZeile,
 } from '../src/lib/protokollMarkdownDokument.ts';
 import { personFinder } from '../src/lib/protokollMarkdownZeilen.ts';
-import type { ProtokollPunkt } from '../src/lib/types.ts';
+import type { ProtokollPunkt } from '../../api/lib/protokoll-editor-model.ts';
 
 const LEA = { login: 'lea', name: 'Lea Leiterin' };
 const finde = personFinder([LEA]);

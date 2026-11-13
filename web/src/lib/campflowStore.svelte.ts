@@ -1,6 +1,6 @@
 import { errorMessage, fetchApi } from './api';
 import { createResource } from './resource.svelte';
-import type { AktionBeitraegeData, CampflowEvent, CampflowEventDetail } from './types';
+import type { AktionBeitraegeData, CampflowEvent, CampflowEventDetail } from './types/aktionen';
 
 interface CampflowEventsState {
   data: CampflowEvent[] | null;

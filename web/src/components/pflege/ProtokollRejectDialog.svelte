@@ -2,7 +2,7 @@
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import { ApiError, errorMessage } from '../../lib/api';
-  import type { StaffProtokoll } from '../../lib/types';
+  import type { StaffProtokoll } from '../../../../api/lib/protokolle';
   interface Props {
     rejecting: { protokoll: StaffProtokoll; note: string } | null;
     busyId: string | null;

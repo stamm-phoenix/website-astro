@@ -1,6 +1,6 @@
 import { isAktion } from './aktionArt';
 import { kjrFristStand } from './kjrFristen';
-import type { CampflowEvent } from './types';
+import type { CampflowEvent } from './types/aktionen';
 
 interface AbrechnungGroup {
   id: string;

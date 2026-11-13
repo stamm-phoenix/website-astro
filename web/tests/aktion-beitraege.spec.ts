@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { test, expect } from './fixtures';
 import { formatName, personStatus } from '../src/lib/campflowFields';
-import type { AktionBeitraegeData, CampflowEventDetail } from '../src/lib/types';
+import type { AktionBeitraegeData, CampflowEventDetail } from '../src/lib/types/aktionen';
 
 const EVENT = 'evt_Sola26';
 const PAGE = `/leitendenbereich/aktionen/aktion?id=${EVENT}`;

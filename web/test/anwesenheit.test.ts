@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { averageMembers, monthlyStats } from '../src/lib/anwesenheit.ts';
-import type { AnwesenheitMeeting } from '../src/lib/types.ts';
+import type { AnwesenheitMeeting } from '../../api/lib/anwesenheit-model.ts';
 
 function meeting(date: string, members: number, cancelled = false): AnwesenheitMeeting {
   return { stufe: 'Wölflinge', date, members, excused: 1, guests: 0, notes: '', cancelled };

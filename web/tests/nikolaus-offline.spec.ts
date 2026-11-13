@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import type { Page } from '@playwright/test';
-import type { StaffNikolausFahrtData } from '../src/lib/types';
+import type { StaffNikolausFahrtData } from '../src/lib/types/nikolausStaff';
 
 const URL = '/leitendenbereich/nikolaus-fahrt?tag=2026-12-05&team=A';
 const KEY = 'nikolaus-fahrt-offline-v1';

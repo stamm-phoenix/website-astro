@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { helfendePdfReport } from '../src/lib/nikolausHelfendePdf';
-import type { StaffNikolausHelfendeData } from '../src/lib/types';
+import type { StaffNikolausHelfendeData } from '../src/lib/types/nikolausStaff';
 
 const data: StaffNikolausHelfendeData = {
   persons: [

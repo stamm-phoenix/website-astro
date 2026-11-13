@@ -4,7 +4,7 @@
   import LeaderAvatar from './LeaderAvatar.svelte';
   import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
   import { withBaked } from '../lib/storeView';
-  import type { Vorstand } from '../lib/types';
+  import type { Vorstand } from '../lib/types/oeffentlich';
 
   interface Props {
     /** Baked at build time; refreshed from the API in the browser */

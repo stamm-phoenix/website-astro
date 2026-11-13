@@ -25,7 +25,7 @@
     SAMMEL_MAX_KATALOG_ARTIKEL,
     getSammelProductImage,
   } from '../../lib/sammelKatalog';
-  import type { SammelAktion } from '../../lib/types';
+  import type { SammelAktion } from '../../../../api/lib/sammelbestellung-model';
 
   const BASE = '/intern/pflege/sammelbestellungen';
   // Kept across pages: a revisit shows the last loaded list at once while it loads again

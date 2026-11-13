@@ -3,7 +3,7 @@
   import { saveKeineAktion } from '../../lib/aktionZuschuss';
   import { confirmAction } from '../../lib/confirm';
   import { errorMessage } from '../../lib/api';
-  import type { CampflowEvent } from '../../lib/types';
+  import type { CampflowEvent } from '../../lib/types/aktionen';
   import type { Notice } from '../../lib/status';
   import ActionButton from '../ui/ActionButton.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';

@@ -1,4 +1,4 @@
-import type { Aktion } from './types';
+import type { Aktion } from './types/oeffentlich';
 import { downloadReportPdf } from './pdfTabelle';
 import { packlisteReport } from './packlisteRows';
 

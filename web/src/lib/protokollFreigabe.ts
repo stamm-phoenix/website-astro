@@ -1,7 +1,10 @@
 import { aufgabenAnzahl } from '../../../api/lib/protokoll-editor-model';
 import { erwaehnungenIn } from '../../../api/lib/protokoll-markdown';
 import { parseProtokollMarkdown } from './protokollMarkdown';
-import type { ProtokollFreigabeResponse, ProtokollInhalt } from './types';
+import type {
+  ProtokollFreigabeResponse,
+  ProtokollInhalt,
+} from '../../../api/lib/protokoll-editor-model';
 
 /**
  * The names of the people mentioned in the minutes, once each and without the approving person,

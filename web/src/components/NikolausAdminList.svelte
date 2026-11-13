@@ -11,7 +11,7 @@
     formatSlotKey,
   } from '../lib/nikolausAdmin';
   import type { BookingProblem } from '../lib/nikolausAdmin';
-  import type { NikolausBookingStatus, StaffNikolausBooking } from '../lib/types';
+  import type { NikolausBookingStatus, StaffNikolausBooking } from '../lib/types/nikolaus';
 
   interface Props {
     bookings: StaffNikolausBooking[];

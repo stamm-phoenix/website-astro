@@ -1,4 +1,4 @@
-import type { DownloadFile } from './types';
+import type { DownloadFile } from './types/oeffentlich';
 import { bakedUrl } from './bakedImages';
 import { createResource } from './resource.svelte';
 import { loadStateOf } from './storeView';

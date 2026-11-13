@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Aktion } from '../lib/types';
+  import type { Aktion } from '../lib/types/oeffentlich';
   import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
   import { getDownloadFileUrl } from '../lib/downloadsStore.svelte';
   interface Props {

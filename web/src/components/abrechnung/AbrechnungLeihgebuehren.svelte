@@ -11,7 +11,7 @@
   } from '../../lib/abrechnungRechnung';
   import type { Leihgebuehren } from '../../lib/abrechnungRechnung';
   import { formatEuro } from '../../lib/format';
-  import type { Abrechnung } from '../../lib/types';
+  import type { Abrechnung } from '../../lib/types/abrechnung';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { confirmAction } from '../../lib/confirm';
 

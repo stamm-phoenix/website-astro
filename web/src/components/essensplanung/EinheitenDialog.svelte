@@ -16,7 +16,7 @@
     type KiEinheiten,
   } from '../../../../api/lib/essen-einheiten-model';
   import { einheitText } from '../../../../api/lib/essen-gerichte-model';
-  import type { PlanungZutat } from '../../lib/types';
+  import type { PlanungZutat } from '../../../../api/lib/essen-gerichte-model';
   import type { PlanKontext } from './planKontext';
 
   /**

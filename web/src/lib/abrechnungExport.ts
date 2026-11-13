@@ -3,7 +3,7 @@ import { leihgebuehrenBeschluss } from './abrechnungRechnung';
 import type { Leihgebuehren } from './abrechnungRechnung';
 import type { PdfLeihgebuehren } from './abrechnungLeihgebuehrenPdf';
 import { formatDate } from './campflowFields';
-import type { Abrechnung } from './types';
+import type { Abrechnung } from './types/abrechnung';
 import { fetchVorstand, vorstandStore } from './vorstandStore.svelte';
 
 /** The letter of the Materialleihgebühren, with the Stammesvorsitzende from the Leitende list. */

@@ -2,7 +2,8 @@ import { fetchApi } from './api';
 import { authStore, fetchPrincipal, isOwnName } from './authStore.svelte';
 import { istVerknuepftePerson } from './personen';
 import type { PersonMerkmale } from './personen';
-import type { CampflowPerson, Ich } from './types';
+import type { CampflowPerson } from '../../../api/lib/campflow';
+import type { Ich } from '../../../api/lib/personen-model';
 
 /**
  * The logged-in person and their CampFlow person from the module „Personen“

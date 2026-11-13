@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
-import type { StaffProtokoll, StaffProtokolleData } from '../src/lib/types';
+import type { StaffProtokoll } from '../../api/lib/protokolle';
+import type { StaffProtokolleData } from '../src/lib/types/protokolle';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 test.beforeEach(async ({ page }, testInfo) => {

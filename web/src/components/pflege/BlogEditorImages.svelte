@@ -4,7 +4,7 @@
   import { blogPflege } from '../../lib/pflegeStore.svelte';
   import { getStaffBlogImageUrl, toScaledJpeg } from '../../lib/blog';
   import { confirmAction } from '../../lib/confirm';
-  import type { BlogImage } from '../../lib/types';
+  import type { BlogImage } from '../../lib/blogTypes';
   interface ImagesResponse {
     etag: string;
     images: BlogImage[];

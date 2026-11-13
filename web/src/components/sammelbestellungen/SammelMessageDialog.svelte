@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ApiError, sendApi } from '../../lib/api';
-  import type { SammelBestellung } from '../../lib/types';
+  import type { SammelBestellung } from '../../../../api/lib/sammelbestellung-model';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';

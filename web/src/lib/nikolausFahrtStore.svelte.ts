@@ -8,7 +8,7 @@ import type {
   StaffNikolausFahrtData,
   StaffNikolausFahrtStop,
   StaffNikolausFahrtVisit,
-} from './types';
+} from './types/nikolausStaff';
 
 interface NikolausFahrtStoreState {
   data: StaffNikolausFahrtData | null;

@@ -1,6 +1,10 @@
 import { sendApi } from './api';
 import { createResource } from './resource.svelte';
-import type { ProtokollAktion, ProtokollEditorAufgaben, ProtokollProjektOption } from './types';
+import type {
+  ProtokollAktion,
+  ProtokollEditorAufgaben,
+  ProtokollProjektOption,
+} from '../../../api/lib/protokoll-editor-model';
 
 /**
  * The module Aufgaben in the Protokoll-Editor (#277, step 3): its projects, to link one to an

@@ -17,7 +17,7 @@
   import { formatEuro } from '../../lib/format';
   import { confirmAction } from '../../lib/confirm';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
-  import type { Abrechnung } from '../../lib/types';
+  import type { Abrechnung } from '../../lib/types/abrechnung';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';

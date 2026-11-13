@@ -2,8 +2,8 @@ import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type {
   StaffNikolausOverview,
   StaffNikolausHelfendeData,
-  StaffNikolausSteuerung,
-} from '../src/lib/types';
+} from '../src/lib/types/nikolausStaff';
+import type { StaffNikolausSteuerung } from '../src/lib/types/nikolaus';
 
 test.beforeEach(async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });

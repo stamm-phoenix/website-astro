@@ -4,7 +4,7 @@
   import BelegStatusLabel from './BelegStatusLabel.svelte';
   import BelegCampflowTransfer from './BelegCampflowTransfer.svelte';
   import type { BelegForm } from '../../lib/belegForm';
-  import type { BelegStatus } from '../../lib/types';
+  import type { BelegStatus } from '../../../../api/lib/validation/beleg';
   interface Props {
     form: BelegForm;
     reviewer: boolean;

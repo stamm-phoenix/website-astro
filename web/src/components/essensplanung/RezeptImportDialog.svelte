@@ -14,7 +14,7 @@
     type KiGericht,
     type KiRezept,
   } from '../../lib/essensplanungKi';
-  import type { EssenKatalog, Gericht } from '../../lib/types';
+  import type { EssenKatalog, Gericht } from '../../../../api/lib/essen-gerichte-model';
   import type { PlanKontext } from './planKontext';
   import GeneriertKopf from './GeneriertKopf.svelte';
   import RezeptVorschau from './RezeptVorschau.svelte';

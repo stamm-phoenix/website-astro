@@ -15,7 +15,11 @@
   } from '../../lib/protokollMarkdownDokument';
   import type { DokumentProblem } from '../../lib/protokollMarkdownDokument';
   import { personFinder, schluesselOf } from '../../lib/protokollMarkdownZeilen';
-  import type { PersonOption, ProtokollPerson, ProtokollPunkt } from '../../lib/types';
+  import type {
+    PersonOption,
+    ProtokollPerson,
+    ProtokollPunkt,
+  } from '../../../../api/lib/protokoll-editor-model';
 
   /**
    * The agenda as one Markdown text (#613, `lib/protokollMarkdownDokument.ts`). Every input is

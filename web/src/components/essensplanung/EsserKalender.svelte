@@ -1,7 +1,7 @@
 <script lang="ts">
   import { datumKurz } from '../../lib/essensplanung';
   import { kalenderZeilen } from '../../lib/essensplanungPlan';
-  import type { PlanungAnsicht } from '../../lib/types';
+  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
   import type { esserJeMahlzeit } from '../../../../api/lib/essen-teilnehmende-model';
 
   /**

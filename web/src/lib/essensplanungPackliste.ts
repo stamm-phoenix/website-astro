@@ -1,6 +1,7 @@
 import { packlisteSchluessel } from '../../../api/lib/essen-packliste-model';
 import { einplanungKennung } from './essensplanungEinplanung';
-import type { PackZuteilung, PacklisteEintrag, PlanungAnsicht, PlanungMitglied } from './types';
+import type { PackZuteilung, PacklisteEintrag } from '../../../api/lib/essen-packliste-model';
+import type { PlanungAnsicht, PlanungMitglied } from '../../../api/lib/essen-planung-model';
 
 /**
  * The packing list of a Planung (`docs/essensplanung.md`, Packliste): the tools of all planned
