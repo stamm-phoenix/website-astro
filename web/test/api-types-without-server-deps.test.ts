@@ -29,7 +29,9 @@ function files(dir: string): string[] {
 function specifiers(path: string): string[] {
   let text = readFileSync(path, 'utf8');
   if (path.endsWith('.svelte')) {
-    text = [...text.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map((hit) => hit[1]).join('\n');
+    text = [...text.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)]
+      .map((hit) => hit[1])
+      .join('\n');
   }
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
   const found: string[] = [];
@@ -95,4 +97,5 @@ test('a file of web/ imports no API module that reaches a package only api/ inst
     }
   }
   assert.deepEqual(offenders.sort(), []);
-});
+  // Parses every file of web/ and follows its API imports; CI runners need more than the default 5 s
+}, 30_000);
