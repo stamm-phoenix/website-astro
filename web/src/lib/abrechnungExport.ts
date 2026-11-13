@@ -1,7 +1,7 @@
 // Data for the PDF exports that combine the Abrechnung with other sources.
 import { leihgebuehrenBeschluss } from './abrechnungRechnung';
 import type { Leihgebuehren } from './abrechnungRechnung';
-import type { PdfLeihgebuehren } from './abrechnungPdf';
+import type { PdfLeihgebuehren } from './abrechnungLeihgebuehrenPdf';
 import { formatDate } from './campflowFields';
 import type { Abrechnung } from './types';
 import { fetchVorstand, vorstandStore } from './vorstandStore.svelte';

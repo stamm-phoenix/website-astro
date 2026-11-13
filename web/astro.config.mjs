@@ -5,6 +5,7 @@ import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 import bakedContent from './integrations/bakedContent';
+import changelogIds from './integrations/changelogIds';
 import optimizeSvgs from './integrations/optimizeSvg';
 
 // Baked dates and times are rendered like in the browser of our visitors
@@ -69,7 +70,7 @@ export default defineConfig({
       process.env.MOCK_API === '1'
         ? `node_modules/.vite-mock${process.env.VITE_CACHE_SUFFIX ?? ''}`
         : undefined,
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss(), changelogIds()],
     resolve: {
       // The demo API loads the validators of api/lib, which import zod; the CI installs only web/.
       alias: { zod: fileURLToPath(new URL('./node_modules/zod', import.meta.url)) },

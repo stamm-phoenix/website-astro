@@ -15,7 +15,7 @@ import {
   stelleEingabenWiederHer,
 } from '../src/lib/abrechnungEingaben';
 import type { EingabenIo, EingabenRegistry, StoredSession } from '../src/lib/abrechnungEingaben';
-import { ABRECHNUNG_STORAGE_PREFIX } from '../src/lib/abrechnungAblage';
+import { ABRECHNUNG_STORAGE_PREFIX } from '../src/lib/staffStorageKeys';
 import { ApiError } from '../src/lib/apiError';
 import { emptySession } from '../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe, AbrechnungSession } from '../../api/lib/abrechnung-session';

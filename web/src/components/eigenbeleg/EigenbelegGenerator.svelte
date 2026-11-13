@@ -8,7 +8,6 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
-  import { downloadEigenbelegPdf } from '../../lib/abrechnungPdf';
   import { pdfFileName } from '../../lib/pdfBasis';
   import { parseEuroToCent } from '../../lib/belege';
   import { formatEuro, todayIso } from '../../lib/format';
@@ -130,6 +129,7 @@
       const art = ZAHLUNGSARTEN.find((z) => z.id === beleg.zahlungsart)?.label ?? '';
       // The PDF has these values, even if the form is changed while it is created
       const snapshot = JSON.stringify(beleg);
+      const { downloadEigenbelegPdf } = await import('../../lib/eigenbelegPdf');
       await downloadEigenbelegPdf(
         {
           aussteller: beleg.aussteller.trim(),

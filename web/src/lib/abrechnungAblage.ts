@@ -2,8 +2,7 @@
 // can contain names, ages and Postleitzahlen of participants, so they are deleted one month after
 // the KJR deadline. Free of Svelte, so that BaseLayout can remove expired entries on every page.
 import { addMonths } from './kjrFristen';
-
-export const ABRECHNUNG_STORAGE_PREFIX = 'phoenix:abrechnung:v1:';
+import { ABRECHNUNG_STORAGE_PREFIX } from './staffStorageKeys';
 
 /** Months after the KJR deadline until the entries of an Aktion are deleted from the device. */
 export const ABRECHNUNG_AUFBEWAHRUNG_MONATE = 1;

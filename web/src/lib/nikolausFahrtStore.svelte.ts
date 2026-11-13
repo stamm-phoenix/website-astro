@@ -1,9 +1,8 @@
 import { saveRouteShell, forgetRouteShell } from './nikolausRouteShell';
 import { ApiError, fetchApi, sendApi } from './api';
 import { authStore, fetchPrincipal } from './authStore.svelte';
+import { FAHRT_OWNER_KEY, FAHRT_STORAGE_KEY } from './staffStorageKeys';
 import {
-  FAHRT_OWNER_KEY,
-  FAHRT_STORAGE_KEY,
   FAHRT_TTL_MS,
   ownRoute,
   readFahrtSnapshot,

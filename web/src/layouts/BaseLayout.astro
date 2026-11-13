@@ -181,36 +181,44 @@ const websiteLd = {
 </html>
 
 <script>
-  import { forgetRouteShell } from '../lib/nikolausRouteShell';
   import { initTheme } from '../lib/theme';
-  initTheme();
   import {
+    ABRECHNUNG_STORAGE_PREFIX,
     FAHRT_OWNER_KEY,
     FAHRT_STORAGE_KEY,
-    readFahrtSnapshot,
-  } from '../lib/nikolausFahrtOffline';
-  import { removeExpiredAbrechnungen } from '../lib/abrechnungAblage';
-  import { localDate } from '../lib/dateUtils';
-  import { RESCUE_KEY } from '../lib/geretteteEingaben';
+    RESCUE_KEY,
+    ROUTE_SHELL_CACHE,
+  } from '../lib/staffStorageKeys';
+  initTheme();
 
-  // Expiry is checked on every site visit, even outside the Fahrt view.
+  // Local data of the Leitendenbereich expires on every site visit, even outside its pages. The
+  // check for the entries is cheap; the code that decides what has expired is loaded only when
+  // an entry exists, so visitors of the public site do not download it.
+  function hasStoredAbrechnung(): boolean {
+    for (let index = 0; index < localStorage.length; index++) {
+      if (localStorage.key(index)?.startsWith(ABRECHNUNG_STORAGE_PREFIX)) return true;
+    }
+    return false;
+  }
   function expireStoredRoute(): void {
     try {
-      const raw = localStorage.getItem(FAHRT_STORAGE_KEY);
-      if (raw) {
-        const owner = (JSON.parse(raw) as { owner?: unknown }).owner;
-        if (!readFahrtSnapshot(typeof owner === 'string' ? owner : '')) void forgetRouteShell();
-      }
+      if (localStorage.getItem(FAHRT_STORAGE_KEY) === null) return;
     } catch {
-      try {
-        localStorage.removeItem(FAHRT_STORAGE_KEY);
-      } catch {
-        /* Storage unavailable. */
-      }
+      return; // Storage unavailable: nothing is kept that could expire
     }
+    void import('../lib/staffStorageExpiry').then((expiry) => expiry.expireStoredRoute());
+  }
+  function expireStoredAbrechnungen(): void {
+    try {
+      if (!hasStoredAbrechnung()) return;
+    } catch {
+      return; // Storage unavailable: nothing is kept that could expire
+    }
+    void import('../lib/staffStorageExpiry').then((expiry) => expiry.expireStoredAbrechnungen());
   }
   expireStoredRoute();
   document.addEventListener('astro:page-load', expireStoredRoute);
+  expireStoredAbrechnungen();
   // „Problem melden“ in the footers names the page that is open now. The built page can be another
   // one (a detail page served for /leitendenbereich/abrechnung/<id>), so the link learns it here.
   function markProblemLinks(): void {
@@ -224,8 +232,7 @@ const websiteLd = {
   }
   markProblemLinks();
   document.addEventListener('astro:page-load', markProblemLinks);
-  // Abrechnung entries contain personal data: gone one month after the KJR deadline
-  removeExpiredAbrechnungen(localDate());
+  // The logout leaves the page at once, so the local data goes before anything is loaded.
   document.addEventListener('click', (event) => {
     if (
       event.target instanceof Element &&
@@ -235,7 +242,7 @@ const websiteLd = {
         localStorage.removeItem(FAHRT_STORAGE_KEY);
         sessionStorage.removeItem(FAHRT_OWNER_KEY);
         sessionStorage.removeItem(RESCUE_KEY);
-        void forgetRouteShell();
+        if ('caches' in window) void caches.delete(ROUTE_SHELL_CACHE);
       } catch {
         /* Storage unavailable. */
       }

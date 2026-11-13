@@ -15,31 +15,31 @@ export interface ChangelogEntry {
 }
 
 /** The entries ordered by ID, the newest first; an ID starts with the date and the number of the day. */
-export function sortedNewestFirst(entries: readonly ChangelogEntry[]): ChangelogEntry[] {
+export function sortedNewestFirst<E extends { id: string }>(entries: readonly E[]): E[] {
   return [...entries].sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
 }
 
 /** The entries newer than `lastSeenId`; all of them while nothing has been seen. */
-export function unseenEntries(
-  entries: readonly ChangelogEntry[],
+export function unseenEntries<E extends { id: string }>(
+  entries: readonly E[],
   lastSeenId: string | null
-): ChangelogEntry[] {
+): E[] {
   if (lastSeenId === null) return [...entries];
   return entries.filter((entry) => entry.id > lastSeenId);
 }
 
 /** Keeps a new account's notice useful without pretending older entries were read. */
-export function recentUnseenEntries(
-  entries: readonly ChangelogEntry[],
+export function recentUnseenEntries<E extends { id: string }>(
+  entries: readonly E[],
   lastSeenId: string | null,
   limit: number
-): ChangelogEntry[] {
+): E[] {
   const unseen = unseenEntries(entries, lastSeenId);
   return lastSeenId === null ? unseen.slice(0, Math.max(0, limit)) : unseen;
 }
 
 /** The ID of the newest entry, or `null` for an empty changelog. */
-export function newestEntryId(entries: readonly ChangelogEntry[]): string | null {
+export function newestEntryId(entries: readonly { id: string }[]): string | null {
   return entries.reduce<string | null>(
     (newest, entry) => (newest === null || entry.id > newest ? entry.id : newest),
     null

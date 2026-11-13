@@ -1,5 +1,5 @@
-/** Only the route's static page and loaded assets, never API or authentication responses. */
-export const ROUTE_SHELL_CACHE = 'nikolaus-route-shell-v1';
+import { ROUTE_SHELL_CACHE } from './staffStorageKeys';
+
 export const ROUTE_SHELL_PATH = '/leitendenbereich/nikolaus-fahrt';
 const META = '/leitendenbereich/nikolaus-route-expiry';
 const WORKER = '/leitendenbereich/nikolaus-route-sw.js';
