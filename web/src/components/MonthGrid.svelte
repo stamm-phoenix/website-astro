@@ -3,17 +3,13 @@
   import ActionButton from './ui/ActionButton.svelte';
   import { localDate } from '../lib/dateUtils';
   import {
-    SWIPE_START,
     commits,
-    moveTrack,
     panelDuration,
-    releaseVelocity,
     settleDuration,
     settleEasing,
     settleTransition,
-    startTrack,
-    type SwipeTrack,
   } from '../lib/swipe';
+  import { swipeX } from '../lib/swipeAction';
   import type { CalendarItem } from '../lib/types/aktionen';
 
   interface Props {
@@ -41,7 +37,6 @@
   let settleMs = $state(0);
   /** Curve of the settle back, starting at the speed of the released finger. */
   let settleCurve = $state('var(--motion-enter)');
-  let swipe: { track: SwipeTrack; axis: 'x' | null; width: number } | null = null;
 
   /** Bars per week row; further Aktionen are counted per day as „+N“. */
   const MAX_LANES = 3;
@@ -208,52 +203,15 @@
    * sideways. Vertical movement and pinching stay with the browser, so the page still scrolls.
    * Months have no first or last one, so every swipe can change the month.
    */
-  function swipeArea(area: HTMLElement): () => void {
-    function start(event: TouchEvent): void {
-      if (event.touches.length !== 1) {
-        cancel();
-        return;
-      }
-      const touch = event.touches[0]!;
-      swipe = {
-        track: startTrack(touch.clientX, touch.clientY, event.timeStamp),
-        axis: null,
-        width: area.clientWidth,
-      };
-    }
-
-    function move(event: TouchEvent): void {
-      if (!swipe) return;
-      if (event.touches.length !== 1) {
-        cancel();
-        return;
-      }
-      const touch = event.touches[0]!;
-      const dx = touch.clientX - swipe.track.startX;
-      const dy = touch.clientY - swipe.track.startY;
-      if (swipe.axis === null) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_START) return;
-        if (Math.abs(dx) <= Math.abs(dy)) {
-          swipe = null;
-          return;
-        }
-        swipe.axis = 'x';
-      }
-      if (event.cancelable) event.preventDefault();
-      moveTrack(swipe.track, touch.clientX, touch.clientY, event.timeStamp);
+  const swipeMonths = swipeX({
+    onmove({ dx }) {
       settleMs = 0;
       offset = dx;
-    }
-
-    function end(event: TouchEvent): void {
-      const ended = swipe;
-      swipe = null;
-      if (!ended || ended.axis !== 'x') return;
-      const dx = ended.track.lastX - ended.track.startX;
-      const velocity = releaseVelocity(ended.track, 'x', event.timeStamp);
+    },
+    onrelease({ dx, velocity, width }) {
       const step = dx < 0 ? 1 : -1;
       // Distance and speed in the direction of the swipe
-      if (commits(-step * dx, -step * velocity, ended.width / 4)) {
+      if (commits(-step * dx, -step * velocity, width / 4)) {
         // The new month appears in place; it does not slide in from the old position
         settleMs = 0;
         offset = 0;
@@ -261,24 +219,9 @@
       } else {
         settle(step * velocity);
       }
-    }
-
-    function cancel(): void {
-      if (swipe?.axis === 'x') settle(0);
-      swipe = null;
-    }
-
-    area.addEventListener('touchstart', start, { passive: true });
-    area.addEventListener('touchmove', move, { passive: false });
-    area.addEventListener('touchend', end);
-    area.addEventListener('touchcancel', cancel);
-    return () => {
-      area.removeEventListener('touchstart', start);
-      area.removeEventListener('touchmove', move);
-      area.removeEventListener('touchend', end);
-      area.removeEventListener('touchcancel', cancel);
-    };
-  }
+    },
+    oncancel: () => settle(0),
+  });
 
   function select(day: string): void {
     if (day.slice(0, 7) !== month) {
@@ -320,7 +263,7 @@
   </div>
 
   <!-- A sideways swipe changes the month; the clip keeps the moved grid from widening the page -->
-  <div class="month-swipe" {@attach swipeArea}>
+  <div class="month-swipe" {@attach swipeMonths}>
     <div
       class="surface overflow-hidden p-0"
       style:translate={offset ? `${offset}px 0` : null}

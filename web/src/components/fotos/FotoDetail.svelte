@@ -17,6 +17,7 @@
     startTrack,
     type SwipeTrack,
   } from '../../lib/swipe';
+  import { onTouch } from '../../lib/swipeAction';
   import type { FotoFile, FotoFileDetail } from '../../../../api/lib/fotos-model';
   import {
     NO_ZOOM,
@@ -511,20 +512,14 @@
       drag = null;
     }
 
-    area.addEventListener('touchstart', start, { passive: true });
-    area.addEventListener('touchmove', move, { passive: false });
-    area.addEventListener('touchend', end);
-    area.addEventListener('touchcancel', cancel);
+    const removeTouch = onTouch(area, { start, move, end, cancel });
     area.addEventListener('pointerdown', pointerdown);
     area.addEventListener('pointermove', pointermove);
     area.addEventListener('pointerup', pointerup);
     area.addEventListener('pointercancel', pointerup);
     return () => {
       photoArea = null;
-      area.removeEventListener('touchstart', start);
-      area.removeEventListener('touchmove', move);
-      area.removeEventListener('touchend', end);
-      area.removeEventListener('touchcancel', cancel);
+      removeTouch();
       area.removeEventListener('pointerdown', pointerdown);
       area.removeEventListener('pointermove', pointermove);
       area.removeEventListener('pointerup', pointerup);

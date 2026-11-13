@@ -13,7 +13,12 @@
     TASK_ENDPOINT,
   } from '../../lib/aufgabenStore.svelte';
   import { createTaskActions } from '../../lib/aufgabenActions.svelte';
-  import { pendingTask, matchesTaskFilters, sortTasks, protocolLabel } from '../../lib/aufgabenView';
+  import {
+    pendingTask,
+    matchesTaskFilters,
+    sortTasks,
+    protocolLabel,
+  } from '../../lib/aufgabenView';
   import ActionButton from '../ui/ActionButton.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
