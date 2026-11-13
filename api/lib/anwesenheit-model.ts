@@ -1,6 +1,6 @@
 /**
  * Shapes of the Anwesenheit API (`docs/anwesenheit.md`). Shared with the frontend
- * (`web/src/lib/types.ts`), so keep this module free of imports and Node/browser-specific APIs.
+ * (`web/src/lib/types/`), so keep this module free of imports and Node/browser-specific APIs.
  */
 
 /** URL names of the Stufen, the same keys as the filters of `web/src/lib/events.ts`. */

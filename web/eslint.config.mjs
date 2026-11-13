@@ -8,6 +8,54 @@ import configPrettier from 'eslint-config-prettier';
 import pluginPrettier from 'eslint-plugin-prettier';
 import pluginPlaywright from 'eslint-plugin-playwright';
 
+/**
+ * Modules of `api/lib` that the browser may import as values. They import no zod (checked by
+ * `test/browser-code-without-zod.test.ts`), unlike most validators, schemas and data access.
+ * Types come from any module: `import type` is erased. Check a new module before listing it.
+ */
+const BROWSER_SAFE_API_MODULES = [
+  'abrechnung-session',
+  'abstimmung-model',
+  'aktion-stufen',
+  'anwesenheit-model',
+  'aufgaben-zuordnung',
+  'calendar-day',
+  'campflow-groups',
+  'changelog-id',
+  'download-file-name',
+  'etag-version',
+  'essen-einheiten-model',
+  'essen-einkaeufe-model',
+  'essen-einkauf-model',
+  'essen-gerichte-model',
+  'essen-packliste-model',
+  'essen-planung-model',
+  'essen-teilnehmende-model',
+  'foto-pfade',
+  'help-contacts',
+  'inventur-model',
+  'kjr-zuschuss',
+  'kontakt-validation',
+  'nikolaus-config',
+  'nikolaus-dispo',
+  'nikolaus-einteilung',
+  'nikolaus-validation',
+  'personen-model',
+  'postfach-liste',
+  'postfach-model',
+  'problemmeldung-model',
+  'protokoll-editor-model',
+  'protokoll-korrektur-model',
+  'protokoll-markdown',
+  'protokoll-zeitraum',
+  'sammelbestellung-export',
+  'sammelbestellung-model',
+  'sammelbestellung-shops',
+  'sammelbestellung-stamm',
+  'schnupper-model',
+  'staff-settings-model',
+];
+
 export default tseslint.config(
   {
     // Global ignores
@@ -89,6 +137,38 @@ export default tseslint.config(
     },
     rules: {
       'prettier/prettier': 'error',
+    },
+  },
+
+  // zod must not reach the browser bundle: from `api/lib` only the modules above are imported as values
+  {
+    files: ['src/**/*.{ts,svelte}'],
+    ignores: ['src/lib/content/**'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'zod',
+              message: 'zod must not reach the browser bundle.',
+              allowTypeImports: true,
+            },
+          ],
+          patterns: [
+            {
+              group: [
+                'zod/*',
+                '**/api/lib/**',
+                ...BROWSER_SAFE_API_MODULES.map((module) => `!**/api/lib/${module}`),
+              ],
+              allowTypeImports: true,
+              message:
+                'Import values only from api modules without zod (BROWSER_SAFE_API_MODULES in eslint.config.mjs); use import type for types.',
+            },
+          ],
+        },
+      ],
     },
   },
 
