@@ -5,13 +5,9 @@ import { EnvironmentVariable, getEnvironment } from './environment';
 import { CONFIG } from './config';
 import { VersionConflictError } from './db';
 import { ensureCampflowExpenseAssignment, PlaywrightApiError } from './playwright-api';
-import {
-  getSammelOrder,
-  isSammelDuplicate,
-  updateSammelOrder,
-  publicSammelOrder,
-} from './sammelbestellung-list';
-import type { OrderRow, SammelOrderChanges } from './sammelbestellung-list';
+import { getSammelOrder, updateSammelOrder, publicSammelOrder } from './sammelbestellung-list';
+import { isSammelDuplicate } from './sammelbestellung-list-basis';
+import type { OrderRow, SammelOrderChanges } from './sammelbestellung-list-basis';
 import type { SammelAktion, SammelStatus } from './sammelbestellung-model';
 import type { ClientPrincipal } from './staff-auth';
 import { ValidationError } from './validation/errors';

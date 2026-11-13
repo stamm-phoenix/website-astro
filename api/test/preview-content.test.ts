@@ -8,6 +8,7 @@ import { seedPreviewQuestions } from '../lib/db-preview-faq';
 import { seedPreviewSammel } from '../lib/db-preview-sammel';
 import * as env from '../lib/environment';
 import * as list from '../lib/sammelbestellung-list';
+import type { SammelOrderChanges } from '../lib/sammelbestellung-list-basis';
 import { getSammelCampaigns, getSammelOrders } from '../lib/sammelbestellung-list';
 import { deleteQuestionAndAnswer, getStaffQuestionsAndAnswers } from '../lib/qa-list';
 import { dbTest, resetDatabase } from './fixtures/database';
@@ -108,7 +109,7 @@ dbTest(
       const write = t.mock.method(
         list,
         'updateSammelOrder',
-        async (id: string, changes: list.SammelOrderChanges, etag: string) => {
+        async (id: string, changes: SammelOrderChanges, etag: string) => {
           if (changes.payment?.event.action === stopBefore) throw new Error('Stopped');
           return original(id, changes, etag);
         }

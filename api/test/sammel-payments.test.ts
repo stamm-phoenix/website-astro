@@ -13,6 +13,7 @@ import * as fees from '../lib/campflow-fees';
 import * as playwright from '../lib/playwright-api';
 import * as products from '../lib/sammelbestellung-product';
 import * as list from '../lib/sammelbestellung-list';
+import { isSammelDuplicate } from '../lib/sammelbestellung-list-basis';
 import { dbTest } from './fixtures/database';
 import { recordQueries } from './fixtures/queries';
 import {
@@ -32,7 +33,7 @@ import {
 import { SammelStaffOrder, SammelStaffItem } from '../endpoints/intern-pflege-sammelbestellungen';
 import { SammelOrderLookup, SammelOrderSave } from '../endpoints/sammelbestellungen';
 import { getSammelCampaign, getSammelOrder, sammelToken } from '../lib/sammelbestellung-list';
-import type { SammelOrderChanges } from '../lib/sammelbestellung-list';
+import type { SammelOrderChanges } from '../lib/sammelbestellung-list-basis';
 import type { SammelPaymentTable } from '../lib/db-schema-sammel';
 import {
   createSammelContribution,
@@ -763,7 +764,7 @@ dbTest(
         .insertInto('sammel.payment')
         .values({ ...copy, order_id: 3, operation_key: '00000000-0000-4000-8000-000000000003' })
         .execute(),
-      (error: unknown) => list.isSammelDuplicate(error)
+      (error: unknown) => isSammelDuplicate(error)
     );
   }
 );

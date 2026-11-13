@@ -22,13 +22,7 @@ import {
   seedSammel,
 } from './fixtures/sammel';
 import { reserveSammelLinkRequest } from '../lib/sammelbestellung-link-quota';
-import {
-  sammelToken,
-  ensureSammelOrder,
-  createSammelCampaign,
-  getSammelCampaign,
-  verifySammelToken,
-} from '../lib/sammelbestellung-list';
+import { sammelToken, ensureSammelOrder, createSammelCampaign, getSammelCampaign, verifySammelToken } from '../lib/sammelbestellung-list';
 import {
   validateSammelItems,
   validateSammelCatalog,

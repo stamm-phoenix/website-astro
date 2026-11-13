@@ -6,18 +6,8 @@ import { campflowErrorResponse } from '../lib/campflow-api';
 import { escapeHtml } from '../lib/mail';
 import { VersionConflictError } from '../lib/db';
 import { ok, NOT_FOUND, NO_CONTENT } from '../lib/pflege-api';
-import {
-  InvalidSammelDataError,
-  createSammelCampaign,
-  getSammelCampaigns,
-  getSammelCampaign,
-  getSammelOrders,
-  getSammelOrder,
-  sammelUrl,
-  publicSammelOrder,
-  updateSammelOrder,
-  setSammelCampaignArchived,
-} from '../lib/sammelbestellung-list';
+import { InvalidSammelDataError } from '../lib/sammelbestellung-list-basis';
+import { createSammelCampaign, getSammelCampaigns, getSammelCampaign, getSammelOrders, getSammelOrder, sammelUrl, publicSammelOrder, updateSammelOrder, setSammelCampaignArchived } from '../lib/sammelbestellung-list';
 import {
   object,
   validateSammelCampaign,

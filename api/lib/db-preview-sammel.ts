@@ -1,14 +1,7 @@
 import { createHash } from 'node:crypto';
 import { getDb } from './db';
-import {
-  createSammelCampaign,
-  ensureSammelOrder,
-  getSammelCampaign,
-  getSammelOrder,
-  setSammelCampaignArchived,
-  updateSammelOrder,
-} from './sammelbestellung-list';
-import type { SammelOrderChanges } from './sammelbestellung-list';
+import { createSammelCampaign, ensureSammelOrder, getSammelCampaign, getSammelOrder, setSammelCampaignArchived, updateSammelOrder } from './sammelbestellung-list';
+import type { SammelOrderChanges } from './sammelbestellung-list-basis';
 import { validateSammelCampaign } from './sammelbestellung-validation';
 import type { SammelPaymentEvent, SammelPaymentRecord } from './sammelbestellung-payment-model';
 
