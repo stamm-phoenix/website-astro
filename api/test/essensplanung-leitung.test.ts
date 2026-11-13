@@ -14,7 +14,7 @@ import {
 import { seedPreviewEssensplanungLeitung } from '../lib/db-preview-essen-leitung';
 import type { LeitungPlanung } from '../lib/essen-leitung-model';
 import { PlanungError, ladeZugang } from '../lib/essen-zugang';
-import { einladen, mitgliedAendern, neueLinksFuerAdresse, neuerLink } from '../lib/essen-planung';
+import { einladen, mitgliedAendern, neueLinksFuerAdresse, neuerLink } from '../lib/essen-planung-mitglieder';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';

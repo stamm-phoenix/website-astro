@@ -1,7 +1,7 @@
 import { loadEssenEinstellungen } from './essen-steuerung';
 import { sql } from 'kysely';
 import { getDb } from './db';
-import { anfrageBestaetigen } from './essen-planung';
+import { anfrageBestaetigen } from './essen-planung-anfragen';
 import { hashToken, neuesToken } from './essen-zugang';
 
 /**
