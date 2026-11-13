@@ -26,17 +26,7 @@ import type { CampflowPerson } from '../lib/campflow';
 import { CONFIG } from '../lib/config';
 import { RecordNotFoundError, parseId } from '../lib/db';
 import { loadFotoPersonen } from '../lib/foto-benachrichtigung';
-import {
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  NO_CONTENT,
-  ok,
-  pflegeHandler,
-  readEtag,
-  readIfMatch,
-  readJsonBody,
-} from '../lib/pflege-api';
-import type { PflegeHandler } from '../lib/pflege-api';
+import { NOT_FOUND, NO_CONTENT, ok, readEtag, readIfMatch } from '../lib/pflege-api';
 import { ValidationError } from '../lib/validation/errors';
 import { eigeneAdresse, mitEigenerAdresse } from '../lib/personen';
 import {
@@ -44,20 +34,19 @@ import {
   protokollDeliveryAddresses,
   protokollRecipients,
 } from '../lib/protokolle';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { getTaskDirectoryUsers } from '../lib/task-directory';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 const AREA = 'abstimmungen';
 /** Mails one request sends; the page asks again until none are left. */
-const MAILS_PER_STEP = 5;
 /**
  * No mail is started later than this into a request, so even a mail that takes its whole time
  * limit ends well before the 45 seconds of Static Web Apps.
  */
-const STEP_BUDGET_MS = 30_000;
 
 const FORBIDDEN = errorResponse(
   403,
@@ -80,8 +69,8 @@ const MAIL_FAILED = errorResponse(
   'Eine Mail konnte nicht verschickt werden. Die übrigen warten noch. Versuche es später noch einmal oder schreib an admin@stamm-phoenix.de.'
 );
 
-/** The module's own refusals; the other errors go to `pflegeHandler`. */
-function abstimmungHandler(handler: PflegeHandler): PflegeHandler {
+/** The module's own refusals; the other errors go to `staffHandler`. */
+function abstimmungHandler(handler: StaffRequestHandler): StaffRequestHandler {
   return async (request, context, principal) => {
     try {
       return await handler(request, context, principal);
@@ -132,11 +121,10 @@ async function organizerKopf(id: number, principal: ClientPrincipal): Promise<Ab
 }
 
 /** GET: all Abstimmungen with the own answer. POST: a new one by the logged-in person. */
-export const AbstimmungenCollectionEndpoint = pflegeHandler(
+export const AbstimmungenCollectionEndpoint = staffHandler(
   AREA,
   abstimmungHandler(async (request, _context, principal) => {
     if (request.method === 'GET') return ok(await listAbstimmungen(await person(principal)));
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const input = validateAbstimmung(await readJsonBody(request));
     return ok({ id: await createAbstimmung(input, await person(principal)) }, 201);
   })
@@ -147,7 +135,7 @@ export const AbstimmungenCollectionEndpoint = pflegeHandler(
  * invitations. PATCH `{ etag, geschlossen }` ends or reopens it, PATCH with the form fields
  * changes it. DELETE (If-Match) deletes it. Changes only by the organizer.
  */
-export const AbstimmungItemEndpoint = pflegeHandler(
+export const AbstimmungItemEndpoint = staffHandler(
   AREA,
   abstimmungHandler(async (request, _context, principal) => {
     const id = routeId(request);
@@ -162,7 +150,6 @@ export const AbstimmungItemEndpoint = pflegeHandler(
       await deleteAbstimmung(id, readIfMatch(request), login);
       return NO_CONTENT;
     }
-    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     if (body && typeof body.geschlossen === 'boolean' && body.titel === undefined) {
       await setAbstimmungGeschlossen(id, readEtag(body), body.geschlossen, login);
@@ -174,12 +161,11 @@ export const AbstimmungItemEndpoint = pflegeHandler(
 );
 
 /** PUT `{ gewaehlt, vielleicht? }`: the answer of the logged-in person; replaces an earlier one. */
-export const AbstimmungStimmeEndpoint = pflegeHandler(
+export const AbstimmungStimmeEndpoint = staffHandler(
   AREA,
   abstimmungHandler(async (request, _context, principal) => {
     const id = routeId(request);
     if (id === undefined) return NOT_FOUND;
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     await voteAsStaff(id, await person(principal), {
       gewaehlt: body?.gewaehlt,
@@ -207,12 +193,11 @@ export const abstimmungQuellen = {
  *   that list without `excluded` and with `extra` that has none yet, if the list still matches
  *   the confirmed version. The mails go out through `…/mails`.
  */
-export const AbstimmungEinladungEndpoint = pflegeHandler(
+export const AbstimmungEinladungEndpoint = staffHandler(
   AREA,
   abstimmungHandler(async (request, context, principal) => {
     const id = routeId(request);
     if (id === undefined) return NOT_FOUND;
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const kopf = await organizerKopf(id, principal);
     if (kopf.geschlossen_am) return CLOSED;
     const body = await readJsonBody(request);
@@ -298,12 +283,11 @@ export const AbstimmungEinladungEndpoint = pflegeHandler(
  * - `{ action: 'preview' }`: how many that are.
  * - `{ action: 'send' }`: queues the reminders; they go out through `…/mails`.
  */
-export const AbstimmungErinnerungEndpoint = pflegeHandler(
+export const AbstimmungErinnerungEndpoint = staffHandler(
   AREA,
   abstimmungHandler(async (request, _context, principal) => {
     const id = routeId(request);
     if (id === undefined) return NOT_FOUND;
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const kopf = await organizerKopf(id, principal);
     if (kopf.geschlossen_am) return CLOSED;
     const body = await readJsonBody(request);
@@ -322,19 +306,18 @@ export const AbstimmungErinnerungEndpoint = pflegeHandler(
  * before it is sent, so two open pages never send one twice; a mail whose result is unclear
  * is not sent again.
  */
-export const AbstimmungMailsEndpoint = pflegeHandler(
+export const AbstimmungMailsEndpoint = staffHandler(
   AREA,
   abstimmungHandler(async (request, context: InvocationContext, principal) => {
     const id = routeId(request);
     if (id === undefined) return NOT_FOUND;
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const kopf = await organizerKopf(id, principal);
     // Queued mails wait while it is ended; reopening sends them
     if (kopf.geschlossen_am) return CLOSED;
     const siteUrl = getSiteUrl(request);
     const started = Date.now();
-    for (let sent = 0; sent < MAILS_PER_STEP; sent++) {
-      if (Date.now() - started + ABSTIMMUNG_MAIL_TIMEOUT_MS > STEP_BUDGET_MS) break;
+    for (let sent = 0; sent < 5; sent++) {
+      if (Date.now() - started + ABSTIMMUNG_MAIL_TIMEOUT_MS > 30_000) break;
       let failed: AbstimmungMail | undefined;
       try {
         const ergebnis = await sendNextAbstimmungMail(id, async (mail) => {
@@ -365,51 +348,44 @@ export const AbstimmungMailsEndpoint = pflegeHandler(
   { quiet: true }
 );
 
-export const AbstimmungenCollection = withErrorHandling(AbstimmungenCollectionEndpoint);
-export const AbstimmungItem = withErrorHandling(AbstimmungItemEndpoint);
-export const AbstimmungStimme = withErrorHandling(AbstimmungStimmeEndpoint);
-export const AbstimmungEinladung = withErrorHandling(AbstimmungEinladungEndpoint);
-export const AbstimmungErinnerung = withErrorHandling(AbstimmungErinnerungEndpoint);
-export const AbstimmungMails = withErrorHandling(AbstimmungMailsEndpoint);
-
 app.http('internPflegeAbstimmungen', {
   route: 'intern/pflege/abstimmungen',
   methods: ['GET', 'POST'],
   authLevel: 'anonymous',
-  handler: AbstimmungenCollection,
+  handler: AbstimmungenCollectionEndpoint,
 });
 
 app.http('internPflegeAbstimmung', {
   route: 'intern/pflege/abstimmungen/{id}',
   methods: ['GET', 'PATCH', 'DELETE'],
   authLevel: 'anonymous',
-  handler: AbstimmungItem,
+  handler: AbstimmungItemEndpoint,
 });
 
 app.http('internPflegeAbstimmungStimme', {
   route: 'intern/pflege/abstimmungen/{id}/stimme',
   methods: ['PUT'],
   authLevel: 'anonymous',
-  handler: AbstimmungStimme,
+  handler: AbstimmungStimmeEndpoint,
 });
 
 app.http('internPflegeAbstimmungEinladung', {
   route: 'intern/pflege/abstimmungen/{id}/einladung',
   methods: ['POST'],
   authLevel: 'anonymous',
-  handler: AbstimmungEinladung,
+  handler: AbstimmungEinladungEndpoint,
 });
 
 app.http('internPflegeAbstimmungErinnerung', {
   route: 'intern/pflege/abstimmungen/{id}/erinnerung',
   methods: ['POST'],
   authLevel: 'anonymous',
-  handler: AbstimmungErinnerung,
+  handler: AbstimmungErinnerungEndpoint,
 });
 
 app.http('internPflegeAbstimmungMails', {
   route: 'intern/pflege/abstimmungen/{id}/mails',
   methods: ['POST'],
   authLevel: 'anonymous',
-  handler: AbstimmungMails,
+  handler: AbstimmungMailsEndpoint,
 });

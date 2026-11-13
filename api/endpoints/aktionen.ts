@@ -2,7 +2,7 @@ import { app, type HttpResponseInit } from '@azure/functions';
 import type { Aktion } from '../lib/aktionen-list';
 import type { PublicDownload } from '../lib/downloads-public';
 import { getAktionen, isLeitendeOnly } from '../lib/aktionen-list';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 interface AktionData {
   id: string;
@@ -49,7 +49,7 @@ export async function GetAktionenEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-const defaultHandler = withErrorHandling(GetAktionenEndpoint);
+const defaultHandler = publicHandler(GetAktionenEndpoint);
 export default defaultHandler;
 
 app.http('aktionen', {

@@ -3,8 +3,8 @@ import {
   RecordNotFoundError,
   VersionConflictError,
   getSqlErrorNumber,
-  requireVersion,
   toVersion,
+  requireRowversion,
 } from './db';
 import type {
   EinkaufPosten,
@@ -129,7 +129,7 @@ export async function geschaeftAendern(
         .updateTable('essen.geschaeft')
         .set({ name: input.name })
         .where('id', '=', id)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst()
     );
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
@@ -162,7 +162,7 @@ export async function geschaeftLoeschen(zugang: Zugang, id: number, etag: string
     const result = await trx
       .deleteFrom('essen.geschaeft')
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     return { result: undefined, details: { name: geschaeft.name } };
@@ -191,7 +191,7 @@ export async function zutatGeschaeftSetzen(
       .updateTable('essen.planung_zutat')
       .set({ geschaeft_id: geschaeftId })
       .where('id', '=', planungZutatId)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     return {
@@ -277,7 +277,7 @@ export async function postenAendern(
         hinweis: input.hinweis,
       })
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     return { result: undefined, details: { name: zutat.name } };
@@ -296,7 +296,7 @@ export async function postenLoeschen(
     const result = await trx
       .deleteFrom(TABELLE[art])
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     return { result: undefined, details: { name: zutat.name ?? zutat.z_name } };

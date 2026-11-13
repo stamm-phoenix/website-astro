@@ -1,7 +1,7 @@
 import { sql } from 'kysely';
 import type { Transaction } from 'kysely';
 import type { Database } from './db-schema';
-import { VersionConflictError, requireVersion } from './db';
+import { VersionConflictError, requireRowversion } from './db';
 import type { EinheitenZeileInput } from './essen-einheiten-model';
 import { einheitBasis, einheitSchluessel } from './essen-gerichte-model';
 import type { EinplanungStatus } from './essen-kochen-model';
@@ -52,7 +52,7 @@ async function zeileUmrechnen(
   planungZutatId: number,
   zeile: EinheitenZeileInput
 ): Promise<void> {
-  const version = requireVersion(zeile.etag);
+  const version = requireRowversion(zeile.etag);
   if (zeile.stelle === 'gericht') {
     // A line of a dish reaches its Planung through its dish
     geaendert(
@@ -106,7 +106,7 @@ async function verbrauchUmrechnen(
         .set({ status: sql<EinplanungStatus>`status` })
         .where('id', '=', einplanungId)
         .where('status', '=', 'gekocht')
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .where('mahlzeit_id', 'in', (eb) =>
           eb
             .selectFrom('essen.mahlzeit as m')
@@ -197,7 +197,7 @@ async function erhaltenUmrechnen(
         .selectFrom('essen.einkauf_posten')
         .select('id')
         .where('id', '=', zeile.id)
-        .where('version', '=', requireVersion(zeile.etag))
+        .where('version', '=', requireRowversion(zeile.etag))
         .executeTakeFirst();
       if (!gesehen) throw new VersionConflictError();
     }
@@ -265,7 +265,7 @@ async function festUmrechnen(
         .set({ name: sql<string>`name` })
         .where('id', '=', zeile.id)
         .where('planung_id', '=', zugang.planungId)
-        .where('version', '=', requireVersion(zeile.etag))
+        .where('version', '=', requireRowversion(zeile.etag))
         .executeTakeFirst()
     );
     geaendert(

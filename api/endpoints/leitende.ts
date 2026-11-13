@@ -1,6 +1,6 @@
 import { app, type HttpResponseInit } from '@azure/functions';
 import { getLeitende } from '../lib/leitende-list';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 interface LeitendeData {
   id: string;
@@ -27,7 +27,7 @@ export async function GetLeitendeEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-const defaultHandler = withErrorHandling(GetLeitendeEndpoint);
+const defaultHandler = publicHandler(GetLeitendeEndpoint);
 export default defaultHandler;
 
 app.http('leitende', {

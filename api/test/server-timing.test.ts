@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import { addTiming, withServerTiming } from '../lib/server-timing';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 test('internal responses include timings and retain existing headers', async () => {
-  const handler = withErrorHandling(async () => ({
+  const handler = publicHandler(async () => ({
     status: 200,
     headers: { 'Cache-Control': 'no-store' },
   }));
@@ -19,7 +19,7 @@ test('internal responses include timings and retain existing headers', async () 
 });
 
 test('internal error responses include timings', async () => {
-  const handler = withErrorHandling(async () => {
+  const handler = publicHandler(async () => {
     throw new Error('test');
   });
   const response = await handler(

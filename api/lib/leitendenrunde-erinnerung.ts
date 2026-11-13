@@ -15,9 +15,9 @@ import {
   getDb,
   inTransaction,
   lockResource,
-  requireVersion,
   toVersion,
   VersionConflictError,
+  requireRowversion,
 } from './db';
 import {
   leitendenrundeMailAllowed,
@@ -118,7 +118,7 @@ async function release(reservation: Reservation): Promise<void> {
   await getDb()
     .deleteFrom('protokoll.erinnerung')
     .where('id', '=', reservation.id)
-    .where('version', '=', requireVersion(reservation.etag))
+    .where('version', '=', requireRowversion(reservation.etag))
     .where('status', '=', 'attempted')
     .execute();
 }
@@ -136,7 +136,7 @@ async function record(
       retry_after: status === 'retryable' ? new Date(now.getTime() + RETRY_AFTER_MS) : null,
     })
     .where('id', '=', reservation.id)
-    .where('version', '=', requireVersion(reservation.etag))
+    .where('version', '=', requireRowversion(reservation.etag))
     .where('status', '=', 'attempted')
     .output('inserted.id')
     .executeTakeFirst();

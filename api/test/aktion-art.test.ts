@@ -11,6 +11,8 @@ import { GetInternAktionenEndpoint } from '../endpoints/intern-aktionen';
 import { AktionArtEndpoint } from '../endpoints/intern-pflege-aktion-art';
 import { dbTest } from './fixtures/database';
 
+const context = new InvocationContext({ functionName: 'aktion-art-test' });
+
 const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'staff',
@@ -109,7 +111,8 @@ dbTest('the mark is saved for events that exist in CampFlow only', async (t) => 
       headers: {
         'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
       },
-    })
+    }),
+    context
   );
   assert.deepEqual(
     (list.jsonBody as { id: string; keineAktion: boolean; zuschussfaehig: boolean }[]).map((e) => [

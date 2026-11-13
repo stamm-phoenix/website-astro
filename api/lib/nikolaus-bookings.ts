@@ -9,8 +9,8 @@ import {
   lockResource,
   parseId,
   parseStringList,
-  requireVersion,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Db } from './db';
 import type { NikolausConfig, NikolausSlotDefinition } from './nikolaus-config';
@@ -401,7 +401,7 @@ export async function rescheduleBooking(
   now: Date = new Date()
 ): Promise<RescheduleResult> {
   const id = parseId(booking.id);
-  const version = requireVersion(booking.etag);
+  const version = requireRowversion(booking.etag);
   if (id === undefined) return { ok: false, reason: 'ALREADY_CHANGED' };
   return inTransaction(async (trx) => {
     await lockResource(trx, CAPACITY_LOCK);
@@ -437,7 +437,7 @@ async function updateBooking(
     .updateTable('nikolaus.booking')
     .set(values)
     .where('id', '=', numericId)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numUpdatedRows) > 0) return;
   throw (await loadBooking(db, numericId)) ? new VersionConflictError() : new RecordNotFoundError();
@@ -592,7 +592,7 @@ export async function deleteBooking(id: string, etag: string): Promise<void> {
   const result = await getDb()
     .deleteFrom('nikolaus.booking')
     .where('id', '=', numericId)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numDeletedRows) > 0) return;
   throw (await loadBooking(getDb(), numericId))

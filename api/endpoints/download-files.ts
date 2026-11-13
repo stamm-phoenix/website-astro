@@ -1,7 +1,7 @@
 import { app, type HttpResponseInit } from '@azure/functions';
 import { listDownloads } from '../lib/downloads';
 import { toPublicDownload } from '../lib/downloads-public';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 /** The public list; who uploaded a file stays internal. */
 export async function GetDownloadFilesEndpoint(): Promise<HttpResponseInit> {
@@ -12,7 +12,7 @@ export async function GetDownloadFilesEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-const defaultHandler = withErrorHandling(GetDownloadFilesEndpoint);
+const defaultHandler = publicHandler(GetDownloadFilesEndpoint);
 export default defaultHandler;
 
 app.http('downloads', {

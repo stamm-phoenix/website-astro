@@ -21,9 +21,9 @@ import {
   getDb,
   inTransaction,
   lockResource,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Database } from './db-schema';
 import type { Leitende } from './leitende-list';
@@ -353,7 +353,7 @@ export async function saveNotes(
       : await updateNotes(getDb(), notes, actor)
           .where('stufe', '=', termin.stufe)
           .where('date', '=', termin.date)
-          .where('version', '=', requireVersion(etag))
+          .where('version', '=', requireRowversion(etag))
           .executeTakeFirst();
   if (!updated) throw new VersionConflictError();
   return toVersion(updated.version);
@@ -388,7 +388,7 @@ export async function setCancelled(
     const updated = await (
       etag === null
         ? query.where('notes', '=', '')
-        : query.where('version', '=', requireVersion(etag))
+        : query.where('version', '=', requireRowversion(etag))
     ).executeTakeFirst();
     if (!updated) throw new VersionConflictError();
     if (cancelled) {
@@ -410,7 +410,7 @@ export async function deleteMeeting(
   etag: string | undefined,
   attendance: string
 ): Promise<void> {
-  const version = requireVersion(etag);
+  const version = requireRowversion(etag);
   await inTransaction(async (trx) => {
     await lockResource(trx, `gruppenstunde:${termin.stufe}:${termin.date}`);
     const record = await getMeetingRecord(termin, trx);

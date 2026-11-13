@@ -6,8 +6,8 @@ import {
   VersionConflictError,
   getDb,
   parseId,
-  requireVersion,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { QuestionAndAnswerInput } from './validation/content';
 
@@ -135,7 +135,7 @@ export async function updateQuestionAndAnswer(
     .updateTable('content.faq')
     .set({ ...(await toColumns(input, actor)), updated_at: sql<Date>`SYSUTCDATETIME()` })
     .where('id', '=', numericId)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numUpdatedRows) === 0) await notChanged(numericId);
 }
@@ -147,7 +147,7 @@ export async function deleteQuestionAndAnswer(id: string, etag: string): Promise
   const result = await getDb()
     .deleteFrom('content.faq')
     .where('id', '=', numericId)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numDeletedRows) === 0) await notChanged(numericId);
 }

@@ -12,9 +12,9 @@ import {
   getSqlErrorNumber,
   inTransaction,
   lockResource,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { AktionTable, Database } from './db-schema';
 import type { AktionInput } from './validation/aktion';
@@ -355,7 +355,7 @@ export async function updateAktion(
         .updateTable('content.aktion')
         .set({ ...toColumns(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
         .where('id', '=', id)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) return false;
       await writeStufen(trx, id, input.stufen);
@@ -371,7 +371,7 @@ export async function deleteAktion(id: number, etag: string): Promise<void> {
   const result = await getDb()
     .deleteFrom('content.aktion')
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numDeletedRows) === 0) await notChanged(id);
 }

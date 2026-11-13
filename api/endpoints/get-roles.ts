@@ -8,6 +8,7 @@ import {
 import type { ClientPrincipalClaim } from '../lib/staff-auth';
 import type { ReadMemberGroups } from '../lib/staff-roles';
 import { getTeamRoles, readMemberGroups } from '../lib/staff-roles';
+import { publicHandler } from '../lib/handler';
 
 interface LoginUser {
   identityProvider: string;
@@ -59,7 +60,7 @@ export function createGetRolesEndpoint(read: ReadMemberGroups = readMemberGroups
   };
 }
 
-export const GetRoles = createGetRolesEndpoint();
+export const GetRoles = publicHandler(createGetRolesEndpoint());
 
 // `rolesSource` of staticwebapp.config.json, called by Static Web Apps after each login
 app.http('getRoles', {

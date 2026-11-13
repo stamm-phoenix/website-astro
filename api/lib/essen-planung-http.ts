@@ -4,9 +4,9 @@ import type { Zugang } from './essen-zugang';
 import { PlanungError, ladeZugang } from './essen-zugang';
 import { ladeAnsicht } from './essen-ansicht';
 import { readEtag as parseEtag } from './essen-planung-request';
-import { NO_STORE_HEADERS } from './nikolaus-api';
-import { errorResponse, withErrorHandling } from './response-utils';
+import { errorResponse, NO_STORE_HEADERS } from './response-utils';
 import { ValidationError } from './validation/errors';
+import { publicHandler } from './handler';
 
 /**
  * What the endpoints of a Planung share (`api/endpoints/essensplanung*.ts`): the answers, the
@@ -24,13 +24,23 @@ export const METHOD_NOT_ALLOWED: HttpResponseInit = {
   headers: NO_STORE_HEADERS,
 };
 
-/** Maps the errors of a request on a Planung; conflicts and missing entries bring the view. */
+/** The public pipeline of a request on a Planung, with its error mapping. */
 export function planungHandler(
   handler: (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit>
 ) {
-  return withErrorHandling(async (request: HttpRequest, context: InvocationContext) => {
+  return publicHandler(mapPlanungErrors(handler));
+}
+
+/**
+ * Maps the errors of a request on a Planung; conflicts and missing entries bring the view. Also
+ * used inside `staffHandler` by the Planungen of the Leitendenbereich.
+ */
+export function mapPlanungErrors<A extends unknown[]>(
+  handler: (request: HttpRequest, ...rest: A) => Promise<HttpResponseInit>
+): (request: HttpRequest, ...rest: A) => Promise<HttpResponseInit> {
+  return async (request: HttpRequest, ...rest: A) => {
     try {
-      return await handler(request, context);
+      return await handler(request, ...rest);
     } catch (error: unknown) {
       const zugang = (request as { essenZugang?: Zugang }).essenZugang;
       const ansicht = async () => (zugang ? await ladeAnsicht(zugang).catch(() => null) : null);
@@ -80,7 +90,7 @@ export function planungHandler(
       }
       throw error;
     }
-  });
+  };
 }
 
 /** Reads the token of the request's link and remembers the access for the error answers. */

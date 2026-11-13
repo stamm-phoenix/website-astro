@@ -7,9 +7,9 @@ import {
   inTransaction,
   parseId,
   parseStringList,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Db } from './db';
 import type { HelperRole } from './nikolaus-einteilung';
@@ -117,7 +117,7 @@ async function updateRow(
   values: Updateable<HelperTable>
 ): Promise<void> {
   let query = db.updateTable('nikolaus.helper').set(values).where('id', '=', id);
-  if (etag !== undefined) query = query.where('version', '=', requireVersion(etag));
+  if (etag !== undefined) query = query.where('version', '=', requireRowversion(etag));
   const result = await query.executeTakeFirst();
   if (Number(result.numUpdatedRows) > 0) return;
   const exists = await db
@@ -180,7 +180,7 @@ export async function deleteHelper(id: string, etag?: string): Promise<void> {
   if (numericId === undefined) throw new RecordNotFoundError();
   const db = getDb();
   let query = db.deleteFrom('nikolaus.helper').where('id', '=', numericId);
-  if (etag !== undefined) query = query.where('version', '=', requireVersion(etag));
+  if (etag !== undefined) query = query.where('version', '=', requireRowversion(etag));
   const result = await query.executeTakeFirst();
   if (Number(result.numDeletedRows) > 0) return;
   const exists = await db

@@ -2,7 +2,8 @@ import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import { aktionInStufeFeed, isStufeKey, STUFE_KEYS } from '../lib/aktion-stufen';
 import { getAktionen } from '../lib/aktionen-list';
 import { buildIcs } from '../lib/ics-builder';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 export async function GetAktionenStufeIcsEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const stufe = request.params.stufe ?? '';
@@ -21,4 +22,4 @@ export async function GetAktionenStufeIcsEndpoint(request: HttpRequest): Promise
   };
 }
 
-export default withErrorHandling(GetAktionenStufeIcsEndpoint);
+export default publicHandler(GetAktionenStufeIcsEndpoint);

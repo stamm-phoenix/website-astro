@@ -11,7 +11,7 @@ import { toStaffBooking } from '../lib/nikolaus-api';
 import type { NikolausConfig } from '../lib/nikolaus-config';
 import { getNikolausTeams } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
-import { isNikolausStaffError, readAsNikolausStaff } from '../lib/nikolaus-staff';
+import { isNikolausStaffError, readAsNikolausStaff, nikolausGate } from '../lib/nikolaus-staff';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllDispoRows } from '../lib/nikolaus-dispo-list';
 import {
@@ -30,19 +30,9 @@ import { normalizeTag } from '../lib/nikolaus-einteilung';
 import { RecordNotFoundError } from '../lib/db';
 import { validateBookingTags, validateHelper } from '../lib/validation/nikolaus-helfende';
 import { validateEinteilungSave } from '../lib/validation/nikolaus-einteilung';
-import {
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  CONFLICT,
-  NO_CONTENT,
-  NO_STORE_HEADERS,
-  ok,
-  pflegeHandler,
-  readEtag,
-  readIfMatch,
-  readJsonBody,
-} from '../lib/pflege-api';
-import { withErrorHandling } from '../lib/response-utils';
+import { NOT_FOUND, CONFLICT, NO_CONTENT, ok, readEtag, readIfMatch } from '../lib/pflege-api';
+import { NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
+import { publicHandler, staffHandler } from '../lib/handler';
 
 function configuredDates(config: NikolausConfig): string[] {
   return [...config.days].map((day) => day.date).sort();
@@ -151,21 +141,21 @@ export async function GetInternNikolausEinteilungEndpoint(
 }
 
 /** POST: adds a helper. */
-export const NikolausHelfendeCollection = pflegeHandler(
+export const NikolausHelfendeCollection = staffHandler(
   'nikolaus-helfende',
   async (request: HttpRequest) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const input = validateHelper(
       await readJsonBody(request),
       configuredDates(await getNikolausSettings())
     );
     const id = await createHelper(input);
     return ok({ id }, 201);
-  }
+  },
+  { gate: nikolausGate }
 );
 
 /** PATCH: updates a helper (etag); DELETE: removes a helper and their Einteilung. */
-export const NikolausHelfendeItem = pflegeHandler(
+export const NikolausHelfendeItem = staffHandler(
   'nikolaus-helfende',
   async (request: HttpRequest) => {
     const id = request.params.id ?? '';
@@ -181,39 +171,41 @@ export const NikolausHelfendeItem = pflegeHandler(
       }
       return NO_CONTENT;
     }
-    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
     const body = await readJsonBody(request);
     const input = validateHelper(body, configuredDates(await getNikolausSettings()));
     await updateHelper(id, input, readEtag(body));
     return NO_CONTENT;
-  }
+  },
+  { gate: nikolausGate }
 );
 
 /** PUT: replaces the internal tags of a booking. Never shown to the family. */
-export const NikolausBookingTags = pflegeHandler('nikolaus-tags', async (request: HttpRequest) => {
-  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
-  const id = request.params.id ?? '';
-  if (!/^\d+$/.test(id)) return NOT_FOUND;
-  const body = await readJsonBody(request);
-  const tags = validateBookingTags(body);
-  const booking = await getBooking(id);
-  if (!booking) return NOT_FOUND;
-  const etag = readEtag(body);
-  if (!etag || etag === '*' || etag !== booking.etag) {
-    return CONFLICT;
-  }
-  await setBookingTags(id, tags, etag);
-  const saved = await getBooking(id);
-  if (!saved) return CONFLICT;
-  return ok({ booking: toStaffBooking(saved, new Date()) });
-});
+export const NikolausBookingTags = staffHandler(
+  'nikolaus-tags',
+  async (request: HttpRequest) => {
+    const id = request.params.id ?? '';
+    if (!/^\d+$/.test(id)) return NOT_FOUND;
+    const body = await readJsonBody(request);
+    const tags = validateBookingTags(body);
+    const booking = await getBooking(id);
+    if (!booking) return NOT_FOUND;
+    const etag = readEtag(body);
+    if (!etag || etag === '*' || etag !== booking.etag) {
+      return CONFLICT;
+    }
+    await setBookingTags(id, tags, etag);
+    const saved = await getBooking(id);
+    if (!saved) return CONFLICT;
+    return ok({ booking: toStaffBooking(saved, new Date()) });
+  },
+  { gate: nikolausGate }
+);
 
 /** PUT: saves the whole Einteilung. Answers with the saved rows and their new version. */
-export const NikolausEinteilungSave = pflegeHandler(
+export const NikolausEinteilungSave = staffHandler(
   'nikolaus-einteilung',
   async (request: HttpRequest) => {
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const [helpers, config] = await Promise.all([getHelpers(), getNikolausSettings()]);
     const teamsByDate = new Map(
       configuredDates(config).map((date) => [
@@ -229,15 +221,12 @@ export const NikolausEinteilungSave = pflegeHandler(
     await saveEinteilung(input.assignments, input.version);
     const rows = await getEinteilungRows();
     return ok({ rows: rows.map(toClientRow), version: getEinteilungVersion(rows) });
-  }
+  },
+  { gate: nikolausGate }
 );
 
-export const NikolausHelfende = withErrorHandling(GetInternNikolausHelfendeEndpoint);
-export const NikolausEinteilung = withErrorHandling(GetInternNikolausEinteilungEndpoint);
-export const NikolausHelfendeCollectionEndpoint = withErrorHandling(NikolausHelfendeCollection);
-export const NikolausHelfendeItemEndpoint = withErrorHandling(NikolausHelfendeItem);
-export const NikolausBookingTagsEndpoint = withErrorHandling(NikolausBookingTags);
-export const NikolausEinteilungSaveEndpoint = withErrorHandling(NikolausEinteilungSave);
+export const NikolausHelfende = publicHandler(GetInternNikolausHelfendeEndpoint);
+export const NikolausEinteilung = publicHandler(GetInternNikolausEinteilungEndpoint);
 
 app.http('internNikolausHelfende', {
   methods: ['GET'],
@@ -257,26 +246,26 @@ app.http('internPflegeNikolausHelfende', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-helfende',
-  handler: NikolausHelfendeCollectionEndpoint,
+  handler: NikolausHelfendeCollection,
 });
 
 app.http('internPflegeNikolausHelfendeItem', {
   methods: ['PATCH', 'DELETE'],
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-helfende/{id}',
-  handler: NikolausHelfendeItemEndpoint,
+  handler: NikolausHelfendeItem,
 });
 
 app.http('internPflegeNikolausBookingTags', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-bookings/{id}/tags',
-  handler: NikolausBookingTagsEndpoint,
+  handler: NikolausBookingTags,
 });
 
 app.http('internPflegeNikolausEinteilung', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-einteilung',
-  handler: NikolausEinteilungSaveEndpoint,
+  handler: NikolausEinteilungSave,
 });

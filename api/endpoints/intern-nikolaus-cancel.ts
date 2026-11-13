@@ -8,16 +8,11 @@ import { getPublicStatus } from '../lib/nikolaus-api';
 import { sendStaffCancellationMail } from '../lib/nikolaus-mails';
 import { ValidationError } from '../lib/validation/errors';
 import { sanitizeRichTextWithLength } from '../lib/validation/rich-text';
-import {
-  CONFLICT,
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  ok,
-  pflegeHandler,
-  readJsonBody,
-} from '../lib/pflege-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { CONFLICT, NOT_FOUND, ok } from '../lib/pflege-api';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
+import { staffHandler } from '../lib/handler';
+import { nikolausGate } from '../lib/nikolaus-staff';
 
 const MAX_MESSAGE_LENGTH = 5000;
 
@@ -25,10 +20,9 @@ const MAX_MESSAGE_LENGTH = 5000;
  * POST: cancels a booking on behalf of the team and informs the family. Unlike families,
  * staff may cancel after the change deadline.
  */
-export const NikolausCancelEndpoint = pflegeHandler(
+export const NikolausCancelEndpoint = staffHandler(
   'nikolaus-absagen',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const id = request.params.id ?? '';
     if (!/^\d+$/.test(id)) return NOT_FOUND;
 
@@ -86,15 +80,15 @@ export const NikolausCancelEndpoint = pflegeHandler(
     }
 
     return ok({ mailSent });
-  }
+  },
+  { gate: nikolausGate }
 );
 
-const defaultHandler = withErrorHandling(NikolausCancelEndpoint);
-export default defaultHandler;
+export default NikolausCancelEndpoint;
 
 app.http('internNikolausCancel', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/nikolaus/bookings/{id}/cancel',
-  handler: defaultHandler,
+  handler: NikolausCancelEndpoint,
 });

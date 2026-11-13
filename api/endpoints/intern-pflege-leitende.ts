@@ -11,29 +11,19 @@ import {
 } from '../lib/leitende-list';
 import { MAX_PHOTO_BYTES } from '../lib/validation/constants';
 import { validateLeitende } from '../lib/validation/content';
-import {
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  NO_CONTENT,
-  ok,
-  pflegeHandler,
-  readEtag,
-  readIfMatch,
-  readJsonBody,
-  requireVersion,
-} from '../lib/pflege-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { NOT_FOUND, NO_CONTENT, ok, readEtag, readIfMatch, requireEtag } from '../lib/pflege-api';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { isJpeg } from '../lib/jpeg';
+import { staffHandler } from '../lib/handler';
 
 /** GET: all Leitende with the available teams; POST: create a person. */
-export const LeitendeCollectionEndpoint = pflegeHandler(
+export const LeitendeCollection = staffHandler(
   'leitende',
   async (request: HttpRequest, _context, principal) => {
     if (request.method === 'GET') {
       const [items, teams] = await Promise.all([getStaffLeitende(), getTeams()]);
       return ok({ teams, items });
     }
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
 
     const input = validateLeitende(await readJsonBody(request), await getTeams());
     return ok({ id: await createLeitende(input, principal.userDetails) }, 201);
@@ -41,27 +31,26 @@ export const LeitendeCollectionEndpoint = pflegeHandler(
 );
 
 /** PATCH: update a person (optimistic locking via etag); DELETE: remove the person. */
-export const LeitendeItemEndpoint = pflegeHandler(
+export const LeitendeItem = staffHandler(
   'leitende',
   async (request: HttpRequest, _context, principal) => {
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
 
     if (request.method === 'DELETE') {
-      await deleteLeitende(id, requireVersion(readIfMatch(request)));
+      await deleteLeitende(id, requireEtag(readIfMatch(request)));
       return NO_CONTENT;
     }
-    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
     const body = await readJsonBody(request);
     const input = validateLeitende(body, await getTeams());
-    await updateLeitende(id, input, requireVersion(readEtag(body)), principal.userDetails);
+    await updateLeitende(id, input, requireEtag(readEtag(body)), principal.userDetails);
     return NO_CONTENT;
   }
 );
 
 /** PUT: replace the photo with the JPEG in the body; DELETE: remove the photo. */
-export const LeitendePhotoEndpoint = pflegeHandler(
+export const LeitendePhoto = staffHandler(
   'leitende-foto',
   async (request: HttpRequest, _context, principal) => {
     const id = parseId(request.params.id ?? '');
@@ -73,7 +62,6 @@ export const LeitendePhotoEndpoint = pflegeHandler(
       const version = await removeLeitendePhoto(id, etag, principal.userDetails);
       return ok({ hasImage: false, etag: version });
     }
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
 
     const bytes = new Uint8Array(await request.arrayBuffer());
     if (bytes.length > MAX_PHOTO_BYTES) {
@@ -86,10 +74,6 @@ export const LeitendePhotoEndpoint = pflegeHandler(
     return ok({ hasImage: true, etag: version });
   }
 );
-
-export const LeitendeCollection = withErrorHandling(LeitendeCollectionEndpoint);
-export const LeitendeItem = withErrorHandling(LeitendeItemEndpoint);
-export const LeitendePhoto = withErrorHandling(LeitendePhotoEndpoint);
 
 app.http('internPflegeLeitende', {
   methods: ['GET', 'POST'],

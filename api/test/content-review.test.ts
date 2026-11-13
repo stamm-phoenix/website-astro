@@ -6,7 +6,7 @@ import { HttpRequest, InvocationContext } from '@azure/functions';
 import { ContentReviewCollection, ContentReviewItem } from '../endpoints/content-review-routes';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getDb, requireVersion, RecordNotFoundError, VersionConflictError } from '../lib/db';
+import { getDb, RecordNotFoundError, VersionConflictError, requireRowversion } from '../lib/db';
 import { getContentReviews, markContentReviewed } from '../lib/content-review';
 import { validateContentReview } from '../lib/validation/content-review';
 import { ValidationError } from '../lib/validation/errors';
@@ -253,7 +253,7 @@ dbTest('deleting a linked download invalidates action review and stale etag', as
   const action = items.find((item) => item.kind === 'aktion')!;
   const download = items.find((item) => item.kind === 'download')!;
   await markContentReviewed('aktion', action.id, action.etag, 'reviewer');
-  await deleteDownloadRow(download.id, requireVersion(download.etag), 'actual-deleter');
+  await deleteDownloadRow(download.id, requireRowversion(download.etag), 'actual-deleter');
   const changed = (await getContentReviews()).find((item) => item.kind === 'aktion')!;
   assert.equal(changed.changedSinceReview, true);
   assert.equal(changed.updatedBy, 'actual-deleter');

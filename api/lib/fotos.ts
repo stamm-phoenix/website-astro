@@ -4,11 +4,11 @@ import {
   collectGraphCollectionPages,
   encodeDrivePath,
   getDrivePath,
-  getGraphStatus,
   getSharePointDriveIdByName,
   getSharePointDriveItemPreviewUrl,
 } from './sharepoint-data-access';
 import { getClient } from './token';
+import { getErrorStatus } from './response-utils';
 
 // The photo library in SharePoint is the only store of the module „Fotos“: the API lists its
 // folders, hands out short-lived links and upload sessions, and keeps nothing itself.
@@ -227,7 +227,7 @@ async function findItem(driveId: string, path: string): Promise<GraphItem | unde
   try {
     return (await fotoGraph.get(itemRef(driveId, path))) as GraphItem;
   } catch (error: unknown) {
-    if (getGraphStatus(error) === 404) return undefined;
+    if (getErrorStatus(error) === 404) return undefined;
     throw error;
   }
 }
@@ -244,7 +244,7 @@ export async function listFotoFolder(path: string): Promise<FotoFolderContent | 
     fotoGraph
       .getAll(`${itemRef(driveId, path)}/children`, { $expand: 'thumbnails' })
       .catch((error: unknown) => {
-        if (getGraphStatus(error) === 404) return [];
+        if (getErrorStatus(error) === 404) return [];
         throw error;
       }) as Promise<GraphItem[]>,
   ]);
@@ -275,7 +275,7 @@ export async function getFotoFile(id: string): Promise<FotoFileDetail | undefine
       $expand: 'thumbnails',
     })) as GraphItem;
   } catch (error: unknown) {
-    if (getGraphStatus(error) === 404) return undefined;
+    if (getErrorStatus(error) === 404) return undefined;
     throw error;
   }
   const file = toFotoFile(item);
@@ -341,7 +341,7 @@ export async function ensureFotoFolder(path: string): Promise<{ path: string; we
         })) as GraphItem;
       } catch (error: unknown) {
         // Someone else created it in the meantime
-        if (getGraphStatus(error) !== 409) throw error;
+        if (getErrorStatus(error) !== 409) throw error;
         item = await findItem(driveId, current);
       }
     }

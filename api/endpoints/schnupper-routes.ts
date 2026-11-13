@@ -1,10 +1,10 @@
 import { app } from '@azure/functions';
 import { SchnupperAnfrageSend } from './schnupperanfrage';
 import {
-  SchnupperAnfrageAbsagen,
-  SchnupperAnfrageBestaetigen,
-  SchnupperAnfrageItem,
-  SchnupperAnfragenCollection,
+  SchnupperAnfrageAbsagenEndpoint,
+  SchnupperAnfrageBestaetigenEndpoint,
+  SchnupperAnfrageItemEndpoint,
+  SchnupperAnfragenCollectionEndpoint,
 } from './intern-pflege-schnupperanfragen';
 
 /** Routes of the Schnupperstunden-Anfragen (#139): the public form and the staff module. */
@@ -19,26 +19,26 @@ app.http('internPflegeSchnupperanfragen', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/pflege/schnupperanfragen',
-  handler: SchnupperAnfragenCollection,
+  handler: SchnupperAnfragenCollectionEndpoint,
 });
 
 app.http('internPflegeSchnupperanfrage', {
   methods: ['DELETE'],
   authLevel: 'anonymous',
   route: 'intern/pflege/schnupperanfragen/{id}',
-  handler: SchnupperAnfrageItem,
+  handler: SchnupperAnfrageItemEndpoint,
 });
 
 app.http('internPflegeSchnupperanfrageBestaetigen', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/schnupperanfragen/{id}/bestaetigen',
-  handler: SchnupperAnfrageBestaetigen,
+  handler: SchnupperAnfrageBestaetigenEndpoint,
 });
 
 app.http('internPflegeSchnupperanfrageAbsagen', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/schnupperanfragen/{id}/absagen',
-  handler: SchnupperAnfrageAbsagen,
+  handler: SchnupperAnfrageAbsagenEndpoint,
 });

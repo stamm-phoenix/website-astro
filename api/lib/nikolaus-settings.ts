@@ -7,9 +7,9 @@ import {
   inTransaction,
   lockResource,
   parseStringList,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { NikolausDayConfig, NikolausSettings } from './nikolaus-config';
 import {
@@ -265,7 +265,7 @@ async function saveInTransaction(
   actor: string,
   now: Date
 ): Promise<SaveSettingsResult> {
-  const version = requireVersion(etag);
+  const version = requireRowversion(etag);
   return inTransaction(async (trx) => {
     await lockResource(trx, CAPACITY_LOCK);
     const current = await loadNikolausSettings(trx);

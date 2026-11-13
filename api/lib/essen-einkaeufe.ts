@@ -5,9 +5,9 @@ import type { Db } from './db';
 import {
   RecordNotFoundError,
   VersionConflictError,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type {
   Einkauf,
@@ -196,7 +196,7 @@ export async function einkaufAendern(
       .updateTable('essen.einkauf')
       .set(werte(geprueft))
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     return {
@@ -328,7 +328,7 @@ export async function postenAbhaken(
         .updateTable('essen.einkauf_posten')
         .set({ ...werte, abgehakt_am: sql<Date>`SYSUTCDATETIME()` })
         .where('id', '=', zeile.id)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     }
@@ -354,7 +354,7 @@ export async function postenAufheben(zugang: Zugang, id: number, etag: string): 
     const result = await trx
       .deleteFrom('essen.einkauf_posten')
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     return {

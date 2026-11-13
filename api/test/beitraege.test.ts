@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
-import { HttpRequest } from '@azure/functions';
+import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as env from '../lib/environment';
 import { GetInternBeitraegeEndpoint } from '../endpoints/intern-beitraege';
 import { GetInternBeitraegeMeineEndpoint } from '../endpoints/intern-beitraege-meine';
 import { offeneBeitraege, readBeitraege } from '../lib/beitraege';
 import { dbTest } from './fixtures/database';
+
+const context = new InvocationContext({ functionName: 'beitraege-test' });
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -78,16 +80,16 @@ const ANSWER = {
 
 test('Beiträge need a login', async (t) => {
   const fetch = mockPlaywright(t, 200, ANSWER);
-  const response = await GetInternBeitraegeEndpoint(request('', null));
+  const response = await GetInternBeitraegeEndpoint(request('', null), context);
   assert.equal(response.status, 401);
   assert.equal(fetch.mock.callCount(), 0);
 });
 
 test('Beiträge come from the Playwright API in cents', async (t) => {
   const fetch = mockPlaywright(t, 200, ANSWER);
-  const response = await GetInternBeitraegeEndpoint(request());
+  const response = await GetInternBeitraegeEndpoint(request(), context);
   assert.equal(response.status, 200);
-  assert.deepEqual(response.headers, { 'Cache-Control': 'no-store' });
+  assert.equal(new Headers(response.headers).get('Cache-Control'), 'no-store');
   const url = new URL(String(fetch.mock.calls[0].arguments[0]));
   assert.equal(url.pathname, '/campflow/beitraege');
   assert.equal(url.searchParams.get('refresh'), null);
@@ -133,7 +135,7 @@ test('Beiträge come from the Playwright API in cents', async (t) => {
 
 test('refresh=true reads CampFlow again', async (t) => {
   const fetch = mockPlaywright(t, 200, ANSWER);
-  assert.equal((await GetInternBeitraegeEndpoint(request('?refresh=true'))).status, 200);
+  assert.equal((await GetInternBeitraegeEndpoint(request('?refresh=true'), context)).status, 200);
   const url = new URL(String(fetch.mock.calls[0].arguments[0]));
   assert.equal(url.searchParams.get('refresh'), 'true');
 });
@@ -141,14 +143,14 @@ test('refresh=true reads CampFlow again', async (t) => {
 test('an unknown status or a broken answer is an error, not a wrong list', async (t) => {
   const broken = { ...ANSWER, fees: [{ ...ANSWER.fees[0], status: 'maybe' }] };
   mockPlaywright(t, 200, broken);
-  const response = await GetInternBeitraegeEndpoint(request());
+  const response = await GetInternBeitraegeEndpoint(request(), context);
   assert.equal(response.status, 502);
   assert.equal((response.jsonBody as { code: string }).code, 'BEITRAEGE_UNAVAILABLE');
 });
 
 test('a failing Playwright API says what to do next', async (t) => {
   mockPlaywright(t, 504, { error: 'Job exceeded' });
-  const response = await GetInternBeitraegeEndpoint(request());
+  const response = await GetInternBeitraegeEndpoint(request(), context);
   assert.equal(response.status, 502);
   assert.match(JSON.stringify(response.jsonBody), /admin@stamm-phoenix\.de/);
 });
@@ -184,7 +186,7 @@ test('the start page gets only the Beiträge with something left to do', () => {
 
 dbTest('own Beiträge without a link leave the names to decide', async (t) => {
   mockPlaywright(t, 200, ANSWER);
-  const response = await GetInternBeitraegeMeineEndpoint(request());
+  const response = await GetInternBeitraegeMeineEndpoint(request(), context);
   assert.equal(response.status, 200);
   const body = response.jsonBody as { fees: { id: string }[]; ich: object | null };
   assert.deepEqual(
@@ -196,8 +198,8 @@ dbTest('own Beiträge without a link leave the names to decide', async (t) => {
 
 test('own Beiträge need a login and say when CampFlow fails', async (t) => {
   mockPlaywright(t, 504, { error: 'Job exceeded' });
-  assert.equal((await GetInternBeitraegeMeineEndpoint(request('', null))).status, 401);
-  const response = await GetInternBeitraegeMeineEndpoint(request());
+  assert.equal((await GetInternBeitraegeMeineEndpoint(request('', null), context)).status, 401);
+  const response = await GetInternBeitraegeMeineEndpoint(request(), context);
   assert.equal(response.status, 502);
   assert.equal((response.jsonBody as { code: string }).code, 'BEITRAEGE_UNAVAILABLE');
   assert.match(JSON.stringify(response.jsonBody), /in ein paar Minuten/);
@@ -205,7 +207,7 @@ test('own Beiträge need a login and say when CampFlow fails', async (t) => {
 
 test('own Beiträge without a CampFlow login point to the admin', async (t) => {
   mockPlaywright(t, 503, { error: 'Not configured' });
-  const response = await GetInternBeitraegeMeineEndpoint(request());
+  const response = await GetInternBeitraegeMeineEndpoint(request(), context);
   assert.equal(response.status, 502);
   assert.match(JSON.stringify(response.jsonBody), /kein CampFlow-Zugang.*admin@stamm-phoenix\.de/);
 });
@@ -222,7 +224,7 @@ test('after a slow Playwright API the names decide instead of waiting longer', a
       headers: { 'Content-Type': 'application/json' },
     });
   });
-  const response = await GetInternBeitraegeMeineEndpoint(request());
+  const response = await GetInternBeitraegeMeineEndpoint(request(), context);
   assert.equal(response.status, 200);
   assert.equal((response.jsonBody as { ich: object | null }).ich, null);
 });

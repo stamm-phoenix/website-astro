@@ -18,15 +18,8 @@ import {
   validateZurueckholen,
 } from '../lib/essen-einkaeufe-validation';
 import { ladeAnsicht } from '../lib/essen-ansicht';
-import {
-  METHOD_NOT_ALLOWED,
-  ok,
-  planungHandler,
-  readEtag,
-  readId,
-  zugangVon,
-} from '../lib/essen-planung-http';
-import { readJsonBody } from '../lib/nikolaus-api';
+import { ok, planungHandler, readEtag, readId, zugangVon } from '../lib/essen-planung-http';
+import { readJsonBody } from '../lib/response-utils';
 
 /**
  * Shopping trips of a Planung with the live mode (`docs/essensplanung.md`, Einkäufe), with the
@@ -35,7 +28,6 @@ import { readJsonBody } from '../lib/nikolaus-api';
 
 /** POST `{ name, datum, geschaeftId, bisMahlzeitId }`: adds a trip. */
 export const EssensplanungEinkaeufe = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await einkaufAnlegen(zugang, validateEinkauf(await readJsonBody(request)));
   return ok(await ladeAnsicht(zugang), 201);
@@ -52,7 +44,6 @@ export const EssensplanungEinkauf = planungHandler(async (request) => {
     await einkaufLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await einkaufAendern(zugang, id, validateEinkauf(body), readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
@@ -63,7 +54,6 @@ export const EssensplanungEinkauf = planungHandler(async (request) => {
  * (`etag` of what was ticked off before, null the first time).
  */
 export const EssensplanungEinkaufAbhaken = planungHandler(async (request) => {
-  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   await postenAbhaken(zugang, readId(request), validateHaken(body), readHakenEtag(body));
@@ -72,7 +62,6 @@ export const EssensplanungEinkaufAbhaken = planungHandler(async (request) => {
 
 /** PUT `{ planungZutatId, art: 'ohne' | 'mit' | 'fest' | null, menge, einheit }`. */
 export const EssensplanungEinkaufRegel = planungHandler(async (request) => {
-  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await regelSetzen(zugang, readId(request), validateRegel(await readJsonBody(request)));
   return ok(await ladeAnsicht(zugang));
@@ -80,7 +69,6 @@ export const EssensplanungEinkaufRegel = planungHandler(async (request) => {
 
 /** POST `{ planungZutatId, nachEinkaufId }`: moves an ingredient to another trip. */
 export const EssensplanungEinkaufVerschieben = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await verschieben(zugang, readId(request), validateVerschieben(await readJsonBody(request)));
   return ok(await ladeAnsicht(zugang));
@@ -88,7 +76,6 @@ export const EssensplanungEinkaufVerschieben = planungHandler(async (request) =>
 
 /** POST `{ planungZutatId }`: takes back „not on this trip“ and the „mit“ of the other trip. */
 export const EssensplanungEinkaufZurueckholen = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await zurueckholen(zugang, readId(request), validateZurueckholen(await readJsonBody(request)));
   return ok(await ladeAnsicht(zugang));
@@ -96,7 +83,6 @@ export const EssensplanungEinkaufZurueckholen = planungHandler(async (request) =
 
 /** DELETE (If-Match): takes back a thing ticked off. */
 export const EssensplanungEinkaufPosten = planungHandler(async (request) => {
-  if (request.method !== 'DELETE') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await postenAufheben(zugang, readId(request), readEtag(null, request));
   return ok(await ladeAnsicht(zugang));

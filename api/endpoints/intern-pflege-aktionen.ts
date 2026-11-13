@@ -16,17 +16,15 @@ import { ValidationError } from '../lib/validation/errors';
 import { validateAktion } from '../lib/validation/aktion';
 import {
   CONFLICT,
-  METHOD_NOT_ALLOWED,
   NOT_FOUND,
   NO_CONTENT,
   ok,
-  pflegeHandler,
   readEtag,
   readIfMatch,
-  readJsonBody,
-  requireVersion,
+  requireEtag,
 } from '../lib/pflege-api';
-import { withErrorHandling } from '../lib/response-utils';
+import { readJsonBody } from '../lib/response-utils';
+import { staffHandler } from '../lib/handler';
 
 function findEvent(events: CampflowEvent[], campflowId: string): CampflowEvent {
   const event = events.find((e) => e.id === campflowId);
@@ -62,14 +60,13 @@ async function loadEvents(): Promise<CampflowEvent[] | HttpResponseInit> {
 }
 
 /** GET: all calendar entries with the Stufen; POST: publish a CampFlow event or a free entry. */
-export const AktionenCollectionEndpoint = pflegeHandler(
+export const AktionenCollection = staffHandler(
   'aktionen',
   async (request: HttpRequest, _context, principal) => {
     if (request.method === 'GET') {
       const [items, stufen] = await Promise.all([getStaffAktionen(), getAktionStufen()]);
       return ok({ stufen, items });
     }
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
 
     let input = validateAktion(await readJsonBody(request), await getAktionStufen());
     if (input.campflowId) {
@@ -93,20 +90,19 @@ export const AktionenCollectionEndpoint = pflegeHandler(
  * Entries stay linked as long as their CampFlow event exists. DELETE: remove the entry from the
  * public calendar; CampFlow is not touched.
  */
-export const AktionItemEndpoint = pflegeHandler(
+export const AktionItem = staffHandler(
   'aktionen',
   async (request: HttpRequest, _context, principal) => {
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
 
     if (request.method === 'DELETE') {
-      await deleteAktion(id, requireVersion(readIfMatch(request)));
+      await deleteAktion(id, requireEtag(readIfMatch(request)));
       return NO_CONTENT;
     }
-    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
     const body = await readJsonBody(request);
-    const etag = requireVersion(readEtag(body));
+    const etag = requireEtag(readEtag(body));
     let input = validateAktion(body, await getAktionStufen());
 
     const existing = await getStaffAktionen();
@@ -132,9 +128,6 @@ export const AktionItemEndpoint = pflegeHandler(
     return NO_CONTENT;
   }
 );
-
-export const AktionenCollection = withErrorHandling(AktionenCollectionEndpoint);
-export const AktionItem = withErrorHandling(AktionItemEndpoint);
 
 app.http('internPflegeAktionen', {
   methods: ['GET', 'POST'],

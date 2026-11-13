@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
-import { HttpRequest } from '@azure/functions';
+import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as aktionArt from '../lib/aktion-art';
 import * as campflow from '../lib/campflow';
 import * as env from '../lib/environment';
@@ -16,6 +16,15 @@ import {
   GetInternAbrechnungBelegBildEndpoint,
   GetInternAbrechnungBelegVorschauEndpoint,
 } from '../endpoints/intern-abrechnung-beleg-bild';
+
+const context = new InvocationContext({ functionName: 'abrechnung-test' });
+const getAbrechnung = (request: HttpRequest) => GetInternAbrechnungEndpoint(request, context);
+const getKostenstellen = (request: HttpRequest) =>
+  GetInternAbrechnungKostenstellenEndpoint(request, context);
+const getBelegBild = (request: HttpRequest) =>
+  GetInternAbrechnungBelegBildEndpoint(request, context);
+const getBelegVorschau = (request: HttpRequest) =>
+  GetInternAbrechnungBelegVorschauEndpoint(request, context);
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -210,7 +219,7 @@ test('returns the overview of an Aktion without personal data', async (t) => {
     exportedAt: '2026-10-05T12:34:56.789Z',
   });
 
-  const response = await GetInternAbrechnungEndpoint(request('evt_Lager'));
+  const response = await getAbrechnung(request('evt_Lager'));
 
   assert.equal(response.status, 200);
   const url = new URL(String(fetch.mock.calls[0].arguments[0]));
@@ -287,7 +296,7 @@ test('exports the Einzelnachweise again on ?refresh=true', async (t) => {
     entries: MAPPE,
   });
 
-  const response = await GetInternAbrechnungEndpoint(request('evt_Lager', '?refresh=true'));
+  const response = await getAbrechnung(request('evt_Lager', '?refresh=true'));
 
   assert.equal(response.status, 200);
   const url = new URL(String(fetch.mock.calls[0].arguments[0]));
@@ -300,9 +309,7 @@ test('uses the chosen Kostenstelle and reports a missing one', async (t) => {
   mockCampflow(t, []);
   const fetch = mockPlaywright(t, 404, { error: 'Not Found' });
 
-  const response = await GetInternAbrechnungEndpoint(
-    request('evt_Lager', '?kostenstelle=Lager%2026')
-  );
+  const response = await getAbrechnung(request('evt_Lager', '?kostenstelle=Lager%2026'));
 
   assert.equal(response.status, 404);
   assert.equal((response.jsonBody as { code: string }).code, 'KOSTENSTELLE_NOT_FOUND');
@@ -314,7 +321,7 @@ test('maps an unavailable Playwright API to 502', async (t) => {
   mockCampflow(t, []);
   mockPlaywright(t, 504, { error: 'Timeout' });
 
-  const response = await GetInternAbrechnungEndpoint(request('evt_Lager'));
+  const response = await getAbrechnung(request('evt_Lager'));
 
   assert.equal(response.status, 502);
   assert.equal((response.jsonBody as { code: string }).code, 'EINZELNACHWEISE_UNAVAILABLE');
@@ -324,14 +331,13 @@ test('rejects anonymous requests, invalid IDs and unknown events', async (t) => 
   mockCampflow(t, []);
   const fetch = mockPlaywright(t, 200, {});
 
-  assert.equal((await GetInternAbrechnungEndpoint(request('evt_Lager', '', null))).status, 401);
-  assert.equal((await GetInternAbrechnungEndpoint(request('../x'))).status, 400);
+  assert.equal((await getAbrechnung(request('evt_Lager', '', null))).status, 401);
+  assert.equal((await getAbrechnung(request('../x'))).status, 400);
   assert.equal(
-    (await GetInternAbrechnungEndpoint(request('evt_Lager', `?kostenstelle=${'x'.repeat(201)}`)))
-      .status,
+    (await getAbrechnung(request('evt_Lager', `?kostenstelle=${'x'.repeat(201)}`))).status,
     400
   );
-  assert.equal((await GetInternAbrechnungEndpoint(request('evt_Unbekannt'))).status, 404);
+  assert.equal((await getAbrechnung(request('evt_Unbekannt'))).status, 404);
   assert.equal(fetch.mock.callCount(), 0);
 });
 
@@ -348,7 +354,7 @@ test('reads the marks of the Aktion before waiting for the Einzelnachweise', asy
     return Response.json({ costUnit: { id: 'cun_1', name: 'Lager' }, entries: MAPPE });
   });
 
-  const response = await GetInternAbrechnungEndpoint(request('evt_Lager'));
+  const response = await getAbrechnung(request('evt_Lager'));
 
   assert.equal(response.status, 200);
   assert.equal(marksReadBeforeExport, true);
@@ -376,13 +382,15 @@ test('a failed read of the marks keeps the earlier errors and is never left unha
     throw failure;
   });
 
-  assert.equal((await GetInternAbrechnungEndpoint(request('evt_Unbekannt'))).status, 404);
+  assert.equal((await getAbrechnung(request('evt_Unbekannt'))).status, 404);
   const fetch = mockPlaywright(t, 504, { error: 'Timeout' });
-  assert.equal((await GetInternAbrechnungEndpoint(request('evt_Lager'))).status, 502);
+  assert.equal((await getAbrechnung(request('evt_Lager'))).status, 502);
   fetch.mock.mockImplementation(async () =>
     Response.json({ costUnit: { id: 'cun_1', name: 'Lager' }, entries: [] })
   );
-  await assert.rejects(GetInternAbrechnungEndpoint(request('evt_Lager')), failure);
+  const logged = t.mock.method(context, 'error', () => undefined);
+  assert.equal((await getAbrechnung(request('evt_Lager'))).status, 500);
+  assert.equal(logged.mock.calls[0].arguments[0], failure);
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(unhandled, []);
 });
@@ -402,7 +410,7 @@ test('lists the Kostenstellen, active ones first', async (t) => {
     ],
   });
 
-  const response = await GetInternAbrechnungKostenstellenEndpoint(request('kostenstellen'));
+  const response = await getKostenstellen(request('kostenstellen'));
 
   assert.equal(response.status, 200);
   assert.deepEqual(response.jsonBody, [
@@ -418,7 +426,7 @@ test('lists the Kostenstellen, active ones first', async (t) => {
   // The last read of the Playwright API, unless the page asks for a new one
   const url = (call: number) => new URL(String(fetch.mock.calls[call]!.arguments[0]));
   assert.equal(url(0).searchParams.get('refresh'), null);
-  await GetInternAbrechnungKostenstellenEndpoint(request('kostenstellen', '?refresh=true'));
+  await getKostenstellen(request('kostenstellen', '?refresh=true'));
   assert.equal(url(1).searchParams.get('refresh'), 'true');
 });
 
@@ -428,10 +436,9 @@ test('a missing API key is a configuration error, not an unavailable upstream', 
   });
   const fetch = mockPlaywright(t, 200, { data: [] });
 
-  await assert.rejects(
-    GetInternAbrechnungKostenstellenEndpoint(request('kostenstellen')),
-    /PLAYWRIGHT_API_KEY/
-  );
+  const logged = t.mock.method(context, 'error', () => undefined);
+  assert.equal((await getKostenstellen(request('kostenstellen'))).status, 500);
+  assert.match(String(logged.mock.calls[0].arguments[0]), /PLAYWRIGHT_API_KEY/);
   assert.equal(fetch.mock.callCount(), 0);
 });
 
@@ -444,7 +451,7 @@ test('passes receipt images through with their page count', async (t) => {
     async () => new Response(png, { status: 200, headers: { 'x-campflow-pages': '3' } })
   );
   const bild = (nummer: string, query = '', principal: object | null = PRINCIPAL) =>
-    GetInternAbrechnungBelegBildEndpoint(
+    getBelegBild(
       new HttpRequest({
         url: `https://example.test/api/intern/abrechnung/belege/${nummer}/bild${query}`,
         method: 'GET',
@@ -476,7 +483,7 @@ test('passes the preview of a receipt through, also of one not booked yet', asyn
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1]);
   const fetch = t.mock.method(globalThis, 'fetch', async () => new Response(png, { status: 200 }));
   const vorschau = (nummer: string) =>
-    GetInternAbrechnungBelegVorschauEndpoint(
+    getBelegVorschau(
       new HttpRequest({
         url: `https://example.test/api/intern/abrechnung/belege/${nummer}/vorschau`,
         method: 'GET',
@@ -503,7 +510,7 @@ test('reports a receipt CampFlow does not know', async (t) => {
   t.mock.method(env, 'getEnvironment', () => 'test-key');
   mockPlaywright(t, 404, { error: 'Not Found' });
 
-  const response = await GetInternAbrechnungBelegBildEndpoint(
+  const response = await getBelegBild(
     new HttpRequest({
       url: 'https://example.test/api/intern/abrechnung/belege/2026-1/bild',
       method: 'GET',

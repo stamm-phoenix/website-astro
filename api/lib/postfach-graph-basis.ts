@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { getGraphStatus } from './sharepoint-data-access';
 import { getClient } from './token';
+import { getErrorStatus } from './response-utils';
 
 /**
  * Shared building blocks of the Graph access of the module „E-Mail“ (`postfach-graph.ts`,
@@ -101,7 +101,7 @@ export async function guarded<T>(address: string, work: () => Promise<T>): Promi
   try {
     return await work();
   } catch (error: unknown) {
-    const status = getGraphStatus(error);
+    const status = getErrorStatus(error);
     if (status === 401 || status === 403 || status === 404) throw new PostfachZugriffError(address);
     throw error;
   }

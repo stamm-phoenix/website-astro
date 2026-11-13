@@ -14,8 +14,8 @@ import {
   getLockDb,
   inTransaction,
   lockResource,
-  requireVersion,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Db } from './db';
 import type { Database } from './db-schema';
@@ -456,7 +456,7 @@ async function claimVersion(
   const row = await loadRow(trx, id);
   if (!row) throw new RecordNotFoundError();
   if (row.erstellt_von !== login) throw new AbstimmungForbiddenError();
-  const version = requireVersion(etag);
+  const version = requireRowversion(etag);
   const result = await trx
     .updateTable('abstimmung.abstimmung')
     .set({ titel: row.titel, ...changes })

@@ -3,13 +3,13 @@ import type { Transaction } from 'kysely';
 import type { Database } from './db-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { getDb, getLockDb, lockResource } from './db';
+import { MaintenanceError } from './response-utils';
 
 const activeGate = new AsyncLocalStorage<boolean>();
 
 export const PROTOKOLL_CUTOVER_LOCK = 'protokoll-cutover';
 
-export class ProtokollMaintenanceError extends Error {
-  readonly statusCode = 503;
+export class ProtokollMaintenanceError extends MaintenanceError {
   constructor() {
     super('Die Protokolle werden gerade umgestellt. Bitte später erneut versuchen.');
     this.name = 'ProtokollMaintenanceError';

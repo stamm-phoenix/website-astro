@@ -140,7 +140,7 @@ Previews nutzen dieselbe SharePoint-Bibliothek wie die Website. Eine Freigabe in
 - Freigeben, Zurückgeben und Verschicken dürfen alle Leitenden; das eigene Protokoll nur mit ausdrücklicher Bestätigung.
 - Das Löschen entfernt auch alle Versionen.
 
-Autosave und Verlängern der Sperre werden nicht protokolliert (`pflegeHandler` mit `quiet`). Protokolliert werden Anlegen, Übernehmen, Überschreiben mit einer lokalen Fassung, Wiederherstellen und Löschen, immer nur mit ID, nie mit Inhalt.
+Autosave und Verlängern der Sperre werden nicht protokolliert (`staffHandler` mit `quiet`). Protokolliert werden Anlegen, Übernehmen, Überschreiben mit einer lokalen Fassung, Wiederherstellen und Löschen, immer nur mit ID, nie mit Inhalt.
 
 ## Daten
 

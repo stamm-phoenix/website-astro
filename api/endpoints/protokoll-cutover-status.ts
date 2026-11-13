@@ -1,4 +1,5 @@
 import { app, type HttpResponseInit } from '@azure/functions';
+import { publicHandler } from '../lib/handler';
 
 /** Public deployment capability only; exposes no data, identity or database state. */
 export async function ProtokollCutoverStatus(): Promise<HttpResponseInit> {
@@ -13,5 +14,5 @@ app.http('protokollCutoverStatus', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'protokoll-cutover-status',
-  handler: ProtokollCutoverStatus,
+  handler: publicHandler(ProtokollCutoverStatus),
 });

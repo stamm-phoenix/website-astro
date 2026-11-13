@@ -1,11 +1,11 @@
 import { app } from '@azure/functions';
-import { pflegeHandler, ok, NOT_FOUND, readJsonBody } from '../lib/pflege-api';
+import { ok, NOT_FOUND } from '../lib/pflege-api';
 import { validateSammelPaymentInput } from '../lib/validation/sammel-payment';
 import { CampflowError } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
-import { errorResponse } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { getSammelOrder, getSammelOrderCampaign } from '../lib/sammelbestellung-list';
-import { requireSammelVersion, sammelHandler } from './sammelbestellungen';
+import { requireSammelVersion, sammelStaffHandler } from './sammelbestellungen';
 import {
   SammelPaymentError,
   sammelPaymentView,
@@ -17,9 +17,10 @@ import {
   confirmSammelPaymentDispatch,
 } from '../lib/sammelbestellung-payments';
 
-/** Staff authentication happens in pflegeHandler before any provider or order read. */
-export const SammelStaffPayment = sammelHandler(
-  pflegeHandler('sammelbestellungen-zahlung', async (request, context, principal) => {
+/** Staff authentication happens in staffHandler before any provider or order read. */
+export const SammelStaffPayment = sammelStaffHandler(
+  'sammelbestellungen-zahlung',
+  async (request, context, principal) => {
     // SWA ends the entire API request at 45 seconds; leave five seconds of gateway margin.
     const deadline = Date.now() + 40_000;
     try {
@@ -78,11 +79,12 @@ export const SammelStaffPayment = sammelHandler(
       if (error instanceof CampflowError) return campflowErrorResponse(error);
       throw error;
     }
-  })
+  }
 );
 
-export const SammelStaffPaymentPersons = sammelHandler(
-  pflegeHandler('sammelbestellungen-personen', async (request) => {
+export const SammelStaffPaymentPersons = sammelStaffHandler(
+  'sammelbestellungen-personen',
+  async (request) => {
     const order = await getSammelOrder(request.params.id);
     if (!order) return NOT_FOUND;
     try {
@@ -91,7 +93,7 @@ export const SammelStaffPaymentPersons = sammelHandler(
       if (error instanceof CampflowError) return campflowErrorResponse(error);
       throw error;
     }
-  })
+  }
 );
 
 app.http('sammelStaffPayment', {

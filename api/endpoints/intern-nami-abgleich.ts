@@ -1,11 +1,11 @@
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import { berlinDay } from '../lib/calendar-day';
 import { CampflowError, getCampflowMembersWithTime } from '../lib/campflow';
 import { gleicheAb } from '../lib/nami-abgleich';
 import { getNamiMitglieder, NamiError } from '../lib/nami';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
-import { hasTeam, isStaffError, requireStaff } from '../lib/staff-auth';
+import { errorResponse, NO_STORE_HEADERS } from '../lib/response-utils';
+import { hasTeam } from '../lib/staff-auth';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 const NOT_ALLOWED = errorResponse(
   403,
@@ -50,13 +50,12 @@ function campflowErrorResponse(error: CampflowError): HttpResponseInit {
  * this answer instead of giving up and asking again. The shared load goes on and serves the next
  * request.
  */
-const CAMPFLOW_BUDGET_MS = 25_000;
 
 /** `promise`, or the error of `timeout` once the budget is used up. */
 function withinBudget<T>(promise: Promise<T>, timeout: () => Error): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const expired = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => reject(timeout()), CAMPFLOW_BUDGET_MS);
+    timer = setTimeout(() => reject(timeout()), 25_000);
   });
   return Promise.race([promise, expired]).finally(() => clearTimeout(timer));
 }
@@ -66,11 +65,7 @@ function withinBudget<T>(promise: Promise<T>, timeout: () => Error): Promise<T> 
  * Admin and Vorstand (`docs/nami-abgleich.md`). Both lists are shared for a while;
  * `?refresh=true` reads both again. Nothing is stored and nothing is written to NaMi or CampFlow.
  */
-export async function GetInternNamiAbgleichEndpoint(
-  request: HttpRequest
-): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+const getInternNamiAbgleich: StaffRequestHandler = async (request, _context, principal) => {
   if (!hasTeam(principal, 'admin') && !hasTeam(principal, 'vorstand')) return NOT_ALLOWED;
 
   const refresh = request.query.get('refresh') === 'true';
@@ -99,14 +94,15 @@ export async function GetInternNamiAbgleichEndpoint(
       campflow: campflow.value.loadedAt,
     }),
   };
-}
+};
 
-const defaultHandler = withErrorHandling(GetInternNamiAbgleichEndpoint);
-export default defaultHandler;
+export const GetInternNamiAbgleichEndpoint = staffHandler('nami-abgleich', getInternNamiAbgleich);
+
+export default GetInternNamiAbgleichEndpoint;
 
 app.http('internNamiAbgleich', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/nami-abgleich',
-  handler: defaultHandler,
+  handler: GetInternNamiAbgleichEndpoint,
 });

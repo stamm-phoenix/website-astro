@@ -8,9 +8,9 @@ import {
   getDb,
   inTransaction,
   lockResource,
-  requireVersion,
   toVersion,
   VersionConflictError,
+  requireRowversion,
 } from './db';
 import { sendTaskReminderMail, taskReminderMailAllowed } from './aufgaben-erinnerung-mails';
 
@@ -114,7 +114,7 @@ async function release(reservation: Reservation): Promise<void> {
   await getDb()
     .deleteFrom('organisation.task_reminder_delivery')
     .where('id', '=', reservation.id)
-    .where('version', '=', requireVersion(reservation.etag))
+    .where('version', '=', requireRowversion(reservation.etag))
     .where('status', '=', 'attempted')
     .execute();
 }
@@ -132,7 +132,7 @@ async function record(
       retry_after: status === 'retryable' ? new Date(now.getTime() + 45 * 60 * 1000) : null,
     })
     .where('id', '=', reservation.id)
-    .where('version', '=', requireVersion(reservation.etag))
+    .where('version', '=', requireRowversion(reservation.etag))
     .where('status', '=', 'attempted')
     .output('inserted.id')
     .executeTakeFirst();

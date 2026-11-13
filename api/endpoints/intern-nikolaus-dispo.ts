@@ -9,6 +9,7 @@ import {
   isNikolausStaffError,
   readAsNikolausStaff,
   requireNikolausStaff,
+  nikolausGate,
 } from '../lib/nikolaus-staff';
 import {
   DISPO_MAX_VISIT_MINUTES,
@@ -17,12 +18,13 @@ import {
 } from '../lib/nikolaus-dispo';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
-import { NO_STORE_HEADERS, toLocation, toStaffBooking } from '../lib/nikolaus-api';
+import { toLocation, toStaffBooking } from '../lib/nikolaus-api';
 import { getRoutePath, getTravelMatrix } from '../lib/travel-times';
 import { confirmedOfDay, getTeamMembers, readDate, readDateParam } from '../lib/nikolaus-day';
 import { validateDispoSave } from '../lib/validation/nikolaus-dispo';
-import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { NOT_FOUND, ok } from '../lib/pflege-api';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
+import { publicHandler, staffHandler } from '../lib/handler';
 
 /** Upper limit of stops per request, far above a real evening. */
 const MAX_ROUTE_STOPS = 200;
@@ -119,21 +121,24 @@ export async function GetInternNikolausDispoEndpoint(
 }
 
 /** PUT: saves the Dispo of a day. Answers with the saved rows and their new version. */
-export const NikolausDispoSave = pflegeHandler('nikolaus-dispo', async (request) => {
-  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
-  const config = await getNikolausSettings();
-  const date = readDate(request, config);
-  if (!date) return NOT_FOUND;
+export const NikolausDispoSave = staffHandler(
+  'nikolaus-dispo',
+  async (request) => {
+    const config = await getNikolausSettings();
+    const date = readDate(request, config);
+    if (!date) return NOT_FOUND;
 
-  const bookings = await getAllBookings();
-  const bookingSlots = new Map(confirmedOfDay(bookings, date).map((b) => [b.id, b.slotKey]));
-  const teams = getNikolausTeams(date, config).map((team) => team.name);
-  const input = validateDispoSave(await readJsonBody(request), teams, bookingSlots);
+    const bookings = await getAllBookings();
+    const bookingSlots = new Map(confirmedOfDay(bookings, date).map((b) => [b.id, b.slotKey]));
+    const teams = getNikolausTeams(date, config).map((team) => team.name);
+    const input = validateDispoSave(await readJsonBody(request), teams, bookingSlots);
 
-  await saveDispo(date, input.entries, input.version, input.done);
-  const rows = await getDispoRows(date);
-  return ok({ rows: rows.map(toClientRow), version: getDispoVersion(rows) });
-});
+    await saveDispo(date, input.entries, input.version, input.done);
+    const rows = await getDispoRows(date);
+    return ok({ rows: rows.map(toClientRow), version: getDispoVersion(rows) });
+  },
+  { gate: nikolausGate }
+);
 
 /**
  * POST: the course of each team's route along the roads, for the map only. The body names the
@@ -145,7 +150,6 @@ export async function GetInternNikolausDispoRoutesEndpoint(
 ): Promise<HttpResponseInit> {
   const access = await requireNikolausStaff(request);
   if (isNikolausStaffError(access)) return access;
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const { config } = access;
 
   const date = readDate(request, config);
@@ -181,9 +185,9 @@ export async function GetInternNikolausDispoRoutesEndpoint(
   };
 }
 
-export const NikolausDispoRoutes = withErrorHandling(GetInternNikolausDispoRoutesEndpoint);
+export const NikolausDispoRoutes = publicHandler(GetInternNikolausDispoRoutesEndpoint);
 
-const defaultHandler = withErrorHandling(GetInternNikolausDispoEndpoint);
+const defaultHandler = publicHandler(GetInternNikolausDispoEndpoint);
 export default defaultHandler;
 
 app.http('internNikolausDispo', {

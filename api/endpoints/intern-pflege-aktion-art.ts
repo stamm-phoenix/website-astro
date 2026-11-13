@@ -2,19 +2,19 @@ import { app, type HttpRequest } from '@azure/functions';
 import { getAktionArt, setKeineAktion } from '../lib/aktion-art';
 import { CAMPFLOW_EVENT_ID_PATTERN, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
-import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
+import { NOT_FOUND, ok } from '../lib/pflege-api';
 import { validateKeineAktion } from '../lib/validation/aktion-art';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
+import { staffHandler } from '../lib/handler';
 
 /**
  * PUT `{ keineAktion }`: whether a CampFlow event is no real Aktion, e.g. an order of jumpers.
  * Only events that exist in CampFlow can be marked; marking with the current value is fine. The
  * answer holds both marks, as taking the mark back brings the stored KJR choice back.
  */
-export const AktionArtEndpoint = pflegeHandler(
+export const AktionArtEndpoint = staffHandler(
   'aktionen-art',
   async (request: HttpRequest, _context, principal) => {
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const id = request.params.id ?? '';
     if (!CAMPFLOW_EVENT_ID_PATTERN.test(id)) return NOT_FOUND;
 
@@ -34,12 +34,11 @@ export const AktionArtEndpoint = pflegeHandler(
   }
 );
 
-const AktionArt = withErrorHandling(AktionArtEndpoint);
-export default AktionArt;
+export default AktionArtEndpoint;
 
 app.http('internPflegeAktionArt', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aktionen-art/{id}',
-  handler: AktionArt,
+  handler: AktionArtEndpoint,
 });

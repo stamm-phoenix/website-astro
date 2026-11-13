@@ -5,9 +5,9 @@ import {
   VersionConflictError,
   getDb,
   lockResource,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type {
   OffeneAufgabeQuelle,
@@ -86,7 +86,7 @@ export async function setOffeneAufgabeErledigt(
   etag: string | undefined,
   actor: string
 ): Promise<string | undefined> {
-  const version = requireVersion(etag);
+  const version = requireRowversion(etag);
   const db = getDb();
   const result = await db
     .updateTable('organisation.task')

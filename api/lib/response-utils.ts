@@ -1,60 +1,7 @@
-import { withServerTiming } from './server-timing';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
-type EndpointHandler = (
-  request: HttpRequest,
-  context: InvocationContext
-) => Promise<HttpResponseInit>;
-
-interface ErrorHandlingOptions {
-  exposeErrorDetails?: boolean;
-}
-
-/**
- * Wraps an endpoint handler with centralized exception handling.
- *
- * @param handler - The endpoint handler to invoke.
- * @param options - Controls whether exception details are included in error responses.
- * @returns A handler that returns the original response on success or an HTTP 500 response after logging an exception.
- */
-export function withErrorHandling(
-  handler: EndpointHandler,
-  options?: ErrorHandlingOptions
-): EndpointHandler {
-  return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
-    const invoke = async (): Promise<HttpResponseInit> => {
-      try {
-        return await handler(request, context);
-      } catch (error: unknown) {
-        context.error(error);
-
-        if (!options?.exposeErrorDetails) {
-          return {
-            status: 500,
-            jsonBody: {
-              error: 'Error',
-              message: 'Internal Server Error',
-            },
-          };
-        }
-
-        const errorName = error instanceof Error ? error.name : 'Error';
-        const errorMessage = error instanceof Error ? error.message : String(error);
-
-        return {
-          status: 500,
-          jsonBody: {
-            error: errorName,
-            message: errorMessage,
-          },
-        };
-      }
-    };
-    return new URL(request.url).pathname.startsWith('/api/intern/')
-      ? withServerTiming(invoke)
-      : invoke();
-  };
-}
+/** For answers that must never be stored by a browser or proxy (personal data, tokens). */
+export const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
 
 /** Largest file `proxyFile` reads into memory unless the caller sets `maxBytes`. */
 export const PROXY_FILE_MAX_BYTES = 50 * 1024 * 1024;
@@ -236,4 +183,26 @@ export function errorResponse(status: number, code: string, message: string): Ht
 export function getErrorStatus(error: unknown): number | undefined {
   const status = (error as { statusCode?: unknown })?.statusCode;
   return typeof status === 'number' ? status : undefined;
+}
+
+/** A write stopped by a maintenance mode, answered with `maintenanceResponse`. */
+export class MaintenanceError extends Error {
+  readonly statusCode = 503;
+  readonly code = 'MAINTENANCE';
+}
+
+export function maintenanceResponse(error: MaintenanceError): HttpResponseInit {
+  return { ...errorResponse(503, 'MAINTENANCE', error.message), headers: NO_STORE_HEADERS };
+}
+
+/** The JSON object of a request body; `null` for an empty, invalid or non-object body. */
+export async function readJsonBody(request: HttpRequest): Promise<Record<string, unknown> | null> {
+  try {
+    const body: unknown = await request.json();
+    return body !== null && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
 }

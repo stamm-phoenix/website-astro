@@ -81,7 +81,6 @@ import {
   validatePlanungZutat,
 } from '../lib/essen-gerichte-validation';
 import { readGemeinsamerLink, readRolle, readTagId } from '../lib/essen-planung-request';
-import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
 import {
   METHOD_NOT_ALLOWED,
   ok,
@@ -91,7 +90,7 @@ import {
   zugangVon,
 } from '../lib/essen-planung-http';
 import { ValidationError } from '../lib/validation/errors';
-import { errorResponse } from '../lib/response-utils';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import { isPreviewDeployment } from '../lib/staff-auth';
 
@@ -162,7 +161,6 @@ async function verschicke(
 
 /** POST `{ altcha, email, name, planungName, ersterTag, letzterTag }`: mails the confirmation link. */
 export const EssensplanungAnlegen = planungHandler(async (request, context) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   if (!isAltchaConfigured()) return UNAVAILABLE;
   const body = await readJsonBody(request);
   const input = validateAnlegen(body);
@@ -185,7 +183,6 @@ export const EssensplanungAnlegen = planungHandler(async (request, context) => {
 
 /** POST `{ token }`: creates the Planung of a confirmed request; answers with the owner's token. */
 export const EssensplanungBestaetigen = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   return ok({ token: await anfrageBestaetigen(body?.token) }, 201);
 });
@@ -195,7 +192,6 @@ export const EssensplanungBestaetigen = planungHandler(async (request) => {
  * same whether the address is known or not.
  */
 export const EssensplanungMeine = planungHandler(async (request, context) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   if (!isAltchaConfigured()) return UNAVAILABLE;
   const body = await readJsonBody(request);
   const email = validateEmail(body);
@@ -217,14 +213,12 @@ export const EssensplanungMeine = planungHandler(async (request, context) => {
 
 /** POST `{ token }`: the name of the Planung behind a join link. */
 export const EssensplanungBeitrittAnsehen = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   return ok(await beitrittAnsehen(body?.token));
 });
 
 /** POST `{ token, name, email? }`: joins the Planung; answers with the personal token. */
 export const EssensplanungBeitreten = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   const input = validateBeitritt(body);
   return ok({ token: await beitreten(body?.token, input) }, 201);
@@ -258,7 +252,6 @@ export const EssensplanungPlanung = planungHandler(async (request) => {
 
 /** GET `?seit=<stand>`: only the `stand` while nothing changed, otherwise the whole view. */
 export const EssensplanungStand = planungHandler(async (request) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const gelesen = await ladeStand(zugang);
   if (gelesen.stand === request.query.get('seit')) return ok({ stand: gelesen.stand });
@@ -268,7 +261,6 @@ export const EssensplanungStand = planungHandler(async (request) => {
 
 /** PATCH `{ name }`: one's own name. */
 export const EssensplanungIch = planungHandler(async (request) => {
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   if (zugang.mitgliedId === null)
     throw new PlanungError(403, 'NUR_LESEN', 'Mit diesem Link kannst du die Planung nur ansehen.');
@@ -278,7 +270,6 @@ export const EssensplanungIch = planungHandler(async (request) => {
 
 /** POST `{ art: 'beitritt'|'lesen', an }`: new shared link (the old one stops) or off. */
 export const EssensplanungLinks = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   const { art, an } = readGemeinsamerLink(body);
@@ -288,7 +279,6 @@ export const EssensplanungLinks = planungHandler(async (request) => {
 
 /** POST `{ name, email, rolle }`: invites by mail. */
 export const EssensplanungMitglieder = planungHandler(async (request, context) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const input = validateEinladung(await readJsonBody(request));
   const eingeladen = await einladen(zugang, input);
@@ -322,7 +312,6 @@ export const EssensplanungMitglied = planungHandler(async (request) => {
     await mitgliedAendern(zugang, id, { entziehen: true }, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   const rolle = readRolle(body);
   await mitgliedAendern(zugang, id, { rolle }, readEtag(body, request));
@@ -331,7 +320,6 @@ export const EssensplanungMitglied = planungHandler(async (request) => {
 
 /** POST: sends a member a new link (the old one stops working). */
 export const EssensplanungMitgliedLink = planungHandler(async (request, context) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const neu = await neuerLink(zugang, readId(request));
   const personal = planungLink(request, neu.token);
@@ -352,7 +340,6 @@ export const EssensplanungMitgliedLink = planungHandler(async (request, context)
 
 /** POST `{ datum }`: adds a day with the template meals. */
 export const EssensplanungTage = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await tagHinzufuegen(zugang, validateTag(await readJsonBody(request)));
   return ok(await ladeAnsicht(zugang), 201);
@@ -366,7 +353,6 @@ export const EssensplanungTag = planungHandler(async (request) => {
     await tagLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await tagVerschieben(zugang, id, validateTag(body), readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
@@ -374,7 +360,6 @@ export const EssensplanungTag = planungHandler(async (request) => {
 
 /** POST `{ tagId, name, uhrzeit?, position? }`: adds a meal to a day. */
 export const EssensplanungMahlzeiten = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   const tagId = readTagId(body);
@@ -390,7 +375,6 @@ export const EssensplanungMahlzeit = planungHandler(async (request) => {
     await mahlzeitLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await mahlzeitAendern(
     zugang,
@@ -403,14 +387,12 @@ export const EssensplanungMahlzeit = planungHandler(async (request) => {
 
 /** GET: the central lists (categories, allergens, ingredients) the dishes pick from. */
 export const EssensplanungKatalog = planungHandler(async (request) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
   await zugangVon(request);
   return ok(await ladeKatalog());
 });
 
 /** POST `{ name, kategorieId, einheitenart, vegetarisch?, vegan?, allergene? }`: an own ingredient. */
 export const EssensplanungZutaten = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const id = await eigeneZutatAnlegen(
     zugang,
@@ -430,7 +412,6 @@ export const EssensplanungZutat = planungHandler(async (request) => {
     await planungZutatLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await planungZutatAendern(zugang, id, body, readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
@@ -442,7 +423,6 @@ export const EssensplanungZutat = planungHandler(async (request) => {
  * view.
  */
 export const EssensplanungGerichte = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const { gericht, einplanung } = validateNeuesGericht(await readJsonBody(request));
   const id = await gerichtAnlegen(zugang, gericht, einplanung);
@@ -457,7 +437,6 @@ export const EssensplanungGericht = planungHandler(async (request) => {
     await gerichtLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await gerichtAendern(zugang, id, validateGericht(body, { neu: false }), readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
@@ -465,7 +444,6 @@ export const EssensplanungGericht = planungHandler(async (request) => {
 
 /** POST `{ zutatId | planungZutatId, menge, einheit, …, position? }`: adds a line to a dish. */
 export const EssensplanungGerichtZutaten = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   await gerichtZutatAnlegen(
@@ -488,7 +466,6 @@ export const EssensplanungGerichtZutat = planungHandler(async (request) => {
     await gerichtZutatLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await gerichtZutatAendern(
     zugang,
@@ -502,7 +479,6 @@ export const EssensplanungGerichtZutat = planungHandler(async (request) => {
 
 /** POST `{ mahlzeitId, gerichtId, faktor, zustaendigId, zustaendigText, position? }`: plans a dish. */
 export const EssensplanungEinplanungen = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   await einplanen(zugang, validateEinplanung(body), readPosition(body?.position));
@@ -520,7 +496,6 @@ export const EssensplanungEinplanung = planungHandler(async (request) => {
     await einplanungLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await einplanungAendern(
     zugang,
@@ -534,7 +509,6 @@ export const EssensplanungEinplanung = planungHandler(async (request) => {
 
 /** POST `{ name, faktor }`: adds a group. */
 export const EssensplanungGruppen = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await gruppeAnlegen(zugang, validateGruppe(await readJsonBody(request)));
   return ok(await ladeAnsicht(zugang), 201);
@@ -548,7 +522,6 @@ export const EssensplanungGruppe = planungHandler(async (request) => {
     await gruppeLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await gruppeAendern(zugang, id, validateGruppe(body), readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
@@ -556,7 +529,6 @@ export const EssensplanungGruppe = planungHandler(async (request) => {
 
 /** POST `{ gruppeId, ernaehrung, anzahl, unvertraeglichkeiten, vonMahlzeitId, bisMahlzeitId, hinweis }`. */
 export const EssensplanungTeilnehmendeListe = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await teilnehmendeAnlegen(zugang, validateTeilnehmende(await readJsonBody(request)));
   return ok(await ladeAnsicht(zugang), 201);
@@ -570,7 +542,6 @@ export const EssensplanungTeilnehmende = planungHandler(async (request) => {
     await teilnehmendeLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await teilnehmendeAendern(zugang, id, validateTeilnehmende(body), readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
@@ -578,7 +549,6 @@ export const EssensplanungTeilnehmende = planungHandler(async (request) => {
 
 /** PUT `{ gruppeId, isst }`: whether a group eats at the meal. */
 export const EssensplanungMahlzeitGruppe = planungHandler(async (request) => {
-  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   const gruppeId =

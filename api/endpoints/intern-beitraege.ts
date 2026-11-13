@@ -1,18 +1,14 @@
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app } from '@azure/functions';
 import { readBeitraege } from '../lib/beitraege';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { getBeitraege, PlaywrightApiError } from '../lib/playwright-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
+import { errorResponse, NO_STORE_HEADERS } from '../lib/response-utils';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 /**
  * All Sammlungen and Beiträge from CampFlow with who has paid, read-only. The Playwright API
  * serves its last read; `?refresh=true` reads CampFlow again.
  */
-export async function GetInternBeitraegeEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-
+const getInternBeitraege: StaffRequestHandler = async (request) => {
   try {
     const beitraege = readBeitraege(
       await getBeitraege({ refresh: request.query.get('refresh') === 'true' })
@@ -33,14 +29,15 @@ export async function GetInternBeitraegeEndpoint(request: HttpRequest): Promise<
       'Die Beiträge konnten nicht aus CampFlow geladen werden. Versuche es in ein paar Minuten noch einmal; klappt es dann nicht, melde dich bei admin@stamm-phoenix.de.'
     );
   }
-}
+};
 
-const defaultHandler = withErrorHandling(GetInternBeitraegeEndpoint);
-export default defaultHandler;
+export const GetInternBeitraegeEndpoint = staffHandler('beitraege', getInternBeitraege);
+
+export default GetInternBeitraegeEndpoint;
 
 app.http('internBeitraege', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/beitraege',
-  handler: defaultHandler,
+  handler: GetInternBeitraegeEndpoint,
 });

@@ -1,6 +1,6 @@
 import type { Transaction } from 'kysely';
 import type { Db } from './db';
-import { RecordNotFoundError, VersionConflictError, lockResource, requireVersion } from './db';
+import { RecordNotFoundError, VersionConflictError, lockResource, requireRowversion } from './db';
 import type { Database } from './db-schema';
 import { MAX_ZEILEN_PRO_GERICHT, gerichtSperre } from './essen-gerichte-model';
 import type { GerichtKopfInput, GerichtZutatInput } from './essen-gerichte-validation';
@@ -193,7 +193,7 @@ export async function gerichtZutatenSammeln(
           ...(personenSetzen !== undefined ? { personen: personenSetzen } : {}),
         })
         .where('id', '=', gericht.id)
-        .where('version', '=', requireVersion(kopf.etag))
+        .where('version', '=', requireRowversion(kopf.etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     } else if (personenSetzen !== undefined)
@@ -267,7 +267,7 @@ export async function gerichtZutatAendern(
       .updateTable('essen.gericht_zutat')
       .set(zeilenWerte(input, zutat.id))
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     await setzeUnvertraeglichkeiten(trx, id, input);
@@ -297,7 +297,7 @@ export async function gerichtZutatLoeschen(
     const result = await trx
       .deleteFrom('essen.gericht_zutat')
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     await sortiereZeilen(trx, zeile.gericht_id, null);

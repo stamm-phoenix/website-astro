@@ -1,13 +1,7 @@
-import {
-  app,
-  type HttpRequest,
-  type HttpResponseInit,
-  type InvocationContext,
-} from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import { sendSammelLinkMail, sendSammelSavedMail } from '../lib/sammelbestellung-mails';
-import { readJsonBody, NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
 import { VersionConflictError } from '../lib/db';
 import { ValidationError } from '../lib/validation/errors';
 import { isSammelOpen, canEditSammelOrder } from '../lib/sammelbestellung-model';
@@ -28,6 +22,12 @@ import { getSammelStammProdukt } from '../lib/sammelbestellung-stamm';
 import { reserveSammelLinkRequest } from '../lib/sammelbestellung-link-quota';
 import { SammelPaymentError } from '../lib/sammelbestellung-payments';
 import { getSiteUrl } from '../lib/site-url';
+import {
+  publicHandler,
+  staffHandler,
+  type EndpointHandler,
+  type StaffRequestHandler,
+} from '../lib/handler';
 
 const INVALID_LINK = errorResponse(
   404,
@@ -51,31 +51,60 @@ interface ProductLookupQuota {
 }
 const productLookups = new Map<string, ProductLookupQuota>();
 
-/** Adds no-store even to validation, conflict and upstream-error responses. */
-export function sammelHandler(
-  handler: (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit>
-): (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit> {
-  const safe = withErrorHandling(async (request, context) => {
-    try {
-      return await handler(request, context);
-    } catch (error: unknown) {
-      if (error instanceof SammelPaymentError)
-        return errorResponse(error.status, error.code, error.message);
-      if (error instanceof InvalidSammelDataError)
-        return errorResponse(503, 'INVALID_STORED_DATA', error.message);
-      if (error instanceof ValidationError)
-        return {
-          status: 400,
-          jsonBody: { code: 'INVALID', message: error.message, fields: error.fields },
-        };
-      if (error instanceof VersionConflictError) return CONFLICT;
-      throw error;
-    }
-  });
-  return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
-    const response = await safe(request, context);
+/** The answers to the module's own errors, or `undefined` for others. */
+function sammelErrorResponse(error: unknown): HttpResponseInit | undefined {
+  if (error instanceof SammelPaymentError)
+    return errorResponse(error.status, error.code, error.message);
+  if (error instanceof InvalidSammelDataError)
+    return errorResponse(503, 'INVALID_STORED_DATA', error.message);
+  return undefined;
+}
+
+/** Adds no-store to every answer, also to errors. */
+function withNoStore(handler: EndpointHandler): EndpointHandler {
+  return async (request, context) => {
+    const response = await handler(request, context);
     return { ...response, headers: { ...response.headers, ...NO_STORE_HEADERS } };
   };
+}
+
+/** Adds no-store even to validation, conflict and upstream-error responses. */
+export function sammelHandler(handler: EndpointHandler): EndpointHandler {
+  return withNoStore(
+    publicHandler(async (request, context) => {
+      try {
+        return await handler(request, context);
+      } catch (error: unknown) {
+        const known = sammelErrorResponse(error);
+        if (known) return known;
+        if (error instanceof ValidationError)
+          return {
+            status: 400,
+            jsonBody: { code: 'INVALID', message: error.message, fields: error.fields },
+          };
+        if (error instanceof VersionConflictError) return CONFLICT;
+        throw error;
+      }
+    })
+  );
+}
+
+/**
+ * The staff routes of the module: `staffHandler` answers invalid input and conflicts, the
+ * module's own errors are answered here, and every answer gets no-store.
+ */
+export function sammelStaffHandler(area: string, handler: StaffRequestHandler): EndpointHandler {
+  return withNoStore(
+    staffHandler(area, async (request, context, principal) => {
+      try {
+        return await handler(request, context, principal);
+      } catch (error: unknown) {
+        const known = sammelErrorResponse(error);
+        if (known) return known;
+        throw error;
+      }
+    })
+  );
 }
 
 /** Requires a concrete quoted ETag and reports stale versions without writing. */

@@ -18,15 +18,9 @@ import { gerichtGenerieren } from '../lib/essen-ki-generieren';
 import { KI_MASSE, MAX_GERICHT_BESCHREIBUNG, MAX_REZEPT_TEXT } from '../lib/essen-ki-model';
 import type { KiMass } from '../lib/essen-ki-model';
 import { ladeAnsicht } from '../lib/essen-ansicht';
-import {
-  METHOD_NOT_ALLOWED,
-  ok,
-  planungHandler,
-  readId,
-  zugangVon,
-} from '../lib/essen-planung-http';
-import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
+import { ok, planungHandler, readId, zugangVon } from '../lib/essen-planung-http';
 import { ValidationError } from '../lib/validation/errors';
+import { NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
 
 /**
  * The AI of a Planung (`docs/essensplanung.md`, „KI“) and the endpoint that takes over the lines
@@ -60,7 +54,6 @@ async function kiAntwort(work: () => Promise<unknown>): Promise<HttpResponseInit
 
 /** POST: hints on a dish, each with a proposal (`KiPruefung`). */
 export const EssensplanungKiPruefen = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const id = readId(request);
   return kiAntwort(() => gerichtPruefen(zugang, id));
@@ -68,7 +61,6 @@ export const EssensplanungKiPruefen = planungHandler(async (request) => {
 
 /** POST `{ text }`: the lines of a pasted recipe for the dish, not saved yet (`KiRezept`). */
 export const EssensplanungKiRezept = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const id = readId(request);
   const body = await readJsonBody(request);
@@ -83,7 +75,6 @@ export const EssensplanungKiRezept = planungHandler(async (request) => {
 
 /** POST `{ beschreibung }`: a whole dish written by the AI, not saved yet (`KiGericht`). */
 export const EssensplanungKiGenerieren = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const id = readId(request);
   const body = await readJsonBody(request);
@@ -99,7 +90,6 @@ export const EssensplanungKiGenerieren = planungHandler(async (request) => {
 
 /** POST `{ zutatId | planungZutatId, mass }`: estimated grams of one TL, EL or piece. */
 export const EssensplanungKiUmrechnung = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   const id = (value: unknown) =>
@@ -116,7 +106,6 @@ export const EssensplanungKiUmrechnung = planungHandler(async (request) => {
 
 /** POST `{ planungZutatId }`: a common unit and factors for the amounts of one ingredient. */
 export const EssensplanungKiEinheiten = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   const id = body?.planungZutatId;
@@ -161,7 +150,6 @@ function validateZeilen(
  * (`{ etag, anleitung?, werkzeuge? }`) its instructions and tools in the same change.
  */
 export const EssensplanungGerichtZutatenSammel = planungHandler(async (request: HttpRequest) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const id = readId(request);
   const body = await readJsonBody(request);

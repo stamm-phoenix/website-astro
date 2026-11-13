@@ -12,7 +12,8 @@ import {
 } from '../lib/blog-list';
 import type { BlogImage } from '../lib/validation/blog';
 import { serveBlogImage } from '../lib/blog-images';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 const LIST_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60' };
 /**
@@ -107,9 +108,9 @@ export async function GetBlogImageEndpoint(request: HttpRequest): Promise<HttpRe
   };
 }
 
-export const GetBlog = withErrorHandling(GetBlogEndpoint);
-export const GetBlogPost = withErrorHandling(GetBlogPostEndpoint);
-export const GetBlogImage = withErrorHandling(GetBlogImageEndpoint);
+export const GetBlog = publicHandler(GetBlogEndpoint);
+export const GetBlogPost = publicHandler(GetBlogPostEndpoint);
+export const GetBlogImage = publicHandler(GetBlogImageEndpoint);
 
 app.http('blog', {
   methods: ['GET'],

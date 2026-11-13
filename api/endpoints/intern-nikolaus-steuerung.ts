@@ -1,12 +1,6 @@
-import {
-  app,
-  type HttpRequest,
-  type HttpResponseInit,
-  type InvocationContext,
-} from '@azure/functions';
+import { app, type HttpRequest, type InvocationContext } from '@azure/functions';
 import { z } from 'zod';
 import type { ClientPrincipal } from '../lib/staff-auth';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
 import {
   SettingsConflictError,
   listAuditLog,
@@ -21,19 +15,12 @@ import {
   getCleanupStatus,
 } from '../lib/nikolaus-cleanup';
 import { ValidationError } from '../lib/validation/errors';
-import {
-  METHOD_NOT_ALLOWED,
-  NO_STORE_HEADERS,
-  ok,
-  pflegeHandler,
-  readEtag,
-  readJsonBody,
-  requireVersion,
-} from '../lib/pflege-api';
+import { ok, readEtag, requireEtag } from '../lib/pflege-api';
 import { requestSiteRebuild } from '../lib/site-rebuild';
-import { withErrorHandling } from '../lib/response-utils';
+import { NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
-/** The area of the Steuerung in `pflegeHandler`: reachable while the modules are off. */
+/** The area of the Steuerung in `staffHandler`: reachable while the modules are off. */
 const AREA = 'nikolaus-steuerung';
 
 /** Everything the module shows. */
@@ -52,18 +39,16 @@ async function steuerungView() {
 }
 
 /** GET: settings, data to be deleted with its deadline and log. */
-export const NikolausSteuerung = pflegeHandler(AREA, async (request) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
+export const NikolausSteuerung = staffHandler(AREA, async () => {
   return ok(await steuerungView());
 });
 
 /** PUT: saves the settings (etag). Public changes start a website build. */
-export const NikolausSteuerungSave = pflegeHandler(
+export const NikolausSteuerungSave = staffHandler(
   AREA,
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
-    const etag = requireVersion(readEtag(body));
+    const etag = requireEtag(readEtag(body));
     const settings = validateNikolausSettings(body?.settings);
     let publicChanged: boolean;
     try {
@@ -97,10 +82,9 @@ function readScope(value: unknown): CleanupScope | undefined {
 }
 
 /** POST: deletes all bookings or all helpers; the typed confirmation must match. */
-export const NikolausSteuerungDelete = pflegeHandler(
+export const NikolausSteuerungDelete = staffHandler(
   AREA,
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const scope = readScope(body?.scope);
     if (!scope) throw new ValidationError({ scope: 'Bitte auswählen, was gelöscht wird.' });
@@ -119,9 +103,7 @@ export const NikolausSteuerungDelete = pflegeHandler(
  * GET: what every page of the Leitendenbereich needs to know about the Nikolausdienst: whether
  * its modules are shown, and whether the data is due for deletion.
  */
-export async function GetNikolausStatusEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+const getNikolausStatus: StaffRequestHandler = async () => {
   const [stored, cleanup] = await Promise.all([loadNikolausSettings(), getCleanupStatus()]);
   return {
     status: 200,
@@ -133,37 +115,34 @@ export async function GetNikolausStatusEndpoint(request: HttpRequest): Promise<H
       deletionDue: cleanup.due,
     },
   };
-}
+};
 
-export const NikolausStatus = withErrorHandling(GetNikolausStatusEndpoint);
-export const NikolausSteuerungEndpoint = withErrorHandling(NikolausSteuerung);
-export const NikolausSteuerungSaveEndpoint = withErrorHandling(NikolausSteuerungSave);
-export const NikolausSteuerungDeleteEndpoint = withErrorHandling(NikolausSteuerungDelete);
+export const GetNikolausStatusEndpoint = staffHandler('nikolaus-steuerung', getNikolausStatus);
 
 app.http('internNikolausStatus', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/nikolaus/status',
-  handler: NikolausStatus,
+  handler: GetNikolausStatusEndpoint,
 });
 
 app.http('internNikolausSteuerung', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/nikolaus/steuerung',
-  handler: NikolausSteuerungEndpoint,
+  handler: NikolausSteuerung,
 });
 
 app.http('internPflegeNikolausSteuerung', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-steuerung',
-  handler: NikolausSteuerungSaveEndpoint,
+  handler: NikolausSteuerungSave,
 });
 
 app.http('internPflegeNikolausSteuerungDelete', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-steuerung/loeschen',
-  handler: NikolausSteuerungDeleteEndpoint,
+  handler: NikolausSteuerungDelete,
 });

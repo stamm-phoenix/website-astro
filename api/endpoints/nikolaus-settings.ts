@@ -1,7 +1,7 @@
 import { app, type HttpResponseInit } from '@azure/functions';
 import { toNikolausConfig } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 /**
  * GET: the public settings of the Nikolausdienst (days, times, switch of the online booking,
@@ -15,7 +15,7 @@ export async function GetNikolausSettingsEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-const defaultHandler = withErrorHandling(GetNikolausSettingsEndpoint);
+const defaultHandler = publicHandler(GetNikolausSettingsEndpoint);
 export default defaultHandler;
 
 app.http('nikolausSettings', {

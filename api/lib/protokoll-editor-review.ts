@@ -6,8 +6,8 @@ import {
   getDb,
   inTransaction,
   lockResource,
-  requireVersion,
   toDateString,
+  requireRowversion,
 } from './db';
 import { getLeitende } from './leitende-list';
 import { ValidationError } from './validation/errors';
@@ -21,10 +21,10 @@ import { assertOwnApprovalConfirmed } from './protokolle';
 import {
   createSharePointDriveFile,
   deleteSharePointDriveItem,
-  getGraphStatus,
   getSharePointDriveFileContent,
 } from './sharepoint-data-access';
 import type { ClientPrincipal } from './staff-auth';
+import { getErrorStatus } from './response-utils';
 
 /**
  * Review, approval and mailing of minutes written in the editor (#277, step 2,
@@ -85,7 +85,7 @@ export async function submitEditorReview(
   actor: string,
   now: Date = new Date()
 ): Promise<void> {
-  const version = requireVersion(input.etag);
+  const version = requireRowversion(input.etag);
   await inTransaction(async (trx) => {
     await lockResource(trx, editorResource(id));
     const row = await trx
@@ -122,7 +122,7 @@ export async function rejectEditorReview(
   if (note.length > MAX_NOTE) {
     throw new ValidationError({ note: `Bitte höchstens ${MAX_NOTE} Zeichen.` });
   }
-  const version = requireVersion(input.etag);
+  const version = requireRowversion(input.etag);
   return inTransaction(async (trx) => {
     await lockResource(trx, editorResource(id));
     const row = await trx
@@ -193,7 +193,7 @@ async function filePdf(
         webUrl: typeof created.webUrl === 'string' ? created.webUrl : '',
       };
     } catch (error: unknown) {
-      if (getGraphStatus(error) !== 409) throw error;
+      if (getErrorStatus(error) !== 409) throw error;
     }
   }
   deny('Im Protokoll-Ordner gibt es schon zu viele Dateien mit diesem Namen.');
@@ -224,7 +224,7 @@ export async function approveEditorProtokoll(
   principal: ClientPrincipal,
   now: Date = new Date()
 ): Promise<EditorFreigabe> {
-  const version = requireVersion(input.etag);
+  const version = requireRowversion(input.etag);
   const row = await loadRow(id);
   if (row.status !== 'entwurf' && row.status !== 'review') {
     deny('Nur Entwürfe und Protokolle im Review können freigegeben werden.');
@@ -310,7 +310,7 @@ export async function editorProtokollPdf(
         content: await getSharePointDriveFileContent(row.pdf_drive_id, row.pdf_item_id),
       };
     } catch (error: unknown) {
-      if (getGraphStatus(error) !== 404) throw error;
+      if (getErrorStatus(error) !== 404) throw error;
     }
   }
   const content = await createProtokollPdf({
@@ -365,7 +365,7 @@ export async function reserveEditorVersand(
   actor: string,
   now: Date = new Date()
 ): Promise<string> {
-  const version = requireVersion(input.etag);
+  const version = requireRowversion(input.etag);
   return inTransaction(async (trx) => {
     await lockResource(trx, editorResource(id));
     const row = await trx

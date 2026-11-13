@@ -23,8 +23,7 @@ import {
   NikolausBookingTags,
   NikolausEinteilungSave,
 } from '../endpoints/intern-nikolaus-helfende';
-import { pflegeHandler } from '../lib/pflege-api';
-import { NIKOLAUS_STAFF_INACTIVE } from '../lib/nikolaus-staff';
+import { NIKOLAUS_STAFF_INACTIVE, nikolausGate } from '../lib/nikolaus-staff';
 import { withNikolausWriteHandling } from '../lib/nikolaus-api';
 import * as db from '../lib/db';
 import * as geocoding from '../lib/geocoding';
@@ -38,6 +37,7 @@ import { TEST_SETTINGS, mockNikolausSettings } from './fixtures/nikolaus-setting
 import { FAMILY } from './fixtures/nikolaus-data';
 import { solvedAltcha, useAltcha, withoutAltcha } from './fixtures/altcha';
 import { getNikolausSlots } from '../lib/nikolaus-config';
+import { staffHandler } from '../lib/handler';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -180,7 +180,7 @@ test('switched-off staff modules refuse all requests, the Steuerung stays reacha
   // Reads may start together with the settings; their result is dropped
   const overview = await GetInternNikolausBookingsEndpoint(request('GET', PRINCIPAL), context(t));
   assert.deepEqual(overview, NIKOLAUS_STAFF_INACTIVE);
-  const steuerung = pflegeHandler('nikolaus-steuerung', async () => ({ status: 200 }));
+  const steuerung = staffHandler('nikolaus-steuerung', async () => ({ status: 200 }));
   assert.equal((await steuerung(request('PUT', PRINCIPAL), context(t))).status, 200);
 });
 
@@ -242,9 +242,11 @@ test('read-only management and staff GET operations work while writes are stoppe
     const response = await handler(request('POST', undefined, token), context(t));
     assert.equal(response.status, 200);
   }
-  const handler = pflegeHandler('nikolaus-read', async () => ({ status: 200 }));
+  const handler = staffHandler('nikolaus-read', async () => ({ status: 200 }), {
+    gate: nikolausGate,
+  });
   assert.equal((await handler(request('GET', PRINCIPAL), context(t))).status, 200);
-  const unrelated = pflegeHandler('qa', async () => ({ status: 204 }));
+  const unrelated = staffHandler('qa', async () => ({ status: 204 }));
   assert.equal((await unrelated(request('POST', PRINCIPAL), context(t))).status, 204);
 });
 
@@ -257,10 +259,14 @@ test('unexpected errors of Nikolaus writes keep no-store', async (t) => {
   const response = await handler(request(), context(t));
   assert.equal(response.status, 500);
   assert.equal(new Headers(response.headers).get('cache-control'), 'no-store');
-  const staffHandler = pflegeHandler('nikolaus-test', async () => {
-    throw new Error('Simulated staff failure');
-  });
-  const staffResponse = await staffHandler(request('POST', PRINCIPAL), context(t));
+  const staffWrite = staffHandler(
+    'nikolaus-test',
+    async () => {
+      throw new Error('Simulated staff failure');
+    },
+    { gate: nikolausGate }
+  );
+  const staffResponse = await staffWrite(request('POST', PRINCIPAL), context(t));
   assert.equal(staffResponse.status, 500);
   assert.equal(new Headers(staffResponse.headers).get('cache-control'), 'no-store');
 });

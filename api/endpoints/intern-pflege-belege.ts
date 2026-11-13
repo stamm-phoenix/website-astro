@@ -13,18 +13,7 @@ import { parseId } from '../lib/db';
 import type { BelegInput } from '../lib/validation/beleg';
 import { validateBeleg } from '../lib/validation/beleg';
 import { isPhotos, readPhotos } from '../lib/validation/beleg-upload';
-import {
-  METHOD_NOT_ALLOWED,
-  NO_CONTENT,
-  NO_STORE_HEADERS,
-  NOT_FOUND,
-  ok,
-  pflegeHandler,
-  readEtag,
-  readIfMatch,
-  readJsonBody,
-  requireVersion,
-} from '../lib/pflege-api';
+import { NO_CONTENT, NOT_FOUND, ok, readEtag, readIfMatch, requireEtag } from '../lib/pflege-api';
 import {
   belegMailSender,
   belegReviewerAddresses,
@@ -32,7 +21,12 @@ import {
   sendBelegSubmittedMail,
 } from '../lib/beleg-mails';
 import { getSiteUrl } from '../lib/site-url';
-import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
+import {
+  encodeContentDisposition,
+  errorResponse,
+  NO_STORE_HEADERS,
+  readJsonBody,
+} from '../lib/response-utils';
 import type { BelegCheck } from '../lib/beleg-check';
 import { checkBelegPhoto, isBelegCheckConfigured } from '../lib/beleg-check';
 import type { BelegPhotos, StaffBeleg } from '../lib/beleg-list';
@@ -54,15 +48,14 @@ import { getIch } from '../lib/personen';
 import { sameName } from '../lib/personen-model';
 import * as taskDirectory from '../lib/task-directory';
 import type { TaskDirectoryUser } from '../lib/task-directory-types';
+import { staffHandler } from '../lib/handler';
 
 export type { StaffBeleg } from '../lib/beleg-list';
 export { downloadFileName } from '../lib/beleg-list';
 export { originalFileName } from '../lib/beleg-photos';
 
 /** The time of a request from its start; Static Web Apps cuts it off after 45 seconds. */
-const REQUEST_BUDGET_MS = 40_000;
 /** The mail to the Kasse is left out when less than this is left of the request's time. */
-const MIN_MAIL_BUDGET_MS = 2_000;
 
 /** Resolves with `fallback` once `deadline` has passed, so a slow lookup never holds the answer. */
 export function beforeDeadline<T>(promise: Promise<T>, deadline: number, fallback: T): Promise<T> {
@@ -166,10 +159,10 @@ function startCheck(
  * GET: all receipts, newest first; POST: submit a receipt with its photo and tell the Kasse
  * about it by mail.
  */
-export const BelegeCollectionEndpoint = pflegeHandler(
+export const BelegeCollection = staffHandler(
   'belege',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    const deadline = Date.now() + REQUEST_BUDGET_MS;
+    const deadline = Date.now() + 40_000;
     if (request.method === 'GET') {
       const users = await directoryUsers();
       const names = await ownNames(principal, users);
@@ -195,7 +188,6 @@ export const BelegeCollectionEndpoint = pflegeHandler(
         .map(describe);
       return ok(belege);
     }
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
 
     const body = await readJsonBody(request);
     const input = validateBeleg(body, todayInBerlin());
@@ -223,25 +215,24 @@ export const BelegeCollectionEndpoint = pflegeHandler(
  * `etag`. Rejecting a receipt mails the reason to the uploader; `mailed` says whether that
  * worked. A receipt its uploader resubmits is mailed to the Kasse again. DELETE: remove.
  */
-export const BelegItemEndpoint = pflegeHandler(
+export const BelegItem = staffHandler(
   'belege',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    const deadline = Date.now() + REQUEST_BUDGET_MS;
+    const deadline = Date.now() + 40_000;
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
 
     if (request.method === 'DELETE') {
-      const etag = requireVersion(readIfMatch(request));
+      const etag = requireEtag(readIfMatch(request));
       const beleg = await getBeleg(id);
       if (!beleg) return NOT_FOUND;
       if (!mayDeleteBeleg(beleg, principal)) return FORBIDDEN;
       await deleteBeleg(id, etag);
       return NO_CONTENT;
     }
-    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
     const body = await readJsonBody(request);
-    const etag = requireVersion(readEtag(body));
+    const etag = requireEtag(readEtag(body));
     const previous = await getBeleg(id);
     if (!previous) return NOT_FOUND;
     const reviewer = isBelegReviewer(principal);
@@ -302,7 +293,7 @@ async function notifyKasse(
   const sender = belegMailSender();
   if (!sender || isPreviewDeployment()) return;
   // Leave the mail out rather than risk the answer
-  const left = (): number => deadline - Date.now() - MIN_MAIL_BUDGET_MS;
+  const left = (): number => deadline - Date.now() - 2_000;
   try {
     if (left() <= 0) throw new Error('Keine Zeit mehr für die Mail');
     const [recipients, names] = await Promise.all([
@@ -310,7 +301,7 @@ async function notifyKasse(
         principal.userDetails,
         AbortSignal.timeout(Math.min(5_000, Math.max(1, left())))
       ),
-      beforeDeadline(ownNames(principal), deadline - MIN_MAIL_BUDGET_MS, []),
+      beforeDeadline(ownNames(principal), deadline - 2_000, []),
     ]);
     if (recipients.length === 0) return;
     if (left() <= 0) throw new Error('Keine Zeit mehr für die Mail');
@@ -356,7 +347,7 @@ async function mailRejection(
 ): Promise<boolean> {
   const sender = belegMailSender();
   if (!sender || isPreviewDeployment() || !beleg.submittedBy.includes('@')) return false;
-  const left = deadline - Date.now() - MIN_MAIL_BUDGET_MS;
+  const left = deadline - Date.now() - 2_000;
   if (left <= 0) return false;
   try {
     await sendBelegRejectedMail(
@@ -383,7 +374,7 @@ async function mailRejection(
  * GET: the photo (`?thumb=1` as preview, `?original=1` for the unedited photo, `?download=1`
  * as file); PUT: replace it with `photo` and the optional `original` of the JSON body.
  */
-export const BelegPhotoEndpoint = pflegeHandler(
+export const BelegPhoto = staffHandler(
   'belege-foto',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
     const id = parseId(request.params.id ?? '');
@@ -435,13 +426,12 @@ export const BelegPhotoEndpoint = pflegeHandler(
       }
       return { status: 200, headers, body: new Uint8Array(bytes) };
     }
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     if (!mayEditBeleg(beleg, principal)) {
       return beleg.status === 'Angenommen' ? ACCEPTED : FORBIDDEN;
     }
 
     // Reject photo changes based on an outdated version of the receipt
-    const etag = requireVersion(readIfMatch(request));
+    const etag = requireEtag(readIfMatch(request));
     const photos = readPhotos(await readJsonBody(request));
     if (!isPhotos(photos)) return photos;
 
@@ -455,24 +445,18 @@ export const BelegPhotoEndpoint = pflegeHandler(
  * on its Kostenstelle and Kategorie, and deletes it afterwards; see `beleg-campflow.ts`. Kasse
  * only.
  */
-export const BelegCampflowEndpoint = pflegeHandler(
+export const BelegCampflow = staffHandler(
   'belege-campflow',
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
     if (!isBelegReviewer(principal)) return FORBIDDEN;
 
     const body = await readJsonBody(request);
-    const etag = requireVersion(readEtag(body));
+    const etag = requireEtag(readEtag(body));
     try {
       return ok(
-        await transferBelegToCampflow(
-          id,
-          etag,
-          principal.userDetails,
-          Date.now() + REQUEST_BUDGET_MS
-        )
+        await transferBelegToCampflow(id, etag, principal.userDetails, Date.now() + 40_000)
       );
     } catch (error: unknown) {
       if (error instanceof BelegCampflowError) return error.toResponse();
@@ -486,10 +470,9 @@ export const BelegCampflowEndpoint = pflegeHandler(
  * leader, like the Beiträge. The Playwright API serves its last read; `?refresh=true` reads
  * CampFlow again. Receipts transferred from here carry who submitted them, as a flag for the user.
  */
-export const BelegeCampflowEndpoint = pflegeHandler(
+export const BelegeCampflow = staffHandler(
   'belege-campflow-liste',
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
     try {
       const belege = await readCampflowBelege(
         await getCampflowBelege({ refresh: request.query.get('refresh') === 'true' }),
@@ -516,20 +499,12 @@ export const BelegeCampflowEndpoint = pflegeHandler(
 );
 
 /** GET: whether the user belongs to the Kasse, so the page can show the review controls. */
-export const BelegRolleEndpoint = pflegeHandler(
+export const BelegRolle = staffHandler(
   'belege-rolle',
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
     return ok({ reviewer: isBelegReviewer(principal) });
   }
 );
-
-export const BelegeCollection = withErrorHandling(BelegeCollectionEndpoint);
-export const BelegRolle = withErrorHandling(BelegRolleEndpoint);
-export const BelegItem = withErrorHandling(BelegItemEndpoint);
-export const BelegPhoto = withErrorHandling(BelegPhotoEndpoint);
-export const BelegCampflow = withErrorHandling(BelegCampflowEndpoint);
-export const BelegeCampflow = withErrorHandling(BelegeCampflowEndpoint);
 
 app.http('internPflegeBelege', {
   methods: ['GET', 'POST'],

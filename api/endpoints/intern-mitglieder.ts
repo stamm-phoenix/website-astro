@@ -1,4 +1,4 @@
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app } from '@azure/functions';
 import type { CampflowColumn, CampflowPerson } from '../lib/campflow';
 import {
   CampflowError,
@@ -6,9 +6,8 @@ import {
   getCampflowMembersWithTime,
   sanitizePerson,
 } from '../lib/campflow';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
+import { errorResponse, NO_STORE_HEADERS } from '../lib/response-utils';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 /**
  * Fields of the member list that stay on the server on top of the payment details: health and
@@ -39,10 +38,7 @@ async function memberColumns(): Promise<CampflowColumn[]> {
  * (`docs/mitglieder.md`). Payment details, health and notes stay on the server. The list is shared with the other
  * modules for a minute; `?refresh=true` reads CampFlow again.
  */
-export async function GetInternMitgliederEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-
+const getInternMitglieder: StaffRequestHandler = async (request) => {
   try {
     const refresh = request.query.get('refresh') === 'true';
     const [{ value: persons, loadedAt }, columns] = await Promise.all([
@@ -73,14 +69,15 @@ export async function GetInternMitgliederEndpoint(request: HttpRequest): Promise
       'Die Mitgliederliste konnte nicht aus CampFlow geladen werden. Versuche es in ein paar Minuten noch einmal; klappt es dann nicht, melde dich bei admin@stamm-phoenix.de.'
     );
   }
-}
+};
 
-const defaultHandler = withErrorHandling(GetInternMitgliederEndpoint);
-export default defaultHandler;
+export const GetInternMitgliederEndpoint = staffHandler('mitglieder', getInternMitglieder);
+
+export default GetInternMitgliederEndpoint;
 
 app.http('internMitglieder', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/mitglieder',
-  handler: defaultHandler,
+  handler: GetInternMitgliederEndpoint,
 });

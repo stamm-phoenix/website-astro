@@ -6,7 +6,7 @@ import {
 } from '@azure/functions';
 import { getInstagramFeed, type InstagramMediaType } from '../lib/instagram-feed';
 import { getScaledImage } from '../lib/instagram-images';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 interface InstagramPostData {
   id: string;
@@ -124,10 +124,10 @@ export async function GetInstagramVideoInternal(
   };
 }
 
-const defaultHandler = withErrorHandling(GetInstagramEndpoint);
+const defaultHandler = publicHandler(GetInstagramEndpoint);
 export default defaultHandler;
-export const GetInstagramImage = withErrorHandling(GetInstagramImageInternal);
-export const GetInstagramVideo = withErrorHandling(GetInstagramVideoInternal);
+export const GetInstagramImage = publicHandler(GetInstagramImageInternal);
+export const GetInstagramVideo = publicHandler(GetInstagramVideoInternal);
 
 app.http('instagram', {
   methods: ['GET'],

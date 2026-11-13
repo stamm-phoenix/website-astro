@@ -28,18 +28,10 @@ import {
   validateBlogImages,
   validateBlogPost,
 } from '../lib/validation/blog';
-import {
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  NO_CONTENT,
-  ok,
-  pflegeHandler,
-  readEtag,
-  readIfMatch,
-  readJsonBody,
-} from '../lib/pflege-api';
+import { NOT_FOUND, NO_CONTENT, ok, readEtag, readIfMatch } from '../lib/pflege-api';
 import { getJpegSize, isJpeg } from '../lib/jpeg';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
+import { staffHandler } from '../lib/handler';
 
 const TOO_MANY_IMAGES = errorResponse(
   400,
@@ -62,13 +54,12 @@ function toStaffPost(entry: BlogEntry): unknown {
 }
 
 /** GET: all posts including drafts; POST: create a post (images are added afterwards). */
-export const BlogCollectionEndpoint = pflegeHandler(
+export const BlogCollection = staffHandler(
   'blog',
   async (request: HttpRequest, _context, principal) => {
     if (request.method === 'GET') {
       return ok(await getBlogList());
     }
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
 
     const input = validateBlogPost(await readJsonBody(request), []);
     return ok(await createBlogPost(input, principal.userDetails), 201);
@@ -76,40 +67,36 @@ export const BlogCollectionEndpoint = pflegeHandler(
 );
 
 /** GET: a post for editing; PATCH: save it (optimistic locking via etag); DELETE: remove it. */
-export const BlogItemEndpoint = pflegeHandler(
-  'blog',
-  async (request: HttpRequest, _context, principal) => {
-    const id = request.params.id ?? '';
-    if (!/^\d+$/.test(id)) return NOT_FOUND;
+export const BlogItem = staffHandler('blog', async (request: HttpRequest, _context, principal) => {
+  const id = request.params.id ?? '';
+  if (!/^\d+$/.test(id)) return NOT_FOUND;
 
-    if (request.method === 'GET') {
-      const entry = await getBlogEntry(id);
-      return entry ? ok(toStaffPost(entry)) : NOT_FOUND;
-    }
-    if (request.method === 'DELETE') {
-      await deleteBlogPost(id, readIfMatch(request));
-      // After the rows: files without a post are harmless and removed again with the next try
-      await deleteBlogPostFiles(id);
-      return NO_CONTENT;
-    }
-    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
-
+  if (request.method === 'GET') {
     const entry = await getBlogEntry(id);
-    if (!entry) return NOT_FOUND;
-    const body = await readJsonBody(request);
-    if (typeof body === 'object' && body !== null && 'action' in body) {
-      return ok(await transitionBlog(id, body, principal));
-    }
-    const input = validateBlogPost(
-      body,
-      entry.images.map((image) => image.file)
-    );
-    return ok({ etag: await updateBlogPost(id, input, readEtag(body), principal.userDetails) });
+    return entry ? ok(toStaffPost(entry)) : NOT_FOUND;
   }
-);
+  if (request.method === 'DELETE') {
+    await deleteBlogPost(id, readIfMatch(request));
+    // After the rows: files without a post are harmless and removed again with the next try
+    await deleteBlogPostFiles(id);
+    return NO_CONTENT;
+  }
+
+  const entry = await getBlogEntry(id);
+  if (!entry) return NOT_FOUND;
+  const body = await readJsonBody(request);
+  if (typeof body === 'object' && body !== null && 'action' in body) {
+    return ok(await transitionBlog(id, body, principal));
+  }
+  const input = validateBlogPost(
+    body,
+    entry.images.map((image) => image.file)
+  );
+  return ok({ etag: await updateBlogPost(id, input, readEtag(body), principal.userDetails) });
+});
 
 /** PUT: add the JPEG in the body as image; PATCH: save alt texts and order (cover first). */
-export const BlogImagesEndpoint = pflegeHandler(
+export const BlogImages = staffHandler(
   'blog-bilder',
   async (request: HttpRequest, _context, principal) => {
     const entry = await getBlogEntry(request.params.id ?? '');
@@ -120,7 +107,6 @@ export const BlogImagesEndpoint = pflegeHandler(
       const images = validateBlogImages(body, entry.images);
       return ok(await saveBlogImages(entry.id, images, readEtag(body), principal.userDetails));
     }
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
 
     if (entry.images.length >= MAX_BLOG_IMAGES) return TOO_MANY_IMAGES;
     const bytes = new Uint8Array(await request.arrayBuffer());
@@ -163,7 +149,7 @@ export const BlogImagesEndpoint = pflegeHandler(
 );
 
 /** GET: preview of an image, also of drafts; DELETE: remove the image. */
-export const BlogImageEndpoint = pflegeHandler(
+export const BlogImageItem = staffHandler(
   'blog-bilder',
   async (request: HttpRequest, _context, principal) => {
     const id = request.params.id ?? '';
@@ -174,7 +160,6 @@ export const BlogImageEndpoint = pflegeHandler(
       if (!entry || !found) return NOT_FOUND;
       return (await serveBlogImage(entry.id, found.image.file, found.width)) ?? NOT_FOUND;
     }
-    if (request.method !== 'DELETE') return METHOD_NOT_ALLOWED;
 
     // The entry first: an image without entry is harmless, an entry without image is not
     const result = await removeBlogImage(id, file, readIfMatch(request), principal.userDetails);
@@ -182,11 +167,6 @@ export const BlogImageEndpoint = pflegeHandler(
     return ok(result);
   }
 );
-
-export const BlogCollection = withErrorHandling(BlogCollectionEndpoint);
-export const BlogItem = withErrorHandling(BlogItemEndpoint);
-export const BlogImages = withErrorHandling(BlogImagesEndpoint);
-export const BlogImageItem = withErrorHandling(BlogImageEndpoint);
 
 app.http('internPflegeBlog', {
   methods: ['GET', 'POST'],

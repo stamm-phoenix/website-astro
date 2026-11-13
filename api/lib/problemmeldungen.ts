@@ -1,7 +1,7 @@
 import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 import { CONFIG } from './config';
-import { getDb, inTransaction, lockResource, parseId, requireVersion, toVersion } from './db';
+import { getDb, inTransaction, lockResource, parseId, toVersion, requireRowversion } from './db';
 import type { Db } from './db';
 import type { ProblemMeldungTable } from './db-schema';
 import { PREVIEW_DATABASE } from './deployment';
@@ -214,7 +214,7 @@ export async function saveProblemDraft(
       reviewed_at: sql<string>`SYSUTCDATETIME()`,
     })
     .where('id', '=', numericId)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .where('status', 'in', ['neu', 'in_pruefung'])
     .where('github_started_at', 'is', null)
     .executeTakeFirst();
@@ -243,7 +243,7 @@ export async function discardProblemMeldung(
       contact: '',
     })
     .where('id', '=', numericId)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .where('status', 'in', ['neu', 'in_pruefung'])
     .where('github_started_at', 'is', null)
     .executeTakeFirst();
@@ -353,7 +353,7 @@ export async function claimProblemGithub(
       reviewed_at: sql<string>`SYSUTCDATETIME()`,
     })
     .where('id', '=', numericId)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .where('status', 'in', ['neu', 'in_pruefung'])
     .where('github_number', 'is', null)
     .where((eb) =>

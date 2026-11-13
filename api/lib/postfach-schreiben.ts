@@ -5,8 +5,8 @@ import {
   postfachGraph,
   PostfachSchreibError,
 } from './postfach-graph-basis';
-import { getGraphStatus } from './sharepoint-data-access';
 import type { NachrichtAenderung } from './postfach-aenderung';
+import { getErrorStatus } from './response-utils';
 
 /**
  * Writes the status and the responsible person of a conversation into Outlook: flags and
@@ -65,7 +65,7 @@ export async function schreibeAenderungen(
         try {
           await aendere(address, aenderung, jetzt);
         } catch (error: unknown) {
-          const status = getGraphStatus(error);
+          const status = getErrorStatus(error);
           if (status === 401 || status === 403) throw new PostfachSchreibError(address);
           // Changed or deleted since it was read: what the page would be told is not what is saved
           if (status === 404 || status === 409 || status === 412)

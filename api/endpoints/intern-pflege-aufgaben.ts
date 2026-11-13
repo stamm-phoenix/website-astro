@@ -28,45 +28,40 @@ import {
   NOT_FOUND,
   NO_CONTENT,
   ok,
-  pflegeHandler,
   readEtag,
   readIfMatch,
-  readJsonBody,
 } from '../lib/pflege-api';
 import { ValidationError } from '../lib/validation/errors';
 import { validateTaskDecision, validateTaskDone } from '../lib/validation/aufgaben-request';
-import { withErrorHandling, errorResponse } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { isTaskExtractionConfigured } from '../lib/protokoll-aufgaben';
 import { getTaskDirectoryUsers, TaskDirectoryConfigurationError } from '../lib/task-directory';
 import { matchTaskAssignee } from '../lib/task-directory-matching';
 import { taggedTaskAssignee } from '../lib/aufgaben-zuordnung';
+import { staffHandler } from '../lib/handler';
 
 /** Offer local site people to every authenticated staff member without blocking manual entry. */
-export const AufgabenUsersEndpoint = pflegeHandler(
-  'aufgaben-benutzer',
-  async (request, context) => {
-    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
-    try {
-      const users = [
-        ...new Map((await getTaskDirectoryUsers()).map((user) => [user.login, user])).values(),
-      ].sort((a, b) => a.name.localeCompare(b.name, 'de'));
-      return ok({ users, unavailable: false });
-    } catch (error) {
-      const configurationError = error instanceof TaskDirectoryConfigurationError;
-      context.warn(
-        configurationError
-          ? '[aufgaben] Entra-Konfiguration unvollständig: Gruppenmitgliedschaft und User.Read.All prüfen'
-          : '[aufgaben] Personenvorschläge nicht verfügbar'
-      );
-      return ok({
-        users: [],
-        unavailable: true,
-        ...(configurationError ? { configurationError: true } : {}),
-      });
-    }
+export const AufgabenUsersEndpoint = staffHandler('aufgaben-benutzer', async (request, context) => {
+  try {
+    const users = [
+      ...new Map((await getTaskDirectoryUsers()).map((user) => [user.login, user])).values(),
+    ].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    return ok({ users, unavailable: false });
+  } catch (error) {
+    const configurationError = error instanceof TaskDirectoryConfigurationError;
+    context.warn(
+      configurationError
+        ? '[aufgaben] Entra-Konfiguration unvollständig: Gruppenmitgliedschaft und User.Read.All prüfen'
+        : '[aufgaben] Personenvorschläge nicht verfügbar'
+    );
+    return ok({
+      users: [],
+      unavailable: true,
+      ...(configurationError ? { configurationError: true } : {}),
+    });
   }
-);
-export const AufgabenCollectionEndpoint = pflegeHandler(
+});
+export const AufgabenCollectionEndpoint = staffHandler(
   'aufgaben',
   async (request, _context, principal) => {
     if (request.method === 'GET') {
@@ -83,12 +78,11 @@ export const AufgabenCollectionEndpoint = pflegeHandler(
         extractionConfigured: isTaskExtractionConfigured(),
       });
     }
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     await createTask(validateTask(await readJsonBody(request)), principal.userDetails);
     return NO_CONTENT;
   }
 );
-export const AufgabeItemEndpoint = pflegeHandler(
+export const AufgabeItemEndpoint = staffHandler(
   'aufgaben',
   async (request, _context, principal) => {
     const id = parseId(request.params.id ?? '');
@@ -104,7 +98,7 @@ export const AufgabeItemEndpoint = pflegeHandler(
     return NO_CONTENT;
   }
 );
-export const AufgabenProjectEndpoint = pflegeHandler(
+export const AufgabenProjectEndpoint = staffHandler(
   'aufgaben-projekte',
   async (request, _context, principal) => {
     if (request.method === 'DELETE') {
@@ -127,7 +121,7 @@ export const AufgabenProjectEndpoint = pflegeHandler(
     return NO_CONTENT;
   }
 );
-export const AufgabenTemplateEndpoint = pflegeHandler(
+export const AufgabenTemplateEndpoint = staffHandler(
   'aufgaben-vorlagen',
   async (request, _context, principal) => {
     if (!['POST', 'PUT'].includes(request.method)) return METHOD_NOT_ALLOWED;
@@ -138,10 +132,9 @@ export const AufgabenTemplateEndpoint = pflegeHandler(
     return NO_CONTENT;
   }
 );
-export const AufgabenChecklistEndpoint = pflegeHandler(
+export const AufgabenChecklistEndpoint = staffHandler(
   'aufgaben-checklisten',
   async (request, _context, principal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const count = await applyTaskTemplate(
       taskId(body?.projectId),
@@ -153,10 +146,9 @@ export const AufgabenChecklistEndpoint = pflegeHandler(
     return ok({ count });
   }
 );
-export const AufgabenRecognizeEndpoint = pflegeHandler(
+export const AufgabenRecognizeEndpoint = staffHandler(
   'aufgaben-erkennen',
   async (request, context, principal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     return recognizeTasks(
       request.params.id ?? '',
@@ -166,10 +158,9 @@ export const AufgabenRecognizeEndpoint = pflegeHandler(
     );
   }
 );
-export const AufgabenDecisionEndpoint = pflegeHandler(
+export const AufgabenDecisionEndpoint = staffHandler(
   'aufgaben-entscheidung',
   async (request, _context, principal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const id = parseId(request.params.id ?? '');
     if (!id) return NOT_FOUND;
     const task = await getTask(id);
@@ -205,10 +196,9 @@ export const AufgabenDecisionEndpoint = pflegeHandler(
   }
 );
 /** Resolve tags in existing proposals without changing stored data or loading the source document. */
-export const AufgabenAssignmentEndpoint = pflegeHandler(
+export const AufgabenAssignmentEndpoint = staffHandler(
   'aufgaben-zuordnung',
   async (request, context) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const id = parseId(request.params.id ?? '');
     if (!id) return NOT_FOUND;
     const task = await getTask(id);
@@ -238,76 +228,66 @@ export const AufgabenAssignmentEndpoint = pflegeHandler(
     }
   }
 );
-export const AufgabenCollection = withErrorHandling(AufgabenCollectionEndpoint);
-export const AufgabenAssignment = withErrorHandling(AufgabenAssignmentEndpoint);
-export const AufgabeItem = withErrorHandling(AufgabeItemEndpoint);
-export const AufgabenProject = withErrorHandling(AufgabenProjectEndpoint);
-export const AufgabenTemplate = withErrorHandling(AufgabenTemplateEndpoint);
-export const AufgabenChecklist = withErrorHandling(AufgabenChecklistEndpoint);
-export const AufgabenRecognize = withErrorHandling(AufgabenRecognizeEndpoint);
-export const AufgabenDecision = withErrorHandling(AufgabenDecisionEndpoint);
-
-export const AufgabenUsers = withErrorHandling(AufgabenUsersEndpoint);
 
 app.http('internPflegeAufgaben', {
   methods: ['GET', 'POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben',
-  handler: AufgabenCollection,
+  handler: AufgabenCollectionEndpoint,
 });
 
 app.http('internPflegeAufgabenBenutzer', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/benutzer',
-  handler: AufgabenUsers,
+  handler: AufgabenUsersEndpoint,
 });
 
 app.http('internPflegeAufgabe', {
   methods: ['PUT', 'DELETE'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/{id:int}',
-  handler: AufgabeItem,
+  handler: AufgabeItemEndpoint,
 });
 
 app.http('internPflegeAufgabenProjekte', {
   methods: ['POST', 'PUT', 'DELETE'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/projekte/{id:int?}',
-  handler: AufgabenProject,
+  handler: AufgabenProjectEndpoint,
 });
 
 app.http('internPflegeAufgabenVorlagen', {
   methods: ['POST', 'PUT'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/vorlagen/{id:int?}',
-  handler: AufgabenTemplate,
+  handler: AufgabenTemplateEndpoint,
 });
 
 app.http('internPflegeAufgabenCheckliste', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/checkliste',
-  handler: AufgabenChecklist,
+  handler: AufgabenChecklistEndpoint,
 });
 
 app.http('internPflegeAufgabenErkennen', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/protokolle/{id}/erkennen',
-  handler: AufgabenRecognize,
+  handler: AufgabenRecognizeEndpoint,
 });
 
 app.http('internPflegeAufgabenEntscheidung', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/{id:int}/entscheidung',
-  handler: AufgabenDecision,
+  handler: AufgabenDecisionEndpoint,
 });
 
 app.http('internPflegeAufgabenZuordnung', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/{id:int}/zuordnung',
-  handler: AufgabenAssignment,
+  handler: AufgabenAssignmentEndpoint,
 });

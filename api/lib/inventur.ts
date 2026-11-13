@@ -5,8 +5,8 @@ import {
   VersionConflictError,
   getDb,
   inTransaction,
-  requireVersion,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Db } from './db';
 import type { InventarArtikelTable, InventarVarianteTable } from './db-schema-inventur';
@@ -137,7 +137,7 @@ async function touch(db: Db, id: number, etag: string, actor: string): Promise<v
     .updateTable('organisation.inventar_artikel')
     .set({ updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numUpdatedRows) === 0) await notChanged(db, id);
 }
@@ -154,7 +154,7 @@ export async function updateInventarArtikel(
       .updateTable('organisation.inventar_artikel')
       .set({ ...toRow(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) await notChanged(trx, id);
 
@@ -236,7 +236,7 @@ export async function deleteInventarArtikel(id: number, etag: string): Promise<v
   const result = await db
     .deleteFrom('organisation.inventar_artikel')
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numDeletedRows) === 0) await notChanged(db, id);
 }

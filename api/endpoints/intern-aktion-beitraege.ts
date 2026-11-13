@@ -1,21 +1,15 @@
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app } from '@azure/functions';
 import { readAktionBeitraege } from '../lib/beitraege';
 import { CAMPFLOW_EVENT_ID_PATTERN } from '../lib/campflow';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { getAktionBeitraege, PlaywrightApiError } from '../lib/playwright-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
+import { errorResponse, NO_STORE_HEADERS } from '../lib/response-utils';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 /**
  * The Beiträge of the participants of a CampFlow event, per person, read-only. The Playwright
  * API serves its last read; `?refresh=true` reads CampFlow again.
  */
-export async function GetInternAktionBeitraegeEndpoint(
-  request: HttpRequest
-): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-
+const getInternAktionBeitraege: StaffRequestHandler = async (request) => {
   const id = request.params.id ?? '';
   if (!CAMPFLOW_EVENT_ID_PATTERN.test(id)) {
     return errorResponse(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
@@ -46,14 +40,18 @@ export async function GetInternAktionBeitraegeEndpoint(
       'Die Beiträge der Teilnehmenden konnten nicht aus CampFlow geladen werden. Versuche es in ein paar Minuten noch einmal; klappt es dann nicht, melde dich bei admin@stamm-phoenix.de.'
     );
   }
-}
+};
 
-const defaultHandler = withErrorHandling(GetInternAktionBeitraegeEndpoint);
-export default defaultHandler;
+export const GetInternAktionBeitraegeEndpoint = staffHandler(
+  'aktion-beitraege',
+  getInternAktionBeitraege
+);
+
+export default GetInternAktionBeitraegeEndpoint;
 
 app.http('internAktionBeitraege', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/aktionen/{id}/beitraege',
-  handler: defaultHandler,
+  handler: GetInternAktionBeitraegeEndpoint,
 });

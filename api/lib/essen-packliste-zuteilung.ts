@@ -1,5 +1,5 @@
 import type { Db } from './db';
-import { RecordNotFoundError, VersionConflictError, requireVersion, toVersion } from './db';
+import { RecordNotFoundError, VersionConflictError, toVersion, requireRowversion } from './db';
 import type { PackPersonen, PackZuteilung } from './essen-packliste-model';
 import { MAX_PACK_PERSONEN, packlisteSchluessel } from './essen-packliste-model';
 import type { Zugang } from './essen-zugang';
@@ -199,7 +199,7 @@ export async function zuteilungAbhaken(
       .updateTable('essen.packliste_zuteilung')
       .set({ gepackt })
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     await eintragNachfuehren(trx, {

@@ -4,15 +4,14 @@ import {
   type HttpResponseInit,
   type InvocationContext,
 } from '@azure/functions';
-import {
-  METHOD_NOT_ALLOWED,
-  NO_STORE_HEADERS,
-  ok,
-  pflegeHandler,
-  readJsonBody,
-} from '../lib/pflege-api';
+import { ok } from '../lib/pflege-api';
 import { NachrichtGeaendertError, PostfachSchreibError } from '../lib/postfach-graph-basis';
-import { errorResponse, encodeContentDisposition, withErrorHandling } from '../lib/response-utils';
+import {
+  errorResponse,
+  encodeContentDisposition,
+  NO_STORE_HEADERS,
+  readJsonBody,
+} from '../lib/response-utils';
 import { findPostfach, type PostfachEintrag } from '../lib/postfach-liste';
 import {
   eigenerLogin,
@@ -40,6 +39,7 @@ import {
   validateKonversationId,
   validateZustaendig,
 } from '../lib/validation/postfach';
+import { staffHandler } from '../lib/handler';
 
 /**
  * Routes of the module „E-Mail“ under `/api/intern/postfach` (`docs/postfaecher.md`). Each
@@ -110,52 +110,45 @@ type Handler = (
 
 /** Resolves the mailbox of `{postfach}`, checks the teams and maps the errors of the module. */
 export function postfachRoute(handler: Handler) {
-  return withErrorHandling(
-    pflegeHandler(
-      'postfach',
-      async (request, context, principal) => {
-        const postfach = findPostfach(request.params.postfach ?? '');
-        if (!postfach) return UNBEKANNT;
-        if (!sichtbarePostfaecher(principal).includes(postfach)) return KEIN_ZUGRIFF;
-        try {
-          return await handler(request, postfach, principal, context);
-        } catch (error: unknown) {
-          if (error instanceof PostfachZugriffError) {
-            context.error(`[postfach] Graph verweigert ${error.address}`);
-            return GESPERRT;
-          }
-          if (error instanceof PostfachSchreibError) {
-            context.error(`[postfach] Graph verweigert Änderungen an ${error.address}`);
-            return SCHREIBEN_GESPERRT;
-          }
-          if (error instanceof AnhangNichtLadbarError) return ANHANG_NUR_OUTLOOK;
-          if (error instanceof KonversationZuLangError) return ZU_LANG;
-          if (error instanceof NachrichtGeaendertError) return GERADE_GEAENDERT;
-          throw error;
+  return staffHandler(
+    'postfach',
+    async (request, context, principal) => {
+      const postfach = findPostfach(request.params.postfach ?? '');
+      if (!postfach) return UNBEKANNT;
+      if (!sichtbarePostfaecher(principal).includes(postfach)) return KEIN_ZUGRIFF;
+      try {
+        return await handler(request, postfach, principal, context);
+      } catch (error: unknown) {
+        if (error instanceof PostfachZugriffError) {
+          context.error(`[postfach] Graph verweigert ${error.address}`);
+          return GESPERRT;
         }
-      },
-      { quiet: true }
-    )
+        if (error instanceof PostfachSchreibError) {
+          context.error(`[postfach] Graph verweigert Änderungen an ${error.address}`);
+          return SCHREIBEN_GESPERRT;
+        }
+        if (error instanceof AnhangNichtLadbarError) return ANHANG_NUR_OUTLOOK;
+        if (error instanceof KonversationZuLangError) return ZU_LANG;
+        if (error instanceof NachrichtGeaendertError) return GERADE_GEAENDERT;
+        throw error;
+      }
+    },
+    { quiet: true }
   );
 }
 
 /** `GET /api/intern/postfach`: the mailboxes of the person and what waits for them. */
-export const PostfachStartRoute = withErrorHandling(
-  pflegeHandler('postfach', async (request, _context, principal) => {
-    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
-    return ok(await ladeStart(principal));
-  })
-);
+export const PostfachStartRoute = staffHandler('postfach', async (request, _context, principal) => {
+  return ok(await ladeStart(principal));
+});
 
 /** `GET /api/intern/postfach/{postfach}`: the conversations of the inbox; `?frisch=1` skips the cache. */
 export const PostfachListeRoute = postfachRoute(async (request, postfach, principal) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
   return ok(await ladeAnsicht(postfach, principal, request.query.get('frisch') === '1'));
 });
 
 /** `GET /api/intern/postfach/{postfach}/konversation?id=`: the messages with their bodies. */
 export const PostfachKonversationRoute = postfachRoute(async (request, postfach) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
   const id = validateKonversationId(request.query.get('id'));
   const detail = await ladeKonversation(postfach, id);
   return detail ? ok(detail) : KONVERSATION_FEHLT;
@@ -163,7 +156,6 @@ export const PostfachKonversationRoute = postfachRoute(async (request, postfach)
 
 /** `GET /api/intern/postfach/{postfach}/personen`: who can be made responsible. */
 export const PostfachPersonenRoute = postfachRoute(async (request, postfach) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
   return ok({ personen: await ladePersonen(postfach) });
 });
 
@@ -188,7 +180,6 @@ export async function handelnde(
  */
 export const PostfachZustaendigRoute = postfachAenderung(
   async (request, postfach, principal, context) => {
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const eingabe = validateZustaendig(await readJsonBody(request));
     const ich = eigenerLogin(principal);
     const personen = await ladePersonen(postfach);
@@ -252,7 +243,6 @@ const SICHERE_TYPEN = new Set([
 
 /** `GET /api/intern/postfach/{postfach}/anhang?nachricht=&anhang=`: one attachment as a file. */
 export const PostfachAnhangRoute = postfachRoute(async (request, postfach) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
   const { nachricht, anhang } = validateAnhang(
     request.query.get('nachricht'),
     request.query.get('anhang')

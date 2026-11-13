@@ -1,5 +1,5 @@
 import type { Db } from './db';
-import { RecordNotFoundError, VersionConflictError, requireVersion, toVersion } from './db';
+import { RecordNotFoundError, VersionConflictError, toVersion, requireRowversion } from './db';
 import type {
   PackAenderung,
   PackEintragInput,
@@ -122,7 +122,7 @@ async function anwenden(
       .updateTable('essen.packliste_eintrag')
       .set({ gepackt: aenderung.gepackt })
       .where('id', '=', eintrag.id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     await allePacken(trx, eintrag.id, aenderung.gepackt);
@@ -182,7 +182,7 @@ export async function packEintragLoeschen(zugang: Zugang, id: number, etag: stri
     const result = await trx
       .deleteFrom('essen.packliste_eintrag')
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     return { result: undefined, details: { name: eintrag.name } };

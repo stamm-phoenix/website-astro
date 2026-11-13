@@ -7,8 +7,8 @@ import {
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { reserveKontaktQuota, sendKontaktMessage, sendKontaktReceipt } from '../lib/kontakt';
 import { validateKontaktMessage } from '../lib/kontakt-validation';
-import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 const UNAVAILABLE: HttpResponseInit = {
   ...errorResponse(
@@ -114,7 +114,7 @@ export async function KontaktSendEndpoint(
   return sent(true);
 }
 
-export const KontaktSend = withErrorHandling(KontaktSendEndpoint);
+export const KontaktSend = publicHandler(KontaktSendEndpoint);
 
 app.http('kontaktSend', {
   methods: ['POST'],

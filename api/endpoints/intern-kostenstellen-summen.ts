@@ -1,9 +1,9 @@
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app } from '@azure/functions';
 import { readKostenstellenSummen } from '../lib/kostenstellen';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { getKostenstellenSummen, PlaywrightApiError } from '../lib/playwright-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
-import { hasTeam, isStaffError, requireStaff } from '../lib/staff-auth';
+import { errorResponse, NO_STORE_HEADERS } from '../lib/response-utils';
+import { hasTeam } from '../lib/staff-auth';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 const NOT_ALLOWED = errorResponse(
   403,
@@ -16,11 +16,7 @@ const NOT_ALLOWED = errorResponse(
  * the teams Kasse and Vorstand. The Playwright API serves its last export; `?refresh=true`
  * exports CampFlow's report again.
  */
-export async function GetInternKostenstellenSummenEndpoint(
-  request: HttpRequest
-): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+const getInternKostenstellenSummen: StaffRequestHandler = async (request, _context, principal) => {
   if (!hasTeam(principal, 'kasse') && !hasTeam(principal, 'vorstand')) return NOT_ALLOWED;
 
   try {
@@ -43,14 +39,18 @@ export async function GetInternKostenstellenSummenEndpoint(
       'Die Kostenstellen konnten nicht aus CampFlow geladen werden. Versuche es in ein paar Minuten noch einmal; klappt es dann nicht, melde dich bei admin@stamm-phoenix.de.'
     );
   }
-}
+};
 
-const defaultHandler = withErrorHandling(GetInternKostenstellenSummenEndpoint);
-export default defaultHandler;
+export const GetInternKostenstellenSummenEndpoint = staffHandler(
+  'kostenstellen-summen',
+  getInternKostenstellenSummen
+);
+
+export default GetInternKostenstellenSummenEndpoint;
 
 app.http('internKostenstellenSummen', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/kostenstellen/summen',
-  handler: defaultHandler,
+  handler: GetInternKostenstellenSummenEndpoint,
 });

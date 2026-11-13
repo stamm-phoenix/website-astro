@@ -8,8 +8,8 @@ import {
   getDb,
   inTransaction,
   parseId,
-  requireVersion,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Db } from './db';
 import type { BlogImage, BlogPostInput } from './validation/blog';
@@ -65,7 +65,7 @@ async function updatePost(
       updated_at: sql<Date>`SYSUTCDATETIME()`,
     })
     .where('id', '=', id);
-  if (etag !== undefined) query = query.where('version', '=', requireVersion(etag));
+  if (etag !== undefined) query = query.where('version', '=', requireRowversion(etag));
   const row = await query.output('inserted.version').executeTakeFirst();
   if (row) return toVersion(row.version);
   const exists = await db
@@ -97,7 +97,7 @@ export async function deleteBlogPost(id: string, etag: string | undefined): Prom
   const numericId = requireId(id);
   const db = getDb();
   let query = db.deleteFrom('content.blog_post').where('id', '=', numericId);
-  if (etag !== undefined) query = query.where('version', '=', requireVersion(etag));
+  if (etag !== undefined) query = query.where('version', '=', requireRowversion(etag));
   const result = await query.executeTakeFirst();
   if (Number(result.numDeletedRows) > 0) return;
   const exists = await db

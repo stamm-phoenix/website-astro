@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { HttpRequest } from '@azure/functions';
+import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as campflow from '../lib/campflow';
 import * as nami from '../lib/nami';
 import { loadNamiMitglieder, NamiError, resetNamiLoad } from '../lib/nami';
 import { GetInternNamiAbgleichEndpoint } from '../endpoints/intern-nami-abgleich';
+
+const context = new InvocationContext({ functionName: 'nami-test' });
 
 const BASE = 'https://nami.dpsg.de/ica/rest';
 const LIST = `${BASE}/nami/mitglied/filtered-for-navigation/gruppierung/gruppierung/131912`;
@@ -207,14 +209,14 @@ function request(roles: string[]): HttpRequest {
 
 test('only the teams Admin and Vorstand see the comparison', async (t) => {
   resetNamiLoad();
-  const response = await GetInternNamiAbgleichEndpoint(request(['team_kasse']));
+  const response = await GetInternNamiAbgleichEndpoint(request(['team_kasse']), context);
   assert.equal(response.status, 403);
 
   t.mock.method(campflow, 'getCampflowMembersWithTime', async () => ({
     value: [],
     loadedAt: new Date(),
   }));
-  const allowed = await GetInternNamiAbgleichEndpoint(request(['team_admin']));
+  const allowed = await GetInternNamiAbgleichEndpoint(request(['team_admin']), context);
   // Without a NaMi login configured the answer names the login, not a server error
   assert.equal(allowed.status, 502);
   assert.equal((allowed.jsonBody as { code: string }).code, 'NAMI_FORBIDDEN');
@@ -226,7 +228,7 @@ test('a CampFlow list that takes too long ends the comparison in time', async (t
   // Pages that answer one after another, each after 18 seconds, never finish in time
   t.mock.method(campflow, 'getCampflowMembersWithTime', () => new Promise(() => {}));
 
-  const answer = GetInternNamiAbgleichEndpoint(request(['team_vorstand']));
+  const answer = GetInternNamiAbgleichEndpoint(request(['team_vorstand']), context);
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
   t.mock.timers.tick(25_000);
   const response = await answer;

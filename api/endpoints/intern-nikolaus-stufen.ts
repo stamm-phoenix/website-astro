@@ -12,16 +12,10 @@ import { getHelper, getHelpers, updateHelperStufen } from '../lib/nikolaus-helfe
 import { buildSuggestions, getStufenMembers, hasTag, withTag } from '../lib/nikolaus-stufen';
 import { ValidationError } from '../lib/validation/errors';
 import { validateStufenDecision } from '../lib/validation/nikolaus-helfende';
-import {
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  NO_CONTENT,
-  NO_STORE_HEADERS,
-  pflegeHandler,
-  readJsonBody,
-} from '../lib/pflege-api';
-import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
-import { withErrorHandling } from '../lib/response-utils';
+import { NOT_FOUND, NO_CONTENT } from '../lib/pflege-api';
+import { isNikolausStaffError, requireNikolausStaff, nikolausGate } from '../lib/nikolaus-staff';
+import { NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
+import { publicHandler, staffHandler } from '../lib/handler';
 
 /** GET: open suggestions of the Stufen-Abgleich (CampFlow member list and Leitende list). */
 export async function GetInternNikolausStufenEndpoint(
@@ -59,10 +53,9 @@ export async function GetInternNikolausStufenEndpoint(
  * POST: accepts a suggestion (adds the Stufe as booking tag or negative helper tag) or rejects
  * it, so it is not suggested again. The entry is read fresh, so other tags are kept.
  */
-export const NikolausStufenDecision = pflegeHandler(
+export const NikolausStufenDecision = staffHandler(
   'nikolaus-stufen',
   async (request: HttpRequest) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const { kind, targetId, stufe, decision } = validateStufenDecision(await readJsonBody(request));
 
     if (kind === 'booking') {
@@ -101,11 +94,11 @@ export const NikolausStufenDecision = pflegeHandler(
       );
     }
     return NO_CONTENT;
-  }
+  },
+  { gate: nikolausGate }
 );
 
-export const NikolausStufen = withErrorHandling(GetInternNikolausStufenEndpoint);
-export const NikolausStufenDecisionEndpoint = withErrorHandling(NikolausStufenDecision);
+export const NikolausStufen = publicHandler(GetInternNikolausStufenEndpoint);
 
 app.http('internNikolausStufen', {
   methods: ['GET'],
@@ -118,5 +111,5 @@ app.http('internPflegeNikolausStufen', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-stufen-abgleich',
-  handler: NikolausStufenDecisionEndpoint,
+  handler: NikolausStufenDecision,
 });

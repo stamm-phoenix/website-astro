@@ -5,9 +5,9 @@ import {
   getDb,
   inTransaction,
   RecordNotFoundError,
-  requireVersion,
   toVersion,
   VersionConflictError,
+  requireRowversion,
 } from './db';
 import type { Db } from './db';
 import type { ContentReviewItem, ContentReviewKind } from './content-review-model';
@@ -97,7 +97,7 @@ export async function markContentReviewed(
   etag: string,
   actor: string
 ): Promise<ContentReviewItem> {
-  const version = requireVersion(etag);
+  const version = requireRowversion(etag);
   const reviewed = await inTransaction(async (trx) => {
     const { rows } = await sql<{
       version: Buffer;

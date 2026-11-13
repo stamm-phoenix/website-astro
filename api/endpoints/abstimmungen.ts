@@ -13,9 +13,9 @@ import {
   votePublic,
 } from '../lib/abstimmungen';
 import { RecordNotFoundError } from '../lib/db';
-import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
 import { ValidationError } from '../lib/validation/errors';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 /**
  * The public side of the Abstimmungen (`docs/abstimmungen.md`): the shared link (`link`) and
@@ -41,10 +41,10 @@ function linkOf(body: Record<string, unknown> | null): { link?: string; token?: 
 }
 
 /** Maps the module's errors and adds no-store to every response. */
-function publicHandler(
+function linkHandler(
   handler: (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit>
 ): (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit> {
-  const safe = withErrorHandling(async (request, context) => {
+  const safe = publicHandler(async (request, context) => {
     try {
       return await handler(request, context);
     } catch (error: unknown) {
@@ -66,7 +66,7 @@ function publicHandler(
 }
 
 /** POST `{ link }` or `{ token }`: the Abstimmung with its result and the own answer. */
-export const AbstimmungAnsehen = publicHandler(async (request) => {
+export const AbstimmungAnsehen = linkHandler(async (request) => {
   const link = linkOf(await readJsonBody(request));
   const ansicht = link.link || link.token ? await getAbstimmungAnsicht(link) : undefined;
   return ansicht ? { status: 200, jsonBody: ansicht } : INVALID_LINK;
@@ -77,7 +77,7 @@ export const AbstimmungAnsehen = publicHandler(async (request) => {
  * person is added; the answer carries the personal link token, so the page can change the answer
  * later. `versuch` (a UUID per new answer) makes a repeated request find that person again.
  */
-export const AbstimmungAbstimmen = publicHandler(async (request) => {
+export const AbstimmungAbstimmen = linkHandler(async (request) => {
   const body = await readJsonBody(request);
   const link = linkOf(body);
   if (!link.link && !link.token) return INVALID_LINK;

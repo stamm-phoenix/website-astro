@@ -5,11 +5,11 @@ import {
   type InvocationContext,
 } from '@azure/functions';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
-import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
 import { validateProblemReport } from '../lib/problemmeldung-model';
 import { runProblemAssessment } from '../lib/problemmeldung-ki';
 import { purgeExpiredProblemMeldungen, storeProblemMeldung } from '../lib/problemmeldungen';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 const MAIL = 'kontakt@stamm-phoenix.de';
 
@@ -116,7 +116,7 @@ export async function ProblemMeldungSendEndpoint(
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: { status: 'sent', id: `PM-${id}` } };
 }
 
-export const ProblemMeldungSend = withErrorHandling(ProblemMeldungSendEndpoint);
+export const ProblemMeldungSend = publicHandler(ProblemMeldungSendEndpoint);
 
 app.http('problemMeldungSend', {
   methods: ['POST'],

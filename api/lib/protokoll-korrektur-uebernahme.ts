@@ -1,5 +1,11 @@
 import { sql } from 'kysely';
-import { VersionConflictError, inTransaction, lockResource, requireVersion, toVersion } from './db';
+import {
+  VersionConflictError,
+  inTransaction,
+  lockResource,
+  toVersion,
+  requireRowversion,
+} from './db';
 import {
   NotEditableError,
   SperreError,
@@ -28,7 +34,7 @@ export async function uebernehmeKorrekturen(
   actor: string,
   now: Date = new Date()
 ): Promise<KorrekturUebernahmeResponse> {
-  const version = requireVersion(input.etag);
+  const version = requireRowversion(input.etag);
   return inTransaction(async (trx) => {
     await lockResource(trx, editorResource(id));
     const row = await lockedProtokoll(trx, id);

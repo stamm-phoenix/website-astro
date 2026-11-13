@@ -13,15 +13,8 @@ import {
 } from '../lib/essen-packliste-validation';
 import { zuteilungAbhaken } from '../lib/essen-packliste-zuteilung';
 import { ladeAnsicht } from '../lib/essen-ansicht';
-import {
-  METHOD_NOT_ALLOWED,
-  ok,
-  planungHandler,
-  readEtag,
-  readId,
-  zugangVon,
-} from '../lib/essen-planung-http';
-import { readJsonBody } from '../lib/nikolaus-api';
+import { ok, planungHandler, readEtag, readId, zugangVon } from '../lib/essen-planung-http';
+import { readJsonBody } from '../lib/response-utils';
 
 /**
  * The packing list of a Planung (`docs/essensplanung.md`, Packliste), with the token of a link
@@ -30,7 +23,6 @@ import { readJsonBody } from '../lib/nikolaus-api';
 
 /** POST `{ name, mitglieder?, namen? }`: adds an entry of its own with who packs it. */
 export const EssensplanungPackliste = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await packEintragAnlegen(zugang, validatePackEintrag(await readJsonBody(request)));
   return ok(await ladeAnsicht(zugang), 201);
@@ -48,7 +40,6 @@ export const EssensplanungPackEintrag = planungHandler(async (request) => {
     await packEintragLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   const aenderung = validatePackAenderung(body);
   const etag = aenderung.gepackt !== undefined ? readEtag(body, request) : null;
@@ -58,7 +49,6 @@ export const EssensplanungPackEintrag = planungHandler(async (request) => {
 
 /** PATCH `{ etag, gepackt }`: packs or unpacks one person's share of an entry. */
 export const EssensplanungPackZuteilung = planungHandler(async (request) => {
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const id = readId(request);
   const body = await readJsonBody(request);
@@ -72,7 +62,6 @@ export const EssensplanungPackZuteilung = planungHandler(async (request) => {
  * planned dishes, changed like an entry; `etag` null while nothing is stored for it yet.
  */
 export const EssensplanungPackWerkzeug = planungHandler(async (request) => {
-  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   const aenderung = validateWerkzeugAenderung(body);

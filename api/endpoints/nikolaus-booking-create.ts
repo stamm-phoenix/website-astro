@@ -10,13 +10,8 @@ import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { validateNikolausDetails } from '../lib/nikolaus-validation';
 import { createBooking, deleteBooking, isSlotInPast } from '../lib/nikolaus-bookings';
 import { sendConfirmationRequestMail } from '../lib/nikolaus-mails';
-import {
-  BOOKING_INACTIVE,
-  NO_STORE_HEADERS,
-  readJsonBody,
-  withNikolausWriteHandling,
-} from '../lib/nikolaus-api';
-import { errorResponse } from '../lib/response-utils';
+import { BOOKING_INACTIVE, withNikolausWriteHandling } from '../lib/nikolaus-api';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import { reserveNikolausMailQuota } from '../lib/nikolaus-mail-quota';
 

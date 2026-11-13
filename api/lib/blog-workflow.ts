@@ -4,9 +4,9 @@ import {
   lockResource,
   parseId,
   RecordNotFoundError,
-  requireVersion,
   toVersion,
   VersionConflictError,
+  requireRowversion,
 } from './db';
 import { readBlogWorkflow } from './blog-workflow-read';
 import type { BlogWorkflow } from './blog-workflow-model';
@@ -45,7 +45,7 @@ export async function transitionBlog(
       .where('id', '=', numericId)
       .executeTakeFirst();
     if (!row) throw new RecordNotFoundError();
-    const version = requireVersion(input.etag);
+    const version = requireRowversion(input.etag);
     if (!row.version.equals(version)) throw new VersionConflictError();
     const workflow = nextBlogWorkflow(
       readBlogWorkflow(row.workflow_json, row.published),

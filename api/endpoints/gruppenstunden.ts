@@ -1,7 +1,7 @@
 import { app, type HttpResponseInit } from '@azure/functions';
 import { getLeitende } from '../lib/leitende-list';
 import { getGruppenstunden } from '../lib/gruppenstunden-list';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 interface LeitendeData {
   id: string;
@@ -57,7 +57,7 @@ export async function GetGruppenstundenEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-const defaultHandler = withErrorHandling(GetGruppenstundenEndpoint);
+const defaultHandler = publicHandler(GetGruppenstundenEndpoint);
 export default defaultHandler;
 
 app.http('gruppenstunden', {

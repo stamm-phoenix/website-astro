@@ -1,4 +1,4 @@
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import type { AbrechnungPerson, Bilanz, Nachweis } from '../lib/abrechnung';
 import { costUnitForEvent, kjrPersons, summarizeEntries, toNachweise } from '../lib/abrechnung';
 import { getAktionArt } from '../lib/aktion-art';
@@ -7,14 +7,11 @@ import { campflowGetAll, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import type { LeihgebuehrenConfig } from '../lib/config';
 import { CONFIG } from '../lib/config';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import type { EinzelnachweiseResponse } from '../lib/playwright-api';
 import { getEinzelnachweise, playwrightErrorResponse } from '../lib/playwright-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, NO_STORE_HEADERS } from '../lib/response-utils';
 import { eigeneAnmeldungen } from '../lib/personen';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
-
-const MAX_COST_UNIT_LENGTH = 200;
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 /** Financial overview of an Aktion with its confirmed registrations and Einzelnachweise. */
 export interface Abrechnung {
@@ -88,16 +85,13 @@ export async function loadAktion(
  * the Playwright API). `?kostenstelle=` overrides the Kostenstelle derived from the event;
  * `?refresh=true` exports the Einzelnachweise again instead of using the last export.
  */
-export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-
+const getInternAbrechnung: StaffRequestHandler = async (request, _context, principal) => {
   const id = request.params.id ?? '';
   if (!EVENT_ID_PATTERN.test(id)) {
     return errorResponse(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
   }
   const requested = request.query.get('kostenstelle')?.trim() ?? '';
-  if (requested.length > MAX_COST_UNIT_LENGTH) {
+  if (requested.length > 200) {
     return errorResponse(400, 'INVALID_KOSTENSTELLE', 'Ungültige Kostenstelle.');
   }
 
@@ -137,14 +131,15 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
     leihgebuehren: CONFIG.abrechnung.leihgebuehren,
   };
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };
-}
+};
 
-const defaultHandler = withErrorHandling(GetInternAbrechnungEndpoint);
-export default defaultHandler;
+export const GetInternAbrechnungEndpoint = staffHandler('abrechnung', getInternAbrechnung);
+
+export default GetInternAbrechnungEndpoint;
 
 app.http('internAbrechnung', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/abrechnung/{id}',
-  handler: defaultHandler,
+  handler: GetInternAbrechnungEndpoint,
 });
