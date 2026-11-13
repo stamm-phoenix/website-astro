@@ -5,12 +5,11 @@ import { HttpRequest, InvocationContext } from '@azure/functions';
 import {
   EditorCollection,
   EditorItem,
-  EditorReview,
   EditorSperre,
-  EditorVersand,
-  GetEditorPdf,
-  GetEditorProtokoll,
-} from '../endpoints/intern-protokoll-editor';
+} from '../endpoints/intern-protokoll-editor-bearbeiten';
+import { EditorReview, GetEditorPdf } from '../endpoints/intern-protokoll-editor-review';
+import { EditorVersand } from '../endpoints/intern-protokoll-editor-versand';
+import { GetEditorProtokoll } from '../endpoints/intern-protokoll-editor';
 import * as campflow from '../lib/campflow';
 import { CONFIG } from '../lib/config';
 import * as leitendeList from '../lib/leitende-list';
