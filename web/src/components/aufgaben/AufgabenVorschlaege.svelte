@@ -1,9 +1,9 @@
 <script lang="ts">
   import AufgabenLadestatus from './AufgabenLadestatus.svelte';
   import { onMount, tick } from 'svelte';
-  import { taskFocusReturn } from '../lib/aufgabenFocus';
-  import { sendApi } from '../lib/api';
-  import type { Task } from '../../../api/lib/aufgaben-model';
+  import { taskFocusReturn } from '../../lib/aufgabenFocus';
+  import { sendApi } from '../../lib/api';
+  import type { Task } from '../../../../api/lib/aufgaben-model';
   import {
     aufgabenStore,
     loadTasks,
@@ -11,19 +11,19 @@
     loadTaskProtocols,
     taskProblem,
     TASK_ENDPOINT,
-  } from '../lib/aufgabenStore.svelte';
-  import { createTaskActions } from '../lib/aufgabenActions.svelte';
-  import { pendingTask, matchesTaskFilters, sortTasks, protocolLabel } from '../lib/aufgabenView';
-  import ActionButton from './ui/ActionButton.svelte';
-  import FormField from './pflege/FormField.svelte';
-  import StatusNotice from './pflege/StatusNotice.svelte';
+  } from '../../lib/aufgabenStore.svelte';
+  import { createTaskActions } from '../../lib/aufgabenActions.svelte';
+  import { pendingTask, matchesTaskFilters, sortTasks, protocolLabel } from '../../lib/aufgabenView';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import FormField from '../pflege/FormField.svelte';
+  import StatusNotice from '../pflege/StatusNotice.svelte';
   import AufgabenFilter from './AufgabenFilter.svelte';
   import AufgabenListe from './AufgabenListe.svelte';
   import AufgabenNavigation from './AufgabenNavigation.svelte';
   import AufgabenTaskDialog from './AufgabenTaskDialog.svelte';
   import AufgabenAktionen from './AufgabenAktionen.svelte';
-  import ConfirmDialog from './ui/ConfirmDialog.svelte';
-  import InfoHint from './ui/InfoHint.svelte';
+  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
+  import InfoHint from '../ui/InfoHint.svelte';
   let sourceId = $state('');
   let protocolSearch = $state('');
   let rejectTarget = $state<Task | null>(null);

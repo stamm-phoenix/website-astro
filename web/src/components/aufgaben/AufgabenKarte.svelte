@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { taskToday } from '../lib/aufgabenView';
-  import { protokollEditorUrl } from '../lib/protokollEditor';
-  import type { Task } from '../../../api/lib/aufgaben-model';
-  import ActionButton from './ui/ActionButton.svelte';
+  import { taskToday } from '../../lib/aufgabenView';
+  import { protokollEditorUrl } from '../../lib/protokollEditor';
+  import type { Task } from '../../../../api/lib/aufgaben-model';
+  import ActionButton from '../ui/ActionButton.svelte';
 
   interface Props {
     task: Task;

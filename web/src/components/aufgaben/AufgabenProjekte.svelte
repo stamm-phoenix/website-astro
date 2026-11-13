@@ -6,9 +6,9 @@
     loadTasks,
     taskProblem,
     TASK_ENDPOINT,
-  } from '../lib/aufgabenStore.svelte';
-  import ActionButton from './ui/ActionButton.svelte';
-  import Toast from './ui/Toast.svelte';
+  } from '../../lib/aufgabenStore.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import Toast from '../ui/Toast.svelte';
   import AufgabenNavigation from './AufgabenNavigation.svelte';
   const data = $derived(aufgabenStore.data);
   let message = $state<string | null>(null);
@@ -18,11 +18,11 @@
     message = result;
   }
   import { tick } from 'svelte';
-  import { sendApi } from '../lib/api';
-  import type { TaskProject } from '../../../api/lib/aufgaben-model';
-  import { fetchCampflowEvents } from '../lib/campflowStore.svelte';
+  import { sendApi } from '../../lib/api';
+  import type { TaskProject } from '../../../../api/lib/aufgaben-model';
+  import { fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import AufgabenProjectDialog from './AufgabenProjectDialog.svelte';
-  import ConfirmDialog from './ui/ConfirmDialog.svelte';
+  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   let target = $state<TaskProject | null>(null);
   let deleteProjectTarget = $state<TaskProject | null>(null);
   let deleteError = $state<string | null>(null);

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { aufgabenStore } from '../lib/aufgabenStore.svelte';
-  import FormField from './pflege/FormField.svelte';
+  import { aufgabenStore } from '../../lib/aufgabenStore.svelte';
+  import FormField from '../pflege/FormField.svelte';
   let {
     projectFilter = $bindable('alle'),
     ownOnly = $bindable(false),

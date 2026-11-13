@@ -1,21 +1,21 @@
 <script lang="ts">
-  import ReloadAction from './ui/ReloadAction.svelte';
-  import StaffPageHead from './StaffPageHead.svelte';
+  import ReloadAction from '../ui/ReloadAction.svelte';
+  import StaffPageHead from '../StaffPageHead.svelte';
   import { onMount, tick } from 'svelte';
-  import type { Task } from '../../../api/lib/aufgaben-model';
+  import type { Task } from '../../../../api/lib/aufgaben-model';
   import {
     aufgabenStore,
     loadTasks,
     loadTaskUsers,
     TASK_PRESENTATION_KEY,
-  } from '../lib/aufgabenStore.svelte';
-  import { createTaskActions } from '../lib/aufgabenActions.svelte';
-  import { matchesTaskFilters, pendingTask, sortTasks } from '../lib/aufgabenView';
-  import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
-  import ActionButton from './ui/ActionButton.svelte';
-  import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
-  import FilterTabs from './ui/FilterTabs.svelte';
-  import StatusNotice from './pflege/StatusNotice.svelte';
+  } from '../../lib/aufgabenStore.svelte';
+  import { createTaskActions } from '../../lib/aufgabenActions.svelte';
+  import { matchesTaskFilters, pendingTask, sortTasks } from '../../lib/aufgabenView';
+  import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';
+  import FilterTabs from '../ui/FilterTabs.svelte';
+  import StatusNotice from '../pflege/StatusNotice.svelte';
   import AufgabenFilter from './AufgabenFilter.svelte';
   import AufgabenListe from './AufgabenListe.svelte';
   import AufgabenNavigation from './AufgabenNavigation.svelte';
@@ -132,7 +132,7 @@
             project: projectFilter,
             ownOnly,
           };
-          await (await import('../lib/aufgabenPdf')).downloadAufgabenPdf(shown);
+          await (await import('../../lib/aufgabenPdf')).downloadAufgabenPdf(shown);
         }}
         errorText="Das PDF der Aufgaben konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal."
       />

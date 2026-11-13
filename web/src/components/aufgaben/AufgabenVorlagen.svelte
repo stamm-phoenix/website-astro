@@ -1,10 +1,10 @@
 <script lang="ts">
   import AufgabenLadestatus from './AufgabenLadestatus.svelte';
   import { onMount } from 'svelte';
-  import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
-  import ActionButton from './ui/ActionButton.svelte';
-  import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
-  import Toast from './ui/Toast.svelte';
+  import { aufgabenStore, loadTasks, loadTaskUsers } from '../../lib/aufgabenStore.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';
+  import Toast from '../ui/Toast.svelte';
   import AufgabenNavigation from './AufgabenNavigation.svelte';
   const data = $derived(aufgabenStore.data);
   let message = $state<string | null>(null);
@@ -13,7 +13,7 @@
     editing = false;
     message = result;
   }
-  import type { TaskTemplate } from '../../../api/lib/aufgaben-model';
+  import type { TaskTemplate } from '../../../../api/lib/aufgaben-model';
   import AufgabenTemplateDialog from './AufgabenTemplateDialog.svelte';
   let target = $state<TaskTemplate | null>(null);
   function edit(template: TaskTemplate | null = null): void {
@@ -48,7 +48,7 @@
             label="PDF herunterladen: Checkliste {template.title}"
             download={async () => {
               const users = aufgabenStore.users;
-              await (await import('../lib/aufgabenPdf')).downloadVorlagePdf(template, users);
+              await (await import('../../lib/aufgabenPdf')).downloadVorlagePdf(template, users);
             }}
             errorText="Das PDF der Checkliste konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal."
           />

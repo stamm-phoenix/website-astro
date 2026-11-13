@@ -1,16 +1,16 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { sendApi } from '../lib/api';
-  import { aufgabenStore, applyTask, TASK_ENDPOINT } from '../lib/aufgabenStore.svelte';
-  import { createTaskForm } from '../lib/aufgabenForm.svelte';
-  import EditDialog from './pflege/EditDialog.svelte';
-  import FormField from './pflege/FormField.svelte';
+  import { sendApi } from '../../lib/api';
+  import { aufgabenStore, applyTask, TASK_ENDPOINT } from '../../lib/aufgabenStore.svelte';
+  import { createTaskForm } from '../../lib/aufgabenForm.svelte';
+  import EditDialog from '../pflege/EditDialog.svelte';
+  import FormField from '../pflege/FormField.svelte';
   import { onMount } from 'svelte';
-  import type { Task, TaskInput, TaskAssignment } from '../../../api/lib/aufgaben-model';
-  import { taskPeople, taskAssigneeNames } from '../../../api/lib/aufgaben-zuordnung';
-  import TaskAssigneeField from './TaskAssigneeField.svelte';
-  import GermanDateInput from './ui/GermanDateInput.svelte';
-  import { rescuePeople } from '../lib/taskRescue';
+  import type { Task, TaskInput, TaskAssignment } from '../../../../api/lib/aufgaben-model';
+  import { taskPeople, taskAssigneeNames } from '../../../../api/lib/aufgaben-zuordnung';
+  import TaskAssigneeField from '../TaskAssigneeField.svelte';
+  import GermanDateInput from '../ui/GermanDateInput.svelte';
+  import { rescuePeople } from '../../lib/taskRescue';
   let {
     target: initialTarget = null,
     onclose,
